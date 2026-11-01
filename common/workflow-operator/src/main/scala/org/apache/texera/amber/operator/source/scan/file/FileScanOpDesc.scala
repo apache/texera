@@ -22,6 +22,7 @@ package org.apache.texera.amber.operator.source.scan.file
 import com.fasterxml.jackson.annotation.JsonProperty
 import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaTitle
 import org.apache.texera.amber.core.executor.OpExecWithClassName
+import org.apache.texera.amber.core.state.NoLoopVariable
 import org.apache.texera.amber.core.tuple.{AttributeType, Schema}
 import org.apache.texera.amber.core.virtualidentity.{ExecutionIdentity, WorkflowIdentity}
 import org.apache.texera.amber.core.workflow.{
@@ -52,6 +53,7 @@ class FileScanOpDesc
 
   @JsonProperty(defaultValue = "false")
   @JsonSchemaTitle("Include Filename")
+  @NoLoopVariable
   var outputFileName: Boolean = false
 
   override def getPhysicalOp(

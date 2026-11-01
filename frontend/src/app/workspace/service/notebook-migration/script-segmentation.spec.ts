@@ -27,7 +27,7 @@ describe("segmentScript", () => {
   }
 
   function segment(source: string, ranges: Record<string, unknown> | null | undefined) {
-    return segmentScript(source, ranges, counterIds());
+    return segmentScript(source, ranges, { newUuid: counterIds() });
   }
 
   // A 10-line script; every line is distinguishable so slices can be asserted exactly.
@@ -345,6 +345,46 @@ describe("segmentScript", () => {
       const result = segmentScript(script, { UDF1: [[1, 10]] });
 
       expect(result.cells[0].uuid).toMatch(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/);
+    });
+  });
+  describe("forced boundaries", () => {
+    function segmentWithBoundaries(source: string, ranges: Record<string, unknown>, forcedBoundaries: number[]) {
+      return segmentScript(source, ranges, { forcedBoundaries, newUuid: counterIds() });
+    }
+
+    it("cuts at a forced boundary the model never reported", () => {
+      const result = segmentWithBoundaries(script, { UDF1: [[1, 10]] }, [6]);
+
+      expect(spans(result)).toEqual([
+        [1, 5],
+        [6, 10],
+      ]);
+      // The claim still reaches both cells, so nothing the UDF covers is lost from the mapping.
+      expect(result.udfToCellUuids["UDF1"]).toEqual(["c1", "c2"]);
+    });
+
+    it("is a no-op when the boundary coincides with a reported one", () => {
+      const forced = segmentWithBoundaries(script, { UDF1: [[1, 4]], UDF2: [[5, 10]] }, [5]);
+
+      expect(spans(forced)).toEqual([
+        [1, 4],
+        [5, 10],
+      ]);
+    });
+
+    it("ignores boundaries outside the file and non-integers", () => {
+      const result = segmentWithBoundaries(script, { UDF1: [[1, 10]] }, [0, -3, 11, 99, 4.5, NaN]);
+
+      expect(spans(result)).toEqual([[1, 10]]);
+    });
+
+    it("accepts the first and last lines as boundaries", () => {
+      const result = segmentWithBoundaries(script, { UDF1: [[1, 10]] }, [1, 10]);
+
+      expect(spans(result)).toEqual([
+        [1, 9],
+        [10, 10],
+      ]);
     });
   });
 });

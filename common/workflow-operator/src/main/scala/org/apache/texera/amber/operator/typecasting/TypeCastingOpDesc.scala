@@ -22,6 +22,7 @@ package org.apache.texera.amber.operator.typecasting
 import com.fasterxml.jackson.annotation.{JsonProperty, JsonPropertyDescription}
 import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaTitle
 import org.apache.texera.amber.core.executor.OpExecWithClassName
+import org.apache.texera.amber.core.state.NoLoopVariable
 import org.apache.texera.amber.core.tuple.{AttributeType, AttributeTypeUtils, Schema}
 import org.apache.texera.amber.core.virtualidentity.{ExecutionIdentity, WorkflowIdentity}
 import org.apache.texera.amber.core.workflow._
@@ -36,6 +37,7 @@ class TypeCastingOpDesc extends MapOpDesc with StandaloneCodeGenerator {
   @JsonProperty(required = true)
   @JsonSchemaTitle("TypeCasting Units")
   @JsonPropertyDescription("Multiple type castings")
+  @NoLoopVariable
   var typeCastingUnits: List[TypeCastingUnit] = List.empty
 
   override def getPhysicalOp(
@@ -84,8 +86,17 @@ class TypeCastingOpDesc extends MapOpDesc with StandaloneCodeGenerator {
     // `tupleCasting` takes a Map of column to target type and reads each column's
     // ORIGINAL value once, so two units naming one column collapse to the last.
     val lastPerColumn = units.zipWithIndex.groupBy(_._1.attribute).view.mapValues(_.last._2).toMap
+    // Unlike most operators, both `tupleCasting` and `SchemaCasting` match a column
+    // by its exact name, not through Schema, which ignores case. So a unit that
+    // names no column, or names one in a different case, casts nothing in the
+    // engine, where pandas would raise a KeyError. Without a schema there is
+    // nothing to check against, and every unit is kept.
+    val inputSchema = inputSchemas.values.headOption
     val effective = units.zipWithIndex.collect {
-      case (unit, i) if lastPerColumn(unit.attribute) == i => unit
+      case (unit, i)
+          if lastPerColumn(unit.attribute) == i &&
+            inputSchema.forall(_.getAttributeNames.contains(unit.attribute)) =>
+        unit
     }
 
     // What each column arrived as: no cast reads another's result.

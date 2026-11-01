@@ -73,7 +73,7 @@ import java.time.Instant
   * Its `TexeraWebsocketEventTypeMap` keys include `HeartBeatResponse`,
   * `WorkflowStateEvent`, `OperatorStatisticsUpdateEvent`, `WebResultUpdateEvent`,
   * `WorkflowErrorEvent`, `ConsoleUpdateEvent`, `PaginatedResultEvent`,
-  * `CacheStatusUpdateEvent`, `PythonExpressionEvaluateResponse`,
+  * `PythonExpressionEvaluateResponse`,
   * `WorkerAssignmentUpdateEvent`, `ModifyLogicResponse`, `ModifyLogicCompletedEvent`,
   * `ExecutionDurationUpdateEvent`, `ClusterStatusUpdateEvent`, `RegionUpdateEvent` and
   * `RegionStateEvent`. Renaming a Scala event class compiles fine on both sides and
@@ -142,13 +142,14 @@ class TexeraWebSocketEventSpec extends AnyFlatSpec with Matchers {
       Map("op-page" -> Map("city" -> Map[String, Any]("distinct" -> 2)))
     ),
     "ConsoleUpdateEvent" -> ConsoleUpdateEvent("op-console", Seq(consoleMessage)),
-    "CacheStatusUpdateEvent" -> CacheStatusUpdateEvent(Map("op-cache" -> "cache valid")),
     "PaginatedResultEvent" -> PaginatedResultEvent(
       "req-1",
       "op-2",
       3,
       List(resultRow),
-      List(new Attribute("city", AttributeType.STRING))
+      List(new Attribute("city", AttributeType.STRING)),
+      1,
+      40
     ),
     "PythonExpressionEvaluateResponse" -> PythonExpressionEvaluateResponse(
       "len(tuple_)",
@@ -188,7 +189,6 @@ class TexeraWebSocketEventSpec extends AnyFlatSpec with Matchers {
     "OperatorStatisticsUpdateEvent",
     "WebResultUpdateEvent",
     "ConsoleUpdateEvent",
-    "CacheStatusUpdateEvent",
     "PaginatedResultEvent",
     "PythonExpressionEvaluateResponse",
     "WorkerAssignmentUpdateEvent",
@@ -247,7 +247,6 @@ class TexeraWebSocketEventSpec extends AnyFlatSpec with Matchers {
       "HeartBeatResponse",
       "WorkflowStateEvent",
       "OperatorStatisticsUpdateEvent",
-      "CacheStatusUpdateEvent",
       "PaginatedResultEvent",
       "PythonExpressionEvaluateResponse",
       "WorkerAssignmentUpdateEvent",

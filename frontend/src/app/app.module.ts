@@ -95,6 +95,7 @@ import { NzModalCommentBoxComponent } from "./workspace/component/workflow-edito
 import { NzCommentModule } from "ng-zorro-antd/comment";
 import { AdminUserComponent } from "./dashboard/component/admin/user/admin-user.component";
 import { AdminExecutionComponent } from "./dashboard/component/admin/execution/admin-execution.component";
+import { AdminComputingUnitComponent } from "./dashboard/component/admin/computing-unit/admin-computing-unit.component";
 import { NzPopconfirmModule } from "ng-zorro-antd/popconfirm";
 import { AdminGuardService } from "./dashboard/service/admin/guard/admin-guard.service";
 import { ContextMenuComponent } from "./workspace/component/workflow-editor/context-menu/context-menu/context-menu.component";
@@ -106,6 +107,7 @@ import { HuggingFaceImageUploadComponent } from "./workspace/component/hugging-f
 import { HuggingFaceComponent } from "./workspace/component/hugging-face/hugging-face.component";
 import { HuggingFaceAudioUploadComponent } from "./workspace/component/hugging-face-audio-upload/hugging-face-audio-upload.component";
 import { DatasetFileSelectorComponent } from "./workspace/component/dataset-file-selector/dataset-file-selector.component";
+import { LoopVariableInputComponent } from "./workspace/component/loop-variable-input/loop-variable-input.component";
 import { DatasetVersionSelectorComponent } from "./workspace/component/dataset-version-selector/dataset-version-selector.component";
 import { DatasetSelectionModalComponent } from "./workspace/component/dataset-selection-modal/dataset-selection-modal.component";
 import { ReActStepDetailModalComponent } from "./workspace/component/agent/agent-panel/react-step-detail-modal/react-step-detail-modal.component";
@@ -280,6 +282,7 @@ registerLocaleData(en);
     DashboardComponent,
     AdminUserComponent,
     AdminExecutionComponent,
+    AdminComputingUnitComponent,
     UserIconComponent,
     UserAvatarComponent,
     UserWorkflowComponent,
@@ -323,6 +326,7 @@ registerLocaleData(en);
     HuggingFaceAudioUploadComponent,
     HuggingFaceImageUploadComponent,
     DatasetFileSelectorComponent,
+    LoopVariableInputComponent,
     DatasetVersionSelectorComponent,
     DatasetSelectionModalComponent,
     ReActStepDetailModalComponent,

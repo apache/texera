@@ -19,6 +19,7 @@
 
 package org.apache.texera.amber.operator.huggingFace
 
+import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaInject
 import org.apache.texera.amber.core.executor.OpExecWithCode
 import org.apache.texera.amber.core.tuple.{AttributeType, Schema}
 import org.apache.texera.amber.core.virtualidentity.{ExecutionIdentity, WorkflowIdentity}
@@ -131,11 +132,29 @@ class HuggingFaceSpamSMSDetectionOpDescSpec extends AnyFlatSpec with Matchers {
 
     // An empty cell arrives as None, and the pipeline answers it with
     // `ValueError: You need to specify either text or text_target`, ending the run.
+    // pandas is asked rather than None compared, because the type rule naming the
+    // column string is a warning the editor prints, not a filter, and a numeric
+    // column reaches the executor with its own NaN.
     val guard = code.linesIterator
-      .find(_.contains("text is None"))
+      .find(_.contains("pd.isna(text)"))
       .getOrElse(fail("generated code no longer guards an empty text cell"))
     guard should include("strip()")
-    code.indexOf("text is None") should be < code.indexOf("self.pipeline(")
+    code should include("import pandas as pd")
+    code.indexOf("pd.isna(text)") should be < code.indexOf("self.pipeline(")
+  }
+
+  // The script reads a frame, where a column holding nothing else comes back as
+  // float64 and its cells as NaN, which `is None` does not catch.
+  it should "guard a missing text cell in the exported script, NaN included" in {
+    val d = configured()
+    val code = d.generateStandaloneCode()
+
+    val guard = code.linesIterator
+      .find(_.contains("pd.isna(_t)"))
+      .getOrElse(fail("exported script no longer guards a missing text cell"))
+    guard should include("strip()")
+    code should include("import pandas as pd")
+    code.indexOf("pd.isna(_t)") should be < code.indexOf("_pipeline(_t)")
   }
 
   "HuggingFaceSpamSMSDetectionOpDesc.getPhysicalOp" should
@@ -159,5 +178,15 @@ class HuggingFaceSpamSMSDetectionOpDescSpec extends AnyFlatSpec with Matchers {
     h.attribute shouldBe "text"
     h.resultAttributeSpam shouldBe "is_spam"
     h.resultAttributeProbability shouldBe "score"
+  }
+
+  "HuggingFaceSpamSMSDetectionOpDesc (class-level)" should
+    "carry @JsonSchemaInject restricting `attribute` to STRING columns" in {
+    val ann = classOf[HuggingFaceSpamSMSDetectionOpDesc].getAnnotation(classOf[JsonSchemaInject])
+    ann should not be null
+    val payload = ann.json
+    payload should include("attributeTypeRules")
+    payload should include("attribute")
+    payload should include("string")
   }
 }

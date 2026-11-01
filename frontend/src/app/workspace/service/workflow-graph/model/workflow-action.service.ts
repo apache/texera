@@ -20,6 +20,8 @@
 import { Injectable } from "@angular/core";
 
 import * as joint from "jointjs";
+import * as Y from "yjs";
+import { isEqual } from "lodash-es";
 import { BehaviorSubject, merge, Observable, Subject } from "rxjs";
 import {
   ExecutionMode,
@@ -50,7 +52,14 @@ import { filter } from "rxjs/operators";
 import { isDefined } from "../../../../common/util/predicate";
 import { User } from "../../../../common/type/user";
 import { SharedModelChangeHandler } from "./shared-model-change-handler";
+import { ContentMetaKey, ContentMetaValue } from "./shared-model";
 import { GuiConfigService } from "../../../../common/service/gui-config.service";
+
+/** A content-meta seed waiting to land (see seedContentMeta): its identity, and how to stop
+ *  listening for the sync it waits on once it is superseded or cancelled. */
+interface ContentMetaSeed {
+  detach?: () => void;
+}
 
 export const DEFAULT_WORKFLOW_NAME = "Untitled Workflow";
 export const DEFAULT_WORKFLOW = {
@@ -102,19 +111,34 @@ export class WorkflowActionService {
   private resultPanelOpenSubject = new Subject<boolean>();
   public readonly resultPanelOpen$: Observable<boolean> = this.resultPanelOpenSubject.asObservable();
 
-  private workflowSettings: WorkflowSettings;
   private workflowResetSubject = new Subject<void>();
 
-  // The Form View definition. Presentation, not structure, so it stays out of the shared
-  // graph (no collaborative merge) and is handled like workflowSettings -- hydrated by
-  // reloadWorkflow, emitted by getWorkflowContent.
-  private formBinding: FormBindingConfig = getDefaultFormBinding();
-  // Whether the opened workflow's content carried a formBinding. Kept so getWorkflowContent
-  // re-emits the key only when it was there (or an author has since populated it), leaving a
-  // plain workflow's content byte-identical -- the same rule agent-service follows.
-  private formBindingLoaded = false;
+  // The Form View definition. Presentation, not structure, but it still lives in the shared
+  // doc (shared-model contentMetaMap, key "formBinding") so a co-editor sees it live and no
+  // collaborator's whole-content autosave overwrites it with a stale copy. workflowSettings
+  // is kept there too (key "settings") for the same reason.
   private formBindingChangeSubject = new Subject<FormBindingConfig>();
   public readonly formBindingChanged$: Observable<FormBindingConfig> = this.formBindingChangeSubject.asObservable();
+  // A settings change, this client's or a co-editor's, for the settings panel to refresh from. Not
+  // part of workflowChanged, unlike the form definition (see observeContentMeta).
+  private workflowSettingsChangeSubject = new Subject<WorkflowSettings>();
+  public readonly workflowSettingsChanged$: Observable<WorkflowSettings> =
+    this.workflowSettingsChangeSubject.asObservable();
+  // The shared content-map observer, tracked so re-attaching on a new doc detaches the old one.
+  private contentMetaObserver?: (event: Y.YMapEvent<ContentMetaValue | null>) => void;
+  private observedContentMetaMap?: Y.Map<ContentMetaValue | null>;
+  // Per document, all reset when a new one is loaded (see observeContentMeta): database copies,
+  // and edits, waiting for the document's first sync (see seedContentMeta), read from meanwhile; the seed
+  // each key is waiting on, which a later reload replaces and a local edit of the key cancels;
+  // the keys a seed is writing right now, which is not an edit and so is not announced (an edit
+  // held for the sync is announced when it is made, see writeContentMeta); the keys
+  // whose entry came from the room, which the first seed of the key yields to; and the keys seeded
+  // on this document already, whose next seed is a reload that replaces the value.
+  private pendingContentMeta = new Map<ContentMetaKey, { value: ContentMetaValue; edit: boolean }>();
+  private contentMetaSeeds = new Map<ContentMetaKey, ContentMetaSeed>();
+  private seedingContentMetaKeys = new Set<ContentMetaKey>();
+  private roomOwnedContentMeta = new Set<ContentMetaKey>();
+  private seededContentMetaKeys = new Set<ContentMetaKey>();
 
   constructor(
     private operatorMetadataService: OperatorMetadataService,
@@ -136,10 +160,67 @@ export class WorkflowActionService {
     );
     this.sharedModelChangeHandler.setConfigService(this.config);
     this.workflowMetadata = DEFAULT_WORKFLOW;
-    this.workflowSettings = this.getDefaultSettings();
     this.undoRedoService.setUndoManager(this.texeraGraph.sharedModel.undoManager);
 
+    // Watch the shared content map, re-attaching whenever the shared model is recreated
+    // (opening another workflow), the same way SharedModelChangeHandler re-attaches its
+    // graph observers. A formBinding change from a local edit or a co-editor is republished
+    // on formBindingChanged$ so the Form View re-renders and the existing autosave picks it
+    // up. The reload seed is skipped -- like the graph seed -- so opening a workflow is not
+    // announced as an edit and does not save on every open.
+    this.observeContentMeta();
+    this.texeraGraph.newYDocLoadedSubject.subscribe(() => this.observeContentMeta());
+
     this.handleJointElementDrag();
+  }
+
+  private observeContentMeta(): void {
+    // Detach the observer from the previous shared model before attaching to the new one, so
+    // re-attaching on each opened workflow does not stack listeners on the same map.
+    this.observedContentMetaMap?.unobserve(this.contentMetaObserver!);
+    // A new document starts with no seed state: nothing in it came from the previous room, no key
+    // has been seeded on it yet, and whatever copy the previously open workflow left waiting is
+    // not this one's -- dropped here, so it cannot leak into the next save of a workflow opened
+    // (or a blank one started) on this document.
+    for (const key of [...this.contentMetaSeeds.keys()]) {
+      this.cancelContentMetaSeed(key); // drops the copy it holds, and stops its listening
+    }
+    this.roomOwnedContentMeta.clear();
+    this.seededContentMetaKeys.clear();
+    const contentMetaMap = this.texeraGraph.sharedModel.contentMetaMap;
+    this.contentMetaObserver = event => {
+      if (!event.transaction.local) {
+        // An entry that arrived from the room belongs to the room, a co-editor's value or its
+        // cleared mark alike: the seed a workflow is opened with yields to it (see seedContentMeta).
+        // The first sync delivers the room's state as a remote transaction, which is how an
+        // opening client learns what the room already holds.
+        for (const key of event.changes.keys.keys()) {
+          this.roomOwnedContentMeta.add(key as ContentMetaKey);
+        }
+      }
+      if (this.jointGraphWrapper.getReloadingWorkflow()) {
+        return;
+      }
+      if (event.changes.keys.has("formBinding") && this.announces("formBinding")) {
+        this.formBindingChangeSubject.next(this.getFormBinding());
+      }
+      // Settings are announced the same way, so a co-editor's change reaches the settings panel,
+      // which refreshes from this stream, instead of sitting stale until an unrelated edit. Not
+      // through workflowChanged, though: the panel persists a settings change itself, and the
+      // autosave behind workflowChanged would save it a second time, cutting a second version.
+      if (event.changes.keys.has("settings") && this.announces("settings")) {
+        this.workflowSettingsChangeSubject.next(this.getWorkflowSettings());
+      }
+    };
+    contentMetaMap.observe(this.contentMetaObserver);
+    this.observedContentMetaMap = contentMetaMap;
+  }
+
+  /** Whether a change to a key in the shared map is announced: not a seed's own write, which is an
+   *  open and not an edit; and not while an edit held for the first sync owns the key -- that edit
+   *  was announced when it was made, reads answer it, and its landing is a seed's write. */
+  private announces(key: ContentMetaKey): boolean {
+    return !this.seedingContentMetaKeys.has(key) && !this.pendingContentMeta.get(key)?.edit;
   }
 
   private getDefaultSettings(): WorkflowSettings {
@@ -710,15 +791,15 @@ export class WorkflowActionService {
       this.jointGraphWrapper.jointGraph.clear();
 
       if (workflow === undefined) {
-        // A blank workflow carries no Form View definition; drop any left over from the
-        // previously open one so it cannot leak into this workflow's next save.
-        this.hydrateFormBinding(undefined);
+        // A blank workflow starts on a fresh document, which carries no settings and no Form View
+        // definition; a copy the previously open workflow left waiting goes with the old document
+        // (see observeContentMeta), so neither can leak into this workflow's next save.
         this.setNewSharedModel();
         return;
       }
 
       const workflowContent: WorkflowContent = workflow.content;
-      this.workflowSettings = workflowContent.settings || this.getDefaultSettings();
+      this.hydrateSettings(workflowContent.settings);
       this.hydrateFormBinding(workflowContent.formBinding);
 
       let operatorsAndPositions: { op: OperatorPredicate; pos: Point }[] = [];
@@ -797,25 +878,162 @@ export class WorkflowActionService {
   }
 
   public setWorkflowSettings(workflowSettings: WorkflowSettings | undefined): void {
-    if (this.workflowSettings === workflowSettings) {
+    const newSettings = workflowSettings === undefined ? this.getDefaultSettings() : workflowSettings;
+    // Skip a redundant write: setting the same value would still cut a Yjs update and observer
+    // churn for every collaborator.
+    if (isEqual(this.getWorkflowSettings(), newSettings)) {
       return;
     }
-
-    const newSettings = workflowSettings === undefined ? this.getDefaultSettings() : workflowSettings;
-    this.workflowSettings = newSettings;
+    this.writeContentMeta("settings", newSettings, () => this.workflowSettingsChangeSubject.next(newSettings));
   }
 
   public getWorkflowSettings(): WorkflowSettings {
-    return this.workflowSettings;
+    return (this.readContentMeta("settings") as WorkflowSettings) ?? this.getDefaultSettings();
   }
 
   /**
-   * Load a definition without announcing an edit. Used while opening a workflow, so
-   * that merely reading one does not look like a change and trigger a save.
+   * Seed workflowSettings into the shared model while opening a workflow (see seedContentMeta).
+   * Called under the reloading flag, so the seed is not announced as an edit.
+   */
+  public hydrateSettings(workflowSettings: WorkflowSettings | undefined): void {
+    this.seedContentMeta("settings", workflowSettings);
+  }
+
+  /**
+   * Load a definition into the shared model while opening a workflow (see seedContentMeta).
+   * Called under the reloading flag, so the shared-map observer skips this seed and opening a
+   * workflow is not announced as an edit.
    */
   public hydrateFormBinding(formBinding: FormBindingConfig | undefined): void {
-    this.formBindingLoaded = formBinding !== undefined;
-    this.formBinding = formBinding ?? getDefaultFormBinding();
+    this.seedContentMeta("formBinding", formBinding);
+  }
+
+  /**
+   * Put the database's copy of a content-meta value into the shared model as a workflow opens,
+   * without taking a co-editor's newer one away.
+   *
+   * The document is created and connected just before this runs, so the provider has usually not
+   * synced yet. Writing straight away is a concurrent whole-value write, and Yjs resolves those
+   * by client id rather than by recency: the copy the database handed us could win over an edit a
+   * co-editor has not saved yet -- the lost update this all exists to prevent. So wait for the
+   * first sync, then write only when the key is still absent; a value that came from the room is
+   * authoritative, whether it is a co-editor's edit or our own from another tab.
+   *
+   * Meanwhile the value is not lost: reads fall back to the copy held here, so the page shows it
+   * and an autosave that fires before the sync carries it rather than an empty one. The wait is
+   * not bounded: a copy published before the sync would be the concurrent write above, on a room
+   * that is slow to answer as much as on one that never does. For as long as the room stays out
+   * of reach the copy is read from here and every save carries it, and it goes into the document
+   * when the sync eventually comes -- or never, which loses nothing, since nobody else was in that
+   * document either.
+   *
+   * A local edit of the key while the seed waits replaces it (see writeContentMeta): the edit is
+   * what goes in then, and the copy -- or the clearing, for a workflow opened without a value --
+   * must neither write over it nor undo it.
+   *
+   * The room's precedence is for the first seed of a key on a document, the one a workflow is
+   * opened with: it yields to what the room put there by then, a co-editor's value or the mark
+   * that the key was cleared (`null`, written by whoever opened or reloaded a workflow that
+   * carries none). The mark is what lets a joining client see the clearing at all -- a deletion
+   * would leave nothing in the room's state to learn from, and a client whose database copy has
+   * not caught up with the clearing would put the value back. Anything else the document holds,
+   * a value this client wrote before the reload included, the seed replaces. A later reload into
+   * the same document -- a version shown, or returned from; an agent's rewrite -- is the intent,
+   * and its seed replaces whatever the document holds, a co-editor's value included; `undefined`
+   * then marks the key cleared, so a version that carries no settings or no form definition does
+   * not keep the open workflow's.
+   *
+   * An edit made before the first sync (`edit`) is held the same way: written straight into the
+   * document it would be one more concurrent whole-value write, settled by client id, that could
+   * lose to a value the room holds or take it over unseen. Held, it is read from and announced at
+   * once (see writeContentMeta), and goes in after the sync as a write that follows the room's
+   * state and replaces it -- which is what an edit means -- so it yields to nothing.
+   */
+  private seedContentMeta(key: ContentMetaKey, value: ContentMetaValue | undefined, edit = false): void {
+    // This seed replaces any the key was still waiting on (and stops its listening); it has an
+    // identity of its own, since a cleared key (undefined) has no value to be told apart by.
+    this.cancelContentMetaSeed(key);
+    const seed: ContentMetaSeed = {};
+    this.contentMetaSeeds.set(key, seed);
+    if (value !== undefined) {
+      this.pendingContentMeta.set(key, { value, edit });
+    }
+    const shared = this.texeraGraph.sharedModel;
+    // Runs at once or when the sync comes, and then for this seed only: a later seed of the key, a
+    // local edit of it and the loading of another document all detach the listening before they
+    // would make this seed stale (see cancelContentMetaSeed, observeContentMeta).
+    const land = () => {
+      this.cancelContentMetaSeed(key);
+      const first = !this.seededContentMetaKeys.has(key);
+      this.seededContentMetaKeys.add(key);
+      // Over the first seed the room's word wins, a value or the cleared mark, whether a
+      // co-editor's or this client's from another tab; a later reload, or an edit, replaces it.
+      if (first && !edit && this.roomOwnedContentMeta.has(key)) {
+        return;
+      }
+      const stored = value ?? null;
+      // Opening a workflow is not an edit, so the seed is not announced (see observeContentMeta).
+      this.seedingContentMetaKeys.add(key);
+      try {
+        if (!isEqual(shared.contentMetaMap.get(key), stored)) {
+          shared.contentMetaMap.set(key, stored);
+        }
+      } finally {
+        this.seedingContentMetaKeys.delete(key);
+      }
+    };
+    if (!shared.wsProvider.shouldConnect || shared.wsProvider.synced) {
+      land();
+      return;
+    }
+    // Listening is undone by land itself (through cancelContentMetaSeed) and by whatever supersedes
+    // or cancels the seed, so a document that never syncs does not collect a listener per reload.
+    const onSync = () => land();
+    seed.detach = () => shared.wsProvider.off("sync", onSync);
+    shared.wsProvider.on("sync", onSync);
+  }
+
+  /** Forget the seed a key is waiting on, stop its listening, and drop the copy it holds; the
+   *  document's value stands. */
+  private cancelContentMetaSeed(key: ContentMetaKey): void {
+    this.contentMetaSeeds.get(key)?.detach?.();
+    this.contentMetaSeeds.delete(key);
+    this.pendingContentMeta.delete(key);
+  }
+
+  /** An edit still waiting for the first sync, which is going to replace whatever the document
+   *  holds; else the shared document's value for a key -- none, if the document marks it cleared
+   *  -- or, for a key the document says nothing about yet, the database copy still waiting to go in. */
+  private readContentMeta(key: ContentMetaKey): ContentMetaValue | undefined {
+    const pending = this.pendingContentMeta.get(key);
+    if (pending?.edit) {
+      return pending.value;
+    }
+    const held = this.texeraGraph.sharedModel.contentMetaMap.get(key);
+    if (held !== undefined) {
+      return held ?? undefined;
+    }
+    return pending?.value;
+  }
+
+  /**
+   * An edit of a content-meta value: into the document, where the map's observer announces it --
+   * unless the document has not had its first sync yet, when the edit is held and announced here
+   * instead, and goes in after the sync (see seedContentMeta).
+   */
+  private writeContentMeta(key: ContentMetaKey, value: ContentMetaValue, announce: () => void): void {
+    const shared = this.texeraGraph.sharedModel;
+    if (shared.wsProvider.shouldConnect && !shared.wsProvider.synced) {
+      this.seedContentMeta(key, value, true);
+      announce();
+      return;
+    }
+    shared.contentMetaMap.set(key, value);
+  }
+
+  /** Whether the workflow has a value for a key: in the document, or still waiting to go in. */
+  private hasContentMeta(key: ContentMetaKey): boolean {
+    return this.readContentMeta(key) !== undefined;
   }
 
   /** A form binding worth persisting: an author populated it (fields, a chosen result list -- an
@@ -826,16 +1044,20 @@ export class WorkflowActionService {
   }
 
   /**
-   * Replace the definition as an edit: announced on `formBindingChanged$`, which
-   * feeds workflowChanged() and so reaches the existing autosave.
+   * Replace the definition as an edit. The shared map's observer republishes it on
+   * `formBindingChanged$`, which feeds workflowChanged() and so reaches the existing autosave.
    */
   public setFormBinding(formBinding: FormBindingConfig): void {
-    this.formBinding = formBinding;
-    this.formBindingChangeSubject.next(this.formBinding);
+    // Skip a redundant write (as setWorkflowSettings does): an unchanged value would still cut a
+    // Yjs update and re-fire the observer for every collaborator.
+    if (isEqual(this.getFormBinding(), formBinding)) {
+      return;
+    }
+    this.writeContentMeta("formBinding", formBinding, () => this.formBindingChangeSubject.next(formBinding));
   }
 
   public getFormBinding(): FormBindingConfig {
-    return this.formBinding;
+    return (this.readContentMeta("formBinding") as FormBindingConfig) ?? getDefaultFormBinding();
   }
 
   public getWorkflowMetadata(): WorkflowMetadata {
@@ -849,7 +1071,9 @@ export class WorkflowActionService {
     const links = texeraGraph.getAllLinks();
     const operatorPositions: { [key: string]: Point } = {};
     const commentBoxes = texeraGraph.getAllCommentBoxes();
-    const settings = this.workflowSettings;
+    const settings = this.getWorkflowSettings();
+    // Read the binding once so the has-check and the value are the same snapshot.
+    const formBinding = this.getFormBinding();
 
     texeraGraph
       .getAllOperators()
@@ -865,12 +1089,13 @@ export class WorkflowActionService {
       links,
       commentBoxes,
       settings,
-      // Carry formBinding only when the workflow has one (loaded with it, or an author
-      // populated it), so a plain workflow's content is unchanged and its save cuts no
-      // needless version.
-      ...(this.formBindingLoaded || this.isFormBindingNonEmpty(this.formBinding)
-        ? { formBinding: this.formBinding }
-        : {}),
+      // Carry formBinding only when the workflow has one (opened with it, or an author
+      // populated it since), so a plain workflow's content is unchanged and its save cuts no
+      // needless version. hasContentMeta stands in for the old "loaded" flag: hydrate sets the
+      // key (or holds the copy until the sync) for a workflow opened with a binding and deletes
+      // it for one without. Presence and value come from the same place, so a binding that is
+      // present but empty is carried while the seed waits, not dropped.
+      ...(this.hasContentMeta("formBinding") || this.isFormBindingNonEmpty(formBinding) ? { formBinding } : {}),
     };
   }
 
@@ -915,18 +1140,20 @@ export class WorkflowActionService {
 
   public setWorkflowDataTransferBatchSize(size: number): void {
     if (size > 0 && size != null) {
-      this.setWorkflowSettings({ ...this.workflowSettings, dataTransferBatchSize: size });
+      this.setWorkflowSettings({ ...this.getWorkflowSettings(), dataTransferBatchSize: size });
     }
   }
 
   public updateExecutionMode(mode: ExecutionMode): void {
-    this.setWorkflowSettings({ ...this.workflowSettings, executionMode: mode });
+    this.setWorkflowSettings({ ...this.getWorkflowSettings(), executionMode: mode });
   }
 
   public clearWorkflow(): void {
     this.destroySharedModel();
     this.setWorkflowMetadata(undefined);
-    this.setWorkflowSettings(undefined);
+    // The settings go back to the defaults with the fresh document the blank reload creates, like
+    // the form definition: written here they would go into the document just destroyed and be
+    // announced as an edit.
     this.reloadWorkflow(undefined);
     this.setHighlightingEnabled(false);
   }

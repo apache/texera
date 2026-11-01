@@ -26,6 +26,7 @@ import com.kjetland.jackson.jsonSchema.annotations.{
   JsonSchemaString,
   JsonSchemaTitle
 }
+import org.apache.texera.amber.core.state.NoLoopVariable
 import org.apache.texera.amber.operator.StandaloneHelpers
 import org.apache.texera.amber.operator.metadata.annotations.HideAnnotation
 import org.apache.texera.amber.operator.source.scan.FileAttributeType
@@ -47,6 +48,7 @@ trait TextSourceOpDesc {
   @JsonProperty(defaultValue = "line", required = true)
   @JsonSchemaTitle("Attribute Name")
   @JsonDeserialize(contentAs = classOf[java.lang.String])
+  @NoLoopVariable
   var attributeName: String = "line"
 
   // Named explicitly so reflection can see it. These are the row-window knobs the

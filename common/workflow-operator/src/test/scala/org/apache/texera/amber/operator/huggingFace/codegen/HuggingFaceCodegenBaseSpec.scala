@@ -182,4 +182,19 @@ class HuggingFaceCodegenBaseSpec extends AnyFlatSpec with Matchers {
     */
   private def chatContentHelper(rendered: String): String =
     rendered.split("def _chat_content_for_task")(1).split("    def ")(0)
+
+  // Review feedback on #8617 (@Copilot): a truthy `choices` is not enough — the
+  // value may not be a list, its first item may not be a dict, and `message` or
+  // `content` may be null or a list of parts. Every level is type-checked in one
+  // shared helper so all eight chat extractions degrade identically.
+  it should "emit a type-checked chat-content helper" in {
+    val out = HuggingFaceCodegenBase.render(makeCtx(), StubCodegen)
+    out should include("def _chat_message_content(self, body):")
+    val helper = out.split("def _chat_message_content")(1).split("    def ")(0)
+    helper should include("isinstance(choices, list)")
+    helper should include("isinstance(first, dict)")
+    helper should include("isinstance(message, dict)")
+    helper should include("isinstance(content, str)")
+    helper should include("isinstance(content, list)")
+  }
 }

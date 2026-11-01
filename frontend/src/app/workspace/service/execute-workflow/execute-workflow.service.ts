@@ -48,16 +48,12 @@ import { intersection } from "../../../common/util/set";
 import { WorkflowSettings } from "../../../common/type/workflow";
 
 import { ComputingUnitStatusService } from "../../../common/service/computing-unit/computing-unit-status/computing-unit-status.service";
+import { unavailableComputingUnitReason } from "../../../common/util/computing-unit.util";
 import { WarehouseService } from "../../../common/service/warehouse/warehouse.service";
 import { GuiConfigService } from "../../../common/service/gui-config.service";
 
 // TODO: change this declaration
 export const FORM_DEBOUNCE_TIME_MS = 150;
-
-export const EXECUTE_WORKFLOW_ENDPOINT = "queryplan/execute";
-
-export const PAUSE_WORKFLOW_ENDPOINT = "pause";
-export const RESUME_WORKFLOW_ENDPOINT = "resume";
 
 /**
  * ExecuteWorkflowService sends the current workflow data to the backend
@@ -262,31 +258,46 @@ export class ExecuteWorkflowService {
     return [];
   }
 
+  /**
+   * Returns whether the request was sent, so a caller that reports on it does not have to
+   * repeat the refusal conditions. False means this method turned the run down locally --
+   * no computing unit, no warehouse -- and showed its own toast. True only means the request
+   * left the browser: the deployment can still reject it, which arrives on the execution
+   * state stream. Callers that only fire and forget can keep ignoring the result.
+   */
   public executeWorkflowWithEmailNotification(
     executionName: string,
     emailNotificationEnabled: boolean,
     targetOperatorId?: string
-  ): void {
+  ): boolean {
     const logicalPlan = ExecuteWorkflowService.getLogicalPlanRequest(
       this.workflowActionService.getTexeraGraph(),
       targetOperatorId
     );
     const settings = this.workflowActionService.getWorkflowSettings();
+    if (this.refuseToRunOnUnavailableUnit()) {
+      return false;
+    }
     if (this.refuseToRunWithoutWarehouse()) {
-      return;
+      return false;
     }
     this.resetExecutionState();
     this.workflowStatusService.resetStatus();
     this.sendExecutionRequest(executionName, logicalPlan, settings, emailNotificationEnabled);
+    return true;
   }
 
-  public executeWorkflow(executionName: string, targetOperatorId?: string): void {
-    this.executeWorkflowWithEmailNotification(executionName, false, targetOperatorId);
+  /** Returns whether the request was sent; see executeWorkflowWithEmailNotification. */
+  public executeWorkflow(executionName: string, targetOperatorId?: string): boolean {
+    return this.executeWorkflowWithEmailNotification(executionName, false, targetOperatorId);
   }
 
   public executeWorkflowWithReplay(replayExecutionInfo: ReplayExecutionInfo): void {
     const logicalPlan = ExecuteWorkflowService.getLogicalPlanRequest(this.workflowActionService.getTexeraGraph());
     const settings = this.workflowActionService.getWorkflowSettings();
+    if (this.refuseToRunOnUnavailableUnit()) {
+      return;
+    }
     if (this.refuseToRunWithoutWarehouse()) {
       return;
     }
@@ -299,6 +310,29 @@ export class ExecuteWorkflowService {
       false,
       replayExecutionInfo
     );
+  }
+
+  /**
+   * Refuses to run on a unit that cannot accept work: shows a toast and returns true. The run
+   * buttons already disable themselves, but run-up-to and Time Travel replay call this service
+   * directly.
+   *
+   * Checked before resetExecutionState(), so a refused click keeps the results on screen, and
+   * before the warehouse check, since a warehouse cannot fix a dead unit.
+   */
+  private refuseToRunOnUnavailableUnit(): boolean {
+    const reason = unavailableComputingUnitReason(
+      this.computingUnitStatusService.getSelectedComputingUnitValue()?.status
+    );
+    if (reason === undefined) {
+      return false;
+    }
+    this.notificationService.error(
+      reason === "terminating"
+        ? "The selected computing unit is shutting down. Wait for it to finish, then select or create another one."
+        : "The selected computing unit is unavailable. Select a running unit or create a new one."
+    );
+    return true;
   }
 
   /**
