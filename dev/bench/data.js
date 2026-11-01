@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1793536891871,
+  "lastUpdate": 1793536894421,
   "repoUrl": "https://github.com/apache/texera",
   "entries": {
     "Arrow Flight E2E Throughput": [
@@ -75334,6 +75334,433 @@ window.BENCHMARK_DATA = {
           {
             "name": "latency p99 / bs=1000 sw=50 sl=512",
             "value": 1451346.241,
+            "unit": "us"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "name": "Kary Zheng",
+            "username": "kz930",
+            "email": "150742834+kz930@users.noreply.github.com"
+          },
+          "committer": {
+            "name": "GitHub",
+            "username": "web-flow",
+            "email": "noreply@github.com"
+          },
+          "id": "711584dd813e4dbb313edc5251f62430ca52c31a",
+          "message": "feat(operator): read a timestamp cast over the years the engine reaches (#8597)\n\n### What changes were proposed in this PR?\n\nType Casting to a timestamp read text with `pd.to_datetime(col,\nerrors=\"coerce\")` in the exported script. That is wrong in two ways, and\nboth empty a cell the run itself filled.\n\npandas parses into nanoseconds, which reach only 1677-09-21 to\n2262-04-11. The engine holds a `java.sql.Timestamp`, where `2500-01-01\n00:00:00` is an ordinary moment: it reads it, and the exported script\nanswered with an empty cell. The same for `1500-06-15 08:30:00` and\n`9999-12-31 23:59:59`.\n\npandas also infers one format for the whole column and coerces every row\nthat does not match it. The engine hands `DateParserUtils` one field at\na time, so a row states its own format. A column holding `2024-03-05\n14:09:07` and `March 5, 2024` kept the first and emptied the second.\n\nThe text branch now reads the column cell by cell and holds the result\nat microsecond resolution, which covers the years the engine covers.\nText no format reads now ends the run, as the engine's `parseField` ends\nits own. The script raises the engine's message, `Failed to parse type\nstr to Timestamp`, where it used to leave the cell empty. dateutil reads\nevery format the verification hands the engine, so the two refuse the\nsame text.\n\nReview and the verification's edge values found more places where the\ncast parted from the engine:\n\n- A reading that states an offset, such as `Z` or `+05:30`, stopped the\ncast. The engine moves it to the machine's zone and keeps that wall\nclock, and the script now does the same.\n- A column that already held timestamps went through the text parse and\nlost its nanoseconds. `parseField` returns a `java.sql.Timestamp`\nuntouched, so the script now hands such a column back at the resolution\nit arrived in.\n- Text with digits past the millisecond kept them. `DateParserUtils`\nreads into a `java.util.Date`, which counts milliseconds, so the script\nnow cuts there too.\n- Casting to text wrote a value the way Python's `str()` does. Java\nwrites a double past 1e7 or under 1e-3 in E notation, a boolean in lower\ncase, and a timestamp with its nanoseconds and at least `.0`. A shared\n`_texera_java_text` now writes each one as Java's `toString` does.\n- A double column holding a NaN as a value, as an Arrow or Parquet\nsource hands one over, lost it. The casts asked each cell whether it was\nempty, and pandas hands an empty cell over as NaN too, so a stored NaN\ncame out null where the engine writes `NaN` as text, 0 as an integer and\n`true` as a boolean. The casts now read empty cells from the column's\nown mask, and the double cast builds a nullable `Float64`, so a NaN read\nfrom text stays one through the next cast. A double past an integer's\nbounds now saturates as `toInt` and `toLong` do, where `int()` raised on\nan infinity.\n- A moment was read with dateutil's `tzlocal()`, which knows only\ntoday's two offsets, so an instant from before a zone changed its rules\ncame out an hour or more off on every platform. The script now reads the\nmachine's zone by its IANA name and, before 1900, keeps today's standard\noffset as `java.util.Date` does.\n- On Windows, `localtime` refuses an instant before 1970, which stopped\nthe cast. The same helper now falls back to the zone's standard offset\nthere.\n\nThat `Float64` column changed what a Python operator after this cast is\nhanded. pyamber hands a Python operator a DOUBLE column as `float64`,\nwhere a NaN and a null are one value, and writes a NaN out as null.\nGiven `Float64` instead, Sort ordered a NaN apart from the nulls, a\nchart drew points the engine dropped, and a passed-through NaN stayed\nNaN. `StandaloneCodeGenerator` gains `standaloneInputAdapter()`, and for\na Python operator the translator feeds the fragment a `float64` copy of\neach input, leaving the upstream frame as it was.\n\nThe number branch is left alone. A LONG is read as epoch milliseconds\nand has the same window, but it also disagrees about the calendar before\n1582-10-15, where `new Timestamp(long)` is Julian and pandas is\nproleptic Gregorian. Widening the window there would answer with a\nmoment eight days off instead of an empty cell, so what that branch\nshould do is a separate decision. The issue records it.\n\n### Any related issues, documentation, discussions?\n\nCloses #8595. #8480 closed the same nanosecond gap for Extract Date/Time\nFields, which parses strictly and could take the one-line form this\noperator cannot.\n\n#8341, #8704, #8705 and #8709 call the timestamp and text helpers this\nadds, so this PR merges before them.\n\n### How was this PR tested?\n\nEight tests in `TypeCastingOpDescSpec` run the generated Python and\ncompare it cell by cell against `AttributeTypeUtils.parseField`. They\nare tagged to run in the integration job, which has pandas.\n\n- The text-to-timestamp test reads moments in three formats, the rows\neither side of the nanosecond edge, `2500-01-01`, `1500-06-15`,\n`9999-12-31`, readings with `Z` and `+05:30`, and readings past the\nmillisecond. It fails on the old generator.\n- One test gives a column that already holds timestamps and checks its\nnanoseconds are kept.\n- The cast-to-string test covers a double at 1e7 and 1e-4.\n- One test checks that unreadable text ends the script with the engine's\nmessage, as the engine refuses it.\n- Two tests cast a column holding a stored NaN, both infinities and an\nempty cell to each type and compare against `AttributeTypeUtils`, and\ncheck that a NaN read from text survives a second cast.\n- Two tests read moments from `America/Mexico_City` in 1899, 1921, 1931\nand 2021, at the offset the zone had then, and the same moments with\n`localtime` refusing those before 1970.\n- Three tests in `WorkflowToPythonTranslatorSpec` check that a Python\noperator reads a converted copy of its input and an operator the engine\nruns on the JVM reads its upstream as it is. Two of them fail without\nthe change.\n\n### Was this PR authored or co-authored using generative AI tooling?\n\nGenerated-by: Claude Code (Claude Opus 5)\n\n---------\n\nCo-authored-by: Claude Opus 5 (1M context) <noreply@anthropic.com>",
+          "timestamp": "2026-11-01T06:41:38Z",
+          "url": "https://github.com/apache/texera/commit/711584dd813e4dbb313edc5251f62430ca52c31a"
+        },
+        "date": 1793536893960,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "latency p50 / bs=10 sw=1 sl=8",
+            "value": 10362.225,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=10 sw=1 sl=8",
+            "value": 12312.256,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=10 sw=1 sl=8",
+            "value": 14787.386,
+            "unit": "us"
+          },
+          {
+            "name": "latency p50 / bs=100 sw=1 sl=8",
+            "value": 56458.161,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=100 sw=1 sl=8",
+            "value": 62957.545,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=100 sw=1 sl=8",
+            "value": 76228.444,
+            "unit": "us"
+          },
+          {
+            "name": "latency p50 / bs=1000 sw=1 sl=8",
+            "value": 507124.02,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=1000 sw=1 sl=8",
+            "value": 555726.258,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=1000 sw=1 sl=8",
+            "value": 572119.958,
+            "unit": "us"
+          },
+          {
+            "name": "latency p50 / bs=10 sw=1 sl=64",
+            "value": 7353.826,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=10 sw=1 sl=64",
+            "value": 9644.08,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=10 sw=1 sl=64",
+            "value": 11029.99,
+            "unit": "us"
+          },
+          {
+            "name": "latency p50 / bs=100 sw=1 sl=64",
+            "value": 51100.51,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=100 sw=1 sl=64",
+            "value": 60137.022,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=100 sw=1 sl=64",
+            "value": 73588.641,
+            "unit": "us"
+          },
+          {
+            "name": "latency p50 / bs=1000 sw=1 sl=64",
+            "value": 506577.551,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=1000 sw=1 sl=64",
+            "value": 560196.718,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=1000 sw=1 sl=64",
+            "value": 581043.736,
+            "unit": "us"
+          },
+          {
+            "name": "latency p50 / bs=10 sw=1 sl=512",
+            "value": 7171.254,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=10 sw=1 sl=512",
+            "value": 8952.282,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=10 sw=1 sl=512",
+            "value": 11155.243,
+            "unit": "us"
+          },
+          {
+            "name": "latency p50 / bs=100 sw=1 sl=512",
+            "value": 52189.725,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=100 sw=1 sl=512",
+            "value": 57645.378,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=100 sw=1 sl=512",
+            "value": 73833.948,
+            "unit": "us"
+          },
+          {
+            "name": "latency p50 / bs=1000 sw=1 sl=512",
+            "value": 506448.869,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=1000 sw=1 sl=512",
+            "value": 555071.456,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=1000 sw=1 sl=512",
+            "value": 600524.569,
+            "unit": "us"
+          },
+          {
+            "name": "latency p50 / bs=10 sw=10 sl=8",
+            "value": 9108.071,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=10 sw=10 sl=8",
+            "value": 11741.25,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=10 sw=10 sl=8",
+            "value": 13400.846,
+            "unit": "us"
+          },
+          {
+            "name": "latency p50 / bs=100 sw=10 sl=8",
+            "value": 64796.731,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=100 sw=10 sl=8",
+            "value": 71233.802,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=100 sw=10 sl=8",
+            "value": 79492.644,
+            "unit": "us"
+          },
+          {
+            "name": "latency p50 / bs=1000 sw=10 sl=8",
+            "value": 631232.903,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=1000 sw=10 sl=8",
+            "value": 683485.311,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=1000 sw=10 sl=8",
+            "value": 704960.902,
+            "unit": "us"
+          },
+          {
+            "name": "latency p50 / bs=10 sw=10 sl=64",
+            "value": 8343,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=10 sw=10 sl=64",
+            "value": 11548.43,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=10 sw=10 sl=64",
+            "value": 13638.519,
+            "unit": "us"
+          },
+          {
+            "name": "latency p50 / bs=100 sw=10 sl=64",
+            "value": 66745.63,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=100 sw=10 sl=64",
+            "value": 72748.626,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=100 sw=10 sl=64",
+            "value": 93626.26,
+            "unit": "us"
+          },
+          {
+            "name": "latency p50 / bs=1000 sw=10 sl=64",
+            "value": 639950.161,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=1000 sw=10 sl=64",
+            "value": 711199.121,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=1000 sw=10 sl=64",
+            "value": 763255.918,
+            "unit": "us"
+          },
+          {
+            "name": "latency p50 / bs=10 sw=10 sl=512",
+            "value": 9012.867,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=10 sw=10 sl=512",
+            "value": 12056.362,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=10 sw=10 sl=512",
+            "value": 17244.231,
+            "unit": "us"
+          },
+          {
+            "name": "latency p50 / bs=100 sw=10 sl=512",
+            "value": 69715.656,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=100 sw=10 sl=512",
+            "value": 79011.82,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=100 sw=10 sl=512",
+            "value": 85830.961,
+            "unit": "us"
+          },
+          {
+            "name": "latency p50 / bs=1000 sw=10 sl=512",
+            "value": 684828.721,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=1000 sw=10 sl=512",
+            "value": 749513.326,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=1000 sw=10 sl=512",
+            "value": 776401.091,
+            "unit": "us"
+          },
+          {
+            "name": "latency p50 / bs=10 sw=50 sl=8",
+            "value": 14139.38,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=10 sw=50 sl=8",
+            "value": 15310.312,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=10 sw=50 sl=8",
+            "value": 19184.394,
+            "unit": "us"
+          },
+          {
+            "name": "latency p50 / bs=100 sw=50 sl=8",
+            "value": 129063.687,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=100 sw=50 sl=8",
+            "value": 137264.346,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=100 sw=50 sl=8",
+            "value": 144141.396,
+            "unit": "us"
+          },
+          {
+            "name": "latency p50 / bs=1000 sw=50 sl=8",
+            "value": 1212966.066,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=1000 sw=50 sl=8",
+            "value": 1299121.975,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=1000 sw=50 sl=8",
+            "value": 1337185.171,
+            "unit": "us"
+          },
+          {
+            "name": "latency p50 / bs=10 sw=50 sl=64",
+            "value": 13897.56,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=10 sw=50 sl=64",
+            "value": 15715.637,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=10 sw=50 sl=64",
+            "value": 20320.714,
+            "unit": "us"
+          },
+          {
+            "name": "latency p50 / bs=100 sw=50 sl=64",
+            "value": 127419.239,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=100 sw=50 sl=64",
+            "value": 139368.027,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=100 sw=50 sl=64",
+            "value": 144670.588,
+            "unit": "us"
+          },
+          {
+            "name": "latency p50 / bs=1000 sw=50 sl=64",
+            "value": 1185243.359,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=1000 sw=50 sl=64",
+            "value": 1319820.816,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=1000 sw=50 sl=64",
+            "value": 1361523.614,
+            "unit": "us"
+          },
+          {
+            "name": "latency p50 / bs=10 sw=50 sl=512",
+            "value": 14973.183,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=10 sw=50 sl=512",
+            "value": 19672.753,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=10 sw=50 sl=512",
+            "value": 24239.443,
+            "unit": "us"
+          },
+          {
+            "name": "latency p50 / bs=100 sw=50 sl=512",
+            "value": 126315.92,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=100 sw=50 sl=512",
+            "value": 138013.106,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=100 sw=50 sl=512",
+            "value": 152381.676,
+            "unit": "us"
+          },
+          {
+            "name": "latency p50 / bs=1000 sw=50 sl=512",
+            "value": 1259180.934,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=1000 sw=50 sl=512",
+            "value": 1376131.578,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=1000 sw=50 sl=512",
+            "value": 1411631.019,
             "unit": "us"
           }
         ]
