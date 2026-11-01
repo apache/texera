@@ -157,7 +157,7 @@ class BoxViolinPlotOpDesc extends PythonVisualizationOpDesc with PlotlyStandalon
     // reason for "no chart" is where the reader looks for the chart — printing it
     // to the terminal alone left that file absent. render_error's continuation
     // line keeps the runtime path's indentation, since the HTML is triple-quoted
-    // and those spaces reach the browser.
+    // and those spaces reach the browser. chart_df keeps the input whole for other branches.
     s"""def render_error(error_msg):
        |    return '''<h1>Box/Violin Plot is not available.</h1>
        |                  <p>Reason is: {} </p>
@@ -171,8 +171,6 @@ class BoxViolinPlotOpDesc extends PythonVisualizationOpDesc with PlotlyStandalon
        |if in1df.empty:
        |    fail("input table is empty.")
        |else:
-       |    # Bound to a name of its own: the same frame can feed another branch
-       |    # of the plan, which must still see every row.
        |    chart_df = in1df.dropna(subset=[$valueLit])
        |    if chart_df.empty:
        |        fail("value column contains only non-positive numbers or nulls.")

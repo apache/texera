@@ -146,7 +146,8 @@ class DendrogramOpDesc extends PythonVisualizationOpDesc {
   override def generateStandaloneCode(): String = {
 
     // render_error's continuation line keeps the runtime path's indentation — the
-    // HTML is triple-quoted, so those spaces reach the browser.
+    // HTML is triple-quoted, so those spaces reach the browser. scipy refuses a NaN and a
+    // single row, so both get an error page; chart_df keeps the input whole.
     s"""import numpy as np
        |import plotly.figure_factory as ff
        |
@@ -162,15 +163,9 @@ class DendrogramOpDesc extends PythonVisualizationOpDesc {
        |if in1df.empty:
        |    _write_error("input table is empty.")
        |else:
-       |    # A row missing either coordinate has no position to cluster from, and
-       |    # scipy refuses a NaN anywhere in the distance matrix. Bound to a name
-       |    # of its own: the same frame can feed another branch of the plan, which
-       |    # must still see every row.
        |    chart_df = in1df.dropna(subset=[${pyStringLiteral(xVal)}, ${pyStringLiteral(yVal)}])
        |    if chart_df.empty:
        |        _write_error("input table has no rows with all of the configured columns filled in.")
-       |    # Clustering starts from the distances between rows, so a single row
-       |    # leaves scipy an empty distance matrix and it raises rather than draws.
        |    elif len(chart_df) < 2:
        |        _write_error("input table has fewer than two rows to cluster.")
        |    else:

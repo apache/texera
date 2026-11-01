@@ -47,6 +47,20 @@ trait StandaloneCodeGenerator {
     generateStandaloneCode()
 
   /**
+    * A column's name as the input table spells it.
+    *
+    * The engine looks a column up ignoring case, `Schema` lowercasing the name, so a
+    * setting that names `Name` reads the column `name`. pandas indexes a frame by the
+    * exact name. A name the schema does not hold, or no schema at all, comes back as
+    * written, leaving the script to fail where the run would have.
+    */
+  protected def columnAsStored(column: String, schema: Option[Schema]): String =
+    schema
+      .flatMap(s => scala.util.Try(s.getAttribute(column)).toOption)
+      .map(_.getName)
+      .getOrElse(column)
+
+  /**
     * A column as the text the engine's `toString` would have produced.
     *
     * A hole costs the column its type: pandas reads a holed integer column as a
