@@ -119,6 +119,15 @@ export class ContextMenuComponent {
     return this.workflowActionService.getJointGraphWrapper().getCurrentHighlightedLinkIDs().length > 0;
   }
 
+  /** Runs the workflow up to the highlighted operator when the menu item is enabled. */
+  public onExecuteUpToOperator(): void {
+    // nzDisabled only greys the item out; it does not stop the template (click).
+    if (!this.canExecuteOperator()) {
+      return;
+    }
+    this.operatorMenuService.executeUpToOperator();
+  }
+
   public onCopy(): void {
     this.operatorMenuService.saveHighlightedElements();
   }

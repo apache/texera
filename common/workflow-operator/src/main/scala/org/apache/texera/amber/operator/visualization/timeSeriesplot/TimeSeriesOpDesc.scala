@@ -20,12 +20,10 @@ package org.apache.texera.amber.operator.visualization.timeSeriesplot
 
 import com.fasterxml.jackson.annotation.{JsonProperty, JsonPropertyDescription}
 import com.kjetland.jackson.jsonSchema.annotations.{JsonSchemaInject, JsonSchemaTitle}
-import org.apache.texera.amber.core.tuple.{AttributeType, Schema}
 import org.apache.texera.amber.pybuilder.PythonTemplateBuilder.PythonTemplateBuilderStringContext
 import org.apache.texera.amber.pybuilder.PyStringTypes.EncodableString
-import org.apache.texera.amber.core.workflow.PortIdentity
-import org.apache.texera.amber.operator.PythonOperatorDescriptor
 import org.apache.texera.amber.operator.visualization.PlotlyStandaloneCode
+import org.apache.texera.amber.operator.visualization.PythonVisualizationOpDesc
 import org.apache.texera.amber.operator.metadata.annotations.{AutofillAttributeName, SampleColumn}
 import org.apache.texera.amber.operator.metadata.{OperatorGroupConstants, OperatorInfo}
 import org.apache.texera.amber.pybuilder.PythonTemplateBuilder.pyStringLiteral
@@ -46,7 +44,7 @@ import javax.validation.constraints.{NotBlank, NotNull}
   }
 }
 """)
-class TimeSeriesOpDesc extends PythonOperatorDescriptor with PlotlyStandaloneCode {
+class TimeSeriesOpDesc extends PythonVisualizationOpDesc with PlotlyStandaloneCode {
 
   @JsonProperty(value = "timeColumn", required = true)
   @JsonSchemaTitle("Time Column")
@@ -93,13 +91,6 @@ class TimeSeriesOpDesc extends PythonOperatorDescriptor with PlotlyStandaloneCod
   @JsonSchemaTitle("Show Range Slider")
   @JsonPropertyDescription("Display a range slider at the bottom of the plot.")
   var showRangeSlider: Boolean = _
-
-  override def getOutputSchemas(
-      inputSchemas: Map[PortIdentity, Schema]
-  ): Map[PortIdentity, Schema] = {
-    val outputSchema = Schema().add("html-content", AttributeType.STRING)
-    Map(operatorInfo.outputPorts.head.id -> outputSchema)
-  }
 
   override def operatorInfo: OperatorInfo =
     OperatorInfo.forVisualization(
@@ -164,8 +155,6 @@ class TimeSeriesOpDesc extends PythonOperatorDescriptor with PlotlyStandaloneCod
        |            yield {'html-content': self.render_error(str(e))}
        |""".encode
   }
-
-  override def producesDataFrame(): Boolean = false
 
   override def generateStandaloneCode(): String = {
     val dropnaCols = List(timeColumn, valueColumn) ++

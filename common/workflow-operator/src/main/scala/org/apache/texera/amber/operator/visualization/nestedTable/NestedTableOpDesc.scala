@@ -19,10 +19,8 @@
 package org.apache.texera.amber.operator.visualization.nestedTable
 
 import com.fasterxml.jackson.annotation.{JsonProperty, JsonPropertyDescription}
-import org.apache.texera.amber.core.tuple.{AttributeType, Schema}
 import org.apache.texera.amber.pybuilder.PythonTemplateBuilder.PythonTemplateBuilderStringContext
-import org.apache.texera.amber.core.workflow.PortIdentity
-import org.apache.texera.amber.operator.{PythonOperatorDescriptor, StandaloneCodeGenerator}
+import org.apache.texera.amber.operator.visualization.PythonVisualizationOpDesc
 import org.apache.texera.amber.operator.metadata.{OperatorGroupConstants, OperatorInfo}
 import org.apache.texera.amber.pybuilder.PythonTemplateBuilder
 import org.apache.texera.amber.pybuilder.PythonTemplateBuilder.pyStringLiteral
@@ -31,7 +29,7 @@ import java.util
 import javax.validation.constraints.NotEmpty
 import scala.jdk.CollectionConverters.ListHasAsScala
 
-class NestedTableOpDesc extends PythonOperatorDescriptor with StandaloneCodeGenerator {
+class NestedTableOpDesc extends PythonVisualizationOpDesc {
 
   @JsonPropertyDescription(
     "List of columns to include in the nested table chart and their subgroup"
@@ -39,14 +37,6 @@ class NestedTableOpDesc extends PythonOperatorDescriptor with StandaloneCodeGene
   @JsonProperty(value = "add attribute", required = true)
   @NotEmpty(message = "Included Columns cannot be empty")
   var includedColumns: util.List[NestedTableConfig] = new util.ArrayList[NestedTableConfig]()
-
-  override def getOutputSchemas(
-      inputSchemas: Map[PortIdentity, Schema]
-  ): Map[PortIdentity, Schema] = {
-    val outputSchema = Schema()
-      .add("html-content", AttributeType.STRING)
-    Map(operatorInfo.outputPorts.head.id -> outputSchema)
-  }
 
   override def operatorInfo: OperatorInfo =
     OperatorInfo.forVisualization(
@@ -138,8 +128,6 @@ class NestedTableOpDesc extends PythonOperatorDescriptor with StandaloneCodeGene
          |"""
     finalcode.encode
   }
-
-  override def producesDataFrame(): Boolean = false
 
   override def generateStandaloneCode(): String = {
     val sortedColumns = includedColumns.asScala.sortBy(_.attributeGroup)

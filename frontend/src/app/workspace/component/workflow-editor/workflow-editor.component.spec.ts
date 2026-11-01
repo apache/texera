@@ -395,7 +395,57 @@ describe("WorkflowEditorComponent", () => {
       expect(fixture.debugElement.query(By.css("texera-operator-result-preview"))).toBeNull();
     }));
 
-    it("leaves the hover to the heat-map tooltip while that overlay is on", () => {
+    it("closes the card, and cancels a pending one, when an output port is pressed to drag a link", fakeAsync(() => {
+      addLinkedPair();
+      const view = component.paper.findViewByModel(mockScanPredicate.operatorID);
+      const outputPort = view.el.querySelector("[port-group='out']")!;
+
+      component.paper.trigger("element:mouseenter", view, new MouseEvent("mouseenter"));
+      tick(RESULT_PREVIEW_DELAY_MS);
+      expect(component.resultPreview).not.toBeNull();
+      outputPort.dispatchEvent(new Event("pointerdown", { bubbles: true }));
+      expect(component.resultPreview).toBeNull();
+
+      component.paper.trigger("element:mouseenter", view, new MouseEvent("mouseenter"));
+      tick(RESULT_PREVIEW_DELAY_MS - 1);
+      outputPort.dispatchEvent(new Event("pointerdown", { bubbles: true }));
+      tick(1);
+      expect(component.resultPreview).toBeNull();
+    }));
+
+    it("closes the card, and cancels a pending one, when its operator is deleted, but not for another", fakeAsync(() => {
+      addLinkedPair();
+      const workflowActionService = TestBed.inject(WorkflowActionService);
+      const scanView = component.paper.findViewByModel(mockScanPredicate.operatorID);
+      const resultView = component.paper.findViewByModel(mockResultPredicate.operatorID);
+
+      component.paper.trigger("element:mouseenter", scanView, new MouseEvent("mouseenter"));
+      tick(RESULT_PREVIEW_DELAY_MS);
+      workflowActionService.deleteOperator(mockResultPredicate.operatorID);
+      expect(component.resultPreview?.operatorId).toBe(mockScanPredicate.operatorID);
+      workflowActionService.deleteOperator(mockScanPredicate.operatorID);
+      expect(component.resultPreview).toBeNull();
+
+      workflowActionService.addOperator(mockResultPredicate, mockPoint);
+      component.paper.trigger("element:mouseenter", resultView, new MouseEvent("mouseenter"));
+      tick(RESULT_PREVIEW_DELAY_MS - 1);
+      workflowActionService.deleteOperator(mockResultPredicate.operatorID);
+      tick(1);
+      expect(component.resultPreview).toBeNull();
+    }));
+
+    it("opens no card once the editor is destroyed", fakeAsync(() => {
+      addLinkedPair();
+      const view = component.paper.findViewByModel(mockScanPredicate.operatorID);
+
+      component.paper.trigger("element:mouseenter", view, new MouseEvent("mouseenter"));
+      fixture.destroy();
+      tick(RESULT_PREVIEW_DELAY_MS);
+
+      expect(component.resultPreview).toBeNull();
+    }));
+
+    it("leaves the hover to the heat-map tooltip while that overlay is on", fakeAsync(() => {
       addLinkedPair();
       vi.spyOn(TestBed.inject(WorkflowActionService).getJointGraphWrapper(), "getHeatmapView").mockReturnValue(
         "throughput" as any
@@ -403,9 +453,23 @@ describe("WorkflowEditorComponent", () => {
       const view = component.paper.findViewByModel(mockScanPredicate.operatorID);
 
       component.paper.trigger("element:mouseenter", view, new MouseEvent("mouseenter"));
+      tick(RESULT_PREVIEW_DELAY_MS);
 
       expect(component.resultPreview).toBeNull();
-    });
+    }));
+
+    it("opens no card while Layers > Result preview is off", fakeAsync(() => {
+      addLinkedPair();
+      vi.spyOn(TestBed.inject(WorkflowActionService).getJointGraphWrapper(), "isResultPreviewEnabled").mockReturnValue(
+        false
+      );
+      const view = component.paper.findViewByModel(mockScanPredicate.operatorID);
+
+      component.paper.trigger("element:mouseenter", view, new MouseEvent("mouseenter"));
+      tick(RESULT_PREVIEW_DELAY_MS);
+
+      expect(component.resultPreview).toBeNull();
+    }));
 
     /** Select the scan operator the way a click does and return its model, whose attrs say what is on show. */
     function selectScanOperator(): joint.dia.Cell {
