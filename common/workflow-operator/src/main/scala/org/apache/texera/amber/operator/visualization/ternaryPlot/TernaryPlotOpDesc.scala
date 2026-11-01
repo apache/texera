@@ -21,12 +21,10 @@ package org.apache.texera.amber.operator.visualization.ternaryPlot
 
 import com.fasterxml.jackson.annotation.{JsonProperty, JsonPropertyDescription}
 import com.kjetland.jackson.jsonSchema.annotations.{JsonSchemaInject, JsonSchemaTitle}
-import org.apache.texera.amber.core.tuple.{AttributeType, Schema}
 import org.apache.texera.amber.pybuilder.PythonTemplateBuilder.PythonTemplateBuilderStringContext
 import org.apache.texera.amber.pybuilder.PyStringTypes.EncodableString
-import org.apache.texera.amber.core.workflow.PortIdentity
-import org.apache.texera.amber.operator.PythonOperatorDescriptor
 import org.apache.texera.amber.operator.visualization.PlotlyStandaloneCode
+import org.apache.texera.amber.operator.visualization.PythonVisualizationOpDesc
 import org.apache.texera.amber.operator.metadata.annotations.{AutofillAttributeName, SampleColumn}
 import org.apache.texera.amber.operator.metadata.{OperatorGroupConstants, OperatorInfo}
 import org.apache.texera.amber.pybuilder.PythonTemplateBuilder
@@ -53,7 +51,7 @@ import javax.validation.constraints.NotNull
   }
 }
 """)
-class TernaryPlotOpDesc extends PythonOperatorDescriptor with PlotlyStandaloneCode {
+class TernaryPlotOpDesc extends PythonVisualizationOpDesc with PlotlyStandaloneCode {
 
   // Add annotations for the first variable
   @JsonProperty(value = "firstVariable", required = true)
@@ -100,14 +98,6 @@ class TernaryPlotOpDesc extends PythonOperatorDescriptor with PlotlyStandaloneCo
       operatorDescription = "Points are graphed on a Ternary Plot using 3 specified data fields",
       operatorGroupName = OperatorGroupConstants.VISUALIZATION_SCIENTIFIC_GROUP
     )
-
-  override def getOutputSchemas(
-      inputSchemas: Map[PortIdentity, Schema]
-  ): Map[PortIdentity, Schema] = {
-    val outputSchema = Schema()
-      .add("html-content", AttributeType.STRING)
-    Map(operatorInfo.outputPorts.head.id -> outputSchema)
-  }
 
   /** Returns a Python string that drops any tuples with missing values */
   def manipulateTable(): PythonTemplateBuilder = {
@@ -164,8 +154,6 @@ class TernaryPlotOpDesc extends PythonOperatorDescriptor with PlotlyStandaloneCo
          |"""
     finalCode.encode
   }
-
-  override def producesDataFrame(): Boolean = false
 
   override def generateStandaloneCode(): String = {
     val colorArg =
