@@ -22,7 +22,7 @@ package org.apache.texera.amber.translator
 import org.apache.texera.amber.core.virtualidentity.{ExecutionIdentity, WorkflowIdentity}
 import org.apache.texera.amber.core.workflow.{InputPort, OutputPort, PhysicalOp, PortIdentity}
 import org.apache.texera.amber.operator.metadata.{OperatorGroupConstants, OperatorInfo}
-import org.apache.texera.amber.operator.{LogicalOp, StandaloneCodeGenerator}
+import org.apache.texera.amber.operator.{LogicalOp, SamplingHelpers, StandaloneCodeGenerator}
 import org.apache.texera.common.compiler.model.{LogicalLink, LogicalPlan}
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
@@ -202,6 +202,31 @@ class WorkflowToPythonTranslatorSpec extends AnyFlatSpec with Matchers {
         op
     }
     new WorkflowToPythonTranslator().translate(LogicalPlan(ops.toList, List.empty))
+  }
+
+  it should "import a helper with the other imports rather than define it" in {
+    val op = new StubOp("_rng = _TexeraJavaRandom(1)\nout1df = in1df.copy()") {
+      override def standaloneHelpers(): Seq[String] = Seq(SamplingHelpers.JavaRandom)
+    }
+    op.setOperatorId("op")
+    val script = new WorkflowToPythonTranslator().translate(LogicalPlan(List(op), List.empty))
+    script should startWith("import pandas as pd\nfrom texera_support import _TexeraJavaRandom\n\n")
+    script should not include "class _TexeraJavaRandom"
+  }
+
+  it should "not import a helper a comment or a string only names" in {
+    val op = stub("op", "# _TexeraJavaRandom\nout1df = in1df.assign(n=\"_TexeraJavaRandom\")")
+    val script = new WorkflowToPythonTranslator().translate(LogicalPlan(List(op), List.empty))
+    script should not include "from texera_support"
+  }
+
+  it should "refuse an operator whose helper the module does not hold" in {
+    val op = new StubOp("out1df = in1df.apply(_texera_missing)") {
+      override def standaloneHelpers(): Seq[String] = Seq("def _texera_missing(x):\n    return x")
+    }
+    op.setOperatorId("op")
+    an[IllegalStateException] should be thrownBy
+      new WorkflowToPythonTranslator().translate(LogicalPlan(List(op), List.empty))
   }
 
   /** The translator's own contract when it meets an operator it cannot render:
