@@ -18,7 +18,6 @@
  */
 
 import { DashboardWorkflow } from "./dashboard-workflow.interface";
-import { DashboardFile } from "./dashboard-file.interface";
 import { DashboardDataset } from "./dashboard-dataset.interface";
 import { DashboardModel } from "./dashboard-model.interface";
 import { DashboardWorkflowComputingUnit } from "../../common/type/workflow-computing-unit";
@@ -26,10 +25,6 @@ import { isNonNullObject } from "../../common/util/predicate";
 
 export function isDashboardWorkflow(value: any): value is DashboardWorkflow {
   return !!value && isNonNullObject(value.workflow);
-}
-
-export function isDashboardFile(value: any): value is DashboardFile {
-  return !!value && typeof value.ownerEmail === "string" && isNonNullObject(value.file);
 }
 
 export function isDashboardDataset(value: any): value is DashboardDataset {

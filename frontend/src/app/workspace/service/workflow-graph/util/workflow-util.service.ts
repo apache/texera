@@ -30,7 +30,6 @@ import { Injectable } from "@angular/core";
 import { v4 as uuid } from "uuid";
 import Ajv from "ajv";
 
-import { Observable, Subject } from "rxjs";
 import { Workflow, WorkflowContent } from "../../../../common/type/workflow";
 import { jsonCast } from "../../../../common/util/storage";
 
@@ -46,24 +45,10 @@ export class WorkflowUtilService {
   // used to fetch default values in json schema to initialize new operator
   private ajv = new Ajv({ useDefaults: true, strict: false });
 
-  private operatorSchemaListCreatedSubject: Subject<boolean> = new Subject<boolean>();
-
   constructor(private operatorMetadataService: OperatorMetadataService) {
     this.operatorMetadataService.getOperatorMetadata().subscribe(value => {
       this.operatorSchemaList = value.operators;
-      this.operatorSchemaListCreatedSubject.next(true);
     });
-  }
-
-  public getOperatorSchemaListCreatedStream(): Observable<boolean> {
-    return this.operatorSchemaListCreatedSubject.asObservable();
-  }
-
-  /**
-   * Returns a list of all available operator types
-   */
-  public getOperatorTypeList(): string[] {
-    return this.operatorSchemaList.map(schema => schema.operatorType);
   }
 
   /**
@@ -78,20 +63,6 @@ export class WorkflowUtilService {
    */
   public getLinkRandomUUID(): string {
     return "link-" + uuid();
-  }
-
-  /**
-   * Generates a new UUID for group element
-   */
-  public getGroupRandomUUID(): string {
-    return "group-" + uuid();
-  }
-
-  /**
-   * Generates a new UUID for breakpoint
-   */
-  public getBreakpointRandomUUID(): string {
-    return "breakpoint-" + uuid();
   }
 
   public getCommentBoxRandomUUID(): string {
@@ -181,6 +152,14 @@ export class WorkflowUtilService {
   public static parseWorkflowInfo(workflow: Workflow): Workflow {
     if (workflow != null && typeof workflow.content === "string") {
       workflow.content = jsonCast<WorkflowContent>(workflow.content);
+    }
+    // The persist endpoint answers with the stored row, whose publish flag is named isPublic;
+    // every other workflow endpoint, and the Workflow type, call it isPublished. Carry it across,
+    // or the metadata a save feeds back would silently drop the publish state until the next
+    // full load.
+    const stored = workflow as Workflow & { isPublic?: boolean };
+    if (workflow != null && workflow.isPublished === undefined && stored.isPublic !== undefined) {
+      workflow.isPublished = Number(stored.isPublic);
     }
     return workflow;
   }

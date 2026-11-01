@@ -33,6 +33,9 @@ spec:
       labels:
         app: {{ .Release.Name }}-{{ .Values.agentService.name }}
     spec:
+      {{- if .Values.global.texeraMicroServiceRuntimeClass }}
+      runtimeClassName: {{ .Values.global.texeraMicroServiceRuntimeClass | quote }}
+      {{- end }}
       containers:
         - name: {{ .Values.agentService.name }}
           image: {{ .Values.texera.imageRegistry }}/{{ .Values.agentService.imageName }}:{{ .Values.texera.imageTag }}

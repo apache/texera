@@ -15,65 +15,30 @@
 # specific language governing permissions and limitations
 # under the License.
 
-import typing
 from loguru import logger
 from overrides import overrides
-from typing import Iterator
 
-from core.architecture.sendsemantics.partitioner import Partitioner
+from core.architecture.sendsemantics.indexed_shuffle_partitioner import (
+    IndexedShufflePartitioner,
+)
 from core.models import Tuple
-from core.models.state import State
-from core.util import set_one_of
-from proto.org.apache.texera.amber.core import ActorVirtualIdentity
-from proto.org.apache.texera.amber.engine.architecture.rpc import EmbeddedControlMessage
 from proto.org.apache.texera.amber.engine.architecture.sendsemantics import (
     HashBasedShufflePartitioning,
-    Partitioning,
 )
 
 
-class HashBasedShufflePartitioner(Partitioner):
+class HashBasedShufflePartitioner(IndexedShufflePartitioner):
     def __init__(self, partitioning: HashBasedShufflePartitioning):
-        super().__init__(set_one_of(Partitioning, partitioning))
+        super().__init__(partitioning)
         logger.debug(f"got {partitioning}")
-        self.batch_size = partitioning.batch_size
         # Indexed by hash_code to choose the downstream worker to send to.
-        self.receivers = self.build_receiver_batches(partitioning.channels)
         self.hash_attribute_names = partitioning.hash_attribute_names
 
     @overrides
-    def add_tuple_to_batch(
-        self, tuple_: Tuple
-    ) -> Iterator[typing.Tuple[ActorVirtualIdentity, typing.List[Tuple]]]:
+    def _route(self, tuple_: Tuple) -> int:
         partial_tuple = (
             tuple_
             if not self.hash_attribute_names
             else tuple_.get_partial_tuple(self.hash_attribute_names)
         )
-        hash_code = hash(partial_tuple) % len(self.receivers)
-        receiver, batch = self.receivers[hash_code]
-        batch.append(tuple_)
-        if len(batch) == self.batch_size:
-            yield receiver, batch
-            self.receivers[hash_code] = (receiver, list())
-
-    @overrides
-    def flush(
-        self, to: ActorVirtualIdentity, ecm: EmbeddedControlMessage
-    ) -> Iterator[typing.Union[EmbeddedControlMessage, typing.List[Tuple]]]:
-        for receiver, batch in self.receivers:
-            if receiver == to:
-                if len(batch) > 0:
-                    yield batch
-                yield ecm
-
-    @overrides
-    def flush_state(
-        self, state: State
-    ) -> Iterator[
-        typing.Tuple[ActorVirtualIdentity, typing.Union[State, typing.List[Tuple]]]
-    ]:
-        for receiver, batch in self.receivers:
-            if len(batch) > 0:
-                yield receiver, batch
-            yield receiver, state
+        return hash(partial_tuple) % len(self.receivers)

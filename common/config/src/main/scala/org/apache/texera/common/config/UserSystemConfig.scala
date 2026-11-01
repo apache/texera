@@ -34,6 +34,7 @@ object UserSystemConfig {
   val orcidClientSecret: String = conf.getString("user-sys.orcid.clientSecret")
   val orcidBaseUrl: String = conf.getString("user-sys.orcid.baseUrl")
   val orcidRedirectUri: String = conf.getString("user-sys.orcid.redirectUri")
+  val appleClientId: String = conf.getString("user-sys.apple.clientId")
   val gmail: String = conf.getString("user-sys.google.smtp.gmail")
   val smtpPassword: String = conf.getString("user-sys.google.smtp.password")
   val inviteOnly: Boolean = conf.getBoolean("user-sys.invite-only")

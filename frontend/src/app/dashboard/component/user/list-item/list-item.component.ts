@@ -54,6 +54,10 @@ import { FormsModule } from "@angular/forms";
 import { UserAvatarComponent } from "../user-avatar/user-avatar.component";
 import { NzWaveDirective } from "ng-zorro-antd/core/wave";
 import { NzPopconfirmDirective } from "ng-zorro-antd/popconfirm";
+import { GuiConfigService } from "../../../../common/service/gui-config.service";
+import { DefaultView } from "../../../type/workflow-metadata.interface";
+import { defaultsToFormView, landingLink } from "./default-view-landing";
+import { WorkflowPersistService } from "../../../../common/service/workflow-persist/workflow-persist.service";
 
 @UntilDestroy()
 @Component({
@@ -96,8 +100,19 @@ export class ListItemComponent implements OnChanges {
   entryLink: string[] = [];
   size: number | undefined = 0;
   public iconType: string = "";
+  /** Whether this workflow opens in the Form View by default. */
+  public defaultsToForm = false;
   isLiked: boolean = false;
   @Input() isPrivateSearch = false;
+
+  /**
+   * Whether the default-view toggle is offered, and honoured: setting the default view writes the
+   * workflow row (the endpoint requires WRITE), so a read-only collaborator gets no control that
+   * could only fail, and the handler itself checks the same rule rather than trusting the template.
+   */
+  get canToggleDefaultView(): boolean {
+    return this.entry.type === "workflow" && this.config.env.formViewEnabled && this.entry.accessLevel === "WRITE";
+  }
   @Input() editable = false;
   private _entry?: DashboardEntry;
   hovering: boolean = false;
@@ -125,7 +140,9 @@ export class ListItemComponent implements OnChanges {
     private hubService: HubService,
     private cdr: ChangeDetectorRef,
     private notificationService: NotificationService,
-    private resourceRegistry: ResourceRegistryService
+    private resourceRegistry: ResourceRegistryService,
+    protected config: GuiConfigService,
+    private workflowPersistService: WorkflowPersistService
   ) {}
 
   initializeEntry() {
@@ -138,6 +155,9 @@ export class ListItemComponent implements OnChanges {
     if (descriptor.hasSize && typeof this.entry.id === "number") {
       this.size = this.entry.size;
     }
+    // A workflow opens in its default view: with the feature flag on, a form-default one shows
+    // the Form View icon and deep-links straight into the form; a canvas-default one is unchanged.
+    this.applyDefaultView();
     this.likeCount = this.entry.likeCount;
     this.viewCount = this.entry.viewCount;
     this.isLiked = this.entry.isLiked;
@@ -161,6 +181,44 @@ export class ListItemComponent implements OnChanges {
       this.initializeEntry();
       this.renderMarkdownPreview(this.entry.description);
     }
+  }
+
+  /**
+   * A workflow opens in its default view. A form-default one is marked with the Form View icon
+   * and its owner's row deep-links straight into the form; the operator canvas is still one
+   * click away from there. A canvas-default one is left as the descriptor set it. Hub links are
+   * untouched; only the owner's own entry point moves. The rule itself lives in
+   * default-view-landing.ts, shared with the card renderer so both views of the dashboard agree.
+   */
+  private applyDefaultView(): void {
+    const formViewEnabled = this.config.env.formViewEnabled;
+    this.defaultsToForm = defaultsToFormView(this.entry, formViewEnabled);
+    if (this.defaultsToForm) {
+      this.iconType = "solution";
+    }
+    this.entryLink = landingLink(this.entry, this.entryLink, formViewEnabled);
+  }
+
+  public onToggleDefaultView(): void {
+    if (!this.canToggleDefaultView) {
+      return;
+    }
+    const next = this.defaultsToForm ? DefaultView.CANVAS : DefaultView.FORM;
+    this.workflowPersistService
+      .setDefaultView(this.entry.id as number, next)
+      .pipe(untilDestroyed(this))
+      .subscribe({
+        next: () => {
+          if (this.entry.workflow?.workflow) {
+            this.entry.workflow.workflow.defaultView = next;
+          }
+          // Re-derive from the descriptor so the icon and link fully reset when turning it
+          // off, not just when turning it on.
+          this.initializeEntry();
+          this.cdr.detectChanges();
+        },
+        error: (err: unknown) => this.notificationService.error(extractErrorMessage(err)),
+      });
   }
 
   onCheckboxChange(entry: DashboardEntry): void {

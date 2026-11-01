@@ -73,14 +73,14 @@ to access services in the main namespace using the same service names.
   "externalName" (printf "%s-svc.%s.svc.cluster.local" .Values.webserver.name $namespace)
 ) | nindent 0 }}
 
-{{- if .Values.minio.enabled }}
+{{- if .Values.rustfs.enabled }}
 ---
-{{/* MinIO ExternalName -- only when the in-cluster MinIO is enabled; with an
+{{/* RustFS ExternalName -- only when the in-cluster RustFS is enabled; with an
      external S3 store the CU pods reach it directly via STORAGE_S3_ENDPOINT. */}}
 {{- include "external-name-service" (dict
-  "name" (printf "%s-minio" .Release.Name)
+  "name" (printf "%s-rustfs-svc" .Release.Name)
   "namespace" $workflowComputingUnitPoolNamespace
-  "externalName" (printf "%s-minio.%s.svc.cluster.local" .Release.Name $namespace)
+  "externalName" (printf "%s-rustfs-svc.%s.svc.cluster.local" .Release.Name $namespace)
 ) | nindent 0 }}
 {{- end }}
 

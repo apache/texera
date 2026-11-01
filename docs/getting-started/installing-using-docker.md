@@ -162,11 +162,11 @@ All changes below are to the `.env` file in the installation folder, unless othe
 ### Run Texera on other ports
 By default, Texera uses:
 - Port 8080 for its web service
-- Port 9000 for its MinIO storage service
+- Port 9000 for its RustFS storage service
 
 To change these ports, open the `.env` file and update the corresponding variables:
 - For the web service port (8080): change `TEXERA_PORT=8080` to your desired port, e.g., `TEXERA_PORT=8081`.
-- For the MinIO port (9000): change `MINIO_PORT=9000` to your desired port, e.g., `MINIO_PORT=9001`.
+- For the RustFS port (9000): change `RUSTFS_PORT=9000` to your desired port, e.g., `RUSTFS_PORT=9001`.
 
 ### Change the locations of Texera data
 By default, Docker manages Texera's data locations. To change them to your own locations:

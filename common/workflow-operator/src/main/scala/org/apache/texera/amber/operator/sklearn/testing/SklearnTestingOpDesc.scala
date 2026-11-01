@@ -23,7 +23,7 @@ import com.fasterxml.jackson.annotation.{JsonProperty, JsonPropertyDescription}
 import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaTitle
 import org.apache.texera.amber.core.tuple.{AttributeType, Schema}
 import org.apache.texera.amber.core.workflow.{InputPort, OutputPort, PortIdentity}
-import org.apache.texera.amber.operator.PythonOperatorDescriptor
+import org.apache.texera.amber.operator.{PythonOperatorDescriptor, StandaloneCodeGenerator}
 import org.apache.texera.amber.operator.sklearn.SklearnFittableColumns
 import org.apache.texera.amber.operator.metadata.annotations.{
   AutofillAttributeName,
@@ -31,9 +31,15 @@ import org.apache.texera.amber.operator.metadata.annotations.{
 }
 import org.apache.texera.amber.operator.metadata.{OperatorGroupConstants, OperatorInfo}
 import org.apache.texera.amber.pybuilder.PyStringTypes.EncodableString
-import org.apache.texera.amber.pybuilder.PythonTemplateBuilder.PythonTemplateBuilderStringContext
+import org.apache.texera.amber.pybuilder.PythonTemplateBuilder.{
+  PythonTemplateBuilderStringContext,
+  pyStringLiteral
+}
 
-class SklearnTestingOpDesc extends PythonOperatorDescriptor with SklearnFittableColumns {
+class SklearnTestingOpDesc
+    extends PythonOperatorDescriptor
+    with StandaloneCodeGenerator
+    with SklearnFittableColumns {
   @JsonProperty(required = true, defaultValue = "false")
   @JsonSchemaTitle("Regression")
   @JsonPropertyDescription(
@@ -76,7 +82,10 @@ class SklearnTestingOpDesc extends PythonOperatorDescriptor with SklearnFittable
          |            Y = table[$target]
          |            X = table.drop($target, axis=1)
          |${narrowToFittableColumns("X", " " * 12)}
-         |            predictions = model.predict(X.squeeze())
+         |            #predict wants (n_samples, n_features). Squeezing the frame first
+         |            #collapsed a single feature, or a single surviving row, to one
+         |            #dimension, which scikit-learn rejects.
+         |            predictions = model.predict(X)
          |            if $isRegressionStr:
          |                tuple_["R2"] = r2_score(Y, predictions)
          |                tuple_["RMSE"] = root_mean_squared_error(Y, predictions)
@@ -118,4 +127,33 @@ class SklearnTestingOpDesc extends PythonOperatorDescriptor with SklearnFittable
             _.add(_, AttributeType.DOUBLE)
           )
     )
+
+  override def generateStandaloneCode(): String = {
+    val isRegressionStr = if (isRegression) "True" else "False"
+    val modelLit = pyStringLiteral(model)
+    val targetLit = pyStringLiteral(target)
+    // Drops on every column as the executor does, since a fitted model hides its estimator.
+    // Each row's model scores the frame itself, kept two-dimensional for predict.
+    s"""from sklearn.metrics import accuracy_score, f1_score, precision_score, recall_score, root_mean_squared_error, mean_absolute_error, r2_score
+       |
+       |out1df = in1df.copy()
+       |rows_read = len(in2df)
+       |scored_df = in2df.dropna()
+       |if len(scored_df) < rows_read:
+       |    print("Skipped", rows_read - len(scored_df), "of", rows_read, "rows with missing values")
+       |Y = scored_df[$targetLit]
+       |X = scored_df.drop($targetLit, axis=1)
+       |${narrowToFittableColumns("X", "")}
+       |predictions = [_model.predict(X) for _model in in1df[$modelLit]]
+       |if $isRegressionStr:
+       |    out1df["R2"] = [r2_score(Y, _p) for _p in predictions]
+       |    out1df["RMSE"] = [root_mean_squared_error(Y, _p) for _p in predictions]
+       |    out1df["MAE"] = [mean_absolute_error(Y, _p) for _p in predictions]
+       |else:
+       |    out1df["accuracy"] = [round(accuracy_score(Y, _p), 4) for _p in predictions]
+       |    out1df["f1"] = [f1_score(Y, _p, average="weighted") for _p in predictions]
+       |    out1df["precision"] = [precision_score(Y, _p, average="weighted") for _p in predictions]
+       |    out1df["recall"] = [recall_score(Y, _p, average="weighted") for _p in predictions]""".stripMargin
+  }
+
 }
