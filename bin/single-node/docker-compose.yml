@@ -20,7 +20,7 @@ services:
   # Part1: Specification of the storage services used by Texera
   # RustFS is an S3-compatible object storage used to store datasets and files.
   rustfs:
-    image: rustfs/rustfs:1.0.0-rc.6
+    image: rustfs/rustfs:1.0.0
     container_name: texera-rustfs
     ports:
       - "${RUSTFS_PORT:-9000}:9000"
@@ -531,7 +531,7 @@ services:
 
   # Part 3: reverse proxy service for Texera's micro services
   nginx:
-    image: nginx:alpine
+    image: nginx:1.30.5-alpine
     container_name: texera-nginx
     depends_on:
       - workflow-compiling-service
@@ -549,7 +549,7 @@ services:
       - "${TEXERA_PORT:-8080}:8080"
 
   startup-message:
-    image: alpine:latest
+    image: alpine:3.24.2
     depends_on:
       nginx:
         condition: service_started
@@ -571,7 +571,7 @@ services:
   # Only runs when the "examples" profile is activated:
   #   docker compose --profile examples up
   example-data-loader:
-    image: alpine:latest
+    image: alpine:3.24.2
     depends_on:
       dashboard-service:
         condition: service_healthy
