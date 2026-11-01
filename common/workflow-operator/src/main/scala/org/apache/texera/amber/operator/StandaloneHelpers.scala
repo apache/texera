@@ -34,6 +34,8 @@ object StandaloneHelpers {
     *  - `_texera_cast_int32`: the INTEGER cast, where a long wraps and a double clamps.
     *  - `_texera_text_to_timestamp`: any year; unreadable text raises. A zoneless ISO cell
     *    pandas can hold is read in bulk, and every other cell is parsed alone.
+    *  - `_texera_skip_gaps`: a wall clock the zone skips, moved later by the gap as Java does.
+    *    The calendar's first and last day hold no gap, and checking them would overflow.
     *  - `_texera_cast_timestamps`: the TIMESTAMP cast, a moment kept and text read as above.
     *  - `_texera_epoch_millis_to_timestamp`: epoch milliseconds shown in the machine's zone.
     *  - `_texera_local_zone`: the machine's zone by its IANA name.
@@ -128,7 +130,23 @@ object StandaloneHelpers {
       |    out[plain] = pd.to_datetime(text[plain], format="ISO8601", errors="coerce").dt.floor("ms")
       |    rest = s.notna() & out.isna()
       |    out[rest] = s[rest].map(_one).astype("datetime64[us]")
-      |    return out
+      |    return _texera_skip_gaps(out, zone)
+      |
+      |def _texera_skip_gaps(walls, zone):
+      |    import datetime
+      |
+      |    if zone is None:
+      |        return walls
+      |    inner = walls.between(datetime.datetime(1, 1, 2), datetime.datetime(9999, 12, 30))
+      |    gap = pd.Series(False, index=walls.index)
+      |    gap[inner] = walls[inner].dt.tz_localize(zone, ambiguous=False, nonexistent="NaT").isna()
+      |
+      |    def _later(t):
+      |        moment = t.to_pydatetime().replace(tzinfo=zone).astimezone(datetime.timezone.utc)
+      |        return moment.astimezone(zone).replace(tzinfo=None)
+      |
+      |    walls[gap] = walls[gap].map(_later).astype("datetime64[us]")
+      |    return walls
       |
       |def _texera_cast_timestamps(s):
       |    if not pd.api.types.is_datetime64_any_dtype(s):

@@ -597,6 +597,68 @@ class TypeCastingOpDescSpec extends AnyFlatSpec with Matchers {
       .toMinutes shouldBe 330
   }
 
+  // A wall clock the zone skips is moved later by the gap, as DateParserUtils
+  // reads it: an hour in New York, half an hour on Lord Howe Island. Noon in
+  // June is the control a fix must leave alone.
+  private val gapCases = Seq(
+    ("America/New_York", "2024-03-10 02:30:00", "2024-03-10 03:30:00"),
+    ("Australia/Lord_Howe", "2015-10-04 02:15:00", "2015-10-04 02:45:00")
+  )
+
+  gapCases.foreach {
+    case (zone, inGap, later) =>
+      it should s"move $inGap in $zone later by the gap" taggedAs NeedsPythonPackages in {
+        readTextAsTheEngineDoes(Seq(inGap, "2024-06-01 12:00:00"), zone).map(moment) shouldBe
+          Seq(later, "2024-06-01 12:00:00").map(moment)
+      }
+  }
+
+  /** Casts each text to a timestamp with both sides in `zone` and compares the
+    * wall clocks, returning the engine's.
+    */
+  private def readTextAsTheEngineDoes(texts: Seq[String], zone: String): Seq[String] = {
+    val python = resolvePython().getOrElse(
+      cancel("No runnable python executable (udf.conf python.path, python3, python, py)")
+    )
+    if (!canImportPandas(python)) cancel(s"'$python' cannot import pandas")
+
+    val op = new TypeCastingOpDesc
+    op.typeCastingUnits = List(castUnit("v", AttributeType.TIMESTAMP))
+    val driver =
+      s"""import pandas as pd
+         |
+         |${op.standaloneHelpers().mkString("\n\n")}
+         |
+         |
+         |in1df = pd.DataFrame({"v": ${texts.map("\"" + _ + "\"").mkString("[", ", ", "]")}})
+         |${op.generateStandaloneCode()}
+         |
+         |for answer in out1df["v"]:
+         |    print("cell", "null" if pd.isna(answer) else str(answer))
+         |""".stripMargin
+
+    val script = Files.createTempFile("typecast-gap-", ".py")
+    script.toFile.deleteOnExit()
+    Files.write(script, driver.getBytes(StandardCharsets.UTF_8))
+
+    val builder = new ProcessBuilder(python, script.toString).redirectErrorStream(true)
+    builder.environment().put("TZ", zone)
+    val process = builder.start()
+    val out = Source.fromInputStream(process.getInputStream).mkString
+    process.waitFor(120, TimeUnit.SECONDS)
+    withClue(s"python said:\n$out\nscript:\n$driver") { process.exitValue() shouldBe 0 }
+
+    val machineZone = java.util.TimeZone.getDefault
+    java.util.TimeZone.setDefault(java.util.TimeZone.getTimeZone(zone))
+    val fromEngine =
+      try texts.map(t => engineAnswer(t, AttributeType.TIMESTAMP))
+      finally java.util.TimeZone.setDefault(machineZone)
+    withClue(s"script said ${cellsOf(out)}\n") {
+      cellsOf(out).map(moment) shouldBe fromEngine.map(moment)
+    }
+    fromEngine
+  }
+
   // A column that is already a moment is not text and is not re-read: parseField
   // hands a java.sql.Timestamp back untouched, and that class counts nanoseconds,
   // so narrowing the column here would fold two moments the run tells apart into
