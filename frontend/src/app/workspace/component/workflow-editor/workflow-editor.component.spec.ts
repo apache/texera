@@ -2193,18 +2193,18 @@ describe("WorkflowEditorComponent editor wiring", () => {
   });
 
   describe("selection and highlight handlers", () => {
-    it("opens the result panel when an operator is double-clicked, but not for a link", () => {
+    it("pins an operator's result window when it is double-clicked, but not for a link", () => {
       const { view: linkView } = addLinkedPair();
-      const opened: boolean[] = [];
-      workflowActionService.resultPanelOpen$.subscribe(value => opened.push(value));
+      const pinned = () => component.pinnedResults.map(pinnedResult => pinnedResult.operatorId);
       const operatorView = component.paper.findViewByModel(mockScanPredicate.operatorID);
 
       (component.paper as any).trigger("cell:pointerdblclick", operatorView, { shiftKey: false });
-      expect(opened).toEqual([true]);
+      expect(pinned()).toEqual([mockScanPredicate.operatorID]);
+      expect(fixture.debugElement.queryAll(By.css("texera-pinned-result-window")).length).toBe(1);
 
       // a link is not an element, so the handler skips it entirely
       (component.paper as any).trigger("cell:pointerdblclick", linkView, { shiftKey: false });
-      expect(opened).toEqual([true]);
+      expect(pinned()).toEqual([mockScanPredicate.operatorID]);
     });
 
     it("highlights the link running between two shift-selected operators", () => {

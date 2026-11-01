@@ -29,6 +29,7 @@ import { ComputingUnitStatusService } from "../../../../common/service/computing
 import { MockComputingUnitStatusService } from "../../../../common/service/computing-unit/computing-unit-status/mock-computing-unit-status.service";
 import { commonTestProviders } from "../../../../common/testing/test-utils";
 import { ExecuteWorkflowService } from "../../../service/execute-workflow/execute-workflow.service";
+import { WorkflowCompilingService } from "../../../service/compile-workflow/workflow-compiling.service";
 import { WorkflowConsoleService } from "../../../service/workflow-console/workflow-console.service";
 import { WorkflowWebsocketService } from "../../../service/workflow-websocket/workflow-websocket.service";
 import { NotificationService } from "../../../../common/service/notification/notification.service";
@@ -407,8 +408,11 @@ describe("ConsoleFrameComponent", () => {
       expect((notice.nativeElement as HTMLElement).textContent).toContain(`Showing: ${scanLabel()}`);
       expect(fixture.debugElement.query(By.css(".operator-tag"))).toBeNull();
 
+      const awareness = vi.spyOn(actions.getTexeraGraph(), "updateSharedModelAwareness");
       notice.query(By.css("button")).triggerEventHandler("click", new MouseEvent("click"));
       expect(actions.getJointGraphWrapper().getCurrentHighlightedOperatorIDs()).toEqual([]);
+      // co-editors are told the highlight is gone too
+      expect(awareness).toHaveBeenCalledWith("highlighted", []);
     });
 
     it("leaves a message from an operator no longer on the canvas untagged", () => {
@@ -639,6 +643,38 @@ describe("ConsoleFrameComponent", () => {
       tick();
       fixture.detectChanges();
 
+      expect(scrolled()).toBe(false);
+      flush();
+    }));
+
+    // Every compile sends a new error object with a new timestamp, though the error is the same.
+    it("stays where it is on a recompile that sends the same compilation error again", fakeAsync(() => {
+      let seconds = 0;
+      const compiledError = () => ({
+        op1: {
+          message: "IllegalArgumentException: no column 'a'",
+          details: "",
+          operatorId: "op1",
+          workerId: "",
+          type: { name: "COMPILATION_ERROR" },
+          timestamp: { nanos: 0, seconds: seconds++ },
+        },
+      });
+      vi.spyOn(TestBed.inject(WorkflowCompilingService), "getWorkflowCompilationErrors").mockImplementation(
+        compiledError
+      );
+      component.displayConsoleMessages("op1");
+      tick();
+      fixture.detectChanges();
+      const shown = component.consoleMessages[0];
+
+      const scrolled = watchScroll(fixture);
+
+      component.displayConsoleMessages("op1");
+      tick();
+      fixture.detectChanges();
+
+      expect(component.consoleMessages[0]).toBe(shown);
       expect(scrolled()).toBe(false);
       flush();
     }));

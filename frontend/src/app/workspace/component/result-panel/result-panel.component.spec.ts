@@ -176,6 +176,47 @@ describe("ResultPanelComponent", () => {
       expect(console.operatorId).toBe(mockResultPredicate.operatorID);
       expect(console.consoleInputEnabled).toBe(false);
     });
+
+    describe("when a run starts", () => {
+      const pythonUdf = (operatorID: string, isDisabled = false): OperatorPredicate => ({
+        ...mockResultPredicate,
+        operatorID,
+        operatorType: PYTHON_UDF_V2_OP_TYPE,
+        isDisabled,
+      });
+      // The stub metadata has no Python UDF type, so the graph and the highlight are stubbed.
+      const startRun = (highlighted: string[]) => {
+        vi.spyOn(workflowActionService.getTexeraGraph(), "getAllOperators").mockReturnValue([
+          pythonUdf("py-disabled", true),
+          pythonUdf("py1"),
+          pythonUdf("py2"),
+        ]);
+        vi.spyOn(wrapper(), "getCurrentHighlightedOperatorIDs").mockReturnValue(highlighted);
+        const unhighlight = vi.spyOn(wrapper(), "unhighlightOperators").mockImplementation(() => {});
+        const highlight = vi.spyOn(wrapper(), "highlightOperators").mockImplementation(() => {});
+        TestBed.inject(ExecuteWorkflowService)["updateExecutionState"]({ state: ExecutionState.Running });
+        return { unhighlight, highlight };
+      };
+
+      it("selects the first enabled Python UDF", () => {
+        const { highlight } = startRun([]);
+
+        expect(highlight).toHaveBeenCalledWith("py1");
+      });
+
+      it("moves the selection off an operator that is not a Python UDF", () => {
+        const { unhighlight, highlight } = startRun([mockScanPredicate.operatorID]);
+
+        expect(unhighlight).toHaveBeenCalledWith(mockScanPredicate.operatorID);
+        expect(highlight).toHaveBeenCalledWith("py1");
+      });
+
+      it("keeps a Python UDF that is already the one selected", () => {
+        const { highlight } = startRun(["py2"]);
+
+        expect(highlight).not.toHaveBeenCalled();
+      });
+    });
   });
 
   describe("the AI Fix tab", () => {
@@ -404,24 +445,6 @@ describe("ResultPanelComponent", () => {
       expect(component.dragPosition).toEqual({ x: 11, y: 22 });
       expect(component.width).toBe(DEFAULT_WIDTH);
       expect(component.height).toBe(DEFAULT_HEIGHT);
-    });
-
-    it("opens the panel when the result-panel-open stream emits true", () => {
-      component.closePanel();
-
-      workflowActionService.openResultPanel();
-
-      expect(component.width).toBe(DEFAULT_WIDTH);
-      expect(component.height).toBe(DEFAULT_HEIGHT);
-    });
-
-    it("closes the panel when the result-panel-open stream emits false", () => {
-      component.openPanel();
-
-      workflowActionService.closeResultPanel();
-
-      expect(component.width).toBe(0);
-      expect(component.height).toBe(32.5);
     });
   });
 

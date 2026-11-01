@@ -115,8 +115,8 @@ export class ConsoleFrameComponent implements OnInit, OnChanges {
 
   // The operator each shown message came from, for its tag when every operator's messages are shown.
   private messageOperator = new Map<ConsoleMessage, string>();
-  // the console message made for each error that stopped the run or the compilation
-  private fatalErrorRows = new WeakMap<WorkflowFatalError, OperatorConsoleMessage>();
+  // the console message made for each error that stopped the run or the compilation, by its content
+  private fatalErrorRows = new Map<string, OperatorConsoleMessage>();
 
   // Message types the user has switched off. Absent from the set means visible,
   // so a type the console has never seen before is shown rather than hidden.
@@ -366,8 +366,10 @@ export class ConsoleFrameComponent implements OnInit, OnChanges {
 
   /** Back to every operator's messages, by clearing the highlight the panel follows. */
   showAllOperators(): void {
-    const wrapper = this.workflowActionService.getJointGraphWrapper();
-    wrapper.unhighlightOperators(...wrapper.getCurrentHighlightedOperatorIDs());
+    // through the action service, which tells co-editors the highlight is gone
+    this.workflowActionService.unhighlightOperators(
+      ...this.workflowActionService.getJointGraphWrapper().getCurrentHighlightedOperatorIDs()
+    );
   }
 
   /** The errors that stopped the run or the compilation, as console messages. */
@@ -376,10 +378,13 @@ export class ConsoleFrameComponent implements OnInit, OnChanges {
       ...this.executeWorkflowService.getErrorMessages(),
       ...Object.values(this.workflowCompilingService.getWorkflowCompilationErrors()),
     ];
-    return errors.map(error => {
-      // The same error gives the same message on every render. A new one each time would read as
-      // a message just arrived, and the list would jump to its end while the user scrolls up.
-      let row = this.fatalErrorRows.get(error);
+    // The same error gives the same message on every render. A new one each time would read as a
+    // message just arrived, and the list would jump to its end while the user scrolls up. Every
+    // compile sends new error objects with a new timestamp, so an error is known by the rest.
+    const rows = new Map<string, OperatorConsoleMessage>();
+    const messages = errors.map(error => {
+      const key = JSON.stringify([error.type.name, error.operatorId, error.workerId, error.message, error.details]);
+      let row = rows.get(key) ?? this.fatalErrorRows.get(key);
       if (!row) {
         const shouldFormat = error.type.name === "COMPILATION_ERROR" || error.type.name === "EXECUTION_FAILURE";
         row = {
@@ -393,10 +398,13 @@ export class ConsoleFrameComponent implements OnInit, OnChanges {
             message: shouldFormat ? readableError(error.details) : error.details,
           },
         };
-        this.fatalErrorRows.set(error, row);
       }
+      rows.set(key, row);
       return row;
     });
+    // only the errors still shown are kept
+    this.fatalErrorRows = rows;
+    return messages;
   }
 }
 

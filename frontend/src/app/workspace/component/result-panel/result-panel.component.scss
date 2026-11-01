@@ -78,11 +78,14 @@ $type-colors: (
   padding: 8px 8px 36px;
 }
 
-// and each tab's content fills them
+// and each tab's content fills them; the tab panes keep their own display, which hides the tab not chosen
 :host ::ng-deep .result-content .ant-tabs-content,
-:host ::ng-deep .result-content .ant-tabs-tabpane,
+:host ::ng-deep .result-content .ant-tabs-tabpane {
+  height: 100%;
+}
+
+// height only: the console lays out its own list, and a display here would override it
 .tab-content {
-  display: block;
   height: 100%;
 }
 

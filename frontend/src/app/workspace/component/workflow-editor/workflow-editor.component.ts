@@ -1106,7 +1106,7 @@ export class WorkflowEditorComponent implements OnInit, AfterViewInit, OnDestroy
 
   private handleHighlightMouseDBClickInput(): void {
     // on user mouse double-clicks a comment box, open that comment box
-    // on user mouse double-clicks an operator, highlight it and open result panel
+    // on user mouse double-clicks an operator, pin its result window
     fromJointPaperEvent(this.paper, "cell:pointerdblclick")
       .pipe(untilDestroyed(this))
       .subscribe(event => {
@@ -1118,7 +1118,9 @@ export class WorkflowEditorComponent implements OnInit, AfterViewInit, OnDestroy
           if (this.workflowActionService.getTexeraGraph().hasCommentBox(elementID)) {
             this.openCommentBox(elementID);
           } else if (this.workflowActionService.getTexeraGraph().hasOperator(elementID)) {
-            this.workflowActionService.openResultPanel();
+            this.pinResult(elementID);
+            // JointJS paper events fire outside Angular's zone (see handleHeatmapHover).
+            this.changeDetectorRef.detectChanges();
           }
         }
       });

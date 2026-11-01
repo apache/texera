@@ -29,6 +29,8 @@ import { calculateTotalTranslate3d } from "../../../common/util/panel-dock";
 import { isDefined } from "../../../common/util/predicate";
 import { CdkDragEnd, CdkDrag, CdkDragHandle } from "@angular/cdk/drag-drop";
 import { PanelService } from "../../service/panel/panel.service";
+import { ExecuteWorkflowService } from "../../service/execute-workflow/execute-workflow.service";
+import { ExecutionState } from "../../types/execute-workflow.interface";
 import { NzMenuDirective, NzMenuItemComponent, NzMenuDividerDirective } from "ng-zorro-antd/menu";
 import { NgClass, NgIf } from "@angular/common";
 import { ɵNzTransitionPatchDirective } from "ng-zorro-antd/core/transition-patch";
@@ -40,7 +42,6 @@ import { NzTabsComponent, NzTabComponent } from "ng-zorro-antd/tabs";
 import { AiFixFrameComponent } from "./ai-fix/ai-fix-frame.component";
 import { GuiConfigService } from "../../../common/service/gui-config.service";
 import { WorkflowConsoleService } from "../../service/workflow-console/workflow-console.service";
-import { ExecuteWorkflowService } from "../../service/execute-workflow/execute-workflow.service";
 
 export const DEFAULT_WIDTH = 800;
 export const DEFAULT_HEIGHT = 500;
@@ -115,18 +116,12 @@ export class ResultPanelComponent implements OnInit, OnDestroy {
     this.returnPosition = { x: -xOffset, y: -yOffset };
     this.updateReturnPosition(DEFAULT_HEIGHT, this.height);
     this.registerFollowHighlight();
+    this.registerSelectPythonUdfOnRun();
     this.registerAiFixTab();
     this.panelService.closePanelStream.pipe(untilDestroyed(this)).subscribe(() => this.closePanel());
     this.panelService.resetPanelStream.pipe(untilDestroyed(this)).subscribe(() => {
       this.resetPanelPosition();
       this.openPanel();
-    });
-    this.workflowActionService.resultPanelOpen$.pipe(untilDestroyed(this)).subscribe(open => {
-      if (open) {
-        this.openPanel();
-      } else {
-        this.closePanel();
-      }
     });
     // Once, for what is already there: the highlight is kept in a root-provided service, so after a
     // hand-over between a workflow's two views an operator can already be shown selected.
@@ -153,6 +148,26 @@ export class ResultPanelComponent implements OnInit, OnDestroy {
       .subscribe(_ => {
         this.updateShownOperator();
         this.changeDetectorRef.detectChanges();
+      });
+  }
+
+  /** A run selects the first Python UDF, so the console shows its messages and takes debugger commands. */
+  registerSelectPythonUdfOnRun() {
+    this.executeWorkflowService
+      .getExecutionStateStream()
+      .pipe(untilDestroyed(this))
+      .subscribe(event => {
+        if (event.current.state !== ExecutionState.Running) return;
+        const pythonUdfs = this.workflowActionService
+          .getTexeraGraph()
+          .getAllOperators()
+          .filter(op => isPythonUdf(op) && !op.isDisabled)
+          .map(op => op.operatorID);
+        const wrapper = this.workflowActionService.getJointGraphWrapper();
+        const highlighted = wrapper.getCurrentHighlightedOperatorIDs();
+        if (pythonUdfs.length === 0 || (highlighted.length === 1 && pythonUdfs.includes(highlighted[0]))) return;
+        wrapper.unhighlightOperators(...highlighted);
+        wrapper.highlightOperators(pythonUdfs[0]);
       });
   }
 
