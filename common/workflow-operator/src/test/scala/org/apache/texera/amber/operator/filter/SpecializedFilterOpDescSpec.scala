@@ -21,7 +21,7 @@ package org.apache.texera.amber.operator.filter
 
 import com.typesafe.config.ConfigFactory
 import org.apache.texera.amber.core.executor.OpExecWithClassName
-import org.apache.texera.amber.core.tuple.{AttributeType, Schema, Tuple}
+import org.apache.texera.amber.core.tuple.{Attribute, AttributeType, Schema, Tuple}
 import org.apache.texera.amber.core.virtualidentity.{ExecutionIdentity, WorkflowIdentity}
 import org.apache.texera.amber.core.workflow.PortIdentity
 import org.apache.texera.amber.operator.LogicalOp
@@ -93,6 +93,22 @@ class SpecializedFilterOpDescSpec extends AnyFlatSpec with Matchers {
     val code = d.generateStandaloneCode()
     code should include("in1df[\"age\"]")
     code should include("out1df")
+  }
+
+  // FilterPredicate reads `Name` from a column `name`, since Schema ignores case.
+  // pandas would raise a KeyError on `Name`, so the script reads the column as the
+  // table spells it.
+  it should "read a column named in a different case from the table" in {
+    val d = new SpecializedFilterOpDesc
+    d.predicates = List(
+      new FilterPredicate("Name", ComparisonType.EQUAL_TO, "a"),
+      new FilterPredicate("NAME", ComparisonType.IS_NULL, "")
+    )
+    val inputSchemas =
+      Map(PortIdentity() -> Schema().add(new Attribute("name", AttributeType.STRING)))
+    // The declared type is found under the table's spelling too.
+    d.generateStandaloneCode(inputSchemas) shouldBe
+      """out1df = in1df[_texera_filter_keep_string(in1df["name"], "=", "a") | (in1df["name"].isna())].reset_index(drop=True)"""
   }
 
   // The executor filters on `predicates.exists`, which answers false on an empty

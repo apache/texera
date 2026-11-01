@@ -75,7 +75,9 @@ class SpecializedFilterOpDesc extends FilterOpDesc with StandaloneCodeGenerator 
     if (predicates.isEmpty) return "out1df = in1df.iloc[0:0].copy()"
     val schema = inputSchemas.values.headOption
     val conditions = predicates.map { p =>
-      val colLit = pyStringLiteral(p.attribute)
+      // FilterPredicate reads the field through Schema, which ignores case. See
+      // [[columnAsStored]].
+      val colLit = pyStringLiteral(columnAsStored(p.attribute, schema))
       p.condition match {
         case ComparisonType.IS_NULL     => s"""(in1df[$colLit].isna())"""
         case ComparisonType.IS_NOT_NULL => s"""(in1df[$colLit].notna())"""

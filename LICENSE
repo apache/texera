@@ -243,8 +243,11 @@ This product bundles the ScalaPB options definition:
   Source: https://github.com/scalapb/ScalaPB
   License: Apache License 2.0 (this LICENSE file)
 
-This product includes an icon from Google's Material Symbols:
+This product includes icons from Google's Material Symbols:
   - frontend/src/app/common/icon/model-icon.ts ("hub")
+  - the "psychology", "smart_toy" and "snippet_folder" icons drawn into
+    frontend/src/assets/notebook_migration_tool/tool_popup_diagram.png,
+    python_file_diagram.png and python_folder_diagram.png
   Copyright (c) Google LLC
   Source: https://github.com/google/material-design-icons
   License: Apache License 2.0 (this LICENSE file)
@@ -275,15 +278,24 @@ build:
   Source: https://github.com/yarnpkg/berry
   License: BSD 2-Clause License (licenses-3rd-party-code/yarn.txt)
 
-Creative Commons Attribution 4.0 International (CC BY 4.0)
+BSD 3-Clause License
 --------------------------------------
 
-This product bundles the Iris example dataset:
+This product includes the Project Jupyter logo, drawn into a diagram:
+  - frontend/src/assets/notebook_migration_tool/tool_popup_diagram.png
+  Copyright (c) 2014, Project Jupyter
+  Source: https://github.com/jupyter/design
+  License: BSD 3-Clause License (licenses/LICENSE-BSD-3-Clause.txt)
+  Note: "Jupyter" and the Jupyter logo are trademarks of LF Charities. The logo is
+        used unmodified to show that the tool imports Jupyter notebooks, as the
+        Jupyter trademark policy permits.
+
+This product bundles the Iris example dataset, as distributed with scikit-learn:
   - bin/single-node/examples/datasets/iris-species/Iris.csv
   Creator: R. A. Fisher (1936)
-  Source: UCI Machine Learning Repository, https://archive.ics.uci.edu/dataset/53/iris
-  DOI: 10.24432/C56C76
-  License: CC BY 4.0 (licenses/LICENSE-CC-BY-4.0.txt)
+  Copyright (c) 2007-2024 The scikit-learn developers
+  Source: https://github.com/scikit-learn/scikit-learn/blob/1.7.2/sklearn/datasets/data/iris.csv
+  License: BSD 3-Clause License (licenses/LICENSE-BSD-3-Clause.txt)
 
 Trademarks
 --------------------------------------
