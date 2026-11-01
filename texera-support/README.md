@@ -22,10 +22,9 @@
 The helpers a Python script exported from a Texera workflow calls, so the
 script gives the answers the Texera engine gives.
 
-An exported script imports the helpers it calls from this package. The export
-downloads as a zip that holds this module as `texera_support.py` next to the
-script, so the unzipped folder runs with nothing installed. Installing the
-package, with `pip install ./texera-support`, makes it importable from anywhere.
+An exported script imports the helpers it calls from this module. The export
+downloads as a zip that holds it as `texera_support.py` next to the script, so
+the unzipped folder runs with nothing installed.
 
 `texera_support/__init__.py` is generated from the helper definitions in
 `common/workflow-operator`. Do not edit it by hand. After changing a helper, run
