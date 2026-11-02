@@ -194,7 +194,7 @@ List every column (here `number`, type `integer`) under **Columns** in the prope
 
 ![Console showing an error on the paused UDF](udf-console-error.png)
 
-- If the code can't even load (missing import, wrong class), the error appears in **Static Error**. Click the UDF, or an empty spot on the canvas, to see it. The message ends with the error type and your line number, e.g. `(NameError at line 2 of the UDF code)`. See [where to find errors](../guide-for-how-to-use-texera/#where-to-find-errors).
+- If the code can't even load (missing import, wrong class), the error appears in **Static Error**. Click the UDF, or an empty spot on the canvas, to see it. The message includes the error type and your line number, e.g. `(NameError at line 2 of the UDF code)`. See [where to find errors](../guide-for-how-to-use-texera/#where-to-find-errors).
 
 | Error message contains | Cause | Fix |
 |---|---|---|

@@ -65,7 +65,7 @@ Some Texera setups also need a **warehouse**, the place your run's results are s
 
 - One computing unit can run all your workflows. Reuse it.
 - A new unit usually won't fix an error in the workflow itself (code or settings). It can help when the run needs more memory, CPU or GPU, or different Python packages.
-- Stopping (terminating) a unit deletes the results it holds. Your workflows and datasets are safe.
+- Stopping (terminating) a unit stops its machine. Your workflows and datasets are kept. To see results on another unit, run the workflow again there.
 
 More in [Computing Units](../computing-units/).
 
