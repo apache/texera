@@ -52,9 +52,11 @@ export class VisualizationFrameContentComponent implements AfterContentInit {
     // re-draw was lost -- the last update of a run showed the previous picture for good.
     this.workflowResultService
       .getResultUpdateStream()
-      .pipe(filter(rec => this.operatorId !== undefined && rec[this.operatorId] !== undefined))
-      .pipe(auditTime(VisualizationFrameContentComponent.UPDATE_INTERVAL_MS))
-      .pipe(untilDestroyed(this))
+      .pipe(
+        filter(rec => this.operatorId !== undefined && rec[this.operatorId] !== undefined),
+        auditTime(VisualizationFrameContentComponent.UPDATE_INTERVAL_MS),
+        untilDestroyed(this)
+      )
       .subscribe(() => {
         this.drawChart();
       });

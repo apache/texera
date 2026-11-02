@@ -2518,9 +2518,9 @@ describe("WorkflowFormComponent", () => {
     });
 
     // An update to a result the form already shows reaches the frame in place (the frame redraws on
-    // its operator's updates); the form only re-limits the shown set and re-fits. It used to keep a
-    // per-operator version here as well, to key the frame on, which nothing needs.
-    it("re-limits the shown results and re-fits on a result update, and rebuilds nothing", () => {
+    // its operator's updates); the form only re-limits the shown set and re-fits. That the frame is
+    // still the same one afterwards is asserted on the rendered page (workflow-form.rendered.spec).
+    it("re-limits the shown results and re-fits on a result update", () => {
       vi.useFakeTimers();
       build(formViewWorkflow).ngOnInit();
       const refresh = vi.spyOn(component as any, "refreshShownResults");
