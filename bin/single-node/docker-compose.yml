@@ -89,7 +89,7 @@ services:
 
   # lakeFS is the underlying storage of Texera's dataset service
   lakefs:
-    image: treeverse/lakefs:1.51
+    image: treeverse/lakefs:1.80
     container_name: texera-lakefs
     restart: unless-stopped
     depends_on:

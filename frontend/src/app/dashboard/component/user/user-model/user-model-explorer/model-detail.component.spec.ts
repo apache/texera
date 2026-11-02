@@ -115,7 +115,7 @@ describe("ModelDetailComponent", () => {
       getModelCoverUrl: vi.fn(() => of({ url: "http://cover" })),
     };
     downloadService = {
-      downloadModelSingleFile: vi.fn(() => of(new Blob())),
+      downloadModelSingleFile: vi.fn(() => of("url")),
       downloadModelVersion: vi.fn(() => of(new Blob())),
     };
     notificationService = { success: vi.fn(), error: vi.fn(), info: vi.fn() };
