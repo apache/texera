@@ -23,7 +23,6 @@ import { NzResizeEvent, NzResizableDirective, NzResizeHandlesComponent } from "n
 import { AgentService, AgentInfo } from "../../../service/agent/agent.service";
 import { WorkflowActionService } from "../../../service/workflow-graph/model/workflow-action.service";
 import { NotificationService } from "../../../../common/service/notification/notification.service";
-import { calculateTotalTranslate3d } from "../../../../common/util/panel-dock";
 import { NgIf, NgFor } from "@angular/common";
 import { NzSpaceCompactItemDirective } from "ng-zorro-antd/space";
 import { NzButtonComponent } from "ng-zorro-antd/button";
@@ -82,7 +81,6 @@ export class AgentPanelComponent implements OnInit, OnDestroy, OnChanges {
   height = Math.max(AgentPanelComponent.MIN_PANEL_HEIGHT, window.innerHeight * 0.7);
   id = -1;
   dragPosition = { x: 0, y: 0 };
-  returnPosition = { x: 0, y: 0 };
 
   // Tab management
   selectedTabIndex: number = 0; // 0 = registration tab, 1+ = agent tabs
@@ -364,9 +362,6 @@ export class AgentPanelComponent implements OnInit, OnDestroy, OnChanges {
       const container = document.getElementById("agent-container");
       if (container) {
         container.style.cssText = savedStyle;
-        const translates = container.style.transform;
-        const [xOffset, yOffset] = calculateTotalTranslate3d(translates);
-        this.returnPosition = { x: -xOffset, y: -yOffset };
       }
     }
   }
