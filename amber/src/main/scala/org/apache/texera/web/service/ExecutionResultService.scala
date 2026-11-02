@@ -478,7 +478,7 @@ class ExecutionResultService(
     val storageUriOption = WorkflowExecutionsResource.getResultUriByLogicalPortId(
       latestExecutionId,
       OperatorIdentity(request.operatorID),
-      PortIdentity()
+      PortIdentity(request.portIndex)
     )
 
     // Refuse to read a per-user-warehouse result while the feature is off (#6930).
@@ -513,7 +513,12 @@ class ExecutionResultService(
           // A page with no rows has no tuple to read the columns off, but the
           // stored result still declares them.
           .getOrElse(columns.get.map(schemaOption.get.getAttribute))
-        PaginatedResultEvent.apply(request, mappedResults, attributes)
+        PaginatedResultEvent.apply(
+          request,
+          mappedResults,
+          attributes,
+          virtualDocument.getCount.toInt
+        )
 
       case None =>
         // Handle the case when storageUri is empty
@@ -526,6 +531,11 @@ class ExecutionResultService(
       val newInfo: Map[OperatorIdentity, OperatorResultMetadata] = {
         WorkflowExecutionsResource
           .getResultUrisByExecutionId(executionId)
+          // One entry per operator, so it follows the first output port, as the result updates do.
+          // Keyed by operator, a second port's count would otherwise replace the first's.
+          .filter(uri =>
+            VFSURIFactory.decodeURI(uri).globalPortId.exists(_.portId == PortIdentity())
+          )
           .map(uri => {
             val count = DocumentFactory.openDocument(uri)._1.getCount.toInt
 

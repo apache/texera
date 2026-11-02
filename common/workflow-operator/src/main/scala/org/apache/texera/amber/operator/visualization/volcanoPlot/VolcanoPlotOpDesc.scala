@@ -21,12 +21,10 @@ package org.apache.texera.amber.operator.visualization.volcanoPlot
 
 import com.fasterxml.jackson.annotation.{JsonProperty, JsonPropertyDescription}
 import com.kjetland.jackson.jsonSchema.annotations.{JsonSchemaInject, JsonSchemaTitle}
-import org.apache.texera.amber.core.tuple.{AttributeType, Schema}
 import org.apache.texera.amber.pybuilder.PythonTemplateBuilder.PythonTemplateBuilderStringContext
 import org.apache.texera.amber.pybuilder.PyStringTypes.EncodableString
-import org.apache.texera.amber.core.workflow.PortIdentity
-import org.apache.texera.amber.operator.PythonOperatorDescriptor
 import org.apache.texera.amber.operator.visualization.PlotlyStandaloneCode
+import org.apache.texera.amber.operator.visualization.PythonVisualizationOpDesc
 import org.apache.texera.amber.operator.metadata.annotations.{AutofillAttributeName, SampleColumn}
 import org.apache.texera.amber.operator.metadata.{OperatorGroupConstants, OperatorInfo}
 import org.apache.texera.amber.pybuilder.PythonTemplateBuilder.pyStringLiteral
@@ -43,7 +41,7 @@ import javax.validation.constraints.NotNull
   }
 }
 """)
-class VolcanoPlotOpDesc extends PythonOperatorDescriptor with PlotlyStandaloneCode {
+class VolcanoPlotOpDesc extends PythonVisualizationOpDesc with PlotlyStandaloneCode {
 
   @JsonProperty(required = true)
   @JsonSchemaTitle("Effect Size (log2 Fold Change)")
@@ -75,14 +73,6 @@ class VolcanoPlotOpDesc extends PythonOperatorDescriptor with PlotlyStandaloneCo
       operatorDescription = "Displays statistical significance versus effect size",
       operatorGroupName = OperatorGroupConstants.VISUALIZATION_SCIENTIFIC_GROUP
     )
-
-  override def getOutputSchemas(
-      inputSchemas: Map[PortIdentity, Schema]
-  ): Map[PortIdentity, Schema] = {
-    val outputSchema = Schema()
-      .add("html-content", AttributeType.STRING)
-    Map(operatorInfo.outputPorts.head.id -> outputSchema)
-  }
 
   override def generatePythonCode(): String = {
     pyb"""
@@ -128,8 +118,6 @@ class VolcanoPlotOpDesc extends PythonOperatorDescriptor with PlotlyStandaloneCo
        |        yield {"html-content": html}
        |""".encode
   }
-
-  override def producesDataFrame(): Boolean = false
 
   override def generateStandaloneCode(): String = {
     val pvalueLit = pyStringLiteral(pvalueColumn)

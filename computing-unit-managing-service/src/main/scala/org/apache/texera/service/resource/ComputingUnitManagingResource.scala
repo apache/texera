@@ -28,6 +28,7 @@ import jakarta.ws.rs.core.{MediaType, Response}
 import org.apache.commons.lang3.StringUtils
 import org.apache.texera.auth.JwtAuth.jwtClaims
 import org.apache.texera.auth.{JwtAuth, SessionUser}
+import org.apache.texera.auth.util.ComputingUnitAccess
 import org.apache.texera.common.config.KubernetesConfig.{
   cpuLimitOptions,
   gpuLimitOptions,
@@ -58,9 +59,10 @@ import org.apache.texera.dao.jooq.generated.tables.daos.{
   UserDao,
   WorkflowComputingUnitDao
 }
-import org.apache.texera.dao.jooq.generated.tables.pojos.WorkflowComputingUnit
+import org.apache.texera.dao.jooq.generated.tables.pojos.{User, WorkflowComputingUnit}
 import org.apache.texera.service.resource.ComputingUnitManagingResource._
 import org.apache.texera.service.util.{
+  ComputingUnitEmailNotifier,
   ComputingUnitHelpers,
   ComputingUnitManagingServiceException,
   InsufficientComputingUnitQuota,
@@ -385,6 +387,46 @@ object ComputingUnitManagingResource {
       lookup(name).map(_.trim).filter(_.nonEmpty).map(name -> _)
     }.toMap
 
+  // Forwarded to a created unit so it emits to the same collector as the rest of
+  // the deployment. service.instance.id is NOT here: it is built per unit below.
+  private val observabilityComputingUnitEnvNames: Seq[String] = Seq(
+    EnvironmentalVariable.ENV_OTEL_SDK_DISABLED,
+    EnvironmentalVariable.ENV_OTEL_EXPORTER_OTLP_ENDPOINT,
+    EnvironmentalVariable.ENV_TEXERA_OTEL_ALLOWED_HOSTS,
+    EnvironmentalVariable.ENV_OTEL_METRIC_EXPORT_INTERVAL
+  )
+
+  /**
+    * Observability environment for a created unit. Without this a unit runs with
+    * the SDK-disabled default even when the manager has telemetry enabled, so a
+    * worker failure leaves no unit logs, metrics, or traces to investigate. The
+    * unit inherits the manager's collector endpoint and related settings, but is
+    * given its own service.instance.id (service.name stays shared) so units with
+    * the same name do not collapse into one metric series; an instance id the
+    * manager itself carries is dropped rather than copied. Returns nothing when no
+    * collector endpoint is configured, leaving the unit at its default-off state.
+    */
+  private[resource] def observabilityComputingUnitEnv(
+      cuid: Int,
+      lookup: String => Option[String]
+  ): Map[String, String] = {
+    val get = (name: String) => lookup(name).map(_.trim).filter(_.nonEmpty)
+    if (get(EnvironmentalVariable.ENV_OTEL_EXPORTER_OTLP_ENDPOINT).isEmpty) {
+      Map.empty
+    } else {
+      val forwarded =
+        observabilityComputingUnitEnvNames.flatMap(name => get(name).map(name -> _)).toMap
+      val kept = get(EnvironmentalVariable.ENV_OTEL_RESOURCE_ATTRIBUTES)
+        .getOrElse("")
+        .split(",")
+        .map(_.trim)
+        .filter(_.nonEmpty)
+        .filterNot(_.toLowerCase.startsWith("service.instance.id="))
+      val resourceAttrs = (kept :+ s"service.instance.id=computing-unit-$cuid").mkString(",")
+      forwarded + (EnvironmentalVariable.ENV_OTEL_RESOURCE_ATTRIBUTES -> resourceAttrs)
+    }
+  }
+
   // Environment variables passed to the created computing unit(pod)
   private lazy val computingUnitEnvironmentVariables: Map[String, Any] =
     icebergEnvironmentVariables ++ Map(
@@ -462,7 +504,10 @@ object ComputingUnitManagingResource {
 
 @Produces(Array(MediaType.APPLICATION_JSON))
 @Path("/computing-unit")
-class ComputingUnitManagingResource {
+class ComputingUnitManagingResource(
+    notifyOwnerOfAdminTermination: (WorkflowComputingUnit, User) => Unit =
+      ComputingUnitEmailNotifier.notifyOwnerOfAdminTermination
+) {
   private def getComputingUnitByCuid(ctx: DSLContext, cuid: Int): WorkflowComputingUnit = {
     val wcDao = new WorkflowComputingUnitDao(ctx.configuration())
     val unit = wcDao.fetchOneByCuid(cuid)
@@ -733,7 +778,7 @@ class ComputingUnitManagingResource {
             computingUnitEnvironmentVariables ++ Map(
               EnvironmentalVariable.ENV_USER_JWT_TOKEN -> userToken,
               EnvironmentalVariable.ENV_JAVA_OPTS -> s"-Xmx${param.jvmMemorySize}"
-            ),
+            ) ++ observabilityComputingUnitEnv(cuid, EnvironmentalVariable.get),
             Some(param.shmSize),
             curatedImage
           )
@@ -884,22 +929,7 @@ class ComputingUnitManagingResource {
       statusReason = if (isOwner) statusReason else None,
       metrics = ComputingUnitHelpers.getComputingUnitMetrics(unit),
       isOwner = isOwner,
-      accessPrivilege = {
-        val cuAccessDao = new ComputingUnitUserAccessDao(context.configuration())
-        val access = cuAccessDao
-          .fetchByUid(user.getUid)
-          .asScala
-          .find(access => access.getCuid.equals(cuid))
-
-        if (access.isDefined) {
-          access.get.getPrivilege
-        } else if (unit.getUid.equals(user.getUid)) {
-          PrivilegeEnum.WRITE
-        } else {
-          // Default privilege for non-owners without explicit access
-          PrivilegeEnum.NONE
-        }
-      },
+      accessPrivilege = ComputingUnitAccess.getComputingUnitAccess(cuid, user.getUid),
       ownerAvatar,
       ownerUsername
     )
@@ -928,9 +958,11 @@ class ComputingUnitManagingResource {
     }
 
     // If successful, update the database
-    withTransaction(context) { ctx =>
+    val unitToNotifyOwnerOf = withTransaction(context) { ctx =>
       val cuDao = new WorkflowComputingUnitDao(ctx.configuration())
       val unit = getComputingUnitByCuid(ctx, cuid)
+      // Only an ADMIN gets here as a non-owner. Read before the stamp, so a repeat tells no one.
+      val notifyOwner = unit.getTerminateTime == null && unit.getUid != user.getUid
 
       // if the computing unit is kubernetes pod, then kill the pod
       if (unit.getType == WorkflowComputingUnitTypeEnum.kubernetes) {
@@ -948,6 +980,17 @@ class ComputingUnitManagingResource {
           s"owner_uid=${unit.getUid}, terminated_by_uid=${user.getUid}, " +
           s"terminated_by=${user.getName}, reason=${terminationReason.getLiteral}"
       )
+      Option.when(notifyOwner)(unit)
+    }
+    // After the commit, so an owner never hears of a termination that rolled back.
+    unitToNotifyOwnerOf.foreach { unit =>
+      try {
+        Option(new UserDao(context.configuration()).fetchOneByUid(unit.getUid))
+          .foreach(notifyOwnerOfAdminTermination(unit, _))
+      } catch {
+        case NonFatal(e) =>
+          logger.warn(s"Failed to notify the owner of terminated computing unit cuid=$cuid", e)
+      }
     }
     Response.ok().build()
   }
