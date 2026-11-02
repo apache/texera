@@ -314,6 +314,7 @@ object AggregateOpDesc {
     *  - `_texera_agg_ts_sum`: a timestamp SUM, wrapping as a Java long.
     *  - `_texera_agg_ts_mean`: a timestamp AVERAGE, a DOUBLE of epoch milliseconds.
     *  - `_texera_agg_ts_pick`, `_min`, `_max`: by getTime, keeping the first of a tie.
+    *    maxAgg starts at the epoch, so `_max` is null when no value is after it.
     *  - `_texera_agg_double_*`: DOUBLE folds that keep a stored NaN apart from null,
     *    ordered by `_texera_double_key` from StandaloneHelpers.AttributeCasts.
     *
@@ -369,7 +370,10 @@ object AggregateOpDesc {
       |    return _texera_agg_ts_pick(series, lambda a, b: a < b)
       |
       |def _texera_agg_ts_max(series):
-      |    return _texera_agg_ts_pick(series, lambda a, b: a > b)
+      |    pick = _texera_agg_ts_pick(series, lambda a, b: a > b)
+      |    if pd.isna(pick) or _texera_agg_ts_epoch_ms(pd.Series([pick])).iloc[0] <= 0:
+      |        return pd.NaT
+      |    return pick
       |
       |def _texera_agg_double_values(series):
       |    return [float(v) for v in series.dropna()]

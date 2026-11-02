@@ -517,7 +517,8 @@ class AggregateOpDescSpec extends AnyFlatSpec with Matchers {
   // The engine compares timestamps by getTime, so two in the same millisecond
   // tie and MIN and MAX keep the one they met first, with its own digits past
   // the millisecond. Group "a" makes MIN keep the later digits, "b" makes MAX
-  // keep the earlier ones, "c" holds only a null, and "d" ties before 1970.
+  // keep the earlier ones, "c" holds only a null, and "d" ties before 1970,
+  // where MAX is null. Both sides run in UTC so "d" is before the epoch.
   it should "pick a timestamp MIN and MAX by the millisecond as the engine does" taggedAs NeedsPythonPackages in {
     val python = resolvePython().getOrElse(cancel("No runnable python executable"))
     if (!canImportPandas(python)) cancel(s"'$python' cannot import pandas")
@@ -548,18 +549,23 @@ class AggregateOpDescSpec extends AnyFlatSpec with Matchers {
           aggOp(AggregationFunction.MAX, "t", "hi")
         )
 
-      val exec = new AggregateOpExec(objectMapper.writeValueAsString(desc()))
-      exec.open()
-      rows.foreach {
-        case (k, t) =>
-          val ts = Option(t).map(java.sql.Timestamp.valueOf).orNull
-          exec.processTuple(Tuple(input, Array[Any](k, ts)), 0)
-      }
-      val engine = exec
-        .onFinish(0)
-        .map(_.getFields.toSeq.map(render).mkString(" "))
-        .toSeq
-        .sorted
+      val machineZone = java.util.TimeZone.getDefault
+      java.util.TimeZone.setDefault(java.util.TimeZone.getTimeZone("UTC"))
+      val engine =
+        try {
+          val exec = new AggregateOpExec(objectMapper.writeValueAsString(desc()))
+          exec.open()
+          rows.foreach {
+            case (k, t) =>
+              val ts = Option(t).map(java.sql.Timestamp.valueOf).orNull
+              exec.processTuple(Tuple(input, Array[Any](k, ts)), 0)
+          }
+          exec
+            .onFinish(0)
+            .map(_.getFields.toSeq.map(render).mkString(" "))
+            .toSeq
+            .sorted
+        } finally java.util.TimeZone.setDefault(machineZone)
 
       val ks = rows.map(r => "\"" + r._1 + "\"").mkString("[", ", ", "]")
       val ts = rows
