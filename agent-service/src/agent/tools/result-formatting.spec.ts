@@ -18,7 +18,7 @@
  */
 
 import { describe, expect, test } from "bun:test";
-import { formatOperatorResult } from "./result-formatting";
+import { formatOperatorResult, formatInputOutputMetadata, jsonToTableFormat } from "./result-formatting";
 import { WorkflowState } from "../workflow-state";
 import type { OperatorInfo } from "../../types/execution";
 import type { OperatorPredicate, OperatorLink, PortDescription } from "../../types/workflow";
@@ -339,5 +339,51 @@ describe("jsonToTableFormat - row index gaps", () => {
     );
     expect(out).not.toContain("...\t...");
     expect(out.endsWith("9\tz")).toBe(true);
+  });
+});
+
+describe("formatInputOutputMetadata", () => {
+  test("returns only output shape when inputPortShapes is empty or undefined", () => {
+    const opInfo = makeOpInfo({ outputTuples: 5 });
+    expect(formatInputOutputMetadata(EMPTY_STATE, "op1", opInfo, 3)).toBe("Output table shape: (5, 3)");
+  });
+
+  test("resolves upstream operators and sorts input ports by index", () => {
+    const state = new WorkflowState();
+    state.addOperator(makeOperator("src0"));
+    state.addOperator(makeOperator("src1"));
+    state.addOperator(makeOperator("op1", ["in-0", "in-1"]));
+    state.addLink(makeLink("l0", ["src0", "output-0"], ["op1", "in-0"]));
+    state.addLink(makeLink("l1", ["src1", "output-0"], ["op1", "in-1"]));
+
+    const opInfo = makeOpInfo({
+      totalRowCount: 10,
+      inputPortShapes: [
+        { portIndex: 1, rows: 20, columns: 2 },
+        { portIndex: 0, rows: 30, columns: 4 },
+      ],
+    });
+
+    const out = formatInputOutputMetadata(state, "op1", opInfo, 5);
+    expect(out).toBe("Input operator(table shape): src0(30, 4), src1(20, 2)\nOutput table shape: (10, 5)");
+  });
+});
+
+describe("jsonToTableFormat", () => {
+  test("returns empty string for empty array or rows with no visible headers", () => {
+    expect(jsonToTableFormat([])).toBe("");
+    expect(jsonToTableFormat([{ __row_index__: 0, __is_visualization__: true }])).toBe("");
+  });
+
+  test("formats tab-separated header and row values with index column", () => {
+    const rows = [
+      { colA: "val1", colB: 10, colC: null, colD: true },
+      { colA: "line\nbreak", colB: 20, colC: "NULL", colD: false },
+    ];
+    const out = jsonToTableFormat(rows);
+    const lines = out.split("\n");
+    expect(lines[0]).toBe("\tcolA\tcolB\tcolC\tcolD");
+    expect(lines[1]).toBe("0\tval1\t10\tNaN\ttrue");
+    expect(lines[2]).toBe("1\tline\\nbreak\t20\tNaN\tfalse");
   });
 });

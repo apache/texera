@@ -61,7 +61,7 @@ export function formatOperatorResult(operatorId: string, opInfo: OperatorInfo, w
   return [briefSummary, ...metadataLines, dataString].filter(Boolean).join("\n");
 }
 
-function formatInputOutputMetadata(
+export function formatInputOutputMetadata(
   workflowState: WorkflowState,
   operatorId: string,
   opInfo: OperatorInfo,
@@ -96,13 +96,14 @@ function formatInputOutputMetadata(
   return `Input operator(table shape): ${inputPart}\n${outputLine}`;
 }
 
-function jsonToTableFormat(jsonResult: Record<string, any>[]): string {
+export function jsonToTableFormat(jsonResult: Record<string, any>[]): string {
   if (!jsonResult || jsonResult.length === 0) return "";
 
   const hasRowIndex = "__row_index__" in jsonResult[0];
   const headers = getVisibleResultHeaders(jsonResult[0]);
   if (headers.length === 0) return "";
 
+  // Leading tab aligns headers with the index column (pandas __repr__ style).
   const headerLine = "\t" + headers.join("\t");
   const formattedRows: string[] = [];
   let prevIndex = -1;
