@@ -267,6 +267,8 @@ export class WorkflowFormComponent implements OnInit, OnDestroy {
   private dirtySinceLastEnqueue = false;
   /** A rebuild of the inputs that arrived while the reader was typing, held until the typing ends. */
   private rebuildDeferred = false;
+  /** A re-check of that hold is already queued: a burst of keys queues one, not one per key. */
+  private flushQueued = false;
   /** Set while this page makes a presentation write, so the write's own announcement does not rebuild
    *  the form under the control that took it (see reflectLocally). */
   private reflectingLocally = false;
@@ -589,13 +591,18 @@ export class WorkflowFormComponent implements OnInit, OnDestroy {
   }
 
   private flushHeldRebuild(): void {
-    if (this.rebuildDeferred) {
-      this.later(() => {
-        if (this.rebuildDeferred) {
-          this.rebuildFormOrDefer(true);
-        }
-      }, 0);
+    // Typing into a card with a rebuild held is a keyup per character, each asking for this same
+    // re-check: one callback per burst, where every keystroke used to queue its own (Copilot).
+    if (!this.rebuildDeferred || this.flushQueued) {
+      return;
     }
+    this.flushQueued = true;
+    this.later(() => {
+      this.flushQueued = false;
+      if (this.rebuildDeferred) {
+        this.rebuildFormOrDefer(true);
+      }
+    }, 0);
   }
 
   private load(wid: number): void {

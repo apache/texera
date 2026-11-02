@@ -2018,6 +2018,42 @@ describe("WorkflowFormComponent", () => {
       expect(rebuild).not.toHaveBeenCalled();
     });
 
+    // Typing into a card while a rebuild is held is a keyup per character, each of which asks for
+    // the same re-check (Copilot on #8839): one is queued for the burst, and it runs once.
+    it("queues one re-check for a burst of keys while a rebuild is held, not one per key", async () => {
+      build(formViewWorkflow).ngOnInit();
+      renderCard("n_hvg", "2000");
+      changeSchema();
+      const typing = vi.spyOn(component as any, "isTypingInTheForm").mockReturnValue(true);
+      const rebuild = vi.spyOn(component as any, "readConfig");
+      const queued = vi.spyOn(component as any, "later");
+      const burst = (keys: number) => {
+        const before = queued.mock.calls.length;
+        for (let i = 0; i < keys; i++) {
+          component.onInteraction();
+        }
+        return queued.mock.calls.length - before;
+      };
+
+      h.compilationChanged.next("Succeeded");
+      await new Promise(r => setTimeout(r, FORM_DEBOUNCE_TIME_MS + 50));
+      expect(burst(5)).toBe(1);
+
+      // The last key closed the list: the one re-check runs the held rebuild, once.
+      typing.mockReturnValue(false);
+      await new Promise(r => setTimeout(r, 10));
+      expect(rebuild).toHaveBeenCalledTimes(1);
+
+      // With nothing held a key queues nothing, and the next hold gets a re-check of its own.
+      expect(burst(1)).toBe(0);
+      typing.mockReturnValue(true);
+      h.formBindingChanged.next(undefined);
+      expect(burst(3)).toBe(1);
+      typing.mockReturnValue(false);
+      await new Promise(r => setTimeout(r, 10));
+      expect(rebuild).toHaveBeenCalledTimes(2);
+    });
+
     it("holds a rebuild while someone is typing and runs it once the focus leaves", async () => {
       build(formViewWorkflow).ngOnInit();
       renderCard("n_hvg", "2000");
