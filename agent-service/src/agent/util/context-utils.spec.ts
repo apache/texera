@@ -134,6 +134,57 @@ describe("assembleContext", () => {
     expect(content).toContain("- executeOperator (failed)");
     expect(content).toContain("- deleteOperator (succeeded)");
   });
+
+  test("writes each past call's summary and result under it, so a failed call is not repeated blindly", () => {
+    const agentStep: ReActStep = {
+      ...step("m1", "agent", 1, "acting", true),
+      toolCalls: [
+        { toolName: "addOperator", toolCallId: "c1", input: { operatorId: "op1", summary: "Load CSV data" } },
+        { toolName: "executeOperator", toolCallId: "c2", input: { operatorId: "op1" } },
+        { toolName: "modifyOperator", toolCallId: "c3", input: { operatorId: "op1", summary: "Link op7" } },
+        { toolName: "deleteOperator", toolCallId: "c4", input: { operatorId: "op1" } },
+      ],
+      toolResults: [
+        { toolCallId: "c1", output: "Added operator op1, input ports: 0, output ports: 1" },
+        { toolCallId: "c2", output: "Executed operator op1\nOutput(table shape): (3, 2)\n| a | b |" },
+        { toolCallId: "c3", output: '[ERROR] Source operator "op7" not found\n  at resolveInputLinks', isError: true },
+      ],
+    };
+    const content = contentOf(
+      assembleContext([step("m1", "user", 0, "req", true), agentStep], new WorkflowState(), new Map())
+    );
+    expect(content).toContain(
+      [
+        "- addOperator (succeeded)",
+        "  - Summary: Load CSV data",
+        "  - Output: Added operator op1, input ports: 0, output ports: 1",
+        "- executeOperator (succeeded)",
+        "  - Output: Executed operator op1",
+        "- modifyOperator (failed)",
+        "  - Summary: Link op7",
+        "  - Error:",
+        '    [ERROR] Source operator "op7" not found',
+        "      at resolveInputLinks",
+        // No result yet: only the call itself.
+        "- deleteOperator (succeeded)",
+      ].join("\n")
+    );
+    // The operator's data stays in the dataflow section, not in the history.
+    expect(content).not.toContain("| a | b |");
+  });
+
+  test("an error result not flagged as an error still reaches the model through its output line", () => {
+    // Tool errors are "[ERROR] ..." strings; until a result carries isError, its message must still show.
+    const agentStep: ReActStep = {
+      ...step("m1", "agent", 1, "acting", true),
+      toolCalls: [{ toolName: "addOperator", toolCallId: "c1", input: { operatorId: "op2", summary: "Limit 10" } }],
+      toolResults: [{ toolCallId: "c1", output: '[ERROR] Source operator "op7" not found' }],
+    };
+    const content = contentOf(
+      assembleContext([step("m1", "user", 0, "req", true), agentStep], new WorkflowState(), new Map())
+    );
+    expect(content).toContain('  - Output: [ERROR] Source operator "op7" not found');
+  });
 });
 
 describe("assembleContext — dataflow serialization", () => {
