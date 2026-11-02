@@ -53,6 +53,10 @@ import { NzButtonComponent } from "ng-zorro-antd/button";
 import { NzWaveDirective } from "ng-zorro-antd/core/wave";
 import { ɵNzTransitionPatchDirective } from "ng-zorro-antd/core/transition-patch";
 import { NzIconDirective } from "ng-zorro-antd/icon";
+import { asyncScheduler, filter, throttleTime } from "rxjs";
+
+// how often, at most, a table on a port past the first asks for its page again while a run updates
+export const OTHER_PORT_REFRESH_MS = 1000;
 
 export type MediaCellType = "video" | "audio" | "image" | "text";
 
@@ -190,6 +194,9 @@ export class ResultTableFrameComponent implements OnInit, OnChanges {
       .pipe(untilDestroyed(this))
       .subscribe(stateMap => {
         if (this.operatorId && stateMap[this.operatorId] === OperatorState.Completed) {
+          // Another port can still be filling after the first port's last update, so its table
+          // asks once more when the operator completes.
+          if (!this.isOperatorFinished && this.portIndex !== 0) this.changePaginatedResultData();
           this.isOperatorFinished = true;
           this.changeDetectorRef.detectChanges();
         } else {
@@ -220,6 +227,17 @@ export class ResultTableFrameComponent implements OnInit, OnChanges {
         }
         this.changeDetectorRef.detectChanges();
       });
+
+    // Another port has no update of its own, so its table asks for its page again on the
+    // operator's updates, at most once a second; the last one is always asked for.
+    this.workflowResultService
+      .getResultUpdateStream()
+      .pipe(
+        filter(update => isDefined(this.operatorId) && this.portIndex !== 0 && isDefined(update[this.operatorId])),
+        throttleTime(OTHER_PORT_REFRESH_MS, asyncScheduler, { leading: true, trailing: true }),
+        untilDestroyed(this)
+      )
+      .subscribe(() => this.changePaginatedResultData());
 
     this.workflowResultService
       .getResultTableStats()
