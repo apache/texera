@@ -20,21 +20,19 @@ package org.apache.texera.amber.operator.visualization.histogram2d
 
 import com.fasterxml.jackson.annotation.{JsonProperty, JsonPropertyDescription}
 import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaTitle
-import org.apache.texera.amber.core.tuple.{AttributeType, Schema}
 import org.apache.texera.amber.pybuilder.PythonTemplateBuilder.{
   PythonTemplateBuilderStringContext,
   pyStringLiteral
 }
 import org.apache.texera.amber.pybuilder.PyStringTypes.EncodableString
-import org.apache.texera.amber.core.workflow.PortIdentity
-import org.apache.texera.amber.operator.PythonOperatorDescriptor
 import org.apache.texera.amber.operator.visualization.PlotlyStandaloneCode
+import org.apache.texera.amber.operator.visualization.PythonVisualizationOpDesc
 import org.apache.texera.amber.operator.metadata.annotations.AutofillAttributeName
 import org.apache.texera.amber.operator.metadata.{OperatorGroupConstants, OperatorInfo}
 
 import javax.validation.constraints.NotNull
 
-class Histogram2DOpDesc extends PythonOperatorDescriptor with PlotlyStandaloneCode {
+class Histogram2DOpDesc extends PythonVisualizationOpDesc with PlotlyStandaloneCode {
 
   @JsonProperty(required = true)
   @JsonSchemaTitle("X Column")
@@ -73,13 +71,6 @@ class Histogram2DOpDesc extends PythonOperatorDescriptor with PlotlyStandaloneCo
       "Displays a bivariate histogram as a density heatmap",
       OperatorGroupConstants.VISUALIZATION_STATISTICAL_GROUP
     )
-
-  override def getOutputSchemas(
-      inputSchemas: Map[PortIdentity, Schema]
-  ): Map[PortIdentity, Schema] = {
-    val outputSchema = Schema().add("html-content", AttributeType.STRING)
-    Map(operatorInfo.outputPorts.head.id -> outputSchema)
-  }
 
   override def generatePythonCode(): String = {
     assert(xBins > 0, s"X Bins must be > 0, but got $xBins")
@@ -125,14 +116,13 @@ class Histogram2DOpDesc extends PythonOperatorDescriptor with PlotlyStandaloneCo
        |""".encode
   }
 
-  override def producesDataFrame(): Boolean = false
-
   override def generateStandaloneCode(): String = {
     assert(xBins > 0, s"X Bins must be > 0, but got $xBins")
     assert(yBins > 0, s"Y Bins must be > 0, but got $yBins")
     val xLit = pyStringLiteral(xColumn)
     val yLit = pyStringLiteral(yColumn)
 
+    // chart_df keeps the input whole for other branches.
     s"""import plotly.express as px
        |
        |def render_error(msg):
@@ -142,8 +132,6 @@ class Histogram2DOpDesc extends PythonOperatorDescriptor with PlotlyStandaloneCo
        |    with open(outputHtml, "w", encoding="utf-8") as output:
        |        output.write(render_error("Input table is empty."))
        |else:
-       |    # Bound to a name of its own: the same frame can feed another branch
-       |    # of the plan, which must still see every row.
        |    chart_df = in1df.dropna(subset=[$xLit, $yLit])
        |    if chart_df.empty:
        |        with open(outputHtml, "w", encoding="utf-8") as output:
