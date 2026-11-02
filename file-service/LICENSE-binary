@@ -540,6 +540,15 @@ Scala/Java jars:
   - org.postgresql.postgresql-42.7.10.jar
 
 --------------------------------------------------------------------------------
+Dependencies under the ISC License
+--------------------------------------------------------------------------------
+
+Source files derived from third-party ISC-licensed projects:
+  - librosa
+    common/workflow-operator/src/main/scala/org/apache/texera/amber/operator/audio/codegen/BeatTrackerCodegen.scala
+    https://github.com/librosa/librosa/tree/1.0.0
+
+--------------------------------------------------------------------------------
 Dependencies under the Eclipse Public License, Version 2.0 (some are dual
 licensed with GPL-2.0 with Classpath Exception)
 --------------------------------------------------------------------------------
