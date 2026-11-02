@@ -23,6 +23,7 @@ import org.apache.texera.amber.operator.aggregate.AggregateOpDesc
 import org.apache.texera.amber.operator.distinct.DistinctOpDesc
 import org.apache.texera.amber.operator.filter.SpecializedFilterOpDesc
 import org.apache.texera.amber.operator.hashJoin.HashJoinOpDesc
+import org.apache.texera.amber.operator.intervalJoin.IntervalJoinOpDesc
 import org.apache.texera.amber.operator.limit.LimitOpDesc
 import org.apache.texera.amber.operator.machineLearning.sklearnAdvanced.KNNTrainer.{
   SklearnAdvancedKNNClassifierTrainerOpDesc,
@@ -74,6 +75,19 @@ class JsonPropertyReflectionUtilsSpec extends AnyFlatSpec with Matchers {
       "| Python script | ✓ | Code (python) | `See template below` | Input your code here |"
     )
     output should include("#### Default Code Template\n\n**Python script**\n\n```python\n")
+    output should include(
+      "| ↳ Attribute | ✓ | Attribute | - |  |\n| &nbsp;&nbsp;↳ Attribute Name | ✓ | String | - |  |\n"
+    )
+  }
+
+  it should "explain the accepted column types only where a row lists them" in {
+    val footnote = "*Parentheses after a type list the column types a column selector accepts.*"
+    val intervalJoin = table(classOf[IntervalJoinOpDesc])
+    intervalJoin should include(
+      "| Left Input attr | ✓ | String (integer, long, double, timestamp) | "
+    )
+    intervalJoin should endWith(footnote)
+    table(classOf[SpecializedFilterOpDesc]) should not include footnote
   }
 
   it should "link a hyperparameter list to its parameter page" in {

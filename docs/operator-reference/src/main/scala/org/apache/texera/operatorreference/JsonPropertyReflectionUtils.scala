@@ -57,7 +57,8 @@ private[operatorreference] case class DocProperty(
     defaultValue: String,
     description: String,
     children: List[DocProperty] = Nil,
-    codeTemplate: Option[String] = None
+    codeTemplate: Option[String] = None,
+    acceptedColumnTypes: List[String] = Nil
 )
 
 private[operatorreference] case class EnumParam(
@@ -89,8 +90,11 @@ object JsonPropertyReflectionUtils {
     def renderRows(p: DocProperty, depth: Int): List[String] = {
       val indent = if (depth == 0) "" else "&nbsp;&nbsp;" * (depth - 1) + "↳ "
       val requirement = if (p.required) "✓" else ""
+      val dataType =
+        if (p.acceptedColumnTypes.isEmpty) p.dataType
+        else s"${p.dataType} (${p.acceptedColumnTypes.mkString(", ")})"
       val row =
-        s"| ${escapeCell(indent + p.displayName)} | $requirement | ${escapeCell(p.dataType)} | " +
+        s"| ${escapeCell(indent + p.displayName)} | $requirement | ${escapeCell(dataType)} | " +
           s"${escapeCell(p.defaultValue)} | ${wrap(escapeCell(p.description), 50, " ")} |"
       row :: p.children.flatMap(renderRows(_, depth + 1))
     }
@@ -101,14 +105,21 @@ object JsonPropertyReflectionUtils {
       ))
         .mkString("\n")
 
+    def hasColumnTypes(p: DocProperty): Boolean =
+      p.acceptedColumnTypes.nonEmpty || p.children.exists(hasColumnTypes)
+    val footnote =
+      if (properties.exists(hasColumnTypes))
+        "\n\n*Parentheses after a type list the column types a column selector accepts.*"
+      else ""
+
     val templates = properties.flatMap(p => p.codeTemplate.map(t => (p.displayName, t)))
-    if (templates.isEmpty) Some(table)
+    if (templates.isEmpty) Some(table + footnote)
     else {
       val language = codeLanguage(clazz)
       val sections = templates.map {
         case (name, template) => s"**$name**\n\n```$language\n$template\n```"
       }
-      Some(table + "\n\n#### Default Code Template\n\n" + sections.mkString("\n\n"))
+      Some(table + footnote + "\n\n#### Default Code Template\n\n" + sections.mkString("\n\n"))
     }
   }
 
@@ -171,8 +182,7 @@ object JsonPropertyReflectionUtils {
 
     def toProperty(field: Field): DocProperty = {
       val typeRule = typeRules.get(jsonName(field))
-      val (dataType, children) =
-        dataTypeAndChildren(field, clazz, rootPath, typeRule.toList.flatMap(acceptedTypes))
+      val (dataType, children) = dataTypeAndChildren(field, clazz, rootPath)
       val template = codeTemplate(field)
       val typeNote = typeRule.flatMap(typeRuleNote(_, byJsonName))
       val hideNote = hideRule(field).map {
@@ -190,7 +200,8 @@ object JsonPropertyReflectionUtils {
           .reduceOption((a, b) => if (a.endsWith(".") || a.endsWith(")")) s"$a $b" else s"$a. $b")
           .getOrElse(""),
         children,
-        template
+        template,
+        typeRule.toList.flatMap(acceptedTypes)
       )
     }
 
@@ -351,20 +362,9 @@ object JsonPropertyReflectionUtils {
   private def dataTypeAndChildren(
       field: Field,
       owner: Class[_],
-      rootPath: String,
-      accepted: List[String]
-  ): (String, List[DocProperty]) = {
-    if (codeTemplate(field).isDefined) return (s"Code (${codeLanguage(owner)})", Nil)
-    val (dataType, children) = plainTypeAndChildren(field, owner, rootPath)
-    (if (accepted.isEmpty) dataType else s"$dataType (${accepted.mkString(", ")})", children)
-  }
-
-  private def plainTypeAndChildren(
-      field: Field,
-      owner: Class[_],
       rootPath: String
   ): (String, List[DocProperty]) = {
-
+    if (codeTemplate(field).isDefined) return (s"Code (${codeLanguage(owner)})", Nil)
     val raw = field.getType
     val typeArgs = field.getGenericType match {
       case pt: ParameterizedType =>
@@ -393,6 +393,8 @@ object JsonPropertyReflectionUtils {
         case Some(c) => (listOf(simpleType(c)), Nil)
         case None    => ("List", Nil)
       }
+    } else if (isNestedConfig(raw)) {
+      (toTitleCase(raw.getSimpleName), extractProperties(raw, rootPath))
     } else {
       (injectedOptions(field).getOrElse(simpleType(raw)), Nil)
     }
