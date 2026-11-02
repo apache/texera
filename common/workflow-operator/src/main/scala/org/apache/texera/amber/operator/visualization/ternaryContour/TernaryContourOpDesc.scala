@@ -21,15 +21,14 @@ package org.apache.texera.amber.operator.visualization.ternaryContour
 
 import com.fasterxml.jackson.annotation.{JsonProperty, JsonPropertyDescription}
 import com.kjetland.jackson.jsonSchema.annotations.{JsonSchemaInject, JsonSchemaTitle}
-import org.apache.texera.amber.core.tuple.{AttributeType, Schema}
 import org.apache.texera.amber.core.workflow.OutputPort.OutputMode
 import org.apache.texera.amber.pybuilder.PythonTemplateBuilder.{
   PythonTemplateBuilderStringContext,
   pyStringLiteral
 }
 import org.apache.texera.amber.pybuilder.PyStringTypes.EncodableString
-import org.apache.texera.amber.core.workflow.{InputPort, OutputPort, PortIdentity}
-import org.apache.texera.amber.operator.{PythonOperatorDescriptor, StandaloneCodeGenerator}
+import org.apache.texera.amber.core.workflow.{InputPort, OutputPort}
+import org.apache.texera.amber.operator.visualization.PythonVisualizationOpDesc
 import org.apache.texera.amber.operator.metadata.annotations.{AutofillAttributeName, SampleColumn}
 import org.apache.texera.amber.operator.metadata.{OperatorGroupConstants, OperatorInfo}
 import org.apache.texera.amber.pybuilder.PythonTemplateBuilder
@@ -55,7 +54,7 @@ import javax.validation.constraints.NotNull
   }
 }
 """)
-class TernaryContourOpDesc extends PythonOperatorDescriptor with StandaloneCodeGenerator {
+class TernaryContourOpDesc extends PythonVisualizationOpDesc {
 
   // Add annotations for the first variable
   @JsonProperty(value = "firstVariable", required = true)
@@ -102,14 +101,6 @@ class TernaryContourOpDesc extends PythonOperatorDescriptor with StandaloneCodeG
       inputPorts = List(InputPort()),
       outputPorts = List(OutputPort(mode = OutputMode.SINGLE_SNAPSHOT))
     )
-
-  override def getOutputSchemas(
-      inputSchemas: Map[PortIdentity, Schema]
-  ): Map[PortIdentity, Schema] = {
-    val outputSchema = Schema()
-      .add("html-content", AttributeType.STRING)
-    Map(operatorInfo.outputPorts.head.id -> outputSchema)
-  }
 
   /** Returns a Python string that drops any tuples with missing values */
   def manipulateTable(): PythonTemplateBuilder = {
@@ -176,8 +167,6 @@ class TernaryContourOpDesc extends PythonOperatorDescriptor with StandaloneCodeG
          |"""
     finalCode.encode
   }
-
-  override def producesDataFrame(): Boolean = false
 
   override def generateStandaloneCode(): String = {
     val firstLit = pyStringLiteral(firstVariable)

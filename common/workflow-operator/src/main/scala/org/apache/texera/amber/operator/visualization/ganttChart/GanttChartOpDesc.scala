@@ -21,15 +21,13 @@ package org.apache.texera.amber.operator.visualization.ganttChart
 
 import com.fasterxml.jackson.annotation.{JsonProperty, JsonPropertyDescription}
 import com.kjetland.jackson.jsonSchema.annotations.{JsonSchemaInject, JsonSchemaTitle}
-import org.apache.texera.amber.core.tuple.{AttributeType, Schema}
 import org.apache.texera.amber.pybuilder.PythonTemplateBuilder.{
   PythonTemplateBuilderStringContext,
   pyStringLiteral
 }
 import org.apache.texera.amber.pybuilder.PyStringTypes.EncodableString
-import org.apache.texera.amber.core.workflow.PortIdentity
-import org.apache.texera.amber.operator.PythonOperatorDescriptor
 import org.apache.texera.amber.operator.visualization.PlotlyStandaloneCode
+import org.apache.texera.amber.operator.visualization.PythonVisualizationOpDesc
 import org.apache.texera.amber.operator.metadata.annotations.AutofillAttributeName
 import org.apache.texera.amber.operator.metadata.{OperatorGroupConstants, OperatorInfo}
 import org.apache.texera.amber.pybuilder.PythonTemplateBuilder
@@ -48,7 +46,7 @@ import javax.validation.constraints.NotNull
   }
 }
 """)
-class GanttChartOpDesc extends PythonOperatorDescriptor with PlotlyStandaloneCode {
+class GanttChartOpDesc extends PythonVisualizationOpDesc with PlotlyStandaloneCode {
 
   @JsonProperty(value = "start", required = true)
   @JsonSchemaTitle("Start Datetime Column")
@@ -82,14 +80,6 @@ class GanttChartOpDesc extends PythonOperatorDescriptor with PlotlyStandaloneCod
   @JsonPropertyDescription("Add texture to the chart based on an attribute")
   @AutofillAttributeName
   var pattern: EncodableString = ""
-
-  override def getOutputSchemas(
-      inputSchemas: Map[PortIdentity, Schema]
-  ): Map[PortIdentity, Schema] = {
-    val outputSchema = Schema()
-      .add("html-content", AttributeType.STRING)
-    Map(operatorInfo.outputPorts.head.id -> outputSchema)
-  }
 
   override def operatorInfo: OperatorInfo =
     OperatorInfo.forVisualization(
@@ -149,8 +139,6 @@ class GanttChartOpDesc extends PythonOperatorDescriptor with PlotlyStandaloneCod
          |"""
     finalCode.encode
   }
-
-  override def producesDataFrame(): Boolean = false
 
   override def generateStandaloneCode(): String = {
     val colorLit = pyStringLiteral(color)

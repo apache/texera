@@ -949,6 +949,31 @@ class HubResourceSpec
     byEntity shouldBe Map((Wf, 810805) -> 1, (Ds, 820802) -> 2)
   }
 
+  "versionedResourcesByIdsQuery" should "carry only the viewer's own grant, never another user's" in {
+    val did = seedDataset(820860, "ds_two_grants")
+    for ((uid, privilege) <- Seq(ownerUid -> PrivilegeEnum.WRITE, likerUid -> PrivilegeEnum.READ)) {
+      getDSLContext
+        .insertInto(DATASET_USER_ACCESS)
+        .set(DATASET_USER_ACCESS.DID, did)
+        .set(DATASET_USER_ACCESS.UID, Integer.valueOf(uid))
+        .set(DATASET_USER_ACCESS.PRIVILEGE, privilege)
+        .execute()
+    }
+    val tables = VersionedResourceTables.DatasetTables
+    def grantsSeenBy(uid: Integer): Seq[PrivilegeEnum] =
+      HubResource
+        .versionedResourcesByIdsQuery(tables, Seq(did), uid)
+        .fetch()
+        .asScala
+        .map(_.get(DATASET_USER_ACCESS.PRIVILEGE))
+        .toSeq
+
+    grantsSeenBy(Integer.valueOf(likerUid)) shouldBe Seq(PrivilegeEnum.READ)
+    // A user with no grant, and an anonymous viewer, see one row with no grant at all.
+    grantsSeenBy(Integer.valueOf(thirdUid)) shouldBe Seq(null)
+    grantsSeenBy(null) shouldBe Seq(null)
+  }
+
   "getTops" should "list the liked public entity under the 'like' key" in {
     recordLikeAction(req, Integer.valueOf(likerUid), UserRequest(wid, Wf), isLike = true)
 
@@ -1187,7 +1212,7 @@ class HubResourceSpec
   }
 
   // workflow_of_user is LEFT JOINed, so a workflow with no ownership row has a null owner
-  // uid; the access row keeps the privilege non-null. For the anonymous caller both uids
+  // uid. For the anonymous caller both uids
   // are null, and Scala's `==` treats two nulls as equal, so the `uid != null` guard in
   // mapWorkflowEntries is what keeps that one false.
   it should "clear isOwner for a workflow with no ownership row, for an authenticated and an anonymous caller" in {
@@ -1198,6 +1223,29 @@ class HubResourceSpec
     entry.ownerId shouldBe null
     entry.isOwner shouldBe false
     fetchDashboardWorkflowsByWids(Seq(id), null).head.isOwner shouldBe false
+  }
+
+  it should "return one entry per workflow, carrying only the viewer's access level" in {
+    val id = seedWorkflow(811008, "wf_shared_twice")
+    grantWorkflowAccess(id, likerUid, PrivilegeEnum.READ)
+    grantWorkflowAccess(id, thirdUid, PrivilegeEnum.WRITE)
+
+    def levelsSeenBy(uid: Integer) =
+      fetchDashboardWorkflowsByWids(Seq(id), uid).map(_.accessLevel)
+    levelsSeenBy(Integer.valueOf(likerUid)) shouldBe List("READ")
+    levelsSeenBy(Integer.valueOf(cachedUid)) shouldBe List("NONE")
+    levelsSeenBy(null) shouldBe List("NONE")
+  }
+
+  it should "report WRITE for the owner even without an access row" in {
+    val id = seedWorkflow(811009, "wf_owner_row_removed")
+    getDSLContext
+      .deleteFrom(WORKFLOW_USER_ACCESS)
+      .where(WORKFLOW_USER_ACCESS.WID.eq(id))
+      .execute()
+
+    fetchDashboardWorkflowsByWids(Seq(id), Integer.valueOf(ownerUid)).map(_.accessLevel) shouldBe
+      List("WRITE")
   }
 
   // Every resolved id hits LakeFS, so an empty list is the only input testable without one.
