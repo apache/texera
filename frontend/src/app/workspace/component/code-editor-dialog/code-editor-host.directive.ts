@@ -17,27 +17,30 @@
  * under the License.
  */
 
-import { Directive, OnDestroy, ViewContainerRef } from "@angular/core";
+import { Directive, OnDestroy, OnInit, ViewContainerRef } from "@angular/core";
 import { CodeEditorService } from "../../service/code-editor/code-editor.service";
 
 /**
  * Marks the outlet the code editor opens into, on an `<ng-template>` in a view's template. Each view
  * that shows operator properties -- the operator canvas and the Form View -- carries one, and the
- * view in front is the editor's host: its outlet is attached to CodeEditorService when the view's
- * template is built, and detached when the view is destroyed -- which closes an editor still open in
- * it too, since the view's teardown destroys what its outlet holds, before this hook runs. The views
- * are sibling routes and never overlap, so there is one host at a time; a late destroy still lets go
- * only of its own.
+ * view in front is the editor's host: its outlet is attached to CodeEditorService when the view is
+ * initialised, which is before anything in it that could open an editor (the step panel's codearea
+ * is a descendant, so its own init comes later), and detached when the view is destroyed -- which
+ * closes an editor still open in it too, since the view's teardown destroys what its outlet holds,
+ * before this hook runs. The views are sibling routes and never overlap, so there is one host at a
+ * time; a late destroy still lets go only of its own.
  */
 @Directive({
   selector: "[texeraCodeEditorHost]",
   standalone: true,
 })
-export class CodeEditorHostDirective implements OnDestroy {
+export class CodeEditorHostDirective implements OnInit, OnDestroy {
   constructor(
     private readonly outlet: ViewContainerRef,
     private readonly codeEditorService: CodeEditorService
-  ) {
+  ) {}
+
+  ngOnInit(): void {
     this.codeEditorService.attachHost(this.outlet);
   }
 

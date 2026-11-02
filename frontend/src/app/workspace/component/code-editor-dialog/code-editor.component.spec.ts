@@ -261,6 +261,12 @@ describe("CodeEditorComponent", () => {
     expect(fixture.componentInstance.currentOperatorId).toBe(mockJavaUDFPredicate.operatorID);
   });
 
+  it("refuses to initialise without an operator id, naming the input that is missing", () => {
+    const fixture = TestBed.createComponent(CodeEditorComponent);
+    fixture.componentInstance.formControl = new FormControl("");
+    expect(() => fixture.detectChanges()).toThrowError(/currentOperatorId/);
+  });
+
   it("keeps the operator it is given when another one is highlighted (a Form View editor)", () => {
     // The form's field names its operator; the highlight, if any, is a step the reader is looking at.
     const given = { ...buildPredicateWithCode("given-op", "PythonUDFV2", "x = 1"), customDisplayName: "Given" };
@@ -404,7 +410,6 @@ describe("CodeEditorComponent", () => {
       fixture.componentInstance.onFocus();
       expect(highlightSpy).toHaveBeenCalledWith(mockJavaUDFPredicate.operatorID);
     });
-
   });
 
   describe("rejectCurrentAnnotation", () => {
