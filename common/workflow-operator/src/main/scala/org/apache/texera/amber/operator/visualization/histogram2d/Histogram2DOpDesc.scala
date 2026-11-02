@@ -122,6 +122,7 @@ class Histogram2DOpDesc extends PythonVisualizationOpDesc with PlotlyStandaloneC
     val xLit = pyStringLiteral(xColumn)
     val yLit = pyStringLiteral(yColumn)
 
+    // chart_df keeps the input whole for other branches.
     s"""import plotly.express as px
        |
        |def render_error(msg):
@@ -131,8 +132,6 @@ class Histogram2DOpDesc extends PythonVisualizationOpDesc with PlotlyStandaloneC
        |    with open(outputHtml, "w", encoding="utf-8") as output:
        |        output.write(render_error("Input table is empty."))
        |else:
-       |    # Bound to a name of its own: the same frame can feed another branch
-       |    # of the plan, which must still see every row.
        |    chart_df = in1df.dropna(subset=[$xLit, $yLit])
        |    if chart_df.empty:
        |        with open(outputHtml, "w", encoding="utf-8") as output:
