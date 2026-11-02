@@ -17,30 +17,52 @@
  * under the License.
  */
 
-package org.apache.texera.amber.operator.symmetricDifference
+package org.apache.texera.amber.operator.set.intersect
 
 import org.apache.texera.amber.core.tuple._
+import org.apache.texera.amber.core.virtualidentity.{OperatorIdentity, PhysicalOpIdentity}
+import org.apache.texera.amber.core.workflow.{PhysicalLink, PortIdentity}
 import org.scalatest.BeforeAndAfter
 import org.scalatest.flatspec.AnyFlatSpec
-class SymmetricDifferenceOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
-  var opExec: SymmetricDifferenceOpExec = _
+
+import scala.util.Random
+class IntersectOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
+  var opExec: IntersectOpExec = _
   var counter: Int = 0
-  val schema: Schema = Schema()
+
+  val tupleSchema: Schema = Schema()
     .add(new Attribute("field1", AttributeType.STRING))
     .add(new Attribute("field2", AttributeType.INTEGER))
     .add(new Attribute("field3", AttributeType.BOOLEAN))
 
+  def physicalOpId(): PhysicalOpIdentity = {
+    counter += 1
+    PhysicalOpIdentity(OperatorIdentity("" + counter), "" + counter)
+  }
+
+  def physicalLink(): PhysicalLink =
+    PhysicalLink(
+      physicalOpId(),
+      fromPortId = PortIdentity(),
+      physicalOpId(),
+      toPortId = PortIdentity()
+    )
+
   def tuple(): Tuple = {
     counter += 1
-
     Tuple
-      .builder(schema)
-      .addSequentially(Array("hello", Int.box(counter), Boolean.box(true)))
+      .builder(tupleSchema)
+      .add(new Attribute("field1", AttributeType.STRING), "hello")
+      .add(new Attribute("field2", AttributeType.INTEGER), counter)
+      .add(
+        new Attribute("field3", AttributeType.BOOLEAN),
+        true
+      )
       .build()
   }
 
   before {
-    opExec = new SymmetricDifferenceOpExec()
+    opExec = new IntersectOpExec()
   }
 
   it should "open" in {
@@ -67,31 +89,25 @@ class SymmetricDifferenceOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
 
     val outputTuples: Set[TupleLike] =
       opExec.onFinish(input2).toSet
-    assert(
-      outputTuples.equals(commonTuples.slice(0, 5).toSet.union(commonTuples.slice(8, 10).toSet))
-    )
+    assert(outputTuples.equals(commonTuples.slice(5, 8).toSet))
 
     opExec.close()
   }
 
   it should "work with one empty input upstream after a data stream" in {
-    val input1 = 0
-    val input2 = 1
+    val input0 = 0
+    val input1 = 1
     opExec.open()
     counter = 0
     val commonTuples = (1 to 10).map(_ => tuple()).toList
 
-    (0 to 9).map(i => {
-      opExec.processTuple(commonTuples(i), input1)
+    (1 to 100).map(_ => {
+      opExec.processTuple(tuple(), input0)
+      opExec.processTuple(commonTuples(Random.nextInt(commonTuples.size)), input0)
     })
-    assert(opExec.onFinish(input1).isEmpty)
+    assert(opExec.onFinish(input0).isEmpty)
 
-    val outputTuples: Set[Tuple] =
-      opExec
-        .onFinish(input2)
-        .map(tupleLike => tupleLike.asInstanceOf[SchemaEnforceable].enforceSchema(schema))
-        .toSet
-    assert(outputTuples.equals(commonTuples.toSet))
+    assert(opExec.onFinish(input1).isEmpty)
     opExec.close()
   }
 
@@ -102,17 +118,13 @@ class SymmetricDifferenceOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
     counter = 0
     val commonTuples = (1 to 10).map(_ => tuple()).toList
 
-    (0 to 9).map(i => {
-      opExec.processTuple(commonTuples(i), input2)
+    (1 to 100).map(_ => {
+      opExec.processTuple(tuple(), input1)
+      opExec.processTuple(commonTuples(Random.nextInt(commonTuples.size)), input1)
     })
     assert(opExec.onFinish(input2).isEmpty)
 
-    val outputTuples: Set[Tuple] =
-      opExec
-        .onFinish(input1)
-        .map(tupleLike => tupleLike.asInstanceOf[SchemaEnforceable].enforceSchema(schema))
-        .toSet
-    assert(outputTuples.equals(commonTuples.toSet))
+    assert(opExec.onFinish(input1).isEmpty)
     opExec.close()
   }
 
@@ -124,16 +136,12 @@ class SymmetricDifferenceOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
     val commonTuples = (1 to 10).map(_ => tuple()).toList
 
     assert(opExec.onFinish(input2).isEmpty)
-    (0 to 9).map(i => {
-      opExec.processTuple(commonTuples(i), input1)
+    (1 to 100).map(_ => {
+      opExec.processTuple(tuple(), input1)
+      opExec.processTuple(commonTuples(Random.nextInt(commonTuples.size)), input1)
     })
+    assert(opExec.onFinish(input1).isEmpty)
 
-    val outputTuples: Set[Tuple] =
-      opExec
-        .onFinish(input1)
-        .map(tupleLike => tupleLike.asInstanceOf[SchemaEnforceable].enforceSchema(schema))
-        .toSet
-    assert(outputTuples.equals(commonTuples.toSet))
     opExec.close()
   }
 
@@ -144,20 +152,18 @@ class SymmetricDifferenceOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
     counter = 0
     val commonTuples = (1 to 10).map(_ => tuple()).toList
 
-    (0 to 5).map(i => {
-      opExec.processTuple(commonTuples(i), input1)
+    (1 to 100).map(_ => {
+      opExec.processTuple(tuple(), input1)
+      opExec.processTuple(commonTuples(Random.nextInt(commonTuples.size)), input1)
     })
     assert(opExec.onFinish(input2).isEmpty)
-    (6 to 9).map(i => {
-      opExec.processTuple(commonTuples(i), input1)
-    })
 
-    val outputTuples: Set[Tuple] =
-      opExec
-        .onFinish(input1)
-        .map(tupleLike => tupleLike.asInstanceOf[SchemaEnforceable].enforceSchema(schema))
-        .toSet
-    assert(outputTuples.equals(commonTuples.toSet))
+    (1 to 100).map(_ => {
+      opExec.processTuple(tuple(), input1)
+      opExec.processTuple(commonTuples(Random.nextInt(commonTuples.size)), input1)
+    })
+    assert(opExec.onFinish(input1).isEmpty)
+
     opExec.close()
   }
 
