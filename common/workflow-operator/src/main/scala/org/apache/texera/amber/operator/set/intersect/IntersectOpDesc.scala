@@ -17,16 +17,15 @@
  * under the License.
  */
 
-package org.apache.texera.amber.operator.difference
+package org.apache.texera.amber.operator.set.intersect
 
-import com.google.common.base.Preconditions
 import org.apache.texera.amber.core.executor.OpExecWithClassName
 import org.apache.texera.amber.core.virtualidentity.{ExecutionIdentity, WorkflowIdentity}
 import org.apache.texera.amber.core.workflow._
 import org.apache.texera.amber.operator.LogicalOp
 import org.apache.texera.amber.operator.metadata.{OperatorGroupConstants, OperatorInfo}
 
-class DifferenceOpDesc extends LogicalOp {
+class IntersectOpDesc extends LogicalOp {
 
   override def getPhysicalOp(
       workflowId: WorkflowIdentity,
@@ -37,28 +36,20 @@ class DifferenceOpDesc extends LogicalOp {
         workflowId,
         executionId,
         operatorIdentifier,
-        OpExecWithClassName("org.apache.texera.amber.operator.difference.DifferenceOpExec")
+        OpExecWithClassName("org.apache.texera.amber.operator.set.intersect.IntersectOpExec")
       )
       .withInputPorts(operatorInfo.inputPorts)
       .withOutputPorts(operatorInfo.outputPorts)
       .withPartitionRequirement(List(Option(HashPartition()), Option(HashPartition())))
       .withDerivePartition(_ => HashPartition())
-      .withPropagateSchema(SchemaPropagationFunc(inputSchemas => {
-        Preconditions.checkArgument(inputSchemas.values.toSet.size == 1)
-        val outputSchema = inputSchemas.values.head
-        operatorInfo.outputPorts.map(port => port.id -> outputSchema).toMap
-      }))
   }
 
   override def operatorInfo: OperatorInfo =
     OperatorInfo(
-      "Difference",
-      "find the set difference of two inputs",
+      "Intersect",
+      "Take the intersect of two inputs",
       OperatorGroupConstants.SET_GROUP,
-      inputPorts = List(
-        InputPort(PortIdentity(), displayName = "left"),
-        InputPort(PortIdentity(1), displayName = "right")
-      ),
+      inputPorts = List(InputPort(PortIdentity()), InputPort(PortIdentity(1))),
       outputPorts = List(OutputPort(blocking = true))
     )
 }
