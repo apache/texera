@@ -35,7 +35,7 @@ describe("RowModalComponent", () => {
 
   const mockTupleResult = { tuple: { id: "123", value: "test_data" } };
   const workflowResultServiceSpy = {
-    getPaginatedResultService: vi.fn().mockReturnValue({
+    getPortPaginatedResultService: vi.fn().mockReturnValue({
       selectTuple: vi.fn().mockReturnValue(of(mockTupleResult)),
     }),
   };
@@ -75,6 +75,12 @@ describe("RowModalComponent", () => {
   it("should populate row data on ngOnChanges", () => {
     component.ngOnChanges();
     expect(component.currentDisplayRowData).toEqual(mockTupleResult.tuple);
+  });
+
+  it("reads the row from the operator's first output port when the data names none", () => {
+    workflowResultServiceSpy.getPortPaginatedResultService.mockClear();
+    component.ngOnChanges();
+    expect(workflowResultServiceSpy.getPortPaginatedResultService).toHaveBeenCalledWith("op-1", 0);
   });
 
   it("should use data URL directly without fetching for base64 media", () => {
@@ -158,7 +164,7 @@ describe("RowModalComponent", () => {
   });
 
   it("should not update row data when tuple is null", () => {
-    vi.spyOn(workflowResultServiceSpy, "getPaginatedResultService").mockReturnValueOnce({
+    vi.spyOn(workflowResultServiceSpy, "getPortPaginatedResultService").mockReturnValueOnce({
       selectTuple: vi.fn().mockReturnValue(of({ tuple: null })),
     } as any);
     component.currentDisplayRowData = { existing: "data" };
@@ -209,7 +215,7 @@ describe("RowModalComponent (with pre-loaded rowData)", () => {
         { provide: NzModalRef, useValue: { getConfig: () => ({}), close: vi.fn() } },
         {
           provide: WorkflowResultService,
-          useValue: { getPaginatedResultService: vi.fn().mockReturnValue(null) },
+          useValue: { getPortPaginatedResultService: vi.fn().mockReturnValue(null) },
         },
         { provide: PanelResizeService, useValue: { pageSize: 10 } },
       ],
@@ -261,7 +267,7 @@ describe("RowModalComponent (template rendering)", () => {
         { provide: NzModalRef, useValue: { getConfig: () => ({}), close: vi.fn() } },
         {
           provide: WorkflowResultService,
-          useValue: { getPaginatedResultService: vi.fn().mockReturnValue(null) },
+          useValue: { getPortPaginatedResultService: vi.fn().mockReturnValue(null) },
         },
         { provide: PanelResizeService, useValue: { pageSize: 10 } },
       ],

@@ -260,10 +260,6 @@ export class TexeraAgent {
     return chain;
   }
 
-  getStepsById(): Map<string, ReActStep> {
-    return this.stepsById;
-  }
-
   getWorkflowResultState(): WorkflowResultState {
     return this.workflowResultState;
   }
