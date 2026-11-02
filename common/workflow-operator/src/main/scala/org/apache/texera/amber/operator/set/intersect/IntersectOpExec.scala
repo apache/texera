@@ -22,12 +22,10 @@ package org.apache.texera.amber.operator.set.intersect
 import org.apache.texera.amber.core.tuple.{Tuple, TupleLike}
 import org.apache.texera.amber.operator.set.BinarySetOpExec
 
-import scala.collection.mutable
-
 class IntersectOpExec extends BinarySetOpExec {
   override protected def combine(
-      leftSet: mutable.HashSet[Tuple],
-      rightSet: mutable.HashSet[Tuple]
+      leftSet: collection.Set[Tuple],
+      rightSet: collection.Set[Tuple]
   ): Iterator[TupleLike] = {
     leftSet.intersect(rightSet).iterator
   }

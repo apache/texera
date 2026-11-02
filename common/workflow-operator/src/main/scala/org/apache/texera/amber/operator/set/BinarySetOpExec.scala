@@ -50,7 +50,7 @@ abstract class BinarySetOpExec extends OperatorExecutor {
   }
 
   protected def combine(
-      leftSet: mutable.HashSet[Tuple],
-      rightSet: mutable.HashSet[Tuple]
+      leftSet: collection.Set[Tuple],
+      rightSet: collection.Set[Tuple]
   ): Iterator[TupleLike]
 }

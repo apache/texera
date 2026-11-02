@@ -22,12 +22,10 @@ package org.apache.texera.amber.operator.set.difference
 import org.apache.texera.amber.core.tuple.{Tuple, TupleLike}
 import org.apache.texera.amber.operator.set.BinarySetOpExec
 
-import scala.collection.mutable
-
 class DifferenceOpExec extends BinarySetOpExec {
   override protected def combine(
-      leftSet: mutable.HashSet[Tuple],
-      rightSet: mutable.HashSet[Tuple]
+      leftSet: collection.Set[Tuple],
+      rightSet: collection.Set[Tuple]
   ): Iterator[TupleLike] = {
     leftSet.diff(rightSet).iterator
   }
