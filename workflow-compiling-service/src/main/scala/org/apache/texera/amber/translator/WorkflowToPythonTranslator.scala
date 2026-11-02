@@ -104,15 +104,17 @@ class WorkflowToPythonTranslator extends LazyLogging {
     // Helper definitions the operator bodies below refer to. Collected across the
     // whole plan and deduplicated by text, so a workflow holding two operators
     // that share one helper still emits it once. Order follows the topological
-    // order, which keeps the script stable for a given plan.
+    // order, which keeps the script stable for a given plan. They go in once the
+    // bodies are written, since which of them the script calls is only known then.
     val helpers = topoOrder
       .map(logicalPlan.getOperator)
-      .collect { case gen: StandaloneCodeGenerator => gen.standaloneHelpers() }
+      .collect {
+        case gen: StandaloneCodeGenerator =>
+          gen.standaloneHelpers() ++ gen.standaloneInputAdapter().map(_.definition)
+      }
       .flatten
       .distinct
-    if (helpers.nonEmpty) {
-      helpers.foreach { helper => script += helper; script += "" }
-    }
+    val helpersAt = script.length
 
     for (opIdentity <- topoOrder) {
       val opId = opIdentity.id
@@ -161,11 +163,24 @@ class WorkflowToPythonTranslator extends LazyLogging {
             }
             .toMap
 
+          // An operator the engine hands its table in another form reads it in
+          // that form here too, under a name of its own, so the upstream frame
+          // another operator reads is not the one converted.
+          val fedVars = gen.standaloneInputAdapter() match {
+            case Some(adapter) =>
+              inVars.map { v =>
+                val fed = s"${v}_${adapter.name.stripPrefix("_texera_")}"
+                script += s"$fed = ${adapter.name}($v)"
+                fed
+              }
+            case None => inVars
+          }
+
           // generateStandaloneCode() returns a code block using in{N}df / out{N}df
           // placeholders; substituteVars() replaces them with the assigned vars.
           script += substituteVars(
             gen.generateStandaloneCode(inputSchemas),
-            inVars,
+            fedVars,
             outVars,
             fileBase(displayName, fileBaseCounts),
             gen.standaloneSourcePath().flatMap(sourceFileNames.get).getOrElse(""),
@@ -221,7 +236,59 @@ class WorkflowToPythonTranslator extends LazyLogging {
         }
     }
 
+    // One blank line between helpers, as each block spaces its own, and two
+    // around the helpers as a whole.
+    val called = calledHelpers(helpers, script.drop(helpersAt).mkString("\n"))
+    if (called.nonEmpty) script.insertAll(helpersAt, Seq("", called.mkString("\n\n"), "", ""))
     script.mkString("\n")
+  }
+
+  // The helpers with only the definitions the script calls, directly or through
+  // another helper. A helper block serves several operators, so it can hold far
+  // more functions than one plan uses, and those would only be text for the
+  // reader to wade through. Only a top-level `def _texera_...` is ever dropped:
+  // anything else a block holds is kept, and what it calls counts as called. A
+  // name is read from code only, so a comment or a string naming a helper keeps
+  // nothing alive. A block left with nothing is dropped whole.
+  private def calledHelpers(helpers: Seq[String], body: String): Seq[String] = {
+    val blocks = helpers.map(topLevelUnits)
+    val defined = blocks.flatten.collect { case (Some(name), text) => name -> text }.toMap
+    val called = mutable.Set[String]()
+    def visit(text: String): Unit = {
+      val code = splitOffLiterals(text).collect { case (true, segment) => segment }
+      """\b_texera_\w+""".r.findAllIn(code.mkString("\n")).foreach { name =>
+        if (defined.contains(name) && called.add(name)) visit(defined(name))
+      }
+    }
+    visit(body)
+    blocks.flatten.collect { case (None, text) => text }.foreach(visit)
+    blocks
+      .map(_.collect { case (name, text) if name.forall(called) => text }.mkString)
+      .map(_.replaceAll("\\s+$", ""))
+      .filter(_.nonEmpty)
+  }
+
+  // A helper block cut at its top-level statements, each with the comment and
+  // blank lines just above it and the indented lines below it, and named when it
+  // is a `def _texera_...`.
+  private def topLevelUnits(block: String): List[(Option[String], String)] = {
+    val units = ArrayBuffer[(Option[String], StringBuilder)]()
+    val lead = new StringBuilder
+    block.split("\n", -1).foreach { line =>
+      val topLevel = line.nonEmpty && !line.head.isWhitespace
+      if (topLevel && !line.startsWith("#") && !line.startsWith("@")) {
+        val name = """def (_texera_\w+)\s*\(""".r.findPrefixMatchOf(line).map(_.group(1))
+        units += ((name, new StringBuilder(lead.toString)))
+        lead.setLength(0)
+        units.last._2 ++= line + "\n"
+      } else if (topLevel || units.isEmpty || lead.nonEmpty) {
+        lead ++= line + "\n"
+      } else {
+        units.last._2 ++= line + "\n"
+      }
+    }
+    val cut = units.map { case (name, text) => (name, text.toString) }.toList
+    if (lead.isEmpty) cut else cut :+ ((None, lead.toString))
   }
 
   // The stem of the files one operator writes, taken from its name so a reader

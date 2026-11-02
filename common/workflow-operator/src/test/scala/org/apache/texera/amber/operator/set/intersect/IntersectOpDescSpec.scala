@@ -17,7 +17,7 @@
  * under the License.
  */
 
-package org.apache.texera.amber.operator.intersect
+package org.apache.texera.amber.operator.set.intersect
 
 import org.apache.texera.amber.core.executor.OpExecWithClassName
 import org.apache.texera.amber.core.virtualidentity.{ExecutionIdentity, WorkflowIdentity}
@@ -74,7 +74,7 @@ class IntersectOpDescSpec extends AnyFlatSpec with Matchers {
     val physical = op.getPhysicalOp(workflowId, executionId)
     physical.opExecInitInfo match {
       case OpExecWithClassName(className, _) =>
-        className shouldBe "org.apache.texera.amber.operator.intersect.IntersectOpExec"
+        className shouldBe "org.apache.texera.amber.operator.set.intersect.IntersectOpExec"
       case other =>
         fail(s"expected OpExecWithClassName, got $other")
     }

@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -17,31 +17,16 @@
  * under the License.
  */
 
-import { Injectable } from "@angular/core";
-import { Observable, of } from "rxjs";
-import { DashboardModel } from "../../../type/dashboard-model.interface";
+package org.apache.texera.amber.operator.set.difference
 
-/**
- * In-memory ModelService double, so specs rendering a Models view need no HttpTestingController.
- */
-@Injectable()
-export class StubModelService {
-  constructor(private models: DashboardModel[] = []) {}
+import org.apache.texera.amber.core.tuple.{Tuple, TupleLike}
+import org.apache.texera.amber.operator.set.BinarySetOpExec
 
-  public retrieveAccessibleModels(): Observable<DashboardModel[]> {
-    return of(this.models);
-  }
-
-  public deleteModel(mid: number): Observable<Response> {
-    this.models = this.models.filter(model => model.model.mid !== mid);
-    return of({} as Response);
-  }
-
-  public updateModelName(): Observable<Response> {
-    return of({} as Response);
-  }
-
-  public updateModelDescription(): Observable<Response> {
-    return of({} as Response);
+class DifferenceOpExec extends BinarySetOpExec {
+  override protected def combine(
+      leftSet: collection.Set[Tuple],
+      rightSet: collection.Set[Tuple]
+  ): Iterator[TupleLike] = {
+    leftSet.diff(rightSet).iterator
   }
 }

@@ -17,15 +17,13 @@
  * under the License.
  */
 
-package org.apache.texera.amber.operator.difference
+package org.apache.texera.amber.operator.set.symmetricDifference
 
 import org.apache.texera.amber.core.tuple._
 import org.scalatest.BeforeAndAfter
 import org.scalatest.flatspec.AnyFlatSpec
-class DifferenceOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
-  var input1: Int = 0
-  var input2: Int = 1
-  var opExec: DifferenceOpExec = _
+class SymmetricDifferenceOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
+  var opExec: SymmetricDifferenceOpExec = _
   var counter: Int = 0
   val schema: Schema = Schema()
     .add(new Attribute("field1", AttributeType.STRING))
@@ -42,7 +40,7 @@ class DifferenceOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
   }
 
   before {
-    opExec = new DifferenceOpExec()
+    opExec = new SymmetricDifferenceOpExec()
   }
 
   it should "open" in {
@@ -52,6 +50,8 @@ class DifferenceOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
   }
 
   it should "work with basic two input streams with no duplicates" in {
+    val input1 = 0
+    val input2 = 1
     opExec.open()
     counter = 0
     val commonTuples = (1 to 10).map(_ => tuple()).toList
@@ -68,13 +68,15 @@ class DifferenceOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
     val outputTuples: Set[TupleLike] =
       opExec.onFinish(input2).toSet
     assert(
-      outputTuples.equals(commonTuples.slice(0, 5).toSet)
+      outputTuples.equals(commonTuples.slice(0, 5).toSet.union(commonTuples.slice(8, 10).toSet))
     )
 
     opExec.close()
   }
 
   it should "work with one empty input upstream after a data stream" in {
+    val input1 = 0
+    val input2 = 1
     opExec.open()
     counter = 0
     val commonTuples = (1 to 10).map(_ => tuple()).toList
@@ -84,13 +86,18 @@ class DifferenceOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
     })
     assert(opExec.onFinish(input1).isEmpty)
 
-    val outputTuples: Set[TupleLike] =
-      opExec.onFinish(input2).toSet
+    val outputTuples: Set[Tuple] =
+      opExec
+        .onFinish(input2)
+        .map(tupleLike => tupleLike.asInstanceOf[SchemaEnforceable].enforceSchema(schema))
+        .toSet
     assert(outputTuples.equals(commonTuples.toSet))
     opExec.close()
   }
 
   it should "work with one empty input upstream after a data stream - other order" in {
+    val input1 = 0
+    val input2 = 1
     opExec.open()
     counter = 0
     val commonTuples = (1 to 10).map(_ => tuple()).toList
@@ -100,13 +107,18 @@ class DifferenceOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
     })
     assert(opExec.onFinish(input2).isEmpty)
 
-    val outputTuples: Set[TupleLike] =
-      opExec.onFinish(input1).toSet
-    assert(outputTuples.isEmpty)
+    val outputTuples: Set[Tuple] =
+      opExec
+        .onFinish(input1)
+        .map(tupleLike => tupleLike.asInstanceOf[SchemaEnforceable].enforceSchema(schema))
+        .toSet
+    assert(outputTuples.equals(commonTuples.toSet))
     opExec.close()
   }
 
   it should "work with one empty input upstream before a data stream" in {
+    val input1 = 0
+    val input2 = 1
     opExec.open()
     counter = 0
     val commonTuples = (1 to 10).map(_ => tuple()).toList
@@ -116,13 +128,18 @@ class DifferenceOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
       opExec.processTuple(commonTuples(i), input1)
     })
 
-    val outputTuples: Set[TupleLike] =
-      opExec.onFinish(input1).toSet
+    val outputTuples: Set[Tuple] =
+      opExec
+        .onFinish(input1)
+        .map(tupleLike => tupleLike.asInstanceOf[SchemaEnforceable].enforceSchema(schema))
+        .toSet
     assert(outputTuples.equals(commonTuples.toSet))
     opExec.close()
   }
 
   it should "work with one empty input upstream during a data stream" in {
+    val input1 = 0
+    val input2 = 1
     opExec.open()
     counter = 0
     val commonTuples = (1 to 10).map(_ => tuple()).toList
@@ -135,8 +152,11 @@ class DifferenceOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
       opExec.processTuple(commonTuples(i), input1)
     })
 
-    val outputTuples: Set[TupleLike] =
-      opExec.onFinish(input1).toSet
+    val outputTuples: Set[Tuple] =
+      opExec
+        .onFinish(input1)
+        .map(tupleLike => tupleLike.asInstanceOf[SchemaEnforceable].enforceSchema(schema))
+        .toSet
     assert(outputTuples.equals(commonTuples.toSet))
     opExec.close()
   }
@@ -144,8 +164,8 @@ class DifferenceOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
   it should "work with two empty input upstreams" in {
 
     opExec.open()
-    assert(opExec.onFinish(input1).isEmpty)
-    assert(opExec.onFinish(input2).isEmpty)
+    assert(opExec.onFinish(0).isEmpty)
+    assert(opExec.onFinish(1).isEmpty)
     opExec.close()
   }
 
