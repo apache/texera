@@ -295,6 +295,7 @@ This product includes icons from IBM Carbon Design System:
   - frontend/src/assets/operator_images/RadarPlot.png (chart--radar)
   - frontend/src/assets/operator_images/SVCTrainer.png (chart--scatter)
   - frontend/src/assets/operator_images/SVRTrainer.png (chart--scatter)
+  - frontend/src/assets/operator_images/SankeyDiagram.png (sankey-diagram--alt)
   - frontend/src/assets/operator_images/ScatterMatrixChart.png (scatter-matrix)
   - frontend/src/assets/operator_images/SklearnComplementNaiveBayes.png (chart--venn-diagram)
   - frontend/src/assets/operator_images/SklearnDecisionTree.png (decision-tree)
@@ -316,11 +317,23 @@ This product includes icons from IBM Carbon Design System:
   - frontend/src/assets/operator_images/SklearnTrainingSDG.png (math-curve)
   - frontend/src/assets/operator_images/SortPartitions.png (sort--descending)
   - frontend/src/assets/operator_images/TimeSeriesPlot.png (chart--multi-line)
+  - frontend/src/assets/operator_images/TypeCasting.png (transform--binary)
   - frontend/src/assets/operator_images/WaterfallChart.png (chart--waterfall)
   - frontend/src/assets/operator_images/WordCloud.png (word-cloud)
   Copyright 2015 IBM Corp.
   Source: https://github.com/carbon-design-system/carbon (@carbon/icons 11.91.0)
   License: Apache License 2.0 (this LICENSE file)
+
+This product includes the logos of other Apache Software Foundation projects,
+used as the icons of the operators that read from them:
+  - frontend/src/assets/operator_images/ArrowSource.png (Apache Arrow)
+  - frontend/src/assets/operator_images/AsterixDBSource.png (Apache AsterixDB)
+  Copyright (c) The Apache Software Foundation
+  Source: https://github.com/apache/arrow-site/blob/229e92ede438bb6e13417eda141551c242cff334/img/arrow-logo_hex_black-txt_white-bg.png
+          https://github.com/apache/asterixdb-site/blob/00f9bf22dd19e8645315fb2b139527a575dae9c1/img/asterixdb_tm.png
+  License: Apache License 2.0 (this LICENSE file)
+  Note: Apache Arrow, Apache AsterixDB and their logos are trademarks of The
+        Apache Software Foundation, used here to identify the projects.
 
 This product includes the ORCID iD icon from ORCID, Inc.:
   - frontend/src/assets/logos/ORCID-iD_icon_24x24.png
