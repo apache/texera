@@ -159,7 +159,12 @@ export class CodeEditorComponent implements OnInit, AfterViewInit, SafeStyle, On
   ) {}
 
   ngOnInit(): void {
-    // Everything here keys on currentOperatorId, an input set after construction.
+    // Everything here keys on currentOperatorId, an input the opener sets before the first check
+    // (the codearea's openEditor). Opened without one, name the missing input, rather than fail on
+    // the first lookup with an operator that "does not exist" (Copilot).
+    if (!this.currentOperatorId) {
+      throw new Error("CodeEditorComponent needs currentOperatorId set before it is initialised");
+    }
     const operatorType = this.workflowActionService.getTexeraGraph().getOperator(this.currentOperatorId).operatorType;
     if (CodeEditorComponent.PYTHON_OPERATOR_TYPES.has(operatorType)) {
       this.language = "python";
