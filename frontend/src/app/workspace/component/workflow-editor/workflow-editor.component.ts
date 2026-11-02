@@ -85,7 +85,7 @@ export const RESULT_PREVIEW_DELAY_MS = 500;
 /** How long the card stays after the pointer leaves, so the pointer can move into it. */
 export const RESULT_PREVIEW_HIDE_MS = 200;
 /** The height of a pinned window's header, where the line from its operator comes in. */
-const PINNED_HEADER_HEIGHT = 30;
+export const PINNED_HEADER_HEIGHT = 30;
 
 /** Whether a mouse button is down. JointJS hands over a jQuery event, which keeps the DOM one inside. */
 function isButtonHeld(evt: unknown): boolean {
