@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1793536894421,
+  "lastUpdate": 1793623554025,
   "repoUrl": "https://github.com/apache/texera",
   "entries": {
     "Arrow Flight E2E Throughput": [
@@ -20674,6 +20674,163 @@ window.BENCHMARK_DATA = {
           {
             "name": "throughput / bs=1000 sw=50 sl=512",
             "value": 788.251360832678,
+            "unit": "tuples/sec"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "name": "Suryaa Charan",
+            "username": "sshiv012",
+            "email": "122703005+sshiv012@users.noreply.github.com"
+          },
+          "committer": {
+            "name": "GitHub",
+            "username": "web-flow",
+            "email": "noreply@github.com"
+          },
+          "id": "05c19a43e4cda57dfdd00813ee5db717f2b3a17c",
+          "message": "fix(k8s): pin the LiteLLM image to the version single-node uses (#9082)\n\n### What changes were proposed in this PR?\n\nPin the LiteLLM image in the Helm chart to the version single-node\nalready uses.\n\nThe chart used the moving tag `litellm/litellm:main-stable`, so any pod\nrestart could pull a new LiteLLM build without a Texera change. That is\nhow the compressed-reply bug in #9080 reached our k8s deployment.\n\n| File | Before | After |\n| --- | --- | --- |\n| `bin/k8s/values.yaml` | `litellm/litellm:main-stable` |\n`ghcr.io/berriai/litellm:v1.83.10-stable` |\n| `bin/k8s/values-development.yaml` | `litellm/litellm:main-stable` |\n`ghcr.io/berriai/litellm:v1.83.10-stable` |\n\n`bin/single-node/docker-compose.yml` already uses\n`ghcr.io/berriai/litellm:v1.83.10-stable`, so both deployments now run\nthe same LiteLLM. Future upgrades become a deliberate bump in both\nplaces.\n\nThis does not replace the proxy fix for #9080; it only stops surprise\nupgrades.\n\n### Any related issues, documentation, discussions?\n\nCloses #9081\nRelated: #9080\n\n### How was this PR tested?\n\nChart (from a copy with `helm dependency build`):\n\n```\nhelm lint . -f values.yaml               # 1 chart(s) linted, 0 chart(s) failed\nhelm lint . -f values-development.yaml   # 1 chart(s) linted, 0 chart(s) failed\nhelm template t . -f <each values file>  # renders image: ghcr.io/berriai/litellm:v1.83.10-stable\n```\n\nDeployed on local minikube: the chart's LiteLLM deployment, service,\nconfig and secret, plus the chart's Postgres and init script.\n\n| Check | Result |\n| --- | --- |\n| Image pulls from GHCR | ok |\n| Prisma migrations against `texera_litellm` | \"Migration diff applied\nsuccessfully\" |\n| `GET /health/liveliness` | `\"I'm alive!\"` |\n| `GET /models` with the chart's master key | 200, lists\n`claude-haiku-4.5`, `gpt-5-mini` |\n\nNot tested: a successful chat completion (no provider API key on the\ntest cluster), and a full Texera install on k8s. Minikube used the\n`standard` storage class instead of `local-path` for the Postgres PVC\n(test-only).\n\n### Was this PR authored or co-authored using generative AI tooling?\n\nGenerated-by: Claude Code (Claude Opus 5.5)\n\n🤖 Generated with [Claude Code](https://claude.com/claude-code)\n\nCo-authored-by: Claude Opus 5.5 <noreply@anthropic.com>\nCo-authored-by: Jiadong Bai <43344272+bobbai00@users.noreply.github.com>\nCo-authored-by: Meng Wang <mengw15@uci.edu>",
+          "timestamp": "2026-11-02T06:16:49Z",
+          "url": "https://github.com/apache/texera/commit/05c19a43e4cda57dfdd00813ee5db717f2b3a17c"
+        },
+        "date": 1793623553132,
+        "tool": "customBiggerIsBetter",
+        "benches": [
+          {
+            "name": "throughput / bs=10 sw=1 sl=8",
+            "value": 967.3155845871812,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=1 sl=8",
+            "value": 1765.32599111375,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=1 sl=8",
+            "value": 1916.169639440667,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=1 sl=64",
+            "value": 1259.6183084196011,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=1 sl=64",
+            "value": 1822.2052779159812,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=1 sl=64",
+            "value": 1927.4380208659304,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=1 sl=512",
+            "value": 1337.6037984309594,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=1 sl=512",
+            "value": 1826.1331357050174,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=1 sl=512",
+            "value": 1906.5630906760975,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=10 sl=8",
+            "value": 1071.3202045202765,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=10 sl=8",
+            "value": 1427.1529266380737,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=10 sl=8",
+            "value": 1491.2797938166852,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=10 sl=64",
+            "value": 1086.3269663327812,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=10 sl=64",
+            "value": 1434.5204998459296,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=10 sl=64",
+            "value": 1478.9094245545446,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=10 sl=512",
+            "value": 1094.5780742238658,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=10 sl=512",
+            "value": 1432.0641673028188,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=10 sl=512",
+            "value": 1457.6302267722235,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=50 sl=8",
+            "value": 654.0983023139222,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=50 sl=8",
+            "value": 760.3176189764981,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=50 sl=8",
+            "value": 772.7538351579052,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=50 sl=64",
+            "value": 663.7415078397567,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=50 sl=64",
+            "value": 771.2557511293373,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=50 sl=64",
+            "value": 766.1945140883618,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=50 sl=512",
+            "value": 631.4680044223725,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=50 sl=512",
+            "value": 733.4474574178769,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=50 sl=512",
+            "value": 733.0984929218178,
             "unit": "tuples/sec"
           }
         ]
