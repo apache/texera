@@ -587,7 +587,9 @@ export class TexeraAgent {
           const formattedToolResults = toolResults?.map(tr => ({
             toolCallId: tr.toolCallId,
             output: tr.output,
-            isError: !!(tr.output as any)?.error,
+            isError:
+              (typeof tr.output === "string" && tr.output.startsWith("[ERROR]")) ||
+              (typeof tr.output === "object" && tr.output !== null && "error" in tr.output && !!tr.output.error),
           }));
 
           const afterStepContent = this.workflowState.getWorkflowContent();
