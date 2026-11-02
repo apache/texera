@@ -25,6 +25,7 @@ import org.scalatest.matchers.should.Matchers
 
 import java.nio.charset.StandardCharsets
 import java.nio.file.{Files, Path}
+import java.util.Locale
 import scala.jdk.CollectionConverters._
 
 class OperatorDocScannerSpec extends AnyFlatSpec with Matchers with BeforeAndAfterAll {
@@ -37,7 +38,11 @@ class OperatorDocScannerSpec extends AnyFlatSpec with Matchers with BeforeAndAft
     Files.write(handWritten, "hand-written".getBytes(StandardCharsets.UTF_8))
     Files.createDirectories(stale.getParent)
     Files.write(stale, "stale".getBytes(StandardCharsets.UTF_8))
-    OperatorDocScanner.main(Array(outputDir.toString))
+    // Turkish lowercases I to a dotless ı; the paths must not depend on the JVM's locale.
+    val locale = Locale.getDefault
+    Locale.setDefault(Locale.forLanguageTag("tr"))
+    try OperatorDocScanner.main(Array(outputDir.toString))
+    finally Locale.setDefault(locale)
   }
 
   override def afterAll(): Unit =
@@ -75,6 +80,11 @@ class OperatorDocScannerSpec extends AnyFlatSpec with Matchers with BeforeAndAft
     root should include regex "\n  - \\[Join\\]\\(data-cleaning/join/\\) \\(\\d+ operators\\)\n"
   }
 
+  it should "slug operator and group names independently of the JVM locale" in {
+    Files.exists(outputDir.resolve("control-block/if.md")) shouldBe true
+    Files.exists(outputDir.resolve("data-input/_index.md")) shouldBe true
+  }
+
   it should "write one parameter page per hyperparameter enum" in {
     read("parameters/_index.md") should include(
       "| [SklearnAdvancedKNN](sklearn-advanced-knn-parameters/) | 2 | KNN Classifier, KNN Regressor |"
@@ -83,6 +93,7 @@ class OperatorDocScannerSpec extends AnyFlatSpec with Matchers with BeforeAndAft
     page should include(
       "- [KNN Classifier](../../machine-learning/advanced-sklearn/knn-classifier/)"
     )
+    page should include("| Parameter | Type | Example | Allowed values |")
     page should include("| n_neighbors | `int` | 5 | >=1 |")
   }
 }

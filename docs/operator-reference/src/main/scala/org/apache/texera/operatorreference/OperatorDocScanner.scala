@@ -27,6 +27,7 @@ import org.apache.texera.amber.operator.metadata.{
 
 import java.nio.charset.StandardCharsets
 import java.nio.file.{Files, Path, Paths}
+import java.util.Locale
 import scala.jdk.CollectionConverters._
 
 /**
@@ -242,14 +243,14 @@ object OperatorDocScanner {
     }
     val rows = JsonPropertyReflectionUtils
       .extractEnumMetadata(set.enumClass)
-      .map(p => s"| ${p.name} | `${p.paramType}` | ${p.defaultValue} | ${p.constraint} |")
+      .map(p => s"| ${p.name} | `${p.paramType}` | ${p.example} | ${p.constraint} |")
     renderPage(
       frontMatter,
       List(
         "[← Parameters Index](../)",
         "## Used By\n\nThis parameter set is used by the following operators:\n\n" + usedBy
           .mkString("\n"),
-        "## Parameters\n\n| Parameter | Type | Default | Allowed values |\n" +
+        "## Parameters\n\n| Parameter | Type | Example | Allowed values |\n" +
           "|-----------|------|---------|----------------|\n" + rows.mkString("\n")
       )
     )
@@ -315,7 +316,7 @@ object OperatorDocScanner {
     toSlug(op.additionalMetadata.userFriendlyName)
 
   private def toSlug(name: String): String =
-    name.trim.replaceAll("\\s+", "-").replaceAll("[^a-zA-Z0-9-]", "").toLowerCase
+    name.trim.replaceAll("\\s+", "-").replaceAll("[^a-zA-Z0-9-]", "").toLowerCase(Locale.ROOT)
 
   private def escapeYamlString(s: String): String = s.replace("\\", "\\\\").replace("\"", "\\\"")
 

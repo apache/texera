@@ -27,7 +27,7 @@ import com.fasterxml.jackson.annotation.{
   JsonPropertyDescription,
   JsonValue
 }
-import com.fasterxml.jackson.databind.ObjectMapper
+import com.fasterxml.jackson.databind.{JsonNode, ObjectMapper}
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize
 import com.kjetland.jackson.jsonSchema.annotations.{
   JsonSchemaDescription,
@@ -45,7 +45,8 @@ import org.apache.texera.amber.operator.metadata.annotations.HideAnnotation
 
 import java.lang.annotation.Annotation
 import java.lang.reflect.{Field, Modifier, ParameterizedType}
-import javax.validation.constraints.{NotNull, Size}
+import java.util.Locale
+import javax.validation.constraints.{DecimalMax, DecimalMin, Max, Min, NotNull, Size}
 import scala.jdk.CollectionConverters._
 import scala.util.Try
 
@@ -62,7 +63,7 @@ private[operatorreference] case class DocProperty(
 private[operatorreference] case class EnumParam(
     name: String,
     paramType: String,
-    defaultValue: String,
+    example: String,
     constraint: String
 )
 
@@ -119,7 +120,7 @@ object JsonPropertyReflectionUtils {
     val rows = ports.get.zipWithIndex.map {
       case (port, idx) =>
         val label = OutputModeLabels.getOrElse(port.mode, port.mode.name)
-        val anchor = label.toLowerCase.replace(' ', '-')
+        val anchor = label.toLowerCase(Locale.ROOT).replace(' ', '-')
         s"| $idx | [$label](${rootPath}output-modes/#$anchor) |"
     }
     ("### Output Ports\n\n| Port | Mode |\n|------|------|" :: rows).mkString("\n")
@@ -153,6 +154,7 @@ object JsonPropertyReflectionUtils {
     val instance = createInstance(clazz)
     val fields = documentableFields(clazz)
     val byJsonName = fields.map(f => jsonName(f) -> f).toMap
+    val typeRules = attributeTypeRules(clazz)
 
     def toggleParent(field: Field): Option[Field] =
       fields
@@ -168,8 +170,11 @@ object JsonPropertyReflectionUtils {
         }
 
     def toProperty(field: Field): DocProperty = {
-      val (dataType, children) = dataTypeAndChildren(field, clazz, rootPath)
+      val typeRule = typeRules.get(jsonName(field))
+      val (dataType, children) =
+        dataTypeAndChildren(field, clazz, rootPath, typeRule.toList.flatMap(acceptedTypes))
       val template = codeTemplate(field)
+      val typeNote = typeRule.flatMap(typeRuleNote(_, byJsonName))
       val hideNote = hideRule(field).map {
         case HideRule(target, HideRegex, expected) =>
           s"Hidden when ${targetLabel(target, byJsonName)} matches `$expected`"
@@ -181,7 +186,7 @@ object JsonPropertyReflectionUtils {
         isRequired(field),
         dataType,
         if (template.isDefined) "`See template below`" else defaultValue(field, instance),
-        (description(field, clazz) ++ hideNote)
+        (description(field, clazz) ++ typeNote ++ hideNote)
           .reduceOption((a, b) => if (a.endsWith(".") || a.endsWith(")")) s"$a $b" else s"$a. $b")
           .getOrElse(""),
         children,
@@ -268,6 +273,7 @@ object JsonPropertyReflectionUtils {
       case xs: scala.collection.Iterable[_]          => Some(s"[${xs.size} items]")
       case xs: java.util.Collection[_] if xs.isEmpty => None
       case xs: java.util.Collection[_]               => Some(s"[${xs.size} items]")
+      case e: java.lang.Enum[_]                      => Some(enumLabel(e))
       case other                                     => Some(other.toString)
     }
 
@@ -278,11 +284,24 @@ object JsonPropertyReflectionUtils {
       .orElse(findAnnotation(field, classOf[JsonSchemaDescription]).map(_.value()))
       .filter(_.nonEmpty)
       .map(s => s"${s.head.toUpper}${s.tail}".stripSuffix("."))
+    def message(m: String): List[String] =
+      Option(m).filter(m => m.nonEmpty && !m.startsWith("{")).toList
     val constraints = findAnnotation(field, classOf[Size]).toList.flatMap { size =>
       Option(size.min()).filter(_ > 0).map(m => s"min: $m") ++
-        Option(size.max()).filter(_ < Int.MaxValue).map(m => s"max: $m") ++
-        Option(size.message()).filter(m => m.nonEmpty && !m.startsWith("{"))
-    }
+        Option(size.max()).filter(_ < Int.MaxValue).map(m => s"max: $m") ++ message(size.message())
+    } ++
+      findAnnotation(field, classOf[Min]).toList.flatMap(a =>
+        s"min: ${a.value()}" :: message(a.message())
+      ) ++
+      findAnnotation(field, classOf[DecimalMin]).toList.flatMap(a =>
+        s"min: ${a.value()}" :: message(a.message())
+      ) ++
+      findAnnotation(field, classOf[Max]).toList.flatMap(a =>
+        s"max: ${a.value()}" :: message(a.message())
+      ) ++
+      findAnnotation(field, classOf[DecimalMax]).toList.flatMap(a =>
+        s"max: ${a.value()}" :: message(a.message())
+      )
     (base, constraints) match {
       case (Some(b), Nil) => Some(b)
       case (Some(b), cs)  => Some(s"$b (${cs.mkString(", ")})")
@@ -332,10 +351,10 @@ object JsonPropertyReflectionUtils {
   private def dataTypeAndChildren(
       field: Field,
       owner: Class[_],
-      rootPath: String
+      rootPath: String,
+      accepted: List[String]
   ): (String, List[DocProperty]) = {
     if (codeTemplate(field).isDefined) return (s"Code (${codeLanguage(owner)})", Nil)
-    val accepted = attributeTypeRules(owner).getOrElse(jsonName(field), Nil)
     val (dataType, children) = plainTypeAndChildren(field, owner, rootPath)
     (if (accepted.isEmpty) dataType else s"$dataType (${accepted.mkString(", ")})", children)
   }
@@ -368,16 +387,28 @@ object JsonPropertyReflectionUtils {
           val link = getEnumClass(owner).map { e =>
             s"[${e.getSimpleName}](${rootPath}parameters/${parameterPageSlug(e)}/)"
           }
-          (link.getOrElse("List<Parameter>"), Nil)
+          (link.getOrElse(listOf("Parameter")), Nil)
         case Some(c) if isNestedConfig(c) =>
-          (s"List<${toTitleCase(c.getSimpleName)}>", extractProperties(c, rootPath))
-        case Some(c) => (s"List<${simpleType(c)}>", Nil)
+          (listOf(toTitleCase(c.getSimpleName)), extractProperties(c, rootPath))
+        case Some(c) => (listOf(simpleType(c)), Nil)
         case None    => ("List", Nil)
       }
     } else {
-      (simpleType(raw), Nil)
+      (injectedOptions(field).getOrElse(simpleType(raw)), Nil)
     }
   }
+
+  // Hugo passes `<X>` through as an HTML tag, which the browser then hides.
+  private def listOf(element: String): String = s"List\\<$element\\>"
+
+  // A String property offered as a dropdown by `@JsonSchemaInject(json = {"enum": [...]})`.
+  private def injectedOptions(field: Field): Option[String] =
+    findAnnotation(field, classOf[JsonSchemaInject])
+      .flatMap(inject => Try(mapper.readTree(inject.json()).get("enum")).toOption)
+      .filter(e => e != null && e.isArray)
+      .map(_.asScala.map(_.asText()).filter(_.nonEmpty).toList)
+      .filter(_.nonEmpty)
+      .map(options => wrap(options.mkString(", "), 40, ", "))
 
   private def simpleType(c: Class[_]): String =
     if (c.isEnum) enumOptions(c)
@@ -391,50 +422,57 @@ object JsonPropertyReflectionUtils {
         case other                 => other
       }
 
-  private def enumOptions(enumClass: Class[_]): String = {
-    val jsonValue = enumClass.getMethods.find { m =>
-      m.getAnnotation(classOf[JsonValue]) != null && m.getParameterCount == 0
-    }
-    val options = enumConstants(enumClass)
-      .map(c => jsonValue.flatMap(m => Try(m.invoke(c).toString).toOption).getOrElse(c.toString))
-      .filter(_.nonEmpty)
-    wrap(options.mkString(", "), 40, ", ")
-  }
+  private def enumOptions(enumClass: Class[_]): String =
+    wrap(enumConstants(enumClass).map(enumLabel).filter(_.nonEmpty).mkString(", "), 40, ", ")
+
+  // The value the property panel shows and sends, which `@JsonValue` may rename.
+  private def enumLabel(constant: java.lang.Enum[_]): String =
+    constant.getDeclaringClass.getMethods
+      .find(m => m.getAnnotation(classOf[JsonValue]) != null && m.getParameterCount == 0)
+      .flatMap(m => Try(m.invoke(constant).toString).toOption)
+      .getOrElse(constant.toString)
 
   private def isNestedConfig(c: Class[_]): Boolean =
     !c.isEnum && !c.getName.startsWith("java.") && !c.getName.startsWith("scala.") &&
       documentableFields(c).nonEmpty
 
-  private def attributeTypeRules(clazz: Class[_]): Map[String, List[String]] = {
-    val injected = Iterator
+  private def attributeTypeRules(clazz: Class[_]): Map[String, JsonNode] =
+    Iterator
       .iterate[Class[_]](clazz)(_.getSuperclass)
       .takeWhile(c => c != null && c != classOf[Object])
       .flatMap(c => Option(c.getAnnotation(classOf[JsonSchemaInject])))
       .map(_.json())
       .filter(_.nonEmpty)
-      .toList
-    injected.flatMap { json =>
-      Try(mapper.readTree(json).get("attributeTypeRules")).toOption
-        .filter(rules => rules != null && rules.isObject)
-        .toList
-        .flatMap { rules =>
-          rules.properties().asScala.map { entry =>
-            val value = entry.getValue
-            val accepted =
-              if (value.has("enum")) value.get("enum").asScala.map(_.asText()).toList
-              else if (value.isTextual) List(value.asText())
-              else Nil
-            entry.getKey -> accepted
-          }
-        }
-    }.toMap
+      .flatMap(json => Try(mapper.readTree(json).path("attributeTypeRules")).toOption)
+      .flatMap(_.properties().asScala.map(e => e.getKey -> e.getValue))
+      .toMap
+
+  private def acceptedTypes(rule: JsonNode): List[String] =
+    if (rule.has("enum")) rule.get("enum").asScala.map(_.asText()).toList
+    else if (rule.isTextual) List(rule.asText())
+    else Nil
+
+  // `const: {$data: x}` ties the type to property x; `allOf: [{if, then}]` makes the accepted
+  // types depend on the value chosen for another property.
+  private def typeRuleNote(rule: JsonNode, byJsonName: Map[String, Field]): Option[String] = {
+    val sameAs = Option(rule.path("const").path("$data"))
+      .filter(_.isTextual)
+      .map(target => s"Same type as ${targetLabel(target.asText(), byJsonName)}")
+    val conditions = rule.path("allOf").asScala.toList.flatMap { branch =>
+      branch.path("if").properties().asScala.headOption.map { condition =>
+        val values = condition.getValue.path("valEnum").asScala.map(_.asText()).mkString(", ")
+        val types = acceptedTypes(branch.path("then")).mkString(", ")
+        s"$types when ${targetLabel(condition.getKey, byJsonName)} is $values"
+      }
+    }
+    sameAs.orElse(Option.when(conditions.nonEmpty)(s"Accepts ${conditions.mkString("; ")}"))
   }
 
   def parameterPageSlug(enumClass: Class[_]): String =
     enumClass.getSimpleName
       .replaceAll("([A-Z]+)([A-Z][a-z])", "$1-$2")
       .replaceAll("([a-z\\d])([A-Z])", "$1-$2")
-      .toLowerCase
+      .toLowerCase(Locale.ROOT)
 
   /**
     * Finds an annotation on a field, falling back to the matching `@JsonCreator` constructor
@@ -481,8 +519,8 @@ object JsonPropertyReflectionUtils {
       s"${text.take(cut)}${separator.trim}<br>${wrap(text.drop(cut + separator.length), width, separator)}"
   }
 
-  private def enumConstants(enumClass: Class[_]): List[AnyRef] =
-    enumClass.getEnumConstants.asInstanceOf[Array[AnyRef]].toList
+  private def enumConstants(enumClass: Class[_]): List[java.lang.Enum[_]] =
+    enumClass.getEnumConstants.asInstanceOf[Array[java.lang.Enum[_]]].toList
 
   private def createInstance(clazz: Class[_]): Option[AnyRef] =
     Try(clazz.getDeclaredConstructor().newInstance().asInstanceOf[AnyRef]).toOption

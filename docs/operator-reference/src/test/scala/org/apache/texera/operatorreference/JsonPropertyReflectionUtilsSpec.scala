@@ -19,8 +19,10 @@
 
 package org.apache.texera.operatorreference
 
+import org.apache.texera.amber.operator.aggregate.AggregateOpDesc
 import org.apache.texera.amber.operator.distinct.DistinctOpDesc
 import org.apache.texera.amber.operator.filter.SpecializedFilterOpDesc
+import org.apache.texera.amber.operator.hashJoin.HashJoinOpDesc
 import org.apache.texera.amber.operator.limit.LimitOpDesc
 import org.apache.texera.amber.operator.machineLearning.sklearnAdvanced.KNNTrainer.{
   SklearnAdvancedKNNClassifierTrainerOpDesc,
@@ -30,6 +32,9 @@ import org.apache.texera.amber.operator.source.apis.twitter.v2.TwitterSearchSour
 import org.apache.texera.amber.operator.source.sql.postgresql.PostgreSQLSourceOpDesc
 import org.apache.texera.amber.operator.split.SplitOpDesc
 import org.apache.texera.amber.operator.udf.python.PythonUDFOpDescV2
+import org.apache.texera.amber.operator.visualization.ecdfPlot.ECDFPlotOpDesc
+import org.apache.texera.amber.operator.visualization.figureFactoryTable.FigureFactoryTableOpDesc
+import org.apache.texera.amber.operator.visualization.rangeSlider.RangeSliderOpDesc
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 
@@ -41,8 +46,9 @@ class JsonPropertyReflectionUtilsSpec extends AnyFlatSpec with Matchers {
   "generatePropertiesTable" should "inline a nested config class and wrap long cells" in {
     val rows = table(classOf[SpecializedFilterOpDesc]).linesIterator.toList
     rows should contain(
-      "| Predicates | ✓ | List<Filter Predicate> | - | Multiple predicates in OR |"
+      "| Predicates | ✓ | List\\<Filter Predicate\\> | - | Multiple predicates in OR |"
     )
+    "(?<!\\\\)<(?!br>)[A-Za-z]".r.findFirstIn(rows.mkString) shouldBe None
     rows should contain("| ↳ Attribute | ✓ | String | - |  |")
     rows should contain("| ↳ Condition | ✓ | =, >, >=, <, <=, !=, is null,<br>is not null | - |  |")
     rows should contain(
@@ -82,6 +88,30 @@ class JsonPropertyReflectionUtilsSpec extends AnyFlatSpec with Matchers {
     )
     table(classOf[LimitOpDesc]) should include(
       "| Limit | ✓ | Integer | 0 | The max number of output rows |"
+    )
+  }
+
+  it should "show enum values and dropdown options as the property panel sends them" in {
+    table(classOf[RangeSliderOpDesc]) should include(
+      "| Handle Duplicates |  | Nothing, Mean, Sum | Nothing | How to handle duplicate values in y-axis |"
+    )
+    table(classOf[ECDFPlotOpDesc]) should include(
+      "| Y Axis Mode |  | probability, count, sum | probability | Display cumulative probability, raw count, or<br>cumulative sum |"
+    )
+  }
+
+  it should "describe type rules that depend on another property" in {
+    table(classOf[AggregateOpDesc]) should include(
+      "| ↳ Attribute |  | String | - | Column to aggregate on. Accepts integer, long,<br>double, timestamp when `Aggregate Func` is sum,<br>average, min, max; string when `Aggregate Func`<br>is concat |"
+    )
+    table(classOf[HashJoinOpDesc[_]]) should include(
+      "| Left Input Attribute | ✓ | String | - | Attribute to be joined on the Left Input. Same<br>type as `Right Input Attribute` |"
+    )
+  }
+
+  it should "append numeric bounds to the description" in {
+    table(classOf[FigureFactoryTableOpDesc]) should include(
+      "| Row Height |  | Double | 30.0 | Row height of the Figure Factory Table (min: 30,<br>Row height must be at least 30) |"
     )
   }
 
