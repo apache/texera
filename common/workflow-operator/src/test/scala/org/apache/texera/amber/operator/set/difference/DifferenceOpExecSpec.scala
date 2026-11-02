@@ -149,4 +149,24 @@ class DifferenceOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
     opExec.close()
   }
 
+  it should "start each open/close cycle empty when one instance is reused" in {
+    counter = 0
+    val first = (1 to 3).map(_ => tuple()).toList
+    val second = (1 to 2).map(_ => tuple()).toList
+
+    opExec.open()
+    first.foreach(opExec.processTuple(_, input1))
+    opExec.processTuple(first(1), input2)
+    assert(opExec.onFinish(input1).isEmpty)
+    assert(opExec.onFinish(input2).toSet == Set(first(0), first(2)))
+    opExec.close()
+
+    opExec.open()
+    second.foreach(opExec.processTuple(_, input1))
+    opExec.processTuple(second(1), input2)
+    assert(opExec.onFinish(input1).isEmpty)
+    assert(opExec.onFinish(input2).toSet == Set(second(0)))
+    opExec.close()
+  }
+
 }
