@@ -25,6 +25,7 @@ import org.apache.texera.dao.jooq.generated.Tables.{
   USER,
   WORKFLOW,
   WORKFLOW_EXECUTIONS,
+  WORKFLOW_USER_ACCESS,
   WORKFLOW_USER_CLONES,
   WORKFLOW_VERSION
 }
@@ -951,6 +952,30 @@ class WorkflowResourceSpec
     assert(workflowResource.retrieveOwners(sessionUser2).asScala.toList == List(testUser.getEmail))
   }
 
+  "WorkflowResource" should "keep an owner's full access after their access row is removed" in {
+    val wid = seedWorkflow(sessionUser1, "owner-row-removed").workflow.getWid
+    getDSLContext
+      .deleteFrom(WORKFLOW_USER_ACCESS)
+      .where(WORKFLOW_USER_ACCESS.WID.eq(wid))
+      .execute()
+
+    val listed = workflowResource.retrieveWorkflowsBySessionUser(sessionUser1)
+    assert(listed.map(_.workflow.getWid) == List(wid))
+    assert(listed.head.accessLevel == "WRITE")
+
+    val searched =
+      dashboardResource.searchAllResourcesCall(sessionUser1, SearchQueryParams()).results
+    assert(
+      searched.flatMap(_.workflow).map(w => (w.workflow.getWid, w.accessLevel)) == List(
+        wid -> "WRITE"
+      )
+    )
+
+    assert(workflowResource.retrieveIDs(sessionUser1).asScala.toList == List(wid.toString))
+    assert(workflowResource.retrieveOwners(sessionUser1).asScala.toList == List(testUser.getEmail))
+    assert(!workflowResource.retrieveWorkflow(wid, sessionUser1).readonly)
+  }
+
   "WorkflowResource name/type/description/owner/size lookups" should "reflect the seeded workflow" in {
     val content = "{\"nodes\":42}"
     val wid = seedWorkflow(sessionUser1, "lookup-wf", "look-desc", content).workflow.getWid
@@ -1004,6 +1029,16 @@ class WorkflowResourceSpec
   it should "reject a user without write access with ForbiddenException" in {
     val wid = seedWorkflow(sessionUser1, "pub-forbidden").workflow.getWid
     assertThrows[ForbiddenException](workflowResource.makePublic(wid, sessionUser2))
+  }
+
+  "WorkflowResource.retrievePublicWorkflow" should "throw NotFoundException for a private workflow" in {
+    val wid = seedWorkflow(sessionUser1, "public-private-wf").workflow.getWid
+    assertThrows[NotFoundException](workflowResource.retrievePublicWorkflow(wid))
+  }
+
+  it should "throw NotFoundException for a wid that does not exist" in {
+    val wid = seedWorkflow(sessionUser1, "public-missing-wf").workflow.getWid
+    assertThrows[NotFoundException](workflowResource.retrievePublicWorkflow(wid + 100000))
   }
 
   "WorkflowResource.duplicateWorkflow" should "create a distinct copy owned by the user" in {
@@ -1495,6 +1530,35 @@ class WorkflowResourceSpec
       contentOf(wid).contains("formBinding"),
       "switching back to canvas must not erase the form definition"
     )
+  }
+
+  // The listing's isOwner compares two boxed Integers. testUser and testUser2 have uids 1
+  // and 2, inside the default Integer autoboxing cache where reference equality happens to
+  // agree with value equality, so this case needs an owner whose uid is outside it.
+  "WorkflowResource.retrieveWorkflowsBySessionUser" should "set isOwner for an owner whose uid is outside the Integer cache" in {
+    val owner = new User
+    owner.setUid(Integer.valueOf(1001))
+    owner.setName("large_uid_owner")
+    owner.setRole(UserRoleEnum.REGULAR)
+    new UserDao(getDSLContext.configuration()).insert(owner)
+    val ownerSession = new SessionUser(owner)
+
+    val wid = seedWorkflow(ownerSession, "wf_of_large_uid_user").workflow.getWid
+    try {
+      val own = workflowResource.retrieveWorkflowsBySessionUser(ownerSession)
+      assert(own.map(_.workflow.getWid) == List(wid))
+      assert(own.head.ownerId == owner.getUid)
+      assert(own.head.isOwner, "the owner's own listing must report isOwner")
+
+      // A reader with the same workflow in their listing is not its owner.
+      grantAccess(wid, testUser, PrivilegeEnum.READ)
+      val shared = workflowResource.retrieveWorkflowsBySessionUser(sessionUser1)
+      assert(shared.exists(_.workflow.getWid == wid))
+      assert(!shared.find(_.workflow.getWid == wid).get.isOwner)
+    } finally {
+      // afterEach only clears testUser's and testUser2's own workflows.
+      workflowResource.deleteWorkflow(WorkflowIDs(List(wid)), ownerSession)
+    }
   }
 
 }

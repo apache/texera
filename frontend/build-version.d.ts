@@ -18,6 +18,7 @@
  */
 
 // Types for build-version.js.
+export function defaultBuildNumber(version: string, env?: Record<string, string | undefined>): string;
 export function renderVersionArtifacts(
   version: string,
   buildNumber?: string

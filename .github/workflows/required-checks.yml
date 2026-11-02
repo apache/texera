@@ -72,7 +72,7 @@ jobs:
     name: Required Checks
     needs: [precheck, build]
     if: always()
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-slim
     steps:
       - name: Verify all required checks succeeded or were skipped
         run: |
