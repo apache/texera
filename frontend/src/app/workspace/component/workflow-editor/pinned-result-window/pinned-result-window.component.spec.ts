@@ -122,6 +122,27 @@ describe("PinnedResultWindowComponent", () => {
     expect(tabs()[0].attributes["aria-selected"]).toBe("false");
   });
 
+  it("shows the last output when the chosen one is removed, and the chosen one again when it is back", () => {
+    operator = { ...operator, outputPorts: ports("Out 1", "Out 2", "Out 3") };
+    fixture.detectChanges();
+    (tabs()[2].nativeElement as HTMLElement).click();
+    fixture.detectChanges();
+
+    operator = { ...operator, outputPorts: ports("Out 1", "Out 2") };
+    fixture.detectChanges();
+    expect(table().portIndex).toBe(1);
+    expect(tabs()[1].classes["pinned-result__port--active"]).toBe(true);
+
+    operator = { ...operator, outputPorts: ports("Out 1") };
+    fixture.detectChanges();
+    expect(tabs().length).toBe(0);
+    expect(table().portIndex).toBe(0);
+
+    operator = { ...operator, outputPorts: ports("Out 1", "Out 2", "Out 3") };
+    fixture.detectChanges();
+    expect(table().portIndex).toBe(2);
+  });
+
   it("hands the table the height its body leaves, not the result panel's", () => {
     fixture.detectChanges();
     fixture.componentInstance.tableHeight = 400;

@@ -46,8 +46,8 @@
       type="button"
       role="tab"
       class="pinned-result__port"
-      [class.pinned-result__port--active]="port.index === selectedPort"
-      [attr.aria-selected]="port.index === selectedPort"
+      [class.pinned-result__port--active]="port.index === shownPort"
+      [attr.aria-selected]="port.index === shownPort"
       (click)="selectedPort = port.index">
       {{ port.label }}
     </button>
@@ -58,7 +58,7 @@
     <texera-result-table-frame
       *ngIf="kind === 'table'"
       [operatorId]="operatorId"
-      [portIndex]="selectedPort"
+      [portIndex]="shownPort"
       [containerHeight]="tableHeight"></texera-result-table-frame>
     <texera-visualization-panel-content
       *ngIf="kind === 'chart'"

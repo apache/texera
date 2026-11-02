@@ -95,8 +95,13 @@ export class PinnedResultWindowComponent implements AfterViewInit, OnDestroy {
     return operator.customDisplayName ?? operator.operatorType;
   }
 
-  /** The output port whose result is shown. */
+  /** The output port chosen by its tab. */
   selectedPort = 0;
+
+  /** The port shown: the one chosen, or the last when the chosen one is gone. */
+  get shownPort(): number {
+    return Math.min(this.selectedPort, Math.max(this.outputPorts.length - 1, 0));
+  }
 
   /** The operator's output ports, each named as on the canvas, or by its place when unnamed. */
   get outputPorts(): { index: number; label: string }[] {
