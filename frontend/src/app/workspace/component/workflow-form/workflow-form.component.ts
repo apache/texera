@@ -363,17 +363,10 @@ export class WorkflowFormComponent implements OnInit, OnDestroy {
       .pipe(untilDestroyed(this))
       .subscribe(() => this.syncSelectionFromHighlight());
 
-    // A result update re-limits what the form shows to the currently-viewed set and re-fits the
-    // visualisations. The chart frame itself is left alone: it redraws in place on its own
-    // operator's updates (see the visualization frame, at most once per two seconds), and an
-    // operator's result service lives until the page is left -- a re-run replaces the snapshot
-    // inside it, nothing clears it -- so there is never a new frame to build mid-session.
-    // This used to bump a per-operator version that keyed the frame, meaning to rebuild it rather
-    // than reuse it. It could not do that: every visualisation operator takes its whole input
-    // before it draws (`process_table`, single-snapshot output), so the one update that carries a
-    // picture is also the one that mounts the frame, and a second one never comes. Measured on a
-    // run: two updates for the chart's operator, one picture, one frame -- with the key and
-    // without it. Dead machinery, so it goes.
+    // A result update re-limits what the form shows and re-fits the visualisations. The chart
+    // frame is left alone: it redraws in place on its own operator's updates. The per-operator
+    // version that used to key the frame here never produced a second frame -- a visualisation
+    // operator draws once, from its whole input -- so it is gone; the measurements are on #8759.
     this.workflowResultService
       .getResultUpdateStream()
       .pipe(untilDestroyed(this))
