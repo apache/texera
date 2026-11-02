@@ -19,55 +19,22 @@
 
 package org.apache.texera.amber.operator.sklearn
 
-import org.apache.texera.amber.core.tuple.AttributeType
-import org.apache.texera.amber.operator.LogicalOp
-import org.apache.texera.amber.operator.metadata.OperatorGroupConstants
-import org.apache.texera.amber.util.JSONUtils.objectMapper
 import org.scalatest.flatspec.AnyFlatSpec
-import org.scalatest.matchers.should.Matchers
 
-class SklearnBernoulliNaiveBayesOpDescSpec extends AnyFlatSpec with Matchers {
+class SklearnBernoulliNaiveBayesOpDescSpec extends AnyFlatSpec with SklearnModelOpDescBehaviors {
 
-  "SklearnBernoulliNaiveBayesOpDesc.operatorInfo" should
-    "advertise the model name, Sklearn group, and the training/testing port shape" in {
-    val info = (new SklearnBernoulliNaiveBayesOpDesc).operatorInfo
-    info.userFriendlyName shouldBe "Bernoulli Naive Bayes"
-    info.operatorDescription shouldBe "Sklearn Bernoulli Naive Bayes Operator"
-    info.operatorGroupName shouldBe OperatorGroupConstants.SKLEARN_GROUP
-    info.inputPorts.map(_.displayName) shouldBe List("training", "testing")
-    info.outputPorts should have length 1
-    info.outputPorts.head.blocking shouldBe true
-  }
-
-  "SklearnBernoulliNaiveBayesOpDesc" should "default its config fields" in {
-    val d = new SklearnBernoulliNaiveBayesOpDesc
-    d.countVectorizer shouldBe false
-    d.tfidfTransformer shouldBe false
-    d.target shouldBe null
-    d.text shouldBe empty
-  }
-
-  "SklearnBernoulliNaiveBayesOpDesc.getOutputSchemas" should
-    "emit the model_name/model schema keyed by the declared output port" in {
-    val d = new SklearnBernoulliNaiveBayesOpDesc
-    val schema = d.getOutputSchemas(Map.empty)(d.operatorInfo.outputPorts.head.id)
-    schema.getAttribute("model_name").getType shouldBe AttributeType.STRING
-    schema.getAttribute("model").getType shouldBe AttributeType.BINARY
-  }
-
-  "SklearnBernoulliNaiveBayesOpDesc.generatePythonCode" should
-    "import and instantiate the BernoulliNB estimator" in {
-    val d = new SklearnBernoulliNaiveBayesOpDesc
-    d.target = "y"
-    val code = d.generatePythonCode()
-    code should include("from sklearn.naive_bayes import BernoulliNB")
-    code should include("make_pipeline")
-    code should include("Bernoulli Naive Bayes")
-  }
+  sklearnClassifier(
+    new SklearnBernoulliNaiveBayesOpDesc,
+    "SklearnBernoulliNaiveBayes",
+    "Bernoulli Naive Bayes",
+    "from sklearn.naive_bayes import BernoulliNB",
+    estimatorTestName = "import and instantiate the BernoulliNB estimator"
+  )
 
   // The same table statement serves both ports, so training and scoring skip a
   // row with a missing value alike.
-  it should "drop rows with missing values before fitting and before scoring" in {
+  "SklearnBernoulliNaiveBayesOpDesc.generatePythonCode" should
+    "drop rows with missing values before fitting and before scoring" in {
     val d = new SklearnBernoulliNaiveBayesOpDesc
     d.target = "y"
     d.generatePythonCode() should include("table.dropna()")
@@ -96,19 +63,5 @@ class SklearnBernoulliNaiveBayesOpDescSpec extends AnyFlatSpec with Matchers {
     code should include(
       """print("Skipped", len(in2df) - len(_test), "of", len(in2df), "rows with missing values")"""
     )
-  }
-
-  "SklearnBernoulliNaiveBayesOpDesc" should
-    "round-trip its config fields through the polymorphic base" in {
-    val d = new SklearnBernoulliNaiveBayesOpDesc
-    d.target = "label"
-    d.countVectorizer = true
-    val json = objectMapper.writeValueAsString(d)
-    json should include("\"operatorType\":\"SklearnBernoulliNaiveBayes\"")
-    val restored = objectMapper.readValue(json, classOf[LogicalOp])
-    restored shouldBe a[SklearnBernoulliNaiveBayesOpDesc]
-    val r = restored.asInstanceOf[SklearnBernoulliNaiveBayesOpDesc]
-    r.target shouldBe "label"
-    r.countVectorizer shouldBe true
   }
 }

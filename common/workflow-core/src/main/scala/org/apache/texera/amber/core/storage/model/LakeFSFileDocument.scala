@@ -28,7 +28,7 @@ import org.apache.texera.amber.core.storage.util.LakeFSStorageClient
 import java.io.{File, FileOutputStream, InputStream}
 import java.net._
 import java.nio.charset.StandardCharsets
-import java.nio.file.{Files, Path, Paths}
+import java.nio.file.{Files, Path, Paths, StandardOpenOption}
 import scala.jdk.CollectionConverters.IteratorHasAsScala
 
 object LakeFSFileDocument {
@@ -113,7 +113,8 @@ private[storage] class LakeFSFileDocument(uri: URI, val resourceType: ResourceTy
         getVersionHash(),
         getFileRelativePath()
       )
-      Files.newInputStream(file.toPath)
+      // The SDK saves the object to a temp file; delete it once the caller closes the stream.
+      Files.newInputStream(file.toPath, StandardOpenOption.DELETE_ON_CLOSE)
     }
 
     if (userJwtToken.isEmpty) {

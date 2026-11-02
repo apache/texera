@@ -47,7 +47,7 @@ import {
   type MonacoVscodeApiConfig,
   getEnhancedMonacoEnvironment,
 } from "monaco-languageclient/vscodeApiWrapper";
-import { LanguageClientWrapper, type LanguageClientConfig } from "monaco-languageclient/lcwrapper";
+import { LanguageClientWrapper, LcWebSocket, type LanguageClientConfig } from "monaco-languageclient/lcwrapper";
 import { EditorApp, type EditorAppConfig } from "monaco-languageclient/editorApp";
 import { isDefined } from "../../../common/util/predicate";
 import { filter } from "rxjs/operators";
@@ -364,7 +364,11 @@ export class CodeEditorComponent implements AfterViewInit, SafeStyle, OnDestroy 
         const lcConfig: LanguageClientConfig = {
           languageId: this.language,
           connection: {
-            options: { $type: "WebSocketUrl", url: languageServerWebsocketUrl },
+            options: {
+              $family: "WebSocket",
+              webSocketUrl: languageServerWebsocketUrl,
+              realization: () => new LcWebSocket(),
+            },
           },
           clientOptions: { documentSelector: [this.language] },
         };
