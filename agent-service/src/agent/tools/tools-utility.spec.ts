@@ -26,6 +26,7 @@ import {
   formatExecuteOperatorResult,
   formatOperatorError,
   getVisibleResultHeaders,
+  isErrorResult,
 } from "./tools-utility";
 
 describe("getVisibleResultHeaders", () => {
@@ -79,6 +80,17 @@ describe("createErrorResult", () => {
 
   test("keeps the prefix even for empty error text", () => {
     expect(createErrorResult("")).toBe("[ERROR] ");
+  });
+});
+
+describe("isErrorResult", () => {
+  test("recognizes output produced by createErrorResult", () => {
+    expect(isErrorResult(createErrorResult("boom"))).toBe(true);
+  });
+
+  test("does not classify ordinary strings or non-string output as errors", () => {
+    expect(isErrorResult("ok")).toBe(false);
+    expect(isErrorResult({ error: "boom" })).toBe(false);
   });
 });
 

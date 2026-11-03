@@ -122,9 +122,9 @@ function serializeTask(steps: ReActStep[], status: "completed" | "ongoing"): str
       lines.push(`Thought: ${step.content}`);
     }
     if (step.toolCalls && step.toolCalls.length > 0) {
-      for (let i = 0; i < step.toolCalls.length; i++) {
-        const tc = step.toolCalls[i];
-        const tr = step.toolResults?.[i];
+      const toolResultsByCallId = new Map(step.toolResults?.map(result => [result.toolCallId, result]));
+      for (const tc of step.toolCalls) {
+        const tr = toolResultsByCallId.get(tc.toolCallId);
         const statusAttr = tr?.isError ? "failed" : "succeeded";
         lines.push(`- ${tc.toolName} (${statusAttr})`);
       }

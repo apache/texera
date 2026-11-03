@@ -111,7 +111,7 @@ describe("assembleContext", () => {
     expect(content).toContain("### Turn 2");
   });
 
-  test("labels each tool call with the status of the result at the same index", () => {
+  test("labels each tool call with the status of its result by toolCallId", () => {
     const agentStep: ReActStep = {
       ...step("m1", "agent", 1, "acting", true),
       toolCalls: [
@@ -119,11 +119,10 @@ describe("assembleContext", () => {
         { toolName: "executeOperator", toolCallId: "c2", input: {} },
         { toolName: "deleteOperator", toolCallId: "c3", input: {} },
       ],
-      // Deliberately shorter than toolCalls: a call still awaiting its result
-      // must not be reported as failed.
+      // Results are deliberately out of call order, and the third call is still awaiting a result.
       toolResults: [
-        { toolCallId: "c1", output: "ok" },
         { toolCallId: "c2", output: "bad", isError: true },
+        { toolCallId: "c1", output: "ok" },
       ],
     };
     const content = contentOf(

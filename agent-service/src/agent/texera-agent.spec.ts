@@ -1032,7 +1032,9 @@ describe("delegate mode", () => {
     agent.setDelegateConfig({ userToken: "tok", workflowId: 7 });
     await agent.sendMessage("bad call");
     const step = agent.getAllSteps()[1];
-    expect(step.toolResults).toEqual([]);
+    expect(step.toolResults).toHaveLength(1);
+    expect(step.toolResults?.[0]).toMatchObject({ toolCallId: "c1", isError: true });
+    expect(agent.getAllSteps()[2].inputMessages?.[0]?.content).toContain("- modifyOperator (failed)");
     expect(urls.some(u => u.includes("/api/execution/"))).toBe(false);
   });
 
