@@ -283,6 +283,9 @@ export class ExecuteWorkflowService {
     }
     this.resetExecutionState();
     this.workflowStatusService.resetStatus();
+    // The new run's workers start with no breakpoints. Cleared here rather than by UdfDebugService,
+    // which is created on first use and may not exist yet on a page opened since the last run.
+    this.workflowActionService.getTexeraGraph().clearAllOperatorDebugStates();
     this.sendExecutionRequest(executionName, logicalPlan, settings, emailNotificationEnabled);
     return true;
   }
@@ -303,6 +306,7 @@ export class ExecuteWorkflowService {
     }
     this.resetExecutionState();
     this.workflowStatusService.resetStatus();
+    this.workflowActionService.getTexeraGraph().clearAllOperatorDebugStates();
     this.sendExecutionRequest(
       `Replay run of ${replayExecutionInfo.eid} to ${replayExecutionInfo.interaction}`,
       logicalPlan,
@@ -504,6 +508,15 @@ export class ExecuteWorkflowService {
     const previousState = this.currentState;
     // update current state
     this.currentState = stateInfo;
+    // A run that is over has no workers left to hold breakpoints, and a kill sends no final operator
+    // status, so the run's own end drops them, before anyone hears of it.
+    if (
+      [ExecutionState.Completed, ExecutionState.Terminated, ExecutionState.Failed, ExecutionState.Killed].includes(
+        stateInfo.state
+      )
+    ) {
+      this.workflowActionService.getTexeraGraph().clearAllOperatorDebugStates();
+    }
     // emit event
     this.executionStateStream.next({
       previous: previousState,

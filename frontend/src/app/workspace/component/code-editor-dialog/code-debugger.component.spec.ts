@@ -22,10 +22,11 @@ import { ComponentFixture, fakeAsync, TestBed, tick } from "@angular/core/testin
 import { CodeDebuggerComponent } from "./code-debugger.component";
 import { WorkflowStatusService } from "../../service/workflow-status/workflow-status.service";
 import { UdfDebugService } from "../../service/operator-debug/udf-debug.service";
-import { Subject } from "rxjs";
+import { ExecuteWorkflowService } from "../../service/execute-workflow/execute-workflow.service";
+import { NEVER, Subject } from "rxjs";
 import * as Y from "yjs";
 import { BreakpointInfo } from "../../types/workflow-common.interface";
-import { OperatorState } from "../../types/execute-workflow.interface";
+import { ExecutionState, ExecutionStateInfo, OperatorState } from "../../types/execute-workflow.interface";
 import { commonTestProviders } from "../../../common/testing/test-utils";
 import type { Mocked } from "vitest";
 import type { MonacoBreakpoint } from "monaco-breakpoints";
@@ -68,6 +69,14 @@ describe("CodeDebuggerComponent", () => {
       providers: [
         { provide: WorkflowStatusService, useValue: mockWorkflowStatusService },
         { provide: UdfDebugService, useValue: mockUdfDebugService },
+        // these tests follow the operator's status during a run, so a run is in progress throughout
+        {
+          provide: ExecuteWorkflowService,
+          useValue: {
+            getExecutionStateStream: () => NEVER,
+            getExecutionState: () => ({ state: ExecutionState.Running }),
+          },
+        },
         ...commonTestProviders,
       ],
     }).compileComponents();
@@ -170,6 +179,10 @@ describe("CodeDebuggerComponent", () => {
         [1, "breakpoint1"],
         [2, "breakpoint2"],
       ]),
+      // torn down with the component
+      removeHighlight: vi.fn(),
+      clearBreakpoints: vi.fn(),
+      dispose: vi.fn(),
     } as unknown as MonacoBreakpoint;
 
     // Simulate a right click on line 1, it should switch to 1
@@ -209,6 +222,7 @@ describe("CodeDebuggerComponent", () => {
       removeSpecifyDecoration: ReturnType<typeof vi.fn>;
       setLineHighlight: ReturnType<typeof vi.fn>;
       removeHighlight: ReturnType<typeof vi.fn>;
+      clearBreakpoints: ReturnType<typeof vi.fn>;
       lineNumberAndDecorationIdMap: Map<number, string>;
       mouseDownDisposable: { dispose: ReturnType<typeof vi.fn> };
       dispose: ReturnType<typeof vi.fn>;
@@ -220,6 +234,7 @@ describe("CodeDebuggerComponent", () => {
         removeSpecifyDecoration: vi.fn(),
         setLineHighlight: vi.fn(),
         removeHighlight: vi.fn(),
+        clearBreakpoints: vi.fn(),
         lineNumberAndDecorationIdMap: new Map<number, string>(),
         mouseDownDisposable: { dispose: vi.fn() },
         dispose: vi.fn(),
@@ -305,7 +320,13 @@ describe("CodeDebuggerComponent", () => {
 
     beforeEach(() => {
       monacoBreakpointStub = { createSpecifyDecoration: vi.fn() };
-      component.monacoBreakpoint = monacoBreakpointStub as unknown as MonacoBreakpoint;
+      // the rest is only reached when the component is torn down
+      component.monacoBreakpoint = {
+        ...monacoBreakpointStub,
+        removeHighlight: vi.fn(),
+        clearBreakpoints: vi.fn(),
+        dispose: vi.fn(),
+      } as unknown as MonacoBreakpoint;
     });
 
     it("re-creates a decoration for every existing entry that has a breakpointId", () => {
@@ -329,6 +350,8 @@ describe("CodeDebuggerComponent", () => {
       const disposeBreakpoint = vi.fn();
       component.monacoBreakpoint = {
         mouseDownDisposable: { dispose: disposeMouseDown },
+        removeHighlight: vi.fn(),
+        clearBreakpoints: vi.fn(),
         dispose: disposeBreakpoint,
       } as unknown as MonacoBreakpoint;
 
@@ -454,6 +477,13 @@ describe("CodeDebuggerComponent breakpoint gutter", () => {
           useValue: { getStateUpdateStream: vi.fn(() => new Subject().asObservable()) },
         },
         { provide: UdfDebugService, useValue: debugService },
+        {
+          provide: ExecuteWorkflowService,
+          useValue: {
+            getExecutionStateStream: () => NEVER,
+            getExecutionState: () => ({ state: ExecutionState.Running }),
+          },
+        },
         ...commonTestProviders,
       ],
     }).compileComponents();
@@ -561,6 +591,303 @@ describe("CodeDebuggerComponent breakpoint gutter", () => {
       mouseDown!(gutterClick(12, { leftButton: false }));
 
       expect(component.breakpointConditionLine).toBeUndefined();
+    });
+  });
+});
+
+/**
+ * Breakpoints belong to the run whose workers set them. A killed or failed run sends no final
+ * status for its operators, so the run's own state has to decide whether breakpoints are on; and the
+ * operator's Monaco model outlives the editor, so whatever an editor drew must come off the model when
+ * breakpoints go off or the editor closes. Drives the real MonacoBreakpoint on a real model; only the
+ * editor's event delivery and the services are stand-ins.
+ */
+describe("CodeDebuggerComponent across the end of a run", () => {
+  const operatorId = "op-in-run";
+  let fixture: ComponentFixture<CodeDebuggerComponent> | undefined;
+  let model: monaco.editor.ITextModel;
+  let debugState: Y.Map<BreakpointInfo>;
+  let debugService: { getDebugState: ReturnType<typeof vi.fn>; doModifyBreakpoint: ReturnType<typeof vi.fn> };
+  let statusUpdates: Subject<Record<string, OperatorState>>;
+  let runUpdates: Subject<{ previous: ExecutionStateInfo; current: ExecutionStateInfo }>;
+  let run: ExecutionStateInfo;
+  let mouseDownListeners: { handler: (evt: unknown) => void; live: boolean }[];
+
+  const operatorIs = (state: OperatorState) => statusUpdates.next({ [operatorId]: state });
+  const runIs = (state: ExecutionState) => {
+    const previous = run;
+    run = { state } as ExecutionStateInfo;
+    runUpdates.next({ previous, current: run });
+  };
+
+  /** Opens an editor on the operator's model, as the code editor does each time it is shown. */
+  function openEditor() {
+    const disposable = () => ({ dispose: vi.fn() });
+    const editor = {
+      getModel: () => model,
+      onMouseMove: vi.fn(disposable),
+      onMouseDown: vi.fn((handler: (evt: unknown) => void) => {
+        const listener = { handler, live: true };
+        mouseDownListeners.push(listener);
+        return { dispose: () => (listener.live = false) };
+      }),
+      onDidChangeModelContent: vi.fn(disposable),
+      onDidChangeCursorPosition: vi.fn(disposable),
+      dispose: vi.fn(),
+    } as unknown as monaco.editor.IStandaloneCodeEditor;
+    fixture = TestBed.createComponent(CodeDebuggerComponent);
+    fixture.componentInstance.currentOperatorId = operatorId;
+    fixture.componentInstance.monacoEditor = editor;
+    fixture.detectChanges();
+  }
+
+  function closeEditor() {
+    fixture!.destroy();
+    fixture = undefined;
+  }
+
+  /** A left click in the gutter reaches every mouse-down listener still registered, as in Monaco. */
+  function clickGutter(lineNumber: number) {
+    const evt = {
+      target: {
+        type: monacoNs.editor.MouseTargetType.GUTTER_GLYPH_MARGIN,
+        detail: { isAfterLines: false },
+        position: { lineNumber },
+      },
+      event: { leftButton: true },
+    };
+    mouseDownListeners.filter(listener => listener.live).forEach(listener => listener.handler(evt));
+  }
+
+  const breakpointLines = () =>
+    model
+      .getAllDecorations()
+      .filter(d =>
+        ["monaco-breakpoint", "monaco-conditional-breakpoint"].includes(d.options.glyphMarginClassName ?? "")
+      )
+      .map(d => d.range.startLineNumber);
+  const highlightedLines = () =>
+    model
+      .getAllDecorations()
+      .filter(d => d.options.className === "monaco-line-highlight")
+      .map(d => d.range.startLineNumber);
+
+  /** Execution stopped at breakpoint 1 on line 2, recorded the way the debugger service records it. */
+  function pausedOnLine2() {
+    runIs(ExecutionState.Running);
+    openEditor();
+    operatorIs(OperatorState.Running);
+    debugState.set("2", { breakpointId: 1, condition: "", hit: false });
+    debugState.set("2", { breakpointId: 1, condition: "", hit: true });
+    operatorIs(OperatorState.Paused);
+  }
+
+  beforeEach(async () => {
+    model = monacoNs.editor.createModel("first\nsecond\nthird", "plaintext");
+    debugState = new Y.Doc().getMap<BreakpointInfo>("debug");
+    debugService = { getDebugState: vi.fn(() => debugState), doModifyBreakpoint: vi.fn() };
+    statusUpdates = new Subject();
+    runUpdates = new Subject();
+    run = { state: ExecutionState.Uninitialized };
+    mouseDownListeners = [];
+
+    TestBed.resetTestingModule();
+    await TestBed.configureTestingModule({
+      imports: [CodeDebuggerComponent],
+      schemas: [CUSTOM_ELEMENTS_SCHEMA],
+      providers: [
+        { provide: WorkflowStatusService, useValue: { getStateUpdateStream: () => statusUpdates.asObservable() } },
+        { provide: UdfDebugService, useValue: { ...debugService, getCondition: () => "" } },
+        {
+          provide: ExecuteWorkflowService,
+          useValue: { getExecutionStateStream: () => runUpdates.asObservable(), getExecutionState: () => run },
+        },
+        ...commonTestProviders,
+      ],
+    }).compileComponents();
+  });
+
+  afterEach(() => {
+    fixture?.componentInstance.removeMonacoBreakpointMethods();
+    fixture?.destroy();
+    statusUpdates.complete();
+    runUpdates.complete();
+    model.dispose();
+  });
+
+  it("draws a breakpoint hit during a run and highlights its line", () => {
+    pausedOnLine2();
+
+    expect(breakpointLines()).toEqual([2]);
+    expect(highlightedLines()).toEqual([2]);
+  });
+
+  describe("when the run is killed", () => {
+    beforeEach(() => {
+      pausedOnLine2();
+      // all a kill sends: the operator keeps its last status, Paused
+      runIs(ExecutionState.Killed);
+    });
+
+    it("takes the breakpoint and the paused-line highlight off the editor", () => {
+      expect(breakpointLines()).toEqual([]);
+      expect(highlightedLines()).toEqual([]);
+    });
+
+    it("sends nothing to the dead worker when the old breakpoint's line is clicked", () => {
+      clickGutter(2);
+
+      expect(debugService.doModifyBreakpoint).not.toHaveBeenCalled();
+    });
+
+    it("keeps breakpoints off when a status for the killed run still arrives", () => {
+      operatorIs(OperatorState.Paused);
+      clickGutter(2);
+
+      expect(breakpointLines()).toEqual([]);
+      expect(debugService.doModifyBreakpoint).not.toHaveBeenCalled();
+    });
+
+    it("shows nothing from the killed run in an editor opened again", () => {
+      closeEditor();
+      openEditor();
+
+      expect(breakpointLines()).toEqual([]);
+      expect(highlightedLines()).toEqual([]);
+    });
+  });
+
+  it("leaves nothing for the next editor when the editor was closed before the kill", () => {
+    pausedOnLine2();
+    closeEditor();
+    runIs(ExecutionState.Killed);
+    openEditor();
+
+    expect(breakpointLines()).toEqual([]);
+    expect(highlightedLines()).toEqual([]);
+  });
+
+  it("takes everything off when the run's breakpoints are dropped just before its end is announced", () => {
+    // the order a run's end takes: its breakpoints leave the shared document, then the state arrives
+    pausedOnLine2();
+
+    expect(() => debugState.clear()).not.toThrow();
+    runIs(ExecutionState.Killed);
+
+    expect(breakpointLines()).toEqual([]);
+    expect(highlightedLines()).toEqual([]);
+  });
+
+  describe("while the next run is starting", () => {
+    // A collaborator can start the next run on a page that heard the last one killed while paused: the
+    // operator still shows Paused, but the new run's workers are not up yet to take a breakpoint.
+    beforeEach(() => {
+      openEditor();
+      operatorIs(OperatorState.Paused);
+      runIs(ExecutionState.Initializing);
+    });
+
+    it("keeps breakpoints off, whatever the operator showed last", () => {
+      clickGutter(2);
+
+      expect(debugService.doModifyBreakpoint).not.toHaveBeenCalled();
+    });
+
+    it("turns them on once the run is running", () => {
+      runIs(ExecutionState.Running);
+      clickGutter(2);
+
+      expect(debugService.doModifyBreakpoint).toHaveBeenCalledWith(operatorId, 2);
+    });
+  });
+
+  it("takes breakpoints off when the run fails while the operator still shows Running", () => {
+    runIs(ExecutionState.Running);
+    openEditor();
+    operatorIs(OperatorState.Running);
+    debugState.set("2", { breakpointId: 1, condition: "", hit: false });
+
+    runIs(ExecutionState.Failed);
+    clickGutter(2);
+
+    expect(breakpointLines()).toEqual([]);
+    expect(debugService.doModifyBreakpoint).not.toHaveBeenCalled();
+  });
+
+  it("takes breakpoints off the editor when the run completes", () => {
+    runIs(ExecutionState.Running);
+    openEditor();
+    operatorIs(OperatorState.Running);
+    debugState.set("2", { breakpointId: 1, condition: "", hit: false });
+
+    operatorIs(OperatorState.Completed);
+    runIs(ExecutionState.Completed);
+
+    expect(breakpointLines()).toEqual([]);
+  });
+
+  it("does not turn breakpoints on for an operator status heard before the run's own state", () => {
+    // a refreshed page hears a killed run's last operator status first, then the run's state
+    openEditor();
+    operatorIs(OperatorState.Paused);
+    clickGutter(2);
+
+    expect(debugService.doModifyBreakpoint).not.toHaveBeenCalled();
+  });
+
+  describe("while breakpoints are off", () => {
+    // Removing breakpoints from the shared document notifies every editor that observes it, and yjs
+    // rethrows an observer's error to whoever made the change: a run that clears the last run's
+    // breakpoints as it starts must not fail because of an editor with nothing drawn.
+    it("ignores breakpoints recorded and dropped in an open editor", () => {
+      openEditor();
+
+      expect(() => debugState.set("2", { breakpointId: 1, condition: "", hit: false })).not.toThrow();
+      expect(() => debugState.clear()).not.toThrow();
+      expect(breakpointLines()).toEqual([]);
+    });
+
+    it("ignores breakpoints dropped after the editor was closed", () => {
+      debugState.set("2", { breakpointId: 1, condition: "", hit: false });
+      openEditor();
+      closeEditor();
+
+      expect(() => debugState.clear()).not.toThrow();
+    });
+  });
+
+  describe("while the run goes on", () => {
+    beforeEach(() => {
+      runIs(ExecutionState.Running);
+      openEditor();
+      operatorIs(OperatorState.Running);
+      debugState.set("2", { breakpointId: 1, condition: "", hit: false });
+    });
+
+    it("keeps breakpoints on through a pause and a resume of the whole workflow", () => {
+      runIs(ExecutionState.Pausing);
+      runIs(ExecutionState.Paused);
+      operatorIs(OperatorState.Paused);
+      clickGutter(3);
+
+      expect(breakpointLines()).toEqual([2]);
+      expect(debugService.doModifyBreakpoint).toHaveBeenCalledWith(operatorId, 3);
+
+      runIs(ExecutionState.Resuming);
+      runIs(ExecutionState.Running);
+      operatorIs(OperatorState.Running);
+      clickGutter(3);
+
+      expect(breakpointLines()).toEqual([2]);
+      expect(debugService.doModifyBreakpoint).toHaveBeenCalledTimes(2);
+    });
+
+    it("keeps breakpoints on while the run recovers", () => {
+      runIs(ExecutionState.Recovering);
+      clickGutter(3);
+
+      expect(breakpointLines()).toEqual([2]);
+      expect(debugService.doModifyBreakpoint).toHaveBeenCalledWith(operatorId, 3);
     });
   });
 });

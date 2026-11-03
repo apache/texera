@@ -629,6 +629,15 @@ export class WorkflowGraph {
   }
 
   /**
+   * Clears every operator's debug state in one transaction, including state an operator left behind
+   * when it was deleted. Breakpoints belong to the run whose workers set them, and a new run's workers
+   * start with none. The maps themselves are kept, since open editors observe them.
+   */
+  public clearAllOperatorDebugStates(): void {
+    this.sharedModel.transact(() => this.sharedModel.debugState.forEach(debugState => debugState.clear()));
+  }
+
+  /**
    * Returns an array of all operators in the graph.
    */
   public getAllOperators(): OperatorPredicate[] {
