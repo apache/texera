@@ -23,8 +23,7 @@ import { NzResizeEvent, NzResizableDirective, NzResizeHandlesComponent } from "n
 import { AgentService, AgentInfo } from "../../../service/agent/agent.service";
 import { WorkflowActionService } from "../../../service/workflow-graph/model/workflow-action.service";
 import { NotificationService } from "../../../../common/service/notification/notification.service";
-import { calculateTotalTranslate3d } from "../../../../common/util/panel-dock";
-import { NgIf, NgClass, NgFor } from "@angular/common";
+import { NgIf, NgFor } from "@angular/common";
 import { NzSpaceCompactItemDirective } from "ng-zorro-antd/space";
 import { NzButtonComponent } from "ng-zorro-antd/button";
 import { NzWaveDirective } from "ng-zorro-antd/core/wave";
@@ -53,7 +52,6 @@ import { AgentChatComponent } from "./agent-chat/agent-chat.component";
     CdkDrag,
     NzResizableDirective,
     NzMenuDirective,
-    NgClass,
     NzMenuItemComponent,
     CdkDragHandle,
     NzTabsComponent,
@@ -83,8 +81,6 @@ export class AgentPanelComponent implements OnInit, OnDestroy, OnChanges {
   height = Math.max(AgentPanelComponent.MIN_PANEL_HEIGHT, window.innerHeight * 0.7);
   id = -1;
   dragPosition = { x: 0, y: 0 };
-  returnPosition = { x: 0, y: 0 };
-  isDocked = true;
 
   // Tab management
   selectedTabIndex: number = 0; // 0 = registration tab, 1+ = agent tabs
@@ -184,7 +180,6 @@ export class AgentPanelComponent implements OnInit, OnDestroy, OnChanges {
     } else {
       // Close panel (dock it)
       this.width = 0;
-      this.isDocked = true;
     }
   }
 
@@ -340,13 +335,6 @@ export class AgentPanelComponent implements OnInit, OnDestroy, OnChanges {
   }
 
   /**
-   * Handle drag start
-   */
-  handleDragStart(): void {
-    this.isDocked = false;
-  }
-
-  /**
    * Load panel settings from localStorage
    */
   private loadPanelSettings(): void {
@@ -374,10 +362,6 @@ export class AgentPanelComponent implements OnInit, OnDestroy, OnChanges {
       const container = document.getElementById("agent-container");
       if (container) {
         container.style.cssText = savedStyle;
-        const translates = container.style.transform;
-        const [xOffset, yOffset] = calculateTotalTranslate3d(translates);
-        this.returnPosition = { x: -xOffset, y: -yOffset };
-        this.isDocked = this.dragPosition.x === this.returnPosition.x && this.dragPosition.y === this.returnPosition.y;
       }
     }
   }

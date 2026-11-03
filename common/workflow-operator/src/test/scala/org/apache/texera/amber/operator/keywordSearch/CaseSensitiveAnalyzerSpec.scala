@@ -36,8 +36,11 @@ class CaseSensitiveAnalyzerSpec extends AnyFlatSpec {
   // versions; we follow the canonical contract to keep the spec robust.
   // ---------------------------------------------------------------------------
 
-  private def tokensOf(fieldName: String, input: String): List[String] = {
-    val analyzer = new CaseSensitiveAnalyzer
+  private def tokensOf(
+      analyzer: CaseSensitiveAnalyzer,
+      fieldName: String,
+      input: String
+  ): List[String] = {
     val stream = analyzer.tokenStream(fieldName, new StringReader(input))
     val termAttr = stream.addAttribute(classOf[CharTermAttribute])
     val out = ArrayBuffer.empty[String]
@@ -49,83 +52,64 @@ class CaseSensitiveAnalyzerSpec extends AnyFlatSpec {
       stream.end()
     } finally {
       stream.close()
-      analyzer.close()
     }
     out.toList
   }
 
-  // ---------------------------------------------------------------------------
-  // Case preservation — the whole point of CaseSensitiveAnalyzer is to
-  // SKIP the lowercasing pipeline used by StandardAnalyzer.
-  // ---------------------------------------------------------------------------
-
-  "CaseSensitiveAnalyzer" should "preserve case in every emitted token" in {
-    assert(tokensOf("body", "Hello World") == List("Hello", "World"))
-  }
-
-  it should "preserve mixed-case tokens (e.g. CamelCase identifiers)" in {
-    assert(tokensOf("body", "FooBar BazQux") == List("FooBar", "BazQux"))
-  }
-
-  it should "preserve all-uppercase tokens" in {
-    assert(tokensOf("body", "URL HTTP HTML") == List("URL", "HTTP", "HTML"))
-  }
-
-  it should "preserve all-lowercase tokens (no upcasing either)" in {
-    assert(tokensOf("body", "alpha beta gamma") == List("alpha", "beta", "gamma"))
+  private def tokensOf(fieldName: String, input: String): List[String] = {
+    val analyzer = new CaseSensitiveAnalyzer
+    try {
+      tokensOf(analyzer, fieldName, input)
+    } finally {
+      analyzer.close()
+    }
   }
 
   // ---------------------------------------------------------------------------
-  // Word-boundary tokenization — the underlying tokenizer is
-  // StandardTokenizer (Unicode UAX#29); pin its splitting behavior.
+  // Tokenization test cases — preserves case (skips StandardAnalyzer lowercasing),
+  // splits on UAX#29 word boundaries and punctuation, collapses whitespace,
+  // and handles empty / whitespace edge cases.
   // ---------------------------------------------------------------------------
 
-  "CaseSensitiveAnalyzer (standard tokenizer)" should
-    "split on a single space" in {
-    assert(tokensOf("body", "a b c") == List("a", "b", "c"))
-  }
+  behavior of "CaseSensitiveAnalyzer"
 
-  it should "split on tabs and newlines" in {
-    assert(tokensOf("body", "a\tb\nc") == List("a", "b", "c"))
-  }
+  private val tokenizationCases = Seq(
+    // Case preservation
+    ("preserve case in every emitted token", "Hello World", List("Hello", "World")),
+    (
+      "preserve mixed-case tokens (e.g. CamelCase identifiers)",
+      "FooBar BazQux",
+      List("FooBar", "BazQux")
+    ),
+    ("preserve all-uppercase tokens", "URL HTTP HTML", List("URL", "HTTP", "HTML")),
+    (
+      "preserve all-lowercase tokens (no upcasing either)",
+      "alpha beta gamma",
+      List("alpha", "beta", "gamma")
+    ),
+    // Word-boundary tokenization & whitespace collapsing (Unicode UAX#29)
+    ("split on a single space", "a b c", List("a", "b", "c")),
+    ("split on tabs and newlines", "a\tb\nc", List("a", "b", "c")),
+    ("collapse runs of whitespace (no empty tokens emitted)", "a   b\n\nc", List("a", "b", "c")),
+    // Punctuation word boundaries (punctuation is stripped, not kept attached)
+    ("split on comma word boundary and strip punctuation", "abc,def", List("abc", "def")),
+    ("split on sentence punctuation and strip it", "Hello, world!", List("Hello", "world")),
+    // Edge cases
+    ("produce no tokens on empty input", "", Nil),
+    ("produce no tokens for pure-whitespace input", "   \t\n  ", Nil)
+  )
 
-  it should "collapse runs of whitespace (no empty tokens emitted)" in {
-    assert(tokensOf("body", "a   b\n\nc") == List("a", "b", "c"))
-  }
-
-  // ---------------------------------------------------------------------------
-  // Punctuation — StandardTokenizer splits on Unicode word boundaries, so
-  // punctuation is a boundary and is stripped rather than kept attached.
-  // This is the whole point of the fix: case-sensitive matching must not
-  // change punctuation handling relative to the default StandardAnalyzer.
-  // ---------------------------------------------------------------------------
-
-  it should
-    "split on punctuation and strip it (StandardTokenizer word boundaries)" in {
-    // `,` is a word boundary, so `"abc,def"` splits into two tokens.
-    assert(tokensOf("body", "abc,def") == List("abc", "def"))
-    // Sentence punctuation is a boundary and is dropped, not kept attached.
-    assert(tokensOf("body", "Hello, world!") == List("Hello", "world"))
-  }
-
-  // ---------------------------------------------------------------------------
-  // Edge cases
-  // ---------------------------------------------------------------------------
-
-  "CaseSensitiveAnalyzer (empty input)" should "produce no tokens" in {
-    assert(tokensOf("body", "") == Nil)
-  }
-
-  it should "produce no tokens for pure-whitespace input" in {
-    assert(tokensOf("body", "   \t\n  ") == Nil)
+  for ((description, input, expected) <- tokenizationCases) {
+    it should description in {
+      assert(tokensOf("body", input) == expected)
+    }
   }
 
   // ---------------------------------------------------------------------------
   // StopFilter — empty stop-word set; nothing should be filtered out.
   // ---------------------------------------------------------------------------
 
-  "CaseSensitiveAnalyzer (StopFilter with CharArraySet.EMPTY_SET)" should
-    "NOT remove common English stop words (the / and / of / a)" in {
+  it should "NOT remove common English stop words (the / and / of / a)" in {
     // StandardAnalyzer's default stop set would strip "the", "and",
     // "of", "a"; this analyzer is built with `CharArraySet.EMPTY_SET`
     // so every token survives. Pin that explicitly.
@@ -140,42 +124,23 @@ class CaseSensitiveAnalyzerSpec extends AnyFlatSpec {
   // regardless of field name, and each call gets its own TokenStream.
   // ---------------------------------------------------------------------------
 
-  "CaseSensitiveAnalyzer" should
-    "produce the same tokens for the same input across different field names" in {
+  it should "produce the same tokens for the same input across different field names" in {
     val a = tokensOf("title", "Hello World")
     val b = tokensOf("body", "Hello World")
     assert(a == b, "field name must not change tokenization")
   }
 
-  it should
-    "return independent TokenStreams for successive tokenStream calls on the SAME analyzer instance" in {
+  it should "return independent TokenStreams for successive tokenStream calls on the SAME analyzer instance" in {
     // Reuse one analyzer across two tokenStream calls — consuming the
-    // first stream must not affect the second. The helper would create
-    // a fresh analyzer per call, masking the intra-analyzer reuse
-    // behavior; do the lifecycle manually here.
+    // first stream must not affect the second.
     val analyzer = new CaseSensitiveAnalyzer
     try {
-      def collect(input: String): List[String] = {
-        val stream = analyzer.tokenStream("body", new java.io.StringReader(input))
-        val termAttr = stream.addAttribute(classOf[CharTermAttribute])
-        val out = ArrayBuffer.empty[String]
-        try {
-          stream.reset()
-          while (stream.incrementToken()) {
-            out.append(termAttr.toString)
-          }
-          stream.end()
-        } finally {
-          stream.close()
-        }
-        out.toList
-      }
-      val first = collect("alpha Beta GAMMA")
-      val second = collect("alpha Beta GAMMA")
+      val first = tokensOf(analyzer, "body", "alpha Beta GAMMA")
+      val second = tokensOf(analyzer, "body", "alpha Beta GAMMA")
       assert(first == List("alpha", "Beta", "GAMMA"))
       assert(second == first, "second tokenStream call must not be affected by the first")
       // Different input on the SAME analyzer also produces correct tokens.
-      val third = collect("foo bar")
+      val third = tokensOf(analyzer, "body", "foo bar")
       assert(third == List("foo", "bar"))
     } finally {
       analyzer.close()

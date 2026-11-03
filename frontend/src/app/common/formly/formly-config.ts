@@ -22,6 +22,10 @@ import { ArrayTypeComponent } from "./array.type";
 import { ObjectTypeComponent } from "./object.type";
 import { MultiSchemaTypeComponent } from "./multischema.type";
 import { FormlyFieldConfig } from "@ngx-formly/core";
+import { SearchableSelectTypeComponent } from "./searchable-select.type";
+import { AbstractControl } from "@angular/forms";
+import { DelimiterTypeComponent } from "./delimiter/delimiter.type";
+import { DelimiterMode, delimiterError } from "./delimiter/delimiter-presets";
 import { CodeareaCustomTemplateComponent } from "../../workspace/component/codearea-custom-template/codearea-custom-template.component";
 import { PresetWrapperComponent } from "./preset-wrapper/preset-wrapper.component";
 import { DatasetFileSelectorComponent } from "../../workspace/component/dataset-file-selector/dataset-file-selector.component";
@@ -36,6 +40,8 @@ import { ResourceValueSelectorComponent } from "../../workspace/component/resour
 import { HuggingFaceImageUploadComponent } from "../../workspace/component/hugging-face-image-upload/hugging-face-image-upload.component";
 import { HuggingFaceComponent } from "../../workspace/component/hugging-face/hugging-face.component";
 import { HuggingFaceAudioUploadComponent } from "../../workspace/component/hugging-face-audio-upload/hugging-face-audio-upload.component";
+import { LoopVariableInputComponent } from "../../workspace/component/loop-variable-input/loop-variable-input.component";
+import { LOOP_VARIABLE_INPUT_TYPE } from "../../workspace/util/loop-variable-field.util";
 
 /**
  * Configuration for using Json Schema with Formly.
@@ -79,13 +85,14 @@ export const TEXERA_FORMLY_CONFIG = {
       },
     },
     { name: "boolean", extends: "checkbox" },
-    { name: "enum", extends: "select" },
+    { name: "enum", extends: "select", component: SearchableSelectTypeComponent },
     { name: "null", component: NullTypeComponent, wrappers: ["form-field"] },
     { name: "array", component: ArrayTypeComponent },
     { name: "object", component: ObjectTypeComponent },
     { name: "multischema", component: MultiSchemaTypeComponent },
     { name: "codearea", component: CodeareaCustomTemplateComponent },
     { name: "inputautocomplete", component: DatasetFileSelectorComponent, wrappers: ["form-field"] },
+    { name: LOOP_VARIABLE_INPUT_TYPE, component: LoopVariableInputComponent, wrappers: ["form-field"] },
     { name: "datasetversionselector", component: DatasetVersionSelectorComponent, wrappers: ["form-field"] },
     { name: "huggingface", component: HuggingFaceComponent, wrappers: ["form-field"] },
     { name: "huggingface-audio-upload", component: HuggingFaceAudioUploadComponent, wrappers: ["form-field"] },
@@ -94,6 +101,23 @@ export const TEXERA_FORMLY_CONFIG = {
     { name: "ui-udf-parameters", component: UiUdfParametersComponent, wrappers: ["form-field"] },
     { name: "constrainedvalue", component: ConstrainedValueComponent, wrappers: ["form-field"] },
     { name: "resourcevalue", component: ResourceValueSelectorComponent },
+    {
+      name: "delimiter",
+      component: DelimiterTypeComponent,
+      wrappers: ["form-field"],
+      defaultOptions: {
+        // Shown without waiting for a touch: a delimiter loaded from a saved workflow can already be
+        // invalid (an old multi-character one), and nobody touches a field they do not know is wrong.
+        validation: { show: true },
+        validators: {
+          delimiter: {
+            expression: (control: AbstractControl, field: FormlyFieldConfig) =>
+              delimiterError(control.value, delimiterModeOf(field)) === undefined,
+            message: delimiterValidationMessage,
+          },
+        },
+      },
+    },
   ],
   wrappers: [
     { name: "preset-wrapper", component: PresetWrapperComponent },
@@ -137,6 +161,14 @@ export function exclusiveMinimumValidationMessage(err: any, field: FormlyFieldCo
 
 export function exclusiveMaximumValidationMessage(err: any, field: FormlyFieldConfig) {
   return `should be < ${field.props?.exclusiveMaximum}`;
+}
+
+function delimiterModeOf(field: FormlyFieldConfig): DelimiterMode {
+  return field.props?.["delimiterMode"] === "regex" ? "regex" : "char";
+}
+
+export function delimiterValidationMessage(err: any, field: FormlyFieldConfig) {
+  return delimiterError(field.formControl?.value, delimiterModeOf(field)) ?? "";
 }
 
 export function constValidationMessage(err: any, field: FormlyFieldConfig) {

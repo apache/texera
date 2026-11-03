@@ -23,6 +23,7 @@ import org.apache.pekko.actor.{ActorSystem, Props}
 import org.apache.pekko.testkit.{ImplicitSender, TestKit}
 import org.apache.pekko.util.Timeout
 import org.apache.texera.amber.clustering.SingleNodeListener
+import org.apache.texera.amber.core.WorkflowRuntimeException
 import org.apache.texera.amber.core.tuple.{AttributeType, Tuple}
 import org.apache.texera.amber.core.virtualidentity.OperatorIdentity
 import org.apache.texera.amber.core.workflow.{
@@ -41,6 +42,7 @@ import org.apache.texera.amber.engine.e2e.TestUtils.{
   setUpWorkflowExecutionData
 }
 import org.apache.texera.amber.operator.TestOperators
+import org.apache.texera.amber.operator.udf.java.JavaUDFOpDesc
 import org.apache.texera.amber.operator.aggregate.AggregationFunction
 import org.apache.texera.common.compiler.model.LogicalLink
 import org.scalatest.flatspec.AnyFlatSpecLike
@@ -300,6 +302,57 @@ class DataProcessingSpec
       workflowContext
     )
     executeWorkflow(workflow)
+  }
+
+  /**
+    * csv -> join(build), csv -> join(probe) -> Java UDF. The UDF shares a region with the join's
+    * probe side, which has a dependee input port, so the UDF is only launched in the region's
+    * second (non-dependee) phase. A Java UDF compiles its code when the worker initializes its
+    * executor, so code that does not compile fails at the same point as a Python UDF with an
+    * import error, without needing a Python environment.
+    */
+  private def joinThenJavaUdfWorkflow(udfCode: String): Workflow = {
+    val headerlessCsvOpDesc1 = TestOperators.headerlessSmallCsvScanOpDesc()
+    val headerlessCsvOpDesc2 = TestOperators.headerlessSmallCsvScanOpDesc()
+    val joinOpDesc = TestOperators.joinOpDesc("column-1", "column-1")
+    val javaUdfOpDesc = new JavaUDFOpDesc()
+    javaUdfOpDesc.retainInputColumns = true
+    javaUdfOpDesc.code = udfCode
+    buildWorkflow(
+      List(headerlessCsvOpDesc1, headerlessCsvOpDesc2, joinOpDesc, javaUdfOpDesc),
+      List(
+        LogicalLink(
+          headerlessCsvOpDesc1.operatorIdentifier,
+          PortIdentity(),
+          joinOpDesc.operatorIdentifier,
+          PortIdentity()
+        ),
+        LogicalLink(
+          headerlessCsvOpDesc2.operatorIdentifier,
+          PortIdentity(),
+          joinOpDesc.operatorIdentifier,
+          PortIdentity(1)
+        ),
+        LogicalLink(
+          joinOpDesc.operatorIdentifier,
+          PortIdentity(),
+          javaUdfOpDesc.operatorIdentifier,
+          PortIdentity()
+        )
+      ),
+      workflowContext
+    )
+  }
+
+  "Engine" should "fail, not hang, when a udf after a join fails to initialize" in {
+    // The UDF code does not compile, so the worker fails to initialize its executor. The
+    // execution must fail with the compile error instead of hanging.
+    val error = intercept[WorkflowRuntimeException] {
+      executeWorkflow(joinThenJavaUdfWorkflow("public class JavaUDFOpExec { not valid java }"))
+    }
+    assert(error.getMessage.contains("Error at line"))
+    // The failing UDF worker is carried so the UI can attribute the error to it.
+    assert(error.relatedWorkerId.exists(_.name.contains("JavaUDFOpDesc")))
   }
 
   "Engine" should "execute headerlessCsv->keyword workflow with MATERIALIZED mode" in {

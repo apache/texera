@@ -312,6 +312,7 @@ abstract class SklearnMLOperatorDescriptor[T <: ParamClass]
     * quotes (`table[col]`) and raise NameError. Returns (model-args, para_str).
     */
   private def getParameterStandalone(paraList: List[HyperParameters[T]]): (String, String) = {
+    requireDistinctParameters(paraList)
     val workflowParam = new StringBuilder
     val portParam = new StringBuilder
     val paramString = new StringBuilder

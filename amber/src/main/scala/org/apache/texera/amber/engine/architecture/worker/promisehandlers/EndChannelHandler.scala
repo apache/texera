@@ -41,6 +41,8 @@ trait EndChannelHandler {
     dp.inputManager.getPort(portId).completed = true
     dp.inputManager.initBatch(channelId, Array.empty)
     try {
+      // The executor finishes: a setting that refers to loop variables must have them by now.
+      dp.bindStateReferences()
       val outputState = dp.executor.produceStateOnFinish(portId.id)
       if (outputState.isDefined) {
         // Operator-ORIGINATED boundary state, so no LoopStart stamp

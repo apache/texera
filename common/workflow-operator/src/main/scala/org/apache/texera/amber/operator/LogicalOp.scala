@@ -23,6 +23,7 @@ import com.fasterxml.jackson.annotation.JsonSubTypes.Type
 import com.fasterxml.jackson.annotation._
 import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaTitle
 import org.apache.texera.amber.core.executor.OperatorExecutor
+import org.apache.texera.amber.core.state.StateReferencing
 import org.apache.texera.amber.core.tuple.Schema
 import org.apache.texera.amber.core.virtualidentity.{
   ExecutionIdentity,
@@ -37,7 +38,7 @@ import org.apache.texera.amber.core.workflow.{PhysicalOp, PhysicalPlan, PortIden
 import org.apache.texera.amber.operator.aggregate.AggregateOpDesc
 import org.apache.texera.amber.operator.cartesianProduct.CartesianProductOpDesc
 import org.apache.texera.amber.operator.dictionary.DictionaryMatcherOpDesc
-import org.apache.texera.amber.operator.difference.DifferenceOpDesc
+import org.apache.texera.amber.operator.set.difference.DifferenceOpDesc
 import org.apache.texera.amber.operator.distinct.DistinctOpDesc
 import org.apache.texera.amber.operator.dummy.DummyOpDesc
 import org.apache.texera.amber.operator.filter.SpecializedFilterOpDesc
@@ -50,7 +51,7 @@ import org.apache.texera.amber.operator.huggingFace.{
   HuggingFaceTextSummarizationOpDesc
 }
 import org.apache.texera.amber.operator.ifStatement.IfOpDesc
-import org.apache.texera.amber.operator.intersect.IntersectOpDesc
+import org.apache.texera.amber.operator.set.intersect.IntersectOpDesc
 import org.apache.texera.amber.operator.intervalJoin.IntervalJoinOpDesc
 import org.apache.texera.amber.operator.keywordSearch.KeywordSearchOpDesc
 import org.apache.texera.amber.operator.limit.LimitOpDesc
@@ -88,7 +89,7 @@ import org.apache.texera.amber.operator.source.sql.mysql.MySQLSourceOpDesc
 import org.apache.texera.amber.operator.source.sql.postgresql.PostgreSQLSourceOpDesc
 import org.apache.texera.amber.operator.split.SplitOpDesc
 import org.apache.texera.amber.operator.substringSearch.SubstringSearchOpDesc
-import org.apache.texera.amber.operator.symmetricDifference.SymmetricDifferenceOpDesc
+import org.apache.texera.amber.operator.set.symmetricDifference.SymmetricDifferenceOpDesc
 import org.apache.texera.amber.operator.typecasting.TypeCastingOpDesc
 import org.apache.texera.amber.operator.udf.java.JavaUDFOpDesc
 import org.apache.texera.amber.operator.udf.python._
@@ -158,6 +159,15 @@ trait StateTransferFunc
     extends ((OperatorExecutor, OperatorExecutor) => Unit)
     with java.io.Serializable
 
+/**
+  * The descriptor of an operator: its settings, and the physical plan built from them.
+  *
+  * A property that the operator's output schema (column names or types) or its input partitioning
+  * is built from must be marked `@NoLoopVariable`. The plan is built when the workflow is
+  * compiled, before any loop runs: without the mark, a `$i` there inside a loop block is not
+  * rejected, and the run silently uses the placeholder (e.g. a column named "$a", null in every
+  * row).
+  */
 @JsonTypeInfo(
   use = JsonTypeInfo.Id.NAME,
   include = JsonTypeInfo.As.PROPERTY,
@@ -431,7 +441,7 @@ trait StateTransferFunc
     new Type(value = classOf[SklearnTestingOpDesc], name = "SklearnTesting")
   )
 )
-abstract class LogicalOp extends PortDescriptor with Serializable {
+abstract class LogicalOp extends PortDescriptor with StateReferencing with Serializable {
 
   @JsonProperty(PropertyNameConstants.OPERATOR_ID)
   private var operatorId: String = getClass.getSimpleName + "-" + UUID.randomUUID.toString

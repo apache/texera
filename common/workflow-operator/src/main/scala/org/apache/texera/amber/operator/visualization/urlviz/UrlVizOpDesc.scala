@@ -25,9 +25,10 @@ import org.apache.texera.amber.core.executor.OpExecWithClassName
 import org.apache.texera.amber.core.tuple.{AttributeType, Schema}
 import org.apache.texera.amber.core.virtualidentity.{ExecutionIdentity, WorkflowIdentity}
 import org.apache.texera.amber.core.workflow.{PhysicalOp, SchemaPropagationFunc}
-import org.apache.texera.amber.operator.LogicalOp
+import org.apache.texera.amber.operator.{LogicalOp, StandaloneCodeGenerator}
 import org.apache.texera.amber.operator.metadata.annotations.AutofillAttributeName
 import org.apache.texera.amber.operator.metadata.{OperatorGroupConstants, OperatorInfo}
+import org.apache.texera.amber.pybuilder.PythonTemplateBuilder.pyStringLiteral
 import org.apache.texera.amber.util.JSONUtils.objectMapper
 
 import javax.validation.constraints.NotNull
@@ -45,7 +46,7 @@ import javax.validation.constraints.NotNull
    }
  }
  """)
-class UrlVizOpDesc extends LogicalOp {
+class UrlVizOpDesc extends LogicalOp with StandaloneCodeGenerator {
 
   @JsonProperty(required = true)
   @JsonSchemaTitle("URL content")
@@ -83,5 +84,30 @@ class UrlVizOpDesc extends LogicalOp {
       "Render the content of URL",
       OperatorGroupConstants.VISUALIZATION_MEDIA_GROUP
     )
+
+  // Mirrors UrlVizOpExec: wrap each urlContentAttrName value in the exact same
+  // iframe HTML document and emit it as the "html-content" column. A null renders as the
+  // JVM's "null", and the cell is escaped the way the executor's escapeAttribute does.
+  override def generateStandaloneCode(): String = {
+    val urlLit = pyStringLiteral(urlContentAttrName)
+    s"""import html
+       |
+       |def _texera_urlviz_iframe(u):
+       |    u = "null" if pd.isna(u) else str(u)
+       |    u = html.escape(u, quote=True)
+       |    return (
+       |        '<!DOCTYPE html>\\n'
+       |        '<html lang="en">\\n'
+       |        '<body>\\n'
+       |        '  <div class="modal-body">\\n'
+       |        '    <iframe src="' + u + '" frameborder="0"\\n'
+       |        '       style="height:100vh; width:100%; border:none;">\\n'
+       |        '    </iframe>\\n'
+       |        '  </div>\\n'
+       |        '</body>\\n'
+       |        '</html>'
+       |    )
+       |out1df = pd.DataFrame({"html-content": in1df[$urlLit].apply(_texera_urlviz_iframe)})""".stripMargin
+  }
 
 }

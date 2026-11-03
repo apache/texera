@@ -278,6 +278,12 @@ describe("ResourceRegistryService", () => {
     expect(registry.entryLink(dataset, 99)).toEqual([HUB_DATASET_RESULT_DETAIL, "5"]);
   });
 
+  it("routes the owner to the private page even without an access row", () => {
+    const dataset = entry({ type: EntityType.Dataset, id: 5, ownerId: 42, accessibleUserIds: [] });
+    expect(registry.entryLink(dataset, 42)).toEqual([USER_DATASET, "5"]);
+    expect(registry.entryLink(dataset, 99)).toEqual([HUB_DATASET_RESULT_DETAIL, "5"]);
+  });
+
   it("routes a model the same way, to its own page or to the hub", () => {
     const model = entry({ type: EntityType.Model, id: 9, accessibleUserIds: [42] });
     expect(registry.entryLink(model, 42)).toEqual([USER_MODEL, "9"]);

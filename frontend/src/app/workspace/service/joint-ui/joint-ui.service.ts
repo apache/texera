@@ -1022,7 +1022,7 @@ export class JointUIService {
         ry: "5px",
       },
       image: {
-        "xlink:href": "assets/operator_images/icons8-chat_bubble.png",
+        "xlink:href": "assets/operator_images/comment-bubble.png",
         width: 32,
         height: 32,
         "ref-x": 0.5,

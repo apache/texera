@@ -134,16 +134,6 @@ TO_PYOBJECT_MAPPING = {
     AttributeType.LARGE_BINARY: largebinary,
 }
 
-FROM_PYOBJECT_MAPPING = {
-    str: AttributeType.STRING,
-    int: AttributeType.INT,
-    float: AttributeType.DOUBLE,
-    bool: AttributeType.BOOL,
-    bytes: AttributeType.BINARY,
-    datetime.datetime: AttributeType.TIMESTAMP,
-    largebinary: AttributeType.LARGE_BINARY,
-}
-
 # Signed value ranges within which an integral float can be safely cast back
 # to int. INT is bounded by Arrow int32 capacity. LONG is bounded by the
 # float64 exact-integer window rather than int64 capacity: above 2**53 float64
