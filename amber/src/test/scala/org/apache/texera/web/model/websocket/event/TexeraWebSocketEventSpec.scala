@@ -48,6 +48,7 @@ import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 
 import java.time.Instant
+import scala.jdk.CollectionConverters._
 
 /**
   * Pins the server -> client half of the websocket wire contract.
@@ -139,7 +140,8 @@ class TexeraWebSocketEventSpec extends AnyFlatSpec with Matchers {
     "OperatorStatisticsUpdateEvent" -> OperatorStatisticsUpdateEvent(Map("op-stats" -> metrics)),
     "WebResultUpdateEvent" -> WebResultUpdateEvent(
       Map("op-page" -> WebPaginationUpdate(PaginationMode(), 7L, List(1, 3))),
-      Map("op-page" -> Map("city" -> Map[String, Any]("distinct" -> 2)))
+      Map("op-page" -> Map("city" -> Map[String, Any]("distinct" -> 2))),
+      Map("op-page" -> Map(1 -> WebPaginationUpdate(PaginationMode(), 4L, List(1))))
     ),
     "ConsoleUpdateEvent" -> ConsoleUpdateEvent("op-console", Seq(consoleMessage)),
     "PaginatedResultEvent" -> PaginatedResultEvent(
@@ -268,13 +270,17 @@ class TexeraWebSocketEventSpec extends AnyFlatSpec with Matchers {
     // subsumes NON_NULL but is NOT NON_EMPTY.
     // The Angular WorkflowResultUpdateEvent reads `updates` and `tableStats`
     // unconditionally, so tightening the inclusion rule would break the result panel.
-    val json = objectMapper.readTree(write(WebResultUpdateEvent(Map.empty, Map.empty)))
+    val json =
+      objectMapper.readTree(write(WebResultUpdateEvent(Map.empty, Map.empty, Map.empty)))
     json.get("type").asText() shouldBe "WebResultUpdateEvent"
     json.has("updates") shouldBe true
     json.get("updates").isObject shouldBe true
     json.get("updates").size() shouldBe 0
     json.has("tableStats") shouldBe true
     json.get("tableStats").size() shouldBe 0
+    json.has("portUpdates") shouldBe true
+    json.get("portUpdates").isObject shouldBe true
+    json.get("portUpdates").size() shouldBe 0
   }
 
   it should "tag each nested WebResultUpdate mode with its @JsonTypeName" in {
@@ -284,6 +290,7 @@ class TexeraWebSocketEventSpec extends AnyFlatSpec with Matchers {
       write(
         WebResultUpdateEvent(
           Map("op-page" -> WebPaginationUpdate(PaginationMode(), 7L, List(1, 3))),
+          Map.empty,
           Map.empty
         )
       )
@@ -297,11 +304,42 @@ class TexeraWebSocketEventSpec extends AnyFlatSpec with Matchers {
       write(
         WebResultUpdateEvent(
           Map("op-delta" -> WebDataUpdate(SetDeltaMode(), List.empty)),
+          Map.empty,
           Map.empty
         )
       )
     )
     delta.get("updates").get("op-delta").get("mode").get("type").asText() shouldBe "SetDeltaMode"
+  }
+
+  it should "key portUpdates by operator id, then by the port index as a JSON string" in {
+    // The frontend reads `portUpdates[opId]["1"]`. JSON object keys are always strings, so
+    // the Int index must be written as "1", not dropped or turned into an array; and the
+    // first port stays in `updates`, flat, exactly as before.
+    val json = objectMapper.readTree(
+      write(
+        WebResultUpdateEvent(
+          Map("Split-1" -> WebPaginationUpdate(PaginationMode(), 4L, List(1))),
+          Map("Split-1" -> Map("city" -> Map[String, Any]("distinct" -> 2))),
+          Map(
+            "Split-1" -> Map(
+              1 -> WebPaginationUpdate(PaginationMode(), 9L, List(1, 2)),
+              2 -> WebDataUpdate(SetDeltaMode(), List.empty)
+            )
+          )
+        )
+      )
+    )
+    json.fieldNames().asScala.toSet shouldBe Set("type", "updates", "tableStats", "portUpdates")
+    json.get("updates").get("Split-1").get("totalNumTuples").asLong() shouldBe 4L
+
+    val ports = json.get("portUpdates").get("Split-1")
+    ports.isObject shouldBe true
+    ports.fieldNames().asScala.toSet shouldBe Set("1", "2")
+    ports.get("1").get("mode").get("type").asText() shouldBe "PaginationMode"
+    ports.get("1").get("totalNumTuples").asLong() shouldBe 9L
+    ports.get("1").get("dirtyPageIndices").toString shouldBe "[1,2]"
+    ports.get("2").get("mode").get("type").asText() shouldBe "SetDeltaMode"
   }
 
   "PythonExpressionEvaluateResponse" should "emit a value object even for an empty proto Option" in {

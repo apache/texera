@@ -495,8 +495,8 @@ class WorkflowServiceSpec
     // event together.
     service.stateStore.resultStore.registerDiffHandler((_, _) =>
       Iterable(
-        WebResultUpdateEvent(Map.empty, Map.empty),
-        WebResultUpdateEvent(Map.empty, Map.empty)
+        WebResultUpdateEvent(Map.empty, Map.empty, Map.empty),
+        WebResultUpdateEvent(Map.empty, Map.empty, Map.empty)
       )
     )
 

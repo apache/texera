@@ -412,6 +412,8 @@ class ExecutionResultService(
       workflowStateStore.resultStore.registerDiffHandler((oldState, newState) => {
         val buf = mutable.HashMap[String, ExecutionResultService.WebResultUpdate]()
         val allTableStats = mutable.Map[String, Map[String, Map[String, Any]]]()
+        val portUpdates =
+          mutable.Map[String, mutable.Map[Int, ExecutionResultService.WebResultUpdate]]()
         newState.resultInfo
           .filter(info => {
             // only update those output ports with changing tuple count.
@@ -424,18 +426,20 @@ class ExecutionResultService(
               val portId = globalPortId.portId
               val oldInfo = oldState.resultInfo.getOrElse(globalPortId, OperatorResultMetadata())
               val outputMode = ExecutionResultService.outputModeOf(physicalPlan, opId, portId)
+              val update = ExecutionResultService.convertWebResultUpdate(
+                workflowIdentity,
+                executionId,
+                opId,
+                portId,
+                outputMode,
+                oldInfo.tupleCount,
+                info.tupleCount
+              )
               val isFirstPort = portId == PortIdentity()
-              // the result updates are about each operator's first output port
               if (isFirstPort) {
-                buf(opId.id) = ExecutionResultService.convertWebResultUpdate(
-                  workflowIdentity,
-                  executionId,
-                  opId,
-                  portId,
-                  outputMode,
-                  oldInfo.tupleCount,
-                  info.tupleCount
-                )
+                buf(opId.id) = update
+              } else {
+                portUpdates.getOrElseUpdate(opId.id, mutable.Map())(portId.id) = update
               }
 
               // SINGLE_SNAPSHOT is used for HTML content, which is not a table
@@ -461,7 +465,8 @@ class ExecutionResultService(
         Iterable(
           WebResultUpdateEvent(
             buf.toMap,
-            allTableStats.toMap
+            allTableStats.toMap,
+            portUpdates.map { case (opId, ports) => opId -> ports.toMap }.toMap
           )
         )
       })
