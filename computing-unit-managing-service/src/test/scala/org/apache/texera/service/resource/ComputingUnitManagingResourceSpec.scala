@@ -651,4 +651,41 @@ class ComputingUnitManagingResourceSpec
     ComputingUnitManagingResource.optionalComputingUnitEnv(_ => Some("  ")) shouldBe empty
   }
 
+  "observabilityComputingUnitEnv" should "forward collector settings and give the unit its own instance id when enabled" in {
+    val enabled = Map(
+      EnvironmentalVariable.ENV_OTEL_SDK_DISABLED -> "false",
+      EnvironmentalVariable.ENV_OTEL_EXPORTER_OTLP_ENDPOINT -> "http://texera-otel-collector:4317",
+      EnvironmentalVariable.ENV_TEXERA_OTEL_ALLOWED_HOSTS -> "texera-otel-collector",
+      EnvironmentalVariable.ENV_OTEL_METRIC_EXPORT_INTERVAL -> "30000"
+    )
+    val env = ComputingUnitManagingResource.observabilityComputingUnitEnv(7, enabled.get)
+    env(EnvironmentalVariable.ENV_OTEL_SDK_DISABLED) shouldBe "false"
+    env(EnvironmentalVariable.ENV_OTEL_EXPORTER_OTLP_ENDPOINT) shouldBe
+      "http://texera-otel-collector:4317"
+    env(EnvironmentalVariable.ENV_OTEL_RESOURCE_ATTRIBUTES) shouldBe
+      "service.instance.id=computing-unit-7"
+  }
+
+  // Each unit must be distinguishable, so a unit never inherits the manager's instance id.
+  it should "replace an inherited service.instance.id with the unit's own, keeping other attributes" in {
+    val lookup: String => Option[String] = Map(
+      EnvironmentalVariable.ENV_OTEL_EXPORTER_OTLP_ENDPOINT -> "http://texera-otel-collector:4317",
+      EnvironmentalVariable.ENV_OTEL_RESOURCE_ATTRIBUTES ->
+        "deployment.environment=staging,service.instance.id=manager,service.namespace=texera"
+    ).get
+    val attrs = ComputingUnitManagingResource
+      .observabilityComputingUnitEnv(8, lookup)(EnvironmentalVariable.ENV_OTEL_RESOURCE_ATTRIBUTES)
+    attrs should include("deployment.environment=staging")
+    attrs should include("service.namespace=texera")
+    attrs should include("service.instance.id=computing-unit-8")
+    attrs should not include "service.instance.id=manager"
+  }
+
+  // Telemetry stays opt-in: with no collector endpoint the unit is left default-off.
+  it should "forward nothing when no collector endpoint is configured" in {
+    ComputingUnitManagingResource.observabilityComputingUnitEnv(1, _ => None) shouldBe empty
+    val blankEndpoint = Map(EnvironmentalVariable.ENV_OTEL_EXPORTER_OTLP_ENDPOINT -> "   ")
+    ComputingUnitManagingResource.observabilityComputingUnitEnv(1, blankEndpoint.get) shouldBe empty
+  }
+
 }

@@ -18,7 +18,7 @@
 name: texera-lakefs
 services:
   rustfs:
-    image: rustfs/rustfs:1.0.0-rc.6
+    image: rustfs/rustfs:1.0.0
     container_name: texera-lakefs-rustfs
     restart: unless-stopped
     ports:

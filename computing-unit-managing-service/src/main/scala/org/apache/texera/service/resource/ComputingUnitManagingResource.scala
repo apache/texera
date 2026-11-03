@@ -387,6 +387,46 @@ object ComputingUnitManagingResource {
       lookup(name).map(_.trim).filter(_.nonEmpty).map(name -> _)
     }.toMap
 
+  // Forwarded to a created unit so it emits to the same collector as the rest of
+  // the deployment. service.instance.id is NOT here: it is built per unit below.
+  private val observabilityComputingUnitEnvNames: Seq[String] = Seq(
+    EnvironmentalVariable.ENV_OTEL_SDK_DISABLED,
+    EnvironmentalVariable.ENV_OTEL_EXPORTER_OTLP_ENDPOINT,
+    EnvironmentalVariable.ENV_TEXERA_OTEL_ALLOWED_HOSTS,
+    EnvironmentalVariable.ENV_OTEL_METRIC_EXPORT_INTERVAL
+  )
+
+  /**
+    * Observability environment for a created unit. Without this a unit runs with
+    * the SDK-disabled default even when the manager has telemetry enabled, so a
+    * worker failure leaves no unit logs, metrics, or traces to investigate. The
+    * unit inherits the manager's collector endpoint and related settings, but is
+    * given its own service.instance.id (service.name stays shared) so units with
+    * the same name do not collapse into one metric series; an instance id the
+    * manager itself carries is dropped rather than copied. Returns nothing when no
+    * collector endpoint is configured, leaving the unit at its default-off state.
+    */
+  private[resource] def observabilityComputingUnitEnv(
+      cuid: Int,
+      lookup: String => Option[String]
+  ): Map[String, String] = {
+    val get = (name: String) => lookup(name).map(_.trim).filter(_.nonEmpty)
+    if (get(EnvironmentalVariable.ENV_OTEL_EXPORTER_OTLP_ENDPOINT).isEmpty) {
+      Map.empty
+    } else {
+      val forwarded =
+        observabilityComputingUnitEnvNames.flatMap(name => get(name).map(name -> _)).toMap
+      val kept = get(EnvironmentalVariable.ENV_OTEL_RESOURCE_ATTRIBUTES)
+        .getOrElse("")
+        .split(",")
+        .map(_.trim)
+        .filter(_.nonEmpty)
+        .filterNot(_.toLowerCase.startsWith("service.instance.id="))
+      val resourceAttrs = (kept :+ s"service.instance.id=computing-unit-$cuid").mkString(",")
+      forwarded + (EnvironmentalVariable.ENV_OTEL_RESOURCE_ATTRIBUTES -> resourceAttrs)
+    }
+  }
+
   // Environment variables passed to the created computing unit(pod)
   private lazy val computingUnitEnvironmentVariables: Map[String, Any] =
     icebergEnvironmentVariables ++ Map(
@@ -738,7 +778,7 @@ class ComputingUnitManagingResource(
             computingUnitEnvironmentVariables ++ Map(
               EnvironmentalVariable.ENV_USER_JWT_TOKEN -> userToken,
               EnvironmentalVariable.ENV_JAVA_OPTS -> s"-Xmx${param.jvmMemorySize}"
-            ),
+            ) ++ observabilityComputingUnitEnv(cuid, EnvironmentalVariable.get),
             Some(param.shmSize),
             curatedImage
           )

@@ -189,12 +189,33 @@ class WorkflowSearchQueryBuilderSpec extends AnyFlatSpec with Matchers {
     workflowOf(record, viewerUid).workflow.getName shouldBe "wf-name"
   }
 
+  it should "show the owner their own name even without an access row" in {
+    val record =
+      translatedRecord(grantedAccess = java.lang.Boolean.FALSE, publishedName = "as-published")
+
+    workflowOf(record, ownerUid).workflow.getName shouldBe "wf-name"
+  }
+
+  it should "not treat an anonymous viewer as the owner of a workflow with no owner row" in {
+    val record = translatedRecord(
+      uidValue = null,
+      privilege = null,
+      grantedAccess = java.lang.Boolean.FALSE,
+      publishedName = "as-published"
+    )
+
+    val workflow = workflowOf(record, null)
+    workflow.isOwner shouldBe false
+    workflow.accessLevel shouldBe "NONE"
+    workflow.workflow.getName shouldBe "as-published"
+  }
+
   // -- privilege fallback -----------------------------------------------------
 
   "toEntryImpl" should "fall back to NONE when the workflow privilege is NULL" in {
     // Public workflows the caller has no explicit grant on left-join to a NULL
     // privilege; the DTO must still carry a usable access level.
-    workflowOf(translatedRecord(privilege = null), ownerUid).accessLevel shouldBe
+    workflowOf(translatedRecord(privilege = null), viewerUid).accessLevel shouldBe
       PrivilegeEnum.NONE.toString
   }
 
@@ -203,8 +224,14 @@ class WorkflowSearchQueryBuilderSpec extends AnyFlatSpec with Matchers {
     // pass-through of the fixture value.
     workflowOf(
       translatedRecord(privilege = PrivilegeEnum.READ),
-      ownerUid
+      viewerUid
     ).accessLevel shouldBe "READ"
+  }
+
+  it should "report WRITE for the owner whatever their access row says" in {
+    workflowOf(translatedRecord(privilege = null), ownerUid).accessLevel shouldBe "WRITE"
+    workflowOf(translatedRecord(privilege = PrivilegeEnum.READ), ownerUid).accessLevel shouldBe
+      "WRITE"
   }
 
   // -- ownership --------------------------------------------------------------

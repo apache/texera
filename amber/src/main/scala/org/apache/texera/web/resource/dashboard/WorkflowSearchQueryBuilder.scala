@@ -19,6 +19,7 @@
 
 package org.apache.texera.web.resource.dashboard
 
+import org.apache.texera.auth.util.OwnerAccess
 import org.apache.texera.dao.jooq.generated.Tables._
 import org.apache.texera.dao.jooq.generated.tables.pojos.Workflow
 import org.apache.texera.web.resource.dashboard.DashboardResource.DashboardClickableFileEntry
@@ -100,7 +101,7 @@ object WorkflowSearchQueryBuilder extends SearchQueryBuilder {
     if (uid == null) {
       condition = WORKFLOW.IS_PUBLIC.eq(true)
     } else {
-      val privateAccessCondition = WORKFLOW_USER_ACCESS.UID.eq(uid)
+      val privateAccessCondition = grantedAccessCondition(uid)
       if (includePublic) {
         condition = privateAccessCondition.or(WORKFLOW.IS_PUBLIC.eq(true))
       } else {
@@ -111,10 +112,10 @@ object WorkflowSearchQueryBuilder extends SearchQueryBuilder {
     baseQuery.where(condition)
   }
 
-  /** Rows the user was granted access to, as opposed to rows they see only because it is public. */
+  /** Rows the user owns or was granted, as opposed to rows they see only because it is public. */
   private def grantedAccessCondition(uid: Integer): Condition =
     if (uid == null) DSL.falseCondition()
-    else WORKFLOW_USER_ACCESS.UID.eq(uid)
+    else WORKFLOW_USER_ACCESS.UID.eq(uid).or(WORKFLOW_OF_USER.UID.eq(uid))
 
   /**
     * The three searchable columns carrying one copy. They travel together because a pin freezes them
@@ -232,8 +233,10 @@ object WorkflowSearchQueryBuilder extends SearchQueryBuilder {
     // same copy the detail page serves -- otherwise a listing would advertise a title that opening it
     // does not show. Both are NULL while following, which leaves the live values in place.
     // Unknown counts as not granted: the reverse is the leak.
-    val granted = Option(record.get("viewer_has_granted_access", classOf[java.lang.Boolean]))
-      .exists(_.booleanValue())
+    val isOwner = uid != null && record.into(WORKFLOW_OF_USER).getUid == uid
+    val granted = isOwner || Option(
+      record.get("viewer_has_granted_access", classOf[java.lang.Boolean])
+    ).exists(_.booleanValue())
     if (!granted) {
       Option(record.get("workflow_published_name", classOf[String])).foreach(workflow.setName)
       Option(record.get("workflow_published_description", classOf[String]))
@@ -243,10 +246,10 @@ object WorkflowSearchQueryBuilder extends SearchQueryBuilder {
     }
 
     val dw = DashboardWorkflow(
-      record.into(WORKFLOW_OF_USER).getUid == uid,
-      Option(record.get(WORKFLOW_USER_ACCESS.PRIVILEGE, classOf[PrivilegeEnum]))
-        .map(_.toString)
-        .getOrElse(PrivilegeEnum.NONE.toString),
+      isOwner,
+      OwnerAccess
+        .privilege(isOwner, record.get(WORKFLOW_USER_ACCESS.PRIVILEGE, classOf[PrivilegeEnum]))
+        .toString,
       record.into(USER).getName,
       workflow,
       record.into(USER).getUid,

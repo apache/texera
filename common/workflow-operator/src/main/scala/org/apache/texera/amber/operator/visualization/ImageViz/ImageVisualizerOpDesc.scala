@@ -28,13 +28,13 @@ import org.apache.texera.amber.pybuilder.PythonTemplateBuilder.{
 }
 import org.apache.texera.amber.pybuilder.PyStringTypes.EncodableString
 import org.apache.texera.amber.core.workflow.PortIdentity
-import org.apache.texera.amber.operator.{PythonOperatorDescriptor, StandaloneCodeGenerator}
+import org.apache.texera.amber.operator.visualization.PythonVisualizationOpDesc
 import org.apache.texera.amber.operator.metadata.annotations.AutofillAttributeName
 import org.apache.texera.amber.operator.metadata.{OperatorGroupConstants, OperatorInfo}
 import org.apache.texera.amber.pybuilder.PythonTemplateBuilder
 
 import javax.validation.constraints.NotNull
-class ImageVisualizerOpDesc extends PythonOperatorDescriptor with StandaloneCodeGenerator {
+class ImageVisualizerOpDesc extends PythonVisualizationOpDesc {
 
   @JsonProperty(required = true)
   @JsonSchemaTitle("image content column")
@@ -42,14 +42,6 @@ class ImageVisualizerOpDesc extends PythonOperatorDescriptor with StandaloneCode
   @AutofillAttributeName
   @NotNull(message = "image content column cannot be empty")
   var binaryContent: EncodableString = ""
-
-  override def getOutputSchemas(
-      inputSchemas: Map[PortIdentity, Schema]
-  ): Map[PortIdentity, Schema] = {
-    val outputSchema = Schema()
-      .add("html-content", AttributeType.STRING)
-    Map(operatorInfo.outputPorts.head.id -> outputSchema)
-  }
 
   override def operatorInfo: OperatorInfo =
     OperatorInfo.forVisualization(
@@ -100,10 +92,6 @@ class ImageVisualizerOpDesc extends PythonOperatorDescriptor with StandaloneCode
          |"""
     finalCode.encode
   }
-
-  // Output is an HTML visualization, not a tabular DataFrame.
-  // The translator skips it in the leaf-DataFrame print block.
-  override def producesDataFrame(): Boolean = false
 
   override def generateStandaloneCode(): String = generateStandaloneCode(Map.empty)
 
