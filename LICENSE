@@ -295,8 +295,6 @@ This product includes icons from IBM Carbon Design System:
   Source: https://github.com/carbon-design-system/carbon (@carbon/icons 11.91.0)
   License: Apache License 2.0 (this LICENSE file)
 
-<<<<<<< HEAD
-=======
 This product includes the logos of other Apache Software Foundation projects,
 used as the icons of the operators that read from them:
   - frontend/src/assets/operator_images/ArrowSource.png (Apache Arrow)
@@ -340,7 +338,6 @@ This product bundles code derived from inner-class:
   Source: https://github.com/sebkeim/inner-class
   License: MIT License (licenses-3rd-party-code/sebkeim-inner-class.txt)
 
->>>>>>> 86fbe562a (fix(licensing): replace the stock operator icons and list the ASF logos in LICENSE (#9261))
 This product includes SVG icons from SVGRepo:
   - frontend/src/assets/svg/operator-view-result.svg
   - frontend/src/assets/svg/operator-reuse-cache-valid.svg
@@ -465,36 +462,9 @@ This product bundles the Iris example dataset, as distributed with scikit-learn:
   Source: https://github.com/scikit-learn/scikit-learn/blob/1.7.2/sklearn/datasets/data/iris.csv
   License: BSD 3-Clause License (licenses/LICENSE-BSD-3-Clause.txt)
 
-<<<<<<< HEAD
 This product bundles TypeScript generated from Protocol Buffers' descriptor.proto,
 including its documentation comments:
   - frontend/src/app/common/type/proto/google/protobuf/descriptor.ts
   Copyright 2008 Google Inc. All rights reserved.
   Source: https://github.com/protocolbuffers/protobuf/blob/v33.4/src/google/protobuf/descriptor.proto
   License: BSD 3-Clause License (licenses/LICENSE-BSD-3-Clause.txt)
-=======
-CC0 1.0 Universal
---------------------------------------
-
-This product includes the ORCID iD icon from ORCID, Inc.:
-  - frontend/src/assets/logos/ORCID-iD_icon_24x24.png
-  Source: https://info.orcid.org/brand-guidelines/
-          https://doi.org/10.23640/07243.5008697 (ORCID iD Icons, ORCID Brand Library)
-  License: CC0 1.0 Universal (licenses/LICENSE-CC0-1.0.txt)
-  Note: ORCID(TM), the ORCID logo and the iD logo are trademarks of ORCID, Inc. The icon is
-        bundled unmodified and displayed only to label ORCID sign-in, per ORCID's brand
-        guidelines; CC0 covers the graphic, not the mark.
-
-Trademarks
---------------------------------------
-
-This product includes the Apple logo, a trademark of Apple Inc.:
-  - frontend/src/assets/logos/apple-logo-white.svg
-  Apple and the Apple logo are trademarks of Apple Inc., registered in the U.S.
-  and other countries. The mark is included solely to render the "Continue with
-  Apple" button, which Apple's guidelines require to carry their own artwork.
-  Source: https://developer.apple.com/design/human-interface-guidelines/sign-in-with-apple
-  Use governed by Apple's Sign in with Apple usage guidelines, not by an
-  open-source license:
-  https://developer.apple.com/sign-in-with-apple/usage-guidelines-for-websites-and-other-platforms/
->>>>>>> 86fbe562a (fix(licensing): replace the stock operator icons and list the ASF logos in LICENSE (#9261))
