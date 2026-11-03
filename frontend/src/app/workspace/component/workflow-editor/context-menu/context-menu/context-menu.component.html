@@ -157,6 +157,16 @@
 
   <li
     nz-menu-item
+    *ngIf="canAddCommentBoxToOperator()"
+    (click)="onAddCommentBoxToOperator()">
+    <span
+      nz-icon
+      nzType="message"
+      nzTheme="outline"></span
+    >add comment
+  </li>
+  <li
+    nz-menu-item
     *ngIf="canAnchorCommentBoxes()"
     (click)="onAnchorCommentBoxes()">
     <span

@@ -603,6 +603,178 @@ describe("WorkflowActionService", () => {
 
       expect(texeraGraph.getCommentBox(anchoredID).anchoredOperatorID).toBeUndefined();
     });
+
+    describe("on drop", () => {
+      // Operators are 60x60 and comment boxes 32x32; the scan operator spans x 100..160, y 100..160.
+      beforeEach(() => service.addOperator(mockScanPredicate, { x: 100, y: 100 }));
+
+      it("anchors a floating comment box dropped next to an operator", () => {
+        addComment(floatingID, { x: 170, y: 100 });
+
+        expect(service.findCommentBoxAnchorTarget(floatingID)).toEqual(mockScanPredicate.operatorID);
+        service.anchorCommentBoxOnDrop(floatingID);
+
+        expect(texeraGraph.getCommentBox(floatingID).anchoredOperatorID).toEqual(mockScanPredicate.operatorID);
+      });
+
+      it("leaves a comment box dropped away from every operator floating", () => {
+        addComment(floatingID, { x: 400, y: 400 });
+
+        expect(service.findCommentBoxAnchorTarget(floatingID)).toBeUndefined();
+        service.anchorCommentBoxOnDrop(floatingID);
+
+        expect(texeraGraph.getCommentBox(floatingID).anchoredOperatorID).toBeUndefined();
+      });
+
+      it("anchors to the nearest operator when several are in reach", () => {
+        service.addOperator(mockResultPredicate, { x: 200, y: 100 });
+        // 1px from the scan operator's right edge, 7px from the result operator's left edge.
+        addComment(floatingID, { x: 161, y: 110 });
+
+        service.anchorCommentBoxOnDrop(floatingID);
+
+        expect(texeraGraph.getCommentBox(floatingID).anchoredOperatorID).toEqual(mockScanPredicate.operatorID);
+      });
+
+      it("re-anchors an anchored comment box dropped next to another operator", () => {
+        service.addOperator(mockResultPredicate, { x: 500, y: 100 });
+        addComment(anchoredID, { x: 170, y: 100 });
+        service.anchorCommentBox(anchoredID, mockScanPredicate.operatorID);
+
+        service.getJointGraphWrapper().setAbsolutePosition(anchoredID, 570, 100);
+        service.anchorCommentBoxOnDrop(anchoredID);
+
+        expect(texeraGraph.getCommentBox(anchoredID).anchoredOperatorID).toEqual(mockResultPredicate.operatorID);
+      });
+
+      it("keeps the anchor of a comment box dropped a little beyond snapping reach", () => {
+        addComment(anchoredID, { x: 170, y: 100 });
+        service.anchorCommentBox(anchoredID, mockScanPredicate.operatorID);
+
+        // 100px from the operator: too far to snap a floating box on, too near to pull an anchored one off.
+        service.getJointGraphWrapper().setAbsolutePosition(anchoredID, 260, 100);
+        service.anchorCommentBoxOnDrop(anchoredID);
+
+        expect(texeraGraph.getCommentBox(anchoredID).anchoredOperatorID).toEqual(mockScanPredicate.operatorID);
+      });
+
+      it("detaches an anchored comment box dropped far from its operator", () => {
+        addComment(anchoredID, { x: 170, y: 100 });
+        service.anchorCommentBox(anchoredID, mockScanPredicate.operatorID);
+
+        service.getJointGraphWrapper().setAbsolutePosition(anchoredID, 600, 600);
+        service.anchorCommentBoxOnDrop(anchoredID);
+
+        expect(texeraGraph.getCommentBox(anchoredID).anchoredOperatorID).toBeUndefined();
+      });
+    });
+
+    describe("adding a comment box to an operator", () => {
+      it("adds a comment box beside the operator, already anchored to it", () => {
+        service.addOperator(mockScanPredicate, { x: 100, y: 100 });
+
+        const commentBoxID = service.addCommentBoxToOperator(mockScanPredicate.operatorID);
+
+        expect(texeraGraph.getCommentBox(commentBoxID).anchoredOperatorID).toEqual(mockScanPredicate.operatorID);
+        expect(overlaps(boundingBox(commentBoxID), boundingBox(mockScanPredicate.operatorID))).toBe(false);
+        // Within snapping reach, so a nudge of the new box does not pull it off its operator.
+        expect(service.findCommentBoxAnchorTarget(commentBoxID)).toEqual(mockScanPredicate.operatorID);
+        expect(texeraGraph.getCommentBox(commentBoxID).commentBoxPosition).toEqual(
+          service.getJointGraphWrapper().getElementPosition(commentBoxID)
+        );
+      });
+
+      it("undoes the added comment box in one step", () => {
+        service.addOperator(mockScanPredicate, { x: 100, y: 100 });
+        texeraGraph.sharedModel.undoManager.stopCapturing();
+
+        const commentBoxID = service.addCommentBoxToOperator(mockScanPredicate.operatorID);
+        undoRedo.undoAction();
+
+        expect(texeraGraph.hasCommentBox(commentBoxID)).toBe(false);
+        expect(texeraGraph.hasOperator(mockScanPredicate.operatorID)).toBe(true);
+      });
+
+      it("rejects an operator that does not exist", () => {
+        expect(() => service.addCommentBoxToOperator("no-such-operator")).toThrowError(/no-such-operator/);
+        expect(texeraGraph.getAllCommentBoxes()).toEqual([]);
+      });
+    });
+
+    describe("connector line", () => {
+      const connector = (commentBoxID: string) =>
+        (jointGraph.getCell(commentBoxID) as joint.dia.Element).attr(".anchor-connector");
+
+      it("runs from an anchored comment box's center to the nearest edge of its operator", () => {
+        service.addOperator(mockScanPredicate, { x: 100, y: 100 });
+        addComment(anchoredID, { x: 170, y: 100 });
+        expect(connector(anchoredID).display).toEqual("none");
+
+        service.anchorCommentBox(anchoredID, mockScanPredicate.operatorID);
+
+        // In the comment box's own coordinates: its center (16, 16) to the operator's right edge at x 160.
+        expect(connector(anchoredID)).toEqual(expect.objectContaining({ display: "inline", x1: 16, y1: 16 }));
+        expect(connector(anchoredID)).toEqual(expect.objectContaining({ x2: -10, y2: 16 }));
+      });
+
+      it("follows the comment box when it moves", () => {
+        service.addOperator(mockScanPredicate, { x: 100, y: 100 });
+        addComment(anchoredID, { x: 170, y: 100 });
+        service.anchorCommentBox(anchoredID, mockScanPredicate.operatorID);
+
+        service.highlightCommentBoxes(false, anchoredID);
+        service.getJointGraphWrapper().setAbsolutePosition(anchoredID, 100, 200);
+
+        // Center (116, 216) now sits below the operator, whose bottom edge is at y 160.
+        expect(connector(anchoredID)).toEqual(expect.objectContaining({ x2: 16, y2: -40 }));
+      });
+
+      it("follows the operator when it moves on its own", () => {
+        service.addOperator(mockScanPredicate, { x: 100, y: 100 });
+        addComment(anchoredID, { x: 170, y: 100 });
+        service.anchorCommentBox(anchoredID, mockScanPredicate.operatorID);
+
+        // Unselected, so the comment box stays put while the operator moves, as when a co-editor drags it.
+        service.getJointGraphWrapper().setAbsolutePosition(mockScanPredicate.operatorID, 100, 300);
+
+        // Center (186, 116) now sits above the operator, whose top edge is at y 300, right edge at x 160.
+        expect(connector(anchoredID)).toEqual(expect.objectContaining({ x2: -10, y2: 200 }));
+      });
+
+      it("is hidden again once the comment box is detached", () => {
+        service.addOperator(mockScanPredicate, { x: 100, y: 100 });
+        addComment(anchoredID, { x: 170, y: 100 });
+        service.anchorCommentBox(anchoredID, mockScanPredicate.operatorID);
+
+        service.detachCommentBox(anchoredID);
+
+        expect(connector(anchoredID).display).toEqual("none");
+      });
+
+      it("is drawn for anchored comment boxes of a reloaded workflow", () => {
+        const workflow: Workflow = {
+          ...DEFAULT_WORKFLOW,
+          content: {
+            settings: service.getWorkflowSettings(),
+            operators: [mockScanPredicate],
+            operatorPositions: { [mockScanPredicate.operatorID]: { x: 100, y: 100 } },
+            links: [],
+            commentBoxes: [
+              {
+                ...mockCommentBox,
+                commentBoxID: anchoredID,
+                commentBoxPosition: { x: 170, y: 100 },
+                anchoredOperatorID: mockScanPredicate.operatorID,
+              },
+            ],
+          },
+        };
+
+        service.reloadWorkflow(workflow);
+
+        expect(connector(anchoredID)).toEqual(expect.objectContaining({ display: "inline", x2: -10, y2: 16 }));
+      });
+    });
   });
 
   it("should reload a workflow, repopulating the graph and clearing the undo/redo stacks", () => {

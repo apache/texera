@@ -36,7 +36,7 @@ import {
   rawMetricForView,
 } from "../../service/heatmap/heatmap-scoring";
 import { ExecutionState, OperatorState } from "../../types/execute-workflow.interface";
-import { LogicalPort, OperatorLink, OperatorPredicate } from "../../types/workflow-common.interface";
+import { LogicalPort, OperatorLink, OperatorPredicate, Point } from "../../types/workflow-common.interface";
 import { auditTime, filter, map, takeUntil, withLatestFrom } from "rxjs/operators";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 import { UndoRedoService } from "../../service/undo-redo/undo-redo.service";
@@ -244,6 +244,7 @@ export class WorkflowEditorComponent implements OnInit, AfterViewInit, OnDestroy
     this.handlePortClick();
     this.handlePaperPan();
     this.handleOperatorSelectionEvents();
+    this.handleCommentBoxDragToAnchor();
     this.handlePortHighlightEvent();
     this.registerPortDisplayNameChangeHandler();
     this.handleOperatorStatusUpdate();
@@ -1260,6 +1261,73 @@ export class WorkflowEditorComponent implements OnInit, AfterViewInit, OnDestroy
           this.jointUIService.foldOperatorDetails(this.paper, this.currentOpenedOperatorID);
           this.currentOpenedOperatorID = null;
         }
+      });
+  }
+
+  /**
+   * Anchors a comment box by dragging it: while a comment box is dragged on its own, the operator it
+   * would anchor to is outlined, and dropping it there anchors it (see anchorCommentBoxOnDrop, which
+   * also detaches a box dropped far from its operator). Dragging it along with operators changes nothing.
+   */
+  private handleCommentBoxDragToAnchor(): void {
+    const TARGET_HIGHLIGHT_ID = "commentBoxAnchorTarget";
+    let drag: { commentBoxID: string; start: Point } | undefined;
+    let targetOperatorID: string | undefined;
+    const setTarget = (operatorID: string | undefined) => {
+      if (operatorID === targetOperatorID) {
+        return;
+      }
+      const previousView = targetOperatorID === undefined ? undefined : this.paper.findViewByModel(targetOperatorID);
+      if (previousView) {
+        joint.highlighters.mask.remove(previousView, TARGET_HIGHLIGHT_ID);
+      }
+      const nextView = operatorID === undefined ? undefined : this.paper.findViewByModel(operatorID);
+      if (nextView) {
+        joint.highlighters.mask.add(nextView, "rect.body", TARGET_HIGHLIGHT_ID, {
+          padding: 6,
+          rx: 5,
+          ry: 5,
+          attrs: { "stroke-width": 2, stroke: "#1890FF", "stroke-dasharray": "4 2" },
+        });
+      }
+      targetOperatorID = operatorID;
+    };
+    const isSoloCommentBoxDrag = (elementID: string) =>
+      this.interactive &&
+      this.workflowActionService.getTexeraGraph().hasCommentBox(elementID) &&
+      this.wrapper.getCurrentHighlightedOperatorIDs().length === 0;
+
+    fromJointPaperEvent(this.paper, "element:pointerdown")
+      .pipe(untilDestroyed(this))
+      .subscribe(event => {
+        const elementID = event[0].model.id.toString();
+        drag = isSoloCommentBoxDrag(elementID)
+          ? { commentBoxID: elementID, start: this.wrapper.getElementPosition(elementID) }
+          : undefined;
+      });
+
+    fromJointPaperEvent(this.paper, "element:pointermove")
+      .pipe(
+        filter(() => drag !== undefined),
+        untilDestroyed(this)
+      )
+      .subscribe(() => setTarget(this.workflowActionService.findCommentBoxAnchorTarget(drag!.commentBoxID)));
+
+    fromJointPaperEvent(this.paper, "element:pointerup")
+      .pipe(untilDestroyed(this))
+      .subscribe(() => {
+        setTarget(undefined);
+        const finished = drag;
+        drag = undefined;
+        if (
+          finished === undefined ||
+          !isSoloCommentBoxDrag(finished.commentBoxID) ||
+          _.isEqual(this.wrapper.getElementPosition(finished.commentBoxID), finished.start)
+        ) {
+          // A click, not a drag: leave the anchor alone.
+          return;
+        }
+        this.workflowActionService.anchorCommentBoxOnDrop(finished.commentBoxID);
       });
   }
 

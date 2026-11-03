@@ -57,6 +57,7 @@ export class SharedModelChangeHandler {
     this.handleCommentBoxAddAndDelete();
     this.handleOperatorDeep();
     this.handleCommentBoxDeep();
+    this.handleCommentBoxConnectors();
     this.texeraGraph.newYDocLoadedSubject.subscribe(_ => {
       this.handleOperatorAddAndDelete();
       this.handleLinkAddAndDelete();
@@ -464,6 +465,39 @@ export class SharedModelChangeHandler {
   }
 
   /**
+   * Keeps each anchored comment box's connector line on its operator: redrawn whenever the comment box
+   * or the operator is added to the joint graph or moves, wherever the move came from.
+   * Listens on the joint graph itself, which outlives every shared model, so it is registered once.
+   * @private
+   */
+  private handleCommentBoxConnectors(): void {
+    this.jointGraph.on("add change:position", (cell: joint.dia.Cell) => {
+      const elementID = cell.id.toString();
+      if (this.texeraGraph.hasCommentBox(elementID)) {
+        this.refreshCommentBoxConnector(elementID);
+      } else if (this.texeraGraph.hasOperator(elementID)) {
+        this.texeraGraph
+          .getCommentBoxesAnchoredTo(elementID)
+          .forEach(commentBoxID => this.refreshCommentBoxConnector(commentBoxID));
+      }
+    });
+  }
+
+  private refreshCommentBoxConnector(commentBoxID: string): void {
+    const commentElement = this.jointGraph.getCell(commentBoxID) as joint.dia.Element | undefined;
+    if (commentElement === undefined) {
+      return;
+    }
+    const operatorID = this.texeraGraph.getCommentBox(commentBoxID).anchoredOperatorID;
+    const operatorElement =
+      operatorID === undefined ? undefined : (this.jointGraph.getCell(operatorID) as joint.dia.Element | undefined);
+    commentElement.attr(
+      ".anchor-connector",
+      JointUIService.getCommentBoxConnectorAttrs(commentElement.getBBox(), operatorElement?.getBBox())
+    );
+  }
+
+  /**
    * Syncs changes that are on nested-structures of comment boxes, including changes of:
    *  - adding comments
    *  - deleting comments
@@ -480,6 +514,7 @@ export class SharedModelChangeHandler {
             this.jointGraph
               .getCell(commentBox.commentBoxID)
               ?.attr("rect", JointUIService.getCommentBoxAnchorAttrs(commentBox.anchoredOperatorID !== undefined));
+            this.refreshCommentBoxConnector(commentBox.commentBoxID);
           }
           if (event.path.length === 2 && event.path[event.path.length - 1] === "comments") {
             const addedComments = Array.from(event.changes.added.values());

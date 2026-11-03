@@ -72,6 +72,20 @@ export const DEFAULT_WORKFLOW = {
   readonly: false,
 };
 
+/** How close (px, edge to edge) a dropped comment box has to be to an operator to anchor to it. */
+export const COMMENT_BOX_SNAP_DISTANCE = 40;
+/** How far (px, edge to edge) an anchored comment box has to be dropped from its operator to detach. */
+export const COMMENT_BOX_DETACH_DISTANCE = 160;
+/** The gap between an operator and a comment box added to it. */
+const COMMENT_BOX_GAP = 12;
+
+/** The shortest distance between two boxes, 0 when they touch or overlap. */
+function distanceBetween(a: joint.g.Rect, b: joint.g.Rect): number {
+  const dx = Math.max(0, a.x - (b.x + b.width), b.x - (a.x + a.width));
+  const dy = Math.max(0, a.y - (b.y + b.height), b.y - (a.y + a.height));
+  return Math.hypot(dx, dy);
+}
+
 /**
  *
  * WorkflowActionService exposes functions (actions) to modify the workflow graph model of Texera,
@@ -456,6 +470,73 @@ export class WorkflowActionService {
    */
   public detachCommentBox(commentBoxID: string): void {
     this.texeraGraph.setCommentBoxAnchor(commentBoxID, undefined);
+  }
+
+  /**
+   * The operator a comment box would anchor to if it were dropped where it is now: the nearest
+   * operator within <code>COMMENT_BOX_SNAP_DISTANCE</code> of it, or undefined if none is that close.
+   * @param commentBoxID
+   */
+  public findCommentBoxAnchorTarget(commentBoxID: string): string | undefined {
+    const commentBoxBBox = this.getElementBBox(commentBoxID);
+    let nearest: { operatorID: string; distance: number } | undefined;
+    for (const operator of this.texeraGraph.getAllOperators()) {
+      const distance = distanceBetween(commentBoxBBox, this.getElementBBox(operator.operatorID));
+      if (distance <= COMMENT_BOX_SNAP_DISTANCE && (nearest === undefined || distance < nearest.distance)) {
+        nearest = { operatorID: operator.operatorID, distance };
+      }
+    }
+    return nearest?.operatorID;
+  }
+
+  /**
+   * Settles a comment box's anchor after the user drops it: dropped next to an operator, it anchors to
+   * that operator; dropped beyond <code>COMMENT_BOX_DETACH_DISTANCE</code> of the operator it is anchored
+   * to, it detaches. In between it keeps whatever anchor it had, so a small nudge changes nothing.
+   * @param commentBoxID
+   */
+  public anchorCommentBoxOnDrop(commentBoxID: string): void {
+    const targetOperatorID = this.findCommentBoxAnchorTarget(commentBoxID);
+    const anchoredOperatorID = this.texeraGraph.getCommentBox(commentBoxID).anchoredOperatorID;
+    if (targetOperatorID !== undefined) {
+      if (targetOperatorID !== anchoredOperatorID) {
+        this.anchorCommentBox(commentBoxID, targetOperatorID);
+      }
+    } else if (
+      anchoredOperatorID !== undefined &&
+      (!this.texeraGraph.hasOperator(anchoredOperatorID) ||
+        distanceBetween(this.getElementBBox(commentBoxID), this.getElementBBox(anchoredOperatorID)) >
+          COMMENT_BOX_DETACH_DISTANCE)
+    ) {
+      this.detachCommentBox(commentBoxID);
+    }
+  }
+
+  /**
+   * Adds a new comment box beside an operator, already anchored to it, as a single undoable action.
+   * @param operatorID
+   * @returns the ID of the new comment box
+   */
+  public addCommentBoxToOperator(operatorID: string): string {
+    this.texeraGraph.assertOperatorExists(operatorID);
+    const operatorPosition = this.jointGraphWrapper.getElementPosition(operatorID);
+    const commentBox: CommentBox = {
+      ...this.workflowUtilService.getNewCommentBox(),
+      // Right of the operator's top-right corner, clear of its delete button.
+      commentBoxPosition: {
+        x: operatorPosition.x + JointUIService.DEFAULT_OPERATOR_WIDTH + COMMENT_BOX_GAP,
+        y: operatorPosition.y - JointUIService.DEFAULT_COMMENT_HEIGHT / 2,
+      },
+    };
+    this.texeraGraph.bundleActions(() => {
+      this.addCommentBox(commentBox);
+      this.anchorCommentBox(commentBox.commentBoxID, operatorID);
+    });
+    return commentBox.commentBoxID;
+  }
+
+  private getElementBBox(elementID: string): joint.g.Rect {
+    return (this.jointGraph.getCell(elementID) as joint.dia.Element).getBBox();
   }
 
   /**

@@ -173,6 +173,24 @@ export class ContextMenuComponent {
     });
   }
 
+  /** A comment box is added to exactly one selected operator, with nothing else selected. */
+  public canAddCommentBoxToOperator(): boolean {
+    return (
+      this.canModify &&
+      this.highlightedOperatorIds.length === 1 &&
+      this.highlightedCommentBoxIds.length === 0 &&
+      !this.hasHighlightedLinks()
+    );
+  }
+
+  /** Adds a comment box beside the selected operator, anchored to it. */
+  public onAddCommentBoxToOperator(): void {
+    if (!this.canAddCommentBoxToOperator()) {
+      return;
+    }
+    this.workflowActionService.addCommentBoxToOperator(this.highlightedOperatorIds[0]);
+  }
+
   /** Anchoring takes the selected comment boxes and exactly one selected operator to anchor them to. */
   public canAnchorCommentBoxes(): boolean {
     return (

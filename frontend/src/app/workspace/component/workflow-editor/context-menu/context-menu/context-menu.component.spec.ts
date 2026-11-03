@@ -93,6 +93,7 @@ describe("ContextMenuComponent", () => {
       deleteLinkWithID: vi.fn(),
       anchorCommentBox: vi.fn(),
       detachCommentBox: vi.fn(),
+      addCommentBoxToOperator: vi.fn(),
     };
     workflowActionServiceSpy.getJointGraphWrapper.mockReturnValue(jointGraphWrapperSpy);
     workflowActionServiceSpy.getWorkflowModificationEnabledStream.mockReturnValue(of(true));
@@ -804,6 +805,7 @@ describe("ContextMenuComponent", () => {
     const norm = (s: string | null) => (s ?? "").replace(/\s+/g, " ").trim().toLowerCase();
     const ANCHOR = "anchor to operator";
     const DETACH = "detach from operator";
+    const ADD_COMMENT = "add comment";
     let anchors: Record<string, string | undefined>;
 
     function renderedLabels(): string[] {
@@ -894,6 +896,30 @@ describe("ContextMenuComponent", () => {
       select([], ["box-deleted"]);
       expect(renderedLabels()).not.toContain(DETACH);
       expect(workflowActionService.getTexeraGraph().getCommentBox).not.toHaveBeenCalledWith("box-deleted");
+    });
+
+    it("adds a comment box to the one selected operator", () => {
+      select(["op1"], []);
+
+      clickItem(ADD_COMMENT);
+
+      expect(workflowActionService.addCommentBoxToOperator).toHaveBeenCalledTimes(1);
+      expect(workflowActionService.addCommentBoxToOperator).toHaveBeenCalledWith("op1");
+    });
+
+    it("offers adding a comment only for exactly one selected operator and nothing else", () => {
+      select(["op1", "op2"], []);
+      expect(renderedLabels()).not.toContain(ADD_COMMENT);
+      select(["op1"], ["box-floating"]);
+      expect(renderedLabels()).not.toContain(ADD_COMMENT);
+      select([], ["box-floating"]);
+      expect(renderedLabels()).not.toContain(ADD_COMMENT);
+    });
+
+    it("offers adding a comment only while the workflow can be modified", () => {
+      component.isWorkflowModifiable = false;
+      select(["op1"], []);
+      expect(renderedLabels()).not.toContain(ADD_COMMENT);
     });
   });
 });
