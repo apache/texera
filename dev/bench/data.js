@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1793710810004,
+  "lastUpdate": 1793710813188,
   "repoUrl": "https://github.com/apache/texera",
   "entries": {
     "Arrow Flight E2E Throughput": [
@@ -76502,6 +76502,433 @@ window.BENCHMARK_DATA = {
           {
             "name": "latency p99 / bs=1000 sw=50 sl=512",
             "value": 1419886.621,
+            "unit": "us"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "name": "Luis Fernando Caro Reyna",
+            "username": "CaroFernando",
+            "email": "44384982+CaroFernando@users.noreply.github.com"
+          },
+          "committer": {
+            "name": "GitHub",
+            "username": "web-flow",
+            "email": "noreply@github.com"
+          },
+          "id": "86fbe562a4caad1f19eab5e08b1edab97fa0a077",
+          "message": "fix(licensing): replace the stock operator icons and list the ASF logos in LICENSE (#9261)\n\n### What changes were proposed in this PR?\n\nThree operator icons came from sources whose licences are incompatible\nwith an Apache release, so they can't be covered by `DISCLAIMER-WIP` and\nmust be replaced before RC1 (#8984). This PR replaces them the same way\nas #9220, and fixes two smaller items from the same audit.\n\n| File | Was | Now | Licence |\n|---|---|---|---|\n| `SankeyDiagram.png` | Adobe Stock asset (per its embedded metadata) |\nIBM Carbon\n[`sankey-diagram--alt`](https://cdn.jsdelivr.net/npm/@carbon/icons@11.91.0/svg/32/sankey-diagram--alt.svg)\n(`@carbon/icons` 11.91.0) | Apache-2.0 |\n| `DumbbellPlot.png` | Freepik icon (#2149) | Project-made: drawn\ndumbbell plot (lines with an open start and a filled end dot) | — |\n| `TypeCasting.png` | Noun Project icon, author never recorded (#929) |\nIBM Carbon\n[`transform--binary`](https://cdn.jsdelivr.net/npm/@carbon/icons@11.91.0/svg/32/transform--binary.svg)\n(`@carbon/icons` 11.91.0) | Apache-2.0 |\n| `SklearnDummyClassifier.png`, `SklearnTrainingDummyClassifier.png`\n(new) | No icon: the existing `SklearnDummy*.png` files match no\noperator type, so these operators showed a broken image | Project-made:\ntypographic \"Dummy\" in [Aileron](https://dotcolon.net/fonts/aileron)\n(CC0 1.0), like the \"P(A)\" and \"PA\" icons in #9220 | — |\n\n<img width=\"770\" height=\"890\" alt=\"image\"\nsrc=\"https://github.com/user-attachments/assets/08f63fa1-10ce-4702-9aeb-70246f67b22d\"\n/>\n\n**LICENSE.** The two Carbon icons are added to the existing Carbon\noperator-icon entry in `LICENSE` and `frontend/LICENSE-binary`;\nproject-made icons get no entry. The PNGs are 256×256 and record their\nsource, licence and copyright in PNG text metadata (`exiftool -Comment\n<file>`), as in #9220.\n\n**Apache Arrow and AsterixDB logos.** `ArrowSource.png` and\n`AsterixDBSource.png` are byte-identical to the official logos in\n[`apache/arrow-site`](https://github.com/apache/arrow-site/blob/229e92ede438bb6e13417eda141551c242cff334/img/arrow-logo_hex_black-txt_white-bg.png)\nand\n[`apache/asterixdb-site`](https://github.com/apache/asterixdb-site/blob/00f9bf22dd19e8645315fb2b139527a575dae9c1/img/asterixdb_tm.png)\n(same git blob hash). This adds an entry for them with a trademark note.\nIt records their provenance for the audit; strictly, [bundled ASF works\nneed no LICENSE\nentry](https://infra.apache.org/licensing-howto.html#bundle-asf-product),\nso I'm happy to drop it if reviewers prefer.\n\n### Any related issues, documentation, discussions?\n\nPart of #8984 (follows #9220). Related: #8800, #2149, #929.\n\nThe icons that no operator uses (including `SklearnDummy*.png`,\n`HdfsFileScan.png` and `src/favicon.ico`) are left for a separate PR,\npending the decision on #8984.\n\nBackport: the five icon files are identical on `release/v1.3`, and both\ndummy-classifier operators exist there. `LICENSE` has one trivial\nconflict on `release/v1.3` (it has no ORCID entry next to the new\nblock), so the backport may need to be done by hand.\n\n### How was this PR tested?\n\nAsset and LICENSE change only, no code change.\n\n- Previewed every icon at the 35 px size the workflow canvas draws them\nat (see the before/after image).\n- Checked that the third-party files are listed in both `LICENSE` and\n`frontend/LICENSE-binary` and the project-made ones are not.\n- Checked the PNG notices: `exiftool -s -Comment\nfrontend/src/assets/operator_images/{SankeyDiagram,DumbbellPlot,TypeCasting,SklearnDummyClassifier}.png`.\n- Checked the Arrow and AsterixDB logos against the upstream files: `git\nhash-object` matches the blobs in `apache/arrow-site` and\n`apache/asterixdb-site`.\n- License header check, as in `check-header.yml`: `license-eye -c\n.licenserc.yaml header check` reports 0 invalid files.\n\n### Was this PR authored or co-authored using generative AI tooling?\n\nGenerated-by: Claude Code (claude-opus-5-5)\n\nNo image-generation model was used. Claude Code was used to search the\nicon sets, render the SVGs to PNG, draw the project-made icons from\nsimple shapes and text, and write the LICENSE entries; every icon was\nchosen by the author.",
+          "timestamp": "2026-11-03T05:21:44Z",
+          "url": "https://github.com/apache/texera/commit/86fbe562a4caad1f19eab5e08b1edab97fa0a077"
+        },
+        "date": 1793710812713,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "latency p50 / bs=10 sw=1 sl=8",
+            "value": 15136.487,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=10 sw=1 sl=8",
+            "value": 17816.143,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=10 sw=1 sl=8",
+            "value": 21495.539,
+            "unit": "us"
+          },
+          {
+            "name": "latency p50 / bs=100 sw=1 sl=8",
+            "value": 86627.689,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=100 sw=1 sl=8",
+            "value": 96790.094,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=100 sw=1 sl=8",
+            "value": 107494.593,
+            "unit": "us"
+          },
+          {
+            "name": "latency p50 / bs=1000 sw=1 sl=8",
+            "value": 803822.648,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=1000 sw=1 sl=8",
+            "value": 843503.605,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=1000 sw=1 sl=8",
+            "value": 873032.902,
+            "unit": "us"
+          },
+          {
+            "name": "latency p50 / bs=10 sw=1 sl=64",
+            "value": 10970.323,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=10 sw=1 sl=64",
+            "value": 13763.23,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=10 sw=1 sl=64",
+            "value": 16051.957,
+            "unit": "us"
+          },
+          {
+            "name": "latency p50 / bs=100 sw=1 sl=64",
+            "value": 82116.965,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=100 sw=1 sl=64",
+            "value": 89872.464,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=100 sw=1 sl=64",
+            "value": 102488.645,
+            "unit": "us"
+          },
+          {
+            "name": "latency p50 / bs=1000 sw=1 sl=64",
+            "value": 803351.965,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=1000 sw=1 sl=64",
+            "value": 843465.975,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=1000 sw=1 sl=64",
+            "value": 880795.832,
+            "unit": "us"
+          },
+          {
+            "name": "latency p50 / bs=10 sw=1 sl=512",
+            "value": 10836.533,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=10 sw=1 sl=512",
+            "value": 14633.743,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=10 sw=1 sl=512",
+            "value": 15553.658,
+            "unit": "us"
+          },
+          {
+            "name": "latency p50 / bs=100 sw=1 sl=512",
+            "value": 81715.578,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=100 sw=1 sl=512",
+            "value": 87941.967,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=100 sw=1 sl=512",
+            "value": 95632.654,
+            "unit": "us"
+          },
+          {
+            "name": "latency p50 / bs=1000 sw=1 sl=512",
+            "value": 805671.274,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=1000 sw=1 sl=512",
+            "value": 841173.427,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=1000 sw=1 sl=512",
+            "value": 864838.989,
+            "unit": "us"
+          },
+          {
+            "name": "latency p50 / bs=10 sw=10 sl=8",
+            "value": 12843.388,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=10 sw=10 sl=8",
+            "value": 16610.744,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=10 sw=10 sl=8",
+            "value": 19886.45,
+            "unit": "us"
+          },
+          {
+            "name": "latency p50 / bs=100 sw=10 sl=8",
+            "value": 105929.32,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=100 sw=10 sl=8",
+            "value": 114059.297,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=100 sw=10 sl=8",
+            "value": 122299.7,
+            "unit": "us"
+          },
+          {
+            "name": "latency p50 / bs=1000 sw=10 sl=8",
+            "value": 1015010.515,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=1000 sw=10 sl=8",
+            "value": 1057459.491,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=1000 sw=10 sl=8",
+            "value": 1088600.022,
+            "unit": "us"
+          },
+          {
+            "name": "latency p50 / bs=10 sw=10 sl=64",
+            "value": 12609.138,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=10 sw=10 sl=64",
+            "value": 14415.686,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=10 sw=10 sl=64",
+            "value": 17245.977,
+            "unit": "us"
+          },
+          {
+            "name": "latency p50 / bs=100 sw=10 sl=64",
+            "value": 102486.435,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=100 sw=10 sl=64",
+            "value": 107840.224,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=100 sw=10 sl=64",
+            "value": 115020.897,
+            "unit": "us"
+          },
+          {
+            "name": "latency p50 / bs=1000 sw=10 sl=64",
+            "value": 1016750.781,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=1000 sw=10 sl=64",
+            "value": 1070419.041,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=1000 sw=10 sl=64",
+            "value": 1105910.049,
+            "unit": "us"
+          },
+          {
+            "name": "latency p50 / bs=10 sw=10 sl=512",
+            "value": 12739.324,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=10 sw=10 sl=512",
+            "value": 14169.472,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=10 sw=10 sl=512",
+            "value": 16871.781,
+            "unit": "us"
+          },
+          {
+            "name": "latency p50 / bs=100 sw=10 sl=512",
+            "value": 104204.374,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=100 sw=10 sl=512",
+            "value": 109488.56,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=100 sw=10 sl=512",
+            "value": 120247.38,
+            "unit": "us"
+          },
+          {
+            "name": "latency p50 / bs=1000 sw=10 sl=512",
+            "value": 1039464.486,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=1000 sw=10 sl=512",
+            "value": 1081819.533,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=1000 sw=10 sl=512",
+            "value": 1151056.06,
+            "unit": "us"
+          },
+          {
+            "name": "latency p50 / bs=10 sw=50 sl=8",
+            "value": 21184.306,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=10 sw=50 sl=8",
+            "value": 23107.407,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=10 sw=50 sl=8",
+            "value": 31671.593,
+            "unit": "us"
+          },
+          {
+            "name": "latency p50 / bs=100 sw=50 sl=8",
+            "value": 186357.057,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=100 sw=50 sl=8",
+            "value": 195310.735,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=100 sw=50 sl=8",
+            "value": 211305.047,
+            "unit": "us"
+          },
+          {
+            "name": "latency p50 / bs=1000 sw=50 sl=8",
+            "value": 1860416.733,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=1000 sw=50 sl=8",
+            "value": 1951157.306,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=1000 sw=50 sl=8",
+            "value": 2054522.468,
+            "unit": "us"
+          },
+          {
+            "name": "latency p50 / bs=10 sw=50 sl=64",
+            "value": 21133.905,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=10 sw=50 sl=64",
+            "value": 21989.79,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=10 sw=50 sl=64",
+            "value": 26824.666,
+            "unit": "us"
+          },
+          {
+            "name": "latency p50 / bs=100 sw=50 sl=64",
+            "value": 186818.547,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=100 sw=50 sl=64",
+            "value": 200868.611,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=100 sw=50 sl=64",
+            "value": 212516.701,
+            "unit": "us"
+          },
+          {
+            "name": "latency p50 / bs=1000 sw=50 sl=64",
+            "value": 1856927.268,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=1000 sw=50 sl=64",
+            "value": 1897926.696,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=1000 sw=50 sl=64",
+            "value": 1988484.817,
+            "unit": "us"
+          },
+          {
+            "name": "latency p50 / bs=10 sw=50 sl=512",
+            "value": 22429.857,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=10 sw=50 sl=512",
+            "value": 29026.821,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=10 sw=50 sl=512",
+            "value": 37228.402,
+            "unit": "us"
+          },
+          {
+            "name": "latency p50 / bs=100 sw=50 sl=512",
+            "value": 196405.509,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=100 sw=50 sl=512",
+            "value": 205683.051,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=100 sw=50 sl=512",
+            "value": 213478.907,
+            "unit": "us"
+          },
+          {
+            "name": "latency p50 / bs=1000 sw=50 sl=512",
+            "value": 1965659.8,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=1000 sw=50 sl=512",
+            "value": 2018117.105,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=1000 sw=50 sl=512",
+            "value": 2091010.621,
             "unit": "us"
           }
         ]
