@@ -79,6 +79,8 @@ describe("ContextMenuComponent", () => {
       hasLinkWithID: vi.fn(),
       bundleActions: vi.fn(),
       getSubDAG: vi.fn(),
+      getCommentBox: vi.fn(),
+      hasCommentBox: vi.fn(),
     };
 
     const workflowActionServiceSpy = {
@@ -89,6 +91,8 @@ describe("ContextMenuComponent", () => {
       getWorkflowMetadata: vi.fn(),
       getTexeraGraph: vi.fn(),
       deleteLinkWithID: vi.fn(),
+      anchorCommentBox: vi.fn(),
+      detachCommentBox: vi.fn(),
     };
     workflowActionServiceSpy.getJointGraphWrapper.mockReturnValue(jointGraphWrapperSpy);
     workflowActionServiceSpy.getWorkflowModificationEnabledStream.mockReturnValue(of(true));
@@ -794,6 +798,102 @@ describe("ContextMenuComponent", () => {
       clickItem("export result");
 
       expect(spy).toHaveBeenCalledTimes(1);
+    });
+  });
+  describe("comment box anchoring", () => {
+    const norm = (s: string | null) => (s ?? "").replace(/\s+/g, " ").trim().toLowerCase();
+    const ANCHOR = "anchor to operator";
+    const DETACH = "detach from operator";
+    let anchors: Record<string, string | undefined>;
+
+    function renderedLabels(): string[] {
+      return fixture.debugElement.queryAll(By.css("li[nz-menu-item]")).map(li => norm(li.nativeElement.textContent));
+    }
+
+    function clickItem(label: string): void {
+      const item = fixture.debugElement
+        .queryAll(By.css("li[nz-menu-item]"))
+        .find(li => norm(li.nativeElement.textContent) === label);
+      if (!item) throw new Error(`menu item "${label}" not rendered; present: [${renderedLabels().join(" | ")}]`);
+      item.nativeElement.dispatchEvent(new MouseEvent("click", { bubbles: true, cancelable: true }));
+    }
+
+    function select(operatorIDs: string[], commentBoxIDs: string[]): void {
+      jointGraphWrapperSpy.getCurrentHighlightedOperatorIDs.mockReturnValue(operatorIDs);
+      jointGraphWrapperSpy.getCurrentHighlightedCommentBoxIDs.mockReturnValue(commentBoxIDs);
+      highlightedOperatorsSubject.next(operatorIDs);
+      highlightedCommentBoxesSubject.next(commentBoxIDs);
+      fixture.detectChanges();
+    }
+
+    beforeEach(() => {
+      anchors = { "box-floating": undefined, "box-anchored": "op1" };
+      // "execute to this operator" renders beside the anchoring items for a lone selected operator.
+      validationWorkflowService.validateOperator.mockReturnValue({ isValid: true });
+      (workflowActionService.getTexeraGraph().hasCommentBox as any).mockImplementation((id: string) => id in anchors);
+      (workflowActionService.getTexeraGraph().getCommentBox as any).mockImplementation((id: string) => ({
+        ...mockCommentBox,
+        commentBoxID: id,
+        anchoredOperatorID: anchors[id],
+      }));
+      component.isWorkflowModifiable = true;
+    });
+
+    it("anchors every selected comment box to the one selected operator, in one bundled action", () => {
+      select(["op2"], ["box-floating", "box-anchored"]);
+      const bundle = workflowActionService.getTexeraGraph().bundleActions as any;
+      bundle.mockClear();
+
+      clickItem(ANCHOR);
+
+      expect(bundle).toHaveBeenCalledTimes(1);
+      expect(workflowActionService.anchorCommentBox).toHaveBeenCalledWith("box-floating", "op2");
+      expect(workflowActionService.anchorCommentBox).toHaveBeenCalledWith("box-anchored", "op2");
+    });
+
+    it("offers no anchor without exactly one operator and at least one comment box selected", () => {
+      select(["op1", "op2"], ["box-floating"]);
+      expect(renderedLabels()).not.toContain(ANCHOR);
+      select(["op1"], []);
+      expect(renderedLabels()).not.toContain(ANCHOR);
+      select([], ["box-floating"]);
+      expect(renderedLabels()).not.toContain(ANCHOR);
+    });
+
+    it("offers no anchor or detach while the workflow cannot be modified", () => {
+      component.isWorkflowModifiable = false;
+      select(["op1"], ["box-anchored"]);
+      expect(renderedLabels()).not.toContain(ANCHOR);
+      select([], ["box-anchored"]);
+      expect(renderedLabels()).not.toContain(DETACH);
+    });
+
+    it("offers no anchor or detach under a structure lock", () => {
+      component.structureLocked = true;
+      select(["op1"], ["box-anchored"]);
+      expect(renderedLabels()).not.toContain(ANCHOR);
+      select([], ["box-anchored"]);
+      expect(renderedLabels()).not.toContain(DETACH);
+    });
+
+    it("detaches only the anchored comment boxes among the selection", () => {
+      select([], ["box-floating", "box-anchored"]);
+
+      clickItem(DETACH);
+
+      expect(workflowActionService.detachCommentBox).toHaveBeenCalledTimes(1);
+      expect(workflowActionService.detachCommentBox).toHaveBeenCalledWith("box-anchored");
+    });
+
+    it("offers no detach when every selected comment box floats", () => {
+      select([], ["box-floating"]);
+      expect(renderedLabels()).not.toContain(DETACH);
+    });
+
+    it("ignores a selected comment box that has just been deleted", () => {
+      select([], ["box-deleted"]);
+      expect(renderedLabels()).not.toContain(DETACH);
+      expect(workflowActionService.getTexeraGraph().getCommentBox).not.toHaveBeenCalledWith("box-deleted");
     });
   });
 });

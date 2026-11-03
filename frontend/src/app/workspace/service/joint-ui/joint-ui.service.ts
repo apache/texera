@@ -598,7 +598,18 @@ export class JointUIService {
       attrs: JointUIService.getCustomCommentStyleAttrs(),
     });
     commentElement.set("id", commentBox.commentBoxID);
+    commentElement.attr("rect", JointUIService.getCommentBoxAnchorAttrs(commentBox.anchoredOperatorID !== undefined));
     return commentElement;
+  }
+
+  /**
+   * The outline that tells an anchored comment box from a floating one: dashed for anchored, none for floating.
+   * @param anchored whether the comment box is anchored to an operator
+   */
+  public static getCommentBoxAnchorAttrs(anchored: boolean): joint.attributes.SVGAttributes {
+    return anchored
+      ? { stroke: "#1890FF", "stroke-width": 2, "stroke-dasharray": "4 2" }
+      : { stroke: "#CED4D9", "stroke-width": 0, "stroke-dasharray": "none" };
   }
   /**
    * This function converts a Texera source and target OperatorPort to

@@ -468,6 +468,7 @@ export class SharedModelChangeHandler {
    *  - adding comments
    *  - deleting comments
    *  - editing comments (processed as deleting and then adding in-place)
+   *  - anchoring the box to an operator, or detaching it
    * @private
    */
   private handleCommentBoxDeep(): void {
@@ -475,6 +476,11 @@ export class SharedModelChangeHandler {
       events.forEach(event => {
         if (event.target !== this.texeraGraph.sharedModel.commentBoxMap) {
           const commentBox: CommentBox = this.texeraGraph.getCommentBox(event.path[0] as string);
+          if (event.path.length === 1 && event.changes.keys.has("anchoredOperatorID")) {
+            this.jointGraph
+              .getCell(commentBox.commentBoxID)
+              ?.attr("rect", JointUIService.getCommentBoxAnchorAttrs(commentBox.anchoredOperatorID !== undefined));
+          }
           if (event.path.length === 2 && event.path[event.path.length - 1] === "comments") {
             const addedComments = Array.from(event.changes.added.values());
             const deletedComments = Array.from(event.changes.deleted.values());

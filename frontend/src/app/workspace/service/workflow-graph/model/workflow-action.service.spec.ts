@@ -367,6 +367,244 @@ describe("WorkflowActionService", () => {
     // expect(resultOpPos).toEqual(mockPoint);
   });
 
+  // A comment box either floats on the canvas or is anchored to an operator, like a comment anchored to
+  // text in a document: an anchored box keeps its offset from the operator whenever the operator moves,
+  // whether a user drags it or auto-layout re-spaces the graph.
+  describe("comment box anchoring", () => {
+    const anchoredID = "commentBox-anchored";
+    const floatingID = "commentBox-floating";
+
+    function boundingBox(elementID: string): { x: number; y: number; width: number; height: number } {
+      const cell = jointGraph.getCell(elementID) as joint.dia.Element;
+      return { ...cell.position(), ...cell.size() };
+    }
+
+    function overlaps(a: ReturnType<typeof boundingBox>, b: ReturnType<typeof boundingBox>): boolean {
+      return a.x < b.x + b.width && b.x < a.x + a.width && a.y < b.y + b.height && b.y < a.y + a.height;
+    }
+
+    function addComment(commentBoxID: string, position: { x: number; y: number }): void {
+      service.addCommentBox({ ...mockCommentBox, commentBoxID, commentBoxPosition: position });
+    }
+
+    function offsetFrom(elementID: string, operatorID: string): { x: number; y: number } {
+      const element = service.getJointGraphWrapper().getElementPosition(elementID);
+      const operator = service.getJointGraphWrapper().getElementPosition(operatorID);
+      return { x: element.x - operator.x, y: element.y - operator.y };
+    }
+
+    it("anchors a comment box to an operator and detaches it again", () => {
+      service.addOperator(mockScanPredicate, mockPoint);
+      addComment(anchoredID, { x: 0, y: 0 });
+
+      service.anchorCommentBox(anchoredID, mockScanPredicate.operatorID);
+      expect(texeraGraph.getCommentBox(anchoredID).anchoredOperatorID).toEqual(mockScanPredicate.operatorID);
+      expect(texeraGraph.getCommentBoxesAnchoredTo(mockScanPredicate.operatorID)).toEqual([anchoredID]);
+
+      service.detachCommentBox(anchoredID);
+      expect(texeraGraph.getCommentBox(anchoredID).anchoredOperatorID).toBeUndefined();
+      expect(texeraGraph.getCommentBoxesAnchoredTo(mockScanPredicate.operatorID)).toEqual([]);
+    });
+
+    it("re-anchoring moves the anchor rather than adding a second one", () => {
+      service.addOperator(mockScanPredicate, mockPoint);
+      service.addOperator(mockResultPredicate, mockPoint);
+      addComment(anchoredID, { x: 0, y: 0 });
+
+      service.anchorCommentBox(anchoredID, mockScanPredicate.operatorID);
+      service.anchorCommentBox(anchoredID, mockResultPredicate.operatorID);
+
+      expect(texeraGraph.getCommentBoxesAnchoredTo(mockScanPredicate.operatorID)).toEqual([]);
+      expect(texeraGraph.getCommentBoxesAnchoredTo(mockResultPredicate.operatorID)).toEqual([anchoredID]);
+    });
+
+    it("rejects an anchor to an operator or from a comment box that does not exist", () => {
+      service.addOperator(mockScanPredicate, mockPoint);
+      addComment(anchoredID, { x: 0, y: 0 });
+
+      expect(() => service.anchorCommentBox(anchoredID, "no-such-operator")).toThrowError(/no-such-operator/);
+      expect(() => service.anchorCommentBox("no-such-box", mockScanPredicate.operatorID)).toThrowError(/no-such-box/);
+      expect(() => service.detachCommentBox("no-such-box")).toThrowError(/no-such-box/);
+      expect(texeraGraph.getCommentBox(anchoredID).anchoredOperatorID).toBeUndefined();
+    });
+
+    it("detaching a floating comment box is a no-op", () => {
+      addComment(floatingID, { x: 0, y: 0 });
+      expect(() => service.detachCommentBox(floatingID)).not.toThrow();
+      expect(texeraGraph.getCommentBox(floatingID).anchoredOperatorID).toBeUndefined();
+    });
+
+    it("keeps the comment box, floating, when its operator is deleted", () => {
+      service.addOperator(mockScanPredicate, mockPoint);
+      addComment(anchoredID, { x: 0, y: 0 });
+      service.anchorCommentBox(anchoredID, mockScanPredicate.operatorID);
+
+      service.deleteOperator(mockScanPredicate.operatorID);
+
+      expect(texeraGraph.hasCommentBox(anchoredID)).toBe(true);
+      expect(texeraGraph.getCommentBox(anchoredID).anchoredOperatorID).toBeUndefined();
+    });
+
+    it("moves an anchored comment box along with its dragged operator, and leaves a floating one", () => {
+      service.addOperator(mockScanPredicate, { x: 100, y: 100 });
+      addComment(anchoredID, { x: 110, y: 40 });
+      addComment(floatingID, { x: 400, y: 400 });
+      service.anchorCommentBox(anchoredID, mockScanPredicate.operatorID);
+
+      service.highlightOperators(false, mockScanPredicate.operatorID);
+      service.getJointGraphWrapper().setAbsolutePosition(mockScanPredicate.operatorID, 300, 250);
+
+      const moved = { x: 310, y: 190 };
+      expect(service.getJointGraphWrapper().getElementPosition(anchoredID)).toEqual(moved);
+      // Both the shared-editing position and the persisted position follow.
+      expect(texeraGraph.sharedModel.elementPositionMap.get(anchoredID)).toEqual(moved);
+      expect(texeraGraph.getCommentBox(anchoredID).commentBoxPosition).toEqual(moved);
+      expect(service.getJointGraphWrapper().getElementPosition(floatingID)).toEqual({ x: 400, y: 400 });
+    });
+
+    it("moves an anchored comment box once when it is dragged together with its operator", () => {
+      service.addOperator(mockScanPredicate, { x: 100, y: 100 });
+      addComment(anchoredID, { x: 110, y: 40 });
+      service.anchorCommentBox(anchoredID, mockScanPredicate.operatorID);
+
+      service.highlightOperators(false, mockScanPredicate.operatorID);
+      service.highlightCommentBoxes(true, anchoredID);
+      service.getJointGraphWrapper().setAbsolutePosition(mockScanPredicate.operatorID, 300, 250);
+
+      expect(service.getJointGraphWrapper().getElementPosition(anchoredID)).toEqual({ x: 310, y: 190 });
+    });
+
+    it("keeps the anchor when the comment box itself is dragged, with the new offset", () => {
+      service.addOperator(mockScanPredicate, { x: 100, y: 100 });
+      addComment(anchoredID, { x: 110, y: 40 });
+      service.anchorCommentBox(anchoredID, mockScanPredicate.operatorID);
+
+      service.highlightCommentBoxes(false, anchoredID);
+      service.getJointGraphWrapper().setAbsolutePosition(anchoredID, 100, 200);
+      expect(service.getJointGraphWrapper().getElementPosition(mockScanPredicate.operatorID)).toEqual({
+        x: 100,
+        y: 100,
+      });
+
+      service.highlightOperators(false, mockScanPredicate.operatorID);
+      service.getJointGraphWrapper().setAbsolutePosition(mockScanPredicate.operatorID, 150, 150);
+      expect(service.getJointGraphWrapper().getElementPosition(anchoredID)).toEqual({ x: 150, y: 250 });
+    });
+
+    it("auto-layout moves anchored comment boxes with their operators, keeping their offsets", () => {
+      service.addOperator(mockScanPredicate, { x: 0, y: 0 });
+      service.addOperator(mockResultPredicate, { x: 0, y: 0 });
+      service.addLink(mockScanResultLink);
+      addComment("commentBox-scan", { x: 10, y: -50 });
+      addComment("commentBox-result", { x: 10, y: -50 });
+      service.anchorCommentBox("commentBox-scan", mockScanPredicate.operatorID);
+      service.anchorCommentBox("commentBox-result", mockResultPredicate.operatorID);
+
+      service.autoLayoutWorkflow();
+
+      const scan = service.getJointGraphWrapper().getElementPosition(mockScanPredicate.operatorID);
+      const result = service.getJointGraphWrapper().getElementPosition(mockResultPredicate.operatorID);
+      expect(scan.x).toBeLessThan(result.x);
+      expect(offsetFrom("commentBox-scan", mockScanPredicate.operatorID)).toEqual({ x: 10, y: -50 });
+      expect(offsetFrom("commentBox-result", mockResultPredicate.operatorID)).toEqual({ x: 10, y: -50 });
+      // Same offsets, so the comments are spaced exactly as evenly as the operators they annotate.
+      const scanComment = service.getJointGraphWrapper().getElementPosition("commentBox-scan");
+      const resultComment = service.getJointGraphWrapper().getElementPosition("commentBox-result");
+      expect(resultComment.x - scanComment.x).toEqual(result.x - scan.x);
+      expect(resultComment.y - scanComment.y).toEqual(result.y - scan.y);
+      // Synced and persisted, so a co-editor and a reload see the laid-out positions.
+      expect(texeraGraph.sharedModel.elementPositionMap.get("commentBox-scan")).toEqual(scanComment);
+      expect(texeraGraph.getCommentBox("commentBox-scan").commentBoxPosition).toEqual(scanComment);
+    });
+
+    it("auto-layout leaves room for anchored comment boxes so they overlap no other operator", () => {
+      service.addOperator(mockScanPredicate, { x: 0, y: 0 });
+      service.addOperator(mockSentimentPredicate, { x: 0, y: 0 });
+      service.addOperator(mockResultPredicate, { x: 0, y: 0 });
+      service.addLink(mockScanResultLink);
+      service.addLink(mockSentimentResultLink);
+      // Far enough above and below scan that, laid out as a bare operator, either box would land on
+      // sentiment, which shares scan's rank.
+      addComment("commentBox-above", { x: 0, y: -150 });
+      addComment("commentBox-below", { x: 0, y: 150 });
+      service.anchorCommentBox("commentBox-above", mockScanPredicate.operatorID);
+      service.anchorCommentBox("commentBox-below", mockScanPredicate.operatorID);
+
+      service.autoLayoutWorkflow();
+
+      expect(offsetFrom("commentBox-above", mockScanPredicate.operatorID)).toEqual({ x: 0, y: -150 });
+      expect(offsetFrom("commentBox-below", mockScanPredicate.operatorID)).toEqual({ x: 0, y: 150 });
+      for (const commentBoxID of ["commentBox-above", "commentBox-below"]) {
+        for (const operatorID of [mockSentimentPredicate.operatorID, mockResultPredicate.operatorID]) {
+          expect(overlaps(boundingBox(commentBoxID), boundingBox(operatorID))).toBe(false);
+        }
+      }
+    });
+
+    it("auto-layout still lays out floating comment boxes and tolerates an anchor to a missing operator", () => {
+      const workflow: Workflow = {
+        ...DEFAULT_WORKFLOW,
+        content: {
+          operators: [mockScanPredicate],
+          operatorPositions: { [mockScanPredicate.operatorID]: mockPoint },
+          links: [],
+          commentBoxes: [
+            { ...mockCommentBox, commentBoxID: "commentBox-dangling", anchoredOperatorID: "no-such-operator" },
+          ],
+          settings: { dataTransferBatchSize: 100, executionMode: ExecutionMode.PIPELINED },
+        },
+      };
+      service.reloadWorkflow(workflow);
+
+      expect(() => service.autoLayoutWorkflow()).not.toThrow();
+      expect(overlaps(boundingBox("commentBox-dangling"), boundingBox(mockScanPredicate.operatorID))).toBe(false);
+    });
+
+    it("round-trips the anchor through the saved workflow content", () => {
+      service.addOperator(mockScanPredicate, mockPoint);
+      addComment(anchoredID, { x: 0, y: 0 });
+      addComment(floatingID, { x: 50, y: 50 });
+      service.anchorCommentBox(anchoredID, mockScanPredicate.operatorID);
+
+      const content = service.getWorkflowContent();
+      expect(content.commentBoxes.find(c => c.commentBoxID === anchoredID)?.anchoredOperatorID).toEqual(
+        mockScanPredicate.operatorID
+      );
+      expect(content.commentBoxes.find(c => c.commentBoxID === floatingID)?.anchoredOperatorID).toBeUndefined();
+
+      service.reloadWorkflow({ ...DEFAULT_WORKFLOW, content });
+      expect(texeraGraph.getCommentBox(anchoredID).anchoredOperatorID).toEqual(mockScanPredicate.operatorID);
+    });
+
+    it("outlines an anchored comment box, for this editor and on reload, and clears it on detach", () => {
+      service.addOperator(mockScanPredicate, mockPoint);
+      addComment(anchoredID, { x: 0, y: 0 });
+      const dash = () => jointGraph.getCell(anchoredID).attr("rect/stroke-dasharray");
+      expect(dash()).toEqual("none");
+
+      service.anchorCommentBox(anchoredID, mockScanPredicate.operatorID);
+      expect(dash()).toEqual("4 2");
+
+      service.reloadWorkflow({ ...DEFAULT_WORKFLOW, content: service.getWorkflowContent() });
+      expect(dash()).toEqual("4 2");
+
+      service.detachCommentBox(anchoredID);
+      expect(dash()).toEqual("none");
+    });
+
+    it("undoes an anchor", () => {
+      service.addOperator(mockScanPredicate, mockPoint);
+      addComment(anchoredID, { x: 0, y: 0 });
+      // Edits within the capture timeout merge into one undo step; keep the anchor a step of its own.
+      texeraGraph.sharedModel.undoManager.stopCapturing();
+      service.anchorCommentBox(anchoredID, mockScanPredicate.operatorID);
+
+      undoRedo.undoAction();
+
+      expect(texeraGraph.getCommentBox(anchoredID).anchoredOperatorID).toBeUndefined();
+    });
+  });
+
   it("should reload a workflow, repopulating the graph and clearing the undo/redo stacks", () => {
     const settings: WorkflowSettings = {
       dataTransferBatchSize: 250,
@@ -683,6 +921,13 @@ describe("WorkflowActionService", () => {
 
     expect(service.getCenterPoint()).toEqual(before);
     expect(service.getCenterPoint()).toEqual({ x: 0, y: 0 });
+  });
+
+  it("should keep listening to joint commands after computing the top-left of an empty workflow", () => {
+    service.calculateTopLeftOperatorPosition();
+
+    // Left off, every later drag would be dropped by handleJointElementDrag and never synced.
+    expect(undoRedo.listenJointCommand).toBe(true);
   });
 
   it("should toggle the workflow-modification lock and emit each state on the stream", () => {
