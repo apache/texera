@@ -1264,7 +1264,7 @@ export class AgentService {
   }
 
   /**
-   * Pull the agent's latest operator result summaries from the backend and push
+   * Pull the agent's latest operator execution summaries from the backend and push
    * them to `operatorExecutionSummaries$`. Called on demand when the UI needs to
    * show results (e.g. opening an operator's popover); results are no longer
    * pushed over the WebSocket.
