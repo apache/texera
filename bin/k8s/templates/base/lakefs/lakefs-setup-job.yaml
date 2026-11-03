@@ -25,6 +25,10 @@ spec:
   template:
     metadata:
       name: {{ .Release.Name }}-lakefs-setup-job
+      {{- with .Values.lakefs.podAnnotations }}
+      annotations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
     spec:
       {{- if .Values.global.texeraMicroServiceRuntimeClass }}
       runtimeClassName: {{ .Values.global.texeraMicroServiceRuntimeClass | quote }}

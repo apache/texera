@@ -31,6 +31,10 @@ spec:
     metadata:
       labels:
         app: {{ .Release.Name }}-{{ .Values.accessControlService.name }}
+      {{- with .Values.accessControlService.podAnnotations }}
+      annotations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
     spec:
       {{- if .Values.mounter.enabled }}
       # Only needed to authenticate to the mounter; without it this service has no reason
