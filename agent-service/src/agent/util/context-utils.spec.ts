@@ -164,7 +164,7 @@ describe("assembleContext", () => {
         "  - Error:",
         '    [ERROR] Source operator "op7" not found',
         "      at resolveInputLinks",
-        // No result yet: only the call itself.
+        // No result recorded (a call the SDK rejected): only the call itself.
         "- deleteOperator (succeeded)",
       ].join("\n")
     );
@@ -172,17 +172,37 @@ describe("assembleContext", () => {
     expect(content).not.toContain("| a | b |");
   });
 
-  test("an error result not flagged as an error still reaches the model through its output line", () => {
-    // Tool errors are "[ERROR] ..." strings; until a result carries isError, its message must still show.
+  test("an [ERROR] result not flagged as an error still gets its whole message as an Error block", () => {
+    // Tool errors are "[ERROR] ..." strings and isError is not set for them yet (#9120); an execution
+    // error spans several lines, and its reason is only on the later ones.
     const agentStep: ReActStep = {
       ...step("m1", "agent", 1, "acting", true),
-      toolCalls: [{ toolName: "addOperator", toolCallId: "c1", input: { operatorId: "op2", summary: "Limit 10" } }],
-      toolResults: [{ toolCallId: "c1", output: '[ERROR] Source operator "op7" not found' }],
+      toolCalls: [{ toolName: "executeOperator", toolCallId: "c1", input: { operatorId: "op8" } }],
+      toolResults: [{ toolCallId: "c1", output: "[ERROR] Operator op8:\nInput port 0 has no link" }],
     };
     const content = contentOf(
       assembleContext([step("m1", "user", 0, "req", true), agentStep], new WorkflowState(), new Map())
     );
-    expect(content).toContain('  - Output: [ERROR] Source operator "op7" not found');
+    expect(content).toContain(["  - Error:", "    [ERROR] Operator op8:", "    Input port 0 has no link"].join("\n"));
+    expect(content).not.toContain("  - Output: [ERROR]");
+  });
+
+  test("matches results to calls by toolCallId, not by position", () => {
+    // A call the SDK rejected has no result, so positions can shift.
+    const agentStep: ReActStep = {
+      ...step("m1", "agent", 1, "acting", true),
+      toolCalls: [
+        { toolName: "addOperator", toolCallId: "c1", input: { operatorId: "op1" } },
+        { toolName: "deleteOperator", toolCallId: "c2", input: { operatorId: "op0" } },
+      ],
+      toolResults: [{ toolCallId: "c2", output: "Deleted operator op0" }],
+    };
+    const content = contentOf(
+      assembleContext([step("m1", "user", 0, "req", true), agentStep], new WorkflowState(), new Map())
+    );
+    expect(content).toContain(
+      ["- addOperator (succeeded)", "- deleteOperator (succeeded)", "  - Output: Deleted operator op0"].join("\n")
+    );
   });
 });
 
