@@ -1212,6 +1212,273 @@ class ExecutionResultServiceSpec
     }
   }
 
+  it should "send the first output port's update, read from that port's own document" in {
+    val executionId = newExecution()
+    // Different columns per port, so statistics read off the wrong port are visible.
+    val firstSchema = new Schema(List(new Attribute("id", AttributeType.INTEGER)))
+    val secondSchema = new Schema(List(new Attribute("value", AttributeType.INTEGER)))
+    storeResult(executionId, "erss-ports", firstSchema, intRows(firstSchema, "id", 0 until 3))
+    storeResult(
+      executionId,
+      "erss-ports",
+      secondSchema,
+      intRows(secondSchema, "value", 0 until 12),
+      port = PortIdentity(1)
+    )
+    // The internal port is listed first, as in the single-port test above.
+    val plan = planOf(
+      physicalOp(
+        executionId,
+        "erss-ports",
+        PortIdentity(1, internal = true) -> OutputMode.SET_DELTA,
+        PortIdentity() -> OutputMode.SET_SNAPSHOT,
+        PortIdentity(1) -> OutputMode.SET_SNAPSHOT
+      )
+    )
+
+    withAttached(plan, executionId) { fixture =>
+      val events = new ResultEvents(fixture.workflowStateStore)
+      fixture.setPortResultCounts(("erss-ports", 0) -> 3, ("erss-ports", 1) -> 12)
+
+      // `updates` keeps meaning the first port: 3 rows, one page.
+      events.updates.map(_.updates) shouldBe List(
+        Map("erss-ports" -> WebPaginationUpdate(PaginationMode(), 3L, List(1)))
+      )
+      // Statistics are the first port's only.
+      events.updates.head.tableStats.keySet shouldBe Set("erss-ports")
+      events.updates.head.tableStats("erss-ports").keySet shouldBe Set("id")
+    }
+  }
+
+  it should "not treat a move on a later output port as a move on the first port" in {
+    val executionId = newExecution()
+    val schema = new Schema(List(new Attribute("id", AttributeType.INTEGER)))
+    val rows = intRows(schema, "id", List(1))
+    storeResult(executionId, "erss-port-diff", schema, rows)
+    storeResult(executionId, "erss-port-diff", schema, rows, port = PortIdentity(1))
+    storeResult(executionId, "erss-port-diff", schema, rows, port = PortIdentity(2))
+    storeResult(executionId, "erss-port-diff-single", schema, rows)
+    val plan = planOf(
+      physicalOp(
+        executionId,
+        "erss-port-diff",
+        PortIdentity() -> OutputMode.SET_SNAPSHOT,
+        PortIdentity(1) -> OutputMode.SET_SNAPSHOT,
+        PortIdentity(2) -> OutputMode.SET_SNAPSHOT
+      ),
+      physicalOp(executionId, "erss-port-diff-single", PortIdentity() -> OutputMode.SET_SNAPSHOT)
+    )
+
+    withAttached(plan, executionId) { fixture =>
+      val events = new ResultEvents(fixture.workflowStateStore)
+      // 1: everything is new. 2: only port 1 moves. 3: only port 0 moves (and the
+      // single-port operator). 4: port 2 moves.
+      fixture.setPortResultCounts(
+        ("erss-port-diff", 0) -> 1,
+        ("erss-port-diff", 1) -> 1,
+        ("erss-port-diff", 2) -> 1,
+        ("erss-port-diff-single", 0) -> 1
+      )
+      fixture.setPortResultCounts(
+        ("erss-port-diff", 0) -> 1,
+        ("erss-port-diff", 1) -> 2,
+        ("erss-port-diff", 2) -> 1,
+        ("erss-port-diff-single", 0) -> 1
+      )
+      fixture.setPortResultCounts(
+        ("erss-port-diff", 0) -> 2,
+        ("erss-port-diff", 1) -> 2,
+        ("erss-port-diff", 2) -> 1,
+        ("erss-port-diff-single", 0) -> 2
+      )
+      fixture.setPortResultCounts(
+        ("erss-port-diff", 0) -> 2,
+        ("erss-port-diff", 1) -> 2,
+        ("erss-port-diff", 2) -> 3,
+        ("erss-port-diff-single", 0) -> 2
+      )
+
+      // Each port is tracked on its own, so a move on a later port is not a move on the first.
+      events.updates.map(_.updates.keySet) shouldBe List(
+        Set("erss-port-diff", "erss-port-diff-single"),
+        Set.empty,
+        Set("erss-port-diff", "erss-port-diff-single"),
+        Set.empty
+      )
+      events.updates.map(_.tableStats.keySet) shouldBe List(
+        Set("erss-port-diff", "erss-port-diff-single"),
+        Set.empty,
+        Set("erss-port-diff", "erss-port-diff-single"),
+        Set.empty
+      )
+    }
+  }
+
+  it should "not resend a port whose count is unchanged but whose change detector moved" in {
+    val executionId = newExecution()
+    val schema = new Schema(List(new Attribute("id", AttributeType.INTEGER)))
+    val rows = intRows(schema, "id", List(1))
+    storeResult(executionId, "erss-port-detector", schema, rows)
+    storeResult(executionId, "erss-port-detector", schema, rows, port = PortIdentity(1))
+    val plan = planOf(
+      physicalOp(
+        executionId,
+        "erss-port-detector",
+        PortIdentity() -> OutputMode.SET_SNAPSHOT,
+        PortIdentity(1) -> OutputMode.SET_SNAPSHOT
+      )
+    )
+
+    withAttached(plan, executionId) { fixture =>
+      val events = new ResultEvents(fixture.workflowStateStore)
+      fixture.setPortResults(
+        ("erss-port-detector", 0) -> OperatorResultMetadata(1, "a"),
+        ("erss-port-detector", 1) -> OperatorResultMetadata(1, "a")
+      )
+      fixture.setPortResults(
+        ("erss-port-detector", 0) -> OperatorResultMetadata(1, "b"),
+        ("erss-port-detector", 1) -> OperatorResultMetadata(1, "b")
+      )
+
+      // Same rule as the first port: a port is changed when it is new or its count moved.
+      events.updates.map(_.updates.keySet) shouldBe List(Set("erss-port-detector"), Set.empty)
+    }
+  }
+
+  it should "not let an HTML later port stop the first port's statistics and size" in {
+    val executionId = newExecution()
+    val tableSchema = new Schema(List(new Attribute("id", AttributeType.INTEGER)))
+    val htmlSchema = new Schema(List(new Attribute("html", AttributeType.STRING)))
+    val html = "a" * 150
+    storeResult(executionId, "erss-two-modes", tableSchema, intRows(tableSchema, "id", 0 until 7))
+    val secondUri = storeResult(
+      executionId,
+      "erss-two-modes",
+      htmlSchema,
+      List(Tuple.builder(htmlSchema).add("html", AttributeType.STRING, html).build()),
+      port = PortIdentity(1)
+    )
+    val plan = planOf(
+      physicalOp(
+        executionId,
+        "erss-two-modes",
+        PortIdentity(1, internal = true) -> OutputMode.SET_DELTA,
+        PortIdentity() -> OutputMode.SET_SNAPSHOT,
+        PortIdentity(1) -> OutputMode.SINGLE_SNAPSHOT
+      )
+    )
+
+    withAttached(plan, executionId) { fixture =>
+      val events = new ResultEvents(fixture.workflowStateStore)
+      fixture.setPortResultCounts(("erss-two-modes", 0) -> 7, ("erss-two-modes", 1) -> 1)
+
+      events.updates.head.updates shouldBe Map(
+        "erss-two-modes" -> WebPaginationUpdate(PaginationMode(), 7L, List(1, 2))
+      )
+      // An HTML port beside it does not stop the first port's statistics and size,
+      // and the HTML port's own size is not recorded.
+      events.updates.head.tableStats.keySet shouldBe Set("erss-two-modes")
+      storedResultSize(executionId, "erss-two-modes") should not be 0L
+      storedResultSize(executionId, "erss-two-modes", PortIdentity(1)) shouldBe 0L
+      DocumentFactory.openDocument(secondUri)._1.getTotalFileSize should not be 0L
+    }
+  }
+
+  it should "record a later table port's size behind an HTML first port" in {
+    val executionId = newExecution()
+    val tableSchema = new Schema(List(new Attribute("id", AttributeType.INTEGER)))
+    val htmlSchema = new Schema(List(new Attribute("html", AttributeType.STRING)))
+    storeResult(
+      executionId,
+      "erss-html-first",
+      htmlSchema,
+      List(Tuple.builder(htmlSchema).add("html", AttributeType.STRING, "<p>chart</p>").build())
+    )
+    val secondUri = storeResult(
+      executionId,
+      "erss-html-first",
+      tableSchema,
+      intRows(tableSchema, "id", 0 until 12),
+      port = PortIdentity(1)
+    )
+    val plan = planOf(
+      physicalOp(
+        executionId,
+        "erss-html-first",
+        PortIdentity() -> OutputMode.SINGLE_SNAPSHOT,
+        PortIdentity(1) -> OutputMode.SET_SNAPSHOT
+      )
+    )
+
+    withAttached(plan, executionId) { fixture =>
+      val events = new ResultEvents(fixture.workflowStateStore)
+      fixture.setPortResultCounts(("erss-html-first", 0) -> 1, ("erss-html-first", 1) -> 12)
+
+      val first = dataUpdate(events.updates.head.updates("erss-html-first"))
+      first.mode shouldBe SetSnapshotMode()
+      first.table.map(_.get("html").asText()) shouldBe List("<p>chart</p>")
+      // The first port is HTML, so there are no statistics; later ports never have them.
+      events.updates.head.tableStats shouldBe empty
+      // The table port's size is recorded under its own port id; the HTML port's is not.
+      val expectedSize = DocumentFactory.openDocument(secondUri)._1.getTotalFileSize
+      expectedSize should not be 0L
+      storedResultSize(executionId, "erss-html-first", PortIdentity(1)) shouldBe expectedSize
+      storedResultSize(executionId, "erss-html-first") shouldBe 0L
+    }
+  }
+
+  it should "fail loudly for a result entry whose output port is not in the plan" in {
+    val executionId = newExecution()
+    // The operator declares one output port; a result entry for a second one has no mode to
+    // serve it with, and must not be served with port 0's.
+    val plan = planOf(
+      physicalOp(executionId, "erss-port-missing", PortIdentity() -> OutputMode.SET_SNAPSHOT)
+    )
+
+    withAttached(plan, executionId) { fixture =>
+      val events = new ResultEvents(fixture.workflowStateStore)
+      fixture.setPortResultCounts(("erss-port-missing", 1) -> 1)
+
+      events.updates shouldBe empty
+      events.errors.map(_.getMessage) shouldBe List(
+        "Output port 1 of operator erss-port-missing is not in the physical plan"
+      )
+    }
+  }
+
+  it should "record a later port's result size only once that port has changed" in {
+    val executionId = newExecution()
+    val schema = new Schema(List(new Attribute("id", AttributeType.INTEGER)))
+    storeResult(executionId, "erss-port-size", schema, intRows(schema, "id", 0 until 3))
+    val secondUri = storeResult(
+      executionId,
+      "erss-port-size",
+      schema,
+      intRows(schema, "id", 0 until 6),
+      port = PortIdentity(1)
+    )
+    val plan = planOf(
+      physicalOp(
+        executionId,
+        "erss-port-size",
+        PortIdentity() -> OutputMode.SET_SNAPSHOT,
+        PortIdentity(1) -> OutputMode.SET_SNAPSHOT
+      )
+    )
+
+    withAttached(plan, executionId) { fixture =>
+      // the diff handler runs only while the store's events are observed
+      new ResultEvents(fixture.workflowStateStore)
+      fixture.setPortResultCounts(("erss-port-size", 0) -> 3)
+      storedResultSize(executionId, "erss-port-size") should not be 0L
+      storedResultSize(executionId, "erss-port-size", PortIdentity(1)) shouldBe 0L
+
+      fixture.setPortResultCounts(("erss-port-size", 0) -> 3, ("erss-port-size", 1) -> 6)
+      storedResultSize(executionId, "erss-port-size", PortIdentity(1)) shouldBe
+        DocumentFactory.openDocument(secondUri)._1.getTotalFileSize
+    }
+  }
+
   // -- attachToExecution: the engine callbacks -------------------------------
 
   "the OperatorPortResultUriAvailable callback" should
@@ -1262,30 +1529,61 @@ class ExecutionResultServiceSpec
 
       polling.cancelCount shouldBe 1
       val resultInfo = fixture.workflowStateStore.resultStore.getState.resultInfo
-      resultInfo.keySet.map(_.id) shouldBe Set("erss-final-snapshot", "erss-final-delta")
+      resultInfo.keySet shouldBe Set(
+        globalPortIdOf("erss-final-snapshot"),
+        globalPortIdOf("erss-final-delta")
+      )
       // Counts come from the documents themselves, so the two operators must not
       // be reported with the same count.
-      resultInfo(OperatorIdentity("erss-final-snapshot")).tupleCount shouldBe 3
-      resultInfo(OperatorIdentity("erss-final-delta")).tupleCount shouldBe 2
+      resultInfo(globalPortIdOf("erss-final-snapshot")).tupleCount shouldBe 3
+      resultInfo(globalPortIdOf("erss-final-delta")).tupleCount shouldBe 2
       // A SET_SNAPSHOT result is replaced wholesale, so its content can change
       // without its count changing; the random change detector is what makes the
       // frontend re-read it. A delta is append-only and needs no such nudge.
-      resultInfo(OperatorIdentity("erss-final-snapshot")).changeDetector should not be empty
-      resultInfo(OperatorIdentity("erss-final-delta")).changeDetector shouldBe ""
+      resultInfo(globalPortIdOf("erss-final-snapshot")).changeDetector should not be empty
+      resultInfo(globalPortIdOf("erss-final-delta")).changeDetector shouldBe ""
     }
   }
 
-  it should "report an operator with two output ports by its first port's count" in {
+  it should "record one result entry per external output port, each with its own count" in {
     val executionId = newExecution()
     val schema = new Schema(List(new Attribute("id", AttributeType.INTEGER)))
-    val rows = (n: Int) =>
-      (0 until n).map(i => Tuple.builder(schema).add("id", AttributeType.INTEGER, i).build())
-    storeResult(executionId, "erss-final-two-ports", schema, rows(3))
-    storeResult(executionId, "erss-final-two-ports", schema, rows(8), port = PortIdentity(1))
+    storeResult(executionId, "erss-final-split", schema, intRows(schema, "id", 0 until 3))
+    storeResult(
+      executionId,
+      "erss-final-split",
+      schema,
+      intRows(schema, "id", 0 until 8),
+      port = PortIdentity(1)
+    )
+    // An internal port's materialization is not a result the UI shows, and its index (0)
+    // would collide with external port 0 if it were kept.
+    storeResult(
+      executionId,
+      "erss-final-split",
+      schema,
+      intRows(schema, "id", 0 until 5),
+      port = PortIdentity(0, internal = true)
+    )
+    // Only the second port of this one is stored (its first port's region never ran).
+    storeResult(
+      executionId,
+      "erss-final-only-second",
+      schema,
+      intRows(schema, "id", 0 until 4),
+      port = PortIdentity(1)
+    )
     val plan = planOf(
       physicalOp(
         executionId,
-        "erss-final-two-ports",
+        "erss-final-split",
+        PortIdentity(0, internal = true) -> OutputMode.SET_SNAPSHOT,
+        PortIdentity() -> OutputMode.SET_SNAPSHOT,
+        PortIdentity(1) -> OutputMode.SET_DELTA
+      ),
+      physicalOp(
+        executionId,
+        "erss-final-only-second",
         PortIdentity() -> OutputMode.SET_SNAPSHOT,
         PortIdentity(1) -> OutputMode.SET_SNAPSHOT
       )
@@ -1296,10 +1594,20 @@ class ExecutionResultServiceSpec
 
       fixture.client.fire(ExecutionStateUpdate(WorkflowAggregatedState.COMPLETED))
 
-      // The update for an operator reads its first port, so its count has to come from there
-      // too; the second port's 8 rows must not stand in for the first port's 3.
       val resultInfo = fixture.workflowStateStore.resultStore.getState.resultInfo
-      resultInfo(OperatorIdentity("erss-final-two-ports")).tupleCount shouldBe 3
+      resultInfo.keySet shouldBe Set(
+        globalPortIdOf("erss-final-split"),
+        globalPortIdOf("erss-final-split", PortIdentity(1)),
+        globalPortIdOf("erss-final-only-second", PortIdentity(1))
+      )
+      // Keyed by port, the second port's 8 rows no longer replace the first port's 3.
+      resultInfo(globalPortIdOf("erss-final-split")).tupleCount shouldBe 3
+      resultInfo(globalPortIdOf("erss-final-split", PortIdentity(1))).tupleCount shouldBe 8
+      resultInfo(globalPortIdOf("erss-final-only-second", PortIdentity(1))).tupleCount shouldBe 4
+      // The change detector follows each port's own mode: port 1 is SET_DELTA, so it gets
+      // none even though port 0 (SET_SNAPSHOT) does.
+      resultInfo(globalPortIdOf("erss-final-split")).changeDetector should not be empty
+      resultInfo(globalPortIdOf("erss-final-split", PortIdentity(1))).changeDetector shouldBe ""
     }
   }
 
@@ -1433,11 +1741,20 @@ class ExecutionResultServiceSpec
       val workflowStateStore: WorkflowStateStore
   ) {
 
-    /** Publishes one engine-reported tuple count per operator, as the poller does. */
+    /** Publishes one engine-reported tuple count per operator, on port 0, as the poller does. */
     def setResultCounts(counts: (String, Int)*): Unit =
+      setPortResultCounts(counts.map { case (opId, count) => (opId, 0) -> count }: _*)
+
+    /** Publishes one engine-reported tuple count per (operator, external output port index). */
+    def setPortResultCounts(counts: ((String, Int), Int)*): Unit =
+      setPortResults(counts.map { case (port, count) => port -> OperatorResultMetadata(count) }: _*)
+
+    /** Publishes whole result metadata per (operator, external output port index). */
+    def setPortResults(entries: ((String, Int), OperatorResultMetadata)*): Unit =
       workflowStateStore.resultStore.updateState(_ =>
-        WorkflowResultStore(counts.map {
-          case (opId, count) => OperatorIdentity(opId) -> OperatorResultMetadata(count)
+        WorkflowResultStore(entries.map {
+          case ((opId, port), metadata) =>
+            globalPortIdOf(opId, PortIdentity(port)) -> metadata
         }.toMap)
       )
   }
@@ -1575,19 +1892,30 @@ class ExecutionResultServiceSpec
     uri
   }
 
-  private def storedResultSize(executionId: ExecutionIdentity, operatorId: String): Long =
+  private def storedResultSize(
+      executionId: ExecutionIdentity,
+      operatorId: String,
+      port: PortIdentity = PortIdentity()
+  ): Long =
     getDSLContext
       .select(OPERATOR_PORT_EXECUTIONS.RESULT_SIZE)
       .from(OPERATOR_PORT_EXECUTIONS)
       .where(OPERATOR_PORT_EXECUTIONS.WORKFLOW_EXECUTION_ID.eq(executionId.id.toInt))
       .and(
-        OPERATOR_PORT_EXECUTIONS.GLOBAL_PORT_ID.eq(globalPortIdOf(operatorId).serializeAsString)
+        OPERATOR_PORT_EXECUTIONS.GLOBAL_PORT_ID.eq(
+          globalPortIdOf(operatorId, port).serializeAsString
+        )
       )
       .fetchOne(OPERATOR_PORT_EXECUTIONS.RESULT_SIZE)
 
+  /** One integer-column row per id, in the given column. */
+  private def intRows(schema: Schema, column: String, ids: Seq[Int]): Seq[Tuple] =
+    ids.map(i => Tuple.builder(schema).add(column, AttributeType.INTEGER, i).build())
+
   /**
     * A single-layer physical op whose output ports are declared in the given order --
-    * a ListMap, because convertWebResultUpdate reads the FIRST external port's mode.
+    * a ListMap, so a test can list an internal port before an external one and catch
+    * a mode lookup that does not go by the served port's own id.
     */
   private def physicalOp(
       executionId: ExecutionIdentity,

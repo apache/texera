@@ -21,8 +21,17 @@ package org.apache.texera.web.service
 
 import io.reactivex.rxjava3.disposables.Disposable
 import org.apache.texera.amber.core.storage.result.{OperatorResultMetadata, WorkflowResultStore}
-import org.apache.texera.amber.core.virtualidentity.{OperatorIdentity, WorkflowIdentity}
-import org.apache.texera.amber.core.workflow.{WorkflowContext, WorkflowSettings}
+import org.apache.texera.amber.core.virtualidentity.{
+  OperatorIdentity,
+  PhysicalOpIdentity,
+  WorkflowIdentity
+}
+import org.apache.texera.amber.core.workflow.{
+  GlobalPortIdentity,
+  PortIdentity,
+  WorkflowContext,
+  WorkflowSettings
+}
 import org.apache.texera.amber.engine.architecture.rpc.controlreturns.WorkflowAggregatedState
 import org.apache.texera.amber.engine.architecture.rpc.controlreturns.WorkflowAggregatedState.{
   COMPLETED,
@@ -495,7 +504,16 @@ class WorkflowServiceSpec
     service.lifecycle.increaseCount shouldBe 1
 
     val update: WorkflowResultStore => WorkflowResultStore =
-      _ => WorkflowResultStore(Map(OperatorIdentity("op") -> OperatorResultMetadata(1)))
+      _ =>
+        WorkflowResultStore(
+          Map(
+            GlobalPortIdentity(
+              PhysicalOpIdentity(OperatorIdentity("op"), "main"),
+              PortIdentity(),
+              input = false
+            ) -> OperatorResultMetadata(1)
+          )
+        )
     service.stateStore.resultStore.updateState(update)
     events should have size 2
 
