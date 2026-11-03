@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1793623556763,
+  "lastUpdate": 1793710810004,
   "repoUrl": "https://github.com/apache/texera",
   "entries": {
     "Arrow Flight E2E Throughput": [
@@ -20831,6 +20831,163 @@ window.BENCHMARK_DATA = {
           {
             "name": "throughput / bs=1000 sw=50 sl=512",
             "value": 733.0984929218178,
+            "unit": "tuples/sec"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "name": "Luis Fernando Caro Reyna",
+            "username": "CaroFernando",
+            "email": "44384982+CaroFernando@users.noreply.github.com"
+          },
+          "committer": {
+            "name": "GitHub",
+            "username": "web-flow",
+            "email": "noreply@github.com"
+          },
+          "id": "86fbe562a4caad1f19eab5e08b1edab97fa0a077",
+          "message": "fix(licensing): replace the stock operator icons and list the ASF logos in LICENSE (#9261)\n\n### What changes were proposed in this PR?\n\nThree operator icons came from sources whose licences are incompatible\nwith an Apache release, so they can't be covered by `DISCLAIMER-WIP` and\nmust be replaced before RC1 (#8984). This PR replaces them the same way\nas #9220, and fixes two smaller items from the same audit.\n\n| File | Was | Now | Licence |\n|---|---|---|---|\n| `SankeyDiagram.png` | Adobe Stock asset (per its embedded metadata) |\nIBM Carbon\n[`sankey-diagram--alt`](https://cdn.jsdelivr.net/npm/@carbon/icons@11.91.0/svg/32/sankey-diagram--alt.svg)\n(`@carbon/icons` 11.91.0) | Apache-2.0 |\n| `DumbbellPlot.png` | Freepik icon (#2149) | Project-made: drawn\ndumbbell plot (lines with an open start and a filled end dot) | — |\n| `TypeCasting.png` | Noun Project icon, author never recorded (#929) |\nIBM Carbon\n[`transform--binary`](https://cdn.jsdelivr.net/npm/@carbon/icons@11.91.0/svg/32/transform--binary.svg)\n(`@carbon/icons` 11.91.0) | Apache-2.0 |\n| `SklearnDummyClassifier.png`, `SklearnTrainingDummyClassifier.png`\n(new) | No icon: the existing `SklearnDummy*.png` files match no\noperator type, so these operators showed a broken image | Project-made:\ntypographic \"Dummy\" in [Aileron](https://dotcolon.net/fonts/aileron)\n(CC0 1.0), like the \"P(A)\" and \"PA\" icons in #9220 | — |\n\n<img width=\"770\" height=\"890\" alt=\"image\"\nsrc=\"https://github.com/user-attachments/assets/08f63fa1-10ce-4702-9aeb-70246f67b22d\"\n/>\n\n**LICENSE.** The two Carbon icons are added to the existing Carbon\noperator-icon entry in `LICENSE` and `frontend/LICENSE-binary`;\nproject-made icons get no entry. The PNGs are 256×256 and record their\nsource, licence and copyright in PNG text metadata (`exiftool -Comment\n<file>`), as in #9220.\n\n**Apache Arrow and AsterixDB logos.** `ArrowSource.png` and\n`AsterixDBSource.png` are byte-identical to the official logos in\n[`apache/arrow-site`](https://github.com/apache/arrow-site/blob/229e92ede438bb6e13417eda141551c242cff334/img/arrow-logo_hex_black-txt_white-bg.png)\nand\n[`apache/asterixdb-site`](https://github.com/apache/asterixdb-site/blob/00f9bf22dd19e8645315fb2b139527a575dae9c1/img/asterixdb_tm.png)\n(same git blob hash). This adds an entry for them with a trademark note.\nIt records their provenance for the audit; strictly, [bundled ASF works\nneed no LICENSE\nentry](https://infra.apache.org/licensing-howto.html#bundle-asf-product),\nso I'm happy to drop it if reviewers prefer.\n\n### Any related issues, documentation, discussions?\n\nPart of #8984 (follows #9220). Related: #8800, #2149, #929.\n\nThe icons that no operator uses (including `SklearnDummy*.png`,\n`HdfsFileScan.png` and `src/favicon.ico`) are left for a separate PR,\npending the decision on #8984.\n\nBackport: the five icon files are identical on `release/v1.3`, and both\ndummy-classifier operators exist there. `LICENSE` has one trivial\nconflict on `release/v1.3` (it has no ORCID entry next to the new\nblock), so the backport may need to be done by hand.\n\n### How was this PR tested?\n\nAsset and LICENSE change only, no code change.\n\n- Previewed every icon at the 35 px size the workflow canvas draws them\nat (see the before/after image).\n- Checked that the third-party files are listed in both `LICENSE` and\n`frontend/LICENSE-binary` and the project-made ones are not.\n- Checked the PNG notices: `exiftool -s -Comment\nfrontend/src/assets/operator_images/{SankeyDiagram,DumbbellPlot,TypeCasting,SklearnDummyClassifier}.png`.\n- Checked the Arrow and AsterixDB logos against the upstream files: `git\nhash-object` matches the blobs in `apache/arrow-site` and\n`apache/asterixdb-site`.\n- License header check, as in `check-header.yml`: `license-eye -c\n.licenserc.yaml header check` reports 0 invalid files.\n\n### Was this PR authored or co-authored using generative AI tooling?\n\nGenerated-by: Claude Code (claude-opus-5-5)\n\nNo image-generation model was used. Claude Code was used to search the\nicon sets, render the SVGs to PNG, draw the project-made icons from\nsimple shapes and text, and write the LICENSE entries; every icon was\nchosen by the author.",
+          "timestamp": "2026-11-03T05:21:44Z",
+          "url": "https://github.com/apache/texera/commit/86fbe562a4caad1f19eab5e08b1edab97fa0a077"
+        },
+        "date": 1793710809183,
+        "tool": "customBiggerIsBetter",
+        "benches": [
+          {
+            "name": "throughput / bs=10 sw=1 sl=8",
+            "value": 653.533048462569,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=1 sl=8",
+            "value": 1146.823929960908,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=1 sl=8",
+            "value": 1240.1999331751788,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=1 sl=64",
+            "value": 890.1622889896943,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=1 sl=64",
+            "value": 1196.5594912374736,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=1 sl=64",
+            "value": 1239.471597574672,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=1 sl=512",
+            "value": 897.7266313270983,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=1 sl=512",
+            "value": 1203.5798644962272,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=1 sl=512",
+            "value": 1239.800402247794,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=10 sl=8",
+            "value": 750.1177431692038,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=10 sl=8",
+            "value": 944.9577824334627,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=10 sl=8",
+            "value": 984.6249651653527,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=10 sl=64",
+            "value": 775.5812623145557,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=10 sl=64",
+            "value": 969.3060537116418,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=10 sl=64",
+            "value": 980.9704003192802,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=10 sl=512",
+            "value": 776.1393066953173,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=10 sl=512",
+            "value": 952.3296513349646,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=10 sl=512",
+            "value": 959.1107160291225,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=50 sl=8",
+            "value": 464.11496527942717,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=50 sl=8",
+            "value": 534.9053387326724,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=50 sl=8",
+            "value": 535.5341593061697,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=50 sl=64",
+            "value": 468.6069977651865,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=50 sl=64",
+            "value": 532.6538538849521,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=50 sl=64",
+            "value": 537.5716110645787,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=50 sl=512",
+            "value": 424.39558433913544,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=50 sl=512",
+            "value": 505.7771757842945,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=50 sl=512",
+            "value": 508.0856506009328,
             "unit": "tuples/sec"
           }
         ]
