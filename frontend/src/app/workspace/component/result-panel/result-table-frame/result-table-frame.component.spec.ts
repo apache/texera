@@ -1065,6 +1065,12 @@ describe("ResultTableFrameComponent", () => {
         renderOneRow(false);
         expect(fixture.debugElement.query(By.css("button.download-button"))).toBeNull();
       });
+
+      it("is not rendered on a port past the first, as a cell export reads the first port", () => {
+        component.portIndex = 1;
+        renderOneRow(true);
+        expect(fixture.debugElement.query(By.css("button.download-button"))).toBeNull();
+      });
     });
   });
 
