@@ -467,17 +467,20 @@ export class SharedModelChangeHandler {
   }
 
   /**
-   * Keeps each anchored comment box's connector line on its operator: redrawn whenever the comment box
-   * or the operator is added to the joint graph or moves, wherever the move came from.
+   * Keeps each anchored comment box's outline and connector line on its operator: redrawn whenever the
+   * comment box or the operator is added to the joint graph, moves, or the operator is removed.
+   * An anchor to an operator that is not on the canvas (e.g. deleted by an editor that predates anchoring)
+   * is drawn as floating.
    * Listens on the joint graph itself, which outlives every shared model, so it is registered once.
    * @private
    */
   private handleCommentBoxConnectors(): void {
-    this.jointGraph.on("add change:position", (cell: joint.dia.Cell) => {
+    this.jointGraph.on("add remove change:position", (cell: joint.dia.Cell) => {
       const elementID = cell.id.toString();
       if (this.texeraGraph.hasCommentBox(elementID)) {
         this.refreshCommentBoxConnector(elementID);
-      } else if (this.texeraGraph.hasOperator(elementID)) {
+      } else {
+        // A removed operator is already gone from the texera graph, so look up its comment boxes by ID alone.
         this.texeraGraph
           .getCommentBoxesAnchoredTo(elementID)
           .forEach(commentBoxID => this.refreshCommentBoxConnector(commentBoxID));
@@ -493,6 +496,7 @@ export class SharedModelChangeHandler {
     const operatorID = this.texeraGraph.getCommentBox(commentBoxID).anchoredOperatorID;
     const operatorElement =
       operatorID === undefined ? undefined : (this.jointGraph.getCell(operatorID) as joint.dia.Element | undefined);
+    commentElement.attr("rect", JointUIService.getCommentBoxAnchorAttrs(operatorElement !== undefined));
     commentElement.attr(
       ".anchor-connector",
       JointUIService.getCommentBoxConnectorAttrs(commentElement.getBBox(), operatorElement?.getBBox())
@@ -513,9 +517,6 @@ export class SharedModelChangeHandler {
         if (event.target !== this.texeraGraph.sharedModel.commentBoxMap) {
           const commentBox: CommentBox = this.texeraGraph.getCommentBox(event.path[0] as string);
           if (event.path.length === 1 && event.changes.keys.has("anchoredOperatorID")) {
-            this.jointGraph
-              .getCell(commentBox.commentBoxID)
-              ?.attr("rect", JointUIService.getCommentBoxAnchorAttrs(commentBox.anchoredOperatorID !== undefined));
             this.refreshCommentBoxConnector(commentBox.commentBoxID);
           }
           if (event.path.length === 2 && event.path[event.path.length - 1] === "comments") {

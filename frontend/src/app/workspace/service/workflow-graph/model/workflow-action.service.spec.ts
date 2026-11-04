@@ -599,6 +599,24 @@ describe("WorkflowActionService", () => {
       expect(dash()).toEqual("none");
     });
 
+    it("doesn't outline a comment box anchored to an operator that is gone", () => {
+      const workflow: Workflow = {
+        ...DEFAULT_WORKFLOW,
+        content: {
+          operators: [mockScanPredicate],
+          operatorPositions: { [mockScanPredicate.operatorID]: mockPoint },
+          links: [],
+          commentBoxes: [
+            { ...mockCommentBox, commentBoxID: "commentBox-dangling", anchoredOperatorID: "no-such-operator" },
+          ],
+          settings: service.getWorkflowSettings(),
+        },
+      };
+      service.reloadWorkflow(workflow);
+
+      expect(jointGraph.getCell("commentBox-dangling").attr("rect/stroke-dasharray")).toEqual("none");
+    });
+
     it("undoes an anchor", () => {
       service.addOperator(mockScanPredicate, mockPoint);
       addComment(anchoredID, { x: 0, y: 0 });
@@ -821,6 +839,18 @@ describe("WorkflowActionService", () => {
         expect(theirs.attr("rect/stroke-dasharray")).toEqual("4 2");
         expect(theirs.attr(".anchor-connector")).toEqual(mine.attr(".anchor-connector"));
         expect(theirs.attr(".anchor-connector/display")).toEqual("inline");
+      });
+
+      it("drops the outline when an older editor deletes the operator but leaves the anchor", () => {
+        service.anchorCommentBox(anchoredID, mockScanPredicate.operatorID);
+
+        // An editor from before anchoring deletes the operator without detaching its comment boxes.
+        ((peer as any).texeraGraph as WorkflowGraph).deleteOperator(mockScanPredicate.operatorID);
+
+        expect(texeraGraph.getCommentBox(anchoredID).anchoredOperatorID).toEqual(mockScanPredicate.operatorID);
+        const mine = jointGraph.getCell(anchoredID) as joint.dia.Element;
+        expect(mine.attr("rect/stroke-dasharray")).toEqual("none");
+        expect(mine.attr(".anchor-connector/display")).toEqual("none");
       });
 
       it("moves an anchored comment box on the other canvas when its operator is dragged", () => {
