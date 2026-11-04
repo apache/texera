@@ -115,7 +115,7 @@ class BinningOpDescSpec extends AnyFlatSpec with Matchers {
   // between them is a difference in this operator rather than in pandas.
   "The two renderings" should "make the same pandas call" in {
     val d = desc(BinningMethod.EQUAL_FREQUENCY, 5)
-    val call = """pd.qcut(_binned, q=5, duplicates="drop")"""
+    val call = """pd.qcut(_binned - _low, q=5, duplicates="drop")"""
     d.generateStandaloneCode() should include(call)
     d.generatePythonCode() should include(call)
   }
@@ -162,9 +162,10 @@ class BinningOpDescSpec extends AnyFlatSpec with Matchers {
     }
   }
 
-  // Runs the exported code as written over three frames, and reports the length of
-  // the bin column and how much of it was filled. The exported code is plain pandas,
-  // so nothing about the operator has to be stubbed for it to run.
+  // Runs the exported code as written over a few frames, and reports the length of
+  // the bin column, how much of it was filled, and how many distinct bins it holds.
+  // The exported code is plain pandas, so nothing about the operator has to be
+  // stubbed for it to run.
   private val runtimeDriverScript: String =
     """import sys
       |import pandas as pd
@@ -182,21 +183,26 @@ class BinningOpDescSpec extends AnyFlatSpec with Matchers {
       |    "storednan": storednan,
       |    "empty": pd.DataFrame({"age": pd.Series([], dtype="float64")}),
       |    "mixed": pd.DataFrame({"age": pd.Series([1.0, 2.0, None])}),
+      |    "biglong": pd.DataFrame(
+      |        {"age": pd.Series([2**53, 2**53 + 1, 2**53 + 2], dtype="Int64")}
+      |    ),
       |}
       |for cid, frame in cases.items():
       |    namespace = {"pd": pd, "in1df": frame}
       |    try:
       |        exec(code, namespace)
       |        labels = namespace["out1df"]["age_bin"]
-      |        print("CASE %s OK:%d:%d" % (cid, len(labels), labels.notna().sum()))
+      |        print("CASE %s OK:%d:%d:%d" % (cid, len(labels), labels.notna().sum(), labels.nunique()))
       |    except Exception as error:
       |        print("CASE %s %s" % (cid, type(error).__name__))
       |""".stripMargin
 
   // An all-empty column used to raise on an equal-width cut, and so did an empty
-  // table, both before the suffix that keeps a hole a hole could run.
+  // table, both before the suffix that keeps a hole a hole could run. Three LONG
+  // values past 2**53 one apart used to collapse into duplicate float edges, which
+  // an equal-width cut raised on and a quantile cut merged into one bin.
   for (method <- BinningMethod.values) {
-    it should s"bin a column with nothing in it rather than raising, cutting by $method" taggedAs NeedsPythonPackages in {
+    it should s"bin an empty or a large integer column rather than raising, cutting by $method" taggedAs NeedsPythonPackages in {
       val python = resolvePythonExecutable().getOrElse(
         cancel("No runnable python executable (udf.conf python.path, python3, python, py)")
       )
@@ -207,7 +213,8 @@ class BinningOpDescSpec extends AnyFlatSpec with Matchers {
       val moduleFile = Files.createTempFile("binning_op_", ".py")
       val driverFile = Files.createTempFile("binning_driver_", ".py")
       try {
-        val code = desc(method).generateStandaloneCode()
+        val d = desc(method)
+        val code = (d.standaloneImports() :+ d.generateStandaloneCode()).mkString("\n")
         Files.write(moduleFile, code.getBytes(StandardCharsets.UTF_8))
         Files.write(driverFile, runtimeDriverScript.getBytes(StandardCharsets.UTF_8))
 
@@ -227,10 +234,11 @@ class BinningOpDescSpec extends AnyFlatSpec with Matchers {
             .map(m => m.group(1) -> m.group(2))
             .toMap
           verdicts shouldBe Map(
-            "allnull" -> "OK:2:0", // two rows, neither of them in a bin
-            "storednan" -> "OK:2:0", // NaN is no more placeable than a hole
-            "empty" -> "OK:0:0", // no rows to put in one
-            "mixed" -> "OK:3:2" // the hole is the only row left unlabelled
+            "allnull" -> "OK:2:0:0", // two rows, neither of them in a bin
+            "storednan" -> "OK:2:0:0", // NaN is no more placeable than a hole
+            "empty" -> "OK:0:0:0", // no rows to put in one
+            "mixed" -> "OK:3:2:2", // the hole is the only row left unlabelled
+            "biglong" -> "OK:3:3:3" // each value keeps a bin of its own
           )
         }
       } finally {
