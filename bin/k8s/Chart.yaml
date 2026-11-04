@@ -47,7 +47,7 @@ dependencies:
     repository: https://charts.bitnami.com/bitnami
 
   - name: rustfs
-    version: 1.0.0-rc.6
+    version: 1.0.0
     repository: https://charts.rustfs.com
     condition: rustfs.enabled
 
