@@ -56,12 +56,16 @@ export class BrowseSectionComponent implements OnInit, OnChanges {
   @Input() sectionTitle: string = "";
   @Input() currentUid: number | undefined;
 
+<<<<<<< HEAD
   defaultBackground: string = "../../../../../assets/card_background.jpg";
   protected readonly HUB_WORKFLOW_RESULT_DETAIL = HUB_WORKFLOW_RESULT_DETAIL;
   protected readonly USER_WORKSPACE = USER_WORKSPACE;
   protected readonly HUB_DATASET_RESULT_DETAIL = HUB_DATASET_RESULT_DETAIL;
   protected readonly USER_DATASET = USER_DATASET;
   entityRoutes: { [key: number]: string[] } = {};
+=======
+  defaultBackground: string = "../../../../../assets/card_background.svg";
+>>>>>>> fd85b9de7 (fix(licensing): replace the stock card cover image with a project-made SVG (#9302))
 
   /** Keyed by type and id: ids are only unique within a kind, and sections may mix kinds. */
   private coverImageUrls = new Map<string, string>();

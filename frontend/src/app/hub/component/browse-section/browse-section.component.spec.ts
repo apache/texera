@@ -210,7 +210,7 @@ describe("BrowseSectionComponent rendering", () => {
 
     img.dispatchEvent(new Event("error"));
 
-    expect(img.src).toContain("card_background.jpg");
+    expect(img.src).toContain("card_background.svg");
   });
 
   it("labels the avatar with the entity id", () => {
