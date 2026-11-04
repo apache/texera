@@ -475,21 +475,31 @@ This product includes the ORCID iD icon from ORCID, Inc.:
 Public Domain
 --------------------------------------
 
-This product bundles sample sales data from Excel BI Analytics as test data,
-including copies edited for the CSV operator tests:
+This product bundles sample sales data from Excel BI Analytics as test data.
+
+From "100 Sales Records.csv":
   - common/workflow-core/src/test/resources/country_sales_small.csv
+  - common/workflow-operator/src/test/resources/country_sales_small.csv
+  - workflow-compiling-service/src/test/resources/country_sales_small.csv
+
+Edited from "100 Sales Records.csv" for the CSV operator tests:
   - common/workflow-operator/src/test/resources/country_sales_headerless_small.csv
   - common/workflow-operator/src/test/resources/country_sales_headerless_small_multi_line.csv
   - common/workflow-operator/src/test/resources/country_sales_headerless_small_multi_line_custom_delimiter.csv
-  - common/workflow-operator/src/test/resources/country_sales_medium.csv
-  - common/workflow-operator/src/test/resources/country_sales_small.csv
   - common/workflow-operator/src/test/resources/country_sales_small_multi_line.csv
-  - workflow-compiling-service/src/test/resources/country_sales_small.csv
+
+From "100000 Sales Records.csv", with numbers reformatted:
+  - common/workflow-operator/src/test/resources/country_sales_medium.csv
+
   Creator: Vijay A. Verma
   Source: https://excelbianalytics.com/downloads-18-sample-csv-files-data-sets-for-testing-sales/
-  License: Public domain. The creator states that anything published on the site is
-           "completely copyright free" and can be used without obligation.
-  Note: The data is randomly generated and does not describe real sales.
+  License: Treated as public domain, based on the creator's statement on the source
+           page (retrieved 2026-11-04):
+           "Anything published on this is completely copyright free. You can use
+           anything from this site without any obligation."
+  Note: The source page also states: "These are not real sales data and should not
+        be used for any other purpose other than testing." This product uses the
+        data only as test data.
 
 Trademarks
 --------------------------------------
