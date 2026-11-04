@@ -19,8 +19,8 @@
 
 import { z } from "zod";
 import { tool } from "ai";
-import { createErrorResult, formatExecuteOperatorResult, getVisibleResultHeaders } from "./tools-utility";
-import { formatInputOutputMetadata, jsonToTableFormat } from "./result-formatting";
+import { createErrorResult } from "./tools-utility";
+import { formatOperatorResult } from "./result-formatting";
 import type { WorkflowState } from "../workflow-state";
 import { getBackendConfig } from "../../api/backend-api";
 import { env } from "../../config/env";
@@ -437,10 +437,6 @@ export async function executeOperatorAndFormat(
       return "(no result data)";
     }
 
-    const jsonArray = opInfo.result as Record<string, any>[];
-    const headers = jsonArray.length > 0 ? getVisibleResultHeaders(jsonArray[0]) : [];
-    const columns = headers.length;
-
     // Notify for every operator in the execution so upstream stats are also stored.
     if (options.onResult) {
       for (const [opId, info] of Object.entries(result.operators)) {
@@ -450,50 +446,9 @@ export async function executeOperatorAndFormat(
       }
     }
 
-    let dataString = jsonToTableFormat(jsonArray);
-
     // Safety-net: TSV serialization may add padding beyond backend's raw-record budget.
     const charLimit = config.maxOperatorResultCharLimit ?? DEFAULT_AGENT_SETTINGS.maxOperatorResultCharLimit;
-
-    if (dataString.length > charLimit) {
-      const allLines = dataString.split("\n");
-      const headerLine = allLines[0];
-      const dataRows = allLines.slice(1);
-
-      const reservedSize = headerLine.length + 1;
-
-      const halfLimit = Math.floor((charLimit - reservedSize) / 2);
-
-      let frontSize = 0;
-      const frontRows: string[] = [];
-      for (const row of dataRows) {
-        const rowLen = row.length + 1;
-        if (frontSize + rowLen > halfLimit && frontRows.length > 0) break;
-        frontRows.push(row);
-        frontSize += rowLen;
-      }
-
-      let backSize = 0;
-      const backRows: string[] = [];
-      for (let i = dataRows.length - 1; i >= frontRows.length; i--) {
-        const rowLen = dataRows[i].length + 1;
-        if (backSize + rowLen > halfLimit && backRows.length > 0) break;
-        backRows.unshift(dataRows[i]);
-        backSize += rowLen;
-      }
-
-      const keptRows = [...frontRows, ...backRows];
-      dataString = [headerLine, ...keptRows].join("\n");
-    }
-
-    const shapeLine = formatInputOutputMetadata(workflowState, operatorId, opInfo, columns);
-
-    const warningLines = opInfo.warnings?.map(w => w) ?? [];
-
-    const metadataLines = [shapeLine, ...warningLines].filter(Boolean);
-
-    const briefSummary = formatExecuteOperatorResult(operatorId);
-    return [briefSummary, ...metadataLines, dataString].filter(Boolean).join("\n");
+    return formatOperatorResult(operatorId, opInfo, workflowState, charLimit);
   } catch (error: any) {
     if (error.name === "AbortError") {
       throw error;

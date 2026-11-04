@@ -387,3 +387,51 @@ describe("jsonToTableFormat", () => {
     expect(lines[2]).toBe("1\tline\\nbreak\t20\tNaN\tfalse");
   });
 });
+
+describe("formatOperatorResult - charLimit truncation", () => {
+  const rows = Array.from({ length: 100 }, (_, i) => ({ a: i, b: "x".repeat(20) }));
+
+  test("without charLimit keeps every row", () => {
+    const out = formatOperatorResult("op1", makeOpInfo({ outputTuples: 100, result: rows }), EMPTY_STATE);
+    expect(out).toContain("\n0\t0\t");
+    expect(out).toContain("\n50\t50\t");
+    expect(out).toContain("\n99\t99\t");
+  });
+
+  test("charLimit keeps head and tail rows and drops the middle", () => {
+    const out = formatOperatorResult("op1", makeOpInfo({ outputTuples: 100, result: rows }), EMPTY_STATE, 300);
+    expect(out).toContain("Output table shape: (100, 2)");
+    expect(out).toContain("\ta\tb");
+    expect(out).toContain("\n0\t0\t");
+    expect(out).toContain("\n99\t99\t");
+    expect(out).not.toContain("\n50\t50\t");
+  });
+
+  test("charLimit larger than the table leaves it untouched", () => {
+    const full = formatOperatorResult("op1", makeOpInfo({ outputTuples: 100, result: rows }), EMPTY_STATE);
+    const limited = formatOperatorResult(
+      "op1",
+      makeOpInfo({ outputTuples: 100, result: rows }),
+      EMPTY_STATE,
+      1_000_000
+    );
+    expect(limited).toBe(full);
+  });
+
+  test("tiny charLimit still keeps at least one row", () => {
+    const out = formatOperatorResult("op1", makeOpInfo({ outputTuples: 100, result: rows }), EMPTY_STATE, 1);
+    expect(out).toContain("\n0\t0\t");
+  });
+
+  test("visualization content is skipped even when charLimit is set", () => {
+    const html = "<html>" + "y".repeat(5000) + "</html>";
+    const out = formatOperatorResult(
+      "op1",
+      makeOpInfo({ outputTuples: 1, result: [{ __is_visualization__: true, "html-content": html }] }),
+      EMPTY_STATE,
+      100_000
+    );
+    expect(out).not.toContain("<html>");
+    expect(out).toContain("<skipped: visualization content>");
+  });
+});
