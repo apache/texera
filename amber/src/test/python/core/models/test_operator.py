@@ -22,6 +22,7 @@ import pytest
 
 from core.models import (
     BatchOperator,
+    Schema,
     SourceOperator,
     State,
     Table,
@@ -385,6 +386,24 @@ class TestTableOperator:
         list(op.on_finish(port=0))
         assert len(op.received_tables) == 1
         assert list(op.received_tables[0].as_tuples()) == []
+
+    def test_on_finish_with_no_rows_keeps_the_declared_columns(self):
+        # The column names are read off the tuples, so a port that carried none
+        # left the operator a frame of no columns and every operator naming one
+        # of its own raised KeyError. The port's schema is the only record left.
+        op = _ConcreteTable()
+        op.input_schemas[0] = Schema(raw_schema={"x": "INTEGER", "y": "STRING"})
+
+        list(op.on_finish(port=0))
+
+        table = op.received_tables[0]
+        # Still a Table, so an operator reading it with as_tuples() keeps working.
+        assert isinstance(table, Table)
+        assert list(table.as_tuples()) == []
+        assert list(table.columns) == ["x", "y"]
+        assert table.empty
+        # The dtype each column would have had with rows under it.
+        assert table["x"].dtype == "int32"
 
     def test_buffers_are_keyed_by_port(self):
         # Each input port has its own tuple buffer; on_finish for one port
