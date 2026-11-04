@@ -17,7 +17,7 @@
  * under the License.
  */
 
-import { TestBed } from "@angular/core/testing";
+import { fakeAsync, flushMicrotasks, TestBed, tick } from "@angular/core/testing";
 import { firstValueFrom, Subject } from "rxjs";
 import {
   AiWorkflowFixerService,
@@ -756,23 +756,21 @@ describe("AiWorkflowFixerService", () => {
       expect(executeWorkflow).toHaveBeenCalledWith("");
     });
 
-    it("explains a lock that never clears, instead of reporting a bare timeout", async () => {
+    it("explains a lock that never clears, instead of reporting a bare timeout", fakeAsync(() => {
       // rxjs reports this as "Timeout has occurred", which says nothing about what the
       // panel was waiting for.
-      vi.useFakeTimers();
       modificationEnabled = false;
       stubModel(suggestion());
-      await service.analyzeError(OP, KEY_ERROR_EVENT, SCHEMA, CODE);
+      void service.analyzeError(OP, KEY_ERROR_EVENT, SCHEMA, CODE);
+      flushMicrotasks();
 
-      const applying = service.applyFix();
-      await vi.advanceTimersByTimeAsync(20_000);
-      await applying;
+      void service.applyFix();
+      tick(20_000);
 
       expect(setOperatorProperty).not.toHaveBeenCalled();
       expect(state().status).toEqual("apply_failed");
       expect(state().applyError).toContain("stayed locked");
-      vi.useRealTimers();
-    });
+    }));
 
     it("retries from a failed apply once the operator is back in shape", async () => {
       // The panel keeps the suggestion and its Apply button after a refused write, so the
