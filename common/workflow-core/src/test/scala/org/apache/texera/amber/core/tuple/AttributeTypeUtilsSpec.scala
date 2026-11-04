@@ -702,4 +702,159 @@ class AttributeTypeUtilsSpec extends AnyFunSuite {
   test("parseFields returns an empty array for empty input") {
     assert(parseFields(Array.empty[Any], Array.empty[AttributeType]).isEmpty)
   }
+
+  test("parseFields parses only as many fields as the row holds") {
+    // A short row is not padded: the result has one entry per input field.
+    val parsed = parseFields(Array[Any]("1"), Array(INTEGER, STRING))
+    assert(parsed.sameElements(Array[Any](1)))
+  }
+
+  test("parseFields keeps a null field null and returns boxed typed values") {
+    val parsed =
+      parseFields(
+        Array[Any]("7", null, " 2.5 ", "false", "9000000000"),
+        Array(INTEGER, INTEGER, DOUBLE, BOOLEAN, LONG)
+      )
+    assert(parsed(0).isInstanceOf[java.lang.Integer])
+    assert(parsed(1) == null)
+    assert(parsed(2).isInstanceOf[java.lang.Double])
+    assert(parsed(3).isInstanceOf[java.lang.Boolean])
+    assert(parsed(4).isInstanceOf[java.lang.Long])
+    assert(parsed.sameElements(Array[Any](7, null, 2.5, false, 9000000000L)))
+  }
+
+  test("a failed string parse names the source type and value and keeps the cause") {
+    val cases = Seq(
+      (INTEGER, "Integer", classOf[NumberFormatException]),
+      (LONG, "Long", classOf[NumberFormatException]),
+      (DOUBLE, "Double", classOf[NumberFormatException]),
+      (BOOLEAN, "Boolean", classOf[NumberFormatException])
+    )
+    cases.foreach {
+      case (attributeType, typeName, causeClass) =>
+        val ex = intercept[AttributeTypeException](parseField("oops", attributeType))
+        assert(ex.getMessage == s"Failed to parse type java.lang.String to $typeName: oops")
+        assert(causeClass.isInstance(ex.getCause), s"$attributeType cause was ${ex.getCause}")
+    }
+    val tsEx = intercept[AttributeTypeException](parseField("oops", TIMESTAMP))
+    assert(tsEx.getMessage == "Failed to parse type java.lang.String to Timestamp: oops")
+    assert(tsEx.getCause != null)
+  }
+
+  test("parseField to TIMESTAMP agrees with the date parser on ISO-like local strings") {
+    // Every string here must parse to exactly what the library parser gives, or
+    // fail exactly when it fails, including invalid dates and odd widths.
+    val library = com.github.sisyphsu.dateparser.DateParser.newBuilder().build()
+    def viaLibrary(s: String): Either[String, Timestamp] =
+      try Right(new Timestamp(library.parseDate(s).getTime))
+      catch { case _: Exception => Left("fails") }
+    def viaParseField(s: String): Either[String, Timestamp] =
+      try Right(parseField(s, TIMESTAMP).asInstanceOf[Timestamp])
+      catch { case _: AttributeTypeException => Left("fails") }
+
+    val years = Seq(
+      "0000",
+      "0001",
+      "0999",
+      "1000",
+      "1582",
+      "1583",
+      "1899",
+      "1970",
+      "2000",
+      "2024",
+      "2100",
+      "9999"
+    )
+    val monthDays = Seq(
+      "01-01",
+      "01-31",
+      "02-28",
+      "02-29",
+      "02-30",
+      "03-10",
+      "03-31",
+      "04-30",
+      "04-31",
+      "06-15",
+      "10-27",
+      "11-03",
+      "12-31",
+      "00-10",
+      "13-01",
+      "12-00",
+      "12-32"
+    )
+    val times = Seq(
+      "",
+      " 00:00",
+      "T00:00",
+      " 02:30",
+      " 23:59",
+      " 24:00",
+      " 12:60",
+      " 01:30:00",
+      "T12:34:56",
+      " 23:59:59",
+      " 12:34:60",
+      " 12:34:56.5",
+      "T12:34:56.05",
+      " 12:34:56.123",
+      " 12:34:56.1234",
+      " 12:34:56.123456789",
+      " 12:34:56.1234567890",
+      " 12:34:56.",
+      "  12:34:56",
+      " 1:02:03",
+      " 12:34:5",
+      "T12:34:56Z",
+      " 12:34:56 PM",
+      " 12:34:56+02:00"
+    )
+    val inputs =
+      (for (y <- years; md <- monthDays; t <- times) yield s"$y-$md$t") ++
+        Seq(
+          "2024-1-05",
+          "2024-01-5",
+          "24-01-05",
+          "20240105",
+          "2024/01/05",
+          "2024-01-05x",
+          "+2024-01-05"
+        )
+
+    val mismatches = inputs.filter(s => viaLibrary(s) != viaParseField(s))
+    assert(mismatches.isEmpty, s"${mismatches.size} mismatches, e.g. ${mismatches.take(10)}")
+    // The corpus must actually exercise both outcomes.
+    assert(inputs.exists(s => viaLibrary(s).isRight))
+    assert(inputs.exists(s => viaLibrary(s).isLeft))
+  }
+
+  test("parseField to TIMESTAMP gives the same answer from many threads at once") {
+    // Source scans parse timestamps on several workers in one JVM; each must get
+    // the value a single-threaded parse gives, whatever the interleaving.
+    val inputs = (0 until 400).map { i =>
+      f"20${10 + i % 15}%02d-${1 + i % 12}%02d-${1 + i % 28}%02d ${i % 24}%02d:${i % 60}%02d:${(i * 7) % 60}%02d"
+    } ++ Seq(
+      "2023-11-13T10:15:30",
+      "2023/11/13",
+      "Nov 13, 2023 10:15:30 AM",
+      "2023-11-13T10:15:30Z"
+    )
+    val expected = inputs.map(s => parseField(s, TIMESTAMP))
+
+    val pool = java.util.concurrent.Executors.newFixedThreadPool(8)
+    try {
+      val futures = (0 until 8).map { _ =>
+        pool.submit(new java.util.concurrent.Callable[Seq[Any]] {
+          override def call(): Seq[Any] =
+            (0 until 25).flatMap(_ => inputs.map(s => parseField(s, TIMESTAMP)))
+        })
+      }
+      futures.foreach { f =>
+        val results = f.get(60, java.util.concurrent.TimeUnit.SECONDS)
+        assert(results == Seq.fill(25)(expected).flatten)
+      }
+    } finally pool.shutdownNow()
+  }
 }
