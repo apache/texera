@@ -205,3 +205,5 @@ Visit `http://localhost:1313` to view the site as you edit.
 - [Hugo Documentation](https://gohugo.io/documentation/)
 - [Docsy Guide](https://www.docsy.dev/docs/)
 - [GitHub Pull Request Docs](https://help.github.com/articles/about-pull-requests/)
+
+See [UI parameter architecture](ui-parameter-architecture/) for the shared Python/R contract, module boundaries, and runtime integration tests.

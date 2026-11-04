@@ -17,21 +17,20 @@
  * under the License.
  */
 
-package org.apache.texera.amber.operator.udf.python
+package org.apache.texera.amber.operator.udf
 
 import com.fasterxml.jackson.annotation.JsonProperty
 import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaTitle
 import org.apache.texera.amber.core.tuple.Attribute
-import org.apache.texera.amber.pybuilder.PyStringTypes.EncodableString
 
 import javax.validation.Valid
 import javax.validation.constraints.NotNull
 
 /**
-  * Serialized operator property for one Python UDF UI parameter.
+  * Serialized operator property shared by Python and R UDF UI parameters.
   *
-  * `attribute` carries the inferred parameter name and type. `value` is user-entered text and is marked as
-  * [[EncodableString]] so Python code generation decodes it at runtime instead of embedding raw text into generated code.
+  * `attribute` carries the inferred parameter name and type. `value` is user-entered text.
+  * Language adapters own its encoding and native conversion; the wire model contains no language-specific types.
   */
 class UiUDFParameter {
 
@@ -43,7 +42,7 @@ class UiUDFParameter {
 
   @JsonProperty()
   @JsonSchemaTitle("Value")
-  var value: EncodableString = ""
+  var value: String = ""
 
   /**
     * The Texera resource the value names — "model" or "dataset" — or empty for free text.
