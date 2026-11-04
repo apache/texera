@@ -114,6 +114,13 @@ class FileScanSourceOpDesc
         fileScanLimit.fold(dropped)(l => s"$dropped[:${l.max(0)}]")
       }
 
+    // Every file and entry opens binary and is decoded by the shared
+    // `_texera_decode`, so UTF-16 without a byte-order mark reads as big-endian,
+    // as the engine reads it. A whole file keeps its CRLF; lines go through a
+    // universal-newline StringIO, which ends a line where the engine does.
+    val readWholeOf = if (isBinary) "_f.read()" else s"_texera_decode(_f.read(), $encLit)"
+    val linesOf = s"io.StringIO(_texera_decode(_f.read(), $encLit), newline=None)"
+
     // Whatever the flag says, as the platform now reads it: every row carries
     // the name of the file its value came from, a line's as much as a whole
     // file's. See FileScanUtils.createTuplesFromFile.
@@ -133,38 +140,28 @@ class FileScanSourceOpDesc
       buf += "            continue"
       buf += "        with _z.open(_name) as _f:"
       if (attributeType.isSingle) {
-        // A zip entry only opens binary, so text is decoded here rather than by
-        // the reader.
-        val readWhole = if (isBinary) "_f.read()" else s"_f.read().decode($encLit)"
-        if (emitFilename) buf += s"            _rows.append((_name, $readWhole))"
-        else buf += s"            _rows.append($readWhole)"
+        if (emitFilename) buf += s"            _rows.append((_name, $readWholeOf))"
+        else buf += s"            _rows.append($readWholeOf)"
       } else {
-        // TextIOWrapper, not splitlines: it ends a line where `open(..., "r")`
-        // does, which is what the branch below reads with.
-        val linesExpr = windowed(s"io.TextIOWrapper(_f, encoding=$encLit)")
+        val linesExpr = windowed(linesOf)
         val row = if (emitFilename) s"(_name, $castExpr)" else castExpr
         buf += s"            _rows.extend($row for l in $linesExpr)"
       }
       if (emitFilename) buf += s"""out1df = pd.DataFrame(_rows, columns=["filename", $colLit])"""
       else buf += s"""out1df = pd.DataFrame({$colLit: _rows})"""
     } else if (attributeType.isSingle) {
-      // `newline=""`: the engine decodes the file's bytes as they are, so a CRLF
-      // stays a CRLF. The text reader's default would turn it into a LF.
-      val openArgs =
-        if (isBinary) s"""$SourceFilePlaceholder, "rb""""
-        else s"""$SourceFilePlaceholder, "r", encoding=$encLit, newline="""""
       val dfCols =
-        if (emitFilename) s"""{"filename": $SourceFilePlaceholder, $colLit: [_f.read()]}"""
-        else s"""{$colLit: [_f.read()]}"""
-      buf += s"""with open($openArgs) as _f:"""
+        if (emitFilename) s"""{"filename": $SourceFilePlaceholder, $colLit: [$readWholeOf]}"""
+        else s"""{$colLit: [$readWholeOf]}"""
+      buf += s"""with open($SourceFilePlaceholder, "rb") as _f:"""
       buf += s"""    out1df = pd.DataFrame($dfCols)"""
     } else {
-      val linesExpr = windowed("_f")
+      val linesExpr = windowed(linesOf)
       val dfCols =
         if (emitFilename)
           s"""{"filename": $SourceFilePlaceholder, $colLit: [$castExpr for l in $linesExpr]}"""
         else s"""{$colLit: [$castExpr for l in $linesExpr]}"""
-      buf += s"""with open($SourceFilePlaceholder, "r", encoding=$encLit) as _f:"""
+      buf += s"""with open($SourceFilePlaceholder, "rb") as _f:"""
       buf += s"""    out1df = pd.DataFrame($dfCols)"""
     }
     buf ++= TextSourceOpDesc.parseTimestampColumn(attributeType, colLit)
@@ -172,12 +169,16 @@ class FileScanSourceOpDesc
     buf.mkString("\n")
   }
 
-  override def standaloneHelpers(): Seq[String] = TextSourceOpDesc.lineHelpers(attributeType)
+  override def standaloneHelpers(): Seq[String] = {
+    val isBinary =
+      attributeType == FileAttributeType.BINARY || attributeType == FileAttributeType.LARGE_BINARY
+    TextSourceOpDesc.lineHelpers(attributeType) ++
+      (if (isBinary) Seq.empty else Seq(FileScanOpDesc.DecodeHelper))
+  }
 
   override def standaloneImports(): Seq[String] =
-    if (!extract) Seq.empty
-    else if (attributeType.isSingle) Seq("import zipfile")
-    else Seq("import io", "import zipfile")
+    (if (attributeType.isSingle) Seq.empty else Seq("import io")) ++
+      (if (extract) Seq("import zipfile") else Seq.empty)
 
   override def getPhysicalOp(
       workflowId: WorkflowIdentity,

@@ -264,11 +264,56 @@ class FileScanSourceOpDescSpec extends AnyFlatSpec with BeforeAndAfter {
     // The engine decodes the bytes as they are. The text reader's default turns a
     // CRLF into a LF, so `first\r\nsecond\r\n` would export as `first\nsecond\n`.
     fileScanSourceOpDesc.attributeType = FileAttributeType.SINGLE_STRING
-    assert(fileScanSourceOpDesc.generateStandaloneCode().contains("""newline="""""))
+    assert(
+      fileScanSourceOpDesc
+        .generateStandaloneCode()
+        .contains("""[_texera_decode(_f.read(), "utf-8")]""")
+    )
 
-    // Lines keep the default, which ends a line where the engine's reader does.
+    // Lines go through universal newlines, which end a line where the engine's
+    // reader does.
     fileScanSourceOpDesc.attributeType = FileAttributeType.STRING
-    assert(!fileScanSourceOpDesc.generateStandaloneCode().contains("newline="))
+    assert(fileScanSourceOpDesc.generateStandaloneCode().contains("newline=None"))
+  }
+
+  // Python's "utf-16" refuses a file with no byte-order mark, and decodes an
+  // archive entry as little-endian. The engine reads both as big-endian.
+  it should "decode every text read with the shared decoder, archive entries included" in {
+    val utf16BeFile = Files.createTempFile("file-scan-utf16be", ".txt")
+    try {
+      Files.write(utf16BeFile, "line1\nline2".getBytes(StandardCharsets.UTF_16BE))
+      val wholeOf = """_texera_decode(_f.read(), "utf-16")"""
+      val linesOf = s"io.StringIO($wholeOf, newline=None)"
+      Seq("false", "true").foreach { extract =>
+        val desc = describing(utf16BeFile, """"encoding":"UTF_16"""", s""""extract":$extract""")
+
+        desc.attributeType = FileAttributeType.SINGLE_STRING
+        assert(desc.generateStandaloneCode().contains(wholeOf))
+        assert(!desc.generateStandaloneCode().contains(".decode("))
+        assert(desc.standaloneHelpers() == Seq(FileScanOpDesc.DecodeHelper))
+
+        desc.attributeType = FileAttributeType.STRING
+        assert(desc.generateStandaloneCode().contains(linesOf))
+        assert(!desc.generateStandaloneCode().contains("TextIOWrapper"))
+        assert(!desc.generateStandaloneCode().contains("""encoding="utf-16""""))
+        assert(desc.standaloneImports().contains("import io"))
+
+        // A binary read stays bytes and needs no decoder.
+        desc.attributeType = FileAttributeType.BINARY
+        assert(!desc.generateStandaloneCode().contains("_texera_decode"))
+        assert(desc.standaloneHelpers().isEmpty)
+      }
+
+      // What the decoder mirrors: the engine reads the same bytes as big-endian.
+      val desc = describing(utf16BeFile, """"encoding":"UTF_16"""")
+      desc.attributeType = FileAttributeType.STRING
+      val exec = new FileScanSourceOpExec(objectMapper.writeValueAsString(desc))
+      exec.open()
+      assert(exec.produceTuple().toList.map(_.getFields.head) == List("line1", "line2"))
+      exec.close()
+    } finally {
+      Files.deleteIfExists(utf16BeFile)
+    }
   }
 
   "FileScanSourceOpDesc.getPhysicalOp" should
