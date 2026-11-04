@@ -485,6 +485,47 @@ describe("OperatorPaginationResultService", () => {
     });
   });
 
+  describe("peekFirstRows", () => {
+    // A hover preview asks for the first rows while the result table may be on any page; the
+    // table's page and cache must come through untouched.
+    it("fetches the first rows without moving the table's page or reading its cache", () => {
+      const eventSubject = mockWorkflowWebsocketService.subscribeToEvent.mock.results[0]
+        .value as unknown as Subject<PaginatedResultEvent>;
+      (service as any).currentPageIndex = 4;
+      (service as any).resultCache.set(1, [{ id: "cached" }]);
+      const received: PaginatedResultEvent[] = [];
+
+      service.peekFirstRows(5).subscribe(e => received.push(e));
+
+      expect(mockWorkflowWebsocketService.send).toHaveBeenCalledWith(
+        "ResultPaginationRequest",
+        expect.objectContaining({
+          operatorID: "testOperator",
+          pageIndex: 1,
+          pageSize: 5,
+          columnOffset: 0,
+          // within the server's Int, which a larger number fails to parse as
+          columnLimit: 2147483647,
+        })
+      );
+      const requestID = (mockWorkflowWebsocketService.send.mock.calls[0][1] as any).requestID;
+      const page: PaginatedResultEvent = {
+        requestID,
+        operatorID: "testOperator",
+        pageIndex: 1,
+        table: [{ id: 1 }],
+        schema: [{ attributeName: "id", attributeType: "integer" }],
+        portIndex: 0,
+        totalTuples: 1,
+      };
+      eventSubject.next(page);
+
+      expect(received).toEqual([page]);
+      expect(service.getCurrentPageIndex()).toBe(4);
+      expect((service as any).resultCache.get(1)).toEqual([{ id: "cached" }]);
+    });
+  });
+
   describe("handleResultUpdate", () => {
     it("records the total tuple count and evicts only the dirty pages", () => {
       (service as any).resultCache.set(1, [{ id: 1 }]);
@@ -548,13 +589,15 @@ describe("OperatorPaginationResultService", () => {
         .value as unknown as Subject<PaginatedResultEvent>;
     });
 
-    it("names the port in its requests, and the first port's service leaves it out", () => {
+    it("names the port in every request, and the first port's service leaves it out", () => {
       secondPort.selectPage(1, 10).subscribe();
+      secondPort.peekFirstRows(5).subscribe();
       service.selectPage(1, 10).subscribe();
 
       const sent = mockWorkflowWebsocketService.send.mock.calls.map(call => call[1] as any);
       expect(sent[0].portIndex).toBe(1);
-      expect("portIndex" in sent[1]).toBe(false);
+      expect(sent[1].portIndex).toBe(1);
+      expect("portIndex" in sent[2]).toBe(false);
     });
 
     it("takes its row count from each reply, as no live update reports on it", () => {

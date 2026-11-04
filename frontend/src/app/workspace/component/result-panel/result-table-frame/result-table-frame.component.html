@@ -86,7 +86,7 @@
           </th>
         </tr>
         <tr
-          *ngIf="tableStats && prevTableStats"
+          *ngIf="hasTableStats"
           #statsRow
           class="custom-stats-row">
           <th *ngFor="let column of currentColumns">
