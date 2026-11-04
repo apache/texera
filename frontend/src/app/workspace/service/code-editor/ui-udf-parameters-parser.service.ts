@@ -36,7 +36,7 @@ export {
 export class UiUdfParametersParserService {
   private readonly python = new PythonUiUdfParametersParser();
 
-  parse(code: string, language: UiUdfLanguage = "python"): UiUdfParameter[] {
+  parse(code: string, language: UiUdfLanguage): UiUdfParameter[] {
     return assertUniqueParameterNames(language === "r" ? parseRUiParameters(code) : this.python.parse(code));
   }
 
@@ -44,7 +44,7 @@ export class UiUdfParametersParserService {
     code: string,
     name: string,
     type: AttributeType,
-    language: UiUdfLanguage = "python"
+    language: UiUdfLanguage
   ): Readonly<{ offset: number; text: string }> {
     const attributeName = name.trim();
     const token = UI_PARAMETER_TOKENS[type];

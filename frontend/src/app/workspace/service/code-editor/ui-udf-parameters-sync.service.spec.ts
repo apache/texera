@@ -245,7 +245,7 @@ describe("UiUdfParametersSyncService", () => {
 
     service.syncStructureFromCode(operatorId);
 
-    expect(parserServiceMock.parse).toHaveBeenCalledWith(sharedCode);
+    expect(parserServiceMock.parse).toHaveBeenCalledWith(sharedCode, "python");
     expect(parametersChangedObserver).toHaveBeenCalledWith({
       operatorId,
       parameters: [parameter("count", "integer")],
@@ -313,10 +313,10 @@ describe("UiUdfParametersSyncService", () => {
 
     service.addParameter(operatorId, "count", "integer");
 
-    expect(parserServiceMock.computeParameterInsertion).toHaveBeenCalledWith(sharedCode, "count", "integer");
+    expect(parserServiceMock.computeParameterInsertion).toHaveBeenCalledWith(sharedCode, "count", "integer", "python");
     const yCode = (sharedOperator.get("operatorProperties") as Yjs.Map<unknown>).get("code") as Yjs.Text;
     expect(yCode.toString()).toBe(`# inserted\n${sharedCode}`);
-    expect(parserServiceMock.parse).toHaveBeenCalledWith(`# inserted\n${sharedCode}`);
+    expect(parserServiceMock.parse).toHaveBeenCalledWith(`# inserted\n${sharedCode}`, "python");
     expect(parametersChangedObserver).toHaveBeenCalledWith({
       operatorId,
       parameters: [parameter("count", "integer")],

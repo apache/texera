@@ -69,11 +69,21 @@ describe("R UDF UI parameter declarations", () => {
     [String.raw`"\143\141\146\351"`, "café"],
     [String.raw`'single\'quote'`, "single'quote"],
     ['r"---[raw # (name)]---"', "raw # (name)"],
+    ["r'(don't)'", "don't"],
+    ["R'--[can't # (name)]--'", "can't # (name)"],
+    ["r'{can't )\" stop}'", "can't )\" stop"],
   ])("preserves R string literal decoding for %s", (literal, name) => {
     expect(parse(`UiParameter(${literal}, AttributeType$STRING)`)[0].attribute.attributeName).toBe(name);
   });
 
-  it.each([String.raw`"\q"`, String.raw`"\U00110000"`, '"unfinished'])(
+  it("keeps declarations after single-quoted raw strings containing apostrophes and quoted examples", () => {
+    expect(
+      parse(`text <- r'(don't )" UiParameter("hidden", AttributeType$INT))'
+UiParameter("active", AttributeType$INT)`)
+    ).toEqual([{ attribute: { attributeName: "active", attributeType: "integer" }, value: "" }]);
+  });
+
+  it.each([String.raw`"\q"`, String.raw`"\U00110000"`, '"unfinished', "r'(unfinished)\"", "r'--[unfinished]-'"])(
     "ignores invalid or unfinished string literals: %s",
     literal => {
       expect(parse(`UiParameter(${literal}, AttributeType$STRING)`)).toEqual([]);

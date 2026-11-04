@@ -77,9 +77,9 @@ function tokenize(code: string): Token[] {
       continue;
     }
     // R raw strings may use paired (), [], or {} and any number of dashes.
-    const raw = /^[rR]"(-*)([([{])/.exec(rest);
+    const raw = /^[rR](["'])(-*)([([{])/.exec(rest);
     if (raw) {
-      const close = ({ "(": ")", "[": "]", "{": "}" } as Record<string, string>)[raw[2]] + raw[1] + '"';
+      const close = ({ "(": ")", "[": "]", "{": "}" } as Record<string, string>)[raw[3]] + raw[2] + raw[1];
       const end = code.indexOf(close, index + raw[0].length);
       if (end < 0) break;
       tokens.push({ text: code.slice(index + raw[0].length, end), kind: "string" });

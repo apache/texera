@@ -26,9 +26,9 @@ import {
   UiUdfParametersParseError,
   UiUdfParametersParserService,
 } from "./ui-udf-parameters-parser.service";
-import type { UiUdfParameter } from "./ui-udf-parameters-parser.service";
+import type { UiUdfLanguage, UiUdfParameter } from "./ui-udf-parameter";
 import { isDefined } from "../../../common/util/predicate";
-import { isPythonUdf } from "../workflow-graph/model/workflow-graph";
+import { getUiUdfLanguage } from "../workflow-graph/model/workflow-graph";
 import type { Text as YText } from "yjs";
 import type { YType } from "../../types/shared-editing.interface";
 import type { AttributeType } from "../../types/workflow-compiling.interface";
@@ -85,8 +85,8 @@ export class UiUdfParametersSyncService {
   syncStructureFromCode(operatorId: string, codeFromEditor?: string): void {
     const operator = this.workflowActionService.getTexeraGraph().getOperator(operatorId);
 
-    const isR = operator?.operatorType === "RUDF" || operator?.operatorType === "RUDFSource";
-    if (!operator || (!isPythonUdf(operator) && !isR)) return;
+    const language = getUiUdfLanguage(operator);
+    if (!language) return;
 
     const code = codeFromEditor ?? this.getSharedCode(operatorId);
     if (!isDefined(code)) return;
@@ -95,7 +95,7 @@ export class UiUdfParametersSyncService {
     let mergedParameters: UiUdfParameter[];
 
     try {
-      mergedParameters = this.buildParsedShapeWithPreservedValues(code, existingParameters, isR);
+      mergedParameters = this.buildParsedShapeWithPreservedValues(code, existingParameters, language);
     } catch (error) {
       if (error instanceof UiUdfParametersParseError) {
         this.uiParametersParseErrorSubject.next({ operatorId, message: error.message });
@@ -114,11 +114,9 @@ export class UiUdfParametersSyncService {
   private buildParsedShapeWithPreservedValues(
     code: string,
     existingParameters: UiUdfParameter[],
-    isR: boolean
+    language: UiUdfLanguage
   ): UiUdfParameter[] {
-    const parsedParameters = isR
-      ? this.uiUdfParametersParserService.parse(code, "r")
-      : this.uiUdfParametersParserService.parse(code);
+    const parsedParameters = this.uiUdfParametersParserService.parse(code, language);
     // A value carries over only while the row names the same kind of resource: a model path
     // left in a row that now names a dataset would resolve to the wrong thing.
     const rowKey = (parameter: UiUdfParameter) => `${parameter.attribute.attributeName}:${parameter.inputType ?? ""}`;
@@ -137,15 +135,17 @@ export class UiUdfParametersSyncService {
    */
   addParameter(operatorId: string, attributeName: string, attributeType: AttributeType): void {
     const operator = this.workflowActionService.getTexeraGraph().getOperator(operatorId);
-    const isR = operator?.operatorType === "RUDF" || operator?.operatorType === "RUDFSource";
-    if (!operator || (!isPythonUdf(operator) && !isR))
-      throw new UiUdfParametersEditError("This operator does not support UI parameters.");
+    const language = getUiUdfLanguage(operator);
+    if (!language) throw new UiUdfParametersEditError("This operator does not support UI parameters.");
     const yCode = this.getSharedYCode(operatorId);
     if (!yCode) throw new UiUdfParametersEditError("UDF code is not available for this operator.");
 
-    const edit = isR
-      ? this.uiUdfParametersParserService.computeParameterInsertion(yCode.toString(), attributeName, attributeType, "r")
-      : this.uiUdfParametersParserService.computeParameterInsertion(yCode.toString(), attributeName, attributeType);
+    const edit = this.uiUdfParametersParserService.computeParameterInsertion(
+      yCode.toString(),
+      attributeName,
+      attributeType,
+      language
+    );
     yCode.insert(edit.offset, edit.text);
     this.syncStructureFromCode(operatorId);
   }
