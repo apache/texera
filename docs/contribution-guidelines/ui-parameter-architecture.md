@@ -53,21 +53,4 @@ Native conversions remain language-specific. For example, R uses `bit64::integer
 
 `UiParameterIntegrationFixtures` generates code through the actual Scala injectors. The integration suite passes that code to Amber's `ExecutorManager` and the actual `texera-rudf` table/tuple source/processing executors. It checks Arrow round-trips, exact long values, Unicode and escaped strings, booleans, timestamps, resource directories, invalid values, and Windows line endings. SDK tests in the plugin cover operator isolation and legacy script compatibility.
 
-## Run the plugin integration tests
-
-Use Linux with Python 3.12, R, and the R packages `arrow`, `coro`, `aws.s3`, and `bit64`. For example, create an isolated environment with conda-forge, then install the requirements and a checkout of the companion R plugin:
-
-```bash
-mamba create -y -p /tmp/texera-r-ui-env -c conda-forge \
-  python=3.12 r-base=4.5 r-arrow=25.0.1 r-coro=1.1.0 r-aws.s3=0.3.22 r-bit64=4.8.6 pip
-export PATH=/tmp/texera-r-ui-env/bin:$PATH
-export LD_LIBRARY_PATH=/tmp/texera-r-ui-env/lib${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}
-python -m pip install -r amber/requirements.txt -r amber/dev-requirements.txt /path/to/texera-rudf
-bash bin/python-proto-gen.sh
-sbt 'WorkflowOperator/Test/runMain org.apache.texera.amber.operator.udf.UiParameterIntegrationFixtures common/workflow-operator/target/ui-parameter-fixtures.json'
-cd amber
-TEXERA_R_INTEGRATION=1 python -m pytest \
-  src/test/python/pytexera/udf/test_ui_parameter_contract.py /path/to/texera-rudf/tests -q
-```
-
-`TEXERA_R_INTEGRATION=1` makes missing plugin dependencies or compiler fixtures fail explicitly. Ordinary tests can run without the optional R installation. Parameterized R scripts require `texera-rudf` 0.2.0 with SDK v1 support; use the companion checkout until that version is published.
+Parameterized R scripts require `texera-rudf` 0.2.0 with SDK v1 support. Generate compiler fixtures with `WorkflowOperator/Test/runMain org.apache.texera.amber.operator.udf.UiParameterIntegrationFixtures common/workflow-operator/target/ui-parameter-fixtures.json`, then run `amber/src/test/python/pytexera/udf/test_ui_parameter_contract.py` with `TEXERA_R_INTEGRATION=1` to require the actual plugin and Arrow path.

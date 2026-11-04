@@ -103,19 +103,13 @@ object UiParameterIntegrationFixtures {
     )
     val operators: ArrayNode = output.putArray("operators")
     for (source <- Seq(false, true); tuple <- Seq(false, true)) {
+      val output = s"${if (tuple) "list" else "data.frame"}(${fields
+        .map { case (name, value) => s"$name=$value" }
+        .mkString(", ")})"
       val body =
-        if (source) s"${if (tuple) "list" else "data.frame"}(${fields
-          .map { case (name, value) => s"$name=$value" }
-          .mkString(", ")})"
-        else {
-          val assignments = fields
-            .map {
-              case (name, value) =>
-                s"input$$$name <- $value"
-            }
-            .mkString("\n")
-          s"$assignments\ninput"
-        }
+        if (source) output
+        else
+          s"output <- $output\nfor (name in names(output)) input[[name]] <- output[[name]]\ninput"
       val args = if (source) "" else "input, port"
       val expression =
         if (tuple)

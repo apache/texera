@@ -18,59 +18,12 @@
     "under the License."
   ],
   "types": [
-    {
-      "attributeType": "string",
-      "token": "STRING",
-      "aliases": [
-        "STRING"
-      ],
-      "requiresValue": false
-    },
-    {
-      "attributeType": "integer",
-      "token": "INT",
-      "aliases": [
-        "INT",
-        "INTEGER"
-      ],
-      "requiresValue": true
-    },
-    {
-      "attributeType": "long",
-      "token": "LONG",
-      "aliases": [
-        "LONG"
-      ],
-      "requiresValue": true
-    },
-    {
-      "attributeType": "double",
-      "token": "DOUBLE",
-      "aliases": [
-        "DOUBLE"
-      ],
-      "requiresValue": true
-    },
-    {
-      "attributeType": "boolean",
-      "token": "BOOL",
-      "aliases": [
-        "BOOL",
-        "BOOLEAN"
-      ],
-      "requiresValue": true
-    },
-    {
-      "attributeType": "timestamp",
-      "token": "TIMESTAMP",
-      "aliases": [
-        "TIMESTAMP"
-      ],
-      "requiresValue": true
-    }
+    {"attributeType": "string", "token": "STRING", "aliases": ["STRING"], "requiresValue": false},
+    {"attributeType": "integer", "token": "INT", "aliases": ["INT", "INTEGER"], "requiresValue": true},
+    {"attributeType": "long", "token": "LONG", "aliases": ["LONG"], "requiresValue": true},
+    {"attributeType": "double", "token": "DOUBLE", "aliases": ["DOUBLE"], "requiresValue": true},
+    {"attributeType": "boolean", "token": "BOOL", "aliases": ["BOOL", "BOOLEAN"], "requiresValue": true},
+    {"attributeType": "timestamp", "token": "TIMESTAMP", "aliases": ["TIMESTAMP"], "requiresValue": true}
   ],
-  "resources": {
-    "MODEL": "model",
-    "DATASET": "dataset"
-  }
+  "resources": {"MODEL": "model", "DATASET": "dataset"}
 }

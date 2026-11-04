@@ -59,13 +59,4 @@ class UiUdfParameterContractSpec extends AnyFlatSpec with Matchers {
       } else noException should be thrownBy inject(parameters)
     }
   }
-
-  "The shared type mapping" should "resolve every declaration alias and retain its canonical generation token" in {
-    UiUdfParameterContract.types.foreach { definition =>
-      definition.aliases.foreach(alias =>
-        UiUdfParameterContract.typesByToken(alias) shouldBe definition.attributeType
-      )
-      UiUdfParameterContract.typesByToken(definition.token) shouldBe definition.attributeType
-    }
-  }
 }

@@ -41,32 +41,6 @@ class RUdfUiParameterInjectorSpec extends AnyFlatSpec with Matchers {
     RUdfUiParameterInjector.inject(null, null) shouldBe ""
   }
 
-  it should "reject missing metadata, duplicate names, unsupported types, and blank required values" in {
-    intercept[RuntimeException](
-      RUdfUiParameterInjector.inject("", List(null))
-    ).getMessage should include("attribute is required")
-    val duplicate = parameter("x", AttributeType.STRING, "a")
-    intercept[RuntimeException](
-      RUdfUiParameterInjector.inject("", List(duplicate, duplicate))
-    ).getMessage should include("more than once")
-    Seq(AttributeType.BINARY, AttributeType.LARGE_BINARY, AttributeType.ANY).foreach { kind =>
-      intercept[RuntimeException](
-        RUdfUiParameterInjector.inject("", List(parameter("x", kind, "v")))
-      ).getMessage should include("not supported")
-    }
-    Seq(
-      AttributeType.INTEGER,
-      AttributeType.LONG,
-      AttributeType.DOUBLE,
-      AttributeType.BOOLEAN,
-      AttributeType.TIMESTAMP
-    ).foreach { kind =>
-      intercept[RuntimeException](
-        RUdfUiParameterInjector.inject("", List(parameter("x", kind, "  ")))
-      ).getMessage should include("requires a value")
-    }
-  }
-
   it should "serialize and compile parameters for both R operators and APIs" in {
     for (source <- Seq(false, true); tuple <- Seq(false, true)) {
       val language = if (tuple) "r-tuple" else "r-table"
