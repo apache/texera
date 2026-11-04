@@ -48,7 +48,6 @@ import {
   mockResultPredicate,
   mockScanPredicate,
 } from "../../service/workflow-graph/model/mock-workflow-data";
-import { createYTypeFromObject } from "../../types/shared-editing.interface";
 
 const createJQueryEvent = (event: string, properties?: object): JQuery.Event =>
   (jQuery as unknown as JQueryStatic).Event(event, properties);
@@ -106,10 +105,12 @@ describe("WorkflowEditorComponent - mouse and pointer event integration", () => 
   });
 
   it("should open commentBox as NzModal when user double clicks on a commentBox", () => {
+    workflowActionService.addCommentBox(mockCommentBox);
+    const commentBox = workflowActionService.getTexeraGraph().getSharedCommentBoxType(mockCommentBox.commentBoxID);
     const modalRef: NzModalRef = nzModalService.create({
       nzTitle: "CommentBox",
       nzContent: NzModalCommentBoxComponent,
-      nzData: { commentBox: createYTypeFromObject(mockCommentBox) },
+      nzData: { commentBox },
       nzAutofocus: null,
       nzFooter: [
         {
@@ -123,12 +124,12 @@ describe("WorkflowEditorComponent - mouse and pointer event integration", () => 
     });
     vi.spyOn(nzModalService, "create").mockReturnValue(modalRef);
     const jointGraphWrapper = workflowActionService.getJointGraphWrapper();
-    workflowActionService.addCommentBox(mockCommentBox);
     jointGraphWrapper.highlightCommentBoxes(mockCommentBox.commentBoxID);
     const jointCellView = component.paper.findViewByModel(mockCommentBox.commentBoxID);
     jointCellView.$el.trigger("dblclick");
     expect(nzModalService.create).toHaveBeenCalled();
     fixture.detectChanges();
+    expect(modalRef.getContentComponent().commentBox).toBe(commentBox);
     modalRef.destroy();
   });
 
