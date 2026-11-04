@@ -19,6 +19,8 @@ import base64
 import json
 from typing import Any
 
+import numpy
+
 from .schema import Schema
 from .tuple import Tuple
 
@@ -98,6 +100,9 @@ def _to_json_value(value: Any) -> Any:
         return {key: _to_json_value(inner) for key, inner in value.items()}
     if isinstance(value, (list, tuple)):
         return [_to_json_value(inner) for inner in value]
+    if isinstance(value, numpy.generic):
+        # A value read from a numeric or boolean pandas column, e.g. D.k[i].
+        return _to_json_value(value.item())
     raise TypeError(
         f"State value of type {type(value).__name__} is not JSON serializable"
     )

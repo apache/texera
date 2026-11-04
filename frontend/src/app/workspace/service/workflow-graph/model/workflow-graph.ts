@@ -35,6 +35,7 @@ import { CoeditorState, User } from "../../../../common/type/user";
 import { createYTypeFromObject, updateYTypeFromObject, YType } from "../../../types/shared-editing.interface";
 import { Awareness } from "y-protocols/awareness";
 import * as Y from "yjs";
+import { isControlVariableLink } from "./control-variable-port";
 
 // define the restricted methods that could change the graph
 type restrictedMethods =
@@ -1097,7 +1098,10 @@ export class WorkflowGraph {
       throw new Error(`link's source port ${link.source.portID} doesn't exist
           on output ports of the source operator ${link.source.operatorID}`);
     }
-    if (targetOperator.inputPorts.find(port => port.portID === link.target.portID) === undefined) {
+    if (
+      !isControlVariableLink(link) &&
+      targetOperator.inputPorts.find(port => port.portID === link.target.portID) === undefined
+    ) {
       throw new Error(`link's target port ${link.target.portID} doesn't exist
           on input ports of the target operator ${link.target.operatorID}`);
     }

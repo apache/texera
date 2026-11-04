@@ -17,6 +17,11 @@
  * under the License.
  */
 
+import {
+  CONTROL_VARIABLE_COLOR,
+  CONTROL_VARIABLE_PORT_GROUP,
+  CONTROL_VARIABLE_PORT_ID,
+} from "../workflow-graph/model/control-variable-port";
 import { of } from "rxjs";
 import * as joint from "jointjs";
 import { JointUIService, operatorNameClass, operatorStateClass, operatorPortMetricsClass } from "./joint-ui.service";
@@ -291,6 +296,15 @@ describe("JointUIService", () => {
     });
   });
 
+  it("draws a link into the control-variable port in purple", () => {
+    const link = JointUIService.getJointLinkCell({
+      linkID: "control-link",
+      source: { operatorID: "op-A", portID: "out-0" },
+      target: { operatorID: "op-B", portID: CONTROL_VARIABLE_PORT_ID },
+    });
+    expect(link.attr(".connection/stroke")).toBe(CONTROL_VARIABLE_COLOR);
+  });
+
   describe("getDefaultLinkCell (static)", () => {
     it("builds a link routed with manhattan and connected with rounded corners", () => {
       const link = JointUIService.getDefaultLinkCell();
@@ -550,9 +564,10 @@ describe("JointUIService", () => {
       const element = service.getJointOperatorElement(predicate, { x: 100, y: 50 });
       expect(element.id).toBe("my-op");
       expect(element.get("z")).toBe(1);
-      // Both ports flow through addPort.
+      // Both ports flow through addPort, and every operator also gets the control-variable port.
       const ports = element.getPorts();
-      expect(ports.map(p => p.id).sort()).toEqual(["in-0", "out-0"]);
+      expect(ports.map(p => p.id).sort()).toEqual([CONTROL_VARIABLE_PORT_ID, "in-0", "out-0"].sort());
+      expect(ports.find(p => p.id === CONTROL_VARIABLE_PORT_ID)?.group).toBe(CONTROL_VARIABLE_PORT_GROUP);
     });
 
     it("emits add/remove port buttons in the markup when dynamicInputPorts and dynamicOutputPorts are true", () => {

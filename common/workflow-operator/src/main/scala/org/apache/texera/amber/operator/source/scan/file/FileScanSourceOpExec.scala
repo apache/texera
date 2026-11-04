@@ -19,6 +19,7 @@
 
 package org.apache.texera.amber.operator.source.scan.file
 
+import org.apache.texera.amber.core.storage.FileResolver
 import org.apache.texera.amber.core.executor.SourceOperatorExecutor
 import org.apache.texera.amber.core.tuple.TupleLike
 import org.apache.texera.amber.util.JSONUtils.objectMapper
@@ -33,8 +34,12 @@ class FileScanSourceOpExec private[scan] (
 
   @throws[IOException]
   override def produceTuple(): Iterator[TupleLike] = {
+    // A name that a control variable bound at run time, such as "$file", is resolved here; a
+    // name the compiler already resolved stays as it is.
+    val fileName = desc.fileName.get
     FileScanUtils.createTuplesFromFile(
-      fileName = desc.fileName.get,
+      fileName = FileResolver.resolve(fileName).toASCIIString,
+      displayFileName = fileName,
       attributeType = desc.attributeType,
       fileEncoding = desc.encoding,
       extract = desc.extract,
