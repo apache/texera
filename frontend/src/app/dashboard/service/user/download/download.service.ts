@@ -92,15 +92,10 @@ export class DownloadService {
     );
   }
 
-  downloadSingleFile(filePath: string, isLogin: boolean = true): Observable<Blob> {
-    const DEFAULT_FILE_NAME = "download";
-    const fileName = filePath.split("/").pop() || DEFAULT_FILE_NAME;
-    return this.downloadWithNotification(
-      () => this.datasetService.retrieveDatasetVersionSingleFile(filePath, isLogin),
-      fileName,
-      `Starting to download file ${filePath}`,
-      `File ${filePath} has been downloaded`,
-      `Error downloading file '${filePath}'`
+  downloadSingleFile(filePath: string, isLogin: boolean = true): Observable<string> {
+    return this.downloadFromPresignedUrl(
+      this.datasetService.getDatasetVersionSingleFilePresignedUrl(filePath, isLogin),
+      filePath
     );
   }
 
@@ -129,15 +124,10 @@ export class DownloadService {
     );
   }
 
-  downloadModelSingleFile(filePath: string, isLogin: boolean = true): Observable<Blob> {
-    const DEFAULT_FILE_NAME = "download";
-    const fileName = filePath.split("/").pop() || DEFAULT_FILE_NAME;
-    return this.downloadWithNotification(
-      () => this.modelService.retrieveModelVersionSingleFile(filePath, isLogin),
-      fileName,
-      `Starting to download file ${filePath}`,
-      `File ${filePath} has been downloaded`,
-      `Error downloading file '${filePath}'`
+  downloadModelSingleFile(filePath: string, isLogin: boolean = true): Observable<string> {
+    return this.downloadFromPresignedUrl(
+      this.modelService.getModelVersionSingleFilePresignedUrl(filePath, isLogin),
+      filePath
     );
   }
 
@@ -363,6 +353,21 @@ export class DownloadService {
       }),
       catchError((error: unknown) => {
         this.notificationService.error(errorMessage);
+        return throwError(() => error);
+      })
+    );
+  }
+
+  // The presigned URL names the file itself (LakeFS adds the attachment Content-Disposition), so the browser streams
+  // the object straight from storage rather than through a Blob held in this tab.
+  private downloadFromPresignedUrl(presignedUrl$: Observable<string>, filePath: string): Observable<string> {
+    return presignedUrl$.pipe(
+      tap(url => {
+        this.fileSaverService.saveFromUrl(url);
+        this.notificationService.info(`Started downloading file ${filePath}`);
+      }),
+      catchError((error: unknown) => {
+        this.notificationService.error(`Error downloading file '${filePath}'`);
         return throwError(() => error);
       })
     );

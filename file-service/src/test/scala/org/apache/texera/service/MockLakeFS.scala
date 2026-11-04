@@ -91,7 +91,7 @@ trait MockLakeFS extends ForAllTestContainer with BeforeAndAfterAll { self: Suit
   val lakefsSecretAccessKey = "wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY"
 
   val lakefs = GenericContainer(
-    dockerImage = "treeverse/lakefs:1.51",
+    dockerImage = "treeverse/lakefs:1.80",
     exposedPorts = Seq(8000),
     env = Map(
       "LAKEFS_BLOCKSTORE_TYPE" -> "s3",

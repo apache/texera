@@ -1083,7 +1083,7 @@ jobs:
             -e LAKEFS_BLOCKSTORE_S3_CREDENTIALS_SECRET_ACCESS_KEY=password \
             -e LAKEFS_AUTH_ENCRYPT_SECRET_KEY=random_string_for_lakefs \
             --entrypoint /bin/sh \
-            treeverse/lakefs:1.51 \
+            treeverse/lakefs:1.80 \
             -c "lakefs setup --user-name texera-admin --access-key-id AKIAIOSFOLKFSSAMPLES --secret-access-key wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY || true; lakefs run"
           for i in $(seq 1 20); do
             curl -sf http://localhost:8000/api/v1/healthcheck && break
