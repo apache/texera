@@ -62,9 +62,15 @@ export class RowModalComponent implements OnChanges, OnDestroy {
   // overwrite the current row and every row's blobs would be held until then.
   private readonly rowChange = new Subject<void>();
   // Index of current displayed row in currentResult
-  private readonly modalData: { operatorId: string; rowIndex: number; rowData?: Record<string, unknown> } =
-    inject(NZ_MODAL_DATA);
+  private readonly modalData: {
+    operatorId: string;
+    rowIndex: number;
+    rowData?: Record<string, unknown>;
+    portIndex?: number;
+  } = inject(NZ_MODAL_DATA);
   readonly operatorId: string = this.modalData.operatorId;
+  // the output port the row is from; left out, the first
+  readonly portIndex: number = this.modalData.portIndex ?? 0;
   rowIndex: number = this.modalData.rowIndex;
   currentDisplayRowData: Record<string, unknown> = {};
 
@@ -96,7 +102,7 @@ export class RowModalComponent implements OnChanges, OnDestroy {
   ngOnChanges(): void {
     this.releaseRow();
     this.workflowResultService
-      .getPaginatedResultService(this.operatorId)
+      .getPortPaginatedResultService(this.operatorId, this.portIndex)
       ?.selectTuple(this.rowIndex, this.resizeService.pageSize)
       .pipe(takeUntil(this.rowChange), untilDestroyed(this))
       .subscribe(res => {

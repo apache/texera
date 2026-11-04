@@ -18,7 +18,7 @@
 -->
 
 <div
-  *ngIf="!currentResult || currentResult.length === 0"
+  *ngIf="(!currentResult || currentResult.length === 0) && !currentColumns?.length"
   style="text-align: center">
   <h4>Empty result set</h4>
   <p>Tip: enable the eye icon on the operator and execute the workflow to view its results.</p>

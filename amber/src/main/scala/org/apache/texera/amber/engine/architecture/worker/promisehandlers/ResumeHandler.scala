@@ -41,7 +41,6 @@ trait ResumeHandler {
     if (dp.stateManager.getCurrentState == PAUSED) {
       dp.pauseManager.resume(UserPause)
       dp.stateManager.transitTo(RUNNING)
-      dp.adaptiveBatchingMonitor.resumeAdaptiveBatching()
     }
     val (state, stateVersion) = dp.stateManager.getStateWithVersion
     WorkerStateResponse(state, stateVersion)

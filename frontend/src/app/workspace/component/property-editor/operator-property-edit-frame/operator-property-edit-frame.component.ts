@@ -39,6 +39,13 @@ import {
 } from "../../../types/custom-json-schema.interface";
 import { isDefined } from "../../../../common/util/predicate";
 import { customFormlyFieldType, NON_FORM_FIELD_TYPES } from "../../../util/custom-formly-type";
+import { applyHuggingFaceFieldBindings } from "../../../util/hugging-face-field-bindings";
+import {
+  applyLoopVariableField,
+  inheritNoLoopVariable,
+  primitiveSchemaType,
+} from "../../../util/loop-variable-field.util";
+import { loopScopeChangeStream, loopVariablesInScope } from "../../../util/loop-variable.util";
 import { ExecutionState, OperatorState } from "src/app/workspace/types/execute-workflow.interface";
 import { DynamicSchemaService } from "../../../service/dynamic-schema/dynamic-schema.service";
 import { WorkflowCompilingService } from "../../../service/compile-workflow/workflow-compiling.service";
@@ -240,6 +247,9 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnChanges, On
   quill!: Quill;
   // used to tear down subscriptions that takeUntil(teardownObservable)
   private teardownObservable: Subject<void> = new Subject();
+  // The loop variables the form was last built with, undefined for an operator outside every block;
+  // see registerLoopScopeChangeHandler.
+  private loopVariableScope: string[] | undefined;
 
   readonly huggingFaceTaskPreviewSamples: Record<
     string,
@@ -258,7 +268,7 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnChanges, On
       kind: "image",
       inputLabel: "Text prompt",
       outputLabel: "Generated image",
-      title: "Comic-style city action scene",
+      title: "Illustrated rooftop leap at sunset",
       body: "Prompt becomes a generated image preview.",
       assetSrc: "assets/sample-image.png",
     },
@@ -316,7 +326,7 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnChanges, On
       outputLabel: "Generated text",
       title: "Image-text-to-text preview",
       body: "The model reads an image and a text prompt to produce a response.",
-      outputBody: "The image shows a superhero leaping across rooftops at sunset.",
+      outputBody: "The image shows a person leaping across rooftops at sunset.",
       assetSrc: "assets/sample-image.png",
     },
     "image-classification": {
@@ -324,9 +334,9 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnChanges, On
       inputLabel: "Image input",
       outputLabel: "Predicted labels",
       title: "Image classification preview",
-      body: "The model assigns labels such as superhero, city, or action scene.",
+      body: "The model assigns labels such as parkour, city, or action scene.",
       assetSrc: "assets/sample-image.png",
-      pills: ["superhero", "cityscape", "action"],
+      pills: ["parkour", "cityscape", "action"],
     },
     "object-detection": {
       kind: "image",
@@ -352,7 +362,7 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnChanges, On
       outputLabel: "Caption text",
       title: "Captioning preview",
       body: "The model turns an uploaded image into a textual description.",
-      outputBody: "A superhero leaps above a dense downtown skyline at sunset.",
+      outputBody: "A person leaps between rooftops above a downtown skyline at sunset.",
       assetSrc: "assets/sample-image.png",
     },
     "visual-question-answering": {
@@ -361,7 +371,7 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnChanges, On
       outputLabel: "Answer text",
       title: "Visual question answering preview",
       body: "The model reads the image and answers the user question.",
-      outputBody: "Spider-Man is jumping over a city skyline.",
+      outputBody: "A person is jumping between two rooftops.",
       assetSrc: "assets/sample-image.png",
     },
     "document-question-answering": {
@@ -380,7 +390,7 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnChanges, On
       title: "Zero-shot image labeling preview",
       body: "Candidate labels are scored against the uploaded image.",
       assetSrc: "assets/sample-image.png",
-      pills: ["superhero", "sports", "travel"],
+      pills: ["parkour", "sports", "travel"],
     },
     "text-generation": {
       kind: "text",
@@ -403,8 +413,8 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnChanges, On
       inputLabel: "Text input",
       outputLabel: "Tagged spans",
       title: "Token classification preview",
-      body: "Peter Parker visited New York yesterday.",
-      pills: ["Peter Parker: PERSON", "New York: LOCATION"],
+      body: "Maya Chen visited New York yesterday.",
+      pills: ["Maya Chen: PERSON", "New York: LOCATION"],
     },
     "question-answering": {
       kind: "text",
@@ -569,6 +579,8 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnChanges, On
     this.registerDisableEditorInteractivityHandler();
 
     this.registerOperatorDisplayNameChangeHandler();
+
+    this.registerLoopScopeChangeHandler();
 
     this.workflowStatusSerivce
       .getStateUpdateStream()
@@ -857,6 +869,39 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnChanges, On
       });
   }
 
+  /**
+   * The loop variables in scope of the operator being edited, or undefined when it is not inside any
+   * control block (or not in the graph at all), so that such operators keep today's form exactly.
+   */
+  private loopVariableNamesInScope(): string[] | undefined {
+    if (this.currentOperatorId === undefined) {
+      return undefined;
+    }
+    return loopVariablesInScope(this.workflowActionService.getTexeraGraph(), this.currentOperatorId);
+  }
+
+  /**
+   * Which fields take a $reference, and which variables they offer, depend on the blocks around the
+   * operator and on their Loop Starts' variables, which other operators' links and properties decide. So
+   * on every edit that can change them (loopScopeChangeStream, on which ValidationWorkflowService
+   * re-validates the operators holding a reference), rebuild the form when the operator's scope is no
+   * longer the one it was built with, rather than only when the operator is next opened.
+   */
+  private registerLoopScopeChangeHandler(): void {
+    const graph = this.workflowActionService.getTexeraGraph();
+    loopScopeChangeStream(graph)
+      .pipe(untilDestroyed(this))
+      .subscribe(() => {
+        if (
+          this.currentOperatorId !== undefined &&
+          graph.hasOperator(this.currentOperatorId) &&
+          !isEqual(this.loopVariableNamesInScope(), this.loopVariableScope)
+        ) {
+          this.rerenderEditorForm();
+        }
+      });
+  }
+
   setFormlyFormBinding(schema: CustomJSONSchema7) {
     var operatorPropertyDiff = this.workflowVersionService.operatorPropertyDiff;
     if (this.currentOperatorId != undefined && operatorPropertyDiff[this.currentOperatorId] != undefined) {
@@ -870,6 +915,10 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnChanges, On
     }
     // Read once: the rules describe the whole schema, not one field.
     const conditionalRules = conditionalRequiredRules(this.currentOperatorSchema?.jsonSchema);
+    // The loop variables the operator may refer to as $name, when it sits inside a control block;
+    // undefined outside every block, where the form keeps today's controls untouched.
+    const loopVariableNames = this.loopVariableNamesInScope();
+    this.loopVariableScope = loopVariableNames;
     // intercept JsonSchema -> FormlySchema process, adding custom options
     // this requires a one-to-one mapping.
     // for relational custom options, have to do it after FormlySchema is generated.
@@ -960,194 +1009,31 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnChanges, On
         mappedField.type = customType;
       }
 
-      if (mappedField.key === "task" && this.currentOperatorSchema?.operatorType === "HuggingFace") {
-        mappedField.hide = true;
+      // Inside a control block a primitive property may hold a loop-variable reference ("$K"), which the
+      // backend binds at run time (issue #8635): render it as a text input that takes "$K" next to plain
+      // values, offer the variables the enclosing Loop Starts declare, and warn about a name none declares.
+      // Enums and custom widgets keep their controls; `mappedField.type` still equal to the schema type
+      // is what tells a plain primitive from a field formly or a widget already resolved otherwise. A
+      // field with value rules is a primitive too, on the rules' control (setValueRules above): the text
+      // input replaces that control, keeps its rules for every value but a reference, and offers the
+      // values they accept next to the variables. A setting the plan is built from, and every field under
+      // one (`noLoopVariable`, spread down by inheritNoLoopVariable below), keeps its plain control: the
+      // compiler rejects a reference there, so none is offered, and one it already holds is left for the
+      // compiler's error to name.
+      const loopSchemaType = primitiveSchemaType(mapSource.type);
+      if (
+        loopVariableNames !== undefined &&
+        customType === undefined &&
+        loopSchemaType !== undefined &&
+        (mappedField.type === loopSchemaType || isDefined(mapSource.valueRules)) &&
+        !isDefined(mapSource.enum) &&
+        mapSource.noLoopVariable !== true
+      ) {
+        applyLoopVariableField(mappedField, loopSchemaType, loopVariableNames);
       }
 
-      // ── Dynamic field visibility for HuggingFace based on selected task ──
-      if (this.currentOperatorSchema?.operatorType === "HuggingFace" && typeof mappedField.key === "string") {
-        const hfKey = mappedField.key;
-        const imageOnlyTasks = ["image-classification", "object-detection", "image-segmentation", "image-to-text"];
-        const imageInputTasks = [
-          ...imageOnlyTasks,
-          "visual-question-answering",
-          "document-question-answering",
-          "zero-shot-image-classification",
-          "image-text-to-text",
-          "image-to-image",
-          "image-to-video",
-        ];
-        const audioInputTasks = ["automatic-speech-recognition", "audio-classification"];
-        const promptRequiredTasks = [
-          "text-generation",
-          "text-classification",
-          "token-classification",
-          "question-answering",
-          "table-question-answering",
-          "zero-shot-classification",
-          "translation",
-          "summarization",
-          "feature-extraction",
-          "fill-mask",
-          "sentence-similarity",
-          "text-ranking",
-          "visual-question-answering",
-          "document-question-answering",
-          "zero-shot-image-classification",
-        ];
-        const getSelectedTask = (field: FormlyFieldConfig): string | undefined => {
-          const fromForm = field.form?.get("task")?.value ?? field.formControl?.parent?.get("task")?.value;
-          if (typeof fromForm === "string" && fromForm.trim().length > 0) {
-            return fromForm;
-          }
-          const fromModel = field.model?.task;
-          if (typeof fromModel === "string" && fromModel.trim().length > 0) {
-            return fromModel;
-          }
-          return undefined;
-        };
-        if (hfKey === "imageInput") {
-          // type ("huggingface-image-upload") is set by customFormlyFieldType above
-          mappedField.expressions = {
-            ...mappedField.expressions,
-            hide: (field: FormlyFieldConfig) => {
-              const t = getSelectedTask(field);
-              return t === undefined || !imageInputTasks.includes(t);
-            },
-          };
-          mappedField.validators = {
-            ...mappedField.validators,
-            requiredImageInput: {
-              expression: (_control: AbstractControl, field: FormlyFieldConfig) => {
-                const t = getSelectedTask(field);
-                if (t === undefined || !imageInputTasks.includes(t)) {
-                  return true;
-                }
-                const inputImageCol = field.model?.inputImageColumn;
-                if (typeof inputImageCol === "string" && inputImageCol.trim().length > 0) {
-                  return true;
-                }
-                const value = field.formControl?.value ?? field.model?.imageInput;
-                return typeof value === "string" && value.trim().length > 0;
-              },
-              message: () => "Upload an image or select an Input Image Column for this task.",
-            },
-          };
-          mappedField.validation = {
-            ...mappedField.validation,
-            show: true,
-          };
-        }
-        if (hfKey === "audioInput") {
-          // type ("huggingface-audio-upload") is set by customFormlyFieldType above
-          mappedField.expressions = {
-            ...mappedField.expressions,
-            hide: (field: FormlyFieldConfig) => {
-              const t = getSelectedTask(field);
-              return t === undefined || !audioInputTasks.includes(t);
-            },
-          };
-          mappedField.validators = {
-            ...mappedField.validators,
-            requiredAudioInput: {
-              expression: (_control: AbstractControl, field: FormlyFieldConfig) => {
-                const t = getSelectedTask(field);
-                if (t === undefined || !audioInputTasks.includes(t)) {
-                  return true;
-                }
-                const inputAudioCol = field.model?.inputAudioColumn;
-                if (typeof inputAudioCol === "string" && inputAudioCol.trim().length > 0) {
-                  return true;
-                }
-                const value = field.formControl?.value ?? field.model?.audioInput;
-                return typeof value === "string" && value.trim().length > 0;
-              },
-              message: () => "Upload audio or select an Input Audio Column for this task.",
-            },
-          };
-          mappedField.validation = {
-            ...mappedField.validation,
-            show: true,
-          };
-        }
-        if (hfKey === "inputImageColumn") {
-          mappedField.expressions = {
-            ...mappedField.expressions,
-            hide: (field: FormlyFieldConfig) => {
-              const t = getSelectedTask(field);
-              return t === undefined || !imageInputTasks.includes(t);
-            },
-          };
-        }
-        if (hfKey === "inputAudioColumn") {
-          mappedField.expressions = {
-            ...mappedField.expressions,
-            hide: (field: FormlyFieldConfig) => {
-              const t = getSelectedTask(field);
-              return t === undefined || !audioInputTasks.includes(t);
-            },
-          };
-        }
-        if (hfKey === "promptColumn") {
-          mappedField.expressions = {
-            ...mappedField.expressions,
-            hide: (field: FormlyFieldConfig) => {
-              const t = getSelectedTask(field);
-              return t !== undefined && (imageOnlyTasks.includes(t) || audioInputTasks.includes(t));
-            },
-          };
-          mappedField.validators = {
-            ...mappedField.validators,
-            requiredPromptColumn: {
-              expression: (_control: AbstractControl, field: FormlyFieldConfig) => {
-                const t = getSelectedTask(field);
-                if (t === undefined || !promptRequiredTasks.includes(t)) {
-                  return true;
-                }
-                const value = field.formControl?.value ?? field.model?.promptColumn;
-                return typeof value === "string" && value.trim().length > 0;
-              },
-              message: () => "Select a prompt column for this task.",
-            },
-          };
-          mappedField.validation = {
-            ...mappedField.validation,
-            show: true,
-          };
-        }
-        if (["systemPrompt", "maxNewTokens", "temperature"].includes(hfKey)) {
-          mappedField.expressions = {
-            ...mappedField.expressions,
-            hide: (field: FormlyFieldConfig) => {
-              const t = getSelectedTask(field);
-              return t !== "text-generation";
-            },
-          };
-        }
-        if (hfKey === "contextColumn") {
-          mappedField.expressions = {
-            ...mappedField.expressions,
-            hide: (field: FormlyFieldConfig) => getSelectedTask(field) !== "question-answering",
-          };
-        }
-        if (hfKey === "candidateLabels") {
-          mappedField.expressions = {
-            ...mappedField.expressions,
-            hide: (field: FormlyFieldConfig) => {
-              const t = getSelectedTask(field);
-              return t !== "zero-shot-classification" && t !== "zero-shot-image-classification";
-            },
-          };
-        }
-        if (hfKey === "sentencesColumn") {
-          mappedField.expressions = {
-            ...mappedField.expressions,
-            hide: (field: FormlyFieldConfig) => {
-              const t = getSelectedTask(field);
-              return t !== "sentence-similarity" && t !== "text-ranking";
-            },
-          };
-        }
+      if (this.currentOperatorSchema?.operatorType === "HuggingFace") {
+        applyHuggingFaceFieldBindings(mappedField);
       }
 
       // Show the required marker for a field the schema requires conditionally,
@@ -1429,10 +1315,12 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnChanges, On
 
     this.formlyFormGroup = new FormGroup({});
     this.formlyOptions = {};
-    // convert the json schema to formly config, pass a copy because formly mutates the schema object
-    const field = this.formlyJsonschema.toFieldConfig(cloneDeep(schema), {
-      map: jsonSchemaMapIntercept,
-    });
+    // convert the json schema to formly config, pass a copy because formly mutates the schema object;
+    // inside a block, a copy that also marks every field under a setting the plan is built from
+    const field = this.formlyJsonschema.toFieldConfig(
+      cloneDeep(loopVariableNames === undefined ? schema : inheritNoLoopVariable(schema)),
+      { map: jsonSchemaMapIntercept }
+    );
     field.hooks = {
       onInit: fieldConfig => {
         if (!this.interactive) {

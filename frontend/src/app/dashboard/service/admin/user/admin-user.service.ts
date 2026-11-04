@@ -21,20 +21,16 @@ import { HttpClient, HttpParams } from "@angular/common/http";
 import { Injectable } from "@angular/core";
 import { Observable } from "rxjs";
 import { AppSettings } from "../../../../common/app-setting";
-import { ExecutionQuota, File, Role, User, Workflow } from "../../../../common/type/user";
+import { ExecutionQuota, Role, User, Workflow } from "../../../../common/type/user";
 import { DatasetQuota } from "src/app/dashboard/type/quota-statistic.interface";
 
 export const USER_BASE_URL = `${AppSettings.getApiEndpoint()}/admin/user`;
 export const USER_LIST_URL = `${USER_BASE_URL}/list`;
 export const USER_UPDATE_URL = `${USER_BASE_URL}/update`;
 export const USER_ADD_URL = `${USER_BASE_URL}/add`;
-export const USER_CREATED_FILES = `${USER_BASE_URL}/uploaded_files`;
-export const USER_UPLOADED_DATASE_SIZE = `${USER_BASE_URL}/dataset_size`;
-export const USER_UPLOADED_DATASET_COUNT = `${USER_BASE_URL}/uploaded_dataset`;
 export const USER_CREATED_DATASETS = `${USER_BASE_URL}/created_datasets`;
 export const USER_CREATED_WORKFLOWS = `${USER_BASE_URL}/created_workflows`;
 export const USER_ACCESS_WORKFLOWS = `${USER_BASE_URL}/access_workflows`;
-export const USER_ACCESS_FILES = `${USER_BASE_URL}/access_files`;
 export const USER_QUOTA_SIZE = `${USER_BASE_URL}/user_quota_size`;
 export const USER_DELETE_EXECUTION_COLLECTION = `${USER_BASE_URL}/deleteCollection`;
 
@@ -62,11 +58,6 @@ export class AdminUserService {
     return this.http.post<Response>(`${USER_ADD_URL}/`, {});
   }
 
-  public getUploadedFiles(uid: number): Observable<ReadonlyArray<File>> {
-    let params = new HttpParams().set("user_id", uid.toString());
-    return this.http.get<ReadonlyArray<File>>(`${USER_CREATED_FILES}`, { params: params });
-  }
-
   public getCreatedDatasets(uid: number): Observable<ReadonlyArray<DatasetQuota>> {
     let params = new HttpParams().set("user_id", uid.toString());
     return this.http.get<ReadonlyArray<DatasetQuota>>(`${USER_CREATED_DATASETS}`, { params: params });
@@ -75,11 +66,6 @@ export class AdminUserService {
   public getCreatedWorkflows(uid: number): Observable<ReadonlyArray<Workflow>> {
     let params = new HttpParams().set("user_id", uid.toString());
     return this.http.get<ReadonlyArray<Workflow>>(`${USER_CREATED_WORKFLOWS}`, { params: params });
-  }
-
-  public getAccessFiles(uid: number): Observable<ReadonlyArray<number>> {
-    let params = new HttpParams().set("user_id", uid.toString());
-    return this.http.get<ReadonlyArray<number>>(`${USER_ACCESS_FILES}`, { params: params });
   }
 
   public getAccessWorkflows(uid: number): Observable<ReadonlyArray<number>> {

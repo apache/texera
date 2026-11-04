@@ -195,6 +195,16 @@ class TestDeserializeGlobalPortIdentity:
         assert result.port_id.internal is True
         assert result.input is False
 
+    @pytest.mark.parametrize(
+        ("field", "valid"), [("isInternal", "false"), ("isInput", "true")]
+    )
+    def test_rejects_invalid_boolean_value(self, field, valid):
+        encoded = (
+            "(logicalOpId=op,layerName=l,portId=0,isInternal=false,isInput=true)"
+        ).replace(f"{field}={valid}", f"{field}=maybe")
+        with pytest.raises(ValueError, match=f"Invalid {field}"):
+            deserialize_global_port_identity(encoded)
+
     def test_raises_value_error_on_malformed_input(self):
         with pytest.raises(ValueError, match="Invalid GlobalPortIdentity format"):
             deserialize_global_port_identity("not-a-port-id")
