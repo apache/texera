@@ -23,7 +23,7 @@ import { createOpenAI } from "@ai-sdk/openai";
 import { TexeraAgent } from "./agent/texera-agent";
 import { getVisibleResultHeaders } from "./agent/tools/tools-utility";
 import { getBackendConfig } from "./api/backend-api";
-import { extractBearerToken, extractUserFromToken, validateToken } from "./api/auth-api";
+import { extractBearerToken, extractUserFromToken, verifyToken } from "./api/auth-api";
 import { retrieveWorkflow } from "./api/workflow-api";
 import { WorkflowSystemMetadata } from "./agent/util/workflow-system-metadata";
 import { env } from "./config/env";
@@ -148,8 +148,6 @@ function getAgent(agentId: string): TexeraAgent {
 // Status codes for handler-thrown errors; anything unlisted is a 500.
 const ERROR_STATUS: Record<string, number> = {
   "Agent not found": 404,
-  "Invalid or expired token": 401,
-  "Authorization header with a Bearer token is required": 401,
   "modelType is required": 400,
 };
 
@@ -168,6 +166,22 @@ const agentsRouter = new Elysia({ prefix: "/agents" })
     set.status = ERROR_STATUS[errorMessage] ?? 500;
     return { error: errorMessage || "Internal server error" };
   })
+  // Authenticate every agent request by verifying the Bearer JWT ourselves
+  // (defense in depth — the gateway ext_authz also checks it, but this also
+  // covers direct access, e.g. bare-metal dev). The WebSocket route is guarded
+  // separately in its open() handler via the access-token query param.
+  .onBeforeHandle(({ request, set }) => {
+    const token = (request.headers.get("authorization") ?? "").replace(/^Bearer\s+/i, "").trim();
+    const user = verifyToken(token);
+    if (!user) {
+      set.status = 401;
+      return { error: "Unauthorized" };
+    }
+    if (user.role !== "REGULAR" && user.role !== "ADMIN") {
+      set.status = 403;
+      return { error: "Forbidden" };
+    }
+  })
   .get("/", () => {
     const agentList = Array.from(agentStore.entries()).map(([id, agent]) => getAgentInfo(id, agent));
     return { agents: agentList };
@@ -185,14 +199,7 @@ const agentsRouter = new Elysia({ prefix: "/agents" })
       // The agent always calls the LLM gateway as the delegating user, so an
       // agent without a user token would be unable to generate anything. The
       // token travels in the Authorization header, never in the payload.
-      const userToken = extractBearerToken(headers.authorization);
-      if (!userToken) {
-        throw new Error("Authorization header with a Bearer token is required");
-      }
-      if (!validateToken(userToken)) {
-        throw new Error("Invalid or expired token");
-      }
-
+      const userToken = extractBearerToken(headers.authorization)!;
       const userInfo = extractUserFromToken(userToken);
       const delegateConfig: AgentDelegateConfig = {
         userToken,
@@ -447,6 +454,16 @@ export function buildApp() {
     )
     .ws(`${env.API_PREFIX}/agents/:id/react`, {
       open(ws) {
+        // Browsers can't set headers on a WebSocket, so the JWT arrives as the
+        // access-token query param (same convention as the workflow WS).
+        const token = (ws.data as any).query?.["access-token"];
+        const user = verifyToken(token);
+        if (!user || (user.role !== "REGULAR" && user.role !== "ADMIN")) {
+          sendEventToClient(ws, new WsServerErrorEvent("Unauthorized"));
+          ws.close(1008, "Unauthorized");
+          return;
+        }
+
         const agentId = (ws.data as any).params?.id;
         wsLog.info({ agentId }, "client connected");
 

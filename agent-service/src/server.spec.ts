@@ -18,28 +18,42 @@
  */
 
 import { beforeEach, describe, expect, spyOn, test } from "bun:test";
+import { createHmac } from "node:crypto";
 import { buildApp, start, _resetAgentStoreForTests, _getAgentForTests } from "./server";
 import { WorkflowSystemMetadata } from "./agent/util/workflow-system-metadata";
 import { env } from "./config/env";
+import { JWT_SECRET } from "./config/jwt";
 
 const API = env.API_PREFIX;
 const app = buildApp();
 
-function mintTestToken(): string {
-  const header = Buffer.from(JSON.stringify({ alg: "HS256", typ: "JWT" })).toString("base64url");
-  const payload = Buffer.from(
+function b64url(input: string | Buffer): string {
+  return Buffer.from(input).toString("base64url");
+}
+
+function mintTestToken(claims: Record<string, unknown> = {}): string {
+  const header = b64url(JSON.stringify({ alg: "HS256", typ: "JWT" }));
+  const payload = b64url(
     JSON.stringify({
       sub: "tester",
       userId: 1,
       email: "tester@example.com",
       role: "REGULAR",
       exp: Math.floor(Date.now() / 1000) + 3600,
+      ...claims,
     })
-  ).toString("base64url");
-  return `${header}.${payload}.test-signature`;
+  );
+  const signature = b64url(
+    createHmac("sha256", new TextEncoder().encode(JWT_SECRET)).update(`${header}.${payload}`).digest()
+  );
+  return `${header}.${payload}.${signature}`;
 }
 
 const TOKEN = mintTestToken();
+
+function authHeaders(extra: Record<string, string> = {}): Record<string, string> {
+  return { Authorization: `Bearer ${TOKEN}`, ...extra };
+}
 
 function url(path: string): string {
   return `http://localhost${path}`;
@@ -49,32 +63,40 @@ async function postJson(path: string, body: unknown, headers: Record<string, str
   return app.handle(
     new Request(url(path), {
       method: "POST",
-      headers: { "Content-Type": "application/json", ...headers },
+      headers: authHeaders({ "Content-Type": "application/json", ...headers }),
       body: JSON.stringify(body),
     })
   );
 }
 
 async function createAgent(body: Record<string, unknown> = {}, token: string | null = TOKEN): Promise<Response> {
-  return postJson(`${API}/agents`, { modelType: "m", ...body }, token ? { Authorization: `Bearer ${token}` } : {});
+  return app.handle(
+    new Request(url(`${API}/agents`), {
+      method: "POST",
+      headers: token
+        ? { "Content-Type": "application/json", Authorization: `Bearer ${token}` }
+        : { "Content-Type": "application/json" },
+      body: JSON.stringify({ modelType: "m", ...body }),
+    })
+  );
 }
 
-async function patchJson(path: string, body: unknown): Promise<Response> {
+async function patchJson(path: string, body: unknown, headers: Record<string, string> = {}): Promise<Response> {
   return app.handle(
     new Request(url(path), {
       method: "PATCH",
-      headers: { "Content-Type": "application/json" },
+      headers: authHeaders({ "Content-Type": "application/json", ...headers }),
       body: JSON.stringify(body),
     })
   );
 }
 
-async function getJson(path: string): Promise<Response> {
-  return app.handle(new Request(url(path)));
+async function getJson(path: string, headers: Record<string, string> = {}): Promise<Response> {
+  return app.handle(new Request(url(path), { headers: authHeaders(headers) }));
 }
 
-async function del(path: string): Promise<Response> {
-  return app.handle(new Request(url(path), { method: "DELETE" }));
+async function del(path: string, headers: Record<string, string> = {}): Promise<Response> {
+  return app.handle(new Request(url(path), { method: "DELETE", headers: authHeaders(headers) }));
 }
 
 async function readJson<T = unknown>(res: Response): Promise<T> {
@@ -92,6 +114,58 @@ describe(`GET ${API}/healthcheck`, () => {
     const body = await readJson<{ status: string; timestamp: string }>(res);
     expect(body.status).toBe("ok");
     expect(typeof body.timestamp).toBe("string");
+  });
+
+  test("does not require a token (readiness probe)", async () => {
+    const res = await app.handle(new Request(url(`${API}/healthcheck`)));
+    expect(res.status).toBe(200);
+  });
+});
+
+describe("auth guard on agent routes", () => {
+  test("rejects a request with no Authorization header (401)", async () => {
+    const res = await app.handle(new Request(url(`${API}/agents`)));
+    expect(res.status).toBe(401);
+    expect(await readJson<{ error: string }>(res)).toEqual({ error: "Unauthorized" });
+  });
+
+  test("rejects an invalid / mis-signed token (401)", async () => {
+    const res = await app.handle(
+      new Request(url(`${API}/agents`), { headers: { Authorization: "Bearer not-a-valid-jwt" } })
+    );
+    expect(res.status).toBe(401);
+    expect(await readJson<{ error: string }>(res)).toEqual({ error: "Unauthorized" });
+  });
+
+  test("rejects an expired token (401)", async () => {
+    const expired = mintTestToken({ exp: Math.floor(Date.now() / 1000) - 3600 });
+    const res = await app.handle(
+      new Request(url(`${API}/agents`), { headers: { Authorization: `Bearer ${expired}` } })
+    );
+    expect(res.status).toBe(401);
+    expect(await readJson<{ error: string }>(res)).toEqual({ error: "Unauthorized" });
+  });
+
+  test("rejects an INACTIVE user role (403)", async () => {
+    const inactiveToken = mintTestToken({ role: "INACTIVE" });
+    const res = await app.handle(
+      new Request(url(`${API}/agents`), { headers: { Authorization: `Bearer ${inactiveToken}` } })
+    );
+    expect(res.status).toBe(403);
+    expect(await readJson<{ error: string }>(res)).toEqual({ error: "Forbidden" });
+  });
+
+  test("accepts an ADMIN user role (200)", async () => {
+    const adminToken = mintTestToken({ role: "ADMIN" });
+    const res = await app.handle(
+      new Request(url(`${API}/agents`), { headers: { Authorization: `Bearer ${adminToken}` } })
+    );
+    expect(res.status).toBe(200);
+  });
+
+  test("accepts a valid token", async () => {
+    const res = await app.handle(new Request(url(`${API}/agents`), { headers: authHeaders() }));
+    expect(res.status).toBe(200);
   });
 });
 
@@ -126,21 +200,21 @@ describe(`POST ${API}/agents`, () => {
     const res = await createAgent({}, "obviously-not-a-jwt");
     expect(res.status).toBe(401);
     const body = await readJson<{ error: string }>(res);
-    expect(body.error).toBe("Invalid or expired token");
+    expect(body.error).toBe("Unauthorized");
   });
 
   test("rejects missing Authorization header", async () => {
     const res = await createAgent({}, null);
     expect(res.status).toBe(401);
     const body = await readJson<{ error: string }>(res);
-    expect(body.error).toBe("Authorization header with a Bearer token is required");
+    expect(body.error).toBe("Unauthorized");
   });
 
   test("rejects non-Bearer Authorization header", async () => {
     const res = await postJson(`${API}/agents`, { modelType: "m" }, { Authorization: `Basic ${TOKEN}` });
     expect(res.status).toBe(401);
     const body = await readJson<{ error: string }>(res);
-    expect(body.error).toBe("Authorization header with a Bearer token is required");
+    expect(body.error).toBe("Unauthorized");
   });
 
   test("rejects missing modelType", async () => {
