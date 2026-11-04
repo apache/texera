@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1793710813188,
+  "lastUpdate": 1793796266799,
   "repoUrl": "https://github.com/apache/texera",
   "entries": {
     "Arrow Flight E2E Throughput": [
@@ -20988,6 +20988,163 @@ window.BENCHMARK_DATA = {
           {
             "name": "throughput / bs=1000 sw=50 sl=512",
             "value": 508.0856506009328,
+            "unit": "tuples/sec"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "name": "Xinyuan Lin",
+            "username": "aglinxinyuan",
+            "email": "xinyual3@uci.edu"
+          },
+          "committer": {
+            "name": "GitHub",
+            "username": "web-flow",
+            "email": "noreply@github.com"
+          },
+          "id": "8f0fe35538ceefe34860b1927b77affd74f72595",
+          "message": "refactor(agent-service): deduplicate result formatting helpers (#9252)\n\n### What changes were proposed in this PR?\n\nDeduplicates result formatting logic between\n`agent-service/src/agent/tools/result-formatting.ts` and\n`workflow-execution-tools.ts`:\n- Exports `formatInputOutputMetadata` and `jsonToTableFormat` from\n`result-formatting.ts`.\n- Replaces duplicate private implementations `formatInputOutput` and\n`jsonToTableFormat` in `workflow-execution-tools.ts` with direct imports\nfrom `./result-formatting`.\n- Adds direct unit tests in `result-formatting.spec.ts` covering\n`formatInputOutputMetadata` (shape formatting, upstream link resolution,\nport sorting) and `jsonToTableFormat` (empty cases, TSV formatting with\nindex column).\n\n### Any related issues, documentation, discussions?\n\nCloses #9250\n\n### How was this PR tested?\n\n- Target test suites:\n  ```bash\nbun test src/agent/tools/workflow-execution-tools.spec.ts\nsrc/agent/tools/result-formatting.spec.ts\n  ```\n  Output: 54 pass, 0 fail (119 expect() calls, 203ms).\n- Full `agent-service` test suite:\n  ```bash\n  bun test\n  ```\n  Output: 317 pass, 0 fail (772 expect() calls, 2.14s).\n- Type checking:\n  ```bash\n  bun run typecheck\n  ```\n  Output: `tsc --noEmit` clean.\n- Code style formatting:\n  ```bash\n  bun run format:check\n  ```\n  Output: All matched files use Prettier code style.\n- Mutation test:\nMutated `formatInputOutputMetadata` shape output in\n`result-formatting.ts`; verified 5 tests in\n`workflow-execution-tools.spec.ts` failed as expected, then restored\nclean.",
+          "timestamp": "2026-11-04T06:21:06Z",
+          "url": "https://github.com/apache/texera/commit/8f0fe35538ceefe34860b1927b77affd74f72595"
+        },
+        "date": 1793796265924,
+        "tool": "customBiggerIsBetter",
+        "benches": [
+          {
+            "name": "throughput / bs=10 sw=1 sl=8",
+            "value": 936.3697054949572,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=1 sl=8",
+            "value": 1750.9558238686154,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=1 sl=8",
+            "value": 1911.3313275056194,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=1 sl=64",
+            "value": 1264.1559431926116,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=1 sl=64",
+            "value": 1835.4966723491564,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=1 sl=64",
+            "value": 1925.8830171310449,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=1 sl=512",
+            "value": 1304.7982225777653,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=1 sl=512",
+            "value": 1874.1904398082809,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=1 sl=512",
+            "value": 1933.1444885246067,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=10 sl=8",
+            "value": 1042.2046537945853,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=10 sl=8",
+            "value": 1423.938579714831,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=10 sl=8",
+            "value": 1478.0303980219394,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=10 sl=64",
+            "value": 1113.5595241317403,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=10 sl=64",
+            "value": 1440.960928796013,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=10 sl=64",
+            "value": 1491.1343107238097,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=10 sl=512",
+            "value": 1110.5428568197367,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=10 sl=512",
+            "value": 1415.864490764135,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=10 sl=512",
+            "value": 1461.2897202396857,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=50 sl=8",
+            "value": 647.4159529263213,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=50 sl=8",
+            "value": 767.3648181107964,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=50 sl=8",
+            "value": 778.1792839420522,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=50 sl=64",
+            "value": 659.3432228091453,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=50 sl=64",
+            "value": 767.1525618514856,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=50 sl=64",
+            "value": 768.2658563851476,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=50 sl=512",
+            "value": 629.267616677609,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=50 sl=512",
+            "value": 731.7778484101954,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=50 sl=512",
+            "value": 726.730948626438,
             "unit": "tuples/sec"
           }
         ]
