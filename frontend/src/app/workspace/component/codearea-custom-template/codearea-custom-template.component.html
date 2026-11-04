@@ -24,8 +24,8 @@
     nzShape="round"
     nzType="primary"
     [disabled]="isEditorOpen"
-    [ngClass]="{ 'readonly': this.field.formControl.disabled }">
-    <div *ngIf="!this.field.formControl.disabled">Edit code content</div>
-    <div *ngIf="this.field.formControl.disabled">View code content</div>
+    [ngClass]="{ 'readonly': this.field.formControl.disabled || inspect }">
+    <div *ngIf="!viewOnly">Edit code content</div>
+    <div *ngIf="viewOnly">View code content</div>
   </button>
 </div>

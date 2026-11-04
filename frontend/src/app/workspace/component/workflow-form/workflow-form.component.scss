@@ -1104,3 +1104,11 @@ $shell: #fafafa;
     }
   }
 }
+
+/* The code editor opens into this page's outlet (texeraCodeEditorHost), so it is a descendant and
+   can be dragged under the sticky title row (z-index 20) and the panel's close button; keep the
+   editor above them. The canvas's chrome never exceeds that, so the shared editor keeps its own
+   value and only this page lifts it. The class is what beats the editor's own rule in specificity. */
+:host ::ng-deep #code-editor-container.box {
+  z-index: 21;
+}

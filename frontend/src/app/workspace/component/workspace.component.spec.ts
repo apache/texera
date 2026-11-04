@@ -36,6 +36,7 @@ import { UserService } from "../../common/service/user/user.service";
 import { WorkflowPersistService } from "../../common/service/workflow-persist/workflow-persist.service";
 import { Workflow } from "../../common/type/workflow";
 import { CodeEditorService } from "../service/code-editor/code-editor.service";
+import { CodeEditorHostDirective } from "./code-editor-dialog/code-editor-host.directive";
 import { WorkflowCompilingService } from "../service/compile-workflow/workflow-compiling.service";
 import { OperatorMetadataService } from "../service/operator-metadata/operator-metadata.service";
 import { UndoRedoService } from "../service/undo-redo/undo-redo.service";
@@ -148,7 +149,7 @@ describe("WorkspaceComponent", () => {
 
     notificationService = { error: vi.fn() };
     hubService = { postView: vi.fn().mockReturnValue(of(0)) };
-    codeEditorService = { vc: undefined };
+    codeEditorService = { attachHost: vi.fn(), detachHost: vi.fn() };
     messageService = { error: vi.fn() };
 
     // `getCurrentNavigation` answers what the page is being destroyed for: null stands for no
@@ -174,15 +175,15 @@ describe("WorkspaceComponent", () => {
     workflowConsoleService = { clearConsoleMessages: vi.fn() };
     workflowResultService = { clearResults: vi.fn() };
 
-    // Drop the standalone component's child imports and allow unknown elements via
-    // CUSTOM_ELEMENTS_SCHEMA. The template still renders, so `<ng-template #codeEditor>`
-    // is wired up and the @ViewChild query resolves to a real ViewContainerRef, while
+    // Drop the standalone component's child imports -- all but the code editor host directive, a
+    // leaf with no children of its own -- and allow unknown elements via CUSTOM_ELEMENTS_SCHEMA. The
+    // template still renders, so the `texeraCodeEditorHost` outlet is built and attached, while
     // the children's transitive dependencies stay out of the test build.
     // TODO(coverage): rewrite using stub child components via remove/add so the
     // template participates in coverage. See TESTING.md anti-pattern #9.
     /* eslint-disable no-restricted-syntax */
     TestBed.overrideComponent(WorkspaceComponent, {
-      set: { imports: [], providers: [], schemas: [CUSTOM_ELEMENTS_SCHEMA] },
+      set: { imports: [CodeEditorHostDirective], providers: [], schemas: [CUSTOM_ELEMENTS_SCHEMA] },
     });
     /* eslint-enable no-restricted-syntax */
 
@@ -216,12 +217,6 @@ describe("WorkspaceComponent", () => {
 
     fixture = TestBed.createComponent(WorkspaceComponent);
     component = fixture.componentInstance;
-    // ngOnDestroy clears the ViewContainerRef bound to `#codeEditor`. Tests that
-    // exercise individual methods skip change detection, so the @ViewChild query
-    // is never resolved; assign a stub to keep TestBed teardown from throwing.
-    // Tests that exercise `fixture.detectChanges()` will overwrite this with
-    // the live ViewContainerRef during ngAfterViewInit.
-    component.codeEditorViewRef = { clear: vi.fn() } as any;
   }
 
   describe("ngOnInit", () => {
@@ -676,19 +671,23 @@ describe("WorkspaceComponent", () => {
     });
   });
 
-  // Exercises the rendered template: the `<ng-template #codeEditor>` outlet is
-  // present, so the @ViewChild query resolves to a live ViewContainerRef and
-  // ngAfterViewInit can publish it to CodeEditorService.
-  describe("child rendering side effects", () => {
-    it("publishes the resolved ViewContainerRef to CodeEditorService.vc on view init", async () => {
-      codeEditorService.vc = undefined;
+  // Exercises the rendered template: the `texeraCodeEditorHost` outlet is in it, so the canvas
+  // hosts the code editor while it is up and lets go of the host when it is destroyed. The Form
+  // View carries the same outlet, which is how the host changes hands between the two (#8760).
+  describe("the code editor host", () => {
+    it("is attached when the canvas renders, and detached when the canvas is destroyed", async () => {
       await createFixture();
       fixture.detectChanges();
-      // createEmbeddedView is present on a real ViewContainerRef but not on the
-      // pre-fixture stub, so checking it distinguishes the resolved query from
-      // the placeholder.
-      expect(codeEditorService.vc).toBe(component.codeEditorViewRef);
-      expect(typeof codeEditorService.vc.createEmbeddedView).toBe("function");
+      expect(codeEditorService.attachHost).toHaveBeenCalledTimes(1);
+      // A real ViewContainerRef (the directive's own), not a placeholder: the editor is created
+      // into it.
+      const host = codeEditorService.attachHost.mock.calls[0][0];
+      expect(typeof host.createComponent).toBe("function");
+      expect(codeEditorService.detachHost).not.toHaveBeenCalled();
+
+      fixture.destroy();
+
+      expect(codeEditorService.detachHost).toHaveBeenCalledWith(host);
     });
   });
 });

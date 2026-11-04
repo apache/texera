@@ -18,17 +18,7 @@
  */
 
 import { Location, NgIf } from "@angular/common";
-import {
-  AfterViewInit,
-  ChangeDetectorRef,
-  Component,
-  HostListener,
-  Input,
-  OnDestroy,
-  OnInit,
-  ViewChild,
-  ViewContainerRef,
-} from "@angular/core";
+import { AfterViewInit, ChangeDetectorRef, Component, HostListener, Input, OnDestroy, OnInit } from "@angular/core";
 import { ActivatedRoute, Router } from "@angular/router";
 import { UserService } from "../../common/service/user/user.service";
 import { WorkflowPersistService } from "../../common/service/workflow-persist/workflow-persist.service";
@@ -44,7 +34,7 @@ import { isDefined } from "../../common/util/predicate";
 import { NotificationService } from "src/app/common/service/notification/notification.service";
 import { WorkflowConsoleService } from "../service/workflow-console/workflow-console.service";
 import { OperatorReuseCacheStatusService } from "../service/workflow-status/operator-reuse-cache-status.service";
-import { CodeEditorService } from "../service/code-editor/code-editor.service";
+import { CodeEditorHostDirective } from "./code-editor-dialog/code-editor-host.directive";
 import { WorkflowMetadata } from "src/app/dashboard/type/workflow-metadata.interface";
 import { EntityType, HubService } from "../../hub/service/hub.service";
 import { THROTTLE_TIME_MS } from "../../hub/component/workflow/detail/hub-workflow-detail.component";
@@ -88,12 +78,12 @@ export const SAVE_DEBOUNCE_TIME_IN_MS = 5000;
     AgentPanelComponent,
     PropertyEditorComponent,
     JupyterNotebookPanelComponent,
+    CodeEditorHostDirective,
   ],
 })
 export class WorkspaceComponent implements AfterViewInit, OnInit, OnDestroy {
   public writeAccess: boolean = false;
   public isLoading: boolean = false;
-  @ViewChild("codeEditor", { read: ViewContainerRef }) codeEditorViewRef!: ViewContainerRef;
 
   /**
    * Optional agent ID to activate when the workspace loads.
@@ -134,7 +124,6 @@ export class WorkspaceComponent implements AfterViewInit, OnInit, OnDestroy {
     private router: Router,
     private notificationService: NotificationService,
     private hubService: HubService,
-    private codeEditorService: CodeEditorService,
     private config: GuiConfigService,
     private changeDetectorRef: ChangeDetectorRef,
     private computingUnitStatusService: ComputingUnitStatusService,
@@ -185,7 +174,6 @@ export class WorkspaceComponent implements AfterViewInit, OnInit, OnDestroy {
     this.onWIDChange();
     this.updateViewCount();
     this.registerLoadOperatorMetadata();
-    this.codeEditorService.vc = this.codeEditorViewRef;
   }
 
   /**
@@ -210,7 +198,6 @@ export class WorkspaceComponent implements AfterViewInit, OnInit, OnDestroy {
 
   ngOnDestroy() {
     this.persistBeforeLeaving();
-    this.codeEditorViewRef.clear();
     // Tear down the connection and all websocket-derived session state so a
     // re-entered workflow starts clean instead of reusing the previous one -- unless the Form
     // View of this same workflow is taking over, in which case the session is handed to it

@@ -139,6 +139,7 @@ export function setupHarness() {
     setHeatmapView: vi.fn(),
   };
   const workflowActionService = {
+    setOperatorProperty: vi.fn(),
     resetAsNewWorkflow: vi.fn(),
     setNewSharedModel: vi.fn(),
     reloadWorkflow: vi.fn(),
