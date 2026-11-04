@@ -472,6 +472,25 @@ This product includes the ORCID iD icon from ORCID, Inc.:
         bundled unmodified and displayed only to label ORCID sign-in, per ORCID's brand
         guidelines; CC0 covers the graphic, not the mark.
 
+Public Domain
+--------------------------------------
+
+This product bundles sample sales data from Excel BI Analytics as test data,
+including copies edited for the CSV operator tests:
+  - common/workflow-core/src/test/resources/country_sales_small.csv
+  - common/workflow-operator/src/test/resources/country_sales_headerless_small.csv
+  - common/workflow-operator/src/test/resources/country_sales_headerless_small_multi_line.csv
+  - common/workflow-operator/src/test/resources/country_sales_headerless_small_multi_line_custom_delimiter.csv
+  - common/workflow-operator/src/test/resources/country_sales_medium.csv
+  - common/workflow-operator/src/test/resources/country_sales_small.csv
+  - common/workflow-operator/src/test/resources/country_sales_small_multi_line.csv
+  - workflow-compiling-service/src/test/resources/country_sales_small.csv
+  Creator: Vijay A. Verma
+  Source: https://excelbianalytics.com/downloads-18-sample-csv-files-data-sets-for-testing-sales/
+  License: Public domain. The creator states that anything published on the site is
+           "completely copyright free" and can be used without obligation.
+  Note: The data is randomly generated and does not describe real sales.
+
 Trademarks
 --------------------------------------
 
