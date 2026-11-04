@@ -196,7 +196,8 @@ class GaugeChartOpDesc extends PythonVisualizationOpDesc with PlotlyStandaloneCo
     val thresholdExpr = numberOrNone(threshold)
     val stepsExpr = stepsLiteral
     // render_error's continuation line keeps the runtime path's indentation — the
-    // HTML is triple-quoted, so those spaces reach the browser.
+    // HTML is triple-quoted, so those spaces reach the browser. Drawing sits in a try so a
+    // surprise is an error page, and a lone figure is written as one object, not a list.
     s"""import plotly.graph_objects as go
        |import plotly.io as pio
        |
@@ -215,9 +216,6 @@ class GaugeChartOpDesc extends PythonVisualizationOpDesc with PlotlyStandaloneCo
        |    with open(outputHtml, "w", encoding="utf-8") as output:
        |        output.write(render_error("Input table is empty."))
        |else:
-       |    # Everything the operator draws inside its own try, so anything it did
-       |    # not foresee (a column that is not there, a step that is not a number)
-       |    # is a page saying so rather than the end of the exported run.
        |    try:
        |        gauge_value = $valueLit
        |        delta_ref = $deltaExpr
@@ -280,9 +278,6 @@ class GaugeChartOpDesc extends PythonVisualizationOpDesc with PlotlyStandaloneCo
        |
        |            with open(outputHtml, "w", encoding="utf-8") as output:
        |                output.write("<div>" + "".join(html_chunks) + "</div>")
-       |            # One chart per row, so the file holds the whole sequence. A
-       |            # single figure still writes as a lone object, which is what
-       |            # every one-chart operator writes.
        |            if len(figs) == 1:
        |                figs[0].write_json(outputJson)
        |            elif figs:
