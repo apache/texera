@@ -51,6 +51,7 @@ import { OperatorMetadataService } from "../../service/operator-metadata/operato
 import { FormBindingService } from "../../service/form-binding/form-binding.service";
 import { DynamicSchemaService } from "../../service/dynamic-schema/dynamic-schema.service";
 import { WorkflowCompilingService } from "../../service/compile-workflow/workflow-compiling.service";
+import { UiUdfParametersSyncService } from "../../service/code-editor/ui-udf-parameters-sync.service";
 import { ExecuteWorkflowService } from "../../service/execute-workflow/execute-workflow.service";
 import { WorkflowResultService } from "../../service/workflow-result/workflow-result.service";
 import { NotificationService } from "../../../common/service/notification/notification.service";
@@ -218,6 +219,7 @@ describe("WorkflowFormComponent (rendered template)", () => {
           provide: WorkflowCompilingService,
           useValue: { getCompilationStateInfoChangedStream: () => EMPTY },
         },
+        { provide: UiUdfParametersSyncService, useValue: { uiParametersChanged$: EMPTY } },
         {
           provide: ExecuteWorkflowService,
           useValue: {
