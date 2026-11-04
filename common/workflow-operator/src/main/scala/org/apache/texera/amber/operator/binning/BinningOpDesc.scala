@@ -111,7 +111,8 @@ class BinningOpDesc extends PythonOperatorDescriptor with StandaloneCodeGenerato
     * narrow range of large integers collapses into duplicate edges. An integer
     * column is cut as its distance from the value nearest zero, which float64 holds
     * exactly and which cannot overflow, and that value is added back to the labels
-    * in exact decimal arithmetic.
+    * in exact decimal arithmetic. Only where the plain cut raises or loses a bin,
+    * so every other column keeps the labels pandas gives it.
     */
   private val integerShift: String =
     """int(min(max(0, _binned.min()), _binned.max())) if pd.api.types.is_integer_dtype(_binned) else 0"""
@@ -150,9 +151,15 @@ class BinningOpDesc extends PythonOperatorDescriptor with StandaloneCodeGenerato
        |        _binned = out[_column]
        |        if _binned.astype("float64").notna().any():
        |            _low = ${shift}
-       |            _binned = ${cut}(_binned - _low, ${args})
-       |            if _low:
-       |                _binned = _binned.cat.rename_categories(${label})
+       |            _shifted = ${cut}(_binned - _low, ${args})
+       |            try:
+       |                _plain = ${cut}(_binned, ${args})
+       |            except ValueError:
+       |                _plain = None
+       |            if _plain is not None and len(_plain.cat.categories) == len(_shifted.cat.categories):
+       |                _binned = _plain
+       |            else:
+       |                _binned = _shifted.cat.rename_categories(${label})
        |        out[_column + "_bin"] = _binned${suffix}
        |        yield out""".encode
   }
@@ -164,9 +171,15 @@ class BinningOpDesc extends PythonOperatorDescriptor with StandaloneCodeGenerato
        |_binned = out1df[$column]
        |if _binned.astype("float64").notna().any():
        |    _low = $integerShift
-       |    _binned = $cutName(_binned - _low, $cutArgs)
-       |    if _low:
-       |        _binned = _binned.cat.rename_categories($shiftedLabel)
+       |    _shifted = $cutName(_binned - _low, $cutArgs)
+       |    try:
+       |        _plain = $cutName(_binned, $cutArgs)
+       |    except ValueError:
+       |        _plain = None
+       |    if _plain is not None and len(_plain.cat.categories) == len(_shifted.cat.categories):
+       |        _binned = _plain
+       |    else:
+       |        _binned = _shifted.cat.rename_categories($shiftedLabel)
        |out1df[$result] = _binned$labelSuffix""".stripMargin
   }
 }

@@ -186,6 +186,7 @@ class BinningOpDescSpec extends AnyFlatSpec with Matchers {
       |    "biglong": pd.DataFrame(
       |        {"age": pd.Series([2**53, 2**53 + 1, 2**53 + 2], dtype="Int64")}
       |    ),
+      |    "smallint": pd.DataFrame({"age": pd.Series([9, 9, 9, 9], dtype="Int64")}),
       |}
       |for cid, frame in cases.items():
       |    namespace = {"pd": pd, "in1df": frame}
@@ -193,6 +194,7 @@ class BinningOpDescSpec extends AnyFlatSpec with Matchers {
       |        exec(code, namespace)
       |        labels = namespace["out1df"]["age_bin"]
       |        print("CASE %s OK:%d:%d:%d" % (cid, len(labels), labels.notna().sum(), labels.nunique()))
+      |        print("LABEL %s %s" % (cid, labels.iloc[0] if len(labels) else ""))
       |    except Exception as error:
       |        print("CASE %s %s" % (cid, type(error).__name__))
       |""".stripMargin
@@ -238,8 +240,18 @@ class BinningOpDescSpec extends AnyFlatSpec with Matchers {
             "storednan" -> "OK:2:0:0", // NaN is no more placeable than a hole
             "empty" -> "OK:0:0:0", // no rows to put in one
             "mixed" -> "OK:3:2:2", // the hole is the only row left unlabelled
-            "biglong" -> "OK:3:3:3" // each value keeps a bin of its own
+            "biglong" -> "OK:3:3:3", // each value keeps a bin of its own
+            "smallint" -> (method match {
+              case BinningMethod.EQUAL_WIDTH     => "OK:4:4:1"
+              case BinningMethod.EQUAL_FREQUENCY => "OK:4:0:0" // one value, no quantile apart
+            })
           )
+          // A column the plain cut handles keeps the label pandas gives it.
+          val smallLabel = "LABEL smallint (.*)".r.findFirstMatchIn(output).map(_.group(1).trim)
+          smallLabel shouldBe Some(method match {
+            case BinningMethod.EQUAL_WIDTH     => "(8.996, 9.0]"
+            case BinningMethod.EQUAL_FREQUENCY => "None"
+          })
         }
       } finally {
         Try(Files.deleteIfExists(moduleFile))
