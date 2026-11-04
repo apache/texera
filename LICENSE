@@ -206,37 +206,8 @@ THIRD-PARTY DEPENDENCIES
 
 This product bundles source code and assets from third-party projects.
 
-MIT License
+Apache License 2.0
 --------------------------------------
-
-This product bundles code derived from mbknor-jackson-jsonschema:
-  - common/workflow-operator/src/main/scala/com/kjetland/jackson/jsonSchema/
-  Copyright (c) 2016 Kjell Tore Eliassen (mbknor)
-  Source: https://github.com/mbknor/mbknor-jackson-jsonschema
-  License: MIT License (licenses-3rd-party-code/mbknor-jackson-jsonschema.txt)
-
-This product bundles code derived from Google Angular formly examples:
-  - frontend/src/app/common/formly/array.type.ts
-  - frontend/src/app/common/formly/object.type.ts
-  - frontend/src/app/common/formly/multischema.type.ts
-  - frontend/src/app/common/formly/null.type.ts
-  Copyright (c) 2018 Google Inc. All Rights Reserved.
-  Source: https://angular.io
-  License: MIT License (licenses-3rd-party-code/angular.md)
-
-This product bundles code derived from TypeFox monaco-languageclient:
-  - pyright-language-service/src/main.ts
-  - pyright-language-service/src/language-server-runner.ts
-  - pyright-language-service/src/server-commons.ts
-  Copyright (c) 2024 TypeFox and others.
-  Source: https://github.com/TypeFox/monaco-languageclient
-  License: MIT License (licenses-3rd-party-code/monaco-languageclient.txt)
-
-This product bundles code derived from inner-class:
-  - amber/src/main/python/core/util/customized_queue/inner.py
-  Copyright (c) 2019 sebkeim
-  Source: https://github.com/sebkeim/inner-class
-  License: MIT License (licenses-3rd-party-code/sebkeim-inner-class.txt)
 
 This product bundles the ScalaPB options definition:
   - common/workflow-core/src/main/protobuf/scalapb/scalapb.proto
@@ -295,6 +266,7 @@ This product includes icons from IBM Carbon Design System:
   - frontend/src/assets/operator_images/RadarPlot.png (chart--radar)
   - frontend/src/assets/operator_images/SVCTrainer.png (chart--scatter)
   - frontend/src/assets/operator_images/SVRTrainer.png (chart--scatter)
+  - frontend/src/assets/operator_images/SankeyDiagram.png (sankey-diagram--alt)
   - frontend/src/assets/operator_images/ScatterMatrixChart.png (scatter-matrix)
   - frontend/src/assets/operator_images/SklearnComplementNaiveBayes.png (chart--venn-diagram)
   - frontend/src/assets/operator_images/SklearnDecisionTree.png (decision-tree)
@@ -316,20 +288,55 @@ This product includes icons from IBM Carbon Design System:
   - frontend/src/assets/operator_images/SklearnTrainingSDG.png (math-curve)
   - frontend/src/assets/operator_images/SortPartitions.png (sort--descending)
   - frontend/src/assets/operator_images/TimeSeriesPlot.png (chart--multi-line)
+  - frontend/src/assets/operator_images/TypeCasting.png (transform--binary)
   - frontend/src/assets/operator_images/WaterfallChart.png (chart--waterfall)
   - frontend/src/assets/operator_images/WordCloud.png (word-cloud)
   Copyright 2015 IBM Corp.
   Source: https://github.com/carbon-design-system/carbon (@carbon/icons 11.91.0)
   License: Apache License 2.0 (this LICENSE file)
 
-This product includes the ORCID iD icon from ORCID, Inc.:
-  - frontend/src/assets/logos/ORCID-iD_icon_24x24.png
-  Source: https://info.orcid.org/brand-guidelines/
-          https://doi.org/10.23640/07243.5008697 (ORCID iD Icons, ORCID Brand Library)
-  License: CC0 1.0 Universal (licenses/LICENSE-CC0-1.0.txt)
-  Note: ORCID(TM), the ORCID logo and the iD logo are trademarks of ORCID, Inc. The icon is
-        bundled unmodified and displayed only to label ORCID sign-in, per ORCID's brand
-        guidelines; CC0 covers the graphic, not the mark.
+This product includes the logos of other Apache Software Foundation projects,
+used as the icons of the operators that read from them:
+  - frontend/src/assets/operator_images/ArrowSource.png (Apache Arrow)
+  - frontend/src/assets/operator_images/AsterixDBSource.png (Apache AsterixDB)
+  Copyright (c) The Apache Software Foundation
+  Source: https://github.com/apache/arrow-site/blob/229e92ede438bb6e13417eda141551c242cff334/img/arrow-logo_hex_black-txt_white-bg.png
+          https://github.com/apache/asterixdb-site/blob/00f9bf22dd19e8645315fb2b139527a575dae9c1/img/asterixdb_tm.png
+  License: Apache License 2.0 (this LICENSE file)
+  Note: Apache Arrow, Apache AsterixDB and their logos are trademarks of The
+        Apache Software Foundation, used here to identify the projects.
+
+MIT License
+--------------------------------------
+
+This product bundles code derived from mbknor-jackson-jsonschema:
+  - common/workflow-operator/src/main/scala/com/kjetland/jackson/jsonSchema/
+  Copyright (c) 2016 Kjell Tore Eliassen (mbknor)
+  Source: https://github.com/mbknor/mbknor-jackson-jsonschema
+  License: MIT License (licenses-3rd-party-code/mbknor-jackson-jsonschema.txt)
+
+This product bundles code derived from Google Angular formly examples:
+  - frontend/src/app/common/formly/array.type.ts
+  - frontend/src/app/common/formly/object.type.ts
+  - frontend/src/app/common/formly/multischema.type.ts
+  - frontend/src/app/common/formly/null.type.ts
+  Copyright (c) 2018 Google Inc. All Rights Reserved.
+  Source: https://angular.io
+  License: MIT License (licenses-3rd-party-code/angular.md)
+
+This product bundles code derived from TypeFox monaco-languageclient:
+  - pyright-language-service/src/main.ts
+  - pyright-language-service/src/language-server-runner.ts
+  - pyright-language-service/src/server-commons.ts
+  Copyright (c) 2024 TypeFox and others.
+  Source: https://github.com/TypeFox/monaco-languageclient
+  License: MIT License (licenses-3rd-party-code/monaco-languageclient.txt)
+
+This product bundles code derived from inner-class:
+  - amber/src/main/python/core/util/customized_queue/inner.py
+  Copyright (c) 2019 sebkeim
+  Source: https://github.com/sebkeim/inner-class
+  License: MIT License (licenses-3rd-party-code/sebkeim-inner-class.txt)
 
 This product includes SVG icons from SVGRepo:
   - frontend/src/assets/svg/operator-view-result.svg
@@ -452,6 +459,47 @@ This product bundles the Iris example dataset, as distributed with scikit-learn:
   Copyright (c) 2007-2024 The scikit-learn developers
   Source: https://github.com/scikit-learn/scikit-learn/blob/1.7.2/sklearn/datasets/data/iris.csv
   License: BSD 3-Clause License (licenses/LICENSE-BSD-3-Clause.txt)
+
+CC0 1.0 Universal
+--------------------------------------
+
+This product includes the ORCID iD icon from ORCID, Inc.:
+  - frontend/src/assets/logos/ORCID-iD_icon_24x24.png
+  Source: https://info.orcid.org/brand-guidelines/
+          https://doi.org/10.23640/07243.5008697 (ORCID iD Icons, ORCID Brand Library)
+  License: CC0 1.0 Universal (licenses/LICENSE-CC0-1.0.txt)
+  Note: ORCID(TM), the ORCID logo and the iD logo are trademarks of ORCID, Inc. The icon is
+        bundled unmodified and displayed only to label ORCID sign-in, per ORCID's brand
+        guidelines; CC0 covers the graphic, not the mark.
+
+Public Domain
+--------------------------------------
+
+This product bundles sample sales data from Excel BI Analytics as test data.
+
+From "100 Sales Records.csv":
+  - common/workflow-core/src/test/resources/country_sales_small.csv
+  - common/workflow-operator/src/test/resources/country_sales_small.csv
+  - workflow-compiling-service/src/test/resources/country_sales_small.csv
+
+Edited from "100 Sales Records.csv" for the CSV operator tests:
+  - common/workflow-operator/src/test/resources/country_sales_headerless_small.csv
+  - common/workflow-operator/src/test/resources/country_sales_headerless_small_multi_line.csv
+  - common/workflow-operator/src/test/resources/country_sales_headerless_small_multi_line_custom_delimiter.csv
+  - common/workflow-operator/src/test/resources/country_sales_small_multi_line.csv
+
+From "100000 Sales Records.csv", with numbers reformatted:
+  - common/workflow-operator/src/test/resources/country_sales_medium.csv
+
+  Creator: Vijay A. Verma
+  Source: https://excelbianalytics.com/downloads-18-sample-csv-files-data-sets-for-testing-sales/
+  License: Treated as public domain, based on the creator's statement on the source
+           page (retrieved 2026-11-04):
+           "Anything published on this is completely copyright free. You can use
+           anything from this site without any obligation."
+  Note: The source page also states: "These are not real sales data and should not
+        be used for any other purpose other than testing." This product uses the
+        data only as test data.
 
 Trademarks
 --------------------------------------

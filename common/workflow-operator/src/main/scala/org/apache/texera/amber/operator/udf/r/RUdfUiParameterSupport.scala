@@ -17,6 +17,19 @@
  * under the License.
  */
 
-package org.apache.texera.web.model.collab.request
+package org.apache.texera.amber.operator.udf.r
 
-case class TryLockRequest() extends CollabWebSocketRequest
+import org.apache.texera.amber.operator.udf.UdfUiParameterSupport
+import org.apache.texera.amber.operator.udf.UiUDFParameter
+
+trait RUdfUiParameterSupport extends UdfUiParameterSupport {
+  def useTupleAPI: Boolean
+
+  override protected def injectParameterValues(
+      code: String,
+      parameters: List[UiUDFParameter]
+  ): String =
+    RUdfUiParameterInjector.inject(code, parameters)
+
+  override protected def uiParameterLanguage: String = if (useTupleAPI) "r-tuple" else "r-table"
+}

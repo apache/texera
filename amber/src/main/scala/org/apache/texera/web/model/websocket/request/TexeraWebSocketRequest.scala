@@ -44,3 +44,11 @@ import org.apache.texera.web.model.websocket.request.python.{
   )
 )
 trait TexeraWebSocketRequest {}
+
+case class HeartBeatRequest() extends TexeraWebSocketRequest
+case class RetryRequest(workers: Seq[String]) extends TexeraWebSocketRequest
+case class SkipTupleRequest(workerIds: Array[String]) extends TexeraWebSocketRequest
+case class WorkflowCheckpointRequest() extends TexeraWebSocketRequest
+case class WorkflowKillRequest() extends TexeraWebSocketRequest
+case class WorkflowPauseRequest() extends TexeraWebSocketRequest
+case class WorkflowResumeRequest() extends TexeraWebSocketRequest
