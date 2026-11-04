@@ -56,7 +56,7 @@ export class BrowseSectionComponent implements OnInit, OnChanges {
   @Input() sectionTitle: string = "";
   @Input() currentUid: number | undefined;
 
-  defaultBackground: string = "../../../../../assets/card_background.jpg";
+  defaultBackground: string = "../../../../../assets/card_background.svg";
   protected readonly HUB_WORKFLOW_RESULT_DETAIL = HUB_WORKFLOW_RESULT_DETAIL;
   protected readonly USER_WORKSPACE = USER_WORKSPACE;
   protected readonly HUB_DATASET_RESULT_DETAIL = HUB_DATASET_RESULT_DETAIL;
