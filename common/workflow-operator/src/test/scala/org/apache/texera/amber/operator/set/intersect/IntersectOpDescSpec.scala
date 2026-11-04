@@ -22,7 +22,13 @@ package org.apache.texera.amber.operator.set.intersect
 import com.typesafe.config.ConfigFactory
 import org.apache.texera.amber.core.executor.OpExecWithClassName
 import org.apache.texera.amber.core.virtualidentity.{ExecutionIdentity, WorkflowIdentity}
-import org.apache.texera.amber.core.workflow.{HashPartition, SinglePartition, UnknownPartition}
+import org.apache.texera.amber.core.tuple.{AttributeType, Schema, Tuple}
+import org.apache.texera.amber.core.workflow.{
+  HashPartition,
+  PortIdentity,
+  SinglePartition,
+  UnknownPartition
+}
 import org.apache.texera.amber.operator.metadata.OperatorGroupConstants
 import org.apache.texera.amber.operator.tags.IntegrationTest
 import org.apache.texera.amber.testsupport.setop.SetRows
@@ -142,6 +148,46 @@ class IntersectOpDescSpec extends AnyFlatSpec with Matchers {
 
     val out = SetRows.runExport(python, exported(), "intersect-nan-zero-")
     withClue(s"script:\n${exported()}")(out shouldBe engine)
+  }
+
+  // The engine's Tuple equality includes the schema, so x:DOUBLE=1 on the left and
+  // y:DOUBLE=1 on the right share no row, though their values are equal.
+  it should "keep no row when the two inputs are declared differently" taggedAs NeedsPythonPackages in {
+    val python = resolvePython().getOrElse(cancel("No runnable python executable"))
+    if (!canImportPandas(python)) cancel(s"'$python' cannot import pandas")
+
+    val leftSchema = Schema().add("x", AttributeType.DOUBLE)
+    val rightSchema = Schema().add("y", AttributeType.DOUBLE)
+    val exec = new IntersectOpExec
+    exec.open()
+    exec.processTuple(Tuple(leftSchema, Array[Any](1.0)), 0)
+    exec.processTuple(Tuple(rightSchema, Array[Any](1.0)), 1)
+    exec.onFinish(0)
+    exec.onFinish(1).toList shouldBe empty
+
+    val desc = new IntersectOpDesc
+    val code =
+      desc.generateStandaloneCode(Map(PortIdentity() -> leftSchema, PortIdentity(1) -> rightSchema))
+    val driver =
+      s"""import pandas as pd
+         |
+         |in1df = pd.DataFrame({"x": [1.0]})
+         |in2df = pd.DataFrame({"y": [1.0]})
+         |${(desc.standaloneHelpers() :+ code).mkString("\n")}
+         |print(len(out1df), list(out1df.columns))
+         |""".stripMargin
+
+    val script = Files.createTempFile("intersect-schemas-", ".py")
+    script.toFile.deleteOnExit()
+    Files.write(script, driver.getBytes(StandardCharsets.UTF_8))
+    val process = new ProcessBuilder(python, script.toString).redirectErrorStream(true).start()
+    val out = Source.fromInputStream(process.getInputStream).mkString
+    process.waitFor(120, TimeUnit.SECONDS)
+
+    withClue(s"python said:\n$out\nscript:\n$driver") {
+      process.exitValue() shouldBe 0
+      out.trim shouldBe "0 ['x']"
+    }
   }
 
   private def exported(): String = {
