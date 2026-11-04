@@ -41,9 +41,7 @@ TYPE_CONTRACT = json.loads(
 )
 
 
-@pytest.mark.parametrize(
-    "kind,aliases", TYPE_CONTRACT["types"].items()
-)
+@pytest.mark.parametrize("kind,aliases", TYPE_CONTRACT["types"].items())
 def test_python_sdk_aliases_match_the_shared_manifest(kind, aliases):
     from core.models.schema.attribute_type import AttributeType, RAW_TYPE_MAPPING
 
