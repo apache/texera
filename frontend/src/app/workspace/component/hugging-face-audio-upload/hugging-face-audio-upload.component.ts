@@ -36,22 +36,8 @@ const MAX_AUDIO_BYTES = 25 * 1024 * 1024;
   imports: [CommonModule, NzButtonModule],
 })
 export class HuggingFaceAudioUploadComponent extends HuggingFaceMediaUploadBase {
-  get hasAudio(): boolean {
-    const value = this.formControl.value;
-    return typeof value === "string" && value.startsWith("data:audio/");
-  }
-
-  get hasMedia(): boolean {
-    return this.hasAudio;
-  }
-
-  get mediaFallbackLabel(): string {
-    return "Selected audio";
-  }
-
-  get previewSrc(): string {
-    return this.hasAudio ? this.formControl.value : "";
-  }
+  protected readonly dataUrlPrefix = "data:audio/";
+  protected readonly mediaFallbackLabel = "Selected audio";
 
   async onFileSelected(event: Event): Promise<void> {
     this.errorMessage = "";

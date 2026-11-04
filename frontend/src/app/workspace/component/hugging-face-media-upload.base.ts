@@ -25,9 +25,19 @@ export abstract class HuggingFaceMediaUploadBase extends FieldType<FieldTypeConf
   fileName = "";
   errorMessage = "";
 
-  abstract get hasMedia(): boolean;
-  abstract get mediaFallbackLabel(): string;
-  abstract get previewSrc(): string;
+  /** Data URL prefix the stored value must start with, e.g. `data:image/`. */
+  protected abstract readonly dataUrlPrefix: string;
+  /** Label shown when a value is present but no file name is known. */
+  protected abstract readonly mediaFallbackLabel: string;
+
+  get hasMedia(): boolean {
+    const value = this.formControl.value;
+    return typeof value === "string" && value.startsWith(this.dataUrlPrefix);
+  }
+
+  get previewSrc(): string {
+    return this.hasMedia ? this.formControl.value : "";
+  }
 
   get displayFileName(): string {
     if (this.fileName) return this.fileName;

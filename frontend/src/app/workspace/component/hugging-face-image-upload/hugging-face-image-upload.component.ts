@@ -37,22 +37,8 @@ const MIN_JPEG_QUALITY = 0.35;
   imports: [CommonModule, NzButtonModule],
 })
 export class HuggingFaceImageUploadComponent extends HuggingFaceMediaUploadBase {
-  get hasImage(): boolean {
-    const value = this.formControl.value;
-    return typeof value === "string" && value.startsWith("data:image/");
-  }
-
-  get hasMedia(): boolean {
-    return this.hasImage;
-  }
-
-  get mediaFallbackLabel(): string {
-    return "Uploaded image";
-  }
-
-  get previewSrc(): string {
-    return this.hasImage ? this.formControl.value : "";
-  }
+  protected readonly dataUrlPrefix = "data:image/";
+  protected readonly mediaFallbackLabel = "Uploaded image";
 
   async onFileSelected(event: Event): Promise<void> {
     this.errorMessage = "";
@@ -64,7 +50,7 @@ export class HuggingFaceImageUploadComponent extends HuggingFaceMediaUploadBase 
     }
     if (!file.type.startsWith("image/")) {
       this.errorMessage = "Choose an image file.";
-      input.value = "";
+      this.resetSelection(input);
       return;
     }
 
@@ -73,7 +59,7 @@ export class HuggingFaceImageUploadComponent extends HuggingFaceMediaUploadBase 
       this.setMediaValue(dataUrl, file.name);
     } catch {
       this.errorMessage = "Could not prepare this image. Try a smaller image file.";
-      input.value = "";
+      this.resetSelection(input);
     }
   }
 
