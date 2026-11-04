@@ -242,7 +242,7 @@ class AggregateOpDesc extends LogicalOp with StandaloneCodeGenerator {
           case _                             => s"in1df[$attrLit].max()"
         }
       case AggregationFunction.COUNT =>
-        if (agg.attribute == null || agg.attribute.isEmpty) "int(len(in1df))"
+        if (agg.attribute == null || agg.attribute.trim.isEmpty) "int(len(in1df))"
         else s"int(in1df[$attrLit].count())"
       case AggregationFunction.CONCAT => s"_texera_agg_concat(in1df[$attrLit])"
     }
@@ -292,7 +292,7 @@ class AggregateOpDesc extends LogicalOp with StandaloneCodeGenerator {
           case _ => s"$groups[$attrLit].max().rename($resultLit)"
         }
       case AggregationFunction.COUNT =>
-        if (agg.attribute == null || agg.attribute.isEmpty)
+        if (agg.attribute == null || agg.attribute.trim.isEmpty)
           s"$groups.size().rename($resultLit)"
         else s"$groups[$attrLit].count().rename($resultLit)"
       case AggregationFunction.CONCAT =>

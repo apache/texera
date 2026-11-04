@@ -445,6 +445,40 @@ class AggregateOpDescSpec extends AnyFlatSpec with Matchers {
     withClue(s"script:\n$driver")(out.trim shouldBe "0 ['cnt']")
   }
 
+  it should "count every row for a COUNT whose attribute is only whitespace, as the engine does" taggedAs NeedsPythonPackages in {
+    val python = resolvePython().getOrElse(cancel("No runnable python executable"))
+    if (!canImportPandas(python)) cancel(s"'$python' cannot import pandas")
+
+    val input = Schema().add("k", AttributeType.STRING).add("v", AttributeType.INTEGER)
+    val rows = Seq(Tuple(input, Array[Any]("a", 1)), Tuple(input, Array[Any]("a", null)))
+    def engine(keys: List[String]): List[String] = {
+      val exec = new AggregateOpExec(
+        objectMapper.writeValueAsString(descWith(keys, aggOp(AggregationFunction.COUNT, " ", "n")))
+      )
+      exec.open()
+      rows.foreach(exec.processTuple(_, 0))
+      exec.onFinish(0).map(_.getFields.mkString(" ")).toList
+    }
+    engine(List.empty) shouldBe List("2")
+    engine(List("k")) shouldBe List("a 2")
+
+    def script(keys: List[String]): String = {
+      val desc = descWith(keys, aggOp(AggregationFunction.COUNT, " ", "n"))
+      s"""${desc.standaloneHelpers().mkString("\n")}
+         |${desc.generateStandaloneCode()}
+         |print(" ".join(str(x) for x in out1df.iloc[0]))""".stripMargin
+    }
+    val driver =
+      s"""import pandas as pd
+         |
+         |in1df = pd.DataFrame({"k": ["a", "a"], "v": pd.array([1, None], dtype="Int64")})
+         |${script(List.empty)}
+         |${script(List("k"))}
+         |""".stripMargin
+    val out = runPython(python, driver, "aggregate-blank-count-", "UTC")
+    withClue(s"script:\n$driver")(out.trim.linesIterator.toList shouldBe List("2", "a 2"))
+  }
+
   // A DOUBLE column read from Arrow keeps a stored NaN apart from null. The
   // engine skips the null and folds the NaN in, so SUM, AVERAGE and MAX answer
   // NaN while MIN, which Java's Double.compare sends NaN past, answers 1.0.
