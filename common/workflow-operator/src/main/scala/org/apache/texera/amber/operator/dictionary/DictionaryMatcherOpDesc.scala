@@ -22,12 +22,13 @@ package org.apache.texera.amber.operator.dictionary
 import com.fasterxml.jackson.annotation.{JsonProperty, JsonPropertyDescription}
 import org.apache.texera.amber.core.executor.OpExecWithClassName
 import org.apache.texera.amber.core.state.NoLoopVariable
-import org.apache.texera.amber.core.tuple.{Attribute, AttributeType}
+import org.apache.texera.amber.core.tuple.{Attribute, AttributeType, Schema}
 import org.apache.texera.amber.core.virtualidentity.{ExecutionIdentity, WorkflowIdentity}
 import org.apache.texera.amber.core.workflow.{
   InputPort,
   OutputPort,
   PhysicalOp,
+  PortIdentity,
   SchemaPropagationFunc
 }
 import org.apache.texera.amber.operator.StandaloneCodeGenerator
@@ -101,7 +102,9 @@ class DictionaryMatcherOpDesc extends MapOpDesc with StandaloneCodeGenerator {
       supportReconfiguration = true
     )
 
-  override def generateStandaloneCode(): String = {
+  override def generateStandaloneCode(): String = generateStandaloneCode(Map.empty)
+
+  override def generateStandaloneCode(inputSchemas: Map[PortIdentity, Schema]): String = {
     // JVM splits the dictionary on "," and lowercases each entry — no trim,
     // so leading/trailing whitespace around a comma becomes part of the entry.
     val rawDict = Option(dictionary).getOrElse("")
@@ -109,7 +112,10 @@ class DictionaryMatcherOpDesc extends MapOpDesc with StandaloneCodeGenerator {
     val resultCol = Option(resultAttribute)
       .filter(_.trim.nonEmpty)
       .getOrElse("matched")
-    val attrPy = pyStringLiteral(Option(attribute).getOrElse(""))
+    // The engine reads the field through Schema, which ignores case. See [[columnAsStored]].
+    val attrPy = pyStringLiteral(
+      columnAsStored(Option(attribute).getOrElse(""), inputSchemas.values.headOption)
+    )
     val resultPy = pyStringLiteral(resultCol)
     val mt = Option(matchingType).getOrElse(MatchingType.SCANBASED)
 
