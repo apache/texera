@@ -144,13 +144,31 @@ UiParameter("active", AttributeType$INT)`)
     ]);
   });
 
-  it.each(["function() count", "helper(count = 1); function() count", "function() { count <- count + 1; count }"])(
-    "keeps a referenced name available without a top-level binding: %s",
-    code => {
-      const edit = parser.computeParameterInsertion(code, "count", "integer", "r");
-      expect(edit.text).toContain('count <- UiParameter(name="count",');
-    }
-  );
+  it.each([
+    ["for (count in 1:3) NULL\nfunction() count", "count_2"],
+    ["for (`count` in seq_len(3)) { print(count) }\nfunction() count", "count_2"],
+    ["count_2 <- 0; for (count in 1:3) NULL\nfunction() count", "count_3"],
+    ["for (count in integer()) NULL\nfunction() count", "count_2"],
+    ["helper <- function() 1\nfor (count in 1:3) NULL\nfunction() count", "count_2"],
+    ["if (TRUE) { for (count in 1:3) NULL }\nfunction() count", "count_2"],
+  ])("does not reuse a top-level loop binding in %s", (code, identifier) => {
+    const edit = parser.computeParameterInsertion(code, "count", "integer", "r");
+    expect(edit.text).toContain(`${identifier} <- UiParameter(name="count",`);
+  });
+
+  it.each([
+    "function() count",
+    "helper(count = 1); function() count",
+    "function() { count <- count + 1; count }",
+    "helper <- function() { for (count in 1:3) NULL }; function() count",
+    "helper <- function() for (count in seq_len(count)) NULL; function() count",
+    "helper <- function() if (TRUE) NULL else for (count in seq_len(count)) NULL; function() count",
+    "helper <- \\() for (count in seq_len(count)) NULL; function() count",
+    "helper <- function() (0) + for (i in 1:3)\nfor (count in seq_len(count)) NULL; function() count",
+  ])("keeps a referenced name available without a top-level binding: %s", code => {
+    const edit = parser.computeParameterInsertion(code, "count", "integer", "r");
+    expect(edit.text).toContain('count <- UiParameter(name="count",');
+  });
 
   it("rejects duplicate, empty, and unsupported additions before editing", () => {
     expect(() => parser.computeParameterInsertion("", " ", "string", "r")).toThrow("name is required");
