@@ -58,7 +58,8 @@ private[operatorreference] case class DocProperty(
     description: String,
     children: List[DocProperty] = Nil,
     codeTemplate: Option[String] = None,
-    acceptedColumnTypes: List[String] = Nil
+    acceptedColumnTypes: List[String] = Nil,
+    requiredWhen: Option[String] = None
 )
 
 private[operatorreference] case class EnumParam(
@@ -89,7 +90,7 @@ object JsonPropertyReflectionUtils {
     def escapeCell(s: String) = s.replace("\n", " ").replace("\r", " ").replace("|", "\\|")
     def renderRows(p: DocProperty, depth: Int): List[String] = {
       val indent = if (depth == 0) "" else "&nbsp;&nbsp;" * (depth - 1) + "↳ "
-      val requirement = if (p.required) "✓" else ""
+      val requirement = if (p.required) "✓" else p.requiredWhen.map(c => s"✓ $c").getOrElse("")
       val dataType =
         if (p.acceptedColumnTypes.isEmpty) p.dataType
         else s"${p.dataType} (${p.acceptedColumnTypes.mkString(", ")})"
@@ -165,7 +166,9 @@ object JsonPropertyReflectionUtils {
     val instance = createInstance(clazz)
     val fields = documentableFields(clazz)
     val byJsonName = fields.map(f => jsonName(f) -> f).toMap
-    val typeRules = attributeTypeRules(clazz)
+    val schemas = injectedSchemas(clazz)
+    val typeRules = attributeTypeRules(schemas)
+    val requiredWhen = conditionalRequirements(schemas, byJsonName)
 
     def toggleParent(field: Field): Option[Field] =
       fields
@@ -201,7 +204,8 @@ object JsonPropertyReflectionUtils {
           .getOrElse(""),
         children,
         template,
-        typeRule.toList.flatMap(acceptedTypes)
+        typeRule.toList.flatMap(acceptedTypes),
+        requiredWhen.get(jsonName(field))
       )
     }
 
@@ -438,15 +442,38 @@ object JsonPropertyReflectionUtils {
     !c.isEnum && !c.getName.startsWith("java.") && !c.getName.startsWith("scala.") &&
       documentableFields(c).nonEmpty
 
-  private def attributeTypeRules(clazz: Class[_]): Map[String, JsonNode] =
+  private def injectedSchemas(clazz: Class[_]): List[JsonNode] =
     Iterator
       .iterate[Class[_]](clazz)(_.getSuperclass)
       .takeWhile(c => c != null && c != classOf[Object])
       .flatMap(c => Option(c.getAnnotation(classOf[JsonSchemaInject])))
       .map(_.json())
       .filter(_.nonEmpty)
-      .flatMap(json => Try(mapper.readTree(json).path("attributeTypeRules")).toOption)
-      .flatMap(_.properties().asScala.map(e => e.getKey -> e.getValue))
+      .flatMap(json => Try(mapper.readTree(json)).toOption)
+      .toList
+
+  private def attributeTypeRules(schemas: List[JsonNode]): Map[String, JsonNode] =
+    schemas
+      .flatMap(_.path("attributeTypeRules").properties().asScala.map(e => e.getKey -> e.getValue))
+      .toMap
+
+  // `allOf: [{if: {properties: {x: {const: v}}}, then: {required: [...]}, else: {required: [...]}}]`
+  private def conditionalRequirements(
+      schemas: List[JsonNode],
+      byJsonName: Map[String, Field]
+  ): Map[String, String] =
+    schemas
+      .flatMap(_.path("allOf").asScala)
+      .flatMap { branch =>
+        branch.path("if").path("properties").properties().asScala.headOption.toList.flatMap {
+          condition =>
+            val target = targetLabel(condition.getKey, byJsonName)
+            val value = condition.getValue.path("const").asText()
+            def required(node: JsonNode) = node.path("required").asScala.map(_.asText()).toList
+            required(branch.path("then")).map(_ -> s"when $target is $value") ++
+              required(branch.path("else")).map(_ -> s"unless $target is $value")
+        }
+      }
       .toMap
 
   private def acceptedTypes(rule: JsonNode): List[String] =

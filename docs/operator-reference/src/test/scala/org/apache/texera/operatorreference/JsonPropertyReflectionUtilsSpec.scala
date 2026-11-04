@@ -31,6 +31,7 @@ import org.apache.texera.amber.operator.machineLearning.sklearnAdvanced.KNNTrain
 }
 import org.apache.texera.amber.operator.source.apis.twitter.v2.TwitterSearchSourceOpDesc
 import org.apache.texera.amber.operator.source.sql.postgresql.PostgreSQLSourceOpDesc
+import org.apache.texera.amber.operator.sklearn.SklearnClassifierOpDesc
 import org.apache.texera.amber.operator.split.SplitOpDesc
 import org.apache.texera.amber.operator.udf.python.PythonUDFOpDescV2
 import org.apache.texera.amber.operator.visualization.ecdfPlot.ECDFPlotOpDesc
@@ -116,10 +117,13 @@ class JsonPropertyReflectionUtilsSpec extends AnyFlatSpec with Matchers {
 
   it should "describe type rules that depend on another property" in {
     table(classOf[AggregateOpDesc]) should include(
-      "| ↳ Attribute |  | String | - | Column to aggregate on. Accepts integer, long,<br>double, timestamp when `Aggregate Func` is sum,<br>average, min, max; string when `Aggregate Func`<br>is concat |"
+      "| ↳ Attribute | ✓ unless `Aggregate Func` is count | String | - | Column to aggregate on. Accepts integer, long,<br>double, timestamp when `Aggregate Func` is sum,<br>average, min, max; string when `Aggregate Func`<br>is concat |"
     )
     table(classOf[HashJoinOpDesc[_]]) should include(
       "| Left Input Attribute | ✓ | String | - | Attribute to be joined on the Left Input. Same<br>type as `Right Input Attribute` |"
+    )
+    table(classOf[SklearnClassifierOpDesc]) should include(
+      "| ↳ Text Attribute | ✓ when `Count Vectorizer` is true | List\\<String\\> (string) | - | "
     )
   }
 
