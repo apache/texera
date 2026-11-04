@@ -17,6 +17,7 @@
  * under the License.
  */
 
+import { workflowConnector, workflowRouter } from "./workflow-link-routing";
 import { of } from "rxjs";
 import * as joint from "jointjs";
 import { JointUIService, operatorNameClass, operatorStateClass, operatorPortMetricsClass } from "./joint-ui.service";
@@ -292,11 +293,11 @@ describe("JointUIService", () => {
   });
 
   describe("getDefaultLinkCell (static)", () => {
-    it("builds a link routed with manhattan and connected with rounded corners", () => {
+    it("builds a link with obstacle-aware workflow curves", () => {
       const link = JointUIService.getDefaultLinkCell();
       expect(link).toBeInstanceOf(joint.dia.Link);
-      expect(link.get("router")).toEqual({ name: "manhattan" });
-      expect(link.get("connector")).toEqual({ name: "rounded" });
+      expect(link.get("router")).toEqual(workflowRouter);
+      expect(link.get("connector")).toBe(workflowConnector);
     });
 
     it("styles the connection stroke and hides the remove tool by default", () => {
@@ -308,12 +309,12 @@ describe("JointUIService", () => {
       expect(link.attr(".tool-remove/fill")).toBe("#D8656A");
     });
 
-    it("fills the source and target markers with the handle color", () => {
+    it("attaches native markers to the connection so they inherit its color", () => {
       const link = JointUIService.getDefaultLinkCell();
-      expect(link.attr(".marker-source/fill")).toBe("#919191");
-      expect(link.attr(".marker-target/fill")).toBe("#919191");
-      expect(link.attr(".marker-source/stroke")).toBe("none");
-      expect(link.attr(".marker-target/stroke")).toBe("none");
+      expect(link.attr(".connection/sourceMarker")).toMatchObject({ type: "path", stroke: "none" });
+      expect(link.attr(".connection/targetMarker")).toMatchObject({ type: "path", stroke: "none" });
+      expect(link.attr(".connection/targetMarker/fill")).toBeUndefined();
+      expect(link.get("markup")).not.toContain('class="marker-target"');
     });
   });
 

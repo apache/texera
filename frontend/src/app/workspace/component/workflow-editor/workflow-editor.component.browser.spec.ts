@@ -33,6 +33,8 @@
  * runner. Restored here per issue #5318.
  */
 
+import { userEvent } from "vitest/browser";
+import * as joint from "jointjs";
 import { ComponentFixture, TestBed } from "@angular/core/testing";
 import { NzModalRef, NzModalService } from "ng-zorro-antd/modal";
 import * as jQuery from "jquery";
@@ -47,6 +49,7 @@ import {
   mockPoint,
   mockResultPredicate,
   mockScanPredicate,
+  mockScanResultLink,
 } from "../../service/workflow-graph/model/mock-workflow-data";
 import { createYTypeFromObject } from "../../types/shared-editing.interface";
 
@@ -212,5 +215,32 @@ describe("WorkflowEditorComponent - mouse and pointer event integration", () => 
 
     // assert that the operator is unhighlighted
     expect(jointGraphWrapper.getCurrentHighlightedOperatorIDs()).not.toContain(mockScanPredicate.operatorID);
+  });
+  it("keeps a link attached during a real mouse drag and preserves click-only layout", async () => {
+    component.paper.setDimensions(1000, 650);
+    workflowActionService.addOperatorsAndLinks(
+      [
+        { op: mockScanPredicate, pos: { x: 50, y: 100 } },
+        { op: mockResultPredicate, pos: { x: 650, y: 100 } },
+      ],
+      [mockScanResultLink]
+    );
+    const source = component.paper.model.getCell(mockScanPredicate.operatorID) as joint.dia.Element;
+    const target = component.paper.model.getCell(mockResultPredicate.operatorID) as joint.dia.Element;
+    workflowActionService.getJointGraphWrapper().unhighlightOperators(source.id.toString(), target.id.toString());
+    const sourceView = component.paper.findViewByModel(source);
+    // End the entrance feedback so Playwright can consider the drag source stable.
+    sourceView.el.getAnimations({ subtree: true }).forEach(effect => effect.finish());
+    await userEvent.dragAndDrop(sourceView.el.querySelector(".boundary")!, component.paper.svg, {
+      targetPosition: { x: 400, y: 400 },
+    });
+    expect(source.position()).not.toEqual({ x: 50, y: 100 });
+    expect(target.position()).toEqual({ x: 650, y: 100 });
+    const linkView = component.paper.findViewByModel(mockScanResultLink.linkID) as joint.dia.LinkView;
+    const path = linkView.el.querySelector(".connection") as SVGPathElement;
+    const end = path.getPointAtLength(path.getTotalLength());
+    expect(end.x).toBeCloseTo(linkView.getEndConnectionPoint("target").x, 1);
+    expect(end.y).toBeCloseTo(linkView.getEndConnectionPoint("target").y, 1);
+    expect(path.getAttribute("marker-end")).toBeTruthy();
   });
 });

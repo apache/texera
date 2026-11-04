@@ -17,6 +17,8 @@
  * under the License.
  */
 
+import { WorkflowInsertionAnimation } from "../../service/joint-ui/workflow-insertion-animation";
+import { WorkflowLinkRouting } from "../../service/joint-ui/workflow-link-routing";
 import { AfterViewInit, ChangeDetectorRef, Component, ElementRef, Input, OnDestroy, OnInit } from "@angular/core";
 import { combineLatest, fromEvent, merge, Subject } from "rxjs";
 import { NzModalCommentBoxComponent } from "./comment-box-modal/nz-modal-comment-box.component";
@@ -109,6 +111,8 @@ export class WorkflowEditorComponent implements OnInit, AfterViewInit, OnDestroy
   editor!: HTMLElement;
   editorWrapper!: HTMLElement;
   paper!: joint.dia.Paper;
+  private linkRouting?: WorkflowLinkRouting;
+  private insertionAnimation?: WorkflowInsertionAnimation;
   /** One bound reference, so the listener that is added is the one that can be removed. */
   private readonly keyboardActionListener = (event: KeyboardEvent) => this._handleKeyboardAction(event);
   // Heat-map hover tooltip (shown while the Performance overlay is on). Null when hidden.
@@ -217,6 +221,12 @@ export class WorkflowEditorComponent implements OnInit, AfterViewInit, OnDestroy
     this.editorWrapper = host.querySelector("#workflow-editor-wrapper")!;
     document.addEventListener("keydown", this.keyboardActionListener);
     this.initializeJointPaper();
+    this.linkRouting = new WorkflowLinkRouting(this.paper);
+    this.insertionAnimation = new WorkflowInsertionAnimation(
+      this.paper,
+      () => this.wrapper.getReloadingWorkflow(),
+      id => this.workflowActionService.getTexeraGraph().hasOperator(id)
+    );
     // A new paper starts at scale 1, but the zoom ratio lives in the root-provided wrapper and
     // outlives this component. With the switch between a workflow's two views routed, this paper
     // is new while the ratio is whatever the user last chose, and the two disagreed: the zoom
@@ -270,6 +280,8 @@ export class WorkflowEditorComponent implements OnInit, AfterViewInit, OnDestroy
 
   ngOnDestroy(): void {
     this.paperResizeObserver?.disconnect();
+    this.linkRouting?.dispose();
+    this.insertionAnimation?.dispose();
     // The paper is bound to the joint graph, which is root-provided and outlives this component,
     // so an undisposed one goes on listening to that graph from a DOM node no longer on the page.
     // Harmless while every mount followed a page load; the switch between a workflow's two views
@@ -1658,8 +1670,6 @@ export class WorkflowEditorComponent implements OnInit, AfterViewInit, OnDestroy
         linkIDs.forEach(linkID => {
           this.paper.getModelById(linkID).attr({
             ".connection": { stroke: "orange" },
-            ".marker-source": { fill: "orange" },
-            ".marker-target": { fill: "orange" },
           });
         });
       });
@@ -1674,8 +1684,6 @@ export class WorkflowEditorComponent implements OnInit, AfterViewInit, OnDestroy
             // ensure that the link still exist
             this.paper.getModelById(linkID).attr({
               ".connection": { stroke: linkPathStrokeColor },
-              ".marker-source": { fill: "none" },
-              ".marker-target": { fill: "none" },
             });
           }
         });
