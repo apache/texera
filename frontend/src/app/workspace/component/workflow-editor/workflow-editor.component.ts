@@ -37,6 +37,7 @@ import {
 } from "../../service/heatmap/heatmap-scoring";
 import { ExecutionState, OperatorState } from "../../types/execute-workflow.interface";
 import { LogicalPort, OperatorLink, OperatorPredicate, Point } from "../../types/workflow-common.interface";
+import { isDefined } from "../../../common/util/predicate";
 import { auditTime, filter, map, takeUntil, withLatestFrom } from "rxjs/operators";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 import { UndoRedoService } from "../../service/undo-redo/undo-redo.service";
@@ -1265,45 +1266,54 @@ export class WorkflowEditorComponent implements OnInit, AfterViewInit, OnDestroy
   }
 
   /**
-   * Anchors a comment box by dragging it: while a comment box is dragged on its own, the operator it
-   * would anchor to is outlined, and dropping it there anchors it (see anchorCommentBoxOnDrop, which
-   * also detaches a box dropped far from its operator). Dragging it along with operators changes nothing.
+   * Anchors comment boxes by dragging them: while comment boxes are dragged without any operator, the
+   * operators they would anchor to are outlined, and on drop each dragged box settles its own anchor
+   * by where it landed (see anchorCommentBoxOnDrop, which also detaches a box dropped far from its
+   * operator). Dragging them along with operators changes nothing.
    */
   private handleCommentBoxDragToAnchor(): void {
     const TARGET_HIGHLIGHT_ID = "commentBoxAnchorTarget";
-    let drag: { commentBoxID: string; start: Point } | undefined;
-    let targetOperatorID: string | undefined;
-    const setTarget = (operatorID: string | undefined) => {
-      if (operatorID === targetOperatorID) {
-        return;
-      }
-      const previousView = targetOperatorID === undefined ? undefined : this.paper.findViewByModel(targetOperatorID);
-      if (previousView) {
-        joint.highlighters.mask.remove(previousView, TARGET_HIGHLIGHT_ID);
-      }
-      const nextView = operatorID === undefined ? undefined : this.paper.findViewByModel(operatorID);
-      if (nextView) {
-        joint.highlighters.mask.add(nextView, "rect.body", TARGET_HIGHLIGHT_ID, {
-          padding: 6,
-          rx: 5,
-          ry: 5,
-          attrs: { "stroke-width": 2, stroke: "#1890FF", "stroke-dasharray": "4 2" },
-        });
-      }
-      targetOperatorID = operatorID;
+    const texeraGraph = this.workflowActionService.getTexeraGraph();
+    // The comment box under the pointer, and every comment box the drag moves (the whole selection).
+    let drag: { pressedID: string; start: Point; commentBoxIDs: string[] } | undefined;
+    let targetOperatorIDs: string[] = [];
+    const setTargets = (operatorIDs: string[]) => {
+      targetOperatorIDs
+        .filter(operatorID => !operatorIDs.includes(operatorID))
+        .map(operatorID => this.paper.findViewByModel(operatorID))
+        .forEach(view => view && joint.highlighters.mask.remove(view, TARGET_HIGHLIGHT_ID));
+      operatorIDs
+        .filter(operatorID => !targetOperatorIDs.includes(operatorID))
+        .map(operatorID => this.paper.findViewByModel(operatorID))
+        .forEach(
+          view =>
+            view &&
+            joint.highlighters.mask.add(view, "rect.body", TARGET_HIGHLIGHT_ID, {
+              padding: 6,
+              rx: 5,
+              ry: 5,
+              attrs: { "stroke-width": 2, stroke: "#1890FF", "stroke-dasharray": "4 2" },
+            })
+        );
+      targetOperatorIDs = operatorIDs;
     };
-    const isSoloCommentBoxDrag = (elementID: string) =>
-      this.interactive &&
-      this.workflowActionService.getTexeraGraph().hasCommentBox(elementID) &&
-      this.wrapper.getCurrentHighlightedOperatorIDs().length === 0;
+    const draggedCommentBoxIDs = () =>
+      drag!.commentBoxIDs.filter(commentBoxID => texeraGraph.hasCommentBox(commentBoxID));
 
     fromJointPaperEvent(this.paper, "element:pointerdown")
       .pipe(untilDestroyed(this))
       .subscribe(event => {
-        const elementID = event[0].model.id.toString();
-        drag = isSoloCommentBoxDrag(elementID)
-          ? { commentBoxID: elementID, start: this.wrapper.getElementPosition(elementID) }
-          : undefined;
+        const pressedID = event[0].model.id.toString();
+        drag =
+          this.interactive &&
+          texeraGraph.hasCommentBox(pressedID) &&
+          this.wrapper.getCurrentHighlightedOperatorIDs().length === 0
+            ? {
+                pressedID,
+                start: this.wrapper.getElementPosition(pressedID),
+                commentBoxIDs: _.union([pressedID], this.wrapper.getCurrentHighlightedCommentBoxIDs()),
+              }
+            : undefined;
       });
 
     fromJointPaperEvent(this.paper, "element:pointermove")
@@ -1311,23 +1321,35 @@ export class WorkflowEditorComponent implements OnInit, AfterViewInit, OnDestroy
         filter(() => drag !== undefined),
         untilDestroyed(this)
       )
-      .subscribe(() => setTarget(this.workflowActionService.findCommentBoxAnchorTarget(drag!.commentBoxID)));
+      .subscribe(() =>
+        setTargets(
+          _.uniq(
+            draggedCommentBoxIDs()
+              .map(commentBoxID => this.workflowActionService.findCommentBoxAnchorTarget(commentBoxID))
+              .filter(isDefined)
+          )
+        )
+      );
 
     fromJointPaperEvent(this.paper, "element:pointerup")
       .pipe(untilDestroyed(this))
       .subscribe(() => {
-        setTarget(undefined);
-        const finished = drag;
-        drag = undefined;
+        setTargets([]);
         if (
-          finished === undefined ||
-          !isSoloCommentBoxDrag(finished.commentBoxID) ||
-          _.isEqual(this.wrapper.getElementPosition(finished.commentBoxID), finished.start)
+          drag === undefined ||
+          !this.interactive ||
+          !texeraGraph.hasCommentBox(drag.pressedID) ||
+          _.isEqual(this.wrapper.getElementPosition(drag.pressedID), drag.start)
         ) {
-          // A click, not a drag: leave the anchor alone.
+          // Not a comment box drag, or a click that moved nothing: leave the anchors alone.
+          drag = undefined;
           return;
         }
-        this.workflowActionService.anchorCommentBoxOnDrop(finished.commentBoxID);
+        const commentBoxIDs = draggedCommentBoxIDs();
+        drag = undefined;
+        texeraGraph.bundleActions(() =>
+          commentBoxIDs.forEach(commentBoxID => this.workflowActionService.anchorCommentBoxOnDrop(commentBoxID))
+        );
       });
   }
 

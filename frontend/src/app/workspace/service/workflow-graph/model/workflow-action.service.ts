@@ -475,18 +475,30 @@ export class WorkflowActionService {
   /**
    * The operator a comment box would anchor to if it were dropped where it is now: the nearest
    * operator within <code>COMMENT_BOX_SNAP_DISTANCE</code> of it, or undefined if none is that close.
+   * Among equally near operators, the one it is anchored to wins, so a drop does not flip its anchor;
+   * otherwise the one whose center is nearest.
    * @param commentBoxID
    */
   public findCommentBoxAnchorTarget(commentBoxID: string): string | undefined {
     const commentBoxBBox = this.getElementBBox(commentBoxID);
-    let nearest: { operatorID: string; distance: number } | undefined;
-    for (const operator of this.texeraGraph.getAllOperators()) {
-      const distance = distanceBetween(commentBoxBBox, this.getElementBBox(operator.operatorID));
-      if (distance <= COMMENT_BOX_SNAP_DISTANCE && (nearest === undefined || distance < nearest.distance)) {
-        nearest = { operatorID: operator.operatorID, distance };
-      }
-    }
-    return nearest?.operatorID;
+    const anchoredOperatorID = this.texeraGraph.getCommentBox(commentBoxID).anchoredOperatorID;
+    const candidates = this.texeraGraph
+      .getAllOperators()
+      .map(operator => {
+        const operatorBBox = this.getElementBBox(operator.operatorID);
+        return {
+          operatorID: operator.operatorID,
+          distance: distanceBetween(commentBoxBBox, operatorBBox),
+          isAnchor: operator.operatorID === anchoredOperatorID,
+          centerDistance: commentBoxBBox.center().distance(operatorBBox.center()),
+        };
+      })
+      .filter(candidate => candidate.distance <= COMMENT_BOX_SNAP_DISTANCE);
+    candidates.sort(
+      (a, b) =>
+        a.distance - b.distance || Number(b.isAnchor) - Number(a.isAnchor) || a.centerDistance - b.centerDistance
+    );
+    return candidates[0]?.operatorID;
   }
 
   /**

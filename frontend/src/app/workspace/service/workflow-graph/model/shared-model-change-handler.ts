@@ -233,12 +233,14 @@ export class SharedModelChangeHandler {
 
   /**
    * Syncs element positions. Will temporarily block local updates.
+   * An "add" counts too when the element is already on the canvas: a comment box enters the
+   * position map only when it first moves, so its first move arrives as an add.
    * @private
    */
   private handleElementPositionChange(): void {
     this.texeraGraph.sharedModel.elementPositionMap?.observe((event: Y.YMapEvent<Point>) => {
       event.changes.keys.forEach((change, key) => {
-        if (change.action === "update") {
+        if (change.action === "update" || (change.action === "add" && this.jointGraph.getCell(key) !== undefined)) {
           this.texeraGraph.setSyncTexeraGraph(false);
           const newPosition = this.texeraGraph.sharedModel.elementPositionMap?.get(key);
           if (newPosition) {
