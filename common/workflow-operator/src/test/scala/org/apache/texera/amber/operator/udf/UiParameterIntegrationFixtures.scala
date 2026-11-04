@@ -76,8 +76,8 @@ object UiParameterIntegrationFixtures {
       parameter("label", "STRING", "café\n\"; stop('injected') #"),
       parameter("enabled", "BOOL", "2"),
       parameter("score", "DOUBLE", "2.5"),
-      parameter("long_value", "LONG", "9223372036854775807"),
-      parameter("created", "TIMESTAMP", "2026-11-03T14:30:00+02:00"),
+      parameter("long_value", "LONG", "+0009223372036854775807"),
+      parameter("created", "TIMESTAMP", "2026-11-03T14:30+02:00"),
       parameter("data", "STRING", "/tmp/texera-r-ui-contract-data", "dataset"),
       parameter("model", "STRING", "/tmp/texera-r-ui-contract-model", "model")
     )
