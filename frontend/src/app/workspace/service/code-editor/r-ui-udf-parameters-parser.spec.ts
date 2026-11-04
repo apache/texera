@@ -65,6 +65,22 @@ describe("R UDF UI parameter declarations", () => {
   });
 
   it.each([
+    [String.raw`"\x63\u0061\U00000066\u{e9}"`, "café"],
+    [String.raw`"\143\141\146\351"`, "café"],
+    [String.raw`'single\'quote'`, "single'quote"],
+    ['r"---[raw # (name)]---"', "raw # (name)"],
+  ])("preserves R string literal decoding for %s", (literal, name) => {
+    expect(parse(`UiParameter(${literal}, AttributeType$STRING)`)[0].attribute.attributeName).toBe(name);
+  });
+
+  it.each([String.raw`"\q"`, String.raw`"\U00110000"`, '"unfinished'])(
+    "ignores invalid or unfinished string literals: %s",
+    literal => {
+      expect(parse(`UiParameter(${literal}, AttributeType$STRING)`)).toEqual([]);
+    }
+  );
+
+  it.each([
     'UiParameter("x")',
     'UiParameter("x", "integer")',
     'UiParameter("x", Other$INT)',

@@ -42,13 +42,13 @@ TYPE_CONTRACT = json.loads(
 
 
 @pytest.mark.parametrize(
-    "definition", TYPE_CONTRACT["types"], ids=lambda definition: definition["token"]
+    "kind,aliases", TYPE_CONTRACT["types"].items()
 )
-def test_python_sdk_aliases_match_the_shared_manifest(definition):
-    from core.models.schema.attribute_type import AttributeType
+def test_python_sdk_aliases_match_the_shared_manifest(kind, aliases):
+    from core.models.schema.attribute_type import AttributeType, RAW_TYPE_MAPPING
 
-    expected = getattr(AttributeType, definition["token"])
-    for alias in definition["aliases"]:
+    expected = RAW_TYPE_MAPPING[kind.upper()]
+    for alias in aliases:
         assert getattr(AttributeType, alias) is expected
 
 

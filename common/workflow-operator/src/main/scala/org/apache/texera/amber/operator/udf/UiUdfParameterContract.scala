@@ -19,46 +19,27 @@
 
 package org.apache.texera.amber.operator.udf
 
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties
 import org.apache.texera.amber.core.tuple.AttributeType
 import org.apache.texera.amber.util.JSONUtils.objectMapper
 
-import _root_.java.util.Locale
-import scala.jdk.CollectionConverters._
 import scala.util.Using
 
 /** Language-neutral metadata contract. Native value conversion belongs to each runtime. */
 object UiUdfParameterContract {
-  case class ParameterType(
-      attributeType: AttributeType,
-      token: String,
-      aliases: List[String],
-      requiresValue: Boolean
+  @JsonIgnoreProperties(Array("_license"))
+  private case class Manifest(
+      types: Map[AttributeType, List[String]],
+      resources: Map[String, String]
   )
 
-  private val contract = Using.resource(
+  private val manifest = Using.resource(
     getClass.getResourceAsStream("/udf/ui-parameter-types.json")
-  )(objectMapper.readTree)
-  val types: List[ParameterType] = contract
-    .path("types")
-    .elements()
-    .asScala
-    .map { definition =>
-      ParameterType(
-        AttributeType.valueOf(definition.path("attributeType").asText().toUpperCase(Locale.ROOT)),
-        definition.path("token").asText(),
-        definition.path("aliases").elements().asScala.map(_.asText()).toList,
-        definition.path("requiresValue").asBoolean()
-      )
-    }
-    .toList
+  )(stream => objectMapper.readValue(stream, classOf[Manifest]))
+  val types: Map[AttributeType, List[String]] = manifest.types
   val typesByToken: Map[String, AttributeType] =
-    types.flatMap(t => t.aliases.map(_ -> t.attributeType)).toMap
-  val resourceInputTypes: Map[String, String] = contract
-    .path("resources")
-    .fields()
-    .asScala
-    .map(entry => entry.getKey -> entry.getValue.asText())
-    .toMap
+    types.flatMap { case (attributeType, aliases) => aliases.map(_ -> attributeType) }
+  val resourceInputTypes: Map[String, String] = manifest.resources
 
   def validate(uiParameters: List[UiUDFParameter]): Unit = {
     val names = Option(uiParameters).getOrElse(Nil).map { parameter =>
@@ -67,15 +48,14 @@ object UiUdfParameterContract {
         .getOrElse(throw new RuntimeException("UiParameter attribute is required."))
       if (attribute.getName.trim.isEmpty)
         throw new RuntimeException("UiParameter name is required.")
-      val definition = types
-        .find(_.attributeType == attribute.getType)
-        .getOrElse(
-          throw new RuntimeException(
-            s"UiParameter type '${attribute.getType.name()}' is not supported. " +
-              "Use string, integer, long, double, boolean, or timestamp instead."
-          )
+      if (!types.contains(attribute.getType))
+        throw new RuntimeException(
+          s"UiParameter type '${attribute.getType.name()}' is not supported. " +
+            "Use string, integer, long, double, boolean, or timestamp instead."
         )
-      if (definition.requiresValue && Option(parameter.value).forall(_.trim.isEmpty))
+      if (
+        attribute.getType != AttributeType.STRING && Option(parameter.value).forall(_.trim.isEmpty)
+      )
         throw new RuntimeException(
           s"UiParameter '${attribute.getName}' requires a value for type '${attribute.getType.name()}'."
         )

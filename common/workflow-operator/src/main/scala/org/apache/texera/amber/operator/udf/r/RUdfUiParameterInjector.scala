@@ -42,9 +42,9 @@ object RUdfUiParameterInjector {
     val entries = parameters.map { parameter =>
       s"list(type=${rString(parameter.attribute.getType.getName)}, value=${rString(parameter.value)}, inputType=${rString(parameter.inputType)})"
     }
-    val typeEntries = UiUdfParameterContract.types.flatMap(t =>
-      t.aliases.map(alias => s"$alias=${rString(t.attributeType.getName)}")
-    )
+    val typeEntries = UiUdfParameterContract.typesByToken.toList.sortBy(_._1).map {
+      case (token, attributeType) => s"$token=${rString(attributeType.getName)}"
+    }
     val resourceEntries = UiUdfParameterContract.resourceInputTypes.toList.sortBy(_._1).map {
       case (token, value) => s"$token=${rString(value)}"
     }

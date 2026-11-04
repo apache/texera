@@ -26,8 +26,6 @@ import {
   ATTRIBUTE_TYPES_BY_TOKEN,
   INPUT_TYPES_BY_RESOURCE_TOKEN,
   createUiParameter,
-  assertUniqueParameterNames,
-  prepareParameterInsertion,
 } from "./ui-udf-parameter";
 
 // Keep in sync with Python UDF template class names in PythonUDFOpDescV2, DualInputPortsPythonUDFOpDescV2, and PythonUDFSourceOpDescV2.
@@ -84,7 +82,7 @@ const PYTHON_KEYWORDS = new Set(
 export class PythonUiUdfParametersParser {
   /**
    * Returns UI parameters from the single supported Python UDF class in the source.
-   * Throws UiUdfParametersParseError for duplicate parameter names or multiple supported UDF classes.
+   * Throws UiUdfParametersParseError for multiple supported UDF classes.
    */
   parse(code: string): UiUdfParameter[] {
     if (!code) return [];
@@ -95,7 +93,7 @@ export class PythonUiUdfParametersParser {
       forEachUiParameterCall(supportedClass, code, parameter => {
         result.push(parameter);
       });
-    return assertUniqueParameterNames(result);
+    return result;
   }
 
   /**
@@ -105,15 +103,9 @@ export class PythonUiUdfParametersParser {
    */
   computeParameterInsertion(
     code: string,
-    name: string,
-    attributeType: AttributeType
+    attributeName: string,
+    pythonToken: string
   ): Readonly<{ offset: number; text: string }> {
-    const { attributeName, token: pythonToken } = prepareParameterInsertion(
-      () => this.parse(code),
-      name,
-      attributeType
-    );
-
     const declaration =
       `self.${toPythonIdentifier(attributeName)} = ` +
       `self.UiParameter(name=${JSON.stringify(attributeName)}, type=AttributeType.${pythonToken}).value`;

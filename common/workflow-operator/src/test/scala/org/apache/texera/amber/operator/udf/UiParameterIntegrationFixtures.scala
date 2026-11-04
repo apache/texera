@@ -83,12 +83,11 @@ object UiParameterIntegrationFixtures {
     )
     val declarations = parameters
       .map { p =>
-        val definition =
-          UiUdfParameterContract.types.find(_.attributeType == p.attribute.getType).get
+        val token = UiUdfParameterContract.types(p.attribute.getType).head
         val resource = Option
           .when(p.inputType.nonEmpty)(s", value=Resource$$${p.inputType.toUpperCase}")
           .getOrElse("")
-        s"""${p.attribute.getName} <- UiParameter("${p.attribute.getName}", AttributeType$$${definition.token}$resource)$$value"""
+        s"""${p.attribute.getName} <- UiParameter("${p.attribute.getName}", AttributeType$$$token$resource)$$value"""
       }
       .mkString("\n")
     val fields = Seq(

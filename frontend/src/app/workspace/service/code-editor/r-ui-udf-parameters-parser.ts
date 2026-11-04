@@ -17,14 +17,11 @@
  * under the License.
  */
 
-import type { AttributeType } from "../../types/workflow-compiling.interface";
 import {
   UiUdfParameter,
   ATTRIBUTE_TYPES_BY_TOKEN,
   INPUT_TYPES_BY_RESOURCE_TOKEN,
   createUiParameter,
-  assertUniqueParameterNames,
-  prepareParameterInsertion,
 } from "./ui-udf-parameter";
 
 type Token = Readonly<{ text: string; kind: "name" | "string" | "symbol" }>;
@@ -33,6 +30,37 @@ const R_KEYWORDS = new Set(
     " "
   )
 );
+
+const R_ESCAPES: Readonly<Record<string, string>> = {
+  n: "\n",
+  r: "\r",
+  t: "\t",
+  b: "\b",
+  f: "\f",
+  a: "\x07",
+  v: "\v",
+  "\\": "\\",
+  "'": "'",
+  '"': '"',
+  "`": "`",
+};
+
+function decodeRString(text: string): string {
+  let valid = true;
+  const decoded = text.replace(
+    /\\(u(?:\{[\da-fA-F]{1,4}\}|[\da-fA-F]{4})|U(?:\{[\da-fA-F]{1,8}\}|[\da-fA-F]{8})|x[\da-fA-F]{1,2}|[0-7]{1,3}|[\s\S])/g,
+    (_, escaped: string) => {
+      if (escaped in R_ESCAPES) return R_ESCAPES[escaped];
+      const octal = /^[0-7]/.test(escaped);
+      const point = parseInt(escaped.replace(/^[uUx]\{?|\}$/g, ""), octal ? 8 : 16);
+      if ((octal || /^[uUx]/.test(escaped)) && (octal || point > 0) && point <= 0x10ffff)
+        return String.fromCodePoint(point);
+      valid = false;
+      return "";
+    }
+  );
+  return valid ? decoded : "";
+}
 
 /** Tokenize only the R syntax needed to recognize declarations, never evaluating user code. */
 function tokenize(code: string): Token[] {
@@ -60,59 +88,10 @@ function tokenize(code: string): Token[] {
     }
     const quote = code[index];
     if (quote === '"' || quote === "'" || quote === "`") {
-      let text = "";
-      let valid = true;
-      let closed = false;
-      index++;
-      while (index < code.length) {
-        const character = code[index++];
-        if (character === quote) {
-          closed = true;
-          break;
-        }
-        if (character !== "\\") {
-          text += character;
-          continue;
-        }
-        const escaped = code[index++];
-        const escapes: Record<string, string> = {
-          n: "\n",
-          r: "\r",
-          t: "\t",
-          b: "\b",
-          f: "\f",
-          a: "\x07",
-          v: "\v",
-          "\\": "\\",
-          "'": "'",
-          '"': '"',
-          "`": "`",
-        };
-        if (escaped in escapes) text += escapes[escaped];
-        else {
-          const pattern =
-            escaped === "u"
-              ? /^(?:\{([\da-fA-F]{1,4})\}|([\da-fA-F]{4}))/
-              : escaped === "U"
-                ? /^(?:\{([\da-fA-F]{1,8})\}|([\da-fA-F]{8}))/
-                : escaped === "x"
-                  ? /^([\da-fA-F]{1,2})/
-                  : undefined;
-          const match = pattern?.exec(code.slice(index));
-          const octal = /[0-7]/.test(escaped ?? "") ? /^[0-7]{1,3}/.exec(code.slice(index - 1)) : null;
-          if (match) {
-            const point = parseInt(match[1] ?? match[2], 16);
-            if (point > 0 && point <= 0x10ffff) text += String.fromCodePoint(point);
-            else valid = false;
-            index += match[0].length;
-          } else if (octal) {
-            text += String.fromCharCode(parseInt(octal[0], 8));
-            index += octal[0].length - 1;
-          } else valid = false;
-        }
-      }
-      if (!closed) break;
-      tokens.push({ text: valid ? text : "", kind: quote === "`" ? "name" : "string" });
+      const literal = /^(["'`])((?:\\[\s\S]|(?!\1)[^\\])*)\1/.exec(rest);
+      if (!literal) break;
+      tokens.push({ text: decodeRString(literal[2]), kind: quote === "`" ? "name" : "string" });
+      index += literal[0].length;
       continue;
     }
     const name = /^[\p{L}_.][\p{L}\p{N}_.]*/u.exec(rest);
@@ -199,15 +178,14 @@ export function parseRUiParameters(code: string): UiUdfParameter[] {
     if (!parameter) continue;
     result.push(parameter);
   }
-  return assertUniqueParameterNames(result);
+  return result;
 }
 
 export function computeRParameterInsertion(
   code: string,
-  name: string,
-  type: AttributeType
+  attributeName: string,
+  token: string
 ): Readonly<{ offset: number; text: string }> {
-  const { attributeName, token } = prepareParameterInsertion(() => parseRUiParameters(code), name, type);
   let identifier = attributeName.replace(/[^\p{L}\p{N}_.]/gu, "_");
   if (!/^(?:\p{L}|\.(?!\d))/u.test(identifier)) identifier = `parameter_${identifier}`;
   if (R_KEYWORDS.has(identifier)) identifier += "_";

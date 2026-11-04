@@ -26,9 +26,9 @@ UI parameters use one metadata contract with language-specific syntax and runtim
 
 | Layer | Owner | Responsibility |
 | --- | --- | --- |
-| Type manifest | `common/workflow-operator/src/main/resources/udf/ui-parameter-types.json` | Supported types, aliases, generation tokens, required-value flags, and resource kinds |
+| Type manifest | `common/workflow-operator/src/main/resources/udf/ui-parameter-types.json` | Supported type aliases (canonical token first) and resource kinds |
 | Serialized model and validator | `udf.UiUDFParameter`, `UiUdfParameterContract` | Stable wire fields, metadata validation, duplicate names, and resource/type compatibility |
-| Frontend model and policy | `ui-udf-parameter.ts` | Read the same manifest; create rows and validate additions/names |
+| Frontend model and policy | `ui-udf-parameter.ts`, parser service | Read the manifest; create rows; validate names, additions, and duplicates once before dispatch |
 | Declaration parsers | `python-ui-udf-parameters-parser.ts`, `r-ui-udf-parameters-parser.ts` | Read and edit each language's syntax; delegate metadata policy |
 | Editor synchronization | `UiUdfParametersSyncService` | Observe Yjs and preserve user values by name and resource kind |
 | Compilation | Python/R injector adapters | Validate the shared model and encode values using the appropriate runtime API |

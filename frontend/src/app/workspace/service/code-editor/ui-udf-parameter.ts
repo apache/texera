@@ -26,12 +26,12 @@ export class UiUdfParametersParseError extends Error {}
 export class UiUdfParametersEditError extends Error {}
 
 /** Shared by declaration parsers, insertion, and the parameter editor. */
-export const UI_PARAMETER_TYPES = contract.types.map(type => type.attributeType as AttributeType);
+export const UI_PARAMETER_TYPES = Object.keys(contract.types) as AttributeType[];
 export const ATTRIBUTE_TYPES_BY_TOKEN: Readonly<Record<string, AttributeType>> = Object.fromEntries(
-  contract.types.flatMap(type => type.aliases.map(alias => [alias, type.attributeType as AttributeType]))
+  Object.entries(contract.types).flatMap(([type, aliases]) => aliases.map(alias => [alias, type as AttributeType]))
 );
 export const UI_PARAMETER_TOKENS: Readonly<Partial<Record<AttributeType, string>>> = Object.fromEntries(
-  contract.types.map(type => [type.attributeType, type.token])
+  Object.entries(contract.types).map(([type, aliases]) => [type, aliases[0]])
 );
 export const INPUT_TYPES_BY_RESOURCE_TOKEN: Readonly<Record<string, string>> = contract.resources;
 export const MODEL_INPUT_TYPE = contract.resources.MODEL;
@@ -60,18 +60,4 @@ export function assertUniqueParameterNames(parameters: UiUdfParameter[]): UiUdfP
     names.add(name);
   }
   return parameters;
-}
-
-export function prepareParameterInsertion(
-  getParameters: () => UiUdfParameter[],
-  name: string,
-  attributeType: AttributeType
-): Readonly<{ attributeName: string; token: string }> {
-  const attributeName = name.trim();
-  const token = UI_PARAMETER_TOKENS[attributeType];
-  if (!attributeName) throw new UiUdfParametersEditError("UiParameter name is required.");
-  if (!token) throw new UiUdfParametersEditError(`UiParameter type '${attributeType}' is not supported.`);
-  if (getParameters().some(parameter => parameter.attribute.attributeName === attributeName))
-    throw new UiUdfParametersEditError(`UiParameter name '${attributeName}' is declared already.`);
-  return { attributeName, token };
 }

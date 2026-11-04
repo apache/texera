@@ -229,6 +229,8 @@ class PythonUdfUiParameterSupportSpec
         udf
       }
       val op = descriptor.getPhysicalOp(WorkflowIdentity(1L), ExecutionIdentity(1L))
+      descriptor.uiParameters =
+        Nil // A later edit must not change the compiled binding's parameters.
       op.mountLocators shouldBe Set("dataset-1:d4t4", "model-1:m0d3l")
       val bound = RUdfUiParameterInjector.inject(
         rCode,
