@@ -36,8 +36,9 @@ COPY notebook-migration-service/src/main/resources/start-texera-jupyter.sh /usr/
 # contents of this image and ships as /texera/LICENSE; licenses/ holds the
 # full license text it references.
 COPY notebook-migration-service/LICENSE-binary-jupyter /texera/LICENSE
-COPY NOTICE DISCLAIMER /texera/
+COPY NOTICE /texera/NOTICE
 COPY licenses /texera/licenses
+COPY DISCLAIMER /texera/
 
 # custom.js must stay writable by jovyan: the startup script substitutes the origin
 # placeholder into it at runtime.

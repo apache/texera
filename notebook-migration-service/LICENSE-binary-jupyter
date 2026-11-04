@@ -212,6 +212,6 @@ Dependencies under the BSD 3-Clause License
 
 Base image:
   - jupyter/base-notebook:notebook-6.5.4
-    Source: https://github.com/jupyter/docker-stacks
+    https://github.com/jupyter/docker-stacks
     Copyright (c) 2001-2015, IPython Development Team
     Copyright (c) 2015-, Jupyter Development Team
