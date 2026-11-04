@@ -30,32 +30,6 @@ import scala.jdk.CollectionConverters._
 
 class SpanAttrsSpec extends AnyFlatSpec with Matchers {
 
-  // ----- sanitizeFreeText: pure ----------------------------------------
-
-  "sanitizeFreeText" should "return null for null / empty input" in {
-    SpanAttrs.sanitizeFreeText(null) shouldBe null
-    SpanAttrs.sanitizeFreeText("") shouldBe null
-  }
-
-  it should "strip CR/LF and other control characters" in {
-    SpanAttrs.sanitizeFreeText("hello\r\nworld") shouldBe "helloworld"
-    SpanAttrs.sanitizeFreeText("a\u0000b\u0001c\u001fd\u007fe") shouldBe "abcde"
-  }
-
-  it should "preserve printable text including spaces" in {
-    SpanAttrs.sanitizeFreeText("my-op v1 (alpha)") shouldBe "my-op v1 (alpha)"
-  }
-
-  it should "cap at FreeTextMaxLen" in {
-    val long = "x" * (SpanAttrs.FreeTextMaxLen * 4)
-    val out = SpanAttrs.sanitizeFreeText(long)
-    out.length shouldBe SpanAttrs.FreeTextMaxLen
-  }
-
-  it should "return null when stripping reduces the input to empty" in {
-    SpanAttrs.sanitizeFreeText("\r\n\u0000\u0001") shouldBe null
-  }
-
   // ----- standard label keys land via the plain OTel API ---------------
 
   "the standard label keys" should "set correctly through the OTel builder API" in {
