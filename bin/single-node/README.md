@@ -136,7 +136,7 @@ To enable it:
 
 Once Texera is up, create a new workflow and open the Texera agent panel at the bottom right. Type a task like:
 
-> For /texera/popular-movies-of-imdb/v1/TMDb_updated.csv, visualize the top 10 most-voted movies.
+> For /dataset/texera/iris-species/v1/Iris.csv, visualize the average petal length of each species.
 
 To switch providers or add more LLMs, see [Add more LLMs or providers](#add-more-llms-or-providers).
 
