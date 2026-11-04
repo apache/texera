@@ -24,7 +24,7 @@ import org.apache.texera.amber.core.tuple.{Attribute, AttributeType, Schema}
 import org.apache.texera.amber.core.virtualidentity.{ExecutionIdentity, WorkflowIdentity}
 import org.apache.texera.amber.operator.LogicalOp
 import org.apache.texera.amber.operator.metadata.OperatorGroupConstants
-import org.apache.texera.amber.operator.udf.python.UiUDFParameter
+import org.apache.texera.amber.operator.udf.UiUDFParameter
 import org.apache.texera.amber.util.JSONUtils.objectMapper
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
