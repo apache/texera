@@ -119,6 +119,17 @@ export function setupHarness() {
     unhighlightOperators(...ops);
     updateSharedModelAwareness("highlighted", [...highlightedIds]);
   });
+  // The action service's highlight, modelled as the real chain. The page only ever asks for a single
+  // selection (`highlightOperators(false, id)`), so the wrapper replaces the selection rather than
+  // adding to it, emits on the highlight stream -- which is what runs the form's own handler, as a
+  // canvas click does -- and the service publishes the selection to co-editors. The multi-select
+  // flag is taken and ignored, as the one caller never sets it.
+  const serviceHighlightOperators = vi.fn((_multiSelect: boolean, ...ops: string[]) => {
+    highlightedIds.length = 0;
+    highlightedIds.push(...ops);
+    highlightStream.next([...ops]);
+    updateSharedModelAwareness("highlighted", [...highlightedIds]);
+  });
   // Operators that produced a non-empty result -- drives hasNonEmptyResult in the result mock.
   const anyResultIds = new Set<string>();
   // Operators the engine treats as terminal (out-degree 0 on the ENABLED plan): the engine materializes
@@ -162,6 +173,7 @@ export function setupHarness() {
     setWorkflowName: vi.fn(),
     setWorkflowMetadata: vi.fn(),
     setHighlightingEnabled: vi.fn(),
+    highlightOperators: serviceHighlightOperators,
     unhighlightOperators: serviceUnhighlightOperators,
     getTexeraGraph: () => ({
       triggerCenterEvent,
@@ -417,6 +429,7 @@ export function setupHarness() {
     highlightedIds,
     unhighlightOperators,
     serviceUnhighlightOperators,
+    serviceHighlightOperators,
     updateSharedModelAwareness,
   };
 }
