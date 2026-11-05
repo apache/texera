@@ -699,7 +699,7 @@ class WorkflowExecutionsResourceSpec
       requireWrite = true
     )
 
-    intercept[WebApplicationException] {
+    intercept[ForbiddenException] {
       WorkflowExecutionsResource.validateUserCanAccessExecutions(
         otherUserUid,
         Seq(eid),
@@ -1309,12 +1309,24 @@ class WorkflowExecutionsResourceSpec
 
   "setExecutionAreBookmarked" should "reject a user without access" in {
     val exec = insertExecution()
-    assertThrows[WebApplicationException](
+    assertThrows[ForbiddenException](
       resource.setExecutionAreBookmarked(
         ExecutionGroupBookmarkRequest(testWorkflowWid, Array(exec.getEid), isBookmarked = false),
         session(userWithoutAccess())
       )
     )
+  }
+
+  it should "refuse a read-only user with 403, since the frontend logs out on 401" in {
+    grantReadAccess()
+    val exec = insertExecution()
+    assertThrows[ForbiddenException](
+      resource.setExecutionAreBookmarked(
+        ExecutionGroupBookmarkRequest(testWorkflowWid, Array(exec.getEid), isBookmarked = false),
+        session(testUser)
+      )
+    )
+    assert(workflowExecutionsDao.fetchOneByEid(exec.getEid).getBookmarked == false)
   }
 
   it should "bookmark executions that are currently un-bookmarked" in {
