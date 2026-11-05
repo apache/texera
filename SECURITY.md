@@ -175,8 +175,8 @@ Texera can be deployed in several configurations, such as local development, sin
 clusters. For details on supported deployment options and their operational differences, see the deployment guides in
 our [wiki](https://github.com/apache/texera/wiki/How-to-run-Texera-on-local-Kubernetes).
 
-When reading this document, only Kubernetes deployments are considered. Docker Compose and single-node deployments are
-not intended for production.
+Docker Compose and single-node deployments are for dev and testing purposes only. For production deployment, we
+recommend Kubernetes.
 
 ### Computing Unit Types
 
