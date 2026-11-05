@@ -19,6 +19,7 @@
 
 import { TestBed } from "@angular/core/testing";
 import {
+  ALL_COLUMNS,
   OperatorPaginationResultService,
   OperatorResultService,
   WorkflowResultService,
@@ -472,6 +473,15 @@ describe("OperatorPaginationResultService", () => {
       // schema is refreshed from the event and the pending request is cleared once completed
       expect(service.getSchema()).toEqual([{ attributeName: "id", attributeType: "integer" }]);
       expect((service as any).pendingRequests.size).toBe(0);
+    });
+
+    it("asks for every column within the server's Int when no column limit is given", () => {
+      service.selectPage(3, 10).subscribe();
+
+      expect(mockWorkflowWebsocketService.send).toHaveBeenCalledWith(
+        "ResultPaginationRequest",
+        expect.objectContaining({ columnLimit: ALL_COLUMNS })
+      );
     });
 
     it("bypasses the frontend cache when column filters are set", () => {
