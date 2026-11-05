@@ -18,8 +18,10 @@
 
 package org.apache.texera.common.config
 
-// Environment variable names for all the *.conf files
-// TODO: currently these values are hard-coded, it would be good to have a way to dynamically load these names to avoid 2-copy
+// Names of the environment variables that Scala code refers to directly, for example to read one
+// outside the *.conf files or to pass one to a child process or pod. The *.conf files read their
+// variables by name through ${?NAME}, so a new config option needs a constant here only when code
+// refers to the variable itself.
 object EnvironmentalVariable {
 
   // utility function to load the env var
@@ -87,25 +89,8 @@ object EnvironmentalVariable {
   val ENV_ICEBERG_CATALOG_POSTGRES_USERNAME = "STORAGE_ICEBERG_CATALOG_POSTGRES_USERNAME"
   val ENV_ICEBERG_CATALOG_POSTGRES_PASSWORD = "STORAGE_ICEBERG_CATALOG_POSTGRES_PASSWORD"
 
-  // Iceberg Table
-  val ENV_ICEBERG_TABLE_RESULT_NAMESPACE = "STORAGE_ICEBERG_TABLE_RESULT_NAMESPACE"
-  val ENV_ICEBERG_TABLE_CONSOLE_MESSAGES_NAMESPACE =
-    "STORAGE_ICEBERG_TABLE_CONSOLE_MESSAGES_NAMESPACE"
-  val ENV_ICEBERG_TABLE_RUNTIME_STATISTICS_NAMESPACE =
-    "STORAGE_ICEBERG_TABLE_RUNTIME_STATISTICS_NAMESPACE"
-  val ENV_ICEBERG_TABLE_STATE_NAMESPACE = "STORAGE_ICEBERG_TABLE_STATE_NAMESPACE"
-  val ENV_ICEBERG_TABLE_COMMIT_BATCH_SIZE = "STORAGE_ICEBERG_TABLE_COMMIT_BATCH_SIZE"
-  val ENV_ICEBERG_TABLE_COMMIT_NUM_RETRIES = "STORAGE_ICEBERG_TABLE_COMMIT_NUM_RETRIES"
-  val ENV_ICEBERG_TABLE_COMMIT_MIN_WAIT_MS = "STORAGE_ICEBERG_TABLE_COMMIT_MIN_WAIT_MS"
-  val ENV_ICEBERG_TABLE_COMMIT_MAX_WAIT_MS = "STORAGE_ICEBERG_TABLE_COMMIT_MAX_WAIT_MS"
-
   // LakeFS
   val ENV_LAKEFS_ENDPOINT = "STORAGE_LAKEFS_ENDPOINT"
-  val ENV_LAKEFS_AUTH_API_SECRET = "STORAGE_LAKEFS_AUTH_API_SECRET"
-  val ENV_LAKEFS_AUTH_USERNAME = "STORAGE_LAKEFS_AUTH_USERNAME"
-  val ENV_LAKEFS_AUTH_PASSWORD = "STORAGE_LAKEFS_AUTH_PASSWORD"
-  val ENV_LAKEFS_BLOCK_STORAGE_TYPE = "STORAGE_LAKEFS_BLOCK_STORAGE_TYPE"
-  val ENV_LAKEFS_BLOCK_STORAGE_BUCKET_NAME = "STORAGE_LAKEFS_BLOCK_STORAGE_BUCKET_NAME"
 
   // S3
   val ENV_S3_ENDPOINT = "STORAGE_S3_ENDPOINT"
@@ -114,9 +99,8 @@ object EnvironmentalVariable {
   val ENV_S3_AUTH_PASSWORD = "STORAGE_S3_AUTH_PASSWORD"
 
   /**
-    * Variables in application.conf
+    * Variables in application.conf that code also refers to by name
     */
-
   // Cache
   val ENV_CACHE_ENABLED = "CACHE_ENABLED"
 
