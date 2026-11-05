@@ -19,12 +19,13 @@
 
 import { WorkflowActionService } from "../../service/workflow-graph/model/workflow-action.service";
 import { HeatmapView } from "../../service/heatmap/heatmap-scoring";
+import { HEATMAP_NO_DATA_COLOR, scoreToColor } from "../../service/heatmap/heatmap-color";
 import { UndoRedoService } from "../../service/undo-redo/undo-redo.service";
 import { DragDropService } from "../../service/drag-drop/drag-drop.service";
 import { WorkflowUtilService } from "../../service/workflow-graph/util/workflow-util.service";
 import { ComponentFixture, fakeAsync, TestBed, tick } from "@angular/core/testing";
 import { ValidationWorkflowService } from "../../service/validation/validation-workflow.service";
-import { WorkflowEditorComponent } from "./workflow-editor.component";
+import { RESULT_PREVIEW_DELAY_MS, RESULT_PREVIEW_HIDE_MS, WorkflowEditorComponent } from "./workflow-editor.component";
 import { workflowEditorTestImports, workflowEditorTestProviders } from "./workflow-editor.test-utils";
 import { OperatorMetadataService } from "../../service/operator-metadata/operator-metadata.service";
 import { StubOperatorMetadataService } from "../../service/operator-metadata/stub-operator-metadata.service";
@@ -373,6 +374,103 @@ describe("WorkflowEditorComponent", () => {
       component.paper.trigger("link:mouseenter", linkView, new MouseEvent("mouseenter"));
       expect(linkView.hasTools()).toBe(false);
     });
+
+    it("previews a hovered operator's result once the pointer rests, and hides it when the pointer leaves", fakeAsync(() => {
+      addLinkedPair();
+      const view = component.paper.findViewByModel(mockScanPredicate.operatorID);
+
+      component.paper.trigger("element:mouseenter", view, new MouseEvent("mouseenter"));
+      // passing over an operator opens nothing; only a pointer that rests on it does
+      tick(RESULT_PREVIEW_DELAY_MS - 1);
+      expect(component.resultPreview).toBeNull();
+      tick(1);
+      fixture.detectChanges();
+      expect(component.resultPreview?.operatorId).toBe(mockScanPredicate.operatorID);
+      expect(fixture.debugElement.query(By.css("texera-operator-result-preview"))).toBeTruthy();
+
+      component.paper.trigger("element:mouseleave", view, new MouseEvent("mouseleave"));
+      // the card lingers a moment, so the pointer can cross into it
+      tick(RESULT_PREVIEW_HIDE_MS);
+      fixture.detectChanges();
+      expect(component.resultPreview).toBeNull();
+      expect(fixture.debugElement.query(By.css("texera-operator-result-preview"))).toBeNull();
+    }));
+
+    it("closes the card, and cancels a pending one, when an output port is pressed to drag a link", fakeAsync(() => {
+      addLinkedPair();
+      const view = component.paper.findViewByModel(mockScanPredicate.operatorID);
+      const outputPort = view.el.querySelector("[port-group='out']")!;
+
+      component.paper.trigger("element:mouseenter", view, new MouseEvent("mouseenter"));
+      tick(RESULT_PREVIEW_DELAY_MS);
+      expect(component.resultPreview).not.toBeNull();
+      outputPort.dispatchEvent(new Event("pointerdown", { bubbles: true }));
+      expect(component.resultPreview).toBeNull();
+
+      component.paper.trigger("element:mouseenter", view, new MouseEvent("mouseenter"));
+      tick(RESULT_PREVIEW_DELAY_MS - 1);
+      outputPort.dispatchEvent(new Event("pointerdown", { bubbles: true }));
+      tick(1);
+      expect(component.resultPreview).toBeNull();
+    }));
+
+    it("closes the card, and cancels a pending one, when its operator is deleted, but not for another", fakeAsync(() => {
+      addLinkedPair();
+      const workflowActionService = TestBed.inject(WorkflowActionService);
+      const scanView = component.paper.findViewByModel(mockScanPredicate.operatorID);
+      const resultView = component.paper.findViewByModel(mockResultPredicate.operatorID);
+
+      component.paper.trigger("element:mouseenter", scanView, new MouseEvent("mouseenter"));
+      tick(RESULT_PREVIEW_DELAY_MS);
+      workflowActionService.deleteOperator(mockResultPredicate.operatorID);
+      expect(component.resultPreview?.operatorId).toBe(mockScanPredicate.operatorID);
+      workflowActionService.deleteOperator(mockScanPredicate.operatorID);
+      expect(component.resultPreview).toBeNull();
+
+      workflowActionService.addOperator(mockResultPredicate, mockPoint);
+      component.paper.trigger("element:mouseenter", resultView, new MouseEvent("mouseenter"));
+      tick(RESULT_PREVIEW_DELAY_MS - 1);
+      workflowActionService.deleteOperator(mockResultPredicate.operatorID);
+      tick(1);
+      expect(component.resultPreview).toBeNull();
+    }));
+
+    it("opens no card once the editor is destroyed", fakeAsync(() => {
+      addLinkedPair();
+      const view = component.paper.findViewByModel(mockScanPredicate.operatorID);
+
+      component.paper.trigger("element:mouseenter", view, new MouseEvent("mouseenter"));
+      fixture.destroy();
+      tick(RESULT_PREVIEW_DELAY_MS);
+
+      expect(component.resultPreview).toBeNull();
+    }));
+
+    it("leaves the hover to the heat-map tooltip while that overlay is on", fakeAsync(() => {
+      addLinkedPair();
+      vi.spyOn(TestBed.inject(WorkflowActionService).getJointGraphWrapper(), "getHeatmapView").mockReturnValue(
+        "throughput" as any
+      );
+      const view = component.paper.findViewByModel(mockScanPredicate.operatorID);
+
+      component.paper.trigger("element:mouseenter", view, new MouseEvent("mouseenter"));
+      tick(RESULT_PREVIEW_DELAY_MS);
+
+      expect(component.resultPreview).toBeNull();
+    }));
+
+    it("opens no card while Layers > Result preview is off", fakeAsync(() => {
+      addLinkedPair();
+      vi.spyOn(TestBed.inject(WorkflowActionService).getJointGraphWrapper(), "isResultPreviewEnabled").mockReturnValue(
+        false
+      );
+      const view = component.paper.findViewByModel(mockScanPredicate.operatorID);
+
+      component.paper.trigger("element:mouseenter", view, new MouseEvent("mouseenter"));
+      tick(RESULT_PREVIEW_DELAY_MS);
+
+      expect(component.resultPreview).toBeNull();
+    }));
 
     /** Select the scan operator the way a click does and return its model, whose attrs say what is on show. */
     function selectScanOperator(): joint.dia.Cell {
@@ -2415,6 +2513,286 @@ describe("WorkflowEditorComponent editor wiring", () => {
       (agentService as any).operatorResultSummariesSubject.next(new Map());
 
       expect(detectChanges).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  describe("heat-map overlay", () => {
+    const HOT = scoreToColor(1);
+    const COLD = scoreToColor(0);
+    const ENABLED_FILL = "#FFFFFF";
+    const DISABLED_FILL = "#E0E0E0";
+
+    const wrapper = () => workflowActionService.getJointGraphWrapper();
+    const fillOf = (operatorID: string) => component.paper.getModelById(operatorID).attr("rect.body/fill");
+
+    /**
+     * Drives the real statistics -> performance-metrics chain rather than pushing metrics
+     * directly, so the scoring the overlay reads is the one the service derives.
+     */
+    function publishStatistics(byOperator: Record<string, { dataNs?: number; inRows?: number; outRows?: number }>) {
+      const payload: Record<string, unknown> = {};
+      for (const [operatorID, m] of Object.entries(byOperator)) {
+        payload[operatorID] = {
+          ...emptyStatistics,
+          aggregatedDataProcessingTime: m.dataNs ?? 0,
+          aggregatedInputRowCount: m.inRows ?? 0,
+          aggregatedOutputRowCount: m.outRows ?? 0,
+        };
+      }
+      (workflowStatusService as any).statisticsSubject.next(payload);
+    }
+
+    /** scan is the hot operator, result the cold one, under the Runtime view. */
+    function addTwoOperatorsWithSpread() {
+      workflowActionService.addOperator(mockScanPredicate, mockPoint);
+      workflowActionService.addOperator(mockResultPredicate, mockPoint);
+      publishStatistics({
+        [mockScanPredicate.operatorID]: { dataNs: 1_000_000_000, inRows: 100, outRows: 10 },
+        [mockResultPredicate.operatorID]: { dataNs: 0, inRows: 10, outRows: 10 },
+      });
+    }
+
+    function hoverOver(operatorID: string, clientX = 0, clientY = 0): void {
+      const view = component.paper.findViewByModel(operatorID);
+      (component.paper as any).trigger("element:mouseenter", view, { clientX, clientY });
+    }
+
+    describe("painting", () => {
+      it("paints the heat spread as soon as a view is selected", () => {
+        addTwoOperatorsWithSpread();
+
+        wrapper().setHeatmapView(HeatmapView.Runtime);
+
+        expect(fillOf(mockScanPredicate.operatorID)).toEqual(HOT);
+        expect(fillOf(mockResultPredicate.operatorID)).toEqual(COLD);
+      });
+
+      it("repaints when new metrics arrive while a view is active", () => {
+        addTwoOperatorsWithSpread();
+        wrapper().setHeatmapView(HeatmapView.Runtime);
+
+        // The spread inverts: result becomes the slow one.
+        publishStatistics({
+          [mockScanPredicate.operatorID]: { dataNs: 0 },
+          [mockResultPredicate.operatorID]: { dataNs: 1_000_000_000 },
+        });
+
+        expect(fillOf(mockScanPredicate.operatorID)).toEqual(COLD);
+        expect(fillOf(mockResultPredicate.operatorID)).toEqual(HOT);
+      });
+
+      it("leaves fills alone while no view is active, even as metrics stream in", () => {
+        addTwoOperatorsWithSpread();
+
+        expect(fillOf(mockScanPredicate.operatorID)).toEqual(ENABLED_FILL);
+        expect(fillOf(mockResultPredicate.operatorID)).toEqual(ENABLED_FILL);
+      });
+
+      it("paints an operator with no metrics as no-data rather than coldest", () => {
+        // Absent from the payload entirely: it must not anchor the scale minimum.
+        workflowActionService.addOperator(mockScanPredicate, mockPoint);
+        workflowActionService.addOperator(mockResultPredicate, mockPoint);
+        publishStatistics({ [mockScanPredicate.operatorID]: { dataNs: 1_000_000_000 } });
+
+        wrapper().setHeatmapView(HeatmapView.Runtime);
+
+        expect(fillOf(mockResultPredicate.operatorID)).toEqual(HEATMAP_NO_DATA_COLOR);
+      });
+
+      it("paints an operator the active view cannot measure as no-data", () => {
+        // I/O imbalance is undefined without input rows (a source), which is a different
+        // thing from measuring zero.
+        addTwoOperatorsWithSpread();
+        publishStatistics({
+          [mockScanPredicate.operatorID]: { inRows: 0, outRows: 500 },
+          [mockResultPredicate.operatorID]: { inRows: 100, outRows: 1 },
+        });
+
+        wrapper().setHeatmapView(HeatmapView.IoImbalance);
+
+        expect(fillOf(mockScanPredicate.operatorID)).toEqual(HEATMAP_NO_DATA_COLOR);
+        expect(fillOf(mockResultPredicate.operatorID)).toEqual(HOT);
+      });
+
+      it("paints an operator added while the overlay is on", () => {
+        addTwoOperatorsWithSpread();
+        wrapper().setHeatmapView(HeatmapView.Runtime);
+
+        workflowActionService.addOperator(mockSentimentPredicate, mockPoint);
+
+        expect(fillOf(mockSentimentPredicate.operatorID)).toEqual(HEATMAP_NO_DATA_COLOR);
+      });
+
+      it("leaves an operator added while the overlay is off with its default fill", () => {
+        addTwoOperatorsWithSpread();
+
+        workflowActionService.addOperator(mockSentimentPredicate, mockPoint);
+
+        expect(fillOf(mockSentimentPredicate.operatorID)).toEqual(ENABLED_FILL);
+      });
+    });
+
+    describe("turning the overlay off", () => {
+      it("restores default fills, respecting each operator's disabled state", () => {
+        addTwoOperatorsWithSpread();
+        workflowActionService.disableOperators([mockResultPredicate.operatorID]);
+        wrapper().setHeatmapView(HeatmapView.Runtime);
+
+        wrapper().setHeatmapView(null);
+
+        expect(fillOf(mockScanPredicate.operatorID)).toEqual(ENABLED_FILL);
+        expect(fillOf(mockResultPredicate.operatorID)).toEqual(DISABLED_FILL);
+      });
+
+      it("toggles the transition-scoping class with the overlay", () => {
+        const editor = (component as any).editor as HTMLElement;
+
+        wrapper().setHeatmapView(HeatmapView.Runtime);
+        expect(editor.classList.contains("heatmap-active")).toBe(true);
+
+        wrapper().setHeatmapView(null);
+        expect(editor.classList.contains("heatmap-active")).toBe(false);
+      });
+
+      it("clears a tooltip left open when the overlay is switched off", () => {
+        addTwoOperatorsWithSpread();
+        wrapper().setHeatmapView(HeatmapView.Runtime);
+        hoverOver(mockScanPredicate.operatorID);
+        expect(component.heatmapTooltip).not.toBeNull();
+
+        wrapper().setHeatmapView(null);
+
+        expect(component.heatmapTooltip).toBeNull();
+      });
+    });
+
+    describe("disable/enable repaint", () => {
+      // Regression for the fix in #6213: changeOperatorDisableStatus rewrites the body fill
+      // with colors this overlay owns, so without the repaint the operator goes grey/white
+      // mid-overlay and stays that way on an otherwise idle workflow.
+      it("repaints with heat colors after an operator is disabled", () => {
+        addTwoOperatorsWithSpread();
+        wrapper().setHeatmapView(HeatmapView.Runtime);
+
+        workflowActionService.disableOperators([mockScanPredicate.operatorID]);
+
+        expect(fillOf(mockScanPredicate.operatorID)).toEqual(HOT);
+      });
+
+      it("repaints with heat colors after an operator is re-enabled", () => {
+        addTwoOperatorsWithSpread();
+        workflowActionService.disableOperators([mockScanPredicate.operatorID]);
+        wrapper().setHeatmapView(HeatmapView.Runtime);
+
+        workflowActionService.enableOperators([mockScanPredicate.operatorID]);
+
+        expect(fillOf(mockScanPredicate.operatorID)).toEqual(HOT);
+      });
+
+      it("lets the disabled fill through while the overlay is off", () => {
+        addTwoOperatorsWithSpread();
+
+        workflowActionService.disableOperators([mockScanPredicate.operatorID]);
+
+        expect(fillOf(mockScanPredicate.operatorID)).toEqual(DISABLED_FILL);
+      });
+    });
+
+    describe("hover tooltip", () => {
+      it("reports the metric and heat score of the hovered operator", () => {
+        addTwoOperatorsWithSpread();
+        wrapper().setHeatmapView(HeatmapView.Runtime);
+
+        hoverOver(mockScanPredicate.operatorID);
+
+        expect(component.heatmapTooltip).toMatchObject({
+          title: "Runtime",
+          metricLabel: "1.00 s",
+          heatLabel: "100%",
+        });
+      });
+
+      it("stays hidden while the overlay is off", () => {
+        addTwoOperatorsWithSpread();
+
+        hoverOver(mockScanPredicate.operatorID);
+
+        expect(component.heatmapTooltip).toBeNull();
+      });
+
+      it("ignores a cell that is not an operator", () => {
+        addTwoOperatorsWithSpread();
+        workflowActionService.addCommentBox(commentBox);
+        wrapper().setHeatmapView(HeatmapView.Runtime);
+
+        hoverOver(commentBox.commentBoxID);
+
+        expect(component.heatmapTooltip).toBeNull();
+      });
+
+      it("shows an em dash for an operator with no metrics at all", () => {
+        // Both labels read "—": neither absence can be mistaken for a measured zero.
+        workflowActionService.addOperator(mockScanPredicate, mockPoint);
+        workflowActionService.addOperator(mockResultPredicate, mockPoint);
+        publishStatistics({ [mockResultPredicate.operatorID]: { dataNs: 1_000_000_000 } });
+        wrapper().setHeatmapView(HeatmapView.Runtime);
+
+        hoverOver(mockScanPredicate.operatorID);
+
+        expect(component.heatmapTooltip).toMatchObject({ metricLabel: "—", heatLabel: "—" });
+      });
+
+      it("shows an em dash for a view the operator cannot be measured in", () => {
+        // Metrics exist, but I/O imbalance is undefined without input rows, so the metric
+        // is a dash while the operator is still known.
+        addTwoOperatorsWithSpread();
+        publishStatistics({ [mockScanPredicate.operatorID]: { inRows: 0, outRows: 500 } });
+        wrapper().setHeatmapView(HeatmapView.IoImbalance);
+
+        hoverOver(mockScanPredicate.operatorID);
+
+        expect(component.heatmapTooltip).toMatchObject({ title: "I/O imbalance", metricLabel: "—", heatLabel: "—" });
+      });
+
+      it("positions the tooltip relative to the editor, offset off the cursor", () => {
+        addTwoOperatorsWithSpread();
+        wrapper().setHeatmapView(HeatmapView.Runtime);
+        const rect = ((component as any).editor as HTMLElement).getBoundingClientRect();
+
+        hoverOver(mockScanPredicate.operatorID, 200, 150);
+
+        expect(component.heatmapTooltip).toMatchObject({ x: 200 - rect.left + 12, y: 150 - rect.top + 12 });
+      });
+
+      it("clears the tooltip on mouseleave", () => {
+        addTwoOperatorsWithSpread();
+        wrapper().setHeatmapView(HeatmapView.Runtime);
+        hoverOver(mockScanPredicate.operatorID);
+
+        (component.paper as any).trigger("element:mouseleave");
+
+        expect(component.heatmapTooltip).toBeNull();
+      });
+
+      it("skips the change-detection pass when there is nothing to clear", () => {
+        addTwoOperatorsWithSpread();
+        wrapper().setHeatmapView(HeatmapView.Runtime);
+        const detectChanges = vi.spyOn((component as any).changeDetectorRef, "detectChanges");
+
+        (component.paper as any).trigger("element:mouseleave");
+
+        expect(detectChanges).not.toHaveBeenCalled();
+      });
+
+      it("stays inert on mouseleave while the overlay is off", () => {
+        addTwoOperatorsWithSpread();
+        const detectChanges = vi.spyOn((component as any).changeDetectorRef, "detectChanges");
+
+        (component.paper as any).trigger("element:mouseleave");
+
+        expect(component.heatmapTooltip).toBeNull();
+        expect(detectChanges).not.toHaveBeenCalled();
+      });
     });
   });
 });
