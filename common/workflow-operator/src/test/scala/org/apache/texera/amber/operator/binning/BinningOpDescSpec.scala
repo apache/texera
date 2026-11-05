@@ -187,6 +187,9 @@ class BinningOpDescSpec extends AnyFlatSpec with Matchers {
       |        {"age": pd.Series([2**53, 2**53 + 1, 2**53 + 2], dtype="Int64")}
       |    ),
       |    "smallint": pd.DataFrame({"age": pd.Series([9, 9, 9, 9], dtype="Int64")}),
+      |    "maxlong": pd.DataFrame(
+      |        {"age": pd.Series([2**63 - 3, 2**63 - 2, 2**63 - 1], dtype="Int64")}
+      |    ),
       |}
       |for cid, frame in cases.items():
       |    namespace = {"pd": pd, "in1df": frame}
@@ -241,6 +244,7 @@ class BinningOpDescSpec extends AnyFlatSpec with Matchers {
             "empty" -> "OK:0:0:0", // no rows to put in one
             "mixed" -> "OK:3:2:2", // the hole is the only row left unlabelled
             "biglong" -> "OK:3:3:3", // each value keeps a bin of its own
+            "maxlong" -> "OK:3:3:3", // the plain cut keeps three bins but puts every row in one
             "smallint" -> (method match {
               case BinningMethod.EQUAL_WIDTH     => "OK:4:4:1"
               case BinningMethod.EQUAL_FREQUENCY => "OK:4:0:0" // one value, no quantile apart

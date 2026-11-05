@@ -156,7 +156,7 @@ class BinningOpDesc extends PythonOperatorDescriptor with StandaloneCodeGenerato
        |                _plain = ${cut}(_binned, ${args})
        |            except ValueError:
        |                _plain = None
-       |            if _plain is not None and len(_plain.cat.categories) == len(_shifted.cat.categories):
+       |            if _plain is not None and _plain.cat.codes.equals(_shifted.cat.codes):
        |                _binned = _plain
        |            else:
        |                _binned = _shifted.cat.rename_categories(${label})
@@ -176,7 +176,7 @@ class BinningOpDesc extends PythonOperatorDescriptor with StandaloneCodeGenerato
        |        _plain = $cutName(_binned, $cutArgs)
        |    except ValueError:
        |        _plain = None
-       |    if _plain is not None and len(_plain.cat.categories) == len(_shifted.cat.categories):
+       |    if _plain is not None and _plain.cat.codes.equals(_shifted.cat.codes):
        |        _binned = _plain
        |    else:
        |        _binned = _shifted.cat.rename_categories($shiftedLabel)
