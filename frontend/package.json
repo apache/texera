@@ -75,7 +75,7 @@
     "y-quill": "1.0.0",
     "y-websocket": "1.5.4",
     "yjs": "13.6.31",
-    "zod": "3.25.76",
+    "zod": "4.6.6",
     "zone.js": "0.15.1"
   },
   "resolutions": {
