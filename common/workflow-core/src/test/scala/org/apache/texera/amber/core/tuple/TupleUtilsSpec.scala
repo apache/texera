@@ -226,13 +226,13 @@ class TupleUtilsSpec extends AnyFlatSpec with Matchers {
     emptyBinaryString should include("size = 0 bytes")
   }
 
-  it should "handle binary data with single ByteBuffer" in {
+  it should "handle binary data from a single byte array" in {
     val attributes = List(
       new Attribute("singleBufferBinary", AttributeType.BINARY)
     )
     val schema = new Schema(attributes)
 
-    // Create binary data with a single ByteBuffer
+    // Create binary data from a single byte array
     val singleBufferData = "Hello, world!".getBytes()
 
     val tuple = Tuple

@@ -163,10 +163,15 @@ class ExecutionResultUrisSpec
       PortIdentity(),
       input = false
     )
+    val opD = GlobalPortIdentity(
+      PhysicalOpIdentity(OperatorIdentity("opD"), "main"),
+      PortIdentity(),
+      input = false
+    )
 
     insertOperatorPortResult(eid, opA, URI.create("vfs:///A"))
     insertOperatorPortResult(eid, opB, URI.create("vfs:///B"))
-    // Empty-string URI row — the helper should drop it from the returned list.
+    // Empty-string and NULL URI rows — the helper should drop both from the returned list.
     getDSLContext
       .insertInto(OPERATOR_PORT_EXECUTIONS)
       .columns(
@@ -175,6 +180,7 @@ class ExecutionResultUrisSpec
         OPERATOR_PORT_EXECUTIONS.RESULT_URI
       )
       .values(execution.getEid, opC.serializeAsString, "")
+      .values(execution.getEid, opD.serializeAsString, null.asInstanceOf[String])
       .execute()
 
     val uris = ExecutionResultUris.getResultUrisByExecutionId(eid)
