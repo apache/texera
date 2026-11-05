@@ -37,11 +37,6 @@ import org.apache.texera.web.resource.dashboard.admin.execution.AdminExecutionRe
 import org.apache.texera.web.resource.dashboard.admin.user.AdminUserResource
 import org.apache.texera.web.resource.dashboard.hub.HubResource
 import org.apache.texera.web.resource.dashboard.user.UserResource
-import org.apache.texera.web.resource.dashboard.user.project.{
-  ProjectAccessResource,
-  ProjectResource,
-  PublicProjectResource
-}
 import org.apache.texera.web.resource.dashboard.user.quota.UserQuotaResource
 import org.apache.texera.web.resource.dashboard.user.warehouse.WarehouseResource
 import org.apache.texera.web.resource.dashboard.user.workflow.{
@@ -278,14 +273,11 @@ class TexeraWebApplicationSpec extends AnyFlatSpec with Matchers {
       classOf[UserConfigResource],
       classOf[FeedbackResource],
       classOf[AdminUserResource],
-      classOf[PublicProjectResource],
       classOf[WorkflowAccessResource],
       classOf[WorkflowResource],
       classOf[HubResource],
       classOf[UserResource],
       classOf[WorkflowVersionResource],
-      classOf[ProjectResource],
-      classOf[ProjectAccessResource],
       classOf[WorkflowExecutionsResource],
       classOf[DashboardResource],
       classOf[GmailResource],
