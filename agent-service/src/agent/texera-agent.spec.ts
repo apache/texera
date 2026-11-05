@@ -292,7 +292,15 @@ describe("TexeraAgent", () => {
       expect(agent.getAncestorPath()).toEqual([INITIAL_STEP_ID]);
     });
 
-    test("stop moves the agent into the stopping state", () => {
+    test("stop on an idle agent is a no-op", () => {
+      agent.stop();
+
+      expect(agent.getState()).toBe(AgentState.AVAILABLE);
+    });
+
+    test("stop moves a generating agent into the stopping state", () => {
+      (agent as any).state = AgentState.GENERATING;
+
       agent.stop();
 
       expect(agent.getState()).toBe(AgentState.STOPPING);
@@ -815,6 +823,51 @@ describe("sendMessage", () => {
     release();
     await p;
     expect(observed).toEqual([AgentState.GENERATING]);
+    expect(agent.getState()).toBe(AgentState.AVAILABLE);
+  });
+
+  test("a second sendMessage while one is in flight is rejected, not interleaved (#8711)", async () => {
+    let release!: () => void;
+    const gate = new Promise<void>(r => (release = r));
+    const model = new MockLanguageModelV4({
+      doGenerate: async () => {
+        await gate;
+        return {
+          content: [{ type: "text", text: "x" }],
+          finishReason: finish("stop"),
+          usage: usage(1, 1),
+          warnings: [],
+        } as any;
+      },
+    });
+    const agent = makeAgentWith(model);
+    const first = agent.sendMessage("first");
+
+    expect(agent.getState()).toBe(AgentState.GENERATING);
+    await expect(agent.sendMessage("second")).rejects.toThrow("busy");
+
+    release();
+    await first;
+    expect(agent.getState()).toBe(AgentState.AVAILABLE);
+  });
+
+  test("a stop while idle does not wedge the next sendMessage", async () => {
+    const model = new MockLanguageModelV4({
+      doGenerate: async () =>
+        ({
+          content: [{ type: "text", text: "x" }],
+          finishReason: finish("stop"),
+          usage: usage(1, 1),
+          warnings: [],
+        }) as any,
+    });
+    const agent = makeAgentWith(model);
+
+    agent.stop();
+    expect(agent.getState()).toBe(AgentState.AVAILABLE);
+
+    const res = await agent.sendMessage("after idle stop");
+    expect(res.error).toBeUndefined();
     expect(agent.getState()).toBe(AgentState.AVAILABLE);
   });
 });
