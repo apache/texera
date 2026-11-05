@@ -40,8 +40,7 @@ trait EndChannelHandler {
     val portId = dp.inputGateway.getChannel(channelId).getPortId
     dp.inputManager.getPort(portId).completed = true
     dp.inputManager.initBatch(channelId, Array.empty)
-    // Before the operator finishes the port, so one that received no rows on
-    // it can still say what its columns were.
+    // Tell the executor this port's schema, even if the port got no rows.
     dp.executor.inputSchemas(portId.id) = dp.inputManager.getPort(portId).schema
     try {
       // The executor finishes: a setting that refers to loop variables must have them by now.
