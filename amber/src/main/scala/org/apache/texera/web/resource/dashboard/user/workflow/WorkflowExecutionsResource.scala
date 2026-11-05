@@ -89,7 +89,7 @@ object WorkflowExecutionsResource {
   ): Unit = {
     eids.distinct.foreach { eid =>
       if (!userCanAccessExecution(uid, eid, requireWrite)) {
-        throw new WebApplicationException(Response.Status.UNAUTHORIZED)
+        throw new ForbiddenException("No sufficient access privilege.")
       }
     }
   }
