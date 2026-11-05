@@ -26,12 +26,6 @@ const log = createLogger("WorkflowSystemMetadata");
 
 export type { ValidationError, Validation } from "../../types/workflow";
 
-interface OperatorSchemaInfo {
-  properties: any;
-  required: any;
-  definitions: any;
-}
-
 interface CompactOperatorSchema {
   properties: Record<string, any>;
   required: string[];
@@ -202,24 +196,8 @@ export class WorkflowSystemMetadata {
     return getCompactSchema(schema);
   }
 
-  getAllSchemasAsJson(): string {
-    const result: Record<string, OperatorSchemaInfo> = {};
-    for (const [type, schema] of this.schemas) {
-      result[type] = {
-        properties: filterObjectKeys(schema.properties, FILTERED_PROPERTY_KEYS),
-        required: schema.required,
-        definitions: filterObjectKeys(schema.definitions, FILTERED_DEFINITION_KEYS),
-      };
-    }
-    return JSON.stringify(result, null, 2);
-  }
-
   getOperatorCount(): number {
     return this.schemas.size;
-  }
-
-  operatorTypeExists(operatorType: string): boolean {
-    return this.schemas.has(operatorType);
   }
 
   validateOperatorProperties(operatorType: string, properties: Record<string, any>): Validation {

@@ -68,6 +68,32 @@ object WorkflowExecutionsResource {
     executionsDao.fetchOneByEid(eId)
   }
 
+  def userCanAccessExecution(uid: Integer, eid: Integer, requireWrite: Boolean): Boolean = {
+    val owningWid = context
+      .select(WORKFLOW_VERSION.WID)
+      .from(WORKFLOW_EXECUTIONS)
+      .join(WORKFLOW_VERSION)
+      .on(WORKFLOW_VERSION.VID.eq(WORKFLOW_EXECUTIONS.VID))
+      .where(WORKFLOW_EXECUTIONS.EID.eq(eid))
+      .fetchOneInto(classOf[Integer])
+    owningWid != null && (
+      if (requireWrite) WorkflowAccess.hasWriteAccess(owningWid, uid)
+      else WorkflowAccess.hasReadAccess(owningWid, uid)
+    )
+  }
+
+  def validateUserCanAccessExecutions(
+      uid: Integer,
+      eids: Seq[Integer],
+      requireWrite: Boolean
+  ): Unit = {
+    eids.distinct.foreach { eid =>
+      if (!userCanAccessExecution(uid, eid, requireWrite)) {
+        throw new WebApplicationException(Response.Status.UNAUTHORIZED)
+      }
+    }
+  }
+
   def getExpiredExecutionsWithResultOrLog(timeToLive: Int): List[WorkflowExecutions] = {
     val deadline = new Timestamp(
       System.currentTimeMillis() - TimeUnit.SECONDS.toMillis(timeToLive)
@@ -582,7 +608,7 @@ class WorkflowExecutionsResource {
       @Auth sessionUser: SessionUser
   ): List[String] = {
     val user = sessionUser.getUser
-    if (!WorkflowAccess.hasReadAccess(wid, user.getUid)) {
+    if (!userCanAccessExecution(user.getUid, eid, requireWrite = false)) {
       List()
     } else {
       val logLocation = context
@@ -715,7 +741,11 @@ class WorkflowExecutionsResource {
       request: ExecutionGroupBookmarkRequest,
       @Auth sessionUser: SessionUser
   ): Unit = {
-    validateUserCanAccessWorkflow(sessionUser.getUser.getUid, request.wid)
+    validateUserCanAccessExecutions(
+      sessionUser.getUser.getUid,
+      request.eIds.toSeq,
+      requireWrite = true
+    )
     val eIdsList = request.eIds.toSeq.asJava
     if (request.isBookmarked) {
       // If currently bookmarked, un-bookmark (set bookmarked = false)
@@ -757,7 +787,11 @@ class WorkflowExecutionsResource {
       request: ExecutionGroupDeleteRequest,
       @Auth sessionUser: SessionUser
   ): Unit = {
-    validateUserCanAccessWorkflow(sessionUser.getUser.getUid, request.wid)
+    validateUserCanAccessExecutions(
+      sessionUser.getUser.getUid,
+      request.eIds.toSeq,
+      requireWrite = true
+    )
     removeAllExecutionFiles(request.eIds)
   }
 
@@ -770,7 +804,11 @@ class WorkflowExecutionsResource {
       request: ExecutionRenameRequest,
       @Auth sessionUser: SessionUser
   ): Unit = {
-    validateUserCanAccessWorkflow(sessionUser.getUser.getUid, request.wid)
+    validateUserCanAccessExecutions(
+      sessionUser.getUser.getUid,
+      Seq(request.eId),
+      requireWrite = true
+    )
     val execution = getExecutionById(request.eId)
     execution.setName(request.executionName)
     executionsDao.update(execution)

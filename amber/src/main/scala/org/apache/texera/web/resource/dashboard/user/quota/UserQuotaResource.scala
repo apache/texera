@@ -29,6 +29,7 @@ import org.apache.texera.web.resource.dashboard.user.quota.UserQuotaResource._
 import org.apache.texera.web.resource.dashboard.user.workflow.WorkflowExecutionsResource
 
 import java.util
+import javax.annotation.security.RolesAllowed
 import javax.ws.rs._
 import javax.ws.rs.core.MediaType
 import scala.jdk.CollectionConverters.IterableHasAsScala
@@ -169,6 +170,7 @@ object UserQuotaResource {
 }
 
 @Path("/quota")
+@RolesAllowed(Array("REGULAR", "ADMIN"))
 class UserQuotaResource {
 
   @GET
@@ -201,7 +203,16 @@ class UserQuotaResource {
 
   @DELETE
   @Path("/deleteCollection/{eid}")
-  def deleteCollection(@PathParam("eid") eid: Integer): Unit = {
+  @RolesAllowed(Array("REGULAR", "ADMIN"))
+  def deleteCollection(
+      @PathParam("eid") eid: Integer,
+      @Auth current_user: SessionUser
+  ): Unit = {
+    WorkflowExecutionsResource.validateUserCanAccessExecutions(
+      current_user.getUid,
+      Seq(eid),
+      requireWrite = true
+    )
     deleteExecutionCollection(eid)
   }
 }
