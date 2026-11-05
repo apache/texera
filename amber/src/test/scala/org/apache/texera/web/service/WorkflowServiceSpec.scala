@@ -458,6 +458,7 @@ class WorkflowServiceSpec
       request,
       new ExecutionStateStore(),
       (_: Throwable) => (),
+      Integer.valueOf(1), // uid; these tests never resolve a file
       None,
       new URI("vfs:///test")
     )

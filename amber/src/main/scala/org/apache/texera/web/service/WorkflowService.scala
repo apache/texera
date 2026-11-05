@@ -325,6 +325,7 @@ class WorkflowService(
         req,
         executionStateStore,
         errorHandler,
+        uid,
         userEmailOpt,
         sessionUri
       )

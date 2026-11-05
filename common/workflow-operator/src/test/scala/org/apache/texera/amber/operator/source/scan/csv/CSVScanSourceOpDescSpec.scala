@@ -22,7 +22,6 @@ package org.apache.texera.amber.operator.source.scan.csv
 import com.fasterxml.jackson.databind.JsonNode
 import com.fasterxml.jackson.databind.node.TextNode
 import com.github.fge.jsonschema.main.JsonSchemaFactory
-import org.apache.texera.amber.core.storage.FileResolver
 import org.apache.texera.amber.core.tuple.{AttributeType, Schema}
 import org.apache.texera.amber.core.workflow.WorkflowContext.{
   DEFAULT_EXECUTION_ID,
@@ -93,7 +92,7 @@ class CSVScanSourceOpDescSpec extends AnyFlatSpec with BeforeAndAfter {
 
   private def columnNames(opDesc: ScanSourceOpDesc, path: String): List[String] = {
     opDesc.fileName = Some(path)
-    opDesc.setResolvedFileName(FileResolver.resolve(path))
+    opDesc.setResolvedFileName(TestOperators.localFileUri(path))
     opDesc.sourceSchema().getAttributes.map(_.getName).toList
   }
 
@@ -111,7 +110,7 @@ class CSVScanSourceOpDescSpec extends AnyFlatSpec with BeforeAndAfter {
   it should "infer a numeric column as DOUBLE even when one of its cells is blank" in {
     val path = writeCsvWithBlankNumericCell()
     csvScanSourceOpDesc.fileName = Some(path)
-    csvScanSourceOpDesc.setResolvedFileName(FileResolver.resolve(path))
+    csvScanSourceOpDesc.setResolvedFileName(TestOperators.localFileUri(path))
 
     // A blank used to read as "" while inferring and as null while executing. The ""
     // fell through inferField to STRING, so one empty cell retyped the whole column
@@ -127,7 +126,7 @@ class CSVScanSourceOpDescSpec extends AnyFlatSpec with BeforeAndAfter {
     parallelCsvScanSourceOpDesc.customDelimiter = Some(",")
     parallelCsvScanSourceOpDesc.hasHeader = true
     parallelCsvScanSourceOpDesc.setResolvedFileName(
-      FileResolver.resolve(parallelCsvScanSourceOpDesc.fileName.get)
+      TestOperators.localFileUri(parallelCsvScanSourceOpDesc.fileName.get)
     )
     val inferredSchema: Schema = parallelCsvScanSourceOpDesc.sourceSchema()
 
@@ -143,7 +142,7 @@ class CSVScanSourceOpDescSpec extends AnyFlatSpec with BeforeAndAfter {
     parallelCsvScanSourceOpDesc.customDelimiter = Some(",")
     parallelCsvScanSourceOpDesc.hasHeader = false
     parallelCsvScanSourceOpDesc.setResolvedFileName(
-      FileResolver.resolve(parallelCsvScanSourceOpDesc.fileName.get)
+      TestOperators.localFileUri(parallelCsvScanSourceOpDesc.fileName.get)
     )
 
     val inferredSchema: Schema = parallelCsvScanSourceOpDesc.sourceSchema()
@@ -158,7 +157,9 @@ class CSVScanSourceOpDescSpec extends AnyFlatSpec with BeforeAndAfter {
     csvScanSourceOpDesc.fileName = Some(TestOperators.CountrySalesSmallMultiLineCsvPath)
     csvScanSourceOpDesc.customDelimiter = Some(",")
     csvScanSourceOpDesc.hasHeader = true
-    csvScanSourceOpDesc.setResolvedFileName(FileResolver.resolve(csvScanSourceOpDesc.fileName.get))
+    csvScanSourceOpDesc.setResolvedFileName(
+      TestOperators.localFileUri(csvScanSourceOpDesc.fileName.get)
+    )
 
     val inferredSchema: Schema = csvScanSourceOpDesc.sourceSchema()
 
@@ -172,7 +173,9 @@ class CSVScanSourceOpDescSpec extends AnyFlatSpec with BeforeAndAfter {
     csvScanSourceOpDesc.fileName = Some(TestOperators.CountrySalesHeaderlessSmallCsvPath)
     csvScanSourceOpDesc.customDelimiter = Some(",")
     csvScanSourceOpDesc.hasHeader = false
-    csvScanSourceOpDesc.setResolvedFileName(FileResolver.resolve(csvScanSourceOpDesc.fileName.get))
+    csvScanSourceOpDesc.setResolvedFileName(
+      TestOperators.localFileUri(csvScanSourceOpDesc.fileName.get)
+    )
 
     val inferredSchema: Schema = csvScanSourceOpDesc.sourceSchema()
 
@@ -187,7 +190,9 @@ class CSVScanSourceOpDescSpec extends AnyFlatSpec with BeforeAndAfter {
       Some(TestOperators.CountrySalesSmallMultiLineCustomDelimiterCsvPath)
     csvScanSourceOpDesc.customDelimiter = Some(";")
     csvScanSourceOpDesc.hasHeader = false
-    csvScanSourceOpDesc.setResolvedFileName(FileResolver.resolve(csvScanSourceOpDesc.fileName.get))
+    csvScanSourceOpDesc.setResolvedFileName(
+      TestOperators.localFileUri(csvScanSourceOpDesc.fileName.get)
+    )
 
     val inferredSchema: Schema = csvScanSourceOpDesc.sourceSchema()
 
@@ -202,7 +207,9 @@ class CSVScanSourceOpDescSpec extends AnyFlatSpec with BeforeAndAfter {
       Some(TestOperators.CountrySalesSmallMultiLineCustomDelimiterCsvPath)
     csvScanSourceOpDesc.customDelimiter = Some(";")
     csvScanSourceOpDesc.hasHeader = false
-    csvScanSourceOpDesc.setResolvedFileName(FileResolver.resolve(csvScanSourceOpDesc.fileName.get))
+    csvScanSourceOpDesc.setResolvedFileName(
+      TestOperators.localFileUri(csvScanSourceOpDesc.fileName.get)
+    )
 
     assert(
       !csvScanSourceOpDesc
@@ -248,7 +255,7 @@ class CSVScanSourceOpDescSpec extends AnyFlatSpec with BeforeAndAfter {
     csvScanSourceOpDesc.fileName = Some(path)
     csvScanSourceOpDesc.customDelimiter = Some(",")
     csvScanSourceOpDesc.hasHeader = true
-    csvScanSourceOpDesc.setResolvedFileName(FileResolver.resolve(path))
+    csvScanSourceOpDesc.setResolvedFileName(TestOperators.localFileUri(path))
 
     val names = csvScanSourceOpDesc.sourceSchema().getAttributes.map(_.getName).toList
     assert(names == List("id", "name", "column-3", "age"))
@@ -259,7 +266,7 @@ class CSVScanSourceOpDescSpec extends AnyFlatSpec with BeforeAndAfter {
     parallelCsvScanSourceOpDesc.fileName = Some(path)
     parallelCsvScanSourceOpDesc.customDelimiter = Some(",")
     parallelCsvScanSourceOpDesc.hasHeader = true
-    parallelCsvScanSourceOpDesc.setResolvedFileName(FileResolver.resolve(path))
+    parallelCsvScanSourceOpDesc.setResolvedFileName(TestOperators.localFileUri(path))
 
     val names = parallelCsvScanSourceOpDesc.sourceSchema().getAttributes.map(_.getName).toList
     assert(names == List("id", "name", "column-3", "age"))
@@ -271,7 +278,7 @@ class CSVScanSourceOpDescSpec extends AnyFlatSpec with BeforeAndAfter {
     oldCsvScanSourceOpDesc.fileName = Some(path)
     oldCsvScanSourceOpDesc.customDelimiter = Some(",")
     oldCsvScanSourceOpDesc.hasHeader = true
-    oldCsvScanSourceOpDesc.setResolvedFileName(FileResolver.resolve(path))
+    oldCsvScanSourceOpDesc.setResolvedFileName(TestOperators.localFileUri(path))
 
     val names = oldCsvScanSourceOpDesc.sourceSchema().getAttributes.map(_.getName).toList
     assert(names == List("id", "name", "column-3", "age"))
