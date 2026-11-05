@@ -22,58 +22,57 @@ package org.apache.texera.amber.core.storage
 import org.apache.commons.vfs2.FileNotFoundException
 import org.apache.texera.dao.SqlServer
 import org.apache.texera.dao.SqlServer.withTransaction
+import org.apache.texera.dao.jooq.generated.enums.PrivilegeEnum
 import org.apache.texera.dao.jooq.generated.tables.Dataset.DATASET
+import org.apache.texera.dao.jooq.generated.tables.DatasetUserAccess.DATASET_USER_ACCESS
 import org.apache.texera.dao.jooq.generated.tables.DatasetVersion.DATASET_VERSION
 import org.apache.texera.dao.jooq.generated.tables.User.USER
 import org.apache.texera.dao.jooq.generated.tables.pojos.{Dataset, DatasetVersion}
+import org.jooq.DSLContext
 
 import java.net.{URI, URLEncoder}
 import java.nio.charset.StandardCharsets
-import java.nio.file.{Files, Paths}
+import java.nio.file.Paths
 import scala.jdk.CollectionConverters.IteratorHasAsScala
-import scala.util.{Success, Try}
+import scala.util.control.NonFatal
 
 /**
-  * Unified object for resolving both VFS resources and local/dataset files.
+  * Resolves dataset logical paths to physical URIs.
   */
 object FileResolver {
 
   val DATASET_FILE_URI_SCHEME = "dataset"
 
   /**
-    * Resolves a given fileName to either a file on the local file system or a dataset file.
-    *
-    * @param fileName the name of the file to resolve.
-    * @throws java.io.FileNotFoundException if the file cannot be resolved.
-    * @return A URI pointing to the resolved file.
+    * Returns a [[ScanFileResolver]] scoped to the user `uid`.
     */
-  def resolve(fileName: String): URI = {
-    if (isFileResolved(fileName)) {
-      return new URI(fileName)
-    }
-    val resolvers: Seq[String => URI] = Seq(localResolveFunc, datasetResolveFunc)
-
-    // Try each resolver function in sequence
-    resolvers
-      .map(resolver => Try(resolver(fileName)))
-      .collectFirst {
-        case Success(output) => output
-      }
-      .getOrElse(throw new FileNotFoundException(fileName))
-  }
+  def forUser(uid: Integer): ScanFileResolver = fileName => resolveForUser(fileName, uid)
 
   /**
-    * Attempts to resolve a local file path.
-    * @throws java.io.FileNotFoundException if the local file does not exist
-    * @param fileName the name of the file to check
+    * Resolves a dataset logical path for the user `uid`.
+    *
+    * @throws java.io.FileNotFoundException if the path does not resolve to a readable dataset file
     */
-  private def localResolveFunc(fileName: String): URI = {
-    val filePath = Paths.get(fileName)
-    if (!Files.exists(filePath)) {
-      throw new FileNotFoundException(s"Local file $fileName does not exist")
+  def resolveForUser(fileName: String, uid: Integer): URI =
+    resolveLogicalPath(fileName, reader = Some(uid))
+
+  /**
+    * Resolves a dataset logical path without a user scope.
+    *
+    * @throws java.io.FileNotFoundException if the path does not resolve to a dataset file
+    */
+  def resolveVersionedResource(fileName: String): URI =
+    resolveLogicalPath(fileName, reader = None)
+
+  private def resolveLogicalPath(fileName: String, reader: Option[Integer]): URI =
+    try {
+      if (isFileResolved(fileName)) {
+        throw new FileNotFoundException(fileName)
+      }
+      datasetResolveFunc(fileName, reader)
+    } catch {
+      case NonFatal(_) => throw new FileNotFoundException(fileName)
     }
-    filePath.toUri
-  }
 
   /**
     * Parses a dataset file path and extracts its components.
@@ -109,10 +108,12 @@ object FileResolver {
     *   e.g. {DATASET_FILE_URI_SCHEME}:///dataset-15/adeq233td/some/dir/file.txt
     *
     * @param fileName the name of the file to attempt resolving as a DatasetFileDocument
+    * @param reader optional user ID to check read access for
     * @return Either[String, DatasetFileDocument] - Right(document) if creation succeeds
-    * @throws java.io.FileNotFoundException if the dataset file does not exist or cannot be created
+    * @throws java.io.FileNotFoundException if the dataset file does not exist, cannot be created,
+    *                                       or the reader does not have read access
     */
-  private def datasetResolveFunc(fileName: String): URI = {
+  private def datasetResolveFunc(fileName: String, reader: Option[Integer]): URI = {
     val (ownerEmail, datasetName, versionName, fileRelativePathSegments) =
       parseDatasetFilePath(fileName).getOrElse(
         throw new FileNotFoundException(s"Dataset file $fileName not found.")
@@ -138,6 +139,10 @@ object FileResolver {
           .and(DATASET.NAME.eq(datasetName))
           .fetchOneInto(classOf[Dataset])
 
+        if (dataset == null || !readableBy(ctx, dataset, reader)) {
+          throw new FileNotFoundException(s"Dataset file $fileName not found.")
+        }
+
         // fetch the dataset version from DB
         val datasetVersion = ctx
           .selectFrom(DATASET_VERSION)
@@ -145,7 +150,7 @@ object FileResolver {
           .and(DATASET_VERSION.NAME.eq(versionName))
           .fetchOneInto(classOf[DatasetVersion])
 
-        if (dataset == null || datasetVersion == null) {
+        if (datasetVersion == null) {
           throw new FileNotFoundException(s"Dataset file $fileName not found.")
         }
         (dataset, datasetVersion)
@@ -177,6 +182,18 @@ object FileResolver {
         throw new FileNotFoundException(s"Dataset file $fileName not found.")
     }
   }
+
+  /** Checks whether `reader` has read access when a user scope is provided. */
+  private def readableBy(ctx: DSLContext, dataset: Dataset, reader: Option[Integer]): Boolean =
+    reader.forall(uid =>
+      dataset.getIsPublic || dataset.getOwnerUid == uid || ctx.fetchExists(
+        DATASET_USER_ACCESS,
+        DATASET_USER_ACCESS.DID
+          .eq(dataset.getDid)
+          .and(DATASET_USER_ACCESS.UID.eq(uid))
+          .and(DATASET_USER_ACCESS.PRIVILEGE.in(PrivilegeEnum.READ, PrivilegeEnum.WRITE))
+      )
+    )
 
   /**
     * Checks if a given file path has a valid scheme.

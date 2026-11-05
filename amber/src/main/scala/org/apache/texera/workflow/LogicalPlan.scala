@@ -20,7 +20,7 @@
 package org.apache.texera.workflow
 
 import com.typesafe.scalalogging.LazyLogging
-import org.apache.texera.amber.core.storage.FileResolver
+import org.apache.texera.amber.core.storage.ScanFileResolver
 import org.apache.texera.amber.core.virtualidentity.OperatorIdentity
 import org.apache.texera.amber.operator.LogicalOp
 import org.apache.texera.amber.operator.source.scan.ScanSourceOpDesc
@@ -90,9 +90,11 @@ case class LogicalPlan(
   /**
     * Resolve all user-given filename for the scan source operators to URIs, and call op.setFileUri to set the URi
     *
+    * @param fileResolver resolves scan source file names to URIs
     * @param errorList if given, put errors during resolving to it
     */
   def resolveScanSourceOpFileName(
+      fileResolver: ScanFileResolver,
       errorList: Option[ArrayBuffer[(OperatorIdentity, Throwable)]]
   ): Unit = {
     operators.foreach {
@@ -100,7 +102,7 @@ case class LogicalPlan(
         Try {
           // Resolve file path for ScanSourceOpDesc
           val fileName = scanOp.fileName.getOrElse(throw new RuntimeException("no input file name"))
-          val fileUri = FileResolver.resolve(fileName) // Convert to URI
+          val fileUri = fileResolver.resolve(fileName) // Convert to URI
 
           // Set the URI in the ScanSourceOpDesc
           scanOp.setResolvedFileName(fileUri)

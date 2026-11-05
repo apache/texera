@@ -54,7 +54,7 @@ class WorkflowCompilerSpec extends AnyFlatSpec {
     val keyword = TestOperators.keywordSearchOpDesc("Region", "Asia")
     val ctx = new WorkflowContext()
 
-    val workflow = new WorkflowCompiler(ctx).compile(
+    val workflow = new WorkflowCompiler(ctx, TestOperators.fixtureFileResolver).compile(
       pojo(
         List(csv, keyword),
         List(
@@ -78,7 +78,7 @@ class WorkflowCompilerSpec extends AnyFlatSpec {
     val keyword = TestOperators.keywordSearchOpDesc("Region", "Asia")
     val ctx = new WorkflowContext()
 
-    val workflow = new WorkflowCompiler(ctx).compile(
+    val workflow = new WorkflowCompiler(ctx, TestOperators.fixtureFileResolver).compile(
       pojo(
         List(csv, keyword),
         List(
@@ -118,7 +118,7 @@ class WorkflowCompilerSpec extends AnyFlatSpec {
     val keyword = TestOperators.keywordSearchOpDesc("Region", "Asia")
     val ctx = new WorkflowContext()
 
-    new WorkflowCompiler(ctx).compile(
+    new WorkflowCompiler(ctx, TestOperators.fixtureFileResolver).compile(
       pojo(
         List(csv, keyword),
         List(
@@ -148,7 +148,7 @@ class WorkflowCompilerSpec extends AnyFlatSpec {
     val keyword = TestOperators.keywordSearchOpDesc("Region", "Asia")
     val ctx = new WorkflowContext()
 
-    new WorkflowCompiler(ctx).compile(
+    new WorkflowCompiler(ctx, TestOperators.fixtureFileResolver).compile(
       pojo(
         List(csv, keyword),
         List(
@@ -179,7 +179,8 @@ class WorkflowCompilerSpec extends AnyFlatSpec {
     val csv = TestOperators.smallCsvScanOpDesc()
     val ctx = new WorkflowContext()
 
-    new WorkflowCompiler(ctx).compile(pojo(List(csv), List.empty))
+    new WorkflowCompiler(ctx, TestOperators.fixtureFileResolver)
+      .compile(pojo(List(csv), List.empty))
 
     val storage = ctx.workflowSettings.outputPortsNeedingStorage
     assert(
@@ -205,7 +206,8 @@ class WorkflowCompilerSpec extends AnyFlatSpec {
     val ctx = new WorkflowContext()
 
     val ex = intercept[RuntimeException] {
-      new WorkflowCompiler(ctx).compile(pojo(List(orphanCsv), List.empty))
+      new WorkflowCompiler(ctx, TestOperators.fixtureFileResolver)
+        .compile(pojo(List(orphanCsv), List.empty))
     }
     assert(ex.getMessage == "no input file name")
   }

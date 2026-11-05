@@ -1524,7 +1524,7 @@ class DatasetResource extends LazyLogging {
       case (None, None) =>
         // Case 3: Neither repositoryName nor commitHash are provided, resolve normally
         val response = withTransaction(context) { ctx =>
-          val fileUri = FileResolver.resolve(decodedPathStr)
+          val fileUri = FileResolver.resolveVersionedResource(decodedPathStr)
           val document = DocumentFactory.openReadonlyDocument(fileUri).asInstanceOf[OnDataset]
           val datasetDao = new DatasetDao(ctx.configuration())
           val datasets =
@@ -2163,7 +2163,7 @@ class DatasetResource extends LazyLogging {
       val owner = getOwner(ctx, did)
       val document = DocumentFactory
         .openReadonlyDocument(
-          FileResolver.resolve(s"${owner.getEmail}/${dataset.getName}/$normalized")
+          FileResolver.resolveVersionedResource(s"${owner.getEmail}/${dataset.getName}/$normalized")
         )
         .asInstanceOf[OnDataset]
 
@@ -2220,7 +2220,7 @@ class DatasetResource extends LazyLogging {
       val fullPath = s"${owner.getEmail}/${dataset.getName}/$coverImage"
 
       val document = DocumentFactory
-        .openReadonlyDocument(FileResolver.resolve(fullPath))
+        .openReadonlyDocument(FileResolver.resolveVersionedResource(fullPath))
         .asInstanceOf[OnDataset]
 
       val presignedUrl = withLakeFSErrorHandling(
@@ -2269,7 +2269,7 @@ class DatasetResource extends LazyLogging {
           val fullPath = s"${owner.getEmail}/${dataset.getName}/$coverImage"
 
           val document = DocumentFactory
-            .openReadonlyDocument(FileResolver.resolve(fullPath))
+            .openReadonlyDocument(FileResolver.resolveVersionedResource(fullPath))
             .asInstanceOf[OnDataset]
 
           val presignedUrl = withLakeFSErrorHandling(
