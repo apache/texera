@@ -367,6 +367,10 @@ export class WorkflowFormComponent implements OnInit, OnDestroy {
       .pipe(untilDestroyed(this))
       .subscribe(() => this.syncSelectionFromHighlight());
 
+    // And once now: the selection is the canvas's too, handed over rather than rebuilt when the
+    // views switch, so a step chosen there is already selected here and no event will say so.
+    this.syncSelectionFromHighlight();
+
     // A result changing bumps that operator's version (so its chart frame is rebuilt, not reused),
     // re-limits what the form shows to the currently-viewed set, and re-fits the visualisations.
     this.workflowResultService
