@@ -1054,12 +1054,12 @@ class ExecutionResultServiceSpec
     }
   }
 
-  it should "record the size and per-column statistics of a table-mode result" in {
+  it should "send the per-column statistics of a table-mode result" in {
     val executionId = newExecution()
     val schema = new Schema(
       List(new Attribute("id", AttributeType.INTEGER), new Attribute("name", AttributeType.STRING))
     )
-    val uri = storeResult(
+    storeResult(
       executionId,
       "erss-snapshot-stats",
       schema,
@@ -1081,23 +1081,13 @@ class ExecutionResultServiceSpec
 
       events.updates.head.tableStats.keySet shouldBe Set("erss-snapshot-stats")
       events.updates.head.tableStats("erss-snapshot-stats").keySet shouldBe Set("id", "name")
-
-      // The persisted size must be the document's own file size, not some other
-      // measure of the result (a row count, or a hard-coded zero).
-      // The persisted size must be the document's own file size, not some other
-      // measure of the result (a row count, or a hard-coded zero). Nothing is closed
-      // afterwards because VirtualDocument exposes no close(); its only teardown is
-      // clear(), which deletes the data rather than releasing a handle.
-      val expectedSize = DocumentFactory.openDocument(uri)._1.getTotalFileSize
-      expectedSize should not be 0L
-      storedResultSize(executionId, "erss-snapshot-stats") shouldBe expectedSize
     }
   }
 
-  it should "record the row count of a table-mode result" in {
+  it should "record the size and row count of a table-mode result with no browser connected" in {
     val executionId = newExecution()
     val schema = new Schema(List(new Attribute("id", AttributeType.INTEGER)))
-    storeResult(
+    val uri = storeResult(
       executionId,
       "erss-snapshot-count",
       schema,
@@ -1108,12 +1098,17 @@ class ExecutionResultServiceSpec
     )
 
     withAttached(plan, executionId) { fixture =>
-      new ResultEvents(fixture.workflowStateStore)
-      fixture.setResultCounts("erss-snapshot-count" -> 3)
+      // No ResultEvents: the run finishes after its browser tab has closed (#8994).
+      setPollingCancellable(fixture.service, new RecordingCancellable)
+      fixture.client.fire(ExecutionStateUpdate(WorkflowAggregatedState.COMPLETED))
 
-      // The recorded count is the one the result store tracks, so a reader can list a
-      // finished execution's results without opening each table (#8994).
       storedResultCount(executionId, "erss-snapshot-count") shouldBe 3L
+      // The document's own file size, not some other measure of the result. Nothing is
+      // closed afterwards because VirtualDocument exposes no close(); its only teardown is
+      // clear(), which deletes the data rather than releasing a handle.
+      val expectedSize = DocumentFactory.openDocument(uri)._1.getTotalFileSize
+      expectedSize should not be 0L
+      storedResultSize(executionId, "erss-snapshot-count") shouldBe expectedSize
     }
   }
 
@@ -1131,8 +1126,8 @@ class ExecutionResultServiceSpec
     )
 
     withAttached(plan, executionId) { fixture =>
-      new ResultEvents(fixture.workflowStateStore)
-      fixture.setResultCounts("erss-single-count" -> 1)
+      setPollingCancellable(fixture.service, new RecordingCancellable)
+      fixture.client.fire(ExecutionStateUpdate(WorkflowAggregatedState.COMPLETED))
 
       // A visualization is shown whole, never paged, so it has no count to record.
       storedResultCount(executionId, "erss-single-count") shouldBe null
