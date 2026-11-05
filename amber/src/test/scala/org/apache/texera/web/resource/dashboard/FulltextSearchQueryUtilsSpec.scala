@@ -26,8 +26,7 @@ import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 
 import java.sql.Timestamp
-import java.text.{ParseException, SimpleDateFormat}
-import java.util.concurrent.TimeUnit
+import javax.ws.rs.BadRequestException
 
 class FulltextSearchQueryUtilsSpec extends AnyFlatSpec with Matchers with BeforeAndAfter {
 
@@ -149,18 +148,18 @@ class FulltextSearchQueryUtilsSpec extends AnyFlatSpec with Matchers with Before
     sqlOf(cond) shouldBe sqlOf(JDSL.noCondition())
   }
 
-  it should "throw ParseException for a malformed start date" in {
+  it should "reject a malformed start date" in {
     val field: Field[Timestamp] = JDSL.field("created_at", classOf[Timestamp])
-    a[ParseException] should be thrownBy
+    val thrown = the[BadRequestException] thrownBy
       FulltextSearchQueryUtils.getDateFilter("not-a-date", "2026-01-31", field)
+    thrown.getMessage shouldBe "Invalid date: not-a-date"
   }
 
-  // Sanity check that the SimpleDateFormat used inside getDateFilter parses
-  // the documented format — guards against a future locale-dependent bug.
-  it should "accept the documented yyyy-MM-dd format" in {
-    val parsed = new SimpleDateFormat("yyyy-MM-dd").parse("2026-01-01")
-    val ts = new Timestamp(parsed.getTime + TimeUnit.DAYS.toMillis(0))
-    ts.getTime should be > 0L
+  it should "reject an impossible end date" in {
+    val field: Field[Timestamp] = JDSL.field("created_at", classOf[Timestamp])
+    val thrown = the[BadRequestException] thrownBy
+      FulltextSearchQueryUtils.getDateFilter("2026-01-01", "2026-99-99", field)
+    thrown.getMessage shouldBe "Invalid date: 2026-99-99"
   }
 
   // -- getOperatorsFilter -----------------------------------------------------
