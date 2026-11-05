@@ -673,11 +673,17 @@ class TestTuple:
             [
                 pyarrow.field("scores", pyarrow.binary()),
                 pyarrow.field("raw", pyarrow.binary()),
+                pyarrow.field("prefixed", pyarrow.binary()),
                 pyarrow.field("empty", pyarrow.binary()),
             ]
         )
         arrow_table = pyarrow.Table.from_pydict(
-            {"scores": [pickled], "raw": [b"plain bytes"], "empty": [None]},
+            {
+                "scores": [pickled],
+                "raw": [b"plain bytes"],
+                "prefixed": [b"picklehello"],
+                "empty": [None],
+            },
             schema=arrow_schema,
         )
 
@@ -691,6 +697,7 @@ class TestTuple:
         # Bytes that were never pickled must survive untouched, and a null
         # binary must not be fed to pickle.loads.
         assert tuples[0]["raw"] == b"plain bytes"
+        assert tuples[0]["prefixed"] == b"picklehello"
         assert tuples[0]["empty"] is None
 
     def test_binary_field_starting_with_pickle_bytes_is_unpickled(self):
