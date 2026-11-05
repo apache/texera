@@ -151,6 +151,24 @@ describe("VisualizationFrameContentComponent", () => {
       expect(iframe.getAttribute("srcdoc")).toBe(initialSrcdoc);
     }));
 
+    // An update event carries only the operators whose result changed, so events for different
+    // operators interleave. With the audit before the filter, a window that closed on another
+    // operator's event was dropped by the filter and this operator's pending redraw was lost.
+    it("does not lose this operator's pending redraw to a later emission for another operator", fakeAsync(() => {
+      snapshotProvider = () => makeResultSnapshot("<html><body><div>v1</div></body></html>");
+      buildComponent("op-1");
+      const iframe = fixture.nativeElement.querySelector("iframe") as HTMLIFrameElement;
+
+      snapshotProvider = () => makeResultSnapshot("<html><body><div>v2</div></body></html>");
+      resultUpdateStream.next({ "op-1": { fake: true } });
+      tick(UPDATE_INTERVAL_MS / 2);
+      resultUpdateStream.next({ "some-other-op": { fake: true } });
+      tick(UPDATE_INTERVAL_MS / 2);
+      fixture.detectChanges();
+
+      expect(iframe.getAttribute("srcdoc")).toContain("v2");
+    }));
+
     it("ignores stream emissions when operatorId is undefined", fakeAsync(() => {
       buildComponent(undefined);
       const drawSpy = vi.spyOn(component, "drawChart");
