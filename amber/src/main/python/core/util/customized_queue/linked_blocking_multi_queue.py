@@ -423,7 +423,7 @@ class LinkedBlockingMultiQueue(IKeyedQueue):
                     elif pg.priority > priority:
                         new_pg = self.PriorityGroup(priority)
                         new_pg.add_queue(sub_queue)
-                        self.priority_groups.append(new_pg)
+                        self.priority_groups.insert(i, new_pg)
                         added = True
                         break
 
