@@ -41,6 +41,7 @@ import * as Y from "yjs";
 import { DEFAULT_WORKFLOW, DEFAULT_WORKFLOW_NAME, WorkflowActionService } from "./workflow-action.service";
 import { LogicalPort, OperatorPredicate } from "../../../types/workflow-common.interface";
 import { WorkflowUtilService } from "../util/workflow-util.service";
+import { ExecuteWorkflowService } from "../../execute-workflow/execute-workflow.service";
 import { commonTestProviders } from "../../../../common/testing/test-utils";
 import {
   ExecutionMode,
@@ -451,6 +452,62 @@ describe("WorkflowActionService", () => {
     service.resetAsNewWorkflow();
 
     expect(changed).toBeTruthy();
+  });
+
+  it("should set an operator's description and announce it on workflowChanged so autosave persists it", () => {
+    service.addOperator(mockScanPredicate, mockPoint);
+    let changed = 0;
+    service.workflowChanged().subscribe(() => (changed += 1));
+
+    service.setOperatorDescription(mockScanPredicate.operatorID, "Reads the *raw* tweets");
+
+    expect(texeraGraph.getOperator(mockScanPredicate.operatorID).description).toEqual("Reads the *raw* tweets");
+    expect(changed).toBe(1);
+  });
+
+  it("should keep descriptions through an export/import round trip", () => {
+    service.addOperator(mockScanPredicate, mockPoint);
+    service.setOperatorDescription(mockScanPredicate.operatorID, "## Why\nKeeps 🚀 rows");
+    const exported = JSON.parse(JSON.stringify(service.getWorkflowContent()));
+
+    service.reloadWorkflow({ ...service.getWorkflow(), content: exported });
+
+    expect(texeraGraph.getOperator(mockScanPredicate.operatorID).description).toEqual("## Why\nKeeps 🚀 rows");
+    expect(exported.operators[0].description).toEqual("## Why\nKeeps 🚀 rows");
+  });
+
+  it("should load workflow content saved before descriptions existed", () => {
+    service.addOperator(mockScanPredicate, mockPoint);
+    const legacy = JSON.parse(JSON.stringify(service.getWorkflowContent()));
+    delete legacy.operators[0].description;
+
+    service.reloadWorkflow({ ...service.getWorkflow(), content: legacy });
+
+    expect(texeraGraph.getOperator(mockScanPredicate.operatorID).description).toBeUndefined();
+    service.setOperatorDescription(mockScanPredicate.operatorID, "added later");
+    expect(service.getWorkflowContent().operators[0].description).toEqual("added later");
+  });
+
+  it("should never send the description to the engine", () => {
+    service.addOperator(mockScanPredicate, mockPoint);
+    service.setOperatorDescription(mockScanPredicate.operatorID, "notes only");
+
+    const plan = ExecuteWorkflowService.getLogicalPlanRequest(texeraGraph);
+
+    expect(plan.operators[0]).not.toHaveProperty("description");
+    expect(JSON.stringify(plan)).not.toContain("notes only");
+  });
+
+  it("should make an operator's description undoable", () => {
+    service.addOperator(mockScanPredicate, mockPoint);
+    service.setOperatorDescription(mockScanPredicate.operatorID, "first");
+    // Y.UndoManager merges edits made within captureTimeout; stop capturing so the next edit is its own step
+    texeraGraph.sharedModel.undoManager.stopCapturing();
+    service.setOperatorDescription(mockScanPredicate.operatorID, "second");
+
+    undoRedo.undoAction();
+
+    expect(texeraGraph.getOperator(mockScanPredicate.operatorID).description).toEqual("first");
   });
 
   it("should only emit metadata changes when the reference changes", () => {

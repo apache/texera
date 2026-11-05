@@ -82,10 +82,31 @@ describe("WorkflowState - operators", () => {
     expect(state.getOperator("op1")?.customDisplayName).toBe("Filter rows");
   });
 
+  test("updateOperatorDescription sets and replaces description without touching properties", () => {
+    const state = new WorkflowState();
+    state.addOperator(makeOperator("op1", { operatorProperties: { a: 1 } }));
+    expect(state.updateOperatorDescription("op1", "## Why\nkeeps US rows")).toBe(true);
+    expect(state.getOperator("op1")?.description).toBe("## Why\nkeeps US rows");
+    expect(state.updateOperatorDescription("op1", "")).toBe(true);
+    expect(state.getOperator("op1")?.description).toBe("");
+    expect(state.getOperator("op1")?.operatorProperties).toEqual({ a: 1 });
+  });
+
+  test("updateOperatorDescription notifies workflow change listeners", () => {
+    const state = new WorkflowState();
+    state.addOperator(makeOperator("op1"));
+    let changes = 0;
+    const sub = state.getWorkflowChangedStream().subscribe(() => changes++);
+    state.updateOperatorDescription("op1", "note");
+    sub.unsubscribe();
+    expect(changes).toBe(1);
+  });
+
   test("update on missing operator returns false", () => {
     const state = new WorkflowState();
     expect(state.updateOperatorProperties("missing", { a: 1 })).toBe(false);
     expect(state.updateOperatorDisplayName("missing", "x")).toBe(false);
+    expect(state.updateOperatorDescription("missing", "x")).toBe(false);
   });
 });
 

@@ -28,6 +28,7 @@ import type { ReActStep } from "../../types/agent";
 import type { WorkflowCompilationResponse, WorkflowFatalError } from "../../api/compile-api";
 import { extractOperatorInputPortSchemaMap } from "./workflow-utils";
 import { createLogger } from "../../logger";
+import { DescriptionBudget, renderDescriptionForContext } from "./description-utils";
 
 const log = createLogger("ContextAssembler");
 
@@ -181,6 +182,8 @@ function serializeDag(
   lines.push("## Operators");
   lines.push("");
 
+  const descriptionBudget = new DescriptionBudget();
+
   for (const op of sortedOps) {
     const inputSchemaMap = extractOperatorInputPortSchemaMap(op.operatorID, op, outputSchemas, allLinks);
     const outputSchemaMap = outputSchemas[op.operatorID];
@@ -192,7 +195,8 @@ function serializeDag(
         useRedact,
         inputSchemaMap,
         outputSchemaMap,
-        compilationError
+        compilationError,
+        descriptionBudget
       )
     );
     lines.push("");
@@ -221,7 +225,8 @@ function serializeOperator(
   useRedact: boolean,
   inputSchemaMap?: OperatorPortSchemaMap,
   outputSchemaMap?: OperatorPortSchemaMap,
-  compilationError?: WorkflowFatalError
+  compilationError?: WorkflowFatalError,
+  descriptionBudget: DescriptionBudget = new DescriptionBudget()
 ): string {
   const hasError = execResult !== undefined && execResult.includes("[ERROR]");
   const status = execResult ? (hasError ? "failed" : "executed") : "not-executed";
@@ -232,6 +237,7 @@ function serializeOperator(
   const lines: string[] = [];
   lines.push(`### Operator \`${op.operatorID}\` (${op.operatorType}, ${status})`);
   lines.push(`Summary: ${summary}`);
+  lines.push(...renderDescriptionForContext(op.description, descriptionBudget));
 
   if (inputSchemaMap) {
     for (const [portId, schema] of Object.entries(inputSchemaMap)) {

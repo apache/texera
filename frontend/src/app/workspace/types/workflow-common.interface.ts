@@ -76,6 +76,11 @@ export interface OperatorPredicate
     viewResult?: boolean;
     markedForReuse?: boolean;
     customDisplayName?: string;
+    /**
+     * Free-form notes on what this operator does in this workflow, why it is configured the way it is,
+     * or context for other collaborators and agents. Markdown. Optional; never sent to the engine.
+     */
+    description?: string;
   }> {}
 
 export interface Comment
