@@ -72,6 +72,19 @@ class TestLinkedBlockingMultiQueue:
         assert queue.get() == 1
         assert queue.is_empty()
 
+    def test_duplicate_subqueue_registration_keeps_existing_queue(self):
+        queue = LinkedBlockingMultiQueue()
+        queue.add_sub_queue("data", 1)
+        original = queue.get_sub_queue("data")
+        queue.put("data", "first")
+
+        assert queue.add_sub_queue("data", 1) is original
+        assert queue.get_sub_queue("data") is original
+
+        queue.put("data", "second")
+        assert queue.size() == queue.size("data") == 2
+        assert [queue.get(), queue.get()] == ["first", "second"]
+
     def test_can_maintain_order_respectively(self, queue):
         queue.put("data", 1)
         queue.put("control", "s1")
