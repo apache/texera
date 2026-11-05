@@ -18,7 +18,7 @@
  */
 
 .instance-description {
-  margin: 8px 16px 12px;
+  margin: 4px 0 16px;
   font-size: 13px;
 }
 
@@ -30,7 +30,7 @@
 }
 
 .instance-description-label {
-  font-weight: 500;
+  font-size: 14px;
   color: rgba(0, 0, 0, 0.85);
 }
 
@@ -88,27 +88,26 @@
 }
 
 .instance-description-footer {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px;
   margin-top: 6px;
 }
 
 .instance-description-hint {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
   font-size: 12px;
   color: rgba(0, 0, 0, 0.45);
 }
 
 .instance-description-count {
-  margin-left: 6px;
   white-space: nowrap;
 }
 
 .instance-description-actions {
   display: flex;
+  justify-content: flex-end;
   gap: 8px;
-  flex-shrink: 0;
+  margin-top: 6px;
 }
 
 .instance-description-conflict {

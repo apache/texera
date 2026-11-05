@@ -17,7 +17,6 @@
  under the License.
 -->
 
-
 <section
   *ngIf="editable || hasDescription || editing"
   class="instance-description">
@@ -81,8 +80,10 @@
       (keydown)="onKeydown($event)"></textarea>
     <div class="instance-description-footer">
       <span class="instance-description-hint">
-        <ng-container *ngIf="editable; else lockedHint">Visible to collaborators and AI agents.</ng-container>
-        <ng-template #lockedHint>Editing is locked right now; your draft is kept but not saved.</ng-template>
+        <span>
+          <ng-container *ngIf="editable; else lockedHint">Visible to collaborators and AI agents.</ng-container>
+          <ng-template #lockedHint>Editing is locked right now; your draft is kept but not saved.</ng-template>
+        </span>
         <span class="instance-description-count">{{ draft.length }} / {{ maxLength }}</span>
       </span>
       <span class="instance-description-actions">
