@@ -120,8 +120,15 @@ class TestBroadcastPartitioner:
     def test_flush_emits_pending_batch_and_ecm_only_to_target(self, partitioner):
         list(partitioner.add_tuple_to_batch(_tuple(k=1)))
         ecm = EmbeddedControlMessage()
-        out = list(partitioner.flush(_worker("A"), ecm))
-        assert out == [[_tuple(k=1)], ecm]
+        assert _snapshot(partitioner.flush(_worker("A"), ecm)) == [
+            [_tuple(k=1)],
+            ecm,
+        ]
+        assert _snapshot(partitioner.flush(_worker("A"), ecm)) == [ecm]
+        assert _snapshot(partitioner.flush(_worker("B"), ecm)) == [
+            [_tuple(k=1)],
+            ecm,
+        ]
         assert partitioner.batch == []
 
     def test_flush_with_empty_batch_emits_only_ecm_for_target(self, partitioner):
@@ -134,6 +141,7 @@ class TestBroadcastPartitioner:
         ecm = EmbeddedControlMessage()
         out = list(partitioner.flush(_worker("Z"), ecm))
         assert out == []
+        assert partitioner.batch == [_tuple(k=1)]
 
     def test_flush_state_emits_pending_batch_and_state_to_every_receiver(
         self, partitioner
