@@ -19,7 +19,8 @@
 
 package org.apache.texera.amber.operator.union
 
-import org.apache.texera.amber.core.executor.OpExecWithClassName
+import org.apache.texera.amber.core.executor.{OpExecWithClassName, OperatorExecutor}
+import org.apache.texera.amber.core.tuple.{Tuple, TupleLike}
 import org.apache.texera.amber.core.virtualidentity.{ExecutionIdentity, WorkflowIdentity}
 import org.apache.texera.amber.core.workflow.{InputPort, OutputPort, PhysicalOp}
 import org.apache.texera.amber.operator.metadata.{OperatorGroupConstants, OperatorInfo}
@@ -57,4 +58,10 @@ class UnionOpDesc extends LogicalOp with StandaloneCodeGenerator {
   // was drawn.
   override def generateStandaloneCode(): String =
     "out1df = pd.concat(inAlldf, ignore_index=True)"
+}
+
+class UnionOpExec extends OperatorExecutor {
+  override def processTuple(tuple: Tuple, port: Int): Iterator[TupleLike] = {
+    Iterator(tuple)
+  }
 }
