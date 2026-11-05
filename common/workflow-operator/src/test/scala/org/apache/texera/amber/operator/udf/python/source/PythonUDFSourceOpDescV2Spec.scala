@@ -24,7 +24,7 @@ import org.apache.texera.amber.core.tuple.{Attribute, AttributeType, Schema}
 import org.apache.texera.amber.core.virtualidentity.{ExecutionIdentity, WorkflowIdentity}
 import org.apache.texera.amber.operator.LogicalOp
 import org.apache.texera.amber.operator.metadata.OperatorGroupConstants
-import org.apache.texera.amber.operator.udf.python.UiUDFParameter
+import org.apache.texera.amber.operator.udf.UiUDFParameter
 import org.apache.texera.amber.util.JSONUtils.objectMapper
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
@@ -94,6 +94,23 @@ class PythonUDFSourceOpDescV2Spec extends AnyFlatSpec with Matchers {
         code should include("self.decode_python_template")
       case other => fail(s"expected Python OpExecWithCode, got $other")
     }
+  }
+
+  it should "leave a resource parameter to the execution" in {
+    val d = new PythonUDFSourceOpDescV2
+    d.code = """from pytexera import *
+        |
+        |class GenerateOperator(UDFSourceOperator):
+        |    def produce(self):
+        |        yield
+        |""".stripMargin
+    val resource = new UiUDFParameter
+    resource.attribute = new Attribute("DS", AttributeType.STRING)
+    resource.inputType = "dataset"
+    resource.value = "/dataset/owner@x.com/ds/v1"
+    d.uiParameters = List(resource)
+
+    d.getPhysicalOp(workflowId, executionId).executionTimeBinding should not be empty
   }
 
   it should "reject a blank virtual-environment name when the default env is disabled" in {

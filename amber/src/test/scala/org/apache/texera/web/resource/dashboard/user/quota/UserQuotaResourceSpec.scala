@@ -46,6 +46,8 @@ import org.scalatest.flatspec.AnyFlatSpec
 
 import java.sql.Timestamp
 import java.util.UUID
+import scala.jdk.CollectionConverters._
+import javax.ws.rs.WebApplicationException
 
 class UserQuotaResourceSpec extends AnyFlatSpec with BeforeAndAfterAll with MockTexeraDB {
 
@@ -166,6 +168,14 @@ class UserQuotaResourceSpec extends AnyFlatSpec with BeforeAndAfterAll with Mock
     workflowUserAccessDao.insert(access)
   }
 
+  private def insertWriteAccess(): Unit = {
+    val access = new WorkflowUserAccess
+    access.setUid(testUid)
+    access.setWid(testWid)
+    access.setPrivilege(PrivilegeEnum.WRITE)
+    workflowUserAccessDao.insert(access)
+  }
+
   private def insertExecution(): WorkflowExecutions = {
     val execution = new WorkflowExecutions
     execution.setVid(testVersion.getVid)
@@ -232,6 +242,13 @@ class UserQuotaResourceSpec extends AnyFlatSpec with BeforeAndAfterAll with Mock
 
     assert(accessed.size == 1)
     assert(accessed.get(0) == testWid)
+  }
+
+  it should "include a workflow the user owns without an access row" in {
+    resetFixtures()
+    insertOwnership()
+
+    assert(UserQuotaResource.getUserAccessedWorkflow(testUid).asScala.toList == List(testWid))
   }
 
   // ─── getUserQuotaSize ──────────────────────────────────────────────────────
@@ -341,12 +358,30 @@ class UserQuotaResourceSpec extends AnyFlatSpec with BeforeAndAfterAll with Mock
     assert(workflowExecutionsDao.fetchOneByEid(execution.getEid) == null)
   }
 
-  "deleteCollection (endpoint)" should "delete the execution row for the given eid" in {
+  "deleteCollection (endpoint)" should "delete the execution row for a caller with access" in {
     resetFixtures()
+    insertWriteAccess()
     val execution = insertExecution()
 
-    resource.deleteCollection(execution.getEid)
+    resource.deleteCollection(execution.getEid, new SessionUser(testUser))
 
     assert(workflowExecutionsDao.fetchOneByEid(execution.getEid) == null)
+  }
+
+  it should "reject a caller who has mistaken the eid" in {
+    resetFixtures()
+    insertWriteAccess()
+    val execution = insertExecution()
+
+    val otherUser = new User
+    otherUser.setUid(testUid + 100000)
+    otherUser.setName("otherUser")
+    otherUser.setEmail("otherUser-" + UUID.randomUUID().toString.substring(0, 8) + "@example.com")
+
+    intercept[WebApplicationException] {
+      resource.deleteCollection(execution.getEid, new SessionUser(otherUser))
+    }
+
+    assert(workflowExecutionsDao.fetchOneByEid(execution.getEid) != null)
   }
 }

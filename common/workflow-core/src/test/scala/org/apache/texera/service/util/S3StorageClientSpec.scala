@@ -63,7 +63,7 @@ class S3StorageClientSpec
   }
 
   /**
-    * A second S3 client pointed at the same MinIO container. S3StorageClient exposes only
+    * A second S3 client pointed at the same RustFS container. S3StorageClient exposes only
     * `uploadPartWithRequest` from the multipart API, so the surrounding create/complete/list
     * calls are issued directly instead of being mocked away.
     */
@@ -438,7 +438,7 @@ class S3StorageClientSpec
     val objectCount = 1001
 
     // Upload with bounded concurrency to keep the test reasonably fast without flooding the
-    // shared MinIO container (a 16-way burst was a contributor to the flakiness in issue #7049).
+    // shared RustFS container (a 16-way burst was a contributor to the flakiness in issue #7049).
     val pool = Executors.newFixedThreadPool(4)
     implicit val ec: ExecutionContext = ExecutionContext.fromExecutor(pool)
     try {

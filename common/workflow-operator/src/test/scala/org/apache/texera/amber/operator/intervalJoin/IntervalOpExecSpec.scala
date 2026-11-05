@@ -28,10 +28,17 @@ import org.scalatest.flatspec.AnyFlatSpec
 
 import java.sql.Timestamp
 import scala.collection.mutable.ArrayBuffer
-import scala.util.Random.{nextInt, nextLong}
+import scala.util.Random
 class IntervalOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
   val left: Int = 0
   val right: Int = 1
+
+  // The generated inputs, the order they are fed in, and the interval constant all
+  // used to come from the global unseeded `scala.util.Random`, so every run drove
+  // the operator down a different set of branches. Each generator below is seeded
+  // from this constant and created fresh at its use site, so the inputs are
+  // identical on every run and independent of test execution order.
+  private val Seed: Long = 20260819L
 
   var opDesc: IntervalJoinOpDesc = _
   var counter: Int = 0
@@ -240,8 +247,9 @@ class IntervalOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
     counter = 0
     var leftIndex: Int = 0
     var rightIndex: Int = 0
-    val leftOrder = LazyList.continually(nextInt(10)).take(leftInput.length).toList
-    val rightOrder = LazyList.continually(nextInt(10)).take(rightInput.length).toList
+    val orderRandom = new Random(Seed)
+    val leftOrder = LazyList.continually(orderRandom.nextInt(10)).take(leftInput.length).toList
+    val rightOrder = LazyList.continually(orderRandom.nextInt(10)).take(rightInput.length).toList
     val outputTuples: ArrayBuffer[Tuple] = new ArrayBuffer[Tuple]
 
     while (leftIndex < leftOrder.size || rightIndex < rightOrder.size) {
@@ -483,8 +491,9 @@ class IntervalOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
   }
 
   it should "test larger dataset(1k)" in {
-    val pointList: Array[Long] = LazyList.continually(nextLong()).take(1000).toArray
-    val rangeList: Array[Long] = LazyList.continually(nextLong()).take(1000).toArray
+    val dataRandom = new Random(Seed)
+    val pointList: Array[Long] = LazyList.continually(dataRandom.nextLong()).take(1000).toArray
+    val rangeList: Array[Long] = LazyList.continually(dataRandom.nextLong()).take(1000).toArray
     testJoin[Long](
       "point",
       "range",
@@ -492,7 +501,7 @@ class IntervalOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
       includeRightBound = true,
       AttributeType.LONG,
       TimeIntervalType.DAY,
-      nextInt(1000).toLong,
+      dataRandom.nextInt(1000).toLong,
       pointList,
       rangeList
     )
@@ -546,6 +555,47 @@ class IntervalOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
       val outside = Timestamp.valueOf("2020-03-09 00:00:00")
       assert(exec.processTuple(timeStampTuple("point", 1, outside), left).toList.isEmpty)
     } finally exec.close()
+  }
+
+  // A null key used to unbox to 0 for a number, so it joined as if it were 0,
+  // and to throw for a timestamp, which failed the run.
+  it should "let a null key match nothing on either side" in {
+    val zero = Map[AttributeType, Any](
+      AttributeType.INTEGER -> 0,
+      AttributeType.LONG -> 0L,
+      AttributeType.DOUBLE -> 0.0,
+      AttributeType.TIMESTAMP -> Timestamp.valueOf("2020-03-05 00:00:00")
+    )
+    zero.foreach {
+      case (attributeType, value) =>
+        val desc = new IntervalJoinOpDesc("point", "range", 3L, true, true, TimeIntervalType.DAY)
+
+        val nullLeft = new IntervalJoinOpExec(objectMapper.writeValueAsString(desc))
+        nullLeft.open()
+        try {
+          assert(
+            nullLeft.processTuple(newTuple("range", 1, value, attributeType), right).isEmpty
+          )
+          assert(
+            nullLeft.processTuple(newTuple[Any]("point", 1, null, attributeType), left).isEmpty,
+            s"a null $attributeType point joined"
+          )
+          // The null point stayed out of the cache, so a real one still joins.
+          assert(nullLeft.processTuple(newTuple("point", 1, value, attributeType), left).size == 1)
+        } finally nullLeft.close()
+
+        val nullRight = new IntervalJoinOpExec(objectMapper.writeValueAsString(desc))
+        nullRight.open()
+        try {
+          assert(
+            nullRight.processTuple(newTuple[Any]("range", 1, null, attributeType), right).isEmpty
+          )
+          assert(
+            nullRight.processTuple(newTuple("point", 1, value, attributeType), left).isEmpty,
+            s"a null $attributeType range joined"
+          )
+        } finally nullRight.close()
+    }
   }
 
   it should "reject a join key whose type does not support interval comparison" in {

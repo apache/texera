@@ -29,7 +29,6 @@ import org.apache.texera.web.model.websocket.request.python.{
 @JsonTypeInfo(use = JsonTypeInfo.Id.NAME, include = JsonTypeInfo.As.PROPERTY, property = "type")
 @JsonSubTypes(
   Array(
-    new Type(value = classOf[EditingTimeCompilationRequest]),
     new Type(value = classOf[HeartBeatRequest]),
     new Type(value = classOf[ModifyLogicRequest]),
     new Type(value = classOf[ResultPaginationRequest]),
@@ -45,3 +44,11 @@ import org.apache.texera.web.model.websocket.request.python.{
   )
 )
 trait TexeraWebSocketRequest {}
+
+case class HeartBeatRequest() extends TexeraWebSocketRequest
+case class RetryRequest(workers: Seq[String]) extends TexeraWebSocketRequest
+case class SkipTupleRequest(workerIds: Array[String]) extends TexeraWebSocketRequest
+case class WorkflowCheckpointRequest() extends TexeraWebSocketRequest
+case class WorkflowKillRequest() extends TexeraWebSocketRequest
+case class WorkflowPauseRequest() extends TexeraWebSocketRequest
+case class WorkflowResumeRequest() extends TexeraWebSocketRequest

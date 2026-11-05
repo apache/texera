@@ -23,9 +23,10 @@ import { OperatorStatistics } from "../../types/execute-workflow.interface";
  * Derived per-operator performance metrics.
  *
  * This is the ground-truth model captured by {@link WorkflowStatusService}. It is
- * a flat projection of the raw {@link OperatorStatistics} the backend streams over
- * the websocket, with missing optional fields defaulted. Keyed by operator id at
- * the map level (mirroring {@link OperatorStatistics}), so the id is not repeated here.
+ * a flat projection of the {@link OperatorStatistics} sub-concept the service
+ * splits out of the OperatorRuntimeStatus objects the backend streams over the
+ * websocket, with missing optional fields defaulted. Keyed by operator id at the
+ * map level (mirroring {@link OperatorStatistics}), so the id is not repeated here.
  */
 export interface OperatorPerformanceMetrics
   extends Readonly<{
@@ -40,7 +41,7 @@ export interface OperatorPerformanceMetrics
   }> {}
 
 /**
- * Project a single raw {@link OperatorStatistics} into the flat performance model.
+ * Project a single {@link OperatorStatistics} into the flat performance model.
  *
  * Several fields are optional on {@link OperatorStatistics} because the frontend
  * builds partial objects (e.g. WorkflowStatusService.resetStatus, which omits the

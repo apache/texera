@@ -94,6 +94,34 @@ describe("UiUdfParametersSyncService", () => {
     expect(parametersChangedObserver).not.toHaveBeenCalled();
   });
 
+  describe("resource rows", () => {
+    const row = (inputType: string | undefined, value = ""): UiUdfParameter => ({
+      attribute: { attributeName: "SOURCE", attributeType: "string" },
+      value,
+      ...(inputType ? { inputType } : {}),
+    });
+
+    it("should drop the value when the row starts naming a different kind of resource", () => {
+      operator.operatorProperties.uiParameters = [row("model", "/model/owner/iris/v1")];
+      parserServiceMock.parse.mockReturnValue([row("dataset")]);
+      const parametersChangedObserver = observeParameterChanges();
+
+      service.syncStructureFromCode(operatorId, code);
+
+      expect(parametersChangedObserver).toHaveBeenCalledWith({ operatorId, parameters: [row("dataset", "")] });
+    });
+
+    it("should keep the chosen version while the row still names the same resource", () => {
+      operator.operatorProperties.uiParameters = [row("model", "/model/owner/iris/v1")];
+      parserServiceMock.parse.mockReturnValue([row("model")]);
+      const parametersChangedObserver = observeParameterChanges();
+
+      service.syncStructureFromCode(operatorId, code);
+
+      expect(parametersChangedObserver).not.toHaveBeenCalled();
+    });
+  });
+
   it("should not replay a previous parameter change to a late subscriber", () => {
     parserServiceMock.parse.mockReturnValue([parameter("count", "integer")]);
 
@@ -217,7 +245,7 @@ describe("UiUdfParametersSyncService", () => {
 
     service.syncStructureFromCode(operatorId);
 
-    expect(parserServiceMock.parse).toHaveBeenCalledWith(sharedCode);
+    expect(parserServiceMock.parse).toHaveBeenCalledWith(sharedCode, "python");
     expect(parametersChangedObserver).toHaveBeenCalledWith({
       operatorId,
       parameters: [parameter("count", "integer")],
@@ -236,7 +264,7 @@ describe("UiUdfParametersSyncService", () => {
 
       expect(parserServiceMock.parse).not.toHaveBeenCalled();
       expect(consoleWarnSpy).toHaveBeenCalledWith(
-        "Unable to read Python UDF code from shared operator properties.",
+        "Unable to read UDF code from shared operator properties.",
         sharedCodeError
       );
     } finally {
@@ -285,10 +313,10 @@ describe("UiUdfParametersSyncService", () => {
 
     service.addParameter(operatorId, "count", "integer");
 
-    expect(parserServiceMock.computeParameterInsertion).toHaveBeenCalledWith(sharedCode, "count", "integer");
+    expect(parserServiceMock.computeParameterInsertion).toHaveBeenCalledWith(sharedCode, "count", "integer", "python");
     const yCode = (sharedOperator.get("operatorProperties") as Yjs.Map<unknown>).get("code") as Yjs.Text;
     expect(yCode.toString()).toBe(`# inserted\n${sharedCode}`);
-    expect(parserServiceMock.parse).toHaveBeenCalledWith(`# inserted\n${sharedCode}`);
+    expect(parserServiceMock.parse).toHaveBeenCalledWith(`# inserted\n${sharedCode}`, "python");
     expect(parametersChangedObserver).toHaveBeenCalledWith({
       operatorId,
       parameters: [parameter("count", "integer")],
@@ -314,6 +342,70 @@ describe("UiUdfParametersSyncService", () => {
     service.uiParametersChanged$.subscribe(parametersChangedObserver);
     return parametersChangedObserver;
   }
+
+  it.each(["RUDF", "RUDFSource"])("syncs R declarations and preserves values for %s", operatorType => {
+    operator.operatorType = operatorType;
+    operator.operatorProperties.uiParameters = [parameter("count", "integer", "42")];
+    parserServiceMock.parse.mockReturnValue([parameter("count", "integer"), parameter("label", "string")]);
+    const observer = observeParameterChanges();
+
+    service.syncStructureFromCode(operatorId, 'UiParameter("count", AttributeType$INT)');
+
+    expect(parserServiceMock.parse).toHaveBeenCalledWith('UiParameter("count", AttributeType$INT)', "r");
+    expect(observer).toHaveBeenCalledWith({
+      operatorId,
+      parameters: [parameter("count", "integer", "42"), parameter("label", "string")],
+    });
+  });
+
+  it("adds an R declaration through the shared code buffer", () => {
+    operator.operatorType = "RUDF";
+    const sharedOperator = sharedOperatorType("function(table, port) table");
+    graphMock.getSharedOperatorType.mockReturnValue(sharedOperator);
+    parserServiceMock.computeParameterInsertion.mockReturnValue({
+      offset: 0,
+      text: "count <- UiParameter(...)$value\n",
+    });
+    parserServiceMock.parse.mockReturnValue([parameter("count", "integer")]);
+
+    service.addParameter(operatorId, "count", "integer");
+
+    expect(parserServiceMock.computeParameterInsertion).toHaveBeenCalledWith(
+      "function(table, port) table",
+      "count",
+      "integer",
+      "r"
+    );
+    expect(parserServiceMock.parse).toHaveBeenCalledWith(
+      "count <- UiParameter(...)$value\nfunction(table, port) table",
+      "r"
+    );
+  });
+});
+
+describe("R parameter synchronization with the real parser", () => {
+  it.each(["RUDF", "RUDFSource"])("round-trips declarations through Yjs for %s", operatorType => {
+    const operator = { operatorType, operatorProperties: { uiParameters: [parameter("count", "integer", "42")] } };
+    const sharedOperator = sharedOperatorType('count <- UiParameter("count", AttributeType$INT)$value\nfunction() {}');
+    const graph = { getOperator: () => operator, getSharedOperatorType: () => sharedOperator };
+    const realService = new UiUdfParametersSyncService(
+      { getTexeraGraph: () => graph } as unknown as WorkflowActionService,
+      new UiUdfParametersParserService()
+    );
+    realService.uiParametersChanged$.subscribe(
+      change => (operator.operatorProperties.uiParameters = change.parameters)
+    );
+
+    realService.addParameter("r-operator", "label", "string");
+    expect(operator.operatorProperties.uiParameters).toEqual([
+      parameter("label", "string"),
+      parameter("count", "integer", "42"),
+    ]);
+    const yCode = (sharedOperator.get("operatorProperties") as Yjs.Map<unknown>).get("code") as Yjs.Text;
+    const before = yCode.toString();
+    expect(() => realService.addParameter("r-operator", "label", "string")).toThrow("declared already");
+    expect(yCode.toString()).toBe(before);
+  });
 });
 
 function parameter(

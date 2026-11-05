@@ -126,7 +126,7 @@ jobs:
           java-version: 17
 
       - name: Setup sbt launcher
-        uses: sbt/setup-sbt@8feba82adc7f01ddcf8165b86f778bdb5b82cebc # v1.5.7
+        uses: sbt/setup-sbt@ecad189dd245444b9ae0a0cd5922fd938b88906f # v1.5.12
 
       - uses: coursier/cache-action@95e5b1029b6b86e7bac033ee44a0697d8a527d2d # v8.1.1
         with:
@@ -337,7 +337,7 @@ jobs:
           java-version: 17
 
       - name: Setup sbt launcher
-        uses: sbt/setup-sbt@8feba82adc7f01ddcf8165b86f778bdb5b82cebc # v1.5.7
+        uses: sbt/setup-sbt@ecad189dd245444b9ae0a0cd5922fd938b88906f # v1.5.12
 
       - uses: coursier/cache-action@95e5b1029b6b86e7bac033ee44a0697d8a527d2d # v8.1.1
         with:
@@ -357,12 +357,25 @@ jobs:
           sudo rm -rf /usr/local/share/boost
           df -h
 
+      # Image digests can change between BuildKit versions, so the builder is
+      # pinned for voters to reproduce the published images (bin/README.md).
       - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@bb05f3f5519dd87d3ba754cc423b652a5edd6d2c # v4.2.0
+        uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
+        with:
+          driver-opts: image=moby/buildkit:v0.33.1
+
+      # Reproducible images: SOURCE_DATE_EPOCH (the commit time) fixes every
+      # timestamp in the image, and PACKAGE_SNAPSHOT (that commit's UTC day)
+      # pins apt and pip to the archives as they stood that morning.
+      - name: Derive SOURCE_DATE_EPOCH and PACKAGE_SNAPSHOT
+        run: |
+          SOURCE_DATE_EPOCH="$(git log -1 --format=%ct)"
+          echo "SOURCE_DATE_EPOCH=$SOURCE_DATE_EPOCH" >> "$GITHUB_ENV"
+          echo "PACKAGE_SNAPSHOT=$(date -u -d "@$SOURCE_DATE_EPOCH" +%F)" >> "$GITHUB_ENV"
 
       - name: Log in to GitHub Container Registry
         if: startsWith(needs.set-parameters.outputs.docker_registry, 'ghcr.io/')
-        uses: docker/login-action@af1e73f918a031802d376d3c8bbc3fe56130a9b0 # v4.4.0
+        uses: docker/login-action@81c6f93d4bc991e510b342a00b419b3bb4efc5c6 # v4.7.0
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
@@ -370,18 +383,22 @@ jobs:
 
       - name: Log in to Docker Hub
         if: ${{ !startsWith(needs.set-parameters.outputs.docker_registry, 'ghcr.io/') }}
-        uses: docker/login-action@af1e73f918a031802d376d3c8bbc3fe56130a9b0 # v4.4.0
+        uses: docker/login-action@81c6f93d4bc991e510b342a00b419b3bb4efc5c6 # v4.7.0
         with:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_PASSWORD }}
 
       - name: Build and push AMD64 image
-        uses: docker/build-push-action@53b7df96c91f9c12dcc8a07bcb9ccacbed38856a # v7.3.0
+        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
         with:
           context: ${{ matrix.context }}
           file: ${{ matrix.dockerfile }}
           platforms: linux/amd64
-          push: true
+          # Pushes, with every layer mtime clamped to SOURCE_DATE_EPOCH.
+          outputs: type=registry,rewrite-timestamp=true
+          build-args: |
+            SOURCE_DATE_EPOCH=${{ env.SOURCE_DATE_EPOCH }}
+            PACKAGE_SNAPSHOT=${{ env.PACKAGE_SNAPSHOT }}
           tags: ${{ env.DOCKER_REGISTRY }}/${{ matrix.image_name }}:${{ needs.set-parameters.outputs.image_tag }}-amd64
           cache-from: type=gha,scope=${{ matrix.image_name }}-amd64
           cache-to: type=gha,mode=max,scope=${{ matrix.image_name }}-amd64
@@ -417,7 +434,7 @@ jobs:
           java-version: 17
 
       - name: Setup sbt launcher
-        uses: sbt/setup-sbt@8feba82adc7f01ddcf8165b86f778bdb5b82cebc # v1.5.7
+        uses: sbt/setup-sbt@ecad189dd245444b9ae0a0cd5922fd938b88906f # v1.5.12
 
       - uses: coursier/cache-action@95e5b1029b6b86e7bac033ee44a0697d8a527d2d # v8.1.1
         with:
@@ -439,16 +456,27 @@ jobs:
 
       # Set up QEMU for ARM64 emulation
       - name: Set up QEMU
-        uses: docker/setup-qemu-action@96fe6ef7f33517b61c61be40b68a1882f3264fb8 # v4.2.0
+        uses: docker/setup-qemu-action@99012661954931238ded8c8b007157a8430204e1 # v4.4.0
         with:
           platforms: linux/arm64
 
       - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@bb05f3f5519dd87d3ba754cc423b652a5edd6d2c # v4.2.0
+        uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
+        with:
+          driver-opts: image=moby/buildkit:v0.33.1
+
+      # Reproducible images: SOURCE_DATE_EPOCH (the commit time) fixes every
+      # timestamp in the image, and PACKAGE_SNAPSHOT (that commit's UTC day)
+      # pins apt and pip to the archives as they stood that morning.
+      - name: Derive SOURCE_DATE_EPOCH and PACKAGE_SNAPSHOT
+        run: |
+          SOURCE_DATE_EPOCH="$(git log -1 --format=%ct)"
+          echo "SOURCE_DATE_EPOCH=$SOURCE_DATE_EPOCH" >> "$GITHUB_ENV"
+          echo "PACKAGE_SNAPSHOT=$(date -u -d "@$SOURCE_DATE_EPOCH" +%F)" >> "$GITHUB_ENV"
 
       - name: Log in to GitHub Container Registry
         if: startsWith(needs.set-parameters.outputs.docker_registry, 'ghcr.io/')
-        uses: docker/login-action@af1e73f918a031802d376d3c8bbc3fe56130a9b0 # v4.4.0
+        uses: docker/login-action@81c6f93d4bc991e510b342a00b419b3bb4efc5c6 # v4.7.0
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
@@ -456,18 +484,22 @@ jobs:
 
       - name: Log in to Docker Hub
         if: ${{ !startsWith(needs.set-parameters.outputs.docker_registry, 'ghcr.io/') }}
-        uses: docker/login-action@af1e73f918a031802d376d3c8bbc3fe56130a9b0 # v4.4.0
+        uses: docker/login-action@81c6f93d4bc991e510b342a00b419b3bb4efc5c6 # v4.7.0
         with:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_PASSWORD }}
 
       - name: Build and push ARM64 image
-        uses: docker/build-push-action@53b7df96c91f9c12dcc8a07bcb9ccacbed38856a # v7.3.0
+        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
         with:
           context: ${{ matrix.context }}
           file: ${{ matrix.dockerfile }}
           platforms: linux/arm64
-          push: true
+          # Pushes, with every layer mtime clamped to SOURCE_DATE_EPOCH.
+          outputs: type=registry,rewrite-timestamp=true
+          build-args: |
+            SOURCE_DATE_EPOCH=${{ env.SOURCE_DATE_EPOCH }}
+            PACKAGE_SNAPSHOT=${{ env.PACKAGE_SNAPSHOT }}
           tags: ${{ env.DOCKER_REGISTRY }}/${{ matrix.image_name }}:${{ needs.set-parameters.outputs.image_tag }}-arm64
           cache-from: type=gha,scope=${{ matrix.image_name }}-arm64
           cache-to: type=gha,mode=max,scope=${{ matrix.image_name }}-arm64
@@ -490,7 +522,7 @@ jobs:
     steps:
       - name: Log in to GitHub Container Registry
         if: startsWith(needs.set-parameters.outputs.docker_registry, 'ghcr.io/')
-        uses: docker/login-action@af1e73f918a031802d376d3c8bbc3fe56130a9b0 # v4.4.0
+        uses: docker/login-action@81c6f93d4bc991e510b342a00b419b3bb4efc5c6 # v4.7.0
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
@@ -498,7 +530,7 @@ jobs:
 
       - name: Log in to Docker Hub
         if: ${{ !startsWith(needs.set-parameters.outputs.docker_registry, 'ghcr.io/') }}
-        uses: docker/login-action@af1e73f918a031802d376d3c8bbc3fe56130a9b0 # v4.4.0
+        uses: docker/login-action@81c6f93d4bc991e510b342a00b419b3bb4efc5c6 # v4.7.0
         with:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_PASSWORD }}

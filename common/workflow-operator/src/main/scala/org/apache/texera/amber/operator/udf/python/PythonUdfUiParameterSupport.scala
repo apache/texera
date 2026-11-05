@@ -19,19 +19,17 @@
 
 package org.apache.texera.amber.operator.udf.python
 
-import com.fasterxml.jackson.annotation.{JsonProperty, JsonPropertyDescription}
-import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaTitle
+import org.apache.texera.amber.operator.udf.UiUDFParameter
 
-/** Shared serialized UI-parameter property and code-injection hook for Python UDF descriptors. */
-trait PythonUdfUiParameterSupport {
+import org.apache.texera.amber.operator.udf.UdfUiParameterSupport
 
-  @JsonProperty
-  @JsonSchemaTitle("Parameters")
-  @JsonPropertyDescription(
-    "Parameters inferred from active self.UiParameter(...) calls in the Python script"
-  )
-  var uiParameters: List[UiUDFParameter] = List()
+/** Python code injection for the shared UDF UI-parameter and resource-binding contract. */
+trait PythonUdfUiParameterSupport extends UdfUiParameterSupport {
+  override protected def injectParameterValues(
+      code: String,
+      parameters: List[UiUDFParameter]
+  ): String =
+    PythonUdfUiParameterInjector.inject(code, parameters)
 
-  protected final def injectUiParameters(code: String): String =
-    PythonUdfUiParameterInjector.inject(code, uiParameters)
+  override protected def uiParameterLanguage: String = "python"
 }

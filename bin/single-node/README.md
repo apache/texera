@@ -136,7 +136,7 @@ To enable it:
 
 Once Texera is up, create a new workflow and open the Texera agent panel at the bottom right. Type a task like:
 
-> For /texera/popular-movies-of-imdb/v1/TMDb_updated.csv, visualize the top 10 most-voted movies.
+> For /dataset/texera/iris-species/v1/Iris.csv, visualize the average petal length of each species.
 
 To switch providers or add more LLMs, see [Add more LLMs or providers](#add-more-llms-or-providers).
 
@@ -159,12 +159,12 @@ All changes below are to the `.env` file in the installation folder, unless othe
 ### Run Texera on other ports
 By default, Texera uses:
 - Port 8080 for its web service
-- Port 9000 for its MinIO storage service
+- Port 9000 for its RustFS storage service
 - Port 9100 for the JupyterLab service used by the notebook migration tool
 
 To change these ports, open the `.env` file and update the corresponding variables:
 - For the web service port (8080): change `TEXERA_PORT=8080` to your desired port, e.g., `TEXERA_PORT=8081`.
-- For the MinIO port (9000): change `MINIO_PORT=9000` to your desired port, e.g., `MINIO_PORT=9001`.
+- For the RustFS port (9000): change `RUSTFS_PORT=9000` to your desired port, e.g., `RUSTFS_PORT=9001`.
 - For the JupyterLab port (9100): change `JUPYTER_PORT=9100` to your desired port, e.g., `JUPYTER_PORT=9101`.
 
 ### Change the locations of Texera data
