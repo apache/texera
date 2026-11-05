@@ -19,7 +19,7 @@
 
 /**
  * storage.ts maintains a set of useful static storage-related functions.
- * They are used to provide easy access to localStorage and sessionStorage.
+ * They are used to provide easy access to sessionStorage.
  */
 
 /**
@@ -43,14 +43,6 @@ export function localGetObject<T>(key: string): T | undefined {
   }
 
   return jsonCast<T>(data);
-}
-
-/**
- * removes the object from the localStorage
- * @param {string} key - the identifier of the object
- */
-export function localRemoveObject(key: string): void {
-  localStorage.removeItem(key);
 }
 
 export function jsonCast<T>(data: string): T {
@@ -78,8 +70,4 @@ export function sessionGetObject<T>(key: string): T | null {
   }
 
   return jsonCast<T>(data);
-}
-
-export function sessionRemoveObject(key: string): void {
-  sessionStorage.removeItem(key);
 }

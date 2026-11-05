@@ -48,6 +48,7 @@ import org.apache.texera.dao.jooq.generated.tables.daos.{
   WorkflowComputingUnitDao,
   WorkflowDao,
   WorkflowExecutionsDao,
+  WorkflowUserAccessDao,
   WorkflowVersionDao
 }
 import org.apache.texera.dao.jooq.generated.tables.pojos.{
@@ -56,6 +57,7 @@ import org.apache.texera.dao.jooq.generated.tables.pojos.{
   Workflow,
   WorkflowComputingUnit,
   WorkflowExecutions,
+  WorkflowUserAccess,
   WorkflowVersion
 }
 import org.apache.texera.amber.engine.architecture.coordinator.OperatorPortResultUriAvailable
@@ -678,6 +680,66 @@ class WorkflowExecutionsResourceSpec
     assert(survivorEids.contains(survivor.getEid))
   }
 
+  private def grantAccess(uid: Integer, privilege: PrivilegeEnum): Unit = {
+    val access = new WorkflowUserAccess
+    access.setUid(uid)
+    access.setWid(testWorkflowWid)
+    access.setPrivilege(privilege)
+    new WorkflowUserAccessDao(getDSLContext.configuration()).insert(access)
+  }
+
+  "validateUserCanAccessExecutions" should "authorize by the execution's workflow" in {
+    grantAccess(testUserId, PrivilegeEnum.WRITE)
+    val execution = insertExecution()
+    val eid = execution.getEid
+    val otherUserUid = testUserId + 100000
+
+    WorkflowExecutionsResource.validateUserCanAccessExecutions(
+      testUserId,
+      Seq(eid),
+      requireWrite = true
+    )
+
+    intercept[WebApplicationException] {
+      WorkflowExecutionsResource.validateUserCanAccessExecutions(
+        otherUserUid,
+        Seq(eid),
+        requireWrite = true
+      )
+    }
+
+    assert(
+      !WorkflowExecutionsResource.userCanAccessExecution(
+        testUserId,
+        eid + 999999,
+        requireWrite = false
+      )
+    )
+  }
+
+  it should "handle read" in {
+    val readUid = testUserId + 1
+    val readUser = new User
+    readUser.setUid(readUid)
+    readUser.setName("read_only_user")
+    readUser.setEmail("readonly-" + UUID.randomUUID().toString.substring(0, 8) + "@example.com")
+    userDao.insert(readUser)
+    grantAccess(readUid, PrivilegeEnum.READ)
+    val execution = insertExecution()
+    val eid = execution.getEid
+
+    try {
+      assert(WorkflowExecutionsResource.userCanAccessExecution(readUid, eid, requireWrite = false))
+      assert(!WorkflowExecutionsResource.userCanAccessExecution(readUid, eid, requireWrite = true))
+    } finally {
+      getDSLContext
+        .deleteFrom(WORKFLOW_USER_ACCESS)
+        .where(WORKFLOW_USER_ACCESS.UID.eq(readUid))
+        .execute()
+      getDSLContext.deleteFrom(USER).where(USER.UID.eq(readUid)).execute()
+    }
+  }
+
   // ─── new: updateResultSizeAndCount ────────────────────────────────────────
 
   "updateResultSizeAndCount" should "set RESULT_SIZE and RESULT_COUNT on the matching (eid, globalPortId) row" in {
@@ -1067,6 +1129,14 @@ class WorkflowExecutionsResourceSpec
       .set(WORKFLOW_USER_ACCESS.PRIVILEGE, PrivilegeEnum.READ)
       .execute()
 
+  private def grantWriteAccess(uid: Integer = testUserId): Unit =
+    getDSLContext
+      .insertInto(WORKFLOW_USER_ACCESS)
+      .set(WORKFLOW_USER_ACCESS.WID, Integer.valueOf(testWorkflowWid))
+      .set(WORKFLOW_USER_ACCESS.UID, uid)
+      .set(WORKFLOW_USER_ACCESS.PRIVILEGE, PrivilegeEnum.WRITE)
+      .execute()
+
   private def userWithoutAccess(): User = {
     val u = new User
     u.setUid(testUserId + 5000)
@@ -1250,7 +1320,7 @@ class WorkflowExecutionsResourceSpec
   }
 
   it should "bookmark executions that are currently un-bookmarked" in {
-    grantReadAccess()
+    grantWriteAccess()
     val exec = insertExecution() // bookmarked = false
     resource.setExecutionAreBookmarked(
       ExecutionGroupBookmarkRequest(testWorkflowWid, Array(exec.getEid), isBookmarked = false),
@@ -1260,7 +1330,7 @@ class WorkflowExecutionsResourceSpec
   }
 
   it should "un-bookmark executions that are currently bookmarked" in {
-    grantReadAccess()
+    grantWriteAccess()
     val exec = insertExecution()
     resource.setExecutionAreBookmarked(
       ExecutionGroupBookmarkRequest(testWorkflowWid, Array(exec.getEid), isBookmarked = true),
@@ -1270,7 +1340,7 @@ class WorkflowExecutionsResourceSpec
   }
 
   "updateWorkflowExecutionsName" should "rename the execution" in {
-    grantReadAccess()
+    grantWriteAccess()
     val exec = insertExecution(name = "old-name")
     resource.updateWorkflowExecutionsName(
       ExecutionRenameRequest(testWorkflowWid, exec.getEid, "new-name"),
@@ -1280,7 +1350,7 @@ class WorkflowExecutionsResourceSpec
   }
 
   "groupDeleteExecutionsOfWorkflow" should "delete the execution rows" in {
-    grantReadAccess()
+    grantWriteAccess()
     val e1 = insertExecution()
     val e2 = insertExecution()
     resource.groupDeleteExecutionsOfWorkflow(

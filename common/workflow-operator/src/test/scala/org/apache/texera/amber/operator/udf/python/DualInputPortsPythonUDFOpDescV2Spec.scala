@@ -19,6 +19,8 @@
 
 package org.apache.texera.amber.operator.udf.python
 
+import org.apache.texera.amber.operator.udf.UiUDFParameter
+
 import org.apache.texera.amber.core.executor.OpExecWithCode
 import org.apache.texera.amber.core.tuple.{Attribute, AttributeType, Schema}
 import org.apache.texera.amber.core.virtualidentity.{ExecutionIdentity, WorkflowIdentity}
