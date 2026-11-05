@@ -41,4 +41,4 @@ class HashBasedShufflePartitioner(IndexedShufflePartitioner):
             if not self.hash_attribute_names
             else tuple_.get_partial_tuple(self.hash_attribute_names)
         )
-        return hash(partial_tuple) % len(self.receivers)
+        return partial_tuple.__hash__() % len(self.receivers)
