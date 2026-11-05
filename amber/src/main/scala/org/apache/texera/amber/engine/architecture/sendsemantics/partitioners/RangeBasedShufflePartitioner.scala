@@ -33,14 +33,13 @@ case class RangeBasedShufflePartitioner(partitioning: RangeBasedShufflePartition
   override def getBucketIndex(tuple: Tuple): Iterator[Int] = {
     // Do range partitioning only on the first attribute in `rangeAttributeNames`.
     val attribute = tuple.getSchema.getAttribute(partitioning.rangeAttributeNames.head)
-    var fieldVal: Long = -1
-    attribute.getType match {
+    val fieldVal = attribute.getType match {
       case AttributeType.LONG =>
-        fieldVal = tuple.getField[Long](attribute)
+        BigDecimal(tuple.getField[Long](attribute))
       case AttributeType.INTEGER =>
-        fieldVal = tuple.getField[Int](attribute)
+        BigDecimal(tuple.getField[Int](attribute))
       case AttributeType.DOUBLE =>
-        fieldVal = tuple.getField[Double](attribute).toLong
+        BigDecimal(tuple.getField[Double](attribute))
       case _ =>
         throw new RuntimeException(s"unsupported attribute type: ${attribute.getType}")
     }
