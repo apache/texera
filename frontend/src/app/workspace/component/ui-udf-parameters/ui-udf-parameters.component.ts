@@ -31,6 +31,7 @@ import {
 } from "../../service/code-editor/ui-udf-parameters-parser.service";
 import { UiUdfParametersSyncService } from "../../service/code-editor/ui-udf-parameters-sync.service";
 import { DATASET_INPUT_TYPE, MODEL_INPUT_TYPE } from "../../service/code-editor/ui-udf-parameters-parser.service";
+import { UI_PARAMETER_TYPES } from "../../service/code-editor/ui-udf-parameter";
 import type { AttributeType } from "../../types/workflow-compiling.interface";
 
 type UiUdfParameterColumn = Readonly<{ label: string; key: string; parentKey?: string; disabled: boolean }>;
@@ -42,7 +43,7 @@ const RESOURCE_INPUT_TYPES: ReadonlySet<string> = new Set([MODEL_INPUT_TYPE, DAT
 /** The resource a row's value names, or "" for free text. */
 const resourceOf = (inputType?: string): string => (inputType && RESOURCE_INPUT_TYPES.has(inputType) ? inputType : "");
 
-/** Renders inferred Python UDF UI parameters with editable values and locked name/type columns. */
+/** Renders inferred UDF UI parameters with editable values and locked name/type columns. */
 @Component({
   selector: "texera-ui-udf-parameters",
   templateUrl: "./ui-udf-parameters.component.html",
@@ -68,7 +69,7 @@ export class UiUdfParametersComponent extends FieldArrayType<FormlyFieldConfig> 
     { label: "Type", key: "attributeType", parentKey: "attribute", disabled: true },
   ];
 
-  readonly addParameterTypeOptions: AttributeType[] = ["string", "integer", "long", "double", "boolean", "timestamp"];
+  readonly addParameterTypeOptions = UI_PARAMETER_TYPES;
   draftVisible = false;
 
   constructor(
@@ -83,7 +84,7 @@ export class UiUdfParametersComponent extends FieldArrayType<FormlyFieldConfig> 
     return this.workflowActionService.checkWorkflowModificationEnabled();
   }
 
-  /** Inserts the declaration into the operator's Python code; the row then appears through the normal code sync. */
+  /** Inserts the declaration into shared UDF code; the row then appears through the normal code sync. */
   addParameter(nameInput: HTMLInputElement, attributeType: string): void {
     const operatorId = this.workflowActionService.getJointGraphWrapper().getCurrentHighlightedOperatorIDs()[0];
     try {
