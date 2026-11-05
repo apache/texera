@@ -361,6 +361,29 @@ export class OperatorPaginationResultService {
     }
   }
 
+  /**
+   * The first rows of the result, for a glance at it. Unlike selectPage this leaves the page the
+   * result table is on alone and never touches its cache, so a preview cannot move the table.
+   * Every column is asked for, so the schema the reply carries is the whole one, as a table
+   * page's would be.
+   */
+  public peekFirstRows(rowCount: number): Observable<PaginatedResultEvent> {
+    const requestID = uuid();
+    this.workflowWebsocketService.send("ResultPaginationRequest", {
+      requestID,
+      operatorID: this.operatorID,
+      pageIndex: 1,
+      pageSize: rowCount,
+      columnOffset: 0,
+      columnLimit: ALL_COLUMNS,
+      columnSearch: "",
+      ...this.portField(),
+    });
+    const pendingRequestSubject = new Subject<PaginatedResultEvent>();
+    this.pendingRequests.set(requestID, pendingRequestSubject);
+    return pendingRequestSubject;
+  }
+
   public reset(): void {
     this.pendingRequests.clear();
     this.resultCache.clear();
