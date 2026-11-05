@@ -26,3 +26,12 @@
 
 # Required by Apache Pekko: https://pekko.apache.org/docs/pekko/snapshot/release-notes/releases-2.0.html
 --add-opens=java.base/jdk.internal.misc=ALL-UNNAMED
+
+# Kryo again, reached only once a suite that serializes a timestamp runs in the
+# same JVM as one that has already forked a Python worker, which is what running
+# this module's tests without WCS_TEST_FILTER does. The two CI jobs each take
+# half, so CI never reaches it and a local full-module run does.
+--add-opens=java.base/sun.util.calendar=ALL-UNNAMED
+--add-opens=java.base/java.time=ALL-UNNAMED
+--add-opens=java.base/java.time.zone=ALL-UNNAMED
+--add-opens=java.base/java.util.concurrent=ALL-UNNAMED
