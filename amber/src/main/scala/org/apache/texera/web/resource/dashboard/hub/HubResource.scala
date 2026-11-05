@@ -140,7 +140,7 @@ object HubResource {
     * Records a user's action in the system.
     *
     * @param request The HTTP request object to extract the user's IP address.
-    * @param userId The ID of the user performing the action (default is 0 for anonymous users).
+    * @param userId The ID of the user performing the action; omitted (NULL) for an anonymous user.
     * @param entityId The ID of the entity associated with the action.
     * @param entityType The type of entity being acted upon (validated before processing).
     * @param action The action performed by the user ("like", "unlike", "view", "clone").
