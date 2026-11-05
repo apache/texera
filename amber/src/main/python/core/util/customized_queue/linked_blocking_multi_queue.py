@@ -19,7 +19,7 @@ from __future__ import annotations
 
 import sys
 from threading import RLock, Condition
-from typing import List, Optional, Generic, TypeVar, MutableMapping
+from typing import Any, Callable, List, Optional, Generic, TypeVar, MutableMapping
 
 from core.util.customized_queue.inner import inner
 from core.util.customized_queue.queue_base import IKeyedQueue
@@ -32,10 +32,10 @@ T = TypeVar("T")
 class LinkedBlockingMultiQueue(IKeyedQueue):
     @inner
     class Node(Generic[T]):
-        def __init__(self, item: T):
+        def __init__(self, item: T, in_mem_size: int = 0):
             self.item = item
             self.next: Optional[LinkedBlockingMultiQueue.Node[T]] = None
-            self.in_mem_size = sys.getsizeof(item)
+            self.in_mem_size = in_mem_size
 
     @inner
     class SubQueue(Generic[T]):
@@ -136,7 +136,7 @@ class LinkedBlockingMultiQueue(IKeyedQueue):
             if obj is None:
                 raise ValueError("Does not support NoneType.")
             old_size = -1
-            node = LinkedBlockingMultiQueue.Node(obj)
+            node = LinkedBlockingMultiQueue.Node(obj, self.owner._size_of(obj))
             self.put_lock.acquire()
             try:
                 self.enqueue(node)
@@ -268,7 +268,9 @@ class LinkedBlockingMultiQueue(IKeyedQueue):
         ) -> None:
             self.priority_groups = priority_groups
 
-    def __init__(self):
+    def __init__(self, *, size_of: Callable[[Any], int] = sys.getsizeof):
+        # bytes an item holds while queued, summed by in_mem_size()
+        self._size_of = size_of
         self.take_lock: RLock = RLock()
         self.not_empty: Condition = Condition(self.take_lock)
 
