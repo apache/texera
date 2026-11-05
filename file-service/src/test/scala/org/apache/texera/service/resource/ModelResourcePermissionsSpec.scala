@@ -19,29 +19,15 @@
 
 package org.apache.texera.service.resource
 
-import jakarta.annotation.security.{PermitAll, RolesAllowed}
-import jakarta.ws.rs.HttpMethod
+import jakarta.annotation.security.RolesAllowed
 import org.scalatest.flatspec.AnyFlatSpec
-import org.scalatest.matchers.should.Matchers
-
-import java.lang.reflect.Method
 
 // FileService registers RolesAllowedDynamicFeature, so each endpoint is enforced by its own method-level
 // annotation, and one carrying neither @PermitAll nor @RolesAllowed defaults to
 // OPEN. These tests pin that contract: every endpoint carries exactly one of the
 // two, the non-public ones require REGULAR/ADMIN, and only the public reads stay
 // anonymous-accessible.
-class ModelResourcePermissionsSpec extends AnyFlatSpec with Matchers {
-
-  private def endpointsOf(cls: Class[_]): Seq[Method] =
-    cls.getMethods.toSeq
-      .filter(_.getAnnotations.exists(_.annotationType.isAnnotationPresent(classOf[HttpMethod])))
-
-  private val endpointMethods: Seq[Method] = endpointsOf(classOf[ModelResource])
-
-  private def isPermitAll(m: Method): Boolean = m.getAnnotation(classOf[PermitAll]) != null
-  private def rolesOf(m: Method): Option[RolesAllowed] =
-    Option(m.getAnnotation(classOf[RolesAllowed]))
+class ModelResourcePermissionsSpec extends AnyFlatSpec with ResourcePermissionsSpecBehaviors {
 
   // Anonymous-readable, mirroring the dataset side. The cover reads do their own
   // public/grant check, so a private model's cover is still refused.
@@ -55,43 +41,12 @@ class ModelResourcePermissionsSpec extends AnyFlatSpec with Matchers {
     "getModelCoverUrl"
   )
 
-  "ModelResource" should "expose HTTP endpoints (sanity check for the reflection scan)" in {
-    endpointMethods should not be empty
-  }
-
-  it should "annotate every HTTP endpoint with exactly one of @PermitAll or @RolesAllowed (none defaults to open)" in {
-    endpointMethods.foreach { m =>
-      withClue(s"${m.getName}: ") {
-        (isPermitAll(m), rolesOf(m).isDefined) match {
-          case (true, true) => fail("carries both @PermitAll and @RolesAllowed")
-          case (false, false) =>
-            fail("carries neither @PermitAll nor @RolesAllowed (would default to open)")
-          case _ => succeed
-        }
-      }
-    }
-  }
-
-  it should "guard every non-public endpoint with @RolesAllowed(REGULAR, ADMIN)" in {
-    val nonPublic = endpointMethods.filterNot(m => publicEndpointMethods.contains(m.getName))
-    nonPublic should not be empty
-    nonPublic.foreach { m =>
-      withClue(s"${m.getName}: ") {
-        isPermitAll(m) shouldBe false
-        val roles = rolesOf(m)
-        roles should not be empty
-        roles.get.value() should contain theSameElementsAs Array("REGULAR", "ADMIN")
-      }
-    }
-  }
-
-  it should "keep the public model endpoints @PermitAll, and them alone" in {
-    val present = endpointMethods.map(_.getName).toSet.intersect(publicEndpointMethods)
-    withClue("public endpoints missing from ModelResource (renamed?): ") {
-      present shouldBe publicEndpointMethods
-    }
-    endpointMethods.filter(isPermitAll).map(_.getName).toSet shouldBe publicEndpointMethods
-  }
+  resourcePermissions(
+    classOf[ModelResource],
+    publicEndpointMethods,
+    publicTestDescription = "keep the public model endpoints @PermitAll, and them alone",
+    requireExactPublicSet = true
+  )
 
   "ModelAccessResource" should "expose no anonymous endpoints" in {
     val accessEndpoints = endpointsOf(classOf[ModelAccessResource])
