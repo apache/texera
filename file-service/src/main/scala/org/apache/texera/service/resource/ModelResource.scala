@@ -283,24 +283,26 @@ class ModelResource extends LazyLogging {
           }
       }
 
-      // update repository name of the created model
-      createdModel.setRepositoryName(repositoryName)
-      createdModel.update()
+      LakeFSStorageClient.withRepoRollback(repositoryName) {
+        // update repository name of the created model
+        createdModel.setRepositoryName(repositoryName)
+        createdModel.update()
 
-      // Insert the requester as the WRITE access user for this model
-      val modelUserAccess = new ModelUserAccess()
-      modelUserAccess.setMid(createdModel.getMid)
-      modelUserAccess.setUid(uid)
-      modelUserAccess.setPrivilege(PrivilegeEnum.WRITE)
-      modelUserAccessDao.insert(modelUserAccess)
+        // Insert the requester as the WRITE access user for this model
+        val modelUserAccess = new ModelUserAccess()
+        modelUserAccess.setMid(createdModel.getMid)
+        modelUserAccess.setUid(uid)
+        modelUserAccess.setPrivilege(PrivilegeEnum.WRITE)
+        modelUserAccessDao.insert(modelUserAccess)
 
-      DashboardModel(
-        createdModel.into(classOf[Model]),
-        user.getEmail,
-        PrivilegeEnum.WRITE,
-        isOwner = true,
-        0
-      )
+        DashboardModel(
+          createdModel.into(classOf[Model]),
+          user.getEmail,
+          PrivilegeEnum.WRITE,
+          isOwner = true,
+          0
+        )
+      }
     }
   }
 

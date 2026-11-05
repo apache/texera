@@ -740,6 +740,38 @@ class DatasetResourceSpec
     }
   }
 
+  it should "reject an invalid contributor before creating a dataset row or LakeFS repository" in {
+    // The id the next dataset would get; the old order inserted the row and created
+    // `dataset-<id>` before checking contributors, then left that repository behind.
+    val didSequence =
+      getDSLContext.fetchValue("select pg_get_serial_sequence('texera_db.dataset', 'did')")
+    def nextDid(): Int =
+      getDSLContext
+        .fetchValue(s"select last_value + case when is_called then 1 else 0 end from $didSequence")
+        .toString
+        .toInt
+    val didBefore = nextDid()
+
+    assertThrows[BadRequestException] {
+      datasetResource.createDataset(
+        DatasetResource.CreateDatasetRequest(
+          datasetName = "orphan-repo-ds",
+          datasetDescription = "",
+          isDatasetPublic = false,
+          isDatasetDownloadable = true,
+          contributors = Some(List(DatasetResource.Contributor("Ada", email = "not-an-email")))
+        ),
+        sessionUser
+      )
+    }
+
+    nextDid() shouldBe didBefore
+    // Creating the repository succeeds only if the failed request left none under that name.
+    val repoName = s"dataset-$didBefore"
+    noException should be thrownBy LakeFSStorageClient.initRepo(repoName)
+    LakeFSStorageClient.deleteRepo(repoName)
+  }
+
   it should "reject two contributors sharing the same email, case-insensitively" in {
     assertThrows[BadRequestException] {
       datasetResource.createDataset(
