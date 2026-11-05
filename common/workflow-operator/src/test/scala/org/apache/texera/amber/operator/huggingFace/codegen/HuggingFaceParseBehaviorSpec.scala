@@ -160,20 +160,23 @@ class HuggingFaceParseBehaviorSpec extends AnyFlatSpec with Matchers {
     """{"choices": [{"message": {"content": 42}}]}""",
     """{"choices": [{"no_message": true}]}""",
     """{}""",
-    """[]""",
-    """[{"generated_text": "x"}]"""
+    """[]"""
   )
 
-  // Scoped to the codegens this PR touches. ImageTaskCodegen has the same chat
-  // extractions (merged in #7920) and will be routed through the helper and added
-  // here in a follow-up, so that change arrives with its own failing-first test.
+  // Every codegen that decodes a chat response. ImageTaskCodegen's extractions were
+  // added here by #8634, the follow-up that routed them through the shared helper.
   private val cases = Seq(
     (TextGenCodegen: TaskCodegen, "text-generation"),
     (QaRankingCodegen, "question-answering"),
     (QaRankingCodegen, "table-question-answering"),
     (QaRankingCodegen, "zero-shot-classification"),
     (QaRankingCodegen, "sentence-similarity"),
-    (QaRankingCodegen, "text-ranking")
+    (QaRankingCodegen, "text-ranking"),
+    (ImageTaskCodegen, "visual-question-answering"),
+    (ImageTaskCodegen, "document-question-answering"),
+    (ImageTaskCodegen, "zero-shot-image-classification"),
+    (ImageTaskCodegen, "image-text-to-text"),
+    (ImageTaskCodegen, "image-to-text")
   )
 
   "The generated parser" should "return the raw body, never raise, on malformed chat responses" in {
@@ -216,5 +219,16 @@ class HuggingFaceParseBehaviorSpec extends AnyFlatSpec with Matchers {
       Seq("Ada")
     parseAll(QaRankingCodegen, "text-ranking", Seq("""[{"index": 0}]""")) shouldBe
       Seq("""[{"index": 0}]""")
+    parseAll(ImageTaskCodegen, "visual-question-answering", Seq("""{"answer": "blue"}""")) shouldBe
+      Seq("blue")
+    parseAll(ImageTaskCodegen, "image-to-text", Seq("""{"md_results": "# doc"}""")) shouldBe
+      Seq("# doc")
+    // A list carrying generated_text is a success path for the image codegens and
+    // an unrecognised shape for the text ones, so it is asserted per task rather
+    // than with the malformed shapes above.
+    parseAll(ImageTaskCodegen, "image-to-text", Seq("""[{"generated_text": "x"}]""")) shouldBe
+      Seq("x")
+    parseAll(TextGenCodegen, "text-generation", Seq("""[{"generated_text": "x"}]""")) shouldBe
+      Seq("""[{"generated_text": "x"}]""")
   }
 }
