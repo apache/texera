@@ -97,6 +97,11 @@
   (focusout)="disconnectQuillFromText()"
   (keyup.enter)="disconnectQuillFromText()"></div>
 
+<texera-operator-description
+  *ngIf="currentOperatorId"
+  [operatorId]="currentOperatorId"
+  [editable]="interactive"></texera-operator-description>
+
 <form
   nz-form
   [nzLayout]="'vertical'"

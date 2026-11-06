@@ -86,6 +86,7 @@ import { ComputingUnitStatusService } from "../../../../common/service/computing
 import { of } from "rxjs";
 import { map, switchMap, take } from "rxjs/operators";
 import { UiUdfParametersSyncService } from "../../../service/code-editor/ui-udf-parameters-sync.service";
+import { OperatorDescriptionComponent } from "../operator-description/operator-description.component";
 
 Quill.register("modules/cursors", QuillCursors);
 
@@ -179,6 +180,7 @@ export function conditionalRequiredRules(schema: unknown): Map<string, Condition
     FormlyModule,
     TypeCastingDisplayComponent,
     NzWaveDirective,
+    OperatorDescriptionComponent,
   ],
 })
 export class OperatorPropertyEditFrameComponent implements OnInit, OnChanges, OnDestroy {

@@ -36,6 +36,7 @@ import { createYTypeFromObject, updateYTypeFromObject, YType } from "../../../ty
 import { Awareness } from "y-protocols/awareness";
 import * as Y from "yjs";
 import type { UiUdfLanguage } from "../../code-editor/ui-udf-parameter";
+import { applyMinimalTextEdit, clampDescription } from "../../../util/operator-description.util";
 
 // define the restricted methods that could change the graph
 type restrictedMethods =
@@ -52,6 +53,7 @@ type restrictedMethods =
   | "operatorAddSubject"
   | "operatorDeleteSubject"
   | "operatorDisplayNameChangedSubject"
+  | "operatorDescriptionChangedSubject"
   | "linkAddSubject"
   | "linkDeleteSubject"
   | "operatorPropertyChangeSubject"
@@ -124,6 +126,10 @@ export class WorkflowGraph {
   public readonly operatorDisplayNameChangedSubject = new Subject<{
     operatorID: string;
     newDisplayName: string;
+  }>();
+  public readonly operatorDescriptionChangedSubject = new Subject<{
+    operatorID: string;
+    newDescription: string;
   }>();
   public readonly linkAddSubject = new Subject<OperatorLink>();
   public readonly linkDeleteSubject = new Subject<{
@@ -430,6 +436,31 @@ export class WorkflowGraph {
     }
     this.sharedModel.operatorIDMap.get(operatorID)?.set("operatorVersion", newOperatorVersion as any);
     this.operatorVersionChangedSubject.next({ operatorID, newOperatorVersion });
+  }
+
+  /**
+   * Sets the operator's free-form description. The description is a Y.Text so concurrent edits and
+   * undo/redo go through the shared model; the change is announced by SharedModelChangeHandler on
+   * <code>operatorDescriptionChangedSubject</code>, which also covers co-editors' edits.
+   *
+   * Only the span that differs from the current text is replaced, so a co-editor's concurrent save
+   * merges instead of duplicating the text. Text over MAX_OPERATOR_DESCRIPTION_LENGTH is cut to it.
+   * A stored value that is not text (e.g. from a hand-edited file) is replaced.
+   * @param operatorID
+   * @param description markdown text; an empty string clears it.
+   */
+  public setOperatorDescription(operatorID: string, description: string): void {
+    this.getOperator(operatorID); // throws when the operator does not exist
+    const next = clampDescription(description);
+    const sharedOperator = this.sharedModel.operatorIDMap.get(operatorID)!;
+    const existing = sharedOperator.get("description") as unknown;
+    if (existing instanceof Y.Text) {
+      if (existing.toString() === next) return;
+      this.sharedModel.transact(() => applyMinimalTextEdit(existing, next));
+    } else {
+      if (next === "" && existing === undefined) return;
+      sharedOperator.set("description", new Y.Text(next) as any);
+    }
   }
 
   /**
@@ -952,6 +983,13 @@ export class WorkflowGraph {
     newDisplayName: string;
   }> {
     return this.operatorDisplayNameChangedSubject.asObservable();
+  }
+
+  public getOperatorDescriptionChangedStream(): Observable<{
+    operatorID: string;
+    newDescription: string;
+  }> {
+    return this.operatorDescriptionChangedSubject.asObservable();
   }
 
   public getOperatorVersionChangedStream(): Observable<{

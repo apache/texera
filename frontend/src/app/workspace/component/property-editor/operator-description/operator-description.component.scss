@@ -1,0 +1,120 @@
+/**
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
+ */
+
+.instance-description {
+  margin: 4px 0 16px;
+  font-size: 13px;
+}
+
+.instance-description-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  min-height: 24px;
+}
+
+.instance-description-label {
+  font-size: 14px;
+  color: rgba(0, 0, 0, 0.85);
+}
+
+.instance-description-view {
+  display: block;
+  color: rgba(0, 0, 0, 0.75);
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+  max-height: 240px;
+  overflow-y: auto;
+
+  ::ng-deep {
+    p,
+    ul,
+    ol,
+    pre {
+      margin-bottom: 6px;
+    }
+    h1,
+    h2,
+    h3,
+    h4 {
+      font-size: 14px;
+      margin: 6px 0 4px;
+    }
+    pre,
+    code {
+      font-size: 12px;
+    }
+    pre {
+      white-space: pre-wrap;
+    }
+  }
+}
+
+.instance-description-empty {
+  display: block;
+  width: 100%;
+  padding: 6px 8px;
+  border: 1px dashed #d9d9d9;
+  border-radius: 4px;
+  background: transparent;
+  color: rgba(0, 0, 0, 0.45);
+  text-align: left;
+  cursor: pointer;
+
+  &:hover {
+    border-color: #1890ff;
+    color: #1890ff;
+  }
+}
+
+.instance-description-input {
+  font-size: 13px;
+}
+
+.instance-description-footer {
+  margin-top: 6px;
+}
+
+.instance-description-hint {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  font-size: 12px;
+  color: rgba(0, 0, 0, 0.45);
+}
+
+.instance-description-count {
+  white-space: nowrap;
+}
+
+.instance-description-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 6px;
+}
+
+.instance-description-conflict {
+  margin-bottom: 6px;
+  padding: 4px 8px;
+  border-radius: 4px;
+  background: #fffbe6;
+  border: 1px solid #ffe58f;
+  font-size: 12px;
+}

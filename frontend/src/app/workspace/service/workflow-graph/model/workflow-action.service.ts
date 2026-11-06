@@ -679,6 +679,14 @@ export class WorkflowActionService {
     this.getTexeraGraph().changeOperatorVersion(operatorId, newVersion);
   }
 
+  /**
+   * Sets the operator's free-form markdown description (notes for collaborators and agents).
+   * An empty string clears it. Undoable and shared like any other operator edit.
+   */
+  public setOperatorDescription(operatorId: string, description: string): void {
+    this.getTexeraGraph().setOperatorDescription(operatorId, description);
+  }
+
   public openResultPanel(): void {
     this.resultPanelOpenSubject.next(true);
   }
@@ -851,6 +859,7 @@ export class WorkflowActionService {
       this.getTexeraGraph().getViewResultOperatorsChangedStream(),
       this.getTexeraGraph().getReuseCacheOperatorsChangedStream(),
       this.getTexeraGraph().getOperatorDisplayNameChangedStream(),
+      this.getTexeraGraph().getOperatorDescriptionChangedStream(),
       this.getTexeraGraph().getOperatorVersionChangedStream(),
       this.getTexeraGraph().getPortDisplayNameChangedSubject(),
       this.getTexeraGraph().getPortPropertyChangedStream(),

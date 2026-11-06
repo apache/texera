@@ -35,6 +35,7 @@ import {
   formatValidationErrors,
   formatCompactSchemaForError,
 } from "../util/workflow-system-metadata";
+import { MAX_OPERATOR_DESCRIPTION_LENGTH } from "../util/description-utils";
 
 export interface ToolContext {
   metadataStore?: WorkflowSystemMetadata;
@@ -101,6 +102,21 @@ function resolveInputLinks(
   return { links };
 }
 
+/**
+ * The operator schemas addOperator may create, restricted to the agent's allowed operator types. An
+ * empty allowlist means every type, matching how the system prompt lists them. Enforcing this here,
+ * not only in the prompt, means text in the context (e.g. an injected operator description) cannot
+ * talk the agent into adding an operator type the deployment did not allow.
+ */
+export function filterAllowedOperatorSchemas(
+  operatorSchemas: Map<string, any>,
+  allowedOperatorTypes: string[]
+): Map<string, any> {
+  if (allowedOperatorTypes.length === 0) return new Map(operatorSchemas);
+  const allowed = new Set(allowedOperatorTypes);
+  return new Map([...operatorSchemas].filter(([type]) => allowed.has(type)));
+}
+
 export function createAddOperatorTool(
   workflowState: WorkflowState,
   operatorSchemas: Map<string, any>,
@@ -134,6 +150,14 @@ Examples:
             "Source operators that load files (e.g. CSVFileScan) should NOT have any input operators."
         ),
       summary: z.string().describe("Very brief summary of operator behavior. Within 5 words"),
+      description: z
+        .string()
+        .max(MAX_OPERATOR_DESCRIPTION_LENGTH)
+        .optional()
+        .describe(
+          "Optional markdown notes on what this operator does in this workflow and why: intent, assumptions, " +
+            "caveats, or context for the user and other agents. Visible to everyone editing the workflow."
+        ),
     }),
     execute: async (args: {
       operatorId: string;
@@ -141,6 +165,7 @@ Examples:
       properties?: Record<string, any>;
       inputOperatorIds?: Record<string, string[]>;
       summary: string;
+      description?: string;
     }) => {
       try {
         const inputInfo = formatInputArgs(args);
@@ -185,6 +210,7 @@ Examples:
           ...operator,
           operatorID: args.operatorId,
           operatorProperties: { ...operator.operatorProperties, ...args.properties },
+          ...(args.description !== undefined ? { description: args.description } : {}),
         };
 
         const resolved = resolveInputLinks(
@@ -250,12 +276,21 @@ Examples:
             'E.g. {"0": ["opA", "opB"], "1": ["opC"]} connects opA and opB to input port 0, opC to input port 1.'
         ),
       summary: z.string().describe("Very brief summary of operator behavior after your modification. Within 5 words"),
+      description: z
+        .string()
+        .max(MAX_OPERATOR_DESCRIPTION_LENGTH)
+        .optional()
+        .describe(
+          "Replacement markdown description for the operator (full text, not a diff; empty string clears it). " +
+            "Omit to keep the current one. Keep notes others left unless they are now wrong."
+        ),
     }),
     execute: async (args: {
       operatorId: string;
       properties?: Record<string, any>;
       inputOperatorIds?: Record<string, string[]>;
       summary?: string;
+      description?: string;
     }) => {
       try {
         const inputInfo = formatInputArgs(args);
@@ -293,6 +328,10 @@ Examples:
 
         if (args.summary) {
           workflowState.updateOperatorDisplayName(args.operatorId, args.summary);
+        }
+
+        if (args.description !== undefined) {
+          workflowState.updateOperatorDescription(args.operatorId, args.description);
         }
 
         if (args.inputOperatorIds) {
