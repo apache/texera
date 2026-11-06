@@ -43,7 +43,6 @@ import org.apache.arrow.memory.{ArrowBuf, BufferAllocator, RootAllocator}
 import org.apache.arrow.vector.types.pojo.{ArrowType, Field, FieldType, Schema => ArrowSchema}
 import org.apache.arrow.vector.{VarBinaryVector, VectorSchemaRoot}
 
-import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicLong
 import scala.collection.compat.immutable.ArraySeq
 import scala.collection.mutable
@@ -155,13 +154,35 @@ class PythonProxyClient(portNumberPromise: Promise[Int], val actorId: ActorVirtu
     schemaRoot.clear()
     writer.completed()
 
-    // for calculating sender credits - get back number of batches in Python worker queue
-    val ackMsgBuf: ArrowBuf = flightListener.poll(5, TimeUnit.SECONDS).getApplicationMetadata
+    finishPut(writer, flightListener)
+
+    flightListener.close()
+  }
+
+  /**
+    * Finishes a put: reads the Python queue size that Python returns for it, for sender
+    * credits, then the put's own status. Waits as long as it takes: a busy Python process (one
+    * holding the GIL in a long native call, for example) may answer late, and a dead one fails
+    * the call instead, which the worker reports along with the exit it observes on its own.
+    * A put that ends without its ack, or fails after it, ends the client with that error.
+    */
+  private def finishPut(
+      writer: FlightClient.ClientStreamListener,
+      flightListener: SyncPutListener
+  ): Unit = {
+    val ack = flightListener.read()
+    if (ack == null) {
+      throw new WorkflowRuntimeException(
+        s"Python worker ${actorId.name} completed a put without acknowledging it",
+        Some(actorId)
+      )
+    }
+    val ackMsgBuf: ArrowBuf = ack.getApplicationMetadata
     pythonQueueInMemSize.set(ackMsgBuf.getLong(0))
     logger.debug(s"data channel updated queue size $pythonQueueInMemSize")
     ackMsgBuf.close()
-
-    flightListener.close()
+    // The ack only carries credit; the put's final status says whether it succeeded.
+    writer.getResult()
   }
 
   private def sendControl(
@@ -229,11 +250,7 @@ class PythonProxyClient(portNumberPromise: Promise[Int], val actorId: ActorVirtu
     schemaRoot.clear()
     writer.completed()
 
-    // for calculating sender credits - get back number of batches in Python worker queue
-    val ackMsgBuf: ArrowBuf = flightListener.poll(5, TimeUnit.SECONDS).getApplicationMetadata
-    pythonQueueInMemSize.set(ackMsgBuf.getLong(0))
-    logger.debug(s"data channel updated queue size $pythonQueueInMemSize")
-    ackMsgBuf.close()
+    finishPut(writer, flightListener)
 
     flightListener.close()
 
