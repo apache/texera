@@ -99,7 +99,8 @@ class SubstringSearchOpDesc extends FilterOpDesc with StandaloneCodeGenerator {
     // call the engine makes, and the column by Python's lower(), which follows
     // the same Unicode mappings.
     val text = Option(substring).getOrElse("")
-    val attrLit = pyStringLiteral(attribute)
+    // The engine reads the field through Schema, which ignores case. See [[columnAsStored]].
+    val attrLit = pyStringLiteral(columnAsStored(attribute, inputSchemas.values.headOption))
     // The rows with nothing in the column are dropped before the match rather than
     // left to `na=False`, which by then has no null to see.
     //

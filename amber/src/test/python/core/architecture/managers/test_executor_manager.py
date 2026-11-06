@@ -95,8 +95,9 @@ class TestExecutorManager:
         assert executor_manager.executor is None
         assert executor_manager.operator_module_name is None
 
-    def test_reject_r_tuple_language(self, executor_manager):
+    def test_reject_r_tuple_language(self, executor_manager, monkeypatch):
         """Test that 'r-tuple' language is rejected with ImportError when plugin is not available."""
+        monkeypatch.setitem(sys.modules, "texera_r", None)
         with pytest.raises(ImportError) as exc_info:
             executor_manager.initialize_executor(
                 code=SAMPLE_OPERATOR_CODE, is_source=False, language="r-tuple"
@@ -107,8 +108,9 @@ class TestExecutorManager:
             exc_info.value
         )
 
-    def test_reject_r_table_language(self, executor_manager):
+    def test_reject_r_table_language(self, executor_manager, monkeypatch):
         """Test that 'r-table' language is rejected with ImportError when plugin is not available."""
+        monkeypatch.setitem(sys.modules, "texera_r", None)
         with pytest.raises(ImportError) as exc_info:
             executor_manager.initialize_executor(
                 code=SAMPLE_OPERATOR_CODE, is_source=False, language="r-table"
@@ -118,6 +120,33 @@ class TestExecutorManager:
         assert "texera-rudf" in str(exc_info.value) or "R operators require" in str(
             exc_info.value
         )
+
+    @pytest.mark.parametrize("language", ["r-tuple", "r-table"])
+    def test_ui_parameters_reject_an_old_plugin(self, executor_manager, language):
+        name = "RTupleExecutor" if language == "r-tuple" else "RTableExecutor"
+        plugin, _ = self._mock_r_plugin(name, is_source=False)
+        plugin.UI_PARAMETERS_API_VERSION = 0
+        try:
+            with pytest.raises(ImportError, match="texera-rudf >= 0.2.0"):
+                executor_manager.initialize_executor(
+                    "# Texera UI parameters: SDK v1\n...", False, language
+                )
+            getattr(plugin, name).assert_not_called()
+        finally:
+            self._cleanup_r_plugin()
+
+    @pytest.mark.parametrize("language", ["r-tuple", "r-table"])
+    def test_ui_parameters_accept_a_capable_plugin(self, executor_manager, language):
+        name = "RTupleExecutor" if language == "r-tuple" else "RTableExecutor"
+        plugin, executor = self._mock_r_plugin(name, is_source=False)
+        plugin.UI_PARAMETERS_API_VERSION = 1
+        try:
+            executor_manager.initialize_executor(
+                "# Texera UI parameters: SDK v1\n...", False, language
+            )
+            assert executor_manager.executor is executor
+        finally:
+            self._cleanup_r_plugin()
 
     def test_accept_r_tuple_language_with_plugin(self, executor_manager):
         """Test that 'r-tuple' language is accepted when plugin is available."""

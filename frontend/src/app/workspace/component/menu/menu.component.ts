@@ -160,6 +160,7 @@ export class MenuComponent implements OnInit, OnDestroy {
   public showNumWorkers: boolean = false;
   public showStatus: boolean = false;
   public showHeatmap: boolean = false;
+  public showResultPreview: boolean = true;
   public heatmapView: HeatmapView = HeatmapView.Runtime;
   public HeatmapView = HeatmapView; // make Angular HTML access enum definition
   protected readonly USER_WORKFLOW = USER_WORKFLOW;
@@ -243,6 +244,7 @@ export class MenuComponent implements OnInit, OnDestroy {
 
   public ngOnInit(): void {
     this.restorePersistedHeatmapOverlay();
+    this.showResultPreview = this.workflowActionService.getJointGraphWrapper().isResultPreviewEnabled();
     // The export flags are reset when a menu is destroyed, which is right when the workspace is
     // left and wrong when a workflow's two views hand over and the results are kept. Recompute
     // from what is in hand, so a menu arriving on retained results does not offer a dead button.
@@ -351,6 +353,10 @@ export class MenuComponent implements OnInit, OnDestroy {
     const width = Math.min(tempSpan.offsetWidth + 20, 800); // +20 for padding
     input.style.width = `${width}px`;
     document.body.removeChild(tempSpan);
+  }
+
+  toggleResultPreview() {
+    this.workflowActionService.getJointGraphWrapper().setResultPreviewEnabled(this.showResultPreview);
   }
 
   toggleNumWorkers() {

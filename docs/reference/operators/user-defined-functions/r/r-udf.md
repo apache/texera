@@ -32,6 +32,7 @@ tags: [user-defined-functions, r]
 | Property | Requirement | Type | Default | Description |
 |----------|-------------|------|---------|-------------|
 | R UDF Script | ✓ | Code (r) | `See template below` | Input your code here |
+| Parameters |  | List<UiUDFParameter> | - | Values inferred from active `UiParameter(...)` calls. See [UI parameters](../#ui-parameters). |
 | Worker count | ✓ | Integer | 1 | Specify how many parallel workers to launch |
 | Use Tuple API? | ✓ | Boolean | false | Check this box to use Tuple API, leave unchecked<br>to use Table API |
 | Retain input columns | ✓ | Boolean | true | Keep the original input columns? |
@@ -44,6 +45,8 @@ tags: [user-defined-functions, r]
 **R UDF Script**
 
 ```r
+# Example UI parameter: count <- UiParameter("count", AttributeType$INT)$value
+# Use value=Resource$MODEL or Resource$DATASET for a version selection.
 # If using Table API:
 # function(table, port) { 
 #   return (table) 
