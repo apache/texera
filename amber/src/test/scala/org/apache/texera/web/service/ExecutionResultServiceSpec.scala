@@ -246,17 +246,16 @@ class ExecutionResultServiceSpec
     rows.get(0).getOutputMode shouldBe OutputModeEnum.SINGLE_SNAPSHOT
   }
 
-  "toOutputModeEnum" should "map every declared output mode to its stored form" in {
-    ExecutionResultService.toOutputModeEnum(OutputMode.SET_SNAPSHOT) shouldBe
-      Some(OutputModeEnum.SET_SNAPSHOT)
-    ExecutionResultService.toOutputModeEnum(OutputMode.SET_DELTA) shouldBe
-      Some(OutputModeEnum.SET_DELTA)
-    ExecutionResultService.toOutputModeEnum(OutputMode.SINGLE_SNAPSHOT) shouldBe
-      Some(OutputModeEnum.SINGLE_SNAPSHOT)
+  "toOutputModeEnum" should "map every declared output mode to the stored value of its name" in {
+    // Walks the proto's values, so a new mode missing from the match fails here, not at runtime.
+    OutputMode.values.foreach { mode =>
+      ExecutionResultService.toOutputModeEnum(mode).getLiteral shouldBe mode.name
+    }
   }
 
-  it should "store no mode for an unrecognized one" in {
-    ExecutionResultService.toOutputModeEnum(OutputMode.Unrecognized(99)) shouldBe None
+  it should "reject an unrecognized mode" in {
+    a[RuntimeException] should be thrownBy
+      ExecutionResultService.toOutputModeEnum(OutputMode.Unrecognized(99))
   }
 
   "convertTuplesToJson" should "convert tuples with various field types correctly" in {
