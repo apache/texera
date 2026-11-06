@@ -6980,6 +6980,13 @@ __metadata:
   languageName: node
   linkType: hard
 
+"@vitest/spy@patch:@vitest/spy@npm%3A4.1.11#~/.yarn/patches/@vitest-spy-npm-4.1.11-ce87517a53.patch":
+  version: 4.1.11
+  resolution: "@vitest/spy@patch:@vitest/spy@npm%3A4.1.11#~/.yarn/patches/@vitest-spy-npm-4.1.11-ce87517a53.patch::version=4.1.11&hash=f495f3"
+  checksum: 10c0/8dfbfa67a088a45304dfc5615103e429d58014869bd598db40c4f3f537ab751e82ea215b995fbd6a7447f873efd36fb3192580c3664eee560f7a957276976e41
+  languageName: node
+  linkType: hard
+
 "@vitest/utils@npm:4.1.11":
   version: 4.1.11
   resolution: "@vitest/utils@npm:4.1.11"

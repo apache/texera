@@ -84,7 +84,8 @@
     "jschardet": "portal:./tools/jschardet-stub",
     "@angular-devkit/build-angular": "21.2.19",
     "@angular/build": "21.2.19",
-    "@ngtools/webpack": "21.2.19"
+    "@ngtools/webpack": "21.2.19",
+    "@vitest/spy@npm:4.1.11": "patch:@vitest/spy@npm%3A4.1.11#~/.yarn/patches/@vitest-spy-npm-4.1.11-ce87517a53.patch"
   },
   "devDependencies": {
     "@angular-builders/custom-webpack": "21.1.0",

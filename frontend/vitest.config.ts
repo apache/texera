@@ -32,8 +32,11 @@ export default defineConfig({
     globals: true,
     // Wrap `it`/`test` so each spec body runs inside an Angular ProxyZone,
     // which Angular's `fakeAsync` requires. Karma+Jasmine installed this
-    // implicitly; the @angular/build:unit-test path doesn't.
-    setupFiles: ["src/test-zone-setup.ts"],
+    // implicitly; the @angular/build:unit-test path doesn't. Then drop
+    // jsdom's selector cache between tests: the builder runs a worker's spec
+    // files against one document (`isolate: false`), and the cache otherwise
+    // keeps every finished fixture's TestBed graph alive until the worker exits.
+    setupFiles: ["src/test-zone-setup.ts", "src/jsdom-selector-cache-setup.ts"],
     // Headroom over Vitest's defaults (5s test / 10s hook) for the shared
     // macos-latest runners, whose wall time swings ~2x run to run: the same
     // test that takes ~400ms on ubuntu has been observed at 11s+ in a
