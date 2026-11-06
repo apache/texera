@@ -36,6 +36,7 @@ import org.apache.texera.amber.core.storage.result._
 import org.apache.texera.amber.core.tuple.Tuple
 import org.apache.texera.amber.util.serde.GlobalPortIdentitySerde.SerdeOps
 import org.apache.texera.dao.SqlServer
+import org.apache.texera.dao.jooq.generated.enums.OutputModeEnum
 import org.apache.texera.dao.jooq.generated.tables.daos.OperatorPortExecutionsDao
 import org.apache.texera.dao.jooq.generated.tables.pojos.OperatorPortExecutions
 import org.apache.texera.amber.core.virtualidentity.{
@@ -96,10 +97,25 @@ object ExecutionResultService {
     pojo.setWorkflowExecutionId(executionId.id.toInt)
     pojo.setGlobalPortId(evt.globalPortId.serializeAsString)
     pojo.setResultUri(evt.uri.toString)
+    pojo.setOutputMode(toOutputModeEnum(evt.mode))
     new OperatorPortExecutionsDao(
       SqlServer.getInstance().createDSLContext().configuration()
     ).insert(pojo)
   }
+
+  /**
+    * The stored form of a port's output mode. Recorded with the URI so that a finished
+    * execution's results can be listed without the engine's physical plan (#8994).
+    * output_mode_enum in sql/texera_ddl.sql mirrors OutputMode.
+    */
+  private[service] def toOutputModeEnum(mode: OutputMode): OutputModeEnum =
+    mode match {
+      case OutputMode.SET_SNAPSHOT    => OutputModeEnum.SET_SNAPSHOT
+      case OutputMode.SET_DELTA       => OutputModeEnum.SET_DELTA
+      case OutputMode.SINGLE_SNAPSHOT => OutputModeEnum.SINGLE_SNAPSHOT
+      case OutputMode.Unrecognized(_) =>
+        throw new RuntimeException(s"Unrecognized output mode: $mode")
+    }
 
   private val defaultPageSize: Int = 5
 
@@ -361,15 +377,9 @@ class ExecutionResultService(
                   )
 
                 if (storageUri.nonEmpty) {
-                  val globalPortIdOption = VFSURIFactory.decodeURI(storageUri.get).globalPortId
                   val opStorage = DocumentFactory.openDocument(storageUri.get)._1
 
                   allTableStats(opId.id) = opStorage.getTableStatistics
-                  WorkflowExecutionsResource.updateResultSize(
-                    executionId,
-                    globalPortIdOption.get,
-                    opStorage.getTotalFileSize
-                  )
                   WorkflowExecutionsResource.updateRuntimeStatsSize(executionId)
                   WorkflowExecutionsResource.updateConsoleMessageSize(executionId, opId)
                 }
@@ -460,7 +470,8 @@ class ExecutionResultService(
             VFSURIFactory.decodeURI(uri).globalPortId.exists(_.portId == PortIdentity())
           )
           .map(uri => {
-            val count = DocumentFactory.openDocument(uri)._1.getCount.toInt
+            val document = DocumentFactory.openDocument(uri)._1
+            val count = document.getCount
 
             val globalPortIdOption = VFSURIFactory.decodeURI(uri).globalPortId
 
@@ -471,11 +482,25 @@ class ExecutionResultService(
               .map(_._1.mode)
               .head
 
+            // Recorded here, on every poll and once more when the run ends, rather than in the
+            // diff handler, which runs once per connected browser and not at all without one.
+            if (mode != OutputMode.SINGLE_SNAPSHOT) {
+              WorkflowExecutionsResource.updateResultSizeAndCount(
+                executionId,
+                globalPortIdOption.get,
+                document.getTotalFileSize,
+                count
+              )
+            }
+
             val changeDetector =
               if (mode == OutputMode.SET_SNAPSHOT) {
                 UUID.randomUUID.toString
               } else ""
-            (globalPortIdOption.get.opId.logicalOpId, OperatorResultMetadata(count, changeDetector))
+            (
+              globalPortIdOption.get.opId.logicalOpId,
+              OperatorResultMetadata(count.toInt, changeDetector)
+            )
           })
           .toMap
       }

@@ -65,7 +65,7 @@ import org.apache.texera.dao.jooq.generated.Tables.{
   WORKFLOW_EXECUTIONS,
   WORKFLOW_VERSION
 }
-import org.apache.texera.dao.jooq.generated.enums.WorkflowComputingUnitTypeEnum
+import org.apache.texera.dao.jooq.generated.enums.{OutputModeEnum, WorkflowComputingUnitTypeEnum}
 import org.apache.texera.dao.jooq.generated.tables.daos.{
   UserDao,
   WorkflowComputingUnitDao,
@@ -234,7 +234,7 @@ class ExecutionResultServiceSpec
 
     ExecutionResultService.persistOperatorPortResultUri(
       eid,
-      OperatorPortResultUriAvailable(globalPortId, uri)
+      OperatorPortResultUriAvailable(globalPortId, uri, OutputMode.SINGLE_SNAPSHOT)
     )
 
     val rows = getDSLContext
@@ -244,6 +244,21 @@ class ExecutionResultServiceSpec
       .fetch()
     rows.size() shouldBe 1
     rows.get(0).getResultUri shouldBe uri.toString
+    // The mode is recorded with the URI, so a finished execution's results can be
+    // listed without the engine's physical plan (#8994).
+    rows.get(0).getOutputMode shouldBe OutputModeEnum.SINGLE_SNAPSHOT
+  }
+
+  "toOutputModeEnum" should "map every declared output mode to the stored value of its name" in {
+    // Walks the proto's values, so a new mode missing from the match fails here, not at runtime.
+    OutputMode.values.foreach { mode =>
+      ExecutionResultService.toOutputModeEnum(mode).getLiteral shouldBe mode.name
+    }
+  }
+
+  it should "reject an unrecognized mode" in {
+    a[RuntimeException] should be thrownBy
+      ExecutionResultService.toOutputModeEnum(OutputMode.Unrecognized(99))
   }
 
   // The WebOutputMode / WebResultUpdate ADTs are serialized to the frontend over
@@ -553,12 +568,12 @@ class ExecutionResultServiceSpec
     }
   }
 
-  it should "record the size and per-column statistics of a table-mode result" in {
+  it should "send the per-column statistics of a table-mode result" in {
     val executionId = newExecution()
     val schema = new Schema(
       List(new Attribute("id", AttributeType.INTEGER), new Attribute("name", AttributeType.STRING))
     )
-    val uri = storeResult(
+    storeResult(
       executionId,
       "erss-snapshot-stats",
       schema,
@@ -580,16 +595,56 @@ class ExecutionResultServiceSpec
 
       events.updates.head.tableStats.keySet shouldBe Set("erss-snapshot-stats")
       events.updates.head.tableStats("erss-snapshot-stats").keySet shouldBe Set("id", "name")
+    }
+  }
 
-      // The persisted size must be the document's own file size, not some other
-      // measure of the result (a row count, or a hard-coded zero).
-      // The persisted size must be the document's own file size, not some other
-      // measure of the result (a row count, or a hard-coded zero). Nothing is closed
-      // afterwards because VirtualDocument exposes no close(); its only teardown is
+  it should "record the size and row count of a table-mode result with no browser connected" in {
+    val executionId = newExecution()
+    val schema = new Schema(List(new Attribute("id", AttributeType.INTEGER)))
+    val uri = storeResult(
+      executionId,
+      "erss-snapshot-count",
+      schema,
+      (1 to 3).map(i => Tuple.builder(schema).add("id", AttributeType.INTEGER, i).build())
+    )
+    val plan = planOf(
+      physicalOp(executionId, "erss-snapshot-count", PortIdentity() -> OutputMode.SET_SNAPSHOT)
+    )
+
+    withAttached(plan, executionId) { fixture =>
+      // No ResultEvents: the run finishes after its browser tab has closed (#8994).
+      setPollingCancellable(fixture.service, new RecordingCancellable)
+      fixture.client.fire(ExecutionStateUpdate(WorkflowAggregatedState.COMPLETED))
+
+      storedResultCount(executionId, "erss-snapshot-count") shouldBe 3L
+      // The document's own file size, not some other measure of the result. Nothing is
+      // closed afterwards because VirtualDocument exposes no close(); its only teardown is
       // clear(), which deletes the data rather than releasing a handle.
       val expectedSize = DocumentFactory.openDocument(uri)._1.getTotalFileSize
       expectedSize should not be 0L
-      storedResultSize(executionId, "erss-snapshot-stats") shouldBe expectedSize
+      storedResultSize(executionId, "erss-snapshot-count") shouldBe expectedSize
+    }
+  }
+
+  it should "record no row count for a SINGLE_SNAPSHOT port" in {
+    val executionId = newExecution()
+    val schema = new Schema(List(new Attribute("html", AttributeType.STRING)))
+    storeResult(
+      executionId,
+      "erss-single-count",
+      schema,
+      List(Tuple.builder(schema).add("html", AttributeType.STRING, "<p/>").build())
+    )
+    val plan = planOf(
+      physicalOp(executionId, "erss-single-count", PortIdentity() -> OutputMode.SINGLE_SNAPSHOT)
+    )
+
+    withAttached(plan, executionId) { fixture =>
+      setPollingCancellable(fixture.service, new RecordingCancellable)
+      fixture.client.fire(ExecutionStateUpdate(WorkflowAggregatedState.COMPLETED))
+
+      // A visualization is shown whole, never paged, so it has no count to record.
+      storedResultCount(executionId, "erss-single-count") shouldBe null
     }
   }
 
@@ -736,7 +791,9 @@ class ExecutionResultServiceSpec
       val globalPortId = globalPortIdOf("erss-callback")
       val uri = resultUriOf(executionId, "erss-callback")
 
-      fixture.client.fire(OperatorPortResultUriAvailable(globalPortId, uri))
+      fixture.client.fire(
+        OperatorPortResultUriAvailable(globalPortId, uri, OutputMode.SET_SNAPSHOT)
+      )
 
       val rows = getDSLContext
         .selectFrom(OPERATOR_PORT_EXECUTIONS)
@@ -1089,6 +1146,19 @@ class ExecutionResultServiceSpec
     insertResultUri(executionId, uri)
     uri
   }
+
+  private def storedResultCount(
+      executionId: ExecutionIdentity,
+      operatorId: String
+  ): java.lang.Long =
+    getDSLContext
+      .select(OPERATOR_PORT_EXECUTIONS.RESULT_COUNT)
+      .from(OPERATOR_PORT_EXECUTIONS)
+      .where(OPERATOR_PORT_EXECUTIONS.WORKFLOW_EXECUTION_ID.eq(executionId.id.toInt))
+      .and(
+        OPERATOR_PORT_EXECUTIONS.GLOBAL_PORT_ID.eq(globalPortIdOf(operatorId).serializeAsString)
+      )
+      .fetchOne(OPERATOR_PORT_EXECUTIONS.RESULT_COUNT)
 
   private def storedResultSize(executionId: ExecutionIdentity, operatorId: String): Long =
     getDSLContext
