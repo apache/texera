@@ -329,6 +329,44 @@ describe("WorkflowFormComponent (rendered template)", () => {
     expect(spy).toHaveBeenCalled();
   });
 
+  // Closing an nz-select leaves the focus in its search box, so no focusout fires inside the page:
+  // a rebuild held while the list was open is flushed by the click itself (Copilot on #8839). The
+  // host binding is what makes that true, so it is exercised through a real event on the host.
+  it("flushes a held rebuild when a click reaches the page, not only on focusout", async () => {
+    fixture.detectChanges();
+    finishLoad();
+    const spy = vi.spyOn(fixture.componentInstance, "onInteraction");
+
+    fixture.nativeElement.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+    fixture.nativeElement.dispatchEvent(new KeyboardEvent("keyup", { bubbles: true }));
+
+    expect(spy).toHaveBeenCalledTimes(2);
+  });
+
+  // The options of a dropdown are drawn in the CDK's overlay container, outside this page, so the
+  // click that picks one never bubbles through the host. Picking the option already chosen changes
+  // no value and moves no focus either, so nothing else would end the hold (Copilot on #8839).
+  it("flushes a held rebuild when the click lands in a dropdown's overlay, outside the page", async () => {
+    fixture.detectChanges();
+    finishLoad();
+    const spy = vi.spyOn(fixture.componentInstance, "onInteraction");
+
+    const overlay = document.createElement("div");
+    overlay.className = "cdk-overlay-container";
+    const option = document.createElement("div");
+    option.className = "ant-select-item-option";
+    overlay.appendChild(option);
+    document.body.appendChild(overlay);
+    try {
+      expect(fixture.nativeElement.contains(option)).toBe(false);
+      option.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+    } finally {
+      overlay.remove();
+    }
+
+    expect(spy).toHaveBeenCalledTimes(1);
+  });
+
   it("switches to the operator canvas when the Canvas control is clicked", () => {
     fixture.detectChanges();
     finishLoad();
