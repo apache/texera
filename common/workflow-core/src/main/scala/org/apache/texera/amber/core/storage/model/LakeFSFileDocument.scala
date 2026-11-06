@@ -25,11 +25,12 @@ import org.apache.texera.amber.core.storage.ResourceType
 import org.apache.texera.amber.core.storage.model.LakeFSFileDocument.userJwtToken
 import org.apache.texera.amber.core.storage.util.LakeFSStorageClient
 
-import java.io.{File, FileOutputStream, FilterInputStream, IOException, InputStream}
+import java.io.{File, IOException, InputStream}
 import java.net._
 import java.nio.charset.StandardCharsets
 import java.nio.file.{Files, Path, Paths, StandardOpenOption}
 import scala.jdk.CollectionConverters.IteratorHasAsScala
+import scala.util.Using
 
 object LakeFSFileDocument {
   // Since requests need to be sent to the FileService in order to read the file, we store USER_JWT_TOKEN in the environment vars
@@ -175,21 +176,8 @@ private[storage] class LakeFSFileDocument(uri: URI, val resourceType: ResourceTy
       case Some(file) => file
       case None =>
         val tempFilePath = Files.createTempFile("versionedFile", ".tmp")
-        try {
-          val tempFileStream = new FileOutputStream(tempFilePath.toFile)
-          try {
-            val inputStream = asInputStream()
-            try {
-              val buffer = new Array[Byte](1024)
-
-              // Create an iterator to repeatedly call inputStream.read, and direct buffered data to file
-              Iterator
-                .continually(inputStream.read(buffer))
-                .takeWhile(_ != -1)
-                .foreach(tempFileStream.write(buffer, 0, _))
-            } finally inputStream.close()
-          } finally tempFileStream.close()
-        } catch {
+        try Using.resources(asInputStream(), Files.newOutputStream(tempFilePath))(_.transferTo(_))
+        catch {
           // A copy that did not finish is not the file; leaving it would also leak it on disk.
           case e: Throwable =>
             Files.deleteIfExists(tempFilePath)
@@ -223,33 +211,33 @@ private[storage] class LakeFSFileDocument(uri: URI, val resourceType: ResourceTy
   * connection closed mid-body as an ordinary end of stream, so without this a proxy that times out
   * a large presigned download hands the caller a silently truncated file, which a format reader
   * then rejects as corrupt.
+  *
+  * Extends InputStream rather than FilterInputStream so that skip reads (and counts) through
+  * `read`, and mark/reset stay unsupported instead of rewinding the wrapped stream behind the count.
   */
 private class LengthCheckedInputStream(in: InputStream, expectedLength: Long, what: String)
-    extends FilterInputStream(in) {
+    extends InputStream {
   private var received = 0L
 
   override def read(): Int = {
-    val byte = super.read()
+    val byte = in.read()
     if (byte == -1) checkComplete() else received += 1
     byte
   }
 
   override def read(buffer: Array[Byte], offset: Int, length: Int): Int = {
-    val count = super.read(buffer, offset, length)
+    val count = in.read(buffer, offset, length)
     if (count == -1) checkComplete() else received += count
     count
   }
 
-  override def skip(n: Long): Long = {
-    val skipped = super.skip(n)
-    received += skipped
-    skipped
-  }
+  override def available(): Int = in.available()
 
-  override def markSupported(): Boolean = false
+  override def close(): Unit = in.close()
 
+  // An undeclared length is -1, which `received` never falls below, so such streams pass through.
   private def checkComplete(): Unit =
-    if (expectedLength >= 0 && received < expectedLength)
+    if (received < expectedLength)
       throw new IOException(
         s"Download of $what ended after $received of $expectedLength bytes: the connection was " +
           "closed before the whole file arrived."
