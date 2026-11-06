@@ -223,8 +223,8 @@ spec:
         - path:
             type: PathPrefix
             value: /
-      # Presigned dataset downloads run through here and can be many GB. Envoy's 15s default
-      # request timeout cuts them off mid-body.
+      # Presigned downloads can be many GB, so Envoy's 15s default would cut them off mid-body.
+      # "0s" also turns off the stream idle timeout, so Envoy keeps a stalled download open.
       timeouts:
         request: "0s"
       backendRefs:
