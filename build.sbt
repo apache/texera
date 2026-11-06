@@ -296,6 +296,11 @@ lazy val NotebookMigrationService = (project in file("notebook-migration-service
   )
   .dependsOn(DAO % "test->test") // test scope dependency
 
+// Regenerates docs/reference/operators/ from the operator descriptors.
+lazy val OperatorReferenceGenerator = (project in file("docs/operator-reference"))
+  .settings(coverageReportSettings)
+  .dependsOn(WorkflowOperator)
+
 // root project definition
 lazy val TexeraProject = (project in file("."))
   .aggregate(
@@ -317,7 +322,8 @@ lazy val TexeraProject = (project in file("."))
     FileService,
     WorkflowCompilingService,
     WorkflowExecutionService,
-    NotebookMigrationService
+    NotebookMigrationService,
+    OperatorReferenceGenerator
   )
   .settings(
     name := "texera",
