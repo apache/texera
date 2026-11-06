@@ -22,7 +22,7 @@ package org.apache.texera.web.resource.dashboard.user.workflow
 import org.apache.pekko.actor.ActorSystem
 import org.apache.pekko.serialization.SerializationExtension
 import org.apache.pekko.testkit.TestKit
-import org.apache.texera.amber.core.storage.{VFSResourceType, VFSURIFactory}
+import org.apache.texera.amber.core.storage.{VFSURIFactory, WarehouseUnavailableException}
 import org.apache.texera.amber.core.virtualidentity.{
   EmbeddedControlMessageIdentity,
   ExecutionIdentity,
@@ -47,6 +47,7 @@ import org.apache.texera.dao.jooq.generated.tables.daos.{
   WorkflowComputingUnitDao,
   WorkflowDao,
   WorkflowExecutionsDao,
+  WorkflowUserAccessDao,
   WorkflowVersionDao
 }
 import org.apache.texera.dao.jooq.generated.tables.pojos.{
@@ -55,6 +56,7 @@ import org.apache.texera.dao.jooq.generated.tables.pojos.{
   Workflow,
   WorkflowComputingUnit,
   WorkflowExecutions,
+  WorkflowUserAccess,
   WorkflowVersion
 }
 import org.apache.texera.amber.engine.architecture.coordinator.OperatorPortResultUriAvailable
@@ -63,7 +65,7 @@ import org.apache.texera.amber.engine.common.AmberRuntime
 import org.apache.texera.amber.engine.common.storage.VFSRecordStorage
 import org.apache.texera.web.model.http.request.result.{OperatorExportInfo, ResultExportRequest}
 import org.apache.texera.web.model.http.response.result.ResultExportResponse
-import org.apache.texera.web.service.{ExecutionResultService, WarehouseUnavailableException}
+import org.apache.texera.web.service.ExecutionResultService
 import org.jose4j.jwt.JwtClaims
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.{BeforeAndAfterAll, BeforeAndAfterEach, PrivateMethodTester}
@@ -533,42 +535,6 @@ class WorkflowExecutionsResourceSpec
 
   // ─── new: URI fetchers ────────────────────────────────────────────────────
 
-  "getResultUrisByExecutionId" should "return inserted URIs and filter out null/empty entries" in {
-    val execution = insertExecution()
-    val eid = ExecutionIdentity(execution.getEid.longValue())
-    val opA = GlobalPortIdentity(
-      PhysicalOpIdentity(OperatorIdentity("opA"), "main"),
-      PortIdentity(),
-      input = false
-    )
-    val opB = GlobalPortIdentity(
-      PhysicalOpIdentity(OperatorIdentity("opB"), "main"),
-      PortIdentity(),
-      input = false
-    )
-    val opC = GlobalPortIdentity(
-      PhysicalOpIdentity(OperatorIdentity("opC"), "main"),
-      PortIdentity(),
-      input = false
-    )
-
-    insertOperatorPortResult(eid, opA, URI.create("vfs:///A"))
-    insertOperatorPortResult(eid, opB, URI.create("vfs:///B"))
-    // Empty-string URI row — the helper should drop it from the returned list.
-    getDSLContext
-      .insertInto(OPERATOR_PORT_EXECUTIONS)
-      .columns(
-        OPERATOR_PORT_EXECUTIONS.WORKFLOW_EXECUTION_ID,
-        OPERATOR_PORT_EXECUTIONS.GLOBAL_PORT_ID,
-        OPERATOR_PORT_EXECUTIONS.RESULT_URI
-      )
-      .values(execution.getEid, opC.serializeAsString, "")
-      .execute()
-
-    val uris = WorkflowExecutionsResource.getResultUrisByExecutionId(eid)
-    assert(uris.toSet == Set(URI.create("vfs:///A"), URI.create("vfs:///B")))
-  }
-
   "getConsoleMessagesUriByExecutionId" should "return inserted URIs and filter empty entries" in {
     val execution = insertExecution()
     val eid = ExecutionIdentity(execution.getEid.longValue())
@@ -675,6 +641,66 @@ class WorkflowExecutionsResourceSpec
     assert(!survivorEids.contains(a.getEid))
     assert(!survivorEids.contains(b.getEid))
     assert(survivorEids.contains(survivor.getEid))
+  }
+
+  private def grantAccess(uid: Integer, privilege: PrivilegeEnum): Unit = {
+    val access = new WorkflowUserAccess
+    access.setUid(uid)
+    access.setWid(testWorkflowWid)
+    access.setPrivilege(privilege)
+    new WorkflowUserAccessDao(getDSLContext.configuration()).insert(access)
+  }
+
+  "validateUserCanAccessExecutions" should "authorize by the execution's workflow" in {
+    grantAccess(testUserId, PrivilegeEnum.WRITE)
+    val execution = insertExecution()
+    val eid = execution.getEid
+    val otherUserUid = testUserId + 100000
+
+    WorkflowExecutionsResource.validateUserCanAccessExecutions(
+      testUserId,
+      Seq(eid),
+      requireWrite = true
+    )
+
+    intercept[ForbiddenException] {
+      WorkflowExecutionsResource.validateUserCanAccessExecutions(
+        otherUserUid,
+        Seq(eid),
+        requireWrite = true
+      )
+    }
+
+    assert(
+      !WorkflowExecutionsResource.userCanAccessExecution(
+        testUserId,
+        eid + 999999,
+        requireWrite = false
+      )
+    )
+  }
+
+  it should "handle read" in {
+    val readUid = testUserId + 1
+    val readUser = new User
+    readUser.setUid(readUid)
+    readUser.setName("read_only_user")
+    readUser.setEmail("readonly-" + UUID.randomUUID().toString.substring(0, 8) + "@example.com")
+    userDao.insert(readUser)
+    grantAccess(readUid, PrivilegeEnum.READ)
+    val execution = insertExecution()
+    val eid = execution.getEid
+
+    try {
+      assert(WorkflowExecutionsResource.userCanAccessExecution(readUid, eid, requireWrite = false))
+      assert(!WorkflowExecutionsResource.userCanAccessExecution(readUid, eid, requireWrite = true))
+    } finally {
+      getDSLContext
+        .deleteFrom(WORKFLOW_USER_ACCESS)
+        .where(WORKFLOW_USER_ACCESS.UID.eq(readUid))
+        .execute()
+      getDSLContext.deleteFrom(USER).where(USER.UID.eq(readUid)).execute()
+    }
   }
 
   // ─── new: updateResultSize ────────────────────────────────────────────────
@@ -827,62 +853,6 @@ class WorkflowExecutionsResourceSpec
       )
     }
     assert(ex.getMessage.contains("mock"))
-  }
-
-  // ─── new: getResultUriByLogicalPortId ─────────────────────────────────────
-
-  "getResultUriByLogicalPortId" should "match by logical operator id, port id, and resource type" in {
-    val execution = insertExecution()
-    val eid = ExecutionIdentity(execution.getEid.longValue())
-    val wfId = WorkflowIdentity(testWorkflowWid.longValue())
-
-    // Build a real VFS result URI that decodeURI can parse.
-    val targetOpId = OperatorIdentity("target-op")
-    val targetPortId = PortIdentity()
-    val targetGlobalPort = GlobalPortIdentity(
-      PhysicalOpIdentity(targetOpId, "main"),
-      targetPortId,
-      input = false
-    )
-    val targetUri = VFSURIFactory.resultURI(
-      VFSURIFactory.createPortBaseURI(wfId, eid, targetGlobalPort)
-    )
-    insertOperatorPortResult(eid, targetGlobalPort, targetUri)
-
-    // Distractor: same workflow, different op id.
-    val otherGlobalPort = GlobalPortIdentity(
-      PhysicalOpIdentity(OperatorIdentity("other-op"), "main"),
-      PortIdentity(),
-      input = false
-    )
-    val otherUri = VFSURIFactory.resultURI(
-      VFSURIFactory.createPortBaseURI(wfId, eid, otherGlobalPort)
-    )
-    insertOperatorPortResult(eid, otherGlobalPort, otherUri)
-
-    val found =
-      WorkflowExecutionsResource.getResultUriByLogicalPortId(eid, targetOpId, targetPortId)
-    assert(found.contains(targetUri))
-
-    // Sanity-check: the decoded URI is RESULT-typed and matches the target ids.
-    val components = VFSURIFactory.decodeURI(found.get)
-    assert(components.resourceType == VFSResourceType.RESULT)
-    assert(
-      components.globalPortId
-        .exists(gp => gp.opId.logicalOpId == targetOpId && gp.portId == targetPortId)
-    )
-  }
-
-  it should "return None when no URI matches the requested op/port" in {
-    val execution = insertExecution()
-    val eid = ExecutionIdentity(execution.getEid.longValue())
-    val found =
-      WorkflowExecutionsResource.getResultUriByLogicalPortId(
-        eid,
-        OperatorIdentity("nope"),
-        PortIdentity()
-      )
-    assert(found.isEmpty)
   }
 
   // ─── new: getNonDownloadableOperatorMap (private — via PrivateMethodTester) ─
@@ -1065,6 +1035,14 @@ class WorkflowExecutionsResourceSpec
       .set(WORKFLOW_USER_ACCESS.PRIVILEGE, PrivilegeEnum.READ)
       .execute()
 
+  private def grantWriteAccess(uid: Integer = testUserId): Unit =
+    getDSLContext
+      .insertInto(WORKFLOW_USER_ACCESS)
+      .set(WORKFLOW_USER_ACCESS.WID, Integer.valueOf(testWorkflowWid))
+      .set(WORKFLOW_USER_ACCESS.UID, uid)
+      .set(WORKFLOW_USER_ACCESS.PRIVILEGE, PrivilegeEnum.WRITE)
+      .execute()
+
   private def userWithoutAccess(): User = {
     val u = new User
     u.setUid(testUserId + 5000)
@@ -1239,7 +1217,7 @@ class WorkflowExecutionsResourceSpec
 
   "setExecutionAreBookmarked" should "reject a user without access" in {
     val exec = insertExecution()
-    assertThrows[WebApplicationException](
+    assertThrows[ForbiddenException](
       resource.setExecutionAreBookmarked(
         ExecutionGroupBookmarkRequest(testWorkflowWid, Array(exec.getEid), isBookmarked = false),
         session(userWithoutAccess())
@@ -1247,8 +1225,20 @@ class WorkflowExecutionsResourceSpec
     )
   }
 
-  it should "bookmark executions that are currently un-bookmarked" in {
+  it should "refuse a read-only user with 403, since the frontend logs out on 401" in {
     grantReadAccess()
+    val exec = insertExecution()
+    assertThrows[ForbiddenException](
+      resource.setExecutionAreBookmarked(
+        ExecutionGroupBookmarkRequest(testWorkflowWid, Array(exec.getEid), isBookmarked = false),
+        session(testUser)
+      )
+    )
+    assert(workflowExecutionsDao.fetchOneByEid(exec.getEid).getBookmarked == false)
+  }
+
+  it should "bookmark executions that are currently un-bookmarked" in {
+    grantWriteAccess()
     val exec = insertExecution() // bookmarked = false
     resource.setExecutionAreBookmarked(
       ExecutionGroupBookmarkRequest(testWorkflowWid, Array(exec.getEid), isBookmarked = false),
@@ -1258,7 +1248,7 @@ class WorkflowExecutionsResourceSpec
   }
 
   it should "un-bookmark executions that are currently bookmarked" in {
-    grantReadAccess()
+    grantWriteAccess()
     val exec = insertExecution()
     resource.setExecutionAreBookmarked(
       ExecutionGroupBookmarkRequest(testWorkflowWid, Array(exec.getEid), isBookmarked = true),
@@ -1268,7 +1258,7 @@ class WorkflowExecutionsResourceSpec
   }
 
   "updateWorkflowExecutionsName" should "rename the execution" in {
-    grantReadAccess()
+    grantWriteAccess()
     val exec = insertExecution(name = "old-name")
     resource.updateWorkflowExecutionsName(
       ExecutionRenameRequest(testWorkflowWid, exec.getEid, "new-name"),
@@ -1278,7 +1268,7 @@ class WorkflowExecutionsResourceSpec
   }
 
   "groupDeleteExecutionsOfWorkflow" should "delete the execution rows" in {
-    grantReadAccess()
+    grantWriteAccess()
     val e1 = insertExecution()
     val e2 = insertExecution()
     resource.groupDeleteExecutionsOfWorkflow(

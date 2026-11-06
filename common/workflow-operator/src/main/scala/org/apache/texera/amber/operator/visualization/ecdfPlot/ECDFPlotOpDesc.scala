@@ -21,10 +21,8 @@ package org.apache.texera.amber.operator.visualization.ecdfPlot
 
 import com.fasterxml.jackson.annotation.{JsonProperty, JsonPropertyDescription}
 import com.kjetland.jackson.jsonSchema.annotations.{JsonSchemaInject, JsonSchemaTitle}
-import org.apache.texera.amber.core.tuple.{AttributeType, Schema}
-import org.apache.texera.amber.core.workflow.PortIdentity
-import org.apache.texera.amber.operator.PythonOperatorDescriptor
 import org.apache.texera.amber.operator.visualization.PlotlyStandaloneCode
+import org.apache.texera.amber.operator.visualization.PythonVisualizationOpDesc
 import org.apache.texera.amber.operator.metadata.annotations.AutofillAttributeName
 import org.apache.texera.amber.operator.metadata.{OperatorGroupConstants, OperatorInfo}
 import org.apache.texera.amber.pybuilder.PyStringTypes.EncodableString
@@ -39,7 +37,7 @@ import javax.validation.constraints.NotNull
 @JsonSchemaInject(
   json = """{"attributeTypeRules":{"valueColumn":{"enum":["integer","long","double"]}}}"""
 )
-class ECDFPlotOpDesc extends PythonOperatorDescriptor with PlotlyStandaloneCode {
+class ECDFPlotOpDesc extends PythonVisualizationOpDesc with PlotlyStandaloneCode {
 
   @JsonProperty(required = true)
   @JsonSchemaTitle("Value Column")
@@ -104,13 +102,6 @@ class ECDFPlotOpDesc extends PythonOperatorDescriptor with PlotlyStandaloneCode 
       "Visualize the empirical cumulative distribution of a numeric column.",
       OperatorGroupConstants.VISUALIZATION_STATISTICAL_GROUP
     )
-
-  override def getOutputSchemas(
-      inputSchemas: Map[PortIdentity, Schema]
-  ): Map[PortIdentity, Schema] = {
-    val outputSchema = Schema().add("html-content", AttributeType.STRING)
-    Map(operatorInfo.outputPorts.head.id -> outputSchema)
-  }
 
   def manipulateTable(): PythonTemplateBuilder = {
     assert(valueColumn.nonEmpty, "Value Column cannot be empty")
@@ -187,8 +178,6 @@ class ECDFPlotOpDesc extends PythonOperatorDescriptor with PlotlyStandaloneCode 
          |"""
     finalCode.encode
   }
-
-  override def producesDataFrame(): Boolean = false
 
   override def generateStandaloneCode(): String = {
     val requiredCols = List(valueColumn, colorColumn, separateBy).filter(_.nonEmpty)
