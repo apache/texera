@@ -19,8 +19,9 @@
 
 import { ComponentFixture, TestBed } from "@angular/core/testing";
 import { SimpleChange } from "@angular/core";
+import type { Mock } from "vitest";
 
-import { ResultTableFrameComponent } from "./result-table-frame.component";
+import { OTHER_PORT_REFRESH_MS, ResultTableFrameComponent } from "./result-table-frame.component";
 import { OperatorMetadataService } from "../../../service/operator-metadata/operator-metadata.service";
 import { StubOperatorMetadataService } from "../../../service/operator-metadata/stub-operator-metadata.service";
 import { HttpClientTestingModule } from "@angular/common/http/testing";
@@ -410,6 +411,38 @@ describe("ResultTableFrameComponent", () => {
       stateStream.next({ otherOp: OperatorState.Completed });
       expect(component.isOperatorFinished).toBe(false);
     });
+
+    it("asks once more for a port past the first when the operator completes, as no update may follow", () => {
+      const stateStream = new Subject<Record<string, OperatorState>>();
+      vi.spyOn(workflowStatusService, "getStateUpdateStream").mockReturnValue(stateStream.asObservable());
+      const secondPort = {
+        getCurrentTotalNumTuples: vi.fn().mockReturnValue(6),
+        selectPage: vi.fn().mockReturnValue(of(makePageEvent(1))),
+      };
+      vi.spyOn(workflowResultService, "getPortPaginatedResultService").mockReturnValue(
+        secondPort as unknown as OperatorPaginationResultService
+      );
+      recreateComponent("op1");
+      component.portIndex = 1;
+
+      stateStream.next({ op1: OperatorState.Running });
+      stateStream.next({ op1: OperatorState.Completed });
+      stateStream.next({ op1: OperatorState.Completed });
+
+      expect(secondPort.selectPage).toHaveBeenCalledTimes(1);
+      expect(component.totalNumTuples).toBe(6);
+    });
+
+    it("leaves the first port to its updates when the operator completes", () => {
+      const stateStream = new Subject<Record<string, OperatorState>>();
+      vi.spyOn(workflowStatusService, "getStateUpdateStream").mockReturnValue(stateStream.asObservable());
+      const paginated = makePaginatedResultService();
+      recreateComponent("op1");
+
+      stateStream.next({ op1: OperatorState.Completed });
+
+      expect(paginated.selectPage).not.toHaveBeenCalled();
+    });
   });
 
   describe("result update stream", () => {
@@ -462,16 +495,53 @@ describe("ResultTableFrameComponent", () => {
       expect(component.totalNumTuples).toBe(0);
     });
 
-    it("leaves a port past the first alone, as the updates are about the first port", () => {
-      const paginated = makePaginatedResultService();
-      recreateComponent("op1");
-      component.portIndex = 1;
-      component.totalNumTuples = 5;
+    describe("on a port past the first", () => {
+      let secondPort: { getCurrentTotalNumTuples: Mock; selectPage: Mock };
 
-      resultUpdates.next({ op1: paginationUpdate(63, [1]) });
+      beforeEach(() => {
+        vi.useFakeTimers();
+        secondPort = {
+          getCurrentTotalNumTuples: vi.fn().mockReturnValue(5),
+          selectPage: vi.fn().mockReturnValue(of(makePageEvent(1))),
+        };
+        vi.spyOn(workflowResultService, "getPortPaginatedResultService").mockReturnValue(
+          secondPort as unknown as OperatorPaginationResultService
+        );
+        recreateComponent("op1");
+        component.portIndex = 1;
+      });
 
-      expect(component.totalNumTuples).toBe(5);
-      expect(paginated.selectPage).not.toHaveBeenCalled();
+      afterEach(() => vi.useRealTimers());
+
+      it("asks for its page again on its operator's update, as the update counts the first port only", () => {
+        component.totalNumTuples = 3;
+
+        resultUpdates.next({ op1: paginationUpdate(63, [4]) });
+
+        expect(secondPort.selectPage).toHaveBeenCalledTimes(1);
+        // the count is the port's own, from the reply, not the first port's
+        expect(component.totalNumTuples).toBe(5);
+      });
+
+      it("ignores another operator's update", () => {
+        resultUpdates.next({ otherOp: paginationUpdate(9, [1]) });
+        vi.advanceTimersByTime(OTHER_PORT_REFRESH_MS);
+
+        expect(secondPort.selectPage).not.toHaveBeenCalled();
+      });
+
+      it("asks at most once a second while a run updates, and always for the last update", () => {
+        resultUpdates.next({ op1: paginationUpdate(1, [1]) });
+        resultUpdates.next({ op1: paginationUpdate(2, [1]) });
+        resultUpdates.next({ op1: paginationUpdate(3, [1]) });
+        expect(secondPort.selectPage).toHaveBeenCalledTimes(1);
+
+        vi.advanceTimersByTime(OTHER_PORT_REFRESH_MS);
+        expect(secondPort.selectPage).toHaveBeenCalledTimes(2);
+
+        vi.advanceTimersByTime(OTHER_PORT_REFRESH_MS);
+        expect(secondPort.selectPage).toHaveBeenCalledTimes(2);
+      });
     });
 
     it("ignores updates when the frame has no operator", () => {
@@ -663,6 +733,48 @@ describe("ResultTableFrameComponent", () => {
 
       expect(component.pageSize).toBe(1);
       expect(component.currentPageIndex).toBe(3);
+    });
+
+    // A table in a pinned window fills that window instead of the result panel.
+    it("falls back to the panel's rule for the height it is given while no row is drawn", () => {
+      component.totalNumTuples = 30;
+      const paginated = makePaginatedResultService();
+      component.operatorId = "op1";
+      component.containerHeight = 700;
+
+      component.ngOnChanges({ containerHeight: new SimpleChange(undefined, 700, false) });
+
+      // the same 700 the result panel was given above, so the same 11 rows
+      expect(component.pageSize).toBe(11);
+      // a new height alone resizes the page; the table asks for the rows itself, as on a panel resize
+      expect(paginated.selectPage).not.toHaveBeenCalled();
+
+      resizeService.changePanelSize(800, 300);
+      expect(component.pageSize).toBe(11);
+    });
+
+    it("fits as many rows as the height leaves under what it measures around the drawn rows", () => {
+      component.totalNumTuples = 30;
+      component.operatorId = "op1";
+      // the server pages the rows, so both rows given are drawn
+      component.isFrontPagination = false;
+      component.setupResultTable([SAMPLE_ROW, { _id: 1, name: "bob", score: 75 }], 30);
+      fixture.detectChanges();
+      const host = fixture.nativeElement as HTMLElement;
+      const rows = Array.from(host.querySelectorAll<HTMLElement>("tbody tr.ant-table-row"));
+      expect(rows.length).toBe(2);
+      // the drawn table is 200px tall, its two rows 40px each, so 120px sit around the rows
+      const setHeight = (element: HTMLElement, height: number) =>
+        Object.defineProperty(element, "offsetHeight", { configurable: true, get: () => height });
+      setHeight(host.querySelector<HTMLElement>(".result-table")!, 200);
+      rows.forEach(row => setHeight(row, 40));
+      component.containerHeight = 450;
+
+      component.ngOnChanges({ containerHeight: new SimpleChange(undefined, 450, false) });
+
+      // (450 - 120) / 40 rounds down to 8 rows, where the panel's rule would give 4
+      expect(component.pageSize).toBe(8);
+      expect(resizeService.pageSize).toBe(8);
     });
   });
 
@@ -866,6 +978,20 @@ describe("ResultTableFrameComponent", () => {
       expect(fixture.nativeElement.querySelector(".result-table").hidden).toBe(true);
     });
 
+    // Statistics come only with the first output port, and only once they arrive; an empty row of
+    // them would be a grey bar with nothing in it.
+    it("renders no statistics row while no column has statistics", () => {
+      component.operatorId = "op1";
+      component.setupResultTable([SAMPLE_ROW], 1);
+      component.isFrontPagination = false;
+      component.tableStats = {};
+      component.prevTableStats = {};
+      fixture.detectChanges();
+
+      expect(fixture.nativeElement.querySelector(".result-table").hidden).toBe(false);
+      expect(fixture.nativeElement.querySelector(".custom-stats-row")).toBeNull();
+    });
+
     it("renders headers, per-column stats, and clickable row cells once results arrive", () => {
       // The download click below needs a rendered button, and the button is gated on the switch.
       setExport(true);
@@ -937,6 +1063,12 @@ describe("ResultTableFrameComponent", () => {
 
       it("is not rendered when result export is off", () => {
         renderOneRow(false);
+        expect(fixture.debugElement.query(By.css("button.download-button"))).toBeNull();
+      });
+
+      it("is not rendered on a port past the first, as a cell export reads the first port", () => {
+        component.portIndex = 1;
+        renderOneRow(true);
         expect(fixture.debugElement.query(By.css("button.download-button"))).toBeNull();
       });
     });
