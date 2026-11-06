@@ -60,7 +60,6 @@ class ArrowTableTupleProvider:
         """
         self._table = table
         self._current_idx = 0
-        self._current_chunk = 0
 
     def __iter__(self) -> Iterator[Callable]:
         """
@@ -71,18 +70,10 @@ class ArrowTableTupleProvider:
     def __next__(self) -> Callable:
         """
         Provide the field accessor of the next tuple.
-        If current chunk is exhausted, move to the first tuple of the next chunk.
         """
-        if self._table.num_columns == 0:
-            # empty table
+        if self._table.num_columns == 0 or self._current_idx >= self._table.num_rows:
             raise StopIteration
-        if self._current_idx >= len(self._table.column(0).chunks[self._current_chunk]):
-            self._current_idx = 0
-            self._current_chunk += 1
-            if self._current_chunk >= self._table.column(0).num_chunks:
-                raise StopIteration
 
-        chunk_idx = self._current_chunk
         tuple_idx = self._current_idx
 
         def field_accessor(field_name: str) -> Field:
@@ -91,7 +82,7 @@ class ArrowTableTupleProvider:
             This abstracts and hides the underlying implementation of the tuple data
             storage from the user.
             """
-            value = self._table.column(field_name).chunks[chunk_idx][tuple_idx].as_py()
+            value = self._table.column(field_name)[tuple_idx].as_py()
             field_type = self._table.schema.field(field_name).type
             field_metadata = self._table.schema.field(field_name).metadata
 
