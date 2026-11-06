@@ -23,8 +23,21 @@ import jakarta.ws.rs.ForbiddenException
 import org.apache.texera.auth.SessionUser
 import org.apache.texera.common.config.ComputingUnitConfig
 import org.apache.texera.dao.MockTexeraDB
-import org.apache.texera.dao.jooq.generated.enums.{PrivilegeEnum, UserRoleEnum}
-import org.apache.texera.dao.jooq.generated.tables.pojos.User
+import org.apache.texera.dao.jooq.generated.enums.{
+  PrivilegeEnum,
+  UserRoleEnum,
+  WorkflowComputingUnitTypeEnum
+}
+import org.apache.texera.dao.jooq.generated.tables.daos.{
+  ComputingUnitUserAccessDao,
+  UserDao,
+  WorkflowComputingUnitDao
+}
+import org.apache.texera.dao.jooq.generated.tables.pojos.{
+  ComputingUnitUserAccess,
+  User,
+  WorkflowComputingUnit
+}
 import org.scalatest.BeforeAndAfterAll
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
@@ -94,5 +107,46 @@ class ComputingUnitAccessSharingDisabledSpec
 
   "getOwner" should "be forbidden (403) when sharing is disabled" in {
     expectForbidden(accessResource.getOwner(session, cuid))
+  }
+
+  // A unit shared with WRITE before sharing was turned off: the grant row stays, but must not work.
+  private lazy val (owner, grantee, sharedCuid) = {
+    val config = getDSLContext.configuration()
+    def insertUser(uid: Int, name: String): User = {
+      val u = new User
+      u.setUid(uid)
+      u.setName(name)
+      u.setEmail(s"$name@test.com")
+      u.setRole(UserRoleEnum.REGULAR)
+      new UserDao(config).insert(u)
+      u
+    }
+    val owner = insertUser(9601, "cu_owner")
+    val grantee = insertUser(9602, "cu_grantee")
+    val unit = new WorkflowComputingUnit
+    unit.setCuid(9601)
+    unit.setUid(owner.getUid)
+    unit.setName("shared-before-disable")
+    unit.setType(WorkflowComputingUnitTypeEnum.local)
+    new WorkflowComputingUnitDao(config).insert(unit)
+    new ComputingUnitUserAccessDao(config)
+      .insert(new ComputingUnitUserAccess(unit.getCuid, grantee.getUid, PrivilegeEnum.WRITE))
+    (owner, grantee, unit.getCuid)
+  }
+
+  "an existing grant" should "give no access while sharing is disabled" in {
+    ComputingUnitAccessResource.hasReadAccess(sharedCuid, grantee.getUid) shouldBe false
+    ComputingUnitAccessResource.hasWriteAccess(sharedCuid, grantee.getUid) shouldBe false
+  }
+
+  it should "not let the grantee rename the unit" in {
+    new ComputingUnitManagingResource((_, _) => ())
+      .renameComputingUnit(sharedCuid, "renamed", new SessionUser(grantee))
+      .getStatus shouldBe 403
+  }
+
+  it should "leave the owner's access intact" in {
+    ComputingUnitAccessResource.hasReadAccess(sharedCuid, owner.getUid) shouldBe true
+    ComputingUnitAccessResource.hasWriteAccess(sharedCuid, owner.getUid) shouldBe true
   }
 }

@@ -17,6 +17,7 @@
 
 package org.apache.texera.auth.util
 
+import org.apache.texera.common.config.ComputingUnitConfig
 import org.apache.texera.dao.SqlServer
 import org.apache.texera.dao.jooq.generated.Tables.{
   COMPUTING_UNIT_USER_ACCESS,
@@ -31,7 +32,12 @@ object ComputingUnitAccess {
       .getInstance()
       .createDSLContext()
 
-  def getComputingUnitAccess(cuid: Integer, uid: Integer): PrivilegeEnum = {
+  /** While sharing is disabled only the owner has access; grants are kept but not honored. */
+  def getComputingUnitAccess(
+      cuid: Integer,
+      uid: Integer,
+      sharingEnabled: Boolean = ComputingUnitConfig.sharingComputingUnitEnabled
+  ): PrivilegeEnum = {
     // At most one row: cuid is the PK of workflow_computing_unit and (cuid, uid)
     // is the PK of computing_unit_user_access, so the left join cannot fan out.
     val record = context
@@ -49,7 +55,10 @@ object ComputingUnitAccess {
     if (record == null) {
       PrivilegeEnum.NONE // no such unit
     } else {
-      OwnerAccess.privilege(record.value1().equals(uid), record.value2())
+      OwnerAccess.privilege(
+        record.value1().equals(uid),
+        if (sharingEnabled) record.value2() else PrivilegeEnum.NONE
+      )
     }
   }
 }

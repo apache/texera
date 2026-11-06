@@ -157,6 +157,7 @@ lazy val AccessControlService = (project in file("access-control-service"))
   )
   .configs(Test)
   .dependsOn(DAO % "test->test", Auth % "test->test")
+  .settings(computingUnitSharingTestSettings)
 
 //This Scala module defines a pyb"..." macro-based DSL for composing Python code templates as an immutable PythonTemplateBuilder.
 //Used mainly for Python Native Operators
@@ -170,6 +171,30 @@ lazy val WorkflowCore = (project in file("common/workflow-core"))
   .dependsOn(DAO, Config, PyBuilder, Util)
   .configs(Test)
   .dependsOn(DAO % "test->test") // test scope dependency
+// Fork the test JVM so the computing-unit sharing flag can be enabled: ComputingUnitConfig
+// reads computing-unit.conf's sharing.enabled as a load-time val (default false, overridable
+// only via the COMPUTING_UNIT_SHARING_ENABLED env var), and grant-based tests need it on. Also
+// run from the repo root so MockTexeraDB can resolve sql/texera_ddl.sql by relative path.
+// Each suite whose name ends with "SharingDisabledSpec" gets its own forked JVM without the
+// env var, since a load-time val cannot be switched off per test; all other suites share one.
+lazy val computingUnitSharingTestSettings = Seq(
+  Test / fork := true,
+  Test / envVars += "COMPUTING_UNIT_SHARING_ENABLED" -> "true",
+  Test / forkOptions := (Test / forkOptions).value
+    .withWorkingDirectory((ThisBuild / baseDirectory).value),
+  Test / testGrouping := {
+    val opts = (Test / forkOptions).value
+    val (disabled, enabled) =
+      (Test / definedTests).value.partition(_.name.endsWith("SharingDisabledSpec"))
+    val enabledGroup = Tests.Group("sharing-enabled", enabled, Tests.SubProcess(opts))
+    val disabledGroups = disabled.map { suite =>
+      val disabledOpts = opts.withEnvVars(opts.envVars - "COMPUTING_UNIT_SHARING_ENABLED")
+      Tests.Group(suite.name, Seq(suite), Tests.SubProcess(disabledOpts))
+    }
+    enabledGroup +: disabledGroups
+  }
+)
+
 lazy val ComputingUnitManagingService = (project in file("computing-unit-managing-service"))
   .dependsOn(WorkflowCore, Auth, Config, Resource, Observability)
   .configs(Test)
@@ -190,32 +215,9 @@ lazy val ComputingUnitManagingService = (project in file("computing-unit-managin
       // with "Scala module 2.18.8 requires Jackson Databind version >= 2.18.0
       // and < 2.19.0 - Found jackson-databind version 2.21.0").
       "com.fasterxml.jackson.core" % "jackson-databind" % jacksonVersion
-    ) ++ nettyDependencyOverrides,
-    // Fork the test JVM so the sharing feature flag can be enabled: ComputingUnitConfig
-    // reads computing-unit.conf's sharing.enabled as a load-time val (default false,
-    // overridable only via the COMPUTING_UNIT_SHARING_ENABLED env var), and the
-    // access-resource tests need it on to reach the share/revoke code paths. Also run
-    // from the repo root so MockTexeraDB can resolve sql/texera_ddl.sql by relative path.
-    Test / fork := true,
-    Test / envVars += "COMPUTING_UNIT_SHARING_ENABLED" -> "true",
-    Test / forkOptions := (Test / forkOptions).value
-      .withWorkingDirectory((ThisBuild / baseDirectory).value),
-    // Isolate the sharing-disabled suite into its own forked JVM without
-    // COMPUTING_UNIT_SHARING_ENABLED: the config flag is a load-time val, so the disabled
-    // branch can only be exercised where the env var is absent (not merely unset per-test).
-    // All other suites keep running together in one forked JVM (the pre-grouping default).
-    Test / testGrouping := {
-      val opts = (Test / forkOptions).value
-      val (disabled, enabled) =
-        (Test / definedTests).value.partition(_.name.endsWith("SharingDisabledSpec"))
-      val enabledGroup = Tests.Group("sharing-enabled", enabled, Tests.SubProcess(opts))
-      val disabledGroups = disabled.map { suite =>
-        val disabledOpts = opts.withEnvVars(opts.envVars - "COMPUTING_UNIT_SHARING_ENABLED")
-        Tests.Group(suite.name, Seq(suite), Tests.SubProcess(disabledOpts))
-      }
-      enabledGroup +: disabledGroups
-    }
+    ) ++ nettyDependencyOverrides
   )
+  .settings(computingUnitSharingTestSettings)
 lazy val FileService = (project in file("file-service"))
   .settings(commonModuleSettings)
   .dependsOn(WorkflowCore, Auth, Config, Resource, Util, Observability)
