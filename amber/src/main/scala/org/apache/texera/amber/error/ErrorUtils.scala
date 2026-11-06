@@ -20,6 +20,7 @@
 package org.apache.texera.amber.error
 
 import com.google.protobuf.timestamp.Timestamp
+import org.apache.texera.amber.core.WorkflowRuntimeException
 import org.apache.texera.amber.core.virtualidentity.ActorVirtualIdentity
 import org.apache.texera.amber.engine.architecture.rpc.controlcommands.ConsoleMessage
 import org.apache.texera.amber.engine.architecture.rpc.controlcommands.ConsoleMessageType.{
@@ -76,18 +77,24 @@ object ErrorUtils {
   def mkControlError(err: Throwable): ControlError = {
     // Format each stack trace element with "at " prefix
     val stacktrace = err.getStackTrace.map(element => s"at ${element}").mkString("\n")
-    if (err.getCause != null) {
-      ControlError(err.toString, err.getCause.toString, stacktrace, ErrorLanguage.SCALA)
-    } else {
-      ControlError(err.toString, "", stacktrace, ErrorLanguage.SCALA)
+    val details = if (err.getCause != null) err.getCause.toString else ""
+    // Keep the failing worker so the receiver can attribute the error to its operator.
+    val relatedWorkerId = err match {
+      case wre: WorkflowRuntimeException => wre.relatedWorkerId
+      case _                             => None
     }
+    ControlError(err.toString, details, stacktrace, ErrorLanguage.SCALA, relatedWorkerId)
   }
 
   def reconstructThrowable(controlError: ControlError): Throwable = {
     if (controlError.language == ErrorLanguage.PYTHON) {
       return new Throwable(controlError.errorMessage)
     } else {
-      val reconstructedThrowable = new Throwable(controlError.errorMessage)
+      val reconstructedThrowable = controlError.relatedWorkerId match {
+        // Rebuild the WorkflowRuntimeException so the failing worker is not lost.
+        case Some(worker) => new WorkflowRuntimeException(controlError.errorMessage, Some(worker))
+        case None         => new Throwable(controlError.errorMessage)
+      }
       if (controlError.errorDetails.nonEmpty) {
         val causeThrowable = new Throwable(controlError.errorDetails)
         reconstructedThrowable.initCause(causeThrowable)
