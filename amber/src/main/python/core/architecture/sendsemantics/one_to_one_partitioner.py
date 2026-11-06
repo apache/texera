@@ -54,6 +54,8 @@ class OneToOnePartitioner(Partitioner):
     def flush(
         self, to: ActorVirtualIdentity, ecm: EmbeddedControlMessage
     ) -> Iterator[typing.Union[EmbeddedControlMessage, typing.List[Tuple]]]:
+        if to != self.receiver:
+            return
         if len(self.batch) > 0:
             yield self.batch
         self.reset()
