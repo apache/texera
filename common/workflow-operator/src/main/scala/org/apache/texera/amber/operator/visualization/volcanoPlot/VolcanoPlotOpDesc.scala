@@ -21,12 +21,10 @@ package org.apache.texera.amber.operator.visualization.volcanoPlot
 
 import com.fasterxml.jackson.annotation.{JsonProperty, JsonPropertyDescription}
 import com.kjetland.jackson.jsonSchema.annotations.{JsonSchemaInject, JsonSchemaTitle}
-import org.apache.texera.amber.core.tuple.{AttributeType, Schema}
 import org.apache.texera.amber.pybuilder.PythonTemplateBuilder.PythonTemplateBuilderStringContext
 import org.apache.texera.amber.pybuilder.PyStringTypes.EncodableString
-import org.apache.texera.amber.core.workflow.PortIdentity
-import org.apache.texera.amber.operator.PythonOperatorDescriptor
 import org.apache.texera.amber.operator.visualization.PlotlyStandaloneCode
+import org.apache.texera.amber.operator.visualization.PythonVisualizationOpDesc
 import org.apache.texera.amber.operator.metadata.annotations.{AutofillAttributeName, SampleColumn}
 import org.apache.texera.amber.operator.metadata.{OperatorGroupConstants, OperatorInfo}
 import org.apache.texera.amber.pybuilder.PythonTemplateBuilder.pyStringLiteral
@@ -43,7 +41,7 @@ import javax.validation.constraints.NotNull
   }
 }
 """)
-class VolcanoPlotOpDesc extends PythonOperatorDescriptor with PlotlyStandaloneCode {
+class VolcanoPlotOpDesc extends PythonVisualizationOpDesc with PlotlyStandaloneCode {
 
   @JsonProperty(required = true)
   @JsonSchemaTitle("Effect Size (log2 Fold Change)")
@@ -92,14 +90,6 @@ class VolcanoPlotOpDesc extends PythonOperatorDescriptor with PlotlyStandaloneCo
       operatorDescription = "Displays statistical significance versus effect size",
       operatorGroupName = OperatorGroupConstants.VISUALIZATION_SCIENTIFIC_GROUP
     )
-
-  override def getOutputSchemas(
-      inputSchemas: Map[PortIdentity, Schema]
-  ): Map[PortIdentity, Schema] = {
-    val outputSchema = Schema()
-      .add("html-content", AttributeType.STRING)
-    Map(operatorInfo.outputPorts.head.id -> outputSchema)
-  }
 
   /** The y column is named after the selected p-value column, so a figure drawn
     * from an adjusted column says so instead of always reading "-log10(pvalue)".
@@ -160,8 +150,6 @@ class VolcanoPlotOpDesc extends PythonOperatorDescriptor with PlotlyStandaloneCo
        |        yield {"html-content": html}
        |""".encode
   }
-
-  override def producesDataFrame(): Boolean = false
 
   // The exported script draws the same figure as the engine, so it labels it the same
   // way; the only difference is that the text is a Python literal rather than decoded.
