@@ -27,7 +27,7 @@ import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.{BeforeAndAfterAll, BeforeAndAfterEach}
 
-import java.io.{ByteArrayInputStream, InputStream}
+import java.io.{ByteArrayInputStream, IOException, InputStream}
 import java.net.{InetSocketAddress, URI, URLDecoder, URLEncoder}
 import java.nio.charset.StandardCharsets
 import java.nio.file.{Files, Paths}
@@ -87,6 +87,13 @@ class LakeFSFileDocumentSpec
 
   /** Request paths that should answer 500 instead of being served, for this one test. */
   @volatile private var failing: Set[String] = Set.empty
+
+  /**
+    * Request paths that should declare their full Content-Length but send only half the body, for
+    * this one test. This is what a proxy timeout looks like to the client: a gateway that closes a
+    * presigned download mid-body, which HttpURLConnection reports as an ordinary end of stream.
+    */
+  @volatile private var truncating: Set[String] = Set.empty
 
   private val repositoryName = "texera-file-doc"
   private val fileName = "records.csv"
@@ -148,7 +155,10 @@ class LakeFSFileDocumentSpec
         else "application/octet-stream"
       exchange.getResponseHeaders.set("Content-Type", contentType)
       exchange.sendResponseHeaders(status, bytes.length.toLong)
-      exchange.getResponseBody.write(bytes)
+      if (truncating.contains(uri.getPath))
+        // Closing short of the declared length makes the JDK server drop the connection.
+        exchange.getResponseBody.write(bytes, 0, bytes.length / 2)
+      else exchange.getResponseBody.write(bytes)
     } finally exchange.close()
   }
 
@@ -175,6 +185,7 @@ class LakeFSFileDocumentSpec
     super.beforeEach()
     requests.clear()
     failing = Set.empty
+    truncating = Set.empty
   }
 
   private def hits: List[Hit] = requests.asScala.toList
@@ -197,6 +208,13 @@ class LakeFSFileDocumentSpec
       .map(_.toSet)
       .getOrElse(Set.empty[String])
       .filter(_.startsWith("download-"))
+
+  /** Temp files asFile has left on disk, to show a failed download does not leave one behind. */
+  private def versionedTempFiles(): Set[String] =
+    Option(new java.io.File(System.getProperty("java.io.tmpdir")).list())
+      .map(_.toSet)
+      .getOrElse(Set.empty[String])
+      .filter(_.startsWith("versionedFile"))
 
   private def readFully(doc: LakeFSFileDocument): String = {
     val stream = doc.asInputStream()
@@ -404,6 +422,16 @@ class LakeFSFileDocumentSpec
     (sdkTempFiles() -- before) shouldBe empty
   }
 
+  it should "fail the read, not end it early, when the presigned body stops short" in {
+    truncating = Set(presignedPath)
+
+    // The cut arrives after asInputStream has returned, so there is nothing to fall back to; what
+    // matters is that the caller hears about it. Ending the stream quietly hands a format reader a
+    // truncated file, which it then reports as corrupt.
+    val thrown = intercept[IOException](readFully(servedDoc()))
+    thrown.getMessage should include(s"of ${presignedContent.length} bytes")
+  }
+
   it should "name the whole nested relative path on both hops, not the file's last segment" in {
     failing = Set(statPath)
 
@@ -439,6 +467,23 @@ class LakeFSFileDocumentSpec
       // identity assertion above green while re-downloading the whole object on every call.
       hits shouldBe empty
     } finally Files.deleteIfExists(first.toPath)
+  }
+
+  it should "fail, and leave no partial temp file, when the download is cut short" in {
+    truncating = Set(presignedPath)
+    val before = versionedTempFiles()
+
+    intercept[IOException](servedDoc().asFile())
+    versionedTempFiles() shouldBe before
+
+    // Nor is the failure remembered: once the connection holds, the same file reads in full.
+    truncating = Set.empty
+    val file = servedDoc().asFile()
+    try new String(
+      Files.readAllBytes(file.toPath),
+      StandardCharsets.UTF_8
+    ) shouldBe presignedContent
+    finally Files.deleteIfExists(file.toPath)
   }
 
   it should "close the stream it copied from" in {
