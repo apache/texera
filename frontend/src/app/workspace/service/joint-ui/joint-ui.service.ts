@@ -181,6 +181,7 @@ class TexeraCustomJointElement extends joint.shapes.devs.Model {
 
 class TexeraCustomCommentElement extends joint.shapes.devs.Model {
   markup = `<g class = "element-node">
+  <line class = "anchor-connector"></line>
   <rect class = "body"></rect>
   ${deleteButtonSVG}
   <image></image>
@@ -598,7 +599,43 @@ export class JointUIService {
       attrs: JointUIService.getCustomCommentStyleAttrs(),
     });
     commentElement.set("id", commentBox.commentBoxID);
+    commentElement.attr("rect", JointUIService.getCommentBoxAnchorAttrs(commentBox.anchoredOperatorID !== undefined));
     return commentElement;
+  }
+
+  /**
+   * The outline that tells an anchored comment box from a floating one: dashed for anchored, none for floating.
+   * @param anchored whether the comment box is anchored to an operator
+   */
+  public static getCommentBoxAnchorAttrs(anchored: boolean): joint.attributes.SVGAttributes {
+    return anchored
+      ? { stroke: "#1890FF", "stroke-width": 2, "stroke-dasharray": "4 2" }
+      : { stroke: "#CED4D9", "stroke-width": 0, "stroke-dasharray": "none" };
+  }
+
+  /**
+   * The line that ties an anchored comment box to its operator, in the comment box's own coordinates:
+   * from the comment box's center to the nearest point on the operator's edge. Hidden for a floating one.
+   * @param commentBox the comment box's bounding box
+   * @param operator the bounding box of the operator it is anchored to, undefined if it floats
+   */
+  public static getCommentBoxConnectorAttrs(
+    commentBox: joint.g.Rect,
+    operator: joint.g.Rect | undefined
+  ): joint.attributes.SVGAttributes {
+    if (operator === undefined) {
+      return { display: "none" };
+    }
+    const centerX = commentBox.x + commentBox.width / 2;
+    const centerY = commentBox.y + commentBox.height / 2;
+    const clamp = (value: number, min: number, max: number) => Math.min(Math.max(value, min), max);
+    return {
+      display: "inline",
+      x1: commentBox.width / 2,
+      y1: commentBox.height / 2,
+      x2: clamp(centerX, operator.x, operator.x + operator.width) - commentBox.x,
+      y2: clamp(centerY, operator.y, operator.y + operator.height) - commentBox.y,
+    };
   }
   /**
    * This function converts a Texera source and target OperatorPort to
@@ -1037,6 +1074,13 @@ export class JointUIService {
         cursor: "pointer",
         fill: "#D8656A",
         event: "element:delete",
+      },
+      ".anchor-connector": {
+        display: "none",
+        stroke: "#1890FF",
+        "stroke-width": 1.5,
+        "stroke-dasharray": "4 3",
+        "pointer-events": "none",
       },
     };
   }

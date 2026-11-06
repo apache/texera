@@ -173,6 +173,80 @@ export class ContextMenuComponent {
     });
   }
 
+  /** A comment box is added to exactly one selected operator, with nothing else selected. */
+  public canAddCommentBoxToOperator(): boolean {
+    return (
+      this.canModify &&
+      this.highlightedOperatorIds.length === 1 &&
+      this.highlightedCommentBoxIds.length === 0 &&
+      !this.hasHighlightedLinks()
+    );
+  }
+
+  /** Adds a comment box beside the selected operator, anchored to it. */
+  public onAddCommentBoxToOperator(): void {
+    if (!this.canAddCommentBoxToOperator()) {
+      return;
+    }
+    this.workflowActionService.addCommentBoxToOperator(this.highlightedOperatorIds[0]);
+  }
+
+  /** Anchoring takes the selected comment boxes and exactly one selected operator to anchor them to. */
+  public canAnchorCommentBoxes(): boolean {
+    return (
+      this.canModify &&
+      this.highlightedOperatorIds.length === 1 &&
+      this.highlightedCommentBoxIds.length > 0 &&
+      !this.hasHighlightedLinks()
+    );
+  }
+
+  /** Anchors every selected comment box to the selected operator. */
+  public onAnchorCommentBoxes(): void {
+    if (!this.canAnchorCommentBoxes()) {
+      return;
+    }
+    const operatorID = this.highlightedOperatorIds[0];
+    const commentBoxIDs = Array.from(this.highlightedCommentBoxIds);
+    this.workflowActionService
+      .getTexeraGraph()
+      .bundleActions(() =>
+        commentBoxIDs.forEach(commentBoxID => this.workflowActionService.anchorCommentBox(commentBoxID, operatorID))
+      );
+  }
+
+  private getSelectedAnchoredCommentBoxIDs(): string[] {
+    const texeraGraph = this.workflowActionService.getTexeraGraph();
+    // The highlight stream can still name a comment box that has just been deleted.
+    return this.highlightedCommentBoxIds.filter(
+      commentBoxID =>
+        texeraGraph.hasCommentBox(commentBoxID) &&
+        texeraGraph.getCommentBox(commentBoxID).anchoredOperatorID !== undefined
+    );
+  }
+
+  public canDetachCommentBoxes(): boolean {
+    return (
+      this.canModify &&
+      this.highlightedOperatorIds.length === 0 &&
+      !this.hasHighlightedLinks() &&
+      this.getSelectedAnchoredCommentBoxIDs().length > 0
+    );
+  }
+
+  /** Detaches the selected anchored comment boxes, so they float again. */
+  public onDetachCommentBoxes(): void {
+    if (!this.canDetachCommentBoxes()) {
+      return;
+    }
+    const commentBoxIDs = this.getSelectedAnchoredCommentBoxIDs();
+    this.workflowActionService
+      .getTexeraGraph()
+      .bundleActions(() =>
+        commentBoxIDs.forEach(commentBoxID => this.workflowActionService.detachCommentBox(commentBoxID))
+      );
+  }
+
   private registerWorkflowModifiableChangedHandler() {
     this.workflowActionService
       .getWorkflowModificationEnabledStream()
