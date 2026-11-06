@@ -38,7 +38,7 @@ import org.apache.texera.amber.core.virtualidentity.{
   WorkflowIdentity
 }
 import org.apache.texera.amber.core.workflow.OutputPort.OutputMode
-import org.apache.texera.amber.core.workflow.{PhysicalOp, PhysicalPlan, PortIdentity}
+import org.apache.texera.amber.core.workflow.{GlobalPortIdentity, PhysicalPlan, PortIdentity}
 import org.apache.texera.amber.engine.architecture.coordinator.{
   ExecutionStateUpdate,
   FatalError,
@@ -192,30 +192,44 @@ object ExecutionResultService {
   }
 
   /**
+    * The output mode of one output port of a logical operator.
+    *
+    * @throws IllegalStateException if no physical operator of `logicalOpId` has `portId`.
+    */
+  private def outputModeOf(
+      physicalPlan: PhysicalPlan,
+      logicalOpId: OperatorIdentity,
+      portId: PortIdentity
+  ): OutputMode =
+    physicalPlan
+      .getPhysicalOpsOfLogicalOp(logicalOpId)
+      .flatMap(_.outputPorts.get(portId))
+      .map(_._1.mode)
+      .headOption
+      .getOrElse(
+        throw new IllegalStateException(
+          s"Output port ${portId.id} of operator ${logicalOpId.id} is not in the physical plan"
+        )
+      )
+
+  /**
     * For SET_SNAPSHOT output mode: result is the latest snapshot
     * FOR SET_DELTA output mode:
     *   - for insert-only delta: effectively the same as latest snapshot
     *   - for insert-retract delta: the union of all delta outputs, not compacted to a snapshot
     *
-    * Produces the WebResultUpdate to send to frontend from a result update from the engine.
+    * Produces the WebResultUpdate of one output port to send to frontend from a result update from
+    * the engine. `outputMode` is that port's own.
     */
   private def convertWebResultUpdate(
       workflowIdentity: WorkflowIdentity,
       executionId: ExecutionIdentity,
-      physicalOps: List[PhysicalOp],
+      logicalOpId: OperatorIdentity,
+      portId: PortIdentity,
+      outputMode: OutputMode,
       oldTupleCount: Int,
       newTupleCount: Int
   ): WebResultUpdate = {
-    val outputMode = physicalOps
-      .flatMap(op => op.outputPorts)
-      .filter({
-        case (portId, (port, links, schema)) => !portId.internal
-      })
-      .map({
-        case (portId, (port, links, schema)) => port.mode
-      })
-      .head
-
     val webOutputMode: WebOutputMode = {
       outputMode match {
         // currently, only table outputs are using these modes
@@ -233,11 +247,8 @@ object ExecutionResultService {
 
     // Cannot assume the storage is available at this point. The storage object is only available
     // after a region is scheduled to execute.
-    val storageUriOption = WorkflowExecutionsResource.getResultUriByLogicalPortId(
-      executionId,
-      physicalOps.head.id.logicalOpId,
-      PortIdentity()
-    )
+    val storageUriOption =
+      WorkflowExecutionsResource.getResultUriByLogicalPortId(executionId, logicalOpId, portId)
     storageUriOption match {
       case Some(storageUri) =>
         val storage: VirtualDocument[Tuple] =
@@ -403,53 +414,48 @@ class ExecutionResultService(
         val allTableStats = mutable.Map[String, Map[String, Map[String, Any]]]()
         newState.resultInfo
           .filter(info => {
-            // only update those operators with changing tuple count.
+            // only update those output ports with changing tuple count.
             !oldState.resultInfo
               .contains(info._1) || oldState.resultInfo(info._1).tupleCount != info._2.tupleCount
           })
           .foreach {
-            case (opId, info) =>
-              val oldInfo = oldState.resultInfo.getOrElse(opId, OperatorResultMetadata())
-              buf(opId.id) = ExecutionResultService.convertWebResultUpdate(
-                workflowIdentity,
-                executionId,
-                physicalPlan.getPhysicalOpsOfLogicalOp(opId),
-                oldInfo.tupleCount,
-                info.tupleCount
-              )
-              // using the first port for now. TODO: support multiple ports
-              val outputPortsMap = physicalPlan
-                .getPhysicalOpsOfLogicalOp(opId)
-                .headOption
-                .map(_.outputPorts)
-                .getOrElse(Map.empty)
-              val hasSingleSnapshot = outputPortsMap.values.exists {
-                case (outputPort, _, _) =>
-                  // SINGLE_SNAPSHOT is used for HTML content
-                  outputPort.mode == OutputMode.SINGLE_SNAPSHOT
+            case (globalPortId, info) =>
+              val opId = globalPortId.opId.logicalOpId
+              val portId = globalPortId.portId
+              val oldInfo = oldState.resultInfo.getOrElse(globalPortId, OperatorResultMetadata())
+              val outputMode = ExecutionResultService.outputModeOf(physicalPlan, opId, portId)
+              val isFirstPort = portId == PortIdentity()
+              // the result updates are about each operator's first output port
+              if (isFirstPort) {
+                buf(opId.id) = ExecutionResultService.convertWebResultUpdate(
+                  workflowIdentity,
+                  executionId,
+                  opId,
+                  portId,
+                  outputMode,
+                  oldInfo.tupleCount,
+                  info.tupleCount
+                )
               }
 
-              if (!hasSingleSnapshot) {
-                val storageUri = WorkflowExecutionsResource
-                  .getResultUriByLogicalPortId(
-                    executionId,
-                    opId,
-                    PortIdentity()
-                  )
-
-                if (storageUri.nonEmpty) {
-                  val globalPortIdOption = VFSURIFactory.decodeURI(storageUri.get).globalPortId
-                  val opStorage = DocumentFactory.openDocument(storageUri.get)._1
-
-                  allTableStats(opId.id) = opStorage.getTableStatistics
-                  WorkflowExecutionsResource.updateResultSize(
-                    executionId,
-                    globalPortIdOption.get,
-                    opStorage.getTotalFileSize
-                  )
-                  WorkflowExecutionsResource.updateRuntimeStatsSize(executionId)
-                  WorkflowExecutionsResource.updateConsoleMessageSize(executionId, opId)
-                }
+              // SINGLE_SNAPSHOT is used for HTML content, which is not a table
+              if (outputMode != OutputMode.SINGLE_SNAPSHOT) {
+                WorkflowExecutionsResource
+                  .getResultUriByLogicalPortId(executionId, opId, portId)
+                  .foreach { storageUri =>
+                    val opStorage = DocumentFactory.openDocument(storageUri)._1
+                    // the table statistics are the first port's, as the result updates are
+                    if (isFirstPort) {
+                      allTableStats(opId.id) = opStorage.getTableStatistics
+                    }
+                    WorkflowExecutionsResource.updateResultSize(
+                      executionId,
+                      VFSURIFactory.decodeURI(storageUri).globalPortId.get,
+                      opStorage.getTotalFileSize
+                    )
+                    WorkflowExecutionsResource.updateRuntimeStatsSize(executionId)
+                    WorkflowExecutionsResource.updateConsoleMessageSize(executionId, opId)
+                  }
               }
           }
         Iterable(
@@ -528,32 +534,30 @@ class ExecutionResultService(
 
   private def onResultUpdate(executionId: ExecutionIdentity, physicalPlan: PhysicalPlan): Unit = {
     workflowStateStore.resultStore.updateState { _ =>
-      val newInfo: Map[OperatorIdentity, OperatorResultMetadata] = {
+      // One entry per external output port. An internal port's materialization is not a result
+      // to show, and its id would collide with an external port's.
+      val newInfo: Map[GlobalPortIdentity, OperatorResultMetadata] = {
         WorkflowExecutionsResource
           .getResultUrisByExecutionId(executionId)
-          // One entry per operator, so it follows the first output port, as the result updates do.
-          // Keyed by operator, a second port's count would otherwise replace the first's.
-          .filter(uri =>
-            VFSURIFactory.decodeURI(uri).globalPortId.exists(_.portId == PortIdentity())
-          )
-          .map(uri => {
-            val count = DocumentFactory.openDocument(uri)._1.getCount.toInt
+          .flatMap(uri => VFSURIFactory.decodeURI(uri).globalPortId.map(uri -> _))
+          .filterNot { case (_, globalPortId) => globalPortId.portId.internal }
+          .map {
+            case (uri, globalPortId) =>
+              val count = DocumentFactory.openDocument(uri)._1.getCount.toInt
 
-            val globalPortIdOption = VFSURIFactory.decodeURI(uri).globalPortId
+              // Retrieve the mode of the specified output port
+              val mode = ExecutionResultService.outputModeOf(
+                physicalPlan,
+                globalPortId.opId.logicalOpId,
+                globalPortId.portId
+              )
 
-            // Retrieve the mode of the specified output port
-            val mode = physicalPlan
-              .getPhysicalOpsOfLogicalOp(globalPortIdOption.get.opId.logicalOpId)
-              .flatMap(_.outputPorts.get(globalPortIdOption.get.portId))
-              .map(_._1.mode)
-              .head
-
-            val changeDetector =
-              if (mode == OutputMode.SET_SNAPSHOT) {
-                UUID.randomUUID.toString
-              } else ""
-            (globalPortIdOption.get.opId.logicalOpId, OperatorResultMetadata(count, changeDetector))
-          })
+              val changeDetector =
+                if (mode == OutputMode.SET_SNAPSHOT) {
+                  UUID.randomUUID.toString
+                } else ""
+              (globalPortId, OperatorResultMetadata(count, changeDetector))
+          }
           .toMap
       }
       WorkflowResultStore(newInfo)

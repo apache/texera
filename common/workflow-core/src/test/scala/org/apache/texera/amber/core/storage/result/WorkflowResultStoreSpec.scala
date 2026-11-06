@@ -19,7 +19,8 @@
 
 package org.apache.texera.amber.core.storage.result
 
-import org.apache.texera.amber.core.virtualidentity.OperatorIdentity
+import org.apache.texera.amber.core.virtualidentity.{OperatorIdentity, PhysicalOpIdentity}
+import org.apache.texera.amber.core.workflow.{GlobalPortIdentity, PortIdentity}
 import org.scalatest.flatspec.AnyFlatSpec
 
 class WorkflowResultStoreSpec extends AnyFlatSpec {
@@ -28,8 +29,16 @@ class WorkflowResultStoreSpec extends AnyFlatSpec {
   // Fixtures
   // ---------------------------------------------------------------------------
 
-  private val opA = OperatorIdentity("op-a")
-  private val opB = OperatorIdentity("op-b")
+  // Results are tracked per external output port, so the keys are global port ids.
+  private def outputPort(logicalOpId: String, portId: Int): GlobalPortIdentity =
+    GlobalPortIdentity(
+      PhysicalOpIdentity(OperatorIdentity(logicalOpId), "main"),
+      PortIdentity(portId),
+      input = false
+    )
+
+  private val opA = outputPort("op-a", 0)
+  private val opB = outputPort("op-b", 0)
 
   // ---------------------------------------------------------------------------
   // Default state
@@ -54,6 +63,21 @@ class WorkflowResultStoreSpec extends AnyFlatSpec {
     assert(store.resultInfo.size == 2)
     assert(store.resultInfo(opA) == OperatorResultMetadata(10, "h-a"))
     assert(store.resultInfo(opB) == OperatorResultMetadata(20, "h-b"))
+  }
+
+  it should "keep two output ports of one operator as two entries with their own counts" in {
+    // A Split-like operator writes one result document per output port; collapsing
+    // them onto the logical operator would make the second port overwrite the first.
+    val port0 = outputPort("op-split", 0)
+    val port1 = outputPort("op-split", 1)
+    val store = WorkflowResultStore(
+      Map(port0 -> OperatorResultMetadata(3), port1 -> OperatorResultMetadata(5))
+    )
+    assert(store.resultInfo.size == 2)
+    assert(store.resultInfo(port0).tupleCount == 3)
+    assert(store.resultInfo(port1).tupleCount == 5)
+    // Another operator's port with the same index is a different key.
+    assert(store.resultInfo.get(outputPort("op-other", 1)).isEmpty)
   }
 
   it should "preserve key identity (a missing key reads as None via .get)" in {
