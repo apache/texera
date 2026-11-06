@@ -180,6 +180,19 @@ class TestPauseManager:
         assert input_queue._queue.is_enabled(first)
         assert not input_queue._queue.is_enabled(second)
 
+    def test_releasing_one_of_two_holds_keeps_the_channel_paused(
+        self, pause_manager, input_queue
+    ):
+        channel = self._register_channel(input_queue, "shared")
+        pause_manager.pause_input_channel(PauseType.DEBUG_PAUSE, channel)
+        pause_manager.pause_input_channel(PauseType.ECM_PAUSE, channel)
+
+        pause_manager.resume(PauseType.DEBUG_PAUSE)
+        assert not input_queue._queue.is_enabled(channel)
+
+        pause_manager.resume(PauseType.ECM_PAUSE)
+        assert input_queue._queue.is_enabled(channel)
+
     def test_pause_with_change_state_false_leaves_the_state_alone(
         self, pause_manager, state_manager
     ):
