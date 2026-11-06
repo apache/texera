@@ -170,7 +170,7 @@ object DatasetResource {
   private def contributorEmail(contributor: Contributor): Option[String] =
     Option(contributor.email).map(EmailUtil.normalize).filter(_.nonEmpty)
 
-  def insertContributors(ctx: DSLContext, did: Integer, contributors: List[Contributor]): Unit = {
+  def validateContributors(contributors: List[Contributor]): Unit = {
     contributors.foreach { contributor =>
       if (contributor == null || contributor.name == null || contributor.name.trim.isEmpty) {
         throw new BadRequestException("Each contributor must have a name")
@@ -193,7 +193,10 @@ object DatasetResource {
     if (emails.distinct.size != emails.size) {
       throw new BadRequestException("Each contributor of a dataset must have a distinct email")
     }
+  }
 
+  def insertContributors(ctx: DSLContext, did: Integer, contributors: List[Contributor]): Unit = {
+    validateContributors(contributors)
     val records = contributors.map { contributor =>
       val record = ctx.newRecord(DATASET_CONTRIBUTOR)
       record.setDid(did)
@@ -341,6 +344,9 @@ class DatasetResource extends LazyLogging {
 
       validateDatasetName(datasetName)
       ResourceNaming.requireNameAvailable(ctx, DATASET_RESOURCE, uid, datasetName)
+      // Checked before anything is created, so a bad contributor leaves no row or repository behind.
+      val savedContributors = request.contributors.getOrElse(Nil)
+      DatasetResource.validateContributors(savedContributors)
 
       // insert the dataset into the database
       val dataset = new Dataset()
@@ -381,29 +387,30 @@ class DatasetResource extends LazyLogging {
           }
       }
 
-      // After the LakeFS call so placeholder inserts don't hold user-table locks across it.
-      val savedContributors = request.contributors.getOrElse(Nil)
-      DatasetResource.insertContributors(ctx, createdDataset.getDid, savedContributors)
+      LakeFSStorageClient.withRepoRollback(repositoryName) {
+        // After the LakeFS call so placeholder inserts don't hold user-table locks across it.
+        DatasetResource.insertContributors(ctx, createdDataset.getDid, savedContributors)
 
-      // update repository name of the created dataset
-      createdDataset.setRepositoryName(repositoryName)
-      createdDataset.update()
+        // update repository name of the created dataset
+        createdDataset.setRepositoryName(repositoryName)
+        createdDataset.update()
 
-      // Insert the requester as the WRITE access user for this dataset
-      val datasetUserAccess = new DatasetUserAccess()
-      datasetUserAccess.setDid(createdDataset.getDid)
-      datasetUserAccess.setUid(uid)
-      datasetUserAccess.setPrivilege(PrivilegeEnum.WRITE)
-      datasetUserAccessDao.insert(datasetUserAccess)
+        // Insert the requester as the WRITE access user for this dataset
+        val datasetUserAccess = new DatasetUserAccess()
+        datasetUserAccess.setDid(createdDataset.getDid)
+        datasetUserAccess.setUid(uid)
+        datasetUserAccess.setPrivilege(PrivilegeEnum.WRITE)
+        datasetUserAccessDao.insert(datasetUserAccess)
 
-      DashboardDataset(
-        createdDataset.into(classOf[Dataset]),
-        user.getEmail,
-        PrivilegeEnum.WRITE,
-        isOwner = true,
-        0,
-        savedContributors
-      )
+        DashboardDataset(
+          createdDataset.into(classOf[Dataset]),
+          user.getEmail,
+          PrivilegeEnum.WRITE,
+          isOwner = true,
+          0,
+          savedContributors
+        )
+      }
     }
   }
 
