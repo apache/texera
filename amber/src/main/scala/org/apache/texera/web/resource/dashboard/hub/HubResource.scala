@@ -140,14 +140,14 @@ object HubResource {
     * Records a user's action in the system.
     *
     * @param request The HTTP request object to extract the user's IP address.
-    * @param userId The ID of the user performing the action (default is 0 for anonymous users).
+    * @param userId The ID of the user performing the action; omitted (NULL) for an anonymous user.
     * @param entityId The ID of the entity associated with the action.
     * @param entityType The type of entity being acted upon (validated before processing).
     * @param action The action performed by the user ("like", "unlike", "view", "clone").
     */
   def recordUserAction(
       request: HttpServletRequest,
-      userId: Integer = Integer.valueOf(0),
+      userId: Integer = null,
       entityId: Integer,
       entityType: EntityType,
       action: ActionType
@@ -418,7 +418,9 @@ class HubResource {
       .returning(viewCountColumn)
       .fetchOne()
 
-    recordUserAction(request, userId, entityID, entityType, View)
+    // An anonymous viewer has no user row, so the view is recorded with a NULL uid.
+    val viewerUid = Option(userId).filter(_.intValue() > 0).orNull
+    recordUserAction(request, viewerUid, entityID, entityType, View)
 
     record.get(viewCountColumn)
   }

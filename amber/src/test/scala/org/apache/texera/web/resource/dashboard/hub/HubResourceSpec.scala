@@ -453,6 +453,13 @@ class HubResourceSpec
     auditRows() shouldBe Seq((Integer.valueOf(ownerUid), "workflow", 810102, "clone", null))
   }
 
+  it should "store a NULL uid when userId is omitted" in {
+    val id = seedWorkflow(810103, "wf_audit_anonymous")
+    recordUserAction(req, entityId = id, entityType = Wf, action = ActionType.View)
+
+    auditRows() shouldBe Seq((null, "workflow", 810103, "view", "127.0.0.1"))
+  }
+
   it should "tag each row with its own entity type, keeping equal ids apart" in {
     // Same numeric id on purpose: only resource_type separates the two rows.
     seedWorkflow(830001, "wf_shared_id")
@@ -792,6 +799,17 @@ class HubResourceSpec
 
     auditRows() shouldBe Seq(
       (Integer.valueOf(likerUid), "workflow", 810602, "view", "127.0.0.1")
+    )
+  }
+
+  it should "record an anonymous view (uid 0 or none) with a NULL uid" in {
+    val id = seedWorkflow(810603, "wf_view_anonymous")
+    hub.postView(req, ViewRequest(id, Integer.valueOf(0), Wf)) shouldBe 1
+    hub.postView(req, ViewRequest(id, null, Wf)) shouldBe 2
+
+    auditRows() shouldBe Seq(
+      (null, "workflow", 810603, "view", "127.0.0.1"),
+      (null, "workflow", 810603, "view", "127.0.0.1")
     )
   }
 
