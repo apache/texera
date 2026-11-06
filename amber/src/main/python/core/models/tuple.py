@@ -24,6 +24,7 @@ import struct
 import typing
 from collections import OrderedDict
 from copy import deepcopy as _deepcopy
+from dateutil.tz import tzlocal
 from loguru import logger
 from pandas._libs.missing import checknull
 from pympler import asizeof
@@ -472,7 +473,9 @@ class Tuple:
             AttributeType.LONG: lambda f: java_hash_long(f),
             AttributeType.DOUBLE: lambda f: java_hash_long(double_to_long(f)),
             AttributeType.STRING: lambda f: java_hash_bytes(map(ord, f), 0, salt),
-            AttributeType.TIMESTAMP: lambda f: java_hash_long(int(f.timestamp())),
+            AttributeType.TIMESTAMP: lambda f: java_hash_long(
+                int((f if f.tzinfo else f.replace(tzinfo=tzlocal())).timestamp())
+            ),
             AttributeType.BINARY: lambda f: java_hash_bytes(f, 1, salt),
         }
 
