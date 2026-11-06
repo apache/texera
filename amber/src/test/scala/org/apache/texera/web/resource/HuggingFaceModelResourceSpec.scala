@@ -20,6 +20,7 @@
 package org.apache.texera.web.resource
 
 import com.fasterxml.jackson.databind.{JsonNode, ObjectMapper}
+import com.sun.net.httpserver.HttpServer
 import kong.unirest.{
   Client,
   Headers,
@@ -35,7 +36,9 @@ import org.scalatest.BeforeAndAfterEach
 import org.scalatest.funsuite.AnyFunSuite
 
 import java.io.{ByteArrayInputStream, InputStream, InputStreamReader}
+import java.net.{Inet6Address, InetAddress, InetSocketAddress, UnknownHostException}
 import java.nio.charset.StandardCharsets
+import java.util.concurrent.atomic.AtomicInteger
 import java.util.function.{Function => JFunction}
 import javax.ws.rs.core.Response
 import scala.collection.mutable
@@ -46,9 +49,12 @@ import scala.jdk.CollectionConverters._
   * caching, and filesystem behavior of the resource.
   *
   * The HF Hub URLs are hard-coded in the resource, so the upstream calls are
-  * exercised by swapping Unirest's global HTTP client for an in-process stub
-  * (`StubClient` below) that serves canned responses and records the outgoing
-  * requests. Nothing in this suite touches the network.
+  * exercised by swapping Unirest's HTTP clients (the global one and the media
+  * proxy's own instance) for an in-process stub (`StubClient` below) that
+  * serves canned responses and records the outgoing requests. Media-host DNS
+  * lookups go through a fake resolver. Nothing in this suite leaves the
+  * machine: the one test that exercises the real HTTP client talks to a
+  * loopback server.
   */
 class HuggingFaceModelResourceSpec extends AnyFunSuite with BeforeAndAfterEach {
 
@@ -56,6 +62,7 @@ class HuggingFaceModelResourceSpec extends AnyFunSuite with BeforeAndAfterEach {
 
   private val mapper = new ObjectMapper()
   private var resource: HuggingFaceModelResource = _
+  private val realMediaHostResolver = resolveMediaHost
 
   override def beforeEach(): Unit = {
     resource = new HuggingFaceModelResource()
@@ -67,9 +74,11 @@ class HuggingFaceModelResourceSpec extends AnyFunSuite with BeforeAndAfterEach {
   override def afterEach(): Unit = {
     modelCache.invalidateAll()
     taskCache.invalidateAll()
-    // Drop any stub HTTP client this test installed so the global Unirest
-    // config never leaks between tests.
+    // Drop any stub HTTP client or fake resolver this test installed so
+    // neither leaks between tests.
     Unirest.config().reset()
+    mediaProxyHttp.config().reset()
+    resolveMediaHost = realMediaHostResolver
   }
 
   // Helper: read a Response's string entity (assumes the body is a String).
@@ -190,6 +199,89 @@ class HuggingFaceModelResourceSpec extends AnyFunSuite with BeforeAndAfterEach {
 
   test("isAllowedMediaHost rejects cloud metadata IP") {
     assert(!isAllowedMediaHost("169.254.169.254"))
+  }
+
+  test("isAllowedMediaHost accepts hf.co and its subdomains (Hub file downloads redirect there)") {
+    assert(isAllowedMediaHost("hf.co"))
+    assert(isAllowedMediaHost("us.aws.cdn.hf.co"))
+    assert(isAllowedMediaHost("cas-bridge.xethub.hf.co"))
+  }
+
+  test("isAllowedMediaHost rejects hf.co lookalikes (leading-dot guard)") {
+    assert(!isAllowedMediaHost("evilhf.co"))
+    assert(!isAllowedMediaHost("hf.co.evil.com"))
+  }
+
+  // ────────────────────────────────────────────────────────────────────────
+  // isPublicAddress — what a media host may resolve to
+  // ────────────────────────────────────────────────────────────────────────
+
+  // Parsing an IP literal never touches DNS.
+  private def ip(literal: String): InetAddress = InetAddress.getByName(literal)
+
+  private def assertAllPublic(literals: String*): Unit =
+    literals.foreach(a => assert(isPublicAddress(ip(a)), s"$a should be public"))
+
+  private def assertNonePublic(literals: String*): Unit =
+    literals.foreach(a => assert(!isPublicAddress(ip(a)), s"$a should not be public"))
+
+  test("isPublicAddress accepts globally routable IPv4 and IPv6 addresses") {
+    assertAllPublic("8.8.8.8", "1.1.1.1", "13.32.0.1", "2606:4700:4700::1111", "2a00:1450:4001::1")
+  }
+
+  test("isPublicAddress accepts addresses just outside the non-public ranges") {
+    assertAllPublic("172.15.255.255", "172.32.0.0", "100.63.255.255", "100.128.0.0", "11.0.0.0")
+  }
+
+  test("isPublicAddress rejects loopback and unspecified addresses") {
+    assertNonePublic("127.0.0.1", "127.255.255.254", "0.0.0.0", "::1", "::")
+  }
+
+  test("isPublicAddress rejects the RFC 1918 private ranges") {
+    assertNonePublic("10.0.0.1", "172.16.0.1", "172.31.255.255", "192.168.1.1")
+  }
+
+  test("isPublicAddress rejects link-local addresses, including the cloud metadata endpoint") {
+    assertNonePublic("169.254.169.254", "169.254.0.1", "fe80::1")
+  }
+
+  test("isPublicAddress rejects the shared address space (100.64.0.0/10)") {
+    // 100.100.100.200 is Alibaba Cloud's metadata endpoint.
+    assertNonePublic("100.64.0.1", "100.100.100.200", "100.127.255.255")
+  }
+
+  test(
+    "isPublicAddress rejects IPv6 unique-local addresses, including AWS's IPv6 metadata endpoint"
+  ) {
+    assertNonePublic("fc00::1", "fd00::1", "fd00:ec2::254")
+  }
+
+  test("isPublicAddress rejects multicast, reserved and documentation ranges") {
+    assertNonePublic(
+      "224.0.0.1",
+      "239.255.255.250",
+      "240.0.0.1",
+      "255.255.255.255",
+      "192.0.2.1",
+      "198.51.100.1",
+      "203.0.113.1",
+      "198.18.0.1",
+      "ff02::1",
+      "2001:db8::1"
+    )
+  }
+
+  test("isPublicAddress judges an IPv4 address embedded in IPv6 by the IPv4 address") {
+    // getByName unwraps ::ffff:a.b.c.d to IPv4, so build the IPv6 form directly.
+    val mappedLoopback =
+      Inet6Address.getByAddress(
+        null,
+        Array[Byte](0, 0, 0, 0, 0, 0, 0, 0, 0, 0, -1, -1, 127, 0, 0, 1),
+        -1
+      )
+    assert(!isPublicAddress(mappedLoopback))
+    assertNonePublic("::7f00:1", "64:ff9b::a00:1") // IPv4-compatible 127.0.0.1; NAT64 to 10.0.0.1
+    assertAllPublic("64:ff9b::808:808") // NAT64 to 8.8.8.8
   }
 
   // ────────────────────────────────────────────────────────────────────────
@@ -496,15 +588,29 @@ class HuggingFaceModelResourceSpec extends AnyFunSuite with BeforeAndAfterEach {
     override def registerShutdownHook(): Unit = ()
   }
 
-  /** Install a stub HTTP client for the duration of `body`. */
+  /** A public address for the fake resolver to hand back by default. */
+  private val publicAddress = InetAddress.getByName("8.8.8.8")
+
+  /**
+    * Install a stub HTTP client, on both the global Unirest config and the
+    * media proxy's own instance, for the duration of `body`. Media hosts
+    * resolve to a public address unless the test sets `resolveMediaHost`.
+    */
   private def withStubClient[A](handler: StubRequest => StubHttpResponse)(
       body: StubClient => A
   ): A = {
     val client = new StubClient(handler)
     Unirest.config().reset()
     Unirest.config().httpClient(client)
+    mediaProxyHttp.config().reset()
+    mediaProxyHttp.config().httpClient(client)
+    resolveMediaHost = _ => Seq(publicAddress)
     try body(client)
-    finally Unirest.config().reset()
+    finally {
+      Unirest.config().reset()
+      mediaProxyHttp.config().reset()
+      resolveMediaHost = realMediaHostResolver
+    }
   }
 
   /** A raw HF model payload; omitted fields exercise the defaulting branches. */
@@ -1069,5 +1175,262 @@ class HuggingFaceModelResourceSpec extends AnyFunSuite with BeforeAndAfterEach {
     assert(response.getStatus == 500)
     val node = mapper.readTree(entityString(response))
     assert(node.get("error").asText() == "Failed to proxy remote media.")
+  }
+
+  // ────────────────────────────────────────────────────────────────────────
+  // proxyRemoteMedia — scheme, resolved address and redirect re-validation
+  // ────────────────────────────────────────────────────────────────────────
+
+  private val mediaPayload = "PNG-fake-image-bytes".getBytes(StandardCharsets.UTF_8)
+
+  private def mediaOk: StubHttpResponse = bytesResponse(mediaPayload, "image/png")
+
+  private def redirectTo(location: String, status: Int = 302): StubHttpResponse =
+    bytesResponse(Array.emptyByteArray, "text/html", status, Map("Location" -> location))
+
+  test("proxyRemoteMedia refuses plain http even for an allowlisted host") {
+    val client = withStubClient(_ => mediaOk) { c =>
+      val response = resource.proxyRemoteMedia("http://cdn-lfs.huggingface.co/generated/image.png")
+      assert(response.getStatus == 400)
+      assertErrorBody(response)
+      c
+    }
+
+    assert(client.requests.isEmpty)
+  }
+
+  test("proxyRemoteMedia accepts an upper-case https scheme") {
+    val response = withStubClient(_ => mediaOk) { _ =>
+      resource.proxyRemoteMedia("HTTPS://cdn-lfs.huggingface.co/generated/image.png")
+    }
+
+    assert(response.getStatus == 200)
+    assert(entityBytes(response).sameElements(mediaPayload))
+  }
+
+  test("proxyRemoteMedia refuses an allowlisted host that resolves to a private address") {
+    val client = withStubClient(_ => mediaOk) { c =>
+      resolveMediaHost = _ => Seq(ip("10.0.0.7"))
+      val response = resource.proxyRemoteMedia(allowedMediaUrl)
+      assert(response.getStatus == 403)
+      assertErrorBody(response)
+      c
+    }
+
+    assert(client.requests.isEmpty)
+  }
+
+  test("proxyRemoteMedia refuses a host when any one of its addresses is not public") {
+    val client = withStubClient(_ => mediaOk) { c =>
+      resolveMediaHost = _ => Seq(publicAddress, ip("127.0.0.1"))
+      assert(resource.proxyRemoteMedia(allowedMediaUrl).getStatus == 403)
+      c
+    }
+
+    assert(client.requests.isEmpty)
+  }
+
+  test("proxyRemoteMedia refuses a host that resolves to no addresses at all") {
+    val client = withStubClient(_ => mediaOk) { c =>
+      resolveMediaHost = _ => Seq.empty
+      assert(resource.proxyRemoteMedia(allowedMediaUrl).getStatus == 403)
+      c
+    }
+
+    assert(client.requests.isEmpty)
+  }
+
+  test("proxyRemoteMedia returns 502 when the media host cannot be resolved") {
+    val client = withStubClient(_ => mediaOk) { c =>
+      resolveMediaHost = host => throw new UnknownHostException(host)
+      val response = resource.proxyRemoteMedia(allowedMediaUrl)
+      assert(response.getStatus == 502)
+      assertErrorBody(response)
+      c
+    }
+
+    assert(client.requests.isEmpty)
+  }
+
+  test("proxyRemoteMedia does not follow a redirect to a host off the allowlist") {
+    val client = withStubClient { req =>
+      if (req.url == allowedMediaUrl) redirectTo("https://internal.example/secret")
+      else bytesResponse("SECRET".getBytes(StandardCharsets.UTF_8), "text/plain")
+    } { c =>
+      val response = resource.proxyRemoteMedia(allowedMediaUrl)
+      assert(response.getStatus == 403)
+      assertErrorBody(response)
+      c
+    }
+
+    assert(client.urls == List(allowedMediaUrl))
+  }
+
+  test("proxyRemoteMedia does not follow a redirect to the cloud metadata address") {
+    val client = withStubClient { req =>
+      if (req.url == allowedMediaUrl) redirectTo("http://169.254.169.254/latest/meta-data/")
+      else bytesResponse("SECRET".getBytes(StandardCharsets.UTF_8), "text/plain")
+    } { c =>
+      assert(resource.proxyRemoteMedia(allowedMediaUrl).getStatus == 403)
+      c
+    }
+
+    assert(client.urls == List(allowedMediaUrl))
+  }
+
+  test("proxyRemoteMedia does not follow a redirect that downgrades to http") {
+    val client = withStubClient { req =>
+      if (req.url == allowedMediaUrl)
+        redirectTo("http://cdn-lfs.huggingface.co/generated/other.png")
+      else mediaOk
+    } { c =>
+      assert(resource.proxyRemoteMedia(allowedMediaUrl).getStatus == 400)
+      c
+    }
+
+    assert(client.urls == List(allowedMediaUrl))
+  }
+
+  test(
+    "proxyRemoteMedia does not follow a redirect to an allowlisted name that resolves privately"
+  ) {
+    val client = withStubClient { req =>
+      if (req.url == allowedMediaUrl) redirectTo("https://internal.huggingface.co/x.png")
+      else mediaOk
+    } { c =>
+      resolveMediaHost = {
+        case "internal.huggingface.co" => Seq(ip("192.168.0.10"))
+        case _                         => Seq(publicAddress)
+      }
+      assert(resource.proxyRemoteMedia(allowedMediaUrl).getStatus == 403)
+      c
+    }
+
+    assert(client.urls == List(allowedMediaUrl))
+  }
+
+  test("proxyRemoteMedia follows a Hub file redirect to the hf.co CDN and serves the final body") {
+    val hubFileUrl = "https://huggingface.co/datasets/org/repo/resolve/main/cat.png"
+    val cdnUrl = "https://us.aws.cdn.hf.co/xet-bridge-us/abc?Expires=1&Signature=x%7Ey"
+    val client = withStubClient { req =>
+      if (req.url == hubFileUrl) redirectTo(cdnUrl) else mediaOk
+    } { c =>
+      val response = resource.proxyRemoteMedia(hubFileUrl)
+      assert(response.getStatus == 200)
+      assert(entityBytes(response).sameElements(mediaPayload))
+      assert(response.getMediaType.toString == "image/png")
+      c
+    }
+
+    assert(client.urls == List(hubFileUrl, cdnUrl))
+  }
+
+  test("proxyRemoteMedia follows every redirect status code") {
+    val finalUrl = "https://cdn-lfs.huggingface.co/generated/final.png"
+    Seq(301, 302, 303, 307, 308).foreach { code =>
+      val response = withStubClient { req =>
+        if (req.url == allowedMediaUrl) redirectTo(finalUrl, code) else mediaOk
+      } { _ => resource.proxyRemoteMedia(allowedMediaUrl) }
+      assert(response.getStatus == 200, s"status $code was not followed")
+    }
+  }
+
+  test("proxyRemoteMedia resolves a relative redirect against the current URL") {
+    val client = withStubClient { req =>
+      if (req.url == allowedMediaUrl) redirectTo("/generated/final.png") else mediaOk
+    } { c =>
+      assert(resource.proxyRemoteMedia(allowedMediaUrl).getStatus == 200)
+      c
+    }
+
+    assert(
+      client.urls == List(allowedMediaUrl, "https://cdn-lfs.huggingface.co/generated/final.png")
+    )
+  }
+
+  private def hopUrl(n: Int): String = s"https://cdn-lfs.huggingface.co/hop/$n.png"
+
+  /** Each hop redirects to the next one until `lastHop`, which serves the media. */
+  private def redirectChain(lastHop: Int)(req: StubRequest): StubHttpResponse = {
+    val n = req.url.stripPrefix("https://cdn-lfs.huggingface.co/hop/").stripSuffix(".png").toInt
+    if (n < lastHop) redirectTo(hopUrl(n + 1)) else mediaOk
+  }
+
+  test("proxyRemoteMedia follows up to MAX_MEDIA_PROXY_REDIRECTS redirects") {
+    val client = withStubClient(redirectChain(MAX_MEDIA_PROXY_REDIRECTS)) { c =>
+      assert(resource.proxyRemoteMedia(hopUrl(0)).getStatus == 200)
+      c
+    }
+
+    assert(client.requests.size == MAX_MEDIA_PROXY_REDIRECTS + 1)
+  }
+
+  test("proxyRemoteMedia gives up after MAX_MEDIA_PROXY_REDIRECTS redirects") {
+    val client = withStubClient(redirectChain(Int.MaxValue)) { c =>
+      val response = resource.proxyRemoteMedia(hopUrl(0))
+      assert(response.getStatus == 502)
+      assertErrorBody(response)
+      c
+    }
+
+    assert(client.requests.size == MAX_MEDIA_PROXY_REDIRECTS + 1)
+  }
+
+  test("proxyRemoteMedia returns 502 for a redirect without a Location header") {
+    val client = withStubClient(_ => bytesResponse(Array.emptyByteArray, "text/html", 302)) { c =>
+      val response = resource.proxyRemoteMedia(allowedMediaUrl)
+      assert(response.getStatus == 502)
+      assertErrorBody(response)
+      c
+    }
+
+    assert(client.requests.size == 1)
+  }
+
+  test("proxyRemoteMedia returns 502 for a redirect whose Location is not a valid URL") {
+    val client = withStubClient(_ => redirectTo("https://cdn-lfs.huggingface.co/a b.png")) { c =>
+      assert(resource.proxyRemoteMedia(allowedMediaUrl).getStatus == 502)
+      c
+    }
+
+    assert(client.requests.size == 1)
+  }
+
+  // ────────────────────────────────────────────────────────────────────────
+  // The media proxy's own HTTP client (real client, loopback server)
+  // ────────────────────────────────────────────────────────────────────────
+
+  test("the media proxy's HTTP client does not follow redirects on its own") {
+    // Every hop has to come back to proxyRemoteMedia to be re-validated, so the
+    // real client must hand a 302 back instead of following it.
+    val targetHits = new AtomicInteger()
+    val server = HttpServer.create(new InetSocketAddress(InetAddress.getLoopbackAddress, 0), 0)
+    server.createContext(
+      "/start",
+      exchange => {
+        exchange.getResponseHeaders.add("Location", "/target")
+        exchange.sendResponseHeaders(302, -1)
+        exchange.close()
+      }
+    )
+    server.createContext(
+      "/target",
+      exchange => {
+        targetHits.incrementAndGet()
+        exchange.sendResponseHeaders(200, -1)
+        exchange.close()
+      }
+    )
+    server.start()
+    try {
+      val port = server.getAddress.getPort
+      val status = mediaProxyHttp.get(s"http://127.0.0.1:$port/start").asEmpty().getStatus
+      assert(status == 302)
+      assert(targetHits.get() == 0)
+    } finally server.stop(0)
+  }
+
+  test("the media proxy's redirect policy leaves the global Unirest config alone") {
+    assert(Unirest.config().getFollowRedirects)
   }
 }

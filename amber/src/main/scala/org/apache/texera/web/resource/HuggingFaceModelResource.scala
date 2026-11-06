@@ -22,16 +22,19 @@ package org.apache.texera.web.resource
 import com.fasterxml.jackson.core.`type`.TypeReference
 import com.fasterxml.jackson.databind.{JsonNode, ObjectMapper}
 import com.google.common.cache.{Cache, CacheBuilder}
-import kong.unirest.Unirest
+import kong.unirest.{RawResponse, Unirest, UnirestInstance}
 import org.slf4j.{Logger, LoggerFactory}
 
-import java.net.URI
+import java.net.{InetAddress, URI}
+import java.util.Locale
 import java.util.concurrent.{Callable, ForkJoinPool, TimeUnit}
 import java.util.stream.Collectors
 import javax.annotation.security.RolesAllowed
 import javax.ws.rs._
 import javax.ws.rs.core.{MediaType, Response}
+import scala.annotation.tailrec
 import scala.jdk.CollectionConverters._
+import scala.util.{Failure, Success, Try}
 
 /**
   * REST resource that proxies the Hugging Face Hub API for the HuggingFace operator.
@@ -96,8 +99,9 @@ class HuggingFaceModelResource {
 
   /**
     * Proxies a remote media URL to bypass browser CORS for HF inference responses.
-    * Only http(s) URLs whose host is in ALLOWED_MEDIA_HOST_SUFFIXES are accepted,
-    * blocking SSRF probes against internal services.
+    * Only https URLs whose host is in ALLOWED_MEDIA_HOST_SUFFIXES and resolves to
+    * public addresses are fetched, blocking SSRF probes against internal services.
+    * Redirects are followed by hand and every hop is held to the same rules.
     */
   @GET
   @Path("/media-proxy")
@@ -107,32 +111,8 @@ class HuggingFaceModelResource {
       if (trimmedUrl.isEmpty) {
         return errorResponse(Response.Status.BAD_REQUEST, "Media URL is required.")
       }
-      if (!trimmedUrl.startsWith("http://") && !trimmedUrl.startsWith("https://")) {
-        return errorResponse(
-          Response.Status.BAD_REQUEST,
-          "Only http(s) media URLs are supported."
-        )
-      }
 
-      val parsed =
-        try { new URI(trimmedUrl) }
-        catch { case _: Exception => null }
-      if (parsed == null || parsed.getHost == null || !isAllowedMediaHost(parsed.getHost)) {
-        return errorResponse(Response.Status.FORBIDDEN, "Media URL host is not allowed.")
-      }
-
-      // Stream the upstream response via asObject(Function<RawResponse, T>) so
-      // we never have to materialise it into a heap-resident byte[] before we
-      // can enforce the size cap. The function returns a MediaProxyOutcome
-      // that this method then converts into a Jersey Response.
-      val outcome = Unirest
-        .get(trimmedUrl)
-        .connectTimeout(CONNECT_TIMEOUT_MS)
-        .socketTimeout(SOCKET_TIMEOUT_LONG_MS)
-        .asObject((raw: kong.unirest.RawResponse) => streamMediaWithCap(raw))
-        .getBody
-
-      outcome match {
+      fetchMedia(trimmedUrl) match {
         case MediaProxyOk(bytes, contentType) =>
           Response.ok(bytes, contentType.getOrElse(MediaType.APPLICATION_OCTET_STREAM)).build()
         case MediaProxyError(status, message) =>
@@ -146,11 +126,90 @@ class HuggingFaceModelResource {
   }
 
   /**
+    * Fetch `url`, following at most MAX_MEDIA_PROXY_REDIRECTS redirects. The
+    * client never follows a redirect itself: each one comes back here, and the
+    * next hop is checked by `checkMediaUrl` before it is requested.
+    */
+  @tailrec
+  private def fetchMedia(url: String, redirectsFollowed: Int = 0): MediaProxyOutcome =
+    checkMediaUrl(url) match {
+      case Some(rejection) => rejection
+      case None            =>
+        // Stream the upstream response via asObject(Function<RawResponse, T>) so
+        // we never have to materialise it into a heap-resident byte[] before we
+        // can enforce the size cap.
+        val hop = mediaProxyHttp
+          .get(url)
+          .connectTimeout(CONNECT_TIMEOUT_MS)
+          .socketTimeout(SOCKET_TIMEOUT_LONG_MS)
+          .asObject((raw: RawResponse) => readMediaHop(raw))
+          .getBody
+
+        hop match {
+          case Right(outcome) => outcome
+          case Left(_) if redirectsFollowed >= MAX_MEDIA_PROXY_REDIRECTS =>
+            logger.warn(s"Upstream media exceeded $MAX_MEDIA_PROXY_REDIRECTS redirects; rejecting.")
+            UPSTREAM_MEDIA_FAILED
+          case Left(location) =>
+            resolveRedirect(url, location) match {
+              case Some(next) => fetchMedia(next, redirectsFollowed + 1)
+              case None =>
+                logger.warn(s"Upstream media sent an unusable redirect Location '$location'.")
+                UPSTREAM_MEDIA_FAILED
+            }
+        }
+    }
+
+  /** A redirect's Location (Left), or the streamed media outcome (Right). */
+  private def readMediaHop(raw: RawResponse): Either[String, MediaProxyOutcome] =
+    if (REDIRECT_STATUSES.contains(raw.getStatus)) Left(raw.getHeaders.getFirst("Location"))
+    else Right(streamMediaWithCap(raw))
+
+  /** Resolve a redirect's Location, which may be relative, against the URL that sent it. */
+  private def resolveRedirect(current: String, location: String): Option[String] =
+    Option(location).map(_.trim).filter(_.nonEmpty).flatMap { loc =>
+      Try(new URI(current).resolve(loc).toString).toOption
+    }
+
+  /**
+    * Check one URL before it is requested: the original and every redirect hop.
+    * Returns the error to send back, or None when the URL may be fetched: https,
+    * an allowlisted host, and every address the host resolves to public. The
+    * address check runs before the request, so it narrows but does not close
+    * DNS rebinding (the HTTP client resolves the host again to connect).
+    */
+  private def checkMediaUrl(url: String): Option[MediaProxyError] = {
+    val lower = url.toLowerCase(Locale.ROOT)
+    val httpsOnly =
+      MediaProxyError(
+        Response.Status.BAD_REQUEST.getStatusCode,
+        "Only https media URLs are supported."
+      )
+    val hostNotAllowed =
+      MediaProxyError(Response.Status.FORBIDDEN.getStatusCode, "Media URL host is not allowed.")
+
+    if (!lower.startsWith("http://") && !lower.startsWith("https://")) return Some(httpsOnly)
+    val host = Try(new URI(url)).toOption.flatMap(uri => Option(uri.getHost))
+    if (!host.exists(isAllowedMediaHost)) return Some(hostNotAllowed)
+    if (!lower.startsWith("https://")) return Some(httpsOnly)
+
+    Try(resolveMediaHost(host.get)) match {
+      case Failure(e) =>
+        logger.warn(s"Could not resolve media host '${host.get}': ${e.getMessage}")
+        Some(UPSTREAM_MEDIA_FAILED)
+      case Success(addresses) if addresses.isEmpty || !addresses.forall(isPublicAddress) =>
+        logger.warn(s"Media host '${host.get}' resolves to a non-public address; rejecting.")
+        Some(hostNotAllowed)
+      case Success(_) => None
+    }
+  }
+
+  /**
     * Read an upstream media response with a hard size cap. Aborts early both
     * when the declared Content-Length exceeds the cap and when the body crosses
     * it mid-read (in case the upstream lies about Content-Length or omits it).
     */
-  private def streamMediaWithCap(raw: kong.unirest.RawResponse): MediaProxyOutcome = {
+  private def streamMediaWithCap(raw: RawResponse): MediaProxyOutcome = {
     if (raw.getStatus != 200) {
       logger.warn(s"Upstream media fetch returned ${raw.getStatus}: ${raw.getStatusText}")
       return MediaProxyError(raw.getStatus, "Failed to fetch remote media.")
@@ -532,14 +591,100 @@ object HuggingFaceModelResource {
   private[resource] case class MediaProxyError(status: Int, message: String)
       extends MediaProxyOutcome
 
+  /** The upstream could not be reached or answered with an unusable redirect. */
+  private val UPSTREAM_MEDIA_FAILED =
+    MediaProxyError(Response.Status.BAD_GATEWAY.getStatusCode, "Failed to fetch remote media.")
+
+  // ── /media-proxy HTTP client ──
+  // Its own Unirest instance, so it can refuse to follow redirects without
+  // changing the global config the Hugging Face Hub calls use. fetchMedia
+  // follows redirects by hand and re-checks every hop.
+  private[resource] val mediaProxyHttp: UnirestInstance = {
+    val instance = Unirest.spawnInstance()
+    instance.config().followRedirects(false)
+    instance
+  }
+
+  private[resource] val MAX_MEDIA_PROXY_REDIRECTS = 5
+  private val REDIRECT_STATUSES = Set(301, 302, 303, 307, 308)
+
+  // How media hosts are resolved. A var only so tests can resolve without DNS.
+  @volatile private[resource] var resolveMediaHost: String => Seq[InetAddress] =
+    host => InetAddress.getAllByName(host).toSeq
+
   // ── /media-proxy allowlist (SSRF protection) ──
   // Add new hosts here when integrating with a new HF inference provider.
   private val ALLOWED_MEDIA_HOST_SUFFIXES: Set[String] = Set(
     "huggingface.co",
+    "hf.co", // Hub file downloads (/resolve/...) redirect to its CDN
     "fal.media",
     "replicate.delivery",
     "replicate.com"
   )
+
+  // ── /media-proxy resolved-address check (SSRF protection) ──
+  // Address blocks a media host must not resolve to: every range that is not
+  // globally routable (the IANA special-purpose registries) plus multicast,
+  // mirroring the is_global check the operator's generated Python applies to
+  // its own remote fetches.
+  private val NON_PUBLIC_ADDRESS_BLOCKS: Seq[(Array[Byte], Int)] = Seq(
+    "0.0.0.0/8", // "this" network
+    "10.0.0.0/8", // private
+    "100.64.0.0/10", // shared address space (carrier-grade NAT)
+    "127.0.0.0/8", // loopback
+    "169.254.0.0/16", // link-local, including the cloud metadata endpoint
+    "172.16.0.0/12", // private
+    "192.0.0.0/24", // IETF protocol assignments
+    "192.0.2.0/24", // documentation
+    "192.168.0.0/16", // private
+    "198.18.0.0/15", // benchmarking
+    "198.51.100.0/24", // documentation
+    "203.0.113.0/24", // documentation
+    "224.0.0.0/4", // multicast
+    "240.0.0.0/4", // reserved, including broadcast
+    "64:ff9b:1::/48", // local-use IPv4/IPv6 translation
+    "100::/64", // discard-only
+    "2001::/23", // IETF protocol assignments
+    "2001:db8::/32", // documentation
+    "2002::/16", // 6to4
+    "fc00::/7", // unique-local
+    "fe80::/10", // link-local
+    "fec0::/10", // site-local (deprecated)
+    "ff00::/8" // multicast
+  ).map { block =>
+    val parts = block.split('/')
+    (InetAddress.getByName(parts(0)).getAddress, parts(1).toInt)
+  }
+
+  private val NAT64_PREFIX: Array[Byte] = InetAddress.getByName("64:ff9b::").getAddress.take(12)
+
+  /** True when `address` is globally routable: outside every NON_PUBLIC_ADDRESS_BLOCKS entry. */
+  private[resource] def isPublicAddress(address: InetAddress): Boolean = {
+    val bytes = embeddedIpv4(address.getAddress).getOrElse(address.getAddress)
+    !NON_PUBLIC_ADDRESS_BLOCKS.exists {
+      case (network, prefixLength) => inBlock(bytes, network, prefixLength)
+    }
+  }
+
+  /**
+    * The IPv4 address inside an IPv4-mapped (::ffff:a.b.c.d), IPv4-compatible
+    * (::a.b.c.d) or NAT64 (64:ff9b::a.b.c.d) IPv6 address, so that it is judged
+    * by the IPv4 rules. This also maps :: and ::1 into 0.0.0.0/8.
+    */
+  private def embeddedIpv4(bytes: Array[Byte]): Option[Array[Byte]] = {
+    if (bytes.length != 16) return None
+    val zeroPrefix = bytes.take(10).forall(_ == 0)
+    val mapped = zeroPrefix && bytes(10) == -1 && bytes(11) == -1
+    val compatible = zeroPrefix && bytes(10) == 0 && bytes(11) == 0
+    val nat64 = bytes.take(12).sameElements(NAT64_PREFIX)
+    if (mapped || compatible || nat64) Some(bytes.drop(12)) else None
+  }
+
+  private def inBlock(address: Array[Byte], network: Array[Byte], prefixLength: Int): Boolean =
+    address.length == network.length && (0 until prefixLength).forall { bit =>
+      val mask = 0x80 >>> (bit % 8)
+      (address(bit / 8) & mask) == (network(bit / 8) & mask)
+    }
 
   /** Allow exact host or subdomain of any entry in ALLOWED_MEDIA_HOST_SUFFIXES. */
   private[resource] def isAllowedMediaHost(host: String): Boolean = {
