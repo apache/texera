@@ -230,6 +230,12 @@ class SchedulingConfigsSpec extends AnyFlatSpec {
     assert(cfg.storageURIs == List(uri))
   }
 
+  it should "default cachedTupleCount to None" in {
+    val uri = new URI("vfs:///wid/1/eid/1/result")
+    assert(OutputPortConfig(uri).cachedTupleCount.isEmpty)
+    assert(OutputPortConfig(uri, Some(4L)).cachedTupleCount.contains(4L))
+  }
+
   "IntermediateInputPortConfig" should "expose every URI it was constructed with" in {
     val uris = List(new URI("vfs:///a"), new URI("vfs:///b"))
     val cfg = IntermediateInputPortConfig(uris)
