@@ -132,13 +132,11 @@ class SklearnTestingOpDesc
     val isRegressionStr = if (isRegression) "True" else "False"
     val modelLit = pyStringLiteral(model)
     val targetLit = pyStringLiteral(target)
+    // Drops on every column as the executor does, since a fitted model hides its estimator.
+    // Each row's model scores the frame itself, kept two-dimensional for predict.
     s"""from sklearn.metrics import accuracy_score, f1_score, precision_score, recall_score, root_mean_squared_error, mean_absolute_error, r2_score
        |
        |out1df = in1df.copy()
-       |# The same drop the executor makes before it scores: the model arrives
-       |# already fitted, so this operator cannot ask which estimator it holds and
-       |# drops on every column to be safe. Scoring the rows it skips would answer
-       |# with a number the run never reported, or fail inside scikit-learn.
        |rows_read = len(in2df)
        |scored_df = in2df.dropna()
        |if len(scored_df) < rows_read:
@@ -146,14 +144,6 @@ class SklearnTestingOpDesc
        |Y = scored_df[$targetLit]
        |X = scored_df.drop($targetLit, axis=1)
        |${narrowToFittableColumns("X", "")}
-       |# predict wants (n_samples, n_features). Squeezing the frame first collapsed
-       |# a single feature, or a single surviving row, to one dimension, which
-       |# scikit-learn rejects.
-       |#
-       |# The model port carries one model per row and the executor scores each of
-       |# them on its own, so a row has to be given the score of the model it holds.
-       |# One score written down the column would report the first model's answer
-       |# for all of them.
        |predictions = [_model.predict(X) for _model in in1df[$modelLit]]
        |if $isRegressionStr:
        |    out1df["R2"] = [r2_score(Y, _p) for _p in predictions]

@@ -107,7 +107,8 @@ export class ResourceRegistryService {
     if (descriptor.hubRoute === undefined) {
       return [descriptor.privateRoute, String(entry.id)];
     }
-    const reachableByViewer = currentUid !== undefined && entry.accessibleUserIds.includes(currentUid);
+    const reachableByViewer =
+      currentUid !== undefined && (entry.ownerId === currentUid || entry.accessibleUserIds.includes(currentUid));
     return [reachableByViewer ? descriptor.privateRoute : descriptor.hubRoute, String(entry.id)];
   }
 }
