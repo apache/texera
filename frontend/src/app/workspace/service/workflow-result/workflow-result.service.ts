@@ -24,6 +24,7 @@ import {
   WebDataUpdate,
   WebPaginationUpdate,
   WebResultUpdate,
+  WorkflowPortResultUpdate,
   WorkflowResultTableStats,
   WorkflowResultUpdate,
 } from "../../types/execute-workflow.interface";
@@ -45,10 +46,16 @@ export class WorkflowResultService {
   private paginatedResultServices = new Map<string, OperatorPaginationResultService>();
   // the services for an operator's output ports past the first, keyed "operatorID:portIndex"
   private otherPortResultServices = new Map<string, OperatorPaginationResultService>();
+  // the "operatorID:portIndex" keys of those services a live update of their port made or fed
+  private livePaginatedPorts = new Set<string>();
+  // the visualization results of an operator's output ports past the first, keyed "operatorID:portIndex"
+  private otherPortDataServices = new Map<string, OperatorResultService>();
   private operatorResultServices = new Map<string, OperatorResultService>();
 
   // event stream of operator result update, undefined indicates the operator result is cleared
   private resultUpdateStream = new Subject<Record<string, WebResultUpdate | undefined>>();
+  // event stream of the updates of operators' output ports past the first
+  private portResultUpdateStream = new Subject<WorkflowPortResultUpdate>();
   private resultTableStats = new ReplaySubject<Record<string, Record<string, Record<string, number>>>>(1);
   private resultInitiateStream = new Subject<string>();
   // emits when clearResults() drops cached results, so the UI can drop stale frames
@@ -58,6 +65,7 @@ export class WorkflowResultService {
     this.wsService.subscribeToEvent("WebResultUpdateEvent").subscribe(event => {
       this.handleResultUpdate(event.updates);
       this.handleTableStatsUpdate(event.tableStats);
+      this.handlePortResultUpdate(event.portUpdates ?? {});
     });
     this.resultTableStats.next({});
   }
@@ -92,6 +100,11 @@ export class WorkflowResultService {
     return this.resultUpdateStream;
   }
 
+  /** Emits the updates of operators' output ports past the first, once their services took them. */
+  public getPortResultUpdateStream(): Observable<WorkflowPortResultUpdate> {
+    return this.portResultUpdateStream.asObservable();
+  }
+
   public getResultTableStats(): Observable<
     [Record<string, Record<string, Record<string, number>>>, Record<string, Record<string, Record<string, number>>>]
   > {
@@ -115,19 +128,21 @@ export class WorkflowResultService {
   }
 
   /**
-   * The service that pages one of the operator's output ports. The first port's is the one the
-   * running execution keeps up to date. Any other port is read only when asked, so its service is
-   * made on the first ask, for an operator whose result is a table.
+   * The service that pages one of the operator's output ports. A port past the first gets its service
+   * from its live updates, or, for an operator whose first port is a table, on the first ask. A port
+   * whose result is a visualization has none.
    */
   public getPortPaginatedResultService(
     operatorID: string,
     portIndex: number
   ): OperatorPaginationResultService | undefined {
     const firstPort = this.getPaginatedResultService(operatorID);
-    if (portIndex === 0 || !firstPort) return firstPort;
-    const key = `${operatorID}:${portIndex}`;
+    if (portIndex === 0) return firstPort;
+    const key = portKey(operatorID, portIndex);
+    // a port whose result is a visualization is not paged
+    if (this.otherPortDataServices.has(key)) return undefined;
     let service = this.otherPortResultServices.get(key);
-    if (!service) {
+    if (!service && firstPort) {
       service = new OperatorPaginationResultService(operatorID, this.wsService, portIndex);
       this.otherPortResultServices.set(key, service);
     }
@@ -136,6 +151,22 @@ export class WorkflowResultService {
 
   public getResultService(operatorID: string): OperatorResultService | undefined {
     return this.operatorResultServices.get(operatorID);
+  }
+
+  /** The visualization result of one of the operator's output ports. */
+  public getPortResultService(operatorID: string, portIndex: number): OperatorResultService | undefined {
+    if (portIndex === 0) return this.getResultService(operatorID);
+    return this.otherPortDataServices.get(portKey(operatorID, portIndex));
+  }
+
+  /** The indices of the operator's output ports that have a result, ascending. */
+  public getResultPortIndices(operatorID: string): number[] {
+    const indices = this.hasAnyResult(operatorID) ? [0] : [];
+    const prefix = `${operatorID}:`;
+    [...this.livePaginatedPorts, ...this.otherPortDataServices.keys()]
+      .filter(key => key.startsWith(prefix))
+      .forEach(key => indices.push(Number(key.slice(prefix.length))));
+    return indices.sort((a, b) => a - b);
   }
 
   /**
@@ -147,6 +178,8 @@ export class WorkflowResultService {
     this.operatorResultServices.clear();
     this.paginatedResultServices.clear();
     this.otherPortResultServices.clear();
+    this.livePaginatedPorts.clear();
+    this.otherPortDataServices.clear();
     this.resultTableStats.next({});
     this.resultClearedStream.next();
   }
@@ -167,6 +200,46 @@ export class WorkflowResultService {
       }
     });
     this.resultUpdateStream.next(event);
+  }
+
+  private handlePortResultUpdate(event: WorkflowPortResultUpdate): void {
+    const operatorIDs = Object.keys(event);
+    operatorIDs.forEach(operatorID =>
+      Object.entries(event[operatorID]).forEach(([port, update]) => {
+        const portIndex = Number(port);
+        const key = portKey(operatorID, portIndex);
+        // a port's result that is new, or that turned from a table into a visualization or back, is
+        // announced, so a panel showing the port mounts the frame for its kind
+        let announce = false;
+        if (isWebPaginationUpdate(update)) {
+          announce = !this.livePaginatedPorts.has(key);
+          let service = this.otherPortResultServices.get(key);
+          if (!service) {
+            service = new OperatorPaginationResultService(operatorID, this.wsService, portIndex);
+            this.otherPortResultServices.set(key, service);
+          }
+          service.handleResultUpdate(update);
+          this.otherPortDataServices.delete(key);
+          this.livePaginatedPorts.add(key);
+        } else if (isWebDataUpdate(update)) {
+          let service = this.otherPortDataServices.get(key);
+          announce = !service;
+          if (!service) {
+            service = new OperatorResultService(operatorID);
+            this.otherPortDataServices.set(key, service);
+          }
+          service.handleResultUpdate(update);
+          this.otherPortResultServices.delete(key);
+          this.livePaginatedPorts.delete(key);
+        }
+        if (announce) {
+          this.resultInitiateStream.next(operatorID);
+        }
+      })
+    );
+    if (operatorIDs.length > 0) {
+      this.portResultUpdateStream.next(event);
+    }
   }
 
   private handleTableStatsUpdate(event: WorkflowResultTableStats): void {
@@ -197,26 +270,35 @@ export class WorkflowResultService {
     return service;
   }
 
-  public determineOutputTypes(operatorId: string): {
+  public determineOutputTypes(
+    operatorId: string,
+    portIndex: number = 0
+  ): {
     hasAnyResult: boolean;
     isTableOutput: boolean;
     isVisualizationOutput: boolean;
     containsBinaryData: boolean;
   } {
-    const resultService = this.getResultService(operatorId);
-    const paginatedResultService = this.getPaginatedResultService(operatorId);
+    const resultService = this.getPortResultService(operatorId, portIndex);
+    const paginatedResultService =
+      portIndex === 0
+        ? this.getPaginatedResultService(operatorId)
+        : // a port asked about before it has a result has a service, but no result
+          this.livePaginatedPorts.has(portKey(operatorId, portIndex))
+          ? this.otherPortResultServices.get(portKey(operatorId, portIndex))
+          : undefined;
 
     return {
-      hasAnyResult: this.hasAnyResult(operatorId),
+      hasAnyResult: resultService !== undefined || paginatedResultService !== undefined,
       isTableOutput: this.hasTableOutput(paginatedResultService),
       containsBinaryData: this.hasBinaryData(paginatedResultService),
       isVisualizationOutput: this.hasVisualizationOutput(resultService, paginatedResultService),
     };
   }
 
-  public determineOutputExtension(operatorId: string, defaultExtension: string = "csv"): string {
+  public determineOutputExtension(operatorId: string, defaultExtension: string = "csv", portIndex: number = 0): string {
     if (defaultExtension === "data") return defaultExtension;
-    var outputType = this.determineOutputTypes(operatorId);
+    var outputType = this.determineOutputTypes(operatorId, portIndex);
 
     if (outputType.isVisualizationOutput) return "html";
     if (outputType.isTableOutput && defaultExtension === "csv") return "csv";
@@ -237,6 +319,10 @@ export class WorkflowResultService {
   ): boolean {
     return resultService !== undefined && paginatedResultService === undefined;
   }
+}
+
+function portKey(operatorID: string, portIndex: number): string {
+  return `${operatorID}:${portIndex}`;
 }
 
 export class OperatorResultService {

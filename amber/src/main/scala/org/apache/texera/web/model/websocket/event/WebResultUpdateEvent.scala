@@ -21,7 +21,13 @@ package org.apache.texera.web.model.websocket.event
 
 import org.apache.texera.web.service.ExecutionResultService.WebResultUpdate
 
+/**
+  * The result updates of one poll. `updates` and `tableStats` are about each operator's first output
+  * port. `portUpdates` holds the operator's other output ports, keyed by operator id and then by port
+  * index (a JSON string key, e.g. `{"Split-1": {"1": ...}}`); only ports whose result changed are in it.
+  */
 case class WebResultUpdateEvent(
     updates: Map[String, WebResultUpdate],
-    tableStats: Map[String, Map[String, Map[String, Any]]]
+    tableStats: Map[String, Map[String, Map[String, Any]]],
+    portUpdates: Map[String, Map[Int, WebResultUpdate]]
 ) extends TexeraWebSocketEvent

@@ -125,11 +125,16 @@ export type WebResultUpdate = WebPaginationUpdate | WebDataUpdate;
 
 export type WorkflowResultUpdate = Record<string, WebResultUpdate>;
 export type WorkflowResultTableStats = Record<string, Record<string, Record<string, number>>>;
+// the updates of an operator's output ports past the first, keyed by operator id and then by port index
+export type WorkflowPortResultUpdate = Record<string, Record<string, WebResultUpdate>>;
 
 export interface WorkflowResultUpdateEvent
   extends Readonly<{
+    // each operator's first output port
     updates: WorkflowResultUpdate;
     tableStats: WorkflowResultTableStats;
+    // the other output ports whose result changed; an older server leaves it out
+    portUpdates?: WorkflowPortResultUpdate;
   }> {}
 
 // user-defined type guards to check the type of the result update

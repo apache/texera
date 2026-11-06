@@ -143,6 +143,370 @@ describe("WorkflowResultService", () => {
     });
   });
 
+  describe("live updates of output ports past the first", () => {
+    let ws: WorkflowWebsocketService;
+
+    beforeEach(() => {
+      ws = TestBed.inject(WorkflowWebsocketService);
+    });
+
+    it("tolerates an event that carries no portUpdates", () => {
+      const portEvents: unknown[] = [];
+      service.getPortResultUpdateStream().subscribe(e => portEvents.push(e));
+
+      expect(() =>
+        pushWsEvent(ws, { type: "WebResultUpdateEvent", updates: { op: paginationUpdate(2) }, tableStats: {} })
+      ).not.toThrow();
+
+      expect(service.getPaginatedResultService("op")!.getCurrentTotalNumTuples()).toBe(2);
+      expect(service.getResultPortIndices("op")).toEqual([0]);
+      expect(portEvents).toEqual([]);
+    });
+
+    it("feeds a later port's page update to that port's service, never to the first port's", () => {
+      const updateEvents: unknown[] = [];
+      service.getResultUpdateStream().subscribe(u => updateEvents.push(u));
+      const updates = { split: paginationUpdate(3) };
+
+      pushWsEvent(ws, {
+        type: "WebResultUpdateEvent",
+        updates,
+        tableStats: {},
+        portUpdates: { split: { "1": paginationUpdate(9) } },
+      });
+
+      const first = service.getPaginatedResultService("split")!;
+      const second = service.getPortPaginatedResultService("split", 1)!;
+      expect(first.getCurrentTotalNumTuples()).toBe(3);
+      expect(second.getCurrentTotalNumTuples()).toBe(9);
+      expect(second.portIndex).toBe(1);
+      expect(second).not.toBe(first);
+      // the first port's stream carries the first port's record only
+      expect(updateEvents).toEqual([updates]);
+    });
+
+    it("keeps the live count of a later port that was already being paged", () => {
+      pushWsEvent(ws, { type: "WebResultUpdateEvent", updates: { split: paginationUpdate(3) }, tableStats: {} });
+      // the result panel asks for the port before any live update names it
+      const paged = service.getPortPaginatedResultService("split", 1)!;
+
+      pushWsEvent(ws, {
+        type: "WebResultUpdateEvent",
+        updates: {},
+        tableStats: {},
+        portUpdates: { split: { "1": paginationUpdate(4) } },
+      });
+      pushWsEvent(ws, {
+        type: "WebResultUpdateEvent",
+        updates: {},
+        tableStats: {},
+        portUpdates: { split: { "1": paginationUpdate(10) } },
+      });
+
+      // one service per port: the live update reaches the one already on screen
+      expect(service.getPortPaginatedResultService("split", 1)).toBe(paged);
+      expect(paged.getCurrentTotalNumTuples()).toBe(10);
+    });
+
+    it("makes a later port's table service even when the first port is a visualization", () => {
+      pushWsEvent(ws, {
+        type: "WebResultUpdateEvent",
+        updates: { op: snapshotUpdate([{ "html-content": "<div/>" }]) },
+        tableStats: {},
+        portUpdates: { op: { "1": paginationUpdate(4) } },
+      });
+
+      const second = service.getPortPaginatedResultService("op", 1);
+      expect(second).toBeDefined();
+      expect(second!.portIndex).toBe(1);
+      expect(second!.getCurrentTotalNumTuples()).toBe(4);
+      // port 1's table neither turns port 0 into a table nor drops port 0's visualization
+      expect(service.hasResult("op")).toBe(true);
+      expect(service.hasPaginatedResult("op")).toBe(false);
+      expect(service.getPortPaginatedResultService("op", 0)).toBeUndefined();
+      expect(service.getResultPortIndices("op")).toEqual([0, 1]);
+    });
+
+    it("keeps a table on port 0 and a visualization on port 1 side by side", () => {
+      pushWsEvent(ws, {
+        type: "WebResultUpdateEvent",
+        updates: { op: paginationUpdate(4) },
+        tableStats: {},
+        portUpdates: { op: { "1": snapshotUpdate([{ "html-content": "<div/>" }]) } },
+      });
+
+      expect(service.getPortResultService("op", 1)!.getCurrentResultSnapshot()).toEqual([{ "html-content": "<div/>" }]);
+      // the port-1 data update must not evict port 0's table, nor make port 0 a visualization
+      expect(service.hasPaginatedResult("op")).toBe(true);
+      expect(service.hasResult("op")).toBe(false);
+      expect(service.getPortResultService("op", 0)).toBeUndefined();
+    });
+
+    it("gives the first port's result service for port 0", () => {
+      pushWsEvent(ws, { type: "WebResultUpdateEvent", updates: { viz: snapshotUpdate([{ a: 1 }]) }, tableStats: {} });
+
+      expect(service.getPortResultService("viz", 0)).toBe(service.getResultService("viz"));
+      expect(service.getPortResultService("viz", 1)).toBeUndefined();
+      expect(service.getPortResultService("never-ran", 0)).toBeUndefined();
+    });
+
+    it("drops a later port's service of the other kind when the port switches output", () => {
+      // port 0 is a visualization, so no table service is made for port 1 on request
+      const port0 = { op: snapshotUpdate([]) };
+      pushWsEvent(ws, {
+        type: "WebResultUpdateEvent",
+        updates: port0,
+        tableStats: {},
+        portUpdates: { op: { "1": paginationUpdate(2) } },
+      });
+      expect(service.getPortPaginatedResultService("op", 1)).toBeDefined();
+      expect(service.getPortResultService("op", 1)).toBeUndefined();
+
+      pushWsEvent(ws, {
+        type: "WebResultUpdateEvent",
+        updates: {},
+        tableStats: {},
+        portUpdates: { op: { "1": snapshotUpdate([{ b: 2 }]) } },
+      });
+      expect(service.getPortPaginatedResultService("op", 1)).toBeUndefined();
+      expect(service.getPortResultService("op", 1)!.getCurrentResultSnapshot()).toEqual([{ b: 2 }]);
+
+      pushWsEvent(ws, {
+        type: "WebResultUpdateEvent",
+        updates: {},
+        tableStats: {},
+        portUpdates: { op: { "1": paginationUpdate(5) } },
+      });
+      expect(service.getPortResultService("op", 1)).toBeUndefined();
+      expect(service.getPortPaginatedResultService("op", 1)!.getCurrentTotalNumTuples()).toBe(5);
+      expect(service.getResultPortIndices("op")).toEqual([0, 1]);
+    });
+
+    it("reuses a later port's result service and replaces its snapshot", () => {
+      pushWsEvent(ws, {
+        type: "WebResultUpdateEvent",
+        updates: {},
+        tableStats: {},
+        portUpdates: { op: { "2": snapshotUpdate([{ a: 1 }]) } },
+      });
+      const first = service.getPortResultService("op", 2);
+
+      pushWsEvent(ws, {
+        type: "WebResultUpdateEvent",
+        updates: {},
+        tableStats: {},
+        portUpdates: { op: { "2": snapshotUpdate([{ b: 2 }]) } },
+      });
+
+      expect(service.getPortResultService("op", 2)).toBe(first);
+      expect(first!.getCurrentResultSnapshot()).toEqual([{ b: 2 }]);
+    });
+
+    it("announces the operator again when a later port's result first appears", () => {
+      const initiated: string[] = [];
+      service.getResultInitiateStream().subscribe(op => initiated.push(op));
+
+      pushWsEvent(ws, { type: "WebResultUpdateEvent", updates: { op: paginationUpdate(1) }, tableStats: {} });
+      pushWsEvent(ws, {
+        type: "WebResultUpdateEvent",
+        updates: {},
+        tableStats: {},
+        portUpdates: { op: { "1": paginationUpdate(1) } },
+      });
+      // a repeat on port 1 is not a new result
+      pushWsEvent(ws, {
+        type: "WebResultUpdateEvent",
+        updates: {},
+        tableStats: {},
+        portUpdates: { op: { "1": paginationUpdate(2) } },
+      });
+      // a visualization appearing on port 2 is
+      pushWsEvent(ws, {
+        type: "WebResultUpdateEvent",
+        updates: {},
+        tableStats: {},
+        portUpdates: { op: { "2": snapshotUpdate([]) } },
+      });
+
+      // so a panel already showing the operator re-renders and gains the new port's tab
+      expect(initiated).toEqual(["op", "op", "op"]);
+    });
+
+    it("lists the ports with a result in ascending numeric order", () => {
+      pushWsEvent(ws, {
+        type: "WebResultUpdateEvent",
+        updates: { split: paginationUpdate(1) },
+        tableStats: {},
+        // keys out of order, "10" sorts before "2" as a string, and one port is a visualization
+        portUpdates: { split: { "10": paginationUpdate(1), "2": snapshotUpdate([]) } },
+      });
+
+      expect(service.getResultPortIndices("split")).toEqual([0, 2, 10]);
+      expect(service.getResultPortIndices("never-ran")).toEqual([]);
+    });
+
+    // The contract: a newly created port service, of either kind, is announced. A port that switches
+    // between a table and a visualization gets a new service of the other kind, and the panel has to
+    // re-render to swap the frame it shows for that port, just as it does for port 0.
+    it("announces the operator when a later port switches between a table and a visualization", () => {
+      const initiated: string[] = [];
+      service.getResultInitiateStream().subscribe(op => initiated.push(op));
+      const portUpdate = (update: unknown) =>
+        pushWsEvent(ws, {
+          type: "WebResultUpdateEvent",
+          updates: {},
+          tableStats: {},
+          portUpdates: { op: { "1": update } },
+        });
+
+      portUpdate(paginationUpdate(1));
+      portUpdate(snapshotUpdate([{ a: 1 }]));
+      portUpdate(paginationUpdate(2));
+
+      expect(initiated).toEqual(["op", "op", "op"]);
+    });
+
+    it("keeps the ports of an operator whose id another operator's id begins with apart", () => {
+      pushWsEvent(ws, {
+        type: "WebResultUpdateEvent",
+        updates: {},
+        tableStats: {},
+        portUpdates: { op1: { "1": paginationUpdate(1) }, op10: { "2": paginationUpdate(1) } },
+      });
+
+      expect(service.getResultPortIndices("op1")).toEqual([1]);
+      expect(service.getResultPortIndices("op10")).toEqual([2]);
+    });
+
+    it("lists a later port of an operator whose first port has no result", () => {
+      pushWsEvent(ws, {
+        type: "WebResultUpdateEvent",
+        updates: {},
+        tableStats: {},
+        portUpdates: { op: { "1": paginationUpdate(2) } },
+      });
+
+      expect(service.getResultPortIndices("op")).toEqual([1]);
+    });
+
+    it("does not list a port whose service was only made on request", () => {
+      pushWsEvent(ws, { type: "WebResultUpdateEvent", updates: { split: paginationUpdate(1) }, tableStats: {} });
+
+      service.getPortPaginatedResultService("split", 1);
+
+      // asking for a port is not evidence that it has a result
+      expect(service.getResultPortIndices("split")).toEqual([0]);
+    });
+
+    it("republishes each event's portUpdates once the services are up to date", () => {
+      const portEvents: unknown[] = [];
+      const countAtEmit: (number | undefined)[] = [];
+      service.getPortResultUpdateStream().subscribe(e => {
+        portEvents.push(e);
+        countAtEmit.push(service.getPortPaginatedResultService("split", 1)?.getCurrentTotalNumTuples());
+      });
+      const portUpdates = { split: { "1": paginationUpdate(7) } };
+
+      pushWsEvent(ws, { type: "WebResultUpdateEvent", updates: {}, tableStats: {}, portUpdates });
+      // an event whose portUpdates is empty, or missing, is not republished
+      pushWsEvent(ws, { type: "WebResultUpdateEvent", updates: {}, tableStats: {}, portUpdates: {} });
+      pushWsEvent(ws, { type: "WebResultUpdateEvent", updates: { split: paginationUpdate(1) }, tableStats: {} });
+
+      expect(portEvents).toEqual([portUpdates]);
+      expect(countAtEmit).toEqual([7]);
+    });
+
+    it("clearResults drops the services of every port, of both kinds", () => {
+      pushWsEvent(ws, {
+        type: "WebResultUpdateEvent",
+        updates: { op: snapshotUpdate([]) },
+        tableStats: {},
+        portUpdates: { op: { "1": paginationUpdate(2), "2": snapshotUpdate([{ a: 1 }]) } },
+      });
+      const oldSecond = service.getPortPaginatedResultService("op", 1);
+
+      service.clearResults();
+
+      expect(service.getResultPortIndices("op")).toEqual([]);
+      expect(service.getPortPaginatedResultService("op", 1)).toBeUndefined();
+      expect(service.getPortResultService("op", 2)).toBeUndefined();
+
+      // a later run starts from a fresh service, with a fresh count
+      pushWsEvent(ws, {
+        type: "WebResultUpdateEvent",
+        updates: {},
+        tableStats: {},
+        portUpdates: { op: { "1": paginationUpdate(5) } },
+      });
+      expect(service.getPortPaginatedResultService("op", 1)).not.toBe(oldSecond);
+      expect(service.getResultPortIndices("op")).toEqual([1]);
+    });
+
+    it("determineOutputTypes and determineOutputExtension answer for the port asked about", () => {
+      pushWsEvent(ws, {
+        type: "WebResultUpdateEvent",
+        updates: { op: paginationUpdate(4) },
+        tableStats: {},
+        portUpdates: { op: { "1": snapshotUpdate([{ a: 1 }]) } },
+      });
+
+      expect(service.determineOutputTypes("op", 0)).toEqual({
+        hasAnyResult: true,
+        isTableOutput: true,
+        containsBinaryData: false,
+        isVisualizationOutput: false,
+      });
+      expect(service.determineOutputTypes("op", 1)).toMatchObject({
+        isTableOutput: false,
+        containsBinaryData: false,
+        isVisualizationOutput: true,
+      });
+      expect(service.determineOutputExtension("op", "csv", 0)).toBe("csv");
+      expect(service.determineOutputExtension("op", "csv", 1)).toBe("html");
+      // without a port, the first one
+      expect(service.determineOutputTypes("op")).toEqual(service.determineOutputTypes("op", 0));
+      expect(service.determineOutputExtension("op", "csv")).toBe("csv");
+    });
+
+    it("determineOutputTypes reports no result for a later port that was only asked about", () => {
+      pushWsEvent(ws, { type: "WebResultUpdateEvent", updates: { op: paginationUpdate(4) }, tableStats: {} });
+      // port 0 is a table, so asking for port 1 makes it a service before any result of its own
+      service.getPortPaginatedResultService("op", 1);
+
+      expect(service.determineOutputTypes("op", 1)).toEqual({
+        hasAnyResult: false,
+        isTableOutput: false,
+        containsBinaryData: false,
+        isVisualizationOutput: false,
+      });
+    });
+
+    it("determineOutputTypes reads a later table port's own schema, behind a visualization port 0", () => {
+      pushWsEvent(ws, {
+        type: "WebResultUpdateEvent",
+        updates: { op: snapshotUpdate([{ a: 1 }]) },
+        tableStats: {},
+        portUpdates: { op: { "1": paginationUpdate(4) } },
+      });
+      (service.getPortPaginatedResultService("op", 1) as any).schema = [
+        { attributeName: "b", attributeType: "binary" },
+      ];
+
+      expect(service.determineOutputTypes("op", 1)).toMatchObject({
+        isTableOutput: true,
+        containsBinaryData: true,
+        isVisualizationOutput: false,
+      });
+      expect(service.determineOutputTypes("op", 0)).toMatchObject({
+        isTableOutput: false,
+        containsBinaryData: false,
+        isVisualizationOutput: true,
+      });
+      expect(service.determineOutputExtension("op", "csv", 1)).toBe("csv");
+      expect(service.determineOutputExtension("op", "csv", 0)).toBe("html");
+    });
+  });
+
   it("hasNonEmptyResult tells an empty result apart from one with rows", () => {
     const ws = TestBed.inject(WorkflowWebsocketService);
     pushWsEvent(ws, {
