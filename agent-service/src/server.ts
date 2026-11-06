@@ -70,6 +70,7 @@ async function createAgentInstance(
     modelType,
     agentId,
     agentName: customName || "Bob",
+    userToken: delegateConfig.userToken,
   });
 
   await agent.initialize();
