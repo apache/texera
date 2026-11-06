@@ -37,21 +37,18 @@ For contributors, it offers insight into the design principles and architecture 
 
 ### What’s in this section
 
-The **Concepts** section introduces the core ideas that define Texera’s design and operation:
+- **[How Texera runs your workflow](how-texera-runs-your-workflow/):** pipelining, blocking operators, regions, workers and execution mode.
 
-- **Workflows:** How users visually build and manage data pipelines.
-- **Operators:** The modular units that perform data transformations.
-- **Execution Engine:** The core component that executes workflows efficiently.
-- **Data Model:** How Texera represents, stores, and streams data.
-- **Architecture:** The high-level structure connecting frontend, backend, and execution layers.
+More concept pages are still being written. Until then, these pages cover the same ground:
 
-Each page below explores one of these areas in more depth, explaining how Texera’s internal components work together to support flexible, scalable, and interactive data analytics.
+- **Workflows and operators:** [Guide for how to use Texera](/docs/tutorials/guide-for-how-to-use-texera/) and the [operator reference](/docs/reference/operators/).
+- **Execution engine internals:** [Engine](/docs/reference/engine/).
+- **Data storage:** [Storage](/docs/reference/storage/).
+- **Architecture:** [Project structure](/docs/reference/project-structure/) and the [Overview](/docs/overview/).
 
 ---
 
 ### When to read this section
 
-If you’re new to Texera, start with the **[Overview](/docs/overview/)** page to understand what the platform does.  
+If you’re new to Texera, start with the **[Overview](/docs/overview/)** page to understand what the platform does.
 Then come here to learn *how it works under the hood*.
-
-If you’re contributing to Texera or integrating it with other systems, the detailed concept pages — such as **Engine**, **Operator Framework**, and **Architecture** — will help you understand Texera’s internal design and extension points.
