@@ -233,6 +233,11 @@ export class TexeraAgent {
     return tools;
   }
 
+  /** The tools the model may call: every tool except those in `settings.disabledTools`. */
+  private getEnabledTools(): Record<string, any> {
+    return Object.fromEntries(Object.entries(this.tools).filter(([name]) => !this.settings.disabledTools.has(name)));
+  }
+
   getState(): AgentStateEnum {
     return this.state;
   }
@@ -542,7 +547,7 @@ export class TexeraAgent {
         model: this.model,
         system: this.systemPrompt,
         messages: currentUserMessage,
-        tools: this.tools,
+        tools: this.getEnabledTools(),
         temperature: 0.2,
         stopWhen: stepCountIs(this.settings.maxSteps),
         prepareStep: async ({ stepNumber, messages: currentMessages }) => {
