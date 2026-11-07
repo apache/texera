@@ -23,9 +23,10 @@ import pytest
 from core.architecture.handlers.control.end_channel_handler import EndChannelHandler
 from core.architecture.handlers.control.start_channel_handler import StartChannelHandler
 from core.architecture.managers import Context
-from core.models import Schema, State, Tuple
+from core.models import Schema, State, Tuple, TupleOperatorV2
 from core.models.internal_queue import InternalQueue
 from core.models.internal_marker import EndChannel, InternalMarker, StartChannel
+from core.models.operator import LoopStartOperator, TableOperator
 from core.runnables.data_processor import DataProcessor
 from proto.org.apache.texera.amber.core import (
     ActorVirtualIdentity,
@@ -89,6 +90,9 @@ class _StubExecutor:
         self.calls.append(("process_tuple", port_id))
         return iter([])
 
+    def bind_loop_variables(self):
+        self.calls.append(("bind_loop_variables",))
+
 
 class TestProcessInternalMarker:
     @pytest.mark.parametrize(
@@ -129,7 +133,7 @@ class TestProcessInternalMarker:
             tpm.current_input_port_id = context.input_manager.get_port_id(channels[0])
             tpm.current_input_tuple = Tuple({"value": 1})
             data_processor.process_tuple()
-            assert executor.calls == [("process_tuple", 0)]
+            assert executor.calls == [("bind_loop_variables",), ("process_tuple", 0)]
         else:
             assert tpm.current_input_port_id is None
 
@@ -140,8 +144,16 @@ class TestProcessInternalMarker:
             asyncio.run(StartChannelHandler(context).start_channel(EmptyRequest()))
         data_processor.process_internal_marker(tpm.get_internal_marker())
 
+        # A finishing port binds the loop variables, as the first tuple does;
+        # a starting one does not.
         expected = (
-            [("process_tuple", 0), ("produce_state_on_finish", 1), ("on_finish", 1)]
+            [
+                ("bind_loop_variables",),
+                ("process_tuple", 0),
+                ("bind_loop_variables",),
+                ("produce_state_on_finish", 1),
+                ("on_finish", 1),
+            ]
             if finish
             else [("produce_state_on_start", 1)]
         )
@@ -187,11 +199,13 @@ class TestProcessInternalMarker:
         context.tuple_processing_manager.current_input_port_id = object()
         data_processor.process_internal_marker(EndChannel(1))
 
-        # EndChannel must call produce_state_on_finish first, switch
-        # context to flush that state separately from the on_finish
+        # EndChannel must bind the loop variables (the port may have carried
+        # no tuple, and a source produces here), call produce_state_on_finish,
+        # switch context to flush that state separately from the on_finish
         # tuple stream, then drain on_finish. The session itself adds
         # its own trailing switch on exit.
         assert executor.calls == [
+            ("bind_loop_variables",),
             ("produce_state_on_finish", 1),
             ("on_finish", 1),
         ]
@@ -199,6 +213,404 @@ class TestProcessInternalMarker:
         # exit. `_set_output_tuple` exits early on an empty iterator and
         # does not switch.
         assert data_processor.switch_calls == 2
+
+
+class _StateSpy(TupleOperatorV2):
+    """
+    Records what `loop_variables` holds at the moment `process_state` runs, so
+    the test can pin that the runtime registers the state message BEFORE the
+    callback rather than after it.
+    """
+
+    def __init__(self):
+        super().__init__()
+        self.seen = []
+
+    def process_tuple(self, tuple_, port):
+        yield tuple_
+
+    def process_state(self, state, port):
+        self.seen.append((dict(self.loop_variables), port))
+        return super().process_state(state, port)
+
+
+class _LoopVariableReader(TupleOperatorV2):
+    """For every tuple, outputs the loop variable `i` it reads off `loop_variables`."""
+
+    def process_tuple(self, tuple_, port):
+        yield Tuple({"x": self.loop_variables["i"]})
+
+
+class _LoopStart(LoopStartOperator):
+    """A Loop Start whose `initialization` seeds one loop variable, `i = 0`."""
+
+    def open(self):
+        self.run_initialization("i = 0")
+
+    def process_table(self, table, port):
+        yield table
+
+
+class TestProcessState:
+    @pytest.mark.timeout(2)
+    def test_registers_state_before_invoking_process_state(
+        self, context, data_processor
+    ):
+        executor = _StateSpy()
+        context.executor_manager.executor = executor
+        context.tuple_processing_manager.current_input_port_id = PortIdentity(0, False)
+
+        state = State({"i": 2})
+        data_processor.process_state(state)
+
+        # The callback observed the state already registered, on its port...
+        assert executor.seen == [({"i": 2}, 0)]
+        # ...it stays registered afterwards, and the default still forwards.
+        assert executor.loop_variables == {"i": 2}
+        assert context.state_processing_manager.current_output_state is state
+        assert not context.exception_manager.has_exception()
+        # `_executor_session` always switches once on exit.
+        assert data_processor.switch_calls == 1
+
+    @pytest.mark.timeout(2)
+    def test_a_later_state_message_replaces_the_registered_one(
+        self, context, data_processor
+    ):
+        executor = _StateSpy()
+        context.executor_manager.executor = executor
+        context.tuple_processing_manager.current_input_port_id = PortIdentity(1, False)
+
+        data_processor.process_state(State({"i": 0}))
+        data_processor.process_state(State({"i": 1}))
+
+        assert executor.seen == [({"i": 0}, 1), ({"i": 1}, 1)]
+        assert executor.loop_variables == {"i": 1}
+
+    @pytest.mark.timeout(2)
+    def test_a_later_state_message_keeps_the_loop_variables_of_the_earlier_one(
+        self, context, data_processor
+    ):
+        # A body operator's own state replays after the loop's: the loop
+        # variable the first one carried must still be read.
+        executor = _StateSpy()
+        context.executor_manager.executor = executor
+        context.tuple_processing_manager.current_input_port_id = PortIdentity(0, False)
+
+        data_processor.process_state(State({"i": 3}))
+        data_processor.process_state(State({"centroids": [1, 2]}))
+
+        assert executor.loop_variable_text("i") == "3"
+        assert not context.exception_manager.has_exception()
+
+    @pytest.mark.timeout(2)
+    def test_registers_on_the_running_operator_only(self, context, data_processor):
+        # The default lives on the class, so a registration written to the
+        # class (instead of the running instance) would reach every operator.
+        target, bystander = _StateSpy(), _StateSpy()
+        context.executor_manager.executor = target
+        context.tuple_processing_manager.current_input_port_id = PortIdentity(0, False)
+
+        data_processor.process_state(State({"i": 5}))
+
+        assert target.loop_variables == {"i": 5}
+        assert not bystander.loop_variables
+        assert not _StateSpy().loop_variables
+
+    @pytest.mark.timeout(2)
+    def test_reads_the_loop_variable_after_another_operators_state_arrives(
+        self, context, data_processor, monkeypatch
+    ):
+        # Xiaozhen's scenario on #8642: inside a loop, a body operator upstream
+        # returns its own state from produce_state_on_finish, which reaches
+        # this operator after the loop's state, both at depth 0. The operator
+        # must still read the loop's i, here in process_tuple.
+        schema = Schema(raw_schema={"x": "INTEGER"})
+        monkeypatch.setattr(
+            context.output_manager,
+            "get_port",
+            lambda *args, **kwargs: SimpleNamespace(get_schema=lambda: schema),
+        )
+        context.executor_manager.executor = _LoopVariableReader()
+        tpm = context.tuple_processing_manager
+        tpm.current_input_port_id = PortIdentity(0, False)
+
+        data_processor.process_state(State({"i": 2}), 0)
+        data_processor.process_state(State({"note": "from-body-op"}), 0)
+
+        outputs = []
+
+        def switch_and_collect():
+            if tpm.current_output_tuple is not None:
+                outputs.append(tpm.get_output_tuple())
+            # Ends process_tuple's loop even when the operator raises.
+            tpm.finished_current.set()
+
+        data_processor._switch_context = switch_and_collect
+        tpm.current_input_tuple = Tuple({"x": 0})
+        data_processor.process_tuple()
+
+        assert not context.exception_manager.has_exception(), (
+            context.exception_manager.get_exc_info()
+        )
+        assert [output["x"] for output in outputs] == [2]
+
+    @pytest.mark.timeout(2)
+    def test_an_inner_loops_value_wins_over_an_outer_one_arriving_after_it(
+        self, context, data_processor
+    ):
+        # i = 1 from the outer loop (depth 1), i = 5 from the inner loop
+        # (depth 0), then the outer message again: the operator reads the
+        # inner i, as a JVM operator binds it.
+        executor = _StateSpy()
+        context.executor_manager.executor = executor
+        context.tuple_processing_manager.current_input_port_id = PortIdentity(0, False)
+
+        data_processor.process_state(State({"i": 1}), 1)
+        data_processor.process_state(State({"i": 5}), 0)
+        data_processor.process_state(State({"i": 1}), 1)
+
+        assert executor.seen == [({"i": 1}, 0), ({"i": 5}, 0), ({"i": 5}, 0)]
+        assert executor.loop_variables == {"i": 5}
+
+    @pytest.mark.timeout(2)
+    def test_a_loop_start_keeps_its_own_state_apart_from_the_loop_variables(
+        self, context, data_processor
+    ):
+        # A LoopStart keeps its own loop variables on `state`, as on main; the
+        # runtime registers the incoming message on `loop_variables`, so the
+        # first-entry merge still merges the message into the LoopStart's own
+        # variables and leaves the message itself unchanged.
+        executor = _LoopStart()
+        executor.open()
+        context.executor_manager.executor = executor
+        context.tuple_processing_manager.current_input_port_id = PortIdentity(0, False)
+
+        state = State({"seed": 7})
+        data_processor.process_state(state)
+
+        assert executor.loop_variables == {"seed": 7}
+        assert state == State({"seed": 7}), "the registered message is unchanged"
+        assert executor.state == State({"i": 0, "seed": 7})
+        # LoopStart forwards nothing on first entry.
+        assert context.state_processing_manager.current_output_state is None
+        assert not context.exception_manager.has_exception()
+
+
+class _BoundTextReader(TupleOperatorV2):
+    """
+    For every tuple, outputs `i` as the operator's generated code reads it
+    (`loop_variable_text`) and as UDF code reads it (`loop_variables`).
+    """
+
+    def process_tuple(self, tuple_, port):
+        yield {"text": self.loop_variable_text("i"), "live": self.loop_variables["i"]}
+
+
+class _BoundTextTable(TableOperator):
+    """Reads `i` in process_table, as a generated table operator does."""
+
+    def process_table(self, table, port):
+        yield {"text": self.loop_variable_text("i"), "live": self.loop_variables["i"]}
+
+
+class TestBindLoopVariables:
+    # The paper (sec. 5): an operator binds its properties immediately before
+    # its first tuple, on any input; a JVM operator binds them there, or when
+    # it finishes an input first (DataProcessor.processInputTuple,
+    # EndChannelHandler). Later states still reach `loop_variables`.
+
+    @pytest.fixture
+    def outputs(self, context, data_processor, monkeypatch):
+        schema = Schema(raw_schema={"text": "STRING", "live": "INTEGER"})
+        monkeypatch.setattr(
+            context.output_manager,
+            "get_port",
+            lambda *args, **kwargs: SimpleNamespace(get_schema=lambda: schema),
+        )
+        tpm = context.tuple_processing_manager
+        collected = []
+
+        def switch_and_collect():
+            if tpm.current_output_tuple is not None:
+                output = tpm.get_output_tuple()
+                collected.append((output["text"], output["live"]))
+            # Ends process_tuple's loop even when the operator raises.
+            tpm.finished_current.set()
+
+        data_processor._switch_context = switch_and_collect
+        return collected
+
+    @staticmethod
+    def _state(data_processor, context, values, loop_counter, port=0):
+        context.tuple_processing_manager.current_input_port_id = PortIdentity(
+            port, False
+        )
+        data_processor.process_state(State(values), loop_counter)
+
+    @staticmethod
+    def _tuple(data_processor, context, port=0):
+        tpm = context.tuple_processing_manager
+        tpm.current_input_port_id = PortIdentity(port, False)
+        tpm.current_input_tuple = Tuple({"x": 0})
+        tpm.finished_current.clear()
+        data_processor.process_tuple()
+
+    @pytest.mark.timeout(2)
+    def test_a_deeper_state_after_the_first_tuple_changes_only_loop_variables(
+        self, context, data_processor, outputs
+    ):
+        # The outer loop's i, a tuple, then a deeper i (a body UDF's
+        # produce_state_on_finish): a JVM operator keeps 1, and so does the
+        # generated code, while UDF code reads the later value.
+        context.executor_manager.executor = _BoundTextReader()
+
+        self._state(data_processor, context, {"i": 1}, 1)
+        self._tuple(data_processor, context)
+        self._state(data_processor, context, {"i": 5}, 0)
+        self._tuple(data_processor, context)
+
+        assert not context.exception_manager.has_exception(), (
+            context.exception_manager.get_exc_info()
+        )
+        assert outputs == [("1", 1), ("1", 5)]
+
+    @pytest.mark.timeout(2)
+    def test_a_table_operator_reads_the_value_bound_at_its_first_tuple(
+        self, context, data_processor, outputs
+    ):
+        # A table operator reads its properties in process_table, when its
+        # input finishes; the value is still the one bound at its first tuple.
+        context.executor_manager.executor = _BoundTextTable()
+
+        self._state(data_processor, context, {"i": 1}, 1)
+        self._tuple(data_processor, context)
+        self._state(data_processor, context, {"i": 5}, 0)
+        data_processor.process_internal_marker(EndChannel(0))
+
+        assert not context.exception_manager.has_exception(), (
+            context.exception_manager.get_exc_info()
+        )
+        assert outputs == [("1", 5)]
+
+    @pytest.mark.timeout(2)
+    def test_the_first_tuple_on_a_second_port_does_not_bind_again(
+        self, context, data_processor, outputs
+    ):
+        context.executor_manager.executor = _BoundTextReader()
+
+        self._state(data_processor, context, {"i": 1}, 1)
+        self._tuple(data_processor, context, port=0)
+        self._state(data_processor, context, {"i": 5}, 0, port=1)
+        self._tuple(data_processor, context, port=1)
+
+        assert not context.exception_manager.has_exception(), (
+            context.exception_manager.get_exc_info()
+        )
+        assert outputs == [("1", 1), ("1", 5)]
+
+    @pytest.mark.timeout(2)
+    def test_a_port_that_finishes_before_any_tuple_binds(
+        self, context, data_processor, outputs
+    ):
+        # Port 0 finishes having carried no tuple, then port 1's state and
+        # first tuple arrive: the values were bound when port 0 finished.
+        context.executor_manager.executor = _BoundTextReader()
+
+        self._state(data_processor, context, {"i": 1}, 1)
+        data_processor.process_internal_marker(EndChannel(0))
+        self._state(data_processor, context, {"i": 5}, 0, port=1)
+        self._tuple(data_processor, context, port=1)
+
+        assert not context.exception_manager.has_exception(), (
+            context.exception_manager.get_exc_info()
+        )
+        assert outputs == [("1", 5)]
+
+    @pytest.mark.timeout(2)
+    def test_the_inner_value_wins_when_the_outer_one_arrives_again_first(
+        self, context, data_processor, outputs
+    ):
+        # Xiaozhen's order on #8671 (outer, inner, outer again), all before
+        # the first tuple, two loops out: the generated code reads the inner
+        # loop's i, as a JVM operator binds it, and keeps it when a body UDF's
+        # own i arrives after the first tuple.
+        context.executor_manager.executor = _BoundTextReader()
+
+        self._state(data_processor, context, {"i": 1}, 2)
+        self._state(data_processor, context, {"i": 5}, 1)
+        self._state(data_processor, context, {"i": 1}, 2)
+        self._tuple(data_processor, context)
+        self._state(data_processor, context, {"i": 9}, 0)
+        self._tuple(data_processor, context)
+
+        assert not context.exception_manager.has_exception(), (
+            context.exception_manager.get_exc_info()
+        )
+        assert outputs == [("5", 5), ("5", 9)]
+
+    @pytest.mark.timeout(2)
+    def test_the_first_tuple_on_a_port_other_than_the_first_binds(
+        self, context, data_processor, outputs
+    ):
+        # Every tuple so far arrives on port 1: the first of them binds, and
+        # the deeper i after it reaches only loop_variables.
+        context.executor_manager.executor = _BoundTextReader()
+
+        self._state(data_processor, context, {"i": 1}, 1, port=1)
+        self._tuple(data_processor, context, port=1)
+        self._state(data_processor, context, {"i": 5}, 0, port=1)
+        self._tuple(data_processor, context, port=1)
+
+        assert not context.exception_manager.has_exception(), (
+            context.exception_manager.get_exc_info()
+        )
+        assert outputs == [("1", 1), ("1", 5)]
+
+    @staticmethod
+    def _reported(context) -> str:
+        exc_info = context.exception_manager.get_exc_info()
+        assert exc_info is not None, "no exception was reported"
+        assert exc_info[0] is RuntimeError
+        return str(exc_info[1])
+
+    @pytest.mark.timeout(2)
+    def test_a_required_variable_missing_at_the_first_tuple_stops_it(
+        self, context, data_processor, outputs
+    ):
+        # The paper (sec. 5): a required value missing at the first tuple is
+        # an error there, before the operator runs on the tuple.
+        executor = _BoundTextReader()
+        executor.require_loop_variables(["i", "t"])
+        context.executor_manager.executor = executor
+
+        self._state(data_processor, context, {"i": 1}, 0)
+        self._tuple(data_processor, context, port=1)
+
+        assert self._reported(context) == (
+            "the operator refers to loop variable $t, but no state message "
+            "carried it before the operator's first tuple or the end of an input"
+        )
+        assert outputs == []
+
+    @pytest.mark.timeout(2)
+    def test_a_required_variable_missing_when_an_input_ends_first_stops_it(
+        self, context, data_processor, outputs
+    ):
+        # A table operator whose input ends with no rows: the binding when the
+        # port finishes reports the missing value before on_finish, which
+        # would otherwise produce its output without ever reading it.
+        executor = _BoundTextTable()
+        executor.require_loop_variables(["t"])
+        context.executor_manager.executor = executor
+
+        self._state(data_processor, context, {"i": 1}, 0)
+        data_processor.process_internal_marker(EndChannel(0))
+
+        assert self._reported(context) == (
+            "the operator refers to loop variable $t, but no state message "
+            "carried it before the operator's first tuple or the end of an input"
+        )
+        assert outputs == []
 
 
 class TestExecutorSession:
@@ -283,6 +695,26 @@ class TestRunInvariant:
         assert "marker=False, state=False, tuple=False" in str(excinfo.value)
 
     @pytest.mark.timeout(2)
+    def test_hands_a_queued_state_its_loop_counter(self, context, monkeypatch):
+        # MainLoop queues a state message with the nesting depth its envelope
+        # carried; run() passes both on, so the operator can tell an inner
+        # loop's value from an outer one's.
+        dp = self._drive_run_synchronously(context, monkeypatch)
+        spm = context.state_processing_manager
+        spm.current_input_state = State({"i": 1})
+        spm.current_input_loop_counter = 1
+        calls = []
+
+        def record(state, loop_counter):
+            calls.append((state, loop_counter))
+            dp.stop()
+
+        monkeypatch.setattr(dp, "process_state", record)
+        dp.run()
+
+        assert calls == [(State({"i": 1}), 1)]
+
+    @pytest.mark.timeout(2)
     def test_two_queued_inputs_raises_invariant_error(self, context, monkeypatch):
         dp = self._drive_run_synchronously(context, monkeypatch)
         # Populate two slots — has_marker + has_tuple == 2.
@@ -295,7 +727,7 @@ class TestRunInvariant:
         assert "tuple=True" in str(excinfo.value)
 
 
-class _ReturningExecutor:
+class _ReturningExecutor(TupleOperatorV2):
     """process_tuple uses `return` instead of `yield`."""
 
     def process_tuple(self, tuple_, port_id):
@@ -352,8 +784,11 @@ class TestUDFOutputMistakes:
         assert "Extra output column(s)" in message
 
 
-class _FinishReturningExecutor:
+class _FinishReturningExecutor(TupleOperatorV2):
     """on_finish uses `return` instead of `yield`."""
+
+    def process_tuple(self, tuple_, port_id):
+        yield tuple_
 
     def produce_state_on_finish(self, port_id):
         return None

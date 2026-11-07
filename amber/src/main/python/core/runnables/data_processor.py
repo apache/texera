@@ -64,7 +64,9 @@ class DataProcessor(Runnable, Stoppable):
             if has_marker:
                 self.process_internal_marker(tpm.get_internal_marker())
             elif has_state:
-                self.process_state(spm.get_input_state())
+                self.process_state(
+                    spm.get_input_state(), spm.current_input_loop_counter
+                )
             else:
                 self.process_tuple()
 
@@ -75,6 +77,9 @@ class DataProcessor(Runnable, Stoppable):
             if isinstance(internal_marker, StartChannel):
                 self._set_output_state(executor.produce_state_on_start(port_id))
             elif isinstance(internal_marker, EndChannel):
+                # The operator finishes the port: bind its loop variables, in
+                # case no tuple did (a port with no rows, or a source).
+                executor.bind_loop_variables()
                 self._set_output_state(executor.produce_state_on_finish(port_id))
                 # Flush the state to MainLoop before producing tuples so the
                 # state and the tuple stream don't share a single switch.
@@ -105,12 +110,16 @@ class DataProcessor(Runnable, Stoppable):
             port_identity
         ).get_schema()
 
-    def process_state(self, state: State) -> None:
+    def process_state(self, state: State, loop_counter: int = 0) -> None:
         """
         Process an input marker by invoking appropriate state
         or tuple generation based on the marker type.
         """
         with self._executor_session() as (executor, port_id):
+            # Register the state message, with the nesting depth its envelope
+            # carried, before the callback runs, so process_state (and every
+            # call after it) can read its values in self.loop_variables.
+            executor.register_state(state, loop_counter)
             self._set_output_state(executor.process_state(state, port_id))
 
     def process_tuple(self) -> None:
@@ -121,6 +130,9 @@ class DataProcessor(Runnable, Stoppable):
         while not finished_current.is_set():
             with self._executor_session() as (executor, port_id):
                 tuple_ = self._context.tuple_processing_manager.get_input_tuple()
+                # The operator sees data: bind its loop variables (only the
+                # first tuple, on any port, does).
+                executor.bind_loop_variables()
                 self._set_output_tuple(
                     require_yielded(
                         executor.process_tuple(tuple_, port_id), "process_tuple"
