@@ -27,6 +27,7 @@ from pathlib import Path
 from typing import Tuple, Optional
 
 from core.models import Operator, SourceOperator
+from core.models.operator import referenced_loop_variables
 
 
 def pytexera_names() -> set:
@@ -431,6 +432,9 @@ class ExecutorManager:
             executor: type(Operator) = self.load_executor_definition(code, is_source)
             self.executor = executor()
             self.executor.is_source = is_source
+            # Binding requires the loop variables the operator's properties
+            # refer to: the ones its generated code reads.
+            self.executor.require_loop_variables(referenced_loop_variables(code))
         assert isinstance(self.executor, SourceOperator) == self.executor.is_source, (
             self._source_mismatch_message(is_source)
         )

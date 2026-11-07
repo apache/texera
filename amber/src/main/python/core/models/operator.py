@@ -18,6 +18,7 @@
 import math
 import overrides
 import pandas
+import re
 from functools import lru_cache
 from abc import ABC, abstractmethod
 from collections import defaultdict
@@ -25,10 +26,12 @@ from decimal import Decimal
 from types import MappingProxyType
 from typing import (
     Any,
+    Iterable,
     Iterator,
     List,
     Mapping,
     Optional,
+    Sequence,
     Union,
     MutableMapping,
     Protocol,
@@ -84,6 +87,58 @@ def _java_double_text(value: float) -> str:
     else:
         text = digits[0] + "." + (digits[1:] or "0") + "E" + str(point - 1)
     return "-" + text if negative else text
+
+
+def _loop_variable_text(name: str, variables: Mapping[str, Any], bound: bool) -> str:
+    """
+    Loop variable ``name`` of ``variables`` as ``Operator.loop_variable_text``
+    reads it; ``bound`` tells whether ``variables`` are the values the
+    operator bound, which the error for a missing name says.
+    """
+    if name not in variables:
+        raise RuntimeError(
+            f"the operator refers to loop variable ${name}, "
+            "but no state message carried it"
+            + (
+                " before the operator's first tuple or the end of an input"
+                if bound
+                else ""
+            )
+        )
+    value = variables[name]
+    if isinstance(value, bool):
+        return "true" if value else "false"
+    if isinstance(value, int) and not -(2**63) <= value < 2**63:
+        raise RuntimeError(
+            f"the operator refers to loop variable ${name}, but its value {value} "
+            "does not fit in the 64-bit integer a JVM operator reads it as"
+        )
+    if isinstance(value, float):
+        return _java_double_text(value)
+    if isinstance(value, (str, int)):
+        return str(value)
+    raise RuntimeError(
+        f"the operator refers to loop variable ${name}, "
+        f"but its value {value!r} is not a scalar"
+    )
+
+
+# The call through which the code generated for an operator inside a control
+# block reads a loop variable one of its text properties refers to, as the
+# compiler writes it (PythonOperatorDescriptor.loopVariableLookup): the name of
+# a `$name` reference, without the `$`.
+_LOOP_VARIABLE_TEXT_LOOKUP = re.compile(
+    r"self\.loop_variable_text\('([A-Za-z_][A-Za-z0-9_]*)'\)"
+)
+
+
+def referenced_loop_variables(code: str) -> List[str]:
+    """
+    The loop variables ``code`` reads through ``Operator.loop_variable_text``,
+    each once, in name order: in the code generated for an operator inside a
+    control block, the ones its properties refer to.
+    """
+    return sorted(set(_LOOP_VARIABLE_TEXT_LOOKUP.findall(code)))
 
 
 class Operator(ABC):
@@ -152,29 +207,9 @@ class Operator(ABC):
             raise RuntimeError(
                 f"loop variable ${name} is read before the iteration's state arrived"
             )
-        variables = self.loop_variables if bound is None else bound
-        if name not in variables:
-            raise RuntimeError(
-                f"the operator refers to loop variable ${name}, "
-                "but no state message carried it"
-                + ("" if bound is None else " before the operator's first tuple")
-            )
-        value = variables[name]
-        if isinstance(value, bool):
-            return "true" if value else "false"
-        if isinstance(value, int) and not -(2**63) <= value < 2**63:
-            raise RuntimeError(
-                f"the operator refers to loop variable ${name}, but its value {value} "
-                "does not fit in the 64-bit integer a JVM operator reads it as"
-            )
-        if isinstance(value, float):
-            return _java_double_text(value)
-        if isinstance(value, (str, int)):
-            return str(value)
-        raise RuntimeError(
-            f"the operator refers to loop variable ${name}, "
-            f"but its value {value!r} is not a scalar"
-        )
+        if bound is None:
+            return _loop_variable_text(name, self.loop_variables, False)
+        return _loop_variable_text(name, bound, True)
 
     __internal_is_source: bool = False
 
@@ -188,6 +223,9 @@ class Operator(ABC):
     # The loop variables as they were when the operator first saw data; see
     # ``bind_loop_variables``. ``None`` until then.
     __internal_bound_loop_variables: Optional[Mapping[str, Any]] = None
+    # The loop variables the operator's properties refer to, which binding
+    # requires; see ``require_loop_variables``.
+    __internal_required_loop_variables: Sequence[str] = ()
 
     @property
     @overrides.final
@@ -230,6 +268,19 @@ class Operator(ABC):
                 self.__internal_loop_variable_depths[name] = loop_counter
 
     @overrides.final
+    def require_loop_variables(self, names: Iterable[str]) -> None:
+        """
+        Make binding (``bind_loop_variables``) require the loop variables
+        ``names``: the ones the operator's properties refer to, which its
+        generated code reads through ``loop_variable_text``. The runtime calls
+        this when it builds the operator from its code, with the names the code
+        reads (``referenced_loop_variables``).
+
+        :param names: Iterable[str], the loop variables' names, without ``$``.
+        """
+        self.__internal_required_loop_variables = tuple(names)
+
+    @overrides.final
     def bind_loop_variables(self) -> None:
         """
         Fix the loop variables the operator's own properties read
@@ -241,9 +292,26 @@ class Operator(ABC):
         iteration, while ``loop_variables`` still takes every later state
         message for UDF code to read. The next iteration runs on a fresh
         worker, which binds again.
+
+        Binding fails, naming each one in one error, while a loop variable the
+        operator requires (``require_loop_variables``) has no value its text
+        property can take: no state message carried it, or the value is not a
+        scalar or not within 64 bits. As a JVM operator's binding does, it then
+        binds nothing, whether or not the code would read the value, and a
+        later binding tries again.
         """
-        if self.__internal_bound_loop_variables is None:
-            self.__internal_bound_loop_variables = dict(self.loop_variables)
+        if self.__internal_bound_loop_variables is not None:
+            return
+        variables = dict(self.loop_variables)
+        problems = []
+        for name in self.__internal_required_loop_variables:
+            try:
+                _loop_variable_text(name, variables, True)
+            except RuntimeError as error:
+                problems.append(str(error))
+        if problems:
+            raise RuntimeError("; ".join(problems))
+        self.__internal_bound_loop_variables = variables
 
     @property
     @overrides.final
