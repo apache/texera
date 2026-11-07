@@ -488,6 +488,16 @@ class TestLoopVariableText:
         assert op.loop_variable_text("j") == "5"
         assert op.loop_variable_text("i") == "0"
 
+    def test_the_inner_value_wins_over_an_outer_one_that_arrives_later(self):
+        # A JVM operator binds the inner loop's i even when another copy of
+        # the outer message arrives after it, so the generated code reads the
+        # same i.
+        op = _ConcreteOperator()
+        op.register_state(State({"i": 1}), 1)
+        op.register_state(State({"i": 5}), 0)
+        op.register_state(State({"i": 1}), 1)
+        assert op.loop_variable_text("i") == "5"
+
     def test_registering_reaches_the_one_operator_only(self):
         # The defaults live on the class, so a registration written there
         # would reach every operator.
