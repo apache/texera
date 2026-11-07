@@ -106,14 +106,14 @@ export class UdfDebugService {
   doModifyBreakpoint(operatorId: string, lineNumber: number) {
     const workerIds = this.executeWorkflowService.getWorkerIds(operatorId);
     const debugState = this.getDebugState(operatorId);
-    const cmd = debugState.has(String(lineNumber)) ? "clear" : "break";
-    const breakpointId = debugState.get(String(lineNumber))?.breakpointId || "";
+    const breakpointId = debugState.get(String(lineNumber))?.breakpointId;
+    const cmd = isDefined(breakpointId) ? `clear ${breakpointId}` : `break ${lineNumber}`;
 
     workerIds.forEach(workerId => {
       this.workflowWebsocketService.send("DebugCommandRequest", {
         operatorId,
         workerId,
-        cmd: `${cmd} ${cmd === "clear" ? breakpointId : lineNumber}`,
+        cmd,
       });
     });
   }
@@ -195,10 +195,13 @@ export class UdfDebugService {
       )
       .subscribe(({ breakpointId, lineNum }) => {
         if (isDefined(breakpointId) && isDefined(lineNum)) {
-          this.getDebugState(operatorId).set(String(lineNum), {
+          const debugState = this.getDebugState(operatorId);
+          const line = String(lineNum);
+          // A paused line may already exist as a step position without a breakpoint.
+          debugState.set(line, {
             breakpointId,
             condition: "",
-            hit: false,
+            hit: debugState.get(line)?.hit ?? false,
           });
         }
 
