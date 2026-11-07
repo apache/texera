@@ -223,6 +223,10 @@ spec:
         - path:
             type: PathPrefix
             value: /
+      # Presigned downloads can be many GB, so Envoy's 15s default would cut them off mid-body.
+      # "0s" also turns off the stream idle timeout, so Envoy keeps a stalled download open.
+      timeouts:
+        request: "0s"
       backendRefs:
         - name: {{ .Release.Name }}-rustfs-svc
           port: 9000
