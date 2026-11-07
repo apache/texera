@@ -35,6 +35,9 @@ object StorageConfig {
 
   // Iceberg specifics
   val icebergCatalogType: String = conf.getString("storage.iceberg.catalog.type")
+  val icebergCatalogCacheMaxSize: Long = conf.getLong("storage.iceberg.catalog.cache.max-size")
+  val icebergCatalogCacheExpireAfterAccessMinutes: Long =
+    conf.getLong("storage.iceberg.catalog.cache.expire-after-access-minutes")
   val icebergRESTCatalogUri: String = conf.getString("storage.iceberg.catalog.rest.uri")
   val icebergRESTCatalogWarehouseName: String =
     conf.getString("storage.iceberg.catalog.rest.warehouse-name")

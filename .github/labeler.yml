@@ -53,6 +53,7 @@ platform:
           - 'config-service/**'
           - 'file-service/**'
           - 'notebook-migration-service/**'
+          - 'result-service/**'
           - 'workflow-compiling-service/**'
 
 agent-service:

@@ -14,12 +14,12 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# Codecov configuration for apache/texera. CI uploads 11 flags: frontend,
-# amber, amber-integration, pyamber, agent-service, and the six platform
+# Codecov configuration for apache/texera. CI uploads 12 flags: frontend,
+# amber, amber-integration, pyamber, agent-service, and the seven platform
 # services (config-service, access-control-service, file-service,
 # computing-unit-managing-service, workflow-compiling-service,
-# notebook-migration-service). Without an explicit config, defaults bite us
-# in three places that this file fixes:
+# notebook-migration-service, result-service). Without an explicit config,
+# defaults bite us in three places that this file fixes:
 #   1. Single-stack PRs leave non-uploaded flags as `?` in the comment and
 #      drop them from the rollup; carrying forward the base-branch report
 #      backfills them.

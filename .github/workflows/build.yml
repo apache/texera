@@ -780,6 +780,8 @@ jobs:
             sbt_project: WorkflowCompilingService
           - service: notebook-migration-service
             sbt_project: NotebookMigrationService
+          - service: result-service
+            sbt_project: ResultService
     env:
       JAVA_OPTS: -Xms2048M -Xmx2048M -Xss6M -XX:ReservedCodeCacheSize=256M -Dfile.encoding=UTF-8
       JVM_OPTS: -Xms2048M -Xmx2048M -Xss6M -XX:ReservedCodeCacheSize=256M -Dfile.encoding=UTF-8
@@ -941,6 +943,9 @@ jobs:
           - service: notebook-migration-service
             sbt_project: NotebookMigrationService
             port: 9098
+          - service: result-service
+            sbt_project: ResultService
+            port: 9102
     env:
       JAVA_OPTS: -Xms2048M -Xmx2048M -Xss6M -XX:ReservedCodeCacheSize=256M -Dfile.encoding=UTF-8
       JVM_OPTS: -Xms2048M -Xmx2048M -Xss6M -XX:ReservedCodeCacheSize=256M -Dfile.encoding=UTF-8

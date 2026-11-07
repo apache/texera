@@ -70,16 +70,6 @@ object ExecutionResultUris {
       }
     }
 
-    val urisOfEid: List[URI] =
-      context
-        .select(OPERATOR_PORT_EXECUTIONS.RESULT_URI)
-        .from(OPERATOR_PORT_EXECUTIONS)
-        .where(OPERATOR_PORT_EXECUTIONS.WORKFLOW_EXECUTION_ID.eq(eid.id.toInt))
-        .fetchInto(classOf[String])
-        .asScala
-        .toList
-        .map(URI.create)
-
-    urisOfEid.find(isMatchingExternalPortURI)
+    getResultUrisByExecutionId(eid).find(isMatchingExternalPortURI)
   }
 }
