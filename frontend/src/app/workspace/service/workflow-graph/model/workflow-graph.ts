@@ -162,10 +162,11 @@ export class WorkflowGraph {
   constructor(
     operatorPredicates: OperatorPredicate[] = [],
     operatorLinks: OperatorLink[] = [],
-    commentBoxes: CommentBox[] = []
+    commentBoxes: CommentBox[] = [],
+    sharedModel: SharedModel = new SharedModel()
   ) {
     // Initialize sharedModel in constructor to ensure config is loaded
-    this.sharedModel = new SharedModel();
+    this.sharedModel = sharedModel;
 
     operatorPredicates.forEach(op => this.sharedModel.operatorIDMap.set(op.operatorID, createYTypeFromObject(op)));
     operatorLinks.forEach(link => this.sharedModel.operatorLinkMap.set(link.linkID, link));

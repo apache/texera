@@ -79,7 +79,8 @@ export class SharedModel {
   constructor(
     public wid?: number,
     public user?: User,
-    private productionSharedEditingServer?: boolean
+    private productionSharedEditingServer?: boolean,
+    options: { connect?: boolean } = {}
   ) {
     // Initialize Y-structures.
     this.debugState = this.yDoc.getMap("debugActions");
@@ -100,7 +101,7 @@ export class SharedModel {
     // Generate editing room number.
     const websocketUrl = this.getYWebSocketBaseUrl();
     const suffix = wid ? `${wid}` : uuid();
-    this.wsProvider = new WebsocketProvider(websocketUrl, suffix, this.yDoc);
+    this.wsProvider = new WebsocketProvider(websocketUrl, suffix, this.yDoc, { connect: options.connect ?? true });
 
     // Initialize local user awareness information.
     this.awareness = this.wsProvider.awareness;

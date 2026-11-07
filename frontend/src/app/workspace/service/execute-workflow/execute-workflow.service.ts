@@ -24,7 +24,6 @@ import { WorkflowGraphReadonly } from "../workflow-graph/model/workflow-graph";
 import {
   ExecutionState,
   ExecutionStateInfo,
-  LogicalLink,
   LogicalOperator,
   LogicalPlan,
 } from "../../types/execute-workflow.interface";
@@ -44,7 +43,7 @@ import { Version as version } from "src/environments/version";
 import { NotificationService } from "src/app/common/service/notification/notification.service";
 import { exhaustiveGuard } from "../../../common/util/switch";
 import { WorkflowStatusService } from "../workflow-status/workflow-status.service";
-import { intersection } from "../../../common/util/set";
+import { buildLogicalPlan } from "./logical-plan";
 import { WorkflowSettings } from "../../../common/type/workflow";
 
 import { ComputingUnitStatusService } from "../../../common/service/computing-unit/computing-unit-status/computing-unit-status.service";
@@ -550,43 +549,7 @@ export class ExecuteWorkflowService {
    * @param targetOperatorId
    */
   public static getLogicalPlanRequest(workflowGraph: WorkflowGraphReadonly, targetOperatorId?: string): LogicalPlan {
-    const getInputPortOrdinal = (operatorID: string, inputPortID: string): number => {
-      return workflowGraph.getOperator(operatorID).inputPorts.findIndex(port => port.portID === inputPortID);
-    };
-
-    const getOutputPortOrdinal = (operatorID: string, outputPortID: string): number => {
-      return workflowGraph.getOperator(operatorID).outputPorts.findIndex(port => port.portID === outputPortID);
-    };
-    const subDAG = workflowGraph.getSubDAG(targetOperatorId);
-
-    const operators: LogicalOperator[] = subDAG.operators.map(op => ({
-      ...op.operatorProperties,
-      operatorID: op.operatorID,
-      operatorType: op.operatorType,
-      inputPorts: op.inputPorts,
-      outputPorts: op.outputPorts,
-    }));
-
-    const links: LogicalLink[] = subDAG.links.map(link => {
-      const outputPortIdx = getOutputPortOrdinal(link.source.operatorID, link.source.portID);
-      const inputPortIdx = getInputPortOrdinal(link.target.operatorID, link.target.portID);
-      return {
-        fromOpId: link.source.operatorID,
-        fromPortId: { id: outputPortIdx, internal: false },
-        toOpId: link.target.operatorID,
-        toPortId: { id: inputPortIdx, internal: false },
-      };
-    });
-
-    const operatorIds = new Set(subDAG.operators.map(op => op.operatorID));
-
-    const opsToViewResult: string[] = Array.from(intersection(operatorIds, workflowGraph.getOperatorsToViewResult()));
-
-    const opsToReuseResult: string[] = Array.from(
-      intersection(operatorIds, workflowGraph.getOperatorsMarkedForReuseResult())
-    );
-
-    return { operators, links, opsToViewResult, opsToReuseResult };
+    return buildLogicalPlan(workflowGraph, targetOperatorId);
   }
 
   public getWorkerIds(operatorId: string): ReadonlyArray<string> {
