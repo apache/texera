@@ -26,8 +26,11 @@ import org.apache.texera.amber.core.tuple.Schema
 import org.apache.texera.amber.core.virtualidentity.{ExecutionIdentity, WorkflowIdentity}
 import org.apache.texera.amber.core.workflow.{PhysicalOp, PortIdentity, SchemaPropagationFunc}
 import org.apache.texera.amber.operator.PythonOperatorDescriptor.loopVariableLookup
+import org.apache.texera.amber.pybuilder.PythonLexerUtils.updateTripleQuotedStringState
 import org.apache.texera.amber.pybuilder.PythonTemplateBuilder.decoderExpression
 import org.apache.texera.amber.util.JSONUtils.objectMapper
+
+import scala.annotation.tailrec
 
 trait PythonOperatorDescriptor extends LogicalOp {
   private def generatePythonCodeForRaisingException(ex: Throwable): String = {
@@ -111,4 +114,58 @@ object PythonOperatorDescriptor {
     * `Operator.loop_variable_text` answers it from the iteration's state message.
     */
   def loopVariableLookup(name: String): String = s"self.loop_variable_text('$name')"
+
+  /** The functions whose code runs while the operator is built or opened. */
+  private val StartupFunctions = Set("__init__", "open")
+
+  private val FunctionHeader = """(?:async\s+)?def\s+([A-Za-z_]\w*)\s*\(""".r
+  private val ClassHeader = """class\s+[A-Za-z_]\w*\s*[(:]""".r
+
+  /**
+    * Whether generated `code` runs what it holds at `offset` when the operator starts: the
+    * innermost function around `offset` is `__init__` or `open`, which run before the worker
+    * starts, so before any state message can arrive. A function defined inside one of them may
+    * run later, so the innermost one decides. Python nests the code by indentation: a line's
+    * function is the closest `def` above it indented less than every block in between, past the
+    * lines inside a triple-quoted text (`PythonLexerUtils`). Like pyb's own checks this is lexical,
+    * which generated code, written from templates, keeps to.
+    */
+  def runsAtStartup(code: String, offset: Int): Boolean = {
+    val lines = code.split("\n", -1)
+    // Whether each line starts inside a triple-quoted text, so is no line of code of its own.
+    val insideText = lines
+      .scanLeft(Option.empty[String])((open, line) => updateTripleQuotedStringState(line, open))
+      .map(_.nonEmpty)
+    def indent(line: String): Int = line.takeWhile(c => c == ' ' || c == '\t').length
+    def function(line: String): Option[String] =
+      FunctionHeader.findPrefixMatchOf(line.trim).map(_.group(1))
+    // The function of a line indented `bound`, from line `i` up: the first header indented less
+    // opens the block the line is in; a block that is no function's sits in one indented less.
+    @tailrec
+    def enclosing(i: Int, bound: Int): Boolean =
+      if (i < 0) {
+        false
+      } else {
+        val line = lines(i)
+        val trimmed = line.trim
+        if (insideText(i) || trimmed.isEmpty || trimmed.startsWith("#") || indent(line) >= bound) {
+          enclosing(i - 1, bound)
+        } else if (ClassHeader.findPrefixOf(trimmed).nonEmpty) {
+          false
+        } else {
+          function(line) match {
+            case Some(name) => StartupFunctions(name)
+            case None       => enclosing(i - 1, indent(line))
+          }
+        }
+      }
+    val at = code.substring(0, offset).count(_ == '\n')
+    // The line where the statement holding `offset` starts: a text continues the line it opens.
+    val start = (at to 0 by -1).find(!insideText(_)).getOrElse(0)
+    // A function on one line, `def open(self): ...`, holds the statement itself.
+    function(lines(start)) match {
+      case Some(name) => StartupFunctions(name)
+      case None       => enclosing(start - 1, indent(lines(start)))
+    }
+  }
 }

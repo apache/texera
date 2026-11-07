@@ -48,7 +48,7 @@ import org.apache.texera.amber.core.workflow.{
 }
 import org.apache.texera.amber.core.workflowruntimestate.FatalErrorType.COMPILATION_ERROR
 import org.apache.texera.amber.core.workflowruntimestate.WorkflowFatalError
-import org.apache.texera.amber.operator.PythonOperatorDescriptor.loopVariableLookup
+import org.apache.texera.amber.operator.PythonOperatorDescriptor.{loopVariableLookup, runsAtStartup}
 import org.apache.texera.amber.operator.{LogicalOp, PythonOperatorDescriptor}
 import org.apache.texera.amber.util.JSONUtils.objectMapper
 import org.apache.texera.amber.util.StackTraceUtils.getStackTraceWithAllCauses
@@ -176,9 +176,9 @@ object WorkflowCompiler {
     * property's `$name` is bound only where pyb's decoder rendered it, which
     * `PythonOperatorDescriptor` turned into a read of the loop state, `loopVariableLookup(name)`,
     * and then only if the code holds the text `$name` nowhere (where it does, the code pastes it
-    * in as it is) and no output column the operator adds holds the text (its schema is computed
-    * from the literal). A lookup the code runs before the iteration's state arrives, such as one
-    * in `open`, fails when it runs, with a message that says so.
+    * in as it is), the code reads it nowhere when the operator starts (in `open` or `__init__`,
+    * `PythonOperatorDescriptor.runsAtStartup`), before the iteration's state can arrive, and no
+    * output column the operator adds holds the text (its schema is computed from the literal).
     * When the generation failed there is no code to read either way, and the code-generation
     * check reports why it failed instead.
     *
@@ -208,6 +208,8 @@ object WorkflowCompiler {
             val lookup = loopVariableLookup(name)
             if (scripts.exists(_.contains("$" + name))) Some(pastedIntoCode)
             else if (!scripts.exists(_.contains(lookup))) Some(unreadByCode)
+            else if (scripts.exists(code => offsetsOf(code, lookup).exists(runsAtStartup(code, _))))
+              Some(readAtStartup)
             else if (added.exists(_.contains("$" + name))) Some(namesOutputColumn)
             else None
           }
@@ -215,7 +217,7 @@ object WorkflowCompiler {
             if (scripts.exists(failedCodeGeneration.findFirstIn(_).nonEmpty)) Map.empty
             else text.flatMap { case (pointer, name) => whyUnbound(name).map(pointer -> _) }
           ((logicalOp.stateReferences -- text.keys).keys -> writtenIntoCode) +:
-            Seq(pastedIntoCode, unreadByCode, namesOutputColumn).map { why =>
+            Seq(pastedIntoCode, unreadByCode, readAtStartup, namesOutputColumn).map { why =>
               textReasons.collect { case (pointer, `why`) => pointer } -> why
             }
         }
@@ -235,6 +237,8 @@ object WorkflowCompiler {
     "numeric and boolean properties are written into its generated code before the loop runs"
   private val pastedIntoCode = "its code embeds the text before the loop runs"
   private val unreadByCode = "its code does not read the text when the loop runs"
+  private val readAtStartup =
+    "its code reads the text when the operator starts, before the iteration's state arrives"
   private val namesOutputColumn =
     "the text names an output column, which is set before the loop runs"
 
@@ -250,6 +254,10 @@ object WorkflowCompiler {
     columns(physicalOps.flatMap(_.outputPorts.map { case (port, (_, _, s)) => port -> s })) --
       columns(physicalOps.flatMap(_.inputPorts.map { case (port, (_, _, s)) => port -> s }))
   }
+
+  /** Where `text` starts in `code`, each time it occurs. */
+  private def offsetsOf(code: String, text: String): Iterator[Int] =
+    Iterator.iterate(code.indexOf(text))(at => code.indexOf(text, at + 1)).takeWhile(_ >= 0)
 
   /** What a Python-based operator's code is when generating it failed; the group is the reason. */
   private val failedCodeGeneration = """#EXCEPTION DURING CODE GENERATION:\s*(.*)""".r
