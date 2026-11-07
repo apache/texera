@@ -27,6 +27,7 @@ import org.apache.texera.amber.operator.visualization.PlotlyStandaloneCode
 import org.apache.texera.amber.operator.visualization.PythonVisualizationOpDesc
 import org.apache.texera.amber.operator.metadata.annotations.{AutofillAttributeName, SampleColumn}
 import org.apache.texera.amber.operator.metadata.{OperatorGroupConstants, OperatorInfo}
+import org.apache.texera.amber.pybuilder.PythonTemplateBuilder
 import org.apache.texera.amber.pybuilder.PythonTemplateBuilder.pyStringLiteral
 
 import javax.validation.constraints.NotNull
@@ -67,12 +68,53 @@ class VolcanoPlotOpDesc extends PythonVisualizationOpDesc with PlotlyStandaloneC
   @NotNull(message = "P-Value Column cannot be empty")
   var pvalueColumn: EncodableString = ""
 
+  @JsonProperty(required = false)
+  @JsonSchemaTitle("Hover column")
+  @JsonPropertyDescription(
+    "Column value to display when a dot is hovered over; leave empty for the first column"
+  )
+  @AutofillAttributeName
+  var hoverName: EncodableString = ""
+
   override def operatorInfo: OperatorInfo =
     OperatorInfo.forVisualization(
       userFriendlyName = "Volcano Plot",
       operatorDescription = "Displays statistical significance versus effect size",
       operatorGroupName = OperatorGroupConstants.VISUALIZATION_SCIENTIFIC_GROUP
     )
+
+  /** An empty or blank hover column keeps the first column, which is what saved
+    * workflows show. One rule for both code paths, so they cannot disagree.
+    */
+  private def hoverColumnSet: Boolean = hoverName.trim.nonEmpty
+
+  private def hoverColumn: PythonTemplateBuilder =
+    if (hoverColumnSet) pyb"$hoverName" else pyb"table.columns[0]"
+
+  /** A set hover column that the input lacks gets the operator's error page, like the
+    * two required columns, instead of the ValueError plotly would raise.
+    */
+  private def hoverColumnCheck: PythonTemplateBuilder =
+    if (hoverColumnSet)
+      pyb"""if $hoverName not in table.columns:
+         |            yield {"html-content": self.render_error("Missing hover column in table.")}
+         |            return
+         |"""
+    else pyb""
+
+  // The exported script's twins of the two helpers above, with the column name as a
+  // Python literal rather than decoded. The check is one more `elif` in the script's
+  // chain, so it ends with its own newline and the template puts `else:` right after it.
+  private def standaloneHoverColumn: String =
+    if (hoverColumnSet) pyStringLiteral(hoverName) else "table.columns[0]"
+
+  private def standaloneHoverColumnCheck: String =
+    if (hoverColumnSet)
+      s"""elif ${pyStringLiteral(hoverName)} not in in1df.columns:
+         |    with open(outputHtml, "w", encoding="utf-8") as output:
+         |        output.write(render_error("Missing hover column in table."))
+         |""".stripMargin
+    else ""
 
   override def generatePythonCode(): String = {
     pyb"""
@@ -95,7 +137,7 @@ class VolcanoPlotOpDesc extends PythonVisualizationOpDesc with PlotlyStandaloneC
        |        if $pvalueColumn not in table.columns or $effectColumn not in table.columns:
        |            yield {"html-content": self.render_error("Missing required columns in table.")}
        |            return
-       |
+       |        $hoverColumnCheck
        |        # Filter out non-positive p-values to avoid math errors
        |        table = table[table[$pvalueColumn] > 0]
        |        if table.empty:
@@ -108,7 +150,7 @@ class VolcanoPlotOpDesc extends PythonVisualizationOpDesc with PlotlyStandaloneC
        |            table,
        |            x=$effectColumn,
        |            y="-log10(pvalue)",
-       |            hover_name=table.columns[0],
+       |            hover_name=$hoverColumn,
        |            color=$effectColumn,
        |            color_continuous_scale="RdBu",
        |            title="Volcano Plot"
@@ -133,7 +175,7 @@ class VolcanoPlotOpDesc extends PythonVisualizationOpDesc with PlotlyStandaloneC
        |elif $pvalueLit not in in1df.columns or $effectLit not in in1df.columns:
        |    with open(outputHtml, "w", encoding="utf-8") as output:
        |        output.write(render_error("Missing required columns in table."))
-       |else:
+       |${standaloneHoverColumnCheck}else:
        |    table = in1df[in1df[$pvalueLit] > 0].copy()
        |    if table.empty:
        |        with open(outputHtml, "w", encoding="utf-8") as output:
@@ -144,7 +186,7 @@ class VolcanoPlotOpDesc extends PythonVisualizationOpDesc with PlotlyStandaloneC
        |            table,
        |            x=$effectLit,
        |            y="-log10(pvalue)",
-       |            hover_name=table.columns[0],
+       |            hover_name=$standaloneHoverColumn,
        |            color=$effectLit,
        |            color_continuous_scale="RdBu",
        |            title="Volcano Plot"
