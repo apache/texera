@@ -21,6 +21,7 @@ import pytest
 from unittest.mock import MagicMock
 
 from core.architecture.managers.executor_manager import ExecutorManager
+from core.models import State
 
 
 # Sample operator code for testing
@@ -49,6 +50,37 @@ class NonAsciiOperator(UDFOperatorV2):
 
     def process_tuple(self, tuple_: Tuple, port: int) -> Iterator[Optional[TupleLike]]:
         yield tuple_
+"""
+
+# Code the compiler generated for an operator inside a control block: two of
+# its text properties refer to loop variable t and one to m, which it reads
+# through loop_variable_text. It also decodes a plain text, and reads a name
+# it computes, which no property refers to.
+GENERATED_LOOKUPS_CODE = """
+from pytexera import *
+
+class ProcessTableOperator(UDFTableOperator):
+    def process_table(self, table: Table, port: int) -> Iterator[Optional[TableLike]]:
+        name = "i"
+        yield {
+            "title": self.loop_variable_text('t'),
+            "model": self.loop_variable_text('m'),
+            "label": self.loop_variable_text('t'),
+            "plain": self.decode_python_template('eA=='),
+            "computed": self.loop_variable_text(name),
+        }
+"""
+
+# The same reads in a generated source operator, which binds before it produces.
+GENERATED_SOURCE_LOOKUPS_CODE = """
+from pytexera import *
+
+class GenerateOperator(UDFSourceOperator):
+    def produce(self) -> Iterator[Union[TupleLike, TableLike, None]]:
+        yield {
+            "model": self.loop_variable_text('m'),
+            "title": self.loop_variable_text('t'),
+        }
 """
 
 
@@ -304,6 +336,33 @@ class TestExecutorManager:
             code=NON_ASCII_OPERATOR_CODE, is_source=False, language="python"
         )
         assert executor_manager.executor.GREETING == "café"
+
+    @pytest.mark.parametrize("is_source", [False, True])
+    def test_binding_requires_the_loop_variables_the_code_reads(
+        self, executor_manager, is_source
+    ):
+        # The paper (sec. 5) reports a required value missing when the operator
+        # binds its properties: the ones the compiler had its generated code
+        # read through loop_variable_text, each once, in name order. A decoded
+        # text and a name the code computes are no property's reference.
+        code = GENERATED_SOURCE_LOOKUPS_CODE if is_source else GENERATED_LOOKUPS_CODE
+        executor_manager.initialize_executor(
+            code=code, is_source=is_source, language="python"
+        )
+        executor = executor_manager.executor
+        executor.register_state(State({"i": 1}))
+        with pytest.raises(RuntimeError) as exc_info:
+            executor.bind_loop_variables()
+        assert str(exc_info.value) == "; ".join(
+            f"the operator refers to loop variable ${name}, but no state message "
+            "carried it before the operator's first tuple or the end of an input"
+            for name in ("m", "t")
+        )
+        # Once both arrive, the binding takes them.
+        executor.register_state(State({"t": "x", "m": "y"}))
+        executor.bind_loop_variables()
+        executor.register_state(State({"t": "z"}))
+        assert executor.loop_variable_text("t") == "x"
 
     def test_tmp_dir_is_reclaimed_when_manager_is_abandoned(self):
         # `fs` reclaimed the tmp directory on GC (FS.__del__ -> TempFS.close()

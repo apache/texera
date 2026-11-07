@@ -548,6 +548,70 @@ class TestBindLoopVariables:
         )
         assert outputs == [("5", 5), ("5", 9)]
 
+    @pytest.mark.timeout(2)
+    def test_the_first_tuple_on_a_port_other_than_the_first_binds(
+        self, context, data_processor, outputs
+    ):
+        # Every tuple so far arrives on port 1: the first of them binds, and
+        # the deeper i after it reaches only loop_variables.
+        context.executor_manager.executor = _BoundTextReader()
+
+        self._state(data_processor, context, {"i": 1}, 1, port=1)
+        self._tuple(data_processor, context, port=1)
+        self._state(data_processor, context, {"i": 5}, 0, port=1)
+        self._tuple(data_processor, context, port=1)
+
+        assert not context.exception_manager.has_exception(), (
+            context.exception_manager.get_exc_info()
+        )
+        assert outputs == [("1", 1), ("1", 5)]
+
+    @staticmethod
+    def _reported(context) -> str:
+        exc_info = context.exception_manager.get_exc_info()
+        assert exc_info is not None, "no exception was reported"
+        assert exc_info[0] is RuntimeError
+        return str(exc_info[1])
+
+    @pytest.mark.timeout(2)
+    def test_a_required_variable_missing_at_the_first_tuple_stops_it(
+        self, context, data_processor, outputs
+    ):
+        # The paper (sec. 5): a required value missing at the first tuple is
+        # an error there, before the operator runs on the tuple.
+        executor = _BoundTextReader()
+        executor.require_loop_variables(["i", "t"])
+        context.executor_manager.executor = executor
+
+        self._state(data_processor, context, {"i": 1}, 0)
+        self._tuple(data_processor, context, port=1)
+
+        assert self._reported(context) == (
+            "the operator refers to loop variable $t, but no state message "
+            "carried it before the operator's first tuple or the end of an input"
+        )
+        assert outputs == []
+
+    @pytest.mark.timeout(2)
+    def test_a_required_variable_missing_when_an_input_ends_first_stops_it(
+        self, context, data_processor, outputs
+    ):
+        # A table operator whose input ends with no rows: the binding when the
+        # port finishes reports the missing value before on_finish, which
+        # would otherwise produce its output without ever reading it.
+        executor = _BoundTextTable()
+        executor.require_loop_variables(["t"])
+        context.executor_manager.executor = executor
+
+        self._state(data_processor, context, {"i": 1}, 0)
+        data_processor.process_internal_marker(EndChannel(0))
+
+        assert self._reported(context) == (
+            "the operator refers to loop variable $t, but no state message "
+            "carried it before the operator's first tuple or the end of an input"
+        )
+        assert outputs == []
+
 
 class TestExecutorSession:
     @pytest.mark.timeout(2)

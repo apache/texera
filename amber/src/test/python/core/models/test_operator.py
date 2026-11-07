@@ -625,9 +625,10 @@ class TestBindLoopVariables:
         assert op.loop_variables["j"] == 2
         with pytest.raises(RuntimeError) as excinfo:
             op.loop_variable_text("j")
+        # Bound at the first tuple, or when an input ended before any tuple.
         assert str(excinfo.value) == (
             "the operator refers to loop variable $j, but no state message "
-            "carried it before the operator's first tuple"
+            "carried it before the operator's first tuple or the end of an input"
         )
 
     def test_binding_before_any_state_binds_no_values(self):
@@ -653,6 +654,122 @@ class TestBindLoopVariables:
             op.register_state(State({"i": 2}))
         assert target.loop_variable_text("i") == "1"
         assert bystander.loop_variable_text("i") == "2"
+
+
+def _missing(name: str) -> str:
+    """The error for a required loop variable that no state carried in time."""
+    return (
+        f"the operator refers to loop variable ${name}, but no state message "
+        "carried it before the operator's first tuple or the end of an input"
+    )
+
+
+# The shape of a generated table operator's code whose text property refers to
+# $t, read only when its input has rows, as Line Chart reads its axis title.
+_GENERATED_CHART_TEMPLATE = """from pytexera import *
+
+class ProcessTableOperator(UDFTableOperator):
+
+    @overrides
+    def process_table(self, table: Table, port: int) -> Iterator[Optional[TableLike]]:
+        if table.empty:
+            yield {"html-content": "input table is empty"}
+            return
+        yield {"html-content": self.loop_variable_text('t')}
+"""
+
+
+class TestRequiredLoopVariables:
+    # The paper (sec. 5): an operator reports an error if a required value is
+    # missing at its first tuple, on any input, whether or not its code reads
+    # the value then. A JVM operator's binding fails there, naming each
+    # property no state message could write (StateReferenceBinding.bind).
+
+    def test_binding_fails_for_a_required_variable_no_state_carried(self):
+        op = _ConcreteOperator()
+        op.require_loop_variables(["t"])
+        op.register_state(State({"i": 1}))
+        with pytest.raises(RuntimeError) as excinfo:
+            op.bind_loop_variables()
+        assert str(excinfo.value) == _missing("t")
+
+    def test_binding_fails_when_no_state_arrived_at_all(self):
+        # A source, or a body operator whose first tuple came before any state.
+        op = _ConcreteOperator()
+        op.require_loop_variables(["t"])
+        with pytest.raises(RuntimeError) as excinfo:
+            op.bind_loop_variables()
+        assert str(excinfo.value) == _missing("t")
+
+    def test_binding_names_every_variable_it_cannot_take_in_one_error(self):
+        # As the JVM's binding does, in order, joined by "; ": a missing name,
+        # and values a text property refuses (a list, an integer past 64 bits).
+        op = _ConcreteOperator()
+        op.require_loop_variables(["m", "big", "t", "i"])
+        op.register_state(State({"i": 1, "m": [1, 2], "big": 2**64}))
+        with pytest.raises(RuntimeError) as excinfo:
+            op.bind_loop_variables()
+        assert str(excinfo.value) == "; ".join(
+            [
+                "the operator refers to loop variable $m, but its value [1, 2] "
+                "is not a scalar",
+                "the operator refers to loop variable $big, but its value "
+                "18446744073709551616 does not fit in the 64-bit integer a JVM "
+                "operator reads it as",
+                _missing("t"),
+            ]
+        )
+
+    def test_a_failed_binding_binds_nothing_and_the_next_one_can_succeed(self):
+        # As on the JVM, the values stay unbound after a failed binding: the
+        # text still reads every state, and the next binding, before the next
+        # tuple, takes the values once every required one has arrived.
+        op = _ConcreteOperator()
+        op.require_loop_variables(["t"])
+        op.register_state(State({"i": 1, "t": [1]}))
+        with pytest.raises(RuntimeError, match="is not a scalar"):
+            op.bind_loop_variables()
+        op.register_state(State({"i": 2, "t": "x"}))
+        assert op.loop_variable_text("i") == "2"
+        op.bind_loop_variables()
+        op.register_state(State({"i": 3, "t": "y"}))
+        assert op.loop_variable_text("i") == "2"
+        assert op.loop_variable_text("t") == "x"
+
+    def test_only_the_required_variables_need_to_arrive(self):
+        # A loop variable no property refers to is UDF code's to read, if it
+        # comes at all: binding does not wait for it.
+        op = _ConcreteOperator()
+        op.require_loop_variables(["t"])
+        op.register_state(State({"t": "x"}))
+        op.bind_loop_variables()
+        assert op.loop_variable_text("t") == "x"
+        with pytest.raises(RuntimeError, match=r"\$i, but no state message"):
+            op.loop_variable_text("i")
+
+    def test_requiring_reaches_the_one_operator_only(self):
+        # The default lives on the class, so a requirement written there would
+        # reach every operator.
+        target, bystander = _ConcreteOperator(), _ConcreteOperator()
+        target.require_loop_variables(["t"])
+        for op in (target, bystander):
+            op.register_state(State({"i": 1}))
+        with pytest.raises(RuntimeError, match=r"\$t, but no state message"):
+            target.bind_loop_variables()
+        bystander.bind_loop_variables()
+        assert bystander.loop_variable_text("i") == "1"
+
+    def test_generated_code_that_skips_its_read_still_fails_at_binding(self):
+        # An empty input takes the chart's early return, which never reads $t;
+        # the binding before it reports the missing value all the same.
+        namespace: dict = {"__name__": "generated_chart_operator"}
+        exec(_GENERATED_CHART_TEMPLATE, namespace)
+        op = namespace["ProcessTableOperator"]()
+        op.require_loop_variables(["t"])
+        op.register_state(State({"i": 1}))
+        with pytest.raises(RuntimeError) as excinfo:
+            op.bind_loop_variables()
+        assert str(excinfo.value) == _missing("t")
 
 
 # Generated on the JVM, JDK 17 as the engine's images run it: each value's JSON
