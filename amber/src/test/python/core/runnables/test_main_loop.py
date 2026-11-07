@@ -1911,6 +1911,76 @@ class TestMainLoop:
 
         reraise()
 
+    @pytest.mark.timeout(2)
+    def test_main_loop_thread_keeps_the_loop_variables_when_another_state_arrives(
+        self,
+        mock_data_input_channel,
+        mock_data_output_channel,
+        mock_control_output_channel,
+        input_queue,
+        output_queue,
+        main_loop,
+        main_loop_thread,
+        mock_assign_input_port,
+        mock_assign_output_port,
+        mock_add_input_channel,
+        mock_add_partitioning,
+        mock_initialize_executor,
+        mock_data_element,
+        command_sequence,
+        reraise,
+    ):
+        # Xiaozhen's scenario on #8642, through the real MainLoop and
+        # DataProcessor threads: inside a loop, the loop's state, then the
+        # state a body operator upstream returns from produce_state_on_finish
+        # (the "no loop" envelope, also depth 0), then a tuple. The operator
+        # must still read the loop's i; reading only the latest state message
+        # fails with KeyError 'i'.
+        class LoopVariableReader(UDFOperatorV2):
+            def process_state(self, state, port):
+                return None  # emit no state, so the tuple is the only output
+
+            def process_tuple(self, tuple_, port):
+                yield Tuple(
+                    {"test-1": tuple_["test-1"], "test-2": self.loop_variables["i"]}
+                )
+
+        main_loop_thread.start()
+
+        for setup_msg in [
+            mock_assign_input_port,
+            mock_assign_output_port,
+            mock_add_input_channel,
+            mock_add_partitioning,
+            mock_initialize_executor,
+        ]:
+            input_queue.put(setup_msg)
+            assert output_queue.get() == DCMElement(
+                tag=mock_control_output_channel,
+                payload=DirectControlMessagePayloadV2(
+                    return_invocation=ReturnInvocation(
+                        command_id=command_sequence,
+                        return_value=ControlReturn(empty_return=EmptyReturn()),
+                    )
+                ),
+            )
+
+        main_loop.context.executor_manager.executor = LoopVariableReader()
+
+        for frame in (
+            StateFrame(State({"i": 2}), loop_counter=0, loop_start_id="loop-1"),
+            StateFrame(State({"note": "from-body-op"})),
+        ):
+            input_queue.put(DataElement(tag=mock_data_input_channel, payload=frame))
+        input_queue.put(mock_data_element)
+
+        output: DataElement = output_queue.get()
+        assert output.tag == mock_data_output_channel
+        assert isinstance(output.payload, DataFrame), output
+        assert output.payload.frame.to_pylist() == [{"test-1": "hello", "test-2": 2}]
+
+        reraise()
+
     @staticmethod
     def _expected_port_completed_dcm(
         mock_control_output_channel, command_id, port_id, is_input
@@ -2429,7 +2499,7 @@ class TestMainLoop:
                 self.closed = True
 
         executor = _JumpingLoopEnd()
-        executor.variables = State({"i": 1})
+        executor.state = State({"i": 1})
         main_loop.context.executor_manager.executor = executor
         main_loop._loop_start_id = "loop-start-1"
         main_loop.context.loop_start_port_uris = {"loop-start-1": "vfs:///x"}
@@ -2671,7 +2741,7 @@ class TestMainLoop:
         assert switched == [True], "it reaches the operator, which merges it"
         assert reset_calls == []
         # It is handed to the operator as the current input state, so
-        # LoopStartOperator.process_state merges it into self.variables.
+        # LoopStartOperator.process_state merges it into self.state.
         passed = main_loop.context.state_processing_manager.current_input_state
         assert passed == State({"seed": 7})
 
@@ -2787,8 +2857,8 @@ class TestMainLoop:
         self, main_loop, monkeypatch
     ):
         # The deferred consume calls process_state directly, bypassing
-        # DataProcessor.process_state (which registers state), so it must
-        # register the stashed state itself before the user's update.
+        # DataProcessor.process_state (which registers the state message), so
+        # it must register the stashed state itself before the user's update.
         executor = _FalseLoopEnd()
         main_loop.context.executor_manager.executor = executor
         monkeypatch.setattr(
@@ -2800,21 +2870,45 @@ class TestMainLoop:
         monkeypatch.setattr(
             executor,
             "process_state",
-            lambda st, port: seen.append((executor.state, st)),
+            lambda st, port: seen.append((dict(executor.loop_variables), st)),
         )
 
         main_loop._consume_pending_loop_state(executor)
 
-        assert seen == [(pending, pending)]
-        assert executor.state is pending
+        assert seen == [({"i": 7}, pending)]
+        assert executor.loop_variables == {"i": 7}
         assert executor.loop_variable_text("i") == "7"
 
-    def test_loopend_back_edge_writes_the_updated_variables_not_the_state(
+    def test_state_frame_reaches_the_operator_with_its_loop_counter(
         self, main_loop, monkeypatch
     ):
-        # The deferred consume registers the stashed message on `state`; the
-        # user's update writes the next iteration's loop variables to
-        # `variables`. The back-edge must carry the latter.
+        # The operator registers each state message with the nesting depth its
+        # envelope carries, so the frame's loop_counter must reach the
+        # DataProcessor alongside the state.
+        self._capture_state_emit(main_loop, monkeypatch)
+        spm = main_loop.context.state_processing_manager
+        handed = []
+        monkeypatch.setattr(
+            main_loop,
+            "_switch_context",
+            lambda: handed.append(
+                (spm.current_input_state, spm.current_input_loop_counter)
+            ),
+        )
+
+        main_loop._process_state_frame(
+            StateFrame(State({"i": 1}), loop_counter=1, loop_start_id="outer-loop")
+        )
+
+        assert handed == [(State({"i": 1}), 1)]
+
+    def test_loopend_back_edge_writes_its_own_state_not_the_loop_variables(
+        self, main_loop, monkeypatch
+    ):
+        # The deferred consume registers the stashed message on
+        # `loop_variables`; the user's update writes the next iteration's loop
+        # variables to the LoopEnd's own `state`. The back-edge must carry the
+        # latter.
         class _IncrementingLoopEnd(LoopEndOperator):
             def process_state(self, state, port):
                 self.run_update("i += 1", state)
@@ -2833,9 +2927,9 @@ class TestMainLoop:
 
         main_loop._consume_pending_loop_state(executor)
 
-        assert executor.state is pending
+        assert executor.loop_variables == {"i": 7}
         assert pending == State({"i": 7}), "the registered message is unchanged"
-        assert executor.variables == State({"i": 8})
+        assert executor.state == State({"i": 8})
 
         main_loop._loop_start_id = "outer-loop"
         main_loop.context.loop_start_port_uris = {"outer-loop": "vfs:///wf/port/outer"}
@@ -3324,7 +3418,7 @@ class TestMainLoop:
                 events.append(("jump", request))
 
         class _Executor:
-            variables = State({"i": 7})
+            state = State({"i": 7})
 
         main_loop._jump_to_loop_start(_Executor(), _Coordinator())
 
@@ -3368,7 +3462,7 @@ class TestMainLoop:
         self._patch_create_document(monkeypatch, write_log)
 
         class _Executor:
-            variables = State({"i": 7})
+            state = State({"i": 7})
 
         with pytest.raises(RuntimeError, match="no loop bookkeeping URI"):
             main_loop._jump_to_loop_start(

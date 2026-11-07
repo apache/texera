@@ -204,9 +204,9 @@ class TestProcessInternalMarker:
 
 class _StateSpy(TupleOperatorV2):
     """
-    Records what `state` holds at the moment `process_state` runs, so the test
-    can pin that the runtime registers the state message BEFORE the callback
-    rather than after it.
+    Records what `loop_variables` holds at the moment `process_state` runs, so
+    the test can pin that the runtime registers the state message BEFORE the
+    callback rather than after it.
     """
 
     def __init__(self):
@@ -217,8 +217,15 @@ class _StateSpy(TupleOperatorV2):
         yield tuple_
 
     def process_state(self, state, port):
-        self.seen.append((self.state, port))
+        self.seen.append((dict(self.loop_variables), port))
         return super().process_state(state, port)
+
+
+class _LoopVariableReader(TupleOperatorV2):
+    """For every tuple, outputs the loop variable `i` it reads off `loop_variables`."""
+
+    def process_tuple(self, tuple_, port):
+        yield Tuple({"x": self.loop_variables["i"]})
 
 
 class _LoopStart(LoopStartOperator):
@@ -239,15 +246,14 @@ class TestProcessState:
         executor = _StateSpy()
         context.executor_manager.executor = executor
         context.tuple_processing_manager.current_input_port_id = PortIdentity(0, False)
-        assert executor.state is None
 
         state = State({"i": 2})
         data_processor.process_state(state)
 
         # The callback observed the state already registered, on its port...
-        assert executor.seen == [(state, 0)]
+        assert executor.seen == [({"i": 2}, 0)]
         # ...it stays registered afterwards, and the default still forwards.
-        assert executor.state is state
+        assert executor.loop_variables == {"i": 2}
         assert context.state_processing_manager.current_output_state is state
         assert not context.exception_manager.has_exception()
         # `_executor_session` always switches once on exit.
@@ -261,12 +267,11 @@ class TestProcessState:
         context.executor_manager.executor = executor
         context.tuple_processing_manager.current_input_port_id = PortIdentity(1, False)
 
-        first, second = State({"i": 0}), State({"i": 1})
-        data_processor.process_state(first)
-        data_processor.process_state(second)
+        data_processor.process_state(State({"i": 0}))
+        data_processor.process_state(State({"i": 1}))
 
-        assert executor.seen == [(first, 1), (second, 1)]
-        assert executor.state is second
+        assert executor.seen == [({"i": 0}, 1), ({"i": 1}, 1)]
+        assert executor.loop_variables == {"i": 1}
 
     @pytest.mark.timeout(2)
     def test_a_later_state_message_keeps_the_loop_variables_of_the_earlier_one(
@@ -292,20 +297,76 @@ class TestProcessState:
         context.executor_manager.executor = target
         context.tuple_processing_manager.current_input_port_id = PortIdentity(0, False)
 
-        state = State({"i": 5})
-        data_processor.process_state(state)
+        data_processor.process_state(State({"i": 5}))
 
-        assert target.state is state
-        assert bystander.state is None
-        assert _StateSpy.state is None
+        assert target.loop_variables == {"i": 5}
+        assert not bystander.loop_variables
+        assert not _StateSpy().loop_variables
 
     @pytest.mark.timeout(2)
-    def test_a_loop_start_keeps_its_variables_apart_from_the_state(
+    def test_reads_the_loop_variable_after_another_operators_state_arrives(
+        self, context, data_processor, monkeypatch
+    ):
+        # Xiaozhen's scenario on #8642: inside a loop, a body operator upstream
+        # returns its own state from produce_state_on_finish, which reaches
+        # this operator after the loop's state, both at depth 0. The operator
+        # must still read the loop's i, here in process_tuple.
+        schema = Schema(raw_schema={"x": "INTEGER"})
+        monkeypatch.setattr(
+            context.output_manager,
+            "get_port",
+            lambda *args, **kwargs: SimpleNamespace(get_schema=lambda: schema),
+        )
+        context.executor_manager.executor = _LoopVariableReader()
+        tpm = context.tuple_processing_manager
+        tpm.current_input_port_id = PortIdentity(0, False)
+
+        data_processor.process_state(State({"i": 2}), 0)
+        data_processor.process_state(State({"note": "from-body-op"}), 0)
+
+        outputs = []
+
+        def switch_and_collect():
+            if tpm.current_output_tuple is not None:
+                outputs.append(tpm.get_output_tuple())
+            # Ends process_tuple's loop even when the operator raises.
+            tpm.finished_current.set()
+
+        data_processor._switch_context = switch_and_collect
+        tpm.current_input_tuple = Tuple({"x": 0})
+        data_processor.process_tuple()
+
+        assert not context.exception_manager.has_exception(), (
+            context.exception_manager.get_exc_info()
+        )
+        assert [output["x"] for output in outputs] == [2]
+
+    @pytest.mark.timeout(2)
+    def test_an_inner_loops_value_wins_over_an_outer_one_arriving_after_it(
         self, context, data_processor
     ):
-        # A LoopStart keeps its own loop variables on `variables`, so the
-        # runtime registering the message on `state` neither clobbers them nor
-        # turns the first-entry merge into a merge of the message into itself.
+        # i = 1 from the outer loop (depth 1), i = 5 from the inner loop
+        # (depth 0), then the outer message again: the operator reads the
+        # inner i, as a JVM operator binds it.
+        executor = _StateSpy()
+        context.executor_manager.executor = executor
+        context.tuple_processing_manager.current_input_port_id = PortIdentity(0, False)
+
+        data_processor.process_state(State({"i": 1}), 1)
+        data_processor.process_state(State({"i": 5}), 0)
+        data_processor.process_state(State({"i": 1}), 1)
+
+        assert executor.seen == [({"i": 1}, 0), ({"i": 5}, 0), ({"i": 5}, 0)]
+        assert executor.loop_variables == {"i": 5}
+
+    @pytest.mark.timeout(2)
+    def test_a_loop_start_keeps_its_own_state_apart_from_the_loop_variables(
+        self, context, data_processor
+    ):
+        # A LoopStart keeps its own loop variables on `state`, as on main; the
+        # runtime registers the incoming message on `loop_variables`, so the
+        # first-entry merge still merges the message into the LoopStart's own
+        # variables and leaves the message itself unchanged.
         executor = _LoopStart()
         executor.open()
         context.executor_manager.executor = executor
@@ -314,9 +375,9 @@ class TestProcessState:
         state = State({"seed": 7})
         data_processor.process_state(state)
 
-        assert executor.state is state
+        assert executor.loop_variables == {"seed": 7}
         assert state == State({"seed": 7}), "the registered message is unchanged"
-        assert executor.variables == State({"i": 0, "seed": 7})
+        assert executor.state == State({"i": 0, "seed": 7})
         # LoopStart forwards nothing on first entry.
         assert context.state_processing_manager.current_output_state is None
         assert not context.exception_manager.has_exception()
@@ -402,6 +463,26 @@ class TestRunInvariant:
             dp.run()
         assert "expected exactly one queued input" in str(excinfo.value)
         assert "marker=False, state=False, tuple=False" in str(excinfo.value)
+
+    @pytest.mark.timeout(2)
+    def test_hands_a_queued_state_its_loop_counter(self, context, monkeypatch):
+        # MainLoop queues a state message with the nesting depth its envelope
+        # carried; run() passes both on, so the operator can tell an inner
+        # loop's value from an outer one's.
+        dp = self._drive_run_synchronously(context, monkeypatch)
+        spm = context.state_processing_manager
+        spm.current_input_state = State({"i": 1})
+        spm.current_input_loop_counter = 1
+        calls = []
+
+        def record(state, loop_counter):
+            calls.append((state, loop_counter))
+            dp.stop()
+
+        monkeypatch.setattr(dp, "process_state", record)
+        dp.run()
+
+        assert calls == [(State({"i": 1}), 1)]
 
     @pytest.mark.timeout(2)
     def test_two_queued_inputs_raises_invariant_error(self, context, monkeypatch):

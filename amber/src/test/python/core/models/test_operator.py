@@ -274,12 +274,6 @@ class TestOperatorDefaultMethods:
         state = State()
         assert op.process_state(state, port=0) is state
 
-    def test_state_is_none_until_the_runtime_registers_a_state(self):
-        # Inside a control block the iteration's loop variables reach the
-        # operator as a state message; the runtime registers it on
-        # `state` before `process_state` runs. Nothing has arrived yet.
-        assert _ConcreteOperator().state is None
-
     def test_produce_state_on_start_returns_none_by_default(self):
         assert _ConcreteOperator().produce_state_on_start(port=0) is None
 
@@ -294,6 +288,98 @@ class TestOperatorDefaultMethods:
         # for any future direct subclass -- a generator that yields exactly one
         # None, not an empty generator and not a plain return.
         assert list(_ConcreteOperator().on_finish(port=0)) == [None]
+
+
+class TestLoopVariables:
+    # Inside a control block the loop variables reach an operator as state
+    # messages; the runtime registers each one (register_state) right before
+    # process_state, with the nesting depth its envelope carries: 0 from the
+    # innermost loop around the operator, 1 from the loop around that. A state
+    # no loop sent (an operator's produce_state_on_finish) travels at depth 0.
+
+    def test_empty_until_the_runtime_registers_a_state(self):
+        assert dict(_ConcreteOperator().loop_variables) == {}
+
+    def test_holds_the_variables_a_registered_state_carries(self):
+        op = _ConcreteOperator()
+        op.register_state(State({"i": 2, "k": "a"}), 0)
+        assert dict(op.loop_variables) == {"i": 2, "k": "a"}
+
+    def test_a_state_that_names_no_loop_variable_leaves_them_intact(self):
+        # The loop's state, then a body operator's own state from
+        # produce_state_on_finish, both at depth 0: the second adds its names
+        # and must not erase i (Xiaozhen's KeyError 'i' on #8642).
+        op = _ConcreteOperator()
+        op.register_state(State({"i": 2}), 0)
+        op.register_state(State({"note": "from-body-op"}), 0)
+        assert dict(op.loop_variables) == {"i": 2, "note": "from-body-op"}
+
+    def test_the_last_value_from_the_same_depth_wins(self):
+        op = _ConcreteOperator()
+        op.register_state(State({"i": 1}), 0)
+        op.register_state(State({"i": 2}), 0)
+        assert op.loop_variables["i"] == 2
+
+    def test_the_inner_value_wins_over_an_outer_one_that_arrives_later(self):
+        # i = 1 from the outer loop, i = 5 from the inner one, then the outer
+        # message again: the smallest depth wins, as a JVM operator binds it.
+        op = _ConcreteOperator()
+        op.register_state(State({"i": 1}), 1)
+        assert op.loop_variables["i"] == 1, "the outer i until the inner arrives"
+        op.register_state(State({"i": 5}), 0)
+        op.register_state(State({"i": 1}), 1)
+        assert op.loop_variables["i"] == 5
+
+    def test_an_outer_variable_the_inner_loop_does_not_name_stays_visible(self):
+        op = _ConcreteOperator()
+        op.register_state(State({"i": 1, "n": 10}), 1)
+        op.register_state(State({"i": 5}), 0)
+        assert dict(op.loop_variables) == {"i": 5, "n": 10}
+
+    def test_a_deeper_message_takes_over_from_an_outer_one_at_any_depth(self):
+        op = _ConcreteOperator()
+        op.register_state(State({"i": 1}), 2)
+        op.register_state(State({"i": 2}), 1)
+        op.register_state(State({"i": 3}), 2)
+        assert op.loop_variables["i"] == 2
+
+    def test_registering_leaves_the_state_message_unchanged(self):
+        op = _ConcreteOperator()
+        first, second = State({"i": 1}), State({"note": "n"})
+        op.register_state(first, 0)
+        op.register_state(second, 0)
+        assert first == State({"i": 1})
+        assert second == State({"note": "n"})
+
+    def test_loop_variables_are_read_only(self):
+        # A UDF changes a loop variable by sending a state message, which
+        # downstream operators then receive too, not by writing this view.
+        op = _ConcreteOperator()
+        op.register_state(State({"i": 1}), 0)
+        with pytest.raises(TypeError):
+            op.loop_variables["i"] = 2
+        assert op.loop_variables["i"] == 1
+
+    def test_registers_on_the_instance_only(self):
+        # The defaults live on the class, so a registration written to the
+        # class (instead of the instance) would reach every operator.
+        target, bystander = _ConcreteOperator(), _ConcreteOperator()
+        target.register_state(State({"i": 1}), 0)
+        assert dict(bystander.loop_variables) == {}
+        assert dict(_ConcreteOperator().loop_variables) == {}
+
+    def test_a_subclass_init_that_skips_super_still_reads_and_registers(self):
+        class _NoSuperInit(TupleOperatorV2):
+            def __init__(self):
+                pass
+
+            def process_tuple(self, tuple_, port):
+                yield tuple_
+
+        op = _NoSuperInit()
+        assert dict(op.loop_variables) == {}
+        op.register_state(State({"i": 1}), 0)
+        assert dict(op.loop_variables) == {"i": 1}
 
 
 class TestLazyTemplateDecoder:
@@ -394,23 +480,13 @@ class TestLoopVariableText:
         assert op.loop_variable_text("centroids") == "3"
 
     def test_an_inner_loops_state_shadows_the_outer_one_and_keeps_the_rest(self):
-        # A nested loop's body receives the outer loop's state first, then the
-        # inner Loop Start's, as a JVM operator does.
+        # A nested loop's body receives the outer loop's state first (depth 1),
+        # then the inner Loop Start's (depth 0), as a JVM operator does.
         op = _ConcreteOperator()
-        op.register_state(State({"j": 5, "i": "outer"}))
-        op.register_state(State({"i": 0}))
+        op.register_state(State({"j": 5, "i": "outer"}), 1)
+        op.register_state(State({"i": 0}), 0)
         assert op.loop_variable_text("j") == "5"
         assert op.loop_variable_text("i") == "0"
-
-    def test_registering_makes_the_message_the_state_and_changes_no_message(self):
-        op = _ConcreteOperator()
-        first, second = State({"i": 1}), State({"j": 2})
-        op.register_state(first)
-        op.register_state(second)
-        assert op.state is second
-        # The merge is the operator's own: neither message gains a key.
-        assert first == State({"i": 1})
-        assert second == State({"j": 2})
 
     def test_registering_reaches_the_one_operator_only(self):
         # The defaults live on the class, so a registration written there
@@ -420,8 +496,6 @@ class TestLoopVariableText:
         assert target.loop_variable_text("i") == "1"
         with pytest.raises(RuntimeError, match="read before the iteration's state"):
             bystander.loop_variable_text("i")
-        assert bystander.state is None
-        assert _ConcreteOperator.state is None
 
     def test_raises_when_read_before_the_iterations_state_arrived(self):
         op = _ConcreteOperator()
