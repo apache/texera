@@ -27,6 +27,7 @@ import org.apache.texera.amber.operator.filter.SpecializedFilterOpDesc
 import org.apache.texera.amber.operator.limit.LimitOpDesc
 import org.apache.texera.amber.operator.projection.ProjectionOpDesc
 import org.apache.texera.amber.operator.sortPartitions.SortPartitionsOpDesc
+import org.apache.texera.amber.operator.source.scan.csv.CSVScanSourceOpDesc
 import org.apache.texera.amber.operator.source.scan.file.FileScanOpDesc
 import org.apache.texera.amber.operator.unneststring.UnnestStringOpDesc
 import org.scalatest.flatspec.AnyFlatSpec
@@ -58,6 +59,13 @@ class OperatorMetadataGeneratorSpec extends AnyFlatSpec with Matchers {
     properties.has(StateReferencing.SIDECAR_PROPERTY) shouldBe false
     val required = schema.get("required").elements().asScala.map(_.asText()).toList
     required should not contain StateReferencing.SIDECAR_PROPERTY
+  }
+
+  it should "generate a valid JSON schema for CSVScanSourceOpDesc" in {
+    val schema =
+      OperatorMetadataGenerator.generateOperatorJsonSchema(classOf[CSVScanSourceOpDesc])
+    schema should not be null
+    schema.get("properties").has("fileName") shouldBe true
   }
 
   /** The properties of `opDescClass`'s schema whose `noLoopVariable` keyword is `true`. */
