@@ -9,5 +9,6 @@
     "strictNullInputTypes": false,
     "fullTemplateTypeCheck": false
   },
-  "include": ["**/*.spec.ts", "**/*.d.ts", "vitest-globals.d.ts", "jsdom-svg-polyfill.ts"]
+  "include": ["**/*.spec.ts", "**/*.d.ts", "vitest-globals.d.ts", "jsdom-svg-polyfill.ts"],
+  "exclude": ["react/**"]
 }

@@ -23,20 +23,43 @@ import { AuthStore, decodeSessionToken, safeReturnUrl } from "./auth";
 import { RuntimeConfig } from "./runtime-config";
 
 function token(claims: Record<string, unknown> = {}): string {
-  return ["header", btoa(unescape(encodeURIComponent(JSON.stringify({
-    userId: 7, sub: "日本語", email: "user@example.com", role: "REGULAR", exp: 2000, ...claims,
-  })))), "signature"].join(".");
+  return [
+    "header",
+    btoa(
+      unescape(
+        encodeURIComponent(
+          JSON.stringify({
+            userId: 7,
+            sub: "日本語",
+            email: "user@example.com",
+            role: "REGULAR",
+            exp: 2000,
+            ...claims,
+          })
+        )
+      )
+    ),
+    "signature",
+  ].join(".");
 }
 function memoryStorage() {
   const data = new Map<string, string>();
-  return { getItem: (key: string) => data.get(key) ?? null, setItem: (key: string, value: string) => { data.set(key, value); }, removeItem: (key: string) => { data.delete(key); } };
+  return {
+    getItem: (key: string) => data.get(key) ?? null,
+    setItem: (key: string, value: string) => {
+      data.set(key, value);
+    },
+    removeItem: (key: string) => {
+      data.delete(key);
+    },
+  };
 }
-function setup(respond: (path: string, init?: RequestInit) => Response = () => Response.json({})) {
+function setup(respond: (path: string, init?: RequestInit) => Response = () => Response.json({}), now = () => 1000000) {
   const storage = memoryStorage();
   const fetch = vi.fn(async (path: string, init?: RequestInit) => respond(path, init));
   const api = new ApiClient({ fetch, getToken: () => storage.getItem("access_token") });
   const config = new RuntimeConfig(api);
-  const auth = new AuthStore(api, config, { storage, now: () => 1000000 });
+  const auth = new AuthStore(api, config, { storage, now });
   return { auth, api, storage, config, fetch };
 }
 
@@ -51,6 +74,9 @@ describe("session token and return URL validation", () => {
     expect(safeReturnUrl("/user/workflow/4?view=1")).toBe("/user/workflow/4?view=1");
     for (const invalid of ["https://evil.example", "//evil.example", "/\\evil", "", "/login"]) {
       expect(safeReturnUrl(invalid)).toBe("/user/workflow");
+    }
+    for (const cycle of ["/./login", "/user/../login", "/user/%2e%2e/login", "/x/../callback/orcid"]) {
+      expect(safeReturnUrl(cycle)).toBe("/user/workflow");
     }
   });
 });
@@ -72,7 +98,9 @@ describe("AuthStore", () => {
   });
 
   it("signs in only after post-login config and emits a stable external-store snapshot", async () => {
-    const { auth, fetch, storage } = setup(path => Response.json(path.endsWith("auth/login") ? { accessToken: token() } : {}));
+    const { auth, fetch, storage } = setup(path =>
+      Response.json(path.endsWith("auth/login") ? { accessToken: token() } : {})
+    );
     const changed = vi.fn();
     auth.subscribe(changed);
     await auth.login(" user ", "secret");
@@ -97,10 +125,15 @@ describe("AuthStore", () => {
   });
 
   it("gates missing email and completes the reissued session through the server contract", async () => {
-    const { auth, fetch } = setup(path => Response.json(
-      path.endsWith("auth/orcid/login") ? { accessToken: token({ email: null }) }
-      : path.endsWith("auth/email") ? { accessToken: token() } : {}
-    ));
+    const { auth, fetch } = setup(path =>
+      Response.json(
+        path.endsWith("auth/orcid/login")
+          ? { accessToken: token({ email: null }) }
+          : path.endsWith("auth/email")
+            ? { accessToken: token() }
+            : {}
+      )
+    );
     await auth.socialLogin("orcid", "code");
     expect(auth.getSnapshot().status).toBe("email-required");
     expect(fetch.mock.calls[0][1]?.body).toBe("code");
@@ -111,11 +144,17 @@ describe("AuthStore", () => {
   });
 
   it("keeps inactive invite-only accounts outside protected pages and submits the approval request", async () => {
-    const { auth, fetch } = setup(path => Response.json(
-      path.endsWith("auth/login") ? { accessToken: token({ role: "INACTIVE" }) }
-      : path.endsWith("config/user-system") ? { inviteOnly: true }
-      : path.includes("joining-reason/required") ? true : {}
-    ));
+    const { auth, fetch } = setup(path =>
+      Response.json(
+        path.endsWith("auth/login")
+          ? { accessToken: token({ role: "INACTIVE" }) }
+          : path.endsWith("config/user-system")
+            ? { inviteOnly: true }
+            : path.includes("joining-reason/required")
+              ? true
+              : {}
+      )
+    );
     await auth.login("name", "secret");
     expect(auth.getSnapshot()).toMatchObject({ status: "approval-required", registrationRequired: true });
     await expect(auth.submitJoiningReason("UCI", "")).rejects.toThrow("Reason");
@@ -125,5 +164,111 @@ describe("AuthStore", () => {
     expect(auth.getSnapshot().status).toBe("anonymous");
     auth.dispose();
   });
-});
 
+  it("preserves account-completion gates when authenticated configuration is unavailable", async () => {
+    for (const claims of [{ email: null }, { role: "INACTIVE" }]) {
+      const { auth } = setup(path =>
+        path.endsWith("auth/login")
+          ? Response.json({ accessToken: token(claims) })
+          : path.includes("joining-reason/required")
+            ? Response.json(true)
+            : new Response("Unavailable", { status: 503 })
+      );
+      await auth.login("name", "secret");
+      expect(auth.getSnapshot().status).toBe("email" in claims ? "email-required" : "approval-required");
+      auth.dispose();
+    }
+  });
+
+  it("keeps an inactive replacement session gated if its approval lookup fails", async () => {
+    let inactive = false;
+    const { auth } = setup(path => {
+      if (path.endsWith("auth/login"))
+        return Response.json({ accessToken: token(inactive ? { role: "INACTIVE" } : {}) });
+      if (path.endsWith("config/user-system")) return Response.json({ inviteOnly: true });
+      if (path.includes("joining-reason/required")) return new Response("Unavailable", { status: 503 });
+      return Response.json({});
+    });
+    try {
+      await auth.login("name", "secret");
+      expect(auth.getSnapshot().status).toBe("authenticated");
+      inactive = true;
+      await expect(auth.login("name", "secret")).rejects.toMatchObject({ status: 503 });
+      expect(auth.getSnapshot()).toMatchObject({ status: "approval-required", user: { role: "INACTIVE" } });
+    } finally {
+      auth.dispose();
+    }
+  });
+
+  it("does not resurrect a session when logout overtakes login or protected configuration", async () => {
+    for (const pauseAt of ["auth/login", "config/gui"]) {
+      const { auth, storage, fetch, config } = setup();
+      let release!: () => void;
+      const gate = new Promise<void>(resolve => {
+        release = resolve;
+      });
+      let requestStarted!: () => void;
+      const started = new Promise<void>(resolve => {
+        requestStarted = resolve;
+      });
+      fetch.mockImplementation(async (path: string) => {
+        if (path.endsWith(pauseAt)) {
+          requestStarted();
+          await gate;
+        }
+        return Response.json(path.endsWith("auth/login") ? { accessToken: token() } : { warehouseEnabled: true });
+      });
+      const login = auth.login("name", "secret");
+      await started;
+      auth.logout();
+      release();
+      await login;
+      expect(auth.getSnapshot().status).toBe("anonymous");
+      expect(storage.getItem("access_token")).toBeNull();
+      expect(config.env.warehouseEnabled).toBeUndefined();
+      auth.dispose();
+    }
+  });
+
+  it("expires the session at the token boundary and cancels its timer on disposal", async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(1000000);
+    const { auth, storage } = setup(
+      path => Response.json(path.endsWith("auth/login") ? { accessToken: token({ exp: 1001 }) } : {}),
+      Date.now
+    );
+    try {
+      await auth.login("name", "secret");
+      await vi.advanceTimersByTimeAsync(999);
+      expect(auth.getSnapshot().status).toBe("authenticated");
+      await vi.advanceTimersByTimeAsync(1);
+      expect(auth.getSnapshot().status).toBe("anonymous");
+      expect(storage.getItem("access_token")).toBeNull();
+      expect(vi.getTimerCount()).toBe(0);
+    } finally {
+      auth.dispose();
+      vi.useRealTimers();
+    }
+  });
+
+  it("responds to cross-tab token removal and unregisters the storage listener on disposal", async () => {
+    const fetch = vi.fn(async () => Response.json({}));
+    const api = new ApiClient({ fetch });
+    const auth = new AuthStore(api, new RuntimeConfig(api), { now: () => 1000000 });
+    try {
+      localStorage.setItem("access_token", token());
+      await auth.bootstrap();
+      expect(auth.getSnapshot().status).toBe("authenticated");
+      localStorage.removeItem("access_token");
+      window.dispatchEvent(new StorageEvent("storage", { key: "access_token" }));
+      await vi.waitFor(() => expect(auth.getSnapshot().status).toBe("anonymous"));
+      auth.dispose();
+      fetch.mockClear();
+      window.dispatchEvent(new StorageEvent("storage", { key: "access_token" }));
+      expect(fetch).not.toHaveBeenCalled();
+    } finally {
+      auth.dispose();
+      localStorage.removeItem("access_token");
+    }
+  });
+});

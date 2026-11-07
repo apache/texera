@@ -25,7 +25,9 @@ describe("ApiClient", () => {
     const fetch = vi.fn().mockResolvedValue(Response.json({ value: "✓" }));
     const api = new ApiClient({ fetch, getToken: () => "token" });
     const controller = new AbortController();
-    await expect(api.post("workflow", { name: "日本語" }, { signal: controller.signal })).resolves.toEqual({ value: "✓" });
+    await expect(api.post("workflow", { name: "日本語" }, { signal: controller.signal })).resolves.toEqual({
+      value: "✓",
+    });
     const [url, init] = fetch.mock.calls[0];
     expect(url).toBe("/api/workflow");
     expect(new Headers(init.headers).get("Authorization")).toBe("Bearer token");
@@ -43,7 +45,9 @@ describe("ApiClient", () => {
   });
 
   it("preserves server errors as plain data and invalidates authenticated 401s only", async () => {
-    const fetch = vi.fn().mockImplementation(() => Promise.resolve(Response.json({ message: "<a>Rejected</a>" }, { status: 401 })));
+    const fetch = vi
+      .fn()
+      .mockImplementation(() => Promise.resolve(Response.json({ message: "<a>Rejected</a>" }, { status: 401 })));
     const onUnauthorized = vi.fn();
     const api = new ApiClient({ fetch, getToken: () => "token", onUnauthorized });
     await expect(api.get("workflow/list")).rejects.toMatchObject({ status: 401, message: "<a>Rejected</a>" });
@@ -53,7 +57,8 @@ describe("ApiClient", () => {
   });
 
   it("handles empty, text, binary and malformed JSON responses explicitly", async () => {
-    const fetch = vi.fn()
+    const fetch = vi
+      .fn()
       .mockResolvedValueOnce(new Response(null, { status: 204 }))
       .mockResolvedValueOnce(new Response("plain"))
       .mockResolvedValueOnce(new Response("bytes"))
@@ -66,7 +71,10 @@ describe("ApiClient", () => {
   });
 
   it("preserves caller FormData headers and exposes HTTP errors for non-JSON bodies", async () => {
-    const fetch = vi.fn().mockResolvedValueOnce(Response.json({})).mockResolvedValueOnce(new Response("Unavailable", { status: 503 }));
+    const fetch = vi
+      .fn()
+      .mockResolvedValueOnce(Response.json({}))
+      .mockResolvedValueOnce(new Response("Unavailable", { status: 503 }));
     const api = new ApiClient({ fetch });
     const form = new FormData();
     form.set("file", "data");
@@ -76,4 +84,3 @@ describe("ApiClient", () => {
     await expect(api.get("config/pre-login")).rejects.toMatchObject({ status: 503, message: "Unavailable" });
   });
 });
-

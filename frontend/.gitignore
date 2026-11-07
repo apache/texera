@@ -4,6 +4,7 @@
 
 # compiled output
 /dist
+/dist-react
 /dist-server
 /tmp
 /out-tsc

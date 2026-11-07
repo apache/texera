@@ -28,11 +28,22 @@ afterEach(cleanup);
 
 async function setup(options: { localLogin?: boolean; emailVerification?: boolean; fail?: boolean } = {}) {
   const values = new Map<string, string>();
-  const storage = { getItem: (key: string) => values.get(key) ?? null, setItem: (key: string, value: string) => { values.set(key, value); }, removeItem: (key: string) => { values.delete(key); } };
+  const storage = {
+    getItem: (key: string) => values.get(key) ?? null,
+    setItem: (key: string, value: string) => {
+      values.set(key, value);
+    },
+    removeItem: (key: string) => {
+      values.delete(key);
+    },
+  };
   const jwt = `header.${btoa(JSON.stringify({ userId: 7, sub: "tester", email: "test@example.org", role: "REGULAR", exp: 9999999999 }))}.signature`;
   const fetch = vi.fn(async (path: string) => {
     if (path.endsWith("/config/pre-login")) return Response.json({ localLogin: true, ...options });
-    if (path.endsWith("/auth/login")) return options.fail ? Response.json({ message: "Incorrect credentials" }, { status: 401 }) : Response.json({ accessToken: jwt });
+    if (path.endsWith("/auth/login"))
+      return options.fail
+        ? Response.json({ message: "Incorrect credentials" }, { status: 401 })
+        : Response.json({ accessToken: jwt });
     if (path.endsWith("/auth/register")) return Response.json({ accessToken: null });
     return Response.json({});
   });
@@ -40,11 +51,25 @@ async function setup(options: { localLogin?: boolean; emailVerification?: boolea
   const auth = new AuthStore(api, new RuntimeConfig(api), { storage });
   await auth.bootstrap();
   const onNavigate = vi.fn();
-  render(<LoginPage auth={auth} onNavigate={onNavigate} returnUrl="/user/workflow/42" />);
+  render(
+    <LoginPage
+      auth={auth}
+      onNavigate={onNavigate}
+      returnUrl="/user/workflow/42"
+    />
+  );
   return { auth, fetch, onNavigate };
 }
 
 describe("React sign-in page", () => {
+  it("retains the Apache project attribution and safe external link", async () => {
+    const { auth } = await setup();
+    expect(screen.getByText(/Apache Texera/)).toBeTruthy();
+    const link = screen.getByRole("link", { name: "texera.apache.org" });
+    expect(link.getAttribute("href")).toBe("https://texera.apache.org/");
+    expect(link.getAttribute("rel")).toContain("noopener");
+    auth.dispose();
+  });
   it("signs in with the existing backend and preserves the requested deep link", async () => {
     const { auth, fetch, onNavigate } = await setup();
     fireEvent.change(screen.getByLabelText("Username"), { target: { value: "tester" } });
@@ -73,7 +98,7 @@ describe("React sign-in page", () => {
     fireEvent.change(screen.getByLabelText("Password", { exact: true }), { target: { value: "secret" } });
     fireEvent.change(screen.getByLabelText("Confirm password"), { target: { value: "different" } });
     fireEvent.click(screen.getByRole("button", { name: "Register", exact: true }));
-    expect(screen.getByRole("alert").textContent).toContain("passwords");
+    await waitFor(() => expect(screen.getByRole("alert").textContent).toContain("passwords"));
     expect(fetch.mock.calls.some(([path]) => path.endsWith("/auth/register"))).toBe(false);
     auth.dispose();
   });

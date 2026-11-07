@@ -103,7 +103,8 @@
             "include": ["**/*.spec.ts"],
             "setupFiles": ["src/jsdom-svg-polyfill.ts"],
             "exclude": [
-              "**/*.browser.spec.ts"
+              "**/*.browser.spec.ts",
+              "src/react/**"
             ]
           }
         },

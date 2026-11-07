@@ -463,7 +463,10 @@ Angular / npm packages:
   - quill-delta@5.1.0
   - rbush@4.0.1
   - read-excel-file@5.7.1
+  - react@19.3.1
+  - react-dom@19.3.1
   - ring-buffer-ts@1.0.3
+  - scheduler@0.28.0
   - style-loader@3.3.4
   - theme-defaults@10.0.0
   - underscore@1.13.8

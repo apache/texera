@@ -26,10 +26,18 @@ describe("navigation access contracts", () => {
     url => expect(safeReturnUrl(url)).toBe(url)
   );
 
-  it.each([undefined, "", "//outside.example", "https://outside.example", "/\\outside.example", "/login", "/callback/orcid", "javascript:alert(1)", "/%2foutside.example", "/%5coutside.example"])(
-    "rejects an unsafe or cyclic return URL: %s",
-    url => expect(safeReturnUrl(url)).toBe("/user/workflow")
-  );
+  it.each([
+    undefined,
+    "",
+    "//outside.example",
+    "https://outside.example",
+    "/\\outside.example",
+    "/login",
+    "/callback/orcid",
+    "javascript:alert(1)",
+    "/%2foutside.example",
+    "/%5coutside.example",
+  ])("rejects an unsafe or cyclic return URL: %s", url => expect(safeReturnUrl(url)).toBe("/user/workflow"));
 
   it("leaves public routes accessible without a token", () => {
     expect(accessRedirect("/about", "anonymous")).toBeUndefined();

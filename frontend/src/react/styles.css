@@ -1,0 +1,198 @@
+/**
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements. See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership. The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License. You may obtain a copy of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied. See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
+ */
+
+:root {
+  font:
+    14px/1.5 -apple-system,
+    BlinkMacSystemFont,
+    "Segoe UI",
+    sans-serif;
+  color: #262626;
+  background: #f4f6f8;
+}
+* {
+  box-sizing: border-box;
+}
+body {
+  margin: 0;
+}
+button,
+input,
+textarea,
+select {
+  font: inherit;
+}
+button {
+  cursor: pointer;
+  border: 1px solid #d9d9d9;
+  background: white;
+  border-radius: 4px;
+  padding: 9px 16px;
+  color: inherit;
+}
+button:disabled {
+  opacity: 0.55;
+  cursor: default;
+}
+button:focus-visible,
+input:focus-visible,
+textarea:focus-visible,
+select:focus-visible {
+  outline: 2px solid #1677ff;
+  outline-offset: 3px;
+}
+input,
+textarea,
+select {
+  padding: 9px 11px;
+  border: 1px solid #d9d9d9;
+  border-radius: 4px;
+  background: white;
+  color: inherit;
+  min-width: 0;
+}
+input[aria-invalid="true"],
+textarea[aria-invalid="true"] {
+  border-color: #c62828;
+}
+label {
+  display: grid;
+  gap: 5px;
+  font-weight: 500;
+}
+.login-page {
+  min-height: calc(100dvh - 36px);
+  padding: 32px 20px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+.login-card {
+  width: 400px;
+  max-width: 100%;
+  padding: 36px;
+  background: white;
+  border-radius: 8px;
+  box-shadow: 0 4px 20px #132b4620;
+}
+.login-brand {
+  text-align: center;
+  margin-bottom: 24px;
+}
+.login-brand img,
+.session-logo {
+  width: auto;
+  height: 46px;
+  max-width: 100%;
+}
+.login-brand p {
+  color: #737373;
+  margin: 8px 0 0;
+}
+.login-footer {
+  margin-top: 24px;
+  color: #737373;
+  font-size: 12px;
+  text-align: center;
+}
+.login-footer a {
+  color: #1677ff;
+}
+.login-tabs {
+  display: flex;
+  margin-bottom: 20px;
+  border-bottom: 1px solid #e5e5e5;
+}
+.login-tabs button {
+  flex: 1;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+}
+.login-tabs button[aria-pressed="true"] {
+  color: #1677ff;
+  border-bottom: 2px solid #1677ff;
+}
+.login-card form,
+.social-buttons {
+  display: grid;
+  gap: 16px;
+}
+.social-buttons:empty {
+  display: none;
+}
+.social-buttons:not(:empty) {
+  margin-bottom: 20px;
+}
+.primary {
+  background: #1677ff;
+  border-color: #1677ff;
+  color: white;
+}
+.text-button {
+  padding: 0;
+  justify-self: end;
+  border: none;
+  color: #1677ff;
+  font-size: 12px;
+}
+.error-message {
+  padding: 10px;
+  border: 1px solid #ffccc7;
+  background: #fff2f0;
+  color: #a8071a;
+}
+.success-message {
+  padding: 10px;
+  border: 1px solid #b7eb8f;
+  background: #f6ffed;
+}
+.preview-banner {
+  background: #fff7e6;
+  color: #874d00;
+  padding: 8px 20px;
+  text-align: center;
+  font-size: 12px;
+}
+h1 {
+  font-size: 22px;
+  line-height: 1.3;
+}
+code {
+  overflow-wrap: anywhere;
+}
+.property-form fieldset {
+  border: 1px solid #ddd;
+  padding: 16px;
+  margin: 12px 0;
+}
+.property-form label {
+  margin: 12px 0;
+}
+.property-form [role="alert"] {
+  color: #a8071a;
+}
+@media (max-width: 480px) {
+  .login-page {
+    padding: 20px 12px;
+  }
+  .login-card {
+    padding: 24px;
+  }
+}

@@ -30,11 +30,19 @@ describe("CollaborativeText", () => {
     const text = doc.getText("name");
     text.insert(0, "old");
     const onChange = vi.fn();
-    render(<CollaborativeText text={text} label="Name" onChange={onChange} />);
+    render(
+      <CollaborativeText
+        text={text}
+        label="Name"
+        onChange={onChange}
+      />
+    );
     fireEvent.change(screen.getByRole("textbox", { name: "Name" }), { target: { value: "東京 🐧" } });
     expect(text.toString()).toBe("東京 🐧");
     expect(onChange).toHaveBeenCalledExactlyOnceWith("東京 🐧");
-    act(() => { doc.transact(() => text.insert(text.length, "!"), "remote"); });
+    act(() => {
+      doc.transact(() => text.insert(text.length, "!"), "remote");
+    });
     expect((screen.getByRole("textbox", { name: "Name" }) as HTMLInputElement).value).toBe("東京 🐧!");
     expect(onChange).toHaveBeenCalledTimes(1);
     doc.destroy();
@@ -44,11 +52,22 @@ describe("CollaborativeText", () => {
     const doc = new Y.Doc();
     const first = doc.getText("first");
     const second = doc.getText("second");
-    first.insert(0, "first"); second.insert(0, "second");
+    first.insert(0, "first");
+    second.insert(0, "second");
     const unobserveFirst = vi.spyOn(first, "unobserve");
     const unobserveSecond = vi.spyOn(second, "unobserve");
-    const { rerender, unmount } = render(<CollaborativeText text={first} label="Name" />);
-    rerender(<CollaborativeText text={second} label="Name" />);
+    const { rerender, unmount } = render(
+      <CollaborativeText
+        text={first}
+        label="Name"
+      />
+    );
+    rerender(
+      <CollaborativeText
+        text={second}
+        label="Name"
+      />
+    );
     expect(unobserveFirst).toHaveBeenCalledTimes(1);
     act(() => first.insert(0, "obsolete"));
     expect((screen.getByRole("textbox", { name: "Name" }) as HTMLInputElement).value).toBe("second");
@@ -62,9 +81,20 @@ describe("CollaborativeText", () => {
     const text = doc.getText("name");
     text.insert(0, "alpha beta");
     const anchor = Y.createRelativePositionFromTypeIndex(text, 6);
-    const { rerender } = render(<CollaborativeText text={text} label="Name" disabled />);
+    const { rerender } = render(
+      <CollaborativeText
+        text={text}
+        label="Name"
+        disabled
+      />
+    );
     expect((screen.getByRole("textbox", { name: "Name" }) as HTMLInputElement).disabled).toBe(true);
-    rerender(<CollaborativeText text={text} label="Name" />);
+    rerender(
+      <CollaborativeText
+        text={text}
+        label="Name"
+      />
+    );
     fireEvent.change(screen.getByRole("textbox", { name: "Name" }), { target: { value: "α alpha beta" } });
     expect(text.toString()).toBe("α alpha beta");
     expect(Y.createAbsolutePositionFromRelativePosition(anchor, doc)?.index).toBe(8);

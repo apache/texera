@@ -41,7 +41,10 @@ describe("operator property schema", () => {
     };
     const input = { label: "東京 🐧" };
     expect(applySchemaDefaults(schema, input)).toEqual({
-      label: "東京 🐧", count: 0, enabled: false, settings: { delimiter: "\t" },
+      label: "東京 🐧",
+      count: 0,
+      enabled: false,
+      settings: { delimiter: "\t" },
     });
     expect(input).toEqual({ label: "東京 🐧" });
     expect(schema.properties?.settings).toMatchObject({ default: {} });
@@ -61,19 +64,22 @@ describe("operator property schema", () => {
         name: { type: "string", minLength: 1 },
         amount: { type: "integer", minimum: 0, maximum: 3 },
         rows: {
-          type: "array", uniqueItems: true,
+          type: "array",
+          uniqueItems: true,
           items: { type: "object", properties: { mode: { enum: ["a", "b"] } } },
         },
       },
     };
     expect(validateSchemaValue(schema, { name: "有效", amount: 0, rows: [{ mode: "a" }] })).toEqual([]);
     const issues = validateSchemaValue(schema, { name: "", amount: 4, rows: [{ mode: "wrong" }, { mode: "wrong" }] });
-    expect(issues).toEqual(expect.arrayContaining([
-      expect.objectContaining({ keyword: "required", path: ["name"] }),
-      expect.objectContaining({ keyword: "maximum", path: ["amount"] }),
-      expect.objectContaining({ keyword: "enum", path: ["rows", 0, "mode"] }),
-      expect.objectContaining({ keyword: "uniqueItems", path: ["rows"] }),
-    ]));
+    expect(issues).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ keyword: "required", path: ["name"] }),
+        expect.objectContaining({ keyword: "maximum", path: ["amount"] }),
+        expect.objectContaining({ keyword: "enum", path: ["rows", 0, "mode"] }),
+        expect.objectContaining({ keyword: "uniqueItems", path: ["rows"] }),
+      ])
+    );
   });
 
   it("re-evaluates conditional required and custom sibling value rules", () => {
@@ -83,41 +89,48 @@ describe("operator property schema", () => {
         kind: { enum: ["count", "ratio"] },
         value: {
           type: "string",
-          valueRules: { allOf: [
-            { if: { kind: { valEnum: ["count"] } }, then: { type: "integer", minimum: 1 } },
-            { if: { kind: { valEnum: ["ratio"] } }, then: { type: "number", exclusiveMinimum: 0 } },
-          ] },
+          valueRules: {
+            allOf: [
+              { if: { kind: { valEnum: ["count"] } }, then: { type: "integer", minimum: 1 } },
+              { if: { kind: { valEnum: ["ratio"] } }, then: { type: "number", exclusiveMinimum: 0 } },
+            ],
+          },
         },
       },
       allOf: [{ if: { properties: { kind: { const: "count" } }, required: ["kind"] }, then: { required: ["value"] } }],
     };
     expect(validateSchemaValue(schema, { kind: "count", value: "2" })).toEqual([]);
-    expect(validateSchemaValue(schema, { kind: "count", value: "2.5" })).toEqual(expect.arrayContaining([
-      expect.objectContaining({ keyword: "valueRules", path: ["value"] }),
-    ]));
+    expect(validateSchemaValue(schema, { kind: "count", value: "2.5" })).toEqual(
+      expect.arrayContaining([expect.objectContaining({ keyword: "valueRules", path: ["value"] })])
+    );
     expect(validateSchemaValue(schema, { kind: "ratio", value: "2.5" })).toEqual([]);
-    expect(validateSchemaValue(schema, { kind: "count" })).toEqual(expect.arrayContaining([
-      expect.objectContaining({ keyword: "required", path: ["value"] }),
-    ]));
+    expect(validateSchemaValue(schema, { kind: "count" })).toEqual(
+      expect.arrayContaining([expect.objectContaining({ keyword: "required", path: ["value"] })])
+    );
   });
 
   it("detects unique-among-rows without rejecting the first duplicate pair only", () => {
     const schema: OperatorPropertySchema = {
-      type: "array", items: {
-        type: "object", properties: { name: { type: "string", uniqueAmongRows: true } },
+      type: "array",
+      items: {
+        type: "object",
+        properties: { name: { type: "string", uniqueAmongRows: true } },
       },
     };
     expect(validateSchemaValue(schema, [{ name: "a" }, { name: "b" }])).toEqual([]);
     const issues = validateSchemaValue(schema, [{ name: "a" }, { name: "b" }, { name: "a" }]);
-    expect(issues).toEqual(expect.arrayContaining([
-      expect.objectContaining({ keyword: "uniqueAmongRows", path: [0, "name"] }),
-      expect.objectContaining({ keyword: "uniqueAmongRows", path: [2, "name"] }),
-    ]));
+    expect(issues).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ keyword: "uniqueAmongRows", path: [0, "name"] }),
+        expect.objectContaining({ keyword: "uniqueAmongRows", path: [2, "name"] }),
+      ])
+    );
   });
 
   it("orders schema properties stably and evaluates toggle and declarative hiding", () => {
     const schema: OperatorPropertySchema = {
-      type: "object", properties: {
+      type: "object",
+      properties: {
         advanced: { type: "boolean", propertyOrder: 0, toggleHidden: ["secret"] },
         secret: { type: "string", propertyOrder: 2 },
         plain: { type: "string", propertyOrder: 1 },
@@ -145,5 +158,29 @@ describe("operator property schema", () => {
     expect(validateSchemaValue({ type: "invalid" } as unknown as OperatorPropertySchema, {})).toEqual([
       expect.objectContaining({ keyword: "schema", path: [] }),
     ]);
+  });
+
+  it("applies local referenced defaults and rejects blank conditionally required fields", () => {
+    const schema: OperatorPropertySchema = {
+      type: "object",
+      definitions: {
+        settings: {
+          type: "object",
+          properties: { name: { type: "string", default: "shared" } },
+        },
+      },
+      properties: {
+        settings: { $ref: "#/definitions/settings", default: {} },
+        enabled: { type: "boolean" },
+        note: { type: "string" },
+      },
+      if: { properties: { enabled: { const: true } }, required: ["enabled"] },
+      then: { required: ["note"] },
+    };
+    expect(applySchemaDefaults(schema, {})).toEqual({ settings: { name: "shared" } });
+    expect(validateSchemaValue(schema, { enabled: true, note: "" })).toEqual(
+      expect.arrayContaining([expect.objectContaining({ keyword: "required", path: ["note"] })])
+    );
+    expect(validateSchemaValue(schema, { enabled: false, note: "" })).toEqual([]);
   });
 });
