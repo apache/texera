@@ -54,6 +54,8 @@ export class MockGuiConfigService {
     defaultLocalUser: { username: "", password: "" },
     activeTimeInMinutes: 15,
     copilotEnabled: false,
+
+    aiFixModel: "claude-haiku-4.5",
     limitColumns: 15,
     attributionEnabled: false,
     pythonNotebookMigrationEnabled: false,

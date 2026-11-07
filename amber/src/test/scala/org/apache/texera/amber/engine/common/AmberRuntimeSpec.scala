@@ -20,7 +20,7 @@
 package org.apache.texera.amber.engine.common
 
 import com.typesafe.config.Config
-import org.apache.pekko.actor.{ActorRef, ActorSystem, Address, DeadLetter}
+import org.apache.pekko.actor.{ActorRef, ActorSystem, DeadLetter}
 import org.apache.pekko.serialization.{Serialization, SerializationExtension}
 import org.apache.pekko.testkit.TestKit
 import org.apache.texera.amber.clustering.ClusterListener
@@ -67,16 +67,14 @@ import scala.util.Try
   *     `SessionState` registry — and amber runs its suites in ONE shared JVM, where
   *     `ClusterListenerSpec` holds live per-test ScalaMock sessions in exactly that
   *     registry. `ComputingUnitMasterSpec` refuses this path for the same reason.
-  *     `createMasterAddress` is still covered, via `startActorWorker`.
   *
   * JVM-global state: this object IS the global other amber suites depend on, and sbt
   * runs them concurrently in one JVM without forking. Every global this spec touches
-  * (`_actorSystem`, `_serde`, `AmberConfig.masterNodeAddr`,
-  * `ClusterListener.numWorkerNodesInCluster`) is saved in `beforeAll` and put back in
-  * `afterAll` — the save/restore camp of `HDFSRecordStorageSpec` /
-  * `ComputingUnitMasterSpec`, not the null-out camp, because nulling makes
-  * `AmberRuntime.serde` take its bootstrap branch mid-run inside a sibling suite and
-  * spin up a system nobody shuts down. Tests that have to write those globals
+  * (`_actorSystem`, `_serde`, `ClusterListener.numWorkerNodesInCluster`) is saved in
+  * `beforeAll` and put back in `afterAll` — the save/restore camp of
+  * `HDFSRecordStorageSpec` / `ComputingUnitMasterSpec`, not the null-out camp, because
+  * nulling makes `AmberRuntime.serde` take its bootstrap branch mid-run inside a sibling
+  * suite and spin up a system nobody shuts down. Tests that have to write those globals
   * themselves restore them in a `finally` rather than deferring to `afterAll`, so the
   * write window is one test long.
   */
@@ -104,14 +102,12 @@ class AmberRuntimeSpec extends AnyFlatSpec with BeforeAndAfterAll {
 
   private var previousActorSystem: AnyRef = _
   private var previousSerde: AnyRef = _
-  private var previousMasterNodeAddr: Address = _
   private var previousNodeCount: Int = 0
 
   override protected def beforeAll(): Unit = {
     super.beforeAll()
     previousActorSystem = getAmberRuntimeField("_actorSystem")
     previousSerde = getAmberRuntimeField("_serde")
-    previousMasterNodeAddr = AmberConfig.masterNodeAddr
     previousNodeCount = ClusterListener.numWorkerNodesInCluster
     setAmberRuntimeField("_actorSystem", testSystem)
     setAmberRuntimeField("_serde", testSerde)
@@ -120,7 +116,6 @@ class AmberRuntimeSpec extends AnyFlatSpec with BeforeAndAfterAll {
   override protected def afterAll(): Unit = {
     setAmberRuntimeField("_serde", previousSerde)
     setAmberRuntimeField("_actorSystem", previousActorSystem)
-    AmberConfig.masterNodeAddr = previousMasterNodeAddr
     // Belt and braces: the worker system's seed list points at localhost:2552, so on
     // a host that happens to be running a local coordinator it could in principle
     // join and have ClusterListener bump this count.
@@ -275,7 +270,6 @@ class AmberRuntimeSpec extends AnyFlatSpec with BeforeAndAfterAll {
   private case class WorkerStartup(
       systemName: String,
       config: Config,
-      masterNodeAddr: Address,
       rawSerdeAfterCall: AnyRef,
       serdeSystemIsCreatedSystem: Boolean,
       clusterInfoPath: Option[String],
@@ -284,10 +278,6 @@ class AmberRuntimeSpec extends AnyFlatSpec with BeforeAndAfterAll {
   )
 
   private lazy val workerStartup: WorkerStartup = {
-    // A sentinel is mandatory: AmberConfig.masterNodeAddr's DEFAULT is already
-    // Address("pekko", "Amber", "localhost", 2552), so without this the
-    // masterNodeAddr case would assert a value that held before the call.
-    AmberConfig.masterNodeAddr = Address("pekko", "Sentinel", "nowhere", 1)
     setAmberRuntimeField("_actorSystem", null)
     setAmberRuntimeField("_serde", null)
     var created: ActorSystem = null
@@ -299,7 +289,6 @@ class AmberRuntimeSpec extends AnyFlatSpec with BeforeAndAfterAll {
       WorkerStartup(
         systemName = created.name,
         config = created.settings.config,
-        masterNodeAddr = AmberConfig.masterNodeAddr,
         // Captured BEFORE anything calls AmberRuntime.serde: with _actorSystem now
         // set, the getter would lazily rebuild an equivalent serde over the same
         // system, so asserting through it would pass even with the write deleted.
@@ -359,15 +348,6 @@ class AmberRuntimeSpec extends AnyFlatSpec with BeforeAndAfterAll {
       workerStartup.config.getString("pekko.actor.serializers.kryo") ==
         "io.altoo.serialization.kryo.pekko.PekkoKryoSerializer"
     )
-  }
-
-  it should "publish the master node address" in {
-    // Characterization, not a live contract: `AmberConfig.masterNodeAddr` is written
-    // here and by startActorMaster and read nowhere in the repo. It is asserted
-    // because it is the only observable output of `createMasterAddress`, so the
-    // address this method derives from `mainNodeAddress` stays pinned in case a
-    // reader comes back.
-    assert(workerStartup.masterNodeAddr == Address("pekko", "Amber", "localhost", 2552))
   }
 
   "AmberRuntime.createAmberSystem" should "name the system Amber and attach both children" in {

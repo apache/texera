@@ -26,9 +26,10 @@ import org.apache.texera.dao.jooq.generated.Tables.WORKFLOW
 import org.apache.texera.dao.jooq.generated.enums.DefaultViewEnum
 import org.apache.texera.dao.jooq.generated.tables.daos.WorkflowDao
 import org.apache.texera.dao.jooq.generated.tables.pojos.Workflow
-import org.jooq.DSLContext
+import org.jooq.{Condition, DSLContext}
 
 import javax.ws.rs.{BadRequestException, NotFoundException}
+import scala.jdk.CollectionConverters.CollectionHasAsScala
 import scala.util.Try
 
 /**
@@ -199,15 +200,119 @@ object WorkflowPublishService extends LazyLogging {
     PublishStatus(
       isPublished = workflow.getIsPublic,
       isPinned = pinned,
-      // Literally "what the public sees is not what you have". Every field the pin freezes counts:
-      // a rename the public cannot see is held back exactly as an edit to the graph is. Compared on
-      // values rather than on a version id, so that an edit and its undo report nothing held back.
-      hasUnpublishedChanges = pinned && (
-        !sameContent(workflow.getPublishedContent, workflow.getContent) ||
-          workflow.getPublishedName != workflow.getName ||
-          workflow.getPublishedDescription != workflow.getDescription ||
-          workflow.getPublishedDefaultView != workflow.getDefaultView
-      )
+      // Literally "what the public sees is not what you have": whatever [[publicCopyOf]] freezes is
+      // what this compares, on values rather than version ids, so an edit and its undo cancel out.
+      hasUnpublishedChanges = differs(publicCopyOf(workflow), workingCopyOf(workflow))
     )
+  }
+
+  /**
+    * Every field of the copy, so that a rename the public cannot see is held back exactly as an edit
+    * to the graph is. Content is compared as a tree: a restore can rearrange whitespace, and calling
+    * that drift alarms nobody.
+    */
+  private def differs(public: PublicCopy, working: PublicCopy): Boolean =
+    public.name != working.name ||
+      public.description != working.description ||
+      public.defaultView != working.defaultView ||
+      !sameContent(public.content, working.content)
+
+  /**
+    * Everything about a workflow that is on public show, carried together so that a caller cannot
+    * serve the frozen graph under the author's live title, or open the author's chosen view on a
+    * copy that does not contain it.
+    */
+  case class PublicCopy(
+      name: String,
+      description: String,
+      content: String,
+      defaultView: DefaultViewEnum
+  )
+
+  /** What every public surface must serve, as a group so no field is the one that gets forgotten. */
+  def publicCopyOf(workflow: Workflow): PublicCopy =
+    if (workflow.getPublishedContent == null) workingCopyOf(workflow)
+    else
+      PublicCopy(
+        workflow.getPublishedName,
+        workflow.getPublishedDescription,
+        workflow.getPublishedContent,
+        workflow.getPublishedDefaultView
+      )
+
+  /** The author's own copy, in the same shape. */
+  private def workingCopyOf(workflow: Workflow): PublicCopy =
+    PublicCopy(
+      workflow.getName,
+      workflow.getDescription,
+      workflow.getContent,
+      workflow.getDefaultView
+    )
+
+  /**
+    * [[differs]] as a condition, for the listings that ask about many workflows at once: the same
+    * fields, so a card and the share dialog can never disagree about whether edits are held back.
+    * Only meaningful on a row that is pinned -- while following, every frozen column is NULL and
+    * `isDistinctFrom` would read that as drift.
+    */
+  val pinDiffersFromWorkingCopy: Condition =
+    WORKFLOW.PUBLISHED_CONTENT
+      .isDistinctFrom(WORKFLOW.CONTENT)
+      .or(WORKFLOW.PUBLISHED_NAME.isDistinctFrom(WORKFLOW.NAME))
+      .or(WORKFLOW.PUBLISHED_DESCRIPTION.isDistinctFrom(WORKFLOW.DESCRIPTION))
+      .or(WORKFLOW.PUBLISHED_DEFAULT_VIEW.isDistinctFrom(WORKFLOW.DEFAULT_VIEW))
+
+  /**
+    * What a listing needs about one pinned workflow: the frozen name and description it must show
+    * instead of the author's live ones, and whether those live ones have moved on.
+    */
+  case class PinnedListing(
+      name: String,
+      description: String,
+      defaultView: DefaultViewEnum,
+      hasUnpublishedChanges: Boolean
+  )
+
+  /**
+    * The pinned listings among `wids`, keyed by wid. A workflow that follows the author's latest is
+    * simply absent, which leaves its live values in place and its drift flag false.
+    *
+    * Drift is decided in SQL here rather than by [[differs]], because a listing asks about many
+    * workflows at once and none of their contents are worth shipping back to compare in memory.
+    */
+  def pinnedListingsOf(wids: Seq[Integer]): Map[Integer, PinnedListing] =
+    if (wids.isEmpty) Map()
+    else {
+      val drifted = pinDiffersFromWorkingCopy
+      context
+        .select(
+          WORKFLOW.WID,
+          WORKFLOW.PUBLISHED_NAME,
+          WORKFLOW.PUBLISHED_DESCRIPTION,
+          WORKFLOW.PUBLISHED_DEFAULT_VIEW,
+          drifted
+        )
+        .from(WORKFLOW)
+        .where(WORKFLOW.WID.in(wids: _*).and(WORKFLOW.PUBLISHED_CONTENT.isNotNull))
+        .fetch()
+        .asScala
+        .map(row =>
+          row.get(WORKFLOW.WID) -> PinnedListing(
+            row.get(WORKFLOW.PUBLISHED_NAME),
+            row.get(WORKFLOW.PUBLISHED_DESCRIPTION),
+            row.get(WORKFLOW.PUBLISHED_DEFAULT_VIEW),
+            row.get(drifted)
+          )
+        )
+        .toMap
+    }
+
+  /** As [[publicCopyOf]], for callers holding only a wid. 404s unless the workflow is public. */
+  def publicCopyOf(wid: Integer): PublicCopy = {
+    val workflow = requireWorkflow(wid)
+    if (!workflow.getIsPublic) {
+      throw new NotFoundException(s"Workflow $wid is not public")
+    }
+    publicCopyOf(workflow)
   }
 }

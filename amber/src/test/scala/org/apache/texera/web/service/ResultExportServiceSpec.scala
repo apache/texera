@@ -25,7 +25,11 @@ import com.sun.net.httpserver.{HttpExchange, HttpHandler, HttpServer}
 import org.apache.arrow.memory.RootAllocator
 import org.apache.arrow.vector.ipc.ArrowFileReader
 import org.apache.arrow.vector.util.ByteArrayReadableSeekableByteChannel
-import org.apache.texera.amber.core.storage.{DocumentFactory, VFSURIFactory}
+import org.apache.texera.amber.core.storage.{
+  DocumentFactory,
+  VFSURIFactory,
+  WarehouseUnavailableException
+}
 import org.apache.texera.amber.core.storage.model.{BufferedItemWriter, VirtualDocument}
 import org.apache.texera.amber.core.tuple.{AttributeType, Schema, Tuple}
 import org.apache.texera.amber.core.virtualidentity.{

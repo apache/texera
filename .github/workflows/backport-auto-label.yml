@@ -66,7 +66,7 @@ jobs:
     # Only PRs into main get backport labels. A PR already targeting a
     # release/* branch is itself a backport and must not be re-labeled.
     if: ${{ github.event.pull_request.base.ref == 'main' }}
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-slim
     steps:
       # The default branch: a ref that does not derive from the pull request,
       # which matters because pull_request_target runs with write permissions.

@@ -91,7 +91,7 @@ from proto.org.apache.texera.amber.engine.architecture.worker import (
 from proto.org.apache.texera.amber.engine.common import DirectControlMessagePayloadV2
 from pytexera.udf.examples.count_batch_operator import CountBatchOperator
 from pytexera.udf.examples.echo_operator import EchoOperator
-from pytexera.udf.udf_operator import UDFOperatorV2
+from pytexera.udf.udf_operator import UDFOperatorV2, UDFTableOperator
 
 
 class _FalseLoopEnd(LoopEndOperator):
@@ -113,6 +113,14 @@ class EmptyOnFinishOperator(UDFOperatorV2):
     def on_finish(self, port):
         return
         yield
+
+
+class PortColumnsTableOperator(UDFTableOperator):
+    # Reports which port it was finished on and what the table it was handed
+    # carried, one tuple per port. A port that received no rows has to arrive
+    # under its own id and with the columns it was declared to carry.
+    def process_table(self, table, port):
+        yield {"test-1": ",".join(map(str, table.columns)), "test-2": port}
 
 
 class TestMainLoop:
@@ -215,6 +223,10 @@ class TestMainLoop:
         # from `produce_state_on_finish` so EndChannel handling can be
         # observed.
         class StateProcessingExecutor:
+            # What Operator gives a real executor, for DataProcessor to record
+            # the finishing port's declared schema in.
+            input_schemas: dict = {}
+
             @staticmethod
             def process_tuple(tuple_, port):
                 yield tuple_
@@ -341,6 +353,127 @@ class TestMainLoop:
             ),
         )
         return DCMElement(tag=mock_control_input_channel, payload=payload)
+
+    # A second input port, and a channel of its own feeding it. Everything
+    # below mirrors the port-0 fixtures; only the port id and the sender differ.
+    @pytest.fixture
+    def mock_second_port_id(self):
+        return PortIdentity(1, internal=False)
+
+    @pytest.fixture
+    def mock_second_data_input_channel(self, mock_receiver_actor):
+        return ChannelIdentity(
+            ActorVirtualIdentity("second-sender"),
+            mock_receiver_actor,
+            False,
+        )
+
+    @pytest.fixture
+    def mock_assign_second_input_port(
+        self,
+        mock_raw_schema,
+        mock_control_input_channel,
+        mock_second_port_id,
+        command_sequence,
+    ):
+        command = set_one_of(
+            ControlRequest,
+            AssignPortRequest(
+                port_id=mock_second_port_id, input=True, schema=mock_raw_schema
+            ),
+        )
+        payload = set_one_of(
+            DirectControlMessagePayloadV2,
+            ControlInvocation(
+                method_name="AssignPort", command_id=command_sequence, command=command
+            ),
+        )
+        return DCMElement(tag=mock_control_input_channel, payload=payload)
+
+    @pytest.fixture
+    def mock_add_second_input_channel(
+        self,
+        mock_control_input_channel,
+        mock_second_data_input_channel,
+        mock_second_port_id,
+        command_sequence,
+    ):
+        command = set_one_of(
+            ControlRequest,
+            AddInputChannelRequest(
+                mock_second_data_input_channel, port_id=mock_second_port_id
+            ),
+        )
+        payload = set_one_of(
+            DirectControlMessagePayloadV2,
+            ControlInvocation(
+                method_name="AddInputChannel",
+                command_id=command_sequence,
+                command=command,
+            ),
+        )
+        return DCMElement(tag=mock_control_input_channel, payload=payload)
+
+    @pytest.fixture
+    def mock_second_start_channel(self, mock_second_data_input_channel):
+        return self._channel_ecm(
+            mock_second_data_input_channel,
+            "StartChannel",
+            EmbeddedControlMessageType.NO_ALIGNMENT,
+        )
+
+    @pytest.fixture
+    def mock_second_end_of_upstream(self, mock_second_data_input_channel):
+        return self._channel_ecm(
+            mock_second_data_input_channel,
+            "EndChannel",
+            EmbeddedControlMessageType.PORT_ALIGNMENT,
+        )
+
+    @pytest.fixture
+    def mock_initialize_port_columns_executor(
+        self, mock_control_input_channel, command_sequence
+    ):
+        operator_code = "from pytexera import *\n" + inspect.getsource(
+            PortColumnsTableOperator
+        )
+        command = set_one_of(
+            ControlRequest,
+            InitializeExecutorRequest(
+                op_exec_init_info=set_one_of(
+                    OpExecInitInfo, OpExecWithCode(operator_code, "python")
+                ),
+                is_source=False,
+            ),
+        )
+        payload = set_one_of(
+            DirectControlMessagePayloadV2,
+            ControlInvocation(
+                method_name="InitializeExecutor",
+                command_id=command_sequence,
+                command=command,
+            ),
+        )
+        return DCMElement(tag=mock_control_input_channel, payload=payload)
+
+    @staticmethod
+    def _channel_ecm(channel_id, method_name, alignment):
+        return ECMElement(
+            tag=channel_id,
+            payload=EmbeddedControlMessage(
+                EmbeddedControlMessageIdentity(method_name),
+                alignment,
+                [],
+                {
+                    channel_id.to_worker_id.name: ControlInvocation(
+                        method_name,
+                        ControlRequest(empty_request=EmptyRequest()),
+                        AsyncRpcContext(ActorVirtualIdentity(), ActorVirtualIdentity()),
+                        -1,
+                    )
+                },
+            ),
+        )
 
     @pytest.fixture
     def input_queue(self):
@@ -1966,6 +2099,92 @@ class TestMainLoop:
             )
             in collected
         )
+
+        reraise()
+
+    @staticmethod
+    def _columns_reported_per_port(items):
+        # {port -> the columns the table handed to that port carried}, read off
+        # the tuples PortColumnsTableOperator emits from process_table.
+        reported = {}
+        for item in items:
+            if not isinstance(item, DataElement) or not isinstance(
+                item.payload, DataFrame
+            ):
+                continue
+            for _, row in item.payload.frame.to_pandas().iterrows():
+                reported[int(row["test-2"])] = row["test-1"]
+        return reported
+
+    @pytest.mark.timeout(30)
+    def test_second_input_port_with_no_rows_finishes_as_itself(
+        self,
+        mock_control_output_channel,
+        mock_data_element,
+        input_queue,
+        output_queue,
+        main_loop,
+        main_loop_thread,
+        mock_assign_input_port,
+        mock_assign_second_input_port,
+        mock_assign_output_port,
+        mock_add_input_channel,
+        mock_add_second_input_channel,
+        mock_add_partitioning,
+        mock_initialize_port_columns_executor,
+        mock_start_channel,
+        mock_second_start_channel,
+        mock_end_of_upstream,
+        mock_second_end_of_upstream,
+        command_sequence,
+        reraise,
+    ):
+        # Port 0 carries a row, port 1 carries nothing at all. A marker belongs
+        # to the port whose channel delivered it, not to whichever port last
+        # had a tuple, so port 1 has to finish as port 1 and arrive with the
+        # columns it was declared to carry. Read the port off the tuple rather
+        # than off the order the two arrive in.
+        main_loop_thread.daemon = True
+        main_loop_thread.start()
+
+        for setup_msg in [
+            mock_assign_input_port,
+            mock_assign_second_input_port,
+            mock_assign_output_port,
+            mock_add_input_channel,
+            mock_add_second_input_channel,
+            mock_add_partitioning,
+            mock_initialize_port_columns_executor,
+        ]:
+            input_queue.put(setup_msg)
+            assert output_queue.get() == DCMElement(
+                tag=mock_control_output_channel,
+                payload=DirectControlMessagePayloadV2(
+                    return_invocation=ReturnInvocation(
+                        command_id=command_sequence,
+                        return_value=ControlReturn(empty_return=EmptyReturn()),
+                    )
+                ),
+            )
+
+        input_queue.put(mock_start_channel)
+        input_queue.put(mock_data_element)
+        input_queue.put(mock_end_of_upstream)
+        input_queue.put(mock_second_start_channel)
+        input_queue.put(mock_second_end_of_upstream)
+
+        collected = self._drain_until(
+            output_queue,
+            lambda items: len(self._columns_reported_per_port(items)) == 2,
+        )
+        reported = self._columns_reported_per_port(collected)
+
+        # Port 1 reporting nothing at all means its marker was read as port 0's,
+        # which finishes port 0 twice and leaves the empty port unfinished.
+        assert reported == {
+            0: "test-1,test-2",
+            1: "test-1,test-2",
+        }, f"collected={collected}"
 
         reraise()
 
