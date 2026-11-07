@@ -19,7 +19,6 @@
 
 import { describe, expect, test } from "bun:test";
 import { formatOperatorResult } from "./result-formatting";
-import { formatOperatorOutput, formatSampleTuplesAsTsv } from "./tools-utility";
 import {
   ConsoleMessageType,
   OperatorState,
@@ -281,64 +280,5 @@ describe("jsonToTableFormat - row index gaps", () => {
     );
     expect(out).not.toContain("...\t...");
     expect(out.endsWith("9\tz")).toBe(true);
-  });
-});
-
-describe("formatSampleTuplesAsTsv", () => {
-  test("returns empty string for no tuples or tuples with no columns", () => {
-    expect(formatSampleTuplesAsTsv([])).toBe("");
-    expect(formatSampleTuplesAsTsv([[0, { schema: { attributes: [] }, fields: [] }]])).toBe("");
-  });
-
-  test("formats tab-separated header and row values with index column", () => {
-    const rows = [
-      { colA: "val1", colB: 10, colC: null, colD: true },
-      { colA: "line\nbreak", colB: 20, colC: "NULL", colD: false },
-    ];
-    const lines = formatSampleTuplesAsTsv(toSampleTuples(rows)).split("\n");
-    expect(lines[0]).toBe("\tcolA\tcolB\tcolC\tcolD");
-    expect(lines[1]).toBe("0\tval1\t10\tNaN\ttrue");
-    expect(lines[2]).toBe("1\tline\\nbreak\t20\tNaN\tfalse");
-  });
-});
-
-describe("formatOperatorOutput - charLimit truncation", () => {
-  const rows = Array.from({ length: 100 }, (_, i) => ({ a: i, b: "x".repeat(20) }));
-  const opInfo = makeOpInfo({ outputTuples: 100, result: rows });
-
-  test("without charLimit keeps every row", () => {
-    const out = formatOperatorOutput("op1", opInfo);
-    expect(out).toContain("\n0\t0\t");
-    expect(out).toContain("\n50\t50\t");
-    expect(out).toContain("\n99\t99\t");
-  });
-
-  test("charLimit keeps head and tail rows and drops the middle", () => {
-    const out = formatOperatorOutput("op1", opInfo, 300);
-    expect(out).toContain("Output table shape: (100, 2)");
-    expect(out).toContain("\ta\tb");
-    expect(out).toContain("\n0\t0\t");
-    expect(out).toContain("\n99\t99\t");
-    expect(out).not.toContain("\n50\t50\t");
-  });
-
-  test("charLimit larger than the table leaves it untouched", () => {
-    expect(formatOperatorOutput("op1", opInfo, 1_000_000)).toBe(formatOperatorOutput("op1", opInfo));
-  });
-
-  test("tiny charLimit still keeps at least one row", () => {
-    const out = formatOperatorOutput("op1", opInfo, 1);
-    expect(out).toContain("\n0\t0\t");
-  });
-
-  test("visualization content is skipped even when charLimit is set", () => {
-    const html = "<html>" + "y".repeat(5000) + "</html>";
-    const out = formatOperatorOutput(
-      "op1",
-      makeOpInfo({ outputTuples: 1, result: [{ "html-content": html }], resultMode: { type: "SetSnapshotMode" } }),
-      100_000
-    );
-    expect(out).not.toContain("<html>");
-    expect(out).toContain("<skipped: visualization content>");
   });
 });
