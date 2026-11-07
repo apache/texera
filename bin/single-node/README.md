@@ -68,26 +68,26 @@ If any command produces output, that port is occupied by another process. You wi
 
 ## Launch Texera
 
-Run the commands in this guide in the folder that holds `docker-compose.yml`: the extracted Docker Compose bundle, or `bin/single-node/` in a source checkout.
+Enter the extracted directory and run the following command to start Texera:
 ```bash
-docker compose up -d
+docker compose --profile examples up
 ```
 
-This starts the stack in the background and returns once the containers are started; follow any service's logs with `docker compose logs -f <service>`.
+This command will start docker containers that host the  Texera services, and pre-create two example workflows and datasets.
 
-To also pre-create two example workflows and datasets (the `examples` profile), start it with:
+If you don't want to have these examples pre-created, run the following command instead:
 ```bash
-docker compose --profile examples up -d
+docker compose up
 ```
 
-In a source checkout, you can instead run `bin/single-node.sh up` (or `up --with-examples`) from the repo root. It checks Docker first, then runs the same commands.
+In a source checkout, run these commands in `bin/single-node/`. You can also run `bin/single-node.sh up` from the repo root (add `--with-examples` for the examples), which starts the same stack in the background.
 
 > If you see the error message like `unable to get image 'nginx:alpine': Cannot connect to the Docker daemon at unix:///Users/kunwoopark/.docker/run/docker.sock. Is the docker daemon running?`, please make sure Docker Desktop is installed and running
 
 > When you start Texera for the first time, it will take around 5 minutes to download needed images.
 
 
-The system should be ready around 1.5 minutes. Run `docker compose logs -f startup-message`, and after seeing the following startup message:
+The system should be ready around 1.5 minutes. After seeing the following startup message:
 ```
 ...
 =========================================
@@ -106,18 +106,21 @@ Input the default account `texera` with password `texera`, and then click on the
 ## Stop, Restart, and Uninstall Texera
 
 ### Stop
+Press `Ctrl+C` in the terminal to stop Texera.
+
+If you already closed the terminal, you can go to the installation folder and run:
 ```bash
-docker compose --profile examples down
+docker compose --profile examples stop
 ```
-Stops every container; data volumes are preserved so the next `docker compose up -d` resumes where you left off.
+to stop Texera.
 
 ### Restart
-Same as the way you [launch Texera](#launch-texera) (`docker compose up -d`).
+Same as the way you [launch Texera](#launch-texera).
 
 ### Uninstall
-To remove Texera and all its data:
+To remove Texera and all its data, go to the installation folder and run:
 ```bash
-docker compose --profile examples down --volumes
+docker compose --profile examples down -v
 ```
 > ⚠️ Warning: This will permanently delete all the data used by Texera.
 
@@ -190,9 +193,9 @@ For example, to change the folder of storing `workflow_result_data` to `/Users/j
        device: /Users/johndoe/texera/data
 ```
 
-If you already launched texera and want to change the data locations, existing data volumes need to be recreated and override in the next boot-up, i.e. select `y` when running `docker compose up -d` again:
+If you already launched texera and want to change the data locations, existing data volumes need to be recreated and override in the next boot-up, i.e. select `y` when running `docker compose up` again:
 ```
-$ docker compose up -d
+$ docker compose up
 ? Volume "texera-single-node-release-1-1-0_workflow_result_data" exists but doesn't match configuration in compose file. Recreate (data will be lost)? (y/N)
 y // answer y to this prompt
 ```
@@ -252,13 +255,13 @@ Stop the conflicting process, or change Texera's ports following the instruction
 
 ### Volume conflicts
 
-PostgreSQL only runs the database initialization scripts on first startup (when its data volume is empty). If you previously started Texera and then ran `docker compose down` (without `--volumes`), the data volume still exists. On the next `docker compose up -d`, the initialization is skipped, which can cause services like lakeFS to fail because their required databases were never created.
+PostgreSQL only runs the database initialization scripts on first startup (when its data volume is empty). If you previously started Texera and then ran `docker compose down` (without `-v`), the data volume still exists. On the next `docker compose up`, the initialization is skipped, which can cause services like lakeFS to fail because their required databases were never created.
 
 To resolve this, remove all existing volumes and start fresh:
 
 ```
-docker compose --profile examples down --volumes
-docker compose up -d
+docker compose --profile examples down -v
+docker compose --profile examples up
 ```
 
-> ⚠️ Warning: `docker compose down --volumes` permanently deletes all Texera data.
+> ⚠️ Warning: `docker compose --profile examples down -v` permanently deletes all Texera data.
