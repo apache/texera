@@ -75,7 +75,7 @@ class HuggingFaceSpamSMSDetectionOpDescSpec extends AnyFlatSpec with Matchers {
   "HuggingFaceSpamSMSDetectionOpDesc.getOutputSchemas" should
     "append a BOOLEAN spam column and a DOUBLE score column, keyed by the declared output port" in {
     val d = configured()
-    val in = Schema().add("msg", AttributeType.STRING)
+    val in = Schema().add("msg", AttributeType.STRING).add("text", AttributeType.STRING)
     val out = d.getOutputSchemas(Map(d.operatorInfo.inputPorts.head.id -> in))
     val schema = out(d.operatorInfo.outputPorts.head.id)
     schema.getAttribute("msg").getType shouldBe AttributeType.STRING
@@ -83,33 +83,60 @@ class HuggingFaceSpamSMSDetectionOpDescSpec extends AnyFlatSpec with Matchers {
     schema.getAttribute("score").getType shouldBe AttributeType.DOUBLE
   }
 
-  it should "return null while a result attribute is still unset" in {
-    // getOutputSchemas is called continuously as the user configures the operator,
-    // so an unset name means "no schema yet", not "build one with a null column".
-    // The sibling operators (sentiment analysis, iris) already answer this way.
-    val in = Schema().add("msg", AttributeType.STRING)
-    val ports = Map((new HuggingFaceSpamSMSDetectionOpDesc).operatorInfo.inputPorts.head.id -> in)
+  private val textInput = Schema().add("text", AttributeType.STRING)
 
-    val noSpamCol = configured()
-    noSpamCol.resultAttributeSpam = null
-    noSpamCol.getOutputSchemas(ports) shouldBe null
+  private def schemaError(d: HuggingFaceSpamSMSDetectionOpDesc, in: Schema = textInput): String =
+    intercept[RuntimeException] {
+      d.getOutputSchemas(Map(d.operatorInfo.inputPorts.head.id -> in))
+    }.getMessage
 
-    val noScoreCol = configured()
-    noScoreCol.resultAttributeProbability = null
-    noScoreCol.getOutputSchemas(ports) shouldBe null
+  it should "reject an unset or blank result attribute, naming the field" in {
+    Seq(null, "", "   ").foreach { empty =>
+      withClue(s"[$empty]: ") {
+        val noSpamCol = configured()
+        noSpamCol.resultAttributeSpam = empty
+        schemaError(noSpamCol) shouldBe "Spam result attribute cannot be empty"
+
+        val noScoreCol = configured()
+        noScoreCol.resultAttributeProbability = empty
+        schemaError(noScoreCol) shouldBe "Score result attribute cannot be empty"
+      }
+    }
   }
 
-  it should "return null when a result attribute is blank" in {
-    val in = Schema().add("msg", AttributeType.STRING)
-    val ports = Map((new HuggingFaceSpamSMSDetectionOpDesc).operatorInfo.inputPorts.head.id -> in)
+  it should "reject an unset input attribute" in {
+    val d = configured()
+    d.attribute = null
+    schemaError(d) shouldBe "Attribute cannot be empty"
+  }
 
-    val blankSpamCol = configured()
-    blankSpamCol.resultAttributeSpam = "   "
-    blankSpamCol.getOutputSchemas(ports) shouldBe null
+  it should "reject an input attribute that is not in the input table, listing the columns" in {
+    val d = configured()
+    d.attribute = "txt"
+    schemaError(
+      d,
+      Schema().add("text", AttributeType.STRING).add("id", AttributeType.INTEGER)
+    ) shouldBe
+      "Attribute 'txt' is not in the input table. Available columns: text, id"
+  }
 
-    val blankScoreCol = configured()
-    blankScoreCol.resultAttributeProbability = ""
-    blankScoreCol.getOutputSchemas(ports) shouldBe null
+  it should "match the input attribute's case exactly, as the generated Python does" in {
+    // Schema lookups ignore case, but tuple_[...] and out1df[...] do not.
+    val d = configured()
+    d.attribute = "Text"
+    schemaError(d) should startWith("Attribute 'Text' is not in the input table")
+  }
+
+  it should "leave a readable error on its output port when the compiler propagates the schema" in {
+    // The compiler runs getOutputSchemas inside a Try and stores a thrown error on the
+    // output port. A returned null escaped that Try as a NullPointerException instead.
+    val d = configured()
+    d.resultAttributeSpam = null
+    val physical = d
+      .getPhysicalOp(workflowId, executionId)
+      .propagateSchema(Some(d.operatorInfo.inputPorts.head.id -> textInput))
+    val port = physical.outputPorts(d.operatorInfo.outputPorts.head.id)._3
+    port.left.map(_.getMessage) shouldBe Left("Spam result attribute cannot be empty")
   }
 
   "HuggingFaceSpamSMSDetectionOpDesc.generatePythonCode" should
