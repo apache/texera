@@ -112,8 +112,9 @@ class DataProcessor(Runnable, Stoppable):
         """
         with self._executor_session() as (executor, port_id):
             # Register the state message before the callback runs, so
-            # process_state (and every call after it) can consult self.state.
-            executor.state = state
+            # process_state (and every call after it) can consult
+            # self.loop_variables.
+            executor.loop_variables = state
             self._set_output_state(executor.process_state(state, port_id))
 
     def process_tuple(self) -> None:
