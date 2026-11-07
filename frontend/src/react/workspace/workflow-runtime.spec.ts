@@ -21,8 +21,8 @@ import { ApiClient } from "../core/api-client";
 import { WorkflowRuntime } from "./workflow-runtime";
 import { WorkflowSocket } from "./workflow-socket";
 import { WorkflowSession } from "./workflow-session";
-import { SharedModel } from "../../app/workspace/service/workflow-graph/model/shared-model";
-import { ExecutionMode, type Workflow } from "../../app/common/type/workflow";
+import { SharedModel } from "../../core/workspace/service/workflow-graph/model/shared-model";
+import { ExecutionMode, type Workflow } from "../../core/common/type/workflow";
 
 const disposals: (() => void)[] = [];
 function setup(options: { warehouse?: boolean; fetch?: typeof fetch } = {}) {
@@ -58,7 +58,10 @@ function setup(options: { warehouse?: boolean; fetch?: typeof fetch } = {}) {
   };
   const socket = new WorkflowSocket({ wid: 3, uid: 7, getToken: () => "token", createSocket: () => wire });
   socket.connect();
-  const unit: { cuid: number; status: string } = { cuid: 9, status: "Running" };
+  const unit: { cuid: number; status: string; isOwner?: boolean; accessPrivilege?: string } = {
+    cuid: 9,
+    status: "Running",
+  };
   let warehouseId: number | undefined;
   const fetcher =
     options.fetch ??
@@ -94,6 +97,92 @@ afterEach(() => {
 });
 
 describe("React workflow execution session", () => {
+  it("does not send kill or checkpoint commands after any terminal state", () => {
+    const { runtime, message } = setup();
+    for (const state of ["Uninitialized", "Completed", "Killed", "Terminated"]) {
+      message({ type: "WorkflowStateEvent", state });
+      expect(() => runtime.kill()).toThrow(/state/i);
+      expect(() => runtime.checkpoint()).toThrow(/state/i);
+    }
+    message({ type: "WorkflowErrorEvent", fatalErrors: [] });
+    expect(() => runtime.kill()).toThrow(/state/i);
+  });
+  it("rejects mutating execution controls for a read-only computing unit while retaining result access", () => {
+    const { runtime, unit, message, wire } = setup();
+    unit.accessPrivilege = "READ";
+    unit.isOwner = false;
+    message({ type: "WorkflowStateEvent", state: "Running" });
+    expect(() => runtime.pause()).toThrow(/permission/i);
+    expect(() => runtime.kill()).toThrow(/permission/i);
+    expect(() => runtime.checkpoint()).toThrow(/permission/i);
+    message({ type: "WorkflowStateEvent", state: "Paused" });
+    expect(() => runtime.resume()).toThrow(/permission/i);
+    expect(() => runtime.skip(["w"])).toThrow(/permission/i);
+    expect(() => runtime.retry(["w"])).toThrow(/permission/i);
+    expect(wire.send).not.toHaveBeenCalled();
+    unit.isOwner = true;
+    expect(() => runtime.resume()).not.toThrow();
+  });
+  it("rejects a normal run while a historical replay preview owns the working graph", async () => {
+    const { session, runtime, wire } = setup();
+    session.setAutosaveSuspended(true, "replay");
+    await expect(runtime.run()).rejects.toThrow(/replay/i);
+    expect(wire.send).not.toHaveBeenCalled();
+  });
+  it("preserves the replay execution label while retaining the current workflow name", async () => {
+    vi.useFakeTimers();
+    const { runtime, wire, session } = setup();
+    const running = runtime.run({
+      executionName: "Replay run of 7 to 日本語",
+      replayFromExecution: { eid: 7, interaction: "日本語" },
+    });
+    await vi.advanceTimersByTimeAsync(150);
+    await running;
+    expect(JSON.parse(wire.send.mock.calls.at(-1)![0])).toMatchObject({
+      executionName: "Replay run of 7 to 日本語",
+      replayFromExecution: { eid: 7, interaction: "日本語" },
+    });
+    expect(session.getSnapshot().workflow.name).toBe("Workflow");
+  });
+  it("retains snapshot visualization rows across delta messages until a table transition and tracks assigned workers", () => {
+    const { runtime, message } = setup();
+    message({
+      type: "WebResultUpdateEvent",
+      updates: { op: { mode: { type: "SetSnapshotMode" }, table: [{ a: 1 }] } },
+      tableStats: {},
+    });
+    message({
+      type: "WebResultUpdateEvent",
+      updates: { op: { mode: { type: "SetDeltaMode" }, table: [{ a: 2 }] } },
+      tableStats: {},
+    });
+    expect(runtime.getSnapshot().materializedResults.op).toEqual([{ a: 1 }]);
+    expect(runtime.getSnapshot().results.op).toMatchObject({ table: [{ a: 2 }] });
+    message({
+      type: "WebResultUpdateEvent",
+      updates: { op: { mode: { type: "PaginationMode" }, totalNumTuples: 3, dirtyPageIndices: [] } },
+      tableStats: {},
+    });
+    expect(runtime.getSnapshot().materializedResults.op).toBeUndefined();
+    message({
+      type: "WebResultUpdateEvent",
+      updates: { op: { mode: { type: "SetDeltaMode" }, table: [{ a: 3 }] } },
+      tableStats: {},
+    });
+    expect(runtime.getSnapshot().materializedResults.op).toBeUndefined();
+    message({ type: "WorkerAssignmentUpdateEvent", operatorId: "op", workerIds: ["worker-1"] });
+    expect(runtime.getSnapshot().workers.op).toEqual(["worker-1"]);
+    message({ type: "RegionUpdateEvent", regions: [[1, ["op"]]] });
+    message({ type: "RegionStateEvent", id: 1, state: "Completed" });
+    expect(runtime.getSnapshot().regions).toEqual([[1, ["op"]]]);
+    expect(runtime.getSnapshot().regionStates[1]).toBe("Completed");
+    message({
+      type: "WebResultUpdateEvent",
+      updates: { op: { mode: { type: "SetSnapshotMode" }, table: [] } },
+      tableStats: {},
+    });
+    expect(runtime.getSnapshot().materializedResults.op).toEqual([]);
+  });
   it("sends the same execution body after the form debounce, including unit and warehouse selection", async () => {
     vi.useFakeTimers();
     const { runtime, wire, selectWarehouse } = setup({ warehouse: true });

@@ -68,6 +68,7 @@ SUBSECTION_ORDER = [
     "Source files derived",          # prefix; full headers vary by license name
     "Scala/Java jars:",
     "Python packages:",
+    "Frontend / npm packages:",
     "Angular / npm packages:",
     "Agent service npm packages:",
 ]

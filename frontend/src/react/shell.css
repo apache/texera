@@ -1,0 +1,188 @@
+/**
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements. See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership. The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License. You may obtain a copy of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied. See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
+ */
+.texera-shell {
+  display: flex;
+  height: 100dvh;
+  overflow: hidden;
+  background: #f0f2f5;
+}
+.texera-sidebar {
+  flex: 0 0 200px;
+  background: #fff;
+  border-right: 1px solid #eee;
+  overflow: auto;
+  display: flex;
+  flex-direction: column;
+  padding: 16px 12px;
+}
+.texera-brand {
+  display: block;
+  min-height: 65px;
+  padding: 8px 16px;
+}
+.texera-brand img {
+  height: 46px;
+  width: auto;
+  max-width: 100%;
+  object-fit: contain;
+}
+.texera-sidebar nav {
+  flex: 1;
+}
+.texera-sidebar nav section {
+  display: grid;
+  margin-bottom: 20px;
+}
+.texera-sidebar nav strong {
+  padding: 10px 12px;
+  color: #777;
+  font-size: 12px;
+}
+.texera-sidebar nav a {
+  display: block;
+  border-radius: 4px;
+  padding: 10px 12px;
+  color: #444;
+  text-decoration: none;
+}
+.texera-sidebar nav a.active {
+  color: #1677ff;
+  background: #e6f4ff;
+}
+.texera-shell.is-collapsed .texera-sidebar {
+  flex-basis: 64px;
+  padding-inline: 5px;
+}
+.texera-shell.is-collapsed .texera-sidebar nav {
+  display: none;
+}
+.texera-shell.is-collapsed .texera-brand {
+  padding: 8px 0;
+}
+.texera-main {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+.texera-header {
+  min-height: 56px;
+  background: white;
+  border-bottom: 1px solid #eee;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 24px;
+  gap: 20px;
+}
+.texera-header > div {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+.texera-global-search {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: 1;
+  min-width: 0;
+  max-width: 520px;
+}
+.texera-global-search input {
+  flex: 1;
+  min-width: 0;
+  width: 100%;
+}
+.texera-global-search button {
+  flex-shrink: 0;
+}
+.texera-content {
+  flex: 1;
+  overflow: auto;
+  padding: 24px;
+  min-height: 0;
+}
+.texera-content h1 {
+  margin-top: 0;
+}
+.texera-content table {
+  width: 100%;
+  border-collapse: collapse;
+  background: white;
+}
+.texera-content th,
+.texera-content td {
+  padding: 12px;
+  border-bottom: 1px solid #eee;
+  text-align: left;
+}
+.texera-content th {
+  background: #fafafa;
+  font-weight: 500;
+}
+.texera-content fieldset {
+  padding: 20px;
+  border: 1px solid #ddd;
+  margin-block: 20px;
+  background: white;
+}
+.texera-content form {
+  display: grid;
+  gap: 16px;
+}
+.texera-content [role="dialog"] {
+  position: fixed;
+  z-index: 100;
+  inset: 10vh auto auto 50%;
+  transform: translateX(-50%);
+  background: #fff;
+  padding: 28px;
+  max-height: 80vh;
+  overflow: auto;
+  width: min(640px, calc(100vw - 32px));
+  box-shadow: 0 10px 80px #0005;
+  border-radius: 8px;
+}
+.texera-about {
+  max-width: 900px;
+  padding: 32px;
+  background: white;
+  margin: 24px auto;
+}
+@media (max-width: 700px) {
+  .texera-sidebar {
+    flex-basis: 140px;
+  }
+  .texera-header,
+  .texera-content {
+    padding: 12px;
+  }
+}
+.texera-about .workflow-gui-screenshot {
+  display: block;
+  max-width: 100%;
+  height: auto;
+  margin: 1.5rem auto;
+}
+.texera-discussion iframe {
+  border: 0;
+  width: 100%;
+  height: calc(100vh - 165px);
+  min-height: 320px;
+}

@@ -21,9 +21,9 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import * as joint from "jointjs";
 import { CanvasModel } from "./canvas-model";
 import { WorkflowSession } from "./workflow-session";
-import { SharedModel } from "../../app/workspace/service/workflow-graph/model/shared-model";
-import { ExecutionMode, type Workflow } from "../../app/common/type/workflow";
-import type { OperatorMetadata } from "../../app/workspace/types/operator-schema.interface";
+import { SharedModel } from "../../core/workspace/service/workflow-graph/model/shared-model";
+import { ExecutionMode, type Workflow } from "../../core/common/type/workflow";
+import type { OperatorMetadata } from "../../core/workspace/types/operator-schema.interface";
 
 const metadata: OperatorMetadata = {
   operators: [
@@ -91,6 +91,17 @@ afterEach(() => {
 });
 
 describe("existing JointJS shapes in the React canvas", () => {
+  it("persists comment dragging and reflects remote comment moves in the same cell", () => {
+    const { session, canvas } = setup();
+    session.addComment({ commentBoxID: "c", comments: [], commentBoxPosition: { x: 1, y: 2 } });
+    const cell = canvas.graph.getCell("c") as joint.dia.Element;
+    cell.position(50, 60);
+    expect(session.graph.getCommentBox("c").commentBoxPosition).toEqual({ x: 50, y: 60 });
+    session.moveComment("c", { x: 80, y: 90 });
+    expect(cell.position()).toEqual({ x: 80, y: 90 });
+    session.deleteCommentBox("c");
+    expect(canvas.graph.getCell("c")).toBeUndefined();
+  });
   it("keeps IDs, original operator shape and port IDs, and moves the same cell while dragging", () => {
     const { canvas, session } = setup();
     const cell = canvas.graph.getCell("a") as joint.dia.Element;

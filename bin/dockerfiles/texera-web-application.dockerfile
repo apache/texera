@@ -100,7 +100,7 @@ RUN unzip amber/target/universal/amber-*.zip -d amber/target/
 
 # Merge per-aspect LICENSE-binary files (java jars + frontend npm) into a
 # single LICENSE-binary-combined keyed by license group, for the runtime
-# image. Per-license-group merge keeps Scala/Java jars and Angular npm
+# image. Per-license-group merge keeps Scala/Java jars and frontend npm
 # packages inside the same Apache-2.0 / MIT / BSD / ... section instead
 # of stacking the inputs end-to-end.
 RUN python3 bin/licensing/concat_license_binary.py amber/LICENSE-binary-combined \

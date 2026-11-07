@@ -25,6 +25,33 @@ import type { OperatorPropertySchema } from "./schema";
 afterEach(cleanup);
 
 describe("SchemaForm", () => {
+  it("resolves nested references against an unrendered source schema without exposing sibling inputs", () => {
+    const referenceSchema: OperatorPropertySchema = {
+      type: "object",
+      properties: {
+        template: { type: "object", properties: { label: { $ref: "#/definitions/name" } } },
+        selected: { $ref: "#/properties/template" },
+        secret: { type: "string", title: "Secret" },
+      },
+      definitions: { name: { type: "string", title: "Name", minLength: 2 } },
+    };
+    const onChange = vi.fn();
+    render(
+      <SchemaForm
+        schema={{ type: "object", properties: { selected: referenceSchema.properties!.selected } }}
+        referenceSchema={referenceSchema}
+        value={{ selected: { label: "ok" }, secret: "keep" }}
+        onChange={onChange}
+      />
+    );
+    expect(screen.queryByLabelText("Secret")).toBeNull();
+    fireEvent.change(screen.getByLabelText("Name"), { target: { value: "x" } });
+    expect(onChange.mock.lastCall?.[0]).toEqual({ selected: { label: "x" }, secret: "keep" });
+    expect(onChange.mock.lastCall?.[1]).toEqual(
+      expect.arrayContaining([expect.objectContaining({ path: ["selected", "label"], keyword: "minLength" })])
+    );
+  });
+
   it("edits text, false, zero and enum values without losing their types", () => {
     const onChange = vi.fn();
     render(

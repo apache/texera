@@ -18,23 +18,52 @@
  */
 
 import react from "@vitejs/plugin-react";
-import { readFileSync } from "node:fs";
+import { readFileSync, readdirSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { defineConfig } from "vite";
-import { createReactBuildPlugin, toViteProxy } from "./tools/react-build.mjs";
+import { createReactBuildPlugin, createWorkerLicensePlugin, toViteProxy } from "./tools/react-build.mjs";
+import { monacoStylesheets } from "./tools/monaco-vite.mjs";
 
 const root = dirname(fileURLToPath(import.meta.url));
-// Keep the preview separate until every existing route and workflow interaction
-// passes the migration gate. The deployed Angular application still owns dist.
-const outDir = resolve(root, "dist-react");
+// Backend FileAssetsBundle and Docker consume this production directory.
+const outDir = resolve(root, "dist");
 const proxy = toViteProxy(JSON.parse(readFileSync(resolve(root, "proxy.config.json"), "utf8")));
+const workerModuleIds = new Set<string>();
 
 export default defineConfig(({ command }) => ({
   root,
   publicDir: false,
-  plugins: [react(), createReactBuildPlugin({ root, outDir })],
+  plugins: [monacoStylesheets(), react(), createReactBuildPlugin({ root, outDir, workerModuleIds })],
+  optimizeDeps: {
+    include: [
+      "y-monaco",
+      "yjs",
+      "vscode-jsonrpc/browser",
+      "vscode-jsonrpc",
+      "vscode-languageserver-protocol",
+      "vscode-languageserver-types",
+      "vscode-languageserver-textdocument",
+      "vscode-ws-jsonrpc",
+      "vscode-languageserver-protocol/browser",
+      "vscode-languageclient/browser",
+      "monaco-languageclient > vscode-languageserver-protocol/browser",
+      "monaco-languageclient > vscode-languageserver-protocol",
+      "monaco-languageclient > vscode-languageserver-protocol > vscode-jsonrpc",
+      "monaco-languageclient > vscode-languageserver-protocol > vscode-jsonrpc/browser",
+    ],
+    exclude: [
+      "monaco-editor",
+      "vscode",
+      "monaco-editor-wrapper",
+      "monaco-languageclient",
+      ...readdirSync(resolve(root, "node_modules/@codingame")).map(name => `@codingame/${name}`),
+    ],
+  },
+  worker: { format: "es", plugins: () => [monacoStylesheets(), createWorkerLicensePlugin(workerModuleIds)] },
+  assetsInclude: ["**/*.wasm"],
   resolve: {
+    dedupe: ["yjs", "y-protocols", "lib0"],
     alias:
       command === "build"
         ? [

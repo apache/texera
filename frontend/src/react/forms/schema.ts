@@ -19,6 +19,11 @@
 
 import Ajv, { type ErrorObject, type ValidateFunction } from "ajv";
 import type { JSONSchema7, JSONSchema7Definition } from "json-schema";
+import { delimiterError } from "./delimiter";
+import { acceptsLoopReference, isReference } from "./loop-variables";
+import { resolveOperatorWidget } from "./widget-metadata";
+import { huggingFaceIssues } from "./hugging-face-rules";
+import { applyInputAttributeSchema, attributeTypeIssues } from "./input-attributes";
 
 export type PropertyPath = readonly (string | number)[];
 export type PropertySchemaDefinition = OperatorPropertySchema | boolean;
@@ -46,12 +51,38 @@ export interface OperatorPropertySchema extends JSONSchema7 {
   noLoopVariable?: boolean;
   "enable-presets"?: boolean;
   "x-widget"?: string;
+  widget?: {
+    formlyConfig?: {
+      type?: string;
+      props?: Record<string, unknown>;
+      templateOptions?: Record<string, unknown>;
+    };
+  };
+  autofill?: "attributeName" | "attributeNameList";
+  autofillAttributeOnPort?: number;
+  additionalEnumValue?: string;
+  dependOn?: string;
+  attributeTypeRules?: Record<
+    string,
+    {
+      enum?: readonly string[];
+      const?: { $data?: string };
+      allOf?: readonly { if: Record<string, { valEnum?: readonly string[] }>; then: { enum?: readonly string[] } }[];
+    }
+  >;
   valueRules?: {
     allOf: readonly {
       if: Readonly<Record<string, { valEnum?: readonly string[] }>>;
       then: ValueRule;
     }[];
   };
+}
+
+export interface PropertyValidationContext {
+  operatorType?: string;
+  /** Undefined outside control blocks; an empty list still allows references with a warning. */
+  loopVariableNames?: readonly string[];
+  inputAttributes?: Readonly<Record<string, readonly { attributeName: string; attributeType: string }[] | undefined>>;
 }
 
 export interface PropertyIssue {
@@ -138,6 +169,48 @@ export function resolveSchemaReference(
     result = { ...target, ...result, $ref: (target as OperatorPropertySchema).$ref };
   }
   return result;
+}
+
+/** Retain references outside a bound property's visible schema without rendering those properties. */
+export function schemaWithReferenceRoot(
+  schema: OperatorPropertySchema,
+  root: OperatorPropertySchema
+): OperatorPropertySchema {
+  if (schema === root) return schema;
+  let name = "__texeraReferenceRoot";
+  while (Object.hasOwn(schema.definitions ?? {}, name)) name += "_";
+  const prefix = `#/definitions/${name}`;
+  const rebase = (value: unknown): unknown => {
+    if (Array.isArray(value)) return value.map(rebase);
+    if (!value || typeof value !== "object") return value;
+    const node = value as Record<string, unknown>;
+    const result = { ...node };
+    if (typeof node.$ref === "string" && node.$ref.startsWith("#/")) result.$ref = `${prefix}${node.$ref.slice(1)}`;
+    for (const key of [
+      "items",
+      "additionalItems",
+      "additionalProperties",
+      "contains",
+      "propertyNames",
+      "not",
+      "if",
+      "then",
+      "else",
+      "allOf",
+      "anyOf",
+      "oneOf",
+    ]) {
+      if (node[key] !== undefined) result[key] = rebase(node[key]);
+    }
+    for (const key of ["properties", "patternProperties", "dependencies", "definitions", "$defs"]) {
+      const members = node[key];
+      if (members && typeof members === "object" && !Array.isArray(members))
+        result[key] = Object.fromEntries(Object.entries(members).map(([name, member]) => [name, rebase(member)]));
+    }
+    return result;
+  };
+  const result = rebase(schema) as OperatorPropertySchema;
+  return { ...result, definitions: { ...result.definitions, [name]: rebase(root) as OperatorPropertySchema } };
 }
 
 export function sortedProperties(schema: OperatorPropertySchema): [string, OperatorPropertySchema][] {
@@ -274,6 +347,11 @@ function customIssues(
   root = schema
 ): void {
   schema = resolveSchemaReference(schema, root);
+  if (resolveOperatorWidget(schema, path.at(-1)) === "delimiter") {
+    const mode = schema.widget?.formlyConfig?.props?.delimiterMode === "regex" ? "regex" : "char";
+    const error = delimiterError(value, mode);
+    if (error) issues.push({ path, keyword: "delimiter", message: error });
+  }
   const rule = matchingValueRule(schema, parent);
   if (rule && !validValueRule(rule, value))
     issues.push({ path, keyword: "valueRules", message: valueRuleMessage(rule) });
@@ -314,8 +392,13 @@ function customIssues(
 }
 
 /** Standard JSON-schema errors and Texera's sibling/row validation share field paths. */
-export function validateSchemaValue(schema: OperatorPropertySchema, value: unknown): PropertyIssue[] {
+export function validateSchemaValue(
+  schema: OperatorPropertySchema,
+  value: unknown,
+  context: PropertyValidationContext = {}
+): PropertyIssue[] {
   try {
+    schema = applyInputAttributeSchema(schema, context.inputAttributes);
     let validate = validators.get(schema);
     if (!validate) {
       validate = ajv.compile(schema);
@@ -324,12 +407,33 @@ export function validateSchemaValue(schema: OperatorPropertySchema, value: unkno
     validate(value);
     const issues = (validate.errors ?? []).map(error => schemaIssue(error, value));
     customIssues(schema, value, [], issues);
-    return issues.filter(
-      (issue, index) =>
-        issues.findIndex(
-          other => other.keyword === issue.keyword && JSON.stringify(other.path) === JSON.stringify(issue.path)
-        ) === index
-    );
+    issues.push(...attributeTypeIssues(schema, value, context.inputAttributes));
+    if (context.operatorType === "HuggingFace") issues.push(...huggingFaceIssues(schema, value));
+    return issues
+      .filter(issue => {
+        if (
+          context.loopVariableNames === undefined ||
+          !["type", "valueRules"].includes(issue.keyword) ||
+          !isReference(getAtPath(value, issue.path))
+        )
+          return true;
+        let current = schema;
+        let blocked = current.noLoopVariable === true;
+        for (const part of issue.path) {
+          current = resolveSchemaReference(
+            typeof part === "number" ? itemSchema(current, part) : asSchema(current.properties?.[part]),
+            schema
+          );
+          blocked ||= current.noLoopVariable === true;
+        }
+        return !acceptsLoopReference(current, issue.path.at(-1), context.operatorType, blocked);
+      })
+      .filter(
+        (issue, index) =>
+          issues.findIndex(
+            other => other.keyword === issue.keyword && JSON.stringify(other.path) === JSON.stringify(issue.path)
+          ) === index
+      );
   } catch (error) {
     return [
       {

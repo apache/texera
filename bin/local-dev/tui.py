@@ -206,7 +206,7 @@ POLL_INTERVAL_S = 1.0     # how often to refresh service state
 DIRTY_INTERVAL_S = 2.0    # how often to recompute dirty indicators
 
 # Services whose own runtime watches the filesystem and rebuilds on source
-# change: `yarn start` runs `ng serve` (Angular dev server, hot-reload) and
+# change: `yarn start` runs `Vite` (React dev server, hot-reload) and
 # `bun run --watch` reloads the agent-service on change.  The dashboard
 # surfaces this in the SRC column so the user doesn't try to bounce them
 # unnecessarily; the ★ "dirty" indicator only flashes for them when the lock
@@ -1113,7 +1113,7 @@ class LocalDevApp(App):
         if self.active_cmd and self.cmd_started_at:
             elapsed = f"  ({int(time.monotonic() - self.cmd_started_at)}s)"
         dirty_part = f"  ★ {dirty} dirty" if dirty else ""
-        # Surface the frontend URL the moment ng serve is listening, so the
+        # Surface the frontend URL the moment Vite is listening, so the
         # user knows when the web app is actually clickable.
         frontend_pid = self.live.pids.get("frontend")
         url_part = "  →  http://localhost:4200" if frontend_pid else ""
@@ -1164,7 +1164,7 @@ class LocalDevApp(App):
             # BUILD column tells the user whether they need to do anything to
             # bring the running service in sync with the current source.
             #   ★ (yellow) — content/lock changed since last build; needs action.
-            #   ↻ (cyan)   — service auto-rebuilds on file change (ng serve /
+            #   ↻ (cyan)   — service auto-rebuilds on file change (Vite /
             #               bun --watch). Reassurance that no manual step is
             #               needed for source edits.
             #   (blank)    — built and up-to-date.
@@ -1378,7 +1378,7 @@ class LocalDevApp(App):
             "",
             "BUILD column:",
             "  ★ (yellow)  source or deps changed since last build — rebuild needed",
-            "  ↻ (cyan)    service auto-rebuilds on save (ng serve / bun --watch)",
+            "  ↻ (cyan)    service auto-rebuilds on save (Vite / bun --watch)",
             "  (blank)     built and up-to-date",
             "",
             f"Known services: {', '.join(s.name for s in SERVICES)}",
@@ -1451,7 +1451,7 @@ class LocalDevApp(App):
         elif verb in SERVICES_BY_NAME:
             svc_obj = SERVICES_BY_NAME[verb]
             if svc_obj.type in WATCH_TYPES:
-                # ng serve / bun --watch rebuild on save automatically —
+                # Vite / bun --watch rebuild on save automatically —
                 # forcing a rebuild is never what the user wants here.
                 self._log_msg(
                     f"{verb} runs in watch mode (↻) — source edits auto-reload. "

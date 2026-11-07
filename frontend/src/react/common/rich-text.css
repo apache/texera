@@ -1,0 +1,100 @@
+/**
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements. See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership. The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License. You may obtain a copy of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied. See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
+ */
+
+.rich-text {
+  color: inherit;
+  line-height: 1.6;
+  overflow-wrap: anywhere;
+}
+.rich-text > :first-child {
+  margin-top: 0;
+}
+.rich-text > :last-child {
+  margin-bottom: 0;
+}
+.rich-text img {
+  max-width: 100%;
+  height: auto;
+}
+.rich-text pre {
+  overflow: auto;
+  padding: 14px;
+  border-radius: 7px;
+  background: #f0f4f9;
+}
+.rich-text code {
+  font-family: ui-monospace, Consolas, monospace;
+  font-size: 0.92em;
+  background: #f0f4f9;
+  padding: 2px 4px;
+  border-radius: 4px;
+}
+.rich-text pre code {
+  padding: 0;
+}
+.rich-text table {
+  border-collapse: collapse;
+  max-width: 100%;
+  display: block;
+  overflow-x: auto;
+}
+.rich-text th,
+.rich-text td {
+  border: 1px solid #cfd9e6;
+  padding: 8px 12px;
+  text-align: left;
+}
+.rich-text blockquote {
+  border-left: 3px solid #a6bcd6;
+  margin-left: 0;
+  padding-left: 16px;
+  color: #52667f;
+}
+.rich-text-expand {
+  margin-top: 10px;
+}
+.markdown-editor {
+  display: grid;
+  gap: 12px;
+}
+.markdown-toolbar,
+.markdown-editor footer {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+.markdown-editor footer {
+  justify-content: flex-end;
+}
+.markdown-toolbar button {
+  font-size: 12px;
+  padding: 5px 7px;
+}
+.markdown-editor textarea {
+  width: 100%;
+  box-sizing: border-box;
+  font:
+    14px ui-monospace,
+    Consolas,
+    monospace;
+  line-height: 1.5;
+  padding: 12px;
+  border: 1px solid #bdcadb;
+  border-radius: 6px;
+}

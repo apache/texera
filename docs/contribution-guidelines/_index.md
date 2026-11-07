@@ -139,11 +139,11 @@ Avoid including:
 
 > For IntelliJ users: ensure the working directory matches the module (`amber` for engine tests, the repo root for services).
 
-### Frontend (Angular)
+### Frontend (React)
 1. Run unit tests:
    ```bash
    cd frontend
-   ng test --watch=false
+   yarn test
    ```
 2. Format code:
    ```bash

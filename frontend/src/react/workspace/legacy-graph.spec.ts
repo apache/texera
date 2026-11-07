@@ -52,5 +52,5 @@ class InertWebSocket {
 }
 vi.stubGlobal("WebSocket", InertWebSocket);
 afterAll(() => vi.unstubAllGlobals());
-await import("../../app/workspace/service/workflow-graph/model/workflow-graph.spec");
-await import("../../app/workspace/service/workflow-graph/model/shared-model.spec");
+await import("../../core/workspace/service/workflow-graph/model/workflow-graph.spec");
+await import("../../core/workspace/service/workflow-graph/model/shared-model.spec");

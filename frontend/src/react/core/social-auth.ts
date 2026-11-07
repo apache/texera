@@ -18,6 +18,7 @@
  */
 
 import { ApiClient } from "./api-client";
+import { v4 as uuid } from "uuid";
 import type { AuthStore } from "./auth";
 
 export const ORCID_STATE_KEY = "orcid_state";
@@ -91,7 +92,7 @@ export class SocialAuth {
     this.storage = options.sessionStorage ?? globalThis.sessionStorage;
     this.loadScript = options.loadScript ?? loadBrowserScript;
     this.location = options.location ?? globalThis.location;
-    this.randomUUID = options.randomUUID ?? (() => crypto.randomUUID());
+    this.randomUUID = options.randomUUID ?? (() => uuid());
     this.getGoogle =
       options.getGoogle ?? (() => (globalThis as typeof globalThis & { google?: GoogleIdentity }).google);
     this.getApple = options.getApple ?? (() => (globalThis as typeof globalThis & { AppleID?: AppleIdentity }).AppleID);

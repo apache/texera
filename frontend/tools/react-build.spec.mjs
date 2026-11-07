@@ -24,9 +24,20 @@ import { dirname, join, resolve } from "node:path";
 import { createRequire } from "node:module";
 import { fileURLToPath } from "node:url";
 import { afterEach, test } from "node:test";
-import { collectBundledLicenses, createReactBuildPlugin, isReactDocumentRequest, toViteProxy } from "./react-build.mjs";
+import {
+  collectBundledLicenses,
+  createReactBuildPlugin,
+  createWorkerLicensePlugin,
+  isReactDocumentRequest,
+  toViteProxy,
+} from "./react-build.mjs";
 
 const temporaryRoots = [];
+test("deep-link pages resolve collaboration and other relative service URLs from the application root", async () => {
+  const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
+  const html = await readFile(join(root, "react.html"), "utf8");
+  assert.match(html, /<base\s+href="\/"\s*\/?>/);
+});
 afterEach(async () => {
   await Promise.all(temporaryRoots.splice(0).map(root => rm(root, { recursive: true, force: true })));
 });
@@ -44,39 +55,51 @@ async function put(root, path, contents) {
   return file;
 }
 
-test("the incomplete React preview cannot overwrite the Angular deployment artifact", async () => {
+test("the default React build emits the deployment artifact consumed by the backend and Docker", async () => {
   const { loadConfigFromFile } = await import("vite");
   const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
   const loaded = await loadConfigFromFile({ command: "build", mode: "production" }, join(root, "vite.config.mts"));
-  assert.equal(loaded.config.build.outDir, join(root, "dist-react"));
+  assert.equal(loaded.config.build.outDir, join(root, "dist"));
 });
 
-test("Angular discovery retains its original suites and excludes all React-only specs", async () => {
+test("default development, CI and browser commands invoke the React toolchain", async () => {
   const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
-  const require = createRequire(import.meta.url);
-  const { findTests } = require(join(root, "node_modules/@angular/build/src/builders/unit-test/test-discovery.js"));
-  const angular = JSON.parse(await readFile(join(root, "angular.json"), "utf8"));
-  const options = angular.projects.gui.architect.test.options;
-  const discovered = await findTests(options.include, options.exclude, root, join(root, "src"));
-  const original = (await findTests(options.include, ["**/*.browser.spec.ts"], root, join(root, "src"))).filter(
-    file => !file.replaceAll("\\", "/").includes("/src/react/")
-  );
-  assert.ok(discovered.length > 100, "existing Angular suites must remain discoverable");
-  assert.deepEqual(discovered.sort(), original.sort());
+  const pkg = JSON.parse(await readFile(join(root, "package.json"), "utf8"));
+  assert.match(pkg.scripts.start, /vite/);
+  assert.match(pkg.scripts.build, /vite.*build/);
+  assert.match(pkg.scripts["test:ci"], /vitest.*coverage/);
+  assert.match(pkg.scripts["test:browser"], /vitest.*vitest\.browser\.config\.mts/);
+  assert.match(pkg.scripts["test:tools"], /node --test/);
+  for (const name of [...Object.keys(pkg.dependencies), ...Object.keys(pkg.devDependencies)])
+    assert.ok(
+      !/^@angular|^@nx\/|^@ngx|^ngx-|angular|^ng-zorro|^zone\.js$/.test(name),
+      `obsolete Angular package ${name}`
+    );
+  const ci = await readFile(join(root, "../.github/workflows/build.yml"), "utf8");
+  assert.match(ci, /yarn --cwd frontend (?:run )?test:browser/);
+  assert.doesNotMatch(ci, /ng run gui:test-browser/);
 });
 
-test("Angular TypeScript compilation excludes React-only tests without dropping existing specs", async () => {
+test("the framework-independent core retains the original graph, editor and numerical contracts", async () => {
   const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
-  const require = createRequire(import.meta.url);
-  const ts = require("typescript");
-  const file = join(root, "src/tsconfig.spec.json");
-  const config = ts.readConfigFile(file, ts.sys.readFile).config;
-  const discovered = ts.parseJsonConfigFileContent(config, ts.sys, dirname(file)).fileNames;
-  const original = ts
-    .parseJsonConfigFileContent({ ...config, exclude: [] }, ts.sys, dirname(file))
-    .fileNames.filter(file => !file.replaceAll("\\", "/").includes("/src/react/"));
-  assert.ok(discovered.some(file => file.endsWith("app.component.spec.ts")));
-  assert.deepEqual(discovered.sort(), original.sort());
+  for (const path of [
+    "workflow-graph/model/workflow-graph.spec.ts",
+    "workflow-graph/model/shared-model.spec.ts",
+    "joint-ui/joint-ui.service.spec.ts",
+    "notebook-migration/migration-llm.spec.ts",
+    "heatmap/heatmap-scoring.spec.ts",
+    "heatmap/heatmap-color.spec.ts",
+    "heatmap/heatmap-overlay-persistence.spec.ts",
+    "heatmap/runtime-statistics-mapper.spec.ts",
+    "workflow-status/performance-metrics.spec.ts",
+  ])
+    assert.match(await readFile(join(root, "src/core/workspace/service", path), "utf8"), /\b(?:it|test)\(/);
+});
+
+test("the frontend has no Angular build entry points after the replacement", async () => {
+  const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
+  for (const path of ["angular.json", "custom-webpack.config.js", "nx.json", "src/main.ts", "src/test-zone-setup.ts"])
+    await assert.rejects(readFile(join(root, path)), { code: "ENOENT" });
 });
 
 test("React development and test scripts select ESM-native configuration files", async () => {
@@ -103,7 +126,22 @@ test("React development and test scripts select ESM-native configuration files",
     "native"
   );
   assert.equal(vite.config.server.port, 4200);
-  assert.deepEqual(vitest.config.test.include, ["src/react/**/*.spec.{ts,tsx}", "src/build-version.spec.ts"]);
+  assert.deepEqual(vitest.config.test.include, [
+    "src/react/**/*.spec.{ts,tsx}",
+    "src/build-version.spec.ts",
+    "src/environments/version.spec.ts",
+  ]);
+  assert.deepEqual(vitest.config.test.exclude, ["src/react/**/*.browser.spec.{ts,tsx}"]);
+  const browser = await loadConfigFromFile(
+    { command: "serve", mode: "test" },
+    join(root, "vitest.browser.config.mts"),
+    root,
+    "silent",
+    undefined,
+    "native"
+  );
+  assert.deepEqual(browser.config.test.include, ["src/react/**/*.browser.spec.{ts,tsx}"]);
+  assert.deepEqual(browser.config.test.setupFiles, ["src/browser-buffer-polyfill.ts"]);
 });
 
 test("dev proxy preserves backend selection, path boundaries and WebSocket protocols", () => {
@@ -247,6 +285,17 @@ test("closing the dev server does not try to rename production output", async ()
   plugin.configResolved({ command: "serve" });
   await plugin.closeBundle();
 });
+test("the deployed index honors a caller's output-directory override", async () => {
+  const root = await fixture();
+  const override = join(root, "custom-output");
+  await put(override, "react.html", "Texera");
+  const plugin = createReactBuildPlugin({ root, outDir: join(root, "default-output") });
+  plugin.configResolved({ command: "build", root, build: { outDir: override } });
+  await put(root, "src/assets/version.json", '{"buildNumber":"test","version":"1"}');
+  await plugin.generateBundle.call({ emitFile() {} }, {}, {});
+  await plugin.closeBundle();
+  assert.equal(await readFile(join(override, "index.html"), "utf8"), "Texera");
+});
 
 test("a failed compilation can close without a secondary missing-output error", async () => {
   const root = await fixture();
@@ -284,6 +333,34 @@ test("real Vite build emits the deployable index and an accurate React runtime l
     ["react", "react-dom", "scheduler"]
   );
   assert.ok(licenses.every(entry => entry.license === "MIT" && typeof entry.version === "string"));
+});
+
+test("production licenses include dependencies emitted only in worker chunks", async () => {
+  const { build } = await import("vite");
+  const root = await fixture();
+  const outDir = join(root, "dist");
+  await put(root, "src/assets/version.json", '{"buildNumber":"test","version":"1"}');
+  await put(root, "react.html", '<script type="module" src="/entry.js"></script>');
+  await put(root, "entry.js", 'new Worker(new URL("./worker.js", import.meta.url), {type:"module"});');
+  await put(root, "worker.js", 'import {message} from "worker-only"; postMessage(message);');
+  await put(
+    root,
+    "node_modules/worker-only/package.json",
+    JSON.stringify({ name: "worker-only", version: "1.2.3", license: "MIT", type: "module", exports: "./index.js" })
+  );
+  await put(root, "node_modules/worker-only/index.js", 'export const message="worker";');
+  const workerModuleIds = new Set();
+  await build({
+    configFile: false,
+    root,
+    publicDir: false,
+    logLevel: "silent",
+    plugins: [createReactBuildPlugin({ root, outDir, workerModuleIds })],
+    worker: { format: "es", plugins: () => [createWorkerLicensePlugin(workerModuleIds)] },
+    build: { outDir, rolldownOptions: { input: join(root, "react.html") } },
+  });
+  const licenses = JSON.parse(await readFile(join(outDir, "3rdpartylicenses.json"), "utf8"));
+  assert.deepEqual(licenses, [{ name: "worker-only", version: "1.2.3", license: "MIT" }]);
 });
 
 test("real Vite server serves React deep links and assets while leaving API requests separate", async () => {

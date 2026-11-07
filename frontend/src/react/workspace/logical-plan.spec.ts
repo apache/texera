@@ -17,14 +17,14 @@
  * under the License.
  */
 import { afterAll, describe, expect, it, vi } from "vitest";
-import { buildLogicalPlan } from "../../app/workspace/service/execute-workflow/logical-plan";
-import { WorkflowGraph } from "../../app/workspace/service/workflow-graph/model/workflow-graph";
-import { SharedModel } from "../../app/workspace/service/workflow-graph/model/shared-model";
+import { buildLogicalPlan } from "../../core/workspace/service/execute-workflow/logical-plan";
+import { WorkflowGraph } from "../../core/workspace/service/workflow-graph/model/workflow-graph";
+import { SharedModel } from "../../core/workspace/service/workflow-graph/model/shared-model";
 import {
   mockScanPredicate,
   mockResultPredicate,
   mockScanResultLink,
-} from "../../app/workspace/service/workflow-graph/model/mock-workflow-data";
+} from "../../core/workspace/service/workflow-graph/model/mock-workflow-data";
 
 const shared = new SharedModel(1, undefined, undefined, { connect: false });
 const graph = new WorkflowGraph([mockScanPredicate, mockResultPredicate], [mockScanResultLink], [], shared);

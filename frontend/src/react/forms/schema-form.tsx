@@ -18,6 +18,13 @@
  */
 
 import { useEffect, useId, useMemo, useState, type ComponentType, type ReactNode } from "react";
+import { acceptsLoopReference } from "./loop-variables";
+import { OperatorFormProvider, useOperatorFormContext, type OperatorFormContext } from "./operator-context";
+import { BUILTIN_PROPERTY_WIDGETS, resolveOperatorWidget } from "./operator-widgets";
+import { PresetControls } from "./presets";
+import { huggingFaceFieldHidden } from "./hugging-face-rules";
+import { applyInputAttributeSchema } from "./input-attributes";
+import "./forms.css";
 import {
   applySchemaDefaults,
   asSchema,
@@ -27,6 +34,7 @@ import {
   matchingValueRule,
   newSchemaValue,
   resolveSchemaReference,
+  schemaWithReferenceRoot,
   schemaType,
   setAtPath,
   sortedProperties,
@@ -44,6 +52,8 @@ export interface PropertyWidgetProps {
   required: boolean;
   issues: readonly PropertyIssue[];
   onChange: (value: unknown) => void;
+  parentValue?: unknown;
+  onParentChange?: (updates: Record<string, unknown>) => void;
 }
 
 export type PropertyWidgets = Readonly<Record<string, ComponentType<PropertyWidgetProps>>>;
@@ -56,6 +66,8 @@ export interface SchemaFormProps<T = unknown> {
   disabled?: boolean;
   widgets?: PropertyWidgets;
   label?: string;
+  context?: OperatorFormContext;
+  referenceSchema?: OperatorPropertySchema;
 }
 
 /** A controlled operator form: saved values remain owned by the workflow store. */
@@ -67,35 +79,53 @@ export function SchemaForm<T>({
   disabled = false,
   widgets = {},
   label = "Operator properties",
+  context,
+  referenceSchema,
 }: SchemaFormProps<T>) {
-  const model = useMemo(() => applySchemaDefaults(schema, value), [schema, value]);
-  const issues = useMemo(() => validateSchemaValue(schema, model), [schema, model]);
+  const inherited = useOperatorFormContext();
+  const formContext = useMemo(() => ({ ...inherited, ...context }), [inherited, context]);
+  schema = useMemo(
+    () => applyInputAttributeSchema(schema, formContext.inputAttributes),
+    [schema, formContext.inputAttributes]
+  );
+  const referenceRoot = useMemo(
+    () => applyInputAttributeSchema(referenceSchema ?? schema, formContext.inputAttributes),
+    [referenceSchema, schema, formContext.inputAttributes]
+  );
+  const validationSchema = useMemo(() => schemaWithReferenceRoot(schema, referenceRoot), [schema, referenceRoot]);
+  const model = useMemo(() => applySchemaDefaults(schema, value, referenceRoot), [schema, value, referenceRoot]);
+  const issues = useMemo(
+    () => validateSchemaValue(validationSchema, model, formContext),
+    [validationSchema, model, formContext]
+  );
   useEffect(() => {
     onValidationChange?.(issues);
   }, [issues, onValidationChange]);
   const update = (path: PropertyPath, next: unknown) => {
     if (disabled) return;
     const changed = setAtPath(model, path, next);
-    onChange(changed as T, validateSchemaValue(schema, changed));
+    onChange(changed as T, validateSchemaValue(validationSchema, changed, formContext));
   };
   return (
-    <div
-      className="property-form"
-      role="group"
-      aria-label={label}>
-      <PropertyField
-        schema={schema}
-        rootSchema={schema}
-        model={model}
-        path={[]}
-        label={schema.title ?? ""}
-        disabled={disabled}
-        required={false}
-        widgets={widgets}
-        issues={issues}
-        update={update}
-      />
-    </div>
+    <OperatorFormProvider value={formContext}>
+      <div
+        className="property-form"
+        role="group"
+        aria-label={label}>
+        <PropertyField
+          schema={schema}
+          rootSchema={referenceRoot}
+          model={model}
+          path={[]}
+          label={schema.title ?? ""}
+          disabled={disabled}
+          required={false}
+          widgets={widgets}
+          issues={issues}
+          update={update}
+        />
+      </div>
+    </OperatorFormProvider>
   );
 }
 
@@ -111,6 +141,7 @@ interface PropertyFieldProps {
   issues: readonly PropertyIssue[];
   update: (path: PropertyPath, value: unknown) => void;
   selectedVariant?: boolean;
+  referenceBlocked?: boolean;
 }
 
 function samePath(left: PropertyPath, right: PropertyPath): boolean {
@@ -118,14 +149,100 @@ function samePath(left: PropertyPath, right: PropertyPath): boolean {
 }
 
 function PropertyField(props: PropertyFieldProps) {
+  if (props.schema.$ref) {
+    const resolved = resolveSchemaReference(props.schema, props.rootSchema);
+    props = { ...props, schema: resolved, label: resolved.title ?? props.label };
+  }
+  const context = useOperatorFormContext();
+  const presentation = context.fieldPresentation;
+  const lastKey = props.path.at(-1);
+  if (lastKey === "dummyPropertyList" && context.operatorType !== "Dummy") return null;
+  if (context.operatorType === "FileScanOp" && lastKey === "outputFileName") {
+    const parent = getAtPath(props.model, props.path.slice(0, -1)) as Record<string, unknown> | undefined;
+    if (
+      parent?.extract !== true &&
+      !["single string", "binary", "large binary"].includes(String(parent?.attributeType))
+    )
+      return null;
+  }
+  if (["dummyOperator", "dummyProperty", "dummyValue", "dummyPropertyList"].includes(String(lastKey)))
+    props = { ...props, disabled: true };
+  const key = props.path.filter(part => typeof part === "string").join(".");
+  const override = presentation?.overrides?.[key];
+  if (override?.hidden && !presentation?.authoring) return null;
+  const originalLabel = props.label;
+  const label = override?.displayName || originalLabel;
+  const author = presentation?.authoring && key && !props.path.some(part => typeof part === "number" && part > 0);
+  const expose =
+    presentation?.showExposure &&
+    props.path.length === 1 &&
+    resolveOperatorWidget(props.schema, props.path[0]) !== "codearea";
+  return (
+    <div className={override?.hidden ? "property-presentation property-hidden-for-readers" : "property-presentation"}>
+      {author && (
+        <div className="property-author-controls">
+          <label>
+            Rename {originalLabel}
+            <input
+              value={override?.displayName ?? ""}
+              placeholder={originalLabel}
+              disabled={props.disabled}
+              onChange={event => presentation?.onRename?.(key, event.currentTarget.value)}
+            />
+          </label>
+          {props.path.length > 0 && presentation?.canHide?.(key) !== false && (
+            <button
+              type="button"
+              disabled={props.disabled}
+              aria-label={`${override?.hidden ? "Show" : "Hide"} ${originalLabel}`}
+              onClick={() => presentation?.onHiddenChange?.(key, !override?.hidden)}>
+              {override?.hidden ? "Show" : "Hide"}
+            </button>
+          )}
+        </div>
+      )}
+      {expose && (
+        <label>
+          <input
+            type="checkbox"
+            disabled={props.disabled}
+            checked={presentation?.exposedPaths?.includes(key) ?? false}
+            onChange={event => presentation?.onExposedChange?.(key, event.currentTarget.checked)}
+          />
+          Expose {originalLabel} on form
+        </label>
+      )}
+      <PropertyFieldControl
+        {...props}
+        label={label}
+        schema={props.schema}
+      />
+    </div>
+  );
+}
+
+function PropertyFieldControl(props: PropertyFieldProps) {
   const { rootSchema, model, path, label, required, widgets, issues, update } = props;
-  const schema = resolveSchemaReference(props.schema, rootSchema);
+  let schema = resolveSchemaReference(props.schema, rootSchema);
+  const context = useOperatorFormContext();
+  if (schema.dependOn && context.inputAttributes) {
+    const parent = getAtPath(model, path.slice(0, -1));
+    const selected =
+      parent && typeof parent === "object" ? (parent as Record<string, unknown>)[schema.dependOn] : undefined;
+    const timestamp = Object.values(context.inputAttributes)
+      .flat()
+      .some(attribute => attribute?.attributeName === selected && attribute?.attributeType === "timestamp");
+    schema = { ...schema, description: timestamp ? "Input a datetime string" : "Input a positive number" };
+  }
+  const referenceBlocked = props.referenceBlocked || schema.noLoopVariable === true;
   const disabled = props.disabled || schema.readOnly === true;
   const value = getAtPath(model, path);
   const id = useId();
   const currentIssues = issues.filter(issue => samePath(issue.path, path));
   const variantSchemas = schema.oneOf ?? schema.anyOf;
   const [chosenVariant, setChosenVariant] = useState<number | undefined>();
+  const [draggedRow, setDraggedRow] = useState<number>();
+  const [optionQuery, setOptionQuery] = useState("");
   const variant =
     chosenVariant ??
     variantSchemas?.findIndex(candidate => validateSchemaValue(asSchema(candidate), value).length === 0) ??
@@ -134,7 +251,10 @@ function PropertyField(props: PropertyFieldProps) {
   const errorId = `${id}-errors`;
   const descriptionId = `${id}-description`;
   const describedBy =
-    [schema.description ? descriptionId : undefined, currentIssues.length ? errorId : undefined]
+    [
+      schema.description && !context.fieldPresentation?.suppressDescriptions ? descriptionId : undefined,
+      currentIssues.length ? errorId : undefined,
+    ]
       .filter(Boolean)
       .join(" ") || undefined;
   const errors = currentIssues.length > 0 && (
@@ -147,7 +267,7 @@ function PropertyField(props: PropertyFieldProps) {
       ))}
     </ul>
   );
-  const description = schema.description && (
+  const description = schema.description && !context.fieldPresentation?.suppressDescriptions && (
     <p
       id={descriptionId}
       className="property-description">
@@ -172,26 +292,59 @@ function PropertyField(props: PropertyFieldProps) {
       {content}
       {description}
       {errors}
+      {schema["enable-presets"] !== undefined &&
+        context.userPresetEnabled &&
+        context.presetRepository &&
+        context.operatorType &&
+        typeof path.at(-1) === "string" && (
+          <PresetControls
+            repository={context.presetRepository}
+            operatorType={context.operatorType}
+            field={String(path.at(-1))}
+            schema={resolveSchemaReference(parentSchemaAtPath(rootSchema, path.slice(0, -1)), rootSchema)}
+            model={getAtPath(model, path.slice(0, -1))}
+            disabled={disabled}
+            onApply={preset => {
+              const parent = getAtPath(model, path.slice(0, -1));
+              update(path.slice(0, -1), { ...(parent && typeof parent === "object" ? parent : {}), ...preset });
+            }}
+          />
+        )}
     </div>
   );
 
-  if (schema["x-widget"]) {
-    const Widget = widgets[schema["x-widget"]];
+  let widgetType = resolveOperatorWidget(schema, path.at(-1), context.operatorType);
+  if (!widgetType && schema.valueRules) widgetType = "constrainedvalue";
+  if (
+    context.loopVariableNames !== undefined &&
+    acceptsLoopReference(schema, path.at(-1), context.operatorType, referenceBlocked)
+  )
+    widgetType = "loopvariableinput";
+  if (widgetType === "repeat-section-dnd" && (schemaType(schema) === "array" || schema.items)) widgetType = undefined;
+  if (widgetType && ["string", "integer", "number", "boolean", "enum", "null", "array", "object"].includes(widgetType))
+    widgetType = undefined;
+  if (widgetType) {
+    const Widget = widgets[widgetType] ?? BUILTIN_PROPERTY_WIDGETS[widgetType];
     if (!Widget)
       return (
         <div role="alert">
-          Unsupported field widget "{schema["x-widget"]}" for {label || "property"}
+          Unsupported field widget "{widgetType}" for {label || "property"}
         </div>
       );
     return children(
       <Widget
-        schema={schema}
+        schema={{ ...schema, title: label }}
         value={value}
         path={path}
         disabled={disabled}
         required={required}
         issues={currentIssues}
         onChange={change}
+        parentValue={getAtPath(model, path.slice(0, -1))}
+        onParentChange={updates => {
+          const parent = getAtPath(model, path.slice(0, -1));
+          update(path.slice(0, -1), { ...(parent && typeof parent === "object" ? parent : {}), ...updates });
+        }}
       />,
       false
     );
@@ -272,12 +425,17 @@ function PropertyField(props: PropertyFieldProps) {
         {label && <legend>{title}</legend>}
         {description}
         {sortedProperties(schema)
-          .filter(([key]) => !fieldIsHidden(key, schema, object))
+          .filter(
+            ([key]) =>
+              !fieldIsHidden(key, schema, object) &&
+              !(context.operatorType === "HuggingFace" && huggingFaceFieldHidden(key, object))
+          )
           .map(([key, property]) => (
             <PropertyField
               key={key}
               {...props}
               schema={property}
+              referenceBlocked={referenceBlocked}
               path={[...path, key]}
               label={property.title ?? key}
               disabled={disabled}
@@ -295,6 +453,15 @@ function PropertyField(props: PropertyFieldProps) {
     const canAdd = !disabled && (schema.maxItems === undefined || array.length < schema.maxItems);
     const canRemove = !disabled && (schema.minItems === undefined || array.length > schema.minItems);
     const listLabel = label || "List";
+    const draggableRows = resolveOperatorWidget(schema, path.at(-1), context.operatorType) === "repeat-section-dnd";
+    const moveRow = (from: number, to: number) => {
+      if (disabled || !Number.isSafeInteger(from) || from < 0 || from >= array.length || from === to) return;
+      const next = [...array];
+      const [row] = next.splice(from, 1);
+      next.splice(to, 0, row);
+      change(next);
+      context.onArrayReorder?.(path, from, to);
+    };
     return (
       <fieldset
         disabled={disabled}
@@ -305,10 +472,43 @@ function PropertyField(props: PropertyFieldProps) {
         {array.map((_, index) => (
           <div
             key={index}
-            className="property-array-item">
+            className="property-array-item"
+            aria-label={draggableRows ? `Drop before ${listLabel} item ${index + 1}` : undefined}
+            onDragOver={event => {
+              if (draggableRows && !disabled) event.preventDefault();
+            }}
+            onDrop={event => {
+              if (!draggableRows || disabled) return;
+              event.preventDefault();
+              try {
+                const data = event.dataTransfer.getData("application/x-texera-array-row");
+                if (data) {
+                  const row = JSON.parse(data);
+                  if (JSON.stringify(row.path) === JSON.stringify(path)) moveRow(row.from, index);
+                } else if (draggedRow !== undefined) moveRow(draggedRow, index);
+              } catch {
+                /* An unrelated drag cannot reorder this list. */
+              }
+              setDraggedRow(undefined);
+            }}>
+            {draggableRows && (
+              <button
+                type="button"
+                disabled={disabled}
+                draggable={!disabled}
+                aria-label={`Drag ${listLabel} item ${index + 1}`}
+                onDragStart={event => {
+                  setDraggedRow(index);
+                  event.dataTransfer.setData("application/x-texera-array-row", JSON.stringify({ path, from: index }));
+                }}
+                onDragEnd={() => setDraggedRow(undefined)}>
+                Drag
+              </button>
+            )}
             <PropertyField
               {...props}
               schema={itemSchema(schema, index)}
+              referenceBlocked={referenceBlocked}
               path={[...path, index]}
               label={`${listLabel} item ${index + 1}`}
               disabled={disabled}
@@ -321,9 +521,7 @@ function PropertyField(props: PropertyFieldProps) {
                 disabled={disabled || index === 0}
                 aria-label={`Move ${listLabel} item ${index + 1} up`}
                 onClick={() => {
-                  const next = [...array];
-                  [next[index - 1], next[index]] = [next[index], next[index - 1]];
-                  change(next);
+                  moveRow(index, index - 1);
                 }}>
                 Move up
               </button>
@@ -332,9 +530,7 @@ function PropertyField(props: PropertyFieldProps) {
                 disabled={disabled || index === array.length - 1}
                 aria-label={`Move ${listLabel} item ${index + 1} down`}
                 onClick={() => {
-                  const next = [...array];
-                  [next[index + 1], next[index]] = [next[index], next[index + 1]];
-                  change(next);
+                  moveRow(index, index + 1);
                 }}>
                 Move down
               </button>
@@ -365,21 +561,34 @@ function PropertyField(props: PropertyFieldProps) {
   if (options) {
     const selected = options.findIndex(option => option === value);
     return children(
-      <select
-        {...common}
-        value={selected < 0 ? "" : String(selected)}
-        onChange={event =>
-          change(event.currentTarget.value === "" ? undefined : options[Number(event.currentTarget.value)])
-        }>
-        <option value="">Select a value</option>
-        {options.map((option, index) => (
-          <option
-            key={index}
-            value={String(index)}>
-            {typeof option === "object" ? JSON.stringify(option) : String(option)}
-          </option>
-        ))}
-      </select>
+      <>
+        <label htmlFor={`${id}-search`}>
+          Search {label || "value"} options
+          <input
+            id={`${id}-search`}
+            type="search"
+            disabled={disabled}
+            value={optionQuery}
+            onChange={event => setOptionQuery(event.currentTarget.value)}
+          />
+        </label>
+        <select
+          {...common}
+          value={selected < 0 ? "" : String(selected)}
+          onChange={event =>
+            change(event.currentTarget.value === "" ? undefined : options[Number(event.currentTarget.value)])
+          }>
+          <option value="">Select a value</option>
+          {options.map((option, index) => (
+            <option
+              key={index}
+              hidden={!!optionQuery && !String(option).toLowerCase().includes(optionQuery.toLowerCase())}
+              value={String(index)}>
+              {typeof option === "object" ? JSON.stringify(option) : String(option)}
+            </option>
+          ))}
+        </select>
+      </>
     );
   }
 
@@ -410,7 +619,11 @@ function PropertyField(props: PropertyFieldProps) {
   return children(
     <input
       {...common}
-      type={schema.format === "password" ? "password" : "text"}
+      type={
+        schema.format === "password" || schema.widget?.formlyConfig?.templateOptions?.type === "password"
+          ? "password"
+          : "text"
+      }
       value={typeof value === "string" ? value : value === undefined || value === null ? "" : String(value)}
       minLength={schema.minLength}
       maxLength={schema.maxLength}
@@ -418,6 +631,16 @@ function PropertyField(props: PropertyFieldProps) {
       onChange={event => change(event.currentTarget.value)}
     />
   );
+}
+
+function parentSchemaAtPath(root: OperatorPropertySchema, path: PropertyPath): OperatorPropertySchema {
+  let schema = root;
+  for (const part of path)
+    schema = resolveSchemaReference(
+      typeof part === "number" ? itemSchema(schema, part) : asSchema(schema.properties?.[part]),
+      root
+    );
+  return schema;
 }
 
 function isRequired(schema: OperatorPropertySchema, key: string, model: unknown): boolean {

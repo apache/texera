@@ -115,7 +115,17 @@ const contentTypes = {
   ".woff2": "font/woff2",
 };
 
-export function createReactBuildPlugin({ root, outDir }) {
+export function createWorkerLicensePlugin(moduleIds) {
+  return {
+    name: "texera-worker-licenses",
+    generateBundle(_options, bundle) {
+      for (const output of Object.values(bundle))
+        if (output.type === "chunk") for (const id of Object.keys(output.modules)) moduleIds.add(id);
+    },
+  };
+}
+
+export function createReactBuildPlugin({ root, outDir, workerModuleIds = new Set() }) {
   let building = true;
   let generated = false;
   return {
@@ -123,6 +133,10 @@ export function createReactBuildPlugin({ root, outDir }) {
     enforce: "post",
     configResolved(config) {
       building = config.command === "build";
+      if (config.build?.outDir) outDir = resolve(config.root ?? root, config.build.outDir);
+    },
+    buildStart() {
+      workerModuleIds.clear();
     },
     configureServer(server) {
       server.middlewares.use(async (request, response, next) => {
@@ -192,7 +206,7 @@ export function createReactBuildPlugin({ root, outDir }) {
       this.emitFile({
         type: "asset",
         fileName: "3rdpartylicenses.json",
-        source: JSON.stringify(await collectBundledLicenses(moduleIds), null, 2) + "\n",
+        source: JSON.stringify(await collectBundledLicenses([...moduleIds, ...workerModuleIds]), null, 2) + "\n",
       });
       generated = true;
     },

@@ -25,12 +25,18 @@ export default defineConfig({
   test: {
     environment: "jsdom",
     globals: true,
-    include: ["src/react/**/*.spec.{ts,tsx}", "src/build-version.spec.ts"],
+    include: ["src/react/**/*.spec.{ts,tsx}", "src/build-version.spec.ts", "src/environments/version.spec.ts"],
+    exclude: ["src/react/**/*.browser.spec.{ts,tsx}"],
     reporters: ["default", ["junit", { outputFile: "junit.xml" }]],
     coverage: {
       provider: "v8",
-      include: ["src/react/**/*.{ts,tsx}"],
-      exclude: ["src/react/**/*.spec.{ts,tsx}", "src/react/main.tsx"],
+      include: ["src/react/**/*.{ts,tsx}", "src/core/**/*.ts"],
+      exclude: [
+        "src/react/**/*.spec.{ts,tsx}",
+        "src/react/main.tsx",
+        "src/core/**/*.spec.ts",
+        "src/core/common/type/proto/**",
+      ],
       reporter: ["text", "lcov"],
       reportsDirectory: "coverage/react",
     },

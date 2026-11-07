@@ -1,34 +1,18 @@
 {
-  "compileOnSave": false,
   "compilerOptions": {
+    "target": "ES2022",
+    "lib": ["ES2022", "DOM", "DOM.Iterable"],
+    "module": "ESNext",
+    "moduleResolution": "Bundler",
+    "jsx": "react-jsx",
+    "strict": true,
+    "useDefineForClassFields": false,
+    "noEmit": true,
+    "skipLibCheck": true,
     "allowSyntheticDefaultImports": true,
     "resolveJsonModule": true,
-    "paths": {
-      "path": [
-        "./node_modules/path-browserify"
-      ]
-    },
-    "strict": true,
-    "skipLibCheck": true,
-    "outDir": "./dist/out-tsc",
-    "sourceMap": true,
-    "declaration": false,
-    "moduleResolution": "bundler",
-    "emitDecoratorMetadata": true,
-    "experimentalDecorators": true,
-    "target": "ES2022",
-    "typeRoots": [
-      "node_modules/@types"
-    ],
-    "lib": [
-      "ES2022",
-      "dom"
-    ],
-    "module": "esnext",
-    "baseUrl": "./",
-    "useDefineForClassFields": false
+    "types": ["vite/client"]
   },
-  "angularCompilerOptions": {
-    "strictTemplates": true
-  }
+  "include": ["src/react/**/*.ts", "src/react/**/*.tsx", "src/core/**/*.ts"],
+  "exclude": ["**/*.spec.ts", "**/*.spec.tsx"]
 }

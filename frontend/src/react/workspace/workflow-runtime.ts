@@ -18,21 +18,21 @@
  */
 import { ApiClient } from "../core/api-client";
 import type { GuiConfig } from "../core/runtime-config";
-import { buildLogicalPlan } from "../../app/workspace/service/execute-workflow/logical-plan";
+import { buildLogicalPlan } from "../../core/workspace/service/execute-workflow/logical-plan";
 import {
   ExecutionState,
   type OperatorRuntimeStatus,
   type WorkflowResultUpdate,
   type WorkflowResultTableStats,
-} from "../../app/workspace/types/execute-workflow.interface";
-import type { WorkflowCompilationResponse } from "../../app/workspace/types/workflow-compiling.interface";
-import type { ConsoleMessage } from "../../app/workspace/types/workflow-common.interface";
+} from "../../core/workspace/types/execute-workflow.interface";
+import type { WorkflowCompilationResponse } from "../../core/workspace/types/workflow-compiling.interface";
+import type { ConsoleMessage } from "../../core/workspace/types/workflow-common.interface";
 import type {
   OperatorCurrentTuples,
   ReplayExecutionInfo,
   TexeraWebsocketEvent,
   WorkflowFatalError,
-} from "../../app/workspace/types/workflow-websocket.interface";
+} from "../../core/workspace/types/workflow-websocket.interface";
 import { WorkflowSession } from "./workflow-session";
 import { WorkflowSocket, type ConnectionSnapshot } from "./workflow-socket";
 
@@ -44,6 +44,10 @@ export interface RuntimeSnapshot {
   operators: Readonly<Record<string, OperatorRuntimeStatus>>;
   currentTuples: Readonly<Record<string, OperatorCurrentTuples>>;
   results: WorkflowResultUpdate;
+  materializedResults: Readonly<Record<string, readonly object[]>>;
+  workers: Readonly<Record<string, readonly string[]>>;
+  regions: readonly [number, string[]][];
+  regionStates: Readonly<Record<number, string>>;
   tableStats: WorkflowResultTableStats;
   connection: ConnectionSnapshot;
   compilation?: WorkflowCompilationResponse;
@@ -53,7 +57,7 @@ export interface RuntimeSnapshot {
 export interface RuntimeOptions {
   engineVersion: string;
   config: Readonly<GuiConfig>;
-  getComputingUnit: () => { cuid: number; status: string } | undefined;
+  getComputingUnit: () => { cuid: number; status: string; isOwner?: boolean; accessPrivilege?: string } | undefined;
   getWarehouseId: () => number | undefined;
 }
 
@@ -86,6 +90,10 @@ export class WorkflowRuntime {
       operators: {},
       currentTuples: {},
       results: {},
+      materializedResults: {},
+      workers: {},
+      regions: [],
+      regionStates: {},
       tableStats: {},
       connection: socket.getSnapshot(),
       compiling: false,
@@ -112,6 +120,10 @@ export class WorkflowRuntime {
       this.listeners.delete(listener);
     };
   };
+  canControl(): boolean {
+    const unit = this.options.getComputingUnit();
+    return !!unit && (unit.isOwner === true || !["READ", "NONE"].includes(unit.accessPrivilege ?? ""));
+  }
   async compile(): Promise<WorkflowCompilationResponse> {
     const revision = ++this.compileRevision;
     this.compileController?.abort();
@@ -135,14 +147,20 @@ export class WorkflowRuntime {
   }
   async run(
     options: {
+      executionName?: string;
       emailNotificationEnabled?: boolean;
       targetOperatorId?: string;
       replayFromExecution?: ReplayExecutionInfo;
     } = {}
   ): Promise<void> {
     if (this.disposed) throw new Error("The workflow session is closed.");
+    if (this.session.isAutosaveSuspended("replay") && !options.replayFromExecution)
+      throw new Error("Exit the historical preview or choose a replay interaction before running.");
     const unit = this.options.getComputingUnit();
     if (!unit) throw new Error("Select a computing unit before running.");
+    if (!this.canControl()) throw new Error("Write permission on the computing unit is required to run a workflow.");
+    if (this.session.getSnapshot().workflow.readonly && !options.replayFromExecution)
+      throw new Error("A read-only workflow cannot be run.");
     if (["Failed", "Unknown", "Terminating"].includes(unit.status))
       throw new Error(`The selected computing unit is ${unit.status.toLowerCase()}.`);
     const warehouseId = this.options.getWarehouseId();
@@ -163,7 +181,7 @@ export class WorkflowRuntime {
       throw new Error("An execution is already active.");
     const workflow = this.session.getSnapshot().workflow;
     const request = {
-      executionName: workflow.name,
+      executionName: options.executionName ?? workflow.name,
       engineVersion: this.options.engineVersion,
       logicalPlan: buildLogicalPlan(this.session.graph, options.targetOperatorId),
       workflowSettings: workflow.content.settings,
@@ -178,6 +196,10 @@ export class WorkflowRuntime {
       operators: {},
       currentTuples: {},
       results: {},
+      materializedResults: {},
+      workers: {},
+      regions: [],
+      regionStates: {},
       tableStats: {},
       duration: 0,
       error: undefined,
@@ -200,26 +222,32 @@ export class WorkflowRuntime {
   }
   pause(): void {
     this.requireState("pause", [ExecutionState.Running]);
+    this.requireWritePermission();
     this.socket.send("WorkflowPauseRequest", {});
   }
   resume(): void {
     this.requireState("resume", [ExecutionState.Paused]);
+    this.requireWritePermission();
     this.socket.send("WorkflowResumeRequest", {});
   }
   kill(): void {
     this.requireActive("kill");
+    this.requireWritePermission();
     this.socket.send("WorkflowKillRequest", {});
   }
   checkpoint(): void {
     this.requireActive("take checkpoint");
+    this.requireWritePermission();
     this.socket.send("WorkflowCheckpointRequest", {});
   }
   skip(workers: readonly string[]): void {
     this.requireState("skip tuples", [ExecutionState.Paused]);
+    this.requireWritePermission();
     this.socket.send("SkipTupleRequest", { workers });
   }
   retry(workers: readonly string[]): void {
     this.requireState("retry tuple", [ExecutionState.Paused]);
+    this.requireWritePermission();
     this.socket.send("RetryRequest", { workers });
   }
   dispose(): void {
@@ -261,9 +289,28 @@ export class WorkflowRuntime {
         this.update({ console: { ...this.snapshot.console, [event.operatorId]: limit ? messages.slice(-limit) : [] } });
         break;
       }
-      case "WebResultUpdateEvent":
-        this.update({ results: { ...this.snapshot.results, ...event.updates }, tableStats: event.tableStats });
+      case "WorkerAssignmentUpdateEvent":
+        this.update({ workers: { ...this.snapshot.workers, [event.operatorId]: event.workerIds } });
         break;
+      case "RegionUpdateEvent":
+        this.update({ regions: event.regions });
+        break;
+      case "RegionStateEvent":
+        this.update({ regionStates: { ...this.snapshot.regionStates, [event.id]: event.state } });
+        break;
+      case "WebResultUpdateEvent": {
+        const materializedResults = { ...this.snapshot.materializedResults };
+        for (const [id, update] of Object.entries(event.updates)) {
+          if (update.mode.type === "SetSnapshotMode" && "table" in update) materializedResults[id] = update.table;
+          else if (update.mode.type === "PaginationMode") delete materializedResults[id];
+        }
+        this.update({
+          results: { ...this.snapshot.results, ...event.updates },
+          materializedResults,
+          tableStats: event.tableStats,
+        });
+        break;
+      }
       case "ExecutionDurationUpdateEvent":
         this.durationAnchor = { reported: event.duration, at: Date.now(), running: event.isRunning };
         if (this.ticker) clearInterval(this.ticker);
@@ -297,8 +344,19 @@ export class WorkflowRuntime {
       throw new Error(`Cannot ${action} workflow in state ${this.snapshot.state}.`);
   }
   private requireActive(action: string): void {
-    if ([ExecutionState.Uninitialized, ExecutionState.Completed].includes(this.snapshot.state))
+    if (
+      [
+        ExecutionState.Uninitialized,
+        ExecutionState.Completed,
+        ExecutionState.Failed,
+        ExecutionState.Killed,
+        ExecutionState.Terminated,
+      ].includes(this.snapshot.state)
+    )
       throw new Error(`Cannot ${action} workflow in state ${this.snapshot.state}.`);
+  }
+  private requireWritePermission(): void {
+    if (!this.canControl()) throw new Error("Write permission on the computing unit is required to control execution.");
   }
   private update(patch: Partial<RuntimeSnapshot>): void {
     if (!this.disposed) {

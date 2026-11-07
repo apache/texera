@@ -125,7 +125,7 @@ Before merging your code to the main branch, you need to pass the existing unit 
 1. Open a command line. Navigate to the `frontend` directory.
 2. Start the test:
 ```
-ng test --watch=false
+yarn test
 ```
 3. Wait for some time and the test will get started.
 You should also write some unit tests to cover your code. When others need to change your code, they will have to pass these unit tests so that you can keep your features safe.

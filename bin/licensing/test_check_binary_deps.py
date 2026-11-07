@@ -39,6 +39,25 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import check_binary_deps as cbd  # noqa: E402
+import concat_license_binary as clb  # noqa: E402
+
+
+class FrontendLicenseHeading(unittest.TestCase):
+    def test_frontend_and_legacy_angular_headings_retain_the_same_npm_claims(self):
+        for heading in ("Frontend / npm packages:", "Angular / npm packages:"):
+            with self.subTest(heading=heading), tempfile.TemporaryDirectory() as directory:
+                path = Path(directory) / "LICENSE-binary"
+                separator = "-" * 80
+                path.write_text(
+                    "Apache header\n" + "=" * 80 + "\nTHIRD-PARTY COMPONENTS\n" + "=" * 80 + "\n\n"
+                    + separator + "\nDependencies under the MIT License\n" + separator + "\n\n"
+                    + heading + "\n  - react@19.3.1\n  - @scope/fixture@1.0.0\n"
+                )
+                self.assertEqual(cbd.parse_prose(path, "npm"), {"react@19.3.1", "@scope/fixture@1.0.0"})
+                self.assertEqual(cbd.parse_prose(path, "agent-npm"), set())
+                _, groups = clb.parse(path)
+                self.assertTrue(groups[0].has_entries())
+                self.assertEqual(len(next(iter(groups[0].subsections.values())).entries), 2)
 
 
 # --- pure-function tests ---------------------------------------------------

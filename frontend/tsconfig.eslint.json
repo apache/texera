@@ -1,0 +1,14 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "types": ["vite/client", "vitest/globals", "node"]
+  },
+  "include": [
+    "src/react/**/*.ts",
+    "src/react/**/*.tsx",
+    "src/core/**/*.ts",
+    "src/build-version.spec.ts",
+    "src/environments/version.spec.ts"
+  ],
+  "exclude": []
+}

@@ -17,7 +17,7 @@
  * under the License.
  */
 
-import { afterAll, vi } from "vitest";
+import { afterAll } from "vitest";
 
 const originalGetContext = HTMLCanvasElement.prototype.getContext;
 HTMLCanvasElement.prototype.getContext = (() => null) as typeof originalGetContext;
@@ -25,10 +25,5 @@ afterAll(() => {
   HTMLCanvasElement.prototype.getContext = originalGetContext;
 });
 
-// The original assertions exercise the extracted implementation directly.
-// The temporary Angular injector wrapper is the only replaced collaborator.
-vi.mock(
-  "../../app/workspace/service/joint-ui/joint-ui.service",
-  async () => await import("../../app/workspace/service/joint-ui/joint-ui")
-);
-await import("../../app/workspace/service/joint-ui/joint-ui.service.spec");
+// The retained assertions exercise the same framework-independent implementation.
+await import("../../core/workspace/service/joint-ui/joint-ui.service.spec");

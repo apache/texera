@@ -51,6 +51,21 @@ function setup() {
 }
 
 describe("SocialAuth", () => {
+  it("generates fresh ORCID state when randomUUID is unavailable on an HTTP deployment", async () => {
+    const crypto = globalThis.crypto;
+    vi.stubGlobal("crypto", { getRandomValues: crypto.getRandomValues.bind(crypto) });
+    try {
+      const test = setup();
+      const social = new SocialAuth(test.api, test, {
+        ...test,
+        location: { origin: "http://texera.example", assign: test.assign },
+      });
+      await social.signInWithOrcid();
+      expect(test.sessionStorage.getItem("orcid_state")).toMatch(/^[0-9a-f-]{36}$/);
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  });
   it("uses server-owned ORCID parameters and fresh one-time state", async () => {
     const test = setup();
     const social = new SocialAuth(test.api, test, {

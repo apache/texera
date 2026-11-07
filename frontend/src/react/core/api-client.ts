@@ -64,6 +64,9 @@ export class ApiClient {
   put<T = unknown>(path: string, body?: unknown, options: RequestOptions = {}): Promise<T> {
     return this.send<T>(path, body, { ...options, method: "PUT" });
   }
+  patch<T = unknown>(path: string, body?: unknown, options: RequestOptions = {}): Promise<T> {
+    return this.send<T>(path, body, { ...options, method: "PATCH" });
+  }
 
   delete<T = unknown>(path: string, options: RequestOptions = {}): Promise<T> {
     return this.request<T>(path, { ...options, method: "DELETE" });
@@ -98,7 +101,7 @@ export class ApiClient {
     if (token && !headers.has("Authorization")) headers.set("Authorization", `Bearer ${token}`);
 
     let payload: BodyInit | undefined;
-    if (body !== undefined) {
+    if (body !== undefined && body !== null) {
       if (
         body instanceof FormData ||
         body instanceof Blob ||

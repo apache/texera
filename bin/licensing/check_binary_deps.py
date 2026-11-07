@@ -212,7 +212,7 @@ def parse_prose(path: Path, ecosystem: str) -> set[str]:
 
         matched_header = False
         for eco, needle in ECO_HEADERS.items():
-            if stripped.startswith(needle):
+            if stripped.startswith(needle) or eco == "npm" and stripped.startswith("Frontend / npm packages"):
                 current_eco = eco
                 matched_header = True
                 break
@@ -261,9 +261,9 @@ def collect_jars(lib_dirs) -> set[str]:
 
 
 def collect_npm(path: Path) -> tuple[set[str], dict[str, str]]:
-    """3rdpartylicenses.json emitted by license-webpack-plugin (configured in
-    frontend/custom-webpack.config.js): a JSON array of {name, version, license}
-    entries scoped to the actual webpack bundle. Returns (items, licenses)
+    """3rdpartylicenses.json emitted by the frontend build: a JSON array of
+    {name, version, license} entries scoped to modules in emitted chunks.
+    Returns (items, licenses)
     where items is the set of '<name>@<version>' keys and licenses maps each
     key to its declared license string (when present)."""
     data = json.loads(path.read_text())

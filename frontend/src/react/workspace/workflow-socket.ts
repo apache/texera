@@ -23,7 +23,7 @@ import type {
   TexeraWebsocketEventTypes,
   TexeraWebsocketRequestTypeMap,
   TexeraWebsocketRequestTypes,
-} from "../../app/workspace/types/workflow-websocket.interface";
+} from "../../core/workspace/types/workflow-websocket.interface";
 
 interface SocketConnection {
   readonly readyState: number;

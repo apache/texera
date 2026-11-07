@@ -121,7 +121,7 @@ metals.sbt
 **/.pnp/
 **/.pnp.js
 
-# Ignore Angular build output
+# Ignore frontend build output
 **/dist/
 **/.angular/cache/
 **/.nx/cache/

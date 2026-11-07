@@ -18,7 +18,7 @@
  */
 
 import { createRoot } from "react-dom/client";
-import { ReactPreview } from "./app";
+import { Application } from "./application";
 import { ApiClient } from "./core/api-client";
 import { AuthStore } from "./core/auth";
 import { RuntimeConfig } from "./core/runtime-config";
@@ -32,7 +32,8 @@ const element = document.getElementById("root");
 if (!element) throw new Error("The Texera root element is missing.");
 const root = createRoot(element);
 root.render(
-  <ReactPreview
+  <Application
+    api={api}
     auth={auth}
     social={social}
   />

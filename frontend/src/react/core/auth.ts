@@ -19,7 +19,7 @@
 
 import { ApiClient } from "./api-client";
 import { GuiConfig, RuntimeConfig } from "./runtime-config";
-import { validateEmailFormat } from "../../app/common/util/email";
+import { validateEmailFormat } from "../../core/common/util/email";
 
 export const TOKEN_KEY = "access_token";
 export type Role = "INACTIVE" | "RESTRICTED" | "REGULAR" | "ADMIN";

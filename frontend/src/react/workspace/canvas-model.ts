@@ -19,13 +19,15 @@
 
 import * as joint from "jointjs";
 import { of } from "rxjs";
-import { JointUIService as JointUI } from "../../app/workspace/service/joint-ui/joint-ui";
-import type { OperatorMetadata } from "../../app/workspace/types/operator-schema.interface";
-import type { OperatorLink } from "../../app/workspace/types/workflow-common.interface";
+import { JointUIService as JointUI } from "../../core/workspace/service/joint-ui/joint-ui";
+import type { OperatorMetadata } from "../../core/workspace/types/operator-schema.interface";
+import type { OperatorLink } from "../../core/workspace/types/workflow-common.interface";
 import { WorkflowSession } from "./workflow-session";
+import { canConnect } from "./connection-validation";
 
 /** Synchronizes the original Texera JointJS cells with the original workflow graph. */
 export class CanvasModel {
+  readonly documentId: string;
   readonly graph = new joint.dia.Graph();
   private readonly ui: JointUI;
   private rendering = false;
@@ -34,9 +36,10 @@ export class CanvasModel {
 
   constructor(
     readonly session: WorkflowSession,
-    metadata: OperatorMetadata,
+    private readonly metadata: OperatorMetadata,
     private readonly onError: (error: Error) => void
   ) {
+    this.documentId = session.getSnapshot().documentId;
     this.ui = new JointUI({ getOperatorMetadata: () => of(metadata) });
     this.render();
     this.unsubscribe = session.subscribe(() => this.render());
@@ -55,8 +58,10 @@ export class CanvasModel {
   }
 
   private readonly onPosition = (cell: joint.dia.Element) => {
-    if (this.rendering || this.disposed || !this.session.graph.hasOperator(String(cell.id))) return;
-    this.perform(() => this.session.moveOperator(String(cell.id), cell.position()));
+    if (this.rendering || this.disposed) return;
+    const id = String(cell.id);
+    if (this.session.graph.hasOperator(id)) this.perform(() => this.session.moveOperator(id, cell.position()));
+    else if (this.session.graph.hasCommentBox(id)) this.perform(() => this.session.moveComment(id, cell.position()));
   };
   private readonly onLink = (cell: joint.dia.Cell) => {
     if (this.rendering || this.disposed || !cell.isLink()) return;
@@ -79,6 +84,18 @@ export class CanvasModel {
     )
       return;
     this.perform(() => {
+      if (
+        !canConnect(
+          this.session.graph,
+          this.metadata,
+          logical.source.operatorID,
+          logical.source.portID,
+          logical.target.operatorID,
+          logical.target.portID,
+          logical.linkID
+        )
+      )
+        throw new Error("This port connection is not allowed.");
       this.session.graph.assertLinkIsValid(logical);
       if (this.session.graph.hasLinkWithID(logical.linkID)) this.session.deleteLink(logical.linkID);
       this.session.addLink(logical);
@@ -89,6 +106,7 @@ export class CanvasModel {
     const id = String(cell.id);
     if (cell.isLink() && this.session.graph.hasLinkWithID(id)) this.perform(() => this.session.deleteLink(id));
     if (cell.isElement() && this.session.graph.hasOperator(id)) this.perform(() => this.session.deleteOperators([id]));
+    if (cell.isElement() && this.session.graph.hasCommentBox(id)) this.perform(() => this.session.deleteCommentBox(id));
   };
 
   private perform(action: () => void): void {
@@ -109,7 +127,8 @@ export class CanvasModel {
         ...content.links.map(link => link.linkID),
         ...content.commentBoxes.map(box => box.commentBoxID),
       ]);
-      for (const cell of this.graph.getCells()) if (!ids.has(String(cell.id))) cell.remove();
+      for (const cell of this.graph.getCells())
+        if (!ids.has(String(cell.id)) && !cell.get("texeraPresence") && !cell.get("texeraOverlay")) cell.remove();
       for (const operator of content.operators) {
         const position = content.operatorPositions[operator.operatorID];
         let cell = this.graph.getCell(operator.operatorID) as joint.dia.Element | undefined;
@@ -124,8 +143,12 @@ export class CanvasModel {
             cell.set("ports", rendered.get("ports"));
         }
       }
-      for (const box of content.commentBoxes)
-        if (!this.graph.getCell(box.commentBoxID)) this.graph.addCell(this.ui.getCommentElement(box));
+      for (const box of content.commentBoxes) {
+        const cell = this.graph.getCell(box.commentBoxID) as joint.dia.Element | undefined;
+        if (!cell) this.graph.addCell(this.ui.getCommentElement(box));
+        else if (JSON.stringify(cell.position()) !== JSON.stringify(box.commentBoxPosition))
+          cell.position(box.commentBoxPosition.x, box.commentBoxPosition.y);
+      }
       for (const link of content.links) {
         const current = this.graph.getCell(link.linkID) as joint.dia.Link | undefined;
         if (!current) this.graph.addCell(JointUI.getJointLinkCell(link));

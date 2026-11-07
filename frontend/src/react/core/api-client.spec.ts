@@ -21,6 +21,13 @@ import { describe, expect, it, vi } from "vitest";
 import { ApiClient, ApiError } from "./api-client";
 
 describe("ApiClient", () => {
+  it("keeps backend-compatible empty bodies for null action payloads", async () => {
+    const fetch = vi.fn().mockResolvedValue(new Response(null, { status: 204 }));
+    const api = new ApiClient({ fetch });
+    await api.put("workflow/public/4", null);
+    expect(fetch.mock.calls[0][1].body).toBeUndefined();
+    expect(new Headers(fetch.mock.calls[0][1].headers).has("Content-Type")).toBe(false);
+  });
   it("uses the root API and attaches the current token with cancellation", async () => {
     const fetch = vi.fn().mockResolvedValue(Response.json({ value: "✓" }));
     const api = new ApiClient({ fetch, getToken: () => "token" });

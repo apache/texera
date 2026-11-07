@@ -76,16 +76,12 @@ Verify the installation by:
 node -v
 ```
 
-#### **Angular 21 Cli**
+#### **Yarn and Vite**
 
-Install the angular 21 cli globally:
+The frontend pins Yarn in the repository and uses its local Vite installation. After cloning, install the pinned dependencies:
 ```console
-npm install -g @angular/cli@21
-```
-
-Verify the installation by:
-```console
-ng version
+cd frontend
+node .yarn/releases/yarn-4.14.1.cjs install --immutable
 ```
 </details>
 
@@ -242,13 +238,13 @@ This is for developers that work on the frontend part of the project. This step 
 
 Before you start, make sure the backend services are all running.
 
-### Install Angular CLI
+### Install frontend dependencies
 ```console
 cd frontend
-yarn install
+yarn install --immutable
 ```
 
-Ignore those warnings (warnings are usually marked in yellow color or start with `WARN`).
+See [`frontend/README.md`](https://github.com/apache/texera/blob/main/frontend/README.md) for the current build, test and development commands.
 
 ### Launch Frontend in IntelliJ for local development
 

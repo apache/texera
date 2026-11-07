@@ -1,0 +1,213 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
+ */
+
+.property-form {
+  min-width: 0;
+}
+.property-form fieldset {
+  min-width: 0;
+  border: 1px solid #d9dfe8;
+  border-radius: 6px;
+  padding: 12px;
+  margin: 0 0 12px;
+}
+.property-form legend {
+  font-weight: 600;
+  padding: 0 4px;
+}
+.property-form label {
+  display: block;
+  font-size: 13px;
+  font-weight: 500;
+}
+.property-form input:not([type="checkbox"]),
+.property-form select,
+.property-form textarea {
+  box-sizing: border-box;
+  display: block;
+  width: 100%;
+  min-width: 0;
+  margin: 4px 0 8px;
+  border: 1px solid #aab5c4;
+  border-radius: 4px;
+  padding: 6px 8px;
+  font: inherit;
+  background: #fff;
+  color: #1b2431;
+}
+.property-form input[aria-invalid="true"],
+.property-form select[aria-invalid="true"] {
+  border-color: #b42318;
+}
+.property-form :focus-visible {
+  outline: 2px solid #1769c2;
+  outline-offset: 2px;
+}
+.property-form button {
+  cursor: pointer;
+  margin: 3px;
+  padding: 5px 9px;
+  border: 1px solid #9daabd;
+  border-radius: 4px;
+  background: #fff;
+  color: #19314b;
+  font: inherit;
+}
+.property-form button:disabled {
+  cursor: default;
+  opacity: 0.55;
+}
+.property-field {
+  margin-bottom: 12px;
+}
+.property-errors {
+  margin: 4px 0;
+  padding-left: 18px;
+  color: #b42318;
+  font-size: 12px;
+}
+.property-description {
+  margin: 4px 0;
+  color: #536174;
+  font-size: 12px;
+}
+.property-warning {
+  color: #8d5c00;
+  font-size: 12px;
+}
+.property-array-item {
+  padding: 8px 0;
+  border-bottom: 1px solid #e3e7ee;
+}
+.property-array-actions {
+  display: flex;
+  gap: 4px;
+  flex-wrap: wrap;
+}
+.property-author-controls {
+  display: flex;
+  gap: 8px;
+  align-items: end;
+  border-left: 3px solid #1769c2;
+  padding-left: 8px;
+}
+.property-author-controls label {
+  flex: 1;
+}
+.property-hidden-for-readers {
+  opacity: 0.6;
+}
+.resource-picker {
+  position: fixed;
+  z-index: 1500;
+  top: 8vh;
+  left: max(16px, calc(50vw - 360px));
+  width: min(720px, calc(100vw - 32px));
+  max-height: 80vh;
+  overflow: auto;
+  box-sizing: border-box;
+  padding: 20px;
+  border: 1px solid #a8b5c4;
+  border-radius: 8px;
+  background: white;
+  color: #1b2431;
+  box-shadow:
+    0 0 0 100vmax #0005,
+    0 8px 32px #0003;
+}
+.resource-picker footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 16px;
+}
+.resource-selected-path {
+  overflow-wrap: anywhere;
+  font-family: monospace;
+}
+.resource-file-tree {
+  padding-left: 18px;
+}
+.hugging-face-models {
+  display: flex;
+  flex-direction: column;
+  max-height: 320px;
+  overflow: auto;
+}
+.hugging-face-models button {
+  text-align: left;
+  overflow-wrap: anywhere;
+}
+.hugging-face-models button[aria-pressed="true"] {
+  background: #e9f2fc;
+  border-color: #1769c2;
+}
+.media-upload-field img {
+  display: block;
+  max-width: 100%;
+  max-height: 200px;
+}
+.media-upload-field audio {
+  width: 100%;
+}
+.ui-udf-parameters-field table {
+  border-collapse: collapse;
+  width: 100%;
+}
+.ui-udf-parameters-field td,
+.ui-udf-parameters-field th {
+  padding: 4px;
+  border-bottom: 1px solid #e3e7ee;
+  text-align: left;
+}
+.operator-presets ul {
+  list-style: none;
+  padding-left: 0;
+}
+.operator-task-preview {
+  margin-block: 0.75rem;
+  padding: 0.75rem;
+  background: #f5f8fc;
+  border: 1px solid #d9e3ef;
+  border-radius: 0.4rem;
+}
+.operator-task-preview img,
+.operator-task-preview video,
+.operator-task-preview audio {
+  display: block;
+  max-width: 100%;
+}
+.operator-task-preview-pill {
+  display: inline-block;
+  padding: 0.2rem 0.4rem;
+  margin: 0.2rem;
+  border-radius: 0.5rem;
+  background: #e1eafa;
+}
+.operator-type-casting {
+  width: 100%;
+  border-collapse: collapse;
+  margin-block: 0.75rem;
+}
+.operator-type-casting th,
+.operator-type-casting td {
+  padding: 0.3rem;
+  text-align: left;
+  border: 1px solid #d9e3ef;
+}
