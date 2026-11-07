@@ -15,11 +15,13 @@
 # specific language governing permissions and limitations
 # under the License.
 
+import math
 import overrides
 import pandas
 from functools import lru_cache
 from abc import ABC, abstractmethod
 from collections import defaultdict
+from decimal import Decimal
 from types import MappingProxyType
 from typing import (
     Any,
@@ -53,6 +55,35 @@ def require_yielded(result, method_name: str):
             "Replace `return x` with `yield x`."
         )
     return result
+
+
+def _java_double_text(value: float) -> str:
+    """
+    ``value`` as Java's ``Double.toString`` spells it, which is how a JVM
+    operator's text property binds a loop variable the JVM reads as a double:
+    the fewest digits that read back as ``value`` (Python's ``repr`` finds
+    them), in plain notation from 10^-3 up to 10^7 and as ``d.ddd`` with an
+    ``E`` exponent outside that, always with a digit after the point; and
+    ``NaN``, ``Infinity`` and ``-Infinity``. JDK 17 prints a few doubles with
+    other digits (JDK-4511638, fixed in JDK 19), mostly beyond 10^16 or
+    below 10^-7; its text reads back as the same double.
+    """
+    if math.isnan(value):
+        return "NaN"
+    if math.isinf(value):
+        return "Infinity" if value > 0 else "-Infinity"
+    negative, digit_tuple, exponent = Decimal(repr(value)).as_tuple()
+    digits = "".join(map(str, digit_tuple)).rstrip("0") or "0"
+    # value == 0.<digits> * 10**point
+    point = len(digit_tuple) + exponent
+    if -3 < point < 8:
+        if point <= 0:
+            text = "0." + "0" * -point + digits
+        else:
+            text = digits[:point].ljust(point, "0") + "." + (digits[point:] or "0")
+    else:
+        text = digits[0] + "." + (digits[1:] or "0") + "E" + str(point - 1)
+    return "-" + text if negative else text
 
 
 class Operator(ABC):
@@ -109,7 +140,9 @@ class Operator(ABC):
         the code runs. It is spelled as a JVM operator's text property binds it
         (``StateReferenceBinding``): a boolean as ``true`` or ``false``, and
         only a scalar at all. From the operator's first tuple on, it reads the
-        values bound then instead (``bind_loop_variables``).
+        values bound then instead (``bind_loop_variables``). A float is spelled
+        as Java's ``Double.toString`` spells it (``_java_double_text``), and an
+        integer past 64 bits, which a JVM operator reads wrapped, is refused.
 
         :param name: str, the loop variable's name, without the leading ``$``.
         :return: str, the variable's value, as text.
@@ -129,7 +162,14 @@ class Operator(ABC):
         value = variables[name]
         if isinstance(value, bool):
             return "true" if value else "false"
-        if isinstance(value, (str, int, float)):
+        if isinstance(value, int) and not -(2**63) <= value < 2**63:
+            raise RuntimeError(
+                f"the operator refers to loop variable ${name}, but its value {value} "
+                "does not fit in the 64-bit integer a JVM operator reads it as"
+            )
+        if isinstance(value, float):
+            return _java_double_text(value)
+        if isinstance(value, (str, int)):
             return str(value)
         raise RuntimeError(
             f"the operator refers to loop variable ${name}, "
