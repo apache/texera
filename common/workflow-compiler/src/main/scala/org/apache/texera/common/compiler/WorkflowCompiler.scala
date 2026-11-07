@@ -303,7 +303,9 @@ class WorkflowCompiler(
               // **Check for Python-based operator errors during code generation**
               if (physicalOp.isPythonBased) {
                 val code = physicalOp.getCode
-                val exceptionPattern = """#EXCEPTION DURING CODE GENERATION:\s*(.*)""".r
+                // The marker is the whole code of a failed generation, so it is only looked for
+                // at the very start; `(?s)` lets the captured message span several lines.
+                val exceptionPattern = """(?s)^#EXCEPTION DURING CODE GENERATION:\s*(.*)""".r
 
                 exceptionPattern.findFirstMatchIn(code).foreach { matchResult =>
                   val errorMessage = matchResult.group(1).trim
