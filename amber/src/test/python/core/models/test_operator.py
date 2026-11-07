@@ -563,13 +563,96 @@ class TestLoopVariableText:
             list(op.process_table(Table([Tuple({"a": 1})]), 0))
 
         op.register_state(State({"c": 2, "kernel": "rbf", "p": True}))
+        # The worker binds them before the operator's first tuple.
+        op.bind_loop_variables()
         (params,) = list(op.process_table(Table([Tuple({"a": 1})]), 0))
         assert params == {"C": 2.0, "kernel": "rbf", "probability": True}
 
-        # The next iteration's state reaches the same operator instance.
+        # A state message after that leaves the iteration's values as bound.
         op.register_state(State({"c": 0.25, "kernel": "linear", "p": False}))
         (params,) = list(op.process_table(Table([Tuple({"a": 1})]), 0))
+        assert params == {"C": 2.0, "kernel": "rbf", "probability": True}
+
+        # The next iteration runs on a fresh worker, which binds its own.
+        op = namespace["ProcessTableOperator"]()
+        op.register_state(State({"c": 0.25, "kernel": "linear", "p": False}))
+        op.bind_loop_variables()
+        (params,) = list(op.process_table(Table([Tuple({"a": 1})]), 0))
         assert params == {"C": 0.25, "kernel": "linear", "probability": False}
+
+
+class TestBindLoopVariables:
+    # The paper (sec. 5): an operator binds its properties immediately before
+    # its first tuple, and they stay fixed for the iteration; UDF code still
+    # reads the values that arrive later. A JVM operator does the same
+    # (OperatorExecutor.bindStateReferences).
+
+    def test_a_state_after_binding_changes_loop_variables_but_not_the_text(self):
+        # The outer loop's i, then the operator's first tuple, then a deeper
+        # i (a body UDF's produce_state_on_finish): a JVM operator keeps 1.
+        op = _ConcreteOperator()
+        op.register_state(State({"i": 1}), 1)
+        op.bind_loop_variables()
+        op.register_state(State({"i": 5}), 0)
+        assert op.loop_variable_text("i") == "1"
+        assert op.loop_variables == {"i": 5}
+
+    def test_binding_again_keeps_the_first_values(self):
+        # The worker binds before every tuple and on every finishing port;
+        # only the first call takes the values.
+        op = _ConcreteOperator()
+        op.register_state(State({"i": 1}))
+        op.bind_loop_variables()
+        op.register_state(State({"i": 2}))
+        op.bind_loop_variables()
+        assert op.loop_variable_text("i") == "1"
+
+    def test_binds_the_inner_value_when_the_outer_one_arrives_again_first(self):
+        # Xiaozhen's order on #8671 (outer, inner, outer again), all before
+        # the first tuple: the bound i is the inner one, as on the JVM.
+        op = _ConcreteOperator()
+        op.register_state(State({"i": 1}), 1)
+        op.register_state(State({"i": 5}), 0)
+        op.register_state(State({"i": 1}), 1)
+        op.bind_loop_variables()
+        assert op.loop_variable_text("i") == "5"
+
+    def test_a_name_that_arrives_only_after_binding_is_missing(self):
+        op = _ConcreteOperator()
+        op.register_state(State({"i": 1}))
+        op.bind_loop_variables()
+        op.register_state(State({"j": 2}))
+        assert op.loop_variables["j"] == 2
+        with pytest.raises(RuntimeError) as excinfo:
+            op.loop_variable_text("j")
+        assert str(excinfo.value) == (
+            "the operator refers to loop variable $j, but no state message "
+            "carried it before the operator's first tuple"
+        )
+
+    def test_binding_before_any_state_binds_no_values(self):
+        # Bound with nothing received (no state came before the first tuple,
+        # or a source), the name is missing, not yet to arrive, and a later
+        # state cannot supply it.
+        op = _ConcreteOperator()
+        op.bind_loop_variables()
+        with pytest.raises(RuntimeError, match="before the operator's first tuple"):
+            op.loop_variable_text("i")
+        op.register_state(State({"i": 1}))
+        with pytest.raises(RuntimeError, match="before the operator's first tuple"):
+            op.loop_variable_text("i")
+
+    def test_binding_reaches_the_one_operator_only(self):
+        # The defaults live on the class, so a binding written there would
+        # reach every operator.
+        target, bystander = _ConcreteOperator(), _ConcreteOperator()
+        for op in (target, bystander):
+            op.register_state(State({"i": 1}))
+        target.bind_loop_variables()
+        for op in (target, bystander):
+            op.register_state(State({"i": 2}))
+        assert target.loop_variable_text("i") == "1"
+        assert bystander.loop_variable_text("i") == "2"
 
 
 class TestBatchOperatorValidation:
