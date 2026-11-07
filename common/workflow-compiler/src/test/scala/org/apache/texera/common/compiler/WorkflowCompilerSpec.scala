@@ -1373,6 +1373,161 @@ class WorkflowCompilerSpec extends AnyFlatSpec {
     assert(!code.contains(decoderExpression("$i")))
   }
 
+  private val startupReadReason =
+    "its code reads the text when the operator starts, before the iteration's state arrives"
+
+  it should "report a text reference that generated code reads when the operator starts" in {
+    // Hugging Face reads its text properties in open, which the worker runs before it starts, so
+    // before any state message: the lookup would fail on every run.
+    val huggingFace = parsed(
+      """{"modelId":"$m","systemPrompt":"$p","promptColumn":"line","operatorType":"HuggingFace"}"""
+    )
+    assertOnlyError(
+      oneInputLoop(huggingFace),
+      huggingFace,
+      s"Hugging Face cannot refer to loop variables in /modelId, /systemPrompt yet: " +
+        startupReadReason
+    )
+  }
+
+  /**
+    * Where a test-only generated operator reads its label, and whether that leaves the reference
+    * unbound: a read whose innermost function is `open` or `__init__` runs before the worker
+    * starts; a function defined there may run later, and a text that looks like code is none.
+    */
+  private val readsByPlace: List[(String, String, Boolean)] = List(
+    (
+      "in a block of open, after a function defined there",
+      """class ProcessTupleOperator(UDFOperatorV2):
+        |    def open(self):
+        |        def unused():
+        |            pass
+        |        if True:
+        |            self.label = LABEL
+        |
+        |    @overrides
+        |    def process_tuple(self, tuple_: Tuple, port: int) -> Iterator[Optional[TupleLike]]:
+        |        yield {"label": self.label}
+        |""",
+      true
+    ),
+    (
+      "in __init__",
+      """class ProcessTupleOperator(UDFOperatorV2):
+        |    def __init__(self):
+        |        super().__init__()
+        |        self.label = LABEL
+        |
+        |    @overrides
+        |    def process_tuple(self, tuple_: Tuple, port: int) -> Iterator[Optional[TupleLike]]:
+        |        yield {"label": self.label}
+        |""",
+      true
+    ),
+    (
+      "in a one-line open",
+      """class ProcessTupleOperator(UDFOperatorV2):
+        |    def open(self): self.label = LABEL
+        |
+        |    @overrides
+        |    def process_tuple(self, tuple_: Tuple, port: int) -> Iterator[Optional[TupleLike]]:
+        |        yield {"label": self.label}
+        |""",
+      true
+    ),
+    (
+      "in open, inside a text that spans lines",
+      """class ProcessTupleOperator(UDFOperatorV2):
+        |    def open(self):
+        |        def unused():
+        |            pass
+        |        self.label = f'''
+        |{LABEL}
+        |'''
+        |
+        |    @overrides
+        |    def process_tuple(self, tuple_: Tuple, port: int) -> Iterator[Optional[TupleLike]]:
+        |        yield {"label": self.label}
+        |""",
+      true
+    ),
+    (
+      "in process_tuple and in open",
+      """class ProcessTupleOperator(UDFOperatorV2):
+        |    @overrides
+        |    def process_tuple(self, tuple_: Tuple, port: int) -> Iterator[Optional[TupleLike]]:
+        |        yield {"label": LABEL, "first": self.first}
+        |
+        |    def open(self):
+        |        self.first = LABEL
+        |""",
+      true
+    ),
+    (
+      "in a method that process_tuple calls, defined after open",
+      """class ProcessTupleOperator(UDFOperatorV2):
+        |    def open(self):
+        |        self.count = 0
+        |
+        |    def labelled(self, tuple_):
+        |        return {"label": LABEL}
+        |
+        |    @overrides
+        |    def process_tuple(self, tuple_: Tuple, port: int) -> Iterator[Optional[TupleLike]]:
+        |        yield self.labelled(tuple_)
+        |""",
+      false
+    ),
+    (
+      "in a function that open defines and process_tuple calls",
+      """class ProcessTupleOperator(UDFOperatorV2):
+        |    def open(self):
+        |        def label():
+        |            return LABEL
+        |        self.label = label
+        |
+        |    @overrides
+        |    def process_tuple(self, tuple_: Tuple, port: int) -> Iterator[Optional[TupleLike]]:
+        |        yield {"label": self.label()}
+        |""",
+      false
+    ),
+    (
+      "in process_tuple, under a text that holds a line like open's",
+      """class ProcessTupleOperator(UDFOperatorV2):
+        |    @overrides
+        |    def process_tuple(self, tuple_: Tuple, port: int) -> Iterator[Optional[TupleLike]]:
+        |        note = '''
+        |def open(self):
+        |        '''
+        |        yield {"label": LABEL, "note": note}
+        |""",
+      false
+    )
+  )
+
+  it should "report a text reference generated code reads in open or __init__, and only there" in {
+    readsByPlace.foreach {
+      case (place, template, atStartup) =>
+        val body = labelReading(template)
+        val result = new WorkflowCompiler(newContext()).compile(oneInputLoop(body))
+        if (atStartup) {
+          assert(
+            result.operatorIdToError.get(body.operatorIdentifier).map(_.message).exists {
+              _.contains(
+                s"Label reading cannot refer to loop variables in /label yet: " +
+                  startupReadReason
+              )
+            },
+            s"a read $place: ${result.operatorIdToError}"
+          )
+        } else {
+          assert(result.operatorIdToError.isEmpty, s"a read $place: ${result.operatorIdToError}")
+          assert(codeOf(result, body).contains(lookup("i")), s"a read $place")
+        }
+    }
+  }
+
   it should "report a text reference that names a new output column of generated code" in {
     // The code writes the column the loop state names, but the schema, computed before the loop
     // runs, declares one named "$r". The "$a" it reads its input from is bound as usual.
