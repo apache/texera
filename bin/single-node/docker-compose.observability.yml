@@ -1,0 +1,50 @@
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+
+# Observability emission overlay. Loaded only by `bin/single-node.sh up
+# --with-observability`, it sets OTEL_SDK_DISABLED=false on the instrumented
+# services so they emit to the bundled collector. The base .env keeps emission
+# off by default; this overlay flips it on without editing .env. The collector
+# and signal backends themselves come up via the observability-* compose
+# profiles the same command enables.
+name: texera-single-node
+
+services:
+  access-control-service:
+    environment:
+      OTEL_SDK_DISABLED: "false"
+  config-service:
+    environment:
+      OTEL_SDK_DISABLED: "false"
+  dashboard-service:
+    environment:
+      OTEL_SDK_DISABLED: "false"
+  file-service:
+    environment:
+      OTEL_SDK_DISABLED: "false"
+  notebook-migration-service:
+    environment:
+      OTEL_SDK_DISABLED: "false"
+  workflow-compiling-service:
+    environment:
+      OTEL_SDK_DISABLED: "false"
+  workflow-computing-unit-managing-service:
+    environment:
+      OTEL_SDK_DISABLED: "false"
+  workflow-runtime-coordinator-service:
+    environment:
+      OTEL_SDK_DISABLED: "false"
