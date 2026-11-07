@@ -49,6 +49,7 @@ import org.apache.texera.amber.engine.architecture.rpc.controlcommands.WorkflowR
 import org.apache.texera.amber.engine.architecture.rpc.controlreturns.EmptyReturn
 import org.apache.texera.amber.engine.architecture.rpc.coordinatorservice.CoordinatorServiceFs2Grpc
 import org.apache.texera.amber.engine.common.client.AmberClient
+import org.apache.texera.amber.operator.dummy.DummyOpDesc
 import org.apache.texera.amber.operator.filter.{
   ComparisonType,
   FilterPredicate,
@@ -156,12 +157,14 @@ class ExecutionReconfigurationServiceSpec
     op
   }
 
+  /** The message the test-only descriptor below throws from a reconfiguration with. */
+  private val thrownMessage = "this operator blew up while being reconfigured"
+
   /**
-    * No production descriptor ever returns `Failure` from `runtimeReconfiguration`: the six
-    * that override it all return `Success`, and the `LogicalOp` base throws
-    * `UnsupportedOperationException` instead. The failure arm therefore needs a test-only
-    * descriptor. It is invisible to `OperatorMetadataGenerator`, which resolves subtypes from
-    * the `@JsonSubTypes` annotation rather than by scanning the classpath.
+    * Returns `Failure` from `runtimeReconfiguration`. No production descriptor does: the six
+    * that override it all return `Success`, and the `LogicalOp` base throws instead. It is
+    * invisible to `OperatorMetadataGenerator`, which resolves subtypes from the `@JsonSubTypes`
+    * annotation rather than by scanning the classpath.
     */
   private class RejectingReconfigurationOpDesc extends LogicalOp {
     override def operatorInfo: OperatorInfo =
@@ -181,6 +184,29 @@ class ExecutionReconfigurationServiceSpec
         newOpDesc: LogicalOp
     ): Try[(PhysicalOp, Option[StateTransferFunc])] =
       Failure(new RuntimeException(rejectionMessage))
+  }
+
+  /** Throws `failure()` from `runtimeReconfiguration`, the way an override that fails while
+    * rebuilding its executor does.
+    */
+  private class ThrowingReconfigurationOpDesc(failure: () => Throwable) extends LogicalOp {
+    override def operatorInfo: OperatorInfo =
+      OperatorInfo(
+        "Throwing Reconfiguration",
+        "test-only operator whose runtime reconfiguration always throws",
+        OperatorGroupConstants.CLEANING_GROUP,
+        inputPorts = List(InputPort()),
+        outputPorts = List(OutputPort()),
+        supportReconfiguration = true
+      )
+
+    override def runtimeReconfiguration(
+        workflowId: WorkflowIdentity,
+        executionId: ExecutionIdentity,
+        oldOpDesc: LogicalOp,
+        newOpDesc: LogicalOp
+    ): Try[(PhysicalOp, Option[StateTransferFunc])] =
+      throw failure()
   }
 
   /**
@@ -468,13 +494,104 @@ class ExecutionReconfigurationServiceSpec
     val rejected = response.asInstanceOf[ModifyLogicResponse]
     rejected.opId shouldBe opId
     rejected.isValid shouldBe false
-    // The frontend shows this string in the operator's error box, so it has to be the reason the
+    // The frontend shows this string in an error notification, so it has to be the reason the
     // operator gave -- not an empty string, which is also what the valid arm reports.
     rejected.errorMessage shouldBe rejectionMessage
 
     // A rejected edit neither queues itself nor discards work that was already pending.
     val queued = stateStore.reconfigurationStore.getState.unscheduledReconfigurations
     queued.map(_._1.id) shouldBe List(alreadyQueued.id)
+  }
+
+  /** Sends an edit to a deployed `deployedOp` with one reconfiguration already pending and
+    * returns the response together with the ids left in the pending queue.
+    */
+  private def modifyWithOnePending(
+      deployedOp: LogicalOp,
+      request: LogicalOp
+  ): (TexeraWebSocketEvent, List[PhysicalOpIdentity]) = {
+    val stateStore = new ExecutionStateStore
+    val service = new WorkflowOnlyService(stateStore, mkWorkflow(List(deployedOp)))
+    val alreadyQueued = mkPhysicalOp("already-queued")
+    stateStore.reconfigurationStore.updateState(_ =>
+      ExecutionReconfigurationStore(unscheduledReconfigurations = List((alreadyQueued, None)))
+    )
+    val response = service.modifyOperatorLogic(ModifyLogicRequest(request))
+    val queued = stateStore.reconfigurationStore.getState.unscheduledReconfigurations
+    (response, queued.map(_._1.id))
+  }
+
+  it should "report an operator without a reconfiguration override as a rejected edit" in {
+    // DummyOpDesc advertises supportReconfiguration but inherits the LogicalOp base, which
+    // throws UnsupportedOperationException instead of returning Failure.
+    val opId = "dummy-op"
+    val deployedOp = new DummyOpDesc
+    deployedOp.setOperatorId(opId)
+
+    val (response, queued) = modifyWithOnePending(deployedOp, mkLimitOp(opId, 7))
+
+    response shouldBe a[ModifyLogicResponse]
+    val rejected = response.asInstanceOf[ModifyLogicResponse]
+    rejected.opId shouldBe opId
+    rejected.isValid shouldBe false
+    rejected.errorMessage should include("DummyOpDesc does not support reconfiguration")
+    queued shouldBe List(mkPhysicalOp("already-queued").id)
+  }
+
+  it should "report an operator whose reconfiguration override throws as a rejected edit" in {
+    val opId = "throwing-op"
+    val deployedOp =
+      new ThrowingReconfigurationOpDesc(() => new IllegalStateException(thrownMessage))
+    deployedOp.setOperatorId(opId)
+
+    val (response, queued) = modifyWithOnePending(deployedOp, mkLimitOp(opId, 7))
+
+    response shouldBe a[ModifyLogicResponse]
+    val rejected = response.asInstanceOf[ModifyLogicResponse]
+    rejected.opId shouldBe opId
+    rejected.isValid shouldBe false
+    rejected.errorMessage shouldBe thrownMessage
+    queued shouldBe List(mkPhysicalOp("already-queued").id)
+  }
+
+  it should "describe a rejection by its exception type when the exception has no message" in {
+    val opId = "throwing-op"
+    val deployedOp = new ThrowingReconfigurationOpDesc(() => new IllegalStateException())
+    deployedOp.setOperatorId(opId)
+
+    val (response, queued) = modifyWithOnePending(deployedOp, mkLimitOp(opId, 7))
+
+    response shouldBe a[ModifyLogicResponse]
+    val rejected = response.asInstanceOf[ModifyLogicResponse]
+    rejected.isValid shouldBe false
+    rejected.errorMessage shouldBe "java.lang.IllegalStateException"
+    queued shouldBe List(mkPhysicalOp("already-queued").id)
+  }
+
+  it should "let a fatal reconfiguration exception escape instead of reporting a rejection" in {
+    val opId = "throwing-op"
+    val deployedOp = new ThrowingReconfigurationOpDesc(() => new InterruptedException("stop"))
+    deployedOp.setOperatorId(opId)
+
+    an[InterruptedException] should be thrownBy modifyWithOnePending(deployedOp, mkLimitOp(opId, 7))
+  }
+
+  it should "accept a valid edit after a rejected one" in {
+    val rejectedId = "dummy-op"
+    val dummy = new DummyOpDesc
+    dummy.setOperatorId(rejectedId)
+    val acceptedId = "limit-op"
+    val stateStore = new ExecutionStateStore
+    val service =
+      new WorkflowOnlyService(stateStore, mkWorkflow(List(dummy, mkLimitOp(acceptedId, 5))))
+
+    val first = service.modifyOperatorLogic(ModifyLogicRequest(mkLimitOp(rejectedId, 7)))
+    val second = service.modifyOperatorLogic(ModifyLogicRequest(mkLimitOp(acceptedId, 9)))
+
+    first.asInstanceOf[ModifyLogicResponse].isValid shouldBe false
+    second.asInstanceOf[ModifyLogicResponse].isValid shouldBe true
+    val queued = stateStore.reconfigurationStore.getState.unscheduledReconfigurations
+    queued.map(_._1.id.logicalOpId.id) shouldBe List(acceptedId)
   }
 
   // ---------------------------------------------------------------------------
