@@ -71,6 +71,21 @@ class ProcessTableOperator(UDFTableOperator):
         }
 """
 
+# Code generated where numeric and boolean properties refer to loop variables
+# too: an integer property twice, a number one, and a text one.
+GENERATED_VALUE_LOOKUPS_CODE = """
+from pytexera import *
+
+class ProcessTableOperator(UDFTableOperator):
+    def process_table(self, table: Table, port: int) -> Iterator[Optional[TableLike]]:
+        yield {
+            "x": self.loop_variable_value('n', 'integer'),
+            "y": self.loop_variable_value('n', 'integer'),
+            "opacity": self.loop_variable_value('alpha', 'number'),
+            "title": self.loop_variable_text('t'),
+        }
+"""
+
 # The same reads in a generated source operator, which binds before it produces.
 GENERATED_SOURCE_LOOKUPS_CODE = """
 from pytexera import *
@@ -363,6 +378,30 @@ class TestExecutorManager:
         executor.bind_loop_variables()
         executor.register_state(State({"t": "z"}))
         assert executor.loop_variable_text("t") == "x"
+
+    def test_binding_requires_the_loop_variable_values_the_code_reads(
+        self, executor_manager
+    ):
+        # The numeric and boolean properties' references too: each once, by
+        # name and kind, after the text ones.
+        executor_manager.initialize_executor(
+            code=GENERATED_VALUE_LOOKUPS_CODE, is_source=False, language="python"
+        )
+        executor = executor_manager.executor
+        executor.register_state(State({"i": 1}))
+        with pytest.raises(RuntimeError) as exc_info:
+            executor.bind_loop_variables()
+        assert str(exc_info.value) == "; ".join(
+            f"the operator refers to loop variable ${name}, but no state message "
+            "carried it before the operator's first tuple or the end of an input"
+            for name in ("t", "alpha", "n")
+        )
+        executor.register_state(State({"t": "x", "alpha": 0.5, "n": 3000000000}))
+        with pytest.raises(RuntimeError, match="does not fit its property"):
+            executor.bind_loop_variables()
+        executor.register_state(State({"n": 3}))
+        executor.bind_loop_variables()
+        assert executor.loop_variable_value("n", "integer") == 3
 
     def test_tmp_dir_is_reclaimed_when_manager_is_abandoned(self):
         # `fs` reclaimed the tmp directory on GC (FS.__del__ -> TempFS.close()

@@ -457,6 +457,86 @@ class LoopIntegrationSpec
     )
   }
 
+  /** Run the loop workflow and return the charts (html-content) the Loop End `end` materialized. */
+  private def runAndGetCharts(
+      operators: List[LogicalOp],
+      links: List[LogicalLink],
+      end: LogicalOp
+  ): List[String] =
+    runWorkflowAndReadResults(
+      system,
+      buildWorkflow(operators, links, materializedContext()),
+      List(end.operatorIdentifier),
+      _.get().toList,
+      Duration.fromSeconds(90)
+    ).getOrElse(end.operatorIdentifier, Nil).map(_.getField[String]("html-content"))
+
+  /** Each number or true/false value of `key` in a chart's figure JSON, in order. */
+  private def figureValues(chart: String, key: String): List[String] =
+    s""""$key":([0-9A-Za-z.+-]+)""".r.findAllMatchIn(chart).map(_.group(1)).toList
+
+  it should "read a $o loop-variable reference in a Python-generated operator's number property on every iteration" in {
+    // Sales CSV -> LoopStart(o = 0.25 / table) -> Radar Chart(fill opacity = $o)
+    //   -> LoopEnd(o += 0.25 / o <= 0.75).
+    //
+    // The chart's Python is generated before the loop runs, from probe values in the opacity's
+    // place. It writes the opacity into the code as it is, so inside the block the compiler had
+    // the code read it from the iteration's state message instead
+    // (self.loop_variable_value('o', 'number')). Each iteration draws one chart, every trace of
+    // which carries that iteration's o, and the LoopEnd accumulates the 3 charts. The opacity the
+    // code was generated with would draw every chart alike; an o that never rebinds to the new
+    // value would repeat one.
+    val src = TestOperators.smallCsvScanOpDesc()
+    val start = loopStart("o = 0.25", "table")
+    val chart = objectMapper.readValue(
+      """{"operatorType":"RadarChart","nameColumn":"Region",
+        |"valueColumns":["Unit Price","Unit Cost"],"fillOpacity":"$o"}""".stripMargin,
+      classOf[LogicalOp]
+    )
+    val end = loopEnd("o += 0.25", "o <= 0.75")
+    val opacities = runAndGetCharts(
+      List(src, start, chart, end),
+      List(link(src, start), link(start, chart), link(chart, end)),
+      end
+    ).map(figureValues(_, "opacity").distinct).sortBy(_.mkString)
+    assert(
+      opacities == List(List("0.25"), List("0.5"), List("0.75")),
+      s"each iteration's chart must use its own o as the opacity: got $opacities"
+    )
+  }
+
+  it should "read a $legend loop-variable reference in a Python-generated operator's true/false property on every iteration" in {
+    // Sales CSV -> LoopStart(i = 0, legend = True / table.head(i + 1))
+    //   -> Radar Plot(show legend = $legend) -> LoopEnd(i += 1, legend = not legend / i < 2).
+    //
+    // The plot's Python holds show_legend = True or False, the property as Python writes it; inside
+    // the block the code reads it from the iteration's state message instead
+    // (self.loop_variable_value('legend', 'boolean')). Iteration i plots i + 1 rows, one trace
+    // each, so a plot's trace count (its "theta" lists; plotly's template names the trace type
+    // once more) tells which iteration drew it: the first iteration's plot shows its legend and
+    // the second's does not. The placeholder false would hide both legends, a legend that never
+    // rebinds to the new value would show both, and a value read the wrong way round would swap
+    // them.
+    val src = TestOperators.smallCsvScanOpDesc()
+    val start = loopStart("i = 0\nlegend = True", "table.head(i + 1)")
+    val plot = objectMapper.readValue(
+      """{"operatorType":"RadarPlot","selectedAttributes":["Unit Price","Unit Cost"],
+        |"linePattern":"solid","showLegend":"$legend"}""".stripMargin,
+      classOf[LogicalOp]
+    )
+    val end = loopEnd("i += 1\nlegend = not legend", "i < 2")
+    val legends = runAndGetCharts(
+      List(src, start, plot, end),
+      List(link(src, start), link(start, plot), link(plot, end)),
+      end
+    ).map(chart => "\"theta\":".r.findAllMatchIn(chart).size -> figureValues(chart, "showlegend"))
+      .sortBy(_._1)
+    assert(
+      legends == List(1 -> List("true"), 2 -> List("false")),
+      s"each iteration's plot, by its trace count, must use its own legend: got $legends"
+    )
+  }
+
   it should "bind a $n loop-variable reference in a JVM operator's number setting on every iteration" in {
     // TextInput(3 rows) -> LoopStart(n = 1 / table) -> Limit($n)
     //   -> LoopEnd(n += 1 / n <= len(table)).
