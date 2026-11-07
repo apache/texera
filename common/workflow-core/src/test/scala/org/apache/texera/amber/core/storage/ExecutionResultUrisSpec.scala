@@ -229,6 +229,44 @@ class ExecutionResultUrisSpec
     )
   }
 
+  it should "skip rows with a null or empty URI" in {
+    val execution = insertExecution()
+    val eid = ExecutionIdentity(execution.getEid.longValue())
+    val targetOpId = OperatorIdentity("target-op")
+    val targetGlobalPort = GlobalPortIdentity(
+      PhysicalOpIdentity(targetOpId, "main"),
+      PortIdentity(),
+      input = false
+    )
+    val targetUri = VFSURIFactory.resultURI(
+      VFSURIFactory.createPortBaseURI(
+        WorkflowIdentity(testWorkflowWid.longValue()),
+        eid,
+        targetGlobalPort
+      )
+    )
+    def otherPort(name: String): String =
+      GlobalPortIdentity(
+        PhysicalOpIdentity(OperatorIdentity(name), "main"),
+        PortIdentity(),
+        input = false
+      ).serializeAsString
+    getDSLContext
+      .insertInto(OPERATOR_PORT_EXECUTIONS)
+      .columns(
+        OPERATOR_PORT_EXECUTIONS.WORKFLOW_EXECUTION_ID,
+        OPERATOR_PORT_EXECUTIONS.GLOBAL_PORT_ID,
+        OPERATOR_PORT_EXECUTIONS.RESULT_URI
+      )
+      .values(execution.getEid, otherPort("empty-uri"), "")
+      .values(execution.getEid, otherPort("null-uri"), null.asInstanceOf[String])
+      .execute()
+    insertOperatorPortResult(eid, targetGlobalPort, targetUri)
+
+    val found = ExecutionResultUris.getResultUriByLogicalPortId(eid, targetOpId, PortIdentity())
+    assert(found.contains(targetUri))
+  }
+
   it should "return None when no URI matches the requested op/port" in {
     val execution = insertExecution()
     val eid = ExecutionIdentity(execution.getEid.longValue())

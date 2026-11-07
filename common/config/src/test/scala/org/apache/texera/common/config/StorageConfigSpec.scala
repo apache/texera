@@ -51,6 +51,11 @@ class StorageConfigSpec extends AnyFlatSpec with Matchers {
     StorageConfig.ENV_CLEANUP_INTERVAL_MINUTES shouldBe "STORAGE_CLEANUP_INTERVAL_MINUTES"
   }
 
+  "StorageConfig catalog cache settings" should "load a positive size bound and idle expiry" in {
+    StorageConfig.icebergCatalogCacheMaxSize should be > 0L
+    StorageConfig.icebergCatalogCacheExpireAfterAccessMinutes should be > 0L
+  }
+
   "StorageConfig warehouse settings" should "be on by default, and only with the REST catalog" in {
     // Only assert when the env override is unset, since it would win otherwise.
     if (sys.env.get(StorageConfig.ENV_WAREHOUSE_ENABLED).isEmpty) {
