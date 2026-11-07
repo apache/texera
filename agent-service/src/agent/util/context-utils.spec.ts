@@ -24,6 +24,7 @@ import { WorkflowState } from "../workflow-state";
 import type { ReActStep } from "../../types/agent";
 import type { OperatorLink, OperatorPredicate } from "../../types/workflow";
 import type { WorkflowCompilationResponse } from "../../api/compile-api";
+import { WorkflowFatalErrorType } from "../../types/execution";
 
 function step(messageId: string, role: "user" | "agent", stepId: number, content: string, isEnd: boolean): ReActStep {
   return {
@@ -234,7 +235,16 @@ describe("assembleContext — dataflow serialization", () => {
     workflowState.addOperator(makeOperator("op1"));
     const compilationResult: WorkflowCompilationResponse = {
       operatorOutputSchemas: {},
-      operatorErrors: { op1: { type: "CompilationError", message: "attribute x not found" } },
+      operatorErrors: {
+        op1: {
+          type: { name: WorkflowFatalErrorType.COMPILATION_ERROR },
+          timestamp: { seconds: 0, nanos: 0 },
+          message: "attribute x not found",
+          details: "",
+          operatorId: "op1",
+          workerId: "",
+        },
+      },
     };
 
     const content = contentOf(assembleContext([], workflowState, new Map(), false, compilationResult));
