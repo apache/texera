@@ -190,6 +190,39 @@ describe("DynamicSchemaService.mutateProperty", () => {
     expect((nested.properties!.deepTarget as CustomJSONSchema7).description).toEqual("mutated");
   });
 
+  it("should pass the schema that owns a nested property to both callbacks", () => {
+    const original = {
+      type: "object",
+      required: ["root"],
+      properties: {
+        nested: {
+          type: "object",
+          required: ["deepTarget"],
+          properties: {
+            deepTarget: { type: "string" },
+          },
+        },
+      },
+    } as CustomJSONSchema7;
+    const matchSpy = vi.fn(
+      (propertyName: string, _: CustomJSONSchema7, ownerSchema: CustomJSONSchema7) =>
+        propertyName === "deepTarget" && ownerSchema.required?.includes(propertyName) === true
+    );
+    const mutationSpy = vi.fn(
+      (_: string, propertyValue: CustomJSONSchema7, ownerSchema: CustomJSONSchema7): CustomJSONSchema7 => ({
+        ...propertyValue,
+        description: ownerSchema.required?.join(","),
+      })
+    );
+
+    const result = DynamicSchemaService.mutateProperty(original, matchSpy, mutationSpy);
+
+    const nested = result.properties!.nested as CustomJSONSchema7;
+    expect((nested.properties!.deepTarget as CustomJSONSchema7).description).toEqual("deepTarget");
+    expect(matchSpy).toHaveBeenCalledWith("deepTarget", expect.any(Object), nested);
+    expect(mutationSpy).toHaveBeenCalledWith("deepTarget", expect.any(Object), nested);
+  });
+
   it("should recurse into definitions to find the matched property", () => {
     const original = {
       type: "object",
