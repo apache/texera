@@ -655,6 +655,126 @@ class TestBindLoopVariables:
         assert bystander.loop_variable_text("i") == "2"
 
 
+# Generated on the JVM, JDK 17 as the engine's images run it: each value's JSON
+# as pyamber's State.to_json writes it, read by the JVM's State.fromJson, then
+# turned to text as a JVM operator's text property binds it (value.toString in
+# StateReferenceBinding).
+_JVM_TEXT_OF_JSON = [
+    ("0", "0"),
+    ("1", "1"),
+    ("-1", "-1"),
+    ("42", "42"),
+    ("2147483648", "2147483648"),
+    ("9007199254740993", "9007199254740993"),
+    ("9223372036854775807", "9223372036854775807"),
+    ("-9223372036854775808", "-9223372036854775808"),
+    ("0.0", "0.0"),
+    ("-0.0", "-0.0"),
+    ("1.0", "1.0"),
+    ("-2.5", "-2.5"),
+    ("100.0", "100.0"),
+    ("1200.0", "1200.0"),
+    ("123.0", "123.0"),
+    ("123.456", "123.456"),
+    ("0.1", "0.1"),
+    ("0.3333333333333333", "0.3333333333333333"),
+    ("4.35", "4.35"),
+    ("0.001", "0.001"),
+    ("0.0009999999999999998", "9.999999999999998E-4"),
+    ("0.00099", "9.9E-4"),
+    ("0.0005", "5.0E-4"),
+    ("-1.5e-05", "-1.5E-5"),
+    ("1e-07", "1.0E-7"),
+    ("1234567.0", "1234567.0"),
+    ("9999999.999999998", "9999999.999999998"),
+    ("10000000.0", "1.0E7"),
+    ("10000000.5", "1.00000005E7"),
+    ("12345678.9", "1.23456789E7"),
+    ("1e+16", "1.0E16"),
+    ("1e+21", "1.0E21"),
+    ("9007199254740992.0", "9.007199254740992E15"),
+    ("1.7976931348623157e+308", "1.7976931348623157E308"),
+    ("2.2250738585072014e-308", "2.2250738585072014E-308"),
+    ("1e-320", "1.0E-320"),
+    ("1.5e+300", "1.5E300"),
+    ("true", "true"),
+    ("false", "false"),
+    ('"AAPL"', "AAPL"),
+    ('""', ""),
+    ('" padded "', " padded "),
+    ('"\\u4f60\\u597d \\ud83d\\udc4b"', "你好 👋"),
+    ('"1e7"', "1e7"),
+    ('"true"', "true"),
+    ('"line\\nbreak"', "line\nbreak"),
+]
+
+# Doubles JDK 17 spells with other digits than the fewest that read back as the
+# value (JDK-4511638, fixed in JDK 19): (JSON, JDK 17's text, pyamber's text).
+_JDK_17_OTHER_DIGITS = [
+    ("1e+23", "9.999999999999999E22", "1.0E23"),
+    ("2e+23", "1.9999999999999998E23", "2.0E23"),
+    ("2.82879384806159e+17", "2.82879384806159008E17", "2.82879384806159E17"),
+    ("5.960464477539063e-08", "5.9604644775390625E-8", "5.960464477539063E-8"),
+    ("5e-324", "4.9E-324", "5.0E-324"),
+]
+
+# Integers past 64 bits: (JSON, the wrapped long the JVM reads).
+_JVM_WRAPPED_INTEGERS = [
+    ("9223372036854775808", "-9223372036854775808"),
+    ("-9223372036854775809", "9223372036854775807"),
+    ("18446744073709551616", "0"),
+    ("100000000000000000000", "7766279631452241920"),
+]
+
+
+def _received(json_value: str) -> _ConcreteOperator:
+    """An operator that received a state carrying `v` as this JSON."""
+    op = _ConcreteOperator()
+    op.register_state(State.from_json('{"v":' + json_value + "}"))
+    return op
+
+
+class TestLoopVariableTextParity:
+    def test_spells_each_value_as_a_jvm_operators_text_property_binds_it(self):
+        texts = [
+            (json, _received(json).loop_variable_text("v"))
+            for json, _ in _JVM_TEXT_OF_JSON
+        ]
+        assert texts == _JVM_TEXT_OF_JSON
+
+    @pytest.mark.parametrize("json_value, jdk_17, text", _JDK_17_OTHER_DIGITS)
+    def test_a_double_jdk_17_spells_otherwise_keeps_the_fewest_digits(
+        self, json_value, jdk_17, text
+    ):
+        # Java's notation over Python's shortest digits: the text JDK 19 and
+        # later print, and the same double JDK 17's text reads back as.
+        assert _received(json_value).loop_variable_text("v") == text
+        assert float(text) == float(jdk_17) == float(json_value)
+
+    @pytest.mark.parametrize("json_value, jvm_long", _JVM_WRAPPED_INTEGERS)
+    def test_refuses_an_integer_a_jvm_operator_reads_as_another(
+        self, json_value, jvm_long
+    ):
+        # The JVM's State.fromJson keeps an integer as a 64-bit long, so it
+        # reads this one wrapped, as jvm_long; refusing it keeps the generated
+        # code from reading another number than a JVM operator.
+        with pytest.raises(RuntimeError) as excinfo:
+            _received(json_value).loop_variable_text("v")
+        assert str(excinfo.value) == (
+            f"the operator refers to loop variable $v, but its value {json_value} "
+            "does not fit in the 64-bit integer a JVM operator reads it as"
+        )
+
+    @pytest.mark.parametrize(
+        "json_value, text",
+        [("NaN", "NaN"), ("Infinity", "Infinity"), ("-Infinity", "-Infinity")],
+    )
+    def test_spells_nan_and_infinity_as_java_does(self, json_value, text):
+        # The JVM's State.fromJson rejects such a message (Jackson's default),
+        # so no JVM operator reads one; the text is Double.toString's.
+        assert _received(json_value).loop_variable_text("v") == text
+
+
 class TestBatchOperatorValidation:
     def test_validate_batch_size_rejects_none(self):
         with pytest.raises(ValueError, match="cannot be None"):
