@@ -289,6 +289,98 @@ class TestOperatorDefaultMethods:
         assert list(_ConcreteOperator().on_finish(port=0)) == [None]
 
 
+class TestLoopVariables:
+    # Inside a control block the loop variables reach an operator as state
+    # messages; the runtime registers each one (register_state) right before
+    # process_state, with the nesting depth its envelope carries: 0 from the
+    # innermost loop around the operator, 1 from the loop around that. A state
+    # no loop sent (an operator's produce_state_on_finish) travels at depth 0.
+
+    def test_empty_until_the_runtime_registers_a_state(self):
+        assert dict(_ConcreteOperator().loop_variables) == {}
+
+    def test_holds_the_variables_a_registered_state_carries(self):
+        op = _ConcreteOperator()
+        op.register_state(State({"i": 2, "k": "a"}), 0)
+        assert dict(op.loop_variables) == {"i": 2, "k": "a"}
+
+    def test_a_state_that_names_no_loop_variable_leaves_them_intact(self):
+        # The loop's state, then a body operator's own state from
+        # produce_state_on_finish, both at depth 0: the second adds its names
+        # and must not erase i (Xiaozhen's KeyError 'i' on #8642).
+        op = _ConcreteOperator()
+        op.register_state(State({"i": 2}), 0)
+        op.register_state(State({"note": "from-body-op"}), 0)
+        assert dict(op.loop_variables) == {"i": 2, "note": "from-body-op"}
+
+    def test_the_last_value_from_the_same_depth_wins(self):
+        op = _ConcreteOperator()
+        op.register_state(State({"i": 1}), 0)
+        op.register_state(State({"i": 2}), 0)
+        assert op.loop_variables["i"] == 2
+
+    def test_the_inner_value_wins_over_an_outer_one_that_arrives_later(self):
+        # i = 1 from the outer loop, i = 5 from the inner one, then the outer
+        # message again: the smallest depth wins, as a JVM operator binds it.
+        op = _ConcreteOperator()
+        op.register_state(State({"i": 1}), 1)
+        assert op.loop_variables["i"] == 1, "the outer i until the inner arrives"
+        op.register_state(State({"i": 5}), 0)
+        op.register_state(State({"i": 1}), 1)
+        assert op.loop_variables["i"] == 5
+
+    def test_an_outer_variable_the_inner_loop_does_not_name_stays_visible(self):
+        op = _ConcreteOperator()
+        op.register_state(State({"i": 1, "n": 10}), 1)
+        op.register_state(State({"i": 5}), 0)
+        assert dict(op.loop_variables) == {"i": 5, "n": 10}
+
+    def test_a_deeper_message_takes_over_from_an_outer_one_at_any_depth(self):
+        op = _ConcreteOperator()
+        op.register_state(State({"i": 1}), 2)
+        op.register_state(State({"i": 2}), 1)
+        op.register_state(State({"i": 3}), 2)
+        assert op.loop_variables["i"] == 2
+
+    def test_registering_leaves_the_state_message_unchanged(self):
+        op = _ConcreteOperator()
+        first, second = State({"i": 1}), State({"note": "n"})
+        op.register_state(first, 0)
+        op.register_state(second, 0)
+        assert first == State({"i": 1})
+        assert second == State({"note": "n"})
+
+    def test_loop_variables_are_read_only(self):
+        # A UDF changes a loop variable by sending a state message, which
+        # downstream operators then receive too, not by writing this view.
+        op = _ConcreteOperator()
+        op.register_state(State({"i": 1}), 0)
+        with pytest.raises(TypeError):
+            op.loop_variables["i"] = 2
+        assert op.loop_variables["i"] == 1
+
+    def test_registers_on_the_instance_only(self):
+        # The defaults live on the class, so a registration written to the
+        # class (instead of the instance) would reach every operator.
+        target, bystander = _ConcreteOperator(), _ConcreteOperator()
+        target.register_state(State({"i": 1}), 0)
+        assert dict(bystander.loop_variables) == {}
+        assert dict(_ConcreteOperator().loop_variables) == {}
+
+    def test_a_subclass_init_that_skips_super_still_reads_and_registers(self):
+        class _NoSuperInit(TupleOperatorV2):
+            def __init__(self):
+                pass
+
+            def process_tuple(self, tuple_, port):
+                yield tuple_
+
+        op = _NoSuperInit()
+        assert dict(op.loop_variables) == {}
+        op.register_state(State({"i": 1}), 0)
+        assert dict(op.loop_variables) == {"i": 1}
+
+
 class TestLazyTemplateDecoder:
     def test_first_call_creates_decoder_and_caches_on_instance(self):
         op = _ConcreteOperator()
@@ -306,6 +398,498 @@ class TestLazyTemplateDecoder:
         op = _ConcreteOperator()
         encoded = base64.b64encode(b"payload").decode("ascii")
         assert op.decode_python_template(encoded) == "payload"
+
+
+# The shape the backend gives a Python-generated operator's code inside a
+# control block: where a text property holds `$name`, the rendered
+# `self.decode_python_template('<base64 of "$name">')` is replaced by
+# `self.loop_variable_text('name')`. Mirrors the sklearn trainers'
+# `<name> = <type> (<value>),` hyperparameter rendering, including the lambda
+# the SVC trainer emits as its boolean converter.
+_GENERATED_TRAINER_TEMPLATE = """from pytexera import *
+
+class ProcessTableOperator(UDFTableOperator):
+
+  @overrides
+  def process_table(self, table: Table, port: int) -> Iterator[Optional[TableLike]]:
+    yield dict(C = float (self.loop_variable_text('c')),kernel = str (self.loop_variable_text('kernel')),probability = (lambda value: value.lower() == "true") (self.loop_variable_text('p')),)
+"""
+
+
+class TestLoopVariableText:
+    def test_returns_the_text_of_an_int_a_float_and_a_string(self):
+        op = _ConcreteOperator()
+        op.register_state(State({"n": 3, "rate": 0.5, "ticker": "AAPL"}))
+        assert op.loop_variable_text("n") == "3"
+        assert op.loop_variable_text("rate") == "0.5"
+        assert op.loop_variable_text("ticker") == "AAPL"
+
+    def test_spells_a_boolean_as_the_jvm_binds_one(self):
+        # A JVM operator's text property takes a boolean as true / false
+        # (StateReferenceBinding), and so does this, not Python's True / False.
+        op = _ConcreteOperator()
+        op.register_state(State({"on": True, "off": False}))
+        assert op.loop_variable_text("on") == "true"
+        assert op.loop_variable_text("off") == "false"
+
+    def test_a_falsy_value_is_still_carried(self):
+        # Zero, False and the empty string are values the state carried, not
+        # absent ones: none of them may fall into the missing-name error.
+        op = _ConcreteOperator()
+        op.register_state(State({"n": 0, "flag": False, "note": ""}))
+        assert op.loop_variable_text("n") == "0"
+        assert op.loop_variable_text("flag") == "false"
+        assert op.loop_variable_text("note") == ""
+
+    @pytest.mark.parametrize("value", [None, [1, 2], {"p": 2}, b"raw"], ids=repr)
+    def test_raises_for_a_value_that_is_not_a_scalar(self, value):
+        # The JVM rejects a non-scalar for a text property too, rather than
+        # pass on a spelling of its own, such as Python's repr.
+        op = _ConcreteOperator()
+        op.register_state(State({"m": value}))
+        with pytest.raises(RuntimeError) as excinfo:
+            op.loop_variable_text("m")
+        assert str(excinfo.value) == (
+            f"the operator refers to loop variable $m, but its value {value!r} "
+            "is not a scalar"
+        )
+
+    def test_a_value_that_looks_like_a_reference_is_returned_verbatim(self):
+        # The text is the value itself; it is never resolved again.
+        op = _ConcreteOperator()
+        op.register_state(State({"ticker": "$AAPL", "AAPL": "not me"}))
+        assert op.loop_variable_text("ticker") == "$AAPL"
+
+    def test_a_later_state_message_replaces_a_value_it_carries(self):
+        # Every iteration delivers a fresh state message; the text is read
+        # from the latest one that carried the name, never cached.
+        op = _ConcreteOperator()
+        op.register_state(State({"i": 1}))
+        assert op.loop_variable_text("i") == "1"
+        op.register_state(State({"i": 2}))
+        assert op.loop_variable_text("i") == "2"
+
+    def test_a_later_state_message_without_the_name_keeps_its_value(self):
+        # A loop body operator's own state (here a UDF publishing centroids)
+        # reaches the operator after the loop's: it must not hide `i`.
+        op = _ConcreteOperator()
+        op.register_state(State({"i": 1}))
+        op.register_state(State({"centroids": 3}))
+        assert op.loop_variable_text("i") == "1"
+        assert op.loop_variable_text("centroids") == "3"
+
+    def test_an_inner_loops_state_shadows_the_outer_one_and_keeps_the_rest(self):
+        # A nested loop's body receives the outer loop's state first (depth 1),
+        # then the inner Loop Start's (depth 0), as a JVM operator does.
+        op = _ConcreteOperator()
+        op.register_state(State({"j": 5, "i": "outer"}), 1)
+        op.register_state(State({"i": 0}), 0)
+        assert op.loop_variable_text("j") == "5"
+        assert op.loop_variable_text("i") == "0"
+
+    def test_the_inner_value_wins_over_an_outer_one_that_arrives_later(self):
+        # A JVM operator binds the inner loop's i even when another copy of
+        # the outer message arrives after it, so the generated code reads the
+        # same i.
+        op = _ConcreteOperator()
+        op.register_state(State({"i": 1}), 1)
+        op.register_state(State({"i": 5}), 0)
+        op.register_state(State({"i": 1}), 1)
+        assert op.loop_variable_text("i") == "5"
+
+    def test_registering_reaches_the_one_operator_only(self):
+        # The defaults live on the class, so a registration written there
+        # would reach every operator.
+        target, bystander = _ConcreteOperator(), _ConcreteOperator()
+        target.register_state(State({"i": 1}))
+        assert target.loop_variable_text("i") == "1"
+        with pytest.raises(RuntimeError, match="read before the iteration's state"):
+            bystander.loop_variable_text("i")
+
+    def test_raises_when_read_before_the_iterations_state_arrived(self):
+        op = _ConcreteOperator()
+        with pytest.raises(RuntimeError) as excinfo:
+            op.loop_variable_text("i")
+        assert str(excinfo.value) == (
+            "loop variable $i is read before the iteration's state arrived"
+        )
+
+    def test_raises_for_a_name_no_state_message_carried(self):
+        op = _ConcreteOperator()
+        op.register_state(State({"i": 1}))
+        op.register_state(State({"k": 2}))
+        with pytest.raises(RuntimeError) as excinfo:
+            op.loop_variable_text("j")
+        assert str(excinfo.value) == (
+            "the operator refers to loop variable $j, but no state message carried it"
+        )
+
+    def test_an_empty_state_has_arrived_but_carries_no_name(self):
+        # An empty state is a state that arrived: the missing-name error, not
+        # the not-yet-arrived one.
+        op = _ConcreteOperator()
+        op.register_state(State())
+        with pytest.raises(RuntimeError, match="no state message carried it"):
+            op.loop_variable_text("i")
+
+    def test_a_prefix_of_a_declared_name_is_not_matched(self):
+        op = _ConcreteOperator()
+        op.register_state(State({"items": 3}))
+        with pytest.raises(RuntimeError, match=r"\$item, but no state message"):
+            op.loop_variable_text("item")
+
+    def test_an_extension_of_a_declared_name_is_not_matched(self):
+        op = _ConcreteOperator()
+        op.register_state(State({"item": 3}))
+        with pytest.raises(RuntimeError, match=r"\$items, but no state message"):
+            op.loop_variable_text("items")
+
+    def test_names_are_case_sensitive(self):
+        op = _ConcreteOperator()
+        op.register_state(State({"i": 1}))
+        with pytest.raises(RuntimeError, match=r"\$I, but no state message"):
+            op.loop_variable_text("I")
+
+    def test_generated_code_reads_the_iterations_value_at_run_time(self):
+        # __name__ so the exec'd class's methods get a real __module__ (the
+        # @overrides decorator on the generated methods inspects it).
+        namespace: dict = {"__name__": "generated_trainer_operator"}
+        exec(_GENERATED_TRAINER_TEMPLATE, namespace)
+        op = namespace["ProcessTableOperator"]()
+
+        # Before the iteration's state arrives, the generated call fails loud
+        # instead of converting a stand-in value.
+        with pytest.raises(RuntimeError, match="read before the iteration's state"):
+            list(op.process_table(Table([Tuple({"a": 1})]), 0))
+
+        op.register_state(State({"c": 2, "kernel": "rbf", "p": True}))
+        # The worker binds them before the operator's first tuple.
+        op.bind_loop_variables()
+        (params,) = list(op.process_table(Table([Tuple({"a": 1})]), 0))
+        assert params == {"C": 2.0, "kernel": "rbf", "probability": True}
+
+        # A state message after that leaves the iteration's values as bound.
+        op.register_state(State({"c": 0.25, "kernel": "linear", "p": False}))
+        (params,) = list(op.process_table(Table([Tuple({"a": 1})]), 0))
+        assert params == {"C": 2.0, "kernel": "rbf", "probability": True}
+
+        # The next iteration runs on a fresh worker, which binds its own.
+        op = namespace["ProcessTableOperator"]()
+        op.register_state(State({"c": 0.25, "kernel": "linear", "p": False}))
+        op.bind_loop_variables()
+        (params,) = list(op.process_table(Table([Tuple({"a": 1})]), 0))
+        assert params == {"C": 0.25, "kernel": "linear", "probability": False}
+
+
+class TestBindLoopVariables:
+    # The paper (sec. 5): an operator binds its properties immediately before
+    # its first tuple, and they stay fixed for the iteration; UDF code still
+    # reads the values that arrive later. A JVM operator does the same
+    # (OperatorExecutor.bindStateReferences).
+
+    def test_a_state_after_binding_changes_loop_variables_but_not_the_text(self):
+        # The outer loop's i, then the operator's first tuple, then a deeper
+        # i (a body UDF's produce_state_on_finish): a JVM operator keeps 1.
+        op = _ConcreteOperator()
+        op.register_state(State({"i": 1}), 1)
+        op.bind_loop_variables()
+        op.register_state(State({"i": 5}), 0)
+        assert op.loop_variable_text("i") == "1"
+        assert op.loop_variables == {"i": 5}
+
+    def test_binding_again_keeps_the_first_values(self):
+        # The worker binds before every tuple and on every finishing port;
+        # only the first call takes the values.
+        op = _ConcreteOperator()
+        op.register_state(State({"i": 1}))
+        op.bind_loop_variables()
+        op.register_state(State({"i": 2}))
+        op.bind_loop_variables()
+        assert op.loop_variable_text("i") == "1"
+
+    def test_binds_the_inner_value_when_the_outer_one_arrives_again_first(self):
+        # Xiaozhen's order on #8671 (outer, inner, outer again), all before
+        # the first tuple: the bound i is the inner one, as on the JVM.
+        op = _ConcreteOperator()
+        op.register_state(State({"i": 1}), 1)
+        op.register_state(State({"i": 5}), 0)
+        op.register_state(State({"i": 1}), 1)
+        op.bind_loop_variables()
+        assert op.loop_variable_text("i") == "5"
+
+    def test_a_name_that_arrives_only_after_binding_is_missing(self):
+        op = _ConcreteOperator()
+        op.register_state(State({"i": 1}))
+        op.bind_loop_variables()
+        op.register_state(State({"j": 2}))
+        assert op.loop_variables["j"] == 2
+        with pytest.raises(RuntimeError) as excinfo:
+            op.loop_variable_text("j")
+        # Bound at the first tuple, or when an input ended before any tuple.
+        assert str(excinfo.value) == (
+            "the operator refers to loop variable $j, but no state message "
+            "carried it before the operator's first tuple or the end of an input"
+        )
+
+    def test_binding_before_any_state_binds_no_values(self):
+        # Bound with nothing received (no state came before the first tuple,
+        # or a source), the name is missing, not yet to arrive, and a later
+        # state cannot supply it.
+        op = _ConcreteOperator()
+        op.bind_loop_variables()
+        with pytest.raises(RuntimeError, match="before the operator's first tuple"):
+            op.loop_variable_text("i")
+        op.register_state(State({"i": 1}))
+        with pytest.raises(RuntimeError, match="before the operator's first tuple"):
+            op.loop_variable_text("i")
+
+    def test_binding_reaches_the_one_operator_only(self):
+        # The defaults live on the class, so a binding written there would
+        # reach every operator.
+        target, bystander = _ConcreteOperator(), _ConcreteOperator()
+        for op in (target, bystander):
+            op.register_state(State({"i": 1}))
+        target.bind_loop_variables()
+        for op in (target, bystander):
+            op.register_state(State({"i": 2}))
+        assert target.loop_variable_text("i") == "1"
+        assert bystander.loop_variable_text("i") == "2"
+
+
+def _missing(name: str) -> str:
+    """The error for a required loop variable that no state carried in time."""
+    return (
+        f"the operator refers to loop variable ${name}, but no state message "
+        "carried it before the operator's first tuple or the end of an input"
+    )
+
+
+# The shape of a generated table operator's code whose text property refers to
+# $t, read only when its input has rows, as Line Chart reads its axis title.
+_GENERATED_CHART_TEMPLATE = """from pytexera import *
+
+class ProcessTableOperator(UDFTableOperator):
+
+    @overrides
+    def process_table(self, table: Table, port: int) -> Iterator[Optional[TableLike]]:
+        if table.empty:
+            yield {"html-content": "input table is empty"}
+            return
+        yield {"html-content": self.loop_variable_text('t')}
+"""
+
+
+class TestRequiredLoopVariables:
+    # The paper (sec. 5): an operator reports an error if a required value is
+    # missing at its first tuple, on any input, whether or not its code reads
+    # the value then. A JVM operator's binding fails there, naming each
+    # property no state message could write (StateReferenceBinding.bind).
+
+    def test_binding_fails_for_a_required_variable_no_state_carried(self):
+        op = _ConcreteOperator()
+        op.require_loop_variables(["t"])
+        op.register_state(State({"i": 1}))
+        with pytest.raises(RuntimeError) as excinfo:
+            op.bind_loop_variables()
+        assert str(excinfo.value) == _missing("t")
+
+    def test_binding_fails_when_no_state_arrived_at_all(self):
+        # A source, or a body operator whose first tuple came before any state.
+        op = _ConcreteOperator()
+        op.require_loop_variables(["t"])
+        with pytest.raises(RuntimeError) as excinfo:
+            op.bind_loop_variables()
+        assert str(excinfo.value) == _missing("t")
+
+    def test_binding_names_every_variable_it_cannot_take_in_one_error(self):
+        # As the JVM's binding does, in order, joined by "; ": a missing name,
+        # and values a text property refuses (a list, an integer past 64 bits).
+        op = _ConcreteOperator()
+        op.require_loop_variables(["m", "big", "t", "i"])
+        op.register_state(State({"i": 1, "m": [1, 2], "big": 2**64}))
+        with pytest.raises(RuntimeError) as excinfo:
+            op.bind_loop_variables()
+        assert str(excinfo.value) == "; ".join(
+            [
+                "the operator refers to loop variable $m, but its value [1, 2] "
+                "is not a scalar",
+                "the operator refers to loop variable $big, but its value "
+                "18446744073709551616 does not fit in the 64-bit integer a JVM "
+                "operator reads it as",
+                _missing("t"),
+            ]
+        )
+
+    def test_a_failed_binding_binds_nothing_and_the_next_one_can_succeed(self):
+        # As on the JVM, the values stay unbound after a failed binding: the
+        # text still reads every state, and the next binding, before the next
+        # tuple, takes the values once every required one has arrived.
+        op = _ConcreteOperator()
+        op.require_loop_variables(["t"])
+        op.register_state(State({"i": 1, "t": [1]}))
+        with pytest.raises(RuntimeError, match="is not a scalar"):
+            op.bind_loop_variables()
+        op.register_state(State({"i": 2, "t": "x"}))
+        assert op.loop_variable_text("i") == "2"
+        op.bind_loop_variables()
+        op.register_state(State({"i": 3, "t": "y"}))
+        assert op.loop_variable_text("i") == "2"
+        assert op.loop_variable_text("t") == "x"
+
+    def test_only_the_required_variables_need_to_arrive(self):
+        # A loop variable no property refers to is UDF code's to read, if it
+        # comes at all: binding does not wait for it.
+        op = _ConcreteOperator()
+        op.require_loop_variables(["t"])
+        op.register_state(State({"t": "x"}))
+        op.bind_loop_variables()
+        assert op.loop_variable_text("t") == "x"
+        with pytest.raises(RuntimeError, match=r"\$i, but no state message"):
+            op.loop_variable_text("i")
+
+    def test_requiring_reaches_the_one_operator_only(self):
+        # The default lives on the class, so a requirement written there would
+        # reach every operator.
+        target, bystander = _ConcreteOperator(), _ConcreteOperator()
+        target.require_loop_variables(["t"])
+        for op in (target, bystander):
+            op.register_state(State({"i": 1}))
+        with pytest.raises(RuntimeError, match=r"\$t, but no state message"):
+            target.bind_loop_variables()
+        bystander.bind_loop_variables()
+        assert bystander.loop_variable_text("i") == "1"
+
+    def test_generated_code_that_skips_its_read_still_fails_at_binding(self):
+        # An empty input takes the chart's early return, which never reads $t;
+        # the binding before it reports the missing value all the same.
+        namespace: dict = {"__name__": "generated_chart_operator"}
+        exec(_GENERATED_CHART_TEMPLATE, namespace)
+        op = namespace["ProcessTableOperator"]()
+        op.require_loop_variables(["t"])
+        op.register_state(State({"i": 1}))
+        with pytest.raises(RuntimeError) as excinfo:
+            op.bind_loop_variables()
+        assert str(excinfo.value) == _missing("t")
+
+
+# Generated on the JVM, JDK 17 as the engine's images run it: each value's JSON
+# as pyamber's State.to_json writes it, read by the JVM's State.fromJson, then
+# turned to text as a JVM operator's text property binds it (value.toString in
+# StateReferenceBinding).
+_JVM_TEXT_OF_JSON = [
+    ("0", "0"),
+    ("1", "1"),
+    ("-1", "-1"),
+    ("42", "42"),
+    ("2147483648", "2147483648"),
+    ("9007199254740993", "9007199254740993"),
+    ("9223372036854775807", "9223372036854775807"),
+    ("-9223372036854775808", "-9223372036854775808"),
+    ("0.0", "0.0"),
+    ("-0.0", "-0.0"),
+    ("1.0", "1.0"),
+    ("-2.5", "-2.5"),
+    ("100.0", "100.0"),
+    ("1200.0", "1200.0"),
+    ("123.0", "123.0"),
+    ("123.456", "123.456"),
+    ("0.1", "0.1"),
+    ("0.3333333333333333", "0.3333333333333333"),
+    ("4.35", "4.35"),
+    ("0.001", "0.001"),
+    ("0.0009999999999999998", "9.999999999999998E-4"),
+    ("0.00099", "9.9E-4"),
+    ("0.0005", "5.0E-4"),
+    ("-1.5e-05", "-1.5E-5"),
+    ("1e-07", "1.0E-7"),
+    ("1234567.0", "1234567.0"),
+    ("9999999.999999998", "9999999.999999998"),
+    ("10000000.0", "1.0E7"),
+    ("10000000.5", "1.00000005E7"),
+    ("12345678.9", "1.23456789E7"),
+    ("1e+16", "1.0E16"),
+    ("1e+21", "1.0E21"),
+    ("9007199254740992.0", "9.007199254740992E15"),
+    ("1.7976931348623157e+308", "1.7976931348623157E308"),
+    ("2.2250738585072014e-308", "2.2250738585072014E-308"),
+    ("1e-320", "1.0E-320"),
+    ("1.5e+300", "1.5E300"),
+    ("true", "true"),
+    ("false", "false"),
+    ('"AAPL"', "AAPL"),
+    ('""', ""),
+    ('" padded "', " padded "),
+    ('"\\u4f60\\u597d \\ud83d\\udc4b"', "你好 👋"),
+    ('"1e7"', "1e7"),
+    ('"true"', "true"),
+    ('"line\\nbreak"', "line\nbreak"),
+]
+
+# Doubles JDK 17 spells with other digits than the fewest that read back as the
+# value (JDK-4511638, fixed in JDK 19): (JSON, JDK 17's text, pyamber's text).
+_JDK_17_OTHER_DIGITS = [
+    ("1e+23", "9.999999999999999E22", "1.0E23"),
+    ("2e+23", "1.9999999999999998E23", "2.0E23"),
+    ("2.82879384806159e+17", "2.82879384806159008E17", "2.82879384806159E17"),
+    ("5.960464477539063e-08", "5.9604644775390625E-8", "5.960464477539063E-8"),
+    ("5e-324", "4.9E-324", "5.0E-324"),
+]
+
+# Integers past 64 bits: (JSON, the wrapped long the JVM reads).
+_JVM_WRAPPED_INTEGERS = [
+    ("9223372036854775808", "-9223372036854775808"),
+    ("-9223372036854775809", "9223372036854775807"),
+    ("18446744073709551616", "0"),
+    ("100000000000000000000", "7766279631452241920"),
+]
+
+
+def _received(json_value: str) -> _ConcreteOperator:
+    """An operator that received a state carrying `v` as this JSON."""
+    op = _ConcreteOperator()
+    op.register_state(State.from_json('{"v":' + json_value + "}"))
+    return op
+
+
+class TestLoopVariableTextParity:
+    def test_spells_each_value_as_a_jvm_operators_text_property_binds_it(self):
+        texts = [
+            (json, _received(json).loop_variable_text("v"))
+            for json, _ in _JVM_TEXT_OF_JSON
+        ]
+        assert texts == _JVM_TEXT_OF_JSON
+
+    @pytest.mark.parametrize("json_value, jdk_17, text", _JDK_17_OTHER_DIGITS)
+    def test_a_double_jdk_17_spells_otherwise_keeps_the_fewest_digits(
+        self, json_value, jdk_17, text
+    ):
+        # Java's notation over Python's shortest digits: the text JDK 19 and
+        # later print, and the same double JDK 17's text reads back as.
+        assert _received(json_value).loop_variable_text("v") == text
+        assert float(text) == float(jdk_17) == float(json_value)
+
+    @pytest.mark.parametrize("json_value, jvm_long", _JVM_WRAPPED_INTEGERS)
+    def test_refuses_an_integer_a_jvm_operator_reads_as_another(
+        self, json_value, jvm_long
+    ):
+        # The JVM's State.fromJson keeps an integer as a 64-bit long, so it
+        # reads this one wrapped, as jvm_long; refusing it keeps the generated
+        # code from reading another number than a JVM operator.
+        with pytest.raises(RuntimeError) as excinfo:
+            _received(json_value).loop_variable_text("v")
+        assert str(excinfo.value) == (
+            f"the operator refers to loop variable $v, but its value {json_value} "
+            "does not fit in the 64-bit integer a JVM operator reads it as"
+        )
+
+    @pytest.mark.parametrize(
+        "json_value, text",
+        [("NaN", "NaN"), ("Infinity", "Infinity"), ("-Infinity", "-Infinity")],
+    )
+    def test_spells_nan_and_infinity_as_java_does(self, json_value, text):
+        # The JVM's State.fromJson rejects such a message (Jackson's default),
+        # so no JVM operator reads one; the text is Double.toString's.
+        assert _received(json_value).loop_variable_text("v") == text
 
 
 class TestBatchOperatorValidation:

@@ -24,6 +24,7 @@ import org.apache.pekko.actor.{ActorSystem, Props}
 import org.apache.pekko.testkit.{ImplicitSender, TestKit}
 import org.apache.pekko.util.Timeout
 import org.apache.texera.amber.clustering.SingleNodeListener
+import org.apache.texera.amber.core.tuple.{Attribute, AttributeType}
 import org.apache.texera.amber.core.virtualidentity.OperatorIdentity
 import org.apache.texera.amber.core.workflow.{
   ExecutionMode,
@@ -40,7 +41,7 @@ import org.apache.texera.amber.engine.e2e.TestUtils.{
   setUpWorkflowExecutionData,
   workflowContext
 }
-import org.apache.texera.amber.operator.LogicalOp
+import org.apache.texera.amber.operator.{LogicalOp, TestOperators}
 import org.apache.texera.amber.operator.filter.{
   ComparisonType,
   FilterPredicate,
@@ -48,6 +49,11 @@ import org.apache.texera.amber.operator.filter.{
 }
 import org.apache.texera.amber.operator.limit.LimitOpDesc
 import org.apache.texera.amber.operator.loop.{LoopEndOpDesc, LoopStartOpDesc}
+import org.apache.texera.amber.operator.machineLearning.sklearnAdvanced.SVRTrainer.{
+  SklearnAdvancedSVRParameters,
+  SklearnAdvancedSVRTrainerOpDesc
+}
+import org.apache.texera.amber.operator.machineLearning.sklearnAdvanced.base.HyperParameters
 import org.apache.texera.amber.operator.sleep.SleepOpDesc
 import org.apache.texera.amber.operator.source.scan.text.TextInputSourceOpDesc
 import org.apache.texera.amber.operator.udf.python.PythonUDFOpDescV2
@@ -195,6 +201,22 @@ class LoopIntegrationSpec
     op
   }
 
+  /**
+    * An SVM regressor fitting the sales CSV's Unit Cost on its Unit Price, with one hyperparameter
+    * row: `C = c`. A Python operator whose code the descriptor generates before the loop runs; its
+    * `Parameters` output column records each fit's hyperparameters as text ("C = 2.0,").
+    */
+  private def svrTrainer(c: String): SklearnAdvancedSVRTrainerOpDesc = {
+    val op = new SklearnAdvancedSVRTrainerOpDesc()
+    val row = new HyperParameters[SklearnAdvancedSVRParameters]()
+    row.parameter = SklearnAdvancedSVRParameters.C
+    row.value = c
+    op.paraList = List(row)
+    op.selectedFeatures = List("Unit Price")
+    op.groundTruthAttribute = "Unit Cost"
+    op
+  }
+
   /** A Limit whose Int `limit` is `"$name"`, parsed as the editor's JSON is, into a placeholder. */
   private def limitReferringTo(name: String): LogicalOp =
     objectMapper.readValue(s"""{"operatorType":"Limit","limit":"$$$name"}""", classOf[LogicalOp])
@@ -237,8 +259,64 @@ class LoopIntegrationSpec
     op
   }
 
+  /** A Python UDF that adds an `i` column to every row it passes: loop variable `i`, as it reads
+    * it off `self.loop_variables` in `process_tuple`.
+    */
+  private def pythonUDFReadingLoopVariableInProcessTuple(): PythonUDFOpDescV2 = {
+    val op = new PythonUDFOpDescV2()
+    op.code = """from pytexera import *
+                |
+                |class ProcessTupleOperator(UDFOperatorV2):
+                |
+                |    @overrides
+                |    def process_tuple(self, tuple_: Tuple, port: int) -> Iterator[Optional[TupleLike]]:
+                |        tuple_["i"] = self.loop_variables["i"]
+                |        yield tuple_
+                |""".stripMargin
+    op.workers = 1
+    op.retainInputColumns = true
+    op.outputColumns = List(new Attribute("i", AttributeType.INTEGER))
+    op
+  }
+
+  /** As `pythonUDFReadingLoopVariableInProcessTuple`, but reading `i` in `process_table`, which
+    * runs once its input has ended, after every state message on it arrived.
+    */
+  private def pythonUDFReadingLoopVariableInProcessTable(): PythonUDFOpDescV2 = {
+    val op = new PythonUDFOpDescV2()
+    op.code = """from pytexera import *
+                |
+                |class ProcessTableOperator(UDFTableOperator):
+                |
+                |    @overrides
+                |    def process_table(self, table: Table, port: int) -> Iterator[Optional[TableLike]]:
+                |        for line in table["line"]:
+                |            yield {"line": line, "i": self.loop_variables["i"]}
+                |""".stripMargin
+    op.workers = 1
+    op.retainInputColumns = true
+    op.outputColumns = List(new Attribute("i", AttributeType.INTEGER))
+    op
+  }
+
   private def link(from: LogicalOp, to: LogicalOp): LogicalLink =
     LogicalLink(from.operatorIdentifier, PortIdentity(), to.operatorIdentifier, PortIdentity())
+
+  /** Run the loop workflow and return the (line, i) rows the Loop End `end` materialized, sorted. */
+  private def runAndGetLinesWithLoopVariable(
+      operators: List[LogicalOp],
+      links: List[LogicalLink],
+      end: LogicalOp
+  ): List[(String, Int)] =
+    runWorkflowAndReadResults(
+      system,
+      buildWorkflow(operators, links, materializedContext()),
+      List(end.operatorIdentifier),
+      _.get().toList,
+      Duration.fromSeconds(90)
+    ).getOrElse(end.operatorIdentifier, Nil)
+      .map(row => (row.getField[String]("line"), row.getField[Int]("i")))
+      .sorted
 
   "Engine" should "run a single TextInput -> LoopStart -> LoopEnd loop for exactly 3 iterations" in {
     val src = textInput("1\n2\n3")
@@ -332,6 +410,50 @@ class LoopIntegrationSpec
       endRows == 3,
       s"LoopEnd must accumulate all 3 iterations with a Scala operator in the " +
         s"loop body: expected 3, got $endRows (all: $materialized)"
+    )
+  }
+
+  it should "read a $i loop-variable reference in a Python-generated operator's property on every iteration" in {
+    // Sales CSV -> LoopStart(i = 1 / table) -> SVR trainer(C = $i) -> LoopEnd(i <= 3).
+    //
+    // The trainer's Python is generated before the loop runs. pyb renders the C value "$i" as an
+    // expression the operator evaluates when it trains, and because the trainer sits inside the
+    // block, the compiler had that expression read `i` from the iteration's state message
+    // (self.loop_variable_text('i')), which the region's input reader replays before the tuples.
+    // LoopStart hands the whole table to both inputs (training, then parameter) every iteration,
+    // so each iteration fits once and the LoopEnd accumulates one row per iteration, its
+    // Parameters naming the C that fit used. The literal "$i" would fail float("$i") and fail
+    // the run; a reference that never rebinds to the new i would repeat one C.
+    val src = TestOperators.smallCsvScanOpDesc()
+    val start = loopStart("i = 1", "table")
+    val trainer = svrTrainer("$i")
+    val end = loopEnd("i += 1", "i <= 3")
+    val results = runWorkflowAndReadResults(
+      system,
+      buildWorkflow(
+        List(src, start, trainer, end),
+        List(
+          link(src, start),
+          link(start, trainer),
+          LogicalLink(
+            start.operatorIdentifier,
+            PortIdentity(),
+            trainer.operatorIdentifier,
+            PortIdentity(1)
+          ),
+          link(trainer, end)
+        ),
+        materializedContext()
+      ),
+      List(end.operatorIdentifier),
+      _.get().toList,
+      Duration.fromSeconds(90)
+    )
+    val parameters =
+      results.getOrElse(end.operatorIdentifier, Nil).map(_.getField[String]("Parameters")).sorted
+    assert(
+      parameters == List("C = 1.0,", "C = 2.0,", "C = 3.0,"),
+      s"each iteration's fit must use its own i as C: got $parameters"
     )
   }
 
@@ -493,6 +615,49 @@ class LoopIntegrationSpec
       endRows == 3,
       s"LoopEnd must accumulate all 3 iterations with a state-emitting " +
         s"operator in the loop body: expected 3, got $endRows (all: $materialized)"
+    )
+  }
+
+  it should "read a loop variable in a Python UDF on every iteration" in {
+    // TextInput("a","b","c") -> LoopStart(i = 0 / table.iloc[i]) -> Python UDF -> LoopEnd.
+    // Iteration i hands the UDF the row of index i, and the UDF adds the i it reads off
+    // self.loop_variables in process_tuple, so the LoopEnd accumulates (a, 0), (b, 1), (c, 2).
+    // A UDF that kept reading the first iteration's i would write 0 on every row.
+    val src = textInput("a\nb\nc")
+    val start = loopStart("i = 0", "table.iloc[i]")
+    val mid = pythonUDFReadingLoopVariableInProcessTuple()
+    val end = loopEnd("i += 1", "i < len(table)")
+    val rows = runAndGetLinesWithLoopVariable(
+      List(src, start, mid, end),
+      List(link(src, start), link(start, mid), link(mid, end)),
+      end
+    )
+    assert(
+      rows == List(("a", 0), ("b", 1), ("c", 2)),
+      s"each iteration's row must carry that iteration's i: got $rows"
+    )
+  }
+
+  it should "read a loop variable in a Python UDF after another body operator's own state arrives" in {
+    // TextInput("a","b","c") -> LoopStart(i = 0 / table.iloc[i]) -> stateful Python UDF
+    //   -> Python UDF reading i in process_table -> LoopEnd.
+    // The first UDF returns its own state, {"note": ...}, from produce_state_on_finish, so the
+    // second receives that state after the loop's. process_table runs once the input ends, after
+    // both arrived, and must still read the loop's i: that state names no loop variable, so it
+    // must not hide one. Reading only the latest state message would fail with KeyError 'i'.
+    val src = textInput("a\nb\nc")
+    val start = loopStart("i = 0", "table.iloc[i]")
+    val first = statefulPythonUDF()
+    val second = pythonUDFReadingLoopVariableInProcessTable()
+    val end = loopEnd("i += 1", "i < len(table)")
+    val rows = runAndGetLinesWithLoopVariable(
+      List(src, start, first, second, end),
+      List(link(src, start), link(start, first), link(first, second), link(second, end)),
+      end
+    )
+    assert(
+      rows == List(("a", 0), ("b", 1), ("c", 2)),
+      s"each iteration's row must carry that iteration's i: got $rows"
     )
   }
 
