@@ -27,7 +27,10 @@ from pathlib import Path
 from typing import Tuple, Optional
 
 from core.models import Operator, SourceOperator
-from core.models.operator import referenced_loop_variables
+from core.models.operator import (
+    referenced_loop_variable_values,
+    referenced_loop_variables,
+)
 
 
 def pytexera_names() -> set:
@@ -435,6 +438,9 @@ class ExecutorManager:
             # Binding requires the loop variables the operator's properties
             # refer to: the ones its generated code reads.
             self.executor.require_loop_variables(referenced_loop_variables(code))
+            self.executor.require_loop_variable_values(
+                referenced_loop_variable_values(code)
+            )
         assert isinstance(self.executor, SourceOperator) == self.executor.is_source, (
             self._source_mismatch_message(is_source)
         )

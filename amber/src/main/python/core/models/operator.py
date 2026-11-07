@@ -19,6 +19,7 @@ import math
 import overrides
 import pandas
 import re
+import unicodedata
 from functools import lru_cache
 from abc import ABC, abstractmethod
 from collections import defaultdict
@@ -132,6 +133,13 @@ _LOOP_VARIABLE_TEXT_LOOKUP = re.compile(
 )
 
 
+# The same for a numeric or boolean property's reference, its kind beside it
+# (PythonOperatorDescriptor.loopVariableValueLookup).
+_LOOP_VARIABLE_VALUE_LOOKUP = re.compile(
+    r"self\.loop_variable_value\('([A-Za-z_][A-Za-z0-9_]*)', '([a-z]+)'\)"
+)
+
+
 def referenced_loop_variables(code: str) -> List[str]:
     """
     The loop variables ``code`` reads through ``Operator.loop_variable_text``,
@@ -139,6 +147,147 @@ def referenced_loop_variables(code: str) -> List[str]:
     control block, the ones its properties refer to.
     """
     return sorted(set(_LOOP_VARIABLE_TEXT_LOOKUP.findall(code)))
+
+
+def referenced_loop_variable_values(code: str) -> List[tuple]:
+    """
+    The loop variables ``code`` reads through ``Operator.loop_variable_value``,
+    each as its name and kind, once, in that order: in the code generated for
+    an operator inside a control block, the ones its numeric and boolean
+    properties refer to.
+    """
+    return sorted(set(_LOOP_VARIABLE_VALUE_LOOKUP.findall(code)))
+
+
+# Each kind loop_variable_value reads, and what a value of it is called.
+_VALUE_KINDS = {
+    "integer": "an integer",
+    "long": "an integer",
+    "number": "a number",
+    "boolean": "a boolean",
+}
+
+
+def _check_value_kind(name: str, kind: str) -> None:
+    """Refuse a kind the generated code never asks ``loop_variable_value`` for."""
+    if kind not in _VALUE_KINDS:
+        raise ValueError(
+            f"loop variable ${name} cannot be read as {kind!r}: "
+            "the kind is one of 'integer', 'long', 'number' and 'boolean'"
+        )
+
+
+def _loop_variable_value(
+    name: str, kind: str, variables: Mapping[str, Any], bound: bool
+) -> Union[int, float, bool]:
+    """
+    Loop variable ``name`` of ``variables`` as ``Operator.loop_variable_value``
+    reads it as a ``kind``; ``bound`` as for ``_loop_variable_text``.
+    """
+    _check_value_kind(name, kind)
+    text = _loop_variable_text(name, variables, bound).strip(_JAVA_TRIMMED)
+    if kind in ("integer", "long"):
+        value = _parse_java_long(text)
+    elif kind == "number":
+        value = _parse_java_double(text)
+    else:
+        # Scala's toBooleanOption: equalsIgnoreCase, which also takes the
+        # long s (ſ) for an s, as its upper case is S.
+        value = {"TRUE": True, "FALSE": False}.get(text.upper())
+    if value is None:
+        raise RuntimeError(
+            f"the operator refers to loop variable ${name}, "
+            f"but its value {variables[name]!r} is not {_VALUE_KINDS[kind]}"
+        )
+    if kind == "integer" and not -(2**31) <= value < 2**31:
+        raise RuntimeError(
+            f"the operator refers to loop variable ${name}, "
+            f"but its value {variables[name]!r} does not fit its property, "
+            "a 32-bit integer"
+        )
+    return value
+
+
+# What Java's String.trim drops from either end of a text: every character from
+# U+0000 to U+0020, the space and the control characters below it, and nothing
+# above it.
+_JAVA_TRIMMED = "".join(map(chr, range(0x21)))
+
+# The numerals Java's Double.parseDouble reads, besides NaN and Infinity: a
+# decimal one, or a hexadecimal one with a binary exponent, each with an
+# optional sign and an f, F, d or D suffix that changes nothing. Their digits
+# are ASCII ones.
+_JAVA_DECIMAL_DOUBLE = re.compile(
+    r"[+-]?(?:[0-9]+\.?[0-9]*|\.[0-9]+)(?:[eE][+-]?[0-9]+)?[fFdD]?"
+)
+_JAVA_HEX_DOUBLE = re.compile(
+    r"[+-]?0[xX](?:[0-9a-fA-F]+\.?|[0-9a-fA-F]*\.[0-9a-fA-F]+)[pP][+-]?[0-9]+[fFdD]?"
+)
+
+# The numerals Java's new BigDecimal(String) reads, their digits as ASCII ones:
+# a sign, digits with at most one point, and an exponent; groups: the sign, the
+# digits before the point, the digits after it, the exponent.
+_JAVA_BIG_DECIMAL = re.compile(r"([+-]?)([0-9]*)(?:\.([0-9]*))?(?:[eE]([+-]?[0-9]+))?")
+
+
+def _parse_java_double(text: str) -> Optional[float]:
+    """
+    ``text`` read as Java's ``Double.parseDouble`` reads a trimmed text, or
+    ``None`` where that throws. Python's ``float`` reads more (``inf``,
+    ``nan``, ``1_000``, other scripts' digits) and less (``2.5d``,
+    ``0x1p3``).
+    """
+    unsigned = text[1:] if text[:1] in ("+", "-") else text
+    if unsigned == "NaN":
+        return math.nan
+    if unsigned == "Infinity":
+        return -math.inf if text[0] == "-" else math.inf
+    if _JAVA_DECIMAL_DOUBLE.fullmatch(text):
+        return float(text.rstrip("fFdD"))
+    if _JAVA_HEX_DOUBLE.fullmatch(text):
+        try:
+            return float.fromhex(text.rstrip("fFdD"))
+        except OverflowError:  # Java rounds it to an infinity
+            return -math.inf if text[0] == "-" else math.inf
+    return None
+
+
+def _parse_java_long(text: str) -> Optional[int]:
+    """
+    ``text`` read as Java's ``new BigDecimal(text).longValueExact()`` reads a
+    trimmed text, or ``None`` where that throws: a numeral that is a whole
+    number within a signed 64-bit long, such as ``42``, ``4.2e1`` or ``3.0``.
+    Its digits may be any script's, but only of the Basic Multilingual Plane,
+    as Java reads a text one UTF-16 unit at a time, and its exponent and
+    scale must each fit a 32-bit int. Python's ``Decimal`` reads more
+    (``inf``, ``nan``, ``1_000``, an exponent of any size).
+    """
+    if any(ord(char) > 0xFFFF for char in text):
+        return None
+    ascii_text = "".join(
+        str(unicodedata.decimal(char)) if char.isdecimal() else char for char in text
+    )
+    match = _JAVA_BIG_DECIMAL.fullmatch(ascii_text)
+    if match is None or not (match[2] or match[3]):
+        return None
+    sign, whole, fraction, exponent = match.groups(default="")
+    exponent_digits = exponent.lstrip("+-").lstrip("0")
+    if len(exponent_digits) > 10:
+        return None
+    power = int(exponent_digits or "0") * (-1 if exponent[:1] == "-" else 1)
+    scale = len(fraction) - power
+    if not -(2**31) <= power < 2**31 or not -(2**31) <= scale < 2**31:
+        return None
+    digits = (whole + fraction).lstrip("0")
+    if not digits:
+        return 0
+    # The value is significant * 10**shift, a whole number when shift >= 0.
+    significant = digits.rstrip("0")
+    shift = len(digits) - len(significant) - scale
+    if shift < 0 or len(significant) + shift > 19:
+        return None
+    value = int(sign + significant) * 10**shift
+    return value if -(2**63) <= value < 2**63 else None
 
 
 class Operator(ABC):
@@ -211,6 +360,38 @@ class Operator(ABC):
             return _loop_variable_text(name, self.loop_variables, False)
         return _loop_variable_text(name, bound, True)
 
+    def loop_variable_value(self, name: str, kind: str) -> Union[int, float, bool]:
+        """
+        The value of loop variable ``name`` as a ``kind``. Inside a control
+        block, the code generated for an operator calls this where a numeric or
+        boolean property holds ``$name``, in place of the value written into
+        the code, so the value is read when the code runs. It is read from the
+        variable's text (``loop_variable_text``, so the values bound at the
+        operator's first tuple), as a JVM operator's numeric or boolean
+        property binds it (``StateReferenceBinding``): the text trimmed as
+        Java's ``String.trim`` trims it, then an integer as
+        ``new BigDecimal(text).longValueExact()`` reads it (a whole number
+        within a signed 64-bit long, and within 32 bits for an int property,
+        as Jackson refuses a larger one there), a number as
+        ``Double.parseDouble`` does, and a boolean as ``true`` or ``false`` in
+        any case, never ``1`` or ``0``.
+
+        :param name: str, the loop variable's name, without the leading ``$``.
+        :param kind: str, the property that holds ``$name``: ``integer`` (a
+            Java ``int`` or ``Integer``), ``long`` (a ``long`` or ``Long``),
+            ``number`` or ``boolean``.
+        :return: int, float or bool, the variable's value as ``kind``.
+        """
+        _check_value_kind(name, kind)
+        bound = self.__internal_bound_loop_variables
+        if bound is None and self.__internal_loop_variables is None:
+            raise RuntimeError(
+                f"loop variable ${name} is read before the iteration's state arrived"
+            )
+        if bound is None:
+            return _loop_variable_value(name, kind, self.loop_variables, False)
+        return _loop_variable_value(name, kind, bound, True)
+
     __internal_is_source: bool = False
 
     # The loop variables received so far, by name, and the nesting depth of
@@ -226,6 +407,9 @@ class Operator(ABC):
     # The loop variables the operator's properties refer to, which binding
     # requires; see ``require_loop_variables``.
     __internal_required_loop_variables: Sequence[str] = ()
+    # The same for its numeric and boolean properties, each with its kind; see
+    # ``require_loop_variable_values``.
+    __internal_required_loop_variable_values: Sequence[tuple] = ()
 
     @property
     @overrides.final
@@ -281,6 +465,22 @@ class Operator(ABC):
         self.__internal_required_loop_variables = tuple(names)
 
     @overrides.final
+    def require_loop_variable_values(self, references: Iterable[tuple]) -> None:
+        """
+        As ``require_loop_variables``, for the operator's numeric and boolean
+        properties, which its generated code reads through
+        ``loop_variable_value``: each reference is the loop variable's name and
+        the kind it is read as (``referenced_loop_variable_values``). Binding
+        then also fails while one of them has no value its property can take.
+
+        :param references: Iterable[tuple], each loop variable's name, without
+            ``$``, and kind.
+        """
+        self.__internal_required_loop_variable_values = tuple(
+            (name, kind) for name, kind in references
+        )
+
+    @overrides.final
     def bind_loop_variables(self) -> None:
         """
         Fix the loop variables the operator's own properties read
@@ -293,12 +493,13 @@ class Operator(ABC):
         message for UDF code to read. The next iteration runs on a fresh
         worker, which binds again.
 
-        Binding fails, naming each one in one error, while a loop variable the
-        operator requires (``require_loop_variables``) has no value its text
-        property can take: no state message carried it, or the value is not a
-        scalar or not within 64 bits. As a JVM operator's binding does, it then
-        binds nothing, whether or not the code would read the value, and a
-        later binding tries again.
+        Binding fails, naming each one in one error, the texts first, while a
+        loop variable the operator requires (``require_loop_variables``,
+        ``require_loop_variable_values``) has no value its property can take:
+        no state message carried it, or the value is not a scalar, not within
+        64 bits, or not of the property's kind. As a JVM operator's binding
+        does, it then binds nothing, whether or not the code would read the
+        value, and a later binding tries again.
         """
         if self.__internal_bound_loop_variables is not None:
             return
@@ -307,6 +508,11 @@ class Operator(ABC):
         for name in self.__internal_required_loop_variables:
             try:
                 _loop_variable_text(name, variables, True)
+            except RuntimeError as error:
+                problems.append(str(error))
+        for name, kind in self.__internal_required_loop_variable_values:
+            try:
+                _loop_variable_value(name, kind, variables, True)
             except RuntimeError as error:
                 problems.append(str(error))
         if problems:

@@ -48,7 +48,11 @@ import org.apache.texera.amber.core.workflow.{
 }
 import org.apache.texera.amber.core.workflowruntimestate.FatalErrorType.COMPILATION_ERROR
 import org.apache.texera.amber.core.workflowruntimestate.WorkflowFatalError
-import org.apache.texera.amber.operator.PythonOperatorDescriptor.{loopVariableLookup, runsAtStartup}
+import org.apache.texera.amber.operator.PythonOperatorDescriptor.{
+  LoopVariableBinding,
+  loopVariableLookup,
+  runsAtStartup
+}
 import org.apache.texera.amber.operator.{LogicalOp, PythonOperatorDescriptor}
 import org.apache.texera.amber.util.JSONUtils.objectMapper
 import org.apache.texera.amber.util.StackTraceUtils.getStackTraceWithAllCauses
@@ -171,22 +175,32 @@ object WorkflowCompiler {
     * state message writes the loop variable into the descriptor that executor parsed. An operator
     * whose executor runs code instead -- a UDF, or a descriptor that generates Python from its
     * properties, such as the sklearn operators -- never takes that path: its code is built before
-    * the loop runs. A UDF's code and properties are the user's, and nothing binds them. In
-    * generated code a typed placeholder is a value, so nothing binds it either. A String
-    * property's `$name` is bound only where pyb's decoder rendered it, which
-    * `PythonOperatorDescriptor` turned into a read of the loop state, `loopVariableLookup(name)`,
-    * and then only if the code holds the text `$name` nowhere (where it does, the code pastes it
-    * in as it is), the code reads it nowhere when the operator starts (in `open` or `__init__`,
-    * `PythonOperatorDescriptor.runsAtStartup`), before the iteration's state can arrive, and no
-    * output column the operator adds holds the text (its schema is computed from the literal).
-    * When the generation failed there is no code to read either way, and the code-generation
-    * check reports why it failed instead.
+    * the loop runs. A UDF's code and properties are the user's, and nothing binds them.
+    *
+    * A generated operator's references are all decided here, from `binding`, its
+    * `loopVariableBinding`: the code generated once, which its physical operator runs. A numeric
+    * or boolean property's value is read from the loop state where the descriptor found it written
+    * into its code; the binding says why when it cannot be (`unbound`), or when the value decides
+    * the output schemas (`unboundBySchema`). A String property's `$name` is bound only where pyb's
+    * decoder rendered it, which `PythonOperatorDescriptor` turned into a read of the loop state,
+    * `loopVariableLookup(name)`, and then only if the code holds the text `$name` nowhere (where it
+    * does, the code pastes it in as it is) and no output column the operator adds holds the text
+    * (its schema is computed from the literal), and the code reads it nowhere when the operator
+    * starts (in `open` or `__init__`, `PythonOperatorDescriptor.runsAtStartup`), before the
+    * iteration's state can arrive; the binding tells the same of a numeric or boolean value. The
+    * texts are judged once every numeric or boolean reference is bound: until then the code holds
+    * a probe value in its place, which may decide what the code reads.
+    * When the generation failed (with every probe value and with the properties' defaults, where
+    * a numeric or boolean property refers to a loop variable) there is no code to read either
+    * way, and the code-generation check reports why it failed instead.
     *
     * @param physicalOps the operator's own physical operators, their schemas propagated.
+    * @param binding the operator's `loopVariableBinding`, if it generates its code.
     */
   def unbindableStateReferences(
       logicalOp: LogicalOp,
-      physicalOps: Iterable[PhysicalOp]
+      physicalOps: Iterable[PhysicalOp],
+      binding: Option[LoopVariableBinding]
   ): Option[Throwable] = {
     val codes = physicalOps.toSeq.map(_.opExecInitInfo).collect {
       case OpExecWithCode(code, language) => (code, language)
@@ -194,12 +208,8 @@ object WorkflowCompiler {
     if (logicalOp.stateReferences.isEmpty || codes.isEmpty) {
       None
     } else {
-      val generated =
-        logicalOp.isInstanceOf[PythonOperatorDescriptor] && codes.forall(_._2 == "python")
-      val unbound: Seq[(Iterable[String], String)] =
-        if (!generated) {
-          Seq(logicalOp.stateReferences.keys -> fixedInUdf)
-        } else {
+      val unbound: Seq[(Iterable[String], String)] = binding match {
+        case Some(generated) if codes.forall(_._2 == "python") =>
           val tree = objectMapper.valueToTree[ObjectNode](logicalOp)
           val text = textReferences(tree, logicalOp.stateReferences)
           val scripts = codes.map(_._1)
@@ -213,14 +223,32 @@ object WorkflowCompiler {
             else if (added.exists(_.contains("$" + name))) Some(namesOutputColumn)
             else None
           }
+          // As the schema propagation calls it: only once every input has a schema.
+          val bySchema = inputSchemasOf(physicalOps).fold(Map.empty[String, String])(
+            generated.unboundBySchema
+          )
+          val typedUnbound = generated.unbound ++ (bySchema -- generated.unbound.keys)
           val textReasons: Map[String, String] =
-            if (scripts.exists(failedCodeGeneration.findFirstIn(_).nonEmpty)) Map.empty
-            else text.flatMap { case (pointer, name) => whyUnbound(name).map(pointer -> _) }
-          ((logicalOp.stateReferences -- text.keys).keys -> writtenIntoCode) +:
-            Seq(pastedIntoCode, unreadByCode, readAtStartup, namesOutputColumn).map { why =>
-              textReasons.collect { case (pointer, `why`) => pointer } -> why
+            if (
+              typedUnbound.nonEmpty ||
+              scripts.exists(failedCodeGeneration.findFirstIn(_).nonEmpty)
+            ) {
+              Map.empty
+            } else {
+              text.flatMap { case (pointer, name) => whyUnbound(name).map(pointer -> _) }
             }
-        }
+          val typedReasons = typedUnbound
+            .groupMap(_._2)(_._1)
+            .toSeq
+            .sortBy { case (_, pointers) => pointers.min }
+            .map(_.swap)
+          typedReasons ++ Seq(pastedIntoCode, unreadByCode, readAtStartup, namesOutputColumn).map {
+            why =>
+              textReasons.collect { case (pointer, `why`) => pointer } -> why
+          }
+        case _ =>
+          Seq(logicalOp.stateReferences.keys -> fixedInUdf)
+      }
       val operator = logicalOp.operatorInfo.userFriendlyName
       val reasons = unbound.collect {
         case (pointers, why) if pointers.nonEmpty =>
@@ -233,14 +261,21 @@ object WorkflowCompiler {
 
   // Why a reference of an operator whose executor runs code is not bound, as the error says it.
   private val fixedInUdf = "its code and properties are fixed before the loop runs"
-  private val writtenIntoCode =
-    "numeric and boolean properties are written into its generated code before the loop runs"
   private val pastedIntoCode = "its code embeds the text before the loop runs"
   private val unreadByCode = "its code does not read the text when the loop runs"
   private val readAtStartup =
     "its code reads the text when the operator starts, before the iteration's state arrives"
   private val namesOutputColumn =
     "the text names an output column, which is set before the loop runs"
+
+  /** The input schemas of `physicalOps`, when every input port of theirs has one. */
+  private def inputSchemasOf(
+      physicalOps: Iterable[PhysicalOp]
+  ): Option[Map[PortIdentity, Schema]] = {
+    val ports = physicalOps.toSeq.flatMap(_.inputPorts.toSeq)
+    val schemas = ports.collect { case (port, (_, _, Right(schema))) => port -> schema }
+    Option.when(schemas.size == ports.size)(schemas.toMap)
+  }
 
   /** The columns `physicalOps` add: on an output port of theirs, but on no input port. */
   private def addedColumns(physicalOps: Iterable[PhysicalOp]): Set[String] = {
@@ -352,7 +387,19 @@ class WorkflowCompiler(
           }
         // Before the physical plan: the descriptor serializes its sidecar into its descString.
         normalizeStateReferences(logicalOp, logicalPlan).foreach(report)
-        val subPlan = logicalOp.getPhysicalPlan(context.workflowId, context.executionId)
+        // A generated operator's code is generated once, from probe values where a numeric or
+        // boolean property refers to a loop variable: its physical operator runs that code, and
+        // the check of its references below reads the same binding.
+        val (subPlan, binding) = logicalOp match {
+          case generator: PythonOperatorDescriptor =>
+            val binding = generator.loopVariableBinding
+            (
+              generator.getPhysicalPlan(context.workflowId, context.executionId, binding),
+              Some(binding)
+            )
+          case _ =>
+            (logicalOp.getPhysicalPlan(context.workflowId, context.executionId), None)
+        }
         subPlan
           .topologicalIterator()
           .map(subPlan.getOperator)
@@ -384,7 +431,7 @@ class WorkflowCompiler(
         val physicalOps = subPlan.topologicalIterator().map(physicalPlan.getOperator).toList
         // Before the code-generation check below: the first error per operator is reported, and
         // code generated from a placeholder may fail on it with a less specific message.
-        unbindableStateReferences(logicalOp, physicalOps).foreach(report)
+        unbindableStateReferences(logicalOp, physicalOps, binding).foreach(report)
 
         // **Check for Python-based operator errors during code generation**
         physicalOps.filter(_.isPythonBased).foreach { physicalOp =>
