@@ -31,6 +31,10 @@ export function createErrorResult(error: string): string {
   return `[ERROR] ${error}`;
 }
 
+export function isErrorResult(output: unknown): boolean {
+  return typeof output === "string" && output.startsWith("[ERROR]");
+}
+
 function formatLinkDescription(sourceOperatorId: string, targetOperatorId: string): string {
   return `${sourceOperatorId} --> ${targetOperatorId}`;
 }
