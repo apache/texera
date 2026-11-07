@@ -20,7 +20,17 @@ import pandas
 from functools import lru_cache
 from abc import ABC, abstractmethod
 from collections import defaultdict
-from typing import Iterator, List, Mapping, Optional, Union, MutableMapping, Protocol
+from types import MappingProxyType
+from typing import (
+    Any,
+    Iterator,
+    List,
+    Mapping,
+    Optional,
+    Union,
+    MutableMapping,
+    Protocol,
+)
 
 from . import Table, TableLike, Tuple, TupleLike, Batch, BatchLike, Schema
 from .state import State
@@ -91,6 +101,54 @@ class Operator(ABC):
         return self._get_template_decoder().decode(data)
 
     __internal_is_source: bool = False
+
+    # The loop variables received so far, by name, and the nesting depth of
+    # the message each value came in; see ``register_state``. ``None`` until
+    # the first state message. Class-level defaults rather than ``__init__``
+    # assignments: a subclass ``__init__`` that skips ``super()`` still reads
+    # no loop variables until a state arrives.
+    __internal_loop_variables: Optional[MutableMapping[str, Any]] = None
+    __internal_loop_variable_depths: Optional[MutableMapping[str, int]] = None
+
+    @property
+    @overrides.final
+    def loop_variables(self) -> Mapping[str, Any]:
+        """
+        The loop variables received from upstream, read-only: inside a control
+        block, the values the state messages handed to this operator carried,
+        by name. The runtime registers each message (``register_state``) right
+        before ``process_state`` runs, so the callback and every call after it
+        can read them. Empty until a state message arrives.
+        """
+        return MappingProxyType(self.__internal_loop_variables or {})
+
+    @overrides.final
+    def register_state(self, state: State, loop_counter: int = 0) -> None:
+        """
+        Merge the values ``state`` carries into ``loop_variables``. The runtime
+        calls this for every state message, with the nesting depth its envelope
+        carries (``loop_counter``): 0 from the innermost loop around this
+        operator, 1 from the loop around that, and so on. A state no loop sent,
+        such as one an operator returns from ``produce_state_on_finish``,
+        travels at depth 0.
+
+        For each name, the value from the smallest depth wins, and among the
+        values from that depth, the last one received. So an inner loop's
+        variable shadows an enclosing one of the same name, even when the
+        enclosing message arrives later, and a state replaces only the names it
+        carries.
+
+        :param state: State, the state message that arrived.
+        :param loop_counter: int, the message's nesting depth.
+        """
+        if self.__internal_loop_variables is None:
+            self.__internal_loop_variables = {}
+            self.__internal_loop_variable_depths = {}
+        for name, value in state.items():
+            depth = self.__internal_loop_variable_depths.get(name)
+            if depth is None or loop_counter <= depth:
+                self.__internal_loop_variables[name] = value
+                self.__internal_loop_variable_depths[name] = loop_counter
 
     @property
     @overrides.final
