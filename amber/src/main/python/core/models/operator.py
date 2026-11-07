@@ -108,21 +108,25 @@ class Operator(ABC):
         ``$name``, in place of decoding the literal, so the value is read when
         the code runs. It is spelled as a JVM operator's text property binds it
         (``StateReferenceBinding``): a boolean as ``true`` or ``false``, and
-        only a scalar at all.
+        only a scalar at all. From the operator's first tuple on, it reads the
+        values bound then instead (``bind_loop_variables``).
 
         :param name: str, the loop variable's name, without the leading ``$``.
         :return: str, the variable's value, as text.
         """
-        if self.__internal_loop_variables is None:
+        bound = self.__internal_bound_loop_variables
+        if bound is None and self.__internal_loop_variables is None:
             raise RuntimeError(
                 f"loop variable ${name} is read before the iteration's state arrived"
             )
-        if name not in self.loop_variables:
+        variables = self.loop_variables if bound is None else bound
+        if name not in variables:
             raise RuntimeError(
                 f"the operator refers to loop variable ${name}, "
                 "but no state message carried it"
+                + ("" if bound is None else " before the operator's first tuple")
             )
-        value = self.loop_variables[name]
+        value = variables[name]
         if isinstance(value, bool):
             return "true" if value else "false"
         if isinstance(value, (str, int, float)):
@@ -141,6 +145,9 @@ class Operator(ABC):
     # no loop variables until a state arrives.
     __internal_loop_variables: Optional[MutableMapping[str, Any]] = None
     __internal_loop_variable_depths: Optional[MutableMapping[str, int]] = None
+    # The loop variables as they were when the operator first saw data; see
+    # ``bind_loop_variables``. ``None`` until then.
+    __internal_bound_loop_variables: Optional[Mapping[str, Any]] = None
 
     @property
     @overrides.final
@@ -181,6 +188,22 @@ class Operator(ABC):
             if depth is None or loop_counter <= depth:
                 self.__internal_loop_variables[name] = value
                 self.__internal_loop_variable_depths[name] = loop_counter
+
+    @overrides.final
+    def bind_loop_variables(self) -> None:
+        """
+        Fix the loop variables the operator's own properties read
+        (``loop_variable_text``) to ``loop_variables`` as it is now. The runtime
+        calls this right before the operator's first tuple, on any input port,
+        and when an input port finishes, in case none came (a source produces
+        its output there); only the first call binds. So, as a JVM operator's
+        properties (``bindStateReferences``), they hold one value for the whole
+        iteration, while ``loop_variables`` still takes every later state
+        message for UDF code to read. The next iteration runs on a fresh
+        worker, which binds again.
+        """
+        if self.__internal_bound_loop_variables is None:
+            self.__internal_bound_loop_variables = dict(self.loop_variables)
 
     @property
     @overrides.final
