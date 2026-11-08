@@ -23,6 +23,7 @@ import com.flipkart.zjsonpatch.{JsonDiff, JsonPatch}
 import io.dropwizard.auth.Auth
 import org.apache.texera.amber.util.JSONUtils.objectMapper
 import org.apache.texera.auth.SessionUser
+import org.apache.texera.auth.util.WorkflowAccess
 import org.apache.texera.common.config.UserSystemConfig
 import org.apache.texera.dao.SqlServer
 import org.apache.texera.dao.jooq.generated.Tables.WORKFLOW_VERSION
@@ -64,8 +65,8 @@ object WorkflowVersionResource {
     * public viewer would hand them the edits the pin is holding back.
     */
   private def canReadHistory(wid: Integer, uid: Integer): Boolean =
-    WorkflowAccessResource.hasGrantedAccess(wid, uid) ||
-      (WorkflowAccessResource.hasReadAccess(wid, uid) &&
+    WorkflowAccess.hasGrantedAccess(wid, uid) ||
+      (WorkflowAccess.hasReadAccess(wid, uid) &&
         Option(workflowDao.fetchOneByWid(wid)).forall(_.getPublishedContent == null))
   // constant to indicate versions should be aggregated if they are within the specified time limit
   private final val AGGREGATE_TIME_LIMIT_MILLSEC =
