@@ -24,12 +24,13 @@
     <span
       nz-icon
       nzType="pushpin"
-      nzTheme="fill"
-      class="pinned-result__pin"></span>
+      nzTheme="fill"></span>
     <span class="pinned-result__title">{{ title }}</span>
     <button
+      nz-button
+      nzType="text"
+      nzSize="small"
       type="button"
-      class="pinned-result__close"
       [attr.aria-label]="'Unpin ' + title"
       (click)="closed.emit()">
       <span

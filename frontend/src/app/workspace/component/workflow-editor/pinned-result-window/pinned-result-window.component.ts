@@ -29,6 +29,7 @@ import {
   ViewChild,
 } from "@angular/core";
 import { NgFor, NgIf } from "@angular/common";
+import { NzButtonComponent } from "ng-zorro-antd/button";
 import { NzIconDirective } from "ng-zorro-antd/icon";
 import { WorkflowActionService } from "../../../service/workflow-graph/model/workflow-action.service";
 import { WorkflowResultService } from "../../../service/workflow-result/workflow-result.service";
@@ -48,6 +49,7 @@ import { OperatorResultPreviewComponent } from "../operator-result-preview/opera
   imports: [
     NgIf,
     NgFor,
+    NzButtonComponent,
     NzIconDirective,
     ResultTableFrameComponent,
     VisualizationFrameContentComponent,

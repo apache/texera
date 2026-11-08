@@ -29,8 +29,9 @@
     >
     <button
       *ngIf="pinnable"
+      nz-button
+      nzSize="small"
       type="button"
-      class="result-preview__pin"
       title="Pin the result next to the operator"
       (click)="pin.emit()">
       <span
