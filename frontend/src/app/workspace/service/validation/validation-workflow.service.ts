@@ -66,7 +66,6 @@ export type ValidationOutput = {
 })
 export class ValidationWorkflowService {
   public static readonly VALIDATION_OPERATOR_INPUT_MESSAGE = "inputs";
-  public static readonly VALIDATION_OPERATOR_OUTPUT_MESSAGE = "outputs";
 
   private operatorSchemaList: ReadonlyArray<OperatorSchema> = [];
   // stream of an individual's validation status is updated, whether it's validation success or validation error

@@ -900,7 +900,7 @@ describe("MenuComponent", () => {
       component.currentExecutionName = "exec-1";
       const executeSpy = vi
         .spyOn(executeWorkflowService, "executeWorkflowWithEmailNotification")
-        .mockImplementation(() => {});
+        .mockImplementation(() => true);
 
       component.runWorkflow();
 
@@ -927,7 +927,7 @@ describe("MenuComponent", () => {
       component.currentExecutionName = "";
       const executeSpy = vi
         .spyOn(executeWorkflowService, "executeWorkflowWithEmailNotification")
-        .mockImplementation(() => {});
+        .mockImplementation(() => true);
 
       component.runWorkflow();
 
@@ -971,7 +971,7 @@ describe("MenuComponent", () => {
       } as unknown as Mocked<ComputingUnitSelectionComponent>;
       const executeSpy = vi
         .spyOn(executeWorkflowService, "executeWorkflowWithEmailNotification")
-        .mockImplementation(() => {});
+        .mockImplementation(() => true);
 
       component.runWorkflow();
 
@@ -1890,6 +1890,14 @@ describe("MenuComponent", () => {
         expect(share).toHaveBeenCalled();
         expect(run).toHaveBeenCalled();
         expect(kill).toHaveBeenCalled();
+      });
+
+      it("explains the kill button with a tooltip", () => {
+        fixture.detectChanges();
+
+        expect(q("button[nzdanger]").nativeElement.getAttribute("title")).toBe(
+          "Stop this run. A stopped run can't be resumed."
+        );
       });
     });
 

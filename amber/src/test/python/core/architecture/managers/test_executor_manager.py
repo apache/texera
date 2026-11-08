@@ -95,8 +95,9 @@ class TestExecutorManager:
         assert executor_manager.executor is None
         assert executor_manager.operator_module_name is None
 
-    def test_reject_r_tuple_language(self, executor_manager):
+    def test_reject_r_tuple_language(self, executor_manager, monkeypatch):
         """Test that 'r-tuple' language is rejected with ImportError when plugin is not available."""
+        monkeypatch.setitem(sys.modules, "texera_r", None)
         with pytest.raises(ImportError) as exc_info:
             executor_manager.initialize_executor(
                 code=SAMPLE_OPERATOR_CODE, is_source=False, language="r-tuple"
@@ -107,8 +108,9 @@ class TestExecutorManager:
             exc_info.value
         )
 
-    def test_reject_r_table_language(self, executor_manager):
+    def test_reject_r_table_language(self, executor_manager, monkeypatch):
         """Test that 'r-table' language is rejected with ImportError when plugin is not available."""
+        monkeypatch.setitem(sys.modules, "texera_r", None)
         with pytest.raises(ImportError) as exc_info:
             executor_manager.initialize_executor(
                 code=SAMPLE_OPERATOR_CODE, is_source=False, language="r-table"
@@ -118,6 +120,33 @@ class TestExecutorManager:
         assert "texera-rudf" in str(exc_info.value) or "R operators require" in str(
             exc_info.value
         )
+
+    @pytest.mark.parametrize("language", ["r-tuple", "r-table"])
+    def test_ui_parameters_reject_an_old_plugin(self, executor_manager, language):
+        name = "RTupleExecutor" if language == "r-tuple" else "RTableExecutor"
+        plugin, _ = self._mock_r_plugin(name, is_source=False)
+        plugin.UI_PARAMETERS_API_VERSION = 0
+        try:
+            with pytest.raises(ImportError, match="texera-rudf >= 0.2.0"):
+                executor_manager.initialize_executor(
+                    "# Texera UI parameters: SDK v1\n...", False, language
+                )
+            getattr(plugin, name).assert_not_called()
+        finally:
+            self._cleanup_r_plugin()
+
+    @pytest.mark.parametrize("language", ["r-tuple", "r-table"])
+    def test_ui_parameters_accept_a_capable_plugin(self, executor_manager, language):
+        name = "RTupleExecutor" if language == "r-tuple" else "RTableExecutor"
+        plugin, executor = self._mock_r_plugin(name, is_source=False)
+        plugin.UI_PARAMETERS_API_VERSION = 1
+        try:
+            executor_manager.initialize_executor(
+                "# Texera UI parameters: SDK v1\n...", False, language
+            )
+            assert executor_manager.executor is executor
+        finally:
+            self._cleanup_r_plugin()
 
     def test_accept_r_tuple_language_with_plugin(self, executor_manager):
         """Test that 'r-tuple' language is accepted when plugin is available."""
@@ -318,6 +347,70 @@ class TestExecutorManager:
         manager.close()
         assert sys.path == before
         assert "tmp_dir" not in manager.__dict__
+
+
+# A reduced copy of the default Python UDF template (PythonUDFOpDescV2.
+# defaultValue): the import is active and every class is commented out. The
+# Scala specs check the real template text; this checks how it loads.
+DEFAULT_TEMPLATE_CODE = """# Keep exactly ONE class below: uncomment it and delete the others.
+
+from pytexera import *
+
+# class ProcessTupleOperator(UDFOperatorV2):
+#
+#     @overrides
+#     def process_tuple(self, tuple_: Tuple, port: int) -> Iterator[Optional[TupleLike]]:
+#         yield tuple_
+#
+# class ProcessBatchOperator(UDFBatchOperator):
+#     BATCH_SIZE = 10 # must be a positive integer
+#
+#     @overrides
+#     def process_batch(self, batch: Batch, port: int) -> Iterator[Optional[BatchLike]]:
+#         yield batch
+#
+# class ProcessTableOperator(UDFTableOperator):
+#
+#     @overrides
+#     def process_table(self, table: Table, port: int) -> Iterator[Optional[TableLike]]:
+#         yield table
+"""
+
+
+def uncomment_class(code: str, class_name: str) -> str:
+    """Uncomment one `# class <name>` block of a template, as a user would."""
+    lines, in_block = [], False
+    for line in code.splitlines():
+        if line.startswith("# class "):
+            in_block = line.startswith(f"# class {class_name}")
+        if in_block and line.startswith("#"):
+            line = line[1:].removeprefix(" ")
+        lines.append(line)
+    return "\n".join(lines) + "\n"
+
+
+class TestDefaultTemplate:
+    @pytest.fixture
+    def executor_manager(self):
+        manager = ExecutorManager()
+        yield manager
+        manager.close()
+
+    def test_untouched_template_reports_no_operator(self, executor_manager):
+        with pytest.raises(AssertionError) as exc_info:
+            executor_manager.load_executor_definition(DEFAULT_TEMPLATE_CODE)
+        assert "one and only one Operator" in str(exc_info.value)
+
+    @pytest.mark.parametrize(
+        "class_name",
+        ["ProcessTupleOperator", "ProcessBatchOperator", "ProcessTableOperator"],
+    )
+    def test_uncommenting_one_class_loads_without_adding_an_import(
+        self, executor_manager, class_name
+    ):
+        code = uncomment_class(DEFAULT_TEMPLATE_CODE, class_name)
+        executor = executor_manager.load_executor_definition(code)
+        assert executor.__name__ == class_name
 
 
 REPLACEMENT_OPERATOR_CODE = """

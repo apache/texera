@@ -21,11 +21,10 @@ package org.apache.texera.amber.operator.visualization.polarChart
 
 import com.fasterxml.jackson.annotation.{JsonProperty, JsonPropertyDescription}
 import com.kjetland.jackson.jsonSchema.annotations.{JsonSchemaInject, JsonSchemaTitle}
-import org.apache.texera.amber.core.tuple.{AttributeType, Schema}
 import org.apache.texera.amber.core.workflow.OutputPort.OutputMode
-import org.apache.texera.amber.core.workflow.{InputPort, OutputPort, PortIdentity}
-import org.apache.texera.amber.operator.PythonOperatorDescriptor
+import org.apache.texera.amber.core.workflow.{InputPort, OutputPort}
 import org.apache.texera.amber.operator.visualization.PlotlyStandaloneCode
+import org.apache.texera.amber.operator.visualization.PythonVisualizationOpDesc
 import org.apache.texera.amber.operator.metadata.annotations.AutofillAttributeName
 import org.apache.texera.amber.operator.metadata.{OperatorGroupConstants, OperatorInfo}
 import org.apache.texera.amber.pybuilder.PyStringTypes.EncodableString
@@ -47,7 +46,7 @@ import javax.validation.constraints.NotNull
   }
 }
 """)
-class PolarChartOpDesc extends PythonOperatorDescriptor with PlotlyStandaloneCode {
+class PolarChartOpDesc extends PythonVisualizationOpDesc with PlotlyStandaloneCode {
 
   @JsonProperty(value = "r", required = true)
   @JsonSchemaTitle("r")
@@ -62,15 +61,6 @@ class PolarChartOpDesc extends PythonOperatorDescriptor with PlotlyStandaloneCod
   @AutofillAttributeName
   @NotNull(message = "theta cannot be empty")
   var theta: EncodableString = ""
-
-  override def getOutputSchemas(
-      inputSchemas: Map[PortIdentity, Schema]
-  ): Map[PortIdentity, Schema] = {
-    val outputSchema = Schema()
-      .add("html-content", AttributeType.STRING)
-
-    Map(operatorInfo.outputPorts.head.id -> outputSchema)
-  }
 
   override def operatorInfo: OperatorInfo =
     OperatorInfo(
@@ -129,8 +119,6 @@ class PolarChartOpDesc extends PythonOperatorDescriptor with PlotlyStandaloneCod
        |"""
     finalCode.encode
   }
-
-  override def producesDataFrame(): Boolean = false
 
   override def generateStandaloneCode(): String = {
     val rLit = pyStringLiteral(r)
