@@ -18,7 +18,6 @@
  */
 
 import { GroupInfo, OperatorMetadata, OperatorSchema } from "../../types/operator-schema.interface";
-import { CustomJSONSchema7 } from "../../types/custom-json-schema.interface";
 import { VIEW_RESULT_OP_TYPE } from "../workflow-graph/model/workflow-graph";
 import { PortSchema } from "../../types/workflow-common.interface";
 
@@ -431,23 +430,6 @@ export const mockOperatorGroup: ReadonlyArray<GroupInfo> = [
 export const mockOperatorMetaData: OperatorMetadata = {
   operators: mockOperatorSchemaList,
   groups: mockOperatorGroup,
-};
-
-export const testJsonSchema: CustomJSONSchema7 = {
-  properties: {
-    attribute: {
-      type: "string",
-      title: "attribute",
-      autofill: "attributeName",
-      autofillAttributeOnPort: 0,
-    },
-    resultAttribute: {
-      type: "string",
-      title: "result attribute",
-    },
-  },
-  required: ["attribute", "resultAttribute"],
-  type: "object",
 };
 
 export const mockPortSchema: PortSchema = {

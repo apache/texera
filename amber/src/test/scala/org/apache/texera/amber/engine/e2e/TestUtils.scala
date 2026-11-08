@@ -65,7 +65,7 @@ import org.apache.texera.dao.jooq.generated.tables.pojos.{
   Workflow => WorkflowPojo
 }
 import org.apache.texera.common.compiler.model.LogicalPlanPojo
-import org.apache.texera.web.resource.dashboard.user.workflow.WorkflowExecutionsResource.getResultUriByLogicalPortId
+import org.apache.texera.amber.core.storage.ExecutionResultUris.getResultUriByLogicalPortId
 import org.apache.texera.web.service.ExecutionResultService
 import org.apache.texera.common.compiler.model.LogicalLink
 import org.apache.texera.common.compiler.{CompilationErrorHandling, WorkflowCompiler}
