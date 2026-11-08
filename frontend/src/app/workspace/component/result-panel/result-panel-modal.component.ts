@@ -85,7 +85,9 @@ export class RowModalComponent implements OnChanges, OnDestroy {
       this.currentDisplayRowData = this.modalData.rowData;
       this.rowEntries = this.buildRowEntries(this.currentDisplayRowData);
     }
-    this.ngOnChanges();
+    // Load, not ngOnChanges: there is no previous row yet, and releasing here would
+    // cancel the media requests the preloaded entries above just started.
+    this.loadRow();
   }
 
   get prettyRowJson(): string {
@@ -101,6 +103,11 @@ export class RowModalComponent implements OnChanges, OnDestroy {
 
   ngOnChanges(): void {
     this.releaseRow();
+    this.loadRow();
+  }
+
+  /** Fetches the current row; a later row change cancels it. */
+  private loadRow(): void {
     this.workflowResultService
       .getPortPaginatedResultService(this.operatorId, this.portIndex)
       ?.selectTuple(this.rowIndex, this.resizeService.pageSize)

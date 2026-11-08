@@ -308,6 +308,54 @@ describe("RowModalComponent (with pre-loaded rowData)", () => {
   });
 });
 
+// Review feedback on #8729 (@Copilot): the constructor builds entries from preloaded
+// rowData, which starts their media requests. Opening the modal must not tear that
+// first row down, or with no pagination service to refetch the row its remote media
+// never loads.
+describe("RowModalComponent (with pre-loaded remote media)", () => {
+  let component: RowModalComponent;
+  let httpMock: HttpTestingController;
+
+  const remoteUrl = "https://example.com/preloaded.png";
+
+  beforeEach(async () => {
+    await TestBed.configureTestingModule({
+      imports: [RowModalComponent, HttpClientTestingModule],
+      providers: [
+        { provide: NZ_MODAL_DATA, useValue: { operatorId: "op-3", rowIndex: 0, rowData: { img: remoteUrl } } },
+        { provide: NzModalRef, useValue: { getConfig: () => ({}), close: vi.fn() } },
+        {
+          provide: WorkflowResultService,
+          useValue: { getPortPaginatedResultService: vi.fn().mockReturnValue(null) },
+        },
+        { provide: PanelResizeService, useValue: { pageSize: 10 } },
+      ],
+    }).compileComponents();
+
+    httpMock = TestBed.inject(HttpTestingController);
+    const fixture = TestBed.createComponent(RowModalComponent);
+    component = fixture.componentInstance;
+    fixture.detectChanges();
+  });
+
+  afterEach(() => {
+    httpMock.verify();
+  });
+
+  it("should load the first row's remote media even with no pagination service to refetch it", () => {
+    const createObjectURLSpy = vi.spyOn(URL, "createObjectURL").mockReturnValue("blob:preloaded");
+    const req = httpMock.expectOne(
+      `${AppSettings.getApiEndpoint()}/huggingface/media-proxy?url=${encodeURIComponent(remoteUrl)}`
+    );
+    expect(req.cancelled).toBe(false);
+
+    req.flush(new Blob(["img"], { type: "image/png" }));
+
+    expect(component.rowEntries.find(e => e.key === "img")?.mediaSrc).toBe("blob:preloaded");
+    createObjectURLSpy.mockRestore();
+  });
+});
+
 describe("RowModalComponent (template rendering)", () => {
   let component: RowModalComponent;
   let fixture: ComponentFixture<RowModalComponent>;
