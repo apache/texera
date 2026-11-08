@@ -60,7 +60,9 @@ import org.apache.texera.amber.engine.common.statetransition.WorkerStateManager
 import org.apache.texera.amber.engine.common.virtualidentity.util.COORDINATOR
 import org.apache.texera.amber.error.ErrorUtils.{mkConsoleMessage, mkPrintConsoleMessage, safely}
 
+import java.util.UUID
 import java.util.concurrent.LinkedBlockingQueue
+import scala.collection.mutable
 
 class DataProcessor(
     actorId: ActorVirtualIdentity,
@@ -73,6 +75,13 @@ class DataProcessor(
 
   /** The executor whose loop-variable references `bindStateReferences` has bound. */
   @transient private var executorWithBoundReferences: OperatorExecutor = _
+
+  /**
+    * The ids of the state messages this worker has processed. A message reaches a worker once per
+    * path to it, through branches that meet again or several upstream workers, so only the first
+    * copy of an id is processed.
+    */
+  private val processedStateMessages = mutable.HashSet[String]()
 
   def initTimerService(adaptiveBatchingMonitor: WorkerTimerService): Unit = {
     this.adaptiveBatchingMonitor = adaptiveBatchingMonitor
@@ -140,8 +149,13 @@ class DataProcessor(
       state: State,
       port: Int,
       loopCounter: Long,
-      loopStartId: String
+      loopStartId: String,
+      messageId: String
   ): Unit = {
+    // A copy of a message already processed (the same id, arriving on another edge or channel) is
+    // not registered, handed to the operator or sent on again. An empty id is a state nobody
+    // issued, never a copy.
+    if (messageId.nonEmpty && !processedStateMessages.add(messageId)) return
     try {
       // Before processState, which then sees the loop variables written into the setting.
       executor.registerState(state, loopCounter)
@@ -150,8 +164,12 @@ class DataProcessor(
         // Carry the incoming loop envelope through unchanged: loop operators
         // are Python-only, so a JVM operator inside a loop body only ever
         // forwards the envelope (the +1/-1 bookkeeping lives in the Python
-        // runtime's _process_state_frame).
-        outputManager.emitState(outputState.get, loopCounter, loopStartId)
+        // runtime's _process_state_frame). A state sent on unchanged is the
+        // same message and keeps its id; a changed one is a new message.
+        val outputMessageId =
+          if (outputState.get.toJson == state.toJson) messageId
+          else UUID.randomUUID().toString
+        outputManager.emitState(outputState.get, loopCounter, loopStartId, outputMessageId)
       }
     } catch safely {
       case e =>
@@ -256,8 +274,8 @@ class DataProcessor(
         )
         inputManager.initBatch(channelId, tuples)
         processInputTuple(inputManager.getNextTuple)
-      case StateFrame(state, loopCounter, loopStartId) =>
-        processInputState(state, portId.id, loopCounter, loopStartId)
+      case StateFrame(state, loopCounter, loopStartId, messageId) =>
+        processInputState(state, portId.id, loopCounter, loopStartId, messageId)
     }
     statisticsManager.increaseDataProcessingTime(System.nanoTime() - dataProcessingStartTime)
   }

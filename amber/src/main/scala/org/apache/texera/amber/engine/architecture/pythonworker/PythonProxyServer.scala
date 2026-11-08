@@ -128,13 +128,18 @@ private class AmberProducer(
     dataHeader.payloadType match {
       case "State" =>
         assert(root.getRowCount == 1)
-        // The row is a full State row (content + loop_counter + loop_start_id;
-        // see network_sender.py): rebuild the loop envelope alongside the
-        // content so it survives the hop through this JVM proxy.
+        // The row is a full State row (content + loop_counter + loop_start_id
+        // + message_id; see network_sender.py): rebuild the loop envelope
+        // alongside the content so it survives the hop through this JVM proxy.
         val row = ArrowUtils.getTexeraTuple(0, root)
         outputPort.sendTo(
           to,
-          StateFrame(State.fromTuple(row), State.loopCounterFrom(row), State.loopStartIdFrom(row))
+          StateFrame(
+            State.fromTuple(row),
+            State.loopCounterFrom(row),
+            State.loopStartIdFrom(row),
+            State.messageIdFrom(row)
+          )
         )
       case "ECM" =>
         assert(root.getRowCount == 1)

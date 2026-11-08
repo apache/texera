@@ -32,11 +32,14 @@ class State(dict):
     # that need these values read the corresponding columns off the tuple.
     LOOP_COUNTER = "loop_counter"
     LOOP_START_ID = "loop_start_id"
+    # The id a state message is issued with, kept by all of its copies.
+    MESSAGE_ID = "message_id"
     SCHEMA = Schema(
         raw_schema={
             CONTENT: "STRING",
             LOOP_COUNTER: "LONG",
             LOOP_START_ID: "STRING",
+            MESSAGE_ID: "STRING",
         }
     )
 
@@ -48,6 +51,7 @@ class State(dict):
         content_json: str,
         loop_counter: int = 0,
         loop_start_id: str = "",
+        message_id: str = "",
     ) -> dict:
         """The single column-name -> value mapping for the State wire/storage
         format. Both ``to_tuple`` (iceberg materialization) and the network
@@ -58,15 +62,17 @@ class State(dict):
             State.CONTENT: content_json,
             State.LOOP_COUNTER: int(loop_counter),
             State.LOOP_START_ID: loop_start_id,
+            State.MESSAGE_ID: message_id,
         }
 
     def to_tuple(
         self,
         loop_counter: int = 0,
         loop_start_id: str = "",
+        message_id: str = "",
     ) -> Tuple:
         return Tuple(
-            State.to_columns(self.to_json(), loop_counter, loop_start_id),
+            State.to_columns(self.to_json(), loop_counter, loop_start_id, message_id),
             schema=State.SCHEMA,
         )
 

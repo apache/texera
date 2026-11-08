@@ -15,6 +15,7 @@
 # specific language governing permissions and limitations
 # under the License.
 
+import ast
 import overrides
 import pandas
 from functools import lru_cache
@@ -392,6 +393,26 @@ def _eval_loop_expr(expr: str, state: State, table: Optional[Table]):
     return eval(expr, namespace)
 
 
+def _assigned_names(code: str) -> frozenset[str]:
+    """Return the names ``code`` assigns: every name it stores to (an
+    assignment, augmented, annotated, walrus, ``for`` or ``with`` target),
+    every name an import binds, and the names of the functions and classes it
+    defines. It reads the code rather than a run of it, so a conditional
+    assignment counts, and so does a name bound only inside a comprehension or
+    inside a function the code defines."""
+    names = set()
+    for node in ast.walk(ast.parse(code)):
+        if isinstance(node, ast.Name) and isinstance(node.ctx, ast.Store):
+            names.add(node.id)
+        elif isinstance(node, (ast.Import, ast.ImportFrom)):
+            names.update(
+                (alias.asname or alias.name).split(".")[0] for alias in node.names
+            )
+        elif isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)):
+            names.add(node.name)
+    return frozenset(names)
+
+
 class LoopStartOperator(TableOperator):
     """Base class for the runtime side of a Loop Start operator.
 
@@ -505,6 +526,12 @@ class LoopEndOperator(TableOperator):
         # short-circuits on, and only a SUCCESSFUL update may set that.
         self._attached_table: Optional[Table] = None
         self._loop_table: Optional[Table] = None
+        # The names the user's `update` assigns (_assigned_names), recorded by
+        # a successful run_update. Like the names the loop's state arrived
+        # with, they are the loop's own variables, so the runtime saves them
+        # for the next iteration even when only a body operator's publication
+        # carried them (MainLoop._next_iteration_state).
+        self.assigned_names: frozenset[str] = frozenset()
 
     @overrides.final
     def process_table(self, table: Table, port: int) -> Iterator[Optional[TableLike]]:
@@ -549,6 +576,7 @@ class LoopEndOperator(TableOperator):
         if namespace.get(_TABLE_KEY) is not input_table:
             raise _reserved_name_error(_TABLE_KEY)
         self._loop_table = input_table
+        self.assigned_names = _assigned_names(update_code)
         self.state = _strip_reserved(namespace)
 
     @overrides.final
