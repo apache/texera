@@ -55,7 +55,7 @@ import org.apache.texera.amber.util.VirtualIdentityUtils.getFromActorIdForInputP
 
 import java.net.URI
 import java.util.concurrent.LinkedBlockingQueue
-import java.util.concurrent.atomic.{AtomicBoolean, AtomicLong}
+import java.util.concurrent.atomic.AtomicLong
 import scala.collection.mutable.ArrayBuffer
 
 class InputPortMaterializationReaderThread(
@@ -75,12 +75,6 @@ class InputPortMaterializationReaderThread(
   }
   private val partitioner = toPartitioner(partitioning, workerActorId)
   private val batchSize = ApplicationConfig.defaultDataTransferBatchSize
-  private val isFinished = new AtomicBoolean(false)
-
-  /**
-    * Whether the reader thread has completed.
-    */
-  def finished: Boolean = isFinished.get()
 
   /**
     * Read from the materialization storage, and mimics the behavior of an upstream worker's output manager.
@@ -141,7 +135,6 @@ class InputPortMaterializationReaderThread(
       // Flush any remaining tuples in the buffer.
       if (buffer.nonEmpty) flush()
       emitECM(METHOD_END_CHANNEL, PORT_ALIGNMENT)
-      isFinished.set(true)
     } catch {
       case e: Exception =>
         throw new RuntimeException(s"Error reading input port materializations: ${e.getMessage}", e)

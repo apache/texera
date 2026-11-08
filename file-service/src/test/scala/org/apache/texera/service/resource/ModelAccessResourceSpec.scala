@@ -336,6 +336,30 @@ class ModelAccessResourceSpec
     userHasReadAccess(getDSLContext, privateModel.getMid, strangerUser.getUid) shouldBe true
   }
 
+  it should "refuse to change the owner's privilege" in {
+    grantDirectly(privateModel.getMid, ownerUser.getUid, PrivilegeEnum.WRITE)
+    grantDirectly(privateModel.getMid, writeGranteeUser.getUid, PrivilegeEnum.WRITE)
+
+    val ex = intercept[ForbiddenException] {
+      accessResource.grantAccess(
+        privateModel.getMid,
+        ownerUser.getEmail,
+        "READ",
+        writeGranteeSession
+      )
+    }
+    ex.getResponse.getStatus shouldEqual 403
+    getDSLContext
+      .select(MODEL_USER_ACCESS.PRIVILEGE)
+      .from(MODEL_USER_ACCESS)
+      .where(
+        MODEL_USER_ACCESS.MID
+          .eq(privateModel.getMid)
+          .and(MODEL_USER_ACCESS.UID.eq(ownerUser.getUid))
+      )
+      .fetchOneInto(classOf[PrivilegeEnum]) shouldEqual PrivilegeEnum.WRITE
+  }
+
   it should "be forbidden for a user without write access" in {
     val ex = intercept[ForbiddenException] {
       accessResource.grantAccess(
@@ -434,6 +458,25 @@ class ModelAccessResourceSpec
     )
     response.getStatus shouldEqual 200
     accessList(privateModel.getMid) shouldBe empty
+  }
+
+  it should "refuse to revoke the owner's access" in {
+    grantDirectly(privateModel.getMid, ownerUser.getUid, PrivilegeEnum.WRITE)
+    grantDirectly(privateModel.getMid, writeGranteeUser.getUid, PrivilegeEnum.WRITE)
+
+    val ex = intercept[ForbiddenException] {
+      accessResource.revokeAccess(privateModel.getMid, ownerUser.getEmail, writeGranteeSession)
+    }
+    ex.getResponse.getStatus shouldEqual 403
+    getDSLContext
+      .select(MODEL_USER_ACCESS.PRIVILEGE)
+      .from(MODEL_USER_ACCESS)
+      .where(
+        MODEL_USER_ACCESS.MID
+          .eq(privateModel.getMid)
+          .and(MODEL_USER_ACCESS.UID.eq(ownerUser.getUid))
+      )
+      .fetchOneInto(classOf[PrivilegeEnum]) shouldEqual PrivilegeEnum.WRITE
   }
 
   it should "be forbidden for a user without write access" in {
