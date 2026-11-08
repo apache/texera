@@ -60,9 +60,23 @@ class ExternalAuthProvisionerSpec
   override protected def beforeEach(): Unit = cleanup()
   override protected def afterEach(): Unit = cleanup()
 
-  // Case-insensitive so it also collects rows seeded with a differing casing.
-  private def cleanup(): Unit =
+  // Case-insensitive so it also collects rows seeded with a differing casing. The ORCID arm
+  // catches what the email predicate cannot: an identity-only login leaves `email` NULL, so those
+  // accounts are identified by the provider row that cascades from them.
+  private def cleanup(): Unit = {
     getDSLContext.deleteFrom(USER).where(DSL.lower(USER.EMAIL).like("%" + emailDomain)).execute()
+    getDSLContext
+      .deleteFrom(USER)
+      .where(
+        USER.UID.in(
+          getDSLContext
+            .select(AUTH_PROVIDER.UID)
+            .from(AUTH_PROVIDER)
+            .where(AUTH_PROVIDER.PROVIDER_TYPE.eq(ProviderTypeEnum.ORCID))
+        )
+      )
+      .execute()
+  }
 
   // ---- helpers -------------------------------------------------------------
 
@@ -76,6 +90,10 @@ class ExternalAuthProvisionerSpec
       avatar: Option[String] = Some(avatarUrl("pic"))
   ): ExternalProfile =
     ExternalProfile(ProviderTypeEnum.GOOGLE, providerId, name, email, avatar)
+
+  /** An identity-only login: ORCID's `/authenticate` scope asserts an iD and a name, no address. */
+  private def orcidIdentity(providerId: String, name: String): ExternalIdentity =
+    ExternalIdentity(ProviderTypeEnum.ORCID, providerId, name)
 
   /** Seed a user row directly; uid is DB-assigned and read back into the pojo. */
   private def seedUser(name: String, localPart: String, avatar: String = null): User =
@@ -257,6 +275,58 @@ class ExternalAuthProvisionerSpec
     val claimed = userDao.fetchOneByUid(placeholder.getUid)
     claimed.getIsPlaceholder shouldBe false
     claimed.getComment should include("Claimed contributor placeholder at ")
+  }
+
+  // ---- identity-only providers (no email asserted) --------------------------
+
+  it should "provision an emailless INACTIVE account for an identity-only provider" in {
+    val user =
+      ExternalAuthProvisioner.loginOrProvisionIdentityOnly(
+        orcidIdentity("0000-0001-0000-0001", "Researcher")
+      )
+
+    user.getUid should not be null
+    user.getName shouldBe "Researcher"
+    user.getEmail shouldBe null
+    user.getRole shouldBe UserRoleEnum.INACTIVE
+    providerIdOf(user.getUid, ProviderTypeEnum.ORCID) shouldBe "0000-0001-0000-0001"
+  }
+
+  // Two emailless accounts have to be able to coexist: `"user".email` is UNIQUE, which in Postgres
+  // does not constrain repeated NULLs. If that ever changed, the second login would 500 here
+  // rather than silently merging, but this pins the behavior either way.
+  it should "keep two identity-only accounts separate rather than merging them on a null email" in {
+    val first =
+      ExternalAuthProvisioner.loginOrProvisionIdentityOnly(
+        orcidIdentity("0000-0001-0000-0002", "First")
+      )
+    val second =
+      ExternalAuthProvisioner.loginOrProvisionIdentityOnly(
+        orcidIdentity("0000-0001-0000-0003", "Second")
+      )
+
+    second.getUid should not be first.getUid
+    providerRowCount(first.getUid) shouldBe 1
+    providerRowCount(second.getUid) shouldBe 1
+  }
+
+  // The address is collected after the first login (AuthResource.setEmail), so every subsequent
+  // login arrives with a profile that still asserts no email. Refreshing must not blank it.
+  it should "preserve a later-collected email when an identity-only login returns" in {
+    val created =
+      ExternalAuthProvisioner.loginOrProvisionIdentityOnly(
+        orcidIdentity("0000-0001-0000-0004", "Returner")
+      )
+    created.setEmail("collected" + emailDomain)
+    userDao.update(created)
+
+    val returning =
+      ExternalAuthProvisioner.loginOrProvisionIdentityOnly(
+        orcidIdentity("0000-0001-0000-0004", "Returner")
+      )
+
+    returning.getUid shouldBe created.getUid
+    userDao.fetchOneByUid(created.getUid).getEmail shouldBe "collected" + emailDomain
   }
 
   // ---- provider id rotation -------------------------------------------------

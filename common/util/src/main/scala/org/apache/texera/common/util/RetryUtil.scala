@@ -51,14 +51,17 @@ object RetryUtil {
   }
 
   /**
-    * Runs `operation`, retrying on failure with exponential backoff (the delay doubles after each
-    * failed attempt) until it succeeds or `maxAttempts` is reached. The final failure is wrapped
-    * with `description` and the last exception as its cause.
+    * Runs `operation`, retrying on failure with exponential backoff (the delay doubles after
+    * each failed attempt, capped at `maxDelayMillis`) until it succeeds or `maxAttempts` is
+    * reached. The final failure is wrapped with `description` and the last exception as its
+    * cause.
     *
-    * Only `NonFatal` failures are treated as transient, which is the same predicate the
-    * non-blocking sibling uses. Note that `NonFatal` admits non-fatal `Error`s -- `AssertionError`,
-    * `java.io.IOError`, `ServiceConfigurationError` -- so those are retried rather than propagated
-    * straight away. An `InterruptedException` -- raised by the operation or by the wait between
+    * Only `NonFatal` failures that `shouldRetry` accepts are treated as transient; a failure it
+    * rejects propagates immediately, unwrapped, spending no further attempts. The default accepts
+    * every `NonFatal` failure, which is the same predicate the non-blocking sibling uses. Note
+    * that `NonFatal` admits non-fatal `Error`s -- `AssertionError`, `java.io.IOError`,
+    * `ServiceConfigurationError` -- so those are retried rather than propagated straight away.
+    * An `InterruptedException` -- raised by the operation or by the wait between
     * attempts -- fails fast with the interrupt status restored, so a caller shutting the thread
     * down is never made to sit through the remaining backoff.
     *
@@ -70,6 +73,11 @@ object RetryUtil {
     *                           caller's own logger, so retries are attributed to the caller rather
     *                           than to this util.
     * @param sleep              how to wait; injectable so tests exercise the backoff without waiting.
+    * @param maxDelayMillis     cap on any single wait: the doubling stops growing there, and an
+    *                           initial delay above it is clamped down. Unbounded by default.
+    * @param shouldRetry        which failures are transient; the default retries every `NonFatal`
+    *                           one. A caller whose retry signal is response content rather than an
+    *                           exception type can throw a private marker and match it here.
     * @param operation          the work to run, re-evaluated on each attempt.
     * @tparam T whatever `operation` returns.
     * @return `operation`'s value from the first attempt that succeeds.
@@ -79,7 +87,9 @@ object RetryUtil {
       maxAttempts: Int,
       initialDelayMillis: Long,
       onRetry: RetryAttempt => Unit,
-      sleep: Long => Unit = Thread.sleep
+      sleep: Long => Unit = Thread.sleep,
+      maxDelayMillis: Long = Long.MaxValue,
+      shouldRetry: Throwable => Boolean = _ => true
   )(operation: => T): T = {
     // Restore the interrupt status and fail fast rather than retrying, whether the interrupt
     // arrives while running `operation` or while waiting between attempts.
@@ -93,8 +103,8 @@ object RetryUtil {
       val outcome: Either[Throwable, T] =
         try Right(operation)
         catch {
-          case ie: InterruptedException => failInterrupted(ie)
-          case NonFatal(cause)          => Left(cause)
+          case ie: InterruptedException              => failInterrupted(ie)
+          case NonFatal(cause) if shouldRetry(cause) => Left(cause)
         }
 
       outcome match {
@@ -109,10 +119,10 @@ object RetryUtil {
           onRetry(RetryAttempt(description, attempt, maxAttempts, delayMillis, cause))
           try sleep(delayMillis)
           catch { case ie: InterruptedException => failInterrupted(ie) }
-          attemptFrom(attempt + 1, delayMillis * 2)
+          attemptFrom(attempt + 1, math.min(delayMillis * 2, maxDelayMillis))
       }
     }
 
-    attemptFrom(attempt = 1, delayMillis = initialDelayMillis)
+    attemptFrom(attempt = 1, delayMillis = math.min(initialDelayMillis, maxDelayMillis))
   }
 }

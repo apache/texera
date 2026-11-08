@@ -25,6 +25,7 @@ import { Role, User } from "../../type/user";
 import { AuthService } from "./auth.service";
 import { GuiConfigService } from "../gui-config.service";
 import { catchError, map, shareReplay, switchMap } from "rxjs/operators";
+import { validateEmailFormat } from "../../util/email";
 
 /**
  * User Service manages User information. It relies on different
@@ -46,6 +47,8 @@ export class UserService {
   ) {
     const user = this.authService.loginWithExistingToken();
     this.changeUser(user);
+
+    this.authService.sessionChanged().subscribe(() => this.changeUser(this.authService.loginWithExistingToken()));
   }
   public getCurrentUser(): User | undefined {
     return this.currentUser;
@@ -61,6 +64,16 @@ export class UserService {
   public googleLogin(credential: string): Observable<void> {
     return this.authService
       .googleAuth(credential)
+      .pipe(switchMap(({ accessToken }) => this.handleAccessToken(accessToken)));
+  }
+
+  public orcidLogin(code: string): Observable<void> {
+    return this.authService.orcidAuth(code).pipe(switchMap(({ accessToken }) => this.handleAccessToken(accessToken)));
+  }
+
+  public appleLogin(credential: string): Observable<void> {
+    return this.authService
+      .appleAuth(credential)
       .pipe(switchMap(({ accessToken }) => this.handleAccessToken(accessToken)));
   }
 
@@ -81,10 +94,28 @@ export class UserService {
     this.changeUser(undefined);
   }
 
-  public register(username: string, email: string, password: string): Observable<void> {
+  /**
+   * Starts a registration. Resolves to `{ verificationRequired: true }` when the backend mailed a
+   * code instead of creating the account — the caller then collects the code and calls
+   * {@link registerVerify}. Signs the user in directly when verification is off.
+   */
+  public register(username: string, email: string, password: string): Observable<{ verificationRequired: boolean }> {
+    return this.authService.register(username, email, password).pipe(
+      switchMap(response =>
+        // No token means the backend mailed a code instead of creating the account. This is the
+        // one place that reading is made, so the rest of the app is told rather than deducing.
+        response.accessToken
+          ? this.handleAccessToken(response.accessToken).pipe(map(() => ({ verificationRequired: false })))
+          : of({ verificationRequired: true })
+      )
+    );
+  }
+
+  /** Completes a pending registration with the code that was mailed, then signs the user in. */
+  public registerVerify(username: string, email: string, password: string, code: string): Observable<void> {
     return this.authService
-      .register(username, email, password)
-      .pipe(switchMap(({ accessToken }) => this.handleAccessToken(accessToken)));
+      .registerVerify(username, email, password, code)
+      .pipe(switchMap(({ accessToken }) => this.handleAccessToken(accessToken ?? "")));
   }
 
   /**
@@ -139,17 +170,7 @@ export class UserService {
    * @param email
    */
   static validateEmail(email: string): { result: boolean; message: string } {
-    const trimmed = (email ?? "").trim();
-    if (trimmed.length === 0) {
-      return { result: false, message: "Email should not be empty." };
-    }
-    // Pragmatic email regex: non-whitespace + @ + non-whitespace + . + non-whitespace.
-    // Matches what most users expect; we leave authoritative validation to the backend.
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRegex.test(trimmed)) {
-      return { result: false, message: "Email format is invalid." };
-    }
-    return { result: true, message: "Email frontend validation success." };
+    return validateEmailFormat(email);
   }
 
   /**

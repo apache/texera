@@ -41,12 +41,14 @@ object EmailTemplate {
     *
     * @param receiverEmail the email address of the receiver (admin or user)
     * @param userEmail optional; the email address of the user requesting an account (only needed if toAdmin is true)
+    * @param userName optional; the stored name of the user requesting an account (only needed if toAdmin is true)
     * @param toAdmin flag indicating whether the notification is for the admin (true) or the user (false)
     * @return an EmailMessage ready to be sent
     */
   def userRegistrationNotification(
       receiverEmail: String,
       userEmail: Option[String],
+      userName: Option[String],
       affiliation: Option[String],
       reason: Option[String],
       toAdmin: Boolean
@@ -62,6 +64,7 @@ object EmailTemplate {
            |A new user has attempted to log in or register, but their account is not yet approved.
            |Please review the account request for the following user:
            |
+           |Name: ${userName.filter(_.trim.nonEmpty).getOrElse("Not provided")}
            |Email: ${userEmail.getOrElse("Unknown")}
            |Affiliation: ${affiliation.filter(_.trim.nonEmpty).getOrElse("Not provided")}
            |Reason: ${reason.filter(_.trim.nonEmpty).getOrElse("Not provided")}
@@ -106,6 +109,36 @@ object EmailTemplate {
          |Your user role has been updated to: $newRole.
          |
          |If you have any questions, please contact the administrator.
+         |
+         |Thank you for using $projectName!
+         |""".stripMargin
+
+    EmailMessage(subject = subject, content = content, receiver = receiverEmail)
+  }
+
+  /**
+    * Creates the message carrying a one-time code that proves the recipient owns the address it is
+    * sent to. Deliberately says nothing about which account or signup it belongs to: the mail may
+    * land in the inbox of someone who did not ask for it, and it should tell them nothing beyond
+    * "ignore this".
+    *
+    * @param receiverEmail the address being proved
+    * @param code the one-time code, derived by `EmailCodeVerifier`
+    * @return an EmailMessage ready to be sent
+    */
+  def emailVerificationCode(receiverEmail: String, code: String): EmailMessage = {
+    val subject =
+      s"Your $projectName verification code${if (deployment.nonEmpty) s" for [$deployment]" else ""}"
+    val content =
+      s"""
+         |Hello,
+         |
+         |Your verification code is: $code
+         |
+         |Enter it in the window that asked for it. The code expires shortly.
+         |
+         |If you did not ask to verify this address, you can ignore this message — nothing has been
+         |created or changed.
          |
          |Thank you for using $projectName!
          |""".stripMargin

@@ -76,9 +76,24 @@ object QaRankingCodegen extends TaskCodegen {
 
   override def parsePython(ctx: CodegenContext): String =
     """            if task == "question-answering":
-      |                return body.get("answer", json.dumps(body)) if isinstance(body, dict) else json.dumps(body)
+      |                # Third-party chat providers answer via choices[0].message;
+      |                # hf-inference returns the native {"answer": ...} shape.
+      |                content = self._chat_message_content(body)
+      |                if content is not None:
+      |                    return content
+      |                if isinstance(body, dict):
+      |                    return body.get("answer", json.dumps(body))
+      |                return json.dumps(body)
       |            elif task == "table-question-answering":
-      |                return body.get("answer", json.dumps(body)) if isinstance(body, dict) else json.dumps(body)
+      |                content = self._chat_message_content(body)
+      |                if content is not None:
+      |                    return content
+      |                if isinstance(body, dict):
+      |                    return body.get("answer", json.dumps(body))
+      |                return json.dumps(body)
       |            elif task in ("zero-shot-classification", "sentence-similarity", "text-ranking"):
+      |                content = self._chat_message_content(body)
+      |                if content is not None:
+      |                    return content
       |                return json.dumps(body)""".stripMargin
 }

@@ -31,7 +31,7 @@ _INIT_KWARGS = dict(
     table_state_namespace="state_ns",
     directory_path="/data/iceberg",
     commit_batch_size="4096",
-    s3_endpoint="http://minio:9000",
+    s3_endpoint="http://rustfs:9000",
     s3_region="us-west-2",
     s3_auth_username="s3_user",
     s3_auth_password="s3_pass",
@@ -74,7 +74,7 @@ class TestInitialize:
         assert fresh_config.ICEBERG_TABLE_RESULT_NAMESPACE == "result_ns"
         assert fresh_config.ICEBERG_TABLE_STATE_NAMESPACE == "state_ns"
         assert fresh_config.ICEBERG_FILE_STORAGE_DIRECTORY_PATH == "/data/iceberg"
-        assert fresh_config.S3_ENDPOINT == "http://minio:9000"
+        assert fresh_config.S3_ENDPOINT == "http://rustfs:9000"
         assert fresh_config.S3_REGION == "us-west-2"
         assert fresh_config.S3_AUTH_USERNAME == "s3_user"
         assert fresh_config.S3_AUTH_PASSWORD == "s3_pass"

@@ -241,6 +241,58 @@ describe("DynamicSchemaService.mutateProperty", () => {
     expect((itemSchema.properties!.target as CustomJSONSchema7).description).toEqual("mutated");
   });
 
+  /**
+   * JSON Schema lets a subschema be the bare boolean `true`/`false` instead of an object, and
+   * mutateProperty has to step over those: they carry no property name to match and no children to
+   * walk. Both guards were reached only on their object side, so neither skip was pinned.
+   */
+  it("should step over a boolean subschema without matching or mutating it", () => {
+    const original = {
+      type: "object",
+      properties: {
+        anything: true,
+        target: { type: "string", description: "original" },
+      },
+    } as unknown as CustomJSONSchema7;
+    const matchSpy = vi.fn((propertyName: string, _: CustomJSONSchema7) => propertyName !== "unreachable");
+
+    const result = DynamicSchemaService.mutateProperty(original, matchSpy, markMutated);
+
+    // the boolean survives as a boolean rather than being handed to the mutation function
+    expect(result.properties!.anything).toBe(true);
+    expect(matchSpy.mock.calls.map(([propertyName]) => propertyName)).toEqual(["target"]);
+    // the walk continues past it, so the object sibling is still mutated
+    expect((result.properties!.target as CustomJSONSchema7).description).toEqual("mutated");
+  });
+
+  it("should step over a boolean entry in a tuple items array", () => {
+    const original = {
+      type: "object",
+      properties: {
+        listTuple: {
+          type: "array",
+          items: [
+            false,
+            {
+              type: "object",
+              properties: {
+                target: { type: "string", description: "original" },
+              },
+            },
+          ],
+        },
+      },
+    } as unknown as CustomJSONSchema7;
+
+    const result = DynamicSchemaService.mutateProperty(original, matchByName("target"), markMutated);
+
+    const items = (result.properties!.listTuple as CustomJSONSchema7).items as unknown[];
+    // the boolean entry is left exactly as it was ...
+    expect(items[0]).toBe(false);
+    // ... and its object sibling further along the array is still reached
+    expect(((items[1] as CustomJSONSchema7).properties!.target as CustomJSONSchema7).description).toEqual("mutated");
+  });
+
   it("should not invoke the mutation function when nothing matches", () => {
     const original = {
       type: "object",

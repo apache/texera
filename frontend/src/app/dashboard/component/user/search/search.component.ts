@@ -34,6 +34,8 @@ import { ɵNzTransitionPatchDirective } from "ng-zorro-antd/core/transition-patc
 import { NzIconDirective } from "ng-zorro-antd/icon";
 import { SortButtonComponent } from "../sort-button/sort-button.component";
 import { NzWaveDirective } from "ng-zorro-antd/core/wave";
+import { MODEL_ICON } from "../../../../common/icon/model-icon";
+import { EntityType } from "../../../../hub/service/hub.service";
 
 @UntilDestroy()
 @Component({
@@ -53,16 +55,21 @@ import { NzWaveDirective } from "ng-zorro-antd/core/wave";
   ],
 })
 export class SearchComponent implements AfterViewInit {
+  protected readonly MODEL_ICON = MODEL_ICON;
   public searchParam: string = "";
   sortMethod = SortMethod.EditTimeDesc;
   lastSortMethod: SortMethod | null = null;
   private isLogin = this.userService.isLogin();
   private includePublic = true;
   currentUid = this.userService.getCurrentUser()?.uid;
-  searchKeywords: string[] = [];
 
-  selectedType: "project" | "workflow" | "dataset" | null = null;
-  lastSelectedType: "project" | "workflow" | "dataset" | null = null;
+  selectedType: "workflow" | "dataset" | "model" | null = null;
+
+  /** The selected tab as the bar's kind; the literals are the enum's values, `null` on the All tab. */
+  public get filterEntityType(): EntityType | null {
+    return this.selectedType === null ? null : (this.selectedType as EntityType);
+  }
+  lastSelectedType: "workflow" | "dataset" | "model" | null = null;
 
   public masterFilterList: ReadonlyArray<string> = [];
   @ViewChild(SearchResultsComponent) searchResultsComponent?: SearchResultsComponent;
@@ -104,16 +111,11 @@ export class SearchComponent implements AfterViewInit {
         this.updateMasterFilterList();
       }
 
-      this.searchKeywords = this.filters.getSearchKeywords();
       this.cdr.detectChanges();
     });
   }
 
   async search(): Promise<void> {
-    // Keep the highlight keywords in sync with the current filters. This is read
-    // by the template's search-results binding; the template must not call the
-    // `filters` getter directly, since it throws until the ViewChild resolves.
-    this.searchKeywords = this.filters.getSearchKeywords();
     const sameList =
       this.filters.masterFilterList.length === this.masterFilterList.length &&
       this.filters.masterFilterList.every((v, i) => v === this.masterFilterList[i]);
@@ -146,8 +148,12 @@ export class SearchComponent implements AfterViewInit {
     await this.searchResultsComponent.loadMore();
   }
 
-  filterByType(type: "project" | "workflow" | "dataset" | null): void {
+  filterByType(type: "workflow" | "dataset" | "model" | null): void {
     this.selectedType = type;
+    // Before searching, not after: search() reads the filter parameters in the same turn, so a
+    // selection left over from the previous tab would go out with the first request. Guarded on the
+    // backing field, since the getter throws until the ViewChild resolves (#6328).
+    this._filters?.clearFacetSelections();
     this.search();
   }
 

@@ -111,6 +111,7 @@ export class TexeraAgent {
     workflowId: number;
     workflowName?: string;
     computingUnitId?: number;
+    warehouseId?: number;
   };
 
   private stepCallback: ReActStepCallback | null = null;
@@ -185,6 +186,7 @@ export class TexeraAgent {
       userToken: this.delegateConfig.userToken,
       workflowId: this.delegateConfig.workflowId,
       computingUnitId: this.delegateConfig.computingUnitId,
+      warehouseId: this.delegateConfig.warehouseId,
       maxOperatorResultCharLimit: this.settings.maxOperatorResultCharLimit,
       maxOperatorResultCellCharLimit: this.settings.maxOperatorResultCellCharLimit,
       executionTimeoutMs: this.settings.executionTimeoutMs,
@@ -256,10 +258,6 @@ export class TexeraAgent {
       current = this.stepsById.get(current)?.parentId;
     }
     return chain;
-  }
-
-  getStepsById(): Map<string, ReActStep> {
-    return this.stepsById;
   }
 
   getWorkflowResultState(): WorkflowResultState {
@@ -377,7 +375,7 @@ export class TexeraAgent {
       this.settings.disabledTools = updates.disabledTools;
     }
     if (updates.maxSteps !== undefined) {
-      this.settings.maxSteps = updates.maxSteps;
+      this.settings.maxSteps = Math.max(1, Math.trunc(updates.maxSteps));
     }
     if (updates.allowedOperatorTypes !== undefined) {
       this.settings.allowedOperatorTypes = updates.allowedOperatorTypes;
@@ -425,6 +423,7 @@ export class TexeraAgent {
     workflowId: number;
     workflowName?: string;
     computingUnitId?: number;
+    warehouseId?: number;
   }): void {
     this.delegateConfig = config;
 
@@ -433,8 +432,27 @@ export class TexeraAgent {
     this.setupWorkflowChangeHandlers();
   }
 
+  /**
+   * Point the delegate at the warehouse the workspace has selected now. The rest
+   * of the config is fixed at creation; this one travels per prompt because the
+   * user can pick (or first load) a warehouse after the agent exists (#7751).
+   */
+  setDelegateWarehouse(warehouseId: number | undefined): void {
+    if (!this.delegateConfig || this.delegateConfig.warehouseId === warehouseId) {
+      return;
+    }
+    this.delegateConfig = { ...this.delegateConfig, warehouseId };
+  }
+
   getDelegateConfig():
-    | { userToken: string; userInfo?: UserInfo; workflowId: number; workflowName?: string; computingUnitId?: number }
+    | {
+        userToken: string;
+        userInfo?: UserInfo;
+        workflowId: number;
+        workflowName?: string;
+        computingUnitId?: number;
+        warehouseId?: number;
+      }
     | undefined {
     return this.delegateConfig;
   }
@@ -532,7 +550,7 @@ export class TexeraAgent {
           if (this.workflowState.getAllOperators().length > 0) {
             try {
               const logicalPlan = this.workflowState.toLogicalPlan();
-              compilationResult = await compileWorkflowAsync(logicalPlan);
+              compilationResult = await compileWorkflowAsync(logicalPlan, this.delegateConfig?.userToken);
             } catch (e: any) {
               this.log.warn({ err: e?.message || e }, "compilation failed; proceeding without schemas");
             }
@@ -657,7 +675,8 @@ export class TexeraAgent {
         stopped: false,
       };
     } catch (error: any) {
-      const isAborted = error.name === "AbortError" || this.abortController?.signal.aborted;
+      const errorMessage = error?.message || String(error);
+      const isAborted = error?.name === "AbortError" || this.abortController?.signal.aborted;
 
       if (isAborted) {
         stepIndex++;
@@ -693,7 +712,7 @@ export class TexeraAgent {
         stepId: stepIndex,
         timestamp: Date.now(),
         role: "agent",
-        content: `Error: ${error.message || String(error)}`,
+        content: `Error: ${errorMessage}`,
         isBegin: false,
         isEnd: true,
       };
@@ -705,7 +724,7 @@ export class TexeraAgent {
         messages: [],
         usage: { inputTokens: 0, outputTokens: 0, totalTokens: 0 },
         stopped: false,
-        error: error.message || String(error),
+        error: errorMessage,
       };
     } finally {
       this.abortController = null;

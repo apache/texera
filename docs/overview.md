@@ -37,7 +37,7 @@ At its core, Texera acts as a bridge between a highly accessible frontend and a 
 
 1. **Web-Based Interface (Frontend):** A rich GUI running directly in your browser. It allows users to construct data processing pipelines by dragging and dropping blocks on a canvas. No installation is required on client machines.
 2. **Distributed Engine (Backend):** When a workflow is submitted, the Texera engine compiles the graphical representation into an optimized, distributed execution plan. It then spins up computing units to process massive datasets in parallel.
-3. **Storage Integration:** Texera integrates smoothly with modern data lake and storage technologies (like LakeFS and MinIO) to persistently log runs and save datasets securely.
+3. **Storage Integration:** Texera integrates smoothly with modern data lake and storage technologies (like LakeFS and RustFS) to persistently log runs and save datasets securely.
 
 ---
 

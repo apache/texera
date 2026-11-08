@@ -23,7 +23,7 @@ import org.apache.texera.amber.util.JSONUtils.objectMapper
 import org.apache.texera.auth.SessionUser
 import org.apache.texera.dao.MockTexeraDB
 import org.apache.texera.dao.jooq.generated.Tables
-import org.apache.texera.dao.jooq.generated.enums.PrivilegeEnum
+import org.apache.texera.dao.jooq.generated.enums.{DefaultViewEnum, PrivilegeEnum}
 import org.apache.texera.dao.jooq.generated.tables.daos.{
   UserDao,
   WorkflowDao,
@@ -453,6 +453,39 @@ class WorkflowVersionResourceSpec
     val cloned = workflowDao.fetchOneByWid(newWid)
     cloned should not be null
     cloned.getName should include("_copy")
+  }
+
+  it should "inherit the source workflow's default view" in {
+    val workflowContent =
+      """{"operators":[{"operatorID":"CSVFileScan-operator-a","operatorType":"CSVFileScan"}],"links":[]}"""
+    testWorkflow.setContent(workflowContent)
+    testWorkflow.setDefaultView(DefaultViewEnum.FORM)
+    workflowDao.update(testWorkflow)
+    val version = WorkflowVersionResource.insertNewVersion(testWorkflowWid, "[]")
+
+    val newWid = resource.cloneVersion(
+      version.getVid,
+      session(owner),
+      Map("displayedVersionId" -> 1).asJava
+    )
+
+    workflowDao.fetchOneByWid(newWid).getDefaultView shouldBe DefaultViewEnum.FORM
+  }
+
+  it should "leave the clone defaulting to canvas when the source does" in {
+    val workflowContent =
+      """{"operators":[{"operatorID":"CSVFileScan-operator-a","operatorType":"CSVFileScan"}],"links":[]}"""
+    testWorkflow.setContent(workflowContent)
+    workflowDao.update(testWorkflow)
+    val version = WorkflowVersionResource.insertNewVersion(testWorkflowWid, "[]")
+
+    val newWid = resource.cloneVersion(
+      version.getVid,
+      session(owner),
+      Map("displayedVersionId" -> 1).asJava
+    )
+
+    workflowDao.fetchOneByWid(newWid).getDefaultView shouldBe DefaultViewEnum.CANVAS
   }
 
   // ─── version-importance helpers (pure JSON/timestamp logic) ────────────────

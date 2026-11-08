@@ -64,7 +64,6 @@ import java.net.URI
 import java.util.concurrent.LinkedBlockingQueue
 import scala.collection.mutable
 import scala.collection.mutable.ArrayBuffer
-import scala.util.Try
 
 /**
   * `finalizeCheckpoint` is the second half of a worker's checkpoint. It has two disjoint jobs,
@@ -82,13 +81,6 @@ import scala.util.Try
   *     one that can.
   *   - saving another checkpoint's recorded messages, or leaving this checkpoint's recording in
   *     place so the worker keeps buffering input forever.
-  *
-  * The write itself is not asserted: `SequentialRecordWriter` serializes through
-  * `AmberRuntime.serde`, and `CheckpointState` is not `java.io.Serializable`, so the shipped Pekko
-  * config (kryo bound to `java.io.Serializable`, java serialization off) has no binding for it. The
-  * write-branch case below therefore asserts only the state the handler mutates before writing, and
-  * does not depend on whether the call as a whole succeeds.
-  *
   * The write branch hands a closure to the worker's main thread and blocks until it runs, so that
   * case uses a real `WorkflowWorker` behind a `TestActorRef` (synchronous dispatch, as in
   * `WorkflowWorkerSpec`) and the worker's own `DataProcessor`. The estimate branch never reaches the
@@ -195,6 +187,30 @@ class FinalizeCheckpointHandlerSpec
     assert(!storageAt(parent).containsFolder("checkpoint-folder"))
   }
 
+  it should "persist and restore a non-empty worker checkpoint" in {
+    val destination = "ram:///finalize-persist/"
+    val worker = liveWorker()
+    val dp = worker.underlyingActor.dp
+    val checkpoint = new CheckpointState()
+    checkpoint.save("unicode-payload", "checkpoint-δ")
+    dp.ecmManager.checkpoints(checkpointId) = checkpoint
+    val handler = new DataProcessorRPCHandlerInitializer(dp)
+
+    val response = await(
+      handler.finalizeCheckpoint(
+        FinalizeCheckpointRequest(checkpointId, destination),
+        rpcContext
+      )
+    )
+
+    val restored = SequentialRecordStorage
+      .fetchAllRecords(storageAt(destination), workerId.name.replace("Worker:", ""))
+      .toList
+    assert(response.size > 0L)
+    assert(restored.size == 1)
+    assert(restored.head.load[String]("unicode-payload") == "checkpoint-δ")
+  }
+
   it should "fold this checkpoint's recorded messages in and stop only its recording" in {
     val worker = liveWorker()
     val dp = worker.underlyingActor.dp
@@ -208,9 +224,7 @@ class FinalizeCheckpointHandlerSpec
     worker.underlyingActor.recordedInputs(unrelatedCheckpointId) = ArrayBuffer(recordedMessage(99))
     val handler = new DataProcessorRPCHandlerInitializer(dp)
 
-    // The outcome is intentionally ignored: everything asserted below happens on the worker's main
-    // thread, before the storage write this call ends with (see the note in the class comment).
-    Try(
+    await(
       handler.finalizeCheckpoint(
         FinalizeCheckpointRequest(checkpointId, "ram:///finalize-fold/"),
         rpcContext
@@ -234,8 +248,7 @@ class FinalizeCheckpointHandlerSpec
     dp.ecmManager.checkpoints(checkpointId) = checkpoint
     val handler = new DataProcessorRPCHandlerInitializer(dp)
 
-    // Outcome ignored for the same reason as the case above.
-    Try(
+    await(
       handler.finalizeCheckpoint(
         FinalizeCheckpointRequest(checkpointId, "ram:///finalize-fold-empty/"),
         rpcContext

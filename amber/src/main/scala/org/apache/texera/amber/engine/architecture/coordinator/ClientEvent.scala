@@ -19,9 +19,9 @@
 
 package org.apache.texera.amber.engine.architecture.coordinator
 
-import org.apache.texera.amber.core.tuple.Tuple
 import org.apache.texera.amber.core.virtualidentity.ActorVirtualIdentity
 import org.apache.texera.amber.core.workflow.GlobalPortIdentity
+import org.apache.texera.amber.core.workflow.OutputPort.OutputMode
 import org.apache.texera.amber.engine.architecture.rpc.controlreturns.WorkflowAggregatedState
 import org.apache.texera.amber.engine.common.ambermessage.WorkflowFIFOMessagePayload
 import org.apache.texera.amber.engine.common.executionruntimestate.OperatorMetrics
@@ -34,18 +34,14 @@ case class ExecutionStateUpdate(state: WorkflowAggregatedState) extends ClientEv
 
 case class OperatorPortResultUriAvailable(
     globalPortId: GlobalPortIdentity,
-    uri: URI
+    uri: URI,
+    mode: OutputMode
 ) extends ClientEvent
 
 case class ExecutionStatsUpdate(operatorMetrics: Map[String, OperatorMetrics]) extends ClientEvent
 
 case class RuntimeStatisticsPersist(operatorMetrics: Map[String, OperatorMetrics])
     extends ClientEvent
-
-case class ReportCurrentProcessingTuple(
-    operatorID: String,
-    tuple: Array[(Tuple, ActorVirtualIdentity)]
-) extends ClientEvent
 
 case class WorkerAssignmentUpdate(workerMapping: Map[String, Seq[String]]) extends ClientEvent
 

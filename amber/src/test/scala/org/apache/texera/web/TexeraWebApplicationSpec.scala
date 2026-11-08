@@ -37,11 +37,6 @@ import org.apache.texera.web.resource.dashboard.admin.execution.AdminExecutionRe
 import org.apache.texera.web.resource.dashboard.admin.user.AdminUserResource
 import org.apache.texera.web.resource.dashboard.hub.HubResource
 import org.apache.texera.web.resource.dashboard.user.UserResource
-import org.apache.texera.web.resource.dashboard.user.project.{
-  ProjectAccessResource,
-  ProjectResource,
-  PublicProjectResource
-}
 import org.apache.texera.web.resource.dashboard.user.quota.UserQuotaResource
 import org.apache.texera.web.resource.dashboard.user.warehouse.WarehouseResource
 import org.apache.texera.web.resource.dashboard.user.workflow.{
@@ -259,8 +254,6 @@ class TexeraWebApplicationSpec extends AnyFlatSpec with Matchers {
       databaseReachable,
       "run() requires a reachable Postgres at the configured JDBC URL (provided in CI)"
     )
-    // Not the test-cases database: pointing the running server at it would have every dashboard
-    // read and write a schema that the CI e2e specs truncate underneath it.
     ranEnvironment
     pooledJdbcUrl shouldBe Some(StorageConfig.jdbcUrl)
   }
@@ -278,14 +271,11 @@ class TexeraWebApplicationSpec extends AnyFlatSpec with Matchers {
       classOf[UserConfigResource],
       classOf[FeedbackResource],
       classOf[AdminUserResource],
-      classOf[PublicProjectResource],
       classOf[WorkflowAccessResource],
       classOf[WorkflowResource],
       classOf[HubResource],
       classOf[UserResource],
       classOf[WorkflowVersionResource],
-      classOf[ProjectResource],
-      classOf[ProjectAccessResource],
       classOf[WorkflowExecutionsResource],
       classOf[DashboardResource],
       classOf[GmailResource],

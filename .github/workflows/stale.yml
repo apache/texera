@@ -15,12 +15,12 @@
 # limitations under the License.
 
 # Auto-close stale pull requests after a total of 37 days of inactivity
-# (30 days to mark stale, +7 days to close). Issues are not touched.
+# (30 days to mark stale, +7 days to close). Drafts are included on the same
+# window. Issues are not touched.
 #
 # Escape hatches (any one keeps a PR alive):
 #   - Add the `pinned` label
 #   - Attach a milestone
-#   - Keep the PR in draft state
 #   - Push a commit, comment, or address review feedback
 
 name: Close stale pull requests
@@ -44,13 +44,13 @@ jobs:
           days-before-issue-stale: -1
           days-before-issue-close: -1
 
-          # PRs: 30 days inactive -> stale, +7 days -> close.
+          # PRs (ready and draft): 30 days inactive -> stale, +7 days -> close.
           days-before-pr-stale: 30
           days-before-pr-close: 7
           stale-pr-label: 'stale'
           exempt-pr-labels: 'pinned'
           exempt-all-pr-milestones: true
-          exempt-draft-pr: true
+          exempt-draft-pr: false
           remove-stale-when-updated: true
 
           stale-pr-message: |

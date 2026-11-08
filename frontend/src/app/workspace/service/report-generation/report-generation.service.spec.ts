@@ -18,19 +18,18 @@
  */
 
 import { TestBed } from "@angular/core/testing";
-import { HttpClient } from "@angular/common/http";
-import { firstValueFrom, of, Subject, throwError } from "rxjs";
+import { firstValueFrom, of, Subject, Subscription, throwError } from "rxjs";
 import { ReportGenerationService } from "./report-generation.service";
 import { WorkflowActionService } from "../workflow-graph/model/workflow-action.service";
 import { WorkflowResultService } from "../workflow-result/workflow-result.service";
 import { NotificationService } from "src/app/common/service/notification/notification.service";
 import { AiAnalystService } from "../ai-analyst/ai-analyst.service";
 import { commonTestProviders } from "../../../common/testing/test-utils";
+import * as html2canvas from "html2canvas";
 
 /**
- * The service reaches for five collaborators but only ever calls a handful of their methods, so the
- * suite injects narrow stubs rather than the real service graph. `http` is injected by the service
- * and never used, so an empty object is enough to satisfy the constructor.
+ * The service reaches for four collaborators but only ever calls a handful of their methods, so the
+ * suite injects narrow stubs rather than the real service graph.
  */
 function stubs() {
   return {
@@ -66,7 +65,6 @@ describe("ReportGenerationService", () => {
     TestBed.configureTestingModule({
       providers: [
         ReportGenerationService,
-        { provide: HttpClient, useValue: {} },
         { provide: WorkflowActionService, useValue: deps.workflowActionService },
         { provide: WorkflowResultService, useValue: deps.workflowResultService },
         { provide: NotificationService, useValue: deps.notificationService },
@@ -330,6 +328,34 @@ describe("ReportGenerationService", () => {
   });
 
   describe("generateWorkflowSnapshot", () => {
+    /**
+     * html2canvas clones the whole document — from `documentElement`, not from the element it is
+     * pointed at — and the unit-test builder runs spec files with `isolate: false`, so one jsdom
+     * document is shared by every spec file in a worker and the renders below drag in whatever DOM
+     * the files before this one left behind, in `<head>` as much as in the body. That is what
+     * failed the macOS leg: a clone that costs ~60ms against this suite's own DOM was measured at
+     * 12–37s there, past the 20s test timeout, while ubuntu and windows passed. Park the foreign
+     * nodes of both for the duration of the suite and put them back after, so the render's cost
+     * depends only on what these tests build. The renders started here outlive the tests that
+     * start them, so this has to span the suite rather than each test.
+     */
+    let parkedNodes: [ParentNode, ChildNode][];
+
+    beforeAll(() => {
+      parkedNodes = [document.head, document.body].flatMap(parent =>
+        Array.from(parent.childNodes).map((node): [ParentNode, ChildNode] => [parent, node])
+      );
+      parkedNodes.forEach(([, node]) => node.remove());
+    });
+
+    afterAll(() => {
+      // html2canvas only detaches the iframe it clones into on the render's success path, so each
+      // render these tests leave failing strands one in the body. Drop them before the parked
+      // nodes go back, otherwise the next spec file's renders clone them.
+      document.body.querySelectorAll("iframe.html2canvas-container").forEach(node => node.remove());
+      parkedNodes.forEach(([parent, node]) => parent.appendChild(node));
+    });
+
     it("fails when the editor is not on the page", async () => {
       await expect(firstValueFrom(service.generateWorkflowSnapshot("myflow"))).rejects.toBe(
         "Workflow editor element not found"
@@ -342,8 +368,7 @@ describe("ReportGenerationService", () => {
      * sources are replaced with fakes that settle synchronously (XHR) or on a microtask
      * (FileReader), so nothing here depends on the network or on real timing.
      *
-     * The html2canvas render that follows is left alone — it needs a real canvas — so these
-     * assert on what the inlining step did, not on the observable's outcome.
+     * Rendering is stubbed only within this suite; separate tests cover the snapshot output.
      */
     describe("inlining the editor's images", () => {
       const XLINK_HREF = "xlink:href";
@@ -352,6 +377,7 @@ describe("ReportGenerationService", () => {
       let realXhr: typeof globalThis.XMLHttpRequest;
       let realFileReader: typeof globalThis.FileReader;
       let editor: HTMLElement;
+      let started: Subscription[];
       let xhrOutcome: "load" | "error";
       let readerOutcome: "loadend" | "error";
       let sentUrls: string[];
@@ -401,17 +427,18 @@ describe("ReportGenerationService", () => {
         return image;
       }
 
-      /** Runs the snapshot and resolves once it settles, whichever way html2canvas goes. */
-      function runSnapshot(): Promise<void> {
-        return new Promise<void>(resolve => {
+      /** Starts the snapshot; assertions wait for image inlining rather than the renderer's outcome. */
+      function startSnapshot(): void {
+        started.push(
           service.generateWorkflowSnapshot("myflow").subscribe({
-            next: () => resolve(),
-            error: () => resolve(),
-          });
-        });
+            next: () => {},
+            error: () => {},
+          })
+        );
       }
 
       beforeEach(() => {
+        started = [];
         sentUrls = [];
         xhrOutcome = "load";
         readerOutcome = "loadend";
@@ -422,11 +449,13 @@ describe("ReportGenerationService", () => {
         editor = document.createElement("div");
         editor.id = "workflow-editor";
         document.body.appendChild(editor);
+        vi.spyOn(html2canvas, "default").mockRejectedValue(new Error("Render is outside the image-inlining test"));
       });
 
       afterEach(() => {
         (globalThis as unknown as { XMLHttpRequest: unknown }).XMLHttpRequest = realXhr;
         (globalThis as unknown as { FileReader: unknown }).FileReader = realFileReader;
+        started.forEach(subscription => subscription.unsubscribe());
         // Two of these tests spy on console.error; without this the spy would outlive them.
         vi.restoreAllMocks();
         editor.remove();
@@ -435,16 +464,18 @@ describe("ReportGenerationService", () => {
       it("rewrites an image's source to the fetched base64 data", async () => {
         const image = addImage("/assets/icon.png");
 
-        await runSnapshot();
+        startSnapshot();
 
+        await vi.waitFor(() => expect(image.getAttribute("href")).toBe(BASE64));
         expect(sentUrls).toEqual(["/assets/icon.png"]);
-        expect(image.getAttribute("href")).toBe(BASE64);
       });
 
-      it("leaves an image with no source alone and fetches nothing for it", async () => {
+      it("leaves an image with no source alone and fetches nothing for it", () => {
         const image = addImage();
 
-        await runSnapshot();
+        // The request, if there were one, is issued synchronously by the fake XHR, so an
+        // empty list right after starting is already the answer.
+        startSnapshot();
 
         expect(sentUrls).toEqual([]);
         expect(image.getAttribute("href")).toBeNull();
@@ -455,11 +486,13 @@ describe("ReportGenerationService", () => {
         readerOutcome = "error";
         const image = addImage("/assets/icon.png");
 
-        await runSnapshot();
+        startSnapshot();
 
-        expect(consoleSpy).toHaveBeenCalledWith(
-          "Failed to load image: /assets/icon.png",
-          "Failed to convert image to Base64"
+        await vi.waitFor(() =>
+          expect(consoleSpy).toHaveBeenCalledWith(
+            "Failed to load image: /assets/icon.png",
+            "Failed to convert image to Base64"
+          )
         );
         expect(image.getAttribute("href")).toBeNull();
       });
@@ -469,11 +502,13 @@ describe("ReportGenerationService", () => {
         xhrOutcome = "error";
         addImage("/assets/missing.png");
 
-        await runSnapshot();
+        startSnapshot();
 
-        expect(consoleSpy).toHaveBeenCalledWith(
-          "Failed to load image: /assets/missing.png",
-          "Failed to load image from /assets/missing.png"
+        await vi.waitFor(() =>
+          expect(consoleSpy).toHaveBeenCalledWith(
+            "Failed to load image: /assets/missing.png",
+            "Failed to load image from /assets/missing.png"
+          )
         );
       });
     });

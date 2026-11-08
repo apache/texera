@@ -18,9 +18,23 @@
  */
 
 .import-modal {
-  // Tighten the default form-item spacing so the modal fits without scrolling.
-  &-form nz-form-item {
-    margin-bottom: 12px;
+  &-form {
+    // Takes up the slack under the fixed-height body so the footer stays at the bottom,
+    // and scrolls only if a tab's content ever outgrows the box.
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow-y: auto;
+
+    // Tighten the default form-item spacing so the modal fits without scrolling.
+    nz-form-item {
+      margin-bottom: 12px;
+    }
+
+    // Tabs sit flush with the modal body; the default pane padding would double the
+    // spacing already provided by the diagram and form items inside each tab.
+    ::ng-deep .ant-tabs-tabpane {
+      padding-top: 4px;
+    }
   }
 
   &-diagram {
@@ -57,26 +71,78 @@
   }
 
   &-upload-row {
-    display: inline-flex;
+    display: flex;
     align-items: center;
     gap: 8px;
 
     button {
       white-space: normal;
+      flex: none;
     }
+  }
+
+  &-selected-file {
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
   }
 
   &-select {
     width: 50%;
   }
 
-  &-warning {
-    display: block;
-    margin-bottom: 12px;
+  // Positioning context for the loading overlay. The fixed height is sized to the taller tab so
+  // switching tabs does not resize the modal; max-height clamps it on short viewports, where the
+  // form's own overflow-y takes over.
+  &-content {
+    position: relative;
+    height: 620px;
+    max-height: calc(100vh - 140px);
+    display: flex;
+    flex-direction: column;
+  }
+
+  &-loading {
+    position: absolute;
+    inset: 0;
+    z-index: 1;
+    // Solid background so the form underneath is fully hidden.
+    background-color: #fff;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 14px;
+    padding: 16px 24px 28px;
+    text-align: center;
+  }
+
+  &-loading-title {
+    margin: 8px 0 0;
+    font-size: 20px;
+    font-weight: 700;
+  }
+
+  &-loading-elapsed {
+    margin: 0;
+    font-size: 18px;
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+  }
+
+  &-loading-text {
+    margin: 0;
+    max-width: 480px;
+    font-size: 16px;
+    line-height: 1.5;
+    color: rgba(0, 0, 0, 0.65);
   }
 
   &-footer {
     display: flex;
+    align-items: center;
     justify-content: flex-end;
     gap: 8px;
     margin-top: 12px;

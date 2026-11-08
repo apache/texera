@@ -48,7 +48,11 @@ private object LakeFSStubServer {
       body: String
   )
 
-  final case class StubResponse(status: Int, body: String = "")
+  final case class StubResponse(
+      status: Int,
+      body: String = "",
+      headers: Map[String, String] = Map.empty
+  )
 }
 
 /**
@@ -95,7 +99,13 @@ class LakeFSStorageClientSpec
 
   import LakeFSStubServer._
 
-  private val requests = new ConcurrentLinkedQueue[StubRequest]()
+  /**
+    * Recorded requests, each paired with its request headers (keys lower-cased, since
+    * [[HttpExchange]] normalizes header capitalization). The headers ride alongside rather than
+    * inside [[StubRequest]] so that the two dozen `case StubRequest(method, path, query, body)`
+    * routes below keep their arity — only the `put` test reads them.
+    */
+  private val requests = new ConcurrentLinkedQueue[(StubRequest, Map[String, String])]()
 
   private val notStubbed: StubRequest => StubResponse =
     req => StubResponse(501, s"""{"message":"no stub route for ${req.method} ${req.path}"}""")
@@ -120,13 +130,21 @@ class LakeFSStorageClientSpec
         }.toMap)
         .getOrElse(Map.empty[String, String])
 
+      val headers = exchange.getRequestHeaders.asScala.map {
+        case (name, values) => name.toLowerCase -> values.asScala.mkString(",")
+      }.toMap
+
       val request =
         StubRequest(exchange.getRequestMethod, exchange.getRequestURI.getPath, query, body)
-      requests.add(request)
+      requests.add((request, headers))
 
       val response =
         try route(request)
         catch { case t: Throwable => StubResponse(500, s"""{"message":"${t.getClass.getName}"}""") }
+
+      response.headers.foreach {
+        case (name, value) => exchange.getResponseHeaders.set(name, value)
+      }
 
       val bytes = response.body.getBytes(UTF_8)
       if (bytes.isEmpty) {
@@ -169,7 +187,10 @@ class LakeFSStorageClientSpec
   private def stub(routes: PartialFunction[StubRequest, StubResponse]): Unit =
     route = req => routes.applyOrElse(req, notStubbed)
 
-  private def recorded: List[StubRequest] = requests.asScala.toList
+  private def recorded: List[StubRequest] = requests.asScala.map(_._1).toList
+
+  /** Origin of the stub, for the calls that take a full URL rather than going through the SDK. */
+  private def stubBaseUrl: String = s"http://127.0.0.1:${server.getAddress.getPort}"
 
   /**
     * True only for the FIRST request this test makes to `path`. Page-1 routes are guarded with it so
@@ -183,6 +204,12 @@ class LakeFSStorageClientSpec
   private def onlyRequest: StubRequest = {
     recorded should have size 1
     recorded.head
+  }
+
+  /** Headers of the single recorded request, keys lower-cased. */
+  private def onlyRequestHeaders: Map[String, String] = {
+    recorded should have size 1
+    requests.asScala.head._2
   }
 
   private val mapper = new ObjectMapper()
@@ -552,6 +579,84 @@ class LakeFSStorageClientSpec
     // multipart parts in the bucket.
     json(onlyRequest.body).get("physical_address").asText() shouldEqual "s3://bucket/phys"
     onlyRequest.query.get("path") shouldBe Some(path)
+  }
+
+  // `put` is the middle step of the presigned lifecycle. It bypasses the lakeFS SDK entirely and
+  // talks to the object store over a raw HttpURLConnection, so the stub stands in for the store.
+
+  "put" should "upload exactly the first `len` bytes and return the ETag with quotes stripped" in {
+    val partPath = "/presigned/part-1"
+    stub {
+      case StubRequest("PUT", p, _, _) if p == partPath =>
+        // Object stores return the ETag quoted; callers feed it straight into the completion
+        // body, where lakeFS rejects a quoted value.
+        StubResponse(200, headers = Map("ETag" -> "\"d41d8cd98f00b204e9800998ecf8427e\""))
+    }
+
+    // A buffer longer than the part: the last part of a multipart upload is a partially-filled
+    // read buffer, and uploading its stale tail corrupts the assembled object.
+    val etag = LakeFSStorageClient.put("abcdefgh".getBytes(UTF_8), 5, s"$stubBaseUrl$partPath", 1)
+
+    etag shouldEqual "d41d8cd98f00b204e9800998ecf8427e"
+    onlyRequest.method shouldEqual "PUT"
+    onlyRequest.body shouldEqual "abcde"
+    // The part must be framed with a Content-Length, not chunked: a presigned S3/GCS PUT is signed
+    // for a known length and answers `Transfer-Encoding: chunked` with SignatureDoesNotMatch or
+    // 501, while a loopback stub de-chunks the body and notices nothing.
+    //
+    // This pins the *framing*, not the streaming: the JDK's default buffered mode also computes a
+    // Content-Length for a body this small, so dropping the streaming-mode call altogether is
+    // indistinguishable over a stub. Only the real gain of streaming — not holding the part in the
+    // heap — is unobservable here, and that is a memory property, not a wire one.
+    onlyRequestHeaders.get("content-length") shouldBe Some("5")
+    onlyRequestHeaders.get("transfer-encoding") shouldBe None
+  }
+
+  it should "treat both 200 and 201 as a successful part upload" in {
+    // S3 answers a part PUT with 200, other object stores with 201. Accepting only one would
+    // abort an otherwise-complete multipart upload against half the supported backends.
+    Seq(200 -> "etag-from-200", 201 -> "etag-from-201").foreach {
+      case (status, etag) =>
+        requests.clear()
+        val partPath = s"/presigned/part-ok-$status"
+        stub {
+          case StubRequest("PUT", p, _, _) if p == partPath =>
+            StubResponse(status, headers = Map("ETag" -> etag))
+        }
+
+        withClue(s"HTTP $status: ") {
+          LakeFSStorageClient.put(
+            "x".getBytes(UTF_8),
+            1,
+            s"$stubBaseUrl$partPath",
+            2
+          ) shouldEqual etag
+        }
+    }
+  }
+
+  it should "name the part and the status when the object store rejects the upload" in {
+    // 403 is the live failure: an expired or mis-signed URL. 204 and 307 are the shape check — the
+    // guard has to stay "exactly 200 or 201" rather than widen to "4xx and worse", because neither
+    // of those two carries an ETag: accepting one books a part that was never stored, and the
+    // completion call then either NPEs on the missing ETag or assembles an object with a hole in it.
+    // 307 in particular is what an S3 region/endpoint mismatch answers.
+    Seq(403, 204, 307).foreach { status =>
+      requests.clear()
+      val partPath = s"/presigned/part-$status"
+      stub {
+        case StubRequest("PUT", p, _, _) if p == partPath => StubResponse(status)
+      }
+
+      val ex = intercept[RuntimeException] {
+        LakeFSStorageClient.put("x".getBytes(UTF_8), 1, s"$stubBaseUrl$partPath", 4)
+      }
+      // A multipart upload fails one part at a time; without the part number and the status in the
+      // message there is nothing in the log to say which part failed or whether it is retryable.
+      withClue(s"HTTP $status: ") {
+        ex.getMessage shouldEqual s"Part 4 upload failed (HTTP $status)"
+      }
+    }
   }
 
   // ---------------------------------------------------------------------------------------------

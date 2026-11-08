@@ -17,7 +17,7 @@
  * under the License.
  */
 
-import { CdkDragDrop, CdkDragHandle } from "@angular/cdk/drag-drop";
+import { CdkDrag, CdkDragDrop, CdkDragHandle, CdkDropList } from "@angular/cdk/drag-drop";
 import { By } from "@angular/platform-browser";
 import { FormArray, FormControl } from "@angular/forms";
 import { ComponentFixture, TestBed } from "@angular/core/testing";
@@ -35,7 +35,12 @@ describe("FormlyRepeatDndComponent", () => {
 
     component.field = {
       model: ["a", "b", "c"],
-      fieldGroup: [{ key: "a" }, { key: "b" }, { key: "c" }],
+      // Keyed by position, as formly keys rows; the id is the test's own marker for which row is which.
+      fieldGroup: [
+        { key: "0", id: "a" },
+        { key: "1", id: "b" },
+        { key: "2", id: "c" },
+      ],
       formControl,
       props: { reorder },
     } as any;
@@ -64,7 +69,7 @@ describe("FormlyRepeatDndComponent", () => {
     component.onDrop(createDropEvent(1, 1));
 
     expect(component.model).toEqual(["a", "b", "c"]);
-    expect(component.field.fieldGroup?.map(field => field.key)).toEqual(["a", "b", "c"]);
+    expect(component.field.fieldGroup?.map(field => field.id)).toEqual(["a", "b", "c"]);
     expect((component.formControl as FormArray).controls.map(control => control.value)).toEqual(["a", "b", "c"]);
     expect(reorder).not.toHaveBeenCalled();
   });
@@ -78,21 +83,73 @@ describe("FormlyRepeatDndComponent", () => {
 
     component.onDrop(createDropEvent(0, 2));
 
-    expect(component.field.fieldGroup?.map(field => field.key)).toEqual(["a", "b", "c"]);
+    expect(component.field.fieldGroup?.map(field => field.id)).toEqual(["a", "b", "c"]);
     expect((component.formControl as FormArray).controls.map(control => control.value)).toEqual(["a", "b", "c"]);
     expect(reorder).not.toHaveBeenCalled();
   });
 
   it("should reorder model, fieldGroup, formControl, and call reorder callback", () => {
-    const reorder = setComponentState();
+    // The callback is the parent's cue to persist, so it has to run AFTER all three reorder
+    // steps: a parent that reads the form when notified would otherwise save the pre-drag
+    // order and silently discard the drag. Capturing the state from inside the callback is
+    // what makes that ordering observable — the final assertions below are order-insensitive,
+    // and moveItemInArray mutates in place, so the captures must be copies.
+    let seenModel: string[] | undefined;
+    let seenFieldIds: unknown[] | undefined;
+    let seenControls: unknown[] | undefined;
+    const reorder = setComponentState(
+      vi.fn(() => {
+        seenModel = [...(component.model as string[])];
+        seenFieldIds = component.field.fieldGroup?.map(field => field.id);
+        seenControls = (component.formControl as FormArray).controls.map(control => control.value);
+      })
+    );
 
     component.onDrop(createDropEvent(0, 2));
 
     expect(component.model).toEqual(["b", "c", "a"]);
-    expect(component.field.fieldGroup?.map(field => field.key)).toEqual(["b", "c", "a"]);
+    expect(component.field.fieldGroup?.map(field => field.id)).toEqual(["b", "c", "a"]);
     expect((component.formControl as FormArray).controls.map(control => control.value)).toEqual(["b", "c", "a"]);
     expect(reorder).toHaveBeenCalledOnce();
+    expect(seenModel).toEqual(["b", "c", "a"]);
+    expect(seenFieldIds).toEqual(["b", "c", "a"]);
+    expect(seenControls).toEqual(["b", "c", "a"]);
   });
+
+  it("still reorders a section that declares no reorder callback", () => {
+    // The reorder callback is how the parent persists the new order, and it is optional:
+    // a section rendered without one must still reorder in place rather than throw.
+    setComponentState();
+    component.field = {
+      ...component.field,
+      props: {},
+    } as any;
+
+    expect(() => component.onDrop(createDropEvent(0, 2))).not.toThrow();
+    expect(component.model).toEqual(["b", "c", "a"]);
+    expect(component.field.fieldGroup?.map(field => field.id)).toEqual(["b", "c", "a"]);
+    expect((component.formControl as FormArray).controls.map(control => control.value)).toEqual(["b", "c", "a"]);
+  });
+  // formly keys a row by position unless the template says `key: null`; then the row's keyed children
+  // carry the position instead, and formly's own remove() re-keys those. The move mirrors it.
+  it("re-keys a keyless row's children to the row's new position, as formly does", () => {
+    setComponentState();
+    component.field = {
+      ...component.field,
+      fieldGroup: [
+        { key: null, id: "a", fieldGroup: [{ key: "0" }] },
+        { key: null, id: "b", fieldGroup: [{ key: "1" }] },
+        { key: null, id: "c", fieldGroup: [{ key: "2" }] },
+      ],
+    } as any;
+
+    component.onDrop(createDropEvent(0, 2));
+
+    expect(component.field.fieldGroup?.map(row => row.id)).toEqual(["b", "c", "a"]);
+    expect(component.field.fieldGroup?.map(row => row.fieldGroup?.[0].key)).toEqual(["0", "1", "2"]);
+    expect(component.field.fieldGroup?.every(row => row.key === null)).toBe(true);
+  });
+
   /**
    * The class-level tests above drive onDrop directly and never render. The template owns the rest
    * of the control: one row per entry, which index a row's remove button carries, and whether the
@@ -104,7 +161,12 @@ describe("FormlyRepeatDndComponent", () => {
       setComponentState();
       component.field = {
         ...component.field,
-        fieldGroup: [{ key: "a" }, { key: "b" }, { key: "c" }],
+        // Keyed by position, as formly keys rows; the id is the test's own marker for which row is which.
+        fieldGroup: [
+          { key: "0", id: "a" },
+          { key: "1", id: "b" },
+          { key: "2", id: "c" },
+        ],
         templateOptions,
       } as any;
       fixture.detectChanges();
@@ -124,17 +186,31 @@ describe("FormlyRepeatDndComponent", () => {
       )!;
     }
 
+    // nz-button sets no type, so a typeless button inside a form is its submit button and Enter in a
+    // row's input clicks it (HTML implicit submission) -- which here used to remove the first row.
+    it("gives every button an explicit type, so Enter in a row's input submits nothing", () => {
+      const el = render();
+
+      const buttons = Array.from(el.querySelectorAll("button"));
+      expect(buttons.length).toBeGreaterThan(3);
+      expect(buttons.every(button => button.getAttribute("type") === "button")).toBe(true);
+    });
+
     it("renders one row per entry", () => {
       const el = render();
 
       expect(el.querySelectorAll(".dnd-row").length).toBe(3);
     });
 
-    it("gives each row a drag handle", () => {
-      // Asserted on the cdkDragHandle directive, not the .drag-handle class: the class is styling
-      // and survives the directive being dropped, which would leave the row undraggable.
+    it("makes each row draggable, with its own drag handle", () => {
+      // Asserted on the directives, not on the .dnd-row / .drag-handle classes: the classes are
+      // styling and survive either directive being dropped. Both are needed — cdkDragHandle
+      // constructs happily with no CdkDrag parent (its CDK_DRAG_PARENT injection is optional),
+      // so the handle assertion alone passes for a row that cannot be picked up at all, and a
+      // row that cannot be picked up never fires cdkDropListDropped.
       render();
 
+      expect(fixture.debugElement.queryAll(By.directive(CdkDrag)).length).toBe(3);
       expect(fixture.debugElement.queryAll(By.directive(CdkDragHandle)).length).toBe(3);
     });
 
@@ -147,6 +223,20 @@ describe("FormlyRepeatDndComponent", () => {
       removeButtons()[1].click();
 
       expect(spy).toHaveBeenCalledWith(1);
+    });
+
+    it("locks every remove button for a disabled section", () => {
+      render({ disabled: true });
+
+      expect(removeButtons()).toHaveLength(3);
+      expect(removeButtons().every(button => button.getAttribute("disabled") !== null)).toBe(true);
+    });
+
+    it("leaves every remove button available otherwise", () => {
+      render({ disabled: false });
+
+      expect(removeButtons()).toHaveLength(3);
+      expect(removeButtons().every(button => button.getAttribute("disabled") === null)).toBe(true);
     });
 
     it("appends a row from the add button", () => {
@@ -182,6 +272,49 @@ describe("FormlyRepeatDndComponent", () => {
       render({ disabled: false });
 
       expect(addButton().getAttribute("disabled")).toBeNull();
+    });
+
+    it("leaves the add button available for a section that declares no template options at all", () => {
+      // Not `{ disabled: false }`: a schema that says nothing about the repeat section
+      // produces no templateOptions object, and an absent object must not read as disabled.
+      setComponentState();
+      fixture.detectChanges();
+
+      expect(component.field.templateOptions).toBeUndefined();
+      expect(addButton().getAttribute("disabled")).toBeNull();
+    });
+
+    it("renders each row's own sub-fields", () => {
+      setComponentState();
+      component.field = {
+        ...component.field,
+        fieldGroup: [
+          { key: "row-0", fieldGroup: [{ key: "row-0-name" }] },
+          { key: "row-1", fieldGroup: [{ key: "row-1-name" }] },
+        ],
+      } as any;
+      fixture.detectChanges();
+
+      // Asserted on the config each rendered field was actually handed, not on how many
+      // rendered: binding the row itself instead of its sub-field renders the same count
+      // of elements and would show up as a pass.
+      const rendered = fixture.debugElement.queryAll(By.css("formly-field.dnd-field"));
+      expect(rendered.map(f => (f.componentInstance as { field: { key?: unknown } }).field.key)).toEqual([
+        "row-0-name",
+        "row-1-name",
+      ]);
+    });
+
+    it("forwards a drop on the row list to onDrop", () => {
+      // The drag-and-drop wiring is the whole point of this variant of the repeat section;
+      // without the template hookup the rows are draggable but nothing reorders.
+      const spy = vi.spyOn(component, "onDrop").mockImplementation(() => {});
+      render();
+      const event = createDropEvent(0, 2);
+
+      fixture.debugElement.query(By.directive(CdkDropList)).triggerEventHandler("cdkDropListDropped", event);
+
+      expect(spy).toHaveBeenCalledWith(event);
     });
   });
 });

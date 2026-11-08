@@ -23,10 +23,10 @@ import org.scalatest.flatspec.AnyFlatSpec
 
 class FileListerSourceOpExecSpec extends AnyFlatSpec {
 
-  "parseDatasetVersionPath" should "extract components from a datasets-prefixed path" in {
+  "parseDatasetVersionPath" should "extract components from a dataset-prefixed path" in {
     val (prefix, owner, name, version) =
-      FileListerSourceOpExec.parseDatasetVersionPath("/datasets/bob@texera.com/twitterDataset/v1")
-    assert(prefix == "datasets")
+      FileListerSourceOpExec.parseDatasetVersionPath("/dataset/bob@texera.com/twitterDataset/v1")
+    assert(prefix == "dataset")
     assert(owner == "bob@texera.com")
     assert(name == "twitterDataset")
     assert(version == "v1")
@@ -34,7 +34,7 @@ class FileListerSourceOpExecSpec extends AnyFlatSpec {
 
   it should "work when the owner segment is a username without an '@'" in {
     val (prefix, owner, name, version) =
-      FileListerSourceOpExec.parseDatasetVersionPath("/datasets/texera/test-ds/v1")
+      FileListerSourceOpExec.parseDatasetVersionPath("/dataset/texera/test-ds/v1")
     assert(owner == "texera")
     assert(name == "test-ds")
     assert(version == "v1")
@@ -42,8 +42,8 @@ class FileListerSourceOpExecSpec extends AnyFlatSpec {
 
   it should "ignore trailing slashes and extra segments" in {
     val (prefix, owner, name, version) =
-      FileListerSourceOpExec.parseDatasetVersionPath("/datasets/alice/ds/v2/extra/")
-    assert(prefix == "datasets")
+      FileListerSourceOpExec.parseDatasetVersionPath("/dataset/alice/ds/v2/extra/")
+    assert(prefix == "dataset")
     assert(owner == "alice")
     assert(name == "ds")
     assert(version == "v2")
@@ -52,11 +52,11 @@ class FileListerSourceOpExecSpec extends AnyFlatSpec {
   "canonicalVersionPath" should "rebuild the prefixed version path from its components" in {
     assert(
       FileListerSourceOpExec.canonicalVersionPath(
-        "datasets",
+        "dataset",
         "bob@texera.com",
         "twitterDataset",
         "v1"
-      ) == "/datasets/bob@texera.com/twitterDataset/v1"
+      ) == "/dataset/bob@texera.com/twitterDataset/v1"
     )
   }
 
@@ -64,17 +64,17 @@ class FileListerSourceOpExecSpec extends AnyFlatSpec {
     // Emitted paths must be rooted at the parsed components, not the raw configured path:
     // a stray "extra" segment would otherwise leak into every emitted file path.
     val (prefix, owner, name, version) =
-      FileListerSourceOpExec.parseDatasetVersionPath("/datasets/alice/ds/v2/extra/")
+      FileListerSourceOpExec.parseDatasetVersionPath("/dataset/alice/ds/v2/extra/")
     assert(
       FileListerSourceOpExec.canonicalVersionPath(prefix, owner, name, version)
-        == "/datasets/alice/ds/v2"
+        == "/dataset/alice/ds/v2"
     )
   }
 
   it should "still accept a legacy unprefixed path" in {
     val (prefix, owner, name, version) =
       FileListerSourceOpExec.parseDatasetVersionPath("/alice/ds/v1")
-    assert(prefix == "datasets")
+    assert(prefix == "dataset")
     assert(owner == "alice")
     assert(name == "ds")
     assert(version == "v1")
@@ -85,7 +85,7 @@ class FileListerSourceOpExecSpec extends AnyFlatSpec {
       FileListerSourceOpExec.parseDatasetVersionPath("/alice/ds/v1")
     assert(
       FileListerSourceOpExec.canonicalVersionPath(prefix, owner, name, version)
-        == "/datasets/alice/ds/v1"
+        == "/dataset/alice/ds/v1"
     )
   }
 
@@ -99,7 +99,7 @@ class FileListerSourceOpExecSpec extends AnyFlatSpec {
 
   it should "reject a prefixed path with too few segments" in {
     assertThrows[IllegalArgumentException] {
-      FileListerSourceOpExec.parseDatasetVersionPath("/datasets/alice/ds")
+      FileListerSourceOpExec.parseDatasetVersionPath("/dataset/alice/ds")
     }
   }
 

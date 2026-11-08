@@ -35,6 +35,7 @@ import org.apache.texera.dao.jooq.generated.tables.pojos.{
   WorkflowOfUser,
   WorkflowUserAccess
 }
+import org.apache.texera.web.resource.dashboard.VersionedResourceTables
 import org.apache.texera.web.resource.dashboard.hub.HubResource._
 import org.scalamock.scalatest.MockFactory
 import org.scalatest.BeforeAndAfterAll
@@ -128,7 +129,14 @@ class HubResourceSpec
   // ---------------------------------------------------------------------------
 
   private val thirdUid = 9003
+  // Owners inside the default java.lang.Integer autoboxing cache (-128..127), where
+  // reference equality on boxed values happens to agree with value equality. The
+  // 9001-9003 uids above sit outside it.
+  private val cachedUid = 42
+  private val lastCachedUid = 127
+  private val firstUncachedUid = 128
   private val Ds: EntityType = EntityType.Dataset
+  private val Md: EntityType = EntityType.Model
 
   private def hub: HubResource = new HubResource()
 
@@ -188,6 +196,23 @@ class HubResourceSpec
     Integer.valueOf(dsId)
   }
 
+  private def seedModel(
+      modelId: Int,
+      name: String,
+      isPublic: Boolean = true,
+      owner: Int = ownerUid
+  ): Integer = {
+    getDSLContext
+      .insertInto(MODEL)
+      .set(MODEL.MID, Integer.valueOf(modelId))
+      .set(MODEL.OWNER_UID, Integer.valueOf(owner))
+      .set(MODEL.NAME, name)
+      .set(MODEL.DESCRIPTION, s"desc of $name")
+      .set(MODEL.IS_PUBLIC, java.lang.Boolean.valueOf(isPublic))
+      .execute()
+    Integer.valueOf(modelId)
+  }
+
   private def grantWorkflowAccess(wfId: Int, uid: Int, privilege: PrivilegeEnum): Unit =
     getDSLContext
       .insertInto(WORKFLOW_USER_ACCESS)
@@ -204,6 +229,14 @@ class HubResourceSpec
       .set(DATASET_USER_ACCESS.PRIVILEGE, privilege)
       .execute()
 
+  private def grantModelAccess(modelId: Int, uid: Int, privilege: PrivilegeEnum): Unit =
+    getDSLContext
+      .insertInto(MODEL_USER_ACCESS)
+      .set(MODEL_USER_ACCESS.MID, Integer.valueOf(modelId))
+      .set(MODEL_USER_ACCESS.UID, Integer.valueOf(uid))
+      .set(MODEL_USER_ACCESS.PRIVILEGE, privilege)
+      .execute()
+
   private def seedWorkflowLike(wfId: Int, uid: Int): Unit =
     getDSLContext
       .insertInto(WORKFLOW_USER_LIKES)
@@ -216,6 +249,13 @@ class HubResourceSpec
       .insertInto(DATASET_USER_LIKES)
       .set(DATASET_USER_LIKES.DID, Integer.valueOf(dsId))
       .set(DATASET_USER_LIKES.UID, Integer.valueOf(uid))
+      .execute()
+
+  private def seedModelLike(modelId: Int, uid: Int): Unit =
+    getDSLContext
+      .insertInto(MODEL_USER_LIKES)
+      .set(MODEL_USER_LIKES.MID, Integer.valueOf(modelId))
+      .set(MODEL_USER_LIKES.UID, Integer.valueOf(uid))
       .execute()
 
   private def seedWorkflowClone(wfId: Int, uid: Int): Unit =
@@ -239,6 +279,13 @@ class HubResourceSpec
       .set(DATASET_VIEW_COUNT.VIEW_COUNT, Integer.valueOf(count))
       .execute()
 
+  private def seedModelViewCount(modelId: Int, count: Int): Unit =
+    getDSLContext
+      .insertInto(MODEL_VIEW_COUNT)
+      .set(MODEL_VIEW_COUNT.MID, Integer.valueOf(modelId))
+      .set(MODEL_VIEW_COUNT.VIEW_COUNT, Integer.valueOf(count))
+      .execute()
+
   private def workflowLikeUids(wfId: Int): Set[Int] =
     getDSLContext
       .select(WORKFLOW_USER_LIKES.UID)
@@ -254,6 +301,16 @@ class HubResourceSpec
       .select(DATASET_USER_LIKES.UID)
       .from(DATASET_USER_LIKES)
       .where(DATASET_USER_LIKES.DID.eq(Integer.valueOf(dsId)))
+      .fetchInto(classOf[Integer])
+      .asScala
+      .map(_.intValue())
+      .toSet
+
+  private def modelLikeUids(modelId: Int): Set[Int] =
+    getDSLContext
+      .select(MODEL_USER_LIKES.UID)
+      .from(MODEL_USER_LIKES)
+      .where(MODEL_USER_LIKES.MID.eq(Integer.valueOf(modelId)))
       .fetchInto(classOf[Integer])
       .asScala
       .map(_.intValue())
@@ -287,6 +344,15 @@ class HubResourceSpec
         .fetchOne(DATASET_VIEW_COUNT.VIEW_COUNT)
     ).map(_.intValue())
 
+  private def modelViewCount(modelId: Int): Option[Int] =
+    Option(
+      getDSLContext
+        .select(MODEL_VIEW_COUNT.VIEW_COUNT)
+        .from(MODEL_VIEW_COUNT)
+        .where(MODEL_VIEW_COUNT.MID.eq(Integer.valueOf(modelId)))
+        .fetchOne(MODEL_VIEW_COUNT.VIEW_COUNT)
+    ).map(_.intValue())
+
   /** (uid, resourceType, resourceId, action literal, ip) for every audit row. */
   private def auditRows(): Seq[(Integer, String, Int, String, String)] =
     getDSLContext
@@ -317,6 +383,9 @@ class HubResourceSpec
     // A third liker, needed by the ranking cases below to make "most liked" a
     // strict order (3 > 2 > 1) rather than a tie between two users' likes.
     userDao.insert(makeUser(thirdUid, "hub_third"))
+    userDao.insert(makeUser(cachedUid, "hub_cached_uid"))
+    userDao.insert(makeUser(lastCachedUid, "hub_uid_127"))
+    userDao.insert(makeUser(firstUncachedUid, "hub_uid_128"))
 
     val wf = new Workflow
     wf.setWid(Integer.valueOf(wid))
@@ -349,8 +418,8 @@ class HubResourceSpec
     ctx.deleteFrom(WORKFLOW_USER_CLONES).where(WORKFLOW_USER_CLONES.WID.eq(wid)).execute()
     ctx.deleteFrom(WORKFLOW_VIEW_COUNT).where(WORKFLOW_VIEW_COUNT.WID.eq(wid)).execute()
     ctx.deleteFrom(USER_ACTION).where(USER_ACTION.RESOURCE_ID.eq(wid)).execute()
-    // The cases added below seed workflows and datasets of their own (ids in the
-    // 81xxxx / 82xxxx / 83xxxx ranges) plus audit rows pointing at them. MockTexeraDB
+    // The cases added below seed workflows, datasets and models of their own (ids in the
+    // 81xxxx / 82xxxx / 83xxxx / 84xxxx ranges) plus audit rows pointing at them. MockTexeraDB
     // never truncates, so those have to go too or a later test would observe an
     // earlier one's rows. Deleting the parents cascades to their like, clone,
     // view-count, ownership and access children; user_action has no such FK and
@@ -359,6 +428,7 @@ class HubResourceSpec
     ctx.deleteFrom(USER_ACTION).where(USER_ACTION.RESOURCE_ID.ne(wid)).execute()
     ctx.deleteFrom(WORKFLOW).where(WORKFLOW.WID.ne(wid)).execute()
     ctx.deleteFrom(DATASET).execute()
+    ctx.deleteFrom(MODEL).execute()
   }
 
   "recordUserAction" should "insert a user_action row for the entity" in {
@@ -492,6 +562,38 @@ class HubResourceSpec
     workflowLikeUids(830001) shouldBe empty
   }
 
+  it should "route the like to the model table when a model shares the id" in {
+    seedWorkflow(830002, "wf_like_shared_with_model")
+    seedDataset(830002, "ds_like_shared_with_model")
+    seedModel(830002, "md_like_shared_id")
+
+    recordLikeAction(
+      req,
+      Integer.valueOf(ownerUid),
+      UserRequest(Integer.valueOf(830002), Md),
+      isLike = true
+    ) shouldBe true
+
+    modelLikeUids(830002) shouldBe Set(ownerUid)
+    datasetLikeUids(830002) shouldBe empty
+    workflowLikeUids(830002) shouldBe empty
+  }
+
+  it should "unlike a model, leaving other likers alone" in {
+    seedModel(840101, "md_unlike")
+    seedModelLike(840101, likerUid)
+    seedModelLike(840101, ownerUid)
+
+    recordLikeAction(
+      req,
+      Integer.valueOf(ownerUid),
+      UserRequest(Integer.valueOf(840101), Md),
+      isLike = false
+    ) shouldBe true
+
+    modelLikeUids(840101) shouldBe Set(likerUid)
+  }
+
   "recordCloneAction" should "record a clone row and a user_action row" in {
     recordCloneAction(req, Integer.valueOf(likerUid), Integer.valueOf(wid), Wf)
     cloneRows shouldBe 1
@@ -545,6 +647,20 @@ class HubResourceSpec
     )
   }
 
+  it should "keep model likes apart from the other entity types" in {
+    seedModel(840501, "md_is_liked")
+    seedModelLike(840501, ownerUid)
+    seedDataset(820920, "ds_is_liked")
+
+    val responses = isLikedHelper(
+      Integer.valueOf(ownerUid),
+      ids(840501, 820920),
+      types(Md, Ds)
+    ).asScala.map(r => (r.entityType, r.entityId.intValue()) -> r.isLiked).toMap
+
+    responses shouldBe Map((Md, 840501) -> true, (Ds, 820920) -> false)
+  }
+
   it should "not report another user's like as the caller's" in {
     seedWorkflow(810303, "wf_liked_by_other")
     seedWorkflowLike(810303, likerUid)
@@ -575,6 +691,11 @@ class HubResourceSpec
     new HubResource().getCount(Wf).intValue() shouldBe 1
   }
 
+  it should "reject a missing entity type" in {
+    intercept[BadRequestException](hub.getCount(null))
+    intercept[BadRequestException](hub.getTops(null, null, null, null))
+  }
+
   it should "leave non-public workflows out of the count" in {
     // On top of the public fixture workflow (wid 7001) seeded in beforeAll.
     seedWorkflow(810501, "wf_public_a", isPublic = true, withOwnerRows = false)
@@ -582,6 +703,14 @@ class HubResourceSpec
     seedWorkflow(810503, "wf_private", isPublic = false, withOwnerRows = false)
 
     hub.getCount(Wf).intValue() shouldBe 3
+  }
+
+  it should "count models from the model table" in {
+    seedModel(840201, "md_public")
+    seedModel(840202, "md_private", isPublic = false)
+    seedDataset(820510, "ds_noise")
+
+    hub.getCount(Md).intValue() shouldBe 1
   }
 
   it should "count datasets from the dataset table, not the workflow table" in {
@@ -594,6 +723,52 @@ class HubResourceSpec
     hub.getCount(Ds).intValue() shouldBe 1
     // 810504, 810505 and the fixture workflow 7001.
     hub.getCount(Wf).intValue() shouldBe 3
+  }
+
+  "getPublicOwners" should "offer the owners of published workflows, and no one else" in {
+    // hub_liker's workflow is private, so only hub_owner has anything the hub can show.
+    seedWorkflow(810601, "wf_private_of_liker", isPublic = false, owner = likerUid)
+
+    hub.getPublicOwners(Wf).asScala should contain theSameElementsAs Seq("hub_owner@test.com")
+  }
+
+  it should "name an owner once however many public entities they have" in {
+    seedWorkflow(810602, "wf_public_b", isPublic = true)
+    seedWorkflow(810603, "wf_public_c", isPublic = true)
+
+    hub.getPublicOwners(Wf).asScala shouldBe Seq("hub_owner@test.com")
+  }
+
+  it should "ignore a grant, which is what the per-kind owners endpoints answer instead" in {
+    // The bug itself: a grant without anything published must not make you an owner here.
+    grantWorkflowAccess(wid, likerUid, PrivilegeEnum.READ)
+
+    hub.getPublicOwners(Wf).asScala should not contain "hub_liker@test.com"
+  }
+
+  it should "keep each kind to its own table" in {
+    // Deliberately different owners per kind, so a table mix-up cannot pass.
+    seedDataset(820601, "ds_public", owner = likerUid)
+    seedModel(840601, "md_public", owner = thirdUid)
+
+    hub.getPublicOwners(Ds).asScala shouldBe Seq("hub_liker@test.com")
+    hub.getPublicOwners(Md).asScala shouldBe Seq("hub_third@test.com")
+    hub.getPublicOwners(Wf).asScala shouldBe Seq("hub_owner@test.com")
+  }
+
+  it should "leave out the owners of private entities" in {
+    seedDataset(820602, "ds_private", isPublic = false, owner = likerUid)
+    seedModel(840602, "md_private", isPublic = false, owner = thirdUid)
+
+    hub.getPublicOwners(Ds).asScala shouldBe empty
+    hub.getPublicOwners(Md).asScala shouldBe empty
+  }
+
+  it should "name nobody for a public workflow that has no owner row" in {
+    seedWorkflow(810604, "wf_ownerless", isPublic = true, withOwnerRows = false)
+
+    // The fixture workflow's owner, and not a null for the ownerless one.
+    hub.getPublicOwners(Wf).asScala shouldBe Seq("hub_owner@test.com")
   }
 
   "postView" should "increment the view count and record a view action" in {
@@ -631,6 +806,21 @@ class HubResourceSpec
 
     workflowViewCount(830001) shouldBe Some(2)
     datasetViewCount(830001) shouldBe Some(1)
+  }
+
+  it should "keep model view counts apart from the dataset and workflow rows" in {
+    seedWorkflow(830003, "wf_view_shared_with_model")
+    seedDataset(830003, "ds_view_shared_with_model")
+    seedModel(830003, "md_view_shared_id")
+    val shared = Integer.valueOf(830003)
+
+    hub.postView(req, ViewRequest(shared, Integer.valueOf(ownerUid), Md))
+    hub.postView(req, ViewRequest(shared, Integer.valueOf(ownerUid), Md))
+    hub.postView(req, ViewRequest(shared, Integer.valueOf(ownerUid), Ds))
+
+    modelViewCount(830003) shouldBe Some(2)
+    datasetViewCount(830003) shouldBe Some(1)
+    workflowViewCount(830003) shouldBe None
   }
 
   "getCounts" should "report the like count for the entity" in {
@@ -715,13 +905,25 @@ class HubResourceSpec
     seedDatasetViewCount(820801, 7)
     Seq(ownerUid, likerUid, thirdUid).foreach(seedDatasetLike(820801, _))
 
-    // CloneTable(Dataset) throws; the `etype != Dataset` guard is what keeps this
-    // request from turning into a 500.
     val counts = hub.getCounts(types(Ds), ids(820801), null).asScala.head.counts
 
     counts.asScala.toMap shouldBe Map(
       (ActionType.View: ActionType) -> 7,
       (ActionType.Like: ActionType) -> 3,
+      (ActionType.Clone: ActionType) -> 0
+    )
+  }
+
+  it should "report view and like counts for a model, and zero clones" in {
+    seedModel(840301, "md_counts")
+    seedModelViewCount(840301, 5)
+    Seq(ownerUid, likerUid).foreach(seedModelLike(840301, _))
+
+    val counts = hub.getCounts(types(Md), ids(840301), null).asScala.head.counts
+
+    counts.asScala.toMap shouldBe Map(
+      (ActionType.View: ActionType) -> 5,
+      (ActionType.Like: ActionType) -> 2,
       (ActionType.Clone: ActionType) -> 0
     )
   }
@@ -747,6 +949,31 @@ class HubResourceSpec
     byEntity shouldBe Map((Wf, 810805) -> 1, (Ds, 820802) -> 2)
   }
 
+  "versionedResourcesByIdsQuery" should "carry only the viewer's own grant, never another user's" in {
+    val did = seedDataset(820860, "ds_two_grants")
+    for ((uid, privilege) <- Seq(ownerUid -> PrivilegeEnum.WRITE, likerUid -> PrivilegeEnum.READ)) {
+      getDSLContext
+        .insertInto(DATASET_USER_ACCESS)
+        .set(DATASET_USER_ACCESS.DID, did)
+        .set(DATASET_USER_ACCESS.UID, Integer.valueOf(uid))
+        .set(DATASET_USER_ACCESS.PRIVILEGE, privilege)
+        .execute()
+    }
+    val tables = VersionedResourceTables.DatasetTables
+    def grantsSeenBy(uid: Integer): Seq[PrivilegeEnum] =
+      HubResource
+        .versionedResourcesByIdsQuery(tables, Seq(did), uid)
+        .fetch()
+        .asScala
+        .map(_.get(DATASET_USER_ACCESS.PRIVILEGE))
+        .toSeq
+
+    grantsSeenBy(Integer.valueOf(likerUid)) shouldBe Seq(PrivilegeEnum.READ)
+    // A user with no grant, and an anonymous viewer, see one row with no grant at all.
+    grantsSeenBy(Integer.valueOf(thirdUid)) shouldBe Seq(null)
+    grantsSeenBy(null) shouldBe Seq(null)
+  }
+
   "getTops" should "list the liked public entity under the 'like' key" in {
     recordLikeAction(req, Integer.valueOf(likerUid), UserRequest(wid, Wf), isLike = true)
 
@@ -758,6 +985,32 @@ class HubResourceSpec
 
   it should "default to the like and clone buckets when no action types are given" in {
     hub.getTops(Wf, null, null, null).asScala.keySet shouldBe Set("like", "clone")
+  }
+
+  // Regression: the default bucket list ([like, clone]) used to drive getTops into a
+  // throwing CloneTable(Dataset), making this plain request a 500.
+  it should "answer for a cloneless entity type instead of failing on its absent clone table" in {
+    val tops = hub.getTops(Ds, null, null, null).asScala
+
+    tops.keySet shouldBe Set("like", "clone")
+    tops("clone").asScala shouldBe empty
+  }
+
+  it should "answer for a model without failing on its absent clone table" in {
+    // Models are cloneless like datasets; with no likes seeded the descriptor path is not
+    // asked to size a lakeFS repository, which this suite has no stub for.
+    val tops = hub.getTops(Md, null, null, null).asScala
+
+    tops.keySet shouldBe Set("like", "clone")
+    tops("like").asScala shouldBe empty
+    tops("clone").asScala shouldBe empty
+  }
+
+  it should "return an empty clone bucket when clone is asked for explicitly" in {
+    seedDataset(820850, "ds_no_clones")
+    seedDatasetLike(820850, likerUid)
+
+    hub.getTops(Ds, actions(ActionType.Clone), null, null).get("clone").asScala shouldBe empty
   }
 
   it should "select the most-liked public workflows and honour the limit" in {
@@ -850,6 +1103,25 @@ class HubResourceSpec
     )
   }
 
+  it should "read a model's grantees from model_user_access" in {
+    seedModel(840401, "md_access")
+    seedDataset(820910, "ds_access_noise")
+    // Disjoint grantee sets so reading the wrong access table cannot pass.
+    grantModelAccess(840401, likerUid, PrivilegeEnum.WRITE)
+    grantDatasetAccess(820910, thirdUid, PrivilegeEnum.READ)
+
+    val byEntity = hub
+      .userAccess(types(Md, Ds), ids(840401, 820910))
+      .asScala
+      .map(r => (r.entityType, r.entityId.intValue()) -> r.userIds.asScala.map(_.intValue()).toSet)
+      .toMap
+
+    byEntity shouldBe Map(
+      (Md, 840401) -> Set(likerUid),
+      (Ds, 820910) -> Set(thirdUid)
+    )
+  }
+
   it should "still emit a response with an empty uid list for an entity nobody can access" in {
     seedWorkflow(810902, "wf_no_access", withOwnerRows = false)
 
@@ -896,17 +1168,42 @@ class HubResourceSpec
     entry.ownerName shouldBe "hub_owner"
     entry.ownerId shouldBe Integer.valueOf(ownerUid)
     entry.accessLevel shouldBe "WRITE"
-    entry.projectIDs shouldBe empty
     entry.coverImage shouldBe empty
   }
 
-  // NOTE: `isOwner == true` is deliberately not asserted anywhere. WorkflowResource's
-  // mapWorkflowEntries compares the two uids with `AnyRef.eq` (reference equality on
-  // boxed Integers), so it is true only for uids that land in the java.lang.Integer
-  // cache (-128..127); this suite's uids (9001-9003) are outside it, so the owner's own
-  // request reports false today. Asserting it either way would either cement that bug or
-  // force this suite onto unrealistically small uids. The two negatives below hold for
-  // the current implementation and for a value-equality fix alike.
+  // mapWorkflowEntries compares two boxed Integers, so the owner's own request must be
+  // recognised on both sides of the default Integer cache (-128..127).
+  it should "set isOwner for the owner's own request when the uid is outside the Integer cache" in {
+    val id = seedWorkflow(811003, "wf_mine_uncached", owner = ownerUid)
+
+    fetchDashboardWorkflowsByWids(Seq(id), Integer.valueOf(ownerUid)).head.isOwner shouldBe true
+  }
+
+  it should "set isOwner for the owner's own request when the uid is inside the Integer cache" in {
+    val id = seedWorkflow(811004, "wf_mine_cached", owner = cachedUid)
+
+    fetchDashboardWorkflowsByWids(Seq(id), Integer.valueOf(cachedUid)).head.isOwner shouldBe true
+  }
+
+  // The boundary itself: 127 is the last cached value and 128 the first uncached one.
+  it should "set isOwner for the highest uid inside the Integer cache (127)" in {
+    val id = seedWorkflow(811006, "wf_mine_uid_127", owner = lastCachedUid)
+
+    fetchDashboardWorkflowsByWids(
+      Seq(id),
+      Integer.valueOf(lastCachedUid)
+    ).head.isOwner shouldBe true
+  }
+
+  it should "set isOwner for the lowest uid outside the Integer cache (128)" in {
+    val id = seedWorkflow(811007, "wf_mine_uid_128", owner = firstUncachedUid)
+
+    fetchDashboardWorkflowsByWids(
+      Seq(id),
+      Integer.valueOf(firstUncachedUid)
+    ).head.isOwner shouldBe true
+  }
+
   it should "clear isOwner for a different uid and for an anonymous (null) uid" in {
     val id = seedWorkflow(811002, "wf_not_mine", owner = ownerUid)
 
@@ -914,11 +1211,49 @@ class HubResourceSpec
     fetchDashboardWorkflowsByWids(Seq(id), null).head.isOwner shouldBe false
   }
 
-  // fetchDashboardDatasetsByDids calls LakeFSStorageClient for every did it resolves,
-  // so an empty id list is the only input exercisable without a LakeFS server. This
-  // pins the contract (empty in, empty out), not the early-return branch itself: the
-  // query would also come back empty if the guard were removed.
-  "fetchDashboardDatasetsByDids" should "return an empty list for an empty did list" in {
-    fetchDashboardDatasetsByDids(Seq.empty, Integer.valueOf(ownerUid)) shouldBe empty
+  // workflow_of_user is LEFT JOINed, so a workflow with no ownership row has a null owner
+  // uid. For the anonymous caller both uids
+  // are null, and Scala's `==` treats two nulls as equal, so the `uid != null` guard in
+  // mapWorkflowEntries is what keeps that one false.
+  it should "clear isOwner for a workflow with no ownership row, for an authenticated and an anonymous caller" in {
+    val id = seedWorkflow(811005, "wf_unowned", withOwnerRows = false)
+    grantWorkflowAccess(id, ownerUid, PrivilegeEnum.READ)
+
+    val entry = fetchDashboardWorkflowsByWids(Seq(id), Integer.valueOf(ownerUid)).head
+    entry.ownerId shouldBe null
+    entry.isOwner shouldBe false
+    fetchDashboardWorkflowsByWids(Seq(id), null).head.isOwner shouldBe false
+  }
+
+  it should "return one entry per workflow, carrying only the viewer's access level" in {
+    val id = seedWorkflow(811008, "wf_shared_twice")
+    grantWorkflowAccess(id, likerUid, PrivilegeEnum.READ)
+    grantWorkflowAccess(id, thirdUid, PrivilegeEnum.WRITE)
+
+    def levelsSeenBy(uid: Integer) =
+      fetchDashboardWorkflowsByWids(Seq(id), uid).map(_.accessLevel)
+    levelsSeenBy(Integer.valueOf(likerUid)) shouldBe List("READ")
+    levelsSeenBy(Integer.valueOf(cachedUid)) shouldBe List("NONE")
+    levelsSeenBy(null) shouldBe List("NONE")
+  }
+
+  it should "report WRITE for the owner even without an access row" in {
+    val id = seedWorkflow(811009, "wf_owner_row_removed")
+    getDSLContext
+      .deleteFrom(WORKFLOW_USER_ACCESS)
+      .where(WORKFLOW_USER_ACCESS.WID.eq(id))
+      .execute()
+
+    fetchDashboardWorkflowsByWids(Seq(id), Integer.valueOf(ownerUid)).map(_.accessLevel) shouldBe
+      List("WRITE")
+  }
+
+  // Every resolved id hits LakeFS, so an empty list is the only input testable without one.
+  "fetchDashboardVersionedResourcesByIds" should "return an empty list for an empty id list" in {
+    fetchDashboardVersionedResourcesByIds(
+      VersionedResourceTables.DatasetTables,
+      Seq.empty,
+      Integer.valueOf(ownerUid)
+    ) shouldBe empty
   }
 }

@@ -89,6 +89,16 @@ class SQLSourceOpDescSpec extends AnyFlatSpec with Matchers with MockFactory {
     configure(new TestSQLSourceOpDesc(conn)).sourceSchema().getAttribute("c").getType
   }
 
+  /** Every mandatory connection field, with the phrase its prompt must carry. */
+  private val connectionFields: Seq[(String, (SQLSourceOpDesc, String) => Unit, String)] = Seq(
+    ("host", (d, v) => d.host = v, "valid host name"),
+    ("port", (d, v) => d.port = v, "valid port"),
+    ("database", (d, v) => d.database = v, "valid database name"),
+    ("table", (d, v) => d.table = v, "valid table name"),
+    ("username", (d, v) => d.username = v, "valid username"),
+    ("password", (d, v) => d.password = v, "valid password")
+  )
+
   "SQLSourceOpDesc.sourceSchema" should "prompt for the missing connection field" in {
     val desc = configure(new TestSQLSourceOpDesc(mock[Connection]))
     desc.table = null
@@ -96,14 +106,41 @@ class SQLSourceOpDescSpec extends AnyFlatSpec with Matchers with MockFactory {
     ex.getMessage should include("table")
   }
 
+  it should "prompt for each connection field left unset or blank, naming that field" in {
+    // A saved workflow can carry either an absent field (null) or one the user
+    // filled with whitespace; both must be rejected before any connection attempt.
+    for {
+      (fieldName, set, phrase) <- connectionFields
+      (label, value) <- Seq("unset" -> null.asInstanceOf[String], "blank" -> "  ")
+    } withClue(s"$fieldName $label: ") {
+      val desc = configure(new TestSQLSourceOpDesc(mock[Connection]))
+      set(desc, value)
+      val ex = intercept[IllegalArgumentException](desc.sourceSchema())
+      ex.getMessage should include(phrase)
+    }
+  }
+
   it should "map each JDBC data type to its Texera attribute type" in {
-    attributeTypeFor(Types.INTEGER) shouldBe AttributeType.INTEGER
+    // All 19 keys of the match, not a sample of them. JaCoCo folds the lookupswitch's
+    // 19 cases into its 8 distinct jump targets, so this list moves coverage by
+    // exactly zero -- it is bought purely so that moving a key between arms fails.
+    attributeTypeFor(Types.TINYINT) shouldBe AttributeType.INTEGER
     attributeTypeFor(Types.SMALLINT) shouldBe AttributeType.INTEGER
+    attributeTypeFor(Types.INTEGER) shouldBe AttributeType.INTEGER
+    attributeTypeFor(Types.FLOAT) shouldBe AttributeType.DOUBLE
+    attributeTypeFor(Types.REAL) shouldBe AttributeType.DOUBLE
     attributeTypeFor(Types.DOUBLE) shouldBe AttributeType.DOUBLE
     attributeTypeFor(Types.NUMERIC) shouldBe AttributeType.DOUBLE
+    attributeTypeFor(Types.BIT) shouldBe AttributeType.BOOLEAN
     attributeTypeFor(Types.BOOLEAN) shouldBe AttributeType.BOOLEAN
     attributeTypeFor(Types.BINARY) shouldBe AttributeType.BINARY
+    attributeTypeFor(Types.DATE) shouldBe AttributeType.STRING
+    attributeTypeFor(Types.TIME) shouldBe AttributeType.STRING
+    attributeTypeFor(Types.LONGVARCHAR) shouldBe AttributeType.STRING
+    attributeTypeFor(Types.CHAR) shouldBe AttributeType.STRING
     attributeTypeFor(Types.VARCHAR) shouldBe AttributeType.STRING
+    attributeTypeFor(Types.NULL) shouldBe AttributeType.STRING
+    attributeTypeFor(Types.OTHER) shouldBe AttributeType.STRING
     attributeTypeFor(Types.BIGINT) shouldBe AttributeType.LONG
     attributeTypeFor(Types.TIMESTAMP) shouldBe AttributeType.TIMESTAMP
   }
@@ -149,14 +186,26 @@ class SQLSourceOpDescSpec extends AnyFlatSpec with Matchers with MockFactory {
     (rs.getString(_: String)).expects("COLUMN_NAME").returning("c")
     (rs.getInt(_: String)).expects("DATA_TYPE").returning(Types.ARRAY)
     val ex = intercept[RuntimeException](configure(new TestSQLSourceOpDesc(conn)).sourceSchema())
-    ex.getMessage should endWith(": unknown data type: " + Types.ARRAY)
+    // Whole message, not endWith: the leading getSimpleName is the only thing that
+    // tells the user WHICH source operator in the workflow rejected the column.
+    ex.getMessage shouldBe s"TestSQLSourceOpDesc: unknown data type: ${Types.ARRAY}"
   }
 
   it should "wrap a SQLException raised while introspecting" in {
     val conn = mock[Connection]
     (conn.setReadOnly _).expects(true).throwing(new SQLException("boom"))
     val ex = intercept[RuntimeException](configure(new TestSQLSourceOpDesc(conn)).sourceSchema())
-    ex.getMessage should endWith(" failed to connect to the database. boom")
+    ex.getMessage shouldBe "TestSQLSourceOpDesc failed to connect to the database. boom"
+  }
+
+  it should "wrap a ClassCastException raised while introspecting" in {
+    // A driver handing back a mistyped metadata object surfaces as a CCE, which
+    // the descriptor declares as a connection failure rather than letting it escape.
+    val conn = mock[Connection]
+    (conn.setReadOnly _).expects(true).throwing(new ClassCastException("cce"))
+    val ex = intercept[RuntimeException](configure(new TestSQLSourceOpDesc(conn)).sourceSchema())
+    ex.getClass shouldBe classOf[RuntimeException]
+    ex.getMessage shouldBe "TestSQLSourceOpDesc failed to connect to the database. cce"
   }
 
   it should "fail when the base establishConn returns no connection" in {

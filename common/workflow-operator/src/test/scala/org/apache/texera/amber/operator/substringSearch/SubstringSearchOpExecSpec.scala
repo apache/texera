@@ -95,6 +95,24 @@ class SubstringSearchOpExecSpec extends AnyFlatSpec {
   }
 
   // ---------------------------------------------------------------------------
+  // Edge: empty cell
+  // ---------------------------------------------------------------------------
+
+  it should "yield nothing when the column is empty" in {
+    val exec = new SubstringSearchOpExec(descJson(substring = "hello"))
+    // A blank CSV cell arrives as null. This used to throw a NullPointerException on
+    // the toString instead of answering the filter.
+    assert(exec.processTuple(tuple(null), port = 0).toList.isEmpty)
+  }
+
+  it should "yield nothing when the column is empty and the substring is empty too" in {
+    val exec = new SubstringSearchOpExec(descJson(substring = ""))
+    // The empty substring matches every value, but a row with no value has none to
+    // match, so it is filtered out rather than kept.
+    assert(exec.processTuple(tuple(null), port = 0).toList.isEmpty)
+  }
+
+  // ---------------------------------------------------------------------------
   // Edge: empty substring
   // ---------------------------------------------------------------------------
 

@@ -21,8 +21,6 @@ from concurrent.futures import Future
 from types import SimpleNamespace
 from unittest.mock import MagicMock
 
-import pytest
-
 from core.architecture.rpc import async_rpc_client as async_rpc_client_module
 from core.architecture.rpc.async_rpc_client import AsyncRPCClient, async_run
 from proto.org.apache.texera.amber.core import (
@@ -183,26 +181,6 @@ class TestReceive:
         client.receive(from_, invocation)
 
         assert fut.done() and fut.result() is ret
-
-
-class TestProxyStreamBlockers:
-    def test_stream_unary_blocked(self):
-        client = _make_client()
-        proxy = client.get_worker_interface("worker-X")
-        with pytest.raises(NotImplementedError, match="_stream_unary"):
-            proxy._stream_unary()
-
-    def test_unary_stream_blocked(self):
-        client = _make_client()
-        proxy = client.get_worker_interface("worker-X")
-        with pytest.raises(NotImplementedError, match="_unary_stream"):
-            proxy._unary_stream()
-
-    def test_stream_stream_blocked(self):
-        client = _make_client()
-        proxy = client.get_worker_interface("worker-X")
-        with pytest.raises(NotImplementedError, match="_stream_stream"):
-            proxy._stream_stream()
 
 
 class TestCoordinatorStub:

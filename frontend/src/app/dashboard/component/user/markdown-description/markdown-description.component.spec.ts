@@ -19,6 +19,7 @@
 
 import { Provider, SimpleChange } from "@angular/core";
 import { ComponentFixture, TestBed } from "@angular/core/testing";
+import { By } from "@angular/platform-browser";
 import { NZ_MODAL_DATA } from "ng-zorro-antd/modal";
 import { MarkdownService } from "ngx-markdown";
 import { MarkdownDescriptionComponent } from "./markdown-description.component";
@@ -396,6 +397,95 @@ describe("MarkdownDescriptionComponent", () => {
       fixture.detectChanges();
 
       expect(fixture.nativeElement.querySelector(".view-more-btn")).toBeNull();
+    });
+  });
+
+  // The edit-mode markup (toolbar + textarea) only renders once currentMode is "edit".
+  describe("edit-mode template", () => {
+    async function enterEditMode(): Promise<ComponentFixture<MarkdownDescriptionComponent>> {
+      const fixture = await createFixture();
+      fixture.componentInstance.description = "hello";
+      fixture.componentInstance.editable = true;
+      fixture.detectChanges();
+
+      // Go through the Edit button so its (click) binding executes.
+      const editButton = fixture.debugElement.query(By.css(".md-actions button"));
+      expect(editButton).toBeTruthy();
+      editButton.triggerEventHandler("click", new MouseEvent("click"));
+      fixture.detectChanges();
+      return fixture;
+    }
+
+    it("renders one toolbar button per action and a textarea bound to the draft", async () => {
+      const fixture = await enterEditMode();
+
+      const buttons = fixture.debugElement.queryAll(By.css(".md-toolbar button"));
+      expect(buttons.length).toBe(fixture.componentInstance.toolbar.length);
+      const textarea = fixture.debugElement.query(By.css(".md-textarea"));
+      expect(textarea).toBeTruthy();
+      expect((textarea.nativeElement as HTMLTextAreaElement).value).toBe("hello");
+    });
+
+    it("wraps the selected text when a toolbar button is clicked", async () => {
+      const fixture = await enterEditMode();
+
+      // insert() reads the textarea's selection offsets, so set them explicitly
+      // rather than relying on the environment's default caret position.
+      const textarea = fixture.debugElement.query(By.css(".md-textarea")).nativeElement as HTMLTextAreaElement;
+      textarea.setSelectionRange(0, "hello".length);
+
+      // the first action is Bold
+      fixture.debugElement
+        .queryAll(By.css(".md-toolbar button"))[0]
+        .triggerEventHandler("click", new MouseEvent("click"));
+      fixture.detectChanges();
+
+      expect(fixture.componentInstance.editingContent).toBe("**hello**");
+    });
+
+    it("inserts the action's default text when nothing is selected", async () => {
+      const fixture = await enterEditMode();
+
+      // empty selection at the end of the draft -> insert() falls back to action.default
+      const textarea = fixture.debugElement.query(By.css(".md-textarea")).nativeElement as HTMLTextAreaElement;
+      textarea.setSelectionRange(textarea.value.length, textarea.value.length);
+
+      fixture.debugElement
+        .queryAll(By.css(".md-toolbar button"))[0]
+        .triggerEventHandler("click", new MouseEvent("click"));
+      fixture.detectChanges();
+
+      expect(fixture.componentInstance.editingContent).toBe("hello**bold**");
+    });
+
+    it("wires the edit-mode Cancel and Save actions", async () => {
+      const fixture = await enterEditMode();
+      const component = fixture.componentInstance;
+      // In edit mode .md-actions holds [Cancel, Save].
+      const actions = fixture.debugElement.queryAll(By.css(".md-actions button"));
+      expect(actions.length).toBe(2);
+
+      component.editingContent = "draft";
+      actions[0].triggerEventHandler("click", new MouseEvent("click")); // Cancel
+      expect(component.editingContent).toBe("hello"); // reverted to the description
+
+      const saved: string[] = [];
+      component.descriptionChange.subscribe(v => saved.push(v));
+      component.editingContent = "saved text";
+      actions[1].triggerEventHandler("click", new MouseEvent("click")); // Save
+      expect(saved).toEqual(["saved text"]);
+    });
+
+    it("re-renders the preview from the textarea's ngModelChange", async () => {
+      const fixture = await enterEditMode();
+
+      const textarea = fixture.debugElement.query(By.css(".md-textarea"));
+      (textarea.nativeElement as HTMLTextAreaElement).value = "typed";
+      textarea.nativeElement.dispatchEvent(new Event("input"));
+      fixture.detectChanges();
+
+      expect(fixture.componentInstance.editingContent).toBe("typed");
+      expect(fixture.nativeElement.querySelector(".md-right .md-rendered")).toBeTruthy();
     });
   });
 });

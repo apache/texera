@@ -84,7 +84,6 @@ object MockTexeraDB {
       val replacementText =
         """CREATE INDEX idx_workflow_name_description_content ON workflow USING GIN (to_tsvector('english', COALESCE(name, '') || ' ' || COALESCE(description, '') || ' ' || COALESCE(content, '')));
         |CREATE INDEX idx_user_name ON "user" USING GIN (to_tsvector('english', COALESCE(name, '')));
-        |CREATE INDEX idx_user_project_name_description ON project USING GIN (to_tsvector('english', COALESCE(name, '') || ' ' || COALESCE(description, '')));
         |CREATE INDEX idx_dataset_name_description ON dataset USING GIN (to_tsvector('english', COALESCE(name, '') || ' ' || COALESCE(description, '')));
         |CREATE INDEX idx_dataset_version_name ON dataset_version USING GIN (to_tsvector('english', COALESCE(name, '')));""".stripMargin
 
@@ -95,6 +94,23 @@ object MockTexeraDB {
   def getDBInstance: EmbeddedPostgres =
     dbInstance.getOrElse(throw new RuntimeException("DB not initialized"))
   def getDDLScript: String = ddlScript.getOrElse(throw new RuntimeException("DDL not loaded"))
+  def createTestDatabase(dbName: String): Unit = {
+    val embedded = getDBInstance
+
+    Using.resource(embedded.getPostgresDatabase.getConnection) { conn =>
+      Using.resource(conn.createStatement()) { stmt =>
+        stmt.execute(s"CREATE DATABASE $dbName")
+      }
+    }
+
+    // Run the DDL once via a throwaway connection (autoCommit is TRUE by default,
+    // so the schema is permanently committed to this suite's isolated database).
+    Using.resource(embedded.getDatabase(username, dbName).getConnection) { conn =>
+      Using.resource(conn.createStatement()) { stmt =>
+        stmt.execute(getDDLScript)
+      }
+    }
+  }
 }
 
 trait MockTexeraDB extends TestSuiteMixin { this: TestSuite =>
@@ -115,24 +131,14 @@ trait MockTexeraDB extends TestSuiteMixin { this: TestSuite =>
     synchronized {
       if (dataSource.isEmpty || dataSource.get.isClosed) {
         MockTexeraDB.ensureInitialized()
+
+        uniqueDbName =
+          "texera_db_" + java.util.UUID.randomUUID().toString.replace("-", "")
+
+        MockTexeraDB.createTestDatabase(uniqueDbName)
         val embedded = MockTexeraDB.getDBInstance
-
-        uniqueDbName = "texera_db_" + java.util.UUID.randomUUID().toString.replace("-", "")
-        Using.resource(embedded.getPostgresDatabase.getConnection) { defaultConn =>
-          Using.resource(defaultConn.createStatement()) { stmt =>
-            stmt.execute(s"CREATE DATABASE $uniqueDbName")
-          }
-        }
-
-        // Run the DDL once via a throwaway connection (autoCommit is TRUE by default,
-        // so the schema is permanently committed to this suite's isolated database).
-        Using.resource(embedded.getDatabase("postgres", uniqueDbName).getConnection) { conn =>
-          Using.resource(conn.createStatement()) { stmt =>
-            stmt.execute(MockTexeraDB.getDDLScript)
-          }
-        }
-
         val jdbcUrl = embedded.getJdbcUrl("postgres", uniqueDbName)
+
         val ds = new HikariDataSource(createHikariConfig(jbdcUrl = jdbcUrl))
         dataSource = Some(ds)
 

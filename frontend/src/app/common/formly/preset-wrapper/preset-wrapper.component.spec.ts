@@ -18,6 +18,8 @@
  */
 
 import { ComponentFixture, TestBed } from "@angular/core/testing";
+import { By } from "@angular/platform-browser";
+import { NzDropdownDirective, NzDropdownMenuComponent } from "ng-zorro-antd/dropdown";
 import { FormControl } from "@angular/forms";
 import { FormlyFieldConfig } from "@ngx-formly/core";
 import { NzMessageService } from "ng-zorro-antd/message";
@@ -134,6 +136,43 @@ describe("PresetWrapperComponent", () => {
 
       expect(presetServiceStub.getPresets).toHaveBeenCalledWith(presetKey.presetType, presetKey.saveTarget);
       expect(component.searchResults).toEqual([testPreset, otherPreset]);
+    });
+
+    it("seeds the search term from the form control's value", () => {
+      formControl.setValue("seeded");
+      component.field = buildField();
+
+      component.ngOnInit();
+
+      expect(component["searchTerm"]).toBe("seeded");
+    });
+
+    it("seeds an empty search term when the form control holds null", () => {
+      formControl.setValue(null);
+      component.field = buildField();
+
+      component.ngOnInit();
+
+      expect(component["searchTerm"]).toBe("");
+    });
+  });
+
+  describe("setupFieldConfig", () => {
+    it("merges the preset wrappers and the preset key into the given config", () => {
+      const config: FormlyFieldConfig = { key: fieldKey, templateOptions: { label: "kept" } };
+
+      PresetWrapperComponent.setupFieldConfig(config, "operator", "MySQLSource", "MySQLSource-op-1");
+
+      expect(config.wrappers).toEqual(["form-field", "preset-wrapper"]);
+      expect(config.templateOptions?.presetKey).toEqual({
+        presetType: "operator",
+        saveTarget: "MySQLSource",
+        applyTarget: "MySQLSource-op-1",
+      });
+      // the browser's own autocomplete is turned off so it cannot cover the preset menu
+      expect(config.templateOptions?.attributes).toEqual({ autocomplete: "off" });
+      // pre-existing options survive the merge
+      expect(config.templateOptions?.label).toBe("kept");
     });
   });
 
@@ -268,13 +307,17 @@ describe("PresetWrapperComponent", () => {
       expect(component.searchResults).toEqual([]);
     });
 
-    it("does not refresh searchResults from form value changes while the dropdown is closed", () => {
+    it("does not refresh searchResults from form value changes while the dropdown is closed", async () => {
       const baselineCalls = presetServiceStub.getPresets.mock.calls.length;
       component.presetMenuVisible = false;
 
       formControl.setValue("typing");
+      // the handler is debounced(0); without this tick it would not have run at all and
+      // the assertion below would hold no matter what the menu state is
+      await new Promise(resolve => setTimeout(resolve, 0));
 
-      // No additional getPresets call because the menu is closed.
+      // the term is still tracked, but the menu being closed suppresses the refetch
+      expect(component["searchTerm"]).toBe("typing");
       expect(presetServiceStub.getPresets.mock.calls.length).toBe(baselineCalls);
     });
 
@@ -288,6 +331,44 @@ describe("PresetWrapperComponent", () => {
       await new Promise(resolve => setTimeout(resolve, 0));
 
       expect(presetServiceStub.getPresets.mock.calls.length).toBe(baselineCalls + 1);
+    });
+
+    it("adopts the preset carried by a matching applyPresetStream event", () => {
+      presetServiceStub.applyPresetStream.next({
+        type: presetKey.presetType,
+        target: presetKey.applyTarget,
+        preset: testPreset,
+      });
+
+      expect(component["basePreset"]).toBe(testPreset);
+    });
+
+    it("ignores applyPresetStream events for a different presetType or applyTarget", () => {
+      const before = component["basePreset"];
+
+      presetServiceStub.applyPresetStream.next({
+        type: "someOtherType",
+        target: presetKey.applyTarget,
+        preset: testPreset,
+      });
+      presetServiceStub.applyPresetStream.next({
+        type: presetKey.presetType,
+        target: "someOtherTarget",
+        preset: otherPreset,
+      });
+
+      expect(component["basePreset"]).toBe(before);
+    });
+
+    it("clears the search term when the form value becomes null while the dropdown is open", async () => {
+      component.presetMenuVisible = true;
+      component["searchTerm"] = "typed";
+
+      formControl.setValue(null);
+      // the valueChanges handler is debounced(0) — wait one tick
+      await new Promise(resolve => setTimeout(resolve, 0));
+
+      expect(component["searchTerm"]).toBe("");
     });
 
     it("stops responding to stream events after ngOnDestroy", () => {
@@ -360,6 +441,20 @@ describe("PresetWrapperComponent", () => {
       fixture.detectChanges();
     };
 
+    it("routes the dropdown's own visibility event into onDropdownVisibilityEvent", () => {
+      // the tests above call the handler directly; this drives it through the template
+      // binding, which is the wiring that would break if the output were renamed
+      initWith([testPreset]);
+      const handler = vi.spyOn(component, "onDropdownVisibilityEvent");
+
+      fixture.debugElement
+        .query(By.directive(NzDropdownDirective))
+        .injector.get(NzDropdownDirective)
+        .nzVisibleChange.emit(true);
+
+      expect(handler).toHaveBeenCalledWith(true);
+    });
+
     it("renders the save button and saves the preset when it is clicked", () => {
       initWith([]);
 
@@ -372,39 +467,57 @@ describe("PresetWrapperComponent", () => {
       expect(savePreset).toHaveBeenCalled();
     });
 
-    it("feeds the dropdown *ngFor with one entry per preset, titled and described", () => {
-      // The rows live in an nz-dropdown-menu that only mounts into a CDK overlay on a
-      // real user open, which jsdom does not drive; assert the list the *ngFor is bound
-      // to and the interpolations it renders for each row instead.
+    /**
+     * The rows live in an nz-dropdown-menu, whose content is an ng-template that only
+     * mounts into a CDK overlay when the dropdown opens — jsdom never drives that.
+     * Instantiating the template directly puts the rows in the fixture's DOM so the
+     * *ngFor, the interpolations and the row click handlers all really run.
+     */
+    const renderDropdownRows = (): HTMLElement[] => {
+      const menu = fixture.debugElement.query(By.directive(NzDropdownMenuComponent))
+        .componentInstance as NzDropdownMenuComponent;
+      menu.viewContainerRef.createEmbeddedView(menu.templateRef);
+      fixture.detectChanges();
+      return Array.from(fixture.nativeElement.querySelectorAll(".preset-dropdown-item"));
+    };
+
+    it("renders one dropdown row per preset, titled and described", () => {
       initWith([testPreset, otherPreset]);
 
-      expect(component.searchResults).toEqual([testPreset, otherPreset]);
-      // the title cell renders the preset's value under the field's own key, and the
-      // description cell joins the remaining values
-      expect(component.getEntryTitle(testPreset)).toBe(testPreset[fieldKey]);
-      expect(component.getEntryDescription(testPreset)).toBe("otherPresetValue");
+      const rows = renderDropdownRows();
+
+      expect(rows).toHaveLength(2);
+      expect(rows[0].querySelector(".title")?.textContent).toBe(testPreset[fieldKey]);
+      expect(rows[0].querySelector(".description")?.textContent).toBe("otherPresetValue");
+      expect(rows[1].querySelector(".title")?.textContent).toBe(otherPreset[fieldKey]);
     });
 
-    it("binds an empty dropdown list when there are no presets", () => {
+    it("renders no dropdown rows when there are no presets", () => {
       initWith([]);
 
-      expect(component.searchResults).toEqual([]);
+      expect(renderDropdownRows()).toHaveLength(0);
     });
 
-    it("applies the preset the row's (click) binding targets", () => {
+    it("applies the preset when its row is clicked", () => {
       initWith([testPreset]);
 
-      component.applyPreset(testPreset);
+      renderDropdownRows()[0].querySelector<HTMLElement>(".dropdown-entry")!.click();
 
-      expect(presetServiceStub.applyPreset).toHaveBeenCalledWith(expect.anything(), expect.anything(), testPreset);
+      expect(presetServiceStub.applyPreset).toHaveBeenCalledWith(
+        presetKey.presetType,
+        presetKey.applyTarget,
+        testPreset
+      );
     });
 
-    it("deletes the preset the delete button's (click) binding targets", () => {
+    it("deletes the preset from its row's delete button without applying it", () => {
       initWith([testPreset]);
 
-      component.deletePreset(testPreset);
+      renderDropdownRows()[0].querySelector<HTMLElement>(".delete-button")!.click();
 
       expect(presetServiceStub.deletePreset).toHaveBeenCalled();
+      // the button stops propagation so the surrounding row does not also apply it
+      expect(presetServiceStub.applyPreset).not.toHaveBeenCalled();
     });
   });
 });

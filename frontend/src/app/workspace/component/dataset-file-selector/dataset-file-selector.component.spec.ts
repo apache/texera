@@ -24,7 +24,6 @@ import { FieldTypeConfig } from "@ngx-formly/core";
 import { of } from "rxjs";
 import { NzModalService } from "ng-zorro-antd/modal";
 import { DatasetFileSelectorComponent } from "./dataset-file-selector.component";
-import { WorkflowActionService } from "../../service/workflow-graph/model/workflow-action.service";
 import { GuiConfigService } from "../../../common/service/gui-config.service";
 
 describe("DatasetFileSelectorComponent", () => {
@@ -54,7 +53,6 @@ describe("DatasetFileSelectorComponent", () => {
       imports: [DatasetFileSelectorComponent],
       providers: [
         { provide: NzModalService, useValue: modalServiceSpy },
-        { provide: WorkflowActionService, useValue: {} },
         { provide: GuiConfigService, useValue: guiConfigStub },
       ],
     }).compileComponents();
@@ -122,17 +120,10 @@ describe("DatasetFileSelectorComponent", () => {
       expect(selectFileButton().nativeElement.textContent.trim()).toBe("Select File");
     });
 
-    it("leaves the path input editable even with file selection enabled", () => {
+    it("keeps the path input read-only when file selection is enabled", () => {
       render("/dataset/data.csv");
 
-      // Characterizing a defect rather than asserting the intent: the template's
-      // `[readOnly]` is camelCase, so it misses NzInputDirective's `readonly` input and
-      // lands on the DOM property; the directive then host-binds
-      // `[attr.readonly]="readonly() || null"`, which clears the attribute and resets the
-      // property. So the path the picker is meant to own can still be typed over.
-      // Spelling the binding `[readonly]` makes it take effect — a production change, out
-      // of scope here. Flip this expectation to `true` when that lands.
-      expect(input().nativeElement.readOnly).toBe(false);
+      expect(input().nativeElement.readOnly).toBe(true);
     });
 
     it("shows only the Select File button until a path has been chosen", () => {

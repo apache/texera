@@ -30,6 +30,9 @@ import org.apache.texera.amber.util.JSONUtils.objectMapper
 import org.scalatest.BeforeAndAfter
 import org.scalatest.flatspec.AnyFlatSpec
 
+import java.nio.charset.StandardCharsets
+import java.nio.file.{Files, Path, Paths}
+
 class FileScanSourceOpDescSpec extends AnyFlatSpec with BeforeAndAfter {
 
   var fileScanSourceOpDesc: FileScanSourceOpDesc = _
@@ -37,7 +40,7 @@ class FileScanSourceOpDescSpec extends AnyFlatSpec with BeforeAndAfter {
   before {
     fileScanSourceOpDesc = new FileScanSourceOpDesc()
     fileScanSourceOpDesc.setResolvedFileName(FileResolver.resolve(TestOperators.TestTextFilePath))
-    fileScanSourceOpDesc.fileEncoding = FileDecodingMethod.UTF_8
+    fileScanSourceOpDesc.encoding = FileDecodingMethod.UTF_8
   }
 
   it should "infer schema with single column representing each line of text in normal text scan mode" in {
@@ -184,11 +187,13 @@ class FileScanSourceOpDescSpec extends AnyFlatSpec with BeforeAndAfter {
     FileScanSourceOpExec.close()
   }
 
+  // `encoding` and not the inherited `fileEncoding`: the descriptor drops that
+  // one on the way over, so setting it never reached the executor at all.
   it should "read first 5 lines of the input text file with US_ASCII encoding" in {
-    fileScanSourceOpDesc.setResolvedFileName(
-      FileResolver.resolve(TestOperators.TestCRLFTextFilePath)
+    fileScanSourceOpDesc = describing(
+      Paths.get(TestOperators.TestCRLFTextFilePath),
+      """"encoding":"US_ASCII""""
     )
-    fileScanSourceOpDesc.fileEncoding = FileDecodingMethod.ASCII
     fileScanSourceOpDesc.attributeType = FileAttributeType.STRING
     fileScanSourceOpDesc.fileScanLimit = Option(5)
     val FileScanSourceOpExec =
@@ -207,6 +212,108 @@ class FileScanSourceOpDescSpec extends AnyFlatSpec with BeforeAndAfter {
     assert(processedTuple.next().getField("line").equals("line5"))
     assertThrows[java.util.NoSuchElementException](processedTuple.next().getField("line"))
     FileScanSourceOpExec.close()
+  }
+
+  it should "carry the Encoding field through serialization into the executor" in {
+    fileScanSourceOpDesc.encoding = FileDecodingMethod.UTF_16
+
+    // getPhysicalOp hands the executor objectMapper.writeValueAsString(this), and
+    // FileScanSourceOpExec reads the descriptor back out of that string, so the
+    // charset only reaches the executor if it survives the round trip.
+    val roundTripped = objectMapper.readValue(
+      objectMapper.writeValueAsString(fileScanSourceOpDesc),
+      classOf[FileScanSourceOpDesc]
+    )
+
+    assert(roundTripped.encoding == FileDecodingMethod.UTF_16)
+  }
+
+  it should "decode a UTF-16 file with the charset the Encoding field names" in {
+    val utf16File = Files.createTempFile("file-scan-utf16", ".txt")
+    try {
+      Files.write(utf16File, "line1\nline2\nline3".getBytes(StandardCharsets.UTF_16))
+
+      fileScanSourceOpDesc.setResolvedFileName(FileResolver.resolve(utf16File.toString))
+      fileScanSourceOpDesc.encoding = FileDecodingMethod.UTF_16
+      fileScanSourceOpDesc.attributeType = FileAttributeType.STRING
+
+      val fileScanSourceOpExec =
+        new FileScanSourceOpExec(objectMapper.writeValueAsString(fileScanSourceOpDesc))
+      fileScanSourceOpExec.open()
+      val processedTuple: Iterator[Tuple] = fileScanSourceOpExec
+        .produceTuple()
+        .map(tupleLike =>
+          tupleLike
+            .asInstanceOf[SchemaEnforceable]
+            .enforceSchema(fileScanSourceOpDesc.sourceSchema())
+        )
+
+      // Decoded as UTF-8 these bytes come back as the byte-order mark followed by
+      // NUL-interleaved characters, so this is the assertion the old wiring failed.
+      assert(processedTuple.next().getField("line").equals("line1"))
+      assert(processedTuple.next().getField("line").equals("line2"))
+      assert(processedTuple.next().getField("line").equals("line3"))
+      assertThrows[java.util.NoSuchElementException](processedTuple.next().getField("line"))
+      fileScanSourceOpExec.close()
+    } finally {
+      Files.deleteIfExists(utf16File)
+    }
+  }
+
+  it should "keep a whole file's CRLF in the export, as the engine does" in {
+    // The engine decodes the bytes as they are. The text reader's default turns a
+    // CRLF into a LF, so `first\r\nsecond\r\n` would export as `first\nsecond\n`.
+    fileScanSourceOpDesc.attributeType = FileAttributeType.SINGLE_STRING
+    assert(
+      fileScanSourceOpDesc
+        .generateStandaloneCode()
+        .contains("""[_texera_decode(_f.read(), "utf-8")]""")
+    )
+
+    // Lines go through universal newlines, which end a line where the engine's
+    // reader does.
+    fileScanSourceOpDesc.attributeType = FileAttributeType.STRING
+    assert(fileScanSourceOpDesc.generateStandaloneCode().contains("newline=None"))
+  }
+
+  // Python's "utf-16" refuses a file with no byte-order mark, and decodes an
+  // archive entry as little-endian. The engine reads both as big-endian.
+  it should "decode every text read with the shared decoder, archive entries included" in {
+    val utf16BeFile = Files.createTempFile("file-scan-utf16be", ".txt")
+    try {
+      Files.write(utf16BeFile, "line1\nline2".getBytes(StandardCharsets.UTF_16BE))
+      val wholeOf = """_texera_decode(_f.read(), "utf-16")"""
+      val linesOf = s"io.StringIO($wholeOf, newline=None)"
+      Seq("false", "true").foreach { extract =>
+        val desc = describing(utf16BeFile, """"encoding":"UTF_16"""", s""""extract":$extract""")
+
+        desc.attributeType = FileAttributeType.SINGLE_STRING
+        assert(desc.generateStandaloneCode().contains(wholeOf))
+        assert(!desc.generateStandaloneCode().contains(".decode("))
+        assert(desc.standaloneHelpers() == Seq(FileScanOpDesc.DecodeHelper))
+
+        desc.attributeType = FileAttributeType.STRING
+        assert(desc.generateStandaloneCode().contains(linesOf))
+        assert(!desc.generateStandaloneCode().contains("TextIOWrapper"))
+        assert(!desc.generateStandaloneCode().contains("""encoding="utf-16""""))
+        assert(desc.standaloneImports().contains("import io"))
+
+        // A binary read stays bytes and needs no decoder.
+        desc.attributeType = FileAttributeType.BINARY
+        assert(!desc.generateStandaloneCode().contains("_texera_decode"))
+        assert(desc.standaloneHelpers().isEmpty)
+      }
+
+      // What the decoder mirrors: the engine reads the same bytes as big-endian.
+      val desc = describing(utf16BeFile, """"encoding":"UTF_16"""")
+      desc.attributeType = FileAttributeType.STRING
+      val exec = new FileScanSourceOpExec(objectMapper.writeValueAsString(desc))
+      exec.open()
+      assert(exec.produceTuple().toList.map(_.getFields.head) == List("line1", "line2"))
+      exec.close()
+    } finally {
+      Files.deleteIfExists(utf16BeFile)
+    }
   }
 
   "FileScanSourceOpDesc.getPhysicalOp" should
@@ -242,4 +349,15 @@ class FileScanSourceOpDescSpec extends AnyFlatSpec with BeforeAndAfter {
     assert(schema.getAttribute("line").getType == AttributeType.STRING)
   }
 
+  /** `extract`, `outputFileName` and `encoding` are vals, so the fields are
+    * deserialized in.
+    */
+  private def describing(file: Path, fields: String*): FileScanSourceOpDesc = {
+    val desc = objectMapper.readValue(
+      (""""operatorType":"FileScan"""" +: fields).mkString("{", ",", "}"),
+      classOf[FileScanSourceOpDesc]
+    )
+    desc.setResolvedFileName(FileResolver.resolve(file.toString))
+    desc
+  }
 }

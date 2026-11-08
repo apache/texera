@@ -21,10 +21,28 @@
   <div
     id="workflow-editor"
     (contextmenu)="nzContextMenu.create($event, menu)"></div>
+  <texera-heatmap-legend></texera-heatmap-legend>
+  <div
+    class="heatmap-tooltip"
+    *ngIf="heatmapTooltip"
+    [style.left.px]="heatmapTooltip.x"
+    [style.top.px]="heatmapTooltip.y">
+    <div class="heatmap-tooltip__title">{{ heatmapTooltip.title }}</div>
+    <div class="heatmap-tooltip__row">{{ heatmapTooltip.metricLabel }}</div>
+    <div class="heatmap-tooltip__row">Heat: {{ heatmapTooltip.heatLabel }}</div>
+  </div>
+  <texera-operator-result-preview
+    class="result-preview-anchor"
+    *ngIf="resultPreview"
+    [operatorId]="resultPreview.operatorId"
+    (mouseenter)="keepResultPreview()"
+    (mouseleave)="hideResultPreviewSoon()"
+    [style.left.px]="resultPreview.x"
+    [style.top.px]="resultPreview.y"></texera-operator-result-preview>
   <nz-dropdown-menu
     nzNoAnimation
     #menu="nzDropdownMenu">
-    <texera-context-menu></texera-context-menu>
+    <texera-context-menu [structureLocked]="structureLocked"></texera-context-menu>
   </nz-dropdown-menu>
 
   <!-- Chat Popover for Operator -->

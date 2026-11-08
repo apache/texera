@@ -24,20 +24,33 @@
 // `matchMedia`, `requestIdleCallback`, …). jointjs's SVG geometry stubs
 // are the only block that predates the upgrade.
 
-// CSS-import shim: the unit-test builder pre-bundles specs with
-// `externalPackages: true`, so transitive `.css` imports from the codingame
-// stack reach Node's native ESM loader and crash with
-// `Unknown file extension ".css"`. Register a hook that resolves any `.css`
-// specifier to a `CSSStyleSheet`-shaped no-op module. Source is inlined as
-// a `data:` URL (no `.mjs` sidecar). Gated by a `globalThis` flag because
-// `setupFiles` re-runs per spec file and `module.register` chains.
-import { register as registerLoader } from "node:module";
+// Module-resolution shims: the unit-test builder pre-bundles specs with
+// `externalPackages: true`, so every package import reaches Node's own
+// resolver, which differs from a browser bundler's in two ways.
+//
+// - Transitive `.css` imports from the codingame stack crash Node's ESM loader
+//   with `Unknown file extension ".css"`, so any `.css` specifier resolves to
+//   a `CSSStyleSheet`-shaped no-op module instead.
+// - monaco-languageclient v11 imports `vscode-languageclient/browser` and
+//   `vscode-languageserver-protocol/browser`, whose CommonJS entry points
+//   `require` the `/browser` subpaths of `vscode-languageserver-protocol` and
+//   `vscode-jsonrpc` in turn. All three export `./browser` under the `browser`
+//   condition only, which Node never applies, so the import fails with
+//   `ERR_PACKAGE_PATH_NOT_EXPORTED`. jsdom stands in for a browser, so a
+//   resolution that fails that way is retried with the `browser` condition;
+//   every other resolution is left alone.
+//
+// The hook is synchronous (`registerHooks`): only an in-thread hook also sees
+// `require` calls, and an asynchronous `register` hook next to it would keep
+// the retried condition from reaching ESM imports. Gated by a `globalThis`
+// flag because `setupFiles` re-runs per spec file and hooks chain.
+import { registerHooks } from "node:module";
 
-const CSS_HOOK_FLAG = Symbol.for("texera.cssLoaderHookRegistered");
+const RESOLVE_HOOK_FLAG = Symbol.for("texera.resolveHookRegistered");
 const PROCESS_HANDLERS_FLAG = Symbol.for("texera.processErrorHandlersInstalled");
 const flagHolder = globalThis as Record<symbol, boolean | undefined>;
-if (!flagHolder[CSS_HOOK_FLAG]) {
-  // The hook's default export is a CSSStyleSheet-shaped stub rather than a
+if (!flagHolder[RESOLVE_HOOK_FLAG]) {
+  // The stub's default export is a CSSStyleSheet-shaped object rather than a
   // bare `{}` — a few transitive consumers (codingame v25's
   // `css-style-sheet` export form) read `.replaceSync` / `.cssRules` off
   // the imported value, and a plain empty object would crash them.
@@ -49,17 +62,20 @@ if (!flagHolder[CSS_HOOK_FLAG]) {
     "s.deleteRule = () => {};" +
     "export default s;";
   const stubUrl = `data:text/javascript;charset=utf-8,${encodeURIComponent(stubModule)}`;
-  const cssLoaderHookSource = `
-const STUB_URL = ${JSON.stringify(stubUrl)};
-export function resolve(specifier, context, nextResolve) {
-  if (specifier.endsWith(".css") || /\\.css(\\?|$)/.test(specifier)) {
-    return { url: STUB_URL, shortCircuit: true, format: "module" };
-  }
-  return nextResolve(specifier, context);
-}
-`;
-  registerLoader(`data:text/javascript;charset=utf-8,${encodeURIComponent(cssLoaderHookSource)}`);
-  flagHolder[CSS_HOOK_FLAG] = true;
+  registerHooks({
+    resolve(specifier, context, nextResolve) {
+      if (specifier.endsWith(".css") || /\.css(\?|$)/.test(specifier)) {
+        return { url: stubUrl, shortCircuit: true, format: "module" };
+      }
+      try {
+        return nextResolve(specifier, context);
+      } catch (error) {
+        if ((error as { code?: string }).code !== "ERR_PACKAGE_PATH_NOT_EXPORTED") throw error;
+        return nextResolve(specifier, { ...context, conditions: [...context.conditions, "browser"] });
+      }
+    },
+  });
+  flagHolder[RESOLVE_HOOK_FLAG] = true;
 }
 
 type AnyFn = (...args: unknown[]) => unknown;
@@ -109,6 +125,18 @@ installIfMissing(G.SVGGraphicsElement?.prototype, {
   getScreenCTM: fakeMatrix as AnyFn,
   getCTM: fakeMatrix as AnyFn,
   getBBox: fakeRect as AnyFn,
+});
+
+// `Range.prototype.getBoundingClientRect` — jsdom has no layout engine and
+// doesn't implement it. Quill's `Selection#getBounds` calls it on a live
+// Range to place the caret, and quill-cursors calls it again for every
+// remote cursor an awareness update carries, so any spec that mounts a
+// collaborative editor throws `range.getBoundingClientRect is not a
+// function`. A zeroed rect is enough — jsdom never paints, and specs that
+// need real caret geometry belong in browser mode. `top` / `left` / `right`
+// / `height` are the four fields `getBounds` reads back off it.
+installIfMissing(G.Range?.prototype, {
+  getBoundingClientRect: (() => ({ ...fakeRect(), top: 0, right: 0, bottom: 0, left: 0 })) as AnyFn,
 });
 
 // Constructable Stylesheets API (`new CSSStyleSheet().replaceSync(...)`) —
@@ -191,6 +219,61 @@ G.ResizeObserver ??= class {
   unobserve(): void {}
   disconnect(): void {}
 };
+
+// `window.getComputedStyle(elt, pseudoElt)` and `window.scrollTo` — jsdom
+// implements neither. Both route through its `notImplemented` helper, which
+// emits a `jsdomError` on the virtual console; vitest's jsdom environment
+// forwards that to `console.error`, one full stack trace per call. html2canvas
+// calls both on every render — a `:before` and an `:after` lookup for each
+// cloned node, plus one `scrollTo` per document clone — so the
+// report-generation spec, which drives the real renderer on purpose (`vi.mock`
+// can't reach it under the builder's `isolate: false`), buries the run in
+// traces while all of its tests pass.
+// Dropping `pseudoElt` changes no behaviour for the arguments jsdom only
+// complains about: it ignores them and returns the element's own declaration
+// either way. The exception is a shadow-DOM pseudo-element (`::part(…)` /
+// `::slotted(…)`), which jsdom rejects with a `TypeError` before it reaches
+// `notImplemented` — those are forwarded so the rejection still happens.
+// `scrollTo` has nothing to move — jsdom has no layout.
+// Both patches wrap a global that this setup file is re-evaluated against once
+// per spec file, so each marks what it installed and does nothing when it finds
+// its own mark — otherwise the wrappers nest one layer deeper per spec file.
+// The mark rides on the installed function rather than on a `globalThis` flag
+// so that a jsdom window replaced mid-run still gets patched.
+const NOISE_PATCH_MARK = Symbol.for("texera.jsdomNotImplementedNoisePatched");
+const alreadyPatched = (fn: unknown): boolean => typeof fn === "function" && NOISE_PATCH_MARK in (fn as object);
+const markPatched = (fn: AnyFn): AnyFn => Object.assign(fn, { [NOISE_PATCH_MARK]: true });
+
+const SHADOW_DOM_PSEUDO = /^::(?:part|slotted)\(/i;
+const jsdomGetComputedStyle = G.getComputedStyle as ((elt: Element, pseudoElt?: string | null) => unknown) | undefined;
+if (typeof jsdomGetComputedStyle === "function" && !alreadyPatched(jsdomGetComputedStyle)) {
+  const withoutPseudoElement = markPatched(((elt: Element, pseudoElt?: string | null) =>
+    pseudoElt !== undefined && pseudoElt !== null && SHADOW_DOM_PSEUDO.test(String(pseudoElt))
+      ? jsdomGetComputedStyle(elt, pseudoElt)
+      : jsdomGetComputedStyle(elt)) as AnyFn);
+  G.getComputedStyle = withoutPseudoElement;
+  if (G.window) G.window.getComputedStyle = withoutPseudoElement;
+}
+// The only `scrollTo` html2canvas aims at this window is guarded by a
+// scroll-offset check that cannot fire under jsdom — there is no layout, so
+// both offsets are 0 and the call is skipped. The one it does make belongs to
+// the throwaway iframe it clones the page into, and jsdom installs the method
+// on each window instance rather than on a shared prototype, so it has to be
+// neutered as each `contentWindow` is handed out.
+const inertScrollTo: AnyFn = () => undefined;
+const iframeProto = G.HTMLIFrameElement?.prototype;
+const contentWindow = iframeProto && Object.getOwnPropertyDescriptor(iframeProto, "contentWindow");
+if (contentWindow?.get && !alreadyPatched(contentWindow.get)) {
+  const getContentWindow = contentWindow.get;
+  Object.defineProperty(iframeProto, "contentWindow", {
+    ...contentWindow,
+    get: markPatched(function (this: unknown): unknown {
+      const frameWindow = getContentWindow.call(this) as Record<string, unknown> | null;
+      if (frameWindow) frameWindow.scrollTo = inertScrollTo;
+      return frameWindow;
+    } as AnyFn),
+  });
+}
 
 // `WebSocket` — y-websocket schedules a reconnect timer the moment a
 // collaborative-editing service is constructed. When that timer fires AFTER

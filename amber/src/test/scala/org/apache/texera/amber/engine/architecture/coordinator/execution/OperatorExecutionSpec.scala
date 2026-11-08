@@ -78,34 +78,15 @@ class OperatorExecutionSpec extends AnyFlatSpec {
     assert(opExec.getWorkerExecution(w) eq workerExec)
   }
 
-  // The class docstring claims `initWorkerExecution` throws
-  // `AssertionError` on a duplicate worker id, but the implementation's
-  // `workerExecutions.contains(workerId)` call resolves to Java
-  // `ConcurrentHashMap.contains(Object)`, which checks VALUES rather than
-  // KEYS — so the assertion never fires and the second call silently
-  // overwrites the prior WorkerExecution. We pin the CURRENT (broken)
-  // behavior here so a future fix is noticed in CI, and document the
-  // intended contract with `pendingUntilFixed` so the failure surfaces
-  // the day the implementation is corrected.
-
   it should
-    "currently overwrite the previous WorkerExecution on a second init for the same id " +
-      "(characterization of the contains-by-value bug)" in {
+    "reject a second init for the same id without replacing the existing execution" in {
     val opExec = OperatorExecution()
     val w = workerId("w-1")
     val firstExec = opExec.initWorkerExecution(w)
-    val secondExec = opExec.initWorkerExecution(w)
-    assert(firstExec ne secondExec, "current impl replaces the prior WorkerExecution instance")
-    assert(opExec.getWorkerExecution(w) eq secondExec)
-  }
-
-  it should "(desired) throw AssertionError when initWorkerExecution is called twice for the same id" in pendingUntilFixed {
-    val opExec = OperatorExecution()
-    val w = workerId("w-1")
-    opExec.initWorkerExecution(w)
     assertThrows[AssertionError] {
       opExec.initWorkerExecution(w)
     }
+    assert(opExec.getWorkerExecution(w) eq firstExec)
   }
 
   "OperatorExecution.getWorkerIds" should "be empty on a freshly constructed operator" in {
