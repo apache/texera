@@ -444,6 +444,40 @@ describe("executeOperatorAndFormat — request construction", () => {
         .sort()
     ).toEqual(["mid", "src"]);
   });
+
+  test("sends a link into the control-variable port as port -1, and a data link beside it on its own", async () => {
+    // The frontend draws a control-variable port on every operator besides its data ports and sends a
+    // link into it as the reserved port -1. It is none of the operator's input ports, so the run must
+    // not receive it as a second input on data port 0.
+    const data = makeOperator("data", [], { outputPorts: [{ portID: "output-0" }] });
+    const vars = makeOperator("vars", [], { outputPorts: [{ portID: "output-0" }] });
+    const aggregate = makeOperator("aggregate", [{ portID: "input-0" }]);
+    const state = stateWith(data, vars, aggregate);
+    state.addLink(makeLink("data", "output-0", "aggregate", "input-0"));
+    state.addLink(makeLink("vars", "output-0", "aggregate", "control-variables"));
+
+    for (const target of ["aggregate", ""]) {
+      fetchSpy.mockClear();
+      resolveFetch(fetchSpy, { success: true, state: "Completed", operators: {} });
+      await executeOperatorAndFormat(state, cfg(), target);
+
+      // Both the sub-DAG path (a target id) and the whole-workflow path (none) build the links.
+      expect(requestBody(fetchSpy).logicalPlan.links).toEqual([
+        {
+          fromOpId: "data",
+          fromPortId: { id: 0, internal: false },
+          toOpId: "aggregate",
+          toPortId: { id: 0, internal: false },
+        },
+        {
+          fromOpId: "vars",
+          fromPortId: { id: 0, internal: false },
+          toOpId: "aggregate",
+          toPortId: { id: -1, internal: false },
+        },
+      ]);
+    }
+  });
 });
 
 describe("executeOperatorAndFormat — result rendering", () => {

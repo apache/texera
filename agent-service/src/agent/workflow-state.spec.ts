@@ -224,6 +224,47 @@ describe("WorkflowState - toLogicalPlan", () => {
       toPortId: { id: 1, internal: false },
     });
   });
+
+  // The frontend draws a control-variable port on every operator besides its data ports and sends a
+  // link into it as the reserved port -1. It is none of the operator's input ports, so its link must
+  // not fall back to data port 0, where the compile reads it as data.
+  test("sends a link into the control-variable port as port -1", () => {
+    const state = new WorkflowState();
+    state.addOperator(makeOperator("files"));
+    state.addOperator(makeOperator("scan", { inputPorts: [] }));
+    state.addLink({
+      linkID: "l1",
+      source: { operatorID: "files", portID: "output-0" },
+      target: { operatorID: "scan", portID: "control-variables" },
+    });
+
+    expect(state.toLogicalPlan().links).toEqual([
+      {
+        fromOpId: "files",
+        fromPortId: { id: 0, internal: false },
+        toOpId: "scan",
+        toPortId: { id: -1, internal: false },
+      },
+    ]);
+  });
+
+  test("keeps a data link beside a control-variable link on its own port", () => {
+    const state = new WorkflowState();
+    state.addOperator(makeOperator("data"));
+    state.addOperator(makeOperator("vars"));
+    state.addOperator(makeOperator("aggregate"));
+    state.addLink(makeLink("l1", "data", "aggregate"));
+    state.addLink({
+      linkID: "l2",
+      source: { operatorID: "vars", portID: "output-0" },
+      target: { operatorID: "aggregate", portID: "control-variables" },
+    });
+
+    expect(state.toLogicalPlan().links.map(link => [link.fromOpId, link.toPortId])).toEqual([
+      ["data", { id: 0, internal: false }],
+      ["vars", { id: -1, internal: false }],
+    ]);
+  });
 });
 
 describe("WorkflowState - traversal", () => {
