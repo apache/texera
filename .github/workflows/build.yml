@@ -453,7 +453,7 @@ jobs:
         run: |
           if [ "$RUNNER_OS" = "Linux" ]; then
             PROTOC_VERSION=$(cat bin/protoc-version.txt)
-            curl -fsSL -o /tmp/protoc.zip "https://github.com/protocolbuffers/protobuf/releases/download/v${PROTOC_VERSION}/protoc-${PROTOC_VERSION}-linux-x86_64.zip"
+            curl -fsSL --retry 5 --retry-delay 5 --retry-all-errors --connect-timeout 30 -o /tmp/protoc.zip "https://github.com/protocolbuffers/protobuf/releases/download/v${PROTOC_VERSION}/protoc-${PROTOC_VERSION}-linux-x86_64.zip"
             sudo unzip -o /tmp/protoc.zip -d /usr/local
             sudo chmod +x /usr/local/bin/protoc
             sudo chmod -R a+rX /usr/local/include
@@ -521,7 +521,7 @@ jobs:
               -e RUSTFS_REGION=us-west-2 \
               rustfs/rustfs:1.0.0
           else
-            curl -sSfL -o /tmp/rustfs.zip \
+            curl -sSfL --retry 5 --retry-delay 5 --retry-all-errors --connect-timeout 30 -o /tmp/rustfs.zip \
               https://dl.rustfs.com/artifacts/rustfs/release/rustfs-macos-aarch64-v1.0.0.zip
             unzip -q -o /tmp/rustfs.zip -d /tmp/rustfs-bin
             chmod +x /tmp/rustfs-bin/rustfs
@@ -565,7 +565,7 @@ jobs:
             healthcheck() { docker exec lakekeeper /home/nonroot/lakekeeper healthcheck; }
             on_fail() { echo "Lakekeeper failed to start. Container logs:"; docker logs lakekeeper; }
           else
-            curl -fsSL -o /tmp/lakekeeper.tar.gz \
+            curl -fsSL --retry 5 --retry-delay 5 --retry-all-errors --connect-timeout 30 -o /tmp/lakekeeper.tar.gz \
               "https://github.com/lakekeeper/lakekeeper/releases/download/${LAKEKEEPER_VERSION}/lakekeeper-aarch64-apple-darwin.tar.gz"
             mkdir -p /tmp/lakekeeper-bin
             tar -xzf /tmp/lakekeeper.tar.gz -C /tmp/lakekeeper-bin
@@ -1008,7 +1008,7 @@ jobs:
         if: ${{ matrix.service == 'workflow-compiling-service' }}
         run: |
           PROTOC_VERSION=$(cat bin/protoc-version.txt)
-          curl -fsSL -o /tmp/protoc.zip "https://github.com/protocolbuffers/protobuf/releases/download/v${PROTOC_VERSION}/protoc-${PROTOC_VERSION}-linux-x86_64.zip"
+          curl -fsSL --retry 5 --retry-delay 5 --retry-all-errors --connect-timeout 30 -o /tmp/protoc.zip "https://github.com/protocolbuffers/protobuf/releases/download/v${PROTOC_VERSION}/protoc-${PROTOC_VERSION}-linux-x86_64.zip"
           sudo unzip -o /tmp/protoc.zip -d /usr/local
           sudo chmod +x /usr/local/bin/protoc
           sudo chmod -R a+rX /usr/local/include/google
@@ -1196,7 +1196,7 @@ jobs:
         # Version pinned in bin/protoc-version.txt.
         run: |
           PROTOC_VERSION=$(cat bin/protoc-version.txt)
-          curl -fsSL -o /tmp/protoc.zip "https://github.com/protocolbuffers/protobuf/releases/download/v${PROTOC_VERSION}/protoc-${PROTOC_VERSION}-linux-x86_64.zip"
+          curl -fsSL --retry 5 --retry-delay 5 --retry-all-errors --connect-timeout 30 -o /tmp/protoc.zip "https://github.com/protocolbuffers/protobuf/releases/download/v${PROTOC_VERSION}/protoc-${PROTOC_VERSION}-linux-x86_64.zip"
           sudo unzip -o /tmp/protoc.zip -d /usr/local
           sudo chmod +x /usr/local/bin/protoc
           sudo chmod -R a+rX /usr/local/include/google
@@ -1267,7 +1267,13 @@ jobs:
         run: bash ./.github/scripts/prepare-backport-checkout.sh "${{ inputs.backport_target_branch }}" "${{ inputs.backport_commit_range }}"
       - name: Setup Bun
         run: |
-          curl -fsSL https://bun.sh/install | bash -s -- bun-v${{ matrix.bun-version }}
+          curl -fsSL --retry 5 --retry-delay 5 --retry-all-errors --connect-timeout 30 -o /tmp/bun-install.sh https://bun.sh/install
+          for i in $(seq 1 6); do
+            bash /tmp/bun-install.sh bun-v${{ matrix.bun-version }} && break
+            echo "Bun install failed (attempt $i)"
+            sleep 5
+          done
+          "$HOME/.bun/bin/bun" --version
           echo "$HOME/.bun/bin" >> $GITHUB_PATH
       - name: Install production dependencies
         run: bun install --production --frozen-lockfile
