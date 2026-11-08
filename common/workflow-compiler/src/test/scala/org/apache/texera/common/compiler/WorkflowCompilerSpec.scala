@@ -20,11 +20,21 @@
 package org.apache.texera.common.compiler
 
 import org.apache.texera.common.compiler.model.{LogicalLink, LogicalPlanPojo}
-import org.apache.texera.amber.core.executor.{ExecFactory, OpExecWithClassName}
+import org.apache.texera.amber.core.executor.{
+  ExecFactory,
+  OpExecWithClassName,
+  SourceOperatorExecutor
+}
 import org.apache.texera.amber.core.state.State
 import org.apache.texera.amber.core.tuple.{Attribute, AttributeType, Schema, Tuple}
 import org.apache.texera.amber.core.virtualidentity.WorkflowIdentity
-import org.apache.texera.amber.core.workflow.{OutputPort, PortIdentity, WorkflowContext}
+import org.apache.texera.amber.core.workflow.{
+  ControlVariablePort,
+  OutputPort,
+  PhysicalLink,
+  PortIdentity,
+  WorkflowContext
+}
 import org.apache.texera.amber.core.workflowruntimestate.FatalErrorType.COMPILATION_ERROR
 import org.apache.texera.amber.operator.filter.{
   ComparisonType,
@@ -37,6 +47,8 @@ import org.apache.texera.amber.operator.metadata.{OperatorGroupConstants, Operat
 import org.apache.texera.amber.operator.projection.{AttributeUnit, ProjectionOpDesc}
 import org.apache.texera.amber.operator.sort.{SortCriteriaUnit, SortOpDesc, SortPreference}
 import org.apache.texera.amber.operator.source.scan.csv.CSVScanSourceOpDesc
+import org.apache.texera.amber.operator.source.scan.FileAttributeType
+import org.apache.texera.amber.operator.source.scan.file.FileScanSourceOpDesc
 import org.apache.texera.amber.operator.source.scan.text.TextInputSourceOpDesc
 import org.apache.texera.amber.operator.{LogicalOp, PythonOperatorDescriptor, TestOperators}
 import org.apache.texera.amber.util.JSONUtils.objectMapper
@@ -939,6 +951,103 @@ class WorkflowCompilerSpec extends AnyFlatSpec {
       new WorkflowCompiler(newContext()).compile(plan, CompilationErrorHandling.Strict)
     }
     assert(ex.getMessage == message)
+  }
+
+  // ----- control-variable port -----
+
+  private def controlLinked(upstream: LogicalOp, downstream: LogicalOp): LogicalLink =
+    LogicalLink(
+      upstream.operatorIdentifier,
+      PortIdentity(0),
+      downstream.operatorIdentifier,
+      ControlVariablePort.Id
+    )
+
+  private def fileScanOp(fileName: String): FileScanSourceOpDesc = {
+    val op = new FileScanSourceOpDesc()
+    op.fileName = Some(fileName)
+    op
+  }
+
+  it should "compile a reader fed through its control-variable port and keep '$file' for run time" in {
+    // TextInput -> LoopStart -(control-variable port)-> File Scan("$file") -> LoopEnd
+    val src = textInputOp("a.txt\nb.txt")
+    val start = loopStartOp()
+    val scan = fileScanOp("$file")
+    val end = loopEndOp()
+
+    val result = new WorkflowCompiler(newContext()).compile(
+      pojo(
+        List(src, start, scan, end),
+        List(linked(src, start), controlLinked(start, scan), linked(scan, end))
+      )
+    )
+
+    assert(result.operatorIdToError.isEmpty, s"unexpected errors: ${result.operatorIdToError}")
+    val plan = result.physicalPlan.get
+    val startOp = plan.getPhysicalOpsOfLogicalOp(start.operatorIdentifier).head
+    val scanOp = plan.getPhysicalOpsOfLogicalOp(scan.operatorIdentifier).head
+    assert(scanOp.inputPorts.keySet == Set(ControlVariablePort.Id))
+    assert(scanOp.isSourceOperator)
+    val controlLink = PhysicalLink(startOp.id, PortIdentity(0), scanOp.id, ControlVariablePort.Id)
+    assert(plan.links.contains(controlLink))
+    assert(plan.getBlockingAndDependeeLinks.contains(controlLink))
+    val (_, descString) = executorInit(result, scan)
+    assert(sidecarOf(descString) == Map("/fileName" -> "file"))
+  }
+
+  it should "read the file a control variable names once its state binds '$file', end to end" in {
+    val numbers = s"${TestOperators.parentDir}/src/test/resources/numbers.txt"
+    val src = textInputOp(numbers)
+    val start = loopStartOp()
+    val scan = fileScanOp("$file")
+    scan.attributeType = FileAttributeType.INTEGER
+    scan.attributeName = "n"
+    val end = loopEndOp()
+
+    val result = new WorkflowCompiler(newContext()).compile(
+      pojo(
+        List(src, start, scan, end),
+        List(linked(src, start), controlLinked(start, scan), linked(scan, end))
+      )
+    )
+
+    assert(result.operatorIdToError.isEmpty, s"unexpected errors: ${result.operatorIdToError}")
+    val (className, descString) = executorInit(result, scan)
+    val exec = ExecFactory.newExecFromJavaClassName(className, descString)
+    exec.open()
+    exec.registerState(State(Map("file" -> numbers)))
+    exec.bindStateReferences()
+    val values = exec
+      .asInstanceOf[SourceOperatorExecutor]
+      .produceTuple()
+      .map(_.getFields.head)
+      .toList
+    assert(values == (1 to 10).toList)
+  }
+
+  it should "reject a control-variable link into an operator that runs code" in {
+    val src = textInputOp("a")
+    val start = loopStartOp()
+    val result = new WorkflowCompiler(newContext()).compile(
+      pojo(List(src, start), List(controlLinked(src, start)))
+    )
+    assert(
+      onlyErrorOf(result, start).contains("cannot receive control variables on its port yet"),
+      result.operatorIdToError
+    )
+  }
+
+  it should "reject one output port that feeds both the control-variable port and a data port" in {
+    val src = textInputOp("a")
+    val filter = filterOp(new FilterPredicate("line", ComparisonType.EQUAL_TO, "a"))
+    val result = new WorkflowCompiler(newContext()).compile(
+      pojo(List(src, filter), List(linked(src, filter), controlLinked(src, filter)))
+    )
+    assert(
+      onlyErrorOf(result, filter).contains("both its control-variable port and a data port"),
+      result.operatorIdToError
+    )
   }
 
   it should "find a '$i' literal on a descriptor built in Scala inside a loop block" in {

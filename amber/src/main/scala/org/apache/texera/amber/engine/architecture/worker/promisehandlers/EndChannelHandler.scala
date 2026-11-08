@@ -20,13 +20,18 @@
 package org.apache.texera.amber.engine.architecture.worker.promisehandlers
 
 import com.twitter.util.Future
+import org.apache.texera.amber.core.executor.SourceOperatorExecutor
 import org.apache.texera.amber.core.tuple.FinalizePort
+import org.apache.texera.amber.core.workflow.ControlVariablePort
 import org.apache.texera.amber.engine.architecture.rpc.controlcommands.{
   AsyncRPCContext,
   EmptyRequest
 }
 import org.apache.texera.amber.engine.architecture.rpc.controlreturns.EmptyReturn
-import org.apache.texera.amber.engine.architecture.worker.DataProcessorRPCHandlerInitializer
+import org.apache.texera.amber.engine.architecture.worker.{
+  ControlVariablePortPause,
+  DataProcessorRPCHandlerInitializer
+}
 import org.apache.texera.amber.error.ErrorUtils.safely
 
 trait EndChannelHandler {
@@ -40,24 +45,30 @@ trait EndChannelHandler {
     val portId = dp.inputGateway.getChannel(channelId).getPortId
     dp.inputManager.getPort(portId).completed = true
     dp.inputManager.initBatch(channelId, Array.empty)
-    try {
-      // The executor finishes: a setting that refers to loop variables must have them by now.
-      dp.bindStateReferences()
-      val outputState = dp.executor.produceStateOnFinish(portId.id)
-      if (outputState.isDefined) {
-        // Operator-ORIGINATED boundary state, so no LoopStart stamp
-        // (loopCounter = 0, loopStartId = ""); see
-        // `main_loop._process_state_frame` for how a Loop End treats it.
-        dp.outputManager.emitState(outputState.get)
+    if (ControlVariablePort.is(portId) && !dp.executor.isInstanceOf[SourceOperatorExecutor]) {
+      // The control variables have arrived, and the data input may start. The operator finishes
+      // when its data ends, so neither the binding nor the finish callbacks run here.
+      dp.inputManager.startInputPortReaderThreads()
+      dp.pauseManager.resume(ControlVariablePortPause)
+    } else
+      try {
+        // The executor finishes: a setting that refers to loop variables must have them by now.
+        dp.bindStateReferences()
+        val outputState = dp.executor.produceStateOnFinish(portId.id)
+        if (outputState.isDefined) {
+          // Operator-ORIGINATED boundary state, so no LoopStart stamp
+          // (loopCounter = 0, loopStartId = ""); see
+          // `main_loop._process_state_frame` for how a Loop End treats it.
+          dp.outputManager.emitState(outputState.get)
+        }
+        dp.outputManager.outputIterator.setTupleOutput(
+          dp.executor.onFinishMultiPort(portId.id)
+        )
+      } catch safely {
+        case e =>
+          // forward input tuple to the user and pause DP thread
+          dp.handleExecutorException(e)
       }
-      dp.outputManager.outputIterator.setTupleOutput(
-        dp.executor.onFinishMultiPort(portId.id)
-      )
-    } catch safely {
-      case e =>
-        // forward input tuple to the user and pause DP thread
-        dp.handleExecutorException(e)
-    }
 
     dp.outputManager.outputIterator.appendSpecialTupleToEnd(
       FinalizePort(portId, input = true)

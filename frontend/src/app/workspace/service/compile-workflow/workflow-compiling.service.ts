@@ -160,6 +160,20 @@ export class WorkflowCompilingService {
     return this.currentCompilationStateInfo.operatorOutputPortSchemaMap[operatorID];
   }
 
+  /**
+   * The column names on one output port of an operator, given the canvas port ID ("output-0"), or
+   * undefined before the workflow compiles. A control-variable port offers them as variable names.
+   */
+  public outputColumnNames(operatorID: string, portID: string): string[] | undefined {
+    const port = parseLogicalOperatorPortID(portID);
+    if (port === undefined) {
+      return undefined;
+    }
+    return this.getOperatorOutputSchemaMap(operatorID)?.[
+      serializePortIdentity({ id: port.portNumber, internal: false })
+    ]?.map(attribute => attribute.attributeName);
+  }
+
   public getPortInputSchema(operatorID: string, portIndex: number): PortSchema | undefined {
     return this.getOperatorInputSchemaMap(operatorID)?.[serializePortIdentity({ id: portIndex, internal: false })];
   }

@@ -63,15 +63,11 @@ private[executor] final class StateReferenceBinding(
   def write(state: State, loopCounter: Long): Unit = {
     val carried =
       references.values.toSeq.distinct.sorted.flatMap(n => state.values.get(n).map(n -> _))
-    for ((name, value) <- carried; (depth, earlier) <- values.get(name))
-      if (depth == loopCounter && earlier != value)
-        throw new IllegalStateException(
-          s"loop variable $name got two different values in one iteration, $earlier and " +
-            s"$value: a loop's variables must not change inside its body"
-        )
+    // The later value of a name replaces the earlier one, unless the earlier one came from a more
+    // deeply nested loop, which shadows it.
     val replacing =
       if (bound) Map.empty[String, Any]
-      else carried.filter { case (name, _) => values.get(name).forall(_._1 > loopCounter) }.toMap
+      else carried.filter { case (name, _) => values.get(name).forall(_._1 >= loopCounter) }.toMap
     replacing.foreach { case (name, value) => values(name) = (loopCounter, value) }
     for ((pointer, name) <- references.toSeq.sorted; value <- replacing.get(name))
       try {
