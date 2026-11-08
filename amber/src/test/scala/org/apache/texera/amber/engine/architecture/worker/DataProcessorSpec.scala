@@ -347,6 +347,56 @@ class DataProcessorSpec extends AnyFlatSpec with MockFactory with Matchers with 
     )
   }
 
+  "data processor" should "process a copy of a state message once, whichever input port it arrives on" in {
+    // Two body branches meet at this operator: message A (K = 2) arrives once per branch, and one
+    // branch has meanwhile sent a distinct message B (K = 3). Only the first copy of A is
+    // registered, handed to the operator and sent on; B is processed, and the copy of A arriving
+    // after it is not even registered, so the operator's state keeps B's value.
+    val dp = mkDataProcessor
+    dp.executor = executor
+    dp.stateManager.transitTo(READY)
+    val emitted = scala.collection.mutable.ArrayBuffer[WorkflowFIFOMessage]()
+    (outputHandler.apply _)
+      .expects(*)
+      .onCall { (m: Either[MainThreadDelegateMessage, WorkflowFIFOMessage]) =>
+        m.foreach(emitted += _); ()
+      }
+      .anyNumberOfTimes()
+    val inputState = State(Map("K" -> 2))
+    val changedState = State(Map("K" -> 3))
+    ((state: State, port: Int) => executor.processState(state, port))
+      .expects(inputState, 0)
+      .returning(Some(inputState))
+      .once()
+    ((state: State, port: Int) => executor.processState(state, port))
+      .expects(changedState, 0)
+      .returning(Some(changedState))
+      .once()
+    dp.inputManager.addPort(inputPortId, schema, List.empty, List.empty)
+    val secondPort = PortIdentity(1)
+    dp.inputManager.addPort(secondPort, schema, List.empty, List.empty)
+    val direct = ChannelIdentity(senderWorkerId, testWorkerId, isControl = false)
+    val filtered =
+      ChannelIdentity(ActorVirtualIdentity("filtered"), testWorkerId, isControl = false)
+    dp.inputGateway.getChannel(direct).setPortId(inputPortId)
+    dp.inputGateway.getChannel(filtered).setPortId(secondPort)
+    dp.outputManager.addPort(outputPortId, schema, None)
+    dp.outputManager.addPartitionerWithPartitioning(
+      PhysicalLink(testOpId, outputPortId, upstreamOpId, inputPortId),
+      OneToOnePartitioning(1, Seq(ChannelIdentity(testWorkerId, senderWorkerId, isControl = false)))
+    )
+    val original = StateFrame(inputState, 0L, "loop", "A")
+    dp.processDataPayload(direct, original)
+    dp.processDataPayload(filtered, original)
+    dp.processDataPayload(direct, StateFrame(changedState, 0L, "loop", "B"))
+    dp.processDataPayload(filtered, original)
+    assert(!dp.pauseManager.isPaused)
+    assert(executor.state.contains(changedState))
+    // An unchanged state is sent on as the message it is, keeping its id.
+    val forwarded = emitted.map(_.payload).collect { case frame: StateFrame => frame }
+    assert(forwarded.map(_.messageId).toList == List("A", "B"))
+  }
+
   "data processor" should "not emit when processState yields None" in {
     val dp = mkDataProcessor
     dp.executor = executor
@@ -523,7 +573,7 @@ class DataProcessorSpec extends AnyFlatSpec with MockFactory with Matchers with 
     }
 
   private def statesSent(sent: ArrayBuffer[WorkflowFIFOMessage]): List[State] =
-    sent.map(_.payload).collect { case StateFrame(state, _, _) => state }.toList
+    sent.map(_.payload).collect { case frame: StateFrame => frame.frame }.toList
 
   private def tuplesSent(sent: ArrayBuffer[WorkflowFIFOMessage]): List[Tuple] =
     sent.map(_.payload).collect { case DataFrame(frame) => frame.toList }.flatten.toList
@@ -579,8 +629,9 @@ class DataProcessorSpec extends AnyFlatSpec with MockFactory with Matchers with 
   "data processor" should "fail a state message from the same loop that changes a loop variable" in {
     val (dp, exec, sent) = initializedWith(limitReferringToN)
     openExecutor(dp)
-    dp.processDataPayload(senderChannel, StateFrame(State(Map("n" -> 2L))))
-    dp.processDataPayload(senderChannel, StateFrame(State(Map("n" -> 3L))))
+    // Two distinct messages, not copies of one: the id that drops a copy leaves this check alone.
+    dp.processDataPayload(senderChannel, StateFrame(State(Map("n" -> 2L)), 0L, "", "A"))
+    dp.processDataPayload(senderChannel, StateFrame(State(Map("n" -> 3L)), 0L, "", "B"))
 
     // The operator never sees the changed state.
     assert(exec.calls.map(_._1).toList == List("open", "state"))
@@ -593,6 +644,20 @@ class DataProcessorSpec extends AnyFlatSpec with MockFactory with Matchers with 
       )
     )
     dp.pauseManager.isPaused shouldBe true
+  }
+
+  "data processor" should "send a state its operator changed as a new message" in {
+    val (dp, _, sent) = initializedWith(limitReferringToN)
+    openExecutor(dp)
+    dp.processDataPayload(senderChannel, StateFrame(State(Map("n" -> 2L)), 1L, "outer-loop", "A"))
+
+    // LoopLimitExec returns a state of its own, so what is sent on is not the message that came in:
+    // it keeps the loop envelope but gets an id of its own.
+    val frames = sent.map(_.payload).collect { case frame: StateFrame => frame }.toList
+    assert(frames.map(_.frame) == List(State(Map("seen" -> 2L, "limit" -> 2))))
+    assert(frames.head.loopCounter == 1L)
+    assert(frames.head.loopStartId == "outer-loop")
+    assert(frames.head.messageId.nonEmpty && frames.head.messageId != "A")
   }
 
   "data processor" should "fail the first tuple of an operator whose setting refers to a loop variable no state message carried" in {

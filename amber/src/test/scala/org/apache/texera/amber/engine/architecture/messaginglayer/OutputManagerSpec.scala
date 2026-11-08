@@ -296,15 +296,32 @@ class OutputManagerSpec extends AnyFlatSpec with MockFactory {
     // Each buffer's sendState flushes (no-op, empty), sends a StateFrame, then
     // flushes again (no-op). With no writer threads configured,
     // saveStateToStorageIfNeeded is a no-op over the empty writer map.
-    inAnyOrder {
-      (mockHandler.apply _).expects(
-        WorkflowFIFOMessage(channelTo(recA), 0, StateFrame(state))
-      )
-      (mockHandler.apply _).expects(
-        WorkflowFIFOMessage(channelTo(recB), 0, StateFrame(state))
-      )
-    }
+    val messages = scala.collection.mutable.ArrayBuffer[WorkflowFIFOMessage]()
+    (mockHandler.apply _)
+      .expects(*)
+      .onCall { message: WorkflowFIFOMessage =>
+        messages += message; ()
+      }
+      .repeat(4)
     outputManager.emitState(state)
+    outputManager.emitState(state)
+    assert(
+      messages.map(message => (message.channelId, message.sequenceNumber)).toSet ==
+        Set(
+          (channelTo(recA), 0L),
+          (channelTo(recB), 0L),
+          (channelTo(recA), 1L),
+          (channelTo(recB), 1L)
+        )
+    )
+    val frames = messages.map(_.payload.asInstanceOf[StateFrame])
+    assert(frames.forall(_.frame == state))
+    // Each call is a new message, issued once before the fan-out: both buffers carry the same id,
+    // and the second call's differs.
+    assert(frames.forall(_.messageId.nonEmpty))
+    assert(frames(0).messageId == frames(1).messageId)
+    assert(frames(2).messageId == frames(3).messageId)
+    assert(frames(0).messageId != frames(2).messageId)
   }
 
   it should "carry the loop envelope onto every emitted StateFrame" in {
@@ -325,9 +342,9 @@ class OutputManagerSpec extends AnyFlatSpec with MockFactory {
 
     val state = State(Map("k" -> 1))
     (mockHandler.apply _).expects(
-      WorkflowFIFOMessage(channelTo(rec), 0, StateFrame(state, 2L, "outer-loop"))
+      WorkflowFIFOMessage(channelTo(rec), 0, StateFrame(state, 2L, "outer-loop", "A"))
     )
-    outputManager.emitState(state, loopCounter = 2L, loopStartId = "outer-loop")
+    outputManager.emitState(state, loopCounter = 2L, loopStartId = "outer-loop", messageId = "A")
   }
 
   // -- addPort / storage no-ops / getSingleOutputPortIdentity --------------

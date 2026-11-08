@@ -161,7 +161,7 @@ class TestSaveStateToStorageIfNeeded:
     def test_defaults_loop_columns_when_omitted(self, output_manager, state, port_a):
         # Dormancy: callers that pass no loop bookkeeping (every non-loop
         # caller, e.g. MainLoop.process_input_state) still produce a valid
-        # 3-column state tuple with the loop columns at their no-loop defaults.
+        # state tuple with the loop columns at their no-loop defaults.
         queue_a, _, _ = _stub_state_writer(output_manager, port_a)
 
         output_manager.save_state_to_storage_if_needed(state)  # no loop_counter
@@ -169,6 +169,23 @@ class TestSaveStateToStorageIfNeeded:
         data_tuple = queue_a.put.call_args.args[0].data_tuple
         assert data_tuple[State.LOOP_COUNTER] == 0
         assert data_tuple[State.LOOP_START_ID] == ""
+        assert data_tuple[State.MESSAGE_ID] == ""
+
+    def test_writes_the_message_id_to_every_port(
+        self, output_manager, state, port_a, port_b
+    ):
+        # Every port's row is a copy of the same message, so each carries the
+        # same id: a reader of either table sees the message the network did.
+        queue_a, _, _ = _stub_state_writer(output_manager, port_a)
+        queue_b, _, _ = _stub_state_writer(output_manager, port_b)
+
+        output_manager.save_state_to_storage_if_needed(state, 2, "loop", "issued-A")
+
+        for queue in (queue_a, queue_b):
+            data_tuple = queue.put.call_args.args[0].data_tuple
+            assert data_tuple[State.LOOP_COUNTER] == 2
+            assert data_tuple[State.LOOP_START_ID] == "loop"
+            assert data_tuple[State.MESSAGE_ID] == "issued-A"
 
 
 class TestResetOutputStorage:
@@ -656,6 +673,26 @@ class TestEmitChain:
         assert receiver == _worker("A")
         assert state_frame.loop_counter == 0
         assert state_frame.loop_start_id == ""
+        # Like the stored row's, an empty id: a state nobody issued.
+        assert state_frame.message_id == ""
+
+    def test_emit_state_sends_the_given_message_id_to_every_receiver(
+        self, output_manager
+    ):
+        # The caller issues a message's id (or passes on the one it arrived
+        # with) before the fan-out, so every receiver gets a copy of the same
+        # message.
+        self._add_one_to_one(
+            output_manager, PhysicalLink(to_port_id=PortIdentity(id=1)), "A", 2
+        )
+        self._add_one_to_one(
+            output_manager, PhysicalLink(to_port_id=PortIdentity(id=2)), "B", 2
+        )
+
+        out = list(output_manager.emit_state(State({"i": 2}), 0, "loop", "issued-A"))
+
+        assert [receiver for receiver, _ in out] == [_worker("A"), _worker("B")]
+        assert [frame.message_id for _, frame in out] == ["issued-A", "issued-A"]
 
 
 class TestQueryMethods:

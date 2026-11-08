@@ -252,7 +252,7 @@ class PythonProxyServerSpec extends AnyFlatSpec {
       val to =
         ChannelIdentity(pythonWorkerId, ActorVirtualIdentity("downstream"), isControl = false)
       val state = State(Map("count" -> "5"))
-      val row = state.toTuple(loopCounter = 3L, loopStartId = "loop-start-1")
+      val row = state.toTuple(loopCounter = 3L, loopStartId = "loop-start-1", messageId = "A")
 
       putBatch(
         fixture,
@@ -265,7 +265,7 @@ class PythonProxyServerSpec extends AnyFlatSpec {
       val out = fixture.messages
       assert(out.size == 1)
       assert(out.head.channelId == to)
-      assert(out.head.payload == StateFrame(state, 3L, "loop-start-1"))
+      assert(out.head.payload == StateFrame(state, 3L, "loop-start-1", "A"))
     }
   }
 

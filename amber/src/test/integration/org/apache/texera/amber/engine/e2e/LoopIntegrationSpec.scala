@@ -237,6 +237,57 @@ class LoopIntegrationSpec
     op
   }
 
+  /** A pass-through Python UDF that publishes the row it saw as `score` when its input ends. */
+  private def scoringPythonUDF(): PythonUDFOpDescV2 = {
+    val op = new PythonUDFOpDescV2()
+    op.code = """from pytexera import *
+                |
+                |class ProcessTupleOperator(UDFOperatorV2):
+                |
+                |    @overrides
+                |    def process_tuple(self, tuple_: Tuple, port: int) -> Iterator[Optional[TupleLike]]:
+                |        self.score = int(tuple_["line"])
+                |        yield tuple_
+                |
+                |    @overrides
+                |    def produce_state_on_finish(self, port: int) -> Optional[State]:
+                |        return State({"score": self.score})
+                |""".stripMargin
+    op.workers = 1
+    op.retainInputColumns = true
+    op
+  }
+
+  /** A pass-through Python UDF that adds one row for each state message its process_state runs on. */
+  private def messageCountingPythonUDF(): PythonUDFOpDescV2 = {
+    val op = new PythonUDFOpDescV2()
+    op.code = """from pytexera import *
+                |
+                |class ProcessTupleOperator(UDFOperatorV2):
+                |
+                |    @overrides
+                |    def open(self) -> None:
+                |        self.messages = 0
+                |
+                |    @overrides
+                |    def process_state(self, state: State, port: int) -> Optional[State]:
+                |        self.messages += 1
+                |        return state
+                |
+                |    @overrides
+                |    def process_tuple(self, tuple_: Tuple, port: int) -> Iterator[Optional[TupleLike]]:
+                |        yield tuple_
+                |
+                |    @overrides
+                |    def on_finish(self, port: int) -> Iterator[Optional[TupleLike]]:
+                |        for _ in range(self.messages):
+                |            yield Tuple({"line": "message"})
+                |""".stripMargin
+    op.workers = 1
+    op.retainInputColumns = true
+    op
+  }
+
   private def link(from: LogicalOp, to: LogicalOp): LogicalLink =
     LogicalLink(from.operatorIdentifier, PortIdentity(), to.operatorIdentifier, PortIdentity())
 
@@ -475,11 +526,11 @@ class LoopIntegrationSpec
     // The UDF emits boundary state via produce_state_on_finish (a public API
     // on both engine sides), which reaches the LoopEnd with the "no loop"
     // envelope (counter 0, no LoopStart stamp) AFTER the forwarded loop
-    // state. The LoopEnd must pass that unstamped state through instead of
-    // consuming it: taking it would clobber the captured back-jump id with ""
-    // and then fail the deferred consume's bookkeeping-URI lookup ("no loop
-    // bookkeeping URI configured for LoopStart ''"). Regression test for
-    // #discussion_r3648708075 on #6661.
+    // state. The LoopEnd collects it with the loop state, and it must not
+    // clobber the captured back-jump id with "": that would fail the deferred
+    // consume's bookkeeping-URI lookup ("no loop bookkeeping URI configured
+    // for LoopStart ''"). Regression test for #discussion_r3648708075 on
+    // #6661.
     val src = textInput("1\n2\n3")
     val start = loopStart("i = 0", "table.iloc[i]")
     val mid = statefulPythonUDF()
@@ -493,6 +544,109 @@ class LoopIntegrationSpec
       endRows == 3,
       s"LoopEnd must accumulate all 3 iterations with a state-emitting " +
         s"operator in the loop body: expected 3, got $endRows (all: $materialized)"
+    )
+  }
+
+  it should "stop a loop once a score computed in its body stops improving" in {
+    // TextInput("3","5","4","6") -> LoopStart(i = 0, prev = None, score = 0 / table.iloc[i])
+    //   -> scoring UDF -> LoopEnd(again = prev is None or score > prev; prev = score; i += 1 / again).
+    // The UDF publishes the row it saw as `score` after the loop's state has passed it. The scores
+    // are 3, 5, 4: the third does not improve, so the loop stops after 3 iterations. A LoopEnd that
+    // never sees the body's score compares the initial 0 with itself and stops after 2.
+    val src = textInput("3\n5\n4\n6")
+    val start = loopStart("i = 0\nprev = None\nscore = 0", "table.iloc[i]")
+    val mid = scoringPythonUDF()
+    val end = loopEnd("again = prev is None or score > prev\nprev = score\ni += 1", "again")
+    val materialized = runAndGetMaterializedRowCounts(
+      List(src, start, mid, end),
+      List(link(src, start), link(start, mid), link(mid, end))
+    )
+    val endRows = materialized.getOrElse(end.operatorIdentifier, -1L)
+    assert(
+      endRows == 3,
+      s"the loop must stop on the first score that does not improve (3, 5, 4): expected 3 " +
+        s"iterations, got $endRows (all: $materialized)"
+    )
+  }
+
+  it should "run a body operator's process_state once per message where two branches meet" in {
+    // TextInput("0","1","2") -> LoopStart(i = 0 / table.iloc[i]) -> Limit(10) and Sleep(0)
+    //   -> both into one input port of a message-counting UDF -> LoopEnd.
+    // Loop Start's message reaches the UDF once per branch, as copies of one message. Each
+    // iteration's row passes both branches (2 rows) and the UDF adds a row per message it
+    // processed: 1 for the one message, so 3 rows on each of 3 iterations. Processing every copy
+    // would add 2 and give 12.
+    val src = textInput("0\n1\n2")
+    val start = loopStart("i = 0", "table.iloc[i]")
+    val left = limit(10)
+    val right = sleep(0)
+    val mid = messageCountingPythonUDF()
+    val end = loopEnd("i += 1", "i < len(table)")
+    val materialized = runAndGetMaterializedRowCounts(
+      List(src, start, left, right, mid, end),
+      List(
+        link(src, start),
+        link(start, left),
+        link(start, right),
+        link(left, mid),
+        link(right, mid),
+        link(mid, end)
+      )
+    )
+    val endRows = materialized.getOrElse(end.operatorIdentifier, -1L)
+    assert(
+      endRows == 9,
+      s"the UDF must process Loop Start's message once per iteration, not once per branch: " +
+        s"expected 9, got $endRows (all: $materialized)"
+    )
+  }
+
+  it should "keep a loop variable set to None through a JVM operator in the loop body" in {
+    // The stopping example with Limit(10), a JVM operator, between Loop Start and the scoring UDF:
+    // TextInput("3","5","4","6") -> LoopStart(i = 0, prev = None, score = 0 / table.iloc[i])
+    //   -> Limit(10) -> scoring UDF -> LoopEnd(again = prev is None or score > prev;
+    //   prev = score; i += 1 / again).
+    // Loop Start's message passes the Limit on its way to Loop End, whose update reads `prev` in
+    // the first iteration, so `prev = None` must still be there. The scores are 3, 5, 4: the loop
+    // stops after 3 iterations.
+    val src = textInput("3\n5\n4\n6")
+    val start = loopStart("i = 0\nprev = None\nscore = 0", "table.iloc[i]")
+    val jvm = limit(10)
+    val mid = scoringPythonUDF()
+    val end = loopEnd("again = prev is None or score > prev\nprev = score\ni += 1", "again")
+    val materialized = runAndGetMaterializedRowCounts(
+      List(src, start, jvm, mid, end),
+      List(link(src, start), link(start, jvm), link(jvm, mid), link(mid, end))
+    )
+    val endRows = materialized.getOrElse(end.operatorIdentifier, -1L)
+    assert(
+      endRows == 3,
+      s"prev = None must reach Loop End through the Limit, and the loop must stop on the first " +
+        s"score that does not improve (3, 5, 4): expected 3, got $endRows (all: $materialized)"
+    )
+  }
+
+  it should "give a JVM operator the value the loop body publishes in every iteration" in {
+    // TextInput("1","2","3") -> LoopStart(i = 0 / table.iloc[i]) -> scoring UDF
+    //   -> Filter(line = $score) -> LoopEnd(i += 1 / i < len(table)).
+    // The UDF publishes the row it saw as `score`, a value for one iteration and not a loop
+    // variable, so Loop End does not save it for the next iteration. If it did, Loop Start's next
+    // message would carry the old score and the Filter would get two different values of it in
+    // one iteration. Each iteration's row passes its Filter: 3 rows.
+    val src = textInput("1\n2\n3")
+    val start = loopStart("i = 0", "table.iloc[i]")
+    val mid = scoringPythonUDF()
+    val filter = filterEquals("line", "$score")
+    val end = loopEnd("i += 1", "i < len(table)")
+    val materialized = runAndGetMaterializedRowCounts(
+      List(src, start, mid, filter, end),
+      List(link(src, start), link(start, mid), link(mid, filter), link(filter, end))
+    )
+    val endRows = materialized.getOrElse(end.operatorIdentifier, -1L)
+    assert(
+      endRows == 3,
+      s"Filter(line = $$score) must bind each iteration's own score: expected 3, got $endRows " +
+        s"(all: $materialized)"
     )
   }
 

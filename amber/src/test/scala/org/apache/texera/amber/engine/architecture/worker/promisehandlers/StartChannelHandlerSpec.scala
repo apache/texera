@@ -330,11 +330,16 @@ class StartChannelHandlerSpec extends AnyFlatSpec {
 
     assert(fixture.startChannel() == EmptyReturn())
 
-    // Exactly the state the operator returned, broadcast to every downstream channel. A state a
-    // Scala handler originates carries the "no loop" defaults; the only Scala caller that passes an
-    // envelope is the JVM hop in `DataProcessor.processState`, and it forwards the incoming one
-    // rather than creating it.
-    assert(fixture.emittedStates == Seq(StateFrame(state, 0L, ""), StateFrame(state, 0L, "")))
+    // Exactly the state the operator returned, broadcast to every downstream channel as copies of
+    // one new message: one fresh id on both. A state a Scala handler originates carries the "no
+    // loop" defaults; the only Scala caller that passes an envelope is the JVM hop in
+    // `DataProcessor.processState`, and it forwards the incoming one rather than creating it.
+    assert(
+      fixture.emittedStates.map(_.copy(messageId = "")) ==
+        Seq(StateFrame(state, 0L, ""), StateFrame(state, 0L, ""))
+    )
+    assert(fixture.emittedStates.map(_.messageId).distinct.size == 1)
+    assert(fixture.emittedStates.head.messageId.nonEmpty)
     assert(
       fixture.stateChannels.toSet == Set(firstDownstreamChannelId, secondDownstreamChannelId)
     )
@@ -348,7 +353,8 @@ class StartChannelHandlerSpec extends AnyFlatSpec {
     assert(fixture.startChannel() == EmptyReturn())
 
     assert(
-      fixture.emittedStates == Seq(StateFrame(emptyState, 0L, ""), StateFrame(emptyState, 0L, ""))
+      fixture.emittedStates.map(_.copy(messageId = "")) ==
+        Seq(StateFrame(emptyState, 0L, ""), StateFrame(emptyState, 0L, ""))
     )
   }
 

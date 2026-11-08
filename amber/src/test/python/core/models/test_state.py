@@ -31,12 +31,14 @@ class TestState:
         assert State.CONTENT == "content"
         assert State.LOOP_COUNTER == "loop_counter"
         assert State.LOOP_START_ID == "loop_start_id"
+        assert State.MESSAGE_ID == "message_id"
         # The loop-control columns are runtime-owned bookkeeping, sibling to
         # content, not part of the user state JSON.
         assert State.SCHEMA.get_attr_names() == [
             "content",
             "loop_counter",
             "loop_start_id",
+            "message_id",
         ]
 
     def test_json_round_trip_primitives(self):
@@ -112,6 +114,19 @@ class TestState:
 
     def test_to_tuple_defaults_loop_counter_to_zero(self):
         assert State({"x": 1}).to_tuple()[State.LOOP_COUNTER] == 0
+
+    def test_message_identity_is_metadata_not_a_user_variable(self):
+        # The id rides its own column; a user variable of the same name stays
+        # in the content and is neither the id nor overwritten by it.
+        original = State({"message_id": "user value", "K": 2})
+        row = original.to_tuple(1, "outer", "issued-A")
+        assert row[State.MESSAGE_ID] == "issued-A"
+        assert State.from_tuple(row) == original
+
+    def test_to_tuple_defaults_message_id_to_empty(self):
+        # An empty id marks a row nobody issued, such as the loop's back-edge
+        # write; a worker never treats it as a copy of another message.
+        assert State({"x": 1}).to_tuple()[State.MESSAGE_ID] == ""
 
     def test_nested_dict_decodes_to_plain_dict(self):
         # Top-level returns a State; nested dicts come back as plain dict.

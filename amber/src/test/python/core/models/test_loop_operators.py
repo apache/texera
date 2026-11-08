@@ -286,6 +286,41 @@ class TestLoopEndMatchingBranch:
         with pytest.raises(RuntimeError, match="not attached"):
             op.process_state(State({"i": 3}), port=0)
 
+    def test_run_update_records_every_name_the_update_assigns(self):
+        # A name the update assigns is one of the loop's own variables, so the
+        # runtime saves it for the next iteration even when only a body
+        # operator's publication carried it (MainLoop._next_iteration_state).
+        # Every way of binding a name counts, also a walrus target in a
+        # comprehension, a global assigned in a function and an import; a name
+        # the update only reads or deletes does not.
+        op = _StubLoopEnd(
+            update=(
+                "best = max(best, score)\n"
+                "i += 1\n"
+                "[found := v for v in seen if v > best]\n"
+                "def keep():\n"
+                "    global kept\n"
+                "    kept = best\n"
+                "keep()\n"
+                "import os.path\n"
+                "from math import floor as round_down\n"
+                "del stale"
+            )
+        )
+        assert op.assigned_names == frozenset()
+        op.attach_loop_table(_one_row_table())
+
+        op.process_state(
+            State({"best": 1, "score": 3, "i": 0, "seen": [2, 4], "stale": 0}), port=0
+        )
+
+        assert {"best", "i", "found", "keep", "kept", "os", "round_down"} <= (
+            op.assigned_names
+        )
+        assert not {"score", "seen", "stale", "max", "floor", "path"} & (
+            op.assigned_names
+        )
+
 
 # ---------------------------------------------------------------------------
 # Nested-loop counter behaviour -- LoopStart +1, LoopEnd -1, and the
