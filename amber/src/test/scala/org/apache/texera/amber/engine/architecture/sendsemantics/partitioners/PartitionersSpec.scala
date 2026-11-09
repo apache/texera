@@ -24,6 +24,7 @@ import org.apache.texera.amber.core.virtualidentity.{ActorVirtualIdentity, Chann
 import org.apache.texera.amber.engine.architecture.sendsemantics.partitionings.{
   BroadcastPartitioning,
   HashBasedShufflePartitioning,
+  LeastLoadedPartitioning,
   OneToOnePartitioning,
   RoundRobinPartitioning
 }
@@ -212,6 +213,73 @@ class PartitionersSpec extends AnyFlatSpec {
       hashAttributeNames = Seq("k")
     )
     val partitioner = HashBasedShufflePartitioner(partitioning)
+    assert(partitioner.allReceivers == Seq(r1, r2))
+  }
+
+  // -- LeastLoadedPartitioner -----------------------------------------------
+
+  "LeastLoadedPartitioner.getBucketIndex" should "send every tuple to one receiver" in {
+    val partitioning = LeastLoadedPartitioning(
+      batchSize = 100,
+      channels = Seq(channel(r1), channel(r2), channel(r3))
+    )
+    val partitioner = LeastLoadedPartitioner(partitioning, sender)
+    // Round robin would advance across receivers here; this must not, or a
+    // batch would be split across them and none would fill at the full rate.
+    val buckets = (0 until 10).map(i => partitioner.getBucketIndex(intTuple(i)).next())
+    assert(buckets.distinct.size == 1)
+  }
+
+  "LeastLoadedPartitioner.setPreferredReceiverIndex" should "redirect subsequent tuples" in {
+    val partitioning = LeastLoadedPartitioning(
+      batchSize = 100,
+      channels = Seq(channel(r1), channel(r2), channel(r3))
+    )
+    val partitioner = LeastLoadedPartitioner(partitioning, sender)
+    partitioner.setPreferredReceiverIndex(2)
+    assert(partitioner.getBucketIndex(intTuple(1)).next() == 2)
+    partitioner.setPreferredReceiverIndex(0)
+    assert(partitioner.getBucketIndex(intTuple(2)).next() == 0)
+  }
+
+  it should "ignore an out-of-range index rather than throw" in {
+    val partitioning = LeastLoadedPartitioning(
+      batchSize = 100,
+      channels = Seq(channel(r1), channel(r2))
+    )
+    val partitioner = LeastLoadedPartitioner(partitioning, sender)
+    partitioner.setPreferredReceiverIndex(1)
+    // The coordinator derives the index from its own copy of the channel list;
+    // a mismatch mid-reconfiguration must degrade to the last good target
+    // rather than kill the worker.
+    partitioner.setPreferredReceiverIndex(99)
+    partitioner.setPreferredReceiverIndex(-1)
+    assert(partitioner.getBucketIndex(intTuple(1)).next() == 1)
+  }
+
+  "LeastLoadedPartitioner" should "start senders on different receivers" in {
+    val senderA = ActorVirtualIdentity("senderA")
+    val senderB = ActorVirtualIdentity("senderB")
+    val channels = Seq(
+      ChannelIdentity(senderA, r1, isControl = false),
+      ChannelIdentity(senderA, r2, isControl = false),
+      ChannelIdentity(senderB, r1, isControl = false),
+      ChannelIdentity(senderB, r2, isControl = false)
+    )
+    val partitioning = LeastLoadedPartitioning(batchSize = 100, channels = channels)
+    // Batches that fill before the first ranking arrives should not all land on
+    // receiver 0.
+    val first = LeastLoadedPartitioner(partitioning, senderA).getBucketIndex(intTuple(1)).next()
+    val second = LeastLoadedPartitioner(partitioning, senderB).getBucketIndex(intTuple(1)).next()
+    assert(first != second)
+  }
+
+  "LeastLoadedPartitioner.allReceivers" should "deduplicate channel destinations" in {
+    val partitioning = LeastLoadedPartitioning(
+      batchSize = 100,
+      channels = Seq(channel(r1), channel(r2), channel(r1))
+    )
+    val partitioner = LeastLoadedPartitioner(partitioning, sender)
     assert(partitioner.allReceivers == Seq(r1, r2))
   }
 }
