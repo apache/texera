@@ -95,6 +95,32 @@ def test_a_dead_mount_is_still_reported_as_mounted(mounter, cu_dir):
     assert mounter.is_mounted(target)  # what it should have asked
 
 
+# ─────────────────── _responds() ───────────────────
+
+def test_a_listable_directory_responds(mounter, tmp_path):
+    assert mounter._responds(str(tmp_path))
+
+
+def test_a_missing_path_does_not_respond(mounter, tmp_path):
+    assert not mounter._responds(str(tmp_path / "gone"))
+
+
+def test_a_mount_that_stats_but_cannot_be_listed_does_not_respond(mounter, tmp_path, monkeypatch):
+    """A dead FUSE mount can still stat() from attributes the kernel cached, and fail only
+    when opened. Such a mount must not count as live, or it is never remounted."""
+    real_scandir = os.scandir
+
+    def dead_mount(path):
+        if os.fspath(path) == str(tmp_path):
+            raise OSError(107, "Transport endpoint is not connected")
+        return real_scandir(path)
+
+    monkeypatch.setattr(os, "scandir", dead_mount)
+    os.stat(tmp_path)  # stat still succeeds
+
+    assert not mounter._responds(str(tmp_path))
+
+
 # ─────────────────── _cuid_of() ───────────────────
 
 @pytest.mark.parametrize(

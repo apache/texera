@@ -19,12 +19,12 @@
 
 package org.apache.texera.amber.storage
 
-import org.apache.texera.amber.core.storage.RepositoryMountManager
+import org.apache.texera.amber.core.storage.{InPodMount, RepositoryMountManager}
 import org.apache.texera.common.config.EnvironmentalVariable
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 
-import java.nio.file.{Path, Paths}
+import java.nio.file.{Files, Path, Paths}
 import scala.collection.mutable
 
 class RepositoryMountManagerSpec extends AnyFlatSpec with Matchers {
@@ -114,5 +114,33 @@ class RepositoryMountManagerSpec extends AnyFlatSpec with Matchers {
       failure.getMessage should include(missing)
       fixture.requests shouldBe empty
     }
+  }
+
+  // A mount whose GeeseFS process died stays in /proc/mounts and can even stat, but cannot be
+  // listed. Telling it apart is what lets ensureMounted ask again instead of handing the
+  // operator an unreadable directory. A real dead FUSE mount cannot be made in a unit test, so
+  // these pin the rule itself: whatever cannot be listed is not live.
+  "InPodMount.responds" should "accept a directory that can be listed" in {
+    val dir = Files.createTempDirectory("mount-live")
+    try InPodMount.responds(dir) shouldBe true
+    finally Files.delete(dir)
+  }
+
+  it should "reject a path that cannot be listed" in {
+    val dir = Files.createTempDirectory("mount-dead")
+    val file = Files.createFile(dir.resolve("not-a-directory"))
+    try {
+      InPodMount.responds(dir.resolve("missing")) shouldBe false
+      InPodMount.responds(file) shouldBe false
+    } finally {
+      Files.delete(file)
+      Files.delete(dir)
+    }
+  }
+
+  "InPodMount.isFuseMounted" should "not count a plain directory as a mount" in {
+    val dir = Files.createTempDirectory("mount-none")
+    try InPodMount.isFuseMounted(dir) shouldBe false
+    finally Files.delete(dir)
   }
 }
