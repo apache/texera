@@ -23,7 +23,7 @@ import com.fasterxml.jackson.databind.node.ObjectNode
 import io.dropwizard.testing.junit5.ResourceExtension
 import jakarta.ws.rs.client.Entity
 import jakarta.ws.rs.core.{MediaType, Response}
-import org.apache.texera.amber.compiler.model.{LogicalLink, LogicalPlanPojo}
+import org.apache.texera.common.compiler.model.{LogicalLink, LogicalPlanPojo}
 import org.apache.texera.amber.core.workflow.PortIdentity
 import org.apache.texera.amber.operator.projection.{AttributeUnit, ProjectionOpDesc}
 import org.apache.texera.amber.operator.source.scan.csv.CSVScanSourceOpDesc
@@ -40,7 +40,7 @@ import org.scalatest.flatspec.AnyFlatSpec
   *
   * All compiler-behavior assertions (schema propagation, lenient-mode
   * error accumulation, multi-op chains) live in
-  * `org.apache.texera.amber.compiler.WorkflowCompilerSpec` so a regression
+  * `org.apache.texera.common.compiler.WorkflowCompilerSpec` so a regression
   * lands on the right spec.
   */
 class WorkflowCompilationResourceSpec extends AnyFlatSpec with BeforeAndAfterAll {

@@ -46,10 +46,25 @@ export interface WorkflowComputingUnitMetrics {
 
 export interface DashboardWorkflowComputingUnit {
   computingUnit: WorkflowComputingUnit;
-  status: "Running" | "Pending";
+  status: "Running" | "Pending" | "Failed" | "Unknown" | "Terminating";
+  // Explanation of a failing or degraded status. Sent only to authorized viewers; null otherwise.
+  statusReason?: string | null;
   metrics: WorkflowComputingUnitMetrics;
   isOwner: boolean;
   accessPrivilege: "READ" | "WRITE" | "NONE";
-  ownerGoogleAvatar: string;
+  ownerAvatar: string;
   ownerName: string;
+}
+
+// CPU in millicores, memory in bytes, GPU in devices.
+export interface ResourceCapacity {
+  total: number;
+  allocated: number;
+  available: number;
+}
+
+export interface ClusterCapacity {
+  cpu: ResourceCapacity;
+  memory: ResourceCapacity;
+  gpu: ResourceCapacity;
 }

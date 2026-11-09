@@ -18,7 +18,6 @@
  */
 
 import { GroupInfo, OperatorMetadata, OperatorSchema } from "../../types/operator-schema.interface";
-import { CustomJSONSchema7 } from "../../types/custom-json-schema.interface";
 import { VIEW_RESULT_OP_TYPE } from "../workflow-graph/model/workflow-graph";
 import { PortSchema } from "../../types/workflow-common.interface";
 
@@ -302,6 +301,107 @@ export const mockJavaUDFSchema: OperatorSchema = {
   operatorVersion: "p1",
 };
 
+export const mockHuggingFaceSchema: OperatorSchema = {
+  operatorType: "HuggingFace",
+  additionalMetadata: {
+    userFriendlyName: "HuggingFace Inference",
+    operatorDescription: "Run inference on a HuggingFace model",
+    operatorGroupName: "Analysis",
+    inputPorts: [{}],
+    outputPorts: [{}],
+  },
+  jsonSchema: {
+    properties: {
+      task: { type: "string", title: "task" },
+      modelId: { type: "string", title: "model ID" },
+      promptColumn: { type: "string", title: "prompt column" },
+      imageInput: { type: "string", title: "image input" },
+      audioInput: { type: "string", title: "audio input" },
+      inputImageColumn: { type: "string", title: "input image column" },
+      inputAudioColumn: { type: "string", title: "input audio column" },
+      systemPrompt: { type: "string", title: "system prompt" },
+      maxNewTokens: { type: "integer", title: "max new tokens" },
+      temperature: { type: "number", title: "temperature" },
+      contextColumn: { type: "string", title: "context column" },
+      candidateLabels: { type: "string", title: "candidate labels" },
+      sentencesColumn: { type: "string", title: "sentences column" },
+    },
+    type: "object",
+  },
+  operatorVersion: "hf1",
+};
+
+/**
+ * An operator whose descriptor hands its properties to a Scala executor, as Limit does to LimitOpExec:
+ * the kind of operator on which the backend binds a loop-variable reference at run time (unlike a
+ * Python-generating descriptor such as HuggingFace, whose values are fixed into code at compile time).
+ * One property of each primitive type, an enum, a file picker (a custom widget) and an array.
+ */
+export const mockScalaExecutorSchema: OperatorSchema = {
+  operatorType: "ScalaExecutorOp",
+  additionalMetadata: {
+    userFriendlyName: "Mock Limit",
+    operatorDescription: "Mock operator backed by a Scala executor",
+    operatorGroupName: "Analysis",
+    inputPorts: [{}],
+    outputPorts: [{}],
+  },
+  jsonSchema: {
+    properties: {
+      limit: { type: "integer", title: "limit" },
+      fraction: { type: "number", title: "fraction" },
+      prefix: { type: "string", title: "prefix" },
+      caseSensitive: { type: "boolean", title: "case sensitive" },
+      order: { type: "string", enum: ["asc", "desc"], title: "order" },
+      fileName: { type: "string", title: "file name" },
+      columns: { type: "array", items: { type: "string" }, title: "columns" },
+    },
+    required: ["limit"],
+    type: "object",
+  },
+  operatorVersion: "scala1",
+};
+
+export const mockLoopStartSchema: OperatorSchema = {
+  operatorType: "LoopStart",
+  additionalMetadata: {
+    userFriendlyName: "Loop Start",
+    operatorDescription: "Begin a loop that iterates over rows of the input table; pairs with Loop End.",
+    operatorGroupName: "Analysis",
+    inputPorts: [{}],
+    outputPorts: [{}],
+  },
+  jsonSchema: {
+    properties: {
+      initialization: { type: "string", title: "Initialization", default: "i = 0" },
+      output: { type: "string", title: "Output", default: "table.iloc[i]" },
+    },
+    required: ["initialization", "output"],
+    type: "object",
+  },
+  operatorVersion: "loop1",
+};
+
+export const mockLoopEndSchema: OperatorSchema = {
+  operatorType: "LoopEnd",
+  additionalMetadata: {
+    userFriendlyName: "Loop End",
+    operatorDescription: "Close a loop body and decide whether to iterate again; pairs with Loop Start.",
+    operatorGroupName: "Analysis",
+    inputPorts: [{}],
+    outputPorts: [{}],
+  },
+  jsonSchema: {
+    properties: {
+      update: { type: "string", title: "Update", default: "i += 1" },
+      condition: { type: "string", title: "Condition", default: "i < len(table)" },
+    },
+    required: ["update", "condition"],
+    type: "object",
+  },
+  operatorVersion: "loop1",
+};
+
 export const mockOperatorSchemaList: ReadonlyArray<OperatorSchema> = [
   mockScanSourceSchema,
   mockFileSourceSchema,
@@ -315,6 +415,10 @@ export const mockOperatorSchemaList: ReadonlyArray<OperatorSchema> = [
   mockUnionSchema,
   mockPythonUDFSchema,
   mockJavaUDFSchema,
+  mockHuggingFaceSchema,
+  mockScalaExecutorSchema,
+  mockLoopStartSchema,
+  mockLoopEndSchema,
 ];
 
 export const mockOperatorGroup: ReadonlyArray<GroupInfo> = [
@@ -326,23 +430,6 @@ export const mockOperatorGroup: ReadonlyArray<GroupInfo> = [
 export const mockOperatorMetaData: OperatorMetadata = {
   operators: mockOperatorSchemaList,
   groups: mockOperatorGroup,
-};
-
-export const testJsonSchema: CustomJSONSchema7 = {
-  properties: {
-    attribute: {
-      type: "string",
-      title: "attribute",
-      autofill: "attributeName",
-      autofillAttributeOnPort: 0,
-    },
-    resultAttribute: {
-      type: "string",
-      title: "result attribute",
-    },
-  },
-  required: ["attribute", "resultAttribute"],
-  type: "object",
 };
 
 export const mockPortSchema: PortSchema = {

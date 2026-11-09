@@ -115,7 +115,7 @@ jobs:
 
     steps:
       - name: Checkout Texera
-        uses: actions/checkout@v5
+        uses: actions/checkout@v7
         with:
           ref: ${{ needs.set-parameters.outputs.branch }}
 
@@ -126,9 +126,9 @@ jobs:
           java-version: 17
 
       - name: Setup sbt launcher
-        uses: sbt/setup-sbt@508b753e53cb6095967669e0911487d2b9bc9f41 # v1.1.22
+        uses: sbt/setup-sbt@ecad189dd245444b9ae0a0cd5922fd938b88906f # v1.5.12
 
-      - uses: coursier/cache-action@90c37294538be80a558fd665531fcdc2b467b475 # v8.1.0
+      - uses: coursier/cache-action@95e5b1029b6b86e7bac033ee44a0697d8a527d2d # v8.1.1
         with:
           extraSbtFiles: '["*.sbt", "project/**.{scala,sbt}", "project/build.properties" ]'
 
@@ -156,7 +156,7 @@ jobs:
         run: sbt DAO/jooqGenerate
 
       - name: Upload JOOQ generated code
-        uses: actions/upload-artifact@v5
+        uses: actions/upload-artifact@v7
         with:
           name: jooq-code
           path: |
@@ -174,7 +174,7 @@ jobs:
       need_manifest: ${{ steps.set-platforms.outputs.need_manifest }}
     steps:
       - name: Checkout Texera
-        uses: actions/checkout@v5
+        uses: actions/checkout@v7
         with:
           ref: ${{ needs.set-parameters.outputs.branch }}
 
@@ -264,6 +264,9 @@ jobs:
                 "access-control-service")
                   image_name="texera-access-control-service"
                   ;;
+                "mounter")
+                  image_name="texera-mounter"
+                  ;;
                 "config-service")
                   image_name="texera-config-service"
                   ;;
@@ -278,6 +281,12 @@ jobs:
                   ;;
                 "agent-service")
                   image_name="texera-agent-service"
+                  ;;
+                "notebook-migration-service")
+                  image_name="texera-notebook-migration-service"
+                  ;;
+                "jupyter")
+                  image_name="texera-jupyter"
                   ;;
                 *)
                   # Default: use service name as-is
@@ -317,7 +326,7 @@ jobs:
 
     steps:
       - name: Checkout Texera
-        uses: actions/checkout@v5
+        uses: actions/checkout@v7
         with:
           ref: ${{ needs.set-parameters.outputs.branch }}
 
@@ -328,14 +337,14 @@ jobs:
           java-version: 17
 
       - name: Setup sbt launcher
-        uses: sbt/setup-sbt@508b753e53cb6095967669e0911487d2b9bc9f41 # v1.1.22
+        uses: sbt/setup-sbt@ecad189dd245444b9ae0a0cd5922fd938b88906f # v1.5.12
 
-      - uses: coursier/cache-action@90c37294538be80a558fd665531fcdc2b467b475 # v8.1.0
+      - uses: coursier/cache-action@95e5b1029b6b86e7bac033ee44a0697d8a527d2d # v8.1.1
         with:
           extraSbtFiles: '["*.sbt", "project/**.{scala,sbt}", "project/build.properties" ]'
 
       - name: Download JOOQ generated code
-        uses: actions/download-artifact@v6
+        uses: actions/download-artifact@v8
         with:
           name: jooq-code
           path: common/dao/src/main/scala/org/apache/texera/dao/jooq/generated/
@@ -348,12 +357,25 @@ jobs:
           sudo rm -rf /usr/local/share/boost
           df -h
 
+      # Image digests can change between BuildKit versions, so the builder is
+      # pinned for voters to reproduce the published images (bin/README.md).
       - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@4d04d5d9486b7bd6fa91e7baf45bbb4f8b9deedd # v4.0.0
+        uses: docker/setup-buildx-action@bb05f3f5519dd87d3ba754cc423b652a5edd6d2c # v4.2.0
+        with:
+          driver-opts: image=moby/buildkit:v0.33.1
+
+      # Reproducible images: SOURCE_DATE_EPOCH (the commit time) fixes every
+      # timestamp in the image, and PACKAGE_SNAPSHOT (that commit's UTC day)
+      # pins apt and pip to the archives as they stood that morning.
+      - name: Derive SOURCE_DATE_EPOCH and PACKAGE_SNAPSHOT
+        run: |
+          SOURCE_DATE_EPOCH="$(git log -1 --format=%ct)"
+          echo "SOURCE_DATE_EPOCH=$SOURCE_DATE_EPOCH" >> "$GITHUB_ENV"
+          echo "PACKAGE_SNAPSHOT=$(date -u -d "@$SOURCE_DATE_EPOCH" +%F)" >> "$GITHUB_ENV"
 
       - name: Log in to GitHub Container Registry
         if: startsWith(needs.set-parameters.outputs.docker_registry, 'ghcr.io/')
-        uses: docker/login-action@4907a6ddec9925e35a0a9e82d7399ccc52663121 # v4.1.0
+        uses: docker/login-action@af1e73f918a031802d376d3c8bbc3fe56130a9b0 # v4.4.0
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
@@ -361,18 +383,22 @@ jobs:
 
       - name: Log in to Docker Hub
         if: ${{ !startsWith(needs.set-parameters.outputs.docker_registry, 'ghcr.io/') }}
-        uses: docker/login-action@4907a6ddec9925e35a0a9e82d7399ccc52663121 # v4.1.0
+        uses: docker/login-action@af1e73f918a031802d376d3c8bbc3fe56130a9b0 # v4.4.0
         with:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_PASSWORD }}
 
       - name: Build and push AMD64 image
-        uses: docker/build-push-action@bcafcacb16a39f128d818304e6c9c0c18556b85f # v7.1.0
+        uses: docker/build-push-action@53b7df96c91f9c12dcc8a07bcb9ccacbed38856a # v7.3.0
         with:
           context: ${{ matrix.context }}
           file: ${{ matrix.dockerfile }}
           platforms: linux/amd64
-          push: true
+          # Pushes, with every layer mtime clamped to SOURCE_DATE_EPOCH.
+          outputs: type=registry,rewrite-timestamp=true
+          build-args: |
+            SOURCE_DATE_EPOCH=${{ env.SOURCE_DATE_EPOCH }}
+            PACKAGE_SNAPSHOT=${{ env.PACKAGE_SNAPSHOT }}
           tags: ${{ env.DOCKER_REGISTRY }}/${{ matrix.image_name }}:${{ needs.set-parameters.outputs.image_tag }}-amd64
           cache-from: type=gha,scope=${{ matrix.image_name }}-amd64
           cache-to: type=gha,mode=max,scope=${{ matrix.image_name }}-amd64
@@ -397,7 +423,7 @@ jobs:
 
     steps:
       - name: Checkout Texera
-        uses: actions/checkout@v5
+        uses: actions/checkout@v7
         with:
           ref: ${{ needs.set-parameters.outputs.branch }}
 
@@ -408,14 +434,14 @@ jobs:
           java-version: 17
 
       - name: Setup sbt launcher
-        uses: sbt/setup-sbt@508b753e53cb6095967669e0911487d2b9bc9f41 # v1.1.22
+        uses: sbt/setup-sbt@ecad189dd245444b9ae0a0cd5922fd938b88906f # v1.5.12
 
-      - uses: coursier/cache-action@90c37294538be80a558fd665531fcdc2b467b475 # v8.1.0
+      - uses: coursier/cache-action@95e5b1029b6b86e7bac033ee44a0697d8a527d2d # v8.1.1
         with:
           extraSbtFiles: '["*.sbt", "project/**.{scala,sbt}", "project/build.properties" ]'
 
       - name: Download JOOQ generated code
-        uses: actions/download-artifact@v6
+        uses: actions/download-artifact@v8
         with:
           name: jooq-code
           path: common/dao/src/main/scala/org/apache/texera/dao/jooq/generated/
@@ -430,16 +456,27 @@ jobs:
 
       # Set up QEMU for ARM64 emulation
       - name: Set up QEMU
-        uses: docker/setup-qemu-action@ce360397dd3f832beb865e1373c09c0e9f86d70a # v4.0.0
+        uses: docker/setup-qemu-action@96fe6ef7f33517b61c61be40b68a1882f3264fb8 # v4.2.0
         with:
           platforms: linux/arm64
 
       - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@4d04d5d9486b7bd6fa91e7baf45bbb4f8b9deedd # v4.0.0
+        uses: docker/setup-buildx-action@bb05f3f5519dd87d3ba754cc423b652a5edd6d2c # v4.2.0
+        with:
+          driver-opts: image=moby/buildkit:v0.33.1
+
+      # Reproducible images: SOURCE_DATE_EPOCH (the commit time) fixes every
+      # timestamp in the image, and PACKAGE_SNAPSHOT (that commit's UTC day)
+      # pins apt and pip to the archives as they stood that morning.
+      - name: Derive SOURCE_DATE_EPOCH and PACKAGE_SNAPSHOT
+        run: |
+          SOURCE_DATE_EPOCH="$(git log -1 --format=%ct)"
+          echo "SOURCE_DATE_EPOCH=$SOURCE_DATE_EPOCH" >> "$GITHUB_ENV"
+          echo "PACKAGE_SNAPSHOT=$(date -u -d "@$SOURCE_DATE_EPOCH" +%F)" >> "$GITHUB_ENV"
 
       - name: Log in to GitHub Container Registry
         if: startsWith(needs.set-parameters.outputs.docker_registry, 'ghcr.io/')
-        uses: docker/login-action@4907a6ddec9925e35a0a9e82d7399ccc52663121 # v4.1.0
+        uses: docker/login-action@af1e73f918a031802d376d3c8bbc3fe56130a9b0 # v4.4.0
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
@@ -447,18 +484,22 @@ jobs:
 
       - name: Log in to Docker Hub
         if: ${{ !startsWith(needs.set-parameters.outputs.docker_registry, 'ghcr.io/') }}
-        uses: docker/login-action@4907a6ddec9925e35a0a9e82d7399ccc52663121 # v4.1.0
+        uses: docker/login-action@af1e73f918a031802d376d3c8bbc3fe56130a9b0 # v4.4.0
         with:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_PASSWORD }}
 
       - name: Build and push ARM64 image
-        uses: docker/build-push-action@bcafcacb16a39f128d818304e6c9c0c18556b85f # v7.1.0
+        uses: docker/build-push-action@53b7df96c91f9c12dcc8a07bcb9ccacbed38856a # v7.3.0
         with:
           context: ${{ matrix.context }}
           file: ${{ matrix.dockerfile }}
           platforms: linux/arm64
-          push: true
+          # Pushes, with every layer mtime clamped to SOURCE_DATE_EPOCH.
+          outputs: type=registry,rewrite-timestamp=true
+          build-args: |
+            SOURCE_DATE_EPOCH=${{ env.SOURCE_DATE_EPOCH }}
+            PACKAGE_SNAPSHOT=${{ env.PACKAGE_SNAPSHOT }}
           tags: ${{ env.DOCKER_REGISTRY }}/${{ matrix.image_name }}:${{ needs.set-parameters.outputs.image_tag }}-arm64
           cache-from: type=gha,scope=${{ matrix.image_name }}-arm64
           cache-to: type=gha,mode=max,scope=${{ matrix.image_name }}-arm64
@@ -481,7 +522,7 @@ jobs:
     steps:
       - name: Log in to GitHub Container Registry
         if: startsWith(needs.set-parameters.outputs.docker_registry, 'ghcr.io/')
-        uses: docker/login-action@4907a6ddec9925e35a0a9e82d7399ccc52663121 # v4.1.0
+        uses: docker/login-action@af1e73f918a031802d376d3c8bbc3fe56130a9b0 # v4.4.0
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
@@ -489,7 +530,7 @@ jobs:
 
       - name: Log in to Docker Hub
         if: ${{ !startsWith(needs.set-parameters.outputs.docker_registry, 'ghcr.io/') }}
-        uses: docker/login-action@4907a6ddec9925e35a0a9e82d7399ccc52663121 # v4.1.0
+        uses: docker/login-action@af1e73f918a031802d376d3c8bbc3fe56130a9b0 # v4.4.0
         with:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_PASSWORD }}

@@ -22,6 +22,7 @@ package org.apache.texera.amber.operator.aggregate
 import com.fasterxml.jackson.annotation.{JsonProperty, JsonPropertyDescription}
 import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaTitle
 import org.apache.texera.amber.core.executor.OpExecWithClassName
+import org.apache.texera.amber.core.state.NoLoopVariable
 import org.apache.texera.amber.core.tuple.Schema
 import org.apache.texera.amber.core.virtualidentity.{
   ExecutionIdentity,
@@ -41,12 +42,14 @@ class AggregateOpDesc extends LogicalOp {
   @JsonPropertyDescription("multiple aggregation functions")
   @NotNull(message = "aggregation cannot be null")
   @Size(min = 1, message = "aggregations cannot be empty")
+  @NoLoopVariable
   var aggregations: List[AggregationOperation] = List()
 
   @JsonProperty("groupByKeys")
   @JsonSchemaTitle("Group By Keys")
   @JsonPropertyDescription("group by columns")
   @AutofillAttributeNameList
+  @NoLoopVariable
   var groupByKeys: List[String] = List()
 
   override def getPhysicalPlan(
@@ -78,9 +81,18 @@ class AggregateOpDesc extends LogicalOp {
           val inputSchema = inputSchemas(operatorInfo.inputPorts.head.id)
           val outputSchema = Schema(
             groupByKeys.map(key => inputSchema.getAttribute(key)) ++
-              localAggregations.map(agg =>
-                agg.getAggregationAttribute(inputSchema.getAttribute(agg.attribute).getType)
-              )
+              localAggregations.map { agg =>
+                // Only COUNT with an empty attribute (COUNT(*)) skips the column lookup:
+                // its result type is INTEGER regardless. Every other function resolves
+                // the input attribute (failing fast if it is missing/invalid).
+                val attrType =
+                  if (
+                    agg.aggFunction == AggregationFunction.COUNT &&
+                    (agg.attribute == null || agg.attribute.trim.isEmpty)
+                  ) null
+                  else inputSchema.getAttribute(agg.attribute).getType
+                agg.getAggregationAttribute(attrType)
+              }
           )
           Map(PortIdentity(internal = true) -> outputSchema)
         })

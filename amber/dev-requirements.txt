@@ -29,9 +29,17 @@ pytest-timeout==2.4.0
 # Codecov's Phase 1 upload.
 pytest-cov==7.1.0
 
+# Linter/formatter for amber's Python sources; run by CI's "Lint with
+# Ruff" step and bin/fix-format.sh.
+ruff==0.14.7
+
 # protoc plugin for bin/python-proto-gen.sh; runtime needs only the
 # base `betterproto` in requirements.txt.
 betterproto[compiler]==2.0.0b7
 
 # Required by `bin/local-dev.sh -i` (the interactive Textual TUI).
-textual==8.2.7
+textual==8.2.8
+
+# Reads bin/k8s/values.yaml in bin/k8s/tests/test_helm_values.sh. That check fails
+# rather than skipping when this is missing, so the suite cannot go green by accident.
+PyYAML==6.0.3

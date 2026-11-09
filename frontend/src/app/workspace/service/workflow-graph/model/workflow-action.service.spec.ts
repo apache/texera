@@ -26,6 +26,7 @@ import {
   mockCommentBox,
   mockFalseResultSentimentLink,
   mockFalseSentimentScanLink,
+  mockMultiInputOutputPredicate,
   mockPoint,
   mockResultPredicate,
   mockScanPredicate,
@@ -36,10 +37,19 @@ import {
 } from "./mock-workflow-data";
 import { inject, TestBed } from "@angular/core/testing";
 
-import { WorkflowActionService } from "./workflow-action.service";
-import { OperatorPredicate } from "../../../types/workflow-common.interface";
+import * as Y from "yjs";
+import { DEFAULT_WORKFLOW, DEFAULT_WORKFLOW_NAME, WorkflowActionService } from "./workflow-action.service";
+import { LogicalPort, OperatorPredicate } from "../../../types/workflow-common.interface";
 import { WorkflowUtilService } from "../util/workflow-util.service";
 import { commonTestProviders } from "../../../../common/testing/test-utils";
+import {
+  ExecutionMode,
+  FormBindingConfig,
+  getDefaultFormBinding,
+  Workflow,
+  WorkflowSettings,
+} from "../../../../common/type/workflow";
+import { WorkflowMetadata } from "../../../../dashboard/type/workflow-metadata.interface";
 
 describe("WorkflowActionService", () => {
   let service: WorkflowActionService;
@@ -68,9 +78,88 @@ describe("WorkflowActionService", () => {
     jointGraph = (service as any).jointGraph;
   });
 
+  /**
+   * The shared document has finished its first sync with the room. A seed of the workflow's
+   * settings or form definition waits for this, so that a co-editor's newer value is already in
+   * the map and is not overwritten by the copy the database handed us (see seedContentMeta).
+   * No y-websocket server answers in a unit test, so the tests say when the sync lands. Set the
+   * way the provider sets it, so the document counts as synced afterwards (a seed of a later
+   * reload then goes in at once) and the event is emitted for the seeds waiting on it.
+   */
+  function syncSharedDoc(): void {
+    texeraGraph.sharedModel.wsProvider.synced = true;
+  }
+
   it("should be created", inject([WorkflowActionService], (injectedService: WorkflowActionService) => {
     expect(injectedService).toBeTruthy();
   }));
+
+  // The operator canvas and the Form View hand one open workflow between them; the arriving view
+  // asks this before loading, because seeding a second document for the same workflow would leave
+  // the co-editing room and rejoin it.
+  describe("hasWorkflowOpen", () => {
+    it("is true only for the workflow whose room the shared document is in", () => {
+      service.setNewSharedModel(42);
+
+      expect(service.hasWorkflowOpen(42)).toBe(true);
+      expect(service.hasWorkflowOpen(43)).toBe(false);
+    });
+
+    it("is false for every workflow while none is open", () => {
+      service.setNewSharedModel();
+
+      expect(service.hasWorkflowOpen(42)).toBe(false);
+      // And asking about "no workflow" is never a match, even against a document in no room.
+      expect(service.hasWorkflowOpen(undefined)).toBe(false);
+      expect(service.hasWorkflowOpen(0)).toBe(false);
+    });
+
+    // Both views key the hand-over on this. A workflow created in this session has an id in its
+    // metadata after the first autosave while its document is still in the private room it was
+    // seeded with; keyed on the metadata the departing view handed it over, keyed on the room the
+    // arriving view declined it. Keyed on the room on both sides, it is simply rebuilt once.
+    it("names the room the document is in, and nothing while it is in no workflow's room", () => {
+      service.setNewSharedModel(42);
+      expect(service.getOpenWorkflowId()).toBe(42);
+
+      service.setNewSharedModel();
+      expect(service.getOpenWorkflowId()).toBeUndefined();
+    });
+
+    // Not local to this method: destroying the document keeps the object and its wid, and what
+    // clears it is clearWorkflow going on to reloadWorkflow(undefined), which seeds a fresh model
+    // with none. Were that to stop happening, a canvas re-entered from the dashboard would attach
+    // to a destroyed document instead of loading the workflow.
+    it("is false for a workflow that has been left, not only for one never opened", () => {
+      service.setNewSharedModel(42);
+      expect(service.hasWorkflowOpen(42)).toBe(true);
+
+      service.clearWorkflow();
+
+      expect(service.hasWorkflowOpen(42)).toBe(false);
+    });
+  });
+
+  // The stream is a plain Subject and carries no current value, so a view that attaches to an
+  // already-open workflow -- and therefore never sets the metadata, because it is already right --
+  // has to say it again for the subscribers it has just mounted: the menu's name and id, the
+  // computing unit picker, the workspace's write access.
+  describe("republishWorkflowMetadata", () => {
+    it("re-announces the metadata it already holds, which setWorkflowMetadata will not", () => {
+      const metadata: WorkflowMetadata = { ...DEFAULT_WORKFLOW, wid: 42, name: "kept open" };
+      service.setWorkflowMetadata(metadata);
+      const seen: WorkflowMetadata[] = [];
+      service.workflowMetaDataChanged().subscribe(m => seen.push(m));
+
+      // The same value a view would read back and hand straight to the setter: it returns early.
+      service.setWorkflowMetadata(service.getWorkflowMetadata());
+      expect(seen).toEqual([]);
+
+      service.republishWorkflowMetadata();
+
+      expect(seen).toEqual([metadata]);
+    });
+  });
 
   it("should add an operator to both jointjs and texera graph correctly", () => {
     service.addOperator(mockScanPredicate, mockPoint);
@@ -276,5 +365,1160 @@ describe("WorkflowActionService", () => {
     //
     // expect(sentimentOpPos).toEqual(mockPoint);
     // expect(resultOpPos).toEqual(mockPoint);
+  });
+
+  it("should reload a workflow, repopulating the graph and clearing the undo/redo stacks", () => {
+    const settings: WorkflowSettings = {
+      dataTransferBatchSize: 250,
+      executionMode: ExecutionMode.MATERIALIZED,
+    };
+    const workflow: Workflow = {
+      ...DEFAULT_WORKFLOW,
+      name: "Reloaded WF",
+      content: {
+        operators: [mockScanPredicate, mockResultPredicate],
+        operatorPositions: {
+          [mockScanPredicate.operatorID]: mockPoint,
+          [mockResultPredicate.operatorID]: mockPoint,
+        },
+        links: [mockScanResultLink],
+        commentBoxes: [{ ...mockCommentBox, commentBoxID: "commentBox-1" }],
+        settings,
+      },
+    };
+    const clearUndoSpy = vi.spyOn(undoRedo, "clearUndoStack");
+    const clearRedoSpy = vi.spyOn(undoRedo, "clearRedoStack");
+    const restoreSpy = vi.spyOn(service.getJointGraphWrapper(), "restoreDefaultZoomAndOffset");
+
+    service.reloadWorkflow(workflow);
+
+    expect(texeraGraph.hasOperator(mockScanPredicate.operatorID)).toBeTruthy();
+    expect(texeraGraph.hasOperator(mockResultPredicate.operatorID)).toBeTruthy();
+    expect(texeraGraph.hasLinkWithID(mockScanResultLink.linkID)).toBeTruthy();
+    expect(texeraGraph.hasCommentBox("commentBox-1")).toBeTruthy();
+    expect(service.getWorkflowMetadata().name).toEqual("Reloaded WF");
+    expect(service.getWorkflowSettings().dataTransferBatchSize).toEqual(250);
+    expect(clearUndoSpy).toHaveBeenCalled();
+    expect(clearRedoSpy).toHaveBeenCalled();
+    expect(restoreSpy).toHaveBeenCalled();
+  });
+
+  it("should throw when a reloaded operator is missing its position", () => {
+    const workflow: Workflow = {
+      ...DEFAULT_WORKFLOW,
+      content: {
+        operators: [mockScanPredicate],
+        operatorPositions: {},
+        links: [],
+        commentBoxes: [],
+        settings: { dataTransferBatchSize: 100, executionMode: ExecutionMode.PIPELINED },
+      },
+    };
+    expect(() => service.reloadWorkflow(workflow)).toThrowError(
+      new RegExp(`position error: ${mockScanPredicate.operatorID}`)
+    );
+  });
+
+  it("should empty the graph and skip viewport restore when reloading undefined", () => {
+    service.addOperator(mockScanPredicate, mockPoint);
+    const restoreSpy = vi.spyOn(service.getJointGraphWrapper(), "restoreDefaultZoomAndOffset");
+
+    service.reloadWorkflow(undefined, false, false);
+
+    expect(texeraGraph.getAllOperators().length).toEqual(0);
+    expect(restoreSpy).not.toHaveBeenCalled();
+  });
+
+  it("should clear the workflow back to its defaults", () => {
+    service.addOperator(mockScanPredicate, mockPoint);
+    service.setWorkflowName("Something");
+    service.setWorkflowDataTransferBatchSize(999);
+    service.setHighlightingEnabled(true);
+
+    service.clearWorkflow();
+
+    expect(service.getWorkflowMetadata()).toEqual(DEFAULT_WORKFLOW);
+    expect(service.getWorkflowSettings().dataTransferBatchSize).toEqual(100);
+    expect(service.getWorkflowSettings().executionMode).toEqual(ExecutionMode.PIPELINED);
+    expect(texeraGraph.getAllOperators().length).toEqual(0);
+    expect(service.getHighlightingEnabled()).toBeFalsy();
+  });
+
+  it("should emit on workflowChanged when resetting as a new workflow", () => {
+    let changed = false;
+    service.workflowChanged().subscribe(() => (changed = true));
+
+    service.resetAsNewWorkflow();
+
+    expect(changed).toBeTruthy();
+  });
+
+  it("should only emit metadata changes when the reference changes", () => {
+    const current = service.getWorkflowMetadata();
+    let emitCount = 0;
+    service.workflowMetaDataChanged().subscribe(() => (emitCount += 1));
+
+    // identical reference -> no emission
+    service.setWorkflowMetadata(current);
+    expect(emitCount).toEqual(0);
+
+    // new metadata -> emission
+    service.setWorkflowMetadata({ ...DEFAULT_WORKFLOW, name: "renamed" });
+    expect(emitCount).toEqual(1);
+    expect(service.getWorkflowMetadata().name).toEqual("renamed");
+  });
+
+  it("should set the workflow name, defaulting blank names", () => {
+    service.setWorkflowName("   ");
+    expect(service.getWorkflowMetadata().name).toEqual(DEFAULT_WORKFLOW_NAME);
+
+    service.setWorkflowName("My Workflow");
+    expect(service.getWorkflowMetadata().name).toEqual("My Workflow");
+  });
+
+  it("should manage workflow settings and publish state", () => {
+    expect(service.getWorkflowSettings().dataTransferBatchSize).toEqual(100);
+    expect(service.getWorkflowSettings().executionMode).toEqual(ExecutionMode.PIPELINED);
+
+    // non-positive batch sizes are ignored, positive ones are applied
+    service.setWorkflowDataTransferBatchSize(0);
+    expect(service.getWorkflowSettings().dataTransferBatchSize).toEqual(100);
+    service.setWorkflowDataTransferBatchSize(400);
+    expect(service.getWorkflowSettings().dataTransferBatchSize).toEqual(400);
+
+    service.updateExecutionMode(ExecutionMode.MATERIALIZED);
+    expect(service.getWorkflowSettings().executionMode).toEqual(ExecutionMode.MATERIALIZED);
+
+    service.setWorkflowIsPublished(1);
+    expect(service.getWorkflowMetadata().isPublished).toEqual(1);
+
+    const settings: WorkflowSettings = { dataTransferBatchSize: 42, executionMode: ExecutionMode.PIPELINED };
+    service.setWorkflowSettings(settings);
+    expect(service.getWorkflowSettings()).toEqual(settings);
+  });
+
+  it("should toggle the shared-editing connection through temp workflow", () => {
+    const wsProvider = texeraGraph.sharedModel.wsProvider;
+    // setTempWorkflow only disconnects when the provider is in the "should connect" state,
+    // so force it on to make the disconnect assertion deterministic.
+    (wsProvider as any).shouldConnect = true;
+    const disconnectSpy = vi.spyOn(wsProvider, "disconnect").mockImplementation(() => {});
+    const connectSpy = vi.spyOn(wsProvider, "connect").mockImplementation(() => {});
+    const tempWorkflow: Workflow = {
+      ...DEFAULT_WORKFLOW,
+      content: {
+        operators: [],
+        operatorPositions: {},
+        links: [],
+        commentBoxes: [],
+        settings: { dataTransferBatchSize: 100, executionMode: ExecutionMode.PIPELINED },
+      },
+    };
+
+    service.setTempWorkflow(tempWorkflow);
+    expect(disconnectSpy).toHaveBeenCalled();
+    expect(service.getTempWorkflow()).toBe(tempWorkflow);
+
+    service.resetTempWorkflow();
+    expect(connectSpy).toHaveBeenCalled();
+    expect(service.getTempWorkflow()).toBeUndefined();
+  });
+
+  it("should add a dynamic input port to both the texera and joint graphs", () => {
+    const dynamicOp: OperatorPredicate = {
+      ...mockMultiInputOutputPredicate,
+      dynamicInputPorts: true,
+      dynamicOutputPorts: true,
+    };
+    service.addOperator(dynamicOp, mockPoint);
+    const element = jointGraph.getCell(dynamicOp.operatorID) as joint.dia.Element;
+    const beforeInputs = texeraGraph.getOperator(dynamicOp.operatorID).inputPorts.length;
+    const beforePorts = element.getPorts().length;
+
+    service.addPort(dynamicOp.operatorID, true);
+
+    expect(texeraGraph.getOperator(dynamicOp.operatorID).inputPorts.length).toEqual(beforeInputs + 1);
+    expect(element.getPorts().length).toEqual(beforePorts + 1);
+  });
+
+  it("should honor disallowMultiInputs when adding an input port", () => {
+    const dynamicOp: OperatorPredicate = { ...mockMultiInputOutputPredicate, dynamicInputPorts: true };
+    service.addOperator(dynamicOp, mockPoint);
+
+    service.addPort(dynamicOp.operatorID, true, true);
+
+    const inputPorts = texeraGraph.getOperator(dynamicOp.operatorID).inputPorts;
+    expect(inputPorts[inputPorts.length - 1].disallowMultiInputs).toBe(true);
+  });
+
+  it("should remove the last dynamic port from both the texera and joint graphs", () => {
+    const dynamicOp: OperatorPredicate = { ...mockMultiInputOutputPredicate, dynamicInputPorts: true };
+    service.addOperator(dynamicOp, mockPoint);
+    const element = jointGraph.getCell(dynamicOp.operatorID) as joint.dia.Element;
+    // Add a dynamic input port first, then remove it — so this exercises the dynamic-port
+    // removal path (round-tripping back to the original counts) rather than just deleting a
+    // pre-existing port.
+    const baseInputs = texeraGraph.getOperator(dynamicOp.operatorID).inputPorts.length;
+    const basePorts = element.getPorts().length;
+    service.addPort(dynamicOp.operatorID, true);
+    expect(texeraGraph.getOperator(dynamicOp.operatorID).inputPorts.length).toEqual(baseInputs + 1);
+
+    service.removePort(dynamicOp.operatorID, true);
+
+    expect(texeraGraph.getOperator(dynamicOp.operatorID).inputPorts.length).toEqual(baseInputs);
+    expect(element.getPorts().length).toEqual(basePorts);
+  });
+
+  it("should throw when adding a port to an operator without dynamic ports", () => {
+    service.addOperator(mockScanPredicate, mockPoint);
+    expect(() => service.addPort(mockScanPredicate.operatorID, true)).toThrowError(
+      new RegExp("does not have dynamic input ports")
+    );
+  });
+
+  it("should disable and enable operators, reflecting in the graph and change stream", () => {
+    service.addOperator(mockScanPredicate, mockPoint);
+    let event: { newDisabled: readonly string[]; newEnabled: readonly string[] } | undefined;
+    texeraGraph.getDisabledOperatorsChangedStream().subscribe(e => (event = e));
+
+    service.disableOperators([mockScanPredicate.operatorID]);
+    expect(texeraGraph.getDisabledOperators().has(mockScanPredicate.operatorID)).toBeTruthy();
+    expect(event?.newDisabled).toContain(mockScanPredicate.operatorID);
+
+    service.enableOperators([mockScanPredicate.operatorID]);
+    expect(texeraGraph.getDisabledOperators().has(mockScanPredicate.operatorID)).toBeFalsy();
+    expect(event?.newEnabled).toContain(mockScanPredicate.operatorID);
+  });
+
+  it("should mark and unmark operators for result reuse", () => {
+    service.addOperator(mockScanPredicate, mockPoint);
+    let event: { newReuseCacheOps: readonly string[]; newUnreuseCacheOps: readonly string[] } | undefined;
+    texeraGraph.getReuseCacheOperatorsChangedStream().subscribe(e => (event = e));
+
+    service.markReuseResults([mockScanPredicate.operatorID]);
+    expect(texeraGraph.getOperatorsMarkedForReuseResult().has(mockScanPredicate.operatorID)).toBeTruthy();
+    expect(event?.newReuseCacheOps).toContain(mockScanPredicate.operatorID);
+
+    service.removeMarkReuseResults([mockScanPredicate.operatorID]);
+    expect(texeraGraph.getOperatorsMarkedForReuseResult().has(mockScanPredicate.operatorID)).toBeFalsy();
+    expect(event?.newUnreuseCacheOps).toContain(mockScanPredicate.operatorID);
+  });
+
+  it("should set and unset operators for viewing results", () => {
+    service.addOperator(mockScanPredicate, mockPoint);
+    let event: { newViewResultOps: readonly string[]; newUnviewResultOps: readonly string[] } | undefined;
+    texeraGraph.getViewResultOperatorsChangedStream().subscribe(e => (event = e));
+
+    service.setViewOperatorResults([mockScanPredicate.operatorID]);
+    expect(texeraGraph.getOperatorsToViewResult().has(mockScanPredicate.operatorID)).toBeTruthy();
+    expect(event?.newViewResultOps).toContain(mockScanPredicate.operatorID);
+
+    service.unsetViewOperatorResults([mockScanPredicate.operatorID]);
+    expect(texeraGraph.getOperatorsToViewResult().has(mockScanPredicate.operatorID)).toBeFalsy();
+    expect(event?.newUnviewResultOps).toContain(mockScanPredicate.operatorID);
+  });
+
+  it("should highlight and unhighlight ports honoring multiselect mode", () => {
+    const jointGraphWrapper = service.getJointGraphWrapper();
+    const portA: LogicalPort = { operatorID: mockScanPredicate.operatorID, portID: "output-0" };
+    const portB: LogicalPort = { operatorID: mockSentimentPredicate.operatorID, portID: "input-0" };
+
+    // multiselect on -> both ports stay highlighted
+    service.highlightPorts(true, portA);
+    service.highlightPorts(true, portB);
+    expect(jointGraphWrapper.getCurrentHighlightedPortIDs().length).toEqual(2);
+
+    service.unhighlightPorts(portA, portB);
+    expect(jointGraphWrapper.getCurrentHighlightedPortIDs().length).toEqual(0);
+
+    // multiselect off -> highlighting a new port replaces the previous one
+    service.highlightPorts(false, portA);
+    service.highlightPorts(false, portB);
+    expect(jointGraphWrapper.getCurrentHighlightedPortIDs()).toEqual([portB]);
+  });
+
+  it("should highlight mixed operator and comment-box elements with multiselect", () => {
+    const jointGraphWrapper = service.getJointGraphWrapper();
+    service.addOperator(mockScanPredicate, mockPoint);
+    const commentBox = { ...mockCommentBox, commentBoxID: "commentBox-hl" };
+    service.addCommentBox(commentBox);
+
+    service.highlightElements(true, mockScanPredicate.operatorID, commentBox.commentBoxID);
+
+    expect(jointGraphWrapper.getCurrentHighlightedOperatorIDs()).toContain(mockScanPredicate.operatorID);
+    expect(jointGraphWrapper.getCurrentHighlightedCommentBoxIDs()).toContain(commentBox.commentBoxID);
+  });
+
+  it("should update an operator's version in the graph", () => {
+    service.addOperator(mockScanPredicate, mockPoint);
+    service.setOperatorVersion(mockScanPredicate.operatorID, "scan-v2");
+    expect(texeraGraph.getOperator(mockScanPredicate.operatorID).operatorVersion).toEqual("scan-v2");
+  });
+
+  it("should set a port property on an existing port and throw on a missing one", () => {
+    service.addOperator(mockSentimentPredicate, mockPoint);
+    const port: LogicalPort = { operatorID: mockSentimentPredicate.operatorID, portID: "input-0" };
+    const portProperty = { partitionInfo: { type: "none" }, dependencies: [] };
+
+    service.setPortProperty(port, portProperty);
+    expect(texeraGraph.getPortDescription(port)?.partitionRequirement).toEqual({ type: "none" });
+
+    const missingPort: LogicalPort = { operatorID: mockSentimentPredicate.operatorID, portID: "input-99" };
+    expect(() => service.setPortProperty(missingPort, portProperty)).toThrowError(new RegExp("does not exist"));
+  });
+
+  it("should compute the top-left position across all operators", () => {
+    service.addOperator(mockScanPredicate, { x: 300, y: 400 });
+    service.addOperator(mockResultPredicate, { x: 100, y: 250 });
+
+    service.calculateTopLeftOperatorPosition();
+
+    expect(service.getCenterPoint()).toEqual({ x: 100, y: 250 });
+  });
+
+  it("should leave the center point at its default when there are no operators", () => {
+    const before = service.getCenterPoint();
+
+    service.calculateTopLeftOperatorPosition();
+
+    expect(service.getCenterPoint()).toEqual(before);
+    expect(service.getCenterPoint()).toEqual({ x: 0, y: 0 });
+  });
+
+  it("should toggle the workflow-modification lock and emit each state on the stream", () => {
+    const emitted: boolean[] = [];
+    service.getWorkflowModificationEnabledStream().subscribe(v => emitted.push(v));
+
+    // BehaviorSubject replays the initial "enabled" state on subscription
+    expect(service.checkWorkflowModificationEnabled()).toBeTruthy();
+
+    service.disableWorkflowModification();
+    expect(service.checkWorkflowModificationEnabled()).toBeFalsy();
+
+    // enable only takes effect when previously disabled (and workflow not readonly)
+    service.enableWorkflowModification();
+    expect(service.checkWorkflowModificationEnabled()).toBeTruthy();
+
+    expect(emitted).toEqual([true, false, true]);
+  });
+
+  it("should expose the underlying joint graph instance", () => {
+    expect(service.getJointGraph()).toBe(jointGraph);
+  });
+
+  it("should resolve a conflicting port ID when adding a dynamic input port", () => {
+    // inputPorts already contains "input-1" but has length 1, so the first candidate
+    // portID ("input-" + 1) collides and the loop must bump the suffix to "input-2".
+    const gapOp: OperatorPredicate = {
+      ...mockMultiInputOutputPredicate,
+      operatorID: "gap-op",
+      dynamicInputPorts: true,
+      inputPorts: [{ portID: "input-1" }],
+    };
+    service.addOperator(gapOp, mockPoint);
+
+    service.addPort(gapOp.operatorID, true);
+
+    const portIDs = texeraGraph.getOperator(gapOp.operatorID).inputPorts.map(p => p.portID);
+    expect(portIDs).toContain("input-2");
+    expect(portIDs).not.toContain("input-1input-1");
+  });
+
+  it("should add a dynamic output port to an operator that allows them", () => {
+    const dynOutOp: OperatorPredicate = {
+      ...mockMultiInputOutputPredicate,
+      operatorID: "dyn-out",
+      dynamicOutputPorts: true,
+    };
+    service.addOperator(dynOutOp, mockPoint);
+    const beforeOutputs = texeraGraph.getOperator(dynOutOp.operatorID).outputPorts.length;
+
+    service.addPort(dynOutOp.operatorID, false);
+
+    expect(texeraGraph.getOperator(dynOutOp.operatorID).outputPorts.length).toEqual(beforeOutputs + 1);
+  });
+
+  it("should throw when adding an output port to an operator without dynamic output ports", () => {
+    const noOutOp: OperatorPredicate = { ...mockMultiInputOutputPredicate, operatorID: "no-out" };
+    service.addOperator(noOutOp, mockPoint);
+
+    expect(() => service.addPort(noOutOp.operatorID, false)).toThrowError(
+      new RegExp("does not have dynamic output ports")
+    );
+  });
+
+  it("should throw when specifying disallowMultiInputs on an output port", () => {
+    const dynOutOp: OperatorPredicate = {
+      ...mockMultiInputOutputPredicate,
+      operatorID: "dyn-out-2",
+      dynamicOutputPorts: true,
+    };
+    service.addOperator(dynOutOp, mockPoint);
+
+    expect(() => service.addPort(dynOutOp.operatorID, false, true)).toThrowError(
+      new RegExp("disallowMultiInputs property of an output port should not be specified")
+    );
+  });
+
+  it("should add a comment box together with its initial comments", () => {
+    const comment = { content: "hello", creationTime: "2020-01-01", creatorName: "me", creatorID: 1 };
+    const box = { ...mockCommentBox, commentBoxID: "commentBox-with-comment", comments: [comment] };
+
+    service.addCommentBox(box);
+
+    expect(texeraGraph.hasCommentBox("commentBox-with-comment")).toBeTruthy();
+    expect(texeraGraph.getCommentBox("commentBox-with-comment").comments.length).toEqual(1);
+    expect(texeraGraph.getCommentBox("commentBox-with-comment").comments[0].content).toEqual("hello");
+  });
+
+  it("should delete a comment box and throw when deleting a non-existing one", () => {
+    const box = { ...mockCommentBox, commentBoxID: "commentBox-del" };
+    service.addCommentBox(box);
+    expect(texeraGraph.hasCommentBox("commentBox-del")).toBeTruthy();
+
+    service.deleteCommentBox("commentBox-del");
+    expect(texeraGraph.hasCommentBox("commentBox-del")).toBeFalsy();
+
+    expect(() => service.deleteCommentBox("commentBox-missing")).toThrowError(new RegExp("does not exist"));
+  });
+
+  it("should add, edit, and delete a comment inside a comment box", () => {
+    const box = { ...mockCommentBox, commentBoxID: "commentBox-cmt" };
+    service.addCommentBox(box);
+    const comment = { content: "first", creationTime: "2020-02-02", creatorName: "author", creatorID: 7 };
+
+    service.addComment(comment, "commentBox-cmt");
+    expect(texeraGraph.getCommentBox("commentBox-cmt").comments.length).toEqual(1);
+
+    service.editComment(7, "2020-02-02", "commentBox-cmt", "edited");
+    expect(texeraGraph.getCommentBox("commentBox-cmt").comments[0].content).toEqual("edited");
+
+    service.deleteComment(7, "2020-02-02", "commentBox-cmt");
+    expect(texeraGraph.getCommentBox("commentBox-cmt").comments.length).toEqual(0);
+  });
+
+  it("should delete multiple operators along with their connecting links", () => {
+    service.addOperator(mockScanPredicate, mockPoint);
+    service.addOperator(mockSentimentPredicate, mockPoint);
+    service.addOperator(mockResultPredicate, mockPoint);
+    service.addLink(mockScanSentimentLink);
+    service.addLink(mockSentimentResultLink);
+
+    // duplicate IDs verify the internal Set de-duplication path too
+    service.deleteOperatorsAndLinks([
+      mockScanPredicate.operatorID,
+      mockSentimentPredicate.operatorID,
+      mockScanPredicate.operatorID,
+    ]);
+
+    expect(texeraGraph.hasOperator(mockScanPredicate.operatorID)).toBeFalsy();
+    expect(texeraGraph.hasOperator(mockSentimentPredicate.operatorID)).toBeFalsy();
+    expect(texeraGraph.hasOperator(mockResultPredicate.operatorID)).toBeTruthy();
+    expect(texeraGraph.getAllLinks().length).toEqual(0);
+  });
+
+  it("should delete a downstream operator and drop links matched by their target", () => {
+    service.addOperator(mockScanPredicate, mockPoint);
+    service.addOperator(mockResultPredicate, mockPoint);
+    service.addLink(mockScanResultLink); // scan -> result
+
+    // deleting only the target operator: the link matches on its target, not its source,
+    // exercising the right-hand operand of the link filter's OR condition
+    service.deleteOperatorsAndLinks([mockResultPredicate.operatorID]);
+
+    expect(texeraGraph.hasOperator(mockScanPredicate.operatorID)).toBeTruthy();
+    expect(texeraGraph.hasOperator(mockResultPredicate.operatorID)).toBeFalsy();
+    expect(texeraGraph.getAllLinks().length).toEqual(0);
+  });
+
+  it("should record comment-box positions during auto layout", () => {
+    service.addOperator(mockScanPredicate, mockPoint);
+    const box = { ...mockCommentBox, commentBoxID: "commentBox-layout" };
+    service.addCommentBox(box);
+
+    service.autoLayoutWorkflow();
+
+    expect(texeraGraph.sharedModel.elementPositionMap.get("commentBox-layout")).toBeDefined();
+  });
+
+  it("should emit open and close events on the result-panel stream", () => {
+    const events: boolean[] = [];
+    service.resultPanelOpen$.subscribe(v => events.push(v));
+
+    service.openResultPanel();
+    service.closeResultPanel();
+
+    expect(events).toEqual([true, false]);
+  });
+
+  it("does not write a redundant shared-model update when the settings value is unchanged", () => {
+    syncSharedDoc(); // an edit after the sync goes straight into the document
+    service.setWorkflowSettings({ dataTransferBatchSize: 123, executionMode: ExecutionMode.PIPELINED });
+    const stored = texeraGraph.sharedModel.contentMetaMap.get("settings");
+    expect(stored).toEqual({ dataTransferBatchSize: 123, executionMode: ExecutionMode.PIPELINED });
+
+    // An equal value (a different object) must be skipped, or every collaborator gets a redundant
+    // Yjs update; the stored object is therefore left in place.
+    service.setWorkflowSettings({ dataTransferBatchSize: 123, executionMode: ExecutionMode.PIPELINED });
+
+    expect(texeraGraph.sharedModel.contentMetaMap.get("settings")).toBe(stored);
+  });
+
+  // A co-editor's settings change has to reach this client's settings panel, which refreshes from
+  // workflowSettingsChanged$. Not through workflowChanged: the panel persists a settings change
+  // itself, and the autosave behind workflowChanged would save it a second time, cutting a second
+  // version. Writing to the shared map stands in for the remote update, as it does for the form binding.
+  it("announces a settings change from the shared model on workflowSettingsChanged$, not on workflowChanged", () => {
+    const changed: unknown[] = [];
+    const settings: WorkflowSettings = { dataTransferBatchSize: 77, executionMode: ExecutionMode.MATERIALIZED };
+    const settingsSeen: unknown[] = [];
+    const subA = service.workflowChanged().subscribe(v => changed.push(v));
+    const subB = service.workflowSettingsChanged$.subscribe(v => settingsSeen.push(v));
+
+    texeraGraph.sharedModel.contentMetaMap.set("settings", settings);
+
+    expect(settingsSeen).toEqual([settings]);
+    expect(changed).toEqual([]);
+    expect(service.getWorkflowSettings()).toEqual(settings);
+    subA.unsubscribe();
+    subB.unsubscribe();
+  });
+
+  // A workflow opened without settings marks the key cleared rather than leaving it absent, so the
+  // room can tell "cleared" from "nobody has seeded this yet"; getWorkflowSettings then falls back
+  // to the defaults on the mark.
+  it("marks the settings cleared when a workflow with no settings is opened into a fresh room", () => {
+    service.hydrateSettings(undefined);
+    syncSharedDoc();
+
+    expect(texeraGraph.sharedModel.contentMetaMap.get("settings")).toBeNull();
+    expect(service.getWorkflowSettings()).toEqual(service["getDefaultSettings"]());
+    expect(service.getWorkflowContent().settings).toEqual(service["getDefaultSettings"]());
+  });
+
+  it("leaves a co-editor's settings alone when the workflow being opened has none", () => {
+    const coeditors = new Y.Doc();
+    const live: WorkflowSettings = { dataTransferBatchSize: 99, executionMode: ExecutionMode.MATERIALIZED };
+    coeditors.getMap("contentMeta").set("settings", live);
+    Y.applyUpdate(texeraGraph.sharedModel.yDoc, Y.encodeStateAsUpdate(coeditors));
+
+    service.hydrateSettings(undefined);
+    syncSharedDoc();
+
+    expect(service.getWorkflowSettings()).toEqual(live);
+  });
+
+  // Clearing the page reports no edit and writes nothing: the document is destroyed, and the
+  // settings go back to the defaults through the blank reload's seed, under the reloading flag,
+  // the same way the form definition does.
+  it("clears non-default settings without announcing an edit or writing into the destroyed document", () => {
+    service.setWorkflowSettings({ dataTransferBatchSize: 1, executionMode: ExecutionMode.MATERIALIZED });
+    const changed: unknown[] = [];
+    const sub = service.workflowChanged().subscribe(v => changed.push(v));
+
+    service.clearWorkflow();
+
+    expect(changed).toEqual([]);
+    expect(service.getWorkflowSettings()).toEqual(service["getDefaultSettings"]());
+    sub.unsubscribe();
+  });
+
+  // The copy a seed holds for the previous workflow is that workflow's: a blank one opened before
+  // the sync came must not read it, or carry it into its first save.
+  it("does not carry the previous workflow's waiting settings copy into a blank workflow", () => {
+    service.hydrateSettings({ dataTransferBatchSize: 5, executionMode: ExecutionMode.MATERIALIZED });
+    expect(service.getWorkflowSettings().dataTransferBatchSize).toBe(5);
+
+    service.clearWorkflow();
+
+    expect(service.getWorkflowSettings()).toEqual(service["getDefaultSettings"]());
+    expect(service.getWorkflowContent().settings).toEqual(service["getDefaultSettings"]());
+  });
+
+  it("should assemble workflow content and the full workflow from graph state", () => {
+    service.addOperator(mockScanPredicate, { x: 10, y: 20 });
+    service.addOperator(mockResultPredicate, { x: 30, y: 40 });
+    service.addLink(mockScanResultLink);
+    service.setWorkflowName("Content WF");
+
+    const content = service.getWorkflowContent();
+    expect(content.operators.map(o => o.operatorID).sort()).toEqual([
+      mockScanPredicate.operatorID,
+      mockResultPredicate.operatorID,
+    ]);
+    expect(content.links.length).toEqual(1);
+    expect(content.operatorPositions[mockScanPredicate.operatorID]).toEqual({ x: 10, y: 20 });
+    expect(content.operatorPositions[mockResultPredicate.operatorID]).toEqual({ x: 30, y: 40 });
+    expect(content.settings).toEqual(service.getWorkflowSettings());
+
+    const workflow = service.getWorkflow();
+    expect(workflow.name).toEqual("Content WF");
+    expect(workflow.content.operators.length).toEqual(2);
+    expect(workflow.content.links.length).toEqual(1);
+  });
+
+  describe("formBinding (Form View definition)", () => {
+    const config = {
+      instruction: { title: "How to use this", body: "Pick a file, then Run." },
+      fields: [
+        {
+          id: "f1",
+          operatorID: mockScanPredicate.operatorID,
+          propertyKey: "tableName",
+          displayName: "Input table",
+          helpText: "Which table to read.",
+        },
+      ],
+      shownResultIds: [mockResultPredicate.operatorID],
+    };
+
+    it("should start empty for a workflow that was never set up", () => {
+      expect(service.getFormBinding()).toEqual({ fields: [] });
+    });
+
+    it("should round-trip through workflow content", () => {
+      service.addOperator(mockScanPredicate, { x: 10, y: 20 });
+      service.setFormBinding(config);
+
+      expect(service.getWorkflowContent().formBinding).toEqual(config);
+    });
+
+    // The definition must survive being saved and opened again, which is what makes it
+    // travel with clone, version and publish for free.
+    it("should be restored when a workflow carrying one is reloaded", () => {
+      const workflow: Workflow = {
+        ...DEFAULT_WORKFLOW,
+        content: {
+          operators: [mockScanPredicate],
+          operatorPositions: { [mockScanPredicate.operatorID]: mockPoint },
+          links: [],
+          commentBoxes: [],
+          settings: undefined as any,
+          formBinding: config,
+        },
+      };
+
+      service.reloadWorkflow(workflow, false, false);
+      syncSharedDoc();
+
+      expect(service.getFormBinding()).toEqual(config);
+    });
+
+    it("should fall back to an empty definition for a workflow without one", () => {
+      service.setFormBinding(config);
+
+      service.reloadWorkflow(
+        {
+          ...DEFAULT_WORKFLOW,
+          content: {
+            operators: [],
+            operatorPositions: {},
+            links: [],
+            commentBoxes: [],
+            settings: undefined as any,
+          },
+        },
+        false,
+        false
+      );
+      syncSharedDoc();
+
+      expect(service.getFormBinding()).toEqual({ fields: [] });
+    });
+
+    // Starting a blank workflow must not carry the previous one's definition, or it would
+    // leak into the new workflow's first save.
+    it("should clear a leftover definition when reset to a blank workflow", () => {
+      service.setFormBinding(config);
+      expect(service.getFormBinding()).toEqual(config);
+
+      service.reloadWorkflow(undefined, false, false);
+
+      expect(service.getFormBinding()).toEqual({ fields: [] });
+    });
+
+    // A plain workflow must not stamp an empty formBinding into its content, or every existing
+    // workflow's first save would diff and cut a needless version. Mirrors the agent-service rule.
+    it("should omit formBinding from content for a workflow that never had one", () => {
+      service.reloadWorkflow(undefined, false, false);
+
+      expect("formBinding" in service.getWorkflowContent()).toBe(false);
+    });
+
+    it("should carry a definition whose only content is an empty result list", () => {
+      // "Show no results" is a real choice: fields and instruction stay empty and the list is [], so
+      // the definition must still be saved, or the choice would be lost on reload and every final step
+      // would show again.
+      service.reloadWorkflow(undefined, false, false);
+      service.setFormBinding({ fields: [], shownResultIds: [] });
+
+      expect(service.getWorkflowContent().formBinding).toEqual({ fields: [], shownResultIds: [] });
+    });
+
+    // Editing the form has to reach the same autosave that canvas edits use.
+    it("should report an edit through workflowChanged", () => {
+      const seen: unknown[] = [];
+      const sub = service.workflowChanged().subscribe(v => seen.push(v));
+
+      service.setFormBinding(config);
+
+      expect(seen.length).toEqual(1);
+      sub.unsubscribe();
+    });
+
+    // The definition lives in the shared model (#8315), so a change to the shared map -- a local
+    // edit and a co-editor's remote update flow through the same observer -- is picked up and
+    // republished, and this client's next autosave carries the current value instead of a stale
+    // private copy. Writing to the map directly here stands in for either source.
+    it("should pick up a change to the shared model", () => {
+      const seen: unknown[] = [];
+      const sub = service.formBindingChanged$.subscribe(v => seen.push(v));
+
+      texeraGraph.sharedModel.contentMetaMap.set("formBinding", config);
+
+      expect(seen).toEqual([config]);
+      expect(service.getFormBinding()).toEqual(config);
+      sub.unsubscribe();
+    });
+
+    // The seed a workflow opens with must not overwrite what the room already holds: the document
+    // is connected a moment before, so a write that goes in before the first sync is concurrent
+    // with the co-editor's, and Yjs settles that by client id, not by which is newer. The value
+    // the room sends is the authoritative one.
+    it("leaves a co-editor's definition alone instead of seeding the database copy over it", () => {
+      const coeditors = new Y.Doc();
+      const live: FormBindingConfig = { fields: [], instruction: { title: "live", body: "from a co-editor" } };
+      coeditors.getMap("contentMeta").set("formBinding", live);
+      // The room's state reaches this client as a remote update, exactly as the first sync delivers it.
+      Y.applyUpdate(texeraGraph.sharedModel.yDoc, Y.encodeStateAsUpdate(coeditors));
+
+      service.hydrateFormBinding(config);
+      syncSharedDoc();
+
+      expect(service.getFormBinding()).toEqual(live);
+    });
+
+    // Opening a workflow that carries no definition must not take the room's away either: the
+    // clear is for the document this client is reusing, not for a co-editor's live value.
+    it("leaves a co-editor's definition alone when the workflow being opened has none", () => {
+      const coeditors = new Y.Doc();
+      const live: FormBindingConfig = { fields: [], instruction: { title: "live", body: "from a co-editor" } };
+      coeditors.getMap("contentMeta").set("formBinding", live);
+      Y.applyUpdate(texeraGraph.sharedModel.yDoc, Y.encodeStateAsUpdate(coeditors));
+
+      service.hydrateFormBinding(undefined);
+      syncSharedDoc();
+
+      expect(service.getFormBinding()).toEqual(live);
+    });
+
+    // The seed lands after the open has finished (it waits for the sync), so the reloading flag is
+    // no longer up: it has to keep itself quiet, or every open would announce an edit and save.
+    it("does not announce the seed that lands once the document syncs", () => {
+      service.reloadWorkflow(
+        {
+          ...DEFAULT_WORKFLOW,
+          content: {
+            operators: [],
+            operatorPositions: {},
+            links: [],
+            commentBoxes: [],
+            settings: undefined as any,
+            formBinding: config,
+          },
+        },
+        false,
+        false
+      );
+      const seen: unknown[] = [];
+      const sub = service.formBindingChanged$.subscribe(v => seen.push(v));
+
+      syncSharedDoc();
+
+      expect(seen).toEqual([]);
+      expect(service.getFormBinding()).toEqual(config);
+      sub.unsubscribe();
+    });
+
+    // Until the sync says whether the room holds one, the database copy still has to be the
+    // workflow's: the page renders it, and an autosave that fires meanwhile carries it rather
+    // than an empty definition that would wipe the author's setup.
+    it("reads the database copy while the seed waits for the first sync", () => {
+      service.hydrateFormBinding(config);
+
+      expect(texeraGraph.sharedModel.contentMetaMap.has("formBinding")).toBe(false);
+      expect(service.getFormBinding()).toEqual(config);
+      expect(service.getWorkflowContent().formBinding).toEqual(config);
+    });
+
+    // A room that is slow to answer must not be written into before it has: the copy would be the
+    // concurrent write the wait exists to avoid. Reads and saves carry the copy for as long as it
+    // takes, and the document gets it when the sync comes.
+    it("holds the database copy out of the document until the first sync, however long that takes", () => {
+      vi.useFakeTimers();
+      try {
+        service.hydrateFormBinding(config);
+        vi.advanceTimersByTime(60_000);
+
+        expect(texeraGraph.sharedModel.contentMetaMap.has("formBinding")).toBe(false);
+        expect(service.getFormBinding()).toEqual(config);
+        expect(service.getWorkflowContent().formBinding).toEqual(config);
+
+        syncSharedDoc();
+        expect(texeraGraph.sharedModel.contentMetaMap.get("formBinding")).toEqual(config);
+      } finally {
+        vi.useRealTimers();
+      }
+    });
+
+    // A workflow opened without a definition seeds a deletion once the sync lands. An author who
+    // writes one before then has the document carry theirs, and the seed must not take it away.
+    it("does not delete a definition written while the seed of a workflow opened without one was waiting", () => {
+      service.hydrateFormBinding(undefined);
+      service.setFormBinding(config);
+
+      syncSharedDoc();
+
+      expect(texeraGraph.sharedModel.contentMetaMap.get("formBinding")).toEqual(config);
+      expect(service.getFormBinding()).toEqual(config);
+    });
+
+    // A stored definition can be present but empty (an author added fields and removed them all).
+    // While the seed waits, the copy counts as present too: an autosave in that window keeps
+    // carrying it, where dropping it would cut a version without the key.
+    it("keeps a present but empty definition in the content while the seed waits", () => {
+      const presentButEmpty: FormBindingConfig = { fields: [] };
+      service.hydrateFormBinding(presentButEmpty);
+
+      expect(texeraGraph.sharedModel.contentMetaMap.has("formBinding")).toBe(false);
+      expect(service.getWorkflowContent().formBinding).toEqual(presentButEmpty);
+    });
+
+    // A document that is not connecting to a room has no sync to wait for, and one that has
+    // already synced (a version reloaded into the open document) has nothing more to learn from
+    // it: the seed goes in at once, so the value is in the document and not only held here.
+    it("seeds at once into a document that is not connecting to a room", () => {
+      texeraGraph.sharedModel.wsProvider.shouldConnect = false;
+
+      service.hydrateFormBinding(config);
+
+      expect(texeraGraph.sharedModel.contentMetaMap.get("formBinding")).toEqual(config);
+    });
+
+    it("seeds at once into a document that has already synced", () => {
+      texeraGraph.sharedModel.wsProvider.synced = true;
+
+      service.hydrateFormBinding(config);
+
+      expect(texeraGraph.sharedModel.contentMetaMap.get("formBinding")).toEqual(config);
+    });
+
+    // A second open before the first seed has landed (a version reloaded into the document while
+    // it was still syncing) supersedes it: only the later copy may go in, or the earlier one would
+    // take the key first and the later one, finding it present, would leave it there.
+    it("lets a later open supersede a seed still waiting for the sync", () => {
+      const earlier: FormBindingConfig = { fields: [], instruction: { title: "earlier", body: "superseded" } };
+      service.hydrateFormBinding(earlier);
+      service.hydrateFormBinding(config);
+
+      syncSharedDoc();
+
+      expect(texeraGraph.sharedModel.contentMetaMap.get("formBinding")).toEqual(config);
+    });
+
+    // The room's value wins over the copy a workflow is opened with, and over that only: a later
+    // reload into the same document (a version shown, an agent's rewrite) is the intent, and
+    // replaces the value, the room's included -- or clears it, for a version that carries none.
+    it("replaces a value the room owned when a later reload into the document brings another", () => {
+      const coeditors = new Y.Doc();
+      const live: FormBindingConfig = { fields: [], instruction: { title: "live", body: "from a co-editor" } };
+      coeditors.getMap("contentMeta").set("formBinding", live);
+      Y.applyUpdate(texeraGraph.sharedModel.yDoc, Y.encodeStateAsUpdate(coeditors));
+      service.hydrateFormBinding(config);
+      syncSharedDoc();
+      expect(service.getFormBinding()).toEqual(live); // the open: the room's value stands
+
+      const version: FormBindingConfig = { fields: [], instruction: { title: "v3", body: "as saved back then" } };
+      service.hydrateFormBinding(version);
+      expect(texeraGraph.sharedModel.contentMetaMap.get("formBinding")).toEqual(version);
+
+      service.hydrateFormBinding(undefined);
+      expect(texeraGraph.sharedModel.contentMetaMap.get("formBinding")).toBeNull();
+      expect(service.getFormBinding()).toEqual(getDefaultFormBinding());
+      expect("formBinding" in service.getWorkflowContent()).toBe(false);
+    });
+
+    // A collaborator who opened or reloaded the workflow without a definition marked the key
+    // cleared. A client joining with a database copy the clearing has not reached yet must not
+    // put the definition back: the room's word, cleared included, beats the copy.
+    it("does not bring back a definition the room has cleared from a database copy that still has it", () => {
+      const coeditors = new Y.Doc();
+      coeditors.getMap("contentMeta").set("formBinding", null);
+      Y.applyUpdate(texeraGraph.sharedModel.yDoc, Y.encodeStateAsUpdate(coeditors));
+
+      service.hydrateFormBinding(config);
+      syncSharedDoc();
+
+      expect(texeraGraph.sharedModel.contentMetaMap.get("formBinding")).toBeNull();
+      expect(service.getFormBinding()).toEqual(getDefaultFormBinding());
+      expect("formBinding" in service.getWorkflowContent()).toBe(false);
+    });
+
+    // A seed that waits listens for the sync; a document that never syncs must not collect a
+    // listener per reload, so the listening ends with the seed: when it is superseded by a later
+    // one, cancelled by an edit, or lands.
+    it("keeps one sync listener per waiting key, and none once it has landed", () => {
+      const listeners = () => (texeraGraph.sharedModel.wsProvider as any)._observers.get("sync")?.size ?? 0;
+      const before = listeners();
+
+      service.hydrateFormBinding(config);
+      service.hydrateFormBinding({ fields: [], instruction: { title: "later", body: "supersedes" } });
+      expect(listeners()).toBe(before + 1);
+
+      service.setFormBinding(config); // an edit before the sync takes the seed's place: still one
+      expect(listeners()).toBe(before + 1);
+
+      syncSharedDoc(); // lands
+      expect(listeners()).toBe(before);
+    });
+
+    // Before the first sync every write into the document is concurrent with the room's state and
+    // settled by client id, so an edit typed right after opening could lose to a value the room
+    // holds. The edit is held instead -- shown and announced at once, carried by an autosave --
+    // and written after the sync, where it follows the room's state and replaces it.
+    it("holds an edit made before the first sync and writes it after, over what the room held", () => {
+      service.hydrateFormBinding(config); // the open's seed, waiting
+      const seen: FormBindingConfig[] = [];
+      const sub = service.formBindingChanged$.subscribe(v => seen.push(v));
+      const mine: FormBindingConfig = { fields: [], instruction: { title: "mine", body: "typed right after opening" } };
+
+      service.setFormBinding(mine);
+
+      expect(seen).toEqual([mine]);
+      expect(service.getFormBinding()).toEqual(mine);
+      expect(service.getWorkflowContent().formBinding).toEqual(mine);
+      expect(texeraGraph.sharedModel.contentMetaMap.has("formBinding")).toBe(false); // not a concurrent write
+
+      // The room's state arrives with the sync, holding a co-editor's definition.
+      const coeditors = new Y.Doc();
+      const live: FormBindingConfig = { fields: [], instruction: { title: "live", body: "from a co-editor" } };
+      coeditors.getMap("contentMeta").set("formBinding", live);
+      Y.applyUpdate(texeraGraph.sharedModel.yDoc, Y.encodeStateAsUpdate(coeditors));
+      expect(service.getFormBinding()).toEqual(mine); // the edit is what this page shows throughout
+      syncSharedDoc();
+
+      expect(texeraGraph.sharedModel.contentMetaMap.get("formBinding")).toEqual(mine);
+      expect(seen).toEqual([mine]); // once: not again when the room's value arrived, nor on landing
+      sub.unsubscribe();
+    });
+
+    it("holds a settings edit made before the first sync the same way", () => {
+      const seen: WorkflowSettings[] = [];
+      const sub = service.workflowSettingsChanged$.subscribe(v => seen.push(v));
+      const mine: WorkflowSettings = { dataTransferBatchSize: 7, executionMode: ExecutionMode.MATERIALIZED };
+
+      service.setWorkflowSettings(mine);
+
+      expect(seen).toEqual([mine]);
+      expect(service.getWorkflowSettings()).toEqual(mine);
+      expect(texeraGraph.sharedModel.contentMetaMap.has("settings")).toBe(false);
+      syncSharedDoc();
+      expect(texeraGraph.sharedModel.contentMetaMap.get("settings")).toEqual(mine);
+      sub.unsubscribe();
+    });
+
+    // The graph observers stay quiet while a workflow is being opened, and this one does the same:
+    // a map write made under the reloading flag is part of the open, not an edit to announce.
+    it("does not announce a map change made while a workflow is reloading", () => {
+      const seen: unknown[] = [];
+      const sub = service.formBindingChanged$.subscribe(v => seen.push(v));
+      service.getJointGraphWrapper().setReloadingWorkflow(true);
+      try {
+        texeraGraph.sharedModel.contentMetaMap.set("formBinding", config);
+      } finally {
+        service.getJointGraphWrapper().setReloadingWorkflow(false);
+      }
+
+      expect(seen).toEqual([]);
+      sub.unsubscribe();
+    });
+
+    // Setting the same value again must not write, or every collaborator gets a redundant Yjs
+    // update and the observer re-fires for a change that is not one.
+    it("writes an edit straight into the document once it has synced, and announces it from there", () => {
+      syncSharedDoc();
+      const seen: unknown[] = [];
+      const sub = service.formBindingChanged$.subscribe(v => seen.push(v));
+
+      service.setFormBinding(config);
+
+      expect(texeraGraph.sharedModel.contentMetaMap.get("formBinding")).toEqual(config);
+      expect(seen).toEqual([config]);
+      sub.unsubscribe();
+    });
+
+    it("does not re-announce a form binding that is unchanged", () => {
+      syncSharedDoc();
+      service.setFormBinding(config);
+      const seen: unknown[] = [];
+      const sub = service.formBindingChanged$.subscribe(v => seen.push(v));
+
+      service.setFormBinding({ ...config });
+
+      expect(seen).toEqual([]);
+      sub.unsubscribe();
+    });
+
+    // Opening a workflow is not an edit; announcing it would save on every open. The seed
+    // runs under the reloading flag, so the shared-map observer skips it.
+    it("should stay silent while a workflow is being opened", () => {
+      const seen: unknown[] = [];
+      const sub = service.formBindingChanged$.subscribe(v => seen.push(v));
+
+      service.reloadWorkflow(
+        {
+          ...DEFAULT_WORKFLOW,
+          content: {
+            operators: [mockScanPredicate],
+            operatorPositions: { [mockScanPredicate.operatorID]: mockPoint },
+            links: [],
+            commentBoxes: [],
+            settings: { dataTransferBatchSize: 400, executionMode: ExecutionMode.PIPELINED },
+            formBinding: config,
+          },
+        },
+        false,
+        false
+      );
+
+      expect(seen.length).toEqual(0);
+      expect(service.getFormBinding()).toEqual(config);
+      sub.unsubscribe();
+    });
+  });
+
+  it("should clear pre-existing comment boxes and fall back to default settings when reloading", () => {
+    service.addCommentBox({ ...mockCommentBox, commentBoxID: "commentBox-old" });
+    expect(texeraGraph.hasCommentBox("commentBox-old")).toBeTruthy();
+
+    // Make the assertion meaningful by starting from a non-default value.
+    service.setWorkflowSettings({ dataTransferBatchSize: 1, executionMode: ExecutionMode.MATERIALIZED });
+    const env = (service as any).config.env;
+
+    const workflow: Workflow = {
+      ...DEFAULT_WORKFLOW,
+      content: {
+        operators: [mockScanPredicate],
+        operatorPositions: { [mockScanPredicate.operatorID]: mockPoint },
+        links: [],
+        commentBoxes: [],
+        settings: undefined as any,
+      },
+    };
+
+    service.reloadWorkflow(workflow, false, false);
+    syncSharedDoc();
+
+    expect(texeraGraph.hasCommentBox("commentBox-old")).toBeFalsy();
+    expect(texeraGraph.hasOperator(mockScanPredicate.operatorID)).toBeTruthy();
+    // settings was undefined in the reloaded content, so defaults are applied
+    expect(service.getWorkflowSettings()).toEqual({
+      dataTransferBatchSize: env.defaultDataTransferBatchSize,
+      executionMode: env.defaultExecutionMode,
+    });
+  });
+
+  it("should drag all highlighted elements together when one highlighted operator is moved", () => {
+    const wrapper = service.getJointGraphWrapper();
+    service.addOperator(mockScanPredicate, { x: 100, y: 100 });
+    service.addOperator(mockSentimentPredicate, { x: 300, y: 300 });
+    // comment-box ID must contain "commentBox" to exercise the comment-box persistence branch
+    const commentBoxID = "commentBox-drag";
+    service.addCommentBox({ ...mockCommentBox, commentBoxID });
+
+    service.highlightElements(true, mockScanPredicate.operatorID, mockSentimentPredicate.operatorID, commentBoxID);
+
+    const scanBefore = wrapper.getElementPosition(mockScanPredicate.operatorID);
+    const sentimentBefore = wrapper.getElementPosition(mockSentimentPredicate.operatorID);
+    const commentBefore = wrapper.getElementPosition(commentBoxID);
+    const offset = { x: 50, y: 30 };
+
+    // moving the highlighted scan operator triggers the drag handler, which moves the
+    // other highlighted elements by the same offset
+    wrapper.setAbsolutePosition(mockScanPredicate.operatorID, scanBefore.x + offset.x, scanBefore.y + offset.y);
+
+    expect(wrapper.getElementPosition(mockSentimentPredicate.operatorID)).toEqual({
+      x: sentimentBefore.x + offset.x,
+      y: sentimentBefore.y + offset.y,
+    });
+    expect(wrapper.getElementPosition(commentBoxID)).toEqual({
+      x: commentBefore.x + offset.x,
+      y: commentBefore.y + offset.y,
+    });
+    expect(texeraGraph.sharedModel.elementPositionMap.get(mockScanPredicate.operatorID)).toEqual({
+      x: scanBefore.x + offset.x,
+      y: scanBefore.y + offset.y,
+    });
+    expect(texeraGraph.sharedModel.elementPositionMap.get(mockSentimentPredicate.operatorID)).toEqual({
+      x: sentimentBefore.x + offset.x,
+      y: sentimentBefore.y + offset.y,
+    });
+  });
+
+  /*
+   * The remaining half-taken arms on this service: an optional argument left out, a guard whose
+   * "already in that state" side never ran, and the comparisons in the top-left calculation.
+   */
+  it("adds operators without links or comment boxes when neither is supplied", () => {
+    service.addOperatorsAndLinks([
+      { op: mockScanPredicate, pos: { x: 10, y: 20 } },
+      { op: mockResultPredicate, pos: { x: 30, y: 40 } },
+    ]);
+
+    expect(
+      texeraGraph
+        .getAllOperators()
+        .map(o => o.operatorID)
+        .sort()
+    ).toEqual([mockScanPredicate.operatorID, mockResultPredicate.operatorID].sort());
+    expect(texeraGraph.getAllLinks()).toEqual([]);
+    expect(texeraGraph.getAllCommentBoxes()).toEqual([]);
+  });
+
+  it("does nothing when modification is enabled again while already enabled", () => {
+    const emitted: boolean[] = [];
+    service.getWorkflowModificationEnabledStream().subscribe(v => emitted.push(v));
+    // Starts enabled, so this call has nothing to do and must not re-announce it.
+    service.enableWorkflowModification();
+
+    expect(service.checkWorkflowModificationEnabled()).toBeTruthy();
+    expect(emitted).toEqual([true]);
+  });
+
+  it("takes the smaller of each coordinate independently when computing the top-left", () => {
+    // The x guard is false for the second operator and the y guard is true, so each
+    // comparison decides the result once in both directions.
+    service.addOperator(mockScanPredicate, { x: 100, y: 400 });
+    service.addOperator(mockResultPredicate, { x: 300, y: 250 });
+    service.addOperator(mockSentimentPredicate, { x: 50, y: 500 });
+
+    service.calculateTopLeftOperatorPosition();
+
+    // x comes from the third operator and y from the second, so neither comparison
+    // decides both coordinates.
+    expect(service.getCenterPoint()).toEqual({ x: 50, y: 250 });
+  });
+
+  it("disconnects the shared-editing provider only when it is meant to be connected", () => {
+    const disconnect = vi.spyOn(texeraGraph.sharedModel.wsProvider, "disconnect").mockImplementation(() => {});
+    const workflow = service.getWorkflow();
+
+    (texeraGraph.sharedModel.wsProvider as any).shouldConnect = false;
+    service.setTempWorkflow(workflow);
+    expect(disconnect).not.toHaveBeenCalled();
+
+    (texeraGraph.sharedModel.wsProvider as any).shouldConnect = true;
+    service.setTempWorkflow(workflow);
+    expect(disconnect).toHaveBeenCalledTimes(1);
   });
 });

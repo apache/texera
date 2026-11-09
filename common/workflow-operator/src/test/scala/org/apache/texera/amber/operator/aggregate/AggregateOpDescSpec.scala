@@ -22,9 +22,11 @@ package org.apache.texera.amber.operator.aggregate
 import org.apache.texera.amber.core.tuple.{AttributeType, Schema}
 import org.apache.texera.amber.core.virtualidentity.{ExecutionIdentity, WorkflowIdentity}
 import org.apache.texera.amber.core.workflow.PortIdentity
-import org.apache.texera.amber.operator.metadata.OperatorGroupConstants
+import org.apache.texera.amber.operator.metadata.{OperatorGroupConstants, OperatorMetadataGenerator}
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
+
+import scala.jdk.CollectionConverters._
 
 class AggregateOpDescSpec extends AnyFlatSpec with Matchers {
 
@@ -86,5 +88,47 @@ class AggregateOpDescSpec extends AnyFlatSpec with Matchers {
     descWith(List.empty, aggOp(AggregationFunction.AVERAGE, "v", "avg"))
       .getExternalOutputSchemas(Map(PortIdentity() -> input)) shouldBe
       Map(PortIdentity() -> Schema().add("avg", AttributeType.DOUBLE))
+  }
+
+  it should "type a COUNT(*) (empty attribute) result as INTEGER without looking up an input column" in {
+    // An empty attribute means COUNT(*); schema propagation must not dereference a column.
+    val input = Schema().add("v", AttributeType.LONG)
+    descWith(List.empty, aggOp(AggregationFunction.COUNT, "", "row_count"))
+      .getExternalOutputSchemas(Map(PortIdentity() -> input)) shouldBe
+      Map(PortIdentity() -> Schema().add("row_count", AttributeType.INTEGER))
+  }
+
+  it should "fail fast for a non-COUNT function with an empty attribute (only COUNT allows it)" in {
+    // Only COUNT tolerates a blank attribute; SUM/etc. must resolve the column and fail
+    // fast rather than propagate a null-typed output.
+    val input = Schema().add("v", AttributeType.LONG)
+    assertThrows[Exception] {
+      descWith(List.empty, aggOp(AggregationFunction.SUM, "", "total"))
+        .getExternalOutputSchemas(Map(PortIdentity() -> input))
+    }
+  }
+
+  "AggregateOpDesc JSON schema" should
+    "make the attribute optional only for count and required for every other function" in {
+    val aggDef = OperatorMetadataGenerator
+      .generateOperatorJsonSchema(classOf[AggregateOpDesc])
+      .get("definitions")
+      .get("AggregationOperation")
+
+    // attribute is not unconditionally required (aggFunction still is)
+    val baseRequired = aggDef.get("required").elements().asScala.map(_.asText()).toSet
+    baseRequired should contain("aggFunction")
+    baseRequired should not contain "attribute"
+
+    // conditional rule: count -> no attribute requirement; any other function -> attribute required
+    val rule = aggDef
+      .get("allOf")
+      .elements()
+      .asScala
+      .find(node => node.has("if") && node.has("else"))
+      .getOrElse(fail("expected a conditional if/else rule in the AggregationOperation schema"))
+    rule.get("if").get("properties").get("aggFunction").get("const").asText() shouldBe "count"
+    val elseRequired = rule.get("else").get("required").elements().asScala.map(_.asText()).toList
+    elseRequired should contain("attribute")
   }
 }

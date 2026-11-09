@@ -60,12 +60,13 @@ class VFSURIFactorySpec extends AnyFlatSpec {
     assert(resultURI.getPath.endsWith("/result"))
     assert(stateURI.getPath.endsWith("/state"))
 
-    val (wid, eid, globalPortIdOpt, resourceType) = VFSURIFactory.decodeURI(resultURI)
+    val VFSUriComponents(wid, eid, globalPortIdOpt, resourceType, _) =
+      VFSURIFactory.decodeURI(resultURI)
     assert(wid == workflowId)
     assert(eid == executionId)
     assert(globalPortIdOpt.contains(portId))
     assert(resourceType == VFSResourceType.RESULT)
-    assert(VFSURIFactory.decodeURI(stateURI)._4 == VFSResourceType.STATE)
+    assert(VFSURIFactory.decodeURI(stateURI).resourceType == VFSResourceType.STATE)
   }
 
   "VFSURIFactory.createRuntimeStatisticsURI" should "produce a runtimeStatistics URI without an opid segment" in {
@@ -74,7 +75,7 @@ class VFSURIFactorySpec extends AnyFlatSpec {
     assert(path.endsWith("/runtimestatistics"))
     assert(!path.contains("/opid/"))
 
-    val (wid, eid, globalPortIdOpt, resourceType) = VFSURIFactory.decodeURI(uri)
+    val VFSUriComponents(wid, eid, globalPortIdOpt, resourceType, _) = VFSURIFactory.decodeURI(uri)
     assert(wid == workflowId)
     assert(eid == executionId)
     assert(globalPortIdOpt.isEmpty)
@@ -89,7 +90,7 @@ class VFSURIFactorySpec extends AnyFlatSpec {
 
     // The current `decodeURI` does not extract the operator id (it has no
     // "opid" branch), so we only round-trip wid/eid/resourceType here.
-    val (wid, eid, globalPortIdOpt, resourceType) = VFSURIFactory.decodeURI(uri)
+    val VFSUriComponents(wid, eid, globalPortIdOpt, resourceType, _) = VFSURIFactory.decodeURI(uri)
     assert(wid == workflowId)
     assert(eid == executionId)
     assert(globalPortIdOpt.isEmpty)
@@ -112,5 +113,122 @@ class VFSURIFactorySpec extends AnyFlatSpec {
     assertThrows[IllegalArgumentException] {
       VFSURIFactory.decodeURI(new URI("vfs:///wid/1/eid/2/notarealresource"))
     }
+  }
+
+  it should "reject a URI where a required key is the final segment with no value" in {
+    // "wid" is present but is the last segment (index + 1 >= segments.length)
+    assertThrows[IllegalArgumentException] {
+      VFSURIFactory.decodeURI(new URI("vfs:///eid/2/wid"))
+    }
+  }
+
+  "decodeURI" should "report the warehouse from a leading /wh/<name> segment" in {
+    val uri =
+      VFSURIFactory.createPortBaseURI(
+        workflowId,
+        executionId,
+        portId,
+        warehouse = Some("user-2-foo")
+      )
+    assert(uri.getPath.startsWith("/wh/user-2-foo/"))
+    // A base URI has no resource segment, so decode the derived result URI.
+    assert(
+      VFSURIFactory.decodeURI(VFSURIFactory.resultURI(uri)).warehouse.contains("user-2-foo")
+    )
+  }
+
+  it should "return None when no /wh/ segment is present (non-BYO URIs are unchanged)" in {
+    val uri = VFSURIFactory.createPortBaseURI(workflowId, executionId, portId)
+    assert(!uri.getPath.contains("/wh/"))
+    assert(VFSURIFactory.decodeURI(VFSURIFactory.resultURI(uri)).warehouse.isEmpty)
+  }
+
+  it should "only honour a LEADING wh segment, never one deeper in the path" in {
+    // A `wh` appearing later -- e.g. inside an operator id -- must not select a
+    // warehouse: it would disagree with DocumentFactory, which strips only a
+    // leading `wh/<name>/`, and would route the write to another user's warehouse.
+    assert(
+      VFSURIFactory
+        .decodeURI(new URI("vfs:///wid/1/eid/2/opid/a/wh/victim/b/consolemessages"))
+        .warehouse
+        .isEmpty
+    )
+    // An operator literally named `wh` is likewise not a warehouse.
+    assert(
+      VFSURIFactory
+        .decodeURI(new URI("vfs:///wid/1/eid/2/opid/wh/consolemessages"))
+        .warehouse
+        .isEmpty
+    )
+  }
+
+  it should "not let a percent-encoded slash in the name forge extra segments" in {
+    // Decoded before splitting, this path would read as /wh/a/wid/999/... -- handing
+    // back "a" as the warehouse and shifting which `wid` the parser sees. Splitting
+    // the raw path keeps `%2F` inside its own segment, and the name is then rejected
+    // as illegal, so the URI resolves to no warehouse rather than to a wrong one.
+    assert(
+      VFSURIFactory
+        .decodeURI(new URI("vfs:///wh/a%2Fwid%2F999/wid/1/eid/2/result"))
+        .warehouse
+        .isEmpty
+    )
+    assert(
+      VFSURIFactory
+        .decodeURI(new URI("vfs:///wh/user-2%2Dfoo/wid/7/eid/3/result"))
+        .warehouse
+        .isEmpty
+    )
+  }
+
+  it should "locate wid/eid by raw segment, so an encoded slash cannot shift them" in {
+    // Decoded before splitting, this path reads as /wh/a/wid/999/wid/1/... and the
+    // key search finds the injected `wid` first -- resolving to execution 999 and
+    // landing this execution's data under another's storage key. Python's
+    // decode_uri splits the raw path, so decoding here would also make the two
+    // languages disagree about which execution a URI belongs to.
+    val components =
+      VFSURIFactory.decodeURI(new URI("vfs:///wh/a%2Fwid%2F999/wid/1/eid/2/result"))
+    assert(components.workflowId == WorkflowIdentity(1))
+    assert(components.executionId == ExecutionIdentity(2))
+  }
+
+  "VFSURIFactory" should "reject an operatorId containing '/' rather than let it forge URI segments" in {
+    assertThrows[IllegalArgumentException] {
+      VFSURIFactory.createConsoleMessagesURI(
+        workflowId,
+        executionId,
+        OperatorIdentity("a/wh/victim/b")
+      )
+    }
+  }
+
+  it should "reject a warehouse name that is not safe as a URI path segment" in {
+    Seq("a/b", "a%2Fb", "", "-lead", "sp ace").foreach { bad =>
+      withClue(s"warehouse name '$bad' should be rejected: ") {
+        assertThrows[IllegalArgumentException] {
+          VFSURIFactory.createPortBaseURI(workflowId, executionId, portId, Some(bad))
+        }
+      }
+    }
+  }
+
+  "A warehouse-scoped URI" should
+    "still round-trip through decodeURI (wid/eid/port/resource resolved despite the /wh/ prefix)" in {
+    val base =
+      VFSURIFactory.createPortBaseURI(
+        workflowId,
+        executionId,
+        portId,
+        warehouse = Some("user-2-foo")
+      )
+    val resultURI = VFSURIFactory.resultURI(base)
+    assert(VFSURIFactory.decodeURI(resultURI).warehouse.contains("user-2-foo"))
+
+    val components = VFSURIFactory.decodeURI(resultURI)
+    assert(components.workflowId == workflowId)
+    assert(components.executionId == executionId)
+    assert(components.globalPortId.contains(portId))
+    assert(components.resourceType == VFSResourceType.RESULT)
   }
 }

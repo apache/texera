@@ -39,7 +39,7 @@ trait StartHandler {
       request: EmptyRequest,
       ctx: AsyncRPCContext
   ): Future[WorkerStateResponse] = {
-    logger.info("Starting the worker.")
+    logger.debug("Starting the worker.")
     if (dp.executor.isInstanceOf[SourceOperatorExecutor]) {
       val channelId =
         ChannelIdentity(ActorVirtualIdentity("SOURCE_STARTER"), actorId, isControl = false)
@@ -56,12 +56,14 @@ trait StartHandler {
       dp.inputGateway.getChannel(channelId).setPortId(PortIdentity())
       startChannel(request, ctx)
       endChannel(request, ctx)
-      WorkerStateResponse(dp.stateManager.getCurrentState)
+      val (state, stateVersion) = dp.stateManager.getStateWithVersion
+      WorkerStateResponse(state, stateVersion)
     } else if (dp.inputManager.getInputPortReaderThreads.nonEmpty) {
       // This means the worker should read from materialized storage for its input ports.
       // Start the reader threads
       dp.inputManager.startInputPortReaderThreads()
-      WorkerStateResponse(dp.stateManager.getCurrentState)
+      val (state, stateVersion) = dp.stateManager.getStateWithVersion
+      WorkerStateResponse(state, stateVersion)
     } else {
       throw new WorkflowRuntimeException(
         s"non-source worker $actorId received unexpected StartWorker!"

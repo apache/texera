@@ -25,7 +25,7 @@ from core.storage.storage_config import StorageConfig
 # The manager is a singleton; bind the shared instance for the tests.
 large_binary_manager = LargeBinaryManager()
 
-# Execution-scoped base URI the controller hands down; create() appends a unique suffix.
+# Execution-scoped base URI the coordinator hands down; create() appends a unique suffix.
 TEST_BASE_URI = "s3://texera-large-binaries/objects/1/"
 
 
@@ -46,8 +46,8 @@ def _init_storage_config():
             commit_batch_size=1000,
             s3_endpoint="http://localhost:9000",
             s3_region="us-east-1",
-            s3_auth_username="minioadmin",
-            s3_auth_password="minioadmin",
+            s3_auth_username="rustfsadmin",
+            s3_auth_password="rustfsadmin",
             s3_large_binaries_base_uri=TEST_BASE_URI,
         )
 
@@ -143,7 +143,7 @@ class TestLargeBinaryManager:
 
 
 def test_create_matches_execution_scoped_key_shape(monkeypatch):
-    # The base URI is execution-scoped (controller-named); create() only appends a uuid.
+    # The base URI is execution-scoped (coordinator-named); create() only appends a uuid.
     monkeypatch.setattr(
         StorageConfig,
         "S3_LARGE_BINARIES_BASE_URI",

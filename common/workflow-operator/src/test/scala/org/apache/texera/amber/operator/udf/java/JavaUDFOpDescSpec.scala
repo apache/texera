@@ -22,7 +22,8 @@ package org.apache.texera.amber.operator.udf.java
 import org.apache.texera.amber.core.executor.OpExecWithCode
 import org.apache.texera.amber.core.tuple.{Attribute, AttributeType, Schema}
 import org.apache.texera.amber.core.virtualidentity.{ExecutionIdentity, WorkflowIdentity}
-import org.apache.texera.amber.operator.LogicalOp
+import org.apache.texera.amber.core.workflow.UnknownPartition
+import org.apache.texera.amber.operator.{LogicalOp, PortDescription}
 import org.apache.texera.amber.operator.metadata.OperatorGroupConstants
 import org.apache.texera.amber.util.JSONUtils.objectMapper
 import org.scalatest.flatspec.AnyFlatSpec
@@ -105,5 +106,76 @@ class JavaUDFOpDescSpec extends AnyFlatSpec with Matchers {
     j.code shouldBe "x"
     j.workers shouldBe 4
     j.retainInputColumns shouldBe true
+  }
+
+  "JavaUDFOpDesc.getPhysicalOp" should
+    "build a parallelizable one-to-many op when workers > 1" in {
+    val d = new JavaUDFOpDesc
+    d.code = "return t;"
+    d.workers = 2
+    val physical = d.getPhysicalOp(workflowId, executionId)
+    physical.parallelizable shouldBe true
+    physical.isOneToManyOp shouldBe true
+    physical.suggestedWorkerNum shouldBe Some(2)
+    physical.opExecInitInfo match {
+      case OpExecWithCode(code, language) =>
+        code shouldBe "return t;"
+        language shouldBe "java"
+      case other => fail(s"expected OpExecWithCode, got $other")
+    }
+  }
+
+  "JavaUDFOpDesc.operatorInfo" should
+    "derive input ports from a configured inputPorts list" in {
+    val d = new JavaUDFOpDesc
+    d.inputPorts = List(
+      PortDescription(
+        portID = "0",
+        displayName = "left",
+        disallowMultiInputs = true,
+        isDynamicPort = false,
+        partitionRequirement = UnknownPartition(),
+        dependencies = List.empty
+      )
+    )
+    val info = d.operatorInfo
+    info.inputPorts should have length 1
+    info.inputPorts.head.displayName shouldBe "left"
+    // also drives the getPhysicalOp inputPorts != null partitionRequirement branch
+    val physical = d.getPhysicalOp(workflowId, executionId)
+    physical.inputPorts.keySet shouldBe info.inputPorts.map(_.id).toSet
+    physical.partitionRequirement shouldBe List(Some(UnknownPartition()))
+  }
+
+  it should "derive output ports from a configured outputPorts list" in {
+    val d = new JavaUDFOpDesc
+    d.outputPorts = List(
+      PortDescription(
+        portID = "0",
+        displayName = "result",
+        disallowMultiInputs = false,
+        isDynamicPort = false,
+        partitionRequirement = UnknownPartition(),
+        dependencies = List.empty
+      )
+    )
+    val info = d.operatorInfo
+    info.outputPorts should have length 1
+    info.outputPorts.head.displayName shouldBe "result"
+  }
+
+  "JavaUDFOpDesc.runtimeReconfiguration" should
+    "return the new op's physical op with no state transfer" in {
+    val oldOp = new JavaUDFOpDesc
+    val newOp = new JavaUDFOpDesc
+    newOp.code = "return t2;"
+    val result = oldOp.runtimeReconfiguration(workflowId, executionId, oldOp, newOp)
+    result.isSuccess shouldBe true
+    val (physical, stateTransfer) = result.get
+    stateTransfer shouldBe None
+    physical.opExecInitInfo match {
+      case OpExecWithCode(code, _) => code shouldBe "return t2;"
+      case other                   => fail(s"expected OpExecWithCode, got $other")
+    }
   }
 }

@@ -57,8 +57,8 @@ import org.apache.texera.amber.engine.architecture.worker.statistics.WorkerState
 import org.apache.texera.amber.engine.architecture.worker.statistics.WorkerStatistics
 import org.apache.texera.amber.engine.common.ambermessage._
 import org.apache.texera.amber.engine.common.statetransition.WorkerStateManager
-import org.apache.texera.amber.engine.common.virtualidentity.util.CONTROLLER
-import org.apache.texera.amber.error.ErrorUtils.{mkConsoleMessage, safely}
+import org.apache.texera.amber.engine.common.virtualidentity.util.COORDINATOR
+import org.apache.texera.amber.error.ErrorUtils.{mkConsoleMessage, mkPrintConsoleMessage, safely}
 
 import java.util.concurrent.LinkedBlockingQueue
 
@@ -70,6 +70,9 @@ class DataProcessor(
     with Serializable {
 
   @transient var executor: OperatorExecutor = _
+
+  /** The executor whose loop-variable references `bindStateReferences` has bound. */
+  @transient private var executorWithBoundReferences: OperatorExecutor = _
 
   def initTimerService(adaptiveBatchingMonitor: WorkerTimerService): Unit = {
     this.adaptiveBatchingMonitor = adaptiveBatchingMonitor
@@ -98,6 +101,16 @@ class DataProcessor(
     statisticsManager.getStatistics(executor)
 
   /**
+    * `OperatorExecutor.bindStateReferences`, before the executor first sees data or finishes; after
+    * that a reference comparison per tuple. An executor installed in its place binds its own.
+    */
+  def bindStateReferences(): Unit =
+    if (executorWithBoundReferences ne executor) {
+      executor.bindStateReferences()
+      executorWithBoundReferences = executor
+    }
+
+  /**
     * process currentInputTuple through executor logic.
     * this function is only called by the DP thread.
     */
@@ -105,6 +118,8 @@ class DataProcessor(
     try {
       val portIdentity: PortIdentity =
         this.inputGateway.getChannel(inputManager.currentChannelId).getPortId
+      // The executor sees data: its setting must have its loop variables by now.
+      bindStateReferences()
       outputManager.outputIterator.setTupleOutput(
         executor.processTupleMultiPort(
           tuple,
@@ -121,11 +136,22 @@ class DataProcessor(
     }
   }
 
-  private[this] def processInputState(state: State, port: Int): Unit = {
+  private[this] def processInputState(
+      state: State,
+      port: Int,
+      loopCounter: Long,
+      loopStartId: String
+  ): Unit = {
     try {
+      // Before processState, which then sees the loop variables written into the setting.
+      executor.registerState(state, loopCounter)
       val outputState = executor.processState(state, port)
       if (outputState.isDefined) {
-        outputManager.emitState(outputState.get)
+        // Carry the incoming loop envelope through unchanged: loop operators
+        // are Python-only, so a JVM operator inside a loop body only ever
+        // forwards the envelope (the +1/-1 bookkeeping lives in the Python
+        // runtime's _process_state_frame).
+        outputManager.emitState(outputState.get, loopCounter, loopStartId)
       }
     } catch safely {
       case e =>
@@ -158,26 +184,35 @@ class DataProcessor(
     outputTuple match {
       case FinalizeExecutor() =>
         sendECMToDataChannels(METHOD_END_CHANNEL, PORT_ALIGNMENT)
+        // Surface non-fatal warnings the executor accumulated (e.g. rows a scan
+        // skipped) as console messages. Unlike handleExecutorException, this must
+        // not pause the run — the messages are emitted and processing continues.
+        executor.getWarnings.foreach { warning =>
+          asyncRPCClient.coordinatorInterface.consoleMessageTriggered(
+            ConsoleMessageTriggeredRequest(mkPrintConsoleMessage(actorId, warning)),
+            asyncRPCClient.mkContext(COORDINATOR)
+          )
+        }
         // Send Completed signal to worker actor.
         executor.close()
         adaptiveBatchingMonitor.stopAdaptiveBatching()
         stateManager.transitTo(COMPLETED)
-        logger.info(
+        logger.debug(
           s"$executor completed, # of input ports = ${inputManager.getAllPorts.size}, " +
             s"input tuple count = ${statisticsManager.getInputTupleCount}, " +
             s"output tuple count = ${statisticsManager.getOutputTupleCount}"
         )
-        asyncRPCClient.controllerInterface.workerExecutionCompleted(
+        asyncRPCClient.coordinatorInterface.workerExecutionCompleted(
           EmptyRequest(),
-          asyncRPCClient.mkContext(CONTROLLER)
+          asyncRPCClient.mkContext(COORDINATOR)
         )
       case FinalizePort(portId, input) =>
         if (!input) {
           outputManager.closeOutputStorageWriterIfNeeded(portId)
         }
-        asyncRPCClient.controllerInterface.portCompleted(
+        asyncRPCClient.coordinatorInterface.portCompleted(
           PortCompletedRequest(portId, input),
-          asyncRPCClient.mkContext(CONTROLLER)
+          asyncRPCClient.mkContext(COORDINATOR)
         )
       case schemaEnforceable: SchemaEnforceable =>
         val portIdentity = outputPortOpt.getOrElse(outputManager.getSingleOutputPortIdentity)
@@ -212,16 +247,17 @@ class DataProcessor(
           READY,
           RUNNING,
           () => {
-            asyncRPCClient.controllerInterface.workerStateUpdated(
-              WorkerStateUpdatedRequest(stateManager.getCurrentState),
-              asyncRPCClient.mkContext(CONTROLLER)
+            val (state, stateVersion) = stateManager.getStateWithVersion
+            asyncRPCClient.coordinatorInterface.workerStateUpdated(
+              WorkerStateUpdatedRequest(state, stateVersion),
+              asyncRPCClient.mkContext(COORDINATOR)
             )
           }
         )
         inputManager.initBatch(channelId, tuples)
         processInputTuple(inputManager.getNextTuple)
-      case StateFrame(state) =>
-        processInputState(state, portId.id)
+      case StateFrame(state, loopCounter, loopStartId) =>
+        processInputState(state, portId.id, loopCounter, loopStartId)
     }
     statisticsManager.increaseDataProcessingTime(System.nanoTime() - dataProcessingStartTime)
   }
@@ -233,20 +269,20 @@ class DataProcessor(
   ): Unit = {
     inputManager.currentChannelId = channelId
     val command = ecm.commandMapping.get(actorId.name)
-    logger.info(s"receive ECM from $channelId, id = ${ecm.id}, cmd = $command")
+    logger.debug(s"receive ECM from $channelId, id = ${ecm.id}, cmd = $command")
     if (ecm.ecmType != NO_ALIGNMENT) {
       pauseManager.pauseInputChannel(ECMPause(ecm.id), List(channelId))
     }
     if (ecmManager.isECMAligned(channelId, ecm)) {
       logManager.markAsReplayDestination(ecm.id)
       // invoke the control command carried with the ECM
-      logger.info(s"process ECM from $channelId, id = ${ecm.id}, cmd = $command")
+      logger.debug(s"process ECM from $channelId, id = ${ecm.id}, cmd = $command")
       if (command.isDefined) {
         // The reply must go back to the actor that originated the invocation
         // (recorded in command.context.sender), not to channelId.fromWorkerId.
         // For ECM-embedded commands those differ: channelId is the data
         // channel between two workers, while the originator is typically the
-        // controller. Fall back to the channel sender when the context is
+        // coordinator. Fall back to the channel sender when the context is
         // unset (e.g. unit-test inputs).
         val ctx = command.get.context
         val replyTo =
@@ -259,7 +295,7 @@ class DataProcessor(
         outputManager.flush(Some(downstreamChannelsInScope))
         outputGateway.getActiveChannels.foreach { activeChannelId =>
           if (downstreamChannelsInScope.contains(activeChannelId)) {
-            logger.info(
+            logger.debug(
               s"send ECM to $activeChannelId, id = ${ecm.id}, cmd = $command"
             )
             outputGateway.sendTo(activeChannelId, ecm)
@@ -300,9 +336,9 @@ class DataProcessor(
   }
 
   def handleExecutorException(e: Throwable): Unit = {
-    asyncRPCClient.controllerInterface.consoleMessageTriggered(
+    asyncRPCClient.coordinatorInterface.consoleMessageTriggered(
       ConsoleMessageTriggeredRequest(mkConsoleMessage(actorId, e)),
-      asyncRPCClient.mkContext(CONTROLLER)
+      asyncRPCClient.mkContext(COORDINATOR)
     )
     logger.warn(e.getLocalizedMessage + "\n" + e.getStackTrace.mkString("\n"))
     // invoke a pause in-place

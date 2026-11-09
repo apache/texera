@@ -21,11 +21,7 @@ package org.apache.texera.amber.core.tuple
 
 import com.fasterxml.jackson.databind.JsonNode
 import com.fasterxml.jackson.databind.node.ObjectNode
-import org.apache.texera.amber.core.tuple.AttributeTypeUtils.{inferSchemaFromRows, parseField}
 import org.apache.texera.amber.util.JSONUtils
-import org.apache.texera.amber.util.JSONUtils.{JSONToMap, objectMapper}
-
-import scala.collection.mutable.ArrayBuffer
 
 object TupleUtils {
 
@@ -37,55 +33,6 @@ object TupleUtils {
       objectNode.set[ObjectNode](attrName, valueNode)
     }
     objectNode
-  }
-
-  def json2tuple(json: String): Tuple = {
-    var fieldNames = Set[String]()
-
-    val allFields: ArrayBuffer[Map[String, String]] = ArrayBuffer()
-
-    // Parse and flatten once; reused for schema inference and value extraction.
-    val root: JsonNode = objectMapper.readTree(json)
-    val data: Map[String, String] = JSONToMap(root)
-    if (root.isObject) {
-      fieldNames = fieldNames.++(data.keySet)
-      allFields += data
-    }
-
-    val sortedFieldNames = fieldNames.toList
-
-    val attributeTypes = inferSchemaFromRows(allFields.iterator.map(fields => {
-      val result = ArrayBuffer[Object]()
-      for (fieldName <- sortedFieldNames) {
-        if (fields.contains(fieldName)) {
-          result += fields(fieldName)
-        } else {
-          result += null
-        }
-      }
-      result.toArray
-    }))
-
-    val schema = Schema(
-      sortedFieldNames.indices
-        .map(i => new Attribute(sortedFieldNames(i), attributeTypes(i)))
-        .toList
-    )
-
-    try {
-      val fields = scala.collection.mutable.ArrayBuffer.empty[Any]
-
-      for (fieldName <- schema.getAttributeNames) {
-        if (data.contains(fieldName)) {
-          fields += parseField(data(fieldName), schema.getAttribute(fieldName).getType)
-        } else {
-          fields += null
-        }
-      }
-      Tuple.builder(schema).addSequentially(fields.toArray).build()
-    } catch {
-      case e: Exception => throw e
-    }
   }
 
 }

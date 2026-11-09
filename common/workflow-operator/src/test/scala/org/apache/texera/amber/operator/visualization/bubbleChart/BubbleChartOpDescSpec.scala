@@ -19,9 +19,12 @@
 
 package org.apache.texera.amber.operator.visualization.bubbleChart
 
+import org.apache.texera.amber.operator.metadata.OperatorMetadataGenerator
 import org.scalatest.BeforeAndAfter
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
+
+import scala.jdk.CollectionConverters._
 
 class BubbleChartOpDescSpec extends AnyFlatSpec with BeforeAndAfter with Matchers {
   var opDesc: BubbleChartOpDesc = _
@@ -48,6 +51,38 @@ class BubbleChartOpDescSpec extends AnyFlatSpec with BeforeAndAfter with Matcher
           "fig = go.Figure(px.scatter(table, x=column1, y=column2, size=column3, size_max=100))"
         )
     )
+  }
+
+  it should "color by the chosen column when color is enabled" in {
+    opDesc.xValue = "column1"
+    opDesc.yValue = "column2"
+    opDesc.zValue = "column3"
+    opDesc.enableColor = true
+    opDesc.colorCategory = "column4"
+
+    opDesc.createPlotlyFigure().plain should include(
+      "fig = go.Figure(px.scatter(table, x=column1, y=column2, size=column3, color=column4, size_max=100))"
+    )
+  }
+
+  // px.scatter(color='') raises, so an unset column has to fall back to uniform bubbles.
+  it should "omit color when color is enabled but no column is chosen" in {
+    opDesc.xValue = "column1"
+    opDesc.yValue = "column2"
+    opDesc.zValue = "column3"
+    opDesc.enableColor = true
+
+    opDesc.createPlotlyFigure().plain should not include "color="
+  }
+
+  it should "omit color when a column is chosen but color is disabled" in {
+    opDesc.xValue = "column1"
+    opDesc.yValue = "column2"
+    opDesc.zValue = "column3"
+    opDesc.enableColor = false
+    opDesc.colorCategory = "column4"
+
+    opDesc.createPlotlyFigure().plain should not include "column4"
   }
 
   it should "throw assertion error if variable xValue is empty" in {
@@ -98,5 +133,22 @@ class BubbleChartOpDescSpec extends AnyFlatSpec with BeforeAndAfter with Matcher
     plain should include("column1")
     plain should include("column2")
     plain should include("column3")
+  }
+
+  "BubbleChartOpDesc's generated schema" should
+    "constrain the bubble size to numeric and leave the axes unconstrained" in {
+    // x and y are positions and read as any type, the way a scatter plot's do.
+    // Only the size is divided by a scale factor and so has to be a number.
+    val schema = OperatorMetadataGenerator.generateOperatorJsonSchema(classOf[BubbleChartOpDesc])
+    val rules = schema.path("attributeTypeRules")
+    rules.fieldNames().asScala.toSet shouldBe Set("zValue")
+
+    // The key has to name a property the form actually renders; one that names
+    // nothing parses fine and constrains nothing.
+    schema.path("properties").has("zValue") shouldBe true
+
+    val allowed = rules.path("zValue").path("enum").elements().asScala.map(_.asText()).toSet
+    allowed shouldBe Set("integer", "long", "double")
+    allowed should not contain "string"
   }
 }

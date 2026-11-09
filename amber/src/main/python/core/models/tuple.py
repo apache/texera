@@ -16,6 +16,7 @@
 # under the License.
 
 import ctypes
+import numpy
 import pandas
 import pickle
 import pyarrow
@@ -30,7 +31,12 @@ from typing import Any, List, Iterator, Callable
 from typing_extensions import Protocol, runtime_checkable
 
 from core.models.type.large_binary import largebinary
-from .schema.attribute_type import TO_PYOBJECT_MAPPING, AttributeType
+from .schema.attribute_type import (
+    INTEGRAL_TYPE_RANGES,
+    NUMPY_INTEGRAL_RANGES,
+    TO_PYOBJECT_MAPPING,
+    AttributeType,
+)
 from .schema.field import Field
 from .schema.schema import Schema
 
@@ -303,9 +309,12 @@ class Tuple:
         """
         Safely cast each field value to match the target schema.
         If failed, the value will stay not changed.
-        This current conducts two kinds of casts:
+        This method performs the following casts:
             1. cast NaN to None;
-            2. cast any object to bytes (using pickle).
+            2. cast integral floats and numpy integer scalars to int for
+               INT/LONG fields;
+            3. cast numpy bool scalars to bool for BOOL fields;
+            4. cast any object to bytes (using pickle).
         :param schema: The target Schema that describes the target AttributeType to
             cast.
         :return:
@@ -317,10 +326,45 @@ class Tuple:
                 # convert NaN to None to support null value conversion
                 if checknull(field_value):
                     self[field_name] = None
-
-                if field_value is not None:
+                elif field_value is not None:
                     field_type = schema.get_attr_type(field_name)
-                    if field_type == AttributeType.BINARY and not isinstance(
+                    if field_type in INTEGRAL_TYPE_RANGES and (
+                        isinstance(field_value, numpy.integer)
+                        or (isinstance(field_value, float) and field_value.is_integer())
+                    ):
+                        # Coerce numpy integer scalars and integral floats into
+                        # int for INT/LONG (pandas 2.2.3 promotes null-holding
+                        # int columns to float64, and reductions like .sum()
+                        # return numpy ints). Bounds differ by source: numpy
+                        # integers are exact, so only the target width applies
+                        # (LONG -> int64); integral floats stay within the
+                        # float64 exact-integer window (2**53). Out-of-range
+                        # values are left unchanged so validation still fails.
+                        if isinstance(field_value, numpy.integer):
+                            min_value, max_value = NUMPY_INTEGRAL_RANGES[field_type]
+                        else:
+                            min_value, max_value = INTEGRAL_TYPE_RANGES[field_type]
+                        int_value = int(field_value)
+                        if min_value <= int_value <= max_value:
+                            self[field_name] = int_value
+                        else:
+                            logger.warning(
+                                f"Field '{field_name}': integral value "
+                                f"{field_value} is outside the safely coercible "
+                                f"range of {field_type}; leaving it unchanged "
+                                f"(schema validation will fail). Consider "
+                                f"casting the column to STRING or DOUBLE (or "
+                                f"LONG for large integers in an INT field)."
+                            )
+                    elif field_type == AttributeType.BOOL and isinstance(
+                        field_value, numpy.bool_
+                    ):
+                        # pandas reductions such as .any()/.all() and numpy
+                        # comparisons return numpy.bool_, which is not a Python
+                        # bool; convert it for BOOL fields. Gated on the BOOL
+                        # target type so a numpy integer never lands here.
+                        self[field_name] = bool(field_value)
+                    elif field_type == AttributeType.BINARY and not isinstance(
                         field_value, bytes
                     ):
                         self[field_name] = b"pickle    " + pickle.dumps(field_value)

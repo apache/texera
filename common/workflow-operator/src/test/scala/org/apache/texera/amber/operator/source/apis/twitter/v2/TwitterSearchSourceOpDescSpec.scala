@@ -19,7 +19,9 @@
 
 package org.apache.texera.amber.operator.source.apis.twitter.v2
 
+import org.apache.texera.amber.core.executor.OpExecWithClassName
 import org.apache.texera.amber.core.tuple.AttributeType
+import org.apache.texera.amber.core.virtualidentity.{ExecutionIdentity, WorkflowIdentity}
 import org.apache.texera.amber.operator.LogicalOp
 import org.apache.texera.amber.operator.metadata.OperatorGroupConstants
 import org.apache.texera.amber.util.JSONUtils.objectMapper
@@ -80,5 +82,28 @@ class TwitterSearchSourceOpDescSpec extends AnyFlatSpec with Matchers {
     r.apiKey shouldBe "k"
     r.apiSecretKey shouldBe "s"
     r.stopWhenRateLimited shouldBe true
+  }
+
+  "TwitterSearchSourceOpDesc.getPhysicalOp" should
+    "wire the TwitterSearch executor as a source op that propagates the tweet schema" in {
+    val d = new TwitterSearchSourceOpDesc
+    d.searchQuery = "texera"
+    d.limit = 50
+    val p = d.getPhysicalOp(WorkflowIdentity(1L), ExecutionIdentity(1L))
+
+    p.opExecInitInfo match {
+      case OpExecWithClassName(className, descString) =>
+        className shouldBe
+          "org.apache.texera.amber.operator.source.apis.twitter.v2.TwitterSearchSourceOpExec"
+        descString should include("texera")
+      case other => fail(s"expected OpExecWithClassName, got $other")
+    }
+
+    p.inputPorts shouldBe empty
+    p.outputPorts should have size 1
+
+    // Invoke the schema-propagation closure so its body (not just the wiring) is exercised.
+    val propagated = p.propagateSchema.func(Map.empty)
+    propagated.keySet shouldBe d.operatorInfo.outputPorts.map(_.id).toSet
   }
 }

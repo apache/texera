@@ -20,9 +20,6 @@
 import { AfterViewInit, Component, Input, ViewChild } from "@angular/core";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 import { SafeStyle } from "@angular/platform-browser";
-import "@codingame/monaco-vscode-python-default-extension";
-import "@codingame/monaco-vscode-r-default-extension";
-import "@codingame/monaco-vscode-java-default-extension";
 import { isDefined } from "../../../common/util/predicate";
 import * as monaco from "monaco-editor";
 import { MonacoBreakpoint } from "monaco-breakpoints";
@@ -62,7 +59,7 @@ export class CodeDebuggerComponent implements AfterViewInit, SafeStyle {
   ) {}
 
   ngAfterViewInit() {
-    this.registerStatusChangeHandler();
+    this.registerStateChangeHandler();
     this.registerBreakpointRenderingHandler();
   }
 
@@ -224,14 +221,14 @@ export class CodeDebuggerComponent implements AfterViewInit, SafeStyle {
     });
   }
 
-  private registerStatusChangeHandler() {
+  private registerStateChangeHandler() {
     this.workflowStatusService
-      .getStatusUpdateStream()
+      .getStateUpdateStream()
       .pipe(
         map(
           event =>
-            event[this.currentOperatorId]?.operatorState === OperatorState.Running ||
-            event[this.currentOperatorId]?.operatorState === OperatorState.Paused
+            event[this.currentOperatorId] === OperatorState.Running ||
+            event[this.currentOperatorId] === OperatorState.Paused
         ),
         distinctUntilChanged(),
         untilDestroyed(this)

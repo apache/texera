@@ -17,7 +17,7 @@
  * under the License.
  */
 
-import { Component, EventEmitter, Output } from "@angular/core";
+import { Component, EventEmitter, Input, Output } from "@angular/core";
 import { SortMethod } from "../../../type/sort-method";
 import { NzDropdownADirective, NzDropdownDirective, NzDropdownMenuComponent } from "ng-zorro-antd/dropdown";
 import { NzSpaceCompactItemDirective } from "ng-zorro-antd/space";
@@ -47,6 +47,14 @@ import { NzMenuDirective, NzMenuItemComponent } from "ng-zorro-antd/menu";
 export class SortButtonComponent {
   @Output()
   public sortMethodChange = new EventEmitter<SortMethod>();
+
+  // Some resource types (e.g. datasets) have no edit or execution timestamp; hide the
+  // corresponding options so they can't produce an undefined (NULL) sort order.
+  @Input()
+  public showEditTime = true;
+  @Input()
+  public showExecutionTime = true;
+
   public sortMethod = SortMethod.EditTimeDesc;
 
   public lastSort(): void {

@@ -29,7 +29,7 @@ import org.apache.texera.amber.core.storage.{DocumentFactory, VFSURIFactory}
 import org.apache.texera.amber.core.tuple.Tuple
 import org.apache.texera.amber.core.virtualidentity.{ActorVirtualIdentity, OperatorIdentity}
 import org.apache.texera.amber.core.workflow.WorkflowContext
-import org.apache.texera.amber.engine.architecture.controller.ExecutionStateUpdate
+import org.apache.texera.amber.engine.architecture.coordinator.ExecutionStateUpdate
 import org.apache.texera.amber.engine.architecture.rpc.controlcommands.ConsoleMessageType.COMMAND
 import org.apache.texera.amber.engine.architecture.rpc.controlcommands.{
   ConsoleMessage,
@@ -144,7 +144,12 @@ class ExecutionConsoleService(
     consoleMessageOpIdToWriterMap.getOrElseUpdate(
       opId.id, {
         val uri = VFSURIFactory
-          .createConsoleMessagesURI(workflowContext.workflowId, workflowContext.executionId, opId)
+          .createConsoleMessagesURI(
+            workflowContext.workflowId,
+            workflowContext.executionId,
+            opId,
+            warehouse = workflowContext.warehouse
+          )
         val writer = DocumentFactory
           .createDocument(uri, ResultSchema.consoleMessagesSchema)
           .writer("console_messages")
@@ -216,6 +221,31 @@ class ExecutionConsoleService(
     }
   )
 
+  override def unsubscribeAll(): Unit = {
+    consoleMessageOpIdToWriterMap.values.foreach { writer =>
+      try {
+        writer.close()
+      } catch {
+        case e: Exception =>
+          logger.error("Failed to close console message writer during unsubscribeAll", e)
+      }
+    }
+    consoleMessageOpIdToWriterMap.clear()
+
+    super.unsubscribeAll()
+
+    consoleWriterThread.shutdown()
+    try {
+      if (!consoleWriterThread.awaitTermination(5, java.util.concurrent.TimeUnit.SECONDS)) {
+        consoleWriterThread.shutdownNow()
+      }
+    } catch {
+      case _: InterruptedException =>
+        consoleWriterThread.shutdownNow()
+        Thread.currentThread().interrupt()
+    }
+  }
+
   /**
     * Processes a console message for display, performing truncation if needed.
     * This method uses the shared implementation in ConsoleMessageProcessor.
@@ -286,7 +316,7 @@ class ExecutionConsoleService(
   //Receive evaluate python expression
   addSubscription(wsInput.subscribe((req: PythonExpressionEvaluateRequest, uidOpt) => {
     val result = Await.result(
-      client.controllerInterface.evaluatePythonExpression(
+      client.coordinatorInterface.evaluatePythonExpression(
         EvaluatePythonExpressionRequest(req.expression, req.operatorId),
         ()
       ),
@@ -325,7 +355,7 @@ class ExecutionConsoleService(
       addConsoleMessage(consoleStore, req.operatorId, newMessage)
     }
 
-    client.controllerInterface.debugCommand(AmberDebugCommandRequest(req.workerId, req.cmd), ())
+    client.coordinatorInterface.debugCommand(AmberDebugCommandRequest(req.workerId, req.cmd), ())
 
   }))
 

@@ -19,13 +19,19 @@
 
 package org.apache.texera.amber.operator.source.scan.file
 
+import com.fasterxml.jackson.databind.node.ObjectNode
+import org.apache.texera.amber.core.executor.OpExecWithClassName
 import org.apache.texera.amber.core.storage.FileResolver
 import org.apache.texera.amber.core.tuple.{AttributeType, Schema, SchemaEnforceable, Tuple}
+import org.apache.texera.amber.core.virtualidentity.{ExecutionIdentity, WorkflowIdentity}
 import org.apache.texera.amber.operator.TestOperators
 import org.apache.texera.amber.operator.source.scan.{FileAttributeType, FileDecodingMethod}
 import org.apache.texera.amber.util.JSONUtils.objectMapper
 import org.scalatest.BeforeAndAfter
 import org.scalatest.flatspec.AnyFlatSpec
+
+import java.nio.charset.StandardCharsets
+import java.nio.file.Files
 
 class FileScanSourceOpDescSpec extends AnyFlatSpec with BeforeAndAfter {
 
@@ -34,7 +40,7 @@ class FileScanSourceOpDescSpec extends AnyFlatSpec with BeforeAndAfter {
   before {
     fileScanSourceOpDesc = new FileScanSourceOpDesc()
     fileScanSourceOpDesc.setResolvedFileName(FileResolver.resolve(TestOperators.TestTextFilePath))
-    fileScanSourceOpDesc.fileEncoding = FileDecodingMethod.UTF_8
+    fileScanSourceOpDesc.encoding = FileDecodingMethod.UTF_8
   }
 
   it should "infer schema with single column representing each line of text in normal text scan mode" in {
@@ -87,6 +93,27 @@ class FileScanSourceOpDescSpec extends AnyFlatSpec with BeforeAndAfter {
     assert(processedTuple.next().getField("line").equals("line3"))
     assert(processedTuple.next().getField("line").equals("line4"))
     assert(processedTuple.next().getField("line").equals("line5"))
+    assertThrows[java.util.NoSuchElementException](processedTuple.next().getField("line"))
+    FileScanSourceOpExec.close()
+  }
+
+  it should "read the lines after a 5-line offset when no limit is set" in {
+    fileScanSourceOpDesc.attributeType = FileAttributeType.STRING
+    fileScanSourceOpDesc.fileScanOffset = Option(5)
+    val FileScanSourceOpExec =
+      new FileScanSourceOpExec(objectMapper.writeValueAsString(fileScanSourceOpDesc))
+    FileScanSourceOpExec.open()
+    val processedTuple: Iterator[Tuple] = FileScanSourceOpExec
+      .produceTuple()
+      .map(tupleLike =>
+        tupleLike.asInstanceOf[SchemaEnforceable].enforceSchema(fileScanSourceOpDesc.sourceSchema())
+      )
+
+    assert(processedTuple.next().getField("line").equals("line6"))
+    assert(processedTuple.next().getField("line").equals("line7"))
+    assert(processedTuple.next().getField("line").equals("line8"))
+    assert(processedTuple.next().getField("line").equals("line9"))
+    assert(processedTuple.next().getField("line").equals("line10"))
     assertThrows[java.util.NoSuchElementException](processedTuple.next().getField("line"))
     FileScanSourceOpExec.close()
   }
@@ -164,7 +191,7 @@ class FileScanSourceOpDescSpec extends AnyFlatSpec with BeforeAndAfter {
     fileScanSourceOpDesc.setResolvedFileName(
       FileResolver.resolve(TestOperators.TestCRLFTextFilePath)
     )
-    fileScanSourceOpDesc.fileEncoding = FileDecodingMethod.ASCII
+    fileScanSourceOpDesc.encoding = FileDecodingMethod.ASCII
     fileScanSourceOpDesc.attributeType = FileAttributeType.STRING
     fileScanSourceOpDesc.fileScanLimit = Option(5)
     val FileScanSourceOpExec =
@@ -183,6 +210,85 @@ class FileScanSourceOpDescSpec extends AnyFlatSpec with BeforeAndAfter {
     assert(processedTuple.next().getField("line").equals("line5"))
     assertThrows[java.util.NoSuchElementException](processedTuple.next().getField("line"))
     FileScanSourceOpExec.close()
+  }
+
+  it should "carry the Encoding field through serialization into the executor" in {
+    fileScanSourceOpDesc.encoding = FileDecodingMethod.UTF_16
+
+    // getPhysicalOp hands the executor objectMapper.writeValueAsString(this), and
+    // FileScanSourceOpExec reads the descriptor back out of that string, so the
+    // charset only reaches the executor if it survives the round trip.
+    val roundTripped = objectMapper.readValue(
+      objectMapper.writeValueAsString(fileScanSourceOpDesc),
+      classOf[FileScanSourceOpDesc]
+    )
+
+    assert(roundTripped.encoding == FileDecodingMethod.UTF_16)
+  }
+
+  it should "decode a UTF-16 file with the charset the Encoding field names" in {
+    val utf16File = Files.createTempFile("file-scan-utf16", ".txt")
+    try {
+      Files.write(utf16File, "line1\nline2\nline3".getBytes(StandardCharsets.UTF_16))
+
+      fileScanSourceOpDesc.setResolvedFileName(FileResolver.resolve(utf16File.toString))
+      fileScanSourceOpDesc.encoding = FileDecodingMethod.UTF_16
+      fileScanSourceOpDesc.attributeType = FileAttributeType.STRING
+
+      val fileScanSourceOpExec =
+        new FileScanSourceOpExec(objectMapper.writeValueAsString(fileScanSourceOpDesc))
+      fileScanSourceOpExec.open()
+      val processedTuple: Iterator[Tuple] = fileScanSourceOpExec
+        .produceTuple()
+        .map(tupleLike =>
+          tupleLike
+            .asInstanceOf[SchemaEnforceable]
+            .enforceSchema(fileScanSourceOpDesc.sourceSchema())
+        )
+
+      // Decoded as UTF-8 these bytes come back as the byte-order mark followed by
+      // NUL-interleaved characters, so this is the assertion the old wiring failed.
+      assert(processedTuple.next().getField("line").equals("line1"))
+      assert(processedTuple.next().getField("line").equals("line2"))
+      assert(processedTuple.next().getField("line").equals("line3"))
+      assertThrows[java.util.NoSuchElementException](processedTuple.next().getField("line"))
+      fileScanSourceOpExec.close()
+    } finally {
+      Files.deleteIfExists(utf16File)
+    }
+  }
+
+  "FileScanSourceOpDesc.getPhysicalOp" should
+    "wire the FileScanSourceOpExec class as a source op and propagate its schema" in {
+    val physical =
+      fileScanSourceOpDesc.getPhysicalOp(WorkflowIdentity(1L), ExecutionIdentity(1L))
+    physical.opExecInitInfo match {
+      case OpExecWithClassName(className, descString) =>
+        assert(className == classOf[FileScanSourceOpExec].getName)
+        assert(descString.nonEmpty)
+      case other => fail(s"expected OpExecWithClassName, got $other")
+    }
+    assert(physical.inputPorts.isEmpty)
+    val outPortId = fileScanSourceOpDesc.operatorInfo.outputPorts.head.id
+    assert(physical.outputPorts.keySet == Set(outPortId))
+    val propagated = physical.propagateSchema.func(Map.empty)
+    assert(propagated(outPortId) == fileScanSourceOpDesc.sourceSchema())
+  }
+
+  "FileScanSourceOpDesc.sourceSchema" should
+    "prepend a filename column when outputFileName is enabled" in {
+    // outputFileName is a val; round-trip through JSON (which carries the operatorType
+    // discriminator) with the flag flipped on, since it can't be set on an instance.
+    val node =
+      objectMapper
+        .readTree(objectMapper.writeValueAsString(fileScanSourceOpDesc))
+        .asInstanceOf[ObjectNode]
+    node.put("outputFileName", true)
+    val withFlag = objectMapper.treeToValue(node, classOf[FileScanSourceOpDesc])
+    val schema: Schema = withFlag.sourceSchema()
+    assert(schema.getAttributes.length == 2)
+    assert(schema.getAttribute("filename").getType == AttributeType.STRING)
+    assert(schema.getAttribute("line").getType == AttributeType.STRING)
   }
 
 }

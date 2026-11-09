@@ -49,6 +49,11 @@ class IntervalJoinOpExec(descString: String) extends OperatorExecutor {
   }
 
   override def processTuple(tuple: Tuple, port: Int): Iterator[TupleLike] = {
+    // A null key matches nothing, as in the other joins. It never enters a
+    // cache, so the comparisons below never read one: `asInstanceOf` unboxes a
+    // null number to 0, and a null timestamp has no getTime.
+    val key = if (port == 0) desc.leftAttributeName else desc.rightAttributeName
+    if (tuple.getField[Any](key) == null) return Iterator()
     if (port == 0) {
       leftTable += tuple
       if (rightTable.nonEmpty) {
@@ -210,7 +215,11 @@ class IntervalJoinOpExec(descString: String) extends OperatorExecutor {
             Timestamp.valueOf(leftBoundValue.toLocalDateTime.plusMinutes(desc.constant))
           case Some(TimeIntervalType.SECOND) =>
             Timestamp.valueOf(leftBoundValue.toLocalDateTime.plusSeconds(desc.constant))
-          case None =>
+          case _ =>
+            // Unset interval type falls back to day semantics. This has to be a
+            // catch-all rather than `case None`: an absent JSON field
+            // deserializes to Some(null), not None, so matching only on None
+            // threw a MatchError instead of taking the fallback.
             Timestamp.valueOf(leftBoundValue.toLocalDateTime.plusDays(desc.constant))
         }
       result = processNumValue(

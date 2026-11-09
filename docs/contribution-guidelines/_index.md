@@ -1,3 +1,22 @@
+<!--
+  ~ Licensed to the Apache Software Foundation (ASF) under one
+  ~ or more contributor license agreements.  See the NOTICE file
+  ~ distributed with this work for additional information
+  ~ regarding copyright ownership.  The ASF licenses this file
+  ~ to you under the Apache License, Version 2.0 (the
+  ~ "License"); you may not use this file except in compliance
+  ~ with the License.  You may obtain a copy of the License at
+  ~
+  ~   http://www.apache.org/licenses/LICENSE-2.0
+  ~
+  ~ Unless required by applicable law or agreed to in writing,
+  ~ software distributed under the License is distributed on an
+  ~ "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+  ~ KIND, either express or implied.  See the License for the
+  ~ specific language governing permissions and limitations
+  ~ under the License.
+-->
+
 ---
 title: "Contribution Guidelines"
 description: "How to contribute to Texera code and documentation."
@@ -31,7 +50,7 @@ Texera welcomes contributions from everyone — whether you’re fixing a small 
 ## 🛠 How to Contribute Code
 
 ### 1. Fork the Repository
-Fork the [Texera repository](https://github.com/Texera/texera) on GitHub and clone it locally.
+Fork the [Texera repository](https://github.com/apache/texera) on GitHub and clone it locally.
 
 ### 2. Find or Open an Issue
 - Pick an existing issue or create a new one describing your proposal or bug.
@@ -49,9 +68,38 @@ Fork the [Texera repository](https://github.com/Texera/texera) on GitHub and clo
 We use [Conventional Commits](https://www.conventionalcommits.org/en/v1.0.0/):
 - Example PR titles:
   - `feat: add new join operator`
-  - `fix(ui): resolve workflow panel crash`
+  - `fix(frontend): resolve workflow panel crash`
   - `chore(deps): bump dependency versions`
 - The PR title becomes the final squashed commit message upon merge.
+
+A scope names the module the change lands in — `amber`, `pyamber`, `frontend`, `agent-service`, `file-service`, and so on. Use the module's own name rather than an informal synonym, and when a PR spans modules, scope it to the one carrying the substantive change.
+
+Pick the type by what happens to the behavior, not by how large the change is:
+
+| Your change | Type |
+| ----------- | ---- |
+| A functionality worked before and no longer does | `fix` |
+| A functionality or a form of support never existed and you are adding it | `feat` |
+| A functionality exists and you are removing support for it | `feat` |
+| A functionality is reworked in a way that intentionally changes user-facing behavior | `feat` |
+| The change leaves the user-facing behavior unchanged | `refactor` |
+
+Behavior is defined by the code, not by what a document or an old PR description says the code does. A functionality that was never implemented does not exist, so implementing it is a `feat` even when the docs already described it as present.
+
+`refactor` claims the **user-facing** behavior is identical. A test that pins a user-facing API must keep passing untouched — changing one of its assertions means the behavior moved, so the PR is a `feat` or a `fix`. A test that pins internals mirrors the implementation and may be rewritten alongside the code it mirrors.
+
+Test and dependency PRs take the titles below. Where the table shows a two-part scope, it is written as `<type>(<area>, <module>): <description>`:
+
+| Your change | Title |
+| ----------- | ----- |
+| A test-only PR — adding or updating tests | `test(<module>): ...` |
+| Repairing a broken or flaky test | `fix(test, <module>): ...` |
+| A dependency bump that patches a CVE | `fix(deps, <module>): ...` |
+| Any other dependency bump | `chore(deps, <module>): ...` |
+
+Omit the module for bumps that span modules. GitHub Actions bumps are dependency bumps too and take the `ci` module — `chore(deps, ci): ...`, or `fix(deps, ci): ...` when the bump patches a CVE — which is the form Renovate opens them with. Reserve a bare `ci: ...` for hand-written CI and workflow changes.
+
+A PR targeting a release branch appends the version as the last scope component — a backport of `fix(deps, frontend): ...` to `release/v1.2` becomes `fix(deps, frontend, v1.2): ...`. Never put a version tag on a PR targeting `main`.
 
 #### PR Description Should Include:
 - **Purpose:** use `Closes #1234` to auto-close an issue.
@@ -86,16 +134,15 @@ Avoid including:
    ```
 3. Execute tests:
    ```bash
-   cd core
    sbt test
    ```
 
-> For IntelliJ users: ensure the working directory matches the module (`amber` for engine tests, `core` for services).
+> For IntelliJ users: ensure the working directory matches the module (`amber` for engine tests, the repo root for services).
 
 ### Frontend (Angular)
 1. Run unit tests:
    ```bash
-   cd core/gui
+   cd frontend
    ng test --watch=false
    ```
 2. Format code:
@@ -110,7 +157,7 @@ Write `.spec.ts` tests for new functionality to ensure future safety.
 ## 🔍 Pull Request Review Process
 1. Request a committer to review your PR.
 2. Add labels (e.g., `fix`, `enhancement`, `docs`).
-3. Wait for CI to pass ([GitHub Actions](https://github.com/Texera/texera/actions)).
+3. Wait for CI to pass ([GitHub Actions](https://github.com/apache/texera/actions)).
 4. Mark your PR as **draft** if it’s not ready.
 5. Once approved, a committer will merge your PR.
 
@@ -135,7 +182,7 @@ To automate this in IntelliJ:
 ## ✍️ Contributing to Documentation
 
 Texera uses [Hugo](https://gohugo.io/) and the [Docsy](https://github.com/google/docsy) theme to build its website.  
-All documentation is stored in the [Texera GitHub repository](https://github.com/Texera/texera).
+All documentation is stored in the [Texera GitHub repository](https://github.com/apache/texera).
 
 ### Quick Steps
 1. Click **Edit this page** at the top of any doc page to edit directly on GitHub.
@@ -153,7 +200,7 @@ Visit `http://localhost:1313` to view the site as you edit.
 ---
 
 ## 📚 Resources
-- [Texera GitHub Repository](https://github.com/Texera/texera)
+- [Texera GitHub Repository](https://github.com/apache/texera)
 - [Conventional Commits Spec](https://www.conventionalcommits.org/en/v1.0.0/)
 - [Hugo Documentation](https://gohugo.io/documentation/)
 - [Docsy Guide](https://www.docsy.dev/docs/)

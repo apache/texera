@@ -33,8 +33,11 @@ class AttributeType(Enum):
 
     STRING = 1
     INT = 2
+    # Attribute access needs Java names; RAW_TYPE_MAPPING handles raw schema strings.
+    INTEGER = 2
     LONG = 3
     BOOL = 4
+    BOOLEAN = 4
     DOUBLE = 5
     TIMESTAMP = 6
     BINARY = 7
@@ -78,6 +81,47 @@ FROM_ARROW_MAPPING = {
 }
 
 
+def _is_empty_value(v):
+    return v is None or (isinstance(v, str) and v.strip() == "")
+
+
+def _parse_bool(v):
+    if _is_empty_value(v):
+        return False
+
+    normalized_value = str(v).strip().lower()
+    if normalized_value == "true":
+        return True
+    if normalized_value == "false":
+        return False
+    return float(normalized_value) != 0
+
+
+def _parse_timestamp(v):
+    if _is_empty_value(v):
+        return datetime.datetime(1970, 1, 1, tzinfo=datetime.timezone.utc)
+
+    normalized_value = str(v)
+    if normalized_value.endswith("Z"):
+        normalized_value = normalized_value[:-1] + "+00:00"
+    parsed_value = datetime.datetime.fromisoformat(normalized_value)
+    if (
+        parsed_value.tzinfo is None
+        or parsed_value.tzinfo.utcoffset(parsed_value) is None
+    ):
+        return parsed_value.replace(tzinfo=datetime.timezone.utc)
+    return parsed_value
+
+
+FROM_STRING_PARSER_MAPPING = {
+    AttributeType.STRING: str,
+    AttributeType.INT: lambda v: 0 if _is_empty_value(v) else int(v),
+    AttributeType.LONG: lambda v: 0 if _is_empty_value(v) else int(v),
+    AttributeType.DOUBLE: lambda v: 0.0 if _is_empty_value(v) else float(v),
+    AttributeType.BOOL: _parse_bool,
+    AttributeType.TIMESTAMP: _parse_timestamp,
+}
+
 # Only single-directional mapping.
 TO_PYOBJECT_MAPPING = {
     AttributeType.STRING: str,
@@ -90,12 +134,22 @@ TO_PYOBJECT_MAPPING = {
     AttributeType.LARGE_BINARY: largebinary,
 }
 
-FROM_PYOBJECT_MAPPING = {
-    str: AttributeType.STRING,
-    int: AttributeType.INT,
-    float: AttributeType.DOUBLE,
-    bool: AttributeType.BOOL,
-    bytes: AttributeType.BINARY,
-    datetime.datetime: AttributeType.TIMESTAMP,
-    largebinary: AttributeType.LARGE_BINARY,
+# Signed value ranges within which an integral float can be safely cast back
+# to int. INT is bounded by Arrow int32 capacity. LONG is bounded by the
+# float64 exact-integer window rather than int64 capacity: above 2**53 float64
+# rounds, so the received float may already be a corrupted rendition of the
+# original integer. The endpoint 2**53 itself is excluded because it is
+# ambiguous (2**53 + 1 also rounds to float 2**53).
+INTEGRAL_TYPE_RANGES = {
+    AttributeType.INT: (-(2**31), 2**31 - 1),
+    AttributeType.LONG: (-(2**53) + 1, 2**53 - 1),
+}
+
+# numpy integer scalars are exact (unlike integral floats, which lose
+# integer precision above 2**53), so they are bounded only by the target
+# Arrow integer width, not the float64 exact-integer window used by
+# INTEGRAL_TYPE_RANGES: INT -> int32, LONG -> int64.
+NUMPY_INTEGRAL_RANGES = {
+    AttributeType.INT: (-(2**31), 2**31 - 1),
+    AttributeType.LONG: (-(2**63), 2**63 - 1),
 }

@@ -175,6 +175,38 @@ def test_is_dirty_after_seed_then_edit(tmp_path, monkeypatch, tui):
     assert tui.is_dirty(svc) is True
 
 
+def test_is_dirty_when_edit_shares_the_stamp_mtime(tmp_path, monkeypatch, tui):
+    """An edit landing in the same filesystem timestamp tick as the stamp write
+    must still be seen.
+
+    `test_is_dirty_after_seed_then_edit` above hits this by accident wherever
+    the filesystem's granularity is coarser than its two consecutive writes;
+    here the collision is forced with os.utime, so it holds on every platform.
+    The fast mtime filter must not answer "definitely clean" without consulting
+    the content hash, or `auto` silently skips the rebuild."""
+    monkeypatch.setattr(tui, "REPO_ROOT", tmp_path)
+    monkeypatch.setattr(tui, "BUILD_STAMP_DIR", tmp_path / "stamps")
+    (tmp_path / "stamps").mkdir()
+    _seed_jvm_layout(tmp_path, "config-service/src")
+
+    svc = tui.SERVICES_BY_NAME["config-service"]
+    jar = tmp_path / svc.artifact_jar
+    jar.parent.mkdir(parents=True, exist_ok=True)
+    jar.write_bytes(b"fake-jar-bytes")
+
+    assert tui.is_dirty(svc) is False
+    stamp = tmp_path / "stamps" / svc.name
+
+    # Change the content, then force the source's mtime to exactly the stamp's.
+    src = tmp_path / "config-service/src/Main.scala"
+    src.write_text("object Main { def y = 2 }\n")
+    st = stamp.stat()
+    os.utime(src, ns=(st.st_atime_ns, st.st_mtime_ns))
+    assert src.stat().st_mtime_ns == stamp.stat().st_mtime_ns
+
+    assert tui.is_dirty(svc) is True
+
+
 def test_is_dirty_mtime_bump_without_content_change_stays_clean(tmp_path, monkeypatch, tui):
     """Robustness against `git checkout` touching mtimes — the whole reason we
     moved off pure-mtime detection. After seeding the stamp, simulating a
@@ -374,3 +406,57 @@ def test_sbt_test_scope_deps_ignored(tui):
     # DAO appears once (from the main-scope dependsOn) — not twice from
     # the test-scope one.
     assert auth_deps.count("DAO") == 1
+
+
+# ─────────────────── deploy source (worktree) resolution ───────────────────
+
+def test_stamp_dir_for_matches_shell_sha1(tui):
+    """Build stamps are namespaced per deploy source. The id MUST equal the
+    shell's `sha1(absolute path)[:12]` or the TUI's SRC-dirty column would read
+    a different worktree's stamps than the shell wrote."""
+    import hashlib
+    src = "/Users/someone/Repos/texera-worktrees/feat-x"
+    expected = hashlib.sha1(src.encode()).hexdigest()[:12]
+    assert tui._stamp_dir_for(Path(src)).name == expected
+
+
+def test_resolve_deploy_source_missing_pointer_is_self(tmp_path, monkeypatch, tui):
+    """No persisted pointer ⇒ deploy from the self tree."""
+    monkeypatch.setattr(tui, "SELF_ROOT", tmp_path)
+    monkeypatch.setattr(tui, "DEPLOY_SOURCE_FILE", tmp_path / "deploy-source")
+    assert tui._resolve_deploy_source() == tmp_path
+
+
+def test_resolve_deploy_source_stale_pointer_is_self(tmp_path, monkeypatch, tui):
+    """A pointer to a vanished worktree falls back to self (mirrors the shell,
+    which also drops the stale pointer)."""
+    self_root = tmp_path / "self"
+    self_root.mkdir()
+    ptr = tmp_path / "deploy-source"
+    ptr.write_text("/no/such/worktree\n")
+    monkeypatch.setattr(tui, "SELF_ROOT", self_root)
+    monkeypatch.setattr(tui, "DEPLOY_SOURCE_FILE", ptr)
+    assert tui._resolve_deploy_source() == self_root
+
+
+def test_resolve_deploy_source_valid_pointer(tmp_path, monkeypatch, tui):
+    """A pointer to a real worktree (a dir with a build.sbt) is honored."""
+    wt = tmp_path / "wt"
+    wt.mkdir()
+    (wt / "build.sbt").write_text("ThisBuild / version := \"x\"\n")
+    ptr = tmp_path / "deploy-source"
+    ptr.write_text(str(wt) + "\n")
+    monkeypatch.setattr(tui, "SELF_ROOT", tmp_path)
+    monkeypatch.setattr(tui, "DEPLOY_SOURCE_FILE", ptr)
+    assert tui._resolve_deploy_source() == wt
+
+
+def test_resolve_deploy_source_dir_without_build_sbt_is_self(tmp_path, monkeypatch, tui):
+    """A pointer to a dir lacking build.sbt is not a checkout — fall back."""
+    bogus = tmp_path / "notacheckout"
+    bogus.mkdir()
+    ptr = tmp_path / "deploy-source"
+    ptr.write_text(str(bogus) + "\n")
+    monkeypatch.setattr(tui, "SELF_ROOT", tmp_path)
+    monkeypatch.setattr(tui, "DEPLOY_SOURCE_FILE", ptr)
+    assert tui._resolve_deploy_source() == tmp_path

@@ -32,7 +32,7 @@ class LargeBinaryManager:
     """Manages large binaries in S3 for a worker process.
 
     A singleton, so the cached S3 client is shared process-wide. create() appends a
-    unique suffix to an execution-scoped base URI handed down by the controller as
+    unique suffix to an execution-scoped base URI handed down by the coordinator as
     process config (``StorageConfig.S3_LARGE_BINARIES_BASE_URI``); the worker never
     holds an execution id. This is the Python counterpart of the JVM
     ``LargeBinaryManager``, which uses a thread-local instead because one JVM process
@@ -90,7 +90,7 @@ class LargeBinaryManager:
             logger.info(f"Created bucket: {bucket}")
 
     def create(self) -> str:
-        """Append a unique suffix to the controller-provided base URI.
+        """Append a unique suffix to the coordinator-provided base URI.
 
         Pure string construction (no S3 round-trip); the bucket is created on demand at
         upload time. Returns e.g. ``s3://bucket/objects/{execution_id}/{uuid}``.

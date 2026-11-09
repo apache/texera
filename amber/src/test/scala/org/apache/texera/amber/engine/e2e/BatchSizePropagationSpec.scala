@@ -24,13 +24,13 @@ import org.apache.pekko.testkit.{ImplicitSender, TestKit}
 import org.apache.pekko.util.Timeout
 import org.apache.texera.amber.clustering.SingleNodeListener
 import org.apache.texera.amber.core.workflow.{PortIdentity, WorkflowContext, WorkflowSettings}
-import org.apache.texera.amber.engine.architecture.controller._
+import org.apache.texera.amber.engine.architecture.coordinator._
 import org.apache.texera.amber.engine.architecture.sendsemantics.partitionings._
-import org.apache.texera.amber.engine.common.virtualidentity.util.CONTROLLER
+import org.apache.texera.amber.engine.common.virtualidentity.util.COORDINATOR
 import org.apache.texera.amber.engine.e2e.TestUtils.buildWorkflow
 import org.apache.texera.amber.operator.TestOperators
 import org.apache.texera.amber.operator.aggregate.AggregationFunction
-import org.apache.texera.workflow.LogicalLink
+import org.apache.texera.common.compiler.model.LogicalLink
 import org.scalatest.flatspec.AnyFlatSpecLike
 import org.scalatest.{BeforeAndAfterAll, BeforeAndAfterEach}
 
@@ -132,7 +132,7 @@ class BatchSizePropagationSpec
       context
     )
 
-    val workflowScheduler = new WorkflowScheduler(context, CONTROLLER)
+    val workflowScheduler = new WorkflowScheduler(context, COORDINATOR)
     workflowScheduler.updateSchedule(workflow.physicalPlan)
 
     verifyBatchSizeInPartitioning(workflowScheduler, 1)
@@ -162,7 +162,7 @@ class BatchSizePropagationSpec
       context
     )
 
-    val workflowScheduler = new WorkflowScheduler(context, CONTROLLER)
+    val workflowScheduler = new WorkflowScheduler(context, COORDINATOR)
     workflowScheduler.updateSchedule(workflow.physicalPlan)
 
     verifyBatchSizeInPartitioning(workflowScheduler, 500)
@@ -200,7 +200,7 @@ class BatchSizePropagationSpec
       context
     )
 
-    val workflowScheduler = new WorkflowScheduler(context, CONTROLLER)
+    val workflowScheduler = new WorkflowScheduler(context, COORDINATOR)
     workflowScheduler.updateSchedule(workflow.physicalPlan)
 
     verifyBatchSizeInPartitioning(workflowScheduler, 100)
@@ -241,7 +241,7 @@ class BatchSizePropagationSpec
       context
     )
 
-    val workflowScheduler = new WorkflowScheduler(context, CONTROLLER)
+    val workflowScheduler = new WorkflowScheduler(context, COORDINATOR)
     workflowScheduler.updateSchedule(workflow.physicalPlan)
 
     verifyBatchSizeInPartitioning(workflowScheduler, 300)
@@ -282,7 +282,7 @@ class BatchSizePropagationSpec
       context
     )
 
-    val workflowScheduler = new WorkflowScheduler(context, CONTROLLER)
+    val workflowScheduler = new WorkflowScheduler(context, COORDINATOR)
     workflowScheduler.updateSchedule(workflow.physicalPlan)
 
     verifyBatchSizeInPartitioning(workflowScheduler, 1)

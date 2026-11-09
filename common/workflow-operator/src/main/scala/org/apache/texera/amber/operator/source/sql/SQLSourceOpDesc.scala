@@ -138,12 +138,30 @@ abstract class SQLSourceOpDesc extends SourceOperatorDescriptor {
     * @return Schema
     */
   private def querySchema: Schema = {
-    if (
-      this.host == null || this.port == null || this.database == null
-      || this.table == null || this.username == null || this.password == null
-    ) {
-      return null
-    }
+    require(
+      host != null && host.trim.nonEmpty,
+      s"Please enter a valid host name for the database in the properties panel."
+    )
+    require(
+      port != null && port.trim.nonEmpty,
+      s"Please enter a valid port for the database in the properties panel."
+    )
+    require(
+      database != null && database.trim.nonEmpty,
+      s"Please enter a valid database name in the properties panel."
+    )
+    require(
+      table != null && table.trim.nonEmpty,
+      s"Please enter a valid table name in the properties panel."
+    )
+    require(
+      username != null && username.trim.nonEmpty,
+      s"Please enter a valid username in the properties panel."
+    )
+    require(
+      password != null && password.trim.nonEmpty,
+      s"Please enter a valid password in the properties panel."
+    )
 
     updatePort()
     try {

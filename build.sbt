@@ -16,7 +16,7 @@
 // under the License.
 
 ThisBuild / organization := "org.apache.texera"
-ThisBuild / version      := "1.3.0-incubating-SNAPSHOT"
+ThisBuild / version      := "1.4.0-incubating-SNAPSHOT"
 ThisBuild / scalaVersion := "2.13.18"
 
 // Pull JDK 17+ JVM flags from .jvmopts so every JVM the build launches sees the same list.
@@ -39,7 +39,7 @@ ThisBuild / Test / testOptions += Tests.Argument(TestFrameworks.ScalaTest, "-u",
 // sbt-jacoco emits only HTML by default; add XML so Codecov can consume
 // per-module jacoco.xml at target/scala-2.13/jacoco/report/jacoco.xml.
 // JacocoPlugin defines a project-scoped default that overrides ThisBuild,
-// so this Seq is bundled into asfLicensingSettings (applied to every module).
+// so this Seq is folded into commonModuleSettings (applied to every module).
 import com.github.sbt.jacoco.report.{JacocoReportFormats, JacocoReportSettings}
 lazy val coverageReportSettings = Seq(
   jacocoReportSettings := JacocoReportSettings()
@@ -57,22 +57,89 @@ lazy val universalJvmFlagsSettings = Seq(
 // See project/AddMetaInfLicenseFiles.scala.
 // Dist-producing modules additionally override Universal / mappings in their own
 // build.sbt (not here) — see AddMetaInfLicenseFiles.distMappings.
-lazy val asfLicensingSettings = AddMetaInfLicenseFiles.defaultSettings ++ coverageReportSettings ++ universalJvmFlagsSettings
-lazy val asfLicensingSettingsWithVendored = AddMetaInfLicenseFiles.workflowOperatorSettings ++ coverageReportSettings ++ universalJvmFlagsSettings
+lazy val asfLicensingSettings = AddMetaInfLicenseFiles.defaultSettings
+lazy val asfLicensingSettingsWithVendored = AddMetaInfLicenseFiles.workflowOperatorSettings
 
-val jacksonVersion = "2.18.6"
+val bouncyCastleVersion = "1.84"
 
-lazy val DAO = (project in file("common/dao")).settings(asfLicensingSettings)
-lazy val Config = (project in file("common/config")).settings(asfLicensingSettings)
-lazy val Resource = (project in file("common/resource")).settings(asfLicensingSettings)
+lazy val bouncyCastleOverrides = Seq(
+  "org.bouncycastle" % "bcpkix-jdk18on" % bouncyCastleVersion,
+  "org.bouncycastle" % "bcprov-jdk18on" % bouncyCastleVersion,
+  "org.bouncycastle" % "bcutil-jdk18on" % bouncyCastleVersion
+)
+
+lazy val commonDependencyOverrides = Seq(
+  dependencyOverrides ++= bouncyCastleOverrides
+)
+
+// Aggregate of the settings every module shares. These are independent
+// concerns — ASF licensing, jacoco XML coverage, and universal JVM flags —
+// grouped only so each module can apply them with a single .settings(...) call.
+lazy val commonModuleSettings =
+  asfLicensingSettings ++ coverageReportSettings ++ universalJvmFlagsSettings ++ commonDependencyOverrides
+lazy val commonModuleSettingsWithVendored =
+  asfLicensingSettingsWithVendored ++ coverageReportSettings ++ universalJvmFlagsSettings ++ commonDependencyOverrides
+
+val jacksonVersion = "2.18.8"
+
+// Netty must be pinned as a single coordinated family: Apache Arrow's
+// arrow-memory-netty accesses Netty allocator internals, so a split across the
+// 4.1/4.2 line breaks it (NoClassDefFoundError: ThreadAwareExecutor). Arrow
+// 19.0.0 targets the Netty 4.2 line, so the whole family is held at 4.2.x here
+// and in common/workflow-core/build.sbt.
+val nettyVersion = "4.2.15.Final"
+
+// The full Netty family pinned to nettyVersion. Applied to every module whose
+// dist bundles Arrow Flight (amber + the Arrow-carrying platform services), so
+// the 4.1/4.2 line can never split — arrow-memory-netty reaches into Netty
+// allocator internals and a split breaks it. Kept in sync with the same list
+// in common/workflow-core/build.sbt (which can't see this val).
+val nettyDependencyOverrides = Seq(
+  "io.netty" % "netty-all" % nettyVersion,
+  "io.netty" % "netty-buffer" % nettyVersion,
+  "io.netty" % "netty-codec" % nettyVersion,
+  "io.netty" % "netty-codec-http" % nettyVersion,
+  "io.netty" % "netty-codec-http2" % nettyVersion,
+  "io.netty" % "netty-codec-socks" % nettyVersion,
+  "io.netty" % "netty-common" % nettyVersion,
+  "io.netty" % "netty-handler" % nettyVersion,
+  "io.netty" % "netty-handler-proxy" % nettyVersion,
+  "io.netty" % "netty-resolver" % nettyVersion,
+  "io.netty" % "netty-transport" % nettyVersion,
+  "io.netty" % "netty-transport-classes-epoll" % nettyVersion,
+  "io.netty" % "netty-transport-native-epoll" % nettyVersion,
+  "io.netty" % "netty-transport-native-unix-common" % nettyVersion
+)
+
+// Hadoop/ZooKeeper (declared in common/workflow-core and amber) pull in the
+// EOL log4j 1.2.17, which has open CVEs and no fixed 1.x release. Keep it out
+// of every module; the log4j 2.x bridges declared in common/workflow-core
+// keep the org.apache.log4j API available at runtime.
+ThisBuild / excludeDependencies += ExclusionRule("log4j", "log4j")
+
+// Dependency-free helpers (retry/backoff, ...) that any module may depend on. Keep it that way:
+// anything added here reaches the classpath of every service that depends on it.
+lazy val Util = (project in file("common/util")).settings(commonModuleSettings)
+lazy val DAO = (project in file("common/dao")).settings(commonModuleSettings)
+lazy val Config = (project in file("common/config")).settings(commonModuleSettings)
+// OpenTelemetry bootstrap (OtelInit, log appender, sanitizer) shared by every
+// service entry point; pins the OTel dependency versions in one place. Depends
+// on Config to read OTEL_* settings from observability.conf.
+lazy val Observability =
+  (project in file("common/observability")).settings(commonModuleSettings).dependsOn(Config)
+lazy val Resource = (project in file("common/resource"))
+  .settings(commonModuleSettings)
+  .dependsOn(DAO, Auth)
+  .dependsOn(DAO % "test->test") // reuse MockTexeraDB embedded Postgres in tests
 lazy val Auth = (project in file("common/auth"))
-  .settings(asfLicensingSettings)
+  .settings(commonModuleSettings)
   .configs(Test)
   .dependsOn(DAO, Config)
   .dependsOn(DAO % "test->test") // reuse MockTexeraDB embedded Postgres in tests
 lazy val ConfigService = (project in file("config-service"))
-  .dependsOn(Auth, Config, Resource)
-  .settings(asfLicensingSettings)
+  .dependsOn(Auth, Config, DAO, Resource, Observability)
+  .dependsOn(DAO % "test->test") // reuse MockTexeraDB embedded Postgres in tests
+  .settings(commonModuleSettings)
   .settings(
     dependencyOverrides ++= Seq(
       // override it as io.dropwizard 4 require 2.16.1 or higher
@@ -80,8 +147,8 @@ lazy val ConfigService = (project in file("config-service"))
     )
   )
 lazy val AccessControlService = (project in file("access-control-service"))
-  .dependsOn(Auth, Config, DAO, Resource)
-  .settings(asfLicensingSettings)
+  .dependsOn(Auth, Config, DAO, Resource, Observability)
+  .settings(commonModuleSettings)
   .settings(
     dependencyOverrides ++= Seq(
       // override it as io.dropwizard 4 require 2.16.1 or higher
@@ -94,37 +161,75 @@ lazy val AccessControlService = (project in file("access-control-service"))
 //This Scala module defines a pyb"..." macro-based DSL for composing Python code templates as an immutable PythonTemplateBuilder.
 //Used mainly for Python Native Operators
 lazy val PyBuilder = (project in file("common/pybuilder"))
-  .settings(asfLicensingSettings)
+  .settings(commonModuleSettings)
   .configs(Test)
   .dependsOn(DAO % "test->test") // test scope dependency
 
 lazy val WorkflowCore = (project in file("common/workflow-core"))
-  .settings(asfLicensingSettings)
-  .dependsOn(DAO, Config, PyBuilder)
+  .settings(commonModuleSettings)
+  .dependsOn(DAO, Config, PyBuilder, Util)
   .configs(Test)
   .dependsOn(DAO % "test->test") // test scope dependency
 lazy val ComputingUnitManagingService = (project in file("computing-unit-managing-service"))
-  .dependsOn(WorkflowCore, Auth, Config, Resource)
-  .settings(asfLicensingSettings)
+  .dependsOn(WorkflowCore, Auth, Config, Resource, Observability)
+  .configs(Test)
+  .dependsOn(DAO % "test->test") // reuse MockTexeraDB embedded Postgres in tests
+  .settings(commonModuleSettings)
+  .configs(Test)
+  .dependsOn(DAO % "test->test", Auth % "test->test") // reuse MockTexeraDB embedded Postgres in tests
   .settings(
+    // MockTexeraDB swaps a JVM-wide singleton (SqlServer's embedded Postgres),
+    // so run suites serially to avoid cross-suite races.
+    Test / parallelExecution := false,
     dependencyOverrides ++= Seq(
       // override it as io.dropwizard 4 require 2.16.1 or higher
-      "com.fasterxml.jackson.module" %% "jackson-module-scala" % jacksonVersion
-    )
+      "com.fasterxml.jackson.module" %% "jackson-module-scala" % jacksonVersion,
+      // Arrow 19 (via WorkflowCore) evicts jackson-databind up to 2.21.0, past
+      // the 2.18 range jackson-module-scala allows; pin it back to jacksonVersion
+      // so the Scala module can initialize (else the service aborts at startup
+      // with "Scala module 2.18.8 requires Jackson Databind version >= 2.18.0
+      // and < 2.19.0 - Found jackson-databind version 2.21.0").
+      "com.fasterxml.jackson.core" % "jackson-databind" % jacksonVersion
+    ) ++ nettyDependencyOverrides,
+    // Fork the test JVM so the sharing feature flag can be enabled: ComputingUnitConfig
+    // reads computing-unit.conf's sharing.enabled as a load-time val (default false,
+    // overridable only via the COMPUTING_UNIT_SHARING_ENABLED env var), and the
+    // access-resource tests need it on to reach the share/revoke code paths. Also run
+    // from the repo root so MockTexeraDB can resolve sql/texera_ddl.sql by relative path.
+    Test / fork := true,
+    Test / envVars += "COMPUTING_UNIT_SHARING_ENABLED" -> "true",
+    Test / forkOptions := (Test / forkOptions).value
+      .withWorkingDirectory((ThisBuild / baseDirectory).value),
+    // Isolate the sharing-disabled suite into its own forked JVM without
+    // COMPUTING_UNIT_SHARING_ENABLED: the config flag is a load-time val, so the disabled
+    // branch can only be exercised where the env var is absent (not merely unset per-test).
+    // All other suites keep running together in one forked JVM (the pre-grouping default).
+    Test / testGrouping := {
+      val opts = (Test / forkOptions).value
+      val (disabled, enabled) =
+        (Test / definedTests).value.partition(_.name.endsWith("SharingDisabledSpec"))
+      val enabledGroup = Tests.Group("sharing-enabled", enabled, Tests.SubProcess(opts))
+      val disabledGroups = disabled.map { suite =>
+        val disabledOpts = opts.withEnvVars(opts.envVars - "COMPUTING_UNIT_SHARING_ENABLED")
+        Tests.Group(suite.name, Seq(suite), Tests.SubProcess(disabledOpts))
+      }
+      enabledGroup +: disabledGroups
+    }
   )
 lazy val FileService = (project in file("file-service"))
-  .settings(asfLicensingSettings)
-  .dependsOn(WorkflowCore, Auth, Config, Resource)
+  .settings(commonModuleSettings)
+  .dependsOn(WorkflowCore, Auth, Config, Resource, Util, Observability)
   .configs(Test)
   .dependsOn(DAO % "test->test") // test scope dependency
+  .dependsOn(WorkflowCore % "test->test") // reuse RustFSContainer in MockLakeFS
   .settings(
     dependencyOverrides ++= Seq(
       // override it as io.dropwizard 4 require 2.16.1 or higher
       "com.fasterxml.jackson.module" %% "jackson-module-scala" % jacksonVersion,
       "com.fasterxml.jackson.core" % "jackson-databind" % jacksonVersion,
       "org.glassfish.jersey.core" % "jersey-common" % "3.0.12"
-    ),
-    // Each testcontainers-based suite starts its own LakeFS/MinIO/Postgres stack
+    ) ++ nettyDependencyOverrides,
+    // Each testcontainers-based suite starts its own LakeFS/RustFS/Postgres stack
     // and mutates JVM-wide singletons (StorageConfig endpoints, LakeFS client),
     // so every suite gets its own forked JVM; sbt runs forked groups one at a
     // time by default (Tags.ForkedTestGroup limit), keeping the stacks serial.
@@ -136,22 +241,28 @@ lazy val FileService = (project in file("file-service"))
     }
   )
 
-lazy val WorkflowOperator = (project in file("common/workflow-operator")).settings(asfLicensingSettingsWithVendored).dependsOn(WorkflowCore)
+lazy val WorkflowOperator = (project in file("common/workflow-operator")).settings(commonModuleSettingsWithVendored).dependsOn(WorkflowCore)
+  .configs(Test)
+  .dependsOn(DAO % "test->test") // MockTexeraDB, to force a UDF's execution-time binding
+lazy val WorkflowCompiler = (project in file("common/workflow-compiler"))
+  .settings(commonModuleSettings)
+  .configs(Test)
+  .dependsOn(WorkflowOperator)
 lazy val WorkflowCompilingService = (project in file("workflow-compiling-service"))
-  .dependsOn(WorkflowOperator, Auth, Config, Resource)
-  .settings(asfLicensingSettings)
+  .dependsOn(WorkflowCompiler, Auth, Config, Resource, Observability)
+  .settings(commonModuleSettings)
   .settings(
     dependencyOverrides ++= Seq(
       // override it as io.dropwizard 4 require 2.16.1 or higher
       "com.fasterxml.jackson.module" %% "jackson-module-scala" % jacksonVersion,
       "com.fasterxml.jackson.core" % "jackson-databind" % jacksonVersion,
       "org.glassfish.jersey.core" % "jersey-common" % "3.0.12"
-    )
+    ) ++ nettyDependencyOverrides
   )
 
 lazy val WorkflowExecutionService = (project in file("amber"))
-  .dependsOn(WorkflowOperator, Auth, Config)
-  .settings(asfLicensingSettings)
+  .dependsOn(WorkflowCompiler, Auth, Config, Observability)
+  .settings(commonModuleSettings)
   .settings(
     dependencyOverrides ++= Seq(
       "com.fasterxml.jackson.core" % "jackson-core" % jacksonVersion,
@@ -160,29 +271,23 @@ lazy val WorkflowExecutionService = (project in file("amber"))
       "org.slf4j" % "slf4j-api" % "1.7.26",
       "org.eclipse.jetty" % "jetty-server" % "9.4.20.v20190813",
       "org.eclipse.jetty" % "jetty-servlet" % "9.4.20.v20190813",
-      "org.eclipse.jetty" % "jetty-http" % "9.4.20.v20190813",
-      // Netty dependency overrides to ensure compatibility with Arrow 14.0.1
-      // Arrow requires Netty 4.1.96.Final to avoid NoSuchFieldError: chunkSize
-      "io.netty" % "netty-all" % "4.1.96.Final",
-      "io.netty" % "netty-buffer" % "4.1.96.Final",
-      "io.netty" % "netty-codec" % "4.1.96.Final",
-      "io.netty" % "netty-codec-http" % "4.1.96.Final",
-      "io.netty" % "netty-codec-http2" % "4.1.96.Final",
-      "io.netty" % "netty-common" % "4.1.96.Final",
-      "io.netty" % "netty-handler" % "4.1.96.Final",
-      "io.netty" % "netty-resolver" % "4.1.96.Final",
-      "io.netty" % "netty-transport" % "4.1.96.Final",
-      "io.netty" % "netty-transport-native-unix-common" % "4.1.96.Final"
-    ),
+      "org.eclipse.jetty" % "jetty-http" % "9.4.20.v20190813"
+    ) ++ nettyDependencyOverrides,
     libraryDependencies ++= Seq(
       "com.squareup.okhttp3" % "okhttp" % "4.10.0" force () // Force usage of OkHttp 4.10.0
     )
   )
   .configs(Test)
   .dependsOn(DAO % "test->test", Auth % "test->test") // test scope dependency
+  .settings(
+    // WorkflowMetricsRecorderSpec asserts exact counts on the process-wide WorkflowMetrics
+    // instruments; run suites serially so a concurrent execution suite does not record into
+    // them mid-assertion.
+    Test / parallelExecution := false
+  )
 lazy val NotebookMigrationService = (project in file("notebook-migration-service"))
-  .dependsOn(Auth, Config, DAO, Resource)
-  .settings(asfLicensingSettings)
+  .dependsOn(Auth, Config, DAO, Resource, Observability)
+  .settings(commonModuleSettings)
   .settings(
     dependencyOverrides ++= Seq(
       // override it as io.dropwizard 4 require 2.16.1 or higher
@@ -197,11 +302,14 @@ lazy val TexeraProject = (project in file("."))
     // common libraries
     Auth,
     Config,
+    Observability,
     Resource,
+    Util,
     DAO,
     PyBuilder,
     WorkflowCore,
     WorkflowOperator,
+    WorkflowCompiler,
     // services
     AccessControlService,
     ComputingUnitManagingService,

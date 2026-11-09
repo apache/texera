@@ -60,8 +60,9 @@ class MySQLSourceOpDescSpec extends AnyFlatSpec with Matchers {
     d.interval shouldBe 0L
   }
 
-  "MySQLSourceOpDesc.sourceSchema" should "be null before a connection is configured" in {
-    (new MySQLSourceOpDesc).sourceSchema() shouldBe null
+  "MySQLSourceOpDesc.sourceSchema" should "prompt for connection details before a connection is configured" in {
+    val ex = intercept[IllegalArgumentException]((new MySQLSourceOpDesc).sourceSchema())
+    ex.getMessage should include("host")
   }
 
   "MySQLSourceOpDesc.getPhysicalOp" should

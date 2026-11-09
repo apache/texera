@@ -19,7 +19,6 @@
 
 package org.apache.texera.web
 
-import com.fasterxml.jackson.module.scala.DefaultScalaModule
 import com.typesafe.scalalogging.LazyLogging
 import io.dropwizard.Configuration
 import io.dropwizard.configuration.{EnvironmentVariableSubstitutor, SubstitutingSourceProvider}
@@ -29,7 +28,7 @@ import org.apache.texera.common.config.{ApplicationConfig, StorageConfig}
 import org.apache.texera.amber.core.storage.DocumentFactory
 import org.apache.texera.amber.core.virtualidentity.ExecutionIdentity
 import org.apache.texera.amber.core.workflow.{PhysicalPlan, WorkflowContext}
-import org.apache.texera.amber.engine.architecture.controller.ControllerConfig
+import org.apache.texera.amber.engine.architecture.coordinator.CoordinatorConfig
 import org.apache.texera.amber.engine.architecture.rpc.controlreturns.WorkflowAggregatedState.{
   COMPLETED,
   FAILED
@@ -40,7 +39,7 @@ import org.apache.texera.amber.engine.common.client.AmberClient
 import org.apache.texera.amber.engine.common.storage.SequentialRecordStorage
 import org.apache.texera.amber.engine.common.{AmberRuntime, Utils}
 import org.apache.texera.amber.util.JSONUtils.objectMapper
-import org.apache.texera.amber.util.ObjectMapperUtils
+import org.apache.texera.amber.util.{JSONUtils, ObjectMapperUtils}
 import org.apache.commons.jcs3.access.exception.InvalidArgumentException
 import org.apache.texera.auth.SessionUser
 import org.apache.texera.dao.SqlServer
@@ -69,7 +68,7 @@ object ComputingUnitMaster {
   def createAmberRuntime(
       workflowContext: WorkflowContext,
       physicalPlan: PhysicalPlan,
-      conf: ControllerConfig,
+      conf: CoordinatorConfig,
       errorHandler: Throwable => Unit
   ): AmberClient = {
     new AmberClient(
@@ -134,11 +133,13 @@ class ComputingUnitMaster extends io.dropwizard.Application[Configuration] with 
         classOf[PveWebsocketResource]
       )
     )
-    // register scala module to dropwizard default object mapper
-    bootstrap.getObjectMapper.registerModule(DefaultScalaModule)
+    // register the modules that parse workflows (SyncExecutionResource) to dropwizard's mapper
+    JSONUtils.registerWorkflowModules(bootstrap.getObjectMapper)
   }
 
   override def run(configuration: Configuration, environment: Environment): Unit = {
+    org.apache.texera.observability.OtelInit.init("computing-unit-master")
+    org.apache.texera.web.observability.WorkflowMetricsRecorder.init()
     ObjectMapperUtils.warmupObjectMapperForOperatorsSerde()
 
     SqlServer.initConnection(

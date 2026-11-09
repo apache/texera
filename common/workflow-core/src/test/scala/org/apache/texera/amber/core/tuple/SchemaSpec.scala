@@ -19,6 +19,7 @@
 
 package org.apache.texera.amber.core.tuple
 
+import org.apache.texera.amber.util.JSONUtils.objectMapper
 import org.scalatest.flatspec.AnyFlatSpec
 
 class SchemaSpec extends AnyFlatSpec {
@@ -273,5 +274,52 @@ class SchemaSpec extends AnyFlatSpec {
     assert(
       schema.toString == "Schema[Attribute[name=id, type=integer], Attribute[name=name, type=string]]"
     )
+  }
+
+  it should "produce equal, deterministic hash codes for equal schemas" in {
+    val a = Schema(
+      List(new Attribute("id", AttributeType.INTEGER), new Attribute("name", AttributeType.STRING))
+    )
+    val b = Schema(
+      List(new Attribute("id", AttributeType.INTEGER), new Attribute("name", AttributeType.STRING))
+    )
+    assert(a.hashCode == a.hashCode)
+    assert(a == b && a.hashCode == b.hashCode)
+    assert(Schema().hashCode == Schema().hashCode)
+  }
+
+  it should "not be equal to a non-Schema object" in {
+    val schema = Schema(List(new Attribute("id", AttributeType.INTEGER)))
+    assert(!schema.equals("not a schema"))
+    assert(!schema.equals(42))
+    assert(!schema.equals(null))
+  }
+
+  it should "throw when add(Iterable) contains a name already in the schema" in {
+    val schema = Schema(List(new Attribute("id", AttributeType.INTEGER)))
+    val ex = intercept[RuntimeException] {
+      schema.add(List(new Attribute("id", AttributeType.STRING)))
+    }
+    assert(ex.getMessage == "Cannot add attributes with duplicate names: id")
+  }
+
+  it should "throw when add(Attribute) name already exists" in {
+    val schema = Schema(List(new Attribute("id", AttributeType.INTEGER)))
+    val ex = intercept[RuntimeException] {
+      schema.add(new Attribute("id", AttributeType.LONG))
+    }
+    assert(ex.getMessage == "Attribute name 'id' already exists in the schema")
+  }
+
+  it should "round-trip through Jackson via the @JsonCreator constructor" in {
+    val schema =
+      Schema(
+        List(
+          new Attribute("id", AttributeType.INTEGER),
+          new Attribute("name", AttributeType.STRING)
+        )
+      )
+    val restored = objectMapper.readValue(objectMapper.writeValueAsString(schema), classOf[Schema])
+    assert(restored == schema)
   }
 }

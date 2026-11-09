@@ -28,7 +28,7 @@ import org.apache.texera.amber.core.tuple.Tuple
 import org.apache.texera.amber.core.workflow.WorkflowContext
 import org.apache.texera.amber.core.workflowruntimestate.FatalErrorType.EXECUTION_FAILURE
 import org.apache.texera.amber.core.workflowruntimestate.WorkflowFatalError
-import org.apache.texera.amber.engine.architecture.controller.{
+import org.apache.texera.amber.engine.architecture.coordinator.{
   ExecutionStateUpdate,
   ExecutionStatsUpdate,
   FatalError,
@@ -78,7 +78,8 @@ class ExecutionStatsService(
     val thread = Executors.newSingleThreadExecutor()
     val uri = VFSURIFactory.createRuntimeStatisticsURI(
       workflowContext.workflowId,
-      workflowContext.executionId
+      workflowContext.executionId,
+      warehouse = workflowContext.warehouse
     )
     val writer = DocumentFactory
       .createDocument(uri, ResultSchema.runtimeStatisticsSchema)
@@ -124,7 +125,8 @@ class ExecutionStatsService(
                 metrics.operatorStatistics.numWorkers,
                 metrics.operatorStatistics.dataProcessingTime,
                 metrics.operatorStatistics.controlProcessingTime,
-                metrics.operatorStatistics.idleTime
+                metrics.operatorStatistics.idleTime,
+                reusedFromCache = metrics.reusedFromCache
               )
               (x._1, res)
           })
@@ -236,23 +238,7 @@ class ExecutionStatsService(
     val updatedLastMetrics = lastPersistedMetrics ++ newKeys.map(_ -> defaultMetrics)
 
     // Combine new metrics with old metrics for keys that are no longer present
-    val completeMetricsMap = newMetrics ++ oldKeys.map(key => key -> updatedLastMetrics(key))
-
-    // Transform the complete metrics map to ensure consistent structure
-    completeMetricsMap.map {
-      case (key, metrics) =>
-        key -> OperatorMetrics(
-          metrics.operatorState,
-          OperatorStatistics(
-            metrics.operatorStatistics.inputMetrics,
-            metrics.operatorStatistics.outputMetrics,
-            metrics.operatorStatistics.numWorkers,
-            metrics.operatorStatistics.dataProcessingTime,
-            metrics.operatorStatistics.controlProcessingTime,
-            metrics.operatorStatistics.idleTime
-          )
-        )
-    }
+    newMetrics ++ oldKeys.map(key => key -> updatedLastMetrics(key))
   }
 
   private def storeRuntimeStatistics(

@@ -17,19 +17,22 @@
 
 from loguru import logger
 from overrides import overrides
-from typing import Iterator, Optional, Union
+from typing import Iterator, Optional, Union, Dict, Any
 
+from core.models.operator import LoopStartOperator, LoopEndOperator
 from pyamber import *
 from .storage.dataset_file_document import DatasetFileDocument
 from .storage.large_binary_input_stream import LargeBinaryInputStream
 from .storage.large_binary_output_stream import LargeBinaryOutputStream
 from .udf.udf_operator import (
+    Resource,
     UDFOperatorV2,
     UDFTableOperator,
     UDFBatchOperator,
     UDFSourceOperator,
 )
 from core.models.type.large_binary import largebinary
+from core.models.schema.attribute_type import AttributeType
 
 __all__ = [
     "State",
@@ -43,6 +46,8 @@ __all__ = [
     "UDFTableOperator",
     "UDFBatchOperator",
     "UDFSourceOperator",
+    "LoopStartOperator",
+    "LoopEndOperator",
     "DatasetFileDocument",
     "largebinary",
     "LargeBinaryInputStream",
@@ -53,4 +58,8 @@ __all__ = [
     "Iterator",
     "Optional",
     "Union",
+    "Dict",
+    "Any",
+    "AttributeType",
+    "Resource",
 ]

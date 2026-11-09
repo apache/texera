@@ -17,7 +17,11 @@
  under the License.
 -->
 
-<div class="file-tree-container">
+<div
+  #container
+  class="file-tree-container"
+  [style.height.px]="fileTreeContainerHeightPx"
+  [style.--tree-node-height.px]="TREE_NODE_HEIGHT_PX">
   <tree-root
     #tree
     [nodes]="fileTreeNodes"
@@ -52,7 +56,7 @@
         <button
           nz-button
           nzType="link"
-          *ngIf="!node.data.children && isImageFile(node.data.name)"
+          *ngIf="isCoverSettable && !node.data.children && isImageFile(node.data.name)"
           class="icon-button"
           nz-tooltip="Set as cover"
           (click)="onSetCover(node.data)">

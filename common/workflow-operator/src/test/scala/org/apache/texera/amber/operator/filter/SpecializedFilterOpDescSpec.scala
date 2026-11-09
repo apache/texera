@@ -20,7 +20,9 @@
 package org.apache.texera.amber.operator.filter
 
 import org.apache.texera.amber.core.executor.OpExecWithClassName
+import org.apache.texera.amber.core.tuple.{Attribute, AttributeType, Schema}
 import org.apache.texera.amber.core.virtualidentity.{ExecutionIdentity, WorkflowIdentity}
+import org.apache.texera.amber.core.workflow.PortIdentity
 import org.apache.texera.amber.operator.LogicalOp
 import org.apache.texera.amber.operator.metadata.OperatorGroupConstants
 import org.apache.texera.amber.util.JSONUtils.objectMapper
@@ -70,4 +72,37 @@ class SpecializedFilterOpDescSpec extends AnyFlatSpec with Matchers {
     restored shouldBe a[SpecializedFilterOpDesc]
     restored.asInstanceOf[SpecializedFilterOpDesc].predicates shouldBe empty
   }
+
+  // A null answers false for every condition but IS_NULL / IS_NOT_NULL, which pandas
+  // does not do on its own for `!=`, so the emitted condition carries the guard.
+  "SpecializedFilterOpDesc.generateStandaloneCode" should "emit one condition per predicate" in {
+    val d = new SpecializedFilterOpDesc
+    d.predicates = List(new FilterPredicate("age", ComparisonType.GREATER_THAN, "18"))
+    val code = d.generateStandaloneCode()
+    code should include("in1df[\"age\"]")
+    code should include("out1df")
+  }
+
+  // FilterPredicate reads `Name` from a column `name`, since Schema ignores case.
+  // pandas would raise a KeyError on `Name`, so the script reads the column as the
+  // table spells it.
+  it should "read a column named in a different case from the table" in {
+    val d = new SpecializedFilterOpDesc
+    d.predicates = List(
+      new FilterPredicate("Name", ComparisonType.EQUAL_TO, "a"),
+      new FilterPredicate("NAME", ComparisonType.IS_NULL, "")
+    )
+    val inputSchemas =
+      Map(PortIdentity() -> Schema().add(new Attribute("name", AttributeType.STRING)))
+    d.generateStandaloneCode(inputSchemas) shouldBe
+      """out1df = in1df[(in1df["name"].notna() & (in1df["name"] == "a")) | (in1df["name"].isna())].reset_index(drop=True)"""
+  }
+
+  // The executor filters on `predicates.exists`, which answers false on an empty
+  // list, so no predicate keeps no row. The columns survive; the rows do not.
+  it should "keep no row when there is no predicate" in {
+    (new SpecializedFilterOpDesc).generateStandaloneCode() shouldBe
+      "out1df = in1df.iloc[0:0].copy()"
+  }
+
 }

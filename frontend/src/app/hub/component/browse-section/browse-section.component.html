@@ -24,7 +24,7 @@
   <div class="entity-cards">
     <nz-card
       nzHoverable
-      [routerLink]="entity.id !== undefined ? entityRoutes[entity.id] : []"
+      [routerLink]="routeFor(entity)"
       [nzCover]="coverTemplate"
       class="entity-card"
       *ngFor="let entity of entities">
@@ -33,7 +33,7 @@
       <div class="footer">
         <span class="footer-text">Edited: {{ entity.lastModifiedTime | date }}</span>
         <texera-user-avatar
-          [googleAvatar]="entity.ownerGoogleAvatar"
+          [avatar]="entity.ownerAvatar"
           userColor="grey"
           [userName]="entity.ownerName || ''"
           nz-button>

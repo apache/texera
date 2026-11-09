@@ -56,9 +56,9 @@ jobs:
       && github.event.comment.user.type != 'Bot'
       && (startsWith(github.event.comment.body, '/take')
           || startsWith(github.event.comment.body, '/untake'))
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-slim
     steps:
-      - uses: actions/github-script@v8
+      - uses: actions/github-script@v9
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           script: |
@@ -109,9 +109,9 @@ jobs:
       && github.event.comment.user.type != 'Bot'
       && (startsWith(github.event.comment.body, '/request-review')
           || startsWith(github.event.comment.body, '/unrequest-review'))
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-slim
     steps:
-      - uses: actions/github-script@v8
+      - uses: actions/github-script@v9
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           script: |
@@ -195,9 +195,9 @@ jobs:
           || startsWith(github.event.comment.body, '/unsub-issue')
           || startsWith(github.event.comment.body, '/parent-issue')
           || startsWith(github.event.comment.body, '/unparent-issue'))
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-slim
     steps:
-      - uses: actions/github-script@v8
+      - uses: actions/github-script@v9
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           script: |

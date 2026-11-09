@@ -23,8 +23,11 @@ import org.apache.texera.amber.core.tuple.{AttributeType, Schema}
 import org.apache.texera.amber.operator.LogicalOp
 import org.apache.texera.amber.operator.metadata.OperatorGroupConstants
 import org.apache.texera.amber.util.JSONUtils.objectMapper
+import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaInject
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
+
+import scala.jdk.CollectionConverters._
 
 class RangeSliderOpDescSpec extends AnyFlatSpec with Matchers {
 
@@ -73,5 +76,22 @@ class RangeSliderOpDescSpec extends AnyFlatSpec with Matchers {
     r.xAxis shouldBe "month"
     r.yAxis shouldBe "sales"
     r.duplicateType shouldBe RangeSliderHandleDuplicateFunction.MEAN
+  }
+
+  "RangeSliderOpDesc @JsonSchemaInject" should
+    "constrain the aggregated Y-axis to numeric and leave X-axis unconstrained" in {
+    // The rule key must be an actual @JsonProperty name; a key of "value" (no such
+    // field) matches nothing, so no numeric constraint reaches the column pickers.
+    val ann = classOf[RangeSliderOpDesc].getAnnotation(classOf[JsonSchemaInject])
+    ann should not be null
+    val rules = objectMapper.readTree(ann.json).path("attributeTypeRules")
+    rules.fieldNames().asScala.toSet shouldBe Set("Y-axis")
+    rules
+      .path("Y-axis")
+      .path("enum")
+      .elements()
+      .asScala
+      .map(_.asText())
+      .toSet shouldBe Set("integer", "long", "double")
   }
 }

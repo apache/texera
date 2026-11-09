@@ -53,8 +53,9 @@ class JSONLScanSourceOpDescSpec extends AnyFlatSpec with Matchers {
     d.fileTypeName shouldBe Some("JSONL")
   }
 
-  "JSONLScanSourceOpDesc.sourceSchema" should "be null before a file is resolved" in {
-    (new JSONLScanSourceOpDesc).sourceSchema() shouldBe null
+  "JSONLScanSourceOpDesc.sourceSchema" should "prompt for a file before one is resolved" in {
+    val ex = intercept[IllegalArgumentException]((new JSONLScanSourceOpDesc).sourceSchema())
+    ex.getMessage should include("No file selected")
   }
 
   "JSONLScanSourceOpDesc.getPhysicalOp" should

@@ -55,11 +55,15 @@ class URLFetchUtilSpec extends AnyFlatSpec {
   private class CountingStreamHandler(succeedWithBytes: Option[Array[Byte]])
       extends URLStreamHandler {
     val openConnectionCount = new AtomicInteger(0)
+    // Captures the most recent User-Agent request property set on a connection.
+    var userAgent: Option[String] = None
 
     override def openConnection(u: URL): URLConnection = {
       openConnectionCount.incrementAndGet()
       new URLConnection(u) {
         override def connect(): Unit = ()
+        override def setRequestProperty(key: String, value: String): Unit =
+          if (key == "User-Agent") userAgent = Some(value)
         override def getInputStream: InputStream =
           succeedWithBytes match {
             case Some(bytes) => new ByteArrayInputStream(bytes)
@@ -134,5 +138,18 @@ class URLFetchUtilSpec extends AnyFlatSpec {
     val result = URLFetchUtil.getInputStreamFromURL(countingUrl(handler), retries = 2)
     assert(result.isEmpty)
     assert(handler.openConnectionCount.get() == 2)
+  }
+
+  // ---------------------------------------------------------------------------
+  // Request headers
+  // ---------------------------------------------------------------------------
+
+  it should "set a User-Agent request property before reading the stream" in {
+    val handler =
+      new CountingStreamHandler(Some("ok".getBytes(StandardCharsets.UTF_8)))
+    val result = URLFetchUtil.getInputStreamFromURL(countingUrl(handler))
+    result.foreach(_.close())
+    // Pin only that the header is set, not its specific (randomized) value.
+    assert(handler.userAgent.isDefined)
   }
 }

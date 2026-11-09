@@ -21,18 +21,24 @@ package org.apache.texera.amber.util
 
 import org.apache.texera.amber.core.tuple.{AttributeType, LargeBinary, Schema, Tuple}
 import org.apache.texera.amber.util.IcebergUtil.toIcebergSchema
+import org.apache.hadoop.fs.FileSystem
+import org.apache.iceberg.catalog.{Catalog, TableIdentifier}
 import org.apache.iceberg.data.GenericRecord
-import org.apache.iceberg.exceptions.RESTException
+import org.apache.iceberg.exceptions.{AlreadyExistsException, RESTException}
 import org.apache.iceberg.types.Types
 import org.apache.iceberg.{Schema => IcebergSchema}
+import org.scalamock.scalatest.MockFactory
 import org.scalatest.flatspec.AnyFlatSpec
 
+import java.net.URI
 import java.nio.ByteBuffer
+import java.nio.file.Files
 import java.sql.Timestamp
 import java.time.{LocalDateTime, ZoneId}
+import java.util.TimeZone
 import scala.jdk.CollectionConverters._
 
-class IcebergUtilSpec extends AnyFlatSpec {
+class IcebergUtilSpec extends AnyFlatSpec with MockFactory {
 
   val texeraSchema: Schema = Schema()
     .add("test-1", AttributeType.INTEGER)
@@ -67,6 +73,14 @@ class IcebergUtilSpec extends AnyFlatSpec {
     assert(IcebergUtil.toIcebergType(AttributeType.BINARY) == Types.BinaryType.get())
   }
 
+  it should "reject ANY when converting to an Iceberg Type" in {
+    val exception = intercept[IllegalArgumentException] {
+      IcebergUtil.toIcebergType(AttributeType.ANY)
+    }
+
+    assert(exception.getMessage == "ANY type is not supported in Iceberg")
+  }
+
   it should "convert from Iceberg Type to AttributeType correctly" in {
     assert(IcebergUtil.fromIcebergType(Types.IntegerType.get()) == AttributeType.INTEGER)
     assert(IcebergUtil.fromIcebergType(Types.LongType.get()) == AttributeType.LONG)
@@ -77,6 +91,14 @@ class IcebergUtilSpec extends AnyFlatSpec {
     )
     assert(IcebergUtil.fromIcebergType(Types.StringType.get()) == AttributeType.STRING)
     assert(IcebergUtil.fromIcebergType(Types.BinaryType.get()) == AttributeType.BINARY)
+  }
+
+  it should "reject unsupported primitive Iceberg types" in {
+    val exception = intercept[IllegalArgumentException] {
+      IcebergUtil.fromIcebergType(Types.DateType.get())
+    }
+
+    assert(exception.getMessage == "Unsupported Iceberg type: date")
   }
 
   it should "convert from Texera Schema to Iceberg Schema correctly" in {
@@ -115,6 +137,23 @@ class IcebergUtilSpec extends AnyFlatSpec {
 
     val tupleFromRecord = IcebergUtil.fromRecord(record, texeraSchema)
     assert(tupleFromRecord == tuple)
+  }
+
+  // Los Angeles kept local mean time, -7:52:58, until 1883. A zone with no such
+  // history, as UTC has, would let the old conversion pass.
+  it should "store a timestamp before 1883 at the wall clock it holds" in {
+    val zone = TimeZone.getDefault
+    TimeZone.setDefault(TimeZone.getTimeZone("America/Los_Angeles"))
+    try {
+      val schema = Schema().add("ts", AttributeType.TIMESTAMP)
+      Seq("1600-06-15 08:30:00", "1677-09-21 00:00:00").foreach { text =>
+        val ts = Timestamp.valueOf(text)
+        val tuple = Tuple.builder(schema).addSequentially(Array(ts)).build()
+        val record = IcebergUtil.toGenericRecord(toIcebergSchema(schema), tuple)
+        assert(record.getField("ts") == ts.toLocalDateTime)
+        assert(IcebergUtil.fromRecord(record, schema) == tuple)
+      }
+    } finally TimeZone.setDefault(zone)
   }
 
   it should "convert Texera Tuple with null values to Iceberg GenericRecord correctly" in {
@@ -298,6 +337,134 @@ class IcebergUtilSpec extends AnyFlatSpec {
     assert(record.getField("large_binary_2__texera_large_binary_ptr") == null)
 
     assert(IcebergUtil.fromRecord(record, schema) == tuple)
+  }
+
+  it should "select WinutilsFreeLocalFileSystem when winutils is unavailable on Windows" in {
+    val conf = IcebergUtil.newLocalHadoopConf(useWinutilsFreeLocalFs = true)
+    assert(conf.get("fs.file.impl") == classOf[WinutilsFreeLocalFileSystem].getName)
+    assert(conf.getBoolean("fs.file.impl.disable.cache", false))
+    assert(
+      FileSystem.get(URI.create("file:///"), conf).isInstanceOf[WinutilsFreeLocalFileSystem]
+    )
+  }
+
+  it should "leave the Hadoop configuration untouched when winutils is not needed" in {
+    val conf = IcebergUtil.newLocalHadoopConf(useWinutilsFreeLocalFs = false)
+    assert(conf.get("fs.file.impl") == null)
+    assert(!conf.getBoolean("fs.file.impl.disable.cache", false))
+  }
+
+  it should "create and load tables via createHadoopCatalog in a local warehouse on every platform" in {
+    val warehouse = Files.createTempDirectory("iceberg-local-warehouse")
+    val catalog = IcebergUtil.createHadoopCatalog("local_test", warehouse)
+
+    // On Windows hosts without a winutils.exe installation, this used to fail with
+    // "Hadoop bin directory does not exist": Hadoop's default local file system
+    // shells out to winutils for chmod on every file/directory creation.
+    IcebergUtil.createTable(
+      catalog,
+      "test_namespace",
+      "test_table",
+      IcebergUtil.toIcebergSchema(Schema().add("id", AttributeType.INTEGER)),
+      overrideIfExists = true
+    )
+
+    assert(
+      Files.exists(warehouse.resolve("test_namespace").resolve("test_table").resolve("metadata")),
+      "table metadata must be written through the local file system"
+    )
+    assert(IcebergUtil.loadTableMetadata(catalog, "test_namespace", "test_table").nonEmpty)
+    assert(IcebergUtil.loadTableMetadata(catalog, "test_namespace", "missing_table").isEmpty)
+  }
+
+  it should "reject catalogs that do not support namespaces" in {
+    val catalog = mock[Catalog]
+
+    val exception = intercept[IllegalArgumentException] {
+      IcebergUtil.createTable(
+        catalog,
+        "test_namespace",
+        "test_table",
+        icebergSchema,
+        overrideIfExists = true
+      )
+    }
+
+    assert(
+      exception.getMessage ==
+        s"Catalog ${catalog.getClass.getName} does not support namespaces"
+    )
+  }
+
+  it should "drop and recreate an existing table when override is enabled" in {
+    val warehouse = Files.createTempDirectory("iceberg-override-warehouse")
+    val catalog = IcebergUtil.createHadoopCatalog("override_test", warehouse)
+    val originalSchema = IcebergUtil.toIcebergSchema(Schema().add("id", AttributeType.INTEGER))
+    val replacementSchema = IcebergUtil.toIcebergSchema(Schema().add("value", AttributeType.STRING))
+
+    IcebergUtil.createTable(
+      catalog,
+      "test_namespace",
+      "test_table",
+      originalSchema,
+      overrideIfExists = false
+    )
+    val recreatedTable = IcebergUtil.createTable(
+      catalog,
+      "test_namespace",
+      "test_table",
+      replacementSchema,
+      overrideIfExists = true
+    )
+
+    assert(recreatedTable.schema().sameSchema(replacementSchema))
+    assert(
+      catalog
+        .loadTable(TableIdentifier.of("test_namespace", "test_table"))
+        .schema()
+        .sameSchema(replacementSchema)
+    )
+  }
+
+  it should "preserve an existing table when override is disabled" in {
+    val warehouse = Files.createTempDirectory("iceberg-preserve-warehouse")
+    val catalog = IcebergUtil.createHadoopCatalog("preserve_test", warehouse)
+    val originalSchema = IcebergUtil.toIcebergSchema(Schema().add("id", AttributeType.INTEGER))
+    val replacementSchema = IcebergUtil.toIcebergSchema(Schema().add("value", AttributeType.STRING))
+
+    IcebergUtil.createTable(
+      catalog,
+      "test_namespace",
+      "test_table",
+      originalSchema,
+      overrideIfExists = false
+    )
+
+    intercept[AlreadyExistsException] {
+      IcebergUtil.createTable(
+        catalog,
+        "test_namespace",
+        "test_table",
+        replacementSchema,
+        overrideIfExists = false
+      )
+    }
+    assert(
+      catalog
+        .loadTable(TableIdentifier.of("test_namespace", "test_table"))
+        .schema()
+        .sameSchema(originalSchema)
+    )
+  }
+
+  it should "return None when loading table metadata fails" in {
+    val catalog = mock[Catalog]
+    val identifier = TableIdentifier.of("test_namespace", "test_table")
+    (catalog.loadTable _)
+      .expects(identifier)
+      .throwing(new RuntimeException("catalog unavailable"))
+
+    assert(IcebergUtil.loadTableMetadata(catalog, "test_namespace", "test_table").isEmpty)
   }
 
   it should "surface RESTException when createRestCatalog cannot reach the REST endpoint" in {

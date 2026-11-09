@@ -43,12 +43,12 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout texera
-        uses: actions/checkout@v5
+        uses: actions/checkout@v7
         with:
           path: texera
 
       - name: Checkout incubator-texera-site
-        uses: actions/checkout@v5
+        uses: actions/checkout@v7
         with:
           repository: apache/incubator-texera-site
           ref: main

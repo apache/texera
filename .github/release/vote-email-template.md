@@ -1,3 +1,22 @@
+<!--
+  ~ Licensed to the Apache Software Foundation (ASF) under one
+  ~ or more contributor license agreements.  See the NOTICE file
+  ~ distributed with this work for additional information
+  ~ regarding copyright ownership.  The ASF licenses this file
+  ~ to you under the Apache License, Version 2.0 (the
+  ~ "License"); you may not use this file except in compliance
+  ~ with the License.  You may obtain a copy of the License at
+  ~
+  ~   http://www.apache.org/licenses/LICENSE-2.0
+  ~
+  ~ Unless required by applicable law or agreed to in writing,
+  ~ software distributed under the License is distributed on an
+  ~ "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+  ~ KIND, either express or implied.  See the License for the
+  ~ specific language governing permissions and limitations
+  ~ under the License.
+-->
+
 Subject: [VOTE] Release Apache Texera (incubating) ${VERSION} RC${RC_NUM}
 
 Hi Texera Community,
@@ -31,6 +50,16 @@ The Dockerfiles are included in the source for audit and verification.
 https://github.com/apache/texera/releases/tag/${TAG_NAME}
 Commit: ${COMMIT_HASH}
 
+== Reproducing the Artifacts ==
+
+Both tarballs are reproducible. To rebuild them from the tag (needs GNU tar)
+and compare against the staged checksums:
+
+  git clone https://github.com/apache/texera.git && cd texera
+  git checkout ${TAG_NAME}
+  ./.github/scripts/create-release-tarballs.sh ${TAG_NAME} ${VERSION} ${IMAGE_REGISTRY} ${IMAGE_TAG} /tmp/texera-rc
+  sha512sum /tmp/texera-rc/*.tar.gz
+
 == Keys ==
 
 The release was signed with GPG key [${GPG_KEY_ID}] (${GPG_EMAIL})
@@ -51,6 +80,7 @@ The vote will be open for at least 72 hours.
 [ ] All files have ASF license headers where appropriate
 [ ] No unexpected binary files
 [ ] Source tarball matches the Git tag
+[ ] Rebuilt tarballs match the staged SHA512 checksums
 [ ] Can compile from source successfully
 [ ] Docker Compose bundle deploys successfully with the published images
 

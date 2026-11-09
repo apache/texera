@@ -38,12 +38,14 @@ class EmailTemplateSpec extends AnyFlatSpec with Matchers {
     val msg = EmailTemplate.userRegistrationNotification(
       receiverEmail = "admin@example.com",
       userEmail = Some("alice@example.com"),
+      userName = Some("Alice Example"),
       affiliation = Some("UC Irvine"),
       reason = Some("research"),
       toAdmin = true
     )
     msg.receiver shouldBe "admin@example.com"
     msg.subject should startWith("New Account Request Pending Approval")
+    msg.content should include("Name: Alice Example")
     msg.content should include("Email: alice@example.com")
     msg.content should include("Affiliation: UC Irvine")
     msg.content should include("Reason: research")
@@ -54,6 +56,7 @@ class EmailTemplateSpec extends AnyFlatSpec with Matchers {
     val msg = EmailTemplate.userRegistrationNotification(
       receiverEmail = "admin@example.com",
       userEmail = None,
+      userName = None,
       affiliation = Some("UC Irvine"),
       reason = Some("research"),
       toAdmin = true
@@ -61,20 +64,23 @@ class EmailTemplateSpec extends AnyFlatSpec with Matchers {
     msg.content should include("Email: Unknown")
   }
 
-  it should "render 'Not provided' for affiliation/reason when None or whitespace-only" in {
+  it should "render 'Not provided' for name, affiliation, and reason when blank" in {
     val withNone = EmailTemplate.userRegistrationNotification(
       receiverEmail = "admin@example.com",
       userEmail = Some("alice@example.com"),
+      userName = None,
       affiliation = None,
       reason = None,
       toAdmin = true
     )
     withNone.content should include("Affiliation: Not provided")
     withNone.content should include("Reason: Not provided")
+    withNone.content should include("Name: Not provided")
 
     val withBlank = EmailTemplate.userRegistrationNotification(
       receiverEmail = "admin@example.com",
       userEmail = Some("alice@example.com"),
+      userName = Some("   "),
       affiliation = Some("   "),
       reason = Some(""),
       toAdmin = true
@@ -83,6 +89,7 @@ class EmailTemplateSpec extends AnyFlatSpec with Matchers {
     // strings the same as None.
     withBlank.content should include("Affiliation: Not provided")
     withBlank.content should include("Reason: Not provided")
+    withBlank.content should include("Name: Not provided")
   }
 
   // -- userRegistrationNotification (user branch) -----------------------------
@@ -92,6 +99,7 @@ class EmailTemplateSpec extends AnyFlatSpec with Matchers {
     val msg = EmailTemplate.userRegistrationNotification(
       receiverEmail = "alice@example.com",
       userEmail = Some("ignored@example.com"),
+      userName = Some("Ignored Name"),
       affiliation = Some("ignored"),
       reason = Some("ignored"),
       toAdmin = false
@@ -103,6 +111,7 @@ class EmailTemplateSpec extends AnyFlatSpec with Matchers {
     // fields back to the requester — if a refactor accidentally surfaces
     // them, this assertion will catch the leak.
     msg.content should not include "Email: ignored"
+    msg.content should not include "Name: Ignored Name"
     msg.content should not include "Affiliation: ignored"
     msg.content should not include "Reason: ignored"
   }

@@ -47,9 +47,18 @@ class AggregateOpExec(descString: String) extends OperatorExecutor {
 
     // Initialize distributedAggregations if it's not yet initialized
     if (distributedAggregations == null) {
-      distributedAggregations = desc.aggregations.map(agg =>
-        agg.getAggFunc(tuple.getSchema.getAttribute(agg.attribute).getType)
-      )
+      distributedAggregations = desc.aggregations.map { agg =>
+        // Only COUNT with an empty attribute (COUNT(*)) skips the column lookup; its
+        // result does not depend on any input attribute. Every other function resolves
+        // the input attribute (failing fast if it is missing/invalid).
+        val attrType =
+          if (
+            agg.aggFunction == AggregationFunction.COUNT &&
+            (agg.attribute == null || agg.attribute.trim.isEmpty)
+          ) null
+          else tuple.getSchema.getAttribute(agg.attribute).getType
+        agg.getAggFunc(attrType)
+      }
     }
 
     // Construct the group key

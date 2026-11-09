@@ -22,7 +22,7 @@ import { tool } from "ai";
 import { WorkflowState } from "../workflow-state";
 import { autoLayoutWorkflow } from "../util/auto-layout";
 import { WorkflowUtilService } from "../util/workflow-utils";
-import type { OperatorLink } from "../../types/workflow";
+import type { OperatorLink, PortDescription } from "../../types/workflow";
 import {
   createToolResult,
   createErrorResult,
@@ -55,6 +55,50 @@ function formatInputArgs(args: Record<string, any>): string {
     if (value !== undefined) compact[key] = value;
   }
   return `Input: ${JSON.stringify(compact)}`;
+}
+
+/**
+ * Checks every port index and source operator in inputOperatorIds and returns the links to create,
+ * or the first error. It doesn't change the workflow, so callers must run it before any mutation.
+ */
+function resolveInputLinks(
+  workflowState: WorkflowState,
+  operatorId: string,
+  inputPorts: PortDescription[],
+  inputOperatorIds: Record<string, string[]> | undefined,
+  inputInfo: string
+): { links: Omit<OperatorLink, "linkID">[] } | { error: string } {
+  const links: Omit<OperatorLink, "linkID">[] = [];
+  for (const [portIndexStr, sourceOpIds] of Object.entries(inputOperatorIds ?? {})) {
+    if (!/^\d+$/.test(portIndexStr)) {
+      return { error: `Invalid input port index: "${portIndexStr}". Must be a non-negative integer. ${inputInfo}` };
+    }
+    const targetPortIdx = parseInt(portIndexStr, 10);
+    if (targetPortIdx >= inputPorts.length) {
+      return {
+        error: `Input port index ${targetPortIdx} out of range. Operator "${operatorId}" has ${inputPorts.length} input port(s). ${inputInfo}`,
+      };
+    }
+    const targetPortId = inputPorts[targetPortIdx].portID;
+
+    for (const sourceOpId of sourceOpIds) {
+      if (sourceOpId === operatorId) {
+        return { error: `Operator "${operatorId}" cannot be its own input source. ${inputInfo}` };
+      }
+      const sourceOp = workflowState.getOperator(sourceOpId);
+      if (!sourceOp) {
+        return {
+          error: `Source operator "${sourceOpId}" not found. Make sure it exists before referencing it in inputOperatorIds. ${inputInfo}`,
+        };
+      }
+      const sourcePortId = sourceOp.outputPorts.length > 0 ? sourceOp.outputPorts[0].portID : "output-0";
+      links.push({
+        source: { operatorID: sourceOpId, portID: sourcePortId },
+        target: { operatorID: operatorId, portID: targetPortId },
+      });
+    }
+  }
+  return { links };
 }
 
 export function createAddOperatorTool(
@@ -143,44 +187,21 @@ Examples:
           operatorProperties: { ...operator.operatorProperties, ...args.properties },
         };
 
+        const resolved = resolveInputLinks(
+          workflowState,
+          args.operatorId,
+          operator.inputPorts,
+          args.inputOperatorIds,
+          inputInfo
+        );
+        if ("error" in resolved) return createErrorResult(resolved.error);
+
         workflowState.addOperator(operator);
 
         const createdLinkPairs: { source: string; target: string }[] = [];
-        if (args.inputOperatorIds) {
-          const addedOperator = workflowState.getOperator(operator.operatorID)!;
-          for (const [portIndexStr, sourceOpIds] of Object.entries(args.inputOperatorIds)) {
-            const targetPortIdx = parseInt(portIndexStr, 10);
-            if (isNaN(targetPortIdx) || targetPortIdx < 0) {
-              return createErrorResult(
-                `Invalid input port index: "${portIndexStr}". Must be a non-negative integer. ${inputInfo}`
-              );
-            }
-            if (targetPortIdx >= addedOperator.inputPorts.length) {
-              return createErrorResult(
-                `Input port index ${targetPortIdx} out of range. Operator "${args.operatorId}" has ${addedOperator.inputPorts.length} input port(s). ${inputInfo}`
-              );
-            }
-            const targetPortId = addedOperator.inputPorts[targetPortIdx].portID;
-
-            for (const sourceOpId of sourceOpIds) {
-              const sourceOp = workflowState.getOperator(sourceOpId);
-              if (!sourceOp) {
-                return createErrorResult(
-                  `Source operator "${sourceOpId}" not found. Make sure it exists before referencing it in inputOperatorIds. ${inputInfo}`
-                );
-              }
-              const sourcePortId = sourceOp.outputPorts.length > 0 ? sourceOp.outputPorts[0].portID : "output-0";
-
-              const linkId = workflowState.generateLinkId();
-              const link: OperatorLink = {
-                linkID: linkId,
-                source: { operatorID: sourceOpId, portID: sourcePortId },
-                target: { operatorID: args.operatorId, portID: targetPortId },
-              };
-              workflowState.addLink(link);
-              createdLinkPairs.push({ source: sourceOpId, target: args.operatorId });
-            }
-          }
+        for (const link of resolved.links) {
+          workflowState.addLink({ linkID: workflowState.generateLinkId(), ...link });
+          createdLinkPairs.push({ source: link.source.operatorID, target: args.operatorId });
         }
 
         autoLayoutWorkflow(workflowState);
@@ -254,6 +275,15 @@ Examples:
           }
         }
 
+        const resolved = resolveInputLinks(
+          workflowState,
+          args.operatorId,
+          operator.inputPorts,
+          args.inputOperatorIds,
+          inputInfo
+        );
+        if ("error" in resolved) return createErrorResult(resolved.error);
+
         const createdLinkPairs: { source: string; target: string }[] = [];
         const deletedLinkPairs: { source: string; target: string }[] = [];
 
@@ -274,38 +304,9 @@ Examples:
             workflowState.deleteLink(link.linkID);
           }
 
-          for (const [portIndexStr, sourceOpIds] of Object.entries(args.inputOperatorIds)) {
-            const targetPortIdx = parseInt(portIndexStr, 10);
-            if (isNaN(targetPortIdx) || targetPortIdx < 0) {
-              return createErrorResult(
-                `Invalid input port index: "${portIndexStr}". Must be a non-negative integer. ${inputInfo}`
-              );
-            }
-            if (targetPortIdx >= operator.inputPorts.length) {
-              return createErrorResult(
-                `Input port index ${targetPortIdx} out of range. Operator "${args.operatorId}" has ${operator.inputPorts.length} input port(s). ${inputInfo}`
-              );
-            }
-            const targetPortId = operator.inputPorts[targetPortIdx].portID;
-
-            for (const sourceOpId of sourceOpIds) {
-              const sourceOp = workflowState.getOperator(sourceOpId);
-              if (!sourceOp) {
-                return createErrorResult(
-                  `Source operator "${sourceOpId}" not found. Make sure it exists before referencing it in inputOperatorIds. ${inputInfo}`
-                );
-              }
-              const sourcePortId = sourceOp.outputPorts.length > 0 ? sourceOp.outputPorts[0].portID : "output-0";
-
-              const linkId = workflowState.generateLinkId();
-              const link: OperatorLink = {
-                linkID: linkId,
-                source: { operatorID: sourceOpId, portID: sourcePortId },
-                target: { operatorID: args.operatorId, portID: targetPortId },
-              };
-              workflowState.addLink(link);
-              createdLinkPairs.push({ source: sourceOpId, target: args.operatorId });
-            }
+          for (const link of resolved.links) {
+            workflowState.addLink({ linkID: workflowState.generateLinkId(), ...link });
+            createdLinkPairs.push({ source: link.source.operatorID, target: args.operatorId });
           }
 
           autoLayoutWorkflow(workflowState);

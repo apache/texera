@@ -55,8 +55,9 @@ class PostgreSQLSourceOpDescSpec extends AnyFlatSpec with Matchers {
     d.interval shouldBe 0L
   }
 
-  "PostgreSQLSourceOpDesc.sourceSchema" should "be null before a connection is configured" in {
-    (new PostgreSQLSourceOpDesc).sourceSchema() shouldBe null
+  "PostgreSQLSourceOpDesc.sourceSchema" should "prompt for connection details before a connection is configured" in {
+    val ex = intercept[IllegalArgumentException]((new PostgreSQLSourceOpDesc).sourceSchema())
+    ex.getMessage should include("host")
   }
 
   "PostgreSQLSourceOpDesc.getPhysicalOp" should

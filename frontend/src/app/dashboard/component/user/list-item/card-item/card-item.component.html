@@ -36,6 +36,39 @@
         [(ngModel)]="entry.checked"
         (ngModelChange)="onCheckboxChange(entry)"></label>
     </div>
+    <!-- Cover image controls (owner only) -->
+    <div
+      class="card-image-controls"
+      *ngIf="canEditCover"
+      (click)="$event.stopPropagation()">
+      <button
+        nz-button
+        nzType="text"
+        class="image-control-btn"
+        title="Change cover image"
+        (click)="openImagePicker()">
+        <i
+          nz-icon
+          nzType="camera"></i>
+      </button>
+      <button
+        *ngIf="canEditCover && hasCustomImage"
+        nz-button
+        nzType="text"
+        class="image-control-btn"
+        title="Reset to default image"
+        (click)="resetImage()">
+        <i
+          nz-icon
+          nzType="rollback"></i>
+      </button>
+      <input
+        #backgroundInput
+        type="file"
+        accept="image/*"
+        hidden
+        (change)="onImageSelected($event)" />
+    </div>
     <!-- Placeholder or Preview Image -->
     <img
       class="card-preview-image"
@@ -97,7 +130,7 @@
             class="owner-info"
             title="{{ entry.ownerName || 'User' }}">
             <texera-user-avatar
-              [googleAvatar]="entry.ownerGoogleAvatar"
+              [avatar]="entry.ownerAvatar"
               userColor="#1E90FF"
               [userName]="entry.ownerName || 'User'"></texera-user-avatar>
             <span class="owner-name truncate-single-line">{{ entry.ownerName || "User" }}</span>
@@ -111,9 +144,7 @@
               nzTheme="outline"></i>
             {{ formatTime(entry.creationTime) }}</span
           >
-          <span
-            *ngIf="size"
-            title="Size"
+          <span title="Size"
             ><i
               nz-icon
               nzType="file"
@@ -173,11 +204,30 @@
             nz-icon
             nzType="eye"></i>
         </button>
+        <!-- The default-view toggle, in the same slot as on the list row (after Detail), for anyone
+             with write access. A toggle button: constant name, state in aria-pressed (a name that
+             changed with the state would announce the opposite of what the state says); the title
+             spells out what a click does. -->
+        <button
+          nz-button
+          nzType="text"
+          class="action-btn default-view-toggle"
+          *ngIf="canToggleDefaultView"
+          aria-label="Open in the Form View by default"
+          [attr.aria-pressed]="defaultsToForm"
+          [class.defaults-to-form-on]="defaultsToForm"
+          [title]="defaultsToForm ? 'Open on the canvas by default' : 'Open in the Form View by default'"
+          (click)="onToggleDefaultView(); $event.stopPropagation()">
+          <i
+            nz-icon
+            nzType="solution"></i>
+        </button>
         <button
           nz-button
           nzType="text"
           class="action-btn"
           title="Share"
+          *ngIf="canShare"
           (click)="onClickOpenShareAccess(); $event.stopPropagation()">
           <i
             nz-icon
@@ -199,7 +249,7 @@
           nzType="text"
           class="action-btn"
           title="Download"
-          *ngIf="entry.type === 'workflow' || entry.type === 'dataset'"
+          *ngIf="canDownload"
           (click)="onClickDownload(); $event.stopPropagation()">
           <i
             nz-icon

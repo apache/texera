@@ -28,6 +28,7 @@ import { DashboardEntry } from "../../../type/dashboard-entry";
 import { SearchResultsComponent } from "../search-results/search-results.component";
 import { CardItemComponent } from "../list-item/card-item/card-item.component";
 import { FiltersComponent } from "../filters/filters.component";
+import { SortButtonComponent } from "../sort-button/sort-button.component";
 import { firstValueFrom } from "rxjs";
 import { USER_DATASET } from "../../../../app-routing.constant";
 import { NzModalService } from "ng-zorro-antd/modal";
@@ -36,7 +37,7 @@ import { DashboardDataset } from "../../../type/dashboard-dataset.interface";
 import { NzMessageService } from "ng-zorro-antd/message";
 import { map, tap } from "rxjs/operators";
 import { NzCardComponent } from "ng-zorro-antd/card";
-import { NzSpaceCompactItemDirective } from "ng-zorro-antd/space";
+import { NzSpaceCompactItemDirective, NzSpaceCompactComponent } from "ng-zorro-antd/space";
 import { NzButtonComponent } from "ng-zorro-antd/button";
 import { NzWaveDirective } from "ng-zorro-antd/core/wave";
 import { ɵNzTransitionPatchDirective } from "ng-zorro-antd/core/transition-patch";
@@ -44,6 +45,7 @@ import { NzIconDirective } from "ng-zorro-antd/icon";
 import { FiltersInstructionsComponent } from "../filters-instructions/filters-instructions.component";
 import { NzSelectComponent } from "ng-zorro-antd/select";
 import { FormsModule } from "@angular/forms";
+import { EntityType } from "../../../../hub/service/hub.service";
 
 @UntilDestroy()
 @Component({
@@ -53,11 +55,13 @@ import { FormsModule } from "@angular/forms";
   imports: [
     NzCardComponent,
     NzSpaceCompactItemDirective,
+    NzSpaceCompactComponent,
     NzButtonComponent,
     NzWaveDirective,
     ɵNzTransitionPatchDirective,
     NzIconDirective,
     FiltersComponent,
+    SortButtonComponent,
     FiltersInstructionsComponent,
     NzSelectComponent,
     FormsModule,
@@ -66,8 +70,11 @@ import { FormsModule } from "@angular/forms";
   ],
 })
 export class UserDatasetComponent implements AfterViewInit {
+  public readonly entityType = EntityType.Dataset;
   private static readonly VIEW_MODE_STORAGE_KEY = "texera.userDataset.viewMode";
-  public sortMethod = SortMethod.EditTimeDesc;
+  // Datasets have no "last modified" timestamp, so EditTimeDesc leaves the sort key NULL for every
+  // row and produces an undefined order. Default to CreateTimeDesc so newly created datasets appear first.
+  public sortMethod = SortMethod.CreateTimeDesc;
   lastSortMethod: SortMethod | null = null;
   public isLogin = this.userService.isLogin();
   public currentUid = this.userService.getCurrentUser()?.uid;

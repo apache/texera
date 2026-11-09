@@ -31,11 +31,11 @@ package org.apache.texera.amber.operator.huggingFace.codegen
   *    zero-shot-image-classification, image-text-to-text, image-to-image.
   *
   * Per-row `current_image_bytes` is resolved upstream in
-  * [[PythonCodegenBase]]'s `process_table` (either from the operator's
+  * [[HuggingFaceCodegenBase]]'s `process_table` (either from the operator's
   * uploaded image or from `INPUT_IMAGE_COLUMN`). The image helpers
   * (`_read_image_input`, `_compress_image_bytes`, `_image_input_as_base64`,
   * `_read_binary_value`, `_looks_like_html`, `_html_to_image_bytes`,
-  * `_extract_json_arg`) live in PythonCodegenBase alongside the per-task
+  * `_extract_json_arg`) live in HuggingFaceCodegenBase alongside the per-task
   * tuples (`image_only_tasks`, `image_prompt_tasks`, `image_tasks`).
   */
 object ImageTaskCodegen extends TaskCodegen {
@@ -90,27 +90,10 @@ object ImageTaskCodegen extends TaskCodegen {
       |                use_raw_binary_body = True
       |                raw_binary_headers = image_headers
       |            elif task == "zero-shot-image-classification":
-      |                # Zero-shot requires the caller to supply candidate labels.
-      |                # We reuse the prompt column as a comma-separated label list so
-      |                # the task is shippable without a dedicated operator field.
-      |                # TODO: replace with a first-class `candidateLabels` field once
-      |                # the property panel supports task-specific inputs.
-      |                #
-      |                # Fail fast if usable labels can't be derived. Both modes lead to
-      |                # a meaningless inference call:
-      |                #   1. Empty prompt column          -> labels = []
-      |                #      The HF API rejects candidate_labels: [] with an opaque 400.
-      |                #   2. Missing prompt column        -> upstream sets prompt_value
-      |                #      to the fallback "What is shown in this image?", which has
-      |                #      no comma, so labels collapses to a single nonsense entry.
-      |                # Zero-shot classification needs >= 2 candidate labels to be
-      |                # meaningful — surface a configuration error in both cases.
-      |                labels = [s.strip() for s in prompt_value.split(",") if s.strip()]
-      |                if len(labels) < 2:
-      |                    raise ValueError(
-      |                        "zero-shot-image-classification requires at least 2 candidate "
-      |                        "labels: provide a comma-separated list in the prompt column."
-      |                    )
+      |                # Labels come from the Candidate Labels property; the >= 2
+      |                # check runs pre-loop in HuggingFaceCodegenBase (fail-fast),
+      |                # so no per-row validation is needed here.
+      |                labels = [s.strip() for s in str(self.CANDIDATE_LABELS).split(",") if s.strip()]
       |                payload = {
       |                    "inputs": self._image_input_as_base64(current_image_bytes),
       |                    "parameters": {"candidate_labels": labels},
@@ -123,18 +106,22 @@ object ImageTaskCodegen extends TaskCodegen {
       |                if isinstance(body, dict):
       |                    if "md_results" in body:
       |                        return body["md_results"]
-      |                    if "choices" in body:
-      |                        return body["choices"][0]["message"]["content"]
+      |                    if body.get("choices"):
+      |                        return body["choices"][0].get("message", {}).get("content", json.dumps(body))
       |                if isinstance(body, list) and body and isinstance(body[0], dict):
       |                    return body[0].get("generated_text", json.dumps(body))
       |                return json.dumps(body)
       |            elif task in ("visual-question-answering", "document-question-answering"):
       |                if isinstance(body, dict):
+      |                    # Third-party chat providers answer via choices[0].message;
+      |                    # hf-inference returns the native {"answer": ...} shape.
+      |                    if body.get("choices"):
+      |                        return body["choices"][0].get("message", {}).get("content", json.dumps(body))
       |                    return body.get("answer", json.dumps(body))
       |                return json.dumps(body)
       |            elif task == "image-text-to-text":
-      |                if isinstance(body, dict) and "choices" in body:
-      |                    return body["choices"][0]["message"]["content"]
+      |                if isinstance(body, dict) and body.get("choices"):
+      |                    return body["choices"][0].get("message", {}).get("content", json.dumps(body))
       |                if isinstance(body, list) and body and isinstance(body[0], dict):
       |                    return body[0].get("generated_text", json.dumps(body))
       |                return json.dumps(body)
@@ -156,11 +143,19 @@ object ImageTaskCodegen extends TaskCodegen {
       |                            if outputs and isinstance(outputs[0], str) and outputs[0].startswith("http"):
       |                                return self._url_to_data_url(outputs[0])
       |                        if isinstance(data, list) and data and isinstance(data[0], dict):
-      |                            if "b64_json" in data[0]:
-      |                                return f"data:image/png;base64,{data[0]['b64_json']}"
+      |                            # b64_json comes straight from the provider: an unchecked
+      |                            # value reaches the cell as a data URL nothing can render,
+      |                            # e.g. "data:image/png;base64,None".
+      |                            b64 = data[0].get("b64_json")
+      |                            if isinstance(b64, str) and b64:
+      |                                return f"data:image/png;base64,{b64}"
       |                            if "url" in data[0]:
       |                                return self._url_to_data_url(data[0]["url"])
       |                return json.dumps(body)
-      |            elif task in ("image-classification", "object-detection", "image-segmentation", "zero-shot-image-classification"):
+      |            elif task == "zero-shot-image-classification":
+      |                if isinstance(body, dict) and body.get("choices"):
+      |                    return body["choices"][0].get("message", {}).get("content", json.dumps(body))
+      |                return json.dumps(body)
+      |            elif task in ("image-classification", "object-detection", "image-segmentation"):
       |                return json.dumps(body)""".stripMargin
 }

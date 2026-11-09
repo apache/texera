@@ -16,6 +16,7 @@
 # under the License.
 
 import pandas
+import pyarrow as pa
 from pampy import match
 from typing import Iterator, TypeVar, List
 
@@ -25,6 +26,22 @@ TableLike = TypeVar("TableLike", pandas.DataFrame, List[TupleLike])
 
 
 class Table(pandas.DataFrame):
+    @staticmethod
+    def empty_of(schema) -> "Table":
+        """
+        The declared columns with no rows under them.
+
+        ``from_tuple_likes`` reads the column names off the tuples it is given,
+        so with none to read it produces a frame of no columns at all, and an
+        operator naming any of its own columns raises KeyError. A port that
+        carried no rows still has a schema, and this is what it looks like as a
+        table. Building it through Arrow gives each column the dtype it would
+        have had with rows in it.
+        """
+        return Table(
+            pa.Table.from_pylist([], schema=schema.as_arrow_schema()).to_pandas()
+        )
+
     @staticmethod
     def from_table(table):
         return table

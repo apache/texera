@@ -1,3 +1,22 @@
+<!--
+  ~ Licensed to the Apache Software Foundation (ASF) under one
+  ~ or more contributor license agreements.  See the NOTICE file
+  ~ distributed with this work for additional information
+  ~ regarding copyright ownership.  The ASF licenses this file
+  ~ to you under the Apache License, Version 2.0 (the
+  ~ "License"); you may not use this file except in compliance
+  ~ with the License.  You may obtain a copy of the License at
+  ~
+  ~   http://www.apache.org/licenses/LICENSE-2.0
+  ~
+  ~ Unless required by applicable law or agreed to in writing,
+  ~ software distributed under the License is distributed on an
+  ~ "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+  ~ KIND, either express or implied.  See the License for the
+  ~ specific language governing permissions and limitations
+  ~ under the License.
+-->
+
 # Contributing to Texera
 
 Thank you for your interest in contributing to Texera! Please follow the steps below to submit your contributions effectively. We follow a **fork-based development workflow** and adopt the [Conventional Commits](https://www.conventionalcommits.org/en/v1.0.0/) specification for commit messages and pull request titles.
@@ -15,7 +34,7 @@ Thank you for your interest in contributing to Texera! Please follow the steps b
 ## 🛠 Contribution Steps
 
 ### 1. Fork the Repo
-- Fork the [Texera repository](https://github.com/Texera/texera) to your own GitHub account.
+- Fork the [Texera repository](https://github.com/apache/texera) to your own GitHub account.
 
 ### 2. Find an Existing Issue or Open an Issue
 - Find an existing issue that you want to work on, or create one issue for new proposal/bug description.
@@ -29,11 +48,46 @@ Thank you for your interest in contributing to Texera! Please follow the steps b
   
 #### PR Title and Commit Messages
 - We require all PR titles and commit messages to follow the [Conventional Commits spec](https://www.conventionalcommits.org/en/v1.0.0/).
-- All PR titles will be used as the **squashed commit message** when merged into the `master` branch.
+- All PR titles will be used as the **squashed commit message** when merged into the `main` branch.
 - Example PR titles:
   - `feat: add a new join operator`
-  - `fix(ui): prevent racing of requests`
-  - `chore(deps): bump numpy to version 2.0.0`
+  - `fix(frontend): prevent racing of requests`
+  - `chore(deps, pyamber): bump numpy to version 2.0.0`
+
+A scope names the module the change lands in — `amber`, `pyamber`, `frontend`, `agent-service`, `file-service`, and so on. Use the module's own name rather than an informal synonym, and when a PR spans modules, scope it to the one carrying the substantive change.
+
+##### Choosing between `feat`, `fix`, and `refactor`
+
+The type depends on what happens to the behavior, not on how large the change is.
+
+| Your change | Type |
+| ----------- | ---- |
+| A functionality worked before and no longer does | `fix` |
+| A functionality or a form of support never existed and you are adding it | `feat` |
+| A functionality exists and you are removing support for it | `feat` |
+| A functionality is reworked in a way that intentionally changes user-facing behavior | `feat` |
+| The change leaves the user-facing behavior unchanged | `refactor` |
+
+Behavior is defined by the code, not by what a document or an old PR description says the code does. A functionality that was never implemented does not exist, so implementing it is a `feat` even when the docs already described it as present.
+
+`refactor` is a strong claim: it says the **user-facing** behavior is identical. The test suite is how you check that, but not every test carries the same weight. A test that pins a user-facing API is the contract — if you had to change one of its assertions to make the suite green, the behavior moved, and the PR is a `feat` or a `fix`. A test that pins internals, such as a private helper's signature, the call order between two collaborators, or the shape of an intermediate value, is mirroring the implementation; rewriting it alongside the code it mirrors is expected and still a `refactor`.
+
+##### Tests and dependency bumps
+
+Test and dependency PRs take the titles below. Where the table shows a two-part scope, it is written as `<type>(<area>, <module>): <description>`:
+
+| Your change | Title |
+| ----------- | ----- |
+| A test-only PR — adding or updating tests | `test(<module>): ...`, e.g. `test(amber): add marker replay specs` |
+| Repairing a broken or flaky test | `fix(test, <module>): ...`, e.g. `fix(test, frontend): stabilize the dashboard spec` |
+| A dependency bump that patches a CVE | `fix(deps, <module>): ...`, e.g. `fix(deps, pyamber): bump protobuf for CVE-2025-4565` |
+| Any other dependency bump | `chore(deps, <module>): ...`, e.g. `chore(deps, pyamber): bump numpy to 2.0.0` |
+
+Omit the module for bumps that span modules. GitHub Actions bumps are dependency bumps too and take the `ci` module — `chore(deps, ci): ...`, or `fix(deps, ci): ...` when the bump patches a CVE — which is the form [`.github/renovate.json5`](.github/renovate.json5) opens them with. Reserve a bare `ci: ...` for hand-written CI and workflow changes.
+
+##### Backports
+
+A PR targeting a release branch appends the release version as the **last scope component**, so a backport of `fix(deps, frontend): ...` to `release/v1.2` is titled `fix(deps, frontend, v1.2): ...`. Version tags belong only on release-branch PRs — never put one on a PR targeting `main`.
 
 > 💡 You can use the [Conventional Commits plugin](https://plugins.jetbrains.com/plugin/13389-conventional-commit) in IntelliJ to help format commit messages correctly.
 
@@ -67,7 +121,7 @@ Do not include any of the following in your PR:
 * For the amber engine's tests, the working directory should be `amber`
 * For the other services' tests, the working directory should be the root directory
 #### Testing the frontend 
-Before merging your code to the master branch, you need to pass the existing unit tests first.
+Before merging your code to the main branch, you need to pass the existing unit tests first.
 1. Open a command line. Navigate to the `frontend` directory.
 2. Start the test:
 ```
@@ -84,8 +138,8 @@ yarn format:fix
 ### 4. PR Review
 - [ ] Ask a Texera Committer (by commenting on the PR) to triage your PR, i.e., request a reviewer, and assign the PR to you.
 - [ ] Add appropriate labels such as `fix`, `enhancement`, `docs`, etc.
-- [ ] If the change should also land in a release branch, add the matching `release/<branch>` label (e.g. `release/v1.1.0-incubating`); the change will be backported to that branch automatically.
-- [ ] Ensure that all CI checks pass (see [GitHub Actions](https://github.com/Texera/texera/actions)).
+- [ ] If the change should also land in a release branch, add the matching `release/<branch>` label (e.g. `release/v1.2`). The label nominates the branch; the change is backported there automatically once that branch's release manager — listed in [`.github/release-branches.yml`](.github/release-branches.yml) — approves the PR. The required `Backport Approvals` check stays red until every `release/*` label on the PR is approved, so ask each manager to either approve or remove their label; a manager (or any committer) removing it declines that backport.
+- [ ] Ensure that all CI checks pass (see [GitHub Actions](https://github.com/apache/texera/actions)).
 - [ ] Fully test your changes locally.
 
 > ℹ️ If your PR is not ready for review, please mark it as a draft. You can change it to “Ready for review” when it is complete.

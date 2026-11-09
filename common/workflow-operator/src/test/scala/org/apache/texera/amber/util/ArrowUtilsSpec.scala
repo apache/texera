@@ -149,7 +149,11 @@ class ArrowUtilsSpec extends AnyFlatSpec {
           Long.box(1L),
           Boolean.box(true),
           Double.box(1.1),
-          new Timestamp(10000L),
+          // Stated as a wall clock, which is what a Texera TIMESTAMP holds. Built
+          // from an epoch instead, the wall clock would be whichever one the
+          // machine's zone gives that instant, and what gets stored below would
+          // move with it.
+          Timestamp.valueOf("1970-01-01 00:00:10"),
           "hello world"
         )
       )
@@ -169,7 +173,9 @@ class ArrowUtilsSpec extends AnyFlatSpec {
     assert(vectorSchemaRoot.getVector(2).getObject(index).asInstanceOf[Boolean] == true)
     assert(vectorSchemaRoot.getVector(3).getObject(index).asInstanceOf[Double] == 1.1)
 
-    // the arrow storage type of timestamp is Long
+    // The arrow storage type of timestamp is Long, and the field is labelled
+    // UTC, so the wall clock above is stored as the UTC instant of the same
+    // reading: ten seconds past the epoch, on a server anywhere.
     assert(vectorSchemaRoot.getVector(4).getObject(index).asInstanceOf[Long] == 10000L)
 
     // the arrow storage type of string is Text

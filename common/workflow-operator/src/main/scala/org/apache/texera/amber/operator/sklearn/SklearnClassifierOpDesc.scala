@@ -19,90 +19,42 @@
 
 package org.apache.texera.amber.operator.sklearn
 
-import com.fasterxml.jackson.annotation.{JsonIgnore, JsonProperty, JsonPropertyDescription}
-import com.kjetland.jackson.jsonSchema.annotations.{
-  JsonSchemaInject,
-  JsonSchemaInt,
-  JsonSchemaString,
-  JsonSchemaTitle
-}
-import org.apache.texera.amber.core.tuple.{AttributeType, Schema}
+import org.apache.texera.amber.operator.StandaloneCodeGenerator
 import org.apache.texera.amber.pybuilder.PythonTemplateBuilder.PythonTemplateBuilderStringContext
-import org.apache.texera.amber.pybuilder.PyStringTypes.EncodableString
+import org.apache.texera.amber.pybuilder.PythonTemplateBuilder.pyStringLiteral
 import org.apache.texera.amber.core.workflow.{InputPort, OutputPort, PortIdentity}
-import org.apache.texera.amber.operator.PythonOperatorDescriptor
-import org.apache.texera.amber.operator.metadata.annotations.{
-  AutofillAttributeName,
-  CommonOpDescAnnotation,
-  HideAnnotation
-}
 import org.apache.texera.amber.operator.metadata.{OperatorGroupConstants, OperatorInfo}
 
-abstract class SklearnClassifierOpDesc extends PythonOperatorDescriptor {
+abstract class SklearnClassifierOpDesc extends SklearnModelOpDesc with StandaloneCodeGenerator {
 
-  @JsonSchemaTitle("Target Attribute")
-  @JsonPropertyDescription("Attribute in your dataset corresponding to target.")
-  @JsonProperty(required = true)
-  @AutofillAttributeName
-  var target: EncodableString = _
+  override def getImportStatements = ""
 
-  @JsonSchemaTitle("Count Vectorizer")
-  @JsonPropertyDescription("Convert a collection of text documents to a matrix of token counts.")
-  @JsonProperty(defaultValue = "false")
-  var countVectorizer: Boolean = false
-
-  @JsonSchemaTitle("Text Attribute")
-  @JsonPropertyDescription("Attribute in your dataset with text to vectorize.")
-  @JsonSchemaInject(
-    strings = Array(
-      new JsonSchemaString(
-        path = CommonOpDescAnnotation.autofill,
-        value = CommonOpDescAnnotation.attributeName
-      ),
-      new JsonSchemaString(path = HideAnnotation.hideTarget, value = "countVectorizer"),
-      new JsonSchemaString(path = HideAnnotation.hideType, value = HideAnnotation.Type.equals),
-      new JsonSchemaString(path = HideAnnotation.hideExpectedValue, value = "false")
-    ),
-    ints = Array(
-      new JsonSchemaInt(path = CommonOpDescAnnotation.autofillAttributeOnPort, value = 0)
-    )
-  )
-  var text: EncodableString = _
-
-  @JsonSchemaTitle("Tfidf Transformer")
-  @JsonPropertyDescription("Transform a count matrix to a normalized tf or tf-idf representation.")
-  @JsonProperty(defaultValue = "false")
-  @JsonSchemaInject(
-    strings = Array(
-      new JsonSchemaString(path = HideAnnotation.hideTarget, value = "countVectorizer"),
-      new JsonSchemaString(path = HideAnnotation.hideType, value = HideAnnotation.Type.equals),
-      new JsonSchemaString(path = HideAnnotation.hideExpectedValue, value = "false")
-    )
-  )
-  val tfidfTransformer: Boolean = false
-
-  @JsonIgnore
-  def getImportStatements = ""
-
-  @JsonIgnore
-  def getUserFriendlyModelName = ""
+  override def getUserFriendlyModelName = ""
 
   override def generatePythonCode(): String =
     pyb"""$getImportStatements
        |from sklearn.metrics import accuracy_score, f1_score, precision_score, recall_score
        |from sklearn.pipeline import make_pipeline
+       |from sklearn.compose import ColumnTransformer
        |from sklearn.feature_extraction.text import CountVectorizer, TfidfTransformer
        |import numpy as np
        |from pytexera import *
        |class ProcessTableOperator(UDFTableOperator):
        |    @overrides
        |    def process_table(self, table: Table, port: int) -> Iterator[Optional[TableLike]]:
+       |        rows_read = len(table)
+       |        table = $dropMissingRows #remove missing values
+       |        if len(table) < rows_read:
+       |            print("Skipped", rows_read - len(table), "of", rows_read, "rows with missing values")
        |        Y = table[$target]
        |        X = table.drop($target, axis=1)
-       |        X = ${if (countVectorizer) pyb"X[$text]" else "X"}
+       |${dropNonFeatureColumns("X", " " * 8)}
+$reportMissingKept
        |        if port == 0:
-       |            self.model = make_pipeline(${if (countVectorizer) "CountVectorizer(),"
-    else ""} ${if (tfidfTransformer) "TfidfTransformer()," else ""} ${getImportStatements
+       |            self.model = make_pipeline(${vectorizerStage(c => pyb"$c".toString)} ${if (
+      tfidfTransformer
+    ) "TfidfTransformer(),"
+    else ""} ${getImportStatements
       .split(" ")
       .last}()).fit(X, Y)
        |        else:
@@ -127,13 +79,44 @@ abstract class SklearnClassifierOpDesc extends PythonOperatorDescriptor {
       outputPorts = List(OutputPort(blocking = true))
     )
 
-  override def getOutputSchemas(
-      inputSchemas: Map[PortIdentity, Schema]
-  ): Map[PortIdentity, Schema] = {
-    Map(
-      operatorInfo.outputPorts.head.id -> Schema()
-        .add("model_name", AttributeType.STRING)
-        .add("model", AttributeType.BINARY)
-    )
+  override def generateStandaloneCode(): String = {
+    val estimator = getImportStatements.split(" ").last
+    val tfidfPart = if (tfidfTransformer) "TfidfTransformer()," else ""
+    val targetLit = pyStringLiteral(target)
+    val modelNameLit = pyStringLiteral(getUserFriendlyModelName)
+    val narrowTrain = dropNonFeatureColumns("X_train", "")
+    val narrowTest = dropNonFeatureColumns("X_test", "")
+
+    // Both frames drop the rows the operator drops, into local names, and each reports its skips.
+    s"""${getImportStatements}
+       |from sklearn.metrics import accuracy_score, f1_score, precision_score, recall_score
+       |from sklearn.pipeline import make_pipeline
+       |from sklearn.compose import ColumnTransformer
+       |from sklearn.feature_extraction.text import CountVectorizer, TfidfTransformer
+       |import numpy as np
+       |import pandas as pd
+       |
+       |_train = ${dropMissingRowsStandalone("in1df")}
+       |if len(_train) < len(in1df):
+       |    print("Skipped", len(in1df) - len(_train), "of", len(in1df), "rows with missing values")
+       |Y_train = _train[$targetLit]
+       |X_train = _train.drop($targetLit, axis=1)
+       |$narrowTrain
+       |model = make_pipeline(${vectorizerStage(c => pyStringLiteral(c))}$tfidfPart$estimator()).fit(X_train, Y_train)
+       |
+       |_test = ${dropMissingRowsStandalone("in2df")}
+       |if len(_test) < len(in2df):
+       |    print("Skipped", len(in2df) - len(_test), "of", len(in2df), "rows with missing values")
+       |Y_test = _test[$targetLit]
+       |X_test = _test.drop($targetLit, axis=1)
+       |$narrowTest
+       |predictions = model.predict(X_test)
+       |print("Overall Accuracy:", round(accuracy_score(Y_test, predictions), 4))
+       |f1s = f1_score(Y_test, predictions, average=None)
+       |precisions = precision_score(Y_test, predictions, average=None)
+       |recalls = recall_score(Y_test, predictions, average=None)
+       |for i, class_name in enumerate(np.unique(Y_test)):
+       |    print("Class", repr(class_name), " - F1:", round(f1s[i], 4), ", Precision:", round(precisions[i], 4), ", Recall:", round(recalls[i], 4))
+       |out1df = pd.DataFrame([{"model_name": $modelNameLit, "model": model}])""".stripMargin
   }
 }

@@ -22,4 +22,10 @@ package org.apache.texera.amber.operator.sklearn
 class SklearnGaussianNaiveBayesOpDesc extends SklearnClassifierOpDesc {
   override def getImportStatements = "from sklearn.naive_bayes import GaussianNB"
   override def getUserFriendlyModelName = "Gaussian Naive Bayes"
+
+  // GaussianNB estimates a mean and a variance for every feature, which reads the
+  // zeros as well, so scikit-learn validates its input without accept_sparse. The
+  // refusal is deliberate: densifying a text matrix is what would exhaust memory.
+  override protected def countVectorizerAlternatives: Option[String] =
+    Some("Multinomial, Bernoulli or Complement Naive Bayes")
 }

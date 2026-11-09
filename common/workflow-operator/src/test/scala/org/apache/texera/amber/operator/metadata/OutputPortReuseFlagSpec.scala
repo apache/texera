@@ -19,6 +19,7 @@
 
 package org.apache.texera.amber.operator.metadata
 
+import org.apache.texera.amber.operator.loop.LoopEndOpDesc
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 
@@ -26,21 +27,19 @@ import org.scalatest.matchers.should.Matchers
   * Guard for the `OutputPort.reuseStorage` flag.
   *
   * The flag tells the region scheduler to reuse (append to) a port's storage
-  * across region re-executions instead of recreating it. Only an operator whose
-  * output accumulates across re-executions should set it -- today that is no
-  * operator on `main` (the only one that will, Loop End, is not yet merged).
-  *
-  * This pins the flag off for every registered operator so it can't be turned
-  * on unexpectedly. When the loop operators land, update this to allow Loop
-  * End's output port (and only it).
+  * across region re-executions instead of recreating it. The only operator that
+  * needs it is Loop End, whose output accumulates across the iterations of its
+  * own loop. This pins that nothing else turns the flag on -- if a new operator
+  * (or a change to an existing one) enables it, this fails.
   */
 class OutputPortReuseFlagSpec extends AnyFlatSpec with Matchers {
 
-  "No registered operator" should "enable OutputPort.reuseStorage on any of its output ports" in {
+  "Only Loop End" should "enable OutputPort.reuseStorage on its output ports" in {
     OperatorMetadataGenerator.operatorTypeMap.keys.foreach { opClass =>
+      val mayReuse = opClass == classOf[LoopEndOpDesc]
       opClass.getConstructor().newInstance().operatorInfo.outputPorts.foreach { port =>
         withClue(s"${opClass.getSimpleName} / output port ${port.id}: ") {
-          port.reuseStorage shouldBe false
+          port.reuseStorage shouldBe mayReuse
         }
       }
     }

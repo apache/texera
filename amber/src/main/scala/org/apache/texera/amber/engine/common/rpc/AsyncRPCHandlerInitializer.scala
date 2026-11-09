@@ -25,9 +25,9 @@ import org.apache.texera.amber.core.virtualidentity.{
   ChannelIdentity,
   EmbeddedControlMessageIdentity
 }
-import org.apache.texera.amber.engine.architecture.controller.ClientEvent
+import org.apache.texera.amber.engine.architecture.coordinator.ClientEvent
 import org.apache.texera.amber.engine.architecture.rpc.controlcommands._
-import org.apache.texera.amber.engine.architecture.rpc.controllerservice.ControllerServiceFs2Grpc
+import org.apache.texera.amber.engine.architecture.rpc.coordinatorservice.CoordinatorServiceFs2Grpc
 import org.apache.texera.amber.engine.architecture.rpc.controlreturns._
 import org.apache.texera.amber.engine.architecture.rpc.workerservice.WorkerServiceFs2Grpc
 
@@ -48,8 +48,8 @@ class AsyncRPCHandlerInitializer(
   // register all handlers
   ctrlReceiver.handler = this
 
-  def controllerInterface: ControllerServiceFs2Grpc[Future, AsyncRPCContext] =
-    ctrlSource.controllerInterface
+  def coordinatorInterface: CoordinatorServiceFs2Grpc[Future, AsyncRPCContext] =
+    ctrlSource.coordinatorInterface
 
   def workerInterface: WorkerServiceFs2Grpc[Future, AsyncRPCContext] = ctrlSource.workerInterface
 

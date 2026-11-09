@@ -19,87 +19,38 @@
 
 package org.apache.texera.amber.operator.sklearn.training
 
-import com.fasterxml.jackson.annotation.{JsonIgnore, JsonProperty, JsonPropertyDescription}
-import com.kjetland.jackson.jsonSchema.annotations.{
-  JsonSchemaInject,
-  JsonSchemaInt,
-  JsonSchemaString,
-  JsonSchemaTitle
-}
-import org.apache.texera.amber.core.tuple.{AttributeType, Schema}
+import org.apache.texera.amber.operator.StandaloneCodeGenerator
 import org.apache.texera.amber.pybuilder.PythonTemplateBuilder.PythonTemplateBuilderStringContext
-import org.apache.texera.amber.pybuilder.PyStringTypes.EncodableString
+import org.apache.texera.amber.pybuilder.PythonTemplateBuilder.pyStringLiteral
 import org.apache.texera.amber.core.workflow.{InputPort, OutputPort, PortIdentity}
-import org.apache.texera.amber.operator.PythonOperatorDescriptor
-import org.apache.texera.amber.operator.metadata.annotations.{
-  AutofillAttributeName,
-  CommonOpDescAnnotation,
-  HideAnnotation
-}
 import org.apache.texera.amber.operator.metadata.{OperatorGroupConstants, OperatorInfo}
+import org.apache.texera.amber.operator.sklearn.SklearnModelOpDesc
 
-class SklearnTrainingOpDesc extends PythonOperatorDescriptor {
+class SklearnTrainingOpDesc extends SklearnModelOpDesc with StandaloneCodeGenerator {
 
-  @JsonSchemaTitle("Target Attribute")
-  @JsonPropertyDescription("Attribute in your dataset corresponding to target.")
-  @JsonProperty(required = true)
-  @AutofillAttributeName
-  var target: EncodableString = _
+  override def getImportStatements = ""
 
-  @JsonSchemaTitle("Count Vectorizer")
-  @JsonPropertyDescription("Convert a collection of text documents to a matrix of token counts.")
-  @JsonProperty(defaultValue = "false")
-  var countVectorizer: Boolean = false
-
-  @JsonSchemaTitle("Text Attribute")
-  @JsonPropertyDescription("Attribute in your dataset with text to vectorize.")
-  @JsonSchemaInject(
-    strings = Array(
-      new JsonSchemaString(
-        path = CommonOpDescAnnotation.autofill,
-        value = CommonOpDescAnnotation.attributeName
-      ),
-      new JsonSchemaString(path = HideAnnotation.hideTarget, value = "countVectorizer"),
-      new JsonSchemaString(path = HideAnnotation.hideType, value = HideAnnotation.Type.equals),
-      new JsonSchemaString(path = HideAnnotation.hideExpectedValue, value = "false")
-    ),
-    ints = Array(
-      new JsonSchemaInt(path = CommonOpDescAnnotation.autofillAttributeOnPort, value = 0)
-    )
-  )
-  var text: EncodableString = _
-
-  @JsonSchemaTitle("Tfidf Transformer")
-  @JsonPropertyDescription("Transform a count matrix to a normalized tf or tf-idf representation.")
-  @JsonProperty(defaultValue = "false")
-  @JsonSchemaInject(
-    strings = Array(
-      new JsonSchemaString(path = HideAnnotation.hideTarget, value = "countVectorizer"),
-      new JsonSchemaString(path = HideAnnotation.hideType, value = HideAnnotation.Type.equals),
-      new JsonSchemaString(path = HideAnnotation.hideExpectedValue, value = "false")
-    )
-  )
-  var tfidfTransformer: Boolean = false
-
-  @JsonIgnore
-  def getImportStatements = "from sklearn.ensemble import RandomForestClassifier"
-
-  @JsonIgnore
-  def getUserFriendlyModelName = "RandomForest Training"
+  override def getUserFriendlyModelName = ""
 
   override def generatePythonCode(): String =
     pyb"""$getImportStatements
        |from sklearn.pipeline import make_pipeline
+       |from sklearn.compose import ColumnTransformer
        |from sklearn.feature_extraction.text import CountVectorizer, TfidfTransformer
        |import numpy as np
        |from pytexera import *
        |class ProcessTableOperator(UDFTableOperator):
        |    @overrides
        |    def process_table(self, table: Table, port: int) -> Iterator[Optional[TableLike]]:
+       |        rows_read = len(table)
+       |        table = $dropMissingRows #remove missing values
+       |        if len(table) < rows_read:
+       |            print("Skipped", rows_read - len(table), "of", rows_read, "rows with missing values")
        |        Y = table[$target]
        |        X = table.drop($target, axis=1)
-       |        X = ${if (countVectorizer) pyb"X[$text]" else "X"}
-       |        model = make_pipeline(${if (countVectorizer) "CountVectorizer()," else ""} ${if (
+       |${dropNonFeatureColumns("X", " " * 8)}
+$reportMissingKept
+       |        model = make_pipeline(${vectorizerStage(c => pyb"$c".toString)} ${if (
       tfidfTransformer
     ) "TfidfTransformer(),"
     else ""} ${getImportStatements.split(" ").last}()).fit(X, Y)
@@ -116,13 +67,27 @@ class SklearnTrainingOpDesc extends PythonOperatorDescriptor {
       outputPorts = List(OutputPort(blocking = true))
     )
 
-  override def getOutputSchemas(
-      inputSchemas: Map[PortIdentity, Schema]
-  ): Map[PortIdentity, Schema] = {
-    Map(
-      operatorInfo.outputPorts.head.id -> Schema()
-        .add("model_name", AttributeType.STRING)
-        .add("model", AttributeType.BINARY)
-    )
+  override def generateStandaloneCode(): String = {
+    val estimator = getImportStatements.split(" ").last
+    val tfidfPart = if (tfidfTransformer) "TfidfTransformer()," else ""
+    val targetLit = pyStringLiteral(target)
+    val modelNameLit = pyStringLiteral(getUserFriendlyModelName)
+    val narrowX = dropNonFeatureColumns("X", "")
+
+    // The rows the operator drops, into a local name, since the input belongs to its producer.
+    s"""${getImportStatements}
+       |from sklearn.pipeline import make_pipeline
+       |from sklearn.compose import ColumnTransformer
+       |from sklearn.feature_extraction.text import CountVectorizer, TfidfTransformer
+       |import pandas as pd
+       |
+       |_train = ${dropMissingRowsStandalone("in1df")}
+       |if len(_train) < len(in1df):
+       |    print("Skipped", len(in1df) - len(_train), "of", len(in1df), "rows with missing values")
+       |Y = _train[$targetLit]
+       |X = _train.drop($targetLit, axis=1)
+       |$narrowX
+       |model = make_pipeline(${vectorizerStage(c => pyStringLiteral(c))}$tfidfPart$estimator()).fit(X, Y)
+       |out1df = pd.DataFrame([{"model_name": $modelNameLit, "model": model}])""".stripMargin
   }
 }

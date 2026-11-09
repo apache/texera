@@ -19,12 +19,15 @@
 
 package org.apache.texera.amber.operator.visualization.windRoseChart
 
+import org.apache.texera.amber.operator.metadata.OperatorMetadataGenerator
 import org.scalatest.BeforeAndAfter
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 
 import java.nio.charset.StandardCharsets
 import java.util.Base64
+
+import scala.jdk.CollectionConverters._
 
 class WindRoseChartOpDescSpec extends AnyFlatSpec with BeforeAndAfter with Matchers {
 
@@ -76,5 +79,22 @@ class WindRoseChartOpDescSpec extends AnyFlatSpec with BeforeAndAfter with Match
     assert(carries(code, "r_col"))
     assert(carries(code, "theta_col"))
     code should include("class ProcessTableOperator(UDFTableOperator)")
+  }
+
+  "WindRoseChartOpDesc's generated schema" should
+    "constrain the radial values to numeric and leave the angle unconstrained" in {
+    // The angle is a direction label — "N", "NE" — so a rule there would reject
+    // the ordinary case. Only the wedge length has to be a number.
+    val schema = OperatorMetadataGenerator.generateOperatorJsonSchema(classOf[WindRoseChartOpDesc])
+    val rules = schema.path("attributeTypeRules")
+    rules.fieldNames().asScala.toSet shouldBe Set("rColumn")
+
+    // The key has to name a property the form actually renders; one that names
+    // nothing parses fine and constrains nothing.
+    schema.path("properties").has("rColumn") shouldBe true
+
+    val allowed = rules.path("rColumn").path("enum").elements().asScala.map(_.asText()).toSet
+    allowed shouldBe Set("integer", "long", "double")
+    allowed should not contain "string"
   }
 }

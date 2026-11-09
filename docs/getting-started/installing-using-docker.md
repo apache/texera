@@ -1,3 +1,22 @@
+<!--
+  ~ Licensed to the Apache Software Foundation (ASF) under one
+  ~ or more contributor license agreements.  See the NOTICE file
+  ~ distributed with this work for additional information
+  ~ regarding copyright ownership.  The ASF licenses this file
+  ~ to you under the Apache License, Version 2.0 (the
+  ~ "License"); you may not use this file except in compliance
+  ~ with the License.  You may obtain a copy of the License at
+  ~
+  ~   http://www.apache.org/licenses/LICENSE-2.0
+  ~
+  ~ Unless required by applicable law or agreed to in writing,
+  ~ software distributed under the License is distributed on an
+  ~ "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+  ~ KIND, either express or implied.  See the License for the
+  ~ specific language governing permissions and limitations
+  ~ under the License.
+-->
+
 ---
 title: "Installing Apache Texera using Docker"
 weight: 20
@@ -128,7 +147,7 @@ To enable it:
 
 Once Texera is up, create a new workflow and open the Texera agent panel at the bottom right. Type a task like:
 
-> For /texera/popular-movies-of-imdb/v1/TMDb_updated.csv, visualize the top 10 most-voted movies.
+> For /dataset/texera/iris-species/v1/Iris.csv, visualize the average petal length of each species.
 
 To switch providers or add more LLMs, see [Add more LLMs or providers](#add-more-llms-or-providers).
 
@@ -143,11 +162,11 @@ All changes below are to the `.env` file in the installation folder, unless othe
 ### Run Texera on other ports
 By default, Texera uses:
 - Port 8080 for its web service
-- Port 9000 for its MinIO storage service
+- Port 9000 for its RustFS storage service
 
 To change these ports, open the `.env` file and update the corresponding variables:
 - For the web service port (8080): change `TEXERA_PORT=8080` to your desired port, e.g., `TEXERA_PORT=8081`.
-- For the MinIO port (9000): change `MINIO_PORT=9000` to your desired port, e.g., `MINIO_PORT=9001`.
+- For the RustFS port (9000): change `RUSTFS_PORT=9000` to your desired port, e.g., `RUSTFS_PORT=9001`.
 
 ### Change the locations of Texera data
 By default, Docker manages Texera's data locations. To change them to your own locations:

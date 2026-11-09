@@ -17,21 +17,23 @@
  * under the License.
  */
 
-import { ChangeDetectorRef, Component, OnInit, NgZone } from "@angular/core";
-import { take } from "rxjs/operators";
+import { ChangeDetectorRef, Component, OnInit, NgZone, ViewChild } from "@angular/core";
+import { catchError, filter, switchMap, take } from "rxjs/operators";
+import { EMPTY, Subject } from "rxjs";
 import { WorkflowComputingUnitManagingService } from "../../../common/service/computing-unit/workflow-computing-unit/workflow-computing-unit-managing.service";
-import {
-  DashboardWorkflowComputingUnit,
-  WorkflowComputingUnitType,
-} from "../../../common/type/workflow-computing-unit";
+import { DashboardWorkflowComputingUnit } from "../../../common/type/workflow-computing-unit";
 import { NotificationService } from "../../../common/service/notification/notification.service";
 import { DEFAULT_WORKFLOW, WorkflowActionService } from "../../service/workflow-graph/model/workflow-action.service";
 import { isDefined } from "../../../common/util/predicate";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 import { extractErrorMessage } from "../../../common/util/error";
 import { ComputingUnitStatusService } from "../../../common/service/computing-unit/computing-unit-status/computing-unit-status.service";
+import { WarehouseService } from "../../../common/service/warehouse/warehouse.service";
+import { WarehouseActionsService } from "../../../common/service/warehouse/warehouse-actions.service";
+import { DashboardWarehouse } from "../../../common/type/warehouse";
 import { NzModalService, NzModalComponent, NzModalContentDirective } from "ng-zorro-antd/modal";
 import { WorkflowExecutionsService } from "../../../dashboard/service/user/workflow-executions/workflow-executions.service";
+import { ExecuteWorkflowService } from "../../service/execute-workflow/execute-workflow.service";
 import { WorkflowExecutionsEntry } from "../../../dashboard/type/workflow-executions-entry";
 import { ExecutionState } from "../../types/execute-workflow.interface";
 import { ShareAccessComponent } from "../../../dashboard/component/user/share-access/share-access.component";
@@ -41,7 +43,6 @@ import {
   ComputingUnitMetadataComponent,
   parseResourceUnit,
   parseResourceNumber,
-  findNearestValidStep,
   unitTypeMessageTemplate,
   cpuResourceConversion,
   memoryResourceConversion,
@@ -49,19 +50,17 @@ import {
   memoryPercentage,
   validateName,
   getComputingUnitBadgeColor,
-  getComputingUnitStatusTooltip,
+  getComputingUnitRowTooltip,
   getComputingUnitCpuStatus,
   getComputingUnitMemoryStatus,
   getComputingUnitCpuLimitUnit,
-  isComputingUnitShmTooLarge,
-  getJvmMemorySliderConfig,
 } from "../../../common/util/computing-unit.util";
 import {
   PvePackageResponse,
   UserPveRecord,
   WorkflowPveService,
 } from "../../service/virtual-environment/virtual-environment.service";
-import { NgClass, NgIf, NgFor, DecimalPipe, TitleCasePipe } from "@angular/common";
+import { NgClass, NgIf, NgFor, DecimalPipe } from "@angular/common";
 import { ɵNzTransitionPatchDirective } from "ng-zorro-antd/core/transition-patch";
 import { NzPopoverDirective } from "ng-zorro-antd/popover";
 import { NzProgressComponent } from "ng-zorro-antd/progress";
@@ -77,9 +76,9 @@ import { NzMenuDirective, NzMenuItemComponent, NzMenuDividerDirective } from "ng
 import { NzInputDirective } from "ng-zorro-antd/input";
 import { NzSelectComponent, NzOptionComponent } from "ng-zorro-antd/select";
 import { FormsModule } from "@angular/forms";
-import { NzSliderComponent } from "ng-zorro-antd/slider";
-import { NzAlertComponent } from "ng-zorro-antd/alert";
 import { NzCollapseComponent, NzCollapsePanelComponent } from "ng-zorro-antd/collapse";
+import { ComputingUnitCreateModalComponent } from "../../../common/component/computing-unit-create-modal/computing-unit-create-modal.component";
+import { WarehouseCreateModalComponent } from "../../../common/component/warehouse-create-modal/warehouse-create-modal.component";
 
 type PveUserPackageRow = {
   name: string;
@@ -130,20 +129,21 @@ type PveDraft = {
     NzSelectComponent,
     FormsModule,
     NzOptionComponent,
-    NzSliderComponent,
-    NzAlertComponent,
     NzModalContentDirective,
     NzCollapseComponent,
     NzCollapsePanelComponent,
     DecimalPipe,
-    TitleCasePipe,
+    ComputingUnitCreateModalComponent,
+    WarehouseCreateModalComponent,
   ],
 })
 export class ComputingUnitSelectionComponent implements OnInit {
+  readonly getRowTooltip = getComputingUnitRowTooltip;
+
   // variables for creating a virtual environment
   pves: PveDraft[] = [];
   systemPackages: { name: string; version: string }[] = [];
-  // True while a /pve/system response is in flight. The server resolves
+  // True while an /api/pve/system response is in flight. The server resolves
   // the full pinned set with a `pip freeze` against a throwaway venv,
   // which can take 30–60s on the first request after a server restart.
   systemPackagesLoading = false;
@@ -162,35 +162,43 @@ export class ComputingUnitSelectionComponent implements OnInit {
   selectedComputingUnit: DashboardWorkflowComputingUnit | null = null;
   allComputingUnits: DashboardWorkflowComputingUnit[] = [];
 
-  // variables for creating a computing unit
+  // Per-user warehouse picker (#7817): shown whenever the deployment reports
+  // the feature enabled — with zero warehouses it still offers the create
+  // entry, and the Run button leads there too.
+  warehouseEnabled: boolean = false;
+  warehouses: DashboardWarehouse[] = [];
+  selectedWarehouseId?: number;
+  // An explicit pick from the dropdown (or a create). Preselection never
+  // overrides it: a late latest-execution answer must not undo what the user
+  // chose in the meantime. Reset when the workflow changes.
+  private manualWarehousePick = false;
+  // The latest execution's warehouse; the warehouse list and the latest
+  // execution are fetched concurrently, so preselection re-runs after
+  // whichever response lands last.
+  private lastExecutionWhid?: number;
+  // All warehouse refreshes flow through one switchMap'd stream (like
+  // UserWarehouseComponent): a new request cancels the in-flight one, so an
+  // older response can never restore a deleted row or clobber a newer answer.
+  private readonly warehouseRefreshRequested$ = new Subject<void>();
+
+  // visibility of the shared create-computing-unit modal
   addComputeUnitModalVisible = false;
-  newComputingUnitName: string = "";
-  selectedMemory: string = "";
-  selectedCpu: string = "";
-  selectedGpu: string = "0"; // Default to no GPU
-  selectedJvmMemorySize: string = "1G"; // Initial JVM memory size
-  selectedComputingUnitType?: WorkflowComputingUnitType; // Selected computing unit type
-  selectedShmSize: string = "64Mi"; // Shared memory size
-  shmSizeValue: number = 64; // default to 64
-  shmSizeUnit: "Mi" | "Gi" = "Mi"; // default unit
-  availableComputingUnitTypes: WorkflowComputingUnitType[] = [];
-  localComputingUnitUri: string = ""; // URI for local computing unit
+
+  // visibility of the shared create-warehouse modal
+  addWarehouseModalVisible = false;
+
+  @ViewChild(ComputingUnitCreateModalComponent)
+  private computingUnitCreateModal?: ComputingUnitCreateModalComponent;
 
   // variables for renaming a computing unit
   editingNameOfUnit: number | null = null;
   editingUnitName: string = "";
 
-  // JVM memory slider configuration
-  jvmMemorySliderValue: number = 1; // Initial value in GB
-  jvmMemoryMarks: { [key: number]: string } = { 1: "1G" };
-  jvmMemoryMax: number = 1;
-  jvmMemorySteps: number[] = [1]; // Available steps in binary progression (1,2,4,8...)
-  showJvmMemorySlider: boolean = false; // Whether to show the slider
-
-  // cpu&memory limit options from backend
-  cpuOptions: string[] = [];
-  memoryOptions: string[] = [];
-  gpuOptions: string[] = []; // Add GPU options array
+  // GPU limit options, used by the metrics popover's GPU row via showGpuSelection()
+  gpuOptions: string[] = [];
+  // True when the limit-options fetch failed; showGpuSelection() then falls back
+  // to permissive so the metrics popover doesn't silently hide the GPU row.
+  private gpuOptionsFetchFailed = false;
 
   constructor(
     private computingUnitService: WorkflowComputingUnitManagingService,
@@ -203,49 +211,29 @@ export class ComputingUnitSelectionComponent implements OnInit {
     private cdr: ChangeDetectorRef,
     private computingUnitActionsService: ComputingUnitActionsService,
     private workflowPveService: WorkflowPveService,
-    private ngZone: NgZone
+    private ngZone: NgZone,
+    private warehouseService: WarehouseService,
+    private warehouseActionsService: WarehouseActionsService,
+    private executeWorkflowService: ExecuteWorkflowService
   ) {}
 
   ngOnInit(): void {
-    // Fetch available computing unit types
-    this.localComputingUnitUri = `${window.location.protocol}//${window.location.hostname}${window.location.port ? `:${window.location.port}` : ""}/wsapi`;
-    this.newComputingUnitName = "My Computing Unit";
-    this.computingUnitService
-      .getComputingUnitTypes()
-      .pipe(untilDestroyed(this))
-      .subscribe({
-        next: ({ typeOptions }) => {
-          this.availableComputingUnitTypes = typeOptions;
-          // Set default selected type if available
-          if (typeOptions.includes("kubernetes")) {
-            this.selectedComputingUnitType = "kubernetes";
-          } else if (typeOptions.length > 0) {
-            this.selectedComputingUnitType = typeOptions[0];
-          }
-        },
-        error: (err: unknown) =>
-          this.notificationService.error(`Failed to fetch computing unit types: ${extractErrorMessage(err)}`),
-      });
-
+    // GPU options drive the GPU row in the metrics popover. The shared
+    // create modal fetches these options itself and owns the user-facing
+    // error toast for this endpoint, so on failure this only logs and falls
+    // back to showing GPU metrics based on the unit's own allocation.
     this.computingUnitService
       .getComputingUnitLimitOptions()
       .pipe(untilDestroyed(this))
       .subscribe({
-        next: ({ cpuLimitOptions, memoryLimitOptions, gpuLimitOptions }) => {
-          this.cpuOptions = cpuLimitOptions;
-          this.memoryOptions = memoryLimitOptions;
+        next: ({ gpuLimitOptions }) => {
           this.gpuOptions = gpuLimitOptions;
-
-          // fallback defaults
-          this.selectedCpu = this.cpuOptions[0] ?? "1";
-          this.selectedMemory = this.memoryOptions[0] ?? "1Gi";
-          this.selectedGpu = this.gpuOptions[0] ?? "0";
-
-          // Initialize JVM memory slider based on selected memory
-          this.updateJvmMemorySlider();
+          this.gpuOptionsFetchFailed = false;
         },
-        error: (err: unknown) =>
-          this.notificationService.error(`Failed to fetch resource options: ${extractErrorMessage(err)}`),
+        error: (err: unknown) => {
+          this.gpuOptionsFetchFailed = true;
+          console.error("Failed to fetch computing unit limit options for the GPU metric row", err);
+        },
       });
 
     // Subscribe to the current selected unit from the status service
@@ -272,6 +260,43 @@ export class ComputingUnitSelectionComponent implements OnInit {
         this.allComputingUnits = units;
       });
 
+    // Warehouse picker state (#7817). The pick itself lives in WarehouseService,
+    // where ExecuteWorkflowService reads it at execution time.
+    this.warehouseRefreshRequested$
+      .pipe(
+        switchMap(() =>
+          this.warehouseService.getStatus().pipe(
+            // Caught inside the switchMap so a failure ends only this request,
+            // not the stream.
+            catchError((err: unknown) => {
+              // A transport failure is not an answer: the last known list and
+              // pick stay (clearing them is reserved for an authoritative
+              // response — enabled:false, or a list without the pick). The flag
+              // only falls back to the boot-time config, never to false: failing
+              // open would un-gate Run on an enabled deployment just because one
+              // status request failed.
+              this.warehouseEnabled = this.config.env.warehouseEnabled;
+              this.notificationService.error(`Failed to fetch warehouses: ${extractErrorMessage(err)}`);
+              return EMPTY;
+            })
+          )
+        ),
+        untilDestroyed(this)
+      )
+      .subscribe(status => {
+        this.warehouseEnabled = status.enabled;
+        this.warehouses = [...status.warehouses];
+        this.applyWarehousePreselect();
+      });
+    this.refreshWarehouses();
+
+    this.warehouseService
+      .getSelectedWarehouseId()
+      .pipe(untilDestroyed(this))
+      .subscribe(whid => {
+        this.selectedWarehouseId = whid;
+      });
+
     this.registerWorkflowMetadataSubscription();
   }
 
@@ -289,7 +314,12 @@ export class ComputingUnitSelectionComponent implements OnInit {
           );
           this.workflowActionService.disableWorkflowModification();
         } else {
-          this.workflowActionService.enableWorkflowModification();
+          // "No execution someone else started" is not "nothing is running here". This asks only
+          // about Running and Initializing, and the answer arrives asynchronously, after whatever
+          // the page set on arrival, so unlocking outright undid the lock a run in flight had just
+          // been given -- a handed-over Paused or Recovering run, say, which this query does not
+          // look for. Defer to the state-to-lock rule the execute service owns.
+          this.executeWorkflowService.reapplyExecutionLock();
         }
       });
   }
@@ -314,24 +344,115 @@ export class ComputingUnitSelectionComponent implements OnInit {
         const wid = this.workflowActionService.getWorkflowMetadata()?.wid;
         if (wid !== this.workflowId) {
           this.workflowId = wid;
+          // The previous workflow's execution — and pick — must not steer this
+          // one: with the stale value, a workflow without history would fall
+          // back to the OLD workflow's warehouse instead of the first one.
+          this.lastExecutionWhid = undefined;
+          this.manualWarehousePick = false;
+          this.warehouseService.selectWarehouse(undefined);
           if (isDefined(this.workflowId) && this.workflowId !== DEFAULT_WORKFLOW.wid) {
-            this.workflowExecutionsService
-              .retrieveLatestWorkflowExecution(this.workflowId)
-              .pipe(untilDestroyed(this))
-              .subscribe({
-                next: (latestWorkflowExecution: WorkflowExecutionsEntry) => {
-                  this.selectComputingUnit(this.workflowId, latestWorkflowExecution.cuId);
-                },
-                error: (err: unknown) => {
-                  const runningUnit = this.allComputingUnits.find(unit => unit.status === "Running");
-                  if (runningUnit) {
-                    this.selectComputingUnit(this.workflowId, runningUnit.computingUnit.cuid);
-                  }
-                },
-              });
+            this.selectInitialUnit(this.workflowId);
           }
         }
       });
+  }
+
+  /**
+   * Pick the unit for a workflow that has just come into view. An explicit choice remembered for
+   * it is newer than its last run, so it wins -- but only once the unit list has arrived and still
+   * holds that unit. Deciding on an empty list would either chase a unit that has since been
+   * terminated (the status service waits for it to appear, forever, and the fallbacks below never
+   * run) or throw the choice away before the list has loaded. A remembered unit that is gone is
+   * forgotten, and the fallbacks take over: the last execution's unit, else any running unit the
+   * user can run on.
+   */
+  private selectInitialUnit(wid: number): void {
+    const remembered = this.recallComputingUnit(wid);
+    if (!isDefined(remembered)) {
+      this.selectFromLastExecution(wid);
+      return;
+    }
+    this.onceUnitsLoaded(wid, units => {
+      if (units.some(unit => unit.computingUnit.cuid === remembered)) {
+        this.selectComputingUnit(wid, remembered);
+        // The remembered shortcut skips the execution lookup the warehouse
+        // preselect rides on, so run the lookup for the warehouse alone.
+        this.selectFromLastExecution(wid, false);
+      } else {
+        this.forgetComputingUnit(wid);
+        this.selectFromLastExecution(wid);
+      }
+    });
+  }
+
+  /**
+   * The unit the workflow last ran on if it is still listed, else any running unit the user can run
+   * on — and the warehouse it last wrote to, for the preselect (#7817). `selectUnit` is false when
+   * the unit was already settled by a remembered choice and only the warehouse still needs the
+   * lookup.
+   */
+  private selectFromLastExecution(wid: number, selectUnit: boolean = true): void {
+    // The workflow can change while the lookup is out; that later change decided for itself, so an
+    // answer (or a failure) that arrives for the earlier one is stale.
+    const stillShown = () => wid === this.workflowId;
+    this.workflowExecutionsService
+      .retrieveLatestWorkflowExecution(wid)
+      .pipe(untilDestroyed(this))
+      .subscribe({
+        next: (latestWorkflowExecution: WorkflowExecutionsEntry) => {
+          if (stillShown()) {
+            if (selectUnit) {
+              this.selectFromLoadedUnits(wid, latestWorkflowExecution.cuId);
+            }
+            this.lastExecutionWhid = latestWorkflowExecution.whId ?? undefined;
+            this.applyWarehousePreselect();
+          }
+        },
+        error: () => {
+          if (selectUnit && stillShown()) {
+            this.selectFromLoadedUnits(wid);
+          }
+          // No execution history: still preselect a warehouse (the first one).
+          if (stillShown()) {
+            this.applyWarehousePreselect();
+          }
+        },
+      });
+  }
+
+  /**
+   * Runs `decide` on the first non-empty unit list, unless the workflow has changed meanwhile:
+   * that later change made its own decision, so this one is stale.
+   */
+  private onceUnitsLoaded(wid: number, decide: (units: DashboardWorkflowComputingUnit[]) => void): void {
+    this.computingUnitStatusService
+      .getAllComputingUnits()
+      .pipe(
+        filter(units => units.length > 0),
+        take(1),
+        untilDestroyed(this)
+      )
+      .subscribe(units => {
+        if (wid === this.workflowId) {
+          decide(units);
+        }
+      });
+  }
+
+  /**
+   * Selects `preferred` once the unit list has loaded and still holds it, else the first running
+   * unit the user can run on, else nothing. A unit shared with READ access would be selected only
+   * to have Run disabled, so the fallback skips it.
+   */
+  private selectFromLoadedUnits(wid: number, preferred?: number): void {
+    this.onceUnitsLoaded(wid, units => {
+      const unit =
+        units.find(u => u.computingUnit.cuid === preferred) ??
+        units.find(u => u.status === "Running" && u.accessPrivilege === "WRITE");
+      if (unit) {
+        this.selectComputingUnit(wid, unit.computingUnit.cuid);
+      }
+    });
   }
 
   /**
@@ -343,21 +464,206 @@ export class ComputingUnitSelectionComponent implements OnInit {
     }
   }
 
+  /**
+   * The user's own pick from the list: select it and remember it for this workflow. Only an explicit
+   * choice is remembered -- the units selected on load (the remembered one, the last execution's,
+   * a running one) are derived and must not be stored as if chosen, or a derived unit would later
+   * outrank a fresher last execution.
+   */
+  public onPickComputingUnit(unit: DashboardWorkflowComputingUnit): void {
+    this.selectedComputingUnit = unit;
+    const cuid = unit?.computingUnit?.cuid;
+    // The same rule as selectComputingUnit: nothing is selected, or remembered, for a workflow that
+    // has not been saved yet or for a unit without an id.
+    if (!isDefined(cuid) || this.workflowId === DEFAULT_WORKFLOW.wid) {
+      return;
+    }
+    this.selectComputingUnit(this.workflowId, cuid);
+    this.rememberComputingUnit(this.workflowId, cuid);
+  }
+
+  /**
+   * Click handler for a dropdown row. nzDisabled only greys the row out; it does not stop this
+   * (click) on the same <li>, so without this check a disabled unit could still be selected.
+   *
+   * Not inside onPickComputingUnit on purpose: creating a unit also calls that, and a new unit is
+   * Pending, so a guard there would stop new units from being selected.
+   */
+  public onClickComputingUnitRow(unit: DashboardWorkflowComputingUnit): void {
+    if (this.cannotSelectUnit(unit)) {
+      return;
+    }
+    this.onPickComputingUnit(unit);
+  }
+
+  /**
+   * The live selection lives only in ComputingUnitStatusService, re-derived on load from the
+   * last execution -- but that only exists once the workflow has run (pick a unit, reload
+   * before running, and it is gone). Canvas<->Form View switches reload, so we remember the
+   * last explicit choice per workflow to keep the two views agreeing. One unit per workflow.
+   */
+  private static computingUnitStorageKey(wid: number): string {
+    return `computing-unit-of-workflow-${wid}`;
+  }
+
+  private rememberComputingUnit(wid: number | undefined, cuid: number): void {
+    if (!isDefined(wid)) {
+      return;
+    }
+    try {
+      localStorage.setItem(ComputingUnitSelectionComponent.computingUnitStorageKey(wid), String(cuid));
+    } catch {
+      // Private browsing or a full quota; remembering is an optimisation, not a
+      // requirement -- the last-execution lookup still applies on the next load.
+    }
+  }
+
+  private recallComputingUnit(wid: number): number | undefined {
+    let stored: string | null = null;
+    try {
+      stored = localStorage.getItem(ComputingUnitSelectionComponent.computingUnitStorageKey(wid));
+    } catch {
+      return undefined;
+    }
+    // A cuid is a positive integer. Number() would also accept "0" and "1.5", and handing
+    // either on would mean chasing a unit that cannot exist. Whether the unit still exists is
+    // not decided here but against the loaded unit list (selectInitialUnit).
+    const cuid = Number(stored);
+    if (!stored || !Number.isInteger(cuid) || cuid <= 0) {
+      return undefined;
+    }
+    return cuid;
+  }
+
+  /** Drop a remembered unit that no longer exists, so the next load goes straight to the fallbacks. */
+  private forgetComputingUnit(wid: number): void {
+    try {
+      localStorage.removeItem(ComputingUnitSelectionComponent.computingUnitStorageKey(wid));
+    } catch {
+      // Best effort, like remembering: a stale entry only costs the list check on the next load.
+    }
+  }
+
+  /**
+   * Fetches the warehouse list, on init and on every dropdown open (mirroring
+   * onDropdownVisibilityChange). Every answer re-runs the preselect, whose
+   * manual-pick guard keeps a routine refresh from overriding a user's choice.
+   */
+  private refreshWarehouses(): void {
+    this.warehouseRefreshRequested$.next();
+  }
+
+  /**
+   * Mirrors the CU preselection for warehouses (#7817): pick the latest
+   * execution's warehouse when it still exists, else the user's first
+   * warehouse — so a run needs no explicit pick.
+   */
+  private applyWarehousePreselect(): void {
+    if (
+      this.manualWarehousePick &&
+      this.selectedWarehouseId !== undefined &&
+      this.warehouses.some(warehouse => warehouse.whid === this.selectedWarehouseId)
+    ) {
+      return;
+    }
+    if (!this.warehouseEnabled || this.warehouses.length === 0) {
+      // Nothing selectable: drop any pick the root-scoped service still holds, so a
+      // stale id cannot ride the next execution while the picker stays hidden.
+      this.warehouseService.selectWarehouse(undefined);
+      return;
+    }
+    const lastUsed = this.warehouses.find(warehouse => warehouse.whid === this.lastExecutionWhid);
+    this.warehouseService.selectWarehouse((lastUsed ?? this.warehouses[0]).whid);
+  }
+
+  onWarehouseSelected(whid: number): void {
+    this.manualWarehousePick = true;
+    this.warehouseService.selectWarehouse(whid);
+  }
+
+  public trackByWhid(_idx: number, warehouse: DashboardWarehouse): number {
+    return warehouse.whid;
+  }
+
+  onWarehouseDropdownVisibilityChange(visible: boolean): void {
+    if (visible) {
+      this.refreshWarehouses();
+    }
+  }
+
+  get selectedWarehouse(): DashboardWarehouse | undefined {
+    return this.warehouses.find(warehouse => warehouse.whid === this.selectedWarehouseId);
+  }
+
+  /**
+   * True when the deployment enables per-user warehouses but none is selected.
+   * The menu's Run button redirects to the create-warehouse modal in this
+   * state, mirroring the computing-unit Connect flow: with the feature on,
+   * every execution must have a warehouse to write to.
+   */
+  get warehouseRequiredButMissing(): boolean {
+    return this.warehouseEnabled && this.selectedWarehouseId === undefined;
+  }
+
+  /**
+   * `Warehouse: <name>` — one tooltip that says which picker this is (two of
+   * them sit side by side showing nothing but a name) and carries the name in
+   * full, which the trigger ellipsises at 220px. Always the same shape, short
+   * names included, so there is nothing to learn about when it appears.
+   */
+  get warehouseButtonTooltip(): string {
+    const selected = this.selectedWarehouse;
+    return selected ? `Warehouse: ${selected.name}` : "Warehouse";
+  }
+
+  getWarehouseButtonText(): string {
+    return this.selectedWarehouse?.name ?? "Warehouse";
+  }
+
+  showAddWarehouseModalVisible(): void {
+    this.addWarehouseModalVisible = true;
+  }
+
+  onWarehouseCreated(warehouse: DashboardWarehouse): void {
+    // Mirrors onComputingUnitCreated: a warehouse created from the workspace is
+    // what the next execution should write to — as explicit a choice as a pick.
+    this.manualWarehousePick = true;
+    // Appended locally, as the dashboard tab does: the backend lists by
+    // created_at ascending, so no round trip is needed to keep the order.
+    this.warehouses = [...this.warehouses, warehouse];
+    this.warehouseService.selectWarehouse(warehouse.whid);
+  }
+
+  confirmDeleteWarehouse(warehouse: DashboardWarehouse): void {
+    this.warehouseActionsService.confirmAndDelete(warehouse, () => {
+      this.warehouses = this.warehouses.filter(entry => entry.whid !== warehouse.whid);
+      // Deleting the picked warehouse leaves the pick dangling; the preselect
+      // moves it (its manual-pick guard no longer holds for a gone id).
+      if (this.selectedWarehouseId === warehouse.whid) {
+        this.applyWarehousePreselect();
+      }
+    });
+  }
+
   isComputingUnitRunning(): boolean {
     return this.selectedComputingUnit != null && this.selectedComputingUnit.status === "Running";
   }
 
-  getButtonText(): string {
-    if (!this.selectedComputingUnit) {
-      return "Connect";
-    } else {
-      return this.selectedComputingUnit.computingUnit.name;
-    }
+  /**
+   * `Computing Unit: <name>`, the shape the warehouse trigger uses: which picker
+   * this is, plus the name it ellipsises. The status stays where it already
+   * lives — the badge's colour here, its words in the dropdown rows.
+   */
+  get computingUnitButtonTooltip(): string {
+    const selected = this.selectedComputingUnit;
+    return selected ? `Computing Unit: ${selected.computingUnit.name}` : "Computing Unit";
   }
 
   computeStatus(): string {
     if (!this.selectedComputingUnit) {
-      return "processing";
+      // Nothing is being processed when nothing is selected; "processing" would
+      // render a pulsing blue dot claiming work that is not happening.
+      return "default";
     }
 
     const status = this.selectedComputingUnit.status;
@@ -384,68 +690,26 @@ export class ComputingUnitSelectionComponent implements OnInit {
 
   // Determines if the GPU selection dropdown should be shown
   showGpuSelection(): boolean {
+    // If the options fetch failed, err on the side of showing the GPU row —
+    // the metrics template additionally requires the unit's own GPU limit to
+    // be non-zero, so this cannot show a GPU row for a GPU-less unit.
+    if (this.gpuOptionsFetchFailed) {
+      return true;
+    }
     // Don't show GPU selection if there are no options or only "0" option
     return this.gpuOptions.length > 1 || (this.gpuOptions.length === 1 && this.gpuOptions[0] !== "0");
   }
 
-  showAddComputeUnitModalVisible(): void {
+  showAddComputeUnitModalVisible(defaultName?: string): void {
+    if (defaultName !== undefined && this.computingUnitCreateModal) {
+      this.computingUnitCreateModal.newComputingUnitName = defaultName;
+    }
     this.addComputeUnitModalVisible = true;
   }
 
-  handleAddComputeUnitModalOk(): void {
-    this.startComputingUnit();
-    this.addComputeUnitModalVisible = false;
-  }
-
-  handleAddComputeUnitModalCancel(): void {
-    this.addComputeUnitModalVisible = false;
-  }
-
-  isShmTooLarge(): boolean {
-    return isComputingUnitShmTooLarge(this.selectedMemory, this.shmSizeValue, this.shmSizeUnit);
-  }
-
-  /**
-   * Start a new computing unit.
-   */
-  startComputingUnit(): void {
-    if (this.selectedComputingUnitType === "kubernetes" && this.newComputingUnitName.trim() === "") {
-      this.notificationService.error("Name of the computing unit cannot be empty");
-      return;
-    }
-
-    if (this.selectedComputingUnitType === "local" && this.localComputingUnitUri.trim() === "") {
-      this.notificationService.error("URI for local computing unit cannot be empty");
-      return;
-    }
-
-    if (!this.selectedComputingUnitType) {
-      this.notificationService.error("Please select a valid computing unit type");
-      return;
-    }
-
-    const request = {
-      type: this.selectedComputingUnitType,
-      name: this.newComputingUnitName,
-      cpu: this.selectedCpu,
-      memory: this.selectedMemory,
-      gpu: this.selectedGpu,
-      jvmMemorySize: this.selectedJvmMemorySize,
-      shmSize: `${this.shmSizeValue}${this.shmSizeUnit}`,
-      localUri: this.localComputingUnitUri,
-    };
-
-    this.computingUnitActionsService
-      .create(request)
-      .pipe(untilDestroyed(this))
-      .subscribe({
-        next: (unit: DashboardWorkflowComputingUnit) => {
-          this.notificationService.success("Successfully created the new compute unit");
-          this.selectComputingUnit(this.workflowId, unit.computingUnit.cuid);
-        },
-        error: (err: unknown) =>
-          this.notificationService.error(`Failed to start computing unit: ${extractErrorMessage(err)}`),
-      });
+  onComputingUnitCreated(unit: DashboardWorkflowComputingUnit): void {
+    // Creating a unit from here is as explicit a choice as picking one.
+    this.onPickComputingUnit(unit);
   }
 
   openComputingUnitMetadataModal(unit: DashboardWorkflowComputingUnit) {
@@ -652,83 +916,6 @@ export class ComputingUnitSelectionComponent implements OnInit {
 
   getMemoryStatus(): "success" | "exception" | "active" | "normal" {
     return getComputingUnitMemoryStatus(this.getMemoryPercentage());
-  }
-
-  getCpuUnit(): string {
-    return this.getCpuLimitUnit() === "CPU" ? "Cores" : this.getCpuLimitUnit();
-  }
-
-  getMemoryUnit(): string {
-    return this.getMemoryLimitUnit() === "" ? "B" : this.getMemoryLimitUnit();
-  }
-
-  /**
-   * Returns a descriptive tooltip for a specific unit's status
-   */
-  getUnitStatusTooltip(unit: DashboardWorkflowComputingUnit): string {
-    return getComputingUnitStatusTooltip(unit);
-  }
-
-  // Called when the component initializes
-  updateJvmMemorySlider(): void {
-    this.resetJvmMemorySlider();
-  }
-
-  onJvmMemorySliderChange(value: number): void {
-    // Ensure the value is one of the valid steps
-    const validStep = findNearestValidStep(value, this.jvmMemorySteps);
-    this.jvmMemorySliderValue = validStep;
-    this.selectedJvmMemorySize = `${validStep}G`;
-  }
-
-  // Check if the maximum JVM memory value is selected
-  isMaxJvmMemorySelected(): boolean {
-    // Only show warning for larger memory sizes (>=4GB) where the slider is shown
-    // AND when the maximum value is selected
-    return this.showJvmMemorySlider && this.jvmMemorySliderValue === this.jvmMemoryMax && this.jvmMemoryMax >= 4;
-  }
-
-  // Completely reset the JVM memory slider based on the selected CU memory
-  resetJvmMemorySlider(): void {
-    const config = getJvmMemorySliderConfig(this.selectedMemory);
-
-    this.jvmMemoryMax = config.jvmMemoryMax;
-    this.showJvmMemorySlider = config.showJvmMemorySlider;
-    this.jvmMemorySteps = config.jvmMemorySteps;
-    this.jvmMemoryMarks = config.jvmMemoryMarks;
-    this.jvmMemorySliderValue = config.jvmMemorySliderValue;
-    this.selectedJvmMemorySize = config.selectedJvmMemorySize;
-  }
-
-  // Listen for memory selection changes
-  onMemorySelectionChange(): void {
-    // Store current JVM memory value for potential reuse
-    const previousJvmMemory = this.jvmMemorySliderValue;
-
-    // Reset slider configuration based on the new memory selection
-    this.resetJvmMemorySlider();
-
-    // For CU memory > 3GB, preserve previous value if valid and >= 2GB
-    // Get the current memory in GB
-    const memoryValue = parseResourceNumber(this.selectedMemory);
-    const memoryUnit = parseResourceUnit(this.selectedMemory);
-    let cuMemoryInGb = memoryUnit === "Gi" ? memoryValue : memoryUnit === "Mi" ? Math.floor(memoryValue / 1024) : 1;
-
-    // Only try to preserve previous value for larger memory sizes where slider is shown
-    if (
-      cuMemoryInGb > 3 &&
-      previousJvmMemory >= 2 &&
-      previousJvmMemory <= this.jvmMemoryMax &&
-      this.jvmMemorySteps.includes(previousJvmMemory)
-    ) {
-      this.jvmMemorySliderValue = previousJvmMemory;
-      this.selectedJvmMemorySize = `${previousJvmMemory}G`;
-    }
-  }
-
-  getCreateModalTitle(): string {
-    if (!this.selectedComputingUnitType) return "Create Computing Unit";
-    return unitTypeMessageTemplate[this.selectedComputingUnitType].createTitle;
   }
 
   public async onClickOpenShareAccess(cuid: number): Promise<void> {

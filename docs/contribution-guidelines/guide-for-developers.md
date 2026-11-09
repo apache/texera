@@ -1,3 +1,22 @@
+<!--
+  ~ Licensed to the Apache Software Foundation (ASF) under one
+  ~ or more contributor license agreements.  See the NOTICE file
+  ~ distributed with this work for additional information
+  ~ regarding copyright ownership.  The ASF licenses this file
+  ~ to you under the Apache License, Version 2.0 (the
+  ~ "License"); you may not use this file except in compliance
+  ~ with the License.  You may obtain a copy of the License at
+  ~
+  ~   http://www.apache.org/licenses/LICENSE-2.0
+  ~
+  ~ Unless required by applicable law or agreed to in writing,
+  ~ software distributed under the License is distributed on an
+  ~ "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+  ~ KIND, either express or implied.  See the License for the
+  ~ specific language governing permissions and limitations
+  ~ under the License.
+-->
+
 ---
 title: "Guide for Developers"
 weight: 20
@@ -5,22 +24,22 @@ weight: 20
 
 ## 0. Requirements
 
-#### **Java 11 JDK**
+#### **Java 17 JDK**
 
-Install `Java JDK 11 (Java Development Kit)` (recommend: `[adoptopenjdk](https://adoptium.net/installation/)`). To verify the installation, run:
+Install `Java JDK 17 (Java Development Kit)` (recommend: `[adoptopenjdk](https://adoptium.net/installation/)`). To verify the installation, run:
 ```console
 java -version
 ```
 
 Next, set `JAVA_HOME`. On macOS you can run:
 ```
-export JAVA_HOME=$(/usr/libexec/java_home -v 11)
+export JAVA_HOME=$(/usr/libexec/java_home -v 17)
 ```
 On Windows, add a system environment variable called `JAVA_HOME` that points to the JDK directory.
 
-#### Python@3.12/3.11/3.10
+#### Python@3.12/3.11
 
-Install Python 3.12 (or 3.11/3.10) from the official site or your preferred package manager.
+Install Python 3.12 (or 3.11) from the official site or your preferred package manager.
 
 #### **Git**
 
@@ -44,9 +63,9 @@ sbt --version
 
 If the above command fails on Windows after installation, it is recommended to restart your computer.
 
-#### **node LTS Version > 18.x**
+#### **node LTS Version >= 24**
 
-Install an LTS version (not the latest) of `node`. Currently, we require LTS version > 18.x. 
+Install an LTS version of `node`. Currently, we require version 24 or newer (see `engines` in `frontend/package.json`).
 
 On Windows, install from [https://nodejs.org/en/](https://nodejs.org/en/).
 
@@ -57,11 +76,11 @@ Verify the installation by:
 node -v
 ```
 
-#### **Angular 16 Cli**
+#### **Angular 21 Cli**
 
-Install the angular 16 cli globally:
+Install the angular 21 cli globally:
 ```console
-npm install -g @angular/cli@16
+npm install -g @angular/cli@21
 ```
 
 Verify the installation by:
@@ -80,7 +99,7 @@ ng version
 
 In the terminal, clone the Texera repo:
 ```console
-git clone git@github.com:Texera/texera.git
+git clone git@github.com:apache/texera.git
 ```
 
 Do the following changes to the configuration files:
@@ -128,9 +147,9 @@ Execute `sql/iceberg_postgres_catalog.sql`  to create the database for storing I
 psql -U postgres -f "sql/iceberg_postgres_catalog.sql"
 ```
 
-### Setup the LakeFS+Minio locally
+### Setup the LakeFS+RustFS locally
 
-Texera requires [LakeFS](https://lakefs.io/) and S3([Minio](https://min.io/docs/minio/kubernetes/upstream/index.html) is one of the implementations) as the dataset storage. Setting up these two storage services locally are required to make Texera's dataset feature functioning.
+Texera requires [LakeFS](https://lakefs.io/) and S3([RustFS](https://docs.rustfs.com/) is one of the implementations) as the dataset storage. Setting up these two storage services locally are required to make Texera's dataset feature functioning.
 
 Install [Docker Desktop](https://docs.docker.com/desktop/setup/install/mac-install/) which contains both docker engine and docker compose. Make sure you launch the Docker after installing it.
 
@@ -141,7 +160,7 @@ cd file-service/src/main/resources
 
 Edit `docker-compose.yml` by: search for `volumes` in the file and follow the instructions in the comment. This step is required otherwise your data will be lost if containers are deleted
 
-Execute the following command to start LakeFS and Minio:
+Execute the following command to start LakeFS and RustFS:
 ```
 docker compose up
 ```
@@ -263,7 +282,7 @@ This command will optimize the frontend code to make it run faster. This step wi
 ## 3. Email Notification (Optional)
 </summary>
 
-1. Set `smtp` in `config/src/main/resources/user-system.conf`. You need an App password if the account has 2FA.
+1. Set `smtp` in `common/config/src/main/resources/user-system.conf`. You need an App password if the account has 2FA.
 2. Log in to Texera with an admin account.
 3. Open the Gmail dashboard under the admin tab.
 5. Send a test email.
@@ -280,16 +299,16 @@ This command will optimize the frontend code to make it run faster. This step wi
 This part is optional; you only need to do this if you are working on a specific task.
 
 ### To create a new database table and write queries using Java through Jooq
-1. Create the needed new table in MySQL and update `sql/texera_ddl.sql` to include the new table.
+1. Create the needed new table in PostgreSQL and update `sql/texera_ddl.sql` to include the new table.
 2. Run `sbt DAO/jooqGenerate` to generate the classes for the new table.
 
 Note: Jooq creates DAO for simple operations if the requested SQL query is complex, then the developer can use the generated Table classes to implement the operation
 
 ### Disable password login
-Edit `config/src/main/resources/gui.conf`, change `local-login` to `false`.
+Edit `common/config/src/main/resources/gui.conf`, change `local-login` to `false`.
 
 ### Enforce invite only
-Edit `config/src/main/resources/user-system.conf`, change `invite-only` to `true`.
+Edit `common/config/src/main/resources/user-system.conf`, change `invite-only` to `true`.
 
 ### Backend endpoints Role Annotation
 There are two types of permissions for the backend endpoints:

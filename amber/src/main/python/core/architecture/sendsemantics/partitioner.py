@@ -32,6 +32,18 @@ class Partitioner(ABC):
     def __init__(self, partitioning: Message):
         self.partitioning: Partitioning = get_one_of(partitioning)
 
+    @staticmethod
+    def build_receiver_batches(
+        channels,
+    ) -> typing.List[typing.Tuple[ActorVirtualIdentity, typing.List[Tuple]]]:
+        # An ordered (receiver, batch) pair per distinct downstream worker.
+        # dict.fromkeys preserves the channel order; a set literal would not,
+        # which breaks input-port materialization reader threads.
+        return [
+            (rid, [])
+            for rid in dict.fromkeys(channel.to_worker_id for channel in channels)
+        ]
+
     def add_tuple_to_batch(
         self, tuple_: Tuple
     ) -> Iterator[typing.Tuple[ActorVirtualIdentity, typing.List[Tuple]]]:

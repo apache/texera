@@ -20,6 +20,7 @@
 import { Component, inject } from "@angular/core";
 import { NZ_MODAL_DATA } from "ng-zorro-antd/modal";
 import { DashboardWorkflowComputingUnit } from "../type/workflow-computing-unit";
+import { ComputingUnitState } from "../type/computing-unit-connection.interface";
 
 @Component({
   template: `
@@ -187,42 +188,77 @@ export function memoryPercentage(usage: string, limit: string): number {
   return Math.min(percentage, 100);
 }
 
-export function findNearestValidStep(value: number, jvmMemorySteps: number[]): number {
-  if (jvmMemorySteps.length === 0) return 1;
-  if (jvmMemorySteps.includes(value)) return value;
-
-  // Find the closest step value
-  return jvmMemorySteps.reduce((prev, curr) => {
-    return Math.abs(curr - value) < Math.abs(prev - value) ? curr : prev;
-  });
-}
-
 export function validateName(trimmedName: string): string | null {
   if (!trimmedName) return "Computing unit name cannot be empty";
   if (trimmedName.length > 128) return "Computing unit name cannot exceed 128 characters";
   return null;
 }
 
+/** Reason returned by unavailableComputingUnitReason. */
+export type UnavailableComputingUnitReason = "terminating" | "unavailable";
+
+/**
+ * Returns the reason a computing unit cannot accept work: "terminating" for Terminating,
+ * "unavailable" for Failed or Unknown, and undefined for any other status or no status.
+ *
+ * Accepts either a ComputingUnitState or the status string of a DashboardWorkflowComputingUnit.
+ */
+export function unavailableComputingUnitReason(
+  status: ComputingUnitState | DashboardWorkflowComputingUnit["status"] | undefined
+): UnavailableComputingUnitReason | undefined {
+  switch (status) {
+    case ComputingUnitState.Terminating:
+      return "terminating";
+    case ComputingUnitState.Failed:
+    case ComputingUnitState.Unknown:
+      return "unavailable";
+    default:
+      return undefined;
+  }
+}
+
 export function getComputingUnitBadgeColor(status: string): string {
   switch (status) {
     case "Running":
       return "green";
+    // Pending and Terminating are transient, not broken, so both stay gold.
     case "Pending":
+    case "Terminating":
       return "gold";
+    // Failed / Unknown and anything unrecognized.
     default:
       return "red";
   }
 }
 
 export function getComputingUnitStatusTooltip(entry: DashboardWorkflowComputingUnit): string {
+  // A provided statusReason is already user-friendly and more specific than any canned
+  // text (failure cause, unschedulable wait, or a recovered-OOM warning on a Running unit).
+  if (entry.statusReason) {
+    return entry.statusReason;
+  }
   switch (entry.status) {
     case "Running":
       return "Ready to use";
     case "Pending":
       return "Computing unit is starting up";
+    // Ordinary shared users get no reason from the backend, only the generic text.
+    case "Failed":
+    case "Unknown":
+      return "This computing unit is unavailable.";
+    case "Terminating":
+      return "Computing unit is shutting down";
     default:
       return entry.status;
   }
+}
+
+export function getComputingUnitRowTooltip(entry: DashboardWorkflowComputingUnit): string {
+  const statusTooltip = getComputingUnitStatusTooltip(entry);
+  if (entry.status === "Running") {
+    return statusTooltip;
+  }
+  return `${statusTooltip.replace(/\.$/, "")}. Cannot select.`;
 }
 
 export function getComputingUnitCpuStatus(percentage: number): "success" | "exception" | "active" | "normal" {
@@ -285,8 +321,8 @@ function buildJvmMemorySteps(maxGb: number, start: number): number[] {
 }
 
 function buildJvmMemoryMarks(steps: number[]): Record<number, string> {
-  return steps.reduce<Record<number, string>>((marks, step) => {
-    marks[step] = `${step}G`;
+  return steps.reduce<Record<number, string>>((marks, step, index) => {
+    marks[index] = `${step}G`;
     return marks;
   }, {});
 }
@@ -299,23 +335,24 @@ export function getJvmMemorySliderConfig(selectedMemory: string): JvmMemorySlide
     const steps = buildJvmMemorySteps(cuMemoryInGb, 1);
 
     return {
-      jvmMemoryMax: cuMemoryInGb,
+      jvmMemoryMax: steps.length - 1,
       showJvmMemorySlider: false,
       jvmMemorySteps: steps,
       jvmMemoryMarks: buildJvmMemoryMarks(steps),
-      jvmMemorySliderValue: defaultValue,
+      jvmMemorySliderValue: steps.indexOf(defaultValue),
       selectedJvmMemorySize: `${defaultValue}G`,
     };
   }
 
   const steps = buildJvmMemorySteps(cuMemoryInGb, 2);
+  const defaultIndex = steps.indexOf(2);
 
   return {
-    jvmMemoryMax: cuMemoryInGb,
+    jvmMemoryMax: steps.length - 1,
     showJvmMemorySlider: true,
     jvmMemorySteps: steps,
     jvmMemoryMarks: buildJvmMemoryMarks(steps),
-    jvmMemorySliderValue: 2,
+    jvmMemorySliderValue: defaultIndex !== -1 ? defaultIndex : 0,
     selectedJvmMemorySize: "2G",
   };
 }
@@ -327,6 +364,10 @@ interface JvmMemorySliderConfig {
   jvmMemoryMarks: Record<number, string>;
   jvmMemorySliderValue: number;
   selectedJvmMemorySize: string;
+}
+
+export function buildLocalComputingUnitUri(location: { protocol: string; hostname: string; port: string }): string {
+  return `${location.protocol}//${location.hostname}${location.port ? `:${location.port}` : ""}/wsapi`;
 }
 
 export const unitTypeMessageTemplate = {

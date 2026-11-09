@@ -22,10 +22,10 @@ package org.apache.texera.amber.operator.distinct
 import org.apache.texera.amber.core.executor.OpExecWithClassName
 import org.apache.texera.amber.core.virtualidentity.{ExecutionIdentity, WorkflowIdentity}
 import org.apache.texera.amber.core.workflow.{HashPartition, InputPort, OutputPort, PhysicalOp}
-import org.apache.texera.amber.operator.LogicalOp
+import org.apache.texera.amber.operator.{LogicalOp, StandaloneCodeGenerator}
 import org.apache.texera.amber.operator.metadata.{OperatorGroupConstants, OperatorInfo}
 
-class DistinctOpDesc extends LogicalOp {
+class DistinctOpDesc extends LogicalOp with StandaloneCodeGenerator {
 
   override def getPhysicalOp(
       workflowId: WorkflowIdentity,
@@ -54,4 +54,9 @@ class DistinctOpDesc extends LogicalOp {
       outputPorts = List(OutputPort(blocking = true))
     )
 
+  override def generateStandaloneCode(): String = {
+    // JVM op uses LinkedHashSet to preserve first-occurrence order;
+    // pandas drop_duplicates does the same by default.
+    "out1df = in1df.drop_duplicates(ignore_index=True)"
+  }
 }

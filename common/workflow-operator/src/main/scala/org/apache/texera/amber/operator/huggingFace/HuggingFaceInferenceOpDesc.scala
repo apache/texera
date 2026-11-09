@@ -20,7 +20,7 @@
 package org.apache.texera.amber.operator.huggingFace
 
 import com.fasterxml.jackson.annotation.{JsonProperty, JsonPropertyDescription}
-import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaTitle
+import com.kjetland.jackson.jsonSchema.annotations.{JsonSchemaInject, JsonSchemaTitle}
 import org.apache.texera.amber.core.tuple.{AttributeType, Schema}
 import org.apache.texera.amber.core.workflow.{InputPort, OutputPort, PortIdentity}
 import org.apache.texera.amber.operator.PythonOperatorDescriptor
@@ -29,12 +29,12 @@ import org.apache.texera.amber.operator.huggingFace.codegen.{
   CodegenContext,
   ImageTaskCodegen,
   MediaGenCodegen,
-  PythonCodegenBase,
+  HuggingFaceCodegenBase,
   QaRankingCodegen,
   TaskCodegen,
   TextGenCodegen
 }
-import org.apache.texera.amber.operator.metadata.annotations.AutofillAttributeName
+import org.apache.texera.amber.operator.metadata.annotations.{AutofillAttributeName, UIWidget}
 import org.apache.texera.amber.operator.metadata.{OperatorGroupConstants, OperatorInfo}
 import org.apache.texera.amber.pybuilder.PyStringTypes.EncodableString
 
@@ -47,12 +47,12 @@ import org.apache.texera.amber.pybuilder.PyStringTypes.EncodableString
   * `TaskCodegen` implementations registered in `registeredCodegens`.
   *
   * The Python script that runs at execution time is assembled by
-  * `PythonCodegenBase.render(ctx, codegen)`, which composes the shared
+  * `HuggingFaceCodegenBase.render(ctx, codegen)`, which composes the shared
   * provider-fallback / request-loop infrastructure with the per-task
   * payload + parse snippets supplied by the selected `TaskCodegen`.
   *
   * User-provided string fields are typed as [[EncodableString]] so the
-  * `pyb"..."` macro inside `PythonCodegenBase` emits them as
+  * `pyb"..."` macro inside `HuggingFaceCodegenBase` emits them as
   * base64-decoded expressions at runtime instead of raw Python literals —
   * this is what allows the operator to satisfy
   * `PythonCodeRawInvalidTextSpec`'s contract that arbitrary `@JsonProperty`
@@ -65,6 +65,7 @@ class HuggingFaceInferenceOpDesc extends PythonOperatorDescriptor {
   @JsonPropertyDescription(
     "Your Hugging Face API token (from https://huggingface.co/settings/tokens)"
   )
+  @JsonSchemaInject(json = UIWidget.UIWidgetPassword)
   var hfApiToken: EncodableString = ""
 
   @JsonProperty(value = "task", required = true, defaultValue = "text-generation")
@@ -145,6 +146,7 @@ class HuggingFaceInferenceOpDesc extends PythonOperatorDescriptor {
   @JsonProperty(value = "temperature", required = false)
   @JsonSchemaTitle("Temperature")
   @JsonPropertyDescription("Sampling temperature (0.0 = deterministic, up to 2.0)")
+  @JsonSchemaInject(json = """{ "minimum": 0.0, "maximum": 2.0, "default": 0.7 }""")
   var temperature: java.lang.Double = 0.7
 
   @JsonProperty(
@@ -246,7 +248,7 @@ class HuggingFaceInferenceOpDesc extends PythonOperatorDescriptor {
       sentencesColumn = safeSentencesColumn
     )
 
-    PythonCodegenBase.render(ctx, codegenForTask(safeTask))
+    HuggingFaceCodegenBase.render(ctx, codegenForTask(safeTask))
   }
 
   override def operatorInfo: OperatorInfo =
@@ -260,9 +262,18 @@ class HuggingFaceInferenceOpDesc extends PythonOperatorDescriptor {
 
   override def getOutputSchemas(
       inputSchemas: Map[PortIdentity, Schema]
-  ): Map[PortIdentity, Schema] =
+  ): Map[PortIdentity, Schema] = {
+    val inputSchema = inputSchemas.values.head
+    val resultCol = resolvedResultColumn
+    if (inputSchema.containsAttribute(resultCol)) {
+      throw new RuntimeException(
+        s"Result column '$resultCol' already exists in the input table. " +
+          "Choose a different Result Column Name."
+      )
+    }
     Map(
-      operatorInfo.outputPorts.head.id -> inputSchemas.values.head
-        .add(resolvedResultColumn, AttributeType.STRING)
+      operatorInfo.outputPorts.head.id -> inputSchema
+        .add(resultCol, AttributeType.STRING)
     )
+  }
 }

@@ -64,6 +64,64 @@ class SklearnLinearRegressionOpDescSpec extends AnyFlatSpec with Matchers {
     code should include("class ProcessTableOperator(UDFTableOperator)")
   }
 
+  // This operator builds its own pipeline rather than inheriting the classifier
+  // base's, so the drop the rest of the family gained has to be stated here too.
+  it should "drop rows with missing values and say how many" in {
+    val d = new SklearnLinearRegressionOpDesc
+    d.target = "y"
+    val code = d.generatePythonCode()
+    code should include("table.dropna()")
+    code should include("\"Skipped\"")
+  }
+
+  // The operator fits every column but the target, so a text column beside the
+  // numbers would end the run from inside scikit-learn.
+  it should "narrow the features to the columns an estimator can fit" in {
+    val d = new SklearnLinearRegressionOpDesc
+    d.target = "y"
+    val code = d.generatePythonCode()
+    code should include("""_fittable = X.select_dtypes(include=["number", "bool"])""")
+    code should include("""print("Ignoring columns an estimator cannot fit:", _ignored)""")
+    code should include("X = _fittable")
+  }
+
+  // Narrowing a table whose every column but the target is text leaves a frame of
+  // no columns, which numpy answers with `at least one array or dtype is required`.
+  it should "say so when the narrowing leaves no column at all" in {
+    val d = new SklearnLinearRegressionOpDesc
+    d.target = "y"
+    val code = d.generatePythonCode()
+    code should include("if _fittable.columns.empty:")
+    code should include("No column left to fit on")
+  }
+
+  // Both frames, since the model is fitted on one and scored on the other: a
+  // narrowing on only one side hands `predict` a different feature set.
+  "SklearnLinearRegressionOpDesc.generateStandaloneCode" should
+    "narrow both the training and the testing features" in {
+    val d = new SklearnLinearRegressionOpDesc
+    d.target = "y"
+    val code = d.generateStandaloneCode()
+    code should include("""_fittable = X_train.select_dtypes(include=["number", "bool"])""")
+    code should include("X_train = _fittable")
+    code should include("""_fittable = X_test.select_dtypes(include=["number", "bool"])""")
+    code should include("X_test = _fittable")
+  }
+
+  // The operator runs once per port and counts the rows it dropped each time, so
+  // the script says it for the table it scores as well as the one it fits.
+  it should "count the rows it dropped on both tables" in {
+    val d = new SklearnLinearRegressionOpDesc
+    d.target = "y"
+    val code = d.generateStandaloneCode()
+    code should include(
+      """print("Skipped", len(in1df) - len(_train), "of", len(in1df), "rows with missing values")"""
+    )
+    code should include(
+      """print("Skipped", len(in2df) - len(_test), "of", len(in2df), "rows with missing values")"""
+    )
+  }
+
   "SklearnLinearRegressionOpDesc" should
     "round-trip its target through the polymorphic base" in {
     val d = new SklearnLinearRegressionOpDesc

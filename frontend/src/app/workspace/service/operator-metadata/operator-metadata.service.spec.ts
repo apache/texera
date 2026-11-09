@@ -20,9 +20,11 @@
 import { TestBed } from "@angular/core/testing";
 import { HttpClient } from "@angular/common/http";
 import { HttpClientTestingModule, HttpTestingController } from "@angular/common/http/testing";
-import { OperatorMetadataService } from "./operator-metadata.service";
+import { OPERATOR_METADATA_ENDPOINT, OperatorMetadataService } from "./operator-metadata.service";
 import { mockOperatorMetaData } from "./mock-operator-metadata.data";
 import { commonTestProviders } from "../../../common/testing/test-utils";
+import { AppSettings } from "../../../common/app-setting";
+import type { OperatorMetadata } from "../../types/operator-schema.interface";
 
 describe("OperatorMetadataService", () => {
   let service: OperatorMetadataService;
@@ -56,5 +58,63 @@ describe("OperatorMetadataService", () => {
     });
     const req = httpTestingController.match(request => request.method === "GET");
     req[0].flush(mockOperatorMetaData);
+  });
+
+  const metadataUrl = `${AppSettings.getApiEndpoint()}/${OPERATOR_METADATA_ENDPOINT}`;
+
+  // The service fetches metadata once in its constructor (shareReplay), so a single
+  // request is pending after injection; flush it with the fixture.
+  const flushMetadata = () =>
+    httpTestingController.expectOne(req => req.method === "GET" && req.url === metadataUrl).flush(mockOperatorMetaData);
+
+  it("getOperatorMetadata emits the fetched metadata to subscribers", () => {
+    let emitted: OperatorMetadata | undefined;
+    service.getOperatorMetadata().subscribe(m => (emitted = m));
+    flushMetadata();
+    expect(emitted).toEqual(mockOperatorMetaData);
+  });
+
+  it("getOperatorSchema returns the schema for a known operator type", () => {
+    flushMetadata();
+    const schema = service.getOperatorSchema("ScanSource");
+    expect(schema.operatorType).toBe("ScanSource");
+    expect(schema).toEqual(mockOperatorMetaData.operators.find(op => op.operatorType === "ScanSource"));
+  });
+
+  it("getOperatorSchema throws for an unknown operator type", () => {
+    flushMetadata();
+    expect(() => service.getOperatorSchema("NoSuchOperator")).toThrow(
+      "can't find operator schema of type NoSuchOperator"
+    );
+  });
+
+  it("getOperatorSchema throws when the metadata has not been fetched yet", () => {
+    // do not flush: the constructor's request is still pending, so metadata is undefined
+    expect(() => service.getOperatorSchema("ScanSource")).toThrow("operator metadata is undefined");
+    flushMetadata(); // drain the pending request
+  });
+
+  it("operatorTypeExists is true for a fetched type and false for an unknown one", () => {
+    flushMetadata();
+    expect(service.operatorTypeExists("ScanSource")).toBe(true);
+    expect(service.operatorTypeExists("NoSuchOperator")).toBe(false);
+  });
+
+  it("operatorTypeExists is false before the metadata request resolves", () => {
+    expect(service.operatorTypeExists("ScanSource")).toBe(false);
+    flushMetadata();
+  });
+
+  it("operatorTypeExists matches the user-friendly name only when that filter is enabled", () => {
+    flushMetadata();
+    // ScanSource's userFriendlyName is "Source: Scan"
+    expect(service.operatorTypeExists("Source: Scan", true)).toBe(true);
+    expect(service.operatorTypeExists("Source: Scan", false)).toBe(false);
+  });
+
+  it("operatorTypeExists honors case-insensitive matching when requested", () => {
+    flushMetadata();
+    expect(service.operatorTypeExists("scansource", false, true)).toBe(true);
+    expect(service.operatorTypeExists("scansource", false, false)).toBe(false);
   });
 });

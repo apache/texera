@@ -38,7 +38,7 @@ import org.apache.texera.amber.engine.common.ambermessage.WorkflowFIFOMessage
 import org.apache.texera.amber.engine.common.rpc.AsyncRPCClient.ControlInvocation
 import org.apache.texera.amber.engine.common.storage.SequentialRecordStorage
 import org.apache.texera.amber.engine.common.storage.SequentialRecordStorage.SequentialRecordReader
-import org.apache.texera.amber.engine.common.virtualidentity.util.CONTROLLER
+import org.apache.texera.amber.engine.common.virtualidentity.util.COORDINATOR
 import org.scalatest.BeforeAndAfterAll
 import org.scalatest.flatspec.AnyFlatSpecLike
 
@@ -71,7 +71,7 @@ class ReplaySpec
   private val actorId = ActorVirtualIdentity("test")
   private val actorId2 = ActorVirtualIdentity("upstream1")
   private val actorId3 = ActorVirtualIdentity("upstream2")
-  private val channelId1 = ChannelIdentity(CONTROLLER, actorId, isControl = true)
+  private val channelId1 = ChannelIdentity(COORDINATOR, actorId, isControl = true)
   private val channelId2 = ChannelIdentity(actorId2, actorId, isControl = false)
   private val channelId3 = ChannelIdentity(actorId3, actorId, isControl = false)
   private val channelId4 = ChannelIdentity(actorId2, actorId, isControl = true)
@@ -97,7 +97,7 @@ class ReplaySpec
             ControlInvocation(
               METHOD_START_WORKER,
               EmptyRequest(),
-              AsyncRPCContext(CONTROLLER, actorId),
+              AsyncRPCContext(COORDINATOR, actorId),
               0
             )
           )

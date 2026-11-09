@@ -17,17 +17,26 @@
  * under the License.
  */
 
-import { ChangeDetectorRef, Component, EventEmitter, Input, OnInit, Output } from "@angular/core";
+import {
+  ChangeDetectorRef,
+  Component,
+  EventEmitter,
+  Input,
+  OnChanges,
+  OnInit,
+  Output,
+  SimpleChanges,
+} from "@angular/core";
 import { OperatorMetadataService } from "src/app/workspace/service/operator-metadata/operator-metadata.service";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
-import { Observable, of } from "rxjs";
-import { DashboardProject } from "../../../type/dashboard-project.interface";
 import { NotificationService } from "src/app/common/service/notification/notification.service";
-import { UserProjectService } from "../../../service/user/project/user-project.service";
-import { WorkflowPersistService } from "src/app/common/service/workflow-persist/workflow-persist.service";
+import { ResourceRegistryService } from "../../../service/user/resource-registry/resource-registry.service";
+import { EntityType } from "../../../../hub/service/hub.service";
+import { OwnerScope } from "../../../type/owner-scope";
+import { forkJoin, Observable, of, Subject } from "rxjs";
+import { catchError, switchMap } from "rxjs/operators";
 import { SearchFilterParameters } from "../../../type/search-filter-parameters";
 import { UserService } from "../../../../common/service/user/user.service";
-import { switchMap } from "rxjs/operators";
 import { NzDropdownADirective, NzDropdownDirective, NzDropdownMenuComponent } from "ng-zorro-antd/dropdown";
 import { NzSpaceCompactItemDirective, NzSpaceCompactComponent } from "ng-zorro-antd/space";
 import { NzButtonComponent } from "ng-zorro-antd/button";
@@ -66,11 +75,15 @@ import { NzCheckboxComponent } from "ng-zorro-antd/checkbox";
     NzSpaceCompactComponent,
   ],
 })
-export class FiltersComponent implements OnInit {
+export class FiltersComponent implements OnInit, OnChanges {
   public isLogin = this.userService.isLogin();
+  /** Fires when the kind or scope changes, to refetch the owner facet. */
+  private readonly facetReload$ = new Subject<void>();
   private _masterFilterList: ReadonlyArray<string> = [];
-  // receive input from parent components (UserProjectSection), if any
-  @Input() public pid?: number = undefined;
+  /** Which kind this page lists; decides whose owners and ids are offered. `null` spans every kind. */
+  @Input() public entityType: EntityType | null = EntityType.Workflow;
+  /** Which people the Owner facet offers, matching the results the host page shows. */
+  @Input() public ownerScope: OwnerScope = "accessible";
   @Output()
   public masterFilterListChange = new EventEmitter<typeof this._masterFilterList>();
   public get masterFilterList(): ReadonlyArray<string> {
@@ -106,60 +119,125 @@ export class FiltersComponent implements OnInit {
   public selectedOwners: string[] = [];
   public selectedIDs: string[] = [];
   public selectedOperators: { userFriendlyName: string; operatorType: string; operatorGroup: string }[] = [];
-  public selectedProjects: { name: string; pid: number }[] = [];
-  /* variables for filtering workflows by projects */
-  public userProjectsList!: Observable<DashboardProject[]>; // list of projects accessible by user
-  public userProjectsDropdown: { pid: number; name: string; checked: boolean }[] = [];
-  /* variables for project color tags */
-  public userProjectsMap: ReadonlyMap<number, DashboardProject> = new Map(); // maps pid to its corresponding DashboardProjectInterface
-  public userProjectsLoaded: boolean = false; // tracks whether all DashboardProjectInterface information has been loaded (ready to render project colors)
-  public searchCriteria: string[] = ["owner", "id", "ctime", "mtime", "operator", "project"];
+  public searchCriteria: string[] = ["owner", "id", "ctime", "mtime", "operator"];
 
   constructor(
     private userService: UserService,
     private operatorMetadataService: OperatorMetadataService,
     private notificationService: NotificationService,
-    private userProjectService: UserProjectService,
-    private workflowPersistService: WorkflowPersistService,
+    private resourceRegistry: ResourceRegistryService,
     private cdr: ChangeDetectorRef
   ) {}
 
-  ngOnInit(): void {
-    this.setupUserProject();
-    this.searchParameterBackendSetup();
+  /**
+   * The id dropdown is hidden for kinds with no id-listing endpoint. A page listing every kind keeps
+   * the workflow ids it had before: that page lists workflows too, and the backend binds `id=` to
+   * the workflow arm, exactly as the operator facet is workflow-only.
+   */
+  public get hasIdFilter(): boolean {
+    return this.resourceRegistry.get(this.entityType ?? EntityType.Workflow).retrieveIds !== undefined;
   }
 
-  private setupUserProject(): void {
-    this.userService
-      .userChanged()
+  ngOnInit(): void {
+    this.trackLoginState();
+    this.searchParameterBackendSetup();
+    this.facetReload$
       .pipe(
-        switchMap(() => {
-          this.isLogin = this.userService.isLogin();
-          this.cdr.detectChanges();
-          if (this.isLogin) {
-            return this.userProjectService.getProjectList() as Observable<DashboardProject[]>;
-          } else {
-            return of([] as DashboardProject[]);
-          }
-        }),
+        // switchMap: without it a stale response can land last and refill the facet.
+        switchMap(() =>
+          forkJoin({
+            owners: this.ownersForCurrentScope(),
+            ids: this.idsForCurrentKind(),
+          })
+        ),
         untilDestroyed(this)
       )
-      .subscribe((userProjectsList: DashboardProject[]) => {
-        if (userProjectsList && userProjectsList.length > 0) {
-          this.userProjectsMap = new Map(userProjectsList.map(userProject => [userProject.pid, userProject]));
-          this.userProjectsDropdown = userProjectsList.map(proj => ({
-            pid: proj.pid,
-            name: proj.name,
-            checked: false,
-          }));
-          this.userProjectsLoaded = true;
-        }
-      });
+      .subscribe(facets => this.applyFacets(facets));
+    // Through the subject, not a separate subscribe: an init response that landed after a tab
+    // switch would otherwise overwrite the new kind's facets.
+    this.facetReload$.next();
+  }
+
+  ngOnChanges(changes: SimpleChanges): void {
+    const changed = changes["entityType"] ?? changes["ownerScope"];
+    // ngOnChanges runs before ngOnInit, so the first pass is left to ngOnInit's single load.
+    if (changed && !changed.firstChange) {
+      this.reloadFacets();
+    }
   }
 
   /**
-   * Backend calls for Workflow IDs, Owners, and Operators in saved workflow component
+   * Drops the owner and id selections, and the tags carrying them. The host calls this before it
+   * searches a new kind: the selections belong to the facet being replaced, and a search that still
+   * carries them asks the new kind for an owner it has no facet for.
    */
+  public clearFacetSelections(): void {
+    this.selectedOwners = [];
+    this.selectedIDs = [];
+    this.owners.forEach(owner => (owner.checked = false));
+    this.wids.forEach(wid => (wid.checked = false));
+    this.setMasterFilterList(
+      this.masterFilterList.filter(tag => !tag.startsWith("owner: ") && !tag.startsWith("id: ")),
+      false
+    );
+  }
+
+  /** Refetches both facets for the kind and scope now in effect. */
+  private reloadFacets(): void {
+    this.clearFacets();
+    this.facetReload$.next();
+  }
+
+  /** Empties both facets and whatever was selected from them. */
+  private clearFacets(): void {
+    this.owners = [];
+    this.wids = [];
+    this.clearFacetSelections();
+  }
+
+  /** The owners this page should offer; none for a signed-out visitor, whose endpoints are gated. */
+  private ownersForCurrentScope(): Observable<string[]> {
+    return this.isLogin ? this.resourceRegistry.ownersFor(this.entityType, this.ownerScope) : of([]);
+  }
+
+  /** The ids this kind offers, or none for a kind with no id endpoint. */
+  private idsForCurrentKind(): Observable<number[]> {
+    if (!this.isLogin) {
+      return of([]);
+    }
+    // Same rule as the owner leg: a failed request costs its own facet, not the subscription, which
+    // would otherwise end here and leave every later tab switch blanking both dropdowns.
+    const descriptor = this.resourceRegistry.get(this.entityType ?? EntityType.Workflow);
+    return (descriptor.retrieveIds?.() ?? of([])).pipe(catchError(() => of([])));
+  }
+
+  /** Re-runs the tag list: a surviving selection stays checked, one that does not is dropped and reported. */
+  private applyFacets({ owners, ids }: { owners: string[]; ids: number[] }): void {
+    this.owners = owners.map(name => ({ userName: name, checked: false }));
+    this.wids = ids.map(id => ({ id: id.toString(), checked: false }));
+    this.updateDropdownMenus(this.masterFilterList);
+  }
+
+  private trackLoginState(): void {
+    this.userService
+      .userChanged()
+      .pipe(untilDestroyed(this))
+      .subscribe(() => {
+        this.isLogin = this.userService.isLogin();
+        if (this.isLogin) {
+          // Signing in mid-page used to leave the facet empty until a reload.
+          this.reloadFacets();
+        } else {
+          // Signing out: clear rather than refetch, or an expired session fires the authenticated
+          // endpoints anyway and the empty result drops the chips with an "Invalid owner name" toast.
+          // The selections go too, or the anonymous hub stays filtered by an owner it no longer offers.
+          this.clearFacets();
+        }
+        this.cdr.detectChanges();
+      });
+  }
+
+  /** Backend calls for the filtered kind's owners and ids, plus the operator metadata. */
   private searchParameterBackendSetup() {
     this.operatorMetadataService
       .getOperatorMetadata()
@@ -182,25 +260,6 @@ export class FiltersComponent implements OnInit {
         });
         this.operatorGroups = opdata.groups.map(group => group.groupName);
       });
-    if (this.isLogin) {
-      this.workflowPersistService
-        .retrieveOwners()
-        .pipe(untilDestroyed(this))
-        .subscribe(list_of_owners => {
-          this.owners = list_of_owners.map(i => ({ userName: i, checked: false }));
-        });
-      this.workflowPersistService
-        .retrieveWorkflowIDs()
-        .pipe(untilDestroyed(this))
-        .subscribe(wids => {
-          this.wids = wids.map(wid => {
-            return {
-              id: wid.toString(),
-              checked: false,
-            };
-          });
-        });
-    }
   }
 
   /**
@@ -240,18 +299,6 @@ export class FiltersComponent implements OnInit {
   }
 
   /**
-   * updates selectedProjects array to match projects checked in dropdown menu
-   */
-  public updateSelectedProjects(): void {
-    this.selectedProjects = this.userProjectsDropdown
-      .filter(proj => proj.checked)
-      .map(proj => {
-        return { name: proj.name, pid: proj.pid };
-      });
-    this.buildMasterFilterList();
-  }
-
-  /**
    * updates dropdown menus when nz-select bar is changed
    */
   public updateDropdownMenus(tagListString: ReadonlyArray<string>): void {
@@ -259,7 +306,6 @@ export class FiltersComponent implements OnInit {
     //operators map is too expensive/difficult to search for operator object properties
     this.selectedIDs = [];
     this.selectedOwners = [];
-    this.selectedProjects = [];
     let newSelectedOperators: { userFriendlyName: string; operatorType: string; operatorGroup: string }[] = [];
     this.selectedCtime = [];
     this.selectedMtime = [];
@@ -310,17 +356,6 @@ export class FiltersComponent implements OnInit {
                 }
               }
             }
-            break;
-          case "project":
-            const selectedProjectIndex = this.userProjectsDropdown.findIndex(proj => proj.name === searchValue);
-            if (selectedProjectIndex === -1) {
-              this.removeInvalidFilterTag(tag);
-              this.notificationService.error("Invalid project name");
-              break;
-            }
-            this.userProjectsDropdown[selectedProjectIndex].checked = true;
-            const selectedProject = this.userProjectsDropdown[selectedProjectIndex];
-            this.selectedProjects.push({ name: selectedProject.name, pid: selectedProject.pid });
             break;
           case "ctime": //should only run at most once
             if (this.selectedCtime.length > 0) {
@@ -391,9 +426,6 @@ export class FiltersComponent implements OnInit {
     for (let operatorList of this.operators.values()) {
       operatorList.forEach(operator => (operator.checked = false));
     }
-    this.userProjectsDropdown.forEach(proj => {
-      proj.checked = false;
-    });
   }
 
   /**
@@ -415,7 +447,6 @@ export class FiltersComponent implements OnInit {
     newFilterList = newFilterList.concat(
       this.selectedOperators.map(operator => "operator: " + operator.userFriendlyName)
     );
-    newFilterList = newFilterList.concat(this.selectedProjects.map(proj => "project: " + proj.name));
     if (this.selectedCtime.length != 0) {
       newFilterList.push(
         "ctime: " +
@@ -478,7 +509,6 @@ export class FiltersComponent implements OnInit {
       owners: this.selectedOwners,
       ids: this.selectedIDs,
       operators: this.selectedOperators.map(o => o.operatorType),
-      projectIds: this.selectedProjects.map(p => p.pid),
     };
   }
 

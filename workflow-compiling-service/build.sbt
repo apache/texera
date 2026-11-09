@@ -41,8 +41,35 @@ ThisBuild / semanticdbVersion := scalafixSemanticdb.revision
 // Manage dependency conflicts by always using the latest revision
 ThisBuild / conflictManager := ConflictManager.latestRevision
 
-// Restrict parallel execution of tests to avoid conflicts
+// Restrict parallel execution of tests to avoid conflicts. This caps how many
+// test *suites* run concurrently; ParallelTestExecution still parallelizes the
+// tests *within* a suite (e.g. OperatorBehaviorSpec) via ScalaTest's own pool.
 Global / concurrentRestrictions += Tags.limit(Tags.Test, 1)
+
+// The fast-unit / integration test split; the selection logic itself is shared
+// in project/TestFilters.scala. The tag it names is the one this change adds,
+// so the two arrive together and the filter never selects on a tag nothing
+// carries.
+Test / testOptions ++= TestFilters.integrationSplit(
+  envVar = "WCS_TEST_FILTER",
+  tag = "org.apache.texera.amber.translator.verify.tags.IntegrationTest"
+)
+
+// -P4 bounds ScalaTest's ParallelTestExecution pool, and only this module wants
+// it: OperatorBehaviorSpec forks a Python subprocess per operator, and at
+// core-count concurrency (e.g. 12) resource contention caused rare flakes. A
+// fixed 4 stays deterministic across machines (incl. CI runners) while still
+// running ~3x faster than serial, and it matches PythonWorkerPool's own default
+// worker cap so the two bounds agree rather than multiply. Unconditional, so a
+// local run reproduces the concurrency CI runs at instead of a faster one that
+// flakes differently; WCS_TEST_FILTER selects which tests run, which is a
+// separate question from how many run at once. The fast-unit job is unaffected
+// either way, since OperatorBehaviorSpec is the only spec here that
+// parallelizes and that job excludes it. It lives here rather than in the
+// shared helper so that helper stays identical for every module. sbt
+// concatenates the ScalaTest arguments of every testOptions entry, so this
+// lands in the same argument list as the -n above.
+Test / testOptions += Tests.Argument(TestFrameworks.ScalaTest, "-P4")
 
 /////////////////////////////////////////////////////////////////////////////
 // Compiler Options
@@ -50,7 +77,6 @@ Global / concurrentRestrictions += Tags.limit(Tags.Test, 1)
 
 // Scala compiler options
 Compile / scalacOptions ++= Seq(
-  "-Xelide-below", "WARNING",       // Turn on optimizations with "WARNING" as the threshold
   "-feature",                       // Check feature warnings
   "-deprecation",                   // Check deprecation warnings
   "-Ywarn-unused:imports"           // Check for unused imports
@@ -62,7 +88,7 @@ Compile / scalacOptions ++= Seq(
 
 val dropwizardVersion = "4.0.7"
 val mockitoVersion = "5.4.0"
-val assertjVersion = "3.24.2"
+val assertjVersion = "3.27.7"
 
 /////////////////////////////////////////////////////////////////////////////
 // Test-related Dependencies
@@ -70,7 +96,7 @@ val assertjVersion = "3.24.2"
 
 libraryDependencies ++= Seq(
   "org.scalamock" %% "scalamock" % "5.2.0" % Test,                   // ScalaMock
-  "org.scalatest" %% "scalatest" % "3.2.17" % Test,                  // ScalaTest
+  "org.scalatest" %% "scalatest" % "3.2.20" % Test,                  // ScalaTest
   "io.dropwizard" % "dropwizard-testing" % dropwizardVersion % Test, // Dropwizard Testing
   "org.mockito" % "mockito-core" % mockitoVersion % Test,            // Mockito for mocking
   "org.assertj" % "assertj-core" % assertjVersion % Test,            // AssertJ for assertions
@@ -85,5 +111,5 @@ libraryDependencies ++= Seq(
 libraryDependencies ++= Seq(
   "io.dropwizard" % "dropwizard-core" % dropwizardVersion,
   "io.dropwizard" % "dropwizard-auth" % dropwizardVersion, // Dropwizard Authentication module
-  "com.fasterxml.jackson.module" %% "jackson-module-scala" % "2.18.6"
+  "com.fasterxml.jackson.module" %% "jackson-module-scala" % "2.18.8"
 )

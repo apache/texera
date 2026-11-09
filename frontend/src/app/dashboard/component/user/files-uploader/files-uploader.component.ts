@@ -17,7 +17,7 @@
  * under the License.
  */
 
-import { Component, EventEmitter, Input, Output } from "@angular/core";
+import { Component, EventEmitter, Input, OnInit, Output } from "@angular/core";
 import { firstValueFrom } from "rxjs";
 import { NgxFileDropEntry, NgxFileDropModule } from "ngx-file-drop";
 import { NzModalRef, NzModalService } from "ng-zorro-antd/modal";
@@ -26,8 +26,13 @@ import { DatasetFileNode } from "../../../../common/type/datasetVersionFileTree"
 import { NotificationService } from "../../../../common/service/notification/notification.service";
 import { AdminSettingsService } from "../../../service/admin/settings/admin-settings.service";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
-import { DatasetService } from "../../../service/user/dataset/dataset.service";
+import { MultipartUploadService } from "../../../service/user/file-resource/multipart-upload.service";
+import {
+  DATASET_FILE_RESOURCE_ENDPOINT,
+  FileResourceEndpoint,
+} from "../../../service/user/file-resource/file-resource-endpoint";
 import { formatSize } from "../../../../common/util/size-formatter.util";
+import { parseIntOrDefault } from "../../../../common/util/format.util";
 import {
   ConflictingFileModalContentComponent,
   ConflictingFileModalData,
@@ -54,17 +59,18 @@ import { ɵNzTransitionPatchDirective } from "ng-zorro-antd/core/transition-patc
     ɵNzTransitionPatchDirective,
   ],
 })
-export class FilesUploaderComponent {
+export class FilesUploaderComponent implements OnInit {
   @Input() showUploadAlert: boolean = false;
   /**
-   * Optional context fields supplied by the embedding component. When the
-   * uploader is used inside `DatasetDetailComponent`, the parent passes
-   * `ownerEmail` and `datasetName` so the uploader can address staged files
-   * under the right owner/dataset path. When used standalone (e.g. dataset
-   * creation flow), they default to empty.
+   * Optional context supplied by the embedding component so the uploader can address staged files
+   * under the right owner/resource path. When used standalone (e.g. dataset creation flow) they
+   * default to empty and the conflict lookups are skipped.
    */
   @Input() ownerEmail: string = "";
-  @Input() datasetName: string = "";
+  @Input() resourceName: string = "";
+  @Input() resourceId: number | undefined;
+  /** Which resource family the ids above belong to. */
+  @Input() endpoint: FileResourceEndpoint = DATASET_FILE_RESOURCE_ENDPOINT;
 
   @Output() uploadedFiles = new EventEmitter<FileUploadItem[]>();
 
@@ -73,18 +79,26 @@ export class FilesUploaderComponent {
   fileUploadingFinished: boolean = false;
   fileUploadBannerType: "error" | "success" | "info" | "warning" = "success";
   fileUploadBannerMessage: string = "";
-  singleFileUploadMaxSizeMiB: number = 20;
+  singleFileUploadMaxSizeMiB: number = DATASET_FILE_RESOURCE_ENDPOINT.defaultMaxFileSizeMiB;
 
   constructor(
     private notificationService: NotificationService,
     private adminSettingsService: AdminSettingsService,
-    private datasetService: DatasetService,
+    private multipartUploadService: MultipartUploadService,
     private modal: NzModalService
-  ) {
+  ) {}
+
+  // The ceiling is read here rather than in the constructor because `endpoint` is an @Input, and it
+  // decides both the setting key and the fallback. A missing key or failed fetch keeps the fallback.
+  ngOnInit(): void {
+    this.singleFileUploadMaxSizeMiB = this.endpoint.defaultMaxFileSizeMiB;
     this.adminSettingsService
-      .getSetting("single_file_upload_max_size_mib")
+      .getPublicSetting(this.endpoint.maxFileSizeSettingKey)
       .pipe(untilDestroyed(this))
-      .subscribe(value => (this.singleFileUploadMaxSizeMiB = parseInt(value)));
+      .subscribe({
+        next: value => (this.singleFileUploadMaxSizeMiB = parseIntOrDefault(value, this.singleFileUploadMaxSizeMiB)),
+        error: () => {},
+      });
   }
 
   private markForceRestart(item: FileUploadItem): void {
@@ -149,6 +163,41 @@ export class FilesUploaderComponent {
     });
   }
 
+  private askUploadOrSkip(
+    item: FileUploadItem,
+    showForAll: boolean
+  ): Promise<"upload" | "uploadAll" | "skip" | "skipAll"> {
+    return new Promise(resolve => {
+      const fileName = item.name.split("/").pop() || item.name;
+      let ref: NzModalRef;
+      const button = (label: string, choice: "upload" | "uploadAll" | "skip" | "skipAll", type?: "primary") => ({
+        label,
+        type,
+        onClick: () => {
+          resolve(choice);
+          ref.destroy();
+        },
+      });
+      ref = this.modal.create<ConflictingFileModalContentComponent, ConflictingFileModalData>({
+        nzTitle: "Matching File Found",
+        nzMaskClosable: false,
+        nzClosable: false,
+        nzContent: ConflictingFileModalContentComponent,
+        nzData: {
+          fileName,
+          path: item.name,
+          size: formatSize(item.file.size),
+          hint: `A file with the same path and size exists in this ${this.endpoint.label}. Skip only if you expect it is the same file.`,
+        },
+        nzFooter: [
+          ...(showForAll ? [button("Upload For All", "uploadAll"), button("Skip For All", "skipAll")] : []),
+          button("Upload", "upload"),
+          button("Skip", "skip", "primary"),
+        ],
+      });
+    });
+  }
+
   private async resolveConflicts(items: FileUploadItem[], activePaths: string[]): Promise<FileUploadItem[]> {
     const active = new Set(activePaths ?? []);
     const isConflict = (p: string) => active.has(p) || active.has(encodeURIComponent(p));
@@ -201,6 +250,27 @@ export class FilesUploaderComponent {
     return out;
   }
 
+  private async resolveExistingFiles(items: FileUploadItem[], existingPaths: string[]): Promise<FileUploadItem[]> {
+    const existing = new Set(existingPaths ?? []);
+    const showForAll = items.length > 1;
+    let mode: "ask" | "uploadAll" | "skipAll" = "ask";
+    const out: FileUploadItem[] = [];
+
+    for (const item of items) {
+      if (!existing.has(item.name)) {
+        out.push(item);
+      } else if (mode === "uploadAll") {
+        out.push(item);
+      } else if (mode === "ask") {
+        const choice = await this.askUploadOrSkip(item, showForAll);
+        if (choice === "upload" || choice === "uploadAll") out.push(item);
+        if (choice === "uploadAll" || choice === "skipAll") mode = choice;
+      }
+    }
+
+    return out;
+  }
+
   hideBanner(): void {
     this.fileUploadingFinished = false;
   }
@@ -211,10 +281,10 @@ export class FilesUploaderComponent {
     this.fileUploadBannerMessage = bannerMessage;
   }
 
-  private getOwnerAndName(): { ownerEmail: string; datasetName: string } {
+  private getOwnerAndName(): { ownerEmail: string; resourceName: string } {
     return {
       ownerEmail: this.ownerEmail,
-      datasetName: this.datasetName,
+      resourceName: this.resourceName,
     };
   }
 
@@ -250,24 +320,80 @@ export class FilesUploaderComponent {
       });
     });
 
+    this.addSelection(filePromises);
+  }
+
+  /**
+   * Files chosen from the picker. A folder arrives flattened, each file carrying
+   * webkitRelativePath, which is the structure the drop path gets from the entry tree.
+   */
+  public filesPicked(event: Event): void {
+    const input = event.target as HTMLInputElement;
+    const picked = Array.from(input.files ?? []);
+    // Cleared so choosing the same folder twice running still fires a change event.
+    input.value = "";
+    this.addSelection(picked.map(file => this.toUploadItem(file)));
+  }
+
+  /** Rejects an oversized file the way the drop path does, so both routes report it alike. */
+  private toUploadItem(file: File): Promise<FileUploadItem | null> {
+    if (file.size > this.singleFileUploadMaxSizeMiB * 1024 * 1024) {
+      this.notificationService.error(
+        `File ${file.name}'s size exceeds the maximum limit of ${this.singleFileUploadMaxSizeMiB}MiB.`
+      );
+      return Promise.reject(null);
+    }
+    return Promise.resolve({
+      file,
+      name: file.webkitRelativePath || file.name,
+      description: "",
+      uploadProgress: 0,
+      isUploadingFlag: false,
+      restart: false,
+    });
+  }
+
+  private addSelection(filePromises: Promise<FileUploadItem | null>[]): void {
     Promise.allSettled(filePromises)
       .then(async results => {
-        const { ownerEmail, datasetName } = this.getOwnerAndName();
+        const { ownerEmail, resourceName } = this.getOwnerAndName();
 
-        const activePathsPromise =
-          ownerEmail && datasetName
-            ? firstValueFrom(this.datasetService.listMultipartUploads(ownerEmail, datasetName)).catch(() => [])
-            : [];
-
-        const activePaths = await activePathsPromise;
         const successfulUploads = results
           .filter((r): r is PromiseFulfilledResult<FileUploadItem | null> => r.status === "fulfilled")
           .map(r_1 => r_1.value)
           .filter((item): item is FileUploadItem => item !== null);
-        const filteredUploads = await this.resolveConflicts(successfulUploads, activePaths);
-        if (filteredUploads.length > 0) {
-          const msg = `${filteredUploads.length} file${filteredUploads.length > 1 ? "s" : ""} selected successfully!`;
-          this.showFileUploadBanner("success", msg);
+
+        const activePathsPromise: Promise<string[]> =
+          ownerEmail && resourceName
+            ? firstValueFrom(
+                this.multipartUploadService.listMultipartUploads(this.endpoint, ownerEmail, resourceName)
+              ).catch(() => [])
+            : Promise.resolve([]);
+        const existingPathsPromise: Promise<string[]> = this.resourceId
+          ? firstValueFrom(
+              this.multipartUploadService.findExistingUploadFiles(
+                this.endpoint,
+                this.resourceId,
+                successfulUploads.map(item => ({ path: item.name, sizeBytes: item.file.size }))
+              )
+            ).catch(() => [])
+          : Promise.resolve([]);
+
+        const [activePaths, existingPaths] = await Promise.all([activePathsPromise, existingPathsPromise]);
+        const resumableUploads = await this.resolveConflicts(successfulUploads, activePaths);
+        const filteredUploads = await this.resolveExistingFiles(resumableUploads, existingPaths);
+        const skippedCount = resumableUploads.length - filteredUploads.length;
+        if (filteredUploads.length > 0 || skippedCount > 0) {
+          const messages = [];
+          if (filteredUploads.length > 0) {
+            messages.push(
+              `${filteredUploads.length} file${filteredUploads.length > 1 ? "s" : ""} selected successfully!`
+            );
+          }
+          if (skippedCount > 0) {
+            messages.push(`${skippedCount} matching file${skippedCount > 1 ? "s were" : " was"} skipped.`);
+          }
+          this.showFileUploadBanner(skippedCount > 0 ? "info" : "success", messages.join(" "));
         }
         const failedCount = results.length - successfulUploads.length;
         if (failedCount > 0) {

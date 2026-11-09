@@ -20,12 +20,15 @@
 package org.apache.texera.amber.operator.visualization.bulletChart
 
 import com.fasterxml.jackson.annotation.{JsonProperty, JsonPropertyDescription}
-import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaTitle
-import org.apache.texera.amber.core.tuple.{AttributeType, Schema}
-import org.apache.texera.amber.pybuilder.PythonTemplateBuilder.PythonTemplateBuilderStringContext
-import org.apache.texera.amber.pybuilder.PyStringTypes.EncodableString
-import org.apache.texera.amber.core.workflow.PortIdentity
-import org.apache.texera.amber.operator.PythonOperatorDescriptor
+import com.fasterxml.jackson.databind.annotation.JsonDeserialize
+import com.kjetland.jackson.jsonSchema.annotations.{JsonSchemaInject, JsonSchemaTitle}
+import org.apache.texera.amber.pybuilder.PythonTemplateBuilder.{
+  PythonTemplateBuilderStringContext,
+  pyStringLiteral
+}
+import org.apache.texera.amber.pybuilder.PyStringTypes.{EncodableString, PythonLiteral}
+import org.apache.texera.amber.operator.visualization.PlotlyStandaloneCode
+import org.apache.texera.amber.operator.visualization.PythonVisualizationOpDesc
 import org.apache.texera.amber.operator.metadata.annotations.AutofillAttributeName
 import org.apache.texera.amber.operator.metadata.{OperatorGroupConstants, OperatorInfo}
 
@@ -38,7 +41,16 @@ import scala.jdk.CollectionConverters._
   * Visualization Operator to visualize results as a Bullet Chart
   */
 
-class BulletChartOpDesc extends PythonOperatorDescriptor {
+// type constraint: the measured value is read as float(row[value]), so it can only
+// be a numeric column.
+@JsonSchemaInject(json = """
+{
+  "attributeTypeRules": {
+    "value": { "enum": ["integer", "long", "double"] }
+  }
+}
+""")
+class BulletChartOpDesc extends PythonVisualizationOpDesc with PlotlyStandaloneCode {
 
   @JsonProperty(value = "value", required = true)
   @JsonSchemaTitle("Value")
@@ -47,28 +59,25 @@ class BulletChartOpDesc extends PythonOperatorDescriptor {
   @NotNull(message = "Value cannot be empty")
   var value: EncodableString = ""
 
+  // Numeric: both are only used as float(). contentAs names the boxed class —
+  // Option erases its element type, and a blank must not read as 0.
   @JsonProperty(value = "deltaReference", required = true)
   @JsonSchemaTitle("Delta Reference")
   @JsonPropertyDescription("The reference value for the delta indicator. e.g., 100")
   @NotNull(message = "Delta Reference cannot be empty")
-  var deltaReference: EncodableString = ""
+  @JsonDeserialize(contentAs = classOf[java.lang.Double])
+  var deltaReference: Option[Double] = None
 
   @JsonProperty(value = "thresholdValue", required = false)
   @JsonSchemaTitle("Threshold Value")
   @JsonPropertyDescription("The performance threshold value. e.g., 100")
-  var thresholdValue: EncodableString = ""
+  @JsonDeserialize(contentAs = classOf[java.lang.Double])
+  var thresholdValue: Option[Double] = None
 
   @JsonProperty(value = "steps", required = false)
   @JsonSchemaTitle("Steps")
   @JsonPropertyDescription("Optional: Each step includes a start and end value e.g., 0, 100.")
   var steps: JList[BulletChartStepDefinition] = new util.ArrayList[BulletChartStepDefinition]()
-
-  override def getOutputSchemas(
-      inputSchemas: Map[PortIdentity, Schema]
-  ): Map[PortIdentity, Schema] = {
-    val outputSchema = Schema().add("html-content", AttributeType.STRING)
-    Map(operatorInfo.outputPorts.head.id -> outputSchema)
-  }
 
   override def operatorInfo: OperatorInfo =
     OperatorInfo.forVisualization(
@@ -78,15 +87,25 @@ class BulletChartOpDesc extends PythonOperatorDescriptor {
       OperatorGroupConstants.VISUALIZATION_FINANCIAL_GROUP
     )
 
+  private def assertRequiredFields(): Unit = {
+    assert(value.nonEmpty)
+    assert(deltaReference.nonEmpty)
+  }
+
   override def generatePythonCode(): String = {
-    // Convert the Scala list of steps into a list of dictionaries
-    val stepsStr = if (steps != null && !steps.isEmpty) {
-      val stepsSeq =
-        steps.asScala.map(step => pyb"""{"start": ${step.start}, "end": ${step.end}}""")
-      "[" + stepsSeq.mkString(", ") + "]"
-    } else {
-      "[]"
-    }
+    // The reference keeps the 0 the generated code used to fall back to; an unset
+    // threshold stays absent as None.
+    val deltaReferenceExpr: PythonLiteral = deltaReference.getOrElse(0.0).toString
+    val thresholdExpr: PythonLiteral = thresholdValue.map(_.toString).getOrElse("None")
+
+    // The steps whose bounds are both filled in, as a list literal of numbers.
+    val stepsExpr: PythonLiteral =
+      Option(steps)
+        .map(_.asScala.toSeq)
+        .getOrElse(Seq.empty)
+        .flatMap(step => step.start.zip(step.end))
+        .map { case (start, end) => s"""{"start": $start, "end": $end}""" }
+        .mkString("[", ", ", "]")
 
     val finalCode =
       pyb"""
@@ -110,24 +129,18 @@ class BulletChartOpDesc extends PythonOperatorDescriptor {
          |            colors.append(f"hsl(0, 0%, {lightness}%)")
          |        return colors
          |
-         |    # Validate and convert user-provided step definitions
+         |    # Validate user-provided step definitions
          |    def generate_valid_steps(self, steps_data):
          |        valid_steps = []
          |        self.step_errors = []
          |
          |        for index, step in enumerate(steps_data):
-         |            start = step.get('start', '')
-         |            end = step.get('end', '')
-         |            if start and end:
-         |                try:
-         |                    s_val = float(start)
-         |                    e_val = float(end)
-         |                    if s_val < e_val:
-         |                        valid_steps.append({"start": s_val, "end": e_val})
-         |                    else:
-         |                        self.step_errors.append(f"Step {index + 1}: start ≥ end ({s_val} ≥ {e_val})")
-         |                except Exception as e:
-         |                    self.step_errors.append(f"Step {index + 1}: Invalid step values: start='{start}', end='{end}'")
+         |            s_val = step["start"]
+         |            e_val = step["end"]
+         |            if s_val < e_val:
+         |                valid_steps.append({"start": s_val, "end": e_val})
+         |            else:
+         |                self.step_errors.append(f"Step {index + 1}: start ≥ end ({s_val} ≥ {e_val})")
          |        return valid_steps
          |
          |    @overrides
@@ -138,7 +151,7 @@ class BulletChartOpDesc extends PythonOperatorDescriptor {
          |
          |        try:
          |            value_col = $value
-         |            delta_ref = float($deltaReference) if $deltaReference.strip() else 0
+         |            delta_ref = $deltaReferenceExpr
          |
          |            if value_col not in table.columns:
          |                yield {'html-content': self.render_error(f"Column '{value_col}' not found in input table.")}
@@ -149,25 +162,17 @@ class BulletChartOpDesc extends PythonOperatorDescriptor {
          |                yield {'html-content': self.render_error("No valid data rows found after dropping nulls.")}
          |                return
          |
-         |            try:
-         |                threshold_val = float($thresholdValue) if $thresholdValue.strip() else None
-         |            except ValueError:
-         |                threshold_val = None
+         |            threshold_val = $thresholdExpr
          |
-         |            # Parse and validate steps input
-         |            try:
-         |                steps_data = $stepsStr
-         |                valid_steps = self.generate_valid_steps(steps_data)
-         |                step_colors = self.generate_gray_gradient(len(valid_steps))
-         |                steps_list = []
-         |                for index, step_data in enumerate(valid_steps):
-         |                    color = step_colors[index]
-         |                    steps_list.append({
-         |                        "range": [step_data["start"], step_data["end"]],
-         |                        "color": color
-         |                    })
-         |            except Exception:
-         |                steps_list = []
+         |            valid_steps = self.generate_valid_steps($stepsExpr)
+         |            step_colors = self.generate_gray_gradient(len(valid_steps))
+         |            steps_list = []
+         |            for index, step_data in enumerate(valid_steps):
+         |                color = step_colors[index]
+         |                steps_list.append({
+         |                    "range": [step_data["start"], step_data["end"]],
+         |                    "color": color
+         |                })
          |
          |            # Iterate through up to 10 rows of the input table
          |            count = 0
@@ -231,5 +236,124 @@ class BulletChartOpDesc extends PythonOperatorDescriptor {
          |            yield {'html-content': self.render_error(f"General error: {str(e)}")}
          |"""
     finalCode.encode
+  }
+
+  override def generateStandaloneCode(): String = {
+    assertRequiredFields()
+
+    // The column name is typed-in text, so it is emitted as a properly escaped
+    // Python literal. The numeric settings carry no text and are emitted as numbers,
+    // the same as the runtime path, so the two scripts agree without either of them
+    // parsing anything.
+    val valueLit = pyStringLiteral(value)
+    val deltaReferenceExpr = deltaReference.getOrElse(0.0).toString
+    val thresholdExpr = thresholdValue.map(_.toString).getOrElse("None")
+    val stepsExpr =
+      Option(steps)
+        .map(_.asScala.toSeq)
+        .getOrElse(Seq.empty)
+        .flatMap(step => step.start.zip(step.end))
+        .map { case (start, end) => s"""{"start": $start, "end": $end}""" }
+        .mkString("[", ", ", "]")
+
+    // render_error's continuation line keeps the runtime path's indentation — the
+    // HTML is triple-quoted, so those spaces reach the browser. The JSON holds one chart
+    // per row, and a lone figure is written as one object, as every one-chart operator does.
+    s"""def render_error(error_msg):
+       |    return '''<h1>Bullet chart is not available.</h1>
+       |                  <p>Reason: {} </p>'''.format(error_msg)
+       |
+       |def generate_gray_gradient(step_count):
+       |    colors = []
+       |    for i in range(step_count):
+       |        lightness = 90 - (i * (60 / max(1, step_count - 1)))
+       |        colors.append(f"hsl(0, 0%, {lightness}%)")
+       |    return colors
+       |
+       |def generate_valid_steps(steps_data):
+       |    valid_steps = []
+       |    step_errors = []
+       |    for index, step in enumerate(steps_data):
+       |        s_val = step["start"]
+       |        e_val = step["end"]
+       |        if s_val < e_val:
+       |            valid_steps.append({"start": s_val, "end": e_val})
+       |        else:
+       |            step_errors.append(f"Step {index + 1}: start >= end ({s_val} >= {e_val})")
+       |    return valid_steps, step_errors
+       |
+       |if in1df.empty:
+       |    with open(outputHtml, "w", encoding="utf-8") as output:
+       |        output.write(render_error("Input table is empty."))
+       |else:
+       |    try:
+       |        value_col = $valueLit
+       |        delta_ref = $deltaReferenceExpr
+       |        if value_col not in in1df.columns:
+       |            with open(outputHtml, "w", encoding="utf-8") as output:
+       |                output.write(render_error(f"Column '{value_col}' not found in input table."))
+       |        else:
+       |            table = in1df.dropna(subset=[value_col])
+       |            if table.empty:
+       |                with open(outputHtml, "w", encoding="utf-8") as output:
+       |                    output.write(render_error("No valid data rows found after dropping nulls."))
+       |            else:
+       |                threshold_val = $thresholdExpr
+       |                valid_steps, step_errors = generate_valid_steps($stepsExpr)
+       |                step_colors = generate_gray_gradient(len(valid_steps))
+       |                steps_list = []
+       |                for index, step_data in enumerate(valid_steps):
+       |                    steps_list.append({
+       |                        "range": [step_data["start"], step_data["end"]],
+       |                        "color": step_colors[index]
+       |                    })
+       |                html_chunks = []
+       |                figs = []
+       |                for _, row in table.head(10).iterrows():
+       |                    try:
+       |                        actual = float(row[value_col])
+       |                        gauge_config = {'shape': 'bullet'}
+       |                        if steps_list:
+       |                            gauge_config['steps'] = steps_list
+       |                        max_range_values = [actual, delta_ref]
+       |                        if threshold_val is not None:
+       |                            max_range_values.append(threshold_val)
+       |                        for r in steps_list:
+       |                            max_range_values.append(r["range"][1])
+       |                        gauge_config['axis'] = {"range": [0, max(max_range_values) * 1.2]}
+       |                        if threshold_val is not None:
+       |                            gauge_config["threshold"] = {
+       |                                "value": threshold_val,
+       |                                "line": {"color": "red", "width": 2},
+       |                                "thickness": 1
+       |                            }
+       |                        fig = go.Figure(go.Indicator(
+       |                            mode="number+gauge+delta",
+       |                            value=actual,
+       |                            delta={"reference": delta_ref},
+       |                            gauge=gauge_config,
+       |                            domain={"x": [0.1, 1], "y": [0.1, 0.9]},
+       |                            title={"text": value_col}
+       |                        ))
+       |                        fig.update_layout(margin=dict(l=80, r=20, b=40, t=40), height=150)
+       |                        figs.append(fig)
+       |                        html_chunk = plotly.io.to_html(fig, include_plotlyjs='cdn', auto_play=False)
+       |                        if step_errors:
+       |                            html_chunk += "<br><b>Step Errors:</b><ul>" + "".join([f"<li>{msg}</li>" for msg in step_errors]) + "</ul>"
+       |                        html_chunks.append(html_chunk)
+       |                    except Exception as e:
+       |                        html_chunks.append(render_error(f"Error generating bullet chart: {str(e)}"))
+       |                if len(figs) == 1:
+       |                    figs[0].write_json(outputJson)
+       |                elif figs:
+       |                    with open(outputJson, "w", encoding="utf-8") as output:
+       |                        output.write(
+       |                            "[" + ",".join(f.to_json() for f in figs) + "]"
+       |                        )
+       |                with open(outputHtml, "w", encoding="utf-8") as output:
+       |                    output.write("<div>" + "".join(html_chunks) + "</div>")
+       |    except Exception as e:
+       |        with open(outputHtml, "w", encoding="utf-8") as output:
+       |            output.write(render_error(f"General error: {str(e)}"))""".stripMargin
   }
 }

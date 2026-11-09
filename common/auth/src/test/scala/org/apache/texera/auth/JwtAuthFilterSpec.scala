@@ -96,7 +96,7 @@ class JwtAuthFilterSpec extends AnyFlatSpec with Matchers {
     c.setClaim("googleId", "g-123")
     c.setClaim("email", "alice@example.com")
     c.setClaim("role", UserRoleEnum.ADMIN.name)
-    c.setClaim("googleAvatar", "avatar")
+    c.setClaim("avatar", "avatar")
     c.setExpirationTimeMinutesInTheFuture(10f)
     c
   }

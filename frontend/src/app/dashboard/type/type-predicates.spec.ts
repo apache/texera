@@ -1,0 +1,197 @@
+/**
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
+ */
+
+import { isDashboardDataset, isDashboardWorkflow, isDashboardWorkflowComputingUnit } from "./type-predicates";
+import { DashboardWorkflow } from "./dashboard-workflow.interface";
+import { DashboardDataset } from "./dashboard-dataset.interface";
+import { DashboardWorkflowComputingUnit } from "../../common/type/workflow-computing-unit";
+import { ExecutionMode } from "../../common/type/workflow";
+
+const workflowFixture: DashboardWorkflow = {
+  isOwner: true,
+  ownerName: "Alice",
+  workflow: {
+    content: {
+      operators: [],
+      operatorPositions: {},
+      links: [],
+      commentBoxes: [],
+      settings: {
+        dataTransferBatchSize: 400,
+        executionMode: ExecutionMode.PIPELINED,
+      },
+    },
+    name: "My Workflow",
+    description: "A sample workflow",
+    wid: 1,
+    creationTime: 1700000000000,
+    lastModifiedTime: 1700000001000,
+    isPublished: 0,
+    readonly: false,
+  },
+  accessLevel: "WRITE",
+  ownerId: 10,
+  coverImage: null,
+};
+
+const datasetFixture: DashboardDataset = {
+  isOwner: false,
+  ownerEmail: "bob@example.com",
+  dataset: {
+    did: 3,
+    ownerUid: 11,
+    name: "My Dataset",
+    isPublic: true,
+    isDownloadable: true,
+    storagePath: "/datasets/3",
+    description: "A sample dataset",
+    creationTime: 1700000000000,
+    coverImage: undefined,
+  },
+  accessPrivilege: "READ",
+  size: 2048,
+};
+
+const computingUnitFixture: DashboardWorkflowComputingUnit = {
+  computingUnit: {
+    cuid: 9,
+    uid: 10,
+    name: "My Computing Unit",
+    creationTime: 1700000000000,
+    terminateTime: undefined,
+    type: "kubernetes",
+    uri: "urn:texera:cu:9",
+    resource: {
+      cpuLimit: "2",
+      memoryLimit: "4Gi",
+      gpuLimit: "0",
+      jvmMemorySize: "2G",
+      shmSize: "64Mi",
+      nodeAddresses: ["10.0.0.1"],
+    },
+  },
+  status: "Running",
+  metrics: {
+    cpuUsage: "0.5",
+    memoryUsage: "1Gi",
+  },
+  isOwner: true,
+  accessPrivilege: "WRITE",
+  ownerAvatar: "",
+  ownerName: "Alice",
+};
+
+describe("isDashboardWorkflow", () => {
+  it("should return true for a realistic DashboardWorkflow", () => {
+    expect(isDashboardWorkflow(workflowFixture)).toBe(true);
+  });
+
+  it("should return false for null and undefined", () => {
+    expect(isDashboardWorkflow(null)).toBe(false);
+    expect(isDashboardWorkflow(undefined)).toBe(false);
+  });
+
+  it("should return false for an object without a workflow field", () => {
+    expect(isDashboardWorkflow({})).toBe(false);
+  });
+
+  it("should return false when workflow is not an object", () => {
+    expect(isDashboardWorkflow({ workflow: "not an object" })).toBe(false);
+  });
+
+  it("should return false when workflow is null", () => {
+    // A null payload must be rejected even though typeof null === "object".
+    expect(isDashboardWorkflow({ workflow: null })).toBe(false);
+  });
+});
+
+describe("isDashboardDataset", () => {
+  it("should return true for a realistic DashboardDataset", () => {
+    expect(isDashboardDataset(datasetFixture)).toBe(true);
+  });
+
+  it("should return false for null and undefined", () => {
+    expect(isDashboardDataset(null)).toBe(false);
+    expect(isDashboardDataset(undefined)).toBe(false);
+  });
+
+  it("should return false for an object without a dataset field", () => {
+    expect(isDashboardDataset({})).toBe(false);
+  });
+
+  it("should return false when dataset is not an object", () => {
+    expect(isDashboardDataset({ dataset: "not an object" })).toBe(false);
+  });
+
+  it("should return false when dataset is null", () => {
+    // A null payload must be rejected even though typeof null === "object".
+    expect(isDashboardDataset({ dataset: null })).toBe(false);
+  });
+});
+
+describe("isDashboardWorkflowComputingUnit", () => {
+  it("should return true for a realistic DashboardWorkflowComputingUnit", () => {
+    expect(isDashboardWorkflowComputingUnit(computingUnitFixture)).toBe(true);
+  });
+
+  it("should return false for null and undefined", () => {
+    expect(isDashboardWorkflowComputingUnit(null)).toBe(false);
+    expect(isDashboardWorkflowComputingUnit(undefined)).toBe(false);
+  });
+
+  it("should return false for an object without a computingUnit field", () => {
+    expect(isDashboardWorkflowComputingUnit({})).toBe(false);
+  });
+
+  it("should return false when computingUnit is not an object", () => {
+    expect(isDashboardWorkflowComputingUnit({ computingUnit: "not an object" })).toBe(false);
+  });
+
+  it("should return false when computingUnit is null", () => {
+    // A null payload must be rejected even though typeof null === "object".
+    expect(isDashboardWorkflowComputingUnit({ computingUnit: null })).toBe(false);
+  });
+});
+
+// Every realistic fixture must satisfy exactly one predicate. DashboardEntry relies on
+// this mutual exclusivity: its constructor dispatches through an ordered if/else chain,
+// so a fixture matching a predicate other than its own would be classified incorrectly.
+describe("type predicate cross-classification", () => {
+  const fixtures: ReadonlyArray<[string, unknown, string]> = [
+    ["DashboardWorkflow fixture", workflowFixture, "isDashboardWorkflow"],
+    ["DashboardDataset fixture", datasetFixture, "isDashboardDataset"],
+    ["DashboardWorkflowComputingUnit fixture", computingUnitFixture, "isDashboardWorkflowComputingUnit"],
+  ];
+
+  const predicates: ReadonlyArray<[string, (value: unknown) => boolean]> = [
+    ["isDashboardWorkflow", isDashboardWorkflow],
+    ["isDashboardDataset", isDashboardDataset],
+    ["isDashboardWorkflowComputingUnit", isDashboardWorkflowComputingUnit],
+  ];
+
+  fixtures.forEach(([fixtureName, fixture, expectedPredicate]) => {
+    predicates.forEach(([predicateName, predicate]) => {
+      const expected = predicateName === expectedPredicate;
+      it(`${predicateName} should return ${expected} for the ${fixtureName}`, () => {
+        // The it() title identifies the failing fixture/predicate pair.
+        expect(predicate(fixture)).toBe(expected);
+      });
+    });
+  });
+});

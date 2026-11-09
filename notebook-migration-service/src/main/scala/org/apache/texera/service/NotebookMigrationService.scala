@@ -30,10 +30,12 @@ import org.apache.texera.auth.{
   SessionUser,
   UnauthorizedExceptionMapper
 }
+import org.apache.texera.auth.RoleAnnotationEnforcer
 import org.apache.texera.dao.SqlServer
 import org.glassfish.jersey.server.filter.RolesAllowedDynamicFeature
 import java.nio.file.Path
 import org.apache.texera.service.resource.{HealthCheckResource, NotebookMigrationResource}
+import org.apache.texera.service.util.JupyterTokenDeriver
 
 class NotebookMigrationService
     extends Application[NotebookMigrationServiceConfiguration]
@@ -60,6 +62,10 @@ class NotebookMigrationService
       configuration: NotebookMigrationServiceConfiguration,
       environment: Environment
   ): Unit = {
+    org.apache.texera.observability.OtelInit.init("notebook-migration-service")
+    // Refuse to boot a misconfigured per-user Jupyter rather than failing per request.
+    JupyterTokenDeriver.validateConfiguration()
+
     // Serve backend at /api
     environment.jersey.setUrlPattern("/api/*")
 
@@ -68,6 +74,11 @@ class NotebookMigrationService
     NotebookMigrationService.registerAuthFeatures(environment)
 
     environment.jersey.register(classOf[NotebookMigrationResource])
+
+    RoleAnnotationEnforcer.enforce(
+      environment.jersey.getResourceConfig,
+      "NotebookMigrationService"
+    )
 
     // Route request logs through SLF4J, controlled by TEXERA_SERVICE_LOG_LEVEL
     RequestLoggingFilter.register(environment.getApplicationContext)

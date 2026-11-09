@@ -22,18 +22,18 @@ package org.apache.texera.amber.engine.faulttolerance
 import org.apache.pekko.actor.{ActorSystem, Props}
 import org.apache.texera.amber.clustering.SingleNodeListener
 import org.apache.texera.amber.core.workflow.{PortIdentity, WorkflowContext}
-import org.apache.texera.amber.engine.architecture.controller.{
-  ControllerConfig,
-  ControllerProcessor
+import org.apache.texera.amber.engine.architecture.coordinator.{
+  CoordinatorConfig,
+  CoordinatorProcessor
 }
 import org.apache.texera.amber.engine.architecture.worker.DataProcessor
 import org.apache.texera.amber.engine.architecture.worker.WorkflowWorker.DPInputQueueElement
 import org.apache.texera.amber.engine.common.SerializedState.{CP_STATE_KEY, DP_STATE_KEY}
-import org.apache.texera.amber.engine.common.virtualidentity.util.{CONTROLLER, SELF}
+import org.apache.texera.amber.engine.common.virtualidentity.util.{COORDINATOR, SELF}
 import org.apache.texera.amber.engine.common.{AmberRuntime, CheckpointState}
 import org.apache.texera.amber.engine.e2e.TestUtils.buildWorkflow
 import org.apache.texera.amber.operator.TestOperators
-import org.apache.texera.workflow.LogicalLink
+import org.apache.texera.common.compiler.model.LogicalLink
 import org.scalatest.BeforeAndAfterAll
 import org.scalatest.flatspec.AnyFlatSpecLike
 
@@ -63,17 +63,17 @@ class CheckpointSpec extends AnyFlatSpecLike with BeforeAndAfterAll {
     system.actorOf(Props[SingleNodeListener](), "cluster-info")
   }
 
-  "Default controller state" should "round-trip through CheckpointState" in {
+  "Default coordinator state" should "round-trip through CheckpointState" in {
     val cp =
-      new ControllerProcessor(
+      new CoordinatorProcessor(
         workflow.context,
-        ControllerConfig.default,
-        CONTROLLER,
+        CoordinatorConfig.default,
+        COORDINATOR,
         msg => {}
       )
     val chkpt = new CheckpointState()
     chkpt.save(CP_STATE_KEY, cp)
-    val restored: ControllerProcessor = chkpt.load(CP_STATE_KEY)
+    val restored: CoordinatorProcessor = chkpt.load(CP_STATE_KEY)
     assert(restored.actorId == cp.actorId)
   }
 
@@ -102,78 +102,11 @@ class CheckpointSpec extends AnyFlatSpecLike with BeforeAndAfterAll {
     assert(ex.getMessage == "no state saved for key = unknown")
   }
 
-//  "CSVScanOperator" should "be serializable" in {
-//    val chkpt = new CheckpointState()
-//    val headerlessCsvOpDesc = TestOperators.headerlessSmallCsvScanOpDesc()
-//    val context = new WorkflowContext()
-//    headerlessCsvOpDesc.setContext(context)
-//    val phyOp = headerlessCsvOpDesc.getPhysicalOp(WorkflowIdentity(1), ExecutionIdentity(1))
-//    phyOp.opExecInitInfo match {
-//      case OpExecInitInfoWithCode(codeGen) => ???
-//      case OpExecInitInfoWithFunc(opGen) =>
-//        val operator = opGen(1, 1)
-//        operator.open()
-//        val outputIter =
-//          operator.asInstanceOf[SourceOperatorExecutor].produceTuple().map(t => (t, None))
-//        outputIter.next()
-//        outputIter.next()
-//        operator.asInstanceOf[CheckpointSupport].serializeState(outputIter, chkpt)
-//        chkpt.save("deserialization", opGen)
-//        val opGen2 = chkpt.load("deserialization").asInstanceOf[(Int, Int) => OperatorExecutor]
-//        val op = opGen2.apply(1, 1)
-//        op.asInstanceOf[CheckpointSupport].deserializeState(chkpt)
-//    }
-//  }
-//
-//  "Workflow " should "take global checkpoint, reload and continue" in {
-//    val client1 = new AmberClient(
-//      system,
-//      workflow.context,
-//      workflow.physicalPlan,
-//      resultStorage,
-//      ControllerConfig.default,
-//      error => {}
-//    )
-//    Await.result(client1.controllerInterface.startWorkflow(EmptyRequest(), ()))
-//    Thread.sleep(100)
-//    Await.result(client1.controllerInterface.pauseWorkflow(EmptyRequest(), ()))
-//    val checkpointId = EmbeddedControlMessageIdentity(s"Checkpoint_test_1")
-//    val uri = new URI("ram:///recovery-logs/tmp/")
-//    Await.result(
-//      client1.controllerInterface.takeGlobalCheckpoint(
-//        TakeGlobalCheckpointRequest(estimationOnly = false, checkpointId, uri.toString),
-//        ()
-//      ),
-//      Duration.fromSeconds(30)
-//    )
-//    client1.shutdown()
-//    Thread.sleep(100)
-//    var controllerConfig = ControllerConfig.default
-//    controllerConfig =
-//      controllerConfig.copy(stateRestoreConfOpt = Some(StateRestoreConfig(uri, checkpointId)))
-//    val completableFuture = new CompletableFuture[Unit]()
-//    val client2 = new AmberClient(
-//      system,
-//      workflow.context,
-//      workflow.physicalPlan,
-//      resultStorage,
-//      controllerConfig,
-//      error => {}
-//    )
-//    client2.registerCallback[ExecutionStateUpdate] { evt =>
-//      if (evt.state == COMPLETED) {
-//        completableFuture.complete(())
-//      }
-//    }
-//    Thread.sleep(1000)
-//    assert(
-//      Await
-//        .result(client2.controllerInterface.startWorkflow(EmptyRequest(), ()))
-//        .workflowState == PAUSED
-//    )
-//    Thread.sleep(5000)
-//    Await.result(client2.controllerInterface.resumeWorkflow(EmptyRequest(), ()))
-//    completableFuture.get(30000, TimeUnit.MILLISECONDS)
-//  }
+  // Checkpoint coverage beyond these round-trips lives elsewhere: SerializationManagerSpec and
+  // CheckpointSubsystemSpec cover operator and DP state going through a CheckpointState, and
+  // PrepareCheckpointHandlerSpec / FinalizeCheckpointHandlerSpec /
+  // TakeGlobalCheckpointHandlerSpec cover the promise handlers that drive a checkpoint. A full
+  // "checkpoint, reload, continue" run needs a live multi-operator workflow and belongs in an
+  // integration spec, not here.
 
 }

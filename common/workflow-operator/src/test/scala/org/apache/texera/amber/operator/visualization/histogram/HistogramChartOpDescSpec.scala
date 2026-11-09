@@ -19,12 +19,16 @@
 
 package org.apache.texera.amber.operator.visualization.histogram
 
+import org.apache.texera.amber.operator.LogicalOp
+import org.apache.texera.amber.operator.metadata.OperatorMetadataGenerator
+import org.apache.texera.amber.util.JSONUtils.objectMapper
 import org.scalatest.BeforeAndAfter
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 
 import java.nio.charset.StandardCharsets
 import java.util.Base64
+import scala.jdk.CollectionConverters._
 
 class HistogramChartOpDescSpec extends AnyFlatSpec with BeforeAndAfter with Matchers {
 
@@ -77,5 +81,39 @@ class HistogramChartOpDescSpec extends AnyFlatSpec with BeforeAndAfter with Matc
     assert(carries(plain, "hist_color_col"))
     assert(carries(plain, "hist_facet_col"))
     assert(carries(plain, "hist_pattern_col"))
+  }
+
+  private def marginalEnum: Seq[String] =
+    OperatorMetadataGenerator
+      .generateOperatorJsonSchema(classOf[HistogramChartOpDesc])
+      .path("properties")
+      .path("marginal")
+      .path("enum")
+      .elements()
+      .asScala
+      .map(_.asText())
+      .toSeq
+
+  // The property editor validates a stored value against this enum, so leaving the
+  // empty value out would flag every workflow saved before the enum existed.
+  "HistogramChartOpDesc.marginal" should "declare its values, empty included, as a schema enum" in {
+    marginalEnum should contain theSameElementsAs Seq("", "rug", "box", "violin", "histogram")
+  }
+
+  it should "read a workflow saved with an empty Distribution Type and omit the argument" in {
+    val saved = objectMapper
+      .readValue(
+        """{"operatorType":"Histogram","value":"hist_value_col","marginal":""}""",
+        classOf[LogicalOp]
+      )
+      .asInstanceOf[HistogramChartOpDesc]
+    saved.marginal shouldBe ""
+    saved.createPlotlyFigure().plain should not include "marginal="
+  }
+
+  it should "default to no marginal plot on a freshly dropped operator" in {
+    opDesc.marginal shouldBe ""
+    opDesc.value = "hist_value_col"
+    opDesc.createPlotlyFigure().plain should not include "marginal="
   }
 }

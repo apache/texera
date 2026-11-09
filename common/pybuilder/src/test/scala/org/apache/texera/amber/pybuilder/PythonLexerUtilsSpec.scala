@@ -131,6 +131,41 @@ class PythonLexerUtilsSpec extends AnyFunSuite {
     assert(state.isEmpty)
   }
 
+  test(
+    "updateTripleQuotedStringState: an escaped quote inside an ordinary string is not a boundary"
+  ) {
+    // Python:  x = "a\"b" '''  — the escaped " must not close the double-quoted string, so it ends
+    // before the trailing ''', which opens a triple. If the escape were mishandled the string would
+    // stay open and the ''' would be treated as content, yielding None instead of Some("'''").
+    assert(
+      PythonLexerUtils.updateTripleQuotedStringState("x = \"a\\\"b\" '''", None).contains("'''")
+    )
+    // Python:  y = 'a\'b' """  — same for a single-quoted string, then a triple-double opens.
+    assert(
+      PythonLexerUtils.updateTripleQuotedStringState("y = 'a\\'b' \"\"\"", None).contains("\"\"\"")
+    )
+  }
+
+  test(
+    "updateTripleQuotedStringState: single-quote mode suppresses a later comment and delimiter"
+  ) {
+    // Python:  a = '#' '''  — the # sits inside the single-quoted string (not a comment); the string
+    // closes and ''' opens a triple. If single-quote mode failed to toggle on, the # would
+    // early-return as a comment and the result would be None instead of Some("'''").
+    assert(PythonLexerUtils.updateTripleQuotedStringState("a = '#' '''", None).contains("'''"))
+  }
+
+  test("updateTripleQuotedStringState: a hash inside a double-quoted string is not a comment") {
+    // Python:  s = "a # b" """  — the # is inside the double-quoted string, which closes before the
+    // trailing triple-double. If the # were wrongly treated as a comment the scan would early-return
+    // None instead of Some("\"\"\"").
+    assert(
+      PythonLexerUtils
+        .updateTripleQuotedStringState("s = \"a # b\" \"\"\"", None)
+        .contains("\"\"\"")
+    )
+  }
+
   // -------- hasUnclosedQuote --------
 
   test("hasUnclosedQuote: empty string has no unclosed quote") {

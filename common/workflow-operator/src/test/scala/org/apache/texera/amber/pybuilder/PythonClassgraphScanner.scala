@@ -49,6 +49,11 @@ private[amber] object PythonClassgraphScanner {
         .toSeq
         .filterNot(_.isInterface)
         .filterNot(c => Modifier.isAbstract(c.getModifiers))
+        // Skip non-static enclosed classes (inner/local/anonymous). Real production
+        // descriptors are always top-level (or static), so this loses no coverage; it
+        // keeps the scan from picking up test-only helper subclasses declared inside a
+        // spec, which can never be instantiated via a no-arg constructor.
+        .filterNot(c => c.getEnclosingClass != null && !Modifier.isStatic(c.getModifiers))
     } finally {
       scanResult.close()
     }

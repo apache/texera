@@ -22,7 +22,8 @@ package org.apache.texera.amber.operator.udf.r
 import org.apache.texera.amber.core.executor.OpExecWithCode
 import org.apache.texera.amber.core.tuple.{Attribute, AttributeType, Schema}
 import org.apache.texera.amber.core.virtualidentity.{ExecutionIdentity, WorkflowIdentity}
-import org.apache.texera.amber.operator.LogicalOp
+import org.apache.texera.amber.core.workflow.{PortIdentity, UnknownPartition}
+import org.apache.texera.amber.operator.{LogicalOp, PortDescription}
 import org.apache.texera.amber.operator.metadata.OperatorGroupConstants
 import org.apache.texera.amber.util.JSONUtils.objectMapper
 import org.scalatest.flatspec.AnyFlatSpec
@@ -108,5 +109,89 @@ class RUDFOpDescSpec extends AnyFlatSpec with Matchers {
     r.workers shouldBe 2
     r.useTupleAPI shouldBe true
     r.retainInputColumns shouldBe true
+  }
+
+  "RUDFOpDesc.getPhysicalOp" should
+    "use r-tuple, parallelizable with the suggested worker count when workers > 1 and useTupleAPI" in {
+    val d = new RUDFOpDesc
+    d.code = "gen"
+    d.useTupleAPI = true
+    d.workers = 3
+    val physical = d.getPhysicalOp(workflowId, executionId)
+    physical.opExecInitInfo match {
+      case OpExecWithCode(code, language) =>
+        language shouldBe "r-tuple"
+        code shouldBe "gen"
+      case other => fail(s"expected OpExecWithCode, got $other")
+    }
+    physical.parallelizable shouldBe true
+    physical.suggestedWorkerNum shouldBe Some(3)
+  }
+
+  it should "derive partitionRequirement from custom inputPorts when set" in {
+    val d = new RUDFOpDesc
+    d.code = "f"
+    d.inputPorts = List(
+      PortDescription(
+        portID = "0",
+        displayName = "in0",
+        disallowMultiInputs = false,
+        isDynamicPort = false,
+        partitionRequirement = UnknownPartition(),
+        dependencies = List.empty
+      )
+    )
+    d.getPhysicalOp(workflowId, executionId).partitionRequirement shouldBe List(
+      Some(UnknownPartition())
+    )
+  }
+
+  "RUDFOpDesc.operatorInfo" should
+    "build ports from custom inputPorts/outputPorts descriptions when provided" in {
+    val d = new RUDFOpDesc
+    d.inputPorts = List(
+      PortDescription(
+        portID = "0",
+        displayName = "in0",
+        disallowMultiInputs = true,
+        isDynamicPort = false,
+        partitionRequirement = UnknownPartition(),
+        dependencies = List.empty
+      )
+    )
+    d.outputPorts = List(
+      PortDescription(
+        portID = "0",
+        displayName = "out0",
+        disallowMultiInputs = false,
+        isDynamicPort = false,
+        partitionRequirement = UnknownPartition(),
+        dependencies = List.empty
+      )
+    )
+    val info = d.operatorInfo
+    info.inputPorts should have length 1
+    info.inputPorts.head.id shouldBe PortIdentity(0)
+    info.inputPorts.head.displayName shouldBe "in0"
+    info.inputPorts.head.disallowMultiLinks shouldBe true
+    info.outputPorts should have length 1
+    info.outputPorts.head.displayName shouldBe "out0"
+  }
+
+  "RUDFOpDesc.runtimeReconfiguration" should
+    "return the new op's physical op with no state transfer" in {
+    val oldOp = new RUDFOpDesc
+    val newOp = new RUDFOpDesc
+    newOp.code = "f2"
+    val result = newOp.runtimeReconfiguration(workflowId, executionId, oldOp, newOp)
+    result.isSuccess shouldBe true
+    val (physical, stateTransfer) = result.get
+    stateTransfer shouldBe None
+    physical.opExecInitInfo match {
+      case OpExecWithCode(code, language) =>
+        code shouldBe "f2"
+        language shouldBe "r-table"
+      case other => fail(s"expected OpExecWithCode, got $other")
+    }
   }
 }

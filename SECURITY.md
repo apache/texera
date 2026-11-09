@@ -1,3 +1,22 @@
+<!--
+  ~ Licensed to the Apache Software Foundation (ASF) under one
+  ~ or more contributor license agreements.  See the NOTICE file
+  ~ distributed with this work for additional information
+  ~ regarding copyright ownership.  The ASF licenses this file
+  ~ to you under the Apache License, Version 2.0 (the
+  ~ "License"); you may not use this file except in compliance
+  ~ with the License.  You may obtain a copy of the License at
+  ~
+  ~   http://www.apache.org/licenses/LICENSE-2.0
+  ~
+  ~ Unless required by applicable law or agreed to in writing,
+  ~ software distributed under the License is distributed on an
+  ~ "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+  ~ KIND, either express or implied.  See the License for the
+  ~ specific language governing permissions and limitations
+  ~ under the License.
+-->
+
 # Security Policy
 
 This document outlines Apache Texera (Incubating)'s security model, deployment considerations, and procedures for
@@ -34,7 +53,7 @@ Texera supports the following resource types:
 
 - **Datasets**: Input data imported or uploaded for workflow processing
 - **Workflows**: Data analytics pipelines defined by users
-- **Computing Units**: Execution environments for running workflows (e.g., Kubernates PODs)
+- **Computing Units**: Execution environments for running workflows (e.g., Kubernetes pods)
 - **Results**: Output from workflow executions, including but not limited to data, logs, metrics, and visualizations
 
 ### Resource Ownership and Access Control

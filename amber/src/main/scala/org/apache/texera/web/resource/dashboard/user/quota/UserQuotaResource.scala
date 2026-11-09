@@ -25,7 +25,10 @@ import org.apache.texera.dao.SqlServer
 import org.apache.texera.dao.jooq.generated.Tables._
 import org.apache.texera.web.resource.dashboard.user.dataset.utils.DatasetStatisticsUtils.getUserCreatedDatasets
 import org.apache.texera.web.resource.dashboard.user.quota.UserQuotaResource._
-import org.apache.texera.web.resource.dashboard.user.workflow.WorkflowExecutionsResource
+import org.apache.texera.web.resource.dashboard.user.workflow.{
+  WorkflowAccessResource,
+  WorkflowExecutionsResource
+}
 
 import java.util
 import javax.ws.rs._
@@ -100,19 +103,7 @@ object UserQuotaResource {
   }
 
   def getUserAccessedWorkflow(uid: Integer): util.List[Integer] = {
-    val availableWorkflowIds = context
-      .select(
-        WORKFLOW_USER_ACCESS.WID
-      )
-      .from(
-        WORKFLOW_USER_ACCESS
-      )
-      .where(
-        WORKFLOW_USER_ACCESS.UID.eq(uid)
-      )
-      .fetchInto(classOf[Integer])
-
-    availableWorkflowIds
+    context.fetch(WorkflowAccessResource.accessibleWids(uid)).getValues(0, classOf[Integer])
   }
 
   def getUserQuotaSize(uid: Integer): Array[QuotaStorage] = {
@@ -149,10 +140,7 @@ object UserQuotaResource {
         .where(OPERATOR_PORT_EXECUTIONS.WORKFLOW_EXECUTION_ID.eq(eid))
         .fetch()
         .asScala
-        .map(r =>
-          Option(r.get(OPERATOR_PORT_EXECUTIONS.RESULT_SIZE)).getOrElse(0).asInstanceOf[Integer]
-        )
-        .map(_.toLong)
+        .map(r => Option(r.get(OPERATOR_PORT_EXECUTIONS.RESULT_SIZE)).map(_.toLong).getOrElse(0L))
         .sum
 
       val logSize = context
@@ -162,11 +150,8 @@ object UserQuotaResource {
         .fetch()
         .asScala
         .map(r =>
-          Option(r.get(OPERATOR_EXECUTIONS.CONSOLE_MESSAGES_SIZE))
-            .getOrElse(0)
-            .asInstanceOf[Integer]
+          Option(r.get(OPERATOR_EXECUTIONS.CONSOLE_MESSAGES_SIZE)).map(_.toLong).getOrElse(0L)
         )
-        .map(_.toLong)
         .sum
 
       QuotaStorage(
