@@ -48,6 +48,8 @@ object ApplicationConfig {
   val getStatusUpdateIntervalInMs: Long = getConfSource.getLong("constants.status-update-interval")
   val getRuntimeStatisticsPersistenceIntervalInMs: Long =
     getConfSource.getLong("constants.runtime-statistics-persistence-interval")
+  val getStatisticsQueryReplyTimeoutInMs: Long =
+    getConfSource.getLong("constants.statistics-query-reply-timeout")
 
   // Flow control
   val maxCreditAllowedInBytesPerChannel: Long =
