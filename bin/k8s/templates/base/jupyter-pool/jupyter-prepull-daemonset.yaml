@@ -35,6 +35,10 @@ spec:
     metadata:
       labels:
         app: {{ .Release.Name }}-jupyter-prepuller
+      {{- with .Values.jupyterPool.prepullerPodAnnotations }}
+      annotations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
     spec:
       restartPolicy: Always
       tolerations:

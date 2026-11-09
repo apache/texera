@@ -36,6 +36,11 @@ metadata:
     {{- end }}
 spec:
   gatewayClassName: eg
+  infrastructure:
+    parametersRef:
+      group: gateway.envoyproxy.io
+      kind: EnvoyProxy
+      name: {{ .Release.Name }}-envoy-proxy-config
   listeners:
     - name: http
       protocol: HTTP

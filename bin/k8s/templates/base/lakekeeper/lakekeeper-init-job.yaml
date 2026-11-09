@@ -29,6 +29,10 @@ spec:
   template:
     metadata:
       name: {{ .Release.Name }}-lakekeeper-init
+      {{- with .Values.lakekeeperInit.podAnnotations }}
+      annotations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
     spec:
       restartPolicy: Never
 {{- if .Values.lakekeeperInit.createBucket }}

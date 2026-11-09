@@ -31,6 +31,10 @@ spec:
     metadata:
       labels:
         app: {{ .Release.Name }}-{{ .Values.yWebsocketServer.name }}
+      {{- with .Values.yWebsocketServer.podAnnotations }}
+      annotations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
     spec:
       containers:
         - name: {{ .Values.yWebsocketServer.name }}
