@@ -44,7 +44,11 @@ describe("RowModalComponent", () => {
     pageSize: 10,
   };
 
+  // the clipboard tests replace navigator.clipboard, and specs share the page within a worker
+  let originalClipboard: PropertyDescriptor | undefined;
+
   beforeEach(async () => {
+    originalClipboard = Object.getOwnPropertyDescriptor(navigator, "clipboard");
     await TestBed.configureTestingModule({
       imports: [RowModalComponent, HttpClientTestingModule],
       providers: [
@@ -59,6 +63,11 @@ describe("RowModalComponent", () => {
   });
 
   afterEach(() => {
+    if (originalClipboard) {
+      Object.defineProperty(navigator, "clipboard", originalClipboard);
+    } else {
+      delete (navigator as any).clipboard;
+    }
     httpMock.verify();
   });
 
