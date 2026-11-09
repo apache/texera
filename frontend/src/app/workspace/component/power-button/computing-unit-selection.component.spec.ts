@@ -85,7 +85,7 @@ function makeComputingUnit(
     uri = `uri-${cuid}`,
     type = "kubernetes",
     status = "Running",
-    statusReason = undefined,
+    statusReason,
     isOwner = true,
     accessPrivilege = "WRITE",
   } = overrides;

@@ -21,6 +21,7 @@ package org.apache.texera.web.model.websocket.request
 
 import com.fasterxml.jackson.annotation.JsonSubTypes.Type
 import com.fasterxml.jackson.annotation.{JsonSubTypes, JsonTypeInfo}
+import org.apache.texera.amber.operator.LogicalOp
 import org.apache.texera.web.model.websocket.request.python.{
   DebugCommandRequest,
   PythonExpressionEvaluateRequest
@@ -44,3 +45,23 @@ import org.apache.texera.web.model.websocket.request.python.{
   )
 )
 trait TexeraWebSocketRequest {}
+
+case class HeartBeatRequest() extends TexeraWebSocketRequest
+case class ModifyLogicRequest(operator: LogicalOp) extends TexeraWebSocketRequest
+case class ResultPaginationRequest(
+    requestID: String,
+    operatorID: String,
+    pageIndex: Int,
+    pageSize: Int,
+    columnOffset: Int = 0,
+    columnLimit: Int = Int.MaxValue,
+    columnSearch: Option[String] = None,
+    // which of the operator's output ports to read; an operator with one output has only port 0
+    portIndex: Int = 0
+) extends TexeraWebSocketRequest
+case class RetryRequest(workers: Seq[String]) extends TexeraWebSocketRequest
+case class SkipTupleRequest(workerIds: Array[String]) extends TexeraWebSocketRequest
+case class WorkflowCheckpointRequest() extends TexeraWebSocketRequest
+case class WorkflowKillRequest() extends TexeraWebSocketRequest
+case class WorkflowPauseRequest() extends TexeraWebSocketRequest
+case class WorkflowResumeRequest() extends TexeraWebSocketRequest
