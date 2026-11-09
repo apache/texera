@@ -66,6 +66,10 @@ object ApplicationConfig {
     getConfSource.getBoolean("network-buffering.enable-adaptive-buffering")
   val adaptiveBufferingTimeoutMs: Int =
     getConfSource.getInt("network-buffering.adaptive-buffering-timeout-ms")
+  val enableLeastLoadedRouting: Boolean =
+    getConfSource.getBoolean("network-buffering.enable-least-loaded-routing")
+  val leastLoadedRoutingVerbose: Boolean =
+    getConfSource.getBoolean("network-buffering.least-loaded-routing-verbose")
 
   // Reconfiguration
   val enableTransactionalReconfiguration: Boolean =

@@ -41,6 +41,11 @@ class StatisticsManager:
         self._control_processing_time: int = 0
         self._total_execution_time: int = 0
         self._worker_start_time: int = 0
+        # Tuples counted as they arrive, before being processed.
+        # _input_tuple_metrics only grows on consumption, so received - processed
+        # is this worker's queued backlog -- what least-loaded routing ranks
+        # receivers by.
+        self._received_tuple_count: int = 0
 
     def get_statistics(self) -> WorkerStatistics:
         # Compile and return worker statistics
@@ -61,7 +66,13 @@ class StatisticsManager:
                 - self._data_processing_time
                 - self._control_processing_time,
             ),
+            self._received_tuple_count,
         )
+
+    def increase_received_statistics(self, count: int) -> None:
+        if count < 0:
+            raise ValueError("Received tuple count must be non-negative")
+        self._received_tuple_count += count
 
     def increase_input_statistics(self, port_id: PortIdentity, size: int) -> None:
         if size < 0:

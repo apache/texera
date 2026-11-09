@@ -35,6 +35,7 @@ message Partitioning{
     HashBasedShufflePartitioning hashBasedShufflePartitioning = 3;
     RangeBasedShufflePartitioning rangeBasedShufflePartitioning = 4;
     BroadcastPartitioning broadcastPartitioning = 5;
+    LeastLoadedPartitioning leastLoadedPartitioning = 6;
   }
 }
 
@@ -63,6 +64,21 @@ message RangeBasedShufflePartitioning {
 }
 
 message BroadcastPartitioning{
+  int32 batchSize = 1;
+  repeated core.ChannelIdentity channels = 2;
+}
+
+// Like round robin in that any receiver may take any tuple, but the sender
+// fills one batch at a time and the coordinator picks that batch's receiver
+// from measured backlog (see LeastLoadedRoutingService). Round robin instead
+// holds one batch per receiver, so a link needs senders x receivers x batchSize
+// tuples before the first batch ships -- which leaves downstream workers idle
+// on a fan-out whose per-worker output is small relative to that product.
+//
+// Carries no preferred receiver: the preference is runtime state that changes
+// every poll, delivered by UpdateRoutingPreference, not part of the link's
+// configuration.
+message LeastLoadedPartitioning{
   int32 batchSize = 1;
   repeated core.ChannelIdentity channels = 2;
 }

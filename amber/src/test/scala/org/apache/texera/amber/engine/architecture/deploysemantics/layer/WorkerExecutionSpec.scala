@@ -26,7 +26,7 @@ import org.scalatest.flatspec.AnyFlatSpec
 class WorkerExecutionSpec extends AnyFlatSpec {
 
   private def stats(idle: Long): WorkerStatistics =
-    WorkerStatistics(Seq.empty, Seq.empty, 0L, 0L, idle)
+    WorkerStatistics(Seq.empty, Seq.empty, 0L, 0L, idle, 0L)
 
   "WorkerExecution" should "have UNINITIALIZED state and zeroed stats by default" in {
     val we = WorkerExecution()
