@@ -378,9 +378,10 @@ class UserQuotaResourceSpec extends AnyFlatSpec with BeforeAndAfterAll with Mock
     otherUser.setName("otherUser")
     otherUser.setEmail("otherUser-" + UUID.randomUUID().toString.substring(0, 8) + "@example.com")
 
-    intercept[WebApplicationException] {
+    val refused = intercept[WebApplicationException] {
       resource.deleteCollection(execution.getEid, new SessionUser(otherUser))
     }
+    assert(refused.getResponse.getStatus == 403)
 
     assert(workflowExecutionsDao.fetchOneByEid(execution.getEid) != null)
   }
