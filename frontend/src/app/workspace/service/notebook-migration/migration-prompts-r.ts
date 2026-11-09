@@ -30,7 +30,7 @@ function(table, port) {
   return(table)
 }
 
-table is an R data.frame holding every row that arrived on the input port, and port is the index of that port, starting at 0. The function returns a data.frame, or NULL to output nothing. Each returned row becomes an output row and each column an output column.
+table is an R data.frame holding every row that arrived on the input port, and port is the index of that port, starting at 0. The function returns a data.frame with at least one row. When there is nothing to report, return one row that says so. Each returned row becomes an output row and each column an output column.
 Code before the function, such as library() calls, runs once when the operator starts.
 `;
 
