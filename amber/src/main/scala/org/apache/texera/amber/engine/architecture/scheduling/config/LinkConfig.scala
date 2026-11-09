@@ -19,6 +19,7 @@
 
 package org.apache.texera.amber.engine.architecture.scheduling.config
 
+import org.apache.texera.common.config.ApplicationConfig
 import org.apache.texera.amber.core.virtualidentity.{ActorVirtualIdentity, ChannelIdentity}
 import org.apache.texera.amber.core.workflow._
 import org.apache.texera.amber.engine.architecture.sendsemantics.partitionings._
@@ -77,13 +78,21 @@ case object LinkConfig {
           )
         )
 
+      // No partitioning requirement, so any receiver may take any tuple. Round
+      // robin spreads tuples a tuple at a time, which means the link holds
+      // senders x receivers partly filled batches before the first one ships;
+      // least-loaded routing fills one batch at a time and picks its receiver
+      // from measured backlog. Same freedom, different batching, so this is the
+      // one case where the choice is open.
       case UnknownPartition() =>
-        RoundRobinPartitioning(
-          dataTransferBatchSize,
-          fromWorkerIds.flatMap(from =>
-            toWorkerIds.map(to => ChannelIdentity(from, to, isControl = false))
-          )
+        val channels = fromWorkerIds.flatMap(from =>
+          toWorkerIds.map(to => ChannelIdentity(from, to, isControl = false))
         )
+        if (ApplicationConfig.enableLeastLoadedRouting) {
+          LeastLoadedPartitioning(dataTransferBatchSize, channels)
+        } else {
+          RoundRobinPartitioning(dataTransferBatchSize, channels)
+        }
 
       case _ =>
         throw new UnsupportedOperationException()

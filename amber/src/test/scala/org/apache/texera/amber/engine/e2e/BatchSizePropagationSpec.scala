@@ -106,6 +106,15 @@ class BatchSizePropagationSpec
                     s"Batch size mismatch: ${broadcast.batchSize} != $expectedBatchSize"
                   )
 
+                case leastLoaded: LeastLoadedPartitioning =>
+                  println(
+                    s"Testing LeastLoadedPartitioning with batch size: ${leastLoaded.batchSize}"
+                  )
+                  assert(
+                    leastLoaded.batchSize == expectedBatchSize,
+                    s"Batch size mismatch: ${leastLoaded.batchSize} != $expectedBatchSize"
+                  )
+
                 case _ =>
                   throw new IllegalArgumentException("Unknown partitioning type encountered")
               }

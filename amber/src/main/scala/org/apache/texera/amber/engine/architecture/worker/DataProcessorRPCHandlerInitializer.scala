@@ -59,7 +59,8 @@ class DataProcessorRPCHandlerInitializer(val dp: DataProcessor)
     with RetrieveStateHandler
     with PrepareCheckpointHandler
     with FinalizeCheckpointHandler
-    with UpdateExecutorHandler {
+    with UpdateExecutorHandler
+    with UpdateRoutingPreferenceHandler {
   val actorId: ActorVirtualIdentity = dp.actorId
 
   var cachedTotalWorkerCount = 0
