@@ -21,11 +21,9 @@ package org.apache.texera.amber.operator.visualization.quiverPlot
 
 import com.fasterxml.jackson.annotation.{JsonProperty, JsonPropertyDescription}
 import com.kjetland.jackson.jsonSchema.annotations.{JsonSchemaInject, JsonSchemaTitle}
-import org.apache.texera.amber.core.tuple.{AttributeType, Schema}
 import org.apache.texera.amber.pybuilder.PythonTemplateBuilder.PythonTemplateBuilderStringContext
 import org.apache.texera.amber.pybuilder.PyStringTypes.EncodableString
-import org.apache.texera.amber.core.workflow.PortIdentity
-import org.apache.texera.amber.operator.{PythonOperatorDescriptor, StandaloneCodeGenerator}
+import org.apache.texera.amber.operator.visualization.PythonVisualizationOpDesc
 import org.apache.texera.amber.operator.metadata.annotations.{AutofillAttributeName, SampleColumn}
 import org.apache.texera.amber.operator.metadata.{OperatorGroupConstants, OperatorInfo}
 import org.apache.texera.amber.pybuilder.PythonTemplateBuilder
@@ -51,7 +49,7 @@ import javax.validation.constraints.NotNull
   }
 }
 """)
-class QuiverPlotOpDesc extends PythonOperatorDescriptor with StandaloneCodeGenerator {
+class QuiverPlotOpDesc extends PythonVisualizationOpDesc {
 
   //property panel variable: 4 requires: {x,y,u,v}, all columns should only contain numerical data
 
@@ -84,14 +82,6 @@ class QuiverPlotOpDesc extends PythonOperatorDescriptor with StandaloneCodeGener
   @SampleColumn("log2fc")
   @NotNull(message = "v cannot be empty")
   var v: EncodableString = ""
-
-  override def getOutputSchemas(
-      inputSchemas: Map[PortIdentity, Schema]
-  ): Map[PortIdentity, Schema] = {
-    val outputSchema = Schema()
-      .add("html-content", AttributeType.STRING)
-    Map(operatorInfo.outputPorts.head.id -> outputSchema)
-  }
 
   override def operatorInfo: OperatorInfo =
     OperatorInfo.forVisualization(
@@ -161,8 +151,6 @@ class QuiverPlotOpDesc extends PythonOperatorDescriptor with StandaloneCodeGener
          |"""
     finalCode.encode
   }
-
-  override def producesDataFrame(): Boolean = false
 
   override def generateStandaloneCode(): String = {
     val xLit = pyStringLiteral(x)
