@@ -19,6 +19,7 @@
 
 package org.apache.texera.amber.error
 
+import org.apache.texera.amber.core.WorkflowRuntimeException
 import org.apache.texera.amber.core.virtualidentity.ActorVirtualIdentity
 import org.apache.texera.amber.engine.architecture.rpc.controlcommands.ConsoleMessageType.ERROR
 import org.apache.texera.amber.engine.architecture.rpc.controlreturns.{ControlError, ErrorLanguage}
@@ -113,7 +114,8 @@ class ErrorUtilsSpec extends AnyFlatSpec with Matchers {
       "py.boom",
       "ignored-details",
       "at com.x.Foo.bar(Foo.scala:42)",
-      ErrorLanguage.PYTHON
+      ErrorLanguage.PYTHON,
+      None
     )
     val reconstructed = ErrorUtils.reconstructThrowable(ce)
     reconstructed.getMessage shouldBe "py.boom"
@@ -123,14 +125,14 @@ class ErrorUtilsSpec extends AnyFlatSpec with Matchers {
   }
 
   it should "leave the cause null when errorDetails is empty for SCALA errors" in {
-    val ce = ControlError("scala.boom", "", "", ErrorLanguage.SCALA)
+    val ce = ControlError("scala.boom", "", "", ErrorLanguage.SCALA, None)
     val reconstructed = ErrorUtils.reconstructThrowable(ce)
     reconstructed.getMessage shouldBe "scala.boom"
     reconstructed.getCause shouldBe null
   }
 
   it should "attach a cause Throwable when errorDetails is non-empty" in {
-    val ce = ControlError("scala.boom", "root-cause", "", ErrorLanguage.SCALA)
+    val ce = ControlError("scala.boom", "root-cause", "", ErrorLanguage.SCALA, None)
     val reconstructed = ErrorUtils.reconstructThrowable(ce)
     reconstructed.getCause should not be null
     reconstructed.getCause.getMessage shouldBe "root-cause"
@@ -141,7 +143,8 @@ class ErrorUtilsSpec extends AnyFlatSpec with Matchers {
       "scala.boom",
       "",
       "at com.x.Foo.bar(Foo.scala:42)\nat com.x.Baz.qux(Baz.scala:7)",
-      ErrorLanguage.SCALA
+      ErrorLanguage.SCALA,
+      None
     )
     val reconstructed = ErrorUtils.reconstructThrowable(ce)
     val frames = reconstructed.getStackTrace
@@ -156,7 +159,8 @@ class ErrorUtilsSpec extends AnyFlatSpec with Matchers {
       "scala.boom",
       "",
       "garbage line\nat com.x.Foo.bar(Foo.scala:42)\nmore garbage",
-      ErrorLanguage.SCALA
+      ErrorLanguage.SCALA,
+      None
     )
     val reconstructed = ErrorUtils.reconstructThrowable(ce)
     reconstructed.getStackTrace.length shouldBe 1
@@ -203,5 +207,51 @@ class ErrorUtilsSpec extends AnyFlatSpec with Matchers {
     val (operatorId, workerId) = ErrorUtils.getOperatorFromActorIdOpt(Some(actor))
     operatorId shouldBe "__DummyOperator"
     workerId shouldBe "COORDINATOR"
+  }
+
+  // ----- carrying the failing worker through ControlError -----
+
+  private val failingWorker =
+    ActorVirtualIdentity("Worker:WF23-PythonUDFV2-operator-udfdemo-main-0")
+
+  "mkControlError with a WorkflowRuntimeException" should "carry the failing worker" in {
+    val ce = ErrorUtils.mkControlError(new WorkflowRuntimeException("boom", Some(failingWorker)))
+    ce.relatedWorkerId shouldBe Some(failingWorker)
+  }
+
+  it should "leave the worker empty for errors that are not tied to one" in {
+    ErrorUtils.mkControlError(new RuntimeException("boom")).relatedWorkerId shouldBe None
+    ErrorUtils
+      .mkControlError(new WorkflowRuntimeException("boom", None))
+      .relatedWorkerId shouldBe None
+  }
+
+  "reconstructThrowable with a related worker" should "rebuild a WorkflowRuntimeException" in {
+    val original =
+      new WorkflowRuntimeException("boom", new IllegalStateException("root"), Some(failingWorker))
+    val rebuilt = ErrorUtils.reconstructThrowable(ErrorUtils.mkControlError(original))
+    rebuilt shouldBe a[WorkflowRuntimeException]
+    val wre = rebuilt.asInstanceOf[WorkflowRuntimeException]
+    wre.relatedWorkerId shouldBe Some(failingWorker)
+    wre.getMessage shouldBe "boom"
+    wre.getCause.getMessage shouldBe new IllegalStateException("root").toString
+  }
+
+  it should "let the error be attributed to the failing operator" in {
+    // WorkflowService reads relatedWorkerId from the rebuilt error; before this,
+    // the worker was dropped and the UI showed "unknown operator".
+    val rebuilt = ErrorUtils
+      .reconstructThrowable(
+        ErrorUtils.mkControlError(new WorkflowRuntimeException("boom", Some(failingWorker)))
+      )
+      .asInstanceOf[WorkflowRuntimeException]
+    ErrorUtils.getOperatorFromActorIdOpt(rebuilt.relatedWorkerId) shouldBe
+      ("PythonUDFV2-operator-udfdemo", failingWorker.name)
+  }
+
+  it should "still rebuild a plain Throwable when no worker is set" in {
+    val rebuilt =
+      ErrorUtils.reconstructThrowable(ControlError("boom", "", "", ErrorLanguage.SCALA, None))
+    rebuilt should not be a[WorkflowRuntimeException]
   }
 }

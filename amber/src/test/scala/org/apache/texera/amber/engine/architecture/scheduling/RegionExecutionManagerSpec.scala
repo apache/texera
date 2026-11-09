@@ -553,6 +553,7 @@ class RegionExecutionManagerSpec
       errorMessage = "transient EndWorker failure",
       errorDetails = "",
       stackTrace = "",
-      language = ErrorLanguage.SCALA
+      language = ErrorLanguage.SCALA,
+      None
     )
 }
