@@ -30,6 +30,7 @@ import { GuiConfigService } from "../../../../common/service/gui-config.service"
 import { MultipartUploadProgress, MultipartUploadService } from "../file-resource/multipart-upload.service";
 import { StagedFileService } from "../file-resource/staged-file.service";
 import { DATASET_FILE_RESOURCE_ENDPOINT } from "../file-resource/file-resource-endpoint";
+import { verifyCompleteDownload } from "../../../../common/util/download-integrity.util";
 
 export const DATASET_BASE_URL = "dataset";
 export const DATASET_CREATE_URL = DATASET_BASE_URL + "/create";
@@ -113,9 +114,10 @@ export class DatasetService {
     const endpointSegment = isLogin ? "presign-download" : "public-presign-download";
     const endpoint = `${AppSettings.getApiEndpoint()}/${DATASET_BASE_URL}/${endpointSegment}?filePath=${encodeURIComponent(filePath)}`;
 
-    return this.http
-      .get<{ presignedUrl: string }>(endpoint)
-      .pipe(switchMap(({ presignedUrl }) => this.http.get(presignedUrl, { responseType: "blob" })));
+    return this.http.get<{ presignedUrl: string }>(endpoint).pipe(
+      switchMap(({ presignedUrl }) => this.http.get(presignedUrl, { responseType: "blob", observe: "response" })),
+      verifyCompleteDownload()
+    );
   }
 
   /**
@@ -133,10 +135,13 @@ export class DatasetService {
       params = params.set("latest", "true");
     }
 
-    return this.http.get(`${AppSettings.getApiEndpoint()}/dataset/${did}/versionZip`, {
-      params,
-      responseType: "blob",
-    });
+    return this.http
+      .get(`${AppSettings.getApiEndpoint()}/dataset/${did}/versionZip`, {
+        params,
+        responseType: "blob",
+        observe: "response",
+      })
+      .pipe(verifyCompleteDownload());
   }
 
   public retrieveAccessibleDatasets(): Observable<DashboardDataset[]> {
