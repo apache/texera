@@ -21,6 +21,8 @@
   width: 520px;
   // tall enough for the table's first page to hold 5 rows, as the result panel's does
   height: 480px;
+  min-width: 280px;
+  min-height: 160px;
   display: flex;
   flex-direction: column;
   // the bottom-right corner resizes the window
