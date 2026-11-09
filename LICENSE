@@ -269,20 +269,6 @@ This product bundles the Iris example dataset, as distributed with scikit-learn:
   Copyright (c) 2007-2024 The scikit-learn developers
   Source: https://github.com/scikit-learn/scikit-learn/blob/1.7.2/sklearn/datasets/data/iris.csv
   License: BSD 3-Clause License (licenses/LICENSE-BSD-3-Clause.txt)
-<<<<<<< HEAD
-=======
-
-CC0 1.0 Universal
---------------------------------------
-
-This product includes the ORCID iD icon from ORCID, Inc.:
-  - frontend/src/assets/logos/ORCID-iD_icon_24x24.png
-  Source: https://info.orcid.org/brand-guidelines/
-          https://doi.org/10.23640/07243.5008697 (ORCID iD Icons, ORCID Brand Library)
-  License: CC0 1.0 Universal (licenses/LICENSE-CC0-1.0.txt)
-  Note: ORCID(TM), the ORCID logo and the iD logo are trademarks of ORCID, Inc. The icon is
-        bundled unmodified and displayed only to label ORCID sign-in, per ORCID's brand
-        guidelines; CC0 covers the graphic, not the mark.
 
 Public Domain
 --------------------------------------
@@ -312,17 +298,3 @@ From "100000 Sales Records.csv", with numbers reformatted:
   Note: The source page also states: "These are not real sales data and should not
         be used for any other purpose other than testing." This product uses the
         data only as test data.
-
-Trademarks
---------------------------------------
-
-This product includes the Apple logo, a trademark of Apple Inc.:
-  - frontend/src/assets/logos/apple-logo-white.svg
-  Apple and the Apple logo are trademarks of Apple Inc., registered in the U.S.
-  and other countries. The mark is included solely to render the "Continue with
-  Apple" button, which Apple's guidelines require to carry their own artwork.
-  Source: https://developer.apple.com/design/human-interface-guidelines/sign-in-with-apple
-  Use governed by Apple's Sign in with Apple usage guidelines, not by an
-  open-source license:
-  https://developer.apple.com/sign-in-with-apple/usage-guidelines-for-websites-and-other-platforms/
->>>>>>> 9e95b825c (fix(licensing): list the sales test data in LICENSE (#9295))
