@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1794056349737,
+  "lastUpdate": 1794229469760,
   "repoUrl": "https://github.com/apache/texera",
   "entries": {
     "Arrow Flight E2E Throughput": [
@@ -21459,6 +21459,163 @@ window.BENCHMARK_DATA = {
           {
             "name": "throughput / bs=1000 sw=50 sl=512",
             "value": 510.7554247766799,
+            "unit": "tuples/sec"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "name": "Xinyuan Lin",
+            "username": "aglinxinyuan",
+            "email": "xinyual3@uci.edu"
+          },
+          "committer": {
+            "name": "GitHub",
+            "username": "web-flow",
+            "email": "noreply@github.com"
+          },
+          "id": "7b1033b85799ddd3a65485bb895f4bf08429d999",
+          "message": "test(amber): remove obsolete fixtures and scenarios (#9383)\n\n### What changes were proposed in this PR?\nRemove unused coordinator implicit setup and obsolete commented\nscenarios, unread dataset resource fixtures, and unused Iceberg\nschema-conversion fields and callbacks. **+0/−334 lines.** Every\nexecutable case, live schema, dataset insert, cleanup query, document\noperation, and catalog spy is retained.\n\nThe removed bindings have no consumers in their suites; the coordinator\nscenarios were already comments. There is no behavior change.\n\n### Any related issues, documentation, discussions?\nCloses #9378.\n\n### How was this PR tested?\nWith Java 17 and a PostgreSQL Iceberg catalog:\n```\nsbt -java-home C:/Users/linxi/.jdks/jbr-17.0.14 \"WorkflowExecutionService/scalafmtCheckAll\" \"WorkflowExecutionService/scalafixAll --check\"\nsbt -java-home C:/Users/linxi/.jdks/jbr-17.0.14 \"WorkflowExecutionService/testOnly org.apache.texera.amber.engine.architecture.coordinator.CoordinatorSpec org.apache.texera.web.resource.dashboard.file.DatasetResourceSpec org.apache.texera.amber.storage.result.iceberg.IcebergDocumentSpec org.apache.texera.amber.storage.result.iceberg.IcebergTableStatsSpec -- -oD\"\n```\n31 tests passed with the same case identities and outcomes. The dataset\ncases use embedded PostgreSQL; Iceberg uses an isolated local catalog\ndatabase.\n\n### Was this PR authored or co-authored using generative AI tooling?\nGenerated-by: Codex (GPT-6)",
+          "timestamp": "2026-11-09T10:29:26Z",
+          "url": "https://github.com/apache/texera/commit/7b1033b85799ddd3a65485bb895f4bf08429d999"
+        },
+        "date": 1794229468934,
+        "tool": "customBiggerIsBetter",
+        "benches": [
+          {
+            "name": "throughput / bs=10 sw=1 sl=8",
+            "value": 774.8031427050605,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=1 sl=8",
+            "value": 1727.4235057317983,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=1 sl=8",
+            "value": 1963.5217177766388,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=1 sl=64",
+            "value": 1177.4205380513972,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=1 sl=64",
+            "value": 1846.4738417182386,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=1 sl=64",
+            "value": 1930.3391010325647,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=1 sl=512",
+            "value": 1253.8178377012653,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=1 sl=512",
+            "value": 1859.6573617351162,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=1 sl=512",
+            "value": 1946.6041459741941,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=10 sl=8",
+            "value": 1032.4191645347169,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=10 sl=8",
+            "value": 1435.4741757068584,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=10 sl=8",
+            "value": 1505.4333714269894,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=10 sl=64",
+            "value": 1078.1472663690345,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=10 sl=64",
+            "value": 1444.9840920166014,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=10 sl=64",
+            "value": 1493.0684120177136,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=10 sl=512",
+            "value": 1117.8955452700384,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=10 sl=512",
+            "value": 1436.106728995782,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=10 sl=512",
+            "value": 1470.9668046088636,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=50 sl=8",
+            "value": 642.9061158631438,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=50 sl=8",
+            "value": 771.1695337512076,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=50 sl=8",
+            "value": 774.6450484424113,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=50 sl=64",
+            "value": 662.8405271041235,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=50 sl=64",
+            "value": 763.070924507357,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=50 sl=64",
+            "value": 728.2319528280113,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=50 sl=512",
+            "value": 594.6442360739949,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=50 sl=512",
+            "value": 727.0043633934938,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=50 sl=512",
+            "value": 736.8164860996445,
             "unit": "tuples/sec"
           }
         ]
