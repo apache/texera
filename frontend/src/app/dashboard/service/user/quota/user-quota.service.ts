@@ -38,23 +38,19 @@ export class UserQuotaService {
   constructor(private http: HttpClient) {}
 
   public getCreatedDatasets(uid: number): Observable<ReadonlyArray<DatasetQuota>> {
-    return this.getQuotaResource<DatasetQuota>(USER_CREATED_DATASETS);
+    return this.http.get<ReadonlyArray<DatasetQuota>>(`${USER_CREATED_DATASETS}`);
   }
 
   public getCreatedWorkflows(uid: number): Observable<ReadonlyArray<Workflow>> {
-    return this.getQuotaResource<Workflow>(USER_CREATED_WORKFLOWS);
+    return this.http.get<ReadonlyArray<Workflow>>(`${USER_CREATED_WORKFLOWS}`);
   }
 
   public getAccessWorkflows(uid: number): Observable<ReadonlyArray<number>> {
-    return this.getQuotaResource<number>(USER_ACCESS_WORKFLOWS);
+    return this.http.get<ReadonlyArray<number>>(`${USER_ACCESS_WORKFLOWS}`);
   }
 
   public getExecutionQuota(uid: number): Observable<ReadonlyArray<ExecutionQuota>> {
-    return this.getQuotaResource<ExecutionQuota>(USER_QUOTA_SIZE);
-  }
-
-  private getQuotaResource<T>(url: string): Observable<ReadonlyArray<T>> {
-    return this.http.get<ReadonlyArray<T>>(url);
+    return this.http.get<ReadonlyArray<ExecutionQuota>>(`${USER_QUOTA_SIZE}`);
   }
 
   public deleteExecutionCollection(eid: number): Observable<void> {
