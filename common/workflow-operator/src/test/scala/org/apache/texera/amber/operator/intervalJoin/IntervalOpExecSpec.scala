@@ -22,13 +22,12 @@ package org.apache.texera.amber.operator.intervalJoin
 import org.apache.texera.amber.core.tuple._
 import org.apache.texera.amber.core.workflow.PortIdentity
 import org.apache.texera.amber.util.JSONUtils.objectMapper
-import org.scalatest.BeforeAndAfter
 import org.scalatest.flatspec.AnyFlatSpec
 
 import java.sql.Timestamp
 import scala.collection.mutable.ArrayBuffer
 import scala.util.Random
-class IntervalOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
+class IntervalOpExecSpec extends AnyFlatSpec {
   val left: Int = 0
   val right: Int = 1
 
