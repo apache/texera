@@ -41,6 +41,10 @@ class UserSystemConfigSpec extends AnyFlatSpec with Matchers {
     UserSystemConfig.adminUsername should not be null
     UserSystemConfig.adminPassword should not be null
     UserSystemConfig.googleClientId should not be null
+    UserSystemConfig.orcidClientId should not be null
+    UserSystemConfig.orcidClientSecret should not be null
+    UserSystemConfig.orcidBaseUrl should not be null
+    UserSystemConfig.orcidRedirectUri should not be null
     UserSystemConfig.gmail should not be null
     UserSystemConfig.smtpPassword should not be null
     UserSystemConfig.projectName should not be null
@@ -53,6 +57,18 @@ class UserSystemConfigSpec extends AnyFlatSpec with Matchers {
     ifUnset("USER_SYS_GOOGLE_CLIENT_ID")(UserSystemConfig.googleClientId shouldBe "")
     ifUnset("USER_SYS_GOOGLE_SMTP_GMAIL")(UserSystemConfig.gmail shouldBe "")
     ifUnset("USER_SYS_GOOGLE_SMTP_PASSWORD")(UserSystemConfig.smtpPassword shouldBe "")
+    // The two credentials ship blank so ORCID sign-in cannot be half-configured by accident;
+    // `OrcidAuthResource.getConfig` reports the provider unavailable until an operator fills them
+    // in. baseUrl and redirectUri ship usable dev defaults: the sandbox registry, and the callback
+    // URL of `ng serve --host 127.0.0.1`.
+    ifUnset("USER_SYS_ORCID_CLIENT_ID")(UserSystemConfig.orcidClientId shouldBe "")
+    ifUnset("USER_SYS_ORCID_CLIENT_SECRET")(UserSystemConfig.orcidClientSecret shouldBe "")
+    ifUnset("USER_SYS_ORCID_BASE_URL")(
+      UserSystemConfig.orcidBaseUrl shouldBe "https://sandbox.orcid.org"
+    )
+    ifUnset("USER_SYS_ORCID_REDIRECT_URI")(
+      UserSystemConfig.orcidRedirectUri shouldBe "http://127.0.0.1:4200/callback/orcid"
+    )
     ifUnset("USER_SYS_PROJECT_NAME")(UserSystemConfig.projectName shouldBe "Texera")
     ifUnset("USER_SYS_INVITE_ONLY")(UserSystemConfig.inviteOnly shouldBe false)
     ifUnset("USER_SYS_EMAIL_VERIFICATION")(UserSystemConfig.emailVerification shouldBe false)

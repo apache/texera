@@ -51,9 +51,9 @@ describe("FormBindingService", () => {
 
   const scanId = mockScanPredicate.operatorID;
 
-  it("starts with nothing exposed", () => {
+  it("starts with nothing exposed and no result list, so the final steps show", () => {
     expect(service.getConfig().fields).toEqual([]);
-    expect(service.getConfig().resultOperatorIds).toEqual([]);
+    expect(service.getConfig().shownResultIds).toBeUndefined();
   });
 
   describe("exposing a property", () => {
@@ -303,18 +303,39 @@ describe("FormBindingService", () => {
 
   describe("choosing which results to show", () => {
     // The form records only its own selection. It never writes the canvas's view-result flags:
-    // the picker offers exactly the operators the workflow already views, so those results are
-    // already materialised, and a canvas user's own view-result choices are left untouched.
-    it("toggles an operator in and out of the shown set, without touching the canvas", () => {
+    // the picker offers exactly the operators the workflow already views or ends with, so those
+    // results are already materialised, and a canvas user's own view-result choices are left untouched.
+    it("starts the saved list from the default handed in on the first choice, without touching the canvas", () => {
+      // Until the author chooses, the list is absent (the final steps show). The first toggle
+      // materialises that default and flips the one step, so nothing the author saw disappears.
       const setView = vi.spyOn(workflowActionService, "setViewOperatorResults");
+      expect(service.getConfig().shownResultIds).toBeUndefined();
 
-      service.toggleResultOperator(scanId);
-      expect(service.getConfig().resultOperatorIds).toEqual([scanId]);
+      service.toggleShownResult(scanId, ["final-1", "final-2"]);
+      expect(service.getConfig().shownResultIds).toEqual(["final-1", "final-2", scanId]);
 
-      service.toggleResultOperator(scanId);
-      expect(service.getConfig().resultOperatorIds).toEqual([]);
+      service.toggleShownResult("final-1", ["final-1", "final-2"]);
+      expect(service.getConfig().shownResultIds).toEqual(["final-2", scanId]);
 
       expect(setView).not.toHaveBeenCalled();
+    });
+
+    it("flips within the saved list once there is one, ignoring the default", () => {
+      // After the first choice the list is exhaustive: a step that became final later is not in it and
+      // does not sneak in through the default argument.
+      service.updateConfig({ shownResultIds: [scanId] });
+
+      service.toggleShownResult("new-final", ["new-final", scanId]);
+      expect(service.getConfig().shownResultIds).toEqual([scanId, "new-final"]);
+
+      service.toggleShownResult(scanId, ["new-final", scanId]);
+      expect(service.getConfig().shownResultIds).toEqual(["new-final"]);
+    });
+
+    it("can store 'no results': turning off the only shown step leaves an empty list, not an absent one", () => {
+      // [] is a real authoring choice (no results section); absent would fall back to the final steps.
+      service.toggleShownResult(scanId, [scanId]);
+      expect(service.getConfig().shownResultIds).toEqual([]);
     });
   });
 

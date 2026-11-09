@@ -29,6 +29,10 @@ object GuiConfig {
     conf.getBoolean("gui.login.local-login")
   val guiLoginGoogleLogin: Boolean =
     conf.getBoolean("gui.login.google-login")
+  val guiLoginOrcidLogin: Boolean =
+    conf.getBoolean("gui.login.orcid-login")
+  val guiLoginAppleLogin: Boolean =
+    conf.getBoolean("gui.login.apple-login")
   val guiLoginDefaultLocalUserUsername: String =
     if (conf.hasPath("gui.login.default-local-user.username"))
       conf.getString("gui.login.default-local-user.username")
@@ -69,6 +73,8 @@ object GuiConfig {
     conf.getInt("gui.workflow-workspace.active-time-in-minutes")
   val guiWorkflowWorkspaceCopilotEnabled: Boolean =
     conf.getBoolean("gui.workflow-workspace.copilot-enabled")
+  val guiWorkflowWorkspaceAiFixModel: String =
+    conf.getString("gui.workflow-workspace.ai-fix-model")
   val guiWorkflowWorkspaceLimitColumns: Int =
     conf.getInt("gui.workflow-workspace.limit-columns")
   val guiAttributionEnabled: Boolean =

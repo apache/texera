@@ -21,9 +21,11 @@ import { Injectable } from "@angular/core";
 import { DashboardEntry } from "../../../type/dashboard-entry";
 import { ResourceDescriptor } from "../../../type/resource-descriptor";
 import { EntityType } from "../../../../hub/service/hub.service";
+import { forkJoin, Observable, of } from "rxjs";
+import { catchError, map } from "rxjs/operators";
+import { OwnerScope } from "../../../type/owner-scope";
 import { WorkflowResourceDescriptor } from "./workflow-resource.descriptor";
 import { DatasetResourceDescriptor } from "./dataset-resource.descriptor";
-import { FileResourceDescriptor } from "./file-resource.descriptor";
 import { ModelResourceDescriptor } from "./model-resource.descriptor";
 
 /**
@@ -40,12 +42,11 @@ export class ResourceRegistryService {
   constructor(
     workflow: WorkflowResourceDescriptor,
     dataset: DatasetResourceDescriptor,
-    file: FileResourceDescriptor,
     model: ModelResourceDescriptor
   ) {
     // Computing units are deliberately absent: nothing in the dashboard renders them as entries.
     this.descriptors = new Map<EntityType, ResourceDescriptor>(
-      [workflow, dataset, file, model].map(descriptor => [descriptor.type, descriptor])
+      [workflow, dataset, model].map(descriptor => [descriptor.type, descriptor])
     );
   }
 
@@ -63,6 +64,38 @@ export class ResourceRegistryService {
   }
 
   /**
+   * Names for the Owner facet of a page listing `type` under `scope`; `null` unions every kind.
+   * A kind whose request fails contributes nothing rather than blanking the facet.
+   */
+  public ownersFor(type: EntityType | null, scope: OwnerScope): Observable<string[]> {
+    const kinds = type === null ? [EntityType.Workflow, EntityType.Dataset, EntityType.Model] : [type];
+    const requests = kinds.flatMap(kind => this.ownerRequests(kind, scope));
+    if (requests.length === 0) {
+      return of([]);
+    }
+    // Unsorted, so a single kind keeps its endpoint's order.
+    return forkJoin(requests).pipe(map(lists => [...new Set(lists.flat())]));
+  }
+
+  /** The one or two lists a scope is made of, skipping any the descriptor cannot answer. */
+  private ownerRequests(type: EntityType, scope: OwnerScope): Observable<string[]>[] {
+    const descriptor = this.find(type);
+    if (!descriptor) {
+      return [];
+    }
+    const wanted: (Observable<string[]> | undefined)[] = [];
+    if (scope !== "public") {
+      wanted.push(descriptor.retrieveOwners?.());
+    }
+    if (scope !== "accessible") {
+      wanted.push(descriptor.retrievePublicOwners?.());
+    }
+    return wanted
+      .filter((request): request is Observable<string[]> => request !== undefined)
+      .map(request => request.pipe(catchError(() => of([] as string[]))));
+  }
+
+  /**
    * Where an entry's card links to: the owner-facing page when the viewer can reach it, the hub page
    * otherwise. An entry with no route, or one not yet persisted, links nowhere.
    */
@@ -74,7 +107,8 @@ export class ResourceRegistryService {
     if (descriptor.hubRoute === undefined) {
       return [descriptor.privateRoute, String(entry.id)];
     }
-    const reachableByViewer = currentUid !== undefined && entry.accessibleUserIds.includes(currentUid);
+    const reachableByViewer =
+      currentUid !== undefined && (entry.ownerId === currentUid || entry.accessibleUserIds.includes(currentUid));
     return [reachableByViewer ? descriptor.privateRoute : descriptor.hubRoute, String(entry.id)];
   }
 }

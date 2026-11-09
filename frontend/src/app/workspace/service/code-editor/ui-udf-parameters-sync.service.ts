@@ -26,9 +26,9 @@ import {
   UiUdfParametersParseError,
   UiUdfParametersParserService,
 } from "./ui-udf-parameters-parser.service";
-import type { UiUdfParameter } from "./ui-udf-parameters-parser.service";
+import type { UiUdfLanguage, UiUdfParameter } from "./ui-udf-parameter";
 import { isDefined } from "../../../common/util/predicate";
-import { isPythonUdf } from "../workflow-graph/model/workflow-graph";
+import { getUiUdfLanguage } from "../workflow-graph/model/workflow-graph";
 import type { Text as YText } from "yjs";
 import type { YType } from "../../types/shared-editing.interface";
 import type { AttributeType } from "../../types/workflow-compiling.interface";
@@ -40,7 +40,7 @@ type SharedOperatorProperties = Readonly<{ code?: string; [key: string]: unknown
  */
 const UI_PARAMETER_SYNC_DEBOUNCE_TIME_MS = 200;
 
-/** Keeps Python UDF UI parameter structure in sync with the code editor and workflow graph. */
+/** Keeps Python and R UDF UI parameters in sync with the shared code and workflow graph. */
 @Injectable({ providedIn: "root" })
 export class UiUdfParametersSyncService {
   private readonly uiParametersChangedSubject = new Subject<{ operatorId: string; parameters: UiUdfParameter[] }>();
@@ -79,13 +79,14 @@ export class UiUdfParametersSyncService {
   }
 
   /**
-   * Parses Python UDF code for a known Python UDF operator and emits merged parameter rows when the shape changes.
+   * Parses Python or R UDF code and emits merged parameter rows when the shape changes.
    * If codeFromEditor is omitted, reads from Yjs; does nothing if the operator or code is unavailable.
    */
   syncStructureFromCode(operatorId: string, codeFromEditor?: string): void {
     const operator = this.workflowActionService.getTexeraGraph().getOperator(operatorId);
 
-    if (!operator || !isPythonUdf(operator)) return;
+    const language = getUiUdfLanguage(operator);
+    if (!language) return;
 
     const code = codeFromEditor ?? this.getSharedCode(operatorId);
     if (!isDefined(code)) return;
@@ -94,7 +95,7 @@ export class UiUdfParametersSyncService {
     let mergedParameters: UiUdfParameter[];
 
     try {
-      mergedParameters = this.buildParsedShapeWithPreservedValues(code, existingParameters);
+      mergedParameters = this.buildParsedShapeWithPreservedValues(code, existingParameters, language);
     } catch (error) {
       if (error instanceof UiUdfParametersParseError) {
         this.uiParametersParseErrorSubject.next({ operatorId, message: error.message });
@@ -110,31 +111,40 @@ export class UiUdfParametersSyncService {
     this.uiParametersChangedSubject.next({ operatorId, parameters: mergedParameters });
   }
 
-  private buildParsedShapeWithPreservedValues(code: string, existingParameters: UiUdfParameter[]): UiUdfParameter[] {
-    const parsedParameters = this.uiUdfParametersParserService.parse(code);
-    const existingValues = new Map(
-      existingParameters.map(parameter => [parameter.attribute.attributeName, parameter.value] as const)
-    );
+  private buildParsedShapeWithPreservedValues(
+    code: string,
+    existingParameters: UiUdfParameter[],
+    language: UiUdfLanguage
+  ): UiUdfParameter[] {
+    const parsedParameters = this.uiUdfParametersParserService.parse(code, language);
+    // A value carries over only while the row names the same kind of resource: a model path
+    // left in a row that now names a dataset would resolve to the wrong thing.
+    const rowKey = (parameter: UiUdfParameter) => `${parameter.attribute.attributeName}:${parameter.inputType ?? ""}`;
+    const existingValues = new Map(existingParameters.map(parameter => [rowKey(parameter), parameter.value] as const));
 
     return parsedParameters.map(parameter => ({
       ...parameter,
-      value: existingValues.get(parameter.attribute.attributeName) ?? "",
+      value: existingValues.get(rowKey(parameter)) ?? "",
     }));
   }
 
   /**
-   * Inserts a new self.UiParameter declaration into the operator's shared Python code
-   * (creating open() when missing) and immediately re-syncs the parameter rows.
+   * Inserts a declaration into the operator's shared code and immediately re-syncs the rows.
+   * Python declarations go in open(); R declarations precede the script's final function.
    * Throws UiUdfParametersEditError or UiUdfParametersParseError when the code cannot be edited.
    */
   addParameter(operatorId: string, attributeName: string, attributeType: AttributeType): void {
+    const operator = this.workflowActionService.getTexeraGraph().getOperator(operatorId);
+    const language = getUiUdfLanguage(operator);
+    if (!language) throw new UiUdfParametersEditError("This operator does not support UI parameters.");
     const yCode = this.getSharedYCode(operatorId);
-    if (!yCode) throw new UiUdfParametersEditError("Python UDF code is not available for this operator.");
+    if (!yCode) throw new UiUdfParametersEditError("UDF code is not available for this operator.");
 
     const edit = this.uiUdfParametersParserService.computeParameterInsertion(
       yCode.toString(),
       attributeName,
-      attributeType
+      attributeType,
+      language
     );
     yCode.insert(edit.offset, edit.text);
     this.syncStructureFromCode(operatorId);
@@ -151,7 +161,7 @@ export class UiUdfParametersSyncService {
       const operatorProperties = sharedOperatorType.get("operatorProperties") as YType<SharedOperatorProperties>;
       return operatorProperties.get("code") as unknown as YText;
     } catch (error) {
-      console.warn("Unable to read Python UDF code from shared operator properties.", error);
+      console.warn("Unable to read UDF code from shared operator properties.", error);
       return undefined;
     }
   }

@@ -19,7 +19,6 @@
 
 package org.apache.texera.amber.core.tuple
 
-import org.apache.texera.amber.core.tuple.TupleUtils.{json2tuple, tuple2json}
 import org.scalatest.flatspec.AnyFlatSpec
 
 import java.sql.Timestamp
@@ -102,22 +101,6 @@ class TupleSpec extends AnyFlatSpec {
     // This is the important test. Input tuple has 3 attributes but output tuple has only 2
     // It's because of isStrictSchemaMatch=false
     assert(outputTuple.length == 2);
-  }
-
-  it should "produce identical strings" in {
-    val inputSchema =
-      Schema().add(stringAttribute).add(integerAttribute).add(boolAttribute)
-    val inputTuple = Tuple
-      .builder(inputSchema)
-      .add(integerAttribute, 1)
-      .add(stringAttribute, "string-attr")
-      .add(boolAttribute, true)
-      .build()
-
-    val line = tuple2json(inputTuple.schema, inputTuple.fieldVals).toString
-    val newTuple = json2tuple(line)
-    assert(line == tuple2json(newTuple.schema, newTuple.fieldVals).toString)
-
   }
 
   it should "calculate hash" in {

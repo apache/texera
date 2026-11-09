@@ -40,7 +40,11 @@ trait EndChannelHandler {
     val portId = dp.inputGateway.getChannel(channelId).getPortId
     dp.inputManager.getPort(portId).completed = true
     dp.inputManager.initBatch(channelId, Array.empty)
+    // Tell the executor this port's schema, even if the port got no rows.
+    dp.executor.inputSchemas(portId.id) = dp.inputManager.getPort(portId).schema
     try {
+      // The executor finishes: a setting that refers to loop variables must have them by now.
+      dp.bindStateReferences()
       val outputState = dp.executor.produceStateOnFinish(portId.id)
       if (outputState.isDefined) {
         // Operator-ORIGINATED boundary state, so no LoopStart stamp

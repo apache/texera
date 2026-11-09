@@ -20,26 +20,39 @@
 package org.apache.texera.amber.operator.substringSearch
 
 import com.fasterxml.jackson.annotation.{JsonProperty, JsonPropertyDescription}
-import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaTitle
+import com.kjetland.jackson.jsonSchema.annotations.{JsonSchemaInject, JsonSchemaTitle}
 import org.apache.texera.amber.core.executor.OpExecWithClassName
+import org.apache.texera.amber.core.tuple.Schema
 import org.apache.texera.amber.core.virtualidentity.{ExecutionIdentity, WorkflowIdentity}
-import org.apache.texera.amber.core.workflow.{InputPort, OutputPort, PhysicalOp}
+import org.apache.texera.amber.core.workflow.{InputPort, OutputPort, PhysicalOp, PortIdentity}
+import org.apache.texera.amber.operator.{StandaloneCodeGenerator, StandaloneHelpers}
 import org.apache.texera.amber.operator.filter.FilterOpDesc
-import org.apache.texera.amber.operator.metadata.annotations.AutofillAttributeName
+import org.apache.texera.amber.operator.metadata.annotations.{AutofillAttributeName, SampleColumn}
 import org.apache.texera.amber.operator.metadata.{OperatorGroupConstants, OperatorInfo}
+import org.apache.texera.amber.pybuilder.PythonTemplateBuilder.pyStringLiteral
 import org.apache.texera.amber.util.JSONUtils.objectMapper
 
-class SubstringSearchOpDesc extends FilterOpDesc {
+class SubstringSearchOpDesc extends FilterOpDesc with StandaloneCodeGenerator {
 
+  // Verification reads a column holding lower-case, upper-case and letterless rows,
+  // so that flipping Case Sensitive changes WHICH rows match. On a single-case column
+  // it changes nothing and the sweep decides nothing.
   @JsonProperty(required = true)
   @JsonSchemaTitle("attribute")
   @JsonPropertyDescription("column to search substring on")
   @AutofillAttributeName
+  @SampleColumn("mixed_case")
   var attribute: String = _
 
+  // A letter-bearing sample, for the same reason -- case cannot matter to a digit.
   @JsonProperty(required = true)
   @JsonSchemaTitle("Substring")
   @JsonPropertyDescription("substring")
+  @JsonSchemaInject(json = """
+{
+  "examples": ["ab"]
+}
+""")
   var substring: String = _
 
   @JsonProperty(required = true, defaultValue = "false")
@@ -74,4 +87,34 @@ class SubstringSearchOpDesc extends FilterOpDesc {
       outputPorts = List(OutputPort()),
       supportReconfiguration = true
     )
+
+  override def generateStandaloneCode(): String = generateStandaloneCode(Map.empty)
+
+  override def generateStandaloneCode(inputSchemas: Map[PortIdentity, Schema]): String = {
+    // JVM uses String.contains (case-sensitive) or toLowerCase.contains
+    // (case-insensitive). pandas str.contains with regex=False is the direct
+    // equivalent of the first. For the second, pandas' case=False compares
+    // upper(), which folds "ß" to "SS" and "ς" to "Σ" where toLowerCase leaves
+    // both alone, so both sides are lowered instead: the substring here, by the
+    // call the engine makes, and the column by Python's lower(), which follows
+    // the same Unicode mappings.
+    val text = Option(substring).getOrElse("")
+    // The engine reads the field through Schema, which ignores case. See [[columnAsStored]].
+    val attrLit = pyStringLiteral(columnAsStored(attribute, inputSchemas.values.headOption))
+    // The rows with nothing in the column are dropped before the match rather than
+    // left to `na=False`, which by then has no null to see.
+    //
+    // The substring is searched in the text the engine would have searched, not
+    // in whatever pandas made of the column. See [[renderedAsText]].
+    val declared = inputSchemas.values.headOption
+      .flatMap(schema => scala.util.Try(schema.getAttribute(attribute)).toOption)
+      .map(_.getType)
+    val rendered = renderedAsText(s"in1df[$attrLit]", declared)
+    val (column, pyLiteral) =
+      if (isCaseSensitive) (rendered, pyStringLiteral(text))
+      else (s"$rendered.str.lower()", pyStringLiteral(text.toLowerCase))
+    s"""out1df = in1df[in1df[$attrLit].notna() & $column.str.contains($pyLiteral, regex=False, na=False)].reset_index(drop=True)"""
+  }
+
+  override def standaloneHelpers(): Seq[String] = Seq(StandaloneHelpers.AttributeCasts)
 }

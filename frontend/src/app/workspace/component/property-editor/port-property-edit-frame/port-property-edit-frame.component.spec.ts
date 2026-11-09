@@ -512,7 +512,7 @@ describe("PortPropertyEditFrameComponent", () => {
      * `(focusout)` bindings — unexercised. Without these the whole feature can be unwired from the
      * UI without a single test noticing.
      */
-    function openEditorFromButton(): void {
+    function openEditorFromButton(): Y.Map<unknown> {
       const sharedPortDescription = new Y.Doc().getMap("portDescription");
       component.currentPortID = inputPort;
       vi.spyOn(texeraGraph, "getSharedPortDescriptionType").mockReturnValue(sharedPortDescription);
@@ -522,6 +522,7 @@ describe("PortPropertyEditFrameComponent", () => {
 
       expect(component.editingTitle).toBe(true);
       expect(component.quillBinding).toBeDefined();
+      return sharedPortDescription;
     }
 
     it("should open the collaborative editor from the edit button and close it on Enter", () => {
@@ -542,6 +543,91 @@ describe("PortPropertyEditFrameComponent", () => {
 
       expect(component.editingTitle).toBe(false);
       expect(component.quillBinding).toBeUndefined();
+    });
+
+    /**
+     * A port display name is a single-line value, so the editor binds Enter to "commit and close"
+     * instead of letting Quill insert a newline. Everything typed here goes straight into the shared
+     * Y.Text, so a stray "\n" is published to every co-editor, persisted with the workflow, and read
+     * back on each later open. Quill 2 buckets keyboard bindings by `event.key` and runs its built-in
+     * `handleEnter` ahead of anything registered under the legacy `13` keycode, which is how the
+     * suppression stopped working when the frontend moved to Quill 2 (#8053). The template's
+     * `(keyup.enter)` closes the editor either way — a keydown-only press is what separates a working
+     * binding from a broken one, in both the text left behind and `editingTitle`.
+     */
+    const ENTER: KeyboardEventInit = { key: "Enter", keyCode: 13, which: 13 };
+
+    /**
+     * Quill's keydown listener returns early unless the editor `hasFocus()` and reports a selection,
+     * so both have to be real here — without them no binding runs at all and every assertion below
+     * would pass vacuously. `keyCode` / `which` mirror what a browser sends: Quill matches a binding
+     * on either, and jsdom's default of 0 would make a `13`-keyed binding unreachable rather than
+     * merely out-prioritised, hiding the very defect these tests pin.
+     */
+    function pressKey(caret: number, init: KeyboardEventInit): KeyboardEvent {
+      component.quill.root.focus();
+      component.quill.setSelection(caret, 0);
+      const keyPress = new KeyboardEvent("keydown", { bubbles: true, cancelable: true, ...init });
+      component.quill.root.dispatchEvent(keyPress);
+      fixture.detectChanges();
+      return keyPress;
+    }
+
+    it("should commit the rename on Enter without appending a newline to the shared name", () => {
+      const sharedTitle = openEditorFromButton().get("displayName") as Y.Text;
+      sharedTitle.insert(0, "renamed");
+
+      pressKey(sharedTitle.length, ENTER);
+
+      expect(sharedTitle.toString()).toBe("renamed");
+      // `editingTitle` is what proves the editor's own binding ran: no keyup was dispatched, so the
+      // template's fallback cannot be the thing that closed the editor.
+      expect(component.editingTitle).toBe(false);
+      expect(component.quillBinding).toBeUndefined();
+    });
+
+    it("should not split the shared name when Enter is pressed mid-word", () => {
+      const sharedTitle = openEditorFromButton().get("displayName") as Y.Text;
+      sharedTitle.insert(0, "renamed");
+
+      pressKey(3, ENTER);
+
+      expect(sharedTitle.toString()).toBe("renamed");
+      expect(component.editingTitle).toBe(false);
+    });
+
+    it("should leave an untouched name empty when Enter commits it", () => {
+      const sharedTitle = openEditorFromButton().get("displayName") as Y.Text;
+
+      pressKey(0, ENTER);
+
+      // The empty document is the case Quill's own handler turns into a lone "\n" — a display name
+      // that reads as blank but is no longer equal to the empty string it started as.
+      expect(sharedTitle.toString()).toBe("");
+      expect(component.editingTitle).toBe(false);
+    });
+
+    it("should commit on Shift+Enter without appending a newline either", () => {
+      const sharedTitle = openEditorFromButton().get("displayName") as Y.Text;
+      sharedTitle.insert(0, "renamed");
+
+      pressKey(sharedTitle.length, { ...ENTER, shiftKey: true });
+
+      expect(sharedTitle.toString()).toBe("renamed");
+      expect(component.editingTitle).toBe(false);
+    });
+
+    it("should leave ordinary typing alone", () => {
+      const sharedTitle = openEditorFromButton().get("displayName") as Y.Text;
+      sharedTitle.insert(0, "renamed");
+
+      const keyPress = pressKey(sharedTitle.length, { key: "a", keyCode: 65, which: 65 });
+
+      // Suppressing Enter must not become suppressing the keyboard: an ordinary character is left
+      // for the browser to insert, and the editor stays open so the rename can continue.
+      expect(keyPress.defaultPrevented).toBe(false);
+      expect(component.editingTitle).toBe(true);
+      expect(component.quillBinding).toBeDefined();
     });
   });
 });

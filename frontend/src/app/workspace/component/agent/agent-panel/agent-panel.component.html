@@ -47,13 +47,11 @@
   [style.width.px]="width"
   [style.height.px]="height"
   (nzResize)="onResize($event)"
-  (cdkDragStarted)="handleDragStart()"
   [cdkDragFreeDragPosition]="dragPosition">
   <!-- Minimize Button -->
   <ul
     id="return-button"
     nz-menu
-    [ngClass]="{'shadow': !width}"
     *ngIf="width">
     <li
       nz-menu-item

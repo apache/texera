@@ -181,7 +181,40 @@ describe("BrowseSectionComponent", () => {
       expect(() => component.ngOnInit()).not.toThrow();
       expect(coverCache(component).has("workflow:10")).toBe(false);
       expect(coverCache(component).has("computing-unit:12")).toBe(false);
-      expect(component.getCoverImage(workflow)).toBe(component.defaultBackground);
+      // Nothing is cached for a workflow, but its cover is readable straight off the entry.
+      expect(component.getCoverImage(workflow)).toBe("carried-on-the-entry");
+      expect(component.getCoverImage(unregistered)).toBe(component.defaultBackground);
+    });
+
+    it("renders a workflow's cover from the entry, since no cover is ever fetched for one", () => {
+      const withCover = {
+        id: 20,
+        type: "workflow",
+        coverImageUrl: "data:image/png;base64,AAAA",
+        accessibleUserIds: [],
+      } as unknown as DashboardEntry;
+      const withoutCover = { id: 21, type: "workflow", accessibleUserIds: [] } as unknown as DashboardEntry;
+      component.entities = [withCover, withoutCover];
+      component.ngOnInit();
+
+      expect(component.getCoverImage(withCover)).toBe("data:image/png;base64,AAAA");
+      expect(component.getCoverImage(withoutCover)).toBe(component.defaultBackground);
+    });
+
+    it("keeps a file-backed kind on the placeholder rather than rendering its stored cover path", () => {
+      // A dataset's coverImageUrl is a path relative to the dataset root, not something an <img>
+      // can load, so it must never stand in for the presigned URL the descriptor resolves.
+      vi.spyOn(TestBed.inject(DatasetService) as any, "getDatasetCoverUrl").mockReturnValue(of({ url: "" }));
+      const entity = {
+        id: 22,
+        type: "dataset",
+        coverImageUrl: "v1/images/preview.png",
+        accessibleUserIds: [],
+      } as unknown as DashboardEntry;
+      component.entities = [entity];
+      component.ngOnInit();
+
+      expect(component.getCoverImage(entity)).toBe(component.defaultBackground);
     });
 
     it("caches nothing when the descriptor resolves an empty cover url", () => {
@@ -247,7 +280,7 @@ describe("BrowseSectionComponent rendering", () => {
     return fixture.nativeElement as HTMLElement;
   }
 
-  const entity = (over: Partial<Record<string, unknown>> = {}) =>
+  const entity = (over: Partial<Record<string, unknown>>) =>
     ({ id: 1, type: "dataset", accessibleUserIds: [], name: "flow", ...over }) as unknown as DashboardEntry;
 
   it("renders nothing at all for an empty section", () => {
@@ -293,7 +326,7 @@ describe("BrowseSectionComponent rendering", () => {
 
     img.dispatchEvent(new Event("error"));
 
-    expect(img.src).toContain("card_background.jpg");
+    expect(img.src).toContain("card_background.svg");
   });
 
   it("labels the avatar with the entity id", () => {

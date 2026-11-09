@@ -40,7 +40,7 @@ object FulltextSearchQueryUtils {
       return noCondition()
     }
     // Filter out empty keywords and trim
-    val trimmedKeywords = keywords.filter(_.nonEmpty).map(_.trim)
+    val trimmedKeywords = keywords.map(_.trim).filter(_.nonEmpty)
     // If no keywords, skip fulltext search
     if (trimmedKeywords.isEmpty) {
       return noCondition()

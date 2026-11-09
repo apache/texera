@@ -20,7 +20,7 @@
 import { Injectable } from "@angular/core";
 import { DashboardEntry } from "../../../type/dashboard-entry";
 import { ResourceAffordances, ResourceDescriptor } from "../../../type/resource-descriptor";
-import { EntityType } from "../../../../hub/service/hub.service";
+import { EntityType, HubService } from "../../../../hub/service/hub.service";
 import { DatasetService, DEFAULT_DATASET_NAME, validateDatasetName } from "../dataset/dataset.service";
 import { HUB_DATASET_RESULT_DETAIL, USER_DATASET } from "../../../../app-routing.constant";
 import { DownloadService } from "../download/download.service";
@@ -41,6 +41,7 @@ export class DatasetResourceDescriptor implements ResourceDescriptor {
 
   constructor(
     private datasetService: DatasetService,
+    private hubService: HubService,
     private downloadService: DownloadService
   ) {}
 
@@ -50,6 +51,7 @@ export class DatasetResourceDescriptor implements ResourceDescriptor {
   updateDescription = (id: number, description: string) =>
     this.datasetService.updateDatasetDescription(id, description);
   retrieveOwners = () => this.datasetService.retrieveOwners();
+  retrievePublicOwners = () => this.hubService.getPublicOwners(EntityType.Dataset);
   download = (id: number, name: string) => this.downloadService.downloadDataset(id, name);
   retrieveSingleFile = (filePath: string, isLogin: boolean) =>
     this.datasetService.retrieveDatasetVersionSingleFile(filePath, isLogin);

@@ -96,6 +96,18 @@ describe("UserDatasetVersionFiletreeComponent (browser)", () => {
     expect(renderedRows).toBeGreaterThan(0);
   });
 
+  it("renders rows once a tree filled while hidden is shown", async () => {
+    fixture.nativeElement.style.display = "none";
+    await renderTree(makeFlatFileNodes(3));
+    expect(fixture.nativeElement.querySelectorAll("tree-node").length).toBe(0);
+
+    fixture.nativeElement.style.display = "";
+    await vi.waitFor(() => {
+      fixture.detectChanges();
+      expect(fixture.nativeElement.querySelectorAll("tree-node").length).toBe(3);
+    });
+  });
+
   it("lays out the container at content height for small trees", async () => {
     await renderTree(makeFlatFileNodes(3));
 

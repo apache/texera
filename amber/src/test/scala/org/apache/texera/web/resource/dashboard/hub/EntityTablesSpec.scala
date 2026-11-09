@@ -23,6 +23,8 @@ import org.apache.texera.web.resource.dashboard.VersionedResourceTables
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 
+import javax.ws.rs.BadRequestException
+
 class EntityTablesSpec extends AnyFlatSpec with Matchers {
 
   // -- BaseEntityTable --------------------------------------------------------
@@ -143,6 +145,11 @@ class EntityTablesSpec extends AnyFlatSpec with Matchers {
     model.access shouldBe EntityTables.AccessTable.ModelAccessTable
     model.cloneTable shouldBe None
     model.versionedResource shouldBe Some(VersionedResourceTables.ModelTables)
+  }
+
+  it should "reject a missing entity type" in {
+    val error = intercept[BadRequestException](EntityTables(null))
+    error.getMessage shouldBe "Missing entityType"
   }
 
   // -- AccessTable ------------------------------------------------------------

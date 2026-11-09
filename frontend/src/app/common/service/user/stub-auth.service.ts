@@ -43,6 +43,10 @@ export const MOCK_INVALID_TOKEN = {
 export class StubAuthService implements PublicInterfaceOf<AuthService> {
   private readonly reissued = new Subject<void>();
 
+  orcidAuth(code: string): Observable<Readonly<{ accessToken: string }>> {
+    return of(MOCK_TOKEN);
+  }
+
   setEmail(email: string, code?: string): Observable<Readonly<{ accessToken: string }>> {
     return of(MOCK_TOKEN);
   }
@@ -74,6 +78,10 @@ export class StubAuthService implements PublicInterfaceOf<AuthService> {
     return of(MOCK_TOKEN);
   }
 
+  appleAuth(): Observable<Readonly<{ accessToken: string }>> {
+    return of(MOCK_TOKEN);
+  }
+
   loginWithExistingToken(): User | undefined {
     if (AuthService.getAccessToken() === MOCK_TOKEN.accessToken) {
       return MOCK_USER;
@@ -101,9 +109,5 @@ export class StubAuthService implements PublicInterfaceOf<AuthService> {
     code: string
   ): Observable<Readonly<RegistrationResult>> {
     return of(MOCK_TOKEN);
-  }
-
-  validateUsername(username: string): { result: boolean; message: string } {
-    return { message: "", result: false };
   }
 }

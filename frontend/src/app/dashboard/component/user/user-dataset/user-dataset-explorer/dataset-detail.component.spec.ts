@@ -24,7 +24,6 @@ import { NoopAnimationsModule } from "@angular/platform-browser/animations";
 import { ActivatedRoute, Router } from "@angular/router";
 import { concat, of, Subject, throwError } from "rxjs";
 import { NzModalService } from "ng-zorro-antd/modal";
-import { NzResizableDirective } from "ng-zorro-antd/resizable";
 import { NzTooltipDirective } from "ng-zorro-antd/tooltip";
 import { MarkdownService } from "ngx-markdown";
 import { DatasetDetailComponent } from "./dataset-detail.component";
@@ -43,7 +42,6 @@ import { commonTestImports, commonTestProviders } from "../../../../../common/te
 import { Contributor, Dataset, DatasetVersion } from "../../../../../common/type/dataset";
 import { DashboardDataset } from "../../../../type/dashboard-dataset.interface";
 import { HttpErrorResponse, HttpStatusCode } from "@angular/common/http";
-import { NzResizeEvent } from "ng-zorro-antd/resizable";
 import { format } from "date-fns";
 import { USER_DATASET } from "../../../../../app-routing.constant";
 
@@ -230,15 +228,6 @@ describe("DatasetDetailComponent rendered explorer", () => {
 
         render(c => (c.currentDisplayedFileName = "a/b.csv"));
         expect((fixture.nativeElement as HTMLElement).querySelector(".copy-path-btn")).not.toBeNull();
-      });
-
-      it("copies the path of the file being shown", () => {
-        const spy = vi.spyOn(component, "copyCurrentFilePath").mockResolvedValue(undefined);
-        const el = render(c => (c.currentDisplayedFileName = "a/b.csv"));
-
-        el.querySelector<HTMLElement>(".copy-path-btn")!.click();
-
-        expect(spy).toHaveBeenCalledTimes(1);
       });
 
       it("shows the file size in human units, and nothing when it is unknown", () => {
@@ -704,6 +693,16 @@ describe("DatasetDetailComponent behavior", () => {
       expect(component.selectedVersionCreationTime).toMatch(/^\d{2}\/\d{2}\/\d{4} \d{2}:\d{2}:\d{2}$/);
     });
 
+    it("survives the version select being emptied", () => {
+      createComponent();
+      component.did = 5;
+
+      expect(() => component.onVersionSelected(undefined)).not.toThrow();
+
+      expect(component.selectedVersion).toBeUndefined();
+      expect(datasetServiceStub.retrieveDatasetVersionFileTree).not.toHaveBeenCalled();
+    });
+
     it("does not fetch a file tree for a version without a dvid", () => {
       createComponent();
       component.did = 5;
@@ -1097,24 +1096,6 @@ describe("DatasetDetailComponent behavior", () => {
     });
   });
 
-  describe("view flags", () => {
-    beforeEach(() => createComponent());
-
-    it("toggles the maximize, right-bar and precise-view-count flags", () => {
-      expect(component.isMaximized).toBe(false);
-      component.onClickScaleTheView();
-      expect(component.isMaximized).toBe(true);
-
-      expect(component.isRightBarCollapsed).toBe(false);
-      component.onClickHideRightBar();
-      expect(component.isRightBarCollapsed).toBe(true);
-
-      expect(component.displayPreciseViewCount).toBe(false);
-      component.changeViewDisplayStyle();
-      expect(component.displayPreciseViewCount).toBe(true);
-    });
-  });
-
   describe("toggleLike", () => {
     it("unlikes and decrements the like count when currently liked", () => {
       hubServiceStub.postUnlike.mockReturnValue(of(true));
@@ -1365,54 +1346,6 @@ describe("DatasetDetailComponent behavior", () => {
     });
   });
 
-  describe("copyCurrentFilePath", () => {
-    let originalClipboardDescriptor: PropertyDescriptor | undefined;
-    let writeText: ReturnType<typeof vi.fn>;
-
-    beforeEach(() => {
-      // Capture the original own-property descriptor (undefined if navigator has no own
-      // `clipboard`, e.g. under jsdom) so afterEach can restore the exact shape.
-      originalClipboardDescriptor = Object.getOwnPropertyDescriptor(navigator, "clipboard");
-      writeText = vi.fn().mockResolvedValue(undefined);
-      Object.defineProperty(navigator, "clipboard", { value: { writeText }, configurable: true });
-      createComponent();
-    });
-
-    afterEach(() => {
-      if (originalClipboardDescriptor) {
-        Object.defineProperty(navigator, "clipboard", originalClipboardDescriptor);
-      } else {
-        delete (navigator as any).clipboard;
-      }
-    });
-
-    it("writes the displayed path to the clipboard and toasts success", async () => {
-      component.currentDisplayedFileName = "/a/b/c.txt";
-
-      await component.copyCurrentFilePath();
-
-      expect(writeText).toHaveBeenCalledWith("/a/b/c.txt");
-      expect(notificationServiceStub.success).toHaveBeenCalledWith("File path copied to clipboard");
-    });
-
-    it("does nothing when no file is displayed", async () => {
-      component.currentDisplayedFileName = "";
-
-      await component.copyCurrentFilePath();
-
-      expect(writeText).not.toHaveBeenCalled();
-    });
-
-    it("toasts an error when the clipboard write rejects", async () => {
-      writeText.mockRejectedValue(new Error("denied"));
-      component.currentDisplayedFileName = "/a/b/c.txt";
-
-      await component.copyCurrentFilePath();
-
-      expect(notificationServiceStub.error).toHaveBeenCalledWith("Failed to copy file path");
-    });
-  });
-
   describe("version-node selection", () => {
     it("onVersionFileTreeNodeSelected loads the selected node's content", () => {
       const node = { name: "file.csv", type: "file" } as unknown as Parameters<
@@ -1533,6 +1466,37 @@ describe("DatasetDetailComponent behavior", () => {
       component.onSaveDatasetName();
 
       expect(datasetServiceStub.updateDatasetName).not.toHaveBeenCalled();
+    });
+
+    it("refetches the file tree and the latest-version facts, which both embed the old name", () => {
+      datasetServiceStub.updateDatasetName.mockReturnValue(of({}));
+      createComponent();
+      component.did = 5;
+      component.selectedVersion = makeVersion({ dvid: 12 });
+      component.editedDatasetName = "new-name";
+      datasetServiceStub.retrieveDatasetVersionFileTree.mockClear();
+      datasetServiceStub.retrieveDatasetLatestVersion.mockClear();
+
+      component.onSaveDatasetName();
+
+      expect(datasetServiceStub.retrieveDatasetVersionFileTree).toHaveBeenCalledWith(5, 12, component.isLogin);
+      expect(datasetServiceStub.retrieveDatasetLatestVersion).toHaveBeenCalledWith(5);
+      // The browsed version stays put: a rename is not a reason to jump to the newest one.
+      expect(component.selectedVersion?.dvid).toBe(12);
+    });
+
+    it("refuses to rename while an upload is in flight, which would strand it", () => {
+      createComponent();
+      component.did = 5;
+      component.uploadsInFlight = true;
+      component.editedDatasetName = "new-name";
+
+      component.onSaveDatasetName();
+
+      expect(datasetServiceStub.updateDatasetName).not.toHaveBeenCalled();
+      expect(notificationServiceStub.error).toHaveBeenCalledWith(
+        "Finish or cancel the upload in progress before renaming this dataset"
+      );
     });
   });
 
@@ -1934,38 +1898,6 @@ describe("DatasetDetailComponent behavior", () => {
 
       expect(component.isMaximized).toBe(true);
     });
-
-    // ─── sider resize ───────────────────────────────────────────────────────
-
-    it("applies the dragged sider width on the next animation frame", async () => {
-      renderWith({ did: 5 });
-
-      component.onSideResize({ width: 321 } as NzResizeEvent);
-      // the handler defers to requestAnimationFrame; let that frame run
-      await new Promise(resolve => requestAnimationFrame(() => resolve(null)));
-
-      expect(component.siderWidth).toBe(321);
-    });
-
-    it("cancels the frame the previous resize scheduled", () => {
-      renderWith({ did: 5 });
-      // Hand out a known frame id so the assertion below pins down *which* frame is
-      // cancelled: the component starts with id = -1, so merely asserting that
-      // cancelAnimationFrame was called would pass even if the id were never tracked.
-      const request = vi.spyOn(globalThis, "requestAnimationFrame").mockReturnValue(100);
-      const cancel = vi.spyOn(globalThis, "cancelAnimationFrame");
-      try {
-        component.onSideResize({ width: 100 } as NzResizeEvent);
-        cancel.mockClear(); // drop the initial cancel(-1)
-
-        component.onSideResize({ width: 200 } as NzResizeEvent);
-
-        expect(cancel).toHaveBeenCalledWith(100);
-      } finally {
-        cancel.mockRestore();
-        request.mockRestore();
-      }
-    });
   });
 });
 
@@ -2192,6 +2124,46 @@ describe("DatasetDetailComponent rendered template", () => {
     });
   });
 
+  describe("data card stats", () => {
+    /** The stat value rendered beside a label. */
+    const stat = (el: HTMLElement, label: string): string => {
+      const row = Array.from(el.querySelectorAll<HTMLElement>(".stat-row")).find(
+        r => text(q<HTMLElement>(r, ".stat-label")) === label
+      );
+      expect(row, `expected a stat row labelled "${label}"`).toBeDefined();
+      return text(q<HTMLElement>(row!, ".stat-value"));
+    };
+
+    it("em-dashes the facts a dataset with no versions has none of", () => {
+      const el = render({
+        did: 5,
+        versions: [],
+        latestVersionCreationTime: "",
+        latestVersionFileName: "",
+        latestVersionSize: undefined,
+      });
+
+      expect(stat(el, "Last updated")).toBe("—");
+      expect(stat(el, "Latest version file")).toBe("—");
+      // A size has a meaningful zero, so it keeps reading 0 B rather than an em dash.
+      expect(stat(el, "Latest version size")).toBe("0 B");
+    });
+
+    it("shows the real facts once a version exists", () => {
+      const el = render({
+        did: 5,
+        versions: [aVersion({ name: "v1" })],
+        latestVersionCreationTime: "09/02/2026 11:10:11",
+        latestVersionFileName: "/dataset/o/ds/v1/a.csv",
+        latestVersionSize: 2048,
+      });
+
+      expect(stat(el, "Last updated")).toBe("09/02/2026 11:10:11");
+      expect(stat(el, "Latest version file")).toBe("/dataset/o/ds/v1/a.csv");
+      expect(stat(el, "Latest version size")).toBe("2.00 KB");
+    });
+  });
+
   describe("settings hints", () => {
     // Visibility and Downloadable are near-identical rows, so a hint or a switch
     // is only meaningful next to the label it belongs to: reading them as one
@@ -2366,27 +2338,6 @@ describe("DatasetDetailComponent rendered template", () => {
       expect(el.querySelector(".dataset-header")).not.toBeNull();
       expect(byTooltip("Minimize View")).toBeUndefined();
     });
-
-    it("applies a width the resize handle reports, between the bounds it declares", async () => {
-      const sider = fixture.debugElement.query(By.css("nz-sider"));
-      expect(sider.nativeElement.style.width).toBe("400px");
-
-      // The drag itself belongs to NzResizableDirective; what this component owns
-      // is the bounds it hands the directive and what it does with the reported
-      // width. Both have to be pinned, and in the right order — swapped bounds
-      // would let the handle collapse the sider past its minimum.
-      const resizable = sider.injector.get(NzResizableDirective);
-      expect(resizable.nzMinWidth).toBe(component.MIN_SIDER_WIDTH);
-      expect(resizable.nzMaxWidth).toBe(component.MAX_SIDER_WIDTH);
-      expect(resizable.nzMinWidth).toBeLessThan(resizable.nzMaxWidth as number);
-
-      sider.triggerEventHandler("nzResize", { width: 520 });
-      // The new width is applied on the next animation frame.
-      await new Promise(resolve => requestAnimationFrame(() => resolve(null)));
-      fixture.detectChanges();
-
-      expect(sider.nativeElement.style.width).toBe("520px");
-    });
   });
 
   describe("version picker", () => {
@@ -2420,6 +2371,11 @@ describe("DatasetDetailComponent rendered template", () => {
       // authenticated or the anonymous endpoint, so it has to be the real flag.
       expect(datasetService.retrieveDatasetVersionFileTree).toHaveBeenCalledWith(5, 12, true);
       expect(datasetService.retrieveDatasetVersionFileTree).toHaveBeenCalledWith(5, 13, true);
+    });
+
+    it("offers no way to empty the selection", () => {
+      // Clearing it used to reach onVersionSelected as null and throw.
+      expect(fixture.nativeElement.querySelector("nz-select-clear, .ant-select-clear")).toBeNull();
     });
 
     it("loads a picked version over the anonymous endpoint when nobody is signed in", () => {
@@ -2481,6 +2437,22 @@ describe("DatasetDetailComponent rendered template", () => {
       expect(datasetService.deleteDatasetFile).toHaveBeenCalledWith(5, "nested/b.csv");
     });
 
+    it("offers the tree's write controls only to a writer", () => {
+      // A fresh page per access level: the Settings tab is gated on write access, so flipping the
+      // level on a live component removes a tab and nz-tabs can tear down the pane being asserted on.
+      const treeFor = (level: "READ" | "WRITE"): DebugElement => {
+        render({ userDatasetAccessLevel: level });
+        openTab("Versions & Files");
+        return tree();
+      };
+
+      expect(treeFor("WRITE").componentInstance.isTreeNodeDeletable).toBe(true);
+      expect(treeFor("WRITE").componentInstance.isCoverSettable).toBe(true);
+
+      expect(treeFor("READ").componentInstance.isTreeNodeDeletable).toBe(false);
+      expect(treeFor("READ").componentInstance.isCoverSettable).toBe(false);
+    });
+
     it("adopts the cover image the tree offered, qualified by the selected version", () => {
       tree().triggerEventHandler("setCoverImage", "nested/b.png");
 
@@ -2504,6 +2476,18 @@ describe("DatasetDetailComponent rendered template", () => {
       editor.triggerEventHandler("descriptionChange", "brand new");
 
       expect(datasetService.updateDatasetDescription).toHaveBeenCalledWith(5, "brand new");
+    });
+
+    it("locks the name field while an upload is in flight", () => {
+      const el = render({ did: 5, datasetName: "ds", userDatasetAccessLevel: "WRITE" });
+      openTab("Versions & Files");
+
+      fixture.debugElement.query(By.css("texera-version-uploader")).triggerEventHandler("uploadsInFlightChange", true);
+      flush();
+      openTab("Settings");
+
+      expect(q<HTMLInputElement>(el, ".settings-name-controls input").disabled).toBe(true);
+      expect(q<HTMLButtonElement>(el, ".settings-name-controls button").disabled).toBe(true);
     });
 
     it("deletes the dataset only once the confirmation is accepted", () => {

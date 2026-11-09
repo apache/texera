@@ -21,6 +21,7 @@ package org.apache.texera.amber.util
 
 import com.fasterxml.jackson.databind.JsonNode
 import com.fasterxml.jackson.databind.node.{JsonNodeFactory, MissingNode}
+import org.apache.texera.amber.core.executor.{OpExecInitInfo, OpExecWithCode}
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 
@@ -218,5 +219,23 @@ class JSONUtilsSpec extends AnyFlatSpec with Matchers {
     val n = root.get("n")
     n.isArray shouldBe true
     n.size() shouldBe 0
+  }
+
+  it should "round-trip a generated sealed-oneof member without helper properties" in {
+    val original = OpExecWithCode("print('hello')", "python")
+    val json = JSONUtils.objectMapper.writeValueAsString(original)
+    val root = parse(json)
+
+    root.get("code").asText() shouldBe "print('hello')"
+    root.get("language").asText() shouldBe "python"
+    root.has("empty") shouldBe false
+    root.has("defined") shouldBe false
+    JSONUtils.objectMapper.readValue(json, classOf[OpExecWithCode]) shouldBe original
+  }
+
+  it should "exclude helper properties from an empty generated sealed-oneof value" in {
+    val root = parse(JSONUtils.objectMapper.writeValueAsString(OpExecInitInfo.Empty))
+
+    root.isEmpty shouldBe true
   }
 }

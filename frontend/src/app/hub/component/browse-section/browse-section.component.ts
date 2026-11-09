@@ -19,6 +19,7 @@
 
 import { ChangeDetectorRef, Component, Input, OnChanges, OnInit, SimpleChanges } from "@angular/core";
 import { DashboardEntry } from "../../../dashboard/type/dashboard-entry";
+import { EntityType } from "../../service/hub.service";
 import { ResourceRegistryService } from "../../../dashboard/service/user/resource-registry/resource-registry.service";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 import { NgIf, NgFor, NgStyle, DatePipe } from "@angular/common";
@@ -50,7 +51,7 @@ export class BrowseSectionComponent implements OnInit, OnChanges {
   @Input() sectionTitle: string = "";
   @Input() currentUid: number | undefined;
 
-  defaultBackground: string = "../../../../../assets/card_background.jpg";
+  defaultBackground: string = "../../../../../assets/card_background.svg";
 
   /** Both maps are keyed by type and id: ids are only unique within a kind, and sections may mix kinds. */
   private coverImageUrls = new Map<string, string>();
@@ -120,6 +121,12 @@ export class BrowseSectionComponent implements OnInit, OnChanges {
   }
 
   getCoverImage(entity: DashboardEntry): string {
+    // A workflow's cover is a downscaled data URL carried on the entry, so nothing is ever fetched
+    // for it. The file-backed kinds carry a stored path instead, which only the cache above can
+    // turn into something an <img> can load.
+    if (entity.type === EntityType.Workflow) {
+      return entity.coverImageUrl ?? this.defaultBackground;
+    }
     return this.coverImageUrls.get(this.cacheKey(entity)) || this.defaultBackground;
   }
 }

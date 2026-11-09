@@ -42,6 +42,8 @@ class StubWorkflowActionService {
     executionMode: ExecutionMode.PIPELINED,
   };
   private workflowChangedSubject = new Subject<unknown>();
+  private workflowSettingsChangedSubject = new Subject<unknown>();
+  readonly workflowSettingsChanged$ = this.workflowSettingsChangedSubject.asObservable();
 
   getWorkflowSettings(): WorkflowSettings {
     return this.settings;
@@ -72,6 +74,10 @@ class StubWorkflowActionService {
   /** Stands in for the real service's own emissions: undo/redo, a reloaded workflow, a co-editor's edit. */
   emitWorkflowChanged(): void {
     this.workflowChangedSubject.next(undefined);
+  }
+
+  emitWorkflowSettingsChanged(): void {
+    this.workflowSettingsChangedSubject.next(undefined);
   }
 }
 
@@ -197,6 +203,19 @@ describe("SettingsComponent", () => {
     // The patch is applied with { emitEvent: false }. Without that, writing the incoming values
     // back into the form would re-fire both valueChanges subscriptions and echo the very state we
     // just received straight back to the server on every remote change.
+    expect(workflowPersistSpy.persistWorkflow).not.toHaveBeenCalled();
+  });
+
+  it("re-syncs the form when a co-editor's settings arrive, without saving them again", () => {
+    // A settings change travels on its own stream, not on workflowChanged, so that the autosave
+    // behind workflowChanged does not save what this panel (or a co-editor's) already persisted.
+    workflowActionService.setWorkflowDataTransferBatchSize(555);
+    workflowActionService.updateExecutionMode(ExecutionMode.MATERIALIZED);
+
+    workflowActionService.emitWorkflowSettingsChanged();
+
+    expect(component.settingsForm.get("dataTransferBatchSize")!.value).toBe(555);
+    expect(component.settingsForm.get("executionMode")!.value).toBe(ExecutionMode.MATERIALIZED);
     expect(workflowPersistSpy.persistWorkflow).not.toHaveBeenCalled();
   });
 
