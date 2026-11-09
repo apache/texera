@@ -280,7 +280,7 @@ describe("BrowseSectionComponent rendering", () => {
     return fixture.nativeElement as HTMLElement;
   }
 
-  const entity = (over: Partial<Record<string, unknown>> = {}) =>
+  const entity = (over: Partial<Record<string, unknown>>) =>
     ({ id: 1, type: "dataset", accessibleUserIds: [], name: "flow", ...over }) as unknown as DashboardEntry;
 
   it("renders nothing at all for an empty section", () => {
@@ -326,7 +326,7 @@ describe("BrowseSectionComponent rendering", () => {
 
     img.dispatchEvent(new Event("error"));
 
-    expect(img.src).toContain("card_background.jpg");
+    expect(img.src).toContain("card_background.svg");
   });
 
   it("labels the avatar with the entity id", () => {
