@@ -17,16 +17,22 @@
  * under the License.
  */
 
-package org.apache.texera.web.model.websocket.request
+package org.apache.texera.web.model.websocket.response
 
-case class ResultPaginationRequest(
-    requestID: String,
-    operatorID: String,
-    pageIndex: Int,
-    pageSize: Int,
-    columnOffset: Int = 0,
-    columnLimit: Int = Int.MaxValue,
-    columnSearch: Option[String] = None,
-    // which of the operator's output ports to read; an operator with one output has only port 0
-    portIndex: Int = 0
-) extends TexeraWebSocketRequest
+import org.apache.texera.web.model.websocket.event.TexeraWebSocketEvent
+
+case class HeartBeatResponse() extends TexeraWebSocketEvent
+
+case class ModifyLogicResponse(
+    opId: String,
+    isValid: Boolean,
+    errorMessage: String
+) extends TexeraWebSocketEvent
+
+case class ModifyLogicCompletedEvent(
+    opIds: List[String]
+) extends TexeraWebSocketEvent
+
+case class ClusterStatusUpdateEvent(numWorkers: Int) extends TexeraWebSocketEvent
+
+case class RegionUpdateEvent(regions: List[(Long, List[String])]) extends TexeraWebSocketEvent
