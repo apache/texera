@@ -20,7 +20,7 @@
 package org.apache.texera.amber.engine.architecture.scheduling
 
 import com.twitter.util.{Await, Duration, Future}
-import org.apache.pekko.actor.{Actor, ActorRef, Props}
+import org.apache.pekko.actor.{Actor, ActorContext, ActorRef, Cancellable, Props}
 import org.apache.pekko.testkit.{TestActorRef, TestKit}
 import org.apache.texera.amber.core.executor.OpExecWithClassName
 import org.apache.texera.amber.core.virtualidentity.{
@@ -29,7 +29,12 @@ import org.apache.texera.amber.core.virtualidentity.{
   OperatorIdentity,
   PhysicalOpIdentity
 }
-import org.apache.texera.amber.core.workflow.PhysicalOp
+import org.apache.texera.amber.core.workflow.{
+  GlobalPortIdentity,
+  PhysicalOp,
+  PhysicalPlan,
+  WorkflowContext
+}
 import org.apache.texera.amber.core.workflow.WorkflowContext.{
   DEFAULT_EXECUTION_ID,
   DEFAULT_WORKFLOW_ID
@@ -38,6 +43,10 @@ import org.apache.texera.amber.engine.architecture.common.{
   PekkoActorRefMappingService,
   PekkoActorService,
   WorkflowActor
+}
+import org.apache.texera.amber.engine.architecture.coordinator.{
+  CoordinatorConfig,
+  CoordinatorProcessor
 }
 import org.apache.texera.amber.engine.architecture.coordinator.execution.WorkflowExecution
 import org.apache.texera.amber.engine.architecture.messaginglayer.{
@@ -59,6 +68,7 @@ import org.apache.texera.amber.engine.common.virtualidentity.util.COORDINATOR
 import org.apache.texera.amber.util.VirtualIdentityUtils
 
 import scala.collection.mutable
+import scala.concurrent.duration.FiniteDuration
 
 object RegionExecutionManagerTestSupport {
   val InitializeExecutor = "initializeExecutor"
@@ -259,6 +269,48 @@ trait RegionExecutionManagerTestSupport { self: TestKit =>
     )
   }
 
+  /**
+    * A real `CoordinatorProcessor` with a single-region schedule already in flight: the region
+    * owns `regionPorts`, and its worker execution is pre-seeded so starting the region does not
+    * create real workers. `advanceRegionExecutions` is called once to move the region into the
+    * executing set (its `startWorker` RPCs are captured and never answered, so the region stays
+    * executing); the messages it produced are then dropped so each test only observes what it
+    * triggers itself. Messages the coordinator schedules to itself are captured, not scheduled.
+    */
+  protected def newCoordinatorInFlight(
+      physicalOp: PhysicalOp,
+      workerId: ActorVirtualIdentity,
+      regionPorts: Set[GlobalPortIdentity] = Set.empty
+  ): CoordinatorWithRegionInFlight = {
+    val captured = mutable.ListBuffer[WorkflowFIFOMessage]()
+    val cp = new CoordinatorProcessor(
+      new WorkflowContext(),
+      CoordinatorConfig(None, None, None, None),
+      COORDINATOR,
+      {
+        case Right(msg) => captured += msg
+        case Left(_)    => ()
+      }
+    )
+    val coordinatorRef = TestActorRef(new CoordinatorHarness)
+    val actorService =
+      new SelfMessageCapturingActorService(COORDINATOR, coordinatorRef.underlyingActor.context)
+    actorService.getAvailableNodeAddressesFunc = () => Array(coordinatorRef.path.address)
+    val actorRefService = coordinatorRef.underlyingActor.actorRefMappingService
+    registerLiveWorker(actorRefService, workerId)
+    cp.setupActorService(actorService)
+    cp.workflowExecutionManager.setupActorRefService(actorRefService)
+
+    val region = createSingleWorkerRegion(1, physicalOp, workerId).copy(ports = regionPorts)
+    seedReusableWorkerExecution(cp.workflowExecution, seedRegionId = 101, physicalOp, workerId)
+    cp.workflowScheduler.physicalPlan = PhysicalPlan(Set(physicalOp), Set.empty)
+    cp.workflowExecutionManager.schedule = Schedule(Map(0 -> Set(region)))
+    cp.workflowExecutionManager.advanceRegionExecutions(cp.actorService)
+
+    captured.clear()
+    CoordinatorWithRegionInFlight(cp, captured, actorService)
+  }
+
   protected def registerLiveWorker(
       actorRefService: PekkoActorRefMappingService,
       workerId: ActorVirtualIdentity
@@ -268,3 +320,36 @@ trait RegionExecutionManagerTestSupport { self: TestKit =>
     workerRef
   }
 }
+
+/**
+  * A `PekkoActorService` that records the messages scheduled with `sendToSelfOnce` instead of
+  * scheduling them, so a test can inspect a scheduled message (e.g., a query deadline) and
+  * deliver it at the moment it chooses.
+  */
+class SelfMessageCapturingActorService(id: ActorVirtualIdentity, actorContext: ActorContext)
+    extends PekkoActorService(id, actorContext) {
+  val scheduledToSelf: mutable.ListBuffer[(FiniteDuration, Any)] = mutable.ListBuffer()
+  // The scheduled messages whose `Cancellable` was cancelled.
+  val cancelled: mutable.ListBuffer[Any] = mutable.ListBuffer()
+
+  override def sendToSelfOnce(delay: FiniteDuration, msg: Any): Cancellable = {
+    scheduledToSelf += ((delay, msg))
+    new Cancellable {
+      private var isCancelledFlag = false
+      override def cancel(): Boolean = {
+        val wasCancelled = isCancelledFlag
+        if (!wasCancelled) cancelled += msg
+        isCancelledFlag = true
+        !wasCancelled
+      }
+      override def isCancelled: Boolean = isCancelledFlag
+    }
+  }
+}
+
+/** What `newCoordinatorInFlight` returns: the coordinator, its captured output, and its actor service. */
+case class CoordinatorWithRegionInFlight(
+    cp: CoordinatorProcessor,
+    captured: mutable.ListBuffer[WorkflowFIFOMessage],
+    actorService: SelfMessageCapturingActorService
+)
