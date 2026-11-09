@@ -128,6 +128,11 @@ describe("PresetWrapperComponent", () => {
       expect(() => component.ngOnInit()).toThrow();
     });
 
+    it("rejects a form without sibling field configuration during initialization", () => {
+      component.field = buildField({ parent: undefined });
+      expect(() => component.ngOnInit()).toThrow(TypeError);
+    });
+
     it("populates searchResults from presetService.getPresets on init", () => {
       presetServiceStub.getPresets.mockReturnValue(of([testPreset, otherPreset]));
       component.field = buildField();
@@ -136,24 +141,6 @@ describe("PresetWrapperComponent", () => {
 
       expect(presetServiceStub.getPresets).toHaveBeenCalledWith(presetKey.presetType, presetKey.saveTarget);
       expect(component.searchResults).toEqual([testPreset, otherPreset]);
-    });
-
-    it("seeds the search term from the form control's value", () => {
-      formControl.setValue("seeded");
-      component.field = buildField();
-
-      component.ngOnInit();
-
-      expect(component["searchTerm"]).toBe("seeded");
-    });
-
-    it("seeds an empty search term when the form control holds null", () => {
-      formControl.setValue(null);
-      component.field = buildField();
-
-      component.ngOnInit();
-
-      expect(component["searchTerm"]).toBe("");
     });
   });
 
@@ -214,32 +201,21 @@ describe("PresetWrapperComponent", () => {
       ).toBe("first, second");
     });
 
-    describe("getSearchResults", () => {
-      it("returns a copy of all presets when showAllResults is true", () => {
+    describe("preset list copies", () => {
+      it("copies the fetched presets when the dropdown opens", () => {
         const presets: Preset[] = [testPreset, otherPreset];
-        const results = component.getSearchResults(presets, "anything", true);
+        presetServiceStub.getPresets.mockReturnValue(of(presets));
+        component.onDropdownVisibilityEvent(true);
+        const results = component.searchResults;
         expect(results).toEqual(presets);
         expect(results).not.toBe(presets);
       });
 
-      it("returns all presets when showAllResults is true even if the search term doesn't match", () => {
-        expect(component.getSearchResults([testPreset], "no-match", true)).toEqual([testPreset]);
-      });
-
-      it("filters by case-insensitive prefix match on the entry title when showAllResults is false", () => {
-        const presets: Preset[] = [testPreset, otherPreset];
-        // testPreset title 'testPresetValue' starts with 'TEST'
-        expect(component.getSearchResults(presets, "TEST", false)).toEqual([testPreset]);
-        // otherPreset title 'otherPresetValue2' starts with 'other'
-        expect(component.getSearchResults(presets, "other", false)).toEqual([otherPreset]);
-      });
-
-      it("returns the full list when search term is empty and showAllResults is false", () => {
-        expect(component.getSearchResults([testPreset], "", false)).toEqual([testPreset]);
-      });
-
-      it("returns an empty list when the search term matches nothing", () => {
-        expect(component.getSearchResults([testPreset], "zzzz", false)).toEqual([]);
+      it("shows all fetched presets even when the field value does not match", () => {
+        formControl.setValue("no-match");
+        presetServiceStub.getPresets.mockReturnValue(of([testPreset]));
+        component.onDropdownVisibilityEvent(true);
+        expect(component.searchResults).toEqual([testPreset]);
       });
     });
   });
@@ -307,68 +283,23 @@ describe("PresetWrapperComponent", () => {
       expect(component.searchResults).toEqual([]);
     });
 
-    it("does not refresh searchResults from form value changes while the dropdown is closed", async () => {
+    it("keeps the preset list without refetching as the field value changes", async () => {
       const baselineCalls = presetServiceStub.getPresets.mock.calls.length;
-      component.presetMenuVisible = false;
-
+      const before = component.searchResults;
       formControl.setValue("typing");
-      // the handler is debounced(0); without this tick it would not have run at all and
-      // the assertion below would hold no matter what the menu state is
       await new Promise(resolve => setTimeout(resolve, 0));
-
-      // the term is still tracked, but the menu being closed suppresses the refetch
-      expect(component["searchTerm"]).toBe("typing");
+      expect(component.searchResults).toBe(before);
       expect(presetServiceStub.getPresets.mock.calls.length).toBe(baselineCalls);
     });
 
-    it("refreshes searchResults from form value changes while the dropdown is open", async () => {
-      component.presetMenuVisible = true;
-      presetServiceStub.getPresets.mockReturnValue(of([testPreset]));
-      const baselineCalls = presetServiceStub.getPresets.mock.calls.length;
-
-      formControl.setValue("typing");
-      // The valueChanges handler is debounced(0) — wait one microtask tick.
-      await new Promise(resolve => setTimeout(resolve, 0));
-
-      expect(presetServiceStub.getPresets.mock.calls.length).toBe(baselineCalls + 1);
-    });
-
-    it("adopts the preset carried by a matching applyPresetStream event", () => {
+    it("keeps the displayed preset list when an apply event is emitted", () => {
+      const before = component.searchResults;
       presetServiceStub.applyPresetStream.next({
         type: presetKey.presetType,
         target: presetKey.applyTarget,
         preset: testPreset,
       });
-
-      expect(component["basePreset"]).toBe(testPreset);
-    });
-
-    it("ignores applyPresetStream events for a different presetType or applyTarget", () => {
-      const before = component["basePreset"];
-
-      presetServiceStub.applyPresetStream.next({
-        type: "someOtherType",
-        target: presetKey.applyTarget,
-        preset: testPreset,
-      });
-      presetServiceStub.applyPresetStream.next({
-        type: presetKey.presetType,
-        target: "someOtherTarget",
-        preset: otherPreset,
-      });
-
-      expect(component["basePreset"]).toBe(before);
-    });
-
-    it("clears the search term when the form value becomes null while the dropdown is open", async () => {
-      component.presetMenuVisible = true;
-      component["searchTerm"] = "typed";
-
-      formControl.setValue(null);
-      // the valueChanges handler is debounced(0) — wait one tick
-      await new Promise(resolve => setTimeout(resolve, 0));
-
-      expect(component["searchTerm"]).toBe("");
+      expect(component.searchResults).toBe(before);
     });
 
     it("stops responding to stream events after ngOnDestroy", () => {
