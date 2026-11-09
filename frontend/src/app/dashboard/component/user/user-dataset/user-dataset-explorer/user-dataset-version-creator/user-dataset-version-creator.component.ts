@@ -38,7 +38,7 @@ import { contributorFieldGroup } from "../user-dataset-contributor-editor/contri
 @UntilDestroy()
 @Component({
   selector: "texera-user-dataset-version-creator",
-  templateUrl: "./user-dataset-version-creator.component.html",
+  templateUrl: "../../../resource-creator/resource-creator-form.html",
   styleUrls: ["./user-dataset-version-creator.component.scss"],
   imports: [
     NzSpinComponent,
@@ -69,6 +69,15 @@ export class UserDatasetVersionCreatorComponent implements OnInit {
 
   // boolean to control if is uploading
   isCreating: boolean = false;
+
+  readonly creatorForm = {
+    formClass: "texera-user-dataset-creator-form",
+    togglesClass: "dataset-toggles",
+    model: () => this.model,
+    showToggles: () => !this.isCreatingVersion,
+    publicStatus: () => this.isDatasetPublic,
+    downloadableStatus: () => this.isDatasetDownloadable,
+  };
 
   constructor(
     private modalRef: NzModalRef,

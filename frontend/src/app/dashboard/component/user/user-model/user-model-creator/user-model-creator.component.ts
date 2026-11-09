@@ -24,7 +24,7 @@ import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 import { HttpErrorResponse } from "@angular/common/http";
 import { NzModalRef } from "ng-zorro-antd/modal";
 import { NzSpinComponent } from "ng-zorro-antd/spin";
-import { NgClass } from "@angular/common";
+import { NgClass, NgIf } from "@angular/common";
 import { NzSwitchComponent } from "ng-zorro-antd/switch";
 import { NzButtonComponent } from "ng-zorro-antd/button";
 import { NzWaveDirective } from "ng-zorro-antd/core/wave";
@@ -49,11 +49,12 @@ export function sanitizeModelName(name: string): string {
 @UntilDestroy()
 @Component({
   selector: "texera-user-model-creator",
-  templateUrl: "./user-model-creator.component.html",
+  templateUrl: "../../resource-creator/resource-creator-form.html",
   styleUrls: ["./user-model-creator.component.scss"],
   imports: [
     NzSpinComponent,
     NgClass,
+    NgIf,
     FormlyModule,
     NzSwitchComponent,
     FormsModule,
@@ -71,6 +72,15 @@ export class UserModelCreatorComponent implements OnInit {
   isModelDownloadable: boolean = false;
   isModelNameSanitized: boolean = false;
   isCreating: boolean = false;
+
+  readonly creatorForm = {
+    formClass: "texera-user-model-creator-form",
+    togglesClass: "model-toggles",
+    model: () => this.formModel,
+    showToggles: () => true,
+    publicStatus: () => this.isModelPublic,
+    downloadableStatus: () => this.isModelDownloadable,
+  };
 
   constructor(
     private modalRef: NzModalRef,
