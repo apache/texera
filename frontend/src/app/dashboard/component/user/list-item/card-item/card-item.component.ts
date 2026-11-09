@@ -96,7 +96,7 @@ export class CardItemComponent implements OnChanges {
   private _entry?: DashboardEntry;
   hovering: boolean = false;
   /** The default top image, used when the user has not uploaded a custom one. */
-  static readonly DEFAULT_PREVIEW_IMAGE = "assets/card_background.jpg";
+  static readonly DEFAULT_PREVIEW_IMAGE = "assets/card_background.svg";
   /** Whether this kind can be shared at all; the button is hidden when it cannot. */
   public canShare: boolean = false;
   /** Resolved preview/cover image; stays the placeholder until a file-backed cover loads. */

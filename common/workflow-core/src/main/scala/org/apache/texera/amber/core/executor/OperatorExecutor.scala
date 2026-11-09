@@ -21,8 +21,10 @@ package org.apache.texera.amber.core.executor
 
 import com.google.common.collect.MapMaker
 import org.apache.texera.amber.core.state.State
-import org.apache.texera.amber.core.tuple.{Tuple, TupleLike}
+import org.apache.texera.amber.core.tuple.{Schema, Tuple, TupleLike}
 import org.apache.texera.amber.core.workflow.PortIdentity
+
+import scala.collection.mutable
 
 /**
   * Inside a loop block a setting may refer to a loop variable (`$i`): the worker writes each
@@ -91,6 +93,17 @@ trait OperatorExecutor {
     */
   final def bindStateReferences(): Unit =
     Option(OperatorExecutor.bindings.get(this)).foreach(_.bind())
+
+  /**
+    * What each finished input port was declared to carry, keyed by port index
+    * and written by the runtime before `onFinish` for that port.
+    *
+    * The tuples say this too, so an operator only needs to ask when there were
+    * none: a port can finish having carried no rows, and its schema is then the
+    * only record of what its columns were.
+    */
+  final def inputSchemas: mutable.Map[Int, Schema] =
+    OperatorExecutor.inputSchemas.computeIfAbsent(this, _ => mutable.Map())
 }
 
 object OperatorExecutor {
@@ -100,4 +113,6 @@ object OperatorExecutor {
   private val states = new MapMaker().weakKeys().makeMap[OperatorExecutor, State]()
   private[executor] val bindings =
     new MapMaker().weakKeys().makeMap[OperatorExecutor, StateReferenceBinding]()
+  private val inputSchemas =
+    new MapMaker().weakKeys().makeMap[OperatorExecutor, mutable.Map[Int, Schema]]()
 }

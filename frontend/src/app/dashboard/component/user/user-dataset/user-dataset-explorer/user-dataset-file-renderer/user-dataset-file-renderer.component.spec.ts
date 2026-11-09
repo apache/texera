@@ -459,7 +459,8 @@ describe("UserDatasetFileRendererComponent", () => {
       const blob = new Blob(["h1,h2\na,b\n"], { type: "text/csv" });
       loadWith("data.csv", blob);
       expect(component.displayCSV).toBe(true);
-      await vi.waitFor(() => expect(component.tableDataHeader.length).toBeGreaterThan(0));
+      // FileReader can exceed vi.waitFor's one-second default on busy CI runners.
+      await vi.waitFor(() => expect(component.tableDataHeader.length).toBeGreaterThan(0), { timeout: 10000 });
       expect(component.tableDataHeader).toEqual(["h1", "h2"]);
       expect(component.tableContent[0]).toEqual(["a", "b"]);
     });

@@ -21,15 +21,13 @@ package org.apache.texera.amber.operator.visualization.ScatterMatrixChart
 
 import com.fasterxml.jackson.annotation.{JsonProperty, JsonPropertyDescription}
 import com.kjetland.jackson.jsonSchema.annotations.{JsonSchemaInject, JsonSchemaTitle}
-import org.apache.texera.amber.core.tuple.{AttributeType, Schema}
 import org.apache.texera.amber.pybuilder.PythonTemplateBuilder.{
   PythonTemplateBuilderStringContext,
   pyStringLiteral
 }
 import org.apache.texera.amber.pybuilder.PyStringTypes.EncodableString
-import org.apache.texera.amber.core.workflow.PortIdentity
-import org.apache.texera.amber.operator.PythonOperatorDescriptor
 import org.apache.texera.amber.operator.visualization.PlotlyStandaloneCode
+import org.apache.texera.amber.operator.visualization.PythonVisualizationOpDesc
 import org.apache.texera.amber.operator.metadata.annotations.{
   AutofillAttributeName,
   AutofillAttributeNameList
@@ -50,7 +48,7 @@ import javax.validation.constraints.{NotEmpty, NotNull}
   }
 }
 """)
-class ScatterMatrixChartOpDesc extends PythonOperatorDescriptor with PlotlyStandaloneCode {
+class ScatterMatrixChartOpDesc extends PythonVisualizationOpDesc with PlotlyStandaloneCode {
 
   @JsonProperty(value = "Selected Attributes", required = true)
   @JsonSchemaTitle("Selected Attributes")
@@ -65,14 +63,6 @@ class ScatterMatrixChartOpDesc extends PythonOperatorDescriptor with PlotlyStand
   @AutofillAttributeName
   @NotNull(message = "Color Column cannot be empty")
   var color: EncodableString = ""
-
-  override def getOutputSchemas(
-      inputSchemas: Map[PortIdentity, Schema]
-  ): Map[PortIdentity, Schema] = {
-    val outputSchema = Schema()
-      .add("html-content", AttributeType.STRING)
-    Map(operatorInfo.outputPorts.head.id -> outputSchema)
-  }
 
   override def operatorInfo: OperatorInfo =
     OperatorInfo.forVisualization(
@@ -117,10 +107,6 @@ class ScatterMatrixChartOpDesc extends PythonOperatorDescriptor with PlotlyStand
          |"""
     finalcode.encode
   }
-
-  // Output is an HTML visualization, not a tabular DataFrame.
-  // The translator skips it in the leaf-DataFrame print block.
-  override def producesDataFrame(): Boolean = false
 
   override def generateStandaloneCode(): String = {
     val dimensions = selectedAttributes.map(pyStringLiteral).mkString(", ")

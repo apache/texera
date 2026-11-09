@@ -22,15 +22,13 @@ package org.apache.texera.amber.operator.visualization.bulletChart
 import com.fasterxml.jackson.annotation.{JsonProperty, JsonPropertyDescription}
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize
 import com.kjetland.jackson.jsonSchema.annotations.{JsonSchemaInject, JsonSchemaTitle}
-import org.apache.texera.amber.core.tuple.{AttributeType, Schema}
 import org.apache.texera.amber.pybuilder.PythonTemplateBuilder.{
   PythonTemplateBuilderStringContext,
   pyStringLiteral
 }
 import org.apache.texera.amber.pybuilder.PyStringTypes.{EncodableString, PythonLiteral}
-import org.apache.texera.amber.core.workflow.PortIdentity
-import org.apache.texera.amber.operator.PythonOperatorDescriptor
 import org.apache.texera.amber.operator.visualization.PlotlyStandaloneCode
+import org.apache.texera.amber.operator.visualization.PythonVisualizationOpDesc
 import org.apache.texera.amber.operator.metadata.annotations.AutofillAttributeName
 import org.apache.texera.amber.operator.metadata.{OperatorGroupConstants, OperatorInfo}
 
@@ -52,7 +50,7 @@ import scala.jdk.CollectionConverters._
   }
 }
 """)
-class BulletChartOpDesc extends PythonOperatorDescriptor with PlotlyStandaloneCode {
+class BulletChartOpDesc extends PythonVisualizationOpDesc with PlotlyStandaloneCode {
 
   @JsonProperty(value = "value", required = true)
   @JsonSchemaTitle("Value")
@@ -80,13 +78,6 @@ class BulletChartOpDesc extends PythonOperatorDescriptor with PlotlyStandaloneCo
   @JsonSchemaTitle("Steps")
   @JsonPropertyDescription("Optional: Each step includes a start and end value e.g., 0, 100.")
   var steps: JList[BulletChartStepDefinition] = new util.ArrayList[BulletChartStepDefinition]()
-
-  override def getOutputSchemas(
-      inputSchemas: Map[PortIdentity, Schema]
-  ): Map[PortIdentity, Schema] = {
-    val outputSchema = Schema().add("html-content", AttributeType.STRING)
-    Map(operatorInfo.outputPorts.head.id -> outputSchema)
-  }
 
   override def operatorInfo: OperatorInfo =
     OperatorInfo.forVisualization(
@@ -247,8 +238,6 @@ class BulletChartOpDesc extends PythonOperatorDescriptor with PlotlyStandaloneCo
     finalCode.encode
   }
 
-  override def producesDataFrame(): Boolean = false
-
   override def generateStandaloneCode(): String = {
     assertRequiredFields()
 
@@ -268,7 +257,8 @@ class BulletChartOpDesc extends PythonOperatorDescriptor with PlotlyStandaloneCo
         .mkString("[", ", ", "]")
 
     // render_error's continuation line keeps the runtime path's indentation — the
-    // HTML is triple-quoted, so those spaces reach the browser.
+    // HTML is triple-quoted, so those spaces reach the browser. The JSON holds one chart
+    // per row, and a lone figure is written as one object, as every one-chart operator does.
     s"""def render_error(error_msg):
        |    return '''<h1>Bullet chart is not available.</h1>
        |                  <p>Reason: {} </p>'''.format(error_msg)
@@ -353,9 +343,6 @@ class BulletChartOpDesc extends PythonOperatorDescriptor with PlotlyStandaloneCo
        |                        html_chunks.append(html_chunk)
        |                    except Exception as e:
        |                        html_chunks.append(render_error(f"Error generating bullet chart: {str(e)}"))
-       |                # One chart per row, so the file holds the whole sequence.
-       |                # A single figure still writes as a lone object, which is
-       |                # what every one-chart operator writes.
        |                if len(figs) == 1:
        |                    figs[0].write_json(outputJson)
        |                elif figs:

@@ -33,8 +33,6 @@ import { WorkflowRuntimeStatistics } from "../../../../type/workflow-runtime-sta
 import { NotificationService } from "../../../../../common/service/notification/notification.service";
 import { UserService } from "../../../../../common/service/user/user.service";
 import { StubUserService } from "../../../../../common/service/user/stub-user.service";
-import { OperatorMetadataService } from "../../../../../workspace/service/operator-metadata/operator-metadata.service";
-import { StubOperatorMetadataService } from "../../../../../workspace/service/operator-metadata/stub-operator-metadata.service";
 import { commonTestProviders } from "../../../../../common/testing/test-utils";
 import { DebugElement } from "@angular/core";
 import { By } from "@angular/platform-browser";
@@ -42,7 +40,7 @@ import { NoopAnimationsModule } from "@angular/platform-browser/animations";
 import { NzPopoverDirective } from "ng-zorro-antd/popover";
 import type { MockInstance } from "vitest";
 
-function makeEntry(overrides: Partial<WorkflowExecutionsEntry> = {}): WorkflowExecutionsEntry {
+function makeEntry(overrides: Partial<WorkflowExecutionsEntry>): WorkflowExecutionsEntry {
   return {
     eId: 1,
     vId: 1,
@@ -164,9 +162,6 @@ describe("WorkflowExecutionHistoryComponent", () => {
       providers: [
         { provide: WorkflowExecutionsService, useValue: executionsService },
         { provide: NotificationService, useValue: notificationService },
-        // WorkflowActionService is injected (though unused by the component logic);
-        // the stub metadata service lets the real one instantiate, as in menu.component.spec.ts.
-        { provide: OperatorMetadataService, useClass: StubOperatorMetadataService },
         // UserService backs the <texera-user-avatar> child in each table row.
         { provide: UserService, useClass: StubUserService },
         { provide: NZ_MODAL_DATA, useValue: options.modalData === null ? null : options.modalData ?? { wid: 1 } },

@@ -20,6 +20,7 @@
 package org.apache.texera.web.resource.dashboard.user.workflow
 
 import org.apache.texera.auth.SessionUser
+import org.apache.texera.auth.util.WorkflowAccess
 import org.apache.texera.dao.MockTexeraDB
 import org.apache.texera.dao.jooq.generated.Tables._
 import org.apache.texera.dao.jooq.generated.enums.PrivilegeEnum
@@ -433,17 +434,6 @@ class WorkflowAccessResourceSpec
     assert(workflowAccessResource.getOwner(testWorkflowWid) == "owner@test.com")
   }
 
-  "WorkflowAccessResource.getPrivilege" should "report WRITE, READ, and NONE for the respective users" in {
-    assert(
-      WorkflowAccessResource.getPrivilege(testWorkflowWid, userWithWriteUid) == PrivilegeEnum.WRITE
-    )
-    assert(
-      WorkflowAccessResource.getPrivilege(testWorkflowWid, userWithReadUid) == PrivilegeEnum.READ
-    )
-    // The owner has no WORKFLOW_USER_ACCESS row (ownership is tracked separately), so this is NONE.
-    assert(WorkflowAccessResource.getPrivilege(testWorkflowWid, ownerUid) == PrivilegeEnum.NONE)
-  }
-
   "WorkflowAccessResource.getAccessList" should "list the granted users with their privilege, excluding the owner" in {
     val byEmail =
       workflowAccessResource
@@ -479,7 +469,7 @@ class WorkflowAccessResourceSpec
     )
 
     assert(
-      WorkflowAccessResource.getPrivilege(testWorkflowWid, newGranteeUid) == PrivilegeEnum.READ
+      WorkflowAccess.getPrivilege(testWorkflowWid, newGranteeUid) == PrivilegeEnum.READ
     )
   }
 
@@ -492,7 +482,7 @@ class WorkflowAccessResourceSpec
     )
 
     assert(
-      WorkflowAccessResource.getPrivilege(testWorkflowWid, userWithReadUid) == PrivilegeEnum.WRITE
+      WorkflowAccess.getPrivilege(testWorkflowWid, userWithReadUid) == PrivilegeEnum.WRITE
     )
   }
 

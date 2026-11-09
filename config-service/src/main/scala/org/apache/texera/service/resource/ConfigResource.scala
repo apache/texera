@@ -101,9 +101,11 @@ class ConfigResource {
       "pythonLanguageServerPort" -> GuiConfig.guiWorkflowWorkspacePythonLanguageServerPort,
       "activeTimeInMinutes" -> GuiConfig.guiWorkflowWorkspaceActiveTimeInMinutes,
       "copilotEnabled" -> GuiConfig.guiWorkflowWorkspaceCopilotEnabled,
+      "aiFixModel" -> GuiConfig.guiWorkflowWorkspaceAiFixModel,
       "limitColumns" -> GuiConfig.guiWorkflowWorkspaceLimitColumns,
       "pythonNotebookMigrationEnabled" -> GuiConfig.guiWorkflowWorkspacePythonNotebookMigrationEnabled,
-      "pythonNotebookMigrationTimeoutMinutes" -> GuiConfig.guiWorkflowWorkspacePythonNotebookMigrationTimeoutMinutes
+      "pythonNotebookMigrationTimeoutMinutes" -> GuiConfig.guiWorkflowWorkspacePythonNotebookMigrationTimeoutMinutes,
+      "rNotebookMigrationEnabled" -> GuiConfig.guiWorkflowWorkspaceRNotebookMigrationEnabled
     )
 
   // Engine configs.

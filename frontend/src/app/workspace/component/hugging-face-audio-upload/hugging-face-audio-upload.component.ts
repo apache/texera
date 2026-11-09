@@ -19,8 +19,8 @@
 
 import { Component } from "@angular/core";
 import { CommonModule } from "@angular/common";
-import { FieldType, FieldTypeConfig } from "@ngx-formly/core";
 import { NzButtonModule } from "ng-zorro-antd/button";
+import { HuggingFaceMediaUploadBase } from "../hugging-face-media-upload.base";
 
 // Cap the raw audio size before it is inlined as a base64 data URL into the
 // workflow JSON. Mirrors the image-upload component's data-URL approach so the
@@ -35,24 +35,9 @@ const MAX_AUDIO_BYTES = 25 * 1024 * 1024;
   styleUrls: ["./hugging-face-audio-upload.component.scss"],
   imports: [CommonModule, NzButtonModule],
 })
-export class HuggingFaceAudioUploadComponent extends FieldType<FieldTypeConfig> {
-  fileName = "";
-  errorMessage = "";
-
-  get hasAudio(): boolean {
-    const value = this.formControl.value;
-    return typeof value === "string" && value.startsWith("data:audio/");
-  }
-
-  get previewSrc(): string {
-    return this.hasAudio ? this.formControl.value : "";
-  }
-
-  get displayFileName(): string {
-    if (this.fileName) return this.fileName;
-    if (this.hasAudio) return "Selected audio";
-    return "";
-  }
+export class HuggingFaceAudioUploadComponent extends HuggingFaceMediaUploadBase {
+  protected readonly dataUrlPrefix = "data:audio/";
+  protected readonly mediaFallbackLabel = "Selected audio";
 
   async onFileSelected(event: Event): Promise<void> {
     this.errorMessage = "";
@@ -78,14 +63,7 @@ export class HuggingFaceAudioUploadComponent extends FieldType<FieldTypeConfig> 
       if (!dataUrl.startsWith("data:audio/")) {
         throw new Error("Not an audio data URL");
       }
-      this.fileName = file.name;
-      this.formControl.setValue(dataUrl);
-      if (typeof this.key === "string" && this.model) {
-        this.model[this.key] = dataUrl;
-      }
-      this.formControl.markAsDirty();
-      this.formControl.markAsTouched();
-      this.formControl.updateValueAndValidity();
+      this.setMediaValue(dataUrl, file.name);
     } catch {
       this.errorMessage = "Could not read this audio file.";
       this.resetSelection(input);
@@ -93,23 +71,7 @@ export class HuggingFaceAudioUploadComponent extends FieldType<FieldTypeConfig> 
   }
 
   clearAudio(input: HTMLInputElement): void {
-    this.errorMessage = "";
-    this.resetSelection(input);
-  }
-
-  // A rejected selection must not leave the previously accepted clip behind:
-  // the form value drives both the <audio> preview and what the operator runs,
-  // so keeping it would show an error while silently running the old audio.
-  private resetSelection(input: HTMLInputElement): void {
-    this.fileName = "";
-    input.value = "";
-    this.formControl.setValue("");
-    if (typeof this.key === "string" && this.model) {
-      this.model[this.key] = "";
-    }
-    this.formControl.markAsDirty();
-    this.formControl.markAsTouched();
-    this.formControl.updateValueAndValidity();
+    this.clearMedia(input);
   }
 
   private readAsDataUrl(file: File): Promise<string> {
