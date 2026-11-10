@@ -18,10 +18,13 @@
  */
 
 import assert from "node:assert/strict";
-import { mkdtemp, mkdir, readFile, rm, writeFile } from "node:fs/promises";
+import { Buffer } from "node:buffer";
+import { mkdtemp, mkdir, readFile, realpath, rm, symlink, unlink, writeFile } from "node:fs/promises";
+import { execFileSync } from "node:child_process";
 import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { createRequire } from "node:module";
+import process from "node:process";
 import { fileURLToPath } from "node:url";
 import { afterEach, test } from "node:test";
 import {
@@ -39,11 +42,11 @@ test("deep-link pages resolve collaboration and other relative service URLs from
   assert.match(html, /<base\s+href="\/"\s*\/?>/);
 });
 afterEach(async () => {
-  await Promise.all(temporaryRoots.splice(0).map(root => rm(root, { recursive: true, force: true })));
+  for (const root of temporaryRoots.splice(0).reverse()) await rm(root, { recursive: true, force: true });
 });
 
-async function fixture() {
-  const root = await mkdtemp(join(tmpdir(), "texera-react-build-"));
+async function fixture(directory = tmpdir()) {
+  const root = await realpath(await mkdtemp(join(directory, "texera-react-build-")));
   temporaryRoots.push(root);
   return root;
 }
@@ -333,6 +336,43 @@ test("real Vite build emits the deployable index and an accurate React runtime l
     ["react", "react-dom", "scheduler"]
   );
   assert.ok(licenses.every(entry => entry.license === "MIT" && typeof entry.version === "string"));
+});
+
+test("real Vite build keeps HTML output inside a root reached through a filesystem alias", async context => {
+  const { build } = await import("vite");
+  const parent = await fixture();
+  const directory = join(parent, "actual-directory-for-vite-build");
+  await mkdir(directory);
+  const alias =
+    process.platform === "win32"
+      ? execFileSync("cmd.exe", ["/d", "/v:off", "/c", 'for %I in ("%TEXERA_BUILD_FIXTURE%") do @echo %~sI'], {
+          env: { ...process.env, TEXERA_BUILD_FIXTURE: directory },
+          encoding: "utf8",
+          windowsVerbatimArguments: true,
+        }).trim()
+      : join(parent, "alias");
+  if (process.platform === "win32" && alias.toLowerCase() === directory.toLowerCase()) {
+    context.skip("The fixture volume does not provide Windows short-name aliases.");
+    return;
+  }
+  if (process.platform !== "win32") await symlink(directory, alias, "dir");
+  try {
+    const root = await fixture(alias);
+    const outDir = join(root, "dist");
+    await put(root, "src/assets/version.json", '{"buildNumber":"test","version":"1"}');
+    await put(root, "react.html", "<h1>Texera React</h1>");
+    await build({
+      configFile: false,
+      root,
+      publicDir: false,
+      logLevel: "silent",
+      plugins: [createReactBuildPlugin({ root, outDir })],
+      build: { outDir, rolldownOptions: { input: join(root, "react.html") } },
+    });
+    assert.match(await readFile(join(outDir, "index.html"), "utf8"), /Texera React/);
+  } finally {
+    if (process.platform !== "win32") await unlink(alias);
+  }
 });
 
 test("production licenses include dependencies emitted only in worker chunks", async () => {
