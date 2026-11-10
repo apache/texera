@@ -112,11 +112,6 @@ import scala.jdk.CollectionConverters._
   * per-row size (`rowChars`) rather than round numbers, which land in a neighbouring branch.
   *
   * Deliberately NOT covered, and why:
-  *   - `validateWorkflow` (lines 905-924). It has zero call sites: nothing in the repository, in
-  *     any language, invokes it (agent-service has a same-named TypeScript function of its own,
-  *     which is unrelated). It is reachable by reflection, but reflective reachability is not
-  *     liveness — a test here would only cement dead code and make its deletion look like a
-  *     regression. Reported as dead instead.
   *   - `shutdownPreviousExecution` (350-361) and `killExecution`'s `client.shutdown()` line (368).
   *     Both need an `AmberClient` test double; amber's test scope has no mocking library, and
   *     `AmberClient`'s constructor needs a started `AmberRuntime`. `shutdownPreviousExecution` is
@@ -363,6 +358,7 @@ class SyncExecutionResourceSpec
       ),
       stateStore,
       (_: Throwable) => (),
+      Integer.valueOf(1), // uid; these tests never resolve a file
       None,
       new URI("vfs:///sync-execution-spec")
     )
