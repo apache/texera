@@ -46,6 +46,18 @@ import {
   FOLDER_MAPPING_PROMPT,
   FOLDER_CODE_PROMPT,
 } from "./migration-prompts";
+import {
+  R_TEXERA_OVERVIEW,
+  R_UDF_DOCUMENTATION,
+  R_DATA_PASSING_DOCUMENTATION,
+  R_VISUALIZER_DOCUMENTATION,
+  R_EXAMPLE_OF_MULTIPLE_UDF_CONVERSION,
+  R_EXAMPLE_OF_MULTIPLE_UDF_CONVERSION_SCRIPT,
+  R_WORKFLOW_PROMPT,
+  R_MAPPING_PROMPT,
+  R_SCRIPT_WORKFLOW_PROMPT,
+  R_SCRIPT_MAPPING_PROMPT,
+} from "./migration-prompts-r";
 import { DerivedCell, ScriptSegmentation, segmentScript, splitScriptLines } from "./script-segmentation";
 import { FolderDocument, resolveEntryPoint, scopeSegmentationToSpan } from "./folder-assembly";
 
@@ -142,7 +154,25 @@ const PYTHON_FOLDER_DOCUMENTATION: string[] = PYTHON_SCRIPT_DOCUMENTATION.map(do
   doc === EXAMPLE_OF_MULTIPLE_UDF_CONVERSION_SCRIPT ? EXAMPLE_OF_MULTIPLE_UDF_CONVERSION_FOLDER : doc
 );
 
-export type MigrationLanguage = "python";
+const R_NOTEBOOK_DOCUMENTATION: string[] = [
+  R_TEXERA_OVERVIEW,
+  R_UDF_DOCUMENTATION,
+  R_DATA_PASSING_DOCUMENTATION,
+  R_VISUALIZER_DOCUMENTATION,
+  R_EXAMPLE_OF_MULTIPLE_UDF_CONVERSION,
+];
+
+const R_SCRIPT_DOCUMENTATION: string[] = R_NOTEBOOK_DOCUMENTATION.map(doc =>
+  doc === R_EXAMPLE_OF_MULTIPLE_UDF_CONVERSION ? R_EXAMPLE_OF_MULTIPLE_UDF_CONVERSION_SCRIPT : doc
+);
+
+export type MigrationLanguage = "python" | "r";
+
+interface UdfOperator {
+  type: string;
+  // Overlaid on the schema defaults before the generated code and outputs.
+  properties: Record<string, unknown>;
+}
 
 interface MigrationPromptSet {
   notebookDocumentation: string[];
@@ -151,7 +181,7 @@ interface MigrationPromptSet {
   scriptDocumentation: string[];
   scriptWorkflowPrompt: string;
   scriptMappingPrompt: string;
-  operatorType: string;
+  operator: UdfOperator;
   notebookMetadata: Notebook["metadata"];
 }
 
@@ -163,10 +193,24 @@ const PROMPT_SETS: Record<MigrationLanguage, MigrationPromptSet> = {
     scriptDocumentation: PYTHON_SCRIPT_DOCUMENTATION,
     scriptWorkflowPrompt: SCRIPT_WORKFLOW_PROMPT,
     scriptMappingPrompt: SCRIPT_MAPPING_PROMPT,
-    operatorType: "PythonUDFV2",
+    operator: { type: "PythonUDFV2", properties: {} },
     notebookMetadata: {
       kernelspec: { display_name: "Python 3", language: "python", name: "python3" },
       language_info: { name: "python" },
+    },
+  },
+  r: {
+    notebookDocumentation: R_NOTEBOOK_DOCUMENTATION,
+    notebookWorkflowPrompt: R_WORKFLOW_PROMPT,
+    notebookMappingPrompt: R_MAPPING_PROMPT,
+    scriptDocumentation: R_SCRIPT_DOCUMENTATION,
+    scriptWorkflowPrompt: R_SCRIPT_WORKFLOW_PROMPT,
+    scriptMappingPrompt: R_SCRIPT_MAPPING_PROMPT,
+    // The prompts only teach the Table API.
+    operator: { type: "RUDF", properties: { useTupleAPI: false } },
+    notebookMetadata: {
+      kernelspec: { display_name: "R", language: "R", name: "ir" },
+      language_info: { name: "R" },
     },
   },
 };
@@ -233,6 +277,13 @@ export class NotebookMigrationLLM {
 
   private get enabled(): boolean {
     return this.config.env.pythonNotebookMigrationEnabled;
+  }
+
+  private promptsFor(language: MigrationLanguage): MigrationPromptSet {
+    if (language === "r" && !this.config.env.rNotebookMigrationEnabled) {
+      throw new Error("R notebook migration is disabled");
+    }
+    return PROMPT_SETS[language];
   }
 
   private assertEnabled(): void {
@@ -393,7 +444,7 @@ export class NotebookMigrationLLM {
       throw new Error("LLM session not initialized");
     }
 
-    const prompts = PROMPT_SETS[language];
+    const prompts = this.promptsFor(language);
     // Reset to the documentation prelude so a prior conversion's prompts/responses
     // don't leak into this one. The two sendPrompt calls below still share history.
     this.seedDocumentation(prompts.notebookDocumentation);
@@ -421,7 +472,7 @@ export class NotebookMigrationLLM {
 
     // Remove ```json blocks and parse
     const udfLLMResponse = this.parseJsonResponse(workflow, "workflow");
-    const { workflowJSON, udfIdToOperatorId } = this.buildWorkflow(udfLLMResponse, prompts.operatorType);
+    const { workflowJSON, udfIdToOperatorId } = this.buildWorkflow(udfLLMResponse, prompts.operator);
 
     // The notebook path keys its mapping on the cell uuids embedded in the prompt.
     const parsedMapping: Record<string, string[]> = this.parseJsonResponse(mapping, "mapping");
@@ -447,12 +498,12 @@ export class NotebookMigrationLLM {
       throw new Error("LLM session not initialized");
     }
 
-    const prompts = PROMPT_SETS[language];
+    const prompts = this.promptsFor(language);
     const { workflowJSON, udfIdToOperatorId, reportedRanges } = await this.requestConversion(
       prompts.scriptDocumentation,
       prompts.scriptWorkflowPrompt,
       prompts.scriptMappingPrompt,
-      prompts.operatorType,
+      prompts.operator,
       source
     );
 
@@ -486,7 +537,7 @@ export class NotebookMigrationLLM {
       PYTHON_FOLDER_DOCUMENTATION,
       FOLDER_WORKFLOW_PROMPT,
       FOLDER_MAPPING_PROMPT,
-      prompts.operatorType,
+      prompts.operator,
       document.source,
       // The layout is prompt text, never part of the numbered document: numbering it would shift
       // every line the model reports, and the segmenter would emit it as a cell of directory
@@ -518,7 +569,7 @@ export class NotebookMigrationLLM {
     documentation: string[],
     workflowPrompt: string,
     mappingPrompt: string,
-    operatorType: string,
+    udfOperator: UdfOperator,
     source: string,
     preamble?: string
   ): Promise<{
@@ -534,7 +585,7 @@ export class NotebookMigrationLLM {
     const mapping = await this.sendPrompt(mappingPrompt);
 
     const workflowResponse = this.parseJsonResponse(workflow, "workflow");
-    const { workflowJSON, udfIdToOperatorId } = this.buildWorkflow(workflowResponse, operatorType);
+    const { workflowJSON, udfIdToOperatorId } = this.buildWorkflow(workflowResponse, udfOperator);
 
     return {
       workflowJSON,
@@ -568,7 +619,7 @@ export class NotebookMigrationLLM {
    */
   private buildWorkflow(
     udfLLMResponse: any,
-    operatorType: string
+    udfOperator: UdfOperator
   ): {
     workflowJSON: WorkflowJSON;
     udfIdToOperatorId: Record<string, string>;
@@ -603,11 +654,12 @@ export class NotebookMigrationLLM {
 
       // Build the operator from the live schema so the operatorVersion, ports, and property
       // defaults track the backend definition, then overlay the generated code/outputs.
-      const base = this.workflowUtilService.getNewOperatorPredicate(operatorType, udfId);
+      const base = this.workflowUtilService.getNewOperatorPredicate(udfOperator.type, udfId);
       const operator: OperatorPredicate = {
         ...base,
         operatorProperties: {
           ...base.operatorProperties,
+          ...udfOperator.properties,
           code: udfCode,
           retainInputColumns: false,
           outputColumns: udfOutputColumns,

@@ -418,6 +418,14 @@ class ExecutorManager:
                     "Install with: pip install git+https://github.com/Texera/texera-rudf.git\n"
                     f"Import error: {e}"
                 )
+            if (
+                code.startswith("# Texera UI parameters:")
+                and getattr(texera_r, "UI_PARAMETERS_API_VERSION", 0) < 1
+            ):
+                raise ImportError(
+                    "R UI parameters require texera-rudf >= 0.2.0 "
+                    "with UI parameter SDK v1 support. Upgrade texera-rudf."
+                )
             self.executor = executor_class(code)
         else:
             executor: type(Operator) = self.load_executor_definition(code, is_source)

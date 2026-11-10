@@ -21,7 +21,7 @@ import { Component, OnDestroy, OnInit } from "@angular/core";
 import { FieldWrapper, FormlyFieldConfig } from "@ngx-formly/core";
 import { merge } from "lodash";
 import { ReplaySubject } from "rxjs";
-import { debounceTime, filter, first, takeUntil } from "rxjs/operators";
+import { filter, first, takeUntil } from "rxjs/operators";
 import { Preset, PresetService } from "src/app/workspace/service/preset/preset.service";
 import { asType } from "../../util/assert";
 import { NzMessageService } from "ng-zorro-antd/message";
@@ -74,13 +74,10 @@ export interface PresetKey {
   ],
 })
 export class PresetWrapperComponent extends FieldWrapper implements OnInit, OnDestroy {
-  public searchResults: Preset[] = []; // the list of presets shown in the dropdown
-  public presetMenuVisible = false;
-  private searchTerm: string = ""; // a copy of the form field value, used as a search term to narrow suggested presets
+  public searchResults: readonly Preset[] = []; // the list of presets shown in the dropdown
   private presetType: string = ""; // corresponds to type used in presetService.getPresets(type, target). Usually "operator"
   private saveTarget: string = ""; // corresponds to target used in presetService.getPresets(type, target). Usually operator type, i.e. "MySQLSource"
   private applyTarget: string = ""; // corresponds to target used in presetService.applyPreset(type, target). Usually operatorID, i.e "MySQLSource-operator-8fb88f81-1bb1-4b00-bbd1-3d2f23c5e1d7"
-  private basePreset: Preset = {};
   private teardownObservable: ReplaySubject<boolean> = new ReplaySubject(1); // observable used OnDestroy to tear down subscriptions that takeUntil(teardownObservable)
 
   constructor(
@@ -94,23 +91,20 @@ export class PresetWrapperComponent extends FieldWrapper implements OnInit, OnDe
     if (
       this.field.key === undefined ||
       this.field.templateOptions === undefined ||
-      this.field.templateOptions.presetKey === undefined
+      this.field.templateOptions.presetKey === undefined ||
+      this.field.parent?.fieldGroup === undefined
     ) {
       throw Error(
-        `form preset-wrapper field ${this.field} doesn't contain necessary .key and .templateOptions.presetKey attributes`
+        `form preset-wrapper field ${this.field} doesn't contain necessary .key, .templateOptions.presetKey and .parent.fieldGroup attributes`
       );
     }
     const presetKey = <PresetKey>this.field.templateOptions.presetKey;
-    this.searchTerm = this.formControl.value !== null ? this.formControl.value : "";
     this.presetType = presetKey.presetType;
     this.saveTarget = presetKey.saveTarget;
     this.applyTarget = presetKey.applyTarget;
     this.updateSearchResults();
-    this.basePreset = this.filterPresetFromForm();
 
     this.handleSavePresets(); // handles when presets for this saveTarget change
-    this.handleApplyPreset(); // handles when presets for this saveTarget change
-    this.handleFieldValueChanges(); // handles updating search results as the user types
   }
 
   /**
@@ -153,26 +147,6 @@ export class PresetWrapperComponent extends FieldWrapper implements OnInit, OnDe
   }
 
   /**
-   * Filters a Preset[], allowing only getEntryTitle(Preset) that start with searchTerm
-   * @param presets Preset[]
-   * @param searchTerm string
-   * @param showAllResults whether or not to filter presets or allow all presets
-   * @returns
-   */
-  public getSearchResults(presets: Readonly<Preset[]>, searchTerm: string, showAllResults: boolean): Preset[] {
-    if (showAllResults) {
-      return presets.slice();
-    } else {
-      return presets.filter(preset =>
-        this.getEntryTitle(preset)
-          .replace(/^\s+|\s+$/g, "")
-          .toLowerCase()
-          .startsWith(searchTerm.toLowerCase())
-      );
-    }
-  }
-
-  /**
    * updates search results when dropdown is activated (clicking form field opens dropdown)
    * @param visible Event value, whether or not dropdown is visible
    */
@@ -194,12 +168,7 @@ export class PresetWrapperComponent extends FieldWrapper implements OnInit, OnDe
   public savePreset() {
     const preset = this.filterPresetFromForm();
     if (this.presetService.isValidPreset(preset)) {
-      this.presetService.createPreset(
-        this.presetType,
-        this.saveTarget,
-        // this.basePreset,
-        preset
-      );
+      this.presetService.createPreset(this.presetType, this.saveTarget, preset);
     } else {
       this.messageService.error("Preset not saved: Fill out all preset fields.");
     }
@@ -217,24 +186,7 @@ export class PresetWrapperComponent extends FieldWrapper implements OnInit, OnDe
       )
       .subscribe({
         next: saveEvent => {
-          this.searchResults = this.getSearchResults(saveEvent.presets, this.searchTerm, true);
-        },
-      });
-  }
-
-  /**
-   * handles when presets for the current presetType are changed due to saving new presets
-   * updates search results to account for new presets
-   */
-  private handleApplyPreset() {
-    this.presetService.applyPresetStream
-      .pipe(
-        filter(presets => presets.type === this.presetType && presets.target === this.applyTarget),
-        takeUntil(this.teardownObservable)
-      )
-      .subscribe({
-        next: applyEvent => {
-          this.basePreset = applyEvent.preset;
+          this.searchResults = saveEvent.presets;
         },
       });
   }
@@ -255,35 +207,14 @@ export class PresetWrapperComponent extends FieldWrapper implements OnInit, OnDe
   }
 
   /**
-   * handles user typing into form field
-   * updates earch results to account for filtering
-   */
-  private handleFieldValueChanges() {
-    // WIERD CODE EXPLANATION: debounceTime(0)?
-    // After a preset is applied (by clicking a dropdown entry), it changes a field value and
-    // activates this handler function.
-    // updating the searchResults (which also changes the HTML template due to binding) too quickly
-    // can sometimes interrupt the dropdown closing animation. (dropdown should close after clicking dropdown entry, but instead stays open)
-    // hence the debounceTime(0) to slow this function down.
-    this.formControl.valueChanges.pipe(debounceTime(0), takeUntil(this.teardownObservable)).subscribe({
-      next: (value: string | number | boolean) => {
-        this.searchTerm = (value ?? "").toString();
-        if (this.presetMenuVisible) {
-          this.updateSearchResults(false);
-        }
-      },
-    });
-  }
-
-  /**
    * updates search results
    */
-  private updateSearchResults(showAllResults = true) {
+  private updateSearchResults() {
     this.presetService
       .getPresets(this.presetType, this.saveTarget)
       .pipe(first(), takeUntil(this.teardownObservable))
       .subscribe(presets => {
-        this.searchResults = this.getSearchResults(presets, this.searchTerm, showAllResults);
+        this.searchResults = presets;
       });
   }
 

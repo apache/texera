@@ -23,13 +23,20 @@ import org.apache.pekko.actor.Cancellable
 import com.fasterxml.jackson.annotation.{JsonTypeInfo, JsonTypeName}
 import com.fasterxml.jackson.databind.node.ObjectNode
 import com.typesafe.scalalogging.LazyLogging
+import org.apache.texera.amber.core.storage.{
+  DocumentFactory,
+  ExecutionResultUris,
+  VFSURIFactory,
+  WarehouseReadGuard
+}
+import org.apache.texera.amber.core.tuple.TupleUtils.convertTuplesToJson
 import org.apache.texera.common.config.ApplicationConfig
 import org.apache.texera.amber.core.storage.model.VirtualDocument
 import org.apache.texera.amber.core.storage.result._
-import org.apache.texera.amber.core.storage.{DocumentFactory, VFSURIFactory}
-import org.apache.texera.amber.core.tuple.{AttributeType, Tuple, TupleUtils}
+import org.apache.texera.amber.core.tuple.Tuple
 import org.apache.texera.amber.util.serde.GlobalPortIdentitySerde.SerdeOps
 import org.apache.texera.dao.SqlServer
+import org.apache.texera.dao.jooq.generated.enums.OutputModeEnum
 import org.apache.texera.dao.jooq.generated.tables.daos.OperatorPortExecutionsDao
 import org.apache.texera.dao.jooq.generated.tables.pojos.OperatorPortExecutions
 import org.apache.texera.amber.core.virtualidentity.{
@@ -62,11 +69,9 @@ import org.apache.texera.web.model.websocket.event.{
 }
 import org.apache.texera.web.model.websocket.request.ResultPaginationRequest
 import org.apache.texera.web.resource.dashboard.user.workflow.WorkflowExecutionsResource
-import org.apache.texera.web.service.ExecutionResultService.convertTuplesToJson
 import org.apache.texera.web.service.WorkflowExecutionService.getLatestExecutionId
 import org.apache.texera.web.storage.{ExecutionStateStore, WorkflowStateStore}
 
-import java.lang.Byte.{SIZE => BitsPerByte}
 import java.util.UUID
 import scala.collection.mutable
 import scala.concurrent.duration.DurationInt
@@ -92,93 +97,27 @@ object ExecutionResultService {
     pojo.setWorkflowExecutionId(executionId.id.toInt)
     pojo.setGlobalPortId(evt.globalPortId.serializeAsString)
     pojo.setResultUri(evt.uri.toString)
+    pojo.setOutputMode(toOutputModeEnum(evt.mode))
     new OperatorPortExecutionsDao(
       SqlServer.getInstance().createDSLContext().configuration()
     ).insert(pojo)
   }
 
-  private val defaultPageSize: Int = 5
-  private val binaryPreviewLeadingBits: Int = 10
-  private val binaryPreviewTrailingBits: Int = 3
-
-  private def bytesToBinaryString(bytes: Array[Byte]): String =
-    bytes
-      .map(b =>
-        String.format(s"%${BitsPerByte}s", Integer.toBinaryString(b & 0xff)).replace(' ', '0')
-      )
-      .mkString("")
-
   /**
-    * Converts a collection of Tuples to a list of JSON ObjectNodes.
-    *
-    * This function takes a collection of Tuples and converts each tuple into a JSON ObjectNode.
-    * For binary data, it formats the bytes into a readable hex string representation with length info.
-    * For string values longer than maxStringLength (100), it truncates them.
-    * NULL values are converted to the string "NULL".
-    *
-    * @param tuples The collection of Tuples to convert
-    * @param isVisualization Whether this is for visualization rendering (affects string truncation)
-    * @return A List of ObjectNodes containing the JSON representation of the tuples
+    * The stored form of a port's output mode. Recorded with the URI so that a finished
+    * execution's results can be listed without the engine's physical plan (#8994).
+    * output_mode_enum in sql/texera_ddl.sql mirrors OutputMode.
     */
-  def convertTuplesToJson(
-      tuples: Iterable[Tuple],
-      isVisualization: Boolean = false
-  ): List[ObjectNode] = {
-    val maxStringLength = 100
+  private[service] def toOutputModeEnum(mode: OutputMode): OutputModeEnum =
+    mode match {
+      case OutputMode.SET_SNAPSHOT    => OutputModeEnum.SET_SNAPSHOT
+      case OutputMode.SET_DELTA       => OutputModeEnum.SET_DELTA
+      case OutputMode.SINGLE_SNAPSHOT => OutputModeEnum.SINGLE_SNAPSHOT
+      case OutputMode.Unrecognized(_) =>
+        throw new RuntimeException(s"Unrecognized output mode: $mode")
+    }
 
-    tuples.map { tuple =>
-      val processedFields = tuple.schema.getAttributes.zipWithIndex
-        .map {
-          case (attr, idx) =>
-            val fieldValue = tuple.getField[AnyRef](idx)
-
-            Option(fieldValue) match {
-              case None => "NULL"
-              case Some(value) =>
-                attr.getType match {
-                  case AttributeType.BINARY =>
-                    value match {
-                      case byteArray: Array[Byte] =>
-                        val totalSize = byteArray.length
-                        val sizeFormatted = f"$totalSize%,d"
-                        val totalBits = totalSize * BitsPerByte
-                        val preview =
-                          if (totalBits <= binaryPreviewLeadingBits + binaryPreviewTrailingBits)
-                            bytesToBinaryString(byteArray)
-                          else {
-                            val leadingBytesNeeded =
-                              math.ceil(binaryPreviewLeadingBits.toDouble / BitsPerByte).toInt
-                            val trailingBytesNeeded =
-                              math.ceil(binaryPreviewTrailingBits.toDouble / BitsPerByte).toInt
-                            val leading = bytesToBinaryString(byteArray.take(leadingBytesNeeded))
-                              .take(binaryPreviewLeadingBits)
-                            val trailing = bytesToBinaryString(
-                              byteArray.takeRight(trailingBytesNeeded)
-                            ).takeRight(binaryPreviewTrailingBits)
-                            s"$leading...$trailing"
-                          }
-                        s"<binary $preview, size = $sizeFormatted bytes>"
-
-                      case _ =>
-                        throw new RuntimeException(
-                          s"Expected byte array for binary type field, but got: ${value.getClass.getName}"
-                        )
-                    }
-                  case AttributeType.STRING =>
-                    val stringValue = value.asInstanceOf[String]
-                    if (stringValue.length > maxStringLength && !isVisualization)
-                      stringValue.take(maxStringLength) + "..."
-                    else
-                      stringValue
-                  case _ => value
-                }
-            }
-        }
-        .toArray[Any]
-
-      TupleUtils.tuple2json(tuple.schema, processedFields)
-    }.toList
-  }
+  private val defaultPageSize: Int = 5
 
   /**
     * convert Tuple from engine's format to JSON format
@@ -233,7 +172,7 @@ object ExecutionResultService {
 
     // Cannot assume the storage is available at this point. The storage object is only available
     // after a region is scheduled to execute.
-    val storageUriOption = WorkflowExecutionsResource.getResultUriByLogicalPortId(
+    val storageUriOption = ExecutionResultUris.getResultUriByLogicalPortId(
       executionId,
       physicalOps.head.id.logicalOpId,
       PortIdentity()
@@ -430,7 +369,7 @@ class ExecutionResultService(
               }
 
               if (!hasSingleSnapshot) {
-                val storageUri = WorkflowExecutionsResource
+                val storageUri = ExecutionResultUris
                   .getResultUriByLogicalPortId(
                     executionId,
                     opId,
@@ -438,15 +377,9 @@ class ExecutionResultService(
                   )
 
                 if (storageUri.nonEmpty) {
-                  val globalPortIdOption = VFSURIFactory.decodeURI(storageUri.get).globalPortId
                   val opStorage = DocumentFactory.openDocument(storageUri.get)._1
 
                   allTableStats(opId.id) = opStorage.getTableStatistics
-                  WorkflowExecutionsResource.updateResultSize(
-                    executionId,
-                    globalPortIdOption.get,
-                    opStorage.getTotalFileSize
-                  )
                   WorkflowExecutionsResource.updateRuntimeStatsSize(executionId)
                   WorkflowExecutionsResource.updateConsoleMessageSize(executionId, opId)
                 }
@@ -475,7 +408,7 @@ class ExecutionResultService(
       throw new IllegalStateException("No execution is recorded")
     )
 
-    val storageUriOption = WorkflowExecutionsResource.getResultUriByLogicalPortId(
+    val storageUriOption = ExecutionResultUris.getResultUriByLogicalPortId(
       latestExecutionId,
       OperatorIdentity(request.operatorID),
       PortIdentity(request.portIndex)
@@ -529,7 +462,7 @@ class ExecutionResultService(
   private def onResultUpdate(executionId: ExecutionIdentity, physicalPlan: PhysicalPlan): Unit = {
     workflowStateStore.resultStore.updateState { _ =>
       val newInfo: Map[OperatorIdentity, OperatorResultMetadata] = {
-        WorkflowExecutionsResource
+        ExecutionResultUris
           .getResultUrisByExecutionId(executionId)
           // One entry per operator, so it follows the first output port, as the result updates do.
           // Keyed by operator, a second port's count would otherwise replace the first's.
@@ -537,7 +470,8 @@ class ExecutionResultService(
             VFSURIFactory.decodeURI(uri).globalPortId.exists(_.portId == PortIdentity())
           )
           .map(uri => {
-            val count = DocumentFactory.openDocument(uri)._1.getCount.toInt
+            val document = DocumentFactory.openDocument(uri)._1
+            val count = document.getCount
 
             val globalPortIdOption = VFSURIFactory.decodeURI(uri).globalPortId
 
@@ -548,11 +482,25 @@ class ExecutionResultService(
               .map(_._1.mode)
               .head
 
+            // Recorded here, on every poll and once more when the run ends, rather than in the
+            // diff handler, which runs once per connected browser and not at all without one.
+            if (mode != OutputMode.SINGLE_SNAPSHOT) {
+              WorkflowExecutionsResource.updateResultSizeAndCount(
+                executionId,
+                globalPortIdOption.get,
+                document.getTotalFileSize,
+                count
+              )
+            }
+
             val changeDetector =
               if (mode == OutputMode.SET_SNAPSHOT) {
                 UUID.randomUUID.toString
               } else ""
-            (globalPortIdOption.get.opId.logicalOpId, OperatorResultMetadata(count, changeDetector))
+            (
+              globalPortIdOption.get.opId.logicalOpId,
+              OperatorResultMetadata(count.toInt, changeDetector)
+            )
           })
           .toMap
       }
