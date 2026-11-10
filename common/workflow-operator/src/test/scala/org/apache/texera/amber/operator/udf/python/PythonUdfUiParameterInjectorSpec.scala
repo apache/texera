@@ -18,6 +18,8 @@
  */
 package org.apache.texera.amber.operator.udf.python
 
+import org.apache.texera.amber.operator.udf.UiUDFParameter
+
 import org.apache.texera.amber.core.tuple.{Attribute, AttributeType}
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
