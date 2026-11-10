@@ -225,7 +225,8 @@ class Operator(ABC):
     def loop_variable_text(self, name: str) -> str:
         """
         The text of loop variable ``name`` as ``loop_variables`` holds it (see
-        ``register_state`` for which value wins). Inside a control block, the
+        ``register_state`` for which value wins, and for the error a name that
+        got two different values raises). Inside a control block, the
         code generated for an operator calls this where a text property holds
         ``$name``, in place of decoding the literal, so the value is read when
         the code runs. It is spelled as a JVM operator's text property binds it
@@ -349,18 +350,25 @@ class Operator(ABC):
         properties (``bindStateReferences``), they hold one value for the whole
         iteration, while ``loop_variables`` still takes every later state
         message for UDF code to read. The next iteration runs on a fresh
-        worker, which binds again.
+        worker, which binds again. A name that got two different values is
+        bound with both, so reading it fails there too.
 
         Binding fails, naming each one in one error, while a loop variable the
         operator requires (``require_loop_variables``) has no value its text
-        property can take: no state message carried it, or the value is not a
-        scalar or not within 64 bits. As a JVM operator's binding does, it then
-        binds nothing, whether or not the code would read the value, and a
-        later binding tries again.
+        property can take: no state message carried it, it got two different
+        values (``register_state``), or the value is not a scalar or not within
+        64 bits. As a JVM operator's binding does, it then binds nothing,
+        whether or not the code would read the value, and a later binding tries
+        again. A name the operator does not require may have two values: only a
+        read of it fails then, as a JVM operator fails only for a name its
+        setting refers to.
         """
         if self.__internal_bound_loop_variables is not None:
             return
-        variables = dict(self.loop_variables)
+        variables = _LoopVariables(
+            dict(self.__internal_loop_variables or {}),
+            dict(self.__internal_loop_variable_conflicts or {}),
+        )
         problems = []
         for name in self.__internal_required_loop_variables:
             try:
