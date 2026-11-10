@@ -74,7 +74,7 @@ export interface PresetKey {
   ],
 })
 export class PresetWrapperComponent extends FieldWrapper implements OnInit, OnDestroy {
-  public searchResults: Preset[] = []; // the list of presets shown in the dropdown
+  public searchResults: readonly Preset[] = []; // the list of presets shown in the dropdown
   private presetType: string = ""; // corresponds to type used in presetService.getPresets(type, target). Usually "operator"
   private saveTarget: string = ""; // corresponds to target used in presetService.getPresets(type, target). Usually operator type, i.e. "MySQLSource"
   private applyTarget: string = ""; // corresponds to target used in presetService.applyPreset(type, target). Usually operatorID, i.e "MySQLSource-operator-8fb88f81-1bb1-4b00-bbd1-3d2f23c5e1d7"
@@ -91,10 +91,11 @@ export class PresetWrapperComponent extends FieldWrapper implements OnInit, OnDe
     if (
       this.field.key === undefined ||
       this.field.templateOptions === undefined ||
-      this.field.templateOptions.presetKey === undefined
+      this.field.templateOptions.presetKey === undefined ||
+      this.field.parent?.fieldGroup === undefined
     ) {
       throw Error(
-        `form preset-wrapper field ${this.field} doesn't contain necessary .key and .templateOptions.presetKey attributes`
+        `form preset-wrapper field ${this.field} doesn't contain necessary .key, .templateOptions.presetKey and .parent.fieldGroup attributes`
       );
     }
     const presetKey = <PresetKey>this.field.templateOptions.presetKey;
@@ -102,7 +103,6 @@ export class PresetWrapperComponent extends FieldWrapper implements OnInit, OnDe
     this.saveTarget = presetKey.saveTarget;
     this.applyTarget = presetKey.applyTarget;
     this.updateSearchResults();
-    this.filterPresetFromForm();
 
     this.handleSavePresets(); // handles when presets for this saveTarget change
   }
@@ -186,7 +186,7 @@ export class PresetWrapperComponent extends FieldWrapper implements OnInit, OnDe
       )
       .subscribe({
         next: saveEvent => {
-          this.searchResults = saveEvent.presets.slice();
+          this.searchResults = saveEvent.presets;
         },
       });
   }
@@ -214,7 +214,7 @@ export class PresetWrapperComponent extends FieldWrapper implements OnInit, OnDe
       .getPresets(this.presetType, this.saveTarget)
       .pipe(first(), takeUntil(this.teardownObservable))
       .subscribe(presets => {
-        this.searchResults = presets.slice();
+        this.searchResults = presets;
       });
   }
 

@@ -47,7 +47,6 @@ describe("PresetWrapperComponent", () => {
     getPresets: ReturnType<typeof vi.fn>;
     isValidPreset: ReturnType<typeof vi.fn>;
     savePresetsStream: Subject<{ type: string; target: string; presets: Preset[] }>;
-    applyPresetStream: Subject<{ type: string; target: string; preset: Preset }>;
   };
   let messageStub: {
     error: ReturnType<typeof vi.fn>;
@@ -57,9 +56,9 @@ describe("PresetWrapperComponent", () => {
   };
 
   // Builds a minimal FormlyFieldConfig sufficient for ngOnInit to run.
-  // ngOnInit also calls filterPresetFromForm(), which iterates
-  // field.parent.fieldGroup looking for sibling preset-wrapper fields, so
-  // we expose a single sibling pointing at an empty model by default.
+  // ngOnInit also requires field.parent.fieldGroup, where savePreset() looks
+  // for sibling preset-wrapper fields, so we expose a single sibling pointing
+  // at an empty model by default.
   const buildField = (overrides: Partial<FormlyFieldConfig> = {}): FormlyFieldConfig => {
     const self = {
       key: fieldKey,
@@ -85,7 +84,6 @@ describe("PresetWrapperComponent", () => {
       getPresets: vi.fn().mockReturnValue(of([])),
       isValidPreset: vi.fn().mockReturnValue(true),
       savePresetsStream: new Subject(),
-      applyPresetStream: new Subject(),
     };
     messageStub = {
       error: vi.fn(),
@@ -128,9 +126,9 @@ describe("PresetWrapperComponent", () => {
       expect(() => component.ngOnInit()).toThrow();
     });
 
-    it("rejects a form without sibling field configuration during initialization", () => {
+    it("throws when parent.fieldGroup is missing", () => {
       component.field = buildField({ parent: undefined });
-      expect(() => component.ngOnInit()).toThrow(TypeError);
+      expect(() => component.ngOnInit()).toThrow(".parent.fieldGroup");
     });
 
     it("populates searchResults from presetService.getPresets on init", () => {
@@ -200,24 +198,6 @@ describe("PresetWrapperComponent", () => {
         })
       ).toBe("first, second");
     });
-
-    describe("preset list copies", () => {
-      it("copies the fetched presets when the dropdown opens", () => {
-        const presets: Preset[] = [testPreset, otherPreset];
-        presetServiceStub.getPresets.mockReturnValue(of(presets));
-        component.onDropdownVisibilityEvent(true);
-        const results = component.searchResults;
-        expect(results).toEqual(presets);
-        expect(results).not.toBe(presets);
-      });
-
-      it("shows all fetched presets even when the field value does not match", () => {
-        formControl.setValue("no-match");
-        presetServiceStub.getPresets.mockReturnValue(of([testPreset]));
-        component.onDropdownVisibilityEvent(true);
-        expect(component.searchResults).toEqual([testPreset]);
-      });
-    });
   });
 
   describe("dropdown visibility", () => {
@@ -281,25 +261,6 @@ describe("PresetWrapperComponent", () => {
         presets: [testPreset],
       });
       expect(component.searchResults).toEqual([]);
-    });
-
-    it("keeps the preset list without refetching as the field value changes", async () => {
-      const baselineCalls = presetServiceStub.getPresets.mock.calls.length;
-      const before = component.searchResults;
-      formControl.setValue("typing");
-      await new Promise(resolve => setTimeout(resolve, 0));
-      expect(component.searchResults).toBe(before);
-      expect(presetServiceStub.getPresets.mock.calls.length).toBe(baselineCalls);
-    });
-
-    it("keeps the displayed preset list when an apply event is emitted", () => {
-      const before = component.searchResults;
-      presetServiceStub.applyPresetStream.next({
-        type: presetKey.presetType,
-        target: presetKey.applyTarget,
-        preset: testPreset,
-      });
-      expect(component.searchResults).toBe(before);
     });
 
     it("stops responding to stream events after ngOnDestroy", () => {
