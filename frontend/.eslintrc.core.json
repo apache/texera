@@ -1,0 +1,14 @@
+{
+  "root": true,
+  "env": {
+    "browser": true,
+    "es2022": true
+  },
+  "parser": "@typescript-eslint/parser",
+  "parserOptions": {
+    "project": "./tsconfig.eslint.json",
+    "sourceType": "module"
+  },
+  "extends": ["plugin:rxjs/recommended"],
+  "ignorePatterns": ["src/core/common/type/proto/**"]
+}

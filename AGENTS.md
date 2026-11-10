@@ -22,7 +22,7 @@
 ## Architecture Map
 
 Apache Texera: Scala/sbt backend services + the Amber workflow execution
-engine, an Angular UI, and the agent service. JVM modules wired in
+engine, a React UI, and the agent service. JVM modules wired in
 [`build.sbt`](build.sbt).
 
 | Area | Path | Detail |
@@ -30,7 +30,7 @@ engine, an Angular UI, and the agent service. JVM modules wired in
 | Workflow execution engine (Amber) | `amber/` | [amber/README.md](amber/README.md) |
 | Backend services | `config-service/`, `access-control-service/`, `file-service/`, `computing-unit-managing-service/`, `workflow-compiling-service/`, `notebook-migration-service/` | `build.sbt` |
 | Shared Scala libs | `common/` (`auth`, `config`, `dao`, `util`, `workflow-core`, `workflow-operator`, `pybuilder`) | `build.sbt` |
-| Frontend (Angular) | `frontend/` | [frontend/README.md](frontend/README.md) |
+| Frontend (React) | `frontend/` | [frontend/README.md](frontend/README.md) |
 | Agent service (Bun/TS, LLM agents) | `agent-service/` | `agent-service/package.json` |
 | Pyright language service | `pyright-language-service/` | [pyright-language-service/README.md](pyright-language-service/README.md) |
 | Deploy scripts / Dockerfiles | `bin/` | [README](bin/README.md) / [k8s](bin/k8s/README.md) / [single-node](bin/single-node/README.md) |
@@ -138,7 +138,7 @@ Short, **Conventional Commits**, same shape for branch and commit subject.
 | Feature | `feat/agent-workflow-edit` | `feat(agent-service): enable workflow edit` |
 | Bug fix | `fix/marker-replay` | `fix(amber): marker replay during reconfiguration` |
 | Tests | `test/pyamber-handlers` | `test(pyamber): add handler unit tests` |
-| Chore | `chore/angular-21` | `chore(deps, frontend): upgrade to Angular 21` |
+| Chore | `chore/react-19` | `chore(deps, frontend): upgrade to React 19` |
 | CI | `ci/merge-queue-stacking` | `ci: stack merge-queue builds by module` |
 
 Both ≤ ~60 chars. For code changes, if you use a scope, use the module name

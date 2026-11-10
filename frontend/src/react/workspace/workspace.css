@@ -1,0 +1,197 @@
+/**
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements. See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership. The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License. You may obtain a copy of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied. See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
+ */
+.react-workflow-canvas {
+  height: 100%;
+  width: 100%;
+  min-height: 280px;
+  position: relative;
+  overflow: hidden;
+  background: white;
+}
+.react-canvas-container {
+  position: relative;
+  min-width: 0;
+  height: 100%;
+  overflow: hidden;
+}
+.react-canvas-minimap {
+  position: absolute;
+  bottom: 12px;
+  right: 12px;
+  width: 180px;
+  height: 120px;
+  background: #ffffffeb;
+  border: 1px solid #ccc;
+  box-shadow: 0 2px 8px #0002;
+  overflow: hidden;
+}
+.react-canvas-selection-box {
+  display: none;
+  position: absolute;
+  border: 1px solid #1677ff;
+  background: #1677ff20;
+  pointer-events: none;
+}
+.react-canvas-menu {
+  z-index: 200;
+  padding: 8px;
+  background: white;
+  border: 1px solid #ccc;
+  box-shadow: 0 5px 20px #0003;
+  display: grid;
+}
+.react-property-panel > label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-block: 8px;
+}
+.react-property-panel > label input[type="checkbox"] {
+  width: auto;
+  margin: 0;
+}
+.react-operator-hover {
+  z-index: 80;
+  background: white;
+  border: 1px solid #ddd;
+  box-shadow: 0 3px 15px #0003;
+  max-width: 340px;
+  max-height: 280px;
+  overflow: auto;
+  padding: 12px;
+  font-size: 12px;
+}
+.react-heatmap-legend {
+  background: #fffffff0;
+  padding: 12px;
+  border: 1px solid #ddd;
+  position: absolute;
+  bottom: 280px;
+  left: 430px;
+  width: 200px;
+  z-index: 1;
+}
+.texera-content .react-result-window[role="dialog"] {
+  position: fixed;
+  z-index: 90;
+  inset: auto;
+  transform: none;
+  width: min(750px, 90vw);
+  height: 430px;
+  padding: 0;
+  min-width: 280px;
+  min-height: 180px;
+  resize: both;
+  overflow: hidden;
+}
+.react-result-window > header {
+  cursor: move;
+  touch-action: none;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 12px;
+  background: #f7f7f7;
+}
+.react-result-window > div {
+  overflow: auto;
+  height: calc(100% - 60px);
+  padding: 8px;
+}
+.react-workspace-toolbar label:has(input[type="checkbox"]) {
+  display: flex;
+  align-items: center;
+}
+.react-workflow-canvas .is-selected .body {
+  stroke: #1677ff !important;
+  stroke-width: 2px;
+}
+.react-workflow-canvas .joint-paper {
+  width: 100%;
+  height: 100%;
+}
+.react-workflow-canvas .port-body {
+  cursor: crosshair;
+}
+.react-workspace {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  min-height: 650px;
+}
+.react-workspace-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+  padding: 10px;
+  background: white;
+  border-bottom: 1px solid #ddd;
+}
+.react-workspace-toolbar input {
+  max-width: 260px;
+}
+.react-workspace-main {
+  display: grid;
+  grid-template-columns: 200px minmax(300px, 1fr) 330px;
+  min-height: 280px;
+  flex: 1;
+}
+.react-operator-palette,
+.react-property-panel {
+  background: white;
+  padding: 16px;
+  overflow: auto;
+  min-height: 0;
+}
+.react-operator-palette {
+  border-right: 1px solid #ddd;
+}
+.react-operator-palette button {
+  display: block;
+  width: 100%;
+  text-align: left;
+  margin-bottom: 5px;
+}
+.react-property-panel {
+  border-left: 1px solid #ddd;
+}
+.react-workspace-results {
+  height: 350px;
+  min-height: 330px;
+  flex-shrink: 0;
+  overflow: auto;
+  background: white;
+  border-top: 1px solid #ddd;
+  padding: 12px;
+  resize: vertical;
+}
+.react-workspace-results pre {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+@media (max-width: 1000px) {
+  .react-workspace-main {
+    grid-template-columns: 150px minmax(250px, 1fr);
+  }
+  .react-property-panel {
+    grid-column: 1/-1;
+    max-height: 350px;
+  }
+}

@@ -108,7 +108,7 @@
 #   texera-web                     :8080  JVM (sbt WorkflowExecutionService, amber)
 #   computing-unit-master          :8085  JVM (rides amber dist; no own sbt project)
 #   agent-service                  :3001  Bun --watch (cd agent-service && bun run dev)
-#   frontend                       :4200  ng serve via cd frontend && yarn start
+#   frontend                       :4200  Vite via cd frontend && yarn start
 #
 # Docker infra (postgres / rustfs / lakefs / lakekeeper / litellm / jupyter) IS managed
 # here: `up` brings it up via `docker compose` (project texera-local-dev) and
@@ -1168,9 +1168,9 @@ tui_wait_panel() {
     local n_frames=${#frames[@]}
     local start_ts=$SECONDS
     # JVM + docker services bind their port within ~10-30s; 90s leaves slack
-    # for cold-cache machines. The frontend's `ng serve` does a full Angular
-    # compile before listening — on a fresh checkout that's 90-180s easily,
-    # so give yarn-typed services 5 minutes. bun is in between.
+    # for cold-cache machines. Allow the frontend's initial Vite dependency
+    # optimization extra time on fresh installs, keeping the existing
+    # five-minute startup bound for yarn services. bun is in between.
     local timeout_default=90
     local timeout_yarn=300
     local timeout_bun=120
@@ -1243,7 +1243,7 @@ tui_wait_panel() {
 
         for svc in "${svcs[@]}"; do
             state_color="" state_sym=""
-            # Per-service wait budget — yarn (ng serve cold compile) gets the
+            # Per-service wait budget — yarn (Vite cold compile) gets the
             # most slack, bun a moderate amount, everything else the default.
             local svc_timeout=$timeout_default
             case "$(amap_get SVC_TYPE "$svc")" in
@@ -3186,7 +3186,7 @@ cmd_auto() {
         if tui_run_with_spinner "$log" "yarn install  ${DIM}(log: $log)${RESET}" \
                 bash -c "cd frontend && yarn install"; then
             tui_ok "yarn: deps refreshed"
-            # ng serve doesn't pick up dependency-tree changes from a running
+            # Vite doesn't pick up dependency-tree changes from a running
             # process; bounce if it was up.
             if [[ -n "$(svc_running_pid frontend)" ]]; then
                 stop_one frontend
@@ -3329,11 +3329,11 @@ cmd_up_one() {
             ;;
         yarn)
             if [[ -n "$(svc_running_pid "$svc")" ]]; then
-                tui_warn "frontend uses ng's watch -- source changes hot-reload automatically."
+                tui_warn "frontend uses Vite's watch -- source changes hot-reload automatically."
                 printf "  ${DIM}For dep changes: bin/local-dev.sh down frontend && bin/local-dev.sh up frontend${RESET}\n"
                 return 0
             fi
-            tui_banner "Starting ${svc}" "yarn start (ng serve)"
+            tui_banner "Starting ${svc}" "yarn start (Vite)"
             if [[ "$BUILD" != "no" ]] && needs_yarn_install; then
                 tui_section "Deps"
                 local _ylog="$LOG_DIR/yarn-install.log"

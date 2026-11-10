@@ -1,0 +1,274 @@
+/**
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements. See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership. The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License. You may obtain a copy of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied. See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
+ */
+
+.workflow-page {
+  max-width: 1500px;
+  margin: 0 auto;
+  padding: 32px;
+  color: #172b4d;
+}
+.workflow-page-heading,
+.workflow-toolbar,
+.workflow-row-actions,
+.workflow-modal footer {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+.workflow-page-heading {
+  justify-content: space-between;
+  margin-bottom: 24px;
+}
+.workflow-page h1 {
+  margin: 0 0 6px;
+  font-size: 30px;
+}
+.workflow-page-heading p {
+  margin: 0;
+  color: #53657d;
+}
+.workflow-search {
+  display: grid;
+  grid-template-columns: minmax(240px, 1fr) minmax(180px, 230px) auto;
+  gap: 12px;
+  align-items: end;
+  padding: 18px;
+  background: #f5f8fc;
+  border: 1px solid #dce4ee;
+  border-radius: 10px;
+}
+.workflow-page label,
+.workflow-modal label {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 14px;
+}
+.workflow-page input:not([type="checkbox"]),
+.workflow-page select,
+.workflow-page textarea,
+.workflow-modal input,
+.workflow-modal select,
+.workflow-modal textarea {
+  width: 100%;
+  box-sizing: border-box;
+  border: 1px solid #bdcadb;
+  border-radius: 6px;
+  background: white;
+  color: #172b4d;
+  padding: 9px 10px;
+  font: inherit;
+}
+.workflow-page button,
+.workflow-modal button {
+  cursor: pointer;
+  border: 1px solid #bccadd;
+  background: white;
+  border-radius: 6px;
+  color: #173d6c;
+  padding: 9px 12px;
+  font: inherit;
+}
+.workflow-page button:disabled,
+.workflow-modal button:disabled {
+  cursor: wait;
+  opacity: 0.55;
+}
+.workflow-page button.primary,
+.workflow-page button[aria-pressed="true"] {
+  background: #1264a3;
+  color: white;
+  border-color: #1264a3;
+}
+.workflow-filters {
+  grid-column: 1 / -1;
+}
+.workflow-filters summary {
+  cursor: pointer;
+}
+.workflow-filters > div {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(150px, 1fr));
+  gap: 12px;
+  padding-top: 15px;
+}
+.workflow-page label.workflow-check {
+  flex-direction: row;
+  align-items: center;
+}
+.workflow-toolbar {
+  padding: 18px 0;
+}
+.workflow-page .workflow-import {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+}
+.workflow-import input {
+  max-width: 245px;
+  padding: 5px !important;
+}
+.workflow-results {
+  display: grid;
+  gap: 12px;
+}
+.workflow-results-card {
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+}
+.workflow-entry {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  padding: 18px;
+  border: 1px solid #dbe3ed;
+  border-radius: 10px;
+  background: white;
+}
+.workflow-results-card .workflow-entry {
+  position: relative;
+  flex-direction: column;
+  align-items: stretch;
+  overflow: hidden;
+}
+.workflow-cover {
+  height: 140px;
+  width: 100%;
+  object-fit: cover;
+}
+.workflow-results-card .workflow-row-selection {
+  position: absolute;
+  top: 12px;
+  left: 12px;
+}
+.workflow-entry-description {
+  flex: 1;
+  min-width: 0;
+}
+.workflow-page .workflow-name {
+  padding: 0;
+  border: 0;
+  background: none;
+  font-size: 18px;
+  font-weight: 650;
+  text-align: left;
+  overflow-wrap: anywhere;
+}
+.workflow-entry-description p {
+  margin: 8px 0;
+  color: #4b5e76;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.workflow-entry-description small {
+  color: #66758b;
+}
+.workflow-row-actions button {
+  padding: 6px 9px;
+  font-size: 13px;
+}
+.workflow-empty {
+  text-align: center;
+  padding: 80px 20px;
+  color: #657791;
+}
+.workflow-load-more {
+  display: block;
+  margin: 24px auto;
+}
+.workflow-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  background: #12223870;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+}
+.workflow-modal {
+  width: min(650px, 100%);
+  max-height: calc(100vh - 64px);
+  overflow-y: auto;
+  box-sizing: border-box;
+  background: white;
+  color: #172b4d;
+  border-radius: 12px;
+  padding: 26px;
+  box-shadow: 0 12px 45px #10263c30;
+}
+.workflow-modal h2 {
+  margin-top: 0;
+}
+.workflow-modal form,
+form.workflow-modal {
+  display: grid;
+  gap: 16px;
+}
+.workflow-modal > label {
+  margin: 16px 0;
+}
+.workflow-modal footer {
+  justify-content: flex-end;
+  margin-top: 22px;
+}
+.workflow-access-list {
+  padding: 0;
+  list-style: none;
+}
+.workflow-access-list li {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 14px 0;
+  flex-wrap: wrap;
+}
+.workflow-access-list li > span {
+  flex: 1;
+}
+.workflow-access-list select {
+  width: auto;
+}
+.workflow-access-list small {
+  display: block;
+  color: #657791;
+}
+.workflow-confirm {
+  margin-top: 20px;
+  border-top: 1px solid #dbe3ed;
+  padding-top: 12px;
+}
+@media (max-width: 800px) {
+  .workflow-page {
+    padding: 18px;
+  }
+  .workflow-search {
+    grid-template-columns: 1fr;
+  }
+  .workflow-filters > div {
+    grid-template-columns: 1fr;
+  }
+  .workflow-entry {
+    align-items: flex-start;
+    flex-wrap: wrap;
+  }
+  .workflow-row-actions {
+    width: 100%;
+  }
+}

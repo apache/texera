@@ -215,7 +215,6 @@ This product bundles the ScalaPB options definition:
   License: Apache License 2.0 (this LICENSE file)
 
 This product includes icons from Google's Material Symbols:
-  - frontend/src/app/common/icon/model-icon.ts ("hub")
   - the "psychology", "smart_toy" and "snippet_folder" icons drawn into
     frontend/src/assets/notebook_migration_tool/tool_popup_diagram.png,
     python_file_diagram.png and python_folder_diagram.png
@@ -314,15 +313,6 @@ This product bundles code derived from mbknor-jackson-jsonschema:
   Copyright (c) 2016 Kjell Tore Eliassen (mbknor)
   Source: https://github.com/mbknor/mbknor-jackson-jsonschema
   License: MIT License (licenses-3rd-party-code/mbknor-jackson-jsonschema.txt)
-
-This product bundles code derived from Google Angular formly examples:
-  - frontend/src/app/common/formly/array.type.ts
-  - frontend/src/app/common/formly/object.type.ts
-  - frontend/src/app/common/formly/multischema.type.ts
-  - frontend/src/app/common/formly/null.type.ts
-  Copyright (c) 2018 Google Inc. All Rights Reserved.
-  Source: https://angular.io
-  License: MIT License (licenses-3rd-party-code/angular.md)
 
 This product bundles code derived from TypeFox monaco-languageclient:
   - pyright-language-service/src/main.ts

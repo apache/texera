@@ -137,8 +137,7 @@ describe("build-version: renderVersionArtifacts", () => {
 
 // The suite above covers the pure renderer. What actually runs in CI is the
 // script's entry point: `node build-version.js`, whose main() decides WHICH of
-// the two rendered artifacts goes to WHICH path. Angular's production
-// fileReplacements reads src/environments/version.prod.ts and the running app
+// the two rendered artifacts goes to WHICH path. Vite's production alias reads src/environments/version.prod.ts and the running app
 // fetches src/assets/version.json, so crossing those two writes would ship a
 // bundle whose version banner never matches its manifest -- and nothing else in
 // the repo would notice, because both files are gitignored build outputs.
@@ -227,7 +226,7 @@ describe("build-version: main()", () => {
 
     // The whole path, not a tail of it. A tail match cannot tell
     // frontend/src/environments/version.prod.ts apart from the same suffix one
-    // directory up, and only the first is where Angular's fileReplacements
+    // directory up, and only the first is where Vite's version alias
     // looks and where the app fetches the manifest from -- a base directory the
     // script resolved wrongly would ship the static "dev" version silently.
     // Anchored on the script's own directory rather than process.cwd() so it

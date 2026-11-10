@@ -17,50 +17,55 @@
   ~ under the License.
 -->
 
-# Texera Angular UI
+# Texera React UI
 
-The web UI for [Apache Texera](https://github.com/apache/texera). An Angular single-page app that talks to the JVM backend services (`amber`, `access-control-service`, `file-service`, …) and to the agent service.
-
-Angular (standalone components) · Vitest (unit tests) · `@angular/build` builder · Yarn (Berry).
+The web UI for [Apache Texera](https://github.com/apache/texera): React, TypeScript, Vite, Vitest and Yarn. It talks to the existing JVM services and agent service through the same HTTP and WebSocket endpoints.
 
 ## Setup
 
-Requires Node.js and Yarn — see the `engines` field in `package.json` for the supported versions. Yarn ships in-repo via `.yarn/`, no separate install.
+Use Node 24 and the Yarn version pinned in `package.json`. Yarn is included under `.yarn/releases/`.
 
 ```bash
 cd frontend
-yarn install
+yarn install --immutable
+yarn start
 ```
 
-## Common commands
+The UI listens on http://localhost:4200. `yarn start` also starts the collaborative editing relay on port 1234. Prefer [`bin/local-dev.sh`](../bin/local-dev/README.md) to start the complete local stack. `proxy.config.json` maps API, execution WebSocket and collaboration traffic to the native services.
 
-| What                                                  | Command                              |
-| ----------------------------------------------------- | ------------------------------------ |
-| Dev server (UI + y-websocket sidecar)                 | `yarn start` → http://localhost:4200 |
-| Production build                                      | `yarn build`                         |
-| Unit tests (jsdom, watch off)                         | `yarn test`                          |
-| Unit tests in real browser mode (Playwright Chromium) | `ng run gui:test-browser`            |
-| Unit tests with coverage in lcov form (CI shape)      | `yarn test:ci`                       |
-| Format (Prettier + ESLint --fix)                      | `yarn format:fix`                    |
-| Format check (CI shape)                               | `yarn format:ci`                     |
-| Lint only                                             | `yarn lint`                          |
+## Commands
 
-Run `ng help` for the full Angular CLI surface.
+| Task | Command |
+| --- | --- |
+| Development UI and collaboration relay | `yarn start` |
+| Production build | `yarn build` |
+| Unit tests in jsdom | `yarn test` |
+| Unit tests with V8/lcov coverage and build contracts | `yarn test:ci` |
+| Real Chromium component tests | `yarn test:browser` |
+| Build, proxy, worker and license contract tests | `yarn test:tools` |
+| Production workspace end-to-end tests | `yarn build && yarn test:e2e` |
+| Type check | `yarn tsc --project tsconfig.json --noEmit` |
+| Lint | `yarn lint` |
+| Format / check formatting | `yarn format:fix` / `yarn format:ci` |
 
-## Testing
+Install the browser once with `yarn playwright install chromium` (use `--with-deps` on Linux CI). `start:react`, `build:react` and `test:react` remain command aliases for existing development scripts.
 
-Tests come first — write the failing test before the source change.
+## Deployment
 
-The full testing reference (Vitest stack, recipes, anti-patterns, coverage troubleshooting) is in [`TESTING.md`](TESTING.md).
+`yarn build` generates the build number, type checks the application and writes `dist/index.html` plus the compiled assets. The backend and Docker image continue serving `frontend/dist`. Deep links use the root document base, preserving collaboration URLs on direct workspace navigation.
 
-## Project layout
+The build retains all `src/assets`, `.well-known` association files, `assets/version.json`, Monaco workers/WASM and `3rdpartylicenses.json`. The license manifest includes packages from both application and worker chunks; it is checked against `LICENSE-binary`. Set `SOURCE_DATE_EPOCH` for a reproducible version number. Deployment feature switches and branding remain server configuration rather than build-time flags.
 
-| Path                                           | What lives here                                                                                             |
-| ---------------------------------------------- | ----------------------------------------------------------------------------------------------------------- |
-| `src/app/workspace/`                           | Workflow editor — operator graph, property panel, result panel, code editor.                                |
-| `src/app/dashboard/`                           | User dashboard — workflows, datasets, computing units, admin.                                               |
-| `src/app/hub/`                                 | Public hub — discover and share workflows.                                                                  |
-| `src/app/common/`                              | Cross-cutting services, types, formly extensions, and shared test helpers (`common/testing/test-utils.ts`). |
-| `src/app/workspace/service/operator-metadata/` | Operator metadata service + the `Stub…Service` test doubles other specs reuse.                              |
-| `vitest.config.ts`, `vitest.browser.config.ts` | Test-runner configs (jsdom default; Playwright Chromium for SVG/pointer-heavy specs).                       |
-| `src/test-zone-setup.ts`                       | Vitest setup file — wraps `it`/`test` in an Angular ProxyZone so `fakeAsync` works.                         |
+## Layout
+
+| Path | Contents |
+| --- | --- |
+| `src/react/workspace/` | Shared workflow session, canvas, form view, execution and editor controls |
+| `src/react/forms/`, `src/react/code-editor/` | Schema forms, specialized widgets, Monaco and language clients |
+| `src/react/workflows/`, `src/react/hub/`, `src/react/resources/` | Private and public resource pages and administration |
+| `src/react/core/` | Authentication, transport and runtime configuration |
+| `src/core/` | Framework-independent graph, execution types, numerical helpers and retained behavior tests |
+| `src/assets/` | Application images, static files and generated version manifest |
+| `tools/` | Asset/license/worker build integration and production browser harness |
+
+Read [`TESTING.md`](TESTING.md) for test conventions and verification scope.

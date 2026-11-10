@@ -17,11 +17,11 @@
  * under the License.
  */
 
-// Default import: Angular's webpack rejects named JSON imports.
+// Package metadata is the development version source of truth.
 import packageJson from "../../package.json";
 
 // Dev placeholder. Production builds replace this file with the generated
-// version.prod.ts (see angular.json fileReplacements + frontend/build-version.js).
+// version.prod.ts (see vite.config.mts and frontend/build-version.js).
 export const Version = {
   buildNumber: "dev",
   version: packageJson.version,

@@ -164,9 +164,7 @@ jobs:
           flags: frontend
           fail_ci_if_error: false
       - name: Upload frontend unit test results to Codecov
-        # vitest.config.ts adds a `junit` reporter that writes to junit.xml
-        # in the working dir; the @angular/build:unit-test runner forwards
-        # vitest config through unchanged.
+        # vitest.react.config.mts writes the unit-test JUnit report directly.
         if: matrix.os == 'ubuntu-latest' && !cancelled()
         uses: codecov/codecov-action@fb8b3582c8e4def4969c97caa2f19720cb33a72f # v7.0.0
         with:
@@ -179,9 +177,11 @@ jobs:
       - name: Install Playwright Chromium
         run: yarn --cwd frontend playwright install ${{ matrix.os == 'ubuntu-latest' && '--with-deps' || '' }} chromium
       - name: Run frontend browser-mode tests
-        run: yarn --cwd frontend ng run gui:test-browser
+        run: yarn --cwd frontend test:browser
+      - name: Run frontend workspace end-to-end tests
+        run: yarn --cwd frontend test:e2e
       - name: Upload frontend browser-mode test results to Codecov
-        # vitest.browser.config.ts emits junit-browser.xml (distinct from
+        # vitest.browser.config.mts emits junit-browser.xml (distinct from
         # the unit-test report). Same `frontend` flag — Codecov merges
         # multi-file uploads under one flag.
         if: matrix.os == 'ubuntu-latest' && !cancelled()

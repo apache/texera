@@ -1,0 +1,105 @@
+/**
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements. See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership. The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License. You may obtain a copy of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied. See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
+ */
+.workspace-assistant,
+.workspace-notebook {
+  border: 1px solid #ccd4df;
+  background: white;
+  padding: 12px;
+  min-width: 280px;
+}
+.workspace-assistant > header,
+.workspace-notebook > header,
+.assistant-step header,
+.assistant-toolbar {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+.workspace-assistant h2,
+.workspace-notebook h2 {
+  font-size: 18px;
+  margin: 0;
+}
+.workspace-assistant label,
+.workspace-assistant form {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin: 8px 0;
+}
+.workspace-assistant label:has(textarea) {
+  display: block;
+  width: 100%;
+}
+.workspace-assistant textarea {
+  display: block;
+  min-height: 90px;
+  width: 100%;
+  box-sizing: border-box;
+}
+.assistant-chat {
+  overflow: auto;
+  max-height: 600px;
+  padding: 8px;
+}
+.assistant-step {
+  border: 1px solid #d7dee7;
+  padding: 12px;
+  margin: 10px 0;
+  border-radius: 6px;
+}
+.assistant-step.user {
+  background: #f0f5ff;
+}
+.assistant-step header {
+  font-size: 12px;
+  color: #536277;
+}
+.assistant-step pre,
+.assistant-settings pre {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.assistant-settings {
+  border: 1px solid #ccc;
+  padding: 12px;
+  max-height: 70vh;
+  overflow: auto;
+}
+.workspace-assistant [role="alert"],
+.workspace-notebook [role="alert"] {
+  color: #ad2828;
+}
+.workspace-notebook iframe {
+  width: 100%;
+  height: 600px;
+  border: 0;
+}
+.history-charts {
+  display: flex;
+  flex-wrap: wrap;
+}
+.history-charts figure {
+  width: min(100%, 350px);
+  margin: 8px;
+}
+.history-charts svg {
+  width: 100%;
+}

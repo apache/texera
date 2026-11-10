@@ -1,0 +1,133 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
+ */
+
+.react-code-editor-window {
+  position: fixed;
+  left: 12vw;
+  top: 12vh;
+  width: min(1000px, 80vw);
+  height: 65vh;
+  min-width: 320px;
+  min-height: 240px;
+  max-width: 100vw;
+  max-height: 100vh;
+  z-index: 1200;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  resize: both;
+  border: 1px solid #8593a6;
+  border-radius: 7px;
+  box-shadow: 0 10px 34px #0004;
+  background: #1f1f1f;
+  color: #f0f0f0;
+}
+.react-code-editor-window h2 {
+  font-size: 14px;
+  margin: 0;
+  padding: 8px 12px;
+  background: #2d3440;
+  cursor: move;
+  touch-action: none;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+.react-code-editor-window button {
+  color: inherit;
+  background: #384557;
+  border: 1px solid #69768a;
+  border-radius: 4px;
+  padding: 4px 10px;
+  margin: 2px;
+  cursor: pointer;
+}
+.react-code-editor-window button:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+.react-code-editor-window .code-editor-toolbar {
+  display: flex;
+  gap: 5px;
+  align-items: center;
+  padding: 3px 8px;
+  font-size: 12px;
+}
+.react-monaco-host {
+  flex: 1;
+  min-height: 100px;
+  width: 100%;
+  overflow: hidden;
+}
+.code-editor-lsp-warning {
+  color: #ffd479;
+  margin: 4px 10px;
+  font-size: 12px;
+}
+.react-code-editor-window [role="alert"] {
+  color: #ffb1a7;
+  margin: 8px;
+}
+.monaco-conditional-breakpoint {
+  background: #f6b73c;
+  border-radius: 50%;
+  width: 12px !important;
+  height: 12px !important;
+  margin: 3px;
+}
+.monaco-breakpoint {
+  background: #ef5350;
+  border-radius: 50%;
+  width: 12px !important;
+  height: 12px !important;
+  margin: 3px;
+}
+.monaco-breakpoint-hit {
+  background: #f6b73c33;
+}
+.code-condition-popup,
+.code-annotation-popup {
+  position: absolute;
+  z-index: 10;
+  left: 16px;
+  top: 80px;
+  right: 16px;
+  padding: 14px;
+  border: 1px solid #91a3b8;
+  border-radius: 5px;
+  background: #293444;
+  color: white;
+  box-shadow: 0 4px 18px #0005;
+}
+.code-condition-popup textarea {
+  display: block;
+  box-sizing: border-box;
+  width: 100%;
+  min-height: 70px;
+  font: 13px monospace;
+}
+.code-annotation-popup pre {
+  max-height: 150px;
+  overflow: auto;
+  white-space: pre-wrap;
+  font: 13px monospace;
+}
+.annotation-highlight {
+  background: #a3812266;
+}
