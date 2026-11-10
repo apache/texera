@@ -20,7 +20,6 @@ import pandas
 from functools import lru_cache
 from abc import ABC, abstractmethod
 from collections import defaultdict
-from types import MappingProxyType
 from typing import (
     Any,
     Iterator,
@@ -30,6 +29,7 @@ from typing import (
     Union,
     MutableMapping,
     Protocol,
+    Tuple as TypingTuple,
 )
 
 from . import Table, TableLike, Tuple, TupleLike, Batch, BatchLike, Schema
@@ -53,6 +53,42 @@ def require_yielded(result, method_name: str):
             "Replace `return x` with `yield x`."
         )
     return result
+
+
+class _LoopVariables(Mapping):
+    """
+    A read-only view of an operator's loop variables. Reading a name that got
+    two different values from the same loop raises the error a JVM operator
+    whose setting refers to that name raises (``StateReferenceBinding``); the
+    other names read as usual, and the name itself is still listed.
+    """
+
+    def __init__(
+        self,
+        values: Mapping[str, Any],
+        conflicts: Mapping[str, TypingTuple[Any, Any]],
+    ) -> None:
+        self._values = values
+        self._conflicts = conflicts
+
+    def __getitem__(self, name: str) -> Any:
+        if name in self._conflicts:
+            earlier, later = self._conflicts[name]
+            raise RuntimeError(
+                f"loop variable {name} got two different values in one iteration, "
+                f"{earlier} and {later}: a loop's variables must not change inside "
+                "its body"
+            )
+        return self._values[name]
+
+    def __contains__(self, name: object) -> bool:
+        return name in self._values
+
+    def __iter__(self) -> Iterator[str]:
+        return iter(self._values)
+
+    def __len__(self) -> int:
+        return len(self._values)
 
 
 class Operator(ABC):
@@ -109,6 +145,11 @@ class Operator(ABC):
     # no loop variables until a state arrives.
     __internal_loop_variables: Optional[MutableMapping[str, Any]] = None
     __internal_loop_variable_depths: Optional[MutableMapping[str, int]] = None
+    # The names that got two different values at the depth they are held at,
+    # with those two values; see ``register_state``.
+    __internal_loop_variable_conflicts: Optional[
+        MutableMapping[str, TypingTuple[Any, Any]]
+    ] = None
 
     @property
     @overrides.final
@@ -118,9 +159,14 @@ class Operator(ABC):
         block, the values the state messages handed to this operator carried,
         by name. The runtime registers each message (``register_state``) right
         before ``process_state`` runs, so the callback and every call after it
-        can read them. Empty until a state message arrives.
+        can read them. Empty until a state message arrives. Reading a name
+        that got two different values from the same loop raises an error; see
+        ``register_state``.
         """
-        return MappingProxyType(self.__internal_loop_variables or {})
+        return _LoopVariables(
+            self.__internal_loop_variables or {},
+            self.__internal_loop_variable_conflicts or {},
+        )
 
     @overrides.final
     def register_state(self, state: State, loop_counter: int = 0) -> None:
@@ -132,11 +178,15 @@ class Operator(ABC):
         such as one an operator returns from ``produce_state_on_finish``,
         travels at depth 0.
 
-        For each name, the value from the smallest depth wins, and among the
-        values from that depth, the last one received. So an inner loop's
-        variable shadows an enclosing one of the same name, even when the
-        enclosing message arrives later, and a state replaces only the names it
-        carries.
+        For each name, the value from the smallest depth wins. So an inner
+        loop's variable shadows an enclosing one of the same name, even when the
+        enclosing message arrives later, and a state adds only the names it
+        carries. A message from the same depth may repeat a value, as copies
+        from several upstream workers or branches do, but must not change it:
+        reading a name that got two different values from one depth raises the
+        error a JVM operator whose setting refers to it raises
+        (``StateReferenceBinding``), until a value from a smaller depth replaces
+        both.
 
         :param state: State, the state message that arrived.
         :param loop_counter: int, the message's nesting depth.
@@ -144,11 +194,19 @@ class Operator(ABC):
         if self.__internal_loop_variables is None:
             self.__internal_loop_variables = {}
             self.__internal_loop_variable_depths = {}
+            self.__internal_loop_variable_conflicts = {}
         for name, value in state.items():
             depth = self.__internal_loop_variable_depths.get(name)
-            if depth is None or loop_counter <= depth:
+            if depth is None or loop_counter < depth:
                 self.__internal_loop_variables[name] = value
                 self.__internal_loop_variable_depths[name] = loop_counter
+                self.__internal_loop_variable_conflicts.pop(name, None)
+            elif loop_counter == depth:
+                earlier = self.__internal_loop_variables[name]
+                if earlier != value:
+                    self.__internal_loop_variable_conflicts.setdefault(
+                        name, (earlier, value)
+                    )
 
     @property
     @overrides.final
