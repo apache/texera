@@ -43,12 +43,9 @@ import scala.jdk.CollectionConverters._
   * own helper names (`isDatasetPublic`, `getOwnerEmailOfModel`, ...), as the separate specs did.
   *
   * @param tables the resource's tables
-  * @param placeholderHandle the prefix of the placeholder account a grant case creates
   */
-abstract class AccessResourceBehaviors[R <: Record, A <: Record](
-    tables: ResourceTables[R, A],
-    placeholderHandle: String
-) extends AnyFlatSpec
+abstract class AccessResourceBehaviors[R <: Record, A <: Record](tables: ResourceTables[R, A])
+    extends AnyFlatSpec
     with Matchers
     with MockTexeraDB
     with BeforeAndAfterAll
@@ -82,12 +79,6 @@ abstract class AccessResourceBehaviors[R <: Record, A <: Record](
   ): java.util.List[ResourceAccess.AccessEntry]
   protected def ownerEmail(id: Integer, user: SessionUser): String
 
-  /**
-    * Registers the grantAccess cases only this resource has, right after the placeholder case.
-    * It runs while the cases are being registered, so an override may only register cases.
-    */
-  protected def resourceOnlyGrantCases(): Unit = {}
-
   private def regularUser(name: String): User = {
     val user = new User
     user.setName(name)
@@ -101,11 +92,11 @@ abstract class AccessResourceBehaviors[R <: Record, A <: Record](
   private val writeGranteeUser = regularUser("write_grantee")
   private val strangerUser = regularUser("stranger")
 
-  protected var privateId: Integer = _
+  private var privateId: Integer = _
   private var publicId: Integer = _
   private val nonExistentId: Integer = 999999
 
-  protected lazy val ownerSession = new SessionUser(ownerUser)
+  private lazy val ownerSession = new SessionUser(ownerUser)
   private lazy val writeGranteeSession = new SessionUser(writeGranteeUser)
   private lazy val readGranteeSession = new SessionUser(readGranteeUser)
   private lazy val strangerSession = new SessionUser(strangerUser)
@@ -126,7 +117,7 @@ abstract class AccessResourceBehaviors[R <: Record, A <: Record](
       .where(tables.accessIdField.eq(id).and(tables.accessUidField.eq(uid)))
       .fetchOneInto(classOf[PrivilegeEnum])
 
-  protected def accessList(
+  private def accessList(
       id: Integer,
       user: SessionUser = ownerSession
   ): List[ResourceAccess.AccessEntry] =
@@ -265,9 +256,9 @@ abstract class AccessResourceBehaviors[R <: Record, A <: Record](
   }
 
   it should "reject granting to a placeholder account" in {
-    val placeholderEmail = s"$placeholderHandle-placeholder@test.com"
+    val placeholderEmail = s"$label-placeholder@test.com"
     val placeholder = new User
-    placeholder.setName(s"${placeholderHandle}_placeholder")
+    placeholder.setName(s"${label}_placeholder")
     placeholder.setEmail(placeholderEmail)
     placeholder.setRole(UserRoleEnum.INACTIVE)
     placeholder.setIsPlaceholder(true)
@@ -279,7 +270,12 @@ abstract class AccessResourceBehaviors[R <: Record, A <: Record](
     accessList(privateId) shouldBe empty
   }
 
-  resourceOnlyGrantCases()
+  it should "reject granting to an unknown email" in {
+    assertThrows[BadRequestException] {
+      grant(privateId, "nobody@test.com", "READ", ownerSession)
+    }
+    accessList(privateId) shouldBe empty
+  }
 
   it should "update the privilege in place when re-granting with a different privilege" in {
     grant(privateId, readGranteeUser.getEmail, "READ", ownerSession)

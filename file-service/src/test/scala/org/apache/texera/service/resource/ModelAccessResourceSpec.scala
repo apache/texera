@@ -19,7 +19,6 @@
 
 package org.apache.texera.service.resource
 
-import jakarta.ws.rs.BadRequestException
 import jakarta.ws.rs.core.Response
 import org.apache.texera.auth.SessionUser
 import org.apache.texera.dao.jooq.generated.enums.PrivilegeEnum
@@ -27,8 +26,7 @@ import org.apache.texera.dao.jooq.generated.tables.daos.ModelDao
 import org.apache.texera.dao.jooq.generated.tables.pojos.{Model, User}
 import org.jooq.DSLContext
 
-class ModelAccessResourceSpec
-    extends AccessResourceBehaviors(ResourceTables.Model, placeholderHandle = "model") {
+class ModelAccessResourceSpec extends AccessResourceBehaviors(ResourceTables.Model) {
 
   private lazy val accessResource = new ModelAccessResource()
 
@@ -87,12 +85,4 @@ class ModelAccessResourceSpec
 
   override protected def ownerEmail(id: Integer, user: SessionUser): String =
     accessResource.getOwnerEmailOfModel(id, user)
-
-  override protected def resourceOnlyGrantCases(): Unit =
-    it should "reject granting to an unknown email" in {
-      assertThrows[BadRequestException] {
-        grant(privateId, "nobody@test.com", "READ", ownerSession)
-      }
-      accessList(privateId) shouldBe empty
-    }
 }

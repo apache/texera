@@ -26,8 +26,7 @@ import org.apache.texera.dao.jooq.generated.tables.daos.DatasetDao
 import org.apache.texera.dao.jooq.generated.tables.pojos.{Dataset, User}
 import org.jooq.DSLContext
 
-class DatasetAccessResourceSpec
-    extends AccessResourceBehaviors(ResourceTables.Dataset, placeholderHandle = "ds") {
+class DatasetAccessResourceSpec extends AccessResourceBehaviors(ResourceTables.Dataset) {
 
   private lazy val accessResource = new DatasetAccessResource()
 
