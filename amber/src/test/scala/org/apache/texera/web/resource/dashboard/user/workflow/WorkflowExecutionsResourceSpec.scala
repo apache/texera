@@ -30,13 +30,14 @@ import org.apache.texera.amber.core.workflow.{GlobalPortIdentity, PortIdentity}
 import org.apache.texera.amber.util.serde.GlobalPortIdentitySerde.SerdeOps
 import org.apache.texera.dao.MockTexeraDB
 import org.apache.texera.dao.jooq.generated.Tables._
-import org.apache.texera.dao.jooq.generated.enums.WorkflowComputingUnitTypeEnum
+import org.apache.texera.dao.jooq.generated.enums.{PrivilegeEnum, WorkflowComputingUnitTypeEnum}
 import org.apache.texera.dao.jooq.generated.tables.daos.{
   DatasetDao,
   UserDao,
   WorkflowComputingUnitDao,
   WorkflowDao,
   WorkflowExecutionsDao,
+  WorkflowUserAccessDao,
   WorkflowVersionDao
 }
 import org.apache.texera.dao.jooq.generated.tables.pojos.{
@@ -45,6 +46,7 @@ import org.apache.texera.dao.jooq.generated.tables.pojos.{
   Workflow,
   WorkflowComputingUnit,
   WorkflowExecutions,
+  WorkflowUserAccess,
   WorkflowVersion
 }
 import org.scalatest.flatspec.AnyFlatSpec
@@ -54,6 +56,7 @@ import java.net.URI
 import java.sql.Timestamp
 import java.util.UUID
 import java.util.concurrent.TimeUnit
+import javax.ws.rs.WebApplicationException
 import scala.collection.mutable.ArrayBuffer
 
 class WorkflowExecutionsResourceSpec
@@ -564,6 +567,67 @@ class WorkflowExecutionsResourceSpec
     assert(!survivorEids.contains(a.getEid))
     assert(!survivorEids.contains(b.getEid))
     assert(survivorEids.contains(survivor.getEid))
+  }
+
+  private def grantAccess(uid: Integer, privilege: PrivilegeEnum): Unit = {
+    val access = new WorkflowUserAccess
+    access.setUid(uid)
+    access.setWid(testWorkflowWid)
+    access.setPrivilege(privilege)
+    new WorkflowUserAccessDao(getDSLContext.configuration()).insert(access)
+  }
+
+  "validateUserCanAccessExecutions" should "authorize by the execution's workflow" in {
+    grantAccess(testUserId, PrivilegeEnum.WRITE)
+    val execution = insertExecution()
+    val eid = execution.getEid
+    val otherUserUid = testUserId + 100000
+
+    WorkflowExecutionsResource.validateUserCanAccessExecutions(
+      testUserId,
+      Seq(eid),
+      requireWrite = true
+    )
+
+    intercept[WebApplicationException] {
+      WorkflowExecutionsResource.validateUserCanAccessExecutions(
+        otherUserUid,
+        Seq(eid),
+        requireWrite = true
+      )
+    }
+
+    assert(
+      !WorkflowExecutionsResource.userCanAccessExecution(
+        testUserId,
+        eid + 999999,
+        requireWrite = false
+      )
+    )
+  }
+
+  it should "handle read" in {
+    val readUid = testUserId + 1
+    val readUser = new User
+    readUser.setUid(readUid)
+    readUser.setName("read_only_user")
+    readUser.setEmail("readonly-" + UUID.randomUUID().toString.substring(0, 8) + "@example.com")
+    readUser.setPassword("password")
+    userDao.insert(readUser)
+    grantAccess(readUid, PrivilegeEnum.READ)
+    val execution = insertExecution()
+    val eid = execution.getEid
+
+    try {
+      assert(WorkflowExecutionsResource.userCanAccessExecution(readUid, eid, requireWrite = false))
+      assert(!WorkflowExecutionsResource.userCanAccessExecution(readUid, eid, requireWrite = true))
+    } finally {
+      getDSLContext
+        .deleteFrom(WORKFLOW_USER_ACCESS)
+        .where(WORKFLOW_USER_ACCESS.UID.eq(readUid))
+        .execute()
+      getDSLContext.deleteFrom(USER).where(USER.UID.eq(readUid)).execute()
+    }
   }
 
   // ─── new: updateResultSize ────────────────────────────────────────────────
