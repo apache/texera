@@ -17,8 +17,19 @@
  * under the License.
  */
 
-package org.apache.texera.web.model.websocket.response
+package org.apache.texera.amber.operator.udf.r
 
-import org.apache.texera.web.model.websocket.event.TexeraWebSocketEvent
+import org.apache.texera.amber.operator.udf.UdfUiParameterSupport
+import org.apache.texera.amber.operator.udf.UiUDFParameter
 
-case class ClusterStatusUpdateEvent(numWorkers: Int) extends TexeraWebSocketEvent
+trait RUdfUiParameterSupport extends UdfUiParameterSupport {
+  def useTupleAPI: Boolean
+
+  override protected def injectParameterValues(
+      code: String,
+      parameters: List[UiUDFParameter]
+  ): String =
+    RUdfUiParameterInjector.inject(code, parameters)
+
+  override protected def uiParameterLanguage: String = if (useTupleAPI) "r-tuple" else "r-table"
+}

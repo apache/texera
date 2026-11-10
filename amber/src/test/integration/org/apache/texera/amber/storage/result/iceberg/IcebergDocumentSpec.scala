@@ -32,10 +32,7 @@ import org.apache.texera.amber.core.virtualidentity.{
 }
 import org.apache.texera.amber.core.workflow.{GlobalPortIdentity, PortIdentity}
 import org.apache.texera.amber.tags.IntegrationTest
-import org.apache.texera.amber.util.IcebergUtil
 import org.apache.iceberg.catalog.Catalog
-import org.apache.iceberg.data.Record
-import org.apache.iceberg.{Schema => IcebergSchema}
 import org.scalatest.BeforeAndAfterAll
 
 import java.lang.reflect.{InvocationHandler, InvocationTargetException, Method, Proxy}
@@ -48,11 +45,6 @@ import java.util.concurrent.atomic.AtomicInteger
 class IcebergDocumentSpec extends VirtualDocumentSpec[Tuple] with BeforeAndAfterAll {
 
   var amberSchema: Schema = _
-  var icebergSchema: IcebergSchema = _
-  var serde: (IcebergSchema, Tuple) => Record = _
-  var deserde: (IcebergSchema, Record) => Tuple = _
-  var catalog: Catalog = _
-  val tableNamespace = "test_namespace"
   var baseURI: URI = _
   var uri: URI = _
 
@@ -72,12 +64,6 @@ class IcebergDocumentSpec extends VirtualDocumentSpec[Tuple] with BeforeAndAfter
       )
     )
 
-    // Initialize Iceberg Schema
-    icebergSchema = IcebergUtil.toIcebergSchema(amberSchema)
-
-    // Initialize serialization and deserialization functions
-    serde = IcebergUtil.toGenericRecord
-    deserde = (schema, record) => IcebergUtil.fromRecord(record, amberSchema)
   }
 
   override def beforeEach(): Unit = {

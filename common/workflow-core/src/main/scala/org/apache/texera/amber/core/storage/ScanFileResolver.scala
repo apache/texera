@@ -17,8 +17,17 @@
  * under the License.
  */
 
-package org.apache.texera.web.model.websocket.request
+package org.apache.texera.amber.core.storage
 
-import org.apache.texera.amber.operator.LogicalOp
+import java.net.URI
 
-case class ModifyLogicRequest(operator: LogicalOp) extends TexeraWebSocketRequest
+/**
+  * Resolves the file name configured on a scan source operator to the URI to read.
+  */
+trait ScanFileResolver {
+
+  /**
+    * @throws org.apache.commons.vfs2.FileNotFoundException if the name does not resolve to a file
+    */
+  def resolve(fileName: String): URI
+}

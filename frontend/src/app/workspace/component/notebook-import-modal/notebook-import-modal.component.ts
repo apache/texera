@@ -18,7 +18,7 @@
  */
 
 import { Component, HostListener, inject, OnDestroy } from "@angular/core";
-import { FormBuilder, FormGroup, Validators, ReactiveFormsModule } from "@angular/forms";
+import { FormBuilder, FormControl, FormGroup, Validators, ReactiveFormsModule } from "@angular/forms";
 import { NZ_MODAL_DATA, NzModalRef } from "ng-zorro-antd/modal";
 import { NzUploadComponent, NzUploadFile } from "ng-zorro-antd/upload";
 import { Observable } from "rxjs";
@@ -29,16 +29,39 @@ import { NzSpinComponent } from "ng-zorro-antd/spin";
 import { NzButtonComponent } from "ng-zorro-antd/button";
 import { NzIconDirective } from "ng-zorro-antd/icon";
 import { NzTabsComponent, NzTabComponent, NzTabDirective } from "ng-zorro-antd/tabs";
+import { NzSegmentedComponent, NzSegmentedItemComponent } from "ng-zorro-antd/segmented";
+import { NzTooltipDirective } from "ng-zorro-antd/tooltip";
 import { NotebookMigrationService } from "../../service/notebook-migration/notebook-migration.service";
 import { folderRootName, pickedFilePath } from "../../service/notebook-migration/folder-assembly";
 import { NotificationService } from "../../../common/service/notification/notification.service";
+import { GuiConfigService } from "../../../common/service/gui-config.service";
+import { MigrationLanguage } from "../../service/notebook-migration/migration-llm";
 
 // Passed in via nzData. requestImport resolves true to close the modal, false to keep it open
 // with the user's selection intact (bad file or a retryable failure). A folder is handed over as
 // the whole picked list, which is also how the opener tells a folder from a single file.
 export interface NotebookImportModalData {
-  requestImport: (selection: NzUploadFile | NzUploadFile[], model: string) => Promise<boolean>;
+  requestImport: (
+    selection: NzUploadFile | NzUploadFile[],
+    model: string,
+    language: MigrationLanguage
+  ) => Promise<boolean>;
 }
+
+export const R_DISABLED_TOOLTIP = "R is not enabled on this deployment.";
+
+interface ImportTab {
+  kind: "notebook" | "file" | "folder";
+  // Absent on the notebook tab, whose language comes from its Python / R switch.
+  language?: MigrationLanguage;
+}
+
+// Same order as the tabs in the template.
+const IMPORT_TABS: readonly ImportTab[] = [
+  { kind: "notebook" },
+  { kind: "file", language: "python" },
+  { kind: "folder", language: "python" },
+];
 
 // How long after the last rejected file a drop is treated as over: long enough that a slow
 // directory walk stays one burst, short enough that a second drop is reported again.
@@ -53,7 +76,7 @@ function describeFolderSelection(files: readonly NzUploadFile[]): string {
 
 /**
  * The "AI Generate Workflow from Source Code" modal body: a tab per accepted input kind
- * (Jupyter notebook, Python script, Python folder), each with its own diagram, description and
+ * (Jupyter notebook in Python or R, Python script, Python folder), each with its own diagram, description and
  * upload control, over a shared model dropdown and footer.
  *
  * On Submit it hands the selection and model to requestImport and shows a loading state until
@@ -79,6 +102,9 @@ function describeFolderSelection(files: readonly NzUploadFile[]): string {
     NzTabsComponent,
     NzTabComponent,
     NzTabDirective,
+    NzSegmentedComponent,
+    NzSegmentedItemComponent,
+    NzTooltipDirective,
   ],
 })
 export class NotebookImportModalComponent implements OnDestroy {
@@ -87,6 +113,7 @@ export class NotebookImportModalComponent implements OnDestroy {
   private readonly notebookMigrationService = inject(NotebookMigrationService);
   private readonly notificationService = inject(NotificationService);
   private readonly data: NotebookImportModalData = inject(NZ_MODAL_DATA);
+  private readonly config = inject(GuiConfigService);
 
   public readonly importForm: FormGroup = this.fb.group({
     file: [null, Validators.required],
@@ -101,11 +128,27 @@ export class NotebookImportModalComponent implements OnDestroy {
   // Held as a field rather than an inline literal so the binding keeps a stable reference.
   public readonly tabAnimation = { inkBar: true, tabPane: false };
 
-  // Tab order: 0 = Jupyter notebook, 1 = Python file, 2 = Python folder.
   public selectedTabIndex = 0;
 
+  // A control rather than a field so the switch shows the right option when the tab re-renders.
+  public readonly notebookLanguage = new FormControl<MigrationLanguage>("python", { nonNullable: true });
+
+  public readonly rDisabledTooltip = R_DISABLED_TOOLTIP;
+
+  public get rMigrationEnabled(): boolean {
+    return this.config.env.rNotebookMigrationEnabled;
+  }
+
+  private get selectedTab(): ImportTab {
+    return IMPORT_TABS[this.selectedTabIndex];
+  }
+
   public get isFolderTab(): boolean {
-    return this.selectedTabIndex === 2;
+    return this.selectedTab.kind === "folder";
+  }
+
+  public get language(): MigrationLanguage {
+    return this.selectedTab.language ?? this.notebookLanguage.value;
   }
 
   /** What the upload row shows once something is picked, or null while nothing is. */
@@ -124,6 +167,10 @@ export class NotebookImportModalComponent implements OnDestroy {
    */
   public onTabChange(index: number): void {
     this.selectedTabIndex = index;
+    this.clearSelection();
+  }
+
+  public clearSelection(): void {
     const fileControl = this.importForm.get("file");
     fileControl?.reset(null);
     fileControl?.updateValueAndValidity();
@@ -215,7 +262,7 @@ export class NotebookImportModalComponent implements OnDestroy {
     this.modalRef.updateConfig({ nzClosable: false, nzMaskClosable: false, nzKeyboard: false });
     try {
       // Close only on success, so a failure leaves the modal open with the selection preserved.
-      if (await this.data.requestImport(selection, model)) {
+      if (await this.data.requestImport(selection, model, this.language)) {
         this.modalRef.close();
         return;
       }

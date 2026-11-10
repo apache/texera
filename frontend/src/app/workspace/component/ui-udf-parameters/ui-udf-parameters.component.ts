@@ -18,6 +18,7 @@
  */
 import { Component } from "@angular/core";
 import { NgFor, NgIf } from "@angular/common";
+import { FormControl, type AbstractControl } from "@angular/forms";
 import { FieldArrayType, FormlyFieldConfig, FormlyModule } from "@ngx-formly/core";
 import { NzButtonComponent } from "ng-zorro-antd/button";
 import { NzWaveDirective } from "ng-zorro-antd/core/wave";
@@ -31,6 +32,7 @@ import {
 } from "../../service/code-editor/ui-udf-parameters-parser.service";
 import { UiUdfParametersSyncService } from "../../service/code-editor/ui-udf-parameters-sync.service";
 import { DATASET_INPUT_TYPE, MODEL_INPUT_TYPE } from "../../service/code-editor/ui-udf-parameters-parser.service";
+import { UI_PARAMETER_TYPES } from "../../service/code-editor/ui-udf-parameter";
 import type { AttributeType } from "../../types/workflow-compiling.interface";
 
 type UiUdfParameterColumn = Readonly<{ label: string; key: string; parentKey?: string; disabled: boolean }>;
@@ -42,7 +44,7 @@ const RESOURCE_INPUT_TYPES: ReadonlySet<string> = new Set([MODEL_INPUT_TYPE, DAT
 /** The resource a row's value names, or "" for free text. */
 const resourceOf = (inputType?: string): string => (inputType && RESOURCE_INPUT_TYPES.has(inputType) ? inputType : "");
 
-/** Renders inferred Python UDF UI parameters with editable values and locked name/type columns. */
+/** Renders inferred UDF UI parameters with editable values and locked name/type columns. */
 @Component({
   selector: "texera-ui-udf-parameters",
   templateUrl: "./ui-udf-parameters.component.html",
@@ -61,6 +63,9 @@ export class UiUdfParametersComponent extends FieldArrayType<FormlyFieldConfig> 
   private readonly disabledStateConfigured = new WeakMap<FormlyFieldConfig, boolean>();
   // The resource each row's value editor was configured for.
   private readonly rowResources = new WeakMap<FormlyFieldConfig, string>();
+  // The controls of the cells currently locked, and the controls that carry the hold hook (see keepLocked).
+  private readonly lockedControls = new WeakSet<AbstractControl>();
+  private readonly hookedControls = new WeakSet<AbstractControl>();
 
   readonly fieldColumns: UiUdfParameterColumn[] = [
     VALUE_COLUMN,
@@ -68,7 +73,7 @@ export class UiUdfParametersComponent extends FieldArrayType<FormlyFieldConfig> 
     { label: "Type", key: "attributeType", parentKey: "attribute", disabled: true },
   ];
 
-  readonly addParameterTypeOptions: AttributeType[] = ["string", "integer", "long", "double", "boolean", "timestamp"];
+  readonly addParameterTypeOptions = UI_PARAMETER_TYPES;
   draftVisible = false;
 
   constructor(
@@ -83,7 +88,7 @@ export class UiUdfParametersComponent extends FieldArrayType<FormlyFieldConfig> 
     return this.workflowActionService.checkWorkflowModificationEnabled();
   }
 
-  /** Inserts the declaration into the operator's Python code; the row then appears through the normal code sync. */
+  /** Inserts the declaration into shared UDF code; the row then appears through the normal code sync. */
   addParameter(nameInput: HTMLInputElement, attributeType: string): void {
     const operatorId = this.workflowActionService.getJointGraphWrapper().getCurrentHighlightedOperatorIDs()[0];
     try {
@@ -207,8 +212,48 @@ export class UiUdfParametersComponent extends FieldArrayType<FormlyFieldConfig> 
   }
 
   private applyDisabledState(field: FormlyFieldConfig, disabled: boolean): void {
-    if (disabled) field.formControl?.disable({ emitEvent: false });
-    else field.formControl?.enable({ emitEvent: false });
+    const control = field.formControl;
+    if (!control) return;
+    if (disabled) {
+      control.disable({ emitEvent: false });
+      this.keepLocked(control);
+    } else {
+      this.lockedControls.delete(control);
+      control.enable({ emitEvent: false });
+    }
+  }
+
+  /**
+   * Hold a locked cell locked under any host. The operator property panel enables its whole form
+   * group when it turns interactive (and again after a run), and formly mirrors a control's state
+   * back into props.disabled, so a one-time disable did not survive there: the Name and Type cells
+   * came back editable on the canvas, while the Form View, which never enables a group wholesale,
+   * showed them locked. Angular tells a control's disabled-change hooks about every enable() and
+   * disable(), whoever calls them (formly's mirror is such a hook), so the one registered here
+   * disables the control again once a host has enabled it, and formly's mirror then records the
+   * lock in props.disabled as well. The disabling waits for the microtask after the enable(): the
+   * input's own value accessor is one more of these hooks, registered after this one when the cell
+   * renders, and had the control been disabled from inside the enable()'s round of hooks, the
+   * accessor would still have been told "enabled" last and the box would have shown editable over a
+   * locked control. The disabling also announces itself (statusChanges), as the enable() did: the
+   * cell's nz-input paints its disabled attribute from the status it was last told, and told only
+   * "enabled" it would paint the box editable again at the next change detection. Registered once
+   * per control, for good; a cell configured editable again leaves lockedControls
+   * (applyDisabledState) and the hook lets it be.
+   */
+  private keepLocked(control: AbstractControl): void {
+    this.lockedControls.add(control);
+    // The hook is a FormControl's (a cell's control always is one; a group has none to register).
+    if (!(control instanceof FormControl) || this.hookedControls.has(control)) return;
+    this.hookedControls.add(control);
+    control.registerOnDisabledChange((isDisabled: boolean) => {
+      if (isDisabled) return;
+      queueMicrotask(() => {
+        if (control.enabled && this.lockedControls.has(control)) {
+          control.disable();
+        }
+      });
+    });
   }
 
   trackByParameterName = (index: number, parameter: any): string | number => {

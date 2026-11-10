@@ -23,11 +23,18 @@ import { NoopAnimationsModule } from "@angular/platform-browser/animations";
 import { NZ_MODAL_DATA, NzModalRef } from "ng-zorro-antd/modal";
 import { of, Subject } from "rxjs";
 import { NzUploadFile } from "ng-zorro-antd/upload";
+import { NzTooltipDirective } from "ng-zorro-antd/tooltip";
+import { By } from "@angular/platform-browser";
 
-import { DROP_REJECTION_LATCH_MS, NotebookImportModalComponent } from "./notebook-import-modal.component";
+import {
+  DROP_REJECTION_LATCH_MS,
+  NotebookImportModalComponent,
+  R_DISABLED_TOOLTIP,
+} from "./notebook-import-modal.component";
 import { NotebookMigrationService } from "../../service/notebook-migration/notebook-migration.service";
 import { NotificationService } from "../../../common/service/notification/notification.service";
 import { commonTestProviders } from "../../../common/testing/test-utils";
+import { GuiConfigService } from "../../../common/service/gui-config.service";
 
 describe("NotebookImportModalComponent", () => {
   let fixture: ComponentFixture<NotebookImportModalComponent>;
@@ -38,7 +45,7 @@ describe("NotebookImportModalComponent", () => {
   let requestImport: ReturnType<typeof vi.fn>;
 
   // Configures the modal with the given models$ stream, then creates and renders it.
-  async function createWith(models$: unknown): Promise<void> {
+  async function createWith(models$: unknown, rNotebookMigrationEnabled = false): Promise<void> {
     await TestBed.configureTestingModule({
       imports: [NotebookImportModalComponent, HttpClientTestingModule, NoopAnimationsModule],
       providers: [
@@ -47,6 +54,7 @@ describe("NotebookImportModalComponent", () => {
         ...commonTestProviders,
       ],
     }).compileComponents();
+    TestBed.inject(GuiConfigService).env.rNotebookMigrationEnabled = rNotebookMigrationEnabled;
 
     notebookMigrationService = TestBed.inject(NotebookMigrationService);
     vi.spyOn(notebookMigrationService, "getAvailableModels").mockReturnValue(models$ as any);
@@ -149,7 +157,7 @@ describe("NotebookImportModalComponent", () => {
 
     await component.onSubmit();
 
-    expect(requestImport).toHaveBeenCalledWith(file, "gpt-4");
+    expect(requestImport).toHaveBeenCalledWith(file, "gpt-4", "python");
     expect(modalRef.close).toHaveBeenCalled();
   });
 
@@ -359,7 +367,7 @@ describe("NotebookImportModalComponent", () => {
 
     await component.onSubmit();
 
-    expect(requestImport).toHaveBeenCalledWith(file, "gpt-4");
+    expect(requestImport).toHaveBeenCalledWith(file, "gpt-4", "python");
     expect(modalRef.close).toHaveBeenCalledWith();
   });
 
@@ -391,7 +399,7 @@ describe("NotebookImportModalComponent", () => {
     ).click();
     await fixture.whenStable();
 
-    expect(requestImport).toHaveBeenCalledWith(file, "gpt-4");
+    expect(requestImport).toHaveBeenCalledWith(file, "gpt-4", "python");
     expect(modalRef.close).toHaveBeenCalledWith();
   });
 
@@ -513,7 +521,7 @@ describe("NotebookImportModalComponent", () => {
 
       await component.onSubmit();
 
-      expect(requestImport).toHaveBeenCalledWith(files, "gpt-4");
+      expect(requestImport).toHaveBeenCalledWith(files, "gpt-4", "python");
       expect(modalRef.close).toHaveBeenCalledWith();
     });
 
@@ -616,6 +624,84 @@ describe("NotebookImportModalComponent", () => {
 
       expect(component.importForm.get("file")?.value).toBeNull();
       expect((fixture.nativeElement as HTMLElement).textContent).not.toContain("Selected folder");
+    });
+  });
+
+  describe("notebook language switch", () => {
+    const root = () => fixture.nativeElement as HTMLElement;
+    const pane = () => root().querySelector(".ant-tabs-tabpane-active") as HTMLElement;
+    const option = (text: string) =>
+      Array.from(pane().querySelectorAll("label[nz-segmented-item]")).find(
+        label => label.textContent?.trim() === text
+      ) as HTMLElement;
+    const rTooltip = () =>
+      fixture.debugElement.queryAll(By.directive(NzTooltipDirective))[0].injector.get(NzTooltipDirective).title;
+
+    it("defaults to Python and keeps the Python diagram", async () => {
+      await createWith(of([{ name: "gpt-4" }]), true);
+
+      expect(component.notebookLanguage.value).toBe("python");
+      expect(component.language).toBe("python");
+      expect(pane().querySelector("img[alt='Notebook to Workflow']")).not.toBeNull();
+    });
+
+    it("disables R with an explanation while the R flag is off", async () => {
+      await createWith(of([{ name: "gpt-4" }]));
+
+      expect(option("R Notebook").classList).toContain("ant-segmented-item-disabled");
+      expect(rTooltip()).toBe(R_DISABLED_TOOLTIP);
+    });
+
+    it("enables R without a tooltip while the R flag is on", async () => {
+      await createWith(of([{ name: "gpt-4" }]), true);
+
+      expect(option("R Notebook").classList).not.toContain("ant-segmented-item-disabled");
+      expect(rTooltip()).toBeNull();
+    });
+
+    it("switches to R notebooks and drops the staged notebook", async () => {
+      await createWith(of([{ name: "gpt-4" }]), true);
+      component.importForm.patchValue({ file: { name: "analysis.ipynb" } });
+
+      option("R Notebook").click();
+      fixture.detectChanges();
+
+      expect(component.language).toBe("r");
+      expect(pane().querySelector("img[alt='R Notebook to Workflow']")).not.toBeNull();
+      expect(pane().textContent).toContain("Upload R Jupyter Notebook");
+      expect(component.importForm.get("file")?.value).toBeNull();
+    });
+
+    it("keeps R selected when the tab is re-rendered", async () => {
+      await createWith(of([{ name: "gpt-4" }]), true);
+      component.notebookLanguage.setValue("r");
+      component.onTabChange(1);
+      fixture.detectChanges();
+
+      component.onTabChange(0);
+      fixture.detectChanges();
+
+      expect(pane().querySelector("img[alt='R Notebook to Workflow']")).not.toBeNull();
+    });
+
+    it("uses each tab's own language outside the notebook tab", async () => {
+      await createWith(of([{ name: "gpt-4" }]), true);
+      component.notebookLanguage.setValue("r");
+
+      component.onTabChange(1);
+
+      expect(component.language).toBe("python");
+    });
+
+    it("submits R notebooks with the R language", async () => {
+      await createWith(of([{ name: "gpt-4" }]), true);
+      component.notebookLanguage.setValue("r");
+      const file = { name: "analysis.ipynb" } as NzUploadFile;
+      component.importForm.setValue({ file, model: "gpt-4" });
+
+      await component.onSubmit();
+
+      expect(requestImport).toHaveBeenCalledWith(file, "gpt-4", "r");
     });
   });
 });
