@@ -998,7 +998,7 @@ describe("ModelDetailComponent", () => {
     component.isRightBarCollapsed = true;
     fixture.detectChanges();
     // Hidden, not removed, so the uploader inside keeps any upload in flight.
-    expect(fixture.nativeElement.querySelector("nz-sider").hasAttribute("hidden")).toBe(true);
+    expect((fixture.nativeElement as HTMLElement).querySelector("nz-sider")?.hasAttribute("hidden")).toBe(true);
 
     component.isMaximized = true;
     fixture.detectChanges();
