@@ -560,15 +560,17 @@ class Operator(ABC):
         (``register_state``), or the value is not a scalar, not within 64
         bits, or not of the property's kind. As a JVM operator's binding does,
         it then binds nothing, whether or not the code would read the value,
-        and a later binding tries again. A name the operator does not require
-        may have two values: only a read of it fails then, as a JVM operator
-        fails only for a name its setting refers to.
+        and a later binding tries again. A name with two values is named once,
+        however many properties read it, as a JVM operator fails for it once.
+        A name the operator does not require may have two values: only a read
+        of it fails then, as a JVM operator fails only for a name its setting
+        refers to.
         """
         if self.__internal_bound_loop_variables is not None:
             return
+        conflicts = dict(self.__internal_loop_variable_conflicts or {})
         variables = _LoopVariables(
-            dict(self.__internal_loop_variables or {}),
-            dict(self.__internal_loop_variable_conflicts or {}),
+            dict(self.__internal_loop_variables or {}), conflicts
         )
         problems = []
         for name in self.__internal_required_loop_variables:
@@ -580,7 +582,10 @@ class Operator(ABC):
             try:
                 _loop_variable_value(name, kind, variables, True)
             except RuntimeError as error:
-                problems.append(str(error))
+                # Every read of a name with two values fails with the same
+                # error, which a text or an earlier kind may have named already.
+                if name not in conflicts or str(error) not in problems:
+                    problems.append(str(error))
         if problems:
             raise RuntimeError("; ".join(problems))
         self.__internal_bound_loop_variables = variables
