@@ -278,6 +278,7 @@ export class WorkflowVersionService {
     }
     this.workflowActionService.resetTempWorkflow();
     this.workflowPersistService.setWorkflowPersistFlag(true);
+    this.workflowActionService.enableWorkflowModification();
     this.modificationEnabledBeforeTempWorkflow = undefined;
     this.setDisplayParticularVersion(false);
   }
