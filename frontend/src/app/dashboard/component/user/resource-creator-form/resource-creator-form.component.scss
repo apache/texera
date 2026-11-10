@@ -16,48 +16,12 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-// Forked from user-dataset-version-creator.component.scss, dropping the uploader selectors.
-// Convergence with the dataset creator is tracked under #6494.
 
-.texera-user-model-creator-form {
-  width: 80%;
-  margin: auto;
-}
+@use "../resource-form-shared" as resource-form;
 
-.create-btn {
-  background-color: #ffffff;
-  color: #007bff;
-  border: 1px solid lightgray;
-  padding: 5px 20px;
-  cursor: pointer;
-  margin-left: 15%;
-  margin-right: 5%;
-  width: 30%;
-  text-align: center;
-  &:hover {
-    background-color: #0069d9;
-    color: #ffffff;
-  }
-}
+@include resource-form.editor-layout(".creator-form", ".create-btn", 10%);
 
-.cancel-btn {
-  background-color: #ffffff;
-  color: #ff0000;
-  border: 1px solid lightgray;
-  padding: 5px 20px;
-  cursor: pointer;
-  margin-right: 15%;
-  margin-left: 5%;
-  margin-top: 10%;
-  width: 30%;
-  text-align: center;
-  &:hover {
-    background-color: #cc0000;
-    color: #ffffff;
-  }
-}
-
-.model-toggles {
+.creator-toggles {
   margin-top: 16px;
   margin-bottom: 16px;
 }
