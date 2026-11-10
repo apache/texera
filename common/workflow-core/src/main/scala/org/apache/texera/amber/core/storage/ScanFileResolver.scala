@@ -17,23 +17,17 @@
  * under the License.
  */
 
-//package org.apache.texera.web.resource
-//
-//import .KillAndRecover
-//import javax.ws.rs.core.MediaType
-//import javax.ws.rs.{POST, Path, Produces}
-//
-//@Path("/kill")
-//@Produces(Array(MediaType.APPLICATION_JSON))
-//class MockKillWorkerResource() {
-//
-//  @POST
-//  @Path("/worker") def mockKillWorker: Unit = {
-//    WorkflowWebsocketResource.sessionJobs.foreach(p => {
-//      val coordinator = p._2._2
-//      Thread.sleep(1500)
-//      coordinator ! KillAndRecover
-//    })
-//  }
-//
-//}
+package org.apache.texera.amber.core.storage
+
+import java.net.URI
+
+/**
+  * Resolves the file name configured on a scan source operator to the URI to read.
+  */
+trait ScanFileResolver {
+
+  /**
+    * @throws org.apache.commons.vfs2.FileNotFoundException if the name does not resolve to a file
+    */
+  def resolve(fileName: String): URI
+}
