@@ -33,6 +33,7 @@ function makeAgent(): TexeraAgent {
     model: {} as any,
     modelType: "test-model",
     agentId: "agent-1",
+    userToken: "user-token",
   });
 }
 
@@ -85,9 +86,10 @@ describe("TexeraAgent", () => {
 
     test("falls back to a name derived from the id", () => {
       expect(makeAgent().agentName).toBe("Agent-agent-1");
-      expect(new TexeraAgent({ model: {} as any, modelType: "m", agentId: "a", agentName: "Named" }).agentName).toBe(
-        "Named"
-      );
+      expect(
+        new TexeraAgent({ model: {} as any, modelType: "m", agentId: "a", agentName: "Named", userToken: "t" })
+          .agentName
+      ).toBe("Named");
     });
   });
 
@@ -345,7 +347,13 @@ const textModel = (text: string, i = 11, o = 7) =>
  *  could then fire after the fetch spy is restored and issue a real request. */
 const liveAgents: TexeraAgent[] = [];
 function makeAgentWith(model: any): TexeraAgent {
-  const agent = new TexeraAgent({ model, modelType: "test-model", agentId: "agent-1", systemPrompt: "SYS-XYZ" });
+  const agent = new TexeraAgent({
+    model,
+    modelType: "test-model",
+    agentId: "agent-1",
+    systemPrompt: "SYS-XYZ",
+    userToken: "user-token",
+  });
   liveAgents.push(agent);
   return agent;
 }
@@ -607,8 +615,10 @@ describe("sendMessage", () => {
       resultMode: "SET_SNAPSHOT",
       result: [{ a: 1 }, { a: 2 }],
     } as any);
-    fetchSpy.mockImplementation((async (u: any) => {
+    let compileHeaders: any;
+    fetchSpy.mockImplementation((async (u: any, init: any) => {
       urls.push(String(u));
+      compileHeaders = init?.headers;
       return {
         ok: true,
         json: async () => ({
@@ -621,6 +631,7 @@ describe("sendMessage", () => {
     const txt = (model as any).doGenerateCalls[0].prompt[1].content[0].text;
     expect(res.error).toBeUndefined();
     expect(urls).toEqual(["http://localhost:9090/api/compile"]);
+    expect(compileHeaders.Authorization).toBe("Bearer user-token");
     expect(txt).toContain("Output Schema: [a: integer]");
     expect(txt).toContain("(CSVFileScan, executed)");
     expect(txt).toContain("Result:\n  Executed operator op-1\n  Output table shape: (2, 1)");

@@ -21,15 +21,18 @@ package org.apache.texera.service.resource
 
 import com.fasterxml.jackson.annotation.{JsonSubTypes, JsonTypeInfo}
 import com.typesafe.scalalogging.LazyLogging
+import io.dropwizard.auth.Auth
 import jakarta.annotation.security.RolesAllowed
 import jakarta.ws.rs.core.MediaType
 import jakarta.ws.rs.{Consumes, POST, Path, Produces}
+import org.apache.texera.amber.core.storage.FileResolver
 import org.apache.texera.amber.core.tuple.Schema
 import org.apache.texera.amber.core.virtualidentity.{OperatorIdentity, WorkflowIdentity}
 import org.apache.texera.amber.core.workflow.{PortIdentity, WorkflowContext}
 import org.apache.texera.common.compiler.model.{LogicalPlan, LogicalPlanPojo}
 import org.apache.texera.common.compiler.{CompilationErrorHandling, WorkflowCompiler}
 import org.apache.texera.amber.translator.WorkflowToPythonTranslator
+import org.apache.texera.auth.SessionUser
 
 @JsonTypeInfo(
   use = JsonTypeInfo.Id.NAME,
@@ -59,7 +62,8 @@ class WorkflowToPythonResource extends LazyLogging {
   @POST
   @Path("")
   def convertWorkflowToPython(
-      logicalPlanPojo: LogicalPlanPojo
+      logicalPlanPojo: LogicalPlanPojo,
+      @Auth user: SessionUser
   ): WorkflowToPythonResponse = {
     try {
       val logicalPlan = LogicalPlan(logicalPlanPojo)
@@ -69,7 +73,8 @@ class WorkflowToPythonResource extends LazyLogging {
       // typed and the CSV reader quietly dropped the timestamp columns it would have
       // parsed. And a downstream operator that renders a column as text needs the type the
       // column was DECLARED as, which the file it reads cannot carry.
-      val pythonCode = translator.translate(logicalPlan, outputSchemasOf(logicalPlanPojo))
+      val pythonCode =
+        translator.translate(logicalPlan, outputSchemasOf(logicalPlanPojo, user.getUid))
       WorkflowToPythonSuccess(pythonCode)
     } catch {
       case e: Exception =>
@@ -85,12 +90,14 @@ class WorkflowToPythonResource extends LazyLogging {
     * before, only without what the schema adds.
     */
   private def outputSchemasOf(
-      logicalPlanPojo: LogicalPlanPojo
+      logicalPlanPojo: LogicalPlanPojo,
+      uid: Integer
   ): Map[OperatorIdentity, Map[PortIdentity, Option[Schema]]] =
     try {
-      new WorkflowCompiler(new WorkflowContext(workflowId = WorkflowIdentity(0)))
-        .compile(logicalPlanPojo, CompilationErrorHandling.Lenient)
-        .operatorIdToOutputSchemas
+      new WorkflowCompiler(
+        new WorkflowContext(workflowId = WorkflowIdentity(0)),
+        FileResolver.forUser(uid)
+      ).compile(logicalPlanPojo, CompilationErrorHandling.Lenient).operatorIdToOutputSchemas
     } catch {
       case e: Exception =>
         logger.warn("Could not resolve output schemas; translating without them", e)

@@ -383,7 +383,8 @@ class TestExecutorManager:
         self, executor_manager
     ):
         # The numeric and boolean properties' references too: each once, by
-        # name and kind, after the text ones.
+        # name and kind, after the text ones. The last state comes from a more
+        # deeply nested loop, so it replaces the value.
         executor_manager.initialize_executor(
             code=GENERATED_VALUE_LOOKUPS_CODE, is_source=False, language="python"
         )
@@ -396,10 +397,10 @@ class TestExecutorManager:
             "carried it before the operator's first tuple or the end of an input"
             for name in ("t", "alpha", "n")
         )
-        executor.register_state(State({"t": "x", "alpha": 0.5, "n": 3000000000}))
+        executor.register_state(State({"t": "x", "alpha": 0.5, "n": 3000000000}), 1)
         with pytest.raises(RuntimeError, match="does not fit its property"):
             executor.bind_loop_variables()
-        executor.register_state(State({"n": 3}))
+        executor.register_state(State({"n": 3}), 0)
         executor.bind_loop_variables()
         assert executor.loop_variable_value("n", "integer") == 3
 
