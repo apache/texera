@@ -22,29 +22,27 @@
     [nzSpinning]="isCreating"
     nzSize="large"
     nzTip="Creating...">
-    <div
-      [class]="creatorForm.formClass"
-      [ngClass]="{'disabled-backdrop': isCreating}">
+    <div class="creator-form">
       <formly-form
         [form]="form"
         [fields]="fields"
-        [model]="creatorForm.model()"></formly-form>
+        [model]="model"></formly-form>
       <div
-        *ngIf="creatorForm.showToggles()"
-        [class]="creatorForm.togglesClass">
+        *ngIf="showToggles"
+        class="creator-toggles">
         <div class="toggle-item">
           <label>Visibility:</label>
           <nz-switch
-            [ngModel]="creatorForm.publicStatus()"
-            (ngModelChange)="onPublicStatusChange($event)"
+            [ngModel]="isPublic"
+            (ngModelChange)="isPublicChange.emit($event)"
             nzCheckedChildren="public"
             nzUnCheckedChildren="private"></nz-switch>
         </div>
         <div class="toggle-item">
           <label>Downloadable:</label>
           <nz-switch
-            [ngModel]="creatorForm.downloadableStatus()"
-            (ngModelChange)="onDownloadableStatusChange($event)"
+            [ngModel]="isDownloadable"
+            (ngModelChange)="isDownloadableChange.emit($event)"
             nzCheckedChildren="enabled"
             nzUnCheckedChildren="disabled"></nz-switch>
         </div>
@@ -54,7 +52,7 @@
     <button
       nz-button
       nzType="primary"
-      (click)="onClickCreate()"
+      (click)="createClick.emit()"
       [disabled]="isCreating"
       class="create-btn">
       Create
@@ -63,7 +61,7 @@
     <button
       nz-button
       nzType="default"
-      (click)="onClickCancel()"
+      (click)="cancelClick.emit()"
       class="cancel-btn"
       [disabled]="isCreating">
       Cancel

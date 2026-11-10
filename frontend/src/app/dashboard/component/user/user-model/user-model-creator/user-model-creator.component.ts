@@ -18,17 +18,11 @@
  */
 
 import { Component, OnInit } from "@angular/core";
-import { FormGroup, FormsModule } from "@angular/forms";
-import { FormlyFieldConfig, FormlyModule } from "@ngx-formly/core";
+import { FormGroup } from "@angular/forms";
+import { FormlyFieldConfig } from "@ngx-formly/core";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 import { HttpErrorResponse } from "@angular/common/http";
 import { NzModalRef } from "ng-zorro-antd/modal";
-import { NzSpinComponent } from "ng-zorro-antd/spin";
-import { NgClass, NgIf } from "@angular/common";
-import { NzSwitchComponent } from "ng-zorro-antd/switch";
-import { NzButtonComponent } from "ng-zorro-antd/button";
-import { NzWaveDirective } from "ng-zorro-antd/core/wave";
-import { ɵNzTransitionPatchDirective } from "ng-zorro-antd/core/transition-patch";
 
 import {
   MODEL_FORMATS,
@@ -38,6 +32,7 @@ import {
 } from "../../../../service/user/model/model.service";
 import { Model } from "../../../../../common/type/model";
 import { NotificationService } from "../../../../../common/service/notification/notification.service";
+import { ResourceCreatorFormComponent } from "../../resource-creator-form/resource-creator-form.component";
 
 export function sanitizeModelName(name: string): string {
   return name
@@ -49,19 +44,8 @@ export function sanitizeModelName(name: string): string {
 @UntilDestroy()
 @Component({
   selector: "texera-user-model-creator",
-  templateUrl: "../../resource-creator/resource-creator-form.html",
-  styleUrls: ["./user-model-creator.component.scss"],
-  imports: [
-    NzSpinComponent,
-    NgClass,
-    NgIf,
-    FormlyModule,
-    NzSwitchComponent,
-    FormsModule,
-    NzButtonComponent,
-    NzWaveDirective,
-    ɵNzTransitionPatchDirective,
-  ],
+  templateUrl: "./user-model-creator.component.html",
+  imports: [ResourceCreatorFormComponent],
 })
 export class UserModelCreatorComponent implements OnInit {
   public form: FormGroup = new FormGroup({});
@@ -72,15 +56,6 @@ export class UserModelCreatorComponent implements OnInit {
   isModelDownloadable: boolean = false;
   isModelNameSanitized: boolean = false;
   isCreating: boolean = false;
-
-  readonly creatorForm = {
-    formClass: "texera-user-model-creator-form",
-    togglesClass: "model-toggles",
-    model: () => this.formModel,
-    showToggles: () => true,
-    publicStatus: () => this.isModelPublic,
-    downloadableStatus: () => this.isModelDownloadable,
-  };
 
   constructor(
     private modalRef: NzModalRef,

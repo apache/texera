@@ -17,11 +17,23 @@
  * under the License.
  */
 
-@use "../../resource-form-shared" as resource-form;
+@use "../resource-form-shared" as resource-form;
 
-// Forked from user-dataset-version-creator.component.scss, dropping the uploader selectors.
-// Convergence with the dataset creator is tracked under #6494.
+@include resource-form.editor-layout(".creator-form", ".create-btn", 10%);
 
-@include resource-form.editor-layout(".texera-user-model-creator-form", ".create-btn", 10%, #0069d9);
+.creator-toggles {
+  margin-top: 16px;
+  margin-bottom: 16px;
+}
 
-@include resource-form.toggles(".model-toggles");
+.toggle-item {
+  display: flex;
+  align-items: center;
+  margin-bottom: 12px;
+
+  label {
+    margin-right: 12px;
+    min-width: 80px;
+    font-weight: 500;
+  }
+}

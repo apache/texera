@@ -15,7 +15,9 @@
 // specific language governing permissions and limitations
 // under the License.
 
-@mixin editor-layout($form-selector, $primary-selector, $cancel-margin-top, $primary-hover: darken(#007bff, 10%)) {
+@use "sass:color";
+
+@mixin editor-layout($form-selector, $primary-selector, $cancel-margin-top) {
   #{$form-selector} {
     width: 80%;
     margin: auto;
@@ -32,7 +34,7 @@
     width: 30%;
     text-align: center;
     &:hover {
-      background-color: $primary-hover;
+      background-color: color.adjust(#007bff, $lightness: -10%);
       color: #ffffff;
     }
   }
@@ -49,27 +51,8 @@
     width: 30%;
     text-align: center;
     &:hover {
-      background-color: darken(#ff0000, 10%);
+      background-color: color.adjust(#ff0000, $lightness: -10%);
       color: #ffffff;
-    }
-  }
-}
-
-@mixin toggles($toggle-selector) {
-  #{$toggle-selector} {
-    margin-top: 16px;
-    margin-bottom: 16px;
-  }
-
-  .toggle-item {
-    display: flex;
-    align-items: center;
-    margin-bottom: 12px;
-
-    label {
-      margin-right: 12px;
-      min-width: 80px;
-      font-weight: 500;
     }
   }
 }
