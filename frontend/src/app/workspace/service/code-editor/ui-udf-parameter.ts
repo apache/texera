@@ -21,7 +21,7 @@ import contract from "../../../../../../common/workflow-operator/src/main/resour
 import type { AttributeType, SchemaAttribute } from "../../types/workflow-compiling.interface";
 
 export type UiUdfParameter = Readonly<{ attribute: SchemaAttribute; value: string; inputType?: string }>;
-export type UiUdfLanguage = "python" | "r";
+export type UiUdfLanguage = "python" | "r" | "java";
 export class UiUdfParametersParseError extends Error {}
 export class UiUdfParametersEditError extends Error {}
 
@@ -61,3 +61,5 @@ export function assertUniqueParameterNames(parameters: UiUdfParameter[]): UiUdfP
   }
   return parameters;
 }
+
+export const JAVA_UI_PARAMETER_TYPES = contract.javaTypes;
