@@ -136,6 +136,40 @@ describe("React workflow WebSocket", () => {
     await vi.advanceTimersByTimeAsync(100);
     await rejection;
   });
+  it("releases an aborted result request while keeping other requests on the shared socket", async () => {
+    vi.useFakeTimers();
+    const { socket, opened } = build();
+    const wire = opened[0].ws;
+    wire.open();
+    const baseline = vi.getTimerCount();
+    const controller = new AbortController();
+    const request = (requestID: string, signal?: AbortSignal) =>
+      socket.request(
+        "ResultPaginationRequest",
+        { requestID, operatorID: "op", pageIndex: 1, pageSize: 20 },
+        "PaginatedResultEvent",
+        requestID,
+        100,
+        signal
+      );
+    const previous = request("previous", controller.signal).catch((error: unknown) => error);
+    const current = request("current").catch((error: unknown) => error);
+    expect(vi.getTimerCount()).toBe(baseline + 2);
+
+    controller.abort();
+    expect(vi.getTimerCount()).toBe(baseline + 1);
+    wire.message({ type: "PaginatedResultEvent", requestID: "previous", table: [{ x: "stale" }] });
+    wire.message({ type: "PaginatedResultEvent", requestID: "current", table: [{ x: "fresh" }] });
+    await expect(previous).resolves.toMatchObject({ name: "AbortError" });
+    await expect(current).resolves.toMatchObject({ table: [{ x: "fresh" }] });
+    expect(vi.getTimerCount()).toBe(baseline);
+    expect(wire.close).not.toHaveBeenCalled();
+
+    wire.send.mockClear();
+    await expect(request("already-aborted", controller.signal)).rejects.toMatchObject({ name: "AbortError" });
+    expect(wire.send).not.toHaveBeenCalled();
+    expect(vi.getTimerCount()).toBe(baseline);
+  });
   it("ignores malformed messages, exposes the error and still handles the next valid message", () => {
     const { socket, opened } = build();
     const events = vi.fn();

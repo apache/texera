@@ -17,8 +17,11 @@
  * under the License.
  */
 
+import { fileURLToPath } from "node:url";
+
 const PREFIX = "\0texera-monaco-style:";
 const NO_NODE_FS = "\0texera-monaco-browser-fs";
+const ENCODING_STUB = fileURLToPath(new URL("./jschardet-stub/index.js", import.meta.url)).replaceAll("\\", "/");
 export function isMonacoStylesheet(id) {
   return /\/node_modules\/(?:@codingame\/monaco-vscode-[^/]+|monaco-editor|vscode)\/.*\.css$/.test(
     id.replaceAll("\\", "/")
@@ -34,6 +37,8 @@ export function monacoStylesheets() {
     enforce: "pre",
     async resolveId(source, importer) {
       if (source.startsWith(PREFIX) || source === NO_NODE_FS) return source;
+      // Resolve the ASF-licensed stub even when Windows blocks Yarn's portal junction.
+      if (source === "jschardet") return ENCODING_STUB;
       if (source === "node:fs/promises" && importer?.replaceAll("\\", "/").includes("/@vscode/diff/"))
         return NO_NODE_FS;
       if (!source.endsWith(".css")) return undefined;

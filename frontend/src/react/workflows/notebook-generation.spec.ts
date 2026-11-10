@@ -95,7 +95,68 @@ describe("React notebook/script/folder generation", () => {
     expect(result.wid).toBe(4);
     expect(calls).toEqual(["/api/workflow/create", "/api/notebook-migration/store-notebook-and-mapping"]);
     expect(JSON.parse(String(fetch.mock.calls[0][1]?.body)).name).toHaveLength(128);
+    expect(engine.convertNotebookToWorkflow).toHaveBeenCalledWith(notebook, "python");
     expect(engine.close).toHaveBeenCalledTimes(1);
+  });
+  it("passes the enabled R flag and explicit language to notebook and script conversion", async () => {
+    const api = new ApiClient({
+      fetch: vi.fn(async (path: string) =>
+        path.endsWith("/create") ? Response.json({ workflow: { wid: 4, content } }) : Response.json({ success: true })
+      ),
+    });
+    const rNotebook = { cells: [{ cell_type: "code", metadata: {}, source: 'print("こんにちは")' }] };
+    const converted = {
+      workflowJSON: content,
+      workflowNotebookMapping: { operator_to_cell: {}, cell_to_operator: {} },
+    };
+    const engine = {
+      initialize: vi.fn(),
+      verifyConnection: vi.fn().mockResolvedValue(true),
+      convertNotebookToWorkflow: vi.fn().mockResolvedValue(JSON.stringify(converted)),
+      convertScriptToWorkflow: vi.fn().mockResolvedValue({ ...converted, notebook: rNotebook }),
+      convertFolderToWorkflow: vi.fn(),
+      close: vi.fn(),
+    };
+    const createLLM = vi.fn(() => engine);
+    const generator = new NotebookGenerator(
+      api,
+      new WorkflowRepository(api),
+      { pythonNotebookMigrationEnabled: true, rNotebookMigrationEnabled: true },
+      { createLLM, operatorFactory: { getNewOperatorPredicate: vi.fn() } }
+    );
+    await expect(
+      generator.generate({ kind: "notebook", notebook: rNotebook, name: "r" }, "test", "r")
+    ).resolves.toEqual({
+      wid: 4,
+    });
+    await expect(
+      generator.generate({ kind: "script", source: rNotebook.cells[0].source, name: "r" }, "test", "r")
+    ).resolves.toEqual({ wid: 4 });
+    expect(createLLM).toHaveBeenCalledWith(
+      expect.objectContaining({ env: expect.objectContaining({ rNotebookMigrationEnabled: true }) }),
+      expect.anything()
+    );
+    expect(engine.convertNotebookToWorkflow).toHaveBeenCalledWith(rNotebook, "r");
+    expect(engine.convertScriptToWorkflow).toHaveBeenCalledWith(rNotebook.cells[0].source, "r");
+  });
+  it.each([false, undefined])("rejects R conversion before making a request when the flag is %s", async flag => {
+    const fetch = vi.fn();
+    const createLLM = vi.fn();
+    const api = new ApiClient({ fetch });
+    const generator = new NotebookGenerator(
+      api,
+      new WorkflowRepository(api),
+      { pythonNotebookMigrationEnabled: true, rNotebookMigrationEnabled: flag },
+      { createLLM }
+    );
+    await expect(generator.generate({ kind: "notebook", notebook, name: "r" }, "test", "r")).rejects.toThrow(
+      "R notebook migration is disabled"
+    );
+    await expect(generator.generate({ kind: "script", source: "x <- 1", name: "r" }, "test", "r")).rejects.toThrow(
+      "R notebook migration is disabled"
+    );
+    expect(fetch).not.toHaveBeenCalled();
+    expect(createLLM).not.toHaveBeenCalled();
   });
   it("retains the created workflow when notebook attachment fails and closes failed sessions", async () => {
     const api = new ApiClient({

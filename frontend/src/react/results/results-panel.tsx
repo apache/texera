@@ -568,23 +568,21 @@ function RowDetails({
     [error, setError] = useState(""),
     [copy, setCopy] = useState("");
   useEffect(() => {
-    let active = true;
+    const controller = new AbortController();
     setResult(undefined);
     setError("");
-    void repository.row(operatorID, rowIndex, pageSize, portIndex).then(
+    void repository.row(operatorID, rowIndex, pageSize, portIndex, controller.signal).then(
       value => {
-        if (active) {
+        if (!controller.signal.aborted) {
           setResult(value);
           if (!value) setError("This row is no longer available.");
         }
       },
       reason => {
-        if (active) setError(errorText(reason));
+        if (!controller.signal.aborted) setError(errorText(reason));
       }
     );
-    return () => {
-      active = false;
-    };
+    return () => controller.abort();
   }, [repository, operatorID, rowIndex, pageSize, portIndex]);
   return (
     <div className="result-modal-backdrop">
@@ -645,24 +643,29 @@ function ResultMedia({ value, api }: { value: unknown; api?: ApiClient }) {
     kind = mediaLabel(value);
   const [source, setSource] = useState<string>();
   useEffect(() => {
-    let active = true,
-      url: string | undefined;
+    const controller = new AbortController();
+    let url: string | undefined;
     setSource(undefined);
     if (!kind) return;
     if (/^https?:\/\//i.test(text)) {
       if (api)
-        void api.get<Blob>("huggingface/media-proxy?url=" + encodeURIComponent(text), { responseType: "blob" }).then(
-          blob => {
-            if (active) {
-              url = URL.createObjectURL(blob);
-              setSource(url);
-            }
-          },
-          () => undefined
-        );
+        void api
+          .get<Blob>("huggingface/media-proxy?url=" + encodeURIComponent(text), {
+            responseType: "blob",
+            signal: controller.signal,
+          })
+          .then(
+            blob => {
+              if (!controller.signal.aborted) {
+                url = URL.createObjectURL(blob);
+                setSource(url);
+              }
+            },
+            () => undefined
+          );
     } else setSource(text);
     return () => {
-      active = false;
+      controller.abort();
       if (url) URL.revokeObjectURL(url);
     };
   }, [api, text, kind]);

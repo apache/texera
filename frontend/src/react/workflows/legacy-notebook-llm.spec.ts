@@ -18,3 +18,4 @@
  */
 
 await import("../../core/workspace/service/notebook-migration/migration-llm.spec");
+await import("../../core/workspace/service/notebook-migration/migration-prompts-r.spec");

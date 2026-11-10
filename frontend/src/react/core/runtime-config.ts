@@ -50,6 +50,7 @@ export interface GuiConfig {
   activeTimeInMinutes?: number;
   limitColumns?: number;
   pythonNotebookMigrationEnabled?: boolean;
+  rNotebookMigrationEnabled?: boolean;
   pythonNotebookMigrationTimeoutMinutes?: number;
   deploymentVersionCheckEnabled?: boolean;
   [key: string]: unknown;

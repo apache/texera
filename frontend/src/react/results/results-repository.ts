@@ -105,7 +105,7 @@ export class ResultsRepository {
   clearNavigation(): void {
     navigationBySocket.delete(this.socket);
   }
-  async page(operatorID: string, options: ResultPageOptions): Promise<PaginatedResultEvent> {
+  async page(operatorID: string, options: ResultPageOptions, signal?: AbortSignal): Promise<PaginatedResultEvent> {
     if (!operatorID) throw new Error("Invalid operator.");
     const {
       pageIndex,
@@ -134,7 +134,9 @@ export class ResultsRepository {
         ...(portIndex ? { portIndex } : {}),
       },
       "PaginatedResultEvent",
-      requestID
+      requestID,
+      undefined,
+      signal
     );
     if (
       response.operatorID !== operatorID ||
@@ -160,16 +162,21 @@ export class ResultsRepository {
     operatorID: string,
     rowIndex: number,
     pageSize: number,
-    portIndex = 0
+    portIndex = 0,
+    signal?: AbortSignal
   ): Promise<Record<string, unknown> | undefined> {
     integer(rowIndex, "row");
     integer(pageSize, "page size", 1);
-    const page = await this.page(operatorID, {
-      pageIndex: Math.floor(rowIndex / pageSize) + 1,
-      pageSize,
-      portIndex,
-      columnLimit: ALL_COLUMNS,
-    });
+    const page = await this.page(
+      operatorID,
+      {
+        pageIndex: Math.floor(rowIndex / pageSize) + 1,
+        pageSize,
+        portIndex,
+        columnLimit: ALL_COLUMNS,
+      },
+      signal
+    );
     return page.table[rowIndex % pageSize] as Record<string, unknown> | undefined;
   }
   async prepareExport(input: ResultExportInput): Promise<{ request: ResultExportRequest; blocked: string[] }> {

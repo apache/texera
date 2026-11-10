@@ -18,14 +18,17 @@
  */
 
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { act, cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { act, cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { ResultsPanel } from "./results-panel";
 import { ApiClient } from "../core/api-client";
 import type { WorkflowRuntime, RuntimeSnapshot } from "../workspace/workflow-runtime";
 import type { WorkflowSession } from "../workspace/workflow-session";
 import type { GuiConfig } from "../../core/common/type/gui-config";
 import { ExecutionState } from "../../core/workspace/types/execute-workflow.interface";
-afterEach(cleanup);
+afterEach(() => {
+  cleanup();
+  vi.unstubAllGlobals();
+});
 function build() {
   let snapshot = {
     state: "Completed",
@@ -39,7 +42,14 @@ function build() {
   };
   const listeners = new Set<() => void>();
   const request = vi.fn(
-    async (_type: string, payload: { portIndex?: number; operatorID: string; pageIndex: number }) => ({
+    async (
+      _type: string,
+      payload: { portIndex?: number; operatorID: string; pageIndex: number },
+      _responseType?: string,
+      _requestId?: string,
+      _timeoutMs?: number,
+      _signal?: AbortSignal
+    ) => ({
       type: "PaginatedResultEvent",
       ...payload,
       portIndex: payload.portIndex ?? 0,
@@ -180,6 +190,100 @@ describe("React results", () => {
     );
     await screen.findByText("Still current");
     expect(props.request).toHaveBeenCalledTimes(1);
+  });
+  it("cancels superseded row requests and leaves the visible table untouched", async () => {
+    const props = build();
+    render(<ResultsPanel {...props} />);
+    await screen.findByText("hello");
+    const response = await props.request.mock.results[0].value;
+    type Page = Awaited<ReturnType<typeof props.request>>;
+    let resolvePrevious!: (page: Page) => void;
+    props.request.mockImplementationOnce(
+      () =>
+        new Promise(resolve => {
+          resolvePrevious = resolve;
+        })
+    );
+    fireEvent.click(screen.getByRole("button", { name: "View row 1" }));
+    const dialog = within(screen.getByRole("dialog", { name: "Row details" }));
+    const previous = props.request.mock.calls.at(-1)?.[5];
+    expect(previous?.aborted).toBe(false);
+
+    props.request.mockResolvedValueOnce({
+      ...response,
+      table: [
+        { first: "other", second: null },
+        { first: "current row", second: null },
+      ],
+    });
+    fireEvent.click(dialog.getByRole("button", { name: "Next row" }));
+    const current = props.request.mock.calls.at(-1)?.[5];
+    expect(previous?.aborted).toBe(true);
+    expect(current?.aborted).toBe(false);
+    await dialog.findByText("current row");
+
+    await act(async () => resolvePrevious({ ...response, table: [{ first: "stale row", second: null }] }));
+    expect(dialog.queryByText("stale row")).toBeNull();
+    expect(dialog.queryByRole("alert")).toBeNull();
+    fireEvent.click(dialog.getByRole("button", { name: "Close" }));
+    expect(current?.aborted).toBe(true);
+    expect(screen.getByText("hello")).toBeTruthy();
+  });
+  it("aborts row media on navigation or close and revokes each displayed blob URL", async () => {
+    const props = build();
+    const mediaUrls = ["first", "second", "third"].map(name => `https://host/${name}.mp4`);
+    props.request.mockImplementation(async (type, payload) => ({
+      type,
+      ...payload,
+      portIndex: 0,
+      totalTuples: mediaUrls.length,
+      schema: [{ attributeName: "first", attributeType: "string" }],
+      table: mediaUrls.map(first => ({ first, second: null })),
+    }));
+    const requests: { signal?: AbortSignal | null; resolve: (response: Response) => void }[] = [];
+    const fetcher = vi.fn<typeof fetch>(
+      (_input, init) => new Promise(resolve => requests.push({ signal: init?.signal, resolve }))
+    );
+    const createObjectURL = vi.fn(() => "blob:current");
+    const revokeObjectURL = vi.fn();
+    vi.stubGlobal(
+      "URL",
+      class extends URL {
+        static createObjectURL = createObjectURL;
+        static revokeObjectURL = revokeObjectURL;
+      }
+    );
+    const view = render(
+      <ResultsPanel
+        {...props}
+        api={new ApiClient({ fetch: fetcher, getToken: () => null })}
+      />
+    );
+    fireEvent.click(await screen.findByRole("button", { name: "View row 1" }));
+    const dialog = within(screen.getByRole("dialog", { name: "Row details" }));
+    await waitFor(() => expect(requests).toHaveLength(1));
+    expect(requests[0].signal?.aborted).toBe(false);
+    fireEvent.click(dialog.getByRole("button", { name: "Next row" }));
+    await waitFor(() => expect(requests).toHaveLength(2));
+    expect(requests[0].signal?.aborted).toBe(true);
+    expect(requests[1].signal?.aborted).toBe(false);
+
+    const videoResponse = () => new Response("video", { headers: { "Content-Type": "video/mp4" } });
+    await act(async () => {
+      requests[0].resolve(videoResponse());
+      requests[1].resolve(videoResponse());
+    });
+    expect(createObjectURL).toHaveBeenCalledTimes(1);
+    expect(view.container.querySelector("video")?.getAttribute("src")).toBe("blob:current");
+
+    fireEvent.click(dialog.getByRole("button", { name: "Next row" }));
+    await waitFor(() => expect(requests).toHaveLength(3));
+    expect(revokeObjectURL).toHaveBeenCalledExactlyOnceWith("blob:current");
+    fireEvent.click(dialog.getByRole("button", { name: "Close" }));
+    expect(requests[2].signal?.aborted).toBe(true);
+    await act(async () => requests[2].resolve(videoResponse()));
+    expect(createObjectURL).toHaveBeenCalledTimes(1);
+    expect(view.container.querySelector("video")).toBeNull();
   });
   it("exports to writable dataset selections using deployment settings and exact server payload", async () => {
     const props = build();

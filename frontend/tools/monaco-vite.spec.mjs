@@ -21,6 +21,7 @@ import assert from "node:assert/strict";
 import { mkdtemp, mkdir, writeFile, readdir, readFile, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { basename, dirname, join } from "node:path";
+import { pathToFileURL } from "node:url";
 import { build } from "vite";
 import { isMonacoStylesheet, monacoStylesheets } from "./monaco-vite.mjs";
 
@@ -35,6 +36,15 @@ test("ordinary and explicit inline CSS requests retain Vite behavior", async () 
   const context = { resolve: async () => ({ id: "/app/src/react/styles.css" }) };
   assert.equal(await plugin.resolveId.call(context, "./styles.css", "/app/src/main.ts"), undefined);
   assert.equal(await plugin.resolveId.call(context, "./a.css?inline", "/app/node_modules/@codingame/x.js"), undefined);
+});
+test("Monaco resolves the checked-in encoding stub without traversing the Yarn portal", async () => {
+  const plugin = monacoStylesheets();
+  const resolved = await plugin.resolveId("jschardet", "/app/node_modules/@codingame/monaco-vscode-api/encoding.js");
+  assert.match(resolved, /\/tools\/jschardet-stub\/index\.js$/);
+  const stub = await import(pathToFileURL(resolved).href);
+  assert.equal(stub.detect("sample text"), null);
+  assert.equal(stub.default.detect(""), null);
+  assert.equal(await plugin.resolveId("./jschardet", "/app/src/main.ts"), undefined);
 });
 test("real Vite build keeps stylesheet objects and rewrites font assets inside them", async () => {
   const root = await mkdtemp(join(tmpdir(), "texera-monaco-css-"));

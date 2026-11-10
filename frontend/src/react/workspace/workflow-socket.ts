@@ -99,17 +99,24 @@ export class WorkflowSocket {
     payload: TexeraWebsocketRequestTypeMap[T],
     responseType: R,
     requestID: string,
-    timeoutMs = 20000
+    timeoutMs = 20000,
+    signal?: AbortSignal
   ): Promise<{ type: R } & TexeraWebsocketEventTypeMap[R]> {
+    if (signal?.aborted) return Promise.reject(signal.reason);
     return new Promise((resolve, reject) => {
       const cleanup = () => {
         clearTimeout(timeout);
         stop();
         this.pending.delete(fail);
+        signal?.removeEventListener("abort", abort);
       };
       const fail = (reason: string) => {
         cleanup();
         reject(new Error(reason));
+      };
+      const abort = () => {
+        cleanup();
+        reject(signal?.reason);
       };
       const stop = this.subscribeEvents(event => {
         if (event.type === responseType && "requestID" in event && event.requestID === requestID) {
@@ -119,6 +126,7 @@ export class WorkflowSocket {
       });
       const timeout = setTimeout(() => fail("The workflow result request timed out."), timeoutMs);
       this.pending.add(fail);
+      signal?.addEventListener("abort", abort, { once: true });
       try {
         this.send(type, payload);
       } catch (error) {

@@ -23,7 +23,8 @@
 // @codingame/monaco-vscode-api's encoding service and is only reached
 // when opening binary files through Monaco, which Texera never does.
 
-module.exports = {
-  detect: () => null,
-};
-module.exports.default = module.exports;
+export function detect() {
+  return null;
+}
+
+export default { detect };

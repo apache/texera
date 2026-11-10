@@ -28,6 +28,7 @@ import {
   LlmRequestTimeoutError,
   LlmResponseTruncatedError,
   type MigrationConfiguration,
+  type MigrationLanguage,
   type MigrationOperatorFactory,
   type Notebook,
   type CombinedMapping,
@@ -142,13 +143,21 @@ export class NotebookGenerator {
     return Array.isArray(result?.data) ? result.data.map(model => model.id).filter(Boolean) : [];
   }
 
-  async generate(selection: GenerationSelection, model: string): Promise<GenerationResult> {
+  async generate(
+    selection: GenerationSelection,
+    model: string,
+    language: MigrationLanguage = "python"
+  ): Promise<GenerationResult> {
     if (!this.config.pythonNotebookMigrationEnabled) throw new Error("Notebook migration feature is disabled");
+    if (selection.kind !== "folder" && language === "r" && !this.config.rNotebookMigrationEnabled) {
+      throw new Error("R notebook migration is disabled");
+    }
     if (!model.trim()) throw new Error("Choose a model for generation.");
     const settings = emptyWorkflow(this.config).settings;
     const runtime: MigrationConfiguration = {
       env: {
         pythonNotebookMigrationEnabled: true,
+        rNotebookMigrationEnabled: this.config.rNotebookMigrationEnabled ?? false,
         pythonNotebookMigrationTimeoutMinutes: this.config.pythonNotebookMigrationTimeoutMinutes ?? 10,
         defaultDataTransferBatchSize: settings.dataTransferBatchSize,
         defaultExecutionMode: settings.executionMode,
@@ -163,14 +172,14 @@ export class NotebookGenerator {
       engine.initialize(model);
       if (!(await engine.verifyConnection())) throw new Error("Unable to authenticate with or reach the LLM backend");
       if (selection.kind === "notebook") {
-        const converted = JSON.parse(await engine.convertNotebookToWorkflow(selection.notebook));
+        const converted = JSON.parse(await engine.convertNotebookToWorkflow(selection.notebook, language));
         content = converted.workflowJSON;
         mapping = converted.workflowNotebookMapping;
         notebook = selection.notebook;
       } else {
         const converted: SourceConversion =
           selection.kind === "script"
-            ? await engine.convertScriptToWorkflow(selection.source)
+            ? await engine.convertScriptToWorkflow(selection.source, language)
             : await engine.convertFolderToWorkflow(selection.folder);
         content = converted.workflowJSON;
         mapping = converted.workflowNotebookMapping;
