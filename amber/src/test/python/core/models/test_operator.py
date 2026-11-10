@@ -29,7 +29,7 @@ from core.models import (
     Tuple,
     TupleOperatorV2,
 )
-from core.models.operator import Operator, TableOperator
+from core.models.operator import Operator, TableOperator, referenced_loop_variables
 
 
 class _ConcreteOperator(TupleOperatorV2):
@@ -821,6 +821,90 @@ class TestRequiredLoopVariables:
         with pytest.raises(RuntimeError) as excinfo:
             op.bind_loop_variables()
         assert str(excinfo.value) == _missing("t")
+
+
+def _two_values(name: str, earlier, later) -> str:
+    """The error for reading a loop variable that got two different values."""
+    return (
+        f"loop variable {name} got two different values in one iteration, "
+        f"{earlier} and {later}: a loop's variables must not change inside its body"
+    )
+
+
+# The shape of a generated operator's code whose text properties refer to $k
+# only.
+_GENERATED_K_TEMPLATE = """from pytexera import *
+
+class ProcessTupleOperator(UDFOperatorV2):
+
+    @overrides
+    def process_tuple(self, tuple_: Tuple, port: int) -> Iterator[Optional[TupleLike]]:
+        yield {"k": self.loop_variable_text('k')}
+"""
+
+
+class TestTwoValuesOfOneNameAtBinding:
+    # Reading a name that got two different values from the depth it is held
+    # at fails (TestLoopVariables), and a JVM operator fails only for a name
+    # its setting refers to (StateReferenceBinding). So binding fails only for
+    # a required name, and the bound values keep the two: the other names
+    # read, and reading that name fails.
+
+    def test_an_operator_whose_code_reads_only_k_binds_and_reads_k(self):
+        namespace: dict = {"__name__": "generated_k_operator"}
+        exec(_GENERATED_K_TEMPLATE, namespace)
+        op = namespace["ProcessTupleOperator"]()
+        # What the executor manager requires for this code.
+        op.require_loop_variables(referenced_loop_variables(_GENERATED_K_TEMPLATE))
+        op.register_state(State({"i": 0, "k": "a"}), 0)
+        op.register_state(State({"i": 99}), 0)
+        op.bind_loop_variables()
+        assert list(op.process_tuple(Tuple({"x": 1}), 0)) == [{"k": "a"}]
+
+    def test_binding_fails_for_a_required_variable_with_two_values(self):
+        # In the one error, in order, beside a refused and a missing value.
+        op = _ConcreteOperator()
+        op.require_loop_variables(["i", "m", "t"])
+        op.register_state(State({"i": 0, "m": [1, 2]}), 0)
+        op.register_state(State({"i": 99}), 0)
+        with pytest.raises(RuntimeError) as excinfo:
+            op.bind_loop_variables()
+        assert str(excinfo.value) == "; ".join(
+            [
+                _two_values("i", 0, 99),
+                "the operator refers to loop variable $m, but its value [1, 2] "
+                "is not a scalar",
+                _missing("t"),
+            ]
+        )
+
+    def test_the_text_of_a_variable_with_two_values_at_binding_fails(self):
+        # Bound with i's two values (its properties refer to k only), the
+        # operator fails where its code reads i, and still does after a deeper
+        # i arrives, as the bound values stay as they were.
+        op = _ConcreteOperator()
+        op.require_loop_variables(["k"])
+        op.register_state(State({"i": 1, "k": "a"}), 1)
+        op.register_state(State({"i": 2}), 1)
+        op.bind_loop_variables()
+        with pytest.raises(RuntimeError) as excinfo:
+            op.loop_variable_text("i")
+        assert str(excinfo.value) == _two_values("i", 1, 2)
+        assert op.loop_variable_text("k") == "a"
+        op.register_state(State({"i": 5}), 0)
+        assert op.loop_variables["i"] == 5
+        with pytest.raises(RuntimeError) as excinfo:
+            op.loop_variable_text("i")
+        assert str(excinfo.value) == _two_values("i", 1, 2)
+
+    def test_a_deeper_value_before_binding_replaces_the_two_values(self):
+        op = _ConcreteOperator()
+        op.require_loop_variables(["i"])
+        op.register_state(State({"i": 1}), 1)
+        op.register_state(State({"i": 2}), 1)
+        op.register_state(State({"i": 5}), 0)
+        op.bind_loop_variables()
+        assert op.loop_variable_text("i") == "5"
 
 
 # Generated on the JVM, JDK 17 as the engine's images run it: each value's JSON
