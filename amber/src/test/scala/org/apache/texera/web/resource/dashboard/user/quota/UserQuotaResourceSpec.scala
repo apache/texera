@@ -46,7 +46,6 @@ import org.scalatest.flatspec.AnyFlatSpec
 
 import java.sql.Timestamp
 import java.util.UUID
-import scala.jdk.CollectionConverters._
 import javax.ws.rs.WebApplicationException
 
 class UserQuotaResourceSpec extends AnyFlatSpec with BeforeAndAfterAll with MockTexeraDB {
