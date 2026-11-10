@@ -1411,6 +1411,22 @@ class TestRequiredLoopVariableValues:
             ]
         )
 
+    def test_binding_names_a_value_two_kinds_refuse_once_for_each_kind(self):
+        # Each refusal says what its property takes, so both are named.
+        op = _ConcreteOperator()
+        op.require_loop_variable_values([("v", "integer"), ("v", "number")])
+        op.register_state(State({"v": "x"}))
+        with pytest.raises(RuntimeError) as excinfo:
+            op.bind_loop_variables()
+        assert str(excinfo.value) == "; ".join(
+            [
+                "the operator refers to loop variable $v, but its value 'x' "
+                "is not an integer",
+                "the operator refers to loop variable $v, but its value 'x' "
+                "is not a number",
+            ]
+        )
+
     def test_a_failed_binding_binds_nothing_and_the_next_one_can_succeed(self):
         # Each later state comes from a more deeply nested loop, so it replaces
         # the value.
@@ -1446,13 +1462,31 @@ class ProcessTupleOperator(UDFOperatorV2):
 """
 
 
+# The shape of a generated operator's code whose properties refer to $n three
+# ways: an integer property, a number one and a text one.
+_GENERATED_N_THREE_WAYS_TEMPLATE = """from pytexera import *
+
+class ProcessTupleOperator(UDFOperatorV2):
+
+    @overrides
+    def process_tuple(self, tuple_: Tuple, port: int) -> Iterator[Optional[TupleLike]]:
+        yield {
+            "bins": self.loop_variable_value('n', 'integer'),
+            "width": self.loop_variable_value('n', 'number'),
+            "title": self.loop_variable_text('n'),
+        }
+"""
+
+
 class TestTwoValuesOfOneNameAsAValue:
     # As TestTwoValuesOfOneNameAtBinding, for a numeric or boolean property:
     # binding fails only for a required name that got two different values,
     # and the bound values keep the two, so the other names read and convert,
     # and reading that name fails, as any kind. A JVM operator fails for the
     # two values before it converts either (StateReferenceBinding.write), so
-    # that error comes before the kind's.
+    # that error comes before the kind's. It fails once for the name, however
+    # many of its properties refer to it, so binding names the two values
+    # once.
 
     def test_an_operator_whose_code_reads_only_n_binds_and_converts_n(self):
         namespace: dict = {"__name__": "generated_n_operator"}
@@ -1512,6 +1546,83 @@ class TestTwoValuesOfOneNameAsAValue:
         with pytest.raises(RuntimeError) as excinfo:
             op.bind_loop_variables()
         assert str(excinfo.value) == _two_values("v", earlier, later)
+
+    def test_an_operator_whose_code_reads_n_three_ways_names_its_two_values_once(self):
+        # Once a deeper value replaces the two, the code reads it all three
+        # ways.
+        namespace: dict = {"__name__": "generated_n_three_ways_operator"}
+        exec(_GENERATED_N_THREE_WAYS_TEMPLATE, namespace)
+        op = namespace["ProcessTupleOperator"]()
+        # What the executor manager requires for this code.
+        op.require_loop_variables(
+            referenced_loop_variables(_GENERATED_N_THREE_WAYS_TEMPLATE)
+        )
+        op.require_loop_variable_values(
+            referenced_loop_variable_values(_GENERATED_N_THREE_WAYS_TEMPLATE)
+        )
+        op.register_state(State({"n": 3}), 1)
+        op.register_state(State({"n": 4}), 1)
+        with pytest.raises(RuntimeError) as excinfo:
+            op.bind_loop_variables()
+        assert str(excinfo.value) == _two_values("n", 3, 4)
+        op.register_state(State({"n": 5}), 0)
+        op.bind_loop_variables()
+        assert list(op.process_tuple(Tuple({"x": 1}), 0)) == [
+            {"bins": 5, "width": 5.0, "title": "5"}
+        ]
+
+    @pytest.mark.parametrize(
+        "texts, values",
+        [
+            (["n"], [("n", "boolean")]),
+            ([], [("n", "integer"), ("n", "long")]),
+            (
+                ["n"],
+                [("n", "integer"), ("n", "long"), ("n", "number"), ("n", "boolean")],
+            ),
+        ],
+        ids=repr,
+    )
+    def test_binding_names_the_two_values_once_for_all_the_reads_of_the_name(
+        self, texts, values
+    ):
+        # As a text and as a value, and as several kinds.
+        op = _ConcreteOperator()
+        op.require_loop_variables(texts)
+        op.require_loop_variable_values(values)
+        op.register_state(State({"n": "a"}), 0)
+        op.register_state(State({"n": "b"}), 0)
+        with pytest.raises(RuntimeError) as excinfo:
+            op.bind_loop_variables()
+        assert str(excinfo.value) == _two_values("n", "a", "b")
+
+    def test_binding_names_each_name_with_two_values_once_where_first_read(self):
+        # In the one error, in order, beside a missing and a refused value,
+        # which are named as before.
+        op = _ConcreteOperator()
+        op.require_loop_variables(["a", "n"])
+        op.require_loop_variable_values(
+            [
+                ("n", "integer"),
+                ("b", "number"),
+                ("m", "integer"),
+                ("n", "number"),
+                ("m", "long"),
+            ]
+        )
+        op.register_state(State({"n": 3, "b": "x", "m": 1}), 0)
+        op.register_state(State({"n": 4, "m": 2}), 0)
+        with pytest.raises(RuntimeError) as excinfo:
+            op.bind_loop_variables()
+        assert str(excinfo.value) == "; ".join(
+            [
+                _missing("a"),
+                _two_values("n", 3, 4),
+                "the operator refers to loop variable $b, but its value 'x' "
+                "is not a number",
+                _two_values("m", 1, 2),
+            ]
+        )
 
     @pytest.mark.parametrize("kind", ["integer", "long", "number", "boolean"])
     def test_the_value_of_a_variable_with_two_values_at_binding_fails(self, kind):
