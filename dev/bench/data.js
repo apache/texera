@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1794229472523,
+  "lastUpdate": 1794316093006,
   "repoUrl": "https://github.com/apache/texera",
   "entries": {
     "Arrow Flight E2E Throughput": [
@@ -21616,6 +21616,163 @@ window.BENCHMARK_DATA = {
           {
             "name": "throughput / bs=1000 sw=50 sl=512",
             "value": 736.8164860996445,
+            "unit": "tuples/sec"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "name": "Ryan Zhang",
+            "username": "zyratlo",
+            "email": "97552093+zyratlo@users.noreply.github.com"
+          },
+          "committer": {
+            "name": "GitHub",
+            "username": "web-flow",
+            "email": "noreply@github.com"
+          },
+          "id": "8420565e66fd226bb9158fd41aed894d41da70a1",
+          "message": "feat(notebook-migration): add r notebooks to the import modal (#8912)\n\n### What changes were proposed in this PR?\n\nThis PR lets users convert R Jupyter notebooks, using the R conversion\nfrom #8911. It is the first of the UI PRs for R support (#8009). R files\nfollow in #8963 and R folders in a later PR, each as a new tab beside\nthe Python ones.\n\n**Import modal.** The Jupyter Notebook tab gets a \"Python Notebook | R\nNotebook\" switch, centered above the diagram. It defaults to Python. The\ndiagram, the description and the upload label follow it, and changing it\nclears the staged file. The switch is a `FormControl`, so it keeps its\nvalue when the tab re-renders. `requestImport` now receives a\n`language`.\n\n**Disabled, not hidden.** When `rNotebookMigrationEnabled` is off, the R\nNotebook option stays visible but disabled, with the tooltip \"R is not\nenabled on this deployment.\" Users can see that R exists without being\nable to pick it on a deployment that cannot run it. The guard from #8911\nstill refuses R in that case, before any model call.\n\n**Tab descriptors.** A small `IMPORT_TABS` list replaces the index\nchecks that decided the folder tab and the language. The R file and\nfolder tabs each add one entry.\n\n**Dispatch.** The dashboard passes the language to the notebook\nconversion. For R, only `.ipynb` is accepted in this PR. A notebook\nuploaded as R whose `kernelspec.language` is set and is not R is\nrejected before any model call: \"This notebook uses a python kernel, not\nR. Switch the notebook type to Python Notebook.\" A notebook without a\nkernelspec is accepted. Other language mismatches are tracked in #8929.\n\n**Assets.** A new R notebook diagram, at the same size and border as the\nothers. `frontend/LICENSE-binary` adds it to the Project Jupyter logo\nand Material Symbols entries.\n\n#### Demo video (wait time cut out)\n\n\nhttps://github.com/user-attachments/assets/9769bdd8-5e2d-4994-8a5a-be216908b09f\n\n#### R disabled on a deployment without R\n\n<img width=\"420\" height=\"159\" alt=\"Screenshot 2026-10-12 at 1 51 42 PM\"\nsrc=\"https://github.com/user-attachments/assets/2c45ea97-9fe2-4b3c-a8ec-4fc2a8875d22\"\n/>\n\n### Any related issues, documentation, discussions?\n\nCloses #9384\nPart of #8009\nParent-issue #4301\n\nThe plan is in https://github.com/apache/texera/discussions/8866. R\nnotebooks open in the Jupyter panel without a kernel, since the Jupyter\nimage has no R kernel. #8909 removed the \"Kernel not found\" dialog that\notherwise appears and keeps the cells read only.\n\n### How was this PR tested?\n\n* `notebook-import-modal.component.spec.ts`, seven new tests: Python is\nthe default; the R option is disabled with its tooltip while the R flag\nis off and enabled without one while it is on; switching to R changes\nthe diagram and label and drops the staged notebook; R stays selected\nacross a re-render; the file and folder tabs keep their own language;\nand submit passes `\"r\"`. Existing assertions now expect `\"python\"`.\n* `user-workflow.component.spec.ts`, five new tests: a Python notebook\nconverts as Python by default, an R notebook converts as R with or\nwithout a kernelspec, a Python kernel notebook is rejected as R, and a\nnon notebook file is rejected as R.\n\nThe full frontend suite passes.\n\nChecked by hand against a local stack. With the R flag on, the switch\nchanges the diagram, description and label, clears a staged file, and\nsurvives leaving and returning to the tab. With it off, the R option is\ndisabled and shows its tooltip. The tab fits the modal without scrolling\nin every state. An R notebook converted end to end with a live model.\n\n### Was this PR authored or co-authored using generative AI tooling?\n\nGenerated-by: Claude Code (Claude Opus 5.5)",
+          "timestamp": "2026-11-10T07:29:50Z",
+          "url": "https://github.com/apache/texera/commit/8420565e66fd226bb9158fd41aed894d41da70a1"
+        },
+        "date": 1794316092201,
+        "tool": "customBiggerIsBetter",
+        "benches": [
+          {
+            "name": "throughput / bs=10 sw=1 sl=8",
+            "value": 622.4791667380832,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=1 sl=8",
+            "value": 1151.7877232595708,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=1 sl=8",
+            "value": 1252.0724464651237,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=1 sl=64",
+            "value": 884.0821659794168,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=1 sl=64",
+            "value": 1194.0830245821912,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=1 sl=64",
+            "value": 1253.7658360700123,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=1 sl=512",
+            "value": 917.5243289558284,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=1 sl=512",
+            "value": 1224.2396172308916,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=1 sl=512",
+            "value": 1256.9019410235305,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=10 sl=8",
+            "value": 721.8419709904834,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=10 sl=8",
+            "value": 962.9807928269701,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=10 sl=8",
+            "value": 1000.897858476685,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=10 sl=64",
+            "value": 744.8027978240034,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=10 sl=64",
+            "value": 967.5261610141253,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=10 sl=64",
+            "value": 998.0864783599835,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=10 sl=512",
+            "value": 781.8430270197722,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=10 sl=512",
+            "value": 954.8779137007216,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=10 sl=512",
+            "value": 980.8014628426115,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=50 sl=8",
+            "value": 472.6948917262937,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=50 sl=8",
+            "value": 541.8622992720245,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=50 sl=8",
+            "value": 547.1577579909177,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=50 sl=64",
+            "value": 463.5489548332164,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=50 sl=64",
+            "value": 540.5298058523389,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=50 sl=64",
+            "value": 545.2683557047806,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=50 sl=512",
+            "value": 438.5576119416726,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=50 sl=512",
+            "value": 512.3600085319705,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=50 sl=512",
+            "value": 508.04878317576396,
             "unit": "tuples/sec"
           }
         ]
