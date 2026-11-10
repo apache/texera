@@ -313,11 +313,59 @@ class TestLoopVariables:
         op.register_state(State({"note": "from-body-op"}), 0)
         assert dict(op.loop_variables) == {"i": 2, "note": "from-body-op"}
 
-    def test_the_last_value_from_the_same_depth_wins(self):
+    def test_two_different_values_from_the_same_depth_fail_when_read(self):
+        # Xiaozhen's case on #8642: the loop's i = 0, then a body operator's
+        # state carrying i = 99, both at depth 0. A JVM operator whose setting
+        # refers to i fails with this message (StateReferenceBinding); a UDF
+        # gets the same one when it reads i.
         op = _ConcreteOperator()
-        op.register_state(State({"i": 1}), 0)
+        op.register_state(State({"i": 0, "k": "a"}), 0)
+        op.register_state(State({"i": 99}), 0)
+        with pytest.raises(RuntimeError) as error:
+            op.loop_variables["i"]
+        assert str(error.value) == (
+            "loop variable i got two different values in one iteration, 0 and 99: "
+            "a loop's variables must not change inside its body"
+        )
+        for read in (
+            lambda view: view.get("i"),
+            lambda view: dict(view),
+            lambda view: list(view.values()),
+            lambda view: list(view.items()),
+        ):
+            with pytest.raises(RuntimeError, match="two different values"):
+                read(op.loop_variables)
+        # Only reading i fails: the other names read, and i is still listed.
+        assert op.loop_variables["k"] == "a"
+        assert "i" in op.loop_variables
+        assert sorted(op.loop_variables) == ["i", "k"]
+        assert len(op.loop_variables) == 2
+
+    def test_equal_copies_from_the_same_depth_read_without_error(self):
+        # Copies of one message, from several upstream workers or branches,
+        # carry equal values: no conflict, as on the JVM (2 equals 2.0 there).
+        op = _ConcreteOperator()
         op.register_state(State({"i": 2}), 0)
+        op.register_state(State({"i": 2}), 0)
+        op.register_state(State({"i": 2.0}), 0)
         assert op.loop_variables["i"] == 2
+        assert dict(op.loop_variables) == {"i": 2}
+
+    def test_an_inner_value_replaces_two_different_outer_ones(self):
+        # The enclosing loop delivered two different values of i, then the
+        # inner loop's own i arrives: the operator reads the inner one.
+        op = _ConcreteOperator()
+        op.register_state(State({"i": 1}), 1)
+        op.register_state(State({"i": 2}), 1)
+        op.register_state(State({"i": 5}), 0)
+        assert op.loop_variables["i"] == 5
+
+    def test_different_outer_values_after_an_inner_one_read_the_inner_one(self):
+        op = _ConcreteOperator()
+        op.register_state(State({"i": 5}), 0)
+        op.register_state(State({"i": 1}), 1)
+        op.register_state(State({"i": 2}), 1)
+        assert op.loop_variables["i"] == 5
 
     def test_the_inner_value_wins_over_an_outer_one_that_arrives_later(self):
         # i = 1 from the outer loop, i = 5 from the inner one, then the outer
