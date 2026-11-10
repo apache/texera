@@ -31,7 +31,12 @@ from core.models import (
     Tuple,
     TupleOperatorV2,
 )
-from core.models.operator import Operator, TableOperator, referenced_loop_variables
+from core.models.operator import (
+    Operator,
+    TableOperator,
+    referenced_loop_variable_values,
+    referenced_loop_variables,
+)
 
 
 class _ConcreteOperator(TupleOperatorV2):
@@ -1427,6 +1432,126 @@ class TestRequiredLoopVariableValues:
         with pytest.raises(RuntimeError, match=r"\$n, but no state message"):
             target.bind_loop_variables()
         bystander.bind_loop_variables()
+
+
+# The shape of a generated operator's code whose numeric properties refer to $n
+# only.
+_GENERATED_N_TEMPLATE = """from pytexera import *
+
+class ProcessTupleOperator(UDFOperatorV2):
+
+    @overrides
+    def process_tuple(self, tuple_: Tuple, port: int) -> Iterator[Optional[TupleLike]]:
+        yield {"n": self.loop_variable_value('n', 'integer')}
+"""
+
+
+class TestTwoValuesOfOneNameAsAValue:
+    # As TestTwoValuesOfOneNameAtBinding, for a numeric or boolean property:
+    # binding fails only for a required name that got two different values,
+    # and the bound values keep the two, so the other names read and convert,
+    # and reading that name fails, as any kind. A JVM operator fails for the
+    # two values before it converts either (StateReferenceBinding.write), so
+    # that error comes before the kind's.
+
+    def test_an_operator_whose_code_reads_only_n_binds_and_converts_n(self):
+        namespace: dict = {"__name__": "generated_n_operator"}
+        exec(_GENERATED_N_TEMPLATE, namespace)
+        op = namespace["ProcessTupleOperator"]()
+        # What the executor manager requires for this code.
+        op.require_loop_variable_values(
+            referenced_loop_variable_values(_GENERATED_N_TEMPLATE)
+        )
+        op.register_state(State({"i": 0, "n": "3"}), 0)
+        op.register_state(State({"i": 99}), 0)
+        op.bind_loop_variables()
+        assert list(op.process_tuple(Tuple({"x": 1}), 0)) == [{"n": 3}]
+
+    def test_binding_fails_for_a_required_value_with_two_values(self):
+        # In the one error, in order, after the texts and beside a refused and
+        # a missing value.
+        op = _ConcreteOperator()
+        op.require_loop_variables(["t"])
+        op.require_loop_variable_values(
+            [("i", "integer"), ("m", "number"), ("b", "boolean")]
+        )
+        op.register_state(State({"i": 0, "m": "x"}), 0)
+        op.register_state(State({"i": 99}), 0)
+        with pytest.raises(RuntimeError) as excinfo:
+            op.bind_loop_variables()
+        assert str(excinfo.value) == "; ".join(
+            [
+                _missing("t"),
+                _two_values("i", 0, 99),
+                "the operator refers to loop variable $m, but its value 'x' "
+                "is not a number",
+                _missing("b"),
+            ]
+        )
+
+    @pytest.mark.parametrize(
+        "kind, earlier, later",
+        [
+            ("integer", 1, 3000000000),
+            ("integer", "a", "b"),
+            ("long", 1, 2),
+            ("number", 0.5, 2.5),
+            ("number", "a", "b"),
+            ("boolean", True, False),
+            ("boolean", 1, 0),
+        ],
+        ids=repr,
+    )
+    def test_binding_names_the_two_values_whether_or_not_they_fit(
+        self, kind, earlier, later
+    ):
+        op = _ConcreteOperator()
+        op.require_loop_variable_values([("v", kind)])
+        op.register_state(State({"v": earlier}), 0)
+        op.register_state(State({"v": later}), 0)
+        with pytest.raises(RuntimeError) as excinfo:
+            op.bind_loop_variables()
+        assert str(excinfo.value) == _two_values("v", earlier, later)
+
+    @pytest.mark.parametrize("kind", ["integer", "long", "number", "boolean"])
+    def test_the_value_of_a_variable_with_two_values_at_binding_fails(self, kind):
+        # Bound with i's two values (its properties refer to k only), the
+        # operator fails where its code reads i, and still does after a deeper
+        # i arrives, as the bound values stay as they were.
+        op = _ConcreteOperator()
+        op.require_loop_variable_values([("k", "integer")])
+        op.register_state(State({"i": 1, "k": "4"}), 1)
+        op.register_state(State({"i": 0}), 1)
+        op.bind_loop_variables()
+        with pytest.raises(RuntimeError) as excinfo:
+            op.loop_variable_value("i", kind)
+        assert str(excinfo.value) == _two_values("i", 1, 0)
+        assert op.loop_variable_value("k", "integer") == 4
+        op.register_state(State({"i": 5}), 0)
+        assert op.loop_variables["i"] == 5
+        with pytest.raises(RuntimeError) as excinfo:
+            op.loop_variable_value("i", kind)
+        assert str(excinfo.value) == _two_values("i", 1, 0)
+
+    def test_the_value_of_a_variable_with_two_values_fails_before_binding(self):
+        # Before the operator binds, the read goes to loop_variables, which
+        # fails the same way, while the other names convert.
+        op = _ConcreteOperator()
+        op.register_state(State({"i": 1, "on": " TRUE "}), 0)
+        op.register_state(State({"i": 2}), 0)
+        with pytest.raises(RuntimeError) as excinfo:
+            op.loop_variable_value("i", "integer")
+        assert str(excinfo.value) == _two_values("i", 1, 2)
+        assert op.loop_variable_value("on", "boolean") is True
+
+    def test_a_deeper_value_before_binding_replaces_the_two_values(self):
+        op = _ConcreteOperator()
+        op.require_loop_variable_values([("i", "integer")])
+        op.register_state(State({"i": 1}), 1)
+        op.register_state(State({"i": 2}), 1)
+        op.register_state(State({"i": "5"}), 0)
+        op.bind_loop_variables()
+        assert op.loop_variable_value("i", "integer") == 5
 
 
 # Generated on the JVM, JDK 17 as the engine's images run it: each value's JSON
