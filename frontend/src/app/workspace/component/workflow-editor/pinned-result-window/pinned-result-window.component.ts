@@ -114,6 +114,11 @@ export class PinnedResultWindowComponent implements AfterViewInit, OnDestroy {
       .outputPorts.map((port, index) => ({ index, label: port.displayName || `Output ${index + 1}` }));
   }
 
+  // The list is rebuilt on every check, so a tab is its port's, else each check replaces the tab being clicked.
+  trackPort(_index: number, port: { index: number }): number {
+    return port.index;
+  }
+
   get kind(): "table" | "chart" | "other" {
     if (this.workflowResultService.getPaginatedResultService(this.operatorId)) return "table";
     if (this.workflowResultService.getResultService(this.operatorId)) return "chart";

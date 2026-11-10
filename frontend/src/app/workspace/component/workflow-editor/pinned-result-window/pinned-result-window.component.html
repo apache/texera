@@ -43,7 +43,7 @@
     class="pinned-result__ports"
     role="tablist">
     <button
-      *ngFor="let port of outputPorts"
+      *ngFor="let port of outputPorts; trackBy: trackPort"
       type="button"
       role="tab"
       class="pinned-result__port"
