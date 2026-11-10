@@ -41,4 +41,5 @@ class HashBasedShufflePartitioner(IndexedShufflePartitioner):
             if not self.hash_attribute_names
             else tuple_.get_partial_tuple(self.hash_attribute_names)
         )
-        return hash(partial_tuple) % len(self.receivers)
+        # hash() normalizes -1 to -2; keep the raw JVM-compatible hash for routing.
+        return partial_tuple.__hash__() % len(self.receivers)
