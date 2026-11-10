@@ -36,6 +36,7 @@ import org.apache.texera.amber.core.state.StateReferencing.{
   noLoopVariableReferences,
   textReferences
 }
+import org.apache.texera.amber.core.storage.ScanFileResolver
 import org.apache.texera.amber.core.tuple.Schema
 import org.apache.texera.amber.core.virtualidentity.OperatorIdentity
 import org.apache.texera.amber.core.workflow.{
@@ -320,9 +321,12 @@ case class WorkflowCompilationResult(
   * the other; the engine `Workflow` wrapper stays in amber as a thin adapter over
   * [[WorkflowCompilationResult]]. `outputPortsNeedingStorage` is always computed — the
   * editing-path caller simply ignores it — keeping both paths on one code path.
+  *
+  * @param fileResolver resolves scan source file names to URIs.
   */
 class WorkflowCompiler(
-    context: WorkflowContext
+    context: WorkflowContext,
+    fileResolver: ScanFileResolver
 ) extends LazyLogging {
 
   /**
@@ -448,7 +452,7 @@ class WorkflowCompiler(
     val logicalPlan: LogicalPlan = LogicalPlan(logicalPlanPojo)
 
     // 2. resolve the file name in each scan source operator
-    logicalPlan.resolveScanSourceOpFileName(errorList)
+    logicalPlan.resolveScanSourceOpFileName(fileResolver, errorList)
 
     // 3. expand the logical plan to the physical plan, and get the output ports that need storage
     val (physicalPlan, outputPortsNeedingStorage) =

@@ -17,8 +17,17 @@
  * under the License.
  */
 
-package org.apache.texera.web.model.websocket.response
+package org.apache.texera.amber.core.storage
 
-import org.apache.texera.web.model.websocket.event.TexeraWebSocketEvent
+import java.net.URI
 
-case class ClusterStatusUpdateEvent(numWorkers: Int) extends TexeraWebSocketEvent
+/**
+  * Resolves the file name configured on a scan source operator to the URI to read.
+  */
+trait ScanFileResolver {
+
+  /**
+    * @throws org.apache.commons.vfs2.FileNotFoundException if the name does not resolve to a file
+    */
+  def resolve(fileName: String): URI
+}

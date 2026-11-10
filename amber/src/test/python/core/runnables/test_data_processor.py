@@ -273,18 +273,68 @@ class TestProcessState:
         assert data_processor.switch_calls == 1
 
     @pytest.mark.timeout(2)
-    def test_a_later_state_message_replaces_the_registered_one(
+    def test_a_later_state_message_adds_to_the_registered_one(
         self, context, data_processor
     ):
+        # A copy of the loop's state (another upstream worker's), then a state
+        # with one more name: the operator holds both names, on its port.
         executor = _StateSpy()
         context.executor_manager.executor = executor
         context.tuple_processing_manager.current_input_port_id = PortIdentity(1, False)
 
         data_processor.process_state(State({"i": 0}))
-        data_processor.process_state(State({"i": 1}))
+        data_processor.process_state(State({"i": 0}))
+        data_processor.process_state(State({"i": 0, "j": 1}))
 
-        assert executor.seen == [({"i": 0}, 1), ({"i": 1}, 1)]
-        assert executor.loop_variables == {"i": 1}
+        assert executor.seen == [({"i": 0}, 1), ({"i": 0}, 1), ({"i": 0, "j": 1}, 1)]
+        assert executor.loop_variables == {"i": 0, "j": 1}
+        assert not context.exception_manager.has_exception()
+
+    @pytest.mark.timeout(2)
+    def test_reading_a_loop_variable_two_states_disagree_on_fails(
+        self, context, data_processor, monkeypatch
+    ):
+        # Xiaozhen's case on #8642: inside a loop, a body operator upstream
+        # returns i = 99 from produce_state_on_finish, after the loop's i = 0,
+        # both at depth 0. A JVM operator whose setting refers to i fails;
+        # this operator fails the same way when it reads i in process_tuple,
+        # and outputs nothing.
+        schema = Schema(raw_schema={"x": "INTEGER"})
+        monkeypatch.setattr(
+            context.output_manager,
+            "get_port",
+            lambda *args, **kwargs: SimpleNamespace(get_schema=lambda: schema),
+        )
+        context.executor_manager.executor = _LoopVariableReader()
+        tpm = context.tuple_processing_manager
+        tpm.current_input_port_id = PortIdentity(0, False)
+
+        data_processor.process_state(State({"i": 0}), 0)
+        data_processor.process_state(State({"i": 99}), 0)
+        assert not context.exception_manager.has_exception(), (
+            "registering the two states does not fail; reading i does"
+        )
+
+        outputs = []
+
+        def switch_and_collect():
+            if tpm.current_output_tuple is not None:
+                outputs.append(tpm.get_output_tuple())
+            # Ends process_tuple's loop even when the operator raises.
+            tpm.finished_current.set()
+
+        data_processor._switch_context = switch_and_collect
+        tpm.current_input_tuple = Tuple({"x": 0})
+        data_processor.process_tuple()
+
+        assert context.exception_manager.has_exception()
+        exc_type, exc_value, _ = context.exception_manager.get_exc_info()
+        assert exc_type is RuntimeError
+        assert str(exc_value) == (
+            "loop variable i got two different values in one iteration, 0 and 99: "
+            "a loop's variables must not change inside its body"
+        )
+        assert outputs == []
 
     @pytest.mark.timeout(2)
     def test_a_later_state_message_keeps_the_loop_variables_of_the_earlier_one(

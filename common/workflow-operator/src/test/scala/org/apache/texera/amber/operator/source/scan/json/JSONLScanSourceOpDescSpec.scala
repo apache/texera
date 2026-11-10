@@ -21,10 +21,9 @@ package org.apache.texera.amber.operator.source.scan.json
 
 import com.typesafe.config.ConfigFactory
 import org.apache.texera.amber.core.executor.OpExecWithClassName
-import org.apache.texera.amber.core.storage.FileResolver
 import org.apache.texera.amber.core.tuple.AttributeType
 import org.apache.texera.amber.core.virtualidentity.{ExecutionIdentity, WorkflowIdentity}
-import org.apache.texera.amber.operator.{LogicalOp, StandaloneCodeGenerator}
+import org.apache.texera.amber.operator.{LogicalOp, StandaloneCodeGenerator, TestOperators}
 import org.apache.texera.amber.operator.metadata.OperatorGroupConstants
 import org.apache.texera.amber.operator.source.scan.FileDecodingMethod
 import org.apache.texera.amber.operator.tags.IntegrationTest
@@ -116,7 +115,7 @@ class JSONLScanSourceOpDescSpec extends AnyFlatSpec with Matchers {
 
     val op = new JSONLScanSourceOpDesc
     op.fileName = Some(data.toString)
-    op.setResolvedFileName(FileResolver.resolve(data.toString))
+    op.setResolvedFileName(TestOperators.localFileUri(data.toString))
     op.limit = Some(0)
 
     val schema = op.sourceSchema()
@@ -138,7 +137,7 @@ class JSONLScanSourceOpDescSpec extends AnyFlatSpec with Matchers {
 
     val op = new JSONLScanSourceOpDesc
     op.fileName = Some(data.toString)
-    op.setResolvedFileName(FileResolver.resolve(data.toString))
+    op.setResolvedFileName(TestOperators.localFileUri(data.toString))
     op.offset = Some(10)
 
     val schema = op.sourceSchema()
@@ -164,7 +163,7 @@ class JSONLScanSourceOpDescSpec extends AnyFlatSpec with Matchers {
 
     val op = new JSONLScanSourceOpDesc
     op.fileName = Some(data.toString)
-    op.setResolvedFileName(FileResolver.resolve(data.toString))
+    op.setResolvedFileName(TestOperators.localFileUri(data.toString))
     op.sourceSchema().getAttribute("v").getType shouldBe AttributeType.DOUBLE
 
     val script = workDir.resolve("run.py")
