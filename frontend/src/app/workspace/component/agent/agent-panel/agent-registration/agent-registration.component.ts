@@ -62,7 +62,6 @@ export class AgentRegistrationComponent implements OnInit, OnDestroy {
   public selectedModelType: string | null = null;
   public customAgentName: string = "Texera Agent";
   public isLoadingModels: boolean = false;
-  public hasLoadingError: boolean = false;
   public computingUnitConnected: boolean = false;
   public isCreating: boolean = false;
 
@@ -77,7 +76,6 @@ export class AgentRegistrationComponent implements OnInit, OnDestroy {
 
   ngOnInit(): void {
     this.isLoadingModels = true;
-    this.hasLoadingError = false;
 
     this.computingUnitStatusService
       .getStatus()
@@ -94,13 +92,11 @@ export class AgentRegistrationComponent implements OnInit, OnDestroy {
           this.modelTypes = models;
           this.isLoadingModels = false;
           if (models.length === 0) {
-            this.hasLoadingError = true;
             this.notificationService.error("No models available. Please check the LiteLLM configuration.");
           }
         },
         error: (error: unknown) => {
           this.isLoadingModels = false;
-          this.hasLoadingError = true;
           const errorMessage = error instanceof Error ? error.message : String(error);
           this.notificationService.error(`Failed to fetch models: ${errorMessage}`);
         },

@@ -18,17 +18,11 @@
 -->
 
 <div class="hf-audio-upload">
-  <div class="hf-audio-guidance">
-    Audio files are uploaded to temporary backend storage and referenced from the operator, so larger clips can be used
-    without bloating the workflow JSON.
-  </div>
-
   <input
     #fileInput
     type="file"
     accept="audio/*"
     class="hf-audio-upload-input"
-    [disabled]="isUploading"
     (change)="onFileSelected($event)" />
 
   <div
@@ -38,17 +32,11 @@
       controls
       [src]="previewSrc"></audio>
     <div class="hf-audio-meta">
-      <span>{{ fileName || "Selected audio" }}</span>
-      <span
-        *ngIf="isUploading"
-        class="hf-audio-status"
-        >Uploading...</span
-      >
+      <span>{{ displayFileName || "Selected audio" }}</span>
       <button
         nz-button
         nzSize="small"
         type="button"
-        [disabled]="isUploading"
         (click)="clearAudio(fileInput)">
         Clear
       </button>

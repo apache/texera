@@ -18,15 +18,18 @@
  */
 
 import { HttpClientTestingModule, HttpTestingController } from "@angular/common/http/testing";
+import { HttpErrorResponse } from "@angular/common/http";
 import { TestBed } from "@angular/core/testing";
 import { AppSettings } from "../../../app-setting";
 import {
   WorkflowComputingUnitManagingService,
+  COMPUTING_UNIT_ADMIN_LIST_URL,
   COMPUTING_UNIT_BASE_URL,
   COMPUTING_UNIT_CREATE_URL,
   COMPUTING_UNIT_LIST_URL,
   COMPUTING_UNIT_TYPES_URL,
 } from "./workflow-computing-unit-managing.service";
+import { ClusterCapacity } from "../../../type/workflow-computing-unit";
 
 describe("WorkflowComputingUnitManagingService", () => {
   let service: WorkflowComputingUnitManagingService;
@@ -95,11 +98,16 @@ describe("WorkflowComputingUnitManagingService", () => {
   });
 
   describe("resource parsing", () => {
-    it("falls back to a NaN-filled resource object when the resource JSON is malformed", () => {
+    // A malformed, `NULL` or `"null"` resource gets the placeholder instead of crashing the readers of the unit.
+    it.each([
+      ["malformed JSON", "not-json"],
+      ["null", null],
+      ['the string "null"', "null"],
+    ])("falls back to a NaN-filled resource object when the resource is %s", (_shape, resource) => {
       let result: any;
       service.getComputingUnit(5).subscribe(r => (result = r));
 
-      httpMock.expectOne(`${api}/${COMPUTING_UNIT_BASE_URL}/5`).flush(unitWithResource("not-json"));
+      httpMock.expectOne(`${api}/${COMPUTING_UNIT_BASE_URL}/5`).flush(unitWithResource(resource));
 
       expect(result.computingUnit.resource).toEqual({
         cpuLimit: "NaN",
@@ -152,6 +160,56 @@ describe("WorkflowComputingUnitManagingService", () => {
     req.flush([unitWithResource('{"cpuLimit":"1"}'), unitWithResource('{"cpuLimit":"2"}')]);
 
     expect(result.map(u => u.computingUnit.resource)).toEqual([{ cpuLimit: "1" }, { cpuLimit: "2" }]);
+  });
+
+  it("listAllComputingUnits() GETs the admin list endpoint and parses every unit's resource", () => {
+    let result: any[] = [];
+    service.listAllComputingUnits().subscribe(r => (result = r));
+
+    const req = httpMock.expectOne(`${api}/${COMPUTING_UNIT_ADMIN_LIST_URL}`);
+    expect(req.request.method).toEqual("GET");
+    req.flush([unitWithResource('{"cpuLimit":"1"}'), unitWithResource('{"cpuLimit":"2"}')]);
+
+    expect(result.map(u => u.computingUnit.resource)).toEqual([{ cpuLimit: "1" }, { cpuLimit: "2" }]);
+  });
+
+  it("listAllComputingUnits() surfaces an HTTP error, e.g. a non-admin's 403, to the caller", () => {
+    let status: number | undefined;
+    service.listAllComputingUnits().subscribe({ error: (e: unknown) => (status = (e as HttpErrorResponse).status) });
+
+    httpMock
+      .expectOne(`${api}/${COMPUTING_UNIT_ADMIN_LIST_URL}`)
+      .flush("forbidden", { status: 403, statusText: "Forbidden" });
+
+    expect(status).toBe(403);
+  });
+
+  // Spelled out, so a typo in the constant cannot pass by matching itself.
+  it("getClusterCapacity() GETs the admin cluster capacity endpoint and returns the body as is", () => {
+    const capacity: ClusterCapacity = {
+      cpu: { total: 16000, allocated: 12500, available: 3500 },
+      memory: { total: 68719476736, allocated: 17179869184, available: 51539607552 },
+      gpu: { total: 0, allocated: 0, available: 0 },
+    };
+    let result: ClusterCapacity | undefined;
+    service.getClusterCapacity().subscribe(r => (result = r));
+
+    const req = httpMock.expectOne(`${api}/computing-unit/admin/cluster-capacity`);
+    expect(req.request.method).toEqual("GET");
+    req.flush(capacity);
+
+    expect(result).toEqual(capacity);
+  });
+
+  it("getClusterCapacity() surfaces the 404 a deployment without Kubernetes answers", () => {
+    let status: number | undefined;
+    service.getClusterCapacity().subscribe({ error: (e: unknown) => (status = (e as HttpErrorResponse).status) });
+
+    httpMock
+      .expectOne(`${api}/computing-unit/admin/cluster-capacity`)
+      .flush({ message: "not on Kubernetes" }, { status: 404, statusText: "Not Found" });
+
+    expect(status).toBe(404);
   });
 
   it("renameComputingUnit() PUTs to a URI-encoded rename endpoint", () => {

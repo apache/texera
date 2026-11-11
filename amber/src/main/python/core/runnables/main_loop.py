@@ -165,14 +165,15 @@ class MainLoop(StoppableQueueBlockingRunnable):
         # read is deferred to here rather than done when the state arrives: at
         # arrival time THIS worker's own materialization reader is still
         # streaming its input, and in runs where this read overlapped that
-        # reader, the reader failed with S3 "Access Denied" (MinIO's answer
-        # for a deleted key) while iterating a lazily-pinned snapshot of a doc
-        # that region re-execution drops and recreates. Removing the overlap
-        # made those failures stop; that the overlap CAUSED them is the
-        # working hypothesis, not a ruled-out fact -- a doc dropped under a
-        # live reader would break the reader with or without this read -- so
-        # treat a recurrence as new evidence. By EndChannel the reader has
-        # finished, so the two never overlap.
+        # reader, the reader failed with S3 "Access Denied" (which was MinIO's
+        # answer for a deleted key; RustFS returns the standard NoSuchKey, so a
+        # recurrence will surface under that code instead) while iterating a
+        # lazily-pinned snapshot of a doc that region re-execution drops and
+        # recreates. Removing the overlap made those failures stop; that the
+        # overlap CAUSED them is the working hypothesis, not a ruled-out fact
+        # -- a doc dropped under a live reader would break the reader with or
+        # without this read -- so treat a recurrence as new evidence. By
+        # EndChannel the reader has finished, so the two never overlap.
         if self._pending_loop_state is None:
             return
         pending = self._pending_loop_state
@@ -199,6 +200,10 @@ class MainLoop(StoppableQueueBlockingRunnable):
         with replace_print(
             self.context.worker_id, self.context.console_message_manager.print_buf
         ):
+            # This deferred consume bypasses DataProcessor.process_state, so
+            # register the state here too, before the callback runs. A
+            # matching loop state is consumed at loop_counter == 0.
+            executor.register_state(pending, 0)
             executor.process_state(pending, 0)
 
     def _jump_to_loop_start(
@@ -595,6 +600,7 @@ class MainLoop(StoppableQueueBlockingRunnable):
             return
 
         self.context.state_processing_manager.current_input_state = state
+        self.context.state_processing_manager.current_input_loop_counter = in_counter
         self.process_input_state(
             output_loop_counter=in_counter,
             output_loop_start_id=frame.loop_start_id,
@@ -811,7 +817,9 @@ class MainLoop(StoppableQueueBlockingRunnable):
                     self._process_state_frame,
                 )
             except Exception as err:
-                logger.exception(err)
+                self.context.report_exception(err)
+                self._check_exception()
+                return
 
     def _send_console_message(self, console_message: ConsoleMessage):
         self._async_rpc_client.coordinator_stub().console_message_triggered(

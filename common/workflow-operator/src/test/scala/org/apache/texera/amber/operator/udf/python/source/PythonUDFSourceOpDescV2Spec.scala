@@ -24,8 +24,9 @@ import org.apache.texera.amber.core.tuple.{Attribute, AttributeType, Schema}
 import org.apache.texera.amber.core.virtualidentity.{ExecutionIdentity, WorkflowIdentity}
 import org.apache.texera.amber.operator.LogicalOp
 import org.apache.texera.amber.operator.metadata.OperatorGroupConstants
-import org.apache.texera.amber.operator.udf.python.UiUDFParameter
+import org.apache.texera.amber.operator.udf.UiUDFParameter
 import org.apache.texera.amber.util.JSONUtils.objectMapper
+import org.apache.texera.amber.operator.udf.python.PythonUdfTemplateTestUtils
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 
@@ -96,6 +97,23 @@ class PythonUDFSourceOpDescV2Spec extends AnyFlatSpec with Matchers {
     }
   }
 
+  it should "leave a resource parameter to the execution" in {
+    val d = new PythonUDFSourceOpDescV2
+    d.code = """from pytexera import *
+        |
+        |class GenerateOperator(UDFSourceOperator):
+        |    def produce(self):
+        |        yield
+        |""".stripMargin
+    val resource = new UiUDFParameter
+    resource.attribute = new Attribute("DS", AttributeType.STRING)
+    resource.inputType = "dataset"
+    resource.value = "/dataset/owner@x.com/ds/v1"
+    d.uiParameters = List(resource)
+
+    d.getPhysicalOp(workflowId, executionId).executionTimeBinding should not be empty
+  }
+
   it should "reject a blank virtual-environment name when the default env is disabled" in {
     val d = new PythonUDFSourceOpDescV2
     d.code = "yield"
@@ -141,5 +159,28 @@ class PythonUDFSourceOpDescV2Spec extends AnyFlatSpec with Matchers {
     p.columns shouldBe List(new Attribute("a", AttributeType.STRING))
     p.uiParameters.map(_.attribute) shouldBe List(new Attribute("count", AttributeType.INTEGER))
     p.uiParameters.map(_.value) shouldBe List("7")
+  }
+
+  private val defaultCode: String =
+    PythonUdfTemplateTestUtils.defaultCode(classOf[PythonUDFSourceOpDescV2])
+
+  "PythonUDFSourceOpDescV2 default code" should "keep the pytexera import active and explain the rules" in {
+    PythonUdfTemplateTestUtils.activeLines(defaultCode) shouldBe List("from pytexera import *")
+    defaultCode should include("Keep exactly ONE class")
+    defaultCode should include("never `return` a value")
+    defaultCode should include("super().__init__()")
+    defaultCode should include("UDFSourceOperator -> produce")
+    defaultCode should include("UiParameter")
+  }
+
+  it should "leave exactly one active class after uncommenting any one template class" in {
+    for (className <- List("GenerateOperator")) {
+      val active = PythonUdfTemplateTestUtils.activeLines(
+        PythonUdfTemplateTestUtils.uncommentClass(defaultCode, className)
+      )
+      active.head shouldBe "from pytexera import *"
+      active.count(_.startsWith("class ")) shouldBe 1
+      active.exists(_.startsWith(s"class $className(")) shouldBe true
+    }
   }
 }

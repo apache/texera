@@ -32,15 +32,11 @@ export class FlarumService {
 
   register() {
     const user = this.userService.getCurrentUser();
-    return this.http.post(
-      "forum/api/users",
-      {
-        data: {
-          attributes: { username: user!.email.split("@")[0] + user!.uid, email: user!.email, password: user!.googleId },
-        },
+    return this.http.post("forum/api/users", {
+      data: {
+        attributes: { username: user!.email.split("@")[0] + user!.uid, email: user!.email, password: user!.googleId },
       },
-      { headers: { Authorization: "Token hdebsyxiigyklxgsqivyswwiisohzlnezzzzzzzz;userId=1" } }
-    );
+    });
   }
 
   auth() {

@@ -49,7 +49,8 @@ class KubernetesConfigSpec extends AnyFlatSpec with Matchers {
       KubernetesConfig.computeUnitPoolNamespace shouldBe "texera-workflow-computing-unit-pool"
     )
     ifUnset("KUBERNETES_IMAGE_NAME")(
-      KubernetesConfig.computeUnitImageName shouldBe "bobbai/texera-workflow-computing-unit:dev"
+      KubernetesConfig.computeUnitImageName shouldBe
+        "ghcr.io/apache/texera-workflow-execution-coordinator:latest"
     )
     ifUnset("KUBERNETES_IMAGE_PULL_POLICY")(
       KubernetesConfig.computingUnitImagePullPolicy shouldBe "Always"
@@ -68,6 +69,19 @@ class KubernetesConfigSpec extends AnyFlatSpec with Matchers {
     )
     // an override may legitimately set 0 (to disable), so only require non-negative
     KubernetesConfig.maxNumOfRunningComputingUnitsPerUser should be >= 0
+  }
+
+  "KubernetesConfig idle computing unit cleanup settings" should "resolve to their kubernetes.conf defaults" in {
+    // The sweep deletes pods on a timer, so it stays off until a deployment opts in.
+    ifUnset("KUBERNETES_COMPUTING_UNIT_IDLE_CLEANUP_ENABLED")(
+      KubernetesConfig.computingUnitIdleCleanupEnabled shouldBe false
+    )
+    ifUnset("KUBERNETES_COMPUTING_UNIT_IDLE_TIMEOUT_MINUTES")(
+      KubernetesConfig.computingUnitIdleTimeoutMinutes shouldBe 1440
+    )
+    ifUnset("KUBERNETES_COMPUTING_UNIT_IDLE_CHECK_INTERVAL_MINUTES")(
+      KubernetesConfig.computingUnitIdleCheckIntervalMinutes shouldBe 60
+    )
   }
 
   "KubernetesConfig jupyter settings" should "resolve to their kubernetes.conf defaults" in {

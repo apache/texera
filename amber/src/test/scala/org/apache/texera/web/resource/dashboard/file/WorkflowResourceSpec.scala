@@ -25,6 +25,7 @@ import org.apache.texera.dao.jooq.generated.Tables.{
   USER,
   WORKFLOW,
   WORKFLOW_EXECUTIONS,
+  WORKFLOW_USER_ACCESS,
   WORKFLOW_USER_CLONES,
   WORKFLOW_VERSION
 }
@@ -730,7 +731,7 @@ class WorkflowResourceSpec
     // dataset is dropped during hydration when LakeFS is unreachable, so it cannot be counted
     // here -- DatasetSearchQueryBuilderSpec covers that path against a stub). Asserting that an
     // unrecognised value is rejected pins that resourceType is dispatched on, not ignored.
-    assertThrows[IllegalArgumentException] {
+    assertThrows[BadRequestException] {
       dashboardResource.searchAllResourcesCall(
         sessionUser1,
         SearchQueryParams(resourceType = "project", keywords = getKeywordsArray("test"))
@@ -951,6 +952,30 @@ class WorkflowResourceSpec
     assert(workflowResource.retrieveOwners(sessionUser2).asScala.toList == List(testUser.getEmail))
   }
 
+  "WorkflowResource" should "keep an owner's full access after their access row is removed" in {
+    val wid = seedWorkflow(sessionUser1, "owner-row-removed").workflow.getWid
+    getDSLContext
+      .deleteFrom(WORKFLOW_USER_ACCESS)
+      .where(WORKFLOW_USER_ACCESS.WID.eq(wid))
+      .execute()
+
+    val listed = workflowResource.retrieveWorkflowsBySessionUser(sessionUser1)
+    assert(listed.map(_.workflow.getWid) == List(wid))
+    assert(listed.head.accessLevel == "WRITE")
+
+    val searched =
+      dashboardResource.searchAllResourcesCall(sessionUser1, SearchQueryParams()).results
+    assert(
+      searched.flatMap(_.workflow).map(w => (w.workflow.getWid, w.accessLevel)) == List(
+        wid -> "WRITE"
+      )
+    )
+
+    assert(workflowResource.retrieveIDs(sessionUser1).asScala.toList == List(wid.toString))
+    assert(workflowResource.retrieveOwners(sessionUser1).asScala.toList == List(testUser.getEmail))
+    assert(!workflowResource.retrieveWorkflow(wid, sessionUser1).readonly)
+  }
+
   "WorkflowResource name/type/description/owner/size lookups" should "reflect the seeded workflow" in {
     val content = "{\"nodes\":42}"
     val wid = seedWorkflow(sessionUser1, "lookup-wf", "look-desc", content).workflow.getWid
@@ -1006,17 +1031,14 @@ class WorkflowResourceSpec
     assertThrows[ForbiddenException](workflowResource.makePublic(wid, sessionUser2))
   }
 
-  "WorkflowResource.searchWorkflowByOperator" should "return only workflows whose content contains the operator" in {
-    val wid = seedWorkflow(
-      sessionUser1,
-      "csv-wf",
-      "d",
-      "{\"operators\":[{\"operatorType\":\"CSVFileScan\"}]}"
-    ).workflow.getWid
-    seedWorkflow(sessionUser1, "filter-wf", "d", "{\"operators\":[{\"operatorType\":\"Filter\"}]}")
+  "WorkflowResource.retrievePublicWorkflow" should "throw NotFoundException for a private workflow" in {
+    val wid = seedWorkflow(sessionUser1, "public-private-wf").workflow.getWid
+    assertThrows[NotFoundException](workflowResource.retrievePublicWorkflow(wid))
+  }
 
-    val hits = workflowResource.searchWorkflowByOperator("CSVFileScan", sessionUser1)
-    assert(hits == List(wid.toString))
+  it should "throw NotFoundException for a wid that does not exist" in {
+    val wid = seedWorkflow(sessionUser1, "public-missing-wf").workflow.getWid
+    assertThrows[NotFoundException](workflowResource.retrievePublicWorkflow(wid + 100000))
   }
 
   "WorkflowResource.duplicateWorkflow" should "create a distinct copy owned by the user" in {
@@ -1340,9 +1362,9 @@ class WorkflowResourceSpec
     assert(defaultView(wid) == DefaultViewEnum.CANVAS)
   }
 
-  // A plain save (persistWorkflow) only writes the fields the client sends -- name,
-  // description, content, is_public -- and never `default_view`, so saving the canvas must
-  // not reset the default view. The edit payload mirrors what the frontend sends.
+  // A plain save (persistWorkflow) only writes name, description and content -- never
+  // `default_view`, so saving the canvas must not reset the default view. The edit payload mirrors
+  // what the frontend sends.
   it should "survive a subsequent save of the workflow" in {
     val wid = persistFreshWorkflow("param_survives_save")
     workflowResource.setDefaultView(wid, DefaultViewRequest("FORM"), sessionUser1)
@@ -1351,13 +1373,45 @@ class WorkflowResourceSpec
     edit.setWid(wid)
     edit.setName("param_survives_save_edited")
     edit.setContent("{\"operators\":[],\"links\":[]}")
-    edit.setIsPublic(false)
     workflowResource.persistWorkflow(edit, sessionUser1)
 
     assert(
       defaultView(wid) == DefaultViewEnum.FORM,
       "saving the canvas must not reset the default view"
     )
+  }
+
+  // The frontend feeds the saved row back as its metadata, where the publish flag has another
+  // name, so the very next autosave arrives with isPublic unset. A save must neither fail on that
+  // (the column is NOT NULL, and writing the null made every second save a 500) nor rewrite the
+  // flag: publishing is /public and /private's job alone.
+  "/persist API" should "neither fail nor change is_public when the save carries no flag" in {
+    val wid = persistFreshWorkflow("persist_keeps_public")
+    workflowResource.makePublic(wid, sessionUser1)
+
+    val edit = new Workflow()
+    edit.setWid(wid)
+    edit.setName("persist_keeps_public_edited")
+    edit.setContent("{\"operators\":[],\"links\":[]}")
+    // isPublic deliberately left null, exactly as the frontend's second save sends it
+    val saved = workflowResource.persistWorkflow(edit, sessionUser1)
+
+    assert(saved.getName == "persist_keeps_public_edited")
+    assert(saved.getIsPublic, "a plain save must not touch the publish flag")
+  }
+
+  it should "not un-publish a workflow when the save says isPublic = false" in {
+    val wid = persistFreshWorkflow("persist_ignores_flag")
+    workflowResource.makePublic(wid, sessionUser1)
+
+    val edit = new Workflow()
+    edit.setWid(wid)
+    edit.setName("persist_ignores_flag_edited")
+    edit.setContent("{\"operators\":[],\"links\":[]}")
+    edit.setIsPublic(false)
+    val saved = workflowResource.persistWorkflow(edit, sessionUser1)
+
+    assert(saved.getIsPublic, "a stale flag on a save must not un-publish the workflow")
   }
 
   // A biologist's path is hub -> clone -> use, so a copy has to stay usable.
@@ -1476,6 +1530,35 @@ class WorkflowResourceSpec
       contentOf(wid).contains("formBinding"),
       "switching back to canvas must not erase the form definition"
     )
+  }
+
+  // The listing's isOwner compares two boxed Integers. testUser and testUser2 have uids 1
+  // and 2, inside the default Integer autoboxing cache where reference equality happens to
+  // agree with value equality, so this case needs an owner whose uid is outside it.
+  "WorkflowResource.retrieveWorkflowsBySessionUser" should "set isOwner for an owner whose uid is outside the Integer cache" in {
+    val owner = new User
+    owner.setUid(Integer.valueOf(1001))
+    owner.setName("large_uid_owner")
+    owner.setRole(UserRoleEnum.REGULAR)
+    new UserDao(getDSLContext.configuration()).insert(owner)
+    val ownerSession = new SessionUser(owner)
+
+    val wid = seedWorkflow(ownerSession, "wf_of_large_uid_user").workflow.getWid
+    try {
+      val own = workflowResource.retrieveWorkflowsBySessionUser(ownerSession)
+      assert(own.map(_.workflow.getWid) == List(wid))
+      assert(own.head.ownerId == owner.getUid)
+      assert(own.head.isOwner, "the owner's own listing must report isOwner")
+
+      // A reader with the same workflow in their listing is not its owner.
+      grantAccess(wid, testUser, PrivilegeEnum.READ)
+      val shared = workflowResource.retrieveWorkflowsBySessionUser(sessionUser1)
+      assert(shared.exists(_.workflow.getWid == wid))
+      assert(!shared.find(_.workflow.getWid == wid).get.isOwner)
+    } finally {
+      // afterEach only clears testUser's and testUser2's own workflows.
+      workflowResource.deleteWorkflow(WorkflowIDs(List(wid)), ownerSession)
+    }
   }
 
 }

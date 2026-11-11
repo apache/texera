@@ -81,6 +81,72 @@ describe("PropertyEditorComponent", () => {
     expect(component).toBeTruthy();
   });
 
+  // The Form View mounts this panel with persistPlacement=false. It must not persist the docked
+  // canvas panel's geometry -- it is not that panel, and writing these keys would overwrite the
+  // real one's saved size. (The ngOnInit restore is guarded by the same flag; its canvas path is
+  // exercised by the default fixture above.)
+  it("does not persist the docked panel geometry when persistPlacement is false", () => {
+    component.persistPlacement = false;
+    const setItem = vi.spyOn(Storage.prototype, "setItem");
+
+    component.ngOnDestroy();
+
+    expect(setItem).not.toHaveBeenCalledWith("right-panel-width", expect.anything());
+    expect(setItem).not.toHaveBeenCalledWith("right-panel-style", expect.anything());
+  });
+
+  // The other half of the same flag: with it on (the canvas), a placement saved by a previous
+  // session is restored onto #right-container. The default fixture runs this path with nothing
+  // saved, so seed the key and re-run ngOnInit to cover the restore itself.
+  it("restores the docked panel's saved placement when persistPlacement is on", () => {
+    localStorage.setItem("right-panel-style", "width: 321px;");
+    const container = document.getElementById("right-container")!;
+    container.style.cssText = "";
+
+    component.ngOnInit();
+
+    expect(container.style.width).toBe("321px");
+  });
+
+  // Both views of a workflow mount this panel, and they overlap for a tick when the switch routes
+  // between them; a document-wide lookup then finds the departing view's container first and
+  // restores the saved placement onto it, leaving this panel's own unstyled.
+  it("restores the saved placement onto its own container, not the first one in the document", () => {
+    // `left`, not width: the template binds the width (nz-resizable) on the same change-detection
+    // pass that runs ngOnInit, which would overwrite the restored value and hide the outcome.
+    localStorage.setItem("right-panel-style", "left: 33px;");
+    // In the document before the panel is created, as the departing view's container is when the
+    // arriving one initialises.
+    const decoy = document.createElement("div");
+    decoy.id = "right-container";
+    document.body.insertBefore(decoy, document.body.firstChild);
+    try {
+      const arriving = TestBed.createComponent(PropertyEditorComponent);
+      arriving.detectChanges();
+      const own = arriving.nativeElement.querySelector("#right-container") as HTMLElement;
+
+      expect(own.style.left).toBe("33px");
+      expect(decoy.style.left).toBe("");
+      arriving.destroy();
+    } finally {
+      decoy.remove();
+    }
+  });
+
+  // The crash this flag fixes: ngOnInit reads #right-container to restore the docked panel's
+  // placement, and that element only exists in the canvas layout. The Form View mounts the panel
+  // with persistPlacement=false, where the element is absent -- reading it there would throw. With
+  // the flag off, ngOnInit must not go near it. Re-run ngOnInit on the existing instance (no second
+  // fixture, which would pollute TestBed) with the flag off and assert the lookup never happens.
+  it("does not read #right-container in ngOnInit when persistPlacement is false", () => {
+    component.persistPlacement = false;
+    const getById = vi.spyOn(document, "getElementById");
+
+    expect(() => component.ngOnInit()).not.toThrow();
+
+    expect(getById).not.toHaveBeenCalledWith("right-container");
+  });
+
   /**
    * test if the property editor correctly receives the operator unhighlight stream
    *  and clears all the operator data, and hide the form.
@@ -98,6 +164,7 @@ describe("PropertyEditorComponent", () => {
     expect(component.componentInputs).toEqual({
       currentOperatorId: mockScanPredicate.operatorID,
       exposeChoosing: false,
+      actsAsEditor: true,
     });
 
     // unhighlight the operator
@@ -148,6 +215,7 @@ describe("PropertyEditorComponent", () => {
     expect(component.componentInputs).toEqual({
       currentOperatorId: mockScanPredicate.operatorID,
       exposeChoosing: false,
+      actsAsEditor: true,
     });
 
     // unhighlight the operator
@@ -164,7 +232,33 @@ describe("PropertyEditorComponent", () => {
     expect(component.componentInputs).toEqual({
       currentOperatorId: mockResultPredicate.operatorID,
       exposeChoosing: false,
+      actsAsEditor: true,
     });
+  });
+
+  it("forwards the viewer mount to the frame and clears no awareness of its own", () => {
+    // The Form View mounts this panel with actsAsEditor=false. Two things follow: the frame
+    // is handed the same flag (it owns the writes), and this component's own shared-model write --
+    // clearing "currentlyEditing" when the selection stops being a single operator -- is skipped, so
+    // a reader publishes nothing on the co-editor channel in either direction.
+    const jointGraphWrapper = workflowActionService.getJointGraphWrapper();
+    const awareness = vi.spyOn(workflowActionService.getTexeraGraph(), "updateSharedModelAwareness");
+    component.actsAsEditor = false;
+    workflowActionService.addOperator(mockScanPredicate, mockPoint);
+
+    jointGraphWrapper.highlightOperators(mockScanPredicate.operatorID);
+    fixture.detectChanges();
+    expect(component.componentInputs).toEqual({
+      currentOperatorId: mockScanPredicate.operatorID,
+      exposeChoosing: false,
+      actsAsEditor: false,
+    });
+
+    jointGraphWrapper.unhighlightOperators(mockScanPredicate.operatorID);
+    fixture.detectChanges();
+
+    expect(component.currentComponent).toBeNull();
+    expect(awareness).not.toHaveBeenCalledWith("currentlyEditing", undefined);
   });
 
   it("should show the port property frame when exactly one port (and no link) is highlighted", () => {
@@ -358,7 +452,8 @@ describe("PropertyEditorComponent", () => {
     localStorage.removeItem("right-panel-style");
     component.width = 137;
     component.height = 246;
-    vi.spyOn(document, "getElementById").mockReturnValue(null);
+    // The panel looks for the container inside its own host, so "missing" means gone from there.
+    (fixture.nativeElement.querySelector("#right-container") as HTMLElement).remove();
 
     component.ngOnDestroy();
 
@@ -468,6 +563,48 @@ describe("PropertyEditorComponent", () => {
 
       component.ngOnChanges({
         exposeChoosing: { firstChange: false, currentValue: true, previousValue: false, isFirstChange: () => false },
+      });
+      expect(component.currentComponent).toBeNull();
+      tick();
+
+      expect(component.currentComponent).toBe(OperatorPropertyEditFrameComponent);
+    }));
+
+    // Switching a step that is already open from viewer to editor. The rebuilt frame must be handed
+    // the mode it is being rebuilt INTO: it re-reads actsAsEditor before every write, so a frame
+    // rebuilt with the stale value would leave edit mode unable to save.
+    it("remounts the operator frame with the mode it is switching to, not the one it had", fakeAsync(() => {
+      // Left with no operator id so the rebuilt frame returns early instead of building a formly
+      // form, which this TestBed has no forRoot config for; the id is still carried through the
+      // rebuild, which is the other half of what this asserts.
+      component.currentComponent = OperatorPropertyEditFrameComponent;
+      component.componentInputs = { currentOperatorId: undefined, exposeChoosing: false, actsAsEditor: false };
+
+      // What the Form View does when Edit is toggled with a step already open: both inputs flip
+      // together, and the rebuilt frame has to be handed the mode it is switching TO. Handed the
+      // old one, an author's edits in the panel would go nowhere.
+      component.exposeChoosing = true;
+      component.actsAsEditor = true;
+      component.ngOnChanges({
+        exposeChoosing: { firstChange: false, currentValue: true, previousValue: false, isFirstChange: () => false },
+        actsAsEditor: { firstChange: false, currentValue: true, previousValue: false, isFirstChange: () => false },
+      });
+      tick();
+
+      expect(component.componentInputs).toEqual({
+        currentOperatorId: undefined,
+        exposeChoosing: true,
+        actsAsEditor: true,
+      });
+    }));
+
+    // A mode change is a rebuild whichever input carries it, so the editor/viewer switch alone has
+    // to remount too, not only the tick-box switch that happens to accompany it today.
+    it("remounts the operator frame when only the editor/viewer input changes", fakeAsync(() => {
+      component.currentComponent = OperatorPropertyEditFrameComponent;
+
+      component.ngOnChanges({
+        actsAsEditor: { firstChange: false, currentValue: false, previousValue: true, isFirstChange: () => false },
       });
       expect(component.currentComponent).toBeNull();
       tick();

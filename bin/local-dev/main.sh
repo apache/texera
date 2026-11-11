@@ -110,7 +110,7 @@
 #   agent-service                  :3001  Bun --watch (cd agent-service && bun run dev)
 #   frontend                       :4200  ng serve via cd frontend && yarn start
 #
-# Docker infra (postgres / minio / lakefs / lakekeeper / litellm / jupyter) IS managed
+# Docker infra (postgres / rustfs / lakefs / lakekeeper / litellm / jupyter) IS managed
 # here: `up` brings it up via `docker compose` (project texera-local-dev) and
 # `down` tears down any docker targets. The script warns if expected ports are
 # unreachable. Before any sbt build the postgres schema is reconciled: a fresh
@@ -582,12 +582,12 @@ elif [[ -s "$HOME/.volta/load.sh" ]]; then
 fi
 
 # --------- runtime env for backend ---------
-# Detect the host's primary LAN IP so we can use it as the MinIO endpoint.
+# Detect the host's primary LAN IP so we can use it as the RustFS endpoint.
 # It has to be the same string from both directions:
 #   • host-native JVMs need it to reach localhost-published port 9000
 #   • the lakekeeper container needs it to do server-side S3 ops (validation,
 #     compaction) AND to return URLs to clients that *they* can reach
-# `localhost` only works for the host. `texera-minio` only works inside the
+# `localhost` only works for the host. `texera-rustfs` only works inside the
 # docker network. The host's LAN IP works from BOTH (host loopback for the
 # host, docker NAT'd out-and-back for the container).
 #
@@ -630,7 +630,7 @@ _detect_host_lan_ip_linux() {
     # 2. Scan every global IPv4, skipping the interfaces that would defeat the
     #    purpose of this address. A container bridge (docker0, br-*, veth*) is
     #    reachable from the host but not from inside another container's
-    #    network namespace the way MinIO needs; an overlay/VPN address
+    #    network namespace the way RustFS needs; an overlay/VPN address
     #    (tailscale, zerotier) is not reachable from the docker bridge at all.
     while read -r idx dev fam cidr _rest; do
         [[ "$fam" == "inet" ]] || continue
@@ -654,7 +654,7 @@ _detect_host_lan_ip() {
 }
 # Lazy resolver — called from subcommands that actually need to publish a
 # host-reachable S3 endpoint (cmd_up, cmd_auto). Subcommands like
-# `version`, `status`, `--help`, or `-i` don't talk to MinIO and shouldn't
+# `version`, `status`, `--help`, or `-i` don't talk to RustFS and shouldn't
 # refuse to run just because the laptop is offline.
 _require_host_lan_ip() {
     [[ -n "${HOST_LAN_IP:-}" ]] && return 0
@@ -669,7 +669,7 @@ _require_host_lan_ip() {
                     bridge_note=" outside the container bridges" ;;
         esac
         echo "FATAL: could not detect a host LAN IP." >&2
-        echo "       MinIO needs an address reachable from both docker (lakekeeper" >&2
+        echo "       RustFS needs an address reachable from both docker (lakekeeper" >&2
         echo "       does S3 ops) and the host (JVMs read signed URLs back); none" >&2
         echo "       of $probes offered a non-loopback IPv4${bridge_note}." >&2
         echo "       Connect to a network or export HOST_LAN_IP=<your-IP> explicitly." >&2
@@ -685,9 +685,9 @@ export STORAGE_JDBC_URL="${STORAGE_JDBC_URL:-jdbc:postgresql://localhost:5432/te
 export STORAGE_JDBC_USERNAME="${STORAGE_JDBC_USERNAME:-texera}"
 export STORAGE_JDBC_PASSWORD="${STORAGE_JDBC_PASSWORD:-password}"
 # STORAGE_S3_ENDPOINT is set lazily by _require_host_lan_ip — only the
-# subcommands that actually touch MinIO (infra_up + cmd_up + cmd_auto)
+# subcommands that actually touch RustFS (infra_up + cmd_up + cmd_auto)
 # trigger that detection, so `version` / `status` / `-i` work offline.
-export STORAGE_S3_AUTH_USERNAME="${STORAGE_S3_AUTH_USERNAME:-texera_minio}"
+export STORAGE_S3_AUTH_USERNAME="${STORAGE_S3_AUTH_USERNAME:-texera_rustfs}"
 export STORAGE_S3_AUTH_PASSWORD="${STORAGE_S3_AUTH_PASSWORD:-password}"
 export STORAGE_S3_REGION="${STORAGE_S3_REGION:-us-west-2}"
 export STORAGE_ICEBERG_CATALOG_TYPE="${STORAGE_ICEBERG_CATALOG_TYPE:-rest}"
@@ -874,7 +874,7 @@ _sbt_transitive_src_dirs() {
 # --------- service catalog ---------
 SERVICES=(
     postgres
-    minio
+    rustfs
     lakefs
     lakekeeper
     litellm
@@ -899,7 +899,7 @@ SERVICES=(
 # batch through infra_up/infra_down because `docker compose up -d` and
 # `docker compose down` operate at the project level.
 amap_set SVC_TYPE postgres   docker; amap_set SVC_PORT postgres   5432; amap_set SVC_CWD postgres   "."
-amap_set SVC_TYPE minio      docker; amap_set SVC_PORT minio      9000; amap_set SVC_CWD minio      "."
+amap_set SVC_TYPE rustfs     docker; amap_set SVC_PORT rustfs     9000; amap_set SVC_CWD rustfs     "."
 amap_set SVC_TYPE lakefs     docker; amap_set SVC_PORT lakefs     8000; amap_set SVC_CWD lakefs     "."
 amap_set SVC_TYPE lakekeeper docker; amap_set SVC_PORT lakekeeper 8181; amap_set SVC_CWD lakekeeper "."
 amap_set SVC_TYPE litellm    docker; amap_set SVC_PORT litellm    4000; amap_set SVC_CWD litellm    "."
@@ -1003,8 +1003,8 @@ DOCKER_PROJECT="texera-local-dev"
 DOCKER_COMPOSE_FILE="$SELF_ROOT/bin/single-node/docker-compose.yml"
 DOCKER_OVERLAY_FILE="$SELF_ROOT/bin/local-dev/docker-compose.override.yml"
 DOCKER_ENV_FILE="$SELF_ROOT/bin/single-node/.env"
-DOCKER_INFRA_SERVICES=(postgres minio minio-init lakefs lakekeeper-migrate lakekeeper lakekeeper-init litellm jupyter)
-DOCKER_INFRA_LONGLIVED=(postgres minio lakefs lakekeeper litellm jupyter)  # exclude one-shot init jobs
+DOCKER_INFRA_SERVICES=(postgres rustfs rustfs-init lakefs lakekeeper-migrate lakekeeper lakekeeper-init litellm jupyter)
+DOCKER_INFRA_LONGLIVED=(postgres rustfs lakefs lakekeeper litellm jupyter)  # exclude one-shot init jobs
 
 # Build the array of -f flags: base single-node compose + local-dev overlay
 # (the overlay publishes infra ports to the host, which the upstream compose
@@ -1361,7 +1361,7 @@ _install_hint() {
             printf "    Linux:   see https://www.scala-sbt.org/download.html\n"
             ;;
         docker)
-            printf "  ${BOLD}install Docker (needed for postgres/minio/lakefs/lakekeeper/litellm):${RESET}\n"
+            printf "  ${BOLD}install Docker (needed for postgres/rustfs/lakefs/lakekeeper/litellm):${RESET}\n"
             printf "    macOS:   download Docker Desktop from https://docker.com/products/docker-desktop\n"
             printf "    Linux:   apt install docker.io docker-compose-v2    ${DIM}# dnf: moby-engine docker-compose${RESET}\n"
             printf "             then sudo usermod -aG docker \"\$USER\" and log back in\n"
@@ -1651,7 +1651,7 @@ _refresh_docker_states_cache() {
     fi
 }
 
-# Per-service state for any of postgres/minio/lakefs/lakekeeper/litellm.
+# Per-service state for any of postgres/rustfs/lakefs/lakekeeper/litellm.
 # Returns one of: running | starting | unhealthy | exited | failed | stopped
 docker_svc_state() {
     local svc="$1"
@@ -1684,7 +1684,7 @@ docker_svc_state() {
 infra_up() {
     # Resolve the host LAN IP now (lazy) — both the docker compose stack
     # (lakekeeper-init reads STORAGE_S3_ENDPOINT) and the host JVMs about
-    # to start need it pointing at a host-reachable MinIO.
+    # to start need it pointing at a host-reachable RustFS.
     _require_host_lan_ip
     if [[ "$(infra_state)" == external:* ]]; then
         tui_err "infra: ports already taken by non-script containers"
@@ -1929,7 +1929,7 @@ infra_apply_sql_updates() {
 #
 # Used by cmd_auto, which only wants to touch what its scan said is
 # dirty. cmd_up uses the heavier infra_up + infra_ensure_db_schema pair
-# instead so minio/lakefs/litellm warm up in parallel with the build.
+# instead so rustfs/lakefs/litellm warm up in parallel with the build.
 ensure_postgres_for_build() {
     if [[ "$(docker_svc_state postgres)" != "running" ]]; then
         tui_step "postgres: starting (required for jOOQ codegen at build time)"
@@ -2179,7 +2179,7 @@ start_one() {
     local type=""
     type=$(amap_get SVC_TYPE "$svc")
     # JVMs and docker services need STORAGE_S3_ENDPOINT exported before
-    # launch (JVM clients dial MinIO; lakekeeper bakes the URL into the
+    # launch (JVM clients dial RustFS; lakekeeper bakes the URL into the
     # warehouse storage profile). yarn/bun watch services don't.
     if [[ "$type" == "jvm" || "$type" == "docker" ]]; then
         _require_host_lan_ip
@@ -2886,7 +2886,7 @@ cmd_up() {
     # generator returns Seq.empty and the downstream Scala compile fails
     # on missing Tables/Keys/etc (the generated dir is not git-tracked).
     # Bring infra up first so postgres is ready when the build fires.
-    # As a bonus minio/lakefs/litellm warm up while sbt runs. (#6007)
+    # As a bonus rustfs/lakefs/litellm warm up while sbt runs. (#6007)
     local svc=""
     local has_docker_targets=false
     for svc in "${SERVICES[@]}"; do

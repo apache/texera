@@ -20,6 +20,7 @@
 package org.apache.texera.web.service
 
 import com.typesafe.scalalogging.LazyLogging
+import org.apache.texera.amber.core.storage.FileResolver
 import org.apache.texera.amber.core.virtualidentity.{ExecutionIdentity, WorkflowIdentity}
 import org.apache.texera.amber.core.workflow.WorkflowContext
 import org.apache.texera.amber.engine.architecture.coordinator.{CoordinatorConfig, Workflow}
@@ -61,6 +62,7 @@ class WorkflowExecutionService(
     request: WorkflowExecuteRequest,
     val executionStateStore: ExecutionStateStore,
     errorHandler: Throwable => Unit,
+    uid: Integer,
     userEmailOpt: Option[String],
     sessionUri: URI
 ) extends SubscriptionManager
@@ -108,9 +110,14 @@ class WorkflowExecutionService(
   var executionRuntimeService: ExecutionRuntimeService = _
   var executionConsoleService: ExecutionConsoleService = _
 
-  def executeWorkflow(): Unit = {
+  // Returns Some(err) when setup fails synchronously (e.g. compilation) after the
+  // failure has already been surfaced to the UI via errorHandler, so the caller can
+  // mark its still-open setup span; None once the run has started, after which
+  // runtime failures arrive asynchronously through errorHandler and belong to later
+  // execution work rather than this setup.
+  def executeWorkflow(): Option[Throwable] = {
     try {
-      val compilationResult = new WorkflowCompiler(workflowContext)
+      val compilationResult = new WorkflowCompiler(workflowContext, FileResolver.forUser(uid))
         .compile(request.logicalPlan, CompilationErrorHandling.Strict)
       workflow = Workflow.fromCompilationResult(workflowContext, compilationResult)
     } catch {
@@ -118,7 +125,7 @@ class WorkflowExecutionService(
         // stop here: `workflow` is still null, so falling through would NPE
         // below and mask the reported compilation error
         errorHandler(err)
-        return
+        return Some(err)
     }
 
     client = ComputingUnitMaster.createAmberRuntime(
@@ -172,6 +179,7 @@ class WorkflowExecutionService(
           }
         )
       )
+    None
   }
 
   override def unsubscribeAll(): Unit = {

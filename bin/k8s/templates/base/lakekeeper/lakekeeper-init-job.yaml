@@ -31,6 +31,48 @@ spec:
       name: {{ .Release.Name }}-lakekeeper-init
     spec:
       restartPolicy: Never
+{{- if .Values.lakekeeperInit.createBucket }}
+      # Creates the Iceberg warehouse bucket before the warehouse is registered.
+      # `rc` is RustFS's S3 client; using its image keeps the client out of the
+      # main container, which would otherwise have to fetch a binary at runtime.
+      initContainers:
+        - name: create-bucket
+          image: {{ .Values.lakekeeperInit.bucketClientImage }}
+          env:
+            - name: STORAGE_S3_ENDPOINT
+              value: {{ include "texera.s3.endpoint" . }}
+            - name: STORAGE_S3_AUTH_USERNAME
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "texera.s3.secretName" . }}
+                  key: {{ include "texera.s3.accessKeyIdKey" . }}
+            - name: STORAGE_S3_AUTH_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "texera.s3.secretName" . }}
+                  key: {{ include "texera.s3.secretAccessKeyKey" . }}
+            - name: STORAGE_ICEBERG_CATALOG_REST_S3_BUCKET
+              value: {{ .Values.lakekeeperInit.warehouse.s3Bucket | quote }}
+            - name: STORAGE_ICEBERG_CATALOG_REST_REGION
+              value: {{ .Values.lakekeeperInit.warehouse.region | quote }}
+          command:
+            - /bin/sh
+            - -c
+            - |
+              set -e
+
+              echo "Waiting for the object store at ${STORAGE_S3_ENDPOINT}..."
+              until rc alias set local "${STORAGE_S3_ENDPOINT}" \
+                    "${STORAGE_S3_AUTH_USERNAME}" "${STORAGE_S3_AUTH_PASSWORD}" \
+                    --region "${STORAGE_ICEBERG_CATALOG_REST_REGION}" \
+                    --bucket-lookup path > /dev/null 2>&1; do
+                sleep 3
+              done
+
+              echo "Initializing object-store bucket '${STORAGE_ICEBERG_CATALOG_REST_S3_BUCKET}'..."
+              rc bucket create --ignore-existing "local/${STORAGE_ICEBERG_CATALOG_REST_S3_BUCKET}"
+              echo "Bucket '${STORAGE_ICEBERG_CATALOG_REST_S3_BUCKET}' is ready."
+{{- end }}
       containers:
         - name: lakekeeper-init
           image: alpine:3.19
@@ -87,13 +129,7 @@ spec:
               done
 
 {{- if .Values.lakekeeperInit.createBucket }}
-              echo "Step 1: Initializing object-store bucket '${STORAGE_ICEBERG_CATALOG_REST_S3_BUCKET}'..."
-              apk add --no-cache wget
-              wget -q https://dl.min.io/client/mc/release/linux-amd64/mc -O /usr/local/bin/mc
-              chmod +x /usr/local/bin/mc
-              mc alias set minio "${STORAGE_S3_ENDPOINT}" "${STORAGE_S3_AUTH_USERNAME}" "${STORAGE_S3_AUTH_PASSWORD}"
-              mc mb --ignore-existing minio/${STORAGE_ICEBERG_CATALOG_REST_S3_BUCKET}
-              echo "Bucket '${STORAGE_ICEBERG_CATALOG_REST_S3_BUCKET}' is ready."
+              echo "Step 1: object-store bucket '${STORAGE_ICEBERG_CATALOG_REST_S3_BUCKET}' was created by the create-bucket init container."
 {{- else }}
               echo "Step 1: skipping bucket creation (createBucket=false; using pre-existing external S3 bucket '${STORAGE_ICEBERG_CATALOG_REST_S3_BUCKET}')."
 {{- end }}

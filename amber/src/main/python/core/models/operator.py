@@ -20,13 +20,75 @@ import pandas
 from functools import lru_cache
 from abc import ABC, abstractmethod
 from collections import defaultdict
-from typing import Iterator, List, Mapping, Optional, Union, MutableMapping, Protocol
+from typing import (
+    Any,
+    Iterator,
+    List,
+    Mapping,
+    Optional,
+    Union,
+    MutableMapping,
+    Protocol,
+    Tuple as TypingTuple,
+)
 
-from . import Table, TableLike, Tuple, TupleLike, Batch, BatchLike
+from . import Table, TableLike, Tuple, TupleLike, Batch, BatchLike, Schema
 from .state import State
 from .table import all_output_to_tuple
 
 import base64
+
+
+def require_yielded(result, method_name: str):
+    """
+    Catch the common case of a user method such as process_table using
+    `return` instead of `yield`: it rejects a returned None, Tuple, dict or
+    DataFrame, which would otherwise fail later with a confusing error.
+    Other values (e.g. a list, or a pandas Series) are passed through
+    unchecked.
+    """
+    if result is None or isinstance(result, (Tuple, dict, pandas.DataFrame)):
+        raise TypeError(
+            f"{method_name} must `yield` results, not `return` them. "
+            "Replace `return x` with `yield x`."
+        )
+    return result
+
+
+class _LoopVariables(Mapping):
+    """
+    A read-only view of an operator's loop variables. Reading a name that got
+    two different values from the same loop raises the error a JVM operator
+    whose setting refers to that name raises (``StateReferenceBinding``); the
+    other names read as usual, and the name itself is still listed.
+    """
+
+    def __init__(
+        self,
+        values: Mapping[str, Any],
+        conflicts: Mapping[str, TypingTuple[Any, Any]],
+    ) -> None:
+        self._values = values
+        self._conflicts = conflicts
+
+    def __getitem__(self, name: str) -> Any:
+        if name in self._conflicts:
+            earlier, later = self._conflicts[name]
+            raise RuntimeError(
+                f"loop variable {name} got two different values in one iteration, "
+                f"{earlier} and {later}: a loop's variables must not change inside "
+                "its body"
+            )
+        return self._values[name]
+
+    def __contains__(self, name: object) -> bool:
+        return name in self._values
+
+    def __iter__(self) -> Iterator[str]:
+        return iter(self._values)
+
+    def __len__(self) -> int:
+        return len(self._values)
 
 
 class Operator(ABC):
@@ -76,6 +138,76 @@ class Operator(ABC):
 
     __internal_is_source: bool = False
 
+    # The loop variables received so far, by name, and the nesting depth of
+    # the message each value came in; see ``register_state``. ``None`` until
+    # the first state message. Class-level defaults rather than ``__init__``
+    # assignments: a subclass ``__init__`` that skips ``super()`` still reads
+    # no loop variables until a state arrives.
+    __internal_loop_variables: Optional[MutableMapping[str, Any]] = None
+    __internal_loop_variable_depths: Optional[MutableMapping[str, int]] = None
+    # The names that got two different values at the depth they are held at,
+    # with those two values; see ``register_state``.
+    __internal_loop_variable_conflicts: Optional[
+        MutableMapping[str, TypingTuple[Any, Any]]
+    ] = None
+
+    @property
+    @overrides.final
+    def loop_variables(self) -> Mapping[str, Any]:
+        """
+        The loop variables received from upstream, read-only: inside a control
+        block, the values the state messages handed to this operator carried,
+        by name. The runtime registers each message (``register_state``) right
+        before ``process_state`` runs, so the callback and every call after it
+        can read them. Empty until a state message arrives. Reading a name
+        that got two different values from the same loop raises an error; see
+        ``register_state``.
+        """
+        return _LoopVariables(
+            self.__internal_loop_variables or {},
+            self.__internal_loop_variable_conflicts or {},
+        )
+
+    @overrides.final
+    def register_state(self, state: State, loop_counter: int = 0) -> None:
+        """
+        Merge the values ``state`` carries into ``loop_variables``. The runtime
+        calls this for every state message, with the nesting depth its envelope
+        carries (``loop_counter``): 0 from the innermost loop around this
+        operator, 1 from the loop around that, and so on. A state no loop sent,
+        such as one an operator returns from ``produce_state_on_finish``,
+        travels at depth 0.
+
+        For each name, the value from the smallest depth wins. So an inner
+        loop's variable shadows an enclosing one of the same name, even when the
+        enclosing message arrives later, and a state adds only the names it
+        carries. A message from the same depth may repeat a value, as copies
+        from several upstream workers or branches do, but must not change it:
+        reading a name that got two different values from one depth raises the
+        error a JVM operator whose setting refers to it raises
+        (``StateReferenceBinding``), until a value from a smaller depth replaces
+        both.
+
+        :param state: State, the state message that arrived.
+        :param loop_counter: int, the message's nesting depth.
+        """
+        if self.__internal_loop_variables is None:
+            self.__internal_loop_variables = {}
+            self.__internal_loop_variable_depths = {}
+            self.__internal_loop_variable_conflicts = {}
+        for name, value in state.items():
+            depth = self.__internal_loop_variable_depths.get(name)
+            if depth is None or loop_counter < depth:
+                self.__internal_loop_variables[name] = value
+                self.__internal_loop_variable_depths[name] = loop_counter
+                self.__internal_loop_variable_conflicts.pop(name, None)
+            elif loop_counter == depth:
+                earlier = self.__internal_loop_variables[name]
+                if earlier != value:
+                    self.__internal_loop_variable_conflicts.setdefault(
+                        name, (earlier, value)
+                    )
+
     @property
     @overrides.final
     def is_source(self) -> bool:
@@ -91,6 +223,23 @@ class Operator(ABC):
     @overrides.final
     def is_source(self, value: bool) -> None:
         self.__internal_is_source = value
+
+    __internal_input_schemas: Optional[MutableMapping[int, Schema]] = None
+
+    @property
+    @overrides.final
+    def input_schemas(self) -> MutableMapping[int, Schema]:
+        """
+        What each input port was declared to carry, keyed by port index and
+        written by the runtime before that port's data is handed over.
+
+        The tuples themselves say this too, so an operator only needs to ask
+        when there are none: a port can finish having carried no rows at all,
+        and its schema is then the only record of what its columns were.
+        """
+        if self.__internal_input_schemas is None:
+            self.__internal_input_schemas = {}
+        return self.__internal_input_schemas
 
     def open(self) -> None:
         """
@@ -179,7 +328,7 @@ class SourceOperator(TupleOperatorV2):
     @overrides.final
     def on_finish(self, port: int) -> Iterator[Optional[TupleLike]]:
         # TODO: change on_finish to output Iterator[Union[TupleLike, TableLike, None]]
-        for i in self.produce():
+        for i in require_yielded(self.produce(), "produce"):
             yield from all_output_to_tuple(i)
 
     @overrides.final
@@ -197,7 +346,6 @@ class BatchOperator(TupleOperatorV2):
 
     def __init__(self):
         super().__init__()
-        self.__batch_data: MutableMapping[int, List[Tuple]] = defaultdict(list)
         self._validate_batch_size(self.BATCH_SIZE)
 
     @staticmethod
@@ -210,26 +358,35 @@ class BatchOperator(TupleOperatorV2):
         if value <= 0:
             raise ValueError("BATCH_SIZE should be positive.")
 
+    def _get_batch_data(self) -> MutableMapping[int, List[Tuple]]:
+        # Created on first use (not in __init__) so a subclass whose __init__
+        # skips super().__init__() still works, like _get_template_decoder.
+        if not hasattr(self, "_BatchOperator__batch_data"):
+            self._validate_batch_size(self.BATCH_SIZE)
+            self.__batch_data = defaultdict(list)
+        return self.__batch_data
+
     @overrides.final
     def process_tuple(self, tuple_: Tuple, port: int) -> Iterator[Optional[TupleLike]]:
-        self.__batch_data[port].append(tuple_)
-        if (
-            self.BATCH_SIZE is not None
-            and len(self.__batch_data[port]) >= self.BATCH_SIZE
-        ):
+        batch_data = self._get_batch_data()
+        batch_data[port].append(tuple_)
+        if self.BATCH_SIZE is not None and len(batch_data[port]) >= self.BATCH_SIZE:
             yield from self._process_batch(port)
 
     @overrides.final
     def _process_batch(self, port: int) -> Iterator[Optional[BatchLike]]:
+        batch_data = self._get_batch_data()
         batch = Batch(
             pandas.DataFrame(
                 [
-                    self.__batch_data[port].pop(0).as_series()
-                    for _ in range(min(len(self.__batch_data[port]), self.BATCH_SIZE))
+                    batch_data[port].pop(0).as_series()
+                    for _ in range(min(len(batch_data[port]), self.BATCH_SIZE))
                 ]
             )
         )
-        for output_batch in self.process_batch(batch, port):
+        for output_batch in require_yielded(
+            self.process_batch(batch, port), "process_batch"
+        ):
             if output_batch is not None:
                 if isinstance(output_batch, pandas.DataFrame):
                     # TODO: integrate into Batch as a helper function.
@@ -242,7 +399,7 @@ class BatchOperator(TupleOperatorV2):
 
     @overrides.final
     def on_finish(self, port: int) -> Iterator[Optional[BatchLike]]:
-        while len(self.__batch_data[port]) != 0:
+        while len(self._get_batch_data()[port]) != 0:
             yield from self._process_batch(port)
 
     @abstractmethod
@@ -268,16 +425,26 @@ class TableOperator(TupleOperatorV2):
     def __init__(self):
         super().__init__()
         self._Operator__internal_is_source: bool = False
-        self.__table_data: Mapping[int, List[Tuple]] = defaultdict(list)
+
+    def _get_table_data(self) -> Mapping[int, List[Tuple]]:
+        # Created on first use (not in __init__) so a subclass whose __init__
+        # skips super().__init__() still works, like _get_template_decoder.
+        if not hasattr(self, "_TableOperator__table_data"):
+            self.__table_data = defaultdict(list)
+        return self.__table_data
 
     @overrides.final
     def process_tuple(self, tuple_: Tuple, port: int) -> Iterator[Optional[TupleLike]]:
-        self.__table_data[port].append(tuple_)
+        self._get_table_data()[port].append(tuple_)
         yield
 
     def on_finish(self, port: int) -> Iterator[Optional[TableLike]]:
-        table = Table(self.__table_data[port])
-        yield from self.process_table(table, port)
+        rows = self._get_table_data()[port]
+        schema = self.input_schemas.get(port)
+        # A port that carried no rows has no tuples to read column names off,
+        # and a table of no columns fails every operator that names one.
+        table = Table(rows) if rows or schema is None else Table.empty_of(schema)
+        yield from require_yielded(self.process_table(table, port), "process_table")
 
     @abstractmethod
     def process_table(self, table: Table, port: int) -> Iterator[Optional[TableLike]]:

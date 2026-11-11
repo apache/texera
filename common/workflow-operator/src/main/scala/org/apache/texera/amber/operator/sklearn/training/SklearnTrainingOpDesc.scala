@@ -19,12 +19,14 @@
 
 package org.apache.texera.amber.operator.sklearn.training
 
+import org.apache.texera.amber.operator.StandaloneCodeGenerator
 import org.apache.texera.amber.pybuilder.PythonTemplateBuilder.PythonTemplateBuilderStringContext
+import org.apache.texera.amber.pybuilder.PythonTemplateBuilder.pyStringLiteral
 import org.apache.texera.amber.core.workflow.{InputPort, OutputPort, PortIdentity}
 import org.apache.texera.amber.operator.metadata.{OperatorGroupConstants, OperatorInfo}
 import org.apache.texera.amber.operator.sklearn.SklearnModelOpDesc
 
-class SklearnTrainingOpDesc extends SklearnModelOpDesc {
+class SklearnTrainingOpDesc extends SklearnModelOpDesc with StandaloneCodeGenerator {
 
   override def getImportStatements = ""
 
@@ -64,4 +66,28 @@ $reportMissingKept
       inputPorts = List(InputPort(PortIdentity(), "training")),
       outputPorts = List(OutputPort(blocking = true))
     )
+
+  override def generateStandaloneCode(): String = {
+    val estimator = getImportStatements.split(" ").last
+    val tfidfPart = if (tfidfTransformer) "TfidfTransformer()," else ""
+    val targetLit = pyStringLiteral(target)
+    val modelNameLit = pyStringLiteral(getUserFriendlyModelName)
+    val narrowX = dropNonFeatureColumns("X", "")
+
+    // The rows the operator drops, into a local name, since the input belongs to its producer.
+    s"""${getImportStatements}
+       |from sklearn.pipeline import make_pipeline
+       |from sklearn.compose import ColumnTransformer
+       |from sklearn.feature_extraction.text import CountVectorizer, TfidfTransformer
+       |import pandas as pd
+       |
+       |_train = ${dropMissingRowsStandalone("in1df")}
+       |if len(_train) < len(in1df):
+       |    print("Skipped", len(in1df) - len(_train), "of", len(in1df), "rows with missing values")
+       |Y = _train[$targetLit]
+       |X = _train.drop($targetLit, axis=1)
+       |$narrowX
+       |model = make_pipeline(${vectorizerStage(c => pyStringLiteral(c))}$tfidfPart$estimator()).fit(X, Y)
+       |out1df = pd.DataFrame([{"model_name": $modelNameLit, "model": model}])""".stripMargin
+  }
 }

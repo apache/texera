@@ -17,7 +17,7 @@
 
 # ---------------------------------------------------------------------------
 # Example overlay for running Texera against an external S3 store (e.g. AWS S3)
-# instead of the bundled in-cluster MinIO.
+# instead of the bundled in-cluster RustFS.
 #
 #   helm install texera bin/k8s -f bin/k8s/values-aws.yaml
 #
@@ -25,8 +25,8 @@
 # own. The buckets must already exist (the init job does not create them).
 # ---------------------------------------------------------------------------
 
-# Turn off the bundled MinIO object store; the services talk to external S3.
-minio:
+# Turn off the bundled RustFS object store; the services talk to external S3.
+rustfs:
   enabled: false
   persistence:
     enabled: false

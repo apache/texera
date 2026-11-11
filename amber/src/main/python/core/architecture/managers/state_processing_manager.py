@@ -23,6 +23,9 @@ from core.models.state import State
 class StateProcessingManager:
     def __init__(self):
         self.current_input_state: Optional[State] = None
+        # The nesting depth (loop_counter) the envelope of current_input_state
+        # carried, for the operator to register the state with.
+        self.current_input_loop_counter: int = 0
         self.current_output_state: Optional[State] = None
 
     def get_input_state(self) -> Optional[State]:

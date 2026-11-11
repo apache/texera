@@ -184,7 +184,6 @@
       <!-- Input Area -->
       <div class="input-area">
         <textarea
-          #messageInput
           nz-input
           [(ngModel)]="currentMessage"
           placeholder="Ask me anything about your data science tasks..."
@@ -232,8 +231,7 @@
 <!-- ReAct Step Detail Modal -->
 <texera-react-step-detail-modal
   [(visible)]="isDetailsModalVisible"
-  [step]="selectedResponse"
-  [agentId]="agentInfo.id">
+  [step]="selectedResponse">
 </texera-react-step-detail-modal>
 
 <!-- System Info Modal (with editing capabilities) -->

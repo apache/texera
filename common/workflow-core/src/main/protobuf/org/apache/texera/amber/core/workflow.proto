@@ -48,6 +48,9 @@ message InputPort {
 
 
 message OutputPort {
+  // Mirrored by output_mode_enum in sql/texera_ddl.sql, which records each result port's
+  // mode: a new mode needs a value there too.
+
   enum OutputMode {
     // outputs complete result set snapshot for each update
     SET_SNAPSHOT = 0;

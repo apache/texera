@@ -20,7 +20,10 @@
 package org.apache.texera.common.compiler
 
 import org.apache.texera.common.compiler.model.{LogicalLink, LogicalPlanPojo}
-import org.apache.texera.amber.core.tuple.{Attribute, AttributeType, Schema}
+import org.apache.texera.amber.core.executor.{ExecFactory, OpExecWithClassName}
+import org.apache.texera.amber.core.state.State
+import org.apache.texera.amber.core.storage.ScanFileResolver
+import org.apache.texera.amber.core.tuple.{Attribute, AttributeType, Schema, Tuple}
 import org.apache.texera.amber.core.virtualidentity.WorkflowIdentity
 import org.apache.texera.amber.core.workflow.{OutputPort, PortIdentity, WorkflowContext}
 import org.apache.texera.amber.core.workflowruntimestate.FatalErrorType.COMPILATION_ERROR
@@ -30,11 +33,14 @@ import org.apache.texera.amber.operator.filter.{
   SpecializedFilterOpDesc
 }
 import org.apache.texera.amber.operator.limit.LimitOpDesc
+import org.apache.texera.amber.operator.loop.{LoopEndOpDesc, LoopStartOpDesc}
 import org.apache.texera.amber.operator.metadata.{OperatorGroupConstants, OperatorInfo}
 import org.apache.texera.amber.operator.projection.{AttributeUnit, ProjectionOpDesc}
 import org.apache.texera.amber.operator.sort.{SortCriteriaUnit, SortOpDesc, SortPreference}
 import org.apache.texera.amber.operator.source.scan.csv.CSVScanSourceOpDesc
-import org.apache.texera.amber.operator.{PythonOperatorDescriptor, TestOperators}
+import org.apache.texera.amber.operator.source.scan.text.TextInputSourceOpDesc
+import org.apache.texera.amber.operator.{LogicalOp, PythonOperatorDescriptor, TestOperators}
+import org.apache.texera.amber.util.JSONUtils.objectMapper
 import org.scalatest.flatspec.AnyFlatSpec
 
 /**
@@ -55,6 +61,12 @@ class WorkflowCompilerSpec extends AnyFlatSpec {
 
   private def newContext(): WorkflowContext =
     new WorkflowContext(workflowId = WorkflowIdentity(0))
+
+  // The scan sources here read fixture files on the local disk.
+  private def newCompiler(
+      fileResolver: ScanFileResolver = TestOperators.fixtureFileResolver
+  ): WorkflowCompiler =
+    new WorkflowCompiler(newContext(), fileResolver)
 
   private def csvOp(fileName: String): CSVScanSourceOpDesc = {
     val op = new CSVScanSourceOpDesc()
@@ -137,7 +149,7 @@ class WorkflowCompilerSpec extends AnyFlatSpec {
   "WorkflowCompiler" should "produce a populated physicalPlan and no errors for a well-formed plan" in {
     val csv = csvOp(realCsvPath)
     val proj = projectOp(List("Region", "Total Profit"))
-    val result = new WorkflowCompiler(newContext()).compile(
+    val result = newCompiler().compile(
       LogicalPlanPojo(
         operators = List(csv, proj),
         links = List(
@@ -176,7 +188,7 @@ class WorkflowCompilerSpec extends AnyFlatSpec {
     val filter2 = filterOp(new FilterPredicate("Region", ComparisonType.NOT_EQUAL_TO, "JPN"))
     val limit2 = limitOp(5)
 
-    val result = new WorkflowCompiler(newContext()).compile(
+    val result = newCompiler().compile(
       LogicalPlanPojo(
         operators = List(csv, proj, limit1, filter1, filter2, limit2),
         links = List(
@@ -240,7 +252,7 @@ class WorkflowCompilerSpec extends AnyFlatSpec {
   "WorkflowCompiler" should "accumulate, not throw, when a scan source has no fileName" in {
     val orphan = csvOpNoFile()
 
-    val result = new WorkflowCompiler(newContext()).compile(
+    val result = newCompiler().compile(
       LogicalPlanPojo(
         operators = List(orphan),
         links = List.empty,
@@ -260,7 +272,7 @@ class WorkflowCompilerSpec extends AnyFlatSpec {
   it should "accumulate when a scan source's fileName points to a non-existent path" in {
     val broken = csvOp("/does/not/exist/missing.csv")
 
-    val result = new WorkflowCompiler(newContext()).compile(
+    val result = newCompiler().compile(
       LogicalPlanPojo(
         operators = List(broken),
         links = List.empty,
@@ -271,14 +283,68 @@ class WorkflowCompilerSpec extends AnyFlatSpec {
 
     assert(result.physicalPlan.isEmpty)
     assert(result.operatorIdToError.contains(broken.operatorIdentifier))
-    // FileResolver.resolve falls through both resolvers and rethrows
-    // org.apache.commons.vfs2.FileNotFoundException(fileName); its message bundle
-    // renders as `Could not read from "<path>" because it is not a file.`, so the
-    // only stable substring across that wording and any java.io.FileNotFoundException
-    // fallback is the bad path itself.
+    // The resolver raises org.apache.commons.vfs2.FileNotFoundException; its message
+    // bundle wraps whatever text it is given, so the only stable substring across that
+    // wording and any java.io.FileNotFoundException fallback is the bad path itself.
     assert(
       result.operatorIdToError(broken.operatorIdentifier).message.contains("missing.csv"),
       s"unexpected message: ${result.operatorIdToError(broken.operatorIdentifier).message}"
+    )
+  }
+
+  it should "read a scan source from the file its resolver names, not from the name as typed" in {
+    // The name is not a path to anything; only the resolver knows which file it stands for.
+    val asked = scala.collection.mutable.ArrayBuffer.empty[String]
+    val resolver: ScanFileResolver = fileName => {
+      asked += fileName
+      TestOperators.localFileUri(TestOperators.CountrySalesSmallCsvPath)
+    }
+    val scan = csvOp("a-name-only-the-resolver-understands")
+    scan.hasHeader = true
+
+    val result = newCompiler(resolver).compile(
+      LogicalPlanPojo(
+        operators = List(scan),
+        links = List.empty,
+        opsToViewResult = List.empty,
+        opsToReuseResult = List.empty
+      )
+    )
+
+    assert(asked.toList == List("a-name-only-the-resolver-understands"))
+    assert(result.operatorIdToError.isEmpty, s"unexpected errors: ${result.operatorIdToError}")
+    assert(
+      scan.fileName.contains(
+        TestOperators.localFileUri(TestOperators.CountrySalesSmallCsvPath).toASCIIString
+      )
+    )
+    val schema = result.operatorIdToOutputSchemas(scan.operatorIdentifier).values.head
+    assert(schema.exists(_.getAttributeNames.nonEmpty), "the schema comes from the resolved file")
+  }
+
+  it should "report a name its resolver refuses as that operator's error, with no schema" in {
+    // The file exists on disk; it is the resolver's answer that counts.
+    val refuseAll: ScanFileResolver =
+      fileName => throw new org.apache.commons.vfs2.FileNotFoundException(fileName)
+    val scan = csvOp(TestOperators.CountrySalesSmallCsvPath)
+
+    val result = newCompiler(refuseAll).compile(
+      LogicalPlanPojo(
+        operators = List(scan),
+        links = List.empty,
+        opsToViewResult = List.empty,
+        opsToReuseResult = List.empty
+      )
+    )
+
+    assert(result.physicalPlan.isEmpty)
+    assert(result.operatorIdToError.contains(scan.operatorIdentifier))
+    assert(scan.fileName.contains(TestOperators.CountrySalesSmallCsvPath), "the name is untouched")
+    assert(
+      result.operatorIdToOutputSchemas
+        .get(scan.operatorIdentifier)
+        .forall(_.values.forall(_.forall(_ == null))),
+      "nothing was read from the file, so there is no schema to return"
     )
   }
 
@@ -286,7 +352,7 @@ class WorkflowCompilerSpec extends AnyFlatSpec {
     val csv = csvOp(realCsvPath)
     val badProjection = projectOp(List("DoesNotExist"))
 
-    val result = new WorkflowCompiler(newContext()).compile(
+    val result = newCompiler().compile(
       LogicalPlanPojo(
         operators = List(csv, badProjection),
         links = List(
@@ -316,7 +382,7 @@ class WorkflowCompilerSpec extends AnyFlatSpec {
   }
 
   it should "not throw when given an empty plan" in {
-    val result = new WorkflowCompiler(newContext()).compile(
+    val result = newCompiler().compile(
       LogicalPlanPojo(
         operators = List.empty,
         links = List.empty,
@@ -338,7 +404,7 @@ class WorkflowCompilerSpec extends AnyFlatSpec {
     val orphan1 = csvOpNoFile()
     val orphan2 = csvOpNoFile()
 
-    val result = new WorkflowCompiler(newContext()).compile(
+    val result = newCompiler().compile(
       LogicalPlanPojo(
         operators = List(orphan1, orphan2),
         links = List.empty,
@@ -371,7 +437,7 @@ class WorkflowCompilerSpec extends AnyFlatSpec {
     val csv = csvOp(realCsvPath)
     val unconfiguredSort = sortOp() // no sort keys -> generatePythonCode throws
 
-    val result = new WorkflowCompiler(newContext()).compile(
+    val result = newCompiler().compile(
       LogicalPlanPojo(
         operators = List(csv, unconfiguredSort),
         links = List(
@@ -419,7 +485,7 @@ class WorkflowCompilerSpec extends AnyFlatSpec {
     val noKeys = sortOp()
     val blankKey = sortOp("" -> SortPreference.ASC)
 
-    val result = new WorkflowCompiler(newContext()).compile(
+    val result = newCompiler().compile(
       LogicalPlanPojo(
         operators = List(csv, noKeys, blankKey),
         links = List(
@@ -473,7 +539,7 @@ class WorkflowCompilerSpec extends AnyFlatSpec {
   it should "trim the marker's message and report it as a plain RuntimeException" in {
     val padded = new PaddedFailurePyOp
 
-    val result = new WorkflowCompiler(newContext()).compile(
+    val result = newCompiler().compile(
       LogicalPlanPojo(
         operators = List(padded),
         links = List.empty,
@@ -508,7 +574,7 @@ class WorkflowCompilerSpec extends AnyFlatSpec {
     val csv = csvOp(realCsvPath)
     val configuredSort = sortOp("Region" -> SortPreference.ASC)
 
-    val result = new WorkflowCompiler(newContext()).compile(
+    val result = newCompiler().compile(
       LogicalPlanPojo(
         operators = List(csv, configuredSort),
         links = List(
@@ -542,7 +608,7 @@ class WorkflowCompilerSpec extends AnyFlatSpec {
     val csv = csvOp(realCsvPath)
     val filter = filterOp(new FilterPredicate("Region", ComparisonType.EQUAL_TO, "Asia"))
 
-    val result = new WorkflowCompiler(newContext()).compile(
+    val result = newCompiler().compile(
       LogicalPlanPojo(
         operators = List(csv, filter),
         links = List(
@@ -580,7 +646,7 @@ class WorkflowCompilerSpec extends AnyFlatSpec {
     val csv = TestOperators.smallCsvScanOpDesc()
     val keyword = TestOperators.keywordSearchOpDesc("Region", "Asia")
 
-    val result = new WorkflowCompiler(newContext()).compile(
+    val result = newCompiler().compile(
       pojo(
         List(csv, keyword),
         List(
@@ -604,7 +670,7 @@ class WorkflowCompilerSpec extends AnyFlatSpec {
     val csv = TestOperators.smallCsvScanOpDesc()
     val keyword = TestOperators.keywordSearchOpDesc("Region", "Asia")
 
-    val result = new WorkflowCompiler(newContext()).compile(
+    val result = newCompiler().compile(
       pojo(
         List(csv, keyword),
         List(
@@ -642,7 +708,7 @@ class WorkflowCompilerSpec extends AnyFlatSpec {
     val csv = TestOperators.smallCsvScanOpDesc()
     val keyword = TestOperators.keywordSearchOpDesc("Region", "Asia")
 
-    val result = new WorkflowCompiler(newContext()).compile(
+    val result = newCompiler().compile(
       pojo(
         List(csv, keyword),
         List(
@@ -671,7 +737,7 @@ class WorkflowCompilerSpec extends AnyFlatSpec {
     val csv = TestOperators.smallCsvScanOpDesc()
     val keyword = TestOperators.keywordSearchOpDesc("Region", "Asia")
 
-    val result = new WorkflowCompiler(newContext()).compile(
+    val result = newCompiler().compile(
       pojo(
         List(csv, keyword),
         List(
@@ -700,7 +766,7 @@ class WorkflowCompilerSpec extends AnyFlatSpec {
   it should "treat a single source op as terminal and mark its output port for storage" in {
     val csv = TestOperators.smallCsvScanOpDesc()
 
-    val result = new WorkflowCompiler(newContext()).compile(pojo(List(csv), List.empty))
+    val result = newCompiler().compile(pojo(List(csv), List.empty))
 
     val storage = result.outputPortsNeedingStorage
     assert(
@@ -724,7 +790,7 @@ class WorkflowCompilerSpec extends AnyFlatSpec {
     val orphanCsv = new CSVScanSourceOpDesc()
 
     val ex = intercept[RuntimeException] {
-      new WorkflowCompiler(newContext())
+      newCompiler()
         .compile(pojo(List(orphanCsv), List.empty), CompilationErrorHandling.Strict)
     }
     assert(ex.getMessage.contains("No file selected"))
@@ -736,7 +802,7 @@ class WorkflowCompilerSpec extends AnyFlatSpec {
     val csv = csvOp(realCsvPath)
     val proj = projectOp(List("Region", "Total Profit"))
 
-    val result = new WorkflowCompiler(newContext()).compile(
+    val result = newCompiler().compile(
       pojo(
         List(csv, proj),
         List(
@@ -767,7 +833,7 @@ class WorkflowCompilerSpec extends AnyFlatSpec {
     val badProjection = projectOp(List("DoesNotExist"))
 
     val ex = intercept[Throwable] {
-      new WorkflowCompiler(newContext()).compile(
+      newCompiler().compile(
         pojo(
           List(csv, badProjection),
           List(
@@ -796,7 +862,7 @@ class WorkflowCompilerSpec extends AnyFlatSpec {
     val unconfiguredSort = sortOp()
 
     val ex = intercept[RuntimeException] {
-      new WorkflowCompiler(newContext()).compile(
+      newCompiler().compile(
         pojo(
           List(csv, unconfiguredSort),
           List(
@@ -822,7 +888,7 @@ class WorkflowCompilerSpec extends AnyFlatSpec {
     val csv = csvOp(realCsvPath)
     val configuredSort = sortOp("Region" -> SortPreference.DESC)
 
-    val result = new WorkflowCompiler(newContext()).compile(
+    val result = newCompiler().compile(
       pojo(
         List(csv, configuredSort),
         List(
@@ -839,5 +905,411 @@ class WorkflowCompilerSpec extends AnyFlatSpec {
 
     assert(result.physicalPlan.isDefined)
     assert(result.operatorIdToError.isEmpty)
+  }
+
+  // -------------------- loop-variable references --------------------
+
+  /** An operator as the frontend sends it: its properties, then its type, "$..." whatever the type. */
+  private def parsed(json: String): LogicalOp = objectMapper.readValue(json, classOf[LogicalOp])
+
+  private def linked(upstream: LogicalOp, downstream: LogicalOp, toPort: Int = 0): LogicalLink =
+    LogicalLink(
+      upstream.operatorIdentifier,
+      PortIdentity(0),
+      downstream.operatorIdentifier,
+      PortIdentity(toPort)
+    )
+
+  private def chain(operators: LogicalOp*): List[LogicalLink] =
+    operators.sliding(2).map(pair => linked(pair.head, pair.last)).toList
+
+  private def textInputOp(text: String): TextInputSourceOpDesc = {
+    val op = new TextInputSourceOpDesc()
+    op.textInput = text
+    op
+  }
+
+  private def loopStartOp(): LoopStartOpDesc = {
+    val op = new LoopStartOpDesc()
+    op.initialization = "i = 0"
+    op.output = "table.iloc[i]"
+    op
+  }
+
+  private def loopEndOp(): LoopEndOpDesc = {
+    val op = new LoopEndOpDesc()
+    op.update = "i += 1"
+    op.condition = "i < len(table)"
+    op
+  }
+
+  /** The class name and descString the worker builds `op`'s executor from. */
+  private def executorInit(result: WorkflowCompilationResult, op: LogicalOp): (String, String) =
+    result.physicalPlan.get
+      .getPhysicalOpsOfLogicalOp(op.operatorIdentifier)
+      .head
+      .opExecInitInfo match {
+      case OpExecWithClassName(className, descString) => (className, descString)
+      case other                                      => fail(s"unexpected opExecInitInfo: $other")
+    }
+
+  /** The `stateReferences` sidecar a descString carries to the worker. */
+  private def sidecarOf(descString: String): Map[String, String] =
+    objectMapper.convertValue(
+      objectMapper.readTree(descString).get("stateReferences"),
+      classOf[Map[String, String]]
+    )
+
+  /** The message of the compile's only error, which must be `op`'s. */
+  private def onlyErrorOf(result: WorkflowCompilationResult, op: LogicalOp): String = {
+    assert(result.operatorIdToError.keySet == Set(op.operatorIdentifier))
+    result.operatorIdToError(op.operatorIdentifier).message
+  }
+
+  private def line(text: String): Tuple = {
+    val schema = Schema().add(new Attribute("line", AttributeType.STRING))
+    Tuple.builder(schema).add(schema.getAttribute("line"), text).build()
+  }
+
+  "WorkflowCompiler" should "keep a '$AAPL' on a Filter outside every loop block the literal it is on main" in {
+    val csv = csvOp(realCsvPath)
+    val filter = parsed(
+      """{"predicates":[{"attribute":"Region","condition":"=","value":"$AAPL"}],"operatorType":"Filter"}"""
+    )
+
+    val result = newCompiler().compile(
+      pojo(List(csv, filter), List(linked(csv, filter)))
+    )
+
+    assert(result.operatorIdToError.isEmpty, s"unexpected errors: ${result.operatorIdToError}")
+    val (_, descString) = executorInit(result, filter)
+    assert(sidecarOf(descString).isEmpty)
+  }
+
+  it should "report a typed '$n' outside every loop block, naming the property and the variable" in {
+    val csv = csvOp(realCsvPath)
+    val limit = parsed("""{"limit":"$n","operatorType":"Limit"}""")
+    val plan = pojo(List(csv, limit), List(linked(csv, limit)))
+    val message = "Limit refers to loop variables (/limit -> $n), but is not inside a loop block"
+
+    val result = newCompiler().compile(plan)
+
+    assert(result.physicalPlan.isEmpty)
+    assert(onlyErrorOf(result, limit).contains(message))
+    val ex = intercept[IllegalArgumentException] {
+      newCompiler().compile(plan, CompilationErrorHandling.Strict)
+    }
+    assert(ex.getMessage == message)
+  }
+
+  it should "find a '$i' literal on a descriptor built in Scala inside a loop block" in {
+    // No parse step ran: the compiler finds the whole-string '$i' in the operator's own JSON.
+    val src = textInputOp("0\n1")
+    val start = loopStartOp()
+    val filter = filterOp(new FilterPredicate("line", ComparisonType.EQUAL_TO, "$i"))
+    val end = loopEndOp()
+
+    val result = newCompiler().compile(
+      pojo(List(src, start, filter, end), chain(src, start, filter, end))
+    )
+
+    assert(result.operatorIdToError.isEmpty, s"unexpected errors: ${result.operatorIdToError}")
+    val (className, descString) = executorInit(result, filter)
+    assert(sidecarOf(descString) == Map("/predicates/0/value" -> "i"))
+    val exec = ExecFactory.newExecFromJavaClassName(className, descString)
+    exec.open()
+    exec.registerState(State(Map("i" -> 1L)))
+    exec.bindStateReferences()
+    assert(exec.processTuple(line("1"), 0).toList == List(line("1")))
+    assert(exec.processTuple(line("$i"), 0).isEmpty)
+  }
+
+  it should "bind a frontend '$n' in Limit's Int property inside a loop block when the state arrives, end to end" in {
+    // TextInput -> LoopStart -> Projection -> Limit("$n") -> LoopEnd, the Limit parsed as the
+    // frontend sends it: the state reaches Limit through Projection, another operator of the block.
+    val src = textInputOp("0\n1")
+    val start = loopStartOp()
+    val project = projectOp(List("line"))
+    val limit = parsed("""{"limit":"$n","operatorType":"Limit"}""")
+    val end = loopEndOp()
+
+    val result = newCompiler().compile(
+      pojo(List(src, start, project, limit, end), chain(src, start, project, limit, end))
+    )
+
+    assert(result.operatorIdToError.isEmpty, s"unexpected errors: ${result.operatorIdToError}")
+    val (className, descString) = executorInit(result, limit)
+    assert(sidecarOf(descString) == Map("/limit" -> "n"))
+    // Driven the way the worker drives it: Limit's own executor, opened before any state.
+    val exec = ExecFactory.newExecFromJavaClassName(className, descString)
+    exec.open()
+    exec.registerState(State(Map("n" -> 2L)))
+    exec.bindStateReferences()
+    val passed = (1 to 5).flatMap(i => exec.processTuple(line(i.toString), 0))
+    assert(passed.size == 2)
+  }
+
+  it should "report a reference inside a loop block on an operator whose code is generated" in {
+    // Sort generates its Python from its properties before the loop runs; outside every block
+    // "$USD" is the column name it is on main.
+    val csv = csvOp(realCsvPath)
+    val start = loopStartOp()
+    val sortJson =
+      """{"attributes":[{"attribute":"$%s","sortPreference":"ASC"}],"operatorType":"Sort"}"""
+    val sort = parsed(sortJson.format("col"))
+    val end = loopEndOp()
+
+    val result = newCompiler().compile(
+      pojo(List(csv, start, sort, end), chain(csv, start, sort, end))
+    )
+
+    assert(result.physicalPlan.isEmpty)
+    assert(result.operatorIdToError.keySet == Set(sort.operatorIdentifier))
+    assert(
+      result
+        .operatorIdToError(sort.operatorIdentifier)
+        .message
+        .contains("cannot refer to loop variables yet (/attributes/0/attribute -> $col)")
+    )
+
+    val outside = parsed(sortJson.format("USD"))
+    val outsideResult = newCompiler().compile(
+      pojo(List(csv, outside), List(linked(csv, outside)))
+    )
+    assert(
+      outsideResult.operatorIdToError.isEmpty,
+      s"unexpected: ${outsideResult.operatorIdToError}"
+    )
+  }
+
+  /** TextInput -> LoopStart -> `op` -> LoopEnd, every input of `op` fed by the LoopStart. */
+  private def insideLoopBlock(op: LogicalOp): LogicalPlanPojo = {
+    val src = textInputOp("0\n1")
+    val start = loopStartOp()
+    val end = loopEndOp()
+    val inputs = op.operatorInfo.inputPorts.map(input => linked(start, op, input.id.id))
+    pojo(List(src, start, op, end), linked(src, start) :: inputs ::: List(linked(op, end)))
+  }
+
+  /**
+    * A reference in each property the compiled plan is built from -- an output column's name or
+    * type, or what the input is partitioned on: the operator as the frontend sends it, its name,
+    * and the references the error names.
+    */
+  private val referencesInNoLoopVariableProperties: List[(String, String, String)] = List(
+    (
+      """{"isDrop":false,"attributes":[{"originalAttribute":"line","alias":"$a"}],
+        |"operatorType":"Projection"}""".stripMargin,
+      "Projection",
+      "/attributes/0/alias -> $a"
+    ),
+    (
+      """{"isDrop":"$d","attributes":[{"originalAttribute":"line","alias":""}],
+        |"operatorType":"Projection"}""".stripMargin,
+      "Projection",
+      "/isDrop -> $d"
+    ),
+    (
+      """{"Dictionary":"x","Attribute":"line","result attribute":"$r","Matching type":"Scan",
+        |"operatorType":"DictionaryMatcher"}""".stripMargin,
+      "Dictionary matcher",
+      "/result attribute -> $r"
+    ),
+    (
+      """{"Delimiter":",","Attribute":"line","Result attribute":"$r",
+        |"operatorType":"UnnestString"}""".stripMargin,
+      "Unnest String",
+      "/Result attribute -> $r"
+    ),
+    (
+      """{"aggregations":[{"aggFunction":"count","attribute":"line","result attribute":"$r"}],
+        |"groupByKeys":["$g"],"operatorType":"Aggregate"}""".stripMargin,
+      "Aggregate",
+      "/aggregations/0/result attribute -> $r, /groupByKeys/0 -> $g"
+    ),
+    (
+      """{"attributeName":"$c","outputFileName":"$f","operatorType":"FileScanOp"}""",
+      "File Scan From Input",
+      "/attributeName -> $c, /outputFileName -> $f"
+    ),
+    (
+      """{"typeCastingUnits":[{"attribute":"$c","resultType":"integer"}],
+        |"operatorType":"TypeCasting"}""".stripMargin,
+      "Type Casting",
+      "/typeCastingUnits/0/attribute -> $c"
+    ),
+    (
+      """{"buildAttributeName":"$b","probeAttributeName":"$p","joinType":"inner",
+        |"operatorType":"HashJoin"}""".stripMargin,
+      "Hash Join",
+      "/buildAttributeName -> $b, /probeAttributeName -> $p"
+    ),
+    (
+      """{"leftAttributeName":"$l","rightAttributeName":"$r","constant":10,"includeLeftBound":true,
+        |"includeRightBound":true,"operatorType":"IntervalJoin"}""".stripMargin,
+      "Interval Join",
+      "/leftAttributeName -> $l, /rightAttributeName -> $r"
+    ),
+    (
+      """{"sortAttributeName":"$s","domainMin":"$lo","domainMax":"$hi",
+        |"operatorType":"SortPartitions"}""".stripMargin,
+      "Sort Partitions",
+      "/domainMax -> $hi, /domainMin -> $lo, /sortAttributeName -> $s"
+    )
+  )
+
+  it should "report a reference inside a loop block in a property the compiled plan is built from" in {
+    // Built from the placeholder, the plan would never see the loop's value: a Projection alias
+    // "$a" would output a column named "$a", every row null; a SortPartitions domain would stay
+    // 0 to 0. Reported before the physical plan, ahead of a schema error the placeholder causes.
+    referencesInNoLoopVariableProperties.foreach {
+      case (json, name, references) =>
+        val those = if (references.contains(", ")) "those properties" else "that property"
+        val message = s"$name cannot refer to loop variables ($references): its output schema " +
+          s"or partitioning is built from $those when the workflow is compiled, before the loop " +
+          "runs"
+        val op = parsed(json)
+
+        val result = newCompiler().compile(insideLoopBlock(op))
+
+        assert(result.physicalPlan.isEmpty, name)
+        assert(
+          result.operatorIdToError.get(op.operatorIdentifier).exists(_.message.contains(message)),
+          s"$name: ${result.operatorIdToError}"
+        )
+        val ex = intercept[IllegalArgumentException] {
+          newCompiler()
+            .compile(insideLoopBlock(parsed(json)), CompilationErrorHandling.Strict)
+        }
+        assert(ex.getMessage == message, name)
+    }
+  }
+
+  it should "accept a reference inside a loop block in a property the executor reads, on an operator the plan is built from in part" in {
+    // The dictionary and the delimiter are read by the executor, after the loop state wrote them.
+    Seq(
+      """{"Dictionary":"$w","Attribute":"line","result attribute":"matched","Matching type":"Scan",
+        |"operatorType":"DictionaryMatcher"}""".stripMargin -> Map("/Dictionary" -> "w"),
+      """{"Delimiter":"$d","Attribute":"line","Result attribute":"unnested",
+        |"operatorType":"UnnestString"}""".stripMargin -> Map("/Delimiter" -> "d")
+    ).foreach {
+      case (json, sidecar) =>
+        val op = parsed(json)
+        val result = newCompiler().compile(insideLoopBlock(op))
+        assert(result.operatorIdToError.isEmpty, s"unexpected errors: ${result.operatorIdToError}")
+        val (_, descString) = executorInit(result, op)
+        assert(sidecarOf(descString) == sidecar)
+    }
+  }
+
+  it should "keep a '$a' Projection alias outside every loop block the literal column name it is on main" in {
+    val src = textInputOp("0")
+    val projection = parsed(referencesInNoLoopVariableProperties.head._1)
+
+    val result = newCompiler().compile(
+      pojo(List(src, projection), List(linked(src, projection)))
+    )
+
+    assert(result.operatorIdToError.isEmpty, s"unexpected errors: ${result.operatorIdToError}")
+    val schema = result.operatorIdToOutputSchemas(projection.operatorIdentifier)(PortIdentity())
+    assert(schema.map(_.getAttributeNames).contains(List("$a")))
+  }
+
+  private def intervalJoinOp(): LogicalOp =
+    parsed(
+      """{"leftAttributeName":"line","rightAttributeName":"line","constant":"$i",
+        |"includeLeftBound":true,"includeRightBound":true,"operatorType":"IntervalJoin"}""".stripMargin
+    )
+
+  /**
+    * TextInput -> LoopStart -> Interval Join -> LoopEnd, the join's other table from outside the
+    * block: from a TextInput, or, `nested`, from the Projection of an outer block's body (outer
+    * LoopStart -> Projection, and outer LoopStart -> this LoopStart; LoopEnd -> outer LoopEnd).
+    */
+  private def compileJoin(
+      nested: Boolean,
+      leftFromOutside: Boolean
+  ): (LogicalOp, WorkflowCompilationResult) = {
+    val (src, start, end) = (textInputOp("0\n1"), loopStartOp(), loopEndOp())
+    val (outerStart, join, outerEnd) = (loopStartOp(), intervalJoinOp(), loopEndOp())
+    val outside = if (nested) projectOp(List("line")) else textInputOp("0")
+    val (left, right) = if (leftFromOutside) (outside, start) else (start, outside)
+    val operators =
+      if (!nested) List(outside, src, start, join, end)
+      else List(src, outerStart, outside, start, join, end, outerEnd)
+    val around =
+      if (!nested) chain(src, start)
+      else chain(src, outerStart, outside) ++ chain(outerStart, start) ++ chain(end, outerEnd)
+    val links = around ++ List(linked(left, join), linked(right, join, 1), linked(join, end))
+    (join, newCompiler().compile(pojo(operators, links)))
+  }
+
+  it should "report a reference inside a loop block, an inner one too, on an operator whose first input comes from outside it" in {
+    // Its right input waits for the left one, whose tuples can arrive before this block's state.
+    Seq(false, true).foreach { nested =>
+      val (join, result) = compileJoin(nested, leftFromOutside = true)
+      assert(
+        onlyErrorOf(result, join).contains(
+          "Interval Join refers to loop variables (/constant -> $i), but its input 'left table' " +
+            "is fed from outside the loop block"
+        ),
+        s"nested = $nested"
+      )
+    }
+  }
+
+  it should "accept a reference inside a loop block, an inner one too, on an operator whose input from outside it waits for one from inside" in {
+    Seq(false, true).foreach { nested =>
+      val (join, result) = compileJoin(nested, leftFromOutside = false)
+      assert(result.operatorIdToError.isEmpty, s"nested = $nested: ${result.operatorIdToError}")
+      val (_, descString) = executorInit(result, join)
+      assert(sidecarOf(descString) == Map("/constant" -> "i"))
+    }
+  }
+
+  it should "report a reference inside a loop block on an operator whose input also has a link from outside the block" in {
+    // Limit's one input takes the LoopStart's link and an outside one, whose tuples can come first.
+    val outside = textInputOp("0")
+    val src = textInputOp("0\n1")
+    val start = loopStartOp()
+    val limit = parsed("""{"limit":"$n","operatorType":"Limit"}""")
+    val end = loopEndOp()
+
+    val result = newCompiler().compile(
+      pojo(
+        List(outside, src, start, limit, end),
+        List(linked(src, start), linked(start, limit), linked(outside, limit), linked(limit, end))
+      )
+    )
+
+    assert(
+      onlyErrorOf(result, limit).contains(
+        "Limit refers to loop variables (/limit -> $n), but its input port 0 is fed from " +
+          "outside the loop block"
+      )
+    )
+  }
+
+  it should "report a reference in a loop block on an operator with an input from a sibling block" in {
+    // Inside the outer block, S1 -> Projection -> E1 and S2 -> Limit("$n") -> E2, and Projection
+    // -> Limit: neither of Limit's links carries both S1's and S2's state.
+    val src = textInputOp("0\n1")
+    val outerStart = loopStartOp()
+    val (first, project, firstEnd) = (loopStartOp(), projectOp(List("line")), loopEndOp())
+    val (second, limit, secondEnd) =
+      (loopStartOp(), parsed("""{"limit":"$n","operatorType":"Limit"}"""), loopEndOp())
+    val outerEnd = loopEndOp()
+
+    val result = newCompiler().compile(
+      pojo(
+        List(src, outerStart, first, project, firstEnd, second, limit, secondEnd, outerEnd),
+        chain(src, outerStart, first, project, firstEnd, outerEnd) ++
+          chain(outerStart, second, limit, secondEnd, outerEnd) :+ linked(project, limit)
+      )
+    )
+
+    assert(
+      onlyErrorOf(result, limit).contains("but its input port 0 is fed from outside the loop block")
+    )
   }
 }
