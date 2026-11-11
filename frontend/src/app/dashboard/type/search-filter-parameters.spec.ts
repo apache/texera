@@ -168,7 +168,7 @@ interface WorkflowEntryOverrides {
   operatorTypes?: string[];
 }
 
-function makeWorkflowEntry(overrides: WorkflowEntryOverrides = {}): DashboardEntry {
+function makeWorkflowEntry(overrides: WorkflowEntryOverrides): DashboardEntry {
   const operators = (overrides.operatorTypes ?? []).map(
     (operatorType, i) => ({ operatorID: `op${i}`, operatorType }) as unknown as OperatorPredicate
   );
@@ -201,7 +201,7 @@ function makeWorkflowEntry(overrides: WorkflowEntryOverrides = {}): DashboardEnt
   return new DashboardEntry(workflow);
 }
 
-function makeDatasetEntry(name = "dataset"): DashboardEntry {
+function makeDatasetEntry(name: string): DashboardEntry {
   const dataset: DashboardDataset = {
     isOwner: false,
     ownerEmail: "dataset-owner@example.com",

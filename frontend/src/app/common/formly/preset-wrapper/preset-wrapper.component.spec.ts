@@ -47,7 +47,6 @@ describe("PresetWrapperComponent", () => {
     getPresets: ReturnType<typeof vi.fn>;
     isValidPreset: ReturnType<typeof vi.fn>;
     savePresetsStream: Subject<{ type: string; target: string; presets: Preset[] }>;
-    applyPresetStream: Subject<{ type: string; target: string; preset: Preset }>;
   };
   let messageStub: {
     error: ReturnType<typeof vi.fn>;
@@ -57,9 +56,9 @@ describe("PresetWrapperComponent", () => {
   };
 
   // Builds a minimal FormlyFieldConfig sufficient for ngOnInit to run.
-  // ngOnInit also calls filterPresetFromForm(), which iterates
-  // field.parent.fieldGroup looking for sibling preset-wrapper fields, so
-  // we expose a single sibling pointing at an empty model by default.
+  // ngOnInit also requires field.parent.fieldGroup, where savePreset() looks
+  // for sibling preset-wrapper fields, so we expose a single sibling pointing
+  // at an empty model by default.
   const buildField = (overrides: Partial<FormlyFieldConfig> = {}): FormlyFieldConfig => {
     const self = {
       key: fieldKey,
@@ -85,7 +84,6 @@ describe("PresetWrapperComponent", () => {
       getPresets: vi.fn().mockReturnValue(of([])),
       isValidPreset: vi.fn().mockReturnValue(true),
       savePresetsStream: new Subject(),
-      applyPresetStream: new Subject(),
     };
     messageStub = {
       error: vi.fn(),
@@ -128,6 +126,11 @@ describe("PresetWrapperComponent", () => {
       expect(() => component.ngOnInit()).toThrow();
     });
 
+    it("throws when parent.fieldGroup is missing", () => {
+      component.field = buildField({ parent: undefined });
+      expect(() => component.ngOnInit()).toThrow(".parent.fieldGroup");
+    });
+
     it("populates searchResults from presetService.getPresets on init", () => {
       presetServiceStub.getPresets.mockReturnValue(of([testPreset, otherPreset]));
       component.field = buildField();
@@ -136,24 +139,6 @@ describe("PresetWrapperComponent", () => {
 
       expect(presetServiceStub.getPresets).toHaveBeenCalledWith(presetKey.presetType, presetKey.saveTarget);
       expect(component.searchResults).toEqual([testPreset, otherPreset]);
-    });
-
-    it("seeds the search term from the form control's value", () => {
-      formControl.setValue("seeded");
-      component.field = buildField();
-
-      component.ngOnInit();
-
-      expect(component["searchTerm"]).toBe("seeded");
-    });
-
-    it("seeds an empty search term when the form control holds null", () => {
-      formControl.setValue(null);
-      component.field = buildField();
-
-      component.ngOnInit();
-
-      expect(component["searchTerm"]).toBe("");
     });
   });
 
@@ -212,35 +197,6 @@ describe("PresetWrapperComponent", () => {
           b: "second",
         })
       ).toBe("first, second");
-    });
-
-    describe("getSearchResults", () => {
-      it("returns a copy of all presets when showAllResults is true", () => {
-        const presets: Preset[] = [testPreset, otherPreset];
-        const results = component.getSearchResults(presets, "anything", true);
-        expect(results).toEqual(presets);
-        expect(results).not.toBe(presets);
-      });
-
-      it("returns all presets when showAllResults is true even if the search term doesn't match", () => {
-        expect(component.getSearchResults([testPreset], "no-match", true)).toEqual([testPreset]);
-      });
-
-      it("filters by case-insensitive prefix match on the entry title when showAllResults is false", () => {
-        const presets: Preset[] = [testPreset, otherPreset];
-        // testPreset title 'testPresetValue' starts with 'TEST'
-        expect(component.getSearchResults(presets, "TEST", false)).toEqual([testPreset]);
-        // otherPreset title 'otherPresetValue2' starts with 'other'
-        expect(component.getSearchResults(presets, "other", false)).toEqual([otherPreset]);
-      });
-
-      it("returns the full list when search term is empty and showAllResults is false", () => {
-        expect(component.getSearchResults([testPreset], "", false)).toEqual([testPreset]);
-      });
-
-      it("returns an empty list when the search term matches nothing", () => {
-        expect(component.getSearchResults([testPreset], "zzzz", false)).toEqual([]);
-      });
     });
   });
 
@@ -305,70 +261,6 @@ describe("PresetWrapperComponent", () => {
         presets: [testPreset],
       });
       expect(component.searchResults).toEqual([]);
-    });
-
-    it("does not refresh searchResults from form value changes while the dropdown is closed", async () => {
-      const baselineCalls = presetServiceStub.getPresets.mock.calls.length;
-      component.presetMenuVisible = false;
-
-      formControl.setValue("typing");
-      // the handler is debounced(0); without this tick it would not have run at all and
-      // the assertion below would hold no matter what the menu state is
-      await new Promise(resolve => setTimeout(resolve, 0));
-
-      // the term is still tracked, but the menu being closed suppresses the refetch
-      expect(component["searchTerm"]).toBe("typing");
-      expect(presetServiceStub.getPresets.mock.calls.length).toBe(baselineCalls);
-    });
-
-    it("refreshes searchResults from form value changes while the dropdown is open", async () => {
-      component.presetMenuVisible = true;
-      presetServiceStub.getPresets.mockReturnValue(of([testPreset]));
-      const baselineCalls = presetServiceStub.getPresets.mock.calls.length;
-
-      formControl.setValue("typing");
-      // The valueChanges handler is debounced(0) — wait one microtask tick.
-      await new Promise(resolve => setTimeout(resolve, 0));
-
-      expect(presetServiceStub.getPresets.mock.calls.length).toBe(baselineCalls + 1);
-    });
-
-    it("adopts the preset carried by a matching applyPresetStream event", () => {
-      presetServiceStub.applyPresetStream.next({
-        type: presetKey.presetType,
-        target: presetKey.applyTarget,
-        preset: testPreset,
-      });
-
-      expect(component["basePreset"]).toBe(testPreset);
-    });
-
-    it("ignores applyPresetStream events for a different presetType or applyTarget", () => {
-      const before = component["basePreset"];
-
-      presetServiceStub.applyPresetStream.next({
-        type: "someOtherType",
-        target: presetKey.applyTarget,
-        preset: testPreset,
-      });
-      presetServiceStub.applyPresetStream.next({
-        type: presetKey.presetType,
-        target: "someOtherTarget",
-        preset: otherPreset,
-      });
-
-      expect(component["basePreset"]).toBe(before);
-    });
-
-    it("clears the search term when the form value becomes null while the dropdown is open", async () => {
-      component.presetMenuVisible = true;
-      component["searchTerm"] = "typed";
-
-      formControl.setValue(null);
-      // the valueChanges handler is debounced(0) — wait one tick
-      await new Promise(resolve => setTimeout(resolve, 0));
-
-      expect(component["searchTerm"]).toBe("");
     });
 
     it("stops responding to stream events after ngOnDestroy", () => {

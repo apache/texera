@@ -29,8 +29,18 @@ import org.apache.texera.amber.core.workflow._
 import org.apache.texera.amber.operator.metadata.{OperatorGroupConstants, OperatorInfo}
 import org.apache.texera.amber.operator.{LogicalOp, PortDescription, StateTransferFunc}
 
+import org.apache.texera.amber.operator.udf.{UdfUiParameterSupport, UiUDFParameter}
+
 import scala.util.{Success, Try}
-class JavaUDFOpDesc extends LogicalOp {
+class JavaUDFOpDesc extends LogicalOp with UdfUiParameterSupport {
+  override protected def injectParameterValues(
+      code: String,
+      parameters: List[UiUDFParameter]
+  ): String =
+    JavaUdfUiParameterInjector.inject(code, parameters)
+
+  override protected def uiParameterLanguage: String = "java"
+
   @JsonProperty(
     required = true,
     defaultValue =
@@ -41,6 +51,8 @@ class JavaUDFOpDesc extends LogicalOp {
         "import java.io.Serializable;\n" +
         "\n" +
         "public class JavaUDFOpExec extends MapOpExec {\n" +
+        "    // Add UI parameters from the Parameters panel, or declare an annotated field:\n" +
+        "    // @org.apache.texera.amber.operator.udf.java.UiParameter(\"count\") private int count;\n" +
         "    public JavaUDFOpExec () {\n" +
         "        this.setMapFunc((Function1<Tuple, TupleLike> & Serializable) this::processTuple);\n" +
         "    }\n" +
@@ -103,13 +115,15 @@ class JavaUDFOpDesc extends LogicalOp {
       Map(operatorInfo.outputPorts.head.id -> outputSchema)
     }
 
+    val opExec = OpExecWithCode(injectUiParameters(code), "java")
+    val binding = executionBinding(code)
     if (workers > 1)
       PhysicalOp
         .oneToOnePhysicalOp(
           workflowId,
           executionId,
           operatorIdentifier,
-          OpExecWithCode(code, "java")
+          opExec
         )
         .withDerivePartition(_ => UnknownPartition())
         .withInputPorts(operatorInfo.inputPorts)
@@ -119,13 +133,14 @@ class JavaUDFOpDesc extends LogicalOp {
         .withParallelizable(true)
         .withSuggestedWorkerNum(workers)
         .withPropagateSchema(SchemaPropagationFunc(propagateSchema))
+        .withExecutionTimeBinding(binding)
     else
       PhysicalOp
         .manyToOnePhysicalOp(
           workflowId,
           executionId,
           operatorIdentifier,
-          OpExecWithCode(code, "java")
+          opExec
         )
         .withDerivePartition(_ => UnknownPartition())
         .withInputPorts(operatorInfo.inputPorts)
@@ -134,6 +149,7 @@ class JavaUDFOpDesc extends LogicalOp {
         .withIsOneToManyOp(true)
         .withParallelizable(false)
         .withPropagateSchema(SchemaPropagationFunc(propagateSchema))
+        .withExecutionTimeBinding(binding)
   }
 
   override def operatorInfo: OperatorInfo = {

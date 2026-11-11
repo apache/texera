@@ -40,7 +40,7 @@ type SharedOperatorProperties = Readonly<{ code?: string; [key: string]: unknown
  */
 const UI_PARAMETER_SYNC_DEBOUNCE_TIME_MS = 200;
 
-/** Keeps Python and R UDF UI parameters in sync with the shared code and workflow graph. */
+/** Keeps UDF UI parameters in sync with the shared code and workflow graph. */
 @Injectable({ providedIn: "root" })
 export class UiUdfParametersSyncService {
   private readonly uiParametersChangedSubject = new Subject<{ operatorId: string; parameters: UiUdfParameter[] }>();
@@ -79,7 +79,7 @@ export class UiUdfParametersSyncService {
   }
 
   /**
-   * Parses Python or R UDF code and emits merged parameter rows when the shape changes.
+   * Parses UDF code and emits merged parameter rows when the shape changes.
    * If codeFromEditor is omitted, reads from Yjs; does nothing if the operator or code is unavailable.
    */
   syncStructureFromCode(operatorId: string, codeFromEditor?: string): void {
@@ -130,7 +130,7 @@ export class UiUdfParametersSyncService {
 
   /**
    * Inserts a declaration into the operator's shared code and immediately re-syncs the rows.
-   * Python declarations go in open(); R declarations precede the script's final function.
+   * Python declarations go in open(); R declarations precede the script's final function; Java declarations become instance fields.
    * Throws UiUdfParametersEditError or UiUdfParametersParseError when the code cannot be edited.
    */
   addParameter(operatorId: string, attributeName: string, attributeType: AttributeType): void {

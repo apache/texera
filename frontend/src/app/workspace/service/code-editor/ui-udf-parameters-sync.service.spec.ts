@@ -408,6 +408,28 @@ describe("R parameter synchronization with the real parser", () => {
   });
 });
 
+describe("Java parameter synchronization with the real parser", () => {
+  it("adds declarations through Yjs and preserves saved values", () => {
+    const operator = {
+      operatorType: "JavaUDF",
+      operatorProperties: { uiParameters: [parameter("count", "integer", "42")] },
+    };
+    const sharedOperator = sharedOperatorType('class JavaUDFOpExec { @UiParameter("count") int count; }');
+    const graph = { getOperator: () => operator, getSharedOperatorType: () => sharedOperator };
+    const service = new UiUdfParametersSyncService(
+      { getTexeraGraph: () => graph } as unknown as WorkflowActionService,
+      new UiUdfParametersParserService()
+    );
+    service.uiParametersChanged$.subscribe(change => (operator.operatorProperties.uiParameters = change.parameters));
+    service.addParameter("java-operator", "label", "string");
+    expect(operator.operatorProperties.uiParameters).toEqual([
+      parameter("label", "string"),
+      parameter("count", "integer", "42"),
+    ]);
+    expect(() => service.addParameter("java-operator", "label", "string")).toThrow("declared already");
+  });
+});
+
 function parameter(
   attributeName: string,
   attributeType: UiUdfParameter["attribute"]["attributeType"],
@@ -421,7 +443,7 @@ function sharedOperatorType(code: string): Yjs.Map<unknown> {
   const sharedOperator = yjsDocument.getMap<unknown>("operator");
   const operatorProperties = new Yjs.Map<unknown>();
 
-  operatorProperties.set("code", sharedText(code));
+  operatorProperties.set("code", new Yjs.Text(code));
   sharedOperator.set("operatorProperties", operatorProperties);
   return sharedOperator;
 }

@@ -167,7 +167,7 @@ lazy val PyBuilder = (project in file("common/pybuilder"))
 
 lazy val WorkflowCore = (project in file("common/workflow-core"))
   .settings(commonModuleSettings)
-  .dependsOn(DAO, Config, PyBuilder, Util)
+  .dependsOn(DAO, Config, PyBuilder, Util, Resource)
   .configs(Test)
   .dependsOn(DAO % "test->test") // test scope dependency
 lazy val ComputingUnitManagingService = (project in file("computing-unit-managing-service"))
@@ -256,6 +256,8 @@ lazy val WorkflowCompiler = (project in file("common/workflow-compiler"))
   .dependsOn(WorkflowOperator)
 lazy val WorkflowCompilingService = (project in file("workflow-compiling-service"))
   .dependsOn(WorkflowCompiler, Auth, Config, Resource, Observability)
+  .configs(Test)
+  .dependsOn(DAO % "test->test") // reuse MockTexeraDB embedded Postgres in tests
   .dependsOn(WorkflowOperator % "test->test") // reuse PythonWorkerPool in verify tests
   .settings(commonModuleSettings)
   .settings(
@@ -264,7 +266,10 @@ lazy val WorkflowCompilingService = (project in file("workflow-compiling-service
       "com.fasterxml.jackson.module" %% "jackson-module-scala" % jacksonVersion,
       "com.fasterxml.jackson.core" % "jackson-databind" % jacksonVersion,
       "org.glassfish.jersey.core" % "jersey-common" % "3.0.12"
-    ) ++ nettyDependencyOverrides
+    ) ++ nettyDependencyOverrides,
+    // MockTexeraDB swaps a JVM-wide singleton (SqlServer's embedded Postgres),
+    // so run suites serially to avoid cross-suite races.
+    Test / parallelExecution := false
   )
 
 lazy val WorkflowExecutionService = (project in file("amber"))
