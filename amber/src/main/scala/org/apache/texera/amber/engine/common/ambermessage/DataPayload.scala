@@ -33,7 +33,8 @@ sealed trait DataPayload extends WorkflowFIFOMessagePayload {}
   * operator inside a loop body only ever carries the envelope through
   * unchanged; the defaults are the "no loop" values for all non-loop state.
   * `messageId` is the id the message was issued with, kept by every copy of it
-  * so a worker processes it once; empty for a state nobody issued.
+  * so a worker that has its output ports processes it once; empty for a state
+  * nobody issued.
   * Mirrors the Python `StateFrame` (core/models/payload.py).
   */
 final case class StateFrame(

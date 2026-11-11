@@ -15,6 +15,7 @@
 # specific language governing permissions and limitations
 # under the License.
 
+import json
 import threading
 import time
 import typing
@@ -41,7 +42,12 @@ from core.models.internal_queue import (
     ECMElement,
     InternalQueueElement,
 )
-from core.models.operator import LoopEndOperator, LoopStartOperator
+from core.models.operator import (
+    LoopEndOperator,
+    LoopStartOperator,
+    Operator,
+    without_definitions,
+)
 from core.models.state import State
 from core.runnables.data_processor import DataProcessor
 from core.storage.document_factory import DocumentFactory
@@ -76,6 +82,20 @@ from proto.org.apache.texera.amber.engine.architecture.worker import (
     WorkerState,
 )
 
+# The id of every state message a Loop Start issues starts with this, and its
+# copies keep it, so the Loop End tells Loop Start's own message from the loop
+# body's changes (_process_state_frame). No other id starts with it: the
+# others are uuids, and "l" is not a hex digit.
+LOOP_START_MESSAGE_PREFIX = "loop-start-"
+
+
+def _sorted_json(json_text: str) -> str:
+    """``json_text`` written again with every object's keys in sorted order,
+    so that two serialized states compare equal whatever order their keys were
+    inserted in. JSON still tells apart values that Python's ``==`` conflates,
+    such as 2 and 2.0, or 1 and True."""
+    return json.dumps(json.loads(json_text), sort_keys=True, separators=(",", ":"))
+
 
 class MainLoop(StoppableQueueBlockingRunnable):
     def __init__(
@@ -91,29 +111,28 @@ class MainLoop(StoppableQueueBlockingRunnable):
         # LoopEnd (loop_counter == 0) takes a state; used for the jump RPC
         # and the setup-config URI lookup (context.loop_start_port_uris).
         self._loop_start_id: str = ""
-        # The ids of the state messages this worker has processed. A message
-        # reaches a worker once per path to it -- a loop body may branch and
-        # converge, and every reader on an input port replays its own branch's
-        # states -- so only the first copy of an id is processed
-        # (_process_state_frame).
+        # The ids of the state messages this worker has processed since it got
+        # its output ports. A message reaches a worker once per path to it --
+        # a loop body may branch and converge, and every reader on an input
+        # port replays its own branch's states -- so only the first copy of an
+        # id is processed then (_process_state_frame).
         self._seen_state_messages: set[str] = set()
         # Whether this LoopEnd took an UNstamped counter-0 state. Paired with
         # _loop_start_id by _check_loop_state_arrived: taking one and never
         # capturing a stamp means the loop's own state reached here with its
         # stamp lost.
         self._took_unstamped_state: bool = False
-        # The values of the distinct messages a LoopEnd takes for its own loop,
-        # collected until its input ends and handed to the operator at
-        # EndChannel (see _consume_pending_loop_state for why the table read
-        # must not overlap this worker's own materialization reader).
-        self._pending_loop_state: Optional[State] = None
-        # The names the stamped messages a LoopEnd takes carry (its loop's own
-        # state, as Loop Start sent it or a body operator changed it) and the
-        # names the unstamped ones carry (a body operator's publications). A
-        # name only a publication carried, unless the update assigns it, is
-        # not saved for the next iteration (_next_iteration_state).
-        self._loop_state_names: set[str] = set()
-        self._published_names: set[str] = set()
+        # The distinct messages a LoopEnd takes for its own loop, collected
+        # until its input ends and handed to the operator at EndChannel (see
+        # _consume_pending_loop_state for why the table read must not overlap
+        # this worker's own materialization reader): Loop Start's own message,
+        # ``None`` until it arrives, and every other message, in the order
+        # they arrived (_process_state_frame, _loop_state).
+        self._loop_start_state: Optional[State] = None
+        self._body_changes: list[State] = []
+        # Whether this worker, an inner LoopEnd, has reset its output for the
+        # enclosing loop's iteration (_process_state_frame).
+        self._reset_for_enclosing_iteration: bool = False
 
         self.context = Context(worker_id, input_queue)
         self._async_rpc_server = AsyncRPCServer(output_queue, context=self.context)
@@ -180,10 +199,9 @@ class MainLoop(StoppableQueueBlockingRunnable):
         # -- a doc dropped under a live reader would break the reader with or
         # without this read -- so treat a recurrence as new evidence. By
         # EndChannel the reader has finished, so the two never overlap.
-        if self._pending_loop_state is None:
+        if self._loop_start_state is None and not self._body_changes:
             return
-        pending = self._pending_loop_state
-        self._pending_loop_state = None
+        pending = self._loop_state()
         executor.attach_loop_table(self._read_loop_input_table())
         # A Loop End has exactly one input port (port 0); the generated
         # operator's process_state ignores the port anyway. That single input
@@ -207,6 +225,20 @@ class MainLoop(StoppableQueueBlockingRunnable):
             executor.register_state(pending, 0)
             executor.process_state(pending, 0)
 
+    def _loop_state(self) -> State:
+        # What the update and the condition read: Loop Start's message first,
+        # whenever it arrived, then every other message in the order they
+        # arrived, each with every name it carries, so of two values of a name
+        # the later wins. Applying Loop Start's message first keeps a branch
+        # that sends it on unchanged, and arrives last, from undoing a change
+        # the body made. A change to Loop Start's message carries every name
+        # of it, so of two branches that change different names, the later
+        # one's message also brings back the name the earlier one changed.
+        values = dict(self._loop_start_state or {})
+        for state in self._body_changes:
+            values.update(state)
+        return State(values)
+
     def _jump_to_loop_start(
         self, executor: LoopEndOperator, coordinator_interface
     ) -> None:
@@ -224,32 +256,44 @@ class MainLoop(StoppableQueueBlockingRunnable):
         # loop_counter == 0, so the next iteration's input starts at depth 0.
         writer.put_one(self._next_iteration_state(executor).to_tuple(0))
         writer.close()
+        self._reset_loop_iteration()
 
     def _next_iteration_state(self, executor: LoopEndOperator) -> State:
-        # The back-edge saves the loop's own variables for the next iteration:
-        # every name after the update, with the value it ended with, except
-        # one that only a publication carried (a state a body operator sent
-        # from produce_state_on_start/finish, with no Loop Start stamp) and
-        # that the update does not assign. Such a value is the body's result
-        # for this iteration -- the update and the condition read it -- and
-        # saving it would hand the next iteration an old value under the name
-        # the body publishes again. The update keeps such a value by assigning
-        # it, to its own name (`best = max(best, score)`) or to another one
-        # (`prev = score`). A name the stamped state carried is always saved:
-        # Loop Start's variables, with the upstream values it merged and what
-        # earlier iterations saved, and also a name a body operator's
-        # process_state added, since its changed state keeps Loop Start's
-        # stamp.
-        iteration_only = (
-            self._published_names - self._loop_state_names - executor.assigned_names
+        # The back-edge saves the loop's own variables for the next iteration,
+        # with the values they ended with: Loop Start's variables and every
+        # name the update bound when it ran. Loop Start's variables are the
+        # names its own message carried, with the upstream values it merged and
+        # what earlier iterations saved. Every body operator sends that message
+        # on, so it arrives here unless it reaches only an input port that an
+        # operator reads before it has output ports; without it, only the
+        # names the update binds are saved. A name only the body's changes
+        # carried, which the update does not bind, is the body's result
+        # for this iteration: the update and the condition read it, and saving
+        # it would hand the next iteration an old value under the name the
+        # body sends again. The update keeps such a value by binding it, to its
+        # own name (`best = max(best, score)`) or to another one
+        # (`prev = score`). A module, function or class the update defined is
+        # never saved, nor a name Python binds itself (without_definitions).
+        loop_start_names = (
+            () if self._loop_start_state is None else self._loop_start_state.keys()
         )
-        return State(
+        return without_definitions(
             {
                 name: value
                 for name, value in executor.state.items()
-                if name not in iteration_only
+                if name in loop_start_names or name in executor.bound_names
             }
         )
+
+    def _reset_loop_iteration(self) -> None:
+        # Once the back-edge is written, forget what this iteration collected,
+        # so a LoopEnd worker that ran another iteration would start it from
+        # nothing: in particular, one that then takes only an unstamped state
+        # fails _check_loop_state_arrived instead of passing on this stamp.
+        self._loop_start_id = ""
+        self._took_unstamped_state = False
+        self._loop_start_state = None
+        self._body_changes = []
 
     def _check_loop_state_arrived(self) -> None:
         # Keep the LOUD failure for a real loop state that lost its stamp
@@ -279,8 +323,9 @@ class MainLoop(StoppableQueueBlockingRunnable):
         # evidence that a boundary state arrived unstamped is a lost envelope.
         #
         # "Took a stamped one" is read off _loop_start_id, which only the
-        # stamped branch writes and nothing clears, so this guard stays correct
-        # wherever it is called from.
+        # stamped branch writes and only the back-edge write clears
+        # (_reset_loop_iteration), so this guard stays correct wherever it is
+        # called from within an iteration.
         if self._took_unstamped_state and not self._loop_start_id:
             raise RuntimeError(
                 "Loop End received a loop-boundary state with no LoopStart "
@@ -419,6 +464,7 @@ class MainLoop(StoppableQueueBlockingRunnable):
         output_loop_start_id: str = "",
         input_message_id: Optional[str] = None,
         input_json: Optional[str] = None,
+        input_state: Optional[State] = None,
     ) -> None:
         self._switch_context()
         output_state = self.context.state_processing_manager.get_output_state()
@@ -428,25 +474,72 @@ class MainLoop(StoppableQueueBlockingRunnable):
                 # A LoopStart stamps its own logical op id; the write address
                 # is setup config (InitializeExecutorRequest.loop_start_port_uris).
                 output_loop_start_id = get_logical_op_id(self.context.worker_id)
-            # An output that equals the input (`input_json`, taken before the
-            # callback) is the same message sent on, so it keeps its id; any
-            # other output is a new message. The serialized values are
-            # compared because Python equality conflates 2 and 2.0. Serializing
-            # can fail on a bad value, which is reported as an operator error,
-            # as _emit_and_save_state does, instead of killing this thread.
+            # An output that equals the input is the same message sent on, so
+            # it keeps its id; any other output is a new message. The input the
+            # default process_state handed back (`input_state`) is unchanged;
+            # otherwise the serialized values are compared (`input_json`, taken
+            # before the callback), because Python equality conflates 2 and
+            # 2.0, with every object's keys in sorted order, because the order
+            # of a dict's keys says nothing about its values. Serializing can
+            # fail on a bad value, which is reported as an operator error, as
+            # _emit_and_save_state does, instead of killing this thread.
             message_id = None
             try:
-                if input_json is not None and output_state.to_json() == input_json:
+                if output_state is input_state or (
+                    input_json is not None
+                    and _sorted_json(output_state.to_json()) == _sorted_json(input_json)
+                ):
                     message_id = input_message_id
             except Exception as err:
                 self.context.report_exception(err)
                 self._check_exception()
                 return
+            if message_id is None and output_loop_start_id and input_json is not None:
+                # A change does not replace a loop's message (one stamped with
+                # its Loop Start): the message goes on unchanged first, under
+                # its id, and the change follows as a new message. The loop
+                # body may split before this operator and meet again after it,
+                # with the other branch sending the same message on unchanged;
+                # arriving there after the change, that branch's copy is one
+                # the meeting operator already processed and recorded, so it
+                # drops the copy, which cannot undo the change. A worker records
+                # an id only once it has output ports (_process_state_frame), so
+                # an operator that reads one input before another processes the
+                # copy on its other input again: a change that reached it only
+                # through the input it reads first goes no further, and the
+                # copy puts the message's values back into its loop_variables.
+                # The operators downstream run on both messages, so each
+                # operator in a row that changes the loop's message doubles the
+                # messages after it.
+                self._emit_and_save_state(
+                    State.from_json(input_json),
+                    output_loop_counter,
+                    output_loop_start_id,
+                    input_message_id,
+                )
             self._emit_and_save_state(
                 output_state,
                 output_loop_counter,
                 output_loop_start_id,
                 message_id,
+            )
+        elif (
+            output_loop_start_id
+            and input_json is not None
+            and not self.context.exception_manager.has_exception()
+        ):
+            # A loop's message always goes on: body operators forward their
+            # loop's messages, so one whose process_state returns None for a
+            # message stamped with its Loop Start sends that message on
+            # unchanged, under its id, and the operators after it and the Loop
+            # End still get it. A state without the stamp is not sent on, and
+            # nothing is once the operator has raised an error, which holds
+            # this worker (_process_end_channel).
+            self._emit_and_save_state(
+                State.from_json(input_json),
+                output_loop_counter,
+                output_loop_start_id,
+                input_message_id,
             )
 
     def _emit_batches(self, batches) -> None:
@@ -469,9 +562,12 @@ class MainLoop(StoppableQueueBlockingRunnable):
         message_id: Optional[str] = None,
     ) -> None:
         # A new message (no id given) gets one id for every copy: one per
-        # downstream channel and the stored row.
+        # downstream channel and the stored row. A LoopStart's starts with
+        # LOOP_START_MESSAGE_PREFIX.
         if message_id is None:
             message_id = str(uuid4())
+            if isinstance(self.context.executor_manager.executor, LoopStartOperator):
+                message_id = LOOP_START_MESSAGE_PREFIX + message_id
         # State serialization (state.to_tuple -> to_json) and the storage write
         # run here on the main loop thread, outside DataProcessor's guarded
         # executor session. A non-serializable loop variable (e.g. a numpy
@@ -545,8 +641,17 @@ class MainLoop(StoppableQueueBlockingRunnable):
         # arriving on another edge or channel) is dropped before any of that:
         # it is not registered, handed to the operator or forwarded again. An
         # empty id is a state nobody issued (e.g. the back-edge write), never
-        # a copy.
-        if frame.message_id:
+        # a copy. A message processed while this worker has no output port is
+        # not recorded. In two-phase region execution (RegionExecutionManager)
+        # an operator reads its dependee input ports, the ones another of its
+        # ports depends on, in a phase of their own, before the worker has any
+        # output port (see is_missing_output_ports): what it sends then reaches
+        # no one, so the copy of the message on its other port is processed
+        # again and sent on.
+        if (
+            frame.message_id
+            and not self.context.output_manager.is_missing_output_ports()
+        ):
             if frame.message_id in self._seen_state_messages:
                 self._check_and_process_control()
                 return
@@ -558,19 +663,28 @@ class MainLoop(StoppableQueueBlockingRunnable):
         if isinstance(executor, LoopEndOperator) and in_counter > 0:
             # An inner Loop End receiving the enclosing (outer) loop's boundary
             # state (loop_counter > 0): the signal that the outer loop has
-            # advanced. Reset this Loop End's output now, before forwarding, so
-            # the new outer iteration's inner results accumulate from empty
-            # instead of concatenating across outer iterations. The input reader
-            # replays all states before any data each region execution, so the
-            # result/state tables still hold the PREVIOUS outer iteration's rows
-            # at this point. This fires exactly once per outer iteration: the
-            # inner LoopStart's output (and thus this pass-through) is recreated
-            # on every inner back-edge, so the outer state only reaches here on
-            # the first inner iteration of each outer iteration. A single /
-            # outermost Loop End never reaches this branch (no enclosing loop,
-            # so never loop_counter > 0) and so never resets -- it accumulates
-            # all of its own iterations.
-            self.context.output_manager.reset_output_storage()
+            # advanced. Reset this Loop End's output on the first such message,
+            # before forwarding it, so the new outer iteration's inner results
+            # accumulate from empty instead of concatenating across outer
+            # iterations. The input reader replays all states before any data
+            # each region execution, so the result/state tables still hold the
+            # PREVIOUS outer iteration's rows at this point. The outer messages
+            # reach here only in the first inner iteration of each outer
+            # iteration (the inner LoopStart's output, and thus this
+            # pass-through, is recreated on every inner back-edge), on a worker
+            # of its own, so resetting once per worker resets once per outer
+            # iteration. One outer iteration can bring several distinct
+            # messages -- an outer-body operator that changes the outer Loop
+            # Start's message sends that message on before its change -- and a
+            # reset for a later one would drop the rows of the earlier ones,
+            # which the outer Loop End needs. The flag is not cleared by this
+            # worker's own back-edge, which ends an inner iteration, not an
+            # outer one. A single / outermost Loop End never reaches this
+            # branch (no enclosing loop, so never loop_counter > 0) and so never
+            # resets -- it accumulates all of its own iterations.
+            if not self._reset_for_enclosing_iteration:
+                self._reset_for_enclosing_iteration = True
+                self.context.output_manager.reset_output_storage()
             # State belongs to an outer loop: step one level out and forward,
             # carrying the outer loop's id and the message id unchanged.
             self._emit_and_save_state(
@@ -604,18 +718,21 @@ class MainLoop(StoppableQueueBlockingRunnable):
 
         if isinstance(executor, LoopEndOperator):
             # Matching LoopEnd (in_counter == 0): it takes every distinct
-            # message of its loop until its input ends -- the loop's own state,
-            # stamped by the matching LoopStart, and whatever a loop-body
-            # operator sent after it: a state its process_state changed, or one
-            # its produce_state_on_start/finish (a public API on both engine
-            # sides) emitted with the "no loop" envelope. Their values are
-            # COLLECTED, a later message's replacing an earlier one's, so the
-            # user's update and condition see what the body computed. Later
-            # copies of a message were dropped above, so they cannot undo a
-            # value that arrived after its first copy; which of two distinct
-            # messages arrives last, and so wins, can depend on the paths they
-            # take. Nothing is sent downstream: the loop's own values stay
-            # inside the block.
+            # message of its loop until its input ends. Loop Start's own
+            # message, which its copies keep (its id starts with
+            # LOOP_START_MESSAGE_PREFIX), is the base. Every other one is a
+            # message the loop body sent: a state a body operator's
+            # process_state changed (it keeps Loop Start's stamp), the message
+            # such an operator sent on before its change, or a state a body
+            # operator's produce_state_on_start/finish (a public API on both
+            # engine sides) emitted with the "no loop" envelope. The user's
+            # update and condition read the base and then each other message
+            # whole, in the order they arrived (_loop_state), so a branch that
+            # sends Loop Start's message on unchanged cannot undo a change,
+            # whichever arrives last. Later copies of a message were dropped
+            # above; which of two messages arrives last, and so wins, can
+            # depend on the paths they take. Nothing is sent downstream: the
+            # loop's own values stay inside the block.
             #
             # The operator runs its update at EndChannel instead of here,
             # because the loop's input table is read from storage and that
@@ -625,26 +742,39 @@ class MainLoop(StoppableQueueBlockingRunnable):
                 # Remember which LoopStart to jump to (it rides the envelope)
                 # for complete()/_jump_to_loop_start.
                 self._loop_start_id = frame.loop_start_id
-                self._loop_state_names.update(state)
             else:
                 # An unstamped state must not clobber the captured back-jump id
                 # with "", which would fail the deferred consume's
                 # bookkeeping-URI lookup for LoopStart ''.
                 self._took_unstamped_state = True
-                self._published_names.update(state)
-            if self._pending_loop_state is None:
-                self._pending_loop_state = State()
-            self._pending_loop_state.update(state)
+            if frame.message_id.startswith(LOOP_START_MESSAGE_PREFIX):
+                self._loop_start_state = State(
+                    {**(self._loop_start_state or {}), **state}
+                )
+            else:
+                self._body_changes.append(state)
             self._check_and_process_control()
             return
 
         self.context.state_processing_manager.current_input_state = state
         self.context.state_processing_manager.current_input_loop_counter = in_counter
+        # The default process_state hands back the very state it got, which is
+        # the same message without serializing anything. Any other one may
+        # change the state in place before returning it, so its input is
+        # serialized before it runs, to compare its output against and, for a
+        # loop's message that it changed or returned None for, to send that
+        # message on unchanged. The bound method tells which one runs, so a
+        # process_state set on the operator object, not on its class, counts
+        # as another one.
+        passes_through = isinstance(executor, Operator) and (
+            getattr(executor.process_state, "__func__", None) is Operator.process_state
+        )
         self.process_input_state(
             output_loop_counter=in_counter,
             output_loop_start_id=frame.loop_start_id,
             input_message_id=frame.message_id,
-            input_json=state.to_json(),
+            input_json=None if passes_through else state.to_json(),
+            input_state=state if passes_through else None,
         )
         self._check_and_process_control()
 

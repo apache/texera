@@ -99,7 +99,9 @@ class OutputManager:
 
     def is_missing_output_ports(self):
         """
-        This method is only used for ensuring correct region execution.
+        This method is used for ensuring correct region execution, and by
+        MainLoop._process_state_frame, which records no state message id
+        while it is true.
         Some operators may have input port dependency relationships, for
         which we currently use a two-phase region execution scheme.
         (See `RegionExecutionManager.scala` for details.)
@@ -221,7 +223,8 @@ class OutputManager:
         """Drop and recreate this operator's result and state tables, then
         reopen the storage writers against the empty tables.
 
-        Called only for the inner Loop End of a nested loop, once per outer
+        Called only for the inner Loop End of a nested loop, on the first
+        message of the enclosing loop a worker takes, so once per outer
         iteration (see the ``MainLoop._process_state_frame`` call site).
         Truncating live storage is safe because loop workflows run in
         MATERIALIZED mode, so no reader observes the intermediate truncation.

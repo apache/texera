@@ -308,7 +308,8 @@ class OutputManager(
   }
 
   /**
-    * This method is only used for ensuring correct region execution. Some operators may have input port dependency
+    * This method is used for ensuring correct region execution, and by `DataProcessor.processInputState`, which
+    * records no state message id while it is true. Some operators may have input port dependency
     * relationships, for which we currently use a two-phase region execution scheme.  (See `RegionExecutionManager`
     * for details.)
     * This logic will only be executed when the worker is part of an `executingDependeePort` region-execution phase.
