@@ -1107,6 +1107,22 @@ describe("MenuComponent", () => {
     vi.unstubAllGlobals();
   });
 
+  it("copyPythonCodeToClipboard says where the helper module is when the script imports one", async () => {
+    const writeText = vi.fn().mockResolvedValue(undefined);
+    vi.stubGlobal("navigator", { clipboard: { writeText } });
+    const successSpy = vi.spyOn(notificationService, "success").mockImplementation(() => {});
+    component.pythonCodeForModal = "from texera_helpers import f";
+    component.pythonHelpersModuleForModal = "def f(): pass";
+
+    await component.copyPythonCodeToClipboard();
+
+    expect(writeText).toHaveBeenCalledWith("from texera_helpers import f");
+    expect(successSpy).toHaveBeenCalledWith(
+      "Python script copied to clipboard. It needs the texera_helpers.py in the zip download next to it."
+    );
+    vi.unstubAllGlobals();
+  });
+
   describe("downloadPythonZip", () => {
     const download = async () => {
       const saveAs = vi.spyOn(TestBed.inject(FileSaverService), "saveAs").mockImplementation(() => {});

@@ -806,7 +806,12 @@ export class MenuComponent implements OnInit, OnDestroy {
 
     try {
       await navigator.clipboard.writeText(this.pythonCodeForModal);
-      this.notificationService.success("Python script copied to clipboard");
+      // The copied script imports its helpers, so it does not run without the module.
+      this.notificationService.success(
+        this.pythonHelpersModuleForModal
+          ? "Python script copied to clipboard. It needs the texera_helpers.py in the zip download next to it."
+          : "Python script copied to clipboard"
+      );
     } catch (error) {
       this.notificationService.error("Failed to copy Python script");
     }
