@@ -193,10 +193,10 @@ object WorkflowCompiler {
     * iteration's state can arrive; the binding tells the same of a numeric or boolean value. Nor
     * may a copy of the operator with a column of an input or another of its texts in the
     * reference's place show it checking the text, or computing its output schemas from it, both of
-    * which it does from the literal too (`PythonOperatorDescriptor.textsReadBeforeTheLoop`, asked
-    * only once every input has a schema). The texts are judged once every numeric or boolean
-    * reference is bound: until then the code holds a probe value in its place, which may decide
-    * what the code reads.
+    * which it does from the literal too (`LoopVariableBinding.textsReadBeforeTheLoop`, on the copy
+    * the code was generated from, asked only once every input has a schema). The texts are judged
+    * once every numeric or boolean reference is bound: until then the code holds a probe value in
+    * its place, which may decide what the code reads.
     * When the generation failed (with every probe value and with the properties' defaults, where
     * a numeric or boolean property refers to a loop variable) there is no code to read either
     * way, and the code-generation check reports why it failed instead.
@@ -215,9 +215,8 @@ object WorkflowCompiler {
     if (logicalOp.stateReferences.isEmpty || codes.isEmpty) {
       None
     } else {
-      val unbound: Seq[(Iterable[String], String)] = (binding, logicalOp) match {
-        case (Some(generated), generator: PythonOperatorDescriptor)
-            if codes.forall(_._2 == "python") =>
+      val unbound: Seq[(Iterable[String], String)] = binding match {
+        case Some(generated) if codes.forall(_._2 == "python") =>
           val tree = objectMapper.valueToTree[ObjectNode](logicalOp)
           val text = textReferences(tree, logicalOp.stateReferences)
           val scripts = codes.map(_._1)
@@ -246,7 +245,7 @@ object WorkflowCompiler {
                 case (pointer, name) => whyUnbound(name).map(pointer -> _)
               }
               inCode ++ inputSchemas.fold(Map.empty[String, String])(
-                generator.textsReadBeforeTheLoop(text -- inCode.keys, _)
+                generated.textsReadBeforeTheLoop(text -- inCode.keys, _)
               )
             }
           val typedReasons = typedUnbound

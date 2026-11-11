@@ -101,7 +101,9 @@ trait PythonOperatorDescriptor extends LogicalOp {
     * reference to its property's default instead, a value the descriptor's author made it take,
     * and the probes are values to check like the edge ones; when that baseline fails too, the
     * failure is the descriptor's own, and the code says why, naming no probe value where a
-    * property has a default. The schema is the baseline's.
+    * property has a default. The schema is the baseline's, and so is the check of the texts
+    * (`LoopVariableBinding.textsReadBeforeTheLoop`): a placeholder may fail a check whatever the
+    * text is.
     */
   def loopVariableBinding: LoopVariableBinding =
     if (stateReferences.isEmpty) {
@@ -124,20 +126,24 @@ trait PythonOperatorDescriptor extends LogicalOp {
       }
     }
 
-  /** The binding of `code`, generated from this descriptor itself: its schemas are this one's. */
+  /**
+    * The binding of `code`, generated from this descriptor itself: its schemas are this one's, and
+    * so are the texts it reads before the loop runs.
+    */
   private def unprobed(code: String, unbound: Map[String, String]): LoopVariableBinding =
     new LoopVariableBinding(
       operatorInfo.userFriendlyName,
       code,
       unbound,
-      getOutputSchemas,
+      this,
       Map.empty
     )
 
   /**
     * The binding of the references in `kinds` (pointer -> kind) that `probed` shows, with the
-    * `unknown` ones' reasons and the text lookups on top: its schemas are the baseline's, and each
-    * variant's tell whether that reference's value decides them.
+    * `unknown` ones' reasons and the text lookups on top: its schemas, and the texts it reads
+    * before the loop runs, are the baseline's, and each variant's tell whether that reference's
+    * value decides them.
     */
   private def probedBinding(
       probed: Probing,
@@ -196,7 +202,7 @@ trait PythonOperatorDescriptor extends LogicalOp {
       operatorInfo.userFriendlyName,
       textLookups(code),
       unbound,
-      probed.baseline.getOutputSchemas,
+      probed.baseline,
       probed.variants.collect { case (pointer, Some((copy, _))) => pointer -> copy }
     )
   }
@@ -568,17 +574,20 @@ object PythonOperatorDescriptor {
     * A descriptor's code with its loop variables read from the iteration's state, generated once,
     * and what tells which numeric or boolean references it cannot read so, each one's JSON
     * pointer -> why, as the compiler's error says it: `unbound`, found from the code, and
-    * `unboundBySchema`, given the input schemas.
+    * `unboundBySchema`, given the input schemas; and which text references the descriptor reads
+    * before the loop runs, `textsReadBeforeTheLoop`.
     *
     * @param operator the descriptor's name, as the errors say it.
-    * @param baselineSchemas the output schemas of the copy the code was generated from.
+    * @param baseline the copy the code was generated from: the descriptor itself, or the probing's
+    *                 baseline, which holds a probe value, or the property's default, in each
+    *                 numeric or boolean reference's place.
     * @param variants each numeric or boolean reference's variant copy, when it generates.
     */
   final class LoopVariableBinding private[operator] (
       operator: String,
       val code: String,
       val unbound: Map[String, String],
-      baselineSchemas: Map[PortIdentity, Schema] => Map[PortIdentity, Schema],
+      baseline: PythonOperatorDescriptor,
       variants: Map[String, PythonOperatorDescriptor]
   ) {
 
@@ -587,17 +596,31 @@ object PythonOperatorDescriptor {
       * why. The schemas are computed before the loop runs, from the probe in its place.
       */
     def unboundBySchema(inputSchemas: Map[PortIdentity, Schema]): Map[String, String] =
-      Try(baselineSchemas(inputSchemas)).toOption.fold(Map.empty[String, String]) { schemas =>
-        variants.collect {
-          case (pointer, variant)
-              if !Try(variant.getOutputSchemas(inputSchemas)).toOption.contains(schemas) =>
-            pointer -> decidesOutputSchema
-        }
+      Try(baseline.getOutputSchemas(inputSchemas)).toOption.fold(Map.empty[String, String]) {
+        schemas =>
+          variants.collect {
+            case (pointer, variant)
+                if !Try(variant.getOutputSchemas(inputSchemas)).toOption.contains(schemas) =>
+              pointer -> decidesOutputSchema
+          }
       }
+
+    /**
+      * Each of `texts` (pointer -> name) that the copy the code was generated from checks, or
+      * computes its output schemas from, given `inputSchemas`: pointer -> why
+      * (`PythonOperatorDescriptor.textsReadBeforeTheLoop`). That copy holds the probe values the
+      * code and the schemas are computed with, where the descriptor holds placeholders, which a
+      * check may reject whatever the text is.
+      */
+    def textsReadBeforeTheLoop(
+        texts: Map[String, String],
+        inputSchemas: Map[PortIdentity, Schema]
+    ): Map[String, String] =
+      baseline.textsReadBeforeTheLoop(texts, inputSchemas)
 
     /** The output schemas, given `inputSchemas`: none while a reference's value decides them. */
     def outputSchemas(inputSchemas: Map[PortIdentity, Schema]): Map[PortIdentity, Schema] = {
-      val schemas = baselineSchemas(inputSchemas)
+      val schemas = baseline.getOutputSchemas(inputSchemas)
       val deciding = unboundBySchema(inputSchemas)
       if (deciding.nonEmpty) {
         throw new UnsupportedOperationException(
