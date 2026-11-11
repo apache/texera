@@ -28,6 +28,7 @@ import {
   SimpleChanges,
 } from "@angular/core";
 import { NgFor, NgIf } from "@angular/common";
+import { NzButtonComponent } from "ng-zorro-antd/button";
 import { NzIconDirective } from "ng-zorro-antd/icon";
 import { Subscription } from "rxjs";
 import { filter } from "rxjs/operators";
@@ -72,7 +73,7 @@ export interface OperatorResultPreview {
   selector: "texera-operator-result-preview",
   templateUrl: "./operator-result-preview.component.html",
   styleUrls: ["./operator-result-preview.component.scss"],
-  imports: [NgIf, NgFor, NzIconDirective],
+  imports: [NgIf, NgFor, NzButtonComponent, NzIconDirective],
 })
 export class OperatorResultPreviewComponent implements OnInit, OnChanges {
   @Input() operatorId = "";

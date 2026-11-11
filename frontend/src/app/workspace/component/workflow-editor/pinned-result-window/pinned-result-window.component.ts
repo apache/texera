@@ -29,6 +29,7 @@ import {
   ViewChild,
 } from "@angular/core";
 import { NgFor, NgIf } from "@angular/common";
+import { NzButtonComponent } from "ng-zorro-antd/button";
 import { NzIconDirective } from "ng-zorro-antd/icon";
 import { WorkflowActionService } from "../../../service/workflow-graph/model/workflow-action.service";
 import { WorkflowResultService } from "../../../service/workflow-result/workflow-result.service";
@@ -48,6 +49,7 @@ import { OperatorResultPreviewComponent } from "../operator-result-preview/opera
   imports: [
     NgIf,
     NgFor,
+    NzButtonComponent,
     NzIconDirective,
     ResultTableFrameComponent,
     VisualizationFrameContentComponent,
@@ -95,8 +97,13 @@ export class PinnedResultWindowComponent implements AfterViewInit, OnDestroy {
     return operator.customDisplayName ?? operator.operatorType;
   }
 
-  /** The output port whose result is shown. */
+  /** The output port chosen by its tab. */
   selectedPort = 0;
+
+  /** The port shown: the one chosen, or the last when the chosen one is gone. */
+  get shownPort(): number {
+    return Math.min(this.selectedPort, Math.max(this.outputPorts.length - 1, 0));
+  }
 
   /** The operator's output ports, each named as on the canvas, or by its place when unnamed. */
   get outputPorts(): { index: number; label: string }[] {
@@ -105,6 +112,11 @@ export class PinnedResultWindowComponent implements AfterViewInit, OnDestroy {
     return graph
       .getOperator(this.operatorId)
       .outputPorts.map((port, index) => ({ index, label: port.displayName || `Output ${index + 1}` }));
+  }
+
+  // The list is rebuilt on every check, so a tab is its port's, else each check replaces the tab being clicked.
+  trackPort(_index: number, port: { index: number }): number {
+    return port.index;
   }
 
   get kind(): "table" | "chart" | "other" {

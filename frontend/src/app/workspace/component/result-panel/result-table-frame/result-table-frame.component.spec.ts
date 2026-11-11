@@ -19,8 +19,9 @@
 
 import { ComponentFixture, TestBed } from "@angular/core/testing";
 import { SimpleChange } from "@angular/core";
+import type { Mock } from "vitest";
 
-import { ResultTableFrameComponent } from "./result-table-frame.component";
+import { OTHER_PORT_REFRESH_MS, ResultTableFrameComponent } from "./result-table-frame.component";
 import { OperatorMetadataService } from "../../../service/operator-metadata/operator-metadata.service";
 import { StubOperatorMetadataService } from "../../../service/operator-metadata/stub-operator-metadata.service";
 import { HttpClientTestingModule } from "@angular/common/http/testing";
@@ -410,6 +411,38 @@ describe("ResultTableFrameComponent", () => {
       stateStream.next({ otherOp: OperatorState.Completed });
       expect(component.isOperatorFinished).toBe(false);
     });
+
+    it("asks once more for a port past the first when the operator completes, as no update may follow", () => {
+      const stateStream = new Subject<Record<string, OperatorState>>();
+      vi.spyOn(workflowStatusService, "getStateUpdateStream").mockReturnValue(stateStream.asObservable());
+      const secondPort = {
+        getCurrentTotalNumTuples: vi.fn().mockReturnValue(6),
+        selectPage: vi.fn().mockReturnValue(of(makePageEvent(1))),
+      };
+      vi.spyOn(workflowResultService, "getPortPaginatedResultService").mockReturnValue(
+        secondPort as unknown as OperatorPaginationResultService
+      );
+      recreateComponent("op1");
+      component.portIndex = 1;
+
+      stateStream.next({ op1: OperatorState.Running });
+      stateStream.next({ op1: OperatorState.Completed });
+      stateStream.next({ op1: OperatorState.Completed });
+
+      expect(secondPort.selectPage).toHaveBeenCalledTimes(1);
+      expect(component.totalNumTuples).toBe(6);
+    });
+
+    it("leaves the first port to its updates when the operator completes", () => {
+      const stateStream = new Subject<Record<string, OperatorState>>();
+      vi.spyOn(workflowStatusService, "getStateUpdateStream").mockReturnValue(stateStream.asObservable());
+      const paginated = makePaginatedResultService();
+      recreateComponent("op1");
+
+      stateStream.next({ op1: OperatorState.Completed });
+
+      expect(paginated.selectPage).not.toHaveBeenCalled();
+    });
   });
 
   describe("result update stream", () => {
@@ -462,16 +495,53 @@ describe("ResultTableFrameComponent", () => {
       expect(component.totalNumTuples).toBe(0);
     });
 
-    it("leaves a port past the first alone, as the updates are about the first port", () => {
-      const paginated = makePaginatedResultService();
-      recreateComponent("op1");
-      component.portIndex = 1;
-      component.totalNumTuples = 5;
+    describe("on a port past the first", () => {
+      let secondPort: { getCurrentTotalNumTuples: Mock; selectPage: Mock };
 
-      resultUpdates.next({ op1: paginationUpdate(63, [1]) });
+      beforeEach(() => {
+        vi.useFakeTimers();
+        secondPort = {
+          getCurrentTotalNumTuples: vi.fn().mockReturnValue(5),
+          selectPage: vi.fn().mockReturnValue(of(makePageEvent(1))),
+        };
+        vi.spyOn(workflowResultService, "getPortPaginatedResultService").mockReturnValue(
+          secondPort as unknown as OperatorPaginationResultService
+        );
+        recreateComponent("op1");
+        component.portIndex = 1;
+      });
 
-      expect(component.totalNumTuples).toBe(5);
-      expect(paginated.selectPage).not.toHaveBeenCalled();
+      afterEach(() => vi.useRealTimers());
+
+      it("asks for its page again on its operator's update, as the update counts the first port only", () => {
+        component.totalNumTuples = 3;
+
+        resultUpdates.next({ op1: paginationUpdate(63, [4]) });
+
+        expect(secondPort.selectPage).toHaveBeenCalledTimes(1);
+        // the count is the port's own, from the reply, not the first port's
+        expect(component.totalNumTuples).toBe(5);
+      });
+
+      it("ignores another operator's update", () => {
+        resultUpdates.next({ otherOp: paginationUpdate(9, [1]) });
+        vi.advanceTimersByTime(OTHER_PORT_REFRESH_MS);
+
+        expect(secondPort.selectPage).not.toHaveBeenCalled();
+      });
+
+      it("asks at most once a second while a run updates, and always for the last update", () => {
+        resultUpdates.next({ op1: paginationUpdate(1, [1]) });
+        resultUpdates.next({ op1: paginationUpdate(2, [1]) });
+        resultUpdates.next({ op1: paginationUpdate(3, [1]) });
+        expect(secondPort.selectPage).toHaveBeenCalledTimes(1);
+
+        vi.advanceTimersByTime(OTHER_PORT_REFRESH_MS);
+        expect(secondPort.selectPage).toHaveBeenCalledTimes(2);
+
+        vi.advanceTimersByTime(OTHER_PORT_REFRESH_MS);
+        expect(secondPort.selectPage).toHaveBeenCalledTimes(2);
+      });
     });
 
     it("ignores updates when the frame has no operator", () => {
@@ -993,6 +1063,12 @@ describe("ResultTableFrameComponent", () => {
 
       it("is not rendered when result export is off", () => {
         renderOneRow(false);
+        expect(fixture.debugElement.query(By.css("button.download-button"))).toBeNull();
+      });
+
+      it("is not rendered on a port past the first, as a cell export reads the first port", () => {
+        component.portIndex = 1;
+        renderOneRow(true);
         expect(fixture.debugElement.query(By.css("button.download-button"))).toBeNull();
       });
     });
