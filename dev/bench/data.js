@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1794316096141,
+  "lastUpdate": 1794406734477,
   "repoUrl": "https://github.com/apache/texera",
   "entries": {
     "Arrow Flight E2E Throughput": [
@@ -21773,6 +21773,163 @@ window.BENCHMARK_DATA = {
           {
             "name": "throughput / bs=1000 sw=50 sl=512",
             "value": 508.04878317576396,
+            "unit": "tuples/sec"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "name": "yangzhang75",
+            "username": "yangzhang75",
+            "email": "yangz75@uci.edu"
+          },
+          "committer": {
+            "name": "GitHub",
+            "username": "web-flow",
+            "email": "noreply@github.com"
+          },
+          "id": "03a5bb842447527910a782c342ef67d2f992ab7b",
+          "message": "feat(workflow-form): bring the selected step's result to the top, and give each result a name and an eye (#9334)\n\n### What changes were proposed in this PR?\n\nCloses #9257. The behaviour here is the one settled in the design\ndiscussion #9033.\n\nAfter a run the Form View can show several result cards, and nothing\ntied a card to the step that\nproduced it. To find one step's result a reader read the card titles,\nand two steps with the same\nname gave two cards with the same title. The picker that decides which\nresults show sat below the\ncards, away from both the preview and the results it is about.\n\n**Selecting a step leads the Results.** The selected step's card moves\nto the front, outlined in the\ncolour the canvas draws round a selected step (`workflow-editor`'s\n`highlightOptions` stroke), so the\nmove reads as \"this is that step's result\" rather than a reshuffle. The\nselection is the canvas's\nown: clicking a step on the embedded preview leads its card, and\ndeselecting -- the panel's close\nbutton, empty canvas, a multi-select -- puts the cards back in their\nsaved order. The card at the\nfront is read from the selection rather than kept beside it; keeping a\nsecond copy let the two drift\napart (hiding the selected step's result cleared the lead but not the\nselection, and its name then\nread as \"already leading\").\n\n**Each result becomes a chip with two targets.** The picker moves up to\nsit between the preview and\nthe results. The step's name makes that same selection -- through\n`WorkflowActionService`, so a\nco-editor sees the ring exactly as they do for a canvas click -- and\nclicking the name of the step\nalready selected lets it go. The eye beside it shows or hides that\nresult: the author's default for\neveryone while editing (written to the config, as before), this page\nonly otherwise, so a reader\nwithout write access can still hide a result they do not care about and\nbring it back. A hidden\nresult has no card to bring up, so its name is marked unavailable and\nsays why, while its eye stays\nlive; that is how the result comes back.\n\nNothing about the order is saved, and the preview is left as the reader\nhad it: opening it from a\nname click moved the picker and the results about a third of the page\ndown, out from under the name\njust clicked. The ring has a programmatic twin: the leading result's\nname carries `aria-current`, so\na reader who cannot see the outline is still told which result is the\none being looked at.\n\n**Known limitation, pre-existing:** a selection made while the preview\nis closed is not ringed on the\ncanvas if the preview is opened afterwards. The editor draws only the\nhighlights that arrive after it\nmounts, which is also why switching between the canvas and the Form View\nloses the ring on main. The\nstep's property panel does open on it, so the selection itself is not\nlost.\n\nNot included, and raised in #9033: letting the author drag the results\ninto an order in Edit mode.\n\nTwo dead lines in files this PR already touches go with it: the rendered\nspec registered the `lock`\nand `unlock` ng-zorro icons, which no template reachable from that spec\nrenders, and\n`workflow-form.component.spec.ts` imported `workspaceFormUrl` without\nusing it.\n\n#### Video\n\n\n\nhttps://github.com/user-attachments/assets/45a28cdc-9281-469c-89bf-9895d8287c25\n\n\n\n### Any related issues, documentation, discussions?\n\n- Closes #9257.\n- Design discussion: #9033, where this behaviour was settled (the lock\nthat an earlier revision used,\n  and the double click that let a step go, were both dropped there).\n\n### How was this PR tested?\n\nFifteen new unit tests in `workflow-form.component.spec.ts` and two in\n`workflow-form.rendered.spec.ts` (the rendered page asserts the picker's\nposition between the preview\nand the results, and that the ring lands on the lead card and that\nstep's chip and nowhere else). The\nharness gained a `highlightOperators` that models the real chain, so a\nname click goes through the\naction service, the wrapper replaces the selection, the highlight stream\nemits and the page's own\nhandler runs, as for a canvas click.\n\nFull frontend suite on this branch, rebased on current main: 251 files,\n7157 tests, 1 skipped, all\ngreen. ESLint and Prettier clean on the changed files. Production AOT\nbuild passes. Every statement\nand every branch the commit adds is covered, checked line by line\nagainst the lcov report: 42/42\nstatements and 16/16 branches, with no partially-taken branch on a\nchanged line. Eleven mutations of\nthe new behaviour -- the lead not moving, the ring on the wrong card, a\nhidden name acting, the eye\nwriting a reader's choice to the config, the name and the eye wired to\neach other's handler, the\n`aria-current` twin going missing -- were all killed by the new tests.\n\nChecked by hand on a local stack against a ten-operator demo workflow\nwith four results (a table and\nthree charts): clicking a step on the preview, clicking a result's name,\nclicking it again, hiding\nthe selected step's result and showing it again, and two browser tabs\nopen on the same workflow to\nconfirm the order and the eye are local to a page while the selection\nring propagates as a canvas\nclick's does.\n\n### Was this PR authored or co-authored using generative AI tooling?\n\nGenerated-by: Claude Code\n\n🤖 Generated with [Claude Code](https://claude.com/claude-code)\n\n---------\n\nCo-authored-by: Claude Opus 5 (1M context) <noreply@anthropic.com>\nCo-authored-by: Meng Wang <mengw15@uci.edu>",
+          "timestamp": "2026-11-11T06:34:37Z",
+          "url": "https://github.com/apache/texera/commit/03a5bb842447527910a782c342ef67d2f992ab7b"
+        },
+        "date": 1794406733794,
+        "tool": "customBiggerIsBetter",
+        "benches": [
+          {
+            "name": "throughput / bs=10 sw=1 sl=8",
+            "value": 678.3708248576679,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=1 sl=8",
+            "value": 1181.569644739236,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=1 sl=8",
+            "value": 1262.3867145221684,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=1 sl=64",
+            "value": 891.9450008766526,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=1 sl=64",
+            "value": 1224.4309574379877,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=1 sl=64",
+            "value": 1254.407054411802,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=1 sl=512",
+            "value": 893.4619443985847,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=1 sl=512",
+            "value": 1199.6464176544362,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=1 sl=512",
+            "value": 1251.7102511998496,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=10 sl=8",
+            "value": 754.5983124319542,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=10 sl=8",
+            "value": 979.0861016937704,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=10 sl=8",
+            "value": 1003.9168004764979,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=10 sl=64",
+            "value": 774.8951466517659,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=10 sl=64",
+            "value": 973.5372630927627,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=10 sl=64",
+            "value": 1002.9242450562277,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=10 sl=512",
+            "value": 783.2469989799202,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=10 sl=512",
+            "value": 966.2277833011384,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=10 sl=512",
+            "value": 981.266792418404,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=50 sl=8",
+            "value": 472.2926379649618,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=50 sl=8",
+            "value": 546.2522936698516,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=50 sl=8",
+            "value": 553.3501437626252,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=50 sl=64",
+            "value": 473.28690665651874,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=50 sl=64",
+            "value": 545.5724091323046,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=50 sl=64",
+            "value": 542.2876512727127,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=50 sl=512",
+            "value": 452.67524139469697,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=50 sl=512",
+            "value": 523.6951623360585,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=50 sl=512",
+            "value": 521.1759363889155,
             "unit": "tuples/sec"
           }
         ]
