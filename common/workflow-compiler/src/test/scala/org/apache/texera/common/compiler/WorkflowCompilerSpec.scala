@@ -142,7 +142,7 @@ class WorkflowCompilerSpec extends AnyFlatSpec {
   }
 
   private val realCsvPath =
-    "workflow-compiling-service/src/test/resources/country_sales_small.csv"
+    "common/workflow-operator/src/test/resources/country_sales_small.csv"
 
   // -------------------- happy path --------------------
 
