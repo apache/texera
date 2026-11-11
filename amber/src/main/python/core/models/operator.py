@@ -20,7 +20,17 @@ import pandas
 from functools import lru_cache
 from abc import ABC, abstractmethod
 from collections import defaultdict
-from typing import Iterator, List, Mapping, Optional, Union, MutableMapping, Protocol
+from typing import (
+    Any,
+    Iterator,
+    List,
+    Mapping,
+    Optional,
+    Union,
+    MutableMapping,
+    Protocol,
+    Tuple as TypingTuple,
+)
 
 from . import Table, TableLike, Tuple, TupleLike, Batch, BatchLike, Schema
 from .state import State
@@ -43,6 +53,42 @@ def require_yielded(result, method_name: str):
             "Replace `return x` with `yield x`."
         )
     return result
+
+
+class _LoopVariables(Mapping):
+    """
+    A read-only view of an operator's loop variables. Reading a name that got
+    two different values from the same loop raises the error a JVM operator
+    whose setting refers to that name raises (``StateReferenceBinding``); the
+    other names read as usual, and the name itself is still listed.
+    """
+
+    def __init__(
+        self,
+        values: Mapping[str, Any],
+        conflicts: Mapping[str, TypingTuple[Any, Any]],
+    ) -> None:
+        self._values = values
+        self._conflicts = conflicts
+
+    def __getitem__(self, name: str) -> Any:
+        if name in self._conflicts:
+            earlier, later = self._conflicts[name]
+            raise RuntimeError(
+                f"loop variable {name} got two different values in one iteration, "
+                f"{earlier} and {later}: a loop's variables must not change inside "
+                "its body"
+            )
+        return self._values[name]
+
+    def __contains__(self, name: object) -> bool:
+        return name in self._values
+
+    def __iter__(self) -> Iterator[str]:
+        return iter(self._values)
+
+    def __len__(self) -> int:
+        return len(self._values)
 
 
 class Operator(ABC):
@@ -91,6 +137,76 @@ class Operator(ABC):
         return self._get_template_decoder().decode(data)
 
     __internal_is_source: bool = False
+
+    # The loop variables received so far, by name, and the nesting depth of
+    # the message each value came in; see ``register_state``. ``None`` until
+    # the first state message. Class-level defaults rather than ``__init__``
+    # assignments: a subclass ``__init__`` that skips ``super()`` still reads
+    # no loop variables until a state arrives.
+    __internal_loop_variables: Optional[MutableMapping[str, Any]] = None
+    __internal_loop_variable_depths: Optional[MutableMapping[str, int]] = None
+    # The names that got two different values at the depth they are held at,
+    # with those two values; see ``register_state``.
+    __internal_loop_variable_conflicts: Optional[
+        MutableMapping[str, TypingTuple[Any, Any]]
+    ] = None
+
+    @property
+    @overrides.final
+    def loop_variables(self) -> Mapping[str, Any]:
+        """
+        The loop variables received from upstream, read-only: inside a control
+        block, the values the state messages handed to this operator carried,
+        by name. The runtime registers each message (``register_state``) right
+        before ``process_state`` runs, so the callback and every call after it
+        can read them. Empty until a state message arrives. Reading a name
+        that got two different values from the same loop raises an error; see
+        ``register_state``.
+        """
+        return _LoopVariables(
+            self.__internal_loop_variables or {},
+            self.__internal_loop_variable_conflicts or {},
+        )
+
+    @overrides.final
+    def register_state(self, state: State, loop_counter: int = 0) -> None:
+        """
+        Merge the values ``state`` carries into ``loop_variables``. The runtime
+        calls this for every state message, with the nesting depth its envelope
+        carries (``loop_counter``): 0 from the innermost loop around this
+        operator, 1 from the loop around that, and so on. A state no loop sent,
+        such as one an operator returns from ``produce_state_on_finish``,
+        travels at depth 0.
+
+        For each name, the value from the smallest depth wins. So an inner
+        loop's variable shadows an enclosing one of the same name, even when the
+        enclosing message arrives later, and a state adds only the names it
+        carries. A message from the same depth may repeat a value, as copies
+        from several upstream workers or branches do, but must not change it:
+        reading a name that got two different values from one depth raises the
+        error a JVM operator whose setting refers to it raises
+        (``StateReferenceBinding``), until a value from a smaller depth replaces
+        both.
+
+        :param state: State, the state message that arrived.
+        :param loop_counter: int, the message's nesting depth.
+        """
+        if self.__internal_loop_variables is None:
+            self.__internal_loop_variables = {}
+            self.__internal_loop_variable_depths = {}
+            self.__internal_loop_variable_conflicts = {}
+        for name, value in state.items():
+            depth = self.__internal_loop_variable_depths.get(name)
+            if depth is None or loop_counter < depth:
+                self.__internal_loop_variables[name] = value
+                self.__internal_loop_variable_depths[name] = loop_counter
+                self.__internal_loop_variable_conflicts.pop(name, None)
+            elif loop_counter == depth:
+                earlier = self.__internal_loop_variables[name]
+                if earlier != value:
+                    self.__internal_loop_variable_conflicts.setdefault(
+                        name, (earlier, value)
+                    )
 
     @property
     @overrides.final

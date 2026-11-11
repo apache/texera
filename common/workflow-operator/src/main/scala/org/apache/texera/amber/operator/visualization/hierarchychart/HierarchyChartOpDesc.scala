@@ -138,7 +138,7 @@ class HierarchyChartOpDesc extends PythonVisualizationOpDesc with PlotlyStandalo
     // reason for "no chart" is where the reader looks for the chart — printing it
     // to the terminal alone left that file absent. render_error's continuation
     // line keeps the runtime path's indentation, since the HTML is triple-quoted
-    // and those spaces reach the browser.
+    // and those spaces reach the browser. chart_df is a copy: the input can feed another branch.
     s"""def render_error(error_msg):
        |    return '''<h1>Hierarchy chart is not available.</h1>
        |                  <p>Reason is: {} </p>
@@ -152,8 +152,6 @@ class HierarchyChartOpDesc extends PythonVisualizationOpDesc with PlotlyStandalo
        |if in1df.empty:
        |    fail("input table is empty.")
        |else:
-       |    # On a copy: the same frame can feed another branch of the plan, and
-       |    # both the assignment and the drop below would otherwise reach it.
        |    chart_df = in1df.copy()
        |    chart_df[$valueLit] = chart_df[chart_df[$valueLit] > 0][$valueLit]
        |    chart_df = chart_df.dropna(subset=[$attributes])

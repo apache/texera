@@ -71,21 +71,60 @@
       (nzSelectedIndexChange)="onTabChange($event)">
       <nz-tab nzTitle="Jupyter Notebook">
         <ng-template nz-tab>
+          <div class="import-modal-language">
+            <nz-segmented
+              [formControl]="notebookLanguage"
+              (nzValueChange)="clearSelection()">
+              <label
+                nz-segmented-item
+                nzValue="python">
+                Python Notebook
+              </label>
+              <label
+                nz-segmented-item
+                nzValue="r"
+                [nzDisabled]="!rMigrationEnabled"
+                nz-tooltip
+                [nzTooltipTitle]="rMigrationEnabled ? null : rDisabledTooltip"
+                [nzTooltipOverlayStyle]="{ 'max-width': 'none' }">
+                R Notebook
+              </label>
+            </nz-segmented>
+          </div>
+
           <div class="import-modal-diagram">
             <img
+              *ngIf="notebookLanguage.value === 'python'; else rNotebookDiagram"
               ngSrc="assets/notebook_migration_tool/tool_popup_diagram.png"
               alt="Notebook to Workflow"
               width="1350"
               height="344" />
+            <ng-template #rNotebookDiagram>
+              <img
+                ngSrc="assets/notebook_migration_tool/r_notebook_diagram.png"
+                alt="R Notebook to Workflow"
+                width="1350"
+                height="344" />
+            </ng-template>
           </div>
 
           <nz-form-item>
-            <p class="import-modal-text">
+            <p
+              *ngIf="notebookLanguage.value === 'python'; else rNotebookText"
+              class="import-modal-text">
               This tool converts a Python Jupyter Notebook into a Texera workflow using LLM capabilities. After you
               submit a notebook, the LLM service generates a corresponding Texera workflow. The conversion time depends
               on the notebook's complexity and can take 1-5 minutes. Once generation finishes, you are taken to the new
               workflow, which opens with:
             </p>
+            <ng-template #rNotebookText>
+              <p class="import-modal-text">
+                This tool converts an R Jupyter Notebook into a Texera workflow using LLM capabilities. Every generated
+                operator is an R UDF, so the computing unit that runs the workflow needs the texera-rudf package
+                installed. The conversion time depends on the notebook's complexity and can take 1-5 minutes. Once
+                generation finishes, you are taken to the new workflow, which opens with:
+              </p>
+            </ng-template>
             <ol class="import-modal-list">
               <li>
                 The generated workflow ready to use (Note: you will still need to upload the dataset and connect it to
@@ -101,7 +140,10 @@
           <ng-container
             *ngTemplateOutlet="
               uploadRow;
-              context: { accept: '.ipynb', label: 'Upload Python Jupyter Notebook', action: 'Upload notebook' }
+              context:
+                notebookLanguage.value === 'python'
+                  ? { accept: '.ipynb', label: 'Upload Python Jupyter Notebook', action: 'Upload notebook' }
+                  : { accept: '.ipynb', label: 'Upload R Jupyter Notebook', action: 'Upload R notebook' }
             "></ng-container>
         </ng-template>
       </nz-tab>

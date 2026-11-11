@@ -21,10 +21,10 @@ package org.apache.texera.web.resource.dashboard.admin.execution
 
 import io.dropwizard.auth.Auth
 import org.apache.texera.auth.SessionUser
+import org.apache.texera.auth.util.WorkflowAccess
 import org.apache.texera.dao.SqlServer
 import org.apache.texera.dao.jooq.generated.Tables._
 import org.apache.texera.web.resource.dashboard.admin.execution.AdminExecutionResource._
-import org.apache.texera.web.resource.dashboard.user.workflow.WorkflowAccessResource
 import org.jooq.impl.DSL
 
 import javax.annotation.security.RolesAllowed
@@ -185,7 +185,7 @@ class AdminExecutionResource {
 
     // Retrieve the id of each workflow that the user has access to.
     val availableWorkflowIds = context
-      .fetch(WorkflowAccessResource.accessibleWids(current_user.getUid))
+      .fetch(WorkflowAccess.accessibleWids(current_user.getUid))
       .getValues(0, classOf[Integer])
       .asScala
       .toSet

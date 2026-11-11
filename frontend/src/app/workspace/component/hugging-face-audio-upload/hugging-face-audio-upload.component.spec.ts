@@ -109,14 +109,14 @@ describe("HuggingFaceAudioUploadComponent", () => {
 
   describe("derived view state", () => {
     it("reports no audio when formControl is empty", () => {
-      expect(component.hasAudio).toBe(false);
+      expect(component.hasMedia).toBe(false);
       expect(component.previewSrc).toBe("");
       expect(component.displayFileName).toBe("");
     });
 
     it("reports audio when formControl holds a data:audio URL", () => {
       component.formControl.setValue("data:audio/wav;base64,AAA");
-      expect(component.hasAudio).toBe(true);
+      expect(component.hasMedia).toBe(true);
       expect(component.previewSrc).toBe("data:audio/wav;base64,AAA");
       expect(component.displayFileName).toBe("Selected audio");
     });
@@ -129,18 +129,18 @@ describe("HuggingFaceAudioUploadComponent", () => {
 
     it("returns false for a leftover server path (legacy saved value)", () => {
       component.formControl.setValue("/uploads/clip.wav");
-      expect(component.hasAudio).toBe(false);
+      expect(component.hasMedia).toBe(false);
       expect(component.previewSrc).toBe("");
     });
 
     it("returns false for a non-audio data URL", () => {
       component.formControl.setValue("data:image/png;base64,AAA");
-      expect(component.hasAudio).toBe(false);
+      expect(component.hasMedia).toBe(false);
     });
 
     it("returns false for a null value", () => {
       component.formControl.setValue(null);
-      expect(component.hasAudio).toBe(false);
+      expect(component.hasMedia).toBe(false);
     });
   });
 
@@ -160,7 +160,7 @@ describe("HuggingFaceAudioUploadComponent", () => {
       const input = makeFileInput(file);
       await component.onFileSelected({ target: input } as unknown as Event);
       expect(component.errorMessage).toBe("Choose an audio file.");
-      expect(component.hasAudio).toBe(false);
+      expect(component.hasMedia).toBe(false);
       expect(input.value).toBe("");
     });
 
@@ -194,7 +194,7 @@ describe("HuggingFaceAudioUploadComponent", () => {
 
         expect(component.formControl.value).toBe("data:audio/wav;base64,AAAA");
         expect(component.fileName).toBe("clip.wav");
-        expect(component.hasAudio).toBe(true);
+        expect(component.hasMedia).toBe(true);
         expect(component.formControl.dirty).toBe(true);
         expect(component.formControl.touched).toBe(true);
         expect((component.model as any).audioInput).toBe("data:audio/wav;base64,AAAA");
@@ -224,7 +224,7 @@ describe("HuggingFaceAudioUploadComponent", () => {
         const input = makeFileInput(file);
         await component.onFileSelected({ target: input } as unknown as Event);
         expect(component.errorMessage).toBe("Could not read this audio file.");
-        expect(component.hasAudio).toBe(false);
+        expect(component.hasMedia).toBe(false);
       } finally {
         teardown();
       }
@@ -249,7 +249,7 @@ describe("HuggingFaceAudioUploadComponent", () => {
         const input = makeFileInput(file);
         await component.onFileSelected({ target: input } as unknown as Event);
         expect(component.errorMessage).toBe("Could not read this audio file.");
-        expect(component.hasAudio).toBe(false);
+        expect(component.hasMedia).toBe(false);
       } finally {
         teardown();
       }
@@ -288,7 +288,7 @@ describe("HuggingFaceAudioUploadComponent", () => {
       } finally {
         teardown();
       }
-      expect(component.hasAudio).toBe(true);
+      expect(component.hasMedia).toBe(true);
     }
 
     it("drops a previously accepted clip when a re-selection is not audio", async () => {
@@ -301,7 +301,7 @@ describe("HuggingFaceAudioUploadComponent", () => {
       expect(component.errorMessage).toBe("Choose an audio file.");
       expect(component.formControl.value).toBe("");
       expect(component.fileName).toBe("");
-      expect(component.hasAudio).toBe(false);
+      expect(component.hasMedia).toBe(false);
       expect(input.value).toBe("");
       expect((component.field as any).model.audioInput).toBe("");
     });
@@ -315,7 +315,7 @@ describe("HuggingFaceAudioUploadComponent", () => {
       expect(component.errorMessage).toBe("Audio file is too large (max 25 MB).");
       expect(component.formControl.value).toBe("");
       expect(component.fileName).toBe("");
-      expect(component.hasAudio).toBe(false);
+      expect(component.hasMedia).toBe(false);
       expect(input.value).toBe("");
     });
 
@@ -329,7 +329,7 @@ describe("HuggingFaceAudioUploadComponent", () => {
         expect(component.errorMessage).toBe("Could not read this audio file.");
         expect(component.formControl.value).toBe("");
         expect(component.fileName).toBe("");
-        expect(component.hasAudio).toBe(false);
+        expect(component.hasMedia).toBe(false);
         expect(input.value).toBe("");
       } finally {
         teardown();

@@ -99,7 +99,23 @@ def _texera_text_to_timestamp(s):
     out[plain] = pd.to_datetime(text[plain], format="ISO8601", errors="coerce").dt.floor("ms")
     rest = s.notna() & out.isna()
     out[rest] = s[rest].map(_one).astype("datetime64[us]")
-    return out
+    return _texera_skip_gaps(out, zone)
+
+def _texera_skip_gaps(walls, zone):
+    import datetime
+
+    if zone is None:
+        return walls
+    inner = walls.between(datetime.datetime(1, 1, 2), datetime.datetime(9999, 12, 30))
+    gap = pd.Series(False, index=walls.index)
+    gap[inner] = walls[inner].dt.tz_localize(zone, ambiguous=False, nonexistent="NaT").isna()
+
+    def _later(t):
+        moment = t.to_pydatetime().replace(tzinfo=zone).astimezone(datetime.timezone.utc)
+        return moment.astimezone(zone).replace(tzinfo=None)
+
+    walls[gap] = walls[gap].map(_later).astype("datetime64[us]")
+    return walls
 
 def _texera_cast_timestamps(s):
     if not pd.api.types.is_datetime64_any_dtype(s):
@@ -413,7 +429,10 @@ def _texera_agg_ts_min(series):
     return _texera_agg_ts_pick(series, lambda a, b: a < b)
 
 def _texera_agg_ts_max(series):
-    return _texera_agg_ts_pick(series, lambda a, b: a > b)
+    pick = _texera_agg_ts_pick(series, lambda a, b: a > b)
+    if pd.isna(pick) or _texera_agg_ts_epoch_ms(pd.Series([pick])).iloc[0] <= 0:
+        return pd.NaT
+    return pick
 
 def _texera_agg_double_values(series):
     return [float(v) for v in series.dropna()]
