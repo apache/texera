@@ -19,14 +19,16 @@
 
 package org.apache.texera.amber.operator.reservoirsampling
 
-import com.typesafe.config.ConfigFactory
+import org.apache.texera.amber.util.PythonTestSupport.{
+  NeedsPythonPackages,
+  canImport,
+  configuredPython
+}
 import org.apache.texera.amber.core.executor.OpExecWithClassName
 import org.apache.texera.amber.core.virtualidentity.{ExecutionIdentity, WorkflowIdentity}
-import org.apache.texera.amber.operator.tags.IntegrationTest
 import org.apache.texera.amber.operator.{LogicalOp, SamplingHelpers}
 import org.apache.texera.amber.operator.metadata.OperatorGroupConstants
 import org.apache.texera.amber.util.JSONUtils.objectMapper
-import org.scalatest.Tag
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 
@@ -34,11 +36,8 @@ import java.nio.charset.StandardCharsets
 import java.nio.file.Files
 import java.util.concurrent.TimeUnit
 import scala.io.Source
-import scala.util.Try
 
 class ReservoirSamplingOpDescSpec extends AnyFlatSpec with Matchers {
-
-  private val NeedsPythonPackages = Tag(classOf[IntegrationTest].getName)
 
   private val workflowId = WorkflowIdentity(1L)
   private val executionId = ExecutionIdentity(1L)
@@ -96,8 +95,8 @@ class ReservoirSamplingOpDescSpec extends AnyFlatSpec with Matchers {
   // The script has to refuse it there too. Answering with an empty table would
   // report a result the run never produced.
   it should "fail on the first row when the reservoir holds nothing" taggedAs NeedsPythonPackages in {
-    val python = resolvePython().getOrElse(cancel("No runnable python executable"))
-    if (!canImportPandas(python)) cancel(s"'$python' cannot import pandas")
+    val python = configuredPython().getOrElse(cancel("No runnable python executable"))
+    if (!canImport(python, "pandas")) cancel(s"'$python' cannot import pandas")
 
     val d = new ReservoirSamplingOpDesc
     d.k = 0
@@ -134,30 +133,4 @@ class ReservoirSamplingOpDescSpec extends AnyFlatSpec with Matchers {
     physical.inputPorts.keySet shouldBe d.operatorInfo.inputPorts.map(_.id).toSet
     physical.outputPorts.keySet shouldBe d.operatorInfo.outputPorts.map(_.id).toSet
   }
-
-  private def resolvePython(): Option[String] = {
-    def fromConfig: Option[String] =
-      Try(ConfigFactory.parseResources("udf.conf").resolve()).toOption
-        .orElse(Try(ConfigFactory.load()).toOption)
-        .flatMap(c => Try(c.getConfig("python").getString("path")).toOption)
-        .map(_.trim)
-        .filter(_.nonEmpty)
-
-    def runnable(exe: String): Boolean =
-      Try(new ProcessBuilder(exe, "--version").redirectErrorStream(true).start()).toOption
-        .exists { p =>
-          if (!p.waitFor(5, TimeUnit.SECONDS)) { p.destroyForcibly(); false }
-          else p.exitValue() == 0
-        }
-
-    (fromConfig.toList ++ List("python3", "python", "py")).distinct.find(runnable)
-  }
-
-  private def canImportPandas(python: String): Boolean =
-    Try(
-      new ProcessBuilder(python, "-c", "import pandas").redirectErrorStream(true).start()
-    ).toOption.exists { p =>
-      if (!p.waitFor(60, TimeUnit.SECONDS)) { p.destroyForcibly(); false }
-      else p.exitValue() == 0
-    }
 }

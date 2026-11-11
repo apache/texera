@@ -19,7 +19,7 @@
 
 package org.apache.texera.amber.operator
 
-import com.typesafe.config.ConfigFactory
+import org.apache.texera.amber.util.PythonTestSupport.configuredPython
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 
@@ -27,7 +27,6 @@ import java.nio.charset.StandardCharsets
 import java.nio.file.Files
 import java.util.concurrent.TimeUnit
 import scala.io.Source
-import scala.util.Try
 
 /** The transcribed java.util.Random, checked against what Java would answer.
   *
@@ -38,7 +37,7 @@ class SamplingHelpersSpec extends AnyFlatSpec with Matchers {
 
   /** Run `body` after the helper class, and return what it printed. */
   private def runWithHelper(body: String): (Int, String) = {
-    val python = resolvePython().getOrElse(cancel("No runnable python executable"))
+    val python = configuredPython().getOrElse(cancel("No runnable python executable"))
     val script = Files.createTempFile("sampling-helpers-", ".py")
     script.toFile.deleteOnExit()
     Files.write(
@@ -95,23 +94,5 @@ class SamplingHelpersSpec extends AnyFlatSpec with Matchers {
       exit shouldBe 0
       out.trim shouldBe "True"
     }
-  }
-
-  private def resolvePython(): Option[String] = {
-    def fromConfig: Option[String] =
-      Try(ConfigFactory.parseResources("udf.conf").resolve()).toOption
-        .orElse(Try(ConfigFactory.load()).toOption)
-        .flatMap(c => Try(c.getConfig("python").getString("path")).toOption)
-        .map(_.trim)
-        .filter(_.nonEmpty)
-
-    def runnable(exe: String): Boolean =
-      Try(new ProcessBuilder(exe, "--version").redirectErrorStream(true).start()).toOption
-        .exists { p =>
-          if (!p.waitFor(5, TimeUnit.SECONDS)) { p.destroyForcibly(); false }
-          else p.exitValue() == 0
-        }
-
-    (fromConfig.toList ++ List("python3", "python", "py")).distinct.find(runnable)
   }
 }

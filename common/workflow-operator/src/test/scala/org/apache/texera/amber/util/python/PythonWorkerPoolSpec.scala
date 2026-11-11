@@ -19,11 +19,12 @@
 
 package org.apache.texera.amber.util.python
 
+import org.apache.texera.amber.util.PythonTestSupport.pathPython
 import com.fasterxml.jackson.databind.node.ObjectNode
 import org.apache.texera.amber.util.JSONUtils.objectMapper
 import org.scalatest.funsuite.AnyFunSuite
 
-import java.util.concurrent.{Executors, TimeUnit}
+import java.util.concurrent.Executors
 import scala.concurrent.duration._
 import scala.concurrent.{Await, ExecutionContext, ExecutionContextExecutorService, Future}
 import scala.util.Try
@@ -69,15 +70,7 @@ final class PythonWorkerPoolSpec extends AnyFunSuite {
     * this deliberately skips the configured `python.path` the suites that need
     * pandas resolve. A machine without one cancels rather than fails.
     */
-  private lazy val python: String = {
-    def isRunnable(exe: String): Boolean =
-      Try(new ProcessBuilder(exe, "--version").redirectErrorStream(true).start()).toOption
-        .exists { p =>
-          if (p.waitFor(5, TimeUnit.SECONDS)) p.exitValue() == 0 else { p.destroyForcibly(); false }
-        }
-
-    List("python3", "python", "py").find(isRunnable).getOrElse(cancel("no runnable python"))
-  }
+  private lazy val python: String = pathPython().getOrElse(cancel("no runnable python"))
 
   /** Resolves [[python]] here so that the cancel lands on the test thread. Forced
     * inside a case, it would be forced inside a `Future`, and by the time it

@@ -19,13 +19,15 @@
 
 package org.apache.texera.amber.operator.visualization.carpetPlot
 
-import com.typesafe.config.ConfigFactory
+import org.apache.texera.amber.util.PythonTestSupport.{
+  NeedsPythonPackages,
+  canImport,
+  configuredPython
+}
 import org.apache.texera.amber.core.tuple.{AttributeType, Schema}
 import org.apache.texera.amber.operator.LogicalOp
 import org.apache.texera.amber.operator.metadata.OperatorGroupConstants
-import org.apache.texera.amber.operator.tags.IntegrationTest
 import org.apache.texera.amber.util.JSONUtils.objectMapper
-import org.scalatest.Tag
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 
@@ -35,8 +37,6 @@ import java.util.concurrent.TimeUnit
 import scala.util.Try
 
 class CarpetPlotOpDescSpec extends AnyFlatSpec with Matchers {
-
-  private val NeedsPythonPackages = Tag(classOf[IntegrationTest].getName)
 
   "CarpetPlotOpDesc.operatorInfo" should
     "advertise the name and Scientific visualization group" in {
@@ -79,10 +79,10 @@ class CarpetPlotOpDescSpec extends AnyFlatSpec with Matchers {
   // astype as a ValueError, both of them ending the whole exported run.
   "CarpetPlotOpDesc.generateStandaloneCode" should
     "write the page the operator yields for input it cannot plot" taggedAs NeedsPythonPackages in {
-    val python = resolvePythonExecutable().getOrElse(
+    val python = configuredPython().getOrElse(
       cancel("No runnable python executable (udf.conf python.path, python3, python, py)")
     )
-    if (!canImportPandasAndPlotly(python)) {
+    if (!canImport(python, "pandas", "plotly")) {
       cancel(s"'$python' cannot import pandas and plotly; skipping runtime verification")
     }
 
@@ -200,40 +200,4 @@ class CarpetPlotOpDescSpec extends AnyFlatSpec with Matchers {
       |        verdict = "OTHER_PAGE"
       |    print("CASE %s %s" % (name, verdict))
       |""".stripMargin
-
-  // Python executable resolution, following FilledAreaPlotOpDescSpec:
-  // udf.conf python.path (UDF_PYTHON_PATH), then python3 / python / py.
-  private def resolvePythonExecutable(): Option[String] = {
-    def fromConfig: Option[String] = {
-      val configOpt =
-        Try(ConfigFactory.parseResources("udf.conf").resolve()).toOption
-          .orElse(Try(ConfigFactory.load()).toOption)
-      configOpt
-        .flatMap(c => Try(c.getConfig("python").getString("path")).toOption)
-        .map(_.trim)
-        .filter(_.nonEmpty)
-    }
-
-    def isRunnable(exe: String): Boolean = {
-      val pTry = Try(new ProcessBuilder(exe, "--version").redirectErrorStream(true).start())
-      pTry.toOption.exists { p =>
-        val finished = p.waitFor(5, TimeUnit.SECONDS)
-        if (!finished) { p.destroyForcibly(); false }
-        else p.exitValue() == 0
-      }
-    }
-
-    (fromConfig.toList ++ List("python3", "python", "py")).distinct.find(isRunnable)
-  }
-
-  private def canImportPandasAndPlotly(python: String): Boolean = {
-    val pTry = Try(
-      new ProcessBuilder(python, "-c", "import pandas, plotly").redirectErrorStream(true).start()
-    )
-    pTry.toOption.exists { p =>
-      val finished = p.waitFor(60, TimeUnit.SECONDS)
-      if (!finished) { p.destroyForcibly(); false }
-      else p.exitValue() == 0
-    }
-  }
 }
