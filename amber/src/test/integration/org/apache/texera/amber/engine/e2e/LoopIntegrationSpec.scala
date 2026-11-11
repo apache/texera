@@ -24,6 +24,7 @@ import org.apache.pekko.actor.{ActorSystem, Props}
 import org.apache.pekko.testkit.{ImplicitSender, TestKit}
 import org.apache.pekko.util.Timeout
 import org.apache.texera.amber.clustering.SingleNodeListener
+import org.apache.texera.amber.core.tuple.{Attribute, AttributeType}
 import org.apache.texera.amber.core.virtualidentity.OperatorIdentity
 import org.apache.texera.amber.core.workflow.{
   ExecutionMode,
@@ -41,12 +42,19 @@ import org.apache.texera.amber.engine.e2e.TestUtils.{
   workflowContext
 }
 import org.apache.texera.amber.operator.LogicalOp
+import org.apache.texera.amber.operator.filter.{
+  ComparisonType,
+  FilterPredicate,
+  SpecializedFilterOpDesc
+}
 import org.apache.texera.amber.operator.limit.LimitOpDesc
 import org.apache.texera.amber.operator.loop.{LoopEndOpDesc, LoopStartOpDesc}
 import org.apache.texera.amber.operator.sleep.SleepOpDesc
 import org.apache.texera.amber.operator.source.scan.text.TextInputSourceOpDesc
 import org.apache.texera.amber.operator.udf.python.PythonUDFOpDescV2
+import org.apache.texera.amber.operator.union.UnionOpDesc
 import org.apache.texera.amber.tags.IntegrationTest
+import org.apache.texera.amber.util.JSONUtils.objectMapper
 import org.apache.texera.common.compiler.model.LogicalLink
 import org.scalatest.flatspec.AnyFlatSpecLike
 import org.scalatest.{BeforeAndAfterAll, BeforeAndAfterEach, Outcome, Retries}
@@ -188,6 +196,17 @@ class LoopIntegrationSpec
     op
   }
 
+  /** A Limit whose Int `limit` is `"$name"`, parsed as the editor's JSON is, into a placeholder. */
+  private def limitReferringTo(name: String): LogicalOp =
+    objectMapper.readValue(s"""{"operatorType":"Limit","limit":"$$$name"}""", classOf[LogicalOp])
+
+  /** `attribute = value`; a `$name` value refers to a loop variable (bound at the worker). */
+  private def filterEquals(attribute: String, value: String): SpecializedFilterOpDesc = {
+    val op = new SpecializedFilterOpDesc()
+    op.predicates = List(new FilterPredicate(attribute, ComparisonType.EQUAL_TO, value))
+    op
+  }
+
   // NOTE: a JavaUDF (runtime-compiled Java) case cannot run in this suite.
   // The integration tests run forkless under sbt (fork := false), where
   // `javax.tools` sees only the sbt launcher on `java.class.path` -- the
@@ -219,8 +238,64 @@ class LoopIntegrationSpec
     op
   }
 
+  /** A Python UDF that adds an `i` column to every row it passes: loop variable `i`, as it reads
+    * it off `self.loop_variables` in `process_tuple`.
+    */
+  private def pythonUDFReadingLoopVariableInProcessTuple(): PythonUDFOpDescV2 = {
+    val op = new PythonUDFOpDescV2()
+    op.code = """from pytexera import *
+                |
+                |class ProcessTupleOperator(UDFOperatorV2):
+                |
+                |    @overrides
+                |    def process_tuple(self, tuple_: Tuple, port: int) -> Iterator[Optional[TupleLike]]:
+                |        tuple_["i"] = self.loop_variables["i"]
+                |        yield tuple_
+                |""".stripMargin
+    op.workers = 1
+    op.retainInputColumns = true
+    op.outputColumns = List(new Attribute("i", AttributeType.INTEGER))
+    op
+  }
+
+  /** As `pythonUDFReadingLoopVariableInProcessTuple`, but reading `i` in `process_table`, which
+    * runs once its input has ended, after every state message on it arrived.
+    */
+  private def pythonUDFReadingLoopVariableInProcessTable(): PythonUDFOpDescV2 = {
+    val op = new PythonUDFOpDescV2()
+    op.code = """from pytexera import *
+                |
+                |class ProcessTableOperator(UDFTableOperator):
+                |
+                |    @overrides
+                |    def process_table(self, table: Table, port: int) -> Iterator[Optional[TableLike]]:
+                |        for line in table["line"]:
+                |            yield {"line": line, "i": self.loop_variables["i"]}
+                |""".stripMargin
+    op.workers = 1
+    op.retainInputColumns = true
+    op.outputColumns = List(new Attribute("i", AttributeType.INTEGER))
+    op
+  }
+
   private def link(from: LogicalOp, to: LogicalOp): LogicalLink =
     LogicalLink(from.operatorIdentifier, PortIdentity(), to.operatorIdentifier, PortIdentity())
+
+  /** Run the loop workflow and return the (line, i) rows the Loop End `end` materialized, sorted. */
+  private def runAndGetLinesWithLoopVariable(
+      operators: List[LogicalOp],
+      links: List[LogicalLink],
+      end: LogicalOp
+  ): List[(String, Int)] =
+    runWorkflowAndReadResults(
+      system,
+      buildWorkflow(operators, links, materializedContext()),
+      List(end.operatorIdentifier),
+      _.get().toList,
+      Duration.fromSeconds(90)
+    ).getOrElse(end.operatorIdentifier, Nil)
+      .map(row => (row.getField[String]("line"), row.getField[Int]("i")))
+      .sorted
 
   "Engine" should "run a single TextInput -> LoopStart -> LoopEnd loop for exactly 3 iterations" in {
     val src = textInput("1\n2\n3")
@@ -317,6 +392,91 @@ class LoopIntegrationSpec
     )
   }
 
+  it should "bind a $n loop-variable reference in a JVM operator's number setting on every iteration" in {
+    // TextInput(3 rows) -> LoopStart(n = 1 / table) -> Limit($n)
+    //   -> LoopEnd(n += 1 / n <= len(table)).
+    // Iteration n passes n of the 3 rows: 1 + 2 + 3 = 6 at the LoopEnd. The placeholder 0 would
+    // give 0, and an n that never rebinds to the new value 3.
+    val src = textInput("a\nb\nc")
+    val start = loopStart("n = 1", "table")
+    val mid = limitReferringTo("n")
+    val end = loopEnd("n += 1", "n <= len(table)")
+    val materialized = runAndGetMaterializedRowCounts(
+      List(src, start, mid, end),
+      List(link(src, start), link(start, mid), link(mid, end))
+    )
+    val endRows = materialized.getOrElse(end.operatorIdentifier, -1L)
+    assert(
+      endRows == 6,
+      s"Limit($$n) must pass n rows on iterations n = 1, 2, 3: expected 6, got $endRows " +
+        s"(all: $materialized)"
+    )
+  }
+
+  it should "bind the inner loop's variable where it shadows the outer loop's of the same name" in {
+    // TextInput("0","1") -> OuterStart(i = 0 / table) -> InnerStart(i = 0 / table.iloc[i])
+    //   -> Filter(line = $i) -> InnerEnd -> OuterEnd.
+    // Both loops name their variable i. On each first inner iteration the Filter receives both
+    // loops' states, the outer one's a loop further out (loopCounter 1), and must take the inner
+    // i: inner iteration i emits the row "i", so all 2 x 2 rows pass. The outer i on the second
+    // outer iteration (1, against the row "0") would drop one, and treating the two as one loop's
+    // conflicting values would fail the run.
+    val src = textInput("0\n1")
+    val outerStart = loopStart("i = 0", "table")
+    val innerStart = loopStart("i = 0", "table.iloc[i]")
+    val mid = filterEquals("line", "$i")
+    val innerEnd = loopEnd("i += 1", "i < len(table)")
+    val outerEnd = loopEnd("i += 1", "i < len(table)")
+    val materialized = runAndGetMaterializedRowCounts(
+      List(src, outerStart, innerStart, mid, innerEnd, outerEnd),
+      List(
+        link(src, outerStart),
+        link(outerStart, innerStart),
+        link(innerStart, mid),
+        link(mid, innerEnd),
+        link(innerEnd, outerEnd)
+      )
+    )
+    val outerRows = materialized.getOrElse(outerEnd.operatorIdentifier, -1L)
+    assert(
+      outerRows == 4,
+      s"Filter(line = $$i) must bind the inner i on all 4 inner iterations: expected 4, got " +
+        s"$outerRows (all: $materialized)"
+    )
+  }
+
+  it should "bind a $i reference after two branches of the loop body meet again" in {
+    // TextInput("0","1","2") -> LoopStart(i = 0 / table.iloc[i]) -> Limit(10) and Sleep(0)
+    //   -> Union -> Filter(line = $i) -> LoopEnd.
+    // The Filter receives the iteration's state once per branch, and the copies agree; the row
+    // "i" arrives once per branch and passes against i: 2 rows on each of 3 iterations.
+    val src = textInput("0\n1\n2")
+    val start = loopStart("i = 0", "table.iloc[i]")
+    val left = limit(10)
+    val right = sleep(0)
+    val union = new UnionOpDesc()
+    val mid = filterEquals("line", "$i")
+    val end = loopEnd("i += 1", "i < len(table)")
+    val materialized = runAndGetMaterializedRowCounts(
+      List(src, start, left, right, union, mid, end),
+      List(
+        link(src, start),
+        link(start, left),
+        link(start, right),
+        link(left, union),
+        link(right, union),
+        link(union, mid),
+        link(mid, end)
+      )
+    )
+    val endRows = materialized.getOrElse(end.operatorIdentifier, -1L)
+    assert(
+      endRows == 6,
+      s"Filter(line = $$i) after the branches meet must pass both copies of each iteration's " +
+        s"row: expected 6, got $endRows (all: $materialized)"
+    )
+  }
+
   it should "run a nested loop whose inner body chains multiple JVM operators" in {
     // TextInput -> OuterStart -> InnerStart -> Limit -> Sleep(0) -> InnerEnd -> OuterEnd.
     //
@@ -390,6 +550,49 @@ class LoopIntegrationSpec
       endRows == 3,
       s"LoopEnd must accumulate all 3 iterations with a state-emitting " +
         s"operator in the loop body: expected 3, got $endRows (all: $materialized)"
+    )
+  }
+
+  it should "read a loop variable in a Python UDF on every iteration" in {
+    // TextInput("a","b","c") -> LoopStart(i = 0 / table.iloc[i]) -> Python UDF -> LoopEnd.
+    // Iteration i hands the UDF the row of index i, and the UDF adds the i it reads off
+    // self.loop_variables in process_tuple, so the LoopEnd accumulates (a, 0), (b, 1), (c, 2).
+    // A UDF that kept reading the first iteration's i would write 0 on every row.
+    val src = textInput("a\nb\nc")
+    val start = loopStart("i = 0", "table.iloc[i]")
+    val mid = pythonUDFReadingLoopVariableInProcessTuple()
+    val end = loopEnd("i += 1", "i < len(table)")
+    val rows = runAndGetLinesWithLoopVariable(
+      List(src, start, mid, end),
+      List(link(src, start), link(start, mid), link(mid, end)),
+      end
+    )
+    assert(
+      rows == List(("a", 0), ("b", 1), ("c", 2)),
+      s"each iteration's row must carry that iteration's i: got $rows"
+    )
+  }
+
+  it should "read a loop variable in a Python UDF after another body operator's own state arrives" in {
+    // TextInput("a","b","c") -> LoopStart(i = 0 / table.iloc[i]) -> stateful Python UDF
+    //   -> Python UDF reading i in process_table -> LoopEnd.
+    // The first UDF returns its own state, {"note": ...}, from produce_state_on_finish, so the
+    // second receives that state after the loop's. process_table runs once the input ends, after
+    // both arrived, and must still read the loop's i: that state names no loop variable, so it
+    // must not hide one. Reading only the latest state message would fail with KeyError 'i'.
+    val src = textInput("a\nb\nc")
+    val start = loopStart("i = 0", "table.iloc[i]")
+    val first = statefulPythonUDF()
+    val second = pythonUDFReadingLoopVariableInProcessTable()
+    val end = loopEnd("i += 1", "i < len(table)")
+    val rows = runAndGetLinesWithLoopVariable(
+      List(src, start, first, second, end),
+      List(link(src, start), link(start, first), link(first, second), link(second, end)),
+      end
+    )
+    assert(
+      rows == List(("a", 0), ("b", 1), ("c", 2)),
+      s"each iteration's row must carry that iteration's i: got $rows"
     )
   }
 

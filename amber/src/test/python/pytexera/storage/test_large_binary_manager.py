@@ -46,8 +46,8 @@ def _init_storage_config():
             commit_batch_size=1000,
             s3_endpoint="http://localhost:9000",
             s3_region="us-east-1",
-            s3_auth_username="minioadmin",
-            s3_auth_password="minioadmin",
+            s3_auth_username="rustfsadmin",
+            s3_auth_password="rustfsadmin",
             s3_large_binaries_base_uri=TEST_BASE_URI,
         )
 

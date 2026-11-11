@@ -106,18 +106,22 @@ object ImageTaskCodegen extends TaskCodegen {
       |                if isinstance(body, dict):
       |                    if "md_results" in body:
       |                        return body["md_results"]
-      |                    if "choices" in body:
-      |                        return body["choices"][0]["message"]["content"]
+      |                    if body.get("choices"):
+      |                        return body["choices"][0].get("message", {}).get("content", json.dumps(body))
       |                if isinstance(body, list) and body and isinstance(body[0], dict):
       |                    return body[0].get("generated_text", json.dumps(body))
       |                return json.dumps(body)
       |            elif task in ("visual-question-answering", "document-question-answering"):
       |                if isinstance(body, dict):
+      |                    # Third-party chat providers answer via choices[0].message;
+      |                    # hf-inference returns the native {"answer": ...} shape.
+      |                    if body.get("choices"):
+      |                        return body["choices"][0].get("message", {}).get("content", json.dumps(body))
       |                    return body.get("answer", json.dumps(body))
       |                return json.dumps(body)
       |            elif task == "image-text-to-text":
-      |                if isinstance(body, dict) and "choices" in body:
-      |                    return body["choices"][0]["message"]["content"]
+      |                if isinstance(body, dict) and body.get("choices"):
+      |                    return body["choices"][0].get("message", {}).get("content", json.dumps(body))
       |                if isinstance(body, list) and body and isinstance(body[0], dict):
       |                    return body[0].get("generated_text", json.dumps(body))
       |                return json.dumps(body)
@@ -139,11 +143,19 @@ object ImageTaskCodegen extends TaskCodegen {
       |                            if outputs and isinstance(outputs[0], str) and outputs[0].startswith("http"):
       |                                return self._url_to_data_url(outputs[0])
       |                        if isinstance(data, list) and data and isinstance(data[0], dict):
-      |                            if "b64_json" in data[0]:
-      |                                return f"data:image/png;base64,{data[0]['b64_json']}"
+      |                            # b64_json comes straight from the provider: an unchecked
+      |                            # value reaches the cell as a data URL nothing can render,
+      |                            # e.g. "data:image/png;base64,None".
+      |                            b64 = data[0].get("b64_json")
+      |                            if isinstance(b64, str) and b64:
+      |                                return f"data:image/png;base64,{b64}"
       |                            if "url" in data[0]:
       |                                return self._url_to_data_url(data[0]["url"])
       |                return json.dumps(body)
-      |            elif task in ("image-classification", "object-detection", "image-segmentation", "zero-shot-image-classification"):
+      |            elif task == "zero-shot-image-classification":
+      |                if isinstance(body, dict) and body.get("choices"):
+      |                    return body["choices"][0].get("message", {}).get("content", json.dumps(body))
+      |                return json.dumps(body)
+      |            elif task in ("image-classification", "object-detection", "image-segmentation"):
       |                return json.dumps(body)""".stripMargin
 }

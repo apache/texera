@@ -78,6 +78,10 @@ export class StubAuthService implements PublicInterfaceOf<AuthService> {
     return of(MOCK_TOKEN);
   }
 
+  appleAuth(): Observable<Readonly<{ accessToken: string }>> {
+    return of(MOCK_TOKEN);
+  }
+
   loginWithExistingToken(): User | undefined {
     if (AuthService.getAccessToken() === MOCK_TOKEN.accessToken) {
       return MOCK_USER;
@@ -105,9 +109,5 @@ export class StubAuthService implements PublicInterfaceOf<AuthService> {
     code: string
   ): Observable<Readonly<RegistrationResult>> {
     return of(MOCK_TOKEN);
-  }
-
-  validateUsername(username: string): { result: boolean; message: string } {
-    return { message: "", result: false };
   }
 }

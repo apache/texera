@@ -23,8 +23,12 @@ import com.fasterxml.jackson.core.`type`.TypeReference
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.module.scala.DefaultScalaModule
 import com.github.tototoshi.csv.CSVWriter
+import org.apache.texera.amber.core.storage.{
+  DocumentFactory,
+  ExecutionResultUris,
+  WarehouseReadGuard
+}
 import org.apache.texera.common.config.EnvironmentalVariable
-import org.apache.texera.amber.core.storage.DocumentFactory
 import org.apache.texera.amber.core.storage.model.VirtualDocument
 import org.apache.texera.amber.core.tuple.Tuple
 import org.apache.texera.amber.core.virtualidentity.{OperatorIdentity, WorkflowIdentity}
@@ -40,10 +44,7 @@ import org.apache.texera.auth.JwtAuth.jwtClaims
 import org.apache.texera.dao.jooq.generated.tables.pojos.User
 import org.apache.texera.web.model.http.request.result.{OperatorExportInfo, ResultExportRequest}
 import org.apache.texera.web.model.http.response.result.ResultExportResponse
-import org.apache.texera.web.resource.dashboard.user.workflow.{
-  WorkflowExecutionsResource,
-  WorkflowVersionResource
-}
+import org.apache.texera.web.resource.dashboard.user.workflow.WorkflowVersionResource
 import org.apache.texera.web.service.WorkflowExecutionService.getLatestExecutionId
 
 import java.io.{FilterOutputStream, IOException, OutputStream}
@@ -483,7 +484,7 @@ class ResultExportService(workflowIdentity: WorkflowIdentity, computingUnitId: I
   ): VirtualDocument[Tuple] = {
     // By now the workflow should finish running
     // Only supports external port 0 for now. TODO: support multiple ports
-    val storageUri = WorkflowExecutionsResource.getResultUriByLogicalPortId(
+    val storageUri = ExecutionResultUris.getResultUriByLogicalPortId(
       getLatestExecutionId(workflowIdentity, computingUnitId).get,
       OperatorIdentity(operatorId),
       PortIdentity()

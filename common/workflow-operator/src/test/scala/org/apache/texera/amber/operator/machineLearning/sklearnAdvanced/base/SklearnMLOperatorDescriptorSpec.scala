@@ -62,6 +62,23 @@ class SklearnMLOperatorDescriptorSpec extends AnyFlatSpec with Matchers {
     )
   }
 
+  it should "reject the ground truth column named as a feature" in {
+    val op = newOp()
+    op.groundTruthAttribute = "species"
+    op.selectedFeatures = List("petal_length", "species")
+    val thrown = intercept[RuntimeException](op.getOutputSchemas(Map.empty))
+    thrown.getMessage should include("species")
+    thrown.getMessage should include("Ground Truth Attribute Column")
+    thrown.getMessage should include("Selected Features")
+  }
+
+  it should "let the features through while none of them is the ground truth" in {
+    val op = newOp()
+    op.groundTruthAttribute = "species"
+    op.selectedFeatures = List("petal_length", "petal_width")
+    op.getOutputSchemas(Map.empty).keySet shouldBe Set(op.operatorInfo.outputPorts.head.id)
+  }
+
   "SklearnMLOperatorDescriptor" should
     "default paraList to empty, groundTruthAttribute to empty, and selectedFeatures to null" in {
     val op = newOp()

@@ -60,6 +60,8 @@ export interface TexeraAgentConfig {
   agentId: string;
   agentName?: string;
   systemPrompt?: string;
+  /** JWT of the user the agent acts for, sent on backend calls that are not tied to a workflow. */
+  userToken?: string;
 }
 
 export interface AgentMessageResult {
@@ -98,6 +100,7 @@ export class TexeraAgent {
   private clients: Set<any> = new Set();
 
   private model: LanguageModel;
+  private readonly userToken?: string;
   private systemPrompt: string;
   private settings: AgentSettings;
 
@@ -111,6 +114,7 @@ export class TexeraAgent {
     workflowId: number;
     workflowName?: string;
     computingUnitId?: number;
+    warehouseId?: number;
   };
 
   private stepCallback: ReActStepCallback | null = null;
@@ -131,6 +135,7 @@ export class TexeraAgent {
     this.modelType = config.modelType;
     this.createdAt = new Date();
     this.model = config.model;
+    this.userToken = config.userToken;
     this.systemPrompt = config.systemPrompt || "";
     this.log = createLogger("TexeraAgent", { agentId: this.agentId });
 
@@ -185,6 +190,7 @@ export class TexeraAgent {
       userToken: this.delegateConfig.userToken,
       workflowId: this.delegateConfig.workflowId,
       computingUnitId: this.delegateConfig.computingUnitId,
+      warehouseId: this.delegateConfig.warehouseId,
       maxOperatorResultCharLimit: this.settings.maxOperatorResultCharLimit,
       maxOperatorResultCellCharLimit: this.settings.maxOperatorResultCellCharLimit,
       executionTimeoutMs: this.settings.executionTimeoutMs,
@@ -256,10 +262,6 @@ export class TexeraAgent {
       current = this.stepsById.get(current)?.parentId;
     }
     return chain;
-  }
-
-  getStepsById(): Map<string, ReActStep> {
-    return this.stepsById;
   }
 
   getWorkflowResultState(): WorkflowResultState {
@@ -377,7 +379,7 @@ export class TexeraAgent {
       this.settings.disabledTools = updates.disabledTools;
     }
     if (updates.maxSteps !== undefined) {
-      this.settings.maxSteps = updates.maxSteps;
+      this.settings.maxSteps = Math.max(1, Math.trunc(updates.maxSteps));
     }
     if (updates.allowedOperatorTypes !== undefined) {
       this.settings.allowedOperatorTypes = updates.allowedOperatorTypes;
@@ -425,6 +427,7 @@ export class TexeraAgent {
     workflowId: number;
     workflowName?: string;
     computingUnitId?: number;
+    warehouseId?: number;
   }): void {
     this.delegateConfig = config;
 
@@ -433,8 +436,27 @@ export class TexeraAgent {
     this.setupWorkflowChangeHandlers();
   }
 
+  /**
+   * Point the delegate at the warehouse the workspace has selected now. The rest
+   * of the config is fixed at creation; this one travels per prompt because the
+   * user can pick (or first load) a warehouse after the agent exists (#7751).
+   */
+  setDelegateWarehouse(warehouseId: number | undefined): void {
+    if (!this.delegateConfig || this.delegateConfig.warehouseId === warehouseId) {
+      return;
+    }
+    this.delegateConfig = { ...this.delegateConfig, warehouseId };
+  }
+
   getDelegateConfig():
-    | { userToken: string; userInfo?: UserInfo; workflowId: number; workflowName?: string; computingUnitId?: number }
+    | {
+        userToken: string;
+        userInfo?: UserInfo;
+        workflowId: number;
+        workflowName?: string;
+        computingUnitId?: number;
+        warehouseId?: number;
+      }
     | undefined {
     return this.delegateConfig;
   }
@@ -532,7 +554,10 @@ export class TexeraAgent {
           if (this.workflowState.getAllOperators().length > 0) {
             try {
               const logicalPlan = this.workflowState.toLogicalPlan();
-              compilationResult = await compileWorkflowAsync(logicalPlan);
+              compilationResult = await compileWorkflowAsync(
+                logicalPlan,
+                this.delegateConfig?.userToken ?? this.userToken
+              );
             } catch (e: any) {
               this.log.warn({ err: e?.message || e }, "compilation failed; proceeding without schemas");
             }

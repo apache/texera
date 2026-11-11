@@ -22,6 +22,7 @@ import pytest
 
 from core.models import (
     BatchOperator,
+    Schema,
     SourceOperator,
     State,
     Table,
@@ -288,6 +289,146 @@ class TestOperatorDefaultMethods:
         assert list(_ConcreteOperator().on_finish(port=0)) == [None]
 
 
+class TestLoopVariables:
+    # Inside a control block the loop variables reach an operator as state
+    # messages; the runtime registers each one (register_state) right before
+    # process_state, with the nesting depth its envelope carries: 0 from the
+    # innermost loop around the operator, 1 from the loop around that. A state
+    # no loop sent (an operator's produce_state_on_finish) travels at depth 0.
+
+    def test_empty_until_the_runtime_registers_a_state(self):
+        assert dict(_ConcreteOperator().loop_variables) == {}
+
+    def test_holds_the_variables_a_registered_state_carries(self):
+        op = _ConcreteOperator()
+        op.register_state(State({"i": 2, "k": "a"}), 0)
+        assert dict(op.loop_variables) == {"i": 2, "k": "a"}
+
+    def test_a_state_that_names_no_loop_variable_leaves_them_intact(self):
+        # The loop's state, then a body operator's own state from
+        # produce_state_on_finish, both at depth 0: the second adds its names
+        # and must not erase i (Xiaozhen's KeyError 'i' on #8642).
+        op = _ConcreteOperator()
+        op.register_state(State({"i": 2}), 0)
+        op.register_state(State({"note": "from-body-op"}), 0)
+        assert dict(op.loop_variables) == {"i": 2, "note": "from-body-op"}
+
+    def test_two_different_values_from_the_same_depth_fail_when_read(self):
+        # Xiaozhen's case on #8642: the loop's i = 0, then a body operator's
+        # state carrying i = 99, both at depth 0. A JVM operator whose setting
+        # refers to i fails with this message (StateReferenceBinding); a UDF
+        # gets the same one when it reads i.
+        op = _ConcreteOperator()
+        op.register_state(State({"i": 0, "k": "a"}), 0)
+        op.register_state(State({"i": 99}), 0)
+        with pytest.raises(RuntimeError) as error:
+            op.loop_variables["i"]
+        assert str(error.value) == (
+            "loop variable i got two different values in one iteration, 0 and 99: "
+            "a loop's variables must not change inside its body"
+        )
+        for read in (
+            lambda view: view.get("i"),
+            lambda view: dict(view),
+            lambda view: list(view.values()),
+            lambda view: list(view.items()),
+        ):
+            with pytest.raises(RuntimeError, match="two different values"):
+                read(op.loop_variables)
+        # Only reading i fails: the other names read, and i is still listed.
+        assert op.loop_variables["k"] == "a"
+        assert "i" in op.loop_variables
+        assert sorted(op.loop_variables) == ["i", "k"]
+        assert len(op.loop_variables) == 2
+
+    def test_equal_copies_from_the_same_depth_read_without_error(self):
+        # Copies of one message, from several upstream workers or branches,
+        # carry equal values: no conflict, as on the JVM (2 equals 2.0 there).
+        op = _ConcreteOperator()
+        op.register_state(State({"i": 2}), 0)
+        op.register_state(State({"i": 2}), 0)
+        op.register_state(State({"i": 2.0}), 0)
+        assert op.loop_variables["i"] == 2
+        assert dict(op.loop_variables) == {"i": 2}
+
+    def test_an_inner_value_replaces_two_different_outer_ones(self):
+        # The enclosing loop delivered two different values of i, then the
+        # inner loop's own i arrives: the operator reads the inner one.
+        op = _ConcreteOperator()
+        op.register_state(State({"i": 1}), 1)
+        op.register_state(State({"i": 2}), 1)
+        op.register_state(State({"i": 5}), 0)
+        assert op.loop_variables["i"] == 5
+
+    def test_different_outer_values_after_an_inner_one_read_the_inner_one(self):
+        op = _ConcreteOperator()
+        op.register_state(State({"i": 5}), 0)
+        op.register_state(State({"i": 1}), 1)
+        op.register_state(State({"i": 2}), 1)
+        assert op.loop_variables["i"] == 5
+
+    def test_the_inner_value_wins_over_an_outer_one_that_arrives_later(self):
+        # i = 1 from the outer loop, i = 5 from the inner one, then the outer
+        # message again: the smallest depth wins, as a JVM operator binds it.
+        op = _ConcreteOperator()
+        op.register_state(State({"i": 1}), 1)
+        assert op.loop_variables["i"] == 1, "the outer i until the inner arrives"
+        op.register_state(State({"i": 5}), 0)
+        op.register_state(State({"i": 1}), 1)
+        assert op.loop_variables["i"] == 5
+
+    def test_an_outer_variable_the_inner_loop_does_not_name_stays_visible(self):
+        op = _ConcreteOperator()
+        op.register_state(State({"i": 1, "n": 10}), 1)
+        op.register_state(State({"i": 5}), 0)
+        assert dict(op.loop_variables) == {"i": 5, "n": 10}
+
+    def test_a_deeper_message_takes_over_from_an_outer_one_at_any_depth(self):
+        op = _ConcreteOperator()
+        op.register_state(State({"i": 1}), 2)
+        op.register_state(State({"i": 2}), 1)
+        op.register_state(State({"i": 3}), 2)
+        assert op.loop_variables["i"] == 2
+
+    def test_registering_leaves_the_state_message_unchanged(self):
+        op = _ConcreteOperator()
+        first, second = State({"i": 1}), State({"note": "n"})
+        op.register_state(first, 0)
+        op.register_state(second, 0)
+        assert first == State({"i": 1})
+        assert second == State({"note": "n"})
+
+    def test_loop_variables_are_read_only(self):
+        # A UDF changes a loop variable by sending a state message, which
+        # downstream operators then receive too, not by writing this view.
+        op = _ConcreteOperator()
+        op.register_state(State({"i": 1}), 0)
+        with pytest.raises(TypeError):
+            op.loop_variables["i"] = 2
+        assert op.loop_variables["i"] == 1
+
+    def test_registers_on_the_instance_only(self):
+        # The defaults live on the class, so a registration written to the
+        # class (instead of the instance) would reach every operator.
+        target, bystander = _ConcreteOperator(), _ConcreteOperator()
+        target.register_state(State({"i": 1}), 0)
+        assert dict(bystander.loop_variables) == {}
+        assert dict(_ConcreteOperator().loop_variables) == {}
+
+    def test_a_subclass_init_that_skips_super_still_reads_and_registers(self):
+        class _NoSuperInit(TupleOperatorV2):
+            def __init__(self):
+                pass
+
+            def process_tuple(self, tuple_, port):
+                yield tuple_
+
+        op = _NoSuperInit()
+        assert dict(op.loop_variables) == {}
+        op.register_state(State({"i": 1}), 0)
+        assert dict(op.loop_variables) == {"i": 1}
+
+
 class TestLazyTemplateDecoder:
     def test_first_call_creates_decoder_and_caches_on_instance(self):
         op = _ConcreteOperator()
@@ -385,6 +526,24 @@ class TestTableOperator:
         list(op.on_finish(port=0))
         assert len(op.received_tables) == 1
         assert list(op.received_tables[0].as_tuples()) == []
+
+    def test_on_finish_with_no_rows_keeps_the_declared_columns(self):
+        # The column names are read off the tuples, so a port that carried none
+        # left the operator a frame of no columns and every operator naming one
+        # of its own raised KeyError. The port's schema is the only record left.
+        op = _ConcreteTable()
+        op.input_schemas[0] = Schema(raw_schema={"x": "INTEGER", "y": "STRING"})
+
+        list(op.on_finish(port=0))
+
+        table = op.received_tables[0]
+        # Still a Table, so an operator reading it with as_tuples() keeps working.
+        assert isinstance(table, Table)
+        assert list(table.as_tuples()) == []
+        assert list(table.columns) == ["x", "y"]
+        assert table.empty
+        # The dtype each column would have had with rows under it.
+        assert table["x"].dtype == "int32"
 
     def test_buffers_are_keyed_by_port(self):
         # Each input port has its own tuple buffer; on_finish for one port
@@ -514,3 +673,114 @@ class TestBatchOperatorBatchAssembly:
         assert op.seen == [[[1], [2]]]  # the port-1 tuple is not in here
         assert op.ports == [0]
         assert out == [Tuple({"batched": 2})]
+
+
+class _TableWithoutSuperInit(TableOperator):
+    def __init__(self):
+        self.threshold = 1  # forgets super().__init__()
+
+    def process_table(self, table, port):
+        yield table
+
+
+class _BatchWithoutSuperInit(BatchOperator):
+    BATCH_SIZE = 2
+
+    def __init__(self):
+        self.seen = 0  # forgets super().__init__()
+
+    def process_batch(self, batch, port):
+        yield batch
+
+
+class _TableReturningDataFrame(TableOperator):
+    def process_table(self, table, port):
+        return table
+
+
+class _TableReturningNone(TableOperator):
+    def process_table(self, table, port):
+        return None
+
+
+class _TableReturningList(TableOperator):
+    def process_table(self, table, port):
+        return [{"x": 1}]
+
+
+class _BatchReturningBatch(BatchOperator):
+    BATCH_SIZE = 1
+
+    def process_batch(self, batch, port):
+        return batch
+
+
+class _SourceReturningDict(SourceOperator):
+    def produce(self):
+        return {"x": 1}
+
+
+class TestCommonUDFMistakes:
+    """Mistakes UDF authors make should either work or say how to fix them."""
+
+    def test_table_operator_works_without_super_init(self):
+        op = _TableWithoutSuperInit()
+        list(op.process_tuple(Tuple({"x": 1}), 0))
+        (table,) = list(op.on_finish(0))
+        assert list(table["x"]) == [1]
+
+    def test_batch_operator_works_without_super_init(self):
+        op = _BatchWithoutSuperInit()
+        list(op.process_tuple(Tuple({"x": 1}), 0))
+        outputs = list(op.process_tuple(Tuple({"x": 2}), 0))
+        assert [t["x"] for t in outputs] == [1, 2]
+
+    @pytest.mark.parametrize(
+        "operator", [_TableReturningDataFrame, _TableReturningNone]
+    )
+    def test_process_table_return_says_to_yield(self, operator):
+        op = operator()
+        list(op.process_tuple(Tuple({"x": 1}), 0))
+        with pytest.raises(TypeError) as exc_info:
+            list(op.on_finish(0))
+        assert "process_table must `yield` results, not `return` them" in str(
+            exc_info.value
+        )
+
+    def test_process_table_returning_a_list_still_works(self):
+        op = _TableReturningList()
+        assert list(op.on_finish(0)) == [{"x": 1}]
+
+    def test_process_batch_return_says_to_yield(self):
+        op = _BatchReturningBatch()
+        with pytest.raises(TypeError) as exc_info:
+            list(op.process_tuple(Tuple({"x": 1}), 0))
+        assert "process_batch must `yield` results" in str(exc_info.value)
+
+    def test_produce_return_says_to_yield(self):
+        op = _SourceReturningDict()
+        with pytest.raises(TypeError) as exc_info:
+            list(op.on_finish(0))
+        assert "produce must `yield` results" in str(exc_info.value)
+
+
+class TestBufferCreatedOnlyByGetter:
+    def test_table_operator_has_no_buffer_until_first_tuple(self):
+        op = _TableWithoutSuperInit()
+        assert "_TableOperator__table_data" not in op.__dict__
+
+        class _WithSuper(TableOperator):
+            def process_table(self, table, port):
+                yield table
+
+        assert "_TableOperator__table_data" not in _WithSuper().__dict__
+
+    def test_batch_operator_still_rejects_a_bad_batch_size_at_construction(self):
+        class _BadSize(BatchOperator):
+            BATCH_SIZE = 0
+
+            def process_batch(self, batch, port):
+                yield batch
+
+        with pytest.raises(ValueError):
+            _BadSize()

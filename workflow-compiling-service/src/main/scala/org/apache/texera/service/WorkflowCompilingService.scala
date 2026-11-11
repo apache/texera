@@ -19,20 +19,18 @@
 
 package org.apache.texera.service
 
-import com.fasterxml.jackson.module.scala.DefaultScalaModule
 import io.dropwizard.configuration.{EnvironmentVariableSubstitutor, SubstitutingSourceProvider}
 import io.dropwizard.core.Application
 import io.dropwizard.core.setup.{Bootstrap, Environment}
 import org.apache.texera.common.config.StorageConfig
-import org.apache.texera.amber.util.ObjectMapperUtils
-import org.apache.texera.auth.{AuthFeatures, RoleAnnotationEnforcer}
+import org.apache.texera.amber.util.{JSONUtils, ObjectMapperUtils}
+import org.apache.texera.auth.{AuthFeatures, RequestLoggingFilter, RoleAnnotationEnforcer}
 import org.apache.texera.dao.SqlServer
 import org.apache.texera.service.resource.{
   HealthCheckResource,
   WorkflowCompilationResource,
   WorkflowToPythonResource
 }
-import org.eclipse.jetty.servlet.FilterHolder
 
 import java.nio.file.Path
 
@@ -45,14 +43,15 @@ class WorkflowCompilingService extends Application[WorkflowCompilingServiceConfi
         new EnvironmentVariableSubstitutor(false)
       )
     )
-    // register scala module to dropwizard default object mapper
-    bootstrap.getObjectMapper.registerModule(DefaultScalaModule)
+    JSONUtils.registerWorkflowModules(bootstrap.getObjectMapper)
   }
 
   override def run(
       configuration: WorkflowCompilingServiceConfiguration,
       environment: Environment
   ): Unit = {
+    // Bridge this service's logs to the OTel collector under its own service.name.
+    org.apache.texera.observability.OtelInit.init("workflow-compiling-service")
     ObjectMapperUtils.warmupObjectMapperForOperatorsSerde()
 
     // serve backend at /api
@@ -80,27 +79,7 @@ class WorkflowCompilingService extends Application[WorkflowCompilingServiceConfi
     )
 
     // Route request logs through SLF4J, controlled by TEXERA_SERVICE_LOG_LEVEL
-    val requestLogger = org.slf4j.LoggerFactory.getLogger("org.eclipse.jetty.server.RequestLog")
-    environment.getApplicationContext.addFilter(
-      new FilterHolder(new jakarta.servlet.Filter {
-        override def doFilter(
-            request: jakarta.servlet.ServletRequest,
-            response: jakarta.servlet.ServletResponse,
-            chain: jakarta.servlet.FilterChain
-        ): Unit = {
-          chain.doFilter(request, response)
-          if (requestLogger.isInfoEnabled) {
-            val req = request.asInstanceOf[jakarta.servlet.http.HttpServletRequest]
-            val resp = response.asInstanceOf[jakarta.servlet.http.HttpServletResponse]
-            requestLogger.info(
-              s"""${req.getRemoteAddr} - "${req.getMethod} ${req.getRequestURI} ${req.getProtocol}" ${resp.getStatus}"""
-            )
-          }
-        }
-      }),
-      "/*",
-      java.util.EnumSet.allOf(classOf[jakarta.servlet.DispatcherType])
-    )
+    RequestLoggingFilter.register(environment.getApplicationContext)
   }
 }
 

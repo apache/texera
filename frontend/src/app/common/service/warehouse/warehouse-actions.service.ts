@@ -19,6 +19,7 @@
 
 import { Injectable } from "@angular/core";
 import { NzModalService } from "ng-zorro-antd/modal";
+import { EMPTY, catchError, shareReplay } from "rxjs";
 import { Observable, firstValueFrom } from "rxjs";
 import { NotificationService } from "../notification/notification.service";
 import { DashboardWarehouse } from "../../type/warehouse";
@@ -41,9 +42,26 @@ export class WarehouseActionsService {
     private notificationService: NotificationService
   ) {}
 
-  /** Creates a warehouse. Needs no confirmation, unlike the delete below. */
+  /**
+   * Creates a warehouse and reports the outcome itself: the service owns the
+   * subscription, so the request and its toasts survive the dialog — and the
+   * whole page — being destroyed. Without this, navigating away mid-create
+   * aborts the browser request while the server finishes anyway: the warehouse
+   * exists, nothing was reported, and the next same-name attempt fails
+   * confusingly. The returned observable replays the created warehouse for
+   * callers that want it (the dialog relays it to its host) and never errors:
+   * a failure is already reported here, and replaying it would surface in
+   * relays with no error path as an unhandled RxJS error — the stream just
+   * completes empty instead.
+   */
   create(name: string): Observable<DashboardWarehouse> {
-    return this.warehouseService.createWarehouse(name);
+    const request$ = this.warehouseService.createWarehouse(name).pipe(shareReplay({ bufferSize: 1, refCount: false }));
+    request$.subscribe({
+      next: created => this.notificationService.success(`Warehouse "${created.name}" created.`),
+      error: (err: unknown) =>
+        this.notificationService.error(`Failed to create warehouse: ${extractErrorMessage(err)}`),
+    });
+    return request$.pipe(catchError(() => EMPTY));
   }
 
   /**

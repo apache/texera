@@ -33,6 +33,7 @@ function makeAgent(): TexeraAgent {
     model: {} as any,
     modelType: "test-model",
     agentId: "agent-1",
+    userToken: "user-token",
   });
 }
 
@@ -85,9 +86,10 @@ describe("TexeraAgent", () => {
 
     test("falls back to a name derived from the id", () => {
       expect(makeAgent().agentName).toBe("Agent-agent-1");
-      expect(new TexeraAgent({ model: {} as any, modelType: "m", agentId: "a", agentName: "Named" }).agentName).toBe(
-        "Named"
-      );
+      expect(
+        new TexeraAgent({ model: {} as any, modelType: "m", agentId: "a", agentName: "Named", userToken: "t" })
+          .agentName
+      ).toBe("Named");
     });
   });
 
@@ -223,6 +225,17 @@ describe("TexeraAgent", () => {
       expect(after.maxOperatorResultCharLimit).toBe(before.maxOperatorResultCharLimit);
     });
 
+    test("clamps maxSteps to a minimum of 1 and truncates fractions", () => {
+      agent.updateSettings({ maxSteps: 0 });
+      expect(agent.getSettings().maxSteps).toBe(1);
+
+      agent.updateSettings({ maxSteps: -5 });
+      expect(agent.getSettings().maxSteps).toBe(1);
+
+      agent.updateSettings({ maxSteps: 2.5 });
+      expect(agent.getSettings().maxSteps).toBe(2);
+    });
+
     test("returns a new settings object (mutating primitive fields does not stick)", () => {
       agent.getSettings().maxSteps = 12345;
 
@@ -334,7 +347,13 @@ const textModel = (text: string, i = 11, o = 7) =>
  *  could then fire after the fetch spy is restored and issue a real request. */
 const liveAgents: TexeraAgent[] = [];
 function makeAgentWith(model: any): TexeraAgent {
-  const agent = new TexeraAgent({ model, modelType: "test-model", agentId: "agent-1", systemPrompt: "SYS-XYZ" });
+  const agent = new TexeraAgent({
+    model,
+    modelType: "test-model",
+    agentId: "agent-1",
+    systemPrompt: "SYS-XYZ",
+    userToken: "user-token",
+  });
   liveAgents.push(agent);
   return agent;
 }
@@ -596,8 +615,10 @@ describe("sendMessage", () => {
       resultMode: "SET_SNAPSHOT",
       result: [{ a: 1 }, { a: 2 }],
     } as any);
-    fetchSpy.mockImplementation((async (u: any) => {
+    let compileHeaders: any;
+    fetchSpy.mockImplementation((async (u: any, init: any) => {
       urls.push(String(u));
+      compileHeaders = init?.headers;
       return {
         ok: true,
         json: async () => ({
@@ -610,6 +631,7 @@ describe("sendMessage", () => {
     const txt = (model as any).doGenerateCalls[0].prompt[1].content[0].text;
     expect(res.error).toBeUndefined();
     expect(urls).toEqual(["http://localhost:9090/api/compile"]);
+    expect(compileHeaders.Authorization).toBe("Bearer user-token");
     expect(txt).toContain("Output Schema: [a: integer]");
     expect(txt).toContain("(CSVFileScan, executed)");
     expect(txt).toContain("Result:\n  Executed operator op-1\n  Output table shape: (2, 1)");
@@ -859,6 +881,22 @@ describe("delegate mode", () => {
     },
   };
 
+  test("compiles with the delegating user's token (compile service is JWT-protected)", async () => {
+    dispatch(okExec);
+    const compileHeaders: unknown[] = [];
+    const routed = fetchSpy.getMockImplementation()!;
+    fetchSpy.mockImplementation((async (u: any, init?: RequestInit) => {
+      if (String(u).includes("/api/compile")) compileHeaders.push(init?.headers);
+      return routed(u, init);
+    }) as any);
+    const agent = makeAgentWith(textModel("ok", 1, 1));
+    agent.setDelegateConfig({ userToken: "tok", workflowId: 7 });
+    await agent.sendMessage("go");
+    expect(compileHeaders.length).toBeGreaterThan(0);
+    for (const h of compileHeaders)
+      expect(h).toEqual({ Authorization: "Bearer tok", "Content-Type": "application/json" });
+  });
+
   test("refreshes the workflow once, on the first turn only", async () => {
     dispatch(okExec);
     const model = textModel("ok", 1, 1);
@@ -1074,10 +1112,29 @@ describe("delegate mode", () => {
     }
   });
 
+  test("setDelegateWarehouse points an existing delegate at the current pick", async () => {
+    // An agent created before the picker loaded carries no warehouse; every run
+    // would be refused, and nothing in the agent panel could fix it (#7751).
+    const agent = makeAgentWith(textModel("x"));
+    agent.setDelegateWarehouse(42);
+    expect((agent as any).delegateConfig).toBeUndefined();
+
+    agent.setDelegateConfig({ userToken: "tok", workflowId: 7 });
+    expect((agent as any).buildExecutionConfig().warehouseId).toBeUndefined();
+
+    agent.setDelegateWarehouse(42);
+    expect((agent as any).buildExecutionConfig().warehouseId).toBe(42);
+
+    // An absent pick is a pick: clearing it keeps a stale id from riding the
+    // next run and being refused while the feature is off.
+    agent.setDelegateWarehouse(undefined);
+    expect((agent as any).buildExecutionConfig().warehouseId).toBeUndefined();
+  });
+
   test("buildExecutionConfig projects the delegate config and live settings", async () => {
     const agent = makeAgentWith(textModel("x"));
     expect((agent as any).buildExecutionConfig()).toBeUndefined();
-    (agent as any).delegateConfig = { userToken: "tok", workflowId: 5, computingUnitId: 2 };
+    (agent as any).delegateConfig = { userToken: "tok", workflowId: 5, computingUnitId: 2, warehouseId: 42 };
     agent.updateSettings({
       executionTimeoutMs: 7000,
       maxOperatorResultCharLimit: 11,
@@ -1087,6 +1144,7 @@ describe("delegate mode", () => {
       userToken: "tok",
       workflowId: 5,
       computingUnitId: 2,
+      warehouseId: 42,
       maxOperatorResultCharLimit: 11,
       maxOperatorResultCellCharLimit: 13,
       executionTimeoutMs: 7000,

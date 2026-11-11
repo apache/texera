@@ -22,17 +22,22 @@ package org.apache.texera.web.resource
 import com.fasterxml.jackson.databind.node.ObjectNode
 import com.typesafe.scalalogging.LazyLogging
 import io.dropwizard.auth.Auth
+import org.apache.texera.amber.core.storage.{
+  DocumentFactory,
+  ExecutionResultUris,
+  WarehouseReadGuard,
+  WarehouseUnavailableException
+}
+import org.apache.texera.amber.core.tuple.{Tuple, TupleUtils}
 import org.apache.texera.common.config.ApplicationConfig
-import org.apache.texera.amber.core.storage.DocumentFactory
 import org.apache.texera.amber.operator.LogicalOp
 import org.apache.texera.amber.core.storage.model.VirtualDocument
-import org.apache.texera.amber.core.tuple.Tuple
 import org.apache.texera.amber.core.virtualidentity.{
   ExecutionIdentity,
   OperatorIdentity,
   WorkflowIdentity
 }
-import org.apache.texera.amber.core.workflow.{PortIdentity, WorkflowContext, WorkflowSettings}
+import org.apache.texera.amber.core.workflow.{PortIdentity, WorkflowSettings}
 import org.apache.texera.amber.engine.architecture.rpc.controlcommands.{
   ConsoleMessage,
   ConsoleMessageType
@@ -50,11 +55,8 @@ import org.apache.texera.dao.SqlServer
 import org.apache.texera.dao.jooq.generated.Tables.OPERATOR_EXECUTIONS
 import org.apache.texera.common.compiler.model.LogicalPlanPojo
 import org.apache.texera.web.model.websocket.request.WorkflowExecuteRequest
-import org.apache.texera.web.service.{WarehouseReadGuard, WarehouseUnavailableException}
 import org.apache.texera.common.compiler.model.LogicalLink
-import org.apache.texera.common.compiler.{CompilationErrorHandling, WorkflowCompiler}
-import org.apache.texera.web.resource.dashboard.user.workflow.WorkflowExecutionsResource
-import org.apache.texera.web.service.{ExecutionResultService, WorkflowService}
+import org.apache.texera.web.service.WorkflowService
 import org.apache.texera.web.storage.ExecutionStateStore.updateWorkflowState
 
 import java.net.URI
@@ -73,7 +75,12 @@ case class SyncExecutionRequest(
     targetOperatorIds: List[String],
     timeoutSeconds: Int,
     maxOperatorResultCharLimit: Int,
-    maxOperatorResultCellCharLimit: Int
+    maxOperatorResultCellCharLimit: Int,
+    // The user_warehouse this run writes into. Carried from the caller the same way
+    // computingUnitId is: the agent forwards what the user picked in the UI. Required
+    // while per-user warehouses are enabled; absent keeps the shared default when the
+    // feature is off (#7751).
+    warehouseId: Option[Int] = None
 )
 
 case class ConsoleMessageInfo(
@@ -152,6 +159,13 @@ class SyncExecutionResource extends LazyLogging {
         computingUnitId
       )
 
+      // Same rule as initExecutionService: check the pick before anything
+      // destructive, or an agent request that is going to be refused takes the
+      // execution in flight down with it. Resolved again inside the init call —
+      // one indexed single-row read, against a request that already writes
+      // several rows.
+      WorkflowService.resolveLakekeeperWarehouseName(request.warehouseId, user.getUser.getUid)
+
       shutdownPreviousExecution(workflowService)
 
       // "Execute To" semantics: when a single target is given, run only its upstream sub-DAG.
@@ -169,7 +183,7 @@ class SyncExecutionResource extends LazyLogging {
           ),
         emailNotificationEnabled = false,
         computingUnitId = computingUnitId,
-        warehouseId = None
+        warehouseId = request.warehouseId
       )
 
       workflowService.initExecutionService(
@@ -256,7 +270,7 @@ class SyncExecutionResource extends LazyLogging {
               .timeout(timeoutSeconds.toLong, TimeUnit.SECONDS)
               .blockingGet()
           } catch {
-            case _: java.util.concurrent.TimeoutException =>
+            case e: Exception if isCausedByTimeout(e) =>
               killExecution(executionService)
               return SyncExecutionResult(
                 success = false,
@@ -529,7 +543,7 @@ class SyncExecutionResource extends LazyLogging {
     import com.fasterxml.jackson.databind.node.ObjectNode
 
     try {
-      val storageUriOption = WorkflowExecutionsResource.getResultUriByLogicalPortId(
+      val storageUriOption = ExecutionResultUris.getResultUriByLogicalPortId(
         executionId,
         OperatorIdentity(opId),
         PortIdentity()
@@ -563,7 +577,7 @@ class SyncExecutionResource extends LazyLogging {
           val firstTuple = tupleIterator.next()
           if (totalCount == 1 && isVisualizationTuple(firstTuple)) {
             val jsonResults =
-              ExecutionResultService.convertTuplesToJson(List(firstTuple), isVisualization = true)
+              TupleUtils.convertTuplesToJson(List(firstTuple), isVisualization = true)
             jsonResults.foreach(
               _.asInstanceOf[ObjectNode].put("__is_visualization__", true)
             )
@@ -579,7 +593,7 @@ class SyncExecutionResource extends LazyLogging {
           // __row_index__ preserves the original position so the frontend can show
           // "row N" correctly after symmetric truncation drops the middle.
           var rowIndex = 0
-          val firstJson = ExecutionResultService.convertTuplesToJson(List(firstTuple)).head
+          val firstJson = TupleUtils.convertTuplesToJson(List(firstTuple)).head
           val truncatedFirst = truncateSingleTuple(firstJson, maxOperatorResultCellCharLimit)
           truncatedFirst.put("__row_index__", rowIndex)
           val firstSize = estimateTupleSize(truncatedFirst, mapper)
@@ -605,7 +619,7 @@ class SyncExecutionResource extends LazyLogging {
             val tuple = tupleIterator.next()
             rowIndex += 1
             processedCount += 1
-            val jsonTuple = ExecutionResultService.convertTuplesToJson(List(tuple)).head
+            val jsonTuple = TupleUtils.convertTuplesToJson(List(tuple)).head
             val truncatedTuple = truncateSingleTuple(jsonTuple, maxOperatorResultCellCharLimit)
             truncatedTuple.put("__row_index__", rowIndex)
             val tupleSize = estimateTupleSize(truncatedTuple, mapper)
@@ -623,7 +637,7 @@ class SyncExecutionResource extends LazyLogging {
                 val t = tupleIterator.next()
                 rowIndex += 1
                 processedCount += 1
-                val jt = ExecutionResultService.convertTuplesToJson(List(t)).head
+                val jt = TupleUtils.convertTuplesToJson(List(t)).head
                 val tt = truncateSingleTuple(jt, maxOperatorResultCellCharLimit)
                 tt.put("__row_index__", rowIndex)
                 val ts = estimateTupleSize(tt, mapper)
@@ -659,7 +673,7 @@ class SyncExecutionResource extends LazyLogging {
               val t = tupleIterator.next()
               rowIndex += 1
               processedCount += 1
-              val jt = ExecutionResultService.convertTuplesToJson(List(t)).head
+              val jt = TupleUtils.convertTuplesToJson(List(t)).head
               val tt = truncateSingleTuple(jt, maxOperatorResultCellCharLimit)
               tt.put("__row_index__", rowIndex)
               val ts = estimateTupleSize(tt, mapper)
@@ -832,6 +846,21 @@ class SyncExecutionResource extends LazyLogging {
     }
   }
 
+  private def isCausedByTimeout(error: Throwable): Boolean = {
+    val visited = new java.util.IdentityHashMap[Throwable, java.lang.Boolean]()
+
+    @scala.annotation.tailrec
+    def loop(current: Throwable): Boolean =
+      current match {
+        case null                                                                => false
+        case _: java.util.concurrent.TimeoutException                            => true
+        case throwable if visited.put(throwable, java.lang.Boolean.TRUE) != null => false
+        case throwable                                                           => loop(throwable.getCause)
+      }
+
+    loop(error)
+  }
+
   private def hasConsoleError(consoleState: ExecutionConsoleStore): Boolean = {
     consoleState.operatorConsole.values.exists { opConsole =>
       opConsole.consoleMessages.exists(_.msgType == ConsoleMessageType.ERROR)
@@ -899,28 +928,6 @@ class SyncExecutionResource extends LazyLogging {
       opsToViewResult = targetOperatorIds.filter(id => visited.contains(id)),
       opsToReuseResult = logicalPlan.opsToReuseResult.filter(id => visited.contains(id))
     )
-  }
-
-  // Returns operator-id -> error message; empty map means compilation succeeded.
-  private def validateWorkflow(
-      workflowId: Long,
-      logicalPlan: LogicalPlanPojo
-  ): Map[String, String] = {
-    try {
-      val tempContext = new WorkflowContext(WorkflowIdentity(workflowId))
-      val compiler = new WorkflowCompiler(tempContext)
-      compiler.compile(logicalPlan, CompilationErrorHandling.Strict)
-      Map.empty
-    } catch {
-      case e: Exception =>
-        val errorMsg = Option(e.getMessage).getOrElse("Compilation failed")
-        val operatorIdPattern = """operator[- ]?(\S+)""".r
-        val operatorId = operatorIdPattern
-          .findFirstMatchIn(errorMsg.toLowerCase)
-          .map(_.group(1))
-          .getOrElse("workflow")
-        Map(operatorId -> errorMsg)
-    }
   }
 
   @GET
