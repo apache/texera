@@ -24,6 +24,9 @@ import org.apache.texera.amber.core.storage.FileResolver
 import org.apache.texera.amber.core.tuple.{Tuple, TupleLike}
 import org.apache.texera.amber.util.JSONUtils.objectMapper
 
+import java.net.URI
+import java.nio.file.{Files, Paths}
+
 class FileScanOpExec private[scan] (
     descString: String
 ) extends OperatorExecutor {
@@ -32,7 +35,7 @@ class FileScanOpExec private[scan] (
 
   override def processTuple(tuple: Tuple, port: Int): Iterator[TupleLike] = {
     val originalFileName = tuple.getFields.collectFirst { case s: String => s }.get
-    val fileName = FileResolver.resolve(originalFileName).toASCIIString
+    val fileName = locate(originalFileName).toASCIIString
     FileScanUtils.createTuplesFromFile(
       fileName = fileName,
       displayFileName = originalFileName,
@@ -44,5 +47,15 @@ class FileScanOpExec private[scan] (
       fileScanLimit = desc.fileScanLimit
     )
   }
+
+  /** Resolves the file name carried by an input tuple to a URI. */
+  private def locate(fileName: String): URI =
+    if (FileResolver.isFileResolved(fileName)) {
+      new URI(fileName)
+    } else {
+      val localPath = Paths.get(fileName)
+      if (Files.exists(localPath)) localPath.toUri
+      else FileResolver.resolveVersionedResource(fileName)
+    }
 
 }

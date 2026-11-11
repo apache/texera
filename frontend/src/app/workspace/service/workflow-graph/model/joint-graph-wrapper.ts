@@ -52,6 +52,8 @@ type JointLinkChangeEvent = [joint.dia.Link, { x: number; y: number }, { ui: boo
 
 type JointPositionChangeEvent = [joint.dia.Element, { x: number; y: number }];
 
+export const RESULT_PREVIEW_SETTING_KEY = "result-preview-on-hover";
+
 type PositionInfo = {
   currPos: Point;
   lastPos: Point | undefined;
@@ -111,6 +113,10 @@ export class JointGraphWrapper {
   // Kept here so the editor can (re)apply operator colors on the shared model, covering both the
   // main canvas and the mini-map.
   private heatmapViewStream = new BehaviorSubject<HeatmapView | null>(null);
+
+  // Whether hovering an operator previews its result (Layers > Result preview). On unless the
+  // user turned it off, which this browser remembers.
+  private resultPreviewEnabled = localStorage.getItem(RESULT_PREVIEW_SETTING_KEY) !== "false";
 
   private elementPositions: Map<string, PositionInfo> = new Map<string, PositionInfo>();
   private listenPositionChange: boolean = true;
@@ -245,6 +251,15 @@ export class JointGraphWrapper {
 
   public getHeatmapViewStream(): Observable<HeatmapView | null> {
     return this.heatmapViewStream.asObservable();
+  }
+
+  public setResultPreviewEnabled(enabled: boolean): void {
+    this.resultPreviewEnabled = enabled;
+    localStorage.setItem(RESULT_PREVIEW_SETTING_KEY, String(enabled));
+  }
+
+  public isResultPreviewEnabled(): boolean {
+    return this.resultPreviewEnabled;
   }
 
   /**

@@ -144,8 +144,14 @@ object AttributeTypeUtils extends Serializable {
           } else {
             str.trim.toInt
           }
-        case int: Integer               => int
-        case long: java.lang.Long       => long.toInt
+        case int: Integer         => int
+        case long: java.lang.Long => long.toInt
+        // An Arrow file states the width of its own integers, and a narrow
+        // column hands its values over as Shorts or Bytes. Without this the parse
+        // threw, the Arrow source caught it, and every value in the column
+        // arrived null.
+        case short: java.lang.Short     => short.toInt
+        case byte: java.lang.Byte       => byte.toInt
         case double: java.lang.Double   => double.toInt
         case boolean: java.lang.Boolean => if (boolean) 1 else 0
         // Timestamp and Binary are considered to be illegal here.
@@ -232,10 +238,15 @@ object AttributeTypeUtils extends Serializable {
   def parseDouble(fieldValue: Any): java.lang.Double = {
     val attempt: Try[Double] = Try {
       fieldValue match {
-        case str: String                => str.trim.toDouble
-        case int: Integer               => int.toDouble
-        case long: java.lang.Long       => long.toDouble
-        case double: java.lang.Double   => double
+        case str: String              => str.trim.toDouble
+        case int: Integer             => int.toDouble
+        case long: java.lang.Long     => long.toDouble
+        case double: java.lang.Double => double
+        // A single-precision column hands its values over as Floats, which only
+        // an Arrow file produces: Texera writes every double it owns as eight
+        // bytes. Without this the parse threw, the Arrow source caught it, and
+        // the whole column arrived null.
+        case float: java.lang.Float     => float.toDouble
         case boolean: java.lang.Boolean => if (boolean) 1 else 0
         // Timestamp and Binary are considered to be illegal here.
         case _ =>

@@ -35,6 +35,7 @@
     "@auth0/angular-jwt": "5.1.0",
     "@codingame/monaco-vscode-java-default-extension": "37.6.1",
     "@codingame/monaco-vscode-python-default-extension": "37.6.1",
+    "@lezer/java": "1.1.5",
     "@lezer/python": "1.1.19",
     "@ngneat/until-destroy": "10.0.0",
     "@ngx-formly/core": "7.1.0",

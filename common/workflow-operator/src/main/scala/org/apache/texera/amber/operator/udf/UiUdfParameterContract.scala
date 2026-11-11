@@ -30,6 +30,7 @@ object UiUdfParameterContract {
   @JsonIgnoreProperties(Array("_license"))
   private case class Manifest(
       types: Map[AttributeType, List[String]],
+      javaTypes: Map[AttributeType, List[String]],
       resources: Map[String, String]
   )
 
@@ -39,6 +40,7 @@ object UiUdfParameterContract {
   val types: Map[AttributeType, List[String]] = manifest.types
   val typesByToken: Map[String, AttributeType] =
     types.flatMap { case (attributeType, aliases) => aliases.map(_ -> attributeType) }
+  val javaTypes: Map[AttributeType, List[String]] = manifest.javaTypes
   val resourceInputTypes: Map[String, String] = manifest.resources
 
   def validate(uiParameters: List[UiUDFParameter]): Unit = {
