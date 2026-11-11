@@ -268,9 +268,11 @@ export class PropertyEditorComponent implements OnInit, OnDestroy, OnChanges {
     // workflow share and hand over between them, so a panel mounting into an existing selection
     // never sees the event that made it. Show it now, then follow the changes -- otherwise the
     // panel looks empty until the selection changes, and clicking the very step it should be
-    // showing is a no-op (an already-highlighted element emits nothing). Only when there is one:
-    // the no-frame branch is for a selection being dropped (it clears the editing marker and
-    // resizes the docked panel to its empty content), which a fresh mount must not do.
+    // showing is a no-op (an already-highlighted element emits nothing). Only when something is
+    // selected: a fresh mount has no frame to clear, and the no-frame branch is for a selection
+    // being dropped (it clears the editing marker and resizes the docked panel to its empty
+    // content), which a mount must not do. A link or a comment box alone leaves the panel as it
+    // mounted, empty -- what the branch would have shown anyway.
     const wrapper = this.workflowActionService.getJointGraphWrapper();
     if (wrapper.getCurrentHighlightedOperatorIDs().length > 0 || wrapper.getCurrentHighlightedPortIDs().length > 0) {
       this.showHighlighted();
