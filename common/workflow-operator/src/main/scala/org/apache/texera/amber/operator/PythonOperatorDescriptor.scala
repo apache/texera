@@ -19,18 +19,24 @@
 
 package org.apache.texera.amber.operator
 
-import com.fasterxml.jackson.databind.node.ObjectNode
+import com.fasterxml.jackson.annotation.JsonInclude.Include
+import com.fasterxml.jackson.core.JsonPointer
+import com.fasterxml.jackson.databind.JsonNode
+import com.fasterxml.jackson.databind.node.{ArrayNode, ObjectNode, TextNode}
 import org.apache.texera.amber.core.executor.OpExecWithCode
-import org.apache.texera.amber.core.state.StateReferencing.textReferences
+import org.apache.texera.amber.core.state.StateReferencing.{SIDECAR_PROPERTY, textReferences}
 import org.apache.texera.amber.core.tuple.Schema
 import org.apache.texera.amber.core.virtualidentity.{ExecutionIdentity, WorkflowIdentity}
 import org.apache.texera.amber.core.workflow.{PhysicalOp, PortIdentity, SchemaPropagationFunc}
-import org.apache.texera.amber.operator.PythonOperatorDescriptor.loopVariableLookup
+import org.apache.texera.amber.operator.PythonOperatorDescriptor._
+import org.apache.texera.amber.operator.metadata.PropertyNameConstants
 import org.apache.texera.amber.pybuilder.PythonLexerUtils.updateTripleQuotedStringState
 import org.apache.texera.amber.pybuilder.PythonTemplateBuilder.decoderExpression
 import org.apache.texera.amber.util.JSONUtils.objectMapper
 
 import scala.annotation.tailrec
+import scala.jdk.CollectionConverters.IteratorHasAsScala
+import scala.util.Try
 
 trait PythonOperatorDescriptor extends LogicalOp {
   private def generatePythonCodeForRaisingException(ex: Throwable): String = {
@@ -105,6 +111,89 @@ trait PythonOperatorDescriptor extends LogicalOp {
 
   def getOutputSchemas(inputSchemas: Map[PortIdentity, Schema]): Map[PortIdentity, Schema]
 
+  /**
+    * Each of `texts` (pointer -> name: a String property holding `$name`) that this descriptor
+    * checks, or computes its output schemas from, given `inputSchemas`: pointer -> why, as the
+    * compiler's error says it. Both happen before the loop runs, from the literal `$name`, so
+    * neither sees the iteration's value.
+    *
+    * A copy of this descriptor with another text in the reference's place shows it: a column of
+    * each type on each input, or another non-empty text among its settings, which a check commonly
+    * compares the text to. Where only one of that copy and the copy it is compared with computes
+    * its output schemas, or that copy fails to generate its code where the other does not, the
+    * descriptor checks the text; where both compute them and they differ, the text decides them.
+    * The copy compared with holds every reference's `$name`, unless its schemas fail: then it is
+    * the first copy that computes them with such texts in the references' places, the same text
+    * in each or each the next one, so that a reference that fails a check cannot hide another's.
+    * When no copy can be made, nothing tells.
+    *
+    * A check against anything else goes unseen -- the empty text, or a constant the settings hold
+    * nowhere -- and so does a read that shapes the code without failing it, such as a branch on a
+    * sentinel or an order of columns: the copies' code counts only when it fails to generate.
+    */
+  def textsReadBeforeTheLoop(
+      texts: Map[String, String],
+      inputSchemas: Map[PortIdentity, Schema]
+  ): Map[String, String] =
+    if (texts.isEmpty) {
+      Map.empty
+    } else {
+      val tree = copyMapper.valueToTree[ObjectNode](this)
+      tree.remove(SIDECAR_PROPERTY) // so that a copy refers to no loop variable
+      val values = (columnPerType(inputSchemas) ++ settingTexts(tree)).toSet - ""
+      val literals = texts.map { case (pointer, name) => pointer -> ("$" + name) }
+      def copyWith(assignment: Map[String, String]): Option[PythonOperatorDescriptor] =
+        Try {
+          val json = assignment.foldLeft(tree) {
+            case (copy, (pointer, text)) => withValue(copy, pointer, TextNode.valueOf(text))
+          }
+          copyMapper.treeToValue(json, getClass)
+        }.toOption
+      def schemasOf(copy: PythonOperatorDescriptor) =
+        Try(copy.getOutputSchemas(inputSchemas)).toOption
+      val pointers = texts.keys.toSeq.sorted
+      val sorted = values.toSeq.sorted
+      val assignments = Iterator(literals) ++ sorted.indices.iterator.flatMap { k =>
+        Iterator(
+          pointers.map(_ -> sorted(k)).toMap,
+          pointers.zipWithIndex.map {
+            case (pointer, i) => pointer -> sorted((k + i) % sorted.size)
+          }.toMap
+        )
+      }
+      val compared = assignments.distinct
+        .flatMap(assignment =>
+          copyWith(assignment).map(copy => (assignment, copy, schemasOf(copy)))
+        )
+        .find { case (_, _, schemas) => schemas.isDefined }
+        .orElse(copyWith(literals).map(copy => (literals, copy, None)))
+      compared.fold(Map.empty[String, String]) {
+        case (assignment, base, schemas) =>
+          lazy val generates = Try(base.generatePythonCode()).isSuccess
+          texts.flatMap {
+            case (pointer, _) =>
+              // Each other text in the reference's place -- its own `$name` too, which is among the
+              // settings -- built and judged once, and only as far as needed: its schemas, and
+              // whether they or its code show a check.
+              val outcomes = LazyList
+                .from((values - assignment(pointer)).toSeq.sorted)
+                .flatMap(text => copyWith(assignment.updated(pointer, text)))
+                .map { copy =>
+                  val own = schemasOf(copy)
+                  own -> (own.isDefined != schemas.isDefined ||
+                  (generates && Try(copy.generatePythonCode()).isFailure))
+                }
+              if (outcomes.exists { case (_, checks) => checks }) {
+                Some(pointer -> checkedText)
+              } else if (outcomes.exists { case (own, _) => own != schemas }) {
+                Some(pointer -> textDecidesSchema)
+              } else {
+                None
+              }
+          }
+      }
+    }
+
 }
 
 object PythonOperatorDescriptor {
@@ -114,6 +203,58 @@ object PythonOperatorDescriptor {
     * `Operator.loop_variable_text` answers it from the iteration's state message.
     */
   def loopVariableLookup(name: String): String = s"self.loop_variable_text('$name')"
+
+  // Why a text reference is not bound, as the compiler's error says it (`textsReadBeforeTheLoop`).
+  val checkedText = "it checks the text before the loop runs"
+  val textDecidesSchema = "the text decides its output schema"
+
+  /**
+    * `objectMapper`, but writing null properties as well: a copy parsed from a descriptor's JSON
+    * keeps the nulls the descriptor holds, where the fields' defaults would take their place.
+    */
+  private lazy val copyMapper = objectMapper.copy().setSerializationInclusion(Include.ALWAYS)
+
+  /** Every text `node` holds, however deep. */
+  private def textsOf(node: JsonNode): Iterator[String] =
+    if (node.isTextual) Iterator(node.asText()) else node.elements().asScala.flatMap(textsOf)
+
+  /** The properties every descriptor's JSON holds beside its settings: no check reads them. */
+  private val DescriptorProperties = Set(
+    PropertyNameConstants.OPERATOR_ID,
+    PropertyNameConstants.OPERATOR_VERSION,
+    "operatorType",
+    "inputPorts",
+    "outputPorts"
+  )
+
+  /** The texts of a descriptor's settings, in its JSON `tree`, however deep. */
+  private def settingTexts(tree: ObjectNode): Iterator[String] =
+    tree
+      .fields()
+      .asScala
+      .filterNot(field => DescriptorProperties(field.getKey))
+      .flatMap(field => textsOf(field.getValue))
+
+  /** The first column of each type on each input. */
+  private def columnPerType(inputSchemas: Map[PortIdentity, Schema]): Iterable[String] =
+    inputSchemas.values.flatMap(_.attributes.groupBy(_.getType).values.map(_.head.getName))
+
+  /** A copy of `tree` with the value at `pointer` replaced by `node`. */
+  private def withValue(tree: ObjectNode, pointer: String, node: JsonNode): ObjectNode = {
+    val copy = tree.deepCopy()
+    replaceAt(copy, pointer, node)
+    copy
+  }
+
+  /** `tree` with the value at `pointer` replaced by `node`. */
+  private def replaceAt(tree: ObjectNode, pointer: String, node: JsonNode): Unit = {
+    val path = JsonPointer.compile(pointer)
+    tree.at(path.head) match {
+      case parent: ObjectNode => parent.replace(path.last.getMatchingProperty, node)
+      case parent: ArrayNode  => parent.set(path.last.getMatchingIndex, node)
+      case _                  => throw new IllegalStateException(s"no property at $pointer")
+    }
+  }
 
   /** The functions whose code runs while the operator is built or opened. */
   private val StartupFunctions = Set("__init__", "open")

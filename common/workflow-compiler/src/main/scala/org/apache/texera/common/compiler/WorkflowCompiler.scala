@@ -49,7 +49,12 @@ import org.apache.texera.amber.core.workflow.{
 }
 import org.apache.texera.amber.core.workflowruntimestate.FatalErrorType.COMPILATION_ERROR
 import org.apache.texera.amber.core.workflowruntimestate.WorkflowFatalError
-import org.apache.texera.amber.operator.PythonOperatorDescriptor.{loopVariableLookup, runsAtStartup}
+import org.apache.texera.amber.operator.PythonOperatorDescriptor.{
+  checkedText,
+  loopVariableLookup,
+  runsAtStartup,
+  textDecidesSchema
+}
 import org.apache.texera.amber.operator.{LogicalOp, PythonOperatorDescriptor}
 import org.apache.texera.amber.util.JSONUtils.objectMapper
 import org.apache.texera.amber.util.StackTraceUtils.getStackTraceWithAllCauses
@@ -178,10 +183,13 @@ object WorkflowCompiler {
     * `PythonOperatorDescriptor` turned into a read of the loop state, `loopVariableLookup(name)`,
     * and then only if the code holds the text `$name` nowhere (where it does, the code pastes it
     * in as it is), the code reads it nowhere when the operator starts (in `open` or `__init__`,
-    * `PythonOperatorDescriptor.runsAtStartup`), before the iteration's state can arrive, and no
-    * output column the operator adds holds the text (its schema is computed from the literal).
-    * When the generation failed there is no code to read either way, and the code-generation
-    * check reports why it failed instead.
+    * `PythonOperatorDescriptor.runsAtStartup`), before the iteration's state can arrive, no
+    * output column the operator adds holds the text (its schema is computed from the literal),
+    * and no copy of the operator with a column of an input or another of its texts in the
+    * reference's place shows it checking the text, or computing its output schemas from it, both
+    * of which it does from the literal too (`PythonOperatorDescriptor.textsReadBeforeTheLoop`,
+    * asked only once every input has a schema). When the generation failed there is no code to
+    * read either way, and the code-generation check reports why it failed instead.
     *
     * @param physicalOps the operator's own physical operators, their schemas propagated.
     */
@@ -195,12 +203,8 @@ object WorkflowCompiler {
     if (logicalOp.stateReferences.isEmpty || codes.isEmpty) {
       None
     } else {
-      val generated =
-        logicalOp.isInstanceOf[PythonOperatorDescriptor] && codes.forall(_._2 == "python")
-      val unbound: Seq[(Iterable[String], String)] =
-        if (!generated) {
-          Seq(logicalOp.stateReferences.keys -> fixedInUdf)
-        } else {
+      val unbound: Seq[(Iterable[String], String)] = logicalOp match {
+        case generator: PythonOperatorDescriptor if codes.forall(_._2 == "python") =>
           val tree = objectMapper.valueToTree[ObjectNode](logicalOp)
           val text = textReferences(tree, logicalOp.stateReferences)
           val scripts = codes.map(_._1)
@@ -215,13 +219,31 @@ object WorkflowCompiler {
             else None
           }
           val textReasons: Map[String, String] =
-            if (scripts.exists(failedCodeGeneration.findFirstIn(_).nonEmpty)) Map.empty
-            else text.flatMap { case (pointer, name) => whyUnbound(name).map(pointer -> _) }
+            if (scripts.exists(failedCodeGeneration.findFirstIn(_).nonEmpty)) {
+              Map.empty
+            } else {
+              val inCode = text.flatMap {
+                case (pointer, name) => whyUnbound(name).map(pointer -> _)
+              }
+              // As the schema propagation calls it: only once every input has a schema.
+              inCode ++ inputSchemasOf(physicalOps).fold(Map.empty[String, String])(
+                generator.textsReadBeforeTheLoop(text -- inCode.keys, _)
+              )
+            }
           ((logicalOp.stateReferences -- text.keys).keys -> writtenIntoCode) +:
-            Seq(pastedIntoCode, unreadByCode, readAtStartup, namesOutputColumn).map { why =>
+            Seq(
+              pastedIntoCode,
+              unreadByCode,
+              readAtStartup,
+              namesOutputColumn,
+              checkedText,
+              textDecidesSchema
+            ).map { why =>
               textReasons.collect { case (pointer, `why`) => pointer } -> why
             }
-        }
+        case _ =>
+          Seq(logicalOp.stateReferences.keys -> fixedInUdf)
+      }
       val operator = logicalOp.operatorInfo.userFriendlyName
       val reasons = unbound.collect {
         case (pointers, why) if pointers.nonEmpty =>
@@ -242,6 +264,15 @@ object WorkflowCompiler {
     "its code reads the text when the operator starts, before the iteration's state arrives"
   private val namesOutputColumn =
     "the text names an output column, which is set before the loop runs"
+
+  /** The input schemas of `physicalOps`, when every input port of theirs has one. */
+  private def inputSchemasOf(
+      physicalOps: Iterable[PhysicalOp]
+  ): Option[Map[PortIdentity, Schema]] = {
+    val ports = physicalOps.toSeq.flatMap(_.inputPorts.toSeq)
+    val schemas = ports.collect { case (port, (_, _, Right(schema))) => port -> schema }
+    Option.when(schemas.size == ports.size)(schemas.toMap)
+  }
 
   /** The columns `physicalOps` add: on an output port of theirs, but on no input port. */
   private def addedColumns(physicalOps: Iterable[PhysicalOp]): Set[String] = {
