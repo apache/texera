@@ -27,7 +27,7 @@ import javax.validation.Valid
 import javax.validation.constraints.NotNull
 
 /**
-  * Serialized operator property shared by Python and R UDF UI parameters.
+  * Serialized operator property shared by UDF UI parameters.
   *
   * `attribute` carries the inferred parameter name and type. `value` is user-entered text.
   * Language adapters own its encoding and native conversion; the wire model contains no language-specific types.

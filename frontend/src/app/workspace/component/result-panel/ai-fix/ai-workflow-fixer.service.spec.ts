@@ -29,7 +29,6 @@ import {
 } from "./ai-workflow-fixer.service";
 import { WorkflowActionService } from "../../../service/workflow-graph/model/workflow-action.service";
 import { ExecuteWorkflowService } from "../../../service/execute-workflow/execute-workflow.service";
-import { GuiConfigService } from "../../../../common/service/gui-config.service";
 import { commonTestProviders } from "../../../../common/testing/test-utils";
 import { OperatorMetadataService } from "../../../service/operator-metadata/operator-metadata.service";
 import { WorkflowConsoleService } from "../../../service/workflow-console/workflow-console.service";

@@ -35,6 +35,13 @@ ThisBuild / conflictManager := ConflictManager.latestRevision
 // Restrict parallel execution of tests to avoid conflicts
 Global / concurrentRestrictions += Tags.limit(Tags.Test, 1)
 
+// Java UDF execution tests use javac, which needs the test classpath on the forked JVM.
+// Keep the repo-root working directory so MockTexeraDB can find sql/texera_ddl.sql.
+Test / fork := true
+Test / forkOptions := (Test / forkOptions).value
+  .withWorkingDirectory((ThisBuild / baseDirectory).value)
+
+
 // A test needing more than a bare Python interpreter is tagged, so the amber job
 // excludes it, and amber-integration, which installs amber's requirements files,
 // runs it. The amber job already sets this env var on the step that invokes
