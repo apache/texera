@@ -22,6 +22,7 @@ package org.apache.texera.amber.engine.architecture.pythonworker
 import com.twitter.util.Promise
 import org.apache.arrow.flight.{
   Action,
+  CallStatus,
   FlightProducer,
   FlightServer,
   FlightStream,
@@ -100,6 +101,14 @@ class PythonProxyClientSpec extends AnyFlatSpec {
     assert(cond, s"condition not met within ${timeoutMs}ms")
   }
 
+  /** Every message in a failure's cause chain, so assertions do not depend on wrapping. */
+  private def causeMessages(failure: Throwable): String =
+    Iterator
+      .iterate[Throwable](failure)(_.getCause)
+      .takeWhile(_ != null)
+      .map(e => String.valueOf(e.getMessage))
+      .mkString(" | ")
+
   // ---------------------------------------------------------------------------
   // Stand-in for the Python worker's Flight server: records every action and
   // put it receives and acks them the way network_receiver.py does.
@@ -115,6 +124,18 @@ class PythonProxyClientSpec extends AnyFlatSpec {
     val actionsReceived = new ConcurrentLinkedQueue[(String, Array[Byte])]()
     val putsReceived = new ConcurrentLinkedQueue[RecordedPut]()
     @volatile var reportedQueueSize: Long = 0L
+    // A Python worker busy in one long C call holds the GIL, so its put handler (Python code)
+    // cannot run and the ack comes late. These delay the next `delayedPuts` acks by `ackDelayMs`.
+    @volatile var ackDelayMs: Long = 0L
+    @volatile var delayedPuts: Int = 0
+    // When set, every put fails on the server side, as when network_receiver.py raises.
+    @volatile var rejectPuts: Boolean = false
+    // When set, every put is acknowledged and then fails: an ack alone does not mean success.
+    @volatile var failAfterAck: Boolean = false
+    // When set, every put completes without the queue-size metadata the client waits for.
+    @volatile var omitAck: Boolean = false
+    // When set, every put is acknowledged, but the ack carries no queue size.
+    @volatile var ackWithoutQueueSize: Boolean = false
 
     override def doAction(
         context: FlightProducer.CallContext,
@@ -156,15 +177,36 @@ class PythonProxyClientSpec extends AnyFlatSpec {
           }
         }
         putsReceived.add(RecordedPut(header, tuples.result(), ecmBytes))
-        // Ack with the queue size as put metadata, the way the Python side does.
-        val ackAllocator = new RootAllocator(1024)
-        try {
-          val buf = ackAllocator.buffer(java.lang.Long.BYTES)
-          buf.writeLong(reportedQueueSize)
-          ackStream.onNext(PutResult.metadata(buf))
-          buf.close()
-        } finally {
-          ackAllocator.close()
+        if (rejectPuts) {
+          ackStream.onError(
+            CallStatus.INTERNAL
+              .withDescription("put rejected by the test server")
+              .toRuntimeException
+          )
+        } else if (ackWithoutQueueSize) {
+          ackStream.onNext(PutResult.empty())
+        } else if (!omitAck) {
+          if (delayedPuts > 0) {
+            delayedPuts -= 1
+            Thread.sleep(ackDelayMs)
+          }
+          // Ack with the queue size as put metadata, the way the Python side does.
+          val ackAllocator = new RootAllocator(1024)
+          try {
+            val buf = ackAllocator.buffer(java.lang.Long.BYTES)
+            buf.writeLong(reportedQueueSize)
+            ackStream.onNext(PutResult.metadata(buf))
+            buf.close()
+          } finally {
+            ackAllocator.close()
+          }
+          if (failAfterAck) {
+            ackStream.onError(
+              CallStatus.INTERNAL
+                .withDescription("put failed after its ack by the test server")
+                .toRuntimeException
+            )
+          }
         }
       }
     }
@@ -187,9 +229,11 @@ class PythonProxyClientSpec extends AnyFlatSpec {
     val client = new PythonProxyClient(portPromise, clientWorkerId)
     private val loopThread = new Thread(() => client.run(), "python-proxy-client-test-loop")
     loopThread.setDaemon(true)
-    // The tear-down interrupt below surfaces as an InterruptedException out of
-    // the blocking queue take; keep it off stderr.
-    loopThread.setUncaughtExceptionHandler((_, _) => ())
+    // The first exception that ended the main loop, if any. Kept off stderr: the tear-down
+    // interrupt below also surfaces here, as an InterruptedException out of the queue take,
+    // but only after a test's assertions have run.
+    @volatile var loopFailure: Option[Throwable] = None
+    loopThread.setUncaughtExceptionHandler((_, e) => if (loopFailure.isEmpty) loopFailure = Some(e))
 
     def start(): Unit = loopThread.start()
 
@@ -365,6 +409,112 @@ class PythonProxyClientSpec extends AnyFlatSpec {
       assertThrows[WorkflowRuntimeException] {
         fixture.client.run()
       }
+    }
+  }
+
+  it should "keep sending after the Python side acknowledges a put late" in {
+    withClient() { fixture =>
+      fixture.producer.ackDelayMs = 200L
+      fixture.producer.delayedPuts = 1
+      fixture.producer.reportedQueueSize = 11L
+      fixture.start()
+      val schema = Schema().add(new Attribute("v", AttributeType.INTEGER))
+      def frame(v: Int): Array[Tuple] =
+        Array(Tuple.builder(schema).addSequentially(Array(Int.box(v))).build())
+      val dataChannel = ChannelIdentity(clientWorkerId, controllerId, isControl = false)
+
+      fixture.client.enqueueData(DataElement(DataFrame(frame(1)), dataChannel))
+      fixture.client.enqueueData(DataElement(DataFrame(frame(2)), dataChannel))
+      fixture.client.enqueueActorCommand(CreditUpdate())
+
+      // Everything queued behind the slow put still reaches the Python side, in order.
+      awaitTrue()(
+        fixture.loopFailure.isDefined ||
+          (fixture.producer.putsReceived.size == 2 &&
+            fixture.producer.actionsReceived.asScala.exists(_._1 == "actor"))
+      )
+      assert(fixture.loopFailure.isEmpty, s"the client loop died: ${fixture.loopFailure}")
+      assert(
+        fixture.producer.putsReceived.asScala.map(_.tuples).toVector ==
+          Vector(frame(1).toVector, frame(2).toVector)
+      )
+      // The late ack's queue size is still taken for flow control.
+      awaitTrue()(fixture.client.getQueuedCredit == 11L)
+    }
+  }
+
+  it should "stop with the Python side's error when a put is rejected" in {
+    withClient() { fixture =>
+      fixture.producer.rejectPuts = true
+      fixture.start()
+      val schema = Schema().add(new Attribute("v", AttributeType.INTEGER))
+      val tuple = Tuple.builder(schema).addSequentially(Array(Int.box(1))).build()
+      val dataChannel = ChannelIdentity(clientWorkerId, controllerId, isControl = false)
+
+      fixture.client.enqueueData(DataElement(DataFrame(Array(tuple)), dataChannel))
+
+      // The loop must end with an error rather than wait forever for an ack that never comes,
+      // and the error must say why, so the worker can report it.
+      awaitTrue()(fixture.loopFailure.isDefined)
+      val messages = causeMessages(fixture.loopFailure.get)
+      assert(messages.contains("put rejected by the test server"), messages)
+    }
+  }
+
+  it should "stop with the Python side's error when a put fails after it is acknowledged" in {
+    withClient() { fixture =>
+      fixture.producer.failAfterAck = true
+      fixture.start()
+      val schema = Schema().add(new Attribute("v", AttributeType.INTEGER))
+      val tuple = Tuple.builder(schema).addSequentially(Array(Int.box(1))).build()
+      val dataChannel = ChannelIdentity(clientWorkerId, controllerId, isControl = false)
+
+      fixture.client.enqueueData(DataElement(DataFrame(Array(tuple)), dataChannel))
+
+      // The ack carries flow-control credit only; the put's own final status says whether it
+      // succeeded, so a failure that follows the ack must still end the loop with its cause.
+      awaitTrue()(fixture.loopFailure.isDefined)
+      val messages = causeMessages(fixture.loopFailure.get)
+      assert(messages.contains("put failed after its ack by the test server"), messages)
+    }
+  }
+
+  it should "stop with an error when a put completes without an acknowledgement" in {
+    withClient() { fixture =>
+      fixture.producer.omitAck = true
+      fixture.start()
+      val schema = Schema().add(new Attribute("v", AttributeType.INTEGER))
+      val tuple = Tuple.builder(schema).addSequentially(Array(Int.box(1))).build()
+      val dataChannel = ChannelIdentity(clientWorkerId, controllerId, isControl = false)
+
+      fixture.client.enqueueData(DataElement(DataFrame(Array(tuple)), dataChannel))
+
+      // The Python side always acknowledges a put with its queue size. A put that ends without
+      // one is a protocol failure, not a success to skip silently.
+      awaitTrue()(fixture.loopFailure.isDefined)
+      val messages = causeMessages(fixture.loopFailure.get)
+      assert(messages.contains("without acknowledging"), messages)
+    }
+  }
+
+  it should "stop with an error naming the worker when a put's ack carries no queue size" in {
+    withClient() { fixture =>
+      fixture.producer.ackWithoutQueueSize = true
+      fixture.start()
+      val schema = Schema().add(new Attribute("v", AttributeType.INTEGER))
+      val tuple = Tuple.builder(schema).addSequentially(Array(Int.box(1))).build()
+      val dataChannel = ChannelIdentity(clientWorkerId, controllerId, isControl = false)
+
+      fixture.client.enqueueData(DataElement(DataFrame(Array(tuple)), dataChannel))
+
+      // Flow control reads the queue size from the ack, so an ack without one must end the
+      // loop with an error that names the worker, not with an error from reading it.
+      awaitTrue()(fixture.loopFailure.isDefined)
+      val failure = fixture.loopFailure.get
+      val messages = causeMessages(failure)
+      assert(failure.isInstanceOf[WorkflowRuntimeException], s"${failure.getClass}: $messages")
+      assert(messages.contains(clientWorkerId.name), messages)
+      assert(messages.contains("queue size"), messages)
     }
   }
 
