@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1794406734477,
+  "lastUpdate": 1794406737561,
   "repoUrl": "https://github.com/apache/texera",
   "entries": {
     "Arrow Flight E2E Throughput": [
@@ -80006,6 +80006,433 @@ window.BENCHMARK_DATA = {
           {
             "name": "latency p99 / bs=1000 sw=50 sl=512",
             "value": 2098489.12,
+            "unit": "us"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "name": "yangzhang75",
+            "username": "yangzhang75",
+            "email": "yangz75@uci.edu"
+          },
+          "committer": {
+            "name": "GitHub",
+            "username": "web-flow",
+            "email": "noreply@github.com"
+          },
+          "id": "03a5bb842447527910a782c342ef67d2f992ab7b",
+          "message": "feat(workflow-form): bring the selected step's result to the top, and give each result a name and an eye (#9334)\n\n### What changes were proposed in this PR?\n\nCloses #9257. The behaviour here is the one settled in the design\ndiscussion #9033.\n\nAfter a run the Form View can show several result cards, and nothing\ntied a card to the step that\nproduced it. To find one step's result a reader read the card titles,\nand two steps with the same\nname gave two cards with the same title. The picker that decides which\nresults show sat below the\ncards, away from both the preview and the results it is about.\n\n**Selecting a step leads the Results.** The selected step's card moves\nto the front, outlined in the\ncolour the canvas draws round a selected step (`workflow-editor`'s\n`highlightOptions` stroke), so the\nmove reads as \"this is that step's result\" rather than a reshuffle. The\nselection is the canvas's\nown: clicking a step on the embedded preview leads its card, and\ndeselecting -- the panel's close\nbutton, empty canvas, a multi-select -- puts the cards back in their\nsaved order. The card at the\nfront is read from the selection rather than kept beside it; keeping a\nsecond copy let the two drift\napart (hiding the selected step's result cleared the lead but not the\nselection, and its name then\nread as \"already leading\").\n\n**Each result becomes a chip with two targets.** The picker moves up to\nsit between the preview and\nthe results. The step's name makes that same selection -- through\n`WorkflowActionService`, so a\nco-editor sees the ring exactly as they do for a canvas click -- and\nclicking the name of the step\nalready selected lets it go. The eye beside it shows or hides that\nresult: the author's default for\neveryone while editing (written to the config, as before), this page\nonly otherwise, so a reader\nwithout write access can still hide a result they do not care about and\nbring it back. A hidden\nresult has no card to bring up, so its name is marked unavailable and\nsays why, while its eye stays\nlive; that is how the result comes back.\n\nNothing about the order is saved, and the preview is left as the reader\nhad it: opening it from a\nname click moved the picker and the results about a third of the page\ndown, out from under the name\njust clicked. The ring has a programmatic twin: the leading result's\nname carries `aria-current`, so\na reader who cannot see the outline is still told which result is the\none being looked at.\n\n**Known limitation, pre-existing:** a selection made while the preview\nis closed is not ringed on the\ncanvas if the preview is opened afterwards. The editor draws only the\nhighlights that arrive after it\nmounts, which is also why switching between the canvas and the Form View\nloses the ring on main. The\nstep's property panel does open on it, so the selection itself is not\nlost.\n\nNot included, and raised in #9033: letting the author drag the results\ninto an order in Edit mode.\n\nTwo dead lines in files this PR already touches go with it: the rendered\nspec registered the `lock`\nand `unlock` ng-zorro icons, which no template reachable from that spec\nrenders, and\n`workflow-form.component.spec.ts` imported `workspaceFormUrl` without\nusing it.\n\n#### Video\n\n\n\nhttps://github.com/user-attachments/assets/45a28cdc-9281-469c-89bf-9895d8287c25\n\n\n\n### Any related issues, documentation, discussions?\n\n- Closes #9257.\n- Design discussion: #9033, where this behaviour was settled (the lock\nthat an earlier revision used,\n  and the double click that let a step go, were both dropped there).\n\n### How was this PR tested?\n\nFifteen new unit tests in `workflow-form.component.spec.ts` and two in\n`workflow-form.rendered.spec.ts` (the rendered page asserts the picker's\nposition between the preview\nand the results, and that the ring lands on the lead card and that\nstep's chip and nowhere else). The\nharness gained a `highlightOperators` that models the real chain, so a\nname click goes through the\naction service, the wrapper replaces the selection, the highlight stream\nemits and the page's own\nhandler runs, as for a canvas click.\n\nFull frontend suite on this branch, rebased on current main: 251 files,\n7157 tests, 1 skipped, all\ngreen. ESLint and Prettier clean on the changed files. Production AOT\nbuild passes. Every statement\nand every branch the commit adds is covered, checked line by line\nagainst the lcov report: 42/42\nstatements and 16/16 branches, with no partially-taken branch on a\nchanged line. Eleven mutations of\nthe new behaviour -- the lead not moving, the ring on the wrong card, a\nhidden name acting, the eye\nwriting a reader's choice to the config, the name and the eye wired to\neach other's handler, the\n`aria-current` twin going missing -- were all killed by the new tests.\n\nChecked by hand on a local stack against a ten-operator demo workflow\nwith four results (a table and\nthree charts): clicking a step on the preview, clicking a result's name,\nclicking it again, hiding\nthe selected step's result and showing it again, and two browser tabs\nopen on the same workflow to\nconfirm the order and the eye are local to a page while the selection\nring propagates as a canvas\nclick's does.\n\n### Was this PR authored or co-authored using generative AI tooling?\n\nGenerated-by: Claude Code\n\n🤖 Generated with [Claude Code](https://claude.com/claude-code)\n\n---------\n\nCo-authored-by: Claude Opus 5 (1M context) <noreply@anthropic.com>\nCo-authored-by: Meng Wang <mengw15@uci.edu>",
+          "timestamp": "2026-11-11T06:34:37Z",
+          "url": "https://github.com/apache/texera/commit/03a5bb842447527910a782c342ef67d2f992ab7b"
+        },
+        "date": 1794406737025,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "latency p50 / bs=10 sw=1 sl=8",
+            "value": 14452.798,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=10 sw=1 sl=8",
+            "value": 17489.742,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=10 sw=1 sl=8",
+            "value": 22676.585,
+            "unit": "us"
+          },
+          {
+            "name": "latency p50 / bs=100 sw=1 sl=8",
+            "value": 83949.521,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=100 sw=1 sl=8",
+            "value": 93322.872,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=100 sw=1 sl=8",
+            "value": 102864.064,
+            "unit": "us"
+          },
+          {
+            "name": "latency p50 / bs=1000 sw=1 sl=8",
+            "value": 788610.991,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=1000 sw=1 sl=8",
+            "value": 825377.829,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=1000 sw=1 sl=8",
+            "value": 891676.078,
+            "unit": "us"
+          },
+          {
+            "name": "latency p50 / bs=10 sw=1 sl=64",
+            "value": 11008.794,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=10 sw=1 sl=64",
+            "value": 13128.839,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=10 sw=1 sl=64",
+            "value": 16000.551,
+            "unit": "us"
+          },
+          {
+            "name": "latency p50 / bs=100 sw=1 sl=64",
+            "value": 80963.643,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=100 sw=1 sl=64",
+            "value": 88828.246,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=100 sw=1 sl=64",
+            "value": 96704.542,
+            "unit": "us"
+          },
+          {
+            "name": "latency p50 / bs=1000 sw=1 sl=64",
+            "value": 796171.259,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=1000 sw=1 sl=64",
+            "value": 830100.065,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=1000 sw=1 sl=64",
+            "value": 860836.423,
+            "unit": "us"
+          },
+          {
+            "name": "latency p50 / bs=10 sw=1 sl=512",
+            "value": 10788.202,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=10 sw=1 sl=512",
+            "value": 14979.953,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=10 sw=1 sl=512",
+            "value": 17508.349,
+            "unit": "us"
+          },
+          {
+            "name": "latency p50 / bs=100 sw=1 sl=512",
+            "value": 83610.586,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=100 sw=1 sl=512",
+            "value": 90584.625,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=100 sw=1 sl=512",
+            "value": 97117.357,
+            "unit": "us"
+          },
+          {
+            "name": "latency p50 / bs=1000 sw=1 sl=512",
+            "value": 796015.399,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=1000 sw=1 sl=512",
+            "value": 834777.629,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=1000 sw=1 sl=512",
+            "value": 888316.041,
+            "unit": "us"
+          },
+          {
+            "name": "latency p50 / bs=10 sw=10 sl=8",
+            "value": 12904.247,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=10 sw=10 sl=8",
+            "value": 16274.798,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=10 sw=10 sl=8",
+            "value": 18753.771,
+            "unit": "us"
+          },
+          {
+            "name": "latency p50 / bs=100 sw=10 sl=8",
+            "value": 101861.384,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=100 sw=10 sl=8",
+            "value": 108982.738,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=100 sw=10 sl=8",
+            "value": 118137.716,
+            "unit": "us"
+          },
+          {
+            "name": "latency p50 / bs=1000 sw=10 sl=8",
+            "value": 993439.044,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=1000 sw=10 sl=8",
+            "value": 1042624.846,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=1000 sw=10 sl=8",
+            "value": 1087853.613,
+            "unit": "us"
+          },
+          {
+            "name": "latency p50 / bs=10 sw=10 sl=64",
+            "value": 12765.482,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=10 sw=10 sl=64",
+            "value": 14609.845,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=10 sw=10 sl=64",
+            "value": 18250.615,
+            "unit": "us"
+          },
+          {
+            "name": "latency p50 / bs=100 sw=10 sl=64",
+            "value": 102908.75,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=100 sw=10 sl=64",
+            "value": 111723.107,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=100 sw=10 sl=64",
+            "value": 126613.822,
+            "unit": "us"
+          },
+          {
+            "name": "latency p50 / bs=1000 sw=10 sl=64",
+            "value": 997134.493,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=1000 sw=10 sl=64",
+            "value": 1036457.189,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=1000 sw=10 sl=64",
+            "value": 1083038.649,
+            "unit": "us"
+          },
+          {
+            "name": "latency p50 / bs=10 sw=10 sl=512",
+            "value": 12339.164,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=10 sw=10 sl=512",
+            "value": 15374.514,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=10 sw=10 sl=512",
+            "value": 17991.968,
+            "unit": "us"
+          },
+          {
+            "name": "latency p50 / bs=100 sw=10 sl=512",
+            "value": 103495.417,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=100 sw=10 sl=512",
+            "value": 110125.188,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=100 sw=10 sl=512",
+            "value": 117878.472,
+            "unit": "us"
+          },
+          {
+            "name": "latency p50 / bs=1000 sw=10 sl=512",
+            "value": 1015567.897,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=1000 sw=10 sl=512",
+            "value": 1065431.206,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=1000 sw=10 sl=512",
+            "value": 1147036.066,
+            "unit": "us"
+          },
+          {
+            "name": "latency p50 / bs=10 sw=50 sl=8",
+            "value": 20953.183,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=10 sw=50 sl=8",
+            "value": 23722.854,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=10 sw=50 sl=8",
+            "value": 27821.793,
+            "unit": "us"
+          },
+          {
+            "name": "latency p50 / bs=100 sw=50 sl=8",
+            "value": 182696.263,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=100 sw=50 sl=8",
+            "value": 194227.767,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=100 sw=50 sl=8",
+            "value": 217194.501,
+            "unit": "us"
+          },
+          {
+            "name": "latency p50 / bs=1000 sw=50 sl=8",
+            "value": 1802956.526,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=1000 sw=50 sl=8",
+            "value": 1887088.455,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=1000 sw=50 sl=8",
+            "value": 1935276.012,
+            "unit": "us"
+          },
+          {
+            "name": "latency p50 / bs=10 sw=50 sl=64",
+            "value": 20978.088,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=10 sw=50 sl=64",
+            "value": 22094.923,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=10 sw=50 sl=64",
+            "value": 27767.327,
+            "unit": "us"
+          },
+          {
+            "name": "latency p50 / bs=100 sw=50 sl=64",
+            "value": 182201.882,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=100 sw=50 sl=64",
+            "value": 199428.557,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=100 sw=50 sl=64",
+            "value": 234205.063,
+            "unit": "us"
+          },
+          {
+            "name": "latency p50 / bs=1000 sw=50 sl=64",
+            "value": 1843003.368,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=1000 sw=50 sl=64",
+            "value": 1892129.303,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=1000 sw=50 sl=64",
+            "value": 2016394.499,
+            "unit": "us"
+          },
+          {
+            "name": "latency p50 / bs=10 sw=50 sl=512",
+            "value": 21560.266,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=10 sw=50 sl=512",
+            "value": 25906.923,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=10 sw=50 sl=512",
+            "value": 30895.007,
+            "unit": "us"
+          },
+          {
+            "name": "latency p50 / bs=100 sw=50 sl=512",
+            "value": 190413.383,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=100 sw=50 sl=512",
+            "value": 205301.766,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=100 sw=50 sl=512",
+            "value": 211597.655,
+            "unit": "us"
+          },
+          {
+            "name": "latency p50 / bs=1000 sw=50 sl=512",
+            "value": 1914491.498,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=1000 sw=50 sl=512",
+            "value": 1972047.806,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=1000 sw=50 sl=512",
+            "value": 2046043.767,
             "unit": "us"
           }
         ]
