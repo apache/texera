@@ -111,7 +111,9 @@ fragment. Without one, the export emits a `# TODO:` comment in its place.
   plotly imports by mixing in `PlotlyStandaloneCode`.
 - Override `producesDataFrame()` to false for a visualization whose output is HTML.
 - Put definitions the fragment refers to in `standaloneHelpers()`. They are deduplicated
-  across the plan.
+  across the plan, and only the `def _texera_...` the script calls is kept. So add a new
+  helper to the shared block it belongs with, such as `StandaloneHelpers.AttributeCasts`,
+  rather than a block of its own.
 - Pass every user value through `pyStringLiteral`, or `pyb` with an `EncodableString`. Spliced
   in directly, a column named `a"b` closes the literal early and breaks the whole script.
 - A `pyb` field has to reach the template whole. Joining it to anything in Scala first —
@@ -122,6 +124,10 @@ fragment. Without one, the export emits a `# TODO:` comment in its place.
   and 0.0, and 6 renders as "6.0" where the engine wrote "6". Override the
   `generateStandaloneCode(inputSchemas)` overload and pass the column through
   `renderedAsText`; `None` there means read it as it arrives.
+- A column setting names its column the way the user typed it. The engine looks a column up
+  ignoring case, so a setting that names `Name` reads the column `name`, and pandas indexes by
+  the exact name. Take the schema from the same overload and pass the name through
+  `columnAsStored`.
 - A TIMESTAMP is a wall clock and carries no zone, so a count from the epoch is read with
   UTC arithmetic on both sides. `new Timestamp(millis)` instead reads it in whatever zone the
   machine is set to, and pandas reads the same number as UTC, so the two paths part by the
