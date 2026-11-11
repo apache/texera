@@ -691,6 +691,18 @@ $shell: #fafafa;
     cursor: default !important;
   }
 
+  /* Read-only, the editor is inert, and an inert subtree is left out of hit-testing: a wheel over
+     it reaches this panel, never the editor's own scroller (#content), which could then not be
+     scrolled at all -- a long step was cut off at the panel's bottom. Keyed on the attribute that
+     is the cause: while the editor is inert it grows to its content and this panel, which the
+     wheel does reach (and the keyboard, through the tab stop the panel carries for exactly this),
+     is the scroller. Live, the editor keeps its own scroller, as on the operator canvas. The
+     !important has to beat the base rule's own !important above; #content needs nothing, its
+     height: 100% follows an auto-height parent. */
+  ::ng-deep texera-property-editor[inert] #right-container {
+    height: auto !important;
+  }
+
   ::ng-deep nz-resize-handles,
   ::ng-deep .nz-resizable-handle {
     display: none !important;
