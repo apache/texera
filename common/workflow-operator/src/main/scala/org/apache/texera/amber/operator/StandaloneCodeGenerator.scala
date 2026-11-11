@@ -115,8 +115,8 @@ trait StandaloneCodeGenerator {
 
   /**
     * Definitions this operator's standalone code depends on. Each block must be
-    * one of [[StandaloneHelpers.supportHelpers]]: the exported script imports the
-    * names it calls from the `texera_support` module rather than defining them.
+    * one of [[StandaloneHelpers.moduleHelpers]]: the exported script imports the
+    * names it calls from the `texera_helpers` module rather than defining them.
     */
   def standaloneHelpers(): Seq[String] = Seq.empty
 

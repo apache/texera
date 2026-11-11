@@ -17,20 +17,20 @@
   under the License.
 -->
 
-# texera-support
+# texera-helpers
 
 The helpers a Python script exported from a Texera workflow calls, so the
 script gives the answers the Texera engine gives.
 
 An exported script imports the helpers it calls from this module. The export
-downloads as a zip that holds it as `texera_support.py` next to the script, so
+downloads as a zip that holds it as `texera_helpers.py` next to the script, so
 the unzipped folder runs with nothing installed.
 
-`texera_support/__init__.py` is generated from the helper definitions in
+`texera_helpers/__init__.py` is generated from the helper definitions in
 `common/workflow-operator`. Do not edit it by hand. After changing a helper, run
 
 ```
-TEXERA_SUPPORT_WRITE=1 sbt "WorkflowOperator/testOnly org.apache.texera.amber.operator.StandaloneHelpersSpec"
+TEXERA_HELPERS_WRITE=1 sbt "WorkflowOperator/testOnly org.apache.texera.amber.operator.StandaloneHelpersSpec"
 ```
 
 Without the variable, the same spec fails when the file is stale.

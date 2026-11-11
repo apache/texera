@@ -395,12 +395,12 @@ object StandaloneHelpers {
       |        dtype=object,
       |    )""".stripMargin
 
-  /** Every shared helper block, in the order the `texera_support` module holds them.
+  /** Every shared helper block, in the order the `texera_helpers` module holds them.
     * A new block returned by some [[StandaloneCodeGenerator.standaloneHelpers]] belongs
     * here too: an exported script imports its helpers, and the translator refuses a
     * block this list lacks.
     */
-  def supportHelpers: Seq[String] =
+  def moduleHelpers: Seq[String] =
     Seq(
       AttributeCasts,
       SamplingHelpers.JavaRandom,
@@ -412,11 +412,11 @@ object StandaloneHelpers {
       StandaloneCodeGenerator.PythonOperatorInput.definition
     )
 
-  /** `texera_support/__init__.py`: the shared blocks under the one import they share.
-    * The export also hands it out as `texera_support.py`, which a script finds when the
+  /** `texera_helpers/__init__.py`: the shared blocks under the one import they share.
+    * The export also hands it out as `texera_helpers.py`, which a script finds when the
     * two sit in one directory.
     */
-  def supportModule: String =
+  def helpersModule: String =
     ("""# Licensed to the Apache Software Foundation (ASF) under one
        |# or more contributor license agreements.  See the NOTICE file
        |# distributed with this work for additional information
@@ -434,5 +434,5 @@ object StandaloneHelpers {
        |# specific language governing permissions and limitations
        |# under the License.
        |
-       |import pandas as pd""".stripMargin +: supportHelpers).mkString("", "\n\n\n", "\n")
+       |import pandas as pd""".stripMargin +: moduleHelpers).mkString("", "\n\n\n", "\n")
 }

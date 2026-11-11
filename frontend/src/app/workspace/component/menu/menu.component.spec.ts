@@ -766,14 +766,14 @@ describe("MenuComponent", () => {
 
     it("keeps the module the script imports for the download", () => {
       vi.spyOn(component["workflowToPythonService"], "convertToPython").mockReturnValue(
-        of({ type: "success", pythonCode: "print(1)", supportModule: "def f(): pass" } as any)
+        of({ type: "success", pythonCode: "print(1)", helpersModule: "def f(): pass" } as any)
       );
       workflowActionService.addOperator(mockScanPredicate, mockPoint);
       validationStream$.next({ errors: {}, workflowEmpty: false });
 
       component.onClickExportAsPython();
 
-      expect(component.pythonSupportModuleForModal).toBe("def f(): pass");
+      expect(component.pythonHelpersModuleForModal).toBe("def f(): pass");
     });
   });
 
@@ -1123,19 +1123,19 @@ describe("MenuComponent", () => {
 
     it("zips the script with the module it imports, under the workflow name", async () => {
       component.currentWorkflowName = "my-workflow";
-      component.pythonCodeForModal = "from texera_support import f";
-      component.pythonSupportModuleForModal = "def f(): pass";
+      component.pythonCodeForModal = "from texera_helpers import f";
+      component.pythonHelpersModuleForModal = "def f(): pass";
 
       const { name, zip } = await download();
 
       expect(name).toBe("my-workflow.zip");
-      expect(await zip.file("script.py")?.async("string")).toBe("from texera_support import f");
-      expect(await zip.file("texera_support.py")?.async("string")).toBe("def f(): pass");
+      expect(await zip.file("script.py")?.async("string")).toBe("from texera_helpers import f");
+      expect(await zip.file("texera_helpers.py")?.async("string")).toBe("def f(): pass");
     });
 
     it("zips the script alone when it imports nothing", async () => {
       component.pythonCodeForModal = "print(1)";
-      component.pythonSupportModuleForModal = undefined;
+      component.pythonHelpersModuleForModal = undefined;
 
       const { zip } = await download();
 

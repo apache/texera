@@ -48,8 +48,8 @@ import org.apache.texera.auth.SessionUser
 )
 sealed trait WorkflowToPythonResponse
 
-/** @param supportModule the `texera_support.py` the script imports from, when it imports any. */
-case class WorkflowToPythonSuccess(pythonCode: String, supportModule: Option[String] = None)
+/** @param helpersModule the `texera_helpers.py` the script imports from, when it imports any. */
+case class WorkflowToPythonSuccess(pythonCode: String, helpersModule: Option[String] = None)
     extends WorkflowToPythonResponse
 
 case class WorkflowToPythonFailure(errorMessage: String) extends WorkflowToPythonResponse
@@ -80,8 +80,8 @@ class WorkflowToPythonResource extends LazyLogging {
         translator.translate(logicalPlan, outputSchemasOf(logicalPlanPojo, user.getUid))
       WorkflowToPythonSuccess(
         pythonCode,
-        Option.when(pythonCode.contains("from texera_support import"))(
-          StandaloneHelpers.supportModule
+        Option.when(pythonCode.contains("from texera_helpers import"))(
+          StandaloneHelpers.helpersModule
         )
       )
     } catch {

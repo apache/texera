@@ -757,7 +757,7 @@ export class MenuComponent implements OnInit, OnDestroy {
 
   public isTranslatingToPython = false;
   public pythonCodeForModal = "";
-  public pythonSupportModuleForModal?: string;
+  public pythonHelpersModuleForModal?: string;
 
   public onClickExportAsPython(): void {
     // Exporting the valid part of the graph answers a workflow with a required
@@ -781,7 +781,7 @@ export class MenuComponent implements OnInit, OnDestroy {
           this.isTranslatingToPython = false;
           if (response.type === "success") {
             this.pythonCodeForModal = response.pythonCode ?? "";
-            this.pythonSupportModuleForModal = response.supportModule;
+            this.pythonHelpersModuleForModal = response.helpersModule;
             this.modalService.create({
               nzTitle: "Workflow as Python Script",
               nzContent: this.workflowPythonScriptModal ?? "",
@@ -813,7 +813,7 @@ export class MenuComponent implements OnInit, OnDestroy {
   }
 
   /**
-   * The script as a zip, with the `texera_support.py` it imports beside it: Python finds a
+   * The script as a zip, with the `texera_helpers.py` it imports beside it: Python finds a
    * module in the script's own directory, so the unzipped folder runs with nothing installed.
    */
   public async downloadPythonZip(): Promise<void> {
@@ -822,8 +822,8 @@ export class MenuComponent implements OnInit, OnDestroy {
     }
     const zip = new JSZip();
     zip.file("script.py", this.pythonCodeForModal);
-    if (this.pythonSupportModuleForModal) {
-      zip.file("texera_support.py", this.pythonSupportModuleForModal);
+    if (this.pythonHelpersModuleForModal) {
+      zip.file("texera_helpers.py", this.pythonHelpersModuleForModal);
     }
     const blob = await zip.generateAsync({ type: "blob" });
     this.fileSaverService.saveAs(blob, `${this.currentWorkflowName || "workflow"}.zip`);

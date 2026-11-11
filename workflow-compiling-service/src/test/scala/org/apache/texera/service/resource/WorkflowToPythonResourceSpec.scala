@@ -210,21 +210,21 @@ class WorkflowToPythonResourceSpec
       .readValue(postExport(pojo).readEntity(classOf[String]), classOf[WorkflowToPythonResponse])
       .asInstanceOf[WorkflowToPythonSuccess]
 
-  it should "import the helpers from texera-support and hand that module over with the script" in {
+  it should "import the helpers from texera-helpers and hand that module over with the script" in {
     val sample = new ReservoirSamplingOpDesc()
     sample.setOperatorId("sample")
     sample.k = 5
     val success = exported(LogicalPlanPojo(List(sample), List.empty, List.empty, List.empty))
-    assert(success.pythonCode.contains("from texera_support import _TexeraJavaRandom"))
+    assert(success.pythonCode.contains("from texera_helpers import _TexeraJavaRandom"))
     assert(!success.pythonCode.contains("class _TexeraJavaRandom"))
-    assert(success.supportModule.contains(StandaloneHelpers.supportModule))
+    assert(success.helpersModule.contains(StandaloneHelpers.helpersModule))
   }
 
   it should "hand over no module with a script that imports nothing from it" in {
     val limit = limitOp("limit", 5)
     val success = exported(LogicalPlanPojo(List(limit), List.empty, List.empty, List.empty))
-    assert(!success.pythonCode.contains("texera_support"))
-    assert(success.supportModule.isEmpty)
+    assert(!success.pythonCode.contains("texera_helpers"))
+    assert(success.helpersModule.isEmpty)
   }
 
   it should "return a failure body rather than HTTP 500 when the plan cannot be read" in {

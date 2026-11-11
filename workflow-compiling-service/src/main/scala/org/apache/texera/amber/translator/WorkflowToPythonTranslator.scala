@@ -101,7 +101,7 @@ class WorkflowToPythonTranslator extends LazyLogging {
       .foreach(script += _)
     script += ""
 
-    // The helpers the operator bodies below refer to come from the texera_support
+    // The helpers the operator bodies below refer to come from the texera_helpers
     // module, which the script imports. A block the module does not hold would
     // leave the script calling a name it cannot find, so it stops the export here.
     topoOrder
@@ -111,10 +111,10 @@ class WorkflowToPythonTranslator extends LazyLogging {
           gen.standaloneHelpers() ++ gen.standaloneInputAdapter().map(_.definition)
       }
       .flatten
-      .find(!StandaloneHelpers.supportHelpers.contains(_))
+      .find(!StandaloneHelpers.moduleHelpers.contains(_))
       .foreach { block =>
         throw new IllegalStateException(
-          s"A helper is missing from StandaloneHelpers.supportHelpers:\n${block.take(200)}"
+          s"A helper is missing from StandaloneHelpers.moduleHelpers:\n${block.take(200)}"
         )
       }
     // The import goes in once the bodies are written, since which helpers the
@@ -242,24 +242,24 @@ class WorkflowToPythonTranslator extends LazyLogging {
     }
 
     // Named one by one: a leading underscore keeps a name out of `import *`.
-    val imported = supportNamesIn(script.drop(helpersAt).mkString("\n"))
+    val imported = helperNamesIn(script.drop(helpersAt).mkString("\n"))
     if (imported.nonEmpty)
-      script.insert(helpersAt - 1, s"from texera_support import ${imported.mkString(", ")}")
+      script.insert(helpersAt - 1, s"from texera_helpers import ${imported.mkString(", ")}")
     script.mkString("\n")
   }
 
   // What the module defines at its top level, which is only functions and classes.
-  private val supportNames: Set[String] = StandaloneHelpers.supportHelpers
+  private val helperNames: Set[String] = StandaloneHelpers.moduleHelpers
     .flatMap(_.split("\n"))
     .flatMap(line => """(?:def|class) (\w+)""".r.findPrefixMatchOf(line).map(_.group(1)))
     .toSet
 
   // The module's names the given code refers to, read from code only, sorted.
-  private def supportNamesIn(code: String): Seq[String] =
+  private def helperNamesIn(code: String): Seq[String] =
     splitOffLiterals(code)
       .collect { case (true, segment) => segment }
       .flatMap("""\b\w+""".r.findAllIn(_))
-      .filter(supportNames)
+      .filter(helperNames)
       .distinct
       .sorted
 

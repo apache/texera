@@ -186,7 +186,7 @@ class WorkflowToPythonTranslatorSpec extends AnyFlatSpec with Matchers {
       LogicalPlan(source :: pythons, pythons.map(link(source, _)))
     )
     script.linesIterator.count(
-      _ == "from texera_support import _texera_python_operator_input"
+      _ == "from texera_helpers import _texera_python_operator_input"
     ) shouldBe 1
     script should not include "def _texera_python_operator_input"
     script should not include "df1 = _texera_python_operator_input("
@@ -268,14 +268,14 @@ class WorkflowToPythonTranslatorSpec extends AnyFlatSpec with Matchers {
     }
     op.setOperatorId("op")
     val script = new WorkflowToPythonTranslator().translate(LogicalPlan(List(op), List.empty))
-    script should startWith("import pandas as pd\nfrom texera_support import _TexeraJavaRandom\n\n")
+    script should startWith("import pandas as pd\nfrom texera_helpers import _TexeraJavaRandom\n\n")
     script should not include "class _TexeraJavaRandom"
   }
 
   it should "not import a helper a comment or a string only names" in {
     val op = stub("op", "# _TexeraJavaRandom\nout1df = in1df.assign(n=\"_TexeraJavaRandom\")")
     val script = new WorkflowToPythonTranslator().translate(LogicalPlan(List(op), List.empty))
-    script should not include "from texera_support"
+    script should not include "from texera_helpers"
   }
 
   it should "refuse an operator whose helper the module does not hold" in {

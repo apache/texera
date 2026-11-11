@@ -25,23 +25,23 @@ import org.scalatest.matchers.should.Matchers
 import java.nio.charset.StandardCharsets
 import java.nio.file.{Files, Path}
 
-/** The `texera_support` module against the helpers the operators declare. */
+/** The `texera_helpers` module against the helpers the operators declare. */
 class StandaloneHelpersSpec extends AnyFlatSpec with Matchers {
 
   private val module: Path = Path
     .of(sys.env.getOrElse("TEXERA_HOME", "."))
-    .resolve("texera-support")
-    .resolve("texera_support")
+    .resolve("texera-helpers")
+    .resolve("texera_helpers")
     .resolve("__init__.py")
 
-  // With TEXERA_SUPPORT_WRITE set, the module is rewritten instead of checked.
-  "texera_support/__init__.py" should "hold exactly the helpers the operators declare" in {
-    if (sys.env.contains("TEXERA_SUPPORT_WRITE")) {
-      Files.write(module, StandaloneHelpers.supportModule.getBytes(StandardCharsets.UTF_8))
+  // With TEXERA_HELPERS_WRITE set, the module is rewritten instead of checked.
+  "texera_helpers/__init__.py" should "hold exactly the helpers the operators declare" in {
+    if (sys.env.contains("TEXERA_HELPERS_WRITE")) {
+      Files.write(module, StandaloneHelpers.helpersModule.getBytes(StandardCharsets.UTF_8))
     }
-    withClue(s"$module is stale; rerun this spec with TEXERA_SUPPORT_WRITE=1 to rewrite it.\n") {
+    withClue(s"$module is stale; rerun this spec with TEXERA_HELPERS_WRITE=1 to rewrite it.\n") {
       new String(Files.readAllBytes(module), StandardCharsets.UTF_8) shouldBe
-        StandaloneHelpers.supportModule
+        StandaloneHelpers.helpersModule
     }
   }
 }
