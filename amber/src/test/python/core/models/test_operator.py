@@ -313,37 +313,32 @@ class TestLoopVariables:
         op.register_state(State({"note": "from-body-op"}), 0)
         assert dict(op.loop_variables) == {"i": 2, "note": "from-body-op"}
 
-    def test_two_different_values_from_the_same_depth_fail_when_read(self):
+    def test_a_later_value_from_the_same_depth_replaces_the_earlier_one(self):
         # Xiaozhen's case on #8642: the loop's i = 0, then a body operator's
-        # state carrying i = 99, both at depth 0. A JVM operator whose setting
-        # refers to i fails with this message (StateReferenceBinding); a UDF
-        # gets the same one when it reads i.
+        # state carrying i = 99, both at depth 0. The runtime drops the copies
+        # of a message it has processed (they keep its id), so a later message
+        # from the same depth is a value the loop body sent after the first one,
+        # and it wins, every time; the names it does not carry stay as they are.
         op = _ConcreteOperator()
         op.register_state(State({"i": 0, "k": "a"}), 0)
         op.register_state(State({"i": 99}), 0)
-        with pytest.raises(RuntimeError) as error:
-            op.loop_variables["i"]
-        assert str(error.value) == (
-            "loop variable i got two different values in one iteration, 0 and 99: "
-            "a loop's variables must not change inside its body"
-        )
-        for read in (
-            lambda view: view.get("i"),
-            lambda view: dict(view),
-            lambda view: list(view.values()),
-            lambda view: list(view.items()),
-        ):
-            with pytest.raises(RuntimeError, match="two different values"):
-                read(op.loop_variables)
-        # Only reading i fails: the other names read, and i is still listed.
-        assert op.loop_variables["k"] == "a"
-        assert "i" in op.loop_variables
-        assert sorted(op.loop_variables) == ["i", "k"]
-        assert len(op.loop_variables) == 2
+        assert dict(op.loop_variables) == {"i": 99, "k": "a"}
+        op.register_state(State({"i": 0}), 0)
+        assert op.loop_variables["i"] == 0
+        assert sorted(op.loop_variables.items()) == [("i", 0), ("k", "a")]
 
-    def test_equal_copies_from_the_same_depth_read_without_error(self):
+    def test_a_later_outer_value_replaces_an_earlier_one_until_an_inner_arrives(self):
+        op = _ConcreteOperator()
+        op.register_state(State({"i": 1}), 1)
+        op.register_state(State({"i": 2}), 1)
+        assert op.loop_variables["i"] == 2
+        op.register_state(State({"i": 5}), 0)
+        op.register_state(State({"i": 3}), 1)
+        assert op.loop_variables["i"] == 5
+
+    def test_equal_copies_from_the_same_depth_read_the_same(self):
         # Copies of one message, from several upstream workers or branches,
-        # carry equal values: no conflict, as on the JVM (2 equals 2.0 there).
+        # carry equal values, so the value reads the same whichever came last.
         op = _ConcreteOperator()
         op.register_state(State({"i": 2}), 0)
         op.register_state(State({"i": 2}), 0)
