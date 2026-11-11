@@ -21,6 +21,7 @@ package org.apache.texera.common.compiler
 
 import com.fasterxml.jackson.annotation.JsonProperty
 import org.apache.texera.common.compiler.WorkflowCompilerSpec.{
+  ColumnReadingPyOp,
   FlagWritingPyOp,
   IntWritingPyOp,
   LongWritingPyOp,
@@ -1665,6 +1666,219 @@ class WorkflowCompilerSpec extends AnyFlatSpec {
     )
   }
 
+  private val checkedTextReason = "it checks the text before the loop runs"
+
+  private val schemaTextReason = "the text decides its output schema"
+
+  /** The sales CSV -> LoopStart -> `body` -> LoopEnd. */
+  private def csvLoop(body: LogicalOp): LogicalPlanPojo = {
+    val src = csvOp(realCsvPath)
+    val start = loopStartOp()
+    val end = loopEndOp()
+    pojo(List(src, start, body, end), chain(src, start, body, end))
+  }
+
+  private def columnReading(
+      column: String,
+      typed: Boolean = false,
+      avoid: String = ""
+  ): ColumnReadingPyOp = {
+    val op = new ColumnReadingPyOp
+    op.column = column
+    op.typed = typed
+    op.avoid = avoid
+    op
+  }
+
+  it should "report a text reference that an operator whose code is generated checks before the loop runs" in {
+    // Each one checks the text as it computes its output schema, before the loop runs, so the
+    // check sees "$y", not the iteration's value. SVM Regressor refuses its ground truth among
+    // its features: "$y" passes, where the loop's "Unit Price" would fit Unit Price on itself.
+    val trainer = parsed(
+      """{"groundTruthAttribute":"$y","Selected Features":["Unit Price"],
+        |"paraList":[{"parameter":"C","value":"1.0","attribute":"Units Sold",
+        |"parametersSource":false}],"operatorType":"SVRTrainer"}""".stripMargin
+    )
+    assertOnlyError(
+      twoInputLoop(trainer),
+      trainer,
+      s"SVM Regressor cannot refer to loop variables in /groundTruthAttribute yet: " +
+        checkedTextReason
+    )
+    // A feature "$f" passes the same check, which the loop's "Unit Cost" would fail.
+    val featureTrainer = parsed(
+      """{"groundTruthAttribute":"Unit Cost","Selected Features":["$f"],
+        |"paraList":[{"parameter":"C","value":"1.0","attribute":"Units Sold",
+        |"parametersSource":false}],"operatorType":"SVRTrainer"}""".stripMargin
+    )
+    assertOnlyError(
+      twoInputLoop(featureTrainer),
+      featureTrainer,
+      s"SVM Regressor cannot refer to loop variables in /Selected Features/0 yet: " +
+        checkedTextReason
+    )
+    // A classic sklearn trainer with Count Vectorizer on refuses its target among its Text
+    // Attributes, the same check on two other properties.
+    val vectorizing = parsed(
+      """{"target":"$t","countVectorizer":true,"text":["Region"],
+        |"operatorType":"SklearnLogisticRegression"}""".stripMargin
+    )
+    assertOnlyError(
+      twoInputLoop(vectorizing),
+      vectorizing,
+      s"Logistic Regression cannot refer to loop variables in /target yet: $checkedTextReason"
+    )
+
+    // Sklearn Prediction looks its ground truth up among the input's columns, where "$g" is
+    // none: the error says why, not that the column is missing. Its "$m" is read as usual. With
+    // no output schema, the LoopEnd after it fails too.
+    val prediction = parsed(
+      """{"Model Attribute":"$m","Output Attribute Name":"prediction",
+        |"Ground Truth Attribute Name to Ignore":"$g",
+        |"operatorType":"SklearnPrediction"}""".stripMargin
+    )
+    assertErrorOf(
+      twoInputLoop(prediction),
+      prediction,
+      s"Sklearn Prediction cannot refer to loop variables in " +
+        s"/Ground Truth Attribute Name to Ignore yet: $checkedTextReason"
+    )
+
+    // Machine Learning Scorer looks up its scored columns the same way.
+    val scorer = parsed(
+      """{"isRegression":false,"actualValueColumn":"$a","predictValueColumn":"line",
+        |"classificationFlag":[],"operatorType":"Scorer"}""".stripMargin
+    )
+    assertErrorOf(
+      oneInputLoop(scorer),
+      scorer,
+      s"Machine Learning Scorer cannot refer to loop variables in /actualValueColumn yet: " +
+        checkedTextReason
+    )
+    // With both columns loop variables, either one fails the lookup with the other's "$name" in
+    // place: each is judged with a column in the other's place instead, and both are refused.
+    val bothScored = parsed(
+      """{"isRegression":false,"actualValueColumn":"$a","predictValueColumn":"$p",
+        |"classificationFlag":[],"operatorType":"Scorer"}""".stripMargin
+    )
+    assertErrorOf(
+      oneInputLoop(bothScored),
+      bothScored,
+      s"Machine Learning Scorer cannot refer to loop variables in /actualValueColumn, " +
+        s"/predictValueColumn yet: $checkedTextReason"
+    )
+  }
+
+  it should "not say an operator checks a text before every input of it has a schema" in {
+    // As the schema propagation, which computes an operator's output schema only once every input
+    // has one. The trainer's second input here has none, as the Projection before it fails on a
+    // column the sales CSV lacks, though its check would show from its own texts alone.
+    def checkingTrainer(): LogicalOp =
+      parsed(
+        """{"groundTruthAttribute":"$y","Selected Features":["Unit Price"],
+          |"paraList":[{"parameter":"C","value":"1.0","attribute":"Units Sold",
+          |"parametersSource":false}],"operatorType":"SVRTrainer"}""".stripMargin
+      )
+    val trainer = checkingTrainer()
+    val src = csvOp(realCsvPath)
+    val start = loopStartOp()
+    val broken = projectOp(List("missing"))
+    val end = loopEndOp()
+
+    val result = newCompiler().compile(
+      pojo(
+        List(src, start, broken, trainer, end),
+        List(
+          linked(src, start),
+          linked(start, trainer),
+          linked(start, broken),
+          linked(broken, trainer, 1),
+          linked(trainer, end)
+        )
+      )
+    )
+
+    // The second input has no schema, so neither has the output: that is the trainer's error.
+    assert(result.operatorIdToOutputSchemas(broken.operatorIdentifier)(PortIdentity()).isEmpty)
+    val error = result.operatorIdToError(trainer.operatorIdentifier).message
+    assert(error.contains("schema is not available"), s"unexpected message: $error")
+    assert(!error.contains("loop variables"), s"unexpected message: $error")
+
+    // Once both inputs have one, the check shows.
+    val fed = checkingTrainer()
+    assertOnlyError(
+      twoInputLoop(fed),
+      fed,
+      s"SVM Regressor cannot refer to loop variables in /groundTruthAttribute yet: " +
+        checkedTextReason
+    )
+  }
+
+  /**
+    * `op`'s compile error, lenient, which must say `message`, as the strict compile must throw;
+    * an operator after `op` may fail too, for want of its output schema.
+    */
+  private def assertErrorOf(plan: LogicalPlanPojo, op: LogicalOp, message: String): Unit = {
+    val result = newCompiler().compile(plan)
+    assert(result.physicalPlan.isEmpty)
+    val reported = result.operatorIdToError(op.operatorIdentifier).message
+    assert(reported.contains(message), s"unexpected message: $reported")
+    val ex = intercept[UnsupportedOperationException] {
+      newCompiler().compile(plan, CompilationErrorHandling.Strict)
+    }
+    assert(ex.getMessage == message)
+  }
+
+  it should "report a text reference whose value decides the output schema of generated code" in {
+    // The column "v" is typed like the input column "$c" names. The schema, computed before the
+    // loop runs, says text, where the loop's "Units Sold" would make it an integer.
+    val body = columnReading("$c", typed = true)
+    assertOnlyError(
+      csvLoop(body),
+      body,
+      s"Column reading cannot refer to loop variables in /column yet: $schemaTextReason"
+    )
+  }
+
+  it should "report a text reference that an operator whose code is generated checks against another of its texts" in {
+    // Generating rejects the text of `avoid`, here the input's column "line": "$c" passes, where
+    // the loop's "line" would not.
+    val againstColumn = columnReading("$c", avoid = "line")
+    assertOnlyError(
+      oneInputLoop(againstColumn),
+      againstColumn,
+      s"Column reading cannot refer to loop variables in /column yet: $checkedTextReason"
+    )
+    // The text it is checked against need not name a column.
+    val againstText = columnReading("$c", avoid = "total")
+    assertOnlyError(
+      oneInputLoop(againstText),
+      againstText,
+      s"Column reading cannot refer to loop variables in /column yet: $checkedTextReason"
+    )
+  }
+
+  it should "read a text reference that an operator whose code is generated checks only against the empty text" in {
+    // Generating rejects the empty text, which no copy tries: a loop value may be empty unchecked.
+    val body = columnReading("$c")
+
+    val result = newCompiler().compile(csvLoop(body))
+
+    assert(result.operatorIdToError.isEmpty, s"unexpected errors: ${result.operatorIdToError}")
+    assert(codeOf(result, body).contains(lookup("c")))
+  }
+
+  it should "keep a null setting null in the copies it judges a text reference with" in {
+    // `avoid` is null here, so generating rejects no text. A copy that took the property's
+    // default, "line", instead would reject the input's column "line", and refuse "$c".
+    val body = columnReading("$c", avoid = null)
+
+    val result = newCompiler().compile(oneInputLoop(body))
+
+    assert(result.operatorIdToError.isEmpty, s"unexpected errors: ${result.operatorIdToError}")
+    assert(codeOf(result, body).contains(lookup("c")))
+  }
+
   it should "read a text reference in generated code that passes on an input column of that name" in {
     // The column "$col" is named outside the block, where the text is a name like any other. The
     // operator passes it on rather than making it, so its schema does not depend on the loop.
@@ -2359,9 +2573,10 @@ class WorkflowCompilerSpec extends AnyFlatSpec {
 }
 
 /**
-  * Test-only generated operators whose numeric or boolean properties refer to loop variables.
-  * The descriptor generates their code from copies it parses from their JSON, and Jackson builds
-  * no inner class, so these live here rather than in the spec class.
+  * Test-only generated operators whose properties refer to loop variables. The descriptor
+  * generates their code from copies it parses from their JSON, the compiler checks their texts on
+  * such copies, and Jackson builds no inner class, so these live here rather than in the spec
+  * class.
   */
 object WorkflowCompilerSpec {
 
@@ -2495,5 +2710,40 @@ object WorkflowCompilerSpec {
       super.getOutputSchemas(Map(PortIdentity() -> inputSchemas(PortIdentity())))
     override def operatorInfo: OperatorInfo =
       super.operatorInfo.copy(inputPorts = List(InputPort(), InputPort(PortIdentity(1))))
+  }
+
+  /**
+    * A test-only generated operator that outputs the input column its text `column` names as "v",
+    * read in process_tuple: typed like that column where `typed` says so (as text where the input
+    * has no such column), else as text. Generating rejects the column `avoid`, "line" unless set,
+    * as a descriptor's own validation would.
+    */
+  private class ColumnReadingPyOp extends PythonOperatorDescriptor {
+    @JsonProperty var column: String = ""
+    @JsonProperty var typed: Boolean = false
+    @JsonProperty var avoid: String = "line"
+    override def generatePythonCode(): String = {
+      require(column != avoid, s"column cannot be $avoid")
+      s"""class ProcessTupleOperator(UDFOperatorV2):
+         |    @overrides
+         |    def process_tuple(self, tuple_: Tuple, port: int) -> Iterator[Optional[TupleLike]]:
+         |        yield {"v": tuple_[${decoderExpression(column)}]}
+         |""".stripMargin
+    }
+    override def getOutputSchemas(
+        inputSchemas: Map[PortIdentity, Schema]
+    ): Map[PortIdentity, Schema] = {
+      val named = inputSchemas.values.head.attributes.find(_.getName == column).map(_.getType)
+      val vType = if (typed) named.getOrElse(AttributeType.STRING) else AttributeType.STRING
+      Map(PortIdentity() -> Schema().add("v", vType))
+    }
+    override def operatorInfo: OperatorInfo =
+      OperatorInfo(
+        "Column reading",
+        "outputs the input column its text names",
+        OperatorGroupConstants.PYTHON_GROUP,
+        List(InputPort()),
+        List(OutputPort())
+      )
   }
 }

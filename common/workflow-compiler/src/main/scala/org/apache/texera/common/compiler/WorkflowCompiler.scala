@@ -51,8 +51,10 @@ import org.apache.texera.amber.core.workflowruntimestate.FatalErrorType.COMPILAT
 import org.apache.texera.amber.core.workflowruntimestate.WorkflowFatalError
 import org.apache.texera.amber.operator.PythonOperatorDescriptor.{
   LoopVariableBinding,
+  checkedText,
   loopVariableLookup,
-  runsAtStartup
+  runsAtStartup,
+  textDecidesSchema
 }
 import org.apache.texera.amber.operator.{LogicalOp, PythonOperatorDescriptor}
 import org.apache.texera.amber.util.JSONUtils.objectMapper
@@ -188,9 +190,13 @@ object WorkflowCompiler {
     * does, the code pastes it in as it is) and no output column the operator adds holds the text
     * (its schema is computed from the literal), and the code reads it nowhere when the operator
     * starts (in `open` or `__init__`, `PythonOperatorDescriptor.runsAtStartup`), before the
-    * iteration's state can arrive; the binding tells the same of a numeric or boolean value. The
-    * texts are judged once every numeric or boolean reference is bound: until then the code holds
-    * a probe value in its place, which may decide what the code reads.
+    * iteration's state can arrive; the binding tells the same of a numeric or boolean value. Nor
+    * may a copy of the operator with a column of an input or another of its texts in the
+    * reference's place show it checking the text, or computing its output schemas from it, both of
+    * which it does from the literal too (`PythonOperatorDescriptor.textsReadBeforeTheLoop`, asked
+    * only once every input has a schema). The texts are judged once every numeric or boolean
+    * reference is bound: until then the code holds a probe value in its place, which may decide
+    * what the code reads.
     * When the generation failed (with every probe value and with the properties' defaults, where
     * a numeric or boolean property refers to a loop variable) there is no code to read either
     * way, and the code-generation check reports why it failed instead.
@@ -209,8 +215,9 @@ object WorkflowCompiler {
     if (logicalOp.stateReferences.isEmpty || codes.isEmpty) {
       None
     } else {
-      val unbound: Seq[(Iterable[String], String)] = binding match {
-        case Some(generated) if codes.forall(_._2 == "python") =>
+      val unbound: Seq[(Iterable[String], String)] = (binding, logicalOp) match {
+        case (Some(generated), generator: PythonOperatorDescriptor)
+            if codes.forall(_._2 == "python") =>
           val tree = objectMapper.valueToTree[ObjectNode](logicalOp)
           val text = textReferences(tree, logicalOp.stateReferences)
           val scripts = codes.map(_._1)
@@ -225,9 +232,8 @@ object WorkflowCompiler {
             else None
           }
           // As the schema propagation calls it: only once every input has a schema.
-          val bySchema = inputSchemasOf(physicalOps).fold(Map.empty[String, String])(
-            generated.unboundBySchema
-          )
+          val inputSchemas = inputSchemasOf(physicalOps)
+          val bySchema = inputSchemas.fold(Map.empty[String, String])(generated.unboundBySchema)
           val typedUnbound = generated.unbound ++ (bySchema -- generated.unbound.keys)
           val textReasons: Map[String, String] =
             if (
@@ -236,16 +242,27 @@ object WorkflowCompiler {
             ) {
               Map.empty
             } else {
-              text.flatMap { case (pointer, name) => whyUnbound(name).map(pointer -> _) }
+              val inCode = text.flatMap {
+                case (pointer, name) => whyUnbound(name).map(pointer -> _)
+              }
+              inCode ++ inputSchemas.fold(Map.empty[String, String])(
+                generator.textsReadBeforeTheLoop(text -- inCode.keys, _)
+              )
             }
           val typedReasons = typedUnbound
             .groupMap(_._2)(_._1)
             .toSeq
             .sortBy { case (_, pointers) => pointers.min }
             .map(_.swap)
-          typedReasons ++ Seq(pastedIntoCode, unreadByCode, readAtStartup, namesOutputColumn).map {
-            why =>
-              textReasons.collect { case (pointer, `why`) => pointer } -> why
+          typedReasons ++ Seq(
+            pastedIntoCode,
+            unreadByCode,
+            readAtStartup,
+            namesOutputColumn,
+            checkedText,
+            textDecidesSchema
+          ).map { why =>
+            textReasons.collect { case (pointer, `why`) => pointer } -> why
           }
         case _ =>
           Seq(logicalOp.stateReferences.keys -> fixedInUdf)
