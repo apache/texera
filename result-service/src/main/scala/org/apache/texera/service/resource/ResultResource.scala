@@ -57,7 +57,6 @@ import org.apache.texera.dao.jooq.generated.Tables.{
 import org.apache.texera.service.resource.ResultResource._
 import org.jooq.DSLContext
 
-import java.net.URI
 import scala.jdk.CollectionConverters._
 
 object ResultResource {
@@ -91,9 +90,7 @@ object ResultResource {
 @Path("/results")
 @Produces(Array(MediaType.APPLICATION_JSON))
 @RolesAllowed(Array("REGULAR", "ADMIN"))
-class ResultResource(
-    openDocument: URI => (VirtualDocument[_], Option[Schema]) = DocumentFactory.openDocument
-) {
+class ResultResource {
 
   /**
     * The caller's own latest finished execution of a workflow. It names only an execution the
@@ -239,7 +236,7 @@ class ResultResource(
       .getOrElse(throw new NotFoundException(s"no result for operator $operatorId, port $port"))
     try {
       WarehouseReadGuard.assertReadable(uri)
-      val document = openDocument(uri)
+      val document = DocumentFactory.openDocument(uri)
       (document._1.asInstanceOf[VirtualDocument[Tuple]], document._2.get)
     } catch {
       case e: WarehouseUnavailableException => throw new ServiceUnavailableException(e.getMessage)

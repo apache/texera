@@ -301,6 +301,7 @@ lazy val ResultService = (project in file("result-service"))
   .settings(commonModuleSettings)
   .configs(Test)
   .dependsOn(DAO % "test->test") // reuse MockTexeraDB embedded Postgres in tests
+  .dependsOn(WorkflowCore % "test->test") // reuse LocalHadoopIcebergCatalog in tests
   .settings(
     dependencyOverrides ++= Seq(
       // override it as io.dropwizard 4 require 2.16.1 or higher
