@@ -26,6 +26,7 @@ import org.apache.texera.common.compiler.WorkflowCompilerSpec.{
   IntWritingPyOp,
   LongWritingPyOp,
   RatioWritingPyOp,
+  ScalingColumnPyOp,
   TwoInputRatioWritingPyOp,
   generations
 }
@@ -2317,6 +2318,36 @@ class WorkflowCompilerSpec extends AnyFlatSpec {
     assert(ex.getMessage == message)
   }
 
+  /** A `ScalingColumnPyOp` whose column is "$c" and whose ratio is "$r", avoiding `avoid`. */
+  private def scalingColumn(avoid: String): ScalingColumnPyOp = {
+    val op = new ScalingColumnPyOp
+    op.column = "$c"
+    op.avoid = avoid
+    op.ratio = 0.0
+    op.stateReferences = Map("/ratio" -> "r")
+    op
+  }
+
+  it should "report a text reference that generated code checks where a number's placeholder fails its schema" in {
+    // The operator holds the placeholder 0.0 for "$r", which its schema rejects: every copy of
+    // the operator itself fails its schema alike, whatever its column, so the check that the
+    // column is not "total" would never show. The code and the schema come from the copy holding
+    // a probe there, and the text is judged on that copy too.
+    val checked = scalingColumn(avoid = "total")
+    assertOnlyError(
+      oneInputLoop(checked),
+      checked,
+      s"Scaling column cannot refer to loop variables in /column yet: $checkedTextReason"
+    )
+
+    // With nothing to avoid, the text and the number are both read from the loop state.
+    val unchecked = scalingColumn(avoid = "")
+    val result = newCompiler().compile(oneInputLoop(unchecked))
+    assert(result.operatorIdToError.isEmpty, s"unexpected errors: ${result.operatorIdToError}")
+    val code = codeOf(result, unchecked)
+    assert(code.contains(s"float(tuple_[${lookup("c")}]) * ${valueLookup("r", "number")}"), code)
+  }
+
   it should "generate a generated operator's code from the probe values once per compile" in {
     // Its physical operator runs the code of the one probing, and the check of its references
     // reads the same binding rather than generating the code from every probe value again.
@@ -2741,6 +2772,38 @@ object WorkflowCompilerSpec {
       OperatorInfo(
         "Column reading",
         "outputs the input column its text names",
+        OperatorGroupConstants.PYTHON_GROUP,
+        List(InputPort()),
+        List(OutputPort())
+      )
+  }
+
+  /**
+    * A test-only generated operator that outputs the input column its text `column` names, times
+    * its Double `ratio`, as "v". Its output schema requires the ratio to be positive and the
+    * column not to be its text `avoid`, as a descriptor's own validation would.
+    */
+  private class ScalingColumnPyOp extends PythonOperatorDescriptor {
+    @JsonProperty var column: String = ""
+    @JsonProperty var avoid: String = ""
+    @JsonProperty var ratio: Double = 1.0
+    override def generatePythonCode(): String =
+      s"""class ProcessTupleOperator(UDFOperatorV2):
+         |    @overrides
+         |    def process_tuple(self, tuple_: Tuple, port: int) -> Iterator[Optional[TupleLike]]:
+         |        yield {"v": float(tuple_[${decoderExpression(column)}]) * $ratio}
+         |""".stripMargin
+    override def getOutputSchemas(
+        inputSchemas: Map[PortIdentity, Schema]
+    ): Map[PortIdentity, Schema] = {
+      require(ratio > 0, s"ratio must be > 0, but got $ratio")
+      require(column != avoid, s"column cannot be $avoid")
+      Map(PortIdentity() -> Schema().add("v", AttributeType.DOUBLE))
+    }
+    override def operatorInfo: OperatorInfo =
+      OperatorInfo(
+        "Scaling column",
+        "outputs the input column its text names times its ratio",
         OperatorGroupConstants.PYTHON_GROUP,
         List(InputPort()),
         List(OutputPort())
