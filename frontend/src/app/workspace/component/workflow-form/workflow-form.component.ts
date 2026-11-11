@@ -185,13 +185,13 @@ export class WorkflowFormComponent implements OnInit, OnDestroy {
   /** While authoring, the instruction is edited as raw markdown ("write") or shown rendered
    *  ("preview"); a reader always sees it rendered. */
   public instructionMode: "write" | "preview" = "write";
-  /** The "which results to show" picker: every candidate step with its shown flag. Everyone sees it:
-   *  in edit mode a toggle sets the default for all readers (saved in the config); otherwise it is
-   *  the viewer's own choice for this page (viewerResultIds), never written anywhere. */
+  /** The results listed under the preview: every candidate step with its shown flag. The name
+   *  reaches the result, the eye beside it decides whether it shows -- the author's default for
+   *  everyone while editing (saved in the config), the viewer's own page otherwise. */
   public resultChoices: ResultChoice[] = [];
-  /** A viewer's own pick of results for this page, once they have toggled anything; undefined means
-   *  "the author's default". Kept for the page's lifetime only, and cleared on entering edit mode so
-   *  the author edits the real default rather than their own view of it. */
+  /** A viewer's own pick of results for this page, once they have hidden or brought one back;
+   *  undefined means "the author's default". Kept for the page's lifetime only, and cleared on
+   *  entering edit mode so the author edits the real default rather than their own view of it. */
   private viewerResultIds?: Set<string>;
 
   /** The exposed inputs, resolved against the live graph, and the formly field built for each. */
@@ -815,10 +815,10 @@ export class WorkflowFormComponent implements OnInit, OnDestroy {
    * operator (no enabled downstream) as well as every view-result operator, so a terminal's result is
    * always available. The author's default is the saved list (shownResultIds: exactly those steps, an
    * empty list meaning none) or, until the author has chosen, every terminal step. A viewer who has
-   * toggled the picker on this page sees their own set instead (viewerResultIds), which is never
-   * written anywhere. Either way this is a pure display filter that reads the graph and never writes
-   * it, so a normal canvas user's result-viewing is unaffected. A step that is neither viewed nor
-   * terminal (or was deleted) drops out rather than rendering a stale card.
+   * hidden one on this page sees their own set instead (viewerResultIds), which is never written
+   * anywhere. Either way this is a pure display filter that reads the graph and never writes it, so a
+   * normal canvas user's result-viewing is unaffected. A step that is neither viewed nor terminal (or
+   * was deleted) drops out rather than rendering a stale card.
    */
   private refreshShownResults(): void {
     const graph = this.workflowActionService.getTexeraGraph();
@@ -1334,6 +1334,63 @@ export class WorkflowFormComponent implements OnInit, OnDestroy {
     return this.shownResultIds.filter(id => this.workflowResultService.hasNonEmptyResult(id));
   }
 
+  /**
+   * Whether this step's card leads the Results: it is the selected step, and it has a card to lead
+   * with. What the ring marks, on the card and on the step's chip, and what puts the card first
+   * (see resultOrder). Read from the selection rather than kept beside it: a copy drifted from it
+   * (hiding the selected step's result cleared the lead but not the selection, and its name then
+   * read as "already leading" and let the step go instead of bringing the card back).
+   */
+  public leadsResults(operatorID: string): boolean {
+    return this.selectedOperatorId === operatorID && this.resultIdsToShow.includes(operatorID);
+  }
+
+  /**
+   * Where a card sits among the Results: the selected step's first, the rest in the saved order.
+   *
+   * The cards are laid out in a column and ordered by this, rather than by their order in the list
+   * the template repeats. Moving them in the list moves their DOM, and a chart's srcdoc iframe
+   * reloads when it is moved -- the picture comes back, but the zoom, the pan and the legend the
+   * reader had set do not, so selecting a step reset a chart they were reading (Copilot on #9334).
+   * The cards keep their order in the document, which is also the order they are read in; the one
+   * being looked at is named there by its chip's aria-current rather than by its position.
+   */
+  public resultOrder(operatorID: string): number {
+    return this.leadsResults(operatorID) ? -1 : 0;
+  }
+
+  /**
+   * A result's name, in either mode: a click selects that step, the same selection clicking the step
+   * on the preview makes -- through the action service, so co-editors see the ring as they do for a
+   * canvas click -- and its card comes to the front, ringed. Two steps with the same name are told
+   * apart by which one lights up. Clicking the name of the step already selected lets it go, putting
+   * the cards back. Nothing is written either way.
+   *
+   * A hidden result has no card to bring to the top, so its name does nothing at all: the template
+   * marks it unavailable, and this ignores it in case it is reached another way.
+   *
+   * The preview is left as the reader had it: opening it from here moved the results a third of the
+   * page down, out from under the name just clicked (#9033).
+   */
+  public onChoiceClick(choice: ResultChoice): void {
+    if (!choice.shown) {
+      return;
+    }
+    if (this.selectedOperatorId === choice.operatorID) {
+      this.closeOperatorPanel();
+      return;
+    }
+    // A step that is already highlighted as part of a multi-select has to be let go first. The
+    // wrapper drops an id it is already holding before it gets as far as clearing the others, so
+    // shift-selecting two steps on the preview and then clicking one of their names left both of
+    // them selected and no card leading -- the click did nothing (Copilot on #9334).
+    const highlighted = this.workflowActionService.getJointGraphWrapper().getCurrentHighlightedOperatorIDs();
+    if (highlighted.includes(choice.operatorID)) {
+      this.workflowActionService.unhighlightOperators(...highlighted);
+    }
+    this.workflowActionService.highlightOperators(false, choice.operatorID);
+  }
+
   public isTabularResult(operatorID: string): boolean {
     return this.workflowResultService.hasPaginatedResult(operatorID);
   }
@@ -1491,8 +1548,8 @@ export class WorkflowFormComponent implements OnInit, OnDestroy {
     if (this.authoring) {
       // An author picks fields off the workflow, so show it.
       this.showWorkflow();
-      // In edit mode the picker sets the default for everyone, so the author's own view of the
-      // results (if they toggled any as a viewer) gives way to that default.
+      // In edit mode the eye sets the default for everyone, so the author's own view of the
+      // results (if they hid any as a viewer) gives way to that default.
       this.viewerResultIds = undefined;
     } else {
       this.workflowOpen = false;
@@ -1593,12 +1650,16 @@ export class WorkflowFormComponent implements OnInit, OnDestroy {
   }
 
   /**
-   * A pill in the picker. In edit mode this sets the default everyone sees: the step joins or leaves
-   * the saved list (which the first choice starts from the final steps, the default until then), and
-   * the config is re-read. Anyone else, a writer merely viewing included, only changes their own view
-   * of this page: nothing is written, so a reader without write access can choose too.
+   * The eye beside a result's name: whether that result shows after a run. Editing, it sets the
+   * default everyone gets -- the step joins or leaves the saved list (the first choice starts the
+   * list from the final steps, the default until then) and the config is re-read. Otherwise it
+   * changes only this viewer's page: nothing is written, so a reader without write access can hide
+   * a result they do not care about and bring it back.
    */
   public onToggleResult(choice: ResultChoice): void {
+    // Nothing to do about the order here: the card at the front is the selected step's, so hiding
+    // that result takes its card away and showing it again brings it back to the front, with the
+    // step still selected throughout.
     if (this.authoring && this.canEdit) {
       // Re-read once, here: the write's own announcement would rebuild the form a second time.
       this.reflectLocally(() =>
@@ -1876,6 +1937,9 @@ export class WorkflowFormComponent implements OnInit, OnDestroy {
     const graph = this.workflowActionService.getTexeraGraph();
     this.selectedOperatorId =
       highlighted.length === 1 && graph.hasOperator(highlighted[0]) ? highlighted[0] : undefined;
+    // The selected step's result leads the Results section while it is selected (resultIdsToShow),
+    // so the reader can see what a step produced without scrolling past the others; deselecting
+    // (empty canvas, a multi-select, the panel's close button) puts the cards back in their order.
     this.cdr.detectChanges();
   }
 
