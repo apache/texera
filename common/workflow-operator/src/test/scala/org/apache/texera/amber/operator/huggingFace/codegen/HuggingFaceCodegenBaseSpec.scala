@@ -197,4 +197,28 @@ class HuggingFaceCodegenBaseSpec extends AnyFlatSpec with Matchers {
     helper should include("isinstance(content, str)")
     helper should include("isinstance(content, list)")
   }
+
+  // #8962: a column value was stripped, sniffed for HTML and decoded whatever its
+  // size, while _fetch_remote_url stops the same payload at MAX_REMOTE_FETCH_BYTES.
+  // Both kinds of cell have to be bounded before any of that work starts.
+  it should "bound a column value's size before parsing it" in {
+    val out = HuggingFaceCodegenBase.render(makeCtx(), StubCodegen)
+    val reader = out.split("def _read_binary_value")(1).split("    def ")(0)
+
+    val bytesCheck = reader.indexOf("self._check_column_value_size(len(value), \"byte\")")
+    bytesCheck should be >= 0
+    bytesCheck should be < reader.indexOf("return value")
+
+    val stringCheck = reader.indexOf("self._check_column_value_size(len(val), \"character\")")
+    stringCheck should be >= 0
+    val parsingSteps =
+      Seq(".strip()", "self._looks_like_html(", "base64.b64decode(", "self._fetch_remote_url(")
+    for (step <- parsingSteps) {
+      withClue(s"$step: ") { stringCheck should be < reader.indexOf(step) }
+    }
+
+    val check = out.split("def _check_column_value_size")(1).split("    def ")(0)
+    check should include("if size > self.MAX_REMOTE_FETCH_BYTES:")
+    check should include("raise ValueError(")
+  }
 }

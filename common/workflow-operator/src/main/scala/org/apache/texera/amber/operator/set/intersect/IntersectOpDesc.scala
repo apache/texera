@@ -20,13 +20,13 @@
 package org.apache.texera.amber.operator.set.intersect
 
 import org.apache.texera.amber.core.executor.OpExecWithClassName
+import org.apache.texera.amber.core.tuple.Schema
 import org.apache.texera.amber.core.virtualidentity.{ExecutionIdentity, WorkflowIdentity}
 import org.apache.texera.amber.core.workflow._
-import org.apache.texera.amber.operator.LogicalOp
 import org.apache.texera.amber.operator.metadata.{OperatorGroupConstants, OperatorInfo}
+import org.apache.texera.amber.operator.{LogicalOp, StandaloneCodeGenerator, StandaloneHelpers}
 
-class IntersectOpDesc extends LogicalOp {
-
+class IntersectOpDesc extends LogicalOp with StandaloneCodeGenerator {
   override def getPhysicalOp(
       workflowId: WorkflowIdentity,
       executionId: ExecutionIdentity
@@ -52,4 +52,20 @@ class IntersectOpDesc extends LogicalOp {
       inputPorts = List(InputPort(PortIdentity()), InputPort(PortIdentity(1))),
       outputPorts = List(OutputPort(blocking = true))
     )
+
+  // Distinct left rows the right also holds, by the engine's row equality, which
+  // `_texera_key_codes` with `signed` numbers.
+  override def generateStandaloneCode(): String =
+    """_texera_set_left, _texera_set_right = _texera_key_codes(in1df, in2df, signed=True)
+      |_texera_set_kept = ~_texera_set_left.duplicated() & _texera_set_left.isin(_texera_set_right)
+      |out1df = in1df[_texera_set_kept.to_numpy()].reset_index(drop=True)""".stripMargin
+
+  // The engine's rows also compare their schemas, so inputs declared differently share no row.
+  override def generateStandaloneCode(inputSchemas: Map[PortIdentity, Schema]): String =
+    (inputSchemas.get(PortIdentity()), inputSchemas.get(PortIdentity(1))) match {
+      case (Some(left), Some(right)) if left != right => "out1df = in1df.iloc[0:0].copy()"
+      case _                                          => generateStandaloneCode()
+    }
+
+  override def standaloneHelpers(): Seq[String] = Seq(StandaloneHelpers.AttributeCasts)
 }
