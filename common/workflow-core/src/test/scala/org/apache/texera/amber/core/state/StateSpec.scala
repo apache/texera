@@ -20,6 +20,7 @@
 package org.apache.texera.amber.core.state
 
 import org.scalatest.flatspec.AnyFlatSpec
+import org.apache.texera.amber.util.JSONUtils.objectMapper
 
 class StateSpec extends AnyFlatSpec {
 
@@ -152,5 +153,69 @@ class StateSpec extends AnyFlatSpec {
     assert(
       decoded.values("blob").asInstanceOf[Array[Byte]].sameElements(Array[Byte](1, 2, 3))
     )
+  }
+
+  it should "tuple-round-trip user dictionaries containing type markers" in {
+    for (
+      value <- List(
+        Map("__texera_type__" -> "bytes", "payload" -> "aGVsbG8="),
+        Map("__texera_type__" -> "bytes", "payload" -> "aGVsbG8=", "owner" -> "用户é"),
+        Map("__texera_type__" -> "dict", "payload" -> Map("nested" -> 1L)),
+        Map("__texera_type__" -> "other", "payload" -> false)
+      )
+    ) {
+      val original = State(Map("config" -> value, "items" -> List(value)))
+      assert(State.fromTuple(original.toTuple(7L, "loop")) == original)
+    }
+  }
+
+  it should "decode Python dictionary envelopes without decoding their literal marker" in {
+    val expected = Map("__texera_type__" -> "bytes", "payload" -> "aGVsbG8=", "owner" -> "用户é")
+    val escaped =
+      """{"__texera_type__":"dict","payload":{"__texera_type__":"bytes","payload":"aGVsbG8=","owner":"用户é"}}"""
+    assert(State.fromJson(escaped).values == expected)
+    assert(State.fromJson(s"""{"config":$escaped}""").values("config") == expected)
+  }
+
+  it should "escape marker keys in the root state for the Python decoder" in {
+    val original = State(Map("__texera_type__" -> "bytes", "payload" -> "aGVsbG8="))
+    assert(objectMapper.readTree(original.toJson).path("__texera_type__").asText() == "dict")
+    assert(State.fromJson(original.toJson) == original)
+  }
+
+  it should "keep incomplete, extended and unknown marker objects as dictionaries" in {
+    for (
+      value <- List(
+        """{"__texera_type__":"bytes","payload":"aGVsbG8=","owner":"user"}""",
+        """{"__texera_type__":"bytes"}""",
+        """{"__texera_type__":"dict","payload":{"nested":1},"owner":"user"}""",
+        """{"__texera_type__":"other","payload":"value"}"""
+      )
+    ) {
+      val decoded = State.fromJson(s"""{"config":$value}""")
+      val encoded = objectMapper.readTree(objectMapper.writeValueAsString(decoded.values("config")))
+      assert(encoded == objectMapper.readTree(value))
+    }
+  }
+
+  it should "reject malformed internal envelope payloads" in {
+    for (
+      value <- List(
+        """{"__texera_type__":"bytes","payload":1234}""",
+        """{"__texera_type__":"bytes","payload":null}""",
+        """{"__texera_type__":"dict","payload":[]}""",
+        """{"__texera_type__":"dict","payload":"text"}"""
+      )
+    ) {
+      val error = intercept[IllegalArgumentException](State.fromJson(s"""{"config":$value}"""))
+      assert(error.getMessage.contains("payload"))
+    }
+  }
+
+  it should "reject non-object state content" in {
+    for (payload <- List("[]", "null", "1", "\"text\"")) {
+      val error = intercept[IllegalArgumentException](State.fromJson(payload))
+      assert(error.getMessage.contains("object"))
+    }
   }
 }
