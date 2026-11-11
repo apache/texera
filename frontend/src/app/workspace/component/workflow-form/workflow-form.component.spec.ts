@@ -2781,17 +2781,25 @@ describe("WorkflowFormComponent", () => {
       h.highlightStream.next(delta);
     };
 
+    /**
+     * The order the reader sees. The cards keep their saved order in the document and are laid out
+     * by `order` (see resultOrder), so that a chart's iframe is never moved and reloaded; sorting by
+     * it here reads back what the column shows. `sort` is stable, so equal cards keep their order.
+     */
+    const asShown = () =>
+      [...component.resultIdsToShow].sort((x, y) => component.resultOrder(x) - component.resultOrder(y));
+
     it("moves the selected step's card to the front, ringed; the others keep the saved order", () => {
       build(formViewWorkflow).ngOnInit();
       threeCards();
       expect(["a", "b", "c"].map(id => component.leadsResults(id))).toEqual([false, false, false]);
 
       highlight(["b"]);
-      expect(component.resultIdsToShow).toEqual(["b", "a", "c"]);
+      expect(asShown()).toEqual(["b", "a", "c"]);
       expect(["a", "b", "c"].map(id => component.leadsResults(id))).toEqual([false, true, false]);
 
       highlight(["c"]);
-      expect(component.resultIdsToShow).toEqual(["c", "a", "b"]);
+      expect(asShown()).toEqual(["c", "a", "b"]);
       expect(["a", "b", "c"].map(id => component.leadsResults(id))).toEqual([false, false, true]);
     });
 
@@ -2801,13 +2809,13 @@ describe("WorkflowFormComponent", () => {
       h.hasOperatorIds.add("mid");
       h.graphOperators.push({ operatorID: "mid", operatorType: "Filter" }); // not shown
       highlight(["c"]);
-      expect(component.resultIdsToShow).toEqual(["c", "a", "b"]);
+      expect(asShown()).toEqual(["c", "a", "b"]);
 
       // The pointed-at step is now one without a card: nothing leads, so the usual order is back,
       // and no ring anywhere (not on the usual first card either).
       highlight(["mid"]);
 
-      expect(component.resultIdsToShow).toEqual(["a", "b", "c"]);
+      expect(asShown()).toEqual(["a", "b", "c"]);
       expect(component.shownResultIds).toEqual(["a", "b", "c"]); // the shown set itself is untouched
       expect(["a", "mid"].map(id => component.leadsResults(id))).toEqual([false, false]);
     });
@@ -2816,24 +2824,24 @@ describe("WorkflowFormComponent", () => {
       build(formViewWorkflow).ngOnInit();
       threeCards();
       highlight(["b"]);
-      expect(component.resultIdsToShow).toEqual(["b", "a", "c"]);
+      expect(asShown()).toEqual(["b", "a", "c"]);
 
       component.closeOperatorPanel();
       expect(component.selectedOperatorId).toBeUndefined();
-      expect(component.resultIdsToShow).toEqual(["a", "b", "c"]);
+      expect(asShown()).toEqual(["a", "b", "c"]);
       expect(component.leadsResults("b")).toBe(false);
 
       // Clicking empty canvas: the un-highlight stream, nothing left selected.
       highlight(["b"]);
       h.highlightedIds.length = 0;
       h.unhighlightStream.next(["b"]);
-      expect(component.resultIdsToShow).toEqual(["a", "b", "c"]);
+      expect(asShown()).toEqual(["a", "b", "c"]);
 
       // Two selected: no single step is pointed at.
       highlight(["b"]);
       highlight(["a", "b"], ["a"]);
       expect(component.selectedOperatorId).toBeUndefined();
-      expect(component.resultIdsToShow).toEqual(["a", "b", "c"]);
+      expect(asShown()).toEqual(["a", "b", "c"]);
     });
 
     it("takes effect once the clicked step produces a result", () => {
@@ -2841,11 +2849,11 @@ describe("WorkflowFormComponent", () => {
       threeCards();
       h.anyResultIds.delete("c"); // c has not produced anything yet
       highlight(["c"]);
-      expect(component.resultIdsToShow).toEqual(["a", "b"]);
+      expect(asShown()).toEqual(["a", "b"]);
 
       h.anyResultIds.add("c");
 
-      expect(component.resultIdsToShow).toEqual(["c", "a", "b"]);
+      expect(asShown()).toEqual(["c", "a", "b"]);
     });
 
     it("names every result a reader could have, hidden ones included, so they can come back", () => {
@@ -2860,7 +2868,7 @@ describe("WorkflowFormComponent", () => {
       // Hidden on this page: the name stays, marked off, and its card goes.
       component.onToggleResult(component.resultChoices.find(c => c.operatorID === "b")!);
 
-      expect(component.resultIdsToShow).toEqual(["a", "c"]);
+      expect(asShown()).toEqual(["a", "c"]);
       expect(component.resultChoices.find(c => c.operatorID === "b")?.shown).toBe(false);
     });
 
@@ -2877,17 +2885,17 @@ describe("WorkflowFormComponent", () => {
       expect(h.serviceHighlightOperators).toHaveBeenCalledWith(false, "b");
       expect(h.updateSharedModelAwareness).toHaveBeenCalledWith("highlighted", ["b"]);
       expect(component.selectedOperatorId).toBe("b");
-      expect(component.resultIdsToShow).toEqual(["b", "a", "c"]);
+      expect(asShown()).toEqual(["b", "a", "c"]);
       expect(component.leadsResults("b")).toBe(true);
 
       component.onChoiceClick(choice("c"));
       expect(component.selectedOperatorId).toBe("c");
-      expect(component.resultIdsToShow).toEqual(["c", "a", "b"]);
+      expect(asShown()).toEqual(["c", "a", "b"]);
 
       // A deselection on the preview (empty canvas) ends the lead too, being the same selection.
       h.highlightedIds.length = 0;
       h.unhighlightStream.next(["c"]);
-      expect(component.resultIdsToShow).toEqual(["a", "b", "c"]);
+      expect(asShown()).toEqual(["a", "b", "c"]);
       expect(formBindingService.toggleShownResult).not.toHaveBeenCalled();
     });
 
@@ -2917,16 +2925,34 @@ describe("WorkflowFormComponent", () => {
       (component as any).workflowEverOpened = true;
       const choice = (id: string) => component.resultChoices.find(c => c.operatorID === id)!;
       component.onChoiceClick(choice("b"));
-      expect(component.resultIdsToShow).toEqual(["b", "a", "c"]);
+      expect(asShown()).toEqual(["b", "a", "c"]);
 
       component.onToggleResult(choice("b")); // hide it: its card goes, the step stays selected
-      expect(component.resultIdsToShow).toEqual(["a", "c"]);
+      expect(asShown()).toEqual(["a", "c"]);
       expect(component.selectedOperatorId).toBe("b");
 
       component.onToggleResult(choice("b")); // show it again
 
-      expect(component.resultIdsToShow).toEqual(["b", "a", "c"]);
+      expect(asShown()).toEqual(["b", "a", "c"]);
       expect(component.leadsResults("b")).toBe(true);
+    });
+
+    // Shift-selecting two steps on the preview leaves neither of them THE selection, so a name click
+    // has to make one. The wrapper drops an id it already holds before it would clear the others,
+    // so without letting go first the click did nothing at all (Copilot on #9334).
+    it("picks one step out of a multi-select, rather than doing nothing", () => {
+      build(formViewWorkflow).ngOnInit();
+      threeCards();
+      highlight(["a", "b"]);
+      expect(component.selectedOperatorId).toBeUndefined();
+      expect(asShown()).toEqual(["a", "b", "c"]);
+
+      component.onChoiceClick({ operatorID: "b", label: "b", shown: true });
+
+      expect(h.serviceUnhighlightOperators).toHaveBeenCalledWith("a", "b");
+      expect(h.serviceHighlightOperators).toHaveBeenCalledWith(false, "b");
+      expect(component.selectedOperatorId).toBe("b");
+      expect(asShown()).toEqual(["b", "a", "c"]);
     });
 
     it("clicking the name of the step already selected lets it go", () => {
@@ -2943,7 +2969,7 @@ describe("WorkflowFormComponent", () => {
       expect(h.serviceUnhighlightOperators).toHaveBeenCalledWith("b");
       expect(h.serviceHighlightOperators).not.toHaveBeenCalled();
       expect(component.selectedOperatorId).toBeUndefined();
-      expect(component.resultIdsToShow).toEqual(["a", "b", "c"]);
+      expect(asShown()).toEqual(["a", "b", "c"]);
       expect(component.leadsResults("b")).toBe(false);
     });
 
@@ -2959,7 +2985,7 @@ describe("WorkflowFormComponent", () => {
       // the picker and the results a third of the page down, away from the name just clicked.
       expect(h.serviceHighlightOperators).toHaveBeenCalledWith(false, "b");
       expect(component.selectedOperatorId).toBe("b");
-      expect(component.resultIdsToShow).toEqual(["b", "a", "c"]);
+      expect(asShown()).toEqual(["b", "a", "c"]);
       expect(component.workflowOpen).toBe(false);
       expect((component as any).workflowEverOpened).toBe(false);
       vi.useRealTimers();
@@ -2973,7 +2999,7 @@ describe("WorkflowFormComponent", () => {
       h.viewResultIds.add("mid");
       h.anyResultIds.add("mid");
       highlight(["mid"]);
-      expect(component.resultIdsToShow).toEqual(["a", "b", "c"]);
+      expect(asShown()).toEqual(["a", "b", "c"]);
 
       component.authoring = true;
       formBindingService.toggleShownResult.mockImplementation(() =>

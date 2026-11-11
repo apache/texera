@@ -1331,20 +1331,32 @@ export class WorkflowFormComponent implements OnInit, OnDestroy {
    * permanent "No result yet.".
    */
   public get resultIdsToShow(): string[] {
-    const ids = this.shownResultIds.filter(id => this.workflowResultService.hasNonEmptyResult(id));
-    // The selected step's card leads; the rest keep the saved order. Moving the card rather than
-    // scrolling to it keeps the preview the reader is clicking on in view. Read from the selection
-    // rather than kept beside it: two of them drifted apart (hiding the selected step's result
-    // cleared the lead but not the selection, and its name then read as "already leading" and let
-    // the step go instead of bringing the card back).
-    const lead = this.selectedOperatorId;
-    return lead !== undefined && ids.includes(lead) ? [lead, ...ids.filter(id => id !== lead)] : ids;
+    return this.shownResultIds.filter(id => this.workflowResultService.hasNonEmptyResult(id));
   }
 
-  /** Whether this step's card is at the front because it is the selected one -- what the ring marks,
-   *  on the card and on the step's chip. False for the usual first card. */
+  /**
+   * Whether this step's card leads the Results: it is the selected step, and it has a card to lead
+   * with. What the ring marks, on the card and on the step's chip, and what puts the card first
+   * (see resultOrder). Read from the selection rather than kept beside it: a copy drifted from it
+   * (hiding the selected step's result cleared the lead but not the selection, and its name then
+   * read as "already leading" and let the step go instead of bringing the card back).
+   */
   public leadsResults(operatorID: string): boolean {
-    return this.selectedOperatorId === operatorID && this.resultIdsToShow[0] === operatorID;
+    return this.selectedOperatorId === operatorID && this.resultIdsToShow.includes(operatorID);
+  }
+
+  /**
+   * Where a card sits among the Results: the selected step's first, the rest in the saved order.
+   *
+   * The cards are laid out in a column and ordered by this, rather than by their order in the list
+   * the template repeats. Moving them in the list moves their DOM, and a chart's srcdoc iframe
+   * reloads when it is moved -- the picture comes back, but the zoom, the pan and the legend the
+   * reader had set do not, so selecting a step reset a chart they were reading (Copilot on #9334).
+   * The cards keep their order in the document, which is also the order they are read in; the one
+   * being looked at is named there by its chip's aria-current rather than by its position.
+   */
+  public resultOrder(operatorID: string): number {
+    return this.leadsResults(operatorID) ? -1 : 0;
   }
 
   /**
@@ -1367,6 +1379,14 @@ export class WorkflowFormComponent implements OnInit, OnDestroy {
     if (this.selectedOperatorId === choice.operatorID) {
       this.closeOperatorPanel();
       return;
+    }
+    // A step that is already highlighted as part of a multi-select has to be let go first. The
+    // wrapper drops an id it is already holding before it gets as far as clearing the others, so
+    // shift-selecting two steps on the preview and then clicking one of their names left both of
+    // them selected and no card leading -- the click did nothing (Copilot on #9334).
+    const highlighted = this.workflowActionService.getJointGraphWrapper().getCurrentHighlightedOperatorIDs();
+    if (highlighted.includes(choice.operatorID)) {
+      this.workflowActionService.unhighlightOperators(...highlighted);
     }
     this.workflowActionService.highlightOperators(false, choice.operatorID);
   }

@@ -124,10 +124,18 @@ export function setupHarness() {
   // adding to it, emits on the highlight stream -- which is what runs the form's own handler, as a
   // canvas click does -- and the service publishes the selection to co-editors. The multi-select
   // flag is taken and ignored, as the one caller never sets it.
+  //
+  // With one exception modelled from the real wrapper (joint-graph-wrapper's highlightElement): an
+  // id it is ALREADY holding is dropped before it gets as far as clearing the others, so asking for
+  // a step that is part of a multi-select changes nothing and emits nothing.
   const serviceHighlightOperators = vi.fn((_multiSelect: boolean, ...ops: string[]) => {
+    const fresh = ops.filter(op => !highlightedIds.includes(op));
+    if (fresh.length === 0) {
+      return;
+    }
     highlightedIds.length = 0;
-    highlightedIds.push(...ops);
-    highlightStream.next([...ops]);
+    highlightedIds.push(...fresh);
+    highlightStream.next([...fresh]);
     updateSharedModelAwareness("highlighted", [...highlightedIds]);
   });
   // Operators that produced a non-empty result -- drives hasNonEmptyResult in the result mock.

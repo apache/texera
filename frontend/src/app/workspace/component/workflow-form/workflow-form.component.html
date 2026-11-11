@@ -525,11 +525,15 @@
             (click)="onChoiceClick(choice)">
             {{ choice.label }}
           </button>
+          <!-- A toggle button: the name stays constant and aria-pressed carries the state, as on the
+               label wrapper's eye. A name that changed with the state would announce the opposite of
+               what the state says ("Hide Limit, pressed" for a result that is shown). -->
           <button
             type="button"
             class="pill-eye"
             [attr.aria-pressed]="choice.shown"
-            [attr.aria-label]="(choice.shown ? 'Hide ' : 'Show ') + choice.label"
+            [attr.aria-label]="'Show ' + choice.label"
+            [attr.title]="choice.shown ? 'Shown here' : 'Hidden here'"
             (click)="onToggleResult(choice)">
             <i
               nz-icon
@@ -563,6 +567,7 @@
              ring, so the move reads as "this is that step's result" rather than a reshuffle. -->
         <div
           class="card result"
+          [style.order]="resultOrder(id)"
           [class.lead-result]="leadsResults(id)">
           <div class="result-head">
             <span>{{ resultLabel(id) }}</span>

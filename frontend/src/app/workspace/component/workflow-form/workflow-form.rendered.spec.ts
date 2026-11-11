@@ -565,7 +565,14 @@ describe("WorkflowFormComponent (rendered template)", () => {
     expect(el(".respick h3")?.textContent?.trim()).toBe("Results shown here");
     expect(el(".respick p")?.textContent).toContain("hides a result from your page");
     expect(el(".respick .pill-name")?.textContent?.trim()).toBe("Limit");
-    expect(el(".respick .pill-eye")?.getAttribute("aria-label")).toBe("Hide Limit");
+    // One constant name, the state on aria-pressed: a name that changed with it would announce the
+    // opposite of what the state says.
+    expect(el(".respick .pill-eye")?.getAttribute("aria-label")).toBe("Show Limit");
+    expect(el(".respick .pill-eye")?.getAttribute("aria-pressed")).toBe("true");
+    c.resultChoices = [{ operatorID: "last", label: "Limit", shown: false }];
+    fixture.detectChanges();
+    expect(el(".respick .pill-eye")?.getAttribute("aria-label")).toBe("Show Limit");
+    expect(el(".respick .pill-eye")?.getAttribute("aria-pressed")).toBe("false");
 
     // An author always gets it, with the hint on how to add steps, worded as the default for all.
     c.authoring = true;
@@ -864,12 +871,20 @@ describe("WorkflowFormComponent (rendered template)", () => {
     expect(cards().map(e => e.classList.contains("lead-result"))).toEqual([false, false]);
     expect(names().map(e => e.getAttribute("aria-current"))).toEqual(["false", "false"]);
 
-    // op-2 pointed at: its card is first and ringed, so is its pill; nothing else is.
+    // The cards sit in the saved order in the document, and are laid out by `order`: moving them
+    // would move a chart's iframe and reload it (see resultOrder).
+    const titles = () => cards().map(e => e.querySelector(".result-head span")?.textContent?.trim());
+    const laidOut = () => cards().map(e => e.style.order);
+    expect(titles()).toEqual(["op-1", "op-2"]);
+    expect(laidOut()).toEqual(["0", "0"]);
+
+    // op-2 pointed at: it is laid out first and ringed, so is its pill; nothing else is.
     c.selectedOperatorId = "op-2";
     fixture.detectChanges();
 
-    expect(cards().map(e => e.querySelector(".result-head span")?.textContent?.trim())).toEqual(["op-2", "op-1"]);
-    expect(cards().map(e => e.classList.contains("lead-result"))).toEqual([true, false]);
+    expect(titles()).toEqual(["op-1", "op-2"]);
+    expect(laidOut()).toEqual(["0", "-1"]);
+    expect(cards().map(e => e.classList.contains("lead-result"))).toEqual([false, true]);
     expect(pills().map(e => e.classList.contains("lead-result"))).toEqual([false, true]);
     // The ring has a programmatic twin, for a reader who cannot see it.
     expect(names().map(e => e.getAttribute("aria-current"))).toEqual(["false", "true"]);

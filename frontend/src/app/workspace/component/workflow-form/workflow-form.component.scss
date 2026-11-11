@@ -19,6 +19,8 @@
 
 /* Colours are Texera's own: ng-zorro blue and the #d9d9d9 / #f0f0f0 neutrals. */
 $blue: #1890ff;
+/* The blue a small icon is drawn in: #1890ff on the chip's tinted ground is 2.9:1, under 3:1. */
+$blue-dark: #096dd9;
 $text: rgba(0, 0, 0, 0.85);
 $text-2: rgba(0, 0, 0, 0.45);
 $divider: #f0f0f0;
@@ -697,8 +699,13 @@ $shell: #fafafa;
 
 /* ---------- results ---------- */
 
+/* A column, so a card can be put first with `order` instead of being moved in the list the template
+   repeats: moving it moves its DOM, and a chart's srcdoc iframe reloads when it is moved, losing the
+   zoom and legend the reader had set (see resultOrder). */
 .results {
   margin-top: 28px;
+  display: flex;
+  flex-direction: column;
 }
 
 /* Quiet on purpose: it marks where the answer will land, and should not compete with the inputs
@@ -1129,16 +1136,18 @@ $lead-ring: #4a95ff;
 
     /* Its own segment, with a rule between: a target to aim at rather than an icon tucked into the
        corner of the name's button. */
+    /* The only control that brings a hidden result back, so it is drawn to be found: a dimmed icon
+       measured 2.06:1 against the card, under the 3:1 a control's shape needs. Ink rather than
+       opacity, and the darker blue below, put both states past it (5.7:1 and 4.5:1). */
     .pill-eye {
       padding: 5px 10px;
       font-size: 13px;
       border-left: 1px solid $border;
-      opacity: 0.65;
+      color: rgba(0, 0, 0, 0.6);
 
       &:hover {
-        color: $blue;
+        color: $blue-dark;
         background: rgba(24, 144, 255, 0.08);
-        opacity: 1;
       }
     }
 
@@ -1161,7 +1170,7 @@ $lead-ring: #4a95ff;
 
       .pill-eye {
         border-left-color: rgba(24, 144, 255, 0.35);
-        opacity: 0.85;
+        color: $blue-dark;
       }
     }
 
