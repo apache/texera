@@ -237,12 +237,13 @@ class ResultResourceSpec
       eid: Integer,
       operatorId: String = "op",
       port: Int = 0,
-      data: Seq[Tuple] = rows
+      data: Seq[Tuple] = rows,
+      mode: OutputModeEnum = OutputModeEnum.SET_SNAPSHOT
   ): URI = {
     val globalPortId = globalPort(operatorId, port)
     val uri = resultUri(eid, globalPortId)
     write(DocumentFactory.createDocument(uri, schema), data, "store")
-    insertRow(eid, globalPortId, uri.toString)
+    insertRow(eid, globalPortId, uri.toString, mode)
     uri
   }
 
@@ -462,6 +463,20 @@ class ResultResourceSpec
       List("Last_Name")
     columnNames(getJson(owner, pagesPath(eid), "columnSearch" -> "")) shouldBe
       List("id", "first_name", "Last_Name")
+  }
+
+  it should "send a visualization's content whole, and cut long strings elsewhere" in {
+    val long = "x" * 150
+    val row = Seq(Tuple.builder(schema).addSequentially(Array[Any](0, long, "last-0")).build())
+    val visualization = insertExecution(owner)
+    storeResult(visualization, data = row, mode = OutputModeEnum.SINGLE_SNAPSHOT)
+    val table = insertExecution(owner)
+    storeResult(table, data = row)
+
+    def firstName(eid: Integer): String =
+      getJson(owner, pagesPath(eid)).get("table").get(0).get("first_name").asText
+    firstName(visualization) shouldBe long
+    firstName(table) shouldBe long.take(100) + "..."
   }
 
   it should "refuse a page or column range out of bounds before reading the table" in {

@@ -54,9 +54,11 @@ import org.apache.texera.dao.jooq.generated.Tables.{
   WORKFLOW_EXECUTIONS,
   WORKFLOW_VERSION
 }
+import org.apache.texera.dao.jooq.generated.enums.OutputModeEnum
 import org.apache.texera.service.resource.ResultResource._
 import org.jooq.DSLContext
 
+import java.net.URI
 import scala.jdk.CollectionConverters._
 
 object ResultResource {
@@ -172,15 +174,22 @@ class ResultResource {
       throw new BadRequestException("the page or column range is out of bounds")
     }
 
-    val (document, schema) = openResult(eid, operatorId, port)
+    val uri = resultUri(eid, operatorId, port)
+    val (document, schema) = openResult(uri, operatorId)
     val columns = schema.getAttributeNames
       .filter(_.toLowerCase.contains(columnSearch.toLowerCase))
       .drop(columnOffset)
       .take(columnLimit)
     val from = pageSize * (pageIndex - 1)
-    val rows = document.getRange(from, from + pageSize, Some(columns)).toList
+    val visualization = isVisualization(eid, uri)
+    // A row at a time, so a page holds at most one decoded row: the JSON keeps only a preview of
+    // each long value, except in a visualization, which is sent whole.
+    val table = document
+      .getRange(from, from + pageSize, Some(columns))
+      .map(row => TupleUtils.convertTuplesToJson(List(row), visualization).head)
+      .toList
     ResultPage(
-      TupleUtils.convertTuplesToJson(rows),
+      table,
       columns.map(schema.getAttribute),
       document.getCount
     )
@@ -196,7 +205,7 @@ class ResultResource {
       @Auth user: SessionUser
   ): Map[String, Map[String, Any]] = {
     requireReadable(eid, user)
-    openResult(eid, operatorId, port)._1.getTableStatistics
+    openResult(resultUri(eid, operatorId, port), operatorId)._1.getTableStatistics
   }
 
   /**
@@ -222,18 +231,28 @@ class ResultResource {
     }
   }
 
-  private def openResult(
-      eid: Integer,
-      operatorId: String,
-      port: Int
-  ): (VirtualDocument[Tuple], Schema) = {
-    val uri = ExecutionResultUris
+  private def resultUri(eid: Integer, operatorId: String, port: Int): URI =
+    ExecutionResultUris
       .getResultUriByLogicalPortId(
         ExecutionIdentity(eid.longValue()),
         OperatorIdentity(operatorId),
         PortIdentity(port)
       )
       .getOrElse(throw new NotFoundException(s"no result for operator $operatorId, port $port"))
+
+  /**
+    * A visualization is HTML in a single cell, so its page is sent whole, as the computing unit's
+    * result push sends it. A result recorded before output modes were is not one.
+    */
+  private def isVisualization(eid: Integer, uri: URI): Boolean =
+    context
+      .select(OPERATOR_PORT_EXECUTIONS.OUTPUT_MODE)
+      .from(OPERATOR_PORT_EXECUTIONS)
+      .where(OPERATOR_PORT_EXECUTIONS.WORKFLOW_EXECUTION_ID.eq(eid))
+      .and(OPERATOR_PORT_EXECUTIONS.RESULT_URI.eq(uri.toString))
+      .fetchOne(OPERATOR_PORT_EXECUTIONS.OUTPUT_MODE) == OutputModeEnum.SINGLE_SNAPSHOT
+
+  private def openResult(uri: URI, operatorId: String): (VirtualDocument[Tuple], Schema) =
     try {
       WarehouseReadGuard.assertReadable(uri)
       val document = DocumentFactory.openDocument(uri)
@@ -243,5 +262,4 @@ class ResultResource {
       case e: IllegalArgumentException if e.getMessage.contains("No storage is found") =>
         throw new NotFoundException(s"the result of operator $operatorId is no longer stored")
     }
-  }
 }
