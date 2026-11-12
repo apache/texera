@@ -28,6 +28,7 @@ import { ExecuteWorkflowService } from "../execute-workflow/execute-workflow.ser
 import { WorkflowActionService } from "../workflow-graph/model/workflow-action.service";
 import { catchError, debounceTime, mergeMap } from "rxjs/operators";
 import { DynamicSchemaService } from "../dynamic-schema/dynamic-schema.service";
+import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 import {
   AttributeType,
   CompilationState,
@@ -61,6 +62,7 @@ export const WORKFLOW_COMPILATION_DEBOUNCE_TIME_MS = 500;
  * Specifically for schema autocomplete, by contract, property name `attribute` and `attributes` indicate the field is a column of the operator's input,
  *  and schema propagation can provide autocomplete for the column names.
  */
+@UntilDestroy()
 @Injectable({
   providedIn: "root",
 })
@@ -95,12 +97,19 @@ export class WorkflowCompilingService {
       .pipe(debounceTime(WORKFLOW_COMPILATION_DEBOUNCE_TIME_MS))
       .pipe(
         mergeMap(() => {
-          const logicalPlan = ExecuteWorkflowService.getLogicalPlanRequest(
-            this.validationWorkflowService.getValidTexeraGraph(),
-            undefined
-          );
-          return this.compile(logicalPlan);
-        })
+          // Plan the live graph, then keep its valid operators and the links between them. Planning a filtered
+          // copy of the graph instead builds a new WorkflowGraph per compile, and its SharedModel opens a
+          // y-websocket connection that nothing ever closes.
+          const logicalPlan = ExecuteWorkflowService.getLogicalPlanRequest(this.workflowActionService.getTexeraGraph());
+          const validOperatorIDs = this.validationWorkflowService.getValidOperatorIDs();
+          return this.compile({
+            operators: logicalPlan.operators.filter(operator => validOperatorIDs.has(operator.operatorID)),
+            links: logicalPlan.links.filter(
+              link => validOperatorIDs.has(link.fromOpId) && validOperatorIDs.has(link.toOpId)
+            ),
+          });
+        }),
+        untilDestroyed(this)
       )
       .subscribe(response => {
         if (response.physicalPlan) {
@@ -299,7 +308,7 @@ export class WorkflowCompilingService {
    * that users can easily set the properties of the next operator. For eg: If there are two operators Source:Scan and KeywordSearch and
    * a link is created between them, the attributed of the table selected in Source can be propagated to the KeywordSearch operator.
    */
-  private compile(logicalPlan: LogicalPlan): Observable<WorkflowCompilationResponse> {
+  private compile(logicalPlan: Pick<LogicalPlan, "operators" | "links">): Observable<WorkflowCompilationResponse> {
     // create a Logical Plan based on the workflow graph
     // remove unnecessary information for schema propagation.
     const body = {

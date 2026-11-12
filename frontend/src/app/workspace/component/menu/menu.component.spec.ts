@@ -752,7 +752,7 @@ describe("MenuComponent", () => {
       const convert = vi
         .spyOn(component["workflowToPythonService"], "convertToPython")
         .mockReturnValue(of({ type: "success", pythonCode: "print(1)" } as any));
-      const validSubgraph = vi.spyOn(validationWorkflowService, "getValidTexeraGraph");
+      const validSubgraph = vi.spyOn(validationWorkflowService, "getValidOperatorIDs");
       workflowActionService.addOperator(mockScanPredicate, mockPoint);
       validationStream$.next({ errors: {}, workflowEmpty: false });
 
