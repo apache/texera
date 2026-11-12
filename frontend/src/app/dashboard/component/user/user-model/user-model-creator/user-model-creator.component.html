@@ -17,54 +17,14 @@
   ~ under the License.
 -->
 
-<div>
-  <nz-spin
-    [nzSpinning]="isCreating"
-    nzSize="large"
-    nzTip="Creating...">
-    <div
-      class="texera-user-model-creator-form"
-      [ngClass]="{'disabled-backdrop': isCreating}">
-      <formly-form
-        [form]="form"
-        [fields]="fields"
-        [model]="formModel"></formly-form>
-      <div class="model-toggles">
-        <div class="toggle-item">
-          <label>Visibility:</label>
-          <nz-switch
-            [ngModel]="isModelPublic"
-            (ngModelChange)="onPublicStatusChange($event)"
-            nzCheckedChildren="public"
-            nzUnCheckedChildren="private"></nz-switch>
-        </div>
-        <div class="toggle-item">
-          <label>Downloadable:</label>
-          <nz-switch
-            [ngModel]="isModelDownloadable"
-            (ngModelChange)="onDownloadableStatusChange($event)"
-            nzCheckedChildren="enabled"
-            nzUnCheckedChildren="disabled"></nz-switch>
-        </div>
-      </div>
-    </div>
-
-    <button
-      nz-button
-      nzType="primary"
-      (click)="onClickCreate()"
-      [disabled]="isCreating"
-      class="create-btn">
-      Create
-    </button>
-
-    <button
-      nz-button
-      nzType="default"
-      (click)="onClickCancel()"
-      class="cancel-btn"
-      [disabled]="isCreating">
-      Cancel
-    </button>
-  </nz-spin>
-</div>
+<texera-resource-creator-form
+  [form]="form"
+  [fields]="fields"
+  [model]="formModel"
+  [isCreating]="isCreating"
+  [isPublic]="isModelPublic"
+  [isDownloadable]="isModelDownloadable"
+  (isPublicChange)="onPublicStatusChange($event)"
+  (isDownloadableChange)="onDownloadableStatusChange($event)"
+  (createClick)="onClickCreate()"
+  (cancelClick)="onClickCancel()"></texera-resource-creator-form>

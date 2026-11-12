@@ -252,6 +252,18 @@ class EndChannelHandlerSpec extends AnyFlatSpec {
     assert(executor.finishOutputPorts.toList == List(currentPortId.id))
   }
 
+  it should "give the operator the finished port's declared schema before it finishes the port" in {
+    // A HashJoin probe worker that received no build rows names its unmatched right rows from
+    // this, so it has to be in place when the operator is asked to finish, not after.
+    val executor = new RecordingExecutor()
+    val fixture = new Fixture(executor, otherInputPortCompleted = false)
+
+    fixture.endChannel()
+
+    assert(executor.schemasAtFinish.toList == List(Map(currentPortId.id -> schema)))
+    assert(!executor.inputSchemas.contains(otherPortId.id))
+  }
+
   it should "emit the boundary state the operator produced on finish, with no loop envelope" in {
     val state = State(Map("boundary" -> "end"))
     val fixture = new Fixture(new RecordingExecutor(onFinishState = _ => Some(state)))
@@ -498,8 +510,12 @@ object EndChannelHandlerSpec {
     /** Ports handed to `onFinish`, i.e. what `onFinishMultiPort` forwarded. */
     val finishOutputPorts: ArrayBuffer[Int] = ArrayBuffer()
 
+    /** `inputSchemas` as the first finish callback saw it. */
+    val schemasAtFinish: ArrayBuffer[Map[Int, Schema]] = ArrayBuffer()
+
     override def produceStateOnFinish(port: Int): Option[State] = {
       statePorts += port
+      schemasAtFinish += inputSchemas.toMap
       onFinishState(port)
     }
 

@@ -19,6 +19,8 @@
 
 /* Colours are Texera's own: ng-zorro blue and the #d9d9d9 / #f0f0f0 neutrals. */
 $blue: #1890ff;
+/* The blue a small icon is drawn in: #1890ff on the chip's tinted ground is 2.9:1, under 3:1. */
+$blue-dark: #096dd9;
 $text: rgba(0, 0, 0, 0.85);
 $text-2: rgba(0, 0, 0, 0.45);
 $divider: #f0f0f0;
@@ -689,6 +691,18 @@ $shell: #fafafa;
     cursor: default !important;
   }
 
+  /* Read-only, the editor is inert, and an inert subtree is left out of hit-testing: a wheel over
+     it reaches this panel, never the editor's own scroller (#content), which could then not be
+     scrolled at all -- a long step was cut off at the panel's bottom. Keyed on the attribute that
+     is the cause: while the editor is inert it grows to its content and this panel, which the
+     wheel does reach (and the keyboard, through the tab stop the panel carries for exactly this),
+     is the scroller. Live, the editor keeps its own scroller, as on the operator canvas. The
+     !important has to beat the base rule's own !important above; #content needs nothing, its
+     height: 100% follows an auto-height parent. */
+  ::ng-deep texera-property-editor[inert] #right-container {
+    height: auto !important;
+  }
+
   ::ng-deep nz-resize-handles,
   ::ng-deep .nz-resizable-handle {
     display: none !important;
@@ -697,8 +711,13 @@ $shell: #fafafa;
 
 /* ---------- results ---------- */
 
+/* A column, so a card can be put first with `order` instead of being moved in the list the template
+   repeats: moving it moves its DOM, and a chart's srcdoc iframe reloads when it is moved, losing the
+   zoom and legend the reader had set (see resultOrder). */
 .results {
   margin-top: 28px;
+  display: flex;
+  flex-direction: column;
 }
 
 /* Quiet on purpose: it marks where the answer will land, and should not compete with the inputs
@@ -710,9 +729,18 @@ $shell: #fafafa;
   font-size: 13.5px;
 }
 
+/* The ring the editor draws round a selected step (workflow-editor's highlightOptions stroke),
+   reused on the lead result card and on that step's pill so the three read as one thing. */
+$lead-ring: #4a95ff;
+
 .result {
   margin-bottom: 14px;
   overflow: hidden;
+
+  &.lead-result {
+    outline: 2px solid $lead-ring;
+    outline-offset: 2px;
+  }
 
   .result-head {
     display: flex;
@@ -1056,7 +1084,7 @@ $shell: #fafafa;
 }
 
 .respick {
-  margin-top: 26px;
+  margin-top: 14px;
   padding: 15px 18px;
 
   h3 {
@@ -1077,30 +1105,90 @@ $shell: #fafafa;
     gap: 8px;
   }
 
+  /* One result, two things to do with it: the name reaches it, the eye decides whether it shows.
+     Two buttons rather than one with a mode, so a click always means the same thing (#9033). They
+     share a border so the pair still reads as one chip. */
   .pill {
-    padding: 5px 12px;
+    display: inline-flex;
+    align-items: stretch;
     border-radius: 15px;
     font-size: 13px;
     border: 1px solid $border;
     background: #fff;
     color: $text-2;
-    cursor: pointer;
+    overflow: hidden;
 
-    &:hover {
+    button {
+      appearance: none;
+      border: 0;
+      background: none;
+      color: inherit;
+      font: inherit;
+      cursor: pointer;
+
+      &:focus-visible {
+        outline: 2px solid $blue;
+        outline-offset: -2px;
+      }
+    }
+
+    .pill-name {
+      padding: 5px 11px;
+
+      &:hover:not([aria-disabled="true"]) {
+        color: $blue;
+      }
+
+      /* Hidden: there is no card to bring to the top, so the name neither reacts nor invites. */
+      &[aria-disabled="true"] {
+        cursor: default;
+        opacity: 0.55;
+      }
+    }
+
+    /* Its own segment, with a rule between: a target to aim at rather than an icon tucked into the
+       corner of the name's button. */
+    /* The only control that brings a hidden result back, so it is drawn to be found: a dimmed icon
+       measured 2.06:1 against the card, under the 3:1 a control's shape needs. Ink rather than
+       opacity, and the darker blue below, put both states past it (5.7:1 and 4.5:1). */
+    .pill-eye {
+      padding: 5px 10px;
+      font-size: 13px;
+      border-left: 1px solid $border;
+      color: rgba(0, 0, 0, 0.6);
+
+      &:hover {
+        color: $blue-dark;
+        background: rgba(24, 144, 255, 0.08);
+      }
+    }
+
+    /* Only a chip with something to press lights up as a whole; a hidden one answers at its eye,
+       which has a hover of its own. */
+    &.on:hover {
       border-color: $blue;
-      color: $blue;
     }
 
-    &:focus-visible {
-      outline: 2px solid $blue;
-      outline-offset: 2px;
-    }
-
+    /* Shown: the result has a card after a run. Hidden, the name stays -- it is how the result is
+       brought back -- but the chip reads as off. */
     &.on {
       background: rgba(24, 144, 255, 0.1);
       border-color: $blue;
       color: $blue;
-      font-weight: 500;
+
+      .pill-name {
+        font-weight: 500;
+      }
+
+      .pill-eye {
+        border-left-color: rgba(24, 144, 255, 0.35);
+        color: $blue-dark;
+      }
+    }
+
+    &.lead-result {
+      outline: 2px solid $lead-ring;
+      outline-offset: 2px;
     }
   }
 }

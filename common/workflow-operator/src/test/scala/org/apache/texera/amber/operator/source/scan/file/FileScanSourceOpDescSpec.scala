@@ -21,7 +21,6 @@ package org.apache.texera.amber.operator.source.scan.file
 
 import com.fasterxml.jackson.databind.node.ObjectNode
 import org.apache.texera.amber.core.executor.OpExecWithClassName
-import org.apache.texera.amber.core.storage.FileResolver
 import org.apache.texera.amber.core.tuple.{AttributeType, Schema, SchemaEnforceable, Tuple}
 import org.apache.texera.amber.core.virtualidentity.{ExecutionIdentity, WorkflowIdentity}
 import org.apache.texera.amber.operator.TestOperators
@@ -39,7 +38,9 @@ class FileScanSourceOpDescSpec extends AnyFlatSpec with BeforeAndAfter {
 
   before {
     fileScanSourceOpDesc = new FileScanSourceOpDesc()
-    fileScanSourceOpDesc.setResolvedFileName(FileResolver.resolve(TestOperators.TestTextFilePath))
+    fileScanSourceOpDesc.setResolvedFileName(
+      TestOperators.localFileUri(TestOperators.TestTextFilePath)
+    )
     fileScanSourceOpDesc.encoding = FileDecodingMethod.UTF_8
   }
 
@@ -120,7 +121,7 @@ class FileScanSourceOpDescSpec extends AnyFlatSpec with BeforeAndAfter {
 
   it should "read first 5 lines of the input text file with CRLF separators into corresponding output tuples" in {
     fileScanSourceOpDesc.setResolvedFileName(
-      FileResolver.resolve(TestOperators.TestCRLFTextFilePath)
+      TestOperators.localFileUri(TestOperators.TestCRLFTextFilePath)
     )
     fileScanSourceOpDesc.attributeType = FileAttributeType.STRING
     fileScanSourceOpDesc.fileScanLimit = Option(5)
@@ -165,7 +166,7 @@ class FileScanSourceOpDescSpec extends AnyFlatSpec with BeforeAndAfter {
 
   it should "read first 5 lines of the input text into corresponding output INTEGER tuples" in {
     fileScanSourceOpDesc.setResolvedFileName(
-      FileResolver.resolve(TestOperators.TestNumbersFilePath)
+      TestOperators.localFileUri(TestOperators.TestNumbersFilePath)
     )
     fileScanSourceOpDesc.attributeType = FileAttributeType.INTEGER
     fileScanSourceOpDesc.fileScanLimit = Option(5)
@@ -233,7 +234,7 @@ class FileScanSourceOpDescSpec extends AnyFlatSpec with BeforeAndAfter {
     try {
       Files.write(utf16File, "line1\nline2\nline3".getBytes(StandardCharsets.UTF_16))
 
-      fileScanSourceOpDesc.setResolvedFileName(FileResolver.resolve(utf16File.toString))
+      fileScanSourceOpDesc.setResolvedFileName(TestOperators.localFileUri(utf16File.toString))
       fileScanSourceOpDesc.encoding = FileDecodingMethod.UTF_16
       fileScanSourceOpDesc.attributeType = FileAttributeType.STRING
 
@@ -357,7 +358,7 @@ class FileScanSourceOpDescSpec extends AnyFlatSpec with BeforeAndAfter {
       (""""operatorType":"FileScan"""" +: fields).mkString("{", ",", "}"),
       classOf[FileScanSourceOpDesc]
     )
-    desc.setResolvedFileName(FileResolver.resolve(file.toString))
+    desc.setResolvedFileName(TestOperators.localFileUri(file.toString))
     desc
   }
 }

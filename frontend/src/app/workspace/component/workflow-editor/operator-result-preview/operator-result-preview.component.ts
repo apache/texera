@@ -17,8 +17,19 @@
  * under the License.
  */
 
-import { ChangeDetectorRef, Component, Input, OnChanges, OnInit, SimpleChanges } from "@angular/core";
+import {
+  ChangeDetectorRef,
+  Component,
+  EventEmitter,
+  Input,
+  OnChanges,
+  OnInit,
+  Output,
+  SimpleChanges,
+} from "@angular/core";
 import { NgFor, NgIf } from "@angular/common";
+import { NzButtonComponent } from "ng-zorro-antd/button";
+import { NzIconDirective } from "ng-zorro-antd/icon";
 import { Subscription } from "rxjs";
 import { filter } from "rxjs/operators";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
@@ -62,10 +73,13 @@ export interface OperatorResultPreview {
   selector: "texera-operator-result-preview",
   templateUrl: "./operator-result-preview.component.html",
   styleUrls: ["./operator-result-preview.component.scss"],
-  imports: [NgIf, NgFor],
+  imports: [NgIf, NgFor, NzButtonComponent, NzIconDirective],
 })
 export class OperatorResultPreviewComponent implements OnInit, OnChanges {
   @Input() operatorId = "";
+  // whether the card offers to pin the result next to the operator
+  @Input() pinnable = false;
+  @Output() pin = new EventEmitter<void>();
 
   // The first rows of a table result, one string per shown column; undefined while they load.
   rows: readonly (readonly string[])[] | undefined = undefined;

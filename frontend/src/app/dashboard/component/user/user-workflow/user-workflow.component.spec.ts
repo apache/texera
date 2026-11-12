@@ -74,8 +74,12 @@ import { NotebookMigrationService } from "../../../../workspace/service/notebook
 import {
   LlmRequestTimeoutError,
   LlmResponseTruncatedError,
+  MigrationLanguage,
 } from "../../../../workspace/service/notebook-migration/migration-llm";
-import { NotebookImportModalComponent } from "../../../../workspace/component/notebook-import-modal/notebook-import-modal.component";
+import {
+  NotebookImportModalComponent,
+  NotebookImportModalData,
+} from "../../../../workspace/component/notebook-import-modal/notebook-import-modal.component";
 import { NzUploadFile } from "ng-zorro-antd/upload";
 import type { Mocked } from "vitest";
 describe("SavedWorkflowSectionComponent", () => {
@@ -322,16 +326,17 @@ describe("SavedWorkflowSectionComponent", () => {
 
     // Opens the modal and returns the requestImport callback the component handed to it; calling
     // it runs the full generation (true => generation succeeded and navigated, false => stay open).
-    function getRequestImport(): (selection: NzUploadFile | NzUploadFile[], model: string) => Promise<boolean> {
+    function getRequestImport(): (
+      selection: NzUploadFile | NzUploadFile[],
+      model: string,
+      language?: MigrationLanguage
+    ) => Promise<boolean> {
       const modalService = TestBed.inject(NzModalService);
       const createSpy = vi.spyOn(modalService, "create").mockReturnValue({} as unknown as NzModalRef);
       component.openAiGenerateModal();
       const config = createSpy.mock.calls[0][0] as ModalOptions;
-      return (
-        config.nzData as {
-          requestImport: (selection: NzUploadFile | NzUploadFile[], model: string) => Promise<boolean>;
-        }
-      ).requestImport;
+      const requestImport = (config.nzData as NotebookImportModalData).requestImport;
+      return (selection, model, language = "python") => requestImport(selection, model, language);
     }
 
     // Wires the NotebookMigrationService + persistence mocks for a successful generation.
@@ -417,6 +422,69 @@ describe("SavedWorkflowSectionComponent", () => {
       expect(errorSpy).toHaveBeenCalledWith("Please upload a Jupyter Notebook (.ipynb) or a Python (.py) file.");
       expect(notebookSpy).not.toHaveBeenCalled();
       expect(scriptSpy).not.toHaveBeenCalled();
+    });
+
+    describe("R notebook input", () => {
+      const rNotebook = { cells: [], metadata: { kernelspec: { language: "R" } } };
+
+      function mockRGenerationSuccess(notebook: unknown = rNotebook) {
+        const { storeSpy } = mockGenerationSuccess(7);
+        const migration = TestBed.inject(NotebookMigrationService);
+        vi.mocked(migration.parseAndTagNotebook).mockResolvedValue(notebook as any);
+        vi.spyOn(TestBed.inject(Router), "navigate").mockResolvedValue(true);
+        return { migration, storeSpy };
+      }
+
+      it("converts a Python notebook as Python by default", async () => {
+        const { migration } = mockRGenerationSuccess({ cells: [] });
+
+        await getRequestImport()(ipynbFile, "gpt-4");
+
+        expect(migration.sendToAIGenerateWorkflow).toHaveBeenCalledWith({ cells: [] }, "gpt-4", "python");
+      });
+
+      it("converts an R notebook as R", async () => {
+        const { migration } = mockRGenerationSuccess();
+
+        const proceed = await getRequestImport()(ipynbFile, "gpt-4", "r");
+
+        expect(migration.sendToAIGenerateWorkflow).toHaveBeenCalledWith(rNotebook, "gpt-4", "r");
+        expect(proceed).toBe(true);
+      });
+
+      it("converts a notebook with no kernelspec as R", async () => {
+        const { migration } = mockRGenerationSuccess({ cells: [] });
+
+        await getRequestImport()(ipynbFile, "gpt-4", "r");
+
+        expect(migration.sendToAIGenerateWorkflow).toHaveBeenCalledWith({ cells: [] }, "gpt-4", "r");
+      });
+
+      it("rejects a notebook whose kernel is not R", async () => {
+        const { migration } = mockRGenerationSuccess({ cells: [], metadata: { kernelspec: { language: "python" } } });
+        const errorSpy = vi.spyOn(TestBed.inject(NotificationService), "error").mockImplementation(() => {});
+
+        const proceed = await getRequestImport()(ipynbFile, "gpt-4", "r");
+
+        expect(proceed).toBe(false);
+        expect(errorSpy).toHaveBeenCalledWith(
+          "This notebook uses a python kernel, not R. Switch the notebook type to Python Notebook."
+        );
+        expect(migration.sendToAIGenerateWorkflow).not.toHaveBeenCalled();
+      });
+
+      it("rejects anything but a notebook for R", async () => {
+        const { migration } = mockRGenerationSuccess();
+        const scriptSpy = vi.spyOn(migration, "parseScriptFile");
+        const errorSpy = vi.spyOn(TestBed.inject(NotificationService), "error").mockImplementation(() => {});
+
+        const proceed = await getRequestImport()({ name: "analysis.R" } as NzUploadFile, "gpt-4", "r");
+
+        expect(proceed).toBe(false);
+        expect(errorSpy).toHaveBeenCalledWith("Please upload an R Jupyter Notebook (.ipynb).");
+        expect(migration.parseAndTagNotebook).not.toHaveBeenCalled();
+        expect(scriptSpy).not.toHaveBeenCalled();
+      });
     });
 
     // A .py takes the other branch: read as text, converted by the script method, and the

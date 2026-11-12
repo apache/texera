@@ -40,7 +40,7 @@ import { NoopAnimationsModule } from "@angular/platform-browser/animations";
 import { NzPopoverDirective } from "ng-zorro-antd/popover";
 import type { MockInstance } from "vitest";
 
-function makeEntry(overrides: Partial<WorkflowExecutionsEntry> = {}): WorkflowExecutionsEntry {
+function makeEntry(overrides: Partial<WorkflowExecutionsEntry>): WorkflowExecutionsEntry {
   return {
     eId: 1,
     vId: 1,

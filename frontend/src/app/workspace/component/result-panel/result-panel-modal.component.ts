@@ -25,6 +25,7 @@ import { NzIconModule } from "ng-zorro-antd/icon";
 import { HttpClient } from "@angular/common/http";
 import { WorkflowResultService } from "../../service/workflow-result/workflow-result.service";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
+import { Subject, takeUntil } from "rxjs";
 import { PanelResizeService } from "../../service/workflow-result/panel-resize/panel-resize.service";
 import { NotificationService } from "../../../common/service/notification/notification.service";
 import { isAudioUrl, isVideoUrl, isImageUrl } from "src/app/common/util/media-type.util";
@@ -54,6 +55,12 @@ export class RowModalComponent implements OnChanges, OnDestroy {
   rowEntries: { key: string; value: string; mediaSrc: string; isVideo: boolean; isImage: boolean; isAudio: boolean }[] =
     [];
   private readonly allocatedBlobUrls: string[] = [];
+  // The modal is reused as the user pages through rows (the footer's < and >
+  // buttons mutate rowIndex and call ngOnChanges), so work started for one row
+  // has to be torn down when the next one is requested. untilDestroyed only
+  // fires when the modal closes, which is too late: stale responses would
+  // overwrite the current row and every row's blobs would be held until then.
+  private readonly rowChange = new Subject<void>();
   // Index of current displayed row in currentResult
   private readonly modalData: {
     operatorId: string;
@@ -78,7 +85,9 @@ export class RowModalComponent implements OnChanges, OnDestroy {
       this.currentDisplayRowData = this.modalData.rowData;
       this.rowEntries = this.buildRowEntries(this.currentDisplayRowData);
     }
-    this.ngOnChanges();
+    // Load, not ngOnChanges: there is no previous row yet, and releasing here would
+    // cancel the media requests the preloaded entries above just started.
+    this.loadRow();
   }
 
   get prettyRowJson(): string {
@@ -93,10 +102,16 @@ export class RowModalComponent implements OnChanges, OnDestroy {
   }
 
   ngOnChanges(): void {
+    this.releaseRow();
+    this.loadRow();
+  }
+
+  /** Fetches the current row; a later row change cancels it. */
+  private loadRow(): void {
     this.workflowResultService
       .getPortPaginatedResultService(this.operatorId, this.portIndex)
       ?.selectTuple(this.rowIndex, this.resizeService.pageSize)
-      .pipe(untilDestroyed(this))
+      .pipe(takeUntil(this.rowChange), untilDestroyed(this))
       .subscribe(res => {
         if (res?.tuple) {
           this.currentDisplayRowData = res.tuple;
@@ -110,9 +125,17 @@ export class RowModalComponent implements OnChanges, OnDestroy {
   }
 
   ngOnDestroy(): void {
+    this.releaseRow();
+    this.rowChange.complete();
+  }
+
+  /** Cancels the current row's in-flight work and frees the blobs it allocated. */
+  private releaseRow(): void {
+    this.rowChange.next();
     for (const url of this.allocatedBlobUrls) {
       URL.revokeObjectURL(url);
     }
+    this.allocatedBlobUrls.length = 0;
   }
 
   private fetchBlobSrc(
@@ -122,7 +145,7 @@ export class RowModalComponent implements OnChanges, OnDestroy {
     const proxyUrl = `${AppSettings.getApiEndpoint()}/huggingface/media-proxy?url=${encodeURIComponent(remoteUrl)}`;
     this.http
       .get(proxyUrl, { responseType: "blob" })
-      .pipe(untilDestroyed(this))
+      .pipe(takeUntil(this.rowChange), untilDestroyed(this))
       .subscribe({
         next: blob => {
           const blobUrl = URL.createObjectURL(blob);

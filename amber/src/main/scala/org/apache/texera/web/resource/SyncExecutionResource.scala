@@ -37,7 +37,7 @@ import org.apache.texera.amber.core.virtualidentity.{
   OperatorIdentity,
   WorkflowIdentity
 }
-import org.apache.texera.amber.core.workflow.{PortIdentity, WorkflowContext, WorkflowSettings}
+import org.apache.texera.amber.core.workflow.{PortIdentity, WorkflowSettings}
 import org.apache.texera.amber.engine.architecture.rpc.controlcommands.{
   ConsoleMessage,
   ConsoleMessageType
@@ -56,7 +56,6 @@ import org.apache.texera.dao.jooq.generated.Tables.OPERATOR_EXECUTIONS
 import org.apache.texera.common.compiler.model.LogicalPlanPojo
 import org.apache.texera.web.model.websocket.request.WorkflowExecuteRequest
 import org.apache.texera.common.compiler.model.LogicalLink
-import org.apache.texera.common.compiler.{CompilationErrorHandling, WorkflowCompiler}
 import org.apache.texera.web.service.WorkflowService
 import org.apache.texera.web.storage.ExecutionStateStore.updateWorkflowState
 
@@ -271,7 +270,7 @@ class SyncExecutionResource extends LazyLogging {
               .timeout(timeoutSeconds.toLong, TimeUnit.SECONDS)
               .blockingGet()
           } catch {
-            case _: java.util.concurrent.TimeoutException =>
+            case e: Exception if isCausedByTimeout(e) =>
               killExecution(executionService)
               return SyncExecutionResult(
                 success = false,
@@ -847,6 +846,21 @@ class SyncExecutionResource extends LazyLogging {
     }
   }
 
+  private def isCausedByTimeout(error: Throwable): Boolean = {
+    val visited = new java.util.IdentityHashMap[Throwable, java.lang.Boolean]()
+
+    @scala.annotation.tailrec
+    def loop(current: Throwable): Boolean =
+      current match {
+        case null                                                                => false
+        case _: java.util.concurrent.TimeoutException                            => true
+        case throwable if visited.put(throwable, java.lang.Boolean.TRUE) != null => false
+        case throwable                                                           => loop(throwable.getCause)
+      }
+
+    loop(error)
+  }
+
   private def hasConsoleError(consoleState: ExecutionConsoleStore): Boolean = {
     consoleState.operatorConsole.values.exists { opConsole =>
       opConsole.consoleMessages.exists(_.msgType == ConsoleMessageType.ERROR)
@@ -914,28 +928,6 @@ class SyncExecutionResource extends LazyLogging {
       opsToViewResult = targetOperatorIds.filter(id => visited.contains(id)),
       opsToReuseResult = logicalPlan.opsToReuseResult.filter(id => visited.contains(id))
     )
-  }
-
-  // Returns operator-id -> error message; empty map means compilation succeeded.
-  private def validateWorkflow(
-      workflowId: Long,
-      logicalPlan: LogicalPlanPojo
-  ): Map[String, String] = {
-    try {
-      val tempContext = new WorkflowContext(WorkflowIdentity(workflowId))
-      val compiler = new WorkflowCompiler(tempContext)
-      compiler.compile(logicalPlan, CompilationErrorHandling.Strict)
-      Map.empty
-    } catch {
-      case e: Exception =>
-        val errorMsg = Option(e.getMessage).getOrElse("Compilation failed")
-        val operatorIdPattern = """operator[- ]?(\S+)""".r
-        val operatorId = operatorIdPattern
-          .findFirstMatchIn(errorMsg.toLowerCase)
-          .map(_.group(1))
-          .getOrElse("workflow")
-        Map(operatorId -> errorMsg)
-    }
   }
 
   @GET

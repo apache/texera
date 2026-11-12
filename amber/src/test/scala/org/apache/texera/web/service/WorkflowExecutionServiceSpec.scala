@@ -249,6 +249,7 @@ class WorkflowExecutionServiceSpec
       request,
       store,
       errorHandler,
+      Integer.valueOf(1), // uid; these tests never resolve a file
       None,
       new URI("vfs:///test")
     )
