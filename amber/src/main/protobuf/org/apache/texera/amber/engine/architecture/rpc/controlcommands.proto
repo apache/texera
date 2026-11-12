@@ -262,13 +262,14 @@ message InitializeExecutorRequest {
   // (minted at schedule time); a Loop End worker selects the entry by the
   // loop_start_id carried on the consumed StateFrame and derives two URIs
   // from the base:
-  //   - state URI (VFSURIFactory.state_uri): the loop-back write address for
-  //     the next-iteration state;
+  //   - loop-specific checkpoint URI: the next iteration's local variables;
   //   - result URI (VFSURIFactory.result_uri): the loop's input table, read
   //     at consume time so the table never rides inside the State content
   //     through the loop body.
   // Empty for plans without loops.
   map<string, string> loopStartPortUris = 4;
+  // True for the matching Loop Start and End on the iteration following their jump.
+  bool isLoopContinuation = 5;
 }
 
 message UpdateExecutorRequest {

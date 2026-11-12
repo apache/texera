@@ -16,6 +16,7 @@
 # under the License.
 
 from enum import Enum
+from hashlib import sha256
 from typing import NamedTuple, Optional
 import re
 from urllib.parse import urlparse
@@ -163,6 +164,14 @@ class VFSURIFactory:
     def result_uri(base_uri: str) -> str:
         """The result-resource URI under a port base URI."""
         return f"{base_uri}/{VFSResourceType.RESULT.value}"
+
+    @staticmethod
+    def loop_checkpoint_uri(base_uri: str, start_id: str) -> str:
+        # Preserve execution and warehouse scope. Iceberg flattens the path
+        # into one table name, so bound the part derived from the operator ID.
+        execution_uri = base_uri.rsplit("/globalportid/", 1)[0]
+        key = sha256(base_uri.encode() + b"\0" + start_id.encode()).hexdigest()
+        return VFSURIFactory.state_uri(f"{execution_uri}/loop-checkpoint/{key}")
 
     @staticmethod
     def state_uri(base_uri: str) -> str:

@@ -497,7 +497,8 @@ class DataProcessorSpec extends AnyFlatSpec with MockFactory with Matchers with 
           totalWorkerCount = 1,
           opExecInitInfo = OpExecWithClassName(classOf[LoopLimitExec].getName, descString),
           isSource = false,
-          loopStartPortUris = Map.empty
+          loopStartPortUris = Map.empty,
+          isLoopContinuation = false
         ),
         AsyncRPCContext(COORDINATOR, testWorkerId),
         0

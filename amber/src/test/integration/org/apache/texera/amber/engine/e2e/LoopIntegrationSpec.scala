@@ -413,6 +413,27 @@ class LoopIntegrationSpec
     )
   }
 
+  it should "bind an enclosing variable on every inner iteration" in {
+    val src = textInput("1\n2")
+    val outerStart = loopStart("k = 1", "table")
+    val innerStart = loopStart("j = 1", "table")
+    val filter = filterEquals("line", "$k")
+    val innerEnd = loopEnd("j += 1", "j <= 2")
+    val outerEnd = loopEnd("k += 1", "k <= 2")
+    val operators = List(src, outerStart, innerStart, filter, innerEnd, outerEnd)
+    val links = operators.zip(operators.tail).map { case (from, to) => link(from, to) }
+    val rows = runWorkflowAndReadResults(
+      system,
+      buildWorkflow(operators, links, materializedContext()),
+      List(innerEnd.operatorIdentifier, outerEnd.operatorIdentifier),
+      _.get().map(_.getField[String]("line")).toList,
+      Duration.fromSeconds(90)
+    )
+
+    assert(rows(outerEnd.operatorIdentifier) == List("1", "1", "2", "2"))
+    assert(rows(innerEnd.operatorIdentifier) == List("2", "2"))
+  }
+
   it should "bind the inner loop's variable where it shadows the outer loop's of the same name" in {
     // TextInput("0","1") -> OuterStart(i = 0 / table) -> InnerStart(i = 0 / table.iloc[i])
     //   -> Filter(line = $i) -> InnerEnd -> OuterEnd.

@@ -24,7 +24,7 @@ import com.twitter.util.{Future, JavaTimer, Promise, Return, Throw, Timer}
 import org.apache.texera.amber.core.WorkflowRuntimeException
 import org.apache.texera.amber.core.state.State
 import org.apache.texera.amber.core.storage.{DocumentFactory, RepositoryMountManager, VFSURIFactory}
-import org.apache.texera.amber.core.virtualidentity.ActorVirtualIdentity
+import org.apache.texera.amber.core.virtualidentity.{ActorVirtualIdentity, OperatorIdentity}
 import org.apache.texera.amber.core.workflow.{GlobalPortIdentity, PhysicalLink, PhysicalOp}
 import org.apache.texera.amber.engine.architecture.common.{
   PekkoActorRefMappingService,
@@ -119,7 +119,8 @@ class RegionExecutionManager(
     // InitializeExecutorRequest. See WorkflowExecutionManager.loopStartPortUris.
     loopStartPortUris: Map[String, String] = Map.empty,
     // Mounts the repositories a region's operators name; a parameter so a test can observe it.
-    ensureMounted: Set[String] => Unit = RepositoryMountManager.ensureAllMounted
+    ensureMounted: Set[String] => Unit = RepositoryMountManager.ensureAllMounted,
+    resumingBoundaries: Set[OperatorIdentity] = Set.empty
 ) extends AmberLogging {
 
   initRegionExecution()
@@ -489,7 +490,8 @@ class RegionExecutionManager(
                     workerConfigs.length,
                     opExecInitInfo,
                     physicalOp.isSourceOperator,
-                    loopStartPortUris
+                    loopStartPortUris,
+                    isLoopContinuation = resumingBoundaries.contains(physicalOp.id.logicalOpId)
                   ),
                   asyncRPCClient.mkContext(workerId)
                 )

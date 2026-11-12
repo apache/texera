@@ -38,8 +38,8 @@ class LoopStartOpDesc extends LoopOpDesc {
   override protected def operatorDescription: String =
     "Begin a loop that iterates over rows of the input table; pairs with Loop End."
 
-  // The jump/write-back target of the loop's back-edge: the scheduler resolves
-  // this operator's input-port state URI and ships it to workers at setup.
+  // Jump target. The scheduler ships the input port's base URI to workers
+  // so they can locate the loop input and its separate checkpoint.
   override protected def isLoopStart: Boolean = true
 
   // The scheduler resolves this loop's bookkeeping URIs from this port's
