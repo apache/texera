@@ -37,6 +37,7 @@ import { UI_PARAMETER_TYPES } from "../../service/code-editor/ui-udf-parameter";
 import type { AttributeType } from "../../types/workflow-compiling.interface";
 import { fieldOperatorID, renderedInFormView, renderedReadOnly } from "../../util/custom-formly-type";
 import { subFieldLabel, subFieldsInView } from "../../../common/formly/sub-field-view";
+import { EditableLabelWrapperComponent } from "../../../common/formly/editable-label-wrapper/editable-label-wrapper.component";
 
 /**
  * A column of the table. `path` is the column's sub-field path in the row, which is also the path
@@ -177,6 +178,67 @@ export class UiUdfParametersComponent extends FieldArrayType<FormlyFieldConfig> 
     // column's "editable" below must not undo it.
     const locked = field.props?.disabled === true;
     field.fieldGroup?.forEach((rowField, index) => this.configureRowFields(rowField, rows[index]?.inputType, locked));
+    this.hostColumnLabels(field);
+  }
+
+  /**
+   * While authoring on the Form View, a column's name box and eye live in this table's header, not
+   * in its cells. The form's label wrapper decorates every row's sub-fields (the first row with the
+   * controls, later rows with a static name); drawn in the cells, under a header that already shows
+   * the name, that was the same name three times over. So whenever the header hosts a column's
+   * controls (columnControls), every cell of that column tells its wrapper the label is drawn here.
+   */
+  private hostColumnLabels(field: FormlyFieldConfig): void {
+    for (const column of this.fieldColumns) {
+      if (!this.firstRowControls(field, column)) continue;
+      field.fieldGroup?.forEach(rowField => {
+        const cell = this.getColumnField(rowField, column);
+        if (!cell) return;
+        cell.props = {
+          ...cell.props,
+          [EditableLabelWrapperComponent.LABEL_HOSTED_PROP]: true,
+          // The control's accessible name falls back to this; the heading sighted readers see is the
+          // column's own label, so the two say the same thing ("Type", not "Attribute Type").
+          schemaLabel: column.label,
+        };
+      });
+    }
+  }
+
+  /**
+   * The props the header's controls for a column are bound to: the first row's sub-field, the row
+   * the form gave the controls to -- only on the Form View, and only while it did (`authoring`), so
+   * the panel's header and a reader's stay plain text.
+   */
+  columnControls(column: UiUdfParameterColumn): FormlyFieldConfig["props"] | undefined {
+    return this.firstRowControls(this.field ?? {}, column);
+  }
+
+  private firstRowControls(
+    field: FormlyFieldConfig,
+    column: UiUdfParameterColumn
+  ): FormlyFieldConfig["props"] | undefined {
+    const first = field.fieldGroup?.[0];
+    if (!first || !renderedInFormView(field)) return undefined;
+    const props = this.getColumnField(first, column)?.props;
+    return props?.["authoring"] === true ? props : undefined;
+  }
+
+  /** The header's name box: the wrapper's own write-through, on the first row's props. */
+  renameColumn(column: UiUdfParameterColumn, event: Event): void {
+    const props = this.columnControls(column);
+    if (props) EditableLabelWrapperComponent.rename(props, (event.target as HTMLInputElement).value);
+  }
+
+  /** The header's eye: the wrapper's own write-through, on the first row's props. */
+  toggleColumnHidden(column: UiUdfParameterColumn): void {
+    const props = this.columnControls(column);
+    if (props) EditableLabelWrapperComponent.setHidden(props, !props["authorHidden"]);
+  }
+
+  /** Whether the author hid this column: its cells fade through their wrappers, the header with them. */
+  columnHidden(column: UiUdfParameterColumn): boolean {
+    return this.columnControls(column)?.["authorHidden"] === true;
   }
 
   /**
