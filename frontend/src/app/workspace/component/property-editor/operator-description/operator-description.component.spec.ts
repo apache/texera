@@ -18,9 +18,11 @@
  */
 
 import { ComponentFixture, TestBed } from "@angular/core/testing";
+import * as Y from "yjs";
 import { NoopAnimationsModule } from "@angular/platform-browser/animations";
 import { OperatorDescriptionComponent } from "./operator-description.component";
 import { WorkflowActionService } from "../../../service/workflow-graph/model/workflow-action.service";
+import { WorkflowGraph } from "../../../service/workflow-graph/model/workflow-graph";
 import { WorkflowUtilService } from "../../../service/workflow-graph/util/workflow-util.service";
 import { JointUIService } from "../../../service/joint-ui/joint-ui.service";
 import { UndoRedoService } from "../../../service/undo-redo/undo-redo.service";
@@ -80,6 +82,24 @@ describe("OperatorDescriptionComponent", () => {
   function recreateOperator(operator: OperatorPredicate) {
     workflowActionService.deleteOperator(operator.operatorID);
     workflowActionService.addOperator(operator, mockPoint);
+  }
+
+  /**
+   * A co-editor saving from their own document, as in a shared session: their change reaches this editor
+   * as a Yjs update, not as a call on this editor's services.
+   */
+  function coEditorSaves(text: string, operatorId = scanID) {
+    const localDoc = (workflowActionService.getTexeraGraph() as WorkflowGraph).sharedModel.yDoc;
+    const remote = new Y.Doc();
+    Y.applyUpdate(remote, Y.encodeStateAsUpdate(localDoc));
+    const remoteText = (remote.getMap("operatorIDMap").get(operatorId) as Y.Map<unknown>).get("description") as Y.Text;
+    remote.transact(() => {
+      remoteText.delete(0, remoteText.length);
+      remoteText.insert(0, text);
+    });
+    Y.applyUpdate(localDoc, Y.encodeStateAsUpdate(remote, Y.encodeStateVector(localDoc)));
+    remote.destroy();
+    fixture.detectChanges();
   }
 
   beforeEach(() => {
@@ -290,13 +310,13 @@ describe("OperatorDescriptionComponent", () => {
       expect(description()).toBeUndefined();
     });
 
-    it("stores a whitespace-only draft as an empty description", async () => {
+    it("clears the description when a whitespace-only draft is saved", async () => {
       workflowActionService.setOperatorDescription(scanID, "something");
       setOperator(scanID);
       await startEditing("   \n\t ");
       q(".instance-description-save")!.click();
       fixture.detectChanges();
-      expect(description()).toEqual("");
+      expect(description()).toBeUndefined();
       expect(q(".instance-description-empty")).toBeTruthy();
     });
 
@@ -423,6 +443,48 @@ describe("OperatorDescriptionComponent", () => {
       fixture.destroy();
 
       expect(description()).toEqual("historic version");
+    });
+
+    describe("an editor opened but not typed in, while a co-editor saves", () => {
+      beforeEach(async () => {
+        workflowActionService.setOperatorDescription(scanID, "original");
+        setOperator(scanID);
+        await startEditing(); // opened, never typed in
+        coEditorSaves("new note");
+      });
+
+      it("keeps the co-editor's text when the panel closes", () => {
+        fixture.destroy();
+        expect(description()).toEqual("new note");
+      });
+
+      it("keeps the co-editor's text when switching to another operator", () => {
+        workflowActionService.addOperator(mockSentimentPredicate, { x: 300, y: 300 });
+        setOperator(mockSentimentPredicate.operatorID);
+        expect(description()).toEqual("new note");
+      });
+
+      it("still replaces it when the user explicitly saves, as the conflict banner says", () => {
+        q(".instance-description-save")!.click();
+        fixture.detectChanges();
+        expect(description()).toEqual("original");
+      });
+    });
+
+    it("keeps a co-editor's text when an untouched editor closes on an operator that had no description", async () => {
+      setOperator(scanID);
+      await startEditing();
+      coEditorSaves("their first note");
+      fixture.destroy();
+      expect(description()).toEqual("their first note");
+    });
+
+    it("still saves a typed draft over a co-editor's change when leaving the editor", async () => {
+      setOperator(scanID);
+      await startEditing("my edit");
+      coEditorSaves("their edit");
+      fixture.destroy();
+      expect(description()).toEqual("my edit");
     });
 
     it("does not throw or write when the operator is deleted mid-edit", async () => {

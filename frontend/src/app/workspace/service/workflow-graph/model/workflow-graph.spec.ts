@@ -28,6 +28,7 @@ import {
   mockSentimentResultLink,
 } from "./mock-workflow-data";
 import { WorkflowGraph, isSink } from "./workflow-graph";
+import * as Y from "yjs";
 import { MAX_OPERATOR_DESCRIPTION_LENGTH } from "../../../util/operator-description.util";
 import { Observable } from "rxjs";
 import {
@@ -450,7 +451,7 @@ describe("WorkflowGraph", () => {
     it("should clear the description when set to an empty string", () => {
       workflowGraph.addOperator({ ...mockScanPredicate, description: "something" });
       workflowGraph.setOperatorDescription(mockScanPredicate.operatorID, "");
-      expect(workflowGraph.getOperator(mockScanPredicate.operatorID).description).toEqual("");
+      expect(workflowGraph.getOperator(mockScanPredicate.operatorID).description).toBeUndefined();
     });
 
     it("should preserve markdown, newlines and unicode verbatim", () => {
@@ -470,7 +471,10 @@ describe("WorkflowGraph", () => {
 
     it("should cut a description over the length limit to the limit", () => {
       workflowGraph.addOperator(mockScanPredicate);
-      workflowGraph.setOperatorDescription(mockScanPredicate.operatorID, "z".repeat(MAX_OPERATOR_DESCRIPTION_LENGTH + 10));
+      workflowGraph.setOperatorDescription(
+        mockScanPredicate.operatorID,
+        "z".repeat(MAX_OPERATOR_DESCRIPTION_LENGTH + 10)
+      );
       expect(workflowGraph.getOperator(mockScanPredicate.operatorID).description).toEqual(
         "z".repeat(MAX_OPERATOR_DESCRIPTION_LENGTH)
       );
@@ -496,10 +500,64 @@ describe("WorkflowGraph", () => {
       workflowGraph = new WorkflowGraph();
     });
 
-    it("should not create a description key when clearing an operator that has none", () => {
+    it("should give an operator a shared, empty description text when it is added or loaded", () => {
       workflowGraph.addOperator(mockScanPredicate);
-      workflowGraph.setOperatorDescription(mockScanPredicate.operatorID, "");
-      expect(workflowGraph.getSharedOperatorType(mockScanPredicate.operatorID).has("description")).toBe(false);
+      const loaded = new WorkflowGraph([mockSentimentPredicate]);
+      for (const [graph, id] of [
+        [workflowGraph, mockScanPredicate.operatorID],
+        [loaded, mockSentimentPredicate.operatorID],
+      ] as const) {
+        const shared = graph.getSharedOperatorType(id).get("description");
+        expect(shared).toBeInstanceOf(Y.Text);
+        expect(shared!.toString()).toEqual("");
+        // an operator nobody described still reads, saves and exports without the field
+        expect("description" in graph.getOperator(id)).toBe(false);
+        expect("description" in graph.getAllOperators()[0]).toBe(false);
+      }
+      loaded.destroyYModel();
+    });
+
+    describe("two co-editors writing the first description at the same time", () => {
+      /** Two editors of one workflow, each with its own document, as in a shared session. */
+      function twoEditors(first: WorkflowGraph): [WorkflowGraph, WorkflowGraph] {
+        const second = new WorkflowGraph();
+        Y.applyUpdate(second.sharedModel.yDoc, Y.encodeStateAsUpdate(first.sharedModel.yDoc));
+        return [first, second];
+      }
+
+      function exchange(a: WorkflowGraph, b: WorkflowGraph): void {
+        const fromA = Y.encodeStateAsUpdate(a.sharedModel.yDoc, Y.encodeStateVector(b.sharedModel.yDoc));
+        const fromB = Y.encodeStateAsUpdate(b.sharedModel.yDoc, Y.encodeStateVector(a.sharedModel.yDoc));
+        Y.applyUpdate(b.sharedModel.yDoc, fromA);
+        Y.applyUpdate(a.sharedModel.yDoc, fromB);
+      }
+
+      it.each([
+        // a workflow saved before descriptions existed: its operators carry no description field
+        ["loaded from a legacy workflow", () => new WorkflowGraph([mockScanPredicate])],
+        [
+          "added during the session",
+          () => {
+            const graph = new WorkflowGraph();
+            graph.addOperator(mockScanPredicate);
+            return graph;
+          },
+        ],
+      ])("keeps both authors' text for an operator %s", (_, create) => {
+        const [alice, bob] = twoEditors(create());
+        const id = mockScanPredicate.operatorID;
+
+        alice.setOperatorDescription(id, "alice's note");
+        bob.setOperatorDescription(id, "bob's note");
+        exchange(alice, bob);
+
+        const merged = alice.getOperator(id).description!;
+        expect(merged).toContain("alice's note");
+        expect(merged).toContain("bob's note");
+        expect(bob.getOperator(id).description).toEqual(merged);
+        alice.destroyYModel();
+        bob.destroyYModel();
+      });
     });
 
     it("should throw when setting the description of a nonexistent operator", () => {

@@ -32,7 +32,7 @@ import * as joint from "jointjs";
 import { YType } from "../../../types/shared-editing.interface";
 import { isDefined } from "../../../../common/util/predicate";
 import { GuiConfigService } from "../../../../common/service/gui-config.service";
-import { descriptionText } from "../../../util/operator-description.util";
+import { descriptionText, withoutEmptyDescription } from "../../../util/operator-description.util";
 
 /**
  * SyncJointModelService listens to changes to the TexeraGraph (SharedModel) and updates Joint graph correspondingly,
@@ -88,7 +88,10 @@ export class SharedModelChangeHandler {
           if (this.texeraGraph.sharedModel.elementPositionMap?.has(key)) {
             const newPos = this.texeraGraph.sharedModel.elementPositionMap?.get(key) as Point;
             // Add the operator into joint graph
-            const jointOperator = this.jointUIService.getJointOperatorElement(newOperator.toJSON(), newPos);
+            const jointOperator = this.jointUIService.getJointOperatorElement(
+              withoutEmptyDescription(newOperator.toJSON()),
+              newPos
+            );
             jointElementsToAdd.push(jointOperator);
             newOpIDs.push(key);
           } else {
@@ -130,7 +133,7 @@ export class SharedModelChangeHandler {
       for (let i = 0; i < newOpIDs.length; i++) {
         const newOpID = newOpIDs[i];
         const newOperator = this.texeraGraph.sharedModel.operatorIDMap.get(newOpID) as YType<OperatorPredicate>;
-        this.texeraGraph.operatorAddSubject.next(newOperator.toJSON());
+        this.texeraGraph.operatorAddSubject.next(withoutEmptyDescription(newOperator.toJSON()));
       }
 
       if (event.transaction.local && !this.jointGraphWrapper.getReloadingWorkflow()) {

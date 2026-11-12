@@ -37,6 +37,24 @@ export function descriptionText(value: unknown): string {
   return "";
 }
 
+/**
+ * Gives an operator an empty description when it has none, before it is put into the shared model, so it
+ * enters with a Y.Text description that every editor then edits. If each editor created its own Y.Text on a
+ * first save, Yjs would keep one of the two map values and drop the other author's text.
+ */
+export function withSharedDescription<T extends { description?: unknown }>(operator: T): T {
+  return operator.description === undefined ? { ...operator, description: "" } : operator;
+}
+
+/**
+ * Drops an empty description from an operator read out of the shared model, so operators nobody described
+ * keep the shape they had before the field existed (exports, saves and diffs stay unchanged).
+ */
+export function withoutEmptyDescription<T extends { description?: unknown }>(operator: T): T {
+  if (operator.description === "") delete operator.description;
+  return operator;
+}
+
 /** Cuts text to at most maxUnits UTF-16 units without leaving half of a surrogate pair. */
 export function clampDescription(text: string, maxUnits: number = MAX_OPERATOR_DESCRIPTION_LENGTH): string {
   if (text.length <= maxUnits) return text;

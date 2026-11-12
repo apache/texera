@@ -437,7 +437,9 @@ describe("SharedModelChangeHandler", () => {
       const changes: string[] = [];
       const sub = texeraGraph.getOperatorDescriptionChangedStream().subscribe(v => changes.push(v.newDescription));
 
-      expect(() => texeraGraph.getSharedOperatorType(mockScanPredicate.operatorID).set("description" as any, 5 as any)).not.toThrow();
+      expect(() =>
+        texeraGraph.getSharedOperatorType(mockScanPredicate.operatorID).set("description" as any, 5 as any)
+      ).not.toThrow();
 
       expect(changes).toEqual([""]);
       sub.unsubscribe();

@@ -98,14 +98,14 @@ export class OperatorDescriptionComponent implements OnInit, OnChanges, OnDestro
 
   ngOnChanges(changes: SimpleChanges): void {
     if (changes.operatorId) {
-      if (!changes.operatorId.firstChange && this.editing) this.commit();
+      if (!changes.operatorId.firstChange && this.editing) this.commit({ onlyIfEdited: true });
       this.stopEditing();
       this.setDescription(this.readDescription(this.operatorId));
     }
   }
 
   ngOnDestroy(): void {
-    if (this.editing) this.commit();
+    if (this.editing) this.commit({ onlyIfEdited: true });
   }
 
   get hasDescription(): boolean {
@@ -160,13 +160,18 @@ export class OperatorDescriptionComponent implements OnInit, OnChanges, OnDestro
    * Writes the draft to the operator it was started on, if that is still the same operator instance
    * and editing is allowed. A reload or version preview re-creates operators under the same IDs, so
    * checking the ID alone could write the draft into a different version of the workflow.
+   *
+   * Leaving the editor (switching operators, closing the panel) passes onlyIfEdited: a draft the user never
+   * changed is not a decision to keep the old text, and writing it back would undo a co-editor's newer save.
+   * The Save button still writes, as the conflict banner says it will.
    */
-  private commit(): void {
+  private commit({ onlyIfEdited = false }: { onlyIfEdited?: boolean } = {}): void {
     const operatorId = this.editOperatorId;
     if (!this.editable || !operatorId) return;
     const graph = this.workflowActionService.getTexeraGraph();
     if (!graph.hasOperator(operatorId) || graph.getSharedOperatorType(operatorId) !== this.editTarget) return;
     const text = this.draft.trim().length === 0 ? "" : this.draft;
+    if (onlyIfEdited && this.draft === this.editBase) return;
     if (text === this.readDescription(operatorId)) return;
     this.workflowActionService.setOperatorDescription(operatorId, text);
     if (operatorId === this.operatorId) this.setDescription(this.readDescription(operatorId));

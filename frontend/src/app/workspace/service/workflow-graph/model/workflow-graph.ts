@@ -36,7 +36,12 @@ import { createYTypeFromObject, updateYTypeFromObject, YType } from "../../../ty
 import { Awareness } from "y-protocols/awareness";
 import * as Y from "yjs";
 import type { UiUdfLanguage } from "../../code-editor/ui-udf-parameter";
-import { applyMinimalTextEdit, clampDescription } from "../../../util/operator-description.util";
+import {
+  applyMinimalTextEdit,
+  clampDescription,
+  withoutEmptyDescription,
+  withSharedDescription,
+} from "../../../util/operator-description.util";
 
 // define the restricted methods that could change the graph
 type restrictedMethods =
@@ -173,7 +178,7 @@ export class WorkflowGraph {
     // Initialize sharedModel in constructor to ensure config is loaded
     this.sharedModel = new SharedModel();
 
-    operatorPredicates.forEach(op => this.sharedModel.operatorIDMap.set(op.operatorID, createYTypeFromObject(op)));
+    operatorPredicates.forEach(op => this.sharedModel.operatorIDMap.set(op.operatorID, this.toSharedOperator(op)));
     operatorLinks.forEach(link => this.sharedModel.operatorLinkMap.set(link.linkID, link));
     commentBoxes.forEach(commentBox =>
       this.sharedModel.commentBoxMap.set(commentBox.commentBoxID, createYTypeFromObject(commentBox))
@@ -297,8 +302,12 @@ export class WorkflowGraph {
    */
   public addOperator(operator: OperatorPredicate): void {
     this.assertOperatorNotExists(operator.operatorID);
-    const newOp = createYTypeFromObject(operator);
-    this.sharedModel.operatorIDMap.set(operator.operatorID, newOp);
+    this.sharedModel.operatorIDMap.set(operator.operatorID, this.toSharedOperator(operator));
+  }
+
+  /** Converts an operator to its shared type, with a shared description text every editor will edit. */
+  private toSharedOperator(operator: OperatorPredicate): YType<OperatorPredicate> {
+    return createYTypeFromObject(withSharedDescription(operator));
   }
 
   /**
@@ -445,7 +454,8 @@ export class WorkflowGraph {
    *
    * Only the span that differs from the current text is replaced, so a co-editor's concurrent save
    * merges instead of duplicating the text. Text over MAX_OPERATOR_DESCRIPTION_LENGTH is cut to it.
-   * A stored value that is not text (e.g. from a hand-edited file) is replaced.
+   * A stored value that is not text (e.g. from a hand-edited file) is replaced, and so is a missing one,
+   * which only an operator added by a client without this field can have (see toSharedOperator).
    * @param operatorID
    * @param description markdown text; an empty string clears it.
    */
@@ -628,7 +638,7 @@ export class WorkflowGraph {
       throw new Error(`operator ${operatorID} does not exist`);
     }
     const yoperator = this.sharedModel.operatorIDMap.get(operatorID) as YType<OperatorPredicate>;
-    return yoperator.toJSON();
+    return withoutEmptyDescription(yoperator.toJSON());
   }
 
   /**
@@ -663,7 +673,7 @@ export class WorkflowGraph {
    */
   public getAllOperators(): OperatorPredicate[] {
     return Array.from(this.sharedModel.operatorIDMap.values() as IterableIterator<YType<OperatorPredicate>>).map(v =>
-      v.toJSON()
+      withoutEmptyDescription(v.toJSON())
     );
   }
 
@@ -681,7 +691,7 @@ export class WorkflowGraph {
    */
   public getAllEnabledOperators(): ReadonlyArray<OperatorPredicate> {
     return Array.from(this.sharedModel.operatorIDMap.values() as IterableIterator<YType<OperatorPredicate>>)
-      .map(v => v.toJSON())
+      .map(v => withoutEmptyDescription(v.toJSON()))
       .filter(op => !this.isOperatorDisabled(op.operatorID));
   }
 
