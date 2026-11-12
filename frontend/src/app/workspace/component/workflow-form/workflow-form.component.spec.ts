@@ -965,16 +965,6 @@ describe("WorkflowFormComponent", () => {
         });
       });
 
-      it("leaves them to the step panel's frame while it shows that step live", () => {
-        build(formViewWorkflow).ngOnInit();
-        component.selectedOperatorId = "op-1";
-        vi.spyOn(component, "panelLive", "get").mockReturnValue(true);
-
-        announce();
-
-        expect(h.workflowActionService.setOperatorProperty).not.toHaveBeenCalled();
-      });
-
       it("writes them when the panel shows that step read-only, since the frame does not then", () => {
         build(formViewWorkflow).ngOnInit();
         component.selectedOperatorId = "op-1";
@@ -1024,13 +1014,17 @@ describe("WorkflowFormComponent", () => {
         vi.useRealTimers();
       });
 
-      // What the rebuild is for: the card ends up holding the declared rows, so a value typed into
-      // it next writes them back rather than the list it was built with.
-      it("leaves the card holding the newly declared rows", () => {
+      // What the rebuild is for: it goes through buildForm, which announces on formsRebuilt -- that
+      // cuts off the cards built with the old rows, whose write-back would otherwise put them back
+      // -- and the card ends up holding the declared rows, so a value typed into it next writes
+      // them back rather than the list it was built with.
+      it("rebuilds through buildForm, so the old cards are cut off and the card holds the newly declared rows", () => {
         vi.useFakeTimers();
         build(formViewWorkflow).ngOnInit();
         renderParameterCard();
         expect(component.rendered[0].model["uiParameters"]).toBe("seed");
+        const cutOff = vi.fn();
+        (component as any).formsRebuilt.subscribe(cutOff);
         // The operator now has the declared rows, so this is what the next resolve reads back.
         formBindingService.resolveFields.mockReturnValue([
           resolved("uiParameters", "Parameters", {
@@ -1042,12 +1036,14 @@ describe("WorkflowFormComponent", () => {
         announce();
         vi.runAllTimers();
 
+        expect(cutOff).toHaveBeenCalled();
         expect(component.rendered[0].model["uiParameters"]).toEqual(declared);
         vi.useRealTimers();
       });
 
-      // The frame is the writer for the step it shows live, and the card still has to follow.
-      it("rebuilds the cards when the step panel's frame is the writer, not this page", () => {
+      // The frame is the writer for the step it shows live (the same write twice is churn), and the
+      // card still has to follow the rows the frame wrote.
+      it("leaves the write to the step panel's frame while it shows that step live, and still rebuilds the card", () => {
         vi.useFakeTimers();
         build(formViewWorkflow).ngOnInit();
         renderParameterCard();
@@ -1084,23 +1080,7 @@ describe("WorkflowFormComponent", () => {
         vi.useRealTimers();
       });
 
-      // The rebuild has to go through buildForm, which announces on formsRebuilt: that is what cuts
-      // off the cards built with the old rows, whose write-back would otherwise put them back.
-      it("cuts the old cards off when it rebuilds", () => {
-        vi.useFakeTimers();
-        build(formViewWorkflow).ngOnInit();
-        renderParameterCard();
-        const cutOff = vi.fn();
-        (component as any).formsRebuilt.subscribe(cutOff);
-
-        announce();
-        vi.runAllTimers();
-
-        expect(cutOff).toHaveBeenCalled();
-        vi.useRealTimers();
-      });
-
-      it("leaves the cards alone when none shows that step's parameters", () => {
+      it("leaves the cards alone when none shows that step's parameters: another input, or another step's", () => {
         vi.useFakeTimers();
         build(formViewWorkflow).ngOnInit();
         renderOne("n_hvg");
@@ -1108,21 +1088,13 @@ describe("WorkflowFormComponent", () => {
 
         announce();
         vi.runAllTimers();
-
         expect(readConfig).not.toHaveBeenCalled();
-        vi.useRealTimers();
-      });
 
-      it("leaves the cards alone when the parameters card belongs to another step", () => {
-        vi.useFakeTimers();
-        build(formViewWorkflow).ngOnInit();
         renderParameterCard("op-2");
         expect(component.rendered).toHaveLength(1);
-        const readConfig = vi.spyOn(component as any, "readConfig");
-
+        readConfig.mockClear();
         announce();
         vi.runAllTimers();
-
         expect(readConfig).not.toHaveBeenCalled();
         vi.useRealTimers();
       });

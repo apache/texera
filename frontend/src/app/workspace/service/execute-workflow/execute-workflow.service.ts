@@ -262,7 +262,6 @@ export class ExecuteWorkflowService {
     this.updateWorkflowActionLock(this.currentState);
   }
 
-
   public getErrorMessages(): ReadonlyArray<WorkflowFatalError> {
     if (this.currentState?.state === ExecutionState.Failed) {
       return this.currentState.errorMessages;

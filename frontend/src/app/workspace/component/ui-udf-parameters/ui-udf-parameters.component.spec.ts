@@ -712,11 +712,22 @@ describe("UiUdfParametersComponent", () => {
       expect(value.disabled).toBe(true);
     });
 
-    it("offers Add parameter on the Form View as on the panel, and adds to the card's operator", () => {
+    // The rule itself -- a writer's card offers it without the canvas's flag, a reader's does not,
+    // nor does a writer's while a run is in flight -- is pinned under real formly in
+    // ui-udf-parameters.component.formly.spec.ts; here, what the widget does with it.
+    it("adds to the card's operator on a writer's card, without the canvas's flag", () => {
       // Nothing is highlighted on the form (or another step is), so the field's own operator is the
-      // one the declaration goes into; the highlighted operator is the panel's rule only.
-      (component as any).field = { model: [], fieldGroup: [], props: { operatorID: "op-form" } };
+      // one the declaration goes into; the highlighted operator is the panel's rule only. And the
+      // flag is off outside edit mode, where a writer's card is still editable.
+      workflowActionServiceMock.checkWorkflowModificationEnabled.mockReturnValue(false);
+      (component as any).field = {
+        model: [],
+        fieldGroup: [],
+        props: { operatorID: "op-form" },
+        formControl: new FormGroup({}),
+      };
       fixture.detectChanges();
+      expect(component.editable).toBe(true);
       expect(fixture.nativeElement.querySelector(".add-parameter-button")).not.toBeNull();
 
       component.draftVisible = true;
@@ -726,67 +737,12 @@ describe("UiUdfParametersComponent", () => {
       expect(component.draftVisible).toBe(false);
     });
 
-    it("offers Add parameter on a writer's card while the canvas's modification flag is off, as the Form View holds it outside edit mode", () => {
-      workflowActionServiceMock.checkWorkflowModificationEnabled.mockReturnValue(false);
-      (component as any).field = {
-        model: [],
-        fieldGroup: [],
-        props: { operatorID: "op-form" },
-        formControl: new FormGroup({}),
-      };
-      fixture.detectChanges();
-
-      expect(component.editable).toBe(true);
-      expect(fixture.nativeElement.querySelector(".add-parameter-button")).not.toBeNull();
-
-      component.draftVisible = true;
-      component.addParameter({ value: "threshold" } as HTMLInputElement, "double");
-
-      expect(syncServiceMock.addParameter).toHaveBeenCalledWith("op-form", "threshold", "double");
-    });
-
     // Adding a parameter writes a declaration into the UDF's code, straight into the shared
     // document, and the property panel and the canvas code editor both refuse a code edit while a
     // run is in flight. The form's own lock cannot say so: it is held off outside edit mode for a
-    // different reason, so the card asks the execute service (meng).
-    it("hides Add parameter on a writer's card while a run is in flight, and adds nothing", () => {
-      executeServiceMock.isExecutionInFlight.mockReturnValue(true);
-      (component as any).field = {
-        model: [],
-        fieldGroup: [],
-        props: { operatorID: "op-form" },
-        formControl: new FormGroup({}),
-      };
-      fixture.detectChanges();
-
-      expect(component.editable).toBe(false);
-      expect(fixture.nativeElement.querySelector(".add-parameter-button")).toBeNull();
-
-      component.draftVisible = true;
-      component.addParameter({ value: "threshold" } as HTMLInputElement, "double");
-
-      expect(syncServiceMock.addParameter).not.toHaveBeenCalled();
-    });
-
-    it("offers it again on that same card once the run ends", () => {
-      executeServiceMock.isExecutionInFlight.mockReturnValue(true);
-      (component as any).field = {
-        model: [],
-        fieldGroup: [],
-        props: { operatorID: "op-form" },
-        formControl: new FormGroup({}),
-      };
-      fixture.detectChanges();
-      expect(component.editable).toBe(false);
-
-      executeServiceMock.isExecutionInFlight.mockReturnValue(false);
-      fixture.detectChanges();
-
-      expect(component.editable).toBe(true);
-      expect(fixture.nativeElement.querySelector(".add-parameter-button")).not.toBeNull();
-    });
-
-    it("hides Add parameter on a reader's card, whose field the form disables, and adds nothing", () => {
+    // different reason, so the card asks the execute service (meng). The check sits in the method,
+    // not only on the button, and the draft stays open.
+    it("adds nothing on a card that is not editable, whoever calls: a reader's, or a writer's while a run is in flight", () => {
       const control = new FormGroup({});
       control.disable();
       (component as any).field = {
@@ -796,34 +752,24 @@ describe("UiUdfParametersComponent", () => {
         formControl: control,
       };
       fixture.detectChanges();
-
       expect(component.editable).toBe(false);
       expect(fixture.nativeElement.querySelector(".add-parameter-button")).toBeNull();
-
       component.draftVisible = true;
       component.addParameter({ value: "threshold" } as HTMLInputElement, "double");
-
       expect(syncServiceMock.addParameter).not.toHaveBeenCalled();
       expect(component.draftVisible).toBe(true);
-    });
 
-    // formly disables controls, not arrays: a reader's table with no parameters yet has an enabled
-    // array control, so the form's own mark on the field is what says the card is a reader's.
-    it("hides Add parameter on a reader's card whose table has no parameters yet, its array control enabled", () => {
+      executeServiceMock.isExecutionInFlight.mockReturnValue(true);
       (component as any).field = {
         model: [],
         fieldGroup: [],
-        props: { operatorID: "op-form", disabled: true },
+        props: { operatorID: "op-form" },
         formControl: new FormGroup({}),
       };
       fixture.detectChanges();
-
       expect(component.editable).toBe(false);
       expect(fixture.nativeElement.querySelector(".add-parameter-button")).toBeNull();
-
-      component.draftVisible = true;
       component.addParameter({ value: "threshold" } as HTMLInputElement, "double");
-
       expect(syncServiceMock.addParameter).not.toHaveBeenCalled();
     });
   });
