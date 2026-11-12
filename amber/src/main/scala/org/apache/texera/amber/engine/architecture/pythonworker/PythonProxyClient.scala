@@ -19,7 +19,7 @@
 
 package org.apache.texera.amber.engine.architecture.pythonworker
 
-import com.twitter.util.{Await, Promise}
+import com.twitter.util.{Await, Duration, Promise, TimeoutException}
 import org.apache.texera.amber.core.WorkflowRuntimeException
 import org.apache.texera.amber.core.tuple.{Schema, Tuple}
 import org.apache.texera.amber.core.virtualidentity.{ActorVirtualIdentity, ChannelIdentity}
@@ -43,6 +43,7 @@ import org.apache.arrow.memory.{ArrowBuf, BufferAllocator, RootAllocator}
 import org.apache.arrow.vector.types.pojo.{ArrowType, Field, FieldType, Schema => ArrowSchema}
 import org.apache.arrow.vector.{VarBinaryVector, VectorSchemaRoot}
 
+import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicLong
 import scala.collection.compat.immutable.ArraySeq
 import scala.collection.mutable
@@ -56,7 +57,8 @@ class PythonProxyClient(portNumberPromise: Promise[Int], val actorId: ActorVirtu
 
   val allocator: BufferAllocator =
     new RootAllocator().newChildAllocator("flight-client", 0, Long.MaxValue)
-  val location: Location = (() => {
+  // Lazy: read on the client's thread once Python has reported its port (see awaitPort).
+  lazy val location: Location = (() => {
     // Read port number from promise until it's available
     val portNumber = Await.result(portNumberPromise)
     Location.forGrpcInsecure("localhost", portNumber)
@@ -65,7 +67,8 @@ class PythonProxyClient(portNumberPromise: Promise[Int], val actorId: ActorVirtu
   private val MAX_TRY_COUNT: Int = 2
   private val UNIT_WAIT_TIME_MS = 200
   private var flightClient: FlightClient = _
-  private var running: Boolean = true
+  // Cleared by close() on the worker's thread, read by the client's thread.
+  @volatile private var running: Boolean = true
 
   private val pythonQueueInMemSize: AtomicLong = new AtomicLong(0)
 
@@ -73,9 +76,25 @@ class PythonProxyClient(portNumberPromise: Promise[Int], val actorId: ActorVirtu
     pythonQueueInMemSize.get()
   }
 
+  /**
+    * Waits for the Python process to report its Flight port, and returns whether it did while the
+    * client was open. This runs on the client's own thread, so the worker actor is not blocked
+    * meanwhile, and it gives up once the client is closed, so a worker stopped before Python
+    * connects leaves no thread waiting.
+    */
+  private def awaitPort(): Boolean = {
+    while (running && !portNumberPromise.isDefined) {
+      try Await.ready(portNumberPromise, Duration.fromMilliseconds(100))
+      catch { case _: TimeoutException => }
+    }
+    running
+  }
+
   override def run(): Unit = {
-    establishConnection()
-    mainLoop()
+    if (awaitPort()) {
+      establishConnection()
+      mainLoop()
+    }
   }
 
   private def establishConnection(): Unit = {
@@ -154,35 +173,13 @@ class PythonProxyClient(portNumberPromise: Promise[Int], val actorId: ActorVirtu
     schemaRoot.clear()
     writer.completed()
 
-    finishPut(writer, flightListener)
-
-    flightListener.close()
-  }
-
-  /**
-    * Finishes a put: reads the Python queue size that Python returns for it, for sender
-    * credits, then the put's own status. Waits as long as it takes: a busy Python process (one
-    * holding the GIL in a long native call, for example) may answer late, and a dead one fails
-    * the call instead, which the worker reports along with the exit it observes on its own.
-    * A put that ends without its ack, or fails after it, ends the client with that error.
-    */
-  private def finishPut(
-      writer: FlightClient.ClientStreamListener,
-      flightListener: SyncPutListener
-  ): Unit = {
-    val ack = flightListener.read()
-    if (ack == null) {
-      throw new WorkflowRuntimeException(
-        s"Python worker ${actorId.name} completed a put without acknowledging it",
-        Some(actorId)
-      )
-    }
-    val ackMsgBuf: ArrowBuf = ack.getApplicationMetadata
+    // for calculating sender credits - get back number of batches in Python worker queue
+    val ackMsgBuf: ArrowBuf = flightListener.poll(5, TimeUnit.SECONDS).getApplicationMetadata
     pythonQueueInMemSize.set(ackMsgBuf.getLong(0))
     logger.debug(s"data channel updated queue size $pythonQueueInMemSize")
     ackMsgBuf.close()
-    // The ack only carries credit; the put's final status says whether it succeeded.
-    writer.getResult()
+
+    flightListener.close()
   }
 
   private def sendControl(
@@ -250,7 +247,11 @@ class PythonProxyClient(portNumberPromise: Promise[Int], val actorId: ActorVirtu
     schemaRoot.clear()
     writer.completed()
 
-    finishPut(writer, flightListener)
+    // for calculating sender credits - get back number of batches in Python worker queue
+    val ackMsgBuf: ArrowBuf = flightListener.poll(5, TimeUnit.SECONDS).getApplicationMetadata
+    pythonQueueInMemSize.set(ackMsgBuf.getLong(0))
+    logger.debug(s"data channel updated queue size $pythonQueueInMemSize")
+    ackMsgBuf.close()
 
     flightListener.close()
 

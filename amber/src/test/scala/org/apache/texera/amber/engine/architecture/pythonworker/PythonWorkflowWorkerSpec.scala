@@ -19,6 +19,9 @@
 
 package org.apache.texera.amber.engine.architecture.pythonworker
 
+import ch.qos.logback.classic.{Level, Logger => LogbackLogger}
+import ch.qos.logback.classic.spi.ILoggingEvent
+import ch.qos.logback.core.read.ListAppender
 import com.twitter.util.{Promise, Return}
 import org.apache.commons.lang3.SystemUtils
 import org.apache.pekko.actor.{
@@ -30,9 +33,16 @@ import org.apache.pekko.actor.{
   SupervisorStrategy
 }
 import org.apache.pekko.testkit.{ImplicitSender, TestActorRef, TestKit, TestProbe}
+import org.apache.texera.amber.clustering.SingleNodeListener
 import org.apache.texera.amber.core.WorkflowRuntimeException
 import org.apache.texera.amber.core.virtualidentity.{ActorVirtualIdentity, ChannelIdentity}
+import org.apache.texera.amber.core.workflow.{PortIdentity, WorkflowContext}
 import org.apache.texera.amber.engine.architecture.common.WorkflowActor
+import org.apache.texera.amber.engine.architecture.coordinator.{
+  Coordinator,
+  CoordinatorConfig,
+  FatalError
+}
 import org.apache.texera.amber.engine.architecture.common.WorkflowActor.{NetworkAck, NetworkMessage}
 import org.apache.texera.amber.engine.architecture.rpc.controlcommands.{
   AsyncRPCContext,
@@ -43,18 +53,23 @@ import org.apache.texera.amber.engine.common.ambermessage.WorkflowFIFOMessage
 import org.apache.texera.amber.engine.common.ambermessage.WorkflowMessage.getInMemSize
 import org.apache.texera.amber.engine.architecture.scheduling.config.WorkerConfig
 import org.apache.texera.amber.engine.common.AmberRuntime
+import org.apache.texera.amber.engine.e2e.TestUtils.buildWorkflow
+import org.apache.texera.amber.operator.TestOperators
+import org.apache.texera.common.compiler.model.LogicalLink
 import org.apache.texera.common.config.{PythonUtils, UdfConfig}
 import org.scalatest.BeforeAndAfterAll
 import org.scalatest.flatspec.AnyFlatSpecLike
 import org.scalatest.matchers.should.Matchers
+import org.slf4j.LoggerFactory
 
 import java.io.{InputStream, OutputStream}
 import java.net.ServerSocket
 import java.nio.charset.StandardCharsets
 import java.nio.file.{Files, Path, Paths}
-import java.util.concurrent.ExecutorService
+import java.util.concurrent.{ExecutorService, TimeUnit}
 import java.util.concurrent.atomic.{AtomicBoolean, AtomicReference}
 import scala.concurrent.duration._
+import scala.jdk.CollectionConverters._
 import scala.util.Using
 
 /**
@@ -69,9 +84,7 @@ import scala.util.Using
   * Two members are read by reflection because they are `private`: `choosePythonBin`, which has no
   * caller other than the process-spawning path, and the executors/port promise, which the teardown
   * assertions need. Reflection into `private` members is an established pattern in this module's
-  * specs. `portNumberPromise` in particular has to be fulfilled before anything touches
-  * `pythonProxyClient`: that client blocks in its own constructor on `Await.result(promise)`, so a
-  * worker whose proxy server never started would otherwise hang the moment `postStop` ran.
+  * specs.
   *
   * The failure-reporting tests at the end are the exception: they need a real child process, so
   * they run `startProxyServer` and `startPythonProcess` with a stand-in interpreter, a two-line
@@ -89,6 +102,9 @@ class PythonWorkflowWorkerSpec
   /** A cuid no other suite writes under, so the venv fixtures cannot collide. */
   private val FixtureCuid = 987654
   private val VenvRoot: Path = Paths.get("/tmp/texera-pve/venvs")
+
+  // A real coordinator, used by one test below, looks this listener up.
+  override def beforeAll(): Unit = system.actorOf(Props[SingleNodeListener](), "cluster-info")
 
   override def afterAll(): Unit = {
     deleteRecursively(VenvRoot.resolve(FixtureCuid.toString))
@@ -127,7 +143,10 @@ class PythonWorkflowWorkerSpec
     WorkerConfig(ActorVirtualIdentity("python-worker-spec"), pveName = pveName, cuid = cuid)
 
   private def readPrivate[T](actor: PythonWorkflowWorker, name: String): T = {
-    val method = classOf[PythonWorkflowWorker].getDeclaredMethod(name)
+    // A private member that a closure uses gets a name-mangled accessor ending in `$$name`.
+    val method = classOf[PythonWorkflowWorker].getDeclaredMethods
+      .find(m => m.getParameterCount == 0 && (m.getName == name || m.getName.endsWith("$$" + name)))
+      .getOrElse(throw new NoSuchMethodException(name))
     method.setAccessible(true)
     method.invoke(actor).asInstanceOf[T]
   }
@@ -135,7 +154,7 @@ class PythonWorkflowWorkerSpec
   private def chosenPythonBin(actor: PythonWorkflowWorker): String =
     readPrivate[String](actor, "choosePythonBin")
 
-  /** Releases the port the proxy client's constructor blocks on. */
+  /** Gives the worker its port, as the Python process would report it. */
   private def openPort(actor: PythonWorkflowWorker, port: Int = 65535): Unit =
     readPrivate[Promise[Int]](actor, "portNumberPromise").setValue(port)
 
@@ -193,18 +212,24 @@ class PythonWorkflowWorkerSpec
 
   /**
     * Creates one worker as its child and supervises it the way the coordinator does: each failure
-    * goes to `failures` and the child is stopped. What the child sends its parent (its
-    * RegisterActorRef, for one) is ignored.
+    * goes to `failures` and the child is stopped. The child's RegisterActorRef goes to
+    * `registrations`; anything else it sends its parent is ignored.
     */
-  private class FailureCapturingParent(worker: => PythonWorkflowWorker, failures: ActorRef)
-      extends Actor {
+  private class FailureCapturingParent(
+      worker: => PythonWorkflowWorker,
+      failures: ActorRef,
+      registrations: ActorRef
+  ) extends Actor {
     override val supervisorStrategy: SupervisorStrategy = OneForOneStrategy() {
       case e: Throwable =>
         failures ! e
         SupervisorStrategy.Stop
     }
     override def preStart(): Unit = failures ! Spawned(context.actorOf(Props(worker)))
-    override def receive: Receive = { case _ => }
+    override def receive: Receive = {
+      case registration: WorkflowActor.RegisterActorRef => registrations ! registration
+      case _                                            =>
+    }
   }
 
   /** A real worker that hands itself to the test, so the test can release its port. */
@@ -217,8 +242,8 @@ class PythonWorkflowWorkerSpec
   private class ProcessOnlyWorker(config: WorkerConfig, held: AtomicReference[PythonWorkflowWorker])
       extends ObservedWorker(config, held) {
     override def initState(): Unit = {
-      invokePrivate(this, "startProxyServer")
-      invokePrivate(this, "startPythonProcess")
+      startProxyServer()
+      startPythonProcess()
     }
   }
 
@@ -234,7 +259,7 @@ class PythonWorkflowWorkerSpec
     override def initState(): Unit = {
       process.foreach(setServerProcess(this, _))
       openPort(this, freePort)
-      invokePrivate(this, "startProxyClient")
+      startProxyClient()
     }
   }
 
@@ -245,27 +270,94 @@ class PythonWorkflowWorkerSpec
     override def destroy(): Unit = ()
   }
 
+  /** A process killed just as its client fails: it still looks alive until it is waited on. */
+  private class DyingProcess(code: Int) extends StandInProcess {
+    @volatile private var exited = false
+    override def isAlive(): Boolean = !exited
+    override def waitFor(timeout: Long, unit: TimeUnit): Boolean = {
+      exited = true
+      true
+    }
+    override def exitValue(): Int =
+      if (exited) code else throw new IllegalThreadStateException("process has not exited")
+    override def destroy(): Unit = ()
+  }
+
   private case class Supervised(
       worker: ActorRef,
       instance: AtomicReference[PythonWorkflowWorker],
-      failures: TestProbe
+      failures: TestProbe,
+      registrations: TestProbe
   )
 
   private def supervise(
       create: AtomicReference[PythonWorkflowWorker] => PythonWorkflowWorker
   ): Supervised = {
     val failures = TestProbe()
+    val registrations = TestProbe()
     val held = new AtomicReference[PythonWorkflowWorker]()
-    system.actorOf(Props(new FailureCapturingParent(create(held), failures.ref)))
+    system.actorOf(
+      Props(new FailureCapturingParent(create(held), failures.ref, registrations.ref))
+    )
     val worker = failures.expectMsgType[Spawned](10.seconds).worker
     // The child is constructed asynchronously, after the parent has already reported it.
     awaitCond(held.get != null, 10.seconds)
-    Supervised(worker, held, failures)
+    Supervised(worker, held, failures, registrations)
   }
 
-  private def invokePrivate(actor: PythonWorkflowWorker, name: String): Unit = {
-    readPrivate[AnyRef](actor, name)
-    ()
+  /** Threads waiting for a Python worker's port, with the frames that show where. */
+  private def threadsWaitingForPort(): Seq[String] =
+    Thread.getAllStackTraces.asScala.toSeq.collect {
+      case (thread, frames)
+          if frames.exists(_.getClassName.startsWith("com.twitter.util.Await")) &&
+            frames.exists(f =>
+              f.getClassName.startsWith(classOf[PythonProxyClient].getName) ||
+                f.getClassName.startsWith(classOf[PythonWorkflowWorker].getName)
+            ) =>
+        s"${thread.getName}: " + frames.take(12).mkString(" < ")
+    }
+
+  /** Error messages logged by loggers whose name contains `fragment` while `body` runs. */
+  private def errorsLoggedBy(fragment: String)(body: => Unit): Seq[String] = {
+    val root =
+      LoggerFactory.getLogger(org.slf4j.Logger.ROOT_LOGGER_NAME).asInstanceOf[LogbackLogger]
+    val appender = new ListAppender[ILoggingEvent]
+    appender.start()
+    root.addAppender(appender)
+    val events =
+      try {
+        body
+        appender.synchronized(appender.list.asScala.toList)
+      } finally {
+        root.detachAppender(appender)
+        appender.stop()
+      }
+    events
+      .filter(e => e.getLevel == Level.ERROR && e.getLoggerName.contains(fragment))
+      .map(_.getFormattedMessage)
+  }
+
+  /** A real coordinator, as `CoordinatorSpec` builds one, reporting to `client`. */
+  private def newCoordinator(client: TestProbe, name: String): TestActorRef[Coordinator] = {
+    val csv = TestOperators.headerlessSmallCsvScanOpDesc()
+    val keyword = TestOperators.keywordSearchOpDesc("column-1", "Asia")
+    val workflow = buildWorkflow(
+      List(csv, keyword),
+      List(
+        LogicalLink(
+          csv.operatorIdentifier,
+          PortIdentity(0),
+          keyword.operatorIdentifier,
+          PortIdentity(0)
+        )
+      ),
+      new WorkflowContext()
+    )
+    TestActorRef[Coordinator](
+      Coordinator.props(workflow.context, workflow.physicalPlan, CoordinatorConfig.default),
+      client.ref,
+      name
+    )
   }
 
   private def freePort: Int = Using.resource(new ServerSocket(0))(_.getLocalPort)
@@ -424,6 +516,18 @@ class PythonWorkflowWorkerSpec
     process.destroyed.get() shouldBe true
   }
 
+  it should "log no error when it is stopped before its Python process was started" in {
+    val worker = newWorker(config())
+    watch(worker)
+
+    val errors = errorsLoggedBy(classOf[PythonWorkflowWorker].getSimpleName) {
+      system.stop(worker)
+      expectTerminated(worker, 10.seconds)
+    }
+
+    errors shouldBe empty
+  }
+
   it should "answer a credit request with the credit currently queued for that channel" in {
     val worker = newWorker(config())
     openPort(worker.underlyingActor)
@@ -514,7 +618,7 @@ class PythonWorkflowWorkerSpec
   for ((code, how) <- Seq(3 -> "with an error code", 0 -> "cleanly")) {
     it should s"report a Python process that exits $how mid-run, naming the worker and the code" in {
       val name = s"py-exit-$code"
-      standInInterpreter(name, s"sleep 1\nexit $code")
+      standInInterpreter(name, s"exit $code")
       val s = supervise(held => new ProcessOnlyWorker(failureConfig(name, name), held))
       try {
         val failure = s.failures.expectMsgType[Throwable](15.seconds)
@@ -530,7 +634,7 @@ class PythonWorkflowWorkerSpec
 
   it should "report a Python process killed by SIGKILL with an out-of-memory hint" in {
     val name = "py-sigkill"
-    standInInterpreter(name, "sleep 1\nkill -9 $$")
+    standInInterpreter(name, "kill -9 $$")
     val s = supervise(held => new ProcessOnlyWorker(failureConfig(name, name), held))
     try {
       val messages = messagesOf(s.failures.expectMsgType[Throwable](15.seconds))
@@ -566,14 +670,36 @@ class PythonWorkflowWorkerSpec
     } finally stopQuietly(s)
   }
 
+  it should "report the exit code when its client stops just before the killed process is seen to exit" in {
+    val name = "py-dying"
+    // A killed process's connection can close before the JVM records its exit, so the client's
+    // failure may arrive while the process still looks alive.
+    val s = supervise(held =>
+      new ClientOnlyWorker(failureConfig(name), held, process = Some(new DyingProcess(137)))
+    )
+    try {
+      val messages = messagesOf(s.failures.expectMsgType[Throwable](15.seconds))
+      messages should include(name)
+      messages should include("code 137")
+      messages should include("out-of-memory")
+    } finally stopQuietly(s)
+  }
+
   it should "fail and stop when the Python process exits before it connects" in {
     val name = "py-early-exit"
     standInInterpreter(name, "exit 1")
     val s = supervise(held => new ObservedWorker(failureConfig(name, name), held))
     try {
-      val messages = messagesOf(s.failures.expectMsgType[Throwable](15.seconds))
-      messages should include(name)
-      messages should include("code 1")
+      val failure = s.failures.expectMsgType[Throwable](15.seconds)
+      // Reported like any other exit once start-up is over, not as a failure to start, so the
+      // worker has registered with its parent, which can name it.
+      failure shouldBe a[WorkflowRuntimeException]
+      failure.getMessage should include(name)
+      failure.getMessage should include("code 1 before connecting")
+      failure.asInstanceOf[WorkflowRuntimeException].relatedWorkerId shouldBe
+        Some(ActorVirtualIdentity(name))
+      s.registrations.expectMsgType[WorkflowActor.RegisterActorRef](15.seconds).id shouldBe
+        ActorVirtualIdentity(name)
       // The worker must not stay stuck waiting for a port that will never come.
       val probe = TestProbe()
       probe.watch(s.worker)
@@ -581,10 +707,58 @@ class PythonWorkflowWorkerSpec
     } finally stopQuietly(s)
   }
 
+  it should "stop without leaving a thread waiting when Python never reports its port" in {
+    val name = "py-never-connects"
+    standInInterpreter(name, "exec sleep 30")
+    val s = supervise(held => new ObservedWorker(failureConfig(name, name), held))
+    try {
+      // Start-up does not wait for Python, so the worker registers while its client waits.
+      s.registrations.expectMsgType[WorkflowActor.RegisterActorRef](10.seconds)
+      awaitCond(threadsWaitingForPort().nonEmpty, 10.seconds)
+      val probe = TestProbe()
+      probe.watch(s.worker)
+      system.stop(s.worker)
+      probe.expectTerminated(s.worker, 10.seconds)
+      awaitCond(
+        threadsWaitingForPort().isEmpty,
+        10.seconds,
+        message = threadsWaitingForPort().mkString("\n")
+      )
+      s.failures.expectNoMessage(1.second)
+    } finally stopQuietly(s)
+  }
+
+  it should "have its early exit attributed to it by a real coordinator" in {
+    val name = "py-early-exit-coordinated"
+    standInInterpreter(name, "exit 1")
+    val client = TestProbe()
+    val coordinator = newCoordinator(client, s"coordinator-$name")
+    client.expectMsgType[WorkflowActor.RegisterActorRef](10.seconds)
+    try {
+      coordinator.underlyingActor.context.actorOf(
+        Props(new PythonWorkflowWorker(failureConfig(name, name)))
+      )
+      var reported: Option[(Throwable, Option[ActorVirtualIdentity])] = None
+      client.fishForMessage(15.seconds) {
+        case NetworkMessage(_, WorkflowFIFOMessage(_, _, FatalError(error, fromActor))) =>
+          reported = Some((error, fromActor))
+          true
+        case _ => false
+      }
+      val (error, fromActor) = reported.get
+      fromActor shouldBe Some(ActorVirtualIdentity(name))
+      messagesOf(error) should include("code 1 before connecting")
+    } finally {
+      watch(coordinator)
+      system.stop(coordinator)
+      expectTerminated(coordinator, 15.seconds)
+    }
+  }
+
   it should "report a Python process that exits mid-run while its child keeps the output open" in {
     val name = "py-exit-held-pipes"
     val holder = Files.createTempFile(name, ".pid")
-    standInInterpreter(name, s"${holdOutputPipes(holder)}\nsleep 1\nexit 3")
+    standInInterpreter(name, s"${holdOutputPipes(holder)}\nexit 3")
     val s = supervise(held => new ProcessOnlyWorker(failureConfig(name, name), held))
     try {
       // The exit must be seen when the process ends, not when every copy of its output closes.
@@ -620,13 +794,12 @@ class PythonWorkflowWorkerSpec
     standInInterpreter(name, "exec sleep 30")
     val s = supervise(held => new ProcessOnlyWorker(failureConfig(name, name), held))
     try {
-      releasePort(s.instance.get) // so stopping does not wait for a client that never connects
       val probe = TestProbe()
       probe.watch(s.worker)
       system.stop(s.worker)
       probe.expectTerminated(s.worker, 15.seconds)
       // Stopping the worker ends its interpreter; that exit is expected, not a failure.
-      s.failures.expectNoMessage(3.seconds)
+      s.failures.expectNoMessage(1.second)
     } finally stopQuietly(s)
   }
 }

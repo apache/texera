@@ -23,6 +23,7 @@ import org.apache.pekko.actor.SupervisorStrategy.Stop
 import org.apache.pekko.actor.{AllForOneStrategy, Props, SupervisorStrategy}
 import org.apache.texera.web.model.websocket.response.RegionUpdateEvent
 import org.apache.texera.common.config.ApplicationConfig
+import org.apache.texera.amber.core.WorkflowRuntimeException
 import org.apache.texera.amber.core.virtualidentity.ChannelIdentity
 import org.apache.texera.amber.core.workflow.{PhysicalPlan, WorkflowContext}
 import org.apache.texera.amber.engine.architecture.common.WorkflowActor.NetworkAck
@@ -204,7 +205,14 @@ class Coordinator(
   override val supervisorStrategy: SupervisorStrategy =
     AllForOneStrategy(maxNrOfRetries = 0, withinTimeRange = 1.minute) {
       case e: Throwable =>
-        val failedWorker = actorRefMappingService.findActorVirtualIdentity(sender())
+        // A worker can fail before this actor has handled its registration; the error itself
+        // may still name it.
+        val failedWorker = actorRefMappingService.findActorVirtualIdentity(sender()).orElse {
+          e match {
+            case error: WorkflowRuntimeException => error.relatedWorkerId
+            case _                               => None
+          }
+        }
         logger.error(s"Encountered fatal error from $failedWorker, amber is shutting done.", e)
         cp.asyncRPCClient.sendToClient(
           FatalError(e, failedWorker)

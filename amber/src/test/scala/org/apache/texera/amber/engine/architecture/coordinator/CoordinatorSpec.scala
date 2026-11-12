@@ -22,6 +22,7 @@ package org.apache.texera.amber.engine.architecture.coordinator
 import org.apache.pekko.actor.{Actor, ActorSystem, Props}
 import org.apache.pekko.testkit.{ImplicitSender, TestActorRef, TestKit, TestProbe}
 import org.apache.texera.amber.clustering.SingleNodeListener
+import org.apache.texera.amber.core.WorkflowRuntimeException
 import org.apache.texera.amber.core.virtualidentity.{
   ActorVirtualIdentity,
   ChannelIdentity,
@@ -271,6 +272,69 @@ class CoordinatorSpec
         e.getMessage == "child exploded"
       case _ => false
     }
+  }
+
+  /** Registers with the coordinator as `id`, then throws `error` on any message. */
+  private class RegisteredChild(id: ActorVirtualIdentity, error: Throwable) extends Actor {
+    override def preStart(): Unit = context.parent ! RegisterActorRef(id, self)
+    override def receive: Receive = { case _ => throw error }
+  }
+
+  /** Throws `error` on any message, without ever registering with the coordinator. */
+  private class UnregisteredChild(error: Throwable) extends Actor {
+    override def receive: Receive = { case _ => throw error }
+  }
+
+  /** Makes `child` fail and returns the worker its FatalError names. */
+  private def fatalErrorWorker(
+      parent: TestProbe,
+      child: org.apache.pekko.actor.ActorRef
+  ): Option[ActorVirtualIdentity] = {
+    child ! "explode"
+    var worker: Option[ActorVirtualIdentity] = None
+    parent.fishForMessage(5.seconds) {
+      case NetworkMessage(_, WorkflowFIFOMessage(_, _, FatalError(_, fromActor))) =>
+        worker = fromActor
+        true
+      case _ => false
+    }
+    worker
+  }
+
+  it should "attribute a failure to the worker the failing child registered as" in {
+    val parent = TestProbe()
+    val coordinator = newCoordinator(parent, CoordinatorConfig.default, "coordinator-registered")
+    parent.expectMsgType[RegisterActorRef]
+    // The error names a different worker: the registration wins.
+    val error = new WorkflowRuntimeException("registered child failed", Some(workerB))
+    val child =
+      coordinator.underlyingActor.context.actorOf(Props(new RegisteredChild(workerA, error)))
+    awaitCond(
+      coordinator.underlyingActor.actorRefMappingService.findActorVirtualIdentity(child).isDefined,
+      5.seconds
+    )
+
+    assert(fatalErrorWorker(parent, child).contains(workerA))
+  }
+
+  it should "attribute an unregistered child's failure to the worker its error names" in {
+    val parent = TestProbe()
+    val coordinator = newCoordinator(parent, CoordinatorConfig.default, "coordinator-unregistered")
+    parent.expectMsgType[RegisterActorRef]
+    // A worker can fail before the coordinator has handled its registration.
+    val error = new WorkflowRuntimeException("failed before registering", Some(workerA))
+    val child = coordinator.underlyingActor.context.actorOf(Props(new UnregisteredChild(error)))
+
+    assert(fatalErrorWorker(parent, child).contains(workerA))
+  }
+
+  it should "report an unregistered child's failure without a worker when its error names none" in {
+    val parent = TestProbe()
+    val coordinator = newCoordinator(parent, CoordinatorConfig.default, "coordinator-anonymous")
+    parent.expectMsgType[RegisterActorRef]
+    val child = coordinator.underlyingActor.context.actorOf(Props(new ExplodingChild))
+
+    assert(fatalErrorWorker(parent, child).isEmpty)
   }
 
 }

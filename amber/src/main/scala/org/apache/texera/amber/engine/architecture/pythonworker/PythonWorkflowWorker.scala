@@ -20,7 +20,7 @@
 package org.apache.texera.amber.engine.architecture.pythonworker
 
 import org.apache.pekko.actor.Props
-import com.twitter.util.{Await, Duration, Promise, TimeoutException}
+import com.twitter.util.Promise
 import org.apache.texera.common.config.{PythonUtils, StorageConfig, UdfConfig}
 import org.apache.texera.amber.core.WorkflowRuntimeException
 import org.apache.texera.amber.core.virtualidentity.ChannelIdentity
@@ -46,7 +46,7 @@ import java.nio.charset.StandardCharsets
 import java.nio.file.Path
 import org.apache.texera.web.resource.pythonvirtualenvironment.PveManager
 import java.util.Base64
-import java.util.concurrent.{ExecutorService, Executors}
+import java.util.concurrent.{ExecutorService, Executors, TimeUnit}
 import scala.jdk.CollectionConverters._
 
 object PythonWorkflowWorker {
@@ -57,12 +57,29 @@ object PythonWorkflowWorker {
   /** Sent to the worker when its Flight client thread stops on an exception. */
   private[pythonworker] final case class PythonClientFailed(cause: Throwable)
 
-  /** Why a Python process exited on its own. 137 is 128 + SIGKILL, what the OOM killer sends. */
-  private[pythonworker] def describeUnexpectedExit(workerName: String, exitCode: Int): String = {
+  /**
+    * How long a client failure waits for a still-running process to exit before it is reported
+    * as a client failure. A killed process's connection can close a moment before the JVM records
+    * the exit, and the exit code is the more useful report.
+    */
+  private val ExitGraceMs = 500L
+
+  /**
+    * Why a Python process exited on its own: before it reported its port (`connected` false) or
+    * after. 137 is 128 + SIGKILL, what the OOM killer sends.
+    */
+  private[pythonworker] def describeUnexpectedExit(
+      workerName: String,
+      exitCode: Int,
+      connected: Boolean
+  ): String = {
     val hint =
       if (exitCode == 137) " (killed by SIGKILL, often the out-of-memory killer)"
       else ""
-    s"Python worker process for $workerName exited unexpectedly with code $exitCode$hint"
+    if (connected)
+      s"Python worker process for $workerName exited unexpectedly with code $exitCode$hint"
+    else
+      s"Python worker process for $workerName exited with code $exitCode$hint before connecting to the engine"
   }
 
   def props(workerConfig: WorkerConfig): Props = Props(new PythonWorkflowWorker(workerConfig))
@@ -193,18 +210,25 @@ class PythonWorkflowWorker(
   private def handlePythonFailure: Receive = {
     case PythonWorkflowWorker.PythonProcessExited(code) =>
       throw new WorkflowRuntimeException(
-        PythonWorkflowWorker.describeUnexpectedExit(workerConfig.workerId.name, code),
-        null,
+        PythonWorkflowWorker.describeUnexpectedExit(
+          workerConfig.workerId.name,
+          code,
+          portNumberPromise.isDefined
+        ),
         Some(workerConfig.workerId)
       )
     case PythonWorkflowWorker.PythonClientFailed(cause) =>
       val process = pythonServerProcess
       // When the process is gone, its exit is the reason the client stopped; report that.
       val message =
-        if (process != null && !process.isAlive()) {
+        if (
+          process != null &&
+          process.waitFor(PythonWorkflowWorker.ExitGraceMs, TimeUnit.MILLISECONDS)
+        ) {
           PythonWorkflowWorker.describeUnexpectedExit(
             workerConfig.workerId.name,
-            process.exitValue()
+            process.exitValue(),
+            portNumberPromise.isDefined
           )
         } else {
           s"Flight client for Python worker ${workerConfig.workerId.name} stopped: $cause"
@@ -233,50 +257,31 @@ class PythonWorkflowWorker(
     stopping = true
     super.postStop()
     try {
-      // try to send shutdown command so that it can gracefully shutdown. Without a port the
-      // client's constructor would wait forever, and there is no Python side to shut down.
-      if (portNumberPromise.isDefined) pythonProxyClient.close()
+      // try to send shutdown command so that it can gracefully shutdown. A client still waiting
+      // for Python's port stops waiting.
+      pythonProxyClient.close()
 
       clientThreadExecutor.shutdown()
 
       serverThreadExecutor.shutdown()
 
-      // destroy python process
-      pythonServerProcess.destroy()
+      // destroy python process, if it was started
+      if (pythonServerProcess != null) pythonServerProcess.destroy()
     } catch {
       case e: Exception =>
         logger.error(s"$e - happened during shutdown")
     }
   }
 
+  // The client waits for Python's port on its own thread, so start-up does not block on Python
+  // and the worker registers with its parent before any failure of Python can be reported.
   override def initState(): Unit = {
     startProxyServer()
     startPythonProcess()
-    awaitPythonPort()
     startProxyClient()
   }
 
-  /**
-    * Waits for the Python process to report its Flight port, failing if the process exits
-    * first: the proxy client's constructor waits for that port with no limit, on this actor's
-    * thread, so it must not be built for a process that will never connect.
-    */
-  private def awaitPythonPort(): Unit = {
-    while (!portNumberPromise.isDefined) {
-      if (!pythonServerProcess.isAlive()) {
-        throw new WorkflowRuntimeException(
-          s"Python worker process for ${workerConfig.workerId.name} exited with code " +
-            s"${pythonServerProcess.exitValue()} before connecting to the engine",
-          null,
-          Some(workerConfig.workerId)
-        )
-      }
-      try Await.ready(portNumberPromise, Duration.fromMilliseconds(100))
-      catch { case _: TimeoutException => }
-    }
-  }
-
-  private def startProxyServer(): Unit = {
+  private[pythonworker] def startProxyServer(): Unit = {
     // Try to start the server until it succeeds
     var serverStart = false
     while (!serverStart) {
@@ -294,7 +299,7 @@ class PythonWorkflowWorker(
     }
   }
 
-  private def startProxyClient(): Unit = {
+  private[pythonworker] def startProxyClient(): Unit = {
     val client = pythonProxyClient
     // Nothing reads the Future that submit returns, so failures are reported from here.
     clientThreadExecutor.submit(new Runnable {
@@ -320,7 +325,7 @@ class PythonWorkflowWorker(
       .getOrElse(fallback)
   }
 
-  private def startPythonProcess(): Unit = {
+  private[pythonworker] def startPythonProcess(): Unit = {
     val udfEntryScriptPath: String =
       pythonSrcDirectory.resolve("texera_run_python_worker.py").toString
 
@@ -358,10 +363,13 @@ class PythonWorkflowWorker(
   private def watchPythonProcess(): Unit = {
     val process = pythonServerProcess
     val watcher = new Thread(
-      () => {
-        val code = process.waitFor()
-        if (!stopping) self ! PythonWorkflowWorker.PythonProcessExited(code)
-      },
+      () =>
+        try {
+          val code = process.waitFor()
+          if (!stopping) self ! PythonWorkflowWorker.PythonProcessExited(code)
+        } catch {
+          case _: InterruptedException => // interrupted while shutting down; nothing to report
+        },
       s"python-exit-watcher-${workerConfig.workerId.name}"
     )
     watcher.setDaemon(true)
