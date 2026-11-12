@@ -36,6 +36,11 @@ import { merge } from "lodash-es";
   imports: [NgIf, NzIconDirective],
 })
 export class EditableLabelWrapperComponent extends FieldWrapper {
+  /** A host that draws the label itself sets `props.labelHosted` on the field after decorate(): the
+   *  wrapper then renders no name box, eye or static label, only the control's accessible name and
+   *  the dimmed state, and the host binds its own controls to the same props and callbacks. */
+  public static readonly LABEL_HOSTED_PROP = "labelHosted";
+
   /** Add this wrapper to a field with its naming + callbacks; `fallback` (the schema label)
    *  is the placeholder, so the author sees what leaving it blank yields. `rename` may be omitted
    *  for a reader mount (`authoring: false`), which renders a static label and no name input;
@@ -68,23 +73,36 @@ export class EditableLabelWrapperComponent extends FieldWrapper {
     });
   }
 
+  /**
+   * The write-through a rename follows, wherever the box is drawn: the name lands on the props
+   * first, so everything bound to them (this wrapper's hidden label, a host's header, the later
+   * rows the form keeps in step) shows it without a rebuild, and only then does the form hear of
+   * it. A host that draws the box itself (props.labelHosted) calls this rather than copying it.
+   */
+  public static rename(props: Record<string, unknown>, value: string): void {
+    props["authorName"] = value;
+    // Optional-chained: a reader mount omits rename and never renders the box this serves, but the
+    // write-through should not depend on that.
+    (props["renameField"] as ((name: string) => void) | undefined)?.(value);
+  }
+
+  /** The hide toggle's write-through; see rename. */
+  public static setHidden(props: Record<string, unknown>, hidden: boolean): void {
+    props["authorHidden"] = hidden;
+    // Optional-chained: decorate may omit setHidden when canHide is false, and although the control
+    // is not rendered then, a plain call would couple that to luck.
+    (props["setFieldHidden"] as ((hidden: boolean) => void) | undefined)?.(hidden);
+  }
+
   public onRename(event: Event): void {
     // The wrapper reflects the edit itself (the hidden label follows authorName), so the page does
     // not rebuild the form for a rename and the author keeps the focus where it is.
-    const value = (event.target as HTMLInputElement).value;
-    this.props["authorName"] = value;
-    // Optional-chained for the same reason as setFieldHidden below: a reader mount omits rename and
-    // never renders the input this handles, but the handler should not depend on that.
-    this.props["renameField"]?.(value);
+    EditableLabelWrapperComponent.rename(this.props, (event.target as HTMLInputElement).value);
   }
 
   public onToggleHidden(): void {
     // Same as onRename: the eye, the pressed state and the faded field follow authorHidden here, so
     // no rebuild is needed and the focus stays on the eye.
-    const hidden = !this.props["authorHidden"];
-    this.props["authorHidden"] = hidden;
-    // Optional-chained: decorate may omit setHidden when canHide is false, and although this handler
-    // is unreachable then (the hide control is not rendered), a plain call would couple that to luck.
-    this.props["setFieldHidden"]?.(hidden);
+    EditableLabelWrapperComponent.setHidden(this.props, !this.props["authorHidden"]);
   }
 }

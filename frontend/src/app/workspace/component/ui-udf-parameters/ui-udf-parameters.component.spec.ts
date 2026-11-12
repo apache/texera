@@ -345,6 +345,7 @@ describe("UiUdfParametersComponent", () => {
       // The template may read the columns, and their headers, before formly hands it the field.
       expect(component.columns).toBe(component.fieldColumns);
       expect(component.columnLabel(component.fieldColumns[1])).toBe("Name");
+      expect(component.columnControls(component.fieldColumns[1])).toBeUndefined();
       (component as any).field = { props: { operatorID: "op-form" } };
       expect(component.onFormView).toBe(true);
     });
@@ -374,6 +375,167 @@ describe("UiUdfParametersComponent", () => {
       Array.from(
         fixture.nativeElement.querySelectorAll(".ui-udf-parameter-row.header .col-title") as NodeListOf<HTMLElement>
       ).map(cell => cell.textContent?.trim());
+
+    /**
+     * A row as the form's walk decorates it for the AUTHOR. `controls` for the row that carries them
+     * (each cell with callbacks of its own, so a test can tell which column's fired), `follower`
+     * for a later row, which shows the same state and has no callbacks.
+     */
+    function authoredRow(carriesControls = true, canHide = true): FormlyFieldConfig {
+      const controls = (name: string, label: string) => ({
+        label: "",
+        authoring: carriesControls,
+        authorName: name,
+        authorHidden: false,
+        canHide,
+        schemaLabel: label,
+        renameField: carriesControls ? vitest.fn() : undefined,
+        setFieldHidden: carriesControls ? vitest.fn() : undefined,
+      });
+      // A rendered cell's props are observed by formly, which runs field.options.detectChanges on a
+      // write; the harness has no formly build behind these rows, so give each cell that hook.
+      const options = { detectChanges: () => {} } as FormlyFieldConfig["options"];
+      return {
+        fieldGroup: [
+          { key: "value", props: controls("", "Value"), options },
+          {
+            key: "attribute",
+            fieldGroup: [
+              { key: "attributeName", props: controls("Parameter", "Attribute Name"), options },
+              { key: "attributeType", props: controls("", "Attribute Type"), options },
+            ],
+          },
+        ],
+      };
+    }
+    const headerBoxes = () =>
+      Array.from(
+        fixture.nativeElement.querySelectorAll(
+          ".ui-udf-parameter-row.header .col-title-input"
+        ) as NodeListOf<HTMLInputElement>
+      );
+    const headerEyes = () =>
+      Array.from(
+        fixture.nativeElement.querySelectorAll(".ui-udf-parameter-row.header .col-eye") as NodeListOf<HTMLButtonElement>
+      );
+
+    // The form's label wrapper decorates every row's sub-fields; drawn in the cells under a header
+    // that already names the column, the first row's name box and every later row's static label
+    // put one name three times over. The header hosts the one pair of controls per column instead.
+    /** What the form publishes while authoring: every column shown, whatever the author hid. */
+    const allShownForAuthor = {
+      value: { label: "", shown: true },
+      "attribute.attributeName": { label: "Parameter", shown: true },
+      "attribute.attributeType": { label: "", shown: true },
+    };
+
+    it("hosts the author's name box and eye for each column in its header, and tells the cells so", () => {
+      const row = authoredRow();
+      const later = authoredRow(false);
+      const field = {
+        model: [...model, { value: "7", attribute: { attributeName: "limit", attributeType: "integer" } }],
+        props: { operatorID: "op-form", subFieldView: allShownForAuthor },
+        fieldArray: () => row,
+        fieldGroup: [row, later],
+      } as FormlyFieldConfig;
+      populate(field);
+      fixture.detectChanges();
+
+      // One name box and one eye per column, in the header, seeded from the first row.
+      expect(headerBoxes().map(box => box.value)).toEqual(["", "Parameter", ""]);
+      expect(headerBoxes().map(box => box.placeholder)).toEqual(["Value", "Name", "Type"]);
+      expect(headerEyes()).toHaveLength(3);
+      expect(fixture.nativeElement.querySelectorAll(".ui-udf-parameter-row.header .col-title")).toHaveLength(0);
+      // Every cell of every row is told the label lives in the header, and is named as the heading
+      // reads, not as the schema does ("Type", not "Attribute Type").
+      const cells = (r: FormlyFieldConfig) => [
+        r.fieldGroup![0],
+        r.fieldGroup![1].fieldGroup![0],
+        r.fieldGroup![1].fieldGroup![1],
+      ];
+      for (const cell of [...cells(row), ...cells(later)]) {
+        expect(cell.props?.["labelHosted"]).toBe(true);
+      }
+      expect(cells(later).map(cell => cell.props?.["schemaLabel"])).toEqual(["Value", "Name", "Type"]);
+
+      // Typing in the header renames through the first row's own callback for THAT column, and the
+      // box follows; the other columns' callbacks are left alone.
+      const [value, name, type] = cells(row);
+      const box = headerBoxes()[1];
+      box.value = "Threshold";
+      box.dispatchEvent(new Event("input"));
+      expect(name.props?.["renameField"]).toHaveBeenCalledWith("Threshold");
+      expect(name.props?.["authorName"]).toBe("Threshold");
+      expect(value.props?.["renameField"]).not.toHaveBeenCalled();
+      expect(type.props?.["renameField"]).not.toHaveBeenCalled();
+
+      // The eye hides through that column's own callback; the column fades and stays in view (the
+      // form publishes every column shown for an author); the eye says so; a second click un-hides.
+      headerEyes()[2].click();
+      fixture.detectChanges();
+      expect(type.props?.["setFieldHidden"]).toHaveBeenCalledWith(true);
+      expect(type.props?.["authorHidden"]).toBe(true);
+      expect(name.props?.["setFieldHidden"]).not.toHaveBeenCalled();
+      expect(component.columns).toHaveLength(3);
+      expect(fixture.nativeElement.querySelectorAll(".ui-udf-parameter-row.header .field-cell.dimmed")).toHaveLength(1);
+      const eye = headerEyes()[2];
+      expect(eye.getAttribute("aria-pressed")).toBe("true");
+      expect(eye.classList.contains("off")).toBe(true);
+      expect(eye.getAttribute("title")).toBe("Hidden from the form");
+      eye.click();
+      fixture.detectChanges();
+      expect(type.props?.["setFieldHidden"]).toHaveBeenLastCalledWith(false);
+      expect(type.props?.["authorHidden"]).toBe(false);
+      expect(headerEyes()[2].getAttribute("aria-pressed")).toBe("false");
+      expect(headerEyes()[2].getAttribute("title")).toBe("Shown on the form");
+      expect(fixture.nativeElement.querySelectorAll(".ui-udf-parameter-row.header .field-cell.dimmed")).toHaveLength(0);
+    });
+
+    it("offers no eye for a column the form marked as not hideable, and keeps the mark across a populate", () => {
+      const row = authoredRow(true, false);
+      const field = {
+        model,
+        props: { operatorID: "op-form" },
+        fieldArray: () => row,
+        fieldGroup: [row],
+      } as FormlyFieldConfig;
+      populate(field);
+      fixture.detectChanges();
+      expect(headerBoxes()).toHaveLength(3);
+      expect(headerEyes()).toHaveLength(0);
+
+      // A second populate (every change re-runs it) finds the mark already there and keeps it,
+      // along with the accessible name the host gave the cell.
+      populate(field);
+      expect(row.fieldGroup![0].props?.["labelHosted"]).toBe(true);
+      expect(row.fieldGroup![0].props?.["schemaLabel"]).toBe("Value");
+    });
+
+    it("keeps a plain text header for a reader's card and on the operator property panel", () => {
+      // A reader's rows carry no controls (authoring is off), so the header is the column's name,
+      // from what the form published for the card, and no cell is told otherwise.
+      const readerRow = row();
+      const field = {
+        model,
+        props: { operatorID: "op-form", subFieldView: renamedAndHidden },
+        fieldArray: () => readerRow,
+        fieldGroup: [readerRow],
+      } as FormlyFieldConfig;
+      populate(field);
+      fixture.detectChanges();
+      expect(headerBoxes()).toHaveLength(0);
+      expect(headers()).toEqual(["Value", "Parameter"]);
+      expect(readerRow.fieldGroup![0].props?.["labelHosted"]).toBeUndefined();
+
+      // The panel: the same rows, no operator mark, so nothing is hosted and nothing is marked.
+      const panelRow = authoredRow();
+      const panel = { model, fieldArray: () => panelRow, fieldGroup: [panelRow] } as FormlyFieldConfig;
+      populate(panel);
+      fixture.detectChanges();
+      expect(headerBoxes()).toHaveLength(0);
+      expect(headers()).toEqual(["Value", "Name", "Type"]);
+      expect(panelRow.fieldGroup![0].props?.["labelHosted"]).toBeUndefined();
+    });
 
     it("shows a renamed column under its new name and leaves a hidden one out, in the header and the cells", () => {
       // formly clones the template into the rows, so a row carries what the walk put on the template.

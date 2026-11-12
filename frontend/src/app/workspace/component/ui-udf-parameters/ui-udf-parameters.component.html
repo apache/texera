@@ -37,8 +37,39 @@
     <div class="ui-udf-parameter-row header">
       <div
         class="field-cell"
+        [class.dimmed]="columnHidden(column)"
         *ngFor="let column of columns">
-        <span class="col-title">{{ columnLabel(column) }}</span>
+        <!-- Authoring on the Form View: the column's name box and eye, the one pair the form's label
+             wrapper would have drawn in the first row's cell, hosted here instead (see
+             hostColumnLabels). Otherwise the header is the column's name. -->
+        <ng-container *ngIf="columnControls(column) as controls; else plainTitle">
+          <div class="col-controls">
+            <input
+              class="col-title-input"
+              [value]="controls['authorName'] || ''"
+              [placeholder]="column.label"
+              (input)="renameColumn(column, $event)"
+              [attr.aria-label]="'Heading of the ' + column.label + ' column'"
+              [title]="'Shown as this column\'s heading. Empty keeps ' + column.label" />
+            <button
+              *ngIf="controls['canHide'] !== false"
+              type="button"
+              class="col-eye"
+              [class.off]="controls['authorHidden'] === true"
+              (click)="toggleColumnHidden(column)"
+              [attr.aria-pressed]="controls['authorHidden'] === true"
+              [attr.aria-label]="'Hide the ' + column.label + ' column from the form'"
+              [title]="controls['authorHidden'] ? 'Hidden from the form' : 'Shown on the form'">
+              <span
+                nz-icon
+                [nzType]="controls['authorHidden'] ? 'eye-invisible' : 'eye'"
+                nzTheme="outline"></span>
+            </button>
+          </div>
+        </ng-container>
+        <ng-template #plainTitle>
+          <span class="col-title">{{ columnLabel(column) }}</span>
+        </ng-template>
       </div>
     </div>
 
