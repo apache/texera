@@ -90,6 +90,7 @@ export function isPythonUdf(operator: OperatorPredicate): boolean {
 
 export function getUiUdfLanguage(operator: OperatorPredicate | undefined): UiUdfLanguage | undefined {
   if (!operator) return undefined;
+  if (operator.operatorType === "JavaUDF") return "java";
   if (isPythonUdf(operator)) return "python";
   if (["RUDF", "RUDFSource"].includes(operator.operatorType)) return "r";
   return undefined;

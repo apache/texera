@@ -21,16 +21,19 @@ package org.apache.texera.service.resource
 
 import com.fasterxml.jackson.annotation.{JsonSubTypes, JsonTypeInfo}
 import com.typesafe.scalalogging.LazyLogging
+import io.dropwizard.auth.Auth
 import jakarta.annotation.security.RolesAllowed
 import jakarta.ws.rs.core.MediaType
 import jakarta.ws.rs.{Consumes, POST, Path, Produces}
 import org.apache.texera.common.compiler.{CompilationErrorHandling, WorkflowCompiler}
 import org.apache.texera.common.compiler.model.LogicalPlanPojo
+import org.apache.texera.amber.core.storage.FileResolver
 import org.apache.texera.amber.core.tuple.Attribute
 import org.apache.texera.amber.core.virtualidentity.WorkflowIdentity
 import org.apache.texera.amber.core.workflow.{PhysicalPlan, WorkflowContext}
 import org.apache.texera.amber.core.workflowruntimestate.WorkflowFatalError
 import org.apache.texera.amber.util.serde.PortIdentityKeySerializer
+import org.apache.texera.auth.SessionUser
 
 @JsonTypeInfo(
   use = JsonTypeInfo.Id.NAME,
@@ -63,7 +66,8 @@ class WorkflowCompilationResource extends LazyLogging {
   @POST
   @Path("")
   def compileWorkflow(
-      logicalPlanPojo: LogicalPlanPojo
+      logicalPlanPojo: LogicalPlanPojo,
+      @Auth user: SessionUser
   ): WorkflowCompilationResponse = {
     // a placeholder workflow context, as compiling a workflow doesn't require a wid from the frontend
     val context = new WorkflowContext(workflowId = WorkflowIdentity(0))
@@ -71,7 +75,8 @@ class WorkflowCompilationResource extends LazyLogging {
     // Compile the pojo using WorkflowCompiler; the editing path must never
     // throw, so pass Lenient explicitly (mirrors amber passing Strict)
     val compilationResult =
-      new WorkflowCompiler(context).compile(logicalPlanPojo, CompilationErrorHandling.Lenient)
+      new WorkflowCompiler(context, FileResolver.forUser(user.getUid))
+        .compile(logicalPlanPojo, CompilationErrorHandling.Lenient)
 
     val operatorOutputSchemas = compilationResult.operatorIdToOutputSchemas.map {
       case (operatorIdentity, schemas) =>

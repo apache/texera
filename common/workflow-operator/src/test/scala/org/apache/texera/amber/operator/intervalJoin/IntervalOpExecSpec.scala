@@ -20,16 +20,14 @@
 package org.apache.texera.amber.operator.intervalJoin
 
 import org.apache.texera.amber.core.tuple._
-import org.apache.texera.amber.core.virtualidentity.{OperatorIdentity, PhysicalOpIdentity}
-import org.apache.texera.amber.core.workflow.{PhysicalLink, PortIdentity}
+import org.apache.texera.amber.core.workflow.PortIdentity
 import org.apache.texera.amber.util.JSONUtils.objectMapper
-import org.scalatest.BeforeAndAfter
 import org.scalatest.flatspec.AnyFlatSpec
 
 import java.sql.Timestamp
 import scala.collection.mutable.ArrayBuffer
 import scala.util.Random
-class IntervalOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
+class IntervalOpExecSpec extends AnyFlatSpec {
   val left: Int = 0
   val right: Int = 1
 
@@ -41,34 +39,12 @@ class IntervalOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
   private val Seed: Long = 20260819L
 
   var opDesc: IntervalJoinOpDesc = _
-  var counter: Int = 0
-
-  def physicalLink(): PhysicalLink =
-    PhysicalLink(
-      physicalOpId(),
-      fromPortId = PortIdentity(),
-      physicalOpId(),
-      toPortId = PortIdentity()
-    )
-
-  def physicalOpId(): PhysicalOpIdentity = {
-    counter += 1
-    PhysicalOpIdentity(OperatorIdentity("" + counter), "" + counter)
-  }
 
   def newTuple[T](name: String, n: Int = 1, i: T, attributeType: AttributeType): Tuple = {
     Tuple
       .builder(schema(name, attributeType, n))
       .add(new Attribute(name, attributeType), i)
       .add(new Attribute(name + "_" + 1, attributeType), i)
-      .build()
-  }
-
-  def integerTuple(name: String, n: Int = 1, i: Int): Tuple = {
-    Tuple
-      .builder(schema(name, AttributeType.INTEGER, n))
-      .add(new Attribute(name, AttributeType.INTEGER), i)
-      .add(new Attribute(name + "_" + 1, AttributeType.INTEGER), i)
       .build()
   }
 
@@ -85,14 +61,6 @@ class IntervalOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
       .add(new Attribute(name, attributeType))
       .add(new Attribute(name + "_" + n, attributeType))
 
-  }
-
-  def longTuple(name: String, n: Int = 1, i: Long): Tuple = {
-    Tuple
-      .builder(schema(name, AttributeType.LONG, n))
-      .add(new Attribute(name, AttributeType.LONG), i)
-      .add(new Attribute(name + "_" + 1, AttributeType.LONG), i)
-      .build()
   }
 
   def timeStampTuple(name: String, n: Int = 1, i: Timestamp): Tuple = {
@@ -244,7 +212,6 @@ class IntervalOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
     val outputSchema = opDesc.getExternalOutputSchemas(inputSchemas).values.head
     val opExec = new IntervalJoinOpExec(objectMapper.writeValueAsString(opDesc))
     opExec.open()
-    counter = 0
     var leftIndex: Int = 0
     var rightIndex: Int = 0
     val orderRandom = new Random(Seed)
@@ -422,7 +389,6 @@ class IntervalOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
     opDesc.timeIntervalType = Option(TimeIntervalType.DAY)
     val opExec = new IntervalJoinOpExec(objectMapper.writeValueAsString(opDesc))
     opExec.open()
-    counter = 0
     val pointList: Array[Double] = Array(1.1, 2.1, 3.1, 4.1, 5.1, 6.1, 7.1, 8.1, 9.1, 10.1)
     pointList.foreach(i => {
       assert(

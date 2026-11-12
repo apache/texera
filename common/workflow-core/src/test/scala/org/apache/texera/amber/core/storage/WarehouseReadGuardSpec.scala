@@ -17,7 +17,7 @@
  * under the License.
  */
 
-package org.apache.texera.web.service
+package org.apache.texera.amber.core.storage
 
 import org.scalatest.flatspec.AnyFlatSpec
 

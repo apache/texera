@@ -52,7 +52,7 @@ RUN sbt clean WorkflowCompilingService/dist
 # Unzip the texera binary
 RUN unzip workflow-compiling-service/target/universal/workflow-compiling-service-*.zip -d target/
 
-FROM docker.io/library/eclipse-temurin:17-jre-jammy@sha256:97137382c6f0c30427d9b7c44ad8b2d55ac823b0768c171d81a643ed219023c5 AS runtime
+FROM docker.io/library/eclipse-temurin:17-jdk-jammy@sha256:60fcdd4a85c94a23ef86d0d55867c6a8dbc4f7c3efc8286e259956c3ea4ef08c AS runtime
 
 WORKDIR /texera
 

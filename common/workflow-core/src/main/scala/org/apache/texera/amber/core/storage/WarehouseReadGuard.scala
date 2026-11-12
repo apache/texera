@@ -17,9 +17,8 @@
  * under the License.
  */
 
-package org.apache.texera.web.service
+package org.apache.texera.amber.core.storage
 
-import org.apache.texera.amber.core.storage.VFSURIFactory
 import org.apache.texera.common.config.StorageConfig
 
 import java.net.URI

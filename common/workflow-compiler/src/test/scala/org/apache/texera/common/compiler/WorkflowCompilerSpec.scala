@@ -22,6 +22,7 @@ package org.apache.texera.common.compiler
 import org.apache.texera.common.compiler.model.{LogicalLink, LogicalPlanPojo}
 import org.apache.texera.amber.core.executor.{ExecFactory, OpExecWithClassName}
 import org.apache.texera.amber.core.state.State
+import org.apache.texera.amber.core.storage.ScanFileResolver
 import org.apache.texera.amber.core.tuple.{Attribute, AttributeType, Schema, Tuple}
 import org.apache.texera.amber.core.virtualidentity.WorkflowIdentity
 import org.apache.texera.amber.core.workflow.{OutputPort, PortIdentity, WorkflowContext}
@@ -60,6 +61,12 @@ class WorkflowCompilerSpec extends AnyFlatSpec {
 
   private def newContext(): WorkflowContext =
     new WorkflowContext(workflowId = WorkflowIdentity(0))
+
+  // The scan sources here read fixture files on the local disk.
+  private def newCompiler(
+      fileResolver: ScanFileResolver = TestOperators.fixtureFileResolver
+  ): WorkflowCompiler =
+    new WorkflowCompiler(newContext(), fileResolver)
 
   private def csvOp(fileName: String): CSVScanSourceOpDesc = {
     val op = new CSVScanSourceOpDesc()
@@ -142,7 +149,7 @@ class WorkflowCompilerSpec extends AnyFlatSpec {
   "WorkflowCompiler" should "produce a populated physicalPlan and no errors for a well-formed plan" in {
     val csv = csvOp(realCsvPath)
     val proj = projectOp(List("Region", "Total Profit"))
-    val result = new WorkflowCompiler(newContext()).compile(
+    val result = newCompiler().compile(
       LogicalPlanPojo(
         operators = List(csv, proj),
         links = List(
@@ -181,7 +188,7 @@ class WorkflowCompilerSpec extends AnyFlatSpec {
     val filter2 = filterOp(new FilterPredicate("Region", ComparisonType.NOT_EQUAL_TO, "JPN"))
     val limit2 = limitOp(5)
 
-    val result = new WorkflowCompiler(newContext()).compile(
+    val result = newCompiler().compile(
       LogicalPlanPojo(
         operators = List(csv, proj, limit1, filter1, filter2, limit2),
         links = List(
@@ -245,7 +252,7 @@ class WorkflowCompilerSpec extends AnyFlatSpec {
   "WorkflowCompiler" should "accumulate, not throw, when a scan source has no fileName" in {
     val orphan = csvOpNoFile()
 
-    val result = new WorkflowCompiler(newContext()).compile(
+    val result = newCompiler().compile(
       LogicalPlanPojo(
         operators = List(orphan),
         links = List.empty,
@@ -265,7 +272,7 @@ class WorkflowCompilerSpec extends AnyFlatSpec {
   it should "accumulate when a scan source's fileName points to a non-existent path" in {
     val broken = csvOp("/does/not/exist/missing.csv")
 
-    val result = new WorkflowCompiler(newContext()).compile(
+    val result = newCompiler().compile(
       LogicalPlanPojo(
         operators = List(broken),
         links = List.empty,
@@ -276,14 +283,68 @@ class WorkflowCompilerSpec extends AnyFlatSpec {
 
     assert(result.physicalPlan.isEmpty)
     assert(result.operatorIdToError.contains(broken.operatorIdentifier))
-    // FileResolver.resolve falls through both resolvers and rethrows
-    // org.apache.commons.vfs2.FileNotFoundException(fileName); its message bundle
-    // renders as `Could not read from "<path>" because it is not a file.`, so the
-    // only stable substring across that wording and any java.io.FileNotFoundException
-    // fallback is the bad path itself.
+    // The resolver raises org.apache.commons.vfs2.FileNotFoundException; its message
+    // bundle wraps whatever text it is given, so the only stable substring across that
+    // wording and any java.io.FileNotFoundException fallback is the bad path itself.
     assert(
       result.operatorIdToError(broken.operatorIdentifier).message.contains("missing.csv"),
       s"unexpected message: ${result.operatorIdToError(broken.operatorIdentifier).message}"
+    )
+  }
+
+  it should "read a scan source from the file its resolver names, not from the name as typed" in {
+    // The name is not a path to anything; only the resolver knows which file it stands for.
+    val asked = scala.collection.mutable.ArrayBuffer.empty[String]
+    val resolver: ScanFileResolver = fileName => {
+      asked += fileName
+      TestOperators.localFileUri(TestOperators.CountrySalesSmallCsvPath)
+    }
+    val scan = csvOp("a-name-only-the-resolver-understands")
+    scan.hasHeader = true
+
+    val result = newCompiler(resolver).compile(
+      LogicalPlanPojo(
+        operators = List(scan),
+        links = List.empty,
+        opsToViewResult = List.empty,
+        opsToReuseResult = List.empty
+      )
+    )
+
+    assert(asked.toList == List("a-name-only-the-resolver-understands"))
+    assert(result.operatorIdToError.isEmpty, s"unexpected errors: ${result.operatorIdToError}")
+    assert(
+      scan.fileName.contains(
+        TestOperators.localFileUri(TestOperators.CountrySalesSmallCsvPath).toASCIIString
+      )
+    )
+    val schema = result.operatorIdToOutputSchemas(scan.operatorIdentifier).values.head
+    assert(schema.exists(_.getAttributeNames.nonEmpty), "the schema comes from the resolved file")
+  }
+
+  it should "report a name its resolver refuses as that operator's error, with no schema" in {
+    // The file exists on disk; it is the resolver's answer that counts.
+    val refuseAll: ScanFileResolver =
+      fileName => throw new org.apache.commons.vfs2.FileNotFoundException(fileName)
+    val scan = csvOp(TestOperators.CountrySalesSmallCsvPath)
+
+    val result = newCompiler(refuseAll).compile(
+      LogicalPlanPojo(
+        operators = List(scan),
+        links = List.empty,
+        opsToViewResult = List.empty,
+        opsToReuseResult = List.empty
+      )
+    )
+
+    assert(result.physicalPlan.isEmpty)
+    assert(result.operatorIdToError.contains(scan.operatorIdentifier))
+    assert(scan.fileName.contains(TestOperators.CountrySalesSmallCsvPath), "the name is untouched")
+    assert(
+      result.operatorIdToOutputSchemas
+        .get(scan.operatorIdentifier)
+        .forall(_.values.forall(_.forall(_ == null))),
+      "nothing was read from the file, so there is no schema to return"
     )
   }
 
@@ -291,7 +352,7 @@ class WorkflowCompilerSpec extends AnyFlatSpec {
     val csv = csvOp(realCsvPath)
     val badProjection = projectOp(List("DoesNotExist"))
 
-    val result = new WorkflowCompiler(newContext()).compile(
+    val result = newCompiler().compile(
       LogicalPlanPojo(
         operators = List(csv, badProjection),
         links = List(
@@ -321,7 +382,7 @@ class WorkflowCompilerSpec extends AnyFlatSpec {
   }
 
   it should "not throw when given an empty plan" in {
-    val result = new WorkflowCompiler(newContext()).compile(
+    val result = newCompiler().compile(
       LogicalPlanPojo(
         operators = List.empty,
         links = List.empty,
@@ -343,7 +404,7 @@ class WorkflowCompilerSpec extends AnyFlatSpec {
     val orphan1 = csvOpNoFile()
     val orphan2 = csvOpNoFile()
 
-    val result = new WorkflowCompiler(newContext()).compile(
+    val result = newCompiler().compile(
       LogicalPlanPojo(
         operators = List(orphan1, orphan2),
         links = List.empty,
@@ -376,7 +437,7 @@ class WorkflowCompilerSpec extends AnyFlatSpec {
     val csv = csvOp(realCsvPath)
     val unconfiguredSort = sortOp() // no sort keys -> generatePythonCode throws
 
-    val result = new WorkflowCompiler(newContext()).compile(
+    val result = newCompiler().compile(
       LogicalPlanPojo(
         operators = List(csv, unconfiguredSort),
         links = List(
@@ -424,7 +485,7 @@ class WorkflowCompilerSpec extends AnyFlatSpec {
     val noKeys = sortOp()
     val blankKey = sortOp("" -> SortPreference.ASC)
 
-    val result = new WorkflowCompiler(newContext()).compile(
+    val result = newCompiler().compile(
       LogicalPlanPojo(
         operators = List(csv, noKeys, blankKey),
         links = List(
@@ -478,7 +539,7 @@ class WorkflowCompilerSpec extends AnyFlatSpec {
   it should "trim the marker's message and report it as a plain RuntimeException" in {
     val padded = new PaddedFailurePyOp
 
-    val result = new WorkflowCompiler(newContext()).compile(
+    val result = newCompiler().compile(
       LogicalPlanPojo(
         operators = List(padded),
         links = List.empty,
@@ -513,7 +574,7 @@ class WorkflowCompilerSpec extends AnyFlatSpec {
     val csv = csvOp(realCsvPath)
     val configuredSort = sortOp("Region" -> SortPreference.ASC)
 
-    val result = new WorkflowCompiler(newContext()).compile(
+    val result = newCompiler().compile(
       LogicalPlanPojo(
         operators = List(csv, configuredSort),
         links = List(
@@ -547,7 +608,7 @@ class WorkflowCompilerSpec extends AnyFlatSpec {
     val csv = csvOp(realCsvPath)
     val filter = filterOp(new FilterPredicate("Region", ComparisonType.EQUAL_TO, "Asia"))
 
-    val result = new WorkflowCompiler(newContext()).compile(
+    val result = newCompiler().compile(
       LogicalPlanPojo(
         operators = List(csv, filter),
         links = List(
@@ -585,7 +646,7 @@ class WorkflowCompilerSpec extends AnyFlatSpec {
     val csv = TestOperators.smallCsvScanOpDesc()
     val keyword = TestOperators.keywordSearchOpDesc("Region", "Asia")
 
-    val result = new WorkflowCompiler(newContext()).compile(
+    val result = newCompiler().compile(
       pojo(
         List(csv, keyword),
         List(
@@ -609,7 +670,7 @@ class WorkflowCompilerSpec extends AnyFlatSpec {
     val csv = TestOperators.smallCsvScanOpDesc()
     val keyword = TestOperators.keywordSearchOpDesc("Region", "Asia")
 
-    val result = new WorkflowCompiler(newContext()).compile(
+    val result = newCompiler().compile(
       pojo(
         List(csv, keyword),
         List(
@@ -647,7 +708,7 @@ class WorkflowCompilerSpec extends AnyFlatSpec {
     val csv = TestOperators.smallCsvScanOpDesc()
     val keyword = TestOperators.keywordSearchOpDesc("Region", "Asia")
 
-    val result = new WorkflowCompiler(newContext()).compile(
+    val result = newCompiler().compile(
       pojo(
         List(csv, keyword),
         List(
@@ -676,7 +737,7 @@ class WorkflowCompilerSpec extends AnyFlatSpec {
     val csv = TestOperators.smallCsvScanOpDesc()
     val keyword = TestOperators.keywordSearchOpDesc("Region", "Asia")
 
-    val result = new WorkflowCompiler(newContext()).compile(
+    val result = newCompiler().compile(
       pojo(
         List(csv, keyword),
         List(
@@ -705,7 +766,7 @@ class WorkflowCompilerSpec extends AnyFlatSpec {
   it should "treat a single source op as terminal and mark its output port for storage" in {
     val csv = TestOperators.smallCsvScanOpDesc()
 
-    val result = new WorkflowCompiler(newContext()).compile(pojo(List(csv), List.empty))
+    val result = newCompiler().compile(pojo(List(csv), List.empty))
 
     val storage = result.outputPortsNeedingStorage
     assert(
@@ -729,7 +790,7 @@ class WorkflowCompilerSpec extends AnyFlatSpec {
     val orphanCsv = new CSVScanSourceOpDesc()
 
     val ex = intercept[RuntimeException] {
-      new WorkflowCompiler(newContext())
+      newCompiler()
         .compile(pojo(List(orphanCsv), List.empty), CompilationErrorHandling.Strict)
     }
     assert(ex.getMessage.contains("No file selected"))
@@ -741,7 +802,7 @@ class WorkflowCompilerSpec extends AnyFlatSpec {
     val csv = csvOp(realCsvPath)
     val proj = projectOp(List("Region", "Total Profit"))
 
-    val result = new WorkflowCompiler(newContext()).compile(
+    val result = newCompiler().compile(
       pojo(
         List(csv, proj),
         List(
@@ -772,7 +833,7 @@ class WorkflowCompilerSpec extends AnyFlatSpec {
     val badProjection = projectOp(List("DoesNotExist"))
 
     val ex = intercept[Throwable] {
-      new WorkflowCompiler(newContext()).compile(
+      newCompiler().compile(
         pojo(
           List(csv, badProjection),
           List(
@@ -801,7 +862,7 @@ class WorkflowCompilerSpec extends AnyFlatSpec {
     val unconfiguredSort = sortOp()
 
     val ex = intercept[RuntimeException] {
-      new WorkflowCompiler(newContext()).compile(
+      newCompiler().compile(
         pojo(
           List(csv, unconfiguredSort),
           List(
@@ -827,7 +888,7 @@ class WorkflowCompilerSpec extends AnyFlatSpec {
     val csv = csvOp(realCsvPath)
     val configuredSort = sortOp("Region" -> SortPreference.DESC)
 
-    val result = new WorkflowCompiler(newContext()).compile(
+    val result = newCompiler().compile(
       pojo(
         List(csv, configuredSort),
         List(
@@ -916,7 +977,7 @@ class WorkflowCompilerSpec extends AnyFlatSpec {
       """{"predicates":[{"attribute":"Region","condition":"=","value":"$AAPL"}],"operatorType":"Filter"}"""
     )
 
-    val result = new WorkflowCompiler(newContext()).compile(
+    val result = newCompiler().compile(
       pojo(List(csv, filter), List(linked(csv, filter)))
     )
 
@@ -931,12 +992,12 @@ class WorkflowCompilerSpec extends AnyFlatSpec {
     val plan = pojo(List(csv, limit), List(linked(csv, limit)))
     val message = "Limit refers to loop variables (/limit -> $n), but is not inside a loop block"
 
-    val result = new WorkflowCompiler(newContext()).compile(plan)
+    val result = newCompiler().compile(plan)
 
     assert(result.physicalPlan.isEmpty)
     assert(onlyErrorOf(result, limit).contains(message))
     val ex = intercept[IllegalArgumentException] {
-      new WorkflowCompiler(newContext()).compile(plan, CompilationErrorHandling.Strict)
+      newCompiler().compile(plan, CompilationErrorHandling.Strict)
     }
     assert(ex.getMessage == message)
   }
@@ -948,7 +1009,7 @@ class WorkflowCompilerSpec extends AnyFlatSpec {
     val filter = filterOp(new FilterPredicate("line", ComparisonType.EQUAL_TO, "$i"))
     val end = loopEndOp()
 
-    val result = new WorkflowCompiler(newContext()).compile(
+    val result = newCompiler().compile(
       pojo(List(src, start, filter, end), chain(src, start, filter, end))
     )
 
@@ -972,7 +1033,7 @@ class WorkflowCompilerSpec extends AnyFlatSpec {
     val limit = parsed("""{"limit":"$n","operatorType":"Limit"}""")
     val end = loopEndOp()
 
-    val result = new WorkflowCompiler(newContext()).compile(
+    val result = newCompiler().compile(
       pojo(List(src, start, project, limit, end), chain(src, start, project, limit, end))
     )
 
@@ -998,7 +1059,7 @@ class WorkflowCompilerSpec extends AnyFlatSpec {
     val sort = parsed(sortJson.format("col"))
     val end = loopEndOp()
 
-    val result = new WorkflowCompiler(newContext()).compile(
+    val result = newCompiler().compile(
       pojo(List(csv, start, sort, end), chain(csv, start, sort, end))
     )
 
@@ -1012,7 +1073,7 @@ class WorkflowCompilerSpec extends AnyFlatSpec {
     )
 
     val outside = parsed(sortJson.format("USD"))
-    val outsideResult = new WorkflowCompiler(newContext()).compile(
+    val outsideResult = newCompiler().compile(
       pojo(List(csv, outside), List(linked(csv, outside)))
     )
     assert(
@@ -1109,7 +1170,7 @@ class WorkflowCompilerSpec extends AnyFlatSpec {
           "runs"
         val op = parsed(json)
 
-        val result = new WorkflowCompiler(newContext()).compile(insideLoopBlock(op))
+        val result = newCompiler().compile(insideLoopBlock(op))
 
         assert(result.physicalPlan.isEmpty, name)
         assert(
@@ -1117,7 +1178,7 @@ class WorkflowCompilerSpec extends AnyFlatSpec {
           s"$name: ${result.operatorIdToError}"
         )
         val ex = intercept[IllegalArgumentException] {
-          new WorkflowCompiler(newContext())
+          newCompiler()
             .compile(insideLoopBlock(parsed(json)), CompilationErrorHandling.Strict)
         }
         assert(ex.getMessage == message, name)
@@ -1134,7 +1195,7 @@ class WorkflowCompilerSpec extends AnyFlatSpec {
     ).foreach {
       case (json, sidecar) =>
         val op = parsed(json)
-        val result = new WorkflowCompiler(newContext()).compile(insideLoopBlock(op))
+        val result = newCompiler().compile(insideLoopBlock(op))
         assert(result.operatorIdToError.isEmpty, s"unexpected errors: ${result.operatorIdToError}")
         val (_, descString) = executorInit(result, op)
         assert(sidecarOf(descString) == sidecar)
@@ -1145,7 +1206,7 @@ class WorkflowCompilerSpec extends AnyFlatSpec {
     val src = textInputOp("0")
     val projection = parsed(referencesInNoLoopVariableProperties.head._1)
 
-    val result = new WorkflowCompiler(newContext()).compile(
+    val result = newCompiler().compile(
       pojo(List(src, projection), List(linked(src, projection)))
     )
 
@@ -1180,7 +1241,7 @@ class WorkflowCompilerSpec extends AnyFlatSpec {
       if (!nested) chain(src, start)
       else chain(src, outerStart, outside) ++ chain(outerStart, start) ++ chain(end, outerEnd)
     val links = around ++ List(linked(left, join), linked(right, join, 1), linked(join, end))
-    (join, new WorkflowCompiler(newContext()).compile(pojo(operators, links)))
+    (join, newCompiler().compile(pojo(operators, links)))
   }
 
   it should "report a reference inside a loop block, an inner one too, on an operator whose first input comes from outside it" in {
@@ -1214,7 +1275,7 @@ class WorkflowCompilerSpec extends AnyFlatSpec {
     val limit = parsed("""{"limit":"$n","operatorType":"Limit"}""")
     val end = loopEndOp()
 
-    val result = new WorkflowCompiler(newContext()).compile(
+    val result = newCompiler().compile(
       pojo(
         List(outside, src, start, limit, end),
         List(linked(src, start), linked(start, limit), linked(outside, limit), linked(limit, end))
@@ -1239,7 +1300,7 @@ class WorkflowCompilerSpec extends AnyFlatSpec {
       (loopStartOp(), parsed("""{"limit":"$n","operatorType":"Limit"}"""), loopEndOp())
     val outerEnd = loopEndOp()
 
-    val result = new WorkflowCompiler(newContext()).compile(
+    val result = newCompiler().compile(
       pojo(
         List(src, outerStart, first, project, firstEnd, second, limit, secondEnd, outerEnd),
         chain(src, outerStart, first, project, firstEnd, outerEnd) ++

@@ -19,14 +19,17 @@
 
 package org.apache.texera.web.service
 
-import com.fasterxml.jackson.databind.JsonNode
 import com.fasterxml.jackson.databind.node.ObjectNode
 import io.reactivex.rxjava3.disposables.Disposable
 import org.apache.pekko.actor.{ActorSystem, Cancellable}
 import org.apache.texera.amber.core.executor.OpExecInitInfo
 import org.apache.texera.amber.core.storage.model.BufferedItemWriter
 import org.apache.texera.amber.core.storage.result.{OperatorResultMetadata, WorkflowResultStore}
-import org.apache.texera.amber.core.storage.{DocumentFactory, VFSURIFactory}
+import org.apache.texera.amber.core.storage.{
+  DocumentFactory,
+  VFSURIFactory,
+  WarehouseUnavailableException
+}
 import org.apache.texera.amber.core.tuple.{Attribute, AttributeType, Schema, Tuple}
 import org.apache.texera.amber.core.virtualidentity.{
   ExecutionIdentity,
@@ -62,7 +65,7 @@ import org.apache.texera.dao.jooq.generated.Tables.{
   WORKFLOW_EXECUTIONS,
   WORKFLOW_VERSION
 }
-import org.apache.texera.dao.jooq.generated.enums.WorkflowComputingUnitTypeEnum
+import org.apache.texera.dao.jooq.generated.enums.{OutputModeEnum, WorkflowComputingUnitTypeEnum}
 import org.apache.texera.dao.jooq.generated.tables.daos.{
   UserDao,
   WorkflowComputingUnitDao,
@@ -231,7 +234,7 @@ class ExecutionResultServiceSpec
 
     ExecutionResultService.persistOperatorPortResultUri(
       eid,
-      OperatorPortResultUriAvailable(globalPortId, uri)
+      OperatorPortResultUriAvailable(globalPortId, uri, OutputMode.SINGLE_SNAPSHOT)
     )
 
     val rows = getDSLContext
@@ -241,494 +244,21 @@ class ExecutionResultServiceSpec
       .fetch()
     rows.size() shouldBe 1
     rows.get(0).getResultUri shouldBe uri.toString
+    // The mode is recorded with the URI, so a finished execution's results can be
+    // listed without the engine's physical plan (#8994).
+    rows.get(0).getOutputMode shouldBe OutputModeEnum.SINGLE_SNAPSHOT
   }
 
-  "convertTuplesToJson" should "convert tuples with various field types correctly" in {
-    // Create a schema with different attribute types
-    val attributes = List(
-      new Attribute("stringCol", AttributeType.STRING),
-      new Attribute("intCol", AttributeType.INTEGER),
-      new Attribute("boolCol", AttributeType.BOOLEAN),
-      new Attribute("nullCol", AttributeType.ANY),
-      new Attribute("longStringCol", AttributeType.STRING),
-      new Attribute("shortBinaryCol", AttributeType.BINARY),
-      new Attribute("longBinaryCol", AttributeType.BINARY)
-    )
-
-    val schema = new Schema(attributes)
-
-    // Create a string longer than maxStringLength (100)
-    val longString = "a" * 150
-
-    // Create binary data
-    val shortBinaryData = Array[Byte](1, 2, 3, 4, 5)
-    val longBinaryData = Array.tabulate[Byte](100)(_.toByte)
-
-    // Create a tuple with all the test data
-    val tuple = Tuple
-      .builder(schema)
-      .add("stringCol", AttributeType.STRING, "regular string")
-      .add("intCol", AttributeType.INTEGER, 42)
-      .add("boolCol", AttributeType.BOOLEAN, true)
-      .add("nullCol", AttributeType.ANY, null)
-      .add("longStringCol", AttributeType.STRING, longString)
-      .add("shortBinaryCol", AttributeType.BINARY, shortBinaryData)
-      .add("longBinaryCol", AttributeType.BINARY, longBinaryData)
-      .build()
-
-    // Convert to JSON
-    val result = ExecutionResultService.convertTuplesToJson(List(tuple))
-
-    // Verify the result
-    result should have size 1
-    val jsonNode = result.head
-
-    // Check regular values
-    jsonNode.get("stringCol").asText() shouldBe "regular string"
-    jsonNode.get("intCol").asInt() shouldBe 42
-    jsonNode.get("boolCol").asBoolean() shouldBe true
-
-    // Check NULL value
-    jsonNode.get("nullCol").asText() shouldBe "NULL"
-
-    // Check long string truncation
-    jsonNode.get("longStringCol").asText() should (
-      have length 103 and // 100 chars + "..."
-        startWith("a" * 100) and
-        endWith("...")
-    )
-
-    // Check short binary representation
-    val shortBinaryString = jsonNode.get("shortBinaryCol").asText()
-    shortBinaryString should (
-      startWith("<binary") and
-        include("...") and
-        include("size = 5 bytes")
-    )
-
-    // Check long binary representation
-    val longBinaryString = jsonNode.get("longBinaryCol").asText()
-    longBinaryString should (
-      startWith("<binary") and
-        include("...") and
-        include("size = 100 bytes")
-    )
+  "toOutputModeEnum" should "map every declared output mode to the stored value of its name" in {
+    // Walks the proto's values, so a new mode missing from the match fails here, not at runtime.
+    OutputMode.values.foreach { mode =>
+      ExecutionResultService.toOutputModeEnum(mode).getLiteral shouldBe mode.name
+    }
   }
 
-  it should "handle empty collections of tuples" in {
-    val result = ExecutionResultService.convertTuplesToJson(List())
-    result shouldBe empty
-  }
-
-  it should "handle collections with multiple tuples" in {
-    // Create a simple schema
-    val attributes = List(
-      new Attribute("id", AttributeType.INTEGER),
-      new Attribute("name", AttributeType.STRING)
-    )
-
-    val schema = new Schema(attributes)
-
-    // Create multiple tuples
-    val tuple1 = Tuple
-      .builder(schema)
-      .add("id", AttributeType.INTEGER, 1)
-      .add("name", AttributeType.STRING, "Alice")
-      .build()
-
-    val tuple2 = Tuple
-      .builder(schema)
-      .add("id", AttributeType.INTEGER, 2)
-      .add("name", AttributeType.STRING, "Bob")
-      .build()
-
-    // Convert to JSON
-    val results = ExecutionResultService.convertTuplesToJson(List(tuple1, tuple2))
-
-    // Verify the results
-    results should have size 2
-    results.head.get("id").asInt() shouldBe 1
-    results.head.get("name").asText() shouldBe "Alice"
-    results(1).get("id").asInt() shouldBe 2
-    results(1).get("name").asText() shouldBe "Bob"
-  }
-
-  it should "handle string exactly at the maximum length" in {
-    val attributes = List(
-      new Attribute("exactLengthString", AttributeType.STRING)
-    )
-    val schema = new Schema(attributes)
-
-    // Create string exactly at maxStringLength (100)
-    val exactLengthString = "x" * 100
-
-    val tuple = Tuple
-      .builder(schema)
-      .add("exactLengthString", AttributeType.STRING, exactLengthString)
-      .build()
-
-    val result = ExecutionResultService.convertTuplesToJson(List(tuple))
-
-    result should have size 1
-    val jsonNode = result.head
-
-    jsonNode.get("exactLengthString").asText() shouldBe exactLengthString
-    jsonNode.get("exactLengthString").asText() should have length 100
-  }
-
-  it should "handle empty binary data" in {
-    val attributes = List(
-      new Attribute("emptyBinary", AttributeType.BINARY)
-    )
-    val schema = new Schema(attributes)
-
-    // Empty binary data
-    val emptyBinaryData = Array[Byte]()
-
-    val tuple = Tuple
-      .builder(schema)
-      .add("emptyBinary", AttributeType.BINARY, emptyBinaryData)
-      .build()
-
-    val result = ExecutionResultService.convertTuplesToJson(List(tuple))
-
-    result should have size 1
-    val jsonNode = result.head
-
-    val emptyBinaryString = jsonNode.get("emptyBinary").asText()
-    emptyBinaryString should include("size = 0 bytes")
-  }
-
-  it should "handle binary data with single ByteBuffer" in {
-    val attributes = List(
-      new Attribute("singleBufferBinary", AttributeType.BINARY)
-    )
-    val schema = new Schema(attributes)
-
-    // Create binary data with a single ByteBuffer
-    val singleBufferData = "Hello, world!".getBytes()
-
-    val tuple = Tuple
-      .builder(schema)
-      .add("singleBufferBinary", AttributeType.BINARY, singleBufferData)
-      .build()
-
-    val result = ExecutionResultService.convertTuplesToJson(List(tuple))
-
-    result should have size 1
-    val jsonNode = result.head
-
-    val binaryString = jsonNode.get("singleBufferBinary").asText()
-    binaryString should (
-      startWith("<binary") and
-        include("size = 13 bytes") // "Hello, world!" is 13 bytes
-    )
-  }
-
-  it should "handle various numeric types correctly" in {
-    val attributes = List(
-      new Attribute("intValue", AttributeType.INTEGER),
-      new Attribute("doubleValue", AttributeType.DOUBLE),
-      new Attribute("longValue", AttributeType.LONG)
-    )
-    val schema = new Schema(attributes)
-
-    val tuple = Tuple
-      .builder(schema)
-      .add("intValue", AttributeType.INTEGER, Int.MaxValue)
-      .add("doubleValue", AttributeType.DOUBLE, 3.14159)
-      .add("longValue", AttributeType.LONG, Long.MaxValue)
-      .build()
-
-    val result = ExecutionResultService.convertTuplesToJson(List(tuple))
-
-    result should have size 1
-    val jsonNode = result.head
-
-    jsonNode.get("intValue").asInt() shouldBe Int.MaxValue
-    jsonNode.get("doubleValue").asDouble() shouldBe 3.14159
-    jsonNode.get("longValue").asLong() shouldBe Long.MaxValue
-  }
-
-  it should "handle multiple binary fields within the same tuple" in {
-    val attributes = List(
-      new Attribute("binaryField1", AttributeType.BINARY),
-      new Attribute("binaryField2", AttributeType.BINARY)
-    )
-    val schema = new Schema(attributes)
-
-    val binaryData1 = Array[Byte](10, 20, 30)
-    val binaryData2 = Array[Byte](40, 50, 60)
-
-    val tuple = Tuple
-      .builder(schema)
-      .add("binaryField1", AttributeType.BINARY, binaryData1)
-      .add("binaryField2", AttributeType.BINARY, binaryData2)
-      .build()
-
-    val result = ExecutionResultService.convertTuplesToJson(List(tuple))
-
-    result should have size 1
-    val jsonNode = result.head
-
-    val binaryString1 = jsonNode.get("binaryField1").asText()
-    binaryString1 should (
-      startWith("<binary") and
-        include("size = 3 bytes")
-    )
-
-    val binaryString2 = jsonNode.get("binaryField2").asText()
-    binaryString2 should (
-      startWith("<binary") and
-        include("size = 3 bytes")
-    )
-  }
-
-  it should "not truncate long strings when isVisualization is true" in {
-    val attributes = List(
-      new Attribute("longStringCol", AttributeType.STRING)
-    )
-    val schema = new Schema(attributes)
-
-    // Create a string longer than maxStringLength (100)
-    val longString = "a" * 150
-    val htmlVisualizationString = """
-      <head>
-        <meta charset="utf-8" />
-      </head>
-      <body>
-        <div>
-          <script type="text/javascript">
-            window.PlotlyConfig = {MathJaxConfig: 'local'};
-          </script>
-          <script charset="utf-8" src="https://cdn.plot.ly/plotly-2.35.2.min.js"></script>
-          <div id="740a52d7-d771-417c-a197-28a29a048f95" class="plotly-graph-div" style="height:100%; width:100%;"></div>
-          <script type="text/javascript">
-            window.PLOTLYENV=window.PLOTLYENV || {};
-            if (document.getElementById("740a52d7-d771-417c-a197-28a29a048f95")) {
-              Plotly.newPlot(
-                "740a52d7-d771-417c-a197-28a29a048f95",
-                [
-                  {
-                    "alignmentgroup": "True",
-                    "hovertemplate": "Item Type=%{x}<br>units-sold-per-type=%{y}<extra></extra>",
-                    "legendgroup": "",
-                    "marker": {"color": "#636efa", "pattern": {"shape": ""}},
-                    "name": "",
-                    "offsetgroup": "",
-                    "orientation": "v",
-                    "showlegend": false,
-                    "textposition": "auto",
-                    "x": [
-                      "Vegetables", 
-                      "Office Supplies", 
-                      "Baby Food", 
-                      "Household", 
-                      "Cosmetics", 
-                      "Beverages", 
-                      "Personal Care", 
-                      "Clothes"
-                    ],
-                    "xaxis": "x",
-                    "y": [171.0, 3958.0, 6552.5, 2397.5, 6414.75, 4892.0, 2671.5, 3513.25],
-                    "yaxis": "y",
-                    "type": "bar"
-                  }
-                ],
-                {
-                  "barmode": "relative",
-                  "legend": {"tracegroupgap": 0},
-                  "margin": {"t": 0, "l": 0, "r": 0, "b": 0},
-                  "template": {
-                    "data": {
-                      "barpolar": [
-                        {
-                          "marker": {
-                            "line": {"color": "#E5ECF6", "width": 0.5},
-                            "pattern": {"fillmode": "overlay", "size": 10, "solidity": 0.2}
-                          },
-                          "type": "barpolar"
-                        }
-                      ],
-                      "bar": [
-                        {
-                          "error_x": {"color": "#2a3f5f"},
-                          "error_y": {"color": "#2a3f5f"},
-                          "marker": {
-                            "line": {"color": "#E5ECF6", "width": 0.5},
-                            "pattern": {"fillmode": "overlay", "size": 10, "solidity": 0.2}
-                          },
-                          "type": "bar"
-                        }
-                      ],
-                      // Additional template data omitted for brevity
-                    },
-                    "layout": {
-                      // Layout configuration omitted for brevity
-                    }
-                  },
-                  "xaxis": {"anchor": "y", "domain": [0.0, 1.0], "title": {"text": "Item Type"}},
-                  "yaxis": {"anchor": "x", "domain": [0.0, 1.0], "title": {"text": "units-sold-per-type"}}
-                },
-                {"responsive": true}
-              )
-            };
-          </script>
-        </div>
-      </body>
-    </html>"""
-
-    // Test case 1: With a simple long string
-    val tuple1 = Tuple
-      .builder(schema)
-      .add("longStringCol", AttributeType.STRING, longString)
-      .build()
-
-    // Test case 2: With HTML visualization content
-    val tuple2 = Tuple
-      .builder(schema)
-      .add("longStringCol", AttributeType.STRING, htmlVisualizationString)
-      .build()
-
-    // When isVisualization is false (default)
-    val resultsDefault = ExecutionResultService.convertTuplesToJson(List(tuple1, tuple2))
-
-    // Verify truncation happens
-    resultsDefault(0).get("longStringCol").asText() should (
-      have length 103 and // 100 chars + "..."
-        startWith("a" * 100) and
-        endWith("...")
-    )
-
-    resultsDefault(1).get("longStringCol").asText() should (
-      have length 103 and
-        endWith("...")
-    )
-
-    // When isVisualization is true
-    val resultsVisualization =
-      ExecutionResultService.convertTuplesToJson(List(tuple1, tuple2), true)
-
-    // Verify no truncation happens
-    resultsVisualization(0).get("longStringCol").asText() shouldBe longString
-    resultsVisualization(0).get("longStringCol").asText() should have length 150
-
-    resultsVisualization(1).get("longStringCol").asText() shouldBe htmlVisualizationString
-    resultsVisualization(1)
-      .get("longStringCol")
-      .asText() should have length htmlVisualizationString.length
-  }
-
-  it should "handle direct comparison between non-visualization and visualization mode" in {
-    val attributes = List(
-      new Attribute("col1", AttributeType.STRING),
-      new Attribute("col2", AttributeType.STRING),
-      new Attribute("col3", AttributeType.STRING)
-    )
-    val schema = new Schema(attributes)
-
-    // Create strings of various lengths
-    val shortString = "short string" // under maxStringLength
-    val exactLengthString = "x" * 100 // exactly maxStringLength
-    val longString = "y" * 200 // over maxStringLength
-
-    val tuple = Tuple
-      .builder(schema)
-      .add("col1", AttributeType.STRING, shortString)
-      .add("col2", AttributeType.STRING, exactLengthString)
-      .add("col3", AttributeType.STRING, longString)
-      .build()
-
-    // Convert with both modes
-    val resultDefault = ExecutionResultService.convertTuplesToJson(List(tuple), false)
-    val resultVisualization = ExecutionResultService.convertTuplesToJson(List(tuple), true)
-
-    // Short strings should be the same in both modes
-    resultDefault(0).get("col1").asText() shouldBe shortString
-    resultVisualization(0).get("col1").asText() shouldBe shortString
-
-    // Exact length strings should be the same in both modes
-    resultDefault(0).get("col2").asText() shouldBe exactLengthString
-    resultVisualization(0).get("col2").asText() shouldBe exactLengthString
-
-    // Long strings should be truncated in default mode but not in visualization mode
-    resultDefault(0).get("col3").asText() should (
-      have length 103 and // 100 chars + "..."
-        startWith("y" * 100) and
-        endWith("...")
-    )
-    resultVisualization(0).get("col3").asText() shouldBe longString
-    resultVisualization(0).get("col3").asText() should have length 200
-  }
-
-  it should "apply visualization flag correctly to mixed collections" in {
-    val attributes = List(
-      new Attribute("value", AttributeType.STRING)
-    )
-    val schema = new Schema(attributes)
-
-    // Create a collection with both short and long strings
-    val tuples = List(
-      Tuple.builder(schema).add("value", AttributeType.STRING, "short").build(),
-      Tuple.builder(schema).add("value", AttributeType.STRING, "a" * 150).build(),
-      Tuple.builder(schema).add("value", AttributeType.STRING, "medium length").build(),
-      Tuple.builder(schema).add("value", AttributeType.STRING, "b" * 200).build()
-    )
-
-    // Test with visualization flag true
-    val resultsVisualization = ExecutionResultService.convertTuplesToJson(tuples, true)
-
-    // All strings should remain intact
-    resultsVisualization(0).get("value").asText() shouldBe "short"
-    resultsVisualization(1).get("value").asText() shouldBe "a" * 150
-    resultsVisualization(2).get("value").asText() shouldBe "medium length"
-    resultsVisualization(3).get("value").asText() shouldBe "b" * 200
-
-    // Test with visualization flag false (default)
-    val resultsDefault = ExecutionResultService.convertTuplesToJson(tuples)
-
-    // Short strings unchanged, long strings truncated
-    resultsDefault(0).get("value").asText() shouldBe "short"
-    resultsDefault(1).get("value").asText() should endWith("...")
-    resultsDefault(2).get("value").asText() shouldBe "medium length"
-    resultsDefault(3).get("value").asText() should endWith("...")
-  }
-
-  // The existing binary cases assert only the byte size and the presence of an
-  // ellipsis. They never pin the actual preview bits, and they never exercise
-  // the "<= 13 bits" branch with a non-empty array (only the empty-array edge
-  // hits it). The next two cases pin both branches exactly.
-
-  it should "render the full bit string for a binary field of 13 bits or fewer" in {
-    val schema = new Schema(List(new Attribute("b", AttributeType.BINARY)))
-    // 1 byte = 8 bits <= 10 (leading) + 3 (trailing), so no truncation/ellipsis.
-    val tuple = Tuple.builder(schema).add("b", AttributeType.BINARY, Array[Byte](5)).build()
-
-    val text = ExecutionResultService.convertTuplesToJson(List(tuple)).head.get("b").asText()
-    text shouldBe "<binary 00000101, size = 1 bytes>"
-  }
-
-  it should "render leading-10 and trailing-3 preview bits with an ellipsis for larger binary fields" in {
-    val schema = new Schema(List(new Attribute("b", AttributeType.BINARY)))
-    // 3 bytes = 24 bits > 13: preview = first 10 bits + "..." + last 3 bits.
-    // bytes 0xFF,0x00,0xAA -> "11111111 00000000 10101010"
-    //   leading 10 bits  = "1111111100"
-    //   trailing 3 bits  = "010"
-    val bytes = Array[Byte](0xff.toByte, 0x00.toByte, 0xaa.toByte)
-    val tuple = Tuple.builder(schema).add("b", AttributeType.BINARY, bytes).build()
-
-    val text = ExecutionResultService.convertTuplesToJson(List(tuple)).head.get("b").asText()
-    text shouldBe "<binary 1111111100...010, size = 3 bytes>"
-  }
-
-  // TIMESTAMP passes through to the shared objectMapper unchanged.
-  it should "pass timestamp fields through unchanged to the shared serializer" in {
-    val schema = new Schema(List(new Attribute("ts", AttributeType.TIMESTAMP)))
-    val ts = Timestamp.valueOf("2023-01-15 08:30:45.123")
-    val tuple = Tuple.builder(schema).add("ts", AttributeType.TIMESTAMP, ts).build()
-
-    val node = ExecutionResultService.convertTuplesToJson(List(tuple)).head.get("ts")
-    node shouldBe objectMapper.valueToTree[JsonNode](ts)
+  it should "reject an unrecognized mode" in {
+    a[RuntimeException] should be thrownBy
+      ExecutionResultService.toOutputModeEnum(OutputMode.Unrecognized(99))
   }
 
   // The WebOutputMode / WebResultUpdate ADTs are serialized to the frontend over
@@ -1038,12 +568,12 @@ class ExecutionResultServiceSpec
     }
   }
 
-  it should "record the size and per-column statistics of a table-mode result" in {
+  it should "send the per-column statistics of a table-mode result" in {
     val executionId = newExecution()
     val schema = new Schema(
       List(new Attribute("id", AttributeType.INTEGER), new Attribute("name", AttributeType.STRING))
     )
-    val uri = storeResult(
+    storeResult(
       executionId,
       "erss-snapshot-stats",
       schema,
@@ -1065,16 +595,56 @@ class ExecutionResultServiceSpec
 
       events.updates.head.tableStats.keySet shouldBe Set("erss-snapshot-stats")
       events.updates.head.tableStats("erss-snapshot-stats").keySet shouldBe Set("id", "name")
+    }
+  }
 
-      // The persisted size must be the document's own file size, not some other
-      // measure of the result (a row count, or a hard-coded zero).
-      // The persisted size must be the document's own file size, not some other
-      // measure of the result (a row count, or a hard-coded zero). Nothing is closed
-      // afterwards because VirtualDocument exposes no close(); its only teardown is
+  it should "record the size and row count of a table-mode result with no browser connected" in {
+    val executionId = newExecution()
+    val schema = new Schema(List(new Attribute("id", AttributeType.INTEGER)))
+    val uri = storeResult(
+      executionId,
+      "erss-snapshot-count",
+      schema,
+      (1 to 3).map(i => Tuple.builder(schema).add("id", AttributeType.INTEGER, i).build())
+    )
+    val plan = planOf(
+      physicalOp(executionId, "erss-snapshot-count", PortIdentity() -> OutputMode.SET_SNAPSHOT)
+    )
+
+    withAttached(plan, executionId) { fixture =>
+      // No ResultEvents: the run finishes after its browser tab has closed (#8994).
+      setPollingCancellable(fixture.service, new RecordingCancellable)
+      fixture.client.fire(ExecutionStateUpdate(WorkflowAggregatedState.COMPLETED))
+
+      storedResultCount(executionId, "erss-snapshot-count") shouldBe 3L
+      // The document's own file size, not some other measure of the result. Nothing is
+      // closed afterwards because VirtualDocument exposes no close(); its only teardown is
       // clear(), which deletes the data rather than releasing a handle.
       val expectedSize = DocumentFactory.openDocument(uri)._1.getTotalFileSize
       expectedSize should not be 0L
-      storedResultSize(executionId, "erss-snapshot-stats") shouldBe expectedSize
+      storedResultSize(executionId, "erss-snapshot-count") shouldBe expectedSize
+    }
+  }
+
+  it should "record no row count for a SINGLE_SNAPSHOT port" in {
+    val executionId = newExecution()
+    val schema = new Schema(List(new Attribute("html", AttributeType.STRING)))
+    storeResult(
+      executionId,
+      "erss-single-count",
+      schema,
+      List(Tuple.builder(schema).add("html", AttributeType.STRING, "<p/>").build())
+    )
+    val plan = planOf(
+      physicalOp(executionId, "erss-single-count", PortIdentity() -> OutputMode.SINGLE_SNAPSHOT)
+    )
+
+    withAttached(plan, executionId) { fixture =>
+      setPollingCancellable(fixture.service, new RecordingCancellable)
+      fixture.client.fire(ExecutionStateUpdate(WorkflowAggregatedState.COMPLETED))
+
+      // A visualization is shown whole, never paged, so it has no count to record.
+      storedResultCount(executionId, "erss-single-count") shouldBe null
     }
   }
 
@@ -1221,7 +791,9 @@ class ExecutionResultServiceSpec
       val globalPortId = globalPortIdOf("erss-callback")
       val uri = resultUriOf(executionId, "erss-callback")
 
-      fixture.client.fire(OperatorPortResultUriAvailable(globalPortId, uri))
+      fixture.client.fire(
+        OperatorPortResultUriAvailable(globalPortId, uri, OutputMode.SET_SNAPSHOT)
+      )
 
       val rows = getDSLContext
         .selectFrom(OPERATOR_PORT_EXECUTIONS)
@@ -1574,6 +1146,19 @@ class ExecutionResultServiceSpec
     insertResultUri(executionId, uri)
     uri
   }
+
+  private def storedResultCount(
+      executionId: ExecutionIdentity,
+      operatorId: String
+  ): java.lang.Long =
+    getDSLContext
+      .select(OPERATOR_PORT_EXECUTIONS.RESULT_COUNT)
+      .from(OPERATOR_PORT_EXECUTIONS)
+      .where(OPERATOR_PORT_EXECUTIONS.WORKFLOW_EXECUTION_ID.eq(executionId.id.toInt))
+      .and(
+        OPERATOR_PORT_EXECUTIONS.GLOBAL_PORT_ID.eq(globalPortIdOf(operatorId).serializeAsString)
+      )
+      .fetchOne(OPERATOR_PORT_EXECUTIONS.RESULT_COUNT)
 
   private def storedResultSize(executionId: ExecutionIdentity, operatorId: String): Long =
     getDSLContext

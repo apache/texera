@@ -20,6 +20,7 @@
 package org.apache.texera.web.resource.dashboard.user.workflow
 
 import org.apache.texera.auth.SessionUser
+import org.apache.texera.auth.util.WorkflowAccess
 import org.apache.texera.dao.MockTexeraDB
 import org.apache.texera.dao.jooq.generated.Tables._
 import org.apache.texera.dao.jooq.generated.enums.PrivilegeEnum
@@ -433,57 +434,6 @@ class WorkflowAccessResourceSpec
     assert(workflowAccessResource.getOwner(testWorkflowWid) == "owner@test.com")
   }
 
-  "WorkflowAccessResource.getPrivilege" should "report the grantees' privileges and NONE for anyone else" in {
-    assert(
-      WorkflowAccessResource.getPrivilege(testWorkflowWid, userWithWriteUid) == PrivilegeEnum.WRITE
-    )
-    assert(
-      WorkflowAccessResource.getPrivilege(testWorkflowWid, userWithReadUid) == PrivilegeEnum.READ
-    )
-    assert(
-      WorkflowAccessResource.getPrivilege(testWorkflowWid, newGranteeUid) == PrivilegeEnum.NONE
-    )
-  }
-
-  it should "give the owner WRITE without an access row" in {
-    assert(WorkflowAccessResource.getPrivilege(testWorkflowWid, ownerUid) == PrivilegeEnum.WRITE)
-    assert(WorkflowAccessResource.hasWriteAccess(testWorkflowWid, ownerUid))
-    assert(WorkflowAccessResource.hasGrantedAccess(testWorkflowWid, ownerUid))
-  }
-
-  it should "give the owner WRITE even when their access row says READ" in {
-    workflowUserAccessDao.insert(
-      new WorkflowUserAccess(ownerUid, testWorkflowWid, PrivilegeEnum.READ)
-    )
-    assert(WorkflowAccessResource.getPrivilege(testWorkflowWid, ownerUid) == PrivilegeEnum.WRITE)
-  }
-
-  it should "not fail when the workflow has several owner rows" in {
-    workflowOfUserDao.insert(new WorkflowOfUser(userWithReadUid, testWorkflowWid))
-    assert(WorkflowAccessResource.getPrivilege(testWorkflowWid, ownerUid) == PrivilegeEnum.WRITE)
-    assert(
-      WorkflowAccessResource.getPrivilege(testWorkflowWid, userWithReadUid) == PrivilegeEnum.WRITE
-    )
-    assert(
-      WorkflowAccessResource.getPrivilege(testWorkflowWid, userWithWriteUid) == PrivilegeEnum.WRITE
-    )
-  }
-
-  "WorkflowAccessResource.accessibleWids" should "list owned and granted workflows, once each" in {
-    workflowUserAccessDao.insert(
-      new WorkflowUserAccess(ownerUid, testWorkflowWid, PrivilegeEnum.WRITE)
-    )
-    def wids(uid: Integer) =
-      getDSLContext
-        .fetch(WorkflowAccessResource.accessibleWids(uid))
-        .getValues(0, classOf[Integer])
-        .asScala
-        .toList
-    assert(wids(ownerUid) == List(testWorkflowWid))
-    assert(wids(userWithReadUid) == List(testWorkflowWid))
-    assert(wids(newGranteeUid).isEmpty)
-  }
-
   "WorkflowAccessResource.getAccessList" should "list the granted users with their privilege, excluding the owner" in {
     val byEmail =
       workflowAccessResource
@@ -519,7 +469,7 @@ class WorkflowAccessResourceSpec
     )
 
     assert(
-      WorkflowAccessResource.getPrivilege(testWorkflowWid, newGranteeUid) == PrivilegeEnum.READ
+      WorkflowAccess.getPrivilege(testWorkflowWid, newGranteeUid) == PrivilegeEnum.READ
     )
   }
 
@@ -532,7 +482,7 @@ class WorkflowAccessResourceSpec
     )
 
     assert(
-      WorkflowAccessResource.getPrivilege(testWorkflowWid, userWithReadUid) == PrivilegeEnum.WRITE
+      WorkflowAccess.getPrivilege(testWorkflowWid, userWithReadUid) == PrivilegeEnum.WRITE
     )
   }
 
