@@ -17,16 +17,17 @@
  * under the License.
  */
 
-package org.apache.texera.web.model.websocket.request
+package org.apache.texera.amber.operator.udf.java;
 
-case class ResultPaginationRequest(
-    requestID: String,
-    operatorID: String,
-    pageIndex: Int,
-    pageSize: Int,
-    columnOffset: Int = 0,
-    columnLimit: Int = Int.MaxValue,
-    columnSearch: Option[String] = None,
-    // which of the operator's output ports to read; an operator with one output has only port 0
-    portIndex: Int = 0
-) extends TexeraWebSocketRequest
+import java.lang.annotation.ElementType;
+import java.lang.annotation.Retention;
+import java.lang.annotation.RetentionPolicy;
+import java.lang.annotation.Target;
+
+/** A UI parameter on an uninitialized instance field of JavaUDFOpExec. */
+@Retention(RetentionPolicy.SOURCE)
+@Target(ElementType.FIELD)
+public @interface UiParameter {
+    String value();
+    String resource() default "";
+}

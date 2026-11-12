@@ -24,7 +24,7 @@ import { PanelResizeService } from "../../service/workflow-result/panel-resize/p
 import { WorkflowResultService } from "../../service/workflow-result/workflow-result.service";
 import { NZ_MODAL_DATA, NzModalRef } from "ng-zorro-antd/modal";
 import { HttpClientTestingModule, HttpTestingController } from "@angular/common/http/testing";
-import { of } from "rxjs";
+import { of, Subject } from "rxjs";
 import { AppSettings } from "../../../common/app-setting";
 import { NotificationService } from "../../../common/service/notification/notification.service";
 
@@ -44,7 +44,11 @@ describe("RowModalComponent", () => {
     pageSize: 10,
   };
 
+  // the clipboard tests replace navigator.clipboard, and specs share the page within a worker
+  let originalClipboard: PropertyDescriptor | undefined;
+
   beforeEach(async () => {
+    originalClipboard = Object.getOwnPropertyDescriptor(navigator, "clipboard");
     await TestBed.configureTestingModule({
       imports: [RowModalComponent, HttpClientTestingModule],
       providers: [
@@ -59,6 +63,11 @@ describe("RowModalComponent", () => {
   });
 
   afterEach(() => {
+    if (originalClipboard) {
+      Object.defineProperty(navigator, "clipboard", originalClipboard);
+    } else {
+      delete (navigator as any).clipboard;
+    }
     httpMock.verify();
   });
 
@@ -141,6 +150,66 @@ describe("RowModalComponent", () => {
     expect(revokeSpy).toHaveBeenCalledWith("blob:url-1");
     expect(revokeSpy).toHaveBeenCalledWith("blob:url-2");
     revokeSpy.mockRestore();
+  });
+
+  // #8727: the modal is reused across rows — the footer's < / > buttons mutate
+  // rowIndex and call ngOnChanges() directly — but its teardown was scoped to the
+  // modal's lifetime, so blobs and subscriptions accumulated per row visited.
+  it("should revoke the previous row's blob URLs when navigating to another row", () => {
+    const revokeSpy = vi.spyOn(URL, "revokeObjectURL");
+    (component as any).allocatedBlobUrls.push("blob:row-3-a", "blob:row-3-b");
+
+    component.rowIndex = 4;
+    component.ngOnChanges();
+
+    expect(revokeSpy).toHaveBeenCalledWith("blob:row-3-a");
+    expect(revokeSpy).toHaveBeenCalledWith("blob:row-3-b");
+    expect((component as any).allocatedBlobUrls).toEqual([]);
+    revokeSpy.mockRestore();
+  });
+
+  it("should ignore a previous row's response that arrives after navigating away", () => {
+    const rowThree = new Subject<{ tuple: Record<string, unknown> }>();
+    const rowFour = new Subject<{ tuple: Record<string, unknown> }>();
+    const selectTuple = vi.fn().mockReturnValueOnce(rowThree).mockReturnValueOnce(rowFour);
+    const service = TestBed.inject(WorkflowResultService) as any;
+    // Restore afterwards: the spy object is shared across every test in this file.
+    const original = service.getPortPaginatedResultService;
+    service.getPortPaginatedResultService = vi.fn().mockReturnValue({ selectTuple });
+
+    try {
+      component.rowIndex = 3;
+      component.ngOnChanges();
+      component.rowIndex = 4;
+      component.ngOnChanges();
+
+      // Row 4 answers first, then row 3's slower response lands.
+      rowFour.next({ tuple: { id: "row-4" } });
+      rowThree.next({ tuple: { id: "row-3" } });
+
+      expect(component.currentDisplayRowData).toEqual({ id: "row-4" });
+    } finally {
+      service.getPortPaginatedResultService = original;
+    }
+  });
+
+  it("should cancel an in-flight media request when navigating to another row", () => {
+    const createObjectURLSpy = vi.spyOn(URL, "createObjectURL").mockReturnValue("blob:stale");
+    const remoteUrl = "https://example.com/stale.png";
+    (component as any).buildRowEntries({ img: remoteUrl });
+    const req = httpMock.expectOne(
+      `${AppSettings.getApiEndpoint()}/huggingface/media-proxy?url=${encodeURIComponent(remoteUrl)}`
+    );
+    expect(req.cancelled).toBe(false);
+
+    component.rowIndex = 4;
+    component.ngOnChanges();
+
+    // The previous row's fetch is dropped, so it can neither allocate a blob nor
+    // write its media into the row now on screen.
+    expect(req.cancelled).toBe(true);
+    expect(createObjectURLSpy).not.toHaveBeenCalled();
+    createObjectURLSpy.mockRestore();
   });
 
   it("prettyRowJson should return pretty-printed JSON of currentDisplayRowData", () => {
@@ -245,6 +314,54 @@ describe("RowModalComponent (with pre-loaded rowData)", () => {
     expect(component.rowEntries.length).toBe(2);
     const idEntry = component.rowEntries.find(e => e.key === "id");
     expect(idEntry?.value).toBe("123");
+  });
+});
+
+// Review feedback on #8729 (@Copilot): the constructor builds entries from preloaded
+// rowData, which starts their media requests. Opening the modal must not tear that
+// first row down, or with no pagination service to refetch the row its remote media
+// never loads.
+describe("RowModalComponent (with pre-loaded remote media)", () => {
+  let component: RowModalComponent;
+  let httpMock: HttpTestingController;
+
+  const remoteUrl = "https://example.com/preloaded.png";
+
+  beforeEach(async () => {
+    await TestBed.configureTestingModule({
+      imports: [RowModalComponent, HttpClientTestingModule],
+      providers: [
+        { provide: NZ_MODAL_DATA, useValue: { operatorId: "op-3", rowIndex: 0, rowData: { img: remoteUrl } } },
+        { provide: NzModalRef, useValue: { getConfig: () => ({}), close: vi.fn() } },
+        {
+          provide: WorkflowResultService,
+          useValue: { getPortPaginatedResultService: vi.fn().mockReturnValue(null) },
+        },
+        { provide: PanelResizeService, useValue: { pageSize: 10 } },
+      ],
+    }).compileComponents();
+
+    httpMock = TestBed.inject(HttpTestingController);
+    const fixture = TestBed.createComponent(RowModalComponent);
+    component = fixture.componentInstance;
+    fixture.detectChanges();
+  });
+
+  afterEach(() => {
+    httpMock.verify();
+  });
+
+  it("should load the first row's remote media even with no pagination service to refetch it", () => {
+    const createObjectURLSpy = vi.spyOn(URL, "createObjectURL").mockReturnValue("blob:preloaded");
+    const req = httpMock.expectOne(
+      `${AppSettings.getApiEndpoint()}/huggingface/media-proxy?url=${encodeURIComponent(remoteUrl)}`
+    );
+    expect(req.cancelled).toBe(false);
+
+    req.flush(new Blob(["img"], { type: "image/png" }));
+
+    expect(component.rowEntries.find(e => e.key === "img")?.mediaSrc).toBe("blob:preloaded");
+    createObjectURLSpy.mockRestore();
   });
 });
 

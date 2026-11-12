@@ -19,14 +19,26 @@
 
 package org.apache.texera.amber.operator.distinct
 
+import com.typesafe.config.ConfigFactory
 import org.apache.texera.amber.core.executor.OpExecWithClassName
+import org.apache.texera.amber.core.tuple.{AttributeType, Schema, Tuple}
 import org.apache.texera.amber.core.virtualidentity.{ExecutionIdentity, WorkflowIdentity}
 import org.apache.texera.amber.core.workflow.{HashPartition, SinglePartition, UnknownPartition}
 import org.apache.texera.amber.operator.metadata.OperatorGroupConstants
+import org.apache.texera.amber.operator.tags.IntegrationTest
+import org.scalatest.Tag
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 
+import java.nio.charset.StandardCharsets
+import java.nio.file.Files
+import java.util.concurrent.TimeUnit
+import scala.io.Source
+import scala.util.Try
+
 class DistinctOpDescSpec extends AnyFlatSpec with Matchers {
+
+  private val NeedsPythonPackages = Tag(classOf[IntegrationTest].getName)
 
   private val workflowId = WorkflowIdentity(1L)
   private val executionId = ExecutionIdentity(1L)
@@ -107,11 +119,81 @@ class DistinctOpDescSpec extends AnyFlatSpec with Matchers {
     a.operatorIdentifier should not equal b.operatorIdentifier
   }
 
-  // The JVM operator keeps the first occurrence of a duplicate, which is what
-  // drop_duplicates does by default, so the emitted line says nothing about order.
-  "DistinctOpDesc.generateStandaloneCode" should "drop duplicates in place" in {
-    (new DistinctOpDesc).generateStandaloneCode() shouldBe
-      "out1df = in1df.drop_duplicates(ignore_index=True)"
+  // The engine's LinkedHashSet compares rows with Scala's ==, under which NaN
+  // equals nothing, and hashes them by each double's bits, which tell 0.0 from
+  // -0.0. A repeated finite value and a repeated null are the controls, and the
+  // rows are compared in order, since the first of each is the one kept.
+  "DistinctOpDesc.generateStandaloneCode" should
+    "keep the rows the engine keeps for NaN and signed zero" taggedAs NeedsPythonPackages in {
+    val python = resolvePython().getOrElse(cancel("No runnable python executable"))
+    if (!canImportPandas(python)) cancel(s"'$python' cannot import pandas")
+
+    val values: Seq[java.lang.Double] =
+      Seq(1.0, Double.NaN, 0.0, -0.0, null, 1.0, Double.NaN, null, -0.0)
+    val schema = Schema().add("v", AttributeType.DOUBLE)
+
+    val exec = new DistinctOpExec
+    exec.open()
+    values.foreach(v => exec.processTuple(Tuple(schema, Array[Any](v)), 0))
+    val engine = exec
+      .onFinish(0)
+      .map(_.getFields.head match {
+        case null                           => "None"
+        case d: java.lang.Double if d.isNaN => "nan"
+        case d                              => d.toString
+      })
+      .toList
+    exec.close()
+
+    val desc = new DistinctOpDesc
+    val pyValues =
+      values.map(v => if (v == null) "None" else if (v.isNaN) "np.nan" else v.toString)
+    val driver =
+      s"""import pandas as pd, numpy as np
+         |vals = [${pyValues.mkString(", ")}]
+         |mask = np.array([v is None for v in vals])
+         |in1df = pd.DataFrame({"v": pd.arrays.FloatingArray(
+         |    np.array([0.0 if v is None else v for v in vals]), mask)})
+         |${(desc.standaloneHelpers() :+ desc.generateStandaloneCode()).mkString("\n")}
+         |for v in out1df["v"]:
+         |    print("None" if v is pd.NA else repr(float(v)))
+         |""".stripMargin
+    val script = Files.createTempFile("distinct-nan-zero-", ".py")
+    script.toFile.deleteOnExit()
+    Files.write(script, driver.getBytes(StandardCharsets.UTF_8))
+    val process = new ProcessBuilder(python, script.toString).redirectErrorStream(true).start()
+    val out = Source.fromInputStream(process.getInputStream, "UTF-8").mkString
+    process.waitFor(120, TimeUnit.SECONDS)
+
+    withClue(s"python said:\n$out\nscript:\n$driver") {
+      process.exitValue() shouldBe 0
+      out.linesIterator.toList shouldBe engine
+    }
   }
 
+  private def resolvePython(): Option[String] = {
+    def fromConfig: Option[String] =
+      Try(ConfigFactory.parseResources("udf.conf").resolve()).toOption
+        .orElse(Try(ConfigFactory.load()).toOption)
+        .flatMap(c => Try(c.getConfig("python").getString("path")).toOption)
+        .map(_.trim)
+        .filter(_.nonEmpty)
+
+    def runnable(exe: String): Boolean =
+      Try(new ProcessBuilder(exe, "--version").redirectErrorStream(true).start()).toOption
+        .exists { p =>
+          if (!p.waitFor(5, TimeUnit.SECONDS)) { p.destroyForcibly(); false }
+          else p.exitValue() == 0
+        }
+
+    (fromConfig.toList ++ List("python3", "python", "py")).distinct.find(runnable)
+  }
+
+  private def canImportPandas(python: String): Boolean =
+    Try(
+      new ProcessBuilder(python, "-c", "import pandas, numpy").redirectErrorStream(true).start()
+    ).toOption.exists { p =>
+      if (!p.waitFor(60, TimeUnit.SECONDS)) { p.destroyForcibly(); false }
+      else p.exitValue() == 0
+    }
 }

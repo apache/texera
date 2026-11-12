@@ -22,7 +22,7 @@ package org.apache.texera.web.resource.dashboard.user.workflow
 import org.apache.pekko.actor.ActorSystem
 import org.apache.pekko.serialization.SerializationExtension
 import org.apache.pekko.testkit.TestKit
-import org.apache.texera.amber.core.storage.{VFSResourceType, VFSURIFactory}
+import org.apache.texera.amber.core.storage.{VFSURIFactory, WarehouseUnavailableException}
 import org.apache.texera.amber.core.virtualidentity.{
   EmbeddedControlMessageIdentity,
   ExecutionIdentity,
@@ -34,6 +34,7 @@ import org.apache.texera.amber.core.workflow.{GlobalPortIdentity, PortIdentity}
 import org.apache.texera.amber.util.serde.GlobalPortIdentitySerde.SerdeOps
 import org.apache.texera.auth.{JwtAuth, SessionUser}
 import org.apache.texera.dao.MockTexeraDB
+import org.apache.texera.amber.core.workflow.OutputPort.OutputMode
 import org.apache.texera.dao.jooq.generated.enums.UserWarehouseFlavorEnum
 import org.apache.texera.dao.jooq.generated.Tables._
 import org.apache.texera.dao.jooq.generated.enums.{
@@ -65,7 +66,7 @@ import org.apache.texera.amber.engine.common.AmberRuntime
 import org.apache.texera.amber.engine.common.storage.VFSRecordStorage
 import org.apache.texera.web.model.http.request.result.{OperatorExportInfo, ResultExportRequest}
 import org.apache.texera.web.model.http.response.result.ResultExportResponse
-import org.apache.texera.web.service.{ExecutionResultService, WarehouseUnavailableException}
+import org.apache.texera.web.service.ExecutionResultService
 import org.jose4j.jwt.JwtClaims
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.{BeforeAndAfterAll, BeforeAndAfterEach, PrivateMethodTester}
@@ -358,7 +359,7 @@ class WorkflowExecutionsResourceSpec
   ): Unit =
     ExecutionResultService.persistOperatorPortResultUri(
       eid,
-      OperatorPortResultUriAvailable(globalPortId, uri)
+      OperatorPortResultUriAvailable(globalPortId, uri, OutputMode.SET_SNAPSHOT)
     )
 
   // ─── existing tests (preserved) ───────────────────────────────────────────
@@ -535,42 +536,6 @@ class WorkflowExecutionsResourceSpec
 
   // ─── new: URI fetchers ────────────────────────────────────────────────────
 
-  "getResultUrisByExecutionId" should "return inserted URIs and filter out null/empty entries" in {
-    val execution = insertExecution()
-    val eid = ExecutionIdentity(execution.getEid.longValue())
-    val opA = GlobalPortIdentity(
-      PhysicalOpIdentity(OperatorIdentity("opA"), "main"),
-      PortIdentity(),
-      input = false
-    )
-    val opB = GlobalPortIdentity(
-      PhysicalOpIdentity(OperatorIdentity("opB"), "main"),
-      PortIdentity(),
-      input = false
-    )
-    val opC = GlobalPortIdentity(
-      PhysicalOpIdentity(OperatorIdentity("opC"), "main"),
-      PortIdentity(),
-      input = false
-    )
-
-    insertOperatorPortResult(eid, opA, URI.create("vfs:///A"))
-    insertOperatorPortResult(eid, opB, URI.create("vfs:///B"))
-    // Empty-string URI row — the helper should drop it from the returned list.
-    getDSLContext
-      .insertInto(OPERATOR_PORT_EXECUTIONS)
-      .columns(
-        OPERATOR_PORT_EXECUTIONS.WORKFLOW_EXECUTION_ID,
-        OPERATOR_PORT_EXECUTIONS.GLOBAL_PORT_ID,
-        OPERATOR_PORT_EXECUTIONS.RESULT_URI
-      )
-      .values(execution.getEid, opC.serializeAsString, "")
-      .execute()
-
-    val uris = WorkflowExecutionsResource.getResultUrisByExecutionId(eid)
-    assert(uris.toSet == Set(URI.create("vfs:///A"), URI.create("vfs:///B")))
-  }
-
   "getConsoleMessagesUriByExecutionId" should "return inserted URIs and filter empty entries" in {
     val execution = insertExecution()
     val eid = ExecutionIdentity(execution.getEid.longValue())
@@ -739,9 +704,9 @@ class WorkflowExecutionsResourceSpec
     }
   }
 
-  // ─── new: updateResultSize ────────────────────────────────────────────────
+  // ─── new: updateResultSizeAndCount ────────────────────────────────────────
 
-  "updateResultSize" should "set RESULT_SIZE on the matching (eid, globalPortId) row" in {
+  "updateResultSizeAndCount" should "set RESULT_SIZE and RESULT_COUNT on the matching (eid, globalPortId) row" in {
     val execution = insertExecution()
     val eid = ExecutionIdentity(execution.getEid.longValue())
     val globalPortId = GlobalPortIdentity(
@@ -755,7 +720,7 @@ class WorkflowExecutionsResourceSpec
       URI.create("vfs:///r")
     )
 
-    WorkflowExecutionsResource.updateResultSize(eid, globalPortId, 4096L)
+    WorkflowExecutionsResource.updateResultSizeAndCount(eid, globalPortId, 4096L, 25L)
 
     val row = getDSLContext
       .selectFrom(OPERATOR_PORT_EXECUTIONS)
@@ -763,6 +728,7 @@ class WorkflowExecutionsResourceSpec
       .and(OPERATOR_PORT_EXECUTIONS.GLOBAL_PORT_ID.eq(globalPortId.serializeAsString))
       .fetchOne()
     assert(row.getResultSize == 4096)
+    assert(row.getResultCount == 25L)
   }
 
   it should "store a >2GiB size without truncation (#6978)" in {
@@ -777,7 +743,7 @@ class WorkflowExecutionsResourceSpec
 
     // 3 GiB exceeds Int.MaxValue; a Long->Int narrowing would wrap it negative.
     val threeGiB = 3L * 1024 * 1024 * 1024
-    WorkflowExecutionsResource.updateResultSize(eid, globalPortId, threeGiB)
+    WorkflowExecutionsResource.updateResultSizeAndCount(eid, globalPortId, threeGiB, 0L)
 
     val row = getDSLContext
       .selectFrom(OPERATOR_PORT_EXECUTIONS)
@@ -889,62 +855,6 @@ class WorkflowExecutionsResourceSpec
       )
     }
     assert(ex.getMessage.contains("mock"))
-  }
-
-  // ─── new: getResultUriByLogicalPortId ─────────────────────────────────────
-
-  "getResultUriByLogicalPortId" should "match by logical operator id, port id, and resource type" in {
-    val execution = insertExecution()
-    val eid = ExecutionIdentity(execution.getEid.longValue())
-    val wfId = WorkflowIdentity(testWorkflowWid.longValue())
-
-    // Build a real VFS result URI that decodeURI can parse.
-    val targetOpId = OperatorIdentity("target-op")
-    val targetPortId = PortIdentity()
-    val targetGlobalPort = GlobalPortIdentity(
-      PhysicalOpIdentity(targetOpId, "main"),
-      targetPortId,
-      input = false
-    )
-    val targetUri = VFSURIFactory.resultURI(
-      VFSURIFactory.createPortBaseURI(wfId, eid, targetGlobalPort)
-    )
-    insertOperatorPortResult(eid, targetGlobalPort, targetUri)
-
-    // Distractor: same workflow, different op id.
-    val otherGlobalPort = GlobalPortIdentity(
-      PhysicalOpIdentity(OperatorIdentity("other-op"), "main"),
-      PortIdentity(),
-      input = false
-    )
-    val otherUri = VFSURIFactory.resultURI(
-      VFSURIFactory.createPortBaseURI(wfId, eid, otherGlobalPort)
-    )
-    insertOperatorPortResult(eid, otherGlobalPort, otherUri)
-
-    val found =
-      WorkflowExecutionsResource.getResultUriByLogicalPortId(eid, targetOpId, targetPortId)
-    assert(found.contains(targetUri))
-
-    // Sanity-check: the decoded URI is RESULT-typed and matches the target ids.
-    val components = VFSURIFactory.decodeURI(found.get)
-    assert(components.resourceType == VFSResourceType.RESULT)
-    assert(
-      components.globalPortId
-        .exists(gp => gp.opId.logicalOpId == targetOpId && gp.portId == targetPortId)
-    )
-  }
-
-  it should "return None when no URI matches the requested op/port" in {
-    val execution = insertExecution()
-    val eid = ExecutionIdentity(execution.getEid.longValue())
-    val found =
-      WorkflowExecutionsResource.getResultUriByLogicalPortId(
-        eid,
-        OperatorIdentity("nope"),
-        PortIdentity()
-      )
-    assert(found.isEmpty)
   }
 
   // ─── new: getNonDownloadableOperatorMap (private — via PrivateMethodTester) ─

@@ -22,18 +22,19 @@ package org.apache.texera.web.resource.dashboard.user.workflow
 import io.dropwizard.auth.Auth
 import org.apache.texera.amber.core.storage.{
   DocumentFactory,
+  ExecutionResultUris,
   FileResolver,
-  VFSResourceType,
-  VFSURIFactory
+  WarehouseReadGuard
 }
 import org.apache.texera.amber.core.tuple.Tuple
 import org.apache.texera.amber.core.virtualidentity._
-import org.apache.texera.amber.core.workflow.{GlobalPortIdentity, PortIdentity}
+import org.apache.texera.amber.core.workflow.GlobalPortIdentity
 import org.apache.texera.amber.engine.architecture.logreplay.{ReplayDestination, ReplayLogRecord}
 import org.apache.texera.amber.engine.common.Utils.{maptoStatusCode, stringToAggregatedState}
 import org.apache.texera.amber.engine.common.storage.SequentialRecordStorage
 import org.apache.texera.amber.util.JSONUtils.objectMapper
 import org.apache.texera.amber.util.serde.GlobalPortIdentitySerde.SerdeOps
+import org.apache.texera.auth.util.WorkflowAccess
 import org.apache.texera.auth.{JwtParser, SessionUser}
 import org.apache.texera.dao.SqlServer
 import org.apache.texera.dao.SqlServer.withTransaction
@@ -42,7 +43,6 @@ import org.apache.texera.dao.jooq.generated.enums.UserRoleEnum
 import org.apache.texera.dao.jooq.generated.tables.daos.WorkflowExecutionsDao
 import org.apache.texera.dao.jooq.generated.tables.pojos.{WorkflowExecutions, User => UserPojo}
 import org.apache.texera.web.model.http.request.result.ResultExportRequest
-import org.apache.texera.web.service.WarehouseReadGuard
 import org.apache.texera.web.resource.dashboard.user.workflow.WorkflowExecutionsResource._
 import org.apache.texera.web.service.ResultExportService
 import org.jooq.DSLContext
@@ -77,8 +77,8 @@ object WorkflowExecutionsResource {
       .where(WORKFLOW_EXECUTIONS.EID.eq(eid))
       .fetchOneInto(classOf[Integer])
     owningWid != null && (
-      if (requireWrite) WorkflowAccessResource.hasWriteAccess(owningWid, uid)
-      else WorkflowAccessResource.hasReadAccess(owningWid, uid)
+      if (requireWrite) WorkflowAccess.hasWriteAccess(owningWid, uid)
+      else WorkflowAccess.hasReadAccess(owningWid, uid)
     )
   }
 
@@ -296,18 +296,6 @@ object WorkflowExecutionsResource {
       .execute()
   }
 
-  def getResultUrisByExecutionId(eid: ExecutionIdentity): List[URI] = {
-    context
-      .select(OPERATOR_PORT_EXECUTIONS.RESULT_URI)
-      .from(OPERATOR_PORT_EXECUTIONS)
-      .where(OPERATOR_PORT_EXECUTIONS.WORKFLOW_EXECUTION_ID.eq(eid.id.toInt))
-      .fetchInto(classOf[String])
-      .asScala
-      .toList
-      .filter(uri => uri != null && uri.nonEmpty)
-      .map(URI.create)
-  }
-
   def getConsoleMessagesUriByExecutionId(eid: ExecutionIdentity): List[URI] =
     context
       .select(OPERATOR_EXECUTIONS.CONSOLE_MESSAGES_URI)
@@ -398,7 +386,7 @@ object WorkflowExecutionsResource {
         .getRuntimeStatsUriByExecutionId(execId)
         .toList ++
         WorkflowExecutionsResource.getConsoleMessagesUriByExecutionId(execId) ++
-        WorkflowExecutionsResource.getResultUrisByExecutionId(execId)
+        ExecutionResultUris.getResultUrisByExecutionId(execId)
     }
 
     // Delete execution-related URIs from database tables
@@ -420,20 +408,23 @@ object WorkflowExecutionsResource {
   }
 
   /**
-    * Updates the result size of the corresponding Iceberg document in the database.
+    * Updates the size and row count stored for this port's result in operator_port_executions.
     *
     * @param eid          Execution ID associated with the result.
     * @param globalPortId Global port identifier for the operator output.
     * @param size         Size of the result in bytes.
+    * @param count        Number of rows in the result.
     */
-  def updateResultSize(
+  def updateResultSizeAndCount(
       eid: ExecutionIdentity,
       globalPortId: GlobalPortIdentity,
-      size: Long
+      size: Long,
+      count: Long
   ): Unit = {
     context
       .update(OPERATOR_PORT_EXECUTIONS)
       .set(OPERATOR_PORT_EXECUTIONS.RESULT_SIZE, java.lang.Long.valueOf(size))
+      .set(OPERATOR_PORT_EXECUTIONS.RESULT_COUNT, java.lang.Long.valueOf(count))
       .where(OPERATOR_PORT_EXECUTIONS.WORKFLOW_EXECUTION_ID.eq(eid.id.toInt))
       .and(OPERATOR_PORT_EXECUTIONS.GLOBAL_PORT_ID.eq(globalPortId.serializeAsString))
       .execute()
@@ -461,7 +452,7 @@ object WorkflowExecutionsResource {
   }
 
   /**
-    * Stores an already-measured runtime statistics size, mirroring updateResultSize.
+    * Stores an already-measured runtime statistics size, mirroring updateResultSizeAndCount.
     *
     * @param eid  Execution ID associated with the runtime statistics document.
     * @param size Size of the runtime statistics in bytes.
@@ -499,7 +490,7 @@ object WorkflowExecutionsResource {
   }
 
   /**
-    * Stores an already-measured console message size, mirroring updateResultSize.
+    * Stores an already-measured console message size, mirroring updateResultSizeAndCount.
     *
     * @param eid  Execution ID associated with the console message.
     * @param opId Operator ID of the corresponding operator.
@@ -512,40 +503,6 @@ object WorkflowExecutionsResource {
       .where(OPERATOR_EXECUTIONS.WORKFLOW_EXECUTION_ID.eq(eid.id.toInt))
       .and(OPERATOR_EXECUTIONS.OPERATOR_ID.eq(opId.id))
       .execute()
-  }
-
-  /**
-    * This method is mainly used for frontend requests. Given a logicalOpId and an outputPortId of an execution,
-    * this method finds the URI for a globalPortId that both: 1. matches the logicalOpId and outputPortId, and
-    * 2. is an external port. Currently the lookup is O(n), where n is the number of globalPortIds for this execution.
-    * TODO: Optimize the lookup once the frontend also has information about physical operators.
-    */
-  def getResultUriByLogicalPortId(
-      eid: ExecutionIdentity,
-      opId: OperatorIdentity,
-      portId: PortIdentity
-  ): Option[URI] = {
-    def isMatchingExternalPortURI(uri: URI): Boolean = {
-      val components = VFSURIFactory.decodeURI(uri)
-      components.globalPortId.exists { globalPortId =>
-        !globalPortId.portId.internal &&
-        globalPortId.opId.logicalOpId == opId &&
-        globalPortId.portId == portId &&
-        components.resourceType == VFSResourceType.RESULT
-      }
-    }
-
-    val urisOfEid: List[URI] =
-      context
-        .select(OPERATOR_PORT_EXECUTIONS.RESULT_URI)
-        .from(OPERATOR_PORT_EXECUTIONS)
-        .where(OPERATOR_PORT_EXECUTIONS.WORKFLOW_EXECUTION_ID.eq(eid.id.toInt))
-        .fetchInto(classOf[String])
-        .asScala
-        .toList
-        .map(URI.create)
-
-    urisOfEid.find(isMatchingExternalPortURI)
   }
 
   case class WorkflowExecutionEntry(
@@ -695,7 +652,7 @@ class WorkflowExecutionsResource {
       @QueryParam("status") status: String
   ): List[WorkflowExecutionEntry] = {
     val user = sessionUser.getUser
-    if (!WorkflowAccessResource.hasReadAccess(wid, user.getUid)) {
+    if (!WorkflowAccess.hasReadAccess(wid, user.getUid)) {
       List()
     } else {
       val statusCodes: Set[Byte] =
@@ -813,7 +770,7 @@ class WorkflowExecutionsResource {
 
   /** Determine if the user is authorized to access the workflow, if not raise 401 */
   private def validateUserCanAccessWorkflow(uid: Integer, wid: Integer): Unit = {
-    if (!WorkflowAccessResource.hasReadAccess(wid, uid))
+    if (!WorkflowAccess.hasReadAccess(wid, uid))
       throw new WebApplicationException(Response.Status.UNAUTHORIZED)
   }
 
@@ -895,7 +852,7 @@ class WorkflowExecutionsResource {
   @Path("/result/export/dataset")
   @RolesAllowed(Array("REGULAR", "ADMIN"))
   def exportResultToDataset(request: ResultExportRequest, @Auth user: SessionUser): Response = {
-    if (!WorkflowAccessResource.hasReadAccess(request.workflowId, user.getUser.getUid)) {
+    if (!WorkflowAccess.hasReadAccess(request.workflowId, user.getUser.getUid)) {
       workflowAccessDeniedResponse
     } else {
       try {
@@ -935,7 +892,7 @@ class WorkflowExecutionsResource {
       }
 
       val request = Json.parse(requestJson).as[ResultExportRequest]
-      if (!WorkflowAccessResource.hasReadAccess(request.workflowId, user.getUser.getUid)) {
+      if (!WorkflowAccess.hasReadAccess(request.workflowId, user.getUser.getUid)) {
         workflowAccessDeniedResponse
       } else {
         val resultExportService =

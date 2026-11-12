@@ -7,7 +7,15 @@ header:
     - 'licenses'
     - 'licenses-3rd-party-code'
     - '**/*.csv'
-    - '**/*.txt'
+    # Text files that must stay verbatim, so a header would change what they do: bot
+    # comment bodies, a version read with cat, a dataset description, and test fixtures.
+    - '.github/template-compliance-warning.txt'
+    - '.github/welcome-first-time-contributor.txt'
+    - 'bin/protoc-version.txt'
+    - 'bin/single-node/examples/datasets/iris-species/description.txt'
+    - 'common/workflow-operator/src/test/resources/line_numbers.txt'
+    - 'common/workflow-operator/src/test/resources/line_numbers_crlf.txt'
+    - 'common/workflow-operator/src/test/resources/numbers.txt'
     - '**/*.json'
     - '**/*.jsonl'
     - 'DESCRIPTION'

@@ -61,6 +61,8 @@ export interface TexeraAgentConfig {
   agentId: string;
   agentName?: string;
   systemPrompt?: string;
+  /** JWT of the user the agent acts for, sent on backend calls that are not tied to a workflow. */
+  userToken?: string;
 }
 
 export interface AgentMessageResult {
@@ -99,6 +101,7 @@ export class TexeraAgent {
   private clients: Set<any> = new Set();
 
   private model: LanguageModel;
+  private readonly userToken?: string;
   private systemPrompt: string;
   private settings: AgentSettings;
 
@@ -133,6 +136,7 @@ export class TexeraAgent {
     this.modelType = config.modelType;
     this.createdAt = new Date();
     this.model = config.model;
+    this.userToken = config.userToken;
     this.systemPrompt = config.systemPrompt || "";
     this.log = createLogger("TexeraAgent", { agentId: this.agentId });
 
@@ -553,7 +557,10 @@ export class TexeraAgent {
           if (this.workflowState.getAllOperators().length > 0) {
             try {
               const logicalPlan = this.workflowState.toLogicalPlan();
-              compilationResult = await compileWorkflowAsync(logicalPlan, this.delegateConfig?.userToken);
+              compilationResult = await compileWorkflowAsync(
+                logicalPlan,
+                this.delegateConfig?.userToken ?? this.userToken
+              );
             } catch (e: any) {
               this.log.warn({ err: e?.message || e }, "compilation failed; proceeding without schemas");
             }

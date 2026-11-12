@@ -687,19 +687,15 @@ class RegionExecutionManager(
         // (The inner LoopEnd of a nested loop additionally drops its output
         // once per outer iteration on the Python worker side in
         // MainLoop._process_state_frame, which is orthogonal to this.)
-        val reuseStorage =
-          region
-            .getOperator(outputPortId.opId)
-            .outputPorts(outputPortId.portId)
-            ._1
-            .reuseStorage
+        val outputPort = region.getOperator(outputPortId.opId).outputPorts(outputPortId.portId)._1
+        val reuseStorage = outputPort.reuseStorage
         Seq((resultURI, schema), (stateURI, State.schema)).foreach {
           case (uri, sch) =>
             DocumentFactory.createOrReuseDocument(uri, sch, reuseStorage)
         }
         if (!isRestart) {
           asyncRPCClient.sendToClient(
-            OperatorPortResultUriAvailable(outputPortId, resultURI)
+            OperatorPortResultUriAvailable(outputPortId, resultURI, outputPort.mode)
           )
         }
     }

@@ -87,7 +87,9 @@ object CoverImageUtils {
       Some(
         DocumentFactory
           .openReadonlyDocument(
-            FileResolver.resolve(s"$resourceType/$ownerEmail/$resourceName/$normalized")
+            FileResolver.resolveVersionedResource(
+              s"$resourceType/$ownerEmail/$resourceName/$normalized"
+            )
           )
           .asInstanceOf[OnVersionedFileResource]
       )

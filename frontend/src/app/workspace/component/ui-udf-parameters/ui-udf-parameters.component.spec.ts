@@ -17,7 +17,7 @@
  * under the License.
  */
 
-import { FormControl, UntypedFormArray } from "@angular/forms";
+import { FormControl, FormGroup, UntypedFormArray } from "@angular/forms";
 import { ComponentFixture, TestBed } from "@angular/core/testing";
 import { By } from "@angular/platform-browser";
 import { FormlyFieldConfig } from "@ngx-formly/core";
@@ -128,6 +128,88 @@ describe("UiUdfParametersComponent", () => {
       expect((field as any).templateOptions?.disabled).toBe(disabled);
       expect((control as FormControl).disabled).toBe(disabled);
     });
+  });
+
+  // The operator property panel enables its whole form group when it turns interactive, and formly
+  // mirrors a control's state into props.disabled, so a one-time disable of the Name and Type cells
+  // did not survive there (the Form View, which never enables a group wholesale, showed them
+  // locked). A locked cell's control is held through Angular's disabled-change hook.
+  it("holds a locked cell locked when the host enables its control, and leaves the Value cell to the host", async () => {
+    const valueControl = new FormControl("42");
+    const nameControl = new FormControl("threshold");
+    const typeControl = new FormControl("double");
+    const rowField = rowConfig([
+      { key: "value", formControl: valueControl },
+      { key: "attributeName", formControl: nameControl },
+      { key: "attributeType", formControl: typeControl },
+    ]);
+    component.onPopulate({ model: [{}], fieldGroup: [rowField] } as FormlyFieldConfig);
+    expect(nameControl.disabled).toBe(true);
+    const nameStatus = vitest.fn();
+    nameControl.statusChanges.subscribe(nameStatus);
+
+    nameControl.enable();
+    typeControl.enable();
+    valueControl.disable();
+    valueControl.enable();
+    // The lock goes back on in the microtask after the host's enable() has told every hook,
+    // the input's value accessor included; see keepLocked.
+    expect(nameControl.enabled).toBe(true);
+    await Promise.resolve();
+
+    expect(nameControl.disabled).toBe(true);
+    expect(typeControl.disabled).toBe(true);
+    expect(valueControl.enabled).toBe(true);
+    // Announced like the enable() was: the cell's nz-input paints its disabled attribute from it.
+    expect(nameStatus.mock.calls.map(call => call[0])).toEqual(["VALID", "DISABLED"]);
+  });
+
+  it("locks a cell whose control is not a FormControl without a hold hook, and does not register twice", () => {
+    const group = new FormGroup({ inner: new FormControl("x") });
+    (component as any).applyDisabledState({ formControl: group }, true);
+    expect(group.disabled).toBe(true);
+
+    const nameControl = new FormControl("threshold");
+    const register = vitest.spyOn(nameControl, "registerOnDisabledChange");
+    (component as any).applyDisabledState({ formControl: nameControl }, true);
+    (component as any).applyDisabledState({ formControl: nameControl }, true);
+    expect(register).toHaveBeenCalledTimes(1);
+  });
+
+  it("releases a cell from the hold once it is configured editable again", async () => {
+    const nameControl = new FormControl("threshold");
+    const rowField = rowConfig([
+      { key: "value", formControl: new FormControl("42") },
+      { key: "attributeName", formControl: nameControl },
+      { key: "attributeType", formControl: new FormControl("double") },
+    ]);
+    component.onPopulate({ model: [{}], fieldGroup: [rowField] } as FormlyFieldConfig);
+    expect(nameControl.disabled).toBe(true);
+
+    (component as any).applyDisabledState(component.getColumnField(rowField, component.fieldColumns[1]), false);
+    nameControl.disable();
+    nameControl.enable();
+    await Promise.resolve();
+
+    expect(nameControl.enabled).toBe(true);
+  });
+
+  it("leaves a locked cell alone when the host has disabled it again before the microtask", async () => {
+    const nameControl = new FormControl("threshold");
+    const rowField = rowConfig([
+      { key: "value", formControl: new FormControl("42") },
+      { key: "attributeName", formControl: nameControl },
+      { key: "attributeType", formControl: new FormControl("double") },
+    ]);
+    component.onPopulate({ model: [{}], fieldGroup: [rowField] } as FormlyFieldConfig);
+    const disable = vitest.spyOn(nameControl, "disable");
+
+    nameControl.enable();
+    nameControl.disable({ emitEvent: false });
+    await Promise.resolve();
+
+    expect(disable).toHaveBeenCalledTimes(1);
+    expect(nameControl.disabled).toBe(true);
   });
 
   it("should edit a row that names a resource with that resource's browser, and leave others alone", () => {
