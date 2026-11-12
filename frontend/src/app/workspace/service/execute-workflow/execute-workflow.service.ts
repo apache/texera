@@ -255,8 +255,8 @@ export class ExecuteWorkflowService {
    * Whether a run is in flight: exactly the states that lock the graph, which is the same question
    * {@link updateWorkflowActionLock} answers to lock it. A view that must refuse a structural edit
    * mid-run asks here instead of re-listing the states, and a view that cannot read the lock itself
-   * -- the Form View clamps it off outside edit mode, so there it no longer means "a run is on" --
-   * has somewhere honest to ask.
+   * -- the Form View clamps it off outside edit mode, so on that page it no longer means "a run is
+   * on" -- has somewhere honest to ask.
    */
   public isExecutionInFlight(): boolean {
     return ExecuteWorkflowService.locksGraph(this.currentState);

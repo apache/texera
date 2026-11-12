@@ -52,7 +52,7 @@ export function subFieldViews(field: {
   props?: Record<string, unknown>;
 }): Readonly<Record<string, SubFieldView>> | undefined {
   const published = field.props?.[SUB_FIELD_VIEW_PROP];
-  return typeof published === "object" && published !== null
+  return typeof published === "object" && published !== null && !Array.isArray(published)
     ? (published as Readonly<Record<string, SubFieldView>>)
     : undefined;
 }
