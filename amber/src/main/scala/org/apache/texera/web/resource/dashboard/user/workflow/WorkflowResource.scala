@@ -724,6 +724,10 @@ class WorkflowResource extends LazyLogging {
     )
   }
 
+  /**
+    * Publishes the workflow. The public follows the author's latest content until a version is
+    * pinned; see [[pinLatest]].
+    */
   @PUT
   @RolesAllowed(Array("REGULAR", "ADMIN"))
   @Path("/public/{wid}")
@@ -960,14 +964,16 @@ class WorkflowResource extends LazyLogging {
     }
     // Name and description come from the public copy for the same reason as the content: a pin has
     // to hold everything on show.
-    val publicCopy = WorkflowPublishService.publicCopyOf(workflow.into(classOf[Workflow]))
+    val stored = workflow.into(classOf[Workflow])
+    val publicCopy = WorkflowPublishService.publicCopyOf(stored)
     WorkflowWithPrivilege(
       publicCopy.name,
       publicCopy.description,
       workflow.getWid,
       publicCopy.content,
       workflow.getCreationTime,
-      workflow.getLastModifiedTime,
+      // Dated by the version on show, not by the author's most recent private edit.
+      WorkflowPublishService.publicModifiedTime(stored),
       workflow.getIsPublic,
       readonly = true,
       // The view freezes with the copy: the form's definition lives inside the content.

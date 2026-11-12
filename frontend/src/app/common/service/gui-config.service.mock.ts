@@ -43,6 +43,7 @@ export class MockGuiConfigService {
     asyncRenderingEnabled: false,
     timetravelEnabled: false,
     formViewEnabled: false,
+    versionPinningEnabled: false,
     productionSharedEditingServer: false,
     pythonLanguageServerPort: "3000",
     defaultDataTransferBatchSize: 100,
