@@ -110,6 +110,7 @@ describe("sub-field view", () => {
 
   it("ignores a published value that is not a map", () => {
     expect(subFieldViews({ props: { [SUB_FIELD_VIEW_PROP]: "nonsense" } })).toBeUndefined();
+    expect(subFieldViews({ props: { [SUB_FIELD_VIEW_PROP]: [] } })).toBeUndefined();
     expect(subFieldViews({ props: {} })).toBeUndefined();
     expect(subFieldViews({})).toBeUndefined();
   });
