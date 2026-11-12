@@ -26,7 +26,9 @@ import org.apache.texera.amber.core.workflow.{PhysicalOp, PortIdentity, SchemaPr
 
 trait PythonOperatorDescriptor extends LogicalOp {
   private def generatePythonCodeForRaisingException(ex: Throwable): String = {
-    s"#EXCEPTION DURING CODE GENERATION: ${ex.getMessage}"
+    // An exception with no message or an empty one is reported by its type instead of "null".
+    val message = Option(ex.getMessage).filter(_.nonEmpty).getOrElse(ex.toString)
+    s"#EXCEPTION DURING CODE GENERATION: $message"
   }
 
   override def getPhysicalOp(
