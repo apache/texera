@@ -1222,14 +1222,21 @@ export class WorkflowEditorComponent implements OnInit, AfterViewInit, OnDestroy
       },
     };
 
+    const ring = (elementID: string) =>
+      this.paper.findViewByModel(elementID)?.highlight("rect.body", { highlighter: highlightOptions });
+
+    // The selection outlives this paper: it lives in the wrapper, which both views of a workflow
+    // share and hand over between them, while the paper is new on every switch. Ring what is
+    // selected now, or the view arriving at a selection would show its panel for a step drawn as
+    // not selected; then follow the changes.
+    [...this.wrapper.getCurrentHighlightedOperatorIDs(), ...this.wrapper.getCurrentHighlightedCommentBoxIDs()].forEach(
+      ring
+    );
+
     // highlight on OperatorHighlightStream or CommentBoxHighlightStream
     merge(this.wrapper.getJointOperatorHighlightStream(), this.wrapper.getJointCommentBoxHighlightStream())
       .pipe(untilDestroyed(this))
-      .subscribe(elementIDs =>
-        elementIDs.forEach(elementID => {
-          this.paper.findViewByModel(elementID).highlight("rect.body", { highlighter: highlightOptions });
-        })
-      );
+      .subscribe(elementIDs => elementIDs.forEach(ring));
 
     // unhighlight on OperatorUnhighlightStream or CommentBoxUnhighlightStream
     merge(this.wrapper.getJointOperatorUnhighlightStream(), this.wrapper.getJointCommentBoxUnhighlightStream())
