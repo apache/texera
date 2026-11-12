@@ -890,6 +890,40 @@ describe("WorkflowFormComponent (rendered template)", () => {
     expect(names().map(e => e.getAttribute("aria-current"))).toEqual(["false", "true"]);
   });
 
+  // What the result-update subscription claims: an update for a chart already on the page reaches
+  // the frame that is there, it does not get the frame rebuilt. A per-result key meant to do that
+  // used to sit on the frame; this is the assertion that would fail if one came back.
+  it("keeps the same chart frame across that step's result updates", () => {
+    const updates = new Subject<Record<string, unknown>>();
+    const wrs: any = TestBed.inject(WorkflowResultService);
+    wrs.getResultUpdateStream = () => updates.asObservable();
+    wrs.hasNonEmptyResult = () => true;
+    // A snapshot with a picture takes the visualisation branch. The frame's template is blanked
+    // above, so what is instantiated is the component instance alone, with no iframe to run.
+    wrs.getResultService = () => ({ getCurrentResultSnapshot: () => [{ "html-content": "<div>chart</div>" }] });
+    // An update re-reads the shown set from the graph (refreshShownResults), so op-1 has to be a
+    // step that is on it: with no downstream link it is a final step, shown by default.
+    const actions: any = TestBed.inject(WorkflowActionService);
+    const graph = actions.getTexeraGraph();
+    graph.getAllOperators = () => [{ operatorID: "op-1" }];
+    actions.getTexeraGraph = () => graph;
+    fixture.detectChanges();
+    finishLoad();
+    vi.spyOn(fixture.componentInstance as any, "fitVisualisations").mockImplementation(() => {});
+
+    const frame = () => fixture.debugElement.query(By.directive(VisualizationFrameContentComponent));
+    const first = frame();
+    expect(first).not.toBeNull();
+
+    updates.next({ "op-1": {} });
+    fixture.detectChanges();
+    updates.next({ "op-1": {} });
+    fixture.detectChanges();
+
+    expect(frame().componentInstance).toBe(first.componentInstance);
+    expect(frame().nativeElement).toBe(first.nativeElement);
+  });
+
   it("mounts the step panel from the start, hidden until a step is selected", () => {
     fixture.detectChanges();
     finishLoad();

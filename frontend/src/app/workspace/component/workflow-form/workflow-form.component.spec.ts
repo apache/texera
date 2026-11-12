@@ -2495,17 +2495,6 @@ describe("WorkflowFormComponent", () => {
       expect(component.resultLabel("gone")).toBe("gone");
     });
 
-    it("keeps a result's frame identity stable until its version moves", () => {
-      build(formViewWorkflow).ngOnInit();
-      const before = component.resultKey("op-1");
-      expect(component.resultKey("op-1")).toBe(before);
-
-      (component as any).resultVersion.set("op-1", 1);
-
-      expect(component.resultKey("op-1")).not.toBe(before);
-      expect(component.trackByKey(0, "k")).toBe("k");
-    });
-
     it("resizes a result within bounds, per result, and re-fits after", () => {
       vi.useFakeTimers();
       build(formViewWorkflow).ngOnInit();
@@ -2528,13 +2517,20 @@ describe("WorkflowFormComponent", () => {
       vi.useRealTimers();
     });
 
-    it("bumps the result version and re-fits on a result update", () => {
+    // An update to a result the form already shows reaches the frame in place (the frame redraws on
+    // its operator's updates); the form only re-limits the shown set and re-fits. That the frame is
+    // still the same one afterwards is asserted on the rendered page (workflow-form.rendered.spec).
+    it("re-limits the shown results and re-fits on a result update", () => {
       vi.useFakeTimers();
       build(formViewWorkflow).ngOnInit();
+      const refresh = vi.spyOn(component as any, "refreshShownResults");
       const fit = vi.spyOn(component as any, "fitVisualisations").mockImplementation(() => {});
 
       h.resultUpdateStream.next({ "op-1": {} });
-      expect(component.resultKey("op-1")).toBe("op-1#1");
+      h.resultUpdateStream.next({ "op-1": {} });
+
+      expect(refresh).toHaveBeenCalledTimes(2);
+      expect(fit).not.toHaveBeenCalled();
       vi.advanceTimersByTime(300);
       expect(fit).toHaveBeenCalled();
       vi.useRealTimers();
