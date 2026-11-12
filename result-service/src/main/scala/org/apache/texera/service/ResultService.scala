@@ -48,12 +48,6 @@ class ResultService extends Application[ResultServiceConfiguration] with LazyLog
     )
     // Register Scala module to Dropwizard default object mapper
     bootstrap.getObjectMapper.registerModule(DefaultScalaModule)
-
-    SqlServer.initConnection(
-      StorageConfig.jdbcUrl,
-      StorageConfig.jdbcUsername,
-      StorageConfig.jdbcPassword
-    )
   }
 
   override def run(configuration: ResultServiceConfiguration, environment: Environment): Unit = {
@@ -61,6 +55,11 @@ class ResultService extends Application[ResultServiceConfiguration] with LazyLog
     org.apache.texera.observability.OtelInit.init("result-service")
     // Serve backend at /api
     environment.jersey.setUrlPattern("/api/*")
+    SqlServer.initConnection(
+      StorageConfig.jdbcUrl,
+      StorageConfig.jdbcUsername,
+      StorageConfig.jdbcPassword
+    )
 
     environment.jersey.register(classOf[SessionHandler])
     environment.servlets.setSessionHandler(new SessionHandler)
@@ -69,7 +68,7 @@ class ResultService extends Application[ResultServiceConfiguration] with LazyLog
 
     AuthFeatures.register(environment)
 
-    environment.jersey.register(new ResultResource)
+    environment.jersey.register(classOf[ResultResource])
 
     RoleAnnotationEnforcer.enforce(environment.jersey.getResourceConfig, "ResultService")
 

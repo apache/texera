@@ -73,7 +73,16 @@ class ResultServiceRunSpec extends AnyFlatSpec with Matchers {
     verify(jersey).register(classOf[SessionHandler])
     verify(servlets).setSessionHandler(isA(classOf[SessionHandler]))
     verify(jersey).register(classOf[HealthCheckResource])
-    verify(jersey).register(isA(classOf[ResultResource]))
+    verify(jersey).register(classOf[ResultResource])
+  }
+
+  it should "open the database connection" in {
+    val before = Try(SqlServer.getInstance()).toOption
+
+    run()
+
+    // initConnection replaces the shared instance, so a run that skipped it leaves the old one.
+    Some(SqlServer.getInstance()) should not be before
   }
 
   it should "install the auth stack and the request logging filter" in {
@@ -98,10 +107,7 @@ class ResultServiceRunSpec extends AnyFlatSpec with Matchers {
     val application = new ResultService
     val bootstrap = new Bootstrap[ResultServiceConfiguration](application)
 
-    // Opening the pool is its last statement, and it fails on a host with no Postgres; what is
-    // asserted here has landed by then. The pool itself is not this spec's to keep.
-    Try(application.initialize(bootstrap))
-    Try(SqlServer.getInstance().close())
+    application.initialize(bootstrap)
 
     bootstrap.getConfigurationSourceProvider shouldBe a[SubstitutingSourceProvider]
     bootstrap.getObjectMapper.getRegisteredModuleIds should contain(

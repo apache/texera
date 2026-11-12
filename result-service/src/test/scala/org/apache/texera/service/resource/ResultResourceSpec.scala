@@ -71,6 +71,7 @@ import org.scalatest.matchers.should.Matchers
 import org.scalatest.{BeforeAndAfterAll, BeforeAndAfterEach}
 
 import java.net.URI
+import java.util.Locale
 
 /**
   * Sends requests through the Jersey pipeline production uses, against an embedded database and
@@ -463,6 +464,16 @@ class ResultResourceSpec
       List("Last_Name")
     columnNames(getJson(owner, pagesPath(eid), "columnSearch" -> "")) shouldBe
       List("id", "first_name", "Last_Name")
+  }
+
+  it should "search the columns the same way in any locale" in {
+    val eid = insertExecution(owner)
+    storeResult(eid)
+    val default = Locale.getDefault
+    // By Turkish rules "ID" lowercases to "ıd", with a dotless i, which misses "id".
+    Locale.setDefault(Locale.forLanguageTag("tr"))
+    try columnNames(getJson(owner, pagesPath(eid), "columnSearch" -> "ID")) shouldBe List("id")
+    finally Locale.setDefault(default)
   }
 
   it should "send a visualization's content whole, and cut long strings elsewhere" in {

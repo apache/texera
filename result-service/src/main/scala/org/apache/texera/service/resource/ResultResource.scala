@@ -59,6 +59,7 @@ import org.apache.texera.service.resource.ResultResource._
 import org.jooq.DSLContext
 
 import java.net.URI
+import java.util.Locale
 import scala.jdk.CollectionConverters._
 
 object ResultResource {
@@ -177,7 +178,7 @@ class ResultResource {
     val uri = resultUri(eid, operatorId, port)
     val (document, schema) = openResult(uri, operatorId)
     val columns = schema.getAttributeNames
-      .filter(_.toLowerCase.contains(columnSearch.toLowerCase))
+      .filter(_.toLowerCase(Locale.ROOT).contains(columnSearch.toLowerCase(Locale.ROOT)))
       .drop(columnOffset)
       .take(columnLimit)
     val from = pageSize * (pageIndex - 1)
