@@ -68,4 +68,18 @@ describe("FileSaverService", () => {
 
     expect(() => service.saveAs(new Blob(["oops"]), "oops.txt")).toThrow(failure);
   });
+
+  it("downloads a URL by clicking a detached link instead of fetching it", () => {
+    const click = vi.spyOn(HTMLAnchorElement.prototype, "click").mockImplementation(function (this: HTMLAnchorElement) {
+      expect(this.href).toBe("https://storage.example.com/obj?sig=1");
+      expect(document.body.contains(this)).toBe(true);
+    });
+
+    service.saveFromUrl("https://storage.example.com/obj?sig=1");
+
+    expect(click).toHaveBeenCalledTimes(1);
+    expect(document.querySelector("a[href='https://storage.example.com/obj?sig=1']")).toBeNull();
+    expect(saveAsFn).not.toHaveBeenCalled();
+    click.mockRestore();
+  });
 });

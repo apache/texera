@@ -54,7 +54,7 @@ services:
       - postgres_data:/var/lib/postgresql/data
 
   lakefs:
-    image: treeverse/lakefs:1.51
+    image: treeverse/lakefs:1.80
     container_name: texera-lakefs-lakefs
     restart: unless-stopped
     depends_on:

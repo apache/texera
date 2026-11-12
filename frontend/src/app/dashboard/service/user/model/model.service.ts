@@ -186,12 +186,19 @@ export class ModelService {
    * @param filePath Logical path of the file, e.g. "/model/bob@texera.com/resnet/v1/model.pt".
    */
   public retrieveModelVersionSingleFile(filePath: string, isLogin: boolean = true): Observable<Blob> {
+    return this.getModelVersionSingleFilePresignedUrl(filePath, isLogin).pipe(
+      switchMap(presignedUrl => this.http.get(presignedUrl, { responseType: "blob" }))
+    );
+  }
+
+  /**
+   * Gets a pre-signed URL that reads one model file straight from the object store; opening it downloads the file
+   * under its own name.
+   */
+  public getModelVersionSingleFilePresignedUrl(filePath: string, isLogin: boolean = true): Observable<string> {
     const endpointSegment = isLogin ? "presign-download" : "public-presign-download";
     const endpoint = `${AppSettings.getApiEndpoint()}/${MODEL_BASE_URL}/${endpointSegment}?filePath=${encodeURIComponent(filePath)}`;
-
-    return this.http
-      .get<{ presignedUrl: string }>(endpoint)
-      .pipe(switchMap(({ presignedUrl }) => this.http.get(presignedUrl, { responseType: "blob" })));
+    return this.http.get<{ presignedUrl: string }>(endpoint).pipe(map(({ presignedUrl }) => presignedUrl));
   }
 
   /** Flips the model between public and private; the endpoint toggles rather than taking a value. */

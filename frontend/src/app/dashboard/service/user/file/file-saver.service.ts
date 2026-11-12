@@ -30,4 +30,18 @@ export class FileSaverService {
   saveAs(data: Blob | string, filename?: string, options?: FileSaver.FileSaverOptions): void {
     this.saveAsFn(data, filename, options);
   }
+
+  /**
+   * Hands a URL to the browser's own download manager, so the bytes stream to disk instead of being buffered in
+   * memory first. The response must carry `Content-Disposition: attachment`, otherwise the browser navigates to it.
+   */
+  saveFromUrl(url: string): void {
+    const link = document.createElement("a");
+    link.href = url;
+    link.rel = "noopener";
+    link.style.display = "none";
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  }
 }
