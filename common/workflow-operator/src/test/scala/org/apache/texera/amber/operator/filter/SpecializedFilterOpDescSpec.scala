@@ -19,13 +19,14 @@
 
 package org.apache.texera.amber.operator.filter
 
+import com.fasterxml.jackson.databind.exc.ValueInstantiationException
 import com.typesafe.config.ConfigFactory
 import org.apache.texera.amber.core.executor.OpExecWithClassName
 import org.apache.texera.amber.core.tuple.{Attribute, AttributeType, Schema, Tuple}
 import org.apache.texera.amber.core.virtualidentity.{ExecutionIdentity, WorkflowIdentity}
 import org.apache.texera.amber.core.workflow.PortIdentity
 import org.apache.texera.amber.operator.LogicalOp
-import org.apache.texera.amber.operator.metadata.OperatorGroupConstants
+import org.apache.texera.amber.operator.metadata.{OperatorGroupConstants, OperatorMetadataGenerator}
 import org.apache.texera.amber.operator.tags.IntegrationTest
 import org.apache.texera.amber.util.JSONUtils.objectMapper
 import org.scalatest.Tag
@@ -39,6 +40,7 @@ import java.time.{LocalDateTime, ZoneOffset}
 import java.util.TimeZone
 import java.util.concurrent.TimeUnit
 import scala.io.Source
+import scala.jdk.CollectionConverters._
 import scala.util.Try
 
 class SpecializedFilterOpDescSpec extends AnyFlatSpec with Matchers {
@@ -52,6 +54,7 @@ class SpecializedFilterOpDescSpec extends AnyFlatSpec with Matchers {
     "advertise the name, Cleaning group, and reconfiguration support" in {
     val info = (new SpecializedFilterOpDesc).operatorInfo
     info.userFriendlyName shouldBe "Filter"
+    info.operatorDescription should include("AND or OR")
     info.operatorGroupName shouldBe OperatorGroupConstants.CLEANING_GROUP
     info.inputPorts should have length 1
     info.outputPorts should have length 1
@@ -60,6 +63,10 @@ class SpecializedFilterOpDescSpec extends AnyFlatSpec with Matchers {
 
   "SpecializedFilterOpDesc.predicates" should "default to an empty list" in {
     (new SpecializedFilterOpDesc).predicates shouldBe empty
+  }
+
+  "SpecializedFilterOpDesc.predicateCombinator" should "default to OR" in {
+    (new SpecializedFilterOpDesc).predicateCombinator shouldBe PredicateCombinator.OR
   }
 
   "SpecializedFilterOpDesc.getPhysicalOp" should
@@ -87,12 +94,99 @@ class SpecializedFilterOpDescSpec extends AnyFlatSpec with Matchers {
     restored.asInstanceOf[SpecializedFilterOpDesc].predicates shouldBe empty
   }
 
+  "SpecializedFilterOpDesc" should
+    "deserialize to OR when predicateCombinator is absent" in {
+    val restored =
+      objectMapper.readValue(
+        """{"operatorType":"Filter","predicates":[]}""",
+        classOf[LogicalOp]
+      )
+    restored
+      .asInstanceOf[SpecializedFilterOpDesc]
+      .predicateCombinator shouldBe PredicateCombinator.OR
+  }
+
+  it should "round-trip an explicit AND combinator through the polymorphic base" in {
+    val op = new SpecializedFilterOpDesc
+    op.predicateCombinator = PredicateCombinator.AND
+    val restored =
+      objectMapper.readValue(objectMapper.writeValueAsString(op), classOf[LogicalOp])
+    restored
+      .asInstanceOf[SpecializedFilterOpDesc]
+      .predicateCombinator shouldBe PredicateCombinator.AND
+  }
+
+  it should "reject an unknown predicateCombinator and name the field" in {
+    val error = intercept[ValueInstantiationException] {
+      objectMapper.readValue(
+        """{"operatorType":"Filter","predicates":[],"predicateCombinator":"xor"}""",
+        classOf[LogicalOp]
+      )
+    }
+    error.getMessage should include("predicateCombinator")
+    error.getMessage should include("xor")
+  }
+
+  // Filters saved before predicateCombinator existed lack the key, and the
+  // frontend validates against this schema without filling defaults, so a
+  // required combinator would mark every one of them invalid.
+  it should "leave predicateCombinator optional and list it before predicates in the schema" in {
+    val schema =
+      OperatorMetadataGenerator.generateOperatorJsonSchema(classOf[SpecializedFilterOpDesc])
+    val required = schema.get("required").elements().asScala.map(_.asText).toList
+    required should contain("predicates")
+    required should not contain "predicateCombinator"
+    val order = schema.get("properties").fieldNames().asScala.toList
+    order.indexOf("predicateCombinator") should be < order.indexOf("predicates")
+    schema.at("/properties/predicateCombinator/default").asText shouldBe "any (OR)"
+  }
+
+  // A null combinator keeps the OR default rather than reaching the executor as
+  // null, where neither branch of its match would apply.
+  it should "build an executor that behaves as OR from a null predicateCombinator" in {
+    val tuple = Tuple
+      .builder(Schema().add("a", AttributeType.INTEGER).add("b", AttributeType.INTEGER))
+      .add(new Attribute("a", AttributeType.INTEGER), 1)
+      .add(new Attribute("b", AttributeType.INTEGER), 2)
+      .build()
+    val exec = new SpecializedFilterOpExec(
+      """{"operatorType":"Filter","predicateCombinator":null,"predicates":[""" +
+        """{"attribute":"a","condition":"=","value":"1"},""" +
+        """{"attribute":"b","condition":"=","value":"99"}]}"""
+    )
+    exec.open()
+    exec.processTuple(tuple, 0) should not be empty
+    exec.close()
+  }
+
   "SpecializedFilterOpDesc.generateStandaloneCode" should "emit one condition per predicate" in {
     val d = new SpecializedFilterOpDesc
     d.predicates = List(new FilterPredicate("age", ComparisonType.GREATER_THAN, "18"))
     val code = d.generateStandaloneCode()
     code should include("in1df[\"age\"]")
     code should include("out1df")
+  }
+
+  it should "join two predicates with | under OR and & under AND" in {
+    val d = new SpecializedFilterOpDesc
+    d.predicates = List(
+      new FilterPredicate("age", ComparisonType.GREATER_THAN, "30"),
+      new FilterPredicate("country", ComparisonType.EQUAL_TO, "US")
+    )
+    val inputSchemas = Map(
+      PortIdentity() -> Schema()
+        .add("age", AttributeType.INTEGER)
+        .add("country", AttributeType.STRING)
+    )
+    val age = """_texera_filter_keep_double(in1df["age"], ">", "30")"""
+    val country = """_texera_filter_keep_string(in1df["country"], "=", "US")"""
+
+    d.generateStandaloneCode(inputSchemas) shouldBe
+      s"out1df = in1df[$age | $country].reset_index(drop=True)"
+
+    d.predicateCombinator = PredicateCombinator.AND
+    d.generateStandaloneCode(inputSchemas) shouldBe
+      s"out1df = in1df[$age & $country].reset_index(drop=True)"
   }
 
   // FilterPredicate reads `Name` from a column `name`, since Schema ignores case.
@@ -111,11 +205,14 @@ class SpecializedFilterOpDescSpec extends AnyFlatSpec with Matchers {
       """out1df = in1df[_texera_filter_keep_string(in1df["name"], "=", "a") | (in1df["name"].isna())].reset_index(drop=True)"""
   }
 
-  // The executor filters on `predicates.exists`, which answers false on an empty
-  // list, so no predicate keeps no row. The columns survive; the rows do not.
-  it should "keep no row when there is no predicate" in {
-    (new SpecializedFilterOpDesc).generateStandaloneCode() shouldBe
-      "out1df = in1df.iloc[0:0].copy()"
+  // The executor answers false on an empty list under OR (`exists`) and AND
+  // (`nonEmpty && forall`) alike, so no predicate keeps no row. The columns
+  // survive; the rows do not.
+  it should "keep no row when there is no predicate, under either combinator" in {
+    val d = new SpecializedFilterOpDesc
+    d.generateStandaloneCode() shouldBe "out1df = in1df.iloc[0:0].copy()"
+    d.predicateCombinator = PredicateCombinator.AND
+    d.generateStandaloneCode() shouldBe "out1df = in1df.iloc[0:0].copy()"
   }
 
   // FilterPredicate reads `KEY` from a column `Key`, since Schema ignores case,
