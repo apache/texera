@@ -628,10 +628,11 @@ describe("NotebookImportModalComponent", () => {
   });
 
   function tooltipOn(text: string) {
-    return fixture.debugElement
+    const host = fixture.debugElement
       .queryAll(By.directive(NzTooltipDirective))
-      .find(element => element.nativeElement.textContent.trim() === text)!
-      .injector.get(NzTooltipDirective).title;
+      .find(element => element.nativeElement.textContent.trim() === text);
+    if (!host) throw new Error(`No tooltip host with text "${text}"`);
+    return host.injector.get(NzTooltipDirective).title;
   }
 
   describe("notebook language switch", () => {
