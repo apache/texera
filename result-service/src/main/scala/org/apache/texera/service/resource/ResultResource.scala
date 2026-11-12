@@ -75,12 +75,12 @@ object ResultResource {
 
   case class LatestExecution(eid: Integer)
 
-  /** One result of an execution. `outputMode` and `rowCount` are null where not recorded. */
+  /** One result of an execution. `outputMode` and `rowCount` are empty where not recorded. */
   case class PortResult(
       operatorId: String,
       portIndex: Int,
-      outputMode: String,
-      rowCount: java.lang.Long
+      outputMode: Option[String],
+      rowCount: Option[Long]
   )
 
   case class ResultPage(table: List[ObjectNode], schema: List[Attribute], rowCount: Long)
@@ -145,8 +145,8 @@ class ResultResource {
           PortResult(
             port.opId.logicalOpId.id,
             port.portId.id,
-            Option(row.value2()).map(_.getLiteral).orNull,
-            row.value3()
+            Option(row.value2()).map(_.getLiteral),
+            Option(row.value3()).map(_.longValue)
           )
         }
       }

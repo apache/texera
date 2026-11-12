@@ -46,4 +46,4 @@ logging:
       currentLogFilename: logs/result-service.log
       archive: true
       archivedLogFilenamePattern: logs/result-service-%d.log.gz
-      archivedFileCount: 5 
+      archivedFileCount: 5
