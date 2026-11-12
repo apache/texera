@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1794406737561,
+  "lastUpdate": 1794492044991,
   "repoUrl": "https://github.com/apache/texera",
   "entries": {
     "Arrow Flight E2E Throughput": [
@@ -21930,6 +21930,163 @@ window.BENCHMARK_DATA = {
           {
             "name": "throughput / bs=1000 sw=50 sl=512",
             "value": 521.1759363889155,
+            "unit": "tuples/sec"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "name": "Kary Zheng",
+            "username": "kz930",
+            "email": "150742834+kz930@users.noreply.github.com"
+          },
+          "committer": {
+            "name": "GitHub",
+            "username": "web-flow",
+            "email": "noreply@github.com"
+          },
+          "id": "ada1cfe48e8fdcead95bcee851406af63d7aed16",
+          "message": "feat(workflow-operator): keep the rows Distinct's engine keeps for NaN and signed zero (#8975)\n\n### What changes were proposed in this PR?\n\nDistinct's exported Python called `drop_duplicates`, which counts two\nNaN values as equal and 0.0 as equal to -0.0. The engine's\n`DistinctOpExec` keeps rows in a `LinkedHashSet` that compares them with\nScala's `==`, under which NaN equals nothing, and hashes each double by\nits bits, so 0.0 and -0.0 land apart. The export therefore emitted fewer\nrows than the run it came from.\n\nThe export now selects rows with `_texera_key_codes(in1df,\nsigned=True)`, the shared helper from #8341: one code per row, equal\nexactly where the engine's rows are, so `duplicated()` keeps the first\nrow of each key in input order.\n\n### Any related issues, documentation, discussions?\n\nCloses #8974.\n\n### How was this PR tested?\n\n`DistinctOpDescSpec` gains a test that runs `DistinctOpExec` and the\nexported Python over 1.0, NaN, 0.0, -0.0, null, 1.0, NaN, null, -0.0 and\ncompares the rows in order. The engine keeps 6. The old export kept 4\nand fails the test. It replaces the test that pinned the old\n`drop_duplicates` line. All 8 Distinct tests pass.\n`WorkflowToPythonResourceSpec`, which looked for `drop_duplicates` in\nthe served script, now looks for `_texera_key_codes`.\n\n### Was this PR authored or co-authored using generative AI tooling?\n\nGenerated-by: Claude Code (Claude Opus 5.5)\n\n🤖 Generated with [Claude Code](https://claude.com/claude-code)\n\n---------\n\nCo-authored-by: Claude Opus 5.5 <noreply@anthropic.com>",
+          "timestamp": "2026-11-12T07:23:04Z",
+          "url": "https://github.com/apache/texera/commit/ada1cfe48e8fdcead95bcee851406af63d7aed16"
+        },
+        "date": 1794492044303,
+        "tool": "customBiggerIsBetter",
+        "benches": [
+          {
+            "name": "throughput / bs=10 sw=1 sl=8",
+            "value": 1128.4984643666558,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=1 sl=8",
+            "value": 2223.218456293458,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=1 sl=8",
+            "value": 2524.685152025132,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=1 sl=64",
+            "value": 1572.2712110922917,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=1 sl=64",
+            "value": 2449.9306602188817,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=1 sl=64",
+            "value": 2644.169366679326,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=1 sl=512",
+            "value": 1475.5740764104817,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=1 sl=512",
+            "value": 2516.2113527747847,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=1 sl=512",
+            "value": 2615.4589078449617,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=10 sl=8",
+            "value": 1353.9096597077707,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=10 sl=8",
+            "value": 1901.40782787265,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=10 sl=8",
+            "value": 2029.0994302222468,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=10 sl=64",
+            "value": 1320.609576133182,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=10 sl=64",
+            "value": 1928.6047473054641,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=10 sl=64",
+            "value": 1990.2138850146093,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=10 sl=512",
+            "value": 1419.8901038427043,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=10 sl=512",
+            "value": 1881.755579860091,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=10 sl=512",
+            "value": 1980.3594136433019,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=50 sl=8",
+            "value": 878.7686643911998,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=50 sl=8",
+            "value": 1029.0596498748614,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=50 sl=8",
+            "value": 1038.2941582811902,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=50 sl=64",
+            "value": 801.1191288146076,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=50 sl=64",
+            "value": 988.2357133318872,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=50 sl=64",
+            "value": 940.6332930224542,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=50 sl=512",
+            "value": 836.0448315530435,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=50 sl=512",
+            "value": 978.4076706178272,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=50 sl=512",
+            "value": 968.4526435723075,
             "unit": "tuples/sec"
           }
         ]
