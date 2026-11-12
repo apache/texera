@@ -487,7 +487,7 @@ describe("sendMessage", () => {
       { toolName: "deleteOperator", toolCallId: "c1", input: { operatorId: "ghost" } },
     ]);
     expect(steps[1].toolResults).toEqual([
-      { toolCallId: "c1", output: "[ERROR] Operator ghost not found", isError: false },
+      { toolCallId: "c1", output: "[ERROR] Operator ghost not found", isError: true },
     ]);
     expect(steps[1].content).toBe("");
     expect(steps.map(s => [s.stepId, s.isBegin, s.isEnd])).toEqual([
@@ -496,6 +496,7 @@ describe("sendMessage", () => {
       [2, false, true],
     ]);
     expect(steps[2].parentId).toBe(steps[1].id);
+    expect(steps[2].inputMessages?.[0]?.content).toContain("- deleteOperator (failed)");
     expect(urls).toEqual([]);
   });
 
@@ -533,14 +534,19 @@ describe("sendMessage", () => {
       return { ok: true, json: async () => ({ operatorOutputSchemas: {}, operatorErrors: {} }) } as any;
     }) as any);
     await agent.sendMessage("del");
-    const counts = agent
-      .getAllSteps()
-      .map(s => [s.role, s.beforeWorkflowContent?.operators.length, s.afterWorkflowContent?.operators.length]);
+    const steps = agent.getAllSteps();
+    const counts = steps.map(s => [
+      s.role,
+      s.beforeWorkflowContent?.operators.length,
+      s.afterWorkflowContent?.operators.length,
+    ]);
     expect(counts).toEqual([
       ["user", 1, 1],
       ["agent", 1, 0],
       ["agent", 0, 0],
     ]);
+    expect(steps[1].toolResults).toEqual([{ toolCallId: "c1", output: "Deleted operator: op1", isError: false }]);
+    expect(steps[2].inputMessages?.[0]?.content).toContain("- deleteOperator (succeeded)");
   });
 
   test("caps the loop at maxSteps", async () => {
@@ -1053,7 +1059,9 @@ describe("delegate mode", () => {
     agent.setDelegateConfig({ userToken: "tok", workflowId: 7 });
     await agent.sendMessage("bad call");
     const step = agent.getAllSteps()[1];
-    expect(step.toolResults).toEqual([]);
+    expect(step.toolResults).toHaveLength(1);
+    expect(step.toolResults?.[0]).toMatchObject({ toolCallId: "c1", isError: true });
+    expect(agent.getAllSteps()[2].inputMessages?.[0]?.content).toContain("- modifyOperator (failed)");
     expect(urls.some(u => u.includes("/api/execution/"))).toBe(false);
   });
 
