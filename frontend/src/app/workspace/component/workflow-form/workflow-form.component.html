@@ -468,10 +468,9 @@
              inert mount and turns live when the run ends. The panel's own tab stop goes away with
              inert, so it does not sit in front of the form it now contains. persistPlacement stays
              off either way (this is not the docked canvas panel).
-             [hidden], not *ngIf: the property editor shows its operator by REACTING to the highlight
-             stream (no initial pull), so it must already be mounted and subscribed when the click
-             highlights a step. Mounting it on selection (*ngIf) subscribes too late, misses that
-             emission, and the panel opens empty. So keep it mounted and just hide it. -->
+             [hidden], not *ngIf: one mounted panel keeps its subscriptions, its frame and its size
+             across selections, where mounting it per step (*ngIf) would rebuild all of that on
+             every click. So keep it mounted and just hide it. -->
         <div
           class="panel"
           role="group"

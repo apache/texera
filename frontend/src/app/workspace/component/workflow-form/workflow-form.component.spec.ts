@@ -2657,6 +2657,36 @@ describe("WorkflowFormComponent", () => {
       expect(workflowActionService.setHighlightingEnabled).toHaveBeenCalledWith(true);
     });
 
+    // The selection is the canvas's too: the wrapper holding it is handed over, not rebuilt, when
+    // the views switch. A step chosen on the canvas is therefore already selected on arrival here,
+    // and no stream will say so -- the panel stayed shut until the reader clicked a DIFFERENT step
+    // (clicking the selected one emits nothing).
+    it("opens the panel for the step the canvas had selected, with no click of its own", () => {
+      withOp();
+      h.highlightedIds.push("op-1");
+
+      build(formViewWorkflow).ngOnInit();
+
+      expect(component.selectedOperatorId).toBe("op-1");
+    });
+
+    it("arrives with no panel when the canvas had nothing, or more than one step, selected", () => {
+      withOp();
+      h.hasOperatorIds.add("op-2");
+      h.graphOperators.push({ operatorID: "op-2", operatorType: "Filter" });
+      // Seeded with a stale id, so a read that never happened would not pass as "undefined".
+      let c = build(formViewWorkflow);
+      c.selectedOperatorId = "op-1";
+      c.ngOnInit();
+      expect(c.selectedOperatorId).toBeUndefined();
+
+      h.highlightedIds.push("op-1", "op-2");
+      c = build(formViewWorkflow);
+      c.selectedOperatorId = "op-1";
+      c.ngOnInit();
+      expect(c.selectedOperatorId).toBeUndefined();
+    });
+
     it("opens the read-only panel for the clicked step", () => {
       build(formViewWorkflow).ngOnInit();
       withOp();

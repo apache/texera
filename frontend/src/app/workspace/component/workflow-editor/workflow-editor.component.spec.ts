@@ -669,6 +669,25 @@ describe("WorkflowEditorComponent", () => {
       expect(model.attr(".add-input-port-button/visibility")).toBe("hidden");
       expect(model.attr(".texera-operator-state/visibility")).toBe("visible");
     });
+
+    // The selection lives in the wrapper, which both views of a workflow share and hand over
+    // between them, while this paper is new on every switch: a paper that only followed the
+    // highlight stream left the step the other view had selected drawn as not selected, beside a
+    // panel showing it. The highlight handler is re-run here, which is what a new paper wiring
+    // itself into the same shared selection comes down to.
+    it("rings the operators the shared selection already holds when the paper wires itself up", () => {
+      const workflowActionService = TestBed.inject(WorkflowActionService);
+      workflowActionService.addOperator(mockScanPredicate, mockPoint);
+      workflowActionService.getJointGraphWrapper().highlightOperators(mockScanPredicate.operatorID);
+      const view = component.paper.findViewByModel(mockScanPredicate.operatorID);
+      // Installed after the stream has done its work, so only the wiring-up pass is counted.
+      const highlight = vi.spyOn(view, "highlight");
+
+      (component as unknown as { handleElementHightlightEvent: () => void }).handleElementHightlightEvent();
+
+      expect(highlight).toHaveBeenCalledTimes(1);
+      expect(highlight).toHaveBeenCalledWith("rect.body", expect.anything());
+    });
   });
 
   /**
