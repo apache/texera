@@ -119,6 +119,13 @@ in [`udf.conf`](common/config/src/main/resources/udf.conf) or
 `export UDF_PYTHON_PATH="$(pwd)/../venv312/bin/python"` (env var overrides).
 Without it, `sbt` Python-integration tests fail to launch a worker.
 
+Reinstall from those requirement files whenever they change. CI builds its
+interpreter from them on every run, so a venv left behind runs the tests
+against library versions the product never sees. A test that fails only there
+reads like a defect in the code rather than in the venv. `pip install
+--upgrade -r amber/requirements.txt -r amber/operator-requirements.txt`
+brings one back in line.
+
 [`.jvmopts`](.jvmopts) holds every `--add-opens` flag Texera needs for
 JDK 17+, with each group annotated by its upstream source (Kryo,
 Apache Arrow, Apache Pekko). sbt's launcher and the [`.run/`](.run)
