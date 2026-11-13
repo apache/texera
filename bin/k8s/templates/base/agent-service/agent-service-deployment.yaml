@@ -59,6 +59,12 @@ spec:
             # computing unit id at request time.
             - name: EXECUTION_ENDPOINT_TEMPLATE
               value: http://computing-unit-{cuid}.{{ .Values.workflowComputingUnitPool.name }}-svc.{{ .Values.workflowComputingUnitPool.namespace }}.svc.cluster.local:{{ .Values.workflowComputingUnitPool.service.port }}
+            {{- range .Values.texeraEnvVars }}
+            {{- if eq .name "AUTH_JWT_SECRET" }}
+            - name: {{ .name }}
+              value: "{{ .value }}"
+            {{- end }}
+            {{- end }}
           # The service loads operator metadata from the dashboard service on
           # startup, so gate readiness on its health endpoint before the gateway
           # routes traffic here. /api/healthcheck needs no auth.

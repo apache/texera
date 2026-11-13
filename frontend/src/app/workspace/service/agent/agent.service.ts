@@ -41,6 +41,7 @@ import { AgentState, ReActStep, ModelMessage } from "./agent-types";
 import { Workflow, WorkflowContent } from "../../../common/type/workflow";
 import { ComputingUnitStatusService } from "../../../common/service/computing-unit/computing-unit-status/computing-unit-status.service";
 import { WarehouseService } from "../../../common/service/warehouse/warehouse.service";
+import { AuthService } from "../../../common/service/user/auth.service";
 
 /**
  * Agent settings for API (serializable format).
@@ -235,13 +236,11 @@ export class AgentService {
    * Build HTTP headers for agent-service requests.
    * Includes X-Agent-Workflow-Id for consistent hash routing in k8s.
    */
-  private agentHeaders(agentId?: string): { headers: HttpHeaders } {
+  private agentHeaders(agentId?: string, workflowId?: number): { headers: HttpHeaders } {
     let headers = new HttpHeaders();
-    if (agentId) {
-      const wid = this.agentStateTracking.get(agentId)?.workflowId;
-      if (wid !== undefined) {
-        headers = headers.set("X-Agent-Workflow-Id", String(wid));
-      }
+    const wid = (agentId ? this.agentStateTracking.get(agentId)?.workflowId : undefined) ?? workflowId;
+    if (wid !== undefined) {
+      headers = headers.set("X-Agent-Workflow-Id", String(wid));
     }
     return { headers };
   }
@@ -253,7 +252,7 @@ export class AgentService {
    */
   private syncAgentsWithBackend(): void {
     this.http
-      .get<ApiAgentListResponse>(`${this.AGENT_API_BASE}/agents`)
+      .get<ApiAgentListResponse>(`${this.AGENT_API_BASE}/agents`, this.agentHeaders())
       .pipe(catchError(() => of({ agents: [] })))
       .subscribe(response => {
         const backendAgentIds = new Set(response.agents.map(a => a.id));
@@ -407,7 +406,11 @@ export class AgentService {
   private startStatePolling(agentId: string, tracking: AgentStateTracking): void {
     // Build WebSocket URL
     const wsProtocol = window.location.protocol === "https:" ? "wss:" : "ws:";
-    const wsUrl = `${wsProtocol}//${window.location.host}${this.AGENT_API_BASE}/agents/${agentId}/react`;
+    let wsUrl = `${wsProtocol}//${window.location.host}${this.AGENT_API_BASE}/agents/${agentId}/react`;
+    const token = AuthService.getAccessToken();
+    if (token) {
+      wsUrl += `?access-token=${encodeURIComponent(token)}`;
+    }
 
     const ws = new WebSocket(wsUrl);
     tracking.websocket = ws;
@@ -665,41 +668,43 @@ export class AgentService {
         body.computingUnitId = selectedUnit.computingUnit.cuid;
       }
 
-      return this.http.post<ApiAgentInfo>(`${this.AGENT_API_BASE}/agents`, body).pipe(
-        map(response => {
-          const agentInfo: AgentInfo = {
-            id: response.id,
-            name: response.name,
-            modelType: response.modelType,
-            isBaselineMode: false,
-            createdAt: new Date(response.createdAt),
-            state: this.mapStateToAgentState(response.state),
-            delegate: response.delegate
-              ? {
-                  userInfo: response.delegate.userInfo,
-                  workflowId: response.delegate.workflowId,
-                  workflowName: response.delegate.workflowName,
-                }
-              : undefined,
-            settings: response.settings,
-          };
+      return this.http
+        .post<ApiAgentInfo>(`${this.AGENT_API_BASE}/agents`, body, this.agentHeaders(undefined, workflowId))
+        .pipe(
+          map(response => {
+            const agentInfo: AgentInfo = {
+              id: response.id,
+              name: response.name,
+              modelType: response.modelType,
+              isBaselineMode: false,
+              createdAt: new Date(response.createdAt),
+              state: this.mapStateToAgentState(response.state),
+              delegate: response.delegate
+                ? {
+                    userInfo: response.delegate.userInfo,
+                    workflowId: response.delegate.workflowId,
+                    workflowName: response.delegate.workflowName,
+                  }
+                : undefined,
+              settings: response.settings,
+            };
 
-          this.agents.set(response.id, agentInfo);
-          // Pass workflowId to enable workflow polling from backend database
-          const tracking = this.getOrCreateStateTracking(response.id, workflowId);
-          // Set the initial state from the API response (agent is AVAILABLE after creation)
-          tracking.stateSubject.next(agentInfo.state || AgentState.AVAILABLE);
-          this.agentChangeSubject.next();
+            this.agents.set(response.id, agentInfo);
+            // Pass workflowId to enable workflow polling from backend database
+            const tracking = this.getOrCreateStateTracking(response.id, workflowId);
+            // Set the initial state from the API response (agent is AVAILABLE after creation)
+            tracking.stateSubject.next(agentInfo.state || AgentState.AVAILABLE);
+            this.agentChangeSubject.next();
 
-          return agentInfo;
-        }),
-        catchError((error: unknown) => {
-          const err = error as { error?: { error?: string }; message?: string };
-          const errorMsg = err.error?.error || err.message || "Failed to create agent";
-          this.notificationService.error(errorMsg);
-          return throwError(() => new Error(errorMsg));
-        })
-      );
+            return agentInfo;
+          }),
+          catchError((error: unknown) => {
+            const err = error as { error?: { error?: string }; message?: string };
+            const errorMsg = err.error?.error || err.message || "Failed to create agent";
+            this.notificationService.error(errorMsg);
+            return throwError(() => new Error(errorMsg));
+          })
+        );
     });
   }
 
@@ -745,7 +750,7 @@ export class AgentService {
    * Also syncs local cache with backend - removes any stale agents that no longer exist on the backend.
    */
   public getAllAgents(): Observable<AgentInfo[]> {
-    return this.http.get<ApiAgentListResponse>(`${this.AGENT_API_BASE}/agents`).pipe(
+    return this.http.get<ApiAgentListResponse>(`${this.AGENT_API_BASE}/agents`, this.agentHeaders()).pipe(
       map(response => {
         const agents = response.agents.map(a => ({
           id: a.id,
@@ -817,21 +822,23 @@ export class AgentService {
    */
   public fetchModelTypes(): Observable<ModelType[]> {
     if (!this.modelTypes$) {
-      this.modelTypes$ = this.http.get<LiteLLMModelsResponse>(`${AppSettings.getApiEndpoint()}/models`).pipe(
-        map(response =>
-          response.data.map((model: LiteLLMModel) => ({
-            id: model.id,
-            name: this.formatModelName(model.id),
-            description: `Model: ${model.id}`,
-            icon: "robot",
-          }))
-        ),
-        catchError((error: unknown) => {
-          console.error("Failed to fetch models from API:", error);
-          return of([]);
-        }),
-        shareReplay(1)
-      );
+      this.modelTypes$ = this.http
+        .get<LiteLLMModelsResponse>(`${AppSettings.getApiEndpoint()}/models`, this.agentHeaders())
+        .pipe(
+          map(response =>
+            response.data.map((model: LiteLLMModel) => ({
+              id: model.id,
+              name: this.formatModelName(model.id),
+              description: `Model: ${model.id}`,
+              icon: "robot",
+            }))
+          ),
+          catchError((error: unknown) => {
+            console.error("Failed to fetch models from API:", error);
+            return of([]);
+          }),
+          shareReplay(1)
+        );
     }
     return this.modelTypes$;
   }
