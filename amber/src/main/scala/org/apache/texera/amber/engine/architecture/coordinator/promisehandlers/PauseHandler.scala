@@ -20,8 +20,6 @@
 package org.apache.texera.amber.engine.architecture.coordinator.promisehandlers
 
 import com.twitter.util.Future
-import org.apache.texera.amber.core.tuple.Tuple
-import org.apache.texera.amber.core.virtualidentity.ActorVirtualIdentity
 import org.apache.texera.amber.engine.architecture.coordinator.{
   CoordinatorAsyncRPCHandlerInitializer,
   ExecutionStateUpdate,
@@ -36,8 +34,6 @@ import org.apache.texera.amber.engine.architecture.rpc.controlreturns.{
   EmptyReturn,
   WorkerMetricsResponse
 }
-
-import scala.collection.mutable
 
 /** pause the entire workflow
   *
@@ -55,9 +51,6 @@ trait PauseHandler {
           .flatMap(_.getAllOperatorExecutions)
           .map {
             case (physicalOpId, opExecution) =>
-              // create a buffer for the current input tuple
-              // since we need to show them on the frontend
-              val buffer = mutable.ArrayBuffer[(Tuple, ActorVirtualIdentity)]()
               Future
                 .collect(
                   opExecution.getWorkerIds
