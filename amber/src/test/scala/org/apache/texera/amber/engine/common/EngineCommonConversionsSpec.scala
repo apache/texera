@@ -31,8 +31,7 @@ import org.apache.texera.amber.engine.common.FutureBijection._
 import org.scalatest.BeforeAndAfterAll
 import org.scalatest.flatspec.AnyFlatSpec
 
-import scala.concurrent.duration._
-import scala.concurrent.{Await, ExecutionContext, Future => ScalaFuture}
+import scala.concurrent.{Future => ScalaFuture}
 
 class EngineCommonConversionsSpec extends AnyFlatSpec with BeforeAndAfterAll {
 
