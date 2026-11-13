@@ -81,55 +81,7 @@ class HuggingFaceSentimentAnalysisOpDescSpec extends AnyFlatSpec with Matchers {
   }
 
   "HuggingFaceSentimentAnalysisOpDesc.getOutputSchemas" should
-    "return null when any result column is unset" in {
-    val d = new HuggingFaceSentimentAnalysisOpDesc
-    val in = Schema().add("text", AttributeType.STRING)
-    d.getOutputSchemas(Map(d.operatorInfo.inputPorts.head.id -> in)) shouldBe null
-  }
-
-  it should "return null when a result column is set but blank" in {
-    // Each of the three guards has a null half and a whitespace half. The whitespace
-    // half is the one a user actually hits: a cleared-out text box arrives as "   ",
-    // not as null, and a schema whose column name is blank is not a usable schema.
-    val in = Schema().add("text", AttributeType.STRING)
-    val blanks = Seq("", "   ", "\t")
-    blanks.foreach { blank =>
-      val d = configured()
-      d.resultAttributePositive = blank
-      withClue(s"positive = [$blank]: ") {
-        d.getOutputSchemas(Map(d.operatorInfo.inputPorts.head.id -> in)) shouldBe null
-      }
-    }
-  }
-
-  it should "return null when only the neutral result column is unset" in {
-    // Split out per column: a copy-pasted guard that re-tests `resultAttributePositive`
-    // in the neutral clause passes the "all three unset" case and this one is what
-    // catches it.
-    val in = Schema().add("text", AttributeType.STRING)
-
-    val nulled = configured()
-    nulled.resultAttributeNeutral = null
-    nulled.getOutputSchemas(Map(nulled.operatorInfo.inputPorts.head.id -> in)) shouldBe null
-
-    val blanked = configured()
-    blanked.resultAttributeNeutral = "   "
-    blanked.getOutputSchemas(Map(blanked.operatorInfo.inputPorts.head.id -> in)) shouldBe null
-  }
-
-  it should "return null when only the negative result column is unset" in {
-    val in = Schema().add("text", AttributeType.STRING)
-
-    val nulled = configured()
-    nulled.resultAttributeNegative = null
-    nulled.getOutputSchemas(Map(nulled.operatorInfo.inputPorts.head.id -> in)) shouldBe null
-
-    val blanked = configured()
-    blanked.resultAttributeNegative = "   "
-    blanked.getOutputSchemas(Map(blanked.operatorInfo.inputPorts.head.id -> in)) shouldBe null
-  }
-
-  it should "append the three sentiment columns as DOUBLE, keyed by the declared output port" in {
+    "append the three sentiment columns as DOUBLE, keyed by the declared output port" in {
     val d = configured()
     val in = Schema().add("text", AttributeType.STRING)
     val out = d.getOutputSchemas(Map(d.operatorInfo.inputPorts.head.id -> in))
@@ -138,6 +90,60 @@ class HuggingFaceSentimentAnalysisOpDescSpec extends AnyFlatSpec with Matchers {
     schema.getAttribute("pos").getType shouldBe AttributeType.DOUBLE
     schema.getAttribute("neu").getType shouldBe AttributeType.DOUBLE
     schema.getAttribute("neg").getType shouldBe AttributeType.DOUBLE
+  }
+
+  private val textInput = Schema().add("text", AttributeType.STRING)
+
+  private def schemaError(d: HuggingFaceSentimentAnalysisOpDesc, in: Schema = textInput): String =
+    intercept[RuntimeException] {
+      d.getOutputSchemas(Map(d.operatorInfo.inputPorts.head.id -> in))
+    }.getMessage
+
+  it should "reject each unset or blank result column, naming the field" in {
+    // Split per column: a copy-pasted guard that re-tests one field in another's
+    // clause would pass an all-unset case, and naming the field catches it.
+    val fields: Seq[(String, (HuggingFaceSentimentAnalysisOpDesc, String) => Unit)] = Seq(
+      "Positive result attribute" -> ((d, v) => d.resultAttributePositive = v),
+      "Neutral result attribute" -> ((d, v) => d.resultAttributeNeutral = v),
+      "Negative result attribute" -> ((d, v) => d.resultAttributeNegative = v)
+    )
+    for ((title, set) <- fields; empty <- Seq(null, "", "   ", "\t")) {
+      withClue(s"$title = [$empty]: ") {
+        val d = configured()
+        set(d, empty)
+        schemaError(d) shouldBe s"$title cannot be empty"
+      }
+    }
+  }
+
+  it should "reject an unset input attribute" in {
+    val d = configured()
+    d.attribute = "  "
+    schemaError(d) shouldBe "Attribute cannot be empty"
+  }
+
+  it should "reject an input attribute that is not in the input table, listing the columns" in {
+    val d = configured()
+    d.attribute = "review"
+    schemaError(d) shouldBe "Attribute 'review' is not in the input table. Available columns: text"
+  }
+
+  it should "match the input attribute's case exactly, as the generated Python does" in {
+    val d = configured()
+    d.attribute = "TEXT"
+    schemaError(d) should startWith("Attribute 'TEXT' is not in the input table")
+  }
+
+  it should "leave a readable error on its output port when the compiler propagates the schema" in {
+    // The compiler runs getOutputSchemas inside a Try and stores a thrown error on the
+    // output port. A returned null escaped that Try as a NullPointerException instead.
+    val d = configured()
+    d.resultAttributeNeutral = null
+    val physical = d
+      .getPhysicalOp(workflowId, executionId)
+      .propagateSchema(Some(d.operatorInfo.inputPorts.head.id -> textInput))
+    val port = physical.outputPorts(d.operatorInfo.outputPorts.head.id)._3
+    port.left.map(_.getMessage) shouldBe Left("Neutral result attribute cannot be empty")
   }
 
   "HuggingFaceSentimentAnalysisOpDesc.generatePythonCode" should
