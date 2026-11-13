@@ -380,10 +380,10 @@ jobs:
     if: ${{ inputs.run_amber_integration }}
     # A Python UDF worker that fails to start (e.g. a bad log level) leaves the
     # JVM blocked on the proxy handshake with no internal timeout, so the whole
-    # job would otherwise hang until GitHub's 6h cap. Fail fast instead: recent
-    # green runs take 9-17 minutes, so 25 leaves headroom for a cold cache or a
-    # slow macOS runner without masking a real hang.
-    timeout-minutes: 25
+    # job would otherwise hang until GitHub's 6h cap. Fail fast instead: green
+    # macOS runs take about 20 minutes and up to 24, so 35 leaves headroom for
+    # a cold cache or a slow runner without masking a real hang.
+    timeout-minutes: 35
     strategy:
       # macOS provisions postgres / rustfs / lakekeeper natively because
       # GitHub-hosted macOS runners have no Docker (and `services:`
