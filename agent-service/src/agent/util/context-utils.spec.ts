@@ -133,6 +133,77 @@ describe("assembleContext", () => {
     expect(content).toContain("- executeOperator (failed)");
     expect(content).toContain("- deleteOperator (succeeded)");
   });
+
+  test("writes each past call's summary and result under it, so a failed call is not repeated blindly", () => {
+    const agentStep: ReActStep = {
+      ...step("m1", "agent", 1, "acting", true),
+      toolCalls: [
+        { toolName: "addOperator", toolCallId: "c1", input: { operatorId: "op1", summary: "Load CSV data" } },
+        { toolName: "executeOperator", toolCallId: "c2", input: { operatorId: "op1" } },
+        { toolName: "modifyOperator", toolCallId: "c3", input: { operatorId: "op1", summary: "Link op7" } },
+        { toolName: "deleteOperator", toolCallId: "c4", input: { operatorId: "op1" } },
+      ],
+      toolResults: [
+        { toolCallId: "c1", output: "Added operator op1, input ports: 0, output ports: 1" },
+        { toolCallId: "c2", output: "Executed operator op1\nOutput(table shape): (3, 2)\n| a | b |" },
+        { toolCallId: "c3", output: '[ERROR] Source operator "op7" not found\n  at resolveInputLinks', isError: true },
+      ],
+    };
+    const content = contentOf(
+      assembleContext([step("m1", "user", 0, "req", true), agentStep], new WorkflowState(), new Map())
+    );
+    expect(content).toContain(
+      [
+        "- addOperator (succeeded)",
+        "  - Summary: Load CSV data",
+        "  - Output: Added operator op1, input ports: 0, output ports: 1",
+        "- executeOperator (succeeded)",
+        "  - Output: Executed operator op1",
+        "- modifyOperator (failed)",
+        "  - Summary: Link op7",
+        "  - Error:",
+        '    [ERROR] Source operator "op7" not found',
+        "      at resolveInputLinks",
+        // No result recorded (a call the SDK rejected): only the call itself.
+        "- deleteOperator (succeeded)",
+      ].join("\n")
+    );
+    // The operator's data stays in the dataflow section, not in the history.
+    expect(content).not.toContain("| a | b |");
+  });
+
+  test("an [ERROR] result not flagged as an error still gets its whole message as an Error block", () => {
+    // Tool errors are "[ERROR] ..." strings and isError is not set for them yet (#9120); an execution
+    // error spans several lines, and its reason is only on the later ones.
+    const agentStep: ReActStep = {
+      ...step("m1", "agent", 1, "acting", true),
+      toolCalls: [{ toolName: "executeOperator", toolCallId: "c1", input: { operatorId: "op8" } }],
+      toolResults: [{ toolCallId: "c1", output: "[ERROR] Operator op8:\nInput port 0 has no link" }],
+    };
+    const content = contentOf(
+      assembleContext([step("m1", "user", 0, "req", true), agentStep], new WorkflowState(), new Map())
+    );
+    expect(content).toContain(["  - Error:", "    [ERROR] Operator op8:", "    Input port 0 has no link"].join("\n"));
+    expect(content).not.toContain("  - Output: [ERROR]");
+  });
+
+  test("matches results to calls by toolCallId, not by position", () => {
+    // A call the SDK rejected has no result, so positions can shift.
+    const agentStep: ReActStep = {
+      ...step("m1", "agent", 1, "acting", true),
+      toolCalls: [
+        { toolName: "addOperator", toolCallId: "c1", input: { operatorId: "op1" } },
+        { toolName: "deleteOperator", toolCallId: "c2", input: { operatorId: "op0" } },
+      ],
+      toolResults: [{ toolCallId: "c2", output: "Deleted operator op0" }],
+    };
+    const content = contentOf(
+      assembleContext([step("m1", "user", 0, "req", true), agentStep], new WorkflowState(), new Map())
+    );
+    expect(content).toContain(
+      ["- addOperator (succeeded)", "- deleteOperator (succeeded)", "  - Output: Deleted operator op0"].join("\n")
+    );
+  });
 });
 
 describe("assembleContext — dataflow serialization", () => {
