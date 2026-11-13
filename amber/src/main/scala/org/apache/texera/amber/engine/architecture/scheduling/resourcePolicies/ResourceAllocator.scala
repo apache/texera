@@ -40,7 +40,11 @@ class DefaultResourceAllocator(
     physicalPlan: PhysicalPlan,
     executionClusterInfo: ExecutionClusterInfo,
     workflowSettings: WorkflowSettings,
-    cuid: Option[Int] = None
+    cuid: Option[Int] = None,
+    // Operators with an input port that reads a saved result instead of an upstream link.
+    // Such an operator may have no upstream link in `physicalPlan`, but it is not a source:
+    // its output partitioning is derived as for an operator that reads a materialized link.
+    operatorsReadingFromCache: Set[PhysicalOpIdentity] = Set.empty
 ) extends ResourceAllocator {
 
   // a map of a physical link to the partition info of the upstream/downstream of this link
@@ -158,7 +162,9 @@ class DefaultResourceAllocator(
       .topologicalIterator()
       .foreach(physicalOpId => {
         val physicalOp = region.getOperator(physicalOpId)
-        val outputPartitionInfo = if (physicalPlan.getSourceOperatorIds.contains(physicalOpId)) {
+        val isSource = physicalPlan.getSourceOperatorIds.contains(physicalOpId) &&
+          !operatorsReadingFromCache.contains(physicalOpId)
+        val outputPartitionInfo = if (isSource) {
           Some(physicalOp.partitionRequirement.headOption.flatten.getOrElse(UnknownPartition()))
         } else {
           val inputPartitionInfos = physicalOp.inputPorts.keys
