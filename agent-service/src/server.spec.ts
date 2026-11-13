@@ -21,6 +21,7 @@ import { beforeEach, describe, expect, spyOn, test } from "bun:test";
 import { buildApp, start, _resetAgentStoreForTests, _getAgentForTests } from "./server";
 import { WorkflowSystemMetadata } from "./agent/util/workflow-system-metadata";
 import { env } from "./config/env";
+import { ConsoleMessageType, OperatorState } from "./types/execution";
 
 const API = env.API_PREFIX;
 const app = buildApp();
@@ -321,8 +322,13 @@ describe("agent read routes", () => {
     expect(Array.isArray((await readJson<{ steps: unknown[] }>(res)).steps)).toBe(true);
   });
 
-  test("GET /:id/operator-results maps the visible operator results", async () => {
+  test("GET /:id/operator-results returns only each visible operator's result summary", async () => {
     const agent = _getAgentForTests(id)!;
+    const resultSummary = {
+      resultMode: { type: "PaginationMode" },
+      sampleTuples: [[0, { schema: { attributes: [{ attributeName: "a", attributeType: "string" }] }, fields: [1] }]],
+      totalTuplesCount: 2,
+    };
     (agent as any).getWorkflowResultState = () => ({
       getAllVisible: () =>
         new Map([
@@ -330,27 +336,22 @@ describe("agent read routes", () => {
             "op-1",
             {
               operatorInfo: {
-                state: "COMPLETED",
-                inputTuples: 1,
-                outputTuples: 2,
-                inputPortShapes: [],
-                result: [{ a: 1 }],
-                error: undefined,
-                warnings: [],
-                consoleLogs: [],
-                totalRowCount: 2,
-                resultStatistics: {},
+                state: OperatorState.COMPLETED,
+                errorMessages: [],
+                resultSummary,
+                consoleMessages: [{ msgType: ConsoleMessageType.PRINT, title: "stack trace", message: "at ..." }],
               },
             },
           ],
+          ["op-2", { operatorInfo: { state: OperatorState.FAILED, errorMessages: [] } }],
         ]),
     });
 
-    const body = await readJson<{ results: Record<string, { outputTuples: number; outputColumns: number }> }>(
+    const body = await readJson<{ results: Record<string, unknown> }>(
       await getJson(`${API}/agents/${id}/operator-results`)
     );
-    expect(body.results["op-1"].outputTuples).toBe(2);
-    expect(body.results["op-1"].outputColumns).toBe(1);
+    // The popover reads only resultSummary, so state and console messages stay server-side.
+    expect(body.results).toEqual({ "op-1": { resultSummary }, "op-2": {} });
   });
 });
 
