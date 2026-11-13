@@ -151,7 +151,11 @@ export class SharedModel {
   public destroy(): void {
     this.awareness.destroy();
     try {
-      if (this.wsProvider.shouldConnect && this.wsProvider.wsconnected) this.wsProvider.disconnect();
+      // destroy(), not just disconnect(): the provider also runs a connection-check interval, holds
+      // a BroadcastChannel subscription and listens on the doc and awareness, and only destroy()
+      // releases those. It disconnects too, which also stops a never-connected provider from
+      // retrying forever.
+      this.wsProvider.destroy();
     } catch (e) {}
     this.yDoc.destroy();
   }

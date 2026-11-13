@@ -17,7 +17,7 @@
  * under the License.
  */
 
-import { Injectable } from "@angular/core";
+import { Injectable, OnDestroy } from "@angular/core";
 import {
   BehaviorSubject,
   concatWith,
@@ -51,7 +51,7 @@ export const WS_RECONNECT_INTERVAL_MS = 3000;
 @Injectable({
   providedIn: "root",
 })
-export class WorkflowWebsocketService {
+export class WorkflowWebsocketService implements OnDestroy {
   private static readonly TEXERA_WEBSOCKET_ENDPOINT = "wsapi/workflow-websocket";
 
   public numWorkers: number = -1;
@@ -61,10 +61,16 @@ export class WorkflowWebsocketService {
   private statusUpdateSubscription?: Subscription;
   private readonly webSocketResponseSubject: Subject<TexeraWebsocketEvent> = new Subject();
   private readonly connectionStatusSubject = new BehaviorSubject<boolean>(false);
+  private readonly heartbeatSubscription: Subscription;
 
   constructor(private config: GuiConfigService) {
     // setup heartbeat
-    interval(WS_HEARTBEAT_INTERVAL_MS).subscribe(_ => this.send("HeartBeatRequest", {}));
+    this.heartbeatSubscription = interval(WS_HEARTBEAT_INTERVAL_MS).subscribe(_ => this.send("HeartBeatRequest", {}));
+  }
+
+  ngOnDestroy(): void {
+    this.heartbeatSubscription.unsubscribe();
+    this.closeWebsocket();
   }
 
   /** Emit `true` when the socket is up, `false` when it is closed or lost. */

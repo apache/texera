@@ -17,7 +17,7 @@
  * under the License.
  */
 
-import { Injectable } from "@angular/core";
+import { Injectable, OnDestroy } from "@angular/core";
 import { BehaviorSubject, catchError, map, of } from "rxjs";
 import { WorkflowActionService } from "../workflow-graph/model/workflow-action.service";
 import { OperatorLink } from "../../types/workflow-common.interface";
@@ -35,7 +35,7 @@ import { GuiConfigService } from "../../../common/service/gui-config.service";
 @Injectable({
   providedIn: "root",
 })
-export class JupyterPanelService {
+export class JupyterPanelService implements OnDestroy {
   private jupyterNotebookPanelVisible = new BehaviorSubject<boolean>(false);
   public jupyterNotebookPanelVisible$ = this.jupyterNotebookPanelVisible.asObservable();
 
@@ -62,6 +62,10 @@ export class JupyterPanelService {
     private config: GuiConfigService
   ) {
     window.addEventListener("message", this.handleNotebookMessage);
+  }
+
+  ngOnDestroy(): void {
+    window.removeEventListener("message", this.handleNotebookMessage);
   }
 
   private get enabled(): boolean {
