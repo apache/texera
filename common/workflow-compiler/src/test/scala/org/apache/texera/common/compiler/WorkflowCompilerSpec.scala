@@ -2601,10 +2601,9 @@ class WorkflowCompilerSpec extends AnyFlatSpec {
 }
 
 /**
-  * Test-only generated operators whose properties refer to loop variables. The descriptor
-  * generates their code from copies it parses from their JSON, the compiler checks their texts on
-  * such copies, and Jackson builds no inner class, so these live here rather than in the spec
-  * class.
+  * Test-only generated operators whose properties refer to loop variables. `LoopVariableBinding`
+  * parses copies of them from their JSON, to probe their numbers and to check their texts, and
+  * Jackson builds no inner class, so these live here rather than in the spec class.
   */
 object WorkflowCompilerSpec {
 
