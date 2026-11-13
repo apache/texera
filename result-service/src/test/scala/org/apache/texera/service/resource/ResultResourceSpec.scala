@@ -529,7 +529,8 @@ class ResultResourceSpec
 
   it should "answer 404 for an operator with no result" in {
     val eid = insertExecution(owner)
-    insertResult(eid, "other-op")
+    // Another operator's result is stored, so a lookup that ignored the operator would find it.
+    storeResult(eid, "other-op")
 
     get(owner, pagesPath(eid)).getStatus shouldBe 404
   }

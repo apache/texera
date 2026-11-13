@@ -38,13 +38,11 @@ import jakarta.ws.rs.{
 import org.apache.texera.amber.core.storage.model.VirtualDocument
 import org.apache.texera.amber.core.storage.{
   DocumentFactory,
-  ExecutionResultUris,
   WarehouseReadGuard,
   WarehouseUnavailableException
 }
 import org.apache.texera.amber.core.tuple.{Attribute, Schema, Tuple, TupleUtils}
-import org.apache.texera.amber.core.virtualidentity.{ExecutionIdentity, OperatorIdentity}
-import org.apache.texera.amber.core.workflow.PortIdentity
+import org.apache.texera.amber.core.workflow.GlobalPortIdentity
 import org.apache.texera.amber.util.serde.GlobalPortIdentitySerde
 import org.apache.texera.auth.SessionUser
 import org.apache.texera.auth.util.WorkflowAccess
@@ -84,6 +82,14 @@ object ResultResource {
   )
 
   case class ResultPage(table: List[ObjectNode], schema: List[Attribute], rowCount: Long)
+
+  /** A result an execution stored, as its row in `operator_port_executions` records it. */
+  private case class StoredResult(
+      port: GlobalPortIdentity,
+      uri: URI,
+      outputMode: Option[OutputModeEnum],
+      rowCount: Option[Long]
+  )
 }
 
 /**
@@ -127,29 +133,15 @@ class ResultResource {
   @Path("/executions/{eid}")
   def getResults(@PathParam("eid") eid: Integer, @Auth user: SessionUser): List[PortResult] = {
     requireReadable(eid, user)
-    context
-      .select(
-        OPERATOR_PORT_EXECUTIONS.GLOBAL_PORT_ID,
-        OPERATOR_PORT_EXECUTIONS.OUTPUT_MODE,
-        OPERATOR_PORT_EXECUTIONS.RESULT_COUNT
+    storedResults(eid)
+      .map(result =>
+        PortResult(
+          result.port.opId.logicalOpId.id,
+          result.port.portId.id,
+          result.outputMode.map(_.getLiteral),
+          result.rowCount
+        )
       )
-      .from(OPERATOR_PORT_EXECUTIONS)
-      .where(OPERATOR_PORT_EXECUTIONS.WORKFLOW_EXECUTION_ID.eq(eid))
-      .and(OPERATOR_PORT_EXECUTIONS.RESULT_URI.ne(""))
-      .fetch()
-      .asScala
-      .toList
-      .flatMap { row =>
-        val port = GlobalPortIdentitySerde.deserializeFromString(row.value1())
-        Option.when(!port.portId.internal) {
-          PortResult(
-            port.opId.logicalOpId.id,
-            port.portId.id,
-            Option(row.value2()).map(_.getLiteral),
-            Option(row.value3()).map(_.longValue)
-          )
-        }
-      }
       .sortBy(result => (result.operatorId, result.portIndex))
   }
 
@@ -175,16 +167,18 @@ class ResultResource {
       throw new BadRequestException("the page or column range is out of bounds")
     }
 
-    val uri = resultUri(eid, operatorId, port)
-    val (document, schema) = openResult(uri, operatorId)
+    val result = storedResult(eid, operatorId, port)
+    val (document, schema) = openResult(result.uri, operatorId)
     val columns = schema.getAttributeNames
       .filter(_.toLowerCase(Locale.ROOT).contains(columnSearch.toLowerCase(Locale.ROOT)))
       .drop(columnOffset)
       .take(columnLimit)
     val from = pageSize * (pageIndex - 1)
-    val visualization = isVisualization(eid, uri)
+    // A visualization is HTML in a single cell, so it is sent whole, as the computing unit's result
+    // push sends it. A result recorded before output modes were is not one.
+    val visualization = result.outputMode.contains(OutputModeEnum.SINGLE_SNAPSHOT)
     // A row at a time, so a page holds at most one decoded row: the JSON keeps only a preview of
-    // each long value, except in a visualization, which is sent whole.
+    // each long value, except in a visualization.
     val table = document
       .getRange(from, from + pageSize, Some(columns))
       .map(row => TupleUtils.convertTuplesToJson(List(row), visualization).head)
@@ -206,7 +200,7 @@ class ResultResource {
       @Auth user: SessionUser
   ): Map[String, Map[String, Any]] = {
     requireReadable(eid, user)
-    openResult(resultUri(eid, operatorId, port), operatorId)._1.getTableStatistics
+    openResult(storedResult(eid, operatorId, port).uri, operatorId)._1.getTableStatistics
   }
 
   /**
@@ -232,26 +226,40 @@ class ResultResource {
     }
   }
 
-  private def resultUri(eid: Integer, operatorId: String, port: Int): URI =
-    ExecutionResultUris
-      .getResultUriByLogicalPortId(
-        ExecutionIdentity(eid.longValue()),
-        OperatorIdentity(operatorId),
-        PortIdentity(port)
-      )
-      .getOrElse(throw new NotFoundException(s"no result for operator $operatorId, port $port"))
-
   /**
-    * A visualization is HTML in a single cell, so its page is sent whole, as the computing unit's
-    * result push sends it. A result recorded before output modes were is not one.
+    * The results an execution stored, one for each external output port that has a table. All
+    * three endpoints read them here, so they agree on which row belongs to which port.
     */
-  private def isVisualization(eid: Integer, uri: URI): Boolean =
+  private def storedResults(eid: Integer): List[StoredResult] =
     context
-      .select(OPERATOR_PORT_EXECUTIONS.OUTPUT_MODE)
+      .select(
+        OPERATOR_PORT_EXECUTIONS.GLOBAL_PORT_ID,
+        OPERATOR_PORT_EXECUTIONS.RESULT_URI,
+        OPERATOR_PORT_EXECUTIONS.OUTPUT_MODE,
+        OPERATOR_PORT_EXECUTIONS.RESULT_COUNT
+      )
       .from(OPERATOR_PORT_EXECUTIONS)
       .where(OPERATOR_PORT_EXECUTIONS.WORKFLOW_EXECUTION_ID.eq(eid))
-      .and(OPERATOR_PORT_EXECUTIONS.RESULT_URI.eq(uri.toString))
-      .fetchOne(OPERATOR_PORT_EXECUTIONS.OUTPUT_MODE) == OutputModeEnum.SINGLE_SNAPSHOT
+      .and(OPERATOR_PORT_EXECUTIONS.RESULT_URI.ne(""))
+      .fetch()
+      .asScala
+      .toList
+      .map(row =>
+        StoredResult(
+          GlobalPortIdentitySerde.deserializeFromString(row.value1()),
+          URI.create(row.value2()),
+          Option(row.value3()),
+          Option(row.value4()).map(_.longValue)
+        )
+      )
+      .filterNot(_.port.portId.internal)
+
+  private def storedResult(eid: Integer, operatorId: String, port: Int): StoredResult =
+    storedResults(eid)
+      .find(result =>
+        result.port.opId.logicalOpId.id == operatorId && result.port.portId.id == port
+      )
+      .getOrElse(throw new NotFoundException(s"no result for operator $operatorId, port $port"))
 
   private def openResult(uri: URI, operatorId: String): (VirtualDocument[Tuple], Schema) =
     try {
