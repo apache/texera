@@ -30,17 +30,6 @@ object DatasetStatisticsUtils {
     SqlServer
       .getInstance()
       .createDSLContext()
-  // this function retrieves the total counts of dataset that belongs to the user
-  def getUserCreatedDatasetCount(uid: Integer): Int = {
-    val count = context
-      .selectCount()
-      .from(DATASET)
-      .where(DATASET.OWNER_UID.eq(uid))
-      .fetchOne(0, classOf[Int])
-
-    count
-  }
-
   // this function would return a list of dataset ids that belongs to the user
   private def getUserCreatedDatasetList(uid: Integer): List[DatasetQuota] = {
     val result = context
@@ -66,10 +55,6 @@ object DatasetStatisticsUtils {
   }
 
   def getUserCreatedDatasets(uid: Integer): List[DatasetQuota] = {
-    val datasetList = getUserCreatedDatasetList(uid)
-    datasetList.map { dataset =>
-      val size = 0 // we disabled the size calculation due to the switch of dataset implementation
-      dataset.copy(size = size)
-    }
+    getUserCreatedDatasetList(uid)
   }
 }

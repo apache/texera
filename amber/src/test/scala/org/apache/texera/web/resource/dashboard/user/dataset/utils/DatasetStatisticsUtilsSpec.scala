@@ -113,33 +113,6 @@ class DatasetStatisticsUtilsSpec extends AnyFlatSpec with BeforeAndAfterAll with
   }
 
   // ---------------------------------------------------------------------------
-  // getUserCreatedDatasetCount
-  // ---------------------------------------------------------------------------
-
-  "getUserCreatedDatasetCount" should
-    "aggregate only the datasets owned by the given uid, and report 0 for a uid that owns none" in {
-    seedTwoOwners()
-
-    // The zero case shares this fixture on purpose: on its own it cannot
-    // distinguish a count from a null projection, and on its own the two-dataset
-    // case cannot distinguish an owner-filtered count from an unfiltered one.
-    assert(DatasetStatisticsUtils.getUserCreatedDatasetCount(ownerUid) == 2)
-    assert(DatasetStatisticsUtils.getUserCreatedDatasetCount(otherUid) == 1)
-    assert(DatasetStatisticsUtils.getUserCreatedDatasetCount(strangerUid) == 0)
-  }
-
-  it should "agree with the length of the list getUserCreatedDatasets returns" in {
-    seedTwoOwners()
-
-    Seq(ownerUid, otherUid, strangerUid).foreach { uid =>
-      assert(
-        DatasetStatisticsUtils.getUserCreatedDatasetCount(uid) ==
-          DatasetStatisticsUtils.getUserCreatedDatasets(uid).size
-      )
-    }
-  }
-
-  // ---------------------------------------------------------------------------
   // getUserCreatedDatasets
   // ---------------------------------------------------------------------------
 
