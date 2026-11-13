@@ -774,7 +774,4 @@ class TypeCastingOpDescSpec extends AnyFlatSpec with Matchers {
     }
     engineAnswer("not a date", AttributeType.TIMESTAMP) shouldBe "error"
   }
-
-  // Python resolution follows FilledAreaPlotOpDescSpec: udf.conf python.path
-  // (UDF_PYTHON_PATH), then python3 / python / py.
 }

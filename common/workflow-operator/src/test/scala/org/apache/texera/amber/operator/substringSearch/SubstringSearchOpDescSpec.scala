@@ -154,6 +154,9 @@ class SubstringSearchOpDescSpec extends AnyFlatSpec with Matchers {
     }
   }
 
+  // The engine reads `Body` from a column `body`, since Schema ignores case. pandas
+  // would raise a KeyError on `Body`, so the script reads the column as the table
+  // spells it.
   "SubstringSearchOpDesc.generateStandaloneCode" should
     "read a column named in a different case from the table" in {
     val inputSchemas =

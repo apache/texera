@@ -22,7 +22,7 @@ package org.apache.texera.amber.operator.visualization.urlviz
 import org.apache.texera.amber.util.PythonTestSupport.{
   NeedsPythonPackages,
   canImport,
-  environmentPython
+  configuredPython
 }
 import com.fasterxml.jackson.annotation.JsonProperty
 import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaInject
@@ -169,7 +169,7 @@ class UrlVizOpDescSpec extends AnyFlatSpec with Matchers {
   }
 
   it should "write that cell the same way in the exported script" taggedAs NeedsPythonPackages in {
-    val python = environmentPython().getOrElse(cancel("No runnable python executable"))
+    val python = configuredPython().getOrElse(cancel("No runnable python executable"))
     if (!canImport(python, "pandas")) cancel(s"'$python' cannot import pandas")
 
     val desc = descFor("url")

@@ -536,9 +536,6 @@ class TextInputSourceOpDescSpec extends AnyFlatSpec with BeforeAndAfter {
     (process.exitValue(), out)
   }
 
-  // Python resolution follows FilledAreaPlotOpDescSpec: udf.conf python.path
-  // (UDF_PYTHON_PATH), then python3 / python / py.
-
   "TextInputSourceOpDesc.getPhysicalOp" should
     "wire the TextInputSourceOpExec class as a source op with one output port" in {
     val physical =

@@ -19,7 +19,7 @@
 
 package org.apache.texera.amber.operator.visualization.ImageViz
 
-import org.apache.texera.amber.util.PythonTestSupport.environmentPython
+import org.apache.texera.amber.util.PythonTestSupport.configuredPython
 import org.apache.texera.amber.core.tuple.{AttributeType, Schema}
 import org.apache.texera.amber.operator.metadata.OperatorGroupConstants
 import org.scalatest.BeforeAndAfter
@@ -149,7 +149,7 @@ class ImageVisualizerOpDescSpec extends AnyFlatSpec with BeforeAndAfter with Mat
   // Both paths run the same two lines on a string, so the answer is one both can
   // be held to: b64encode raises, and the reason page is what the viewer sees.
   it should "answer a string column with the reason page in both paths" in {
-    val python = environmentPython().getOrElse(cancel("No runnable python executable"))
+    val python = configuredPython().getOrElse(cancel("No runnable python executable"))
 
     val body = standaloneFor(AttributeType.STRING).linesIterator
       .takeWhile(!_.startsWith("all_images_html"))

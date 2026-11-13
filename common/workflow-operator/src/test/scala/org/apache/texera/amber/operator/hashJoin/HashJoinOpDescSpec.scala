@@ -19,7 +19,11 @@
 
 package org.apache.texera.amber.operator.hashJoin
 
-import com.typesafe.config.ConfigFactory
+import org.apache.texera.amber.util.PythonTestSupport.{
+  NeedsPythonPackages,
+  canImport,
+  configuredPython
+}
 import org.apache.texera.amber.core.tuple.{
   Attribute,
   AttributeType,
@@ -30,9 +34,7 @@ import org.apache.texera.amber.core.tuple.{
 import org.apache.texera.amber.core.workflow.PortIdentity
 import org.apache.texera.amber.operator.LogicalOp
 import org.apache.texera.amber.operator.metadata.OperatorGroupConstants
-import org.apache.texera.amber.operator.tags.IntegrationTest
 import org.apache.texera.amber.util.JSONUtils.objectMapper
-import org.scalatest.Tag
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 
@@ -40,11 +42,8 @@ import java.nio.charset.StandardCharsets
 import java.nio.file.Files
 import java.util.concurrent.TimeUnit
 import scala.io.Source
-import scala.util.Try
 
 class HashJoinOpDescSpec extends AnyFlatSpec with Matchers {
-
-  private val NeedsPythonPackages = Tag(classOf[IntegrationTest].getName)
 
   private def leftRight(): (Schema, Schema) =
     (
@@ -96,8 +95,8 @@ class HashJoinOpDescSpec extends AnyFlatSpec with Matchers {
   // engine, so only the missing one matches a missing right key. The two are
   // only distinct in a nullable dtype, which is what an Arrow file is read into.
   "HashJoinOpDesc.generateStandaloneCode" should "match a missing key but not a NaN one" taggedAs NeedsPythonPackages in {
-    val python = resolvePython().getOrElse(cancel("No runnable python executable"))
-    if (!canImportPandas(python)) cancel(s"'$python' cannot import pandas")
+    val python = configuredPython().getOrElse(cancel("No runnable python executable"))
+    if (!canImport(python, "pandas", "numpy")) cancel(s"'$python' cannot import pandas")
 
     val d = new HashJoinOpDesc[Integer]
     d.buildAttributeName = "k"
@@ -135,8 +134,8 @@ class HashJoinOpDescSpec extends AnyFlatSpec with Matchers {
   // null. Each join type keeps or drops the unmatched NaN rows by its own rule.
   for (joinType <- JoinType.values) {
     it should s"pair NaN, signed-zero and null keys as the engine does in a $joinType join" taggedAs NeedsPythonPackages in {
-      val python = resolvePython().getOrElse(cancel("No runnable python executable"))
-      if (!canImportPandas(python)) cancel(s"'$python' cannot import pandas")
+      val python = configuredPython().getOrElse(cancel("No runnable python executable"))
+      if (!canImport(python, "pandas", "numpy")) cancel(s"'$python' cannot import pandas")
 
       val d = new HashJoinOpDesc[java.lang.Double]
       d.buildAttributeName = "k"
@@ -246,33 +245,4 @@ class HashJoinOpDescSpec extends AnyFlatSpec with Matchers {
     r.probeAttributeName shouldBe "rk"
     r.joinType shouldBe JoinType.LEFT_OUTER
   }
-
-  // Python resolution follows FilledAreaPlotOpDescSpec: udf.conf python.path
-  // (UDF_PYTHON_PATH), then python3 / python / py.
-  private def resolvePython(): Option[String] = {
-    def fromConfig: Option[String] =
-      Try(ConfigFactory.parseResources("udf.conf").resolve()).toOption
-        .orElse(Try(ConfigFactory.load()).toOption)
-        .flatMap(c => Try(c.getConfig("python").getString("path")).toOption)
-        .map(_.trim)
-        .filter(_.nonEmpty)
-
-    def runnable(exe: String): Boolean =
-      Try(new ProcessBuilder(exe, "--version").redirectErrorStream(true).start()).toOption
-        .exists { p =>
-          if (!p.waitFor(5, TimeUnit.SECONDS)) { p.destroyForcibly(); false }
-          else p.exitValue() == 0
-        }
-
-    (fromConfig.toList ++ List("python3", "python", "py")).distinct.find(runnable)
-  }
-
-  private def canImportPandas(python: String): Boolean =
-    Try(
-      new ProcessBuilder(python, "-c", "import pandas, numpy").redirectErrorStream(true).start()
-    ).toOption
-      .exists { p =>
-        if (!p.waitFor(60, TimeUnit.SECONDS)) { p.destroyForcibly(); false }
-        else p.exitValue() == 0
-      }
 }

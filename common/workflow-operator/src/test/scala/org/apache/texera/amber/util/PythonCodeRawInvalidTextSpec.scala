@@ -19,21 +19,23 @@
 
 package org.apache.texera.amber.util
 
-import org.apache.texera.amber.util.PythonTestSupport.configuredPython
+import org.apache.texera.amber.util.PythonTestSupport.{
+  NeedsPythonPackages,
+  canImport,
+  configuredPython
+}
 import org.apache.texera.amber.operator.PythonOperatorDescriptor
-import org.apache.texera.amber.operator.tags.IntegrationTest
 import org.apache.texera.amber.pybuilder.PythonReflectionTextUtils.truncateBlock
 import org.apache.texera.amber.pybuilder.PythonReflectionUtils
 import org.apache.texera.amber.util.JSONUtils.objectMapper
 import org.apache.texera.amber.util.python.PythonWorkerPool
-import org.scalatest.Tag
 import org.scalatest.funsuite.AnyFunSuite
 
 import java.nio.charset.StandardCharsets
 import java.nio.file.Files
 import java.util.concurrent
 import java.util.concurrent.atomic.AtomicInteger
-import java.util.concurrent.{Executors, TimeUnit}
+import java.util.concurrent.Executors
 import scala.concurrent.duration.{DurationInt, FiniteDuration}
 import scala.concurrent.{Await, ExecutionContext, Future}
 import scala.util.Try
@@ -337,7 +339,7 @@ final class PythonCodeRawInvalidTextSpec extends AnyFunSuite {
     */
   test(
     "the Python interpreter operator templates run in should import pandas and plotly",
-    Tag(classOf[IntegrationTest].getName)
+    NeedsPythonPackages
   ) {
     // Same env var and value the build reads to select this subset, in
     // common/workflow-operator/build.sbt; keep the two in step. Nothing enforces
@@ -350,16 +352,7 @@ final class PythonCodeRawInvalidTextSpec extends AnyFunSuite {
       if (provisioned) fail(message) else cancel(message)
 
     val python = configuredPython().getOrElse(unavailable("no runnable python"))
-    val imported = Try {
-      val process = new ProcessBuilder(python, "-c", "import pandas, plotly")
-        .redirectErrorStream(true)
-        .start()
-      // Killed on the way out: a probe that ran out of time is still running, and
-      // would otherwise leak into the rest of the run.
-      if (process.waitFor(60, TimeUnit.SECONDS)) process.exitValue() == 0
-      else { process.destroyForcibly(); false }
-    }
-    if (!imported.getOrElse(false)) {
+    if (!canImport(python, "pandas", "plotly")) {
       unavailable(s"'$python' cannot import pandas and plotly")
     }
   }

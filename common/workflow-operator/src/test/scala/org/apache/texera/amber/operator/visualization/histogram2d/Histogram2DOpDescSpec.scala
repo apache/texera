@@ -22,7 +22,7 @@ package org.apache.texera.amber.operator.visualization.histogram2d
 import org.apache.texera.amber.util.PythonTestSupport.{
   NeedsPythonPackages,
   canImportWithin,
-  environmentPython
+  configuredPython
 }
 import org.apache.texera.amber.core.tuple.{AttributeType, Schema}
 import org.apache.texera.amber.operator.LogicalOp
@@ -115,7 +115,7 @@ class Histogram2DOpDescSpec extends AnyFlatSpec with Matchers {
   }
 
   it should "leave both files behind when it runs" taggedAs NeedsPythonPackages in {
-    val python = environmentPython().getOrElse(cancel("No runnable python executable"))
+    val python = configuredPython().getOrElse(cancel("No runnable python executable"))
     if (!canImportWithin(python, 120, "pandas", "plotly"))
       cancel(s"'$python' cannot import pandas and plotly")
 

@@ -19,8 +19,8 @@
 
 package org.apache.texera.amber.util
 
-import com.typesafe.config.ConfigFactory
 import org.apache.texera.amber.operator.tags.IntegrationTest
+import org.apache.texera.common.config.UdfConfig
 import org.scalatest.Tag
 
 import java.util.concurrent.TimeUnit
@@ -31,17 +31,7 @@ private[amber] object PythonTestSupport {
   private val PathCandidates = List("python3", "python", "py")
 
   def configuredPython(): Option[String] = {
-    val configured = Try(ConfigFactory.parseResources("udf.conf").resolve()).toOption
-      .orElse(Try(ConfigFactory.load()).toOption)
-      .flatMap(c => Try(c.getConfig("python").getString("path")).toOption)
-      .map(_.trim)
-      .filter(_.nonEmpty)
-    (configured.toList ++ PathCandidates).distinct.find(runnable)
-  }
-
-  // Preserve the env-first callers' untrimmed override; config-first callers trim it.
-  def environmentPython(): Option[String] = {
-    val configured = sys.env.get("UDF_PYTHON_PATH").filter(_.nonEmpty)
+    val configured = Some(UdfConfig.pythonPath.trim).filter(_.nonEmpty)
     (configured.toList ++ PathCandidates).distinct.find(runnable)
   }
 

@@ -181,6 +181,9 @@ class RegexOpDescSpec extends AnyFlatSpec with Matchers {
     }
   }
 
+  // The engine reads `Url` from a column `url`, since Schema ignores case. pandas
+  // would raise a KeyError on `Url`, so the script reads the column as the table
+  // spells it.
   "RegexOpDesc.generateStandaloneCode" should
     "read a column named in a different case from the table" in {
     val inputSchemas =
