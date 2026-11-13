@@ -369,6 +369,67 @@ class ArrowUtilsSpec extends AnyFlatSpec with Matchers {
     }
   }
 
+  // ----- serializeTuples / deserializeTuples (the columnar wire round-trip) -----
+
+  "serializeTuples and deserializeTuples" should "round-trip a multi-row batch of every type" in {
+    // This is the columnar-wire payload contract: a NetworkOutputBuffer serializes a
+    // batch of tuples to Arrow IPC bytes, and the receiver decodes them back to the
+    // identical tuples, so the wire is transparent to the row path.
+    val rows = Array(
+      Tuple
+        .builder(tupleSchema)
+        .addSequentially(
+          Array[Any](
+            Int.box(42),
+            Long.box(7L),
+            Double.box(3.14),
+            Boolean.box(true),
+            new Timestamp(10000L),
+            "hello",
+            Array[Byte](1, 2, 3)
+          )
+        )
+        .build(),
+      Tuple
+        .builder(tupleSchema)
+        .addSequentially(Array[Any](null, null, null, null, null, null, null))
+        .build(),
+      Tuple
+        .builder(tupleSchema)
+        .addSequentially(
+          Array[Any](
+            Int.box(-1),
+            Long.box(0L),
+            Double.box(-2.5),
+            Boolean.box(false),
+            new Timestamp(0L),
+            "",
+            Array[Byte]()
+          )
+        )
+        .build()
+    )
+
+    val back = ArrowUtils.deserializeTuples(ArrowUtils.serializeTuples(tupleSchema, rows))
+    back.length shouldBe rows.length
+    back.zip(rows).foreach {
+      case (got, expected) =>
+        tupleSchema.getAttributes.foreach { attribute =>
+          val name = attribute.getName
+          (got.getField[AnyRef](name), expected.getField[AnyRef](name)) match {
+            case (g: Array[Byte], e: Array[Byte]) => g shouldBe e
+            case (g, e)                           => g shouldBe e
+          }
+        }
+    }
+  }
+
+  it should "round-trip an empty batch" in {
+    ArrowUtils.deserializeTuples(
+      ArrowUtils.serializeTuples(tupleSchema, Array.empty[Tuple])
+    ) shouldBe empty
+  }
+
   // A Timestamp reaches past 2262, where counting microseconds through
   // nanoseconds overflowed, and before 1970. Both come back to the microsecond.
   it should "round-trip a timestamp either side of the nanosecond range" in {

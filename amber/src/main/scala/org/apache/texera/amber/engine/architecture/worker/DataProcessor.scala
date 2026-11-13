@@ -59,6 +59,7 @@ import org.apache.texera.amber.engine.common.ambermessage._
 import org.apache.texera.amber.engine.common.statetransition.WorkerStateManager
 import org.apache.texera.amber.engine.common.virtualidentity.util.COORDINATOR
 import org.apache.texera.amber.error.ErrorUtils.{mkConsoleMessage, mkPrintConsoleMessage, safely}
+import org.apache.texera.amber.util.ArrowUtils
 
 import java.util.concurrent.LinkedBlockingQueue
 
@@ -114,6 +115,28 @@ class DataProcessor(
     * process currentInputTuple through executor logic.
     * this function is only called by the DP thread.
     */
+  // Start processing one data batch: announce the worker is running, load the
+  // batch, and process its first tuple (the DP loop drains the rest). Shared by the
+  // DataFrame and VectorFrame input paths.
+  private[this] def startInputBatch(
+      channelId: ChannelIdentity,
+      tuples: Array[Tuple]
+  ): Unit = {
+    stateManager.conditionalTransitTo(
+      READY,
+      RUNNING,
+      () => {
+        val (state, stateVersion) = stateManager.getStateWithVersion
+        asyncRPCClient.coordinatorInterface.workerStateUpdated(
+          WorkerStateUpdatedRequest(state, stateVersion),
+          asyncRPCClient.mkContext(COORDINATOR)
+        )
+      }
+    )
+    inputManager.initBatch(channelId, tuples)
+    processInputTuple(inputManager.getNextTuple)
+  }
+
   private[this] def processInputTuple(tuple: Tuple): Unit = {
     try {
       val portIdentity: PortIdentity =
@@ -243,19 +266,13 @@ class DataProcessor(
     val portId = this.inputGateway.getChannel(channelId).getPortId
     dataPayload match {
       case DataFrame(tuples) =>
-        stateManager.conditionalTransitTo(
-          READY,
-          RUNNING,
-          () => {
-            val (state, stateVersion) = stateManager.getStateWithVersion
-            asyncRPCClient.coordinatorInterface.workerStateUpdated(
-              WorkerStateUpdatedRequest(state, stateVersion),
-              asyncRPCClient.mkContext(COORDINATOR)
-            )
-          }
-        )
-        inputManager.initBatch(channelId, tuples)
-        processInputTuple(inputManager.getNextTuple)
+        startInputBatch(channelId, tuples)
+      case VectorFrame(arrowIpcBytes, _, _) =>
+        // Columnar wire: the batch arrived as Arrow IPC bytes. Decode it back to
+        // tuples and process it exactly as a DataFrame, so every operator handles
+        // it transparently. (Consuming the Arrow batch directly for a
+        // ColumnarOperatorExecutor is a follow-up optimization.)
+        startInputBatch(channelId, ArrowUtils.deserializeTuples(arrowIpcBytes))
       case StateFrame(state, loopCounter, loopStartId) =>
         processInputState(state, portId.id, loopCounter, loopStartId)
     }

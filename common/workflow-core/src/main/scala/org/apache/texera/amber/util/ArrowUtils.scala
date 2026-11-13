@@ -79,6 +79,32 @@ object ArrowUtils extends LazyLogging {
     } finally reader.close()
   }
 
+  // Serialize a batch of tuples to Arrow IPC stream bytes (columnar wire format).
+  def serializeTuples(schema: Schema, tuples: Array[Tuple]): Array[Byte] = {
+    val root = VectorSchemaRoot.create(fromTexeraSchema(schema), allocator)
+    try {
+      var i = 0
+      while (i < tuples.length) { setTexeraTuple(tuples(i), i, root); i += 1 }
+      root.setRowCount(tuples.length)
+      serializeRoot(root)
+    } finally root.close()
+  }
+
+  // Inverse of serializeTuples: decode Arrow IPC stream bytes back to tuples.
+  def deserializeTuples(bytes: Array[Byte]): Array[Tuple] = {
+    val reader = new ArrowStreamReader(new ByteArrayInputStream(bytes), allocator)
+    try {
+      val out = scala.collection.mutable.ArrayBuffer[Tuple]()
+      val root = reader.getVectorSchemaRoot
+      while (reader.loadNextBatch()) {
+        val n = root.getRowCount
+        var i = 0
+        while (i < n) { out += getTexeraTuple(i, root); i += 1 }
+      }
+      out.toArray
+    } finally reader.close()
+  }
+
   // Copy the rows of `src` where keep(i) is true into a new independent root.
   def selectRows(
       src: VectorSchemaRoot,

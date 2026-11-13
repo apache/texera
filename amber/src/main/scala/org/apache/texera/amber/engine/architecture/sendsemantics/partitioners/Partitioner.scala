@@ -24,7 +24,8 @@ import org.apache.texera.amber.core.state.State
 import org.apache.texera.amber.core.tuple.Tuple
 import org.apache.texera.amber.core.virtualidentity.ActorVirtualIdentity
 import org.apache.texera.amber.engine.architecture.messaginglayer.NetworkOutputGateway
-import org.apache.texera.amber.engine.common.ambermessage.{DataFrame, StateFrame}
+import org.apache.texera.amber.engine.common.ambermessage.{VectorFrame, DataFrame, StateFrame}
+import org.apache.texera.amber.util.ArrowUtils
 
 import scala.collection.mutable.ArrayBuffer
 
@@ -37,7 +38,10 @@ trait Partitioner extends Serializable {
 class NetworkOutputBuffer(
     val to: ActorVirtualIdentity,
     val dataOutputPort: NetworkOutputGateway,
-    val batchSize: Int = ApplicationConfig.defaultDataTransferBatchSize
+    val batchSize: Int = ApplicationConfig.defaultDataTransferBatchSize,
+    // Columnar wire (opt-in): flush as VectorFrame (Arrow IPC) instead of
+    // DataFrame. Off by default, so the default wire is unchanged.
+    val columnar: Boolean = ApplicationConfig.enableColumnarWire
 ) {
 
   var buffer = new ArrayBuffer[Tuple]()
@@ -57,7 +61,17 @@ class NetworkOutputBuffer(
 
   def flush(): Unit = {
     if (buffer.nonEmpty) {
-      dataOutputPort.sendTo(to, DataFrame(buffer.toArray))
+      val batch = buffer.toArray
+      if (columnar) {
+        // Serialize the batch to Arrow once; all tuples on a link share the schema.
+        val schema = batch(0).getSchema
+        dataOutputPort.sendTo(
+          to,
+          VectorFrame(ArrowUtils.serializeTuples(schema, batch), batch.length, schema)
+        )
+      } else {
+        dataOutputPort.sendTo(to, DataFrame(batch))
+      }
       buffer = new ArrayBuffer[Tuple]()
     }
   }
