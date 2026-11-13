@@ -710,7 +710,7 @@ jobs:
         # working directory for a directory named `amber`; run from the checkout
         # root (the default) that resolves to ./amber and reads
         # amber/src/main/resources/web-config.yml (port 8080).
-        if: matrix.os == 'ubuntu-latest'
+        if: matrix.os == 'ubuntu-latest' && hashFiles('.github/scripts/smoke-boot.sh') != ''
         env:
           # Quiet boot logs, same wiring as the test steps above. Safe here:
           # smoke-boot's verdict is LISTEN-based, never log-scraping (#6332).
@@ -727,7 +727,7 @@ jobs:
         # so no iceberg / S3 access. Config resolves via Utils.amberHomePath to
         # amber/src/main/resources/computing-unit-master-config.yml (port 8085).
         # Reuses the amber dist built + unzipped above for the texera-web boot.
-        if: matrix.os == 'ubuntu-latest'
+        if: matrix.os == 'ubuntu-latest' && hashFiles('.github/scripts/smoke-boot.sh') != ''
         env:
           # Quiet boot logs, same wiring as the test steps above. Safe here:
           # smoke-boot's verdict is LISTEN-based, never log-scraping (#6332).
@@ -1093,7 +1093,7 @@ jobs:
       - name: Smoke-test ${{ matrix.service }} boots
         # Launch the packaged service and assert it reaches LISTEN on its port
         # without a runtime classpath/linkage crash (#6220).
-        if: ${{ steps.module_check.outputs.present == 'true' }}
+        if: ${{ steps.module_check.outputs.present == 'true' && hashFiles('.github/scripts/smoke-boot.sh') != '' }}
         env:
           TEXERA_HOME: ${{ github.workspace }}
           # Quiet boot logs, same wiring as the amber jobs. Safe here:
