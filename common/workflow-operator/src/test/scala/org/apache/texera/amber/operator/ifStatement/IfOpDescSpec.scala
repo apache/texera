@@ -19,14 +19,16 @@
 
 package org.apache.texera.amber.operator.ifStatement
 
-import com.typesafe.config.ConfigFactory
+import org.apache.texera.amber.util.PythonTestSupport.{
+  NeedsPythonPackages,
+  canImport,
+  configuredPython
+}
 import org.apache.texera.amber.core.executor.OpExecWithClassName
 import org.apache.texera.amber.core.tuple.{Attribute, AttributeType, Schema}
 import org.apache.texera.amber.core.virtualidentity.{ExecutionIdentity, WorkflowIdentity}
 import org.apache.texera.amber.core.workflow.PortIdentity
 import org.apache.texera.amber.operator.metadata.OperatorGroupConstants
-import org.apache.texera.amber.operator.tags.IntegrationTest
-import org.scalatest.Tag
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 
@@ -34,11 +36,8 @@ import java.nio.charset.StandardCharsets
 import java.nio.file.Files
 import java.util.concurrent.TimeUnit
 import scala.io.Source
-import scala.util.Try
 
 class IfOpDescSpec extends AnyFlatSpec with Matchers {
-
-  private val NeedsPythonPackages = Tag(classOf[IntegrationTest].getName)
 
   private val workflowId = WorkflowIdentity(1L)
   private val executionId = ExecutionIdentity(1L)
@@ -98,8 +97,8 @@ class IfOpDescSpec extends AnyFlatSpec with Matchers {
   // The engine picks the route from a State message, which the verification
   // harness has no channel for, so False is only reachable here.
   it should "send the rows to True by default and to False when the switch is off" taggedAs NeedsPythonPackages in {
-    val python = resolvePythonExecutable().getOrElse(cancel("No runnable python executable"))
-    if (!canImportPandas(python)) cancel(s"'$python' cannot import pandas")
+    val python = configuredPython().getOrElse(cancel("No runnable python executable"))
+    if (!canImport(python, "pandas")) cancel(s"'$python' cannot import pandas")
 
     val op = new IfOpDesc
     op.conditionName = "ready"
@@ -139,30 +138,4 @@ class IfOpDescSpec extends AnyFlatSpec with Matchers {
       lines.count(_.contains("_texera_if_ready = False before this step")) shouldBe 1
     }
   }
-
-  private def resolvePythonExecutable(): Option[String] = {
-    def fromConfig: Option[String] =
-      Try(ConfigFactory.parseResources("udf.conf").resolve()).toOption
-        .orElse(Try(ConfigFactory.load()).toOption)
-        .flatMap(c => Try(c.getConfig("python").getString("path")).toOption)
-        .map(_.trim)
-        .filter(_.nonEmpty)
-
-    def isRunnable(exe: String): Boolean =
-      Try(new ProcessBuilder(exe, "--version").redirectErrorStream(true).start()).toOption
-        .exists { p =>
-          if (!p.waitFor(5, TimeUnit.SECONDS)) { p.destroyForcibly(); false }
-          else p.exitValue() == 0
-        }
-
-    (fromConfig.toList ++ List("python3", "python", "py")).distinct.find(isRunnable)
-  }
-
-  private def canImportPandas(python: String): Boolean =
-    Try(
-      new ProcessBuilder(python, "-c", "import pandas").redirectErrorStream(true).start()
-    ).toOption.exists { p =>
-      if (!p.waitFor(60, TimeUnit.SECONDS)) { p.destroyForcibly(); false }
-      else p.exitValue() == 0
-    }
 }

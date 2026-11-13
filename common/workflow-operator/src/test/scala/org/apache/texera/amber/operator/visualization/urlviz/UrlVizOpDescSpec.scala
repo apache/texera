@@ -19,6 +19,11 @@
 
 package org.apache.texera.amber.operator.visualization.urlviz
 
+import org.apache.texera.amber.util.PythonTestSupport.{
+  NeedsPythonPackages,
+  canImport,
+  configuredPython
+}
 import com.fasterxml.jackson.annotation.JsonProperty
 import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaInject
 import org.apache.texera.amber.core.executor.OpExecWithClassName
@@ -26,10 +31,8 @@ import org.apache.texera.amber.core.tuple.{Attribute, AttributeType, Schema, Tup
 import org.apache.texera.amber.core.virtualidentity.{ExecutionIdentity, WorkflowIdentity}
 import org.apache.texera.amber.operator.metadata.OperatorGroupConstants
 import org.apache.texera.amber.operator.metadata.annotations.AutofillAttributeName
-import org.apache.texera.amber.operator.tags.IntegrationTest
 import org.apache.texera.amber.pybuilder.PythonTemplateBuilder.pyStringLiteral
 import org.apache.texera.amber.util.JSONUtils.objectMapper
-import org.scalatest.Tag
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 
@@ -38,11 +41,8 @@ import java.nio.file.Files
 import java.util.concurrent.TimeUnit
 import javax.validation.constraints.NotNull
 import scala.io.Source
-import scala.util.Try
 
 class UrlVizOpDescSpec extends AnyFlatSpec with Matchers {
-
-  private val NeedsPythonPackages = Tag(classOf[IntegrationTest].getName)
 
   private val workflowId = WorkflowIdentity(1L)
   private val executionId = ExecutionIdentity(1L)
@@ -169,8 +169,8 @@ class UrlVizOpDescSpec extends AnyFlatSpec with Matchers {
   }
 
   it should "write that cell the same way in the exported script" taggedAs NeedsPythonPackages in {
-    val python = resolvePython().getOrElse(cancel("No runnable python executable"))
-    if (!canImportPandas(python)) cancel(s"'$python' cannot import pandas")
+    val python = configuredPython().getOrElse(cancel("No runnable python executable"))
+    if (!canImport(python, "pandas")) cancel(s"'$python' cannot import pandas")
 
     val desc = descFor("url")
     val attr = new Attribute("url", AttributeType.STRING)
@@ -202,28 +202,4 @@ class UrlVizOpDescSpec extends AnyFlatSpec with Matchers {
       out.trim shouldBe fromExecutor
     }
   }
-
-  private def resolvePython(): Option[String] = {
-    def runnable(exe: String): Boolean =
-      Try(new ProcessBuilder(exe, "--version").redirectErrorStream(true).start()).toOption
-        .exists { p =>
-          if (!p.waitFor(5, TimeUnit.SECONDS)) { p.destroyForcibly(); false }
-          else p.exitValue() == 0
-        }
-
-    (sys.env.get("UDF_PYTHON_PATH").filter(_.nonEmpty).toList ++ List(
-      "python3",
-      "python",
-      "py"
-    )).distinct
-      .find(runnable)
-  }
-
-  private def canImportPandas(python: String): Boolean =
-    Try(
-      new ProcessBuilder(python, "-c", "import pandas").redirectErrorStream(true).start()
-    ).toOption.exists { p =>
-      if (!p.waitFor(60, TimeUnit.SECONDS)) { p.destroyForcibly(); false }
-      else p.exitValue() == 0
-    }
 }

@@ -19,21 +19,23 @@
 
 package org.apache.texera.amber.util
 
-import com.typesafe.config.ConfigFactory
+import org.apache.texera.amber.util.PythonTestSupport.{
+  NeedsPythonPackages,
+  canImport,
+  configuredPython
+}
 import org.apache.texera.amber.operator.PythonOperatorDescriptor
-import org.apache.texera.amber.operator.tags.IntegrationTest
 import org.apache.texera.amber.pybuilder.PythonReflectionTextUtils.truncateBlock
 import org.apache.texera.amber.pybuilder.PythonReflectionUtils
 import org.apache.texera.amber.util.JSONUtils.objectMapper
 import org.apache.texera.amber.util.python.PythonWorkerPool
-import org.scalatest.Tag
 import org.scalatest.funsuite.AnyFunSuite
 
 import java.nio.charset.StandardCharsets
 import java.nio.file.Files
 import java.util.concurrent
 import java.util.concurrent.atomic.AtomicInteger
-import java.util.concurrent.{Executors, TimeUnit}
+import java.util.concurrent.Executors
 import scala.concurrent.duration.{DurationInt, FiniteDuration}
 import scala.concurrent.{Await, ExecutionContext, Future}
 import scala.util.Try
@@ -208,44 +210,6 @@ final class PythonCodeRawInvalidTextSpec extends AnyFunSuite {
     }
   }
 
-  /**
-    * Loads the Python executable path from configuration, with fallbacks.
-    *
-    * Lookup strategy:
-    *  1) Try parsing udf.conf from resources and resolving it.
-    *  2) Fall back to ConfigFactory.load().
-    *  3) Read python.path, trim, and ensure it's non-empty.
-    *  4) If missing or invalid, fall back to "python3", then "python", then "py"
-    *     (validated by running --version).
-    */
-  private def loadPythonExeFromUdfConf(): Option[String] = {
-
-    def fromConfig: Option[String] = {
-      val configOpt =
-        Try(ConfigFactory.parseResources("udf.conf").resolve()).toOption
-          .orElse(Try(ConfigFactory.load()).toOption)
-
-      configOpt
-        .flatMap(c => Try(c.getConfig("python").getString("path")).toOption)
-        .map(_.trim)
-        .filter(_.nonEmpty)
-    }
-
-    def isRunnable(exe: String): Boolean = {
-      val pTry = Try(new ProcessBuilder(exe, "--version").redirectErrorStream(true).start())
-      pTry.toOption.exists { p =>
-        val finished = p.waitFor(5, TimeUnit.SECONDS)
-        if (!finished) { p.destroyForcibly(); false }
-        else p.exitValue() == 0
-      }
-    }
-
-    val candidates =
-      fromConfig.toList ++ List("python3", "python", "py")
-
-    candidates.distinct.find(isRunnable)
-  }
-
   test(
     "PythonOperatorDescriptor.generatePythonCode should not contain raw invalid JsonProperty Strings"
   ) {
@@ -297,7 +261,7 @@ final class PythonCodeRawInvalidTextSpec extends AnyFunSuite {
   }
 
   test("PythonOperatorDescriptor.generatePythonCode should py_compile under isolated Python") {
-    val pythonExeOpt = loadPythonExeFromUdfConf()
+    val pythonExeOpt = configuredPython()
     if (pythonExeOpt.isEmpty) {
       fail(
         "python.path not found in udf.conf (or application.conf). Configure python.path to enable this test."
@@ -375,7 +339,7 @@ final class PythonCodeRawInvalidTextSpec extends AnyFunSuite {
     */
   test(
     "the Python interpreter operator templates run in should import pandas and plotly",
-    Tag(classOf[IntegrationTest].getName)
+    NeedsPythonPackages
   ) {
     // Same env var and value the build reads to select this subset, in
     // common/workflow-operator/build.sbt; keep the two in step. Nothing enforces
@@ -387,19 +351,9 @@ final class PythonCodeRawInvalidTextSpec extends AnyFunSuite {
     def unavailable(message: String): Nothing =
       if (provisioned) fail(message) else cancel(message)
 
-    val python = loadPythonExeFromUdfConf().getOrElse(unavailable("no runnable python"))
-    val imported = Try {
-      val process = new ProcessBuilder(python, "-c", "import pandas, plotly")
-        .redirectErrorStream(true)
-        .start()
-      // Killed on the way out: a probe that ran out of time is still running, and
-      // would otherwise leak into the rest of the run.
-      if (process.waitFor(60, TimeUnit.SECONDS)) process.exitValue() == 0
-      else { process.destroyForcibly(); false }
-    }
-    if (!imported.getOrElse(false)) {
+    val python = configuredPython().getOrElse(unavailable("no runnable python"))
+    if (!canImport(python, "pandas", "plotly")) {
       unavailable(s"'$python' cannot import pandas and plotly")
     }
   }
-
 }

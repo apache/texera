@@ -20,7 +20,7 @@
 package org.apache.texera.amber.operator.huggingFace.codegen
 
 import com.fasterxml.jackson.databind.{JsonNode, ObjectMapper}
-import com.typesafe.config.ConfigFactory
+import org.apache.texera.amber.util.PythonTestSupport.configuredPython
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 
@@ -28,7 +28,6 @@ import java.nio.charset.StandardCharsets
 import java.nio.file.{Files, Path}
 import java.util.concurrent.TimeUnit
 import scala.jdk.CollectionConverters._
-import scala.util.Try
 
 /**
   * Executes the *generated* `_read_binary_value` against column values at and
@@ -50,23 +49,6 @@ class HuggingFaceBinaryValueBehaviorSpec extends AnyFlatSpec with Matchers {
     override def parsePython(ctx: CodegenContext): String = "            return ''"
   }
 
-  /** Same resolution order as PythonCodeRawInvalidTextSpec: udf.conf, then PATH. */
-  private lazy val pythonExe: Option[String] = {
-    def fromConfig: Option[String] =
-      Try(ConfigFactory.parseResources("udf.conf").resolve()).toOption
-        .orElse(Try(ConfigFactory.load()).toOption)
-        .flatMap(c => Try(c.getConfig("python").getString("path")).toOption)
-        .map(_.trim)
-        .filter(_.nonEmpty)
-    def isRunnable(exe: String): Boolean =
-      Try(new ProcessBuilder(exe, "--version").redirectErrorStream(true).start()).toOption
-        .exists { p =>
-          if (!p.waitFor(5, TimeUnit.SECONDS)) { p.destroyForcibly(); false }
-          else p.exitValue() == 0
-        }
-    (fromConfig.toList ++ List("python3", "python", "py")).distinct.find(isRunnable)
-  }
-
   private lazy val probe: Path = {
     val script = scala.io.Source.fromInputStream(
       getClass.getResourceAsStream("/python/hf_binary_value_probe.py"),
@@ -83,7 +65,8 @@ class HuggingFaceBinaryValueBehaviorSpec extends AnyFlatSpec with Matchers {
 
   /** Runs the probe once over the rendered operator; one entry per case. */
   private lazy val outcomes: JsonNode = {
-    val exe = pythonExe.getOrElse(cancel("no python interpreter available to run the probe"))
+    val exe =
+      configuredPython().getOrElse(cancel("no python interpreter available to run the probe"))
     val ctx = CodegenContext(
       hfApiToken = "token",
       modelId = "google/vit-base-patch16-224",
