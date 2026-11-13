@@ -228,7 +228,7 @@ describe("UdfDebugServiceSpec", () => {
     expect(service.doContinue).toHaveBeenCalledWith(mockPythonUDFPredicate.operatorID, "worker1");
   });
 
-  it("should not call doContinue if a breakpoint is hit", () => {
+  it("should keep only the paused line hit when another breakpoint is created", () => {
     const debugState = service.getDebugState(mockPythonUDFPredicate.operatorID);
     debugState.set("10", { breakpointId: 1, condition: "", hit: true });
 
@@ -249,6 +249,8 @@ describe("UdfDebugServiceSpec", () => {
     vi.spyOn(service, "doContinue");
     consoleUpdateEventStream.next(message);
 
+    expect(debugState.get("10")).toEqual({ breakpointId: 1, condition: "", hit: true });
+    expect(debugState.get("11")).toEqual({ breakpointId: 2, condition: "", hit: false });
     expect(service.doContinue).not.toHaveBeenCalled();
   });
 
@@ -475,6 +477,10 @@ describe("UdfDebugServiceSpec", () => {
     };
   }
 
+  function debugCommand(cmd: string, workerId = stubWorker) {
+    return ["DebugCommandRequest", { operatorId: mockPythonUDFPredicate.operatorID, workerId, cmd }];
+  }
+
   it("should not send a condition for a line that has no breakpoint", () => {
     // The condition differs from the empty default, so the early return is passed and
     // the `isDefined(breakpointInfo)` guard is the one that stops the update.
@@ -486,21 +492,116 @@ describe("UdfDebugServiceSpec", () => {
     expect(debugState.has("7")).toBe(false);
   });
 
-  it("should clear a breakpoint that lost its id with an empty id", () => {
-    // State a hit breakpoint is left in once pdb deleted it: still present, so the
-    // command is `clear`, but with no id to clear by. The trailing space is pinned
-    // deliberately — it is the literal payload that goes over the websocket.
-    const debugState = service.getDebugState(mockPythonUDFPredicate.operatorID);
-    debugState.set("10", { breakpointId: undefined, condition: "", hit: true });
+  it("should add a breakpoint on the line reached by Step without losing the paused position", () => {
+    const operatorId = mockPythonUDFPredicate.operatorID;
+    const debugState = service.getDebugState(operatorId);
+    consoleUpdateEventStream.next(pdbEvent("> /path/to/file.py(9)<module>()"));
 
-    service.doModifyBreakpoint(mockPythonUDFPredicate.operatorID, 10);
+    service.doStep(operatorId, stubWorker);
+    consoleUpdateEventStream.next(pdbEvent("> /path/to/file.py(10)<module>()"));
+    service.doModifyBreakpoint(operatorId, 10);
 
-    expect(mockWorkflowWebsocketService.send).toHaveBeenCalledWith("DebugCommandRequest", {
-      operatorId: mockPythonUDFPredicate.operatorID,
-      workerId: stubWorker,
-      cmd: "clear ",
-    });
+    expect(mockWorkflowWebsocketService.send.mock.calls).toEqual([debugCommand("next"), debugCommand("break 10")]);
+    expect(debugState.has("9")).toBe(false);
+    expect(debugState.get("10")).toEqual({ breakpointId: undefined, condition: "", hit: true });
+    expect(service.getDebugState(operatorId)).toBe(debugState);
   });
+
+  it.each([
+    { label: "unconditional", condition: "" },
+    { label: "conditional", condition: "x > 5" },
+  ])("should re-add a removed $label breakpoint while keeping its line paused", ({ condition }) => {
+    const operatorId = mockPythonUDFPredicate.operatorID;
+    const debugState = service.getDebugState(operatorId);
+    consoleUpdateEventStream.next(pdbEvent("Breakpoint 1 at /path/to/file.py:10"));
+    consoleUpdateEventStream.next(pdbEvent("> /path/to/file.py(10)<module>()"));
+    service.doUpdateBreakpointCondition(operatorId, 10, condition);
+    mockWorkflowWebsocketService.send.mockClear();
+
+    service.doModifyBreakpoint(operatorId, 10);
+    consoleUpdateEventStream.next(pdbEvent("Deleted breakpoint 1 at /path/to/file.py:10"));
+
+    expect(debugState.get("10")).toEqual({ breakpointId: undefined, condition, hit: true });
+    service.doModifyBreakpoint(operatorId, 10);
+    expect(mockWorkflowWebsocketService.send.mock.calls).toEqual([debugCommand("clear 1"), debugCommand("break 10")]);
+
+    consoleUpdateEventStream.next(pdbEvent("Breakpoint 2 at /path/to/file.py:10"));
+
+    expect(debugState.get("10")).toEqual({ breakpointId: 2, condition: "", hit: true });
+    expect(service.getDebugState(operatorId)).toBe(debugState);
+    expect(mockWorkflowWebsocketService.send).toHaveBeenCalledTimes(2);
+  });
+
+  it.each([
+    { label: "one worker", workerIds: ["worker1"], path: "/path/to/file.py" },
+    { label: "two workers and a Unicode path", workerIds: ["worker1", "worker2"], path: "/tmp/调试/操作.py" },
+  ])("should preserve the paused line on creation acknowledgements from $label", ({ workerIds, path }) => {
+    const operatorId = mockPythonUDFPredicate.operatorID;
+    const debugState = service.getDebugState(operatorId);
+    mockExecuteWorkflowService.getWorkerIds.mockReturnValue(workerIds);
+    consoleUpdateEventStream.next(pdbEvent(`> ${path}(10)<module>()`));
+
+    // Console-entered break commands reach this same acknowledgement handler.
+    for (const workerId of [...workerIds, workerIds[0]]) {
+      consoleUpdateEventStream.next(pdbEvent(`Breakpoint 2 at ${path}:10`, { workerId }));
+
+      expect(debugState.get("10")).toEqual({ breakpointId: 2, condition: "", hit: true });
+      expect(service.getDebugState(operatorId)).toBe(debugState);
+      expect(mockWorkflowWebsocketService.send).not.toHaveBeenCalled();
+    }
+
+    service.doContinue(operatorId, stubWorker);
+
+    expect(mockWorkflowWebsocketService.send.mock.calls).toEqual([debugCommand("continue")]);
+    expect(debugState.get("10")).toEqual({ breakpointId: 2, condition: "", hit: false });
+  });
+
+  it.each([
+    { label: "no workers", workerIds: [] },
+    { label: "two workers", workerIds: ["worker1", "worker2"] },
+  ])("should send a paused-line break only to the assigned workers with $label", ({ workerIds }) => {
+    const operatorId = mockPythonUDFPredicate.operatorID;
+    const debugState = service.getDebugState(operatorId);
+    mockExecuteWorkflowService.getWorkerIds.mockReturnValue(workerIds);
+    consoleUpdateEventStream.next(pdbEvent("> /path/to/file.py(1)<module>()"));
+
+    service.doModifyBreakpoint(operatorId, 1);
+
+    expect(mockWorkflowWebsocketService.send.mock.calls).toEqual(
+      workerIds.map(workerId => debugCommand("break 1", workerId))
+    );
+    expect(debugState.get("1")).toEqual({ breakpointId: undefined, condition: "", hit: true });
+  });
+
+  it("should continue a running operator after acknowledging its new breakpoint", () => {
+    const operatorId = mockPythonUDFPredicate.operatorID;
+    const debugState = service.getDebugState(operatorId);
+
+    service.doModifyBreakpoint(operatorId, 10);
+
+    expect(debugState.has("10")).toBe(false);
+    expect(mockWorkflowWebsocketService.send.mock.calls).toEqual([debugCommand("break 10")]);
+
+    consoleUpdateEventStream.next(pdbEvent("Breakpoint 1 at /path/to/file.py:10"));
+
+    expect(debugState.get("10")).toEqual({ breakpointId: 1, condition: "", hit: false });
+    expect(mockWorkflowWebsocketService.send.mock.calls).toEqual([debugCommand("break 10"), debugCommand("continue")]);
+  });
+
+  it.each(["Breakpoint at /path/to/file.py:10", "Breakpoint already exists", "*** Blank or comment"])(
+    "should keep a stepped line paused after the debugger replies %s",
+    title => {
+      const operatorId = mockPythonUDFPredicate.operatorID;
+      const debugState = service.getDebugState(operatorId);
+      consoleUpdateEventStream.next(pdbEvent("> /path/to/file.py(10)<module>()"));
+
+      consoleUpdateEventStream.next(pdbEvent(title));
+
+      expect(debugState.size).toBe(1);
+      expect(debugState.get("10")).toEqual({ breakpointId: undefined, condition: "", hit: true });
+      expect(mockWorkflowWebsocketService.send).not.toHaveBeenCalled();
+    }
+  );
 
   it("should ignore console events from another operator or with no messages", () => {
     vi.spyOn(service as any, "markBreakpointAsHit");
