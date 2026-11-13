@@ -406,7 +406,7 @@ describe("NotebookImportModalComponent", () => {
   it("selects the Python tab from a click on its header, not just a direct call", async () => {
     await createWith(of([{ name: "gpt-4" }]));
     const headers = (fixture.nativeElement as HTMLElement).querySelectorAll(".ant-tabs-tab");
-    expect(headers.length).toBe(4);
+    expect(headers.length).toBe(5);
 
     (headers[1] as HTMLElement).click();
     // nz-tabs emits nzSelectedIndexChange from a microtask inside ngAfterContentChecked,
@@ -720,7 +720,7 @@ describe("NotebookImportModalComponent", () => {
     it("is shown but disabled with an explanation while the R flag is off", async () => {
       await createWith(of([{ name: "gpt-4" }]));
 
-      expect(root().querySelectorAll(".ant-tabs-tab").length).toBe(4);
+      expect(root().querySelectorAll(".ant-tabs-tab").length).toBe(5);
       expect(rFileTab().classList).toContain("ant-tabs-tab-disabled");
       expect(tooltipOn("R File")).toBe(R_DISABLED_TOOLTIP);
     });
@@ -756,6 +756,54 @@ describe("NotebookImportModalComponent", () => {
       await component.onSubmit();
 
       expect(requestImport).toHaveBeenCalledWith(file, "gpt-4", "r");
+    });
+  });
+
+  describe("R Folder tab", () => {
+    const root = () => fixture.nativeElement as HTMLElement;
+    const pane = () => root().querySelector(".ant-tabs-tabpane-active") as HTMLElement;
+    const rFolderTab = () => root().querySelectorAll(".ant-tabs-tab")[4] as HTMLElement;
+
+    it("is shown but disabled with an explanation while the R flag is off", async () => {
+      await createWith(of([{ name: "gpt-4" }]));
+
+      expect(rFolderTab().classList).toContain("ant-tabs-tab-disabled");
+      expect(tooltipOn("R Folder")).toBe(R_DISABLED_TOOLTIP);
+    });
+
+    it("cannot be selected while the R flag is off", async () => {
+      await createWith(of([{ name: "gpt-4" }]));
+
+      (rFolderTab().querySelector(".ant-tabs-tab-btn") as HTMLElement).click();
+      fixture.detectChanges();
+      await fixture.whenStable();
+
+      expect(component.selectedTabIndex).toBe(0);
+    });
+
+    it("picks a directory with the R language while the R flag is on", async () => {
+      await createWith(of([{ name: "gpt-4" }]), true);
+      component.onTabChange(4);
+      fixture.detectChanges();
+
+      expect(rFolderTab().classList).not.toContain("ant-tabs-tab-disabled");
+      expect(tooltipOn("R Folder")).toBeNull();
+      expect(pane().querySelector("img[alt='R Folder to Workflow']")).not.toBeNull();
+      expect(pane().querySelector("input[type='file']")?.hasAttribute("webkitdirectory")).toBe(true);
+      expect(component.isFolderTab).toBe(true);
+      expect(component.language).toBe("r");
+    });
+
+    it("submits the whole R folder with the R language", async () => {
+      await createWith(of([{ name: "gpt-4" }]), true);
+      component.onTabChange(4);
+      const files = [{ name: "main.R", webkitRelativePath: "proj/main.R" }] as unknown as NzUploadFile[];
+      component.beforeUpload(files[0], files);
+      component.importForm.patchValue({ model: "gpt-4" });
+
+      await component.onSubmit();
+
+      expect(requestImport).toHaveBeenCalledWith(files, "gpt-4", "r");
     });
   });
 });
