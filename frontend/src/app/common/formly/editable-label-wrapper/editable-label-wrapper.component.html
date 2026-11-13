@@ -20,9 +20,12 @@
 <!-- Authoring: the label is the input, so what you type is what the reader reads. Written through on
      every keystroke (input, not change): the hidden label below and the saved name follow the box as
      it is typed, so nothing is lost if the page is left while the box still has the focus. -->
+<!-- A host that draws this field's label itself (a table's column header) sets labelHosted: the
+     controls live there, bound to this field's props, so nothing visible is drawn here -- only the
+     name for assistive technology below, and the dimmed state. -->
 <div
   class="lbl-row"
-  *ngIf="props.authoring">
+  *ngIf="props.authoring && !props.labelHosted">
   <input
     class="lbl-input"
     [value]="props.authorName"
@@ -75,13 +78,27 @@
      row's name box and eye (and fades with them when hidden), without controls of its own. -->
 <label
   class="lbl-static"
-  *ngIf="!props.authoring && !props.labelsGroup && (props.authorName || props.schemaLabel)"
+  *ngIf="!props.authoring && !props.labelHosted && !props.labelsGroup && (props.authorName || props.schemaLabel)"
   [attr.for]="id">
   {{ props.authorName || props.schemaLabel }}
 </label>
 <span
   class="lbl-static"
-  *ngIf="!props.authoring && props.labelsGroup && (props.authorName || props.schemaLabel)"
+  *ngIf="!props.authoring && !props.labelHosted && props.labelsGroup && (props.authorName || props.schemaLabel)"
+  [id]="id + '-label'">
+  {{ props.authorName || props.schemaLabel }}
+</span>
+<!-- Hosted elsewhere, without the controls: a later row of a repeated section while authoring. The
+     first row's controls, hosted by the table, carry the name; this row's control still needs one. -->
+<label
+  class="lbl-sr-only"
+  *ngIf="!props.authoring && props.labelHosted && !props.labelsGroup"
+  [attr.for]="id">
+  {{ props.authorName || props.schemaLabel }}
+</label>
+<span
+  class="lbl-sr-only"
+  *ngIf="!props.authoring && props.labelHosted && props.labelsGroup"
   [id]="id + '-label'">
   {{ props.authorName || props.schemaLabel }}
 </span>

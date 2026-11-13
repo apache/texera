@@ -37,6 +37,7 @@ import { catchError, concatMap, debounceTime, finalize, observeOn, takeUntil, ta
 import { CdkDragDrop, DragDropModule } from "@angular/cdk/drag-drop";
 import { isLeavingWorkspace, USER_WORKFLOW, workspaceCanvasUrl } from "../../../app-routing.constant";
 import { EditableLabelWrapperComponent } from "../../../common/formly/editable-label-wrapper/editable-label-wrapper.component";
+import { SUB_FIELD_VIEW_PROP, SubFieldView } from "../../../common/formly/sub-field-view";
 import { FormFieldBinding, Workflow, WorkflowContent } from "../../../common/type/workflow";
 import { ComputingUnitStatusService } from "../../../common/service/computing-unit/computing-unit-status/computing-unit-status.service";
 import { ComputingUnitState } from "../../../common/type/computing-unit-connection.interface";
@@ -46,7 +47,9 @@ import { WorkflowPersistService } from "../../../common/service/workflow-persist
 import { NotificationService } from "../../../common/service/notification/notification.service";
 import { UserService } from "../../../common/service/user/user.service";
 import { DynamicSchemaService } from "../../service/dynamic-schema/dynamic-schema.service";
-import { customFormlyFieldType, CANVAS_ONLY_FORMLY_TYPES } from "../../util/custom-formly-type";
+import { customFormlyFieldType, CANVAS_ONLY_FORMLY_TYPES, FIELD_OPERATOR_ID_PROP } from "../../util/custom-formly-type";
+import { UiUdfParametersSyncService } from "../../service/code-editor/ui-udf-parameters-sync.service";
+import type { UiUdfParameter } from "../../service/code-editor/ui-udf-parameters-parser.service";
 import { WorkflowCompilingService } from "../../service/compile-workflow/workflow-compiling.service";
 import { ExecuteWorkflowService, FORM_DEBOUNCE_TIME_MS } from "../../service/execute-workflow/execute-workflow.service";
 import { OperatorMetadataService } from "../../service/operator-metadata/operator-metadata.service";
@@ -323,7 +326,8 @@ export class WorkflowFormComponent implements OnInit, OnDestroy {
     // disabled here exactly when it is disabled there.
     private validationWorkflowService: ValidationWorkflowService,
     private config: GuiConfigService,
-    private warehouseService: WarehouseService
+    private warehouseService: WarehouseService,
+    private uiUdfParametersSyncService: UiUdfParametersSyncService
   ) {}
 
   ngOnInit(): void {
@@ -514,6 +518,18 @@ export class WorkflowFormComponent implements OnInit, OnDestroy {
       .getCompilationStateInfoChangedStream()
       .pipe(debounceTime(FORM_DEBOUNCE_TIME_MS), untilDestroyed(this))
       .subscribe(() => this.onCompilationChanged());
+
+    // A Python UDF's code declares its UI parameters (`self.UiParameter(...)`); the parser announces
+    // them when the code changes, and the operator property panel's frame writes them onto the
+    // operator -- for the operator it shows, and only while it acts as the editor. A parameter added
+    // from a Form View card (the ui-udf-parameters widget's Add parameter) changes the code with the
+    // panel closed or on another step, so the form writes them then; see writeUiParameters.
+    this.uiUdfParametersSyncService.uiParametersChanged$
+      .pipe(untilDestroyed(this))
+      .subscribe(({ operatorId, parameters }) => {
+        this.writeUiParameters(operatorId, parameters);
+        this.followUiParameters(operatorId);
+      });
 
     // Exposing or un-exposing a property in the panel changes the definition; the inputs above have
     // to follow at once, which is the whole point of editing them side by side. Today this fires for
@@ -960,6 +976,46 @@ export class WorkflowFormComponent implements OnInit, OnDestroy {
     );
   }
 
+  /**
+   * Write the UI parameters a Python UDF's code declares onto the operator, as the operator
+   * property panel's frame does for the operator it shows while it acts as the editor. The frame
+   * does that only then, so the form writes when the frame does not: a writer only (a reader's card
+   * changes no code, and may not write), not while the step panel shows that very step live (the
+   * frame writes then, and the same write twice is churn), and only for an operator still on the
+   * graph. The same value the frame writes: the operator's properties with the declared list.
+   */
+  private writeUiParameters(operatorId: string, parameters: UiUdfParameter[]): void {
+    const graph = this.workflowActionService.getTexeraGraph();
+    const frameWrites = this.selectedOperatorId === operatorId && this.panelLive;
+    if (!this.canEdit || frameWrites || !graph.hasOperator(operatorId)) {
+      return;
+    }
+    this.workflowActionService.setOperatorProperty(operatorId, {
+      ...cloneDeep(graph.getOperator(operatorId).operatorProperties),
+      uiParameters: cloneDeep(parameters),
+    });
+  }
+
+  /**
+   * Once the declared parameters are written -- by writeUiParameters, or by the step panel's frame
+   * for the step it shows live, whose subscription runs after this page's -- the operator has the new
+   * rows while this page's card for them still shows the old ones: a card is rebuilt from the
+   * compilation result, half a second and a round trip later. A value typed into the card in that
+   * window would have gone back with the old rows (the card writes its whole list), dropping the row
+   * just declared. So the cards are rebuilt right after the current tick, once every writer has
+   * written, when a card shows that operator's parameters; held while the reader is typing, as every
+   * rebuild is. The compilation result rebuilds them once more, to the same rows.
+   */
+  private followUiParameters(operatorId: string): void {
+    const shown = this.rendered.some(
+      card => card.resolved.binding.operatorID === operatorId && card.resolved.binding.propertyKey === "uiParameters"
+    );
+    if (!shown) {
+      return;
+    }
+    this.later(() => this.rebuildFormOrDefer(true), 0);
+  }
+
   private renderField(resolved: ResolvedField): RenderedField | undefined {
     const { binding } = resolved;
     // A broken input (its operator gone) has no schema to build a field from. Only an author ever
@@ -1016,6 +1072,12 @@ export class WorkflowFormComponent implements OnInit, OnDestroy {
     field.props = {
       ...(field.props ?? {}),
       label: binding.displayName || schemaLabel,
+      // The operator the input belongs to rides on the field: nothing is highlighted on the form, so
+      // a shared widget that needs its operator (the ui-udf-parameters renderer, adding a declared
+      // parameter to the operator's code) reads it here, and the same mark tells it which host it is
+      // on where the two must differ (its columns follow the author's overrides here, and keep their
+      // fixed headers on the panel).
+      [FIELD_OPERATOR_ID_PROP]: binding.operatorID,
     };
 
     const form = new FormGroup({});
@@ -1138,6 +1200,9 @@ export class WorkflowFormComponent implements OnInit, OnDestroy {
       }
     }
     const controlsAt = new Set<string>();
+    /** Published on the input's own field once the walk has seen every path; see sub-field-view. */
+    const subFieldView: Record<string, SubFieldView> = {};
+    this.subFieldViewByBinding.set(binding.id, subFieldView);
     const walk = (node: FormlyFieldConfig, path: string, root: boolean): void => {
       // Drop the schema's own description on every field, nested ones included: on this page the
       // one piece of guidance is the help text the form's author writes, rendered once by the card.
@@ -1184,8 +1249,20 @@ export class WorkflowFormComponent implements OnInit, OnDestroy {
         // placeholder and tooltip, and what clearing the box yields, since an empty name deletes the
         // override (setFieldOverride).
         const schemaOwnLabel = (node.props?.label as string) || path;
+        // What a widget that draws its own chrome has to show for this sub-field, resolved here
+        // where the author's decision is, rather than left for the widget to read back out of the
+        // fields below (see sub-field-view). The first node met for a path answers for it, as it
+        // does for the controls: the rows of a repeated section share one override.
+        subFieldView[path] ??= {
+          // The author's name only. A widget drawing its own chrome has a name of its own for the
+          // part and uses it when the author kept the schema's -- the table's "Type" heading, which
+          // the operator property panel shows too, rather than the schema's "Attribute Type".
+          label: override.displayName ?? "",
+          // An author keeps a hidden sub-field on screen, to bring it back; a reader does not see it.
+          shown: this.authoring || override.hidden !== true,
+        };
         if (override.displayName) {
-          node.props = { ...(node.props ?? {}), label: override.displayName };
+          node.props = { ...node.props, label: override.displayName };
         }
         if (this.authoring) {
           // An author edits the sub-field's label where it appears and keeps hidden fields on
@@ -1270,7 +1347,17 @@ export class WorkflowFormComponent implements OnInit, OnDestroy {
       }
     };
     walk(field, "", true);
+    // On the input's own field, where a widget drawing its own chrome reads it. Written after the
+    // walk so it carries every path, including the ones a repeated section's builder adds.
+    // The walk set props on the root before anything else, so there is always an object here.
+    field.props = { ...field.props, [SUB_FIELD_VIEW_PROP]: subFieldView };
   }
+
+  /**
+   * The sub-field view published on each input's field, kept here so a rename being typed can be
+   * written into the very object the field carries (see onSubFieldNamed and sub-field-view).
+   */
+  private readonly subFieldViewByBinding = new Map<string, Record<string, SubFieldView>>();
 
   /** Followers are kept per input and path; "/" cannot occur in a binding id (a uuid). */
   private static followerKey(bindingId: string, path: string): string {
@@ -1707,6 +1794,13 @@ export class WorkflowFormComponent implements OnInit, OnDestroy {
     // box on the first row, so the rows agree without a rebuild.
     for (const node of this.followersByPath.get(WorkflowFormComponent.followerKey(bindingId, path)) ?? []) {
       node.props = { ...(node.props ?? {}), authorName: value };
+    }
+    // And the published view, for a widget drawing its own headers: the same object the field
+    // carries, so the header follows the typing without a rebuild. An emptied box deletes the
+    // override, and the widget falls back to its own name (subFieldLabel).
+    const view = this.subFieldViewByBinding.get(bindingId)?.[path];
+    if (view !== undefined) {
+      this.subFieldViewByBinding.get(bindingId)![path] = { ...view, label: value };
     }
   }
 

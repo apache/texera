@@ -17,6 +17,8 @@
  * under the License.
  */
 
+@use "./editable-label" as *;
+
 .lbl-row {
   display: flex;
   align-items: center;
@@ -27,61 +29,11 @@
 /* A faint dashed box at rest signals the title is editable (authors could not tell it was
    a field before); it firms up on hover and turns into a real input on focus. */
 .lbl-input {
-  flex: 1;
-  min-width: 0;
-  border: 1px dashed #dcdcdc;
-  border-radius: 4px;
-  background: none;
-  padding: 1px 5px;
-  font-size: 13px;
-  font-weight: 500;
-  color: rgba(0, 0, 0, 0.85);
-  outline: none;
-  cursor: text;
-
-  &::placeholder {
-    color: rgba(0, 0, 0, 0.45);
-    font-weight: 400;
-  }
-
-  &:hover {
-    border-style: solid;
-    border-color: #b0b0b0;
-  }
-
-  &:focus {
-    border-style: solid;
-    border-color: #1890ff;
-    background: #fff;
-  }
+  @include editable-label-input;
 }
 
 .lbl-eye {
-  flex: none;
-  border: 0;
-  background: none;
-  cursor: pointer;
-  line-height: 0;
-  padding: 3px;
-  border-radius: 4px;
-  color: rgba(0, 0, 0, 0.45);
-  font-size: 14px;
-
-  &:hover {
-    color: rgba(0, 0, 0, 0.85);
-    background: #f5f5f5;
-  }
-
-  &:focus-visible {
-    outline: 2px solid #1890ff;
-    outline-offset: 1px;
-  }
-
-  /* Hidden is a state worth seeing at a glance, so it keeps the accent rather than
-     fading like the rest of the row. */
-  &.off {
-    color: #1890ff;
-  }
+  @include editable-label-eye;
 }
 
 /* Present for assistive technology only: the visible name box is the label's editor, not the
