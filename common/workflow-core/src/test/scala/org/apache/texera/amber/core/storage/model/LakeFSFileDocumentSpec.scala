@@ -27,7 +27,7 @@ import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.{BeforeAndAfterAll, BeforeAndAfterEach}
 
-import java.io.{ByteArrayInputStream, InputStream}
+import java.io.{ByteArrayInputStream, IOException, InputStream}
 import java.net.{InetSocketAddress, URI, URLDecoder, URLEncoder}
 import java.nio.charset.StandardCharsets
 import java.nio.file.{Files, Paths}
@@ -88,6 +88,15 @@ class LakeFSFileDocumentSpec
   /** Request paths that should answer 500 instead of being served, for this one test. */
   @volatile private var failing: Set[String] = Set.empty
 
+  /**
+    * Request paths that should declare their full Content-Length but send only half the body, for
+    * this one test.
+    */
+  @volatile private var truncating: Set[String] = Set.empty
+
+  /** Request paths that should send their body chunked, with no Content-Length, for this one test. */
+  @volatile private var undeclaredLength: Set[String] = Set.empty
+
   private val repositoryName = "texera-file-doc"
   private val fileName = "records.csv"
   // Most dataset and model files live under a directory, so the read path is driven over both
@@ -104,8 +113,6 @@ class LakeFSFileDocumentSpec
   private def objectPath = s"/api/v1/repositories/$repositoryName/refs/$versionHash/objects"
   private def presignedPath = "/signed-blob/records.csv"
 
-  // Longer than asFile's 1024-byte copy buffer and not a multiple of it (2502 bytes), so the copy
-  // loop runs several times and ends on a short read that must not be padded out to a full buffer.
   private val presignedContent: String = "presigned-payload;" * 139
   // Deliberately different bytes, and a different length, from the presigned payload.
   private val fallbackContent: String = "direct-lakefs-download"
@@ -147,8 +154,12 @@ class LakeFSFileDocumentSpec
         if (uri.getPath == statPath || failing.contains(uri.getPath)) "application/json"
         else "application/octet-stream"
       exchange.getResponseHeaders.set("Content-Type", contentType)
-      exchange.sendResponseHeaders(status, bytes.length.toLong)
-      exchange.getResponseBody.write(bytes)
+      // The JDK server reads a response length of 0 as "chunked, no Content-Length".
+      val declaredLength = if (undeclaredLength.contains(uri.getPath)) 0L else bytes.length.toLong
+      // Closing short of the declared length makes the JDK server drop the connection.
+      val sentLength = if (truncating.contains(uri.getPath)) bytes.length / 2 else bytes.length
+      exchange.sendResponseHeaders(status, declaredLength)
+      exchange.getResponseBody.write(bytes, 0, sentLength)
     } finally exchange.close()
   }
 
@@ -175,6 +186,8 @@ class LakeFSFileDocumentSpec
     super.beforeEach()
     requests.clear()
     failing = Set.empty
+    truncating = Set.empty
+    undeclaredLength = Set.empty
   }
 
   private def hits: List[Hit] = requests.asScala.toList
@@ -191,12 +204,15 @@ class LakeFSFileDocumentSpec
   private def nestedRelativePath: String =
     Paths.get(nestedSegments.head, nestedSegments.tail: _*).toString
 
-  /** Temp files the lakeFS SDK writes for a direct download, by name. */
-  private def sdkTempFiles(): Set[String] =
+  /**
+    * Temp files on disk by name prefix: "download-" for the lakeFS SDK's direct downloads,
+    * "versionedFile" for asFile's copies.
+    */
+  private def tempFiles(prefix: String): Set[String] =
     Option(new java.io.File(System.getProperty("java.io.tmpdir")).list())
       .map(_.toSet)
       .getOrElse(Set.empty[String])
-      .filter(_.startsWith("download-"))
+      .filter(_.startsWith(prefix))
 
   private def readFully(doc: LakeFSFileDocument): String = {
     val stream = doc.asInputStream()
@@ -397,11 +413,25 @@ class LakeFSFileDocumentSpec
 
   it should "delete the temp file a direct lakeFS download writes once the stream is closed" in {
     failing = Set(statPath)
-    val before = sdkTempFiles()
+    val before = tempFiles("download-")
 
     readFully(servedDoc()) shouldBe fallbackContent
 
-    (sdkTempFiles() -- before) shouldBe empty
+    (tempFiles("download-") -- before) shouldBe empty
+  }
+
+  it should "fail the read, not end it early, when the presigned body stops short" in {
+    truncating = Set(presignedPath)
+
+    // The cut arrives after asInputStream has returned, so there is nothing to fall back to.
+    val thrown = intercept[IOException](readFully(servedDoc()))
+    thrown.getMessage should include(s"of ${presignedContent.length} bytes")
+  }
+
+  it should "pass a presigned body with no declared length through unchecked" in {
+    undeclaredLength = Set(presignedPath)
+
+    readFully(servedDoc()) shouldBe presignedContent
   }
 
   it should "name the whole nested relative path on both hops, not the file's last segment" in {
@@ -426,9 +456,6 @@ class LakeFSFileDocumentSpec
     val doc = servedDoc()
     val first = doc.asFile()
     try {
-      // The payload is longer than the 1024-byte copy buffer and not a multiple of it, so this
-      // pins the buffered copy loop: writing a whole buffer on the final short read would append
-      // trailing garbage, and stopping after one buffer would truncate.
       new String(Files.readAllBytes(first.toPath), StandardCharsets.UTF_8) shouldBe presignedContent
 
       // Callers hand the File to operator code that opens it more than once, so the document must
@@ -439,6 +466,31 @@ class LakeFSFileDocumentSpec
       // identity assertion above green while re-downloading the whole object on every call.
       hits shouldBe empty
     } finally Files.deleteIfExists(first.toPath)
+  }
+
+  it should "fail, and leave no partial temp file, when the download is cut short" in {
+    truncating = Set(presignedPath)
+    val doc = servedDoc()
+    val before = tempFiles("versionedFile")
+
+    intercept[IOException](doc.asFile())
+    (tempFiles("versionedFile") -- before) shouldBe empty
+
+    // Nor does the document remember the failure: once the connection holds, it reads in full.
+    truncating = Set.empty
+    val file = doc.asFile()
+    try {
+      new String(Files.readAllBytes(file.toPath), StandardCharsets.UTF_8) shouldBe presignedContent
+    } finally Files.deleteIfExists(file.toPath)
+  }
+
+  it should "leave no temp file when the download cannot start at all" in {
+    // Both routes refuse, so asInputStream itself throws before any byte is copied.
+    failing = Set(statPath, objectPath)
+    val before = tempFiles("versionedFile")
+
+    an[Exception] should be thrownBy servedDoc().asFile()
+    (tempFiles("versionedFile") -- before) shouldBe empty
   }
 
   it should "close the stream it copied from" in {

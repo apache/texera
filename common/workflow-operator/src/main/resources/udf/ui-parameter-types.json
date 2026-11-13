@@ -25,5 +25,13 @@
     "boolean": ["BOOL", "BOOLEAN"],
     "timestamp": ["TIMESTAMP"]
   },
+  "javaTypes": {
+    "string": ["String", "java.lang.String"],
+    "integer": ["int", "Integer", "java.lang.Integer"],
+    "long": ["long", "Long", "java.lang.Long"],
+    "double": ["double", "Double", "java.lang.Double"],
+    "boolean": ["boolean", "Boolean", "java.lang.Boolean"],
+    "timestamp": ["java.sql.Timestamp", "Timestamp"]
+  },
   "resources": {"MODEL": "model", "DATASET": "dataset"}
 }

@@ -86,7 +86,7 @@
           </th>
         </tr>
         <tr
-          *ngIf="tableStats && prevTableStats"
+          *ngIf="hasTableStats"
           #statsRow
           class="custom-stats-row">
           <th *ngFor="let column of currentColumns">
@@ -195,9 +195,10 @@
             </span>
             <!-- Not rendered when result export is switched off for the deployment: every action
                  behind it returns without sending a request, so the button would be there and do
-                 nothing. The top menu and the context menu already honour the same switch. -->
+                 nothing. The top menu and the context menu already honour the same switch.
+                 Nor on a port past the first: a cell export reads the operator's first port. -->
             <button
-              *ngIf="guiConfigService.env.exportExecutionResultEnabled"
+              *ngIf="guiConfigService.env.exportExecutionResultEnabled && portIndex === 0"
               (click)="downloadData(currentResult[i][column.columnDef], i, columnIndex, column.columnDef); $event.stopPropagation()"
               nz-button
               nzType="link"

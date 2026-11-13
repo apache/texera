@@ -3812,6 +3812,17 @@ __metadata:
   languageName: node
   linkType: hard
 
+"@lezer/java@npm:1.1.5":
+  version: 1.1.5
+  resolution: "@lezer/java@npm:1.1.5"
+  dependencies:
+    "@lezer/common": "npm:^1.2.0"
+    "@lezer/highlight": "npm:^1.0.0"
+    "@lezer/lr": "npm:^1.0.0"
+  checksum: 10c0/46e7d74751abf6589c1905bcab2c034773ffa95b87c4bf77c6624c38a53c42e8fa0a7b3fc10be510b44c2b1a29882d8457e2375a42761f80c3bd7e9031ab86b4
+  languageName: node
+  linkType: hard
+
 "@lezer/lr@npm:^1.0.0":
   version: 1.4.10
   resolution: "@lezer/lr@npm:1.4.10"
@@ -10737,6 +10748,7 @@ __metadata:
     "@auth0/angular-jwt": "npm:5.1.0"
     "@codingame/monaco-vscode-java-default-extension": "npm:37.6.1"
     "@codingame/monaco-vscode-python-default-extension": "npm:37.6.1"
+    "@lezer/java": "npm:1.1.5"
     "@lezer/python": "npm:1.1.19"
     "@ngneat/until-destroy": "npm:10.0.0"
     "@ngx-formly/core": "npm:7.1.0"
