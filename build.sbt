@@ -301,6 +301,21 @@ lazy val NotebookMigrationService = (project in file("notebook-migration-service
   )
   .dependsOn(DAO % "test->test") // test scope dependency
 
+lazy val ResultService = (project in file("result-service"))
+  .dependsOn(WorkflowCore, Auth, Config, Resource, Observability)
+  .settings(commonModuleSettings)
+  .configs(Test)
+  .dependsOn(DAO % "test->test") // reuse MockTexeraDB embedded Postgres in tests
+  .dependsOn(WorkflowCore % "test->test") // reuse LocalHadoopIcebergCatalog in tests
+  .settings(
+    dependencyOverrides ++= Seq(
+      // override it as io.dropwizard 4 require 2.16.1 or higher
+      "com.fasterxml.jackson.module" %% "jackson-module-scala" % jacksonVersion,
+      "com.fasterxml.jackson.core" % "jackson-databind" % jacksonVersion,
+      "org.glassfish.jersey.core" % "jersey-common" % "3.0.12"
+    ) ++ nettyDependencyOverrides
+  )
+
 // root project definition
 lazy val TexeraProject = (project in file("."))
   .aggregate(
@@ -322,7 +337,8 @@ lazy val TexeraProject = (project in file("."))
     FileService,
     WorkflowCompilingService,
     WorkflowExecutionService,
-    NotebookMigrationService
+    NotebookMigrationService,
+    ResultService
   )
   .settings(
     name := "texera",

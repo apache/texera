@@ -30,7 +30,8 @@ object WorkflowAccess {
       .createDSLContext()
 
   /**
-    * Identifies whether the given user has read-only access over the given workflow
+    * Identifies whether the given user can read the given workflow: a READ or WRITE grant,
+    * ownership, or a public workflow
     *
     * @param wid workflow id
     * @param uid user id, works with workflow id as primary keys in database
