@@ -19,65 +19,17 @@
 
 package org.apache.texera.amber.operator.sklearn
 
-import org.apache.texera.amber.core.tuple.AttributeType
-import org.apache.texera.amber.operator.LogicalOp
-import org.apache.texera.amber.operator.metadata.OperatorGroupConstants
-import org.apache.texera.amber.util.JSONUtils.objectMapper
 import org.scalatest.flatspec.AnyFlatSpec
-import org.scalatest.matchers.should.Matchers
 
-class SklearnGaussianNaiveBayesOpDescSpec extends AnyFlatSpec with Matchers {
+class SklearnGaussianNaiveBayesOpDescSpec extends AnyFlatSpec with SklearnModelOpDescBehaviors {
 
-  "SklearnGaussianNaiveBayesOpDesc.operatorInfo" should
-    "advertise the model name, Sklearn group, and the training/testing port shape" in {
-    val info = (new SklearnGaussianNaiveBayesOpDesc).operatorInfo
-    info.userFriendlyName shouldBe "Gaussian Naive Bayes"
-    info.operatorDescription shouldBe "Sklearn Gaussian Naive Bayes Operator"
-    info.operatorGroupName shouldBe OperatorGroupConstants.SKLEARN_GROUP
-    info.inputPorts.map(_.displayName) shouldBe List("training", "testing")
-    info.outputPorts should have length 1
-    info.outputPorts.head.blocking shouldBe true
-  }
-
-  "SklearnGaussianNaiveBayesOpDesc" should "default its config fields" in {
-    val d = new SklearnGaussianNaiveBayesOpDesc
-    d.countVectorizer shouldBe false
-    d.tfidfTransformer shouldBe false
-    d.target shouldBe null
-    d.text shouldBe empty
-  }
-
-  "SklearnGaussianNaiveBayesOpDesc.getOutputSchemas" should
-    "emit the model_name/model schema keyed by the declared output port" in {
-    val d = new SklearnGaussianNaiveBayesOpDesc
-    val schema = d.getOutputSchemas(Map.empty)(d.operatorInfo.outputPorts.head.id)
-    schema.getAttribute("model_name").getType shouldBe AttributeType.STRING
-    schema.getAttribute("model").getType shouldBe AttributeType.BINARY
-  }
-
-  "SklearnGaussianNaiveBayesOpDesc.generatePythonCode" should
-    "import and instantiate the GaussianNB estimator" in {
-    val d = new SklearnGaussianNaiveBayesOpDesc
-    d.target = "y"
-    val code = d.generatePythonCode()
-    code should include("from sklearn.naive_bayes import GaussianNB")
-    code should include("make_pipeline")
-    code should include("Gaussian Naive Bayes")
-  }
-
-  "SklearnGaussianNaiveBayesOpDesc" should
-    "round-trip its config fields through the polymorphic base" in {
-    val d = new SklearnGaussianNaiveBayesOpDesc
-    d.target = "label"
-    d.countVectorizer = true
-    val json = objectMapper.writeValueAsString(d)
-    json should include("\"operatorType\":\"SklearnGaussianNaiveBayes\"")
-    val restored = objectMapper.readValue(json, classOf[LogicalOp])
-    restored shouldBe a[SklearnGaussianNaiveBayesOpDesc]
-    val r = restored.asInstanceOf[SklearnGaussianNaiveBayesOpDesc]
-    r.target shouldBe "label"
-    r.countVectorizer shouldBe true
-  }
+  sklearnClassifier(
+    new SklearnGaussianNaiveBayesOpDesc,
+    "SklearnGaussianNaiveBayes",
+    "Gaussian Naive Bayes",
+    "from sklearn.naive_bayes import GaussianNB",
+    estimatorTestName = "import and instantiate the GaussianNB estimator"
+  )
 
   "SklearnGaussianNaiveBayesOpDesc.getOutputSchemas" should
     "reject Count Vectorizer, naming the estimator and what accepts it instead" in {

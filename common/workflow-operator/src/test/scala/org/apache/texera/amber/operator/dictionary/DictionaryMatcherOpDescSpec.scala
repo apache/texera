@@ -103,4 +103,18 @@ class DictionaryMatcherOpDescSpec extends AnyFlatSpec with Matchers {
     val tree = objectMapper.readTree(json)
     tree.get("Matching type").asText shouldBe "Scan"
   }
+
+  // The engine reads `Text` from a column `text`, since Schema ignores case. pandas
+  // would raise a KeyError on `Text`, so the script reads the column as the table
+  // spells it, whichever way it matches.
+  "DictionaryMatcherOpDesc.generateStandaloneCode" should
+    "read a column named in a different case from the table" in {
+    val inputSchemas =
+      Map(PortIdentity() -> Schema().add(new Attribute("text", AttributeType.STRING)))
+    MatchingType.values().foreach { mt =>
+      val code = newDesc("a", "Text", "matched", mt).generateStandaloneCode(inputSchemas)
+      code should include("""out1df["text"]""")
+      code should not include "Text"
+    }
+  }
 }

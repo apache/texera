@@ -34,7 +34,8 @@ import {
   StopOutline,
   WarningOutline,
   LoadingOutline,
-  LockOutline,
+  EyeOutline,
+  EyeInvisibleOutline,
   MinusOutline,
   PlusOutline,
   UpOutline,
@@ -281,7 +282,8 @@ describe("WorkflowFormComponent (rendered template)", () => {
             StopOutline,
             WarningOutline,
             LoadingOutline,
-            LockOutline,
+            EyeOutline,
+            EyeInvisibleOutline,
             MinusOutline,
             PlusOutline,
             UpOutline,
@@ -408,6 +410,32 @@ describe("WorkflowFormComponent (rendered template)", () => {
     expect(el(".param.read-only")).not.toBeNull();
   });
 
+  // Pointer blocking is hit testing only; the keyboard half is the directive on the same card. Here
+  // it is wired through the real template, with a control of the kind a widget draws of its own.
+  it("keeps a read-only viewer's card out of the tab order, without hiding what it shows", () => {
+    fixture.detectChanges();
+    finishLoad();
+    const c = fixture.componentInstance;
+    c.canEdit = false;
+    (c as any).parameters = [{ binding: { id: "b1" } }];
+    c.rendered = [
+      { resolved: { binding: { id: "b1" } }, fields: [{ key: "b1" }], form: new FormGroup({}), model: {} },
+    ] as any;
+    fixture.detectChanges();
+
+    const card = el(".param.read-only") as HTMLElement;
+    const widgetButton = document.createElement("button");
+    widgetButton.className = "browse";
+    card.querySelector(".param-form")!.appendChild(widgetButton);
+    // The directive watches the card for what a widget adds; MutationObserver delivers on a microtask.
+    return Promise.resolve().then(() => {
+      expect(card.querySelector(".browse")!.getAttribute("tabindex")).toBe("-1");
+      expect(card.querySelector(".browse")!.getAttribute("aria-disabled")).toBe("true");
+      // Not inert: a reader still has the card's content in the accessibility tree.
+      expect(card.hasAttribute("inert")).toBe(false);
+    });
+  });
+
   it("renders the author's instruction card and toggles it", async () => {
     fixture.detectChanges();
     finishLoad();
@@ -530,19 +558,28 @@ describe("WorkflowFormComponent (rendered template)", () => {
     // A reader with nothing to choose from gets no section.
     expect(el(".respick")).toBeNull();
 
-    // A reader with candidates gets the picker, worded as their own view.
+    // A reader with candidates gets the picker: a name to reach a result, an eye to hide it.
     c.resultChoices = [{ operatorID: "last", label: "Limit", shown: true }];
     fixture.detectChanges();
     expect(el(".respick")).not.toBeNull();
-    expect(el(".respick p")?.textContent).toContain("only your view");
-    expect(el(".respick .pill")?.textContent?.trim()).toBe("Limit");
+    expect(el(".respick h3")?.textContent?.trim()).toBe("Results shown here");
+    expect(el(".respick p")?.textContent).toContain("hides a result from your page");
+    expect(el(".respick .pill-name")?.textContent?.trim()).toBe("Limit");
+    // One constant name, the state on aria-pressed: a name that changed with it would announce the
+    // opposite of what the state says.
+    expect(el(".respick .pill-eye")?.getAttribute("aria-label")).toBe("Show Limit");
+    expect(el(".respick .pill-eye")?.getAttribute("aria-pressed")).toBe("true");
+    c.resultChoices = [{ operatorID: "last", label: "Limit", shown: false }];
+    fixture.detectChanges();
+    expect(el(".respick .pill-eye")?.getAttribute("aria-label")).toBe("Show Limit");
+    expect(el(".respick .pill-eye")?.getAttribute("aria-pressed")).toBe("false");
 
     // An author always gets it, with the hint on how to add steps, worded as the default for all.
     c.authoring = true;
     c.resultChoices = [];
     fixture.detectChanges();
     expect(el(".respick")).not.toBeNull();
-    expect(el(".respick p")?.textContent).toContain("What everyone sees");
+    expect(el(".respick p")?.textContent).toContain("sets whether its result shows for everyone");
     expect(el(".respick .hint")?.textContent).toContain("No steps to choose from yet");
 
     c.resultChoices = [
@@ -550,27 +587,40 @@ describe("WorkflowFormComponent (rendered template)", () => {
       { operatorID: "viz", label: "Chart", shown: true },
     ];
     fixture.detectChanges();
+    const click = vi.spyOn(c, "onChoiceClick").mockImplementation(() => {});
     const toggle = vi.spyOn(c, "onToggleResult").mockImplementation(() => {});
-    const pills = Array.from(fixture.nativeElement.querySelectorAll(".respick .pill")) as HTMLButtonElement[];
-    expect(pills.map(p => p.textContent?.trim())).toEqual(["Filter", "Chart"]);
-    // The pressed state is exposed to assistive tech as well as styled.
-    expect(pills.map(p => p.getAttribute("aria-pressed"))).toEqual(["false", "true"]);
+    const pills = Array.from(fixture.nativeElement.querySelectorAll(".respick .pill")) as HTMLElement[];
+    const names = Array.from(fixture.nativeElement.querySelectorAll(".respick .pill-name")) as HTMLButtonElement[];
+    const eyes = Array.from(fixture.nativeElement.querySelectorAll(".respick .pill-eye")) as HTMLButtonElement[];
+    expect(names.map(p => p.textContent?.trim())).toEqual(["Filter", "Chart"]);
+    // A hidden result's name is not pressable: no card to bring up, and it says so. Marked rather
+    // than disabled, so it keeps its place in the tab order when the eye beside it is pressed.
+    expect(names.map(p => p.getAttribute("aria-disabled"))).toEqual(["true", "false"]);
+    expect(names.map(p => p.getAttribute("title"))).toEqual(["Hidden. Turn its eye on to show this result.", null]);
+    expect(names.every(p => !p.disabled)).toBe(true);
+    // The eye is the toggle, and its pressed state is exposed to assistive tech as well as styled.
+    expect(eyes.map(p => p.getAttribute("aria-pressed"))).toEqual(["false", "true"]);
     expect(pills[1].classList.contains("on")).toBe(true);
     expect(el(".respick .hint")).toBeNull();
-    pills[0].click();
+
+    // Two targets, two meanings: the name reaches the result, the eye decides whether it shows.
+    names[1].click();
+    expect(click).toHaveBeenCalledWith(c.resultChoices[1]);
+    expect(toggle).not.toHaveBeenCalled();
+    eyes[0].click();
     expect(toggle).toHaveBeenCalledWith(c.resultChoices[0]);
 
     // A toggle re-reads the config and rebuilds the choices as new objects. The pill just pressed
     // must be the same element afterwards (tracked by step), or the keyboard focus on it is lost.
-    pills[0].focus();
+    eyes[0].focus();
     c.resultChoices = [
       { operatorID: "mid", label: "Filter", shown: true },
       { operatorID: "viz", label: "Chart", shown: true },
     ];
     fixture.detectChanges();
-    const after = Array.from(fixture.nativeElement.querySelectorAll(".respick .pill")) as HTMLButtonElement[];
-    expect(after[0]).toBe(pills[0]);
-    expect(document.activeElement).toBe(pills[0]);
+    const after = Array.from(fixture.nativeElement.querySelectorAll(".respick .pill-eye")) as HTMLButtonElement[];
+    expect(after[0]).toBe(eyes[0]);
+    expect(document.activeElement).toBe(eyes[0]);
     expect(after[0].getAttribute("aria-pressed")).toBe("true");
   });
 
@@ -787,6 +837,57 @@ describe("WorkflowFormComponent (rendered template)", () => {
     expect(el(".results-empty")).toBeNull();
     expect(el(".result .result-head")).not.toBeNull();
     expect(el(".result .result-body")).not.toBeNull();
+  });
+
+  it("keeps the picker between the preview and the results", () => {
+    fixture.detectChanges();
+    finishLoad();
+    const c = fixture.componentInstance;
+    c.resultChoices = [{ operatorID: "last", label: "Limit", shown: true }];
+    fixture.detectChanges();
+
+    const preview = el(".wf")!;
+    const picker = el(".respick")!;
+    const results = el(".results")!;
+    expect(preview.compareDocumentPosition(picker) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(picker.compareDocumentPosition(results) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  });
+
+  it("rings the lead result card and that step's pill, and only those", () => {
+    fixture.detectChanges();
+    finishLoad();
+    const c = fixture.componentInstance;
+    const wrs: any = TestBed.inject(WorkflowResultService);
+    wrs.hasNonEmptyResult = () => true;
+    c.shownResultIds = ["op-1", "op-2"];
+    c.resultChoices = [
+      { operatorID: "op-1", label: "Filter", shown: true },
+      { operatorID: "op-2", label: "Chart", shown: true },
+    ];
+    fixture.detectChanges();
+    const cards = () => Array.from(fixture.nativeElement.querySelectorAll(".result")) as HTMLElement[];
+    const pills = () => Array.from(fixture.nativeElement.querySelectorAll(".respick .pill")) as HTMLElement[];
+    const names = () => Array.from(fixture.nativeElement.querySelectorAll(".respick .pill-name")) as HTMLElement[];
+    expect(cards().map(e => e.classList.contains("lead-result"))).toEqual([false, false]);
+    expect(names().map(e => e.getAttribute("aria-current"))).toEqual(["false", "false"]);
+
+    // The cards sit in the saved order in the document, and are laid out by `order`: moving them
+    // would move a chart's iframe and reload it (see resultOrder).
+    const titles = () => cards().map(e => e.querySelector(".result-head span")?.textContent?.trim());
+    const laidOut = () => cards().map(e => e.style.order);
+    expect(titles()).toEqual(["op-1", "op-2"]);
+    expect(laidOut()).toEqual(["0", "0"]);
+
+    // op-2 pointed at: it is laid out first and ringed, so is its pill; nothing else is.
+    c.selectedOperatorId = "op-2";
+    fixture.detectChanges();
+
+    expect(titles()).toEqual(["op-1", "op-2"]);
+    expect(laidOut()).toEqual(["0", "-1"]);
+    expect(cards().map(e => e.classList.contains("lead-result"))).toEqual([false, true]);
+    expect(pills().map(e => e.classList.contains("lead-result"))).toEqual([false, true]);
+    // The ring has a programmatic twin, for a reader who cannot see it.
+    expect(names().map(e => e.getAttribute("aria-current"))).toEqual(["false", "true"]);
   });
 
   it("mounts the step panel from the start, hidden until a step is selected", () => {

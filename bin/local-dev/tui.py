@@ -926,11 +926,6 @@ STATE_STYLE = {
 }
 
 
-def state_cell(state: str) -> Text:
-    sym, style = STATE_STYLE.get(state, ("○", "grey50"))
-    return Text(f"{sym}  {state}", style=style)
-
-
 class LocalDevApp(App):
     """Live dashboard + REPL for the texera local dev stack."""
 

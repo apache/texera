@@ -84,12 +84,7 @@ export class OperatorMenuService {
     const jointGraphWrapper = this.workflowActionService.getJointGraphWrapper();
     const texeraGraph = this.workflowActionService.getTexeraGraph();
 
-    merge(
-      jointGraphWrapper.getJointOperatorHighlightStream(),
-      jointGraphWrapper.getJointOperatorUnhighlightStream(),
-      jointGraphWrapper.getJointGroupHighlightStream(),
-      jointGraphWrapper.getJointGroupUnhighlightStream()
-    )
+    merge(jointGraphWrapper.getJointOperatorHighlightStream(), jointGraphWrapper.getJointOperatorUnhighlightStream())
       .pipe(untilDestroyed(this))
       .subscribe(() => {
         this._highlightedOperators$.next(jointGraphWrapper.getCurrentHighlightedOperatorIDs());

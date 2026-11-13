@@ -30,7 +30,6 @@ import { Injectable } from "@angular/core";
 import { HttpClient } from "@angular/common/http";
 import { catchError, Observable, of } from "rxjs";
 import { map } from "rxjs/operators";
-import { WorkflowActionService } from "../workflow-graph/model/workflow-action.service";
 import { AppSettings } from "../../../common/app-setting";
 
 const AI_ASSISTANT_API_BASE_URL = `${AppSettings.getApiEndpoint()}`;
@@ -46,10 +45,7 @@ const api_Url_Openai = `${AI_ASSISTANT_API_BASE_URL}/aiassistant/openai`;
  */
 export class AiAnalystService {
   private isAIAssistantEnabled: boolean | null = null;
-  constructor(
-    private http: HttpClient,
-    public workflowActionService: WorkflowActionService
-  ) {}
+  constructor(private http: HttpClient) {}
   /**
    * Checks if the AI Assistant feature is enabled by sending a request to the API.
    *

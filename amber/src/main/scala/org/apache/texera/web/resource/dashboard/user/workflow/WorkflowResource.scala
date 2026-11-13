@@ -23,9 +23,15 @@ import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.module.scala.DefaultScalaModule
 import com.typesafe.scalalogging.LazyLogging
 import io.dropwizard.auth.Auth
-import org.apache.texera.amber.core.storage.DocumentFactory
+import org.apache.texera.amber.core.storage.{
+  DocumentFactory,
+  ExecutionResultUris,
+  WarehouseReadGuard
+}
 import org.apache.texera.amber.core.virtualidentity.ExecutionIdentity
 import org.apache.texera.auth.SessionUser
+import org.apache.texera.auth.util.OwnerAccess
+import org.apache.texera.auth.util.WorkflowAccess
 import org.apache.texera.dao.SqlServer
 import org.apache.texera.dao.jooq.generated.Tables._
 import org.apache.texera.dao.jooq.generated.enums.{DefaultViewEnum, PrivilegeEnum}
@@ -35,13 +41,14 @@ import org.apache.texera.dao.jooq.generated.tables.daos.{
   WorkflowUserAccessDao
 }
 import org.apache.texera.dao.jooq.generated.tables.pojos._
+import org.apache.texera.dao.jooq.generated.tables.records.WorkflowRecord
 import org.apache.texera.service.util.LargeBinaryManager
 import org.apache.texera.web.resource.dashboard.hub.EntityType
-import org.apache.texera.web.service.WarehouseReadGuard
 import org.apache.texera.web.resource.dashboard.hub.HubResource.recordCloneAction
 import org.apache.texera.web.resource.dashboard.user.workflow.WorkflowResource._
+import org.jooq.impl.DSL
 import org.jooq.impl.DSL.max
-import org.jooq.{DSLContext, Record10, Result, SelectOnConditionStep}
+import org.jooq.{DSLContext, Record10, Result, SelectOnConditionStep, TableField}
 
 import java.sql.Timestamp
 import java.util
@@ -95,11 +102,7 @@ object WorkflowResource {
   private def insertWorkflow(workflow: Workflow, user: User): Unit = {
     // A workflow is born with nothing pinned. The endpoint takes a whole Workflow, so without this
     // a request body could seed a published copy of its own choosing.
-    workflow.setPublishedVersionId(null)
-    workflow.setPublishedContent(null)
-    workflow.setPublishedName(null)
-    workflow.setPublishedDescription(null)
-    workflow.setPublishedDefaultView(null)
+    clearPublishState(workflow)
     workflowDao.insert(workflow)
     workflowOfUserDao.insert(new WorkflowOfUser(user.getUid, workflow.getWid))
     workflowUserAccessDao.insert(
@@ -111,21 +114,16 @@ object WorkflowResource {
     )
   }
 
-  private def workflowOfUserExists(wid: Integer, uid: Integer): Boolean = {
-    workflowOfUserDao.existsById(
-      context
-        .newRecord(WORKFLOW_OF_USER.UID, WORKFLOW_OF_USER.WID)
-        .values(uid, wid)
-    )
-  }
-
   case class DashboardWorkflow(
       isOwner: Boolean,
       accessLevel: String,
       ownerName: String,
       workflow: Workflow,
       ownerId: Integer,
-      coverImage: Option[String]
+      coverImage: Option[String],
+      // Behind the author's working copy? Listings use it to open the published preview instead of
+      // the editor -- for the author too, since that is what the entry is showing.
+      hasUnpublishedChanges: Boolean = false
   )
 
   case class WorkflowWithPrivilege(
@@ -143,11 +141,19 @@ object WorkflowResource {
 
   case class WorkflowIDs(wids: List[Integer])
 
+  /** Clears every column that describes a pinned public copy. */
+  private def clearPublishState(workflow: Workflow): Unit = {
+    workflow.setPublishedVersionId(null)
+    workflow.setPublishedContent(null)
+    workflow.setPublishedName(null)
+    workflow.setPublishedDescription(null)
+    workflow.setPublishedDefaultView(null)
+  }
+
   /**
-    * A workflow POJO for the copy-producing paths (clone, duplicate, restore-a-version).
-    *
-    * Built with setters rather than the positional constructor, so that adding a column cannot
-    * silently shift a null into the wrong field -- as adding the published-copy columns would.
+    * A workflow POJO for the copy-producing paths (clone, duplicate, restore-a-version). Copies start
+    * unpublished, and setters rather than the positional constructor keep a new column from silently
+    * shifting a null into the wrong field.
     */
   def newUnpublishedWorkflow(
       name: String,
@@ -161,26 +167,65 @@ object WorkflowResource {
     workflow.setContent(content)
     workflow.setIsPublic(false)
     workflow.setDefaultView(defaultView)
+    clearPublishState(workflow)
     workflow
   }
 
-  private def updateWorkflowField(
-      workflow: Workflow,
+  /**
+    * The copy a viewer may see, every field at once: a user granted access to the workflow itself,
+    * as its owner or through a share, sees the author's working copy; everyone else is here only
+    * because the workflow is public, and gets the public copy. Taken as a group so a copy cannot end
+    * up carrying the published graph under a title the author never published.
+    */
+  private def copyVisibleTo(workflow: Workflow, uid: Integer): WorkflowPublishService.PublicCopy =
+    if (uid != null && WorkflowAccess.hasGrantedAccess(workflow.getWid, uid)) {
+      WorkflowPublishService.PublicCopy(
+        workflow.getName,
+        workflow.getDescription,
+        workflow.getContent,
+        workflow.getDefaultView
+      )
+    } else {
+      WorkflowPublishService.publicCopyOf(workflow)
+    }
+
+  /**
+    * One column as the public sees it: the frozen value while a pin is in place, the live one
+    * otherwise. Keyed on the pin rather than on the frozen value being non-null, so a pinned
+    * workflow can never fall through to what the author is editing.
+    */
+  private def publicField(
+      wid: Integer,
+      frozen: TableField[_, String],
+      live: TableField[_, String]
+  ) =
+    Option(
+      context
+        .select(WORKFLOW.PUBLISHED_CONTENT, frozen, live)
+        .from(WORKFLOW)
+        .where(WORKFLOW.WID.eq(wid))
+        .fetchOne()
+    ).map(row => if (row.value1() != null) row.value2() else row.value3()).orNull
+
+  /**
+    * Writes one field of a workflow, and only that field. The endpoints take a whole `Workflow`
+    * from the client, of which exactly two things are used: which workflow, and the new value.
+    *
+    * Reading the row and writing the whole POJO back would carry every other column with it, so
+    * anything landing between the read and the write was silently rewritten to whatever the read had
+    * seen: a save reverted, a publish undone, or -- since a pin travels in those columns too -- a
+    * workflow the author had just unpublished put back on public show under its frozen copy.
+    */
+  private def updateWorkflowField[T](
+      wid: Integer,
       sessionUser: SessionUser,
-      updateFunction: Workflow => Unit
+      field: TableField[WorkflowRecord, T],
+      value: T
   ): Unit = {
-    val wid = workflow.getWid
     val user = sessionUser.getUser
 
-    if (
-      workflowOfUserExists(wid, user.getUid) || WorkflowAccessResource.hasWriteAccess(
-        wid,
-        user.getUid
-      )
-    ) {
-      val userWorkflow = workflowDao.fetchOneByWid(wid)
-      updateFunction(userWorkflow)
-      workflowDao.update(userWorkflow)
+    if (WorkflowAccess.hasWriteAccess(wid, user.getUid)) {
+      context.update(WORKFLOW).set(field, value).where(WORKFLOW.WID.eq(wid)).execute()
     } else {
       throw new ForbiddenException("No sufficient access privilege.")
     }
@@ -214,7 +259,8 @@ object WorkflowResource {
     }
   }
 
-  def baseWorkflowSelect(): SelectOnConditionStep[Record10[
+  /** The access join is narrowed to `uid`, so each row carries only the viewer's grant. */
+  def baseWorkflowSelect(uid: Integer): SelectOnConditionStep[Record10[
     Integer,
     String,
     String,
@@ -242,6 +288,7 @@ object WorkflowResource {
       .from(WORKFLOW)
       .leftJoin(WORKFLOW_USER_ACCESS)
       .on(WORKFLOW_USER_ACCESS.WID.eq(WORKFLOW.WID))
+      .and(if (uid == null) DSL.falseCondition() else WORKFLOW_USER_ACCESS.UID.eq(uid))
       .leftJoin(WORKFLOW_OF_USER)
       .on(WORKFLOW_OF_USER.WID.eq(WORKFLOW.WID))
       .leftJoin(USER)
@@ -266,22 +313,20 @@ object WorkflowResource {
       uid: Integer
   ): List[DashboardWorkflow] = {
     workflowEntries
-      .map(workflowRecord =>
+      .map { workflowRecord =>
+        val ownerUid = workflowRecord.into(WORKFLOW_OF_USER).getUid
+        val isOwner = uid != null && ownerUid == uid
         DashboardWorkflow(
-          if (uid != null)
-            workflowRecord.into(WORKFLOW_OF_USER).getUid.eq(uid)
-          else false,
-          workflowRecord
-            .into(WORKFLOW_USER_ACCESS)
-            .into(classOf[WorkflowUserAccess])
-            .getPrivilege
+          isOwner,
+          OwnerAccess
+            .privilege(isOwner, workflowRecord.get(WORKFLOW_USER_ACCESS.PRIVILEGE))
             .toString,
           workflowRecord.into(USER).getName,
           workflowRecord.into(WORKFLOW).into(classOf[Workflow]),
-          workflowRecord.into(WORKFLOW_OF_USER).getUid,
+          ownerUid,
           Option(workflowRecord.get("cover_image", classOf[String]))
         )
-      )
+      }
       .asScala
       .toList
   }
@@ -301,10 +346,8 @@ class WorkflowResource extends LazyLogging {
   @Path("/user-workflow-ids")
   def retrieveIDs(@Auth user: SessionUser): util.List[String] = {
     context
-      .select(WORKFLOW_USER_ACCESS.WID)
-      .from(WORKFLOW_USER_ACCESS)
-      .where(WORKFLOW_USER_ACCESS.UID.eq(user.getUid))
-      .fetchInto(classOf[String])
+      .fetch(WorkflowAccess.accessibleWids(user.getUid))
+      .getValues(0, classOf[String])
   }
 
   /**
@@ -318,12 +361,10 @@ class WorkflowResource extends LazyLogging {
   def retrieveOwners(@Auth user: SessionUser): util.List[String] = {
     context
       .selectDistinct(USER.EMAIL)
-      .from(WORKFLOW_USER_ACCESS)
-      .join(WORKFLOW_OF_USER)
-      .on(WORKFLOW_USER_ACCESS.WID.eq(WORKFLOW_OF_USER.WID))
+      .from(WORKFLOW_OF_USER)
       .join(USER)
       .on(WORKFLOW_OF_USER.UID.eq(USER.UID))
-      .where(WORKFLOW_USER_ACCESS.UID.eq(user.getUid))
+      .where(WORKFLOW_OF_USER.WID.in(WorkflowAccess.accessibleWids(user.getUid)))
       .fetchInto(classOf[String])
   }
 
@@ -339,8 +380,8 @@ class WorkflowResource extends LazyLogging {
       @Auth sessionUser: SessionUser
   ): List[DashboardWorkflow] = {
     val user = sessionUser.getUser
-    val workflowEntries = baseWorkflowSelect()
-      .where(WORKFLOW_USER_ACCESS.UID.eq(user.getUid))
+    val workflowEntries = baseWorkflowSelect(user.getUid)
+      .where(WORKFLOW_USER_ACCESS.UID.isNotNull.or(WORKFLOW_OF_USER.UID.eq(user.getUid)))
       .groupBy(
         WORKFLOW.WID,
         WORKFLOW.NAME,
@@ -371,18 +412,22 @@ class WorkflowResource extends LazyLogging {
       @PathParam("wid") wid: Integer,
       @Auth user: SessionUser
   ): WorkflowWithPrivilege = {
-    if (WorkflowAccessResource.hasReadAccess(wid, user.getUid)) {
+    if (WorkflowAccess.hasReadAccess(wid, user.getUid)) {
       val workflow = workflowDao.fetchOneByWid(wid)
+      // A user who only reaches this workflow because it is public is served the pinned copy, not
+      // the author's in-progress edits -- all of it, so the graph cannot arrive under a title the
+      // author has not published, or in a view the frozen graph does not support.
+      val visible = copyVisibleTo(workflow, user.getUid)
       WorkflowWithPrivilege(
-        workflow.getName,
-        workflow.getDescription,
+        visible.name,
+        visible.description,
         workflow.getWid,
-        workflow.getContent,
+        visible.content,
         workflow.getCreationTime,
         workflow.getLastModifiedTime,
         workflow.getIsPublic,
-        !WorkflowAccessResource.hasWriteAccess(wid, user.getUid),
-        workflow.getDefaultView
+        !WorkflowAccess.hasWriteAccess(wid, user.getUid),
+        visible.defaultView
       )
     } else {
       throw new ForbiddenException("No sufficient access privilege.")
@@ -405,11 +450,11 @@ class WorkflowResource extends LazyLogging {
   def persistWorkflow(workflow: Workflow, @Auth sessionUser: SessionUser): Workflow = {
     val user = sessionUser.getUser
 
-    if (workflowOfUserExists(workflow.getWid, user.getUid)) {
+    if (WorkflowAccess.isOwner(workflow.getWid, user.getUid)) {
       WorkflowVersionResource.insertVersion(workflow, insertingNewWorkflow = false)
       saveWorkflowFields(workflow)
     } else {
-      if (!WorkflowAccessResource.hasReadAccess(workflow.getWid, user.getUid)) {
+      if (!WorkflowAccess.hasReadAccess(workflow.getWid, user.getUid)) {
         // Check if this workflow exists in the database
         val workflowExistsInDb =
           workflow.getWid != null && workflowDao.existsById(workflow.getWid)
@@ -421,7 +466,7 @@ class WorkflowResource extends LazyLogging {
         workflow.setWid(null)
         insertWorkflow(workflow, user)
         WorkflowVersionResource.insertVersion(workflow, insertingNewWorkflow = true)
-      } else if (WorkflowAccessResource.hasWriteAccess(workflow.getWid, user.getUid)) {
+      } else if (WorkflowAccess.hasWriteAccess(workflow.getWid, user.getUid)) {
         WorkflowVersionResource.insertVersion(workflow, insertingNewWorkflow = false)
         // not owner but has write access
         saveWorkflowFields(workflow)
@@ -472,7 +517,7 @@ class WorkflowResource extends LazyLogging {
     val user = sessionUser.getUser
     // do the permission check first
     for (wid <- workflowIDs.wids) {
-      if (!WorkflowAccessResource.hasReadAccess(wid, user.getUid)) {
+      if (!WorkflowAccess.hasReadAccess(wid, user.getUid)) {
         throw new ForbiddenException("No sufficient access privilege.")
       }
     }
@@ -483,13 +528,16 @@ class WorkflowResource extends LazyLogging {
       context.transaction { txConfig =>
         for (wid <- workflowIDs.wids) {
           val oldWorkflow: Workflow = workflowDao.fetchOneByWid(wid)
+          // Reached only because it is public? Then the copy is of the published version, title and
+          // description included.
+          val source = copyVisibleTo(oldWorkflow, user.getUid)
           val newWorkflow = createWorkflow(
             newUnpublishedWorkflow(
-              oldWorkflow.getName + "_copy",
-              oldWorkflow.getDescription,
-              assignNewOperatorIds(oldWorkflow.getContent),
-              // the default view is part of the workflow, so a copy keeps it
-              oldWorkflow.getDefaultView
+              source.name + "_copy",
+              source.description,
+              assignNewOperatorIds(source.content),
+              // the default view is part of the copy being taken, so it comes from the same source
+              source.defaultView
             ),
             sessionUser
           )
@@ -514,17 +562,20 @@ class WorkflowResource extends LazyLogging {
       @Auth sessionUser: SessionUser,
       @Context request: HttpServletRequest
   ): Integer = {
-    if (!WorkflowAccessResource.hasReadAccess(wid, sessionUser.getUid)) {
+    if (!WorkflowAccess.hasReadAccess(wid, sessionUser.getUid)) {
       throw new ForbiddenException("No sufficient access privilege.")
     }
     val oldWorkflow: Workflow = workflowDao.fetchOneByWid(wid)
+    // The hub shows the public copy, so Clone copies that -- for the author too, who already has
+    // their latest in the editor. For a private workflow this is the author's own copy.
+    val source = WorkflowPublishService.publicCopyOf(oldWorkflow)
     val newWorkflow: DashboardWorkflow = createWorkflow(
       newUnpublishedWorkflow(
-        oldWorkflow.getName + "_clone",
-        oldWorkflow.getDescription,
-        assignNewOperatorIds(oldWorkflow.getContent),
-        // a biologist's path is hub -> clone -> use, so the clone must stay usable
-        oldWorkflow.getDefaultView
+        source.name + "_clone",
+        source.description,
+        assignNewOperatorIds(source.content),
+        // a biologist's path is hub -> clone -> use, so the clone keeps the view of what they saw
+        source.defaultView
       ),
       sessionUser
     )
@@ -596,7 +647,7 @@ class WorkflowResource extends LazyLogging {
         val executionId = ExecutionIdentity(eid.longValue())
 
         // Gather URIs from all execution resources
-        val resultUris = WorkflowExecutionsResource.getResultUrisByExecutionId(executionId)
+        val resultUris = ExecutionResultUris.getResultUrisByExecutionId(executionId)
         val consoleMessagesUris =
           WorkflowExecutionsResource.getConsoleMessagesUriByExecutionId(executionId)
         val runtimeStatsUris =
@@ -608,7 +659,7 @@ class WorkflowResource extends LazyLogging {
       // Delete workflows in a transaction
       context.transaction { _ =>
         for (wid <- workflowIDs.wids) {
-          if (workflowOfUserExists(wid, user.getUid)) {
+          if (WorkflowAccess.isOwner(wid, user.getUid)) {
             workflowDao.deleteById(wid)
           } else {
             throw new BadRequestException("The workflow does not exist.")
@@ -653,7 +704,7 @@ class WorkflowResource extends LazyLogging {
       workflow: Workflow,
       @Auth sessionUser: SessionUser
   ): Unit = {
-    updateWorkflowField(workflow, sessionUser, _.setName(workflow.getName))
+    updateWorkflowField(workflow.getWid, sessionUser, WORKFLOW.NAME, workflow.getName)
   }
 
   @POST
@@ -665,31 +716,91 @@ class WorkflowResource extends LazyLogging {
       workflow: Workflow,
       @Auth sessionUser: SessionUser
   ): Unit = {
-    updateWorkflowField(workflow, sessionUser, _.setDescription(workflow.getDescription))
+    updateWorkflowField(
+      workflow.getWid,
+      sessionUser,
+      WORKFLOW.DESCRIPTION,
+      workflow.getDescription
+    )
   }
 
   @PUT
   @RolesAllowed(Array("REGULAR", "ADMIN"))
   @Path("/public/{wid}")
   def makePublic(@PathParam("wid") wid: Integer, @Auth user: SessionUser): Unit = {
-    if (!WorkflowAccessResource.hasWriteAccess(wid, user.getUid)) {
+    if (!WorkflowAccess.hasWriteAccess(wid, user.getUid)) {
       throw new ForbiddenException(s"You do not have permission to modify workflow $wid")
     }
-    val workflow: Workflow = workflowDao.fetchOneByWid(wid)
-    workflow.setIsPublic(true)
-    workflowDao.update(workflow)
+    WorkflowPublishService.publish(wid)
   }
 
   @PUT
   @RolesAllowed(Array("REGULAR", "ADMIN"))
   @Path("/private/{wid}")
   def makePrivate(@PathParam("wid") wid: Integer, @Auth user: SessionUser): Unit = {
-    if (!WorkflowAccessResource.hasWriteAccess(wid, user.getUid)) {
+    if (!WorkflowAccess.hasWriteAccess(wid, user.getUid)) {
       throw new ForbiddenException(s"You do not have permission to modify workflow $wid")
     }
-    val workflow: Workflow = workflowDao.fetchOneByWid(wid)
-    workflow.setIsPublic(false)
-    workflowDao.update(workflow)
+    WorkflowPublishService.unpublish(wid)
+  }
+
+  /**
+    * Pins the author's current version as the public copy, so later edits stop reaching the public.
+    * Also how a pin moves forward, which is the only way edits become public while one is in place.
+    */
+  @POST
+  @Produces(Array(MediaType.APPLICATION_JSON))
+  @RolesAllowed(Array("REGULAR", "ADMIN"))
+  @Path("/pin/{wid}")
+  def pinLatest(
+      @PathParam("wid") wid: Integer,
+      @Auth user: SessionUser
+  ): WorkflowPublishService.PublishStatus = {
+    requirePublishable(wid, user)
+    WorkflowPublishService.pinLatest(wid)
+  }
+
+  /**
+    * Drops the pin, so the public follows the author's latest again. Guarded on write access, the
+    * same as pinning: whoever may pin may undo it.
+    */
+  @DELETE
+  @Produces(Array(MediaType.APPLICATION_JSON))
+  @RolesAllowed(Array("REGULAR", "ADMIN"))
+  @Path("/pin/{wid}")
+  def unpin(
+      @PathParam("wid") wid: Integer,
+      @Auth user: SessionUser
+  ): WorkflowPublishService.PublishStatus = {
+    requirePublishable(wid, user)
+    WorkflowPublishService.unpin(wid)
+  }
+
+  /** What the share dialog's publish panel reads: published, pinned, and holding edits back. */
+  @GET
+  @Produces(Array(MediaType.APPLICATION_JSON))
+  @RolesAllowed(Array("REGULAR", "ADMIN"))
+  @Path("/publish-status/{wid}")
+  def getPublishStatus(
+      @PathParam("wid") wid: Integer,
+      @Auth user: SessionUser
+  ): WorkflowPublishService.PublishStatus = {
+    // Write access rather than read: whether edits are being held back is nobody else's business.
+    requireWriteAccess(wid, user)
+    WorkflowPublishService.statusOf(wid)
+  }
+
+  private def requireWriteAccess(wid: Integer, user: SessionUser): Unit =
+    if (!WorkflowAccess.hasWriteAccess(wid, user.getUid)) {
+      throw new ForbiddenException(s"You do not have permission to modify workflow $wid")
+    }
+
+  /** What the pin endpoints need: writable by this user, and published in the first place. */
+  private def requirePublishable(wid: Integer, user: SessionUser): Unit = {
+    requireWriteAccess(wid, user)
+    if (!WorkflowAccess.isPublic(wid)) {
+      throw new BadRequestException(s"Workflow $wid is not published")
+    }
   }
 
   /**
@@ -706,7 +817,7 @@ class WorkflowResource extends LazyLogging {
       request: DefaultViewRequest,
       @Auth user: SessionUser
   ): Unit = {
-    if (!WorkflowAccessResource.hasWriteAccess(wid, user.getUid)) {
+    if (!WorkflowAccess.hasWriteAccess(wid, user.getUid)) {
       throw new ForbiddenException(s"You do not have permission to modify workflow $wid")
     }
     // lookupLiteral returns null for an unknown literal and for a null/missing body value,
@@ -730,7 +841,7 @@ class WorkflowResource extends LazyLogging {
   @RolesAllowed(Array("REGULAR", "ADMIN"))
   @Path("/{wid}/cover")
   def getCoverImage(@PathParam("wid") wid: Integer, @Auth user: SessionUser): CoverImageRequest = {
-    if (!WorkflowAccessResource.hasReadAccess(wid, user.getUid)) {
+    if (!WorkflowAccess.hasReadAccess(wid, user.getUid)) {
       throw new ForbiddenException(s"You do not have access to workflow $wid")
     }
     val image = context
@@ -753,7 +864,7 @@ class WorkflowResource extends LazyLogging {
       request: CoverImageRequest,
       @Auth user: SessionUser
   ): Unit = {
-    if (!WorkflowAccessResource.hasWriteAccess(wid, user.getUid)) {
+    if (!WorkflowAccess.hasWriteAccess(wid, user.getUid)) {
       throw new ForbiddenException(s"You do not have permission to modify workflow $wid")
     }
     val image = Option(request.image).map(_.trim).getOrElse("")
@@ -783,7 +894,7 @@ class WorkflowResource extends LazyLogging {
   @RolesAllowed(Array("REGULAR", "ADMIN"))
   @Path("/{wid}/cover")
   def deleteCoverImage(@PathParam("wid") wid: Integer, @Auth user: SessionUser): Unit = {
-    if (!WorkflowAccessResource.hasWriteAccess(wid, user.getUid)) {
+    if (!WorkflowAccess.hasWriteAccess(wid, user.getUid)) {
       throw new ForbiddenException(s"You do not have permission to modify workflow $wid")
     }
     context
@@ -814,6 +925,8 @@ class WorkflowResource extends LazyLogging {
   @Produces(Array(MediaType.TEXT_PLAIN))
   @Path("/owner_name")
   def getOwnerName(@QueryParam("wid") wid: Integer): String = {
+    if (wid == null)
+      throw new BadRequestException("wid is required")
     context
       .select(USER.NAME)
       .from(USER)
@@ -826,15 +939,12 @@ class WorkflowResource extends LazyLogging {
   @GET
   @Path("/workflow_name")
   def getWorkflowName(@QueryParam("wid") wid: Integer): String = {
-    context
-      .select(
-        WORKFLOW.NAME
-      )
-      .from(WORKFLOW)
-      .where(WORKFLOW.WID.eq(wid))
-      .fetchOneInto(classOf[String])
+    if (wid == null)
+      throw new BadRequestException("wid is required")
+    publicField(wid, WORKFLOW.PUBLISHED_NAME, WORKFLOW.NAME)
   }
 
+  /** The hub's public view of a workflow: the pinned version if one is pinned, the latest if not. */
   @GET
   @Path("/publicised/{wid}")
   def retrievePublicWorkflow(
@@ -845,29 +955,32 @@ class WorkflowResource extends LazyLogging {
       .where(WORKFLOW.WID.eq(wid))
       .and(WORKFLOW.IS_PUBLIC.isTrue)
       .fetchOne()
+    if (workflow == null) {
+      throw new NotFoundException(s"Public workflow with id $wid not found")
+    }
+    // Name and description come from the public copy for the same reason as the content: a pin has
+    // to hold everything on show.
+    val publicCopy = WorkflowPublishService.publicCopyOf(workflow.into(classOf[Workflow]))
     WorkflowWithPrivilege(
-      workflow.getName,
-      workflow.getDescription,
+      publicCopy.name,
+      publicCopy.description,
       workflow.getWid,
-      workflow.getContent,
+      publicCopy.content,
       workflow.getCreationTime,
       workflow.getLastModifiedTime,
       workflow.getIsPublic,
       readonly = true,
-      defaultView = workflow.getDefaultView
+      // The view freezes with the copy: the form's definition lives inside the content.
+      defaultView = publicCopy.defaultView
     )
   }
 
   @GET
   @Path("/workflow_description")
   def getWorkflowDescription(@QueryParam("wid") wid: Integer): String = {
-    context
-      .select(
-        WORKFLOW.DESCRIPTION
-      )
-      .from(WORKFLOW)
-      .where(WORKFLOW.WID.eq(wid))
-      .fetchOneInto(classOf[String])
+    if (wid == null)
+      throw new BadRequestException("wid is required")
+    publicField(wid, WORKFLOW.PUBLISHED_DESCRIPTION, WORKFLOW.DESCRIPTION)
   }
 
   //TODO Get size from database
@@ -883,7 +996,9 @@ class WorkflowResource extends LazyLogging {
         .fetch()
         .asScala
         .foreach { wf =>
-          result.put(wf.getWid, wf.getContent.length)
+          // Sized by the copy on show, so the number does not move when the author edits privately.
+          val onShow = WorkflowPublishService.publicCopyOf(wf.into(classOf[Workflow]))
+          result.put(wf.getWid, onShow.content.length)
         }
     }
     result

@@ -260,6 +260,39 @@ object HuggingFaceCodegenBase {
        |        summary = "; ".join(errors) if errors else "no providers available"
        |        return last_resp, summary
        |
+       |    def _chat_message_content(self, body):
+       |        '''Return the assistant text from a chat-completions response, or None
+       |        when the body is not that shape. Providers differ and malformed 200s
+       |        happen, so every level is type-checked rather than indexed: indexing
+       |        a non-dict raises AttributeError, which _parse_response's
+       |        except (KeyError, IndexError, TypeError) does not catch, so that row
+       |        ends up reading "Request failed" instead of the body. Callers fall
+       |        back to their native shape, or to json.dumps(body), on None.
+       |        '''
+       |        if not isinstance(body, dict):
+       |            return None
+       |        choices = body.get("choices")
+       |        if not isinstance(choices, list) or not choices:
+       |            return None
+       |        first = choices[0]
+       |        if not isinstance(first, dict):
+       |            return None
+       |        message = first.get("message")
+       |        if not isinstance(message, dict):
+       |            return None
+       |        content = message.get("content")
+       |        if isinstance(content, str):
+       |            return content
+       |        if isinstance(content, list):
+       |            # Some OpenAI-compatible providers return content as a list of
+       |            # parts ({"type": "text", "text": ...}); join the text of those.
+       |            parts = [
+       |                part["text"] for part in content
+       |                if isinstance(part, dict) and isinstance(part.get("text"), str)
+       |            ]
+       |            return "".join(parts) if parts else None
+       |        return None
+       |
        |    def _chat_content_for_task(self, pipeline_payload, prompt_value):
        |        '''Reformulate a structured task (question-answering,
        |        table-question-answering, zero-shot-classification,
@@ -966,6 +999,7 @@ object HuggingFaceCodegenBase {
        |        if value is None:
        |            return None
        |        if isinstance(value, bytes):
+       |            self._check_column_value_size(len(value), "byte")
        |            return value
        |        # Treat scalar pandas/numpy missing sentinels (NaN, pd.NA, NaT) as empty.
        |        # isinstance(value, float) only catches float('nan'); pd.NA / NaT are not
@@ -977,7 +1011,11 @@ object HuggingFaceCodegenBase {
        |                return None
        |        except (TypeError, ValueError):
        |            pass
-       |        val = str(value).strip()
+       |        val = str(value)
+       |        # Bound the cell before it is stripped, sniffed or decoded: each of
+       |        # those passes over the whole value, once per row.
+       |        self._check_column_value_size(len(val), "character")
+       |        val = val.strip()
        |        if not val:
        |            return None
        |        if self._looks_like_html(val):
@@ -996,6 +1034,14 @@ object HuggingFaceCodegenBase {
        |            return base64.b64decode(val, validate=True)
        |        except Exception:
        |            return val.encode("utf-8")
+       |
+       |    def _check_column_value_size(self, size, unit):
+       |        # The bound _fetch_remote_url applies, so a payload refused over HTTP
+       |        # is not accepted from a column instead.
+       |        if size > self.MAX_REMOTE_FETCH_BYTES:
+       |            raise ValueError(
+       |                f"Column value exceeds the {self.MAX_REMOTE_FETCH_BYTES} {unit} limit."
+       |            )
        |
        |    def _looks_like_html(self, val):
        |        s = val.lstrip()[:200].lower()

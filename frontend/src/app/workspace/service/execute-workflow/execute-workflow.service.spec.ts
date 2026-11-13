@@ -484,7 +484,7 @@ describe("ExecuteWorkflowService", () => {
   // ---- execution entry points ----------------------------------------------------------------
 
   it("executeWorkflow delegates to executeWorkflowWithEmailNotification with email disabled", () => {
-    const delegateSpy = vi.spyOn(service, "executeWorkflowWithEmailNotification").mockImplementation(() => {});
+    const delegateSpy = vi.spyOn(service, "executeWorkflowWithEmailNotification").mockImplementation(() => true);
     service.executeWorkflow("run-1", "op-9");
     expect(delegateSpy).toHaveBeenCalledWith("run-1", false, "op-9");
   });

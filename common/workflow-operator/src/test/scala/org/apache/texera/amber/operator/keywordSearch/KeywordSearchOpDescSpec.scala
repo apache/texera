@@ -20,7 +20,9 @@
 package org.apache.texera.amber.operator.keywordSearch
 
 import org.apache.texera.amber.core.executor.OpExecWithClassName
+import org.apache.texera.amber.core.tuple.{Attribute, AttributeType, Schema}
 import org.apache.texera.amber.core.virtualidentity.{ExecutionIdentity, WorkflowIdentity}
+import org.apache.texera.amber.core.workflow.PortIdentity
 import org.apache.texera.amber.operator.LogicalOp
 import org.apache.texera.amber.operator.metadata.{OperatorGroupConstants, OperatorMetadataGenerator}
 import org.apache.texera.amber.util.JSONUtils.objectMapper
@@ -145,5 +147,18 @@ class KeywordSearchOpDescSpec extends AnyFlatSpec with Matchers {
     kw.attribute shouldBe "title"
     kw.keyword shouldBe "apache"
     kw.isCaseSensitive shouldBe true
+  }
+
+  // The engine reads `Title` from a column `title`, since Schema ignores case. pandas
+  // would raise a KeyError on `Title`, so the script reads the column as the table
+  // spells it.
+  "KeywordSearchOpDesc.generateStandaloneCode" should
+    "read a column named in a different case from the table" in {
+    val inputSchemas =
+      Map(PortIdentity() -> Schema().add(new Attribute("title", AttributeType.STRING)))
+    val code =
+      newDesc("Title", "apache", caseSensitive = false).generateStandaloneCode(inputSchemas)
+    code should include("""in1df["title"]""")
+    code should not include "Title"
   }
 }

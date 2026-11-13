@@ -17,7 +17,9 @@
  * under the License.
  */
 
-import { Component, Input } from "@angular/core";
+import { Component, Input, LOCALE_ID } from "@angular/core";
+import { registerLocaleData } from "@angular/common";
+import localeDe from "@angular/common/locales/de";
 import { ComponentFixture, TestBed } from "@angular/core/testing";
 import { ActivatedRoute, Router } from "@angular/router";
 import { NzIconModule } from "ng-zorro-antd/icon";
@@ -524,14 +526,52 @@ describe("HubWorkflowDetailComponent", () => {
     });
   });
 
-  describe("changeViewDisplayStyle", () => {
-    it("toggles displayPreciseViewCount", () => {
+  // Asserted on the formatted string rather than on displayPreciseViewCount: the flag flipped on
+  // every click even while nothing read it, so a flag assertion passed with the toggle inert.
+  describe("formatViewCount", () => {
+    it("returns the compact count before the view style is changed", () => {
       build({ modalData: { wid: 1 } });
-      expect(component.displayPreciseViewCount).toBe(false);
+      expect(component.formatViewCount(1234)).toBe("1.2k");
+    });
+
+    it("returns the grouped exact count after one change and the compact count after a second", () => {
+      build({ modalData: { wid: 1 } });
       component.changeViewDisplayStyle();
-      expect(component.displayPreciseViewCount).toBe(true);
+      expect(component.formatViewCount(1234)).toBe("1,234");
       component.changeViewDisplayStyle();
-      expect(component.displayPreciseViewCount).toBe(false);
+      expect(component.formatViewCount(1234)).toBe("1.2k");
+    });
+
+    it("abbreviates 1000 only in the compact style", () => {
+      build({ modalData: { wid: 1 } });
+      expect(component.formatViewCount(1000)).toBe("1.0k");
+      component.changeViewDisplayStyle();
+      expect(component.formatViewCount(1000)).toBe("1,000");
+    });
+
+    it("renders counts below 1000 the same way in both styles", () => {
+      build({ modalData: { wid: 1 } });
+      expect([0, 1, 999].map(count => component.formatViewCount(count))).toEqual(["0", "1", "999"]);
+      component.changeViewDisplayStyle();
+      expect([0, 1, 999].map(count => component.formatViewCount(count))).toEqual(["0", "1", "999"]);
+    });
+
+    it("keeps every digit of a large count in the exact style", () => {
+      build({ modalData: { wid: 1 } });
+      expect(component.formatViewCount(1234567)).toBe(component.formatCount(1234567));
+      component.changeViewDisplayStyle();
+      expect(component.formatViewCount(1234567)).toBe("1,234,567");
+    });
+
+    it("groups the exact count by the app locale", () => {
+      // The separator comes from LOCALE_ID, like the `number` pipe the rest of the UI uses, rather
+      // than a hard-coded "en-US"; the app sets no LOCALE_ID, so it renders "1,234" today.
+      registerLocaleData(localeDe);
+      configure({ modalData: { wid: 1 } });
+      TestBed.overrideProvider(LOCALE_ID, { useValue: "de" });
+      component = TestBed.createComponent(HubWorkflowDetailComponent).componentInstance;
+      component.changeViewDisplayStyle();
+      expect(component.formatViewCount(1234)).toBe("1.234");
     });
   });
 });
@@ -553,7 +593,7 @@ describe("HubWorkflowDetailComponent rendered with its real children", () => {
   // goBack() chains .catch() onto the navigation result, so this has to be a real promise.
   let renderedRouter: { navigateByUrl: ReturnType<typeof vi.fn>; navigate: ReturnType<typeof vi.fn> };
 
-  function render(opts: { isHub: boolean }): void {
+  function render(opts: { isHub: boolean; viewCount?: number; likeCount?: number }): void {
     renderedRouter = { navigateByUrl: vi.fn().mockResolvedValue(true), navigate: vi.fn().mockResolvedValue(true) };
     TestBed.resetTestingModule();
     TestBed.configureTestingModule({
@@ -579,8 +619,8 @@ describe("HubWorkflowDetailComponent rendered with its real children", () => {
         {
           provide: HubService,
           useValue: {
-            getCounts: () => of([{ entityId: 5, entityType: EntityType.Workflow, counts: {} }]),
-            postView: () => of(7),
+            getCounts: () => of([{ entityId: 5, entityType: EntityType.Workflow, counts: { like: opts.likeCount } }]),
+            postView: () => of(opts.viewCount ?? 7),
             isLiked: () => of([]),
             postLike: () => of(true),
             postUnlike: () => of(true),
@@ -646,5 +686,48 @@ describe("HubWorkflowDetailComponent rendered with its real children", () => {
     render({ isHub: false });
 
     expect((fixture.nativeElement as HTMLElement).querySelector(".go-back-button")).toBeNull();
+  });
+
+  describe("the view button", () => {
+    function countShownBy(title: string): string {
+      const button = (fixture.nativeElement as HTMLElement).querySelector(`button[title='${title}']`)!;
+      return button.querySelector(":scope > span")!.textContent!.trim();
+    }
+
+    function clickView(): void {
+      (fixture.nativeElement as HTMLElement).querySelector<HTMLButtonElement>("button[title='View']")!.click();
+      fixture.detectChanges();
+    }
+
+    it("shows the compact view count until it is clicked", () => {
+      render({ isHub: true, viewCount: 1234 });
+
+      expect(countShownBy("View")).toBe("1.2k");
+    });
+
+    it("shows the exact view count on a click and the compact count on a second click", () => {
+      render({ isHub: true, viewCount: 1234 });
+
+      clickView();
+      expect(countShownBy("View")).toBe("1,234");
+      clickView();
+      expect(countShownBy("View")).toBe("1.2k");
+    });
+
+    it("works the same when the page is opened as a modal", () => {
+      render({ isHub: false, viewCount: 1234 });
+
+      clickView();
+      expect(countShownBy("View")).toBe("1,234");
+    });
+
+    it("leaves the like count compact", () => {
+      // The toggle belongs to the view count alone; the like count shares the formatter, so a
+      // style change that leaked into formatCount would show up here.
+      render({ isHub: true, viewCount: 1234, likeCount: 2500 });
+
+      clickView();
+      expect(countShownBy("Like")).toBe("2.5k");
+    });
   });
 });

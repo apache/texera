@@ -18,7 +18,6 @@
  */
 
 import { Injectable } from "@angular/core";
-import { HttpClient } from "@angular/common/http";
 import html2canvas from "html2canvas";
 import { forkJoin, Observable, Observer } from "rxjs";
 import { map } from "rxjs/operators";
@@ -26,17 +25,12 @@ import { WorkflowActionService } from "../workflow-graph/model/workflow-action.s
 import { WorkflowResultService } from "../workflow-result/workflow-result.service";
 import { NotificationService } from "src/app/common/service/notification/notification.service";
 import { AiAnalystService } from "../ai-analyst/ai-analyst.service";
-import { AppSettings } from "src/app/common/app-setting";
-
-const AI_ASSISTANT_API_BASE_URL = `${AppSettings.getApiEndpoint()}`;
 
 @Injectable({
   providedIn: "root",
 })
 export class ReportGenerationService {
-  private isAIAssistantEnabled: boolean | null = null;
   constructor(
-    private http: HttpClient,
     public workflowActionService: WorkflowActionService,
     private workflowResultService: WorkflowResultService,
     private notificationService: NotificationService,

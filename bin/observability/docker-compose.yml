@@ -1,0 +1,39 @@
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+
+# Dedicated entry point for the observability stack, so it can be started like
+# the other dev targets (e.g. file-service's own compose) instead of reaching
+# into the single-node deployment file.
+#
+# It does NOT redefine the services: it `include`s the single-node compose, the
+# single source of truth for every container definition. The observability
+# services there are gated behind compose profiles, so they are selected via
+# COMPOSE_PROFILES + the service list (see start_app.sh `up_obs`). The other
+# single-node services are not profile-gated, so they are simply not named and
+# stay down.
+#
+# Relative volume paths inside the included file (e.g. the collector/parca
+# configs under ../observability/) are resolved relative to the included file's
+# own directory, so they keep working unchanged.
+#
+# The project name matches single-node so this manages the SAME containers
+# whether obs is brought up here or as part of the full single-node deployment
+# (the containers use fixed container_names, so a different project would clash).
+name: texera-single-node
+
+include:
+  - ../single-node/docker-compose.yml

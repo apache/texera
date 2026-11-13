@@ -71,6 +71,11 @@ class DummyOpDescSpec extends AnyFlatSpec with Matchers {
     (new DummyOpDesc).dummyOperator shouldBe ""
   }
 
+  "DummyOpDesc.generateStandaloneCode" should
+    "pass the first input through to the output" in {
+    (new DummyOpDesc).generateStandaloneCode() shouldBe "out1df = in1df"
+  }
+
   "DummyOpDesc.getPhysicalOp" should
     "be the unimplemented LogicalOp stub (throws NotImplementedError)" in {
     intercept[NotImplementedError] {

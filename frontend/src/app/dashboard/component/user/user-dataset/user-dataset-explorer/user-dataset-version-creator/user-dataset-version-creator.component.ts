@@ -18,47 +18,27 @@
  */
 
 import { Component, inject, OnInit } from "@angular/core";
-import { FormBuilder, FormGroup, FormsModule } from "@angular/forms";
-import { FormlyFieldConfig, FormlyModule } from "@ngx-formly/core";
+import { FormGroup } from "@angular/forms";
+import { FormlyFieldConfig } from "@ngx-formly/core";
 import { DatasetService } from "../../../../../service/user/dataset/dataset.service";
 import { Dataset } from "../../../../../../common/type/dataset";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 import { NotificationService } from "../../../../../../common/service/notification/notification.service";
 import { HttpErrorResponse } from "@angular/common/http";
 import { NZ_MODAL_DATA, NzModalRef } from "ng-zorro-antd/modal";
-import { NzSpinComponent } from "ng-zorro-antd/spin";
-import { NgClass, NgIf } from "@angular/common";
-import { NzSwitchComponent } from "ng-zorro-antd/switch";
-import { NzSpaceCompactItemDirective } from "ng-zorro-antd/space";
-import { NzButtonComponent } from "ng-zorro-antd/button";
-import { NzWaveDirective } from "ng-zorro-antd/core/wave";
-import { ɵNzTransitionPatchDirective } from "ng-zorro-antd/core/transition-patch";
 import { contributorFieldGroup } from "../user-dataset-contributor-editor/contributor-form-fields";
+import { ResourceCreatorFormComponent } from "../../../resource-creator-form/resource-creator-form.component";
 
 @UntilDestroy()
 @Component({
   selector: "texera-user-dataset-version-creator",
   templateUrl: "./user-dataset-version-creator.component.html",
-  styleUrls: ["./user-dataset-version-creator.component.scss"],
-  imports: [
-    NzSpinComponent,
-    NgClass,
-    FormlyModule,
-    NgIf,
-    NzSwitchComponent,
-    FormsModule,
-    NzSpaceCompactItemDirective,
-    NzButtonComponent,
-    NzWaveDirective,
-    ɵNzTransitionPatchDirective,
-  ],
+  imports: [ResourceCreatorFormComponent],
 })
 export class UserDatasetVersionCreatorComponent implements OnInit {
   readonly isCreatingVersion: boolean = inject(NZ_MODAL_DATA).isCreatingVersion;
 
   readonly did: number = inject(NZ_MODAL_DATA)?.did ?? undefined;
-
-  isCreateButtonDisabled: boolean = false;
 
   public form: FormGroup = new FormGroup({});
   model: any = {};
@@ -75,8 +55,7 @@ export class UserDatasetVersionCreatorComponent implements OnInit {
   constructor(
     private modalRef: NzModalRef,
     private datasetService: DatasetService,
-    private notificationService: NotificationService,
-    private formBuilder: FormBuilder
+    private notificationService: NotificationService
   ) {}
 
   ngOnInit() {

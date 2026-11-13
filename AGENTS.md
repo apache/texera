@@ -190,7 +190,7 @@ on release-branch PRs, never on one targeting `main`.
 Issue-first; both stay short.
 
 ```
-issue (template + Type)  ->  PR (Closes #N, template)  ->  review  ->  merge
+issue (template + Type)  ->  /take  ->  PR (Closes #N, template)  ->  review  ->  merge
 ```
 
 - Every change starts as an issue (minor typo / docs excepted). File against
@@ -198,7 +198,26 @@ issue (template + Type)  ->  PR (Closes #N, template)  ->  review  ->  merge
 - Pick the right template **and** set the GitHub Issue **Type** explicitly
   (`Bug` / `Task` / `Feature`); the template's `type:` frontmatter doesn't
   always apply on creation.
+- **Claim before coding.** The assignee is the claim; a local branch is not.
+  An issue is **taken** if anyone but you is assigned, or a linked PR is
+  `OPEN` and someone else wrote it (an outside PR opener isn't always
+  auto-assigned):
+
+  ```bash
+  gh api user --jq .login                                  # you
+  gh issue view N --repo apache/texera --json assignees,closedByPullRequestsReferences
+  gh pr view P --repo apache/texera --json author,state    # each linked PR
+  ```
+
+  Not taken: `/take` it, even one you just filed
+  ([comment commands](CONTRIBUTING.md#-comment-commands); `/untake` if you
+  drop it). Taken: it's theirs. Don't start; tell the human.
 - Reference the issue: `Closes #N` (or `Fixes` / `Resolves`, or "related to").
+  Right before opening the PR, re-run the check for every issue your diff
+  fixes, closed or only related, including each site of a bundled PR. If one
+  is taken, leave that issue **and its code change** out and tell the human:
+  merging resets each closed issue's assignees to the PR's authors
+  ([`pr-assignment.yml`](.github/workflows/pr-assignment.yml)).
 - Issue titles are **plain prose**; never use the Conventional Commits
   format (`type(scope): ...`) — that prefix is for commit and PR titles only.
 - Task issues match `task-template.yaml` exactly.

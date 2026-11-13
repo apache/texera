@@ -44,7 +44,7 @@ import scala.collection.mutable.ArrayBuffer
 // Unit tests for CollaborationResource's session bookkeeping, message fan-out
 // and lock-request handling. Most cases drive a mocked javax.websocket.Session
 // with no external collaborators; the TryLockRequest cases that reach
-// WorkflowAccessResource.hasWriteAccess additionally mix in MockTexeraDB and
+// WorkflowAccess.hasWriteAccess additionally mix in MockTexeraDB and
 // seed a workflow_user_access row so the privilege check reads a real value.
 // The lock hand-off inside myOnClose consults the same privilege check, so some
 // of the myOnClose cases at the bottom of this file also mix in MockTexeraDB.
@@ -71,7 +71,7 @@ class CollaborationResourceSpec
 
   // Fixed ids for the DB-backed lock tests; a user, a workflow and one
   // workflow_user_access row are seeded per test so checkIsReadOnly ->
-  // WorkflowAccessResource.hasWriteAccess reads a real privilege.
+  // WorkflowAccess.hasWriteAccess reads a real privilege.
   private val accessUid = 8201
   private val accessWid = 8301
   // A second user on the SAME workflow, seeded with READ only. Needed because
@@ -105,7 +105,7 @@ class CollaborationResourceSpec
   }
 
   // Seeds user accessUid + workflow accessWid + a workflow_user_access row with
-  // the given privilege, so WorkflowAccessResource.getPrivilege(accessWid,
+  // the given privilege, so WorkflowAccess.getPrivilege(accessWid,
   // accessUid) returns it.
   private def seedAccess(privilege: PrivilegeEnum): Unit = {
     val workflow = new Workflow

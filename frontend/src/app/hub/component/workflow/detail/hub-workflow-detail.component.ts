@@ -17,7 +17,7 @@
  * under the License.
  */
 
-import { AfterViewInit, Component, HostListener, Inject, OnDestroy, OnInit, Optional } from "@angular/core";
+import { AfterViewInit, Component, HostListener, Inject, LOCALE_ID, OnDestroy, OnInit, Optional } from "@angular/core";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 import { ActivatedRoute, Router } from "@angular/router";
 import { UserService } from "../../../../common/service/user/user.service";
@@ -31,7 +31,7 @@ import { NotificationService } from "../../../../common/service/notification/not
 import { WorkflowPersistService } from "../../../../common/service/workflow-persist/workflow-persist.service";
 import { NZ_MODAL_DATA } from "ng-zorro-antd/modal";
 import { HUB_WORKFLOW_RESULT, USER_WORKSPACE } from "../../../../app-routing.constant";
-import { NgIf, NgClass } from "@angular/common";
+import { formatNumber, NgIf, NgClass } from "@angular/common";
 import { NzSpaceCompactItemDirective } from "ng-zorro-antd/space";
 import { NzButtonComponent } from "ng-zorro-antd/button";
 import { ɵNzTransitionPatchDirective } from "ng-zorro-antd/core/transition-patch";
@@ -85,7 +85,8 @@ export class HubWorkflowDetailComponent implements AfterViewInit, OnDestroy, OnI
     private notificationService: NotificationService,
     private hubService: HubService,
     private workflowPersistService: WorkflowPersistService,
-    @Optional() @Inject(NZ_MODAL_DATA) public input: { wid: number } | undefined
+    @Optional() @Inject(NZ_MODAL_DATA) public input: { wid: number } | undefined,
+    @Inject(LOCALE_ID) private locale: string
   ) {
     this.wid = input?.wid; //Accessing from the pop up. getting wid from the @Input
     if (!isDefined(this.wid)) {
@@ -268,6 +269,10 @@ export class HubWorkflowDetailComponent implements AfterViewInit, OnDestroy, OnI
   }
 
   formatCount = formatCount;
+
+  formatViewCount(count: number): string {
+    return this.displayPreciseViewCount ? formatNumber(count, this.locale) : formatCount(count);
+  }
 
   changeViewDisplayStyle() {
     this.displayPreciseViewCount = !this.displayPreciseViewCount;

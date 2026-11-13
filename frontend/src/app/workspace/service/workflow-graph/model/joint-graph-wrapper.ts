@@ -23,7 +23,7 @@ import { LogicalPort, Point } from "../../../types/workflow-common.interface";
 import * as joint from "jointjs";
 import * as dagre from "dagre";
 import * as graphlib from "graphlib";
-import { ObservableContextManager } from "src/app/common/util/context";
+import { ContextManager } from "src/app/common/util/context";
 import { Coeditor, User } from "../../../../common/type/user";
 import { operatorCoeditorChangedPropertyClass, operatorCoeditorEditingClass } from "../../joint-ui/joint-ui.service";
 import { HeatmapView } from "../../heatmap/heatmap-scoring";
@@ -51,6 +51,8 @@ type JointModelEvent = [joint.dia.Cell, { graph: joint.dia.Graph; models: joint.
 type JointLinkChangeEvent = [joint.dia.Link, { x: number; y: number }, { ui: boolean; updateConnectionOnly: boolean }];
 
 type JointPositionChangeEvent = [joint.dia.Element, { x: number; y: number }];
+
+export const RESULT_PREVIEW_SETTING_KEY = "result-preview-on-hover";
 
 type PositionInfo = {
   currPos: Point;
@@ -112,6 +114,10 @@ export class JointGraphWrapper {
   // main canvas and the mini-map.
   private heatmapViewStream = new BehaviorSubject<HeatmapView | null>(null);
 
+  // Whether hovering an operator previews its result (Layers > Result preview). On unless the
+  // user turned it off, which this browser remembers.
+  private resultPreviewEnabled = localStorage.getItem(RESULT_PREVIEW_SETTING_KEY) !== "false";
+
   private elementPositions: Map<string, PositionInfo> = new Map<string, PositionInfo>();
   private listenPositionChange: boolean = true;
 
@@ -126,10 +132,6 @@ export class JointGraphWrapper {
   private jointOperatorHighlightStream = new Subject<readonly string[]>();
   // event stream of un-highlighting an operator
   private jointOperatorUnhighlightStream = new Subject<readonly string[]>();
-  // event stream of highlighting a group
-  private jointGroupHighlightStream = new Subject<readonly string[]>();
-  // event stream of un-highlighting a group
-  private jointGroupUnhighlightStream = new Subject<readonly string[]>();
   // event stream of highlighing a link
   private jointLinkHighlightStream = new Subject<readonly string[]>();
   // event stream of unhighlighing a link
@@ -249,6 +251,15 @@ export class JointGraphWrapper {
 
   public getHeatmapViewStream(): Observable<HeatmapView | null> {
     return this.heatmapViewStream.asObservable();
+  }
+
+  public setResultPreviewEnabled(enabled: boolean): void {
+    this.resultPreviewEnabled = enabled;
+    localStorage.setItem(RESULT_PREVIEW_SETTING_KEY, String(enabled));
+  }
+
+  public isResultPreviewEnabled(): boolean {
+    return this.resultPreviewEnabled;
   }
 
   /**
@@ -492,21 +503,6 @@ export class JointGraphWrapper {
    */
   public getLinkUnhighlightStream(): Observable<readonly string[]> {
     return this.jointLinkUnhighlightStream.pipe(this.jointGraphContext.bufferWhileAsync);
-  }
-
-  /**
-   * Gets the event stream of an operator being dragged.
-   */
-  public getJointGroupHighlightStream(): Observable<readonly string[]> {
-    return this.jointGroupHighlightStream.pipe(this.jointGraphContext.bufferWhileAsync);
-  }
-
-  /**
-   * Gets the event stream of a group being unhighlighted.
-   * The group could be unhighlighted because it's deleted.
-   */
-  public getJointGroupUnhighlightStream(): Observable<readonly string[]> {
-    return this.jointGroupUnhighlightStream.asObservable().pipe(this.jointGraphContext.bufferWhileAsync);
   }
 
   public getJointCommentBoxHighlightStream(): Observable<readonly string[]> {
@@ -836,7 +832,7 @@ export class JointGraphWrapper {
   }
 
   public static jointGraphContextFactory() {
-    class JointGraphContext extends ObservableContextManager<JointGraphContextType>(DefaultContext) {
+    class JointGraphContext extends ContextManager<JointGraphContextType>(DefaultContext) {
       private static jointPaper: joint.dia.Paper | undefined;
 
       public static async() {

@@ -15,60 +15,30 @@
 # specific language governing permissions and limitations
 # under the License.
 
-import typing
 from overrides import overrides
-from typing import Iterator
 
-from core.architecture.sendsemantics.partitioner import Partitioner
+from core.architecture.sendsemantics.indexed_shuffle_partitioner import (
+    IndexedShufflePartitioner,
+)
 from core.models import Tuple
-from core.models.state import State
-from core.util import set_one_of
-from proto.org.apache.texera.amber.core import ActorVirtualIdentity
-from proto.org.apache.texera.amber.engine.architecture.rpc import EmbeddedControlMessage
 from proto.org.apache.texera.amber.engine.architecture.sendsemantics import (
-    Partitioning,
     RoundRobinPartitioning,
 )
 
 
-class RoundRobinPartitioner(Partitioner):
+class RoundRobinPartitioner(IndexedShufflePartitioner):
+    # Unlike the hash/range shuffles, round-robin drains a slot's batch on flush.
+    _clear_batch_on_flush = True
+
     def __init__(self, partitioning: RoundRobinPartitioning):
-        super().__init__(set_one_of(Partitioning, partitioning))
-        self.batch_size = partitioning.batch_size
+        super().__init__(partitioning)
         # Indexed by round_robin_index to choose the downstream worker to send to.
-        self.receivers = self.build_receiver_batches(partitioning.channels)
         self.round_robin_index = 0
 
     @overrides
-    def add_tuple_to_batch(
-        self, tuple_: Tuple
-    ) -> Iterator[typing.Tuple[ActorVirtualIdentity, typing.List[Tuple]]]:
-        receiver, batch = self.receivers[self.round_robin_index]
-        batch.append(tuple_)
-        if len(batch) == self.batch_size:
-            yield receiver, batch
-            self.receivers[self.round_robin_index] = (receiver, list())
+    def _route(self, tuple_: Tuple) -> int:
+        return self.round_robin_index
+
+    @overrides
+    def _advance(self) -> None:
         self.round_robin_index = (self.round_robin_index + 1) % len(self.receivers)
-
-    @overrides
-    def flush(
-        self, to: ActorVirtualIdentity, ecm: EmbeddedControlMessage
-    ) -> Iterator[typing.Union[EmbeddedControlMessage, typing.List[Tuple]]]:
-        for receiver, batch in self.receivers:
-            if receiver == to:
-                if len(batch) > 0:
-                    yield batch
-                    batch.clear()
-                yield ecm
-
-    @overrides
-    def flush_state(
-        self, state: State
-    ) -> Iterator[
-        typing.Tuple[ActorVirtualIdentity, typing.Union[State, typing.List[Tuple]]]
-    ]:
-        for receiver, batch in self.receivers:
-            if len(batch) > 0:
-                yield receiver, batch
-                batch.clear()
-            yield receiver, state

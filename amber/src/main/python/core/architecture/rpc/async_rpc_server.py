@@ -104,7 +104,16 @@ class AsyncRPCServer:
             control_return: ControlReturn = set_one_of(
                 ControlReturn,
                 ControlError(
-                    error_message=str(exception), language=ErrorLanguage.PYTHON
+                    # Include notes, which carry hints such as the UDF line.
+                    error_message=" ".join(
+                        part
+                        for part in (
+                            str(exception),
+                            *getattr(exception, "__notes__", ()),
+                        )
+                        if part
+                    ),
+                    language=ErrorLanguage.PYTHON,
                 ),
             )
 

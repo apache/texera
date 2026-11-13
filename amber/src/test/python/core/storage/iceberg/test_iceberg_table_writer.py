@@ -132,26 +132,6 @@ def test_open_clears_dirty_buffer():
     assert writer.buffer == []
 
 
-def test_remove_one_removes_buffered_item():
-    writer, _, _, _ = make_writer(buffer_size=10)
-
-    writer.put_one({"value": 1})
-    writer.put_one({"value": 2})
-    writer.remove_one({"value": 1})
-
-    assert writer.buffer == [{"value": 2}]
-
-
-def test_remove_one_raises_for_already_flushed_item():
-    writer, _, _, _ = make_writer(buffer_size=1)
-
-    # buffer_size=1 flushes immediately, so the item is no longer buffered.
-    writer.put_one({"value": 1})
-
-    with pytest.raises(ValueError):
-        writer.remove_one({"value": 1})
-
-
 def test_flush_buffer_with_empty_buffer_is_a_no_op():
     writer, _, table, captured = make_writer(buffer_size=10)
 

@@ -80,6 +80,18 @@ class SklearnTestingOpDescSpec extends AnyFlatSpec with Matchers {
     code should include(".predict(")
   }
 
+  // Both paths hand predict the frame itself. Asserted as text because the
+  // executor's own block is only ever run inside the engine.
+  it should "keep the feature frame two dimensional in both paths" in {
+    val d = new SklearnTestingOpDesc
+    d.model = "model"
+    d.target = "y"
+    d.generatePythonCode() should include("model.predict(X)")
+    d.generatePythonCode() should not include "squeeze"
+    d.generateStandaloneCode() should include("model.predict(X)")
+    d.generateStandaloneCode() should not include "squeeze"
+  }
+
   // The scores are computed over the rows the model can be applied to, the way
   // COUNT and MIN are computed over the rows that have a value.
   it should "drop rows with missing values before scoring" in {
@@ -96,10 +108,11 @@ class SklearnTestingOpDescSpec extends AnyFlatSpec with Matchers {
     val d = new SklearnTestingOpDesc
     d.model = "model"
     d.target = "y"
-    val code = d.generatePythonCode()
-    code should include("""_fittable = X.select_dtypes(include=["number", "bool"])""")
-    code should include("""print("Ignoring columns an estimator cannot fit:", _ignored)""")
-    code should include("X = _fittable")
+    Seq(d.generatePythonCode(), d.generateStandaloneCode()).foreach { code =>
+      code should include("""_fittable = X.select_dtypes(include=["number", "bool"])""")
+      code should include("""print("Ignoring columns an estimator cannot fit:", _ignored)""")
+      code should include("X = _fittable")
+    }
   }
 
   "SklearnTestingOpDesc" should

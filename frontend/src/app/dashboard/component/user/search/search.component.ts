@@ -62,7 +62,6 @@ export class SearchComponent implements AfterViewInit {
   private isLogin = this.userService.isLogin();
   private includePublic = true;
   currentUid = this.userService.getCurrentUser()?.uid;
-  searchKeywords: string[] = [];
 
   selectedType: "workflow" | "dataset" | "model" | null = null;
 
@@ -112,16 +111,11 @@ export class SearchComponent implements AfterViewInit {
         this.updateMasterFilterList();
       }
 
-      this.searchKeywords = this.filters.getSearchKeywords();
       this.cdr.detectChanges();
     });
   }
 
   async search(): Promise<void> {
-    // Keep the highlight keywords in sync with the current filters. This is read
-    // by the template's search-results binding; the template must not call the
-    // `filters` getter directly, since it throws until the ViewChild resolves.
-    this.searchKeywords = this.filters.getSearchKeywords();
     const sameList =
       this.filters.masterFilterList.length === this.masterFilterList.length &&
       this.filters.masterFilterList.every((v, i) => v === this.masterFilterList[i]);

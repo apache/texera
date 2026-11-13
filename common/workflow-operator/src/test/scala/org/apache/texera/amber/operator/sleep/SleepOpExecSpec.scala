@@ -54,4 +54,21 @@ class SleepOpExecSpec extends AnyFlatSpec {
     val emitted = (0 until 5).flatMap(i => exec.processTuple(tuple(i), 0).toList)
     assert(emitted == (0 until 5).map(tuple).toList)
   }
+
+  // The one thing the operator is for. Every other case here configures no delay,
+  // so the seconds-to-millis conversion was the only line nothing asked about:
+  // dropping it, or losing the factor of a thousand, left them all passing.
+  //
+  // One second is the smallest delay the field can ask for, sleepTime being whole
+  // seconds, and one tuple is enough to observe it. The lower bound is asserted
+  // rather than a window: a loaded machine may take longer, and a delay that
+  // overshoots is not the failure this guards against.
+  it should "delay each tuple by the configured number of seconds" in {
+    val exec = new SleepOpExec(descString(1))
+    val startNanos = System.nanoTime()
+    val emitted = exec.processTuple(tuple(1), 0).toList
+    val elapsedMillis = (System.nanoTime() - startNanos) / 1000000
+    assert(emitted == List(tuple(1)))
+    assert(elapsedMillis >= 1000, s"expected at least 1000 ms of sleep, took $elapsedMillis ms")
+  }
 }

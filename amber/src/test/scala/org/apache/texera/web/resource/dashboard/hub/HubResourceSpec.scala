@@ -129,6 +129,12 @@ class HubResourceSpec
   // ---------------------------------------------------------------------------
 
   private val thirdUid = 9003
+  // Owners inside the default java.lang.Integer autoboxing cache (-128..127), where
+  // reference equality on boxed values happens to agree with value equality. The
+  // 9001-9003 uids above sit outside it.
+  private val cachedUid = 42
+  private val lastCachedUid = 127
+  private val firstUncachedUid = 128
   private val Ds: EntityType = EntityType.Dataset
   private val Md: EntityType = EntityType.Model
 
@@ -377,6 +383,9 @@ class HubResourceSpec
     // A third liker, needed by the ranking cases below to make "most liked" a
     // strict order (3 > 2 > 1) rather than a tie between two users' likes.
     userDao.insert(makeUser(thirdUid, "hub_third"))
+    userDao.insert(makeUser(cachedUid, "hub_cached_uid"))
+    userDao.insert(makeUser(lastCachedUid, "hub_uid_127"))
+    userDao.insert(makeUser(firstUncachedUid, "hub_uid_128"))
 
     val wf = new Workflow
     wf.setWid(Integer.valueOf(wid))
@@ -940,6 +949,31 @@ class HubResourceSpec
     byEntity shouldBe Map((Wf, 810805) -> 1, (Ds, 820802) -> 2)
   }
 
+  "versionedResourcesByIdsQuery" should "carry only the viewer's own grant, never another user's" in {
+    val did = seedDataset(820860, "ds_two_grants")
+    for ((uid, privilege) <- Seq(ownerUid -> PrivilegeEnum.WRITE, likerUid -> PrivilegeEnum.READ)) {
+      getDSLContext
+        .insertInto(DATASET_USER_ACCESS)
+        .set(DATASET_USER_ACCESS.DID, did)
+        .set(DATASET_USER_ACCESS.UID, Integer.valueOf(uid))
+        .set(DATASET_USER_ACCESS.PRIVILEGE, privilege)
+        .execute()
+    }
+    val tables = VersionedResourceTables.DatasetTables
+    def grantsSeenBy(uid: Integer): Seq[PrivilegeEnum] =
+      HubResource
+        .versionedResourcesByIdsQuery(tables, Seq(did), uid)
+        .fetch()
+        .asScala
+        .map(_.get(DATASET_USER_ACCESS.PRIVILEGE))
+        .toSeq
+
+    grantsSeenBy(Integer.valueOf(likerUid)) shouldBe Seq(PrivilegeEnum.READ)
+    // A user with no grant, and an anonymous viewer, see one row with no grant at all.
+    grantsSeenBy(Integer.valueOf(thirdUid)) shouldBe Seq(null)
+    grantsSeenBy(null) shouldBe Seq(null)
+  }
+
   "getTops" should "list the liked public entity under the 'like' key" in {
     recordLikeAction(req, Integer.valueOf(likerUid), UserRequest(wid, Wf), isLike = true)
 
@@ -1137,18 +1171,81 @@ class HubResourceSpec
     entry.coverImage shouldBe empty
   }
 
-  // NOTE: `isOwner == true` is deliberately not asserted anywhere. WorkflowResource's
-  // mapWorkflowEntries compares the two uids with `AnyRef.eq` (reference equality on
-  // boxed Integers), so it is true only for uids that land in the java.lang.Integer
-  // cache (-128..127); this suite's uids (9001-9003) are outside it, so the owner's own
-  // request reports false today. Asserting it either way would either cement that bug or
-  // force this suite onto unrealistically small uids. The two negatives below hold for
-  // the current implementation and for a value-equality fix alike.
+  // mapWorkflowEntries compares two boxed Integers, so the owner's own request must be
+  // recognised on both sides of the default Integer cache (-128..127).
+  it should "set isOwner for the owner's own request when the uid is outside the Integer cache" in {
+    val id = seedWorkflow(811003, "wf_mine_uncached", owner = ownerUid)
+
+    fetchDashboardWorkflowsByWids(Seq(id), Integer.valueOf(ownerUid)).head.isOwner shouldBe true
+  }
+
+  it should "set isOwner for the owner's own request when the uid is inside the Integer cache" in {
+    val id = seedWorkflow(811004, "wf_mine_cached", owner = cachedUid)
+
+    fetchDashboardWorkflowsByWids(Seq(id), Integer.valueOf(cachedUid)).head.isOwner shouldBe true
+  }
+
+  // The boundary itself: 127 is the last cached value and 128 the first uncached one.
+  it should "set isOwner for the highest uid inside the Integer cache (127)" in {
+    val id = seedWorkflow(811006, "wf_mine_uid_127", owner = lastCachedUid)
+
+    fetchDashboardWorkflowsByWids(
+      Seq(id),
+      Integer.valueOf(lastCachedUid)
+    ).head.isOwner shouldBe true
+  }
+
+  it should "set isOwner for the lowest uid outside the Integer cache (128)" in {
+    val id = seedWorkflow(811007, "wf_mine_uid_128", owner = firstUncachedUid)
+
+    fetchDashboardWorkflowsByWids(
+      Seq(id),
+      Integer.valueOf(firstUncachedUid)
+    ).head.isOwner shouldBe true
+  }
+
   it should "clear isOwner for a different uid and for an anonymous (null) uid" in {
     val id = seedWorkflow(811002, "wf_not_mine", owner = ownerUid)
 
     fetchDashboardWorkflowsByWids(Seq(id), Integer.valueOf(likerUid)).head.isOwner shouldBe false
     fetchDashboardWorkflowsByWids(Seq(id), null).head.isOwner shouldBe false
+  }
+
+  // workflow_of_user is LEFT JOINed, so a workflow with no ownership row has a null owner
+  // uid. For the anonymous caller both uids
+  // are null, and Scala's `==` treats two nulls as equal, so the `uid != null` guard in
+  // mapWorkflowEntries is what keeps that one false.
+  it should "clear isOwner for a workflow with no ownership row, for an authenticated and an anonymous caller" in {
+    val id = seedWorkflow(811005, "wf_unowned", withOwnerRows = false)
+    grantWorkflowAccess(id, ownerUid, PrivilegeEnum.READ)
+
+    val entry = fetchDashboardWorkflowsByWids(Seq(id), Integer.valueOf(ownerUid)).head
+    entry.ownerId shouldBe null
+    entry.isOwner shouldBe false
+    fetchDashboardWorkflowsByWids(Seq(id), null).head.isOwner shouldBe false
+  }
+
+  it should "return one entry per workflow, carrying only the viewer's access level" in {
+    val id = seedWorkflow(811008, "wf_shared_twice")
+    grantWorkflowAccess(id, likerUid, PrivilegeEnum.READ)
+    grantWorkflowAccess(id, thirdUid, PrivilegeEnum.WRITE)
+
+    def levelsSeenBy(uid: Integer) =
+      fetchDashboardWorkflowsByWids(Seq(id), uid).map(_.accessLevel)
+    levelsSeenBy(Integer.valueOf(likerUid)) shouldBe List("READ")
+    levelsSeenBy(Integer.valueOf(cachedUid)) shouldBe List("NONE")
+    levelsSeenBy(null) shouldBe List("NONE")
+  }
+
+  it should "report WRITE for the owner even without an access row" in {
+    val id = seedWorkflow(811009, "wf_owner_row_removed")
+    getDSLContext
+      .deleteFrom(WORKFLOW_USER_ACCESS)
+      .where(WORKFLOW_USER_ACCESS.WID.eq(id))
+      .execute()
+
+    fetchDashboardWorkflowsByWids(Seq(id), Integer.valueOf(ownerUid)).map(_.accessLevel) shouldBe
+      List("WRITE")
   }
 
   // Every resolved id hits LakeFS, so an empty list is the only input testable without one.

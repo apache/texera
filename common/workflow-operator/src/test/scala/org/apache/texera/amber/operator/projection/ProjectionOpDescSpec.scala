@@ -229,6 +229,44 @@ class ProjectionOpDescSpec extends AnyFlatSpec with BeforeAndAfter {
     assert(drop.generateStandaloneCode() == """out1df = in1df.drop(columns=["a"])""")
   }
 
+  // The engine reads `FIELD1` from a column `field1`, since Schema ignores case, and
+  // names the kept column as the setting writes it. pandas would raise a KeyError on
+  // `FIELD1`, so the script reads the column as the table spells it.
+  it should "read a column named in a different case from the table" in {
+    val inputSchemas = Map(PortIdentity() -> schema)
+
+    val keep = new ProjectionOpDesc
+    keep.attributes = List(new AttributeUnit("FIELD1", ""), new AttributeUnit("Field2", "f2"))
+    assert(
+      keep.generateStandaloneCode(inputSchemas) ==
+        """out1df = in1df[["field1", "field2"]].set_axis(["FIELD1", "f2"], axis=1)"""
+    )
+
+    val drop = new ProjectionOpDesc
+    drop.attributes = List(new AttributeUnit("FIELD1", ""))
+    drop.isDrop = true
+    assert(
+      drop.generateStandaloneCode(inputSchemas) == """out1df = in1df.drop(columns=["field1"])"""
+    )
+  }
+
+  // `field1` as `first` and `FIELD1` as `second` read the same column. The engine
+  // keeps both, in order; a rename map keyed by `field1` would keep only `second`,
+  // twice. So the script names the output columns by position.
+  it should "keep both aliases of one column read twice" in {
+    val keep = new ProjectionOpDesc
+    keep.attributes =
+      List(new AttributeUnit("field1", "first"), new AttributeUnit("FIELD1", "second"))
+    assert(
+      keep.getExternalOutputSchemas(Map(PortIdentity() -> schema)).values.head.getAttributeNames ==
+        List("first", "second")
+    )
+    assert(
+      keep.generateStandaloneCode(Map(PortIdentity() -> schema)) ==
+        """out1df = in1df[["field1", "field1"]].set_axis(["first", "second"], axis=1)"""
+    )
+  }
+
   // Schema propagation and the executor both refuse an empty selection, so the
   // script stops where a run would have. Passing the frame through would answer
   // with data a run never produces.

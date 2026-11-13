@@ -62,6 +62,7 @@ class NotebookMigrationService
       configuration: NotebookMigrationServiceConfiguration,
       environment: Environment
   ): Unit = {
+    org.apache.texera.observability.OtelInit.init("notebook-migration-service")
     // Refuse to boot a misconfigured per-user Jupyter rather than failing per request.
     JupyterTokenDeriver.validateConfiguration()
 

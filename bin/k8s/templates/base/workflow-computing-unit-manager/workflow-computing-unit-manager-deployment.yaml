@@ -32,10 +32,13 @@ spec:
       labels:
         app: {{ .Release.Name }}-{{ .Values.workflowComputingUnitManager.name }}
     spec:
+      {{- if .Values.global.texeraMicroServiceRuntimeClass }}
+      runtimeClassName: {{ .Values.global.texeraMicroServiceRuntimeClass | quote }}
+      {{- end }}      
       serviceAccountName: {{ .Values.workflowComputingUnitManager.serviceAccountName }}
       initContainers:
         - name: wait-lakekeeper
-          image: curlimages/curl:latest
+          image: curlimages/curl:8.22.0
           command:
             - /bin/sh
             - -c
@@ -149,3 +152,4 @@ spec:
             - name: {{ .name }}
               value: "{{ .value }}"
             {{- end }}
+            {{- include "texera.observability.env" . | nindent 12 }}

@@ -26,10 +26,6 @@
   justify-content: left;
 }
 
-td.data-size {
-  font-size: 12px;
-}
-
 th.header-size {
   font-size: 14px;
   padding: 2px;
@@ -76,17 +72,6 @@ th.header-size {
   text-align: right;
 }
 
-.borderless-button {
-  border: none;
-  background: none;
-  padding: 0;
-  margin: 0;
-  cursor: pointer;
-  &:hover {
-    background-color: rgba(0, 0, 0, 0.05);
-  }
-}
-
 .table-cell {
   position: relative;
   padding-right: 28px;
@@ -127,18 +112,6 @@ th.header-size {
   }
 }
 
-.table-footer {
-  display: flex;
-  justify-content: flex-end;
-  margin-top: 16px;
-}
-
 .table-container {
   position: relative;
-}
-
-.download-all-button {
-  position: absolute;
-  bottom: 16px;
-  right: 0;
 }

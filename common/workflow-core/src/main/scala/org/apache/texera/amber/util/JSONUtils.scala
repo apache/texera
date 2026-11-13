@@ -25,6 +25,7 @@ import com.fasterxml.jackson.databind.module.SimpleModule
 import com.fasterxml.jackson.databind.{JsonNode, ObjectMapper}
 import com.fasterxml.jackson.module.noctordeser.NoCtorDeserModule
 import com.fasterxml.jackson.module.scala.DefaultScalaModule
+import org.apache.texera.amber.core.state.StateReferenceModule
 import org.apache.texera.amber.core.workflow.PortIdentity
 import org.apache.texera.amber.util.serde.{PortIdentityKeyDeserializer, PortIdentityKeySerializer}
 
@@ -45,6 +46,10 @@ object JSONUtils {
     @JsonIgnore def isEmpty: Boolean
     @JsonIgnore def isDefined: Boolean
   }
+
+  /** Registers what any mapper parsing workflows (Dropwizard's too) needs: Scala types and `$K`. */
+  def registerWorkflowModules(mapper: ObjectMapper): ObjectMapper =
+    mapper.registerModule(DefaultScalaModule).registerModule(new StateReferenceModule())
 
   /**
     * A singleton object for configuring the Jackson `ObjectMapper` to handle JSON serialization and deserialization
@@ -68,8 +73,7 @@ object JSONUtils {
     * This `ObjectMapper` provides a consistent way to serialize and deserialize JSON while adhering to Scala conventions
     * and handling common patterns like `Option` and case classes.
     */
-  final val objectMapper = new ObjectMapper()
-    .registerModule(DefaultScalaModule)
+  final val objectMapper = registerWorkflowModules(new ObjectMapper())
     .registerModule(new NoCtorDeserModule())
     .registerModule(
       new SimpleModule()

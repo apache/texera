@@ -142,4 +142,32 @@ class SklearnModelOpDescSpec extends AnyFlatSpec with Matchers {
     }
     d.getOutputSchemas(Map.empty).keySet shouldBe Set(d.operatorInfo.outputPorts.head.id)
   }
+
+  it should "reject the target named as a text column" in {
+    val d = new TestSklearnModelOpDesc
+    d.countVectorizer = true
+    d.target = "species"
+    d.text = List("note", "species")
+    val thrown = intercept[RuntimeException](d.getOutputSchemas(Map.empty))
+    thrown.getMessage should include("species")
+    thrown.getMessage should include("Target Attribute")
+    thrown.getMessage should include("Text Attribute")
+  }
+
+  it should "let the text columns through while none of them is the target" in {
+    val d = new TestSklearnModelOpDesc
+    d.countVectorizer = true
+    d.target = "species"
+    d.text = List("note")
+    d.getOutputSchemas(Map.empty).keySet shouldBe Set(d.operatorInfo.outputPorts.head.id)
+  }
+
+  it should "leave a stale text column alone while Count Vectorizer is off" in {
+    // Nothing reads `text` with the switch off, and the panel hides it, so a value
+    // left behind by an earlier configuration must not report the operator invalid.
+    val d = new TestSklearnModelOpDesc
+    d.target = "species"
+    d.text = List("species")
+    d.getOutputSchemas(Map.empty).keySet shouldBe Set(d.operatorInfo.outputPorts.head.id)
+  }
 }

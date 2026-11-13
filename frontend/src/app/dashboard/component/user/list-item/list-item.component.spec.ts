@@ -28,7 +28,7 @@ import {
 import { HttpClientTestingModule } from "@angular/common/http/testing";
 import { NzModalService } from "ng-zorro-antd/modal";
 import { of, Subject, throwError } from "rxjs";
-import { ActionType, HubService } from "../../../../hub/service/hub.service";
+import { ActionType, EntityType, HubService } from "../../../../hub/service/hub.service";
 import { BrowserAnimationsModule } from "@angular/platform-browser/animations";
 import { RouterTestingModule } from "@angular/router/testing";
 import { StubUserService } from "../../../../common/service/user/stub-user.service";
@@ -46,6 +46,20 @@ import {
   USER_DATASET,
   USER_WORKSPACE,
 } from "../../../../app-routing.constant";
+import { ResourceRegistryService } from "../../../service/user/resource-registry/resource-registry.service";
+
+/**
+ * Makes the registry answer every lookup with a descriptor that has none of the optional
+ * capabilities. Every shipped kind can be shared and downloaded, so the checks for those
+ * capabilities need one that cannot.
+ */
+function stubBareDescriptor(): void {
+  vi.spyOn(TestBed.inject(ResourceRegistryService), "get").mockReturnValue({
+    type: EntityType.Workflow,
+    iconType: "project",
+    isOwner: () => true,
+  });
+}
 
 describe("ListItemComponent", () => {
   let component: ListItemComponent;
@@ -519,9 +533,6 @@ describe("ListItemComponent", () => {
 
       feed(entryOf({ type: "dataset", dataset: { isOwner: true } }));
       expect(component.iconType).toBe("database");
-
-      feed(entryOf({ type: "file" }));
-      expect(component.iconType).toBe("folder-open");
     });
 
     it("refuses an entry kind it does not know", () => {
@@ -538,13 +549,19 @@ describe("ListItemComponent", () => {
     });
 
     it("reduces a description to a plain preview, and blanks an empty one", () => {
-      feed(entryOf({ type: "file", description: undefined }));
+      feed(entryOf({ type: "dataset", dataset: { isOwner: true }, description: undefined }));
       expect(component.renderedDescription).toBe("");
 
-      feed(entryOf({ type: "file", description: "   " }));
+      feed(entryOf({ type: "dataset", dataset: { isOwner: true }, description: "   " }));
       expect(component.renderedDescription).toBe("");
 
-      feed(entryOf({ type: "file", description: "# Title with [a link](http://x)  and\n*emphasis*" }));
+      feed(
+        entryOf({
+          type: "dataset",
+          dataset: { isOwner: true },
+          description: "# Title with [a link](http://x)  and\n*emphasis*",
+        })
+      );
       expect(component.renderedDescription).toBe("Title with a link and emphasis");
     });
 
@@ -596,7 +613,8 @@ describe("ListItemComponent", () => {
 
       it("opens nothing for an entry kind that cannot be shared", async () => {
         const create = vi.spyOn(modalService, "create");
-        feed(entryOf({ type: "file" }));
+        stubBareDescriptor();
+        feed(entryOf({ type: "workflow", workflow: { isOwner: true } }));
 
         await component.onClickOpenShareAccess();
 
@@ -669,7 +687,7 @@ describe("ListItemComponent", () => {
     });
 
     it("ignores a change that is not the entry", () => {
-      feed(entryOf({ type: "file", description: "kept" }));
+      feed(entryOf({ type: "dataset", dataset: { isOwner: true }, description: "kept" }));
       const before = component.renderedDescription;
 
       component.ngOnChanges({ editable: {} as any });
@@ -722,7 +740,7 @@ describe("ListItemComponent", () => {
 
       it("downloads nothing for an entry that was never persisted", () => {
         const workflow = vi.spyOn(TestBed.inject(DownloadService), "downloadWorkflow");
-        feed(entryOf({ type: "file", id: 0 }));
+        feed(entryOf({ type: "workflow", id: 0, workflow: { isOwner: true } }));
 
         component.onClickDownload();
 
@@ -877,7 +895,7 @@ describe("ListItemComponent", () => {
       expect(deleted).toBe(1);
     });
 
-    it("offers the download button to workflows and datasets only", () => {
+    it("offers the download button only to kinds that can be downloaded", () => {
       const download = vi.spyOn(component, "onClickDownload").mockImplementation(() => {});
 
       render();
@@ -887,7 +905,8 @@ describe("ListItemComponent", () => {
       render({ type: "dataset" });
       expect(button("Download")).not.toBeNull();
 
-      render({ type: "file" });
+      stubBareDescriptor();
+      render();
       expect(button("Download")).toBeNull();
     });
 

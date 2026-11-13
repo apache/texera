@@ -102,7 +102,6 @@ export class ComputingUnitCreateModalComponent implements OnInit, OnChanges {
   selectedGpu: string = "0"; // Default to no GPU
   selectedJvmMemorySize: string = "1G"; // Initial JVM memory size
   selectedComputingUnitType?: WorkflowComputingUnitType; // Selected computing unit type
-  selectedShmSize: string = "64Mi"; // Shared memory size
   shmSizeValue: number = DEFAULT_SHM_SIZE_VALUE;
   shmSizeUnit: "Mi" | "Gi" = DEFAULT_SHM_SIZE_UNIT;
   availableComputingUnitTypes: WorkflowComputingUnitType[] = [];

@@ -40,6 +40,7 @@ import org.apache.texera.amber.engine.common.AmberRuntime
 import org.apache.texera.amber.engine.common.client.AmberClient
 import org.apache.texera.amber.engine.common.virtualidentity.util.COORDINATOR
 import org.apache.texera.amber.engine.e2e.TestUtils.buildWorkflow
+import org.apache.texera.amber.operator.LogicalOp
 import org.apache.texera.amber.operator.TestOperators
 import org.apache.texera.amber.util.VirtualIdentityUtils
 import org.apache.texera.common.config.ApplicationConfig
@@ -559,7 +560,7 @@ class ComputingUnitMasterSpec
     )
   }
 
-  it should "register the Scala module on the bootstrap object mapper" in {
+  it should "register the Scala and loop-variable modules on the bootstrap object mapper" in {
     val bootstrap = new Bootstrap[Configuration](master)
 
     master.initialize(bootstrap)
@@ -567,6 +568,10 @@ class ComputingUnitMasterSpec
     bootstrap.getObjectMapper.getRegisteredModuleIds.asScala should contain(
       com.fasterxml.jackson.module.scala.DefaultScalaModule.getClass.getName
     )
+    // Jersey parses SyncExecutionResource's request body, a typed '$n' included, with this mapper.
+    bootstrap.getObjectMapper
+      .readValue("""{"limit":"$n","operatorType":"Limit"}""", classOf[LogicalOp])
+      .stateReferences shouldBe Map("/limit" -> "n")
   }
 
   "run" should "serve the Jersey resources under the /api prefix" in {

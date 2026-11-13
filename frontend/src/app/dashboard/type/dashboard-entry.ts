@@ -17,14 +17,12 @@
  * under the License.
  */
 
-import { DashboardFile } from "./dashboard-file.interface";
 import { DashboardWorkflow } from "./dashboard-workflow.interface";
 import { DashboardDataset } from "./dashboard-dataset.interface";
 import { DashboardModel } from "./dashboard-model.interface";
 import { DashboardWorkflowComputingUnit } from "../../common/type/workflow-computing-unit";
 import {
   isDashboardDataset,
-  isDashboardFile,
   isDashboardModel,
   isDashboardWorkflow,
   isDashboardWorkflowComputingUnit,
@@ -57,9 +55,7 @@ export class DashboardEntry {
   accessibleUserIds: number[];
   coverImageUrl?: string;
 
-  constructor(
-    public value: DashboardWorkflow | DashboardFile | DashboardDataset | DashboardModel | DashboardWorkflowComputingUnit
-  ) {
+  constructor(public value: DashboardWorkflow | DashboardDataset | DashboardModel | DashboardWorkflowComputingUnit) {
     if (isDashboardWorkflow(value)) {
       this.type = EntityType.Workflow;
       this.id = value.workflow.wid;
@@ -79,24 +75,6 @@ export class DashboardEntry {
       this.isLiked = false;
       this.accessibleUserIds = [];
       this.coverImageUrl = value.coverImage ?? undefined;
-    } else if (isDashboardFile(value)) {
-      this.type = EntityType.File;
-      this.id = value.file.fid;
-      this.name = value.file.name;
-      this.description = value.file.description;
-      this.creationTime = value.file.uploadTime;
-      this.lastModifiedTime = value.file.uploadTime;
-      this.accessLevel = value.accessLevel;
-      this.ownerName = "";
-      this.ownerEmail = value.ownerEmail;
-      this.ownerAvatar = "";
-      this.ownerId = value.file.ownerUid;
-      this.size = value.file.size;
-      this.viewCount = 0;
-      this.cloneCount = 0;
-      this.likeCount = 0;
-      this.isLiked = false;
-      this.accessibleUserIds = [];
     } else if (isDashboardDataset(value)) {
       this.type = EntityType.Dataset;
       this.id = value.dataset.did;
@@ -183,13 +161,6 @@ export class DashboardEntry {
   get workflow(): DashboardWorkflow {
     if (!isDashboardWorkflow(this.value)) {
       throw new Error("Value is not of type DashboardWorkflow.");
-    }
-    return this.value;
-  }
-
-  get file(): DashboardFile {
-    if (!isDashboardFile(this.value)) {
-      throw new Error("Value is not of type DashboardFile.");
     }
     return this.value;
   }

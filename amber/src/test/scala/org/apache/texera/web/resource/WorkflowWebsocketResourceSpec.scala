@@ -284,7 +284,9 @@ class WorkflowWebsocketResourceSpec
         request.operatorID,
         request.pageIndex,
         List(objectMapper.createObjectNode().put("c", 5)),
-        List(new Attribute("c", AttributeType.INTEGER))
+        List(new Attribute("c", AttributeType.INTEGER)),
+        request.portIndex,
+        1
       )
     }
   }
@@ -326,6 +328,7 @@ class WorkflowWebsocketResourceSpec
       executeRequest,
       new ExecutionStateStore(),
       (_: Throwable) => (),
+      Integer.valueOf(1), // uid; these tests never resolve a file
       None,
       new URI("vfs:///test")
     )

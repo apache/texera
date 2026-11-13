@@ -22,6 +22,7 @@ package org.apache.texera.web.resource.dashboard
 import com.typesafe.scalalogging.LazyLogging
 import org.apache.texera.amber.core.storage.util.LakeFSStorageClient
 import org.apache.texera.dao.jooq.generated.Tables.{DATASET, MODEL}
+import org.apache.texera.auth.util.OwnerAccess
 import org.apache.texera.dao.jooq.generated.enums.PrivilegeEnum
 import org.apache.texera.dao.jooq.generated.tables.User.USER
 import org.apache.texera.dao.jooq.generated.tables.pojos.{Dataset, Model, User}
@@ -34,6 +35,7 @@ import org.apache.texera.web.resource.dashboard.hub.EntityTables.{AccessTable, B
 import org.apache.texera.web.resource.dashboard.user.dataset.DatasetResource.DashboardDataset
 import org.apache.texera.web.resource.dashboard.user.model.ModelResource.DashboardModel
 import org.jooq._
+import org.jooq.impl.DSL
 
 import java.sql.Timestamp
 
@@ -84,19 +86,25 @@ trait VersionedResourceTables[Rec <: Record, P] extends BaseEntityTable with Laz
       .on(USER.UID.eq(ownerUidColumn))
   }
 
+  /** The access join narrowed to `uid`'s own grant, or to none for an anonymous viewer. */
+  final def joinWithViewerAccessAndOwner(uid: Integer): Table[Record] =
+    joinWithAccessAndOwner(
+      Some(if (uid == null) DSL.falseCondition() else access.uidColumn.eq(uid))
+    )
+
   /** `None` when LakeFS cannot size the resource; callers drop it and report a mismatch. */
   final def hydrate(
       record: Record,
       uid: Integer
   ): Option[(Integer, DashboardClickableFileEntry)] = {
     val resource = pojo(record)
+    val isOwner = ownerUidOf(resource) == uid
     repositorySize(resource).map { size =>
       idOf(resource) -> entry(
         resource,
         record.into(USER).into(classOf[User]).getEmail,
-        Option(record.get(access.privilegeColumn, classOf[PrivilegeEnum]))
-          .getOrElse(PrivilegeEnum.NONE),
-        ownerUidOf(resource) == uid,
+        OwnerAccess.privilege(isOwner, record.get(access.privilegeColumn, classOf[PrivilegeEnum])),
+        isOwner,
         size
       )
     }

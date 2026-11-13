@@ -156,7 +156,7 @@
             <td nzEllipsis>
               <i
                 (click)="onBookmarkToggle(row)"
-                [nzTheme]="(row.bookmarked || currentlyHoveredExecution === row) ? 'fill' : 'outline'"
+                [nzTheme]="row.bookmarked ? 'fill' : 'outline'"
                 class="bookmark-icon"
                 nz-icon
                 nzType="star"></i>

@@ -19,7 +19,7 @@
 
 import { describe, expect, test } from "bun:test";
 import { WorkflowState } from "./workflow-state";
-import type { OperatorPredicate, OperatorLink, ValidationError, WorkflowContent } from "../types/workflow";
+import type { OperatorPredicate, OperatorLink, WorkflowContent } from "../types/workflow";
 
 function makeOperator(id: string, overrides: Partial<OperatorPredicate> = {}): OperatorPredicate {
   return {
@@ -90,16 +90,16 @@ describe("WorkflowState - operators", () => {
 });
 
 describe("WorkflowState - links", () => {
-  test("add, get, and delete link", () => {
+  test("add and delete link", () => {
     const state = new WorkflowState();
     state.addOperator(makeOperator("op1"));
     state.addOperator(makeOperator("op2"));
     const link = makeLink("l1", "op1", "op2");
     state.addLink(link);
 
-    expect(state.getLink("l1")).toEqual(link);
+    expect(state.getAllLinks()).toEqual([link]);
     expect(state.deleteLink("l1")).toBe(true);
-    expect(state.getLink("l1")).toBeUndefined();
+    expect(state.getAllLinks()).toEqual([]);
   });
 
   test("getLinksConnectedToOperator returns both inbound and outbound", () => {
@@ -238,132 +238,10 @@ describe("WorkflowState - traversal", () => {
     return state;
   }
 
-  test("getFrontierOperators returns the leaf operators at depth 1", () => {
-    // op3 is the only operator that is not the source of a link
-    expect(seedChain().getFrontierOperators(1)).toEqual(["op3"]);
-  });
-
-  test("getFrontierOperators expands one hop upstream per depth, topologically ordered", () => {
-    const state = seedChain();
-    expect(state.getFrontierOperators(2)).toEqual(["op2", "op3"]);
-    expect(state.getFrontierOperators(3)).toEqual(["op1", "op2", "op3"]);
-  });
-
-  test("getFrontierOperators returns an empty list for an empty workflow", () => {
-    expect(new WorkflowState().getFrontierOperators(3)).toEqual([]);
-  });
-
   test("getSubDAG collects the target and every upstream operator and link", () => {
     const sub = seedChain().getSubDAG("op3");
     expect(sub.operators.map(o => o.operatorID).sort()).toEqual(["op1", "op2", "op3"]);
     expect(sub.links.map(l => l.linkID).sort()).toEqual(["l1", "l2"]);
-  });
-});
-
-describe("WorkflowState - validation state", () => {
-  const err = (message: string): ValidationError => ({ isValid: false, messages: { general: message } });
-
-  test("setValidationError stores and getValidationOutput aggregates; clearValidationError removes", () => {
-    const state = new WorkflowState();
-
-    state.setValidationError("op1", err("bad"));
-    expect(state.getValidationOutput().errors).toEqual({ op1: err("bad") });
-
-    state.clearValidationError("op1");
-    expect(state.getValidationOutput().errors).toEqual({});
-  });
-
-  test("setAllValidationErrors replaces the map and recomputes the empty-state flag", () => {
-    const state = new WorkflowState();
-    state.addOperator(makeOperator("op1"));
-
-    state.setAllValidationErrors({ op1: err("x") });
-
-    const out = state.getValidationOutput();
-    expect(out.errors).toEqual({ op1: err("x") });
-    expect(out.workflowEmpty).toBe(false); // one enabled operator present
-  });
-
-  test("workflowEmpty is true with no operators and when every operator is disabled", () => {
-    const state = new WorkflowState();
-
-    state.setAllValidationErrors({});
-    expect(state.getValidationOutput().workflowEmpty).toBe(true);
-
-    state.addOperator(makeOperator("op1", { isDisabled: true }));
-    state.setAllValidationErrors({});
-    expect(state.getValidationOutput().workflowEmpty).toBe(true);
-  });
-
-  test("getValidationChangedStream emits the aggregated output on every mutation", () => {
-    const state = new WorkflowState();
-    const emitted: Array<ReturnType<WorkflowState["getValidationOutput"]>> = [];
-    state.getValidationChangedStream().subscribe(v => emitted.push(v));
-
-    state.setValidationError("op1", err("x"));
-    state.clearValidationError("op1");
-
-    expect(emitted).toHaveLength(2);
-    expect(emitted[0].errors).toEqual({ op1: err("x") });
-    expect(emitted[1].errors).toEqual({});
-  });
-});
-
-describe("WorkflowState - updateOperatorInputPorts", () => {
-  test("rebuilds the input ports to the requested count, flagging the extras dynamic", () => {
-    const state = new WorkflowState();
-    state.addOperator(makeOperator("op1"));
-
-    expect(state.updateOperatorInputPorts("op1", 3)).toBe(true);
-
-    const ports = state.getOperator("op1")!.inputPorts;
-    expect(ports.map(p => p.portID)).toEqual(["input-0", "input-1", "input-2"]);
-    expect(ports[0].isDynamicPort).toBe(false); // port 0 is static
-    expect(ports[1].isDynamicPort).toBe(true); // extra ports are dynamic
-  });
-
-  test("reducing the count drops the extra ports", () => {
-    const state = new WorkflowState();
-    state.addOperator(
-      makeOperator("op1", {
-        inputPorts: [
-          { portID: "input-0", displayName: "Input 0" },
-          { portID: "input-1", displayName: "Input 1" },
-        ],
-      })
-    );
-
-    state.updateOperatorInputPorts("op1", 1);
-
-    expect(state.getOperator("op1")!.inputPorts.map(p => p.portID)).toEqual(["input-0"]);
-  });
-
-  test("returns false for a missing operator", () => {
-    expect(new WorkflowState().updateOperatorInputPorts("missing", 2)).toBe(false);
-  });
-
-  test("removes links targeting input ports that are dropped", () => {
-    const state = new WorkflowState();
-
-    state.addOperator(makeOperator("src"));
-    state.addOperator(
-      makeOperator("op1", {
-        inputPorts: [
-          { portID: "input-0", displayName: "Input 0" },
-          { portID: "input-1", displayName: "Input 1" },
-        ],
-      })
-    );
-
-    state.addLink({
-      linkID: "l1",
-      source: { operatorID: "src", portID: "output-0" },
-      target: { operatorID: "op1", portID: "input-1" },
-    });
-
-    state.updateOperatorInputPorts("op1", 1);
-
-    expect(state.getAllLinks().map(l => l.linkID)).toEqual([]);
   });
 });
 

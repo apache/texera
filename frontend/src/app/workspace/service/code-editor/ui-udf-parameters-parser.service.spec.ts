@@ -194,7 +194,7 @@ describe("UiUdfParametersParserService", () => {
       pythonClass('self.UiParameter("label", AttributeType.STRING)', "MyWrappedTupleOp", "ProcessTupleOperator"),
     ].join("\n");
 
-    expect(service.parse(code)).toEqual([]);
+    expect(service.parse(code, "python")).toEqual([]);
   });
 
   it("should parse supported UiParameter calls when unsupported classes are present", () => {
@@ -203,7 +203,7 @@ describe("UiUdfParametersParserService", () => {
       pythonClass('self.UiParameter("ignored", AttributeType.STRING)', "RandomClass", "ABC"),
     ].join("\n");
 
-    expect(service.parse(code)).toEqual([parameter("threshold", "double")]);
+    expect(service.parse(code, "python")).toEqual([parameter("threshold", "double")]);
   });
 
   [
@@ -350,7 +350,7 @@ describe("UiUdfParametersParserService.computeParameterInsertion", () => {
       const updatedCode = insertParameter(service, input, name, attributeType);
 
       expect(updatedCode).toBe(expected);
-      expect(service.parse(updatedCode).map(parsed => parsed.attribute.attributeName)).toContain(name);
+      expect(service.parse(updatedCode, "python").map(parsed => parsed.attribute.attributeName)).toContain(name);
     });
   });
 
@@ -361,7 +361,7 @@ describe("UiUdfParametersParserService.computeParameterInsertion", () => {
 
     expect(code).toContain('self.my_param_1 = self.UiParameter(name="my param-1", type=AttributeType.TIMESTAMP).value');
     expect(code).toContain('self.class_ = self.UiParameter(name="class", type=AttributeType.DOUBLE).value');
-    expect(service.parse(code)).toEqual([
+    expect(service.parse(code, "python")).toEqual([
       { attribute: { attributeName: "class", attributeType: "double" }, value: "" },
       { attribute: { attributeName: "my param-1", attributeType: "timestamp" }, value: "" },
     ]);
@@ -395,8 +395,10 @@ describe("UiUdfParametersParserService.computeParameterInsertion", () => {
     ] as ReadonlyArray<readonly [string, string, string, AttributeType, string]>
   ).forEach(([description, code, name, attributeType, message]) => {
     it(`should raise an error for ${description}`, () => {
-      expect(() => service.computeParameterInsertion(code, name, attributeType)).toThrow(UiUdfParametersEditError);
-      expect(() => service.computeParameterInsertion(code, name, attributeType)).toThrow(message);
+      expect(() => service.computeParameterInsertion(code, name, attributeType, "python")).toThrow(
+        UiUdfParametersEditError
+      );
+      expect(() => service.computeParameterInsertion(code, name, attributeType, "python")).toThrow(message);
     });
   });
 });
@@ -412,16 +414,18 @@ describe("UiUdfParametersParserService degenerate sources", () => {
   });
 
   it("should return no parameters for empty or whitespace-only source", () => {
-    expect(service.parse("")).toEqual([]);
-    expect(service.parse("   \n\t\n")).toEqual([]);
+    expect(service.parse("", "python")).toEqual([]);
+    expect(service.parse("   \n\t\n", "python")).toEqual([]);
   });
 
   it("should return no parameters when the class has no body", () => {
-    expect(service.parse("class ProcessTupleOperator(UDFOperatorV2):")).toEqual([]);
+    expect(service.parse("class ProcessTupleOperator(UDFOperatorV2):", "python")).toEqual([]);
   });
 
   it("should return no parameters when open() has no body", () => {
-    expect(service.parse(pythonLines("class ProcessTupleOperator(UDFOperatorV2):", "    def open(self):"))).toEqual([]);
+    expect(
+      service.parse(pythonLines("class ProcessTupleOperator(UDFOperatorV2):", "    def open(self):"), "python")
+    ).toEqual([]);
   });
 
   it("should insert into an open() that holds a single statement", () => {
@@ -430,7 +434,7 @@ describe("UiUdfParametersParserService degenerate sources", () => {
 
     const updated = insertParameter(service, code, "threshold");
 
-    expect(service.parse(updated).map(p => p.attribute.attributeName)).toEqual(["threshold"]);
+    expect(service.parse(updated, "python").map(p => p.attribute.attributeName)).toEqual(["threshold"]);
   });
 
   it("should sanitize a punctuation-only name into a usable identifier", () => {
@@ -460,7 +464,7 @@ describe("UiUdfParametersParserService degenerate sources", () => {
 
     const updated = insertParameter(service, code, "threshold");
 
-    expect(service.parse(updated).map(p => p.attribute.attributeName)).toEqual(["threshold"]);
+    expect(service.parse(updated, "python").map(p => p.attribute.attributeName)).toEqual(["threshold"]);
   });
 
   it("should ignore a UiParameter call that is not reached through self", () => {
@@ -470,7 +474,7 @@ describe("UiUdfParametersParserService degenerate sources", () => {
       '        other.UiParameter(name="x", type=AttributeType.DOUBLE)'
     );
 
-    expect(service.parse(code)).toEqual([]);
+    expect(service.parse(code, "python")).toEqual([]);
   });
 
   it("should ignore a UiParameter call with a positional argument after a named one", () => {
@@ -480,7 +484,7 @@ describe("UiUdfParametersParserService degenerate sources", () => {
       '        self.x = self.UiParameter(name="x", AttributeType.DOUBLE).value'
     );
 
-    expect(service.parse(code)).toEqual([]);
+    expect(service.parse(code, "python")).toEqual([]);
   });
 
   it("should ignore a UiParameter call that supplies the same argument twice", () => {
@@ -498,8 +502,8 @@ describe("UiUdfParametersParserService degenerate sources", () => {
       '        self.UiParameter("x", name="y", type=AttributeType.DOUBLE)'
     );
 
-    expect(service.parse(twoTypes)).toEqual([]);
-    expect(service.parse(twoNames)).toEqual([]);
+    expect(service.parse(twoTypes, "python")).toEqual([]);
+    expect(service.parse(twoNames, "python")).toEqual([]);
   });
 
   it("should ignore a type given as a plain string instead of an AttributeType member", () => {
@@ -511,7 +515,7 @@ describe("UiUdfParametersParserService degenerate sources", () => {
       '        self.UiParameter(name="x", type="double")'
     );
 
-    expect(service.parse(code)).toEqual([]);
+    expect(service.parse(code, "python")).toEqual([]);
   });
 
   it("should refuse to insert into a class that has no block body at all", () => {
@@ -519,8 +523,10 @@ describe("UiUdfParametersParserService degenerate sources", () => {
     // so there is no indented block to put the declaration in.
     const code = "class ProcessTupleOperator(UDFOperatorV2)\n";
 
-    expect(() => service.computeParameterInsertion(code, "threshold", "double")).toThrow(UiUdfParametersEditError);
-    expect(() => service.computeParameterInsertion(code, "threshold", "double")).toThrow(
+    expect(() => service.computeParameterInsertion(code, "threshold", "double", "python")).toThrow(
+      UiUdfParametersEditError
+    );
+    expect(() => service.computeParameterInsertion(code, "threshold", "double", "python")).toThrow(
       "The Python UDF class and open() need an indented block body to declare UiParameter values."
     );
   });
@@ -549,7 +555,7 @@ describe("UiUdfParametersParserService degenerate sources", () => {
       "        yield tuple_",
       "",
     ]);
-    expect(service.parse(updated).map(p => p.attribute.attributeName)).toEqual(["threshold"]);
+    expect(service.parse(updated, "python").map(p => p.attribute.attributeName)).toEqual(["threshold"]);
   });
 
   it("should append open() after a docstring that ends the file without a newline", () => {
@@ -566,7 +572,7 @@ describe("UiUdfParametersParserService degenerate sources", () => {
       "    def open(self) -> None:",
       '        self.threshold = self.UiParameter(name="threshold", type=AttributeType.DOUBLE).value',
     ]);
-    expect(service.parse(updated).map(p => p.attribute.attributeName)).toEqual(["threshold"]);
+    expect(service.parse(updated, "python").map(p => p.attribute.attributeName)).toEqual(["threshold"]);
   });
 });
 
@@ -576,7 +582,7 @@ function insertParameter(
   name: string,
   attributeType: AttributeType = "double"
 ): string {
-  const edit = service.computeParameterInsertion(code, name, attributeType);
+  const edit = service.computeParameterInsertion(code, name, attributeType, "python");
   return code.slice(0, edit.offset) + edit.text + code.slice(edit.offset);
 }
 
@@ -589,12 +595,12 @@ function expectParsed(
   openBody: string,
   expectedParameters: UiUdfParameter[]
 ): void {
-  expect(service.parse(pythonClass(openBody))).toEqual(expectedParameters);
+  expect(service.parse(pythonClass(openBody), "python")).toEqual(expectedParameters);
 }
 
 function expectParseError(service: UiUdfParametersParserService, code: string, message: string): void {
-  expect(() => service.parse(code)).toThrow(UiUdfParametersParseError);
-  expect(() => service.parse(code)).toThrow(message);
+  expect(() => service.parse(code, "python")).toThrow(UiUdfParametersParseError);
+  expect(() => service.parse(code, "python")).toThrow(message);
 }
 
 function pythonClass(openBody: string, className = "ProcessTupleOperator", baseClass = "UDFOperatorV2"): string {
@@ -627,7 +633,8 @@ describe("UiUdfParametersParserService resource parameters", () => {
           'self.UiParameter("MODEL", AttributeType.STRING, value=Resource.MODEL)',
           'self.UiParameter(name="DATA", type=AttributeType.STRING, value=Resource.DATASET)',
           'self.UiParameter("count", AttributeType.INT)'
-        )
+        ),
+        "python"
       )
     ).toEqual([
       { attribute: { attributeName: "MODEL", attributeType: "string" }, value: "", inputType: MODEL_INPUT_TYPE },
@@ -643,12 +650,15 @@ describe("UiUdfParametersParserService resource parameters", () => {
           'self.UiParameter("A", AttributeType.STRING, value=Resource.WORKFLOW)',
           'self.UiParameter("B", AttributeType.STRING, value="model")',
           'self.UiParameter("C", AttributeType.STRING, value=Other.MODEL)'
-        )
+        ),
+        "python"
       )
     ).toEqual([]);
   });
 
   it("ignores a resource parameter that is not a string, since it receives a directory path", () => {
-    expect(service.parse(inOpen('self.UiParameter("MODEL", AttributeType.INT, value=Resource.MODEL)'))).toEqual([]);
+    expect(
+      service.parse(inOpen('self.UiParameter("MODEL", AttributeType.INT, value=Resource.MODEL)'), "python")
+    ).toEqual([]);
   });
 });

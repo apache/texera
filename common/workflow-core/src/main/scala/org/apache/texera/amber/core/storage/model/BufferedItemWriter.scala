@@ -49,11 +49,4 @@ trait BufferedItemWriter[T] {
     * @param item the data item to be written.
     */
   def putOne(item: T): Unit
-
-  /**
-    * Remove one item from the buffer. If the item is not found in the buffer, an appropriate action should be taken,
-    * such as throwing an exception or ignoring the request.
-    * @param item the data item to be removed.
-    */
-  def removeOne(item: T): Unit
 }

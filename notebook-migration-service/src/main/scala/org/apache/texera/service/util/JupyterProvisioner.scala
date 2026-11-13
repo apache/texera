@@ -21,6 +21,7 @@ import com.typesafe.scalalogging.LazyLogging
 import io.fabric8.kubernetes.client.KubernetesClientException
 import org.apache.texera.common.config.{KubernetesConfig, StorageConfig}
 import org.apache.texera.dao.SqlServer
+import org.apache.texera.dao.SqlStates
 import org.apache.texera.dao.jooq.generated.tables.daos.UserJupyterDao
 import org.apache.texera.dao.jooq.generated.tables.pojos.UserJupyter
 import org.jooq.exception.DataAccessException
@@ -165,7 +166,7 @@ class JupyterProvisioner(
       // Two concurrent first requests can both provision. uid is the primary key, so the
       // loser trips 23505; the winner's row holds the same uid-derived addresses, so leaving
       // it in place is correct.
-      case e: DataAccessException if e.sqlState == "23505" =>
+      case e: DataAccessException if e.sqlState == SqlStates.UNIQUE_VIOLATION =>
         logger.info(s"Jupyter for user $uid was registered concurrently; keeping that row")
     }
   }

@@ -127,6 +127,44 @@ class SplitOpDescSpec extends AnyFlatSpec with Matchers {
   }
 
   // ---------------------------------------------------------------------------
+  // generateStandaloneCode
+  // ---------------------------------------------------------------------------
+
+  // The generator is a transcription of java.util.Random, so the script draws the
+  // rows the executor drew rather than a differently-shaped sample from the same
+  // distribution. With auto-generate on, the seed comes from the clock, as it does
+  // on the executor.
+  "SplitOpDesc.generateStandaloneCode" should
+    "draw an unseeded mask and partition the input across both outputs" in {
+    (new SplitOpDesc).generateStandaloneCode() shouldBe
+      """import time as _texera_time
+        |_texera_split_rng = _TexeraJavaRandom(int(_texera_time.time() * 1000))
+        |_texera_split_mask = pd.Series(
+        |    [_texera_split_rng.next_int(100) < 80 for _ in range(len(in1df))],
+        |    index=in1df.index, dtype=bool
+        |)
+        |out1df = in1df[_texera_split_mask].reset_index(drop=True)
+        |out2df = in1df[~_texera_split_mask].reset_index(drop=True)""".stripMargin
+  }
+
+  it should "pass the configured seed to the generator when auto-generate is off" in {
+    val d = new SplitOpDesc
+    d.random = false
+    d.seed = 42
+    d.generateStandaloneCode() should include("_texera_split_rng = _TexeraJavaRandom(42)")
+  }
+
+  // k is a percentage on both sides, compared as the executor compares it:
+  // nextInt(100) < k, not a uniform draw against k/100.
+  it should "compare the draw against the percentage the executor uses" in {
+    Seq(0, 30, 80, 100).foreach { k =>
+      val d = new SplitOpDesc
+      d.k = k
+      d.generateStandaloneCode() should include(s"_texera_split_rng.next_int(100) < $k")
+    }
+  }
+
+  // ---------------------------------------------------------------------------
   // Independent instances
   // ---------------------------------------------------------------------------
 

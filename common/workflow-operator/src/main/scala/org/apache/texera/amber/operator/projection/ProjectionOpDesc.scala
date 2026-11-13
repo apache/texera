@@ -22,6 +22,7 @@ package org.apache.texera.amber.operator.projection
 import com.fasterxml.jackson.annotation.{JsonProperty, JsonPropertyDescription}
 import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaTitle
 import org.apache.texera.amber.core.executor.OpExecWithClassName
+import org.apache.texera.amber.core.state.NoLoopVariable
 import org.apache.texera.amber.core.tuple.Schema
 import org.apache.texera.amber.core.virtualidentity.{ExecutionIdentity, WorkflowIdentity}
 import org.apache.texera.amber.core.workflow.PhysicalOp.oneToOnePhysicalOp
@@ -37,12 +38,14 @@ class ProjectionOpDesc extends MapOpDesc with StandaloneCodeGenerator {
   @JsonProperty(required = true, defaultValue = "false")
   @JsonSchemaTitle("Drop Option")
   @JsonPropertyDescription("check to drop the selected attributes")
+  @NoLoopVariable
   var isDrop: Boolean = false
 
   // Named explicitly, without `required`: the form already asks for these and must go
   // on accepting an empty list, but a field carrying no annotation is invisible to
   // anything reading the operator's config by reflection.
   @JsonProperty
+  @NoLoopVariable
   var attributes: List[AttributeUnit] = List()
 
   override def getPhysicalOp(
@@ -105,30 +108,36 @@ class ProjectionOpDesc extends MapOpDesc with StandaloneCodeGenerator {
     )
   }
 
-  override def generateStandaloneCode(): String = {
+  override def generateStandaloneCode(): String = generateStandaloneCode(Map.empty)
+
+  override def generateStandaloneCode(inputSchemas: Map[PortIdentity, Schema]): String = {
     val units = Option(attributes).getOrElse(List.empty)
     // The engine refuses an empty selection, so the script says so too. Passing
     // the frame through would hand back data where a run would have stopped.
     if (units.isEmpty)
       return """raise ValueError("Please select at least one attribute to project.")"""
 
+    // The column each unit reads, as the table spells it. See [[columnAsStored]].
+    val stored = (u: AttributeUnit) =>
+      columnAsStored(u.getOriginalAttribute, inputSchemas.values.headOption)
+
     if (isDrop) {
       // Drop mode ignores aliases (matches ProjectionOpExec).
-      val cols = units.map(u => pyStringLiteral(u.getOriginalAttribute)).mkString("[", ", ", "]")
+      val cols = units.map(u => pyStringLiteral(stored(u))).mkString("[", ", ", "]")
       s"out1df = in1df.drop(columns=$cols)"
     } else {
-      val originals =
-        units.map(u => pyStringLiteral(u.getOriginalAttribute)).mkString("[", ", ", "]")
-      // AttributeUnit.getAlias returns originalAttribute when alias is blank,
-      // so an explicit rename is only needed when they differ.
-      val renames = units
-        .filter(u => u.getAlias != u.getOriginalAttribute)
-        .map(u => s"""${pyStringLiteral(u.getOriginalAttribute)}: ${pyStringLiteral(u.getAlias)}""")
-      if (renames.isEmpty) {
+      val originals = units.map(u => pyStringLiteral(stored(u))).mkString("[", ", ", "]")
+      // The output column is named by AttributeUnit.getAlias, which returns
+      // originalAttribute as written when alias is blank: the engine keeps the
+      // setting's case, not the table's. A rename is only needed where they differ.
+      // The names are set by position: two units can read one column, `Name` as
+      // `first` and `NAME` as `second`, and a rename map keyed by that column keeps
+      // only the last alias.
+      if (units.forall(u => u.getAlias == stored(u))) {
         s"out1df = in1df[$originals].copy()"
       } else {
-        val renameMap = renames.mkString("{", ", ", "}")
-        s"out1df = in1df[$originals].rename(columns=$renameMap)"
+        val aliases = units.map(u => pyStringLiteral(u.getAlias)).mkString("[", ", ", "]")
+        s"out1df = in1df[$originals].set_axis($aliases, axis=1)"
       }
     }
   }

@@ -182,4 +182,43 @@ class HuggingFaceCodegenBaseSpec extends AnyFlatSpec with Matchers {
     */
   private def chatContentHelper(rendered: String): String =
     rendered.split("def _chat_content_for_task")(1).split("    def ")(0)
+
+  // Review feedback on #8617 (@Copilot): a truthy `choices` is not enough — the
+  // value may not be a list, its first item may not be a dict, and `message` or
+  // `content` may be null or a list of parts. Every level is type-checked in one
+  // shared helper so all eight chat extractions degrade identically.
+  it should "emit a type-checked chat-content helper" in {
+    val out = HuggingFaceCodegenBase.render(makeCtx(), StubCodegen)
+    out should include("def _chat_message_content(self, body):")
+    val helper = out.split("def _chat_message_content")(1).split("    def ")(0)
+    helper should include("isinstance(choices, list)")
+    helper should include("isinstance(first, dict)")
+    helper should include("isinstance(message, dict)")
+    helper should include("isinstance(content, str)")
+    helper should include("isinstance(content, list)")
+  }
+
+  // #8962: a column value was stripped, sniffed for HTML and decoded whatever its
+  // size, while _fetch_remote_url stops the same payload at MAX_REMOTE_FETCH_BYTES.
+  // Both kinds of cell have to be bounded before any of that work starts.
+  it should "bound a column value's size before parsing it" in {
+    val out = HuggingFaceCodegenBase.render(makeCtx(), StubCodegen)
+    val reader = out.split("def _read_binary_value")(1).split("    def ")(0)
+
+    val bytesCheck = reader.indexOf("self._check_column_value_size(len(value), \"byte\")")
+    bytesCheck should be >= 0
+    bytesCheck should be < reader.indexOf("return value")
+
+    val stringCheck = reader.indexOf("self._check_column_value_size(len(val), \"character\")")
+    stringCheck should be >= 0
+    val parsingSteps =
+      Seq(".strip()", "self._looks_like_html(", "base64.b64decode(", "self._fetch_remote_url(")
+    for (step <- parsingSteps) {
+      withClue(s"$step: ") { stringCheck should be < reader.indexOf(step) }
+    }
+
+    val check = out.split("def _check_column_value_size")(1).split("    def ")(0)
+    check should include("if size > self.MAX_REMOTE_FETCH_BYTES:")
+    check should include("raise ValueError(")
+  }
 }

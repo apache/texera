@@ -50,6 +50,16 @@ The Dockerfiles are included in the source for audit and verification.
 https://github.com/apache/texera/releases/tag/${TAG_NAME}
 Commit: ${COMMIT_HASH}
 
+== Reproducing the Artifacts ==
+
+Both tarballs are reproducible. To rebuild them from the tag (needs GNU tar)
+and compare against the staged checksums:
+
+  git clone https://github.com/apache/texera.git && cd texera
+  git checkout ${TAG_NAME}
+  ./.github/scripts/create-release-tarballs.sh ${TAG_NAME} ${VERSION} ${IMAGE_REGISTRY} ${IMAGE_TAG} /tmp/texera-rc
+  sha512sum /tmp/texera-rc/*.tar.gz
+
 == Keys ==
 
 The release was signed with GPG key [${GPG_KEY_ID}] (${GPG_EMAIL})
@@ -70,6 +80,7 @@ The vote will be open for at least 72 hours.
 [ ] All files have ASF license headers where appropriate
 [ ] No unexpected binary files
 [ ] Source tarball matches the Git tag
+[ ] Rebuilt tarballs match the staged SHA512 checksums
 [ ] Can compile from source successfully
 [ ] Docker Compose bundle deploys successfully with the published images
 

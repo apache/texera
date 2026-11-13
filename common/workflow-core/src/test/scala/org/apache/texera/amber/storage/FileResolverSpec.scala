@@ -22,18 +22,22 @@ package org.apache.texera.amber.storage
 import org.apache.texera.amber.core.storage.FileResolver
 import org.apache.commons.vfs2.FileNotFoundException
 import org.apache.texera.dao.MockTexeraDB
-import org.apache.texera.dao.jooq.generated.enums.UserRoleEnum
+import org.apache.texera.dao.jooq.generated.enums.{PrivilegeEnum, UserRoleEnum}
 import org.apache.texera.dao.jooq.generated.tables.daos.{
   DatasetDao,
+  DatasetUserAccessDao,
   DatasetVersionDao,
   ModelDao,
+  ModelUserAccessDao,
   ModelVersionDao,
   UserDao
 }
 import org.apache.texera.dao.jooq.generated.tables.pojos.{
   Dataset,
+  DatasetUserAccess,
   DatasetVersion,
   Model,
+  ModelUserAccess,
   ModelVersion,
   User
 }
@@ -120,6 +124,75 @@ class FileResolverSpec
     modelVersion
   }
 
+  // Three users around one private dataset and one private model, both owned by `testUser`:
+  // `grantedUser` holds a READ grant on each, `otherUser` holds nothing.
+  private def userNamed(uid: Int, name: String): User = {
+    val user = new User
+    user.setUid(Integer.valueOf(uid))
+    user.setName(name)
+    user.setRole(UserRoleEnum.REGULAR)
+    user.setEmail(s"$name@test.com")
+    user
+  }
+
+  private val grantedUser: User = userNamed(2, "granted_user")
+  private val otherUser: User = userNamed(3, "other_user")
+
+  private val privateDataset: Dataset = {
+    val dataset = new Dataset
+    dataset.setDid(Integer.valueOf(2))
+    dataset.setName("private_dataset")
+    dataset.setRepositoryName("private_dataset_repo")
+    dataset.setDescription("private dataset for test")
+    dataset.setIsPublic(false)
+    dataset.setOwnerUid(testUser.getUid)
+    dataset
+  }
+
+  private val privateDatasetVersion: DatasetVersion = {
+    val datasetVersion = new DatasetVersion
+    datasetVersion.setDid(privateDataset.getDid)
+    datasetVersion.setName("v1")
+    datasetVersion.setDvid(Integer.valueOf(3))
+    datasetVersion.setCreatorUid(testUser.getUid)
+    datasetVersion.setVersionHash("5f0c7a1be2d94c3fa6b87d10e4c9a2b35d6e7f80")
+    datasetVersion
+  }
+
+  private val privateModel: Model = {
+    val model = new Model
+    model.setMid(Integer.valueOf(2))
+    model.setName("private_model")
+    model.setRepositoryName("model-2")
+    model.setDescription("private model for test")
+    model.setIsPublic(false)
+    model.setIsDownloadable(true)
+    model.setOwnerUid(testUser.getUid)
+    model
+  }
+
+  private val privateModelVersion: ModelVersion = {
+    val modelVersion = new ModelVersion
+    modelVersion.setMid(privateModel.getMid)
+    modelVersion.setName("v1")
+    modelVersion.setMvid(Integer.valueOf(3))
+    modelVersion.setCreatorUid(testUser.getUid)
+    modelVersion.setVersionHash("0d1e2f3a4b5c6d7e8f90a1b2c3d4e5f607182930")
+    modelVersion
+  }
+
+  private val privateDatasetFilePath = "/dataset/test_user@test.com/private_dataset/v1/data.csv"
+  private val unprefixedPrivateDatasetFilePath = "/test_user@test.com/private_dataset/v1/data.csv"
+  private val privateDatasetFileUri =
+    s"${FileResolver.DATASET_FILE_URI_SCHEME}:///${privateDataset.getRepositoryName}/${privateDatasetVersion.getVersionHash}/data.csv"
+
+  private val privateModelFilePath = "/model/test_user@test.com/private_model/v1/weights.pt"
+  private val privateModelFileUri =
+    s"${FileResolver.MODEL_FILE_URI_SCHEME}:///${privateModel.getRepositoryName}/${privateModelVersion.getVersionHash}/weights.pt"
+
+  // names nothing: the owner exists, the dataset does not
+  private val missingDatasetFilePath = "/dataset/test_user@test.com/no_such_dataset/v1/data.csv"
+
   private val localCsvFilePath = "common/workflow-core/src/test/resources/country_sales_small.csv"
 
   private val datasetACsvFilePath = "/dataset/test_user@test.com/test_dataset/v2/directory/a.csv"
@@ -167,17 +240,35 @@ class FileResolverSpec
     val modelVersionDao = new ModelVersionDao(getDSLContext.configuration())
     modelVersionDao.insert(testModelVersion1)
     modelVersionDao.insert(testModelVersion2)
+
+    // add the private dataset and model, and the two users who do not own them
+    userDao.insert(grantedUser)
+    userDao.insert(otherUser)
+    datasetDao.insert(privateDataset)
+    datasetVersionDao.insert(privateDatasetVersion)
+    modelDao.insert(privateModel)
+    modelVersionDao.insert(privateModelVersion)
+
+    val datasetGrant = new DatasetUserAccess
+    datasetGrant.setDid(privateDataset.getDid)
+    datasetGrant.setUid(grantedUser.getUid)
+    datasetGrant.setPrivilege(PrivilegeEnum.READ)
+    new DatasetUserAccessDao(getDSLContext.configuration()).insert(datasetGrant)
+
+    val modelGrant = new ModelUserAccess
+    modelGrant.setMid(privateModel.getMid)
+    modelGrant.setUid(grantedUser.getUid)
+    modelGrant.setPrivilege(PrivilegeEnum.READ)
+    new ModelUserAccessDao(getDSLContext.configuration()).insert(modelGrant)
   }
 
-  "FileResolver" should "resolve local file correctly" in {
-    val localUri = FileResolver.resolve(localCsvFilePath)
+  // ---------------------------------------------------------------------------
+  // resolveVersionedResource
+  // ---------------------------------------------------------------------------
 
-    assert(localUri == Paths.get(localCsvFilePath).toUri)
-  }
-
-  "FileResolver" should "resolve dataset file correctly" in {
-    val datasetACsvUri = FileResolver.resolve(datasetACsvFilePath)
-    val dataset1TxtUri = FileResolver.resolve(dataset1TxtFilePath)
+  "resolveVersionedResource" should "resolve dataset file correctly" in {
+    val datasetACsvUri = FileResolver.resolveVersionedResource(datasetACsvFilePath)
+    val dataset1TxtUri = FileResolver.resolveVersionedResource(dataset1TxtFilePath)
 
     assert(
       datasetACsvUri.toString == f"${FileResolver.DATASET_FILE_URI_SCHEME}:///${testDataset.getRepositoryName}/${testDatasetVersion2.getVersionHash}/directory/a.csv"
@@ -187,9 +278,9 @@ class FileResolverSpec
     )
   }
 
-  "FileResolver" should "resolve model file correctly" in {
-    val modelWeightsUri = FileResolver.resolve(modelWeightsFilePath)
-    val modelReadmeUri = FileResolver.resolve(modelReadmeFilePath)
+  it should "resolve model file correctly" in {
+    val modelWeightsUri = FileResolver.resolveVersionedResource(modelWeightsFilePath)
+    val modelReadmeUri = FileResolver.resolveVersionedResource(modelReadmeFilePath)
 
     assert(
       modelWeightsUri.toString == f"${FileResolver.MODEL_FILE_URI_SCHEME}:///${testModel.getRepositoryName}/${testModelVersion2.getVersionHash}/weights/model.pt"
@@ -199,52 +290,213 @@ class FileResolverSpec
     )
   }
 
-  "FileResolver" should "still resolve a legacy unprefixed dataset path" in {
-    val dataset1TxtUri = FileResolver.resolve(unprefixedDataset1TxtFilePath)
+  it should "still resolve a legacy unprefixed dataset path" in {
+    val dataset1TxtUri = FileResolver.resolveVersionedResource(unprefixedDataset1TxtFilePath)
 
     assert(
       dataset1TxtUri.toString == f"${FileResolver.DATASET_FILE_URI_SCHEME}:///${testDataset.getRepositoryName}/${testDatasetVersion1.getVersionHash}/1.txt"
     )
   }
 
-  "FileResolver" should "not resolve a path whose leading segment names no dataset" in {
+  it should "resolve a private dataset or model without a user scope" in {
+    assert(
+      FileResolver
+        .resolveVersionedResource(privateDatasetFilePath)
+        .toString == privateDatasetFileUri
+    )
+    assert(
+      FileResolver.resolveVersionedResource(privateModelFilePath).toString == privateModelFileUri
+    )
+  }
+
+  it should "not resolve a path whose leading segment names no dataset" in {
     assertThrows[FileNotFoundException] {
-      FileResolver.resolve(unknownResourceTypeFilePath)
+      FileResolver.resolveVersionedResource(unknownResourceTypeFilePath)
     }
   }
 
-  "FileResolver" should "keep datasets and models isolated by prefix" in {
+  it should "keep datasets and models isolated by prefix" in {
     // a real dataset name under the models prefix is not a model, and vice-versa
     assertThrows[FileNotFoundException] {
-      FileResolver.resolve(datasetNameUnderModelPrefix)
+      FileResolver.resolveVersionedResource(datasetNameUnderModelPrefix)
     }
     assertThrows[FileNotFoundException] {
-      FileResolver.resolve(modelNameUnderDatasetPrefix)
+      FileResolver.resolveVersionedResource(modelNameUnderDatasetPrefix)
     }
   }
 
-  "FileResolver" should "throw not found exception when a prefixed path has too few segments" in {
+  it should "throw not found exception when a prefixed path has too few segments" in {
     assertThrows[FileNotFoundException] {
-      FileResolver.resolve("/dataset/test_user@test.com/test_dataset")
+      FileResolver.resolveVersionedResource("/dataset/test_user@test.com/test_dataset")
     }
   }
 
-  "FileResolver" should "throw not found exception" in {
+  it should "throw not found exception" in {
     assertThrows[FileNotFoundException] {
-      FileResolver.resolve("some/random/path")
+      FileResolver.resolveVersionedResource("some/random/path")
     }
   }
 
-  "isFileResolved" should "return true when the path has a non-empty scheme" in {
+  it should "not resolve a file on the local disk, even one that exists" in {
+    assert(Paths.get(localCsvFilePath).toFile.exists())
+    assertThrows[FileNotFoundException] {
+      FileResolver.resolveVersionedResource(localCsvFilePath)
+    }
+    assertThrows[FileNotFoundException] {
+      FileResolver.resolveVersionedResource(Paths.get(localCsvFilePath).toAbsolutePath.toString)
+    }
+  }
+
+  it should "not accept a name that is already a URI" in {
+    assertThrows[FileNotFoundException] {
+      FileResolver.resolveVersionedResource(privateDatasetFileUri)
+    }
+    assertThrows[FileNotFoundException] {
+      FileResolver.resolveVersionedResource(Paths.get(localCsvFilePath).toUri.toString)
+    }
+  }
+
+  it should "not pass a missing Windows path through as a URI" in {
+    assertThrows[FileNotFoundException] {
+      FileResolver.resolveVersionedResource("C:/x/y.txt")
+    }
+    assertThrows[FileNotFoundException] {
+      FileResolver.resolveForUser("C:/x/y.txt", testUser.getUid)
+    }
+  }
+
+  // ---------------------------------------------------------------------------
+  // resolveForUser
+  // ---------------------------------------------------------------------------
+
+  "resolveForUser" should "resolve a private dataset file for its owner" in {
+    assert(
+      FileResolver.resolveForUser(privateDatasetFilePath, testUser.getUid).toString
+        == privateDatasetFileUri
+    )
+  }
+
+  it should "resolve a private dataset file for a user who was granted read access" in {
+    assert(
+      FileResolver.resolveForUser(privateDatasetFilePath, grantedUser.getUid).toString
+        == privateDatasetFileUri
+    )
+  }
+
+  it should "not resolve a private dataset file for any other user" in {
+    assertThrows[FileNotFoundException] {
+      FileResolver.resolveForUser(privateDatasetFilePath, otherUser.getUid)
+    }
+  }
+
+  it should "resolve a public dataset file for a user with no grant on it" in {
+    assert(
+      FileResolver.resolveForUser(dataset1TxtFilePath, otherUser.getUid).toString ==
+        f"${FileResolver.DATASET_FILE_URI_SCHEME}:///${testDataset.getRepositoryName}/${testDatasetVersion1.getVersionHash}/1.txt"
+    )
+  }
+
+  it should "apply the same rule to a legacy unprefixed dataset path" in {
+    assert(
+      FileResolver.resolveForUser(unprefixedPrivateDatasetFilePath, testUser.getUid).toString
+        == privateDatasetFileUri
+    )
+    assertThrows[FileNotFoundException] {
+      FileResolver.resolveForUser(unprefixedPrivateDatasetFilePath, otherUser.getUid)
+    }
+  }
+
+  it should "resolve a private model file for its owner and for a user who was granted read access" in {
+    assert(
+      FileResolver.resolveForUser(privateModelFilePath, testUser.getUid).toString
+        == privateModelFileUri
+    )
+    assert(
+      FileResolver.resolveForUser(privateModelFilePath, grantedUser.getUid).toString
+        == privateModelFileUri
+    )
+  }
+
+  it should "not resolve a private model file for any other user" in {
+    assertThrows[FileNotFoundException] {
+      FileResolver.resolveForUser(privateModelFilePath, otherUser.getUid)
+    }
+  }
+
+  it should "resolve a public model file for a user with no grant on it" in {
+    assert(
+      FileResolver.resolveForUser(modelReadmeFilePath, otherUser.getUid).toString ==
+        f"${FileResolver.MODEL_FILE_URI_SCHEME}:///${testModel.getRepositoryName}/${testModelVersion1.getVersionHash}/README.md"
+    )
+  }
+
+  it should "throw FileNotFoundException with the input path when the dataset is not readable or missing" in {
+    val unreadable = intercept[FileNotFoundException] {
+      FileResolver.resolveForUser(privateDatasetFilePath, otherUser.getUid)
+    }
+    val missing = intercept[FileNotFoundException] {
+      FileResolver.resolveForUser(missingDatasetFilePath, otherUser.getUid)
+    }
+    assert(
+      unreadable.getMessage.replace(privateDatasetFilePath, "<path>")
+        == missing.getMessage.replace(missingDatasetFilePath, "<path>")
+    )
+    assert(unreadable.getCause == null && missing.getCause == null)
+  }
+
+  it should "not resolve a file on the local disk" in {
+    assertThrows[FileNotFoundException] {
+      FileResolver.resolveForUser(localCsvFilePath, testUser.getUid)
+    }
+    assertThrows[FileNotFoundException] {
+      FileResolver.resolveForUser(
+        Paths.get(localCsvFilePath).toAbsolutePath.toString,
+        testUser.getUid
+      )
+    }
+  }
+
+  it should "not accept a name that is already a URI" in {
+    assertThrows[FileNotFoundException] {
+      FileResolver.resolveForUser(privateDatasetFileUri, testUser.getUid)
+    }
+    assertThrows[FileNotFoundException] {
+      FileResolver.resolveForUser(Paths.get(localCsvFilePath).toUri.toString, testUser.getUid)
+    }
+  }
+
+  "forUser" should "resolve names on behalf of the user it was built for" in {
+    assert(
+      FileResolver.forUser(grantedUser.getUid).resolve(privateDatasetFilePath).toString
+        == privateDatasetFileUri
+    )
+    assertThrows[FileNotFoundException] {
+      FileResolver.forUser(otherUser.getUid).resolve(privateDatasetFilePath)
+    }
+  }
+
+  "isFileResolved" should "return true when the path has a multi-letter scheme" in {
     assert(FileResolver.isFileResolved("s3://bucket/key"))
     assert(
       FileResolver.isFileResolved(s"${FileResolver.DATASET_FILE_URI_SCHEME}:///repo/hash/file.csv")
     )
+    assert(FileResolver.isFileResolved("file:///C:/x/y.txt"))
+    assert(FileResolver.isFileResolved("file:/tmp/y.txt"))
+    assert(FileResolver.isFileResolved("vfs:///repo/hash/file.csv"))
+    assert(FileResolver.isFileResolved("https://example.com/y.txt"))
   }
 
   it should "return false when the path has no scheme" in {
     assert(!FileResolver.isFileResolved("some/random/path"))
     assert(!FileResolver.isFileResolved("/test_user@test.com/test_dataset/v1/1.txt"))
+  }
+
+  it should "return false for an absolute Windows path" in {
+    // `java.net.URI` parses the drive letter as a one-letter scheme
+    assert(!FileResolver.isFileResolved("C:/x/y.txt"))
+    assert(!FileResolver.isFileResolved("c:/x/y.txt"))
+    // a backslash is illegal in a URI, so this form never parsed as one
+    assert(!FileResolver.isFileResolved("C:\\x\\y.txt"))
   }
 
   it should "return false for a malformed URI" in {

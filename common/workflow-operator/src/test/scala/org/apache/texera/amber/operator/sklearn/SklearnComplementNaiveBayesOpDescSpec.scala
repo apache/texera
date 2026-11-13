@@ -19,63 +19,14 @@
 
 package org.apache.texera.amber.operator.sklearn
 
-import org.apache.texera.amber.core.tuple.AttributeType
-import org.apache.texera.amber.operator.LogicalOp
-import org.apache.texera.amber.operator.metadata.OperatorGroupConstants
-import org.apache.texera.amber.util.JSONUtils.objectMapper
 import org.scalatest.flatspec.AnyFlatSpec
-import org.scalatest.matchers.should.Matchers
 
-class SklearnComplementNaiveBayesOpDescSpec extends AnyFlatSpec with Matchers {
-
-  "SklearnComplementNaiveBayesOpDesc.operatorInfo" should
-    "advertise the model name, Sklearn group, and the training/testing port shape" in {
-    val info = (new SklearnComplementNaiveBayesOpDesc).operatorInfo
-    info.userFriendlyName shouldBe "Complement Naive Bayes"
-    info.operatorDescription shouldBe "Sklearn Complement Naive Bayes Operator"
-    info.operatorGroupName shouldBe OperatorGroupConstants.SKLEARN_GROUP
-    info.inputPorts.map(_.displayName) shouldBe List("training", "testing")
-    info.outputPorts should have length 1
-    info.outputPorts.head.blocking shouldBe true
-  }
-
-  "SklearnComplementNaiveBayesOpDesc" should "default its config fields" in {
-    val d = new SklearnComplementNaiveBayesOpDesc
-    d.countVectorizer shouldBe false
-    d.tfidfTransformer shouldBe false
-    d.target shouldBe null
-    d.text shouldBe empty
-  }
-
-  "SklearnComplementNaiveBayesOpDesc.getOutputSchemas" should
-    "emit the model_name/model schema keyed by the declared output port" in {
-    val d = new SklearnComplementNaiveBayesOpDesc
-    val schema = d.getOutputSchemas(Map.empty)(d.operatorInfo.outputPorts.head.id)
-    schema.getAttribute("model_name").getType shouldBe AttributeType.STRING
-    schema.getAttribute("model").getType shouldBe AttributeType.BINARY
-  }
-
-  "SklearnComplementNaiveBayesOpDesc.generatePythonCode" should
-    "import and instantiate the ComplementNB estimator" in {
-    val d = new SklearnComplementNaiveBayesOpDesc
-    d.target = "y"
-    val code = d.generatePythonCode()
-    code should include("from sklearn.naive_bayes import ComplementNB")
-    code should include("make_pipeline")
-    code should include("Complement Naive Bayes")
-  }
-
-  "SklearnComplementNaiveBayesOpDesc" should
-    "round-trip its config fields through the polymorphic base" in {
-    val d = new SklearnComplementNaiveBayesOpDesc
-    d.target = "label"
-    d.countVectorizer = true
-    val json = objectMapper.writeValueAsString(d)
-    json should include("\"operatorType\":\"SklearnComplementNaiveBayes\"")
-    val restored = objectMapper.readValue(json, classOf[LogicalOp])
-    restored shouldBe a[SklearnComplementNaiveBayesOpDesc]
-    val r = restored.asInstanceOf[SklearnComplementNaiveBayesOpDesc]
-    r.target shouldBe "label"
-    r.countVectorizer shouldBe true
-  }
+class SklearnComplementNaiveBayesOpDescSpec extends AnyFlatSpec with SklearnModelOpDescBehaviors {
+  sklearnClassifier(
+    new SklearnComplementNaiveBayesOpDesc,
+    "SklearnComplementNaiveBayes",
+    "Complement Naive Bayes",
+    "from sklearn.naive_bayes import ComplementNB",
+    estimatorTestName = "import and instantiate the ComplementNB estimator"
+  )
 }

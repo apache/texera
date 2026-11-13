@@ -205,7 +205,12 @@ class AsyncRPCClient(
       )
       ret.returnValue match {
         case err: ControlError =>
-          logger.error(s"received error from $channelId", err)
+          // ControlError is not a Throwable, so pass its contents explicitly; otherwise the
+          // logger drops it and only "received error from ..." is printed.
+          logger.error(
+            s"received error from $channelId (controlID: ${ret.commandId}): " +
+              s"${err.errorMessage}\n${err.errorDetails}\n${err.stackTrace}"
+          )
         case _ =>
       }
     } else {

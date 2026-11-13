@@ -21,6 +21,7 @@ package org.apache.texera.amber.engine.architecture.scheduling
 
 import org.apache.pekko.pattern.gracefulStop
 import com.twitter.util.{Future, JavaTimer, Promise, Return, Throw, Timer}
+import org.apache.texera.amber.core.WorkflowRuntimeException
 import org.apache.texera.amber.core.state.State
 import org.apache.texera.amber.core.storage.{DocumentFactory, RepositoryMountManager, VFSURIFactory}
 import org.apache.texera.amber.core.virtualidentity.ActorVirtualIdentity
@@ -460,6 +461,17 @@ class RegionExecutionManager(
     )
   }
 
+  /**
+    * Tags a failed worker RPC with the worker it targeted, so the `FatalError` surfaced for a
+    * region that cannot be launched can point at the failing operator/worker.
+    */
+  private def attributeFailureTo[T](workerId: ActorVirtualIdentity)(rpc: Future[T]): Future[T] =
+    rpc.rescue {
+      case err: WorkflowRuntimeException if err.relatedWorkerId.isDefined => Future.exception(err)
+      case err =>
+        Future.exception(new WorkflowRuntimeException(err.getMessage, err, Some(workerId)))
+    }
+
   private def initExecutors(
       operators: Set[PhysicalOp],
       resourceConfig: ResourceConfig
@@ -471,14 +483,16 @@ class RegionExecutionManager(
             val workerConfigs = resourceConfig.operatorConfigs(physicalOp.id).workerConfigs
             val opExecInitInfo = physicalOp.executableOpExecInitInfo
             workerConfigs.map(_.workerId).map { workerId =>
-              asyncRPCClient.workerInterface.initializeExecutor(
-                InitializeExecutorRequest(
-                  workerConfigs.length,
-                  opExecInitInfo,
-                  physicalOp.isSourceOperator,
-                  loopStartPortUris
-                ),
-                asyncRPCClient.mkContext(workerId)
+              attributeFailureTo(workerId)(
+                asyncRPCClient.workerInterface.initializeExecutor(
+                  InitializeExecutorRequest(
+                    workerConfigs.length,
+                    opExecInitInfo,
+                    physicalOp.isSourceOperator,
+                    loopStartPortUris
+                  ),
+                  asyncRPCClient.mkContext(workerId)
+                )
               )
             }
           })
@@ -557,15 +571,17 @@ class RegionExecutionManager(
           case (globalPortId, (storageUris, partitionings, schema)) =>
             resourceConfig.operatorConfigs(globalPortId.opId).workerConfigs.map(_.workerId).map {
               workerId =>
-                asyncRPCClient.workerInterface.assignPort(
-                  AssignPortRequest(
-                    globalPortId.portId,
-                    globalPortId.input,
-                    schema.toRawSchema,
-                    storageUris,
-                    partitionings
-                  ),
-                  asyncRPCClient.mkContext(workerId)
+                attributeFailureTo(workerId)(
+                  asyncRPCClient.workerInterface.assignPort(
+                    AssignPortRequest(
+                      globalPortId.portId,
+                      globalPortId.input,
+                      schema.toRawSchema,
+                      storageUris,
+                      partitionings
+                    ),
+                    asyncRPCClient.mkContext(workerId)
+                  )
                 )
             }
         }
@@ -593,8 +609,10 @@ class RegionExecutionManager(
             workflowExecution.getRegionExecution(region.id).getOperatorExecution(opId).getWorkerIds
           )
           .map { workerId =>
-            asyncRPCClient.workerInterface
-              .openExecutor(EmptyRequest(), asyncRPCClient.mkContext(workerId))
+            attributeFailureTo(workerId)(
+              asyncRPCClient.workerInterface
+                .openExecutor(EmptyRequest(), asyncRPCClient.mkContext(workerId))
+            )
           }
           .toSeq
       )
@@ -620,18 +638,19 @@ class RegionExecutionManager(
             .getOperatorExecution(opId)
             .getWorkerIds
             .map { workerId =>
-              asyncRPCClient.workerInterface
-                .startWorker(EmptyRequest(), asyncRPCClient.mkContext(workerId))
-                .map(resp =>
-                  // Update worker state, ordered by the worker's logical state version
-                  // (not arrival time) so this RUNNING snapshot cannot clobber a later
-                  // COMPLETED if the response arrives after the worker has finished.
-                  workflowExecution
-                    .getRegionExecution(region.id)
-                    .getOperatorExecution(opId)
-                    .getWorkerExecution(workerId)
-                    .updateState(resp.stateVersion, resp.state)
-                )
+              attributeFailureTo(workerId)(
+                asyncRPCClient.workerInterface
+                  .startWorker(EmptyRequest(), asyncRPCClient.mkContext(workerId))
+              ).map(resp =>
+                // Update worker state, ordered by the worker's logical state version
+                // (not arrival time) so this RUNNING snapshot cannot clobber a later
+                // COMPLETED if the response arrives after the worker has finished.
+                workflowExecution
+                  .getRegionExecution(region.id)
+                  .getOperatorExecution(opId)
+                  .getWorkerExecution(workerId)
+                  .updateState(resp.stateVersion, resp.state)
+              )
             }
         }
         .toSeq
@@ -668,19 +687,15 @@ class RegionExecutionManager(
         // (The inner LoopEnd of a nested loop additionally drops its output
         // once per outer iteration on the Python worker side in
         // MainLoop._process_state_frame, which is orthogonal to this.)
-        val reuseStorage =
-          region
-            .getOperator(outputPortId.opId)
-            .outputPorts(outputPortId.portId)
-            ._1
-            .reuseStorage
+        val outputPort = region.getOperator(outputPortId.opId).outputPorts(outputPortId.portId)._1
+        val reuseStorage = outputPort.reuseStorage
         Seq((resultURI, schema), (stateURI, State.schema)).foreach {
           case (uri, sch) =>
             DocumentFactory.createOrReuseDocument(uri, sch, reuseStorage)
         }
         if (!isRestart) {
           asyncRPCClient.sendToClient(
-            OperatorPortResultUriAvailable(outputPortId, resultURI)
+            OperatorPortResultUriAvailable(outputPortId, resultURI, outputPort.mode)
           )
         }
     }

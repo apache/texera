@@ -22,7 +22,6 @@ package org.apache.texera.amber.core.tuple;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonValue;
-import org.apache.texera.amber.core.executor.OperatorExecutor;
 import org.apache.texera.service.util.LargeBinaryManager;
 
 import java.net.URI;

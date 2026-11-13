@@ -24,7 +24,6 @@ import { of, Subject, throwError } from "rxjs";
 import { MarkdownService } from "ngx-markdown";
 import { NzModalService } from "ng-zorro-antd/modal";
 import { NgModel } from "@angular/forms";
-import { NzResizableDirective } from "ng-zorro-antd/resizable";
 import { By } from "@angular/platform-browser";
 import { commonTestImports, commonTestProviders } from "../../../../../common/testing/test-utils";
 import { NotificationService } from "../../../../../common/service/notification/notification.service";
@@ -194,9 +193,6 @@ describe("ModelDetailComponent", () => {
     expect(el, `expected to find "${selector}"`).not.toBeNull();
     return el as unknown as E;
   };
-
-  // The sider coalesces resize events into one write per animation frame.
-  const nextFrame = (): Promise<void> => new Promise<void>(resolve => requestAnimationFrame(() => resolve()));
 
   // ─── loading the model ──────────────────────────────────────────────────────
 
@@ -457,29 +453,6 @@ describe("ModelDetailComponent", () => {
 
     render({ isOwner: false, modelIsDownloadable: true, modelIsPublic: false, userModelAccessLevel: "READ" });
     expect(component.isDownloadAllowed()).toBe(true);
-  });
-
-  // ─── the file path clipboard ────────────────────────────────────────────────
-
-  it("copies the open file's path and reports failure", async () => {
-    create();
-    const writeText = vi.fn(() => Promise.resolve());
-    Object.defineProperty(navigator, "clipboard", { value: { writeText }, configurable: true });
-
-    render({ currentDisplayedFileName: "/model/a/b/v1/model.pt" });
-    await component.copyCurrentFilePath();
-    expect(writeText).toHaveBeenCalledWith("/model/a/b/v1/model.pt");
-    expect(notificationService["success"]).toHaveBeenCalled();
-
-    writeText.mockImplementationOnce(() => Promise.reject(new Error("denied")));
-    await component.copyCurrentFilePath();
-    expect(notificationService["error"]).toHaveBeenCalled();
-
-    // Nothing open: no clipboard call at all.
-    writeText.mockClear();
-    render({ currentDisplayedFileName: "" });
-    await component.copyCurrentFilePath();
-    expect(writeText).not.toHaveBeenCalled();
   });
 
   // ─── template ───────────────────────────────────────────────────────────────
@@ -1021,13 +994,13 @@ describe("ModelDetailComponent", () => {
     const root = openTab("Versions & Files");
 
     expect(root.querySelector("nz-sider")).not.toBeNull();
-    component.onClickHideRightBar();
+    // The browser owns the toolbar controls; the page keeps the two flags and feeds them back in.
+    component.isRightBarCollapsed = true;
     fixture.detectChanges();
     expect(fixture.nativeElement.querySelector("nz-sider")).toBeNull();
 
-    component.onClickScaleTheView();
+    component.isMaximized = true;
     fixture.detectChanges();
-    expect(component.isMaximized).toBe(true);
     expect(fixture.nativeElement.querySelector(".model-header")).toBeNull();
   });
 
@@ -1052,23 +1025,6 @@ describe("ModelDetailComponent", () => {
 
     expect(component.isLogin).toBe(true);
     expect(component.currentUid).toBe(42);
-  });
-
-  // ─── the resizable sider ────────────────────────────────────────────────────
-
-  it("stores the dragged sider width on the next animation frame", async () => {
-    create();
-    expect(component.siderWidth).toBe(400);
-
-    // A drag emits continuously; the component coalesces to one write per frame.
-    component.onSideResize({ width: 250, height: 999 });
-
-    // The write is deferred, not immediate — that deferral is the whole point of the
-    // requestAnimationFrame hop, and a synchronous assignment would land here.
-    expect(component.siderWidth).toBe(400);
-    await nextFrame();
-
-    expect(component.siderWidth).toBe(250);
   });
 
   // ─── guards against an absent model id ──────────────────────────────────────
@@ -1367,19 +1323,6 @@ describe("ModelDetailComponent", () => {
     render({ isOwner: false, modelIsDownloadable: false, modelIsPublic: true });
     expect(byTooltip("Download the file").disabled).toBe(true);
     expect(q<HTMLButtonElement>(fixture.nativeElement, ".spaced-button").disabled).toBe(true);
-  });
-
-  it("wires the sider's resize handle to the width the page keeps", async () => {
-    oneVersionWithOneFile();
-    create();
-    openTab("Versions & Files");
-
-    const sider = fixture.debugElement.query(By.directive(NzResizableDirective));
-    expect(sider).not.toBeNull();
-    sider.injector.get(NzResizableDirective).nzResize.emit({ width: 275, height: 0 });
-    await nextFrame();
-
-    expect(component.siderWidth).toBe(275);
   });
 
   it("wires the version picker to both the selection and the file tree", () => {

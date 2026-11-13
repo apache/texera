@@ -49,8 +49,7 @@ import { EntityType } from "../../../../hub/service/hub.service";
 // Lightweight stand-in for FiltersComponent. It registers itself under the real
 // FiltersComponent token so SearchComponent's `@ViewChild(FiltersComponent)`
 // resolves to it, without dragging in FiltersComponent's six service
-// dependencies and backend-touching ngOnInit. `getSearchKeywords()` mirrors the
-// current filter list so route-driven searches can be asserted end to end.
+// dependencies and backend-touching ngOnInit.
 @Component({
   selector: "texera-filters",
   template: "",
@@ -61,7 +60,6 @@ class MockFiltersComponent {
   @Input() ownerScope?: string;
   masterFilterListChange = EMPTY;
   masterFilterList: ReadonlyArray<string> = [];
-  getSearchKeywords = (): string[] => [...this.masterFilterList];
   getSearchFilterParameters = () => ({});
   clearFacetSelections = vi.fn();
 }
@@ -71,8 +69,6 @@ class MockFiltersComponent {
   template: "",
 })
 class MockSearchResultsComponent {
-  @Input() showResourceTypes = false;
-  @Input() searchKeywords: string[] = [];
   @Input() currentUid?: number;
 }
 
@@ -141,10 +137,6 @@ describe("SearchComponent", () => {
     expect(() => fixture.detectChanges()).not.toThrow();
   });
 
-  it("starts with an empty searchKeywords list so the template binding is always safe", () => {
-    expect(component.searchKeywords).toEqual([]);
-  });
-
   // ─── filters getter / setter ────────────────────────────────────────────────
 
   it("throws from the filters getter before the ViewChild has resolved", () => {
@@ -169,32 +161,23 @@ describe("SearchComponent", () => {
 
   // ─── ngAfterViewInit / query params ─────────────────────────────────────────
 
-  it("applies the `q` query param to the filters and populates searchKeywords", () => {
+  it("applies the `q` query param to the filters", () => {
     fixture.detectChanges(); // resolves the filters ViewChild and subscribes to queryParams
     queryParams$.next({ q: "foo bar" });
 
     expect(component.searchParam).toBe("foo bar");
-    expect(component.searchKeywords).toEqual(["foo", "bar"]);
+    expect(component.filters.masterFilterList).toEqual(["foo", "bar"]);
   });
 
-  it("leaves searchParam empty and searchKeywords empty when there is no `q` param", () => {
+  it("leaves searchParam and the filters empty when there is no `q` param", () => {
     fixture.detectChanges();
     queryParams$.next({});
 
     expect(component.searchParam).toBe("");
-    expect(component.searchKeywords).toEqual([]);
+    expect(component.filters.masterFilterList).toEqual([]);
   });
 
   // ─── search() ───────────────────────────────────────────────────────────────
-
-  it("syncs searchKeywords from the filters when a search runs", async () => {
-    component.filters = makeFiltersDouble(["alpha", "beta"]);
-    component.searchResultsComponent = makeSearchResultsDouble() as unknown as SearchResultsComponent;
-
-    await component.search();
-
-    expect(component.searchKeywords).toEqual(["alpha", "beta"]);
-  });
 
   it("drives the results component (reset + loadMore) on a fresh search", async () => {
     component.filters = makeFiltersDouble(["x"]);

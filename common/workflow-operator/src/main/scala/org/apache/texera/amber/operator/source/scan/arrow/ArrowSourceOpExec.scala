@@ -88,8 +88,8 @@ class ArrowSourceOpExec(
       }
     }
 
-    var tupleIterator = rowIterator.drop(desc.offset.getOrElse(0))
-    if (desc.limit.isDefined) tupleIterator = tupleIterator.take(desc.limit.get)
+    var tupleIterator = rowIterator.drop(desc.windowOffset)
+    if (desc.windowLimit.isDefined) tupleIterator = tupleIterator.take(desc.windowLimit.get)
     tupleIterator
   }
 

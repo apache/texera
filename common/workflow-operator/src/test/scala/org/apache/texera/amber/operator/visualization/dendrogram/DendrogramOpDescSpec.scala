@@ -81,7 +81,7 @@ class DendrogramOpDescSpec extends AnyFlatSpec with BeforeAndAfter with Matchers
     assert(carries(code, "coord_b"))
     assert(carries(code, "label_col"))
     code should include("create_dendrogram")
-    // empty threshold falls back to color_threshold=None
+    // An unset threshold arrives as None, scipy's own 0.7 * max distance.
     code should include("color_threshold=None")
   }
 

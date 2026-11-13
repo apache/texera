@@ -137,8 +137,8 @@
 
    6. Trademarks. This License does not grant permission to use the trade
       names, trademarks, service marks, or product names of the Licensor,
-      except as required for describing the origin of the Work and
-      reproducing the content of the NOTICE file.
+      except as required for reasonable and customary use in describing the
+      origin of the Work and reproducing the content of the NOTICE file.
 
    7. Disclaimer of Warranty. Unless required by applicable law or
       agreed to in writing, Licensor provides the Work (and each
@@ -162,7 +162,7 @@
       other commercial damages or losses), even if such Contributor
       has been advised of the possibility of such damages.
 
-   9. Accepting Warranty or Support. While redistributing
+   9. Accepting Warranty or Additional Liability. While redistributing
       the Work or Derivative Works thereof, You may choose to offer,
       and charge a fee for, acceptance of support, warranty, indemnity,
       or other liability obligations and/or rights consistent with this
@@ -171,7 +171,7 @@
       of any other Contributor, and only if You agree to indemnify,
       defend, and hold each Contributor harmless for any liability
       incurred by, or claims asserted against, such Contributor by reason
-      of your accepting any such warranty or support.
+      of your accepting any such warranty or additional liability.
 
    END OF TERMS AND CONDITIONS
 
@@ -196,9 +196,9 @@
 
    Unless required by applicable law or agreed to in writing, software
    distributed under the License is distributed on an "AS IS" BASIS,
-   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or
-   implied. See the License for the specific language governing
-   permissions and limitations under the License.
+   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+   See the License for the specific language governing permissions and
+   limitations under the License.
 
 ================================================================================
 THIRD-PARTY COMPONENTS
@@ -218,16 +218,90 @@ Angular / npm packages:
   - @opentelemetry/api@1.9.0
   - @vercel/oidc@3.0.3
   - ai@5.0.93
-  - dompurify@3.3.1
+  - dompurify@3.4.15
   - fast-diff@1.3.0
   - fuse.js@7.5.0
   - jschardet@3.1.3
   - rxjs@7.8.2
 
 Third-party assets:
-  - Google Material Symbols icons (psychology, smart_toy)
+  - Google Material Symbols icons (psychology, smart_toy, snippet_folder)
     frontend/src/assets/notebook_migration_tool/tool_popup_diagram.png
+    frontend/src/assets/notebook_migration_tool/python_file_diagram.png
+    frontend/src/assets/notebook_migration_tool/python_folder_diagram.png
+    frontend/src/assets/notebook_migration_tool/r_notebook_diagram.png
     https://github.com/google/material-design-icons
+  - Google Material Symbols icons (area_chart, autorenew, batch_prediction, forest, join_inner, merge, table_chart, tune)
+    frontend/src/assets/operator_images/FigureFactoryTable.png
+    frontend/src/assets/operator_images/FilledAreaPlot.png
+    frontend/src/assets/operator_images/IntervalJoin.png
+    frontend/src/assets/operator_images/SklearnExtraTrees.png
+    frontend/src/assets/operator_images/SklearnLogisticRegressionCV.png
+    frontend/src/assets/operator_images/SklearnPrediction.png
+    frontend/src/assets/operator_images/SklearnProbabilityCalibration.png
+    frontend/src/assets/operator_images/SklearnRandomForest.png
+    frontend/src/assets/operator_images/SklearnRidgeCV.png
+    frontend/src/assets/operator_images/SklearnTrainingExtraTrees.png
+    frontend/src/assets/operator_images/SklearnTrainingLogisticRegressionCV.png
+    frontend/src/assets/operator_images/SklearnTrainingProbabilityCalibration.png
+    frontend/src/assets/operator_images/SklearnTrainingRandomForest.png
+    frontend/src/assets/operator_images/SklearnTrainingRidgeCV.png
+    frontend/src/assets/operator_images/Union.png
+    https://github.com/google/material-design-icons
+  - IBM Carbon Design System icons (chart--bubble, chart--bullet, chart--candlestick, chart--histogram, chart--line, chart--logistic-regression, chart--multi-line, chart--network, chart--parallel, chart--pie, chart--radar, chart--radial, chart--scatter, chart--stepper, chart--treemap, chart--venn-diagram, chart--violin-plot, chart--waterfall, data-table--reference, decision-tree, edge-cluster, flow--merge, heat-map, join--inner, math-curve, sankey-diagram--alt, scatter-matrix, share, sigma, sort--descending, transform--binary, tree-view, word-cloud)
+    frontend/src/assets/operator_images/Aggregate.png
+    frontend/src/assets/operator_images/BoxViolinPlot.png
+    frontend/src/assets/operator_images/BubbleChart.png
+    frontend/src/assets/operator_images/BulletChart.png
+    frontend/src/assets/operator_images/CandlestickChart.png
+    frontend/src/assets/operator_images/Dendrogram.png
+    frontend/src/assets/operator_images/ECDFPlot.png
+    frontend/src/assets/operator_images/HashJoin.png
+    frontend/src/assets/operator_images/HeatMap.png
+    frontend/src/assets/operator_images/Histogram.png
+    frontend/src/assets/operator_images/IcicleChart.png
+    frontend/src/assets/operator_images/KNNClassifierTrainer.png
+    frontend/src/assets/operator_images/KNNRegressorTrainer.png
+    frontend/src/assets/operator_images/LineChart.png
+    frontend/src/assets/operator_images/NestedTable.png
+    frontend/src/assets/operator_images/NetworkGraph.png
+    frontend/src/assets/operator_images/ParallelCoordinatesPlot.png
+    frontend/src/assets/operator_images/PieChart.png
+    frontend/src/assets/operator_images/PolarChart.png
+    frontend/src/assets/operator_images/RadarPlot.png
+    frontend/src/assets/operator_images/SVCTrainer.png
+    frontend/src/assets/operator_images/SVRTrainer.png
+    frontend/src/assets/operator_images/SankeyDiagram.png
+    frontend/src/assets/operator_images/ScatterMatrixChart.png
+    frontend/src/assets/operator_images/SklearnComplementNaiveBayes.png
+    frontend/src/assets/operator_images/SklearnDecisionTree.png
+    frontend/src/assets/operator_images/SklearnGradientBoosting.png
+    frontend/src/assets/operator_images/SklearnKNN.png
+    frontend/src/assets/operator_images/SklearnLinearRegression.png
+    frontend/src/assets/operator_images/SklearnLogisticRegression.png
+    frontend/src/assets/operator_images/SklearnLogisticRegressionCV.png
+    frontend/src/assets/operator_images/SklearnPerceptron.png
+    frontend/src/assets/operator_images/SklearnSDG.png
+    frontend/src/assets/operator_images/SklearnTrainingComplementNaiveBayes.png
+    frontend/src/assets/operator_images/SklearnTrainingDecisionTree.png
+    frontend/src/assets/operator_images/SklearnTrainingGradientBoosting.png
+    frontend/src/assets/operator_images/SklearnTrainingKNN.png
+    frontend/src/assets/operator_images/SklearnTrainingLinearRegression.png
+    frontend/src/assets/operator_images/SklearnTrainingLogisticRegression.png
+    frontend/src/assets/operator_images/SklearnTrainingLogisticRegressionCV.png
+    frontend/src/assets/operator_images/SklearnTrainingPerceptron.png
+    frontend/src/assets/operator_images/SklearnTrainingSDG.png
+    frontend/src/assets/operator_images/SortPartitions.png
+    frontend/src/assets/operator_images/TimeSeriesPlot.png
+    frontend/src/assets/operator_images/TypeCasting.png
+    frontend/src/assets/operator_images/WaterfallChart.png
+    frontend/src/assets/operator_images/WordCloud.png
+    https://github.com/carbon-design-system/carbon
+  - Apache Arrow and Apache AsterixDB logos (The Apache Software Foundation)
+    frontend/src/assets/operator_images/ArrowSource.png
+    frontend/src/assets/operator_images/AsterixDBSource.png
+    https://github.com/apache/arrow-site/blob/229e92ede438bb6e13417eda141551c242cff334/img/arrow-logo_hex_black-txt_white-bg.png
+    https://github.com/apache/asterixdb-site/blob/00f9bf22dd19e8645315fb2b139527a575dae9c1/img/asterixdb_tm.png
 
 --------------------------------------------------------------------------------
 Dependencies under the MIT License
@@ -245,6 +319,56 @@ Source files derived from third-party MIT-licensed projects:
     frontend/src/assets/svg/operator-reuse-cache-valid.svg
     frontend/src/assets/svg/operator-reuse-cache-invalid.svg
     https://www.svgrepo.com
+  - Phosphor Icons (arrows-split, chart-bar, compass-rose, exclude, file-csv, file-html, funnel-simple, gauge, intersect, subtract)
+    frontend/src/assets/operator_images/BarChart.png
+    frontend/src/assets/operator_images/CSVFileScan.png
+    frontend/src/assets/operator_images/CSVOldFileScan.png
+    frontend/src/assets/operator_images/Difference.png
+    frontend/src/assets/operator_images/FileLister.png
+    frontend/src/assets/operator_images/FileScan.png
+    frontend/src/assets/operator_images/FileScanOp.png
+    frontend/src/assets/operator_images/FunnelPlot.png
+    frontend/src/assets/operator_images/GaugeChart.png
+    frontend/src/assets/operator_images/HTMLVisualizer.png
+    frontend/src/assets/operator_images/Intersect.png
+    frontend/src/assets/operator_images/JSONLFileScan.png
+    frontend/src/assets/operator_images/Split.png
+    frontend/src/assets/operator_images/SymmetricDifference.png
+    frontend/src/assets/operator_images/WindRoseChart.png
+    https://github.com/phosphor-icons/core
+  - Bootstrap Icons (cloud-download, dice-3, image, input-cursor, link, map, moon, regex, sort-down, stop-circle, table, x)
+    frontend/src/assets/operator_images/CartesianProduct.png
+    frontend/src/assets/operator_images/ChoroplethMap.png
+    frontend/src/assets/operator_images/ImageVisualizer.png
+    frontend/src/assets/operator_images/LoopEnd.png
+    frontend/src/assets/operator_images/RandomKSampling.png
+    frontend/src/assets/operator_images/Regex.png
+    frontend/src/assets/operator_images/ReservoirSampling.png
+    frontend/src/assets/operator_images/Sleep.png
+    frontend/src/assets/operator_images/Sort.png
+    frontend/src/assets/operator_images/StableMergeSort.png
+    frontend/src/assets/operator_images/TablesPlot.png
+    frontend/src/assets/operator_images/TextInput.png
+    frontend/src/assets/operator_images/URLFetcher.png
+    frontend/src/assets/operator_images/URLVisualizer.png
+    https://github.com/twbs/icons
+  - Tabler Icons (arrows-join-2, binary-tree, chart-dots, chart-grid-dots, chart-scatter-3d, copy-minus, hierarchy-3, mesh, topology-full, tree, volcano)
+    frontend/src/assets/operator_images/CarpetPlot.png
+    frontend/src/assets/operator_images/Distinct.png
+    frontend/src/assets/operator_images/DotPlot.png
+    frontend/src/assets/operator_images/HierarchyChart.png
+    frontend/src/assets/operator_images/Scatter3DChart.png
+    frontend/src/assets/operator_images/SklearnAdaptiveBoosting.png
+    frontend/src/assets/operator_images/SklearnBernoulliNaiveBayes.png
+    frontend/src/assets/operator_images/SklearnExtraTree.png
+    frontend/src/assets/operator_images/SklearnMultiLayerPerceptron.png
+    frontend/src/assets/operator_images/SklearnTrainingAdaptiveBoosting.png
+    frontend/src/assets/operator_images/SklearnTrainingBernoulliNaiveBayes.png
+    frontend/src/assets/operator_images/SklearnTrainingExtraTree.png
+    frontend/src/assets/operator_images/SklearnTrainingMultiLayerPerceptron.png
+    frontend/src/assets/operator_images/TreePlot.png
+    frontend/src/assets/operator_images/VolcanoPlot.png
+    https://github.com/tabler/tabler-icons
 
 Angular / npm packages:
   - @abacritt/angularx-social-login@2.3.0
@@ -261,48 +385,50 @@ Angular / npm packages:
   - @ant-design/icons-angular@21.0.0
   - @auth0/angular-jwt@5.1.0
   - @babel/runtime@7.29.2
-  - @codingame/monaco-vscode-api@25.1.2
-  - @codingame/monaco-vscode-base-service-override@25.1.2
-  - @codingame/monaco-vscode-bulk-edit-service-override@25.1.2
-  - @codingame/monaco-vscode-configuration-service-override@25.1.2
-  - @codingame/monaco-vscode-editor-api@25.1.2
-  - @codingame/monaco-vscode-editor-service-override@25.1.2
-  - @codingame/monaco-vscode-environment-service-override@25.1.2
-  - @codingame/monaco-vscode-extension-api@25.1.2
-  - @codingame/monaco-vscode-extensions-service-override@25.1.2
-  - @codingame/monaco-vscode-files-service-override@25.1.2
-  - @codingame/monaco-vscode-host-service-override@25.1.2
-  - @codingame/monaco-vscode-java-default-extension@25.1.2
-  - @codingame/monaco-vscode-keybindings-service-override@25.1.2
-  - @codingame/monaco-vscode-languages-service-override@25.1.2
-  - @codingame/monaco-vscode-layout-service-override@25.1.2
-  - @codingame/monaco-vscode-log-service-override@25.1.2
-  - @codingame/monaco-vscode-model-service-override@25.1.2
-  - @codingame/monaco-vscode-monarch-service-override@25.1.2
-  - @codingame/monaco-vscode-python-default-extension@25.1.2
-  - @codingame/monaco-vscode-quickaccess-service-override@25.1.2
-  - @codingame/monaco-vscode-textmate-service-override@25.1.2
-  - @codingame/monaco-vscode-theme-defaults-default-extension@25.1.2
-  - @codingame/monaco-vscode-theme-service-override@25.1.2
-  - @codingame/monaco-vscode-view-banner-service-override@25.1.2
-  - @codingame/monaco-vscode-view-common-service-override@25.1.2
-  - @codingame/monaco-vscode-view-status-bar-service-override@25.1.2
-  - @codingame/monaco-vscode-view-title-bar-service-override@25.1.2
-  - @codingame/monaco-vscode-views-service-override@25.1.2
-  - @codingame/monaco-vscode-workbench-service-override@25.1.2
+  - @codingame/monaco-vscode-api@37.6.1
+  - @codingame/monaco-vscode-base-service-override@37.6.1
+  - @codingame/monaco-vscode-bulk-edit-service-override@37.6.1
+  - @codingame/monaco-vscode-configuration-service-override@37.6.1
+  - @codingame/monaco-vscode-editor-api@37.6.1
+  - @codingame/monaco-vscode-editor-service-override@37.6.1
+  - @codingame/monaco-vscode-environment-service-override@37.6.1
+  - @codingame/monaco-vscode-extension-api@37.6.1
+  - @codingame/monaco-vscode-extensions-service-override@37.6.1
+  - @codingame/monaco-vscode-files-service-override@37.6.1
+  - @codingame/monaco-vscode-host-service-override@37.6.1
+  - @codingame/monaco-vscode-java-default-extension@37.6.1
+  - @codingame/monaco-vscode-keybindings-service-override@37.6.1
+  - @codingame/monaco-vscode-languages-service-override@37.6.1
+  - @codingame/monaco-vscode-layout-service-override@37.6.1
+  - @codingame/monaco-vscode-log-service-override@37.6.1
+  - @codingame/monaco-vscode-model-service-override@37.6.1
+  - @codingame/monaco-vscode-monarch-service-override@37.6.1
+  - @codingame/monaco-vscode-python-default-extension@37.6.1
+  - @codingame/monaco-vscode-quickaccess-service-override@37.6.1
+  - @codingame/monaco-vscode-textmate-service-override@37.6.1
+  - @codingame/monaco-vscode-theme-defaults-default-extension@37.6.1
+  - @codingame/monaco-vscode-theme-service-override@37.6.1
+  - @codingame/monaco-vscode-view-banner-service-override@37.6.1
+  - @codingame/monaco-vscode-view-common-service-override@37.6.1
+  - @codingame/monaco-vscode-view-status-bar-service-override@37.6.1
+  - @codingame/monaco-vscode-view-title-bar-service-override@37.6.1
+  - @codingame/monaco-vscode-views-service-override@37.6.1
+  - @codingame/monaco-vscode-workbench-service-override@37.6.1
   - @ctrl/tinycolor@3.6.1
   - @lezer/common@1.5.2
   - @lezer/highlight@1.2.3
+  - @lezer/java@1.1.5
   - @lezer/lr@1.4.10
   - @lezer/python@1.1.19
   - @ngneat/until-destroy@10.0.0
   - @ngx-formly/core@7.1.0
   - @ngx-formly/ng-zorro-antd@7.1.0
+  - @vscode/diff@0.0.2-7
   - @vscode/iconv-lite-umd@0.7.1
   - ajv@8.18.0
   - backbone@1.4.1
-  - balanced-match@1.0.2
-  - brace-expansion@2.1.0
+  - balanced-match@4.0.4
+  - brace-expansion@5.0.12
   - css-loader@7.1.3
   - dagre@0.8.5
   - date-fns@2.30.0
@@ -313,7 +439,7 @@ Angular / npm packages:
   - file-saver@2.0.5
   - graphlib@2.1.8
   - html2canvas@1.4.1
-  - java@1.0.0
+  - java@10.0.0
   - jquery@3.6.4
   - json-schema-traverse@1.0.0
   - jszip@3.10.1
@@ -325,7 +451,7 @@ Angular / npm packages:
   - marked@14.0.0
   - mobx@4.14.1
   - monaco-breakpoints@0.2.0
-  - monaco-languageclient@10.7.0
+  - monaco-languageclient@11.0.3
   - ng-zorro-antd@21.3.2
   - ngx-color-picker@12.0.1
   - ngx-file-drop@16.0.0
@@ -334,21 +460,22 @@ Angular / npm packages:
   - papaparse@5.4.1
   - plotly.js-basic-dist-min@2.29.0
   - point-in-polygon@1.1.0
-  - python@1.0.0
+  - python@10.0.0
   - quill-cursors@4.3.0
   - quill-delta@5.1.0
   - rbush@4.0.1
   - read-excel-file@5.7.1
   - ring-buffer-ts@1.0.3
   - style-loader@3.3.4
-  - theme-defaults@1.0.0
+  - theme-defaults@10.0.0
   - underscore@1.13.8
   - uuid@14.0.1
-  - vscode-jsonrpc@8.2.0
-  - vscode-languageclient@9.0.1
-  - vscode-languageserver-protocol@3.17.5
-  - vscode-languageserver-types@3.17.5
-  - vscode-ws-jsonrpc@3.5.0
+  - vscode-jsonrpc@9.0.3
+  - vscode-languageclient@10.1.2
+  - vscode-languageserver-protocol@3.18.5
+  - vscode-languageserver-textdocument@1.0.15
+  - vscode-languageserver-types@3.18.5
+  - vscode-ws-jsonrpc@4.0.3
   - y-monaco@0.1.6
   - y-protocols@1.0.7
   - y-quill@1.0.0
@@ -370,6 +497,7 @@ Angular / npm packages:
 Third-party assets:
   - Project Jupyter logo
     frontend/src/assets/notebook_migration_tool/tool_popup_diagram.png
+    frontend/src/assets/notebook_migration_tool/r_notebook_diagram.png
     https://github.com/jupyter/design
 
 --------------------------------------------------------------------------------
@@ -379,9 +507,38 @@ Dependencies under the ISC License
 Angular / npm packages:
   - concaveman@2.0.0
   - d3-path@2.0.0
-  - minimatch@5.1.9
   - quickselect@3.0.0
   - tinyqueue@2.0.3
+
+Third-party assets:
+  - Lucide icons (book-search, chart-gantt, chart-radar, chart-scatter, circle-dot-dashed, filter, gauge, git-branch, layers, list-end, message-square-warning, mountain-snow, repeat, test-tubes)
+    frontend/src/assets/operator_images/DictionaryMatcher.png
+    frontend/src/assets/operator_images/Filter.png
+    frontend/src/assets/operator_images/GanttChart.png
+    frontend/src/assets/operator_images/HuggingFaceSpamSMSDetection.png
+    frontend/src/assets/operator_images/If.png
+    frontend/src/assets/operator_images/Limit.png
+    frontend/src/assets/operator_images/LoopStart.png
+    frontend/src/assets/operator_images/RadarChart.png
+    frontend/src/assets/operator_images/Scatterplot.png
+    frontend/src/assets/operator_images/Scorer.png
+    frontend/src/assets/operator_images/SklearnBagging.png
+    frontend/src/assets/operator_images/SklearnNearestCentroid.png
+    frontend/src/assets/operator_images/SklearnRidge.png
+    frontend/src/assets/operator_images/SklearnRidgeCV.png
+    frontend/src/assets/operator_images/SklearnTesting.png
+    frontend/src/assets/operator_images/SklearnTrainingBagging.png
+    frontend/src/assets/operator_images/SklearnTrainingNearestCentroid.png
+    frontend/src/assets/operator_images/SklearnTrainingRidge.png
+    frontend/src/assets/operator_images/SklearnTrainingRidgeCV.png
+    https://github.com/lucide-icons/lucide
+
+--------------------------------------------------------------------------------
+Dependencies under the Blue Oak Model License, Version 1.0.0
+--------------------------------------------------------------------------------
+
+Angular / npm packages:
+  - minimatch@10.2.6
 
 --------------------------------------------------------------------------------
 Dependencies under the Mozilla Public License, Version 2.0

@@ -35,7 +35,7 @@ import { merge } from "rxjs";
 import { WorkflowActionService } from "../../service/workflow-graph/model/workflow-action.service";
 import { OperatorPropertyEditFrameComponent } from "./operator-property-edit-frame/operator-property-edit-frame.component";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
-import { distinctUntilChanged, filter } from "rxjs/operators";
+import { distinctUntilChanged } from "rxjs/operators";
 import { PortPropertyEditFrameComponent } from "./port-property-edit-frame/port-property-edit-frame.component";
 import { NzResizeEvent, NzResizableDirective, NzResizeHandlesComponent } from "ng-zorro-antd/resizable";
 import { calculateTotalTranslate3d } from "../../../common/util/panel-dock";
@@ -171,7 +171,6 @@ export class PropertyEditorComponent implements OnInit, OnDestroy, OnChanges {
       const [xOffset, yOffset, _] = calculateTotalTranslate3d(container.style.transform);
       this.returnPosition = { x: -xOffset, y: -yOffset };
     }
-    this.registerHighlightEventsHandler();
     // The toolbar's "choose fields" toggle lives in the service so both the canvas toolbar
     // and this panel see the same state. Re-emit the frame's inputs when it changes, so tick
     // boxes appear and disappear without needing a re-selection.
@@ -187,6 +186,10 @@ export class PropertyEditorComponent implements OnInit, OnDestroy, OnChanges {
       // Rebuild the frame so the tick boxes appear/disappear (see remountOperatorFrame).
       this.remountOperatorFrame();
     });
+    // After the toggle above has replayed its current value: the frame this may build on mount
+    // takes `choosing` from it, and building first would have the replay tear the frame down and
+    // rebuild it inside the page's first change-detection pass.
+    this.registerHighlightEventsHandler();
     this.panelService.closePanelStream.pipe(untilDestroyed(this)).subscribe(() => this.closePanel());
     this.panelService.resetPanelStream.pipe(untilDestroyed(this)).subscribe(() => {
       this.resetPanelPosition();
@@ -257,18 +260,26 @@ export class PropertyEditorComponent implements OnInit, OnDestroy, OnChanges {
   }
 
   /**
-   * This method changes the property editor according to how operators are highlighted on the workflow editor.
-   *
-   * Displays the form of the highlighted operator if only one operator is highlighted;
-   * Displays the form of the link breakpoint if only one link is highlighted;
-   * hides the form if no operator/link is highlighted or multiple operators and/or groups and/or links are highlighted.
+   * Shows the selection the panel mounts into, then follows every change to it: one operator or
+   * one port opens its frame, anything else (nothing, several things, a link) shows no frame.
    */
   registerHighlightEventsHandler() {
+    // The selection outlives this panel: it lives in the graph wrapper, which both views of a
+    // workflow share and hand over between them, so a panel mounting into an existing selection
+    // never sees the event that made it. Show it now, then follow the changes -- otherwise the
+    // panel looks empty until the selection changes, and clicking the very step it should be
+    // showing is a no-op (an already-highlighted element emits nothing). Only when something is
+    // selected: a fresh mount has no frame to clear, and the no-frame branch is for a selection
+    // being dropped (it clears the editing marker and resizes the docked panel to its empty
+    // content), which a mount must not do. A link or a comment box alone leaves the panel as it
+    // mounted, empty -- what the branch would have shown anyway.
+    const wrapper = this.workflowActionService.getJointGraphWrapper();
+    if (wrapper.getCurrentHighlightedOperatorIDs().length > 0 || wrapper.getCurrentHighlightedPortIDs().length > 0) {
+      this.showHighlighted();
+    }
     merge(
       this.workflowActionService.getJointGraphWrapper().getJointOperatorHighlightStream(),
       this.workflowActionService.getJointGraphWrapper().getJointOperatorUnhighlightStream(),
-      this.workflowActionService.getJointGraphWrapper().getJointGroupHighlightStream(),
-      this.workflowActionService.getJointGraphWrapper().getJointGroupUnhighlightStream(),
       this.workflowActionService.getJointGraphWrapper().getLinkHighlightStream(),
       this.workflowActionService.getJointGraphWrapper().getLinkUnhighlightStream(),
       this.workflowActionService.getJointGraphWrapper().getJointCommentBoxHighlightStream(),
@@ -276,40 +287,44 @@ export class PropertyEditorComponent implements OnInit, OnDestroy, OnChanges {
       this.workflowActionService.getJointGraphWrapper().getJointPortHighlightStream(),
       this.workflowActionService.getJointGraphWrapper().getJointPortUnhighlightStream()
     )
-      .pipe(
-        filter(() => this.workflowActionService.getTexeraGraph().getSyncTexeraGraph()),
-        untilDestroyed(this)
-      )
-      .subscribe(_ => {
-        const highlightedOperators = this.workflowActionService
-          .getJointGraphWrapper()
-          .getCurrentHighlightedOperatorIDs();
-        const highlightLinks = this.workflowActionService.getJointGraphWrapper().getCurrentHighlightedLinkIDs();
-        this.workflowActionService.getJointGraphWrapper().getCurrentHighlightedCommentBoxIDs();
-        const highlightedPorts = this.workflowActionService.getJointGraphWrapper().getCurrentHighlightedPortIDs();
+      .pipe(untilDestroyed(this))
+      .subscribe(_ => this.showHighlighted());
+  }
 
-        if (highlightedOperators.length === 1 && highlightLinks.length === 0 && highlightedPorts.length === 0) {
-          this.currentComponent = OperatorPropertyEditFrameComponent;
-          this.componentInputs = {
-            currentOperatorId: highlightedOperators[0],
-            exposeChoosing: this.choosing,
-            actsAsEditor: this.actsAsEditor,
-          };
-        } else if (highlightedPorts.length === 1 && highlightLinks.length === 0) {
-          this.currentComponent = PortPropertyEditFrameComponent;
-          this.componentInputs = { currentPortID: highlightedPorts[0] };
-        } else {
-          this.currentComponent = null;
-          this.componentInputs = {};
-          // Same gate as the frame's own broadcast: a viewer mount publishes nothing on the
-          // shared awareness channel, in either direction.
-          if (this.actsAsEditor) {
-            this.workflowActionService.getTexeraGraph().updateSharedModelAwareness("currentlyEditing", undefined);
-          }
-        }
-        this.changeDetectorRef.detectChanges();
-        this.updateHeightBasedOnContent();
-      });
+  /**
+   * Show whatever the shared selection holds right now: one operator, one port, or nothing. Not
+   * while the graph is mid-sync with the shared model: the highlight set is then in flux and would
+   * be read again when the sync ends.
+   */
+  private showHighlighted(): void {
+    if (!this.workflowActionService.getTexeraGraph().getSyncTexeraGraph()) {
+      return;
+    }
+    const highlightedOperators = this.workflowActionService.getJointGraphWrapper().getCurrentHighlightedOperatorIDs();
+    const highlightedLinks = this.workflowActionService.getJointGraphWrapper().getCurrentHighlightedLinkIDs();
+    const highlightedPorts = this.workflowActionService.getJointGraphWrapper().getCurrentHighlightedPortIDs();
+
+    if (highlightedOperators.length === 1 && highlightedLinks.length === 0 && highlightedPorts.length === 0) {
+      this.currentComponent = OperatorPropertyEditFrameComponent;
+      this.componentInputs = {
+        currentOperatorId: highlightedOperators[0],
+        exposeChoosing: this.choosing,
+        actsAsEditor: this.actsAsEditor,
+      };
+    } else if (highlightedPorts.length === 1 && highlightedLinks.length === 0) {
+      this.currentComponent = PortPropertyEditFrameComponent;
+      this.componentInputs = { currentPortID: highlightedPorts[0] };
+    } else {
+      this.currentComponent = null;
+      this.componentInputs = {};
+      // Same gate as the frame's own broadcast: a viewer mount publishes nothing on the
+      // shared awareness channel, in either direction.
+      if (this.actsAsEditor) {
+        this.workflowActionService.getTexeraGraph().updateSharedModelAwareness("currentlyEditing", undefined);
+      }
+    }
+    this.changeDetectorRef.detectChanges();
+    this.updateHeightBasedOnContent();
   }
   onResize({ width, height }: NzResizeEvent) {
     cancelAnimationFrame(this.id);

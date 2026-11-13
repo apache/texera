@@ -19,7 +19,8 @@
 
 import { z } from "zod";
 import { tool } from "ai";
-import { createErrorResult, formatExecuteOperatorResult, getVisibleResultHeaders } from "./tools-utility";
+import { createErrorResult } from "./tools-utility";
+import { formatOperatorResult } from "./result-formatting";
 import type { WorkflowState } from "../workflow-state";
 import { getBackendConfig } from "../../api/backend-api";
 import { env } from "../../config/env";
@@ -318,41 +319,6 @@ async function executeWorkflowHttp(
   }
 }
 
-function formatInputOutput(
-  workflowState: WorkflowState,
-  operatorId: string,
-  opInfo: OperatorInfo,
-  outputColumns: number
-): string {
-  const outputRows = opInfo.totalRowCount ?? opInfo.outputTuples;
-  const outputLine = `Output table shape: (${outputRows}, ${outputColumns})`;
-
-  const inputShapes = opInfo.inputPortShapes;
-  if (!inputShapes || inputShapes.length === 0) {
-    return outputLine;
-  }
-
-  const inputLinks = workflowState.getAllLinks().filter(l => l.target.operatorID === operatorId);
-  const portIndexToUpstream = new Map<number, string>();
-  const op = workflowState.getOperator(operatorId);
-  for (const link of inputLinks) {
-    const portIdx = op?.inputPorts.findIndex(p => p.portID === link.target.portID) ?? -1;
-    if (portIdx >= 0) {
-      portIndexToUpstream.set(portIdx, link.source.operatorID);
-    }
-  }
-
-  const inputPart = inputShapes
-    .sort((a, b) => a.portIndex - b.portIndex)
-    .map(p => {
-      const name = portIndexToUpstream.get(p.portIndex) ?? `input${p.portIndex}`;
-      return `${name}(${p.rows}, ${p.columns})`;
-    })
-    .join(", ");
-
-  return `Input operator(table shape): ${inputPart}\n${outputLine}`;
-}
-
 function formatExecutionError(
   compilationErrors?: Record<string, string>,
   operatorErrors?: Array<{ operatorId: string; error: string }>,
@@ -382,45 +348,6 @@ function formatExecutionError(
   }
 
   return lines.join("\n");
-}
-
-function jsonToTableFormat(jsonResult: Record<string, any>[]): string {
-  if (!jsonResult || jsonResult.length === 0) return "";
-
-  const hasRowIndex = jsonResult.length > 0 && "__row_index__" in jsonResult[0];
-  const headers = getVisibleResultHeaders(jsonResult[0]);
-  if (headers.length === 0) return "";
-  // Leading tab aligns headers with the index column (pandas __repr__ style).
-  const headerLine = "\t" + headers.join("\t");
-
-  const formattedRows: string[] = [];
-  let prevIndex = -1;
-
-  for (let i = 0; i < jsonResult.length; i++) {
-    const row = jsonResult[i];
-    const rowIndex = hasRowIndex ? (row["__row_index__"] as number) : i;
-
-    if (prevIndex >= 0 && rowIndex > prevIndex + 1) {
-      const dots = headers.map(() => "...").join("\t");
-      formattedRows.push(`...\t${dots}`);
-    }
-    prevIndex = rowIndex;
-
-    const cells = headers.map(h => {
-      const val = row[h];
-      if (val === null) return "NaN";
-      if (val === undefined) return "";
-      if (typeof val === "number" || typeof val === "boolean") return String(val);
-      if (typeof val === "string") {
-        if (val === "NULL") return "NaN";
-        return val.replace(/\t/g, "\\t").replace(/\n/g, "\\n");
-      }
-      return JSON.stringify(val);
-    });
-    formattedRows.push(`${rowIndex}\t${cells.join("\t")}`);
-  }
-
-  return [headerLine, ...formattedRows].join("\n");
 }
 
 export async function executeOperatorAndFormat(
@@ -510,10 +437,6 @@ export async function executeOperatorAndFormat(
       return "(no result data)";
     }
 
-    const jsonArray = opInfo.result as Record<string, any>[];
-    const headers = jsonArray.length > 0 ? getVisibleResultHeaders(jsonArray[0]) : [];
-    const columns = headers.length;
-
     // Notify for every operator in the execution so upstream stats are also stored.
     if (options.onResult) {
       for (const [opId, info] of Object.entries(result.operators)) {
@@ -523,50 +446,9 @@ export async function executeOperatorAndFormat(
       }
     }
 
-    let dataString = jsonToTableFormat(jsonArray);
-
     // Safety-net: TSV serialization may add padding beyond backend's raw-record budget.
     const charLimit = config.maxOperatorResultCharLimit ?? DEFAULT_AGENT_SETTINGS.maxOperatorResultCharLimit;
-
-    if (dataString.length > charLimit) {
-      const allLines = dataString.split("\n");
-      const headerLine = allLines[0];
-      const dataRows = allLines.slice(1);
-
-      const reservedSize = headerLine.length + 1;
-
-      const halfLimit = Math.floor((charLimit - reservedSize) / 2);
-
-      let frontSize = 0;
-      const frontRows: string[] = [];
-      for (const row of dataRows) {
-        const rowLen = row.length + 1;
-        if (frontSize + rowLen > halfLimit && frontRows.length > 0) break;
-        frontRows.push(row);
-        frontSize += rowLen;
-      }
-
-      let backSize = 0;
-      const backRows: string[] = [];
-      for (let i = dataRows.length - 1; i >= frontRows.length; i--) {
-        const rowLen = dataRows[i].length + 1;
-        if (backSize + rowLen > halfLimit && backRows.length > 0) break;
-        backRows.unshift(dataRows[i]);
-        backSize += rowLen;
-      }
-
-      const keptRows = [...frontRows, ...backRows];
-      dataString = [headerLine, ...keptRows].join("\n");
-    }
-
-    const shapeLine = formatInputOutput(workflowState, operatorId, opInfo, columns);
-
-    const warningLines = opInfo.warnings?.map(w => w) ?? [];
-
-    const metadataLines = [shapeLine, ...warningLines].filter(Boolean);
-
-    const briefSummary = formatExecuteOperatorResult(operatorId);
-    return [briefSummary, ...metadataLines, dataString].filter(Boolean).join("\n");
+    return formatOperatorResult(operatorId, opInfo, workflowState, charLimit);
   } catch (error: any) {
     if (error.name === "AbortError") {
       throw error;

@@ -40,9 +40,13 @@
         [field]="subField"></formly-field>
     </div>
 
+    <!-- type="button" on every button here: nz-button sets no type, so inside a form (the Form View's
+         card, the operator property panel) a typeless button is the form's submit button, and Enter
+         in a row's input would click it -- here, removing the first row. -->
     <button
       nz-button
       nzType="default"
+      type="button"
       (click)="remove(i)"
       class="dnd-remove-button"
       [disabled]="field.templateOptions?.disabled">
@@ -57,6 +61,7 @@
 <button
   nz-button
   nzType="default"
+  type="button"
   (click)="add()"
   [disabled]="field.templateOptions?.disabled">
   {{ field.templateOptions?.addText || "Add" }}

@@ -21,7 +21,45 @@ import type { OperatorInfo } from "../../types/execution";
 import type { WorkflowState } from "../workflow-state";
 import { formatExecuteOperatorResult, getVisibleResultHeaders } from "./tools-utility";
 
-export function formatOperatorResult(operatorId: string, opInfo: OperatorInfo, workflowState: WorkflowState): string {
+/**
+ * Keeps the header plus as many head and tail rows as fit in `charLimit`,
+ * always retaining at least one row.
+ */
+function truncateTable(dataString: string, charLimit: number): string {
+  if (dataString.length <= charLimit) return dataString;
+
+  const allLines = dataString.split("\n");
+  const headerLine = allLines[0];
+  const dataRows = allLines.slice(1);
+  const halfLimit = Math.floor((charLimit - (headerLine.length + 1)) / 2);
+
+  let frontSize = 0;
+  const frontRows: string[] = [];
+  for (const row of dataRows) {
+    const rowLen = row.length + 1;
+    if (frontSize + rowLen > halfLimit && frontRows.length > 0) break;
+    frontRows.push(row);
+    frontSize += rowLen;
+  }
+
+  let backSize = 0;
+  const backRows: string[] = [];
+  for (let i = dataRows.length - 1; i >= frontRows.length; i--) {
+    const rowLen = dataRows[i].length + 1;
+    if (backSize + rowLen > halfLimit && backRows.length > 0) break;
+    backRows.unshift(dataRows[i]);
+    backSize += rowLen;
+  }
+
+  return [headerLine, ...frontRows, ...backRows].join("\n");
+}
+
+export function formatOperatorResult(
+  operatorId: string,
+  opInfo: OperatorInfo,
+  workflowState: WorkflowState,
+  charLimit?: number
+): string {
   if (opInfo.error) {
     return `[ERROR] ${opInfo.error}`;
   }
@@ -50,7 +88,10 @@ export function formatOperatorResult(operatorId: string, opInfo: OperatorInfo, w
       })
     : jsonArray;
 
-  const dataString = jsonToTableFormat(serializableArray);
+  let dataString = jsonToTableFormat(serializableArray);
+  if (charLimit !== undefined) {
+    dataString = truncateTable(dataString, charLimit);
+  }
 
   const metadataLines = [
     formatInputOutputMetadata(workflowState, operatorId, opInfo, columns),
@@ -61,7 +102,7 @@ export function formatOperatorResult(operatorId: string, opInfo: OperatorInfo, w
   return [briefSummary, ...metadataLines, dataString].filter(Boolean).join("\n");
 }
 
-function formatInputOutputMetadata(
+export function formatInputOutputMetadata(
   workflowState: WorkflowState,
   operatorId: string,
   opInfo: OperatorInfo,
@@ -96,13 +137,14 @@ function formatInputOutputMetadata(
   return `Input operator(table shape): ${inputPart}\n${outputLine}`;
 }
 
-function jsonToTableFormat(jsonResult: Record<string, any>[]): string {
+export function jsonToTableFormat(jsonResult: Record<string, any>[]): string {
   if (!jsonResult || jsonResult.length === 0) return "";
 
   const hasRowIndex = "__row_index__" in jsonResult[0];
   const headers = getVisibleResultHeaders(jsonResult[0]);
   if (headers.length === 0) return "";
 
+  // Leading tab aligns headers with the index column (pandas __repr__ style).
   const headerLine = "\t" + headers.join("\t");
   const formattedRows: string[] = [];
   let prevIndex = -1;
