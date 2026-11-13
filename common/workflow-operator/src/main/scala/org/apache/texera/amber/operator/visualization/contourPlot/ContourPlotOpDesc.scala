@@ -19,6 +19,7 @@
 
 package org.apache.texera.amber.operator.visualization.contourPlot
 
+import org.apache.texera.amber.operator.visualization.StandaloneChartCode._
 import com.fasterxml.jackson.annotation.{JsonProperty, JsonPropertyDescription}
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize
 import com.kjetland.jackson.jsonSchema.annotations.{JsonSchemaInject, JsonSchemaTitle}
@@ -159,10 +160,7 @@ class ContourPlotOpDesc extends PythonVisualizationOpDesc with PlotlyStandaloneC
     s"""import numpy as np
        |from scipy.interpolate import griddata
        |
-       |def render_error(error_msg):
-       |    return '''<h1>Contour plot is not available.</h1>
-       |                  <p>Reason is: {} </p>
-       |               '''.format(error_msg)
+       |${standaloneError("Contour plot is not available.")}
        |
        |def _write_error(message):
        |    with open(outputHtml, "w", encoding="utf-8") as output:
@@ -199,9 +197,7 @@ class ContourPlotOpDesc extends PythonVisualizationOpDesc with PlotlyStandaloneC
        |            colorbar_title=${pyStringLiteral(z)}
        |        ))
        |        fig.update_layout(title='Contour Plot')
-       |        fig.write_json(outputJson)
-       |        fig.write_html(outputHtml)
-       |        print("Contour plot saved to " + outputJson + " and " + outputHtml)""".stripMargin
+       |${standaloneFigure("Contour plot", bothOutputs = true)}""".stripMargin
 }
 
 object ContourPlotOpDesc {

@@ -19,6 +19,7 @@
 
 package org.apache.texera.amber.operator.visualization.wordCloud
 
+import org.apache.texera.amber.operator.visualization.StandaloneChartCode._
 import com.fasterxml.jackson.annotation.JsonProperty
 import com.kjetland.jackson.jsonSchema.annotations.{
   JsonSchemaInject,
@@ -138,15 +139,11 @@ class WordCloudOpDesc extends PythonVisualizationOpDesc {
   // the runtime path explains itself.
   override def generateStandaloneCode(): String = {
     val textLit = pyStringLiteral(textColumn)
-    s"""def render_error(error_msg):
-       |    return '''<h1>Wordcloud is not available.</h1>
-       |                  <p>Reason is: {} </p>
-       |               '''.format(error_msg)
+    s"""${standaloneError("Wordcloud is not available.")}
        |
        |table = in1df
        |if table.empty:
-       |    with open(outputHtml, "w", encoding="utf-8") as f:
-       |        f.write(render_error("input table is empty."))
+       |${standaloneErrorPage("input table is empty.", handle = "f")}
        |elif not (pd.api.types.is_object_dtype(table[$textLit]) or pd.api.types.is_string_dtype(table[$textLit])):
        |    with open(outputHtml, "w", encoding="utf-8") as f:
        |        f.write(render_error("$NotTextMessage"))
@@ -154,8 +151,11 @@ class WordCloudOpDesc extends PythonVisualizationOpDesc {
        |    table = table.dropna(subset=[$textLit])
        |    table = table[table[$textLit].str.contains(r'\\w', regex=True)]
        |    if table.empty:
-       |        with open(outputHtml, "w", encoding="utf-8") as f:
-       |            f.write(render_error("text column does not contain words or contains only nulls."))
+       |${standaloneErrorPage(
+      "text column does not contain words or contains only nulls.",
+      indent = 8,
+      handle = "f"
+    )}
        |    else:
        |        text = ' '.join(table[$textLit])
        |        from wordcloud import WordCloud, STOPWORDS

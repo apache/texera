@@ -19,6 +19,7 @@
 
 package org.apache.texera.amber.operator.visualization.DotPlot
 
+import org.apache.texera.amber.operator.visualization.StandaloneChartCode._
 import com.fasterxml.jackson.annotation.{JsonProperty, JsonPropertyDescription}
 import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaTitle
 import org.apache.texera.amber.pybuilder.PythonTemplateBuilder.{
@@ -101,10 +102,7 @@ class DotPlotOpDesc extends PythonVisualizationOpDesc with PlotlyStandaloneCode 
     // to the terminal alone left that file absent. render_error's continuation
     // line keeps the runtime path's indentation, since the HTML is triple-quoted
     // and those spaces reach the browser.
-    s"""def render_error(error_msg):
-       |    return '''<h1>DotPlot is not available.</h1>
-       |                  <p>Reasons are: {} </p>
-       |               '''.format(error_msg)
+    s"""${standaloneError("DotPlot is not available.", plural = true)}
        |
        |def fail(error_msg):
        |    with open(outputHtml, "w", encoding="utf-8") as output:
@@ -122,9 +120,7 @@ class DotPlotOpDesc extends PythonVisualizationOpDesc with PlotlyStandaloneCode 
        |                       color_discrete_sequence=px.colors.qualitative.Dark2)
        |        fig.update_traces(marker=dict(size=12, line=dict(width=2, color='DarkSlateGrey')))
        |        fig.update_layout(margin=dict(t=0, b=0, l=0, r=0))
-       |        fig.write_json(outputJson)
-       |        fig.write_html(outputHtml)
-       |        print("Dot plot saved to " + outputHtml)""".stripMargin
+       |${standaloneFigure("Dot plot")}""".stripMargin
   }
 
 }

@@ -19,6 +19,7 @@
 
 package org.apache.texera.amber.operator.visualization.bulletChart
 
+import org.apache.texera.amber.operator.visualization.StandaloneChartCode._
 import com.fasterxml.jackson.annotation.{JsonProperty, JsonPropertyDescription}
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize
 import com.kjetland.jackson.jsonSchema.annotations.{JsonSchemaInject, JsonSchemaTitle}
@@ -283,8 +284,7 @@ class BulletChartOpDesc extends PythonVisualizationOpDesc with PlotlyStandaloneC
        |    return valid_steps, step_errors
        |
        |if in1df.empty:
-       |    with open(outputHtml, "w", encoding="utf-8") as output:
-       |        output.write(render_error("Input table is empty."))
+       |${standaloneErrorPage("Input table is empty.")}
        |else:
        |    try:
        |        value_col = $valueLit
@@ -295,8 +295,7 @@ class BulletChartOpDesc extends PythonVisualizationOpDesc with PlotlyStandaloneC
        |        else:
        |            table = in1df.dropna(subset=[value_col])
        |            if table.empty:
-       |                with open(outputHtml, "w", encoding="utf-8") as output:
-       |                    output.write(render_error("No valid data rows found after dropping nulls."))
+       |${standaloneErrorPage("No valid data rows found after dropping nulls.", indent = 16)}
        |            else:
        |                threshold_val = $thresholdExpr
        |                valid_steps, step_errors = generate_valid_steps($stepsExpr)

@@ -19,6 +19,7 @@
 
 package org.apache.texera.amber.operator.visualization.candlestickChart
 
+import org.apache.texera.amber.operator.visualization.StandaloneChartCode._
 import com.fasterxml.jackson.annotation.{JsonProperty, JsonPropertyDescription}
 import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaTitle
 import org.apache.texera.amber.pybuilder.PythonTemplateBuilder.{
@@ -121,8 +122,6 @@ class CandlestickChartOpDesc extends PythonVisualizationOpDesc with PlotlyStanda
        |    close=in1df[${pyStringLiteral(close)}]
        |)])
        |fig.update_layout(title='Candlestick Chart')
-       |fig.write_json(outputJson)
-       |fig.write_html(outputHtml)
-       |print("Candlestick chart saved to " + outputJson + " and " + outputHtml)""".stripMargin
+       |${standaloneFigure("Candlestick chart", indent = 0, bothOutputs = true)}""".stripMargin
 
 }

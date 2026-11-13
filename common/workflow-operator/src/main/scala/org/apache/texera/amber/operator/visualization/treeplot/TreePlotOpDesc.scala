@@ -19,6 +19,7 @@
 
 package org.apache.texera.amber.operator.visualization.treeplot
 
+import org.apache.texera.amber.operator.visualization.StandaloneChartCode._
 import com.fasterxml.jackson.annotation.{JsonProperty, JsonPropertyDescription}
 import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaTitle
 import org.apache.texera.amber.pybuilder.PythonTemplateBuilder.PythonTemplateBuilderStringContext
@@ -99,64 +100,7 @@ class TreePlotOpDesc extends PythonVisualizationOpDesc with PlotlyStandaloneCode
        |        return annotations
        |
        |    def build_tree_layout(self, edges):
-       |        # Tidy top-down tree: depth picks the row, a leaf takes the next
-       |        # free column and a parent sits centred over its own children.
-       |        labels = []
-       |        known = set()
-       |        for parent, child in edges:
-       |            for node in (parent, child):
-       |                if node not in known:
-       |                    known.add(node)
-       |                    labels.append(node)
-       |
-       |        children = {label: [] for label in labels}
-       |        has_parent = set()
-       |        seen = set()
-       |        for parent, child in edges:
-       |            if (parent, child) not in seen:
-       |                seen.add((parent, child))
-       |                children[parent].append(child)
-       |            has_parent.add(child)
-       |
-       |        depth = {}
-       |        column = {}
-       |        claimed = {}
-       |        placed = set()
-       |        next_column = 0
-       |
-       |        def grow(root):
-       |            nonlocal next_column
-       |            placed.add(root)
-       |            stack = [(root, 0, False)]
-       |            while stack:
-       |                node, level, folded = stack.pop()
-       |                if folded:
-       |                    kids = claimed[node]
-       |                    if kids:
-       |                        column[node] = sum(column[kid] for kid in kids) / len(kids)
-       |                    else:
-       |                        column[node] = next_column
-       |                        next_column += 1
-       |                    continue
-       |                depth[node] = level
-       |                # A node belongs to whichever parent reaches it first, so a
-       |                # cycle or a shared child is never laid out twice.
-       |                kids = [kid for kid in children[node] if kid not in placed]
-       |                placed.update(kids)
-       |                claimed[node] = kids
-       |                stack.append((node, level, True))
-       |                for kid in reversed(kids):
-       |                    stack.append((kid, level + 1, False))
-       |
-       |        for label in labels:
-       |            if label not in placed and label not in has_parent:
-       |                grow(label)
-       |        # Whatever is left sits in a cycle that no root can reach.
-       |        for label in labels:
-       |            if label not in placed:
-       |                grow(label)
-       |        # The y-axis is inverted here so the tree grows top-down.
-       |        return labels, [(column[label], -depth[label]) for label in labels]
+       |${TreePlotPython.body(8, runtime = true)}
        |
        |    @overrides
        |    def process_table(self, table: Table, port: int) -> Iterator[Optional[TableLike]]:
@@ -273,58 +217,7 @@ class TreePlotOpDesc extends PythonVisualizationOpDesc with PlotlyStandaloneCode
        |    return annotations
        |
        |def build_tree_layout(edges):
-       |    labels = []
-       |    known = set()
-       |    for parent, child in edges:
-       |        for node in (parent, child):
-       |            if node not in known:
-       |                known.add(node)
-       |                labels.append(node)
-       |
-       |    children = {label: [] for label in labels}
-       |    has_parent = set()
-       |    seen = set()
-       |    for parent, child in edges:
-       |        if (parent, child) not in seen:
-       |            seen.add((parent, child))
-       |            children[parent].append(child)
-       |        has_parent.add(child)
-       |
-       |    depth = {}
-       |    column = {}
-       |    claimed = {}
-       |    placed = set()
-       |    next_column = 0
-       |
-       |    def grow(root):
-       |        nonlocal next_column
-       |        placed.add(root)
-       |        stack = [(root, 0, False)]
-       |        while stack:
-       |            node, level, folded = stack.pop()
-       |            if folded:
-       |                kids = claimed[node]
-       |                if kids:
-       |                    column[node] = sum(column[kid] for kid in kids) / len(kids)
-       |                else:
-       |                    column[node] = next_column
-       |                    next_column += 1
-       |                continue
-       |            depth[node] = level
-       |            kids = [kid for kid in children[node] if kid not in placed]
-       |            placed.update(kids)
-       |            claimed[node] = kids
-       |            stack.append((node, level, True))
-       |            for kid in reversed(kids):
-       |                stack.append((kid, level + 1, False))
-       |
-       |    for label in labels:
-       |        if label not in placed and label not in has_parent:
-       |            grow(label)
-       |    for label in labels:
-       |        if label not in placed:
-       |            grow(label)
-       |    return labels, [(column[label], -depth[label]) for label in labels]
+       |${TreePlotPython.body(4, runtime = false)}
        |
        |def compute_tree_layout(edges):
        |    try:
@@ -334,8 +227,7 @@ class TreePlotOpDesc extends PythonVisualizationOpDesc with PlotlyStandaloneCode
        |    return {labels[index]: coords[index] for index in range(len(labels))}
        |
        |if in1df.empty:
-       |    with open(outputHtml, "w", encoding="utf-8") as output:
-       |        output.write(render_error("Input table is empty."))
+       |${standaloneErrorPage("Input table is empty.")}
        |else:
        |    edges = []
        |    for item in in1df[${pyStringLiteral(edgeListColumn)}].dropna():
@@ -394,12 +286,76 @@ class TreePlotOpDesc extends PythonVisualizationOpDesc with PlotlyStandaloneCode
        |                              dragmode='pan',
        |                              hovermode='closest',
        |                              plot_bgcolor='rgb(248,248,248)')
-       |            fig.write_json(outputJson)
-       |            fig.write_html(outputHtml)
-       |            print("Tree plot saved to " + outputHtml)
+       |${standaloneFigure("Tree plot", indent = 12)}
        |        except TreeLayoutError as e:
        |            with open(outputHtml, "w", encoding="utf-8") as output:
        |                output.write(render_error(str(e)))""".stripMargin
   }
 
+}
+
+private object TreePlotPython {
+  def body(indent: Int, runtime: Boolean): String =
+    org.apache.texera.amber.operator.visualization.PythonCodeFragment.render(
+      """|# Tidy top-down tree: depth picks the row, a leaf takes the next
+       |# free column and a parent sits centred over its own children.
+       |labels = []
+       |known = set()
+       |for parent, child in edges:
+       |    for node in (parent, child):
+       |        if node not in known:
+       |            known.add(node)
+       |            labels.append(node)
+       |
+       |children = {label: [] for label in labels}
+       |has_parent = set()
+       |seen = set()
+       |for parent, child in edges:
+       |    if (parent, child) not in seen:
+       |        seen.add((parent, child))
+       |        children[parent].append(child)
+       |    has_parent.add(child)
+       |
+       |depth = {}
+       |column = {}
+       |claimed = {}
+       |placed = set()
+       |next_column = 0
+       |
+       |def grow(root):
+       |    nonlocal next_column
+       |    placed.add(root)
+       |    stack = [(root, 0, False)]
+       |    while stack:
+       |        node, level, folded = stack.pop()
+       |        if folded:
+       |            kids = claimed[node]
+       |            if kids:
+       |                column[node] = sum(column[kid] for kid in kids) / len(kids)
+       |            else:
+       |                column[node] = next_column
+       |                next_column += 1
+       |            continue
+       |        depth[node] = level
+       |        # A node belongs to whichever parent reaches it first, so a
+       |        # cycle or a shared child is never laid out twice.
+       |        kids = [kid for kid in children[node] if kid not in placed]
+       |        placed.update(kids)
+       |        claimed[node] = kids
+       |        stack.append((node, level, True))
+       |        for kid in reversed(kids):
+       |            stack.append((kid, level + 1, False))
+       |
+       |for label in labels:
+       |    if label not in placed and label not in has_parent:
+       |        grow(label)
+       |# Whatever is left sits in a cycle that no root can reach.
+       |for label in labels:
+       |    if label not in placed:
+       |        grow(label)
+       |# The y-axis is inverted here so the tree grows top-down.
+       |return labels, [(column[label], -depth[label]) for label in labels]""",
+      indent,
+      line => runtime || !line.trim.startsWith("#")
+    )
 }

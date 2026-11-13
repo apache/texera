@@ -19,6 +19,7 @@
 
 package org.apache.texera.amber.operator.visualization.dendrogram
 
+import org.apache.texera.amber.operator.visualization.StandaloneChartCode._
 import com.fasterxml.jackson.annotation.{JsonProperty, JsonPropertyDescription}
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize
 import com.kjetland.jackson.jsonSchema.annotations.{JsonSchemaInject, JsonSchemaTitle}
@@ -151,10 +152,7 @@ class DendrogramOpDesc extends PythonVisualizationOpDesc {
     s"""import numpy as np
        |import plotly.figure_factory as ff
        |
-       |def render_error(error_msg):
-       |    return '''<h1>Dendrogram is not available.</h1>
-       |                  <p>Reason is: {} </p>
-       |               '''.format(error_msg)
+       |${standaloneError("Dendrogram is not available.")}
        |
        |def _write_error(message):
        |    with open(outputHtml, "w", encoding="utf-8") as output:
@@ -175,9 +173,7 @@ class DendrogramOpDesc extends PythonVisualizationOpDesc {
        |        labels = chart_df[${pyStringLiteral(labels)}].tolist()
        |        fig = ff.create_dendrogram(data, labels=labels, color_threshold=$thresholdExpr)
        |        fig.update_layout(yaxis_title="Linkage Distance", margin=dict(l=0, r=0, b=0, t=0))
-       |        fig.write_json(outputJson)
-       |        fig.write_html(outputHtml)
-       |        print("Dendrogram saved to " + outputHtml)""".stripMargin
+       |${standaloneFigure("Dendrogram")}""".stripMargin
   }
 
 }

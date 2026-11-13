@@ -19,6 +19,7 @@
 
 package org.apache.texera.amber.operator.visualization.dumbbellPlot
 
+import org.apache.texera.amber.operator.visualization.StandaloneChartCode._
 import com.fasterxml.jackson.annotation.{JsonProperty, JsonPropertyDescription}
 import com.kjetland.jackson.jsonSchema.annotations.{JsonSchemaInject, JsonSchemaTitle}
 import org.apache.texera.amber.pybuilder.PythonTemplateBuilder.{
@@ -204,10 +205,7 @@ class DumbbellPlotOpDesc extends PythonVisualizationOpDesc with PlotlyStandalone
       else ""
     s"""import plotly.graph_objects as go
        |
-       |def render_error(error_msg):
-       |    return '''<h1>DumbbellPlot is not available.</h1>
-       |                  <p>Reason is: {} </p>
-       |               '''.format(error_msg)
+       |${standaloneError("DumbbellPlot is not available.")}
        |
        |table = in1df
        |_error = None
@@ -254,8 +252,6 @@ class DumbbellPlotOpDesc extends PythonVisualizationOpDesc with PlotlyStandalone
        |                                     mode='markers',
        |                                     name=entity + ' ' + dotColumn,
        |                                     marker=dict(color='black', size=5)))
-       |    fig.write_json(outputJson)
-       |    fig.write_html(outputHtml)
-       |    print("Dumbbell plot saved to " + outputHtml)""".stripMargin
+       |${standaloneFigure("Dumbbell plot", indent = 4)}""".stripMargin
   }
 }
