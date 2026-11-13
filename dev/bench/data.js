@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1794492048105,
+  "lastUpdate": 1794578301258,
   "repoUrl": "https://github.com/apache/texera",
   "entries": {
     "Arrow Flight E2E Throughput": [
@@ -22087,6 +22087,163 @@ window.BENCHMARK_DATA = {
           {
             "name": "throughput / bs=1000 sw=50 sl=512",
             "value": 968.4526435723075,
+            "unit": "tuples/sec"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "name": "Xinyuan Lin",
+            "username": "aglinxinyuan",
+            "email": "xinyual3@uci.edu"
+          },
+          "committer": {
+            "name": "GitHub",
+            "username": "web-flow",
+            "email": "noreply@github.com"
+          },
+          "id": "ed535316417ad9f17883c9456857d2a9ce3bbf34",
+          "message": "ci: raise the amber-integration timeout to 35 minutes (#9404)\n\n### What changes were proposed in this PR?\n\nThe `amber-integration` job stopped at 25 minutes, but its macOS leg now\ntakes about 20 minutes on `main` and has reached 24:22. A slow runner or\none retried test is enough to cancel it, and a cancelled leg ends\nRequired Checks as cancelled; that happened at 097fecc56a (\"The job has\nexceeded the maximum execution time of 25m0s\" at 25:10).\n\nThis PR raises the job's `timeout-minutes` from 25 to 35 and updates the\ncomment above it, which still said green runs take 9-17 minutes. A\nPython UDF worker that hangs at startup, the case the timeout exists\nfor, still fails the job hours before GitHub's 6-hour cap.\n\n### Any related issues, documentation, discussions?\n\nCloses #9403.\n\n### How was this PR tested?\n\n- Durations: the macOS `amber-integration` job times of the Required\nChecks push runs on `main` from 2026-11-05 to 2026-11-10. The 27 green\nruns took a median of 20:00 and up to 24:22 (94aceba1fe); the one other\nrun, at 097fecc56a, hit the limit at 25:10.\n- `build.yml` parses with PyYAML, and the only parsed difference from\n`main` is the `amber-integration` job's `timeout-minutes`, 25 to 35.\n- CI on this PR runs the changed job on both runners.\n\n### Was this PR authored or co-authored using generative AI tooling?\n\nGenerated-by: Claude Code (Claude Opus 5.5)\n\n🤖 Generated with [Claude Code](https://claude.com/claude-code)",
+          "timestamp": "2026-11-13T06:08:48Z",
+          "url": "https://github.com/apache/texera/commit/ed535316417ad9f17883c9456857d2a9ce3bbf34"
+        },
+        "date": 1794578300439,
+        "tool": "customBiggerIsBetter",
+        "benches": [
+          {
+            "name": "throughput / bs=10 sw=1 sl=8",
+            "value": 637.6542280292795,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=1 sl=8",
+            "value": 1145.195419945359,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=1 sl=8",
+            "value": 1248.0225377656427,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=1 sl=64",
+            "value": 850.1564968291902,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=1 sl=64",
+            "value": 1192.565931779874,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=1 sl=64",
+            "value": 1243.6562742229194,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=1 sl=512",
+            "value": 887.71400532094,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=1 sl=512",
+            "value": 1204.506221297639,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=1 sl=512",
+            "value": 1216.7494762498732,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=10 sl=8",
+            "value": 732.7576345305334,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=10 sl=8",
+            "value": 965.8968483531318,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=10 sl=8",
+            "value": 993.1499558077459,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=10 sl=64",
+            "value": 756.1996406509816,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=10 sl=64",
+            "value": 960.3461193897458,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=10 sl=64",
+            "value": 1002.1990552178978,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=10 sl=512",
+            "value": 772.1884019810863,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=10 sl=512",
+            "value": 960.9381076019162,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=10 sl=512",
+            "value": 975.6685897368912,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=50 sl=8",
+            "value": 458.0669044632747,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=50 sl=8",
+            "value": 537.699865090507,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=50 sl=8",
+            "value": 543.2804272595597,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=50 sl=64",
+            "value": 467.31197230166794,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=50 sl=64",
+            "value": 537.1163412507669,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=50 sl=64",
+            "value": 541.3315965708645,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=50 sl=512",
+            "value": 437.5578062403613,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=50 sl=512",
+            "value": 512.3199693663726,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=50 sl=512",
+            "value": 515.4227216965519,
             "unit": "tuples/sec"
           }
         ]
