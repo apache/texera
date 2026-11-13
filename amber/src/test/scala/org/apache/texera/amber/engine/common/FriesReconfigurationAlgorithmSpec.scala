@@ -70,23 +70,32 @@ class FriesReconfigurationAlgorithmSpec extends AnyFlatSpec {
     )
 
   /**
-    * Builds a region whose operators have their per-port link lists wired to match
-    * the given links; the closure computation traverses those per-op links.
+    * Builds a region with the given links, whose operators also list those links on their
+    * ports, as a compiled plan's operators do. `operatorOnlyLinks` are listed by the operators
+    * of the region at their ends but are not links of the region, like a link from outside the
+    * region or a link whose reader reads the port's saved result instead.
     */
   private def buildRegion(
       regionId: Long,
       ops: Set[PhysicalOp],
-      links: Set[PhysicalLink]
+      links: Set[PhysicalLink],
+      operatorOnlyLinks: Set[PhysicalLink] = Set.empty
   ): Region = {
-    val wiredOps = links.foldLeft(ops.map(physicalOp => physicalOp.id -> physicalOp).toMap) {
-      (currentOps, physicalLink) =>
-        currentOps
-          .updated(
-            physicalLink.fromOpId,
-            currentOps(physicalLink.fromOpId).addOutputLink(physicalLink)
+    val wiredOps =
+      (links ++ operatorOnlyLinks).foldLeft(
+        ops.map(physicalOp => physicalOp.id -> physicalOp).toMap
+      ) { (currentOps, physicalLink) =>
+        val withOutput = currentOps
+          .get(physicalLink.fromOpId)
+          .fold(currentOps)(from =>
+            currentOps.updated(physicalLink.fromOpId, from.addOutputLink(physicalLink))
           )
-          .updated(physicalLink.toOpId, currentOps(physicalLink.toOpId).addInputLink(physicalLink))
-    }
+        withOutput
+          .get(physicalLink.toOpId)
+          .fold(withOutput)(to =>
+            withOutput.updated(physicalLink.toOpId, to.addInputLink(physicalLink))
+          )
+      }
     Region(RegionIdentity(regionId), wiredOps.values.toSet, links)
   }
 
@@ -403,5 +412,70 @@ class FriesReconfigurationAlgorithmSpec extends AnyFlatSpec {
     )
     assert(component.sources == Set(physicalOpId("m0"), physicalOpId("m1")))
     assert(component.reconfigurations == request.reconfiguration.toSet)
+  }
+
+  it should "count only the region's links, not a link that only its operators list" in {
+    // Split is fed from outside the region. U1 reads split's port 0 from its saved result, so
+    // the link from split's port 0 to U1 carries no data: split and U1 list it, the region does
+    // not. U1 is on no path of the region's links from split to U2, so reconfiguring split and
+    // U2 involves only the two of them.
+    val split = PhysicalOp(
+      physicalOpId("split"),
+      WorkflowIdentity(0),
+      ExecutionIdentity(0),
+      OpExecInitInfo.Empty
+    ).withInputPorts(List(InputPort(PortIdentity())))
+      .withOutputPorts(List(OutputPort(PortIdentity()), OutputPort(PortIdentity(1))))
+    val region = buildRegion(
+      1,
+      Set(split, op("r"), op("u1"), op("u2")),
+      Set(link("r", "u1"), link("u1", "u2"), link("split", "u2", fromPort = 1)),
+      operatorOnlyLinks = Set(link("src", "split"), link("split", "u1", fromPort = 0))
+    )
+    assert(region.getOperator(physicalOpId("u1")).getInputLinks().size == 2)
+    val request = reconfigureRequest("split", "u2")
+
+    val components =
+      FriesReconfigurationAlgorithm.getReconfigurations(managerWithRegions(region), request)
+
+    val component = singleComponent(components)
+    assert(component.scope == Set(physicalOpId("split"), physicalOpId("u2")))
+    assert(component.sources == Set(physicalOpId("split")))
+    assert(component.reconfigurations == request.reconfiguration.toSet)
+  }
+
+  it should "not reach a reconfigured operator over a link that only its operators list" in {
+    // p feeds x and q, and q feeds y. x runs for r, and y reads x's port 0 from its saved
+    // result, so the link from x's port 0 to y carries no data: x and y list it, the region
+    // does not. Reconfiguring p and y takes in q, which lies between them, but not x: no link
+    // of the region leads from x to y.
+    val x = PhysicalOp(
+      physicalOpId("x"),
+      WorkflowIdentity(0),
+      ExecutionIdentity(0),
+      OpExecInitInfo.Empty
+    ).withInputPorts(List(InputPort(PortIdentity())))
+      .withOutputPorts(List(OutputPort(PortIdentity()), OutputPort(PortIdentity(1))))
+    val region = buildRegion(
+      1,
+      Set(op("p"), x, op("q"), op("y"), op("r")),
+      Set(
+        link("p", "x"),
+        link("p", "q"),
+        link("q", "y"),
+        link("x", "r", fromPort = 1),
+        link("y", "r")
+      ),
+      operatorOnlyLinks = Set(link("x", "y", fromPort = 0))
+    )
+    assert(region.getOperator(physicalOpId("x")).getOutputLinks(PortIdentity(0)).size == 1)
+    val request = reconfigureRequest("p", "y")
+
+    val components =
+      FriesReconfigurationAlgorithm.getReconfigurations(managerWithRegions(region), request)
+
+    val component = singleComponent(components)
+    assert(component.scope == Set(physicalOpId("p"), physicalOpId("q"), physicalOpId("y")))
+    assert(component.sources == Set(physicalOpId("p")))
   }
 }
