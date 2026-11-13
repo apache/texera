@@ -267,6 +267,22 @@ export class WorkflowVersionService {
     this.setDisplayParticularVersion(false);
   }
 
+  /**
+   * Drops a version preview still open when the workspace closes, so the next workflow opened does
+   * not inherit it. The graph is left alone: the workflow is closing, and reloading it here would
+   * reach the co-editing room only half done.
+   */
+  public discardOpenVersionDisplay(): void {
+    if (!this.displayParticularWorkflowVersion.getValue()) {
+      return;
+    }
+    this.workflowActionService.resetTempWorkflow();
+    this.workflowPersistService.setWorkflowPersistFlag(true);
+    this.workflowActionService.enableWorkflowModification();
+    this.modificationEnabledBeforeTempWorkflow = undefined;
+    this.setDisplayParticularVersion(false);
+  }
+
   public unhighlightOpVersionDiff(differentOpIDsList: DifferentOpIDsList) {
     for (const id of differentOpIDsList.added.concat(differentOpIDsList.modified)) {
       this.highlightOpBoundary(id, "0,0,0,0");
