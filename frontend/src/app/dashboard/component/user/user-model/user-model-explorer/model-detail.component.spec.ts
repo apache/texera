@@ -997,7 +997,8 @@ describe("ModelDetailComponent", () => {
     // The browser owns the toolbar controls; the page keeps the two flags and feeds them back in.
     component.isRightBarCollapsed = true;
     fixture.detectChanges();
-    expect(fixture.nativeElement.querySelector("nz-sider")).toBeNull();
+    // Hidden, not removed, so the uploader inside keeps any upload in flight.
+    expect((fixture.nativeElement as HTMLElement).querySelector("nz-sider")?.hasAttribute("hidden")).toBe(true);
 
     component.isMaximized = true;
     fixture.detectChanges();
@@ -1310,12 +1311,12 @@ describe("ModelDetailComponent", () => {
     byTooltip("Hide the right bar").click();
     fixture.detectChanges();
     expect(component.isRightBarCollapsed).toBe(true);
-    expect((fixture.nativeElement as HTMLElement).querySelector("nz-sider")).toBeNull();
+    expect((fixture.nativeElement as HTMLElement).querySelector("nz-sider")?.hasAttribute("hidden")).toBe(true);
 
     byTooltip("Show Tree").click();
     fixture.detectChanges();
     expect(component.isRightBarCollapsed).toBe(false);
-    expect((fixture.nativeElement as HTMLElement).querySelector("nz-sider")).not.toBeNull();
+    expect((fixture.nativeElement as HTMLElement).querySelector("nz-sider")?.hasAttribute("hidden")).toBe(false);
 
     // Both download controls sit behind the same [disabled] expression. Clicking them above
     // only proves what they call; a signed-out viewer, or a model with downloads switched
