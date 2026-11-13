@@ -25,11 +25,12 @@ import org.apache.texera.amber.core.tuple.TupleLike
 import org.apache.texera.amber.util.ArrowUtils
 import org.apache.texera.amber.util.JSONUtils.objectMapper
 import org.apache.arrow.memory.RootAllocator
-import org.apache.arrow.vector.VectorSchemaRoot
+import org.apache.arrow.vector.{FieldVector, VectorSchemaRoot}
 import org.apache.arrow.vector.ipc.ArrowFileReader
 
 import java.net.URI
 import java.nio.file.{Files, StandardOpenOption}
+import scala.jdk.CollectionConverters._
 
 class ArrowSourceOpExec(
     descString: String
@@ -54,6 +55,35 @@ class ArrowSourceOpExec(
       case e: Exception =>
         close() // Ensure resources are closed in case of an error
         throw new RuntimeException("Failed to open Arrow source", e)
+    }
+  }
+
+  // Columnar produce: the file is already Arrow batches, so hand each one out
+  // directly (no per-row Tuple decode, no text parse). Each loaded batch's vectors
+  // are moved into an independent root via zero-copy TransferPair so the caller can
+  // serialize and close it while the reader loads the next batch. Falls back to the
+  // row path (None) when offset/limit are set.
+  override def produceColumnarBatch(): Option[Iterator[VectorSchemaRoot]] = {
+    if (desc.offset.exists(_ > 0) || desc.limit.isDefined) return None
+    (reader, root, allocator) match {
+      case (Some(arrowReader), Some(srcRoot), Some(alloc)) =>
+        Some(new Iterator[VectorSchemaRoot] {
+          private var loaded = arrowReader.loadNextBatch()
+          override def hasNext: Boolean = loaded
+          override def next(): VectorSchemaRoot = {
+            val rowCount = srcRoot.getRowCount
+            val moved = srcRoot.getFieldVectors.asScala.map { v =>
+              val pair = v.getTransferPair(alloc)
+              pair.transfer()
+              pair.getTo.asInstanceOf[FieldVector]
+            }.toList
+            val out = new VectorSchemaRoot(moved.asJava)
+            out.setRowCount(rowCount)
+            loaded = arrowReader.loadNextBatch()
+            out
+          }
+        })
+      case _ => None
     }
   }
 

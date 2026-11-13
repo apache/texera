@@ -38,7 +38,10 @@ import org.apache.arrow.vector.{
   VarCharVector,
   VectorSchemaRoot
 }
+import org.apache.arrow.vector.ipc.{ArrowStreamReader, ArrowStreamWriter}
 
+import java.io.{ByteArrayInputStream, ByteArrayOutputStream}
+import java.nio.channels.Channels
 import java.nio.charset.StandardCharsets
 import java.sql.Timestamp
 import java.time.temporal.ChronoUnit
@@ -54,6 +57,111 @@ object ArrowUtils extends LazyLogging {
   private val allocator: BufferAllocator = new RootAllocator()
 
   implicit def bool2int(b: Boolean): Int = if (b) 1 else 0
+
+  // Serialize a VectorSchemaRoot to Arrow IPC stream bytes. Does not close root.
+  def serializeRoot(root: VectorSchemaRoot): Array[Byte] = {
+    val out = new ByteArrayOutputStream()
+    val writer = new ArrowStreamWriter(root, null, Channels.newChannel(out))
+    try { writer.start(); writer.writeBatch(); writer.end() }
+    finally writer.close()
+    out.toByteArray
+  }
+
+  // Read one Arrow IPC batch, apply `f` to the live root, then close the reader.
+  // `f` must copy anything it needs out (the root is freed on return).
+  def deserializeRootFold[T](bytes: Array[Byte], allocator: BufferAllocator)(
+      f: VectorSchemaRoot => T
+  ): T = {
+    val reader = new ArrowStreamReader(new ByteArrayInputStream(bytes), allocator)
+    try {
+      reader.loadNextBatch()
+      f(reader.getVectorSchemaRoot)
+    } finally reader.close()
+  }
+
+  // Copy the rows of `src` where keep(i) is true into a new independent root.
+  def selectRows(
+      src: VectorSchemaRoot,
+      keep: Array[Boolean],
+      allocator: BufferAllocator
+  ): VectorSchemaRoot = {
+    val dest = VectorSchemaRoot.create(src.getSchema, allocator)
+    val srcVecs = src.getFieldVectors
+    val destVecs = dest.getFieldVectors
+    var destIdx = 0
+    var i = 0
+    val n = src.getRowCount
+    while (i < n) {
+      if (keep(i)) {
+        var c = 0
+        while (c < srcVecs.size) {
+          destVecs.get(c).copyFromSafe(i, destIdx, srcVecs.get(c)); c += 1
+        }
+        destIdx += 1
+      }
+      i += 1
+    }
+    dest.setRowCount(destIdx)
+    dest
+  }
+
+  // Selection vector: the indices of `src`'s rows where keep(i) is true, in order.
+  // Records which rows passed without copying any cell (unlike selectRows). A
+  // consumer that only needs a count or an aggregate reads the indices and never
+  // materializes; a consumer that needs contiguous rows calls `gather`.
+  def selectionOf(keep: Array[Boolean], rowCount: Int): Array[Int] = {
+    val sel = new Array[Int](rowCount)
+    var n = 0
+    var i = 0
+    while (i < rowCount) { if (keep(i)) { sel(n) = i; n += 1 }; i += 1 }
+    if (n == rowCount) sel else java.util.Arrays.copyOf(sel, n)
+  }
+
+  // Materialize the rows named by a selection vector into a new compacted root
+  // (the deferred copy). Inverse endpoint of selectionOf for consumers that need
+  // contiguous Arrow columns (e.g. shipping to the wire).
+  def gather(
+      src: VectorSchemaRoot,
+      selection: Array[Int],
+      allocator: BufferAllocator
+  ): VectorSchemaRoot = {
+    val dest = VectorSchemaRoot.create(src.getSchema, allocator)
+    val srcVecs = src.getFieldVectors
+    val destVecs = dest.getFieldVectors
+    var di = 0
+    while (di < selection.length) {
+      val i = selection(di)
+      var c = 0
+      while (c < srcVecs.size) { destVecs.get(c).copyFromSafe(i, di, srcVecs.get(c)); c += 1 }
+      di += 1
+    }
+    dest.setRowCount(selection.length)
+    dest
+  }
+
+  // Resolve the column indices of `names` in an Arrow batch, by exact name.
+  def projectionIndices(root: VectorSchemaRoot, names: Seq[String]): Array[Int] = {
+    val fields = root.getSchema.getFields
+    names.map { name =>
+      var idx = -1
+      var k = 0
+      while (k < fields.size && idx < 0) { if (fields.get(k).getName == name) idx = k; k += 1 }
+      if (idx < 0) throw new IllegalArgumentException(s"column '$name' not found in Arrow batch")
+      idx
+    }.toArray
+  }
+
+  // Read one cell as the Texera value for `attrType`, returning null on any
+  // conversion failure (matches the row path's lenient decode).
+  def getCell(vector: FieldVector, rowIndex: Int, attrType: AttributeType): AnyRef = {
+    val raw = vector.getObject(rowIndex)
+    try {
+      attrType match {
+        case AttributeType.TIMESTAMP => wallClockOf(raw, vector.getField.getType)
+        case _                       => AttributeTypeUtils.parseField(raw, attrType).asInstanceOf[AnyRef]
+      }
+    } catch { case _: Exception => null }
+  }
 
   /**
     * Reads a row of the given Arrow Vectors into a Texera.Tuple
