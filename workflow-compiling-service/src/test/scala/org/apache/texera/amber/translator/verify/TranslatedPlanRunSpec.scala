@@ -21,7 +21,7 @@ package org.apache.texera.amber.translator.verify
 
 import org.apache.texera.amber.core.virtualidentity.WorkflowIdentity
 import org.apache.texera.amber.core.workflow.{PortIdentity, WorkflowContext}
-import org.apache.texera.amber.operator.LogicalOp
+import org.apache.texera.amber.operator.{LogicalOp, TestOperators}
 import org.apache.texera.amber.operator.distinct.DistinctOpDesc
 import org.apache.texera.amber.operator.source.scan.csv.CSVScanSourceOpDesc
 import org.apache.texera.amber.operator.visualization.contourPlot.{
@@ -99,7 +99,10 @@ class TranslatedPlanRunSpec extends AnyFlatSpec with Matchers {
       case scan: CSVScanSourceOpDesc => scan.fileName = scan.fileName.map(dir.resolve(_).toString)
       case _                         => ()
     }
-    val schemas = new WorkflowCompiler(new WorkflowContext(workflowId = WorkflowIdentity(0)))
+    val schemas = new WorkflowCompiler(
+      new WorkflowContext(workflowId = WorkflowIdentity(0)),
+      TestOperators.fixtureFileResolver
+    )
       .compile(
         LogicalPlanPojo(ops, links, opsToViewResult = List.empty, opsToReuseResult = List.empty),
         CompilationErrorHandling.Lenient

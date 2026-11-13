@@ -133,7 +133,7 @@ class WorkflowParitySpec
     val context = TestUtils.workflowContext(specId)
     val workflow = buildWorkflow(ops, links, context)
     // The schemas the export endpoint hands the translator, from the same compile.
-    val schemas = new WorkflowCompiler(context)
+    val schemas = new WorkflowCompiler(context, TestOperators.fixtureFileResolver)
       .compile(
         LogicalPlanPojo(ops, links, List.empty, List.empty),
         CompilationErrorHandling.Lenient
