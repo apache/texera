@@ -22,25 +22,17 @@ package org.apache.texera.amber.operator.udf.r
 import com.fasterxml.jackson.databind.node.ObjectNode
 import org.apache.texera.amber.core.executor.OpExecWithCode
 import org.apache.texera.amber.core.tuple.{Attribute, AttributeType, Schema}
-import org.apache.texera.amber.core.virtualidentity.{ExecutionIdentity, WorkflowIdentity}
 import org.apache.texera.amber.operator.LogicalOp
 import org.apache.texera.amber.operator.metadata.OperatorGroupConstants
 import org.apache.texera.amber.util.JSONUtils.objectMapper
+import org.apache.texera.amber.operator.udf.UdfDescriptorSpecSupport
 import org.scalatest.flatspec.AnyFlatSpec
-import org.scalatest.matchers.should.Matchers
 
-class RUDFSourceOpDescSpec extends AnyFlatSpec with Matchers {
-
-  private val workflowId = WorkflowIdentity(1L)
-  private val executionId = ExecutionIdentity(1L)
+class RUDFSourceOpDescSpec extends AnyFlatSpec with UdfDescriptorSpecSupport {
 
   "RUDFSourceOpDesc.operatorInfo" should
     "advertise the 1-out R UDF source (no inputs, one output)" in {
-    val info = (new RUDFSourceOpDesc).operatorInfo
-    info.userFriendlyName shouldBe "1-out R UDF"
-    info.operatorGroupName shouldBe OperatorGroupConstants.R_GROUP
-    info.inputPorts shouldBe empty
-    info.outputPorts should have length 1
+    expectOperatorInfo(new RUDFSourceOpDesc, "1-out R UDF", OperatorGroupConstants.R_GROUP, 0)
   }
 
   "RUDFSourceOpDesc.sourceSchema" should "be empty by default and reflect the configured columns" in {
@@ -66,13 +58,8 @@ class RUDFSourceOpDescSpec extends AnyFlatSpec with Matchers {
     "wire OpExecWithCode(code, \"r-table\") as a source op with one output port" in {
     val d = new RUDFSourceOpDesc
     d.code = "data.frame(a=1)"
-    val physical = d.getPhysicalOp(workflowId, executionId)
-    physical.opExecInitInfo match {
-      case OpExecWithCode(code, language) =>
-        language shouldBe "r-table"
-        code shouldBe "data.frame(a=1)"
-      case other => fail(s"expected OpExecWithCode, got $other")
-    }
+    val physical = buildPhysicalOp(d)
+    physical.opExecInitInfo shouldBe OpExecWithCode("data.frame(a=1)", "r-table")
     physical.outputPorts.keySet shouldBe d.operatorInfo.outputPorts.map(_.id).toSet
     // A source that fans out is marked one-to-many for the scheduler; the flag
     // defaults to false, so nothing else in the spec would notice it flipping.
@@ -86,7 +73,7 @@ class RUDFSourceOpDescSpec extends AnyFlatSpec with Matchers {
     val d = new RUDFSourceOpDesc
     d.code = "data.frame(a=1)"
     d.columns = List(new Attribute("a", AttributeType.STRING))
-    val physical = d.getPhysicalOp(workflowId, executionId)
+    val physical = buildPhysicalOp(d)
     physical.propagateSchema.func(Map.empty) shouldBe Map(
       d.operatorInfo.outputPorts.head.id -> Schema().add(new Attribute("a", AttributeType.STRING))
     )
@@ -96,12 +83,10 @@ class RUDFSourceOpDescSpec extends AnyFlatSpec with Matchers {
     val d = new RUDFSourceOpDesc
     d.code = "coro::generator(function() {})"
     d.useTupleAPI = true
-    d.getPhysicalOp(workflowId, executionId).opExecInitInfo match {
-      case OpExecWithCode(code, language) =>
-        language shouldBe "r-tuple"
-        code shouldBe "coro::generator(function() {})"
-      case other => fail(s"expected OpExecWithCode, got $other")
-    }
+    buildPhysicalOp(d).opExecInitInfo shouldBe OpExecWithCode(
+      "coro::generator(function() {})",
+      "r-tuple"
+    )
   }
 
   it should "parallelize at the requested worker count only when more than one worker is asked for" in {
@@ -129,8 +114,7 @@ class RUDFSourceOpDescSpec extends AnyFlatSpec with Matchers {
   it should "reject a non-positive worker count" in {
     val d = new RUDFSourceOpDesc
     d.code = "x"
-    d.workers = 0
-    intercept[IllegalArgumentException] { d.getPhysicalOp(workflowId, executionId) }
+    expectInvalidWorkerCount(d)(_.workers = 0)
   }
 
   "RUDFSourceOpDesc" should "round-trip its config fields through the polymorphic base" in {
@@ -139,9 +123,7 @@ class RUDFSourceOpDescSpec extends AnyFlatSpec with Matchers {
     d.workers = 2
     d.useTupleAPI = true
     d.columns = List(new Attribute("a", AttributeType.STRING))
-    val restored = objectMapper.readValue(objectMapper.writeValueAsString(d), classOf[LogicalOp])
-    restored shouldBe a[RUDFSourceOpDesc]
-    val r = restored.asInstanceOf[RUDFSourceOpDesc]
+    val r = roundTrip(d)
     r.code shouldBe "f"
     r.workers shouldBe 2
     r.useTupleAPI shouldBe true

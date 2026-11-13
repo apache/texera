@@ -20,28 +20,16 @@
 package org.apache.texera.amber.operator.udf.java
 
 import org.apache.texera.amber.core.executor.OpExecWithCode
-import org.apache.texera.amber.core.tuple.{Attribute, AttributeType, Schema}
-import org.apache.texera.amber.core.virtualidentity.{ExecutionIdentity, WorkflowIdentity}
 import org.apache.texera.amber.core.workflow.UnknownPartition
-import org.apache.texera.amber.operator.udf.UiUDFParameter
-import org.apache.texera.amber.operator.{LogicalOp, PortDescription}
 import org.apache.texera.amber.operator.metadata.OperatorGroupConstants
-import org.apache.texera.amber.util.JSONUtils.objectMapper
+import org.apache.texera.amber.operator.udf.UdfDescriptorSpecSupport
 import org.scalatest.flatspec.AnyFlatSpec
-import org.scalatest.matchers.should.Matchers
 
-class JavaUDFOpDescSpec extends AnyFlatSpec with Matchers {
-
-  private val workflowId = WorkflowIdentity(1L)
-  private val executionId = ExecutionIdentity(1L)
+class JavaUDFOpDescSpec extends AnyFlatSpec with UdfDescriptorSpecSupport {
 
   "JavaUDFOpDesc.operatorInfo" should
     "advertise the name, Java group, and a default 1-in/1-out shape" in {
-    val info = (new JavaUDFOpDesc).operatorInfo
-    info.userFriendlyName shouldBe "Java UDF"
-    info.operatorGroupName shouldBe OperatorGroupConstants.JAVA_GROUP
-    info.inputPorts should have length 1
-    info.outputPorts should have length 1
+    expectOperatorInfo(new JavaUDFOpDesc, "Java UDF", OperatorGroupConstants.JAVA_GROUP, 1)
   }
 
   "JavaUDFOpDesc" should "default code to empty, workers to 1, retainInputColumns to false" in {
@@ -55,59 +43,38 @@ class JavaUDFOpDescSpec extends AnyFlatSpec with Matchers {
     "wire OpExecWithCode(code, \"java\") and carry port identities" in {
     val d = new JavaUDFOpDesc
     d.code = "return t;"
-    val physical = d.getPhysicalOp(workflowId, executionId)
-    physical.opExecInitInfo match {
-      case OpExecWithCode(code, language) =>
-        language shouldBe "java"
-        code shouldBe "return t;"
-      case other => fail(s"expected OpExecWithCode, got $other")
-    }
+    val physical = buildPhysicalOp(d)
+    physical.opExecInitInfo shouldBe OpExecWithCode("return t;", "java")
     physical.inputPorts.keySet shouldBe d.operatorInfo.inputPorts.map(_.id).toSet
     physical.outputPorts.keySet shouldBe d.operatorInfo.outputPorts.map(_.id).toSet
   }
 
   it should "reject a non-positive worker count" in {
-    val d = new JavaUDFOpDesc
-    d.workers = 0
-    intercept[IllegalArgumentException] { d.getPhysicalOp(workflowId, executionId) }
+    expectInvalidWorkerCount(new JavaUDFOpDesc)(_.workers = 0)
   }
 
   "JavaUDFOpDesc schema propagation" should
     "emit only the output columns when input columns are not retained (default)" in {
     val d = new JavaUDFOpDesc
-    d.outputColumns = List(new Attribute("res", AttributeType.INTEGER))
-    val input = Schema().add(new Attribute("in", AttributeType.STRING))
-    d.getExternalOutputSchemas(Map(d.operatorInfo.inputPorts.head.id -> input)) shouldBe Map(
-      d.operatorInfo.outputPorts.head.id -> Schema().add(
-        new Attribute("res", AttributeType.INTEGER)
-      )
-    )
+    d.outputColumns = List(resultColumn)
+    expectOutputColumns(d, retainInput = false)
   }
 
   it should "retain input columns plus the output columns when retainInputColumns is true" in {
     val d = new JavaUDFOpDesc
     d.retainInputColumns = true
-    d.outputColumns = List(new Attribute("res", AttributeType.INTEGER))
-    val input = Schema().add(new Attribute("in", AttributeType.STRING))
-    d.getExternalOutputSchemas(Map(d.operatorInfo.inputPorts.head.id -> input)) shouldBe Map(
-      d.operatorInfo.outputPorts.head.id -> Schema()
-        .add(new Attribute("in", AttributeType.STRING))
-        .add(new Attribute("res", AttributeType.INTEGER))
-    )
+    d.outputColumns = List(resultColumn)
+    expectOutputColumns(d, retainInput = true)
   }
 
   "JavaUDFOpDesc" should "round-trip its config fields through the polymorphic base" in {
     val d = new JavaUDFOpDesc
     d.code = "x"
-    val p = new UiUDFParameter
-    p.attribute = new Attribute("count", AttributeType.INTEGER)
-    p.value = "42"
+    val p = uiParameter("count", "42")
     d.uiParameters = List(p)
     d.workers = 4
     d.retainInputColumns = true
-    val restored = objectMapper.readValue(objectMapper.writeValueAsString(d), classOf[LogicalOp])
-    restored shouldBe a[JavaUDFOpDesc]
-    val j = restored.asInstanceOf[JavaUDFOpDesc]
+    val j = roundTrip(d)
     j.code shouldBe "x"
     j.uiParameters.head.attribute shouldBe p.attribute
     j.uiParameters.head.value shouldBe "42"
@@ -120,36 +87,24 @@ class JavaUDFOpDescSpec extends AnyFlatSpec with Matchers {
     val d = new JavaUDFOpDesc
     d.code = "return t;"
     d.workers = 2
-    val physical = d.getPhysicalOp(workflowId, executionId)
+    val physical = buildPhysicalOp(d)
     physical.parallelizable shouldBe true
     physical.isOneToManyOp shouldBe true
     physical.suggestedWorkerNum shouldBe Some(2)
-    physical.opExecInitInfo match {
-      case OpExecWithCode(code, language) =>
-        code shouldBe "return t;"
-        language shouldBe "java"
-      case other => fail(s"expected OpExecWithCode, got $other")
-    }
+    physical.opExecInitInfo shouldBe OpExecWithCode("return t;", "java")
   }
 
   "JavaUDFOpDesc.operatorInfo" should
     "derive input ports from a configured inputPorts list" in {
     val d = new JavaUDFOpDesc
     d.inputPorts = List(
-      PortDescription(
-        portID = "0",
-        displayName = "left",
-        disallowMultiInputs = true,
-        isDynamicPort = false,
-        partitionRequirement = UnknownPartition(),
-        dependencies = List.empty
-      )
+      portDescription("0", "left", disallowMultiInputs = true)
     )
     val info = d.operatorInfo
     info.inputPorts should have length 1
     info.inputPorts.head.displayName shouldBe "left"
     // also drives the getPhysicalOp inputPorts != null partitionRequirement branch
-    val physical = d.getPhysicalOp(workflowId, executionId)
+    val physical = buildPhysicalOp(d)
     physical.inputPorts.keySet shouldBe info.inputPorts.map(_.id).toSet
     physical.partitionRequirement shouldBe List(Some(UnknownPartition()))
   }
@@ -157,14 +112,7 @@ class JavaUDFOpDescSpec extends AnyFlatSpec with Matchers {
   it should "derive output ports from a configured outputPorts list" in {
     val d = new JavaUDFOpDesc
     d.outputPorts = List(
-      PortDescription(
-        portID = "0",
-        displayName = "result",
-        disallowMultiInputs = false,
-        isDynamicPort = false,
-        partitionRequirement = UnknownPartition(),
-        dependencies = List.empty
-      )
+      portDescription("0", "result")
     )
     val info = d.operatorInfo
     info.outputPorts should have length 1
