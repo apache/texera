@@ -105,7 +105,8 @@ class InputPortMaterializationReaderThread(
         val stateFrame = StateFrame(
           State.fromTuple(row),
           State.loopCounterFrom(row),
-          State.loopStartIdFrom(row)
+          State.loopStartIdFrom(row),
+          State.messageIdFrom(row)
         )
         inputMessageQueue.put(
           FIFOMessageElement(WorkflowFIFOMessage(channelId, getSequenceNumber, stateFrame))

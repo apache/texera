@@ -15,11 +15,13 @@
 # specific language governing permissions and limitations
 # under the License.
 
+import inspect
 import overrides
 import pandas
 from functools import lru_cache
 from abc import ABC, abstractmethod
 from collections import defaultdict
+from types import MappingProxyType
 from typing import (
     Any,
     Iterator,
@@ -29,7 +31,6 @@ from typing import (
     Union,
     MutableMapping,
     Protocol,
-    Tuple as TypingTuple,
 )
 
 from . import Table, TableLike, Tuple, TupleLike, Batch, BatchLike, Schema
@@ -53,42 +54,6 @@ def require_yielded(result, method_name: str):
             "Replace `return x` with `yield x`."
         )
     return result
-
-
-class _LoopVariables(Mapping):
-    """
-    A read-only view of an operator's loop variables. Reading a name that got
-    two different values from the same loop raises the error a JVM operator
-    whose setting refers to that name raises (``StateReferenceBinding``); the
-    other names read as usual, and the name itself is still listed.
-    """
-
-    def __init__(
-        self,
-        values: Mapping[str, Any],
-        conflicts: Mapping[str, TypingTuple[Any, Any]],
-    ) -> None:
-        self._values = values
-        self._conflicts = conflicts
-
-    def __getitem__(self, name: str) -> Any:
-        if name in self._conflicts:
-            earlier, later = self._conflicts[name]
-            raise RuntimeError(
-                f"loop variable {name} got two different values in one iteration, "
-                f"{earlier} and {later}: a loop's variables must not change inside "
-                "its body"
-            )
-        return self._values[name]
-
-    def __contains__(self, name: object) -> bool:
-        return name in self._values
-
-    def __iter__(self) -> Iterator[str]:
-        return iter(self._values)
-
-    def __len__(self) -> int:
-        return len(self._values)
 
 
 class Operator(ABC):
@@ -145,11 +110,6 @@ class Operator(ABC):
     # no loop variables until a state arrives.
     __internal_loop_variables: Optional[MutableMapping[str, Any]] = None
     __internal_loop_variable_depths: Optional[MutableMapping[str, int]] = None
-    # The names that got two different values at the depth they are held at,
-    # with those two values; see ``register_state``.
-    __internal_loop_variable_conflicts: Optional[
-        MutableMapping[str, TypingTuple[Any, Any]]
-    ] = None
 
     @property
     @overrides.final
@@ -159,14 +119,9 @@ class Operator(ABC):
         block, the values the state messages handed to this operator carried,
         by name. The runtime registers each message (``register_state``) right
         before ``process_state`` runs, so the callback and every call after it
-        can read them. Empty until a state message arrives. Reading a name
-        that got two different values from the same loop raises an error; see
-        ``register_state``.
+        can read them. Empty until a state message arrives.
         """
-        return _LoopVariables(
-            self.__internal_loop_variables or {},
-            self.__internal_loop_variable_conflicts or {},
-        )
+        return MappingProxyType(self.__internal_loop_variables or {})
 
     @overrides.final
     def register_state(self, state: State, loop_counter: int = 0) -> None:
@@ -178,15 +133,18 @@ class Operator(ABC):
         such as one an operator returns from ``produce_state_on_finish``,
         travels at depth 0.
 
-        For each name, the value from the smallest depth wins. So an inner
-        loop's variable shadows an enclosing one of the same name, even when the
-        enclosing message arrives later, and a state adds only the names it
-        carries. A message from the same depth may repeat a value, as copies
-        from several upstream workers or branches do, but must not change it:
-        reading a name that got two different values from one depth raises the
-        error a JVM operator whose setting refers to it raises
-        (``StateReferenceBinding``), until a value from a smaller depth replaces
-        both.
+        For each name, the value from the smallest depth wins, and within one
+        depth the later message's. So an inner loop's variable shadows an
+        enclosing one of the same name, even when the enclosing message arrives
+        later, and a state adds only the names it carries. The runtime drops
+        the copies of a message the worker processed with its output ports
+        (they keep its id), and an operator that changes a loop's message sends
+        the message on unchanged before the change, so a copy arriving after
+        the change on another path is dropped instead of undoing it. A change
+        that reaches an operator only through the input it reads first, before
+        it has output ports, is lost there and downstream: the copy of the
+        message before the change on its other input is processed again and
+        puts that message's values back.
 
         :param state: State, the state message that arrived.
         :param loop_counter: int, the message's nesting depth.
@@ -194,19 +152,11 @@ class Operator(ABC):
         if self.__internal_loop_variables is None:
             self.__internal_loop_variables = {}
             self.__internal_loop_variable_depths = {}
-            self.__internal_loop_variable_conflicts = {}
         for name, value in state.items():
             depth = self.__internal_loop_variable_depths.get(name)
-            if depth is None or loop_counter < depth:
+            if depth is None or loop_counter <= depth:
                 self.__internal_loop_variables[name] = value
                 self.__internal_loop_variable_depths[name] = loop_counter
-                self.__internal_loop_variable_conflicts.pop(name, None)
-            elif loop_counter == depth:
-                earlier = self.__internal_loop_variables[name]
-                if earlier != value:
-                    self.__internal_loop_variable_conflicts.setdefault(
-                        name, (earlier, value)
-                    )
 
     @property
     @overrides.final
@@ -258,6 +208,20 @@ class Operator(ABC):
         """
         Process an input State from the given link.
         The default implementation is to pass the State to all downstream operators.
+        Returning None sends nothing on, except for the loop's state inside a
+        loop: that is passed on unchanged whatever process_state returns, and a
+        returned State that differs from it is sent as a new state after it. So
+        inside a loop, process_state also receives the loop's state as it was
+        before an operator upstream changed it, ahead of the change: a value an
+        upstream operator adds to the state may be missing from the first one.
+        Set any name a process_state may add in Loop Start's initialization as
+        well, so that every message of the loop carries it. An operator that
+        reads one input to its end before another, such as a two-input UDF,
+        runs process_state once for each copy of a state on the input it reads
+        first, and once more when the state reaches the other. A change that
+        reaches it only through the input it reads first is lost there and
+        downstream: the copy of the state before the change, on its other
+        input, puts the earlier values back.
         :param state: State, a State from an input port to be processed.
         :param port: int, input port index of the current exhausted port.
         :return: State, producing one State object
@@ -508,6 +472,48 @@ def _eval_loop_expr(expr: str, state: State, table: Optional[Table]):
     return eval(expr, namespace)
 
 
+def without_definitions(values: Mapping[str, Any]) -> State:
+    """Return ``values`` without the modules, functions and classes among them,
+    which an ``import``, a ``def`` or a ``class`` statement in a loop's code
+    binds, and without the dunder names Python binds itself, such as
+    ``__annotations__`` (a dict of classes) for an annotated assignment and
+    ``__doc__`` for a docstring. The code may use them, but none is a loop
+    variable (and most could not be serialized), so neither the state a Loop
+    Start sends nor what a Loop End saves for the next iteration carries
+    them."""
+    return State(
+        {
+            name: value
+            for name, value in values.items()
+            if not (
+                (name.startswith("__") and name.endswith("__"))
+                or inspect.ismodule(value)
+                or inspect.isroutine(value)
+                or inspect.isclass(value)
+            )
+        }
+    )
+
+
+class _RecordingNamespace(dict):
+    """The namespace a loop's ``update`` runs in: it records each name a
+    top-level statement stores to (an assignment, augmented or annotated, a
+    ``for`` or ``with`` target, an import, a ``def`` or a ``class``), which
+    ``exec`` hands to ``__setitem__`` on a namespace that is not a plain
+    dict."""
+
+    def __init__(self, values: Mapping[str, Any]) -> None:
+        super().__init__(values)
+        self.stored: set[str] = set()
+
+    def __setitem__(self, name: str, value: Any) -> None:
+        self.stored.add(name)
+        super().__setitem__(name, value)
+
+
+_UNBOUND = object()
+
+
 class LoopStartOperator(TableOperator):
     """Base class for the runtime side of a Loop Start operator.
 
@@ -569,10 +575,13 @@ class LoopStartOperator(TableOperator):
         # this operator's input-port materialization at consume time
         # (loopStartPortUris). A user loop variable named `table` would be
         # silently shadowed by that injected table in the LoopEnd's
-        # update/condition namespaces, so flag the collision here.
+        # update/condition namespaces, so flag the collision here. A module, a
+        # function or a class the initialization defined stays in self.state,
+        # for the output expression, but is not sent, and neither is a name
+        # Python binds itself (without_definitions).
         if _TABLE_KEY in self.state:
             raise _reserved_name_error(_TABLE_KEY)
-        return State(self.state)
+        return without_definitions(self.state)
 
 
 class LoopEndOperator(TableOperator):
@@ -621,6 +630,12 @@ class LoopEndOperator(TableOperator):
         # short-circuits on, and only a SUCCESSFUL update may set that.
         self._attached_table: Optional[Table] = None
         self._loop_table: Optional[Table] = None
+        # The names the user's `update` bound at top level when it ran,
+        # recorded by a successful run_update. Like Loop Start's variables,
+        # they are the loop's own variables, so the runtime saves them for the
+        # next iteration even when only the loop body's changes carried them
+        # (MainLoop._next_iteration_state).
+        self.bound_names: frozenset[str] = frozenset()
 
     @overrides.final
     def process_table(self, table: Table, port: int) -> Iterator[Optional[TableLike]]:
@@ -651,7 +666,8 @@ class LoopEndOperator(TableOperator):
         # Take it: a later iteration that never got a table must raise above
         # rather than silently run the update against the previous one.
         self._attached_table = None
-        namespace = {**state, _TABLE_KEY: input_table}
+        namespace = _RecordingNamespace({**state, _TABLE_KEY: input_table})
+        before = dict(namespace)
         # Pass the namespace as exec globals (not a locals-only mapping) so a
         # comprehension / generator expression / lambda in the user's `update`
         # resolves its free variables -- a locals-only namespace raises
@@ -665,6 +681,18 @@ class LoopEndOperator(TableOperator):
         if namespace.get(_TABLE_KEY) is not input_table:
             raise _reserved_name_error(_TABLE_KEY)
         self._loop_table = input_table
+        # The names the update bound at top level as it ran: each name a
+        # top-level statement stored to, also when it stored the object the
+        # name already held (`best = max(best, score)`), and each name that got
+        # another object some other way, which Python stores without
+        # __setitem__ (a `global` statement in a function the update called, or
+        # a walrus target in a comprehension). A name bound only inside a
+        # comprehension, a generator expression or a function is none of them.
+        self.bound_names = frozenset(
+            name
+            for name, value in namespace.items()
+            if name in namespace.stored or before.get(name, _UNBOUND) is not value
+        )
         self.state = _strip_reserved(namespace)
 
     @overrides.final

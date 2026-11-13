@@ -33,7 +33,11 @@ import org.apache.texera.amber.core.virtualidentity.{
   PhysicalOpIdentity,
   WorkflowIdentity
 }
-import org.apache.texera.amber.core.workflow.{GlobalPortIdentity, PortIdentity}
+import org.apache.texera.amber.core.workflow.{GlobalPortIdentity, PhysicalLink, PortIdentity}
+import org.apache.texera.amber.engine.architecture.messaginglayer.{
+  NetworkOutputGateway,
+  OutputManager
+}
 import org.apache.texera.amber.engine.architecture.rpc.controlcommands.EmbeddedControlMessageType.{
   NO_ALIGNMENT,
   PORT_ALIGNMENT
@@ -42,6 +46,7 @@ import org.apache.texera.amber.engine.architecture.rpc.controlcommands.EmbeddedC
 import org.apache.texera.amber.engine.architecture.sendsemantics.partitionings.{
   BroadcastPartitioning,
   HashBasedShufflePartitioning,
+  OneToOnePartitioning,
   Partitioning
 }
 import org.apache.texera.amber.engine.architecture.worker.WorkflowWorker.{
@@ -126,18 +131,20 @@ class InputPortMaterializationReaderThreadSpec extends AnyFlatSpec {
     * Both must exist — `RegionExecutionManager` creates the pair together — so even a
     * states-only or tuples-only case writes both tables.
     *
-    * @param states (user state, loop counter, LoopStart id) triples, written as state rows.
+    * @param states (user state, loop counter, LoopStart id, message id), written as state rows.
     */
   private def materialize(
       operatorId: String,
       tuples: Seq[Tuple] = Seq.empty,
-      states: Seq[(State, Long, String)] = Seq.empty
+      states: Seq[(State, Long, String, String)] = Seq.empty
   ): URI = {
     val base = baseURI(operatorId)
     write(
       VFSURIFactory.stateURI(base),
       State.schema,
-      states.map { case (state, counter, startId) => state.toTuple(counter, startId) }
+      states.map {
+        case (state, counter, startId, messageId) => state.toTuple(counter, startId, messageId)
+      }
     )
     write(VFSURIFactory.resultURI(base), schema, tuples)
     base
@@ -229,7 +236,11 @@ class InputPortMaterializationReaderThreadSpec extends AnyFlatSpec {
 
   it should "send every message on one channel from a URI-derived sender, numbered from zero" in {
     val uri =
-      materialize("channel", tuples = Seq(tuple(1)), states = Seq((State(Map("k" -> 1)), 0L, "")))
+      materialize(
+        "channel",
+        tuples = Seq(tuple(1)),
+        states = Seq((State(Map("k" -> 1)), 0L, "", "A"))
+      )
     val messages = replay(uri, broadcastTo(workerId))
 
     // The dummy sender is derived from the URI *and* the receiving worker, so two workers reading
@@ -248,8 +259,8 @@ class InputPortMaterializationReaderThreadSpec extends AnyFlatSpec {
     // Distinct counters and ids per state, so a reader that reused one row's envelope for the
     // other, or defaulted to the "no loop" values, would show up.
     val states = Seq(
-      (State(Map("phase" -> "a")), 7L, "loop-start-A"),
-      (State(Map("phase" -> "b")), 9L, "loop-start-B")
+      (State(Map("phase" -> "a")), 7L, "loop-start-A", "message-A"),
+      (State(Map("phase" -> "b")), 9L, "loop-start-B", "message-B")
     )
     val uri = materialize("states", tuples = Seq(tuple(1), tuple(2)), states = states)
 
@@ -262,9 +273,38 @@ class InputPortMaterializationReaderThreadSpec extends AnyFlatSpec {
     assert(lastState >= 0 && firstData >= 0 && lastState < firstData)
     assert(
       stateFrames(messages).map(frame =>
-        (frame.frame.values("phase"), frame.loopCounter, frame.loopStartId)
-      ) == Seq(("a", 7L, "loop-start-A"), ("b", 9L, "loop-start-B"))
+        (frame.frame.values("phase"), frame.loopCounter, frame.loopStartId, frame.messageId)
+      ) == Seq(("a", 7L, "loop-start-A", "message-A"), ("b", 9L, "loop-start-B", "message-B"))
     )
+  }
+
+  it should "replay a stored state with the id its upstream worker sent its copies with" in {
+    // The stored row is one more copy of the message the upstream output manager sent on the
+    // network, so it must carry the same id: a worker that gets the message both ways processes it
+    // once.
+    val base = baseURI("emitted")
+    DocumentFactory.createDocument(VFSURIFactory.resultURI(base), schema)
+    DocumentFactory.createDocument(VFSURIFactory.stateURI(base), State.schema)
+    val upstreamId = ActorVirtualIdentity("Worker:WF1-emitter-main-0")
+    val sent = ArrayBuffer[WorkflowFIFOMessage]()
+    val upstream = new OutputManager(upstreamId, new NetworkOutputGateway(upstreamId, sent += _))
+    upstream.addPort(PortIdentity(), schema, Some(base))
+    upstream.addPartitionerWithPartitioning(
+      PhysicalLink(
+        PhysicalOpIdentity(OperatorIdentity("ipmrt-emitter"), "main"),
+        PortIdentity(),
+        PhysicalOpIdentity(OperatorIdentity("ipmrt-reader"), "main"),
+        PortIdentity()
+      ),
+      OneToOnePartitioning(10, Seq(ChannelIdentity(upstreamId, workerId, isControl = false)))
+    )
+    upstream.emitState(State(Map("k" -> 1L)), 2L, "loop-start-A")
+    upstream.closeOutputStorageWriterIfNeeded(PortIdentity())
+
+    val sentFrames = stateFrames(sent.toSeq)
+    val storedFrames = stateFrames(replay(base, broadcastTo(workerId)))
+    assert(sentFrames.size == 1 && sentFrames.head.messageId.nonEmpty)
+    assert(storedFrames == sentFrames)
   }
 
   it should "emit no state frame when the port materialized no state" in {

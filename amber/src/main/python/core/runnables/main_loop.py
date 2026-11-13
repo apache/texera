@@ -15,6 +15,7 @@
 # specific language governing permissions and limitations
 # under the License.
 
+import json
 import threading
 import time
 import typing
@@ -22,6 +23,7 @@ from loguru import logger
 from overrides import overrides
 from pampy import match
 from typing import Iterator, Optional
+from uuid import uuid4
 
 from core.architecture.managers.context import Context
 from core.architecture.managers.pause_manager import PauseType
@@ -40,7 +42,12 @@ from core.models.internal_queue import (
     ECMElement,
     InternalQueueElement,
 )
-from core.models.operator import LoopEndOperator, LoopStartOperator
+from core.models.operator import (
+    LoopEndOperator,
+    LoopStartOperator,
+    Operator,
+    without_definitions,
+)
 from core.models.state import State
 from core.runnables.data_processor import DataProcessor
 from core.storage.document_factory import DocumentFactory
@@ -75,6 +82,20 @@ from proto.org.apache.texera.amber.engine.architecture.worker import (
     WorkerState,
 )
 
+# The id of every state message a Loop Start issues starts with this, and its
+# copies keep it, so the Loop End tells Loop Start's own message from the loop
+# body's changes (_process_state_frame). No other id starts with it: the
+# others are uuids, and "l" is not a hex digit.
+LOOP_START_MESSAGE_PREFIX = "loop-start-"
+
+
+def _sorted_json(json_text: str) -> str:
+    """``json_text`` written again with every object's keys in sorted order,
+    so that two serialized states compare equal whatever order their keys were
+    inserted in. JSON still tells apart values that Python's ``==`` conflates,
+    such as 2 and 2.0, or 1 and True."""
+    return json.dumps(json.loads(json_text), sort_keys=True, separators=(",", ":"))
+
 
 class MainLoop(StoppableQueueBlockingRunnable):
     def __init__(
@@ -90,24 +111,28 @@ class MainLoop(StoppableQueueBlockingRunnable):
         # LoopEnd (loop_counter == 0) takes a state; used for the jump RPC
         # and the setup-config URI lookup (context.loop_start_port_uris).
         self._loop_start_id: str = ""
-        # Whether this LoopEnd already took its loop state this execution.
-        # A loop body may branch and converge on the Loop End, and every reader
-        # on its input port replays that branch's states independently, so the
-        # same iteration's state arrives once per branch. Cleared when the
-        # deferred consume takes the stash (_consume_pending_loop_state), so
-        # the flag is per-execution by construction -- not by the scheduler
-        # happening to recreate workers each iteration.
-        self._loop_state_consumed: bool = False
-        # Whether this LoopEnd forwarded an UNstamped counter-0 state instead
-        # of consuming it. Paired with _loop_start_id by
-        # _check_loop_state_arrived: forwarding one and never capturing a stamp
-        # means the loop's own state reached here with its stamp lost.
-        self._forwarded_unstamped_state: bool = False
-        # The matching state a LoopEnd will consume, stashed when taken and
-        # actually handed to the operator at EndChannel (see
+        # The ids of the state messages this worker has processed since it got
+        # its output ports. A message reaches a worker once per path to it --
+        # a loop body may branch and converge, and every reader on an input
+        # port replays its own branch's states -- so only the first copy of an
+        # id is processed then (_process_state_frame).
+        self._seen_state_messages: set[str] = set()
+        # Whether this LoopEnd took an UNstamped counter-0 state. Paired with
+        # _loop_start_id by _check_loop_state_arrived: taking one and never
+        # capturing a stamp means the loop's own state reached here with its
+        # stamp lost.
+        self._took_unstamped_state: bool = False
+        # The distinct messages a LoopEnd takes for its own loop, collected
+        # until its input ends and handed to the operator at EndChannel (see
         # _consume_pending_loop_state for why the table read must not overlap
-        # this worker's own materialization reader).
-        self._pending_loop_state: Optional[State] = None
+        # this worker's own materialization reader): Loop Start's own message,
+        # ``None`` until it arrives, and every other message, in the order
+        # they arrived (_process_state_frame, _loop_state).
+        self._loop_start_state: Optional[State] = None
+        self._body_changes: list[State] = []
+        # Whether this worker, an inner LoopEnd, has reset its output for the
+        # enclosing loop's iteration (_process_state_frame).
+        self._reset_for_enclosing_iteration: bool = False
 
         self.context = Context(worker_id, input_queue)
         self._async_rpc_server = AsyncRPCServer(output_queue, context=self.context)
@@ -174,15 +199,9 @@ class MainLoop(StoppableQueueBlockingRunnable):
         # -- a doc dropped under a live reader would break the reader with or
         # without this read -- so treat a recurrence as new evidence. By
         # EndChannel the reader has finished, so the two never overlap.
-        if self._pending_loop_state is None:
+        if self._loop_start_state is None and not self._body_changes:
             return
-        pending = self._pending_loop_state
-        self._pending_loop_state = None
-        # Re-arm the duplicate guard here rather than relying on the scheduler
-        # recreating workers each iteration: EndChannel is PORT_ALIGNMENT, so
-        # nothing more can arrive on the port -- every duplicate is already in
-        # by the time this consume runs.
-        self._loop_state_consumed = False
+        pending = self._loop_state()
         executor.attach_loop_table(self._read_loop_input_table())
         # A Loop End has exactly one input port (port 0); the generated
         # operator's process_state ignores the port anyway. That single input
@@ -206,6 +225,20 @@ class MainLoop(StoppableQueueBlockingRunnable):
             executor.register_state(pending, 0)
             executor.process_state(pending, 0)
 
+    def _loop_state(self) -> State:
+        # What the update and the condition read: Loop Start's message first,
+        # whenever it arrived, then every other message in the order they
+        # arrived, each with every name it carries, so of two values of a name
+        # the later wins. Applying Loop Start's message first keeps a branch
+        # that sends it on unchanged, and arrives last, from undoing a change
+        # the body made. A change to Loop Start's message carries every name
+        # of it, so of two branches that change different names, the later
+        # one's message also brings back the name the earlier one changed.
+        values = dict(self._loop_start_state or {})
+        for state in self._body_changes:
+            values.update(state)
+        return State(values)
+
     def _jump_to_loop_start(
         self, executor: LoopEndOperator, coordinator_interface
     ) -> None:
@@ -221,21 +254,57 @@ class MainLoop(StoppableQueueBlockingRunnable):
         writer = DocumentFactory.create_document(uri, State.SCHEMA).writer("0")
         # The back-edge fires only after the matching LoopEnd consumed at
         # loop_counter == 0, so the next iteration's input starts at depth 0.
-        writer.put_one(executor.state.to_tuple(0))
+        writer.put_one(self._next_iteration_state(executor).to_tuple(0))
         writer.close()
+        self._reset_loop_iteration()
+
+    def _next_iteration_state(self, executor: LoopEndOperator) -> State:
+        # The back-edge saves the loop's own variables for the next iteration,
+        # with the values they ended with: Loop Start's variables and every
+        # name the update bound when it ran. Loop Start's variables are the
+        # names its own message carried, with the upstream values it merged and
+        # what earlier iterations saved. Every body operator sends that message
+        # on, so it arrives here unless it reaches only an input port that an
+        # operator reads before it has output ports; without it, only the
+        # names the update binds are saved. A name only the body's changes
+        # carried, which the update does not bind, is the body's result
+        # for this iteration: the update and the condition read it, and saving
+        # it would hand the next iteration an old value under the name the
+        # body sends again. The update keeps such a value by binding it, to its
+        # own name (`best = max(best, score)`) or to another one
+        # (`prev = score`). A module, function or class the update defined is
+        # never saved, nor a name Python binds itself (without_definitions).
+        loop_start_names = (
+            () if self._loop_start_state is None else self._loop_start_state.keys()
+        )
+        return without_definitions(
+            {
+                name: value
+                for name, value in executor.state.items()
+                if name in loop_start_names or name in executor.bound_names
+            }
+        )
+
+    def _reset_loop_iteration(self) -> None:
+        # Once the back-edge is written, forget what this iteration collected,
+        # so a LoopEnd worker that ran another iteration would start it from
+        # nothing: in particular, one that then takes only an unstamped state
+        # fails _check_loop_state_arrived instead of passing on this stamp.
+        self._loop_start_id = ""
+        self._took_unstamped_state = False
+        self._loop_start_state = None
+        self._body_changes = []
 
     def _check_loop_state_arrived(self) -> None:
         # Keep the LOUD failure for a real loop state that lost its stamp
-        # upstream. Forwarding unstamped states (above) is right for a body
-        # operator's own boundary state, but it also swallows the symptom of
-        # the bug class #6660/#6661 fixed: a hop that blanks the envelope makes
-        # the loop's own state arrive unstamped, and forwarding it leaves
-        # _loop_table None, so condition() returns False and the loop stops
-        # after one iteration -- a WRONG RESULT reported as success.
+        # upstream. Taking unstamped states (above) is right for a body
+        # operator's own boundary state, but a hop that blanks the envelope
+        # (the bug class #6660/#6661 fixed) makes the loop's own state arrive
+        # unstamped too, with no LoopStart left to jump back to.
         #
         # The two cases are told apart once the input port is done rather than
-        # on arrival: a LoopEnd that forwarded an unstamped state and never
-        # took a stamped one cannot have been looking at a body operator's
+        # on arrival: a LoopEnd that took an unstamped state and never a
+        # stamped one cannot have been looking at a body operator's
         # boundary state -- its own state never arrived. Deciding at EndChannel
         # is order-independent (the body operator's state may arrive before or
         # after the loop's; EndChannel is PORT_ALIGNMENT, so every channel on
@@ -247,18 +316,17 @@ class MainLoop(StoppableQueueBlockingRunnable):
         # port, and region completion is port-based, so a raise there would be
         # reported only once the coordinator already considers the region done.
         #
-        # The check is deliberately narrow -- "forwarded an unstamped state AND
-        # never took a stamped one", not "never took a stamped one". A LoopEnd
+        # The check is deliberately narrow -- "took an unstamped state AND
+        # never a stamped one", not "never took a stamped one". A LoopEnd
         # completing without any matching state is legal (see
         # LoopEndOperator.eval_condition's _loop_table guard); only positive
         # evidence that a boundary state arrived unstamped is a lost envelope.
         #
         # "Took a stamped one" is read off _loop_start_id, which only the
-        # stamped branch writes and nothing clears -- NOT off the
-        # _loop_state_consumed fan-in dedup flag, whose lifetime is owned by
-        # the dedup and may end before this runs. Keying on the durable field
-        # keeps this guard correct wherever it is called from.
-        if self._forwarded_unstamped_state and not self._loop_start_id:
+        # stamped branch writes and only the back-edge write clears
+        # (_reset_loop_iteration), so this guard stays correct wherever it is
+        # called from within an iteration.
+        if self._took_unstamped_state and not self._loop_start_id:
             raise RuntimeError(
                 "Loop End received a loop-boundary state with no LoopStart "
                 "stamp and never received its own (stamped) loop state: the "
@@ -394,6 +462,9 @@ class MainLoop(StoppableQueueBlockingRunnable):
         self,
         output_loop_counter: int = 0,
         output_loop_start_id: str = "",
+        input_message_id: Optional[str] = None,
+        input_json: Optional[str] = None,
+        input_state: Optional[State] = None,
     ) -> None:
         self._switch_context()
         output_state = self.context.state_processing_manager.get_output_state()
@@ -403,10 +474,72 @@ class MainLoop(StoppableQueueBlockingRunnable):
                 # A LoopStart stamps its own logical op id; the write address
                 # is setup config (InitializeExecutorRequest.loop_start_port_uris).
                 output_loop_start_id = get_logical_op_id(self.context.worker_id)
+            # An output that equals the input is the same message sent on, so
+            # it keeps its id; any other output is a new message. The input the
+            # default process_state handed back (`input_state`) is unchanged;
+            # otherwise the serialized values are compared (`input_json`, taken
+            # before the callback), because Python equality conflates 2 and
+            # 2.0, with every object's keys in sorted order, because the order
+            # of a dict's keys says nothing about its values. Serializing can
+            # fail on a bad value, which is reported as an operator error, as
+            # _emit_and_save_state does, instead of killing this thread.
+            message_id = None
+            try:
+                if output_state is input_state or (
+                    input_json is not None
+                    and _sorted_json(output_state.to_json()) == _sorted_json(input_json)
+                ):
+                    message_id = input_message_id
+            except Exception as err:
+                self.context.report_exception(err)
+                self._check_exception()
+                return
+            if message_id is None and output_loop_start_id and input_json is not None:
+                # A change does not replace a loop's message (one stamped with
+                # its Loop Start): the message goes on unchanged first, under
+                # its id, and the change follows as a new message. The loop
+                # body may split before this operator and meet again after it,
+                # with the other branch sending the same message on unchanged;
+                # arriving there after the change, that branch's copy is one
+                # the meeting operator already processed and recorded, so it
+                # drops the copy, which cannot undo the change. A worker records
+                # an id only once it has output ports (_process_state_frame), so
+                # an operator that reads one input before another processes the
+                # copy on its other input again: a change that reached it only
+                # through the input it reads first goes no further, and the
+                # copy puts the message's values back into its loop_variables.
+                # The operators downstream run on both messages, so each
+                # operator in a row that changes the loop's message doubles the
+                # messages after it.
+                self._emit_and_save_state(
+                    State.from_json(input_json),
+                    output_loop_counter,
+                    output_loop_start_id,
+                    input_message_id,
+                )
             self._emit_and_save_state(
                 output_state,
                 output_loop_counter,
                 output_loop_start_id,
+                message_id,
+            )
+        elif (
+            output_loop_start_id
+            and input_json is not None
+            and not self.context.exception_manager.has_exception()
+        ):
+            # A loop's message always goes on: body operators forward their
+            # loop's messages, so one whose process_state returns None for a
+            # message stamped with its Loop Start sends that message on
+            # unchanged, under its id, and the operators after it and the Loop
+            # End still get it. A state without the stamp is not sent on, and
+            # nothing is once the operator has raised an error, which holds
+            # this worker (_process_end_channel).
+            self._emit_and_save_state(
+                State.from_json(input_json),
+                output_loop_counter,
+                output_loop_start_id,
+                input_message_id,
             )
 
     def _emit_batches(self, batches) -> None:
@@ -426,7 +559,15 @@ class MainLoop(StoppableQueueBlockingRunnable):
         state: State,
         loop_counter: int,
         loop_start_id: str = "",
+        message_id: Optional[str] = None,
     ) -> None:
+        # A new message (no id given) gets one id for every copy: one per
+        # downstream channel and the stored row. A LoopStart's starts with
+        # LOOP_START_MESSAGE_PREFIX.
+        if message_id is None:
+            message_id = str(uuid4())
+            if isinstance(self.context.executor_manager.executor, LoopStartOperator):
+                message_id = LOOP_START_MESSAGE_PREFIX + message_id
         # State serialization (state.to_tuple -> to_json) and the storage write
         # run here on the main loop thread, outside DataProcessor's guarded
         # executor session. A non-serializable loop variable (e.g. a numpy
@@ -439,11 +580,11 @@ class MainLoop(StoppableQueueBlockingRunnable):
         try:
             self._emit_batches(
                 self.context.output_manager.emit_state(
-                    state, loop_counter, loop_start_id
+                    state, loop_counter, loop_start_id, message_id
                 )
             )
             self.context.output_manager.save_state_to_storage_if_needed(
-                state, loop_counter, loop_start_id
+                state, loop_counter, loop_start_id, message_id
             )
         except Exception as err:
             self.context.report_exception(err)
@@ -495,6 +636,26 @@ class MainLoop(StoppableQueueBlockingRunnable):
         # The LoopStart/LoopEnd nested pass-through branches are handled here --
         # forwarding the state and skipping the operator -- so the operator's
         # process_state only ever runs the first-entry / consume path.
+        #
+        # A copy of a message this worker already processed (the same id,
+        # arriving on another edge or channel) is dropped before any of that:
+        # it is not registered, handed to the operator or forwarded again. An
+        # empty id is a state nobody issued (e.g. the back-edge write), never
+        # a copy. A message processed while this worker has no output port is
+        # not recorded. In two-phase region execution (RegionExecutionManager)
+        # an operator reads its dependee input ports, the ones another of its
+        # ports depends on, in a phase of their own, before the worker has any
+        # output port (see is_missing_output_ports): what it sends then reaches
+        # no one, so the copy of the message on its other port is processed
+        # again and sent on.
+        if (
+            frame.message_id
+            and not self.context.output_manager.is_missing_output_ports()
+        ):
+            if frame.message_id in self._seen_state_messages:
+                self._check_and_process_control()
+                return
+            self._seen_state_messages.add(frame.message_id)
         state = frame.frame
         in_counter = frame.loop_counter
         executor = self.context.executor_manager.executor
@@ -502,108 +663,118 @@ class MainLoop(StoppableQueueBlockingRunnable):
         if isinstance(executor, LoopEndOperator) and in_counter > 0:
             # An inner Loop End receiving the enclosing (outer) loop's boundary
             # state (loop_counter > 0): the signal that the outer loop has
-            # advanced. Reset this Loop End's output now, before forwarding, so
-            # the new outer iteration's inner results accumulate from empty
-            # instead of concatenating across outer iterations. The input reader
-            # replays all states before any data each region execution, so the
-            # result/state tables still hold the PREVIOUS outer iteration's rows
-            # at this point. This fires exactly once per outer iteration: the
-            # inner LoopStart's output (and thus this pass-through) is recreated
-            # on every inner back-edge, so the outer state only reaches here on
-            # the first inner iteration of each outer iteration. A single /
-            # outermost Loop End never reaches this branch (no enclosing loop,
-            # so never loop_counter > 0) and so never resets -- it accumulates
-            # all of its own iterations.
-            self.context.output_manager.reset_output_storage()
+            # advanced. Reset this Loop End's output on the first such message,
+            # before forwarding it, so the new outer iteration's inner results
+            # accumulate from empty instead of concatenating across outer
+            # iterations. The input reader replays all states before any data
+            # each region execution, so the result/state tables still hold the
+            # PREVIOUS outer iteration's rows at this point. The outer messages
+            # reach here only in the first inner iteration of each outer
+            # iteration (the inner LoopStart's output, and thus this
+            # pass-through, is recreated on every inner back-edge), on a worker
+            # of its own, so resetting once per worker resets once per outer
+            # iteration. One outer iteration can bring several distinct
+            # messages -- an outer-body operator that changes the outer Loop
+            # Start's message sends that message on before its change -- and a
+            # reset for a later one would drop the rows of the earlier ones,
+            # which the outer Loop End needs. The flag is not cleared by this
+            # worker's own back-edge, which ends an inner iteration, not an
+            # outer one. A single / outermost Loop End never reaches this
+            # branch (no enclosing loop, so never loop_counter > 0) and so never
+            # resets -- it accumulates all of its own iterations.
+            if not self._reset_for_enclosing_iteration:
+                self._reset_for_enclosing_iteration = True
+                self.context.output_manager.reset_output_storage()
             # State belongs to an outer loop: step one level out and forward,
-            # carrying the outer loop's id unchanged.
-            self._emit_and_save_state(state, in_counter - 1, frame.loop_start_id)
+            # carrying the outer loop's id and the message id unchanged.
+            self._emit_and_save_state(
+                state, in_counter - 1, frame.loop_start_id, frame.message_id
+            )
             self._check_and_process_control()
             return
         if isinstance(executor, LoopStartOperator) and frame.loop_start_id:
             # Outer loop's state flowing through an inner LoopStart -- detected
             # by the outer LoopStart's id stamped on the envelope (a first-entry
             # state has no stamp): step one level deeper and forward, keeping
-            # the outer loop's id.
-            self._emit_and_save_state(state, in_counter + 1, frame.loop_start_id)
+            # the outer loop's id and the message id.
+            self._emit_and_save_state(
+                state, in_counter + 1, frame.loop_start_id, frame.message_id
+            )
             self._check_and_process_control()
             return
 
         # A LoopStart handles only the STAMPED case above. An UNstamped
         # counter-0 state at a LoopStart takes neither branch: it falls all the
         # way through to process_input_state at the bottom, and the operator's
-        # process_state MERGES its keys into the loop variables. That is the
-        # opposite of what the LoopEnd branch below does with the identical
-        # frame, and the asymmetry is forced, not an oversight. The back-edge
+        # process_state MERGES its keys into the loop variables. The back-edge
         # writes the next iteration's variables to the LoopStart's own
         # input-port state URI with that very same "no loop" envelope
         # (_jump_to_loop_start -> State.to_tuple(0)), so an unstamped counter-0
         # frame at a LoopStart is indistinguishable from -- and normally IS --
-        # the loop's own state. A LoopEnd may forward instead of consuming
-        # because its inbound loop state is always stamped by the matching
-        # LoopStart; a LoopStart has no such signal. Consequence of the merge:
-        # an upstream or body operator emitting a key that collides with a loop
-        # variable overwrites it, and one emitting `table` trips
-        # _reserved_name_error in produce_state_on_finish (see #7248).
+        # the loop's own state. Consequence of the merge: an upstream or body
+        # operator emitting a key that collides with a loop variable
+        # overwrites it, and one emitting `table` trips _reserved_name_error in
+        # produce_state_on_finish (see #7248).
 
         if isinstance(executor, LoopEndOperator):
-            if not frame.loop_start_id:
-                # An UNstamped counter-0 state at a LoopEnd is not the loop's
-                # own boundary state -- it was produced by a loop-body
-                # operator's produce_state_on_start/finish (a public API on
-                # both engine sides), which emits with the "no loop" envelope.
-                # A real loop state is always stamped: the matching LoopStart
-                # stamps its own id on every iteration's output state.
-                # Forward it downstream unchanged, skipping the operator, like
-                # any default pass-through: taking it would clobber the
-                # captured back-jump id with "" and then fail the deferred
-                # consume's bookkeeping-URI lookup for LoopStart ''.
-                #
-                # This MUST stay ahead of the dedup and the stash below: an
-                # unstamped frame is not the loop's own state, so it may
-                # neither mark that state as taken nor be handed to the
-                # operator as the iteration's state.
-                self._forwarded_unstamped_state = True
-                self._emit_and_save_state(state, in_counter, frame.loop_start_id)
-                self._check_and_process_control()
-                return
-            # Matching LoopEnd (in_counter == 0, stamped): it will consume this
-            # state and jump back. Remember which LoopStart to jump to (it
-            # rides the envelope) for complete()/_jump_to_loop_start, and STASH
-            # the state -- the operator runs its update at EndChannel instead
-            # of here, because the loop's input table is read from storage and
-            # that read must not overlap this worker's own materialization
-            # reader (see _consume_pending_loop_state). The LoopEnd emits no
-            # state downstream on the matching consume, so deferring it
-            # changes nothing observable outside the operator.
+            # Matching LoopEnd (in_counter == 0): it takes every distinct
+            # message of its loop until its input ends. Loop Start's own
+            # message, which its copies keep (its id starts with
+            # LOOP_START_MESSAGE_PREFIX), is the base. Every other one is a
+            # message the loop body sent: a state a body operator's
+            # process_state changed (it keeps Loop Start's stamp), the message
+            # such an operator sent on before its change, or a state a body
+            # operator's produce_state_on_start/finish (a public API on both
+            # engine sides) emitted with the "no loop" envelope. The user's
+            # update and condition read the base and then each other message
+            # whole, in the order they arrived (_loop_state), so a branch that
+            # sends Loop Start's message on unchanged cannot undo a change,
+            # whichever arrives last. Later copies of a message were dropped
+            # above; which of two messages arrives last, and so wins, can
+            # depend on the paths they take. Nothing is sent downstream: the
+            # loop's own values stay inside the block.
             #
-            # With a branching loop body, each branch's reader replays the same
-            # iteration's state, so this fires once per inbound link. The
-            # deferred consume runs the user's update exactly once either way
-            # (and run_update seeds its namespace from the incoming copy, so
-            # re-running it on an identical copy would even be idempotent);
-            # what this flag pins is WHICH copy is stashed -- the first,
-            # instead of each later arrival silently overwriting
-            # _pending_loop_state. The copies are the same state emitted by
-            # the one matching LoopStart unless a body operator overrides
-            # process_state to forward a modified one; rewriting the loop
-            # state in a branching body is not supported (which copy arrives
-            # first is scheduling-dependent either way), so take the first
-            # deliberately.
-            if self._loop_state_consumed:
-                self._check_and_process_control()
-                return
-            self._loop_state_consumed = True
-            self._loop_start_id = frame.loop_start_id
-            self._pending_loop_state = state
+            # The operator runs its update at EndChannel instead of here,
+            # because the loop's input table is read from storage and that
+            # read must not overlap this worker's own materialization reader
+            # (see _consume_pending_loop_state).
+            if frame.loop_start_id:
+                # Remember which LoopStart to jump to (it rides the envelope)
+                # for complete()/_jump_to_loop_start.
+                self._loop_start_id = frame.loop_start_id
+            else:
+                # An unstamped state must not clobber the captured back-jump id
+                # with "", which would fail the deferred consume's
+                # bookkeeping-URI lookup for LoopStart ''.
+                self._took_unstamped_state = True
+            if frame.message_id.startswith(LOOP_START_MESSAGE_PREFIX):
+                self._loop_start_state = State(
+                    {**(self._loop_start_state or {}), **state}
+                )
+            else:
+                self._body_changes.append(state)
             self._check_and_process_control()
             return
 
         self.context.state_processing_manager.current_input_state = state
         self.context.state_processing_manager.current_input_loop_counter = in_counter
+        # The default process_state hands back the very state it got, which is
+        # the same message without serializing anything. Any other one may
+        # change the state in place before returning it, so its input is
+        # serialized before it runs, to compare its output against and, for a
+        # loop's message that it changed or returned None for, to send that
+        # message on unchanged. The bound method tells which one runs, so a
+        # process_state set on the operator object, not on its class, counts
+        # as another one.
+        passes_through = isinstance(executor, Operator) and (
+            getattr(executor.process_state, "__func__", None) is Operator.process_state
+        )
         self.process_input_state(
             output_loop_counter=in_counter,
             output_loop_start_id=frame.loop_start_id,
+            input_message_id=frame.message_id,
+            input_json=None if passes_through else state.to_json(),
+            input_state=state if passes_through else None,
         )
         self._check_and_process_control()
 

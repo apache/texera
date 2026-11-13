@@ -309,7 +309,10 @@ class PythonProxyClientSpec extends AnyFlatSpec {
       val dataChannel = ChannelIdentity(clientWorkerId, controllerId, isControl = false)
 
       fixture.client.enqueueData(
-        DataElement(StateFrame(state, loopCounter = 3L, loopStartId = "loop-start-1"), dataChannel)
+        DataElement(
+          StateFrame(state, loopCounter = 3L, loopStartId = "loop-start-1", messageId = "A"),
+          dataChannel
+        )
       )
 
       awaitTrue()(!fixture.producer.putsReceived.isEmpty)
@@ -320,6 +323,7 @@ class PythonProxyClientSpec extends AnyFlatSpec {
       assert(State.fromTuple(row) == state)
       assert(State.loopCounterFrom(row) == 3L)
       assert(State.loopStartIdFrom(row) == "loop-start-1")
+      assert(State.messageIdFrom(row) == "A")
     }
   }
 

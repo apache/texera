@@ -270,10 +270,11 @@ class EndChannelHandlerSpec extends AnyFlatSpec {
 
     assert(fixture.endChannel() == EmptyReturn())
 
-    // Exactly the state the operator returned. A state a Scala handler originates carries the
-    // "no loop" defaults (loopCounter 0, loopStartId ""); only the JVM hop in
-    // `DataProcessor.processState` forwards an incoming envelope, and it never creates one.
-    assert(fixture.emittedStates == Seq(StateFrame(state, 0L, "")))
+    // Exactly the state the operator returned, as a new message: a fresh id and the "no loop"
+    // defaults (loopCounter 0, loopStartId ""); only the JVM hop in `DataProcessor.processState`
+    // forwards an incoming envelope, and it never creates one.
+    assert(fixture.emittedStates.map(_.copy(messageId = "")) == Seq(StateFrame(state, 0L, "")))
+    assert(fixture.emittedStates.forall(_.messageId.nonEmpty))
   }
 
   it should "emit an empty state, because presence and not content gates the emission" in {
@@ -283,7 +284,9 @@ class EndChannelHandlerSpec extends AnyFlatSpec {
 
     assert(fixture.endChannel() == EmptyReturn())
 
-    assert(fixture.emittedStates == Seq(StateFrame(emptyState, 0L, "")))
+    assert(
+      fixture.emittedStates.map(_.copy(messageId = "")) == Seq(StateFrame(emptyState, 0L, ""))
+    )
   }
 
   it should "emit no state when the operator produces none, but still finalize the input port" in {
@@ -351,7 +354,7 @@ class EndChannelHandlerSpec extends AnyFlatSpec {
     // ask for the state, then take the finish output. Taking the output first would mean an
     // operator that throws there never has `produceStateOnFinish` called at all, and the state a
     // downstream Loop End consumes would be silently dropped instead of emitted.
-    assert(fixture.emittedStates == Seq(StateFrame(state, 0L, "")))
+    assert(fixture.emittedStates.map(_.copy(messageId = "")) == Seq(StateFrame(state, 0L, "")))
 
     // `handleExecutorException` sends a console message carrying the throwable...
     val consoleMessages = fixture.consoleMessages

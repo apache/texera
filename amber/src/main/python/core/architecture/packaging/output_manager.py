@@ -99,7 +99,9 @@ class OutputManager:
 
     def is_missing_output_ports(self):
         """
-        This method is only used for ensuring correct region execution.
+        This method is used for ensuring correct region execution, and by
+        MainLoop._process_state_frame, which records no state message id
+        while it is true.
         Some operators may have input port dependency relationships, for
         which we currently use a two-phase region execution scheme.
         (See `RegionExecutionManager.scala` for details.)
@@ -199,6 +201,7 @@ class OutputManager:
         state: State,
         loop_counter: int = 0,
         loop_start_id: str = "",
+        message_id: str = "",
         port_id=None,
     ) -> None:
         # When port_id is omitted the same state row is fanned out to
@@ -208,7 +211,7 @@ class OutputManager:
         # (and every worker reading the materialization) needs the full
         # set.
         element = PortStorageWriterElement(
-            data_tuple=state.to_tuple(loop_counter, loop_start_id)
+            data_tuple=state.to_tuple(loop_counter, loop_start_id, message_id)
         )
         if port_id is None:
             for writer_queue, _, _ in self._port_state_writers.values():
@@ -220,7 +223,8 @@ class OutputManager:
         """Drop and recreate this operator's result and state tables, then
         reopen the storage writers against the empty tables.
 
-        Called only for the inner Loop End of a nested loop, once per outer
+        Called only for the inner Loop End of a nested loop, on the first
+        message of the enclosing loop a worker takes, so once per outer
         iteration (see the ``MainLoop._process_state_frame`` call site).
         Truncating live storage is safe because loop workflows run in
         MATERIALIZED mode, so no reader observes the intermediate truncation.
@@ -327,6 +331,7 @@ class OutputManager:
         state: State,
         loop_counter: int = 0,
         loop_start_id: str = "",
+        message_id: str = "",
     ) -> Iterable[typing.Tuple[ActorVirtualIdentity, DataPayload]]:
         return chain(
             *(
@@ -338,6 +343,7 @@ class OutputManager:
                                 payload,
                                 loop_counter=loop_counter,
                                 loop_start_id=loop_start_id,
+                                message_id=message_id,
                             )
                             if isinstance(payload, State)
                             else self.tuple_to_frame(payload)

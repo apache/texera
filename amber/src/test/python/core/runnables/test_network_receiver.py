@@ -178,13 +178,13 @@ class TestNetworkReceiver:
         input_queue.put(
             DataElement(
                 tag=channel_id,
-                payload=StateFrame(State({"i": 1}), loop_counter=0),
+                payload=StateFrame(State({"i": 1}), loop_counter=0, message_id="A"),
             )
         )
         input_queue.put(
             DataElement(
                 tag=channel_id,
-                payload=StateFrame(State({"i": 2}), loop_counter=5),
+                payload=StateFrame(State({"i": 2}), loop_counter=5, message_id="B"),
             )
         )
 
@@ -194,11 +194,13 @@ class TestNetworkReceiver:
         assert isinstance(first_element.payload, StateFrame)
         assert first_element.payload.frame == {"i": 1}
         assert first_element.payload.loop_counter == 0
+        assert first_element.payload.message_id == "A"
         assert first_element.tag == channel_id
 
         assert isinstance(second_element.payload, StateFrame)
         assert second_element.payload.frame == {"i": 2}
         assert second_element.payload.loop_counter == 5
+        assert second_element.payload.message_id == "B"
         assert second_element.tag == channel_id
 
     @pytest.mark.timeout(10)
@@ -377,6 +379,7 @@ class TestNetworkReceiver:
                 State.CONTENT: [State({"answer": 42}).to_json()],
                 State.LOOP_COUNTER: [7],
                 State.LOOP_START_ID: ["loop-start-1"],
+                State.MESSAGE_ID: ["issued-A"],
             }
         )
 
@@ -387,6 +390,7 @@ class TestNetworkReceiver:
         assert element.payload.frame == {"answer": 42}
         assert element.payload.loop_counter == 7
         assert element.payload.loop_start_id == "loop-start-1"
+        assert element.payload.message_id == "issued-A"
         assert element.tag == channel_id
 
     @pytest.mark.timeout(10)

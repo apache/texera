@@ -47,6 +47,8 @@ import org.apache.texera.amber.operator.filter.{
   FilterPredicate,
   SpecializedFilterOpDesc
 }
+import org.apache.texera.amber.operator.hashJoin.{HashJoinOpDesc, JoinType}
+import org.apache.texera.amber.operator.ifStatement.IfOpDesc
 import org.apache.texera.amber.operator.limit.LimitOpDesc
 import org.apache.texera.amber.operator.loop.{LoopEndOpDesc, LoopStartOpDesc}
 import org.apache.texera.amber.operator.sleep.SleepOpDesc
@@ -278,8 +280,126 @@ class LoopIntegrationSpec
     op
   }
 
+  /** A pass-through Python UDF that publishes the row it saw as `score` when its input ends. */
+  private def scoringPythonUDF(): PythonUDFOpDescV2 = {
+    val op = new PythonUDFOpDescV2()
+    op.code = """from pytexera import *
+                |
+                |class ProcessTupleOperator(UDFOperatorV2):
+                |
+                |    @overrides
+                |    def process_tuple(self, tuple_: Tuple, port: int) -> Iterator[Optional[TupleLike]]:
+                |        self.score = int(tuple_["line"])
+                |        yield tuple_
+                |
+                |    @overrides
+                |    def produce_state_on_finish(self, port: int) -> Optional[State]:
+                |        return State({"score": self.score})
+                |""".stripMargin
+    op.workers = 1
+    op.retainInputColumns = true
+    op
+  }
+
+  /** A pass-through Python UDF that adds one row for each state message its process_state runs on. */
+  private def messageCountingPythonUDF(): PythonUDFOpDescV2 = {
+    val op = new PythonUDFOpDescV2()
+    op.code = """from pytexera import *
+                |
+                |class ProcessTupleOperator(UDFOperatorV2):
+                |
+                |    @overrides
+                |    def open(self) -> None:
+                |        self.messages = 0
+                |
+                |    @overrides
+                |    def process_state(self, state: State, port: int) -> Optional[State]:
+                |        self.messages += 1
+                |        return state
+                |
+                |    @overrides
+                |    def process_tuple(self, tuple_: Tuple, port: int) -> Iterator[Optional[TupleLike]]:
+                |        yield tuple_
+                |
+                |    @overrides
+                |    def on_finish(self, port: int) -> Iterator[Optional[TupleLike]]:
+                |        for _ in range(self.messages):
+                |            yield Tuple({"line": "message"})
+                |""".stripMargin
+    op.workers = 1
+    op.retainInputColumns = true
+    op
+  }
+
+  /** A pass-through Python UDF whose process_state sets the loop variable `x` to 2. */
+  private def xSettingPythonUDF(): PythonUDFOpDescV2 = {
+    val op = new PythonUDFOpDescV2()
+    op.code = """from pytexera import *
+                |
+                |class ProcessTupleOperator(UDFOperatorV2):
+                |
+                |    @overrides
+                |    def process_state(self, state: State, port: int) -> Optional[State]:
+                |        state["x"] = 2
+                |        return state
+                |
+                |    @overrides
+                |    def process_tuple(self, tuple_: Tuple, port: int) -> Iterator[Optional[TupleLike]]:
+                |        yield tuple_
+                |""".stripMargin
+    op.workers = 1
+    op.retainInputColumns = true
+    op
+  }
+
+  /** A pass-through Python UDF whose process_state halves the loop variable `lr` when it is there. */
+  private def lrHalvingPythonUDF(): PythonUDFOpDescV2 = {
+    val op = new PythonUDFOpDescV2()
+    op.code = """from pytexera import *
+                |
+                |class ProcessTupleOperator(UDFOperatorV2):
+                |
+                |    @overrides
+                |    def process_state(self, state: State, port: int) -> Optional[State]:
+                |        if "lr" in state:
+                |            state["lr"] = state["lr"] // 2
+                |        return state
+                |
+                |    @overrides
+                |    def process_tuple(self, tuple_: Tuple, port: int) -> Iterator[Optional[TupleLike]]:
+                |        yield tuple_
+                |""".stripMargin
+    op.workers = 1
+    op.retainInputColumns = true
+    op
+  }
+
   private def link(from: LogicalOp, to: LogicalOp): LogicalLink =
     LogicalLink(from.operatorIdentifier, PortIdentity(), to.operatorIdentifier, PortIdentity())
+
+  private def portLink(from: LogicalOp, fromPort: Int, to: LogicalOp, toPort: Int): LogicalLink =
+    LogicalLink(
+      from.operatorIdentifier,
+      PortIdentity(fromPort),
+      to.operatorIdentifier,
+      PortIdentity(toPort)
+    )
+
+  /** Run the loop workflow and return the lines the Loop End `end` materialized, sorted. */
+  private def runAndGetLines(
+      operators: List[LogicalOp],
+      links: List[LogicalLink],
+      end: LogicalOp
+  ): List[String] =
+    runWorkflowAndReadResults(
+      system,
+      buildWorkflow(operators, links, materializedContext()),
+      List(end.operatorIdentifier),
+      _.get().toList,
+      Duration.fromSeconds(90)
+    ).getOrElse(end.operatorIdentifier, Nil)
+      .map(_.getField[String]("line"))
+      .sorted
 
   /** Run the loop workflow and return the (line, i) rows the Loop End `end` materialized, sorted. */
   private def runAndGetLinesWithLoopVariable(
@@ -532,11 +652,11 @@ class LoopIntegrationSpec
     // The UDF emits boundary state via produce_state_on_finish (a public API
     // on both engine sides), which reaches the LoopEnd with the "no loop"
     // envelope (counter 0, no LoopStart stamp) AFTER the forwarded loop
-    // state. The LoopEnd must pass that unstamped state through instead of
-    // consuming it: taking it would clobber the captured back-jump id with ""
-    // and then fail the deferred consume's bookkeeping-URI lookup ("no loop
-    // bookkeeping URI configured for LoopStart ''"). Regression test for
-    // #discussion_r3648708075 on #6661.
+    // state. The LoopEnd collects it with the loop state, and it must not
+    // clobber the captured back-jump id with "": that would fail the deferred
+    // consume's bookkeeping-URI lookup ("no loop bookkeeping URI configured
+    // for LoopStart ''"). Regression test for #discussion_r3648708075 on
+    // #6661.
     val src = textInput("1\n2\n3")
     val start = loopStart("i = 0", "table.iloc[i]")
     val mid = statefulPythonUDF()
@@ -593,6 +713,220 @@ class LoopIntegrationSpec
     assert(
       rows == List(("a", 0), ("b", 1), ("c", 2)),
       s"each iteration's row must carry that iteration's i: got $rows"
+    )
+  }
+
+  it should "stop a loop once a score computed in its body stops improving, past a JVM operator" in {
+    // TextInput("3","5","4","6") -> LoopStart(i = 0, prev = None, score = 0 / table.iloc[i])
+    //   -> Limit(10) -> scoring UDF -> LoopEnd(again = prev is None or score > prev;
+    //   prev = score; i += 1 / again).
+    // The UDF publishes the row it saw as `score` after the loop's state has passed it. The scores
+    // are 3, 5, 4: the third does not improve, so the loop stops after 3 iterations. A LoopEnd that
+    // never sees the body's score compares the initial 0 with itself and stops after 2. Loop
+    // Start's message passes the Limit, a JVM operator, on its way to Loop End, whose update reads
+    // `prev` in the first iteration, so `prev = None` must still be there.
+    val src = textInput("3\n5\n4\n6")
+    val start = loopStart("i = 0\nprev = None\nscore = 0", "table.iloc[i]")
+    val jvm = limit(10)
+    val mid = scoringPythonUDF()
+    val end = loopEnd("again = prev is None or score > prev\nprev = score\ni += 1", "again")
+    val materialized = runAndGetMaterializedRowCounts(
+      List(src, start, jvm, mid, end),
+      List(link(src, start), link(start, jvm), link(jvm, mid), link(mid, end))
+    )
+    val endRows = materialized.getOrElse(end.operatorIdentifier, -1L)
+    assert(
+      endRows == 3,
+      s"prev = None must reach Loop End through the Limit, and the loop must stop on the first " +
+        s"score that does not improve (3, 5, 4): expected 3 iterations, got $endRows " +
+        s"(all: $materialized)"
+    )
+  }
+
+  it should "run a body operator's process_state once per message where two branches meet" in {
+    // TextInput("0","1","2") -> LoopStart(i = 0 / table.iloc[i]) -> Limit(10) and Sleep(0)
+    //   -> both into one input port of a message-counting UDF -> LoopEnd.
+    // Loop Start's message reaches the UDF once per branch, as copies of one message. Each
+    // iteration's row passes both branches (2 rows) and the UDF adds a row per message it
+    // processed: 1 for the one message, so 3 rows on each of 3 iterations. Processing every copy
+    // would add 2 and give 12.
+    val src = textInput("0\n1\n2")
+    val start = loopStart("i = 0", "table.iloc[i]")
+    val left = limit(10)
+    val right = sleep(0)
+    val mid = messageCountingPythonUDF()
+    val end = loopEnd("i += 1", "i < len(table)")
+    val materialized = runAndGetMaterializedRowCounts(
+      List(src, start, left, right, mid, end),
+      List(
+        link(src, start),
+        link(start, left),
+        link(start, right),
+        link(left, mid),
+        link(right, mid),
+        link(mid, end)
+      )
+    )
+    val endRows = materialized.getOrElse(end.operatorIdentifier, -1L)
+    assert(
+      endRows == 9,
+      s"the UDF must process Loop Start's message once per iteration, not once per branch: " +
+        s"expected 9, got $endRows (all: $materialized)"
+    )
+  }
+
+  it should "give a JVM operator the value the loop body publishes after Loop Start's own value" in {
+    // TextInput("1","2","3") -> LoopStart(i = 0, score = 0 / table.iloc[i]) -> scoring UDF
+    //   -> Filter(line = $score) -> LoopEnd(score = int(score); i += 1 / i < len(table)).
+    // Loop Start's message carries a score (0, then the score the update saved), and the UDF
+    // publishes the row it saw, both from the same loop and before the Filter's first row: the
+    // later value replaces the earlier one, so each iteration's row passes its Filter: 3 rows.
+    // Refusing the second value would fail the Filter in the first iteration.
+    val src = textInput("1\n2\n3")
+    val start = loopStart("i = 0\nscore = 0", "table.iloc[i]")
+    val mid = scoringPythonUDF()
+    val filter = filterEquals("line", "$score")
+    val end = loopEnd("score = int(score)\ni += 1", "i < len(table)")
+    val materialized = runAndGetMaterializedRowCounts(
+      List(src, start, mid, filter, end),
+      List(link(src, start), link(start, mid), link(mid, filter), link(filter, end))
+    )
+    val endRows = materialized.getOrElse(end.operatorIdentifier, -1L)
+    assert(
+      endRows == 3,
+      s"Filter(line = $$score) must bind the score the body published after Loop Start's: " +
+        s"expected 3, got $endRows (all: $materialized)"
+    )
+  }
+
+  it should "let a value the loop body changed win over Loop Start's unchanged message" in {
+    // TextInput("a","b","c") -> LoopStart(i = 0, x = 1 / table.iloc[i]) -> a Python UDF whose
+    //   process_state sets x = 2 -> LoopEnd(i += 1 / x == 2 and i < len(table)),
+    //   and LoopStart -> Sleep(0) -> the same LoopEnd port.
+    // Loop End receives the UDF's changed message and, through the Sleep, Loop Start's message
+    // unchanged, in either order. The body's change wins, so the condition reads x = 2 and the
+    // loop runs all 3 iterations, each row reaching Loop End once per branch: 6 rows. Taking the
+    // message that arrives last reads x = 1 whenever the unchanged one comes last, and stops the
+    // loop after its first iteration (2 rows).
+    val src = textInput("a\nb\nc")
+    val start = loopStart("i = 0\nx = 1", "table.iloc[i]")
+    val changing = xSettingPythonUDF()
+    val unchanged = sleep(0)
+    val end = loopEnd("i += 1", "x == 2 and i < len(table)")
+    val materialized = runAndGetMaterializedRowCounts(
+      List(src, start, changing, unchanged, end),
+      List(
+        link(src, start),
+        link(start, changing),
+        link(start, unchanged),
+        link(changing, end),
+        link(unchanged, end)
+      )
+    )
+    val endRows = materialized.getOrElse(end.operatorIdentifier, -1L)
+    assert(
+      endRows == 6,
+      s"Loop End must read the body's x = 2 in every iteration: expected 6, got $endRows " +
+        s"(all: $materialized)"
+    )
+  }
+
+  it should "carry a change the outer body makes before an inner loop to the outer Loop End" in {
+    // TextInput("1") -> OuterStart(i = 0, lr = 4 / table) -> a Python UDF whose process_state
+    //   halves lr -> InnerStart(j = 0 / table) -> InnerEnd(j += 1 / j < 1)
+    //   -> OuterEnd(i += 1 / lr > 1 and i < 3).
+    // The UDF sends the outer Loop Start's message on before its change, so two messages of the
+    // outer loop pass the inner loop in each outer iteration, and both must reach the outer Loop
+    // End: lr goes 4, 2, 1, and the outer loop runs 2 iterations of one row each. An outer Loop
+    // End without Loop Start's message saves only i, starts every outer iteration from lr = 4,
+    // and runs 3.
+    val src = textInput("1")
+    val outerStart = loopStart("i = 0\nlr = 4", "table")
+    val halve = lrHalvingPythonUDF()
+    val innerStart = loopStart("j = 0", "table")
+    val innerEnd = loopEnd("j += 1", "j < 1")
+    val outerEnd = loopEnd("i += 1", "lr > 1 and i < 3")
+    val materialized = runAndGetMaterializedRowCounts(
+      List(src, outerStart, halve, innerStart, innerEnd, outerEnd),
+      List(
+        link(src, outerStart),
+        link(outerStart, halve),
+        link(halve, innerStart),
+        link(innerStart, innerEnd),
+        link(innerEnd, outerEnd)
+      )
+    )
+    val outerRows = materialized.getOrElse(outerEnd.operatorIdentifier, -1L)
+    assert(
+      outerRows == 2,
+      s"the outer loop must carry the halved lr into its next iteration and stop after 2: " +
+        s"expected 2, got $outerRows (all: $materialized)"
+    )
+  }
+
+  it should "route each iteration's row at an If whose condition comes from the loop's message" in {
+    // TextInput("a","b") -> LoopStart(i = 0, take = False / table.iloc[i]) -> Limit(0)
+    //   -> the If's Condition port (0); LoopStart -> the If's data port (1); the If's True port
+    //   -> LoopEnd(i += 1; take = i == 1 / i < len(table)).
+    // The If's data port depends on its Condition port, so the engine runs the Condition port
+    // first, before the If has any output port. The first iteration's row "a" takes the False
+    // port, which leads nowhere, and the second iteration's row "b" reaches Loop End. An If that
+    // loses Loop Start's message on its data port stops the loop after its first iteration, with
+    // no row at Loop End.
+    val src = textInput("a\nb")
+    val start = loopStart("i = 0\ntake = False", "table.iloc[i]")
+    val noRows = limit(0)
+    val branch = new IfOpDesc()
+    branch.conditionName = "take"
+    val end = loopEnd("i += 1\ntake = i == 1", "i < len(table)")
+    val lines = runAndGetLines(
+      List(src, start, noRows, branch, end),
+      List(
+        link(src, start),
+        link(start, noRows),
+        portLink(noRows, 0, branch, 0),
+        portLink(start, 0, branch, 1),
+        portLink(branch, 1, end, 0)
+      ),
+      end
+    )
+    assert(
+      lines == List("b"),
+      s"the If must route by take in both iterations and pass Loop Start's message on: " +
+        s"expected List(b), got $lines"
+    )
+  }
+
+  it should "run a loop whose body joins Loop Start's rows with what a body operator builds" in {
+    // TextInput("a","b") -> LoopStart(i = 0 / table.iloc[i]) -> Limit(10) -> the HashJoin's build
+    //   port (0); LoopStart -> its probe port (1), joined on line -> LoopEnd(i += 1 / i < len(table)).
+    // The probe port depends on the build port, so the engine runs the build port first, before
+    // the join has any output port. Each iteration's row joins itself: one row on each of 2
+    // iterations. A join that loses Loop Start's message on its probe port stops the loop after
+    // its first iteration (1 row).
+    val src = textInput("a\nb")
+    val start = loopStart("i = 0", "table.iloc[i]")
+    val build = limit(10)
+    val join = new HashJoinOpDesc[String]()
+    join.buildAttributeName = "line"
+    join.probeAttributeName = "line"
+    join.joinType = JoinType.INNER
+    val end = loopEnd("i += 1", "i < len(table)")
+    val materialized = runAndGetMaterializedRowCounts(
+      List(src, start, build, join, end),
+      List(
+        link(src, start),
+        link(start, build),
+        portLink(build, 0, join, 0),
+        portLink(start, 0, join, 1),
+        link(join, end)
+      )
+    )
+    val endRows = materialized.getOrElse(end.operatorIdentifier, -1L)
+    assert(
+      endRows == 2,
+      s"the join must pass Loop Start's message on in both iterations: expected 2, got " +
+        s"$endRows (all: $materialized)"
     )
   }
 

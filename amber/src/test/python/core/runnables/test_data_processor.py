@@ -278,14 +278,14 @@ class TestProcessState:
         assert not context.exception_manager.has_exception()
 
     @pytest.mark.timeout(2)
-    def test_reading_a_loop_variable_two_states_disagree_on_fails(
+    def test_reads_the_later_value_of_a_loop_variable_two_states_disagree_on(
         self, context, data_processor, monkeypatch
     ):
         # Xiaozhen's case on #8642: inside a loop, a body operator upstream
         # returns i = 99 from produce_state_on_finish, after the loop's i = 0,
-        # both at depth 0. A JVM operator whose setting refers to i fails;
-        # this operator fails the same way when it reads i in process_tuple,
-        # and outputs nothing.
+        # both at depth 0. Copies of one message reach the operator once, so
+        # the later message is a value the loop body sent: the operator reads
+        # it in process_tuple, and nothing fails.
         schema = Schema(raw_schema={"x": "INTEGER"})
         monkeypatch.setattr(
             context.output_manager,
@@ -298,9 +298,6 @@ class TestProcessState:
 
         data_processor.process_state(State({"i": 0}), 0)
         data_processor.process_state(State({"i": 99}), 0)
-        assert not context.exception_manager.has_exception(), (
-            "registering the two states does not fail; reading i does"
-        )
 
         outputs = []
 
@@ -314,14 +311,10 @@ class TestProcessState:
         tpm.current_input_tuple = Tuple({"x": 0})
         data_processor.process_tuple()
 
-        assert context.exception_manager.has_exception()
-        exc_type, exc_value, _ = context.exception_manager.get_exc_info()
-        assert exc_type is RuntimeError
-        assert str(exc_value) == (
-            "loop variable i got two different values in one iteration, 0 and 99: "
-            "a loop's variables must not change inside its body"
+        assert not context.exception_manager.has_exception(), (
+            context.exception_manager.get_exc_info()
         )
-        assert outputs == []
+        assert [output["x"] for output in outputs] == [99]
 
     @pytest.mark.timeout(2)
     def test_registers_on_the_running_operator_only(self, context, data_processor):

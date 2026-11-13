@@ -187,6 +187,7 @@ def test_state_written_by_output_manager_is_replayed_by_reader():
         state,
         loop_counter=7,
         loop_start_id="outer-loop",
+        message_id="issued-A",
     )
 
     # 4. Force the writer threads to flush + commit by closing them.
@@ -250,6 +251,7 @@ def test_state_written_by_output_manager_is_replayed_by_reader():
         f"loop_start_id must round-trip through its own column; "
         f"got {state_frames[0].loop_start_id!r}"
     )
+    assert state_frames[0].message_id == "issued-A"
 
 
 def test_state_table_persists_across_writer_close():
