@@ -15,7 +15,7 @@
 # specific language governing permissions and limitations
 # under the License.
 
-from datetime import datetime
+from time import monotonic
 from typing import List, Iterator
 
 from core.util.buffer.buffer_base import IBuffer
@@ -27,7 +27,7 @@ class TimedBuffer(IBuffer):
         self._max_message_num = max_message_num
         self._max_flush_interval_in_ms = max_flush_interval_in_ms
         self._buffer: List[ConsoleMessage]() = list()
-        self._last_output_time = datetime.now()
+        self._last_output_time = monotonic()
 
     def put(self, message: ConsoleMessage) -> None:
         self._buffer.append(message)
@@ -36,9 +36,9 @@ class TimedBuffer(IBuffer):
         if (
             flush
             or len(self._buffer) >= self._max_message_num
-            or (datetime.now() - self._last_output_time).seconds
+            or monotonic() - self._last_output_time
             >= self._max_flush_interval_in_ms / 1000
         ):
-            self._last_output_time = datetime.now()
+            self._last_output_time = monotonic()
             yield from self._buffer
             self._buffer.clear()
