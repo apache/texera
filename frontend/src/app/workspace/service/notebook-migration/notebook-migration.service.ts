@@ -29,7 +29,7 @@ import {
   folderRelativePath,
   folderRootName,
   isExcludedPath,
-  isMigratablePythonPath,
+  isMigratableSourcePath,
 } from "./folder-assembly";
 import { HttpClient, HttpHeaders } from "@angular/common/http";
 import { NotificationService } from "src/app/common/service/notification/notification.service";
@@ -409,15 +409,16 @@ export class NotebookMigrationService {
   /**
    * Read a directory selection into the one document a folder conversion is run against.
    *
-   * Keeps only project Python source, reads it, and assembles it in a fixed order. The file-count
-   * and byte checks run before anything is read, so an over-broad or oversized selection fails at
-   * once rather than after thousands of reads or one enormous one.
+   * Keeps only project source in the given language, reads it, and assembles it in a fixed order.
+   * The file-count and byte checks run before anything is read, so an over-broad or oversized
+   * selection fails at once rather than after thousands of reads or one enormous one.
    */
-  public async parseFolder(files: readonly File[]): Promise<FolderDocument> {
+  public async parseFolder(files: readonly File[], language: MigrationLanguage = "python"): Promise<FolderDocument> {
     const picked = files.map(file => ({ file, path: folderRelativePath(file) }));
-    const selected = picked.filter(entry => isMigratablePythonPath(entry.path));
-    this.refuse(checkFolderFileCount(selected.length));
-    this.refuse(checkFolderByteSize(selected.reduce((sum, entry) => sum + entry.file.size, 0)));
+    const selected = picked.filter(entry => isMigratableSourcePath(entry.path, language));
+    this.refuse(checkFolderFileCount(selected.length, language));
+    const totalBytes = selected.reduce((sum, entry) => sum + entry.file.size, 0);
+    this.refuse(checkFolderByteSize(totalBytes, language));
 
     const sources = await Promise.all(
       selected.map(async entry => ({
@@ -430,13 +431,14 @@ export class NotebookMigrationService {
       rootName: folderRootName(files[0]?.webkitRelativePath ?? "") ?? "project",
       // Named in the layout but never read. Caches and hidden directories stay out entirely.
       otherPaths: picked
-        .filter(entry => !isMigratablePythonPath(entry.path) && !isExcludedPath(entry.path))
+        .filter(entry => !isMigratableSourcePath(entry.path, language) && !isExcludedPath(entry.path, language))
         .map(entry => entry.path),
+      language,
     });
 
     // Run against what the document actually holds: blank files are dropped during assembly,
     // and the character cap needs the assembled size.
-    this.refuse(checkFolderDocument(folder));
+    this.refuse(checkFolderDocument(folder, language));
     return folder;
   }
 

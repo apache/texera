@@ -26,7 +26,7 @@ import {
   fileBanner,
   folderRootName,
   isExcludedPath,
-  isMigratablePythonPath,
+  isMigratableSourcePath,
   MAX_FOLDER_BYTES,
   MAX_FOLDER_CHARACTERS,
   MAX_FOLDER_FILES,
@@ -39,44 +39,64 @@ import {
 } from "./folder-assembly";
 import { segmentScript } from "./script-segmentation";
 
-describe("isMigratablePythonPath", () => {
+describe("isMigratableSourcePath", () => {
   it("accepts Python source at any depth, whatever the extension's case", () => {
-    expect(isMigratablePythonPath("train.py")).toBe(true);
-    expect(isMigratablePythonPath("pkg/models/train.py")).toBe(true);
-    expect(isMigratablePythonPath("pkg/Train.PY")).toBe(true);
+    expect(isMigratableSourcePath("train.py")).toBe(true);
+    expect(isMigratableSourcePath("pkg/models/train.py")).toBe(true);
+    expect(isMigratableSourcePath("pkg/Train.PY")).toBe(true);
   });
 
   it("rejects anything that is not a .py file", () => {
-    expect(isMigratablePythonPath("notes.ipynb")).toBe(false);
-    expect(isMigratablePythonPath("requirements.txt")).toBe(false);
-    expect(isMigratablePythonPath("pkg/py")).toBe(false);
-    expect(isMigratablePythonPath("")).toBe(false);
+    expect(isMigratableSourcePath("notes.ipynb")).toBe(false);
+    expect(isMigratableSourcePath("requirements.txt")).toBe(false);
+    expect(isMigratableSourcePath("pkg/py")).toBe(false);
+    expect(isMigratableSourcePath("")).toBe(false);
   });
 
   it("rejects hidden files and anything under a hidden directory", () => {
-    expect(isMigratablePythonPath(".hidden.py")).toBe(false);
-    expect(isMigratablePythonPath(".venv/lib/thing.py")).toBe(false);
-    expect(isMigratablePythonPath("pkg/.tox/run.py")).toBe(false);
+    expect(isMigratableSourcePath(".hidden.py")).toBe(false);
+    expect(isMigratableSourcePath(".venv/lib/thing.py")).toBe(false);
+    expect(isMigratableSourcePath("pkg/.tox/run.py")).toBe(false);
   });
 
   it("rejects caches and vendored dependencies wherever they sit in the tree", () => {
-    expect(isMigratablePythonPath("__pycache__/train.py")).toBe(false);
-    expect(isMigratablePythonPath("pkg/__pycache__/train.py")).toBe(false);
-    expect(isMigratablePythonPath("venv/lib/site-packages/numpy/core.py")).toBe(false);
-    expect(isMigratablePythonPath("a/node_modules/b/x.py")).toBe(false);
-    expect(isMigratablePythonPath("build/lib/train.py")).toBe(false);
-    expect(isMigratablePythonPath("dist/train.py")).toBe(false);
+    expect(isMigratableSourcePath("__pycache__/train.py")).toBe(false);
+    expect(isMigratableSourcePath("pkg/__pycache__/train.py")).toBe(false);
+    expect(isMigratableSourcePath("venv/lib/site-packages/numpy/core.py")).toBe(false);
+    expect(isMigratableSourcePath("a/node_modules/b/x.py")).toBe(false);
+    expect(isMigratableSourcePath("build/lib/train.py")).toBe(false);
+    expect(isMigratableSourcePath("dist/train.py")).toBe(false);
   });
 
   it("keeps a build or dist package that is not at the root", () => {
     // Only conventional build output at the root. Deeper in a tree these are ordinary package
     // names, and silently dropping real code is the failure the mapping exists to catch.
-    expect(isMigratablePythonPath("src/build/features.py")).toBe(true);
-    expect(isMigratablePythonPath("pkg/dist/writer.py")).toBe(true);
+    expect(isMigratableSourcePath("src/build/features.py")).toBe(true);
+    expect(isMigratableSourcePath("pkg/dist/writer.py")).toBe(true);
   });
 
   it("keeps test files, which are logic the user may want represented", () => {
-    expect(isMigratablePythonPath("tests/test_train.py")).toBe(true);
+    expect(isMigratableSourcePath("tests/test_train.py")).toBe(true);
+  });
+
+  it("accepts R source for R, whatever the extension's case", () => {
+    expect(isMigratableSourcePath("main.R", "r")).toBe(true);
+    expect(isMigratableSourcePath("R/helpers.r", "r")).toBe(true);
+    expect(isMigratableSourcePath("tests/testthat/test-model.R", "r")).toBe(true);
+  });
+
+  it("rejects other languages and R documents for R", () => {
+    expect(isMigratableSourcePath("train.py", "r")).toBe(false);
+    expect(isMigratableSourcePath("report.Rmd", "r")).toBe(false);
+    expect(isMigratableSourcePath("project.Rproj", "r")).toBe(false);
+    expect(isMigratableSourcePath("main.R")).toBe(false);
+  });
+
+  it("rejects installed R packages and hidden R state for R", () => {
+    expect(isMigratableSourcePath("renv/activate.R", "r")).toBe(false);
+    expect(isMigratableSourcePath("renv/library/R-4.4/dplyr/R/dplyr.R", "r")).toBe(false);
+    expect(isMigratableSourcePath("packrat/lib/x/R/a.R", "r")).toBe(false);
+    expect(isMigratableSourcePath(".Rproj.user/shared/a.R", "r")).toBe(false);
   });
 });
 
@@ -264,6 +284,22 @@ describe("folder cap checks", () => {
     );
   });
 
+  it("names Python in every message by default", () => {
+    expect(checkFolderFileCount(0)).toBe("No Python files were found in the selected folder.");
+    expect(checkFolderFileCount(MAX_FOLDER_FILES + 1)).toContain(" Python files, more than ");
+    expect(checkFolderByteSize(MAX_FOLDER_BYTES + 1)).toContain("Its Python files hold more than ");
+    expect(checkFolderDocument(documentOf(0, 0))).toBe("The Python files in the selected folder are all empty.");
+    expect(checkFolderDocument(documentOf(MAX_FOLDER_CHARACTERS + 1))).toContain("folder's Python code totals ");
+  });
+
+  it("names R in every message for R", () => {
+    expect(checkFolderFileCount(0, "r")).toBe("No R files were found in the selected folder.");
+    expect(checkFolderFileCount(MAX_FOLDER_FILES + 1, "r")).toContain(" R files, more than ");
+    expect(checkFolderByteSize(MAX_FOLDER_BYTES + 1, "r")).toContain("Its R files hold more than ");
+    expect(checkFolderDocument(documentOf(0, 0), "r")).toBe("The R files in the selected folder are all empty.");
+    expect(checkFolderDocument(documentOf(MAX_FOLDER_CHARACTERS + 1), "r")).toContain("folder's R code totals ");
+  });
+
   it("quotes one limit in one unit, so the byte guard does not read as a second cap", () => {
     const message = checkFolderByteSize(MAX_FOLDER_BYTES + 1);
 
@@ -320,6 +356,13 @@ describe("isExcludedPath", () => {
     expect(isExcludedPath("pkg/train.py")).toBe(false);
     expect(isExcludedPath("data/churn.csv")).toBe(false);
     expect(isExcludedPath("")).toBe(true);
+  });
+
+  it("excludes each language's own dependency directories and not the other's", () => {
+    expect(isExcludedPath("renv/library/a.R", "r")).toBe(true);
+    expect(isExcludedPath("packrat/lib/a.R", "r")).toBe(true);
+    expect(isExcludedPath("renv/settings.py")).toBe(false);
+    expect(isExcludedPath("pkg/__pycache__/notes.txt", "r")).toBe(false);
   });
 });
 
@@ -402,6 +445,16 @@ describe("buildFolderDocument layout", () => {
 
     expect(document.tree).toContain("... and 3 more non-Python files");
     expect(document.tree.split("\n").filter(line => line.endsWith(".csv"))).toHaveLength(MAX_LISTED_OTHER_FILES);
+  });
+
+  it("names the language of the files it left out", () => {
+    const others = Array.from({ length: MAX_LISTED_OTHER_FILES + 1 }, (_unused, index) => `data/file${index}.csv`);
+    const document = buildFolderDocument([{ path: "main.R", source: "main()" }], {
+      otherPaths: others,
+      language: "r",
+    });
+
+    expect(document.tree).toContain("... and 1 more non-R files");
   });
 
   it("defaults the root label when none is given", () => {

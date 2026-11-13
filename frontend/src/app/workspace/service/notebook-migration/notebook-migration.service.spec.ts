@@ -795,5 +795,33 @@ describe("NotebookMigrationService", () => {
 
       await expect(service.parseFolder([pickedFile("proj/main.py", "main()")])).rejects.toThrow(/Failed to read/);
     });
+
+    it("keeps R source for R and names the Python files in the layout instead", async () => {
+      const folder = await service.parseFolder(
+        [
+          pickedFile("proj/main.R", "main()"),
+          pickedFile("proj/R/helpers.r", "helper <- function() 1"),
+          pickedFile("proj/legacy.py", "print(1)"),
+          pickedFile("proj/renv/activate.R", "renv"),
+        ],
+        "r"
+      );
+
+      expect(folder.files.map(file => file.path)).toEqual(["main.R", "R/helpers.r"]);
+      expect(folder.tree).toBe(["proj/", "  legacy.py", "  main.R", "  R/", "    helpers.r"].join("\n"));
+      expect(folder.source).not.toContain("print(1)");
+    });
+
+    it("names R when an R selection has no R source", async () => {
+      await expect(service.parseFolder([pickedFile("proj/main.py", "main()")], "r")).rejects.toThrow(
+        "No R files were found in the selected folder."
+      );
+    });
+
+    it("names R when every R file is blank", async () => {
+      await expect(service.parseFolder([pickedFile("proj/empty.R", "  \n")], "r")).rejects.toThrow(
+        "The R files in the selected folder are all empty."
+      );
+    });
   });
 });

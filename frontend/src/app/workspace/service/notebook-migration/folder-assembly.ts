@@ -17,10 +17,11 @@
  * under the License.
  */
 
+import type { MigrationLanguage } from "./migration-llm";
 import { ScriptSegmentation, splitScriptLines } from "./script-segmentation";
 
 /**
- * Assembles a folder of Python sources into the one numbered document the migration LLM sees.
+ * Assembles a folder of source files into the one numbered document the migration LLM sees.
  *
  * Converted as a single input, so the model reports line ranges as it does for a script and
  * nothing downstream learns folders exist; a banner line before each file carries provenance.
@@ -28,15 +29,31 @@ import { ScriptSegmentation, splitScriptLines } from "./script-segmentation";
  * agree on what a line is.
  */
 
-// Never project code, matched per segment so a cache or vendored dependency is caught at any
-// depth. Hidden segments are covered separately by the leading-dot rule.
-const EXCLUDED_SEGMENTS = new Set(["__pycache__", "venv", "site-packages", "node_modules"]);
+interface FolderLanguage {
+  // How messages name the language's files.
+  name: string;
+  // Lowercase, since file names are lowercased before matching.
+  extension: string;
+  // Never project code, matched per segment so a cache or vendored dependency is caught at any
+  // depth. Hidden segments are covered separately by the leading-dot rule.
+  excludedSegments: ReadonlySet<string>;
+}
+
+const FOLDER_LANGUAGES: Record<MigrationLanguage, FolderLanguage> = {
+  python: {
+    name: "Python",
+    extension: ".py",
+    excludedSegments: new Set(["__pycache__", "venv", "site-packages", "node_modules"]),
+  },
+  // renv and packrat hold installed packages, which are full of .R files.
+  r: { name: "R", extension: ".r", excludedSegments: new Set(["renv", "packrat", "node_modules"]) },
+};
 
 // Build output at the root, but ordinary package names deeper in a tree (src/build/ can be real
 // code). Dropping real code silently is worse than letting a build tree hit the caps.
 const EXCLUDED_ROOT_DIRECTORIES = new Set(["build", "dist"]);
 
-// Non-Python files are named in the layout, never read. Capped because a folder can hold
+// Files that are not source are named in the layout, never read. Capped because a folder can hold
 // thousands of data files and the layout is orientation, not an inventory.
 export const MAX_LISTED_OTHER_FILES = 20;
 
@@ -88,7 +105,7 @@ export interface FolderDocument {
   /**
    * An indented listing of the folder, sent ahead of the document as prompt text. Never part of
    * `source`: numbering it would shift every line the model reports, and the segmenter would emit
-   * it as a cell of directory listing. Also the only place non-Python files are named.
+   * it as a cell of directory listing. Also the only place files that are not source are named.
    */
   tree: string;
 }
@@ -96,8 +113,9 @@ export interface FolderDocument {
 export interface FolderDocumentOptions {
   // The selected folder's own name, used as the layout's root label.
   rootName?: string;
-  // Paths in the selection that hold no Python source. Listed in the layout, never read.
+  // Paths in the selection that hold no source. Listed in the layout, never read.
   otherPaths?: readonly string[];
+  language?: MigrationLanguage;
 }
 
 /** Either shape an upload control hands a picked file over in: the File itself, or a wrapper. */
@@ -156,7 +174,7 @@ function pathSegments(path: string): string[] {
 
 /** True for a cache, a vendored dependency or anything hidden. Left out of the layout as well as
  * the document: noise, not structure. */
-export function isExcludedPath(path: string): boolean {
+export function isExcludedPath(path: string, language: MigrationLanguage = "python"): boolean {
   const segments = pathSegments(path);
   if (segments.length === 0) {
     return true;
@@ -164,15 +182,17 @@ export function isExcludedPath(path: string): boolean {
   if (segments.length > 1 && EXCLUDED_ROOT_DIRECTORIES.has(segments[0])) {
     return true;
   }
-  return segments.some(segment => segment.startsWith(".") || EXCLUDED_SEGMENTS.has(segment));
+  const { excludedSegments } = FOLDER_LANGUAGES[language];
+  return segments.some(segment => segment.startsWith(".") || excludedSegments.has(segment));
 }
 
-/** True for a path holding project Python source. Tests are kept: dropping real logic silently is
- * the failure the mapping exists to prevent. */
-export function isMigratablePythonPath(path: string): boolean {
+/** True for a path holding project source in the language. Tests are kept: dropping real logic
+ * silently is the failure the mapping exists to prevent. */
+export function isMigratableSourcePath(path: string, language: MigrationLanguage = "python"): boolean {
   const segments = pathSegments(path);
   if (segments.length === 0) return false;
-  return segments[segments.length - 1].toLowerCase().endsWith(".py") && !isExcludedPath(path);
+  const { extension } = FOLDER_LANGUAGES[language];
+  return segments[segments.length - 1].toLowerCase().endsWith(extension) && !isExcludedPath(path, language);
 }
 
 /** Renders the folder as an indented listing. Files come before subdirectories, which ordering by
@@ -236,7 +256,7 @@ export function compareFolderPaths(a: string, b: string): number {
  * what was actually included.
  */
 export function buildFolderDocument(files: readonly FolderFile[], options: FolderDocumentOptions = {}): FolderDocument {
-  const { rootName = "project", otherPaths = [] } = options;
+  const { rootName = "project", otherPaths = [], language = "python" } = options;
   const ordered = [...files].sort((a, b) => compareFolderPaths(a.path, b.path));
   const documentLines: string[] = [];
   const spans: FolderFileSpan[] = [];
@@ -258,7 +278,7 @@ export function buildFolderDocument(files: readonly FolderFile[], options: Folde
     source: documentLines.join("\n"),
     forcedBoundaries: spans.map(span => span.startLine),
     files: spans,
-    tree: hidden > 0 ? `${tree}\n  ... and ${hidden} more non-Python files` : tree,
+    tree: hidden > 0 ? `${tree}\n  ... and ${hidden} more non-${FOLDER_LANGUAGES[language].name} files` : tree,
   };
 }
 
@@ -267,33 +287,35 @@ export function buildFolderDocument(files: readonly FolderFile[], options: Folde
  * and byte size before anything is read, character count only once the document is assembled.
  * Refusing up front beats truncating, which would produce a silently incomplete workflow.
  */
-export function checkFolderFileCount(fileCount: number): string | null {
+export function checkFolderFileCount(fileCount: number, language: MigrationLanguage = "python"): string | null {
+  const { name } = FOLDER_LANGUAGES[language];
   if (fileCount === 0) {
-    return "No Python files were found in the selected folder.";
+    return `No ${name} files were found in the selected folder.`;
   }
   if (fileCount > MAX_FOLDER_FILES) {
-    return `The selected folder has ${fileCount.toLocaleString()} Python files, more than the ${MAX_FOLDER_FILES.toLocaleString()} this tool converts at once. Select a smaller folder.`;
+    return `The selected folder has ${fileCount.toLocaleString()} ${name} files, more than the ${MAX_FOLDER_FILES.toLocaleString()} this tool converts at once. Select a smaller folder.`;
   }
   return null;
 }
 
-export function checkFolderByteSize(totalBytes: number): string | null {
+export function checkFolderByteSize(totalBytes: number, language: MigrationLanguage = "python"): string | null {
   if (totalBytes > MAX_FOLDER_BYTES) {
     // Quotes the character cap and no byte figure: the byte bound guards that same limit, and
     // naming both would read as two limits in two units.
-    return `The selected folder is too large to convert. Its Python files hold more than the ${MAX_FOLDER_CHARACTERS.toLocaleString()} characters this tool converts at once. Select a smaller folder.`;
+    return `The selected folder is too large to convert. Its ${FOLDER_LANGUAGES[language].name} files hold more than the ${MAX_FOLDER_CHARACTERS.toLocaleString()} characters this tool converts at once. Select a smaller folder.`;
   }
   return null;
 }
 
-export function checkFolderDocument(document: FolderDocument): string | null {
+export function checkFolderDocument(document: FolderDocument, language: MigrationLanguage = "python"): string | null {
+  const { name } = FOLDER_LANGUAGES[language];
   if (document.files.length === 0) {
-    // Distinct from finding no Python at all: these were found, and every one held no code.
-    return "The Python files in the selected folder are all empty.";
+    // Distinct from finding no source at all: these were found, and every one held no code.
+    return `The ${name} files in the selected folder are all empty.`;
   }
   if (document.source.length > MAX_FOLDER_CHARACTERS) {
     // Counts the assembled document, so it includes the banner line added per file.
-    return `The selected folder's Python code totals ${document.source.length.toLocaleString()} characters, more than the ${MAX_FOLDER_CHARACTERS.toLocaleString()} this tool converts at once. Select a smaller folder.`;
+    return `The selected folder's ${name} code totals ${document.source.length.toLocaleString()} characters, more than the ${MAX_FOLDER_CHARACTERS.toLocaleString()} this tool converts at once. Select a smaller folder.`;
   }
   return null;
 }
