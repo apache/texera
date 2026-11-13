@@ -147,6 +147,72 @@ describe("PropertyEditorComponent", () => {
     expect(getById).not.toHaveBeenCalledWith("right-container");
   });
 
+  // The selection lives in the graph wrapper, which both views of a workflow share and hand over
+  // between them: a panel that only followed the streams stayed empty on arrival, since the event
+  // that made the selection fired before it existed -- and clicking the selected operator emits
+  // nothing, so it took clicking a different one to bring the panel back. ngOnInit is re-run on the
+  // live fixture, which is what a fresh mount into the same shared selection comes down to.
+  it("shows what is already selected when it mounts, not only what is selected next", () => {
+    const jointGraphWrapper = workflowActionService.getJointGraphWrapper();
+    workflowActionService.addOperator(mockScanPredicate, mockPoint);
+    jointGraphWrapper.highlightOperators(mockScanPredicate.operatorID);
+    // As a panel that was not there when the selection was made: it has shown nothing so far.
+    component.currentComponent = null;
+    component.componentInputs = {};
+
+    component.ngOnInit();
+
+    expect(component.currentComponent).toBe(OperatorPropertyEditFrameComponent);
+    expect(component.componentInputs).toEqual(
+      expect.objectContaining({ currentOperatorId: mockScanPredicate.operatorID })
+    );
+  });
+
+  it("leaves the panel alone when it mounts into no selection, and shows no frame into several", () => {
+    const jointGraphWrapper = workflowActionService.getJointGraphWrapper();
+    // Nothing selected: the no-frame branch is for a selection being dropped (it clears the
+    // editing marker and resizes the docked panel), so a fresh mount must not run it.
+    component.currentComponent = OperatorPropertyEditFrameComponent;
+    component.ngOnInit();
+    expect(component.currentComponent).toBe(OperatorPropertyEditFrameComponent);
+
+    // Two selected: a selection exists but no single step to show, so no frame.
+    workflowActionService.addOperatorsAndLinks(
+      [
+        { op: mockScanPredicate, pos: mockPoint },
+        { op: mockResultPredicate, pos: mockPoint },
+      ],
+      []
+    );
+    jointGraphWrapper.setMultiSelectMode(true);
+    jointGraphWrapper.highlightOperators(mockScanPredicate.operatorID, mockResultPredicate.operatorID);
+    expect(jointGraphWrapper.getCurrentHighlightedOperatorIDs()).toHaveLength(2);
+    component.currentComponent = OperatorPropertyEditFrameComponent;
+
+    component.ngOnInit();
+    expect(component.currentComponent).toBeNull();
+  });
+
+  // The toolbar's choosing toggle replays its current value on subscribe. A frame built before
+  // that replay would be built without it and then torn down and rebuilt by it, inside the page's
+  // first change-detection pass; so the mount-time read comes after the subscription. Checked on
+  // a panel whose own toggle state is fresh, as a mounting panel's is.
+  it("builds the frame it mounts into with the toolbar's choosing state, without a rebuild", () => {
+    const jointGraphWrapper = workflowActionService.getJointGraphWrapper();
+    workflowActionService.addOperator(mockScanPredicate, mockPoint);
+    jointGraphWrapper.highlightOperators(mockScanPredicate.operatorID);
+    TestBed.inject(FormBindingService).setChoosing(true);
+    component.currentComponent = null;
+    component.componentInputs = {};
+    (component as unknown as { choosingFromToolbar: boolean }).choosingFromToolbar = false;
+
+    component.ngOnInit();
+
+    // Built once, with choosing on -- not built off and then nulled by the replay for a rebuild.
+    expect(component.currentComponent).toBe(OperatorPropertyEditFrameComponent);
+    expect(component.componentInputs).toEqual(expect.objectContaining({ exposeChoosing: true }));
+  });
+
   /**
    * test if the property editor correctly receives the operator unhighlight stream
    *  and clears all the operator data, and hide the form.

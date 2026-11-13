@@ -61,6 +61,7 @@ const IMPORT_TABS: readonly ImportTab[] = [
   { kind: "notebook" },
   { kind: "file", language: "python" },
   { kind: "folder", language: "python" },
+  { kind: "file", language: "r" },
 ];
 
 // How long after the last rejected file a drop is treated as over: long enough that a slow
@@ -76,7 +77,7 @@ function describeFolderSelection(files: readonly NzUploadFile[]): string {
 
 /**
  * The "AI Generate Workflow from Source Code" modal body: a tab per accepted input kind
- * (Jupyter notebook in Python or R, Python script, Python folder), each with its own diagram, description and
+ * (Jupyter notebook in Python or R, Python script, Python folder, R script), each with its own diagram, description and
  * upload control, over a shared model dropdown and footer.
  *
  * On Submit it hands the selection and model to requestImport and shows a loading state until
