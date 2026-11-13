@@ -38,5 +38,11 @@ class WorkflowContext(
     var cuid: Option[Int] = None,
     // The Lakekeeper catalog name this execution writes into; becomes the `/wh/<name>`
     // URI segment. None routes to the shared default warehouse.
-    var warehouse: Option[String] = None
+    var warehouse: Option[String] = None,
+    // Saved results found for output ports of this run, keyed by port; operators that read
+    // those ports may read the saved results instead (a port's own operator, if it runs,
+    // still computes it). Set on the server by the cache lookup before scheduling; no
+    // request type carries it, so a client cannot supply it. Empty means the scheduler
+    // runs exactly as it does without a cache.
+    var matchedResults: Map[GlobalPortIdentity, CachedResult] = Map.empty
 )
