@@ -19,13 +19,15 @@
 
 package org.apache.texera.common.compiler
 
+import com.fasterxml.jackson.annotation.JsonProperty
+import org.apache.texera.common.compiler.WorkflowCompilerSpec.ColumnReadingPyOp
 import org.apache.texera.common.compiler.model.{LogicalLink, LogicalPlanPojo}
-import org.apache.texera.amber.core.executor.{ExecFactory, OpExecWithClassName}
+import org.apache.texera.amber.core.executor.{ExecFactory, OpExecWithClassName, OpExecWithCode}
 import org.apache.texera.amber.core.state.State
 import org.apache.texera.amber.core.storage.ScanFileResolver
 import org.apache.texera.amber.core.tuple.{Attribute, AttributeType, Schema, Tuple}
 import org.apache.texera.amber.core.virtualidentity.WorkflowIdentity
-import org.apache.texera.amber.core.workflow.{OutputPort, PortIdentity, WorkflowContext}
+import org.apache.texera.amber.core.workflow.{InputPort, OutputPort, PortIdentity, WorkflowContext}
 import org.apache.texera.amber.core.workflowruntimestate.FatalErrorType.COMPILATION_ERROR
 import org.apache.texera.amber.operator.filter.{
   ComparisonType,
@@ -39,7 +41,13 @@ import org.apache.texera.amber.operator.projection.{AttributeUnit, ProjectionOpD
 import org.apache.texera.amber.operator.sort.{SortCriteriaUnit, SortOpDesc, SortPreference}
 import org.apache.texera.amber.operator.source.scan.csv.CSVScanSourceOpDesc
 import org.apache.texera.amber.operator.source.scan.text.TextInputSourceOpDesc
+import org.apache.texera.amber.operator.udf.python.{
+  LambdaAttributeUnit,
+  PythonLambdaFunctionOpDesc,
+  PythonUDFOpDescV2
+}
 import org.apache.texera.amber.operator.{LogicalOp, PythonOperatorDescriptor, TestOperators}
+import org.apache.texera.amber.pybuilder.PythonTemplateBuilder.decoderExpression
 import org.apache.texera.amber.util.JSONUtils.objectMapper
 import org.scalatest.flatspec.AnyFlatSpec
 
@@ -1046,9 +1054,47 @@ class WorkflowCompilerSpec extends AnyFlatSpec {
     assert(passed.size == 2)
   }
 
-  it should "report a reference inside a loop block on an operator whose code is generated" in {
-    // Sort generates its Python from its properties before the loop runs; outside every block
-    // "$USD" is the column name it is on main.
+  /** The code the worker runs for `op`, an operator whose executor runs code. */
+  private def codeOf(result: WorkflowCompilationResult, op: LogicalOp): String =
+    result.physicalPlan.get
+      .getPhysicalOpsOfLogicalOp(op.operatorIdentifier)
+      .head
+      .opExecInitInfo match {
+      case OpExecWithCode(code, _) => code
+      case other                   => fail(s"unexpected opExecInitInfo: $other")
+    }
+
+  private def lookup(name: String): String = s"self.loop_variable_text('$name')"
+
+  /** The one compile error of `op`, lenient; the strict compile must throw exactly `message`. */
+  private def assertOnlyError(plan: LogicalPlanPojo, op: LogicalOp, message: String): Unit = {
+    val result = newCompiler().compile(plan)
+    assert(result.physicalPlan.isEmpty)
+    assert(result.operatorIdToError.keySet == Set(op.operatorIdentifier))
+    val reported = result.operatorIdToError(op.operatorIdentifier).message
+    assert(reported.contains(message), s"unexpected message: $reported")
+    val ex = intercept[UnsupportedOperationException] {
+      newCompiler().compile(plan, CompilationErrorHandling.Strict)
+    }
+    assert(ex.getMessage == message)
+  }
+
+  private val numericPropertiesReason = "numeric and boolean properties are written into its " +
+    "generated code before the loop runs"
+
+  private val embeddedTextReason = "its code embeds the text before the loop runs"
+
+  private val unreadTextReason = "its code does not read the text when the loop runs"
+
+  private val outputColumnReason =
+    "the text names an output column, which is set before the loop runs"
+
+  private val udfReason = "its code and properties are fixed before the loop runs"
+
+  it should "read a text reference inside a loop block from the loop state in an operator whose code is generated" in {
+    // Sort generates its Python from its properties before the loop runs, but pyb renders the
+    // "$col" key as an expression evaluated inside the operator, which now reads `col` instead.
+    // Outside every block "$USD" is the column name it is on main.
     val csv = csvOp(TestOperators.CountrySalesSmallCsvPath)
     val start = loopStartOp()
     val sortJson =
@@ -1060,14 +1106,12 @@ class WorkflowCompilerSpec extends AnyFlatSpec {
       pojo(List(csv, start, sort, end), chain(csv, start, sort, end))
     )
 
-    assert(result.physicalPlan.isEmpty)
-    assert(result.operatorIdToError.keySet == Set(sort.operatorIdentifier))
-    assert(
-      result
-        .operatorIdToError(sort.operatorIdentifier)
-        .message
-        .contains("cannot refer to loop variables yet (/attributes/0/attribute -> $col)")
-    )
+    assert(result.operatorIdToError.isEmpty, s"unexpected errors: ${result.operatorIdToError}")
+    assert(sort.stateReferences == Map("/attributes/0/attribute" -> "col"))
+    val code = codeOf(result, sort)
+    assert(code.contains(s"sort_columns = [${lookup("col")}]"), code)
+    assert(!code.contains(decoderExpression("$col")))
+    assert(!code.contains("$col"))
 
     val outside = parsed(sortJson.format("USD"))
     val outsideResult = newCompiler().compile(
@@ -1077,6 +1121,724 @@ class WorkflowCompilerSpec extends AnyFlatSpec {
       outsideResult.operatorIdToError.isEmpty,
       s"unexpected: ${outsideResult.operatorIdToError}"
     )
+    assert(outside.stateReferences.isEmpty)
+    val outsideCode = codeOf(outsideResult, outside)
+    assert(outsideCode.contains(s"sort_columns = [${decoderExpression("$USD")}]"), outsideCode)
+    assert(!outsideCode.contains("loop_variable_text"))
+  }
+
+  /**
+    * The SVR trainer as the frontend sends it, fitting the sales CSV's Unit Cost on its Unit Price,
+    * with one hyperparameter row.
+    */
+  private def svrTrainerOp(value: String, parametersSource: String): LogicalOp =
+    parsed(
+      s"""{"groundTruthAttribute":"Unit Cost","Selected Features":["Unit Price"],
+         |"paraList":[{"parameter":"C","value":"$value","attribute":"Units Sold",
+         |"parametersSource":$parametersSource}],
+         |"operatorType":"SVRTrainer"}""".stripMargin
+    )
+
+  /** The sales CSV -> LoopStart -> both inputs of `body` -> LoopEnd. */
+  private def twoInputLoop(body: LogicalOp): LogicalPlanPojo = {
+    val src = csvOp(TestOperators.CountrySalesSmallCsvPath)
+    val start = loopStartOp()
+    val end = loopEndOp()
+    pojo(
+      List(src, start, body, end),
+      List(linked(src, start), linked(start, body), linked(start, body, 1), linked(body, end))
+    )
+  }
+
+  it should "read a text hyperparameter reference inside a loop block from the loop state" in {
+    val trainer = svrTrainerOp("$c", "false")
+
+    val result = newCompiler().compile(twoInputLoop(trainer))
+
+    assert(result.operatorIdToError.isEmpty, s"unexpected errors: ${result.operatorIdToError}")
+    val code = codeOf(result, trainer)
+    assert(code.contains(s"C = float (${lookup("c")})"), code)
+    assert(!code.contains(decoderExpression("$c")))
+  }
+
+  it should "report a typed reference on an operator whose code is generated, naming its pointer" in {
+    // The Boolean `parametersSource` holds the placeholder false: its code is generated from it.
+    // The text "$c" next to it is read from the loop state, so the error does not name it.
+    val trainer = svrTrainerOp("$c", "\"$fromPort\"")
+    assertOnlyError(
+      twoInputLoop(trainer),
+      trainer,
+      s"SVM Regressor cannot refer to loop variables in /paraList/0/parametersSource yet: " +
+        numericPropertiesReason
+    )
+  }
+
+  it should "report a text reference that generated code never reads, not that it embeds it" in {
+    // With the parameter taken from the second input, the row's "$c" value is hidden and unused:
+    // the code holds neither the lookup nor the text.
+    val trainer = svrTrainerOp("$c", "true")
+    assertOnlyError(
+      twoInputLoop(trainer),
+      trainer,
+      s"SVM Regressor cannot refer to loop variables in /paraList/0/value yet: $unreadTextReason"
+    )
+
+    // Sort has no use for its dummy property at all.
+    val sort = parsed(
+      """{"attributes":[{"attribute":"line","sortPreference":"ASC"}],
+        |"dummyPropertyList":[{"dummyProperty":"p","dummyValue":"$i"}],
+        |"operatorType":"Sort"}""".stripMargin
+    )
+    assertOnlyError(
+      oneInputLoop(sort),
+      sort,
+      s"Sort cannot refer to loop variables in /dummyPropertyList/0/dummyValue yet: " +
+        unreadTextReason
+    )
+  }
+
+  /** TextInput -> LoopStart -> `body` -> LoopEnd. */
+  private def oneInputLoop(body: LogicalOp): LogicalPlanPojo = {
+    val src = textInputOp("1\n2")
+    val start = loopStartOp()
+    val end = loopEndOp()
+    pojo(List(src, start, body, end), chain(src, start, body, end))
+  }
+
+  it should "report a typed reference ahead of the code generation it breaks, and no text reference" in {
+    // The placeholder 0 fails Histogram2D's "X Bins must be > 0": the loop-variable error is the
+    // one reported. The generation failed, so there is no code to read "$col" from; nothing says
+    // it could not be read either.
+    val histogram = parsed(
+      """{"xColumn":"$col","yColumn":"line","xBins":"$n","operatorType":"Histogram2D"}"""
+    )
+    assertOnlyError(
+      oneInputLoop(histogram),
+      histogram,
+      s"Histogram2D cannot refer to loop variables in /xBins yet: $numericPropertiesReason"
+    )
+  }
+
+  it should "report why the code generation failed, not a text reference in it" in {
+    // The second key has no attribute, so Sort generates no code: the "$col" key is not the
+    // problem, and the error names the one that is.
+    val sort = parsed(
+      """{"attributes":[{"attribute":"$col","sortPreference":"ASC"},
+        |{"attribute":"","sortPreference":"ASC"}],"operatorType":"Sort"}""".stripMargin
+    )
+
+    val result = newCompiler().compile(oneInputLoop(sort))
+
+    assert(result.operatorIdToError.keySet == Set(sort.operatorIdentifier))
+    val message = result.operatorIdToError(sort.operatorIdentifier).message
+    assert(
+      message.contains(
+        "Operator is not configured properly: requirement failed: " +
+          "Each sort key must have an attribute selected."
+      ),
+      s"unexpected message: $message"
+    )
+    assert(!message.contains("loop variables"), s"unexpected message: $message")
+  }
+
+  it should "report a text reference on a Python UDF inside a loop block, and a typed one next to it" in {
+    // A UDF's code is the user's, not generated: nothing rewrites it, and its Boolean picks the
+    // output schema, so neither reference is bound, for the one reason.
+    val udf = parsed("""{"code":"$i","retainInputColumns":"$keep","operatorType":"PythonUDFV2"}""")
+    assertOnlyError(
+      oneInputLoop(udf),
+      udf,
+      s"Python UDF cannot refer to loop variables in /code, /retainInputColumns yet: $udfReason"
+    )
+  }
+
+  it should "report a text reference on a Python UDF whose own code reads the loop state" in {
+    // The code calls the lookup itself, where the state has arrived, and holds no "$i": only
+    // that a UDF's code is not generated from its properties tells this one apart.
+    val code =
+      """from pytexera import *
+        |class ProcessTupleOperator(UDFOperatorV2):
+        |    @overrides
+        |    def process_tuple(self, tuple_, port):
+        |        yield {'env': self.loop_variable_text('i')}
+        |""".stripMargin
+    val udf = new PythonUDFOpDescV2
+    udf.code = code
+    udf.envName = "$i"
+    udf.retainInputColumns = true
+    assertOnlyError(
+      oneInputLoop(udf),
+      udf,
+      s"Python UDF cannot refer to loop variables in /envName yet: $udfReason"
+    )
+  }
+
+  it should "report a text reference on a Java UDF or an R UDF inside a loop block" in {
+    // The Java UDF's code carries the failed-generation marker as a comment: it is the user's
+    // code all the same, not a generation that failed, so its reference is still reported.
+    val java = parsed(
+      """{"code":"// #EXCEPTION DURING CODE GENERATION: not really\nimport x;",
+        |"retainInputColumns":true,
+        |"outputColumns":[{"attributeName":"$i","attributeType":"string"}],
+        |"operatorType":"JavaUDF"}""".stripMargin
+    )
+    assertOnlyError(
+      oneInputLoop(java),
+      java,
+      s"Java UDF cannot refer to loop variables in /outputColumns/0/attributeName yet: $udfReason"
+    )
+
+    val r = parsed("""{"code":"$i","retainInputColumns":true,"operatorType":"RUDF"}""")
+    assertOnlyError(
+      oneInputLoop(r),
+      r,
+      s"R UDF cannot refer to loop variables in /code yet: $udfReason"
+    )
+  }
+
+  it should "report a text reference that an operator whose code is generated pastes in as it is" in {
+    // Python Lambda Function writes its expressions into its code verbatim, not through pyb.
+    val src = textInputOp("1\n2")
+    val start = loopStartOp()
+    val lambda = new PythonLambdaFunctionOpDesc
+    lambda.lambdaAttributeUnits =
+      List(new LambdaAttributeUnit("line", "$i", null, AttributeType.STRING))
+    val end = loopEndOp()
+    assertOnlyError(
+      pojo(List(src, start, lambda, end), chain(src, start, lambda, end)),
+      lambda,
+      s"Python Lambda Function cannot refer to loop variables in " +
+        s"/lambdaAttributeUnits/0/expression yet: $embeddedTextReason"
+    )
+  }
+
+  /**
+    * A test-only generated operator that renders `label` as pyb renders an Encodable string (the
+    * `pyb` macro itself only expands under `org.apache.texera.amber`) but pastes `raw` into its
+    * code as it is. No shipped operator does both with one variable, so this is the only way to
+    * pin that a lookup elsewhere in the code does not excuse a pasted `$name`.
+    */
+  private class DecodedAndPastedPyOp extends PythonOperatorDescriptor {
+    @JsonProperty var label: String = ""
+    @JsonProperty var raw: String = ""
+    override def generatePythonCode(): String =
+      s"""class ProcessTupleOperator(UDFOperatorV2):
+         |    def process_tuple(self, tuple_, port):
+         |        yield {"label": ${decoderExpression(label)}, "raw": '$raw'}
+         |""".stripMargin
+    override def getOutputSchemas(
+        inputSchemas: Map[PortIdentity, Schema]
+    ): Map[PortIdentity, Schema] = Map(PortIdentity() -> inputSchemas.values.head)
+    override def operatorInfo: OperatorInfo =
+      OperatorInfo(
+        "Decoded and pasted",
+        "renders one property through pyb and pastes another",
+        OperatorGroupConstants.PYTHON_GROUP,
+        List(InputPort()),
+        List(OutputPort())
+      )
+  }
+
+  it should "report a text reference that generated code both reads and pastes in as it is" in {
+    val src = textInputOp("1\n2")
+    val start = loopStartOp()
+    val both = new DecodedAndPastedPyOp
+    both.label = "$i"
+    both.raw = "$i"
+    val end = loopEndOp()
+    val plan = pojo(List(src, start, both, end), chain(src, start, both, end))
+    assertOnlyError(
+      plan,
+      both,
+      s"Decoded and pasted cannot refer to loop variables in /label, /raw yet: $embeddedTextReason"
+    )
+
+    // Pasted text alone, a different variable's: the decoded "$i" is read from the loop state.
+    both.raw = "$j"
+    both.stateReferences = Map.empty
+    val result = newCompiler().compile(plan)
+    assert(
+      result
+        .operatorIdToError(both.operatorIdentifier)
+        .message
+        .contains(
+          s"Decoded and pasted cannot refer to loop variables in /raw yet: $embeddedTextReason"
+        ),
+      s"unexpected errors: ${result.operatorIdToError}"
+    )
+  }
+
+  it should "report a decoded text reference whose '$name' begins a longer text the code pastes" in {
+    // "cost $index" is no reference, and the decoded "$i" is read from the loop state; but the code
+    // holds "$i" as written, which a "$i" pasted next to letters looks the same as. The check does
+    // not tell the two apart, so it rejects rather than bind a pasted "$i" as the literal.
+    val both = new DecodedAndPastedPyOp
+    both.label = "$i"
+    both.raw = "cost $index"
+    assertOnlyError(
+      oneInputLoop(both),
+      both,
+      s"Decoded and pasted cannot refer to loop variables in /label yet: $embeddedTextReason"
+    )
+    assert(both.stateReferences == Map("/label" -> "i"))
+  }
+
+  /**
+    * A test-only generated operator whose code is `template`, each `LABEL` in it the expression
+    * pyb renders `label` as: where the code evaluates that expression decides whether the
+    * iteration's state has arrived by then.
+    */
+  private class LabelReadingPyOp extends PythonOperatorDescriptor {
+    @JsonProperty var label: String = "$i"
+    @JsonProperty var template: String = ""
+    override def generatePythonCode(): String =
+      template.replace("LABEL", decoderExpression(label))
+    override def getOutputSchemas(
+        inputSchemas: Map[PortIdentity, Schema]
+    ): Map[PortIdentity, Schema] = Map(PortIdentity() -> inputSchemas.values.head)
+    override def operatorInfo: OperatorInfo =
+      OperatorInfo(
+        "Label reading",
+        "reads one property where its template says",
+        OperatorGroupConstants.PYTHON_GROUP,
+        List(InputPort()),
+        List(OutputPort())
+      )
+  }
+
+  private def labelReading(template: String): LabelReadingPyOp = {
+    val op = new LabelReadingPyOp
+    op.template = template.stripMargin
+    op
+  }
+
+  // A read in process_tuple runs once the port's state messages are in: the reader replays them
+  // ahead of the port's tuples.
+  private val readsInProcessTuple =
+    """class ProcessTupleOperator(UDFOperatorV2):
+      |    @overrides
+      |    def process_tuple(self, tuple_: Tuple, port: int) -> Iterator[Optional[TupleLike]]:
+      |        yield {"label": LABEL}
+      |"""
+
+  it should "read a text reference in the code a test-only generated operator writes" in {
+    val body = labelReading(readsInProcessTuple)
+
+    val result = newCompiler().compile(oneInputLoop(body))
+
+    assert(result.operatorIdToError.isEmpty, s"unexpected errors: ${result.operatorIdToError}")
+    val code = codeOf(result, body)
+    assert(code.contains(lookup("i")), code)
+    assert(!code.contains(decoderExpression("$i")))
+  }
+
+  private val startupReadReason =
+    "its code reads the text when the operator starts, before the iteration's state arrives"
+
+  it should "report a text reference that generated code reads when the operator starts" in {
+    // Hugging Face reads its text properties in open, which the worker runs before it starts, so
+    // before any state message: the lookup would fail on every run.
+    val huggingFace = parsed(
+      """{"modelId":"$m","systemPrompt":"$p","promptColumn":"line","operatorType":"HuggingFace"}"""
+    )
+    assertOnlyError(
+      oneInputLoop(huggingFace),
+      huggingFace,
+      s"Hugging Face cannot refer to loop variables in /modelId, /systemPrompt yet: " +
+        startupReadReason
+    )
+  }
+
+  /**
+    * Where a test-only generated operator reads its label, and whether that leaves the reference
+    * unbound: a read whose innermost function is `open` or `__init__` runs before the worker
+    * starts; a function defined there may run later, and a text that looks like code is none.
+    */
+  private val readsByPlace: List[(String, String, Boolean)] = List(
+    (
+      "in a block of open, after a function defined there",
+      """class ProcessTupleOperator(UDFOperatorV2):
+        |    def open(self):
+        |        def unused():
+        |            pass
+        |        if True:
+        |            self.label = LABEL
+        |
+        |    @overrides
+        |    def process_tuple(self, tuple_: Tuple, port: int) -> Iterator[Optional[TupleLike]]:
+        |        yield {"label": self.label}
+        |""",
+      true
+    ),
+    (
+      "in __init__",
+      """class ProcessTupleOperator(UDFOperatorV2):
+        |    def __init__(self):
+        |        super().__init__()
+        |        self.label = LABEL
+        |
+        |    @overrides
+        |    def process_tuple(self, tuple_: Tuple, port: int) -> Iterator[Optional[TupleLike]]:
+        |        yield {"label": self.label}
+        |""",
+      true
+    ),
+    (
+      "in a one-line open",
+      """class ProcessTupleOperator(UDFOperatorV2):
+        |    def open(self): self.label = LABEL
+        |
+        |    @overrides
+        |    def process_tuple(self, tuple_: Tuple, port: int) -> Iterator[Optional[TupleLike]]:
+        |        yield {"label": self.label}
+        |""",
+      true
+    ),
+    (
+      "in open, inside a text that spans lines",
+      """class ProcessTupleOperator(UDFOperatorV2):
+        |    def open(self):
+        |        def unused():
+        |            pass
+        |        self.label = f'''
+        |{LABEL}
+        |'''
+        |
+        |    @overrides
+        |    def process_tuple(self, tuple_: Tuple, port: int) -> Iterator[Optional[TupleLike]]:
+        |        yield {"label": self.label}
+        |""",
+      true
+    ),
+    (
+      "in process_tuple and in open",
+      """class ProcessTupleOperator(UDFOperatorV2):
+        |    @overrides
+        |    def process_tuple(self, tuple_: Tuple, port: int) -> Iterator[Optional[TupleLike]]:
+        |        yield {"label": LABEL, "first": self.first}
+        |
+        |    def open(self):
+        |        self.first = LABEL
+        |""",
+      true
+    ),
+    (
+      "in a method that process_tuple calls, defined after open",
+      """class ProcessTupleOperator(UDFOperatorV2):
+        |    def open(self):
+        |        self.count = 0
+        |
+        |    def labelled(self, tuple_):
+        |        return {"label": LABEL}
+        |
+        |    @overrides
+        |    def process_tuple(self, tuple_: Tuple, port: int) -> Iterator[Optional[TupleLike]]:
+        |        yield self.labelled(tuple_)
+        |""",
+      false
+    ),
+    (
+      "in a function that open defines and process_tuple calls",
+      """class ProcessTupleOperator(UDFOperatorV2):
+        |    def open(self):
+        |        def label():
+        |            return LABEL
+        |        self.label = label
+        |
+        |    @overrides
+        |    def process_tuple(self, tuple_: Tuple, port: int) -> Iterator[Optional[TupleLike]]:
+        |        yield {"label": self.label()}
+        |""",
+      false
+    ),
+    (
+      "in process_tuple, under a text that holds a line like open's",
+      """class ProcessTupleOperator(UDFOperatorV2):
+        |    @overrides
+        |    def process_tuple(self, tuple_: Tuple, port: int) -> Iterator[Optional[TupleLike]]:
+        |        note = '''
+        |def open(self):
+        |        '''
+        |        yield {"label": LABEL, "note": note}
+        |""",
+      false
+    )
+  )
+
+  it should "report a text reference generated code reads in open or __init__, and only there" in {
+    readsByPlace.foreach {
+      case (place, template, atStartup) =>
+        val body = labelReading(template)
+        val result = newCompiler().compile(oneInputLoop(body))
+        if (atStartup) {
+          assert(
+            result.operatorIdToError.get(body.operatorIdentifier).map(_.message).exists {
+              _.contains(
+                s"Label reading cannot refer to loop variables in /label yet: " +
+                  startupReadReason
+              )
+            },
+            s"a read $place: ${result.operatorIdToError}"
+          )
+        } else {
+          assert(result.operatorIdToError.isEmpty, s"a read $place: ${result.operatorIdToError}")
+          assert(codeOf(result, body).contains(lookup("i")), s"a read $place")
+        }
+    }
+  }
+
+  it should "report a text reference that names a new output column of generated code" in {
+    // The code writes the column the loop state names, but the schema, computed before the loop
+    // runs, declares one named "$r". The "$a" it reads its input from is bound as usual.
+    val summarize = parsed(
+      """{"attribute":"$a","Result attribute name":"$r",
+        |"operatorType":"HuggingFaceTextSummarization"}""".stripMargin
+    )
+    assertOnlyError(
+      oneInputLoop(summarize),
+      summarize,
+      s"Hugging Face Text Summarization cannot refer to loop variables in " +
+        s"/Result attribute name yet: $outputColumnReason"
+    )
+  }
+
+  private val checkedTextReason = "it checks the text before the loop runs"
+
+  private val schemaTextReason = "the text decides its output schema"
+
+  /** The sales CSV -> LoopStart -> `body` -> LoopEnd. */
+  private def csvLoop(body: LogicalOp): LogicalPlanPojo = {
+    val src = csvOp(TestOperators.CountrySalesSmallCsvPath)
+    val start = loopStartOp()
+    val end = loopEndOp()
+    pojo(List(src, start, body, end), chain(src, start, body, end))
+  }
+
+  private def columnReading(
+      column: String,
+      typed: Boolean = false,
+      avoid: String = ""
+  ): ColumnReadingPyOp = {
+    val op = new ColumnReadingPyOp
+    op.column = column
+    op.typed = typed
+    op.avoid = avoid
+    op
+  }
+
+  it should "report a text reference that an operator whose code is generated checks before the loop runs" in {
+    // Each one checks the text as it computes its output schema, before the loop runs, so the
+    // check sees "$y", not the iteration's value. SVM Regressor refuses its ground truth among
+    // its features: "$y" passes, where the loop's "Unit Price" would fit Unit Price on itself.
+    val trainer = parsed(
+      """{"groundTruthAttribute":"$y","Selected Features":["Unit Price"],
+        |"paraList":[{"parameter":"C","value":"1.0","attribute":"Units Sold",
+        |"parametersSource":false}],"operatorType":"SVRTrainer"}""".stripMargin
+    )
+    assertOnlyError(
+      twoInputLoop(trainer),
+      trainer,
+      s"SVM Regressor cannot refer to loop variables in /groundTruthAttribute yet: " +
+        checkedTextReason
+    )
+    // A feature "$f" passes the same check, which the loop's "Unit Cost" would fail.
+    val featureTrainer = parsed(
+      """{"groundTruthAttribute":"Unit Cost","Selected Features":["$f"],
+        |"paraList":[{"parameter":"C","value":"1.0","attribute":"Units Sold",
+        |"parametersSource":false}],"operatorType":"SVRTrainer"}""".stripMargin
+    )
+    assertOnlyError(
+      twoInputLoop(featureTrainer),
+      featureTrainer,
+      s"SVM Regressor cannot refer to loop variables in /Selected Features/0 yet: " +
+        checkedTextReason
+    )
+    // A classic sklearn trainer with Count Vectorizer on refuses its target among its Text
+    // Attributes, the same check on two other properties.
+    val vectorizing = parsed(
+      """{"target":"$t","countVectorizer":true,"text":["Region"],
+        |"operatorType":"SklearnLogisticRegression"}""".stripMargin
+    )
+    assertOnlyError(
+      twoInputLoop(vectorizing),
+      vectorizing,
+      s"Logistic Regression cannot refer to loop variables in /target yet: $checkedTextReason"
+    )
+
+    // Sklearn Prediction looks its ground truth up among the input's columns, where "$g" is
+    // none: the error says why, not that the column is missing. Its "$m" is read as usual. With
+    // no output schema, the LoopEnd after it fails too.
+    val prediction = parsed(
+      """{"Model Attribute":"$m","Output Attribute Name":"prediction",
+        |"Ground Truth Attribute Name to Ignore":"$g",
+        |"operatorType":"SklearnPrediction"}""".stripMargin
+    )
+    assertErrorOf(
+      twoInputLoop(prediction),
+      prediction,
+      s"Sklearn Prediction cannot refer to loop variables in " +
+        s"/Ground Truth Attribute Name to Ignore yet: $checkedTextReason"
+    )
+
+    // Machine Learning Scorer looks up its scored columns the same way.
+    val scorer = parsed(
+      """{"isRegression":false,"actualValueColumn":"$a","predictValueColumn":"line",
+        |"classificationFlag":[],"operatorType":"Scorer"}""".stripMargin
+    )
+    assertErrorOf(
+      oneInputLoop(scorer),
+      scorer,
+      s"Machine Learning Scorer cannot refer to loop variables in /actualValueColumn yet: " +
+        checkedTextReason
+    )
+    // With both columns loop variables, either one fails the lookup with the other's "$name" in
+    // place: each is judged with a column in the other's place instead, and both are refused.
+    val bothScored = parsed(
+      """{"isRegression":false,"actualValueColumn":"$a","predictValueColumn":"$p",
+        |"classificationFlag":[],"operatorType":"Scorer"}""".stripMargin
+    )
+    assertErrorOf(
+      oneInputLoop(bothScored),
+      bothScored,
+      s"Machine Learning Scorer cannot refer to loop variables in /actualValueColumn, " +
+        s"/predictValueColumn yet: $checkedTextReason"
+    )
+  }
+
+  it should "not say an operator checks a text before every input of it has a schema" in {
+    // As the schema propagation, which computes an operator's output schema only once every input
+    // has one. The trainer's second input here has none, as the Projection before it fails on a
+    // column the sales CSV lacks, though its check would show from its own texts alone.
+    def checkingTrainer(): LogicalOp =
+      parsed(
+        """{"groundTruthAttribute":"$y","Selected Features":["Unit Price"],
+          |"paraList":[{"parameter":"C","value":"1.0","attribute":"Units Sold",
+          |"parametersSource":false}],"operatorType":"SVRTrainer"}""".stripMargin
+      )
+    val trainer = checkingTrainer()
+    val src = csvOp(TestOperators.CountrySalesSmallCsvPath)
+    val start = loopStartOp()
+    val broken = projectOp(List("missing"))
+    val end = loopEndOp()
+
+    val result = newCompiler().compile(
+      pojo(
+        List(src, start, broken, trainer, end),
+        List(
+          linked(src, start),
+          linked(start, trainer),
+          linked(start, broken),
+          linked(broken, trainer, 1),
+          linked(trainer, end)
+        )
+      )
+    )
+
+    // The second input has no schema, so neither has the output: that is the trainer's error.
+    assert(result.operatorIdToOutputSchemas(broken.operatorIdentifier)(PortIdentity()).isEmpty)
+    val error = result.operatorIdToError(trainer.operatorIdentifier).message
+    assert(error.contains("schema is not available"), s"unexpected message: $error")
+    assert(!error.contains("loop variables"), s"unexpected message: $error")
+
+    // Once both inputs have one, the check shows.
+    val fed = checkingTrainer()
+    assertOnlyError(
+      twoInputLoop(fed),
+      fed,
+      s"SVM Regressor cannot refer to loop variables in /groundTruthAttribute yet: " +
+        checkedTextReason
+    )
+  }
+
+  /**
+    * `op`'s compile error, lenient, which must say `message`, as the strict compile must throw;
+    * an operator after `op` may fail too, for want of its output schema.
+    */
+  private def assertErrorOf(plan: LogicalPlanPojo, op: LogicalOp, message: String): Unit = {
+    val result = newCompiler().compile(plan)
+    assert(result.physicalPlan.isEmpty)
+    val reported = result.operatorIdToError(op.operatorIdentifier).message
+    assert(reported.contains(message), s"unexpected message: $reported")
+    val ex = intercept[UnsupportedOperationException] {
+      newCompiler().compile(plan, CompilationErrorHandling.Strict)
+    }
+    assert(ex.getMessage == message)
+  }
+
+  it should "report a text reference whose value decides the output schema of generated code" in {
+    // The column "v" is typed like the input column "$c" names. The schema, computed before the
+    // loop runs, says text, where the loop's "Units Sold" would make it an integer.
+    val body = columnReading("$c", typed = true)
+    assertOnlyError(
+      csvLoop(body),
+      body,
+      s"Column reading cannot refer to loop variables in /column yet: $schemaTextReason"
+    )
+  }
+
+  it should "report a text reference that an operator whose code is generated checks against another of its texts" in {
+    // Generating rejects the text of `avoid`, here the input's column "line": "$c" passes, where
+    // the loop's "line" would not.
+    val againstColumn = columnReading("$c", avoid = "line")
+    assertOnlyError(
+      oneInputLoop(againstColumn),
+      againstColumn,
+      s"Column reading cannot refer to loop variables in /column yet: $checkedTextReason"
+    )
+    // The text it is checked against need not name a column.
+    val againstText = columnReading("$c", avoid = "total")
+    assertOnlyError(
+      oneInputLoop(againstText),
+      againstText,
+      s"Column reading cannot refer to loop variables in /column yet: $checkedTextReason"
+    )
+  }
+
+  it should "read a text reference that an operator whose code is generated checks only against the empty text" in {
+    // Generating rejects the empty text, which no copy tries: a loop value may be empty unchecked.
+    val body = columnReading("$c")
+
+    val result = newCompiler().compile(csvLoop(body))
+
+    assert(result.operatorIdToError.isEmpty, s"unexpected errors: ${result.operatorIdToError}")
+    assert(codeOf(result, body).contains(lookup("c")))
+  }
+
+  it should "keep a null setting null in the copies it judges a text reference with" in {
+    // `avoid` is null here, so generating rejects no text. A copy that took the property's
+    // default, "line", instead would reject the input's column "line", and refuse "$c".
+    val body = columnReading("$c", avoid = null)
+
+    val result = newCompiler().compile(oneInputLoop(body))
+
+    assert(result.operatorIdToError.isEmpty, s"unexpected errors: ${result.operatorIdToError}")
+    assert(codeOf(result, body).contains(lookup("c")))
+  }
+
+  it should "read a text reference in generated code that passes on an input column of that name" in {
+    // The column "$col" is named outside the block, where the text is a name like any other. The
+    // operator passes it on rather than making it, so its schema does not depend on the loop.
+    val src = textInputOp("1\n2")
+    val rename = new ProjectionOpDesc()
+    rename.attributes = List(new AttributeUnit("line", "$col"))
+    rename.isDrop = false
+    val start = loopStartOp()
+    val body = labelReading(readsInProcessTuple)
+    body.label = "$col"
+    val end = loopEndOp()
+
+    val result = newCompiler().compile(
+      pojo(List(src, rename, start, body, end), chain(src, rename, start, body, end))
+    )
+
+    assert(result.operatorIdToError.isEmpty, s"unexpected errors: ${result.operatorIdToError}")
+    assert(
+      result
+        .operatorIdToOutputSchemas(body.operatorIdentifier)(PortIdentity())
+        .get
+        .containsAttribute("$col")
+    )
+    assert(codeOf(result, body).contains(lookup("col")))
   }
 
   /** TextInput -> LoopStart -> `op` -> LoopEnd, every input of `op` fed by the LoopStart. */
@@ -1308,5 +2070,48 @@ class WorkflowCompilerSpec extends AnyFlatSpec {
     assert(
       onlyErrorOf(result, limit).contains("but its input port 0 is fed from outside the loop block")
     )
+  }
+}
+
+/**
+  * Test-only generated operators whose texts refer to loop variables. The compiler checks their
+  * texts on copies it parses from their JSON, and Jackson builds no inner class, so these live
+  * here rather than in the spec class.
+  */
+object WorkflowCompilerSpec {
+
+  /**
+    * A test-only generated operator that outputs the input column its text `column` names as "v",
+    * read in process_tuple: typed like that column where `typed` says so (as text where the input
+    * has no such column), else as text. Generating rejects the column `avoid`, "line" unless set,
+    * as a descriptor's own validation would.
+    */
+  private class ColumnReadingPyOp extends PythonOperatorDescriptor {
+    @JsonProperty var column: String = ""
+    @JsonProperty var typed: Boolean = false
+    @JsonProperty var avoid: String = "line"
+    override def generatePythonCode(): String = {
+      require(column != avoid, s"column cannot be $avoid")
+      s"""class ProcessTupleOperator(UDFOperatorV2):
+         |    @overrides
+         |    def process_tuple(self, tuple_: Tuple, port: int) -> Iterator[Optional[TupleLike]]:
+         |        yield {"v": tuple_[${decoderExpression(column)}]}
+         |""".stripMargin
+    }
+    override def getOutputSchemas(
+        inputSchemas: Map[PortIdentity, Schema]
+    ): Map[PortIdentity, Schema] = {
+      val named = inputSchemas.values.head.attributes.find(_.getName == column).map(_.getType)
+      val vType = if (typed) named.getOrElse(AttributeType.STRING) else AttributeType.STRING
+      Map(PortIdentity() -> Schema().add("v", vType))
+    }
+    override def operatorInfo: OperatorInfo =
+      OperatorInfo(
+        "Column reading",
+        "outputs the input column its text names",
+        OperatorGroupConstants.PYTHON_GROUP,
+        List(InputPort()),
+        List(OutputPort())
+      )
   }
 }
