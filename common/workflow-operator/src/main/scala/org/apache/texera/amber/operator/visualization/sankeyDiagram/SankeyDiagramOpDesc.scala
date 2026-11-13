@@ -19,6 +19,7 @@
 
 package org.apache.texera.amber.operator.visualization.sankeyDiagram
 
+import org.apache.texera.amber.operator.visualization.StandaloneChartCode._
 import com.fasterxml.jackson.annotation.{JsonProperty, JsonPropertyDescription}
 import com.kjetland.jackson.jsonSchema.annotations.{JsonSchemaInject, JsonSchemaTitle}
 import org.apache.texera.amber.pybuilder.PythonTemplateBuilder.PythonTemplateBuilderStringContext
@@ -143,19 +144,17 @@ class SankeyDiagramOpDesc extends PythonVisualizationOpDesc with PlotlyStandalon
     val sourceLit = pyStringLiteral(sourceAttribute)
     val targetLit = pyStringLiteral(targetAttribute)
     val valueLit = pyStringLiteral(valueAttribute)
-    s"""def render_error(error_msg):
-       |    return '''<h1>Sankey Diagram is not available.</h1>
-       |                  <p>Reasons are: {} </p>
-       |               '''.format(error_msg)
+    s"""${standaloneError("Sankey Diagram is not available.", plural = true)}
        |
        |if in1df.empty:
-       |    with open(outputHtml, "w", encoding="utf-8") as output:
-       |        output.write(render_error("Input table is empty."))
+       |${standaloneErrorPage("Input table is empty.")}
        |else:
        |    table = in1df.groupby([$sourceLit, $targetLit])[$valueLit].sum().reset_index(name="value")
        |    if table.empty:
-       |        with open(outputHtml, "w", encoding="utf-8") as output:
-       |            output.write(render_error("No valid rows left (every row has at least 1 missing value)."))
+       |${standaloneErrorPage(
+      "No valid rows left (every row has at least 1 missing value).",
+      indent = 8
+    )}
        |    else:
        |        labels = pd.concat([table[$sourceLit], table[$targetLit]]).unique().tolist()
        |        table["source_index"] = table[$sourceLit].apply(lambda x: labels.index(x))
@@ -175,9 +174,7 @@ class SankeyDiagramOpDesc extends PythonVisualizationOpDesc with PlotlyStandalon
        |            )
        |        )])
        |        fig.update_layout(title_text="Sankey Diagram", font_size=10)
-       |        fig.write_json(outputJson)
-       |        fig.write_html(outputHtml)
-       |        print("Sankey diagram saved to " + outputHtml)""".stripMargin
+       |${standaloneFigure("Sankey diagram")}""".stripMargin
   }
 
 }

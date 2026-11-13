@@ -19,6 +19,7 @@
 
 package org.apache.texera.amber.operator.visualization.ternaryContour
 
+import org.apache.texera.amber.operator.visualization.StandaloneChartCode._
 import com.fasterxml.jackson.annotation.{JsonProperty, JsonPropertyDescription}
 import com.kjetland.jackson.jsonSchema.annotations.{JsonSchemaInject, JsonSchemaTitle}
 import org.apache.texera.amber.core.workflow.OutputPort.OutputMode
@@ -176,14 +177,10 @@ class TernaryContourOpDesc extends PythonVisualizationOpDesc {
     s"""import plotly.figure_factory as ff
        |import numpy as np
        |
-       |def render_error(error_msg):
-       |    return '''<h1>TernaryContour is not available.</h1>
-       |                  <p>Reasons are: {} </p>
-       |               '''.format(error_msg)
+       |${standaloneError("TernaryContour is not available.", plural = true)}
        |
        |if in1df.empty:
-       |    with open(outputHtml, "w", encoding="utf-8") as output:
-       |        output.write(render_error("Input table is empty."))
+       |${standaloneErrorPage("Input table is empty.")}
        |else:
        |    table = in1df.copy()
        |    table.dropna(subset=[$firstLit, $secondLit, $thirdLit, $fourthLit], inplace=True)
@@ -191,8 +188,10 @@ class TernaryContourOpDesc extends PythonVisualizationOpDesc {
        |    s = table[$firstLit] + table[$secondLit] + table[$thirdLit]
        |    table = table[s > 0]
        |    if table.empty:
-       |        with open(outputHtml, "w", encoding="utf-8") as output:
-       |            output.write(render_error("No valid rows left (every row has at least 1 missing value)."))
+       |${standaloneErrorPage(
+      "No valid rows left (every row has at least 1 missing value).",
+      indent = 8
+    )}
        |    else:
        |        A = table[$firstLit].to_numpy()
        |        B = table[$secondLit].to_numpy()
@@ -204,9 +203,7 @@ class TernaryContourOpDesc extends PythonVisualizationOpDesc {
        |            pole_labels=[$firstLit, $secondLit, $thirdLit],
        |            interp_mode='cartesian'
        |        )
-       |        fig.write_json(outputJson)
-       |        fig.write_html(outputHtml)
-       |        print("Ternary contour saved to " + outputHtml)""".stripMargin
+       |${standaloneFigure("Ternary contour")}""".stripMargin
   }
 
 }

@@ -19,6 +19,7 @@
 
 package org.apache.texera.amber.operator.visualization.quiverPlot
 
+import org.apache.texera.amber.operator.visualization.StandaloneChartCode._
 import com.fasterxml.jackson.annotation.{JsonProperty, JsonPropertyDescription}
 import com.kjetland.jackson.jsonSchema.annotations.{JsonSchemaInject, JsonSchemaTitle}
 import org.apache.texera.amber.pybuilder.PythonTemplateBuilder.PythonTemplateBuilderStringContext
@@ -159,14 +160,10 @@ class QuiverPlotOpDesc extends PythonVisualizationOpDesc {
     val vLit = pyStringLiteral(v)
     s"""import plotly.figure_factory as ff
        |
-       |def render_error(error_msg):
-       |    return '''<h1>Quiver Plot is not available.</h1>
-       |                  <p>Reasons are: {} </p>
-       |               '''.format(error_msg)
+       |${standaloneError("Quiver Plot is not available.", plural = true)}
        |
        |if in1df.empty:
-       |    with open(outputHtml, "w", encoding="utf-8") as output:
-       |        output.write(render_error("Input table is empty."))
+       |${standaloneErrorPage("Input table is empty.")}
        |else:
        |    table = in1df
        |    required_columns = {$xLit, $yLit, $uLit, $vLit}
@@ -187,9 +184,7 @@ class QuiverPlotOpDesc extends PythonVisualizationOpDesc {
        |                    table[$uLit], table[$vLit],
        |                    scale=0.1
        |                )
-       |                fig.write_json(outputJson)
-       |                fig.write_html(outputHtml)
-       |                print("Quiver plot saved to " + outputHtml)
+       |${standaloneFigure("Quiver plot", indent = 16)}
        |            except Exception as e:
        |                with open(outputHtml, "w", encoding="utf-8") as output:
        |                    output.write(render_error(f"Plotly error: {str(e)}"))""".stripMargin

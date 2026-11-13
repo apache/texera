@@ -19,6 +19,7 @@
 
 package org.apache.texera.amber.operator.visualization.heatMap
 
+import org.apache.texera.amber.operator.visualization.StandaloneChartCode._
 import com.fasterxml.jackson.annotation.{JsonProperty, JsonPropertyDescription}
 import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaTitle
 import org.apache.texera.amber.pybuilder.PythonTemplateBuilder.{
@@ -109,21 +110,15 @@ class HeatMapOpDesc extends PythonVisualizationOpDesc with PlotlyStandaloneCode 
     val valueLit = pyStringLiteral(value)
     val xLit = pyStringLiteral(x)
     val yLit = pyStringLiteral(y)
-    s"""def render_error(error_msg):
-       |    return '''<h1>Chart is not available.</h1>
-       |                  <p>Reason is: {} </p>
-       |               '''.format(error_msg)
+    s"""${standaloneError("Chart is not available.")}
        |
        |if in1df.empty:
-       |    with open(outputHtml, "w", encoding="utf-8") as output:
-       |        output.write(render_error("input table is empty."))
+       |${standaloneErrorPage("input table is empty.")}
        |else:
        |    heatmap = go.Heatmap(z=in1df[$valueLit], x=in1df[$xLit], y=in1df[$yLit])
        |    layout = go.Layout(margin=dict(l=0, r=0, b=0, t=0))
        |    fig = go.Figure(data=[heatmap], layout=layout)
-       |    fig.write_json(outputJson)
-       |    fig.write_html(outputHtml)
-       |    print("Heatmap saved to " + outputHtml)""".stripMargin
+       |${standaloneFigure("Heatmap", indent = 4)}""".stripMargin
   }
 
 }
