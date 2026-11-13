@@ -22,6 +22,7 @@ package org.apache.texera.amber.engine.architecture.pythonworker
 import org.apache.pekko.actor.Props
 import com.twitter.util.Promise
 import org.apache.texera.common.config.{PythonUtils, StorageConfig, UdfConfig}
+import org.apache.texera.amber.core.WorkflowRuntimeException
 import org.apache.texera.amber.core.virtualidentity.ChannelIdentity
 import org.apache.texera.amber.engine.architecture.common.WorkflowActor
 import org.apache.texera.amber.engine.architecture.common.WorkflowActor.NetworkAck
@@ -45,10 +46,42 @@ import java.nio.charset.StandardCharsets
 import java.nio.file.Path
 import org.apache.texera.web.resource.pythonvirtualenvironment.PveManager
 import java.util.Base64
-import java.util.concurrent.{ExecutorService, Executors}
-import scala.sys.process.{BasicIO, Process}
+import java.util.concurrent.{ExecutorService, Executors, TimeUnit}
+import scala.jdk.CollectionConverters._
 
 object PythonWorkflowWorker {
+
+  /** Sent to the worker by its exit watcher when the Python process exits on its own. */
+  private[pythonworker] final case class PythonProcessExited(exitCode: Int)
+
+  /** Sent to the worker when its Flight client thread stops on an exception. */
+  private[pythonworker] final case class PythonClientFailed(cause: Throwable)
+
+  /**
+    * How long a client failure waits for a still-running process to exit before it is reported
+    * as a client failure. A killed process's connection can close a moment before the JVM records
+    * the exit, and the exit code is the more useful report.
+    */
+  private val ExitGraceMs = 500L
+
+  /**
+    * Why a Python process exited on its own: before it reported its port (`connected` false) or
+    * after. 137 is 128 + SIGKILL, what the OOM killer sends.
+    */
+  private[pythonworker] def describeUnexpectedExit(
+      workerName: String,
+      exitCode: Int,
+      connected: Boolean
+  ): String = {
+    val hint =
+      if (exitCode == 137) " (killed by SIGKILL, often the out-of-memory killer)"
+      else ""
+    if (connected)
+      s"Python worker process for $workerName exited unexpectedly with code $exitCode$hint"
+    else
+      s"Python worker process for $workerName exited with code $exitCode$hint before connecting to the engine"
+  }
+
   def props(workerConfig: WorkerConfig): Props = Props(new PythonWorkflowWorker(workerConfig))
 
   /**
@@ -137,6 +170,8 @@ class PythonWorkflowWorker(
 
   // Python process
   private var pythonServerProcess: Process = _
+  // Set before this actor tears the Python side down, so the exits that follow are not reported.
+  @volatile private var stopping = false
 
   private val networkInputGateway = new NetworkInputGateway(workerConfig.workerId)
   private val networkOutputGateway = new NetworkOutputGateway(
@@ -169,6 +204,38 @@ class PythonWorkflowWorker(
     )
   }
 
+  override def receive: Receive = handlePythonFailure orElse super.receive
+
+  // Throwing hands the failure to the coordinator's supervisor, which fails the execution.
+  private def handlePythonFailure: Receive = {
+    case PythonWorkflowWorker.PythonProcessExited(code) =>
+      throw new WorkflowRuntimeException(
+        PythonWorkflowWorker.describeUnexpectedExit(
+          workerConfig.workerId.name,
+          code,
+          portNumberPromise.isDefined
+        ),
+        Some(workerConfig.workerId)
+      )
+    case PythonWorkflowWorker.PythonClientFailed(cause) =>
+      val process = pythonServerProcess
+      // When the process is gone, its exit is the reason the client stopped; report that.
+      val message =
+        if (
+          process != null &&
+          process.waitFor(PythonWorkflowWorker.ExitGraceMs, TimeUnit.MILLISECONDS)
+        ) {
+          PythonWorkflowWorker.describeUnexpectedExit(
+            workerConfig.workerId.name,
+            process.exitValue(),
+            portNumberPromise.isDefined
+          )
+        } else {
+          s"Flight client for Python worker ${workerConfig.workerId.name} stopped: $cause"
+        }
+      throw new WorkflowRuntimeException(message, cause, Some(workerConfig.workerId))
+  }
+
   override def receiveCreditMessages: Receive = {
     case WorkflowActor.CreditRequest(channel) =>
       pythonProxyClient.enqueueActorCommand(CreditUpdate())
@@ -187,30 +254,34 @@ class PythonWorkflowWorker(
   }
 
   override def postStop(): Unit = {
+    stopping = true
     super.postStop()
     try {
-      // try to send shutdown command so that it can gracefully shutdown
+      // try to send shutdown command so that it can gracefully shutdown. A client still waiting
+      // for Python's port stops waiting.
       pythonProxyClient.close()
 
       clientThreadExecutor.shutdown()
 
       serverThreadExecutor.shutdown()
 
-      // destroy python process
-      pythonServerProcess.destroy()
+      // destroy python process, if it was started
+      if (pythonServerProcess != null) pythonServerProcess.destroy()
     } catch {
       case e: Exception =>
         logger.error(s"$e - happened during shutdown")
     }
   }
 
+  // The client waits for Python's port on its own thread, so start-up does not block on Python
+  // and the worker registers with its parent before any failure of Python can be reported.
   override def initState(): Unit = {
     startProxyServer()
     startPythonProcess()
     startProxyClient()
   }
 
-  private def startProxyServer(): Unit = {
+  private[pythonworker] def startProxyServer(): Unit = {
     // Try to start the server until it succeeds
     var serverStart = false
     while (!serverStart) {
@@ -228,8 +299,17 @@ class PythonWorkflowWorker(
     }
   }
 
-  private def startProxyClient(): Unit = {
-    clientThreadExecutor.submit(pythonProxyClient)
+  private[pythonworker] def startProxyClient(): Unit = {
+    val client = pythonProxyClient
+    // Nothing reads the Future that submit returns, so failures are reported from here.
+    clientThreadExecutor.submit(new Runnable {
+      override def run(): Unit =
+        try client.run()
+        catch {
+          case t: Throwable =>
+            if (!stopping) self ! PythonWorkflowWorker.PythonClientFailed(t)
+        }
+    })
   }
 
   // Returns the Python executable path for the selected PVE,
@@ -245,7 +325,7 @@ class PythonWorkflowWorker(
       .getOrElse(fallback)
   }
 
-  private def startPythonProcess(): Unit = {
+  private[pythonworker] def startPythonProcess(): Unit = {
     val udfEntryScriptPath: String =
       pythonSrcDirectory.resolve("texera_run_python_worker.py").toString
 
@@ -262,14 +342,38 @@ class PythonWorkflowWorker(
       workerConfig.largeBinaryBaseUri
     )
 
-    pythonServerProcess = Process(
+    // Python writes straight to this JVM's stdout and stderr, with no copying threads in between:
+    // its exit is then known when the process ends, even if a child it started (a UDF's
+    // subprocess, for example) still holds those streams open.
+    pythonServerProcess = new ProcessBuilder(
       Seq(
         pythonBin,
         "-u",
         udfEntryScriptPath,
         PythonWorkflowWorker.encodeStartupConfig(startupConfig)
-      )
-    ).run(BasicIO.standard(false))
+      ).asJava
+    ).redirectOutput(ProcessBuilder.Redirect.INHERIT)
+      .redirectError(ProcessBuilder.Redirect.INHERIT)
+      .start()
+    pythonServerProcess.getOutputStream.close() // the worker reads no input
+    watchPythonProcess()
+  }
+
+  /** Reports an exit of the Python process that this actor did not cause. */
+  private def watchPythonProcess(): Unit = {
+    val process = pythonServerProcess
+    val watcher = new Thread(
+      () =>
+        try {
+          val code = process.waitFor()
+          if (!stopping) self ! PythonWorkflowWorker.PythonProcessExited(code)
+        } catch {
+          case _: InterruptedException => // interrupted while shutting down; nothing to report
+        },
+      s"python-exit-watcher-${workerConfig.workerId.name}"
+    )
+    watcher.setDaemon(true)
+    watcher.start()
   }
 
   override def loadFromCheckpoint(chkpt: CheckpointState): Unit = ???

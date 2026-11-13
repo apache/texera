@@ -19,7 +19,7 @@
 
 package org.apache.texera.amber.engine.architecture.pythonworker
 
-import com.twitter.util.{Await, Promise}
+import com.twitter.util.{Await, Duration, Promise, TimeoutException}
 import org.apache.texera.amber.core.WorkflowRuntimeException
 import org.apache.texera.amber.core.tuple.{Schema, Tuple}
 import org.apache.texera.amber.core.virtualidentity.{ActorVirtualIdentity, ChannelIdentity}
@@ -57,7 +57,8 @@ class PythonProxyClient(portNumberPromise: Promise[Int], val actorId: ActorVirtu
 
   val allocator: BufferAllocator =
     new RootAllocator().newChildAllocator("flight-client", 0, Long.MaxValue)
-  val location: Location = (() => {
+  // Lazy: read on the client's thread once Python has reported its port (see awaitPort).
+  lazy val location: Location = (() => {
     // Read port number from promise until it's available
     val portNumber = Await.result(portNumberPromise)
     Location.forGrpcInsecure("localhost", portNumber)
@@ -66,7 +67,8 @@ class PythonProxyClient(portNumberPromise: Promise[Int], val actorId: ActorVirtu
   private val MAX_TRY_COUNT: Int = 2
   private val UNIT_WAIT_TIME_MS = 200
   private var flightClient: FlightClient = _
-  private var running: Boolean = true
+  // Cleared by close() on the worker's thread, read by the client's thread.
+  @volatile private var running: Boolean = true
 
   private val pythonQueueInMemSize: AtomicLong = new AtomicLong(0)
 
@@ -74,9 +76,25 @@ class PythonProxyClient(portNumberPromise: Promise[Int], val actorId: ActorVirtu
     pythonQueueInMemSize.get()
   }
 
+  /**
+    * Waits for the Python process to report its Flight port, and returns whether it did while the
+    * client was open. This runs on the client's own thread, so the worker actor is not blocked
+    * meanwhile, and it gives up once the client is closed, so a worker stopped before Python
+    * connects leaves no thread waiting.
+    */
+  private def awaitPort(): Boolean = {
+    while (running && !portNumberPromise.isDefined) {
+      try Await.ready(portNumberPromise, Duration.fromMilliseconds(100))
+      catch { case _: TimeoutException => }
+    }
+    running
+  }
+
   override def run(): Unit = {
-    establishConnection()
-    mainLoop()
+    if (awaitPort()) {
+      establishConnection()
+      mainLoop()
+    }
   }
 
   private def establishConnection(): Unit = {
