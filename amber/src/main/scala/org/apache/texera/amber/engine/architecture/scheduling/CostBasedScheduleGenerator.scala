@@ -64,10 +64,12 @@ object CostBasedScheduleGenerator {
 class CostBasedScheduleGenerator(
     workflowContext: WorkflowContext,
     initialPhysicalPlan: PhysicalPlan,
-    val actorId: ActorVirtualIdentity
+    val actorId: ActorVirtualIdentity,
+    cacheReadInputs: CacheReadInputs = CacheReadInputs()
 ) extends ScheduleGenerator(
       workflowContext,
-      initialPhysicalPlan
+      initialPhysicalPlan,
+      cacheReadInputs
     )
     with AmberLogging {
 
@@ -128,7 +130,8 @@ class CostBasedScheduleGenerator(
     *     For each Region, allocate storage URIs on every output port of materialized edges.</li>
     *   <li><strong>Pass 2 – Input URIs:</strong>
     *     Re-traverse the same Regions and attach reader URIs on input ports using
-    *     the URIs created in Pass 1.</li>
+    *     the URIs created in Pass 1, plus the saved-result locations given in
+    *     `cacheReadInputs`.</li>
     * </ol>
     *
     * <p><strong>Why two passes?</strong></p>
@@ -239,7 +242,7 @@ class CostBasedScheduleGenerator(
       }
 
       // Assign storage URIs to input ports of each materialized edge (each input port could have more than one URI)
-      val inputPortConfigs: Map[GlobalPortIdentity, IntermediateInputPortConfig] =
+      val inputUrisFromMatEdges: Map[GlobalPortIdentity, List[URI]] =
         relevantMatEdges
           .foldLeft(Map.empty[GlobalPortIdentity, List[URI]]) { (acc, link) =>
             val globalOutputPortId = GlobalPortIdentity(link.fromOpId, link.fromPortId)
@@ -263,10 +266,20 @@ class CostBasedScheduleGenerator(
               acc.getOrElse(globalInputPortId, List.empty[URI]) :+ inputReaderURI
             )
           }
-          .map {
-            case (inputPortId, uris) =>
-              inputPortId -> IntermediateInputPortConfig(uris)
-          }
+
+      // Saved results that input ports of this region read (see CacheReadInputs)
+      val inputUrisFromCache: Map[GlobalPortIdentity, List[URI]] =
+        cacheReadInputs.readerUris.filter {
+          case (inputPortId, _) => existingRegion.getPorts.contains(inputPortId)
+        }
+
+      val inputPortConfigs: Map[GlobalPortIdentity, IntermediateInputPortConfig] =
+        (inputUrisFromMatEdges.keySet ++ inputUrisFromCache.keySet).map { inputPortId =>
+          inputPortId -> IntermediateInputPortConfig(
+            inputUrisFromMatEdges.getOrElse(inputPortId, List.empty[URI]) ++
+              inputUrisFromCache.getOrElse(inputPortId, List.empty[URI])
+          )
+        }.toMap
 
       val newResourceConfig: Option[ResourceConfig] = existingRegion.resourceConfig match {
         case Some(existingConfig) =>
