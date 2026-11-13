@@ -34,12 +34,8 @@ class IndexedShufflePartitioner(Partitioner):
     worker and route each tuple to a slot by a computed index.
 
     Subclasses provide the routing via ``_route`` and, if needed, advance any
-    routing state via ``_advance``. ``_clear_batch_on_flush`` controls whether a
-    yielded batch is cleared in place during ``flush``/``flush_state``.
+    routing state via ``_advance``. Flushing drains each yielded batch in place.
     """
-
-    # Whether flush/flush_state clear a yielded batch in place after emitting it.
-    _clear_batch_on_flush = False
 
     def __init__(self, partitioning):
         super().__init__(set_one_of(Partitioning, partitioning))
@@ -73,8 +69,7 @@ class IndexedShufflePartitioner(Partitioner):
             if receiver == to:
                 if len(batch) > 0:
                     yield batch
-                    if self._clear_batch_on_flush:
-                        batch.clear()
+                    batch.clear()
                 yield ecm
 
     @overrides
@@ -86,6 +81,5 @@ class IndexedShufflePartitioner(Partitioner):
         for receiver, batch in self.receivers:
             if len(batch) > 0:
                 yield receiver, batch
-                if self._clear_batch_on_flush:
-                    batch.clear()
+                batch.clear()
             yield receiver, state

@@ -211,8 +211,6 @@ class TestRoundRobinPartitioner:
         assert partitioner.receivers[1][1] == [_tuple(k=2)]
 
     def test_flush_clears_the_flushed_slot(self, partitioner):
-        # Round-robin drains a flushed slot's batch in place
-        # (_clear_batch_on_flush=True), unlike the hash/range shuffles.
         list(partitioner.add_tuple_to_batch(_tuple(k=1)))  # → A (index 0)
         ecm = EmbeddedControlMessage()
         list(partitioner.flush(_worker("A"), ecm))
@@ -289,15 +287,22 @@ class TestHashBasedShufflePartitioner:
         ecm = EmbeddedControlMessage()
         a_out = _snapshot(p.flush(p.receivers[0][0], ecm))
         assert a_out == [[_hashable_tuple(k=1)], ecm]
+        assert p.receivers[0][1] == []
 
-    def test_flush_does_not_clear_the_flushed_slot(self):
-        # Hash/range shuffles leave a flushed slot's batch intact
-        # (_clear_batch_on_flush=False), unlike round-robin.
+    def test_second_flush_emits_only_ecm_and_preserves_other_receiver(self):
         p = self._partitioner(batch_size=10)
         p.receivers[0] = (p.receivers[0][0], [_hashable_tuple(k=1)])
+        p.receivers[1] = (p.receivers[1][0], [_hashable_tuple(k=2)])
         ecm = EmbeddedControlMessage()
-        list(p.flush(p.receivers[0][0], ecm))
-        assert p.receivers[0][1] == [_hashable_tuple(k=1)]
+        assert _snapshot(p.flush(p.receivers[0][0], ecm)) == [
+            [_hashable_tuple(k=1)],
+            ecm,
+        ]
+        assert _snapshot(p.flush(p.receivers[0][0], ecm)) == [ecm]
+        assert _snapshot(p.flush(p.receivers[1][0], ecm)) == [
+            [_hashable_tuple(k=2)],
+            ecm,
+        ]
 
     def test_flush_state_emits_pending_batches_and_state(self):
         p = self._partitioner(batch_size=10)
@@ -310,6 +315,7 @@ class TestHashBasedShufflePartitioner:
         assert (p.receivers[0][0], [_hashable_tuple(k=1)]) in out
         # Each receiver still emits the state record.
         assert sum(1 for r, payload in out if payload is state) == len(p.receivers)
+        assert p.receivers[0][1] == []
 
 
 class TestRangeBasedShufflePartitioner:
@@ -383,6 +389,7 @@ class TestRangeBasedShufflePartitioner:
         assert a_out == [[_tuple(k=2)], ecm]
         # B is untouched.
         assert partitioner.receivers[1][1] == [_tuple(k=5)]
+        assert partitioner.receivers[0][1] == []
 
     def test_flush_state_emits_pending_batches_and_state(self, partitioner):
         list(partitioner.add_tuple_to_batch(_tuple(k=2)))  # → A
@@ -394,6 +401,7 @@ class TestRangeBasedShufflePartitioner:
         assert (_worker("A"), [_tuple(k=2)]) in out
         # Every receiver still emits the state, even with empty pending batch.
         assert sum(1 for r, payload in out if payload is state) == 3
+        assert partitioner.receivers[0][1] == []
 
 
 class TestOneToOnePartitioner:
