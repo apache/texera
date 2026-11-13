@@ -1243,6 +1243,15 @@ describe("AgentService", () => {
       expect(unknown).toBe(AgentState.UNAVAILABLE);
     });
 
+    it("getAgentStateSnapshot returns the tracked value synchronously, or UNAVAILABLE without creating tracking", () => {
+      service.getAgentStateObservable("agent-1").subscribe();
+      (service as any).agentStateTracking.get("agent-1").stateSubject.next(AgentState.GENERATING);
+      expect(service.getAgentStateSnapshot("agent-1")).toBe(AgentState.GENERATING);
+
+      expect(service.getAgentStateSnapshot("ghost")).toBe(AgentState.UNAVAILABLE);
+      expect((service as any).agentStateTracking.has("ghost")).toBe(false);
+    });
+
     it("isAgentConnected is false for an unavailable/unknown agent and true otherwise", () => {
       let unknown: boolean | undefined;
       service.isAgentConnected("ghost").subscribe(v => (unknown = v));
