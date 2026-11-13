@@ -159,7 +159,7 @@ export class NotebookMigrationService {
   }
 
   /**
-   * Convert a folder of Python files, already assembled by parseFolder, into a workflow.
+   * Convert a folder of source files, already assembled by parseFolder, into a workflow.
    *
    * Identical to the script path from the caller's side: the folder is one document by the time
    * it gets here, so the derived notebook and the mapping have the same shape and are stored the
@@ -167,10 +167,11 @@ export class NotebookMigrationService {
    */
   public async sendFolderToAIGenerateWorkflow(
     folder: FolderDocument,
-    modelType: string
+    modelType: string,
+    language: MigrationLanguage = "python"
   ): Promise<GeneratedWorkflowContent> {
-    return this.generateFromSource(modelType, "folder", "python", migrationLLM =>
-      migrationLLM.convertFolderToWorkflow(folder)
+    return this.generateFromSource(modelType, "folder", language, migrationLLM =>
+      migrationLLM.convertFolderToWorkflow(folder, language)
     );
   }
 

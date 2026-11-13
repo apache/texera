@@ -469,6 +469,15 @@ describe("NotebookMigrationService", () => {
       );
       expect(createMigrationLLM).not.toHaveBeenCalled();
     });
+
+    it("rejects an R folder before creating or pinging a client", async () => {
+      const folder = { source: "x <- 1", forcedBoundaries: [1], files: [], tree: "proj/" };
+
+      await expect(service.sendFolderToAIGenerateWorkflow(folder, "gpt-4", "r")).rejects.toThrow(
+        "R notebook migration is disabled"
+      );
+      expect(createMigrationLLM).not.toHaveBeenCalled();
+    });
   });
 
   // Feature flag gate (defence in depth). With the flag off, every public
@@ -657,8 +666,16 @@ describe("NotebookMigrationService", () => {
         mappingContent: { m: 2 },
         notebook: conversion.notebook,
       });
-      expect(fakeLLM.convertFolderToWorkflow).toHaveBeenCalledWith(folder);
+      expect(fakeLLM.convertFolderToWorkflow).toHaveBeenCalledWith(folder, "python");
       expect(fakeLLM.close).toHaveBeenCalled();
+    });
+
+    it("passes the source language to the conversion", async () => {
+      fakeLLM.convertFolderToWorkflow.mockResolvedValue(conversion);
+
+      await service.sendFolderToAIGenerateWorkflow(folder, "gpt-4", "r");
+
+      expect(fakeLLM.convertFolderToWorkflow).toHaveBeenCalledWith(folder, "r");
     });
 
     it("rejects when the connection cannot be verified, and still closes the client", async () => {

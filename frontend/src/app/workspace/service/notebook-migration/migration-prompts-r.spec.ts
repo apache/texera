@@ -19,7 +19,9 @@
 
 import {
   R_EXAMPLE_OF_MULTIPLE_UDF_CONVERSION,
+  R_EXAMPLE_OF_MULTIPLE_UDF_CONVERSION_FOLDER,
   R_EXAMPLE_OF_MULTIPLE_UDF_CONVERSION_SCRIPT,
+  R_FOLDER_MAPPING_PROMPT,
   R_MAPPING_PROMPT,
   R_SCRIPT_MAPPING_PROMPT,
 } from "./migration-prompts-r";
@@ -44,6 +46,7 @@ describe("R migration prompts", () => {
   [
     ["notebook", R_EXAMPLE_OF_MULTIPLE_UDF_CONVERSION],
     ["script", R_EXAMPLE_OF_MULTIPLE_UDF_CONVERSION_SCRIPT],
+    ["folder", R_EXAMPLE_OF_MULTIPLE_UDF_CONVERSION_FOLDER],
   ].forEach(([input, example]) => {
     describe(`${input} worked example`, () => {
       const conversion: Conversion = JSON.parse(fencedBlock(example, "json"));
@@ -94,5 +97,58 @@ describe("R migration prompts", () => {
         expect(lines[first - 1]).toMatch(new RegExp(`^ *${first}\\| +\\S`));
         expect(lines[last - 1]).toMatch(new RegExp(`^ *${last}\\| +\\S`));
       });
+  });
+
+  describe("folder worked example", () => {
+    const lines = fencedBlock(R_EXAMPLE_OF_MULTIPLE_UDF_CONVERSION_FOLDER, "r").split("\n");
+    const conversion: Conversion & { entry_point: string } = JSON.parse(
+      fencedBlock(R_EXAMPLE_OF_MULTIPLE_UDF_CONVERSION_FOLDER, "json")
+    );
+    const bannerLines = lines
+      .map((line, index) => ({ path: line.match(/^ *\d+\| # ===== FILE: (.+) =====$/)?.[1], number: index + 1 }))
+      .filter(banner => banner.path !== undefined);
+    const definedFunctions = lines
+      .map(line => line.match(/^ *\d+\| (\w+) <- function\(/)?.[1])
+      .filter((name): name is string => name !== undefined);
+
+    it("names an entry point the folder contains", () => {
+      expect(bannerLines.map(banner => banner.path)).toContain(conversion.entry_point);
+    });
+
+    it("copies each called definition into the UDF instead of sourcing it", () => {
+      Object.values(conversion.code).forEach(code => {
+        expect(code).not.toContain("source(");
+        definedFunctions
+          .filter(name => code.includes(`${name}(`))
+          .forEach(name => expect(code).toContain(`${name} <- function(`));
+      });
+      // Data loading is replaced by the source operator, so its helper lands in no UDF.
+      expect(Object.values(conversion.code).some(code => code.includes("load_data"))).toBe(false);
+    });
+
+    it("names a file in the layout that is not in the document", () => {
+      const layout = R_EXAMPLE_OF_MULTIPLE_UDF_CONVERSION_FOLDER.split("Folder layout:\n")[1].split("\n\n")[0];
+
+      expect(layout).toContain("  README.md");
+      expect(bannerLines.map(banner => banner.path)).not.toContain("README.md");
+    });
+
+    it("maps every UDF to non-blank lines of the entry point", () => {
+      const start = bannerLines.find(banner => banner.path === conversion.entry_point)!.number;
+      const next = bannerLines.find(banner => banner.number > start);
+      const end = next ? next.number - 1 : lines.length;
+      const mapping = mappingIn(R_FOLDER_MAPPING_PROMPT) as Record<string, [number, number][]>;
+
+      expect(Object.keys(mapping).sort()).toEqual(Object.keys(conversion.code).sort());
+      Object.values(mapping)
+        .flat()
+        .forEach(([first, last]) => {
+          expect(first).toBeGreaterThan(start);
+          expect(last).toBeLessThanOrEqual(end);
+          expect(first).toBeLessThanOrEqual(last);
+          expect(lines[first - 1]).toMatch(new RegExp(`^ *${first}\\| +\\S`));
+          expect(lines[last - 1]).toMatch(new RegExp(`^ *${last}\\| +\\S`));
+        });
+    });
   });
 });
