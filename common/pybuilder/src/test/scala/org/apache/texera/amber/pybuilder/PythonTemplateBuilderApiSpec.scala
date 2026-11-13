@@ -19,10 +19,13 @@
 
 package org.apache.texera.amber.pybuilder
 
+import org.apache.texera.amber.pybuilder.PyStringTypes.{EncodableString, PythonLiteral}
 import org.apache.texera.amber.pybuilder.PythonTemplateBuilder.RenderMode.{Encode, Plain}
 import org.apache.texera.amber.pybuilder.PythonTemplateBuilder.{
   EncodableStringRenderer,
   PyLiteralStringRenderer,
+  PythonTemplateBuilderStringContext,
+  decoderExpression,
   fromInterpolated,
   wrapWithPythonDecoderExpr
 }
@@ -51,6 +54,39 @@ class PythonTemplateBuilderApiSpec extends AnyFunSuite {
     // The current contract simply interpolates the raw text. Pinning this so a future
     // escape-aware version trips this spec deliberately.
     assert(wrapWithPythonDecoderExpr("a'b") == "self.decode_python_template('a'b')")
+  }
+
+  // -------- decoderExpression --------
+
+  // Code generated from a descriptor is searched for the expression a text became (a loop
+  // variable's `$name` is swapped for a lookup), so it must be the very text a `pyb` splice of
+  // that Encodable string renders to: any drift and the search silently finds nothing.
+  test("decoderExpression is exactly what pyb renders for an Encodable string interpolation") {
+    Seq("$i", "abc", "", "你好 👋", "it's \"quoted\"", "a\\b\nc\r\n", "  |margin", "$")
+      .foreach { text =>
+        val ui: EncodableString = text
+        assert(pyb"x = $ui".encode == s"x = ${decoderExpression(text)}", s"text: '$text'")
+        assert(EncodableStringRenderer(text).render(Encode) == decoderExpression(text))
+      }
+  }
+
+  test("decoderExpression wraps the text's UTF-8 base64 in the decoder call") {
+    assert(decoderExpression("$i") == "self.decode_python_template('JGk=')")
+    assert(decoderExpression("") == "self.decode_python_template('')")
+    assert(decoderExpression("你好") == s"self.decode_python_template('${b64("你好")}')")
+    // Quotes in the text never reach the expression: only the call's own two remain.
+    assert(decoderExpression("it's").count(_ == '\'') == 2)
+  }
+
+  test("decoderExpression tells texts apart, and a Python-literal splice never renders as one") {
+    assert(decoderExpression("$i") != decoderExpression("$j"))
+    assert(decoderExpression("$i") != decoderExpression("$i "))
+    // "$index" starts with "$i", yet its expression does not hold the one "$i" renders to.
+    assert(!decoderExpression("$index").contains(decoderExpression("$i")))
+    val literal: PythonLiteral = "$i"
+    val rendered = pyb"x = $literal".encode
+    assert(rendered == "x = $i")
+    assert(!rendered.contains(decoderExpression("$i")))
   }
 
   // -------- RenderMode --------

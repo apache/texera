@@ -25,6 +25,7 @@ import com.typesafe.scalalogging.{LazyLogging, Logger}
 import org.apache.texera.common.compiler.WorkflowCompiler.{
   collectOutputSchemaFromPhysicalPlan,
   convertErrorListToWorkflowFatalErrorMap,
+  failedCodeGeneration,
   normalizeStateReferences,
   unbindableStateReferences
 }
@@ -40,13 +41,14 @@ import org.apache.texera.amber.core.virtualidentity.OperatorIdentity
 import org.apache.texera.amber.core.workflow.{
   GlobalPortIdentity,
   PhysicalLink,
+  PhysicalOp,
   PhysicalPlan,
   PortIdentity,
   WorkflowContext
 }
 import org.apache.texera.amber.core.workflowruntimestate.FatalErrorType.COMPILATION_ERROR
 import org.apache.texera.amber.core.workflowruntimestate.WorkflowFatalError
-import org.apache.texera.amber.operator.LogicalOp
+import org.apache.texera.amber.operator.{LogicalOp, LoopVariableBinding, PythonOperatorDescriptor}
 import org.apache.texera.amber.util.JSONUtils.objectMapper
 import org.apache.texera.amber.util.StackTraceUtils.getStackTraceWithAllCauses
 
@@ -167,20 +169,60 @@ object WorkflowCompiler {
     * A reference is bound in the executor that `ExecFactory` builds from the descriptor's JSON: the
     * state message writes the loop variable into the descriptor that executor parsed. An operator
     * whose executor runs code instead -- a UDF, or a descriptor that generates Python from its
-    * properties, such as the sklearn operators -- never takes that path: its code is built from the
-    * placeholders before the loop runs, and nothing binds them.
+    * properties, such as the sklearn operators -- never takes that path: its code is built before
+    * the loop runs. A UDF's code and properties are the user's, and nothing binds them.
+    *
+    * For a generated operator, `binding`, its `loopVariableBinding`, holds the code its physical
+    * operator runs and decides why each numeric, boolean or text reference is not bound: from that
+    * code, from copies of the descriptor, and from the input schemas once every input has one
+    * (`LoopVariableBinding.reasons`). This check only reports those reasons. When the generation
+    * failed there is no code to read, and the code-generation check reports why it failed instead.
+    *
+    * @param physicalOps the operator's own physical operators, their schemas propagated.
+    * @param binding the operator's `loopVariableBinding`, if it generates its code.
     */
-  def unbindableStateReferences(logicalOp: LogicalOp, subPlan: PhysicalPlan): Option[Throwable] =
-    Option.when(
-      logicalOp.stateReferences.nonEmpty &&
-        subPlan.operators.exists(_.opExecInitInfo.isInstanceOf[OpExecWithCode])
-    ) {
-      new UnsupportedOperationException(
-        s"${logicalOp.operatorInfo.userFriendlyName} cannot refer to loop variables yet " +
-          s"(${formatReferences(logicalOp.stateReferences)}): its code is generated before " +
-          "the loop runs"
-      )
+  def unbindableStateReferences(
+      logicalOp: LogicalOp,
+      physicalOps: Iterable[PhysicalOp],
+      binding: Option[LoopVariableBinding]
+  ): Option[Throwable] = {
+    val languages = physicalOps.toSeq.map(_.opExecInitInfo).collect {
+      case OpExecWithCode(_, language) => language
     }
+    if (logicalOp.stateReferences.isEmpty || languages.isEmpty) {
+      None
+    } else {
+      val unbound: Seq[(Iterable[String], String)] = binding match {
+        case Some(generated) if languages.forall(_ == "python") =>
+          // As the schema propagation calls it: only once every input has a schema.
+          generated.reasons(inputSchemasOf(physicalOps))
+        case _ =>
+          Seq(logicalOp.stateReferences.keys -> fixedInUdf)
+      }
+      val operator = logicalOp.operatorInfo.userFriendlyName
+      val reasons = unbound.collect {
+        case (pointers, why) if pointers.nonEmpty =>
+          s"$operator cannot refer to loop variables in " +
+            s"${pointers.toSeq.sorted.mkString(", ")} yet: $why"
+      }
+      Option.when(reasons.nonEmpty)(new UnsupportedOperationException(reasons.mkString("; ")))
+    }
+  }
+
+  // Why a reference of an operator whose executor runs code is not bound, as the error says it.
+  private val fixedInUdf = "its code and properties are fixed before the loop runs"
+
+  /** The input schemas of `physicalOps`, when every input port of theirs has one. */
+  private def inputSchemasOf(
+      physicalOps: Iterable[PhysicalOp]
+  ): Option[Map[PortIdentity, Schema]] = {
+    val ports = physicalOps.toSeq.flatMap(_.inputPorts.toSeq)
+    val schemas = ports.collect { case (port, (_, _, Right(schema))) => port -> schema }
+    Option.when(schemas.size == ports.size)(schemas.toMap)
+  }
+
+  /** What a Python-based operator's code is when generating it failed; the group is the reason. */
+  private val failedCodeGeneration = """#EXCEPTION DURING CODE GENERATION:\s*(.*)""".r
 
   /** A descriptor's references as the compile errors name them: `/pointer -> $name, ...`. */
   private def formatReferences(references: Map[String, String]): String =
@@ -275,10 +317,19 @@ class WorkflowCompiler(
           }
         // Before the physical plan: the descriptor serializes its sidecar into its descString.
         normalizeStateReferences(logicalOp, logicalPlan).foreach(report)
-        val subPlan = logicalOp.getPhysicalPlan(context.workflowId, context.executionId)
-        // Before the code-generation check below: the first error per operator is reported, and
-        // code generated from a placeholder may fail on it with a less specific message.
-        unbindableStateReferences(logicalOp, subPlan).foreach(report)
+        // A generated operator's code is generated once, from probe values where a numeric or
+        // boolean property refers to a loop variable: its physical operator runs that code, and
+        // the check of its references below reads the same binding.
+        val (subPlan, binding) = logicalOp match {
+          case generator: PythonOperatorDescriptor =>
+            val binding = generator.loopVariableBinding
+            (
+              generator.getPhysicalPlan(context.workflowId, context.executionId, binding),
+              Some(binding)
+            )
+          case _ =>
+            (logicalOp.getPhysicalPlan(context.workflowId, context.executionId), None)
+        }
         subPlan
           .topologicalIterator()
           .map(subPlan.getOperator)
@@ -303,25 +354,22 @@ class WorkflowCompiler(
               // Add all the links to the physical plan
               physicalPlan = (externalLinks ++ internalLinks)
                 .foldLeft(physicalPlan) { (plan, link) => plan.addLink(link) }
-
-              // **Check for Python-based operator errors during code generation**
-              if (physicalOp.isPythonBased) {
-                val code = physicalOp.getCode
-                val exceptionPattern = """#EXCEPTION DURING CODE GENERATION:\s*(.*)""".r
-
-                exceptionPattern.findFirstMatchIn(code).foreach { matchResult =>
-                  val errorMessage = matchResult.group(1).trim
-                  val error =
-                    new RuntimeException(s"Operator is not configured properly: $errorMessage")
-
-                  errorList match {
-                    case Some(list) => list.append((logicalOpId, error)) // Store error and continue
-                    case None       => throw error // Throw immediately if no error list is provided
-                  }
-                }
-              }
             }
           })
+        // The operator's own physical operators, their schemas propagated: the check of its
+        // references reads their input schemas.
+        val physicalOps = subPlan.topologicalIterator().map(physicalPlan.getOperator).toList
+        // Before the code-generation check below: the first error per operator is reported, and
+        // code generated from a placeholder may fail on it with a less specific message.
+        unbindableStateReferences(logicalOp, physicalOps, binding).foreach(report)
+
+        // **Check for Python-based operator errors during code generation**
+        physicalOps.filter(_.isPythonBased).foreach { physicalOp =>
+          failedCodeGeneration.findFirstMatchIn(physicalOp.getCode).foreach { matchResult =>
+            val errorMessage = matchResult.group(1).trim
+            report(new RuntimeException(s"Operator is not configured properly: $errorMessage"))
+          }
+        }
 
         // convert logical operators needing storage to output ports needing storage
         subPlan
