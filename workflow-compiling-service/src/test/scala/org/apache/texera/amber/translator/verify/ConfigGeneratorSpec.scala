@@ -22,9 +22,9 @@ package org.apache.texera.amber.translator.verify
 import org.apache.texera.amber.core.tuple.{Attribute, AttributeType, Schema}
 import org.apache.texera.amber.operator.filter.SpecializedFilterOpDesc
 import org.apache.texera.amber.operator.hashJoin.HashJoinOpDesc
-import org.apache.texera.amber.operator.intersect.IntersectOpDesc
 import org.apache.texera.amber.operator.intervalJoin.IntervalJoinOpDesc
 import org.apache.texera.amber.operator.regex.RegexOpDesc
+import org.apache.texera.amber.operator.set.intersect.IntersectOpDesc
 import org.apache.texera.amber.operator.source.scan.csv.CSVScanSourceOpDesc
 import org.apache.texera.amber.operator.source.scan.csvOld.CSVOldScanSourceOpDesc
 import org.apache.texera.amber.operator.unneststring.UnnestStringOpDesc

@@ -324,6 +324,18 @@ class DatasetSearchQueryBuilderSpec
     } finally shutdownDB()
   }
 
+  /** Runs `body` with the owner's own grant row replaced by `privilege`, or removed, then restores it. */
+  private def withOwnerRow(privilege: Option[PrivilegeEnum])(body: => Unit): Unit = {
+    val dao = new DatasetUserAccessDao(getDSLContext.configuration())
+    dao.delete(grant(sizedDid, ownerUid, PrivilegeEnum.WRITE))
+    privilege.foreach(p => dao.insert(grant(sizedDid, ownerUid, p)))
+    try body
+    finally {
+      privilege.foreach(p => dao.delete(grant(sizedDid, ownerUid, p)))
+      dao.insert(grant(sizedDid, ownerUid, PrivilegeEnum.WRITE))
+    }
+  }
+
   private def params(keywords: String*): SearchQueryParams =
     SearchQueryParams(keywords = keywords.toList.asJava)
 
@@ -389,6 +401,16 @@ class DatasetSearchQueryBuilderSpec
 
     sql should include("dataset_user_access.uid is not null")
     sql should not include "is_public = true"
+  }
+
+  it should "still return the caller's own dataset when they have no grant row" in {
+    withOwnerRow(None) {
+      val p = SearchQueryParams(datasetIds = List(sizedDid).asJava)
+      DatasetSearchQueryBuilder
+        .constructQuery(ownerUid, p, includePublic = false)
+        .fetch()
+        .size() shouldBe 1
+    }
   }
 
   it should "add public datasets to the granted ones when they are included" in {
@@ -649,6 +671,14 @@ class DatasetSearchQueryBuilderSpec
     // `otherUid` has no dataset_user_access row: the left join yields null, and null must read as
     // NONE rather than propagate to the client as a missing privilege.
     entryFor(otherUid, sizedDid).dataset.value.accessPrivilege shouldBe PrivilegeEnum.NONE
+  }
+
+  it should "report WRITE for the owner even when their own grant row says READ" in {
+    requireStub()
+
+    withOwnerRow(Some(PrivilegeEnum.READ)) {
+      entryFor(ownerUid, sizedDid).dataset.value.accessPrivilege shouldBe PrivilegeEnum.WRITE
+    }
   }
 
   it should "tag the entry as a dataset and fill the dataset payload slot" in {

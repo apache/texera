@@ -19,8 +19,8 @@
 
 import { Component } from "@angular/core";
 import { CommonModule } from "@angular/common";
-import { FieldType, FieldTypeConfig } from "@ngx-formly/core";
 import { NzButtonModule } from "ng-zorro-antd/button";
+import { HuggingFaceMediaUploadBase } from "../hugging-face-media-upload.base";
 
 // Keep in sync with HuggingFaceCodegenBase._compress_image_bytes(max_bytes) on the backend:
 // the uploaded data URL must stay within the size the inference helpers expect.
@@ -36,24 +36,9 @@ const MIN_JPEG_QUALITY = 0.35;
   styleUrls: ["./hugging-face-image-upload.component.scss"],
   imports: [CommonModule, NzButtonModule],
 })
-export class HuggingFaceImageUploadComponent extends FieldType<FieldTypeConfig> {
-  fileName = "";
-  errorMessage = "";
-
-  get hasImage(): boolean {
-    const value = this.formControl.value;
-    return typeof value === "string" && value.startsWith("data:image/");
-  }
-
-  get previewSrc(): string {
-    return this.hasImage ? this.formControl.value : "";
-  }
-
-  get displayFileName(): string {
-    if (this.fileName) return this.fileName;
-    if (this.hasImage) return "Uploaded image";
-    return "";
-  }
+export class HuggingFaceImageUploadComponent extends HuggingFaceMediaUploadBase {
+  protected readonly dataUrlPrefix = "data:image/";
+  protected readonly mediaFallbackLabel = "Uploaded image";
 
   async onFileSelected(event: Event): Promise<void> {
     this.errorMessage = "";
@@ -65,23 +50,16 @@ export class HuggingFaceImageUploadComponent extends FieldType<FieldTypeConfig> 
     }
     if (!file.type.startsWith("image/")) {
       this.errorMessage = "Choose an image file.";
-      input.value = "";
+      this.resetSelection(input);
       return;
     }
 
     try {
       const dataUrl = await this.compressImage(file);
-      this.fileName = file.name;
-      this.formControl.setValue(dataUrl);
-      if (typeof this.key === "string" && this.model) {
-        this.model[this.key] = dataUrl;
-      }
-      this.formControl.markAsDirty();
-      this.formControl.markAsTouched();
-      this.formControl.updateValueAndValidity();
+      this.setMediaValue(dataUrl, file.name);
     } catch {
       this.errorMessage = "Could not prepare this image. Try a smaller image file.";
-      input.value = "";
+      this.resetSelection(input);
     }
   }
 
@@ -148,15 +126,6 @@ export class HuggingFaceImageUploadComponent extends FieldType<FieldTypeConfig> 
   }
 
   clearImage(input: HTMLInputElement): void {
-    this.fileName = "";
-    this.errorMessage = "";
-    input.value = "";
-    this.formControl.setValue("");
-    if (typeof this.key === "string" && this.model) {
-      this.model[this.key] = "";
-    }
-    this.formControl.markAsDirty();
-    this.formControl.markAsTouched();
-    this.formControl.updateValueAndValidity();
+    this.clearMedia(input);
   }
 }

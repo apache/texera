@@ -26,6 +26,8 @@ import com.kjetland.jackson.jsonSchema.annotations.{
   JsonSchemaString,
   JsonSchemaTitle
 }
+import org.apache.texera.amber.core.state.NoLoopVariable
+import org.apache.texera.amber.operator.StandaloneHelpers
 import org.apache.texera.amber.operator.metadata.annotations.HideAnnotation
 import org.apache.texera.amber.operator.source.scan.FileAttributeType
 
@@ -46,8 +48,13 @@ trait TextSourceOpDesc {
   @JsonProperty(defaultValue = "line", required = true)
   @JsonSchemaTitle("Attribute Name")
   @JsonDeserialize(contentAs = classOf[java.lang.String])
+  @NoLoopVariable
   var attributeName: String = "line"
 
+  // Named explicitly so reflection can see it. These are the row-window knobs the
+  // text sources actually read — the ones they inherit are ignored — but they carried
+  // no @JsonProperty, which leaves them invisible to anything walking the config.
+  @JsonProperty
   @JsonSchemaTitle("Limit (lines)")
   @JsonDeserialize(contentAs = classOf[Int])
   @JsonPropertyDescription(
@@ -66,6 +73,7 @@ trait TextSourceOpDesc {
   )
   var fileScanLimit: Option[Int] = None
 
+  @JsonProperty
   @JsonSchemaTitle("Offset (lines)")
   @JsonPropertyDescription(
     "Number of lines to skip from the start before reading. " +
@@ -83,4 +91,30 @@ trait TextSourceOpDesc {
     )
   )
   var fileScanOffset: Option[Int] = None
+}
+
+object TextSourceOpDesc {
+
+  /** The call the per-line cast makes, over the loop variable the readers share.
+    * A line is read as the BOOLEAN cast reads text, so the cast's helper serves both.
+    */
+  val BooleanParserCall: String = "_texera_cast_boolean(l)"
+
+  /** A TIMESTAMP line is kept as text and parsed once the column is built, as
+    * CSV and JSONL parse theirs. `pd.Timestamp` kept the nanoseconds and the
+    * offset that the engine's DateParserUtils does not.
+    */
+  def parseTimestampColumn(attributeType: FileAttributeType, colLit: String): Seq[String] =
+    if (attributeType == FileAttributeType.TIMESTAMP)
+      Seq(s"out1df[$colLit] = _texera_text_to_timestamp(out1df[$colLit])")
+    else Seq.empty
+
+  /** The helpers the Python above calls for this attribute type. */
+  def lineHelpers(attributeType: FileAttributeType): Seq[String] =
+    attributeType match {
+      case FileAttributeType.INTEGER | FileAttributeType.LONG | FileAttributeType.DOUBLE |
+          FileAttributeType.BOOLEAN | FileAttributeType.TIMESTAMP =>
+        Seq(StandaloneHelpers.AttributeCasts)
+      case _ => Seq.empty
+    }
 }

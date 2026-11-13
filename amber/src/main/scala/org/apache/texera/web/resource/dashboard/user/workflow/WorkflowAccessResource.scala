@@ -21,6 +21,8 @@ package org.apache.texera.web.resource.dashboard.user.workflow
 
 import io.dropwizard.auth.Auth
 import org.apache.texera.auth.SessionUser
+import org.apache.texera.auth.util.OwnerAccess
+import org.apache.texera.auth.util.WorkflowAccess.{getPrivilege, hasWriteAccess, isOwner}
 import org.apache.texera.dao.SqlServer
 import org.apache.texera.dao.jooq.generated.Tables._
 import org.apache.texera.dao.jooq.generated.enums.PrivilegeEnum
@@ -31,11 +33,7 @@ import org.apache.texera.dao.jooq.generated.tables.daos.{
 }
 import org.apache.texera.dao.jooq.generated.tables.pojos.WorkflowUserAccess
 import org.apache.texera.web.model.common.AccessEntry
-import org.apache.texera.web.resource.dashboard.user.workflow.WorkflowAccessResource.{
-  context,
-  getPrivilege,
-  hasWriteAccess
-}
+import org.apache.texera.web.resource.dashboard.user.workflow.WorkflowAccessResource.context
 import org.jooq.DSLContext
 
 import java.util
@@ -48,57 +46,6 @@ object WorkflowAccessResource {
     SqlServer
       .getInstance()
       .createDSLContext()
-
-  /**
-    * Identifies whether the given user has read-only access over the given workflow
-    *
-    * @param wid workflow id
-    * @param uid user id, works with workflow id as primary keys in database
-    * @return boolean value indicating yes/no
-    */
-  def hasReadAccess(wid: Integer, uid: Integer): Boolean = {
-    isPublic(wid) || getPrivilege(wid, uid).eq(PrivilegeEnum.READ) || hasWriteAccess(
-      wid,
-      uid
-    )
-  }
-
-  /**
-    * Identifies whether the given user has write access over the given workflow
-    *
-    * @param wid workflow id
-    * @param uid user id, works with workflow id as primary keys in database
-    * @return boolean value indicating yes/no
-    */
-  def hasWriteAccess(wid: Integer, uid: Integer): Boolean = {
-    getPrivilege(wid, uid).eq(PrivilegeEnum.WRITE)
-  }
-
-  /**
-    * @param wid workflow id
-    * @param uid user id, works with workflow id as primary keys in database
-    * @return PrivilegeEnum value indicating NONE/READ/WRITE
-    */
-  def getPrivilege(wid: Integer, uid: Integer): PrivilegeEnum = {
-    val access = context
-      .select()
-      .from(WORKFLOW_USER_ACCESS)
-      .where(WORKFLOW_USER_ACCESS.WID.eq(wid).and(WORKFLOW_USER_ACCESS.UID.eq(uid)))
-      .fetchOneInto(classOf[WorkflowUserAccess])
-    if (access == null) {
-      PrivilegeEnum.NONE
-    } else {
-      access.getPrivilege
-    }
-  }
-
-  def isPublic(wid: Integer): Boolean = {
-    context
-      .select(WORKFLOW.IS_PUBLIC)
-      .from(WORKFLOW)
-      .where(WORKFLOW.WID.eq(wid))
-      .fetchOneInto(classOf[Boolean])
-  }
 }
 
 @Produces(Array(MediaType.APPLICATION_JSON))
@@ -184,13 +131,9 @@ class WorkflowAccessResource() {
       throw new BadRequestException(s"No registered user with email $email")
     }
     val userUid = targetUser.getUid
-    val workflowOwnerUid = context
-      .select(WORKFLOW_OF_USER.UID)
-      .from(WORKFLOW_OF_USER)
-      .where(WORKFLOW_OF_USER.WID.eq(wid))
-      .fetchOneInto(classOf[Integer])
-    if (userUid == workflowOwnerUid) {
-      throw new ForbiddenException("You cannot modify the owner's permissions!")
+    if (isOwner(wid, userUid)) {
+      // amber is on javax JAX-RS, so it raises its own ForbiddenException with the shared message.
+      throw new ForbiddenException(OwnerAccess.ownerChangeRefused)
     }
 
     try {
@@ -223,10 +166,9 @@ class WorkflowAccessResource() {
   ): Unit = {
     try {
       val targetUserUid = userDao.fetchOneByEmail(email).getUid
-      val workflowOwnerUid = workflowOfUserDao.fetchByWid(wid).get(0).getUid
 
       // Prevent owner from revoking their own access
-      if (targetUserUid == workflowOwnerUid) {
+      if (isOwner(wid, targetUserUid)) {
         throw new ForbiddenException("The owner cannot revoke their own access")
       }
 

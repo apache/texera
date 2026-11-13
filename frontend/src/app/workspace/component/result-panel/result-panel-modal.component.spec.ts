@@ -24,7 +24,7 @@ import { PanelResizeService } from "../../service/workflow-result/panel-resize/p
 import { WorkflowResultService } from "../../service/workflow-result/workflow-result.service";
 import { NZ_MODAL_DATA, NzModalRef } from "ng-zorro-antd/modal";
 import { HttpClientTestingModule, HttpTestingController } from "@angular/common/http/testing";
-import { of } from "rxjs";
+import { of, Subject } from "rxjs";
 import { AppSettings } from "../../../common/app-setting";
 import { NotificationService } from "../../../common/service/notification/notification.service";
 
@@ -35,7 +35,7 @@ describe("RowModalComponent", () => {
 
   const mockTupleResult = { tuple: { id: "123", value: "test_data" } };
   const workflowResultServiceSpy = {
-    getPaginatedResultService: vi.fn().mockReturnValue({
+    getPortPaginatedResultService: vi.fn().mockReturnValue({
       selectTuple: vi.fn().mockReturnValue(of(mockTupleResult)),
     }),
   };
@@ -75,6 +75,12 @@ describe("RowModalComponent", () => {
   it("should populate row data on ngOnChanges", () => {
     component.ngOnChanges();
     expect(component.currentDisplayRowData).toEqual(mockTupleResult.tuple);
+  });
+
+  it("reads the row from the operator's first output port when the data names none", () => {
+    workflowResultServiceSpy.getPortPaginatedResultService.mockClear();
+    component.ngOnChanges();
+    expect(workflowResultServiceSpy.getPortPaginatedResultService).toHaveBeenCalledWith("op-1", 0);
   });
 
   it("should use data URL directly without fetching for base64 media", () => {
@@ -137,6 +143,66 @@ describe("RowModalComponent", () => {
     revokeSpy.mockRestore();
   });
 
+  // #8727: the modal is reused across rows — the footer's < / > buttons mutate
+  // rowIndex and call ngOnChanges() directly — but its teardown was scoped to the
+  // modal's lifetime, so blobs and subscriptions accumulated per row visited.
+  it("should revoke the previous row's blob URLs when navigating to another row", () => {
+    const revokeSpy = vi.spyOn(URL, "revokeObjectURL");
+    (component as any).allocatedBlobUrls.push("blob:row-3-a", "blob:row-3-b");
+
+    component.rowIndex = 4;
+    component.ngOnChanges();
+
+    expect(revokeSpy).toHaveBeenCalledWith("blob:row-3-a");
+    expect(revokeSpy).toHaveBeenCalledWith("blob:row-3-b");
+    expect((component as any).allocatedBlobUrls).toEqual([]);
+    revokeSpy.mockRestore();
+  });
+
+  it("should ignore a previous row's response that arrives after navigating away", () => {
+    const rowThree = new Subject<{ tuple: Record<string, unknown> }>();
+    const rowFour = new Subject<{ tuple: Record<string, unknown> }>();
+    const selectTuple = vi.fn().mockReturnValueOnce(rowThree).mockReturnValueOnce(rowFour);
+    const service = TestBed.inject(WorkflowResultService) as any;
+    // Restore afterwards: the spy object is shared across every test in this file.
+    const original = service.getPortPaginatedResultService;
+    service.getPortPaginatedResultService = vi.fn().mockReturnValue({ selectTuple });
+
+    try {
+      component.rowIndex = 3;
+      component.ngOnChanges();
+      component.rowIndex = 4;
+      component.ngOnChanges();
+
+      // Row 4 answers first, then row 3's slower response lands.
+      rowFour.next({ tuple: { id: "row-4" } });
+      rowThree.next({ tuple: { id: "row-3" } });
+
+      expect(component.currentDisplayRowData).toEqual({ id: "row-4" });
+    } finally {
+      service.getPortPaginatedResultService = original;
+    }
+  });
+
+  it("should cancel an in-flight media request when navigating to another row", () => {
+    const createObjectURLSpy = vi.spyOn(URL, "createObjectURL").mockReturnValue("blob:stale");
+    const remoteUrl = "https://example.com/stale.png";
+    (component as any).buildRowEntries({ img: remoteUrl });
+    const req = httpMock.expectOne(
+      `${AppSettings.getApiEndpoint()}/huggingface/media-proxy?url=${encodeURIComponent(remoteUrl)}`
+    );
+    expect(req.cancelled).toBe(false);
+
+    component.rowIndex = 4;
+    component.ngOnChanges();
+
+    // The previous row's fetch is dropped, so it can neither allocate a blob nor
+    // write its media into the row now on screen.
+    expect(req.cancelled).toBe(true);
+    expect(createObjectURLSpy).not.toHaveBeenCalled();
+    createObjectURLSpy.mockRestore();
+  });
+
   it("prettyRowJson should return pretty-printed JSON of currentDisplayRowData", () => {
     component.currentDisplayRowData = { name: "test", value: 42 };
     expect(component.prettyRowJson).toBe(JSON.stringify({ name: "test", value: 42 }, null, 2));
@@ -158,7 +224,7 @@ describe("RowModalComponent", () => {
   });
 
   it("should not update row data when tuple is null", () => {
-    vi.spyOn(workflowResultServiceSpy, "getPaginatedResultService").mockReturnValueOnce({
+    vi.spyOn(workflowResultServiceSpy, "getPortPaginatedResultService").mockReturnValueOnce({
       selectTuple: vi.fn().mockReturnValue(of({ tuple: null })),
     } as any);
     component.currentDisplayRowData = { existing: "data" };
@@ -209,7 +275,7 @@ describe("RowModalComponent (with pre-loaded rowData)", () => {
         { provide: NzModalRef, useValue: { getConfig: () => ({}), close: vi.fn() } },
         {
           provide: WorkflowResultService,
-          useValue: { getPaginatedResultService: vi.fn().mockReturnValue(null) },
+          useValue: { getPortPaginatedResultService: vi.fn().mockReturnValue(null) },
         },
         { provide: PanelResizeService, useValue: { pageSize: 10 } },
       ],
@@ -242,6 +308,54 @@ describe("RowModalComponent (with pre-loaded rowData)", () => {
   });
 });
 
+// Review feedback on #8729 (@Copilot): the constructor builds entries from preloaded
+// rowData, which starts their media requests. Opening the modal must not tear that
+// first row down, or with no pagination service to refetch the row its remote media
+// never loads.
+describe("RowModalComponent (with pre-loaded remote media)", () => {
+  let component: RowModalComponent;
+  let httpMock: HttpTestingController;
+
+  const remoteUrl = "https://example.com/preloaded.png";
+
+  beforeEach(async () => {
+    await TestBed.configureTestingModule({
+      imports: [RowModalComponent, HttpClientTestingModule],
+      providers: [
+        { provide: NZ_MODAL_DATA, useValue: { operatorId: "op-3", rowIndex: 0, rowData: { img: remoteUrl } } },
+        { provide: NzModalRef, useValue: { getConfig: () => ({}), close: vi.fn() } },
+        {
+          provide: WorkflowResultService,
+          useValue: { getPortPaginatedResultService: vi.fn().mockReturnValue(null) },
+        },
+        { provide: PanelResizeService, useValue: { pageSize: 10 } },
+      ],
+    }).compileComponents();
+
+    httpMock = TestBed.inject(HttpTestingController);
+    const fixture = TestBed.createComponent(RowModalComponent);
+    component = fixture.componentInstance;
+    fixture.detectChanges();
+  });
+
+  afterEach(() => {
+    httpMock.verify();
+  });
+
+  it("should load the first row's remote media even with no pagination service to refetch it", () => {
+    const createObjectURLSpy = vi.spyOn(URL, "createObjectURL").mockReturnValue("blob:preloaded");
+    const req = httpMock.expectOne(
+      `${AppSettings.getApiEndpoint()}/huggingface/media-proxy?url=${encodeURIComponent(remoteUrl)}`
+    );
+    expect(req.cancelled).toBe(false);
+
+    req.flush(new Blob(["img"], { type: "image/png" }));
+
+    expect(component.rowEntries.find(e => e.key === "img")?.mediaSrc).toBe("blob:preloaded");
+    createObjectURLSpy.mockRestore();
+  });
+});
+
 describe("RowModalComponent (template rendering)", () => {
   let component: RowModalComponent;
   let fixture: ComponentFixture<RowModalComponent>;
@@ -261,7 +375,7 @@ describe("RowModalComponent (template rendering)", () => {
         { provide: NzModalRef, useValue: { getConfig: () => ({}), close: vi.fn() } },
         {
           provide: WorkflowResultService,
-          useValue: { getPaginatedResultService: vi.fn().mockReturnValue(null) },
+          useValue: { getPortPaginatedResultService: vi.fn().mockReturnValue(null) },
         },
         { provide: PanelResizeService, useValue: { pageSize: 10 } },
       ],

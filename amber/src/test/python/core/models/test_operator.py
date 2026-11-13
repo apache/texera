@@ -22,6 +22,7 @@ import pytest
 
 from core.models import (
     BatchOperator,
+    Schema,
     SourceOperator,
     State,
     Table,
@@ -386,6 +387,24 @@ class TestTableOperator:
         assert len(op.received_tables) == 1
         assert list(op.received_tables[0].as_tuples()) == []
 
+    def test_on_finish_with_no_rows_keeps_the_declared_columns(self):
+        # The column names are read off the tuples, so a port that carried none
+        # left the operator a frame of no columns and every operator naming one
+        # of its own raised KeyError. The port's schema is the only record left.
+        op = _ConcreteTable()
+        op.input_schemas[0] = Schema(raw_schema={"x": "INTEGER", "y": "STRING"})
+
+        list(op.on_finish(port=0))
+
+        table = op.received_tables[0]
+        # Still a Table, so an operator reading it with as_tuples() keeps working.
+        assert isinstance(table, Table)
+        assert list(table.as_tuples()) == []
+        assert list(table.columns) == ["x", "y"]
+        assert table.empty
+        # The dtype each column would have had with rows under it.
+        assert table["x"].dtype == "int32"
+
     def test_buffers_are_keyed_by_port(self):
         # Each input port has its own tuple buffer; on_finish for one port
         # must not surface tuples written through a different port.
@@ -514,3 +533,114 @@ class TestBatchOperatorBatchAssembly:
         assert op.seen == [[[1], [2]]]  # the port-1 tuple is not in here
         assert op.ports == [0]
         assert out == [Tuple({"batched": 2})]
+
+
+class _TableWithoutSuperInit(TableOperator):
+    def __init__(self):
+        self.threshold = 1  # forgets super().__init__()
+
+    def process_table(self, table, port):
+        yield table
+
+
+class _BatchWithoutSuperInit(BatchOperator):
+    BATCH_SIZE = 2
+
+    def __init__(self):
+        self.seen = 0  # forgets super().__init__()
+
+    def process_batch(self, batch, port):
+        yield batch
+
+
+class _TableReturningDataFrame(TableOperator):
+    def process_table(self, table, port):
+        return table
+
+
+class _TableReturningNone(TableOperator):
+    def process_table(self, table, port):
+        return None
+
+
+class _TableReturningList(TableOperator):
+    def process_table(self, table, port):
+        return [{"x": 1}]
+
+
+class _BatchReturningBatch(BatchOperator):
+    BATCH_SIZE = 1
+
+    def process_batch(self, batch, port):
+        return batch
+
+
+class _SourceReturningDict(SourceOperator):
+    def produce(self):
+        return {"x": 1}
+
+
+class TestCommonUDFMistakes:
+    """Mistakes UDF authors make should either work or say how to fix them."""
+
+    def test_table_operator_works_without_super_init(self):
+        op = _TableWithoutSuperInit()
+        list(op.process_tuple(Tuple({"x": 1}), 0))
+        (table,) = list(op.on_finish(0))
+        assert list(table["x"]) == [1]
+
+    def test_batch_operator_works_without_super_init(self):
+        op = _BatchWithoutSuperInit()
+        list(op.process_tuple(Tuple({"x": 1}), 0))
+        outputs = list(op.process_tuple(Tuple({"x": 2}), 0))
+        assert [t["x"] for t in outputs] == [1, 2]
+
+    @pytest.mark.parametrize(
+        "operator", [_TableReturningDataFrame, _TableReturningNone]
+    )
+    def test_process_table_return_says_to_yield(self, operator):
+        op = operator()
+        list(op.process_tuple(Tuple({"x": 1}), 0))
+        with pytest.raises(TypeError) as exc_info:
+            list(op.on_finish(0))
+        assert "process_table must `yield` results, not `return` them" in str(
+            exc_info.value
+        )
+
+    def test_process_table_returning_a_list_still_works(self):
+        op = _TableReturningList()
+        assert list(op.on_finish(0)) == [{"x": 1}]
+
+    def test_process_batch_return_says_to_yield(self):
+        op = _BatchReturningBatch()
+        with pytest.raises(TypeError) as exc_info:
+            list(op.process_tuple(Tuple({"x": 1}), 0))
+        assert "process_batch must `yield` results" in str(exc_info.value)
+
+    def test_produce_return_says_to_yield(self):
+        op = _SourceReturningDict()
+        with pytest.raises(TypeError) as exc_info:
+            list(op.on_finish(0))
+        assert "produce must `yield` results" in str(exc_info.value)
+
+
+class TestBufferCreatedOnlyByGetter:
+    def test_table_operator_has_no_buffer_until_first_tuple(self):
+        op = _TableWithoutSuperInit()
+        assert "_TableOperator__table_data" not in op.__dict__
+
+        class _WithSuper(TableOperator):
+            def process_table(self, table, port):
+                yield table
+
+        assert "_TableOperator__table_data" not in _WithSuper().__dict__
+
+    def test_batch_operator_still_rejects_a_bad_batch_size_at_construction(self):
+        class _BadSize(BatchOperator):
+            BATCH_SIZE = 0
+
+            def process_batch(self, batch, port):
+                yield batch
+
+        with pytest.raises(ValueError):
+            _BadSize()

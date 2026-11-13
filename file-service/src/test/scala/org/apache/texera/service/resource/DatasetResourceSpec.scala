@@ -993,6 +993,13 @@ class DatasetResourceSpec
     assertStatus(ex, 403)
   }
 
+  /** Temp files the lakeFS SDK writes for a direct download, by name. */
+  private def sdkTempFiles(): Set[String] =
+    Option(new java.io.File(System.getProperty("java.io.tmpdir")).list())
+      .map(_.toSet)
+      .getOrElse(Set.empty[String])
+      .filter(_.startsWith("download-"))
+
   "getDatasetVersionZip" should "zip all files of a dataset version" in {
     val version = testDatasetVersion
     val resp =
@@ -1001,6 +1008,17 @@ class DatasetResourceSpec
     val out = new ByteArrayOutputStream()
     resp.getEntity.asInstanceOf[StreamingOutput].write(out)
     out.size() should be > 0
+  }
+
+  it should "leave none of the downloaded files behind in the temp directory" in {
+    val version = testDatasetVersion
+    val before = sdkTempFiles()
+
+    val resp =
+      datasetResource.getDatasetVersionZip(baseDataset.getDid, version.getDvid, null, sessionUser)
+    resp.getEntity.asInstanceOf[StreamingOutput].write(new ByteArrayOutputStream())
+
+    (sdkTempFiles() -- before) shouldBe empty
   }
 
   "getPresignedUrl" should "generate a presigned URL for an existing file" in {
@@ -1051,7 +1069,8 @@ class DatasetResourceSpec
     dataset.setName(repoName)
     dataset.setRepositoryName(repoName)
     dataset.setDescription("list endpoint - orphan DB row")
-    dataset.setOwnerUid(ownerUser.getUid)
+    // Someone else's public dataset, so the caller reaches it only through the public pass.
+    dataset.setOwnerUid(otherAdminUser.getUid)
     dataset.setIsPublic(true)
     dataset.setIsDownloadable(true)
     datasetDao.insert(dataset)
@@ -2474,6 +2493,22 @@ class DatasetResourceSpec
     assertStatus(ex, 400)
   }
 
+  it should "reject a missing type parameter with a 400" in {
+    val ex = intercept[BadRequestException] {
+      datasetResource.multipartUpload(
+        null,
+        ownerUser.getEmail,
+        multipartDataset.getName,
+        urlEnc(uniqueFilePath("init-no-type")),
+        Optional.empty(),
+        Optional.empty(),
+        Optional.empty(),
+        multipartOwnerSessionUser
+      )
+    }
+    assertStatus(ex, 400)
+  }
+
   it should "reject init when caller lacks WRITE access" in {
     val filePath = uniqueFilePath("init-forbidden")
     val ex = intercept[ForbiddenException] {
@@ -3836,7 +3871,37 @@ class DatasetResourceSpec
       .map(_.getName) shouldEqual List("logo.png")
   }
 
-  "retrieveDatasetVersionRootFileNodes" should "return the same tree to the dataset's owner" in {
+  it should "return 404 for a version of another dataset" in {
+    val (publicDataset, _) = seedDatasetWithVersion("public-host", Seq("a.txt" -> "a"))
+    val (_, otherVersion) =
+      seedDatasetWithVersion("private-other", Seq("b.txt" -> "b"), isPublic = false)
+
+    assertThrows[NotFoundException] {
+      datasetResource.retrievePublicDatasetVersionRootFileNodes(
+        publicDataset.getDid,
+        otherVersion.getDvid
+      )
+    }
+  }
+
+  "retrieveDatasetVersionRootFileNodes" should "return 404 for a version of another dataset" in {
+    val (dataset, _) = seedDatasetWithVersion("owner-host", Seq("a.txt" -> "a"), isPublic = false)
+    val (_, otherVersion) =
+      seedDatasetWithVersion("owner-other", Seq("b.txt" -> "b"), isPublic = false)
+
+    assertThrows[NotFoundException] {
+      datasetResource.retrieveDatasetVersionRootFileNodes(
+        dataset.getDid,
+        otherVersion.getDvid,
+        sessionUser
+      )
+    }
+    assertThrows[NotFoundException] {
+      datasetResource.getDatasetVersionZip(dataset.getDid, otherVersion.getDvid, null, sessionUser)
+    }
+  }
+
+  it should "return the same tree to the dataset's owner" in {
     val (dataset, version) =
       seedDatasetWithVersion("owner-nodes", Seq("a.txt" -> "1", "sub/b.txt" -> "2"))
 
@@ -3880,5 +3945,116 @@ class DatasetResourceSpec
       .find(_.getName == "test-cover.jpg")
       .get
       .getFilePath should startWith("/dataset/")
+  }
+
+  // ---------------------------------------------------------------------------
+  // createDatasetVersion
+  // ---------------------------------------------------------------------------
+
+  // The state right after a user drops a file on "Create New Version": a dataset whose
+  // repository holds one staged (uncommitted) file and no version row yet.
+  private def seedDatasetWithStagedFile(prefix: String): Dataset = {
+    val dataset = seedDataset(s"$prefix-${System.nanoTime()}", ownerUser.getUid)
+    LakeFSStorageClient.initRepo(dataset.getRepositoryName)
+    stageFile(dataset, "staged.txt")
+    dataset
+  }
+
+  private def stageFile(dataset: Dataset, path: String): Unit =
+    LakeFSStorageClient.writeFileToRepo(
+      dataset.getRepositoryName,
+      path,
+      new ByteArrayInputStream("content".getBytes(StandardCharsets.UTF_8))
+    )
+
+  private def createVersion(
+      dataset: Dataset,
+      description: String
+  ): DatasetResource.DashboardDatasetVersion =
+    datasetResource.createDatasetVersion(description, dataset.getDid, sessionUser)
+
+  // "v1 - " takes 5 of the 128 characters dataset_version.name allows.
+  private val maxDescriptionLength = 128 - "v1 - ".length
+
+  "createDatasetVersion" should "name versions by their number, followed by the description when given" in {
+    val dataset = seedDatasetWithStagedFile("version-naming")
+
+    createVersion(dataset, null).datasetVersion.getName shouldBe "v1"
+
+    stageFile(dataset, "second.txt")
+    createVersion(dataset, "second upload").datasetVersion.getName shouldBe "v2 - second upload"
+
+    stageFile(dataset, "third.txt")
+    createVersion(dataset, "").datasetVersion.getName shouldBe "v3"
+  }
+
+  it should "accept a description that makes the version name exactly 128 characters" in {
+    val dataset = seedDatasetWithStagedFile("version-name-at-limit")
+
+    val created = createVersion(dataset, "d" * maxDescriptionLength)
+
+    created.datasetVersion.getName should have length 128
+  }
+
+  it should "reject a description that pushes the version name past 128 characters without committing" in {
+    val dataset = seedDatasetWithStagedFile("version-name-too-long")
+
+    val ex = intercept[WebApplicationException] {
+      createVersion(dataset, "d" * (maxDescriptionLength + 1))
+    }
+    assertStatus(ex, 400)
+    ex.getMessage should include("too long")
+
+    // Nothing was committed: the file is still staged, so the dataset page keeps showing it
+    // as a pending change.
+    LakeFSStorageClient
+      .retrieveUncommittedObjects(dataset.getRepositoryName)
+      .map(_.getPath) shouldBe List("staged.txt")
+
+    // The user can fix the description and retry; no version row was created, so it is still v1.
+    createVersion(dataset, "shorter").datasetVersion.getName shouldBe "v1 - shorter"
+  }
+
+  it should "count characters rather than UTF-16 code units against the 128 limit" in {
+    val dataset = seedDatasetWithStagedFile("version-name-unicode")
+    // U+1F600 is one character but two UTF-16 code units.
+    val emoji = new String(Character.toChars(0x1f600))
+
+    val ex = intercept[WebApplicationException] {
+      createVersion(dataset, emoji * (maxDescriptionLength + 1))
+    }
+    assertStatus(ex, 400)
+    ex.getMessage should include("129 characters")
+
+    val name = createVersion(dataset, emoji * maxDescriptionLength).datasetVersion.getName
+    name.codePointCount(0, name.length) shouldBe 128
+  }
+
+  it should "reject a version when there are no staged changes" in {
+    val dataset = seedDatasetWithStagedFile("version-no-changes")
+    createVersion(dataset, "first")
+
+    val ex = intercept[WebApplicationException] {
+      createVersion(dataset, "empty")
+    }
+    assertStatus(ex, 400)
+    datasetResource.getDatasetVersionList(dataset.getDid, sessionUser) should have size 1
+  }
+
+  it should "reject a description containing a slash without committing" in {
+    val dataset = seedDatasetWithStagedFile("version-slash")
+
+    val ex = intercept[WebApplicationException] {
+      createVersion(dataset, "2024/01 snapshot")
+    }
+    assertStatus(ex, 400)
+
+    // Nothing was committed: the file is still staged and no version row exists, so the retry
+    // with a usable description succeeds as the first version.
+    LakeFSStorageClient
+      .retrieveUncommittedObjects(dataset.getRepositoryName)
+      .map(_.getPath) shouldBe List("staged.txt")
+    val retried = createVersion(dataset, "2024-01 snapshot")
+    retried.datasetVersion.getName shouldBe "v1 - 2024-01 snapshot"
   }
 }

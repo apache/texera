@@ -31,11 +31,13 @@ import org.apache.texera.amber.operator.{LogicalOp, PortDescription, StateTransf
 
 import scala.util.{Success, Try}
 
-class RUDFOpDesc extends LogicalOp {
+class RUDFOpDesc extends LogicalOp with RUdfUiParameterSupport {
   @JsonProperty(
     required = true,
     defaultValue =
-      "# If using Table API:\n" +
+      "# Example UI parameter: count <- UiParameter(\"count\", AttributeType$INT)$value\n" +
+        "# Use value=Resource$MODEL or Resource$DATASET for a version selection.\n" +
+        "# If using Table API:\n" +
         "# function(table, port) { \n" +
         "#   return (table) \n" +
         "# }\n" +
@@ -105,14 +107,13 @@ class RUDFOpDesc extends LogicalOp {
       Map(operatorInfo.outputPorts.head.id -> outputSchema)
     }
 
-    val r_operator_type = if (useTupleAPI) "r-tuple" else "r-table"
     if (workers > 1) {
       PhysicalOp
         .oneToOnePhysicalOp(
           workflowId,
           executionId,
           operatorIdentifier,
-          OpExecWithCode(code, r_operator_type)
+          OpExecWithCode(injectUiParameters(code), uiParameterLanguage)
         )
         .withParallelizable(true)
         .withSuggestedWorkerNum(workers)
@@ -122,7 +123,7 @@ class RUDFOpDesc extends LogicalOp {
           workflowId,
           executionId,
           operatorIdentifier,
-          OpExecWithCode(code, r_operator_type)
+          OpExecWithCode(injectUiParameters(code), uiParameterLanguage)
         )
         .withParallelizable(false)
     }.withDerivePartition(_ => UnknownPartition())
@@ -131,6 +132,7 @@ class RUDFOpDesc extends LogicalOp {
       .withPartitionRequirement(partitionRequirement)
       .withIsOneToManyOp(true)
       .withPropagateSchema(SchemaPropagationFunc(propagateSchema))
+      .withExecutionTimeBinding(executionBinding(code))
 
   }
 

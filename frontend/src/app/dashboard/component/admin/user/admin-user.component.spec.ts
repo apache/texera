@@ -832,36 +832,42 @@ describe("AdminUserComponent", () => {
       return caret.classList.contains("active");
     }
 
-    async function clickSort(header: HTMLElement): Promise<void> {
+    function clickSort(header: HTMLElement): void {
       header.click();
       // nz-table republishes its sort operators on a macrotask (`delay(0)`), so a bare
       // detectChanges() would still read the previous ordering.
-      await new Promise(resolve => setTimeout(resolve, 0));
+      vi.advanceTimersByTime(0);
       fixture.detectChanges();
     }
 
     ASCENDING_BY_COLUMN.forEach(([label, ascendingUids]) => {
       const descendingUids = [...ascendingUids].reverse();
 
-      it(`sorts ${label} A-to-Z under the up caret and Z-to-A under the down caret`, async () => {
-        component.userList = [...SORT_USERS];
-        component.listOfDisplayUser = [...SORT_USERS];
-        fixture.detectChanges();
-        expect(renderedUids()).toEqual(SUPPLIED_ORDER);
+      it(`sorts ${label} A-to-Z under the up caret and Z-to-A under the down caret`, () => {
+        // The header listener runs outside Angular's test Zone. Control its timers without faking Date.
+        vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout", "setInterval", "clearInterval"] });
+        try {
+          component.userList = [...SORT_USERS];
+          component.listOfDisplayUser = [...SORT_USERS];
+          fixture.detectChanges();
+          expect(renderedUids()).toEqual(SUPPLIED_ORDER);
 
-        const header = sortableHeader(label);
+          const header = sortableHeader(label);
 
-        // nzSortDirections is ['ascend', 'descend'] on all of these headers, so the first click
-        // selects 'ascend' and lights the up caret: the column must read A-to-Z.
-        await clickSort(header);
-        expect(caretActive(header, "up")).toBe(true);
-        expect(caretActive(header, "down")).toBe(false);
-        expect(renderedUids()).toEqual(ascendingUids);
+          // nzSortDirections is ['ascend', 'descend'] on all of these headers, so the first click
+          // selects 'ascend' and lights the up caret: the column must read A-to-Z.
+          clickSort(header);
+          expect(caretActive(header, "up")).toBe(true);
+          expect(caretActive(header, "down")).toBe(false);
+          expect(renderedUids()).toEqual(ascendingUids);
 
-        await clickSort(header);
-        expect(caretActive(header, "down")).toBe(true);
-        expect(caretActive(header, "up")).toBe(false);
-        expect(renderedUids()).toEqual(descendingUids);
+          clickSort(header);
+          expect(caretActive(header, "down")).toBe(true);
+          expect(caretActive(header, "up")).toBe(false);
+          expect(renderedUids()).toEqual(descendingUids);
+        } finally {
+          vi.useRealTimers();
+        }
       });
     });
   });

@@ -105,7 +105,7 @@ object DashboardResource {
         val datasetQuery = DatasetSearchQueryBuilder.constructQuery(uid, params, includePublic)
         val modelQuery = ModelSearchQueryBuilder.constructQuery(uid, params, includePublic)
         workflowQuery.unionAll(datasetQuery).unionAll(modelQuery)
-      case _ => throw new IllegalArgumentException(s"Unknown resource type: ${params.resourceType}")
+      case _ => throw new BadRequestException(s"Unknown resource type: ${params.resourceType}")
     }
 
     val finalQuery =

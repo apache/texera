@@ -109,8 +109,7 @@
     nz-menu-item
     [nzDisabled]="true"
     *ngIf="(operatorMenuService.isMarkForReuse && operatorMenuService.isReuseResultClickable) &&
-  !hasHighlightedLinks()"
-    (click)="operatorMenuService.reuseResultHighlightedOperator()">
+  !hasHighlightedLinks()">
     <span
       nz-icon
       nzType="database"
@@ -162,7 +161,7 @@
   highlightedCommentBoxIds.length === 0 &&
   !hasHighlightedLinks()"
     [nzDisabled]="!canExecuteOperator()"
-    (click)="operatorMenuService.executeUpToOperator()">
+    (click)="onExecuteUpToOperator()">
     <span
       nz-icon
       nzType="play-circle"

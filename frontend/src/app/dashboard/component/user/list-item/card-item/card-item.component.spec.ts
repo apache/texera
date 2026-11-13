@@ -24,7 +24,7 @@ import {
   DEFAULT_WORKFLOW_NAME,
   WorkflowPersistService,
 } from "src/app/common/service/workflow-persist/workflow-persist.service";
-import { HttpClientTestingModule } from "@angular/common/http/testing";
+import { HttpClientTestingModule, HttpTestingController } from "@angular/common/http/testing";
 import { NzModalService } from "ng-zorro-antd/modal";
 import { of, throwError, Subject } from "rxjs";
 import { BrowserAnimationsModule } from "@angular/platform-browser/animations";
@@ -108,7 +108,6 @@ describe("CardItemComponent", () => {
       setDefaultView: vi.fn(),
     };
     const workflowCoverServiceSpy = {
-      getCover: vi.fn().mockReturnValue(of(undefined)),
       setCoverFromFile: vi.fn(),
       clearCover: vi.fn().mockReturnValue(of(undefined)),
     };
@@ -281,7 +280,8 @@ describe("CardItemComponent", () => {
     component.entry = entry;
     component.ngOnChanges({ entry: { currentValue: component.entry } as any });
 
-    expect(workflowCoverService.getCover).not.toHaveBeenCalled();
+    // The cover arrives on the entry; a card must not fetch its own (#6280).
+    TestBed.inject(HttpTestingController).expectNone(req => req.url.endsWith("/cover"));
     expect(component.hasCustomImage).toBe(true);
     expect(component.coverImageSrc).toBe(cover);
   });
@@ -293,7 +293,7 @@ describe("CardItemComponent", () => {
     component.entry = entry;
     component.ngOnChanges({ entry: { currentValue: component.entry } as any });
 
-    expect(workflowCoverService.getCover).not.toHaveBeenCalled();
+    TestBed.inject(HttpTestingController).expectNone(req => req.url.endsWith("/cover"));
     expect(component.hasCustomImage).toBe(false);
     expect(component.coverImageSrc).toBe(CardItemComponent.DEFAULT_PREVIEW_IMAGE);
   });

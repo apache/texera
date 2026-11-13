@@ -111,7 +111,9 @@ class HuggingFaceInferenceOpDescSpec extends AnyFlatSpec with Matchers {
     code should include("self.MAX_NEW_TOKENS")
     code should include("self.TEMPERATURE")
     // Parse — text-gen pulls choices[0].message.content out of the response.
-    code should include("""body["choices"][0]["message"]["content"]""")
+    code should include(
+      """content = self._chat_message_content(body)"""
+    )
   }
 
   it should "send the provider-specific model id on provider-scoped chat routes" in {
@@ -228,7 +230,9 @@ class HuggingFaceInferenceOpDescSpec extends AnyFlatSpec with Matchers {
       safeTemp = 0.0
     )
     TextGenCodegen.payloadPython(ctx) should include("self.MODEL_ID")
-    TextGenCodegen.parsePython(ctx) should include("""body["choices"][0]["message"]["content"]""")
+    TextGenCodegen.parsePython(ctx) should include(
+      """content = self._chat_message_content(body)"""
+    )
   }
 
   "image task family" should
@@ -568,7 +572,9 @@ class HuggingFaceInferenceOpDescSpec extends AnyFlatSpec with Matchers {
     code should include("Context column")
     code should include("""payload = {"inputs": {"question": prompt_value, "context": ctx_val}}""")
     code should include("""body.get("answer", json.dumps(body))""")
-    code should include("""body["choices"][0]["message"]["content"]""")
+    code should include(
+      """content = self._chat_message_content(body)"""
+    )
   }
 
   it should "route table-question-answering with a precomputed table payload" in {
@@ -577,7 +583,9 @@ class HuggingFaceInferenceOpDescSpec extends AnyFlatSpec with Matchers {
     code should include("table_dict = {}")
     code should include("""payload = {"inputs": {"query": prompt_value, "table": table_dict}}""")
     code should include("""body.get("answer", json.dumps(body))""")
-    code should include("""body["choices"][0]["message"]["content"]""")
+    code should include(
+      """content = self._chat_message_content(body)"""
+    )
   }
 
   it should "route zero-shot-classification with candidate labels" in {

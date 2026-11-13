@@ -25,7 +25,7 @@ import { commonTestProviders } from "../../../../common/testing/test-utils";
 import { of } from "rxjs";
 import { By } from "@angular/platform-browser";
 import type { Mocked } from "vitest";
-import { ExecutionQuota, Workflow, WorkflowQuota } from "../../../../common/type/user";
+import { ExecutionQuota, Workflow } from "../../../../common/type/user";
 import { DatasetQuota } from "../../../type/quota-statistic.interface";
 import { AdminUserService } from "../../../service/admin/user/admin-user.service";
 import { NZ_MODAL_DATA } from "ng-zorro-antd/modal";

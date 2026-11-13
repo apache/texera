@@ -22,6 +22,7 @@ import { ArrayTypeComponent } from "./array.type";
 import { ObjectTypeComponent } from "./object.type";
 import { MultiSchemaTypeComponent } from "./multischema.type";
 import { FormlyFieldConfig } from "@ngx-formly/core";
+import { SearchableSelectTypeComponent } from "./searchable-select.type";
 import { AbstractControl } from "@angular/forms";
 import { DelimiterTypeComponent } from "./delimiter/delimiter.type";
 import { DelimiterMode, delimiterError } from "./delimiter/delimiter-presets";
@@ -39,6 +40,8 @@ import { ResourceValueSelectorComponent } from "../../workspace/component/resour
 import { HuggingFaceImageUploadComponent } from "../../workspace/component/hugging-face-image-upload/hugging-face-image-upload.component";
 import { HuggingFaceComponent } from "../../workspace/component/hugging-face/hugging-face.component";
 import { HuggingFaceAudioUploadComponent } from "../../workspace/component/hugging-face-audio-upload/hugging-face-audio-upload.component";
+import { LoopVariableInputComponent } from "../../workspace/component/loop-variable-input/loop-variable-input.component";
+import { LOOP_VARIABLE_INPUT_TYPE } from "../../workspace/util/loop-variable-field.util";
 
 /**
  * Configuration for using Json Schema with Formly.
@@ -82,13 +85,14 @@ export const TEXERA_FORMLY_CONFIG = {
       },
     },
     { name: "boolean", extends: "checkbox" },
-    { name: "enum", extends: "select" },
+    { name: "enum", extends: "select", component: SearchableSelectTypeComponent },
     { name: "null", component: NullTypeComponent, wrappers: ["form-field"] },
     { name: "array", component: ArrayTypeComponent },
     { name: "object", component: ObjectTypeComponent },
     { name: "multischema", component: MultiSchemaTypeComponent },
     { name: "codearea", component: CodeareaCustomTemplateComponent },
     { name: "inputautocomplete", component: DatasetFileSelectorComponent, wrappers: ["form-field"] },
+    { name: LOOP_VARIABLE_INPUT_TYPE, component: LoopVariableInputComponent, wrappers: ["form-field"] },
     { name: "datasetversionselector", component: DatasetVersionSelectorComponent, wrappers: ["form-field"] },
     { name: "huggingface", component: HuggingFaceComponent, wrappers: ["form-field"] },
     { name: "huggingface-audio-upload", component: HuggingFaceAudioUploadComponent, wrappers: ["form-field"] },

@@ -21,6 +21,7 @@ package org.apache.texera.web.resource.dashboard.admin.execution
 
 import io.dropwizard.auth.Auth
 import org.apache.texera.auth.SessionUser
+import org.apache.texera.auth.util.WorkflowAccess
 import org.apache.texera.dao.SqlServer
 import org.apache.texera.dao.jooq.generated.Tables._
 import org.apache.texera.web.resource.dashboard.admin.execution.AdminExecutionResource._
@@ -184,10 +185,10 @@ class AdminExecutionResource {
 
     // Retrieve the id of each workflow that the user has access to.
     val availableWorkflowIds = context
-      .select(WORKFLOW_USER_ACCESS.WID)
-      .from(WORKFLOW_USER_ACCESS)
-      .where(WORKFLOW_USER_ACCESS.UID.eq(current_user.getUid))
-      .fetchInto(classOf[Integer])
+      .fetch(WorkflowAccess.accessibleWids(current_user.getUid))
+      .getValues(0, classOf[Integer])
+      .asScala
+      .toSet
 
     // Calculate the statistics needed for each execution.
     executions

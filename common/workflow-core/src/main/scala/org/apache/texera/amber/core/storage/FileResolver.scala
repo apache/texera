@@ -332,13 +332,16 @@ object FileResolver {
   /**
     * Checks if a given file path has a valid scheme.
     *
+    * A one-letter scheme is a Windows drive letter (`C:/data/a.csv`), not a URI scheme, so such a
+    * path is left to the local resolver.
+    *
     * @param filePath The file path to check.
     * @return `true` if the file path contains a valid scheme, `false` otherwise.
     */
   def isFileResolved(filePath: String): Boolean = {
     try {
       val uri = new URI(filePath)
-      uri.getScheme != null && uri.getScheme.nonEmpty
+      uri.getScheme != null && uri.getScheme.length > 1
     } catch {
       case _: Exception => false // Invalid URI format
     }

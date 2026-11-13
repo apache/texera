@@ -138,20 +138,27 @@ private[file] object FileScanUtils {
             TupleLike(fields.toSeq: _*)
         }
       } else {
-        fileEntries.flatMap { entry =>
-          val lines = new BufferedReader(new InputStreamReader(entry, fileEncoding.getCharset))
-            .lines()
-            .iterator()
-            .asScala
-            .drop(fileScanOffset.getOrElse(0))
-          fileScanLimit
-            .fold(lines)(lines.take)
-            .map(line =>
-              TupleLike(attributeType match {
-                case FileAttributeType.SINGLE_STRING => line
-                case _                               => parseField(line, attributeType.getType)
-              })
-            )
+        // Paired with the entry names the same way the single-value branch is:
+        // a row carries the name of the file its line came from, which is what
+        // the schema declares when the filename was asked for. Emitting the value
+        // alone left a one-field row against a two-column schema, and the tuple
+        // could not be built at all.
+        fileEntries.zipAll(filenameIt, null, null).flatMap {
+          case (entry, entryFileName) =>
+            val lines = new BufferedReader(new InputStreamReader(entry, fileEncoding.getCharset))
+              .lines()
+              .iterator()
+              .asScala
+              .drop(fileScanOffset.getOrElse(0))
+            fileScanLimit
+              .fold(lines)(lines.take)
+              .map { line =>
+                val value = attributeType match {
+                  case FileAttributeType.SINGLE_STRING => line
+                  case _                               => parseField(line, attributeType.getType)
+                }
+                if (outputFileName) TupleLike(entryFileName, value) else TupleLike(value)
+              }
         }
       }
 

@@ -230,6 +230,7 @@
       <section
         class="card param"
         [class.read-only]="!canEdit"
+        [texeraReadOnlyCard]="!canEdit"
         *ngFor="let r of rendered; let i = index; trackBy: trackByRendered"
         cdkDrag
         [cdkDragDisabled]="!authoring">

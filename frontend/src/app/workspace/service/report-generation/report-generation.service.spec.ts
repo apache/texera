@@ -18,7 +18,6 @@
  */
 
 import { TestBed } from "@angular/core/testing";
-import { HttpClient } from "@angular/common/http";
 import { firstValueFrom, of, Subject, Subscription, throwError } from "rxjs";
 import { ReportGenerationService } from "./report-generation.service";
 import { WorkflowActionService } from "../workflow-graph/model/workflow-action.service";
@@ -26,11 +25,11 @@ import { WorkflowResultService } from "../workflow-result/workflow-result.servic
 import { NotificationService } from "src/app/common/service/notification/notification.service";
 import { AiAnalystService } from "../ai-analyst/ai-analyst.service";
 import { commonTestProviders } from "../../../common/testing/test-utils";
+import * as html2canvas from "html2canvas";
 
 /**
- * The service reaches for five collaborators but only ever calls a handful of their methods, so the
- * suite injects narrow stubs rather than the real service graph. `http` is injected by the service
- * and never used, so an empty object is enough to satisfy the constructor.
+ * The service reaches for four collaborators but only ever calls a handful of their methods, so the
+ * suite injects narrow stubs rather than the real service graph.
  */
 function stubs() {
   return {
@@ -66,7 +65,6 @@ describe("ReportGenerationService", () => {
     TestBed.configureTestingModule({
       providers: [
         ReportGenerationService,
-        { provide: HttpClient, useValue: {} },
         { provide: WorkflowActionService, useValue: deps.workflowActionService },
         { provide: WorkflowResultService, useValue: deps.workflowResultService },
         { provide: NotificationService, useValue: deps.notificationService },
@@ -370,8 +368,7 @@ describe("ReportGenerationService", () => {
      * sources are replaced with fakes that settle synchronously (XHR) or on a microtask
      * (FileReader), so nothing here depends on the network or on real timing.
      *
-     * The html2canvas render that follows is left alone — it needs a real canvas — so these
-     * assert on what the inlining step did, not on the observable's outcome.
+     * Rendering is stubbed only within this suite; separate tests cover the snapshot output.
      */
     describe("inlining the editor's images", () => {
       const XLINK_HREF = "xlink:href";
@@ -430,14 +427,7 @@ describe("ReportGenerationService", () => {
         return image;
       }
 
-      /**
-       * Starts the snapshot and returns immediately. Waiting for the observable to settle
-       * would mean waiting for html2canvas, which under jsdom takes an unbounded amount of
-       * time — on a slow runner long enough to blow the test timeout. These tests are about
-       * the inlining step that runs first, so each waits for that step's own effect instead.
-       * The subscriber swallows both outcomes so the render's failure is not an unhandled
-       * error.
-       */
+      /** Starts the snapshot; assertions wait for image inlining rather than the renderer's outcome. */
       function startSnapshot(): void {
         started.push(
           service.generateWorkflowSnapshot("myflow").subscribe({
@@ -459,17 +449,12 @@ describe("ReportGenerationService", () => {
         editor = document.createElement("div");
         editor.id = "workflow-editor";
         document.body.appendChild(editor);
-        // The render these tests start is left to fail on its own, but jsdom announces its
-        // missing 2D context on the virtual console, so an otherwise clean run carries a stack
-        // trace per test. Hand back what jsdom hands back after complaining, minus the complaint.
-        vi.spyOn(HTMLCanvasElement.prototype, "getContext").mockReturnValue(null as never);
+        vi.spyOn(html2canvas, "default").mockRejectedValue(new Error("Render is outside the image-inlining test"));
       });
 
       afterEach(() => {
         (globalThis as unknown as { XMLHttpRequest: unknown }).XMLHttpRequest = realXhr;
         (globalThis as unknown as { FileReader: unknown }).FileReader = realFileReader;
-        // The render this started cannot be cancelled, but nothing it emits should reach a
-        // test that has already finished.
         started.forEach(subscription => subscription.unsubscribe());
         // Two of these tests spy on console.error; without this the spy would outlive them.
         vi.restoreAllMocks();

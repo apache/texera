@@ -33,10 +33,23 @@ import {
   multipleOfValidationMessage,
   TEXERA_FORMLY_CONFIG,
 } from "./formly-config";
+import { SearchableSelectTypeComponent } from "./searchable-select.type";
 
 // the `err` argument is unused by every message builder, so any value is fine
 const err = {} as any;
 const field = (props: Record<string, any>): FormlyFieldConfig => ({ props }) as FormlyFieldConfig;
+
+describe("formly enum type", () => {
+  it("uses the searchable select component for schema-backed dropdowns", () => {
+    const enumType = TEXERA_FORMLY_CONFIG.types.find(type => type.name === "enum");
+
+    expect(enumType).toEqual({
+      name: "enum",
+      extends: "select",
+      component: SearchableSelectTypeComponent,
+    });
+  });
+});
 
 describe("formly validation messages", () => {
   it("minItemsValidationMessage reports the minItems bound", () => {

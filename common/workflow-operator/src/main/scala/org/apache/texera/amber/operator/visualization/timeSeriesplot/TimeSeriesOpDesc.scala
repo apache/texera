@@ -20,13 +20,13 @@ package org.apache.texera.amber.operator.visualization.timeSeriesplot
 
 import com.fasterxml.jackson.annotation.{JsonProperty, JsonPropertyDescription}
 import com.kjetland.jackson.jsonSchema.annotations.{JsonSchemaInject, JsonSchemaTitle}
-import org.apache.texera.amber.core.tuple.{AttributeType, Schema}
 import org.apache.texera.amber.pybuilder.PythonTemplateBuilder.PythonTemplateBuilderStringContext
 import org.apache.texera.amber.pybuilder.PyStringTypes.EncodableString
-import org.apache.texera.amber.core.workflow.PortIdentity
-import org.apache.texera.amber.operator.PythonOperatorDescriptor
-import org.apache.texera.amber.operator.metadata.annotations.AutofillAttributeName
+import org.apache.texera.amber.operator.visualization.PlotlyStandaloneCode
+import org.apache.texera.amber.operator.visualization.PythonVisualizationOpDesc
+import org.apache.texera.amber.operator.metadata.annotations.{AutofillAttributeName, SampleColumn}
 import org.apache.texera.amber.operator.metadata.{OperatorGroupConstants, OperatorInfo}
+import org.apache.texera.amber.pybuilder.PythonTemplateBuilder.pyStringLiteral
 
 import javax.validation.constraints.{NotBlank, NotNull}
 
@@ -44,12 +44,13 @@ import javax.validation.constraints.{NotBlank, NotNull}
   }
 }
 """)
-class TimeSeriesOpDesc extends PythonOperatorDescriptor {
+class TimeSeriesOpDesc extends PythonVisualizationOpDesc with PlotlyStandaloneCode {
 
   @JsonProperty(value = "timeColumn", required = true)
   @JsonSchemaTitle("Time Column")
   @JsonPropertyDescription("The column containing time/date values (e.g., Date, Timestamp).")
   @AutofillAttributeName
+  @SampleColumn("start_ts")
   @NotNull(message = "Time Column cannot be empty")
   var timeColumn: EncodableString = ""
 
@@ -65,12 +66,14 @@ class TimeSeriesOpDesc extends PythonOperatorDescriptor {
   @JsonSchemaTitle("Category Column")
   @JsonPropertyDescription("Optional - A categorical column to create separate lines.")
   @AutofillAttributeName
+  @SampleColumn("node_src")
   var CategoryColumn: EncodableString = "No Selection"
 
   @JsonProperty(value = "facetColumn", required = false, defaultValue = "No Selection")
   @JsonSchemaTitle("Facet Column")
   @JsonPropertyDescription("Optional - A column to create separate subplots.")
   @AutofillAttributeName
+  @SampleColumn("node_dst")
   var facetColumn: EncodableString = "No Selection"
 
   // Declared as a schema enum rather than named only in the description: the code
@@ -88,13 +91,6 @@ class TimeSeriesOpDesc extends PythonOperatorDescriptor {
   @JsonSchemaTitle("Show Range Slider")
   @JsonPropertyDescription("Display a range slider at the bottom of the plot.")
   var showRangeSlider: Boolean = _
-
-  override def getOutputSchemas(
-      inputSchemas: Map[PortIdentity, Schema]
-  ): Map[PortIdentity, Schema] = {
-    val outputSchema = Schema().add("html-content", AttributeType.STRING)
-    Map(operatorInfo.outputPorts.head.id -> outputSchema)
-  }
 
   override def operatorInfo: OperatorInfo =
     OperatorInfo.forVisualization(
@@ -159,4 +155,53 @@ class TimeSeriesOpDesc extends PythonOperatorDescriptor {
        |            yield {'html-content': self.render_error(str(e))}
        |""".encode
   }
+
+  override def generateStandaloneCode(): String = {
+    val dropnaCols = List(timeColumn, valueColumn) ++
+      (if (CategoryColumn != "No Selection") Some(CategoryColumn) else None) ++
+      (if (facetColumn != "No Selection") Some(facetColumn) else None)
+    val dropnaStr = dropnaCols.map(pyStringLiteral).mkString("[", ", ", "]")
+    val colorArg =
+      if (CategoryColumn != "No Selection") s""", color=${pyStringLiteral(CategoryColumn)}"""
+      else ""
+    val facetArg =
+      if (facetColumn != "No Selection") s""", facet_col=${pyStringLiteral(facetColumn)}""" else ""
+    val timeLit = pyStringLiteral(timeColumn)
+    val valueLit = pyStringLiteral(valueColumn)
+    val plotFunc = if (plotType == "area") "px.area" else "px.line"
+    val showSlider = if (showRangeSlider) "True" else "False"
+
+    s"""def render_error(msg):
+       |    return f"<h1>Time Series Plot is not available.</h1><p>Reason: {msg}</p>"
+       |
+       |if in1df.empty:
+       |    with open(outputHtml, "w", encoding="utf-8") as output:
+       |        output.write(render_error("Input table is empty."))
+       |else:
+       |    try:
+       |        table = in1df.copy()
+       |        table[$timeLit] = pd.to_datetime(table[$timeLit], errors='coerce')
+       |        table = table.dropna(subset=$dropnaStr).sort_values(by=$timeLit)
+       |        if table.empty:
+       |            with open(outputHtml, "w", encoding="utf-8") as output:
+       |                output.write(render_error("Table became empty after filtering."))
+       |        else:
+       |            fig = $plotFunc(table, x=$timeLit, y=$valueLit$colorArg$facetArg)
+       |            if $showSlider:
+       |                fig.update_xaxes(rangeslider_visible=True)
+       |            fig.update_layout(
+       |                margin=dict(l=0, r=0, t=30, b=0),
+       |                title=dict(text="Time Series Plot", x=0.5),
+       |                xaxis_title=$timeLit,
+       |                yaxis_title=$valueLit,
+       |                template="plotly_white"
+       |            )
+       |            fig.write_json(outputJson)
+       |            fig.write_html(outputHtml)
+       |            print("Time series plot saved to " + outputHtml)
+       |    except Exception as e:
+       |        with open(outputHtml, "w", encoding="utf-8") as output:
+       |            output.write(render_error(str(e)))""".stripMargin
+  }
+
 }

@@ -74,15 +74,13 @@ $reportMissingKept
     val modelNameLit = pyStringLiteral(getUserFriendlyModelName)
     val narrowX = dropNonFeatureColumns("X", "")
 
+    // The rows the operator drops, into a local name, since the input belongs to its producer.
     s"""${getImportStatements}
        |from sklearn.pipeline import make_pipeline
        |from sklearn.compose import ColumnTransformer
        |from sklearn.feature_extraction.text import CountVectorizer, TfidfTransformer
        |import pandas as pd
        |
-       |# The same rows the operator drops. A local name rather than a
-       |# reassignment, since the input variable belongs to whichever operator
-       |# produced it.
        |_train = ${dropMissingRowsStandalone("in1df")}
        |if len(_train) < len(in1df):
        |    print("Skipped", len(in1df) - len(_train), "of", len(in1df), "rows with missing values")

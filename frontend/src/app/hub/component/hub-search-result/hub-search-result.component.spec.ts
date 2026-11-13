@@ -148,13 +148,11 @@ describe("HubSearchResultComponent", () => {
     });
   }
 
-  function build(entityType?: EntityType, detectChanges: boolean = true): void {
+  function build(entityType?: EntityType): void {
     configure(entityType);
     fixture = TestBed.createComponent(HubSearchResultComponent);
     component = fixture.componentInstance;
-    if (detectChanges) {
-      fixture.detectChanges();
-    }
+    fixture.detectChanges();
   }
 
   function makeFiltersMock(list: ReadonlyArray<string> = ["a"]): FiltersMock {
@@ -492,7 +490,7 @@ describe("HubSearchResultComponent rendered template", () => {
           provide: DatasetService,
           useValue: { getDatasetCoverUrl: vi.fn(() => of({ url: undefined })), retrieveOwners: vi.fn(() => of([])) },
         },
-        { provide: WorkflowCoverService, useValue: { getCover: vi.fn(() => of(undefined)) } },
+        { provide: WorkflowCoverService, useValue: {} },
         NzModalService,
         provideNzI18n(en_US),
         ...commonTestProviders,

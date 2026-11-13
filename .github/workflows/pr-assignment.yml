@@ -29,7 +29,7 @@ jobs:
   # a single entry per event instead of several skipped siblings.
   # Step-level if-guards keep the actual work scoped.
   pr-assignment:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-slim
     steps:
       # pull_request_target resolves to the trusted base branch, never the
       # fork head, so requiring this script from the steps below is safe.

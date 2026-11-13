@@ -193,6 +193,21 @@ class ComputingUnitAccessResourceSpec
     entries.head.privilege shouldEqual PrivilegeEnum.WRITE
   }
 
+  it should "refuse to change the owner's privilege" in {
+    grantDirectly(granteeUser.getUid, PrivilegeEnum.WRITE)
+
+    val ex = intercept[ForbiddenException] {
+      accessResource.grantAccess(
+        new SessionUser(granteeUser),
+        cuid,
+        ownerUser.getEmail,
+        PrivilegeEnum.READ
+      )
+    }
+    ex.getResponse.getStatus shouldEqual 403
+    ComputingUnitAccessResource.getPrivilege(cuid, ownerUser.getUid) shouldBe null
+  }
+
   it should "reject a caller without write access with a 403" in {
     val ex = intercept[ForbiddenException] {
       accessResource.grantAccess(strangerSession, cuid, granteeUser.getEmail, PrivilegeEnum.READ)
@@ -222,6 +237,17 @@ class ComputingUnitAccessResourceSpec
     ex.getMessage should include("User with the given email does not exist")
   }
 
+  it should "refuse to revoke the owner's access" in {
+    grantDirectly(granteeUser.getUid, PrivilegeEnum.WRITE)
+    grantDirectly(ownerUser.getUid, PrivilegeEnum.WRITE)
+
+    val ex = intercept[ForbiddenException] {
+      accessResource.revokeAccess(new SessionUser(granteeUser), cuid, ownerUser.getEmail)
+    }
+    ex.getResponse.getStatus shouldEqual 403
+    ComputingUnitAccessResource.getPrivilege(cuid, ownerUser.getUid) shouldBe PrivilegeEnum.WRITE
+  }
+
   it should "reject a caller without write access with a 403" in {
     accessResource.grantAccess(ownerSession, cuid, granteeUser.getEmail, PrivilegeEnum.READ)
 
@@ -238,6 +264,34 @@ class ComputingUnitAccessResourceSpec
 
   "getComputingUnitAccessList" should "return an empty list when nothing is granted" in {
     accessResource.getComputingUnitAccessList(ownerSession, cuid) shouldBe empty
+  }
+
+  it should "leave out a row held by the owner" in {
+    grantDirectly(ownerUser.getUid, PrivilegeEnum.READ)
+    grantDirectly(granteeUser.getUid, PrivilegeEnum.READ)
+
+    accessEmails(cuid) shouldBe List(granteeUser.getEmail)
+  }
+
+  it should "be forbidden for a user who cannot see the unit" in {
+    val ex = intercept[ForbiddenException] {
+      accessResource.getComputingUnitAccessList(strangerSession, cuid)
+    }
+    ex.getResponse.getStatus shouldEqual 403
+  }
+
+  it should "be forbidden for a unit that does not exist" in {
+    assertThrows[ForbiddenException] {
+      accessResource.getComputingUnitAccessList(ownerSession, nonExistentCuid)
+    }
+  }
+
+  it should "be readable by a READ grantee" in {
+    grantDirectly(granteeUser.getUid, PrivilegeEnum.READ)
+
+    accessResource
+      .getComputingUnitAccessList(new SessionUser(granteeUser), cuid)
+      .map(_.email) shouldBe List(granteeUser.getEmail)
   }
 
   it should "list every grantee with their email, name, and privilege" in {

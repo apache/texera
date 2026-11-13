@@ -131,6 +131,8 @@ values-*.yaml    # Any environment-specific value overrides
 # Ignore nested node modules
 **/node_modules
 **/package-lock.json
+# The one npm-installed image; its lockfile makes `npm ci` reproducible.
+!bin/y-websocket-server/package-lock.json
 .env
 
 # agent-service is Bun-based; yarn/npm artifacts aren't needed

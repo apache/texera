@@ -36,3 +36,10 @@ import org.apache.texera.web.model.collab.response.HeartBeatResponse
   )
 )
 trait CollabWebSocketEvent {}
+
+case class CommandEvent(commandMessage: String) extends CollabWebSocketEvent
+case class LockGrantedEvent() extends CollabWebSocketEvent
+case class LockRejectedEvent() extends CollabWebSocketEvent
+case class ReleaseLockEvent() extends CollabWebSocketEvent
+case class RestoreVersionEvent() extends CollabWebSocketEvent
+case class WorkflowAccessEvent(workflowReadonly: Boolean) extends CollabWebSocketEvent

@@ -452,8 +452,16 @@ export class VersionUploaderComponent implements OnInit {
     this.userHasPendingChanges = this.pendingChangesCount > 0;
   }
 
+  /**
+   * The name becomes a segment of the version's file paths, which are split on "/", so a version
+   * named with one could never have its files opened.
+   */
+  get versionNameHasSlash(): boolean {
+    return this.versionName.includes("/");
+  }
+
   onClickCreateVersion(): void {
-    if (!this.resourceId || this.isCreatingVersion) {
+    if (!this.resourceId || this.isCreatingVersion || this.versionNameHasSlash) {
       return;
     }
     this.isCreatingVersion = true;

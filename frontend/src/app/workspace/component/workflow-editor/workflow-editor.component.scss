@@ -34,6 +34,11 @@
   transition: fill 0.25s ease;
 }
 
+.result-preview-anchor {
+  position: absolute;
+  z-index: 11;
+}
+
 .heatmap-tooltip {
   position: absolute;
   z-index: 11;

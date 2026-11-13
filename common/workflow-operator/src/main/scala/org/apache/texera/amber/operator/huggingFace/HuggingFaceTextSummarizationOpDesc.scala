@@ -98,6 +98,7 @@ class HuggingFaceTextSummarizationOpDesc
   // once, generate a summary per row, and add the STRING result column to
   // produce out1df.
   override def generateStandaloneCode(): String = {
+    // An empty cell, which the tokenizer rejects, keeps its row with the summary left empty.
     s"""from transformers import BertTokenizerFast, EncoderDecoderModel
        |import pandas as pd
        |import torch
@@ -110,10 +111,6 @@ class HuggingFaceTextSummarizationOpDesc
        |out1df = in1df.copy()
        |_summaries = []
        |for _text in out1df[${pyStringLiteral(attribute)}]:
-       |    # An empty cell reaches the frame as None, or as NaN once a column holds
-       |    # nothing else, and the tokenizer rejects both. Keep the row and leave the
-       |    # summary empty rather than ending the run over a value the model has
-       |    # nothing to say about.
        |    if pd.isna(_text) or (isinstance(_text, str) and not _text.strip()):
        |        _summaries.append(None)
        |        continue

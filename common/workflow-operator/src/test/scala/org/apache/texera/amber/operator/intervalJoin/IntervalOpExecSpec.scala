@@ -20,16 +20,14 @@
 package org.apache.texera.amber.operator.intervalJoin
 
 import org.apache.texera.amber.core.tuple._
-import org.apache.texera.amber.core.virtualidentity.{OperatorIdentity, PhysicalOpIdentity}
-import org.apache.texera.amber.core.workflow.{PhysicalLink, PortIdentity}
+import org.apache.texera.amber.core.workflow.PortIdentity
 import org.apache.texera.amber.util.JSONUtils.objectMapper
-import org.scalatest.BeforeAndAfter
 import org.scalatest.flatspec.AnyFlatSpec
 
 import java.sql.Timestamp
 import scala.collection.mutable.ArrayBuffer
 import scala.util.Random
-class IntervalOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
+class IntervalOpExecSpec extends AnyFlatSpec {
   val left: Int = 0
   val right: Int = 1
 
@@ -41,34 +39,12 @@ class IntervalOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
   private val Seed: Long = 20260819L
 
   var opDesc: IntervalJoinOpDesc = _
-  var counter: Int = 0
-
-  def physicalLink(): PhysicalLink =
-    PhysicalLink(
-      physicalOpId(),
-      fromPortId = PortIdentity(),
-      physicalOpId(),
-      toPortId = PortIdentity()
-    )
-
-  def physicalOpId(): PhysicalOpIdentity = {
-    counter += 1
-    PhysicalOpIdentity(OperatorIdentity("" + counter), "" + counter)
-  }
 
   def newTuple[T](name: String, n: Int = 1, i: T, attributeType: AttributeType): Tuple = {
     Tuple
       .builder(schema(name, attributeType, n))
       .add(new Attribute(name, attributeType), i)
       .add(new Attribute(name + "_" + 1, attributeType), i)
-      .build()
-  }
-
-  def integerTuple(name: String, n: Int = 1, i: Int): Tuple = {
-    Tuple
-      .builder(schema(name, AttributeType.INTEGER, n))
-      .add(new Attribute(name, AttributeType.INTEGER), i)
-      .add(new Attribute(name + "_" + 1, AttributeType.INTEGER), i)
       .build()
   }
 
@@ -85,14 +61,6 @@ class IntervalOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
       .add(new Attribute(name, attributeType))
       .add(new Attribute(name + "_" + n, attributeType))
 
-  }
-
-  def longTuple(name: String, n: Int = 1, i: Long): Tuple = {
-    Tuple
-      .builder(schema(name, AttributeType.LONG, n))
-      .add(new Attribute(name, AttributeType.LONG), i)
-      .add(new Attribute(name + "_" + 1, AttributeType.LONG), i)
-      .build()
   }
 
   def timeStampTuple(name: String, n: Int = 1, i: Timestamp): Tuple = {
@@ -244,7 +212,6 @@ class IntervalOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
     val outputSchema = opDesc.getExternalOutputSchemas(inputSchemas).values.head
     val opExec = new IntervalJoinOpExec(objectMapper.writeValueAsString(opDesc))
     opExec.open()
-    counter = 0
     var leftIndex: Int = 0
     var rightIndex: Int = 0
     val orderRandom = new Random(Seed)
@@ -422,7 +389,6 @@ class IntervalOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
     opDesc.timeIntervalType = Option(TimeIntervalType.DAY)
     val opExec = new IntervalJoinOpExec(objectMapper.writeValueAsString(opDesc))
     opExec.open()
-    counter = 0
     val pointList: Array[Double] = Array(1.1, 2.1, 3.1, 4.1, 5.1, 6.1, 7.1, 8.1, 9.1, 10.1)
     pointList.foreach(i => {
       assert(
@@ -555,6 +521,47 @@ class IntervalOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
       val outside = Timestamp.valueOf("2020-03-09 00:00:00")
       assert(exec.processTuple(timeStampTuple("point", 1, outside), left).toList.isEmpty)
     } finally exec.close()
+  }
+
+  // A null key used to unbox to 0 for a number, so it joined as if it were 0,
+  // and to throw for a timestamp, which failed the run.
+  it should "let a null key match nothing on either side" in {
+    val zero = Map[AttributeType, Any](
+      AttributeType.INTEGER -> 0,
+      AttributeType.LONG -> 0L,
+      AttributeType.DOUBLE -> 0.0,
+      AttributeType.TIMESTAMP -> Timestamp.valueOf("2020-03-05 00:00:00")
+    )
+    zero.foreach {
+      case (attributeType, value) =>
+        val desc = new IntervalJoinOpDesc("point", "range", 3L, true, true, TimeIntervalType.DAY)
+
+        val nullLeft = new IntervalJoinOpExec(objectMapper.writeValueAsString(desc))
+        nullLeft.open()
+        try {
+          assert(
+            nullLeft.processTuple(newTuple("range", 1, value, attributeType), right).isEmpty
+          )
+          assert(
+            nullLeft.processTuple(newTuple[Any]("point", 1, null, attributeType), left).isEmpty,
+            s"a null $attributeType point joined"
+          )
+          // The null point stayed out of the cache, so a real one still joins.
+          assert(nullLeft.processTuple(newTuple("point", 1, value, attributeType), left).size == 1)
+        } finally nullLeft.close()
+
+        val nullRight = new IntervalJoinOpExec(objectMapper.writeValueAsString(desc))
+        nullRight.open()
+        try {
+          assert(
+            nullRight.processTuple(newTuple[Any]("range", 1, null, attributeType), right).isEmpty
+          )
+          assert(
+            nullRight.processTuple(newTuple("point", 1, value, attributeType), left).isEmpty,
+            s"a null $attributeType range joined"
+          )
+        } finally nullRight.close()
+    }
   }
 
   it should "reject a join key whose type does not support interval comparison" in {

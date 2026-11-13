@@ -19,72 +19,25 @@
 
 package org.apache.texera.amber.operator.sklearn
 
-import org.apache.texera.amber.core.tuple.AttributeType
-import org.apache.texera.amber.operator.LogicalOp
-import org.apache.texera.amber.operator.metadata.OperatorGroupConstants
-import org.apache.texera.amber.util.JSONUtils.objectMapper
 import org.scalatest.flatspec.AnyFlatSpec
-import org.scalatest.matchers.should.Matchers
 
-class SklearnDecisionTreeOpDescSpec extends AnyFlatSpec with Matchers {
+class SklearnDecisionTreeOpDescSpec extends AnyFlatSpec with SklearnModelOpDescBehaviors {
 
-  "SklearnDecisionTreeOpDesc.operatorInfo" should
-    "advertise the model name, Sklearn group, and the training/testing port shape" in {
-    val info = (new SklearnDecisionTreeOpDesc).operatorInfo
-    info.userFriendlyName shouldBe "Decision Tree"
-    info.operatorDescription shouldBe "Sklearn Decision Tree Operator"
-    info.operatorGroupName shouldBe OperatorGroupConstants.SKLEARN_GROUP
-    info.inputPorts.map(_.displayName) shouldBe List("training", "testing")
-    info.outputPorts should have length 1
-    info.outputPorts.head.blocking shouldBe true
-  }
-
-  "SklearnDecisionTreeOpDesc" should "default its config fields" in {
-    val d = new SklearnDecisionTreeOpDesc
-    d.countVectorizer shouldBe false
-    d.tfidfTransformer shouldBe false
-    d.target shouldBe null
-    d.text shouldBe empty
-  }
+  sklearnClassifier(
+    new SklearnDecisionTreeOpDesc,
+    "SklearnDecisionTree",
+    "Decision Tree",
+    "from sklearn.tree import DecisionTreeClassifier"
+  )
 
   // A split compares, and a comparison can ask whether the value is there before it
   // asks how large it is, so the row is worth keeping and the count is worth saying.
-  it should "keep a row with a blank feature and say how many it kept" in {
+  "SklearnDecisionTreeOpDesc" should "keep a row with a blank feature and say how many it kept" in {
     val d = new SklearnDecisionTreeOpDesc
     d.target = "y"
     val code = d.generatePythonCode()
     code should not include "table.dropna() "
     code should include("dropna(subset=[")
     code should include("rows_with_gaps")
-  }
-
-  "SklearnDecisionTreeOpDesc.getOutputSchemas" should
-    "emit the model_name/model schema keyed by the declared output port" in {
-    val d = new SklearnDecisionTreeOpDesc
-    val schema = d.getOutputSchemas(Map.empty)(d.operatorInfo.outputPorts.head.id)
-    schema.getAttribute("model_name").getType shouldBe AttributeType.STRING
-    schema.getAttribute("model").getType shouldBe AttributeType.BINARY
-  }
-
-  "SklearnDecisionTreeOpDesc.generatePythonCode" should "import the configured sklearn estimator" in {
-    val d = new SklearnDecisionTreeOpDesc
-    d.target = "y"
-    val code = d.generatePythonCode()
-    code should include("from sklearn.tree import DecisionTreeClassifier")
-    code should include("make_pipeline")
-    code should include("Decision Tree")
-  }
-
-  "SklearnDecisionTreeOpDesc" should "round-trip its config fields through the polymorphic base" in {
-    val d = new SklearnDecisionTreeOpDesc
-    d.target = "label"
-    d.countVectorizer = true
-    val json = objectMapper.writeValueAsString(d)
-    json should include("\"operatorType\":\"SklearnDecisionTree\"")
-    val restored = objectMapper.readValue(json, classOf[LogicalOp])
-    restored shouldBe a[SklearnDecisionTreeOpDesc]
-    val r = restored.asInstanceOf[SklearnDecisionTreeOpDesc]
-    r.target shouldBe "label"
-    r.countVectorizer shouldBe true
   }
 }

@@ -106,7 +106,6 @@ class DPThreadSpec extends AnyFlatSpec with Matchers with MockFactory {
     dp.inputManager.addPort(mockInputPortId, schema, List.empty, List.empty)
     dp.inputGateway.getChannel(dataChannelId).setPortId(mockInputPortId)
     dp.adaptiveBatchingMonitor = mock[WorkerTimerService]
-    (dp.adaptiveBatchingMonitor.resumeAdaptiveBatching _).expects().anyNumberOfTimes()
     (dp.adaptiveBatchingMonitor.startAdaptiveBatching _).expects().anyNumberOfTimes()
     dp
   }
@@ -123,7 +122,6 @@ class DPThreadSpec extends AnyFlatSpec with Matchers with MockFactory {
     dp.inputManager.addPort(mockInputPortId, schema, List.empty, List.empty)
     dp.inputGateway.getChannel(dataChannelId).setPortId(mockInputPortId)
     dp.adaptiveBatchingMonitor = mock[WorkerTimerService]
-    (dp.adaptiveBatchingMonitor.resumeAdaptiveBatching _).expects().anyNumberOfTimes()
     val dpThread = new DPThread(workerId, dp, logManager, inputQueue)
     dpThread.start()
     tuples.foreach { x =>
@@ -161,7 +159,6 @@ class DPThreadSpec extends AnyFlatSpec with Matchers with MockFactory {
     dp.inputManager.addPort(mockInputPortId, schema, List.empty, List.empty)
     dp.inputGateway.getChannel(dataChannelId).setPortId(mockInputPortId)
     dp.adaptiveBatchingMonitor = mock[WorkerTimerService]
-    (dp.adaptiveBatchingMonitor.resumeAdaptiveBatching _).expects().anyNumberOfTimes()
     val dpThread = new DPThread(workerId, dp, logManager, inputQueue)
     dp.executor = executor
     dpThread.start()
@@ -210,7 +207,6 @@ class DPThreadSpec extends AnyFlatSpec with Matchers with MockFactory {
       .getChannel(ChannelIdentity(anotherSenderWorkerId, workerId, isControl = false))
       .setPortId(mockInputPortId)
     dp.adaptiveBatchingMonitor = mock[WorkerTimerService]
-    (dp.adaptiveBatchingMonitor.resumeAdaptiveBatching _).expects().anyNumberOfTimes()
     val dpThread = new DPThread(workerId, dp, logManager, inputQueue)
     dpThread.start()
     tuples.foreach { x =>
@@ -250,7 +246,6 @@ class DPThreadSpec extends AnyFlatSpec with Matchers with MockFactory {
       .getChannel(ChannelIdentity(anotherSenderWorkerId, workerId, isControl = false))
       .setPortId(mockInputPortId)
     dp.adaptiveBatchingMonitor = mock[WorkerTimerService]
-    (dp.adaptiveBatchingMonitor.resumeAdaptiveBatching _).expects().anyNumberOfTimes()
     val logStorage = SequentialRecordStorage.getStorage[ReplayLogRecord](
       Some(new URI("ram:///recovery-logs/tmp"))
     )
@@ -315,7 +310,6 @@ class DPThreadSpec extends AnyFlatSpec with Matchers with MockFactory {
     dp.inputManager.addPort(mockInputPortId, schema, List.empty, List.empty)
     dp.inputGateway.getChannel(dataChannelId).setPortId(mockInputPortId)
     dp.adaptiveBatchingMonitor = mock[WorkerTimerService]
-    (dp.adaptiveBatchingMonitor.resumeAdaptiveBatching _).expects().anyNumberOfTimes()
     val dpThread = new DPThread(workerId, dp, logManager, inputQueue, baseUri)
     dpThread.start()
     inputQueue.put(
@@ -351,7 +345,6 @@ class DPThreadSpec extends AnyFlatSpec with Matchers with MockFactory {
     val inputQueue = new LinkedBlockingQueue[DPInputQueueElement]()
     val dp = new DataProcessor(workerId, x => {}, inputMessageQueue = inputQueue)
     dp.adaptiveBatchingMonitor = mock[WorkerTimerService]
-    (dp.adaptiveBatchingMonitor.resumeAdaptiveBatching _).expects().anyNumberOfTimes()
     val dpThread = new DPThread(workerId, dp, logManager, inputQueue)
     try {
       dpThread.start()
@@ -386,7 +379,6 @@ class DPThreadSpec extends AnyFlatSpec with Matchers with MockFactory {
     dp.inputManager.addPort(mockInputPortId, schema, List.empty, List.empty)
     dp.inputGateway.getChannel(dataChannelId).setPortId(mockInputPortId)
     dp.adaptiveBatchingMonitor = mock[WorkerTimerService]
-    (dp.adaptiveBatchingMonitor.resumeAdaptiveBatching _).expects().anyNumberOfTimes()
     val dpThread = new DPThread(workerId, dp, logManager, inputQueue)
     try {
       dpThread.start()

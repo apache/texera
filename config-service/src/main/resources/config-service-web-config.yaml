@@ -26,6 +26,19 @@ server:
 
 logging:
   level: ${TEXERA_SERVICE_LOG_LEVEL:-INFO}
+  loggers:
+    # Cap noisy frameworks at WARN so TRACE/DEBUG surfaces Texera code
+    # (org.apache.texera) without the framework firehose.
+    "org.apache.pekko": WARN
+    "org.apache.iceberg": WARN
+    "org.apache.hadoop": WARN
+    "org.apache.kafka": WARN
+    "org.eclipse.jetty": WARN
+    "org.glassfish.jersey": WARN
+    "io.grpc": WARN
+    "io.netty": WARN
+    "com.zaxxer.hikari": WARN
+    "software.amazon.awssdk": WARN
   appenders:
     - type: console
       threshold: ${TEXERA_SERVICE_LOG_LEVEL:-INFO}

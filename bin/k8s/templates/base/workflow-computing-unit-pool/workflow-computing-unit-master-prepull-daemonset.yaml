@@ -40,7 +40,7 @@ spec:
       initContainers:
         - name: prepuller
           image: {{ .Values.texera.imageRegistry }}/{{ .Values.workflowComputingUnitPool.imageName }}:{{ .Values.texera.imageTag }}
-          imagePullPolicy: Always
+          imagePullPolicy: {{ .Values.texeraImages.pullPolicy }}
           command: ["sh", "-c", "true"]
       containers:
         - name: pause

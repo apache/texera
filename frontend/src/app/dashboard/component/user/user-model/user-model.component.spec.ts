@@ -395,6 +395,16 @@ describe("UserModelComponent rendering", () => {
     expect(results.currentUid).toBe(component.currentUid);
   });
 
+  it("forces a fresh search when the results list asks for a refresh", () => {
+    const results = fixture.debugElement.query(By.directive(SearchResultsComponent))
+      .componentInstance as SearchResultsComponent;
+    const searchSpy = vi.spyOn(component, "search").mockResolvedValue(undefined);
+
+    results.refresh.emit();
+
+    expect(searchSpy).toHaveBeenCalledWith(true);
+  });
+
   /** A search hit, in the shape DashboardEntry accepts. */
   function modelEntry(mid = 3, name = "resnet"): DashboardEntry {
     return new DashboardEntry({

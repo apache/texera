@@ -35,6 +35,7 @@ import java.nio.ByteBuffer
 import java.nio.file.Files
 import java.sql.Timestamp
 import java.time.{LocalDateTime, ZoneId}
+import java.util.TimeZone
 import scala.jdk.CollectionConverters._
 
 class IcebergUtilSpec extends AnyFlatSpec with MockFactory {
@@ -136,6 +137,23 @@ class IcebergUtilSpec extends AnyFlatSpec with MockFactory {
 
     val tupleFromRecord = IcebergUtil.fromRecord(record, texeraSchema)
     assert(tupleFromRecord == tuple)
+  }
+
+  // Los Angeles kept local mean time, -7:52:58, until 1883. A zone with no such
+  // history, as UTC has, would let the old conversion pass.
+  it should "store a timestamp before 1883 at the wall clock it holds" in {
+    val zone = TimeZone.getDefault
+    TimeZone.setDefault(TimeZone.getTimeZone("America/Los_Angeles"))
+    try {
+      val schema = Schema().add("ts", AttributeType.TIMESTAMP)
+      Seq("1600-06-15 08:30:00", "1677-09-21 00:00:00").foreach { text =>
+        val ts = Timestamp.valueOf(text)
+        val tuple = Tuple.builder(schema).addSequentially(Array(ts)).build()
+        val record = IcebergUtil.toGenericRecord(toIcebergSchema(schema), tuple)
+        assert(record.getField("ts") == ts.toLocalDateTime)
+        assert(IcebergUtil.fromRecord(record, schema) == tuple)
+      }
+    } finally TimeZone.setDefault(zone)
   }
 
   it should "convert Texera Tuple with null values to Iceberg GenericRecord correctly" in {

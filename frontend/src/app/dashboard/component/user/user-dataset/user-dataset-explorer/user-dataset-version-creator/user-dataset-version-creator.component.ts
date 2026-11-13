@@ -18,7 +18,7 @@
  */
 
 import { Component, inject, OnInit } from "@angular/core";
-import { FormBuilder, FormGroup, FormsModule } from "@angular/forms";
+import { FormGroup, FormsModule } from "@angular/forms";
 import { FormlyFieldConfig, FormlyModule } from "@ngx-formly/core";
 import { DatasetService } from "../../../../../service/user/dataset/dataset.service";
 import { Dataset } from "../../../../../../common/type/dataset";
@@ -58,8 +58,6 @@ export class UserDatasetVersionCreatorComponent implements OnInit {
 
   readonly did: number = inject(NZ_MODAL_DATA)?.did ?? undefined;
 
-  isCreateButtonDisabled: boolean = false;
-
   public form: FormGroup = new FormGroup({});
   model: any = {};
   fields: FormlyFieldConfig[] = [];
@@ -75,8 +73,7 @@ export class UserDatasetVersionCreatorComponent implements OnInit {
   constructor(
     private modalRef: NzModalRef,
     private datasetService: DatasetService,
-    private notificationService: NotificationService,
-    private formBuilder: FormBuilder
+    private notificationService: NotificationService
   ) {}
 
   ngOnInit() {

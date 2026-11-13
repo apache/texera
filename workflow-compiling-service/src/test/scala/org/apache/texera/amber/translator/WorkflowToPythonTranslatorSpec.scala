@@ -22,7 +22,12 @@ package org.apache.texera.amber.translator
 import org.apache.texera.amber.core.virtualidentity.{ExecutionIdentity, WorkflowIdentity}
 import org.apache.texera.amber.core.workflow.{InputPort, OutputPort, PhysicalOp, PortIdentity}
 import org.apache.texera.amber.operator.metadata.{OperatorGroupConstants, OperatorInfo}
-import org.apache.texera.amber.operator.{LogicalOp, StandaloneCodeGenerator}
+import org.apache.texera.amber.core.tuple.Schema
+import org.apache.texera.amber.operator.{
+  LogicalOp,
+  PythonOperatorDescriptor,
+  StandaloneCodeGenerator
+}
 import org.apache.texera.common.compiler.model.{LogicalLink, LogicalPlan}
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
@@ -59,6 +64,21 @@ class WorkflowToPythonTranslatorSpec extends AnyFlatSpec with Matchers {
 
   private def stub(id: String, block: String): LogicalOp = {
     val op = new StubOp(block)
+    op.setOperatorId(id)
+    op
+  }
+
+  /** A stub the engine would run in pyamber, which is all the input adapter asks. */
+  private class PythonStubOp(block: String) extends StubOp(block) with PythonOperatorDescriptor {
+    override def generatePythonCode(): String = ""
+    override def getOutputSchemas(
+        inputSchemas: Map[PortIdentity, Schema]
+    ): Map[PortIdentity, Schema] =
+      Map.empty
+  }
+
+  private def pythonStub(id: String, block: String): LogicalOp = {
+    val op = new PythonStubOp(block)
     op.setOperatorId(id)
     op
   }
@@ -134,6 +154,40 @@ class WorkflowToPythonTranslatorSpec extends AnyFlatSpec with Matchers {
     script should include("df2 = df1.copy()")
   }
 
+  /** pyamber hands a Python operator float64, where a NaN and a null are one value,
+    * and a source can hand the script Float64, which keeps them apart. The
+    * operator reads a converted copy, so the frame another operator reads from the
+    * same upstream is the one the source wrote.
+    */
+  it should "feed a Python operator a converted copy of each input" in {
+    val source = upstream("source")
+    val python = pythonStub("python", "out1df = in1df.copy()")
+    val script = new WorkflowToPythonTranslator().translate(
+      LogicalPlan(List(source, python), List(link(source, python)))
+    )
+    script should include("df1_python_operator_input = _texera_python_operator_input(df1)")
+    script should include("df2 = df1_python_operator_input.copy()")
+  }
+
+  it should "leave an operator the engine runs on the JVM reading its upstream as it is" in {
+    val first = upstream("first")
+    val second = upstream("second")
+    val script = new WorkflowToPythonTranslator().translate(
+      LogicalPlan(List(first, second), List(link(first, second)))
+    )
+    script should not include "_texera_python_operator_input"
+  }
+
+  it should "define the Python operator input helper once and leave the upstream frame alone" in {
+    val source = upstream("source")
+    val pythons = List("a", "b").map(id => pythonStub(id, "out1df = in1df.copy()"))
+    val script = new WorkflowToPythonTranslator().translate(
+      LogicalPlan(source :: pythons, pythons.map(link(source, _)))
+    )
+    script.linesIterator.count(_ == "def _texera_python_operator_input(df):") shouldBe 1
+    script should not include "df1 = _texera_python_operator_input("
+  }
+
   /** Nothing stops a column from being named after a placeholder. The
     * substitution rewrites the variable a block reads with, never the column
     * name it asks that variable for.
@@ -161,6 +215,101 @@ class WorkflowToPythonTranslatorSpec extends AnyFlatSpec with Matchers {
     script should include("""fig.write_json("stub_1.json")""")
     script should include("""fig.write_html("stub_1.html")""")
     script should include("""fig.write_html("stub_2.html")""")
+  }
+
+  /** A stub that declares `helper` and runs `block`. */
+  private def withHelper(id: String, helper: String, block: String): LogicalOp = {
+    val op = new StubOp(block) {
+      override def standaloneHelpers(): Seq[String] = Seq(helper)
+    }
+    op.setOperatorId(id)
+    op
+  }
+
+  private val sharedHelper =
+    """import math
+      |
+      |def _texera_called(x):
+      |    return _texera_reached(x)
+      |
+      |# Only ever named, never called.
+      |def _texera_named(x):
+      |    return x
+      |
+      |def _texera_reached(x):
+      |    return math.floor(x)
+      |
+      |def _texera_unused(x):
+      |    return x""".stripMargin
+
+  /** A helper block serves several operators, so one plan rarely calls all of
+    * it. What it does not call has no place in the script.
+    */
+  it should "emit only the helper definitions the script calls" in {
+    val op = withHelper("op", sharedHelper, "out1df = in1df.apply(_texera_called)")
+    val script = new WorkflowToPythonTranslator().translate(LogicalPlan(List(op), List.empty))
+    script should include("def _texera_called(x):")
+    script should include("def _texera_reached(x):")
+    script should not include "def _texera_unused(x):"
+    script should include("import math")
+  }
+
+  it should "not keep a helper alive for a comment or a string naming it" in {
+    val op = withHelper(
+      "op",
+      sharedHelper,
+      "# _texera_named\nout1df = in1df.assign(note=\"_texera_named\")"
+    )
+    val script = new WorkflowToPythonTranslator().translate(LogicalPlan(List(op), List.empty))
+    script should not include "def _texera_named(x):"
+    script should not include "# Only ever named, never called."
+  }
+
+  it should "emit nothing of a helper block whose definitions the script never calls" in {
+    val op = withHelper("op", "def _texera_unused(x):\n    return x", "out1df = in1df.copy()")
+    val script = new WorkflowToPythonTranslator().translate(LogicalPlan(List(op), List.empty))
+    script should not include "_texera_unused"
+  }
+
+  /** A source offers the last segment of its resolved path, which two sources
+    * reading different files can spell the same. Handing both that one name left
+    * the script reading one file twice and saying nothing about it.
+    */
+  it should "give each source reading a different file a name of its own" in {
+    val script = translateSources("/alice/sales/v1/data.csv", "/bob/ops/v3/data.csv")
+    script should include("""pd.read_csv("data.csv")""")
+    script should include("""pd.read_csv("data-2.csv")""")
+  }
+
+  /** The other half: one file read twice is still one file, so numbering it would
+    * send the reader looking for a second copy that was never there.
+    */
+  it should "give two sources reading one file the same name" in {
+    val script = translateSources("/alice/sales/v1/data.csv", "/alice/sales/v1/data.csv")
+    script.linesIterator.count(_.contains("""pd.read_csv("data.csv")""")) shouldBe 2
+    script should not include "data-2.csv"
+  }
+
+  /** A file name is the user's text, so it reaches the script through the escaper
+    * the operators use and through the replacement quoting on top of that: a bare
+    * `$` in a name is a group reference to `replaceAll`.
+    */
+  it should "escape a source file name that Python or the replacement would read" in {
+    val script = translateSources("""/alice/v1/we"ird$1\x.csv""")
+    script should include("""pd.read_csv("we\"ird$1\\x.csv")""")
+  }
+
+  private def translateSources(paths: String*): String = {
+    val ops = paths.zipWithIndex.map {
+      case (path, i) =>
+        val op =
+          new StubOp(s"out1df = pd.read_csv(${StandaloneCodeGenerator.SourceFilePlaceholder})") {
+            override def standaloneSourcePath(): Option[String] = Some(path)
+          }
+        op.setOperatorId(s"source$i")
+        op
+    }
+    new WorkflowToPythonTranslator().translate(LogicalPlan(ops.toList, List.empty))
   }
 
   /** The translator's own contract when it meets an operator it cannot render:

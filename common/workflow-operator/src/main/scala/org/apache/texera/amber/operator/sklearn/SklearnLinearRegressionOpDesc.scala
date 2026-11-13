@@ -104,16 +104,13 @@ class SklearnLinearRegressionOpDesc
 
   override def generateStandaloneCode(): String = {
     val targetLit = pyStringLiteral(target)
+    // Both frames drop the rows the operator drops, into local names, and each reports its skips.
     s"""from sklearn.metrics import mean_absolute_error, r2_score
        |from sklearn.pipeline import make_pipeline
        |from sklearn.linear_model import LinearRegression
        |from sklearn.preprocessing import PolynomialFeatures
        |import pandas as pd
        |
-       |# The same rows the operator drops, and on both frames: the model is fitted
-       |# on one and scored on the other, so narrowing only one side would fit and
-       |# score on different data. Local names rather than reassignments, since the
-       |# input variables belong to whichever operators produced them.
        |_train = in1df.dropna()
        |if len(_train) < len(in1df):
        |    print("Skipped", len(in1df) - len(_train), "of", len(in1df), "rows with missing values")
@@ -127,8 +124,6 @@ class SklearnLinearRegressionOpDesc
        |model = pipeline.fit(X_train, Y_train)
        |
        |_test = in2df.dropna()
-       |# The operator runs once per port, so it says this for the table it scores
-       |# as well as for the one it fits.
        |if len(_test) < len(in2df):
        |    print("Skipped", len(in2df) - len(_test), "of", len(in2df), "rows with missing values")
        |Y_test = _test[$targetLit]

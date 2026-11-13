@@ -25,7 +25,6 @@ import { UndoRedoService } from "../undo-redo/undo-redo.service";
 import { WorkflowUtilService } from "../workflow-graph/util/workflow-util.service";
 import { OperatorMetadataService } from "../operator-metadata/operator-metadata.service";
 import { StubOperatorMetadataService } from "../operator-metadata/stub-operator-metadata.service";
-import { marbles } from "rxjs-marbles";
 import {
   mockMultiInputOutputPredicate,
   mockResultPredicate,

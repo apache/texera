@@ -29,6 +29,18 @@ export interface SearchResultItem {
   model?: DashboardModel;
 }
 
+/**
+ * A search row's payload, or undefined when it carries none this client reads (a kind with no field here, or a
+ * null payload). SearchService.search keeps a row only when this returns one, and its hub enrichment and
+ * SearchBarComponent.convertToName read the same payload, so the rows kept and the rows the search bar can name
+ * cannot disagree.
+ */
+export function searchResultPayload(
+  item: SearchResultItem
+): DashboardWorkflow | DashboardDataset | DashboardModel | undefined {
+  return item.workflow ?? item.dataset ?? item.model ?? undefined;
+}
+
 export interface SearchResult {
   results: SearchResultItem[];
   more: boolean;

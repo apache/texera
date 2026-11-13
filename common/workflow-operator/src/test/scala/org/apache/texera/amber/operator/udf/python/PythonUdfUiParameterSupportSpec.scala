@@ -19,12 +19,19 @@
 
 package org.apache.texera.amber.operator.udf.python
 
+import org.apache.texera.amber.operator.udf.UiUDFParameter
+
 import org.apache.commons.vfs2.FileNotFoundException
 import org.apache.texera.amber.core.executor.OpExecWithCode
 import org.apache.texera.amber.core.storage.RepositoryMountManager
 import org.apache.texera.amber.core.tuple.{Attribute, AttributeType}
 import org.apache.texera.amber.core.virtualidentity.{ExecutionIdentity, WorkflowIdentity}
 import org.apache.texera.common.config.EnvironmentalVariable
+import org.apache.texera.amber.operator.udf.r.{
+  RUDFOpDesc,
+  RUDFSourceOpDesc,
+  RUdfUiParameterInjector
+}
 import org.apache.texera.dao.MockTexeraDB
 import org.apache.texera.dao.jooq.generated.enums.UserRoleEnum
 import org.apache.texera.dao.jooq.generated.tables.daos.{
@@ -44,6 +51,7 @@ import org.apache.texera.dao.jooq.generated.tables.pojos.{
 import org.scalatest.BeforeAndAfterAll
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
+import java.nio.file.Paths
 
 /** Forces a Python UDF's execution-time binding against real dataset and model rows. */
 class PythonUdfUiParameterSupportSpec
@@ -167,8 +175,18 @@ class PythonUdfUiParameterSupportSpec
     val bound = PythonUdfUiParameterInjector.inject(
       code,
       List(
-        parameter("DATA", AttributeType.STRING, "dataset", "/mnt/texera-mounts/dataset-1/d4t4"),
-        parameter("MODEL", AttributeType.STRING, "model", "/mnt/texera-mounts/model-1/m0d3l"),
+        parameter(
+          "DATA",
+          AttributeType.STRING,
+          "dataset",
+          Paths.get("/mnt/texera-mounts/dataset-1/d4t4").toString
+        ),
+        parameter(
+          "MODEL",
+          AttributeType.STRING,
+          "model",
+          Paths.get("/mnt/texera-mounts/model-1/m0d3l").toString
+        ),
         count
       )
     )
@@ -184,5 +202,58 @@ class PythonUdfUiParameterSupportSpec
 
     val failure = the[FileNotFoundException] thrownBy op.mountLocators
     failure.getMessage should include("/dataset/owner@test.com/sales/v9")
+  }
+
+  "An R UDF's execution-time binding" should "resolve resource selections for both operators and APIs" in {
+    for (source <- Seq(false, true); tuple <- Seq(false, true)) {
+      val parameters = List(
+        parameter("DATA", AttributeType.STRING, "dataset", "/dataset/owner@test.com/sales/v1"),
+        parameter("MODEL", AttributeType.STRING, "model", "/model/owner@test.com/iris/v2")
+      )
+      val rCode = "function() { data.frame() }"
+      val descriptor = if (source) {
+        val udf = new RUDFSourceOpDesc {
+          override protected def mounts: RepositoryMountManager = podMounts
+        }
+        udf.code = rCode
+        udf.uiParameters = parameters
+        udf.useTupleAPI = tuple
+        udf
+      } else {
+        val udf = new RUDFOpDesc {
+          override protected def mounts: RepositoryMountManager = podMounts
+        }
+        udf.code = rCode
+        udf.uiParameters = parameters
+        udf.useTupleAPI = tuple
+        udf
+      }
+      val op = descriptor.getPhysicalOp(WorkflowIdentity(1L), ExecutionIdentity(1L))
+      descriptor.uiParameters =
+        Nil // A later edit must not change the compiled binding's parameters.
+      op.mountLocators shouldBe Set("dataset-1:d4t4", "model-1:m0d3l")
+      val bound = RUdfUiParameterInjector.inject(
+        rCode,
+        List(
+          parameter(
+            "DATA",
+            AttributeType.STRING,
+            "dataset",
+            Paths.get("/mnt/texera-mounts/dataset-1/d4t4").toString
+          ),
+          parameter(
+            "MODEL",
+            AttributeType.STRING,
+            "model",
+            Paths.get("/mnt/texera-mounts/model-1/m0d3l").toString
+          )
+        )
+      )
+      op.executableOpExecInitInfo shouldBe OpExecWithCode(
+        bound,
+        if (tuple) "r-tuple" else "r-table"
+      )
+      parameters.head.value shouldBe "/dataset/owner@test.com/sales/v1"
+    }
   }
 }

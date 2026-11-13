@@ -324,9 +324,7 @@ class ConfigServiceRunSpec
     // below also passes for an initialize() that opens nothing at all, off a pool some earlier
     // test in this JVM installed.
     initialized.sqlServerAfter.map(_ ne initialized.sqlServerBefore.orNull) shouldBe Some(true)
-    // Not the test-cases database: preloading the defaults into it would leave the deployment's
-    // own site_settings empty while the CI e2e specs truncate the rows that were written. Only
-    // the URL is pinned — storage.conf ships username and password as the same string
+    // Only the URL is pinned — storage.conf ships username and password as the same string
     // ("postgres"), so nothing here can tell the two credential arguments apart.
     initialized.pooledJdbcUrl.get shouldBe StorageConfig.jdbcUrl
   }

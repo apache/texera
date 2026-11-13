@@ -197,7 +197,7 @@ describe("AdminExecutionComponent methods (#6550)", () => {
 
   const NOW = 1_700_000_000_000; // fixed clock (ms) for Date.now()-based logic
 
-  function makeExecution(over: Partial<Execution> = {}): Execution {
+  function makeExecution(over: Partial<Execution>): Execution {
     return {
       access: true,
       workflowId: 1,

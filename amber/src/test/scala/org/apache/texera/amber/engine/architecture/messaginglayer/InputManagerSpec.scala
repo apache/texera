@@ -216,6 +216,49 @@ class InputManagerSpec extends AnyFlatSpec {
   }
 
   // ---------------------------------------------------------------------------
+  // isPortCompleted — materialized path
+  // ---------------------------------------------------------------------------
+  //
+  // A port read from materialization is fed by a reader thread that enqueues END_CHANNEL. The DP
+  // thread may process that END before the thread returns, and the thread may return while END is
+  // still queued, so the port is completed when END has been processed (`WorkerPort.completed`,
+  // set by EndChannelHandler), whatever state the reader thread is in.
+
+  private val materializedUri = new URI("file:///nowhere")
+
+  private def broadcastToSelf: Partitioning =
+    BroadcastPartitioning(batchSize = 1, channels = Seq(channelId("upstream", "worker-1")))
+
+  "InputManager.isPortCompleted (materialized)" should
+    "be true once END has been processed, before the reader thread has returned" in {
+    val mgr = freshManager
+    val portId = PortIdentity(0)
+    mgr.addPort(portId, schema, List(materializedUri), List(broadcastToSelf))
+    val reader = mgr.getInputPortReaderThreads(portId).head
+    assert(!mgr.isPortCompleted(portId))
+
+    // What EndChannelHandler does on END, while the reader thread has not even started.
+    mgr.getPort(portId).completed = true
+
+    assert(reader.getState == Thread.State.NEW)
+    assert(mgr.isPortCompleted(portId))
+  }
+
+  it should "be false while END is still queued, even after the reader thread has returned" in {
+    val mgr = freshManager
+    val portId = PortIdentity(0)
+    mgr.addPort(portId, schema, List.empty, List.empty)
+    val returnedReader = new NoOpReaderThread
+    returnedReader.start()
+    returnedReader.join()
+    installReaderThreads(mgr, portId, List(returnedReader))
+
+    // The reader enqueued END and returned, but the DP thread has not processed END yet.
+    assert(returnedReader.getState == Thread.State.TERMINATED)
+    assert(!mgr.isPortCompleted(portId))
+  }
+
+  // ---------------------------------------------------------------------------
   // startInputPortReaderThreads — no-op when nothing is registered
   // ---------------------------------------------------------------------------
 
@@ -276,6 +319,8 @@ class InputManagerSpec extends AnyFlatSpec {
     val alreadyStarted = new NoOpReaderThread
     alreadyStarted.start()
     alreadyStarted.join() // now TERMINATED, so a second start() is guaranteed to fail
+    // Registered first, as addPort always does before building a port's reader threads.
+    mgr.addPort(PortIdentity(0), schema, urisToRead = List.empty, partitionings = List.empty)
     installReaderThreads(mgr, PortIdentity(0), List(alreadyStarted))
 
     val thrown = intercept[RuntimeException] {

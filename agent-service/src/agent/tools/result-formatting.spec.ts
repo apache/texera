@@ -18,7 +18,7 @@
  */
 
 import { describe, expect, test } from "bun:test";
-import { formatOperatorResult } from "./result-formatting";
+import { formatOperatorResult, formatInputOutputMetadata, jsonToTableFormat } from "./result-formatting";
 import { WorkflowState } from "../workflow-state";
 import type { OperatorInfo } from "../../types/execution";
 import type { OperatorPredicate, OperatorLink, PortDescription } from "../../types/workflow";
@@ -339,5 +339,99 @@ describe("jsonToTableFormat - row index gaps", () => {
     );
     expect(out).not.toContain("...\t...");
     expect(out.endsWith("9\tz")).toBe(true);
+  });
+});
+
+describe("formatInputOutputMetadata", () => {
+  test("returns only output shape when inputPortShapes is empty or undefined", () => {
+    const opInfo = makeOpInfo({ outputTuples: 5 });
+    expect(formatInputOutputMetadata(EMPTY_STATE, "op1", opInfo, 3)).toBe("Output table shape: (5, 3)");
+  });
+
+  test("resolves upstream operators and sorts input ports by index", () => {
+    const state = new WorkflowState();
+    state.addOperator(makeOperator("src0"));
+    state.addOperator(makeOperator("src1"));
+    state.addOperator(makeOperator("op1", ["in-0", "in-1"]));
+    state.addLink(makeLink("l0", ["src0", "output-0"], ["op1", "in-0"]));
+    state.addLink(makeLink("l1", ["src1", "output-0"], ["op1", "in-1"]));
+
+    const opInfo = makeOpInfo({
+      totalRowCount: 10,
+      inputPortShapes: [
+        { portIndex: 1, rows: 20, columns: 2 },
+        { portIndex: 0, rows: 30, columns: 4 },
+      ],
+    });
+
+    const out = formatInputOutputMetadata(state, "op1", opInfo, 5);
+    expect(out).toBe("Input operator(table shape): src0(30, 4), src1(20, 2)\nOutput table shape: (10, 5)");
+  });
+});
+
+describe("jsonToTableFormat", () => {
+  test("returns empty string for empty array or rows with no visible headers", () => {
+    expect(jsonToTableFormat([])).toBe("");
+    expect(jsonToTableFormat([{ __row_index__: 0, __is_visualization__: true }])).toBe("");
+  });
+
+  test("formats tab-separated header and row values with index column", () => {
+    const rows = [
+      { colA: "val1", colB: 10, colC: null, colD: true },
+      { colA: "line\nbreak", colB: 20, colC: "NULL", colD: false },
+    ];
+    const out = jsonToTableFormat(rows);
+    const lines = out.split("\n");
+    expect(lines[0]).toBe("\tcolA\tcolB\tcolC\tcolD");
+    expect(lines[1]).toBe("0\tval1\t10\tNaN\ttrue");
+    expect(lines[2]).toBe("1\tline\\nbreak\t20\tNaN\tfalse");
+  });
+});
+
+describe("formatOperatorResult - charLimit truncation", () => {
+  const rows = Array.from({ length: 100 }, (_, i) => ({ a: i, b: "x".repeat(20) }));
+
+  test("without charLimit keeps every row", () => {
+    const out = formatOperatorResult("op1", makeOpInfo({ outputTuples: 100, result: rows }), EMPTY_STATE);
+    expect(out).toContain("\n0\t0\t");
+    expect(out).toContain("\n50\t50\t");
+    expect(out).toContain("\n99\t99\t");
+  });
+
+  test("charLimit keeps head and tail rows and drops the middle", () => {
+    const out = formatOperatorResult("op1", makeOpInfo({ outputTuples: 100, result: rows }), EMPTY_STATE, 300);
+    expect(out).toContain("Output table shape: (100, 2)");
+    expect(out).toContain("\ta\tb");
+    expect(out).toContain("\n0\t0\t");
+    expect(out).toContain("\n99\t99\t");
+    expect(out).not.toContain("\n50\t50\t");
+  });
+
+  test("charLimit larger than the table leaves it untouched", () => {
+    const full = formatOperatorResult("op1", makeOpInfo({ outputTuples: 100, result: rows }), EMPTY_STATE);
+    const limited = formatOperatorResult(
+      "op1",
+      makeOpInfo({ outputTuples: 100, result: rows }),
+      EMPTY_STATE,
+      1_000_000
+    );
+    expect(limited).toBe(full);
+  });
+
+  test("tiny charLimit still keeps at least one row", () => {
+    const out = formatOperatorResult("op1", makeOpInfo({ outputTuples: 100, result: rows }), EMPTY_STATE, 1);
+    expect(out).toContain("\n0\t0\t");
+  });
+
+  test("visualization content is skipped even when charLimit is set", () => {
+    const html = "<html>" + "y".repeat(5000) + "</html>";
+    const out = formatOperatorResult(
+      "op1",
+      makeOpInfo({ outputTuples: 1, result: [{ __is_visualization__: true, "html-content": html }] }),
+      EMPTY_STATE,
+      100_000
+    );
+    expect(out).not.toContain("<html>");
+    expect(out).toContain("<skipped: visualization content>");
   });
 });

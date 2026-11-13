@@ -1,0 +1,136 @@
+{{/*
+Licensed to the Apache Software Foundation (ASF) under one
+or more contributor license agreements.  See the NOTICE file
+distributed with this work for additional information
+regarding copyright ownership.  The ASF licenses this file
+to you under the Apache License, Version 2.0 (the
+"License"); you may not use this file except in compliance
+with the License.  You may obtain a copy of the License at
+
+  http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing,
+software distributed under the License is distributed on an
+"AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+KIND, either express or implied.  See the License for the
+specific language governing permissions and limitations
+under the License.
+*/}}
+
+{{- if and .Values.observability.enabled .Values.observability.logs.enabled }}
+# Loki: log store, k8s counterpart of the docker-compose loki service.
+# OTLP ingest (/otlp) + LogQL query API on one port. Loki is AGPLv3, so
+# it is an optional operator-run component, not part of any Texera release
+# artifact (see bin/observability/README.md). Only this ASF-licensed
+# template lives in the tree.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ .Release.Name }}-loki-config
+  namespace: {{ .Release.Namespace }}
+  labels:
+    app: {{ .Release.Name }}-loki
+data:
+  config.yaml: |
+    {{- include "texera.observability.lokiConfig" . | nindent 4 }}
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: {{ .Release.Name }}-loki-data
+  namespace: {{ .Release.Namespace }}
+  labels:
+    app: {{ .Release.Name }}-loki
+spec:
+  accessModes: ["ReadWriteOnce"]
+  {{- if .Values.observability.logs.storageClass }}
+  storageClassName: {{ .Values.observability.logs.storageClass }}
+  {{- end }}
+  resources:
+    requests:
+      storage: {{ .Values.observability.logs.storage }}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ .Release.Name }}-loki
+  namespace: {{ .Release.Namespace }}
+  labels:
+    app: {{ .Release.Name }}-loki
+spec:
+  replicas: 1
+  # Single writer bound to one RWO volume; never run two at once.
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: {{ .Release.Name }}-loki
+  template:
+    metadata:
+      labels:
+        app: {{ .Release.Name }}-loki
+      annotations:
+        # Roll the pod when the rendered config changes.
+        checksum/config: {{ include "texera.observability.lokiConfig" . | sha256sum }}
+    spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 10001
+        fsGroup: 10001
+      containers:
+        - name: loki
+          image: {{ .Values.observability.logs.image }}
+          imagePullPolicy: {{ .Values.texeraImages.pullPolicy }}
+          args: ["-config.file=/etc/loki/config.yaml"]
+          securityContext:
+            readOnlyRootFilesystem: true
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop: ["ALL"]
+          ports:
+            - name: http
+              containerPort: {{ .Values.observability.logs.port }}
+          volumeMounts:
+            - name: config
+              mountPath: /etc/loki
+              readOnly: true
+            - name: data
+              mountPath: /loki
+            # Read-only root filesystem, so scratch space is an emptyDir.
+            - name: tmp
+              mountPath: /tmp
+          livenessProbe:
+            httpGet:
+              path: /ready
+              port: {{ .Values.observability.logs.port }}
+            initialDelaySeconds: 15
+            periodSeconds: 15
+          resources:
+            {{- toYaml .Values.observability.logs.resources | nindent 12 }}
+      volumes:
+        - name: config
+          configMap:
+            name: {{ .Release.Name }}-loki-config
+        - name: data
+          persistentVolumeClaim:
+            claimName: {{ .Release.Name }}-loki-data
+        - name: tmp
+          emptyDir: {}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ .Release.Name }}-loki
+  namespace: {{ .Release.Namespace }}
+  labels:
+    app: {{ .Release.Name }}-loki
+spec:
+  type: ClusterIP
+  selector:
+    app: {{ .Release.Name }}-loki
+  ports:
+    - name: http
+      protocol: TCP
+      port: {{ .Values.observability.logs.port }}
+      targetPort: {{ .Values.observability.logs.port }}
+{{- end }}
