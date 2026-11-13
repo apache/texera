@@ -144,13 +144,56 @@ UiParameter("active", AttributeType$INT)`)
     ]);
   });
 
-  it.each(["function() count", "helper(count = 1); function() count", "function() { count <- count + 1; count }"])(
-    "keeps a referenced name available without a top-level binding: %s",
-    code => {
-      const edit = parser.computeParameterInsertion(code, "count", "integer", "r");
-      expect(edit.text).toContain('count <- UiParameter(name="count",');
-    }
-  );
+  it.each([
+    ["for (count in 1:3) NULL\nfunction() count", "count_2"],
+    ["for (`count` in seq_len(3)) { print(count) }\nfunction() count", "count_2"],
+    ["count_2 <- 0; for (count in 1:3) NULL\nfunction() count", "count_3"],
+    ["for (count in integer()) NULL\nfunction() count", "count_2"],
+    ["helper <- function() 1\nfor (count in 1:3) NULL\nfunction() count", "count_2"],
+    ["if (TRUE) { for (count in 1:3) NULL }\nfunction() count", "count_2"],
+  ])("does not reuse a top-level loop binding in %s", (code, identifier) => {
+    const edit = parser.computeParameterInsertion(code, "count", "integer", "r");
+    expect(edit.text).toContain(`${identifier} <- UiParameter(name="count",`);
+  });
+
+  it.each([
+    "function() count",
+    "helper(count = 1); function() count",
+    "function() { count <- count + 1; count }",
+    "helper <- function() { for (count in 1:3) NULL }; function() count",
+    "helper <- function() for (count in seq_len(count)) NULL; function() count",
+    "helper <- function() if (TRUE) NULL else for (count in seq_len(count)) NULL; function() count",
+    "helper <- \\() for (count in seq_len(count)) NULL; function() count",
+    "helper <- function() (0) + for (i in 1:3)\nfor (count in seq_len(count)) NULL; function() count",
+  ])("keeps a referenced name available without a top-level binding: %s", code => {
+    const edit = parser.computeParameterInsertion(code, "count", "integer", "r");
+    expect(edit.text).toContain('count <- UiParameter(name="count",');
+  });
+
+  it.each([
+    "if (TRUE) { count <- 3 }",
+    "for (i in 1:3) { count <- i }",
+    "if (TRUE) { count <<- 3 }",
+    "if (TRUE) { count = 3 }",
+    "if (TRUE) { 3 -> count }",
+    "if (TRUE) { 3 ->> count }",
+    "suppressWarnings(count <- 3)",
+    "suppressWarnings(3 -> count)",
+    "tryCatch({ for (count in 1:3) NULL }, error = function(e) NULL)",
+    "suppressWarnings(for (count in 1:3) NULL)",
+  ])("reserves a script binding inside blocks or calls: %s", code => {
+    const edit = parser.computeParameterInsertion(`${code}\nfunction() count`, "count", "integer", "r");
+    expect(edit.text).toContain('count_2 <- UiParameter(name="count",');
+  });
+
+  it.each([
+    "if (TRUE) { helper(count = 3) }",
+    "tryCatch(stop('failure'), count = 3, error = function(count) count)",
+    "helper <- function() { count <- 3; for (count in 1:3) NULL }",
+  ])("keeps call arguments and function bindings out of the script scope: %s", code => {
+    const edit = parser.computeParameterInsertion(`${code}\nfunction() count`, "count", "integer", "r");
+    expect(edit.text).toContain('count <- UiParameter(name="count",');
+  });
 
   it("rejects duplicate, empty, and unsupported additions before editing", () => {
     expect(() => parser.computeParameterInsertion("", " ", "string", "r")).toThrow("name is required");

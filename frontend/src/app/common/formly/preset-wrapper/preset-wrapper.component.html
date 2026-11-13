@@ -25,7 +25,6 @@
   nzBackdrop="false"
   [nzOverlayClassName]="searchResults.length === 0 ? 'preset-dropdown no-results' : 'preset-dropdown'"
   (nzVisibleChange)="onDropdownVisibilityEvent($event)"
-  [nzVisible]="presetMenuVisible"
   nzClickHide="true">
   <span
     class="formly-field"
@@ -55,7 +54,7 @@
     class="preset-menu">
     <li
       nz-menu-item
-      *ngFor="let preset of searchResults; index as i">
+      *ngFor="let preset of searchResults">
       <div class="preset-dropdown-item">
         <span
           class="dropdown-entry"

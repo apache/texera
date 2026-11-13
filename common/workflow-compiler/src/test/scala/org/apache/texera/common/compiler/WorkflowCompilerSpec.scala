@@ -149,13 +149,10 @@ class WorkflowCompilerSpec extends AnyFlatSpec {
       )
   }
 
-  private val realCsvPath =
-    "workflow-compiling-service/src/test/resources/country_sales_small.csv"
-
   // -------------------- happy path --------------------
 
   "WorkflowCompiler" should "produce a populated physicalPlan and no errors for a well-formed plan" in {
-    val csv = csvOp(realCsvPath)
+    val csv = csvOp(TestOperators.CountrySalesSmallCsvPath)
     val proj = projectOp(List("Region", "Total Profit"))
     val result = newCompiler().compile(
       LogicalPlanPojo(
@@ -188,7 +185,7 @@ class WorkflowCompilerSpec extends AnyFlatSpec {
     // WorkflowCompilationResourceSpec as an HTTP test, but the property being
     // pinned is compiler-level (schema propagation) — the REST envelope adds
     // no signal.
-    val csv = csvOp(realCsvPath)
+    val csv = csvOp(TestOperators.CountrySalesSmallCsvPath)
     val proj = projectOp(List("Region", "Total Profit"))
     val limit1 = limitOp(10)
     val filter1 =
@@ -357,7 +354,7 @@ class WorkflowCompilerSpec extends AnyFlatSpec {
   }
 
   it should "accumulate a per-operator error when projection references a non-existent attribute" in {
-    val csv = csvOp(realCsvPath)
+    val csv = csvOp(TestOperators.CountrySalesSmallCsvPath)
     val badProjection = projectOp(List("DoesNotExist"))
 
     val result = newCompiler().compile(
@@ -442,7 +439,7 @@ class WorkflowCompilerSpec extends AnyFlatSpec {
 
   // Re-anchor the subject after the sub-section.
   "WorkflowCompiler" should "accumulate a per-operator error when a Python operator's code generation fails" in {
-    val csv = csvOp(realCsvPath)
+    val csv = csvOp(TestOperators.CountrySalesSmallCsvPath)
     val unconfiguredSort = sortOp() // no sort keys -> generatePythonCode throws
 
     val result = newCompiler().compile(
@@ -489,7 +486,7 @@ class WorkflowCompilerSpec extends AnyFlatSpec {
   }
 
   it should "attribute each Python code-generation failure to its own logical operator" in {
-    val csv = csvOp(realCsvPath)
+    val csv = csvOp(TestOperators.CountrySalesSmallCsvPath)
     val noKeys = sortOp()
     val blankKey = sortOp("" -> SortPreference.ASC)
 
@@ -579,7 +576,7 @@ class WorkflowCompilerSpec extends AnyFlatSpec {
   }
 
   it should "report no code-generation error for a well-formed Python operator" in {
-    val csv = csvOp(realCsvPath)
+    val csv = csvOp(TestOperators.CountrySalesSmallCsvPath)
     val configuredSort = sortOp("Region" -> SortPreference.ASC)
 
     val result = newCompiler().compile(
@@ -613,7 +610,7 @@ class WorkflowCompilerSpec extends AnyFlatSpec {
     // Non-Python operators carry no code at all — `getCode` throws
     // IllegalAccessError on them — so the check must stay behind the
     // `isPythonBased` guard or every Scala operator would fail to compile.
-    val csv = csvOp(realCsvPath)
+    val csv = csvOp(TestOperators.CountrySalesSmallCsvPath)
     val filter = filterOp(new FilterPredicate("Region", ComparisonType.EQUAL_TO, "Asia"))
 
     val result = newCompiler().compile(
@@ -807,7 +804,7 @@ class WorkflowCompilerSpec extends AnyFlatSpec {
   it should "return a defined physicalPlan for a well-formed plan" in {
     // The execution path calls `physicalPlan.get` on the result, so a strict
     // success must always carry a plan.
-    val csv = csvOp(realCsvPath)
+    val csv = csvOp(TestOperators.CountrySalesSmallCsvPath)
     val proj = projectOp(List("Region", "Total Profit"))
 
     val result = newCompiler().compile(
@@ -837,7 +834,7 @@ class WorkflowCompilerSpec extends AnyFlatSpec {
     // collected. Strict must fail fast on it too — otherwise the plan would be
     // launched and only fail at runtime. The lenient counterpart above turns
     // the same failure into a per-operator error instead.
-    val csv = csvOp(realCsvPath)
+    val csv = csvOp(TestOperators.CountrySalesSmallCsvPath)
     val badProjection = projectOp(List("DoesNotExist"))
 
     val ex = intercept[Throwable] {
@@ -866,7 +863,7 @@ class WorkflowCompilerSpec extends AnyFlatSpec {
     // The execution path passes no error buffer, so the marker found in the
     // generated code must abort the compile instead of being collected. The
     // lenient counterpart above turns the same marker into a per-operator error.
-    val csv = csvOp(realCsvPath)
+    val csv = csvOp(TestOperators.CountrySalesSmallCsvPath)
     val unconfiguredSort = sortOp()
 
     val ex = intercept[RuntimeException] {
@@ -893,7 +890,7 @@ class WorkflowCompilerSpec extends AnyFlatSpec {
   }
 
   it should "not throw for a well-formed Python operator" in {
-    val csv = csvOp(realCsvPath)
+    val csv = csvOp(TestOperators.CountrySalesSmallCsvPath)
     val configuredSort = sortOp("Region" -> SortPreference.DESC)
 
     val result = newCompiler().compile(
@@ -980,7 +977,7 @@ class WorkflowCompilerSpec extends AnyFlatSpec {
   }
 
   "WorkflowCompiler" should "keep a '$AAPL' on a Filter outside every loop block the literal it is on main" in {
-    val csv = csvOp(realCsvPath)
+    val csv = csvOp(TestOperators.CountrySalesSmallCsvPath)
     val filter = parsed(
       """{"predicates":[{"attribute":"Region","condition":"=","value":"$AAPL"}],"operatorType":"Filter"}"""
     )
@@ -995,7 +992,7 @@ class WorkflowCompilerSpec extends AnyFlatSpec {
   }
 
   it should "report a typed '$n' outside every loop block, naming the property and the variable" in {
-    val csv = csvOp(realCsvPath)
+    val csv = csvOp(TestOperators.CountrySalesSmallCsvPath)
     val limit = parsed("""{"limit":"$n","operatorType":"Limit"}""")
     val plan = pojo(List(csv, limit), List(linked(csv, limit)))
     val message = "Limit refers to loop variables (/limit -> $n), but is not inside a loop block"
@@ -1098,7 +1095,7 @@ class WorkflowCompilerSpec extends AnyFlatSpec {
     // Sort generates its Python from its properties before the loop runs, but pyb renders the
     // "$col" key as an expression evaluated inside the operator, which now reads `col` instead.
     // Outside every block "$USD" is the column name it is on main.
-    val csv = csvOp(realCsvPath)
+    val csv = csvOp(TestOperators.CountrySalesSmallCsvPath)
     val start = loopStartOp()
     val sortJson =
       """{"attributes":[{"attribute":"$%s","sortPreference":"ASC"}],"operatorType":"Sort"}"""
@@ -1144,7 +1141,7 @@ class WorkflowCompilerSpec extends AnyFlatSpec {
 
   /** The sales CSV -> LoopStart -> both inputs of `body` -> LoopEnd. */
   private def twoInputLoop(body: LogicalOp): LogicalPlanPojo = {
-    val src = csvOp(realCsvPath)
+    val src = csvOp(TestOperators.CountrySalesSmallCsvPath)
     val start = loopStartOp()
     val end = loopEndOp()
     pojo(
@@ -1611,7 +1608,7 @@ class WorkflowCompilerSpec extends AnyFlatSpec {
 
   /** The sales CSV -> LoopStart -> `body` -> LoopEnd. */
   private def csvLoop(body: LogicalOp): LogicalPlanPojo = {
-    val src = csvOp(realCsvPath)
+    val src = csvOp(TestOperators.CountrySalesSmallCsvPath)
     val start = loopStartOp()
     val end = loopEndOp()
     pojo(List(src, start, body, end), chain(src, start, body, end))
@@ -1719,7 +1716,7 @@ class WorkflowCompilerSpec extends AnyFlatSpec {
           |"parametersSource":false}],"operatorType":"SVRTrainer"}""".stripMargin
       )
     val trainer = checkingTrainer()
-    val src = csvOp(realCsvPath)
+    val src = csvOp(TestOperators.CountrySalesSmallCsvPath)
     val start = loopStartOp()
     val broken = projectOp(List("missing"))
     val end = loopEndOp()
