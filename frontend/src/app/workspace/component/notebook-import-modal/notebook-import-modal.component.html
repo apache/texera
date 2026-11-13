@@ -229,6 +229,54 @@
             "></ng-container>
         </ng-template>
       </nz-tab>
+
+      <nz-tab
+        [nzTitle]="rFileTitle"
+        [nzDisabled]="!rMigrationEnabled">
+        <ng-template #rFileTitle>
+          <span
+            nz-tooltip
+            [nzTooltipTitle]="rMigrationEnabled ? null : rDisabledTooltip"
+            [nzTooltipOverlayStyle]="{ 'max-width': 'none' }">
+            R File
+          </span>
+        </ng-template>
+        <ng-template nz-tab>
+          <div class="import-modal-diagram">
+            <img
+              ngSrc="assets/notebook_migration_tool/r_file_diagram.png"
+              alt="R File to Workflow"
+              width="1350"
+              height="344" />
+          </div>
+
+          <nz-form-item>
+            <p class="import-modal-text">
+              This tool converts an R file into a Texera workflow using LLM capabilities. Every generated operator is an
+              R UDF, so the computing unit that runs the workflow needs the texera-rudf package installed. A script has
+              no notebook cells, so the LLM also divides it into sections and records which section became which
+              operator. The conversion time depends on the script's complexity and can take 1-5 minutes. Once generation
+              finishes, you are taken to the new workflow, which opens with:
+            </p>
+            <ol class="import-modal-list">
+              <li>
+                The generated workflow ready to use (Note: you will still need to upload the dataset and connect it to
+                the workflow).
+              </li>
+              <li>A floating Jupyter window containing your script, divided into cells, for reference.</li>
+            </ol>
+            <p class="import-modal-text">
+              Generation runs here after you submit. Please keep this window open while you wait.
+            </p>
+          </nz-form-item>
+
+          <ng-container
+            *ngTemplateOutlet="
+              uploadRow;
+              context: { accept: '.R,.r', label: 'Upload R File', action: 'Upload R file' }
+            "></ng-container>
+        </ng-template>
+      </nz-tab>
     </nz-tabs>
 
     <nz-form-item>
