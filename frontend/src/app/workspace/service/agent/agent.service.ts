@@ -37,12 +37,15 @@ import {
 import { NotificationService } from "../../../common/service/notification/notification.service";
 import { WorkflowPersistService } from "../../../common/service/workflow-persist/workflow-persist.service";
 import { AppSettings } from "../../../common/app-setting";
-import { AgentState, ReActStep, ModelMessage } from "./agent-types";
+import { AgentState, ReActStep, ModelMessage, LastRunOperatorStats, LastRunReport } from "./agent-types";
 import { Workflow, WorkflowContent } from "../../../common/type/workflow";
 import { ComputingUnitStatusService } from "../../../common/service/computing-unit/computing-unit-status/computing-unit-status.service";
 import { WarehouseService } from "../../../common/service/warehouse/warehouse.service";
-import type { WebOutputMode } from "../../types/execute-workflow.interface";
 import type { SchemaAttribute } from "../../types/workflow-compiling.interface";
+import { ExecuteWorkflowService } from "../execute-workflow/execute-workflow.service";
+import { WorkflowConsoleService } from "../workflow-console/workflow-console.service";
+import { WorkflowStatusService } from "../workflow-status/workflow-status.service";
+import { ExecutionState, OperatorState, type WebOutputMode } from "../../types/execute-workflow.interface";
 
 /**
  * Agent settings for API (serializable format).
@@ -212,6 +215,39 @@ interface AgentStateTracking {
   isActive: boolean;
 }
 
+/** States a finished run ends in. */
+const LAST_RUN_FINAL_STATES: ReadonlySet<ExecutionState> = new Set([
+  ExecutionState.Completed,
+  ExecutionState.Failed,
+  ExecutionState.Killed,
+  ExecutionState.Terminated,
+]);
+/** States of a run that has started and not ended. */
+const LAST_RUN_IN_FLIGHT_STATES: ReadonlySet<ExecutionState> = new Set([
+  ExecutionState.Running,
+  ExecutionState.Pausing,
+  ExecutionState.Paused,
+  ExecutionState.Resuming,
+  ExecutionState.Recovering,
+]);
+const LAST_RUN_MESSAGE_CHAR_LIMIT = 2000;
+const LAST_RUN_MESSAGE_HEAD_CHARS = 1500;
+const LAST_RUN_MESSAGE_TAIL_CHARS = 500;
+const LAST_RUN_MAX_OPERATORS = 10;
+const LAST_RUN_MAX_OPERATOR_STATS = 50;
+/** Operator id the backend puts on a fatal error that belongs to no operator. */
+const UNKNOWN_OPERATOR_ID = "unknown operator";
+/** Agent tools after which the agent service runs an operator on the workflow's computing unit. */
+const OPERATOR_RUNNING_TOOL_NAMES: ReadonlySet<string> = new Set(["executeOperator", "addOperator", "modifyOperator"]);
+
+/** Keeps the head and the tail of a long message. */
+function truncateLastRunMessage(message: string): string {
+  if (message.length <= LAST_RUN_MESSAGE_CHAR_LIMIT) {
+    return message;
+  }
+  return `${message.slice(0, LAST_RUN_MESSAGE_HEAD_CHARS)}\n...\n${message.slice(-LAST_RUN_MESSAGE_TAIL_CHARS)}`;
+}
+
 /**
  * Manages the workspace's agents via the agent-service HTTP/WebSocket
  * API. Owns the local agent list, per-agent state tracking (ReAct steps, HEAD
@@ -252,7 +288,10 @@ export class AgentService {
     private workflowPersistService: WorkflowPersistService,
     private ngZone: NgZone,
     private computingUnitStatusService: ComputingUnitStatusService,
-    private warehouseService: WarehouseService
+    private warehouseService: WarehouseService,
+    private executeWorkflowService: ExecuteWorkflowService,
+    private workflowConsoleService: WorkflowConsoleService,
+    private workflowStatusService: WorkflowStatusService
   ) {
     // Sync local cache with backend on service initialization
     // This handles cases where the backend was restarted
@@ -504,6 +543,11 @@ export class AgentService {
         if (message.step) {
           const convertedStep = this.convertApiReActStep(message.step);
           const currentSteps = tracking.reActStepsSubject.getValue();
+
+          // An operator the agent runs replaces the user's run on screen.
+          if (convertedStep.toolCalls?.some(call => OPERATOR_RUNNING_TOOL_NAMES.has(call?.toolName))) {
+            this.executeWorkflowService.markCurrentRunNotStartedHere();
+          }
 
           // Check if step with same messageId and stepId already exists
           const existingIndex = currentSteps.findIndex(
@@ -895,7 +939,13 @@ export class AgentService {
       return;
     }
 
-    const wsMessage: { type: string; content: string; messageSource: string; warehouseId?: number } = {
+    const wsMessage: {
+      type: string;
+      content: string;
+      messageSource: string;
+      warehouseId?: number;
+      lastRun?: LastRunReport;
+    } = {
       type: "WsClientPromptCommand",
       content: message,
       messageSource,
@@ -907,6 +957,12 @@ export class AgentService {
     if (selectedWarehouseId !== undefined) {
       wsMessage.warehouseId = selectedWarehouseId;
     }
+    // Sent per message too: the agent only sees a run the user started through this field.
+    // Absent means no run the user started here has finished or hit an error.
+    const lastRun = this.buildLastRunReport();
+    if (lastRun !== undefined) {
+      wsMessage.lastRun = lastRun;
+    }
 
     try {
       tracking.websocket.send(JSON.stringify(wsMessage));
@@ -914,6 +970,85 @@ export class AgentService {
       console.error("Failed to send message to agent:", error);
       this.notificationService.error("Failed to send message");
     }
+  }
+
+  /**
+   * Collects what the last run reported: at most one error per operator, a fatal error winning
+   * over the operator's last ERROR console message, and fatal errors without an operator listed
+   * at workflow level, plus each operator's state and row counts. A finished run is always
+   * reported. A run still in flight is reported only once an operator has logged an error.
+   * Returns undefined otherwise, or when the run on screen was not started from this browser.
+   */
+  private buildLastRunReport(): LastRunReport | undefined {
+    if (!this.executeWorkflowService.wasCurrentRunStartedHere()) {
+      return undefined;
+    }
+    const state = this.executeWorkflowService.getExecutionState().state;
+    const finished = LAST_RUN_FINAL_STATES.has(state);
+    if (!finished && !LAST_RUN_IN_FLIGHT_STATES.has(state)) {
+      return undefined;
+    }
+
+    const operatorErrors: LastRunReport["operatorErrors"] = [];
+    const workflowErrors: string[] = [];
+    const seen = new Set<string>();
+    for (const fatal of this.executeWorkflowService.getErrorMessages()) {
+      const text = [fatal.message, fatal.details].filter(Boolean).join("\n");
+      const message = truncateLastRunMessage(text.replace(/<br>/g, "\n"));
+      if (!fatal.operatorId || fatal.operatorId === UNKNOWN_OPERATOR_ID) {
+        workflowErrors.push(message);
+      } else if (!seen.has(fatal.operatorId)) {
+        seen.add(fatal.operatorId);
+        operatorErrors.push({ operatorId: fatal.operatorId, message });
+      }
+    }
+    for (const operatorId of this.workflowConsoleService.getOperatorIdsWithMessages()) {
+      if (seen.has(operatorId)) {
+        continue;
+      }
+      const consoleError = (this.workflowConsoleService.getConsoleMessages(operatorId) ?? [])
+        .filter(msg => msg.msgType.name === "ERROR")
+        .pop();
+      if (consoleError) {
+        seen.add(operatorId);
+        const full = [consoleError.title, consoleError.message].filter(part => part).join("\n");
+        operatorErrors.push({ operatorId, message: truncateLastRunMessage(full) });
+      }
+    }
+
+    if (!finished && operatorErrors.length === 0) {
+      return undefined;
+    }
+
+    return {
+      state: state as LastRunReport["state"],
+      operatorErrors: operatorErrors.slice(0, LAST_RUN_MAX_OPERATORS),
+      workflowErrors: workflowErrors.slice(0, LAST_RUN_MAX_OPERATORS),
+      operatorStats: this.buildLastRunOperatorStats(),
+    };
+  }
+
+  /** State and row counts of each operator that started, in the order the engine reported them. */
+  private buildLastRunOperatorStats(): LastRunOperatorStats[] {
+    const states = this.workflowStatusService.getCurrentState();
+    const isRowCount = (value: unknown): value is number => Number.isInteger(value) && (value as number) >= 0;
+    const operatorStats: LastRunOperatorStats[] = [];
+    for (const [operatorId, statistics] of Object.entries(this.workflowStatusService.getCurrentStatistics())) {
+      const inputRows = statistics.aggregatedInputRowCount;
+      const outputRows = statistics.aggregatedOutputRowCount;
+      const operatorState = states[operatorId] ?? "Unknown";
+      if (operatorState === OperatorState.Uninitialized || !isRowCount(inputRows) || !isRowCount(outputRows)) {
+        continue;
+      }
+      operatorStats.push({
+        operatorId,
+        state: operatorState,
+        inputRows,
+        outputRows,
+        ...(statistics.reusedFromCache ? { reusedFromCache: true } : {}),
+      });
+    }
+    return operatorStats.slice(0, LAST_RUN_MAX_OPERATOR_STATS);
   }
 
   /**

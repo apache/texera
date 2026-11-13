@@ -22,6 +22,8 @@
 // equals its class name, so `new WsClientPromptCommand(...)` sets the wire tag
 // for you. `WsClientCommand` is their discriminated union.
 
+import type { LastRunReport } from "../execution";
+
 /** Send a prompt to the agent to start (or continue) its ReAct loop. */
 export class WsClientPromptCommand {
   readonly type = "WsClientPromptCommand";
@@ -32,7 +34,9 @@ export class WsClientPromptCommand {
     // than fixed at agent creation: an agent created before the picker loaded
     // would otherwise carry no warehouse for its whole life and every run would
     // be refused, with nothing in the agent panel able to fix it (#7751).
-    readonly warehouseId?: number
+    readonly warehouseId?: number,
+    // The last run the user started. Absent when none has finished or hit an error.
+    readonly lastRun?: LastRunReport
   ) {}
 }
 

@@ -24,7 +24,7 @@ import { WorkflowState } from "../workflow-state";
 import type { ReActStep } from "../../types/agent";
 import type { OperatorLink, OperatorPredicate } from "../../types/workflow";
 import type { WorkflowCompilationResponse } from "../../api/compile-api";
-import { WorkflowFatalErrorType } from "../../types/execution";
+import { WorkflowFatalErrorType, type LastRunReport } from "../../types/execution";
 
 function step(messageId: string, role: "user" | "agent", stepId: number, content: string, isEnd: boolean): ReActStep {
   return {
@@ -250,5 +250,432 @@ describe("assembleContext — dataflow serialization", () => {
     const content = contentOf(assembleContext([], workflowState, new Map(), false, compilationResult));
 
     expect(content).toContain("Compilation Error: attribute x not found");
+  });
+});
+
+describe("assembleContext — last run report", () => {
+  const failedRun: LastRunReport = {
+    state: "Failed",
+    operatorErrors: [{ operatorId: "op1", message: "ValueError: bad row\n  at line 3" }],
+    workflowErrors: [],
+  };
+
+  test("renders the run error under the operator that produced it and nowhere else", () => {
+    const workflowState = new WorkflowState();
+    workflowState.addOperator(makeOperator("op1"));
+    workflowState.addOperator(makeOperator("op2"));
+
+    const content = contentOf(assembleContext([], workflowState, new Map(), false, null, failedRun));
+
+    const op1 = content.indexOf("### Operator `op1`");
+    const op2 = content.indexOf("### Operator `op2`");
+    const err = content.indexOf("Last Run Error (from the user's run): ValueError: bad row\n    at line 3");
+    expect(err).toBeGreaterThan(op1);
+    expect(err).toBeLessThan(op2);
+    expect(content.match(/Last Run Error/g)).toHaveLength(1);
+  });
+
+  test("marks an operator with a run error as failed even without an agent result", () => {
+    const workflowState = new WorkflowState();
+    workflowState.addOperator(makeOperator("op1"));
+    workflowState.addOperator(makeOperator("op2"));
+
+    const content = contentOf(assembleContext([], workflowState, new Map(), false, null, failedRun));
+
+    expect(content).toContain("### Operator `op1` (TestOp, failed)");
+    expect(content).toContain("### Operator `op2` (TestOp, not-executed)");
+  });
+
+  test("shows properties under redaction when the only error is from the user's run", () => {
+    const workflowState = new WorkflowState();
+    workflowState.addOperator(makeOperator("op1", { operatorProperties: { code: "print(1)" } }));
+
+    const redacted = contentOf(assembleContext([], workflowState, new Map(), true));
+    expect(redacted).not.toContain("code: print(1)");
+
+    const withRunError = contentOf(assembleContext([], workflowState, new Map(), true, null, failedRun));
+    expect(withRunError).toContain("code: print(1)");
+  });
+
+  test("appends a Last Run block with the state and workflow-level errors", () => {
+    const workflowState = new WorkflowState();
+    workflowState.addOperator(makeOperator("op1"));
+    const report: LastRunReport = {
+      state: "Killed",
+      operatorErrors: [],
+      workflowErrors: ["computing unit out of memory", "worker lost"],
+    };
+
+    const content = contentOf(assembleContext([], workflowState, new Map(), false, null, report));
+
+    expect(content).toContain(
+      "## Last Run\nState: Killed\nLast Run Error (from the user's run), not tied to one operator:\n- computing unit out of memory\n- worker lost"
+    );
+    expect(content.indexOf("## Last Run")).toBeGreaterThan(content.indexOf("## Operators"));
+  });
+
+  test("says the run finished cleanly when both error lists are empty", () => {
+    const workflowState = new WorkflowState();
+    workflowState.addOperator(makeOperator("op1"));
+    const report: LastRunReport = { state: "Completed", operatorErrors: [], workflowErrors: [] };
+
+    const content = contentOf(assembleContext([], workflowState, new Map(), false, null, report));
+
+    expect(content).toContain("## Last Run\nState: Completed\nNo errors reported.");
+    expect(content).not.toContain("Last Run Error");
+  });
+
+  test("renders no Last Run block when no report is given", () => {
+    const workflowState = new WorkflowState();
+    workflowState.addOperator(makeOperator("op1"));
+
+    const content = contentOf(assembleContext([], workflowState, new Map(), false, null));
+
+    expect(content).not.toContain("## Last Run");
+    expect(content).not.toContain("Last Run Error");
+  });
+
+  test("lists the errors of operators the agent does not know, with their messages", () => {
+    const workflowState = new WorkflowState();
+    workflowState.addOperator(makeOperator("op1"));
+    const report: LastRunReport = {
+      state: "Failed",
+      operatorErrors: [
+        { operatorId: "udf-1", message: "boom" },
+        { operatorId: "__DummyOperator", message: "bang" },
+      ],
+      workflowErrors: [],
+    };
+
+    const content = contentOf(assembleContext([], workflowState, new Map(), false, null, report));
+
+    expect(
+      content.endsWith(
+        "## Last Run\nState: Failed\n" +
+          "Last Run Error (from the user's run), for operators not in the workflow as you see it:\n" +
+          "- udf-1: boom\n- __DummyOperator: bang"
+      )
+    ).toBe(true);
+    expect(content).toContain("### Operator `op1` (TestOp, not-executed)");
+    expect(content).not.toContain("No errors reported.");
+    expect(content).not.toContain("no longer in the workflow");
+  });
+
+  test("lists an unknown operator's error next to one shown under a known operator", () => {
+    const workflowState = new WorkflowState();
+    workflowState.addOperator(makeOperator("scan-1"));
+    const report: LastRunReport = {
+      state: "Failed",
+      operatorErrors: [
+        { operatorId: "scan-1", message: "file not found" },
+        { operatorId: "udf-1", message: "ValueError: bad row" },
+      ],
+      workflowErrors: ["worker lost"],
+    };
+
+    const content = contentOf(assembleContext([], workflowState, new Map(), false, null, report));
+
+    expect(content).toContain("### Operator `scan-1` (TestOp, failed)");
+    expect(content).toContain("Last Run Error (from the user's run): file not found");
+    expect(
+      content.endsWith(
+        "## Last Run\nState: Failed\n" +
+          "Last Run Error (from the user's run), for operators not in the workflow as you see it:\n" +
+          "- udf-1: ValueError: bad row\n" +
+          "Last Run Error (from the user's run), not tied to one operator:\n" +
+          "- worker lost"
+      )
+    ).toBe(true);
+    expect(content.match(/file not found/g)).toHaveLength(1);
+    expect(content).not.toContain("No errors reported.");
+  });
+
+  test("renders the Last Run block when the agent's workflow has no operators", () => {
+    const report: LastRunReport = {
+      state: "Running",
+      operatorErrors: [{ operatorId: "udf-1", message: "boom" }],
+      workflowErrors: ["worker lost"],
+      operatorStats: [{ operatorId: "udf-1", state: "Paused", inputRows: 1, outputRows: 0 }],
+    };
+
+    const content = contentOf(assembleContext([], new WorkflowState(), new Map(), false, null, report));
+
+    expect(
+      content.endsWith(
+        "# Current Dataflow\n## Last Run\nState: Running (not finished)\n" +
+          "Last Run Error (from the user's run), for operators not in the workflow as you see it:\n" +
+          "- udf-1: boom\n" +
+          "Last Run Error (from the user's run), not tied to one operator:\n" +
+          "- worker lost"
+      )
+    ).toBe(true);
+    expect(content).not.toContain("## Operators");
+    expect(content).not.toContain("Last Run (from the user's run):");
+  });
+
+  test("says no errors were reported for an empty workflow and a clean report", () => {
+    const report: LastRunReport = { state: "Completed", operatorErrors: [], workflowErrors: [] };
+
+    const content = contentOf(assembleContext([], new WorkflowState(), new Map(), false, null, report));
+
+    expect(content.endsWith("# Current Dataflow\n## Last Run\nState: Completed\nNo errors reported.")).toBe(true);
+  });
+
+  test("renders no dataflow section for an empty workflow without a report", () => {
+    const content = contentOf(assembleContext([], new WorkflowState(), new Map(), false, null));
+
+    expect(content).not.toContain("# Current Dataflow");
+    expect(content).not.toContain("## Last Run");
+  });
+
+  test("indents the continuation lines of a multi-line run error", () => {
+    const workflowState = new WorkflowState();
+    workflowState.addOperator(makeOperator("op1"));
+    const report: LastRunReport = {
+      state: "Failed",
+      operatorErrors: [
+        { operatorId: "op1", message: "ValueError: bad row\nTraceback\n  File udf.py, line 6" },
+        { operatorId: "udf-1", message: "KeyError: x\nTraceback" },
+      ],
+      workflowErrors: ["worker lost\nstack line"],
+    };
+
+    const content = contentOf(assembleContext([], workflowState, new Map(), false, null, report));
+
+    expect(content).toContain(
+      "Last Run Error (from the user's run): ValueError: bad row\n  Traceback\n    File udf.py, line 6\n"
+    );
+    expect(content).toContain("- udf-1: KeyError: x\n  Traceback\n");
+    expect(content.endsWith("- worker lost\n  stack line")).toBe(true);
+  });
+
+  test("does not say no errors were reported when an operator error is shown", () => {
+    const workflowState = new WorkflowState();
+    workflowState.addOperator(makeOperator("op1"));
+
+    const content = contentOf(assembleContext([], workflowState, new Map(), false, null, failedRun));
+
+    expect(content).toContain("Last Run Error (from the user's run)");
+    expect(content).not.toContain("No errors reported.");
+    expect(content).not.toContain("not in the workflow as you see it");
+  });
+
+  test("marks an operator with a run error as failed and leaves out the agent's older result for it", () => {
+    const workflowState = new WorkflowState();
+    workflowState.addOperator(makeOperator("op1", { operatorProperties: { code: "print(1)" } }));
+    const results = new Map([["op1", "header\nrow1"]]);
+
+    const content = contentOf(assembleContext([], workflowState, results, true, null, failedRun));
+
+    expect(content).toContain("### Operator `op1` (TestOp, failed)");
+    expect(content).toContain("Last Run Error (from the user's run): ValueError: bad row");
+    expect(content).toContain("code: print(1)");
+    expect(content).not.toContain("Result:");
+    expect(content).not.toContain("row1");
+  });
+
+  test("leaves out the agent's older failed result for an operator with a run error", () => {
+    const workflowState = new WorkflowState();
+    workflowState.addOperator(makeOperator("op1"));
+    const results = new Map([["op1", "[ERROR] KeyError: stale"]]);
+
+    const content = contentOf(assembleContext([], workflowState, results, false, null, failedRun));
+
+    expect(content).toContain("### Operator `op1` (TestOp, failed)");
+    expect(content).toContain("Last Run Error (from the user's run): ValueError: bad row");
+    expect(content).not.toContain("Result:");
+    expect(content).not.toContain("KeyError: stale");
+  });
+
+  test("keeps the agent's result and status for an operator the report has no error for", () => {
+    const workflowState = new WorkflowState();
+    workflowState.addOperator(makeOperator("op1"));
+    workflowState.addOperator(makeOperator("op2"));
+    workflowState.addOperator(makeOperator("op3"));
+    const results = new Map([
+      ["op2", "header\nrow1"],
+      ["op3", "[ERROR] KeyError: mine"],
+    ]);
+    const report: LastRunReport = {
+      ...failedRun,
+      operatorStats: [{ operatorId: "op2", state: "Completed", inputRows: 3, outputRows: 3 }],
+    };
+
+    const content = contentOf(assembleContext([], workflowState, results, false, null, report));
+
+    expect(content).toContain("### Operator `op1` (TestOp, failed)");
+    expect(content).toContain("### Operator `op2` (TestOp, executed)");
+    expect(content).toContain(
+      "Last Run (from the user's run): Completed, input rows 3, output rows 3\nResult:\n  header\n  row1"
+    );
+    expect(content).toContain("### Operator `op3` (TestOp, failed)");
+    expect(content).toContain("Result:\n  [ERROR] KeyError: mine");
+    expect(content.match(/Result:/g)).toHaveLength(2);
+  });
+
+  test("renders the row counts of the user's run under the operator they belong to and nowhere else", () => {
+    const workflowState = new WorkflowState();
+    workflowState.addOperator(makeOperator("op1"));
+    workflowState.addOperator(makeOperator("op2"));
+    const report: LastRunReport = {
+      state: "Completed",
+      operatorErrors: [],
+      workflowErrors: [],
+      operatorStats: [{ operatorId: "op1", state: "Completed", inputRows: 5000, outputRows: 0 }],
+    };
+
+    const content = contentOf(assembleContext([], workflowState, new Map(), false, null, report));
+
+    const op1 = content.indexOf("### Operator `op1`");
+    const op2 = content.indexOf("### Operator `op2`");
+    const line = content.indexOf("Last Run (from the user's run): Completed, input rows 5000, output rows 0");
+    expect(line).toBeGreaterThan(op1);
+    expect(line).toBeLessThan(op2);
+    expect(content.match(/Last Run \(from the user's run\)/g)).toHaveLength(1);
+  });
+
+  test("row counts alone change neither the status nor what redaction hides", () => {
+    const workflowState = new WorkflowState();
+    workflowState.addOperator(makeOperator("op1", { operatorProperties: { code: "print(1)" } }));
+    const report: LastRunReport = {
+      state: "Completed",
+      operatorErrors: [],
+      workflowErrors: [],
+      operatorStats: [{ operatorId: "op1", state: "Completed", inputRows: 3, outputRows: 0 }],
+    };
+
+    const content = contentOf(assembleContext([], workflowState, new Map(), true, null, report));
+
+    expect(content).toContain("### Operator `op1` (TestOp, not-executed)");
+    expect(content).not.toContain("code: print(1)");
+    expect(content).toContain("Last Run (from the user's run): Completed, input rows 3, output rows 0");
+    expect(content).toContain("## Last Run\nState: Completed\nNo errors reported.");
+  });
+
+  test("reports a cache-reused operator without row counts", () => {
+    const workflowState = new WorkflowState();
+    workflowState.addOperator(makeOperator("op1"));
+    const report: LastRunReport = {
+      state: "Completed",
+      operatorErrors: [],
+      workflowErrors: [],
+      operatorStats: [{ operatorId: "op1", state: "Completed", inputRows: 0, outputRows: 0, reusedFromCache: true }],
+    };
+
+    const content = contentOf(assembleContext([], workflowState, new Map(), false, null, report));
+
+    expect(content).toContain("Last Run (from the user's run): Completed, reused from cache, row counts not reported");
+    expect(content).not.toContain("output rows 0");
+  });
+
+  test("ignores row counts of operators that are no longer in the workflow", () => {
+    const workflowState = new WorkflowState();
+    workflowState.addOperator(makeOperator("op1"));
+    const report: LastRunReport = {
+      state: "Completed",
+      operatorErrors: [],
+      workflowErrors: [],
+      operatorStats: [{ operatorId: "gone", state: "Completed", inputRows: 7, outputRows: 7 }],
+    };
+
+    const content = contentOf(assembleContext([], workflowState, new Map(), false, null, report));
+
+    expect(content).not.toContain("Last Run (from the user's run)");
+    expect(content).not.toContain("gone");
+    expect(content).toContain("## Last Run\nState: Completed\nNo errors reported.");
+  });
+
+  test("shows both the row counts and the error of an operator that failed", () => {
+    const workflowState = new WorkflowState();
+    workflowState.addOperator(makeOperator("op1"));
+    workflowState.addOperator(makeOperator("op2"));
+    const report: LastRunReport = {
+      ...failedRun,
+      operatorStats: [
+        { operatorId: "op1", state: "Running", inputRows: 12, outputRows: 4 },
+        { operatorId: "op2", state: "Uninitialized", inputRows: 0, outputRows: 0 },
+      ],
+    };
+
+    const content = contentOf(assembleContext([], workflowState, new Map(), false, null, report));
+
+    const op1 = content.indexOf("### Operator `op1`");
+    const op2 = content.indexOf("### Operator `op2`");
+    const stats = content.indexOf("Last Run (from the user's run): Running, input rows 12, output rows 4");
+    const error = content.indexOf("Last Run Error (from the user's run): ValueError: bad row");
+    expect(stats).toBeGreaterThan(op1);
+    expect(error).toBeGreaterThan(stats);
+    expect(error).toBeLessThan(op2);
+    expect(content).toContain("Last Run (from the user's run): Uninitialized, input rows 0, output rows 0");
+    expect(content).toContain("### Operator `op1` (TestOp, failed)");
+    expect(content).toContain("### Operator `op2` (TestOp, not-executed)");
+  });
+
+  test("marks the state of a run that is still in flight as not finished", () => {
+    const workflowState = new WorkflowState();
+    workflowState.addOperator(makeOperator("op1"));
+
+    for (const state of ["Running", "Pausing", "Paused", "Resuming", "Recovering"] as const) {
+      const content = contentOf(assembleContext([], workflowState, new Map(), false, null, { ...failedRun, state }));
+
+      expect(content.endsWith(`## Last Run\nState: ${state} (not finished)`)).toBe(true);
+    }
+  });
+
+  test("renders the state of a finished run without the not-finished mark", () => {
+    const workflowState = new WorkflowState();
+    workflowState.addOperator(makeOperator("op1"));
+
+    for (const state of ["Completed", "Failed", "Killed", "Terminated"] as const) {
+      const content = contentOf(assembleContext([], workflowState, new Map(), false, null, { ...failedRun, state }));
+
+      expect(content.endsWith(`## Last Run\nState: ${state}`)).toBe(true);
+      expect(content).not.toContain("not finished");
+    }
+  });
+
+  test("shows the error and the row counts so far of an operator that paused on an error", () => {
+    const workflowState = new WorkflowState();
+    workflowState.addOperator(makeOperator("op1"));
+    workflowState.addOperator(makeOperator("op2"));
+    const report: LastRunReport = {
+      state: "Running",
+      operatorErrors: [{ operatorId: "op2", message: "ValueError: column price is missing" }],
+      workflowErrors: [],
+      operatorStats: [
+        { operatorId: "op1", state: "Completed", inputRows: 0, outputRows: 1 },
+        { operatorId: "op2", state: "Paused", inputRows: 1, outputRows: 0 },
+      ],
+    };
+
+    const content = contentOf(assembleContext([], workflowState, new Map(), false, null, report));
+
+    expect(content).toContain("### Operator `op1` (TestOp, not-executed)");
+    expect(content).toContain("### Operator `op2` (TestOp, failed)");
+    expect(content).toContain("Last Run (from the user's run): Completed, input rows 0, output rows 1");
+    const stats = content.indexOf("Last Run (from the user's run): Paused, input rows 1, output rows 0");
+    const error = content.indexOf("Last Run Error (from the user's run): ValueError: column price is missing");
+    expect(stats).toBeGreaterThan(content.indexOf("### Operator `op2`"));
+    expect(error).toBeGreaterThan(stats);
+    expect(content.endsWith("## Last Run\nState: Running (not finished)")).toBe(true);
+  });
+
+  test("says no errors were reported for an in-flight report that carries none", () => {
+    const workflowState = new WorkflowState();
+    workflowState.addOperator(makeOperator("op1"));
+    const report: LastRunReport = { state: "Paused", operatorErrors: [], workflowErrors: [] };
+
+    const content = contentOf(assembleContext([], workflowState, new Map(), false, null, report));
+
+    expect(content).toContain("## Last Run\nState: Paused (not finished)\nNo errors reported.");
+  });
+
+  test("renders no row count line when the report carries no stats", () => {
+    const workflowState = new WorkflowState();
+    workflowState.addOperator(makeOperator("op1"));
+
+    const content = contentOf(assembleContext([], workflowState, new Map(), false, null, failedRun));
+
+    expect(content).not.toContain("Last Run (from the user's run)");
   });
 });

@@ -28,6 +28,7 @@ import type { ReActStep } from "../../types/agent";
 import type { WorkflowCompilationResponse, WorkflowFatalError } from "../../api/compile-api";
 import { extractOperatorInputPortSchemaMap } from "./workflow-utils";
 import { createLogger } from "../../logger";
+import { LAST_RUN_IN_FLIGHT_STATES, type LastRunOperatorStats, type LastRunReport } from "../../types/execution";
 
 const log = createLogger("ContextAssembler");
 
@@ -36,7 +37,8 @@ export function assembleContext(
   workflowState: WorkflowState,
   operatorExecutionResults: Map<string, string>,
   useRedact: boolean = false,
-  compilationResult?: WorkflowCompilationResponse | null
+  compilationResult?: WorkflowCompilationResponse | null,
+  lastRun?: LastRunReport
 ): ModelMessage[] {
   const messageIds: string[] = [];
   const stepsByMessage = new Map<string, ReActStep[]>();
@@ -79,7 +81,7 @@ export function assembleContext(
     }
   }
 
-  const dagSection = serializeDag(workflowState, operatorExecutionResults, useRedact, compilationResult);
+  const dagSection = serializeDag(workflowState, operatorExecutionResults, useRedact, compilationResult, lastRun);
   if (dagSection) {
     sections.push("");
     sections.push("# Current Dataflow");
@@ -139,10 +141,13 @@ function serializeDag(
   workflowState: WorkflowState,
   operatorExecutionResults: Map<string, string>,
   useRedact: boolean,
-  compilationResult?: WorkflowCompilationResponse | null
+  compilationResult?: WorkflowCompilationResponse | null,
+  lastRun?: LastRunReport
 ): string | null {
   const allOperators = workflowState.getAllOperators();
-  if (allOperators.length === 0) return null;
+  if (allOperators.length === 0) {
+    return lastRun ? serializeLastRun(lastRun, new Set()).join("\n") : null;
+  }
 
   const lines: string[] = [];
 
@@ -185,6 +190,8 @@ function serializeDag(
     const inputSchemaMap = extractOperatorInputPortSchemaMap(op.operatorID, op, outputSchemas, allLinks);
     const outputSchemaMap = outputSchemas[op.operatorID];
     const compilationError = compilationErrors[op.operatorID];
+    const runError = lastRun?.operatorErrors.find(e => e.operatorId === op.operatorID);
+    const runStats = lastRun?.operatorStats?.find(e => e.operatorId === op.operatorID);
     lines.push(
       serializeOperator(
         op,
@@ -192,9 +199,16 @@ function serializeDag(
         useRedact,
         inputSchemaMap,
         outputSchemaMap,
-        compilationError
+        compilationError,
+        runError?.message,
+        runStats
       )
     );
+    lines.push("");
+  }
+
+  if (lastRun) {
+    lines.push(...serializeLastRun(lastRun, opIds));
     lines.push("");
   }
 
@@ -215,19 +229,54 @@ function serializeDag(
   return lines.join("\n").trimEnd();
 }
 
+/** Indents the lines after the first, the way a Result block is indented. */
+function indentContinuation(message: string): string {
+  return message.split("\n").join("\n  ");
+}
+
+/**
+ * The Last Run block: the run's state, then the errors that have no operator section to sit
+ * under. The agent's copy of the workflow can be behind the canvas the user ran, so an error
+ * may name an operator it does not have.
+ */
+function serializeLastRun(lastRun: LastRunReport, knownOperatorIds: Set<string>): string[] {
+  const inFlight = (LAST_RUN_IN_FLIGHT_STATES as readonly string[]).includes(lastRun.state);
+  const lines = ["## Last Run", `State: ${lastRun.state}${inFlight ? " (not finished)" : ""}`];
+  if (lastRun.operatorErrors.length === 0 && lastRun.workflowErrors.length === 0) {
+    lines.push("No errors reported.");
+  }
+  const unknown = lastRun.operatorErrors.filter(e => !knownOperatorIds.has(e.operatorId));
+  if (unknown.length > 0) {
+    lines.push("Last Run Error (from the user's run), for operators not in the workflow as you see it:");
+    for (const error of unknown) {
+      lines.push(`- ${error.operatorId}: ${indentContinuation(error.message)}`);
+    }
+  }
+  if (lastRun.workflowErrors.length > 0) {
+    lines.push("Last Run Error (from the user's run), not tied to one operator:");
+    for (const message of lastRun.workflowErrors) {
+      lines.push(`- ${indentContinuation(message)}`);
+    }
+  }
+  return lines;
+}
+
 function serializeOperator(
   op: OperatorPredicate,
   execResult: string | undefined,
   useRedact: boolean,
   inputSchemaMap?: OperatorPortSchemaMap,
   outputSchemaMap?: OperatorPortSchemaMap,
-  compilationError?: WorkflowFatalError
+  compilationError?: WorkflowFatalError,
+  runError?: string,
+  runStats?: LastRunOperatorStats
 ): string {
-  const hasError = execResult !== undefined && execResult.includes("[ERROR]");
-  const status = execResult ? (hasError ? "failed" : "executed") : "not-executed";
+  const hasExecError = execResult !== undefined && execResult.includes("[ERROR]");
+  // A report is rendered only while it is newer than every agent result, so its error decides.
+  const status = runError !== undefined || hasExecError ? "failed" : execResult ? "executed" : "not-executed";
 
   const summary = op.customDisplayName || op.operatorID;
-  const showProperties = !useRedact || hasError;
+  const showProperties = !useRedact || hasExecError || runError !== undefined;
 
   const lines: string[] = [];
   lines.push(`### Operator \`${op.operatorID}\` (${op.operatorType}, ${status})`);
@@ -265,7 +314,20 @@ function serializeOperator(
     lines.push(`Compilation Error: ${compilationError.message}`);
   }
 
-  if (execResult) {
+  if (runStats !== undefined) {
+    // A cache-reused operator is reported without row counts.
+    const counts = runStats.reusedFromCache
+      ? "reused from cache, row counts not reported"
+      : `input rows ${runStats.inputRows}, output rows ${runStats.outputRows}`;
+    lines.push(`Last Run (from the user's run): ${runStats.state}, ${counts}`);
+  }
+
+  if (runError !== undefined) {
+    lines.push(`Last Run Error (from the user's run): ${indentContinuation(runError)}`);
+  }
+
+  // A run error in the report is newer than the agent's result for the operator.
+  if (execResult && runError === undefined) {
     lines.push("Result:");
     const indented = execResult
       .split("\n")

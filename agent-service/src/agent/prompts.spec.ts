@@ -89,6 +89,41 @@ describe("buildSystemPrompt", () => {
     expect(prompt).toContain("## R UDF Guide");
   });
 
+  test("tells the agent to ask before acting on a run error, under an operator or in the Last Run section", () => {
+    const prompt = buildSystemPrompt(makeMetadataStore());
+
+    expect(prompt).toContain(`"Last Run Error (from the user's run)"`);
+    expect(prompt).toContain('under an operator or in the "Last Run" section');
+    expect(prompt).toContain("Ask before applying it.");
+    expect(prompt).toContain("so if it does not match the operator's current properties, say so before diagnosing.");
+    expect(prompt).not.toContain("has been edited since");
+    expect(prompt).not.toContain("offer to run it again");
+    expect(prompt).toContain('handled by the "Refine or fix operator in place" rule.');
+    expect(prompt).not.toContain("handled by the next rule");
+  });
+
+  test("tells the agent that a run marked not finished is still in progress", () => {
+    const prompt = buildSystemPrompt(makeMetadataStore());
+
+    expect(prompt).toContain(
+      'A "Last Run" state marked "(not finished)" means the run is still in progress, so say so, treat its row counts as not final, and do not run, add or modify operators until the user agrees, because any of them starts a new run and ends the user\'s.'
+    );
+  });
+
+  test("tells the agent what an error for an operator outside its workflow means", () => {
+    const prompt = buildSystemPrompt(makeMetadataStore());
+
+    expect(prompt).toContain(
+      'An error listed "for operators not in the workflow as you see it" belongs to an operator you cannot see or edit, so explain it and say that.'
+    );
+  });
+
+  test("adds nothing to the rule for errors from the agent's own executions", () => {
+    const prompt = buildSystemPrompt(makeMetadataStore());
+
+    expect(prompt).toContain("and fix it in place.\n- **Debug by isolating**");
+  });
+
   test("reports that no operators are available when a restricted type is absent from metadata", () => {
     const prompt = buildSystemPrompt(makeMetadataStore(), ["MissingOperator"]);
 
