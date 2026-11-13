@@ -65,11 +65,10 @@ import scala.jdk.CollectionConverters._
   *     laundered into that suite's idea of the real runner. `PveResourceSpec` owns the
   *     create path instead. Consequence: the `getOrDefault("action", List.of("create"))`
   *     default can be replaced with any garbage string and both tests still pass.
-  *   - the `packages` query parameter's parse chain is unobservable, and mutations to it
-  *     survive: `installUserPackages` reports the missing interpreter and returns before it
-  *     ever reads the list, so replacing the parsed list with `Nil` — or inverting the
-  *     `filter(_.nonEmpty)` — changes nothing any assertion can see. Pinning it needs the
-  *     same fake runner.
+  *   - the decoded `packages` list never reaches an assertion through `onOpen`:
+  *     `installUserPackages` reports the missing interpreter and returns before it reads the
+  *     list. The decoding itself is pinned directly through `parsePackages` below; only the
+  *     hand-off of the decoded list to `PveManager` stays unobserved.
   *   - the pump's guard is pinned at ENTRY ONLY. `while (!done && session.isOpen)` narrowed
   *     to `while (!done)` survives, because every session here is open for the whole
   *     exchange; killing it needs a test that enters the loop with an already-closed
@@ -192,9 +191,9 @@ class PveWebsocketResourceSpec extends AnyFlatSpec with Matchers with MockFactor
     val cuid = 313131
     val pveName = "ws-install-env"
 
-    // No `packages` parameter on purpose: whatever this test passed would be unobservable
-    // (see the header), and the `getOrDefault` default takes over. Its absence is the honest
-    // signal — version-pinned literals here would imply a contract nothing pins.
+    // No `packages` parameter on purpose: the list handed to `PveManager` is unobservable here
+    // (see the header), and the `getOrDefault` default takes over. The decoding of a present
+    // parameter is pinned by the `parsePackages` tests below.
     val f = fixture(
       "cuid" -> cuid.toString,
       "pveName" -> pveName,
@@ -319,5 +318,91 @@ class PveWebsocketResourceSpec extends AnyFlatSpec with Matchers with MockFactor
 
     f.sentLines shouldBe List("[ERR] Missing required parameter: pveName", "__DONE__")
     f.assertPumpStopped()
+  }
+
+  it should "report an unparseable packages parameter and still send the sentinel" in {
+    // The frontend sends `packages` as a JSON array; a truncated one must be reported through
+    // the same `[ERR]` line and sentinel as every other failure, not swallowed or split apart.
+    val f = fixture(
+      "cuid" -> "424245",
+      "pveName" -> "ws-bad-packages",
+      "action" -> "install",
+      "packages" -> """["example>=1,<2"""
+    )
+
+    new PveWebsocketResource().onOpen(f.session)
+    f.awaitClose()
+
+    f.sentLines should have size 2
+    f.sentLines.head shouldBe """[ERR] Invalid packages parameter: ["example>=1,<2"""
+    f.sentLines.last shouldBe "__DONE__"
+    f.assertPumpStopped()
+  }
+
+  // -------------------- packages parameter decoding --------------------
+
+  "PveWebsocketResource.parsePackages" should "decode an empty array to no packages" in {
+    PveWebsocketResource.parsePackages("[]") shouldBe Nil
+  }
+
+  it should "keep every array element as its own requirement" in {
+    PveWebsocketResource.parsePackages("""["numpy==1.26.0","scipy"]""") shouldBe
+      List("numpy==1.26.0", "scipy")
+  }
+
+  it should "keep a comma inside one requirement" in {
+    // `example>=1,<2` is a single pip requirement with two version specifiers.
+    PveWebsocketResource.parsePackages("""["example>=1,<2"]""") shouldBe List("example>=1,<2")
+  }
+
+  it should "decode JSON escapes instead of deleting quote characters" in {
+    PveWebsocketResource.parsePackages("""["say \"hi\"", "tab\tsep"]""") shouldBe
+      List("say \"hi\"", "tab\tsep")
+  }
+
+  it should "trim entries and drop blank or null ones" in {
+    PveWebsocketResource.parsePackages("""["  numpy  ", "", "   ", null, "scipy"]""") shouldBe
+      List("numpy", "scipy")
+  }
+
+  it should "reject malformed JSON, naming the parameter and echoing the value" in {
+    val error = intercept[IllegalArgumentException] {
+      PveWebsocketResource.parsePackages("""["numpy"""")
+    }
+    error.getMessage shouldBe """Invalid packages parameter: ["numpy""""
+  }
+
+  it should "reject JSON that is not an array of strings" in {
+    // An object, a bare string and a nested array are all well-formed JSON that the frontend
+    // never sends; each has to be refused rather than coerced into package names.
+    intercept[IllegalArgumentException](PveWebsocketResource.parsePackages("""{"numpy":"1"}"""))
+    intercept[IllegalArgumentException](PveWebsocketResource.parsePackages(""""numpy""""))
+    intercept[IllegalArgumentException](PveWebsocketResource.parsePackages("""[["numpy"]]"""))
+  }
+
+  it should "reject an empty value" in {
+    intercept[IllegalArgumentException](PveWebsocketResource.parsePackages(""))
+  }
+
+  it should "accept whitespace around the array" in {
+    PveWebsocketResource.parsePackages(" [] ") shouldBe Nil
+    PveWebsocketResource.parsePackages("""["numpy"] """) shouldBe List("numpy")
+  }
+
+  it should "keep non-ASCII and URL-like characters in an entry unchanged" in {
+    PveWebsocketResource.parsePackages("""["naïve-pkg", "a+b%2Fc"]""") shouldBe
+      List("naïve-pkg", "a+b%2Fc")
+  }
+
+  it should "decode an array holding only null to no packages" in {
+    PveWebsocketResource.parsePackages("[null]") shouldBe Nil
+  }
+
+  it should "reject a trailing comma" in {
+    intercept[IllegalArgumentException](PveWebsocketResource.parsePackages("""["a",]"""))
+  }
+
+  it should "keep duplicate entries" in {
+    PveWebsocketResource.parsePackages("""["a","a"]""") shouldBe List("a", "a")
   }
 }
