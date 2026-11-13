@@ -67,6 +67,7 @@ To show a plot, a UDF returns a single column named html-content holding a compl
 1. Build the plot with plotly. Convert an existing ggplot2 plot with ggplotly(p) so the original plot code is kept.
 2. Turn the plot into a page that loads Plotly from a CDN. Do not use htmlwidgets::saveWidget, it needs pandoc, which is not available.
 3. If the input has no rows, return an html-content page explaining that the plot is not available.
+4. Write closing tags such as </script> exactly as shown. Do not escape the slash: R rejects '\\/' as an unrecognized escape and the UDF fails to parse.
 
 json <- plotly_json(ggplotly(p), jsonedit = FALSE)
 html <- paste0(

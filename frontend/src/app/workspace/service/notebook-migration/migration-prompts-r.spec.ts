@@ -64,6 +64,8 @@ describe("R migration prompts", () => {
           expect(code.startsWith(`# ${udfId}\n`)).toBe(true);
           expect(code).toContain("function(table, port)");
           expect(code).not.toContain("coro");
+          // R rejects \/ as an escape, so a UDF holding one fails to parse.
+          expect(code).not.toContain("\\/");
         });
       });
 
