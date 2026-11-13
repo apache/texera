@@ -38,12 +38,12 @@ class ContourPlotOpDescSpec extends AnyFlatSpec with Matchers {
   }
 
   "ContourPlotOpDesc" should
-    "default the x/y/z/gridSize columns to empty and connectGaps to false" in {
+    "default the x/y/z columns to empty, gridSize to unset and connectGaps to false" in {
     val d = new ContourPlotOpDesc
     d.x shouldBe ""
     d.y shouldBe ""
     d.z shouldBe ""
-    d.gridSize shouldBe ""
+    d.gridSize shouldBe None
     d.connectGaps shouldBe false
   }
 
@@ -62,7 +62,7 @@ class ContourPlotOpDescSpec extends AnyFlatSpec with Matchers {
     d.x = "lon"
     d.y = "lat"
     d.z = "elev"
-    d.gridSize = "20"
+    d.gridSize = Some(20)
     d.connectGaps = true
     val restored = objectMapper.readValue(objectMapper.writeValueAsString(d), classOf[LogicalOp])
     restored shouldBe a[ContourPlotOpDesc]
@@ -70,7 +70,91 @@ class ContourPlotOpDescSpec extends AnyFlatSpec with Matchers {
     c.x shouldBe "lon"
     c.y shouldBe "lat"
     c.z shouldBe "elev"
-    c.gridSize shouldBe "20"
+    c.gridSize shouldBe Some(20)
     c.connectGaps shouldBe true
+  }
+
+  /** Reads the shapes a stored workflow can hold; a round trip cannot cover them,
+    * since it writes a number back. See GaugeChartStepsSpec for why `contentAs` is
+    * what these pin.
+    */
+  private def readGridSize(json: String): Option[Int] =
+    objectMapper
+      .readValue(s"""{"operatorType":"ContourPlot"$json}""", classOf[LogicalOp])
+      .asInstanceOf[ContourPlotOpDesc]
+      .gridSize
+
+  "ContourPlotOpDesc.gridSize" should "deserialize a JSON number" in {
+    readGridSize(""","gridSize":20""") shouldBe Some(20)
+  }
+
+  it should "deserialize the numeric string a workflow saved before the field was numeric" in {
+    readGridSize(""","gridSize":"20"""") shouldBe Some(20)
+  }
+
+  it should "read an absent, null or blank value as unset rather than as zero" in {
+    readGridSize("") shouldBe None
+    readGridSize(""","gridSize":null""") shouldBe None
+    readGridSize(""","gridSize":""""") shouldBe None
+  }
+
+  it should "hold an Int, not the raw JSON value" in {
+    // The ClassCastException surfaces here, at the first use, not at read time.
+    readGridSize(""","gridSize":"20"""").map(_ + 1) shouldBe Some(21)
+  }
+
+  "ContourPlotOpDesc.generatePythonCode" should
+    "assign the grid size as a number and fall back to the form's default" in {
+    val d = new ContourPlotOpDesc
+    d.x = "lon"
+    d.y = "lat"
+    d.z = "elev"
+    d.coloringMethod = ContourPlotColoringFunction.HEATMAP
+    d.generatePythonCode() should include("grid_size = 10")
+    d.gridSize = Some(25)
+    d.generatePythonCode() should include("grid_size = 25")
+  }
+
+  it should "drop the rows a blank leaves unusable, and answer an emptied table" in {
+    // The drop names all three columns: griddata refuses a NaN coordinate, and a
+    // NaN in z quietly interpolates to an all-NaN grid, which draws an empty chart.
+    val code = plottingCode
+    code should include("table = table.dropna(subset=[")
+    code should include("if table.empty:")
+    code should include("Table should not have any empty/null values or fields.")
+  }
+
+  it should "answer a point set that cannot be triangulated" in {
+    // Guarded by a rank test rather than by catching the QhullError, so a genuine
+    // failure inside griddata still surfaces as one.
+    val code = plottingCode
+    code should include("np.linalg.matrix_rank(points - points.mean(axis=0)) < 2")
+    code should include("no area to contour")
+  }
+
+  it should "define the render_error it now calls" in {
+    plottingCode should include("def render_error(self, error_msg)")
+  }
+
+  "ContourPlotOpDesc.generateStandaloneCode" should
+    "leave the rest of the script running when it cannot contour" in {
+    // The exported block is one operator among many in a single script, so the
+    // guard branches around the plot rather than ending the process.
+    val code = configured.generateStandaloneCode()
+    code should include("no area to contour")
+    code should not include "SystemExit"
+    code should not include "sys.exit"
+  }
+
+  /** The emitted code for a fully configured operator, which the guards above read. */
+  private def plottingCode: String = configured.generatePythonCode()
+
+  private def configured: ContourPlotOpDesc = {
+    val d = new ContourPlotOpDesc
+    d.x = "lon"
+    d.y = "lat"
+    d.z = "elev"
+    d.coloringMethod = ContourPlotColoringFunction.HEATMAP
+    d
   }
 }

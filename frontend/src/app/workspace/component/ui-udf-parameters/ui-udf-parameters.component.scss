@@ -35,3 +35,31 @@
 :host ::ng-deep .ant-form-item-label {
   display: none;
 }
+
+.ui-udf-parameter-row.draft {
+  align-items: center;
+
+  input,
+  select {
+    width: 100%;
+    height: 32px;
+    padding: 0 11px;
+    border: 1px solid #d9d9d9;
+    border-radius: 2px;
+    background: transparent;
+  }
+
+  .draft-actions {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+
+    select {
+      flex: 1;
+    }
+  }
+}
+
+.add-parameter-button {
+  margin-bottom: 8px;
+}

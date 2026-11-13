@@ -19,7 +19,6 @@
 
 package org.apache.texera.amber.core.tuple
 
-import org.apache.texera.amber.core.tuple.TupleUtils.{json2tuple, tuple2json}
 import org.scalatest.flatspec.AnyFlatSpec
 
 import java.sql.Timestamp
@@ -102,22 +101,6 @@ class TupleSpec extends AnyFlatSpec {
     // This is the important test. Input tuple has 3 attributes but output tuple has only 2
     // It's because of isStrictSchemaMatch=false
     assert(outputTuple.length == 2);
-  }
-
-  it should "produce identical strings" in {
-    val inputSchema =
-      Schema().add(stringAttribute).add(integerAttribute).add(boolAttribute)
-    val inputTuple = Tuple
-      .builder(inputSchema)
-      .add(integerAttribute, 1)
-      .add(stringAttribute, "string-attr")
-      .add(boolAttribute, true)
-      .build()
-
-    val line = tuple2json(inputTuple.schema, inputTuple.fieldVals).toString
-    val newTuple = json2tuple(line)
-    assert(line == tuple2json(newTuple.schema, newTuple.fieldVals).toString)
-
   }
 
   it should "calculate hash" in {
@@ -312,5 +295,100 @@ class TupleSpec extends AnyFlatSpec {
     assert(tuple.productElement(0) == schema)
     val Tuple(unappliedSchema, _) = tuple
     assert(unappliedSchema == schema)
+  }
+
+  it should "reject construction with a null schema or a null field array" in {
+    // both arguments are null-checked before any schema/field matching happens
+    intercept[NullPointerException] {
+      Tuple(null, Array[Any]("a"))
+    }
+    intercept[NullPointerException] {
+      Tuple(Schema().add(stringAttribute), null)
+    }
+  }
+
+  it should "read fields by positional index and fail outside the field array" in {
+    val schema = Schema().add(stringAttribute).add(integerAttribute)
+    val tuple = Tuple(schema, Array[Any]("s", Integer.valueOf(7)))
+    assert(tuple.getField[String](0) == "s")
+    assert(tuple.getField[Int](1) == 7)
+    assert(tuple.length == 2)
+    intercept[ArrayIndexOutOfBoundsException] {
+      tuple.getField[String](2)
+    }
+  }
+
+  it should "compute an in-memory size that grows with the payload" in {
+    val schema = Schema().add(stringAttribute)
+    val small = Tuple(schema, Array[Any]("a"))
+    val large = Tuple(schema, Array[Any]("a" * 10000))
+    assert(small.inMemSize > 0)
+    assert(large.inMemSize > small.inMemSize)
+  }
+
+  it should "name the missing attributes when the builder is incomplete" in {
+    val schema = Schema().add(stringAttribute).add(integerAttribute).add(boolAttribute)
+    val ex = intercept[TupleBuildingException] {
+      Tuple.builder(schema).add(stringAttribute, "s").build()
+    }
+    assert(ex.getMessage.startsWith("Tuple does not have the same number of attributes as schema."))
+    assert(ex.getMessage.contains("col-int"))
+    assert(ex.getMessage.contains("col-bool"))
+    assert(!ex.getMessage.contains("col-string"))
+  }
+
+  it should "let a later add overwrite the value of the same attribute" in {
+    val schema = Schema().add(stringAttribute)
+    val tuple = Tuple
+      .builder(schema)
+      .add(stringAttribute, "first")
+      .add(stringAttribute, "second")
+      .build()
+    assert(tuple.length == 1)
+    assert(tuple.getField[String]("col-string") == "second")
+  }
+
+  it should "reject addSequentially when the field count differs from the schema" in {
+    val schema = Schema().add(stringAttribute).add(integerAttribute)
+    val tooFew = intercept[RuntimeException] {
+      Tuple.builder(schema).addSequentially(Array[Any]("only-one"))
+    }
+    assert(tooFew.getMessage == "Schema size (2) and field size (1) are different")
+    val tooMany = intercept[RuntimeException] {
+      Tuple.builder(schema).addSequentially(Array[Any]("a", Integer.valueOf(1), "extra"))
+    }
+    assert(tooMany.getMessage == "Schema size (2) and field size (3) are different")
+  }
+
+  it should "still require every schema attribute when adding a tuple non-strictly" in {
+    // non-strict mode only skips *extra* source attributes; it does not fill gaps
+    val sourceSchema = Schema().add(stringAttribute)
+    val source = Tuple.builder(sourceSchema).add(stringAttribute, "s").build()
+    val targetSchema = Schema().add(stringAttribute).add(integerAttribute)
+    val ex = intercept[TupleBuildingException] {
+      Tuple.builder(targetSchema).add(source, false).build()
+    }
+    assert(ex.getMessage.contains("col-int"))
+  }
+
+  it should "distinguish binary fields whose contents differ" in {
+    val schema = Schema().add(binaryAttribute)
+    def withBytes(bytes: Array[Byte]): Tuple =
+      Tuple.builder(schema).add(binaryAttribute, bytes).build()
+
+    val base = withBytes(Array[Byte](1, 2, 3))
+    assert(base == withBytes(Array[Byte](1, 2, 3)))
+    assert(base.hashCode() == withBytes(Array[Byte](1, 2, 3)).hashCode())
+    assert(base != withBytes(Array[Byte](1, 2, 4)))
+    assert(base != withBytes(Array[Byte](1, 2)))
+    assert(base != withBytes(Array[Byte]()))
+  }
+
+  it should "reject a partial tuple for an attribute outside the schema" in {
+    val schema = Schema().add(stringAttribute)
+    val tuple = Tuple.builder(schema).add(stringAttribute, "s").build()
+    intercept[RuntimeException] {
+      tuple.getPartialTuple(List("col-missing"))
+    }
   }
 }

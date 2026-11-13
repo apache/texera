@@ -18,7 +18,56 @@
 -->
 
 <div class="modal-body content-body">
-  <ngx-json-viewer
-    [expanded]="false"
-    [json]="currentDisplayRowData"></ngx-json-viewer>
+  <div class="modal-toolbar">
+    <button
+      nz-button
+      nzType="default"
+      type="button"
+      (click)="copyText(prettyRowJson)">
+      Copy Row JSON
+    </button>
+  </div>
+
+  <div class="row-detail-list">
+    <div
+      *ngFor="let entry of rowEntries; trackBy: trackByEntryKey"
+      class="row-detail-item">
+      <div class="row-detail-header">
+        <div class="row-detail-key">{{ entry.key }}</div>
+        <button
+          nz-button
+          nzType="link"
+          type="button"
+          (click)="copyText(entry.value)">
+          Copy
+        </button>
+      </div>
+
+      <video
+        *ngIf="entry.isVideo; else checkAudio"
+        controls
+        [src]="entry.mediaSrc"
+        style="max-width: 100%; max-height: 480px; display: block; border: 1px solid #eee; border-radius: 4px"></video>
+
+      <ng-template #checkAudio>
+        <audio
+          *ngIf="entry.isAudio; else checkImage"
+          controls
+          [src]="entry.mediaSrc"
+          style="width: 100%; max-width: 420px; display: block"></audio>
+      </ng-template>
+
+      <ng-template #checkImage>
+        <img
+          *ngIf="entry.isImage; else textValue"
+          [src]="entry.mediaSrc"
+          alt="image result"
+          style="max-width: 100%; max-height: 480px; display: block; border: 1px solid #eee; border-radius: 4px" />
+
+        <ng-template #textValue>
+          <pre class="row-detail-pre row-detail-value">{{ entry.value }}</pre>
+        </ng-template>
+      </ng-template>
+    </div>
+  </div>
 </div>

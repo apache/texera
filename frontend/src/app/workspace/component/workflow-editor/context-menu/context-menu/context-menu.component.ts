@@ -17,7 +17,7 @@
  * under the License.
  */
 
-import { Component } from "@angular/core";
+import { Component, Input } from "@angular/core";
 import { OperatorMenuService } from "src/app/workspace/service/operator-menu/operator-menu.service";
 import { WorkflowActionService } from "src/app/workspace/service/workflow-graph/model/workflow-action.service";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
@@ -26,6 +26,7 @@ import { WorkflowResultExportService } from "src/app/workspace/service/workflow-
 import { NzModalService } from "ng-zorro-antd/modal";
 import { ResultExportationComponent } from "../../../result-exportation/result-exportation.component";
 import { ValidationWorkflowService } from "src/app/workspace/service/validation/validation-workflow.service";
+import { WorkflowCompilingService } from "src/app/workspace/service/compile-workflow/workflow-compiling.service";
 import { GuiConfigService } from "../../../../../common/service/gui-config.service";
 import { NzMenuDirective, NzMenuItemComponent } from "ng-zorro-antd/menu";
 import { NgIf } from "@angular/common";
@@ -41,6 +42,20 @@ import { NzIconDirective } from "ng-zorro-antd/icon";
 })
 export class ContextMenuComponent {
   public isWorkflowModifiable: boolean = false;
+
+  /**
+   * Set by an embedded, structure-locked editor (the Form View's preview). Its edit mode turns
+   * workflow modification back on for the property panel, which alone would also bring the
+   * re-shaping commands here back; the lock keeps them off. Copy, the result toggles and export
+   * do not change the graph and are left to their own rules.
+   */
+  @Input() structureLocked = false;
+
+  /** Whether the graph may be re-shaped from this menu: modification on, and no structure lock. */
+  public get canModify(): boolean {
+    return this.isWorkflowModifiable && !this.structureLocked;
+  }
+
   public highlightedOperatorIds: readonly string[] = [];
   public highlightedCommentBoxIds: readonly string[] = [];
 
@@ -51,7 +66,8 @@ export class ContextMenuComponent {
     protected config: GuiConfigService,
     private workflowResultService: WorkflowResultService,
     private modalService: NzModalService,
-    private validationWorkflowService: ValidationWorkflowService
+    private validationWorkflowService: ValidationWorkflowService,
+    private workflowCompilingService: WorkflowCompilingService
   ) {
     this.registerWorkflowModifiableChangedHandler();
     this.operatorMenuService.highlightedOperators$
@@ -82,12 +98,34 @@ export class ContextMenuComponent {
   private isOperatorExecutable(operatorID: string): boolean {
     return (
       this.validationWorkflowService.validateOperator(operatorID).isValid &&
-      !this.workflowActionService.getTexeraGraph().isOperatorDisabled(operatorID)
+      !this.workflowActionService.getTexeraGraph().isOperatorDisabled(operatorID) &&
+      this.isSubDAGCompilable(operatorID)
     );
+  }
+
+  /**
+   * Executing to an operator runs the operator together with everything upstream of it, so the entry has to be
+   * disabled when any operator in that sub-DAG failed to compile, not only when the target operator itself did.
+   */
+  private isSubDAGCompilable(operatorID: string): boolean {
+    const compilationErrors = this.workflowCompilingService.getWorkflowCompilationErrors();
+    return this.workflowActionService
+      .getTexeraGraph()
+      .getSubDAG(operatorID)
+      .operators.every(operator => !(operator.operatorID in compilationErrors));
   }
 
   public hasHighlightedLinks(): boolean {
     return this.workflowActionService.getJointGraphWrapper().getCurrentHighlightedLinkIDs().length > 0;
+  }
+
+  /** Runs the workflow up to the highlighted operator when the menu item is enabled. */
+  public onExecuteUpToOperator(): void {
+    // nzDisabled only greys the item out; it does not stop the template (click).
+    if (!this.canExecuteOperator()) {
+      return;
+    }
+    this.operatorMenuService.executeUpToOperator();
   }
 
   public onCopy(): void {

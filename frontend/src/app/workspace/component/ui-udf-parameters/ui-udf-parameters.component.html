@@ -16,28 +16,91 @@
  specific language governing permissions and limitations
  under the License.
 -->
-<div
-  class="ui-udf-parameter-list"
-  *ngIf="model?.length">
-  <div class="ui-udf-parameter-row header">
-    <div
-      class="field-cell"
-      *ngFor="let column of fieldColumns">
-      <span class="col-title">{{ column.label }}</span>
-    </div>
-  </div>
+<div class="ui-udf-parameters-field">
+  <button
+    class="add-parameter-button"
+    *ngIf="workflowModificationEnabled && !draftVisible"
+    nz-button
+    nzType="dashed"
+    nzBlock
+    type="button"
+    (click)="draftVisible = true">
+    <span
+      nz-icon
+      nzType="plus"></span>
+    Add parameter
+  </button>
 
   <div
-    class="ui-udf-parameter-row"
-    *ngFor="let parameter of (model || []); let i = index; trackBy: trackByParameterName">
-    <ng-container *ngIf="field.fieldGroup?.[i] as rowField">
+    class="ui-udf-parameter-list"
+    *ngIf="model?.length || draftVisible">
+    <div class="ui-udf-parameter-row header">
       <div
         class="field-cell"
         *ngFor="let column of fieldColumns">
-        <formly-field
-          *ngIf="getColumnField(rowField, column) as columnField"
-          [field]="columnField"></formly-field>
+        <span class="col-title">{{ column.label }}</span>
       </div>
-    </ng-container>
+    </div>
+
+    <div
+      class="ui-udf-parameter-row draft"
+      *ngIf="draftVisible">
+      <div class="field-cell"></div>
+      <div class="field-cell">
+        <input
+          #parameterNameInput
+          type="text"
+          placeholder="Parameter name"
+          autofocus
+          (keyup.enter)="addParameter(parameterNameInput, parameterTypeSelect.value)"
+          (keyup.escape)="draftVisible = false" />
+      </div>
+      <div class="field-cell draft-actions">
+        <select #parameterTypeSelect>
+          <option
+            *ngFor="let parameterType of addParameterTypeOptions"
+            [value]="parameterType">
+            {{ parameterType }}
+          </option>
+        </select>
+        <button
+          nz-button
+          nzType="primary"
+          nzShape="circle"
+          nzSize="small"
+          type="button"
+          title="Add parameter"
+          (click)="addParameter(parameterNameInput, parameterTypeSelect.value)">
+          <span
+            nz-icon
+            nzType="check"></span>
+        </button>
+        <button
+          nz-button
+          nzShape="circle"
+          nzSize="small"
+          type="button"
+          title="Cancel"
+          (click)="draftVisible = false">
+          <span
+            nz-icon
+            nzType="close"></span>
+        </button>
+      </div>
+    </div>
+
+    <div
+      class="ui-udf-parameter-row"
+      *ngFor="let parameter of (model || []); let i = index; trackBy: trackByParameterName">
+      <ng-container *ngIf="field.fieldGroup?.[i] as rowField">
+        <div
+          class="field-cell"
+          *ngFor="let column of fieldColumns">
+          <formly-field
+            *ngIf="getColumnField(rowField, column) as columnField"
+            [field]="columnField"></formly-field>
+        </div>
+      </ng-container>
+    </div>
   </div>
 </div>

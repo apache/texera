@@ -168,7 +168,8 @@ object PhysicalOp {
     "outputPorts", // same reason with above
     "propagateSchema", // function type, so ignore it
     "locationPreference", // ignore it for the deserialization
-    "partitionRequirement" // ignore it for deserialization
+    "partitionRequirement", // ignore it for deserialization
+    "executionTimeBinding" // deferred work rather than state; see ExecutionTimeBinding
   )
 )
 case class PhysicalOp(
@@ -208,10 +209,16 @@ case class PhysicalOp(
     // restricting it to only the requiring operator's regions is a possible
     // future optimization. Default false.
     requiresMaterializedExecution: Boolean = false,
+    // Marks the Loop Start operator of a loop; the scheduler resolves the loop's
+    // bookkeeping base URI from it (loop-back write address + input-table read;
+    // see InitializeExecutorRequest.loopStartPortUris). Default false.
+    isLoopStart: Boolean = false,
     // hint for number of workers
     suggestedWorkerNum: Option[Int] = None,
     // name of the PVE to execute within
-    pveName: String = ""
+    pveName: String = "",
+    // setup postponed until the execution starts; None when there is nothing to defer
+    executionTimeBinding: Option[ExecutionTimeBinding] = None
 ) extends LazyLogging {
 
   // all the "dependee" links are also blocking
@@ -222,6 +229,21 @@ case class PhysicalOp(
       })
       .toList
       .distinct
+
+  /**
+    * The executor info to actually run with. It differs from `opExecInitInfo` only for an
+    * operator that deferred part of its setup: that one is the compile-time view, enough to
+    * propagate schemas, and this one is complete. Forcing it can do real work, so ask for it
+    * when the execution starts — never on the editing path.
+    */
+  @JsonIgnore
+  def executableOpExecInitInfo: OpExecInitInfo =
+    executionTimeBinding.map(_.opExecInitInfo).getOrElse(opExecInitInfo)
+
+  /** Repositories to mount before this operator runs. Forces the binding, like the above. */
+  @JsonIgnore
+  def mountLocators: Set[String] =
+    executionTimeBinding.map(_.mountLocators).getOrElse(Set.empty)
 
   /**
     * Helper functions related to compile-time operations
@@ -334,6 +356,13 @@ case class PhysicalOp(
     this.copy(requiresMaterializedExecution = requiresMaterializedExecution)
 
   /**
+    * creates a copy specifying whether this operator is the Loop Start of a
+    * loop (see the field doc)
+    */
+  def withIsLoopStart(isLoopStart: Boolean): PhysicalOp =
+    this.copy(isLoopStart = isLoopStart)
+
+  /**
     * Creates a copy of the PhysicalOp with the schema of a specified input port updated.
     * The schema can either be a successful schema definition or an error represented as a Throwable.
     *
@@ -381,6 +410,10 @@ case class PhysicalOp(
 
   def withPveName(name: String): PhysicalOp = {
     this.copy(pveName = name)
+  }
+
+  def withExecutionTimeBinding(binding: Option[ExecutionTimeBinding]): PhysicalOp = {
+    this.copy(executionTimeBinding = binding)
   }
 
   /**

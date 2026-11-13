@@ -21,7 +21,8 @@ import { ComponentFixture, TestBed, fakeAsync, tick } from "@angular/core/testin
 import { Router } from "@angular/router";
 import { RouterTestingModule } from "@angular/router/testing";
 import { NoopAnimationsModule } from "@angular/platform-browser/animations";
-import { of, Subject } from "rxjs";
+import { HttpErrorResponse } from "@angular/common/http";
+import { config, of, Subject, throwError } from "rxjs";
 
 import { SearchBarComponent } from "./search-bar.component";
 import { SearchService } from "../../../service/user/search.service";
@@ -38,10 +39,22 @@ function makeWorkflowItem(name: string, wid: number = 1): SearchResultItem {
       isOwner: true,
       ownerName: undefined,
       workflow: { wid, name } as any,
-      projectIDs: [],
       accessLevel: "WRITE",
       ownerId: 1,
     } as any,
+  };
+}
+
+function makeModelItem(name: string, mid: number = 1): SearchResultItem {
+  return {
+    resourceType: "model",
+    model: {
+      isOwner: true,
+      ownerEmail: "a@b.c",
+      accessPrivilege: "WRITE",
+      size: 0,
+      model: { mid, ownerUid: 1, name } as any,
+    },
   };
 }
 
@@ -129,7 +142,6 @@ describe("SearchBarComponent", () => {
       owners: [],
       ids: [],
       operators: [],
-      projectIds: [],
     });
     expect(args[2]).toBe(0);
     expect(args[3]).toBe(5);
@@ -147,65 +159,97 @@ describe("SearchBarComponent", () => {
     expect(component.listOfResult).toEqual(["hello"]);
   }));
 
+  it("drops the previous user's cached suggestions when the user changes", fakeAsync(() => {
+    searchSpy.search.mockReturnValue(of({ results: [makeWorkflowItem("private-wf")], more: false } as SearchResult));
+    component.onSearchInputChange("private");
+    tick(200);
+    expect(component.listOfResult).toEqual(["private-wf"]);
+
+    isLoginValue = false;
+    userChangeSubject.next(undefined);
+    expect(component.listOfResult).toEqual([]);
+
+    searchSpy.search.mockReturnValue(of({ results: [], more: false } as SearchResult));
+    component.onSearchInputChange("private");
+    tick(200);
+
+    // Asked the server again, as a signed-out user, instead of reusing the cache.
+    expect(searchSpy.search).toHaveBeenCalledTimes(2);
+    expect(searchSpy.search.mock.calls[1][6]).toBe(false);
+    expect(component.listOfResult).toEqual([]);
+  }));
+
+  it("lists a model hit by name, as the all-kinds search returns model rows", fakeAsync(() => {
+    searchSpy.search.mockReturnValue(of({ results: [makeModelItem("my-model")], more: false } as SearchResult));
+
+    component.onSearchInputChange("my");
+    tick(200);
+
+    expect(component.listOfResult).toEqual(["my-model"]);
+  }));
+
+  it("reports a row it cannot name instead of hiding it behind an empty dropdown", fakeAsync(() => {
+    // SearchService only keeps rows convertToName can name, so this row means the two disagree: a bug that has
+    // to reach the console.
+    const unhandled = vi.fn();
+    const previousHandler = config.onUnhandledError;
+    config.onUnhandledError = unhandled;
+    try {
+      searchSpy.search.mockReturnValueOnce(of({ results: [{ resourceType: "computing-unit" } as any], more: false }));
+
+      component.onSearchInputChange("bad");
+      tick(200);
+
+      expect(unhandled).toHaveBeenCalledTimes(1);
+      expect((unhandled.mock.calls[0][0] as Error).message).toBe("Unexpected type in SearchResult.");
+    } finally {
+      config.onUnhandledError = previousHandler;
+    }
+  }));
+
+  it("keeps autocomplete working after a failed request, and retries rather than caching the failure", fakeAsync(() => {
+    component.listOfResult = ["stale"];
+    searchSpy.search.mockReturnValueOnce(throwError(() => new HttpErrorResponse({ status: 500 })));
+
+    component.onSearchInputChange("x");
+    tick(200);
+
+    expect(component.listOfResult).toEqual([]);
+    expect((component as any).searchCache.has("x")).toBe(false);
+
+    searchSpy.search.mockReturnValueOnce(of({ results: [makeWorkflowItem("x-wf")], more: false } as SearchResult));
+    // Same query again: the failure was not cached, so this goes back to the server.
+    component.onSearchInputChange("x");
+    tick(200);
+
+    expect(searchSpy.search).toHaveBeenCalledTimes(2);
+    expect(component.listOfResult).toEqual(["x-wf"]);
+  }));
+
   it("addToCache evicts the oldest entry once 20 queries are cached", () => {
     const cache = (component as any).searchCache as Map<string, string[]>;
-    const order = (component as any).queryOrder as string[];
 
     for (let i = 0; i < 20; i++) {
       (component as any).addToCache(`q${i}`, [`r${i}`]);
     }
     expect(cache.size).toBe(20);
     expect(cache.has("q0")).toBe(true);
-    expect(order[0]).toBe("q0");
+    expect([...cache.keys()][0]).toBe("q0");
 
     (component as any).addToCache("q20", ["r20"]);
 
     expect(cache.size).toBe(20);
     expect(cache.has("q0")).toBe(false);
     expect(cache.has("q20")).toBe(true);
-    expect(order[0]).toBe("q1");
-    expect(order[order.length - 1]).toBe("q20");
+    // The Map's own iteration order is the eviction order.
+    const keys = [...cache.keys()];
+    expect(keys[0]).toBe("q1");
+    expect(keys[keys.length - 1]).toBe("q20");
   });
 
   describe("convertToName", () => {
     it("returns the workflow's DashboardEntry.name", () => {
       expect(component.convertToName(makeWorkflowItem("wf-name", 7))).toBe("wf-name");
-    });
-
-    it("returns the project's name", () => {
-      const item: SearchResultItem = {
-        resourceType: "project",
-        project: {
-          pid: 1,
-          name: "proj-name",
-          description: "",
-          ownerId: 1,
-          creationTime: 0,
-          color: null,
-          accessLevel: "WRITE",
-        } as any,
-      };
-      expect(component.convertToName(item)).toBe("proj-name");
-    });
-
-    it("returns the file's name", () => {
-      const item: SearchResultItem = {
-        resourceType: "file",
-        file: {
-          ownerEmail: "a@b.c",
-          accessLevel: "WRITE",
-          file: {
-            fid: 1,
-            ownerUid: 1,
-            name: "file-name",
-            size: 0,
-            path: "",
-            description: "",
-            uploadTime: 0,
-          },
-        } as any,
-      };
-      expect(component.convertToName(item)).toBe("file-name");
     });
 
     it("returns the dataset's name", () => {
@@ -228,6 +272,10 @@ describe("SearchBarComponent", () => {
         } as any,
       };
       expect(component.convertToName(item)).toBe("ds-name");
+    });
+
+    it("returns the model's name", () => {
+      expect(component.convertToName(makeModelItem("model-name", 3))).toBe("model-name");
     });
 
     it("throws for a SearchResultItem with no recognized resource", () => {

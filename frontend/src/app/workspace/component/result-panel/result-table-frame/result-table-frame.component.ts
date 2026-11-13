@@ -30,23 +30,30 @@ import {
   NzCellEllipsisDirective,
 } from "ng-zorro-antd/table";
 import { WorkflowActionService } from "../../../service/workflow-graph/model/workflow-action.service";
-import { WorkflowResultService } from "../../../service/workflow-result/workflow-result.service";
+import {
+  OperatorPaginationResultService,
+  WorkflowResultService,
+} from "../../../service/workflow-result/workflow-result.service";
 import { PanelResizeService } from "../../../service/workflow-result/panel-resize/panel-resize.service";
 import { isWebPaginationUpdate, OperatorState } from "../../../types/execute-workflow.interface";
 import { IndexableObject, TableColumn } from "../../../types/result-table.interface";
+import { SchemaAttribute } from "../../../types/workflow-compiling.interface";
 import { RowModalComponent } from "../result-panel-modal.component";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 import { DomSanitizer, SafeHtml } from "@angular/platform-browser";
+import { isAudioUrl, isVideoUrl, isImageUrl } from "../../../../common/util/media-type.util";
 import { ResultExportationComponent } from "../../result-exportation/result-exportation.component";
 import { WorkflowStatusService } from "../../../service/workflow-status/workflow-status.service";
 import { GuiConfigService } from "../../../../common/service/gui-config.service";
-import { NgIf, NgFor, NgClass } from "@angular/common";
+import { NgIf, NgFor, NgClass, NgSwitch, NgSwitchCase, NgSwitchDefault } from "@angular/common";
 import { NzSpaceCompactItemDirective } from "ng-zorro-antd/space";
 import { NzInputDirective } from "ng-zorro-antd/input";
 import { NzButtonComponent } from "ng-zorro-antd/button";
 import { NzWaveDirective } from "ng-zorro-antd/core/wave";
 import { ɵNzTransitionPatchDirective } from "ng-zorro-antd/core/transition-patch";
 import { NzIconDirective } from "ng-zorro-antd/icon";
+
+export type MediaCellType = "video" | "audio" | "image" | "text";
 
 /**
  * The Component will display the result in an excel table format,
@@ -63,6 +70,9 @@ import { NzIconDirective } from "ng-zorro-antd/icon";
   styleUrls: ["./result-table-frame.component.scss"],
   imports: [
     NgIf,
+    NgSwitch,
+    NgSwitchCase,
+    NgSwitchDefault,
     NzSpaceCompactItemDirective,
     NzInputDirective,
     NzButtonComponent,
@@ -82,6 +92,9 @@ import { NzIconDirective } from "ng-zorro-antd/icon";
 })
 export class ResultTableFrameComponent implements OnInit, OnChanges {
   @Input() operatorId?: string;
+  // which of the operator's output ports to show. The running execution reports only on the first,
+  // so another port is read when shown, and its counts and statistics are not followed live.
+  @Input() portIndex = 0;
 
   // display result table
   currentColumns?: TableColumn[];
@@ -109,6 +122,13 @@ export class ResultTableFrameComponent implements OnInit, OnChanges {
   widthPercent: string = "";
   isOperatorFinished: boolean = false;
 
+  // Media type of each cell, precomputed once per row when result data arrives so the
+  // template doesn't re-run getCell + regex-based classification on every change
+  // detection cycle. Keyed by row object (not row index) because *ngFor iterates
+  // basicTable.data, which under front-end pagination is a page-local slice of
+  // currentResult whose indices don't line up with currentResult's indices.
+  cellMediaTypes: Map<IndexableObject, MediaCellType[]> = new Map();
+
   constructor(
     private modalService: NzModalService,
     private workflowActionService: WorkflowActionService,
@@ -117,13 +137,19 @@ export class ResultTableFrameComponent implements OnInit, OnChanges {
     private changeDetectorRef: ChangeDetectorRef,
     private sanitizer: DomSanitizer,
     private workflowStatusService: WorkflowStatusService,
-    private guiConfigService: GuiConfigService
+    // Read by the template only (the export button's flag); the template can see a protected member.
+    protected guiConfigService: GuiConfigService
   ) {}
 
   ngOnChanges(changes: SimpleChanges): void {
-    this.operatorId = changes.operatorId?.currentValue;
+    if (changes.operatorId) this.operatorId = changes.operatorId.currentValue;
+    // another port's rows are not this port's, so a new port starts from an empty table
+    if (changes.portIndex && !changes.portIndex.firstChange) {
+      this.currentResult = [];
+      this.currentColumns = undefined;
+    }
     if (this.operatorId) {
-      const paginatedResultService = this.workflowResultService.getPaginatedResultService(this.operatorId);
+      const paginatedResultService = this.paginatedResultService();
       if (paginatedResultService) {
         this.isFrontPagination = false;
         this.totalNumTuples = paginatedResultService.getCurrentTotalNumTuples();
@@ -136,12 +162,18 @@ export class ResultTableFrameComponent implements OnInit, OnChanges {
     }
   }
 
+  /** The service that pages the port shown. */
+  private paginatedResultService(): OperatorPaginationResultService | undefined {
+    if (!this.operatorId) return undefined;
+    return this.workflowResultService.getPortPaginatedResultService(this.operatorId, this.portIndex);
+  }
+
   ngOnInit(): void {
     this.workflowStatusService
-      .getStatusUpdateStream()
+      .getStateUpdateStream()
       .pipe(untilDestroyed(this))
-      .subscribe(statusMap => {
-        if (this.operatorId && statusMap[this.operatorId]?.operatorState === OperatorState.Completed) {
+      .subscribe(stateMap => {
+        if (this.operatorId && stateMap[this.operatorId] === OperatorState.Completed) {
           this.isOperatorFinished = true;
           this.changeDetectorRef.detectChanges();
         } else {
@@ -155,7 +187,8 @@ export class ResultTableFrameComponent implements OnInit, OnChanges {
       .getResultUpdateStream()
       .pipe(untilDestroyed(this))
       .subscribe(update => {
-        if (!this.operatorId) {
+        // an update is about the operator's first port
+        if (!this.operatorId || this.portIndex !== 0) {
           return;
         }
         const opUpdate = update[this.operatorId];
@@ -176,7 +209,8 @@ export class ResultTableFrameComponent implements OnInit, OnChanges {
       .getResultTableStats()
       .pipe(untilDestroyed(this))
       .subscribe(([prevStats, currentStats]) => {
-        if (!this.operatorId) {
+        // the statistics are the operator's first port's
+        if (!this.operatorId || this.portIndex !== 0) {
           return;
         }
 
@@ -333,7 +367,8 @@ export class ResultTableFrameComponent implements OnInit, OnChanges {
       // modal title
       nzTitle: "Row Details",
       nzContent: RowModalComponent,
-      nzData: { operatorId: this.operatorId, rowIndex: currentRowIndex }, // set the index value and page size to the modal for navigation
+      // set the index value and page size to the modal for navigation
+      nzData: { operatorId: this.operatorId, rowIndex: currentRowIndex, portIndex: this.portIndex },
       // prevent browser focusing close button (ugly square highlight)
       nzAutofocus: null,
       // modal footer buttons
@@ -381,19 +416,27 @@ export class ResultTableFrameComponent implements OnInit, OnChanges {
     if (!this.operatorId) {
       return;
     }
-    const paginatedResultService = this.workflowResultService.getPaginatedResultService(this.operatorId);
+    const paginatedResultService = this.paginatedResultService();
     if (!paginatedResultService) {
       return;
     }
     this.isLoadingResult = true;
+    // A reply can arrive after the table moved on to another operator or port; it is not theirs.
+    const operatorId = this.operatorId;
+    const portIndex = this.portIndex;
     paginatedResultService
       .selectPage(this.currentPageIndex, this.pageSize, this.currentColumnOffset, this.columnLimit, this.columnSearch)
       .pipe(untilDestroyed(this))
       .subscribe(pageData => {
-        if (this.currentPageIndex === pageData.pageIndex) {
-          this.setupResultTable(pageData.table, paginatedResultService.getCurrentTotalNumTuples());
-          this.changeDetectorRef.detectChanges();
+        if (
+          this.operatorId !== operatorId ||
+          this.portIndex !== portIndex ||
+          this.currentPageIndex !== pageData.pageIndex
+        ) {
+          return;
         }
+        this.setupResultTable(pageData.table, paginatedResultService.getCurrentTotalNumTuples(), pageData.schema);
+        this.changeDetectorRef.detectChanges();
       });
   }
 
@@ -404,16 +447,25 @@ export class ResultTableFrameComponent implements OnInit, OnChanges {
    * @param resultData rows of the result (may not be all rows if displaying result for workflow completed event)
    * @param totalRowCount
    */
-  setupResultTable(resultData: ReadonlyArray<IndexableObject>, totalRowCount: number) {
+  setupResultTable(
+    resultData: ReadonlyArray<IndexableObject>,
+    totalRowCount: number,
+    schema: ReadonlyArray<SchemaAttribute> = []
+  ) {
     if (!this.operatorId) {
       return;
     }
-    if (resultData.length < 1) {
-      return;
-    }
-
+    // Every page that arrives ends the fetch, including one that changes nothing below.
     this.isLoadingResult = false;
     this.changeDetectorRef.detectChanges();
+
+    // A result with no rows still has columns, and showing them tells the user what the
+    // operator would have produced. A column search can leave none, and the old headers must
+    // not stay. An empty page of a non-empty result is only a page index past the end, so the
+    // table already shown stays.
+    if (resultData.length < 1 && totalRowCount > 0) {
+      return;
+    }
 
     // creates a shallow copy of the readonly response.result,
     //  this copy will be has type object[] because MatTableDataSource's input needs to be object[]
@@ -425,12 +477,19 @@ export class ResultTableFrameComponent implements OnInit, OnChanges {
 
     let columns: { columnKey: any; columnText: string }[];
 
-    const columnKeys = Object.keys(resultData[0]).filter(x => x !== "_id");
+    const columnKeys =
+      resultData.length > 0
+        ? Object.keys(resultData[0]).filter(x => x !== "_id")
+        : schema.map(attribute => attribute.attributeName);
     columns = columnKeys.map(v => ({ columnKey: v, columnText: v }));
 
     // generate columnDef from first row, column definition is in order
     this.currentColumns = this.generateColumns(columns);
     this.totalNumTuples = totalRowCount;
+
+    this.cellMediaTypes = new Map(
+      this.currentResult.map(row => [row, this.currentColumns!.map(column => this.classifyCell(column.getCell(row)))])
+    );
   }
 
   /**
@@ -447,6 +506,11 @@ export class ResultTableFrameComponent implements OnInit, OnChanges {
   }
 
   downloadData(data: any, rowIndex: number, columnIndex: number, columnName: string): void {
+    // A cell belongs to the operator whose results this frame is showing. Without one there is
+    // nothing to scope an export to, and the dialog would open only to export nothing.
+    if (!this.operatorId) {
+      return;
+    }
     const realRowNumber = (this.currentPageIndex - 1) * this.pageSize + rowIndex;
     const defaultFileName = `${columnName}_${realRowNumber}`;
     const modal = this.modalService.create({
@@ -454,10 +518,15 @@ export class ResultTableFrameComponent implements OnInit, OnChanges {
       nzContent: ResultExportationComponent,
       nzData: {
         exportType: "data",
-        workflowName: this.workflowActionService.getWorkflowMetadata.name,
+        workflowName: this.workflowActionService.getWorkflowMetadata()?.name,
         defaultFileName: defaultFileName,
         rowIndex: realRowNumber,
         columnIndex: columnIndex,
+        // Named rather than left to the canvas selection, which answers a different question:
+        // what the user has selected. This frame also mounts on the Form View, where nothing is
+        // selected until the user clicks a step, so the export found an empty scope and the
+        // button did nothing.
+        operatorIds: [this.operatorId],
       },
       nzFooter: null,
     });
@@ -475,6 +544,31 @@ export class ResultTableFrameComponent implements OnInit, OnChanges {
       this.currentColumnOffset += this.columnLimit;
       this.changePaginatedResultData();
     }
+  }
+
+  isVideoCell(value: unknown): boolean {
+    return typeof value === "string" && isVideoUrl(value);
+  }
+
+  isAudioCell(value: unknown): boolean {
+    return typeof value === "string" && isAudioUrl(value);
+  }
+
+  isImageCell(value: unknown): boolean {
+    return typeof value === "string" && isImageUrl(value);
+  }
+
+  private classifyCell(value: unknown): MediaCellType {
+    if (this.isVideoCell(value)) return "video";
+    if (this.isAudioCell(value)) return "audio";
+    if (this.isImageCell(value)) return "image";
+    return "text";
+  }
+
+  // O(1) lookup into the precomputed cellMediaTypes map, used by the template
+  // instead of calling isVideoCell/isAudioCell/isImageCell on every change detection cycle.
+  getCellMediaType(row: IndexableObject, columnIndex: number): MediaCellType {
+    return this.cellMediaTypes.get(row)?.[columnIndex] ?? "text";
   }
 
   onColumnSearch(event: Event): void {

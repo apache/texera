@@ -21,7 +21,7 @@ package org.apache.texera.web.resource
 import javax.servlet.{ServletContextEvent, ServletContextListener}
 import javax.websocket.server.ServerContainer
 
-class WebsocketPayloadSizeTuner(maxKB: Int) // by default, 64 KiB
+class WebsocketPayloadSizeTuner(maxKB: Int) // by default, 1 MiB
     extends ServletContextListener {
 
   override def contextInitialized(sce: ServletContextEvent): Unit = {

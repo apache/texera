@@ -21,7 +21,6 @@
 
 import { ExecutionMode, Workflow, WorkflowContent } from "../../common/type/workflow";
 import { DashboardEntry } from "../type/dashboard-entry";
-import { DashboardProject } from "../type/dashboard-project.interface";
 
 //the Date class creates unix timestamp based on local timezone, therefore test workflow time needs to be in local timezone
 const oneDay = 86400000;
@@ -136,24 +135,24 @@ export const testWorkflowFileNameConflictEntries: DashboardEntry[] = [
     isOwner: true,
     ownerName: "Texera",
     accessLevel: "Write",
-    projectIDs: [1],
     ownerId: 1,
+    coverImage: null,
   }),
   new DashboardEntry({
     workflow: testDownloadWorkflow2,
     isOwner: true,
     ownerName: "Texera",
     accessLevel: "Write",
-    projectIDs: [1, 2],
     ownerId: 1,
+    coverImage: null,
   }),
   new DashboardEntry({
     workflow: testDownloadWorkflow3,
     isOwner: true,
     ownerName: "Angular",
     accessLevel: "Write",
-    projectIDs: [1],
     ownerId: 2,
+    coverImage: null,
   }),
 ];
 
@@ -163,51 +162,45 @@ export const testWorkflowEntries: DashboardEntry[] = [
     isOwner: true,
     ownerName: "Texera",
     accessLevel: "Write",
-    projectIDs: [1],
     ownerId: 1,
+    coverImage: null,
   }),
   new DashboardEntry({
     workflow: testWorkflow2,
     isOwner: true,
     ownerName: "Texera",
     accessLevel: "Write",
-    projectIDs: [1, 2],
     ownerId: 1,
+    coverImage: null,
   }),
   new DashboardEntry({
     workflow: testWorkflow3,
     isOwner: true,
     ownerName: "Angular",
     accessLevel: "Write",
-    projectIDs: [1],
     ownerId: 2,
+    coverImage: null,
   }),
   new DashboardEntry({
     workflow: testWorkflow4,
     isOwner: true,
     ownerName: "Angular",
     accessLevel: "Write",
-    projectIDs: [3],
     ownerId: 2,
+    coverImage: null,
   }),
   new DashboardEntry({
     workflow: testWorkflow5,
     isOwner: true,
     ownerName: "UCI",
     accessLevel: "Write",
-    projectIDs: [3],
     ownerId: 3,
+    coverImage: null,
   }),
 ];
 
-export const testUserProjects: DashboardProject[] = [
-  { pid: 1, name: "Project1", description: "p1", ownerId: 1, color: "#ffffff", creationTime: 0, accessLevel: "WRITE" },
-  { pid: 2, name: "Project2", description: "p1", ownerId: 1, color: "#ffffff", creationTime: 0, accessLevel: "WRITE" },
-  { pid: 3, name: "Project3", description: "p1", ownerId: 1, color: "#ffffff", creationTime: 0, accessLevel: "WRITE" },
-];
-
 export const mockUserInfo = {
-  1: { userName: "Texera", googleAvatar: "avatar_url_1" },
-  2: { userName: "Angular", googleAvatar: "avatar_url_2" },
-  3: { userName: "UCI", googleAvatar: "avatar_url_3" },
+  1: { userName: "Texera", avatar: "avatar_url_1" },
+  2: { userName: "Angular", avatar: "avatar_url_2" },
+  3: { userName: "UCI", avatar: "avatar_url_3" },
 };

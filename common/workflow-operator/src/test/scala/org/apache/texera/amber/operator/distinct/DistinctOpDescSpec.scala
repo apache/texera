@@ -106,4 +106,12 @@ class DistinctOpDescSpec extends AnyFlatSpec with Matchers {
     val b = new DistinctOpDesc
     a.operatorIdentifier should not equal b.operatorIdentifier
   }
+
+  // The JVM operator keeps the first occurrence of a duplicate, which is what
+  // drop_duplicates does by default, so the emitted line says nothing about order.
+  "DistinctOpDesc.generateStandaloneCode" should "drop duplicates in place" in {
+    (new DistinctOpDesc).generateStandaloneCode() shouldBe
+      "out1df = in1df.drop_duplicates(ignore_index=True)"
+  }
+
 }

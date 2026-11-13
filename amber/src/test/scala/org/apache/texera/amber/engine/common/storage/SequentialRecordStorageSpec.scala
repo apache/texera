@@ -197,15 +197,12 @@ class SequentialRecordStorageSpec extends AnyFlatSpec with BeforeAndAfterAll {
   // SequentialRecordStorage.getStorage — factory dispatch
   // ---------------------------------------------------------------------------
   //
-  // The factory dispatches on the URI scheme. We pin the two
-  // schemes that can be exercised without external infrastructure
-  // (None → Empty, file:// → VFS). The hdfs:// branch is unit-test-
-  // hostile (HDFSRecordStorage's constructor calls FileSystem.get,
-  // which can block on DNS / network), so it is deliberately left
-  // out of this characterization — the factory's
-  // `if (scheme.toLowerCase == "hdfs")` is a single line and any
-  // regression there would surface immediately in higher-level
-  // checkpoint / fault-tolerance suites that use hdfs:// URIs.
+  // The factory dispatches on the URI scheme. We pin the two schemes
+  // that need no set-up here (None → Empty, file:// → VFS). The
+  // hdfs:// arm is covered by HDFSRecordStorageSpec, which seeds the
+  // Hadoop FileSystem cache for the `hdfs` scheme first so that
+  // HDFSRecordStorage's internal `FileSystem.get` resolves against a
+  // local temp directory instead of reaching for a NameNode.
 
   "SequentialRecordStorage.getStorage" should
     "return an EmptyRecordStorage when the location is None" in {

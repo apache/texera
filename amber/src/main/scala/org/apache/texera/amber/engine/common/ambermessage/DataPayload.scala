@@ -24,7 +24,18 @@ import org.apache.texera.amber.core.tuple.Tuple
 
 sealed trait DataPayload extends WorkflowFIFOMessagePayload {}
 
-final case class StateFrame(frame: State) extends DataPayload
+/**
+  * A single State travelling between operators. `loopCounter` / `loopStartId`
+  * are the loop envelope owned by the (Python) worker runtime -- carried
+  * alongside the State payload (not inside it) so it never collides with user
+  * state, and materialized/transported as their own columns parallel to the
+  * content (see `State.toTuple`). Loop operators are Python-only, so a JVM
+  * operator inside a loop body only ever carries the envelope through
+  * unchanged; the defaults are the "no loop" values for all non-loop state.
+  * Mirrors the Python `StateFrame` (core/models/payload.py).
+  */
+final case class StateFrame(frame: State, loopCounter: Long = 0L, loopStartId: String = "")
+    extends DataPayload
 
 final case class DataFrame(frame: Array[Tuple]) extends DataPayload {
   val inMemSize: Long = {

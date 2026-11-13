@@ -1,0 +1,84 @@
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+
+# Loki configuration for the Texera bundled observability stack.
+#
+# Bundled image: grafana/loki:3.2.0 (AGPLv3). Loki is an optional,
+# operator-run component; it is NOT shipped in any Texera release
+# artifact (see bin/observability/README.md). Only this ASF-licensed
+# config file lives in the tree.
+#
+# This is a minimal single-binary, filesystem-backed deployment for
+# single-node development. Replace the filesystem storage with an
+# object-storage backend (S3/GCS/Azure) before any multi-node or
+# production use.
+
+# No multi-tenancy: a single-node dev stack has one implicit tenant,
+# so requests need no X-Scope-OrgID header.
+auth_enabled: false
+
+server:
+  # LogQL query API + OTLP ingest (/otlp/v1/logs) are served here.
+  http_listen_port: 3100
+  # Internal gRPC; not published to the host.
+  grpc_listen_port: 9096
+
+common:
+  instance_addr: 127.0.0.1
+  # Every component's working/data path defaults under this prefix,
+  # which is the loki_data volume mounted at /loki in docker-compose.
+  path_prefix: /loki
+  storage:
+    filesystem:
+      chunks_directory: /loki/chunks
+      rules_directory: /loki/rules
+  # Single binary, single replica: no distributed ring.
+  replication_factor: 1
+  ring:
+    kvstore:
+      store: inmemory
+
+schema_config:
+  configs:
+    # tsdb index + filesystem object store is the current (v13) layout.
+    - from: 2024-01-01
+      store: tsdb
+      object_store: filesystem
+      schema: v13
+      index:
+        prefix: index_
+        period: 24h
+
+limits_config:
+  # Required for OTLP ingest: OTLP log attributes are written as
+  # structured metadata. Enabled by default in Loki 3.x; kept explicit.
+  allow_structured_metadata: true
+  # Drop out-of-order rejections for a low-volume dev stack.
+  reject_old_samples: false
+  # Age after which log chunks are eligible for deletion by the compactor.
+  retention_period: 30d
+
+compactor:
+  working_directory: /loki/compactor
+  # Without this the retention_period above is parsed but never enforced,
+  # so logs accumulate until the loki_data volume fills.
+  retention_enabled: true
+  delete_request_store: filesystem
+
+# OTLP ingest needs no extra config: Loki 3.x serves it at
+# http://loki:3100/otlp out of the box. The collector exports there
+# (see bin/observability/otel-collector/config.yaml).

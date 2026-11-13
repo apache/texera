@@ -49,14 +49,6 @@
           <li>Runtime debugging and interactive workflow execution</li>
         </ul>
       </div>
-      <ng-container *ngIf="(isLogin$ | async) === false">
-        <div
-          *ngIf="this.config.env.localLogin"
-          nz-col
-          nzFlex="350px">
-          <texera-local-login class="login-container"></texera-local-login>
-        </div>
-      </ng-container>
     </div>
 
     <img

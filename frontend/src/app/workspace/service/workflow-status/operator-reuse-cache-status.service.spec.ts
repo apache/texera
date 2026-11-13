@@ -24,7 +24,6 @@ import { StubOperatorMetadataService } from "../operator-metadata/stub-operator-
 import { OperatorReuseCacheStatusService } from "./operator-reuse-cache-status.service";
 import { JointUIService } from "../joint-ui/joint-ui.service";
 import { WorkflowActionService } from "../workflow-graph/model/workflow-action.service";
-import { WorkflowWebsocketService } from "../workflow-websocket/workflow-websocket.service";
 import { HttpClientTestingModule } from "@angular/common/http/testing";
 import { commonTestProviders } from "../../../common/testing/test-utils";
 
@@ -52,17 +51,14 @@ describe("OperatorCacheStatusService", () => {
 
 describe("OperatorCacheStatusService - behavior", () => {
   let service: OperatorReuseCacheStatusService;
-  let cacheStatusEvents$: Subject<any>;
   let reuseCacheOpsChanged$: Subject<any>;
   let mockJointUIService: any;
   let mockJointGraphWrapper: any;
   let mockTexeraGraph: any;
   let mockWorkflowActionService: any;
-  let mockWorkflowWebsocketService: any;
   const mockMainJointPaper = {};
 
   beforeEach(() => {
-    cacheStatusEvents$ = new Subject<any>();
     reuseCacheOpsChanged$ = new Subject<any>();
 
     mockJointUIService = {
@@ -83,51 +79,15 @@ describe("OperatorCacheStatusService - behavior", () => {
       getJointGraphWrapper: vi.fn().mockReturnValue(mockJointGraphWrapper),
     };
 
-    mockWorkflowWebsocketService = {
-      subscribeToEvent: vi.fn().mockReturnValue(cacheStatusEvents$),
-    };
-
     TestBed.configureTestingModule({
       providers: [
         OperatorReuseCacheStatusService,
         { provide: JointUIService, useValue: mockJointUIService },
         { provide: WorkflowActionService, useValue: mockWorkflowActionService },
-        { provide: WorkflowWebsocketService, useValue: mockWorkflowWebsocketService },
       ],
     });
 
     service = TestBed.inject(OperatorReuseCacheStatusService);
-  });
-
-  it("calls changeOperatorReuseCacheStatus for each operator in a CacheStatusUpdateEvent", () => {
-    const event = {
-      cacheStatusMap: {
-        op1: "cache",
-        op2: "no-cache",
-      },
-    };
-
-    cacheStatusEvents$.next(event);
-
-    expect(mockJointUIService.changeOperatorReuseCacheStatus).toHaveBeenCalledTimes(2);
-    expect(mockJointUIService.changeOperatorReuseCacheStatus).toHaveBeenCalledWith(
-      mockMainJointPaper,
-      { operatorID: "op1" },
-      "cache"
-    );
-    expect(mockJointUIService.changeOperatorReuseCacheStatus).toHaveBeenCalledWith(
-      mockMainJointPaper,
-      { operatorID: "op2" },
-      "no-cache"
-    );
-  });
-
-  it("does not call changeOperatorReuseCacheStatus when mainJointPaper is null on CacheStatusUpdateEvent", () => {
-    mockJointGraphWrapper.getMainJointPaper.mockReturnValue(null);
-
-    cacheStatusEvents$.next({ cacheStatusMap: { op1: "cache" } });
-
-    expect(mockJointUIService.changeOperatorReuseCacheStatus).not.toHaveBeenCalled();
   });
 
   it("calls changeOperatorReuseCacheStatus for all ops in a reuse cache operators changed event", () => {

@@ -1,0 +1,47 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
+ */
+
+/*
+ * The notebook is embedded in the Texera app as a read-only view of the
+ * generated workflow. Hide the classic Notebook chrome (logo/name/logout,
+ * kernel and trust indicators, the File/Edit/View menu, and the toolbar) so
+ * only the notebook cells remain.
+ */
+#header,
+#menubar-container,
+#maintoolbar-container {
+  display: none !important;
+}
+
+/* Classic Notebook scrolls inside #site, but the document also scrolls, which
+   shows a second, non-functional scrollbar. Stop the document from scrolling so
+   only #site's scrollbar remains. */
+html,
+body {
+  height: 100% !important;
+  overflow: hidden !important;
+}
+
+/* The notebook offsets #site by the (now-hidden) header height; make it fill the
+   iframe (its own overflow provides the single, working scrollbar). */
+#site {
+  top: 0 !important;
+  height: 100vh !important;
+  overflow-y: auto !important;
+}

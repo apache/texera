@@ -59,7 +59,7 @@ export class CodeDebuggerComponent implements AfterViewInit, SafeStyle {
   ) {}
 
   ngAfterViewInit() {
-    this.registerStatusChangeHandler();
+    this.registerStateChangeHandler();
     this.registerBreakpointRenderingHandler();
   }
 
@@ -221,14 +221,14 @@ export class CodeDebuggerComponent implements AfterViewInit, SafeStyle {
     });
   }
 
-  private registerStatusChangeHandler() {
+  private registerStateChangeHandler() {
     this.workflowStatusService
-      .getStatusUpdateStream()
+      .getStateUpdateStream()
       .pipe(
         map(
           event =>
-            event[this.currentOperatorId]?.operatorState === OperatorState.Running ||
-            event[this.currentOperatorId]?.operatorState === OperatorState.Paused
+            event[this.currentOperatorId] === OperatorState.Running ||
+            event[this.currentOperatorId] === OperatorState.Paused
         ),
         distinctUntilChanged(),
         untilDestroyed(this)

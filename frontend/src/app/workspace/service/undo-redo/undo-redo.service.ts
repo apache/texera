@@ -31,7 +31,6 @@ import * as Y from "yjs";
 export class UndoRedoService {
   // lets us know whether to listen to the JointJS observables, most of the time we don't
   public listenJointCommand: boolean = true;
-  // private testGraph: WorkflowGraphReadonly;
 
   private undoManager?: Y.UndoManager;
 

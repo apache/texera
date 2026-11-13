@@ -44,31 +44,48 @@ export interface HuggingFaceTaskOption {
   label: string;
 }
 
-// ── Static fallback task list (used when the dynamic fetch fails) ──
+// ── Supported task list ──
+// The tasks the operator actually has a codegen for. Anything outside this set
+// has no codegen and would silently fall back to text-generation (emitting raw
+// JSON), so the UI must not offer it. This doubles as the static fallback list
+// shown when the dynamic /api/tasks fetch fails.
+//
+// Keep in sync with the codegens registered in
+// `HuggingFaceInferenceOpDesc.registeredCodegens` (TextGen / ImageTask /
+// AudioTask / MediaGen / QaRanking). A newly added codegen surfaces in the UI
+// only once its task tag is added here.
 export const STATIC_TASK_OPTIONS: HuggingFaceTaskOption[] = [
+  // text-generation (TextGenCodegen)
   { tag: "text-generation", label: "Text Generation" },
-  { tag: "automatic-speech-recognition", label: "Automatic Speech Recognition" },
-  { tag: "audio-classification", label: "Audio Classification" },
-  { tag: "text-classification", label: "Text Classification" },
-  { tag: "text-to-speech", label: "Text to Speech" },
-  { tag: "token-classification", label: "Token Classification" },
+  // question-answering family (QaRankingCodegen)
   { tag: "question-answering", label: "Question Answering" },
   { tag: "table-question-answering", label: "Table Question Answering" },
   { tag: "zero-shot-classification", label: "Zero-Shot Classification" },
-  { tag: "translation", label: "Translation" },
-  { tag: "summarization", label: "Summarization" },
-  { tag: "feature-extraction", label: "Feature Extraction" },
-  { tag: "fill-mask", label: "Fill-Mask" },
   { tag: "sentence-similarity", label: "Sentence Similarity" },
   { tag: "text-ranking", label: "Text Ranking" },
+  // audio (AudioTaskCodegen)
+  { tag: "automatic-speech-recognition", label: "Automatic Speech Recognition" },
+  { tag: "audio-classification", label: "Audio Classification" },
+  { tag: "text-to-speech", label: "Text to Speech" },
+  // image (ImageTaskCodegen)
   { tag: "image-classification", label: "Image Classification" },
   { tag: "object-detection", label: "Object Detection" },
   { tag: "image-segmentation", label: "Image Segmentation" },
   { tag: "image-to-text", label: "Image to Text" },
+  { tag: "image-to-image", label: "Image to Image" },
+  { tag: "image-text-to-text", label: "Image-Text to Text" },
   { tag: "visual-question-answering", label: "Visual Question Answering" },
   { tag: "document-question-answering", label: "Document Question Answering" },
   { tag: "zero-shot-image-classification", label: "Zero-Shot Image Classification" },
+  // media generation (MediaGenCodegen)
+  { tag: "text-to-image", label: "Text to Image" },
+  { tag: "text-to-video", label: "Text to Video" },
 ];
+
+// Task tags the operator supports — the single gate for what the UI may offer.
+// Derived from STATIC_TASK_OPTIONS so the two never drift; used to filter the
+// dynamic /api/tasks result down to tasks that actually have a codegen.
+export const SUPPORTED_TASK_TAGS: ReadonlySet<string> = new Set(STATIC_TASK_OPTIONS.map(o => o.tag));
 
 const PAGE_SIZE = 50;
 
@@ -252,19 +269,22 @@ export class HuggingFaceComponent extends FieldType<FieldTypeConfig> implements 
     tasksFetchSubscription = this.http
       .get<HuggingFaceTaskOption[]>(`${AppSettings.getApiEndpoint()}/huggingface/tasks`)
       .pipe(
-        takeUntil(this.destroy$),
         finalize(() => {
-          // If takeUntil fires before next/error, reset the module-level guard
-          // so the next component instance can start a fresh fetch.
           if (cachedTaskOptions === null && tasksFetchError === null) {
             tasksFetchSubscription = null;
           }
         })
       )
+      // eslint-disable-next-line rxjs-angular/prefer-takeuntil
       .subscribe({
         next: tasks => {
           tasksFetchSubscription = null;
-          cachedTaskOptions = tasks.length > 0 ? tasks : STATIC_TASK_OPTIONS;
+          // Only surface tasks the operator has a codegen for — anything else
+          // silently falls back to text-generation and emits raw JSON. If the
+          // filter leaves nothing (e.g. HF changed its tags), use the static
+          // supported list rather than showing an empty dropdown.
+          const supported = tasks.filter(t => SUPPORTED_TASK_TAGS.has(t.tag));
+          cachedTaskOptions = supported.length > 0 ? supported : STATIC_TASK_OPTIONS;
           this.taskOptions = cachedTaskOptions;
           this.tasksLoading = false;
           this.cdr.detectChanges();
@@ -296,8 +316,6 @@ export class HuggingFaceComponent extends FieldType<FieldTypeConfig> implements 
     this.restoreTaskState(tag);
     this.searchText = "";
     this.filteredModels = null;
-    // Cancel any in-flight server search for the previous task
-    this.searchSubject$.next("");
     this.loadAllModels();
   }
 
@@ -379,14 +397,8 @@ export class HuggingFaceComponent extends FieldType<FieldTypeConfig> implements 
         { observe: "response" }
       )
       .pipe(
-        takeUntil(this.destroy$),
-        finalize(() => {
-          // If takeUntil cancels before next/error fires, clear the in-flight
-          // guard so a later instance re-fetches instead of polling forever.
-          if (!allModelsByTag.has(tag) && !errorByTag.has(tag)) {
-            inFlightByTag.delete(tag);
-          }
-        })
+        finalize(() => inFlightByTag.delete(tag)),
+        takeUntil(this.destroy$)
       )
       .subscribe({
         next: resp => {
@@ -395,7 +407,6 @@ export class HuggingFaceComponent extends FieldType<FieldTypeConfig> implements 
             truncatedByTag.add(tag);
           }
           allModelsByTag.set(tag, models);
-          inFlightByTag.delete(tag);
           this.loading = false;
           this.truncated = truncatedByTag.has(tag);
           this.allModels = models;
@@ -405,7 +416,6 @@ export class HuggingFaceComponent extends FieldType<FieldTypeConfig> implements 
           console.error(`Failed to load HuggingFace models for task '${tag}':`, err);
           const msg = "Failed to load models. Click retry to try again.";
           errorByTag.set(tag, msg);
-          inFlightByTag.delete(tag);
           this.loading = false;
           this.errorMessage = msg;
           this.cdr.detectChanges();
@@ -459,11 +469,6 @@ export class HuggingFaceComponent extends FieldType<FieldTypeConfig> implements 
       .pipe(
         debounceTime(300),
         switchMap(query => {
-          if (!query.trim()) {
-            this.searchLoading = false;
-            this.cdr.detectChanges();
-            return of(null);
-          }
           const tag = this.selectedTaskTag || "text-generation";
           this.searchLoading = true;
           this.cdr.detectChanges();
@@ -497,8 +502,6 @@ export class HuggingFaceComponent extends FieldType<FieldTypeConfig> implements 
     if (!query.trim()) {
       this.filteredModels = null;
       this.searchLoading = false;
-      // Cancel any in-flight server search via switchMap
-      this.searchSubject$.next("");
       this.goToPage(0);
       return;
     }
@@ -517,8 +520,6 @@ export class HuggingFaceComponent extends FieldType<FieldTypeConfig> implements 
     this.searchText = "";
     this.filteredModels = null;
     this.searchLoading = false;
-    // Cancel any in-flight server search via switchMap
-    this.searchSubject$.next("");
     this.goToPage(0);
   }
 

@@ -20,9 +20,11 @@
 package org.apache.texera.service.util
 
 import org.apache.texera.amber.core.tuple.LargeBinary
+import org.apache.texera.common.tags.NonParallelTest
 import org.scalatest.funsuite.AnyFunSuite
 import org.scalatest.BeforeAndAfterEach
 
+@NonParallelTest
 class LargeBinaryManagerSpec extends AnyFunSuite with S3StorageTestBase with BeforeAndAfterEach {
 
   /** Execution id used by the bulk of the tests. */
@@ -522,5 +524,81 @@ class LargeBinaryManagerSpec extends AnyFunSuite with S3StorageTestBase with Bef
       LargeBinaryManager.deleteByExecution(11L)
       setExecutionContext(TestExecutionId)
     }
+  }
+
+  // ========================================
+  // Base-URI Tests
+  // ========================================
+
+  test("baseUriForExecution scopes binaries to the configured bucket and the execution") {
+    assert(
+      LargeBinaryManager.baseUriForExecution(4242L) ==
+        s"s3://${LargeBinaryManager.DEFAULT_BUCKET}/objects/4242/"
+    )
+    // The trailing slash is what keeps execution 4242 and 42421 in separate prefixes.
+    assert(LargeBinaryManager.baseUriForExecution(4242L).endsWith("/"))
+    assert(LargeBinaryManager.DEFAULT_BUCKET == "texera-large-binaries")
+  }
+
+  test("re-seeding the base URI routes later binaries to the new execution's prefix") {
+    setExecutionContext(3001L)
+    val first = createLargeBinary("written under 3001")
+    setExecutionContext(3002L)
+    val second = createLargeBinary("written under 3002")
+
+    try {
+      assert(first.getObjectKey.startsWith("objects/3001/"))
+      assert(second.getObjectKey.startsWith("objects/3002/"))
+      // Both objects really landed under their own execution prefix in S3.
+      assert(S3StorageClient.directoryExists(LargeBinaryManager.DEFAULT_BUCKET, "objects/3001"))
+      assert(S3StorageClient.directoryExists(LargeBinaryManager.DEFAULT_BUCKET, "objects/3002"))
+    } finally {
+      LargeBinaryManager.deleteByExecution(3001L)
+      LargeBinaryManager.deleteByExecution(3002L)
+      setExecutionContext(TestExecutionId)
+    }
+  }
+
+  test("an empty base URI clears the thread's context so create fails loudly") {
+    // An unconfigured bucket yields an empty base URI; create() must not silently produce
+    // a bucket-less key.
+    try {
+      LargeBinaryManager.setCurrentBaseUri("")
+      val thrown = intercept[IllegalStateException](LargeBinaryManager.create())
+      assert(thrown.getMessage.contains("requires a base URI"))
+    } finally {
+      setExecutionContext(TestExecutionId)
+    }
+  }
+
+  test("a null base URI clears the thread's context so create fails loudly") {
+    try {
+      LargeBinaryManager.setCurrentBaseUri(null)
+      assertThrows[IllegalStateException](LargeBinaryManager.create())
+      // new LargeBinary() delegates to create(), so it fails the same way.
+      assertThrows[IllegalStateException](new LargeBinary())
+    } finally {
+      setExecutionContext(TestExecutionId)
+    }
+  }
+
+  test("the base URI is thread-local and does not leak into other threads") {
+    // create() runs on the DP thread; a sibling thread must not inherit this thread's context.
+    setExecutionContext(TestExecutionId)
+    @volatile var caught: Option[Throwable] = None
+    val other = new Thread(() => {
+      try LargeBinaryManager.create()
+      catch { case e: Throwable => caught = Some(e) }
+    })
+    other.start()
+    other.join()
+
+    assert(caught.exists(_.isInstanceOf[IllegalStateException]))
+    // This thread's context is unaffected.
+    assert(
+      LargeBinaryManager
+        .create()
+        .startsWith(LargeBinaryManager.baseUriForExecution(TestExecutionId))
+    )
   }
 }

@@ -51,14 +51,36 @@ object JwtAuth {
     jws.getCompactSerialization
   }
 
-  def jwtClaims(user: User, expireInDays: Int): JwtClaims = {
+  /**
+    * Build the claim set for `user`. The claim names are a contract with the hand-written
+    * TypeScript reader in `frontend/src/app/common/service/user/auth.service.ts`, which is not
+    * compiled against this file — so renaming one here silently breaks the frontend. The `avatar`
+    * claim was `googleAvatar` until the column and the value stopped being Google-specific; the
+    * TypeScript reader was renamed in the same change, and both sides still accept the old name
+    * so tokens issued before it keep working (see [[JwtParser]] for when that can go).
+    *
+    * `googleId` is passed in rather than read off `user`, because the GOOGLE provider id lives
+    * in `auth_provider` and this module must stay DB-free: the specs in
+    * `access-control-service` / `config-service` and the token re-issue paths in
+    * `ResultExportService` / `ComputingUnitManagingResource` all call this with no
+    * `auth_provider` context, as does `AuthResource.register`. Omitting the claim is harmless
+    * on all of them: a service-to-service token never reaches the browser, and a freshly
+    * registered LOCAL account has no Google identity to name.
+    *
+    * Note this changes the token's shape, not just where the value comes from: `googleId` was
+    * previously written unconditionally, so a local-only user's token carried `"googleId": null`
+    * and now omits the claim. The frontend declares it optional (`common/type/user.ts`), so the
+    * only reader that can tell is `flarum.service.ts`, which passes it as a Flarum account
+    * password — a path that was already broken for exactly the users who lack the claim.
+    */
+  def jwtClaims(user: User, googleId: Option[String] = None): JwtClaims = {
     val claims = new JwtClaims
     claims.setSubject(user.getName)
     claims.setClaim("userId", user.getUid)
-    claims.setClaim("googleId", user.getGoogleId)
     claims.setClaim("email", user.getEmail)
     claims.setClaim("role", user.getRole)
-    claims.setClaim("googleAvatar", user.getGoogleAvatar)
+    claims.setClaim("avatar", user.getAvatar)
+    googleId.foreach(claims.setClaim("googleId", _))
     claims.setExpirationTimeMinutesInTheFuture(TOKEN_EXPIRE_TIME_IN_MINUTES.toFloat)
     claims
   }

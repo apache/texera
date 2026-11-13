@@ -18,7 +18,12 @@
 
 package org.apache.texera.service.resource
 
+/**
+  * Status vocabulary of a computing unit, mirroring the Kubernetes pod lifecycle: `Failed`,
+  * `Unknown` and `Terminating` map from the pod's phase / deletion timestamp so a dead unit is
+  * reported as dead instead of forever `Pending`.
+  */
 object ComputingUnitState extends Enumeration {
   type ComputingUnitState = Value
-  val Running, Pending = Value
+  val Running, Pending, Failed, Unknown, Terminating = Value
 }

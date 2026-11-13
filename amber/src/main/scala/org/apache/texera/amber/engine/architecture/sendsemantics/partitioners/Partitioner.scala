@@ -49,9 +49,9 @@ class NetworkOutputBuffer(
     }
   }
 
-  def sendState(state: State): Unit = {
+  def sendState(state: State, loopCounter: Long = 0L, loopStartId: String = ""): Unit = {
     flush()
-    dataOutputPort.sendTo(to, StateFrame(state))
+    dataOutputPort.sendTo(to, StateFrame(state, loopCounter, loopStartId))
     flush()
   }
 

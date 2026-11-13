@@ -70,13 +70,13 @@ export const formatRelativeTime = (timestamp: number | undefined): string => {
   const weeksAgo = Math.floor(daysAgo / 7);
 
   if (minutesAgo < 60) {
-    return `${minutesAgo} minutes ago`;
+    return `${minutesAgo} minute${minutesAgo === 1 ? "" : "s"} ago`;
   } else if (hoursAgo < 24) {
-    return `${hoursAgo} hours ago`;
+    return `${hoursAgo} hour${hoursAgo === 1 ? "" : "s"} ago`;
   } else if (daysAgo < 7) {
-    return `${daysAgo} days ago`;
+    return `${daysAgo} day${daysAgo === 1 ? "" : "s"} ago`;
   } else if (weeksAgo < 4) {
-    return `${weeksAgo} weeks ago`;
+    return `${weeksAgo} week${weeksAgo === 1 ? "" : "s"} ago`;
   }
   return new Date(timestamp).toLocaleDateString();
 };
@@ -89,4 +89,14 @@ export const formatCount = (count: number): string => {
     return (count / 1000).toFixed(1) + "k";
   }
   return count.toString();
+};
+
+/**
+ * Parse an integer setting value, falling back when the raw value is missing or
+ * unparsable. Unlike `parseInt(raw) || fallback`, a legitimately stored 0 is
+ * preserved (0 is falsy, so the `||` idiom would silently drop it).
+ */
+export const parseIntOrDefault = (raw: string | null | undefined, fallback: number): number => {
+  const parsed = parseInt(raw ?? "", 10);
+  return Number.isNaN(parsed) ? fallback : parsed;
 };

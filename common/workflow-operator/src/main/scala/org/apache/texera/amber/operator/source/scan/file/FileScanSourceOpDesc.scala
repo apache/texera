@@ -45,7 +45,11 @@ class FileScanSourceOpDesc extends ScanSourceOpDesc with TextSourceOpDesc {
       new JsonSchemaString(path = HideAnnotation.hideExpectedValue, value = "binary")
     )
   )
-  private val encoding: FileDecodingMethod = FileDecodingMethod.UTF_8
+  // Re-declared here rather than inherited so the field can carry the hide
+  // annotation above; `fileEncoding` from ScanSourceOpDesc is suppressed by the
+  // @JsonIgnoreProperties on this class, so this is the only charset that
+  // survives into the executor.
+  var encoding: FileDecodingMethod = FileDecodingMethod.UTF_8
 
   @JsonProperty(defaultValue = "false")
   @JsonSchemaTitle("Extract")

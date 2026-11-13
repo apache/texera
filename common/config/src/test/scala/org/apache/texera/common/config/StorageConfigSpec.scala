@@ -19,6 +19,7 @@
 
 package org.apache.texera.common.config
 
+import com.typesafe.config.ConfigFactory
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 
@@ -48,5 +49,43 @@ class StorageConfigSpec extends AnyFlatSpec with Matchers {
     StorageConfig.ENV_CLEANUP_ENABLED shouldBe "STORAGE_CLEANUP_ENABLED"
     StorageConfig.ENV_CLEANUP_RETENTION_HOURS shouldBe "STORAGE_CLEANUP_RETENTION_HOURS"
     StorageConfig.ENV_CLEANUP_INTERVAL_MINUTES shouldBe "STORAGE_CLEANUP_INTERVAL_MINUTES"
+  }
+
+  "StorageConfig warehouse settings" should "be on by default, and only with the REST catalog" in {
+    // Only assert when the env override is unset, since it would win otherwise.
+    if (sys.env.get(StorageConfig.ENV_WAREHOUSE_ENABLED).isEmpty) {
+      // The resource is read directly as well because CI's amber job pins the
+      // catalog to postgres, which makes warehouseEnabled false there either
+      // way and would let a revert of the default pass unnoticed.
+      ConfigFactory
+        .parseResources("storage.conf")
+        .resolve()
+        .getBoolean("storage.warehouse.enabled") shouldBe true
+
+      StorageConfig.warehouseEnabled shouldBe (StorageConfig.icebergCatalogType == "rest")
+    }
+  }
+
+  it should "expose the warehouse environment-variable override name" in {
+    StorageConfig.ENV_WAREHOUSE_ENABLED shouldBe "STORAGE_WAREHOUSE_ENABLED"
+  }
+
+  "StorageConfig jupyter settings" should "default the public URL to the internal one" in {
+    // Keeps the split a no-op outside containerized deployments.
+    // Only assert when neither env override is set, since either would win otherwise.
+    if (
+      sys.env.get("STORAGE_JUPYTER_INTERNAL_URL").isEmpty &&
+      sys.env.get("STORAGE_JUPYTER_PUBLIC_URL").isEmpty
+    ) {
+      StorageConfig.jupyterPublicURL shouldBe StorageConfig.jupyterInternalURL
+    }
+  }
+
+  it should "default the token secret to empty so a deployment must set it deliberately" in {
+    // Per-user tokens are derived from this key, so it has no safe default: an empty
+    // value must be caught at start-up rather than silently deriving from nothing.
+    if (sys.env.get("JUPYTER_TOKEN_SECRET").isEmpty) {
+      StorageConfig.jupyterTokenSecret shouldBe ""
+    }
   }
 }

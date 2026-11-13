@@ -31,8 +31,11 @@ class RegexOpExec(descString: String) extends FilterOpExec {
     Pattern.compile(desc.regex, if (desc.caseInsensitive) Pattern.CASE_INSENSITIVE else 0)
   this.setFilterFunc(this.matchRegex)
 
+  // A row with nothing in the column matches nothing. The `Option` here used to
+  // wrap the `toString` rather than the field, so a null raised before it was
+  // ever consulted; an empty cell is ordinary input, since a blank in a CSV
+  // arrives as one.
   private def matchRegex(tuple: Tuple): Boolean =
-    Option[Any](tuple.getField(desc.attribute).toString)
-      .map(_.toString)
-      .exists(value => pattern.matcher(value).find)
+    Option(tuple.getField[Any](desc.attribute))
+      .exists(value => pattern.matcher(value.toString).find)
 }

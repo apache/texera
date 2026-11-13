@@ -59,10 +59,7 @@ export class SearchResultsComponent {
   entries: ReadonlyArray<DashboardEntry> = [];
   private resetCounter = 0;
   @Input() isPrivateSearch = false;
-  @Input() showResourceTypes = false;
-  @Input() public pid: number = 0;
   @Input() editable = false;
-  @Input() searchKeywords: string[] = [];
   @Input() currentUid: number | undefined;
   @Input() viewMode: SearchResultsViewMode = "list";
   /** Template rendered for each entry in card mode; receives the entry via $implicit. */

@@ -25,9 +25,7 @@ import com.google.common.cache.{Cache, CacheBuilder}
 import kong.unirest.Unirest
 import org.slf4j.{Logger, LoggerFactory}
 
-import java.io.InputStream
 import java.net.URI
-import java.nio.file.{Files, Path => NioPath, Paths}
 import java.util.concurrent.{Callable, ForkJoinPool, TimeUnit}
 import java.util.stream.Collectors
 import javax.annotation.security.RolesAllowed
@@ -40,8 +38,6 @@ import scala.jdk.CollectionConverters._
   *
   *   - GET  /api/huggingface/models?task=…[&search=…]   browse or search HF models
   *   - GET  /api/huggingface/tasks                       list HF pipeline tags with hosted inference
-  *   - POST /api/huggingface/upload-audio?filename=…     stream-upload an audio file
-  *   - GET  /api/huggingface/audio-preview?path=…        stream back an uploaded audio file
   *   - GET  /api/huggingface/media-proxy?url=…           proxy an allowlisted remote media URL
   *
   * Token sourcing: the user supplies their own HF token via the `X-HF-Token`
@@ -95,136 +91,6 @@ class HuggingFaceModelResource {
       case e: Exception =>
         logger.error(s"Failed to fetch HF models for task '$task'", e)
         errorResponse(Response.Status.INTERNAL_SERVER_ERROR, "Failed to fetch models.")
-    }
-  }
-
-  /**
-    * Streams an audio file from the request body to a temp file under
-    * `${java.io.tmpdir}/texera-hf-audio`. Enforces an extension allowlist
-    * and a max payload size (rejected with 413 once exceeded). Old files
-    * in the temp dir are best-effort cleaned on each upload.
-    */
-  @POST
-  @Path("/upload-audio")
-  @Consumes(Array(MediaType.WILDCARD))
-  def uploadAudioReference(
-      @QueryParam("filename") filename: String,
-      stream: InputStream
-  ): Response = {
-    try {
-      if (stream == null) {
-        return errorResponse(Response.Status.BAD_REQUEST, "Audio payload is required.")
-      }
-
-      val safeFileName = Option(filename)
-        .map(_.trim)
-        .filter(_.nonEmpty)
-        .map(name => Paths.get(name).getFileName.toString)
-        .getOrElse("audio.bin")
-      val extension = {
-        val idx = safeFileName.lastIndexOf('.')
-        if (idx >= 0 && idx < safeFileName.length - 1)
-          safeFileName.substring(idx).toLowerCase
-        else ""
-      }
-      if (!ALLOWED_AUDIO_EXTENSIONS.contains(extension)) {
-        return errorResponse(
-          Response.Status.BAD_REQUEST,
-          "Unsupported audio file extension."
-        )
-      }
-
-      val tempDir = audioTempDir
-      Files.createDirectories(tempDir)
-      sweepOldAudioFiles(tempDir)
-
-      val tempFile: NioPath = Files.createTempFile(tempDir, "hf-audio-", extension)
-      tempFile.toFile.deleteOnExit()
-
-      val out = Files.newOutputStream(tempFile)
-      var totalBytes = 0L
-      try {
-        val buf = new Array[Byte](8 * 1024)
-        var read = stream.read(buf)
-        while (read != -1) {
-          totalBytes += read
-          if (totalBytes > MAX_AUDIO_BYTES) {
-            out.close()
-            Files.deleteIfExists(tempFile)
-            return errorResponse(
-              Response.Status.REQUEST_ENTITY_TOO_LARGE,
-              "Audio payload exceeds the size limit."
-            )
-          }
-          out.write(buf, 0, read)
-          read = stream.read(buf)
-        }
-      } finally {
-        out.close()
-      }
-
-      if (totalBytes == 0L) {
-        Files.deleteIfExists(tempFile)
-        return errorResponse(Response.Status.BAD_REQUEST, "Audio payload is empty.")
-      }
-
-      val json = objectMapper.writeValueAsString(
-        Map(
-          "path" -> tempFile.toAbsolutePath.toString,
-          "fileName" -> safeFileName
-        ).asJava
-      )
-      Response.ok(json).build()
-    } catch {
-      case e: Exception =>
-        logger.error("Failed to upload audio", e)
-        errorResponse(Response.Status.INTERNAL_SERVER_ERROR, "Failed to upload audio.")
-    }
-  }
-
-  @GET
-  @Path("/audio-preview")
-  def previewUploadedAudio(@QueryParam("path") path: String): Response = {
-    try {
-      val trimmedPath = Option(path).map(_.trim).getOrElse("")
-      if (trimmedPath.isEmpty) {
-        return errorResponse(Response.Status.BAD_REQUEST, "Audio path is required.")
-      }
-
-      val tempDir = audioTempDir.toAbsolutePath.normalize()
-      val requestedPath = Paths.get(trimmedPath).toAbsolutePath.normalize()
-      if (!requestedPath.startsWith(tempDir)) {
-        return errorResponse(
-          Response.Status.FORBIDDEN,
-          "Audio path is outside the allowed preview directory."
-        )
-      }
-      if (!Files.exists(requestedPath) || !Files.isRegularFile(requestedPath)) {
-        return errorResponse(Response.Status.NOT_FOUND, "Uploaded audio file was not found.")
-      }
-
-      // Defense-in-depth: even though /upload-audio enforces MAX_AUDIO_BYTES on
-      // ingest, refuse to buffer an oversized file into heap on the response
-      // side. Catches files placed via a future-bug or out-of-band write.
-      val size = Files.size(requestedPath)
-      if (size > MAX_AUDIO_BYTES) {
-        logger.warn(
-          s"Uploaded audio file size $size exceeds cap $MAX_AUDIO_BYTES; rejecting."
-        )
-        return errorResponse(
-          Response.Status.REQUEST_ENTITY_TOO_LARGE,
-          "Uploaded audio file exceeds the size limit."
-        )
-      }
-
-      val contentType = Option(Files.probeContentType(requestedPath))
-        .filter(_.trim.nonEmpty)
-        .getOrElse(inferAudioContentType(requestedPath))
-      Response.ok(Files.readAllBytes(requestedPath), contentType).build()
-    } catch {
-      case e: Exception =>
-        logger.error("Failed to read uploaded audio", e)
-        errorResponse(Response.Status.INTERNAL_SERVER_ERROR, "Failed to read uploaded audio.")
     }
   }
 
@@ -654,12 +520,6 @@ object HuggingFaceModelResource {
   private val TASK_FETCH_PARALLELISM = 4
   private val taskCheckPool = new ForkJoinPool(TASK_FETCH_PARALLELISM)
 
-  // ── /upload-audio constraints ──
-  private[resource] val MAX_AUDIO_BYTES: Long = 25L * 1024L * 1024L // 25 MiB
-  private[resource] val ALLOWED_AUDIO_EXTENSIONS: Set[String] =
-    Set(".wav", ".mp3", ".mpeg", ".flac", ".ogg", ".oga", ".webm", ".opus", ".amr", ".m4a", ".aac")
-  private[resource] val AUDIO_TEMP_TTL_MS: Long = 60L * 60L * 1000L // 1 hour
-
   // ── /media-proxy size cap: bounds the upstream response we buffer in heap ──
   // Sized to cover HF inference media outputs (text-to-image ~5 MiB,
   // text-to-video ~30 MiB) with headroom. Bumps should land in their own PR.
@@ -681,33 +541,6 @@ object HuggingFaceModelResource {
     "replicate.com"
   )
 
-  private[resource] def audioTempDir: NioPath =
-    Paths.get(System.getProperty("java.io.tmpdir"), "texera-hf-audio")
-
-  /** Delete audio temp files older than AUDIO_TEMP_TTL_MS. Best-effort. */
-  private[resource] def sweepOldAudioFiles(tempDir: NioPath): Unit = {
-    val cutoff = System.currentTimeMillis() - AUDIO_TEMP_TTL_MS
-    try {
-      val stream = Files.list(tempDir)
-      try {
-        stream.forEach { p =>
-          try {
-            if (Files.isRegularFile(p) && Files.getLastModifiedTime(p).toMillis < cutoff) {
-              Files.deleteIfExists(p)
-            }
-          } catch {
-            case _: Exception => // skip files we can't stat/delete
-          }
-        }
-      } finally {
-        stream.close()
-      }
-    } catch {
-      case e: Exception =>
-        logger.debug(s"Audio temp dir sweep failed: ${e.getMessage}")
-    }
-  }
-
   /** Allow exact host or subdomain of any entry in ALLOWED_MEDIA_HOST_SUFFIXES. */
   private[resource] def isAllowedMediaHost(host: String): Boolean = {
     if (host == null || host.isEmpty) return false
@@ -728,19 +561,6 @@ object HuggingFaceModelResource {
 
   private def errorResponse(statusCode: Int, message: String): Response =
     Response.status(statusCode).entity(errorJson(message)).build()
-
-  private[resource] def inferAudioContentType(path: NioPath): String = {
-    val fileName = Option(path.getFileName).map(_.toString.toLowerCase).getOrElse("")
-    if (fileName.endsWith(".mp3") || fileName.endsWith(".mpeg")) "audio/mpeg"
-    else if (fileName.endsWith(".wav")) "audio/wav"
-    else if (fileName.endsWith(".flac")) "audio/flac"
-    else if (fileName.endsWith(".ogg") || fileName.endsWith(".oga")) "audio/ogg"
-    else if (fileName.endsWith(".webm")) "audio/webm"
-    else if (fileName.endsWith(".opus")) "audio/webm;codecs=opus"
-    else if (fileName.endsWith(".amr")) "audio/amr"
-    else if (fileName.endsWith(".m4a")) "audio/m4a"
-    else "application/octet-stream"
-  }
 
   /** Result of a paginated fetch — `truncated` is true if pagination stopped early. */
   private case class PageResult(

@@ -53,7 +53,6 @@ import org.apache.texera.amber.engine.common.ambermessage.{
   WorkflowRecoveryMessage
 }
 import org.apache.texera.amber.engine.common.client.ClientActor.{
-  ClosureRequest,
   CommandRequest,
   InitializeRequest,
   ObservableRequest
@@ -73,8 +72,6 @@ private[client] object ClientActor {
   )
 
   case class ObservableRequest(pf: PartialFunction[Any, Unit])
-
-  case class ClosureRequest[T](closure: () => T)
 
   case class CommandRequest(
       methodName: String,
@@ -109,13 +106,6 @@ private[client] class ClientActor extends Actor with AmberLogging {
       sender() ! Ack
     case CreditRequest(channelId: ChannelIdentity) =>
       sender() ! CreditResponse(channelId, getQueuedCredit(channelId))
-    case ClosureRequest(closure) =>
-      try {
-        sender() ! closure()
-      } catch {
-        case e: Throwable =>
-          sender() ! e
-      }
     case commandRequest: CommandRequest =>
       coordinator ! AsyncRPCClient.ControlInvocation(
         commandRequest.methodName,
@@ -156,6 +146,6 @@ private[client] class ClientActor extends Actor with AmberLogging {
       sender() ! Ack
       coordinator ! x
     case other =>
-      logger.warn("client actor cannot handle " + other) //skip
+      logger.debug("client actor cannot handle " + other) //skip
   }
 }

@@ -1,3 +1,22 @@
+<!--
+  ~ Licensed to the Apache Software Foundation (ASF) under one
+  ~ or more contributor license agreements.  See the NOTICE file
+  ~ distributed with this work for additional information
+  ~ regarding copyright ownership.  The ASF licenses this file
+  ~ to you under the Apache License, Version 2.0 (the
+  ~ "License"); you may not use this file except in compliance
+  ~ with the License.  You may obtain a copy of the License at
+  ~
+  ~   http://www.apache.org/licenses/LICENSE-2.0
+  ~
+  ~ Unless required by applicable law or agreed to in writing,
+  ~ software distributed under the License is distributed on an
+  ~ "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+  ~ KIND, either express or implied.  See the License for the
+  ~ specific language governing permissions and limitations
+  ~ under the License.
+-->
+
 ---
 title: Overview
 description: High-level overview of the Texera architecture, core concepts, and use cases.
@@ -18,7 +37,7 @@ At its core, Texera acts as a bridge between a highly accessible frontend and a 
 
 1. **Web-Based Interface (Frontend):** A rich GUI running directly in your browser. It allows users to construct data processing pipelines by dragging and dropping blocks on a canvas. No installation is required on client machines.
 2. **Distributed Engine (Backend):** When a workflow is submitted, the Texera engine compiles the graphical representation into an optimized, distributed execution plan. It then spins up computing units to process massive datasets in parallel.
-3. **Storage Integration:** Texera integrates smoothly with modern data lake and storage technologies (like LakeFS and MinIO) to persistently log runs and save datasets securely.
+3. **Storage Integration:** Texera integrates smoothly with modern data lake and storage technologies (like LakeFS and RustFS) to persistently log runs and save datasets securely.
 
 ---
 

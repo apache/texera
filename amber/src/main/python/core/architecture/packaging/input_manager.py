@@ -139,7 +139,14 @@ class InputManager:
         return self._channels[channel_id].port_id
 
     def get_port(self, port_id: PortIdentity) -> WorkerPort:
-        return self._ports[port_id]
+        if port_id.id is None:
+            port_id.id = 0
+        if port_id.internal is None:
+            port_id.internal = False
+        try:
+            return self._ports[port_id]
+        except KeyError as error:
+            raise KeyError(f"unknown input port {port_id}") from error
 
     def register_input(
         self, channel_id: ChannelIdentity, port_id: PortIdentity
@@ -155,13 +162,15 @@ class InputManager:
 
     def process_data_payload(
         self, from_: ChannelIdentity, payload: DataPayload
-    ) -> Iterator[Union[Tuple, InternalMarker]]:
+    ) -> Iterator[Union[Tuple, StateFrame, InternalMarker]]:
         self._current_channel_id = from_
 
         if isinstance(payload, DataFrame):
             yield from self._process_data(payload.frame)
         elif isinstance(payload, StateFrame):
-            yield payload.frame
+            # Yield the whole envelope (not just .frame) so the runtime can
+            # read its loop_counter; the operator still receives a bare State.
+            yield payload
         else:
             raise NotImplementedError()
 

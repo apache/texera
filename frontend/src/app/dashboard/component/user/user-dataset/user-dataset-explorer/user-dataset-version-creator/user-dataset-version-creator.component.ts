@@ -18,7 +18,7 @@
  */
 
 import { Component, inject, OnInit } from "@angular/core";
-import { FormBuilder, FormGroup, FormsModule } from "@angular/forms";
+import { FormGroup, FormsModule } from "@angular/forms";
 import { FormlyFieldConfig, FormlyModule } from "@ngx-formly/core";
 import { DatasetService } from "../../../../../service/user/dataset/dataset.service";
 import { Dataset } from "../../../../../../common/type/dataset";
@@ -33,6 +33,7 @@ import { NzSpaceCompactItemDirective } from "ng-zorro-antd/space";
 import { NzButtonComponent } from "ng-zorro-antd/button";
 import { NzWaveDirective } from "ng-zorro-antd/core/wave";
 import { ɵNzTransitionPatchDirective } from "ng-zorro-antd/core/transition-patch";
+import { contributorFieldGroup } from "../user-dataset-contributor-editor/contributor-form-fields";
 
 @UntilDestroy()
 @Component({
@@ -57,8 +58,6 @@ export class UserDatasetVersionCreatorComponent implements OnInit {
 
   readonly did: number = inject(NZ_MODAL_DATA)?.did ?? undefined;
 
-  isCreateButtonDisabled: boolean = false;
-
   public form: FormGroup = new FormGroup({});
   model: any = {};
   fields: FormlyFieldConfig[] = [];
@@ -74,8 +73,7 @@ export class UserDatasetVersionCreatorComponent implements OnInit {
   constructor(
     private modalRef: NzModalRef,
     private datasetService: DatasetService,
-    private notificationService: NotificationService,
-    private formBuilder: FormBuilder
+    private notificationService: NotificationService
   ) {}
 
   ngOnInit() {
@@ -115,10 +113,17 @@ export class UserDatasetVersionCreatorComponent implements OnInit {
               label: "Description",
             },
           },
+          {
+            key: "contributors",
+            type: "array",
+            templateOptions: {
+              label: "Add a New Contributor",
+            },
+            fieldArray: {
+              fieldGroup: contributorFieldGroup(),
+            },
+          },
         ];
-  }
-  get formControlNames(): string[] {
-    return Object.keys(this.form.controls);
   }
 
   datasetNameSanitization(datasetName: string): string {
@@ -196,7 +201,7 @@ export class UserDatasetVersionCreatorComponent implements OnInit {
         coverImage: undefined,
       };
       this.datasetService
-        .createDataset(ds)
+        .createDataset(ds, this.form.get("contributors")?.value)
         .pipe(untilDestroyed(this))
         .subscribe({
           next: res => {

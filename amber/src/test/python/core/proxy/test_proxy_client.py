@@ -20,6 +20,7 @@ from pandas import DataFrame
 from pyarrow import ArrowNotImplementedError, Table
 from queue import Queue
 
+import core.proxy.proxy_client as proxy_client_module
 from core.proxy.proxy_client import ProxyClient
 from core.proxy.proxy_server import ProxyServer
 
@@ -153,3 +154,112 @@ class TestProxyClient:
         assert data_queue.qsize() == 4
         for i, row in data_table.to_pandas().iterrows():
             assert data_queue.get().equals(row)
+
+    def test_a_handshake_port_is_announced_to_the_server_on_connect(self, server):
+        # The Java side learns which port the Python proxy *server* listens on
+        # through a "handshake" action issued while the client connects.
+        # ProxyServer does not register "handshake" itself, so the test
+        # registers a capturing stand-in for the Java handler.
+        received = []
+        server.register("handshake", lambda payload: received.append(payload) or "ok")
+
+        client = ProxyClient(handshake_port=6789)
+        try:
+            # The payload must be the handshake port rendered as UTF-8 digits,
+            # not the client's timeout or the data port it dialled. (The action
+            # *name* is pinned separately, by the test below -- see why there.)
+            assert received == [b"6789"]
+        finally:
+            client.close()
+
+    def test_the_handshake_call_names_the_handshake_action(self, monkeypatch):
+        # The end-to-end test above cannot pin the action *name*. Substituting
+        # any other registered name makes construction blow up server-side (the
+        # built-in `heartbeat`/`shutdown` handlers take no argument, while
+        # `control`/`actor` try to deserialize the payload), so the test dies
+        # during `ProxyClient(...)` and its `received` assertion never runs --
+        # the name is pinned by an accident of the fixture, not by an
+        # assertion. Stub the call at the client boundary instead, so the name
+        # reaches an assertion rather than a server-side crash.
+        seen = []
+        monkeypatch.setattr(
+            ProxyClient,
+            "call_action",
+            lambda self, name, payload=bytes(), options=None: seen.append(
+                (name, payload)
+            ),
+        )
+
+        client = ProxyClient(handshake_port=6789)
+        try:
+            assert seen == [("handshake", b"6789")]
+        finally:
+            client.close()
+
+    def test_no_handshake_is_sent_when_no_handshake_port_is_given(self, server):
+        # Companion negative case: without it, unconditionally calling
+        # `_handshake` would still satisfy the test above.
+        received = []
+        server.register("handshake", lambda payload: received.append(payload) or "ok")
+
+        client = ProxyClient()
+        try:
+            assert received == []
+            # ... and the client is still usable, i.e. skipping the handshake
+            # is a real branch rather than a failed connect.
+            assert client.call_action("heartbeat") == b"ack"
+        finally:
+            client.close()
+
+    @staticmethod
+    def _record_call_options(monkeypatch):
+        """
+        Record every `FlightCallOptions(...)` `call_action` manufactures.
+
+        A plain factory function rather than a subclass: `FlightCallOptions` is
+        a Cython cdef class. It still delegates to the real constructor, so the
+        RPC underneath stays a real one.
+        """
+        real = proxy_client_module.FlightCallOptions
+        captured = []
+
+        def recording_factory(**kwargs):
+            captured.append(kwargs)
+            return real(**kwargs)
+
+        monkeypatch.setattr(proxy_client_module, "FlightCallOptions", recording_factory)
+        return captured, real
+
+    def test_the_configured_timeout_is_applied_when_no_options_are_supplied(
+        self, server, monkeypatch
+    ):
+        # This is the only place the client's configured timeout ever reaches
+        # an RPC, and nothing constrained it: dropping the argument entirely
+        # (`FlightCallOptions()`) survived the whole suite. Without a timeout a
+        # hung Java-side server would block the Python worker forever instead
+        # of raising.
+        captured, _ = self._record_call_options(monkeypatch)
+
+        # A non-default timeout, so the assertion pins the value *flowing from
+        # the constructor* rather than a hard-coded 1000.
+        client = ProxyClient(timeout=1234)
+        try:
+            assert client.call_action("heartbeat") == b"ack"
+        finally:
+            client.close()
+
+        assert captured == [{"timeout": 1234}]
+
+    def test_caller_supplied_options_are_used_as_is(self, server, monkeypatch):
+        # The companion arm: when the caller hands in an options object,
+        # `call_action` must not manufacture its own and discard it.
+        captured, real = self._record_call_options(monkeypatch)
+
+        client = ProxyClient(timeout=1234)
+        try:
+            options = real(timeout=99)
+            assert client.call_action("heartbeat", options=options) == b"ack"
+        finally:
+            client.close()
+
+        assert captured == []

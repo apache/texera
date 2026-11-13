@@ -17,6 +17,7 @@
 
 import datetime
 import pandas
+import pickle
 import pyarrow
 import pytest
 import numpy as np
@@ -305,6 +306,176 @@ class TestTuple:
         tuple_.finalize(Schema(raw_schema={"payload": "BINARY"}))
         assert tuple_["payload"] is None
 
+    # Pandas-based operators also produce numpy scalar types very naturally:
+    # reductions such as df["x"].sum()/.max()/.count() return numpy.int64, and
+    # df["x"].any() or any numpy comparison returns numpy.bool_. These are NOT
+    # subclasses of Python int/bool, so finalize() must coerce them for INT/LONG
+    # and BOOL fields the same way it already coerces integral floats — while
+    # still rejecting numpy integers outside the target range and never crossing
+    # the bool<->int boundary.
+
+    @pytest.mark.parametrize(
+        "raw_value, attr_type, expected",
+        [
+            (np.int64(5), "INTEGER", 5),
+            (np.int32(5), "INTEGER", 5),
+            (np.int64(-7), "INTEGER", -7),
+            # int32 boundaries fit an INT field
+            (np.int64(2**31 - 1), "INTEGER", 2**31 - 1),
+            (np.int64(-(2**31)), "INTEGER", -(2**31)),
+            # an np.int64 that overflows int32 still fits a LONG field
+            (np.int64(3000000000), "LONG", 3000000000),
+        ],
+    )
+    def test_finalize_coerces_numpy_integer_to_int(
+        self, raw_value, attr_type, expected
+    ):
+        tuple_ = Tuple({"count": raw_value})
+        tuple_.finalize(Schema(raw_schema={"count": attr_type}))
+        assert tuple_["count"] == expected
+        assert type(tuple_["count"]) is int
+
+    @pytest.mark.parametrize(
+        "raw_value, expected",
+        [(np.bool_(True), True), (np.bool_(False), False)],
+    )
+    def test_finalize_coerces_numpy_bool_to_bool(self, raw_value, expected):
+        tuple_ = Tuple({"flag": raw_value})
+        tuple_.finalize(Schema(raw_schema={"flag": "BOOLEAN"}))
+        assert tuple_["flag"] == expected
+        assert type(tuple_["flag"]) is bool
+
+    def test_cast_to_schema_coerces_numpy_integer(self):
+        # The coercion must live in cast_to_schema(), mirroring the
+        # integral-float coercion.
+        tuple_ = Tuple({"count": np.int64(5)})
+        tuple_.cast_to_schema(Schema(raw_schema={"count": "INTEGER"}))
+        assert tuple_["count"] == 5
+        assert type(tuple_["count"]) is int
+
+    def test_cast_to_schema_coerces_numpy_bool(self):
+        tuple_ = Tuple({"flag": np.bool_(True)})
+        tuple_.cast_to_schema(Schema(raw_schema={"flag": "BOOLEAN"}))
+        assert tuple_["flag"] is True
+        assert type(tuple_["flag"]) is bool
+
+    @pytest.mark.parametrize(
+        "raw_value",
+        [np.int64(2**31), np.int64(-(2**31) - 1)],
+    )
+    def test_finalize_rejects_out_of_range_numpy_integer(self, raw_value):
+        # An np.int64 outside int32 range must be left unchanged so validation
+        # still fails; it must never silently overflow int32.
+        tuple_ = Tuple({"count": raw_value})
+        with pytest.raises(TypeError, match="Unmatched type"):
+            tuple_.finalize(Schema(raw_schema={"count": "INTEGER"}))
+
+    def test_finalize_rejects_numpy_bool_in_int_field(self):
+        # Coercion must never cross the bool<->int boundary: np.bool_ is not
+        # np.integer, so it must not be coerced into an INT field.
+        tuple_ = Tuple({"count": np.bool_(True)})
+        with pytest.raises(TypeError, match="Unmatched type"):
+            tuple_.finalize(Schema(raw_schema={"count": "INTEGER"}))
+
+    def test_finalize_keeps_plain_bool_in_int_field_unchanged(self):
+        # Pin the pre-existing behavior: a plain Python bool passes INT
+        # validation (bool subclasses int) and is left as a bool.
+        tuple_ = Tuple({"flag": True})
+        tuple_.finalize(Schema(raw_schema={"flag": "INTEGER"}))
+        assert tuple_["flag"] is True
+        assert type(tuple_["flag"]) is bool
+
+    def test_finalize_keeps_plain_bool_unchanged(self):
+        tuple_ = Tuple({"flag": True})
+        tuple_.finalize(Schema(raw_schema={"flag": "BOOLEAN"}))
+        assert tuple_["flag"] is True
+        assert type(tuple_["flag"]) is bool
+
+    def test_finalize_coerces_numpy_scalars_from_pandas_reduction(self):
+        # Mirrors idiomatic pandas UDF output: df["x"].sum() returns
+        # numpy.int64 and (df["x"] > n).any() returns numpy.bool_. Both must be
+        # accepted and stored as Python builtins.
+        df = pandas.DataFrame({"age": [20, 65, 70]})
+        tuple_ = Tuple(
+            {
+                "total_age": df["age"].sum(),
+                "has_senior": (df["age"] > 60).any(),
+            }
+        )
+        assert isinstance(tuple_["total_age"], np.integer)
+        assert isinstance(tuple_["has_senior"], np.bool_)
+        tuple_.finalize(
+            Schema(raw_schema={"total_age": "INTEGER", "has_senior": "BOOLEAN"})
+        )
+        assert type(tuple_["total_age"]) is int
+        assert tuple_["total_age"] == 155
+        assert type(tuple_["has_senior"]) is bool
+        assert tuple_["has_senior"] is True
+
+    @pytest.mark.parametrize("raw_value", [np.int64(1), np.int64(0)])
+    def test_finalize_rejects_numpy_integer_in_bool_field(self, raw_value):
+        # Symmetric guard to the bool<->int boundary: a numpy integer must
+        # never be coerced into a BOOLEAN field. The BOOL branch is gated on
+        # isinstance(v, numpy.bool_), and numpy.integer is not numpy.bool_.
+        tuple_ = Tuple({"flag": raw_value})
+        with pytest.raises(TypeError, match="Unmatched type"):
+            tuple_.finalize(Schema(raw_schema={"flag": "BOOLEAN"}))
+
+    @pytest.mark.parametrize(
+        "raw_value, expected",
+        [
+            (np.int64(2**53 - 1), 2**53 - 1),
+            (np.int64(-(2**53) + 1), -(2**53) + 1),
+            # beyond the float64 exact-integer window: numpy integers are
+            # exact, so unlike integral floats they are bounded only by the
+            # int64 width of LONG, not by the 2**53 window
+            (np.int64(2**53), 2**53),
+            (np.int64(-(2**53)), -(2**53)),
+            (np.int64(2**62), 2**62),
+            # int64 boundaries
+            (np.int64(2**63 - 1), 2**63 - 1),
+            (np.int64(-(2**63)), -(2**63)),
+            # an in-range uint64 is also a numpy.integer and must be accepted
+            (np.uint64(2**63 - 1), 2**63 - 1),
+        ],
+    )
+    def test_finalize_coerces_large_numpy_integer_to_long(self, raw_value, expected):
+        tuple_ = Tuple({"count": raw_value})
+        tuple_.finalize(Schema(raw_schema={"count": "LONG"}))
+        assert tuple_["count"] == expected
+        assert type(tuple_["count"]) is int
+
+    def test_finalize_coerces_large_id_numpy_integer_to_long(self):
+        # Real-world regression scenario: database/snowflake IDs (~10**18)
+        # arrive as np.int64 above 2**53 and must coerce to LONG instead of
+        # being rejected by the float64 exact-integer window.
+        tuple_ = Tuple({"id": np.int64(1234567890123456789)})
+        tuple_.finalize(Schema(raw_schema={"id": "LONG"}))
+        assert tuple_["id"] == 1234567890123456789
+        assert type(tuple_["id"]) is int
+
+    def test_finalize_coerces_unsigned_numpy_integer_to_int(self):
+        # Unsigned numpy integers are also numpy.integer, and int() is exact
+        # for them, so an in-range uint must be coerced to a Python int.
+        tuple_ = Tuple({"count": np.uint32(5)})
+        tuple_.finalize(Schema(raw_schema={"count": "INTEGER"}))
+        assert tuple_["count"] == 5
+        assert type(tuple_["count"]) is int
+
+    def test_finalize_rejects_unsigned_numpy_integer_beyond_long_range(self):
+        # A uint64 above int64 max (2**63 - 1) cannot fit a LONG (Arrow int64)
+        # field, so it must be left unchanged and fail validation.
+        tuple_ = Tuple({"count": np.uint64(2**63)})
+        with pytest.raises(TypeError, match="Unmatched type"):
+            tuple_.finalize(Schema(raw_schema={"count": "LONG"}))
+
+    def test_finalize_rejects_numpy_bool_false_in_int_field(self):
+        # Complement to the np.bool_(True) guard: the falsy numpy bool must
+        # also never be coerced into an INT field.
+        tuple_ = Tuple({"count": np.bool_(False)})
+        with pytest.raises(TypeError, match="Unmatched type"):
+            tuple_.finalize(Schema(raw_schema={"count": "INTEGER"}))
+
     def test_hash(self):
         schema = Schema(
             raw_schema={
@@ -487,3 +658,179 @@ class TestTuple:
         assert len(tuples) == 1
         tuple_ = tuples[0]
         assert tuple_["large_binary_field"] is None
+
+    def test_binary_field_round_trips_through_arrow(self):
+        # cast_to_schema pickles a non-bytes BINARY field behind a
+        # "pickle    " sentinel; the arrow field accessor must recognise
+        # that sentinel and hand the original object back. The two halves
+        # are asserted together so the sentinel layout cannot drift.
+        original = Tuple({"scores": [85, 94, 100]})
+        original.finalize(Schema(raw_schema={"scores": "BINARY"}))
+        pickled = original["scores"]
+        assert pickled[:10] == b"pickle    "
+
+        arrow_schema = pyarrow.schema(
+            [
+                pyarrow.field("scores", pyarrow.binary()),
+                pyarrow.field("raw", pyarrow.binary()),
+                pyarrow.field("empty", pyarrow.binary()),
+            ]
+        )
+        arrow_table = pyarrow.Table.from_pydict(
+            {"scores": [pickled], "raw": [b"plain bytes"], "empty": [None]},
+            schema=arrow_schema,
+        )
+
+        tuples = [
+            Tuple({name: field_accessor for name in arrow_table.column_names})
+            for field_accessor in ArrowTableTupleProvider(arrow_table)
+        ]
+
+        assert len(tuples) == 1
+        assert tuples[0]["scores"] == [85, 94, 100]
+        # Bytes that were never pickled must survive untouched, and a null
+        # binary must not be fed to pickle.loads.
+        assert tuples[0]["raw"] == b"plain bytes"
+        assert tuples[0]["empty"] is None
+
+    def test_binary_field_starting_with_pickle_bytes_is_unpickled(self):
+        # Sanity check on the sentinel itself: only the payload after the
+        # 10-byte header is unpickled.
+        payload = pickle.dumps({"k": "v"})
+        arrow_table = pyarrow.Table.from_pydict(
+            {"blob": [b"pickle    " + payload]},
+            schema=pyarrow.schema([pyarrow.field("blob", pyarrow.binary())]),
+        )
+        tuples = [
+            Tuple({name: field_accessor for name in arrow_table.column_names})
+            for field_accessor in ArrowTableTupleProvider(arrow_table)
+        ]
+        assert tuples[0]["blob"] == {"k": "v"}
+
+    def test_get_serialized_field_converts_large_binary_to_uri(self):
+        from core.models.type.large_binary import largebinary
+
+        schema = Schema(
+            raw_schema={"blob": "LARGE_BINARY", "name": "STRING", "size": "INTEGER"}
+        )
+        blob = largebinary("s3://test-bucket/path/to/object")
+        tuple_ = Tuple({"blob": blob, "name": "obj", "size": 3}, schema=schema)
+
+        # Only the LARGE_BINARY field is flattened to its URI; the arrow
+        # writer stores that string, not the handle object.
+        assert tuple_.get_serialized_field("blob") == "s3://test-bucket/path/to/object"
+        assert isinstance(tuple_.get_serialized_field("blob"), str)
+        assert tuple_.get_serialized_field("name") == "obj"
+        assert tuple_.get_serialized_field("size") == 3
+        # The tuple itself keeps the handle.
+        assert tuple_["blob"] is blob
+
+    def test_get_serialized_field_without_schema_returns_value_as_is(self):
+        from core.models.type.large_binary import largebinary
+
+        blob = largebinary("s3://test-bucket/path/to/object")
+        tuple_ = Tuple({"blob": blob})
+
+        # With no schema there is no LARGE_BINARY declaration to act on.
+        assert tuple_.get_serialized_field("blob") is blob
+
+    def test_cast_to_schema_skips_fields_absent_from_the_schema(self):
+        # A field the schema does not declare makes get_attr_type raise.
+        # That failure must be contained to the offending field: the cast
+        # loop logs it and keeps going, so later fields are still coerced
+        # (validate_schema is what ultimately rejects the stray field).
+        messages = []
+        handler_id = logger.add(messages.append, level="WARNING")
+        try:
+            tuple_ = Tuple({"stray": 7.0, "weight": 119.0})
+            tuple_.cast_to_schema(Schema(raw_schema={"weight": "INTEGER"}))
+        finally:
+            logger.remove(handler_id)
+
+        assert tuple_["stray"] == 7.0
+        assert type(tuple_["stray"]) is float
+        assert tuple_["weight"] == 119
+        assert type(tuple_["weight"]) is int
+        assert any("stray" in str(message) for message in messages)
+
+    def test_validate_schema_rejects_a_single_missing_field(self):
+        tuple_ = Tuple({"x": 1})
+
+        with pytest.raises(KeyError) as exc_info:
+            tuple_.validate_schema(Schema(raw_schema={"x": "INTEGER", "y": "STRING"}))
+
+        message = str(exc_info.value)
+        assert "'y' is expected but missing" in message
+        assert "fields" not in message
+
+    def test_validate_schema_rejects_several_missing_fields(self):
+        tuple_ = Tuple({"x": 1})
+
+        with pytest.raises(KeyError) as exc_info:
+            tuple_.validate_schema(
+                Schema(raw_schema={"x": "INTEGER", "y": "STRING", "z": "STRING"})
+            )
+
+        message = str(exc_info.value)
+        assert "are expected but missing" in message
+        assert "'y'" in message and "'z'" in message
+
+    def test_validate_schema_rejects_a_single_unexpected_field(self):
+        tuple_ = Tuple({"x": 1, "extra": "e"})
+
+        with pytest.raises(KeyError) as exc_info:
+            tuple_.validate_schema(Schema(raw_schema={"x": "INTEGER"}))
+
+        message = str(exc_info.value)
+        assert "an unexpected field: 'extra'" in message
+
+    def test_validate_schema_rejects_several_unexpected_fields(self):
+        tuple_ = Tuple({"x": 1, "extra": "e", "another": "a"})
+
+        with pytest.raises(KeyError) as exc_info:
+            tuple_.validate_schema(Schema(raw_schema={"x": "INTEGER"}))
+
+        message = str(exc_info.value)
+        assert "unexpected fields" in message
+        assert "'extra'" in message and "'another'" in message
+
+    def test_validate_schema_reports_missing_fields_before_unexpected_ones(self):
+        # Both problems at once: the missing-field error wins, because a
+        # renamed field is far more often a missing field than a stray one.
+        tuple_ = Tuple({"extra": "e"})
+
+        with pytest.raises(KeyError) as exc_info:
+            tuple_.validate_schema(Schema(raw_schema={"x": "INTEGER"}))
+
+        assert "expected but missing" in str(exc_info.value)
+
+    def test_tuple_iter_yields_field_values_in_order(self, target_tuple):
+        assert list(target_tuple) == [1, "a"]
+        assert tuple(target_tuple) == target_tuple.get_fields()
+
+    def test_tuple_iter_resolves_lazy_accessors(self):
+        def field_accessor(field_name):
+            return chr(96 + int(field_name))
+
+        tuple_ = Tuple({"1": field_accessor, "3": field_accessor})
+
+        assert list(tuple_) == ["a", "c"]
+
+    def test_tuple_contains_matches_field_names_not_values(self, target_tuple):
+        assert "x" in target_tuple
+        assert "y" in target_tuple
+        assert "z" not in target_tuple
+        # membership is by field name; a field *value* is not "in" the tuple
+        assert 1 not in target_tuple
+        assert "a" not in target_tuple
+
+    def test_hash_treats_none_fields_as_zero(self):
+        # Mirrors java.util.Objects.hash: a null field contributes 0 to the
+        # rolling 31-based accumulator. Expected values are computed from
+        # that rule (1*31+0 = 31; 31*31+0 = 961).
+        schema = Schema(raw_schema={"a": "INTEGER", "b": "STRING"})
+
+        assert hash(Tuple({"a": None, "b": None}, schema)) == 961
+        # Only the null field short-circuits; the other is hashed normally
+        # (java_hash_bytes("a") == 97, so 31*31 + 97 == 1058).
+        assert hash(Tuple({"a": None, "b": "a"}, schema)) == 1058

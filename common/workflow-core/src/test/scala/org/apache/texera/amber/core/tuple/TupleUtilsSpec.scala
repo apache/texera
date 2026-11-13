@@ -63,48 +63,4 @@ class TupleUtilsSpec extends AnyFlatSpec {
     val node = TupleUtils.tuple2json(new Schema(), Array.empty[Any])
     assert(node.size() == 0)
   }
-
-  // --- json2tuple ------------------------------------------------------------
-
-  "TupleUtils.json2tuple" should "infer a schema from a flat JSON object's keys and types" in {
-    val tuple = TupleUtils.json2tuple("""{"name": "bob", "age": 30}""")
-    val names = tuple.getSchema.getAttributeNames.toSet
-    assert(names == Set("name", "age"))
-    assert(tuple.getField[Any]("name") == "bob")
-    // age is parsed via inferSchemaFromRows; the inferred type for "30" is
-    // a numeric type — assert we can read the field rather than locking in
-    // the precise inferred AttributeType.
-    assert(tuple.getField[Any]("age").toString == "30")
-  }
-
-  it should "round-trip a schema-and-values through tuple2json → json2tuple" in {
-    val schema = new Schema(
-      new Attribute("city", AttributeType.STRING),
-      new Attribute("score", AttributeType.INTEGER)
-    )
-    val original = TupleUtils.tuple2json(schema, Array[Any]("Irvine", Int.box(42))).toString
-    val parsed = TupleUtils.json2tuple(original)
-    val reSerialized =
-      TupleUtils.tuple2json(parsed.getSchema, parsed.getFields.toArray.asInstanceOf[Array[Any]])
-    // The exact column order isn't part of the json2tuple contract (it builds
-    // schemaFieldNames from a Set), so compare by JSON-tree equality.
-    val mapper = org.apache.texera.amber.util.JSONUtils.objectMapper
-    assert(mapper.readTree(reSerialized.toString) == mapper.readTree(original))
-  }
-
-  it should "drop non-object roots (e.g. a JSON array) into an empty tuple" in {
-    // The implementation only collects fields when the root `isObject`. A
-    // non-object root leaves `fieldNames` empty, so the result is a tuple
-    // over an empty schema with no fields — observed contract is no-throw,
-    // empty result.
-    val tuple = TupleUtils.json2tuple("""[1, 2, 3]""")
-    assert(tuple.getSchema.getAttributes.isEmpty)
-    assert(tuple.getFields.isEmpty)
-  }
-
-  it should "throw when given malformed JSON" in {
-    intercept[Exception] {
-      TupleUtils.json2tuple("{ this is not json }")
-    }
-  }
 }

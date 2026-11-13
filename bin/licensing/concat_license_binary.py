@@ -107,14 +107,6 @@ class Group:
         return any(s.entries for s in self.subsections.values())
 
 
-def is_subsection_header(line: str) -> bool:
-    s = line.rstrip()
-    if not s.endswith(":"):
-        return False
-    return any(s == h or s.startswith(p) for p, h in
-               ((p, p) for p in SUBSECTION_ORDER))
-
-
 def entry_id(entry: list[str]) -> str:
     """Identifier used for deduplication: the trimmed text after the
     leading '  - '. For multi-line entries (Source files derived), the

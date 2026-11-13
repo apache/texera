@@ -116,7 +116,6 @@ class WorkflowResourceCoverSpec
     user.setUid(uid)
     user.setName(name)
     user.setEmail(s"$name@test.com")
-    user.setPassword("password")
     user
   }
 
@@ -151,6 +150,18 @@ class WorkflowResourceCoverSpec
       .deleteFrom(USER)
       .where(USER.UID.in(ownerUid, readerUid, strangerUid))
       .execute()
+  }
+
+  "workflow metadata" should "return the workflow owner, name and description" in {
+    resource.getOwnerName(testWid) shouldBe "cover_owner"
+    resource.getWorkflowName(testWid) shouldBe "cover_test_workflow"
+    resource.getWorkflowDescription(testWid) shouldBe "desc"
+  }
+
+  it should "reject a missing workflow id" in {
+    assertThrows[BadRequestException](resource.getOwnerName(null))
+    assertThrows[BadRequestException](resource.getWorkflowName(null))
+    assertThrows[BadRequestException](resource.getWorkflowDescription(null))
   }
 
   "getCoverImage" should "throw NotFoundException when no cover is set" in {
@@ -249,5 +260,19 @@ class WorkflowResourceCoverSpec
     }
     // The cover must still be present after the rejected delete.
     resource.getCoverImage(testWid, session(owner)).image shouldBe sampleImage
+  }
+
+  "getWorkflowType" should "report the workflow's publish state" in {
+    resource.getWorkflowType(testWid) shouldBe "Private"
+  }
+
+  // fetchOneByWid answers null for an id that matches no row, and dereferencing it answered with a
+  // 500 and a stack trace. Its one caller is the share dialog, which asks with whatever id the page
+  // believes it is on, so a page that has lost its id turned a missing workflow into a server error
+  // and, having no error handler, silently dropped the Private/Public choice (issue #8599).
+  it should "throw NotFoundException for an id that matches no workflow" in {
+    assertThrows[NotFoundException] {
+      resource.getWorkflowType(testWid + 999999)
+    }
   }
 }

@@ -1,0 +1,305 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
+ */
+
+package org.apache.texera.web.resource.dashboard
+
+import org.apache.texera.dao.jooq.generated.Tables._
+import org.apache.texera.dao.jooq.generated.enums.{DefaultViewEnum, PrivilegeEnum}
+import org.apache.texera.web.resource.dashboard.user.workflow.WorkflowResource.DashboardWorkflow
+import org.jooq.impl.{DSL => JDSL}
+import org.jooq.{Record, SQLDialect}
+
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.matchers.should.Matchers
+
+/**
+  * Covers `WorkflowSearchQueryBuilder.toEntryImpl`, the pure record-to-DTO
+  * mapping, plus the one literal in `mappedResourceSchema` that the dashboard
+  * dispatch depends on. Both members widen the trait's `protected` to public,
+  * which is what makes them reachable from a spec at all.
+  *
+  * Breakage this catches:
+  *   - a NULL `workflow_user_access.privilege` (a left join miss for public
+  *     workflows) no longer degrading to NONE — an NPE or a wrong grant;
+  *   - the ownership flag comparing the wrong uid, or owner id/name being read off
+  *     the wrong column: two record columns are called `name` (WORKFLOW.NAME and
+  *     USER.NAME), and `ownerId` resolves only because the unqualified name `uid`
+  *     matches `workflow_of_user.uid` — the projection never selects USER.UID;
+  *   - the inline `'workflow'` tag changing, which turns every "all resources"
+  *     search into a MatchError in DashboardResource.searchAllResources.
+  *
+  * `constructFromClause`, `constructWhereClause` and `getGroupByFields` stay
+  * `override protected`, and Scala `protected` grants no same-package access, so
+  * they are not callable from here. (They are otherwise pure jOOQ DSL builders —
+  * the access modifier is the only thing keeping them out of scope.)
+  *
+  * Nothing here reads or writes the shared global
+  * `FulltextSearchQueryUtils.usePgroonga`, so this spec neither depends on it
+  * nor mutates it.
+  */
+class WorkflowSearchQueryBuilderSpec extends AnyFlatSpec with Matchers {
+
+  // jOOQ render context (Postgres dialect to match production renderers).
+  private val ctx = JDSL.using(SQLDialect.POSTGRES)
+
+  private val coverField = JDSL.max(WORKFLOW_COVER_IMAGE.IMAGE).as("workflow_cover_image")
+  // The select lists default_view under its own alias (not carried by the WORKFLOW POJO),
+  // and toEntryImpl reads it back by that alias — the record has to carry the column.
+  private val defaultViewField = WORKFLOW.DEFAULT_VIEW.as("workflow_default_view")
+  private val driftField =
+    JDSL.field(JDSL.name("workflow_has_unpublished_changes"), classOf[java.lang.Boolean])
+  private val publishedNameField = JDSL.field(JDSL.name("workflow_published_name"), classOf[String])
+  private val publishedDefaultViewField =
+    WORKFLOW.PUBLISHED_DEFAULT_VIEW.as("workflow_published_default_view")
+  private val publishedDescriptionField =
+    JDSL.field(JDSL.name("workflow_published_description"), classOf[String])
+  private val grantedField =
+    JDSL.field(JDSL.name("viewer_has_granted_access"), classOf[java.lang.Boolean])
+
+  private val ownerUid: Integer = Integer.valueOf(42)
+  private val viewerUid: Integer = Integer.valueOf(43)
+  private val wid: Integer = Integer.valueOf(7)
+
+  /**
+    * Builds the subset of the *translated* record (see
+    * `UnifiedResourceSchema.translateRecord`, whose output is keyed by the
+    * original fields) that toEntryImpl actually reads. `newRecord` is pure
+    * in-memory jOOQ — no connection is involved.
+    *
+    * Every value is distinct so that reading the wrong column cannot pass.
+    */
+  private def translatedRecord(
+      uidValue: Integer = ownerUid,
+      privilege: PrivilegeEnum = PrivilegeEnum.WRITE,
+      cover: String = "cover-b64",
+      defaultView: DefaultViewEnum = DefaultViewEnum.CANVAS,
+      hasUnpublishedChanges: java.lang.Boolean = null,
+      // The rows these tests describe belong to a viewer who was granted access, which is what
+      // leaves the author's own name and description in place.
+      grantedAccess: java.lang.Boolean = java.lang.Boolean.TRUE,
+      publishedName: String = null,
+      publishedDescription: String = null,
+      publishedDefaultView: DefaultViewEnum = null
+  ): Record = {
+    val record = ctx.newRecord(
+      WORKFLOW.WID,
+      WORKFLOW.NAME,
+      WORKFLOW.DESCRIPTION,
+      WORKFLOW_OF_USER.UID,
+      WORKFLOW_USER_ACCESS.PRIVILEGE,
+      USER.NAME,
+      coverField,
+      defaultViewField,
+      driftField,
+      publishedNameField,
+      publishedDescriptionField,
+      publishedDefaultViewField,
+      grantedField
+    )
+    record.set(WORKFLOW.WID, wid)
+    record.set(WORKFLOW.NAME, "wf-name")
+    record.set(WORKFLOW.DESCRIPTION, "wf-description")
+    record.set(WORKFLOW_OF_USER.UID, uidValue)
+    record.set(WORKFLOW_USER_ACCESS.PRIVILEGE, privilege)
+    record.set(USER.NAME, "owner-name")
+    record.set(coverField, cover)
+    record.set(defaultViewField, defaultView)
+    record.set(driftField, hasUnpublishedChanges)
+    record.set(publishedNameField, publishedName)
+    record.set(publishedDescriptionField, publishedDescription)
+    record.set(publishedDefaultViewField, publishedDefaultView)
+    record.set(grantedField, grantedAccess)
+    record
+  }
+
+  private def workflowOf(record: Record, uid: Integer): DashboardWorkflow =
+    WorkflowSearchQueryBuilder.toEntryImpl(uid, record).workflow.get
+
+  // -- what a viewer without granted access is shown --------------------------
+
+  "toEntryImpl" should "serve the published name and description to a viewer without granted access" in {
+    // Publishing pins what the public sees, and a listing is where the public meets a workflow, so
+    // the listing has to serve the pinned copy too rather than the author's live metadata.
+    val record = translatedRecord(
+      grantedAccess = java.lang.Boolean.FALSE,
+      publishedName = "as-published",
+      publishedDescription = "described-as-published"
+    )
+
+    val workflow = workflowOf(record, viewerUid).workflow
+
+    workflow.getName shouldBe "as-published"
+    workflow.getDescription shouldBe "described-as-published"
+  }
+
+  it should "serve the pinned view to a viewer without granted access" in {
+    // A card that opened the frozen copy in the author's live view would offer a Form View over a
+    // graph that carries no form; the view travels with the name and the description.
+    val record = translatedRecord(
+      grantedAccess = java.lang.Boolean.FALSE,
+      defaultView = DefaultViewEnum.FORM,
+      publishedName = "as-published",
+      publishedDefaultView = DefaultViewEnum.CANVAS
+    )
+
+    workflowOf(record, viewerUid).workflow.getDefaultView shouldBe DefaultViewEnum.CANVAS
+  }
+
+  it should "leave the author's live name and description for a viewer who was granted access" in {
+    val record = translatedRecord(
+      grantedAccess = java.lang.Boolean.TRUE,
+      publishedName = "as-published",
+      publishedDescription = "described-as-published"
+    )
+
+    val workflow = workflowOf(record, ownerUid).workflow
+
+    workflow.getName shouldBe "wf-name"
+    workflow.getDescription shouldBe "wf-description"
+  }
+
+  it should "treat an unknown access answer as public, which is the safe direction" in {
+    // Showing the published copy to someone who turns out to have access is harmless; the reverse
+    // would hand the author's live metadata to the public.
+    val record = translatedRecord(grantedAccess = null, publishedName = "as-published")
+
+    workflowOf(record, viewerUid).workflow.getName shouldBe "as-published"
+  }
+
+  it should "keep the author's name when a public workflow has nothing pinned" in {
+    // Nothing to substitute, so the row is left as it is rather than blanked.
+    val record = translatedRecord(grantedAccess = java.lang.Boolean.FALSE, publishedName = null)
+
+    workflowOf(record, viewerUid).workflow.getName shouldBe "wf-name"
+  }
+
+  it should "show the owner their own name even without an access row" in {
+    val record =
+      translatedRecord(grantedAccess = java.lang.Boolean.FALSE, publishedName = "as-published")
+
+    workflowOf(record, ownerUid).workflow.getName shouldBe "wf-name"
+  }
+
+  it should "not treat an anonymous viewer as the owner of a workflow with no owner row" in {
+    val record = translatedRecord(
+      uidValue = null,
+      privilege = null,
+      grantedAccess = java.lang.Boolean.FALSE,
+      publishedName = "as-published"
+    )
+
+    val workflow = workflowOf(record, null)
+    workflow.isOwner shouldBe false
+    workflow.accessLevel shouldBe "NONE"
+    workflow.workflow.getName shouldBe "as-published"
+  }
+
+  // -- privilege fallback -----------------------------------------------------
+
+  "toEntryImpl" should "fall back to NONE when the workflow privilege is NULL" in {
+    // Public workflows the caller has no explicit grant on left-join to a NULL
+    // privilege; the DTO must still carry a usable access level.
+    workflowOf(translatedRecord(privilege = null), viewerUid).accessLevel shouldBe
+      PrivilegeEnum.NONE.toString
+  }
+
+  it should "pass a non-NULL privilege through unchanged" in {
+    // READ (not the WRITE default) so the fallback cannot be mistaken for a
+    // pass-through of the fixture value.
+    workflowOf(
+      translatedRecord(privilege = PrivilegeEnum.READ),
+      viewerUid
+    ).accessLevel shouldBe "READ"
+  }
+
+  it should "report WRITE for the owner whatever their access row says" in {
+    workflowOf(translatedRecord(privilege = null), ownerUid).accessLevel shouldBe "WRITE"
+    workflowOf(translatedRecord(privilege = PrivilegeEnum.READ), ownerUid).accessLevel shouldBe
+      "WRITE"
+  }
+
+  // -- ownership --------------------------------------------------------------
+
+  it should "flag ownership by comparing workflow_of_user.uid against the caller" in {
+    workflowOf(translatedRecord(), ownerUid).isOwner shouldBe true
+    workflowOf(translatedRecord(), viewerUid).isOwner shouldBe false
+  }
+
+  it should "report the owner's id and name even when the caller is not the owner" in {
+    val dw = workflowOf(translatedRecord(), viewerUid)
+    dw.isOwner shouldBe false
+    // `ownerId` is read as `record.into(USER).getUid`, but the unified schema
+    // never selects USER.UID — jOOQ resolves the unqualified column name "uid"
+    // against workflow_of_user.uid instead. So this must be the owner's 42,
+    // neither the caller's 43 nor the workflow's wid of 7.
+    dw.ownerId shouldBe ownerUid
+    dw.ownerName shouldBe "owner-name"
+  }
+
+  // -- workflow payload + cover image ----------------------------------------
+
+  it should "copy the workflow columns into the POJO without confusing them with the owner's" in {
+    // The record carries two columns named "name" (workflow.name and
+    // user.name); qualified resolution has to keep them apart.
+    val dw = workflowOf(translatedRecord(), ownerUid)
+    dw.workflow.getWid shouldBe wid
+    dw.workflow.getName shouldBe "wf-name"
+    dw.workflow.getDescription shouldBe "wf-description"
+    dw.ownerName shouldBe "owner-name"
+  }
+
+  it should "wrap the cover image in an Option" in {
+    workflowOf(translatedRecord(), ownerUid).coverImage shouldBe Some("cover-b64")
+    workflowOf(translatedRecord(cover = null), ownerUid).coverImage shouldBe None
+  }
+
+  it should "carry the default view off its own aliased column" in {
+    // The listing's select projects default_view separately (the WORKFLOW POJO the
+    // record maps into does not carry it), so toEntryImpl must read it back by alias.
+    workflowOf(
+      translatedRecord(defaultView = DefaultViewEnum.FORM),
+      ownerUid
+    ).workflow.getDefaultView shouldBe DefaultViewEnum.FORM
+    workflowOf(
+      translatedRecord(defaultView = DefaultViewEnum.CANVAS),
+      ownerUid
+    ).workflow.getDefaultView shouldBe DefaultViewEnum.CANVAS
+  }
+
+  it should "tag the entry as a workflow and leave the other payload slots empty" in {
+    val entry = WorkflowSearchQueryBuilder.toEntryImpl(ownerUid, translatedRecord())
+    entry.resourceType shouldBe "workflow"
+    entry.dataset shouldBe None
+    entry.workflow should not be None
+  }
+
+  // -- the projection literal the dispatch depends on ------------------------
+
+  "mappedResourceSchema" should "project the literal 'workflow' as the resourceType column" in {
+    // searchAllResources dispatches on the *value* of this column with no
+    // default branch, so changing the literal turns an "all resources" search
+    // into a MatchError at fetch time rather than a compile error.
+    // Rendered as a SELECT because an aliased Field on its own renders as the
+    // bare alias reference, not as its underlying expression.
+    val rendered = ctx.renderInlined(
+      JDSL.select(WorkflowSearchQueryBuilder.mappedResourceSchema.allFields: _*)
+    )
+    rendered should include("'workflow' as \"resourceType\"")
+  }
+}

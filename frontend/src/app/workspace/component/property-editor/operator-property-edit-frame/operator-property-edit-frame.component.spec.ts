@@ -19,34 +19,41 @@
 
 import { ComponentFixture, discardPeriodicTasks, fakeAsync, TestBed, tick } from "@angular/core/testing";
 
-import {
-  AGGREGATE_COUNT,
-  isAggregateAttributeRequired,
-  OperatorPropertyEditFrameComponent,
-} from "./operator-property-edit-frame.component";
+import { conditionalRequiredRules, OperatorPropertyEditFrameComponent } from "./operator-property-edit-frame.component";
 import { WorkflowActionService } from "../../../service/workflow-graph/model/workflow-action.service";
+import { WorkflowCompilingService } from "../../../service/compile-workflow/workflow-compiling.service";
+import { ValidationWorkflowService } from "../../../service/validation/validation-workflow.service";
+import { CustomJSONSchema7, ValueRuleSet } from "../../../types/custom-json-schema.interface";
+import { OperatorSchema } from "../../../types/operator-schema.interface";
 import { OperatorMetadataService } from "../../../service/operator-metadata/operator-metadata.service";
 import { StubOperatorMetadataService } from "../../../service/operator-metadata/stub-operator-metadata.service";
 import { FORM_DEBOUNCE_TIME_MS } from "../../../service/execute-workflow/execute-workflow.service";
 import { DatePipe } from "@angular/common";
 import { By } from "@angular/platform-browser";
 import { BrowserAnimationsModule } from "@angular/platform-browser/animations";
-import { FormsModule, ReactiveFormsModule } from "@angular/forms";
+import { AbstractControl, FormControl, FormGroup, FormsModule, ReactiveFormsModule } from "@angular/forms";
 import { FormlyFieldConfig, FormlyModule } from "@ngx-formly/core";
 import { TEXERA_FORMLY_CONFIG } from "../../../../common/formly/formly-config";
 import { HttpClientTestingModule } from "@angular/common/http/testing";
 import {
   mockHuggingFacePredicate,
+  mockLoopEndPredicate,
+  mockLoopStartPredicate,
+  mockLoopStartScalaExecutorLink,
   mockPoint,
   mockResultPredicate,
+  mockScalaExecutorLoopEndLink,
+  mockScalaExecutorPredicate,
   mockScanPredicate,
 } from "../../../service/workflow-graph/model/mock-workflow-data";
 import {
+  mockScalaExecutorSchema,
   mockScanSourceSchema,
   mockViewResultsSchema,
 } from "../../../service/operator-metadata/mock-operator-metadata.data";
 import { configure } from "rxjs-marbles";
 import { SimpleChange } from "@angular/core";
+import { FormBindingService } from "../../../service/form-binding/form-binding.service";
 import { cloneDeep } from "lodash-es";
 
 import Ajv from "ajv";
@@ -55,17 +62,60 @@ import { FormlyNgZorroAntdModule } from "@ngx-formly/ng-zorro-antd";
 import { ComputingUnitStatusService } from "../../../../common/service/computing-unit/computing-unit-status/computing-unit-status.service";
 import { MockComputingUnitStatusService } from "../../../../common/service/computing-unit/computing-unit-status/mock-computing-unit-status.service";
 import { commonTestProviders } from "../../../../common/testing/test-utils";
+import { DynamicSchemaService } from "../../../service/dynamic-schema/dynamic-schema.service";
+import { NotificationService } from "../../../../common/service/notification/notification.service";
+import { WorkflowGraph } from "../../../service/workflow-graph/model/workflow-graph";
+import { UiUdfParametersSyncService } from "../../../service/code-editor/ui-udf-parameters-sync.service";
+import { WorkflowPveService } from "../../../service/virtual-environment/virtual-environment.service";
+import { WorkflowWebsocketService } from "../../../service/workflow-websocket/workflow-websocket.service";
+import { OperatorState } from "../../../types/execute-workflow.interface";
+import { TexeraWebsocketEvent } from "../../../types/workflow-websocket.interface";
+import { of, Subject, throwError } from "rxjs";
+import { WorkflowVersionService } from "../../../../dashboard/service/user/workflow-version/workflow-version.service";
+import { GuiConfigService } from "../../../../common/service/gui-config.service";
+import { PresetWrapperComponent } from "src/app/common/formly/preset-wrapper/preset-wrapper.component";
+import * as Y from "yjs";
 
 const { marbles } = configure({ run: false });
 
-describe("Aggregate attribute requirement", () => {
-  it("makes the attribute optional for count and required for every other function", () => {
-    // count -> optional (empty attribute means COUNT(*))
-    expect(isAggregateAttributeRequired(AGGREGATE_COUNT)).toBe(false);
-    // every other aggregate function -> attribute required
-    ["sum", "average", "min", "max", "concat"].forEach(fn => {
-      expect(isAggregateAttributeRequired(fn)).toBe(true);
+describe("conditionalRequiredRules", () => {
+  it("reads a `then` rule, as Sklearn states it for the text column", () => {
+    const rules = conditionalRequiredRules({
+      allOf: [{ if: { properties: { countVectorizer: { const: true } } }, then: { required: ["text"] } }],
     });
+    expect(rules.get("text")).toEqual({ sibling: "countVectorizer", value: true, requiredOnMatch: true });
+  });
+
+  it("reads an `else` rule nested in a definition, as Aggregate states it", () => {
+    const rules = conditionalRequiredRules({
+      definitions: {
+        AggregationOperation: {
+          allOf: [
+            {
+              if: { properties: { aggFunction: { const: "count" } } },
+              then: {},
+              else: { required: ["attribute"] },
+            },
+          ],
+        },
+      },
+    });
+    // count -> optional (an empty attribute means COUNT(*)); every other function -> required
+    expect(rules.get("attribute")).toEqual({ sibling: "aggFunction", value: "count", requiredOnMatch: false });
+  });
+
+  it("ignores an attributeTypeRules block, which names its sibling without `properties`", () => {
+    const rules = conditionalRequiredRules({
+      attributeTypeRules: {
+        attribute: { allOf: [{ if: { aggFunction: { valEnum: ["sum"] } }, then: { enum: ["integer"] } }] },
+      },
+    });
+    expect(rules.size).toBe(0);
+  });
+
+  it("returns nothing for a schema that states no condition", () => {
+    expect(conditionalRequiredRules({ properties: { a: { type: "string" } } }).size).toBe(0);
+    expect(conditionalRequiredRules(undefined).size).toBe(0);
   });
 });
 
@@ -120,6 +170,82 @@ describe("OperatorPropertyEditFrameComponent", () => {
     fixture.detectChanges();
     expect(component).toBeTruthy();
   });
+
+  it("broadcasts currentlyEditing and syncs the operator version by default when an operator opens", () => {
+    workflowActionService.addOperator(mockScanPredicate, mockPoint);
+    const spy = vi.spyOn(workflowActionService.getTexeraGraph(), "updateSharedModelAwareness");
+    const versionSpy = vi.spyOn(workflowActionService, "setOperatorVersion");
+
+    component.ngOnChanges({
+      currentOperatorId: new SimpleChange(undefined, mockScanPredicate.operatorID, true),
+    });
+    fixture.detectChanges();
+
+    expect(spy).toHaveBeenCalledWith("currentlyEditing", mockScanPredicate.operatorID);
+    expect(versionSpy).toHaveBeenCalledWith(mockScanPredicate.operatorID, expect.anything());
+  });
+
+  it("writes nothing at all when actsAsEditor is false (read-only inspect)", fakeAsync(() => {
+    // The Form View mounts this frame with actsAsEditor=false so that a reader inspecting a
+    // step is not announced as editing the graph and, more importantly, so that merely OPENING the
+    // step writes nothing: rerenderEditorForm runs ajv with useDefaults, which fills in any new
+    // schema defaults and then emits a form change, and that change is a property write like any
+    // other. Ticking past the debounce is what makes this test see that path at all.
+    workflowActionService.addOperator(mockScanPredicate, mockPoint);
+    component.actsAsEditor = false;
+    const awareness = vi.spyOn(workflowActionService.getTexeraGraph(), "updateSharedModelAwareness");
+    const versionSpy = vi.spyOn(workflowActionService, "setOperatorVersion");
+    const propertySpy = vi.spyOn(workflowActionService, "setOperatorProperty");
+
+    component.ngOnChanges({
+      currentOperatorId: new SimpleChange(undefined, mockScanPredicate.operatorID, true),
+    });
+    fixture.detectChanges();
+    component.onFormChanges({ tableName: "someone_else_typed_this" });
+    tick(FORM_DEBOUNCE_TIME_MS + 10);
+
+    expect(awareness).not.toHaveBeenCalledWith("currentlyEditing", mockScanPredicate.operatorID);
+    expect(versionSpy).not.toHaveBeenCalled();
+    expect(propertySpy).not.toHaveBeenCalled();
+    // The stored properties are the ones the author left, untouched by the visit.
+    expect(workflowActionService.getTexeraGraph().getOperator(mockScanPredicate.operatorID).operatorProperties).toEqual(
+      mockScanPredicate.operatorProperties
+    );
+    discardPeriodicTasks();
+  }));
+
+  it("stays non-interactive when writes are not allowed, even after modification is re-enabled", () => {
+    // A finished run re-enables workflow modification for the canvas's sake, and the runtime unlock
+    // button calls setInteractivity(true) directly. Neither may turn a viewer mount editable.
+    workflowActionService.addOperator(mockScanPredicate, mockPoint);
+    component.actsAsEditor = false;
+    component.ngOnChanges({
+      currentOperatorId: new SimpleChange(undefined, mockScanPredicate.operatorID, true),
+    });
+    fixture.detectChanges();
+
+    component.setInteractivity(true);
+    expect(component.interactive).toBe(false);
+
+    component.allowModifyOperatorLogic();
+    expect(component.interactive).toBe(false);
+    expect(component.formlyFormGroup?.disabled).toBe(true);
+  });
+
+  it("writes the same form change when writes are allowed (the gate is what stops it)", fakeAsync(() => {
+    workflowActionService.addOperator(mockScanPredicate, mockPoint);
+    component.ngOnChanges({
+      currentOperatorId: new SimpleChange(undefined, mockScanPredicate.operatorID, true),
+    });
+    fixture.detectChanges();
+    const propertySpy = vi.spyOn(workflowActionService, "setOperatorProperty");
+
+    component.onFormChanges({ tableName: "the_author_typed_this" });
+    tick(FORM_DEBOUNCE_TIME_MS + 10);
+
+    expect(propertySpy).toHaveBeenCalledWith(mockScanPredicate.operatorID, { tableName: "the_author_typed_this" });
+    discardPeriodicTasks();
+  }));
 
   /**
    * test if the property editor correctly receives the operator highlight stream,
@@ -201,6 +327,67 @@ describe("OperatorPropertyEditFrameComponent", () => {
 
     expect(operator.operatorProperties).toEqual(formChangeValue);
     expect(emitEventCounter).toEqual(1);
+  }));
+
+  it("keeps code-inferred UI parameters in the form model and subsequent form edits", fakeAsync(() => {
+    const predicate = {
+      ...mockScanPredicate,
+      operatorProperties: { tableName: "before", uiParameters: [] },
+    };
+    workflowActionService.addOperator(predicate, mockPoint);
+    component.ngOnChanges({
+      currentOperatorId: new SimpleChange(undefined, predicate.operatorID, true),
+    });
+    fixture.detectChanges();
+    tick(COLLAB_DEBOUNCE_TIME_MS);
+
+    const inferredParameters = [{ attribute: { attributeName: "count", attributeType: "integer" }, value: "" }];
+    const syncService = TestBed.inject(UiUdfParametersSyncService);
+    (syncService as any).uiParametersChangedSubject.next({
+      operatorId: predicate.operatorID,
+      parameters: inferredParameters,
+    });
+
+    expect(component.formData.uiParameters).toEqual(inferredParameters);
+
+    component.onFormChanges({ ...component.formData, tableName: "after" });
+    tick(FORM_DEBOUNCE_TIME_MS + 10);
+
+    expect(workflowActionService.getTexeraGraph().getOperator(predicate.operatorID).operatorProperties).toEqual({
+      tableName: "after",
+      uiParameters: inferredParameters,
+    });
+    discardPeriodicTasks();
+  }));
+
+  it("shows code-inferred UI parameters read-only without writing them to the workflow", fakeAsync(() => {
+    // The inferred parameters are worth showing to a reader -- they are what the step's script now
+    // declares -- but a viewer mount must not persist them, so the model updates and the graph
+    // does not.
+    const predicate = {
+      ...mockScanPredicate,
+      operatorProperties: { tableName: "before", uiParameters: [] },
+    };
+    workflowActionService.addOperator(predicate, mockPoint);
+    component.actsAsEditor = false;
+    component.ngOnChanges({
+      currentOperatorId: new SimpleChange(undefined, predicate.operatorID, true),
+    });
+    fixture.detectChanges();
+    tick(COLLAB_DEBOUNCE_TIME_MS);
+
+    const inferredParameters = [{ attribute: { attributeName: "count", attributeType: "integer" }, value: "" }];
+    (TestBed.inject(UiUdfParametersSyncService) as any).uiParametersChangedSubject.next({
+      operatorId: predicate.operatorID,
+      parameters: inferredParameters,
+    });
+
+    expect(component.formData.uiParameters).toEqual(inferredParameters);
+    expect(workflowActionService.getTexeraGraph().getOperator(predicate.operatorID).operatorProperties).toEqual({
+      tableName: "before",
+      uiParameters: [],
+    });
+    discardPeriodicTasks();
   }));
 
   it.skip(
@@ -971,7 +1158,7 @@ describe("OperatorPropertyEditFrameComponent", () => {
     fixture.detectChanges();
     const preview = component.huggingFaceTaskPreview!;
     expect(preview.assetSrc).toBe("assets/sample-image.png");
-    expect(preview.pills).toEqual(["superhero", "cityscape", "action"]);
+    expect(preview.pills).toEqual(["parkour", "cityscape", "action"]);
     expect(preview.inputLabel).toBe("Image input");
     expect(preview.outputLabel).toBe("Predicted labels");
   });
@@ -1538,5 +1725,2138 @@ describe("OperatorPropertyEditFrameComponent", () => {
     const field = getHfField("temperature");
     const hideFn = (field?.expressions as Record<string, Function>)?.["hide"];
     expect(hideFn({ model: {} } as FormlyFieldConfig)).toBe(true);
+  });
+
+  // ──────────────────────────────────────────────────────────────────────────
+  // attributeTypeRules validator (checkAttributeType) — the root-field validator
+  // added by setFormlyFormBinding when a schema declares attributeTypeRules.
+  // getOperatorInputAttributeType is stubbed on the (root-provided) compiling service.
+  // ──────────────────────────────────────────────────────────────────────────
+  describe("attributeTypeRules validator (checkAttributeType)", () => {
+    let compiling: WorkflowCompilingService;
+
+    beforeEach(() => {
+      compiling = TestBed.inject(WorkflowCompilingService);
+      component.currentOperatorId = "attr-rules-op";
+    });
+
+    // Binds a crafted schema and returns the root field's checkAttributeType validator.
+    function bindSchema(schema: CustomJSONSchema7): any {
+      component.setFormlyFormBinding(schema);
+      return (component.formlyFields?.[0] as any)?.validators?.checkAttributeType;
+    }
+
+    function rootField(): FormlyFieldConfig {
+      return component.formlyFields![0];
+    }
+
+    it("enum rule fails when the input attribute type is not in the enum", () => {
+      const validator = bindSchema({
+        type: "object",
+        properties: { attr: { type: "string", autofillAttributeOnPort: 0 } },
+        attributeTypeRules: { attr: { enum: ["integer"] } },
+      });
+      const spy = vi.spyOn(compiling, "getOperatorInputAttributeType").mockReturnValue("string");
+      const field = rootField();
+      expect(validator.expression({ value: { attr: "colA" } } as any, field)).toBe(false);
+      expect((field as any).validators.checkAttributeType.message).toContain(
+        "is string, but it's expected to be integer"
+      );
+      expect(spy).toHaveBeenCalledWith("attr-rules-op", 0, "colA");
+    });
+
+    it("enum rule passes when the input attribute type matches the enum", () => {
+      const validator = bindSchema({
+        type: "object",
+        properties: { attr: { type: "string", autofillAttributeOnPort: 0 } },
+        attributeTypeRules: { attr: { enum: ["integer"] } },
+      });
+      vi.spyOn(compiling, "getOperatorInputAttributeType").mockReturnValue("integer");
+      expect(validator.expression({ value: { attr: "colA" } } as any, rootField())).toBe(true);
+    });
+
+    it("passes without checking anything when no operator is selected", () => {
+      const validator = bindSchema({
+        type: "object",
+        properties: { attr: { type: "string", autofillAttributeOnPort: 0 } },
+        attributeTypeRules: { attr: { enum: ["integer"] } },
+      });
+      const spy = vi.spyOn(compiling, "getOperatorInputAttributeType");
+      component.currentOperatorId = undefined;
+
+      expect(validator.expression({ value: { attr: "colA" } } as any, rootField())).toBe(true);
+      expect(spy).not.toHaveBeenCalled();
+    });
+
+    it("skips a rule that names a property the schema does not declare", () => {
+      const validator = bindSchema({
+        type: "object",
+        properties: { attr: { type: "string", autofillAttributeOnPort: 0 } },
+        // "missing" has a rule but no matching entry under `properties`.
+        attributeTypeRules: { missing: { enum: ["integer"] } },
+      });
+      const spy = vi.spyOn(compiling, "getOperatorInputAttributeType");
+
+      expect(validator.expression({ value: { attr: "colA" } } as any, rootField())).toBe(true);
+      expect(spy).not.toHaveBeenCalled();
+    });
+
+    it("skips a property whose schema declares no autofill port", () => {
+      // findAttributeType bails at `isDefined(portIndex)`, so the rule never runs and
+      // the compiling service is never asked for a type.
+      const validator = bindSchema({
+        type: "object",
+        properties: { attr: { type: "string" } },
+        attributeTypeRules: { attr: { enum: ["integer"] } },
+      });
+      const spy = vi.spyOn(compiling, "getOperatorInputAttributeType");
+
+      expect(validator.expression({ value: { attr: "colA" } } as any, rootField())).toBe(true);
+      expect(spy).not.toHaveBeenCalled();
+    });
+
+    it("skips a const rule that carries no $data reference", () => {
+      const validator = bindSchema({
+        type: "object",
+        properties: { attr: { type: "string", autofillAttributeOnPort: 0 } },
+        attributeTypeRules: { attr: { const: {} } },
+      });
+      vi.spyOn(compiling, "getOperatorInputAttributeType").mockReturnValue("string");
+
+      expect(validator.expression({ value: { attr: "colA" } } as any, rootField())).toBe(true);
+    });
+
+    it("const $data rule passes when both attributes resolve to the same type", () => {
+      const validator = bindSchema({
+        type: "object",
+        properties: {
+          attr: { type: "string", autofillAttributeOnPort: 0 },
+          other: { type: "string", autofillAttributeOnPort: 0 },
+        },
+        attributeTypeRules: { attr: { const: { $data: "other" } } },
+      });
+      vi.spyOn(compiling, "getOperatorInputAttributeType").mockReturnValue("string");
+
+      expect(validator.expression({ value: { attr: "colA", other: "colB" } } as any, rootField())).toBe(true);
+    });
+
+    it("enum rule is skipped when the attribute type is undefined (attribute not selected)", () => {
+      const validator = bindSchema({
+        type: "object",
+        properties: { attr: { type: "string", autofillAttributeOnPort: 0 } },
+        attributeTypeRules: { attr: { enum: ["integer"] } },
+      });
+      vi.spyOn(compiling, "getOperatorInputAttributeType").mockReturnValue(undefined);
+      expect(validator.expression({ value: { attr: "" } } as any, rootField())).toBe(true);
+    });
+
+    it("const $data rule fails when the sibling attribute resolves to a different type", () => {
+      const validator = bindSchema({
+        type: "object",
+        properties: {
+          attr: { type: "string", autofillAttributeOnPort: 0 },
+          other: { type: "string", autofillAttributeOnPort: 0 },
+        },
+        attributeTypeRules: { attr: { const: { $data: "other" } } },
+      });
+      vi.spyOn(compiling, "getOperatorInputAttributeType").mockImplementation((_id, _port, name) =>
+        name === "colA" ? "string" : "integer"
+      );
+      const field = rootField();
+      expect(validator.expression({ value: { attr: "colA", other: "colB" } } as any, field)).toBe(false);
+      expect((field as any).validators.checkAttributeType.message).toContain("expected to be the same type as 'colB'");
+    });
+
+    it("const $data rule is skipped when the sibling attribute type is not yet resolved", () => {
+      const validator = bindSchema({
+        type: "object",
+        properties: {
+          attr: { type: "string", autofillAttributeOnPort: 0 },
+          other: { type: "string", autofillAttributeOnPort: 0 },
+        },
+        attributeTypeRules: { attr: { const: { $data: "other" } } },
+      });
+      vi.spyOn(compiling, "getOperatorInputAttributeType").mockImplementation((_id, _port, name) =>
+        name === "colA" ? "string" : undefined
+      );
+      expect(validator.expression({ value: { attr: "colA", other: "" } } as any, rootField())).toBe(true);
+    });
+
+    it("allOf if/then rule fails when the if-condition holds but the then-enum is violated", () => {
+      const validator = bindSchema({
+        type: "object",
+        properties: {
+          attr: { type: "string", autofillAttributeOnPort: 0 },
+          mode: { type: "string" },
+        },
+        attributeTypeRules: {
+          attr: { allOf: [{ if: { mode: { valEnum: ["strict"] } }, then: { enum: ["integer"] } }] },
+        },
+      });
+      vi.spyOn(compiling, "getOperatorInputAttributeType").mockReturnValue("string");
+      const field = rootField();
+      expect(validator.expression({ value: { attr: "colA", mode: "strict" } } as any, field)).toBe(false);
+      expect((field as any).validators.checkAttributeType.message).toContain("given that 'mode' is strict");
+    });
+
+    it("allOf if/then rule passes when the if-condition is not satisfied", () => {
+      const validator = bindSchema({
+        type: "object",
+        properties: {
+          attr: { type: "string", autofillAttributeOnPort: 0 },
+          mode: { type: "string" },
+        },
+        attributeTypeRules: {
+          attr: { allOf: [{ if: { mode: { valEnum: ["strict"] } }, then: { enum: ["integer"] } }] },
+        },
+      });
+      vi.spyOn(compiling, "getOperatorInputAttributeType").mockReturnValue("string");
+      expect(validator.expression({ value: { attr: "colA", mode: "loose" } } as any, rootField())).toBe(true);
+    });
+
+    // A property that takes several columns holds a list of names, and the rule
+    // has to reach each of them rather than the list as a whole.
+    const multiColumnSchema: CustomJSONSchema7 = {
+      type: "object",
+      properties: { attrs: { type: "array", items: { type: "string" }, autofillAttributeOnPort: 0 } },
+      attributeTypeRules: { attrs: { enum: ["integer"] } },
+    };
+
+    it("enum rule passes when every column a multi-column property names matches", () => {
+      const validator = bindSchema(multiColumnSchema);
+      const spy = vi.spyOn(compiling, "getOperatorInputAttributeType").mockReturnValue("integer");
+
+      expect(validator.expression({ value: { attrs: ["colA", "colB"] } } as any, rootField())).toBe(true);
+      expect(spy).toHaveBeenCalledWith("attr-rules-op", 0, "colA");
+      expect(spy).toHaveBeenCalledWith("attr-rules-op", 0, "colB");
+    });
+
+    it("enum rule names the one column of a multi-column property that violates it", () => {
+      const validator = bindSchema(multiColumnSchema);
+      vi.spyOn(compiling, "getOperatorInputAttributeType").mockImplementation((_id, _port, name) =>
+        name === "colA" ? "integer" : "string"
+      );
+      const field = rootField();
+
+      expect(validator.expression({ value: { attrs: ["colA", "colB"] } } as any, field)).toBe(false);
+      expect((field as any).validators.checkAttributeType.message).toContain(
+        "The type of 'colB' is string, but it's expected to be integer"
+      );
+    });
+
+    it("enum rule names the timestamp among columns a trainer cannot fit together", () => {
+      // The shape the sklearn advanced trainers are in: a timestamp fits on its own but
+      // raises DTypePromotionError beside any other column, so the accepted set leaves it
+      // out and the warning has to name the timestamp rather than the numeric column.
+      const validator = bindSchema({
+        type: "object",
+        properties: { attrs: { type: "array", items: { type: "string" }, autofillAttributeOnPort: 0 } },
+        attributeTypeRules: { attrs: { enum: ["integer", "long", "double", "boolean"] } },
+      });
+      vi.spyOn(compiling, "getOperatorInputAttributeType").mockImplementation((_id, _port, name) =>
+        name === "when" ? "timestamp" : "double"
+      );
+      const field = rootField();
+
+      expect(validator.expression({ value: { attrs: ["amount", "when"] } } as any, field)).toBe(false);
+      expect((field as any).validators.checkAttributeType.message).toContain("The type of 'when' is timestamp");
+    });
+
+    it("enum rule is skipped when a multi-column property names nothing", () => {
+      const validator = bindSchema(multiColumnSchema);
+      const spy = vi.spyOn(compiling, "getOperatorInputAttributeType");
+
+      expect(validator.expression({ value: { attrs: [] } } as any, rootField())).toBe(true);
+      expect(spy).not.toHaveBeenCalled();
+    });
+  });
+
+  // ──────────────────────────────────────────────────────────────────────────
+  // Field-level validators / custom field-type mapping in setFormlyFormBinding
+  // ──────────────────────────────────────────────────────────────────────────
+  describe("field-level validators and type mapping", () => {
+    function getField(key: string): FormlyFieldConfig | undefined {
+      return component.formlyFields?.[0]?.fieldGroup?.find(f => f.key === key);
+    }
+
+    it("adds an inEnum validator that rejects values no longer present in the schema enum", () => {
+      component.setFormlyFormBinding({
+        type: "object",
+        properties: { color: { type: "string", enum: ["red", "green"] } },
+      });
+      const validator = getField("color")?.validators?.["inEnum"];
+      expect(validator).toBeDefined();
+      expect(validator!.expression({ value: "blue" } as any)).toBe(false);
+      expect(validator!.expression({ value: "red" } as any)).toBe(true);
+      expect(validator!.message(null, { formControl: { value: "blue" } } as any)).toBe(
+        '"blue" is no longer a valid option'
+      );
+    });
+
+    it("adds a uniqueAmongRows validator that rejects a value another row already holds", () => {
+      component.setFormlyFormBinding({
+        type: "object",
+        properties: {
+          paraList: {
+            type: "array",
+            items: {
+              type: "object",
+              properties: { parameter: { type: "string", uniqueAmongRows: true } },
+            },
+          },
+        },
+      } as CustomJSONSchema7);
+      // A row's own fields exist only once formly is asked to build a row.
+      const arrayField = getField("paraList")!;
+      const rowField = (arrayField.fieldArray as (root: FormlyFieldConfig) => FormlyFieldConfig)(arrayField);
+      const validator = rowField.fieldGroup?.find(f => f.key === "parameter")?.validators?.["uniqueAmongRows"];
+      expect(validator).toBeDefined();
+
+      const twoRowsSettingC = {
+        key: "parameter",
+        parent: { parent: { model: [{ parameter: "C" }, { parameter: "C" }] } },
+      } as any;
+      expect(validator!.expression({ value: "C" } as any, twoRowsSettingC)).toBe(false);
+      expect(validator!.expression({ value: "kernel" } as any, twoRowsSettingC)).toBe(true);
+      expect(validator!.message(null, { formControl: { value: "C" } } as any)).toBe(
+        '"C" is already set by another row'
+      );
+    });
+
+    it("maps datasetVersionPath to the datasetversionselector field type", () => {
+      component.setFormlyFormBinding({
+        type: "object",
+        properties: { datasetVersionPath: { type: "string" } },
+      });
+      expect(getField("datasetVersionPath")?.type).toBe("datasetversionselector");
+    });
+
+    it("maps uiParameters to the ui-udf-parameters field type", () => {
+      component.setFormlyFormBinding({
+        type: "object",
+        properties: { uiParameters: { type: "array" } },
+      });
+      expect(getField("uiParameters")?.type).toBe("ui-udf-parameters");
+    });
+
+    it("maps a field described as 'Input your code here' to the codearea field type", () => {
+      component.setFormlyFormBinding({
+        type: "object",
+        properties: { code: { type: "string", description: "Input your code here" } },
+      });
+      expect(getField("code")?.type).toBe("codearea");
+    });
+  });
+
+  // ──────────────────────────────────────────────────────────────────────────
+  // Loop-variable references ($name) for an operator inside a control block
+  // ──────────────────────────────────────────────────────────────────────────
+  describe("loop-variable references inside a control block", () => {
+    // The body is an operator backed by a Scala executor, the kind on which the backend binds a reference.
+    const body = mockScalaExecutorPredicate;
+    const control = (value: unknown) => ({ value }) as AbstractControl;
+
+    function getField(key: string): FormlyFieldConfig | undefined {
+      return component.formlyFields?.[0]?.fieldGroup?.find(f => f.key === key);
+    }
+
+    function openBody(): void {
+      component.ngOnChanges({
+        currentOperatorId: new SimpleChange(undefined, body.operatorID, true),
+      });
+      fixture.detectChanges();
+    }
+
+    /**
+     * Loop Start (K = 2) -> body, and body -> Loop End unless `closed` is false. Which blocks enclose the
+     * body is worked out from these operators and links; no compile takes part in these tests.
+     */
+    function addBlockAroundBody(closed = true): void {
+      workflowActionService.addOperator(mockLoopStartPredicate, mockPoint);
+      workflowActionService.addOperator(body, mockPoint);
+      workflowActionService.addOperator(mockLoopEndPredicate, mockPoint);
+      workflowActionService.addLink(mockLoopStartScalaExecutorLink);
+      if (closed) {
+        workflowActionService.addLink(mockScalaExecutorLoopEndLink);
+      }
+    }
+
+    it("lets every primitive field take a $reference, offering the variables of the enclosing Loop Start", () => {
+      addBlockAroundBody();
+      openBody();
+
+      for (const key of ["limit", "fraction", "prefix", "caseSensitive"]) {
+        const field = getField(key);
+        expect(field?.type, key).toBe("loopvariableinput");
+        expect(field?.props?.["loopVariableOptions"], key).toEqual(["$K"]);
+        expect(field?.validators?.["type"].expression(control("$K"), field), key).toBe(true);
+        // a name none of them declares is only warned about: no validator holds it against the field
+        expect(field?.props?.["loopVariableWarning"]("$foo"), key).toBe(
+          "$foo is not a variable of an enclosing block; the run will fail if no Loop Start sets it"
+        );
+        expect(field?.props?.["loopVariableWarning"]("$K"), key).toBeUndefined();
+        for (const [name, validator] of Object.entries(field?.validators ?? {})) {
+          expect(validator.expression(control("$foo"), field), `${key} ${name}`).toBe(true);
+        }
+      }
+      // typed text is stored as the field's primitive; a reference stays the literal string
+      expect(getField("limit")?.parsers?.[0]("7")).toBe(7);
+      expect(getField("limit")?.parsers?.[0]("$K")).toBe("$K");
+      expect(getField("fraction")?.parsers?.[0]("0.5")).toBe(0.5);
+      expect(getField("caseSensitive")?.parsers?.[0]("true")).toBe(true);
+      // a plain wrong value is still a type error
+      expect(getField("limit")?.validators?.["type"].expression(control("abc"), getField("limit"))).toBe(false);
+      expect(getField("caseSensitive")?.validators?.["type"].expression(control("maybe"))).toBe(false);
+    });
+
+    it("keeps a custom widget, an enum and an array on their own controls inside a block", () => {
+      addBlockAroundBody();
+      openBody();
+
+      expect(getField("fileName")?.type).toBe("inputautocomplete");
+      expect(getField("fileName")?.props?.["loopVariableWarning"]).toBeUndefined();
+      expect(getField("order")?.type).toBe("enum");
+      expect(getField("order")?.props?.["loopVariableWarning"]).toBeUndefined();
+      expect(getField("columns")?.type).toBe("array");
+      expect(getField("columns")?.props?.["loopVariableWarning"]).toBeUndefined();
+    });
+
+    it("keeps today's controls and validators for an operator outside every block", () => {
+      workflowActionService.addOperator(body, mockPoint);
+      openBody();
+
+      expect(getField("limit")?.type).toBe("integer");
+      expect(getField("fraction")?.type).toBe("number");
+      expect(getField("prefix")?.type).toBe("string");
+      expect(getField("caseSensitive")?.type).toBe("boolean");
+      expect(getField("limit")?.props?.["loopVariableWarning"]).toBeUndefined();
+      expect(getField("limit")?.validators?.["type"].expression(control("$K"))).toBe(false);
+    });
+
+    it("counts the operator inside its block from the graph alone, before any compile", () => {
+      addBlockAroundBody();
+      openBody();
+      expect(getField("limit")?.type).toBe("loopvariableinput");
+      expect(getField("limit")?.props?.["loopVariableOptions"]).toEqual(["$K"]);
+    });
+
+    it("rebuilds the open form as soon as an edit changes its scope, and only then", () => {
+      addBlockAroundBody(false);
+      openBody();
+      expect(getField("limit")?.type).toBe("integer");
+
+      // closing the block puts the open operator inside it
+      workflowActionService.addLink(mockScalaExecutorLoopEndLink);
+      expect(getField("limit")?.type).toBe("loopvariableinput");
+      expect(getField("limit")?.props?.["loopVariableOptions"]).toEqual(["$K"]);
+
+      // renaming the variable changes what the field offers, read from the Loop Start in the graph
+      workflowActionService.setOperatorProperty(mockLoopStartPredicate.operatorID, {
+        initialization: "N = 1",
+        output: "table.iloc[N]",
+      });
+      expect(getField("limit")?.props?.["loopVariableOptions"]).toEqual(["$N"]);
+
+      // an edit that leaves the scope as it is does not rebuild the form
+      const rerender = vi.spyOn(component, "rerenderEditorForm");
+      workflowActionService.setOperatorProperty(mockLoopStartPredicate.operatorID, {
+        initialization: "N = 1",
+        output: "table.iloc[0]",
+      });
+      workflowActionService.addOperator(mockScanPredicate, mockPoint);
+      expect(rerender).not.toHaveBeenCalled();
+
+      // opening the block again takes the operator out of it
+      workflowActionService.deleteLinkWithID(mockLoopStartScalaExecutorLink.linkID);
+      expect(rerender).toHaveBeenCalledTimes(1);
+      expect(getField("limit")?.type).toBe("integer");
+    });
+
+    // The editing-time compile leaves out every invalid operator, which must not keep the open operator in a
+    // block it has left.
+    it("takes the open operator out of its block and back while another operator on the canvas is invalid", () => {
+      const link = (linkID: string, from: string, to: string) => ({
+        linkID,
+        source: { operatorID: from, portID: "output-0" },
+        target: { operatorID: to, portID: "input-0" },
+      });
+      const unfinished = { ...mockScalaExecutorPredicate, operatorID: "unfinished", operatorProperties: {} };
+      workflowActionService.addOperator(unfinished, mockPoint);
+      addBlockAroundBody();
+      workflowActionService.setOperatorProperty(body.operatorID, { limit: "$K" });
+      expect(TestBed.inject(ValidationWorkflowService).validateOperator(unfinished.operatorID).isValid).toBe(false);
+      openBody();
+      expect(getField("limit")?.props?.["loopVariableOptions"]).toEqual(["$K"]);
+
+      // moved out of its block, to after the Loop End
+      workflowActionService.deleteLinkWithID(mockLoopStartScalaExecutorLink.linkID);
+      workflowActionService.deleteLinkWithID(mockScalaExecutorLoopEndLink.linkID);
+      workflowActionService.addLink(
+        link("start-end", mockLoopStartPredicate.operatorID, mockLoopEndPredicate.operatorID)
+      );
+      workflowActionService.addLink(link("end-body", mockLoopEndPredicate.operatorID, body.operatorID));
+      expect(getField("limit")?.type).toBe("integer");
+      expect(getField("limit")?.props?.["loopVariableOptions"]).toBeUndefined();
+      expect(getField("limit")?.validators?.["type"].expression(control("$K"))).toBe(false);
+
+      // and back in
+      workflowActionService.deleteLinkWithID("end-body");
+      workflowActionService.deleteLinkWithID("start-end");
+      workflowActionService.addLink(mockLoopStartScalaExecutorLink);
+      workflowActionService.addLink(mockScalaExecutorLoopEndLink);
+      expect(getField("limit")?.type).toBe("loopvariableinput");
+      expect(getField("limit")?.props?.["loopVariableOptions"]).toEqual(["$K"]);
+    });
+
+    // A disabled operator, and every link touching one, is no part of the plan the backend compiles and runs.
+    it("takes the open operator out of its block once its Loop End is disabled, and back once it is enabled", () => {
+      addBlockAroundBody();
+      openBody();
+      expect(getField("limit")?.type).toBe("loopvariableinput");
+
+      workflowActionService.disableOperators([mockLoopEndPredicate.operatorID]);
+      expect(getField("limit")?.type).toBe("integer");
+      expect(getField("limit")?.props?.["loopVariableOptions"]).toBeUndefined();
+
+      workflowActionService.enableOperators([mockLoopEndPredicate.operatorID]);
+      expect(getField("limit")?.type).toBe("loopvariableinput");
+      expect(getField("limit")?.props?.["loopVariableOptions"]).toEqual(["$K"]);
+    });
+
+    it("keeps the form as it is while a value being typed is no reference yet", fakeAsync(() => {
+      addBlockAroundBody();
+      openBody();
+      expect(getField("limit")?.type).toBe("loopvariableinput");
+      const rerender = vi.spyOn(component, "rerenderEditorForm");
+
+      // typing "$" to pick a variable stores a value that is no reference yet over the number the field held,
+      // which leaves the operator invalid, and out of the editing-time compile, for a moment
+      component.onFormChanges({ ...body.operatorProperties, limit: "$" });
+      tick(FORM_DEBOUNCE_TIME_MS);
+      expect(workflowActionService.getTexeraGraph().getOperator(body.operatorID).operatorProperties["limit"]).toBe("$");
+      expect(TestBed.inject(ValidationWorkflowService).validateOperator(body.operatorID).isValid).toBe(false);
+
+      expect(rerender).not.toHaveBeenCalled();
+      expect(getField("limit")?.type).toBe("loopvariableinput");
+      expect(getField("limit")?.props?.["loopVariableOptions"]).toEqual(["$K"]);
+      discardPeriodicTasks();
+    }));
+
+    it("rebuilds nothing once the open operator is deleted", () => {
+      addBlockAroundBody();
+      openBody();
+      const rerender = vi.spyOn(component, "rerenderEditorForm");
+      workflowActionService.deleteOperator(body.operatorID);
+      expect(rerender).not.toHaveBeenCalled();
+    });
+
+    /** Opens the body with the schema given; every other operator keeps its own. */
+    function openBodyWithSchema(schema: OperatorSchema): void {
+      const dynamicSchemaService = TestBed.inject(DynamicSchemaService);
+      const ownSchema = dynamicSchemaService.getDynamicSchema.bind(dynamicSchemaService);
+      vi.spyOn(dynamicSchemaService, "getDynamicSchema").mockImplementation(operatorID =>
+        operatorID === body.operatorID ? schema : ownSchema(operatorID)
+      );
+      openBody();
+    }
+
+    /** A field of a row of the array property given, which formly builds only when asked for a row. */
+    function rowFieldOf(arrayKey: string, key: string): FormlyFieldConfig | undefined {
+      const arrayField = getField(arrayKey)!;
+      const row = (arrayField.fieldArray as (root: FormlyFieldConfig) => FormlyFieldConfig)(arrayField);
+      return row.fieldGroup?.find(f => f.key === key);
+    }
+
+    describe("a setting the plan is built from", () => {
+      // the body given settings the backend marks `noLoopVariable` (#8750): a Projection's drop option, an
+      // output column's name, and the rows of columns to keep, whose alias sits in a shared definition;
+      // `renames` takes the same rows unmarked, and `limit` is the body's own unmarked setting
+      const planSchema: OperatorSchema = {
+        ...mockScalaExecutorSchema,
+        jsonSchema: {
+          ...mockScalaExecutorSchema.jsonSchema,
+          properties: {
+            ...mockScalaExecutorSchema.jsonSchema.properties,
+            isDrop: { type: "boolean", title: "drop option", noLoopVariable: true },
+            resultAttribute: { type: "string", title: "result attribute", noLoopVariable: true },
+            attributes: { type: "array", noLoopVariable: true, items: { $ref: "#/definitions/AttributeUnit" } },
+            renames: { type: "array", items: { $ref: "#/definitions/AttributeUnit" } },
+          },
+          definitions: {
+            AttributeUnit: {
+              type: "object",
+              properties: { alias: { type: "string", title: "alias" }, width: { type: "integer", title: "width" } },
+            },
+          },
+        } as CustomJSONSchema7,
+      };
+
+      it("offers no $reference in a marked setting or anywhere under one, and still does beside them", () => {
+        addBlockAroundBody();
+        openBodyWithSchema(planSchema);
+
+        expect(getField("isDrop")?.type).toBe("boolean");
+        expect(getField("resultAttribute")?.type).toBe("string");
+        expect(rowFieldOf("attributes", "alias")?.type).toBe("string");
+        expect(rowFieldOf("attributes", "width")?.type).toBe("integer");
+        for (const field of [
+          getField("isDrop"),
+          getField("resultAttribute"),
+          rowFieldOf("attributes", "alias"),
+          rowFieldOf("attributes", "width"),
+        ]) {
+          expect(field?.props?.["loopVariableOptions"], String(field?.key)).toBeUndefined();
+          expect(field?.props?.["loopVariableWarning"], String(field?.key)).toBeUndefined();
+        }
+        // the unmarked control: the body's own setting, and the same rows under an unmarked property
+        expect(getField("limit")?.type).toBe("loopvariableinput");
+        expect(rowFieldOf("renames", "alias")?.type).toBe("loopvariableinput");
+        expect(rowFieldOf("renames", "alias")?.props?.["loopVariableOptions"]).toEqual(["$K"]);
+        expect(rowFieldOf("renames", "width")?.type).toBe("loopvariableinput");
+      });
+
+      it("leaves a $reference a marked setting already holds in its plain field, for the compiler to name", () => {
+        addBlockAroundBody();
+        workflowActionService.setOperatorProperty(body.operatorID, {
+          limit: 5,
+          resultAttribute: "$K",
+          attributes: [{ alias: "$K" }],
+        });
+        openBodyWithSchema(planSchema);
+
+        expect(component.formData["resultAttribute"]).toBe("$K");
+        expect(getField("resultAttribute")?.type).toBe("string");
+        expect(getField("resultAttribute")?.props?.["loopVariableWarning"]).toBeUndefined();
+        expect(rowFieldOf("attributes", "alias")?.type).toBe("string");
+      });
+
+      it("keeps every control as it was outside every block", () => {
+        workflowActionService.addOperator(body, mockPoint);
+        openBodyWithSchema(planSchema);
+
+        expect(getField("resultAttribute")?.type).toBe("string");
+        expect(rowFieldOf("attributes", "alias")?.type).toBe("string");
+        expect(rowFieldOf("renames", "alias")?.type).toBe("string");
+        expect(getField("limit")?.type).toBe("integer");
+      });
+    });
+
+    describe("a field with value rules", () => {
+      // the body given a sklearn trainer's hyperparameter rows, whose value's rules follow the parameter
+      const valueRules: ValueRuleSet = {
+        allOf: [
+          { if: { parameter: { valEnum: ["C"] } }, then: { type: "number", exclusiveMinimum: 0 } },
+          { if: { parameter: { valEnum: ["kernel"] } }, then: { enum: ["rbf", "linear"] } },
+        ],
+      };
+      const trainerSchema = {
+        ...mockScalaExecutorSchema,
+        jsonSchema: {
+          ...mockScalaExecutorSchema.jsonSchema,
+          properties: {
+            ...mockScalaExecutorSchema.jsonSchema.properties,
+            paraList: {
+              type: "array",
+              items: {
+                type: "object",
+                properties: {
+                  parameter: { type: "string", enum: ["C", "kernel"] },
+                  value: { type: "string", valueRules },
+                },
+              },
+            },
+          },
+        } as CustomJSONSchema7,
+      };
+
+      /** Opens the body with the trainer's schema (or the one given). */
+      function openBodyAsTrainer(schema = trainerSchema): void {
+        openBodyWithSchema(schema);
+      }
+
+      /** A field of a hyperparameter row. */
+      function rowField(key: string): FormlyFieldConfig | undefined {
+        return rowFieldOf("paraList", key);
+      }
+
+      /** The field as formly hands it to a validator in a row whose parameter is the one given. */
+      const inRow = (field: FormlyFieldConfig | undefined, parameter: string) =>
+        ({ ...field, parent: { model: { parameter } } }) as FormlyFieldConfig;
+
+      it("takes a $reference inside a block and still holds every other value to the rules", () => {
+        addBlockAroundBody();
+        openBodyAsTrainer();
+
+        const value = rowField("value");
+        expect(value?.type).toBe("loopvariableinput");
+        expect(value?.props?.["loopVariableOptions"]).toEqual(["$K"]);
+        expect(value?.props?.["valueRules"]).toEqual(valueRules);
+        for (const name of ["type", "valueRules"]) {
+          expect(value?.validators?.[name].expression(control("$K"), inRow(value, "C")), name).toBe(true);
+          expect(value?.validators?.[name].expression(control("$foo"), inRow(value, "C")), name).toBe(true);
+        }
+        expect(value?.props?.["loopVariableWarning"]("$foo")).toBe(
+          "$foo is not a variable of an enclosing block; the run will fail if no Loop Start sets it"
+        );
+        expect(value?.validators?.["valueRules"].expression(control("-1"), inRow(value, "C"))).toBe(false);
+        expect(value?.validators?.["valueRules"].expression(control("1.0"), inRow(value, "C"))).toBe(true);
+        expect(value?.validators?.["valueRules"].expression(control("poly"), inRow(value, "kernel"))).toBe(false);
+        // the row's parameter, chosen from a set, keeps its dropdown
+        expect(rowField("parameter")?.type).toBe("enum");
+      });
+
+      it("leaves a field with value rules and a schema enum, or a custom widget, on its own control inside a block", () => {
+        const withOwnControls = {
+          ...trainerSchema,
+          jsonSchema: {
+            ...trainerSchema.jsonSchema,
+            properties: {
+              ...trainerSchema.jsonSchema.properties,
+              paraList: {
+                type: "array",
+                items: {
+                  type: "object",
+                  properties: {
+                    parameter: { type: "string", enum: ["C", "kernel"] },
+                    value: { type: "string", enum: ["rbf", "linear"], valueRules },
+                    fileName: { type: "string", valueRules },
+                  },
+                },
+              },
+            },
+          } as CustomJSONSchema7,
+        };
+        addBlockAroundBody();
+        openBodyAsTrainer(withOwnControls);
+
+        expect(rowField("value")?.type).toBe("constrainedvalue");
+        expect(rowField("value")?.props?.["loopVariableOptions"]).toBeUndefined();
+        expect(rowField("fileName")?.type).toBe("inputautocomplete");
+        expect(rowField("fileName")?.props?.["loopVariableOptions"]).toBeUndefined();
+      });
+
+      it("keeps the rules' own control and validator outside every block", () => {
+        workflowActionService.addOperator(body, mockPoint);
+        openBodyAsTrainer();
+
+        const value = rowField("value");
+        expect(value?.type).toBe("constrainedvalue");
+        expect(value?.props?.["loopVariableOptions"]).toBeUndefined();
+        expect(value?.props?.["loopVariableWarning"]).toBeUndefined();
+        expect(value?.validators?.["valueRules"].expression(control("$K"), inRow(value, "C"))).toBe(false);
+        expect(value?.validators?.["valueRules"].expression(control("1.0"), inRow(value, "C"))).toBe(true);
+      });
+    });
+  });
+
+  // ──────────────────────────────────────────────────────────────────────────
+  // Operator-type-specific field behavior (FileScanOp hide, Projection reorder)
+  // ──────────────────────────────────────────────────────────────────────────
+  describe("operator-type-specific field behavior", () => {
+    function getField(key: string): FormlyFieldConfig | undefined {
+      return component.formlyFields?.[0]?.fieldGroup?.find(f => f.key === key);
+    }
+
+    it("hides FileScanOp outputFileName unless extract is on or the type is a string/binary type", () => {
+      component.currentOperatorSchema = { operatorType: "FileScanOp" } as any;
+      component.setFormlyFormBinding({
+        type: "object",
+        properties: { outputFileName: { type: "string" } },
+      });
+      const hide = (getField("outputFileName")?.expressions as Record<string, Function>)["hide"];
+      expect(hide({ model: {} } as FormlyFieldConfig)).toBe(true);
+      expect(hide({ model: { extract: true } } as FormlyFieldConfig)).toBe(false);
+      expect(hide({ model: { attributeType: "single string" } } as FormlyFieldConfig)).toBe(false);
+      expect(hide({ model: { attributeType: "binary" } } as FormlyFieldConfig)).toBe(false);
+      expect(hide({ model: { attributeType: "large binary" } } as FormlyFieldConfig)).toBe(false);
+    });
+
+    it("maps Projection attributes to repeat-section-dnd and proxies reorder() to onFormChanges", () => {
+      component.currentOperatorSchema = { operatorType: "Projection" } as any;
+      component.formData = { attributes: ["colA"] };
+      component.setFormlyFormBinding({
+        type: "object",
+        properties: { attributes: { type: "array", items: { type: "string" } } },
+      });
+      const field = getField("attributes");
+      expect(field?.type).toBe("repeat-section-dnd");
+      const spy = vi.spyOn(component, "onFormChanges").mockImplementation(() => {});
+      (field?.props as any).reorder();
+      expect(spy).toHaveBeenCalledWith({ attributes: ["colA"] });
+    });
+  });
+
+  // ──────────────────────────────────────────────────────────────────────────
+  // checkOperatorProperty — the guard used by the debounced form-change stream
+  // ──────────────────────────────────────────────────────────────────────────
+  describe("checkOperatorProperty", () => {
+    it("returns false when no operator is being displayed", () => {
+      component.currentOperatorId = undefined;
+      expect(component.checkOperatorProperty({})).toBe(false);
+    });
+
+    it("returns true only when the form data differs from the stored operator properties", () => {
+      workflowActionService.addOperator(mockScanPredicate, mockPoint);
+      component.currentOperatorId = mockScanPredicate.operatorID;
+      // mockScanPredicate.operatorProperties is {}
+      expect(component.checkOperatorProperty({})).toBe(false);
+      expect(component.checkOperatorProperty({ tableName: "twitter" })).toBe(true);
+    });
+  });
+
+  // ──────────────────────────────────────────────────────────────────────────
+  // typeInferenceOnLambdaFunction — writes inferred attribute types back into
+  // the form data for PythonLambdaFunction operators.
+  // ──────────────────────────────────────────────────────────────────────────
+  describe("typeInferenceOnLambdaFunction", () => {
+    it("does nothing for non-lambda operators", () => {
+      component.currentOperatorId = "ScanSource-op";
+      const formData = { lambdaAttributeUnits: [{ attributeName: "colA", attributeType: "keep" }] };
+      component.typeInferenceOnLambdaFunction(formData);
+      expect(formData.lambdaAttributeUnits[0].attributeType).toBe("keep");
+    });
+
+    it("infers attribute types from the input schema and clears empty 'Add New Column' units", () => {
+      const compiling = TestBed.inject(WorkflowCompilingService);
+      vi.spyOn(compiling, "getOperatorInputSchemaMap").mockReturnValue({
+        "0": [{ attributeName: "colA", attributeType: "integer" }],
+      } as any);
+      component.currentOperatorId = "PythonLambdaFunction-op";
+      const formData = {
+        lambdaAttributeUnits: [
+          { attributeName: "Add New Column", newAttributeName: "", attributeType: "stale" },
+          { attributeName: "colA", attributeType: "stale" },
+        ],
+      };
+      component.typeInferenceOnLambdaFunction(formData);
+      expect(formData.lambdaAttributeUnits[0].attributeType).toBe("");
+      expect(formData.lambdaAttributeUnits[1].attributeType).toBe("integer");
+    });
+  });
+
+  // ──────────────────────────────────────────────────────────────────────────
+  // setInteractivity — enable/disable the whole formly form group
+  // ──────────────────────────────────────────────────────────────────────────
+  describe("setInteractivity", () => {
+    it("disables and re-enables every control in the form group", () => {
+      const group = new FormGroup({ a: new FormControl("x") });
+      component.formlyFormGroup = group;
+
+      component.setInteractivity(false);
+      expect(component.interactive).toBe(false);
+      expect(group.disabled).toBe(true);
+      expect(group.get("a")!.disabled).toBe(true);
+
+      component.setInteractivity(true);
+      expect(component.interactive).toBe(true);
+      expect(group.enabled).toBe(true);
+      expect(group.get("a")!.enabled).toBe(true);
+    });
+
+    it("only updates the interactive flag when there is no form group", () => {
+      component.formlyFormGroup = undefined;
+      expect(() => component.setInteractivity(true)).not.toThrow();
+      expect(component.interactive).toBe(true);
+    });
+  });
+
+  // ──────────────────────────────────────────────────────────────────────────
+  // Python UDF environment schema patching
+  // ──────────────────────────────────────────────────────────────────────────
+  describe("Python UDF environment schema patching", () => {
+    it("injects the environment list into the envName enum without mutating the original schema", () => {
+      const schema = { type: "object", properties: { envName: { type: "string" } } } as CustomJSONSchema7;
+      const patched = (component as any).patchPythonUdfEnvironmentSchema(schema, ["env-a", "env-b"]);
+      expect((patched.properties.envName as CustomJSONSchema7).enum).toEqual(["env-a", "env-b"]);
+      expect((schema.properties!.envName as CustomJSONSchema7).enum).toBeUndefined();
+    });
+
+    it("hides envName and makes it optional when the default environment is checked", () => {
+      component.setFormlyFormBinding({
+        type: "object",
+        properties: { envName: { type: "string" }, defaultEnv: { type: "boolean" } },
+      });
+      (component as any).hideEnvNameWhenDefaultEnvChecked();
+      const envField = component.formlyFields?.[0]?.fieldGroup?.find(f => f.key === "envName");
+      expect((envField?.expressions as any).hide).toBe("!!field.parent.model.defaultEnv");
+      expect((envField?.expressions as any)["props.required"]).toBe("!field.parent.model.defaultEnv");
+    });
+  });
+
+  // ──────────────────────────────────────────────────────────────────────────
+  // registerOperatorPropertyChangeHandler — program-driven property changes
+  // refresh formData, guarded by listeningToChange to avoid an echo loop.
+  // ──────────────────────────────────────────────────────────────────────────
+  describe("registerOperatorPropertyChangeHandler loop guard", () => {
+    it("refreshes formData on graph property changes only while listeningToChange is true", () => {
+      workflowActionService.addOperator(mockScanPredicate, mockPoint);
+      component.ngOnChanges({
+        currentOperatorId: new SimpleChange(undefined, mockScanPredicate.operatorID, true),
+      });
+      fixture.detectChanges(); // runs ngOnInit, which registers the handler
+
+      // loop guard active: a change echoed while listeningToChange is false must not touch formData
+      component.listeningToChange = false;
+      workflowActionService.setOperatorProperty(mockScanPredicate.operatorID, { marker: "blocked" });
+      expect(component.formData?.marker).toBeUndefined();
+
+      // normal program-driven change: formData is refreshed from the graph
+      component.listeningToChange = true;
+      workflowActionService.setOperatorProperty(mockScanPredicate.operatorID, { marker: "allowed" });
+      expect(component.formData.marker).toBe("allowed");
+    });
+  });
+  describe("real template rendering", () => {
+    let realFixture: ComponentFixture<OperatorPropertyEditFrameComponent>;
+    let realComponent: OperatorPropertyEditFrameComponent;
+
+    beforeEach(async () => {
+      TestBed.resetTestingModule();
+      await TestBed.configureTestingModule({
+        providers: [
+          WorkflowActionService,
+          { provide: OperatorMetadataService, useClass: StubOperatorMetadataService },
+          { provide: ComputingUnitStatusService, useClass: MockComputingUnitStatusService },
+          DatePipe,
+          ...commonTestProviders,
+        ],
+        imports: [
+          OperatorPropertyEditFrameComponent,
+          BrowserAnimationsModule,
+          FormsModule,
+          FormlyModule.forRoot(TEXERA_FORMLY_CONFIG),
+          FormlyNgZorroAntdModule,
+          ReactiveFormsModule,
+          HttpClientTestingModule,
+        ],
+      }).compileComponents();
+
+      realFixture = TestBed.createComponent(OperatorPropertyEditFrameComponent);
+      realComponent = realFixture.componentInstance;
+    });
+
+    it("should render the title section when editingTitle is false and formTitle is set", () => {
+      realComponent.editingTitle = false;
+      realComponent.formTitle = "My Operator";
+      realFixture.detectChanges();
+      const titleEl = realFixture.debugElement.query(By.css("#formly-title"));
+      expect(titleEl).toBeTruthy();
+      const h3 = realFixture.debugElement.query(By.css("h3.texera-workspace-property-editor-title"));
+      expect(h3).toBeTruthy();
+      expect((h3.nativeElement as HTMLElement).textContent?.trim()).toBe("My Operator");
+    });
+
+    it("should not render the h3 title when formTitle is undefined", () => {
+      realComponent.editingTitle = false;
+      realComponent.formTitle = undefined;
+      realFixture.detectChanges();
+      expect(realFixture.debugElement.query(By.css("h3.texera-workspace-property-editor-title"))).toBeNull();
+    });
+
+    it("should disable the edit button when interactive is false", () => {
+      realComponent.editingTitle = false;
+      realComponent.interactive = false;
+      realFixture.detectChanges();
+      const btn = realFixture.debugElement.query(By.css("#formly-title button")).nativeElement as HTMLButtonElement;
+      expect(btn.disabled).toBe(true);
+    });
+
+    it("should enable the edit button when interactive is true", () => {
+      realComponent.editingTitle = false;
+      realComponent.interactive = true;
+      realFixture.detectChanges();
+      const btn = realFixture.debugElement.query(By.css("#formly-title button")).nativeElement as HTMLButtonElement;
+      expect(btn.disabled).toBe(false);
+    });
+
+    it("should hide the title section when editingTitle is true", () => {
+      realComponent.editingTitle = true;
+      realFixture.detectChanges();
+      expect(realFixture.debugElement.query(By.css("#formly-title"))).toBeNull();
+    });
+
+    it("should hide the customName div when editingTitle is false", () => {
+      realComponent.editingTitle = false;
+      realFixture.detectChanges();
+      const customName = realFixture.debugElement.query(By.css("#customName"));
+      expect(customName).toBeTruthy();
+      expect((customName.nativeElement as HTMLElement).hidden).toBe(true);
+    });
+
+    it("should show the customName div when editingTitle is true", () => {
+      realComponent.editingTitle = true;
+      realFixture.detectChanges();
+      const customName = realFixture.debugElement.query(By.css("#customName"));
+      expect(customName).toBeTruthy();
+      expect((customName.nativeElement as HTMLElement).hidden).toBe(false);
+    });
+
+    it("should show the PythonLambdaFunction icon when currentOperatorId includes PythonLambdaFunction", () => {
+      realComponent.editingTitle = false;
+      realComponent.currentOperatorId = "PythonLambdaFunction-abc";
+      realFixture.detectChanges();
+      expect(realFixture.debugElement.query(By.css(".question-circle-button"))).toBeTruthy();
+    });
+
+    it("should not show the PythonLambdaFunction icon for other operator types", () => {
+      realComponent.editingTitle = false;
+      realComponent.currentOperatorId = "ScanSource-abc";
+      realFixture.detectChanges();
+      expect(realFixture.debugElement.query(By.css(".question-circle-button"))).toBeNull();
+    });
+
+    it("should not render the form section when formlyFields is undefined", () => {
+      realFixture.detectChanges();
+      expect(realFixture.debugElement.query(By.css(".property-editor-form"))).toBeNull();
+    });
+
+    it("should render the operator version span", () => {
+      realComponent.operatorVersion = "v1.2.3";
+      realFixture.detectChanges();
+      const versionEl = realFixture.debugElement.query(By.css(".operator-version span"));
+      expect(versionEl).toBeTruthy();
+      expect((versionEl.nativeElement as HTMLElement).textContent?.trim()).toBe("Operator Version: v1.2.3");
+    });
+
+    // ── HF task preview template nodes ──
+    // formlyFields=[] and formlyFormGroup=new FormGroup({}) satisfy the outer
+    // *ngIf without triggering Formly rendering; the getter is mocked directly.
+
+    function setupPreview(preview: object): void {
+      vi.spyOn(realComponent, "huggingFaceTaskPreview", "get").mockReturnValue(preview as any);
+      realComponent.formlyFields = [];
+      realComponent.formlyFormGroup = new FormGroup({});
+      realComponent.formData = {};
+      realFixture.detectChanges();
+    }
+
+    it("should not render the HF preview card when huggingFaceTaskPreview is null", () => {
+      vi.spyOn(realComponent, "huggingFaceTaskPreview", "get").mockReturnValue(null);
+      realComponent.formlyFields = [];
+      realComponent.formlyFormGroup = new FormGroup({});
+      realComponent.formData = {};
+      realFixture.detectChanges();
+      expect(realFixture.debugElement.query(By.css(".hf-task-preview"))).toBeNull();
+    });
+
+    it("should render a video element for kind='video'", () => {
+      setupPreview({ kind: "video", title: "Video preview", assetSrc: "assets/sample.mp4" });
+      expect(realFixture.debugElement.query(By.css(".hf-task-preview"))).toBeTruthy();
+      expect(realFixture.debugElement.query(By.css("video.hf-task-preview-media"))).toBeTruthy();
+    });
+
+    it("should bind [src] and [muted] on the video element", () => {
+      setupPreview({ kind: "video", title: "Video preview", assetSrc: "assets/sample.mp4" });
+      const video = realFixture.debugElement.query(By.css("video")).nativeElement as HTMLVideoElement;
+      expect(video.muted).toBe(true);
+    });
+
+    it("should render an img element for kind='image'", () => {
+      setupPreview({ kind: "image", title: "Image preview", assetSrc: "assets/sample.png" });
+      expect(realFixture.debugElement.query(By.css("img.hf-task-preview-media"))).toBeTruthy();
+    });
+
+    it("should render an audio element for kind='audio'", () => {
+      setupPreview({ kind: "audio", title: "Audio preview", assetSrc: "assets/sample.mp3" });
+      expect(realFixture.debugElement.query(By.css("audio.hf-task-preview-audio"))).toBeTruthy();
+    });
+
+    it("should render the text surface for kind='text'", () => {
+      setupPreview({ kind: "text", title: "Text preview", body: "Some body" });
+      expect(realFixture.debugElement.query(By.css(".hf-task-preview-text-surface"))).toBeTruthy();
+      const titleEl = realFixture.debugElement.query(By.css(".hf-task-preview-text-title"));
+      expect((titleEl.nativeElement as HTMLElement).textContent?.trim()).toBe("Text preview");
+      const bodyEl = realFixture.debugElement.query(By.css(".hf-task-preview-text-body"));
+      expect((bodyEl.nativeElement as HTMLElement).textContent?.trim()).toBe("Some body");
+    });
+
+    it("should render outputBody in the text surface when present", () => {
+      setupPreview({ kind: "text", title: "T", body: "B", outputBody: "Output" });
+      expect(realFixture.debugElement.query(By.css(".hf-task-preview-text-output"))).toBeTruthy();
+    });
+
+    it("should not render outputBody in the text surface when absent", () => {
+      setupPreview({ kind: "text", title: "T", body: "B" });
+      expect(realFixture.debugElement.query(By.css(".hf-task-preview-text-output"))).toBeNull();
+    });
+
+    it("should render the flow section when inputLabel and outputLabel are set", () => {
+      setupPreview({ kind: "image", title: "T", inputLabel: "Input", outputLabel: "Output" });
+      expect(realFixture.debugElement.query(By.css(".hf-task-preview-flow"))).toBeTruthy();
+      expect(realFixture.debugElement.query(By.css(".hf-task-preview-arrow"))).toBeTruthy();
+      const chips = realFixture.debugElement.queryAll(By.css(".hf-task-preview-chip"));
+      expect(chips.length).toBeGreaterThanOrEqual(2);
+    });
+
+    it("should not render the flow section when inputLabel and outputLabel are absent", () => {
+      setupPreview({ kind: "image", title: "T" });
+      expect(realFixture.debugElement.query(By.css(".hf-task-preview-flow"))).toBeNull();
+    });
+
+    it("should render the description for non-text kinds with body", () => {
+      setupPreview({ kind: "image", title: "T", body: "Some description" });
+      const desc = realFixture.debugElement.query(By.css(".hf-task-preview-description"));
+      expect(desc).toBeTruthy();
+      expect((desc.nativeElement as HTMLElement).textContent?.trim()).toBe("Some description");
+    });
+
+    it("should not render the description for kind='text'", () => {
+      setupPreview({ kind: "text", title: "T", body: "B" });
+      expect(realFixture.debugElement.query(By.css(".hf-task-preview-description"))).toBeNull();
+    });
+
+    it("should render outputBody in meta for non-text kinds", () => {
+      setupPreview({ kind: "image", title: "T", outputBody: "Result" });
+      expect(realFixture.debugElement.query(By.css(".hf-task-preview-output"))).toBeTruthy();
+    });
+
+    it("should not render outputBody in meta for kind='text'", () => {
+      setupPreview({ kind: "text", title: "T", body: "B", outputBody: "Result" });
+      expect(realFixture.debugElement.query(By.css(".hf-task-preview-output"))).toBeNull();
+    });
+
+    it("should render pills when pills array is non-empty", () => {
+      setupPreview({ kind: "text", title: "T", pills: ["NLP", "Classification"] });
+      const pillsContainer = realFixture.debugElement.query(By.css(".hf-task-preview-pills"));
+      expect(pillsContainer).toBeTruthy();
+      const pills = realFixture.debugElement.queryAll(By.css(".hf-task-preview-pill"));
+      expect(pills.length).toBe(2);
+      expect((pills[0].nativeElement as HTMLElement).textContent?.trim()).toBe("NLP");
+    });
+
+    it("should not render pills when pills array is empty", () => {
+      setupPreview({ kind: "text", title: "T", pills: [] });
+      expect(realFixture.debugElement.query(By.css(".hf-task-preview-pills"))).toBeNull();
+    });
+
+    // Two rows holding one parameter mark each other, so the row that resolves the duplicate
+    // has to clear the row it left behind. Only a rendered form has the second row to clear.
+    describe("uniqueAmongRows across rendered rows", () => {
+      function renderTwoRows(first: string, second: string): void {
+        // A form the frame holds locked is disabled, and Angular does not validate a disabled control.
+        realComponent.interactive = true;
+        realComponent.setFormlyFormBinding({
+          type: "object",
+          properties: {
+            paraList: {
+              type: "array",
+              items: {
+                type: "object",
+                properties: { parameter: { type: "string", uniqueAmongRows: true } },
+              },
+            },
+          },
+        } as CustomJSONSchema7);
+        realComponent.formData = { paraList: [{ parameter: first }, { parameter: second }] };
+        realFixture.detectChanges();
+      }
+
+      function rowControl(index: number): AbstractControl {
+        return realComponent.formlyFormGroup!.get(["paraList", String(index), "parameter"])!;
+      }
+
+      function typeIntoRow(index: number, parameter: string): void {
+        const input = realFixture.debugElement.queryAll(By.css("input"))[index].nativeElement as HTMLInputElement;
+        input.value = parameter;
+        input.dispatchEvent(new Event("input"));
+        realFixture.detectChanges();
+      }
+
+      it("marks both rows that name one parameter", () => {
+        renderTwoRows("C", "C");
+        expect(realFixture.debugElement.queryAll(By.css("input")).length).toBe(2);
+        expect(rowControl(0).hasError("uniqueAmongRows")).toBe(true);
+        expect(rowControl(1).hasError("uniqueAmongRows")).toBe(true);
+      });
+
+      it("clears the row left behind when the other row picks a free parameter", () => {
+        renderTwoRows("C", "C");
+
+        typeIntoRow(1, "kernel");
+
+        expect(rowControl(0).hasError("uniqueAmongRows")).toBe(false);
+        expect(rowControl(1).hasError("uniqueAmongRows")).toBe(false);
+      });
+
+      it("clears the row left behind when the duplicate row is deleted", () => {
+        renderTwoRows("C", "C");
+        expect(rowControl(0).hasError("uniqueAmongRows")).toBe(true);
+
+        const removeButtons = realFixture.debugElement.queryAll(By.css("button[nzDanger]"));
+        removeButtons[1].nativeElement.click();
+        realFixture.detectChanges();
+
+        expect(rowControl(0).hasError("uniqueAmongRows")).toBe(false);
+      });
+
+      it("marks the row already holding the parameter a row is changed onto", () => {
+        renderTwoRows("C", "kernel");
+        expect(rowControl(0).hasError("uniqueAmongRows")).toBe(false);
+
+        typeIntoRow(1, "C");
+
+        expect(rowControl(0).hasError("uniqueAmongRows")).toBe(true);
+        expect(rowControl(1).hasError("uniqueAmongRows")).toBe(true);
+      });
+    });
+  });
+
+  describe("onFormChanges null handling", () => {
+    it("should strip null values for optional fields", () => {
+      component.currentOperatorSchema = {
+        ...mockScanSourceSchema,
+        jsonSchema: { ...mockScanSourceSchema.jsonSchema, required: ["tableName"] },
+      };
+
+      let emittedEvent: Record<string, unknown> | undefined;
+      component.sourceFormChangeEventStream.subscribe(event => (emittedEvent = event));
+
+      component.onFormChanges({ tableName: "table1", optionalField: null });
+
+      expect(emittedEvent).toEqual({ tableName: "table1" });
+    });
+
+    it("should keep null values for required fields", () => {
+      component.currentOperatorSchema = {
+        ...mockScanSourceSchema,
+        jsonSchema: { ...mockScanSourceSchema.jsonSchema, required: ["tableName"] },
+      };
+
+      let emittedEvent: Record<string, unknown> | undefined;
+      component.sourceFormChangeEventStream.subscribe(event => (emittedEvent = event));
+
+      component.onFormChanges({ tableName: null, optionalField: "value" });
+
+      expect(emittedEvent).toEqual({ tableName: null, optionalField: "value" });
+    });
+
+    it("should keep non-null values regardless of required status", () => {
+      component.currentOperatorSchema = {
+        ...mockScanSourceSchema,
+        jsonSchema: { ...mockScanSourceSchema.jsonSchema, required: ["tableName"] },
+      };
+
+      let emittedEvent: Record<string, unknown> | undefined;
+      component.sourceFormChangeEventStream.subscribe(event => (emittedEvent = event));
+
+      component.onFormChanges({ tableName: "table1", optionalField: "set" });
+
+      expect(emittedEvent).toEqual({ tableName: "table1", optionalField: "set" });
+    });
+
+    it("should strip undefined values for optional fields", () => {
+      component.currentOperatorSchema = {
+        ...mockScanSourceSchema,
+        jsonSchema: { ...mockScanSourceSchema.jsonSchema, required: ["tableName"] },
+      };
+
+      let emittedEvent: Record<string, unknown> | undefined;
+      component.sourceFormChangeEventStream.subscribe(event => (emittedEvent = event));
+
+      component.onFormChanges({ tableName: "table1", optionalField: undefined });
+
+      expect(emittedEvent).toEqual({ tableName: "table1" });
+    });
+  });
+
+  describe("modify-operator-logic gating", () => {
+    it("allowModifyOperatorLogic re-enables editing", () => {
+      fixture.detectChanges();
+      component.setInteractivity(false);
+
+      component.allowModifyOperatorLogic();
+
+      expect(component.interactive).toBe(true);
+    });
+
+    it("confirmModifyOperatorLogic pushes the change and locks the form again", () => {
+      fixture.detectChanges();
+      component.currentOperatorId = mockScanPredicate.operatorID;
+      const modifySpy = vi.spyOn(component.executeWorkflowService, "modifyOperatorLogic").mockImplementation(() => {});
+      component.setInteractivity(true);
+
+      component.confirmModifyOperatorLogic();
+
+      expect(modifySpy).toHaveBeenCalledWith(mockScanPredicate.operatorID);
+      expect(component.interactive).toBe(false);
+    });
+
+    it("confirmModifyOperatorLogic reports a failure and leaves the form editable", () => {
+      fixture.detectChanges();
+      component.currentOperatorId = mockScanPredicate.operatorID;
+      vi.spyOn(component.executeWorkflowService, "modifyOperatorLogic").mockImplementation(() => {
+        throw new Error("cannot modify while running");
+      });
+      const errorSpy = vi.spyOn(TestBed.inject(NotificationService), "error").mockImplementation(() => {});
+      component.setInteractivity(true);
+
+      component.confirmModifyOperatorLogic();
+
+      expect(errorSpy).toHaveBeenCalledWith("cannot modify while running");
+      expect(component.interactive).toBe(true);
+    });
+
+    it("confirmModifyOperatorLogic does nothing when no operator is selected", () => {
+      fixture.detectChanges();
+      component.currentOperatorId = undefined;
+      const modifySpy = vi.spyOn(component.executeWorkflowService, "modifyOperatorLogic");
+
+      component.confirmModifyOperatorLogic();
+
+      expect(modifySpy).not.toHaveBeenCalled();
+    });
+  });
+
+  describe("subscription handlers", () => {
+    it("retitles the form only when the renamed operator is the current one", () => {
+      fixture.detectChanges();
+      component.currentOperatorId = mockScanPredicate.operatorID;
+      component.formTitle = "original";
+      // getTexeraGraph() narrows to WorkflowGraphReadonly; the instance really is a
+      // WorkflowGraph, whose display-name subject is only pushed by the shared-model
+      // handler, so drive it directly to exercise the subscriber.
+      const graph = workflowActionService.getTexeraGraph() as unknown as WorkflowGraph;
+
+      graph.operatorDisplayNameChangedSubject.next({
+        operatorID: "some-other-operator",
+        newDisplayName: "ignored",
+      });
+      expect(component.formTitle).toBe("original");
+
+      graph.operatorDisplayNameChangedSubject.next({
+        operatorID: mockScanPredicate.operatorID,
+        newDisplayName: "renamed",
+      });
+      expect(component.formTitle).toBe("renamed");
+    });
+
+    it("mirrors the workflow-modification flag onto the form's interactivity", () => {
+      fixture.detectChanges();
+      component.currentOperatorId = mockScanPredicate.operatorID;
+
+      workflowActionService.disableWorkflowModification();
+      expect(component.interactive).toBe(false);
+
+      workflowActionService.enableWorkflowModification();
+      expect(component.interactive).toBe(true);
+    });
+
+    it("ignores the workflow-modification flag while no operator is selected", () => {
+      fixture.detectChanges();
+      component.currentOperatorId = undefined;
+      component.setInteractivity(true);
+
+      workflowActionService.disableWorkflowModification();
+
+      expect(component.interactive).toBe(true);
+      workflowActionService.enableWorkflowModification();
+    });
+
+    it("re-renders only when the current operator's dynamic schema changes", () => {
+      workflowActionService.addOperator(mockScanPredicate, mockPoint);
+      workflowActionService.addOperator(mockResultPredicate, mockPoint);
+      fixture.detectChanges();
+      component.currentOperatorId = mockScanPredicate.operatorID;
+      const dynamicSchemaService = TestBed.inject(DynamicSchemaService);
+      const rerenderSpy = vi.spyOn(component, "rerenderEditorForm").mockImplementation(() => {});
+      // setDynamicSchema is a no-op when the schema is unchanged, so vary it to force an emit.
+      const bumped = (schema: typeof mockScanSourceSchema) => ({ ...schema, operatorVersion: "bumped" });
+
+      dynamicSchemaService.setDynamicSchema(mockResultPredicate.operatorID, bumped(mockViewResultsSchema));
+      expect(rerenderSpy).not.toHaveBeenCalled();
+
+      dynamicSchemaService.setDynamicSchema(mockScanPredicate.operatorID, bumped(mockScanSourceSchema));
+      expect(rerenderSpy).toHaveBeenCalled();
+    });
+  });
+
+  describe("rerenderEditorForm", () => {
+    it("is a no-op when no operator is selected", () => {
+      fixture.detectChanges();
+      component.currentOperatorId = undefined;
+      component.formTitle = "untouched";
+
+      component.rerenderEditorForm();
+
+      expect(component.formTitle).toBe("untouched");
+    });
+  });
+
+  // ──────────────────────────────────────────────────────────────────────────
+  // Python UDF virtual-environment loading (rerenderEditorForm)
+  //
+  // The branch only runs for a Python UDF operator and the mock metadata has
+  // none, so the dynamic schema is stubbed rather than adding a fixture operator
+  // type. Both collaborators emit synchronously, so nothing here waits on a
+  // timer or reaches a backend.
+  // ──────────────────────────────────────────────────────────────────────────
+  describe("Python UDF environment loading", () => {
+    const udfSchema = () =>
+      ({
+        operatorType: "PythonUDFV2",
+        additionalMetadata: {
+          userFriendlyName: "Python UDF",
+          operatorDescription: "runs python",
+          operatorGroupName: "Python",
+          inputPorts: [],
+          outputPorts: [{}],
+        },
+        jsonSchema: {
+          type: "object",
+          properties: {
+            code: { type: "string" },
+            envName: { type: "string" },
+            defaultEnv: { type: "boolean" },
+          },
+        },
+        operatorVersion: "udf-1",
+      }) as any;
+
+    /** Points the frame at a Python UDF operator and returns the stubbed collaborators. */
+    function selectUdfOperator(opts: { unit?: unknown; pves?: unknown; predicate?: typeof mockScanPredicate } = {}): {
+      fetchPVEs: ReturnType<typeof vi.fn>;
+      notificationError: ReturnType<typeof vi.fn>;
+    } {
+      const predicate = opts.predicate ?? mockScanPredicate;
+      vi.spyOn(TestBed.inject(DynamicSchemaService), "getDynamicSchema").mockReturnValue(udfSchema());
+      // `undefined` means "not specified", so an explicit `null` still reaches the component.
+      const unit = opts.unit === undefined ? { computingUnit: { cuid: 7 } } : opts.unit;
+      vi.spyOn(TestBed.inject(ComputingUnitStatusService), "getSelectedComputingUnit").mockReturnValue(of(unit) as any);
+      const fetchPVEs = vi
+        .spyOn(TestBed.inject(WorkflowPveService), "fetchPVEs")
+        .mockReturnValue((opts.pves ?? of([{ pveName: "env-a" }, { pveName: "env-b" }])) as any);
+      const notificationError = vi
+        .spyOn(TestBed.inject(NotificationService), "error")
+        .mockImplementation(() => undefined as any);
+
+      workflowActionService.addOperator(predicate, mockPoint);
+      component.ngOnChanges({
+        currentOperatorId: new SimpleChange(undefined, predicate.operatorID, true),
+      });
+      fixture.detectChanges();
+      return { fetchPVEs: fetchPVEs as any, notificationError: notificationError as any };
+    }
+
+    const envField = () => component.formlyFields?.[0]?.fieldGroup?.find(f => f.key === "envName");
+
+    it("seeds defaultEnv when the operator's properties do not carry it", () => {
+      selectUdfOperator();
+      expect(component.formData.defaultEnv).toBe(true);
+    });
+
+    it("leaves an explicit defaultEnv alone", () => {
+      selectUdfOperator({
+        predicate: {
+          ...mockScanPredicate,
+          operatorID: "udf-explicit-default",
+          operatorProperties: { defaultEnv: false },
+        },
+      });
+      expect(component.formData.defaultEnv).toBe(false);
+    });
+
+    it("fetches the selected unit's environments and binds them as envName options", () => {
+      const { fetchPVEs } = selectUdfOperator();
+
+      expect(fetchPVEs).toHaveBeenCalledWith(7);
+      expect((envField()?.props as any).options).toEqual([
+        { value: "env-a", label: "env-a" },
+        { value: "env-b", label: "env-b" },
+      ]);
+      // hideEnvNameWhenDefaultEnvChecked also ran on the success path.
+      expect((envField()?.expressions as any).hide).toBe("!!field.parent.model.defaultEnv");
+    });
+
+    it("skips the fetch when the emitted unit carries no cuid", () => {
+      const { fetchPVEs } = selectUdfOperator({ unit: { computingUnit: {} } });
+
+      expect(fetchPVEs).not.toHaveBeenCalled();
+      // The other arm supplies an empty list, so the field binds with no options.
+      expect((envField()?.props as any).options).toEqual([]);
+    });
+
+    it("skips the fetch when no computing unit is selected", () => {
+      const { fetchPVEs } = selectUdfOperator({ unit: null });
+
+      expect(fetchPVEs).not.toHaveBeenCalled();
+      expect((envField()?.props as any).options).toEqual([]);
+    });
+
+    it("reports an Error failure and still binds the form with no environments", () => {
+      const { notificationError } = selectUdfOperator({ pves: throwError(() => new Error("pve down")) });
+
+      expect(notificationError).toHaveBeenCalledWith("Could not load Python virtual environments: pve down");
+      expect((envField()?.props as any).options).toEqual([]);
+      // The fallback binding runs hideEnvNameWhenDefaultEnvChecked too.
+      expect((envField()?.expressions as any).hide).toBe("!!field.parent.model.defaultEnv");
+    });
+
+    it("stringifies a non-Error failure", () => {
+      const { notificationError } = selectUdfOperator({ pves: throwError(() => "plain string failure") });
+
+      expect(notificationError).toHaveBeenCalledWith(
+        "Could not load Python virtual environments: plain string failure"
+      );
+      expect((envField()?.props as any).options).toEqual([]);
+    });
+
+    it("patches nothing when the schema's properties are absent or not an object", () => {
+      // Both take the guard's false side, so the clone comes back unchanged
+      // instead of dereferencing a missing envName property.
+      const noProps = (component as any).patchPythonUdfEnvironmentSchema({ type: "object" }, ["env-a"]);
+      expect(noProps).toEqual({ type: "object" });
+
+      const booleanProps = (component as any).patchPythonUdfEnvironmentSchema({ type: "object", properties: true }, [
+        "env-a",
+      ]);
+      expect(booleanProps).toEqual({ type: "object", properties: true });
+    });
+
+    it("hideEnvNameWhenDefaultEnvChecked is a no-op when the form has no envName field", () => {
+      component.setFormlyFormBinding({ type: "object", properties: { code: { type: "string" } } });
+
+      expect(() => (component as any).hideEnvNameWhenDefaultEnvChecked()).not.toThrow();
+
+      expect(component.formlyFields?.[0]?.fieldGroup?.find(f => f.key === "envName")).toBeUndefined();
+      // No other field picked up the defaultEnv hide rule either.
+      const codeExpressions = component.formlyFields?.[0]?.fieldGroup?.find(f => f.key === "code")?.expressions as any;
+      expect(codeExpressions?.hide).toBeUndefined();
+    });
+  });
+
+  // ──────────────────────────────────────────────────────────────────────────
+  // Early-return guards
+  // ──────────────────────────────────────────────────────────────────────────
+  describe("early-return guards", () => {
+    /**
+     * Feeds a statistics update in through the route production uses: the websocket
+     * event stream, which WorkflowStatusService relays on to its subscribers.
+     * websocketEvent() hands back the subject itself, so no private field is touched.
+     */
+    function emitOperatorStatistics(statistics: Record<string, unknown>): void {
+      (TestBed.inject(WorkflowWebsocketService).websocketEvent() as Subject<TexeraWebsocketEvent>).next({
+        type: "OperatorStatisticsUpdateEvent",
+        operatorStatistics: statistics,
+      } as unknown as TexeraWebsocketEvent);
+    }
+
+    it("ngOnChanges stops before re-rendering when the new operator id is unset", () => {
+      const rerenderSpy = vi.spyOn(component, "rerenderEditorForm");
+
+      component.ngOnChanges({ currentOperatorId: new SimpleChange("op-1", undefined, false) });
+
+      expect(component.currentOperatorId).toBeUndefined();
+      expect(rerenderSpy).not.toHaveBeenCalled();
+    });
+
+    // Wire-shaped payload: the service splits it into the state and statistics concepts.
+    const runningStatus = {
+      operatorState: OperatorState.Running,
+      aggregatedInputRowCount: 0,
+      inputPortMetrics: {},
+      aggregatedOutputRowCount: 0,
+      outputPortMetrics: {},
+    };
+
+    it("the state-update subscription records the state for the selected operator", () => {
+      workflowActionService.addOperator(mockScanPredicate, mockPoint);
+      component.currentOperatorId = mockScanPredicate.operatorID;
+      fixture.detectChanges(); // ngOnInit registers the subscription
+
+      emitOperatorStatistics({ [mockScanPredicate.operatorID]: runningStatus });
+
+      expect(component.currentOperatorState).toBe(OperatorState.Running);
+    });
+
+    it("the state-update subscription ignores updates while no operator is selected", () => {
+      fixture.detectChanges(); // ngOnInit registers the subscription
+      component.currentOperatorId = undefined;
+
+      emitOperatorStatistics({ "op-1": runningStatus });
+
+      expect(component.currentOperatorState).toBeUndefined();
+    });
+
+    it("the ui-parameter subscription ignores events addressed to a different operator", () => {
+      workflowActionService.addOperator(mockScanPredicate, mockPoint);
+      component.ngOnChanges({
+        currentOperatorId: new SimpleChange(undefined, mockScanPredicate.operatorID, true),
+      });
+      fixture.detectChanges();
+      const before = cloneDeep(component.formData);
+
+      (TestBed.inject(UiUdfParametersSyncService) as any).uiParametersChangedSubject.next({
+        operatorId: "some-other-operator",
+        parameters: [{ attribute: { attributeName: "a", attributeType: "string" }, value: "1" }],
+      });
+
+      expect(component.formData).toEqual(before);
+    });
+
+    it("isHuggingFaceOperator is false when nothing is selected", () => {
+      component.currentOperatorId = undefined;
+      expect((component as any).isHuggingFaceOperator()).toBe(false);
+    });
+
+    it("checkOperatorProperty is false when the operator is no longer in the graph", () => {
+      workflowActionService.addOperator(mockScanPredicate, mockPoint);
+      component.currentOperatorId = mockScanPredicate.operatorID;
+      // Simulate the operator being deleted during the form's debounce window.
+      vi.spyOn(workflowActionService.getTexeraGraph(), "getOperator").mockReturnValue(undefined as any);
+
+      expect(component.checkOperatorProperty({ tableName: "x" })).toBe(false);
+    });
+
+    it("typeInferenceOnLambdaFunction returns early without an input schema map", () => {
+      component.currentOperatorId = "PythonLambdaFunction-op-1";
+      vi.spyOn(TestBed.inject(WorkflowCompilingService), "getOperatorInputSchemaMap").mockReturnValue(undefined);
+      const formData = { lambdaAttributeUnits: [{ attributeName: "a", attributeType: "string" }] };
+
+      component.typeInferenceOnLambdaFunction(formData);
+
+      // Untouched: the method bailed before reaching the mapping loop.
+      expect(formData.lambdaAttributeUnits[0].attributeType).toBe("string");
+    });
+
+    it("typeInferenceOnLambdaFunction returns early when the first port has no schema", () => {
+      component.currentOperatorId = "PythonLambdaFunction-op-1";
+      vi.spyOn(TestBed.inject(WorkflowCompilingService), "getOperatorInputSchemaMap").mockReturnValue({
+        0: undefined,
+      } as any);
+      const formData = { lambdaAttributeUnits: [{ attributeName: "a", attributeType: "string" }] };
+
+      component.typeInferenceOnLambdaFunction(formData);
+
+      expect(formData.lambdaAttributeUnits[0].attributeType).toBe("string");
+    });
+
+    it("no property is written when the operator is deselected mid-debounce", fakeAsync(() => {
+      workflowActionService.addOperator(mockScanPredicate, mockPoint);
+      component.currentOperatorId = mockScanPredicate.operatorID;
+      fixture.detectChanges(); // ngOnInit registers the handler
+      const setProperty = vi.spyOn(workflowActionService, "setOperatorProperty");
+
+      // checkOperatorProperty gates the stream after the debounce, so clearing the
+      // selection in the debounce window drops the event before any write happens.
+      component.sourceFormChangeEventStream.next({ tableName: "x" });
+      component.currentOperatorId = undefined;
+      tick(FORM_DEBOUNCE_TIME_MS);
+
+      expect(setProperty).not.toHaveBeenCalled();
+      discardPeriodicTasks();
+    }));
+  });
+
+  // ──────────────────────────────────────────────────────────────────────────
+  // Field-mapping rules applied inside setFormlyFormBinding
+  // ──────────────────────────────────────────────────────────────────────────
+  describe("Formly field-mapping rules", () => {
+    function getField(key: string): FormlyFieldConfig | undefined {
+      return component.formlyFields?.[0]?.fieldGroup?.find(f => f.key === key);
+    }
+
+    function expressionsOf(key: string): Record<string, Function> {
+      return getField(key)?.expressions as Record<string, Function>;
+    }
+
+    afterEach(() => {
+      vi.restoreAllMocks();
+    });
+
+    it("locks the dummyOperator field down", () => {
+      component.setFormlyFormBinding({
+        type: "object",
+        properties: { dummyOperator: { type: "string" } },
+      });
+
+      const expressions = expressionsOf("dummyOperator");
+      expect(expressions["templateOptions.disabled"]()).toBe(true);
+      expect(expressions["templateOptions.readonly"]()).toBe(true);
+    });
+
+    it("locks the dummyProperty and dummyValue fields down", () => {
+      component.setFormlyFormBinding({
+        type: "object",
+        properties: { dummyProperty: { type: "string" }, dummyValue: { type: "string" } },
+      });
+
+      ["dummyProperty", "dummyValue"].forEach(key => {
+        const expressions = expressionsOf(key);
+        expect(expressions["templateOptions.readonly"]()).toBe(true);
+        expect(expressions["templateOptions.disabled"]()).toBe(true);
+      });
+    });
+
+    it("hides dummyPropertyList for a non-Dummy operator and pins add/remove off", () => {
+      component.currentOperatorSchema = { operatorType: "Projection" } as any;
+
+      component.setFormlyFormBinding({
+        type: "object",
+        properties: { dummyPropertyList: { type: "array" } },
+      });
+
+      const field = getField("dummyPropertyList");
+      expect(field?.hide).toBe(true);
+      const expressions = field?.expressions as Record<string, Function>;
+      expect(expressions["templateOptions.disabled"]()).toBe(true);
+      expect(expressions["templateOptions.readonly"]()).toBe(true);
+      expect(expressions["templateOptions.canRemove"]()).toBe(false);
+      expect(expressions["templateOptions.canAdd"]()).toBe(false);
+    });
+
+    it("keeps dummyPropertyList visible for the Dummy operator itself", () => {
+      component.currentOperatorSchema = { operatorType: "Dummy" } as any;
+
+      component.setFormlyFormBinding({
+        type: "object",
+        properties: { dummyPropertyList: { type: "array" } },
+      });
+
+      expect(getField("dummyPropertyList")?.hide).toBe(false);
+    });
+
+    it("hides a field through the schema's hideTarget/hideType pair", () => {
+      component.setFormlyFormBinding({
+        type: "object",
+        properties: {
+          trigger: { type: "string" },
+          target: {
+            type: "string",
+            hideTarget: "trigger",
+            hideType: "equals",
+            hideExpectedValue: "off",
+          } as CustomJSONSchema7,
+        },
+      });
+
+      const hide = expressionsOf("target")["hide"];
+      expect(hide({ parent: { model: { trigger: "off" } } } as any)).toBe(true);
+      expect(hide({ parent: { model: { trigger: "on" } } } as any)).toBe(false);
+    });
+
+    it("substitutes the field type for fileName and huggingFaceModel", () => {
+      component.setFormlyFormBinding({
+        type: "object",
+        properties: { fileName: { type: "string" }, huggingFaceModel: { type: "string" } },
+      });
+
+      expect(getField("fileName")?.type).toBe("inputautocomplete");
+      expect(getField("huggingFaceModel")?.type).toBe("huggingface");
+    });
+
+    it("attaches the diff style to an overridden field and nothing to the others", () => {
+      const versionService = TestBed.inject(WorkflowVersionService);
+      component.currentOperatorId = "operator-diff";
+      versionService.operatorPropertyDiff = {
+        "operator-diff": new Map<String, String>([["colour", "border: 1px solid red"]]),
+      };
+
+      component.setFormlyFormBinding({
+        type: "object",
+        properties: { colour: { type: "string" }, other: { type: "string" } },
+      });
+
+      expect(expressionsOf("colour")["templateOptions.attributes"]()).toEqual({
+        style: "border: 1px solid red",
+      });
+      expect(expressionsOf("other")["templateOptions.attributes"]()).toEqual({});
+    });
+
+    it("writes the operatorVersion boundary style onto the rendered marker", () => {
+      const versionService = TestBed.inject(WorkflowVersionService);
+      component.currentOperatorId = "operator-version-diff";
+      versionService.operatorPropertyDiff = {
+        "operator-version-diff": new Map<String, String>([["operatorVersion", "border: 2px dashed blue"]]),
+      };
+
+      // The binding indexes getElementsByClassName("operator-version")[0] directly,
+      // so the element has to be in the document before it runs.
+      const marker = document.createElement("div");
+      marker.className = "operator-version";
+      document.body.appendChild(marker);
+      try {
+        component.setFormlyFormBinding({ type: "object", properties: { a: { type: "string" } } });
+
+        expect(marker.getAttribute("style")).toBe("border: 2px dashed blue");
+      } finally {
+        marker.remove();
+      }
+    });
+
+    it("marks a field the schema requires conditionally, as Aggregate does its attribute", () => {
+      component.currentOperatorSchema = {
+        operatorType: "Aggregate",
+        jsonSchema: {
+          allOf: [
+            {
+              if: { properties: { aggFunction: { const: "count" } } },
+              then: {},
+              else: { required: ["attribute"] },
+            },
+          ],
+        },
+      } as any;
+
+      component.setFormlyFormBinding({
+        type: "object",
+        properties: { attribute: { type: "string" } },
+      });
+
+      const required = expressionsOf("attribute")["props.required"];
+      expect(required({ parent: { model: { aggFunction: "sum" } } } as any)).toBe(true);
+      expect(required({ parent: { model: { aggFunction: "count" } } } as any)).toBe(false);
+    });
+
+    it("leaves the rule off for a schema that states no condition", () => {
+      component.currentOperatorSchema = { operatorType: "Projection", jsonSchema: {} } as any;
+
+      component.setFormlyFormBinding({
+        type: "object",
+        properties: { attribute: { type: "string" } },
+      });
+
+      expect(expressionsOf("attribute")?.["props.required"]).toBeUndefined();
+    });
+
+    it("wires the preset wrapper only while user presets are enabled", () => {
+      const setupFieldConfig = vi.spyOn(PresetWrapperComponent, "setupFieldConfig").mockImplementation(() => {});
+      const guiConfig = TestBed.inject(GuiConfigService);
+      workflowActionService.addOperator(mockScanPredicate, mockPoint);
+      component.currentOperatorId = mockScanPredicate.operatorID;
+      const schema = {
+        type: "object" as const,
+        properties: { a: { type: "string", "enable-presets": true } as CustomJSONSchema7 },
+      };
+
+      guiConfig.env.userPresetEnabled = false;
+      component.setFormlyFormBinding(schema);
+      expect(setupFieldConfig).not.toHaveBeenCalled();
+
+      guiConfig.env.userPresetEnabled = true;
+      component.setFormlyFormBinding(schema);
+      expect(setupFieldConfig).toHaveBeenCalledWith(
+        expect.objectContaining({ key: "a" }),
+        "operator",
+        mockScanPredicate.operatorType,
+        mockScanPredicate.operatorID
+      );
+    });
+
+    it("keeps the validator the schema contributes", () => {
+      component.setFormlyFormBinding({
+        type: "object",
+        properties: { colour: { type: "string", enum: ["red"] } },
+      });
+
+      expect(Object.keys(getField("colour")?.validators ?? {})).toContain("inEnum");
+    });
+
+    it("disables the form on init when the frame is not interactive", () => {
+      component.interactive = false;
+      component.setFormlyFormBinding({ type: "object", properties: { a: { type: "string" } } });
+      const form = new FormGroup({ a: new FormControl("x") });
+
+      component.formlyFields![0].hooks!.onInit!({ form } as any);
+
+      expect(form.disabled).toBe(true);
+    });
+
+    it("leaves the form enabled when the frame is interactive", () => {
+      component.interactive = true;
+      component.setFormlyFormBinding({ type: "object", properties: { a: { type: "string" } } });
+      const form = new FormGroup({ a: new FormControl("x") });
+
+      component.formlyFields![0].hooks!.onInit!({ form } as any);
+
+      expect(form.disabled).toBe(false);
+    });
+
+    it("skips a boolean schema property when wiring dependencies", () => {
+      // `properties: { flag: true }` is legal JSON schema; the binding must skip it
+      // rather than read toggleHidden off a boolean.
+      expect(() =>
+        component.setFormlyFormBinding({
+          type: "object",
+          properties: { flag: true, a: { type: "string" } },
+        } as CustomJSONSchema7)
+      ).not.toThrow();
+    });
+
+    it("installs the hide expression a toggleHidden property declares", () => {
+      component.setFormlyFormBinding({
+        type: "object",
+        properties: {
+          trigger: { type: "boolean", toggleHidden: ["target"] } as CustomJSONSchema7,
+          target: { type: "string" },
+        },
+      });
+
+      expect(getField("target")?.expressions?.["hide"]).toBe("!field.parent.model.trigger");
+    });
+
+    it("resolves a dependOn property against the operator's input schema", () => {
+      const compilingService = TestBed.inject(WorkflowCompilingService);
+      // The timestamp attribute is what distinguishes a forwarded schema map from an
+      // empty one: only its name reaches the generated description expression.
+      const getOperatorInputSchemaMap = vi.spyOn(compilingService, "getOperatorInputSchemaMap").mockReturnValue({
+        "0_false": [
+          { attributeName: "colA", attributeType: "string" },
+          { attributeName: "eventTime", attributeType: "timestamp" },
+        ],
+      } as any);
+      component.currentOperatorId = "operator-dependency";
+
+      component.setFormlyFormBinding({
+        type: "object",
+        properties: {
+          parent: { type: "string" },
+          child: { type: "string", dependOn: "parent" } as CustomJSONSchema7,
+        },
+      });
+
+      expect(getOperatorInputSchemaMap).toHaveBeenCalledWith("operator-dependency");
+      expect(getField("child")?.expressions?.["templateOptions.description"]).toBe(
+        "[\"eventTime\"].includes(model.parent)? 'Input a datetime string' : 'Input a positive number'"
+      );
+    });
+  });
+
+  describe("choosing which properties the Form View exposes", () => {
+    it("wires each top-level tick box to the exposure service", () => {
+      const formBindingService = TestBed.inject(FormBindingService);
+      const setExposed = vi.spyOn(formBindingService, "setExposed");
+      component.exposeChoosing = true;
+      workflowActionService.addOperator(mockScanPredicate, mockPoint);
+
+      component.ngOnChanges({
+        currentOperatorId: new SimpleChange(undefined, mockScanPredicate.operatorID, true),
+      });
+      fixture.detectChanges();
+
+      const field = component.formlyFields?.[0]?.fieldGroup?.find(f => f.props?.["toggleExposed"] !== undefined);
+      (field!.props as any).toggleExposed(true);
+
+      expect(setExposed).toHaveBeenCalledWith(mockScanPredicate.operatorID, field!.key, true);
+    });
+
+    // The tick box belongs to top-level properties only; a nested field must not get one,
+    // not even one whose key collides with a top-level property name.
+    it("never puts a tick box on a nested field, including one whose name collides with a root property", () => {
+      const formBindingService = TestBed.inject(FormBindingService);
+      vi.spyOn(formBindingService, "isExposed").mockReturnValue(false);
+      component.exposeChoosing = true;
+      component.currentOperatorId = "op-nested";
+
+      component.setFormlyFormBinding({
+        type: "object",
+        properties: {
+          tableName: { type: "string" },
+          group: {
+            type: "object",
+            properties: { tableName: { type: "string" }, value: { type: "string" } },
+          },
+        },
+      });
+
+      const topLevel = component.formlyFields?.[0]?.fieldGroup ?? [];
+      const decoratedTop = topLevel
+        .filter(f => f.props?.["toggleExposed"] !== undefined)
+        .map(f => f.key)
+        .sort();
+      expect(decoratedTop).toEqual(["group", "tableName"]);
+
+      // the nested tableName (same name as a root property) is not decorated
+      const nested = topLevel.find(f => f.key === "group")?.fieldGroup ?? [];
+      const nestedTableName = nested.find(f => f.key === "tableName");
+      expect(nestedTableName).toBeDefined();
+      expect(nestedTableName?.props?.["toggleExposed"]).toBeUndefined();
+    });
+
+    // Writing code is not "filling in a value", so a code-editor property is never offered for
+    // exposure; an ordinary property beside it still is.
+    it("does not offer exposure on a code-editor property", () => {
+      const formBindingService = TestBed.inject(FormBindingService);
+      vi.spyOn(formBindingService, "isExposed").mockReturnValue(false);
+      component.exposeChoosing = true;
+      component.currentOperatorId = "op-code";
+
+      component.setFormlyFormBinding({
+        type: "object",
+        properties: {
+          code: { type: "string", description: "input your code here" },
+          limit: { type: "number" },
+        },
+      });
+
+      const topLevel = component.formlyFields?.[0]?.fieldGroup ?? [];
+      const codeField = topLevel.find(f => f.key === "code");
+      expect(codeField?.type).toBe("codearea");
+      expect(codeField?.props?.["toggleExposed"]).toBeUndefined();
+      // an ordinary property is still offered
+      const decorated = topLevel.filter(f => f.props?.["toggleExposed"] !== undefined).map(f => f.key);
+      expect(decorated).toEqual(["limit"]);
+    });
+  });
+
+  /**
+   * The spec's default TestBed swaps the template for a stub, so the collaborative title editor —
+   * the Quill instance the component mounts on `#customName` and the keyboard bindings it configures
+   * — is never built by anything above. This block renders the real template and drives that editor.
+   * It comes last in the file deliberately: Quill 2 has no `destroy()`, so each instance leaves a
+   * MutationObserver and document listeners behind for `fixture.destroy()` to detach, and it must not
+   * be combined with `fakeAsync` (zone.js patches MutationObserver).
+   */
+  describe("quill title editing", () => {
+    let quillFixture: ComponentFixture<OperatorPropertyEditFrameComponent>;
+    let quillComponent: OperatorPropertyEditFrameComponent;
+    let texeraGraph: WorkflowGraph;
+
+    beforeEach(async () => {
+      TestBed.resetTestingModule();
+      await TestBed.configureTestingModule({
+        providers: [
+          WorkflowActionService,
+          { provide: OperatorMetadataService, useClass: StubOperatorMetadataService },
+          { provide: ComputingUnitStatusService, useClass: MockComputingUnitStatusService },
+          DatePipe,
+          ...commonTestProviders,
+        ],
+        imports: [
+          OperatorPropertyEditFrameComponent,
+          BrowserAnimationsModule,
+          FormsModule,
+          FormlyModule.forRoot(TEXERA_FORMLY_CONFIG),
+          FormlyNgZorroAntdModule,
+          ReactiveFormsModule,
+          HttpClientTestingModule,
+        ],
+      }).compileComponents();
+
+      quillFixture = TestBed.createComponent(OperatorPropertyEditFrameComponent);
+      quillComponent = quillFixture.componentInstance;
+      // Downcast to the concrete graph: `getSharedOperatorType` is not on the readonly view.
+      texeraGraph = TestBed.inject(WorkflowActionService).getTexeraGraph() as WorkflowGraph;
+      quillFixture.detectChanges();
+    });
+
+    afterEach(() => {
+      vi.restoreAllMocks();
+      quillFixture.destroy();
+    });
+
+    /** Opens the editor the only way a user can — the title section's edit button. */
+    function openEditorFromButton(): Y.Text {
+      const sharedOperator = new Y.Doc().getMap("operator");
+      quillComponent.currentOperatorId = mockScanPredicate.operatorID;
+      // `interactive` defaults to false, which renders the edit button disabled — a disabled button
+      // swallows the click silently and the editor would never mount.
+      quillComponent.interactive = true;
+      vi.spyOn(texeraGraph, "getSharedOperatorType").mockReturnValue(sharedOperator as any);
+      quillFixture.detectChanges();
+
+      quillFixture.debugElement.query(By.css("#formly-title button")).nativeElement.click();
+      quillFixture.detectChanges();
+
+      expect(quillComponent.editingTitle).toBe(true);
+      expect(quillComponent.quillBinding).toBeDefined();
+      // The map genuinely lacked the key, so this Y.Text can only have come from the connect call.
+      const sharedTitle = sharedOperator.get("customDisplayName");
+      expect(sharedTitle).toBeInstanceOf(Y.Text);
+      return sharedTitle as Y.Text;
+    }
+
+    /**
+     * An operator display name is a single-line value, so the editor binds Enter to "commit and
+     * close" instead of letting Quill insert a newline. Everything typed here goes straight into the
+     * shared Y.Text, so a stray "\n" is published to every co-editor, persisted with the workflow,
+     * and read back on each later open. Quill 2 buckets keyboard bindings by `event.key` and runs its
+     * built-in `handleEnter` ahead of anything registered under the legacy `13` keycode, which is how
+     * the suppression stopped working when the frontend moved to Quill 2 (#8053). The template's
+     * `(keyup.enter)` closes the editor either way — a keydown-only press is what separates a working
+     * binding from a broken one, in both the text left behind and `editingTitle`.
+     */
+    const ENTER: KeyboardEventInit = { key: "Enter", keyCode: 13, which: 13 };
+
+    /**
+     * Quill's keydown listener returns early unless the editor `hasFocus()` and reports a selection,
+     * so both have to be real here — without them no binding runs at all and every assertion below
+     * would pass vacuously. `keyCode` / `which` mirror what a browser sends: Quill matches a binding
+     * on either, and jsdom's default of 0 would make a `13`-keyed binding unreachable rather than
+     * merely out-prioritised, hiding the very defect these tests pin.
+     */
+    function pressKey(caret: number, init: KeyboardEventInit): KeyboardEvent {
+      quillComponent.quill.root.focus();
+      quillComponent.quill.setSelection(caret, 0);
+      const keyPress = new KeyboardEvent("keydown", { bubbles: true, cancelable: true, ...init });
+      quillComponent.quill.root.dispatchEvent(keyPress);
+      quillFixture.detectChanges();
+      return keyPress;
+    }
+
+    it("should show a remote rename in the mounted editor", () => {
+      const sharedTitle = openEditorFromButton();
+
+      sharedTitle.insert(0, "renamed remotely");
+
+      // Without this the keyboard tests below could pass against an editor wired to nothing.
+      expect((document.getElementById("customName") as HTMLElement).textContent).toContain("renamed remotely");
+    });
+
+    it("should commit the rename on Enter without appending a newline to the shared name", () => {
+      const sharedTitle = openEditorFromButton();
+      sharedTitle.insert(0, "renamed");
+
+      pressKey(sharedTitle.length, ENTER);
+
+      expect(sharedTitle.toString()).toBe("renamed");
+      // `editingTitle` is what proves the editor's own binding ran: no keyup was dispatched, so the
+      // template's fallback cannot be the thing that closed the editor.
+      expect(quillComponent.editingTitle).toBe(false);
+      expect(quillComponent.quillBinding).toBeUndefined();
+    });
+
+    it("should not split the shared name when Enter is pressed mid-word", () => {
+      const sharedTitle = openEditorFromButton();
+      sharedTitle.insert(0, "renamed");
+
+      pressKey(3, ENTER);
+
+      expect(sharedTitle.toString()).toBe("renamed");
+      expect(quillComponent.editingTitle).toBe(false);
+    });
+
+    it("should leave an untouched name empty when Enter commits it", () => {
+      const sharedTitle = openEditorFromButton();
+
+      pressKey(0, ENTER);
+
+      // The empty document is the case Quill's own handler turns into a lone "\n" — a display name
+      // that reads as blank but is no longer equal to the empty string it started as.
+      expect(sharedTitle.toString()).toBe("");
+      expect(quillComponent.editingTitle).toBe(false);
+    });
+
+    it("should commit on Shift+Enter without appending a newline either", () => {
+      const sharedTitle = openEditorFromButton();
+      sharedTitle.insert(0, "renamed");
+
+      pressKey(sharedTitle.length, { ...ENTER, shiftKey: true });
+
+      expect(sharedTitle.toString()).toBe("renamed");
+      expect(quillComponent.editingTitle).toBe(false);
+    });
+
+    it("should leave ordinary typing alone", () => {
+      const sharedTitle = openEditorFromButton();
+      sharedTitle.insert(0, "renamed");
+
+      const keyPress = pressKey(sharedTitle.length, { key: "a", keyCode: 65, which: 65 });
+
+      // Suppressing Enter must not become suppressing the keyboard: an ordinary character is left
+      // for the browser to insert, and the editor stays open so the rename can continue.
+      expect(keyPress.defaultPrevented).toBe(false);
+      expect(quillComponent.editingTitle).toBe(true);
+      expect(quillComponent.quillBinding).toBeDefined();
+    });
   });
 });

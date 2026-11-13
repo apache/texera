@@ -38,14 +38,27 @@ object PythonUdfUiParameterInjector {
   private val InjectedUiParametersHookMethodHeader =
     s"def $InjectedUiParametersHookMethodName(self) -> Dict[str, Any]:"
   private val UnsupportedUiParameterTypes = Set(AttributeType.BINARY, AttributeType.LARGE_BINARY)
+  private val UiParameterTypesRequiringValues = Set(
+    AttributeType.INTEGER,
+    AttributeType.LONG,
+    AttributeType.DOUBLE,
+    AttributeType.BOOLEAN,
+    AttributeType.TIMESTAMP
+  )
 
   // Keep supported user-facing UDF class names in sync with the frontend parser.
   private val SupportedPythonUdfClassHeaderRegex: Regex =
     """(?m)^([ \t]*)class\s+(ProcessTupleOperator|ProcessBatchOperator|ProcessTableOperator|GenerateOperator)\s*\([^)]*\)\s*:\s*(?:#.*)?$""".r
 
   private def validate(uiParameters: List[UiUDFParameter]): Unit = {
-    val attributes = uiParameters.map(parameterAttribute)
-    attributes.foreach(validateSupportedType)
+    val parametersWithAttributes =
+      uiParameters.map(parameter => parameter -> parameterAttribute(parameter))
+    val attributes = parametersWithAttributes.map(_._2)
+    parametersWithAttributes.foreach {
+      case (parameter, attribute) =>
+        validateSupportedType(attribute)
+        validateRequiredValue(parameter, attribute)
+    }
 
     attributes
       .groupBy(_.getName)
@@ -71,6 +84,17 @@ object PythonUdfUiParameterInjector {
     }
   }
 
+  private def validateRequiredValue(parameter: UiUDFParameter, attribute: Attribute): Unit = {
+    if (
+      UiParameterTypesRequiringValues.contains(attribute.getType) &&
+      Option(parameter.value).forall(_.trim.isEmpty)
+    ) {
+      throw new RuntimeException(
+        s"UiParameter '${attribute.getName}' requires a value for type '${attribute.getType.name()}'."
+      )
+    }
+  }
+
   private def buildInjectedParameterEntry(parameter: UiUDFParameter): PythonTemplateBuilder = {
     pyb"${parameter.attribute.getName}: ${parameter.value}"
   }
@@ -85,8 +109,7 @@ object PythonUdfUiParameterInjector {
   private def buildInjectedHookMethod(uiParameters: List[UiUDFParameter]): String = {
     val injectedParametersMap = buildInjectedParametersMap(uiParameters)
 
-    (pyb"""|# Follow-up runtime support exports Dict/Any and defines the base hook that @overrides targets.
-           |@overrides
+    (pyb"""|@overrides
            |$InjectedUiParametersHookMethodHeader
            |    return {""" +
       injectedParametersMap +

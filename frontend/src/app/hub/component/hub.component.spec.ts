@@ -30,7 +30,7 @@ import { HubComponent } from "./hub.component";
 import { commonTestProviders } from "../../common/testing/test-utils";
 import { GuiConfigService } from "../../common/service/gui-config.service";
 import { SidebarTabs } from "../../common/type/gui-config";
-import { HOME, HUB_DATASET_RESULT, HUB_WORKFLOW_RESULT } from "../../app-routing.constant";
+import { HOME, HUB_DATASET_RESULT, HUB_MODEL_RESULT, HUB_WORKFLOW_RESULT } from "../../app-routing.constant";
 
 // Full SidebarTabs with all flags off; tests enable only the ones they need.
 function makeSidebarTabs(overrides: Partial<SidebarTabs> = {}): SidebarTabs {
@@ -39,11 +39,12 @@ function makeSidebarTabs(overrides: Partial<SidebarTabs> = {}): SidebarTabs {
     home_enabled: false,
     workflow_enabled: false,
     dataset_enabled: false,
+    model_enabled: false,
     your_work_enabled: false,
-    projects_enabled: false,
     workflows_enabled: false,
     compute_enabled: false,
     datasets_enabled: false,
+    models_enabled: false,
     quota_enabled: false,
     forum_enabled: false,
     about_enabled: false,
@@ -138,13 +139,25 @@ describe("HubComponent", () => {
     expect(labels[0]).toContain("Datasets");
   });
 
-  it("renders all three menu items when home, workflow, and dataset flags are enabled", () => {
-    setup(false, makeSidebarTabs({ home_enabled: true, workflow_enabled: true, dataset_enabled: true }));
+  it("renders only the Models item when model_enabled is the only flag set", () => {
+    // The hub has its own flag: an instance can browse public models without offering its own.
+    setup(false, makeSidebarTabs({ model_enabled: true }));
     const labels = renderedMenuLabels();
-    expect(labels.length).toBe(3);
+    expect(labels.length).toBe(1);
+    expect(labels[0]).toContain("Models");
+  });
+
+  it("renders all four menu items when home, workflow, dataset and model flags are enabled", () => {
+    setup(
+      false,
+      makeSidebarTabs({ home_enabled: true, workflow_enabled: true, dataset_enabled: true, model_enabled: true })
+    );
+    const labels = renderedMenuLabels();
+    expect(labels.length).toBe(4);
     expect(labels.some(l => l.includes("Home"))).toBe(true);
     expect(labels.some(l => l.includes("Workflows"))).toBe(true);
     expect(labels.some(l => l.includes("Datasets"))).toBe(true);
+    expect(labels.some(l => l.includes("Models"))).toBe(true);
   });
 
   it("excludes disabled tabs while rendering enabled ones", () => {
@@ -157,9 +170,13 @@ describe("HubComponent", () => {
   });
 
   it("binds each menu item's routerLink to the correct routing constant", () => {
-    setup(false, makeSidebarTabs({ home_enabled: true, workflow_enabled: true, dataset_enabled: true }));
+    setup(
+      false,
+      makeSidebarTabs({ home_enabled: true, workflow_enabled: true, dataset_enabled: true, model_enabled: true })
+    );
     expect(routerLinkFor("Home")).toBe(HOME);
     expect(routerLinkFor("Workflows")).toBe(HUB_WORKFLOW_RESULT);
     expect(routerLinkFor("Datasets")).toBe(HUB_DATASET_RESULT);
+    expect(routerLinkFor("Models")).toBe(HUB_MODEL_RESULT);
   });
 });

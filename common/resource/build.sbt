@@ -38,7 +38,6 @@ Global / concurrentRestrictions += Tags.limit(Tags.Test, 1)
 
 // Scala compiler options
 Compile / scalacOptions ++= Seq(
-  "-Xelide-below", "WARNING",       // Turn on optimizations with "WARNING" as the threshold
   "-feature",                       // Check feature warnings
   "-deprecation",                   // Check deprecation warnings
   "-Ywarn-unused:imports"           // Check for unused imports
@@ -52,5 +51,6 @@ Compile / scalacOptions ++= Seq(
 libraryDependencies ++= Seq(
   "jakarta.ws.rs" % "jakarta.ws.rs-api" % "3.0.0",           // JAX-RS annotations for shared REST resources
   "jakarta.annotation" % "jakarta.annotation-api" % "2.1.1", // @PermitAll on shared REST resources
-  "org.scalatest" %% "scalatest" % "3.2.15" % Test           // ScalaTest (for unit tests)
+  "org.scalatest" %% "scalatest" % "3.2.15" % Test,          // ScalaTest (for unit tests)
+  "org.glassfish.jersey.core" % "jersey-common" % "3.0.12" % Test // JAX-RS runtime, so tests can build a ForbiddenException
 )

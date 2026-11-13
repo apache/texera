@@ -17,18 +17,101 @@
  * under the License.
  */
 
+import { ApplicationRef } from "@angular/core";
+import { ComponentFixture, TestBed } from "@angular/core/testing";
+import { HttpClientTestingModule } from "@angular/common/http/testing";
+import { NoopAnimationsModule } from "@angular/platform-browser/animations";
+import { NzModalService } from "ng-zorro-antd/modal";
 import { ReActStepDetailModalComponent } from "./react-step-detail-modal.component";
+import { ReActStep } from "../../../../service/agent/agent-types";
+import { commonTestProviders } from "../../../../../common/testing/test-utils";
 
 describe("ReActStepDetailModalComponent", () => {
+  let fixture: ComponentFixture<ReActStepDetailModalComponent>;
   let component: ReActStepDetailModalComponent;
 
-  beforeEach(() => {
-    // The component has no injected dependencies and its display helpers are
-    // pure, so it can be exercised directly.
-    component = new ReActStepDetailModalComponent();
+  /** A step exercising every optional template section at once. */
+  function maximalStep(): ReActStep {
+    return {
+      messageId: "msg-1",
+      stepId: 3,
+      timestamp: new Date("2026-06-11T12:34:56.789Z"),
+      role: "agent",
+      content: "Thinking about the workflow",
+      isBegin: true,
+      isEnd: false,
+      toolCalls: [{ toolName: "addOperator", input: { operatorId: "op-1" } }],
+      toolResults: [{ toolName: "addOperator", output: "operator added" }],
+      usage: { inputTokens: 111, outputTokens: 22, totalTokens: 133, cachedInputTokens: 44 },
+      inputMessages: [
+        { role: "user", content: "add a csv scan" },
+        {
+          role: "assistant",
+          content: [
+            { type: "text", text: "adding" },
+            { type: "tool-call", toolCallId: "tc1", toolName: "addOperator", args: { operatorId: "op-1" } },
+          ],
+        },
+        { role: "tool", content: [{ type: "tool-result", toolCallId: "tc1", result: "ok" }] },
+      ],
+      operatorAccess: new Map([
+        [0, { viewedOperatorIds: ["op-viewed"], addedOperatorIds: ["op-added"], modifiedOperatorIds: ["op-modified"] }],
+      ]),
+      id: "step-3",
+      parentId: "step-2",
+      beforeWorkflowContent: { operators: [] },
+      afterWorkflowContent: { operators: [{}] },
+    };
+  }
+
+  /** A step for which every optional section's *ngIf is false. */
+  function minimalStep(): ReActStep {
+    return {
+      messageId: "msg-empty",
+      stepId: 0,
+      timestamp: new Date("2026-06-11T00:00:00.000Z"),
+      role: "agent",
+      content: "  ",
+      isBegin: false,
+      isEnd: false,
+      id: "step-0",
+    };
+  }
+
+  // The modal body renders inside the CDK overlay, which is a view attached to
+  // ApplicationRef rather than to this fixture — tick() is what re-renders it.
+  const tick = (): void => {
+    fixture.detectChanges();
+    TestBed.inject(ApplicationRef).tick();
+  };
+
+  const openWith = (step: ReActStep | null): void => {
+    component.step = step;
+    component.visible = true;
+    tick();
+  };
+
+  beforeEach(async () => {
+    await TestBed.configureTestingModule({
+      imports: [ReActStepDetailModalComponent, HttpClientTestingModule, NoopAnimationsModule],
+      providers: [
+        // The declarative <nz-modal> in this component's template delegates
+        // opening to NzModalService.create(), so the real service is required.
+        NzModalService,
+        ...commonTestProviders,
+      ],
+    }).compileComponents();
+
+    fixture = TestBed.createComponent(ReActStepDetailModalComponent);
+    component = fixture.componentInstance;
+  });
+
+  afterEach(() => {
+    document.querySelectorAll(".cdk-overlay-container").forEach(el => el.remove());
   });
 
   it("should create", () => {
+    fixture.detectChanges();
     expect(component).toBeTruthy();
   });
 
@@ -225,6 +308,122 @@ describe("ReActStepDetailModalComponent", () => {
         isTrimmed: false,
       });
       expect(items[2].isTrimmed).toBe(true);
+    });
+  });
+
+  describe("template rendering", () => {
+    it("renders identification, content, usage, input messages, tool calls and operator access for a maximal step", () => {
+      openWith(maximalStep());
+
+      const body = document.querySelector(".ant-modal-body") as HTMLElement;
+      expect(body).toBeTruthy();
+      const text = body.textContent ?? "";
+
+      // Step identification
+      expect(text).toContain("Step Identification");
+      expect(text).toContain("msg-1");
+      expect(text).toContain("3");
+
+      // Content + token usage
+      expect(text).toContain("Thinking about the workflow");
+      expect(text).toContain("Token Usage");
+      expect(text).toContain("111");
+      expect(text).toContain("22");
+      expect(text).toContain("133");
+      expect(text).toContain("44");
+
+      // Input messages: one header per message, with per-role tag colors.
+      expect(text).toContain("Input Messages (3)");
+      expect(text).toContain("add a csv scan");
+      const blueTags = Array.from(body.querySelectorAll(".ant-tag-blue")).map(el => el.textContent?.trim());
+      expect(blueTags).toContain("user");
+      const orangeTags = Array.from(body.querySelectorAll(".ant-tag-orange")).map(el => el.textContent?.trim());
+      expect(orangeTags).toContain("assistant");
+      const greenTags = Array.from(body.querySelectorAll(".ant-tag-green")).map(el => el.textContent?.trim());
+      expect(greenTags).toContain("tool-result");
+      // The tool message's result is ~1 token ("ok".length / 4 rounded up).
+      expect(text).toContain("~1 tokens");
+
+      // Tool calls: header, arguments JSON, result via the output alias.
+      expect(text).toContain("Tool Calls (1)");
+      expect(text).toContain("addOperator");
+      expect(text).toContain('"operatorId": "op-1"');
+      expect(text).toContain("operator added");
+
+      // Operator access chips for tool-call index 0.
+      expect(text).toContain("VIEWED:");
+      expect(text).toContain("op-viewed");
+      expect(text).toContain("ADDED:");
+      expect(text).toContain("op-added");
+      expect(text).toContain("MODIFIED:");
+      expect(text).toContain("op-modified");
+
+      // The empty-state branch must not render alongside real sections.
+      expect(text).not.toContain("No additional details available for this step.");
+    });
+
+    it("shows the empty-state message when every optional section is absent", () => {
+      openWith(minimalStep());
+
+      const text = document.querySelector(".ant-modal-body")?.textContent ?? "";
+      expect(text).toContain("No additional details available for this step.");
+      expect(text).not.toContain("Token Usage");
+      expect(text).not.toContain("Input Messages");
+      expect(text).not.toContain("Tool Calls");
+      // Whitespace-only content is treated as no content.
+      expect(text).toContain("Step Identification");
+    });
+
+    it("hides the result and operator-access blocks without toolResults, and renders 'result' via formatResult", () => {
+      const step = maximalStep();
+      step.toolResults = undefined;
+      step.operatorAccess = undefined;
+      step.inputMessages = undefined;
+      step.usage = undefined;
+      openWith(step);
+
+      let text = document.querySelector(".ant-modal-body")?.textContent ?? "";
+      expect(text).toContain("Arguments:");
+      expect(text).not.toContain("Result:");
+      expect(text).not.toContain("Operator Access:");
+
+      // A toolResult carrying only `result` (no `output`) goes through the
+      // formatResult(JSON.stringify) path.
+      component.step = { ...step, toolResults: [{ result: { rows: 3 } }] };
+      tick();
+      text = document.querySelector(".ant-modal-body")?.textContent ?? "";
+      expect(text).toContain("Result:");
+      expect(text).toContain('"rows": 3');
+    });
+
+    it("emits visibleChange(false) and closes when the modal close button is clicked", () => {
+      const emitted: boolean[] = [];
+      component.visibleChange.subscribe(v => emitted.push(v));
+      openWith(minimalStep());
+
+      const closeButton = document.querySelector(".ant-modal-close") as HTMLButtonElement;
+      expect(closeButton).toBeTruthy();
+      closeButton.click();
+      tick();
+
+      expect(emitted).toContain(false);
+      expect(component.visible).toBe(false);
+      expect(document.querySelector(".ant-modal")).toBeNull();
+    });
+
+    it("renders no overlay content while hidden, and an empty body when visible without a step", () => {
+      component.step = maximalStep();
+      component.visible = false;
+      tick();
+      expect(document.querySelector(".ant-modal")).toBeNull();
+      expect(document.body.textContent).not.toContain("msg-1");
+
+      // Visible but step-less: the modal chrome opens, the *ngIf="step" body stays out.
+      component.step = null;
+      component.visible = true;
+      tick();
+      expect(document.querySelector(".ant-modal")).toBeTruthy();
+      expect(document.body.textContent).not.toContain("Step Identification");
     });
   });
 });

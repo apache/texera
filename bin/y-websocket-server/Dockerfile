@@ -24,17 +24,17 @@
 # completeness or stability of the code, it does indicate that the project
 # has yet to be fully endorsed by the ASF.
 
-# Use an official Node runtime as a parent image
-FROM node:24-slim
+FROM docker.io/library/node:24.19.0-slim@sha256:a9f5f7c91a432850b2a8a7797adf5eadb6c733ceed61167806cee7ea7fbc29df
 
-# Set the working directory in the container
 WORKDIR /usr/src/app
 
-# Copy the current directory contents into the container at /usr/src/app
-COPY . .
+COPY package.json package-lock.json ./
 
-# Install any needed packages specified in package.json
-RUN npm install
+# npm's download cache indexes entries by fetch time, its debug log is named
+# after the clock, and Node's compile cache in /tmp varies run to run;
+# node_modules keeps its own copy of every file.
+RUN npm ci \
+ && rm -rf /root/.npm /tmp/node-compile-cache
 
 # Define environment variable
 ENV YPERSISTENCE=./leveldb

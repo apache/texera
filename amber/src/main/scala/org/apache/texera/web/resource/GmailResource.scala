@@ -26,7 +26,13 @@ import org.apache.texera.dao.SqlServer
 import org.apache.texera.dao.jooq.generated.enums.UserRoleEnum
 import org.apache.texera.dao.jooq.generated.tables.daos.UserDao
 import org.apache.texera.web.resource.EmailTemplate.userRegistrationNotification
-import org.apache.texera.web.resource.GmailResource.{isValidEmail, sendEmail, senderGmail, userDao}
+import org.apache.texera.web.resource.GmailResource.{
+  adminRegistrationNotification,
+  isValidEmail,
+  sendEmail,
+  senderGmail,
+  userDao
+}
 import org.slf4j.LoggerFactory
 
 import javax.annotation.security.RolesAllowed
@@ -50,6 +56,22 @@ object GmailResource {
       .getInstance()
       .createDSLContext()
   private def userDao = new UserDao(context.configuration)
+
+  private[resource] def adminRegistrationNotification(
+      adminEmail: String,
+      emailMessage: EmailMessage
+  ): EmailMessage = {
+    val requesterName =
+      Option(userDao.fetchOneByEmail(emailMessage.receiver)).flatMap(user => Option(user.getName))
+    userRegistrationNotification(
+      receiverEmail = adminEmail,
+      userEmail = Some(emailMessage.receiver),
+      userName = requesterName,
+      affiliation = emailMessage.affiliation,
+      reason = emailMessage.reason,
+      toAdmin = true
+    )
+  }
 
   private lazy val senderGmail: String = UserSystemConfig.gmail
   private val smtpProperties = Map(
@@ -179,13 +201,7 @@ class GmailResource {
 
       try {
         sendEmail(
-          userRegistrationNotification(
-            receiverEmail = adminEmail,
-            userEmail = Some(emailMessage.receiver),
-            affiliation = emailMessage.affiliation,
-            reason = emailMessage.reason,
-            toAdmin = true
-          ),
+          adminRegistrationNotification(adminEmail, emailMessage),
           adminEmail
         )
       } catch {
@@ -199,6 +215,7 @@ class GmailResource {
         userRegistrationNotification(
           receiverEmail = emailMessage.receiver,
           userEmail = None,
+          userName = None,
           affiliation = None,
           reason = None,
           toAdmin = false

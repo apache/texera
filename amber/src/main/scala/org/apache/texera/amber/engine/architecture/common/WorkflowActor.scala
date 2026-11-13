@@ -102,7 +102,7 @@ abstract class WorkflowActor(
   val transferService: PekkoMessageTransferService =
     new PekkoMessageTransferService(actorService, actorRefMappingService, handleBackpressure)
 
-  logger.info(s"worker replay log writing conf: $replayLogConfOpt")
+  logger.debug(s"worker replay log writing conf: $replayLogConfOpt")
 
   val logStorage: SequentialRecordStorage[ReplayLogRecord] =
     SequentialRecordStorage.getStorage(replayLogConfOpt.map(_.writeTo))

@@ -18,14 +18,13 @@
  */
 
 import { OperatorPerformanceMetrics, extractPerformanceMetrics } from "./performance-metrics";
-import { OperatorState, OperatorStatistics } from "../../types/execute-workflow.interface";
+import { OperatorStatistics } from "../../types/execute-workflow.interface";
 
 /**
  * A complete statistics object, mirroring what the backend sends once every
  * field is typed. All five timing/size fields are present.
  */
 const fullStats: OperatorStatistics = {
-  operatorState: OperatorState.Running,
   aggregatedInputRowCount: 1_000_000,
   aggregatedInputSize: 84_000_000,
   inputPortMetrics: { "0": 1_000_000 },
@@ -44,7 +43,6 @@ const fullStats: OperatorStatistics = {
  * The mapper must survive this without emitting NaN/undefined.
  */
 const partialStats: OperatorStatistics = {
-  operatorState: OperatorState.Uninitialized,
   aggregatedInputRowCount: 0,
   inputPortMetrics: {},
   aggregatedOutputRowCount: 0,

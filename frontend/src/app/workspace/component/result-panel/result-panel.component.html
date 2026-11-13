@@ -55,6 +55,7 @@
   [nzMinHeight]="250"
   [nzMaxWidth]="window.innerWidth"
   [nzMaxHeight]="window.innerHeight"
+  [style.top.px]="-defaultHeight"
   [style.width.px]="width"
   [style.height.px]="height"
   (nzResize)="onResize($event)"
@@ -103,7 +104,7 @@
           </div>
         </nz-tab>
       </div>
-      <div *ngFor="let config of frameComponentConfigs | keyvalue">
+      <div *ngFor="let config of frameComponentConfigs | keyvalue; trackBy: trackFrameByConfig">
         <nz-tab nzTitle="{{config.key}}">
           <div
             #dynamicComponent

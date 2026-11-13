@@ -19,6 +19,9 @@
 
 package org.apache.texera.web.service
 
+import com.fasterxml.jackson.databind.node.ObjectNode
+import org.apache.texera.amber.core.state.StateReferencing.literalReferences
+import org.apache.texera.amber.core.storage.RepositoryMountManager
 import org.apache.texera.amber.core.virtualidentity.ActorVirtualIdentity
 import org.apache.texera.amber.engine.architecture.coordinator.{UpdateExecutorCompleted, Workflow}
 import org.apache.texera.amber.engine.architecture.rpc.controlcommands.{
@@ -26,6 +29,8 @@ import org.apache.texera.amber.engine.architecture.rpc.controlcommands.{
   WorkflowReconfigureRequest
 }
 import org.apache.texera.amber.engine.common.client.AmberClient
+import org.apache.texera.amber.operator.LogicalOp
+import org.apache.texera.amber.util.JSONUtils.objectMapper
 import org.apache.texera.web.SubscriptionManager
 import org.apache.texera.web.model.websocket.event.TexeraWebSocketEvent
 import org.apache.texera.web.model.websocket.request.ModifyLogicRequest
@@ -59,23 +64,46 @@ class ExecutionReconfigurationService(
     val newOp = modifyLogicRequest.operator
     val opId = newOp.operatorIdentifier
     val currentOp = workflow.logicalPlan.getOperator(opId)
-    val reconfiguredPhysicalOp =
-      currentOp.runtimeReconfiguration(
-        workflow.context.workflowId,
-        workflow.context.executionId,
-        currentOp,
-        newOp
+    if (refersToLoopVariables(currentOp) || refersToLoopVariables(newOp)) {
+      ModifyLogicResponse(
+        opId.id,
+        isValid = false,
+        s"${currentOp.operatorInfo.userFriendlyName} refers to loop variables, so it can't be " +
+          "changed while the workflow runs."
       )
-    reconfiguredPhysicalOp match {
-      case Failure(exception) => ModifyLogicResponse(opId.id, isValid = false, exception.getMessage)
-      case Success(op) => {
-        stateStore.reconfigurationStore.updateState(old =>
-          old.copy(unscheduledReconfigurations = old.unscheduledReconfigurations :+ op)
+    } else {
+      val reconfiguredPhysicalOp =
+        currentOp.runtimeReconfiguration(
+          workflow.context.workflowId,
+          workflow.context.executionId,
+          currentOp,
+          newOp
         )
-        ModifyLogicResponse(opId.id, isValid = true, "")
+      reconfiguredPhysicalOp match {
+        case Failure(exception) =>
+          ModifyLogicResponse(opId.id, isValid = false, exception.getMessage)
+        case Success(op) => {
+          stateStore.reconfigurationStore.updateState(old =>
+            old.copy(unscheduledReconfigurations = old.unscheduledReconfigurations :+ op)
+          )
+          ModifyLogicResponse(opId.id, isValid = true, "")
+        }
       }
     }
   }
+
+  /**
+    * Whether `op`, in the deployed operator's place, refers to loop variables: its sidecar names
+    * one (the compiler's final one on the deployed operator, the parse's typed ones on an edit),
+    * or it sits inside a loop block and holds a whole-string `$name`. The rebuilt executor would
+    * parse the placeholders after the loop state that writes them into its setting has arrived
+    * (`OperatorExecutor.registerState`), so nothing would ever set them.
+    */
+  private def refersToLoopVariables(op: LogicalOp): Boolean =
+    op.stateReferences.nonEmpty || (
+      workflow.logicalPlan.operatorsInsideLoopBlocks.contains(op.operatorIdentifier) &&
+        literalReferences(objectMapper.valueToTree[ObjectNode](op)).nonEmpty
+    )
 
   // actually performs all reconfiguration requests the user made during pause
   // sends ModifyLogic messages to operators and workers,
@@ -90,7 +118,10 @@ class ExecutionReconfigurationService(
 
     val reconfigurationId = UUID.randomUUID().toString
     val updateExecutorRequests = reconfigurations.map {
-      case (op, _) => UpdateExecutorRequest(op.id, op.opExecInitInfo)
+      case (op, _) =>
+        // An edited UDF may now name a repository, and its code already refers to the mount.
+        ensureMounted(op.mountLocators)
+        UpdateExecutorRequest(op.id, op.executableOpExecInitInfo)
     }
     dispatch(
       WorkflowReconfigureRequest(
@@ -105,6 +136,10 @@ class ExecutionReconfigurationService(
     )
   }
 
+  // Seam for unit testing without a computing unit to mount into.
+  protected def ensureMounted(locators: Set[String]): Unit =
+    RepositoryMountManager.ensureAllMounted(locators)
+
   // Seam for unit testing the dispatch path without spinning up an AmberClient.
   protected def dispatch(request: WorkflowReconfigureRequest): Unit = {
     client.coordinatorInterface.reconfigureWorkflow(request, ())
@@ -114,9 +149,11 @@ class ExecutionReconfigurationService(
   // events into the reconfiguration store so the diff handler above can fire
   // ModifyLogicCompletedEvent for the frontend.
   protected def registerWorkerCompletionCallback(): Unit = {
-    client.registerCallback[UpdateExecutorCompleted]((evt: UpdateExecutorCompleted) => {
-      onWorkerReconfigured(evt.id)
-    })
+    addSubscription(
+      client.registerCallback[UpdateExecutorCompleted]((evt: UpdateExecutorCompleted) => {
+        onWorkerReconfigured(evt.id)
+      })
+    )
   }
 
   // Exposed (instead of inlined in the callback) so tests can drive the

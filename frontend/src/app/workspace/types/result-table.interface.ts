@@ -35,7 +35,7 @@ export interface IndexableObject
 
 /**
  * This type represent the function type interface for
- *  retreiving each attribute from each result row.
+ *  retrieving each attribute from each result row.
  * Given a row, extract the cell value of each column.
  */
 type TableCellMethod = (row: IndexableObject) => object | string | number | boolean;

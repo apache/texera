@@ -23,7 +23,6 @@ import { EXECUTION_STATUS_CODE, WorkflowExecutionsEntry } from "../../../../type
 import { WorkflowExecutionsService } from "../../../../service/user/workflow-executions/workflow-executions.service";
 import { ExecutionState } from "../../../../../workspace/types/execute-workflow.interface";
 import { NotificationService } from "../../../../../common/service/notification/notification.service";
-import { WorkflowActionService } from "../../../../../workspace/service/workflow-graph/model/workflow-action.service";
 import Fuse from "fuse.js";
 import { ceil } from "lodash";
 import { NZ_MODAL_DATA, NzModalRef, NzModalService } from "ng-zorro-antd/modal";
@@ -118,7 +117,6 @@ export class WorkflowExecutionHistoryComponent implements OnInit, AfterViewInit 
   public processTimeBarChart = WorkflowExecutionHistoryComponent.PROCESS_TIME_BAR_CHART;
   public workflowExecutionsDisplayedList: WorkflowExecutionsEntry[] | undefined;
   public workflowExecutionsIsEditingName: number[] = [];
-  public currentlyHoveredExecution: WorkflowExecutionsEntry | undefined;
   public executionsTableHeaders: string[] = [
     "",
     "Avatar",
@@ -148,7 +146,6 @@ export class WorkflowExecutionHistoryComponent implements OnInit, AfterViewInit 
     "": "0%",
     "Name (ID)": "7%",
     "Computing Unit ID": "7%",
-    "Workflow Version Sample": "10%",
     Avatar: "5.5%",
     "Execution Start Time": "9%",
     "Execution Completion Time": "10.5%",
@@ -202,7 +199,6 @@ export class WorkflowExecutionHistoryComponent implements OnInit, AfterViewInit 
     private workflowExecutionsService: WorkflowExecutionsService,
     private notificationService: NotificationService,
     private runtimeStatisticsModal: NzModalService,
-    private workflowActionService: WorkflowActionService,
     private route: ActivatedRoute,
     @Optional() @Inject(NZ_MODAL_DATA) private modalData: any
   ) {}

@@ -56,7 +56,8 @@ class SerializationManagerSpec extends AnyFlatSpec {
     InitializeExecutorRequest(
       totalWorkerCount = totalWorkers,
       opExecInitInfo = info,
-      isSource = false
+      isSource = false,
+      loopStartPortUris = Map.empty
     )
 
   "SerializationManager.restoreExecutorState" should

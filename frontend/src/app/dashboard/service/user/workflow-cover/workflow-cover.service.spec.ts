@@ -40,22 +40,6 @@ describe("WorkflowCoverService", () => {
     httpMock.verify();
   });
 
-  it("getCover returns the stored image data URL", () => {
-    let result: string | undefined;
-    service.getCover(7).subscribe(image => (result = image));
-    const req = httpMock.expectOne(coverUrl(7));
-    expect(req.request.method).toBe("GET");
-    req.flush({ image: "data:image/jpeg;base64,abc" });
-    expect(result).toBe("data:image/jpeg;base64,abc");
-  });
-
-  it("getCover resolves to undefined when no cover exists (404)", () => {
-    let result: string | undefined = "unset";
-    service.getCover(7).subscribe(image => (result = image));
-    httpMock.expectOne(coverUrl(7)).flush(null, { status: 404, statusText: "Not Found" });
-    expect(result).toBeUndefined();
-  });
-
   it("clearCover issues a DELETE", () => {
     let completed = false;
     service.clearCover(7).subscribe(() => (completed = true));

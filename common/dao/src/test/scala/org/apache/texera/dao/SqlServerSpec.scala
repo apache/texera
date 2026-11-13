@@ -28,7 +28,7 @@ import org.scalatest.{BeforeAndAfterAll}
 class SqlServerSpec extends AnyFlatSpec with Matchers with BeforeAndAfterAll with MockTexeraDB {
 
   override def beforeAll(): Unit = initializeDBAndReplaceDSLContext()
-  override def afterAll(): Unit = shutdownDB()
+  override def afterAll(): Unit = closeConnectionPool()
 
   // -------------------------------------------------------------------------
   // SqlServer.withTransaction

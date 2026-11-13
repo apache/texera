@@ -31,7 +31,7 @@ import org.apache.texera.amber.engine.architecture.sendsemantics.partitionings.{
 }
 import org.apache.texera.amber.engine.e2e.TestUtils.buildWorkflow
 import org.apache.texera.amber.operator.TestOperators
-import org.apache.texera.workflow.LogicalLink
+import org.apache.texera.common.compiler.model.LogicalLink
 import org.scalatest.flatspec.AnyFlatSpec
 
 class ResourcePoliciesSpec extends AnyFlatSpec {

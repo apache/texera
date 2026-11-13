@@ -23,28 +23,20 @@
 // without editing this file.
 const TEXERA_ORIGIN = "__TEXERA_ORIGIN__";
 
-// Use Jupyter's event system to ensure the notebook is fully loaded
-require(["base/js/events"], function (events) {
-  events.on("kernel_ready.Kernel", function () {
+// Delegated from document, so it can be bound before the notebook or a kernel exists.
+$(document).on("click", "#notebook-container .cell", function () {
+  const cell = $(this);
+  const index = $(".cell").index(cell);
+  const cellContent = cell.find(".input_area").text();
 
-    // Attach click event listener to cells. kernel_ready.Kernel fires on every
-    // kernel (re)start, so remove any previously bound handler first to avoid
-    // stacking duplicate listeners that would post N messages per click.
-    $("#notebook-container").off("click", ".cell").on("click", ".cell", function (event) {
-      const cell = $(this);
-      const index = $(".cell").index(cell);
-      const cellContent = cell.find(".input_area").text();
+  // Get the UUID from the cell's metadata, or use "N/A" if it doesn't exist
+  const cellUUID = Jupyter.notebook.get_cell(index).metadata.uuid || 'N/A';
 
-      // Get the UUID from the cell's metadata, or use "N/A" if it doesn't exist
-      const cellUUID = Jupyter.notebook.get_cell(index).metadata.uuid || 'N/A';
-
-      // Send a message to the parent window (Texera app)
-      window.parent.postMessage(
-        { action: "cellClicked", cellIndex: index, cellContent: cellContent, cellUUID: cellUUID },
-        TEXERA_ORIGIN
-      );
-    });
-  });
+  // Send a message to the parent window (Texera app)
+  window.parent.postMessage(
+    { action: "cellClicked", cellIndex: index, cellContent: cellContent, cellUUID: cellUUID },
+    TEXERA_ORIGIN
+  );
 });
 
 // Listen for messages from the Texera app (or parent window)

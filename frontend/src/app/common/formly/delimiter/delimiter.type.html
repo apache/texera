@@ -1,0 +1,47 @@
+<!--
+ Licensed to the Apache Software Foundation (ASF) under one
+ or more contributor license agreements.  See the NOTICE file
+ distributed with this work for additional information
+ regarding copyright ownership.  The ASF licenses this file
+ to you under the Apache License, Version 2.0 (the
+ "License"); you may not use this file except in compliance
+ with the License.  You may obtain a copy of the License at
+
+   http://www.apache.org/licenses/LICENSE-2.0
+
+ Unless required by applicable law or agreed to in writing,
+ software distributed under the License is distributed on an
+ "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ KIND, either express or implied.  See the License for the
+ specific language governing permissions and limitations
+ under the License.
+-->
+
+<div class="delimiter-input">
+  <nz-select
+    class="delimiter-select"
+    nzPlaceHolder="Select a delimiter"
+    [attr.aria-label]="fieldLabel"
+    [ngModel]="selected"
+    (ngModelChange)="onSelect($event)"
+    [nzDisabled]="formControl.disabled">
+    <nz-option
+      *ngFor="let preset of presets"
+      [nzValue]="preset.value"
+      [nzLabel]="preset.label"></nz-option>
+    <nz-option
+      [nzValue]="CUSTOM"
+      [nzLabel]="mode === 'regex' ? 'Custom regex…' : 'Custom…'"></nz-option>
+  </nz-select>
+  <input
+    *ngIf="selected === CUSTOM"
+    nz-input
+    class="delimiter-custom"
+    [value]="formControl.value ?? ''"
+    (input)="onCustomInput($event)"
+    [disabled]="formControl.disabled"
+    [id]="id"
+    (blur)="formControl.markAsTouched()"
+    [attr.aria-label]="'Custom ' + fieldLabel"
+    [placeholder]="customPlaceholder" />
+</div>

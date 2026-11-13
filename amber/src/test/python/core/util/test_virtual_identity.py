@@ -159,6 +159,17 @@ class TestSerializeGlobalPortIdentity:
         with pytest.raises(ValueError, match="layerName must not contain"):
             serialize_global_port_identity(_gpi(layer="main_source_0_op"))
 
+    def test_rejects_slash_in_logical_op_id(self):
+        # A '/' would add path segments to the VFS URI this string is interpolated
+        # into, letting an id forge structure the URI never meant to have. Matches
+        # the guard in GlobalPortIdentitySerde (Scala).
+        with pytest.raises(ValueError, match="logicalOpId must not contain"):
+            serialize_global_port_identity(_gpi(op_id="a/wh/victim/b"))
+
+    def test_rejects_slash_in_layer_name(self):
+        with pytest.raises(ValueError, match="layerName must not contain"):
+            serialize_global_port_identity(_gpi(layer="main/wh/victim"))
+
     def test_rejects_negative_port_id(self):
         # Port ids are array indices and must be non-negative.
         with pytest.raises(ValueError, match="portId must be non-negative"):
@@ -183,6 +194,16 @@ class TestDeserializeGlobalPortIdentity:
         result = deserialize_global_port_identity(encoded)
         assert result.port_id.internal is True
         assert result.input is False
+
+    @pytest.mark.parametrize(
+        ("field", "valid"), [("isInternal", "false"), ("isInput", "true")]
+    )
+    def test_rejects_invalid_boolean_value(self, field, valid):
+        encoded = (
+            "(logicalOpId=op,layerName=l,portId=0,isInternal=false,isInput=true)"
+        ).replace(f"{field}={valid}", f"{field}=maybe")
+        with pytest.raises(ValueError, match=f"Invalid {field}"):
+            deserialize_global_port_identity(encoded)
 
     def test_raises_value_error_on_malformed_input(self):
         with pytest.raises(ValueError, match="Invalid GlobalPortIdentity format"):

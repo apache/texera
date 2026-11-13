@@ -21,7 +21,8 @@ import { AfterContentInit, Component, ElementRef, ViewChild } from "@angular/cor
 import { FieldTypeConfig, FieldWrapper, FormlyFieldConfig } from "@ngx-formly/core";
 import { WorkflowActionService } from "../../../../workspace/service/workflow-graph/model/workflow-action.service";
 import { merge } from "lodash";
-import Quill from "quill";
+import Quill, { Delta, Range } from "quill";
+import Clipboard from "quill/modules/clipboard";
 import * as Y from "yjs";
 import { QuillBinding } from "y-quill";
 import QuillCursors from "quill-cursors";
@@ -30,23 +31,19 @@ import { NgStyle } from "@angular/common";
 
 // Quill related definitions
 export const COLLAB_DEBOUNCE_TIME_MS = 10;
-const Clipboard = Quill.import("modules/clipboard");
-const Delta = Quill.import("delta");
 
 /**
  * Custom clipboard module that removes rich text formats and newline characters
  */
 class PlainClipboard extends Clipboard {
-  onPaste(e: { preventDefault: () => void; clipboardData: { getData: (arg0: string) => any } }) {
-    e.preventDefault();
-    const range = this.quill.getSelection();
-    const text = (e.clipboardData.getData("text/plain") as string).replace(/\n/g, "");
-    const delta = new Delta().retain(range.index).delete(range.length).insert(text);
-    const index = text.length + range.index;
+  override onPaste(range: Range, { text = "" }: { text?: string; html?: string }) {
+    const plainText = text.replace(/\n/g, "");
+    const delta = new Delta().retain(range.index).delete(range.length).insert(plainText);
+    const index = plainText.length + range.index;
     const length = 0;
-    this.quill.updateContents(delta, "silent");
-    this.quill.setSelection(index, length, "silent");
-    this.quill.scrollIntoView();
+    this.quill.updateContents(delta, Quill.sources.SILENT);
+    this.quill.setSelection(index, length, Quill.sources.SILENT);
+    this.quill.scrollSelectionIntoView();
   }
 }
 

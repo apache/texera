@@ -19,7 +19,7 @@
 
 import { describe, expect, test } from "bun:test";
 import { WorkflowState } from "./workflow-state";
-import type { OperatorPredicate, OperatorLink } from "../types/workflow";
+import type { OperatorPredicate, OperatorLink, WorkflowContent } from "../types/workflow";
 
 function makeOperator(id: string, overrides: Partial<OperatorPredicate> = {}): OperatorPredicate {
   return {
@@ -90,16 +90,16 @@ describe("WorkflowState - operators", () => {
 });
 
 describe("WorkflowState - links", () => {
-  test("add, get, and delete link", () => {
+  test("add and delete link", () => {
     const state = new WorkflowState();
     state.addOperator(makeOperator("op1"));
     state.addOperator(makeOperator("op2"));
     const link = makeLink("l1", "op1", "op2");
     state.addLink(link);
 
-    expect(state.getLink("l1")).toEqual(link);
+    expect(state.getAllLinks()).toEqual([link]);
     expect(state.deleteLink("l1")).toBe(true);
-    expect(state.getLink("l1")).toBeUndefined();
+    expect(state.getAllLinks()).toEqual([]);
   });
 
   test("getLinksConnectedToOperator returns both inbound and outbound", () => {
@@ -172,5 +172,141 @@ describe("WorkflowState - getSubDAG", () => {
 
     const subDag = state.getSubDAG("op2");
     expect(subDag.operators.map(o => o.operatorID)).toEqual(["op2"]);
+  });
+});
+
+describe("WorkflowState - toLogicalPlan", () => {
+  test("produces operators, port-indexed links, and an empty reuse list", () => {
+    const state = new WorkflowState();
+    state.addOperator(makeOperator("op1"));
+    state.addOperator(makeOperator("op2"));
+    state.addLink(makeLink("l1", "op1", "op2"));
+
+    const plan = state.toLogicalPlan();
+
+    expect(plan.operators.map(o => o.operatorID)).toEqual(["op1", "op2"]);
+    // operatorProperties are spread onto each logical operator; type + ports carry through
+    expect(plan.operators[0].operatorType).toBe("TestOp");
+    expect(plan.links).toEqual([
+      { fromOpId: "op1", fromPortId: { id: 0, internal: false }, toOpId: "op2", toPortId: { id: 0, internal: false } },
+    ]);
+    expect(plan.opsToReuseResult).toEqual([]);
+  });
+
+  test("resolves the link port indices from the operators' port lists", () => {
+    const state = new WorkflowState();
+    state.addOperator(
+      makeOperator("src", {
+        outputPorts: [
+          { portID: "output-0", displayName: "Output 0" },
+          { portID: "output-1", displayName: "Output 1" },
+        ],
+      })
+    );
+    state.addOperator(
+      makeOperator("dst", {
+        inputPorts: [
+          { portID: "input-0", displayName: "Input 0" },
+          { portID: "input-1", displayName: "Input 1" },
+        ],
+      })
+    );
+    state.addLink({
+      linkID: "l1",
+      source: { operatorID: "src", portID: "output-1" },
+      target: { operatorID: "dst", portID: "input-1" },
+    });
+
+    expect(state.toLogicalPlan().links[0]).toEqual({
+      fromOpId: "src",
+      fromPortId: { id: 1, internal: false },
+      toOpId: "dst",
+      toPortId: { id: 1, internal: false },
+    });
+  });
+});
+
+describe("WorkflowState - traversal", () => {
+  // chain: op1 -> op2 -> op3
+  function seedChain(): WorkflowState {
+    const state = new WorkflowState();
+    state.addOperator(makeOperator("op1"));
+    state.addOperator(makeOperator("op2"));
+    state.addOperator(makeOperator("op3"));
+    state.addLink(makeLink("l1", "op1", "op2"));
+    state.addLink(makeLink("l2", "op2", "op3"));
+    return state;
+  }
+
+  test("getSubDAG collects the target and every upstream operator and link", () => {
+    const sub = seedChain().getSubDAG("op3");
+    expect(sub.operators.map(o => o.operatorID).sort()).toEqual(["op1", "op2", "op3"]);
+    expect(sub.links.map(l => l.linkID).sort()).toEqual(["l1", "l2"]);
+  });
+});
+
+describe("WorkflowState - workflow content round-trip", () => {
+  test("setWorkflowContent replaces the state and getWorkflowContent reflects it", () => {
+    const state = new WorkflowState();
+    state.addOperator(makeOperator("stale")); // must be cleared by setWorkflowContent
+
+    const content: WorkflowContent = {
+      operators: [makeOperator("op1"), makeOperator("op2")],
+      operatorPositions: { op1: { x: 1, y: 2 } },
+      links: [makeLink("l1", "op1", "op2")],
+      commentBoxes: [],
+      settings: { dataTransferBatchSize: 123 },
+    };
+    state.setWorkflowContent(content);
+
+    const out = state.getWorkflowContent();
+    expect(out.operators.map(o => o.operatorID)).toEqual(["op1", "op2"]);
+    expect(out.links.map(l => l.linkID)).toEqual(["l1"]);
+    expect(out.operatorPositions).toEqual({ op1: { x: 1, y: 2 } });
+    expect(out.settings).toEqual({ dataTransferBatchSize: 123 });
+    expect(state.getOperator("stale")).toBeUndefined();
+  });
+
+  test("setWorkflowContent falls back to defaults when settings/commentBoxes are absent", () => {
+    const state = new WorkflowState();
+    // The runtime guards against missing optional fields even though the type requires them.
+    state.setWorkflowContent({ operators: [], operatorPositions: {}, links: [] } as unknown as WorkflowContent);
+
+    const out = state.getWorkflowContent();
+    expect(out.settings).toEqual({ dataTransferBatchSize: 400 }); // DEFAULT_WORKFLOW_SETTINGS
+    expect(out.commentBoxes).toEqual([]);
+  });
+
+  test("carries the Form View definition through an agent save untouched", () => {
+    const state = new WorkflowState();
+    const formBinding = {
+      fields: [{ id: "f1", operatorID: "op1", propertyKey: "limit", displayName: "Limit" }],
+      resultOperatorIds: ["op2"],
+    };
+    state.setWorkflowContent({
+      operators: [makeOperator("op1"), makeOperator("op2")],
+      operatorPositions: {},
+      links: [],
+      commentBoxes: [],
+      settings: { dataTransferBatchSize: 400 },
+      formBinding,
+    });
+
+    // The agent edits the graph but never the form definition; it must come back intact.
+    state.addOperator(makeOperator("op3"));
+    expect(state.getWorkflowContent().formBinding).toEqual(formBinding);
+  });
+
+  test("adds no formBinding key when the workflow never had one", () => {
+    const state = new WorkflowState();
+    state.setWorkflowContent({
+      operators: [],
+      operatorPositions: {},
+      links: [],
+      commentBoxes: [],
+      settings: { dataTransferBatchSize: 400 },
+    });
+
+    expect("formBinding" in state.getWorkflowContent()).toBe(false);
   });
 });

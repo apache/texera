@@ -18,7 +18,7 @@
  */
 
 import { Component, Input } from "@angular/core";
-import { HOME, HUB_DATASET_RESULT, HUB_WORKFLOW_RESULT } from "../../app-routing.constant";
+import { HOME, HUB_DATASET_RESULT, HUB_MODEL_RESULT, HUB_WORKFLOW_RESULT } from "../../app-routing.constant";
 import { GuiConfigService } from "../../common/service/gui-config.service";
 import { SidebarTabs } from "../../common/type/gui-config";
 import { NgIf } from "@angular/common";
@@ -27,6 +27,7 @@ import { ɵNzTransitionPatchDirective } from "ng-zorro-antd/core/transition-patc
 import { NzTooltipDirective } from "ng-zorro-antd/tooltip";
 import { RouterLink } from "@angular/router";
 import { NzIconDirective } from "ng-zorro-antd/icon";
+import { MODEL_ICON } from "../../common/icon/model-icon";
 
 @Component({
   selector: "texera-hub",
@@ -40,6 +41,8 @@ export class HubComponent {
   protected readonly HOME = HOME;
   protected readonly HUB_WORKFLOW_RESULT = HUB_WORKFLOW_RESULT;
   protected readonly HUB_DATASET_RESULT = HUB_DATASET_RESULT;
+  protected readonly HUB_MODEL_RESULT = HUB_MODEL_RESULT;
+  protected readonly MODEL_ICON = MODEL_ICON;
 
   constructor(protected config: GuiConfigService) {}
 }

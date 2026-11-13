@@ -40,6 +40,7 @@ import org.scalatest.{BeforeAndAfterAll, BeforeAndAfterEach}
 
 import java.sql.Timestamp
 import javax.ws.rs.{BadRequestException, ForbiddenException}
+import scala.jdk.CollectionConverters._
 
 class WorkflowAccessResourceSpec
     extends AnyFlatSpec
@@ -52,6 +53,7 @@ class WorkflowAccessResourceSpec
   private val userWithReadUid = 3000 + scala.util.Random.nextInt(1000)
   private val targetUserUid = 4000 + scala.util.Random.nextInt(1000)
   private val testWorkflowWid = 5000 + scala.util.Random.nextInt(1000)
+  private val newGranteeUid = 6000 + scala.util.Random.nextInt(1000)
 
   private var owner: User = _
   private var userWithWrite: User = _
@@ -82,25 +84,21 @@ class WorkflowAccessResourceSpec
     owner.setUid(ownerUid)
     owner.setName("owner")
     owner.setEmail("owner@test.com")
-    owner.setPassword("password")
 
     userWithWrite = new User
     userWithWrite.setUid(userWithWriteUid)
     userWithWrite.setName("user_with_write")
     userWithWrite.setEmail("write@test.com")
-    userWithWrite.setPassword("password")
 
     userWithRead = new User
     userWithRead.setUid(userWithReadUid)
     userWithRead.setName("user_with_read")
     userWithRead.setEmail("read@test.com")
-    userWithRead.setPassword("password")
 
     targetUser = new User
     targetUser.setUid(targetUserUid)
     targetUser.setName("target_user")
     targetUser.setEmail("target@test.com")
-    targetUser.setPassword("password")
 
     // Create test workflow
     testWorkflow = new Workflow
@@ -172,13 +170,13 @@ class WorkflowAccessResourceSpec
     getDSLContext
       .deleteFrom(USER)
       .where(
-        USER.UID.in(ownerUid, userWithWriteUid, userWithReadUid, targetUserUid)
+        USER.UID.in(ownerUid, userWithWriteUid, userWithReadUid, targetUserUid, newGranteeUid)
       )
       .execute()
   }
 
   override protected def afterAll(): Unit = {
-    shutdownDB()
+    closeConnectionPool()
   }
 
   "WorkflowAccessResource.revokeAccess" should "successfully revoke access when user has WRITE permission" in {
@@ -401,5 +399,175 @@ class WorkflowAccessResourceSpec
       )
       .fetchOne()
     assert(accessAfterSecond == null, "Target user's access should still be revoked")
+  }
+
+  // Always inserts at newGranteeUid (the only extra uid cleanupTestData removes),
+  // so callers can't leak a user row across tests.
+  private def seedUserWithoutAccess(name: String, email: String): User = {
+    val user = new User
+    user.setUid(newGranteeUid)
+    user.setName(name)
+    user.setEmail(email)
+    userDao.insert(user)
+    user
+  }
+
+  "WorkflowAccessResource.grantAccess" should "reject granting to a placeholder account" in {
+    val placeholder = seedUserWithoutAccess("wf_placeholder", "wf-placeholder@test.com")
+    // a placeholder has no credential at all; under auth_provider that means no row, which
+    // seedUserWithoutAccess already leaves it with
+    placeholder.setIsPlaceholder(true)
+    userDao.update(placeholder)
+
+    assertThrows[BadRequestException] {
+      workflowAccessResource.grantAccess(
+        testWorkflowWid,
+        "wf-placeholder@test.com",
+        "READ",
+        new SessionUser(userWithWrite)
+      )
+    }
+  }
+
+  "WorkflowAccessResource.getOwner" should "return the workflow owner's email" in {
+    assert(workflowAccessResource.getOwner(testWorkflowWid) == "owner@test.com")
+  }
+
+  "WorkflowAccessResource.getPrivilege" should "report the grantees' privileges and NONE for anyone else" in {
+    assert(
+      WorkflowAccessResource.getPrivilege(testWorkflowWid, userWithWriteUid) == PrivilegeEnum.WRITE
+    )
+    assert(
+      WorkflowAccessResource.getPrivilege(testWorkflowWid, userWithReadUid) == PrivilegeEnum.READ
+    )
+    assert(
+      WorkflowAccessResource.getPrivilege(testWorkflowWid, newGranteeUid) == PrivilegeEnum.NONE
+    )
+  }
+
+  it should "give the owner WRITE without an access row" in {
+    assert(WorkflowAccessResource.getPrivilege(testWorkflowWid, ownerUid) == PrivilegeEnum.WRITE)
+    assert(WorkflowAccessResource.hasWriteAccess(testWorkflowWid, ownerUid))
+    assert(WorkflowAccessResource.hasGrantedAccess(testWorkflowWid, ownerUid))
+  }
+
+  it should "give the owner WRITE even when their access row says READ" in {
+    workflowUserAccessDao.insert(
+      new WorkflowUserAccess(ownerUid, testWorkflowWid, PrivilegeEnum.READ)
+    )
+    assert(WorkflowAccessResource.getPrivilege(testWorkflowWid, ownerUid) == PrivilegeEnum.WRITE)
+  }
+
+  it should "not fail when the workflow has several owner rows" in {
+    workflowOfUserDao.insert(new WorkflowOfUser(userWithReadUid, testWorkflowWid))
+    assert(WorkflowAccessResource.getPrivilege(testWorkflowWid, ownerUid) == PrivilegeEnum.WRITE)
+    assert(
+      WorkflowAccessResource.getPrivilege(testWorkflowWid, userWithReadUid) == PrivilegeEnum.WRITE
+    )
+    assert(
+      WorkflowAccessResource.getPrivilege(testWorkflowWid, userWithWriteUid) == PrivilegeEnum.WRITE
+    )
+  }
+
+  "WorkflowAccessResource.accessibleWids" should "list owned and granted workflows, once each" in {
+    workflowUserAccessDao.insert(
+      new WorkflowUserAccess(ownerUid, testWorkflowWid, PrivilegeEnum.WRITE)
+    )
+    def wids(uid: Integer) =
+      getDSLContext
+        .fetch(WorkflowAccessResource.accessibleWids(uid))
+        .getValues(0, classOf[Integer])
+        .asScala
+        .toList
+    assert(wids(ownerUid) == List(testWorkflowWid))
+    assert(wids(userWithReadUid) == List(testWorkflowWid))
+    assert(wids(newGranteeUid).isEmpty)
+  }
+
+  "WorkflowAccessResource.getAccessList" should "list the granted users with their privilege, excluding the owner" in {
+    val byEmail =
+      workflowAccessResource
+        .getAccessList(testWorkflowWid)
+        .asScala
+        .map(e => e.email -> e.privilege.getLiteral)
+        .toMap
+
+    assert(byEmail.size == 3)
+    assert(byEmail("write@test.com") == "WRITE")
+    assert(byEmail("read@test.com") == "READ")
+    assert(byEmail("target@test.com") == "WRITE")
+    assert(!byEmail.contains("owner@test.com"))
+  }
+
+  it should "return an empty list when the workflow has no shared access" in {
+    getDSLContext
+      .deleteFrom(WORKFLOW_USER_ACCESS)
+      .where(WORKFLOW_USER_ACCESS.WID.eq(testWorkflowWid))
+      .execute()
+
+    assert(workflowAccessResource.getAccessList(testWorkflowWid).isEmpty)
+  }
+
+  "WorkflowAccessResource.grantAccess" should "grant READ access to a new user, reflected in getPrivilege" in {
+    seedUserWithoutAccess("new_grantee", "newgrantee@test.com")
+
+    workflowAccessResource.grantAccess(
+      testWorkflowWid,
+      "newgrantee@test.com",
+      "READ",
+      new SessionUser(userWithWrite)
+    )
+
+    assert(
+      WorkflowAccessResource.getPrivilege(testWorkflowWid, newGranteeUid) == PrivilegeEnum.READ
+    )
+  }
+
+  it should "change an existing grantee's privilege on re-grant (READ -> WRITE)" in {
+    workflowAccessResource.grantAccess(
+      testWorkflowWid,
+      "read@test.com",
+      "WRITE",
+      new SessionUser(userWithWrite)
+    )
+
+    assert(
+      WorkflowAccessResource.getPrivilege(testWorkflowWid, userWithReadUid) == PrivilegeEnum.WRITE
+    )
+  }
+
+  it should "throw ForbiddenException when the caller lacks WRITE access" in {
+    assertThrows[ForbiddenException] {
+      workflowAccessResource.grantAccess(
+        testWorkflowWid,
+        "target@test.com",
+        "READ",
+        new SessionUser(userWithRead)
+      )
+    }
+  }
+
+  it should "throw ForbiddenException when granting access to the owner" in {
+    assertThrows[ForbiddenException] {
+      workflowAccessResource.grantAccess(
+        testWorkflowWid,
+        "owner@test.com",
+        "READ",
+        new SessionUser(userWithWrite)
+      )
+    }
+  }
+
+  it should "throw BadRequestException when a user without access grants to themselves" in {
+    val noAccessUser = seedUserWithoutAccess("no_access", "noaccess@test.com")
+
+    assertThrows[BadRequestException] {
+      workflowAccessResource.grantAccess(
+        testWorkflowWid,
+        "noaccess@test.com",
+        "READ",
+        new SessionUser(noAccessUser)
+      )
+    }
   }
 }

@@ -34,6 +34,29 @@ class PythonUDFOpDescV2Spec extends AnyFlatSpec with Matchers {
   private val workflowId = WorkflowIdentity(1L)
   private val executionId = ExecutionIdentity(1L)
 
+  private def resourceParameter(name: String, inputType: String, value: String): UiUDFParameter = {
+    val parameter = new UiUDFParameter
+    parameter.attribute = new Attribute(name, AttributeType.STRING)
+    parameter.inputType = inputType
+    parameter.value = value
+    parameter
+  }
+
+  private val tupleUdfCode =
+    """from pytexera import *
+      |
+      |class ProcessTupleOperator(UDFOperatorV2):
+      |    def process_tuple(self, tuple_, port):
+      |        yield tuple_
+      |""".stripMargin
+
+  private def uiParameter(name: String, value: String): UiUDFParameter = {
+    val parameter = new UiUDFParameter
+    parameter.attribute = new Attribute(name, AttributeType.INTEGER)
+    parameter.value = value
+    parameter
+  }
+
   "PythonUDFOpDescV2.operatorInfo" should
     "advertise the name, Python group, dynamic ports, and a default 1-in/1-out shape" in {
     val info = (new PythonUDFOpDescV2).operatorInfo
@@ -72,6 +95,47 @@ class PythonUDFOpDescV2Spec extends AnyFlatSpec with Matchers {
     val d = new PythonUDFOpDescV2
     d.workers = 0
     intercept[IllegalArgumentException] { d.getPhysicalOp(workflowId, executionId) }
+  }
+
+  it should "inject configured UI parameters into the generated Python code" in {
+    val d = new PythonUDFOpDescV2
+    d.code = """from pytexera import *
+        |
+        |class ProcessTupleOperator(UDFOperatorV2):
+        |    def process_tuple(self, tuple_, port):
+        |        yield tuple_
+        |""".stripMargin
+    d.uiParameters = List(uiParameter("count", "7"))
+
+    d.getPhysicalOp(workflowId, executionId).opExecInitInfo match {
+      case OpExecWithCode(code, "python") =>
+        code should include("def _texera_injected_ui_parameters")
+        code should include("self.decode_python_template")
+      case other => fail(s"expected Python OpExecWithCode, got $other")
+    }
+  }
+
+  it should "defer nothing when no parameter names a resource" in {
+    val d = new PythonUDFOpDescV2
+    d.code = tupleUdfCode
+    d.uiParameters = List(uiParameter("count", "7"))
+    d.getPhysicalOp(workflowId, executionId).executionTimeBinding shouldBe None
+  }
+
+  it should "leave a resource parameter to the execution, compiling without resolving it" in {
+    val d = new PythonUDFOpDescV2
+    d.code = tupleUdfCode
+    d.uiParameters = List(resourceParameter("DS", "dataset", "/dataset/owner@x.com/ds/v1"))
+    // Resolving needs a database, which this suite has none of, so compiling must not try.
+    d.getPhysicalOp(workflowId, executionId).executionTimeBinding should not be empty
+  }
+
+  it should "refuse a resource parameter whose version was never chosen" in {
+    val d = new PythonUDFOpDescV2
+    d.code = tupleUdfCode
+    d.uiParameters = List(resourceParameter("DS", "dataset", "  "))
+    val failure = the[RuntimeException] thrownBy d.getPhysicalOp(workflowId, executionId)
+    failure.getMessage should include("No dataset selected for the parameter 'DS'")
   }
 
   it should "reject a blank virtual-environment name when the default env is disabled" in {
@@ -125,6 +189,7 @@ class PythonUDFOpDescV2Spec extends AnyFlatSpec with Matchers {
     d.defaultEnv = false
     d.envName = "myenv"
     d.outputColumns = List(new Attribute("res", AttributeType.INTEGER))
+    d.uiParameters = List(uiParameter("count", "7"))
     val restored = objectMapper.readValue(objectMapper.writeValueAsString(d), classOf[LogicalOp])
     restored shouldBe a[PythonUDFOpDescV2]
     val p = restored.asInstanceOf[PythonUDFOpDescV2]
@@ -134,6 +199,8 @@ class PythonUDFOpDescV2Spec extends AnyFlatSpec with Matchers {
     p.defaultEnv shouldBe false
     p.envName shouldBe "myenv"
     p.outputColumns shouldBe List(new Attribute("res", AttributeType.INTEGER))
+    p.uiParameters.map(_.attribute) shouldBe List(new Attribute("count", AttributeType.INTEGER))
+    p.uiParameters.map(_.value) shouldBe List("7")
   }
 
   "PythonUDFOpDescV2.getPhysicalOp" should

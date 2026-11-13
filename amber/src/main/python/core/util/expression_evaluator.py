@@ -16,9 +16,8 @@
 # under the License.
 
 import inspect
-import re
 from collections.abc import Iterator, Mapping
-from typing import Any, Dict, List, Optional, Pattern, Tuple
+from typing import Any, Dict, List, Optional, Tuple
 
 from proto.org.apache.texera.amber.engine.architecture.rpc import (
     EvaluatedValue,
@@ -151,17 +150,6 @@ class ExpressionEvaluator:
     @staticmethod
     def _is_empty_container(obj) -> bool:
         return hasattr(obj, "__len__") and len(obj) == 0
-
-    @staticmethod
-    def _contextualize_expression(
-        expression: str, context_replacements: Dict[Pattern[str], str]
-    ) -> str:
-        contextualized_expression = expression
-        for pattern, contextualized_pattern in context_replacements.items():
-            contextualized_expression = re.sub(
-                pattern, contextualized_pattern, contextualized_expression
-            )
-        return contextualized_expression
 
     @staticmethod
     def _extract_container_items(value: Any) -> List[TypedValue]:

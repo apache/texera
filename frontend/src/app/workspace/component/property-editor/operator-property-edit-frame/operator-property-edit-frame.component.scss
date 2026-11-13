@@ -60,6 +60,13 @@
     nz-input-number {
       width: 100%;
     }
+    // preserve newlines (\n) in property descriptions rendered via nzExtra,
+    // and give them breathing room from the input above
+    .ant-form-item-extra {
+      white-space: pre-line;
+      margin-top: 6px;
+      line-height: 1.4;
+    }
   }
 }
 
@@ -204,4 +211,15 @@
 .hf-task-preview-text-output {
   padding-top: 8px;
   border-top: 1px solid #f0f0f0;
+}
+
+/* Style only the UDF Parameters field using the widget's stable class. */
+:host ::ng-deep nz-form-item:has(.ui-udf-parameters-field) {
+  border-top: 1px solid #d9d9d9;
+  padding-top: 12px;
+  margin-top: 8px;
+
+  label {
+    font-weight: 600;
+  }
 }

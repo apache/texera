@@ -18,6 +18,7 @@
  */
 
 import { Injectable } from "@angular/core";
+import { escape as escapeHtml } from "lodash-es";
 import { Observable } from "rxjs";
 import { NzModalService } from "ng-zorro-antd/modal";
 import { ShareAccessComponent } from "../../../../dashboard/component/user/share-access/share-access.component";
@@ -37,6 +38,8 @@ export interface StartComputingUnitRequest {
   jvmMemorySize: string;
   shmSize: string;
   localUri: string;
+  /** A curated image to start from. Absent means the deployment's own image. */
+  imageId?: number;
 }
 
 @Injectable({
@@ -74,7 +77,8 @@ export class ComputingUnitActionsService {
         request.memory,
         request.gpu,
         request.jvmMemorySize,
-        request.shmSize
+        request.shmSize,
+        request.imageId
       );
     }
 
@@ -85,13 +89,15 @@ export class ComputingUnitActionsService {
     throw new Error("Unsupported computing unit type");
   }
 
-  confirmAndTerminate(cuid: number, unit: DashboardWorkflowComputingUnit): void {
+  /** Runs `onTerminated` once the unit is terminated, and not if the modal is cancelled or the termination fails. */
+  confirmAndTerminate(cuid: number, unit: DashboardWorkflowComputingUnit, onTerminated?: () => void): void {
     if (!unit.computingUnit.uri) {
       this.notificationService.error("Invalid computing unit.");
       return;
     }
 
-    const unitName = unit.computingUnit.name;
+    // ng-zorro renders this string as HTML and any user can name their unit, so the name is escaped.
+    const unitName = escapeHtml(unit.computingUnit.name);
     const unitType = unit?.computingUnit.type || "kubernetes"; // fallback
     const templates = unitTypeMessageTemplate[unitType];
 
@@ -115,6 +121,7 @@ export class ComputingUnitActionsService {
           next: (success: boolean) => {
             if (success) {
               this.notificationService.success(`Terminated Computing Unit: ${unitName}`);
+              onTerminated?.();
             } else {
               this.notificationService.error("Failed to terminate computing unit");
             }
