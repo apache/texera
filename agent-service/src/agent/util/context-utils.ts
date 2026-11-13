@@ -27,9 +27,19 @@ import type { OperatorPredicate, OperatorPortSchemaMap, PortSchema } from "../..
 import type { ReActStep } from "../../types/agent";
 import type { WorkflowCompilationResponse, WorkflowFatalError } from "../../api/compile-api";
 import { extractOperatorInputPortSchemaMap } from "./workflow-utils";
+import { TOOL_NAME_READ_DOC, TOOL_NAME_SEARCH_DOCS } from "../tools/docs-tools";
+import { cutText } from "../tools/docs-index";
 import { createLogger } from "../../logger";
 
 const log = createLogger("ContextAssembler");
+
+/** Tools whose output is text for the model to read, not a change that shows in the dataflow. */
+const DOCS_TOOL_NAMES = new Set([TOOL_NAME_SEARCH_DOCS, TOOL_NAME_READ_DOC]);
+/** Most characters the docs calls shown in one context may take, labels and indentation included. */
+export const DOCS_CONTEXT_CHAR_LIMIT = 20000;
+const DOCS_INPUT_LABEL_CHAR_LIMIT = 200;
+const DOCS_CALL_REJECTED = "(no output, the tool is unavailable or its arguments were invalid)";
+const DOCS_NO_OUTPUT = "(no output)";
 
 export function assembleContext(
   visibleSteps: ReActStep[],
@@ -53,6 +63,7 @@ export function assembleContext(
   const sections: string[] = [];
   let completedCount = 0;
   let hasOngoing = false;
+  let ongoingSteps: ReActStep[] = [];
 
   for (const msgId of messageIds) {
     const steps = stepsByMessage.get(msgId)!;
@@ -69,6 +80,7 @@ export function assembleContext(
       completedCount++;
     } else {
       hasOngoing = true;
+      ongoingSteps = steps;
       sections.push("");
       sections.push("# Ongoing Task");
       sections.push(serializeTask(steps, "ongoing"));
@@ -77,6 +89,13 @@ export function assembleContext(
         "Above is user's request and the steps you already took. You as an assistant please keep working on solving user's request based on the progress of current workflow."
       );
     }
+  }
+
+  const docsSection = serializeDocsOutput(ongoingSteps);
+  if (docsSection) {
+    sections.push("");
+    sections.push("# Documentation Read");
+    sections.push(docsSection);
   }
 
   const dagSection = serializeDag(workflowState, operatorExecutionResults, useRedact, compilationResult);
@@ -133,6 +152,53 @@ function serializeTask(steps: ReActStep[], status: "completed" | "ongoing"): str
   }
 
   return lines.join("\n").trimEnd();
+}
+
+/**
+ * The output of the searchDocs and readDoc calls of the ongoing task, oldest first. Over the
+ * budget, the newest calls are kept whole and one line says how many older ones were left out.
+ */
+function serializeDocsOutput(steps: ReActStep[]): string | null {
+  const entries: string[] = [];
+  for (const step of steps) {
+    if (step.role !== "agent") continue;
+    for (const call of step.toolCalls ?? []) {
+      if (!DOCS_TOOL_NAMES.has(call.toolName)) continue;
+      const result = step.toolResults?.find(r => r.toolCallId === call.toolCallId);
+      const input = JSON.stringify(call.input ?? {});
+      const shownInput =
+        input.length <= DOCS_INPUT_LABEL_CHAR_LIMIT ? input : `${cutText(input, DOCS_INPUT_LABEL_CHAR_LIMIT)}…`;
+      // A call to a tool that does not exist, or with arguments the SDK refused, is stored without a result.
+      let output = DOCS_CALL_REJECTED;
+      if (result) {
+        const text = typeof result.output === "string" ? result.output : JSON.stringify(result.output);
+        output = text === undefined || text === "" ? DOCS_NO_OUTPUT : text;
+      }
+      const indented = output.split("\n").map(line => `  ${line}`);
+      entries.push([`## Turn ${step.stepId}: ${call.toolName} ${shownInput}`, ...indented].join("\n"));
+    }
+  }
+  if (entries.length === 0) return null;
+
+  // An entry costs its text plus the blank line before it; the newest one is always kept.
+  const cost = (entry: string) => entry.length + 2;
+  let firstKept = entries.length - 1;
+  let used = cost(entries[firstKept]);
+  while (firstKept > 0 && used + cost(entries[firstKept - 1]) <= DOCS_CONTEXT_CHAR_LIMIT) {
+    firstKept--;
+    used += cost(entries[firstKept]);
+  }
+
+  const lines = ["Output of your searchDocs and readDoc calls in this task, oldest first."];
+  if (firstKept > 0) {
+    const [outputs, them] = firstKept === 1 ? ["output", "it"] : ["outputs", "them"];
+    lines.push(`(${firstKept} earlier ${outputs} dropped to save space, call the tool again if you need ${them})`);
+  }
+  for (const entry of entries.slice(firstKept)) {
+    lines.push("");
+    lines.push(entry);
+  }
+  return lines.join("\n");
 }
 
 function serializeDag(

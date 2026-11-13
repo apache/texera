@@ -714,6 +714,8 @@ export LITELLM_BASE_URL="${LITELLM_BASE_URL:-http://localhost:4000}"
 export LITELLM_MASTER_KEY="${LITELLM_MASTER_KEY:-sk-texera-internal-do-not-share}"
 export LLM_ENDPOINT="${LLM_ENDPOINT:-http://localhost:8080}"
 export LLM_API_KEY="${LLM_API_KEY:-dummy}"
+# The agent service runs from agent-service/, so its default ./docs would find nothing.
+export TEXERA_DOCS_DIR="${TEXERA_DOCS_DIR:-$REPO_ROOT/docs}"
 
 # Email verification ships on, and refuses to issue a code when no SMTP sender is configured
 # rather than logging the code where anyone reading logs could spend it. A local stack has no

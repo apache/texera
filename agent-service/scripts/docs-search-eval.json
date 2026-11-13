@@ -1,0 +1,115 @@
+[
+  {
+    "group": "platform",
+    "question": "where do I find a workflow that someone shared with me",
+    "expected": "getting-started/ui-overview"
+  },
+  {
+    "group": "platform",
+    "question": "how do I upload a file to a dataset and use it in a workflow",
+    "expected": "tutorials/create-dataset-upload-data"
+  },
+  {
+    "group": "platform",
+    "question": "how do I log in to Texera for the first time",
+    "expected": "getting-started/AccessLogin"
+  },
+  { "group": "platform", "question": "what is a computing unit and who can use one", "expected": "security/_index" },
+  {
+    "group": "platform",
+    "question": "how do I run a workflow and see the results in the browser",
+    "expected": "tutorials/guide-for-how-to-use-texera"
+  },
+  {
+    "group": "operator",
+    "question": "how do I remove duplicate rows",
+    "expected": "reference/operators/data-cleaning/distinct"
+  },
+  {
+    "group": "operator",
+    "question": "CSV file scan delimiter and header options",
+    "expected": "reference/operators/data-input/csv-file-scan"
+  },
+  {
+    "group": "operator",
+    "question": "join two tables on a key column",
+    "expected": "reference/operators/data-cleaning/join/hash-join"
+  },
+  {
+    "group": "operator",
+    "question": "group by a column and compute sum or average",
+    "expected": "reference/operators/data-cleaning/aggregate/aggregate"
+  },
+  {
+    "group": "operator",
+    "question": "keep only the first 100 rows",
+    "expected": "reference/operators/data-cleaning/limit"
+  },
+  {
+    "group": "operator",
+    "question": "search a string column with a regular expression",
+    "expected": "reference/operators/search/regular-expression"
+  },
+  {
+    "group": "operator",
+    "question": "how to write a Python UDF operator",
+    "expected": "tutorials/guide-to-use-python-udf"
+  },
+  {
+    "group": "operator",
+    "question": "convert a column from string to integer",
+    "expected": "reference/operators/data-cleaning/type-casting"
+  },
+  {
+    "group": "operator",
+    "question": "draw a word cloud from text",
+    "expected": "reference/operators/visualization/media/word-cloud"
+  },
+  {
+    "group": "operator",
+    "question": "sort rows by a column",
+    "expected": "reference/operators/data-cleaning/sort/sort"
+  },
+  {
+    "group": "deploy",
+    "question": "install Texera with docker compose",
+    "expected": "getting-started/installing-using-docker"
+  },
+  {
+    "group": "deploy",
+    "question": "run Texera on kubernetes with helm",
+    "expected": "getting-started/run-on-kubernetes"
+  },
+  {
+    "group": "deploy",
+    "question": "how do I enable the AI agent and configure LiteLLM",
+    "expected": "tutorials/guide-to-enable-llm-agent"
+  },
+  {
+    "group": "deploy",
+    "question": "stop and restart the Texera containers",
+    "expected": "getting-started/installing-using-docker"
+  },
+  { "group": "platform", "question": "what are the user roles and access privileges", "expected": "security/_index" },
+  {
+    "group": "platform",
+    "question": "convert my Jupyter notebook into a workflow",
+    "expected": "tutorials/migrate-jupyter-notebook"
+  },
+  {
+    "group": "operator",
+    "question": "read data from a PostgreSQL database",
+    "expected": "reference/operators/database-connector/postgresql-source"
+  },
+  {
+    "group": "operator",
+    "question": "list the files in a dataset version",
+    "expected": "reference/operators/data-input/file-lister"
+  },
+  {
+    "group": "operator",
+    "question": "what does set snapshot output mode mean",
+    "expected": "reference/operators/output-modes"
+  },
+  { "group": "platform", "question": "overview of Texera architecture and core concepts", "expected": "overview" }
+]
