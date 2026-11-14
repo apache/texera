@@ -58,6 +58,15 @@ class NetworkOutputBuffer(
     var columnar: Boolean = false
 ) {
 
+  // Set by the output manager: whether `to` is co-located (same ActorSystem). A local hop
+  // never serializes, so the columnar wire is pure overhead there; None means not yet
+  // known, treated as remote.
+  var localityCheck: () => Option[Boolean] = () => None
+
+  // The columnar decision after locality: honor the planner's flag only for a receiver
+  // that is remote (or not yet known). A known-local receiver stays on rows.
+  def remoteColumnar: Boolean = columnar && !localityCheck().getOrElse(false)
+
   var buffer = new ArrayBuffer[Tuple]()
 
   def addTuple(tuple: Tuple): Unit = {
@@ -84,7 +93,7 @@ class NetworkOutputBuffer(
   def flush(): Unit = {
     if (buffer.nonEmpty) {
       val batch = buffer.toArray
-      if (columnar) {
+      if (remoteColumnar) {
         // Serialize the batch to Arrow once; all tuples on a link share the schema.
         val schema = batch(0).getSchema
         dataOutputPort.sendTo(

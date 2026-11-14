@@ -505,6 +505,66 @@ class OutputManagerSpec extends AnyFlatSpec with MockFactory {
     receivers.foreach(r => assert(got.getOrElse(r, Nil) == rows.toList))
   }
 
+  // -- locality guard (phase 2b): a local (same-JVM) receiver stays on rows ---------
+
+  "locality guard" should "keep a local one-to-one edge on rows even when columnar is enabled" in {
+    val (om, sent) = capturingOutputManager()
+    val rec = ActorVirtualIdentity("local-o2o")
+    val portId = PortIdentity(40)
+    om.addPort(portId, schema, None)
+    om.addPartitionerWithPartitioning(
+      PhysicalLink(physicalOpId(), portId, physicalOpId(), portId),
+      OneToOnePartitioning(1, Seq(channelTo(rec))),
+      columnar = true
+    )
+    om.isLocalReceiver = id => if (id == rec) Some(true) else None
+    om.passTupleToDownstream(sampleTuple(), Some(portId))
+    // columnar is on, but the receiver is local, so the batch goes out as rows.
+    assert(sent.size == 1)
+    assert(sent.head.payload.isInstanceOf[DataFrame])
+  }
+
+  it should "decline the no-decode fast path for a local receiver, take it for a remote one" in {
+    def fastPathTaken(local: Boolean): Boolean = {
+      val (om, _) = capturingOutputManager()
+      val rec = ActorVirtualIdentity(s"fast-$local")
+      val portId = PortIdentity(if (local) 41 else 42)
+      om.addPort(portId, schema, None)
+      om.addPartitionerWithPartitioning(
+        PhysicalLink(physicalOpId(), portId, physicalOpId(), portId),
+        OneToOnePartitioning(1000, Seq(channelTo(rec))),
+        columnar = true
+      )
+      om.isLocalReceiver = _ => Some(local)
+      emitThrough(om, Array(sampleTuple())).isDefined
+    }
+    assert(!fastPathTaken(local = true)) // local -> fall back to the row path
+    assert(fastPathTaken(local = false)) // remote -> columnar fast path
+  }
+
+  it should "in the row path, send rows to a local receiver and Arrow to a remote one on a mixed shuffle" in {
+    val local = ActorVirtualIdentity("mix-local")
+    val remote = ActorVirtualIdentity("mix-remote")
+    val (om, sent) = capturingOutputManager()
+    val portId = PortIdentity(43)
+    om.addPort(portId, schema, None)
+    om.addPartitionerWithPartitioning(
+      PhysicalLink(physicalOpId(), portId, physicalOpId(), portId),
+      // batchSize 1 so each tuple flushes to its bucket immediately.
+      HashBasedShufflePartitioning(1, Seq(channelTo(local), channelTo(remote)), Seq("field1")),
+      columnar = true
+    )
+    om.isLocalReceiver = id => Some(id == local)
+    (0 until 40).foreach(v => om.passTupleToDownstream(rowWith(v), Some(portId)))
+    om.flush()
+    val byReceiver = sent.groupBy(_.channelId.toWorkerId)
+    // Both buckets got data, the local one as DataFrames and the remote one as VectorFrames.
+    assert(byReceiver.get(local).exists(_.nonEmpty))
+    assert(byReceiver.get(remote).exists(_.nonEmpty))
+    assert(byReceiver(local).forall(_.payload.isInstanceOf[DataFrame]))
+    assert(byReceiver(remote).forall(_.payload.isInstanceOf[VectorFrame]))
+  }
+
   it should "decline when columnar output is off" in {
     val (om, sent) = capturingOutputManager()
     val portId = PortIdentity(22)

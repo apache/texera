@@ -115,6 +115,12 @@ class OutputManager(
 ) extends AmberLogging {
 
   val outputIterator: DPOutputIterator = new DPOutputIterator()
+
+  // Set by the worker: whether a receiver worker is co-located (same ActorSystem). A local
+  // hop never serializes, so the columnar wire is pure overhead there and that edge stays
+  // on rows. None = not yet known (treated as remote). Wired into each buffer's locality
+  // check when the partitioner is added.
+  var isLocalReceiver: ActorVirtualIdentity => Option[Boolean] = _ => None
   private val partitioners: mutable.Map[PhysicalLink, Partitioner] =
     mutable.HashMap[PhysicalLink, Partitioner]()
 
@@ -147,6 +153,8 @@ class OutputManager(
     partitioner.allReceivers.foreach(receiver => {
       val buffer =
         new NetworkOutputBuffer(receiver, outputGateway, getBatchSize(partitioning), columnar)
+      // A local (same-JVM) receiver keeps the edge on rows regardless of the planner flag.
+      buffer.localityCheck = () => isLocalReceiver(receiver)
       networkOutputBuffers.update((link, receiver), buffer)
       outputGateway.addOutputChannel(ChannelIdentity(actorId, receiver, isControl = false))
     })
@@ -213,8 +221,11 @@ class OutputManager(
         !outputPortResultWriterThreads.contains(portId) &&
         links.forall {
           case (link, partitioner) =>
+            // The no-decode fast path runs only when every receiver is remote-columnar. A
+            // local (or mixed) edge falls back to the row path, whose per-receiver flush
+            // already emits rows to local receivers and Arrow to remote ones.
             partitioner.allReceivers.forall(r =>
-              networkOutputBuffers.get((link, r)).exists(_.columnar)
+              networkOutputBuffers.get((link, r)).exists(_.remoteColumnar)
             )
         }
     if (!eligible) return None
