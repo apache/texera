@@ -166,9 +166,11 @@ export class TexeraLoginComponent implements OnInit {
     // Google emits the signed-in user here after its own button completes the flow.
     // The null filter matters: logging out pushes null through this subject, and it is a
     // ReplaySubject, so that stale null is replayed into this subscription the moment it starts.
+    // Since angularx-social-login 2.6 `idToken` is typed optional; Google always supplies one, and
+    // requiring it here lets googleLogin take a plain string.
     this.socialAuthService.authState
       .pipe(
-        filter((user): user is SocialUser => user != null),
+        filter((user): user is SocialUser & { idToken: string } => user?.idToken != null),
         untilDestroyed(this)
       )
       .subscribe(user => {
