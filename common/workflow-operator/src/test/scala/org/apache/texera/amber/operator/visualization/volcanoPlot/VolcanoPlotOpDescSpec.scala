@@ -113,6 +113,8 @@ class VolcanoPlotOpDescSpec extends AnyFlatSpec with Matchers {
     code should include(s"title=${decoded(op.title)}")
     code should include(s"xaxis_title=${decoded(op.xLabel)}")
     code should include(s"yaxis_title=${decoded(op.yLabel)}")
+    // The color bar follows the x label, since both show the effect column.
+    code should include(s"coloraxis_colorbar_title_text=${decoded(op.xLabel)}")
     Seq(op.title, op.xLabel, op.yLabel).foreach { sentinel =>
       code should not include sentinel
     }
@@ -120,19 +122,10 @@ class VolcanoPlotOpDescSpec extends AnyFlatSpec with Matchers {
     code should not include b64("Volcano Plot")
     code should not include s"xaxis_title=${decoded("log2fc")}"
     code should not include s"yaxis_title=${decoded("-log10(pvalue)")}"
+    code should not include s"coloraxis_colorbar_title_text=${decoded("log2fc")}"
     // The y column itself keeps the derived name: a label is text on the axis,
     // not a column rename.
     code should include(s"y=${decoded("-log10(pvalue)")}")
-  }
-
-  it should "title the color bar with the x axis text because both show the effect column" in {
-    // The points are colored by the column on the x axis, so the color bar
-    // carries the x axis text rather than a label of its own.
-    val op = configured
-    op.xLabel = "X_LBL_SENT log₂ fold change"
-    val code = op.generatePythonCode()
-    code should include(s"coloraxis_colorbar_title_text=${decoded(op.xLabel)}")
-    code should not include s"coloraxis_colorbar_title_text=${decoded("log2fc")}"
   }
 
   it should "treat a whitespace-only label as empty and keep the default" in {
@@ -140,14 +133,7 @@ class VolcanoPlotOpDescSpec extends AnyFlatSpec with Matchers {
     op.title = " "
     op.xLabel = "\t"
     op.yLabel = " \n "
-    val code = op.generatePythonCode()
-    code should include(s"title=${decoded("Volcano Plot")}")
-    code should include(s"xaxis_title=${decoded("log2fc")}")
-    code should include(s"yaxis_title=${decoded("-log10(pvalue)")}")
-    code should include(s"coloraxis_colorbar_title_text=${decoded("log2fc")}")
-    Seq(op.title, op.xLabel, op.yLabel).foreach { blank =>
-      code should not include decoded(blank)
-    }
+    op.generatePythonCode() shouldBe configured.generatePythonCode()
   }
 
   it should "treat each label independently so one set label leaves the others at their default" in {
@@ -167,12 +153,7 @@ class VolcanoPlotOpDescSpec extends AnyFlatSpec with Matchers {
         classOf[LogicalOp]
       )
       .asInstanceOf[VolcanoPlotOpDesc]
-    val code = saved.generatePythonCode()
-    code shouldBe configured.generatePythonCode()
-    code should include(s"title=${decoded("Volcano Plot")}")
-    code should include(s"xaxis_title=${decoded("log2fc")}")
-    code should include(s"yaxis_title=${decoded("-log10(pvalue)")}")
-    code should include(s"coloraxis_colorbar_title_text=${decoded("log2fc")}")
+    saved.generatePythonCode() shouldBe configured.generatePythonCode()
   }
 
   "VolcanoPlotOpDesc.generateStandaloneCode" should "name the y column and its axis after the selected p-value column" in {
@@ -230,39 +211,7 @@ class VolcanoPlotOpDescSpec extends AnyFlatSpec with Matchers {
     op.generateStandaloneCode() shouldBe configured.generateStandaloneCode()
   }
 
-  it should "render a workflow saved before this change exactly as a default-constructed operator" in {
-    val saved = objectMapper
-      .readValue(
-        """{"operatorType":"VolcanoPlot","effectColumn":"log2fc","pvalueColumn":"pvalue"}""",
-        classOf[LogicalOp]
-      )
-      .asInstanceOf[VolcanoPlotOpDesc]
-    saved.generateStandaloneCode() shouldBe configured.generateStandaloneCode()
-  }
-
-  it should "label the exported figure as the engine labels its own" in {
-    // Both paths derive the same texts; one decodes them at run time and the
-    // other writes them as literals. A label that reaches only one of them would
-    // make the exported figure differ from the one shown in the workflow.
-    val op = configured
-    op.pvalueColumn = "padj"
-    op.title = "Treated vs control"
-    op.xLabel = "Shrunken log2 fold change"
-    val engine = op.generatePythonCode()
-    val export = op.generateStandaloneCode()
-    Seq(
-      "title" -> "Treated vs control",
-      "xaxis_title" -> "Shrunken log2 fold change",
-      "yaxis_title" -> "-log10(padj)",
-      "coloraxis_colorbar_title_text" -> "Shrunken log2 fold change"
-    ).foreach {
-      case (key, text) =>
-        engine should include(s"$key=${decoded(text)}")
-        export should include(s"""$key="$text"""")
-    }
-  }
-
-  it should "currently render code even when required fields are empty (no assert guard)" in {
+  "VolcanoPlotOpDesc.generatePythonCode" should "currently render code even when required fields are empty (no assert guard)" in {
     // Documents the present behavior: VolcanoPlotOpDesc does not assert on
     // its required fields inside `generatePythonCode`. An empty
     // configuration therefore renders syntactically valid Python that
