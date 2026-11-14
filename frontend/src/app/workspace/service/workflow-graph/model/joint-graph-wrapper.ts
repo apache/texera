@@ -601,9 +601,44 @@ export class JointGraphWrapper {
     return this.zoomRatio;
   }
 
-  public autoLayoutJoint(): void {
+  /**
+   * Lays out the graph left to right with dagre.
+   *
+   * Comment boxes anchored to an operator are not laid out on their own: the operator is laid out as
+   * the bounding box of itself and its anchored comment boxes, so that nothing is placed on top of
+   * them, and the comment boxes are then put back at their offsets from the operator.
+   *
+   * @param anchoredCommentBoxIDs the IDs of the comment boxes anchored to each operator, by operator ID
+   */
+  public autoLayoutJoint(anchoredCommentBoxIDs: ReadonlyMap<string, readonly string[]> = new Map()): void {
+    const getElement = (id: string) => this.jointGraph.getCell(id) as joint.dia.Element;
+    const anchored = new Set(Array.from(anchoredCommentBoxIDs.values()).flat());
+    // For each operator with anchored comment boxes: the bounding box of the group, and the
+    // operator's and each comment box's offset within it, so the group is laid out as one node.
+    const groups = new Map<string, { size: joint.dia.Size; operatorOffset: Point; commentOffsets: Point[] }>();
+    anchoredCommentBoxIDs.forEach((commentBoxIDs, operatorID) => {
+      const operator = getElement(operatorID);
+      const bbox = commentBoxIDs
+        .map(commentBoxID => getElement(commentBoxID).getBBox())
+        .reduce((union, box) => union.union(box), operator.getBBox());
+      const operatorPosition = operator.position();
+      groups.set(operatorID, {
+        size: { width: bbox.width, height: bbox.height },
+        operatorOffset: { x: operatorPosition.x - bbox.x, y: operatorPosition.y - bbox.y },
+        commentOffsets: commentBoxIDs.map(commentBoxID => {
+          const position = getElement(commentBoxID).position();
+          return { x: position.x - operatorPosition.x, y: position.y - operatorPosition.y };
+        }),
+      });
+    });
+
     joint.layout.DirectedGraph.layout(
-      [...this.jointGraph.getElements().filter(el => el.attributes.type !== "region"), ...this.jointGraph.getLinks()],
+      [
+        ...this.jointGraph
+          .getElements()
+          .filter(el => el.attributes.type !== "region" && !anchored.has(el.id.toString())),
+        ...this.jointGraph.getLinks(),
+      ],
       {
         dagre: dagre,
         graphlib: graphlib,
@@ -613,8 +648,28 @@ export class JointGraphWrapper {
         ranker: "tight-tree",
         rankDir: "LR",
         resizeClusters: true,
+        exportElement: element => groups.get(element.id.toString())?.size ?? element.size(),
+        setPosition: (element, glNode) => {
+          const offset = groups.get(element.id.toString())?.operatorOffset ?? { x: 0, y: 0 };
+          element.set("position", {
+            x: glNode.x - glNode.width / 2 + offset.x,
+            y: glNode.y - glNode.height / 2 + offset.y,
+          });
+        },
       }
     );
+
+    groups.forEach(({ commentOffsets }, operatorID) => {
+      const operatorPosition = getElement(operatorID).position();
+      anchoredCommentBoxIDs
+        .get(operatorID)
+        ?.forEach((commentBoxID, i) =>
+          getElement(commentBoxID).position(
+            operatorPosition.x + commentOffsets[i].x,
+            operatorPosition.y + commentOffsets[i].y
+          )
+        );
+    });
   }
 
   /**

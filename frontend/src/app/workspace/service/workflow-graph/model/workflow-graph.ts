@@ -379,6 +379,35 @@ export class WorkflowGraph {
   }
 
   /**
+   * Anchors the comment box to an operator, replacing any previous anchor, or detaches it (making it
+   * float) when <code>operatorID</code> is undefined.
+   * @param commentBoxID
+   * @param operatorID
+   */
+  public setCommentBoxAnchor(commentBoxID: string, operatorID: string | undefined): void {
+    this.assertCommentBoxExists(commentBoxID);
+    const commentBox = this.sharedModel.commentBoxMap.get(commentBoxID) as YType<CommentBox>;
+    if (operatorID === undefined) {
+      if (commentBox.has("anchoredOperatorID")) {
+        (commentBox as unknown as Y.Map<unknown>).delete("anchoredOperatorID");
+      }
+      return;
+    }
+    this.assertOperatorExists(operatorID);
+    commentBox.set("anchoredOperatorID", new Y.Text(operatorID));
+  }
+
+  /**
+   * Returns the IDs of the comment boxes anchored to the given operator.
+   * @param operatorID
+   */
+  public getCommentBoxesAnchoredTo(operatorID: string): string[] {
+    return this.getAllCommentBoxes()
+      .filter(commentBox => commentBox.anchoredOperatorID === operatorID)
+      .map(commentBox => commentBox.commentBoxID);
+  }
+
+  /**
    * Deletes the comment box from the model's <code>{@link commentBoxMap}</code>.
    * @param commentBoxID
    */

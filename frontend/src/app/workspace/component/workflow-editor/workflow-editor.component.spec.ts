@@ -1546,6 +1546,109 @@ describe("WorkflowEditorComponent", () => {
     });
 
     /**
+     * Drag-to-anchor through the paper's own pointer events, in the order JointJS fires them for a
+     * drag: cell:pointerdown (selection) and element:pointerdown, the element moving (which drags the
+     * rest of the selection along), element:pointermove, element:pointerup.
+     */
+    describe("dragging comment boxes onto operators", () => {
+      // The scan operator spans x 100..160, y 100..160; comment boxes are 32x32.
+      const operatorID = mockScanPredicate.operatorID;
+
+      function addComment(commentBoxID: string, x: number, y: number): void {
+        workflowActionService.addCommentBox({ ...mockCommentBox, commentBoxID, commentBoxPosition: { x, y } });
+      }
+
+      function anchorOf(commentBoxID: string): string | undefined {
+        return workflowActionService.getTexeraGraph().getCommentBox(commentBoxID).anchoredOperatorID;
+      }
+
+      /** Presses on an element, drags it to (x, y), and returns a function that releases it. */
+      function pressAndDrag(elementID: string, x: number, y: number): () => void {
+        const view = component.paper.findViewByModel(elementID);
+        const event = new MouseEvent("mousedown");
+        (component.paper as any).trigger("cell:pointerdown", view, event, 0, 0);
+        (component.paper as any).trigger("element:pointerdown", view, event, 0, 0);
+        workflowActionService.getJointGraphWrapper().setAbsolutePosition(elementID, x, y);
+        (component.paper as any).trigger("element:pointermove", view, new MouseEvent("mousemove"), x, y);
+        return () => (component.paper as any).trigger("element:pointerup", view, new MouseEvent("mouseup"), x, y);
+      }
+
+      function targetOutlined(): boolean {
+        const view = component.paper.findViewByModel(operatorID);
+        return joint.highlighters.mask.get(view).some(highlighter => highlighter.id === "commentBoxAnchorTarget");
+      }
+
+      beforeEach(() => workflowActionService.addOperator(mockScanPredicate, { x: 100, y: 100 }));
+
+      it("anchors a comment box dragged on its own next to an operator", () => {
+        addComment("box-a", 400, 400);
+
+        pressAndDrag("box-a", 170, 100)();
+
+        expect(anchorOf("box-a")).toEqual(operatorID);
+      });
+
+      it("outlines the operator a dragged comment box would anchor to until it is dropped", () => {
+        addComment("box-a", 400, 400);
+
+        const release = pressAndDrag("box-a", 170, 100);
+        expect(targetOutlined()).toBe(true);
+        release();
+
+        expect(targetOutlined()).toBe(false);
+      });
+
+      it("anchors every comment box dragged together, each by where it lands", () => {
+        addComment("box-a", 400, 100);
+        addComment("box-b", 400, 130);
+        addComment("box-c", 400, 400);
+        workflowActionService.highlightCommentBoxes(true, "box-a", "box-b", "box-c");
+
+        // a lands 10px right of the operator, b lands beside it too, c stays far below.
+        pressAndDrag("box-a", 170, 100)();
+
+        expect(anchorOf("box-a")).toEqual(operatorID);
+        expect(anchorOf("box-b")).toEqual(operatorID);
+        expect(anchorOf("box-c")).toBeUndefined();
+      });
+
+      it("detaches every anchored comment box dragged together far away", () => {
+        addComment("box-a", 170, 100);
+        addComment("box-b", 170, 130);
+        workflowActionService.anchorCommentBox("box-a", operatorID);
+        workflowActionService.anchorCommentBox("box-b", operatorID);
+        workflowActionService.highlightCommentBoxes(true, "box-a", "box-b");
+
+        pressAndDrag("box-a", 700, 700)();
+
+        expect(anchorOf("box-a")).toBeUndefined();
+        expect(anchorOf("box-b")).toBeUndefined();
+      });
+
+      it("leaves anchors alone when comment boxes are dragged along with an operator", () => {
+        addComment("box-a", 400, 400);
+        workflowActionService.highlightOperators(false, operatorID);
+        workflowActionService.highlightCommentBoxes(true, "box-a");
+
+        // Dropped right beside the operator, but as part of a selection that holds it.
+        pressAndDrag("box-a", 170, 100)();
+
+        expect(anchorOf("box-a")).toBeUndefined();
+        expect(targetOutlined()).toBe(false);
+      });
+
+      it("leaves the anchor alone on a click that does not move the comment box", () => {
+        // Anchored far from its operator (as the anchor menu item allows), then only clicked.
+        addComment("box-a", 700, 700);
+        workflowActionService.anchorCommentBox("box-a", operatorID);
+
+        pressAndDrag("box-a", 700, 700)();
+
+        expect(anchorOf("box-a")).toEqual(operatorID);
+      });
+    });
+
+    /**
      * The editor's non-rendering logic: connection validation, the clipboard
      * handlers, and the delete / select-all paths that the keyboard tests above
      * never reach (links and comment boxes). None of these need pointer geometry,

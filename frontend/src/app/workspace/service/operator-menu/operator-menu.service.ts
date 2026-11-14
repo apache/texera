@@ -298,6 +298,8 @@ export class OperatorMenuService {
         let copiedOps: OperatorPredicate[] = elementsInClipboard.get("operators") as OperatorPredicate[];
 
         let linksCopy: LinkWithID = {};
+        // each copied operator's pasted copy, so that a comment box anchored to it can follow
+        const pastedOperators = new Map<string, { operatorID: string; offset: Point }>();
         copiedOps.forEach(copiedOperator => {
           // copyOperator assigns a new randomly generated operator ID to the new operator
           const newOperator = this.copyOperator(copiedOperator);
@@ -346,6 +348,10 @@ export class OperatorMenuService {
             pos: newOperatorPosition,
           });
           positions.push(newOperatorPosition);
+          pastedOperators.set(copiedOperator.operatorID, {
+            operatorID: newOperator.operatorID,
+            offset: { x: newOperatorPosition.x - position.x, y: newOperatorPosition.y - position.y },
+          });
         });
 
         const links = Object.values(linksCopy);
@@ -363,8 +369,22 @@ export class OperatorMenuService {
         let commentBoxesCopy: CommentBox[] = elementsInClipboard.get("commentBoxes") as CommentBox[];
         commentBoxesCopy.forEach(commentBoxCopy => {
           const commentBoxPosition: Point = commentBoxCopy.commentBoxPosition as Point;
+          // anchored to an operator pasted along with it: anchor to that copy, moved as far as it was.
+          // Anchored to one that was not copied: the copy floats.
+          const pastedOperator =
+            commentBoxCopy.anchoredOperatorID === undefined
+              ? undefined
+              : pastedOperators.get(commentBoxCopy.anchoredOperatorID);
+          const anchorTo =
+            pastedOperator !== undefined &&
+            this.workflowActionService.getTexeraGraph().hasOperator(pastedOperator.operatorID)
+              ? pastedOperator
+              : undefined;
           positions.push(commentBoxPosition);
-          const newCommentBoxPosition = this.calcOperatorPosition(commentBoxPosition, positions);
+          const newCommentBoxPosition =
+            anchorTo === undefined
+              ? this.calcOperatorPosition(commentBoxPosition, positions)
+              : { x: commentBoxPosition.x + anchorTo.offset.x, y: commentBoxPosition.y + anchorTo.offset.y };
           positions.push(newCommentBoxPosition);
           const newCommentBoxID = this.workflowUtilService.getCommentBoxRandomUUID();
           const newCommentBox: CommentBox = {
@@ -372,7 +392,12 @@ export class OperatorMenuService {
             comments: commentBoxCopy.comments,
             commentBoxPosition: newCommentBoxPosition,
           };
-          this.workflowActionService.addCommentBox(newCommentBox);
+          this.workflowActionService.getTexeraGraph().bundleActions(() => {
+            this.workflowActionService.addCommentBox(newCommentBox);
+            if (anchorTo !== undefined) {
+              this.workflowActionService.anchorCommentBox(newCommentBoxID, anchorTo.operatorID);
+            }
+          });
         });
       },
       // if the Promise returned from readText rejects, the read clipboard permission is not granted, and we send a warning to the user

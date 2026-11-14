@@ -90,6 +90,11 @@ export interface CommentBox {
   commentBoxID: string;
   comments: Comment[];
   commentBoxPosition: Point;
+  /**
+   * The operator this comment box is anchored to, if any. An anchored box keeps its offset from the
+   * operator when the operator is dragged or auto-layout moves it; without one, the box floats.
+   */
+  anchoredOperatorID?: string;
 }
 
 export interface OperatorLink
