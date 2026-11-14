@@ -18,16 +18,19 @@
  */
 
 import fixture from "../../../../../../common/workflow-operator/src/test/resources/udf/ui-parameter-contract.json";
+import { JAVA_UI_PARAMETER_TYPES } from "./ui-udf-parameter";
 import { UiUdfParametersParserService } from "./ui-udf-parameters-parser.service";
 
 const parser = new UiUdfParametersParserService();
-for (const language of ["python", "r"] as const) {
+for (const language of ["python", "r", "java"] as const) {
   describe(`${language} declaration contract`, () => {
     it("validates new names and types before parsing existing declarations", () => {
       const code =
-        language === "python"
-          ? 'class ProcessTupleOperator(UDFOperatorV2):\n    def open(self):\n        self.UiParameter("x", AttributeType.INT)\n        self.UiParameter("x", AttributeType.INT)'
-          : 'UiParameter("x", AttributeType$INT); UiParameter("x", AttributeType$INT)';
+        language === "java"
+          ? 'class JavaUDFOpExec { @UiParameter("x") int a; @UiParameter("x") int b; }'
+          : language === "python"
+            ? 'class ProcessTupleOperator(UDFOperatorV2):\n    def open(self):\n        self.UiParameter("x", AttributeType.INT)\n        self.UiParameter("x", AttributeType.INT)'
+            : 'UiParameter("x", AttributeType$INT); UiParameter("x", AttributeType$INT)';
       expect(() => parser.computeParameterInsertion(code, "", "string", language)).toThrow("name is required");
       expect(() => parser.computeParameterInsertion(code, "name", "binary", language)).toThrow("not supported");
     });
@@ -36,10 +39,15 @@ for (const language of ["python", "r"] as const) {
         const separator = language === "python" ? "." : "$";
         const resource = example.resource ? `, value=Resource${separator}${example.resource}` : "";
         const call = `${language === "python" ? "self." : ""}UiParameter(${JSON.stringify(example.name)}, AttributeType${separator}${example.token}${resource})`;
+        const nativeType = example.attributeType
+          ? JAVA_UI_PARAMETER_TYPES[example.attributeType as keyof typeof JAVA_UI_PARAMETER_TYPES][0]
+          : "byte[]";
         const code =
-          language === "python"
-            ? `class ProcessTupleOperator(UDFOperatorV2):\n    def open(self):\n        ${call}\n`
-            : `function() { ${call} }`;
+          language === "java"
+            ? `class JavaUDFOpExec { @UiParameter(value=${JSON.stringify(example.name)}${example.resource ? `, resource="${example.inputType ?? "unknown"}"` : ""}) ${nativeType} parameter; }`
+            : language === "python"
+              ? `class ProcessTupleOperator(UDFOperatorV2):\n    def open(self):\n        ${call}\n`
+              : `function() { ${call} }`;
         const expected = example.attributeType
           ? [
               {
@@ -54,9 +62,11 @@ for (const language of ["python", "r"] as const) {
     });
     it("rejects duplicate names through the shared validation contract", () => {
       const code =
-        language === "python"
-          ? 'class ProcessTupleOperator(UDFOperatorV2):\n    def open(self):\n        self.UiParameter("x", AttributeType.INT)\n        self.UiParameter("x", AttributeType.INT)'
-          : 'UiParameter("x", AttributeType$INT); UiParameter("x", AttributeType$INT)';
+        language === "java"
+          ? 'class JavaUDFOpExec { @UiParameter("x") int a; @UiParameter("x") int b; }'
+          : language === "python"
+            ? 'class ProcessTupleOperator(UDFOperatorV2):\n    def open(self):\n        self.UiParameter("x", AttributeType.INT)\n        self.UiParameter("x", AttributeType.INT)'
+            : 'UiParameter("x", AttributeType$INT); UiParameter("x", AttributeType$INT)';
       expect(() => parser.parse(code, language)).toThrow("UiParameter name 'x' is declared more than once.");
     });
   });

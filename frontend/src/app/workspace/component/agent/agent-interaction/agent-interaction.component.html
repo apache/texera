@@ -20,7 +20,7 @@
 <div class="agent-interaction">
   <!-- Visualization HTML rendering -->
   <div
-    *ngIf="sampleRecords && sampleRecords.length > 0 && isVisualization()"
+    *ngIf="sampleTuples && sampleTuples.length > 0 && isVisualization()"
     class="visualization-section">
     <iframe
       [srcdoc]="getVisualizationHtml()"
@@ -28,63 +28,34 @@
       sandbox="allow-scripts"></iframe>
   </div>
 
-  <!-- Sample Records Table -->
+  <!-- Sample Tuples Table -->
   <div
-    *ngIf="sampleRecords && sampleRecords.length > 0 && !isVisualization()"
+    *ngIf="sampleTuples && sampleTuples.length > 0 && !isVisualization()"
     class="sample-records-section">
     <div class="sample-records-table-wrapper">
       <table class="sample-records-table">
         <thead>
           <tr>
-            <th *ngFor="let col of getSampleColumns()">{{ getColumnDisplayName(col) }}</th>
+            <th>Row</th>
+            <th *ngFor="let col of getSampleColumns()">{{ col }}</th>
           </tr>
         </thead>
         <tbody>
-          <ng-container *ngFor="let row of getDisplayRows()">
+          <ng-container *ngFor="let entry of getDisplayTuples()">
             <tr
-              *ngIf="row.isEllipsis"
+              *ngIf="entry.isEllipsis"
               class="ellipsis-row">
-              <td [attr.colspan]="getSampleColumns().length">...</td>
+              <td [attr.colspan]="getSampleColumns().length + 1">...</td>
             </tr>
-            <tr *ngIf="!row.isEllipsis">
-              <td *ngFor="let col of getSampleColumns()">{{ row.record?.[col] }}</td>
+            <tr *ngIf="!entry.isEllipsis">
+              <td>{{ entry.rowIndex }}</td>
+              <td *ngFor="let field of entry.tuple!.fields">{{ field }}</td>
             </tr>
           </ng-container>
         </tbody>
       </table>
     </div>
   </div>
-
-  <!-- Column Statistics -->
-  <div
-    *ngIf="hasColumnStats()"
-    class="column-stats-section">
-    <div class="column-stats-header">
-      <i
-        nz-icon
-        nzType="bar-chart"
-        nzTheme="outline"></i>
-      <span>Column Statistics</span>
-    </div>
-    <div class="column-stats-list">
-      <div
-        *ngFor="let col of getParsedColumnStats()"
-        class="column-stat-item">
-        <div class="column-stat-name">
-          <span class="col-name">{{ col.column }}</span>
-          <span class="col-type">{{ col.dataType }}</span>
-        </div>
-        <div class="column-stat-details">
-          <span
-            *ngFor="let s of col.stats"
-            class="stat-entry">
-            <span class="stat-key">{{ s.key }}:</span> {{ s.value }}
-          </span>
-        </div>
-      </div>
-    </div>
-  </div>
-
   <!-- Agent Selection -->
   <div class="header-row">
     <nz-select

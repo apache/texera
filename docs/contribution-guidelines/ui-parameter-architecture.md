@@ -26,30 +26,32 @@ UI parameters use one metadata contract with language-specific syntax and runtim
 
 | Layer | Owner | Responsibility |
 | --- | --- | --- |
-| Type manifest | `common/workflow-operator/src/main/resources/udf/ui-parameter-types.json` | Supported type aliases (canonical token first) and resource kinds |
+| Type manifest | `common/workflow-operator/src/main/resources/udf/ui-parameter-types.json` | Supported type aliases (canonical token first), Java field types, and resource kinds |
 | Serialized model and validator | `udf.UiUDFParameter`, `UiUdfParameterContract` | Stable wire fields, metadata validation, duplicate names, and resource/type compatibility |
 | Frontend model and policy | `ui-udf-parameter.ts`, parser service | Read the manifest; create rows; validate names, additions, and duplicates once before dispatch |
-| Declaration parsers | `python-ui-udf-parameters-parser.ts`, `r-ui-udf-parameters-parser.ts` | Read and edit each language's syntax; delegate metadata policy |
+| Declaration parsers | `python-ui-udf-parameters-parser.ts`, `r-ui-udf-parameters-parser.ts`, `java-ui-udf-parameters-parser.ts` | Read and edit each language's syntax; delegate metadata policy |
 | Editor synchronization | `UiUdfParametersSyncService` | Observe Yjs and preserve user values by name and resource kind |
-| Compilation | Python/R injector adapters | Validate the shared model and encode values using the appropriate runtime API |
+| Compilation | Python/R/Java injector adapters | Validate the shared model and encode values using the appropriate runtime API |
 | Resource binding | `UdfUiParameterSupport` | Resolve selected versions into mount directories at execution time |
-| Runtime | PyTexera SDK / `texera-rudf` SDK | Construct native values and maintain per-operator state |
+| Runtime | PyTexera SDK / `texera-rudf` SDK / JVM | Construct native values and maintain per-operator state |
 
 ```text
 code declaration -> language parser -> shared parameter rows -> saved workflow
                                                            |
                                        common validation + resource binding
                                                            |
-                                       language compiler -> runtime SDK
+                                       language compiler -> runtime
 ```
 
 The R compiler emits a call to `texera_ui_parameters` with encoded text and the shared type/resource mappings. Its implementation belongs to the R plugin, which evaluates each parameterized script in a fresh environment. The compiler does not embed the SDK implementation. The runtime reports capability version 1; Amber gives an explicit upgrade error when a parameterized script is used with a plugin lacking that capability. Scripts without UI parameters keep the existing plugin path.
+
+Java declares parameters with `@UiParameter` on uninitialized instance fields in `JavaUDFOpExec`. The shared manifest maps Java primitive, boxed, and string/timestamp field types to parameter types. Lezer reads and edits Java declarations in the frontend; javac's source tree validates them on the backend. The Java adapter validates saved metadata against each declaration and inserts safely encoded, typed field initializers. It uses the existing Java compilation and executor factory, with no global parameter registry or runtime plugin. Its tests run the shared value cases through actual javac compilation and exercise constructor access, tuple execution, isolation, and execution-time resource binding.
 
 Native conversions remain language-specific. For example, R uses `bit64::integer64` for long values and reserves its minimum signed value for `NA`. Common value cases preserve the existing Python boolean contract: true/false and numeric text, where nonzero is true. R's tuple bridge converts `integer64` through its decimal representation to preserve all available bits.
 
 ## Contract tests
 
-`common/workflow-operator/src/test/resources/udf/ui-parameter-contract.json` supplies declaration, metadata, and runtime value cases. Frontend tests run the declaration cases against both parsers. Scala runs the metadata cases against both injectors. Python tests check the same values against the Python SDK and the compiled Python/R code.
+`common/workflow-operator/src/test/resources/udf/ui-parameter-contract.json` supplies declaration, metadata, and runtime value cases. Frontend tests run the declaration cases against all three parsers. Scala runs the metadata cases against all three injectors. Python tests check the same values against the Python SDK and the compiled Python/R code.
 
 `UiParameterIntegrationFixtures` generates code through the actual Scala injectors. The integration suite passes that code to Amber's `ExecutorManager` and the actual `texera-rudf` table/tuple source/processing executors. It checks Arrow round-trips, exact long values, Unicode and escaped strings, booleans, timestamps, resource directories, invalid values, and Windows line endings. SDK tests in the plugin cover operator isolation and legacy script compatibility.
 

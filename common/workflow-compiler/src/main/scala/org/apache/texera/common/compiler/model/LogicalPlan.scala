@@ -20,7 +20,7 @@
 package org.apache.texera.common.compiler.model
 
 import com.typesafe.scalalogging.LazyLogging
-import org.apache.texera.amber.core.storage.FileResolver
+import org.apache.texera.amber.core.storage.ScanFileResolver
 import org.apache.texera.amber.core.virtualidentity.OperatorIdentity
 import org.apache.texera.amber.operator.LogicalOp
 import org.apache.texera.amber.operator.loop.{LoopEndOpDesc, LoopStartOpDesc}
@@ -135,10 +135,12 @@ case class LogicalPlan(
     * Resolves each scan source operator's user-given file name to a URI and sets it on the
     * operator via `setResolvedFileName`.
     *
+    * @param fileResolver resolves scan source file names to URIs
     * @param errorList if given, errors encountered during resolution are appended to it;
     *                  otherwise the first error is thrown
     */
   def resolveScanSourceOpFileName(
+      fileResolver: ScanFileResolver,
       errorList: Option[ArrayBuffer[(OperatorIdentity, Throwable)]]
   ): Unit = {
     operators.foreach {
@@ -150,7 +152,7 @@ case class LogicalPlan(
               "No file selected. Please select a file from the 'File' dropdown in the right panel."
             )
           )
-          val fileUri = FileResolver.resolve(fileName) // Convert to URI
+          val fileUri = fileResolver.resolve(fileName) // Convert to URI
 
           // Set the URI in the ScanSourceOpDesc
           scanOp.setResolvedFileName(fileUri)

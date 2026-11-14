@@ -24,6 +24,7 @@ import org.apache.pekko.actor.{ActorSystem, Props}
 import org.apache.pekko.testkit.{ImplicitSender, TestKit}
 import org.apache.pekko.util.Timeout
 import org.apache.texera.amber.clustering.SingleNodeListener
+import org.apache.texera.amber.core.tuple.{Attribute, AttributeType}
 import org.apache.texera.amber.core.virtualidentity.OperatorIdentity
 import org.apache.texera.amber.core.workflow.{
   ExecutionMode,
@@ -237,8 +238,64 @@ class LoopIntegrationSpec
     op
   }
 
+  /** A Python UDF that adds an `i` column to every row it passes: loop variable `i`, as it reads
+    * it off `self.loop_variables` in `process_tuple`.
+    */
+  private def pythonUDFReadingLoopVariableInProcessTuple(): PythonUDFOpDescV2 = {
+    val op = new PythonUDFOpDescV2()
+    op.code = """from pytexera import *
+                |
+                |class ProcessTupleOperator(UDFOperatorV2):
+                |
+                |    @overrides
+                |    def process_tuple(self, tuple_: Tuple, port: int) -> Iterator[Optional[TupleLike]]:
+                |        tuple_["i"] = self.loop_variables["i"]
+                |        yield tuple_
+                |""".stripMargin
+    op.workers = 1
+    op.retainInputColumns = true
+    op.outputColumns = List(new Attribute("i", AttributeType.INTEGER))
+    op
+  }
+
+  /** As `pythonUDFReadingLoopVariableInProcessTuple`, but reading `i` in `process_table`, which
+    * runs once its input has ended, after every state message on it arrived.
+    */
+  private def pythonUDFReadingLoopVariableInProcessTable(): PythonUDFOpDescV2 = {
+    val op = new PythonUDFOpDescV2()
+    op.code = """from pytexera import *
+                |
+                |class ProcessTableOperator(UDFTableOperator):
+                |
+                |    @overrides
+                |    def process_table(self, table: Table, port: int) -> Iterator[Optional[TableLike]]:
+                |        for line in table["line"]:
+                |            yield {"line": line, "i": self.loop_variables["i"]}
+                |""".stripMargin
+    op.workers = 1
+    op.retainInputColumns = true
+    op.outputColumns = List(new Attribute("i", AttributeType.INTEGER))
+    op
+  }
+
   private def link(from: LogicalOp, to: LogicalOp): LogicalLink =
     LogicalLink(from.operatorIdentifier, PortIdentity(), to.operatorIdentifier, PortIdentity())
+
+  /** Run the loop workflow and return the (line, i) rows the Loop End `end` materialized, sorted. */
+  private def runAndGetLinesWithLoopVariable(
+      operators: List[LogicalOp],
+      links: List[LogicalLink],
+      end: LogicalOp
+  ): List[(String, Int)] =
+    runWorkflowAndReadResults(
+      system,
+      buildWorkflow(operators, links, materializedContext()),
+      List(end.operatorIdentifier),
+      _.get().toList,
+      Duration.fromSeconds(90)
+    ).getOrElse(end.operatorIdentifier, Nil)
+      .map(row => (row.getField[String]("line"), row.getField[Int]("i")))
+      .sorted
 
   "Engine" should "run a single TextInput -> LoopStart -> LoopEnd loop for exactly 3 iterations" in {
     val src = textInput("1\n2\n3")
@@ -493,6 +550,49 @@ class LoopIntegrationSpec
       endRows == 3,
       s"LoopEnd must accumulate all 3 iterations with a state-emitting " +
         s"operator in the loop body: expected 3, got $endRows (all: $materialized)"
+    )
+  }
+
+  it should "read a loop variable in a Python UDF on every iteration" in {
+    // TextInput("a","b","c") -> LoopStart(i = 0 / table.iloc[i]) -> Python UDF -> LoopEnd.
+    // Iteration i hands the UDF the row of index i, and the UDF adds the i it reads off
+    // self.loop_variables in process_tuple, so the LoopEnd accumulates (a, 0), (b, 1), (c, 2).
+    // A UDF that kept reading the first iteration's i would write 0 on every row.
+    val src = textInput("a\nb\nc")
+    val start = loopStart("i = 0", "table.iloc[i]")
+    val mid = pythonUDFReadingLoopVariableInProcessTuple()
+    val end = loopEnd("i += 1", "i < len(table)")
+    val rows = runAndGetLinesWithLoopVariable(
+      List(src, start, mid, end),
+      List(link(src, start), link(start, mid), link(mid, end)),
+      end
+    )
+    assert(
+      rows == List(("a", 0), ("b", 1), ("c", 2)),
+      s"each iteration's row must carry that iteration's i: got $rows"
+    )
+  }
+
+  it should "read a loop variable in a Python UDF after another body operator's own state arrives" in {
+    // TextInput("a","b","c") -> LoopStart(i = 0 / table.iloc[i]) -> stateful Python UDF
+    //   -> Python UDF reading i in process_table -> LoopEnd.
+    // The first UDF returns its own state, {"note": ...}, from produce_state_on_finish, so the
+    // second receives that state after the loop's. process_table runs once the input ends, after
+    // both arrived, and must still read the loop's i: that state names no loop variable, so it
+    // must not hide one. Reading only the latest state message would fail with KeyError 'i'.
+    val src = textInput("a\nb\nc")
+    val start = loopStart("i = 0", "table.iloc[i]")
+    val first = statefulPythonUDF()
+    val second = pythonUDFReadingLoopVariableInProcessTable()
+    val end = loopEnd("i += 1", "i < len(table)")
+    val rows = runAndGetLinesWithLoopVariable(
+      List(src, start, first, second, end),
+      List(link(src, start), link(start, first), link(first, second), link(second, end)),
+      end
+    )
+    assert(
+      rows == List(("a", 0), ("b", 1), ("c", 2)),
+      s"each iteration's row must carry that iteration's i: got $rows"
     )
   }
 
