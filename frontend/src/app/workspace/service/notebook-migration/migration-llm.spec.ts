@@ -52,6 +52,9 @@ import {
   R_MAPPING_PROMPT,
   R_SCRIPT_WORKFLOW_PROMPT,
   R_SCRIPT_MAPPING_PROMPT,
+  R_EXAMPLE_OF_MULTIPLE_UDF_CONVERSION_FOLDER,
+  R_FOLDER_WORKFLOW_PROMPT,
+  R_FOLDER_MAPPING_PROMPT,
 } from "./migration-prompts-r";
 import { GuiConfigService } from "../../../common/service/gui-config.service";
 import { WorkflowUtilService } from "../workflow-graph/util/workflow-util.service";
@@ -459,6 +462,34 @@ describe("NotebookMigrationLLM", () => {
       expect(mappingPrompt).toBe(R_SCRIPT_MAPPING_PROMPT);
     });
 
+    it("sends the R folder prelude and prompts", async () => {
+      mockResponses(workflowResponse, JSON.stringify({ UDF1: [[2, 2]] }));
+      const folder = buildFolderDocument([{ path: "main.R", source: "x <- 1" }], { rootName: "proj", language: "r" });
+
+      await makeLLM().convertFolderToWorkflow(folder, "r");
+
+      expect(contentsFor("system")).toEqual(
+        documentation.map(doc =>
+          doc === R_EXAMPLE_OF_MULTIPLE_UDF_CONVERSION ? R_EXAMPLE_OF_MULTIPLE_UDF_CONVERSION_FOLDER : doc
+        )
+      );
+      const [workflowPrompt, mappingPrompt] = contentsFor("user");
+      expect(workflowPrompt.startsWith(`${R_FOLDER_WORKFLOW_PROMPT}\nproj/\n  main.R\n\nHere is the code:\n`)).toBe(
+        true
+      );
+      expect(mappingPrompt).toBe(R_FOLDER_MAPPING_PROMPT);
+    });
+
+    it("builds RUDF operators and an R notebook from a folder", async () => {
+      mockResponses(workflowResponse, JSON.stringify({ UDF1: [[2, 2]] }));
+      const folder = buildFolderDocument([{ path: "main.R", source: "x <- 1" }], { language: "r" });
+
+      const { workflowJSON, notebook } = await makeLLM().convertFolderToWorkflow(folder, "r");
+
+      expect(workflowJSON.operators.map((op: any) => op.operatorType)).toEqual(["RUDF", "RUDF"]);
+      expect(notebook.metadata?.["kernelspec"]?.name).toBe("ir");
+    });
+
     it("builds Table API RUDF operators", async () => {
       mockResponses(workflowResponse, JSON.stringify({ UDF1: ["CELL1"] }));
 
@@ -499,6 +530,9 @@ describe("NotebookMigrationLLM", () => {
         "R notebook migration is disabled"
       );
       await expect(llm.convertScriptToWorkflow("x <- 1", "r")).rejects.toThrow("R notebook migration is disabled");
+      await expect(llm.convertFolderToWorkflow(buildFolderDocument([], { language: "r" }), "r")).rejects.toThrow(
+        "R notebook migration is disabled"
+      );
       expect(callModelSpy).not.toHaveBeenCalled();
     });
 
