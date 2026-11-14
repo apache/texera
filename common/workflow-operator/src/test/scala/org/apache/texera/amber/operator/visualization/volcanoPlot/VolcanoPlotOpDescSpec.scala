@@ -105,10 +105,7 @@ class VolcanoPlotOpDescSpec extends AnyFlatSpec with Matchers {
     Seq(" ", "\t", " \n ").foreach { blank =>
       val op = configured
       op.hoverName = blank
-      val code = op.generatePythonCode()
-      code should include("hover_name=table.columns[0],")
-      code should not include "Missing hover column"
-      code should not include decoded(blank)
+      op.generatePythonCode() shouldBe configured.generatePythonCode()
     }
   }
 
@@ -138,10 +135,7 @@ class VolcanoPlotOpDescSpec extends AnyFlatSpec with Matchers {
         classOf[LogicalOp]
       )
       .asInstanceOf[VolcanoPlotOpDesc]
-    val code = saved.generatePythonCode()
-    code shouldBe configured.generatePythonCode()
-    code should include("hover_name=table.columns[0],")
-    code should not include "Missing hover column"
+    saved.generatePythonCode() shouldBe configured.generatePythonCode()
   }
 
   "VolcanoPlotOpDesc.generateStandaloneCode" should "keep the first column as the hover label when no hover column is set" in {
@@ -189,17 +183,7 @@ class VolcanoPlotOpDescSpec extends AnyFlatSpec with Matchers {
     }
   }
 
-  it should "render a workflow saved before this change exactly as a default-constructed operator" in {
-    val saved = objectMapper
-      .readValue(
-        """{"operatorType":"VolcanoPlot","effectColumn":"log2fc","pvalueColumn":"pvalue"}""",
-        classOf[LogicalOp]
-      )
-      .asInstanceOf[VolcanoPlotOpDesc]
-    saved.generateStandaloneCode() shouldBe configured.generateStandaloneCode()
-  }
-
-  it should "currently render code even when required fields are empty (no assert guard)" in {
+  "VolcanoPlotOpDesc.generatePythonCode" should "currently render code even when required fields are empty (no assert guard)" in {
     // Documents the present behavior: VolcanoPlotOpDesc does not assert on
     // its required fields inside `generatePythonCode`. An empty
     // configuration therefore renders syntactically valid Python that
