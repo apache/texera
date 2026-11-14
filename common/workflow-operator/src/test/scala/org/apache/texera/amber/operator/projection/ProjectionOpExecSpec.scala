@@ -246,6 +246,36 @@ class ProjectionOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
     exec.close()
   }
 
+  it should "project a live root (zero-copy) identically to processColumnarBatch" in {
+    opDesc.isDrop = false
+    opDesc.attributes = List(new AttributeUnit("field2", "f2"), new AttributeUnit("field1", "f1"))
+    val exec = new ProjectionOpExec(objectMapper.writeValueAsString(opDesc))
+    exec.open()
+    val rows = Array(tuple, tuple2)
+    val viaBytes = columnarProject(exec, rows)
+    val alloc = new org.apache.arrow.memory.RootAllocator()
+    val viaRoot =
+      try {
+        ArrowUtils.deserializeRootFold(ArrowUtils.serializeTuples(tupleSchema, rows), alloc) {
+          root =>
+            exec.processColumnarRoot(root, 0) match {
+              case ColumnarResult.Emit(out) =>
+                try ArrowUtils.tuplesOfRoot(out)
+                finally out.close()
+              case other => fail(s"expected Emit, got: $other")
+            }
+        }
+      } finally alloc.close()
+    assert(viaRoot.length == viaBytes.length)
+    viaRoot.zip(viaBytes).foreach {
+      case (r, b) =>
+        assert(r.getSchema == b.getSchema)
+        assert(r.getField[Any]("f1") == b.getField[Any]("f1"))
+        assert(r.getField[Any]("f2") == b.getField[Any]("f2"))
+    }
+    exec.close()
+  }
+
   it should "fall back to the row path (Unsupported) on a duplicate alias" in {
     opDesc.isDrop = false
     opDesc.attributes = List(new AttributeUnit("field1", "f"), new AttributeUnit("field2", "f"))

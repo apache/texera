@@ -80,12 +80,27 @@ class ProjectionOpExec(
 
   override def processColumnarBatch(arrowIpcBytes: Array[Byte], port: Int): ColumnarResult = {
     if (columnarAllocator == null) columnarAllocator = new RootAllocator()
-    ArrowUtils.deserializeRootFold(arrowIpcBytes, columnarAllocator)(projectRoot)
+    // The decoded root lives in this operator's allocator, so its buffers can be moved.
+    ArrowUtils.deserializeRootFold(arrowIpcBytes, columnarAllocator)(
+      projectRoot(_, moveBuffers = true)
+    )
+  }
+
+  // Local path: project the live root directly (no IPC decode). The selected columns are
+  // copied into a fresh output root (a foreign root's buffers cannot be moved), leaving
+  // `root` intact; the caller still owns and closes it.
+  override def processColumnarRoot(root: VectorSchemaRoot, port: Int): ColumnarResult = {
+    if (columnarAllocator == null) columnarAllocator = new RootAllocator()
+    // A foreign (caller-owned) root cannot have its buffers moved, so columns are copied.
+    projectRoot(root, moveBuffers = false)
   }
 
   // Resolve the (sourceColumn -> outputAlias) pairs exactly as project() does, then move
-  // each source column into a fresh output root under its alias.
-  private def projectRoot(root: VectorSchemaRoot): ColumnarResult = {
+  // each source column into a fresh output root under its alias. `moveBuffers` transfers
+  // the source buffers (a zero-copy move, valid only when `root` shares this operator's
+  // allocator, i.e. the IPC-decode path); otherwise each column is copied (a foreign live
+  // root does not share the allocator, and Arrow forbids moving a buffer across roots).
+  private def projectRoot(root: VectorSchemaRoot, moveBuffers: Boolean): ColumnarResult = {
     val inSchema = ArrowUtils.toTexeraSchema(root.getSchema)
     val units: List[(String, String)] =
       if (desc.isDrop) {
@@ -113,13 +128,20 @@ class ProjectionOpExec(
       try ArrowUtils.projectionIndices(root, originals)
       catch { case _: Exception => return ColumnarResult.Unsupported }
     val outRoot = VectorSchemaRoot.create(ArrowUtils.fromTexeraSchema(outSchema), columnarAllocator)
+    val n = root.getRowCount
     var j = 0
     while (j < units.size) {
-      // Move the source column's buffers into the output column (same Arrow type), renamed.
-      root.getVector(srcIdx(j)).makeTransferPair(outRoot.getVector(j)).transfer()
+      val src = root.getVector(srcIdx(j))
+      val dest = outRoot.getVector(j)
+      if (moveBuffers) {
+        src.makeTransferPair(dest).transfer() // zero-copy move (same allocator), renamed
+      } else {
+        var r = 0
+        while (r < n) { dest.copyFromSafe(r, r, src); r += 1 } // copy (foreign allocator)
+      }
       j += 1
     }
-    outRoot.setRowCount(root.getRowCount)
+    outRoot.setRowCount(n)
     ColumnarResult.Emit(outRoot)
   }
 

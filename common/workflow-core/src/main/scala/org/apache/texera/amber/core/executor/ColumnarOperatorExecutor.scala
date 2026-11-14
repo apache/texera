@@ -22,6 +22,7 @@ package org.apache.texera.amber.core.executor
 import org.apache.arrow.vector.VectorSchemaRoot
 import org.apache.texera.amber.core.tuple.TupleLike
 import org.apache.texera.amber.core.workflow.PortIdentity
+import org.apache.texera.amber.util.ArrowUtils
 
 /**
   * Outcome of consuming one Arrow batch:
@@ -49,4 +50,14 @@ object ColumnarResult {
   */
 trait ColumnarOperatorExecutor {
   def processColumnarBatch(arrowIpcBytes: Array[Byte], port: Int): ColumnarResult
+
+  /**
+    * Consume an already-decoded Arrow batch directly, with no IPC round-trip. This is the
+    * zero-copy consumption primitive a local (same-JVM) edge uses to hand an operator a
+    * live VectorSchemaRoot by reference. The caller owns the root (the executor must not
+    * close it). The default decodes nothing extra on the producer side but still pays one
+    * serialize; an operator overrides this to read the root straight (true zero-copy).
+    */
+  def processColumnarRoot(root: VectorSchemaRoot, port: Int): ColumnarResult =
+    processColumnarBatch(ArrowUtils.serializeRoot(root), port)
 }

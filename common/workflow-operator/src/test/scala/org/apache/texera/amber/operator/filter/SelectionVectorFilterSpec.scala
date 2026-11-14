@@ -19,6 +19,7 @@
 
 package org.apache.texera.amber.operator.filter
 
+import org.apache.arrow.memory.RootAllocator
 import org.apache.texera.amber.core.executor.ColumnarResult
 import org.apache.texera.amber.core.tuple.{Attribute, AttributeType, Schema, Tuple}
 import org.apache.texera.amber.util.ArrowUtils
@@ -92,6 +93,26 @@ class SelectionVectorFilterSpec extends AnyFlatSpec {
         root.close()
       case other => fail(s"expected Emit, got $other")
     }
+    exec.close()
+  }
+
+  "processColumnarRoot (zero-copy)" should "produce the same Emit as processColumnarBatch" in {
+    val rows = batch(5, 2000)
+    val bytes = ArrowUtils.serializeTuples(schema, rows)
+    val exec = execFor(("v", ComparisonType.GREATER_THAN, "30"))
+    exec.open()
+    val expected = rows.count(exec.filterFunc)
+    val alloc = new RootAllocator()
+    try {
+      ArrowUtils.deserializeRootFold(bytes, alloc) { root =>
+        exec.processColumnarRoot(root, 0) match {
+          case ColumnarResult.Emit(out) =>
+            assert(out.getRowCount == expected)
+            out.close()
+          case other => fail(s"expected Emit, got $other")
+        }
+      }
+    } finally alloc.close()
     exec.close()
   }
 
