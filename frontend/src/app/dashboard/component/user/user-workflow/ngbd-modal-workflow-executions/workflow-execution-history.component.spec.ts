@@ -164,7 +164,7 @@ describe("WorkflowExecutionHistoryComponent", () => {
         { provide: NotificationService, useValue: notificationService },
         // UserService backs the <texera-user-avatar> child in each table row.
         { provide: UserService, useClass: StubUserService },
-        { provide: NZ_MODAL_DATA, useValue: options.modalData === null ? null : options.modalData ?? { wid: 1 } },
+        { provide: NZ_MODAL_DATA, useValue: options.modalData === null ? null : (options.modalData ?? { wid: 1 }) },
         { provide: ActivatedRoute, useValue: { snapshot: { params: options.routeParams ?? {} } } },
         ...commonTestProviders,
       ],

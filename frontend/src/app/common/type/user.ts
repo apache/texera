@@ -34,41 +34,38 @@ export enum Role {
 export type Second = number;
 export type MilliSecond = number;
 
-export interface User
-  extends Readonly<{
-    uid: number;
-    name: string;
-    email: string;
-    googleId?: string;
-    role: Role;
-    color?: string;
-    avatar?: string;
-    comment: string;
-    lastLogin?: number;
-    accountCreation?: Second;
-    affiliation?: string;
-    joiningReason: string;
-    isPlaceholder?: boolean;
-  }> {}
+export interface User extends Readonly<{
+  uid: number;
+  name: string;
+  email: string;
+  googleId?: string;
+  role: Role;
+  color?: string;
+  avatar?: string;
+  comment: string;
+  lastLogin?: number;
+  accountCreation?: Second;
+  affiliation?: string;
+  joiningReason: string;
+  isPlaceholder?: boolean;
+}> {}
 
-export interface File
-  extends Readonly<{
-    userId: number;
-    fileId: number;
-    fileName: string;
-    fileSize: number;
-    uploadedTime: number;
-    description: string;
-  }> {}
+export interface File extends Readonly<{
+  userId: number;
+  fileId: number;
+  fileName: string;
+  fileSize: number;
+  uploadedTime: number;
+  description: string;
+}> {}
 
-export interface Workflow
-  extends Readonly<{
-    userId: number;
-    workflowId: number;
-    workflowName: string;
-    creationTime: number;
-    lastModifiedTime: number;
-  }> {}
+export interface Workflow extends Readonly<{
+  userId: number;
+  workflowId: number;
+  workflowName: string;
+  creationTime: number;
+  lastModifiedTime: number;
+}> {}
 
 export interface WorkflowQuota {
   workflowId: number;
@@ -76,15 +73,14 @@ export interface WorkflowQuota {
   executions: ExecutionQuota[];
 }
 
-export interface ExecutionQuota
-  extends Readonly<{
-    eid: number;
-    workflowId: number;
-    workflowName: string;
-    resultBytes: number;
-    runTimeStatsBytes: number;
-    logBytes: number;
-  }> {}
+export interface ExecutionQuota extends Readonly<{
+  eid: number;
+  workflowId: number;
+  workflowName: string;
+  resultBytes: number;
+  runTimeStatsBytes: number;
+  logBytes: number;
+}> {}
 
 /**
  * Coeditor extends User and adds clientId to differentiate local user and collaborative editor

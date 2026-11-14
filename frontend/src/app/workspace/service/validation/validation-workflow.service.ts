@@ -312,7 +312,7 @@ export class ValidationWorkflowService {
 
     const properties = operator.operatorProperties;
     const isValid = this.ajv.validate(operatorSchema.jsonSchema, properties);
-    let errors = isValid ? [] : this.ajv.errors ?? [];
+    let errors = isValid ? [] : (this.ajv.errors ?? []);
     const validationError: Record<string, string> = {};
 
     // Inside a control block a primitive property may hold a loop-variable reference ("$K") that the

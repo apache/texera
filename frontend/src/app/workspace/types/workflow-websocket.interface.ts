@@ -41,38 +41,34 @@ import { SchemaAttribute } from "./workflow-compiling.interface";
  * 2. value is the payload this request/event needs
  */
 
-export interface WorkflowExecuteRequest
-  extends Readonly<{
-    executionName: string;
-    engineVersion: string;
-    logicalPlan: LogicalPlan;
-  }> {}
+export interface WorkflowExecuteRequest extends Readonly<{
+  executionName: string;
+  engineVersion: string;
+  logicalPlan: LogicalPlan;
+}> {}
 
-export interface ReplayExecutionInfo
-  extends Readonly<{
-    eid: number;
-    interaction: string;
-  }> {}
+export interface ReplayExecutionInfo extends Readonly<{
+  eid: number;
+  interaction: string;
+}> {}
 
-export interface WorkflowFatalError
-  extends Readonly<{
-    message: string;
-    details: string;
-    operatorId: string;
-    workerId: string;
-    type: {
-      name: string;
-    };
-    timestamp: {
-      nanos: number;
-      seconds: number;
-    };
-  }> {}
+export interface WorkflowFatalError extends Readonly<{
+  message: string;
+  details: string;
+  operatorId: string;
+  workerId: string;
+  type: {
+    name: string;
+  };
+  timestamp: {
+    nanos: number;
+    seconds: number;
+  };
+}> {}
 
-export interface WorkflowErrorEvent
-  extends Readonly<{
-    fatalErrors: ReadonlyArray<WorkflowFatalError>;
-  }> {}
+export interface WorkflowErrorEvent extends Readonly<{
+  fatalErrors: ReadonlyArray<WorkflowFatalError>;
+}> {}
 
 export type ModifyOperatorLogic = Readonly<{
   operator: LogicalOperator;
