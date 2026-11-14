@@ -211,13 +211,13 @@ Dependencies under the Apache License, Version 2.0
 --------------------------------------------------------------------------------
 
 Agent service npm packages:
-  - @ai-sdk/gateway@4.0.46
-  - @ai-sdk/openai@4.0.36
-  - @ai-sdk/provider-utils@5.0.25
-  - @ai-sdk/provider@4.0.7
+  - @ai-sdk/gateway@4.0.125
+  - @ai-sdk/openai@4.0.101
+  - @ai-sdk/provider-utils@5.0.67
+  - @ai-sdk/provider@4.0.33
   - @vercel/oidc@3.2.0
   - @workflow/serde@4.1.0
-  - ai@7.0.58
+  - ai@7.0.152
   - rxjs@7.8.2
   - typescript@6.0.3
 
@@ -233,15 +233,15 @@ Agent service npm packages:
   - @standard-schema/spec@1.1.0
   - @tokenizer/inflate@0.4.1
   - @tokenizer/token@0.3.0
-  - @types/bun@1.4.0
+  - @types/bun@1.4.4
   - @types/node@24.10.1
   - ajv@8.20.0
   - atomic-sleep@1.0.0
-  - bun-types@1.4.0
+  - bun-types@1.4.4
   - cookie@1.1.1
   - dagre@0.8.5
   - debug@4.4.3
-  - elysia@1.4.29
+  - elysia@1.4.30
   - eventsource-parser@3.1.0
   - exact-mirror@0.2.7
   - fast-decode-uri-component@1.0.1
