@@ -254,16 +254,19 @@ Python packages:
   - charset-normalizer==3.4.9
   - filelock==3.32.2
   - fonttools==4.63.0
+  - formulaic==1.2.2
   - greenlet==3.5.4
   - h11==0.16.0
   - h2==4.4.0
   - hpack==4.2.0
   - hyperframe==6.1.0
+  - interface-meta==2.0.1
   - jmespath==1.1.0
   - loguru==0.7.3
   - markdown-it-py==4.2.0
   - mdurl==0.1.2
   - mmh3==5.2.1
+  - narwhals==2.26.0
   - pampy==0.3.0
   - plotly==5.24.1
   - pydantic==2.13.4
@@ -314,6 +317,7 @@ Python packages:
   - scikit-image==0.25.2
   - scikit-learn==1.7.2
   - scipy==1.18.0
+  - statsmodels==0.15.0
   - sympy==1.14.0
   - threadpoolctl==3.6.0
   - tifffile==2026.7.14
@@ -326,6 +330,7 @@ Dependencies under the BSD 2-Clause License
 
 Python packages:
   - imageio==2.37.4
+  - patsy==1.0.3
   - praw==7.6.1
   - prawcore==2.4.0
   - pygments==2.20.0
