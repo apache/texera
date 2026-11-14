@@ -28,6 +28,30 @@ import { NzTagComponent } from "ng-zorro-antd/tag";
 import { NzCollapseComponent, NzCollapsePanelComponent } from "ng-zorro-antd/collapse";
 
 /**
+ * A content part of an input message. The agent backend tags each part with a `type` and
+ * fills only the fields for that kind, so every field but the tag is optional here and the
+ * modal reads them by name. Tool-call arguments arrive under `args` or `input`; a tool
+ * result arrives under `result`, `output`, or `content`.
+ */
+interface MessagePart {
+  type: string;
+  text?: string;
+  toolName?: string;
+  toolCallId?: string;
+  args?: { operatorId?: string } & Record<string, unknown>;
+  input?: { operatorId?: string } & Record<string, unknown>;
+  result?: unknown;
+  output?: unknown;
+  content?: unknown;
+}
+
+/** An input message as this modal reads it: a role and either plain text or typed parts. */
+interface InputMessage {
+  role?: string;
+  content?: string | MessagePart[];
+}
+
+/**
  * Reusable modal component for displaying ReActStep details.
  * Shows step identification, token usage, and tool calls.
  */
@@ -65,22 +89,22 @@ export class ReActStepDetailModalComponent {
    * If the data is a string, return it as-is (with newlines preserved).
    * If it's an object, JSON.stringify it with formatting.
    */
-  public formatResult(data: any): string {
+  public formatResult(data: unknown): string {
     if (typeof data === "string") {
       return data;
     }
     return JSON.stringify(data, null, 2);
   }
 
-  public formatJson(data: any): string {
+  public formatJson(data: unknown): string {
     return JSON.stringify(data, null, 2);
   }
 
-  public getToolResult(step: ReActStep, toolCallIndex: number): any {
+  public getToolResult(step: ReActStep, toolCallIndex: number): unknown {
     if (!step.toolResults || toolCallIndex >= step.toolResults.length) {
       return null;
     }
-    const toolResult = step.toolResults[toolCallIndex];
+    const toolResult = step.toolResults[toolCallIndex] as { output?: unknown; result?: unknown };
     return toolResult.output || toolResult.result || toolResult;
   }
 
@@ -105,13 +129,13 @@ export class ReActStepDetailModalComponent {
   /**
    * Get text content from a message (user or assistant text parts).
    */
-  public getTextFromMessage(msg: any): string {
+  public getTextFromMessage(msg: InputMessage | null): string {
     if (!msg?.content) return "";
     if (typeof msg.content === "string") return msg.content;
     if (Array.isArray(msg.content)) {
       return msg.content
-        .filter((p: any) => p.type === "text")
-        .map((p: any) => p.text || "")
+        .filter(p => p.type === "text")
+        .map(p => p.text || "")
         .join("\n");
     }
     return "";
@@ -121,14 +145,16 @@ export class ReActStepDetailModalComponent {
    * Get tool call summaries from an assistant message.
    * Returns array of { toolName, operatorId, fullArgs } for display.
    */
-  public getToolCallSummaries(msg: any): { toolName: string; operatorId: string; fullArgs: any }[] {
+  public getToolCallSummaries(
+    msg: InputMessage | null
+  ): { toolName: string; operatorId: string; fullArgs: Record<string, unknown> }[] {
     if (!msg?.content || !Array.isArray(msg.content)) return [];
     return msg.content
-      .filter((p: any) => p.type === "tool-call")
-      .map((p: any) => {
-        const args = p.args || p.input || {};
+      .filter(p => p.type === "tool-call")
+      .map(p => {
+        const args: { operatorId?: string } & Record<string, unknown> = p.args || p.input || {};
         return {
-          toolName: p.toolName,
+          toolName: p.toolName ?? "",
           operatorId: args.operatorId || "",
           fullArgs: args,
         };
@@ -138,12 +164,12 @@ export class ReActStepDetailModalComponent {
   /**
    * Build a toolCallId → toolName map from all input messages.
    */
-  private buildToolCallNameMap(messages: any[]): Map<string, string> {
+  private buildToolCallNameMap(messages: InputMessage[]): Map<string, string> {
     const map = new Map<string, string>();
     for (const msg of messages) {
       if (msg.role === "assistant" && Array.isArray(msg.content)) {
         for (const part of msg.content) {
-          if (part.type === "tool-call") {
+          if (part.type === "tool-call" && part.toolCallId && part.toolName) {
             map.set(part.toolCallId, part.toolName);
           }
         }
@@ -157,17 +183,17 @@ export class ReActStepDetailModalComponent {
    * Each item includes: toolName, resultContent string, approximate token count, and whether it was trimmed.
    */
   public getToolResultFullItems(
-    msg: any
+    msg: InputMessage | null
   ): { toolName: string; resultContent: string; tokenCount: number; isTrimmed: boolean }[] {
     if (!msg?.content || !Array.isArray(msg.content)) return [];
     const nameMap = this.step?.inputMessages ? this.buildToolCallNameMap(this.step.inputMessages) : new Map();
     return msg.content
-      .filter((p: any) => p.type === "tool-result")
-      .map((p: any) => {
+      .filter(p => p.type === "tool-result")
+      .map(p => {
         const raw = p.result ?? p.output ?? p.content ?? "";
         const resultStr = typeof raw === "string" ? raw : JSON.stringify(raw, null, 2);
         return {
-          toolName: nameMap.get(p.toolCallId) || p.toolCallId,
+          toolName: nameMap.get(p.toolCallId ?? "") || p.toolCallId || "",
           resultContent: resultStr,
           tokenCount: Math.ceil(resultStr.length / 4),
           isTrimmed: resultStr.includes("context compaction"),
@@ -179,16 +205,16 @@ export class ReActStepDetailModalComponent {
    * Get structured tool results from a tool message.
    * Each result includes: toolName, approximate token count, and whether it was trimmed.
    */
-  public getToolResultItems(msg: any): { toolName: string; tokenCount: number; isTrimmed: boolean }[] {
+  public getToolResultItems(msg: InputMessage | null): { toolName: string; tokenCount: number; isTrimmed: boolean }[] {
     if (!msg?.content || !Array.isArray(msg.content)) return [];
     const nameMap = this.step?.inputMessages ? this.buildToolCallNameMap(this.step.inputMessages) : new Map();
     return msg.content
-      .filter((p: any) => p.type === "tool-result")
-      .map((p: any) => {
+      .filter(p => p.type === "tool-result")
+      .map(p => {
         const raw = p.result ?? p.output ?? p.content ?? "";
         const resultStr = typeof raw === "string" ? raw : JSON.stringify(raw);
         return {
-          toolName: nameMap.get(p.toolCallId) || p.toolCallId,
+          toolName: nameMap.get(p.toolCallId ?? "") || p.toolCallId || "",
           tokenCount: Math.ceil(resultStr.length / 4),
           isTrimmed: resultStr.includes("context compaction"),
         };
