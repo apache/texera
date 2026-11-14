@@ -26,7 +26,7 @@
       nz-menu-item
       (click)="closePanel()"
       *ngIf="width"
-      nz-tooltip="Close Result Panel{{operatorTitle ? ': ' + operatorTitle : ''}}">
+      nz-tooltip="Close Console">
       <span
         nz-icon
         nzType="minus"></span>
@@ -38,7 +38,7 @@
       nz-menu-item
       (click)="openPanel()"
       *ngIf="!width"
-      nz-tooltip="Open Result Panel{{operatorTitle ? ': ' + operatorTitle : ''}}">
+      nz-tooltip="Open Console">
       <span
         nz-icon
         nzType="border"></span>
@@ -60,7 +60,6 @@
   [style.height.px]="height"
   (nzResize)="onResize($event)"
   [cdkDragFreeDragPosition]="dragPosition"
-  (cdkDragStarted)="handleStartDrag()"
   (cdkDragEnded)="handleEndDrag($event)">
   <ul
     nz-menu
@@ -90,38 +89,26 @@
     <h4
       id="title"
       cdkDragHandle>
-      Result Panel{{operatorTitle ? ': ' + operatorTitle : ''}}
+      Console
     </h4>
+    <!-- the console stays in a tab of its own, so the AI Fix tab coming and going never rebuilds it -->
     <nz-tabs
       class="result-content"
       [nzSize]="'small'"
       [nzTabPosition]="'left'">
-      <div *ngIf="frameComponentConfigs.size === 0">
-        <nz-tab nzTitle="Result">
-          <div style="text-align: center">
-            <h4 *ngIf="previewWorkflowVersion">No results available to display.</h4>
-            <h4 *ngIf="!previewWorkflowVersion && !currentOperatorId">No operator is selected.</h4>
-            <h4 *ngIf="!previewWorkflowVersion && currentOperatorId">This operator has no results yet.</h4>
-            <p>Tip: enable the eye icon on the operator and execute the workflow to view its results.</p>
-            <ng-container *ngIf="!previewWorkflowVersion">
-              <p *ngIf="!currentOperatorId">
-                Click an operator to see its results. If a run fails, its errors show here.
-              </p>
-              <p>Errors an operator hits while running show in that operator's Console.</p>
-            </ng-container>
-          </div>
-        </nz-tab>
-      </div>
-      <div *ngFor="let config of frameComponentConfigs | keyvalue; trackBy: trackFrameByConfig">
-        <nz-tab nzTitle="{{config.key}}">
-          <div
-            #dynamicComponent
-            class="result-content">
-            <ng-container
-              *ngComponentOutlet="config.value.component;inputs: config.value.componentInputs"></ng-container>
-          </div>
-        </nz-tab>
-      </div>
+      <nz-tab nzTitle="Console">
+        <texera-console-frame
+          class="tab-content"
+          [operatorId]="currentOperatorId"
+          [consoleInputEnabled]="consoleInputEnabled"></texera-console-frame>
+      </nz-tab>
+      <nz-tab
+        *ngIf="aiFixOperatorId"
+        nzTitle="AI Fix">
+        <texera-ai-fix-frame
+          class="tab-content"
+          [operatorId]="aiFixOperatorId"></texera-ai-fix-frame>
+      </nz-tab>
     </nz-tabs>
   </div>
   <nz-resize-handles

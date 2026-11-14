@@ -80,6 +80,23 @@ describe("WorkflowConsoleService", () => {
     expect(updates).toBe(1);
   });
 
+  it("lists every operator's messages together, oldest first, each with its operator", () => {
+    const at = (seconds: number, nanos: number, title: string): ConsoleMessage => ({
+      ...consoleMessage("PRINT"),
+      timestamp: { seconds, nanos },
+      title,
+    });
+    consoleUpdateEvent$.next({ operatorId: "op1", messages: [at(1, 0, "a1"), at(3, 0, "a3")] });
+    consoleUpdateEvent$.next({ operatorId: "op2", messages: [at(2, 0, "b2"), at(1, 500, "b1.5")] });
+
+    expect(service.getAllConsoleMessages().map(row => [row.operatorId, row.message.title])).toEqual([
+      ["op1", "a1"],
+      ["op2", "b1.5"],
+      ["op2", "b2"],
+      ["op1", "a3"],
+    ]);
+  });
+
   it("clearConsoleMessages() removes all messages and notifies subscribers", () => {
     consoleUpdateEvent$.next({ operatorId: "op1", messages: [consoleMessage("PRINT")] });
     expect(service.hasConsoleMessages("op1")).toBe(true);
