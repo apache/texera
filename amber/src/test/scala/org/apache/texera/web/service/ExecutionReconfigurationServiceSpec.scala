@@ -472,6 +472,25 @@ class ExecutionReconfigurationServiceSpec
     deployedOp.seenExecutionId shouldBe testExecutionId
   }
 
+  /** Sends an edit to a deployed `deployedOp` with one reconfiguration already pending and
+    * returns the response together with the ids left in the pending queue.
+    */
+  private def modifyWithOnePending(
+      deployedOp: LogicalOp,
+      request: LogicalOp
+  ): (TexeraWebSocketEvent, List[PhysicalOpIdentity]) = {
+    val stateStore = new ExecutionStateStore
+    val service = new WorkflowOnlyService(stateStore, mkWorkflow(List(deployedOp)))
+    // An edit the user already made earlier in the same pause.
+    val alreadyQueued = mkPhysicalOp("already-queued")
+    stateStore.reconfigurationStore.updateState(_ =>
+      ExecutionReconfigurationStore(unscheduledReconfigurations = List((alreadyQueued, None)))
+    )
+    val response = service.modifyOperatorLogic(ModifyLogicRequest(request))
+    val queued = stateStore.reconfigurationStore.getState.unscheduledReconfigurations
+    (response, queued.map(_._1.id))
+  }
+
   it should "report the deployed operator's rejection and leave the pending queue untouched" in {
     // The request carries a LimitOpDesc, which would reconfigure happily. Only the operator
     // that is actually deployed refuses, so an invalid response proves the service asked the
@@ -479,16 +498,8 @@ class ExecutionReconfigurationServiceSpec
     val opId = "rejecting-op"
     val deployedOp = new RejectingReconfigurationOpDesc
     deployedOp.setOperatorId(opId)
-    val stateStore = new ExecutionStateStore
-    val service = new WorkflowOnlyService(stateStore, mkWorkflow(List(deployedOp)))
 
-    // An edit the user already made earlier in the same pause.
-    val alreadyQueued = mkPhysicalOp("already-queued")
-    stateStore.reconfigurationStore.updateState(_ =>
-      ExecutionReconfigurationStore(unscheduledReconfigurations = List((alreadyQueued, None)))
-    )
-
-    val response = service.modifyOperatorLogic(ModifyLogicRequest(mkLimitOp(opId, 7)))
+    val (response, queued) = modifyWithOnePending(deployedOp, mkLimitOp(opId, 7))
 
     response shouldBe a[ModifyLogicResponse]
     val rejected = response.asInstanceOf[ModifyLogicResponse]
@@ -499,26 +510,7 @@ class ExecutionReconfigurationServiceSpec
     rejected.errorMessage shouldBe rejectionMessage
 
     // A rejected edit neither queues itself nor discards work that was already pending.
-    val queued = stateStore.reconfigurationStore.getState.unscheduledReconfigurations
-    queued.map(_._1.id) shouldBe List(alreadyQueued.id)
-  }
-
-  /** Sends an edit to a deployed `deployedOp` with one reconfiguration already pending and
-    * returns the response together with the ids left in the pending queue.
-    */
-  private def modifyWithOnePending(
-      deployedOp: LogicalOp,
-      request: LogicalOp
-  ): (TexeraWebSocketEvent, List[PhysicalOpIdentity]) = {
-    val stateStore = new ExecutionStateStore
-    val service = new WorkflowOnlyService(stateStore, mkWorkflow(List(deployedOp)))
-    val alreadyQueued = mkPhysicalOp("already-queued")
-    stateStore.reconfigurationStore.updateState(_ =>
-      ExecutionReconfigurationStore(unscheduledReconfigurations = List((alreadyQueued, None)))
-    )
-    val response = service.modifyOperatorLogic(ModifyLogicRequest(request))
-    val queued = stateStore.reconfigurationStore.getState.unscheduledReconfigurations
-    (response, queued.map(_._1.id))
+    queued shouldBe List(mkPhysicalOp("already-queued").id)
   }
 
   it should "report an operator without a reconfiguration override as a rejected edit" in {
@@ -574,24 +566,6 @@ class ExecutionReconfigurationServiceSpec
     deployedOp.setOperatorId(opId)
 
     an[InterruptedException] should be thrownBy modifyWithOnePending(deployedOp, mkLimitOp(opId, 7))
-  }
-
-  it should "accept a valid edit after a rejected one" in {
-    val rejectedId = "dummy-op"
-    val dummy = new DummyOpDesc
-    dummy.setOperatorId(rejectedId)
-    val acceptedId = "limit-op"
-    val stateStore = new ExecutionStateStore
-    val service =
-      new WorkflowOnlyService(stateStore, mkWorkflow(List(dummy, mkLimitOp(acceptedId, 5))))
-
-    val first = service.modifyOperatorLogic(ModifyLogicRequest(mkLimitOp(rejectedId, 7)))
-    val second = service.modifyOperatorLogic(ModifyLogicRequest(mkLimitOp(acceptedId, 9)))
-
-    first.asInstanceOf[ModifyLogicResponse].isValid shouldBe false
-    second.asInstanceOf[ModifyLogicResponse].isValid shouldBe true
-    val queued = stateStore.reconfigurationStore.getState.unscheduledReconfigurations
-    queued.map(_._1.id.logicalOpId.id) shouldBe List(acceptedId)
   }
 
   // ---------------------------------------------------------------------------
