@@ -138,20 +138,24 @@ class FileService extends Application[FileServiceConfiguration] with LazyLogging
     * Waits for a startup dependency (a slow-to-start object store) via the shared backoff retry,
     * logging each retry under this service's logger. `description` is a verb phrase, e.g.
     * "reach the texera dataset bucket". `sleep` is injectable for tests.
-    * Defaults: 6 attempts from 200ms (200, 400, 800, 1600, 3200), ~6s.
+    * Defaults: 30 attempts from 500ms, doubling and capped at 15s (~6.5 min total). The long,
+    * capped wait lets a slow or briefly-unavailable object store come up without the process
+    * exiting, so the container does not tight-crash-loop (and retry-storm) on startup.
     */
   private[service] def awaitDependency(
       description: String,
-      maxAttempts: Int = 6,
-      initialDelayMillis: Long = 200L,
-      sleep: Long => Unit = Thread.sleep
+      maxAttempts: Int = 30,
+      initialDelayMillis: Long = 500L,
+      sleep: Long => Unit = Thread.sleep,
+      maxDelayMillis: Long = 15000L
   )(operation: => Unit): Unit =
     RetryUtil.withBackoff(
       description,
       maxAttempts,
       initialDelayMillis,
       attempt => logger.warn(attempt.message),
-      sleep
+      sleep,
+      maxDelayMillis
     )(operation)
 }
 
