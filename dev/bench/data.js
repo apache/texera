@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1794660183598,
+  "lastUpdate": 1794660186410,
   "repoUrl": "https://github.com/apache/texera",
   "entries": {
     "Arrow Flight E2E Throughput": [
@@ -81758,6 +81758,433 @@ window.BENCHMARK_DATA = {
           {
             "name": "latency p99 / bs=1000 sw=50 sl=512",
             "value": 2009587.364,
+            "unit": "us"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "name": "Mend Renovate",
+            "username": "renovate-bot",
+            "email": "bot@renovateapp.com"
+          },
+          "committer": {
+            "name": "GitHub",
+            "username": "web-flow",
+            "email": "noreply@github.com"
+          },
+          "id": "64df5c325072af1f7d8934210a0ab41dea8ba4e3",
+          "message": "chore(deps, agent-service): update agent-service minor updates (#9019)\n\nThis PR contains the following updates:\n\n| Package | Change |\n[Age](https://docs.renovatebot.com/merge-confidence/) |\n[Confidence](https://docs.renovatebot.com/merge-confidence/) |\n|---|---|---|---|\n| [pino](https://getpino.io)\n([source](https://redirect.github.com/pinojs/pino)) | [`10.3.1` →\n`10.4.0`](https://renovatebot.com/diffs/npm/pino/10.3.1/10.4.0) |\n![age](https://developer.mend.io/api/mc/badges/age/npm/pino/10.4.0?slim=true)\n|\n![confidence](https://developer.mend.io/api/mc/badges/confidence/npm/pino/10.3.1/10.4.0?slim=true)\n|\n| [pino-pretty](https://redirect.github.com/pinojs/pino-pretty) |\n[`13.1.3` →\n`13.2.0`](https://renovatebot.com/diffs/npm/pino-pretty/13.1.3/13.2.0) |\n![age](https://developer.mend.io/api/mc/badges/age/npm/pino-pretty/13.2.0?slim=true)\n|\n![confidence](https://developer.mend.io/api/mc/badges/confidence/npm/pino-pretty/13.1.3/13.2.0?slim=true)\n|\n| [prettier](https://prettier.io)\n([source](https://redirect.github.com/prettier/prettier)) | [`3.9.6` →\n`3.10.1`](https://renovatebot.com/diffs/npm/prettier/3.9.6/3.10.1) |\n![age](https://developer.mend.io/api/mc/badges/age/npm/prettier/3.10.1?slim=true)\n|\n![confidence](https://developer.mend.io/api/mc/badges/confidence/npm/prettier/3.9.6/3.10.1?slim=true)\n|\n\n---\n\n### Release Notes\n\n<details>\n<summary>pinojs/pino (pino)</summary>\n\n###\n[`v10.4.0`](https://redirect.github.com/pinojs/pino/releases/tag/v10.4.0)\n\n[Compare\nSource](https://redirect.github.com/pinojs/pino/compare/v10.3.1...v10.4.0)\n\n#### What's Changed\n\n- Add warning on incompatible formatters.level with multi-target\ntransports by [@&#8203;lraveri](https://redirect.github.com/lraveri) in\n[#&#8203;2381](https://redirect.github.com/pinojs/pino/pull/2381)\n- chore: use TSTyche for type testing by\n[@&#8203;mrazauskas](https://redirect.github.com/mrazauskas) in\n[#&#8203;2376](https://redirect.github.com/pinojs/pino/pull/2376)\n- Add Sentry Native Integration Docs by\n[@&#8203;KyleTryon](https://redirect.github.com/KyleTryon) in\n[#&#8203;2394](https://redirect.github.com/pinojs/pino/pull/2394)\n- docs: add flush limitation warning for pino-pretty, fix\n[#&#8203;1015](https://redirect.github.com/pinojs/pino/issues/1015) by\n[@&#8203;mcollina](https://redirect.github.com/mcollina) in\n[#&#8203;2402](https://redirect.github.com/pinojs/pino/pull/2402)\n- feat(browser): add redaction support by\n[@&#8203;abhu85](https://redirect.github.com/abhu85) in\n[#&#8203;2396](https://redirect.github.com/pinojs/pino/pull/2396)\n- chore: lint the type declaration file by\n[@&#8203;mrazauskas](https://redirect.github.com/mrazauskas) in\n[#&#8203;2408](https://redirect.github.com/pinojs/pino/pull/2408)\n- chore: remove TSTyche config file by\n[@&#8203;mrazauskas](https://redirect.github.com/mrazauskas) in\n[#&#8203;2409](https://redirect.github.com/pinojs/pino/pull/2409)\n- docs: clarify multi-target formatter limitation by\n[@&#8203;mcollina](https://redirect.github.com/mcollina) in\n[#&#8203;2410](https://redirect.github.com/pinojs/pino/pull/2410)\n- No bots allowed by\n[@&#8203;mcollina](https://redirect.github.com/mcollina) in\n[#&#8203;2412](https://redirect.github.com/pinojs/pino/pull/2412)\n- build(deps): bump real-require from 0.2.0 to 1.0.0 by\n[@&#8203;dependabot](https://redirect.github.com/dependabot)\\[bot] in\n[#&#8203;2414](https://redirect.github.com/pinojs/pino/pull/2414)\n- build(deps-dev): bump neostandard from 0.12.2 to 0.13.0 by\n[@&#8203;dependabot](https://redirect.github.com/dependabot)\\[bot] in\n[#&#8203;2418](https://redirect.github.com/pinojs/pino/pull/2418)\n- fix: use util.getCallSites when able to allow frozen intrinsics by\n[@&#8203;CarlOlson](https://redirect.github.com/CarlOlson) in\n[#&#8203;2294](https://redirect.github.com/pinojs/pino/pull/2294)\n- Update AWS Lambda reference in asynchronous docs by\n[@&#8203;urbanautomaton](https://redirect.github.com/urbanautomaton) in\n[#&#8203;2413](https://redirect.github.com/pinojs/pino/pull/2413)\n- chore: update license by\n[@&#8203;Tony133](https://redirect.github.com/Tony133) in\n[#&#8203;2375](https://redirect.github.com/pinojs/pino/pull/2375)\n- fix: add named `default` export by\n[@&#8203;mrazauskas](https://redirect.github.com/mrazauskas) in\n[#&#8203;2421](https://redirect.github.com/pinojs/pino/pull/2421)\n- Update contrib doc by\n[@&#8203;jsumners](https://redirect.github.com/jsumners) in\n[#&#8203;2424](https://redirect.github.com/pinojs/pino/pull/2424)\n- docs: use\n[@&#8203;hono/structured-logger](https://redirect.github.com/hono/structured-logger)\nfor Pino with Hono by\n[@&#8203;brunorodmoreira](https://redirect.github.com/brunorodmoreira)\nin [#&#8203;2425](https://redirect.github.com/pinojs/pino/pull/2425)\n- chore(deps): remove `pre-commit` by\n[@&#8203;kshitijanurag](https://redirect.github.com/kshitijanurag) in\n[#&#8203;2423](https://redirect.github.com/pinojs/pino/pull/2423)\n- build(deps): bump actions/github-script from 8 to 9 by\n[@&#8203;dependabot](https://redirect.github.com/dependabot)\\[bot] in\n[#&#8203;2427](https://redirect.github.com/pinojs/pino/pull/2427)\n- build(deps-dev): bump eslint-plugin-promise from 6.6.0 to 7.3.0 by\n[@&#8203;dependabot](https://redirect.github.com/dependabot)\\[bot] in\n[#&#8203;2428](https://redirect.github.com/pinojs/pino/pull/2428)\n- build(deps-dev): bump tstyche from 6.2.0 to 7.1.0 by\n[@&#8203;dependabot](https://redirect.github.com/dependabot)\\[bot] in\n[#&#8203;2429](https://redirect.github.com/pinojs/pino/pull/2429)\n- test: fix flaky transport config test by\n[@&#8203;mcollina](https://redirect.github.com/mcollina) in\n[#&#8203;2434](https://redirect.github.com/pinojs/pino/pull/2434)\n- chore: upgrade typescript to v6.0.2 by\n[@&#8203;Tony133](https://redirect.github.com/Tony133) in\n[#&#8203;2419](https://redirect.github.com/pinojs/pino/pull/2419)\n- docs: fix typo \"compatability\" → \"compatibility\" in README by\n[@&#8203;premsreelathasugeendran](https://redirect.github.com/premsreelathasugeendran)\nin [#&#8203;2435](https://redirect.github.com/pinojs/pino/pull/2435)\n- docs: warn against untrusted top-level log keys by\n[@&#8203;mcollina](https://redirect.github.com/mcollina) in\n[#&#8203;2450](https://redirect.github.com/pinojs/pino/pull/2450)\n- test(transport): keep event loop alive while awaiting async flush by\n[@&#8203;YBJ0000](https://redirect.github.com/YBJ0000) in\n[#&#8203;2470](https://redirect.github.com/pinojs/pino/pull/2470)\n- docs: clarify Node.js version support policy in LTS doc by\n[@&#8203;youdie006](https://redirect.github.com/youdie006) in\n[#&#8203;2472](https://redirect.github.com/pinojs/pino/pull/2472)\n- fix: honor per-target level filter on single-element `targets` array\nby [@&#8203;mcollina](https://redirect.github.com/mcollina) in\n[#&#8203;2432](https://redirect.github.com/pinojs/pino/pull/2432)\n- fix(multistream): resolve string level labels in write() by\n[@&#8203;xianjianlf2](https://redirect.github.com/xianjianlf2) in\n[#&#8203;2474](https://redirect.github.com/pinojs/pino/pull/2474)\n- fix: escape child binding keys by\n[@&#8203;mcollina](https://redirect.github.com/mcollina) in\n[#&#8203;2452](https://redirect.github.com/pinojs/pino/pull/2452)\n- docs: clarify stringification limits by\n[@&#8203;mcollina](https://redirect.github.com/mcollina) in\n[#&#8203;2475](https://redirect.github.com/pinojs/pino/pull/2475)\n- fix: add setBindings to the browser logger by\n[@&#8203;ankit1324](https://redirect.github.com/ankit1324) in\n[#&#8203;2471](https://redirect.github.com/pinojs/pino/pull/2471)\n- build(deps): bump actions/setup-node from 6 to 7 by\n[@&#8203;dependabot](https://redirect.github.com/dependabot)\\[bot] in\n[#&#8203;2486](https://redirect.github.com/pinojs/pino/pull/2486)\n- build(deps-dev): bump through2 from 4.0.2 to 5.0.10 by\n[@&#8203;dependabot](https://redirect.github.com/dependabot)\\[bot] in\n[#&#8203;2488](https://redirect.github.com/pinojs/pino/pull/2488)\n- build(deps-dev): bump bole from 5.0.29 to 6.0.7 by\n[@&#8203;dependabot](https://redirect.github.com/dependabot)\\[bot] in\n[#&#8203;2489](https://redirect.github.com/pinojs/pino/pull/2489)\n- build(deps-dev): bump eslint-plugin-n from 17.23.2 to 18.2.2 by\n[@&#8203;dependabot](https://redirect.github.com/dependabot)\\[bot] in\n[#&#8203;2492](https://redirect.github.com/pinojs/pino/pull/2492)\n- build(deps): bump actions/checkout from 6.0.2 to 7.0.1 by\n[@&#8203;dependabot](https://redirect.github.com/dependabot)\\[bot] in\n[#&#8203;2485](https://redirect.github.com/pinojs/pino/pull/2485)\n- fix: log objects with an own **proto** key instead of crashing by\n[@&#8203;spokodev](https://redirect.github.com/spokodev) in\n[#&#8203;2457](https://redirect.github.com/pinojs/pino/pull/2457)\n- fix: build the redaction shape without Object.prototype by\n[@&#8203;luantaraschi](https://redirect.github.com/luantaraschi) in\n[#&#8203;2495](https://redirect.github.com/pinojs/pino/pull/2495)\n- ci: add Node.js 26 to test matrix by\n[@&#8203;aquie00t](https://redirect.github.com/aquie00t) in\n[#&#8203;2480](https://redirect.github.com/pinojs/pino/pull/2480)\n- fix(multistream): fix clone add crash and missing end/remove methods\nby [@&#8203;spellsaif](https://redirect.github.com/spellsaif) in\n[#&#8203;2493](https://redirect.github.com/pinojs/pino/pull/2493)\n- ci: check pull requests target main by\n[@&#8203;marktran0710](https://redirect.github.com/marktran0710) in\n[#&#8203;2500](https://redirect.github.com/pinojs/pino/pull/2500)\n- build(deps-dev): bump docsify-cli from 4.4.4 to 5.0.0 by\n[@&#8203;dependabot](https://redirect.github.com/dependabot)\\[bot] in\n[#&#8203;2513](https://redirect.github.com/pinojs/pino/pull/2513)\n- build(deps-dev): bump eslint-plugin-n from 18.2.2 to 18.3.0 by\n[@&#8203;dependabot](https://redirect.github.com/dependabot)\\[bot] in\n[#&#8203;2515](https://redirect.github.com/pinojs/pino/pull/2515)\n- Delete .github/dependabot.yml by\n[@&#8203;jsumners](https://redirect.github.com/jsumners) in\n[#&#8203;2517](https://redirect.github.com/pinojs/pino/pull/2517)\n- docs: document the APIs that are unavailable in the browser by\n[@&#8203;kavish-19](https://redirect.github.com/kavish-19) in\n[#&#8203;2521](https://redirect.github.com/pinojs/pino/pull/2521)\n- ci: pin lock-threads to upstream v6.0.2 to fix token validation\nfailure by [@&#8203;simpleqt](https://redirect.github.com/simpleqt) in\n[#&#8203;2525](https://redirect.github.com/pinojs/pino/pull/2525)\n- Add bindings() method to browser logger by\n[@&#8203;RT1811](https://redirect.github.com/RT1811) in\n[#&#8203;2504](https://redirect.github.com/pinojs/pino/pull/2504)\n- docs: Note that serializers run on child bindings at creation time by\n[@&#8203;itz-puneet](https://redirect.github.com/itz-puneet) in\n[#&#8203;2518](https://redirect.github.com/pinojs/pino/pull/2518)\n- docs: fix the pino-pretty flush explanation after\n[thread-stream#198](https://redirect.github.com/thread-stream/pino/issues/198)\nby [@&#8203;k-adm](https://redirect.github.com/k-adm) in\n[#&#8203;2524](https://redirect.github.com/pinojs/pino/pull/2524)\n\n#### New Contributors\n\n- [@&#8203;lraveri](https://redirect.github.com/lraveri) made their\nfirst contribution in\n[#&#8203;2381](https://redirect.github.com/pinojs/pino/pull/2381)\n- [@&#8203;KyleTryon](https://redirect.github.com/KyleTryon) made their\nfirst contribution in\n[#&#8203;2394](https://redirect.github.com/pinojs/pino/pull/2394)\n- [@&#8203;abhu85](https://redirect.github.com/abhu85) made their first\ncontribution in\n[#&#8203;2396](https://redirect.github.com/pinojs/pino/pull/2396)\n- [@&#8203;CarlOlson](https://redirect.github.com/CarlOlson) made their\nfirst contribution in\n[#&#8203;2294](https://redirect.github.com/pinojs/pino/pull/2294)\n- [@&#8203;urbanautomaton](https://redirect.github.com/urbanautomaton)\nmade their first contribution in\n[#&#8203;2413](https://redirect.github.com/pinojs/pino/pull/2413)\n- [@&#8203;brunorodmoreira](https://redirect.github.com/brunorodmoreira)\nmade their first contribution in\n[#&#8203;2425](https://redirect.github.com/pinojs/pino/pull/2425)\n- [@&#8203;kshitijanurag](https://redirect.github.com/kshitijanurag)\nmade their first contribution in\n[#&#8203;2423](https://redirect.github.com/pinojs/pino/pull/2423)\n-\n[@&#8203;premsreelathasugeendran](https://redirect.github.com/premsreelathasugeendran)\nmade their first contribution in\n[#&#8203;2435](https://redirect.github.com/pinojs/pino/pull/2435)\n- [@&#8203;YBJ0000](https://redirect.github.com/YBJ0000) made their\nfirst contribution in\n[#&#8203;2470](https://redirect.github.com/pinojs/pino/pull/2470)\n- [@&#8203;youdie006](https://redirect.github.com/youdie006) made their\nfirst contribution in\n[#&#8203;2472](https://redirect.github.com/pinojs/pino/pull/2472)\n- [@&#8203;xianjianlf2](https://redirect.github.com/xianjianlf2) made\ntheir first contribution in\n[#&#8203;2474](https://redirect.github.com/pinojs/pino/pull/2474)\n- [@&#8203;ankit1324](https://redirect.github.com/ankit1324) made their\nfirst contribution in\n[#&#8203;2471](https://redirect.github.com/pinojs/pino/pull/2471)\n- [@&#8203;spokodev](https://redirect.github.com/spokodev) made their\nfirst contribution in\n[#&#8203;2457](https://redirect.github.com/pinojs/pino/pull/2457)\n- [@&#8203;luantaraschi](https://redirect.github.com/luantaraschi) made\ntheir first contribution in\n[#&#8203;2495](https://redirect.github.com/pinojs/pino/pull/2495)\n- [@&#8203;aquie00t](https://redirect.github.com/aquie00t) made their\nfirst contribution in\n[#&#8203;2480](https://redirect.github.com/pinojs/pino/pull/2480)\n- [@&#8203;spellsaif](https://redirect.github.com/spellsaif) made their\nfirst contribution in\n[#&#8203;2493](https://redirect.github.com/pinojs/pino/pull/2493)\n- [@&#8203;marktran0710](https://redirect.github.com/marktran0710) made\ntheir first contribution in\n[#&#8203;2500](https://redirect.github.com/pinojs/pino/pull/2500)\n- [@&#8203;kavish-19](https://redirect.github.com/kavish-19) made their\nfirst contribution in\n[#&#8203;2521](https://redirect.github.com/pinojs/pino/pull/2521)\n- [@&#8203;simpleqt](https://redirect.github.com/simpleqt) made their\nfirst contribution in\n[#&#8203;2525](https://redirect.github.com/pinojs/pino/pull/2525)\n- [@&#8203;RT1811](https://redirect.github.com/RT1811) made their first\ncontribution in\n[#&#8203;2504](https://redirect.github.com/pinojs/pino/pull/2504)\n- [@&#8203;itz-puneet](https://redirect.github.com/itz-puneet) made\ntheir first contribution in\n[#&#8203;2518](https://redirect.github.com/pinojs/pino/pull/2518)\n- [@&#8203;k-adm](https://redirect.github.com/k-adm) made their first\ncontribution in\n[#&#8203;2524](https://redirect.github.com/pinojs/pino/pull/2524)\n\n**Full Changelog**:\n<https://github.com/pinojs/pino/compare/v10.3.1...v10.4.0>\n\n</details>\n\n<details>\n<summary>pinojs/pino-pretty (pino-pretty)</summary>\n\n###\n[`v13.2.0`](https://redirect.github.com/pinojs/pino-pretty/releases/tag/v13.2.0)\n\n[Compare\nSource](https://redirect.github.com/pinojs/pino-pretty/compare/v13.1.3...v13.2.0)\n\n#### What's Changed\n\n- Minor updates by\n[@&#8203;jsumners](https://redirect.github.com/jsumners) in\n[#&#8203;638](https://redirect.github.com/pinojs/pino-pretty/pull/638)\n- build(deps): bump actions/cache from 4 to 5 by\n[@&#8203;dependabot](https://redirect.github.com/dependabot)\\[bot] in\n[#&#8203;639](https://redirect.github.com/pinojs/pino-pretty/pull/639)\n- build(deps-dev): bump\n[@&#8203;types/node](https://redirect.github.com/types/node) from\n24.10.4 to 25.0.3 by\n[@&#8203;dependabot](https://redirect.github.com/dependabot)\\[bot] in\n[#&#8203;640](https://redirect.github.com/pinojs/pino-pretty/pull/640)\n- Support \"true\" and \"false\" for boolean options by\n[@&#8203;leorossi](https://redirect.github.com/leorossi) in\n[#&#8203;642](https://redirect.github.com/pinojs/pino-pretty/pull/642)\n- fix: Remove unused (and undocumented) `outputStream` option by\n[@&#8203;cmfcmf](https://redirect.github.com/cmfcmf) in\n[#&#8203;641](https://redirect.github.com/pinojs/pino-pretty/pull/641)\n- build(deps-dev): bump borp from 0.21.0 to 1.0.0 by\n[@&#8203;dependabot](https://redirect.github.com/dependabot)\\[bot] in\n[#&#8203;646](https://redirect.github.com/pinojs/pino-pretty/pull/646)\n- fix: preserve newlines in messageFormat by\n[@&#8203;mahmoodhamdi](https://redirect.github.com/mahmoodhamdi) in\n[#&#8203;649](https://redirect.github.com/pinojs/pino-pretty/pull/649)\n- chore: use TSTyche for type testing by\n[@&#8203;mrazauskas](https://redirect.github.com/mrazauskas) in\n[#&#8203;650](https://redirect.github.com/pinojs/pino-pretty/pull/650)\n- chore: remove `coverage-map.js` by\n[@&#8203;mrazauskas](https://redirect.github.com/mrazauskas) in\n[#&#8203;652](https://redirect.github.com/pinojs/pino-pretty/pull/652)\n- build(deps-dev): bump neostandard from 0.12.2 to 0.13.0 by\n[@&#8203;dependabot](https://redirect.github.com/dependabot)\\[bot] in\n[#&#8203;654](https://redirect.github.com/pinojs/pino-pretty/pull/654)\n- build(deps-dev): bump typescript from 5.9.3 to 6.0.2 by\n[@&#8203;dependabot](https://redirect.github.com/dependabot)\\[bot] in\n[#&#8203;655](https://redirect.github.com/pinojs/pino-pretty/pull/655)\n- build(deps): bump sonic-boom from 4.2.1 to 5.0.0 by\n[@&#8203;dependabot](https://redirect.github.com/dependabot)\\[bot] in\n[#&#8203;656](https://redirect.github.com/pinojs/pino-pretty/pull/656)\n- chore: remove legacy `.eslintrc` config by\n[@&#8203;kshitijanurag](https://redirect.github.com/kshitijanurag) in\n[#&#8203;657](https://redirect.github.com/pinojs/pino-pretty/pull/657)\n- build(deps-dev): bump tstyche from 6.2.0 to 7.1.0 by\n[@&#8203;dependabot](https://redirect.github.com/dependabot)\\[bot] in\n[#&#8203;659](https://redirect.github.com/pinojs/pino-pretty/pull/659)\n- build(deps): bump actions/dependency-review-action from 4 to 5 by\n[@&#8203;dependabot](https://redirect.github.com/dependabot)\\[bot] in\n[#&#8203;661](https://redirect.github.com/pinojs/pino-pretty/pull/661)\n- build(deps): bump actions/cache from 5 to 6 by\n[@&#8203;dependabot](https://redirect.github.com/dependabot)\\[bot] in\n[#&#8203;666](https://redirect.github.com/pinojs/pino-pretty/pull/666)\n- build(deps-dev): bump\n[@&#8203;types/node](https://redirect.github.com/types/node) from 25.9.4\nto 26.0.1 by\n[@&#8203;dependabot](https://redirect.github.com/dependabot)\\[bot] in\n[#&#8203;669](https://redirect.github.com/pinojs/pino-pretty/pull/669)\n- fix: strip unsafe terminal control characters by\n[@&#8203;mcollina](https://redirect.github.com/mcollina) in\n[#&#8203;671](https://redirect.github.com/pinojs/pino-pretty/pull/671)\n- docs: add security policy by\n[@&#8203;mcollina](https://redirect.github.com/mcollina) in\n[#&#8203;670](https://redirect.github.com/pinojs/pino-pretty/pull/670)\n- build(deps): bump actions/setup-node from 6 to 7 by\n[@&#8203;dependabot](https://redirect.github.com/dependabot)\\[bot] in\n[#&#8203;673](https://redirect.github.com/pinojs/pino-pretty/pull/673)\n- fix: support nested keys in the include filter by\n[@&#8203;DSeaStar](https://redirect.github.com/DSeaStar) in\n[#&#8203;677](https://redirect.github.com/pinojs/pino-pretty/pull/677)\n\n#### New Contributors\n\n- [@&#8203;leorossi](https://redirect.github.com/leorossi) made their\nfirst contribution in\n[#&#8203;642](https://redirect.github.com/pinojs/pino-pretty/pull/642)\n- [@&#8203;cmfcmf](https://redirect.github.com/cmfcmf) made their first\ncontribution in\n[#&#8203;641](https://redirect.github.com/pinojs/pino-pretty/pull/641)\n- [@&#8203;mahmoodhamdi](https://redirect.github.com/mahmoodhamdi) made\ntheir first contribution in\n[#&#8203;649](https://redirect.github.com/pinojs/pino-pretty/pull/649)\n- [@&#8203;mrazauskas](https://redirect.github.com/mrazauskas) made\ntheir first contribution in\n[#&#8203;650](https://redirect.github.com/pinojs/pino-pretty/pull/650)\n- [@&#8203;kshitijanurag](https://redirect.github.com/kshitijanurag)\nmade their first contribution in\n[#&#8203;657](https://redirect.github.com/pinojs/pino-pretty/pull/657)\n- [@&#8203;DSeaStar](https://redirect.github.com/DSeaStar) made their\nfirst contribution in\n[#&#8203;677](https://redirect.github.com/pinojs/pino-pretty/pull/677)\n\n**Full Changelog**:\n<https://github.com/pinojs/pino-pretty/compare/v13.1.3...v13.2.0>\n\n</details>\n\n<details>\n<summary>prettier/prettier (prettier)</summary>\n\n###\n[`v3.10.1`](https://redirect.github.com/prettier/prettier/blob/HEAD/CHANGELOG.md#3101)\n\n[Compare\nSource](https://redirect.github.com/prettier/prettier/compare/3.10.0...3.10.1)\n\n\n[diff](https://redirect.github.com/prettier/prettier/compare/3.10.0...3.10.1)\n\n##### GraphQL: Fix empty selection set with comments\n([#&#8203;20504](https://redirect.github.com/prettier/prettier/pull/20504)\nby [@&#8203;fisker](https://redirect.github.com/fisker))\n\n<!-- prettier-ignore -->\n\n```gql\n\n# Input\nfragment F on Query {\n  # x\n}\n\n# Prettier 3.10.0\nError: Comment \"x\" was not printed. Please report this error!\n\n# Prettier 3.10.1\nfragment F on Query {\n  # x\n}\n```\n\n###\n[`v3.10.0`](https://redirect.github.com/prettier/prettier/blob/HEAD/CHANGELOG.md#3100)\n\n[Compare\nSource](https://redirect.github.com/prettier/prettier/compare/3.9.10...3.10.0)\n\n\n[diff](https://redirect.github.com/prettier/prettier/compare/3.9.10...3.10.0)\n\n🔗 [Release Notes](https://prettier.io/blog/2026/11/11/3.10.0)\n\n###\n[`v3.9.10`](https://redirect.github.com/prettier/prettier/blob/HEAD/CHANGELOG.md#3910)\n\n[Compare\nSource](https://redirect.github.com/prettier/prettier/compare/3.9.9...3.9.10)\n\n\n[diff](https://redirect.github.com/prettier/prettier/compare/3.9.9...3.9.10)\n\n##### Markdown: Update `micromark-extension-gfm-table` to fix the table\nparse issue on performance\n([#&#8203;20266](https://redirect.github.com/prettier/prettier/pull/20266)\nby [@&#8203;fisker](https://redirect.github.com/fisker))\n\nSee\n[micromark/micromark-extension-gfm-table@`4f43ead`](https://redirect.github.com/micromark/micromark-extension-gfm-table/commit/4f43ead37b786bc531d924530d4ab4c714886267)\nfor details.\n\n###\n[`v3.9.9`](https://redirect.github.com/prettier/prettier/blob/HEAD/CHANGELOG.md#399)\n\n[Compare\nSource](https://redirect.github.com/prettier/prettier/compare/3.9.8...3.9.9)\n\n\n[diff](https://redirect.github.com/prettier/prettier/compare/3.9.8...3.9.9)\n\n##### Markdown: Fix text with `$` been incorrectly parsed as math syntax\n([#&#8203;20140](https://redirect.github.com/prettier/prettier/pull/20140)\nby [@&#8203;fisker](https://redirect.github.com/fisker))\n\n<!-- prettier-ignore -->\n\n```md\n<!-- Input -->\n**Uses $FOO** from `a.sh` and `b.sh`, plus `$BAR` from `c.sh`, before anything else runs here.\n\n<!-- Prettier 3.9.8 -->\n**Uses $FOO** from `a.sh` and `b.sh`, plus `$BAR`from`c.sh`, before anything else runs here.\n\n<!-- Prettier 3.9.9 -->\n**Uses $FOO** from `a.sh` and `b.sh`, plus `$BAR` from `c.sh`, before anything else runs here.\n```\n\n###\n[`v3.9.8`](https://redirect.github.com/prettier/prettier/blob/HEAD/CHANGELOG.md#398)\n\n[Compare\nSource](https://redirect.github.com/prettier/prettier/compare/3.9.7...3.9.8)\n\n\n[diff](https://redirect.github.com/prettier/prettier/compare/3.9.7...3.9.8)\n\n##### Markdown: Don't let Liquid objects interrupt paragraphs\n([#&#8203;20087](https://redirect.github.com/prettier/prettier/pull/20087)\nby [@&#8203;seiyab](https://redirect.github.com/seiyab))\n\n<!-- prettier-ignore -->\n\n```markdown\n<!-- Input -->\nIf `module` is not a [`WebAssembly.Module`](/en-US/docs/WebAssembly/Reference/JavaScript_interface/Module) object instance, a\n{{jsxref(\"TypeError\")}} is thrown.\n\n<!-- Prettier 3.9.7 -->\nIf `module` is not a [`WebAssembly.Module`](/en-US/docs/WebAssembly/Reference/JavaScript_interface/Module) object instance, a\n\n{{jsxref(\"TypeError\")}} is thrown.\n\n<!-- Prettier 3.9.8 -->\nIf `module` is not a [`WebAssembly.Module`](/en-US/docs/WebAssembly/Reference/JavaScript_interface/Module) object instance, a\n{{jsxref(\"TypeError\")}} is thrown.\n```\n\n###\n[`v3.9.7`](https://redirect.github.com/prettier/prettier/blob/HEAD/CHANGELOG.md#397)\n\n[Compare\nSource](https://redirect.github.com/prettier/prettier/compare/3.9.6...3.9.7)\n\n\n[diff](https://redirect.github.com/prettier/prettier/compare/3.9.6...3.9.7)\n\n##### Markdown: Prevent indentation drift in list-item code blocks\n([#&#8203;19647](https://redirect.github.com/prettier/prettier/pull/19647),\n[#&#8203;19990](https://redirect.github.com/prettier/prettier/pull/19990)\nby [@&#8203;Austin1serb](https://redirect.github.com/Austin1serb),\n[@&#8203;giaBaoJS](https://redirect.github.com/giaBaoJS))\n\n<!-- prettier-ignore -->\n\n```markdown\n<!-- Input -->\n- [x] short first line.\n\n      second paragraph at six spaces that wraps\n      onto another line here.\n\n<!-- Prettier 3.9.6 -->\n- [x] short first line.\n\n      second paragraph at six spaces that wraps\n          onto another line here.\n\n<!-- Prettier 3.9.7 -->\n- [x] short first line.\n\n      second paragraph at six spaces that wraps\n      onto another line here.\n```\n\n##### JavaScript: Fix embedded template literal idempotency\n([#&#8203;19725](https://redirect.github.com/prettier/prettier/pull/19725)\nby [@&#8203;fisker](https://redirect.github.com/fisker))\n\n<!-- prettier-ignore -->\n\n```jsx\n// Input\nconst foo = html`\n            <div>${getText({\n            value,\n            })}</div>\n`;\n\n// Prettier 3.9.6 (first format)\nconst foo = html`\n  <div>\n    ${getText({\n              value,\n            })}\n  </div>\n`;\n\n// Prettier 3.9.6 (second format)\nconst foo = html`\n  <div>\n    ${getText({\n      value,\n    })}\n  </div>\n`;\n\n// Prettier 3.9.7\nconst foo = html`\n  <div>\n    ${getText({\n      value,\n    })}\n  </div>\n`;\n```\n\n##### Markdown: Preserve Liquid blocks after Markdown tables\n([#&#8203;19730](https://redirect.github.com/prettier/prettier/pull/19730)\nby [@&#8203;wanxiankai](https://redirect.github.com/wanxiankai),\n[@&#8203;seiyab](https://redirect.github.com/seiyab))\n\n<!-- prettier-ignore -->\n\n```markdown\n<!-- Input -->\n| Argument | Type |\n| -------- | ---- |\n{% set default_params = {\n    \"model\": [\"str\"],\n} %}\n\n<!-- Prettier 3.9.6 -->\n| Argument                  | Type |\n| ------------------------- | ---- |\n| {% set default_params = { |\n\n    \"model\": [\"str\"],\n\n} %}\n\n<!-- Prettier 3.9.7 -->\n| Argument | Type |\n| -------- | ---- |\n{% set default_params = {\n    \"model\": [\"str\"],\n} %}\n```\n\n##### Markdown: Preserve single tildes in Markdown\n([#&#8203;19739](https://redirect.github.com/prettier/prettier/pull/19739)\nby [@&#8203;lazerg](https://redirect.github.com/lazerg))\n\nSince 3.9.0, single-tilde spans like `H~2~O` were rewritten to double\ntildes, turning subscript syntax into strike-through. Only double tildes\nare treated that way now, matching GitHub.\n\n<!-- prettier-ignore -->\n\n```markdown\n<!-- Input -->\nH~2~O\n\n<!-- Prettier 3.9.6 -->\nH~~2~~O\n\n<!-- Prettier 3.9.7 -->\nH~2~O\n```\n\n##### Markdown: Fix Markdown blockquote containing `>` characters\n([#&#8203;19802](https://redirect.github.com/prettier/prettier/pull/19802)\nby [@&#8203;seiyab](https://redirect.github.com/seiyab))\n\n<!-- prettier-ignore -->\n\n```md\n<!-- Input -->\n> **test**\\>\n\n<!-- Prettier 3.9.6 -->\n> **test**>\\>\n\n<!-- Prettier 3.9.7 -->\n> **test**\\>\n```\n\n##### Markdown: Strip blockquote markers from a setext heading's\ncontinuation lines\n([#&#8203;19878](https://redirect.github.com/prettier/prettier/pull/19878)\nby [@&#8203;Kjubikstronk](https://redirect.github.com/Kjubikstronk))\n\nA setext heading spanning multiple lines inside a blockquote kept the\n`>` marker of its continuation lines as literal text.\n\n<!-- prettier-ignore -->\n\n```md\n<!-- Input -->\n> Multi\n> Line\n> ===\n\n<!-- Prettier 3.9.6 -->\n> Multi > Line\n> ===\n\n<!-- Prettier 3.9.7 -->\n> Multi\n> Line\n> ===\n```\n\n##### Markdown: Fix HTML block indentation drift in markdown list items\n([#&#8203;19987](https://redirect.github.com/prettier/prettier/pull/19987)\nby [@&#8203;lazerg](https://redirect.github.com/lazerg))\n\n<!-- prettier-ignore -->\n\n```markdown\n<!-- Input -->\n1. Enable images:\n\n    <p align=\"center\">\n      <img alt=\"example\">\n    </p>\n\n<!-- Prettier 3.9.6 (--tab-width=4) -->\n1. Enable images:\n\n     <p align=\"center\">\n       <img alt=\"example\">\n     </p>\n\n<!-- Prettier 3.9.7 (--tab-width=4) -->\n1. Enable images:\n\n    <p align=\"center\">\n      <img alt=\"example\">\n    </p>\n```\n\n##### Angular: Support `@boundary` error boundaries\n([#&#8203;20014](https://redirect.github.com/prettier/prettier/pull/20014)\nby [@&#8203;Yahiro025](https://redirect.github.com/Yahiro025))\n\n<!-- prettier-ignore -->\n\n```html\n<!-- Input -->\n@boundary {\n<complex-chart [data]=\"data\"/>\n}\n@error (let err) {\n<p>{{err.message}}</p>\n}\n\n<!-- Prettier 3.9.6 -->\nSyntaxError: Unexpected character \"EOF\" (Do you have an unescaped \"{\" in your template? Use \"{{ '{' }}\") to escape it.) (6:1)\n\n<!-- Prettier 3.9.7 -->\n@boundary {\n  <complex-chart [data]=\"data\" />\n} @error (let err) {\n  <p>{{ err.message }}</p>\n}\n```\n\n</details>\n\n---\n\n### Configuration\n\n📅 **Schedule**: (in timezone Etc/UTC)\n\n- Branch creation\n  - \"before 8am on monday\"\n- Automerge\n  - At any time (no schedule defined)\n\n🚦 **Automerge**: Disabled by config. Please merge this manually once you\nare satisfied.\n\n♻ **Rebasing**: Whenever PR becomes conflicted, or you tick the\nrebase/retry checkbox.\n\n👻 **Immortal**: This PR will be recreated if closed unmerged. Get\n[config\nhelp](https://redirect.github.com/renovatebot/renovate/discussions) if\nthat's undesired.\n\n---\n\n- [ ] <!-- rebase-check -->If you want to rebase/retry this PR, check\nthis box\n\n---\n\nThis PR was generated by [Mend Renovate](https://mend.io/renovate/).\nView the [repository job\nlog](https://developer.mend.io/github/apache/texera).\n\n<!--renovate-debug:eyJjcmVhdGVkSW5WZXIiOiI0NC4xNjQuMSIsInVwZGF0ZWRJblZlciI6IjQ0LjIyOC4wIiwidGFyZ2V0QnJhbmNoIjoibWFpbiIsImxhYmVscyI6WyJkZXBlbmRlbmNpZXMiXX0=-->\n\n---------\n\nCo-authored-by: Jiadong Bai <43344272+bobbai00@users.noreply.github.com>\nCo-authored-by: Claude Opus 5.5 <noreply@anthropic.com>",
+          "timestamp": "2026-11-14T07:45:53Z",
+          "url": "https://github.com/apache/texera/commit/64df5c325072af1f7d8934210a0ab41dea8ba4e3"
+        },
+        "date": 1794660185876,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "latency p50 / bs=10 sw=1 sl=8",
+            "value": 10612.722,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=10 sw=1 sl=8",
+            "value": 14135.265,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=10 sw=1 sl=8",
+            "value": 17577.797,
+            "unit": "us"
+          },
+          {
+            "name": "latency p50 / bs=100 sw=1 sl=8",
+            "value": 56074.105,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=100 sw=1 sl=8",
+            "value": 65072.946,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=100 sw=1 sl=8",
+            "value": 76664.591,
+            "unit": "us"
+          },
+          {
+            "name": "latency p50 / bs=1000 sw=1 sl=8",
+            "value": 519787.646,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=1000 sw=1 sl=8",
+            "value": 548398.035,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=1000 sw=1 sl=8",
+            "value": 599410.063,
+            "unit": "us"
+          },
+          {
+            "name": "latency p50 / bs=10 sw=1 sl=64",
+            "value": 7635.795,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=10 sw=1 sl=64",
+            "value": 10961.555,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=10 sw=1 sl=64",
+            "value": 14985.457,
+            "unit": "us"
+          },
+          {
+            "name": "latency p50 / bs=100 sw=1 sl=64",
+            "value": 53293.291,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=100 sw=1 sl=64",
+            "value": 59747.249,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=100 sw=1 sl=64",
+            "value": 68197.342,
+            "unit": "us"
+          },
+          {
+            "name": "latency p50 / bs=1000 sw=1 sl=64",
+            "value": 513876.742,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=1000 sw=1 sl=64",
+            "value": 546587.709,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=1000 sw=1 sl=64",
+            "value": 567736.841,
+            "unit": "us"
+          },
+          {
+            "name": "latency p50 / bs=10 sw=1 sl=512",
+            "value": 7528.759,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=10 sw=1 sl=512",
+            "value": 10267.434,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=10 sw=1 sl=512",
+            "value": 11511.194,
+            "unit": "us"
+          },
+          {
+            "name": "latency p50 / bs=100 sw=1 sl=512",
+            "value": 53163.981,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=100 sw=1 sl=512",
+            "value": 62107.903,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=100 sw=1 sl=512",
+            "value": 72583.129,
+            "unit": "us"
+          },
+          {
+            "name": "latency p50 / bs=1000 sw=1 sl=512",
+            "value": 513609.976,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=1000 sw=1 sl=512",
+            "value": 553768.687,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=1000 sw=1 sl=512",
+            "value": 593608.598,
+            "unit": "us"
+          },
+          {
+            "name": "latency p50 / bs=10 sw=10 sl=8",
+            "value": 9257.239,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=10 sw=10 sl=8",
+            "value": 13125.135,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=10 sw=10 sl=8",
+            "value": 13787.465,
+            "unit": "us"
+          },
+          {
+            "name": "latency p50 / bs=100 sw=10 sl=8",
+            "value": 69889.174,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=100 sw=10 sl=8",
+            "value": 79717.265,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=100 sw=10 sl=8",
+            "value": 84788.141,
+            "unit": "us"
+          },
+          {
+            "name": "latency p50 / bs=1000 sw=10 sl=8",
+            "value": 671906.266,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=1000 sw=10 sl=8",
+            "value": 709576.844,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=1000 sw=10 sl=8",
+            "value": 736529.404,
+            "unit": "us"
+          },
+          {
+            "name": "latency p50 / bs=10 sw=10 sl=64",
+            "value": 9033.013,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=10 sw=10 sl=64",
+            "value": 12091.688,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=10 sw=10 sl=64",
+            "value": 15401.855,
+            "unit": "us"
+          },
+          {
+            "name": "latency p50 / bs=100 sw=10 sl=64",
+            "value": 68350.095,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=100 sw=10 sl=64",
+            "value": 75337.895,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=100 sw=10 sl=64",
+            "value": 86361.062,
+            "unit": "us"
+          },
+          {
+            "name": "latency p50 / bs=1000 sw=10 sl=64",
+            "value": 675349.48,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=1000 sw=10 sl=64",
+            "value": 717685.78,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=1000 sw=10 sl=64",
+            "value": 757026.742,
+            "unit": "us"
+          },
+          {
+            "name": "latency p50 / bs=10 sw=10 sl=512",
+            "value": 9269.393,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=10 sw=10 sl=512",
+            "value": 10495.152,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=10 sw=10 sl=512",
+            "value": 13019.59,
+            "unit": "us"
+          },
+          {
+            "name": "latency p50 / bs=100 sw=10 sl=512",
+            "value": 69583.717,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=100 sw=10 sl=512",
+            "value": 76593.752,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=100 sw=10 sl=512",
+            "value": 87472.912,
+            "unit": "us"
+          },
+          {
+            "name": "latency p50 / bs=1000 sw=10 sl=512",
+            "value": 685463.663,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=1000 sw=10 sl=512",
+            "value": 723516.729,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=1000 sw=10 sl=512",
+            "value": 796788.247,
+            "unit": "us"
+          },
+          {
+            "name": "latency p50 / bs=10 sw=50 sl=8",
+            "value": 15558.774,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=10 sw=50 sl=8",
+            "value": 19133.37,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=10 sw=50 sl=8",
+            "value": 26091.82,
+            "unit": "us"
+          },
+          {
+            "name": "latency p50 / bs=100 sw=50 sl=8",
+            "value": 129583.819,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=100 sw=50 sl=8",
+            "value": 141832.795,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=100 sw=50 sl=8",
+            "value": 145611.136,
+            "unit": "us"
+          },
+          {
+            "name": "latency p50 / bs=1000 sw=50 sl=8",
+            "value": 1289192.405,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=1000 sw=50 sl=8",
+            "value": 1343134.045,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=1000 sw=50 sl=8",
+            "value": 1391190.511,
+            "unit": "us"
+          },
+          {
+            "name": "latency p50 / bs=10 sw=50 sl=64",
+            "value": 15106.741,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=10 sw=50 sl=64",
+            "value": 16039.48,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=10 sw=50 sl=64",
+            "value": 19995.949,
+            "unit": "us"
+          },
+          {
+            "name": "latency p50 / bs=100 sw=50 sl=64",
+            "value": 129587.398,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=100 sw=50 sl=64",
+            "value": 142861.144,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=100 sw=50 sl=64",
+            "value": 150239.394,
+            "unit": "us"
+          },
+          {
+            "name": "latency p50 / bs=1000 sw=50 sl=64",
+            "value": 1297088.967,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=1000 sw=50 sl=64",
+            "value": 1336587.513,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=1000 sw=50 sl=64",
+            "value": 1362678.17,
+            "unit": "us"
+          },
+          {
+            "name": "latency p50 / bs=10 sw=50 sl=512",
+            "value": 15455.122,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=10 sw=50 sl=512",
+            "value": 19180.79,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=10 sw=50 sl=512",
+            "value": 22423.394,
+            "unit": "us"
+          },
+          {
+            "name": "latency p50 / bs=100 sw=50 sl=512",
+            "value": 139882.22,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=100 sw=50 sl=512",
+            "value": 152595.063,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=100 sw=50 sl=512",
+            "value": 162114.074,
+            "unit": "us"
+          },
+          {
+            "name": "latency p50 / bs=1000 sw=50 sl=512",
+            "value": 1383309.428,
+            "unit": "us"
+          },
+          {
+            "name": "latency p95 / bs=1000 sw=50 sl=512",
+            "value": 1427439.973,
+            "unit": "us"
+          },
+          {
+            "name": "latency p99 / bs=1000 sw=50 sl=512",
+            "value": 1456615.505,
             "unit": "us"
           }
         ]
