@@ -40,8 +40,9 @@ class NetworkOutputBuffer(
     val dataOutputPort: NetworkOutputGateway,
     val batchSize: Int = ApplicationConfig.defaultDataTransferBatchSize,
     // Columnar wire (opt-in): flush as VectorFrame (Arrow IPC) instead of
-    // DataFrame. Off by default, so the default wire is unchanged.
-    val columnar: Boolean = ApplicationConfig.enableColumnarWire
+    // DataFrame. Off by default, so the default wire is unchanged. A var so the
+    // output manager can set it per edge (phase 2's planner decides this per link).
+    var columnar: Boolean = ApplicationConfig.enableColumnarWire
 ) {
 
   var buffer = new ArrayBuffer[Tuple]()
@@ -57,6 +58,14 @@ class NetworkOutputBuffer(
     flush()
     dataOutputPort.sendTo(to, StateFrame(state, loopCounter, loopStartId))
     flush()
+  }
+
+  // Columnar fast path: ship an already-serialized Arrow batch straight to the
+  // receiver, skipping the per-tuple accumulate/re-encode. Any tuples already
+  // buffered are flushed first so the batch keeps its place in the FIFO stream.
+  def sendVectorFrame(frame: VectorFrame): Unit = {
+    flush()
+    dataOutputPort.sendTo(to, frame)
   }
 
   def flush(): Unit = {

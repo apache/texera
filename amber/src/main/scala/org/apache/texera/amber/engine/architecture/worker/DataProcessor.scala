@@ -187,14 +187,22 @@ class DataProcessor(
             case ColumnarResult.EmitRows(rows) =>
               outputManager.outputIterator.setTupleOutput(rows)
             case ColumnarResult.Emit(root) =>
-              // Materialize the emitted Arrow batch to output tuples (the existing
-              // output path is tuple-based), then free the root.
-              val tuples =
-                try ArrowUtils.tuplesOfRoot(root)
-                finally root.close()
-              outputManager.outputIterator.setTupleOutput(
-                tuples.iterator.map(t => (t: TupleLike, None: Option[PortIdentity]))
-              )
+              try {
+                val rowCount = root.getRowCount
+                // No round-trip: on an eligible (one-to-one, no-storage, columnar)
+                // edge, ship the Arrow batch straight downstream. Otherwise
+                // materialize it to output tuples (the row output path) and let the
+                // network buffer handle it.
+                outputManager.tryEmitColumnarBatch(root, None) match {
+                  case Some((portId, byteCount)) =>
+                    statisticsManager.increaseOutputStatistics(portId, rowCount.toLong, byteCount)
+                  case None =>
+                    val tuples = ArrowUtils.tuplesOfRoot(root)
+                    outputManager.outputIterator.setTupleOutput(
+                      tuples.iterator.map(t => (t: TupleLike, None: Option[PortIdentity]))
+                    )
+                }
+              } finally root.close()
             case _ => // Consumed: a blocking operator accumulated the batch, nothing to emit now
           }
       }

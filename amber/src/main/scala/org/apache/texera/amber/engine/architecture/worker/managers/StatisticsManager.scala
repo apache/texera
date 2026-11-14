@@ -104,11 +104,21 @@ class StatisticsManager {
     * @param portId the port identity
     * @param size the size of the tuple
     */
-  def increaseOutputStatistics(portId: PortIdentity, size: Long): Unit = {
+  def increaseOutputStatistics(portId: PortIdentity, size: Long): Unit =
+    increaseOutputStatistics(portId, 1L, size)
+
+  /**
+    * Increases the output statistics for a given port by a whole batch at once:
+    * `count` tuples totalling `size` bytes. The columnar-wire output fast path ships
+    * an Arrow batch without a per-tuple loop, so it reports the batch's row count and
+    * serialized size in one call rather than once per tuple.
+    */
+  def increaseOutputStatistics(portId: PortIdentity, count: Long, size: Long): Unit = {
+    require(count >= 0, "Tuple count must be non-negative")
     require(size >= 0, "Tuple size must be non-negative")
     outputStatistics.updateWith(portId) {
-      case Some((count, totalSize)) => Some((count + 1, totalSize + size))
-      case None                     => Some((1L, size))
+      case Some((c, totalSize)) => Some((c + count, totalSize + size))
+      case None                 => Some((count, size))
     }
   }
 

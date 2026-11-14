@@ -37,7 +37,9 @@ import org.apache.texera.amber.engine.architecture.worker.managers.{
   PortStorageWriterTerminateSignal
 }
 import org.apache.texera.amber.engine.common.AmberLogging
-import org.apache.texera.amber.util.VirtualIdentityUtils
+import org.apache.texera.amber.engine.common.ambermessage.VectorFrame
+import org.apache.texera.amber.util.{ArrowUtils, VirtualIdentityUtils}
+import org.apache.arrow.vector.VectorSchemaRoot
 
 import java.net.URI
 import scala.collection.mutable
@@ -166,6 +168,59 @@ class OutputManager(
           networkOutputBuffers((link, partitioner.allReceivers(bucketIndex))).addTuple(tuple)
         }
     }
+  }
+
+  /**
+    * Columnar output fast path (no round-trip): ship an operator's Arrow result batch
+    * straight downstream without decoding it to tuples and re-encoding it. Eligible only
+    * when the output port needs no storage and every edge on it is one-to-one (a single
+    * receiver gets the whole batch) with its buffer in columnar mode; hash/range/
+    * round-robin shuffles need per-row partitioning (a later phase) and broadcast/storage
+    * are deferred, so those fall back to the row path. The root is serialized once and the
+    * same bytes are sent to each one-to-one receiver. Does NOT close `root` (caller owns it).
+    *
+    * @return Some((portId, serializedByteCount)) if it shipped the batch (caller records
+    *         output statistics), or None if the port is not eligible (caller falls back).
+    */
+  /**
+    * Provisional (phase 1): turn the columnar output path on or off for every current
+    * edge. Phase 2 replaces this blanket switch with a per-edge decision made by the
+    * planner (local vs cross-node, and whether the receiver consumes columns).
+    */
+  def setColumnarOutput(enabled: Boolean): Unit =
+    networkOutputBuffers.values.foreach(_.columnar = enabled)
+
+  def tryEmitColumnarBatch(
+      root: VectorSchemaRoot,
+      outputPortId: Option[PortIdentity]
+  ): Option[(PortIdentity, Long)] = {
+    if (outputPortId.isEmpty && ports.size != 1) return None
+    val portId = outputPortId.getOrElse(ports.head._1)
+    val links = partitioners.filter(_._1.fromPortId == portId).toSeq
+    val eligible =
+      links.nonEmpty &&
+        !outputPortResultWriterThreads.contains(portId) &&
+        links.forall(_._2.isInstanceOf[OneToOnePartitioner]) &&
+        links.forall {
+          case (link, partitioner) =>
+            partitioner.allReceivers.forall(r =>
+              networkOutputBuffers.get((link, r)).exists(_.columnar)
+            )
+        }
+    if (!eligible) return None
+    val schema = getPort(portId).schema
+    // The executor's Arrow schema must match the declared output port schema; if not,
+    // fall back so the row path's enforceSchema can adjust it.
+    if (ArrowUtils.toTexeraSchema(root.getSchema) != schema) return None
+    val bytes = ArrowUtils.serializeRoot(root)
+    val frame = VectorFrame(bytes, root.getRowCount, schema)
+    links.foreach {
+      case (link, partitioner) =>
+        partitioner.allReceivers.foreach(r =>
+          networkOutputBuffers((link, r)).sendVectorFrame(frame)
+        )
+    }
+    Some((portId, bytes.length.toLong))
   }
 
   /**

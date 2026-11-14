@@ -793,9 +793,10 @@ class DataProcessorSpec extends AnyFlatSpec with MockFactory with Matchers with 
       schema
     )
 
-  "data processor" should "route a VectorFrame to a ColumnarOperatorExecutor and emit its Arrow result" in {
+  "data processor" should "materialize an Emit result to tuples when the output edge is not columnar" in {
     val exec = new DataProcessorSpec.EmitAllColumnarExec
     val (dp, sent) = columnarSetup(exec)
+    // Columnar output is off by default, so the Emit falls back to the row output path.
     dp.processDataPayload(senderChannel, columnarFrame)
     drain(dp)
     // Emit(root): the emitted Arrow batch is materialized to output tuples. The
@@ -804,6 +805,25 @@ class DataProcessorSpec extends AnyFlatSpec with MockFactory with Matchers with 
     assert(exec.processTupleCalls == 0)
     assert(exec.columnarCalls == 1)
     assert(dp.statisticsManager.getInputTupleCount == columnarBatch.length.toLong)
+    exec.close()
+  }
+
+  "data processor" should "ship an Emit result downstream as a VectorFrame with no round-trip on an eligible edge" in {
+    val exec = new DataProcessorSpec.EmitAllColumnarExec
+    val (dp, sent) = columnarSetup(exec)
+    // One-to-one edge, no storage: enable columnar output so the fast path applies.
+    dp.outputManager.setColumnarOutput(true)
+    dp.processDataPayload(senderChannel, columnarFrame)
+    drain(dp)
+    // The batch goes out as a single VectorFrame (not decoded to tuples and
+    // re-encoded), decoding back to the input rows, and processTuple never ran.
+    val frames = sent.map(_.payload).collect { case cf: VectorFrame => cf }
+    assert(frames.size == 1)
+    assert(frames.head.rowCount == columnarBatch.length)
+    assert(ArrowUtils.deserializeTuples(frames.head.arrowIpcBytes).toList == columnarBatch.toList)
+    assert(tuplesSent(sent).isEmpty)
+    assert(exec.processTupleCalls == 0)
+    assert(dp.statisticsManager.getOutputTupleCount == columnarBatch.length.toLong)
     exec.close()
   }
 

@@ -102,6 +102,26 @@ class NetworkOutputBufferColumnarSeamSpec extends AnyFlatSpec {
     assert(offSent.isEmpty)
   }
 
+  it should "ship a prebuilt VectorFrame after flushing buffered rows, in order" in {
+    // sendVectorFrame is the no-round-trip output path: a prebuilt Arrow batch is
+    // sent straight through, but anything already buffered must flush first so FIFO
+    // order holds.
+    val (buffer, sent) = fixture(columnar = true)
+    buffer.addTuple(tuple(1))
+    val frame =
+      VectorFrame(ArrowUtils.serializeTuples(schema, Array(tuple(2), tuple(3))), 2, schema)
+    buffer.sendVectorFrame(frame)
+
+    assert(sent.size == 2)
+    val flushed = sent.head.payload.asInstanceOf[VectorFrame]
+    assert(
+      ArrowUtils.deserializeTuples(flushed.arrowIpcBytes).map(_.getField[Any]("v")).toList == List(
+        1
+      )
+    )
+    assert(sent(1).payload eq frame)
+  }
+
   it should "honor the flag on the size-triggered auto-flush" in {
     val (on, onSent) = fixture(columnar = true, batchSize = 2)
     on.addTuple(tuple(1))
