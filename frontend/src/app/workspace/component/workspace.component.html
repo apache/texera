@@ -36,4 +36,5 @@
   [agentIdToActivate]="agentIdToActivate"></texera-agent-panel>
 <texera-property-editor></texera-property-editor>
 <texera-jupyter-notebook-panel></texera-jupyter-notebook-panel>
-<ng-template #codeEditor></ng-template>
+<!-- The code editor's outlet while the canvas is in front; the Form View carries one of its own. -->
+<ng-template texeraCodeEditorHost></ng-template>
