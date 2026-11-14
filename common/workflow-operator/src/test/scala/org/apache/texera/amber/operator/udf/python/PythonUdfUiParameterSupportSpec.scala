@@ -54,6 +54,8 @@ import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 import java.nio.file.Paths
 
+import java.nio.file.Paths
+
 /** Forces a Python UDF's execution-time binding against real dataset and model rows. */
 class PythonUdfUiParameterSupportSpec
     extends AnyFlatSpec
