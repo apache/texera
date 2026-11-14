@@ -67,6 +67,7 @@ import javax.ws.rs.core.MediaType
 import scala.collection.mutable
 import scala.jdk.CollectionConverters._
 import com.fasterxml.jackson.databind.ObjectMapper
+import org.apache.texera.observability.{SpanAttrs, TexeraTracer}
 
 case class SyncExecutionRequest(
     executionName: String,
@@ -153,6 +154,13 @@ class SyncExecutionResource extends LazyLogging {
         s"maxOperatorResultCellCharLimit=${request.maxOperatorResultCellCharLimit} (capped to $maxOperatorResultCellCharLimit)"
     )
 
+    val span = TexeraTracer.tracer
+      .spanBuilder("SyncExecutionResource.executeWorkflowSync")
+      .setAttribute(SpanAttrs.WorkflowId, Long.box(workflowId))
+      .setAttribute("texera.computing_unit.id", computingUnitId.toLong)
+      .setAttribute("texera.operator.count", request.logicalPlan.operators.size.toLong)
+      .startSpan()
+    val scope = span.makeCurrent()
     try {
       val workflowService = WorkflowService.getOrCreate(
         WorkflowIdentity(workflowId),
@@ -357,7 +365,11 @@ class SyncExecutionResource extends LazyLogging {
     } catch {
       case e: Exception =>
         logger.error(s"Sync execution error: ${e.getMessage}", e)
+        span.recordException(e)
         handleExecutionError(e)
+    } finally {
+      scope.close()
+      span.end()
     }
   }
 
