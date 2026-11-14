@@ -565,6 +565,44 @@ class OutputManagerSpec extends AnyFlatSpec with MockFactory {
     assert(byReceiver(remote).forall(_.payload.isInstanceOf[VectorFrame]))
   }
 
+  it should "in the fast path, ship Arrow to remote buckets and rows to local buckets on a mixed shuffle" in {
+    val local = ActorVirtualIdentity("c-local")
+    val remote = ActorVirtualIdentity("c-remote")
+    val (om, sent) = capturingOutputManager()
+    val portId = PortIdentity(44)
+    om.addPort(portId, schema, None)
+    val partitioning =
+      HashBasedShufflePartitioning(1000, Seq(channelTo(local), channelTo(remote)), Seq("field1"))
+    om.addPartitionerWithPartitioning(
+      PhysicalLink(physicalOpId(), portId, physicalOpId(), portId),
+      partitioning,
+      columnar = true
+    )
+    om.isLocalReceiver = id => Some(id == local)
+
+    val rows = (0 until 40).map(rowWith).toArray
+    assert(emitThrough(om, rows).isDefined) // a remote receiver is present, so the fast path runs
+
+    val byReceiver = sent.groupBy(_.channelId.toWorkerId)
+    // The local bucket arrives as rows, the remote bucket as Arrow.
+    assert(byReceiver(local).forall(_.payload.isInstanceOf[DataFrame]))
+    assert(byReceiver(remote).forall(_.payload.isInstanceOf[VectorFrame]))
+    // Both buckets hold exactly the rows the row partitioner assigns, nothing lost.
+    val got: Map[ActorVirtualIdentity, List[Tuple]] = byReceiver.map {
+      case (r, msgs) =>
+        r -> msgs.flatMap {
+          case m if m.payload.isInstanceOf[VectorFrame] =>
+            ArrowUtils.deserializeTuples(m.payload.asInstanceOf[VectorFrame].arrowIpcBytes)
+          case m => m.payload.asInstanceOf[DataFrame].frame.toSeq
+        }.toList
+    }
+    val expected =
+      rowPathBuckets(HashBasedShufflePartitioner(partitioning), Seq(local, remote), rows)
+    assert(got.values.map(_.size).sum == rows.length)
+    assert(got.getOrElse(local, Nil) == expected.getOrElse(local, Nil))
+    assert(got.getOrElse(remote, Nil) == expected.getOrElse(remote, Nil))
+  }
+
   it should "decline when columnar output is off" in {
     val (om, sent) = capturingOutputManager()
     val portId = PortIdentity(22)

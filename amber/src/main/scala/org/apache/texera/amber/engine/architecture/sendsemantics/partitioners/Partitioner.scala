@@ -90,6 +90,14 @@ class NetworkOutputBuffer(
     dataOutputPort.sendTo(to, frame)
   }
 
+  // Row counterpart of sendVectorFrame: ship a prebuilt row batch (a DataFrame) to a
+  // local receiver, flushing any buffered tuples first to keep FIFO order. Used when a
+  // mixed-locality edge sends Arrow to its remote receivers and rows to its local ones.
+  def sendRows(tuples: Array[Tuple]): Unit = {
+    flush()
+    if (tuples.nonEmpty) dataOutputPort.sendTo(to, DataFrame(tuples))
+  }
+
   def flush(): Unit = {
     if (buffer.nonEmpty) {
       val batch = buffer.toArray
