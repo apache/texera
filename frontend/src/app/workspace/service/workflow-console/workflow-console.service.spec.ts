@@ -80,6 +80,17 @@ describe("WorkflowConsoleService", () => {
     expect(updates).toBe(1);
   });
 
+  it("lists the operators that have buffered messages", () => {
+    expect(service.getOperatorIdsWithMessages()).toEqual([]);
+
+    consoleUpdateEvent$.next({ operatorId: "op2", messages: [consoleMessage("PRINT")] });
+    consoleUpdateEvent$.next({ operatorId: "op1", messages: [consoleMessage("ERROR")] });
+
+    expect(service.getOperatorIdsWithMessages()).toEqual(["op2", "op1"]);
+    service.clearConsoleMessages();
+    expect(service.getOperatorIdsWithMessages()).toEqual([]);
+  });
+
   it("clearConsoleMessages() removes all messages and notifies subscribers", () => {
     consoleUpdateEvent$.next({ operatorId: "op1", messages: [consoleMessage("PRINT")] });
     expect(service.hasConsoleMessages("op1")).toBe(true);

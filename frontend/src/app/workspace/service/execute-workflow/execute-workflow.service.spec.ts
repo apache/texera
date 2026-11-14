@@ -778,4 +778,461 @@ describe("ExecuteWorkflowService", () => {
       operator: { operatorID: "1", operatorType: "ScanSource" },
     });
   });
+
+  describe("whether the run on screen was started here", () => {
+    let connected: boolean;
+    beforeEach(() => {
+      connected = true;
+      vi.spyOn(service["workflowWebsocketService"], "send").mockImplementation(() => {});
+      vi.spyOn(service["workflowWebsocketService"], "isConnected", "get").mockImplementation(() => connected);
+    });
+
+    // Mirrors the public entry points: the previous state is reset, then the request goes out.
+    const requestLocalRun = (): void => {
+      service.resetExecutionState();
+      service.sendExecutionRequest("run", {} as LogicalPlan, {} as WorkflowSettings, false, undefined);
+      tick(FORM_DEBOUNCE_TIME_MS + 1);
+      flush();
+    };
+    const emitState = (state: ExecutionState): void => emitWsEvent({ type: "WorkflowStateEvent", state });
+    const fatalError = (details: string, seconds: number) => ({
+      message: "boom",
+      details,
+      operatorId: "op1",
+      workerId: "w1",
+      type: { name: "EXECUTION_FAILURE" },
+      timestamp: { nanos: 0, seconds },
+    });
+    const emitErrors = (...fatalErrors: ReturnType<typeof fatalError>[]): void =>
+      emitWsEvent({ type: "WorkflowErrorEvent", fatalErrors });
+    const finishLocalRun = (): void => {
+      requestLocalRun();
+      emitState(ExecutionState.Initializing);
+      emitState(ExecutionState.Initializing);
+      emitState(ExecutionState.Running);
+      emitState(ExecutionState.Completed);
+    };
+
+    it("is false before any run", () => {
+      expect(service.wasCurrentRunStartedHere()).toBe(false);
+    });
+
+    it("stays false after a local request until the run begins", fakeAsync(() => {
+      requestLocalRun();
+      expect(service.wasCurrentRunStartedHere()).toBe(false);
+    }));
+
+    it("turns true when a run begins after a local request", fakeAsync(() => {
+      requestLocalRun();
+      emitState(ExecutionState.Initializing);
+      expect(service.wasCurrentRunStartedHere()).toBe(true);
+    }));
+
+    it("turns true through the real entry point, which resets before it sends", fakeAsync(() => {
+      vi.spyOn(ExecuteWorkflowService, "getLogicalPlanRequest").mockReturnValue({} as LogicalPlan);
+
+      expect(service.executeWorkflow("run")).toBe(true);
+      tick(FORM_DEBOUNCE_TIME_MS + 1);
+      flush();
+      emitState(ExecutionState.Initializing);
+
+      expect(service.wasCurrentRunStartedHere()).toBe(true);
+    }));
+
+    it("stays true when the backend repeats Initializing for the same run", fakeAsync(() => {
+      requestLocalRun();
+      emitState(ExecutionState.Initializing);
+      emitState(ExecutionState.Initializing);
+      expect(service.wasCurrentRunStartedHere()).toBe(true);
+    }));
+
+    it("stays true through the later states of the same run", fakeAsync(() => {
+      requestLocalRun();
+      emitState(ExecutionState.Initializing);
+      emitState(ExecutionState.Running);
+      expect(service.wasCurrentRunStartedHere()).toBe(true);
+      emitState(ExecutionState.Paused);
+      emitState(ExecutionState.Resuming);
+      emitState(ExecutionState.Running);
+      emitState(ExecutionState.Completed);
+      expect(service.wasCurrentRunStartedHere()).toBe(true);
+    }));
+
+    it("stays true when the same run fails", fakeAsync(() => {
+      requestLocalRun();
+      emitState(ExecutionState.Initializing);
+      emitState(ExecutionState.Running);
+      emitState(ExecutionState.Failed);
+      emitWsEvent({ type: "WorkflowErrorEvent", fatalErrors: [] });
+      expect(service.getExecutionState().state).toBe(ExecutionState.Failed);
+      expect(service.wasCurrentRunStartedHere()).toBe(true);
+    }));
+
+    it("is false for a run that begins without a local request", () => {
+      emitState(ExecutionState.Initializing);
+      emitState(ExecutionState.Running);
+      emitState(ExecutionState.Completed);
+      expect(service.wasCurrentRunStartedHere()).toBe(false);
+    });
+
+    it("turns false when another run begins after a local run finished, and stays false", fakeAsync(() => {
+      requestLocalRun();
+      emitState(ExecutionState.Initializing);
+      emitState(ExecutionState.Running);
+      emitState(ExecutionState.Completed);
+
+      emitState(ExecutionState.Initializing);
+      expect(service.wasCurrentRunStartedHere()).toBe(false);
+      emitState(ExecutionState.Running);
+      emitState(ExecutionState.Completed);
+      expect(service.wasCurrentRunStartedHere()).toBe(false);
+    }));
+
+    it("turns false when another run begins while the local run is still going", fakeAsync(() => {
+      requestLocalRun();
+      emitState(ExecutionState.Initializing);
+      emitState(ExecutionState.Running);
+
+      emitState(ExecutionState.Initializing);
+
+      expect(service.wasCurrentRunStartedHere()).toBe(false);
+    }));
+
+    it("uses a local request only once", fakeAsync(() => {
+      requestLocalRun();
+      emitState(ExecutionState.Initializing);
+      emitState(ExecutionState.Running);
+      emitState(ExecutionState.Initializing);
+      emitState(ExecutionState.Running);
+      emitState(ExecutionState.Initializing);
+      expect(service.wasCurrentRunStartedHere()).toBe(false);
+    }));
+
+    it("turns true again for a local run that follows another run", fakeAsync(() => {
+      emitState(ExecutionState.Initializing);
+      emitState(ExecutionState.Completed);
+      expect(service.wasCurrentRunStartedHere()).toBe(false);
+
+      requestLocalRun();
+      emitState(ExecutionState.Initializing);
+      expect(service.wasCurrentRunStartedHere()).toBe(true);
+    }));
+
+    it("turns false when the execution state is reset", fakeAsync(() => {
+      requestLocalRun();
+      emitState(ExecutionState.Initializing);
+      emitState(ExecutionState.Completed);
+
+      service.resetExecutionState();
+
+      expect(service.wasCurrentRunStartedHere()).toBe(false);
+    }));
+
+    it("turns false when the execution and workers are reset", fakeAsync(() => {
+      finishLocalRun();
+      expect(service.wasCurrentRunStartedHere()).toBe(true);
+
+      service.resetExecutionAndWorkers();
+
+      expect(service.wasCurrentRunStartedHere()).toBe(false);
+    }));
+
+    it("drops a pending request when the execution and workers are reset", fakeAsync(() => {
+      requestLocalRun();
+
+      service.resetExecutionAndWorkers();
+      emitState(ExecutionState.Initializing);
+
+      expect(service.wasCurrentRunStartedHere()).toBe(false);
+    }));
+
+    it("counts a request as pending only once it has gone out", fakeAsync(() => {
+      service.resetExecutionState();
+      service.sendExecutionRequest("run", {} as LogicalPlan, {} as WorkflowSettings, false, undefined);
+
+      emitState(ExecutionState.Initializing);
+      expect(service.wasCurrentRunStartedHere()).toBe(false);
+
+      tick(FORM_DEBOUNCE_TIME_MS + 1);
+      flush();
+      emitState(ExecutionState.Completed);
+      emitState(ExecutionState.Initializing);
+      expect(service.wasCurrentRunStartedHere()).toBe(true);
+    }));
+
+    it("does not count a request that could not go out because the socket is closed", fakeAsync(() => {
+      connected = false;
+      requestLocalRun();
+      tick(60000);
+
+      emitState(ExecutionState.Initializing);
+      emitState(ExecutionState.Completed);
+
+      expect(service.wasCurrentRunStartedHere()).toBe(false);
+    }));
+
+    it("drops a pending request the backend answers with an error instead of starting a run", fakeAsync(() => {
+      requestLocalRun();
+      emitErrors(fatalError("no write access", 1));
+
+      emitState(ExecutionState.Initializing);
+      emitState(ExecutionState.Running);
+      emitState(ExecutionState.Completed);
+
+      expect(service.wasCurrentRunStartedHere()).toBe(false);
+    }));
+
+    it("turns false when an error arrives after the local run finished, with no run in between", fakeAsync(() => {
+      finishLocalRun();
+
+      emitState(ExecutionState.Failed);
+      emitErrors(fatalError("compile error of another run", 9));
+
+      expect(service.getExecutionState().state).toBe(ExecutionState.Failed);
+      expect(service.wasCurrentRunStartedHere()).toBe(false);
+    }));
+
+    it("turns false when a different error replaces the errors of the failed local run", fakeAsync(() => {
+      requestLocalRun();
+      emitState(ExecutionState.Initializing);
+      emitState(ExecutionState.Running);
+      emitErrors(fatalError("udf failed", 1));
+      expect(service.wasCurrentRunStartedHere()).toBe(true);
+
+      emitErrors(fatalError("compile error of another run", 9));
+
+      expect(service.wasCurrentRunStartedHere()).toBe(false);
+    }));
+
+    it("stays true when the failed local run reports one more error", fakeAsync(() => {
+      requestLocalRun();
+      emitState(ExecutionState.Initializing);
+      emitState(ExecutionState.Running);
+      emitErrors(fatalError("udf failed", 1));
+
+      emitErrors(fatalError("udf failed", 1), fatalError("second worker failed", 2));
+
+      expect(service.wasCurrentRunStartedHere()).toBe(true);
+    }));
+
+    it("turns false when errors arrive for a failed local run that showed none", fakeAsync(() => {
+      requestLocalRun();
+      emitState(ExecutionState.Initializing);
+      emitState(ExecutionState.Running);
+      emitErrors();
+      expect(service.wasCurrentRunStartedHere()).toBe(true);
+
+      emitErrors(fatalError("compile error of another run", 9));
+
+      expect(service.wasCurrentRunStartedHere()).toBe(false);
+    }));
+
+    it("turns false when a later error list drops an error of the failed local run", fakeAsync(() => {
+      requestLocalRun();
+      emitState(ExecutionState.Initializing);
+      emitState(ExecutionState.Running);
+      emitErrors(fatalError("udf failed", 1), fatalError("second worker failed", 2));
+
+      emitErrors(fatalError("second worker failed", 2), fatalError("third", 3), fatalError("fourth", 4));
+
+      expect(service.wasCurrentRunStartedHere()).toBe(false);
+    }));
+
+    it("stays true when the local run fails right after it was announced", fakeAsync(() => {
+      requestLocalRun();
+      emitState(ExecutionState.Initializing);
+
+      emitState(ExecutionState.Failed);
+      emitErrors(fatalError("compile error", 1));
+
+      expect(service.getExecutionState().state).toBe(ExecutionState.Failed);
+      expect(service.wasCurrentRunStartedHere()).toBe(true);
+    }));
+
+    it("turns false when a refused request adds its error to the errors of a run not started here", fakeAsync(() => {
+      emitState(ExecutionState.Initializing);
+      emitState(ExecutionState.Running);
+      emitErrors(fatalError("another run failed", 1));
+
+      requestLocalRun();
+      emitState(ExecutionState.Initializing);
+      expect(service.wasCurrentRunStartedHere()).toBe(true);
+      emitErrors(fatalError("another run failed", 1), fatalError("warehouse refused", 2));
+
+      expect(service.getExecutionState().state).toBe(ExecutionState.Failed);
+      expect(service.wasCurrentRunStartedHere()).toBe(false);
+    }));
+
+    it("stays true when the local run fails in setup with a single error", fakeAsync(() => {
+      emitState(ExecutionState.Initializing);
+      emitState(ExecutionState.Running);
+      emitErrors(fatalError("another run failed", 1));
+
+      requestLocalRun();
+      emitState(ExecutionState.Initializing);
+      emitErrors(fatalError("compile error", 2));
+
+      expect(service.wasCurrentRunStartedHere()).toBe(true);
+    }));
+
+    it("stays true when several errors arrive after the repeated Initializing of the local run", fakeAsync(() => {
+      requestLocalRun();
+      emitState(ExecutionState.Initializing);
+      emitState(ExecutionState.Initializing);
+
+      emitErrors(fatalError("first worker failed", 1), fatalError("second worker failed", 2));
+
+      expect(service.wasCurrentRunStartedHere()).toBe(true);
+    }));
+
+    it("stays true when several errors arrive after the local run left Initializing", fakeAsync(() => {
+      requestLocalRun();
+      emitState(ExecutionState.Initializing);
+      emitState(ExecutionState.Running);
+
+      emitErrors(fatalError("first worker failed", 1), fatalError("second worker failed", 2));
+
+      expect(service.wasCurrentRunStartedHere()).toBe(true);
+    }));
+
+    for (const state of [
+      ExecutionState.Pausing,
+      ExecutionState.Paused,
+      ExecutionState.Resuming,
+      ExecutionState.Recovering,
+    ]) {
+      it(`stays true when the local run fails while it is ${state}`, fakeAsync(() => {
+        requestLocalRun();
+        emitState(ExecutionState.Initializing);
+        emitState(ExecutionState.Running);
+        emitState(state);
+        expect(service.getExecutionState().state).toBe(state);
+
+        emitErrors(fatalError("udf failed", 1));
+
+        expect(service.getExecutionState().state).toBe(ExecutionState.Failed);
+        expect(service.wasCurrentRunStartedHere()).toBe(true);
+      }));
+    }
+
+    it("does not take a longer list as an addition when a shown error's operator differs", fakeAsync(() => {
+      requestLocalRun();
+      emitState(ExecutionState.Initializing);
+      emitState(ExecutionState.Running);
+      emitErrors(fatalError("udf failed", 1));
+
+      emitErrors({ ...fatalError("udf failed", 1), operatorId: "op2" }, fatalError("second worker failed", 2));
+
+      expect(service.wasCurrentRunStartedHere()).toBe(false);
+    }));
+
+    it("does not take a longer list as an addition when a shown error's worker differs", fakeAsync(() => {
+      requestLocalRun();
+      emitState(ExecutionState.Initializing);
+      emitState(ExecutionState.Running);
+      emitErrors(fatalError("udf failed", 1));
+
+      emitErrors({ ...fatalError("udf failed", 1), workerId: "w2" }, fatalError("second worker failed", 2));
+
+      expect(service.wasCurrentRunStartedHere()).toBe(false);
+    }));
+
+    it("does not take a longer list as an addition when a shown error's timestamp differs", fakeAsync(() => {
+      requestLocalRun();
+      emitState(ExecutionState.Initializing);
+      emitState(ExecutionState.Running);
+      emitErrors(fatalError("udf failed", 1));
+
+      emitErrors(fatalError("udf failed", 7), fatalError("second worker failed", 8));
+
+      expect(service.wasCurrentRunStartedHere()).toBe(false);
+    }));
+
+    it("does not take a longer list as an addition when a shown error's details differ", fakeAsync(() => {
+      requestLocalRun();
+      emitState(ExecutionState.Initializing);
+      emitState(ExecutionState.Running);
+      emitErrors(fatalError("udf failed", 1));
+
+      emitErrors(fatalError("another udf failed", 1), fatalError("second worker failed", 2));
+
+      expect(service.wasCurrentRunStartedHere()).toBe(false);
+    }));
+
+    it("does not take the same error list sent again as an addition", fakeAsync(() => {
+      requestLocalRun();
+      emitState(ExecutionState.Initializing);
+      emitState(ExecutionState.Running);
+      emitErrors(fatalError("udf failed", 1));
+
+      emitErrors(fatalError("udf failed", 1));
+
+      expect(service.wasCurrentRunStartedHere()).toBe(false);
+    }));
+
+    it("accepts only one repeated Initializing for a local run", fakeAsync(() => {
+      requestLocalRun();
+      emitState(ExecutionState.Initializing);
+      emitState(ExecutionState.Initializing);
+      expect(service.wasCurrentRunStartedHere()).toBe(true);
+
+      emitState(ExecutionState.Initializing);
+      emitState(ExecutionState.Running);
+      emitState(ExecutionState.Completed);
+
+      expect(service.wasCurrentRunStartedHere()).toBe(false);
+    }));
+
+    it("accepts a repeated Initializing again for the next local run", fakeAsync(() => {
+      finishLocalRun();
+      finishLocalRun();
+      expect(service.wasCurrentRunStartedHere()).toBe(true);
+    }));
+
+    it("turns false when the socket reopens and replays the latest run", fakeAsync(() => {
+      finishLocalRun();
+
+      emitState(ExecutionState.Uninitialized);
+      expect(service.wasCurrentRunStartedHere()).toBe(false);
+      emitState(ExecutionState.Killed);
+
+      expect(service.getExecutionState().state).toBe(ExecutionState.Killed);
+      expect(service.wasCurrentRunStartedHere()).toBe(false);
+    }));
+
+    it("drops a pending request when Uninitialized arrives", fakeAsync(() => {
+      requestLocalRun();
+      emitState(ExecutionState.Uninitialized);
+      emitState(ExecutionState.Initializing);
+      expect(service.wasCurrentRunStartedHere()).toBe(false);
+    }));
+
+    it("turns false when Uninitialized arrives while the local run is starting", fakeAsync(() => {
+      requestLocalRun();
+      emitState(ExecutionState.Initializing);
+      emitState(ExecutionState.Uninitialized);
+      expect(service.wasCurrentRunStartedHere()).toBe(false);
+      emitState(ExecutionState.Initializing);
+      expect(service.wasCurrentRunStartedHere()).toBe(false);
+    }));
+
+    it("turns false when the run on screen is marked as not started here", fakeAsync(() => {
+      requestLocalRun();
+      emitState(ExecutionState.Initializing);
+      emitState(ExecutionState.Completed);
+
+      service.markCurrentRunNotStartedHere();
+
+      expect(service.wasCurrentRunStartedHere()).toBe(false);
+    }));
+
+    it("keeps a pending local request when the run on screen is marked as not started here", fakeAsync(() => {
+      requestLocalRun();
+      service.markCurrentRunNotStartedHere();
+
+      emitState(ExecutionState.Initializing);
+
+      expect(service.wasCurrentRunStartedHere()).toBe(true);
+    }));
+  });
 });

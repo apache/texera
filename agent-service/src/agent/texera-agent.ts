@@ -48,11 +48,27 @@ import {
   type ExecutionConfig,
 } from "./tools/workflow-execution-tools";
 import { assembleContext } from "./util/context-utils";
+import type { LastRunReport } from "../types/execution";
 import { compileWorkflowAsync, type WorkflowCompilationResponse } from "../api/compile-api";
 import { createLogger } from "../logger";
 import type { Logger } from "pino";
 
 const PERSIST_DEBOUNCE_MS = 500;
+
+/**
+ * Whether a tool call ran, or may have run, an operator on the computing unit. An attempt to
+ * execute counts whatever it returned. An edit counts when the tool accepted it, since a
+ * rejected edit changes nothing and is followed by no run.
+ */
+function mayHaveStartedRun(toolName: string, output: unknown): boolean {
+  if (toolName === TOOL_NAME_EXECUTE_OPERATOR) {
+    return true;
+  }
+  if (toolName !== TOOL_NAME_ADD_OPERATOR && toolName !== TOOL_NAME_MODIFY_OPERATOR) {
+    return false;
+  }
+  return output !== undefined && !String(output).startsWith("[ERROR]");
+}
 
 export interface TexeraAgentConfig {
   model: LanguageModel;
@@ -122,6 +138,7 @@ export class TexeraAgent {
   private messageCounter = 0;
 
   private tools: Record<string, any>;
+  private lastRun?: LastRunReport;
 
   private abortController: AbortController | null = null;
 
@@ -437,6 +454,14 @@ export class TexeraAgent {
   }
 
   /**
+   * Stores the report on the user's last run for the next context; undefined clears it. The
+   * report is dropped for the rest of a turn once the agent starts a run of its own.
+   */
+  setLastRun(report: LastRunReport | undefined): void {
+    this.lastRun = report;
+  }
+
+  /**
    * Point the delegate at the warehouse the workspace has selected now. The rest
    * of the config is fixed at creation; this one travels per prompt because the
    * user can pick (or first load) a warehouse after the agent exists (#7751).
@@ -569,7 +594,8 @@ export class TexeraAgent {
             this.workflowState,
             this.getFormattedResultsForDAG(),
             false,
-            compilationResult
+            compilationResult,
+            this.lastRun
           );
           lastPreparedMessages = processed;
           return { messages: processed };
@@ -626,6 +652,15 @@ export class TexeraAgent {
           lastPreparedMessages = undefined;
           this.addStep(agentStep);
           this.head = agentStepId;
+
+          // What the agent runs in this turn is newer than the user's run, and it ends a run of
+          // the user's that is still in flight. The next prompt sets the report again.
+          const startedRun = toolCalls?.some(tc =>
+            mayHaveStartedRun(tc.toolName, toolResults?.find(tr => tr.toolCallId === tc.toolCallId)?.output)
+          );
+          if (startedRun) {
+            this.lastRun = undefined;
+          }
 
           const execConfig = this.buildExecutionConfig();
           if (execConfig && toolCalls && toolResults) {

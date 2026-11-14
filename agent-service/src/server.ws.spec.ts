@@ -23,8 +23,8 @@
 // socket via app.listen + a WebSocket client, since app.handle() does not
 // perform WS upgrades.
 
-import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, test } from "bun:test";
-import { buildApp, _resetAgentStoreForTests, _getAgentForTests } from "./server";
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, spyOn, test } from "bun:test";
+import { buildApp, _resetAgentStoreForTests, _getAgentForTests, _getWsLoggerForTests } from "./server";
 import { env } from "./config/env";
 
 const API = env.API_PREFIX;
@@ -272,6 +272,211 @@ describe(`WS ${API}/agents/:id/react`, () => {
 
     const resting = await messages.waitFor(m => m.type === "WsServerStatusEvent" && m.state === "AVAILABLE");
     expect(resting.state).toBe("AVAILABLE");
+  });
+
+  function stubRun(agent: any): void {
+    agent.sendMessage = async function () {
+      return {
+        response: "done",
+        messages: [],
+        usage: { inputTokens: 0, outputTokens: 0, totalTokens: 0 },
+        stopped: false,
+      };
+    };
+    agent.getReActSteps = () => [];
+  }
+
+  /** Watches the handlers' logger itself, so the check holds at any configured log level. */
+  function watchMalformedWarnings(): { calls: () => unknown[][]; restore: () => void } {
+    const warn = spyOn(_getWsLoggerForTests(), "warn");
+    return {
+      calls: () => warn.mock.calls.filter(call => call[1] === "ignoring malformed lastRun report"),
+      restore: () => warn.mockRestore(),
+    };
+  }
+
+  test("a prompt carrying a valid lastRun report hands it to the agent", async () => {
+    const id = await createAgent();
+    const agent = _getAgentForTests(id)!;
+    stubRun(agent);
+    const received: unknown[] = [];
+    (agent as any).setLastRun = (report: unknown) => received.push(report);
+    const warnings = watchMalformedWarnings();
+
+    try {
+      const { ws, messages } = connect(id);
+      await waitOpen(ws);
+      await messages.waitFor(m => m.type === "WsServerSnapshotEvent");
+      const lastRun = { state: "Failed", operatorErrors: [{ operatorId: "op1", message: "boom" }], workflowErrors: [] };
+      ws.send(JSON.stringify({ type: "WsClientPromptCommand", content: "why", lastRun }));
+      await messages.waitFor(m => m.type === "WsServerStatusEvent" && m.state === "AVAILABLE");
+
+      expect(received).toEqual([lastRun]);
+      expect(warnings.calls()).toHaveLength(0);
+    } finally {
+      warnings.restore();
+    }
+  });
+
+  test("a lastRun report with operator stats reaches the agent with them", async () => {
+    const id = await createAgent();
+    const agent = _getAgentForTests(id)!;
+    stubRun(agent);
+    const received: unknown[] = [];
+    (agent as any).setLastRun = (report: unknown) => received.push(report);
+
+    const { ws, messages } = connect(id);
+    await waitOpen(ws);
+    await messages.waitFor(m => m.type === "WsServerSnapshotEvent");
+    const lastRun = {
+      state: "Completed",
+      operatorErrors: [],
+      workflowErrors: [],
+      operatorStats: [{ operatorId: "scan", state: "Completed", inputRows: 0, outputRows: 0 }],
+    };
+    ws.send(JSON.stringify({ type: "WsClientPromptCommand", content: "why is it empty", lastRun }));
+    await messages.waitFor(m => m.type === "WsServerStatusEvent" && m.state === "AVAILABLE");
+
+    expect(received).toStrictEqual([lastRun]);
+  });
+
+  test("a lastRun report for a run that is still in flight reaches the agent", async () => {
+    const id = await createAgent();
+    const agent = _getAgentForTests(id)!;
+    stubRun(agent);
+    const received: unknown[] = [];
+    (agent as any).setLastRun = (report: unknown) => received.push(report);
+
+    const { ws, messages } = connect(id);
+    await waitOpen(ws);
+    await messages.waitFor(m => m.type === "WsServerSnapshotEvent");
+    const lastRun = {
+      state: "Running",
+      operatorErrors: [{ operatorId: "udf", message: "ValueError: boom" }],
+      workflowErrors: [],
+      operatorStats: [{ operatorId: "udf", state: "Paused", inputRows: 1, outputRows: 0 }],
+    };
+    ws.send(JSON.stringify({ type: "WsClientPromptCommand", content: "why did it stop", lastRun }));
+    await messages.waitFor(m => m.type === "WsServerStatusEvent" && m.state === "AVAILABLE");
+
+    expect(received).toStrictEqual([lastRun]);
+  });
+
+  test("a lastRun report for a run that has not started is dropped", async () => {
+    const id = await createAgent();
+    const agent = _getAgentForTests(id)!;
+    stubRun(agent);
+    const received: unknown[] = [];
+    (agent as any).setLastRun = (report: unknown) => received.push(report);
+
+    const { ws, messages } = connect(id);
+    await waitOpen(ws);
+    await messages.waitFor(m => m.type === "WsServerSnapshotEvent");
+    const lastRun = {
+      state: "Initializing",
+      operatorErrors: [{ operatorId: "udf", message: "ValueError: boom" }],
+      workflowErrors: [],
+    };
+    ws.send(JSON.stringify({ type: "WsClientPromptCommand", content: "why", lastRun }));
+    await messages.waitFor(m => m.type === "WsServerStatusEvent" && m.state === "AVAILABLE");
+
+    expect(received).toStrictEqual([undefined]);
+  });
+
+  test("a lastRun report with a malformed stats entry is dropped whole", async () => {
+    const id = await createAgent();
+    const agent = _getAgentForTests(id)!;
+    stubRun(agent);
+    const received: unknown[] = [];
+    (agent as any).setLastRun = (report: unknown) => received.push(report);
+
+    const { ws, messages } = connect(id);
+    await waitOpen(ws);
+    await messages.waitFor(m => m.type === "WsServerSnapshotEvent");
+    const lastRun = {
+      state: "Completed",
+      operatorErrors: [],
+      workflowErrors: [],
+      operatorStats: [{ operatorId: "scan", state: "Completed", inputRows: -3, outputRows: 0 }],
+    };
+    ws.send(JSON.stringify({ type: "WsClientPromptCommand", content: "why", lastRun }));
+    await messages.waitFor(m => m.type === "WsServerStatusEvent" && m.state === "AVAILABLE");
+
+    expect(received.length).toBe(1);
+    expect(received).toStrictEqual([undefined]);
+  });
+
+  test("a prompt without lastRun clears the agent's report", async () => {
+    const id = await createAgent();
+    const agent = _getAgentForTests(id)!;
+    stubRun(agent);
+    const received: unknown[] = [];
+    (agent as any).setLastRun = (report: unknown) => received.push(report);
+
+    const { ws, messages } = connect(id);
+    await waitOpen(ws);
+    await messages.waitFor(m => m.type === "WsServerSnapshotEvent");
+    ws.send(JSON.stringify({ type: "WsClientPromptCommand", content: "hello" }));
+    await messages.waitFor(m => m.type === "WsServerStatusEvent" && m.state === "AVAILABLE");
+
+    expect(received.length).toBe(1);
+    expect(received).toStrictEqual([undefined]);
+  });
+
+  test("a malformed lastRun is dropped and the prompt still runs", async () => {
+    const id = await createAgent();
+    const agent = _getAgentForTests(id)!;
+    stubRun(agent);
+    const received: unknown[] = [];
+    (agent as any).setLastRun = (report: unknown) => received.push(report);
+
+    const { ws, messages } = connect(id);
+    await waitOpen(ws);
+    await messages.waitFor(m => m.type === "WsServerSnapshotEvent");
+    const tooLong = {
+      state: "Failed",
+      operatorErrors: [{ operatorId: "op1", message: "x".repeat(5000) }],
+      workflowErrors: [],
+    };
+    const warnings = watchMalformedWarnings();
+    try {
+      ws.send(JSON.stringify({ type: "WsClientPromptCommand", content: "why", lastRun: tooLong }));
+      const generating = await messages.waitFor(m => m.type === "WsServerStatusEvent" && m.state === "GENERATING");
+      await messages.waitFor(m => m.type === "WsServerStatusEvent" && m.state === "AVAILABLE");
+
+      expect(generating.state).toBe("GENERATING");
+      expect(received.length).toBe(1);
+      expect(received).toStrictEqual([undefined]);
+      expect(warnings.calls()).toHaveLength(1);
+      expect(warnings.calls()[0][0]).toEqual({ agentId: id });
+    } finally {
+      warnings.restore();
+    }
+  });
+
+  test.each([
+    ["no lastRun field", {}],
+    ["a null lastRun", { lastRun: null }],
+  ])("a prompt with %s clears the report without a malformed-report warning", async (_label, extra) => {
+    const id = await createAgent();
+    const agent = _getAgentForTests(id)!;
+    stubRun(agent);
+    const received: unknown[] = [];
+    (agent as any).setLastRun = (report: unknown) => received.push(report);
+    const warnings = watchMalformedWarnings();
+
+    try {
+      const { ws, messages } = connect(id);
+      await waitOpen(ws);
+      await messages.waitFor(m => m.type === "WsServerSnapshotEvent");
+      ws.send(JSON.stringify({ type: "WsClientPromptCommand", content: "hello", ...extra }));
+      await messages.waitFor(m => m.type === "WsServerStatusEvent" && m.state === "AVAILABLE");
+
+      expect(received).toStrictEqual([undefined]);
+      expect(warnings.calls()).toHaveLength(0);
+    } finally {
+      warnings.restore();
+    }
   });
 
   test("a failed run emits an error frame and still returns to a resting status", async () => {

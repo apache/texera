@@ -131,3 +131,34 @@ export interface WorkflowExecutionSummary {
   // empty means none. For workflow-level failures, operatorId/workerId are empty.
   readonly errors: ReadonlyArray<WorkflowFatalError>;
 }
+
+/** Execution states a finished run ends in. */
+export const LAST_RUN_FINAL_STATES = ["Completed", "Failed", "Killed", "Terminated"] as const;
+
+/** Execution states of a run that has started and not ended. */
+export const LAST_RUN_IN_FLIGHT_STATES = ["Running", "Pausing", "Paused", "Resuming", "Recovering"] as const;
+
+/** Every execution state the frontend may report a run in. */
+export const LAST_RUN_STATES = [...LAST_RUN_FINAL_STATES, ...LAST_RUN_IN_FLIGHT_STATES] as const;
+
+export type LastRunState = (typeof LAST_RUN_STATES)[number];
+
+/** One operator's state and row counts in the user's run, as of the prompt. */
+export interface LastRunOperatorStats {
+  operatorId: string;
+  state: string;
+  inputRows: number;
+  outputRows: number;
+  reusedFromCache?: boolean;
+}
+
+/**
+ * The last run the user started, sent by the frontend with each prompt. Either a finished run,
+ * or one still in flight in which an operator has logged an error.
+ */
+export interface LastRunReport {
+  state: LastRunState;
+  operatorErrors: { operatorId: string; message: string }[];
+  workflowErrors: string[];
+  operatorStats?: LastRunOperatorStats[];
+}
