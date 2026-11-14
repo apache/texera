@@ -402,6 +402,47 @@ class OutputManagerSpec extends AnyFlatSpec with MockFactory {
     } finally alloc.close()
   }
 
+  private def rowWith(v: Int): Tuple = TupleLike(v, 2, 3, 4, "5", 9.8).enforceSchema(schema)
+
+  // Emit a batch columnar through a fresh OutputManager carrying `partitioning`, then
+  // return, per receiver, the rows that receiver actually got (decoded from the Arrow
+  // frames put on the wire).
+  private def columnarShuffle(
+      portId: PortIdentity,
+      partitioning: Partitioning,
+      rows: Array[Tuple]
+  ): Map[ActorVirtualIdentity, List[Tuple]] = {
+    val (om, sent) = capturingOutputManager()
+    om.addPort(portId, schema, None)
+    om.addPartitionerWithPartitioning(
+      PhysicalLink(physicalOpId(), portId, physicalOpId(), portId),
+      partitioning,
+      columnar = true
+    )
+    emitThrough(om, rows)
+    sent
+      .groupBy(_.channelId.toWorkerId)
+      .map {
+        case (receiver, msgs) =>
+          receiver -> msgs
+            .flatMap(m =>
+              ArrowUtils.deserializeTuples(m.payload.asInstanceOf[VectorFrame].arrowIpcBytes)
+            )
+            .toList
+      }
+  }
+
+  // Per receiver, the rows the row-path partitioner would assign, in order.
+  private def rowPathBuckets(
+      partitioner: org.apache.texera.amber.engine.architecture.sendsemantics.partitioners.Partitioner,
+      receivers: Seq[ActorVirtualIdentity],
+      rows: Array[Tuple]
+  ): Map[ActorVirtualIdentity, List[Tuple]] =
+    rows.toList
+      .flatMap(t => partitioner.getBucketIndex(t).map(b => receivers(b) -> t))
+      .groupBy(_._1)
+      .map { case (r, pairs) => r -> pairs.map(_._2) }
+
   "tryEmitColumnarBatch" should "ship a one-to-one columnar edge as a single VectorFrame" in {
     val (om, sent) = capturingOutputManager()
     val portId = PortIdentity(20)
@@ -422,22 +463,46 @@ class OutputManagerSpec extends AnyFlatSpec with MockFactory {
     assert(ArrowUtils.deserializeTuples(cf.arrowIpcBytes).toList == rows.toList)
   }
 
-  it should "decline a hash-shuffle edge (it needs per-row partitioning)" in {
-    val (om, sent) = capturingOutputManager()
-    val portId = PortIdentity(21)
-    om.addPort(portId, schema, None)
-    om.addPartitionerWithPartitioning(
-      PhysicalLink(physicalOpId(), portId, physicalOpId(), portId),
-      HashBasedShufflePartitioning(
-        1000,
-        Seq(channelTo(ActorVirtualIdentity("hash-rec"))),
-        Seq("field1")
-      )
-    )
-    om.setColumnarOutput(true)
+  it should "hash-shuffle rows to the same buckets the row partitioner would" in {
+    val receivers = (0 until 3).map(i => ActorVirtualIdentity(s"hash-r$i"))
+    val partitioning =
+      HashBasedShufflePartitioning(1000, receivers.map(channelTo), Seq("field1"))
+    val rows = (0 until 50).map(rowWith).toArray
+    val got = columnarShuffle(PortIdentity(30), partitioning, rows)
+    val expected = rowPathBuckets(HashBasedShufflePartitioner(partitioning), receivers, rows)
+    // No row lost or duplicated, and each receiver gets exactly the row-path bucket.
+    assert(got.values.map(_.size).sum == rows.length)
+    receivers.foreach(r => assert(got.getOrElse(r, Nil) == expected.getOrElse(r, Nil)))
+  }
 
-    assert(emitThrough(om, Array(sampleTuple())).isEmpty)
-    assert(sent.isEmpty)
+  it should "range-shuffle rows to the same buckets the row partitioner would" in {
+    val receivers = (0 until 3).map(i => ActorVirtualIdentity(s"range-r$i"))
+    val partitioning =
+      RangeBasedShufflePartitioning(1000, receivers.map(channelTo), Seq("field1"), 0, 49)
+    val rows = (0 until 50).map(rowWith).toArray
+    val got = columnarShuffle(PortIdentity(31), partitioning, rows)
+    val expected = rowPathBuckets(RangeBasedShufflePartitioner(partitioning), receivers, rows)
+    assert(got.values.map(_.size).sum == rows.length)
+    receivers.foreach(r => assert(got.getOrElse(r, Nil) == expected.getOrElse(r, Nil)))
+  }
+
+  it should "round-robin rows to the same buckets the row partitioner would (counter parity)" in {
+    val receivers = (0 until 3).map(i => ActorVirtualIdentity(s"rr-r$i"))
+    val partitioning = RoundRobinPartitioning(1000, receivers.map(channelTo))
+    val rows = (0 until 10).map(rowWith).toArray
+    val got = columnarShuffle(PortIdentity(32), partitioning, rows)
+    // A fresh row-path partitioner advances the same counter over the same row order.
+    val expected = rowPathBuckets(RoundRobinPartitioner(partitioning), receivers, rows)
+    assert(got.values.map(_.size).sum == rows.length)
+    receivers.foreach(r => assert(got.getOrElse(r, Nil) == expected.getOrElse(r, Nil)))
+  }
+
+  it should "broadcast the whole batch to every receiver" in {
+    val receivers = (0 until 3).map(i => ActorVirtualIdentity(s"bc-r$i"))
+    val partitioning = BroadcastPartitioning(1000, receivers.map(channelTo))
+    val rows = (0 until 5).map(rowWith).toArray
+    val got = columnarShuffle(PortIdentity(33), partitioning, rows)
+    receivers.foreach(r => assert(got.getOrElse(r, Nil) == rows.toList))
   }
 
   it should "decline when columnar output is off" in {

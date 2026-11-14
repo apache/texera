@@ -33,6 +33,18 @@ trait Partitioner extends Serializable {
   def getBucketIndex(tuple: Tuple): Iterator[Int]
 
   def allReceivers: Seq[ActorVirtualIdentity]
+
+  // Columnar-shuffle support: let the columnar path assign buckets from just the key columns (via
+  // getBucketIndex, identical to the row path) without decoding every row to a Tuple.
+
+  // Does this partitioner split a batch across receivers (shuffle) vs send the whole batch to each?
+  def columnarSplits: Boolean = true
+
+  // Columns getBucketIndex reads (hash/range keys); empty when the bucket ignores row data (round-robin).
+  def bucketKeyColumns: Seq[String] = Seq.empty
+
+  // True when the bucket depends on the whole row, so the columnar path builds the full tuple per row.
+  def requiresFullTuple: Boolean = false
 }
 
 class NetworkOutputBuffer(
