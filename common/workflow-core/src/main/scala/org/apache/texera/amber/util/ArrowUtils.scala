@@ -96,10 +96,35 @@ object ArrowUtils extends LazyLogging {
     try {
       val out = scala.collection.mutable.ArrayBuffer[Tuple]()
       val root = reader.getVectorSchemaRoot
+      // Resolved once per stream and reused per row: the Texera schema, the field
+      // vectors as a plain array, and each column's attribute type. Rebuilding these
+      // per row (an Arrow-to-Texera schema conversion plus collection allocation) was
+      // the dominant decode cost.
+      var schema: Schema = null
+      var vecs: Array[FieldVector] = null
+      var types: Array[AttributeType] = null
+      var numCols = 0
       while (reader.loadNextBatch()) {
+        if (schema == null) {
+          schema = toTexeraSchema(root.getSchema)
+          val fv = root.getFieldVectors
+          numCols = fv.size
+          vecs = new Array[FieldVector](numCols)
+          types = new Array[AttributeType](numCols)
+          var c = 0
+          while (c < numCols) {
+            vecs(c) = fv.get(c); types(c) = schema.getAttributes(c).getType; c += 1
+          }
+        }
         val n = root.getRowCount
         var i = 0
-        while (i < n) { out += getTexeraTuple(i, root); i += 1 }
+        while (i < n) {
+          val values = new Array[Any](numCols)
+          var c = 0
+          while (c < numCols) { values(c) = getCell(vecs(c), i, types(c)); c += 1 }
+          out += Tuple(schema, values)
+          i += 1
+        }
       }
       out.toArray
     } finally reader.close()
