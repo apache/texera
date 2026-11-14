@@ -212,12 +212,12 @@ Dependencies under the Apache License, Version 2.0
 
 Angular / npm packages:
   - @ai-sdk/gateway@2.0.9
-  - @ai-sdk/openai@2.0.67
+  - @ai-sdk/openai@2.0.143
   - @ai-sdk/provider@2.0.0
   - @ai-sdk/provider-utils@3.0.17
   - @opentelemetry/api@1.9.0
   - @vercel/oidc@3.0.3
-  - ai@5.0.93
+  - ai@5.0.290
   - dompurify@3.4.15
   - fast-diff@1.3.0
   - fuse.js@7.5.0
@@ -373,14 +373,14 @@ Source files derived from third-party MIT-licensed projects:
 
 Angular / npm packages:
   - @abacritt/angularx-social-login@2.3.0
-  - @ali-hm/angular-tree-component@12.0.5
-  - @angular/animations@21.2.18
+  - @ali-hm/angular-tree-component@12.0.6
+  - @angular/animations@21.2.26
   - @angular/cdk@21.2.14
-  - @angular/common@21.2.20
-  - @angular/core@21.2.20
-  - @angular/forms@21.2.18
-  - @angular/platform-browser@21.2.18
-  - @angular/router@21.2.18
+  - @angular/common@21.2.26
+  - @angular/core@21.2.26
+  - @angular/forms@21.2.26
+  - @angular/platform-browser@21.2.26
+  - @angular/router@21.2.26
   - @ant-design/colors@7.2.1
   - @ant-design/fast-color@2.0.6
   - @ant-design/icons-angular@21.0.0
@@ -443,7 +443,7 @@ Angular / npm packages:
   - java@10.0.0
   - jquery@3.6.4
   - json-schema-traverse@1.0.0
-  - jszip@3.10.1
+  - jszip@3.10.2
   - lib0@0.2.117
   - lodash@4.18.1
   - lodash.clonedeep@4.5.0
@@ -453,7 +453,7 @@ Angular / npm packages:
   - mobx@4.14.1
   - monaco-breakpoints@0.2.0
   - monaco-languageclient@11.0.3
-  - ng-zorro-antd@21.3.2
+  - ng-zorro-antd@21.3.3
   - ngx-color-picker@12.0.1
   - ngx-file-drop@16.0.0
   - ngx-json-viewer@3.2.1
@@ -470,7 +470,7 @@ Angular / npm packages:
   - style-loader@3.3.4
   - theme-defaults@10.0.0
   - underscore@1.13.8
-  - uuid@14.0.1
+  - uuid@14.0.3
   - vscode-jsonrpc@9.0.3
   - vscode-languageclient@10.1.2
   - vscode-languageserver-protocol@3.18.5
@@ -481,7 +481,7 @@ Angular / npm packages:
   - y-protocols@1.0.7
   - y-quill@1.0.0
   - y-websocket@1.5.4
-  - yjs@13.6.31
+  - yjs@13.6.33
   - zod@3.25.76
   - zone.js@0.15.1
 
