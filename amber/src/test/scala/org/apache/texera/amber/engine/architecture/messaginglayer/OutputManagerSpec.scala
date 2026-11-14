@@ -453,6 +453,34 @@ class OutputManagerSpec extends AnyFlatSpec with MockFactory {
     assert(sent.isEmpty)
   }
 
+  "addPartitionerWithPartitioning" should "make the edge's buffers columnar when told to" in {
+    val (om, sent) = capturingOutputManager()
+    val portId = PortIdentity(23)
+    om.addPort(portId, schema, None)
+    om.addPartitionerWithPartitioning(
+      PhysicalLink(physicalOpId(), portId, physicalOpId(), portId),
+      // batchSize 1 so the single tuple auto-flushes.
+      OneToOnePartitioning(1, Seq(channelTo(ActorVirtualIdentity("col-edge-rec")))),
+      columnar = true
+    )
+    om.passTupleToDownstream(sampleTuple(), Some(portId))
+    assert(sent.size == 1)
+    assert(sent.head.payload.isInstanceOf[VectorFrame])
+  }
+
+  it should "keep the edge's buffers on rows by default" in {
+    val (om, sent) = capturingOutputManager()
+    val portId = PortIdentity(24)
+    om.addPort(portId, schema, None)
+    om.addPartitionerWithPartitioning(
+      PhysicalLink(physicalOpId(), portId, physicalOpId(), portId),
+      OneToOnePartitioning(1, Seq(channelTo(ActorVirtualIdentity("row-edge-rec"))))
+    )
+    om.passTupleToDownstream(sampleTuple(), Some(portId))
+    assert(sent.size == 1)
+    assert(sent.head.payload.isInstanceOf[DataFrame])
+  }
+
   "getSingleOutputPortIdentity" should "return the sole port when exactly one is present" in {
     val outputManager: OutputManager = wire[OutputManager]
     val portId = PortIdentity(13)

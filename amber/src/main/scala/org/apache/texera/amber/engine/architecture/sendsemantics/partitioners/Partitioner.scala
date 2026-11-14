@@ -39,10 +39,11 @@ class NetworkOutputBuffer(
     val to: ActorVirtualIdentity,
     val dataOutputPort: NetworkOutputGateway,
     val batchSize: Int = ApplicationConfig.defaultDataTransferBatchSize,
-    // Columnar wire (opt-in): flush as VectorFrame (Arrow IPC) instead of
-    // DataFrame. Off by default, so the default wire is unchanged. A var so the
-    // output manager can set it per edge (phase 2's planner decides this per link).
-    var columnar: Boolean = ApplicationConfig.enableColumnarWire
+    // Columnar wire: flush as VectorFrame (Arrow IPC) instead of DataFrame. The
+    // planner decides this per edge (it folds in ApplicationConfig.enableColumnarWire
+    // and the downstream operator's columnar capability) and passes it in; off by
+    // default so the row wire is unchanged. A var so the output manager can set it.
+    var columnar: Boolean = false
 ) {
 
   var buffer = new ArrayBuffer[Tuple]()

@@ -136,12 +136,16 @@ class OutputManager(
     */
   def addPartitionerWithPartitioning(
       link: PhysicalLink,
-      partitioning: Partitioning
+      partitioning: Partitioning,
+      // Per-edge columnar-wire decision from the planner: ship this edge's batches as
+      // Arrow (VectorFrame) rather than rows. Defaults off so the row wire is unchanged.
+      columnar: Boolean = false
   ): Unit = {
     val partitioner = toPartitioner(partitioning, actorId)
     partitioners.update(link, partitioner)
     partitioner.allReceivers.foreach(receiver => {
-      val buffer = new NetworkOutputBuffer(receiver, outputGateway, getBatchSize(partitioning))
+      val buffer =
+        new NetworkOutputBuffer(receiver, outputGateway, getBatchSize(partitioning), columnar)
       networkOutputBuffers.update((link, receiver), buffer)
       outputGateway.addOutputChannel(ChannelIdentity(actorId, receiver, isControl = false))
     })

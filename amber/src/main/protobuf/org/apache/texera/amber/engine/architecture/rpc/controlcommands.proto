@@ -235,6 +235,10 @@ message AddInputChannelRequest {
 message AddPartitioningRequest {
   core.PhysicalLink tag = 1 [(scalapb.field).no_box = true];
   sendsemantics.Partitioning partitioning = 2 [(scalapb.field).no_box = true];
+  // Per-edge columnar-wire decision from the planner: ship this link's batches as
+  // Arrow (ColumnarFrame) rather than rows. True only when the downstream operator
+  // consumes columns natively and the columnar wire is enabled.
+  bool columnar = 3;
 }
 
 message AssignPortRequest {
