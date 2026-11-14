@@ -680,15 +680,15 @@ class ComputingUnitManagingResource(
     withTransaction(context) { ctx =>
       val wcDao = new WorkflowComputingUnitDao(ctx.configuration())
 
-      val units = wcDao
-        .fetchByUid(user.getUid)
-        .asScala
-        .filter(_.getTerminateTime == null) // Filter out terminated units
-
-      if (
-        units.size >= maxNumOfRunningComputingUnitsPerUser && cuType == WorkflowComputingUnitTypeEnum.kubernetes
-      ) {
-        throw InsufficientComputingUnitQuota(maxNumOfRunningComputingUnitsPerUser)
+      // Only Kubernetes units are quota-limited; skip the per-user lookup for local units.
+      if (cuType == WorkflowComputingUnitTypeEnum.kubernetes) {
+        val runningUnits = wcDao
+          .fetchByUid(user.getUid)
+          .asScala
+          .count(_.getTerminateTime == null)
+        if (runningUnits >= maxNumOfRunningComputingUnitsPerUser) {
+          throw InsufficientComputingUnitQuota(maxNumOfRunningComputingUnitsPerUser)
+        }
       }
 
       val resourceJson: String = cuType match {
