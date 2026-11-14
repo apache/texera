@@ -130,6 +130,33 @@ object ArrowUtils extends LazyLogging {
     } finally reader.close()
   }
 
+  // Decode a live Arrow root to tuples. Like deserializeTuples but over an
+  // already-open root (the Emit output path's root-to-rows step); does not close
+  // the root. Resolves the schema, field vectors, and column types once, then
+  // reads each row with a plain index loop.
+  def tuplesOfRoot(root: VectorSchemaRoot): Array[Tuple] = {
+    val schema = toTexeraSchema(root.getSchema)
+    val fv = root.getFieldVectors
+    val numCols = fv.size
+    val vecs = new Array[FieldVector](numCols)
+    val types = new Array[AttributeType](numCols)
+    var c0 = 0
+    while (c0 < numCols) {
+      vecs(c0) = fv.get(c0); types(c0) = schema.getAttributes(c0).getType; c0 += 1
+    }
+    val n = root.getRowCount
+    val out = new Array[Tuple](n)
+    var i = 0
+    while (i < n) {
+      val values = new Array[Any](numCols)
+      var c = 0
+      while (c < numCols) { values(c) = getCell(vecs(c), i, types(c)); c += 1 }
+      out(i) = Tuple(schema, values)
+      i += 1
+    }
+    out
+  }
+
   // Copy the rows of `src` where keep(i) is true into a new independent root.
   def selectRows(
       src: VectorSchemaRoot,

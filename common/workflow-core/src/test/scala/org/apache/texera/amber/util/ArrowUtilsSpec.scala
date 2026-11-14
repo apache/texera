@@ -430,6 +430,50 @@ class ArrowUtilsSpec extends AnyFlatSpec with Matchers {
     ) shouldBe empty
   }
 
+  // tuplesOfRoot decodes a live root (the Emit output path's root-to-rows step),
+  // and must produce the same tuples deserializeTuples produces from the IPC bytes.
+  "tuplesOfRoot" should "decode a live root to the same tuples as deserializeTuples" in {
+    val rows = Array(
+      Tuple
+        .builder(tupleSchema)
+        .addSequentially(
+          Array[Any](
+            Int.box(1),
+            Long.box(2L),
+            Double.box(3.0),
+            Boolean.box(true),
+            new Timestamp(123L),
+            "a",
+            Array[Byte](9)
+          )
+        )
+        .build(),
+      Tuple
+        .builder(tupleSchema)
+        .addSequentially(Array[Any](null, null, null, null, null, null, null))
+        .build()
+    )
+    val bytes = ArrowUtils.serializeTuples(tupleSchema, rows)
+    val allocator = new RootAllocator()
+    try {
+      val fromRoot = ArrowUtils.deserializeRootFold(bytes, allocator)(ArrowUtils.tuplesOfRoot)
+      val fromBytes = ArrowUtils.deserializeTuples(bytes)
+      fromRoot.length shouldBe rows.length
+      fromRoot.zip(fromBytes).foreach {
+        case (got, expected) =>
+          tupleSchema.getAttributes.foreach { attribute =>
+            (
+              got.getField[AnyRef](attribute.getName),
+              expected.getField[AnyRef](attribute.getName)
+            ) match {
+              case (g: Array[Byte], e: Array[Byte]) => g shouldBe e
+              case (g, e)                           => g shouldBe e
+            }
+          }
+      }
+    } finally allocator.close()
+  }
+
   // A Timestamp reaches past 2262, where counting microseconds through
   // nanoseconds overflowed, and before 1970. Both come back to the microsecond.
   it should "round-trip a timestamp either side of the nanosecond range" in {
