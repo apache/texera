@@ -216,19 +216,17 @@ class OutputManager(
     if (outputPortId.isEmpty && ports.size != 1) return None
     val portId = outputPortId.getOrElse(ports.head._1)
     val links = partitioners.filter(_._1.fromPortId == portId).toSeq
-    val eligible =
-      links.nonEmpty &&
-        !outputPortResultWriterThreads.contains(portId) &&
-        links.forall {
-          case (link, partitioner) =>
-            // The no-decode fast path runs only when every receiver is remote-columnar. A
-            // local (or mixed) edge falls back to the row path, whose per-receiver flush
-            // already emits rows to local receivers and Arrow to remote ones.
-            partitioner.allReceivers.forall(r =>
-              networkOutputBuffers.get((link, r)).exists(_.remoteColumnar)
-            )
-        }
-    if (!eligible) return None
+    // Take the no-decode fast path when at least one receiver is remote-columnar, so those
+    // receivers get Arrow with no tuple decode; any local receivers on the same edge get
+    // rows. If no receiver is columnar (all local, or the wire is off), fall back so the
+    // caller decodes the batch once and routes it through the row path.
+    val anyColumnar = links.exists {
+      case (link, partitioner) =>
+        partitioner.allReceivers.exists(r =>
+          networkOutputBuffers.get((link, r)).exists(_.remoteColumnar)
+        )
+    }
+    if (links.isEmpty || outputPortResultWriterThreads.contains(portId) || !anyColumnar) return None
     val schema = getPort(portId).schema
     // The executor's Arrow schema must match the declared output port schema; if not,
     // fall back so the row path's enforceSchema can adjust it.
@@ -236,8 +234,10 @@ class OutputManager(
     Some((portId, links.map { case (link, p) => emitColumnarToLink(root, schema, link, p) }.sum))
   }
 
-  // Ship `root` to one link's receivers in Arrow, splitting per bucket if the partitioner
-  // splits. Returns the total serialized bytes put on the wire for this link.
+  // Ship `root` to one link's receivers, splitting per bucket if the partitioner splits.
+  // Each receiver gets Arrow if its buffer is columnar (remote) or rows if it is local, so
+  // a mixed-locality edge keeps the remote buckets columnar while sending rows locally.
+  // Returns the total bytes accounted for this link (serialized Arrow + local row sizes).
   private def emitColumnarToLink(
       root: VectorSchemaRoot,
       schema: Schema,
@@ -246,13 +246,26 @@ class OutputManager(
   ): Long = {
     val receivers = partitioner.allReceivers
     if (!partitioner.columnarSplits) {
-      // One-to-one / broadcast: the whole batch goes to each receiver; serialize once.
-      val bytes = ArrowUtils.serializeRoot(root)
-      val frame = VectorFrame(bytes, root.getRowCount, schema)
-      receivers.foreach(r => networkOutputBuffers((link, r)).sendVectorFrame(frame))
-      bytes.length.toLong
+      // One-to-one / broadcast: the whole batch goes to each receiver. Serialize to Arrow
+      // once for the remote receivers, decode to rows once for the local ones.
+      val (remote, local) =
+        receivers.partition(r => networkOutputBuffers((link, r)).remoteColumnar)
+      var bytes = 0L
+      if (remote.nonEmpty) {
+        val arrow = ArrowUtils.serializeRoot(root)
+        val frame = VectorFrame(arrow, root.getRowCount, schema)
+        remote.foreach(r => networkOutputBuffers((link, r)).sendVectorFrame(frame))
+        bytes += arrow.length.toLong
+      }
+      if (local.nonEmpty) {
+        val tuples = ArrowUtils.tuplesOfRoot(root)
+        local.foreach(r => networkOutputBuffers((link, r)).sendRows(tuples))
+        bytes += tuples.foldLeft(0L)(_ + _.inMemSize)
+      }
+      bytes
     } else {
-      // Splitting shuffle: assign each row a bucket, then gather and send per bucket.
+      // Splitting shuffle: assign each row a bucket, then send each bucket to its receiver
+      // as Arrow (remote) or rows (local).
       val n = root.getRowCount
       val rowsPerBucket = Array.fill(receivers.length)(new mutable.ArrayBuffer[Int]())
       // Build only the columns getBucketIndex needs into a partial tuple per row.
@@ -279,17 +292,43 @@ class OutputManager(
       while (b < receivers.length) {
         val rows = rowsPerBucket(b)
         if (rows.nonEmpty) {
-          val bucketRoot = ArrowUtils.gather(root, rows.toArray, columnarAllocator)
-          try {
-            val frameBytes = ArrowUtils.serializeRoot(bucketRoot)
-            networkOutputBuffers((link, receivers(b)))
-              .sendVectorFrame(VectorFrame(frameBytes, rows.length, schema))
-            bytes += frameBytes.length.toLong
-          } finally bucketRoot.close()
+          bytes += sendBucket(
+            root,
+            schema,
+            networkOutputBuffers((link, receivers(b))),
+            rows.toArray
+          )
         }
         b += 1
       }
       bytes
+    }
+  }
+
+  // Send one bucket's rows to a receiver: Arrow (gather + VectorFrame) if the buffer is
+  // columnar (remote), otherwise decode just those rows and send them as a DataFrame
+  // (local). Returns the bytes accounted for the send.
+  private def sendBucket(
+      root: VectorSchemaRoot,
+      schema: Schema,
+      buffer: NetworkOutputBuffer,
+      rows: Array[Int]
+  ): Long = {
+    if (buffer.remoteColumnar) {
+      val bucketRoot = ArrowUtils.gather(root, rows, columnarAllocator)
+      try {
+        val frameBytes = ArrowUtils.serializeRoot(bucketRoot)
+        buffer.sendVectorFrame(VectorFrame(frameBytes, rows.length, schema))
+        frameBytes.length.toLong
+      } finally bucketRoot.close()
+    } else {
+      val tuples = new Array[Tuple](rows.length)
+      var k = 0
+      while (k < rows.length) {
+        tuples(k) = ArrowUtils.getTexeraTuple(rows(k), root, schema); k += 1
+      }
+      buffer.sendRows(tuples)
+      tuples.foldLeft(0L)(_ + _.inMemSize)
     }
   }
 
