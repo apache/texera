@@ -287,7 +287,8 @@ object ArrowFlightActorBench {
             1,
             OpExecWithCode(IdentityPythonCode, "python"),
             isSource = false,
-            loopStartPortUris = Map.empty
+            loopStartPortUris = Map.empty,
+            isLoopContinuation = false
           ),
           ctx,
           0L

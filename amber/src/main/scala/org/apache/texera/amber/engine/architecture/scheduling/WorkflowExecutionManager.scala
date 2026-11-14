@@ -21,6 +21,7 @@ package org.apache.texera.amber.engine.architecture.scheduling
 
 import com.twitter.util.Future
 import com.typesafe.scalalogging.LazyLogging
+import org.apache.texera.amber.core.virtualidentity.OperatorIdentity
 import org.apache.texera.amber.core.workflow.{GlobalPortIdentity, PhysicalLink}
 import org.apache.texera.amber.engine.architecture.scheduling.config.InputPortConfig
 import org.apache.texera.amber.engine.architecture.common.{
@@ -43,6 +44,22 @@ class WorkflowExecutionManager(
 
   var schedule: Schedule = Schedule(Map.empty)
 
+  // A region restart can also be the first inner iteration of a new outer iteration.
+  // Only the two boundaries of the loop that requested a jump are continuing.
+  private var resumingBoundaries = Set.empty[OperatorIdentity]
+
+  def resumeLoop(start: OperatorIdentity, end: OperatorIdentity): Unit =
+    synchronized {
+      resumingBoundaries ++= Set(start, end)
+    }
+
+  private def takeResumingBoundaries(region: Region): Set[OperatorIdentity] =
+    synchronized {
+      val resuming = region.getOperators.map(_.id.logicalOpId).intersect(resumingBoundaries)
+      resumingBoundaries --= resuming
+      resuming
+    }
+
   private val executedRegions: mutable.ListBuffer[Set[Region]] = mutable.ListBuffer()
 
   private val regionExecutionManagers: mutable.HashMap[RegionIdentity, RegionExecutionManager] =
@@ -61,9 +78,8 @@ class WorkflowExecutionManager(
     * The value is the BASE URI of the materialized port the Loop Start's
     * input port READS FROM -- the upstream operator's output-port
     * materialization (`cfg.storagePairs.head._1` below), not a port of the
-    * Loop Start itself. The Python worker derives the state URI (loop-back
-    * write) and the result URI (the loop's input table, read at consume time)
-    * from it.
+    * Loop Start itself. Workers use it to locate the input table and a separate
+    * checkpoint for the matching Loop Start.
     *
     * Derived from the final (resource-allocated) schedule, so the URIs are
     * exactly the ones `AssignPort` later ships to the Loop Start's input
@@ -169,7 +185,8 @@ class WorkflowExecutionManager(
               coordinatorConfig,
               actorService,
               actorRefService,
-              loopStartPortUris = loopUris
+              loopStartPortUris = loopUris,
+              resumingBoundaries = takeResumingBoundaries(region)
             )
             regionExecutionManagers(region.id)
           })

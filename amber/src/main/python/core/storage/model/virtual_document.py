@@ -59,6 +59,10 @@ class VirtualDocument(ReadonlyVirtualDocument[T], ABC):
     def get_count(self) -> int:
         raise NotImplementedError("get_count method is not implemented")
 
+    def replace_one(self, item: T) -> None:
+        """Atomically replace this document's contents with one item."""
+        raise NotImplementedError("replace_one method is not implemented")
+
     def writer(self, writer_identifier: str) -> BufferedItemWriter[T]:
         """
         return a writer that buffers the items and performs the flush operation at

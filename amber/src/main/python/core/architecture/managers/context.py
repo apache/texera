@@ -90,6 +90,7 @@ class Context:
         # Loop bookkeeping base URIs delivered at setup; see the proto field doc
         # on InitializeExecutorRequest.loopStartPortUris (controlcommands.proto).
         self.loop_start_port_uris: Dict[str, str] = {}
+        self.is_loop_continuation = False
 
     def report_exception(self, err: BaseException) -> None:
         """Route an operator-facing exception to the exception manager and
