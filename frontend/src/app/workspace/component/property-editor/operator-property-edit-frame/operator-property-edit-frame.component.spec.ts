@@ -75,6 +75,7 @@ import { WorkflowVersionService } from "../../../../dashboard/service/user/workf
 import { GuiConfigService } from "../../../../common/service/gui-config.service";
 import { PresetWrapperComponent } from "src/app/common/formly/preset-wrapper/preset-wrapper.component";
 import * as Y from "yjs";
+import { OperatorDescriptionComponent } from "../operator-description/operator-description.component";
 
 const { marbles } = configure({ run: false });
 
@@ -539,6 +540,41 @@ describe("OperatorPropertyEditFrameComponent", () => {
 
       const descEl = fixture.debugElement.query(By.css(".operator-description"));
       expect(descEl).toBeNull();
+    });
+
+    it("shows the operator's description editor, editable only while the frame is interactive", () => {
+      const workflowActionService = TestBed.inject(WorkflowActionService);
+      workflowActionService.addOperator(mockScanPredicate, mockPoint);
+      component.ngOnChanges({
+        currentOperatorId: new SimpleChange(undefined, mockScanPredicate.operatorID, true),
+      });
+      component.setInteractivity(true);
+      fixture.detectChanges();
+
+      const description = fixture.debugElement.query(By.directive(OperatorDescriptionComponent));
+      expect(description).toBeTruthy();
+      expect(description.componentInstance.operatorId).toEqual(mockScanPredicate.operatorID);
+      expect(description.componentInstance.editable).toBe(true);
+      // the instance description must not reuse the operator-type docs' class
+      expect(description.nativeElement.querySelector(".operator-description")).toBeNull();
+
+      component.setInteractivity(false);
+      fixture.detectChanges();
+      expect(description.componentInstance.editable).toBe(false);
+    });
+
+    it("never lets a read-only frame edit the description", () => {
+      const workflowActionService = TestBed.inject(WorkflowActionService);
+      workflowActionService.addOperator(mockScanPredicate, mockPoint);
+      component.actsAsEditor = false;
+      component.ngOnChanges({
+        currentOperatorId: new SimpleChange(undefined, mockScanPredicate.operatorID, true),
+      });
+      component.setInteractivity(true);
+      fixture.detectChanges();
+
+      const description = fixture.debugElement.query(By.directive(OperatorDescriptionComponent));
+      expect(description.componentInstance.editable).toBe(false);
     });
   });
 

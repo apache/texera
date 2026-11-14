@@ -18,7 +18,13 @@
  */
 
 import { describe, expect, test } from "bun:test";
-import { createAddOperatorTool, createModifyOperatorTool, createDeleteOperatorTool } from "./workflow-crud-tools";
+import {
+  createAddOperatorTool,
+  createModifyOperatorTool,
+  createDeleteOperatorTool,
+  filterAllowedOperatorSchemas,
+} from "./workflow-crud-tools";
+import { MAX_OPERATOR_DESCRIPTION_LENGTH } from "../util/description-utils";
 import { WorkflowState } from "../workflow-state";
 import { WorkflowSystemMetadata } from "../util/workflow-system-metadata";
 import type { OperatorMetadata } from "../../api/backend-api";
@@ -133,6 +139,54 @@ describe("createDeleteOperatorTool", () => {
 });
 
 describe("createModifyOperatorTool", () => {
+  test("replaces the description when one is given, leaving properties alone", async () => {
+    const state = new WorkflowState();
+    state.addOperator({ ...makeOperator("op1"), description: "old note", operatorProperties: { title: "t" } });
+
+    const result = await runTool(createModifyOperatorTool(state), {
+      operatorId: "op1",
+      summary: "same",
+      description: "new note",
+    });
+
+    expect(result).toBe("Operator op1 modified");
+    expect(state.getOperator("op1")?.description).toBe("new note");
+    expect(state.getOperator("op1")?.operatorProperties).toEqual({ title: "t" });
+  });
+
+  test("clears the description when given an empty string", async () => {
+    const state = new WorkflowState();
+    state.addOperator({ ...makeOperator("op1"), description: "old note" });
+
+    await runTool(createModifyOperatorTool(state), { operatorId: "op1", summary: "s", description: "" });
+
+    expect(state.getOperator("op1")?.description).toBe("");
+  });
+
+  test("keeps the existing description when none is given", async () => {
+    const state = new WorkflowState();
+    state.addOperator({ ...makeOperator("op1"), description: "keep me" });
+
+    await runTool(createModifyOperatorTool(state), { operatorId: "op1", properties: { title: "x" }, summary: "s" });
+
+    expect(state.getOperator("op1")?.description).toBe("keep me");
+  });
+
+  test("does not change the description when the modification is rejected", async () => {
+    const state = new WorkflowState();
+    state.addOperator({ ...makeOperator("op1"), description: "keep me" });
+
+    const result = await runTool(createModifyOperatorTool(state, context), {
+      operatorId: "op1",
+      inputOperatorIds: { "0": ["ghost"] },
+      summary: "s",
+      description: "should not land",
+    });
+
+    expect(result).toContain("[ERROR]");
+    expect(state.getOperator("op1")?.description).toBe("keep me");
+  });
+
   test("returns an error when the operator does not exist", async () => {
     const state = new WorkflowState();
 
@@ -449,6 +503,34 @@ describe("createModifyOperatorTool", () => {
 });
 
 describe("createAddOperatorTool", () => {
+  test("stores an optional description on the new operator", async () => {
+    const state = new WorkflowState();
+
+    const result = await runTool(createAddOperatorTool(state, operatorSchemas, context), {
+      operatorId: "op1",
+      operatorType: "TestOp",
+      properties: {},
+      summary: "Load data",
+      description: "Loads the **raw** export; refreshed nightly.",
+    });
+
+    expect(result).not.toContain("[ERROR]");
+    expect(state.getOperator("op1")?.description).toBe("Loads the **raw** export; refreshed nightly.");
+  });
+
+  test("leaves description unset when none is given", async () => {
+    const state = new WorkflowState();
+
+    await runTool(createAddOperatorTool(state, operatorSchemas, context), {
+      operatorId: "op1",
+      operatorType: "TestOp",
+      properties: {},
+      summary: "Load data",
+    });
+
+    expect(state.getOperator("op1")?.description).toBeUndefined();
+  });
+
   test("returns an error for an unknown operator type", async () => {
     const state = new WorkflowState();
 
@@ -779,6 +861,74 @@ describe("createAddOperatorTool", () => {
 
     // Unlike modifyOperator, addOperator reports the raw message with no id prefix.
     expect(result).toBe("[ERROR] insert failed");
+    expect(state.getAllOperators()).toHaveLength(0);
+  });
+});
+
+describe("description input validation", () => {
+  const addArgs = { operatorId: "op1", operatorType: "TestOp", properties: {}, summary: "s" };
+  const modifyArgs = { operatorId: "op1", summary: "s" };
+  const tools = {
+    addOperator: () => createAddOperatorTool(new WorkflowState(), operatorSchemas, context),
+    modifyOperator: () => createModifyOperatorTool(new WorkflowState(), context),
+  };
+  const baseArgs: Record<string, Record<string, unknown>> = { addOperator: addArgs, modifyOperator: modifyArgs };
+
+  for (const [name, make] of Object.entries(tools)) {
+    const parse = (args: Record<string, unknown>) => (make() as any).inputSchema.safeParse(args);
+
+    test(`${name}: accepts an omitted description`, () => {
+      expect(parse(baseArgs[name]).success).toBe(true);
+    });
+
+    test(`${name}: accepts a description at the length limit`, () => {
+      expect(parse({ ...baseArgs[name], description: "d".repeat(MAX_OPERATOR_DESCRIPTION_LENGTH) }).success).toBe(true);
+    });
+
+    test(`${name}: rejects a description over the length limit`, () => {
+      expect(parse({ ...baseArgs[name], description: "d".repeat(MAX_OPERATOR_DESCRIPTION_LENGTH + 1) }).success).toBe(
+        false
+      );
+    });
+
+    test(`${name}: rejects a non-string description`, () => {
+      for (const bad of [42, { text: "x" }, ["x"], null]) {
+        expect(parse({ ...baseArgs[name], description: bad }).success).toBe(false);
+      }
+    });
+  }
+});
+
+describe("filterAllowedOperatorSchemas", () => {
+  const all = new Map<string, any>([
+    ["Filter", { a: 1 }],
+    ["PythonUDFV2", { b: 2 }],
+    ["URLFetcher", { c: 3 }],
+  ]);
+
+  test("keeps only allowed operator types", () => {
+    expect([...filterAllowedOperatorSchemas(all, ["Filter"]).keys()]).toEqual(["Filter"]);
+  });
+
+  test("treats an empty allowlist as allow-all, matching the system prompt", () => {
+    expect([...filterAllowedOperatorSchemas(all, []).keys()]).toEqual(["Filter", "PythonUDFV2", "URLFetcher"]);
+  });
+
+  test("ignores allowed names that have no schema", () => {
+    expect([...filterAllowedOperatorSchemas(all, ["Filter", "NoSuchOp"]).keys()]).toEqual(["Filter"]);
+  });
+
+  test("addOperator built from the filtered map refuses a type outside the allowlist", async () => {
+    const state = new WorkflowState();
+    const allowedOnly = filterAllowedOperatorSchemas(operatorSchemas, ["TestJoinOp"]);
+    const result = await runTool(createAddOperatorTool(state, allowedOnly, context), {
+      operatorId: "op1",
+      operatorType: "TestOp",
+      properties: {},
+      summary: "s",
+    });
+    expect(result).toContain("[ERROR]");
+    expect(result).toContain("Unknown operator type");
     expect(state.getAllOperators()).toHaveLength(0);
   });
 });

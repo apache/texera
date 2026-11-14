@@ -32,6 +32,7 @@ import * as joint from "jointjs";
 import { YType } from "../../../types/shared-editing.interface";
 import { isDefined } from "../../../../common/util/predicate";
 import { GuiConfigService } from "../../../../common/service/gui-config.service";
+import { descriptionText, withoutEmptyDescription } from "../../../util/operator-description.util";
 
 /**
  * SyncJointModelService listens to changes to the TexeraGraph (SharedModel) and updates Joint graph correspondingly,
@@ -87,7 +88,10 @@ export class SharedModelChangeHandler {
           if (this.texeraGraph.sharedModel.elementPositionMap?.has(key)) {
             const newPos = this.texeraGraph.sharedModel.elementPositionMap?.get(key) as Point;
             // Add the operator into joint graph
-            const jointOperator = this.jointUIService.getJointOperatorElement(newOperator.toJSON(), newPos);
+            const jointOperator = this.jointUIService.getJointOperatorElement(
+              withoutEmptyDescription(newOperator.toJSON()),
+              newPos
+            );
             jointElementsToAdd.push(jointOperator);
             newOpIDs.push(key);
           } else {
@@ -129,7 +133,7 @@ export class SharedModelChangeHandler {
       for (let i = 0; i < newOpIDs.length; i++) {
         const newOpID = newOpIDs[i];
         const newOperator = this.texeraGraph.sharedModel.operatorIDMap.get(newOpID) as YType<OperatorPredicate>;
-        this.texeraGraph.operatorAddSubject.next(newOperator.toJSON());
+        this.texeraGraph.operatorAddSubject.next(withoutEmptyDescription(newOperator.toJSON()));
       }
 
       if (event.transaction.local && !this.jointGraphWrapper.getReloadingWorkflow()) {
@@ -271,9 +275,19 @@ export class SharedModelChangeHandler {
     });
   }
 
+  private emitOperatorDescriptionChanged(operatorID: string): void {
+    const description = this.texeraGraph.sharedModel.operatorIDMap.get(operatorID)?.get("description");
+    this.texeraGraph.operatorDescriptionChangedSubject.next({
+      operatorID,
+      // a removed key (undo of a first set) or a non-text value (a malformed file or peer) reads as empty
+      newDescription: descriptionText(description),
+    });
+  }
+
   /**
    * Syncs changes that are on nested-structures of operators, including changes on:
    *  - <code>customDisplayName</code>
+   *  - <code>description</code>
    *  - <code>operatorProperties</code>
    *  - <code>operatorPorts</code>
    *  - <code>viewResult</code>
@@ -336,6 +350,9 @@ export class SharedModelChangeHandler {
                 }
               } else if (contentKey === "operatorProperties") {
                 this.onOperatorPropertyChanged(operatorID, event.transaction.local);
+              } else if (contentKey === "description") {
+                // the description key itself was (re)placed, e.g. first set on an operator without one
+                this.emitOperatorDescriptionChanged(operatorID);
               }
             }
           } else if (event.path[event.path.length - 1] === "customDisplayName") {
@@ -346,6 +363,9 @@ export class SharedModelChangeHandler {
               operatorID: operatorID,
               newDisplayName: newName.toJSON(),
             });
+          } else if (event.path.length === 2 && event.path[1] === "description") {
+            // only the operator's own description, never a nested property that happens to be named "description"
+            this.emitOperatorDescriptionChanged(operatorID);
           } else if (event.path.includes("operatorProperties")) {
             this.onOperatorPropertyChanged(operatorID, event.transaction.local);
           } else if (event.path.includes("inputPorts")) {

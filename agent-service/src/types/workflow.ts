@@ -62,6 +62,8 @@ export interface OperatorPredicate {
   readonly viewResult?: boolean;
   readonly markedForReuse?: boolean;
   readonly customDisplayName?: string;
+  /** Free-form markdown notes on this operator, written by users or agents. Never sent to the engine. */
+  readonly description?: string;
 }
 
 export interface LogicalOperator {

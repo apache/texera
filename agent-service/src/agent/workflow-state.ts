@@ -160,6 +160,16 @@ export class WorkflowState {
     return true;
   }
 
+  updateOperatorDescription(operatorId: string, description: string): boolean {
+    const operator = this.operators.get(operatorId);
+    if (!operator) return false;
+
+    const updatedOperator: OperatorPredicate = { ...operator, description };
+    this.operators.set(operatorId, updatedOperator);
+    this.operatorPropertyChangeSubject.next({ operator: updatedOperator });
+    return true;
+  }
+
   updateOperatorPosition(operatorId: string, position: Point): boolean {
     if (!this.operators.has(operatorId)) {
       return false;
