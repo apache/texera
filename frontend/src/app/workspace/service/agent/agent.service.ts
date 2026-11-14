@@ -1198,9 +1198,10 @@ export class AgentService {
    */
   public getAvailableOperatorTypes(agentId: string): Observable<Array<{ type: string; description: string }>> {
     return this.http
-      .get<
-        Array<{ type: string; description: string }>
-      >(`${this.AGENT_API_BASE}/agents/${agentId}/operator-types`, this.agentHeaders(agentId))
+      .get<Array<{ type: string; description: string }>>(
+        `${this.AGENT_API_BASE}/agents/${agentId}/operator-types`,
+        this.agentHeaders(agentId)
+      )
       .pipe(catchError(() => of([])));
   }
 

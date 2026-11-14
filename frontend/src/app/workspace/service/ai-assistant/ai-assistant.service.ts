@@ -32,14 +32,13 @@ export type TypeAnnotationResponse = {
   }>;
 };
 
-export interface UnannotatedArgument
-  extends Readonly<{
-    name: string;
-    startLine: number;
-    startColumn: number;
-    endLine: number;
-    endColumn: number;
-  }> {}
+export interface UnannotatedArgument extends Readonly<{
+  name: string;
+  startLine: number;
+  startColumn: number;
+  endLine: number;
+  endColumn: number;
+}> {}
 
 interface UnannotatedArgumentItem {
   readonly underlying: {
@@ -132,15 +131,13 @@ export class AIAssistantService {
             );
             console.log("Unannotated Arguments:", result);
 
-            return response.underlying.result.value.map(
-              (item: UnannotatedArgumentItem): UnannotatedArgument => ({
-                name: item.underlying.name.value,
-                startLine: item.underlying.startLine.value,
-                startColumn: item.underlying.startColumn.value,
-                endLine: item.underlying.endLine.value,
-                endColumn: item.underlying.endColumn.value,
-              })
-            );
+            return response.underlying.result.value.map((item: UnannotatedArgumentItem): UnannotatedArgument => ({
+              name: item.underlying.name.value,
+              startLine: item.underlying.startLine.value,
+              startColumn: item.underlying.startColumn.value,
+              endLine: item.underlying.endLine.value,
+              endColumn: item.underlying.endColumn.value,
+            }));
           } else {
             console.error("Unexpected response format:", response);
             return [];

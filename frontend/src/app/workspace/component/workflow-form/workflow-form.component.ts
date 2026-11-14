@@ -117,7 +117,7 @@ interface RenderedField {
 /** Whether two property values are the same, taking an empty string and an absent value as one (formly's
  *  blank default for a property the operator never had). */
 const sameValue = (a: unknown, b: unknown): boolean =>
-  JSON.stringify(a === "" ? null : a ?? null) === JSON.stringify(b === "" ? null : b ?? null);
+  JSON.stringify(a === "" ? null : (a ?? null)) === JSON.stringify(b === "" ? null : (b ?? null));
 
 /** One row of the "which results to show" picker: a candidate step and whether it is currently shown. */
 interface ResultChoice {
@@ -780,7 +780,7 @@ export class WorkflowFormComponent implements OnInit, OnDestroy {
   private rebuildResultChoices(): void {
     const config = this.formBindingService.getConfig();
     const viewed = this.workflowActionService.getTexeraGraph().getOperatorsToViewResult();
-    const listed = new Set(this.authoring && this.canEdit ? config.shownResultIds ?? [] : []);
+    const listed = new Set(this.authoring && this.canEdit ? (config.shownResultIds ?? []) : []);
     const terminals = new Set(this.terminalOperatorIds());
     const shown = new Set(this.shownResultIds);
     this.resultChoices = this.enabledOperators()
@@ -944,7 +944,7 @@ export class WorkflowFormComponent implements OnInit, OnDestroy {
   private contextKeyFor(operatorID: string): string {
     const graph = this.workflowActionService.getTexeraGraph();
     // getOperator throws for an operator that is gone, so it is only safe behind hasOperator.
-    const properties = graph.hasOperator(operatorID) ? graph.getOperator(operatorID)?.operatorProperties ?? {} : {};
+    const properties = graph.hasOperator(operatorID) ? (graph.getOperator(operatorID)?.operatorProperties ?? {}) : {};
     // Every property an input is bound to is left out, this card's own and any other card's on the
     // same operator: each is compared against the card that shows it, one by one. Counting them as
     // context too would make one card's edit a change to every other card of that operator, and a

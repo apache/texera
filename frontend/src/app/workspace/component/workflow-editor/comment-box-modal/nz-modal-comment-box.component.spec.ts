@@ -76,7 +76,7 @@ describe("NzModalCommentBoxComponent", () => {
     // The commentBox is a Yjs shared type; only .get('comments') (template) and
     // .get('commentBoxID').toJSON() (the id passed to the service) are exercised.
     const commentBox = {
-      get: vi.fn((key: string) => (key === "comments" ? opts.comments ?? [] : { toJSON: () => BOX_ID })),
+      get: vi.fn((key: string) => (key === "comments" ? (opts.comments ?? []) : { toJSON: () => BOX_ID })),
     };
 
     await TestBed.configureTestingModule({

@@ -18,17 +18,15 @@
  */
 
 /** A single feedback message owned by a user. `creationTime` is epoch milliseconds. */
-export interface Feedback
-  extends Readonly<{
-    fid: number;
-    uid: number;
-    message: string;
-    creationTime: number;
-  }> {}
+export interface Feedback extends Readonly<{
+  fid: number;
+  uid: number;
+  message: string;
+  creationTime: number;
+}> {}
 
 /** Number of feedback messages submitted by a single user. */
-export interface FeedbackCount
-  extends Readonly<{
-    uid: number;
-    count: number;
-  }> {}
+export interface FeedbackCount extends Readonly<{
+  uid: number;
+  count: number;
+}> {}

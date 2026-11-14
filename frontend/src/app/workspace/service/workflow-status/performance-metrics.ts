@@ -28,17 +28,16 @@ import { OperatorStatistics } from "../../types/execute-workflow.interface";
  * websocket, with missing optional fields defaulted. Keyed by operator id at the
  * map level (mirroring {@link OperatorStatistics}), so the id is not repeated here.
  */
-export interface OperatorPerformanceMetrics
-  extends Readonly<{
-    dataProcessingTimeNs: number;
-    controlProcessingTimeNs: number;
-    idleTimeNs: number;
-    inputRows: number;
-    outputRows: number;
-    inputSize: number;
-    outputSize: number;
-    numWorkers: number;
-  }> {}
+export interface OperatorPerformanceMetrics extends Readonly<{
+  dataProcessingTimeNs: number;
+  controlProcessingTimeNs: number;
+  idleTimeNs: number;
+  inputRows: number;
+  outputRows: number;
+  inputSize: number;
+  outputSize: number;
+  numWorkers: number;
+}> {}
 
 /**
  * Project a single {@link OperatorStatistics} into the flat performance model.

@@ -35,16 +35,15 @@ import { WorkflowFatalError } from "./workflow-websocket.interface";
  *  }
  * }
  */
-export interface WorkflowCompilationResponse
-  extends Readonly<{
-    physicalPlan?: PhysicalPlan;
-    operatorOutputSchemas: {
-      [key: string]: OperatorPortSchemaMap;
-    };
-    operatorErrors: {
-      [opId: string]: WorkflowFatalError;
-    };
-  }> {}
+export interface WorkflowCompilationResponse extends Readonly<{
+  physicalPlan?: PhysicalPlan;
+  operatorOutputSchemas: {
+    [key: string]: OperatorPortSchemaMap;
+  };
+  operatorErrors: {
+    [opId: string]: WorkflowFatalError;
+  };
+}> {}
 
 export enum CompilationState {
   Uninitialized = "Uninitialized",
@@ -72,11 +71,10 @@ export type CompilationStateInfo = Readonly<
 >;
 // possible types of an attribute
 export type AttributeType = "string" | "integer" | "double" | "boolean" | "long" | "timestamp" | "binary"; // schema: an array of attribute names and types
-export interface SchemaAttribute
-  extends Readonly<{
-    attributeName: string;
-    attributeType: AttributeType;
-  }> {}
+export interface SchemaAttribute extends Readonly<{
+  attributeName: string;
+  attributeType: AttributeType;
+}> {}
 
 export type PortSchema = ReadonlyArray<SchemaAttribute>;
 

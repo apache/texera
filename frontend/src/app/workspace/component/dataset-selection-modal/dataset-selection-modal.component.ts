@@ -109,7 +109,7 @@ export class DatasetSelectionModalComponent implements OnInit {
         .subscribe(versions => {
           this.datasetVersions = versions;
           const savedVersion = versions.find(version => version.name === versionName);
-          this.selectedVersion = this.data.fileMode ? savedVersion ?? versions[0] : savedVersion;
+          this.selectedVersion = this.data.fileMode ? (savedVersion ?? versions[0]) : savedVersion;
           if (this.selectedVersion) {
             this.onVersionChange();
           }

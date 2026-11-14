@@ -24,17 +24,15 @@ import { JSONSchema7 } from "json-schema";
  * These type declarations should be identical to the backend API.
  */
 
-export interface Point
-  extends Readonly<{
-    x: number;
-    y: number;
-  }> {}
+export interface Point extends Readonly<{
+  x: number;
+  y: number;
+}> {}
 
-export interface LogicalPort
-  extends Readonly<{
-    operatorID: string;
-    portID: string;
-  }> {}
+export interface LogicalPort extends Readonly<{
+  operatorID: string;
+  portID: string;
+}> {}
 
 export type PartitionInfo =
   | Readonly<{ type: "hash"; hashAttributeNames: string[] }>
@@ -43,48 +41,46 @@ export type PartitionInfo =
   | Readonly<{ type: "broadcast" }>
   | Readonly<{ type: "none" }>;
 
-export interface PortSchema
-  extends Readonly<{
-    jsonSchema: Readonly<JSONSchema7>;
-  }> {}
+export interface PortSchema extends Readonly<{
+  jsonSchema: Readonly<JSONSchema7>;
+}> {}
 
-export interface PortProperty
-  extends Readonly<{ partitionInfo: PartitionInfo; dependencies: { id: number; internal: boolean }[] }> {}
+export interface PortProperty extends Readonly<{
+  partitionInfo: PartitionInfo;
+  dependencies: { id: number; internal: boolean }[];
+}> {}
 
-export interface PortDescription
-  extends Readonly<{
-    portID: string;
-    displayName?: string;
-    disallowMultiInputs?: boolean;
-    isDynamicPort?: boolean;
-    partitionRequirement?: PartitionInfo;
-    dependencies?: { id: number; internal: boolean }[];
-  }> {}
+export interface PortDescription extends Readonly<{
+  portID: string;
+  displayName?: string;
+  disallowMultiInputs?: boolean;
+  isDynamicPort?: boolean;
+  partitionRequirement?: PartitionInfo;
+  dependencies?: { id: number; internal: boolean }[];
+}> {}
 
-export interface OperatorPredicate
-  extends Readonly<{
-    operatorID: string;
-    operatorType: string;
-    operatorVersion: string;
-    operatorProperties: Readonly<{ [key: string]: any }>;
-    inputPorts: PortDescription[];
-    outputPorts: PortDescription[];
-    dynamicInputPorts?: boolean;
-    dynamicOutputPorts?: boolean;
-    showAdvanced: boolean;
-    isDisabled?: boolean;
-    viewResult?: boolean;
-    markedForReuse?: boolean;
-    customDisplayName?: string;
-  }> {}
+export interface OperatorPredicate extends Readonly<{
+  operatorID: string;
+  operatorType: string;
+  operatorVersion: string;
+  operatorProperties: Readonly<{ [key: string]: any }>;
+  inputPorts: PortDescription[];
+  outputPorts: PortDescription[];
+  dynamicInputPorts?: boolean;
+  dynamicOutputPorts?: boolean;
+  showAdvanced: boolean;
+  isDisabled?: boolean;
+  viewResult?: boolean;
+  markedForReuse?: boolean;
+  customDisplayName?: string;
+}> {}
 
-export interface Comment
-  extends Readonly<{
-    content: string;
-    creationTime: string;
-    creatorName: string;
-    creatorID: number;
-  }> {}
+export interface Comment extends Readonly<{
+  content: string;
+  creationTime: string;
+  creatorName: string;
+  creatorID: number;
+}> {}
 
 export interface CommentBox {
   commentBoxID: string;
@@ -92,12 +88,11 @@ export interface CommentBox {
   commentBoxPosition: Point;
 }
 
-export interface OperatorLink
-  extends Readonly<{
-    linkID: string;
-    source: LogicalPort;
-    target: LogicalPort;
-  }> {}
+export interface OperatorLink extends Readonly<{
+  linkID: string;
+  source: LogicalPort;
+  target: LogicalPort;
+}> {}
 
 /**
  * refer to src/main/scalapb/org/apache/texera/web/workflowruntimestate/ConsoleMessage.scala
