@@ -256,10 +256,10 @@ Agent service npm packages:
   - openapi-types@12.1.3
   - pino-abstract-transport@3.0.0
   - pino-std-serializers@7.1.0
-  - pino@10.3.1
+  - pino@10.4.0
   - process-warning@5.0.0
   - quick-format-unescaped@4.0.4
-  - real-require@0.2.0
+  - real-require@1.0.0
   - require-from-string@2.0.2
   - safe-stable-stringify@2.5.0
   - sonic-boom@4.2.1
