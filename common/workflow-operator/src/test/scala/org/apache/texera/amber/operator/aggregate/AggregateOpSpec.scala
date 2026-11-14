@@ -507,4 +507,49 @@ class AggregateOpSpec extends AnyFunSuite {
       assert(colResult(city) == rowResult(city), s"group $city differs")
     }
   }
+
+  test("processColumnarRoot accumulates a live root identically to processColumnarBatch") {
+    val schema = makeSchema("city" -> AttributeType.STRING, "sales" -> AttributeType.INTEGER)
+    val rows = Seq(
+      makeTuple(schema, "NY", 10),
+      makeTuple(schema, "SF", 20),
+      makeTuple(schema, "NY", 5),
+      makeTuple(schema, "SF", null)
+    )
+    val desc = new AggregateOpDesc()
+    desc.aggregations = List(
+      makeAggregationOp(AggregationFunction.SUM, "sales", "sum_sales"),
+      makeAggregationOp(AggregationFunction.COUNT, "", "n_rows")
+    )
+    desc.groupByKeys = List("city")
+    val descJson = objectMapper.writeValueAsString(desc)
+
+    def resultsOf(feed: AggregateOpExec => Unit): Map[String, List[Any]] = {
+      val exec = new AggregateOpExec(descJson)
+      exec.open()
+      feed(exec)
+      val out = exec
+        .onFinish(0)
+        .toList
+        .map { t =>
+          val f = t.getFields; f(0).asInstanceOf[String] -> f.drop(1).toList
+        }
+        .toMap
+      exec.close()
+      out
+    }
+
+    val bytesResult = resultsOf(exec =>
+      exec.processColumnarBatch(ArrowUtils.serializeTuples(schema, rows.toArray), 0)
+    )
+    val rootResult = resultsOf { exec =>
+      val alloc = new org.apache.arrow.memory.RootAllocator()
+      try {
+        ArrowUtils.deserializeRootFold(ArrowUtils.serializeTuples(schema, rows.toArray), alloc)(
+          exec.processColumnarRoot(_, 0)
+        )
+      } finally alloc.close()
+    }
+    assert(rootResult == bytesResult)
+  }
 }

@@ -88,13 +88,20 @@ class SpecializedFilterOpExec(descString: String)
 
   override def processColumnarBatch(arrowIpcBytes: Array[Byte], port: Int): ColumnarResult = {
     if (columnarAllocator == null) columnarAllocator = new RootAllocator()
-    ArrowUtils.deserializeRootFold(arrowIpcBytes, columnarAllocator) { root =>
-      columnarMask(root) match {
-        case Some(mask) => ColumnarResult.Emit(ArrowUtils.selectRows(root, mask, columnarAllocator))
-        case None       => ColumnarResult.Unsupported
-      }
-    }
+    ArrowUtils.deserializeRootFold(arrowIpcBytes, columnarAllocator)(emitFiltered)
   }
+
+  // Zero-copy path: read the live root directly (no IPC decode). The caller owns `root`.
+  override def processColumnarRoot(root: VectorSchemaRoot, port: Int): ColumnarResult = {
+    if (columnarAllocator == null) columnarAllocator = new RootAllocator()
+    emitFiltered(root)
+  }
+
+  private def emitFiltered(root: VectorSchemaRoot): ColumnarResult =
+    columnarMask(root) match {
+      case Some(mask) => ColumnarResult.Emit(ArrowUtils.selectRows(root, mask, columnarAllocator))
+      case None       => ColumnarResult.Unsupported
+    }
 
   // Selection-vector path: the indices of surviving rows, computed without
   // compacting or copying the batch. None when the predicate is not vectorizable.

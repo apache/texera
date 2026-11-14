@@ -155,6 +155,13 @@ class AggregateOpExec(descString: String) extends OperatorExecutor with Columnar
     ArrowUtils.deserializeRootFold(arrowIpcBytes, columnarAllocator)(accumulateRoot)
   }
 
+  // Zero-copy path: accumulate straight from the live root (no IPC decode). The caller
+  // owns `root`; accumulateRoot reads it and does not close it.
+  override def processColumnarRoot(root: VectorSchemaRoot, port: Int): ColumnarResult = {
+    if (columnarAllocator == null) columnarAllocator = new RootAllocator()
+    accumulateRoot(root)
+  }
+
   override def onFinish(port: Int): Iterator[TupleLike] = {
     // Finalize aggregation for all keys and produce the result
     keyedPartialAggregates.iterator.map {
