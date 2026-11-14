@@ -29,7 +29,6 @@ import org.tukaani.xz.SeekableFileInputStream
 
 import java.net.URI
 import java.util
-import java.util.stream.{IntStream, Stream}
 import scala.collection.compat.immutable.ArraySeq
 
 class ParallelCSVScanSourceOpExec private[csv] (
@@ -68,15 +67,11 @@ class ParallelCSVScanSourceOpExec private[csv] (
           }
 
           // however the null values won't present if omitted in the end, we need to match nulls.
+          // A shorter row is padded with trailing nulls up to the schema width; a row that is
+          // already at least that wide is left as-is (the fill count is non-positive).
           if (fields.length != schema.getAttributes.size)
-            fields = Stream
-              .concat(
-                util.Arrays.stream(fields),
-                IntStream
-                  .range(0, schema.getAttributes.size - fields.length)
-                  .mapToObj((_: Int) => null)
-              )
-              .toArray()
+            fields = fields ++
+              Array.fill[AnyRef](schema.getAttributes.size - fields.length)(null)
           // parse Strings into inferred AttributeTypes
           val parsedFields: Array[Any] = AttributeTypeUtils.parseFields(
             fields.asInstanceOf[Array[Any]],
