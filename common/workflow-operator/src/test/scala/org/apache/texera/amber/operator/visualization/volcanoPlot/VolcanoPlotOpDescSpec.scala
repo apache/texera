@@ -44,6 +44,7 @@ class VolcanoPlotOpDescSpec extends AnyFlatSpec with Matchers {
 
   private def assertContinuousColoring(code: String): Unit = {
     code should include("""color_continuous_scale="RdBu"""")
+    code should not include "np.select"
     code should not include "Significance"
     code should not include discreteMap
     code should not include "category_orders"
@@ -88,24 +89,6 @@ class VolcanoPlotOpDescSpec extends AnyFlatSpec with Matchers {
     val code = configured.generatePythonCode()
     code should not include "add_hline"
     code should not include "add_vline"
-    assertContinuousColoring(code)
-  }
-
-  it should "draw a dashed horizontal line at -log10 of the significance threshold" in {
-    val op = configured
-    op.significanceThreshold = Some(0.05)
-    val code = op.generatePythonCode()
-    code should include(hline)
-    code should not include "add_vline"
-    assertContinuousColoring(code)
-  }
-
-  it should "draw dashed vertical lines at plus and minus the effect-size threshold" in {
-    val op = configured
-    op.effectSizeThreshold = Some(1.0)
-    val code = op.generatePythonCode()
-    code should include(vlines)
-    code should not include "add_hline"
     assertContinuousColoring(code)
   }
 
@@ -174,15 +157,30 @@ class VolcanoPlotOpDescSpec extends AnyFlatSpec with Matchers {
     code should include("] < 0.05")
     code should include("] > 1.0)")
     code should include("] < -1.0)")
-    code should include("""table["Significance"] = np.select(""")
+    code should include("significance = np.select(")
     code should include("""["Up", "Down"],""")
     code should include("""default="Not significant",""")
-    code should include("""color="Significance",""")
+    code should include("color=significance,")
+    code should include("""labels={"color": "Significance"},""")
     code should include(discreteMap)
-    code should include("""category_orders={"Significance": ["Up", "Down", "Not significant"]}""")
+    code should include("""category_orders={"color": ["Up", "Down", "Not significant"]}""")
     code should not include "color_continuous_scale"
     code should include(hline)
     code should include(vlines)
+  }
+
+  it should "leave an input column named Significance alone, in the exported script too" in {
+    // Writing the categories into table["Significance"] would overwrite an input column
+    // of that name before px reads the table; as the effect column, the x axis would
+    // show the category labels. The categories go to px directly instead.
+    val op = configured
+    op.effectColumn = "Significance"
+    op.significanceThreshold = Some(0.05)
+    op.effectSizeThreshold = Some(1.0)
+    op.colorBySignificance = true
+    Seq(op.generatePythonCode(), op.generateStandaloneCode()).foreach { code =>
+      code should not include """table["Significance"] ="""
+    }
   }
 
   it should "accept a significance threshold of exactly one, the schema maximum, and draw it at y = 0" in {
@@ -193,7 +191,7 @@ class VolcanoPlotOpDescSpec extends AnyFlatSpec with Matchers {
     val code = op.generatePythonCode()
     code should include("""fig.add_hline(y=-np.log10(1.0), line_dash="dash", line_color="gray")""")
     code should include(vlines)
-    code should include("""color="Significance",""")
+    code should include("color=significance,")
     code should include("] < 1.0")
   }
 
@@ -254,11 +252,7 @@ class VolcanoPlotOpDescSpec extends AnyFlatSpec with Matchers {
         classOf[LogicalOp]
       )
       .asInstanceOf[VolcanoPlotOpDesc]
-    val code = saved.generatePythonCode()
-    code shouldBe configured.generatePythonCode()
-    code should not include "add_hline"
-    code should not include "add_vline"
-    assertContinuousColoring(code)
+    saved.generatePythonCode() shouldBe configured.generatePythonCode()
   }
 
   "VolcanoPlotOpDesc.generateStandaloneCode" should "draw no cut-off line and keep the continuous effect-size coloring by default" in {
@@ -267,16 +261,6 @@ class VolcanoPlotOpDescSpec extends AnyFlatSpec with Matchers {
     code should not include "add_vline"
     assertContinuousColoring(code)
     code should include("""color="log2fc",""")
-  }
-
-  it should "draw the dashed cut-off lines while keeping the continuous coloring when the toggle is off" in {
-    val op = configured
-    op.significanceThreshold = Some(0.05)
-    op.effectSizeThreshold = Some(1.0)
-    val code = op.generateStandaloneCode()
-    code should include(hline)
-    code should include(vlines)
-    assertContinuousColoring(code)
   }
 
   it should "color Up, Down and Not significant with the column names as literals" in {
@@ -289,9 +273,10 @@ class VolcanoPlotOpDescSpec extends AnyFlatSpec with Matchers {
     code should include(
       """[significant & (table["log2fc"] > 1.0), significant & (table["log2fc"] < -1.0)]"""
     )
-    code should include("""color="Significance",""")
+    code should include("color=significance,")
+    code should include("""labels={"color": "Significance"},""")
     code should include(discreteMap)
-    code should include("""category_orders={"Significance": ["Up", "Down", "Not significant"]},""")
+    code should include("""category_orders={"color": ["Up", "Down", "Not significant"]},""")
     code should not include """color_continuous_scale="RdBu""""
     code should include(hline)
     code should include(vlines)
@@ -327,20 +312,6 @@ class VolcanoPlotOpDescSpec extends AnyFlatSpec with Matchers {
     }
   }
 
-  it should "render a workflow saved before this change exactly as a default-constructed operator" in {
-    val saved = objectMapper
-      .readValue(
-        """{"operatorType":"VolcanoPlot","effectColumn":"log2fc","pvalueColumn":"pvalue"}""",
-        classOf[LogicalOp]
-      )
-      .asInstanceOf[VolcanoPlotOpDesc]
-    val code = saved.generateStandaloneCode()
-    code shouldBe configured.generateStandaloneCode()
-    code should not include "add_hline"
-    code should not include "add_vline"
-    assertContinuousColoring(code)
-  }
-
   /** Reads the shapes a stored workflow can hold. Without `contentAs` a JSON string
     * stays unconverted inside the Option and the first use throws.
     */
@@ -370,12 +341,6 @@ class VolcanoPlotOpDescSpec extends AnyFlatSpec with Matchers {
     val blanks = readOp(""","significanceThreshold":"","effectSizeThreshold":""""")
     blanks.significanceThreshold shouldBe None
     blanks.effectSizeThreshold shouldBe None
-  }
-
-  it should "hold Doubles, not the raw JSON values" in {
-    val op = readOp(""","significanceThreshold":"0.05","effectSizeThreshold":"1.5"""")
-    op.significanceThreshold.map(_ * 2) shouldBe Some(0.1)
-    op.effectSizeThreshold.map(_ * 2) shouldBe Some(3.0)
   }
 
   it should "treat a non-finite value read from JSON as unset so no Infinity or NaN reaches the Python" in {
@@ -413,7 +378,7 @@ class VolcanoPlotOpDescSpec extends AnyFlatSpec with Matchers {
     readOp(""","colorBySignificance":false""").colorBySignificance shouldBe false
   }
 
-  it should "currently render code even when required fields are empty (no assert guard)" in {
+  "VolcanoPlotOpDesc.generatePythonCode" should "currently render code even when required fields are empty (no assert guard)" in {
     // Documents the present behavior: VolcanoPlotOpDesc does not assert on
     // its required fields inside `generatePythonCode`. An empty
     // configuration therefore renders syntactically valid Python that

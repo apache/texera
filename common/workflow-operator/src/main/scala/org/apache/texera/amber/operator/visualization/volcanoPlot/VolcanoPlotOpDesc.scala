@@ -120,13 +120,16 @@ class VolcanoPlotOpDesc extends PythonVisualizationOpDesc with PlotlyStandaloneC
   private def colorByCategory: Boolean =
     colorBySignificance && significanceCutoff.isDefined && effectCutoff.isDefined
 
-  /** Strict comparisons: a point exactly on a cut-off is not significant. */
-  private def significanceColumn: PythonTemplateBuilder =
+  /** Strict comparisons: a point exactly on a cut-off is not significant. The categories
+    * stay a local array handed to px as `color`, so no category column is added to the
+    * table and an input column named Significance (the effect column, say) keeps its values.
+    */
+  private def significanceCategories: PythonTemplateBuilder =
     if (colorByCategory) {
       val sig = significanceCutoff.get
       val eff = effectCutoff.get
       pyb"""significant = table[$pvalueColumn] < $sig
-         |        table["Significance"] = np.select(
+         |        significance = np.select(
          |            [significant & (table[$effectColumn] > $eff), significant & (table[$effectColumn] < -$eff)],
          |            ["Up", "Down"],
          |            default="Not significant",
@@ -137,10 +140,13 @@ class VolcanoPlotOpDesc extends PythonVisualizationOpDesc with PlotlyStandaloneC
   // ColorBrewer RdBu end points plus a neutral grey, so the figure reads like other
   // volcano-plot tooling; the continuous RdBu scale stays when not coloring by category.
   // Shared by both code paths so the exported figure cannot drift from the engine's.
+  // px names an array passed as `color` "color", so the legend title comes from labels
+  // and the category order is keyed by "color".
   private def categoryColorArgs: PythonLiteral =
-    """color="Significance",
+    """color=significance,
+      |            labels={"color": "Significance"},
       |            color_discrete_map={"Up": "#B2182B", "Down": "#2166AC", "Not significant": "#9E9E9E"},
-      |            category_orders={"Significance": ["Up", "Down", "Not significant"]},""".stripMargin
+      |            category_orders={"color": ["Up", "Down", "Not significant"]},""".stripMargin
 
   private def colorArgs: PythonTemplateBuilder =
     if (colorByCategory) pyb"$categoryColorArgs"
@@ -150,14 +156,14 @@ class VolcanoPlotOpDesc extends PythonVisualizationOpDesc with PlotlyStandaloneC
 
   // The exported script's twins of the two helpers above: the same Python with the
   // column names as literals rather than decoded, and the very same threshold literals.
-  private def standaloneSignificanceColumn: String =
+  private def standaloneSignificanceCategories: String =
     if (colorByCategory) {
       val sig = significanceCutoff.get
       val eff = effectCutoff.get
       val pvalueLit = pyStringLiteral(pvalueColumn)
       val effectLit = pyStringLiteral(effectColumn)
       s"""significant = table[$pvalueLit] < $sig
-         |        table["Significance"] = np.select(
+         |        significance = np.select(
          |            [significant & (table[$effectLit] > $eff), significant & (table[$effectLit] < -$eff)],
          |            ["Up", "Down"],
          |            default="Not significant",
@@ -215,7 +221,7 @@ class VolcanoPlotOpDesc extends PythonVisualizationOpDesc with PlotlyStandaloneC
        |            return
        |
        |        table["-log10(pvalue)"] = -np.log10(table[$pvalueColumn])
-       |        $significanceColumn
+       |        $significanceCategories
        |        fig = px.scatter(
        |            table,
        |            x=$effectColumn,
@@ -252,7 +258,7 @@ class VolcanoPlotOpDesc extends PythonVisualizationOpDesc with PlotlyStandaloneC
        |            output.write(render_error("No rows with valid p-values."))
        |    else:
        |        table["-log10(pvalue)"] = -np.log10(table[$pvalueLit])
-       |        $standaloneSignificanceColumn
+       |        $standaloneSignificanceCategories
        |        fig = px.scatter(
        |            table,
        |            x=$effectLit,
