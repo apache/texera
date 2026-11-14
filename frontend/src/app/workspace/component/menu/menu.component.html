@@ -533,16 +533,33 @@
 <ng-template #workflowPythonScriptModal>
   <div class="workflow-python-modal">
     <div class="workflow-python-modal-toolbar">
-      <button
-        nz-button
-        title="copy Python script"
-        aria-label="copy Python script"
-        (click)="copyPythonCodeToClipboard()"
-        [disabled]="!pythonCodeForModal">
-        <i
-          nz-icon
-          nzType="copy"></i>
-      </button>
+      <span>
+        <ng-container *ngIf="pythonHelpersModuleForModal">
+          Download the zip and run <code>script.py</code> next to the <code>texera_helpers.py</code> it holds.
+        </ng-container>
+      </span>
+      <span class="workflow-python-actions">
+        <button
+          nz-button
+          title="download Python script as zip"
+          aria-label="download Python script as zip"
+          (click)="downloadPythonZip()"
+          [disabled]="!pythonCodeForModal">
+          <i
+            nz-icon
+            nzType="download"></i>
+        </button>
+        <button
+          nz-button
+          title="copy Python script"
+          aria-label="copy Python script"
+          (click)="copyPythonCodeToClipboard()"
+          [disabled]="!pythonCodeForModal">
+          <i
+            nz-icon
+            nzType="copy"></i>
+        </button>
+      </span>
     </div>
     <pre class="workflow-python-code">{{ pythonCodeForModal }}</pre>
   </div>

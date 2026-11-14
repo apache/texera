@@ -28,6 +28,8 @@ export const WORKFLOW_TO_PYTHON_ENDPOINT = "workflow-to-python";
 export interface WorkflowToPythonResponse {
   type: "success" | "failure";
   pythonCode?: string;
+  /** The `texera_helpers.py` the script imports from, when it imports any. */
+  helpersModule?: string;
   errorMessage?: string;
 }
 

@@ -19,6 +19,11 @@
 
 package org.apache.texera.amber.operator
 
+import org.apache.texera.amber.operator.aggregate.AggregateOpDesc
+import org.apache.texera.amber.operator.filter.SpecializedFilterOpDesc
+import org.apache.texera.amber.operator.source.scan.file.FileScanOpDesc
+import org.apache.texera.amber.operator.source.scan.json.JSONLScanSourceOpDesc
+
 /** Python definitions shared by several operators' standalone code, emitted
   * once per script via [[StandaloneCodeGenerator.standaloneHelpers]].
   */
@@ -389,4 +394,45 @@ object StandaloneHelpers {
       |        name=s.name,
       |        dtype=object,
       |    )""".stripMargin
+
+  /** Every shared helper block, in the order the `texera_helpers` module holds them.
+    * A new block returned by some [[StandaloneCodeGenerator.standaloneHelpers]] belongs
+    * here too: an exported script imports its helpers, and the translator refuses a
+    * block this list lacks.
+    */
+  def moduleHelpers: Seq[String] =
+    Seq(
+      AttributeCasts,
+      SamplingHelpers.JavaRandom,
+      AggregateOpDesc.Helpers,
+      SpecializedFilterOpDesc.FilterPredicates,
+      FileScanOpDesc.DecodeHelper,
+      JSONLScanSourceOpDesc.JsonFlatten,
+      JSONLScanSourceOpDesc.JsonText,
+      StandaloneCodeGenerator.PythonOperatorInput.definition
+    )
+
+  /** `texera_helpers/__init__.py`: the shared blocks under the one import they share.
+    * The export also hands it out as `texera_helpers.py`, which a script finds when the
+    * two sit in one directory.
+    */
+  def helpersModule: String =
+    ("""# Licensed to the Apache Software Foundation (ASF) under one
+       |# or more contributor license agreements.  See the NOTICE file
+       |# distributed with this work for additional information
+       |# regarding copyright ownership.  The ASF licenses this file
+       |# to you under the Apache License, Version 2.0 (the
+       |# "License"); you may not use this file except in compliance
+       |# with the License.  You may obtain a copy of the License at
+       |#
+       |#   http://www.apache.org/licenses/LICENSE-2.0
+       |#
+       |# Unless required by applicable law or agreed to in writing,
+       |# software distributed under the License is distributed on an
+       |# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+       |# KIND, either express or implied.  See the License for the
+       |# specific language governing permissions and limitations
+       |# under the License.
+       |
+       |import pandas as pd""".stripMargin +: moduleHelpers).mkString("", "\n\n\n", "\n")
 }

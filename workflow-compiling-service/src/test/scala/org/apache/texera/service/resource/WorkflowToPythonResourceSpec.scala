@@ -24,8 +24,10 @@ import io.dropwizard.testing.junit5.ResourceExtension
 import jakarta.ws.rs.client.Entity
 import jakarta.ws.rs.core.{MediaType, Response}
 import org.apache.texera.amber.core.workflow.PortIdentity
+import org.apache.texera.amber.operator.StandaloneHelpers
 import org.apache.texera.amber.operator.distinct.DistinctOpDesc
 import org.apache.texera.amber.operator.limit.LimitOpDesc
+import org.apache.texera.amber.operator.reservoirsampling.ReservoirSamplingOpDesc
 import org.apache.texera.amber.operator.source.scan.csv.CSVScanSourceOpDesc
 import org.apache.texera.amber.util.JSONUtils.objectMapper
 import org.apache.texera.common.compiler.model.{LogicalLink, LogicalPlanPojo}
@@ -201,6 +203,28 @@ class WorkflowToPythonResourceSpec
     assert(code.contains("import pandas as pd"))
     assert(code.contains("_texera_key_codes"))
     assert(code.contains("head(5)"))
+  }
+
+  private def exported(pojo: LogicalPlanPojo): WorkflowToPythonSuccess =
+    objectMapper
+      .readValue(postExport(pojo).readEntity(classOf[String]), classOf[WorkflowToPythonResponse])
+      .asInstanceOf[WorkflowToPythonSuccess]
+
+  it should "import the helpers from texera-helpers and hand that module over with the script" in {
+    val sample = new ReservoirSamplingOpDesc()
+    sample.setOperatorId("sample")
+    sample.k = 5
+    val success = exported(LogicalPlanPojo(List(sample), List.empty, List.empty, List.empty))
+    assert(success.pythonCode.contains("from texera_helpers import _TexeraJavaRandom"))
+    assert(!success.pythonCode.contains("class _TexeraJavaRandom"))
+    assert(success.helpersModule.contains(StandaloneHelpers.helpersModule))
+  }
+
+  it should "hand over no module with a script that imports nothing from it" in {
+    val limit = limitOp("limit", 5)
+    val success = exported(LogicalPlanPojo(List(limit), List.empty, List.empty, List.empty))
+    assert(!success.pythonCode.contains("texera_helpers"))
+    assert(success.helpersModule.isEmpty)
   }
 
   it should "return a failure body rather than HTTP 500 when the plan cannot be read" in {
