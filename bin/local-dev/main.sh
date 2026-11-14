@@ -785,6 +785,11 @@ _parse_sbt() {
             if [[ "$arg" =~ %\"?test(-\>[^\"]*)?\"? ]] || [[ "$arg" =~ %Test$ ]]; then
                 continue
             fi
+            # A task's `.dependsOn(X / Test / compile)` names a task, not a
+            # project. Kept, it became a project called `X/Test/compile`,
+            # whose `/` turned the visited-marker lookup below into a
+            # `${var/pattern/repl}` and ended every command under `set -u`.
+            [[ "$arg" == */* ]] && continue
             [[ "$arg" =~ ^[A-Z] ]] || continue
             existing=$(amap_get SBT_DEPS "$current")
             case " $existing " in
