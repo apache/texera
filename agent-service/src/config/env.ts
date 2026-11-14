@@ -25,7 +25,7 @@ const EnvSchema = z.object({
   TEXERA_SERVICE_LOG_LEVEL: z
     .enum(["ERROR", "WARN", "INFO", "DEBUG"])
     .transform(v => v.toLowerCase() as "error" | "warn" | "info" | "debug")
-    .default("INFO"),
+    .prefault("INFO"),
   LOG_PRETTY: z.coerce.boolean().default(false),
 
   TEXERA_DASHBOARD_SERVICE_ENDPOINT: z.string().url().default("http://localhost:8080"),
