@@ -60,6 +60,16 @@ import { NzInputNumberComponent } from "ng-zorro-antd/input-number";
 import { NzTagComponent } from "ng-zorro-antd/tag";
 import { NzSwitchComponent } from "ng-zorro-antd/switch";
 
+/** True for a link the browser would load as a page: one that resolves to an http or https address. */
+function isWebLink(href: string): boolean {
+  try {
+    const url = new URL(href, document.baseURI);
+    return url.protocol === "http:" || url.protocol === "https:";
+  } catch {
+    return false;
+  }
+}
+
 @UntilDestroy()
 @Component({
   selector: "texera-agent-chat",
@@ -303,6 +313,16 @@ export class AgentChatComponent implements OnInit, AfterViewChecked, OnDestroy, 
       this.scrollToBottom();
       this.shouldScrollToBottom = false;
     }
+  }
+
+  /** Makes the web links of a rendered message open in a new tab, so a click does not replace the editor. */
+  public openLinksInNewTab(message: HTMLElement): void {
+    message.querySelectorAll<HTMLAnchorElement>("a[href]").forEach(link => {
+      if (isWebLink(link.getAttribute("href") ?? "")) {
+        link.target = "_blank";
+        link.rel = "noopener noreferrer";
+      }
+    });
   }
 
   public setHoveredMessage(index: number | null): void {
