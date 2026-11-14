@@ -124,9 +124,9 @@ Examples:
           "Name of Operator. Use the format 'op' followed by an incrementing number starting from 1 (e.g., op1, op2, op3)."
         ),
       operatorType: z.string().describe("The operator type (e.g., 'DataProcessing', 'Aggregate')"),
-      properties: z.record(z.any()).describe("Properties to set on the operator"),
+      properties: z.record(z.string(), z.any()).describe("Properties to set on the operator"),
       inputOperatorIds: z
-        .record(z.array(z.string()))
+        .record(z.string(), z.array(z.string()))
         .optional()
         .describe(
           "Mapping from input port index to an ordered list of source operator IDs that connect to that port. " +
@@ -240,9 +240,9 @@ Examples:
    { "operatorId": "filter", "properties": { "predicates": [...] }, "inputOperatorIds": { "0": ["cleaned"] }, "summary": "Update filter and re-link" }`,
     inputSchema: z.object({
       operatorId: z.string().describe("ID of the operator to modify"),
-      properties: z.record(z.any()).optional().describe("Properties to update (merged with existing)"),
+      properties: z.record(z.string(), z.any()).optional().describe("Properties to update (merged with existing)"),
       inputOperatorIds: z
-        .record(z.array(z.string()))
+        .record(z.string(), z.array(z.string()))
         .optional()
         .describe(
           "Mapping from input port index to an ordered list of source operator IDs. " +
