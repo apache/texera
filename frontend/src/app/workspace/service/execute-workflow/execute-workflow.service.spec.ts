@@ -30,7 +30,7 @@ import { UndoRedoService } from "../undo-redo/undo-redo.service";
 import { OperatorMetadataService } from "../operator-metadata/operator-metadata.service";
 import { StubOperatorMetadataService } from "../operator-metadata/stub-operator-metadata.service";
 import { JointUIService } from "../joint-ui/joint-ui.service";
-import { of, Subject } from "rxjs";
+import { BehaviorSubject, of, Subject } from "rxjs";
 import { WorkflowWebsocketService } from "../workflow-websocket/workflow-websocket.service";
 import { WorkflowStatusService } from "../workflow-status/workflow-status.service";
 import { NotificationService } from "../../../common/service/notification/notification.service";
@@ -63,6 +63,8 @@ import { sessionGetObject, sessionSetObject } from "../../../common/util/storage
 describe("ExecuteWorkflowService", () => {
   let service: ExecuteWorkflowService;
   let mockDocument: Document;
+  let selectedUnit$: BehaviorSubject<DashboardWorkflowComputingUnit | null>;
+  let connected$: BehaviorSubject<boolean>;
 
   beforeEach(() => {
     mockDocument = {
@@ -91,6 +93,16 @@ describe("ExecuteWorkflowService", () => {
       ],
     });
 
+    // Install the selected-unit and connection streams before the service is constructed. The socket
+    // starts out up, so no run is reset until a test drops it.
+    selectedUnit$ = new BehaviorSubject<DashboardWorkflowComputingUnit | null>(null);
+    vi.spyOn(TestBed.inject(ComputingUnitStatusService), "getSelectedComputingUnit").mockReturnValue(
+      selectedUnit$.asObservable()
+    );
+    connected$ = new BehaviorSubject<boolean>(true);
+    vi.spyOn(TestBed.inject(WorkflowWebsocketService), "getConnectionStatusStream").mockReturnValue(
+      connected$.asObservable()
+    );
     service = TestBed.inject(ExecuteWorkflowService);
   });
 
@@ -235,6 +247,130 @@ describe("ExecuteWorkflowService", () => {
       service.reapplyExecutionLock();
 
       expect(seen).toEqual([]);
+    });
+  });
+
+  describe("losing the selected computing unit mid-run", () => {
+    const unit = (cuid: number, status: DashboardWorkflowComputingUnit["status"] = "Running") =>
+      ({ computingUnit: { cuid }, status }) as unknown as DashboardWorkflowComputingUnit;
+
+    // The usual order: the socket errors at once, the unit list catches up on its next poll.
+    it("keeps the run when the socket drops on a healthy unit, then ends it once the selection empties", () => {
+      const enable = vi.spyOn(service["workflowActionService"], "enableWorkflowModification");
+      const seen: ExecutionState[] = [];
+      service.getExecutionStateStream().subscribe(({ current }) => seen.push(current.state));
+      emitWsEvent({ type: "WorkflowStateEvent", state: ExecutionState.Running });
+      emitWsEvent({ type: "WorkerAssignmentUpdateEvent", operatorId: "op1", workerIds: ["w1", "w2"] });
+      selectedUnit$.next(unit(7));
+      enable.mockClear();
+
+      connected$.next(false);
+      expect(service.getExecutionState().state).toBe(ExecutionState.Running);
+
+      selectedUnit$.next(null);
+      expect(service.getExecutionState().state).toBe(ExecutionState.Uninitialized);
+      expect(service.getWorkerIds("op1")).toEqual([]);
+      expect(enable).toHaveBeenCalled();
+      expect(seen).toEqual([ExecutionState.Running, ExecutionState.Uninitialized]);
+    });
+
+    // Another tab disconnecting a local unit empties this tab's selection while this tab's socket
+    // to the engine, and so Kill, still work.
+    it("keeps the run when the selection empties with the socket still up, then ends it once the socket drops", () => {
+      emitWsEvent({ type: "WorkflowStateEvent", state: ExecutionState.Running });
+      selectedUnit$.next(unit(7));
+
+      selectedUnit$.next(null);
+      expect(service.getExecutionState().state).toBe(ExecutionState.Running);
+
+      connected$.next(false);
+      expect(service.getExecutionState().state).toBe(ExecutionState.Uninitialized);
+    });
+
+    // An evicted or crash-looping unit stays selected and reports Failed instead of leaving the list.
+    it("ends the run when the selected unit reports Failed with the socket down", () => {
+      emitWsEvent({ type: "WorkflowStateEvent", state: ExecutionState.Running });
+      selectedUnit$.next(unit(7));
+      connected$.next(false);
+
+      selectedUnit$.next(unit(7, "Failed"));
+
+      expect(service.getExecutionState().state).toBe(ExecutionState.Uninitialized);
+    });
+
+    it("keeps the run when the selected unit reports Failed with the socket still up", () => {
+      emitWsEvent({ type: "WorkflowStateEvent", state: ExecutionState.Running });
+      selectedUnit$.next(unit(7));
+
+      selectedUnit$.next(unit(7, "Failed"));
+
+      expect(service.getExecutionState().state).toBe(ExecutionState.Running);
+    });
+
+    it("ends a later run as well when its unit is lost too", () => {
+      emitWsEvent({ type: "WorkflowStateEvent", state: ExecutionState.Running });
+      selectedUnit$.next(unit(7));
+      connected$.next(false);
+      selectedUnit$.next(null);
+      selectedUnit$.next(unit(8));
+      connected$.next(true);
+      emitWsEvent({ type: "WorkflowStateEvent", state: ExecutionState.Running });
+
+      connected$.next(false);
+      selectedUnit$.next(null);
+
+      expect(service.getExecutionState().state).toBe(ExecutionState.Uninitialized);
+    });
+
+    it.each([
+      ExecutionState.Initializing,
+      ExecutionState.Running,
+      ExecutionState.Pausing,
+      ExecutionState.Paused,
+      ExecutionState.Resuming,
+      ExecutionState.Recovering,
+    ])("ends a run that is %s when its unit is lost", state => {
+      (service as any).currentState = { state };
+      selectedUnit$.next(unit(7));
+      connected$.next(false);
+
+      selectedUnit$.next(null);
+
+      expect(service.getExecutionState().state).toBe(ExecutionState.Uninitialized);
+    });
+
+    it.each([
+      ExecutionState.Uninitialized,
+      ExecutionState.Completed,
+      ExecutionState.Terminated,
+      ExecutionState.Failed,
+      ExecutionState.Killed,
+    ])("leaves a run that is %s untouched when its unit is lost", state => {
+      const before = { state };
+      (service as any).currentState = before;
+      selectedUnit$.next(unit(7));
+      connected$.next(false);
+
+      selectedUnit$.next(null);
+
+      expect(service.getExecutionState()).toBe(before);
+    });
+
+    it.each([
+      ["switching straight from one unit to another", unit(7), unit(8)],
+      ["a unit is first selected", null, unit(7)],
+      ["the selected unit is still Running", unit(7), unit(7)],
+      ["the selected unit reports Pending", unit(7), unit(7, "Pending")],
+      ["the selected unit reports Unknown", unit(7), unit(7, "Unknown")],
+      ["the selected unit reports Terminating", unit(7), unit(7, "Terminating")],
+    ])("keeps the run with the socket down when %s", (_case, selected, next) => {
+      connected$.next(false);
+      selectedUnit$.next(selected);
+      emitWsEvent({ type: "WorkflowStateEvent", state: ExecutionState.Running });
+
+      selectedUnit$.next(next);
+
+      expect(service.getExecutionState().state).toBe(ExecutionState.Running);
     });
   });
 

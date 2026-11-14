@@ -402,6 +402,35 @@ describe("MenuComponent", () => {
     });
   });
 
+  describe("kill button enablement", () => {
+    const killButton = () => fixture.nativeElement.querySelector("button[nzdanger]") as HTMLButtonElement;
+    const setConnected = (connected: boolean) =>
+      Object.defineProperty(component.workflowWebsocketService, "isConnected", {
+        get: () => connected,
+        configurable: true,
+      });
+
+    it.each([
+      [ExecutionState.Running, ComputingUnitState.NoComputingUnit, false, true],
+      [ExecutionState.Running, ComputingUnitState.NoComputingUnit, true, false],
+      [ExecutionState.Running, ComputingUnitState.Running, false, true],
+      [ExecutionState.Running, ComputingUnitState.Running, true, false],
+      [ExecutionState.Completed, ComputingUnitState.Running, false, true],
+      [ExecutionState.Completed, ComputingUnitState.Running, true, true],
+    ])(
+      "execution %s, unit status %s, socket connected %s: disabled %s",
+      (executionState, computingUnitStatus, connected, disabled) => {
+        component.executionState = executionState;
+        component.computingUnitStatus = computingUnitStatus;
+        setConnected(connected);
+
+        fixture.detectChanges();
+
+        expect(killButton().disabled).toBe(disabled);
+      }
+    );
+  });
+
   describe("getRunButtonBehavior", () => {
     it("returns 'Invalid Workflow' when the workflow is invalid", () => {
       component.isWorkflowValid = false;
