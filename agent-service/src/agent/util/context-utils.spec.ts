@@ -19,7 +19,7 @@
 
 import { describe, expect, test } from "bun:test";
 import type { ModelMessage } from "ai";
-import { assembleContext } from "./context-utils";
+import { assembleContext, DOCS_CONTEXT_CHAR_LIMIT } from "./context-utils";
 import { WorkflowState } from "../workflow-state";
 import type { ReActStep } from "../../types/agent";
 import type { OperatorLink, OperatorPredicate } from "../../types/workflow";
@@ -133,6 +133,309 @@ describe("assembleContext", () => {
     expect(content).toContain("- addOperator (succeeded)");
     expect(content).toContain("- executeOperator (failed)");
     expect(content).toContain("- deleteOperator (succeeded)");
+  });
+});
+
+describe("assembleContext — documentation output", () => {
+  type Call = { tool: string; input: unknown; output?: unknown; isError?: boolean };
+
+  /** An agent step whose tool calls carry the given outputs; a call without `output` has no result yet. */
+  function toolStep(messageId: string, stepId: number, calls: Call[], isEnd = false): ReActStep {
+    return {
+      ...step(messageId, "agent", stepId, `turn ${stepId}`, isEnd),
+      toolCalls: calls.map((c, i) => ({ toolName: c.tool, toolCallId: `${messageId}-${stepId}-${i}`, input: c.input })),
+      toolResults: calls.flatMap((c, i) =>
+        c.output === undefined
+          ? []
+          : [{ toolCallId: `${messageId}-${stepId}-${i}`, output: c.output, ...(c.isError ? { isError: true } : {}) }]
+      ),
+    };
+  }
+
+  const dropped = (n: number) =>
+    `(${n} earlier output${n === 1 ? "" : "s"} dropped to save space, call the tool again if you need ${n === 1 ? "it" : "them"})`;
+  const REJECTED = "(no output, the tool is unavailable or its arguments were invalid)";
+  /** What one entry costs against the budget: its label, its indented output and the blank line before it. */
+  const cost = (label: string, output: string) =>
+    label.length +
+    1 +
+    output
+      .split("\n")
+      .map(l => `  ${l}`)
+      .join("\n").length +
+    2;
+  const readLabel = (turn: number, path: string) => `## Turn ${turn}: readDoc {"path":"${path}"}`;
+  /** A one-line output sized so that its entry costs exactly `total`. */
+  const sized = (turn: number, path: string, total: number, fill = "x") =>
+    fill.repeat(total - cost(readLabel(turn, path), ""));
+  const sectionOf = (content: string) => content.slice(content.indexOf("# Documentation Read"));
+  const HEADER = "# Documentation Read\nOutput of your searchDocs and readDoc calls in this task, oldest first.";
+  const search = (query: string, output: unknown): Call => ({ tool: "searchDocs", input: { query }, output });
+  const read = (path: string, output: unknown): Call => ({ tool: "readDoc", input: { path }, output });
+
+  test("renders the output of a docs call of the ongoing task under its turn, tool and input", () => {
+    const steps = [
+      step("m1", "user", 0, "how do I upload a dataset", true),
+      toolStep("m1", 1, [search("upload dataset", "1. Datasets > Uploading files\n   path: getting-started/datasets")]),
+    ];
+    const content = contentOf(assembleContext(steps, new WorkflowState(), new Map()));
+    expect(content).toContain(
+      `${HEADER}\n\n## Turn 1: searchDocs {"query":"upload dataset"}\n  1. Datasets > Uploading files\n     path: getting-started/datasets`
+    );
+  });
+
+  test("places the section after the ongoing task and before the dataflow", () => {
+    const workflowState = new WorkflowState();
+    workflowState.addOperator(makeOperator("op1"));
+    const steps = [step("m1", "user", 0, "q", true), toolStep("m1", 1, [search("x", "found")])];
+    const content = contentOf(assembleContext(steps, workflowState, new Map()));
+    const ongoing = content.indexOf("# Ongoing Task");
+    const docs = content.indexOf("# Documentation Read");
+    const dataflow = content.indexOf("# Current Dataflow");
+    expect(ongoing).toBeGreaterThanOrEqual(0);
+    expect(docs).toBeGreaterThan(ongoing);
+    expect(dataflow).toBeGreaterThan(docs);
+  });
+
+  test("lists several outputs oldest first, one entry per call", () => {
+    const steps = [
+      step("m1", "user", 0, "q", true),
+      toolStep("m1", 1, [search("a", "search output")]),
+      toolStep("m1", 2, [read("p/one", "first page"), read("p/two", "second page")]),
+    ];
+    const content = contentOf(assembleContext(steps, new WorkflowState(), new Map()));
+    const order = [
+      "## Turn 1: searchDocs",
+      '## Turn 2: readDoc {"path":"p/one"}',
+      '## Turn 2: readDoc {"path":"p/two"}',
+    ];
+    const positions = order.map(label => content.indexOf(label));
+    expect(positions.every(p => p >= 0)).toBe(true);
+    expect([...positions].sort((a, b) => a - b)).toEqual(positions);
+    expect(content).toContain("  first page");
+    expect(content).toContain("  second page");
+  });
+
+  test("includes a failed docs call, since its text says what to do next", () => {
+    // A tool that fails returns a string starting with [ERROR]; the stored result is not flagged.
+    const steps = [
+      step("m1", "user", 0, "q", true),
+      toolStep("m1", 1, [{ tool: "readDoc", input: { path: "nope" }, output: '[ERROR] Unknown page "nope".' }]),
+    ];
+    const content = contentOf(assembleContext(steps, new WorkflowState(), new Map()));
+    expect(content).toContain('## Turn 1: readDoc {"path":"nope"}\n  [ERROR] Unknown page "nope".');
+  });
+
+  test("renders no section when the ongoing task made no docs call", () => {
+    const steps = [
+      step("m1", "user", 0, "q", true),
+      toolStep("m1", 1, [{ tool: "addOperator", input: { operatorId: "op1" }, output: "Added operator op1" }]),
+    ];
+    const content = contentOf(assembleContext(steps, new WorkflowState(), new Map()));
+    expect(content).not.toContain("# Documentation Read");
+    expect(content).not.toContain("Added operator op1");
+  });
+
+  test("says that a docs call without a result was rejected, so the model can correct it", () => {
+    const steps = [
+      step("m1", "user", 0, "q", true),
+      toolStep("m1", 1, [{ tool: "searchDocs", input: { limit: "five" } }]),
+      toolStep("m1", 2, [search("upload", "found it")]),
+    ];
+    const content = contentOf(assembleContext(steps, new WorkflowState(), new Map()));
+    expect(content).toContain(`## Turn 1: searchDocs {"limit":"five"}\n  ${REJECTED}`);
+    expect(content).toContain('## Turn 2: searchDocs {"query":"upload"}\n  found it');
+  });
+
+  test("shows the section for a rejected docs call even when it is the only one", () => {
+    const steps = [step("m1", "user", 0, "q", true), toolStep("m1", 1, [{ tool: "readDoc", input: {} }])];
+    const content = contentOf(assembleContext(steps, new WorkflowState(), new Map()));
+    expect(content).toContain("# Documentation Read");
+    expect(content).toContain(`## Turn 1: readDoc {}\n  ${REJECTED}`);
+  });
+
+  test("renders a result without output as having none instead of failing", () => {
+    const withUndefined: ReActStep = {
+      ...step("m1", "agent", 1, "t", false),
+      toolCalls: [{ toolName: "searchDocs", toolCallId: "a", input: { query: "x" } }],
+      toolResults: [{ toolCallId: "a", output: undefined }],
+    };
+    const content = contentOf(
+      assembleContext([step("m1", "user", 0, "q", true), withUndefined], new WorkflowState(), new Map())
+    );
+    expect(content).toContain('## Turn 1: searchDocs {"query":"x"}\n  (no output)');
+  });
+
+  test("does not report a rejected call of another tool in the docs section", () => {
+    const steps = [step("m1", "user", 0, "q", true), toolStep("m1", 1, [{ tool: "addOperator", input: {} }])];
+    expect(contentOf(assembleContext(steps, new WorkflowState(), new Map()))).not.toContain("# Documentation Read");
+  });
+
+  test("drops the docs output of a completed task", () => {
+    const done = [
+      step("m1", "user", 0, "first question", true),
+      toolStep("m1", 1, [search("old", "OLD SEARCH OUTPUT")]),
+      step("m1", "agent", 2, "the answer", true),
+    ];
+    const alone = contentOf(assembleContext(done, new WorkflowState(), new Map()));
+    expect(alone).not.toContain("# Documentation Read");
+    expect(alone).not.toContain("OLD SEARCH OUTPUT");
+
+    const next = [
+      ...done,
+      step("m2", "user", 0, "second question", true),
+      toolStep("m2", 1, [search("new", "NEW OUTPUT")]),
+    ];
+    const content = contentOf(assembleContext(next, new WorkflowState(), new Map()));
+    expect(content).toContain("  NEW OUTPUT");
+    expect(content).not.toContain("OLD SEARCH OUTPUT");
+    expect((content.match(/## Turn \d+: searchDocs/g) ?? []).length).toBe(1);
+  });
+
+  test("takes the docs output of the latest task only when an earlier one was left unfinished", () => {
+    const steps = [
+      step("m1", "user", 0, "stopped question", true),
+      toolStep("m1", 1, [search("old", "STOPPED TASK OUTPUT")]),
+      step("m2", "user", 0, "new question", true),
+      toolStep("m2", 1, [search("new", "LATEST OUTPUT")]),
+    ];
+    const content = contentOf(assembleContext(steps, new WorkflowState(), new Map()));
+    expect(content).toContain("  LATEST OUTPUT");
+    expect(content).not.toContain("STOPPED TASK OUTPUT");
+    expect((content.match(/# Documentation Read/g) ?? []).length).toBe(1);
+  });
+
+  test("matches an output to its call by id, not by position", () => {
+    const stepWithSwappedResults: ReActStep = {
+      ...step("m1", "agent", 1, "t", false),
+      toolCalls: [
+        { toolName: "searchDocs", toolCallId: "a", input: { query: "alpha" } },
+        { toolName: "readDoc", toolCallId: "b", input: { path: "beta" } },
+      ],
+      toolResults: [
+        { toolCallId: "b", output: "BETA PAGE" },
+        { toolCallId: "a", output: "ALPHA HITS" },
+      ],
+    };
+    const content = contentOf(
+      assembleContext([step("m1", "user", 0, "q", true), stepWithSwappedResults], new WorkflowState(), new Map())
+    );
+    expect(content).toContain('## Turn 1: searchDocs {"query":"alpha"}\n  ALPHA HITS');
+    expect(content).toContain('## Turn 1: readDoc {"path":"beta"}\n  BETA PAGE');
+  });
+
+  test("JSON-encodes an output that is not a string and shortens a very long input", () => {
+    const steps = [step("m1", "user", 0, "q", true), toolStep("m1", 1, [search("q".repeat(500), { hits: 2 })])];
+    const content = contentOf(assembleContext(steps, new WorkflowState(), new Map()));
+    expect(content).toContain('\n  {"hits":2}');
+    const label = content.split("\n").find(l => l.startsWith("## Turn 1: searchDocs"))!;
+    expect(label.length).toBeLessThan(260);
+    expect(label.endsWith("…")).toBe(true);
+  });
+
+  test("keeps every output while the entries together cost exactly the budget", () => {
+    const half = DOCS_CONTEXT_CHAR_LIMIT / 2;
+    const steps = [
+      step("m1", "user", 0, "q", true),
+      toolStep("m1", 1, [read("a", sized(1, "a", half, "a"))]),
+      toolStep("m1", 2, [read("b", sized(2, "b", half, "b"))]),
+    ];
+    const content = contentOf(assembleContext(steps, new WorkflowState(), new Map()));
+    expect(content).not.toContain("dropped to save space");
+    expect(content).toContain(`${readLabel(1, "a")}\n  aaaa`);
+    expect(content).toContain(`${readLabel(2, "b")}\n  bbbb`);
+  });
+
+  test("drops the oldest output when the entries cost one character more than the budget", () => {
+    const half = DOCS_CONTEXT_CHAR_LIMIT / 2;
+    const steps = [
+      step("m1", "user", 0, "q", true),
+      toolStep("m1", 1, [read("a", sized(1, "a", half, "a"))]),
+      toolStep("m1", 2, [read("b", sized(2, "b", half + 1, "b"))]),
+    ];
+    const content = contentOf(assembleContext(steps, new WorkflowState(), new Map()));
+    expect(content).toContain(`oldest first.\n${dropped(1)}\n\n${readLabel(2, "b")}\n  bbbb`);
+    expect(content).not.toContain(readLabel(1, "a"));
+    expect(content).not.toContain("aaaa");
+  });
+
+  test("over the budget, keeps the newest outputs whole and sums up the older ones in one line", () => {
+    const big = DOCS_CONTEXT_CHAR_LIMIT / 2;
+    const steps = [
+      step("m1", "user", 0, "q", true),
+      toolStep("m1", 1, [read("a", sized(1, "a", big, "a"))]),
+      toolStep("m1", 2, [read("b", sized(2, "b", big + 1, "b"))]),
+      toolStep("m1", 3, [read("c", sized(3, "c", big, "c"))]),
+    ];
+    const content = contentOf(assembleContext(steps, new WorkflowState(), new Map()));
+    expect(content).toContain(`oldest first.\n${dropped(2)}\n\n${readLabel(3, "c")}\n  cccc`);
+    expect((content.match(/dropped to save space/g) ?? []).length).toBe(1);
+    expect(content).not.toContain(readLabel(1, "a"));
+    expect(content).not.toContain(readLabel(2, "b"));
+    expect(content).not.toContain("aaaa");
+    expect(content).not.toContain("bbbb");
+  });
+
+  test("does not bring back an older output that would fit once a newer one was dropped", () => {
+    const steps = [
+      step("m1", "user", 0, "q", true),
+      toolStep("m1", 1, [read("small", "tiny")]),
+      toolStep("m1", 2, [read("huge", "h".repeat(DOCS_CONTEXT_CHAR_LIMIT))]),
+      toolStep("m1", 3, [read("last", "newest")]),
+    ];
+    const content = contentOf(assembleContext(steps, new WorkflowState(), new Map()));
+    expect(content).toContain(dropped(2));
+    expect(content).toContain("  newest");
+    expect(content).not.toContain("tiny");
+    expect(content).not.toContain("hhhh");
+  });
+
+  test("always keeps the newest output, even when it alone is over the budget", () => {
+    const huge = "z".repeat(DOCS_CONTEXT_CHAR_LIMIT + 10);
+    const steps = [step("m1", "user", 0, "q", true), toolStep("m1", 1, [read("huge", huge)])];
+    const content = contentOf(assembleContext(steps, new WorkflowState(), new Map()));
+    expect(content).toContain(huge);
+    expect(content).not.toContain("dropped to save space");
+  });
+
+  test("keeps the whole section within the budget plus its two fixed lines, however many calls were made", () => {
+    const bound = DOCS_CONTEXT_CHAR_LIMIT + 200;
+    // 60 reads of a clipped section: about 4,200 characters over a hundred lines each.
+    const page = Array.from({ length: 100 }, (_, i) => `line ${i} ${"t".repeat(34)}`).join("\n");
+    const reads = [
+      step("m1", "user", 0, "q", true),
+      ...Array.from({ length: 60 }, (_, i) => toolStep("m1", i + 1, [read(`page-${i}`, page)])),
+    ];
+    const readSection = sectionOf(contentOf(assembleContext(reads, new WorkflowState(), new Map())));
+    expect(readSection.length).toBeLessThanOrEqual(bound);
+    expect(readSection).toContain("  line 99 ");
+
+    // 60 searches without a hit, each with a long query and the outline as output.
+    const outline = Array.from({ length: 26 }, (_, i) => `- area-${i}/ (12 pages): Area ${i} of the docs`).join("\n");
+    const searches = [
+      step("m1", "user", 0, "q", true),
+      ...Array.from({ length: 60 }, (_, i) => toolStep("m1", i + 1, [search(`${i} ${"q".repeat(400)}`, outline)])),
+    ];
+    const searchSection = sectionOf(contentOf(assembleContext(searches, new WorkflowState(), new Map())));
+    expect(searchSection.length).toBeLessThanOrEqual(bound);
+    expect(searchSection).toMatch(
+      /\(\d+ earlier outputs dropped to save space, call the tool again if you need them\)/
+    );
+  });
+
+  test("counts the label and the indentation of an entry against the budget", () => {
+    // Forty lines of five hundred characters: the output alone is under the budget, its entry is not.
+    const lines = Array.from({ length: 40 }, () => "y".repeat(499)).join("\n");
+    expect(lines.length).toBeLessThan(DOCS_CONTEXT_CHAR_LIMIT);
+    expect(cost(readLabel(2, "b"), lines) + cost(readLabel(1, "a"), "small")).toBeGreaterThan(DOCS_CONTEXT_CHAR_LIMIT);
+    const steps = [
+      step("m1", "user", 0, "q", true),
+      toolStep("m1", 1, [read("a", "small")]),
+      toolStep("m1", 2, [read("b", lines)]),
+    ];
+    const content = contentOf(assembleContext(steps, new WorkflowState(), new Map()));
+    expect(content).toContain(dropped(1));
+    expect(content).not.toContain("  small");
   });
 });
 
