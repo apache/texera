@@ -22,12 +22,6 @@
  * They are used to provide type hints to help Typescript analyze code.
  */
 
-export function assert(condition: boolean, message?: string): void {
-  if (!condition) {
-    throw new Error(message);
-  }
-}
-
 interface Primitives {
   number: number;
   boolean: boolean;

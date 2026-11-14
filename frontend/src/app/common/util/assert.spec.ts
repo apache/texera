@@ -17,32 +17,7 @@
  * under the License.
  */
 
-import { assert, asType, isType } from "./assert";
-
-describe("assert", () => {
-  it("does not throw when the condition is true", () => {
-    expect(() => assert(true)).not.toThrow();
-  });
-
-  it("throws an Error when the condition is false", () => {
-    expect(() => assert(false)).toThrow(Error);
-  });
-
-  it("uses the supplied message on failure", () => {
-    expect(() => assert(false, "boom")).toThrow("boom");
-  });
-
-  it("throws with an empty message when none is provided", () => {
-    let err: unknown;
-    try {
-      assert(false);
-    } catch (e) {
-      err = e;
-    }
-    expect(err).toBeInstanceOf(Error);
-    expect((err as Error).message).toBe("");
-  });
-});
+import { asType, isType } from "./assert";
 
 describe("isType", () => {
   it("matches primitive types by typeof", () => {
