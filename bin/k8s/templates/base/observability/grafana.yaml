@@ -37,22 +37,7 @@ data:
   datasources.yaml: |
     {{- include "texera.observability.grafanaDatasources" . | nindent 4 }}
 ---
-apiVersion: apps/v1
-kind: Deployment
-metadata:
-  name: {{ .Release.Name }}-grafana
-  namespace: {{ .Release.Namespace }}
-  labels:
-    app: {{ .Release.Name }}-grafana
-spec:
-  replicas: 1
-  selector:
-    matchLabels:
-      app: {{ .Release.Name }}-grafana
-  template:
-    metadata:
-      labels:
-        app: {{ .Release.Name }}-grafana
+{{ include "texera.deploymentHeader" (dict "release" .Release "name" "grafana" "replicas" 1) }}
       annotations:
         # Roll the pod when the provisioned datasources change.
         checksum/config: {{ include "texera.observability.grafanaDatasources" . | sha256sum }}
@@ -65,10 +50,7 @@ spec:
         - name: grafana
           image: {{ .Values.observability.grafana.image }}
           imagePullPolicy: {{ .Values.texeraImages.pullPolicy }}
-          securityContext:
-            allowPrivilegeEscalation: false
-            capabilities:
-              drop: ["ALL"]
+          {{- include "texera.observability.containerSecurityContext" false | nindent 10 }}
           env:
             # Admin login. Override for any environment reachable beyond
             # an internal port-forward.
@@ -106,20 +88,7 @@ spec:
         - name: data
           emptyDir: {}
 ---
-apiVersion: v1
-kind: Service
-metadata:
-  name: {{ .Release.Name }}-grafana
-  namespace: {{ .Release.Namespace }}
-  labels:
-    app: {{ .Release.Name }}-grafana
-spec:
-  type: ClusterIP
-  selector:
-    app: {{ .Release.Name }}-grafana
-  ports:
-    - name: http
-      protocol: TCP
-      port: {{ .Values.observability.grafana.port }}
-      targetPort: {{ .Values.observability.grafana.port }}
+{{ include "texera.observability.service" (dict "release" .Release "app" "grafana" "ports" (list
+    (dict "name" "http" "port" .Values.observability.grafana.port)
+)) }}
 {{- end }}

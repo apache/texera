@@ -15,16 +15,4 @@
 # specific language governing permissions and limitations
 # under the License.
 
-apiVersion: v1
-kind: Service
-metadata:
-  name: {{ .Values.configService.name }}-svc
-  namespace: {{ .Release.Namespace }}
-spec:
-  type: {{ .Values.configService.service.type }}
-  selector:
-    app: {{ .Release.Name }}-{{ .Values.configService.name }}
-  ports:
-    - protocol: TCP
-      port: {{ .Values.configService.service.port }}
-      targetPort: {{ .Values.configService.service.port }} 
+{{ include "texera.releaseService" (dict "release" .Release "name" .Values.configService.name "serviceType" .Values.configService.service.type "port" .Values.configService.service.port) }}

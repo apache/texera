@@ -22,22 +22,7 @@ under the License.
 # k8s counterpart of the docker-compose otel-collector service. The
 # receiver Ports are exposed only on the ClusterIP Service (no Ingress),
 # mirroring the loopback-only posture of the compose deployment.
-apiVersion: apps/v1
-kind: Deployment
-metadata:
-  name: {{ .Release.Name }}-otel-collector
-  namespace: {{ .Release.Namespace }}
-  labels:
-    app: {{ .Release.Name }}-otel-collector
-spec:
-  replicas: 1
-  selector:
-    matchLabels:
-      app: {{ .Release.Name }}-otel-collector
-  template:
-    metadata:
-      labels:
-        app: {{ .Release.Name }}-otel-collector
+{{ include "texera.deploymentHeader" (dict "release" .Release "name" "otel-collector" "replicas" 1) }}
       annotations:
         # Roll the pod when the rendered config changes.
         checksum/config: {{ include (print $.Template.BasePath "/base/observability/otel-collector-configmap.yaml") . | sha256sum }}
@@ -51,11 +36,7 @@ spec:
           image: {{ .Values.observability.collector.image }}
           imagePullPolicy: {{ .Values.texeraImages.pullPolicy }}
           args: ["--config=/etc/otelcol-contrib/config.yaml"]
-          securityContext:
-            readOnlyRootFilesystem: true
-            allowPrivilegeEscalation: false
-            capabilities:
-              drop: ["ALL"]
+          {{- include "texera.observability.containerSecurityContext" true | nindent 10 }}
           ports:
             - name: otlp-grpc
               containerPort: {{ .Values.observability.collector.grpcPort }}
@@ -72,24 +53,8 @@ spec:
           configMap:
             name: {{ .Release.Name }}-otel-collector-config
 ---
-apiVersion: v1
-kind: Service
-metadata:
-  name: {{ .Release.Name }}-otel-collector
-  namespace: {{ .Release.Namespace }}
-  labels:
-    app: {{ .Release.Name }}-otel-collector
-spec:
-  type: ClusterIP
-  selector:
-    app: {{ .Release.Name }}-otel-collector
-  ports:
-    - name: otlp-grpc
-      protocol: TCP
-      port: {{ .Values.observability.collector.grpcPort }}
-      targetPort: {{ .Values.observability.collector.grpcPort }}
-    - name: otlp-http
-      protocol: TCP
-      port: {{ .Values.observability.collector.httpPort }}
-      targetPort: {{ .Values.observability.collector.httpPort }}
+{{ include "texera.observability.service" (dict "release" .Release "app" "otel-collector" "ports" (list
+    (dict "name" "otlp-grpc" "port" .Values.observability.collector.grpcPort)
+    (dict "name" "otlp-http" "port" .Values.observability.collector.httpPort)
+)) }}
 {{- end }}
