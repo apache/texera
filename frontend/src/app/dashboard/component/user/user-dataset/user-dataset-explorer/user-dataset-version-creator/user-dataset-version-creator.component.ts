@@ -17,7 +17,7 @@
  * under the License.
  */
 
-import { Component, inject, OnInit } from "@angular/core";
+import { Component, OnInit } from "@angular/core";
 import { FormGroup } from "@angular/forms";
 import { FormlyFieldConfig } from "@ngx-formly/core";
 import { DatasetService } from "../../../../../service/user/dataset/dataset.service";
@@ -25,7 +25,7 @@ import { Dataset } from "../../../../../../common/type/dataset";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 import { NotificationService } from "../../../../../../common/service/notification/notification.service";
 import { HttpErrorResponse } from "@angular/common/http";
-import { NZ_MODAL_DATA, NzModalRef } from "ng-zorro-antd/modal";
+import { NzModalRef } from "ng-zorro-antd/modal";
 import { contributorFieldGroup } from "../user-dataset-contributor-editor/contributor-form-fields";
 import { ResourceCreatorFormComponent } from "../../../resource-creator-form/resource-creator-form.component";
 
@@ -36,10 +36,6 @@ import { ResourceCreatorFormComponent } from "../../../resource-creator-form/res
   imports: [ResourceCreatorFormComponent],
 })
 export class UserDatasetVersionCreatorComponent implements OnInit {
-  readonly isCreatingVersion: boolean = inject(NZ_MODAL_DATA).isCreatingVersion;
-
-  readonly did: number = inject(NZ_MODAL_DATA)?.did ?? undefined;
-
   public form: FormGroup = new FormGroup({});
   model: any = {};
   fields: FormlyFieldConfig[] = [];
@@ -64,48 +60,34 @@ export class UserDatasetVersionCreatorComponent implements OnInit {
   }
 
   private setFormFields() {
-    this.fields = this.isCreatingVersion
-      ? [
-          // Fields when isCreatingVersion is true
-          {
-            key: "versionDescription",
-            type: "input",
-            defaultValue: "",
-            templateOptions: {
-              label: "Describe the new version",
-              required: false,
-            },
-          },
-        ]
-      : [
-          // Fields when isCreatingVersion is false
-          {
-            key: "name",
-            type: "input",
-            templateOptions: {
-              label: "Name",
-              required: true,
-            },
-          },
-          {
-            key: "description",
-            type: "input",
-            defaultValue: "",
-            templateOptions: {
-              label: "Description",
-            },
-          },
-          {
-            key: "contributors",
-            type: "array",
-            templateOptions: {
-              label: "Add a New Contributor",
-            },
-            fieldArray: {
-              fieldGroup: contributorFieldGroup(),
-            },
-          },
-        ];
+    this.fields = [
+      {
+        key: "name",
+        type: "input",
+        templateOptions: {
+          label: "Name",
+          required: true,
+        },
+      },
+      {
+        key: "description",
+        type: "input",
+        defaultValue: "",
+        templateOptions: {
+          label: "Description",
+        },
+      },
+      {
+        key: "contributors",
+        type: "array",
+        templateOptions: {
+          label: "Add a New Contributor",
+        },
+        fieldArray: {
+          fieldGroup: contributorFieldGroup(),
+        },
+      },
+    ];
   }
 
   datasetNameSanitization(datasetName: string): string {
@@ -146,65 +128,43 @@ export class UserDatasetVersionCreatorComponent implements OnInit {
     }
 
     this.isCreating = true;
-    if (this.isCreatingVersion && this.did) {
-      const versionName = this.form.get("versionDescription")?.value;
-      this.datasetService
-        .createDatasetVersion(this.did, versionName)
-        .pipe(untilDestroyed(this))
-        .subscribe({
-          next: res => {
-            this.notificationService.success("Version Created");
-            this.isCreating = false;
-            // creation succeed, emit created version
-            this.modalRef.close(res);
-          },
-          error: (res: unknown) => {
-            const err = res as HttpErrorResponse;
-            this.notificationService.error(`Version creation failed: ${err.error.message}`);
-            this.isCreating = false;
-            // creation failed, emit null value
-            this.modalRef.close(null);
-          },
-        });
-    } else {
-      // capture original and sanitized names
-      const originalName = this.form.get("name")?.value as string;
-      const sanitizedName = this.datasetNameSanitization(originalName);
+    // capture original and sanitized names
+    const originalName = this.form.get("name")?.value as string;
+    const sanitizedName = this.datasetNameSanitization(originalName);
 
-      const ds: Dataset = {
-        name: sanitizedName,
-        description: this.form.get("description")?.value,
-        isPublic: this.isDatasetPublic,
-        isDownloadable: this.isDatasetDownloadable,
-        did: undefined,
-        ownerUid: undefined,
-        storagePath: undefined,
-        creationTime: undefined,
-        coverImage: undefined,
-      };
-      this.datasetService
-        .createDataset(ds, this.form.get("contributors")?.value)
-        .pipe(untilDestroyed(this))
-        .subscribe({
-          next: res => {
-            const msg = this.isDatasetNameSanitized
-              ? `Dataset '${originalName}' was sanitized to '${sanitizedName}' and created successfully.`
-              : `Dataset '${sanitizedName}' created successfully.`;
+    const ds: Dataset = {
+      name: sanitizedName,
+      description: this.form.get("description")?.value,
+      isPublic: this.isDatasetPublic,
+      isDownloadable: this.isDatasetDownloadable,
+      did: undefined,
+      ownerUid: undefined,
+      storagePath: undefined,
+      creationTime: undefined,
+      coverImage: undefined,
+    };
+    this.datasetService
+      .createDataset(ds, this.form.get("contributors")?.value)
+      .pipe(untilDestroyed(this))
+      .subscribe({
+        next: res => {
+          const msg = this.isDatasetNameSanitized
+            ? `Dataset '${originalName}' was sanitized to '${sanitizedName}' and created successfully.`
+            : `Dataset '${sanitizedName}' created successfully.`;
 
-            this.notificationService.success(msg);
-            this.isCreating = false;
-            // if creation succeed, emit the created dashboard dataset
-            this.modalRef.close(res);
-          },
-          error: (res: unknown) => {
-            const err = res as HttpErrorResponse;
-            this.notificationService.error(`Dataset ${ds.name} creation failed: ${err.error.message}`);
-            this.isCreating = false;
-            // if creation failed, emit null value
-            this.modalRef.close(null);
-          },
-        });
-    }
+          this.notificationService.success(msg);
+          this.isCreating = false;
+          // if creation succeed, emit the created dashboard dataset
+          this.modalRef.close(res);
+        },
+        error: (res: unknown) => {
+          const err = res as HttpErrorResponse;
+          this.notificationService.error(`Dataset ${ds.name} creation failed: ${err.error.message}`);
+          this.isCreating = false;
+          // if creation failed, emit null value
+          this.modalRef.close(null);
+        },
+      });
   }
 
   onPublicStatusChange(newValue: boolean): void {

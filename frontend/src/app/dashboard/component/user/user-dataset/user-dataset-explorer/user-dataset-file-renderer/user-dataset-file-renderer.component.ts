@@ -50,13 +50,9 @@ export const MIME_TYPES = {
   CSV: "text/csv",
   TXT: "text/plain",
   MD: "text/markdown",
-  HTML: "text/html",
   JSON: "application/json",
-  PDF: "application/pdf",
-  MSWORD: "application/msword",
   MSEXCEL: "application/vnd.ms-excel",
   XLSX: "application/vnd.ms-excel",
-  MSPOWERPOINT: "application/vnd.ms-powerpoint",
   MP4: "video/mp4",
   MP3: "audio/mpeg",
   OCTET_STREAM: "application/octet-stream", // Default binary format
@@ -82,7 +78,6 @@ export const MIME_TYPE_SIZE_LIMITS_MB = {
   [MIME_TYPES.MSEXCEL]: 10 * 1024 * 1024, // 10 MB for Excel spreadsheets
   [MIME_TYPES.MP4]: 50 * 1024 * 1024, // 50 MB for MP4 videos
   [MIME_TYPES.MP3]: 10 * 1024 * 1024, // 10 MB for MP3 audio files
-  [MIME_TYPES.OCTET_STREAM]: 5 * 1024 * 1024, // Default size for other binary formats
 };
 
 @UntilDestroy()

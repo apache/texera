@@ -283,9 +283,6 @@ export class ResultExportationComponent implements OnInit {
     const modal = this.modalService.create({
       nzTitle: "Create New Dataset",
       nzContent: UserDatasetVersionCreatorComponent,
-      nzData: {
-        isCreatingVersion: false,
-      },
       nzFooter: null,
       nzWidth: 500,
     });

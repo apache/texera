@@ -140,16 +140,8 @@ export class UserDatasetComponent implements AfterViewInit {
     localStorage.setItem(UserDatasetComponent.VIEW_MODE_STORAGE_KEY, viewType);
   }
 
-  /*
-   * Executes a dataset search with filtering, sorting.
-   *
-   * Parameters:
-   * - filterScope = "all" | "public" | "private" - Determines visibility scope for search:
-   *  - "all": includes all datasets, public and private
-   *  - "public": limits the search to public datasets
-   *  - "private": limits the search to dataset where the user has direct access rights.
-   */
-  async search(forced: Boolean = false, filterScope: "all" | "public" | "private" = "private"): Promise<void> {
+  /* Executes a dataset search with filtering, sorting. */
+  async search(forced: Boolean = false): Promise<void> {
     const sameList =
       this.masterFilterList !== null &&
       this.filters.masterFilterList.length === this.masterFilterList.length &&
@@ -165,11 +157,6 @@ export class UserDatasetComponent implements AfterViewInit {
     }
     let filterParams = this.filters.getSearchFilterParameters();
 
-    // if the filter requires only public datasets, the public search should be invoked, and the search method should
-    // set the isLogin parameter to false in this case
-    const isLogin = filterScope === "public" ? false : this.isLogin;
-    const includePublic = filterScope === "all" || filterScope === "public";
-
     this.searchResultsComponent.reset((start, count) => {
       return firstValueFrom(
         this.searchService
@@ -180,8 +167,8 @@ export class UserDatasetComponent implements AfterViewInit {
             count,
             "dataset",
             this.sortMethod,
-            isLogin,
-            includePublic
+            this.isLogin,
+            false
           )
           .pipe(
             tap(({ hasMismatch }) => {
@@ -205,9 +192,6 @@ export class UserDatasetComponent implements AfterViewInit {
       nzTitle: "Create New Dataset",
       nzContent: UserDatasetVersionCreatorComponent,
       nzFooter: null,
-      nzData: {
-        isCreatingVersion: false,
-      },
       nzBodyStyle: {
         resize: "both",
         overflow: "auto",
