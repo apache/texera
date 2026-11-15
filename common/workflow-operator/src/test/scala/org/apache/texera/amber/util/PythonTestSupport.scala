@@ -30,6 +30,9 @@ private[amber] object PythonTestSupport {
   val NeedsPythonPackages: Tag = Tag(classOf[IntegrationTest].getName)
   private val PathCandidates = List("python3", "python", "py")
 
+  /** The first interpreter that runs: `python.path` from udf.conf (set by `UDF_PYTHON_PATH`), then
+    * python3, python and py from the PATH.
+    */
   def configuredPython(): Option[String] = {
     val configured = Some(UdfConfig.pythonPath.trim).filter(_.nonEmpty)
     (configured.toList ++ PathCandidates).distinct.find(runnable)
@@ -46,13 +49,19 @@ private[amber] object PythonTestSupport {
   private def runnable(executable: String): Boolean =
     succeeds(Seq(executable, "--version"), 5)
 
+  // Nothing reads the child's output, and a pipe nobody reads blocks the child once it fills, so
+  // the output is discarded.
   private def succeeds(command: Seq[String], timeoutSeconds: Int): Boolean =
-    Try(new ProcessBuilder(command: _*).redirectErrorStream(true).start()).toOption.exists {
-      process =>
-        if (process.waitFor(timeoutSeconds, TimeUnit.SECONDS)) process.exitValue() == 0
-        else {
-          process.destroyForcibly()
-          false
-        }
+    Try(
+      new ProcessBuilder(command: _*)
+        .redirectErrorStream(true)
+        .redirectOutput(ProcessBuilder.Redirect.DISCARD)
+        .start()
+    ).toOption.exists { process =>
+      if (process.waitFor(timeoutSeconds, TimeUnit.SECONDS)) process.exitValue() == 0
+      else {
+        process.destroyForcibly()
+        false
+      }
     }
 }

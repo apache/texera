@@ -264,7 +264,7 @@ final class PythonCodeRawInvalidTextSpec extends AnyFunSuite {
     val pythonExeOpt = configuredPython()
     if (pythonExeOpt.isEmpty) {
       fail(
-        "python.path not found in udf.conf (or application.conf). Configure python.path to enable this test."
+        "No runnable Python. Tried udf.conf python.path (UDF_PYTHON_PATH), python3, python and py."
       )
     }
     val pythonExecutable = pythonExeOpt.get
