@@ -19,7 +19,6 @@
 
 package org.apache.texera.web.service
 
-import com.fasterxml.jackson.core.JsonProcessingException
 import com.github.tototoshi.csv.CSVReader
 import com.sun.net.httpserver.{HttpExchange, HttpHandler, HttpServer}
 import org.apache.arrow.memory.RootAllocator
@@ -85,8 +84,7 @@ import scala.collection.mutable.ArrayBuffer
   *
   * Two layers are covered:
   *
-  *  - The pure helpers (parseOperators / validateExportRequest) and the private
-  *    export-encoding writers. Every writer takes a VirtualDocument parameter,
+  *  - The private export-encoding writers. Every writer takes a VirtualDocument parameter,
   *    so an in-spec fake document is enough for those.
   *
   *  - The request-level entry points (exportToLocal / exportToDataset /
@@ -131,46 +129,6 @@ class ResultExportServiceSpec
       filename = "",
       computingUnitId = 0
     )
-
-  // -- parseOperators ---------------------------------------------------------
-
-  "parseOperators" should "deserialize a JSON array into OperatorExportInfo objects" in {
-    val json =
-      """[{"id":"op-1","outputType":"csv"},{"id":"op-2","outputType":"arrow"}]"""
-    val parsed = service.parseOperators(json)
-
-    parsed shouldBe List(
-      OperatorExportInfo("op-1", "csv"),
-      OperatorExportInfo("op-2", "arrow")
-    )
-  }
-
-  it should "round-trip an empty JSON array to an empty list" in {
-    service.parseOperators("[]") shouldBe List.empty[OperatorExportInfo]
-  }
-
-  it should "throw when given a malformed JSON string" in {
-    a[JsonProcessingException] should be thrownBy service.parseOperators("not json")
-  }
-
-  // -- validateExportRequest --------------------------------------------------
-
-  "validateExportRequest" should "return a 400 response when no operators are selected" in {
-    val result = service.validateExportRequest(requestWith(List.empty))
-
-    val response = result.getOrElse(fail("expected a validation error response"))
-    response.getStatus shouldBe Response.Status.BAD_REQUEST.getStatusCode
-    response.getEntity match {
-      case m: java.util.Map[_, _] => m.get("error") shouldBe "No operator selected"
-      case other                  => fail(s"unexpected entity: $other")
-    }
-  }
-
-  it should "return None when at least one operator is selected" in {
-    val result =
-      service.validateExportRequest(requestWith(List(OperatorExportInfo("op-1", "csv"))))
-    result shouldBe None
-  }
 
   // -- fakes for the export writers -------------------------------------------
 
