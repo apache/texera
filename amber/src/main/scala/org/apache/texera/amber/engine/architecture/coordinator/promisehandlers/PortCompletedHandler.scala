@@ -55,6 +55,21 @@ trait PortCompletedHandler {
         ),
         COORDINATOR
       )
+      // The statistics refresh is best-effort: a failed query must not block the port
+      // bookkeeping below, which is what advances the region (#6924). Worker-side failures and
+      // timeouts are already absorbed per worker by the query, so an error reaching here comes
+      // from the coordinator itself. Trade-off: once the region completes, its operators are no
+      // longer sent new queries, so statistics this refresh failed to collect are only updated if
+      // a reply already requested still arrives.
+      .handle {
+        case err =>
+          logger.error(
+            s"Statistics refresh on portCompleted from ${ctx.sender} failed; " +
+              "completing the port without it.",
+            err
+          )
+          EmptyReturn()
+      }
       .map { _ =>
         val globalPortId = GlobalPortIdentity(
           VirtualIdentityUtils.getPhysicalOpId(ctx.sender),

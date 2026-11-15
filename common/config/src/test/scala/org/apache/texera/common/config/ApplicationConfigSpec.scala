@@ -53,6 +53,9 @@ class ApplicationConfigSpec extends AnyFlatSpec with Matchers {
     ifUnset("CONSTANTS_RUNTIME_STATISTICS_PERSISTENCE_INTERVAL")(
       ApplicationConfig.getRuntimeStatisticsPersistenceIntervalInMs shouldBe 2000L
     )
+    ifUnset("CONSTANTS_STATISTICS_QUERY_REPLY_TIMEOUT")(
+      ApplicationConfig.getStatisticsQueryReplyTimeoutInMs shouldBe 10000L
+    )
   }
 
   "ApplicationConfig flow control" should "load credit and polling defaults" in {

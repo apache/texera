@@ -46,6 +46,7 @@ message ControlRequest {
     LinkWorkersRequest linkWorkersRequest = 9;
     WorkflowReconfigureRequest workflowReconfigureRequest = 10;
     JumpToOperatorRegionRequest jumpToOperatorRegionRequest = 11;
+    StatisticsQueryDeadlineRequest statisticsQueryDeadlineRequest = 12;
 
     // request for worker
     AddInputChannelRequest addInputChannelRequest = 50;
@@ -290,6 +291,11 @@ enum StatisticsUpdateTarget {
 message QueryStatisticsRequest{
   repeated core.ActorVirtualIdentity filterByWorkers = 1;
   StatisticsUpdateTarget updateTarget = 2;
+}
+
+// Sent by the coordinator to itself when a statistics query's wait for replies runs out.
+message StatisticsQueryDeadlineRequest{
+  int64 queryId = 1;
 }
 
 message JumpToOperatorRegionRequest{

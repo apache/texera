@@ -46,6 +46,7 @@ import org.apache.texera.amber.engine.architecture.scheduling.RegionExecutionMan
   createSingleWorkerRegion,
   createSourceOp,
   createWorkerId,
+  createWorkerIds,
   seedReusableWorkerExecution
 }
 import org.apache.texera.amber.engine.architecture.scheduling.{
@@ -56,7 +57,7 @@ import org.apache.texera.amber.engine.architecture.scheduling.{
 import org.apache.texera.amber.engine.common.AmberRuntime
 import org.apache.texera.amber.engine.common.ambermessage.WorkflowFIFOMessage
 import org.apache.texera.amber.engine.common.rpc.AsyncRPCClient.ControlInvocation
-import org.apache.texera.amber.engine.common.virtualidentity.util.COORDINATOR
+import org.apache.texera.amber.engine.common.virtualidentity.util.{COORDINATOR, SELF}
 import org.scalatest.BeforeAndAfterAll
 import org.scalatest.flatspec.AnyFlatSpecLike
 
@@ -126,13 +127,17 @@ class PortCompletedHandlerSpec
   }
 
   /** Deliver a worker's `portCompleted` through the real RPC server, as production does. */
-  private def receivePortCompleted(cp: CoordinatorProcessor, portId: PortIdentity): Unit = {
+  private def receivePortCompleted(
+      cp: CoordinatorProcessor,
+      portId: PortIdentity,
+      sender: ActorVirtualIdentity = workerId
+  ): Unit = {
     cp.processDCM(
-      ChannelIdentity(workerId, COORDINATOR, isControl = true),
+      ChannelIdentity(sender, COORDINATOR, isControl = true),
       ControlInvocation(
         METHOD_PORT_COMPLETED,
         PortCompletedRequest(portId, input = false),
-        AsyncRPCContext(workerId, COORDINATOR),
+        AsyncRPCContext(sender, COORDINATOR),
         portCompletedCommandId
       )
     )
@@ -264,19 +269,74 @@ class PortCompletedHandlerSpec
     assert(repliesTo(captured, workerId).map(_.commandId) == Seq(portCompletedCommandId))
   }
 
-  it should "return a failed reply to the worker when its bookkeeping fails" in {
+  it should "complete the port and request the advance even when the statistics query fails" in {
     val (cp, captured) = coordinatorWithRegionInFlight()
     receivePortCompleted(cp, outputPortId)
 
-    // Failing the statistics query fails the handler's continuation. The reply is still chained
-    // on that continuation, so the error is reported back to the worker that sent
-    // `portCompleted` — the contract documented for this handler, which deferring the advance
-    // must not break.
+    // The statistics refresh is best-effort (#6924): if it fails, the port bookkeeping must
+    // still run, or the region it belongs to would never advance. Worker-side failures are
+    // absorbed inside the query, so a failure here stands for one in the coordinator itself.
     resolveStatisticsQuery(cp, captured, ControlError.defaultInstance)
 
-    val reply = repliesTo(captured, workerId).head
+    val operatorExecution = cp.workflowExecution
+      .getRegionExecution(RegionIdentity(1))
+      .getOperatorExecution(physicalOp.id)
+    assert(operatorExecution.isOutputPortCompleted(outputPortId))
+    assert(advanceRequestsIn(captured).size == 1)
+    assert(
+      repliesTo(captured, workerId) == Seq(
+        ReturnInvocation(portCompletedCommandId, EmptyReturn())
+      )
+    )
+  }
+
+  it should "still return a failed reply to the worker when its own bookkeeping fails" in {
+    val (cp, captured) = coordinatorWithRegionInFlight()
+    // A worker of the region's operator that the coordinator holds no execution for: booking
+    // its port fails inside the handler's continuation, after the statistics refresh.
+    val unknownWorker = createWorkerIds(physicalOp, 2).last
+    receivePortCompleted(cp, outputPortId, sender = unknownWorker)
+    resolveStatisticsQuery(cp, captured)
+
+    // Only the statistics refresh is best-effort; a failure in the bookkeeping itself is still
+    // reported back to the worker that sent `portCompleted`.
+    val reply = repliesTo(captured, unknownWorker).head
     assert(reply.commandId == portCompletedCommandId)
     assert(reply.returnValue.isInstanceOf[ControlError])
     assert(advanceRequestsIn(captured).isEmpty)
+  }
+
+  it should "complete the port and request the advance when the worker never answers the statistics refresh" in {
+    // Built with the shared fixture rather than `coordinatorWithRegionInFlight()`: this test needs
+    // the deadline the query schedules to be captured, so it can fire it.
+    // The scenario of #6924: the statistics reply is lost, so without a deadline the bookkeeping
+    // chained on it never runs and the region never advances.
+    val f = newCoordinatorInFlight(
+      physicalOp,
+      workerId,
+      regionPorts = Set(GlobalPortIdentity(physicalOp.id, outputPortId, input = false))
+    )
+    receivePortCompleted(f.cp, outputPortId)
+
+    // Run the statistics refresh the handler requested of the coordinator itself.
+    val refresh = selfInvocations(f.captured).head
+    f.cp.processDCM(ChannelIdentity(COORDINATOR, COORDINATOR, isControl = true), refresh)
+    // The worker never replies; the refresh's deadline fires instead.
+    val deadline =
+      f.actorService.scheduledToSelf.collect { case (_, inv: ControlInvocationPayload) => inv }
+    f.cp.processDCM(ChannelIdentity(SELF, SELF, isControl = true), deadline.head)
+    // The refresh then completes and replies to the coordinator, which resumes the handler.
+    val refreshReply = messagesTo(f.captured, COORDINATOR).collectFirst {
+      case WorkflowFIFOMessage(_, _, ret: ReturnInvocation) if ret.commandId == refresh.commandId =>
+        ret
+    }
+    f.cp.asyncRPCClient.fulfillPromise(refreshReply.get)
+
+    assert(advanceRequestsIn(f.captured).size == 1)
+    assert(
+      repliesTo(f.captured, workerId) == Seq(
+        ReturnInvocation(portCompletedCommandId, EmptyReturn())
+      )
+    )
   }
 }
