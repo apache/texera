@@ -21,34 +21,28 @@ package org.apache.texera.amber.operator.udf.python.source
 
 import org.apache.texera.amber.core.executor.OpExecWithCode
 import org.apache.texera.amber.core.tuple.{Attribute, AttributeType, Schema}
-import org.apache.texera.amber.core.virtualidentity.{ExecutionIdentity, WorkflowIdentity}
-import org.apache.texera.amber.operator.LogicalOp
 import org.apache.texera.amber.operator.metadata.OperatorGroupConstants
-import org.apache.texera.amber.operator.udf.UiUDFParameter
-import org.apache.texera.amber.util.JSONUtils.objectMapper
+import org.apache.texera.amber.operator.udf.UdfDescriptorSpecSupport
 import org.apache.texera.amber.operator.udf.python.PythonUdfTemplateTestUtils
 import org.scalatest.flatspec.AnyFlatSpec
-import org.scalatest.matchers.should.Matchers
 
-class PythonUDFSourceOpDescV2Spec extends AnyFlatSpec with Matchers {
-
-  private val workflowId = WorkflowIdentity(1L)
-  private val executionId = ExecutionIdentity(1L)
-
-  private def uiParameter(name: String, value: String): UiUDFParameter = {
-    val parameter = new UiUDFParameter
-    parameter.attribute = new Attribute(name, AttributeType.INTEGER)
-    parameter.value = value
-    parameter
-  }
+class PythonUDFSourceOpDescV2Spec extends AnyFlatSpec with UdfDescriptorSpecSupport {
+  private val sourceUdfCode =
+    """from pytexera import *
+      |
+      |class GenerateOperator(UDFSourceOperator):
+      |    def produce(self):
+      |        yield
+      |""".stripMargin
 
   "PythonUDFSourceOpDescV2.operatorInfo" should
     "advertise the 1-out Python UDF source (no inputs, one output, reconfigurable)" in {
-    val info = (new PythonUDFSourceOpDescV2).operatorInfo
-    info.userFriendlyName shouldBe "1-out Python UDF"
-    info.operatorGroupName shouldBe OperatorGroupConstants.PYTHON_GROUP
-    info.inputPorts shouldBe empty
-    info.outputPorts should have length 1
+    val info = expectOperatorInfo(
+      new PythonUDFSourceOpDescV2,
+      "1-out Python UDF",
+      OperatorGroupConstants.PYTHON_GROUP,
+      0
+    )
     info.supportReconfiguration shouldBe true
   }
 
@@ -63,55 +57,29 @@ class PythonUDFSourceOpDescV2Spec extends AnyFlatSpec with Matchers {
     "wire OpExecWithCode(code, \"python\") as a source op with one output port" in {
     val d = new PythonUDFSourceOpDescV2
     d.code = "yield {'a': 1}"
-    val physical = d.getPhysicalOp(workflowId, executionId)
-    physical.opExecInitInfo match {
-      case OpExecWithCode(code, language) =>
-        language shouldBe "python"
-        code shouldBe "yield {'a': 1}"
-      case other => fail(s"expected OpExecWithCode, got $other")
-    }
+    val physical = buildPhysicalOp(d)
+    physical.opExecInitInfo shouldBe OpExecWithCode("yield {'a': 1}", "python")
     physical.outputPorts.keySet shouldBe d.operatorInfo.outputPorts.map(_.id).toSet
   }
 
   it should "reject a non-positive worker count" in {
-    val d = new PythonUDFSourceOpDescV2
-    d.workers = 0
-    intercept[IllegalArgumentException] { d.getPhysicalOp(workflowId, executionId) }
+    expectInvalidWorkerCount(new PythonUDFSourceOpDescV2)(_.workers = 0)
   }
 
   it should "inject configured UI parameters into the generated Python code" in {
     val d = new PythonUDFSourceOpDescV2
-    d.code = """from pytexera import *
-        |
-        |class GenerateOperator(UDFSourceOperator):
-        |    def produce(self):
-        |        yield
-        |""".stripMargin
+    d.code = sourceUdfCode
     d.uiParameters = List(uiParameter("count", "7"))
 
-    d.getPhysicalOp(workflowId, executionId).opExecInitInfo match {
-      case OpExecWithCode(code, "python") =>
-        code should include("def _texera_injected_ui_parameters")
-        code should include("self.decode_python_template")
-      case other => fail(s"expected Python OpExecWithCode, got $other")
-    }
+    expectInjectedPython(d)
   }
 
   it should "leave a resource parameter to the execution" in {
     val d = new PythonUDFSourceOpDescV2
-    d.code = """from pytexera import *
-        |
-        |class GenerateOperator(UDFSourceOperator):
-        |    def produce(self):
-        |        yield
-        |""".stripMargin
-    val resource = new UiUDFParameter
-    resource.attribute = new Attribute("DS", AttributeType.STRING)
-    resource.inputType = "dataset"
-    resource.value = "/dataset/owner@x.com/ds/v1"
-    d.uiParameters = List(resource)
+    d.code = sourceUdfCode
+    d.uiParameters = List(datasetParameter("DS", "/dataset/owner@x.com/ds/v1"))
 
-    d.getPhysicalOp(workflowId, executionId).executionTimeBinding should not be empty
+    buildPhysicalOp(d).executionTimeBinding should not be empty
   }
 
   it should "reject a blank virtual-environment name when the default env is disabled" in {
@@ -119,7 +87,7 @@ class PythonUDFSourceOpDescV2Spec extends AnyFlatSpec with Matchers {
     d.code = "yield"
     d.defaultEnv = false
     d.envName = "   "
-    val ex = intercept[RuntimeException] { d.getPhysicalOp(workflowId, executionId) }
+    val ex = intercept[RuntimeException] { buildPhysicalOp(d) }
     ex.getMessage shouldBe
       "Virtual Environment name is required when not using the default Python environment."
   }
@@ -129,14 +97,14 @@ class PythonUDFSourceOpDescV2Spec extends AnyFlatSpec with Matchers {
     d.code = "yield"
     d.defaultEnv = false
     d.envName = "  my-venv  "
-    d.getPhysicalOp(workflowId, executionId).pveName shouldBe "my-venv"
+    buildPhysicalOp(d).pveName shouldBe "my-venv"
   }
 
   it should "mark the op parallelizable with the requested worker count when workers > 1" in {
     val d = new PythonUDFSourceOpDescV2
     d.code = "yield"
     d.workers = 3
-    val physical = d.getPhysicalOp(workflowId, executionId)
+    val physical = buildPhysicalOp(d)
     physical.parallelizable shouldBe true
     physical.suggestedWorkerNum shouldBe Some(3)
   }
@@ -149,9 +117,7 @@ class PythonUDFSourceOpDescV2Spec extends AnyFlatSpec with Matchers {
     d.envName = "venv"
     d.columns = List(new Attribute("a", AttributeType.STRING))
     d.uiParameters = List(uiParameter("count", "7"))
-    val restored = objectMapper.readValue(objectMapper.writeValueAsString(d), classOf[LogicalOp])
-    restored shouldBe a[PythonUDFSourceOpDescV2]
-    val p = restored.asInstanceOf[PythonUDFSourceOpDescV2]
+    val p = roundTrip(d)
     p.code shouldBe "yield"
     p.workers shouldBe 2
     p.defaultEnv shouldBe false
