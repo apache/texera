@@ -21,7 +21,6 @@ package org.apache.texera.amber.engine.e2e
 
 import org.apache.pekko.actor.{ActorSystem, Props}
 import org.apache.pekko.testkit.{ImplicitSender, TestKit}
-import org.apache.pekko.util.Timeout
 import org.apache.texera.amber.clustering.SingleNodeListener
 import org.apache.texera.amber.core.WorkflowRuntimeException
 import org.apache.texera.amber.core.tuple.{AttributeType, Tuple}
@@ -48,8 +47,6 @@ import org.apache.texera.common.compiler.model.LogicalLink
 import org.scalatest.flatspec.AnyFlatSpecLike
 import org.scalatest.{BeforeAndAfterAll, BeforeAndAfterEach, Outcome, Retries}
 
-import scala.concurrent.duration.DurationInt
-
 class DataProcessingSpec
     extends TestKit(ActorSystem("DataProcessingSpec", AmberRuntime.pekkoConfig))
     with ImplicitSender
@@ -65,8 +62,6 @@ class DataProcessingSpec
     */
   override def withFixture(test: NoArgTest): Outcome =
     withRetry { super.withFixture(test) }
-
-  implicit val timeout: Timeout = Timeout(5.seconds)
 
   private val specId = 1
 

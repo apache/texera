@@ -21,7 +21,6 @@ package org.apache.texera.amber.engine.e2e
 
 import org.apache.pekko.actor.{ActorSystem, Props}
 import org.apache.pekko.testkit.{ImplicitSender, TestKit}
-import org.apache.pekko.util.Timeout
 import com.twitter.util.{Await, Duration, Promise}
 import com.typesafe.scalalogging.Logger
 import org.apache.texera.amber.clustering.SingleNodeListener
@@ -48,8 +47,6 @@ import org.apache.texera.common.compiler.model.LogicalLink
 import org.scalatest.flatspec.AnyFlatSpecLike
 import org.scalatest.{BeforeAndAfterAll, BeforeAndAfterEach, Outcome, Retries}
 
-import scala.concurrent.duration._
-
 class PauseSpec
     extends TestKit(ActorSystem("PauseSpec", AmberRuntime.pekkoConfig))
     with ImplicitSender
@@ -65,8 +62,6 @@ class PauseSpec
     */
   override def withFixture(test: NoArgTest): Outcome =
     withRetry { super.withFixture(test) }
-
-  implicit val timeout: Timeout = Timeout(5.seconds)
 
   val logger = Logger("PauseSpecLogger")
 
@@ -104,7 +99,7 @@ class PauseSpec
         workflow.context,
         workflow.physicalPlan,
         CoordinatorConfig.default,
-        error => {}
+        _ => {}
       )
     val completion = Promise[Unit]()
     client

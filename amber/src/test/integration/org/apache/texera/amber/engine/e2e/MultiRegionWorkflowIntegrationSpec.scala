@@ -23,7 +23,6 @@ import com.twitter.util.Duration
 import com.typesafe.scalalogging.Logger
 import org.apache.pekko.actor.{ActorSystem, Props}
 import org.apache.pekko.testkit.{ImplicitSender, TestKit}
-import org.apache.pekko.util.Timeout
 import org.apache.texera.amber.clustering.SingleNodeListener
 import org.apache.texera.amber.core.workflow.PortIdentity
 import org.apache.texera.amber.engine.common.AmberRuntime
@@ -44,8 +43,6 @@ import org.apache.texera.amber.tags.IntegrationTest
 import org.apache.texera.common.compiler.model.LogicalLink
 import org.scalatest.{BeforeAndAfterAll, BeforeAndAfterEach, Outcome, Retries}
 import org.scalatest.flatspec.AnyFlatSpecLike
-
-import scala.concurrent.duration._
 
 /**
   * End-to-end coverage for a workflow that executes across MULTIPLE regions and
@@ -120,8 +117,6 @@ class MultiRegionWorkflowIntegrationSpec
     */
   override def withFixture(test: NoArgTest): Outcome =
     withRetry { super.withFixture(test) }
-
-  implicit val timeout: Timeout = Timeout(5.seconds)
 
   private val logger = Logger("MultiRegionWorkflowIntegrationSpecLogger")
   private val specId = 5

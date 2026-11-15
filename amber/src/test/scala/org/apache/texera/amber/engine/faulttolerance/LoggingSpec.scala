@@ -133,7 +133,7 @@ class LoggingSpec
       Some(new URI("ram:///recovery-logs/tmp"))
     )
     logStorage.deleteStorage()
-    val logManager = ReplayLogManager.createLogManager(logStorage, "tmpLog", x => {})
+    val logManager = ReplayLogManager.createLogManager(logStorage, "tmpLog", _ => {})
     payloadToLog.foreach { payload =>
       val channel = ChannelIdentity(COORDINATOR, SELF, isControl = true)
       val msgOpt = Some(WorkflowFIFOMessage(channel, 0, payload))

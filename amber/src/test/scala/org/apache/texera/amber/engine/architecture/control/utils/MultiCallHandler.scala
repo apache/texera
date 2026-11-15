@@ -31,7 +31,7 @@ trait MultiCallHandler {
     getProxy
       .sendChain(Chain(request.seq), myID)
       .flatMap(x => getProxy.sendRecursion(Recursion(1), mkContext(ActorVirtualIdentity(x.value))))
-      .flatMap(ret => getProxy.sendCollect(Collect(request.seq.take(3)), myID))
+      .flatMap(_ => getProxy.sendCollect(Collect(request.seq.take(3)), myID))
   }
 
 }

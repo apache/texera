@@ -83,7 +83,7 @@ class DPThreadSpec extends AnyFlatSpec with Matchers with MockFactory {
     .toArray
   private val logStorage = SequentialRecordStorage.getStorage[ReplayLogRecord](None)
   private val logManager: ReplayLogManager =
-    ReplayLogManager.createLogManager(logStorage, "none", x => {})
+    ReplayLogManager.createLogManager(logStorage, "none", _ => {})
 
   /** Poll `cond` until it holds or the budget runs out. Returns the final value. */
   private def awaitCond(cond: => Boolean, budgetMs: Int = 5000): Boolean = {
@@ -117,7 +117,7 @@ class DPThreadSpec extends AnyFlatSpec with Matchers with MockFactory {
 
   "DP Thread" should "handle pause/resume during processing" in {
     val inputQueue = new LinkedBlockingQueue[DPInputQueueElement]()
-    val dp = new DataProcessor(workerId, x => {}, inputMessageQueue = inputQueue)
+    val dp = new DataProcessor(workerId, _ => {}, inputMessageQueue = inputQueue)
     dp.executor = executor
     dp.inputManager.addPort(mockInputPortId, schema, List.empty, List.empty)
     dp.inputGateway.getChannel(dataChannelId).setPortId(mockInputPortId)
@@ -155,7 +155,7 @@ class DPThreadSpec extends AnyFlatSpec with Matchers with MockFactory {
 
   "DP Thread" should "handle pause/resume using fifo messages" in {
     val inputQueue = new LinkedBlockingQueue[DPInputQueueElement]()
-    val dp = new DataProcessor(workerId, x => {}, inputMessageQueue = inputQueue)
+    val dp = new DataProcessor(workerId, _ => {}, inputMessageQueue = inputQueue)
     dp.inputManager.addPort(mockInputPortId, schema, List.empty, List.empty)
     dp.inputGateway.getChannel(dataChannelId).setPortId(mockInputPortId)
     dp.adaptiveBatchingMonitor = mock[WorkerTimerService]
@@ -198,7 +198,7 @@ class DPThreadSpec extends AnyFlatSpec with Matchers with MockFactory {
 
   "DP Thread" should "handle multiple batches from multiple sources" in {
     val inputQueue = new LinkedBlockingQueue[DPInputQueueElement]()
-    val dp = new DataProcessor(workerId, x => {}, inputMessageQueue = inputQueue)
+    val dp = new DataProcessor(workerId, _ => {}, inputMessageQueue = inputQueue)
     dp.executor = executor
     val anotherSenderWorkerId = ActorVirtualIdentity("another")
     dp.inputManager.addPort(mockInputPortId, schema, List.empty, List.empty)
@@ -300,7 +300,7 @@ class DPThreadSpec extends AnyFlatSpec with Matchers with MockFactory {
     // create() runs on the DP thread; capture what it produces there.
     val capturedUri = new CompletableFuture[String]()
     val inputQueue = new LinkedBlockingQueue[DPInputQueueElement]()
-    val dp = new DataProcessor(workerId, x => {}, inputMessageQueue = inputQueue)
+    val dp = new DataProcessor(workerId, _ => {}, inputMessageQueue = inputQueue)
     dp.executor = new OperatorExecutor {
       override def processTuple(tuple: Tuple, port: Int): Iterator[TupleLike] = {
         capturedUri.complete(LargeBinaryManager.create())
@@ -343,7 +343,7 @@ class DPThreadSpec extends AnyFlatSpec with Matchers with MockFactory {
 
   "DP Thread" should "treat a second start() as a no-op" in {
     val inputQueue = new LinkedBlockingQueue[DPInputQueueElement]()
-    val dp = new DataProcessor(workerId, x => {}, inputMessageQueue = inputQueue)
+    val dp = new DataProcessor(workerId, _ => {}, inputMessageQueue = inputQueue)
     dp.adaptiveBatchingMonitor = mock[WorkerTimerService]
     val dpThread = new DPThread(workerId, dp, logManager, inputQueue)
     try {
@@ -404,7 +404,7 @@ class DPThreadSpec extends AnyFlatSpec with Matchers with MockFactory {
     // service nor the thread future exists yet, so both guards must short-circuit
     // rather than dereference a null.
     val inputQueue = new LinkedBlockingQueue[DPInputQueueElement]()
-    val dp = new DataProcessor(workerId, x => {}, inputMessageQueue = inputQueue)
+    val dp = new DataProcessor(workerId, _ => {}, inputMessageQueue = inputQueue)
     val dpThread = new DPThread(workerId, dp, logManager, inputQueue)
 
     // The entire contract on this path is that the call does not blow up. Asserting

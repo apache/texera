@@ -63,8 +63,7 @@ class TrivialControlTester(
   ) {
     override val asyncRPCClient = new ControlTesterRPCClient(inputGateway, outputGateway, id)
   }
-  val initializer =
-    new TesterAsyncRPCHandlerInitializer(ap.actorId, ap.asyncRPCClient, ap.asyncRPCServer)
+  new TesterAsyncRPCHandlerInitializer(ap.actorId, ap.asyncRPCClient, ap.asyncRPCServer)
 
   override def handleInputMessage(id: Long, workflowMsg: WorkflowFIFOMessage): Unit = {
     val channel = ap.inputGateway.getChannel(workflowMsg.channelId)

@@ -23,7 +23,6 @@ import com.twitter.util.{Await, Duration, Promise, Return}
 import com.typesafe.scalalogging.Logger
 import org.apache.pekko.actor.{ActorSystem, Props}
 import org.apache.pekko.testkit.{ImplicitSender, TestKit}
-import org.apache.pekko.util.Timeout
 import org.apache.texera.amber.clustering.SingleNodeListener
 import org.apache.texera.amber.core.executor.{OpExecInitInfo, OpExecWithCode}
 import org.apache.texera.amber.core.tuple.Tuple
@@ -50,8 +49,6 @@ import org.apache.texera.common.compiler.model.LogicalLink
 import org.scalatest.{BeforeAndAfterAll, BeforeAndAfterEach, Outcome, Retries}
 import org.scalatest.flatspec.AnyFlatSpecLike
 
-import scala.concurrent.duration._
-
 /**
   * E2E reconfiguration tests that spawn Python UDF workers. Routed to the
   * `amber-integration` CI job via the class-level `@IntegrationTest` tag,
@@ -76,8 +73,6 @@ class ReconfigurationIntegrationSpec
     */
   override def withFixture(test: NoArgTest): Outcome =
     withRetry { super.withFixture(test) }
-
-  implicit val timeout: Timeout = Timeout(5.seconds)
 
   val logger = Logger("ReconfigurationIntegrationSpecLogger")
   private val specId = 4

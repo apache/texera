@@ -69,7 +69,7 @@ class CheckpointSpec extends AnyFlatSpecLike with BeforeAndAfterAll {
         workflow.context,
         CoordinatorConfig.default,
         COORDINATOR,
-        msg => {}
+        _ => {}
       )
     val chkpt = new CheckpointState()
     chkpt.save(CP_STATE_KEY, cp)
@@ -80,7 +80,7 @@ class CheckpointSpec extends AnyFlatSpecLike with BeforeAndAfterAll {
   "Default worker state" should "round-trip through CheckpointState" in {
     val dp = new DataProcessor(
       SELF,
-      msg => {},
+      _ => {},
       inputMessageQueue = new LinkedBlockingQueue[DPInputQueueElement]()
     )
     val chkpt = new CheckpointState()

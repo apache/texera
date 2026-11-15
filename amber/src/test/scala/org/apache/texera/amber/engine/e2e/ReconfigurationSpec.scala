@@ -22,7 +22,6 @@ package org.apache.texera.amber.engine.e2e
 import com.typesafe.scalalogging.Logger
 import org.apache.pekko.actor.{ActorSystem, Props}
 import org.apache.pekko.testkit.{ImplicitSender, TestKit}
-import org.apache.pekko.util.Timeout
 import org.apache.texera.amber.clustering.SingleNodeListener
 import org.apache.texera.amber.core.executor.OpExecInitInfo
 import org.apache.texera.amber.core.tuple.Tuple
@@ -38,8 +37,6 @@ import org.apache.texera.amber.operator.{LogicalOp, TestOperators}
 import org.apache.texera.common.compiler.model.LogicalLink
 import org.scalatest.{BeforeAndAfterAll, BeforeAndAfterEach, Outcome, Retries}
 import org.scalatest.flatspec.AnyFlatSpecLike
-
-import scala.concurrent.duration._
 
 class ReconfigurationSpec
     extends TestKit(ActorSystem("ReconfigurationSpec", AmberRuntime.pekkoConfig))
@@ -57,9 +54,7 @@ class ReconfigurationSpec
   override def withFixture(test: NoArgTest): Outcome =
     withRetry { super.withFixture(test) }
 
-  implicit val timeout: Timeout = Timeout(5.seconds)
-
-  val logger = Logger("ReconfigurationSpecLogger")
+  Logger("ReconfigurationSpecLogger")
   private val specId = 3
   val ctx = TestUtils.workflowContext(specId)
 
