@@ -21,10 +21,9 @@ package org.apache.texera.amber.operator.source.scan.csvOld
 
 import com.typesafe.config.ConfigFactory
 import org.apache.texera.amber.core.executor.OpExecWithClassName
-import org.apache.texera.amber.core.storage.FileResolver
 import org.apache.texera.amber.core.tuple.AttributeType
 import org.apache.texera.amber.core.virtualidentity.{ExecutionIdentity, WorkflowIdentity}
-import org.apache.texera.amber.operator.LogicalOp
+import org.apache.texera.amber.operator.{LogicalOp, TestOperators}
 import org.apache.texera.amber.operator.metadata.OperatorGroupConstants
 import org.apache.texera.amber.operator.source.scan.FileDecodingMethod
 import org.apache.texera.amber.operator.tags.IntegrationTest
@@ -251,7 +250,7 @@ class CSVOldScanSourceOpDescSpec extends AnyFlatSpec with Matchers {
     d.fileName = Some(path)
     d.customDelimiter = Some(",")
     d.hasHeader = true
-    d.setResolvedFileName(FileResolver.resolve(path))
+    d.setResolvedFileName(TestOperators.localFileUri(path))
     d
   }
 }

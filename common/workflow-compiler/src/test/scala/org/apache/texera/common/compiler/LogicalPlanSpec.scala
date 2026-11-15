@@ -504,10 +504,9 @@ class LogicalPlanSpec extends AnyFlatSpec {
   // resolveScanSourceOpFileName
   // ---------------------------------------------------------------------------
   //
-  // A successful resolution of a real file path is environment-dependent
-  // (resolved through FileResolver, which can reach LakeFS / dataset
-  // service), so we pin the FAILURE behavior here. The method has two modes,
-  // both used in production:
+  // How a name becomes a URI is the resolver's business, passed in by the caller;
+  // here it is the fixture resolver, which knows local files. The method has two
+  // failure modes, both used in production:
   //   1. Some(errorList) — every failing operator is appended to errorList by
   //      opId and resolution CONTINUES (collect-all). Used by the editing-path
   //      compiler in workflow-compiling-service so the UI can surface every
@@ -519,10 +518,7 @@ class LogicalPlanSpec extends AnyFlatSpec {
 
   private def csvWithMissingFile(): CSVScanSourceOpDesc = {
     val op = TestOperators.headerlessSmallCsvScanOpDesc()
-    // Use a relative single-segment file name so `FileResolver` short-
-    // circuits BOTH resolvers without touching the DB: localResolveFunc
-    // fails (file doesn't exist) and datasetResolveFunc's parser bails
-    // immediately (path segments < 4) before any dataset DB query.
+    // No such file on the local disk, so the fixture resolver refuses the name.
     op.fileName = Some("nonexistent-test-file.csv")
     op
   }
@@ -535,7 +531,7 @@ class LogicalPlanSpec extends AnyFlatSpec {
     val brokenB = csvWithMissingFile()
     val plan = LogicalPlan(List(brokenA, brokenB), List.empty)
     val errors = ArrayBuffer.empty[(OperatorIdentity, Throwable)]
-    plan.resolveScanSourceOpFileName(Some(errors))
+    plan.resolveScanSourceOpFileName(TestOperators.fixtureFileResolver, Some(errors))
     assert(errors.size == 2, s"expected both failures captured, got: $errors")
     assert(
       errors.map(_._1).toSet ==
@@ -544,14 +540,30 @@ class LogicalPlanSpec extends AnyFlatSpec {
   }
 
   it should "rethrow FileNotFoundException when no errorList is provided" in {
-    // `FileResolver.resolve` raises `org.apache.commons.vfs2.FileNotFoundException`
-    // when all resolvers fail. Pin the specific type so an unrelated failure
+    // The resolver raises `org.apache.commons.vfs2.FileNotFoundException` for a
+    // name it cannot resolve. Pin the specific type so an unrelated failure
     // mode (e.g. NPE) doesn't silently satisfy this test.
     val brokenOp = csvWithMissingFile()
     val plan = LogicalPlan(List(brokenOp), List.empty)
     intercept[FileNotFoundException] {
-      plan.resolveScanSourceOpFileName(None)
+      plan.resolveScanSourceOpFileName(TestOperators.fixtureFileResolver, None)
     }
+  }
+
+  it should "set on each scan source the URI the given resolver returns for its file name" in {
+    val resolved = new java.net.URI("dataset:///repository/commit/data.csv")
+    val asked = ArrayBuffer.empty[String]
+    val op = TestOperators.headerlessSmallCsvScanOpDesc()
+    op.fileName = Some("/dataset/owner@texera.io/sales/v1/data.csv")
+    val plan = LogicalPlan(List(op), List.empty)
+
+    plan.resolveScanSourceOpFileName(
+      fileName => { asked += fileName; resolved },
+      None
+    )
+
+    assert(asked.toList == List("/dataset/owner@texera.io/sales/v1/data.csv"))
+    assert(op.fileName.contains(resolved.toASCIIString))
   }
 
   it should "leave non-ScanSourceOpDesc operators untouched (no errors, no resolution)" in {
@@ -560,7 +572,7 @@ class LogicalPlanSpec extends AnyFlatSpec {
     val k = keyword()
     val plan = LogicalPlan(List(k), List.empty)
     val errors = ArrayBuffer.empty[(OperatorIdentity, Throwable)]
-    plan.resolveScanSourceOpFileName(Some(errors))
+    plan.resolveScanSourceOpFileName(TestOperators.fixtureFileResolver, Some(errors))
     assert(errors.isEmpty)
   }
 }

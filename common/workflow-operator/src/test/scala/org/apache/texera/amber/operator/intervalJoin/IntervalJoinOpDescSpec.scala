@@ -19,17 +19,29 @@
 
 package org.apache.texera.amber.operator.intervalJoin
 
+import com.typesafe.config.ConfigFactory
 import org.apache.texera.amber.core.executor.OpExecWithClassName
-import org.apache.texera.amber.core.tuple.{Attribute, AttributeType, Schema}
+import org.apache.texera.amber.core.tuple.{Attribute, AttributeType, Schema, Tuple}
 import org.apache.texera.amber.core.virtualidentity.{ExecutionIdentity, WorkflowIdentity}
 import org.apache.texera.amber.core.workflow.{HashPartition, PortIdentity}
 import org.apache.texera.amber.operator.LogicalOp
 import org.apache.texera.amber.operator.metadata.OperatorGroupConstants
+import org.apache.texera.amber.operator.tags.IntegrationTest
 import org.apache.texera.amber.util.JSONUtils.objectMapper
+import org.scalatest.Tag
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 
+import java.nio.charset.StandardCharsets
+import java.nio.file.Files
+import java.sql.Timestamp
+import java.util.concurrent.TimeUnit
+import scala.io.Source
+import scala.util.Try
+
 class IntervalJoinOpDescSpec extends AnyFlatSpec with Matchers {
+
+  private val NeedsPythonPackages = Tag(classOf[IntegrationTest].getName)
 
   private val workflowId = WorkflowIdentity(1L)
   private val executionId = ExecutionIdentity(1L)
@@ -104,6 +116,279 @@ class IntervalJoinOpDescSpec extends AnyFlatSpec with Matchers {
       List("a", "k", "b", "k#@1")
   }
 
+  "IntervalJoinOpDesc.generateStandaloneCode" should
+    "read the right key under the name the merge left it with" in {
+    // "rk" is only suffixed when the left frame has a column of that name, and
+    // the frame is not known until the script runs, so the choice is in Python.
+    configured().generateStandaloneCode() should include(
+      """_iv_r = _pairs["rk" if "rk" not in in1df.columns else "rk" + "#@1"]"""
+    )
+  }
+
+  /** The bug this pins: the keys used to be copied into `_iv_l` and `_iv_r`
+    * columns, so an input column already carrying one of those names was
+    * overwritten and then dropped. Run the generated pandas and hold its
+    * columns against the schema the operator promises for the same two inputs.
+    */
+  it should "keep an input column that carries a temporary's name" taggedAs NeedsPythonPackages in {
+    val python = resolvePython().getOrElse(
+      cancel("No runnable python executable (udf.conf python.path, python3, python, py)")
+    )
+    if (!canImportPandas(python)) cancel(s"'$python' cannot import pandas")
+
+    val left = Schema()
+      .add(new Attribute("x", AttributeType.INTEGER))
+      .add(new Attribute("_iv_l", AttributeType.STRING))
+    val right = Schema().add(new Attribute("r", AttributeType.INTEGER))
+
+    val d = new IntervalJoinOpDesc
+    d.leftAttributeName = "x"
+    d.rightAttributeName = "r"
+    d.constant = 3L
+    d.timeIntervalType = None
+    val promised = d
+      .getPhysicalOp(workflowId, executionId)
+      .propagateSchema
+      .func(Map(PortIdentity() -> left, PortIdentity(1) -> right))(
+        d.operatorInfo.outputPorts.head.id
+      )
+      .getAttributeNames
+
+    val driver =
+      s"""import pandas as pd
+         |
+         |in1df = pd.DataFrame({"x": [2], "_iv_l": ["payload"]})
+         |in2df = pd.DataFrame({"r": [1]})
+         |${d.generateStandaloneCode()}
+         |print(",".join(map(str, out1df.columns)))
+         |print(",".join(map(str, out1df.iloc[0].tolist())))
+         |""".stripMargin
+
+    val script = Files.createTempFile("intervaljoin-columns-", ".py")
+    script.toFile.deleteOnExit()
+    Files.write(script, driver.getBytes(StandardCharsets.UTF_8))
+    val process = new ProcessBuilder(python, script.toString).redirectErrorStream(true).start()
+    val out = Source.fromInputStream(process.getInputStream).mkString
+    process.waitFor(120, TimeUnit.SECONDS)
+    withClue(s"python said:\n$out\nscript:\n$driver") {
+      process.exitValue() shouldBe 0
+      val lines = out.trim.linesIterator.toSeq
+      lines.head.split(",").toList shouldBe promised
+      // The payload the temporary used to overwrite, and the row still joins.
+      lines(1) shouldBe "2,payload,1"
+    }
+  }
+
+  // IntervalJoinOpExec compares timestamps by getTime, so only whole
+  // milliseconds count. The right key is 12:00:00.0009 with a three-second
+  // interval: the first left row shares its millisecond and the last shares
+  // the upper bound's while past it, so each joins only at that resolution.
+  private val millisecondLefts =
+    Seq("2024-01-01 12:00:00.0005", "2024-01-01 12:00:02", "2024-01-01 12:00:03.00095")
+  private val millisecondRight = "2024-01-01 12:00:00.0009"
+
+  it should "compare timestamps by the millisecond as the engine does" taggedAs NeedsPythonPackages in {
+    val python = resolvePython().getOrElse(
+      cancel("No runnable python executable (udf.conf python.path, python3, python, py)")
+    )
+    if (!canImportPandas(python)) cancel(s"'$python' cannot import pandas")
+
+    val left = Schema().add(new Attribute("l", AttributeType.TIMESTAMP))
+    val right = Schema().add(new Attribute("r", AttributeType.TIMESTAMP))
+
+    def check(includeBounds: Boolean): Unit = {
+      val d =
+        new IntervalJoinOpDesc("l", "r", 3L, includeBounds, includeBounds, TimeIntervalType.SECOND)
+
+      val exec = new IntervalJoinOpExec(objectMapper.writeValueAsString(d))
+      exec.open()
+      val engine =
+        try {
+          exec.processTuple(Tuple(right, Array[Any](Timestamp.valueOf(millisecondRight))), 1)
+          millisecondLefts.flatMap { l =>
+            exec
+              .processTuple(Tuple(left, Array[Any](Timestamp.valueOf(l))), 0)
+              .map(_.getFields.toSeq)
+              .map(_.map(_.asInstanceOf[Timestamp].toLocalDateTime.toString).mkString(" "))
+          }
+        } finally exec.close()
+
+      def literal(t: String) = "\"" + t.replace(' ', 'T') + "\""
+      val lefts = millisecondLefts.map(literal).mkString("[", ", ", "]")
+      val driver =
+        s"""import numpy as np
+           |import pandas as pd
+           |
+           |in1df = pd.DataFrame({"l": np.array($lefts, dtype="datetime64[us]")})
+           |in2df = pd.DataFrame({"r": np.array([${literal(millisecondRight)}], dtype="datetime64[us]")})
+           |${d.standaloneHelpers().mkString("\n\n")}
+           |${d.generateStandaloneCode()}
+           |for row in out1df.itertuples(index=False):
+           |    print(" ".join(pd.Timestamp(v).isoformat() for v in row))
+           |""".stripMargin
+
+      val script = Files.createTempFile("intervaljoin-millis-", ".py")
+      script.toFile.deleteOnExit()
+      Files.write(script, driver.getBytes(StandardCharsets.UTF_8))
+      val process = new ProcessBuilder(python, script.toString).redirectErrorStream(true).start()
+      val out = Source.fromInputStream(process.getInputStream).mkString
+      process.waitFor(120, TimeUnit.SECONDS)
+      withClue(s"python said:\n$out\nscript:\n$driver") {
+        process.exitValue() shouldBe 0
+        out.trim.linesIterator.toSeq shouldBe engine
+      }
+      if (includeBounds) engine should have size 3
+    }
+
+    check(includeBounds = true)
+    check(includeBounds = false)
+  }
+
+  // A source hands the script each timestamp as the wall clock the machine's
+  // zone shows, with no zone attached, and the executor adds the constant to
+  // that wall clock. So in Chicago a day from 03-09 12:00 ends at 03-10 12:00
+  // across the spring change, and the same holds across the autumn one. A day
+  // into the spring gap ends where Timestamp.valueOf reads 02:30, an hour
+  // later, and a month from 01-31 ends on 02-29. Each case puts one left row
+  // on or before the engine's bound and one past it. Both sides are fed the
+  // same wall clocks, and the script runs with TZ set to the same zone.
+  it should "add a time interval on the machine's wall clock as the engine does" taggedAs NeedsPythonPackages in {
+    val python = resolvePython().getOrElse(
+      cancel("No runnable python executable (udf.conf python.path, python3, python, py)")
+    )
+    if (!canImportPandas(python)) cancel(s"'$python' cannot import pandas")
+
+    val zone = "America/Chicago"
+    val cases = Seq(
+      (TimeIntervalType.DAY, "2024-06-01T12:00", Seq("2024-06-02T12:00", "2024-06-02T12:01")),
+      (TimeIntervalType.DAY, "2024-03-09T12:00", Seq("2024-03-10T11:30", "2024-03-10T12:30")),
+      (TimeIntervalType.DAY, "2024-11-02T12:00", Seq("2024-11-03T11:30", "2024-11-03T12:30")),
+      (TimeIntervalType.DAY, "2024-03-09T02:30", Seq("2024-03-10T03:15", "2024-03-10T03:45")),
+      (TimeIntervalType.DAY, "2024-11-02T01:30", Seq("2024-11-03T01:15", "2024-11-03T01:45")),
+      (TimeIntervalType.MONTH, "2024-01-31T00:00", Seq("2024-02-29T00:00", "2024-02-29T00:01")),
+      (TimeIntervalType.DAY, "1850-06-01T12:00", Seq("1850-06-02T12:00", "1850-06-02T12:01"))
+    )
+    val left = Schema().add(new Attribute("l", AttributeType.TIMESTAMP))
+    val right = Schema().add(new Attribute("r", AttributeType.TIMESTAMP))
+    def at(wall: String) = Timestamp.valueOf(java.time.LocalDateTime.parse(wall))
+    def wall(t: Timestamp) =
+      t.toLocalDateTime.format(java.time.format.DateTimeFormatter.ISO_LOCAL_DATE_TIME)
+
+    val saved = java.util.TimeZone.getDefault
+    java.util.TimeZone.setDefault(java.util.TimeZone.getTimeZone(zone))
+    try {
+      cases.foreach {
+        case (unit, r, lefts) =>
+          val d = new IntervalJoinOpDesc("l", "r", 1L, true, true, unit)
+          val exec = new IntervalJoinOpExec(objectMapper.writeValueAsString(d))
+          exec.open()
+          val engine =
+            try {
+              exec.processTuple(Tuple(right, Array[Any](at(r))), 1)
+              lefts.flatMap { l =>
+                exec
+                  .processTuple(Tuple(left, Array[Any](at(l))), 0)
+                  .map(_.getFields.map(v => wall(v.asInstanceOf[Timestamp])).mkString(" "))
+              }
+            } finally exec.close()
+
+          def literal(t: String) = "\"" + t + "\""
+          val driver =
+            s"""import numpy as np
+               |import pandas as pd
+               |
+               |in1df = pd.DataFrame({"l": np.array(${lefts
+              .map(literal)
+              .mkString("[", ", ", "]")}, dtype="datetime64[us]")})
+               |in2df = pd.DataFrame({"r": np.array([${literal(r)}], dtype="datetime64[us]")})
+               |${d.standaloneHelpers().mkString("\n\n")}
+               |${d.generateStandaloneCode()}
+               |for row in out1df.itertuples(index=False):
+               |    print(" ".join(pd.Timestamp(v).isoformat() for v in row))
+               |""".stripMargin
+
+          val script = Files.createTempFile("intervaljoin-zone-", ".py")
+          script.toFile.deleteOnExit()
+          Files.write(script, driver.getBytes(StandardCharsets.UTF_8))
+          val builder = new ProcessBuilder(python, script.toString).redirectErrorStream(true)
+          builder.environment().put("TZ", zone)
+          val process = builder.start()
+          val out = Source.fromInputStream(process.getInputStream).mkString
+          process.waitFor(120, TimeUnit.SECONDS)
+          withClue(s"$unit from $r, python said:\n$out\nscript:\n$driver") {
+            process.exitValue() shouldBe 0
+            out.trim.linesIterator.filter(_.nonEmpty).toSeq shouldBe engine
+            engine should have size 1
+          }
+      }
+    } finally java.util.TimeZone.setDefault(saved)
+  }
+
+  // The engine adds the constant in the key's declared type: an INTEGER bound
+  // is an Int sum, with the constant cut to 32 bits, and wraps past
+  // Int.MaxValue, and a LONG one wraps past Long.MaxValue. Each case feeds the
+  // right row first and the left rows in ascending order, as the executor
+  // assumes.
+  it should "add the constant in the key's declared type as the engine does" taggedAs NeedsPythonPackages in {
+    val python = resolvePython().getOrElse(
+      cancel("No runnable python executable (udf.conf python.path, python3, python, py)")
+    )
+    if (!canImportPandas(python)) cancel(s"'$python' cannot import pandas")
+
+    val cases = Seq(
+      (AttributeType.INTEGER, 10L, 0L, Seq(3L, 20L)),
+      (AttributeType.INTEGER, 10L, 2147483640L, Seq(2147483645L)),
+      (AttributeType.INTEGER, 4294967306L, 0L, Seq(5L, 20L)),
+      (AttributeType.LONG, 10L, 9223372036854775800L, Seq(9223372036854775805L))
+    )
+    cases.foreach {
+      case (attrType, constant, right, lefts) =>
+        val dtype = if (attrType == AttributeType.INTEGER) "int32" else "int64"
+        def value(v: Long): Any = if (attrType == AttributeType.INTEGER) v.toInt else v
+        val leftSchema = Schema().add(new Attribute("l", attrType))
+        val rightSchema = Schema().add(new Attribute("r", attrType))
+        val d = new IntervalJoinOpDesc("l", "r", constant, true, true, TimeIntervalType.DAY)
+
+        val exec = new IntervalJoinOpExec(objectMapper.writeValueAsString(d))
+        exec.open()
+        val engine =
+          try {
+            exec.processTuple(Tuple(rightSchema, Array[Any](value(right))), 1)
+            lefts.flatMap { l =>
+              exec
+                .processTuple(Tuple(leftSchema, Array[Any](value(l))), 0)
+                .map(_.getFields.mkString(" "))
+            }
+          } finally exec.close()
+
+        val code = d.generateStandaloneCode(
+          Map(PortIdentity() -> leftSchema, PortIdentity(1) -> rightSchema)
+        )
+        val driver =
+          s"""import numpy as np
+             |import pandas as pd
+             |
+             |in1df = pd.DataFrame({"l": np.array(${lefts
+            .mkString("[", ", ", "]")}, dtype="$dtype")})
+             |in2df = pd.DataFrame({"r": np.array([$right], dtype="$dtype")})
+             |$code
+             |for row in out1df.itertuples(index=False):
+             |    print(" ".join(str(int(v)) for v in row))
+             |""".stripMargin
+
+        val script = Files.createTempFile("intervaljoin-bound-", ".py")
+        script.toFile.deleteOnExit()
+        Files.write(script, driver.getBytes(StandardCharsets.UTF_8))
+        val process = new ProcessBuilder(python, script.toString).redirectErrorStream(true).start()
+        val out = Source.fromInputStream(process.getInputStream).mkString
+        process.waitFor(120, TimeUnit.SECONDS)
+        withClue(s"$attrType constant $constant, python said:\n$out\nscript:\n$driver") {
+          process.exitValue() shouldBe 0
+          out.trim.linesIterator.filter(_.nonEmpty).toSeq shouldBe engine
+        }
+    }
+  }
+
   "IntervalJoinOpDesc" should "round-trip its fields through the polymorphic base" in {
     val d = configured()
     d.constant = 42L
@@ -118,4 +403,33 @@ class IntervalJoinOpDescSpec extends AnyFlatSpec with Matchers {
     ij.includeLeftBound shouldBe false
     ij.includeRightBound shouldBe false
   }
+
+  // Python resolution follows FilledAreaPlotOpDescSpec: udf.conf python.path
+  // (UDF_PYTHON_PATH), then python3 / python / py.
+  private def resolvePython(): Option[String] = {
+    def fromConfig: Option[String] =
+      Try(ConfigFactory.parseResources("udf.conf").resolve()).toOption
+        .orElse(Try(ConfigFactory.load()).toOption)
+        .flatMap(c => Try(c.getConfig("python").getString("path")).toOption)
+        .map(_.trim)
+        .filter(_.nonEmpty)
+
+    def runnable(exe: String): Boolean =
+      Try(new ProcessBuilder(exe, "--version").redirectErrorStream(true).start()).toOption
+        .exists { p =>
+          if (!p.waitFor(5, TimeUnit.SECONDS)) { p.destroyForcibly(); false }
+          else p.exitValue() == 0
+        }
+
+    (fromConfig.toList ++ List("python3", "python", "py")).distinct.find(runnable)
+  }
+
+  private def canImportPandas(python: String): Boolean =
+    Try(
+      new ProcessBuilder(python, "-c", "import pandas").redirectErrorStream(true).start()
+    ).toOption
+      .exists { p =>
+        if (!p.waitFor(60, TimeUnit.SECONDS)) { p.destroyForcibly(); false }
+        else p.exitValue() == 0
+      }
 }

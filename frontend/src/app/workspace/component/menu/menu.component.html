@@ -230,6 +230,14 @@
               <li nz-menu-item>
                 <label
                   nz-checkbox
+                  [(ngModel)]="showResultPreview"
+                  (ngModelChange)="toggleResultPreview()"
+                  >Result preview</label
+                >
+              </li>
+              <li nz-menu-item>
+                <label
+                  nz-checkbox
                   [(ngModel)]="showHeatmap"
                   (ngModelChange)="toggleHeatmap()"
                   >Performance</label
@@ -438,6 +446,7 @@
         </button>
         <button
           (click)="handleKill()"
+          title="Stop this run. A stopped run can't be resumed."
           [disabled]="
         executionState === ExecutionState.Uninitialized ||
         executionState === ExecutionState.Completed ||

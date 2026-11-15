@@ -23,6 +23,7 @@ import org.apache.texera.amber.core.executor.OpExecWithCode
 import org.apache.texera.amber.core.tuple.{Attribute, AttributeType, Schema}
 import org.apache.texera.amber.core.virtualidentity.{ExecutionIdentity, WorkflowIdentity}
 import org.apache.texera.amber.core.workflow.UnknownPartition
+import org.apache.texera.amber.operator.udf.UiUDFParameter
 import org.apache.texera.amber.operator.{LogicalOp, PortDescription}
 import org.apache.texera.amber.operator.metadata.OperatorGroupConstants
 import org.apache.texera.amber.util.JSONUtils.objectMapper
@@ -98,12 +99,18 @@ class JavaUDFOpDescSpec extends AnyFlatSpec with Matchers {
   "JavaUDFOpDesc" should "round-trip its config fields through the polymorphic base" in {
     val d = new JavaUDFOpDesc
     d.code = "x"
+    val p = new UiUDFParameter
+    p.attribute = new Attribute("count", AttributeType.INTEGER)
+    p.value = "42"
+    d.uiParameters = List(p)
     d.workers = 4
     d.retainInputColumns = true
     val restored = objectMapper.readValue(objectMapper.writeValueAsString(d), classOf[LogicalOp])
     restored shouldBe a[JavaUDFOpDesc]
     val j = restored.asInstanceOf[JavaUDFOpDesc]
     j.code shouldBe "x"
+    j.uiParameters.head.attribute shouldBe p.attribute
+    j.uiParameters.head.value shouldBe "42"
     j.workers shouldBe 4
     j.retainInputColumns shouldBe true
   }
