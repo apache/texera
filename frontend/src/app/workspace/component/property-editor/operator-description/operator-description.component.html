@@ -1,0 +1,109 @@
+<!--
+ Licensed to the Apache Software Foundation (ASF) under one
+ or more contributor license agreements.  See the NOTICE file
+ distributed with this work for additional information
+ regarding copyright ownership.  The ASF licenses this file
+ to you under the Apache License, Version 2.0 (the
+ "License"); you may not use this file except in compliance
+ with the License.  You may obtain a copy of the License at
+
+   http://www.apache.org/licenses/LICENSE-2.0
+
+ Unless required by applicable law or agreed to in writing,
+ software distributed under the License is distributed on an
+ "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ KIND, either express or implied.  See the License for the
+ specific language governing permissions and limitations
+ under the License.
+-->
+
+<section
+  *ngIf="editable || hasDescription || editing"
+  class="instance-description">
+  <div class="instance-description-header">
+    <span class="instance-description-label">Description</span>
+    <button
+      *ngIf="editable && !editing && hasDescription"
+      class="instance-description-edit"
+      nz-button
+      nzType="text"
+      nzSize="small"
+      nz-tooltip="Edit description"
+      aria-label="Edit description"
+      (click)="startEditing()">
+      <i
+        nz-icon
+        nzType="edit"
+        nzTheme="outline"></i>
+    </button>
+  </div>
+
+  <ng-container *ngIf="!editing">
+    <div
+      *ngIf="hasDescription"
+      class="instance-description-view"
+      [innerHTML]="renderedHtml"></div>
+    <button
+      *ngIf="!hasDescription && editable"
+      type="button"
+      class="instance-description-empty instance-description-edit"
+      (click)="startEditing()">
+      Add a description: what this operator does here, why, or notes for others and agents
+    </button>
+  </ng-container>
+
+  <ng-container *ngIf="editing">
+    <div
+      *ngIf="changedElsewhere"
+      class="instance-description-conflict"
+      role="status">
+      Someone else changed this description while you were editing. Saving replaces their version.
+      <button
+        type="button"
+        class="instance-description-load-latest"
+        nz-button
+        nzType="link"
+        nzSize="small"
+        (click)="loadLatest()">
+        Load their version
+      </button>
+    </div>
+    <textarea
+      nz-input
+      class="instance-description-input"
+      [(ngModel)]="draft"
+      [disabled]="!editable"
+      [attr.maxlength]="maxLength"
+      [nzAutosize]="{ minRows: 3, maxRows: 14 }"
+      placeholder="Markdown supported. Ctrl/Cmd+Enter to save, Esc to cancel."
+      aria-label="Operator description"
+      (keydown)="onKeydown($event)"></textarea>
+    <div class="instance-description-footer">
+      <span class="instance-description-hint">
+        <span>
+          <ng-container *ngIf="editable; else lockedHint">Visible to collaborators and AI agents.</ng-container>
+          <ng-template #lockedHint>Editing is locked right now; your draft is kept but not saved.</ng-template>
+        </span>
+        <span class="instance-description-count">{{ draft.length }} / {{ maxLength }}</span>
+      </span>
+      <span class="instance-description-actions">
+        <button
+          class="instance-description-cancel"
+          nz-button
+          nzSize="small"
+          (click)="cancel()">
+          Cancel
+        </button>
+        <button
+          class="instance-description-save"
+          nz-button
+          nzType="primary"
+          nzSize="small"
+          [disabled]="!editable"
+          (click)="save()">
+          Save
+        </button>
+      </span>
+    </div>
+  </ng-container>
+</section>

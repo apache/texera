@@ -28,6 +28,8 @@ import {
   mockSentimentResultLink,
 } from "./mock-workflow-data";
 import { WorkflowGraph, isSink } from "./workflow-graph";
+import * as Y from "yjs";
+import { MAX_OPERATOR_DESCRIPTION_LENGTH } from "../../../util/operator-description.util";
 import { Observable } from "rxjs";
 import {
   Comment,
@@ -420,6 +422,146 @@ describe("WorkflowGraph", () => {
       expect(() => workflowGraph.markReuseResult("nonexist")).toThrowError(new RegExp("does not exist"));
       expect(() => workflowGraph.removeMarkReuseResult("nonexist")).toThrowError(new RegExp("does not exist"));
       expect(() => workflowGraph.isMarkedForReuseResult("nonexist")).toThrowError(new RegExp("does not exist"));
+    });
+  });
+
+  describe("operator description", () => {
+    it("should leave description undefined for an operator added without one", () => {
+      workflowGraph.addOperator(mockScanPredicate);
+      expect(workflowGraph.getOperator(mockScanPredicate.operatorID).description).toBeUndefined();
+    });
+
+    it("should keep a description supplied when the operator is added", () => {
+      workflowGraph.addOperator({ ...mockScanPredicate, description: "loads the raw tweets" });
+      expect(workflowGraph.getOperator(mockScanPredicate.operatorID).description).toEqual("loads the raw tweets");
+    });
+
+    it("should set a description on an operator that has none", () => {
+      workflowGraph.addOperator(mockScanPredicate);
+      workflowGraph.setOperatorDescription(mockScanPredicate.operatorID, "first note");
+      expect(workflowGraph.getOperator(mockScanPredicate.operatorID).description).toEqual("first note");
+    });
+
+    it("should replace an existing description rather than append to it", () => {
+      workflowGraph.addOperator({ ...mockScanPredicate, description: "old" });
+      workflowGraph.setOperatorDescription(mockScanPredicate.operatorID, "new");
+      expect(workflowGraph.getOperator(mockScanPredicate.operatorID).description).toEqual("new");
+    });
+
+    it("should clear the description when set to an empty string", () => {
+      workflowGraph.addOperator({ ...mockScanPredicate, description: "something" });
+      workflowGraph.setOperatorDescription(mockScanPredicate.operatorID, "");
+      expect(workflowGraph.getOperator(mockScanPredicate.operatorID).description).toBeUndefined();
+    });
+
+    it("should preserve markdown, newlines and unicode verbatim", () => {
+      const text = "# Why\n\n- drops rows with `null` ids\n- 日本語 ✅ émoji 🚀";
+      workflowGraph.addOperator(mockScanPredicate);
+      workflowGraph.setOperatorDescription(mockScanPredicate.operatorID, text);
+      expect(workflowGraph.getOperator(mockScanPredicate.operatorID).description).toEqual(text);
+    });
+
+    it("should not touch the operator's properties", () => {
+      workflowGraph.addOperator(mockScanPredicate);
+      workflowGraph.setOperatorDescription(mockScanPredicate.operatorID, "note");
+      expect(workflowGraph.getOperator(mockScanPredicate.operatorID).operatorProperties).toEqual(
+        mockScanPredicate.operatorProperties
+      );
+    });
+
+    it("should cut a description over the length limit to the limit", () => {
+      workflowGraph.addOperator(mockScanPredicate);
+      workflowGraph.setOperatorDescription(
+        mockScanPredicate.operatorID,
+        "z".repeat(MAX_OPERATOR_DESCRIPTION_LENGTH + 10)
+      );
+      expect(workflowGraph.getOperator(mockScanPredicate.operatorID).description).toEqual(
+        "z".repeat(MAX_OPERATOR_DESCRIPTION_LENGTH)
+      );
+    });
+
+    it("should edit the existing Y.Text in place rather than replacing it", () => {
+      workflowGraph.addOperator({ ...mockScanPredicate, description: "hello world" });
+      const before = workflowGraph.getSharedOperatorType(mockScanPredicate.operatorID).get("description");
+      workflowGraph.setOperatorDescription(mockScanPredicate.operatorID, "hello brave world");
+      const after = workflowGraph.getSharedOperatorType(mockScanPredicate.operatorID).get("description");
+      expect(after).toBe(before);
+      expect(workflowGraph.getOperator(mockScanPredicate.operatorID).description).toEqual("hello brave world");
+    });
+
+    it("should replace a stored description that is not text", () => {
+      for (const bad of [5, { text: "x" }, ["x"], true]) {
+        workflowGraph = new WorkflowGraph();
+        workflowGraph.addOperator({ ...mockScanPredicate, description: bad as any });
+        workflowGraph.setOperatorDescription(mockScanPredicate.operatorID, "fixed");
+        expect(workflowGraph.getOperator(mockScanPredicate.operatorID).description).toEqual("fixed");
+        workflowGraph.destroyYModel();
+      }
+      workflowGraph = new WorkflowGraph();
+    });
+
+    it("should give an operator a shared, empty description text when it is added or loaded", () => {
+      workflowGraph.addOperator(mockScanPredicate);
+      const loaded = new WorkflowGraph([mockSentimentPredicate]);
+      for (const [graph, id] of [
+        [workflowGraph, mockScanPredicate.operatorID],
+        [loaded, mockSentimentPredicate.operatorID],
+      ] as const) {
+        const shared = graph.getSharedOperatorType(id).get("description");
+        expect(shared).toBeInstanceOf(Y.Text);
+        expect(shared!.toString()).toEqual("");
+        // an operator nobody described still reads, saves and exports without the field
+        expect("description" in graph.getOperator(id)).toBe(false);
+        expect("description" in graph.getAllOperators()[0]).toBe(false);
+      }
+      loaded.destroyYModel();
+    });
+
+    describe("two co-editors writing the first description at the same time", () => {
+      /** Two editors of one workflow, each with its own document, as in a shared session. */
+      function twoEditors(first: WorkflowGraph): [WorkflowGraph, WorkflowGraph] {
+        const second = new WorkflowGraph();
+        Y.applyUpdate(second.sharedModel.yDoc, Y.encodeStateAsUpdate(first.sharedModel.yDoc));
+        return [first, second];
+      }
+
+      function exchange(a: WorkflowGraph, b: WorkflowGraph): void {
+        const fromA = Y.encodeStateAsUpdate(a.sharedModel.yDoc, Y.encodeStateVector(b.sharedModel.yDoc));
+        const fromB = Y.encodeStateAsUpdate(b.sharedModel.yDoc, Y.encodeStateVector(a.sharedModel.yDoc));
+        Y.applyUpdate(b.sharedModel.yDoc, fromA);
+        Y.applyUpdate(a.sharedModel.yDoc, fromB);
+      }
+
+      it.each([
+        // a workflow saved before descriptions existed: its operators carry no description field
+        ["loaded from a legacy workflow", () => new WorkflowGraph([mockScanPredicate])],
+        [
+          "added during the session",
+          () => {
+            const graph = new WorkflowGraph();
+            graph.addOperator(mockScanPredicate);
+            return graph;
+          },
+        ],
+      ])("keeps both authors' text for an operator %s", (_, create) => {
+        const [alice, bob] = twoEditors(create());
+        const id = mockScanPredicate.operatorID;
+
+        alice.setOperatorDescription(id, "alice's note");
+        bob.setOperatorDescription(id, "bob's note");
+        exchange(alice, bob);
+
+        const merged = alice.getOperator(id).description!;
+        expect(merged).toContain("alice's note");
+        expect(merged).toContain("bob's note");
+        expect(bob.getOperator(id).description).toEqual(merged);
+        alice.destroyYModel();
+        bob.destroyYModel();
+      });
+    });
+
+    it("should throw when setting the description of a nonexistent operator", () => {
+      expect(() => workflowGraph.setOperatorDescription("nonexist", "x")).toThrowError(new RegExp("does not exist"));
     });
   });
 

@@ -34,6 +34,7 @@ import {
 import { buildSystemPrompt } from "./prompts";
 import {
   createAddOperatorTool,
+  filterAllowedOperatorSchemas,
   createModifyOperatorTool,
   createDeleteOperatorTool,
   TOOL_NAME_ADD_OPERATOR,
@@ -218,9 +219,11 @@ export class TexeraAgent {
       },
     };
 
+    const allowedOperatorSchemas = filterAllowedOperatorSchemas(operatorSchemas, this.settings.allowedOperatorTypes);
+
     const tools: Record<string, any> = {
       [TOOL_NAME_DELETE_OPERATOR]: createDeleteOperatorTool(this.workflowState, context),
-      [TOOL_NAME_ADD_OPERATOR]: createAddOperatorTool(this.workflowState, operatorSchemas, context),
+      [TOOL_NAME_ADD_OPERATOR]: createAddOperatorTool(this.workflowState, allowedOperatorSchemas, context),
       [TOOL_NAME_MODIFY_OPERATOR]: createModifyOperatorTool(this.workflowState, context),
     };
 

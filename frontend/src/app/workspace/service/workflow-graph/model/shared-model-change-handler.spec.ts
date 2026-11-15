@@ -361,6 +361,119 @@ describe("SharedModelChangeHandler", () => {
       expect(change!.newDisplayName).toEqual("New-Original");
       sub.unsubscribe();
     });
+
+    it("should emit operatorDescriptionChangedSubject when the description text is edited in place", () => {
+      // a co-editor's keystrokes arrive as fine-grained edits on the existing Y.Text
+      texeraGraph.deleteOperator(mockScanPredicate.operatorID);
+      const described: OperatorPredicate = { ...mockScanPredicate, description: "loads data" };
+      addOperatorWithPosition(described);
+
+      const changes: { operatorID: string; newDescription: string }[] = [];
+      const sub = texeraGraph.getOperatorDescriptionChangedStream().subscribe(v => changes.push(v));
+
+      (texeraGraph.getSharedOperatorType(described.operatorID).get("description") as any).insert(0, "Only ");
+
+      expect(changes).toEqual([{ operatorID: described.operatorID, newDescription: "Only loads data" }]);
+      sub.unsubscribe();
+    });
+
+    it("should emit once when a description is first set on an operator without one", () => {
+      const changes: { operatorID: string; newDescription: string }[] = [];
+      const sub = texeraGraph.getOperatorDescriptionChangedStream().subscribe(v => changes.push(v));
+
+      texeraGraph.setOperatorDescription(mockScanPredicate.operatorID, "**note**");
+
+      expect(changes).toEqual([{ operatorID: mockScanPredicate.operatorID, newDescription: "**note**" }]);
+      sub.unsubscribe();
+    });
+
+    it("should emit once with the full new text when a description is replaced", () => {
+      texeraGraph.setOperatorDescription(mockScanPredicate.operatorID, "old text");
+      const changes: { operatorID: string; newDescription: string }[] = [];
+      const sub = texeraGraph.getOperatorDescriptionChangedStream().subscribe(v => changes.push(v));
+
+      texeraGraph.setOperatorDescription(mockScanPredicate.operatorID, "new");
+
+      expect(changes).toEqual([{ operatorID: mockScanPredicate.operatorID, newDescription: "new" }]);
+      sub.unsubscribe();
+    });
+
+    it("should emit for a co-editor's edit that arrives from another document", () => {
+      texeraGraph.setOperatorDescription(mockScanPredicate.operatorID, "shared base");
+      const remote = new Y.Doc();
+      Y.applyUpdate(remote, Y.encodeStateAsUpdate(texeraGraph.sharedModel.yDoc));
+      const changes: { operatorID: string; newDescription: string }[] = [];
+      const sub = texeraGraph.getOperatorDescriptionChangedStream().subscribe(v => changes.push(v));
+
+      const remoteText = (remote.getMap("operatorIDMap").get(mockScanPredicate.operatorID) as Y.Map<any>).get(
+        "description"
+      ) as Y.Text;
+      remoteText.insert(remoteText.length, " + remote");
+      Y.applyUpdate(texeraGraph.sharedModel.yDoc, Y.encodeStateAsUpdate(remote));
+
+      expect(changes).toEqual([{ operatorID: mockScanPredicate.operatorID, newDescription: "shared base + remote" }]);
+      expect(texeraGraph.getOperator(mockScanPredicate.operatorID).description).toEqual("shared base + remote");
+      sub.unsubscribe();
+      remote.destroy();
+    });
+
+    it("should emit an empty description when undoing the first description set, and the text on redo", () => {
+      const undoManager = texeraGraph.sharedModel.undoManager;
+      undoManager.stopCapturing();
+      texeraGraph.setOperatorDescription(mockScanPredicate.operatorID, "first ever");
+      const changes: string[] = [];
+      const sub = texeraGraph.getOperatorDescriptionChangedStream().subscribe(v => changes.push(v.newDescription));
+
+      undoManager.undo();
+      expect(texeraGraph.getOperator(mockScanPredicate.operatorID).description).toBeUndefined();
+      undoManager.redo();
+      expect(texeraGraph.getOperator(mockScanPredicate.operatorID).description).toEqual("first ever");
+
+      expect(changes).toEqual(["", "first ever"]);
+      sub.unsubscribe();
+    });
+
+    it("should emit an empty description, not throw, when the description key holds a non-text value", () => {
+      const changes: string[] = [];
+      const sub = texeraGraph.getOperatorDescriptionChangedStream().subscribe(v => changes.push(v.newDescription));
+
+      expect(() =>
+        texeraGraph.getSharedOperatorType(mockScanPredicate.operatorID).set("description" as any, 5 as any)
+      ).not.toThrow();
+
+      expect(changes).toEqual([""]);
+      sub.unsubscribe();
+    });
+
+    it("should treat a nested property named 'description' as a property change, not a description change", () => {
+      texeraGraph
+        .getSharedOperatorType(mockScanPredicate.operatorID)
+        .set("operatorProperties", createYTypeFromObject({ description: "a property" }) as any);
+      let descriptionEmitted = false;
+      let propertyChanged = false;
+      const subs = [
+        texeraGraph.getOperatorDescriptionChangedStream().subscribe(() => (descriptionEmitted = true)),
+        texeraGraph.getOperatorPropertyChangeStream().subscribe(() => (propertyChanged = true)),
+      ];
+
+      const props = texeraGraph.getSharedOperatorType(mockScanPredicate.operatorID).get("operatorProperties") as any;
+      (props.get("description") as Y.Text).insert(0, "edited ");
+
+      expect(descriptionEmitted).toBe(false);
+      expect(propertyChanged).toBe(true);
+      subs.forEach(s => s.unsubscribe());
+    });
+
+    it("should not emit when the description is set to its current value", () => {
+      texeraGraph.setOperatorDescription(mockScanPredicate.operatorID, "same");
+      let emitted = false;
+      const sub = texeraGraph.getOperatorDescriptionChangedStream().subscribe(() => (emitted = true));
+
+      texeraGraph.setOperatorDescription(mockScanPredicate.operatorID, "same");
+
+      expect(emitted).toBe(false);
+      sub.unsubscribe();
+    });
   });
 
   describe("port events", () => {
