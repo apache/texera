@@ -1293,5 +1293,13 @@ else
 fi
 rm -rf "$_im_state"
 
+# 45) The agent service is started from agent-service/, where its default
+#     ./docs does not exist, so the stack has to point it at the repo's docs.
+if grep -qE '^export TEXERA_DOCS_DIR="\$\{TEXERA_DOCS_DIR:-\$REPO_ROOT/docs\}"' "$MAIN_SH"; then
+    _pass "TEXERA_DOCS_DIR defaults to the repo's docs and honours a preset value"
+else
+    _fail "TEXERA_DOCS_DIR is not exported for the agent service"
+fi
+
 printf "\n%d passed, %d failed\n" "$PASS" "$FAIL"
 (( FAIL == 0 ))

@@ -23,6 +23,11 @@ import { AgentState, INITIAL_STEP_ID, type ReActStep } from "../types/agent";
 import { MockLanguageModelV4 } from "ai/test";
 import { WorkflowSystemMetadata } from "./util/workflow-system-metadata";
 import { OperatorState, type OperatorExecutionSummary, type Tuple } from "../types/execution";
+import { DocsIndex } from "./tools/docs-index";
+import { env } from "../config/env";
+import { mkdtempSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 
 /**
  * These tests cover the agent's bookkeeping — the ReAct step tree, settings, and client set — which
@@ -35,6 +40,7 @@ function makeAgent(): TexeraAgent {
     modelType: "test-model",
     agentId: "agent-1",
     userToken: "user-token",
+    docsIndex: null,
   });
 }
 
@@ -403,6 +409,7 @@ function makeAgentWith(model: any): TexeraAgent {
     agentId: "agent-1",
     systemPrompt: "SYS-XYZ",
     userToken: "user-token",
+    docsIndex: null,
   });
   liveAgents.push(agent);
   return agent;
@@ -1227,5 +1234,233 @@ describe("delegate mode", () => {
     await new Promise(r => setTimeout(r, 700));
     expect(errs.length).toBe(1);
     expect(errs[0][1]).toBe("failed to auto-persist workflow");
+  });
+});
+
+describe("docs tools", () => {
+  const docsIndex = new DocsIndex([
+    {
+      path: "getting-started/datasets",
+      title: "Datasets",
+      description: "Upload files",
+      body: "## Uploading\nClick Upload.",
+    },
+  ]);
+
+  test("registers searchDocs and readDoc when a docs index is given", () => {
+    const agent = new TexeraAgent({ model: {} as any, modelType: "m", agentId: "a", docsIndex });
+    const names = agent.getSystemInfo().tools.map(t => t.name);
+    expect(names).toEqual(["deleteOperator", "addOperator", "modifyOperator", "searchDocs", "readDoc"]);
+  });
+
+  test("registers neither tool when the docs index is null", () => {
+    const agent = new TexeraAgent({ model: {} as any, modelType: "m", agentId: "a", docsIndex: null });
+    const names = agent.getSystemInfo().tools.map(t => t.name);
+    expect(names).toEqual(["deleteOperator", "addOperator", "modifyOperator"]);
+  });
+
+  test("reports a docs tool as disabled through the same setting as every other tool", () => {
+    const agent = new TexeraAgent({ model: {} as any, modelType: "m", agentId: "a", docsIndex });
+    agent.updateSettings({ disabledTools: new Set(["readDoc"]) });
+    const info = agent.getSystemInfo().tools;
+    expect(info.find(t => t.name === "readDoc")?.enabled).toBe(false);
+    expect(info.find(t => t.name === "searchDocs")?.enabled).toBe(true);
+  });
+
+  test("passes the docs tools to the model alongside the workflow tools", async () => {
+    const model = textModel("ok");
+    const agent = new TexeraAgent({ model, modelType: "m", agentId: "a", systemPrompt: "S", docsIndex });
+    liveAgents.push(agent);
+    await agent.sendMessage("hi");
+    const call = (model as any).doGenerateCalls[0];
+    expect(call.tools.map((t: any) => t.name)).toContain("searchDocs");
+    expect(call.tools.map((t: any) => t.name)).toContain("readDoc");
+  });
+
+  /** A model that makes the given tool calls one per step, then answers with the given text. */
+  function scripted(turns: Array<{ tool: string; input: unknown } | string>) {
+    let n = 0;
+    return new MockLanguageModelV4({
+      doGenerate: async () => {
+        const turn = turns[Math.min(n, turns.length - 1)];
+        n++;
+        if (typeof turn === "string") {
+          return {
+            content: [{ type: "text", text: turn }],
+            finishReason: finish("stop"),
+            usage: usage(1, 1),
+            warnings: [],
+          } as any;
+        }
+        return {
+          content: [{ type: "tool-call", toolCallId: `c${n}`, toolName: turn.tool, input: JSON.stringify(turn.input) }],
+          finishReason: finish("tool-calls"),
+          usage: usage(1, 1),
+          warnings: [],
+        } as any;
+      },
+    });
+  }
+
+  const contextOf = (model: any, call: number): string => model.doGenerateCalls[call].prompt[1].content[0].text;
+
+  function docsAgent(model: any, index: DocsIndex = docsIndex): TexeraAgent {
+    const agent = new TexeraAgent({ model, modelType: "m", agentId: "a", systemPrompt: "S", docsIndex: index });
+    liveAgents.push(agent);
+    return agent;
+  }
+
+  test("shows the output of a docs call to the model on the next step", async () => {
+    const model = scripted([{ tool: "searchDocs", input: { query: "upload" } }, "Use the Upload button."]);
+    const res = await docsAgent(model).sendMessage("how do I upload a file");
+
+    expect(res.response).toBe("Use the Upload button.");
+    expect((model as any).doGenerateCalls).toHaveLength(2);
+    expect(contextOf(model, 0)).not.toContain("# Documentation Read");
+    const second = contextOf(model, 1);
+    expect(second).toContain("- searchDocs (succeeded)");
+    expect(second).toContain(
+      "# Documentation Read\nOutput of your searchDocs and readDoc calls in this task, oldest first."
+    );
+    expect(second).toContain(
+      '## Turn 1: searchDocs {"query":"upload"}\n  1. Datasets > Uploading\n     path: getting-started/datasets'
+    );
+    expect(second).toContain("Click Upload.");
+  });
+
+  test("shows a readDoc output and an unknown-page error the same way", async () => {
+    const model = scripted([
+      { tool: "readDoc", input: { path: "getting-started/nope" } },
+      { tool: "readDoc", input: { path: "getting-started/datasets", section: "Uploading" } },
+      "done",
+    ]);
+    await docsAgent(model).sendMessage("read it");
+
+    const third = contextOf(model, 2);
+    expect(third).toContain(
+      '## Turn 1: readDoc {"path":"getting-started/nope"}\n  [ERROR] Unknown page "getting-started/nope".'
+    );
+    expect(third).toContain('## Turn 2: readDoc {"path":"getting-started/datasets","section":"Uploading"}');
+    expect(third).toContain("  Click Upload.");
+  });
+
+  test("tells the model when a docs call was rejected for its arguments", async () => {
+    // A call that fails the tool's input schema never runs, so the stored step has no result for it.
+    const model = scripted([{ tool: "searchDocs", input: { limit: 3 } }, "I will search again."]);
+    const agent = docsAgent(model);
+    await agent.sendMessage("how do I upload a file");
+
+    const step = agent.getAllSteps()[1];
+    expect(step.toolCalls?.map(c => c.toolName)).toEqual(["searchDocs"]);
+    expect(step.toolResults ?? []).toEqual([]);
+    expect(contextOf(model, 1)).toContain(
+      '## Turn 1: searchDocs {"limit":3}\n  (no output, the tool is unavailable or its arguments were invalid)'
+    );
+  });
+
+  test("tells the model the same when it calls a docs tool that is not registered", async () => {
+    const model = scripted([{ tool: "searchDocs", input: { query: "upload" } }, "I cannot search the docs here."]);
+    const agent = new TexeraAgent({ model, modelType: "m", agentId: "a", systemPrompt: "S", docsIndex: null });
+    liveAgents.push(agent);
+    await agent.sendMessage("how do I upload a file");
+
+    expect(contextOf(model, 1)).toContain(
+      '## Turn 1: searchDocs {"query":"upload"}\n  (no output, the tool is unavailable or its arguments were invalid)'
+    );
+  });
+
+  test("answers a limit or an offset out of range instead of rejecting the call", async () => {
+    const model = scripted([
+      { tool: "searchDocs", input: { query: "upload", limit: 50 } },
+      { tool: "readDoc", input: { path: "getting-started/datasets", offset: -1 } },
+      "done",
+    ]);
+    await docsAgent(model).sendMessage("how do I upload a file");
+
+    const third = contextOf(model, 2);
+    expect(third).toContain('## Turn 1: searchDocs {"query":"upload","limit":50}\n  1. Datasets');
+    expect(third).toContain(
+      '## Turn 2: readDoc {"path":"getting-started/datasets","offset":-1}\n  [ERROR] offset must be a whole number of characters, 0 or more.'
+    );
+  });
+
+  describe("without a configured index", () => {
+    const original = env.TEXERA_DOCS_DIR;
+    let dir: string;
+
+    beforeEach(() => {
+      dir = mkdtempSync(join(tmpdir(), "texera-agent-docs-"));
+    });
+
+    afterEach(() => {
+      env.TEXERA_DOCS_DIR = original;
+      rmSync(dir, { recursive: true, force: true });
+    });
+
+    const toolNames = (): string[] =>
+      new TexeraAgent({ model: {} as any, modelType: "m", agentId: "a" }).getSystemInfo().tools.map(t => t.name);
+
+    test("loads the index from TEXERA_DOCS_DIR and registers the docs tools", () => {
+      writeFileSync(join(dir, "page.md"), "# Page\nSome text.");
+      env.TEXERA_DOCS_DIR = dir;
+      expect(toolNames()).toEqual(["deleteOperator", "addOperator", "modifyOperator", "searchDocs", "readDoc"]);
+    });
+
+    test("registers no docs tool when TEXERA_DOCS_DIR does not exist", () => {
+      env.TEXERA_DOCS_DIR = join(dir, "missing");
+      expect(toolNames()).toEqual(["deleteOperator", "addOperator", "modifyOperator"]);
+    });
+
+    test("registers no docs tool, and still creates the agent, when the folder cannot be read", () => {
+      writeFileSync(join(dir, "page.md"), "# Page\nSome text.");
+      symlinkSync(join(dir, "nowhere"), join(dir, "broken.md"));
+      env.TEXERA_DOCS_DIR = dir;
+      expect(toolNames()).toEqual(["deleteOperator", "addOperator", "modifyOperator"]);
+    });
+  });
+
+  test("drops the docs output of a finished task from the next user request", async () => {
+    const model = scripted([
+      { tool: "searchDocs", input: { query: "upload" } },
+      "Use the Upload button.",
+      "You are welcome.",
+    ]);
+    const agent = docsAgent(model);
+    await agent.sendMessage("how do I upload a file");
+    await agent.sendMessage("thanks");
+
+    const next = contextOf(model, 2);
+    expect(next).toContain("# Completed Tasks");
+    expect(next).toContain("- searchDocs (succeeded)");
+    expect(next).toContain("Thought: Use the Upload button.");
+    expect(next).not.toContain("# Documentation Read");
+    expect(next).not.toContain("path: getting-started/datasets");
+  });
+
+  test("leaves out the oldest docs output and says so once the outputs pass the budget", async () => {
+    const letters = ["a", "b", "c", "d", "e", "f"];
+    const big = new DocsIndex([
+      {
+        path: "big/page",
+        title: "Big",
+        description: "",
+        body: letters.map(l => `## Part ${l}\n${l.repeat(3800)}`).join("\n\n"),
+      },
+    ]);
+    const model = scripted([
+      ...letters.map(l => ({ tool: "readDoc", input: { path: "big/page", section: `Part ${l}` } })),
+      "done",
+    ]);
+    await docsAgent(model, big).sendMessage("read everything");
+
+    const sixth = contextOf(model, 5);
+    expect(sixth).not.toContain("dropped to save space");
+    expect(sixth).toContain("a".repeat(3800));
+
+    const last = contextOf(model, 6);
+    expect(last).toContain("(1 earlier output dropped to save space, call the tool again if you need it)");
+    expect(last).not.toContain('## Turn 1: readDoc {"path":"big/page","section":"Part a"}');
+    expect(last).not.toContain("aaaa");
+    for (const l of letters.slice(1)) expect(last).toContain(l.repeat(3800));
   });
 });

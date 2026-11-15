@@ -47,6 +47,15 @@ import {
   TOOL_NAME_EXECUTE_OPERATOR,
   type ExecutionConfig,
 } from "./tools/workflow-execution-tools";
+import {
+  createReadDocTool,
+  createSearchDocsTool,
+  getSharedDocsIndex,
+  TOOL_NAME_READ_DOC,
+  TOOL_NAME_SEARCH_DOCS,
+} from "./tools/docs-tools";
+import type { DocsIndex } from "./tools/docs-index";
+import { env } from "../config/env";
 import { assembleContext } from "./util/context-utils";
 import { compileWorkflowAsync, type WorkflowCompilationResponse } from "../api/compile-api";
 import { createLogger } from "../logger";
@@ -62,6 +71,8 @@ export interface TexeraAgentConfig {
   systemPrompt?: string;
   /** JWT of the user the agent acts for, sent on backend calls that are not tied to a workflow. */
   userToken?: string;
+  /** Docs index for the searchDocs and readDoc tools. Omitted loads the shared one from TEXERA_DOCS_DIR; null registers neither tool. */
+  docsIndex?: DocsIndex | null;
 }
 
 export interface AgentMessageResult {
@@ -122,6 +133,7 @@ export class TexeraAgent {
   private messageCounter = 0;
 
   private tools: Record<string, any>;
+  private readonly docsIndex: DocsIndex | null;
 
   private abortController: AbortController | null = null;
 
@@ -161,6 +173,7 @@ export class TexeraAgent {
       systemPrompt: this.systemPrompt,
     };
 
+    this.docsIndex = config.docsIndex !== undefined ? config.docsIndex : getSharedDocsIndex(env.TEXERA_DOCS_DIR);
     this.tools = this.createTools();
   }
 
@@ -232,6 +245,11 @@ export class TexeraAgent {
           this.workflowResultState.set(opId, this.head, operatorInfo);
         }
       );
+    }
+
+    if (this.docsIndex) {
+      tools[TOOL_NAME_SEARCH_DOCS] = createSearchDocsTool(this.docsIndex);
+      tools[TOOL_NAME_READ_DOC] = createReadDocTool(this.docsIndex);
     }
 
     return tools;

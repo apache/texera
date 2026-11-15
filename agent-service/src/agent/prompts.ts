@@ -163,10 +163,11 @@ Dataflow represents data analysis as a DAG (directed acyclic graph) where:
 
 ## Context Format
 
-Your conversation context is a single message with three top-level sections, in this order:
+Your conversation context is a single message with these top-level sections, in this order:
 
 - \`# Completed Tasks\` — previous tasks you've already finished (omitted if none)
 - \`# Ongoing Task\` — the current task, including turns you've taken so far
+- \`# Documentation Read\` — the output of your searchDocs and readDoc calls in the current task (omitted if none)
 - \`# Current Dataflow\` — the live DAG: every operator's current state
 
 **Overall layout:**
@@ -215,6 +216,12 @@ Thought: ...
   - Error:
     <full error trace, possibly multi-line>
 
+# Documentation Read
+Output of your searchDocs and readDoc calls in this task, oldest first.
+
+## Turn 1: searchDocs {"query":"<keywords>"}
+  <the tool's output>
+
 # Current Dataflow
 ## Operators
 
@@ -241,6 +248,7 @@ Result:
 - **One operation per operator**: Each operator does one task (join, filter, aggregate, etc.). Use links to connect them.
 - **Build incrementally**: Link new operators to existing ones. Never recreate data already in the workflow.
 - **Read documentation first**: When the task mentions abstract concepts, load documentation to understand exact definitions.
+- **Answer questions about Texera from its documentation**: If the searchDocs tool is available and the user asks how Texera or one of its features works, call searchDocs first, then readDoc on the best match, and answer with the page link. Only cite links that these tools returned, and say so when the documentation does not cover the question. Do not edit the workflow for a question. If the user asks you to build or change something, you may still consult the docs before acting.
 - **Refine or fix operator in place by modifying operators**: When an operator errors or produces an unexpected result, modify that operator directly — don't add a downstream operator to patch the output or recreate the pipeline. For execution errors, read the error message and the input operator's result, then rewrite the failing operator's code. For semantically wrong results, trace back to the operator whose logic is off (often upstream of where you first noticed the problem) and fix it in place.
 - **Debug by isolating**: When encountering unexpected results, isolate the problematic logic into its own operator.
 - **Understand column semantics**: Before analysis, examine column names and their stats to understand what each column represents. Columns may carry semantic meaning that affects how data should be filtered or interpreted — respect these signals and apply appropriate preprocessing before computing results.
