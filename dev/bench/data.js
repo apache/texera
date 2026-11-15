@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1794660186410,
+  "lastUpdate": 1794747566945,
   "repoUrl": "https://github.com/apache/texera",
   "entries": {
     "Arrow Flight E2E Throughput": [
@@ -22401,6 +22401,163 @@ window.BENCHMARK_DATA = {
           {
             "name": "throughput / bs=1000 sw=50 sl=512",
             "value": 722.6917679402128,
+            "unit": "tuples/sec"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "name": "Matthew B.",
+            "username": "Ma77Ball",
+            "email": "mgball@uci.edu"
+          },
+          "committer": {
+            "name": "GitHub",
+            "username": "web-flow",
+            "email": "noreply@github.com"
+          },
+          "id": "b83963a9161c645d9ee2520004c498bad5f61386",
+          "message": "refactor(frontend): extract agent payload and ReActStep mapping helpers (#5995)\n\n### What changes were proposed in this PR?\n- Added a private `mapApiAgentInfo(api)` helper in `AgentService` and\nrouted `createAgent`, `getAgent`, and `getAllAgents` through it,\nremoving three identical inline `ApiAgentInfo -> AgentInfo` mappings\n(including the duplicated `delegate` sub-mapping).\n- Added a private `convertApiReActSteps(steps)` helper and routed the\nthree `steps.map(s => convertApiReActStep(s))` sites through it.\n- No behavior change: the produced `AgentInfo` and `ReActStep[]` values\nare identical to before.\n### Any related issues, documentation, discussions?\nCloses: #5990\n### How was this PR tested?\n- Run `cd frontend && yarn test --include='**/agent.service.spec.ts'`,\nexpect the existing `AgentService` suite (including the `createAgent`\ncases that flush an API payload and assert the mapped `AgentInfo`) to\npass.\n- Typecheck with `cd frontend && npx tsc --noEmit -p tsconfig.json`,\nexpect no errors in `agent.service.ts` (the only error is a pre-existing\nunrelated missing-module in `migration-llm.ts`).\n### Was this PR authored or co-authored using generative AI tooling?\nCo-authored with Claude Opus 4.8 in compliance with ASF\n\n---------\n\nCo-authored-by: Claude Opus 4.8 <noreply@anthropic.com>\nCo-authored-by: Jiadong Bai <43344272+bobbai00@users.noreply.github.com>",
+          "timestamp": "2026-11-15T05:45:51Z",
+          "url": "https://github.com/apache/texera/commit/b83963a9161c645d9ee2520004c498bad5f61386"
+        },
+        "date": 1794747566144,
+        "tool": "customBiggerIsBetter",
+        "benches": [
+          {
+            "name": "throughput / bs=10 sw=1 sl=8",
+            "value": 632.4114707371851,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=1 sl=8",
+            "value": 1136.363348979928,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=1 sl=8",
+            "value": 1224.6408741421878,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=1 sl=64",
+            "value": 889.2978065968051,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=1 sl=64",
+            "value": 1187.4447128970041,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=1 sl=64",
+            "value": 1242.6027409320773,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=1 sl=512",
+            "value": 886.7015109414584,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=1 sl=512",
+            "value": 1172.203029066708,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=1 sl=512",
+            "value": 1231.3565730100795,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=10 sl=8",
+            "value": 725.0988671580271,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=10 sl=8",
+            "value": 941.4363076736965,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=10 sl=8",
+            "value": 981.523644810868,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=10 sl=64",
+            "value": 750.771812380115,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=10 sl=64",
+            "value": 962.4888077632654,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=10 sl=64",
+            "value": 981.8157887746526,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=10 sl=512",
+            "value": 766.0338351483995,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=10 sl=512",
+            "value": 953.9784536724587,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=10 sl=512",
+            "value": 956.7113870220574,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=50 sl=8",
+            "value": 454.80602863073807,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=50 sl=8",
+            "value": 532.2402882154461,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=50 sl=8",
+            "value": 535.3938777877412,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=50 sl=64",
+            "value": 455.0029962516057,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=50 sl=64",
+            "value": 526.0234770370206,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=50 sl=64",
+            "value": 529.2239077435718,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=50 sl=512",
+            "value": 435.7337163163126,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=50 sl=512",
+            "value": 507.39194603505905,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=50 sl=512",
+            "value": 512.9699562473805,
             "unit": "tuples/sec"
           }
         ]
