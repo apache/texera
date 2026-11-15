@@ -76,7 +76,6 @@ engine:
           - 'amber/build.sbt'
           - 'amber/.scalafmt.conf'
           - 'amber/.scalafix.conf'
-          - 'amber/project/**'
           - 'amber/src/main/scala/**'
           - 'amber/src/main/java/**'
           - 'amber/src/main/protobuf/**'
