@@ -49,7 +49,44 @@ abstract class SQLSourceOpExec(descString: String) extends SourceOperatorExecuto
     *
     * @return Iterator[TupleLike]
     */
-  override def produceTuple(): Iterator[TupleLike] = {
+  override def produceTuple(): Iterator[TupleLike] =
+    iterateRows[ResultSet](curResultSet, _.next())(
+      fetchNextJdbcResult,
+      clearJdbcResult,
+      f => cachedTuple.foreach(f),
+      f => curOffset.foreach(f),
+      f => curLimit.foreach(f)
+    )
+
+  private def fetchNextJdbcResult(): Boolean = {
+    curQuery = getNextQuery
+    curQuery match {
+      case Some(query) =>
+        curResultSet = Option(query.executeQuery)
+        true
+      case None =>
+        curResultSet = None
+        false
+    }
+  }
+
+  private def clearJdbcResult(): Unit = {
+    curResultSet.foreach(_.close())
+    curQuery.foreach(_.close())
+    curResultSet = None
+    curQuery = None
+  }
+
+  protected final def iterateRows[R](
+      currentRows: => Option[R],
+      advanceRow: R => Boolean
+  )(
+      fetchNextResult: () => Boolean,
+      clearResult: () => Unit,
+      forCachedTuple: (Tuple => Unit) => Unit,
+      forOffset: (Long => Unit) => Unit,
+      forLimit: (Long => Unit) => Unit
+  ): Iterator[TupleLike] = {
     new Iterator[TupleLike]() {
       override def hasNext: Boolean = {
         cachedTuple match {
@@ -75,7 +112,7 @@ abstract class SQLSourceOpExec(descString: String) extends SourceOperatorExecuto
       override def next(): Tuple = {
 
         // if has the next Tuple in cache, return it and clear the cache
-        cachedTuple.foreach(tuple => {
+        forCachedTuple(tuple => {
           cachedTuple = None
           return tuple
         })
@@ -85,12 +122,12 @@ abstract class SQLSourceOpExec(descString: String) extends SourceOperatorExecuto
         while (true) {
           breakable {
 
-            curResultSet match {
-              case Some(resultSet) =>
-                if (resultSet.next()) {
+            currentRows match {
+              case Some(rows) =>
+                if (advanceRow(rows)) {
 
                   // manually skip until the offset position in order to adapt to progressive batches
-                  curOffset.foreach(offset => {
+                  forOffset(offset => {
                     if (offset > 0) {
                       curOffset = Option(offset - 1)
                       break()
@@ -104,30 +141,17 @@ abstract class SQLSourceOpExec(descString: String) extends SourceOperatorExecuto
                     break()
 
                   // update the limit in order to adapt to progressive batches
-                  curLimit.foreach(limit => {
+                  forLimit(limit => {
                     if (limit > 0) {
                       curLimit = Some(limit - 1)
                     }
                   })
                   return tuple
                 } else {
-                  // close the current resultSet and query
-                  curResultSet.foreach(resultSet => resultSet.close())
-                  curQuery.foreach(query => query.close())
-                  curResultSet = None
-                  curQuery = None
-                  break()
+                  clearResult()
                 }
               case None =>
-                curQuery = getNextQuery
-                curQuery match {
-                  case Some(query) =>
-                    curResultSet = Option(query.executeQuery)
-                    break()
-                  case None =>
-                    curResultSet = None
-                    return null
-                }
+                if (!fetchNextResult()) return null
             }
 
           }
@@ -383,7 +407,26 @@ abstract class SQLSourceOpExec(descString: String) extends SourceOperatorExecuto
   @throws[SQLException]
   protected def loadTableNames(): Unit
 
+  protected final def collectTableNames(preparedStatement: PreparedStatement): Unit = {
+    val resultSet = preparedStatement.executeQuery()
+    while (resultSet.next()) tableNames += resultSet.getString(1)
+    resultSet.close()
+    preparedStatement.close()
+  }
+
   protected def addFilterConditions(queryBuilder: StringBuilder): Unit
+
+  protected final def addJdbcKeywordCondition(queryBuilder: StringBuilder, column: String)(
+      enabled: => Boolean,
+      typeForColumn: => AttributeType
+  )(conditionFor: String => String): Unit = {
+    if (enabled) {
+      val columnType = typeForColumn
+      if (columnType != AttributeType.STRING)
+        throw new RuntimeException("Can't do keyword search on type " + columnType.toString)
+      queryBuilder ++= conditionFor(column)
+    }
+  }
 
   /**
     * generate sql query string using the info provided by user. One of following
