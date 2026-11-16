@@ -103,25 +103,27 @@ object ImageTaskCodegen extends TaskCodegen {
 
   override def parsePython(ctx: CodegenContext): String =
     """            if task == "image-to-text":
-      |                if isinstance(body, dict):
-      |                    if "md_results" in body:
-      |                        return body["md_results"]
-      |                    if body.get("choices"):
-      |                        return body["choices"][0].get("message", {}).get("content", json.dumps(body))
+      |                if isinstance(body, dict) and "md_results" in body:
+      |                    return body["md_results"]
+      |                content = self._chat_message_content(body)
+      |                if content is not None:
+      |                    return content
       |                if isinstance(body, list) and body and isinstance(body[0], dict):
       |                    return body[0].get("generated_text", json.dumps(body))
       |                return json.dumps(body)
       |            elif task in ("visual-question-answering", "document-question-answering"):
+      |                # Third-party chat providers answer via choices[0].message;
+      |                # hf-inference returns the native {"answer": ...} shape.
+      |                content = self._chat_message_content(body)
+      |                if content is not None:
+      |                    return content
       |                if isinstance(body, dict):
-      |                    # Third-party chat providers answer via choices[0].message;
-      |                    # hf-inference returns the native {"answer": ...} shape.
-      |                    if body.get("choices"):
-      |                        return body["choices"][0].get("message", {}).get("content", json.dumps(body))
       |                    return body.get("answer", json.dumps(body))
       |                return json.dumps(body)
       |            elif task == "image-text-to-text":
-      |                if isinstance(body, dict) and body.get("choices"):
-      |                    return body["choices"][0].get("message", {}).get("content", json.dumps(body))
+      |                content = self._chat_message_content(body)
+      |                if content is not None:
+      |                    return content
       |                if isinstance(body, list) and body and isinstance(body[0], dict):
       |                    return body[0].get("generated_text", json.dumps(body))
       |                return json.dumps(body)
@@ -153,8 +155,9 @@ object ImageTaskCodegen extends TaskCodegen {
       |                                return self._url_to_data_url(data[0]["url"])
       |                return json.dumps(body)
       |            elif task == "zero-shot-image-classification":
-      |                if isinstance(body, dict) and body.get("choices"):
-      |                    return body["choices"][0].get("message", {}).get("content", json.dumps(body))
+      |                content = self._chat_message_content(body)
+      |                if content is not None:
+      |                    return content
       |                return json.dumps(body)
       |            elif task in ("image-classification", "object-detection", "image-segmentation"):
       |                return json.dumps(body)""".stripMargin
