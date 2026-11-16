@@ -56,6 +56,7 @@ import { ExecuteWorkflowService } from "../service/execute-workflow/execute-work
 import { HeatmapStatsRestoreService } from "../service/heatmap/heatmap-stats-restore.service";
 import { WorkflowResultService } from "../service/workflow-result/workflow-result.service";
 import { checkIfWorkflowBroken } from "../../common/util/workflow-check";
+import { WorkflowVersionService } from "../../dashboard/service/user/workflow-version/workflow-version.service";
 import { NzSpinComponent } from "ng-zorro-antd/spin";
 import { ResultPanelComponent } from "./result-panel/result-panel.component";
 import { WorkflowEditorComponent } from "./workflow-editor/workflow-editor.component";
@@ -140,7 +141,8 @@ export class WorkspaceComponent implements AfterViewInit, OnInit, OnDestroy {
     private computingUnitStatusService: ComputingUnitStatusService,
     private executeWorkflowService: ExecuteWorkflowService,
     private workflowResultService: WorkflowResultService,
-    private heatmapStatsRestoreService: HeatmapStatsRestoreService
+    private heatmapStatsRestoreService: HeatmapStatsRestoreService,
+    private workflowVersionService: WorkflowVersionService
   ) {}
 
   ngOnInit() {
@@ -217,6 +219,7 @@ export class WorkspaceComponent implements AfterViewInit, OnInit, OnDestroy {
     // rather than rebuilt, which is what used to make the switch take seconds.
     if (isLeavingWorkspace(this.router, this.workflowActionService.getOpenWorkflowId())) {
       this.workflowActionService.clearWorkflow();
+      this.workflowVersionService.discardOpenVersionDisplay();
       this.computingUnitStatusService.disconnect();
       this.resetWorkflowSessionState();
       // The overlay's view lives in the root-provided wrapper; the metrics behind it are cleared
