@@ -19,13 +19,16 @@
 
 package org.apache.texera.amber.operator.visualization.histogram2d
 
+import org.apache.texera.amber.util.PythonTestSupport.{
+  NeedsPythonPackages,
+  canImportWithin,
+  configuredPython
+}
 import org.apache.texera.amber.core.tuple.{AttributeType, Schema}
 import org.apache.texera.amber.operator.LogicalOp
 import org.apache.texera.amber.operator.metadata.OperatorGroupConstants
-import org.apache.texera.amber.operator.tags.IntegrationTest
 import org.apache.texera.amber.pybuilder.PythonTemplateBuilder.pyStringLiteral
 import org.apache.texera.amber.util.JSONUtils.objectMapper
-import org.scalatest.Tag
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 
@@ -33,11 +36,8 @@ import java.nio.charset.StandardCharsets
 import java.nio.file.Files
 import java.util.concurrent.TimeUnit
 import scala.io.Source
-import scala.util.Try
 
 class Histogram2DOpDescSpec extends AnyFlatSpec with Matchers {
-
-  private val NeedsPythonPackages = Tag(classOf[IntegrationTest].getName)
 
   private def configured(): Histogram2DOpDesc = {
     val d = new Histogram2DOpDesc
@@ -115,8 +115,8 @@ class Histogram2DOpDescSpec extends AnyFlatSpec with Matchers {
   }
 
   it should "leave both files behind when it runs" taggedAs NeedsPythonPackages in {
-    val python = resolvePython().getOrElse(cancel("No runnable python executable"))
-    if (!canImportPandasAndPlotly(python))
+    val python = configuredPython().getOrElse(cancel("No runnable python executable"))
+    if (!canImportWithin(python, 120, "pandas", "plotly"))
       cancel(s"'$python' cannot import pandas and plotly")
 
     val dir = Files.createTempDirectory("histogram2d-outputs-")
@@ -145,28 +145,4 @@ class Histogram2DOpDescSpec extends AnyFlatSpec with Matchers {
       Files.size(html) should be > 0L
     }
   }
-
-  private def resolvePython(): Option[String] = {
-    def runnable(exe: String): Boolean =
-      Try(new ProcessBuilder(exe, "--version").redirectErrorStream(true).start()).toOption
-        .exists { p =>
-          if (!p.waitFor(5, TimeUnit.SECONDS)) { p.destroyForcibly(); false }
-          else p.exitValue() == 0
-        }
-
-    (sys.env.get("UDF_PYTHON_PATH").filter(_.nonEmpty).toList ++ List(
-      "python3",
-      "python",
-      "py"
-    )).distinct
-      .find(runnable)
-  }
-
-  private def canImportPandasAndPlotly(python: String): Boolean =
-    Try(
-      new ProcessBuilder(python, "-c", "import pandas, plotly").redirectErrorStream(true).start()
-    ).toOption.exists { p =>
-      if (!p.waitFor(120, TimeUnit.SECONDS)) { p.destroyForcibly(); false }
-      else p.exitValue() == 0
-    }
 }

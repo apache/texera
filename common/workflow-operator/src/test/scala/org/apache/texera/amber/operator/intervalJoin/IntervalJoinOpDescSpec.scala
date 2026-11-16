@@ -19,16 +19,18 @@
 
 package org.apache.texera.amber.operator.intervalJoin
 
-import com.typesafe.config.ConfigFactory
+import org.apache.texera.amber.util.PythonTestSupport.{
+  NeedsPythonPackages,
+  canImport,
+  configuredPython
+}
 import org.apache.texera.amber.core.executor.OpExecWithClassName
 import org.apache.texera.amber.core.tuple.{Attribute, AttributeType, Schema, Tuple}
 import org.apache.texera.amber.core.virtualidentity.{ExecutionIdentity, WorkflowIdentity}
 import org.apache.texera.amber.core.workflow.{HashPartition, PortIdentity}
 import org.apache.texera.amber.operator.LogicalOp
 import org.apache.texera.amber.operator.metadata.OperatorGroupConstants
-import org.apache.texera.amber.operator.tags.IntegrationTest
 import org.apache.texera.amber.util.JSONUtils.objectMapper
-import org.scalatest.Tag
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 
@@ -37,11 +39,8 @@ import java.nio.file.Files
 import java.sql.Timestamp
 import java.util.concurrent.TimeUnit
 import scala.io.Source
-import scala.util.Try
 
 class IntervalJoinOpDescSpec extends AnyFlatSpec with Matchers {
-
-  private val NeedsPythonPackages = Tag(classOf[IntegrationTest].getName)
 
   private val workflowId = WorkflowIdentity(1L)
   private val executionId = ExecutionIdentity(1L)
@@ -131,10 +130,10 @@ class IntervalJoinOpDescSpec extends AnyFlatSpec with Matchers {
     * columns against the schema the operator promises for the same two inputs.
     */
   it should "keep an input column that carries a temporary's name" taggedAs NeedsPythonPackages in {
-    val python = resolvePython().getOrElse(
+    val python = configuredPython().getOrElse(
       cancel("No runnable python executable (udf.conf python.path, python3, python, py)")
     )
-    if (!canImportPandas(python)) cancel(s"'$python' cannot import pandas")
+    if (!canImport(python, "pandas")) cancel(s"'$python' cannot import pandas")
 
     val left = Schema()
       .add(new Attribute("x", AttributeType.INTEGER))
@@ -188,10 +187,10 @@ class IntervalJoinOpDescSpec extends AnyFlatSpec with Matchers {
   private val millisecondRight = "2024-01-01 12:00:00.0009"
 
   it should "compare timestamps by the millisecond as the engine does" taggedAs NeedsPythonPackages in {
-    val python = resolvePython().getOrElse(
+    val python = configuredPython().getOrElse(
       cancel("No runnable python executable (udf.conf python.path, python3, python, py)")
     )
-    if (!canImportPandas(python)) cancel(s"'$python' cannot import pandas")
+    if (!canImport(python, "pandas")) cancel(s"'$python' cannot import pandas")
 
     val left = Schema().add(new Attribute("l", AttributeType.TIMESTAMP))
     val right = Schema().add(new Attribute("r", AttributeType.TIMESTAMP))
@@ -253,10 +252,10 @@ class IntervalJoinOpDescSpec extends AnyFlatSpec with Matchers {
   // on or before the engine's bound and one past it. Both sides are fed the
   // same wall clocks, and the script runs with TZ set to the same zone.
   it should "add a time interval on the machine's wall clock as the engine does" taggedAs NeedsPythonPackages in {
-    val python = resolvePython().getOrElse(
+    val python = configuredPython().getOrElse(
       cancel("No runnable python executable (udf.conf python.path, python3, python, py)")
     )
-    if (!canImportPandas(python)) cancel(s"'$python' cannot import pandas")
+    if (!canImport(python, "pandas")) cancel(s"'$python' cannot import pandas")
 
     val zone = "America/Chicago"
     val cases = Seq(
@@ -330,10 +329,10 @@ class IntervalJoinOpDescSpec extends AnyFlatSpec with Matchers {
   // right row first and the left rows in ascending order, as the executor
   // assumes.
   it should "add the constant in the key's declared type as the engine does" taggedAs NeedsPythonPackages in {
-    val python = resolvePython().getOrElse(
+    val python = configuredPython().getOrElse(
       cancel("No runnable python executable (udf.conf python.path, python3, python, py)")
     )
-    if (!canImportPandas(python)) cancel(s"'$python' cannot import pandas")
+    if (!canImport(python, "pandas")) cancel(s"'$python' cannot import pandas")
 
     val cases = Seq(
       (AttributeType.INTEGER, 10L, 0L, Seq(3L, 20L)),
@@ -403,33 +402,4 @@ class IntervalJoinOpDescSpec extends AnyFlatSpec with Matchers {
     ij.includeLeftBound shouldBe false
     ij.includeRightBound shouldBe false
   }
-
-  // Python resolution follows FilledAreaPlotOpDescSpec: udf.conf python.path
-  // (UDF_PYTHON_PATH), then python3 / python / py.
-  private def resolvePython(): Option[String] = {
-    def fromConfig: Option[String] =
-      Try(ConfigFactory.parseResources("udf.conf").resolve()).toOption
-        .orElse(Try(ConfigFactory.load()).toOption)
-        .flatMap(c => Try(c.getConfig("python").getString("path")).toOption)
-        .map(_.trim)
-        .filter(_.nonEmpty)
-
-    def runnable(exe: String): Boolean =
-      Try(new ProcessBuilder(exe, "--version").redirectErrorStream(true).start()).toOption
-        .exists { p =>
-          if (!p.waitFor(5, TimeUnit.SECONDS)) { p.destroyForcibly(); false }
-          else p.exitValue() == 0
-        }
-
-    (fromConfig.toList ++ List("python3", "python", "py")).distinct.find(runnable)
-  }
-
-  private def canImportPandas(python: String): Boolean =
-    Try(
-      new ProcessBuilder(python, "-c", "import pandas").redirectErrorStream(true).start()
-    ).toOption
-      .exists { p =>
-        if (!p.waitFor(60, TimeUnit.SECONDS)) { p.destroyForcibly(); false }
-        else p.exitValue() == 0
-      }
 }
