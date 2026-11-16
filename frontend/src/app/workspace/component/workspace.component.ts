@@ -55,6 +55,7 @@ import { ComputingUnitStatusService } from "../../common/service/computing-unit/
 import { ExecuteWorkflowService } from "../service/execute-workflow/execute-workflow.service";
 import { WorkflowResultService } from "../service/workflow-result/workflow-result.service";
 import { checkIfWorkflowBroken } from "../../common/util/workflow-check";
+import { WorkflowVersionService } from "../../dashboard/service/user/workflow-version/workflow-version.service";
 import { NzSpinComponent } from "ng-zorro-antd/spin";
 import { ResultPanelComponent } from "./result-panel/result-panel.component";
 import { WorkflowEditorComponent } from "./workflow-editor/workflow-editor.component";
@@ -132,7 +133,13 @@ export class WorkspaceComponent implements AfterViewInit, OnInit, OnDestroy {
     private changeDetectorRef: ChangeDetectorRef,
     private computingUnitStatusService: ComputingUnitStatusService,
     private executeWorkflowService: ExecuteWorkflowService,
+<<<<<<< HEAD
     private workflowResultService: WorkflowResultService
+=======
+    private workflowResultService: WorkflowResultService,
+    private heatmapStatsRestoreService: HeatmapStatsRestoreService,
+    private workflowVersionService: WorkflowVersionService
+>>>>>>> bde1f7d88 (fix(frontend): drop a version preview left open when leaving the workspace (#9367))
   ) {}
 
   ngOnInit() {
@@ -189,6 +196,28 @@ export class WorkspaceComponent implements AfterViewInit, OnInit, OnDestroy {
 
   @HostListener("window:beforeunload")
   ngOnDestroy() {
+<<<<<<< HEAD
+=======
+    this.persistBeforeLeaving();
+    this.codeEditorViewRef.clear();
+    // Tear down the connection and all websocket-derived session state so a
+    // re-entered workflow starts clean instead of reusing the previous one -- unless the Form
+    // View of this same workflow is taking over, in which case the session is handed to it
+    // rather than rebuilt, which is what used to make the switch take seconds.
+    if (isLeavingWorkspace(this.router, this.workflowActionService.getOpenWorkflowId())) {
+      this.workflowActionService.clearWorkflow();
+      this.workflowVersionService.discardOpenVersionDisplay();
+      this.computingUnitStatusService.disconnect();
+      this.resetWorkflowSessionState();
+      // The overlay's view lives in the root-provided wrapper; the metrics behind it are cleared
+      // just above, so the view goes with them. On a hand-over it stays: the arriving view has
+      // already restored the persisted overlay, and the metrics are kept.
+      this.workflowActionService.getJointGraphWrapper().setHeatmapView(null);
+    }
+  }
+
+  private persistBeforeLeaving(): void {
+>>>>>>> bde1f7d88 (fix(frontend): drop a version preview left open when leaving the workspace (#9367))
     if (this.userService.isLogin() && this.workflowPersistService.isWorkflowPersistEnabled()) {
       const workflow = this.workflowActionService.getWorkflow();
       this.workflowPersistService.persistWorkflow(workflow).pipe(untilDestroyed(this)).subscribe();
