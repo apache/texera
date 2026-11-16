@@ -18,6 +18,7 @@
 
 package org.apache.texera.amber.operator.visualization.histogram2d
 
+import org.apache.texera.amber.operator.visualization.StandaloneChartCode._
 import com.fasterxml.jackson.annotation.{JsonProperty, JsonPropertyDescription}
 import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaTitle
 import org.apache.texera.amber.pybuilder.PythonTemplateBuilder.{
@@ -122,21 +123,18 @@ class Histogram2DOpDesc extends PythonVisualizationOpDesc with PlotlyStandaloneC
     val xLit = pyStringLiteral(xColumn)
     val yLit = pyStringLiteral(yColumn)
 
+    // chart_df keeps the input whole for other branches.
     s"""import plotly.express as px
        |
        |def render_error(msg):
        |    return f"<h1>2D Histogram failed</h1><p>{msg}</p>"
        |
        |if in1df.empty:
-       |    with open(outputHtml, "w", encoding="utf-8") as output:
-       |        output.write(render_error("Input table is empty."))
+       |${standaloneErrorPage("Input table is empty.")}
        |else:
-       |    # Bound to a name of its own: the same frame can feed another branch
-       |    # of the plan, which must still see every row.
        |    chart_df = in1df.dropna(subset=[$xLit, $yLit])
        |    if chart_df.empty:
-       |        with open(outputHtml, "w", encoding="utf-8") as output:
-       |            output.write(render_error("No rows after dropping nulls."))
+       |${standaloneErrorPage("No rows after dropping nulls.", indent = 8)}
        |    else:
        |        fig = px.density_heatmap(
        |            chart_df,
@@ -147,8 +145,6 @@ class Histogram2DOpDesc extends PythonVisualizationOpDesc with PlotlyStandaloneC
        |            histnorm='${normalize.getValue}',
        |            text_auto=True
        |        )
-       |        fig.write_json(outputJson)
-       |        fig.write_html(outputHtml)
-       |        print("2D histogram saved to " + outputJson + " and " + outputHtml)""".stripMargin
+       |${standaloneFigure("2D histogram", bothOutputs = true)}""".stripMargin
   }
 }

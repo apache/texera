@@ -25,6 +25,8 @@ import { RingBuffer } from "ring-buffer-ts";
 import { ExecutionState } from "../../types/execute-workflow.interface";
 import { GuiConfigService } from "../../../common/service/gui-config.service";
 
+export type OperatorConsoleMessage = Readonly<{ operatorId: string; message: ConsoleMessage }>;
+
 @Injectable({
   providedIn: "root",
 })
@@ -64,6 +66,19 @@ export class WorkflowConsoleService {
 
   getConsoleMessages(operatorId: string): ReadonlyArray<ConsoleMessage> | undefined {
     return this.consoleMessages.get(operatorId)?.toArray();
+  }
+
+  /** Every operator's messages in one list, oldest first, each with the operator it came from. */
+  getAllConsoleMessages(): ReadonlyArray<OperatorConsoleMessage> {
+    const all: OperatorConsoleMessage[] = [];
+    this.consoleMessages.forEach((messages, operatorId) =>
+      messages.toArray().forEach(message => all.push({ operatorId, message }))
+    );
+    return all.sort(
+      (a, b) =>
+        a.message.timestamp.seconds - b.message.timestamp.seconds ||
+        a.message.timestamp.nanos - b.message.timestamp.nanos
+    );
   }
 
   hasConsoleMessages(operatorId: string): boolean {

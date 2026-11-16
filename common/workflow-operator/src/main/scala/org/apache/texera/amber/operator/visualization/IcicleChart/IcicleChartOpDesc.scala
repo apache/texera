@@ -19,6 +19,7 @@
 
 package org.apache.texera.amber.operator.visualization.IcicleChart
 
+import org.apache.texera.amber.operator.visualization.StandaloneChartCode._
 import com.fasterxml.jackson.annotation.{JsonProperty, JsonPropertyDescription}
 import com.kjetland.jackson.jsonSchema.annotations.{JsonSchemaInject, JsonSchemaTitle}
 import org.apache.texera.amber.pybuilder.PythonTemplateBuilder.{
@@ -133,11 +134,8 @@ class IcicleChartOpDesc extends PythonVisualizationOpDesc with PlotlyStandaloneC
     // reason for "no chart" is where the reader looks for the chart — printing it
     // to the terminal alone left that file absent. render_error's continuation
     // line keeps the runtime path's indentation, since the HTML is triple-quoted
-    // and those spaces reach the browser.
-    s"""def render_error(error_msg):
-       |    return '''<h1>Icicle chart is not available.</h1>
-       |                  <p>Reason is: {} </p>
-       |               '''.format(error_msg)
+    // and those spaces reach the browser. chart_df is a copy: the input can feed another branch.
+    s"""${standaloneError("Icicle chart is not available.")}
        |
        |def fail(error_msg):
        |    with open(outputHtml, "w", encoding="utf-8") as output:
@@ -147,8 +145,6 @@ class IcicleChartOpDesc extends PythonVisualizationOpDesc with PlotlyStandaloneC
        |if in1df.empty:
        |    fail("input table is empty.")
        |else:
-       |    # On a copy: the same frame can feed another branch of the plan, and
-       |    # both the assignment and the drop below would otherwise reach it.
        |    chart_df = in1df.copy()
        |    chart_df[$valueLit] = chart_df[chart_df[$valueLit] > 0][$valueLit]
        |    chart_df = chart_df.dropna(subset=[$attributes])
@@ -159,9 +155,7 @@ class IcicleChartOpDesc extends PythonVisualizationOpDesc with PlotlyStandaloneC
        |                         color=$valueLit, hover_data=[$attributes],
        |                         color_continuous_scale='RdBu')
        |        fig.update_layout(margin=dict(l=0, r=0, b=0, t=0))
-       |        fig.write_json(outputJson)
-       |        fig.write_html(outputHtml)
-       |        print("Icicle chart saved to " + outputHtml)""".stripMargin
+       |${standaloneFigure("Icicle chart")}""".stripMargin
   }
 
 }

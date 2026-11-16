@@ -19,6 +19,7 @@
 
 package org.apache.texera.amber.operator.visualization.choroplethMap
 
+import org.apache.texera.amber.operator.visualization.StandaloneChartCode._
 import com.fasterxml.jackson.annotation.{JsonProperty, JsonPropertyDescription}
 import com.kjetland.jackson.jsonSchema.annotations.{JsonSchemaInject, JsonSchemaTitle}
 import org.apache.texera.amber.pybuilder.PythonTemplateBuilder.{
@@ -131,11 +132,8 @@ class ChoroplethMapOpDesc extends PythonVisualizationOpDesc with PlotlyStandalon
     // reason for "no chart" is where the reader looks for the chart — printing it
     // to the terminal alone left that file absent. render_error's continuation
     // line keeps the runtime path's indentation, since the HTML is triple-quoted
-    // and those spaces reach the browser.
-    s"""def render_error(error_msg):
-       |    return '''<h1>Choropleth map is not available.</h1>
-       |                  <p>Reason is: {} </p>
-       |               '''.format(error_msg)
+    // and those spaces reach the browser. chart_df keeps the input whole for other branches.
+    s"""${standaloneError("Choropleth map is not available.")}
        |
        |def fail(error_msg):
        |    with open(outputHtml, "w", encoding="utf-8") as output:
@@ -145,16 +143,12 @@ class ChoroplethMapOpDesc extends PythonVisualizationOpDesc with PlotlyStandalon
        |if in1df.empty:
        |    fail("Input table is empty.")
        |else:
-       |    # Bound to a name of its own: the same frame can feed another branch
-       |    # of the plan, which must still see every row.
        |    chart_df = in1df.dropna(subset=[$locationsLit, $colorLit])
        |    if chart_df.empty:
        |        fail("No valid rows left (every row has at least 1 missing value).")
        |    else:
        |        fig = px.choropleth(chart_df, locations=$locationsLit, color=$colorLit, color_continuous_scale=px.colors.sequential.Plasma)
        |        fig.update_layout(margin={"r":0,"t":0,"l":0,"b":0})
-       |        fig.write_json(outputJson)
-       |        fig.write_html(outputHtml)
-       |        print("Choropleth map saved to " + outputJson + " and " + outputHtml)""".stripMargin
+       |${standaloneFigure("Choropleth map", bothOutputs = true)}""".stripMargin
   }
 }

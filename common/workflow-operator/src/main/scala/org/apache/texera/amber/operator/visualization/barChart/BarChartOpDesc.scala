@@ -19,6 +19,7 @@
 
 package org.apache.texera.amber.operator.visualization.barChart
 
+import org.apache.texera.amber.operator.visualization.StandaloneChartCode._
 import com.fasterxml.jackson.annotation.{JsonProperty, JsonPropertyDescription}
 import com.kjetland.jackson.jsonSchema.annotations.{JsonSchemaInject, JsonSchemaTitle}
 import org.apache.texera.amber.pybuilder.PythonTemplateBuilder.{
@@ -166,11 +167,9 @@ class BarChartOpDesc extends PythonVisualizationOpDesc with PlotlyStandaloneCode
     // reason for "no chart" is where the reader looks for the chart — printing it
     // to the terminal alone left that file absent. render_error's continuation
     // line keeps the runtime path's indentation, since the HTML is triple-quoted
-    // and those spaces reach the browser.
-    s"""def render_error(error_msg):
-       |    return '''<h1>Bar chart is not available.</h1>
-       |                  <p>Reason is: {} </p>
-       |               '''.format(error_msg)
+    // and those spaces reach the browser. Empty is checked before the dropna, since an empty
+    // table read back from JSONL has no columns to name, and chart_df keeps the input whole.
+    s"""${standaloneError("Bar chart is not available.")}
        |
        |def fail(error_msg):
        |    with open(outputHtml, "w", encoding="utf-8") as output:
@@ -180,21 +179,14 @@ class BarChartOpDesc extends PythonVisualizationOpDesc with PlotlyStandaloneCode
        |if $fieldsLit == $valueLit:
        |    fail("Fields should not have the same value.")
        |elif in1df.empty:
-       |    # Checked before the dropna, unlike the runtime path: an empty table read
-       |    # back from JSONL carries no columns at all, so naming them in `subset`
-       |    # would raise a KeyError instead of reporting the empty table.
        |    fail("Table should not have any empty/null values or fields.")
        |else:
-       |    # Bound to a name of its own: the same frame can feed another branch
-       |    # of the plan, which must still see every row.
        |    chart_df = in1df.dropna(subset=[$valueLit, $fieldsLit])
        |    if chart_df.empty:
        |        fail("Table should not have any empty/null values or fields.")
        |    else:
        |        fig = go.Figure(px.bar(chart_df, $barArgs))
        |        fig.update_layout(margin=dict(l=0, r=0, t=0, b=0))
-       |        fig.write_json(outputJson)
-       |        fig.write_html(outputHtml)
-       |        print("Bar chart saved to " + outputJson + " and " + outputHtml)""".stripMargin
+       |${standaloneFigure("Bar chart", bothOutputs = true)}""".stripMargin
   }
 }

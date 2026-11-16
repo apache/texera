@@ -47,6 +47,20 @@ trait StandaloneCodeGenerator {
     generateStandaloneCode()
 
   /**
+    * A column's name as the input table spells it.
+    *
+    * The engine looks a column up ignoring case, `Schema` lowercasing the name, so a
+    * setting that names `Name` reads the column `name`. pandas indexes a frame by the
+    * exact name. A name the schema does not hold, or no schema at all, comes back as
+    * written, leaving the script to fail where the run would have.
+    */
+  protected def columnAsStored(column: String, schema: Option[Schema]): String =
+    schema
+      .flatMap(s => scala.util.Try(s.getAttribute(column)).toOption)
+      .map(_.getName)
+      .getOrElse(column)
+
+  /**
     * A column as the text the engine's `toString` would have produced.
     *
     * A hole costs the column its type: pandas reads a holed integer column as a
@@ -123,9 +137,42 @@ trait StandaloneCodeGenerator {
     * to start.
     */
   def standaloneImports(): Seq[String] = Seq.empty
+
+  /**
+    * A helper each input frame goes through before this operator's code runs,
+    * for an operator the engine hands its table in a different form than the
+    * script's upstream does. The translator defines it once and feeds the
+    * operator what it returns, leaving the upstream frame as it was.
+    *
+    * A Python operator runs in pyamber, which hands it a DOUBLE column as
+    * float64, where a NaN and a null are one value. A source can hand the script
+    * a Float64 column that keeps them apart, and an operator written against
+    * float64 then answers differently.
+    */
+  def standaloneInputAdapter(): Option[StandaloneCodeGenerator.InputAdapter] =
+    this match {
+      case _: PythonOperatorDescriptor => Some(StandaloneCodeGenerator.PythonOperatorInput)
+      case _                           => None
+    }
 }
 
 object StandaloneCodeGenerator {
+
+  /** A helper's name and the definition that binds it. */
+  final case class InputAdapter(name: String, definition: String)
+
+  /** `_texera_python_operator_input`: a copy with Float64 columns as float64, the way pyamber
+    * hands them over, so the upstream frame another operator reads stays as it was.
+    */
+  val PythonOperatorInput: InputAdapter = InputAdapter(
+    "_texera_python_operator_input",
+    """def _texera_python_operator_input(df):
+      |    df = df.copy()
+      |    for _c in df.columns:
+      |        if isinstance(df[_c].dtype, (pd.Float64Dtype, pd.Float32Dtype)):
+      |            df[_c] = df[_c].astype("float64")
+      |    return df""".stripMargin
+  )
 
   /**
     * What a source writes where the file it reads should be named.

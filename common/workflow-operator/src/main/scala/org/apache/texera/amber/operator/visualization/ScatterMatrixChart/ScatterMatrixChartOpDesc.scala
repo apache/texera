@@ -19,6 +19,7 @@
 
 package org.apache.texera.amber.operator.visualization.ScatterMatrixChart
 
+import org.apache.texera.amber.operator.visualization.StandaloneChartCode._
 import com.fasterxml.jackson.annotation.{JsonProperty, JsonPropertyDescription}
 import com.kjetland.jackson.jsonSchema.annotations.{JsonSchemaInject, JsonSchemaTitle}
 import org.apache.texera.amber.pybuilder.PythonTemplateBuilder.{
@@ -116,8 +117,6 @@ class ScatterMatrixChartOpDesc extends PythonVisualizationOpDesc with PlotlyStan
     // here printed to stdout without writing any output at all.
     s"""fig = px.scatter_matrix(in1df, dimensions=[$dimensions], color=${pyStringLiteral(color)})
        |fig.update_layout(margin=dict(t=0, b=0, l=0, r=0))
-       |fig.write_json(outputJson)
-       |fig.write_html(outputHtml)
-       |print("Scatter matrix saved to " + outputHtml)""".stripMargin
+       |${standaloneFigure("Scatter matrix", indent = 0)}""".stripMargin
   }
 }
