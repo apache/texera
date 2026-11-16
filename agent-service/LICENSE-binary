@@ -269,7 +269,7 @@ Agent service npm packages:
   - uint8array-extras@1.5.0
   - undici@7.29.0
   - undici-types@7.16.0
-  - zod@3.25.76
+  - zod@4.6.6
 
 --------------------------------------------------------------------------------
 Dependencies under the BSD 3-Clause License

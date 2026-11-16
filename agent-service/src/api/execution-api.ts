@@ -87,7 +87,7 @@ const legacyOperatorInfoSchema = z.object({
   state: z.string(),
   outputTuples: z.number(),
   resultMode: legacyResultModeSchema,
-  result: z.array(z.record(z.unknown())).nullish(),
+  result: z.array(z.record(z.string(), z.unknown())).nullish(),
   totalRowCount: z.number().int().nonnegative().nullish(),
   consoleLogs: z.array(legacyConsoleMessageSchema).nullish(),
   error: z.string().nullish(),
@@ -96,8 +96,8 @@ const legacyOperatorInfoSchema = z.object({
 const legacySyncExecutionResultSchema = z.object({
   success: z.boolean(),
   state: z.string(),
-  operators: z.record(legacyOperatorInfoSchema),
-  compilationErrors: z.record(z.string()).nullish(),
+  operators: z.record(z.string(), legacyOperatorInfoSchema),
+  compilationErrors: z.record(z.string(), z.string()).nullish(),
   errors: z.array(z.string()).nullish(),
 });
 
