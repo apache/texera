@@ -303,7 +303,8 @@ const agentsRouter = new Elysia({ prefix: "/agents" })
   .post("/:id/stop", ({ params: { id } }) => {
     const agent = getAgent(id);
     agent.stop();
-    return { status: "stopping" };
+    // Report the resulting state: STOPPING mid-run, unchanged when idle.
+    return { status: agent.getState() };
   })
 
   .post("/:id/clear", ({ params: { id } }) => {
