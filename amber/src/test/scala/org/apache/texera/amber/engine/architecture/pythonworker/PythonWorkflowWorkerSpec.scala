@@ -238,11 +238,15 @@ class PythonWorkflowWorkerSpec
     held.set(this)
   }
 
-  /** Starts the proxy server and the (stand-in) interpreter, but no Flight client. */
+  /**
+    * Starts the proxy server and the (stand-in) interpreter, but no Flight client. The worker gets
+    * its port first, as if Python had connected, so an exit is reported as one mid-run.
+    */
   private class ProcessOnlyWorker(config: WorkerConfig, held: AtomicReference[PythonWorkflowWorker])
       extends ObservedWorker(config, held) {
     override def initState(): Unit = {
       startProxyServer()
+      openPort(this, freePort)
       startPythonProcess()
     }
   }
@@ -624,7 +628,7 @@ class PythonWorkflowWorkerSpec
         val failure = s.failures.expectMsgType[Throwable](15.seconds)
         val messages = messagesOf(failure)
         messages should include(name)
-        messages should include(s"code $code")
+        messages should include(s"exited unexpectedly with code $code")
         messages should not include "out-of-memory"
         workflowExceptionIn(failure).flatMap(_.relatedWorkerId) shouldBe
           Some(ActorVirtualIdentity(name))
@@ -639,7 +643,7 @@ class PythonWorkflowWorkerSpec
     try {
       val messages = messagesOf(s.failures.expectMsgType[Throwable](15.seconds))
       messages should include(name)
-      messages should include("code 137")
+      messages should include("exited unexpectedly with code 137")
       messages should include("out-of-memory")
     } finally stopQuietly(s)
   }
@@ -764,7 +768,7 @@ class PythonWorkflowWorkerSpec
       // The exit must be seen when the process ends, not when every copy of its output closes.
       val messages = messagesOf(s.failures.expectMsgType[Throwable](15.seconds))
       messages should include(name)
-      messages should include("code 3")
+      messages should include("exited unexpectedly with code 3")
     } finally {
       stopPipeHolder(holder)
       stopQuietly(s)
