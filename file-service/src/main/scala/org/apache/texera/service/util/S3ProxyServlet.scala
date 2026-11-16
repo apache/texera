@@ -25,8 +25,11 @@ import org.apache.texera.auth.JwtParser
 import org.apache.texera.common.config.StorageConfig
 import org.apache.texera.dao.SqlServer
 import org.apache.texera.dao.SqlServer.withTransaction
-import org.apache.texera.dao.jooq.generated.tables.daos.{DatasetDao, ModelDao}
-import org.apache.texera.service.resource.{DatasetAccessResource, ModelAccessResource}
+import org.apache.texera.service.resource.{
+  DatasetAccessResource,
+  ModelAccessResource,
+  ResourceAccess
+}
 import software.amazon.awssdk.auth.credentials.AwsBasicCredentials
 import software.amazon.awssdk.auth.signer.AwsS3V4Signer
 import software.amazon.awssdk.auth.signer.params.AwsS3V4SignerParams
@@ -145,27 +148,20 @@ class S3ProxyServlet extends HttpServlet with LazyLogging {
     */
   private def authorizedToRead(uid: Integer, repositoryName: String): Boolean =
     withTransaction(SqlServer.getInstance().createDSLContext()) { ctx =>
-      val datasets = new DatasetDao(ctx.configuration())
-        .fetchByRepositoryName(repositoryName)
-        .asScala
-        .toList
-      val models = new ModelDao(ctx.configuration())
-        .fetchByRepositoryName(repositoryName)
-        .asScala
-        .toList
-      (datasets, models) match {
-        case (dataset :: Nil, Nil) =>
-          DatasetAccessResource.userHasReadAccess(ctx, dataset.getDid, uid)
-        case (Nil, model :: Nil) =>
-          ModelAccessResource.userHasReadAccess(ctx, model.getMid, uid)
-        case (Nil, Nil) =>
+      val (datasets, models) = ResourceAccess.repositoryIds(ctx, repositoryName)
+      (datasets.size(), models.size()) match {
+        case (1, 0) =>
+          DatasetAccessResource.userHasReadAccess(ctx, datasets.get(0), uid)
+        case (0, 1) =>
+          ModelAccessResource.userHasReadAccess(ctx, models.get(0), uid)
+        case (0, 0) =>
           false
         case _ =>
           // Logged because it means the data violates an assumption the mount path rests on,
           // and the owners of those rows will see an unexplained denial.
           logger.error(
-            s"repository '$repositoryName' matches ${datasets.size} datasets and " +
-              s"${models.size} models; denying rather than choosing one"
+            s"repository '$repositoryName' matches ${datasets.size()} datasets and " +
+              s"${models.size()} models; denying rather than choosing one"
           )
           false
       }

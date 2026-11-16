@@ -22,7 +22,7 @@ package org.apache.texera.service.resource
 import jakarta.ws.rs.{BadRequestException, ForbiddenException}
 import jakarta.ws.rs.core.Response
 import org.apache.texera.auth.util.OwnerAccess
-import org.apache.texera.dao.jooq.generated.Tables.USER
+import org.apache.texera.dao.jooq.generated.Tables.{DATASET, MODEL, USER}
 import org.apache.texera.dao.jooq.generated.enums.PrivilegeEnum
 import org.apache.texera.dao.jooq.generated.tables.daos.UserDao
 import org.apache.texera.dao.jooq.generated.tables.pojos.User
@@ -41,6 +41,24 @@ object ResourceAccess {
   /** One shared grant, as returned by the access-list endpoints. */
   case class AccessEntry(email: String, name: String, privilege: EnumType) {}
 
+  /** All matching IDs in each resource table, so mounts can reject ambiguous legacy names. */
+  private[service] def repositoryIds(
+      ctx: DSLContext,
+      repositoryName: String
+  ): (java.util.List[Integer], java.util.List[Integer]) = {
+    val datasetIds = ctx
+      .select(DATASET.DID)
+      .from(DATASET)
+      .where(DATASET.REPOSITORY_NAME.eq(repositoryName))
+      .fetch(DATASET.DID)
+    val modelIds = ctx
+      .select(MODEL.MID)
+      .from(MODEL)
+      .where(MODEL.REPOSITORY_NAME.eq(repositoryName))
+      .fetch(MODEL.MID)
+    (datasetIds, modelIds)
+  }
+
   def isPublic[R <: Record, A <: Record](
       ctx: DSLContext,
       resource: ResourceTables[R, A],
@@ -55,12 +73,11 @@ object ResourceAccess {
     ).flatMap(record => Option(record.value1()))
       .exists(_.booleanValue())
 
-  def userOwns[R <: Record, A <: Record](
+  private def ownerUid[R <: Record, A <: Record](
       ctx: DSLContext,
       resource: ResourceTables[R, A],
-      id: Integer,
-      uid: Integer
-  ): Boolean =
+      id: Integer
+  ): Option[Integer] =
     Option(
       ctx
         .select(resource.ownerUidField)
@@ -68,7 +85,14 @@ object ResourceAccess {
         .where(resource.idField.eq(id))
         .fetchOne()
     ).flatMap(record => Option(record.value1()))
-      .contains(uid)
+
+  def userOwns[R <: Record, A <: Record](
+      ctx: DSLContext,
+      resource: ResourceTables[R, A],
+      id: Integer,
+      uid: Integer
+  ): Boolean =
+    ownerUid(ctx, resource, id).contains(uid)
 
   /** The owner always has WRITE, whatever their own access row says. */
   def privilegeOf[R <: Record, A <: Record](
@@ -113,15 +137,7 @@ object ResourceAccess {
       id: Integer
   ): User = {
     val userDao = new UserDao(ctx.configuration())
-    Option(
-      ctx
-        .select(resource.ownerUidField)
-        .from(resource.table)
-        .where(resource.idField.eq(id))
-        .fetchOne()
-    ).flatMap(record => Option(record.value1()))
-      .map(ownerUid => userDao.fetchOneByUid(ownerUid))
-      .orNull
+    ownerUid(ctx, resource, id).map(userDao.fetchOneByUid).orNull
   }
 
   /**
@@ -136,7 +152,10 @@ object ResourceAccess {
       requesterUid: Integer
   ): String = {
     requireReadAccess(ctx, resource, id, requesterUid)
-    Option(owner(ctx, resource, id)).map(_.getEmail).getOrElse("")
+    ownerUid(ctx, resource, id)
+      .flatMap(uid => Option(ctx.select(USER.EMAIL).from(USER).where(USER.UID.eq(uid)).fetchOne()))
+      .map(_.value1())
+      .getOrElse("")
   }
 
   /**
@@ -195,7 +214,7 @@ object ResourceAccess {
   ): List[D] = {
     // (id, entry) pairs so the public pass can skip ids already granted, without re-querying
     val granted: List[(Integer, D)] = ctx
-      .select()
+      .select((resource.table.fields().toSeq ++ Seq(resource.privilegeField, USER.EMAIL)): _*)
       .from(
         resource.table
           .leftJoin(resource.accessTable)
@@ -209,23 +228,22 @@ object ResourceAccess {
       .toList
       .flatMap { record =>
         val entity = record.into(resource.table).into(pojoClass)
-        val isOwner = record.into(resource.table).get(resource.ownerUidField) == uid
+        val isOwner = record.get(resource.ownerUidField) == uid
         val privilege =
           OwnerAccess.privilege(
             isOwner,
-            record.into(resource.accessTable).get(resource.privilegeField)
+            record.get(resource.privilegeField)
           )
-        fromGrant(entity, record.into(USER).getEmail, privilege, isOwner)
+        fromGrant(entity, record.get(USER.EMAIL), privilege, isOwner)
           .map(entry => (idOf(entity), entry))
       }
 
-    val grantedIds = granted.map(_._1).toSet
-
     val public =
       if (!includePublic) Nil
-      else
+      else {
+        val grantedIds = granted.map(_._1).toSet
         ctx
-          .select()
+          .select((resource.table.fields().toSeq :+ USER.EMAIL): _*)
           .from(
             resource.table
               .leftJoin(USER)
@@ -238,8 +256,9 @@ object ResourceAccess {
           .flatMap { record =>
             val entity = record.into(resource.table).into(pojoClass)
             if (grantedIds.contains(idOf(entity))) None
-            else fromPublic(entity, record.into(USER).getEmail)
+            else fromPublic(entity, record.get(USER.EMAIL))
           }
+      }
 
     granted.map(_._2) ++ public
   }
@@ -256,11 +275,15 @@ object ResourceAccess {
       requesterUid: Integer
   ): Response = {
     requireWriteAccess(ctx, resource, id, requesterUid)
-    val grantee = new UserDao(ctx.configuration()).fetchOneByEmail(email)
-    if (grantee == null || grantee.getIsPlaceholder) {
+    val grantee = ctx
+      .select(USER.UID, USER.IS_PLACEHOLDER)
+      .from(USER)
+      .where(USER.EMAIL.eq(email))
+      .fetchOne()
+    if (grantee == null || grantee.value2()) {
       throw new BadRequestException(s"No registered user with email $email")
     }
-    val granteeUid = grantee.getUid
+    val granteeUid = grantee.value1()
     OwnerAccess.requireNotOwner(userOwns(ctx, resource, id, granteeUid))
     val granted = PrivilegeEnum.valueOf(privilege)
 
@@ -291,7 +314,7 @@ object ResourceAccess {
       requesterUid: Integer
   ): Response = {
     requireWriteAccess(ctx, resource, id, requesterUid)
-    val granteeUid = new UserDao(ctx.configuration()).fetchOneByEmail(email).getUid
+    val granteeUid = ctx.select(USER.UID).from(USER).where(USER.EMAIL.eq(email)).fetchOne().value1()
     OwnerAccess.requireNotOwner(userOwns(ctx, resource, id, granteeUid))
 
     ctx
