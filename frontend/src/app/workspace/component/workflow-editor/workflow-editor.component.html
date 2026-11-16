@@ -61,7 +61,9 @@
   <nz-dropdown-menu
     nzNoAnimation
     #menu="nzDropdownMenu">
-    <texera-context-menu [structureLocked]="structureLocked"></texera-context-menu>
+    <texera-context-menu
+      [structureLocked]="structureLocked"
+      (pinResult)="pinResult($event)"></texera-context-menu>
   </nz-dropdown-menu>
 
   <!-- Chat Popover for Operator -->
@@ -77,8 +79,8 @@
         <texera-agent-interaction
           [operatorId]="chatPopoverOperator.operatorId"
           [operatorDisplayName]="chatPopoverOperator.displayName"
-          [sampleRecords]="getOperatorSampleRecords(chatPopoverOperator.operatorId)"
-          [resultStatistics]="getOperatorResultStatistics(chatPopoverOperator.operatorId)">
+          [sampleTuples]="getOperatorSampleTuples(chatPopoverOperator.operatorId)"
+          [resultMode]="getOperatorResultMode(chatPopoverOperator.operatorId)">
         </texera-agent-interaction>
       </div>
     </div>

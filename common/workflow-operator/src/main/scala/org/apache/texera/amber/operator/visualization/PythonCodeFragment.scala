@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -17,36 +17,13 @@
  * under the License.
  */
 
-:host {
-  width: 100%;
-}
+package org.apache.texera.amber.operator.visualization
 
-.all-errors-notification {
-  color: blue;
-}
-
-.goto-operator-icon {
-  color: blueviolet; /* change color */
-  font-size: 15px; /* change size */
-  border-width: 2px;
-  border-style: solid;
-  border-color: blueviolet;
-}
-
-.error-message {
-  font-family: monaco, serif;
-  font-size: 11px;
-  font-style: normal;
-  font-variant: normal;
-  font-weight: 200;
-  line-height: 14px;
-  color: red;
-  overflow-x: auto;
-  white-space: pre-line;
-  margin-left: 30px;
-  user-select: text;
-}
-
-.error-category {
-  font-weight: bold;
+private[visualization] object PythonCodeFragment {
+  def render(code: String, indent: Int): String =
+    code.stripMargin.linesIterator
+      .map { line =>
+        if (line.isEmpty) line else (" " * indent) + line
+      }
+      .mkString("\n")
 }

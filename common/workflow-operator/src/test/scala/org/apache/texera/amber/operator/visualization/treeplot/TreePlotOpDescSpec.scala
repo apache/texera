@@ -19,10 +19,12 @@
 
 package org.apache.texera.amber.operator.visualization.treeplot
 
-import com.typesafe.config.ConfigFactory
-import org.apache.texera.amber.operator.tags.IntegrationTest
+import org.apache.texera.amber.util.PythonTestSupport.{
+  NeedsPythonPackages,
+  canImport,
+  configuredPython
+}
 import org.scalatest.BeforeAndAfter
-import org.scalatest.Tag
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 
@@ -30,11 +32,8 @@ import java.nio.charset.StandardCharsets
 import java.nio.file.Files
 import java.util.Base64
 import java.util.concurrent.TimeUnit
-import scala.util.Try
 
 class TreePlotOpDescSpec extends AnyFlatSpec with BeforeAndAfter with Matchers {
-
-  private val NeedsPythonPackages = Tag(classOf[IntegrationTest].getName)
 
   var opDesc: TreePlotOpDesc = _
 
@@ -73,42 +72,6 @@ class TreePlotOpDescSpec extends AnyFlatSpec with BeforeAndAfter with Matchers {
     opDesc.edgeListColumn = "edge_pairs"
     opDesc.generatePythonCode().toLowerCase should not include "igraph"
     opDesc.generateStandaloneCode().toLowerCase should not include "igraph"
-  }
-
-  // Python executable resolution, following FilledAreaPlotOpDescSpec:
-  // udf.conf python.path (UDF_PYTHON_PATH), then python3 / python / py.
-  private def resolvePythonExecutable(): Option[String] = {
-    def fromConfig: Option[String] = {
-      val configOpt =
-        Try(ConfigFactory.parseResources("udf.conf").resolve()).toOption
-          .orElse(Try(ConfigFactory.load()).toOption)
-      configOpt
-        .flatMap(c => Try(c.getConfig("python").getString("path")).toOption)
-        .map(_.trim)
-        .filter(_.nonEmpty)
-    }
-
-    def isRunnable(exe: String): Boolean = {
-      val pTry = Try(new ProcessBuilder(exe, "--version").redirectErrorStream(true).start())
-      pTry.toOption.exists { p =>
-        val finished = p.waitFor(5, TimeUnit.SECONDS)
-        if (!finished) { p.destroyForcibly(); false }
-        else p.exitValue() == 0
-      }
-    }
-
-    (fromConfig.toList ++ List("python3", "python", "py")).distinct.find(isRunnable)
-  }
-
-  private def canImportPandasAndPlotly(python: String): Boolean = {
-    val pTry = Try(
-      new ProcessBuilder(python, "-c", "import pandas, plotly").redirectErrorStream(true).start()
-    )
-    pTry.toOption.exists { p =>
-      val finished = p.waitFor(60, TimeUnit.SECONDS)
-      if (!finished) { p.destroyForcibly(); false }
-      else p.exitValue() == 0
-    }
   }
 
   // Driver executed by the runtime test below. It stubs only the pytexera import seam;
@@ -160,10 +123,10 @@ class TreePlotOpDescSpec extends AnyFlatSpec with BeforeAndAfter with Matchers {
     * whole suite: the driver lays every case out in the same process.
     */
   private lazy val layouts: Map[String, Map[String, (Double, Double)]] = {
-    val python = resolvePythonExecutable().getOrElse(
+    val python = configuredPython().getOrElse(
       cancel("No runnable python executable (udf.conf python.path, python3, python, py)")
     )
-    if (!canImportPandasAndPlotly(python)) {
+    if (!canImport(python, "pandas", "plotly")) {
       cancel(s"'$python' cannot import pandas and plotly; skipping runtime verification")
     }
 

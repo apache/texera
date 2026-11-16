@@ -19,15 +19,17 @@
 
 package org.apache.texera.amber.operator.sort
 
-import com.typesafe.config.ConfigFactory
+import org.apache.texera.amber.util.PythonTestSupport.{
+  NeedsPythonPackages,
+  canImport,
+  configuredPython
+}
 import org.apache.texera.amber.core.executor.OpExecWithClassName
 import org.apache.texera.amber.core.tuple.{Attribute, AttributeType, Schema, Tuple}
 import org.apache.texera.amber.core.virtualidentity.{ExecutionIdentity, WorkflowIdentity}
 import org.apache.texera.amber.operator.LogicalOp
 import org.apache.texera.amber.operator.metadata.OperatorGroupConstants
-import org.apache.texera.amber.operator.tags.IntegrationTest
 import org.apache.texera.amber.util.JSONUtils.objectMapper
-import org.scalatest.Tag
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 
@@ -36,11 +38,8 @@ import java.nio.file.Files
 import java.util.concurrent.TimeUnit
 import scala.collection.mutable.ListBuffer
 import scala.io.Source
-import scala.util.Try
 
 class StableMergeSortOpDescSpec extends AnyFlatSpec with Matchers {
-
-  private val NeedsPythonPackages = Tag(classOf[IntegrationTest].getName)
 
   private val workflowId = WorkflowIdentity(1L)
   private val executionId = ExecutionIdentity(1L)
@@ -86,8 +85,8 @@ class StableMergeSortOpDescSpec extends AnyFlatSpec with Matchers {
   // into a nullable dtype can hold both, which is where this is run.
   "StableMergeSortOpDesc.generateStandaloneCode" should
     "put a null last both ways and a NaN where the key points" taggedAs NeedsPythonPackages in {
-    val python = resolvePython().getOrElse(cancel("No runnable python executable"))
-    if (!canImportPandas(python)) cancel(s"'$python' cannot import pandas")
+    val python = configuredPython().getOrElse(cancel("No runnable python executable"))
+    if (!canImport(python, "pandas", "numpy")) cancel(s"'$python' cannot import pandas")
 
     def blockFor(pref: SortPreference): String = {
       val unit = new SortCriteriaUnit
@@ -141,8 +140,8 @@ class StableMergeSortOpDescSpec extends AnyFlatSpec with Matchers {
   // keeps them in input order. Each row carries its input position, and the
   // engine runs the same rows both ways.
   it should "order signed zeros as the engine does both ways" taggedAs NeedsPythonPackages in {
-    val python = resolvePython().getOrElse(cancel("No runnable python executable"))
-    if (!canImportPandas(python)) cancel(s"'$python' cannot import pandas")
+    val python = configuredPython().getOrElse(cancel("No runnable python executable"))
+    if (!canImport(python, "pandas", "numpy")) cancel(s"'$python' cannot import pandas")
 
     val values: Seq[java.lang.Double] = Seq(0.0, -0.0, Double.NaN, 1.0, null, -0.0)
     val schema = Schema().add("v", AttributeType.DOUBLE).add("i", AttributeType.INTEGER)
@@ -201,8 +200,8 @@ class StableMergeSortOpDescSpec extends AnyFlatSpec with Matchers {
   // The sort tiers are named after nothing the input can be carrying, so a
   // column that happens to answer to a helper's old name keeps its values.
   it should "keep an input column named after a sort helper" taggedAs NeedsPythonPackages in {
-    val python = resolvePython().getOrElse(cancel("No runnable python executable"))
-    if (!canImportPandas(python)) cancel(s"'$python' cannot import pandas")
+    val python = configuredPython().getOrElse(cancel("No runnable python executable"))
+    if (!canImport(python, "pandas", "numpy")) cancel(s"'$python' cannot import pandas")
 
     val unit = new SortCriteriaUnit
     unit.attributeName = "x"
@@ -241,8 +240,8 @@ class StableMergeSortOpDescSpec extends AnyFlatSpec with Matchers {
   // U+1F600 is stored as the surrogate pair D83D DE00, so the engine puts it
   // before U+FF01, while Python's code-point order puts it after.
   it should "order strings the way the engine does above U+FFFF" taggedAs NeedsPythonPackages in {
-    val python = resolvePython().getOrElse(cancel("No runnable python executable"))
-    if (!canImportPandas(python)) cancel(s"'$python' cannot import pandas")
+    val python = configuredPython().getOrElse(cancel("No runnable python executable"))
+    if (!canImport(python, "pandas", "numpy")) cancel(s"'$python' cannot import pandas")
 
     def cp(c: Int): String = new String(Character.toChars(c))
     val values = Seq(cp(0xff01), cp(0x1f600), "a", null, cp(0xffff))
@@ -310,30 +309,4 @@ class StableMergeSortOpDescSpec extends AnyFlatSpec with Matchers {
       lines(1) shouldBe engine(SortPreference.DESC)
     }
   }
-
-  private def resolvePython(): Option[String] = {
-    def fromConfig: Option[String] =
-      Try(ConfigFactory.parseResources("udf.conf").resolve()).toOption
-        .orElse(Try(ConfigFactory.load()).toOption)
-        .flatMap(c => Try(c.getConfig("python").getString("path")).toOption)
-        .map(_.trim)
-        .filter(_.nonEmpty)
-
-    def runnable(exe: String): Boolean =
-      Try(new ProcessBuilder(exe, "--version").redirectErrorStream(true).start()).toOption
-        .exists { p =>
-          if (!p.waitFor(5, TimeUnit.SECONDS)) { p.destroyForcibly(); false }
-          else p.exitValue() == 0
-        }
-
-    (fromConfig.toList ++ List("python3", "python", "py")).distinct.find(runnable)
-  }
-
-  private def canImportPandas(python: String): Boolean =
-    Try(
-      new ProcessBuilder(python, "-c", "import pandas, numpy").redirectErrorStream(true).start()
-    ).toOption.exists { p =>
-      if (!p.waitFor(60, TimeUnit.SECONDS)) { p.destroyForcibly(); false }
-      else p.exitValue() == 0
-    }
 }
