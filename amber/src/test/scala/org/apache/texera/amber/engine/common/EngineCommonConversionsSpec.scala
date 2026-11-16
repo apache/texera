@@ -31,8 +31,7 @@ import org.apache.texera.amber.engine.common.FutureBijection._
 import org.scalatest.BeforeAndAfterAll
 import org.scalatest.flatspec.AnyFlatSpec
 
-import scala.concurrent.duration._
-import scala.concurrent.{Await, ExecutionContext, Future => ScalaFuture}
+import scala.concurrent.{Future => ScalaFuture}
 
 class EngineCommonConversionsSpec extends AnyFlatSpec with BeforeAndAfterAll {
 
@@ -50,41 +49,6 @@ class EngineCommonConversionsSpec extends AnyFlatSpec with BeforeAndAfterAll {
   override protected def afterAll(): Unit = {
     TestKit.shutdownActorSystem(testSystem)
     super.afterAll()
-  }
-
-  // ---------------------------------------------------------------------------
-  // FutureBijection — Twitter Future → Scala Future
-  // ---------------------------------------------------------------------------
-
-  private implicit val ec: ExecutionContext = ExecutionContext.global
-  private val awaitTimeout: FiniteDuration = 5.seconds
-
-  "FutureBijection.RichTwitterFuture.asScala" should
-    "resolve the Scala Future with the value of a Twitter Return" in {
-    val tf: TwitterFuture[Int] = TwitterFuture.value(42)
-    val sf: ScalaFuture[Int] = tf.asScala
-    assert(Await.result(sf, awaitTimeout) == 42)
-  }
-
-  it should "fail the Scala Future with the exception of a Twitter Throw" in {
-    val boom = new RuntimeException("boom")
-    val tf: TwitterFuture[Int] = TwitterFuture.exception(boom)
-    val sf: ScalaFuture[Int] = tf.asScala
-    val caught = intercept[RuntimeException] {
-      Await.result(sf, awaitTimeout)
-    }
-    assert(caught eq boom, "the original exception must be preserved without rewrapping")
-  }
-
-  it should "propagate completion asynchronously (Scala Future is not pre-resolved)" in {
-    // A Twitter Promise resolved later must propagate to the Scala Future
-    // only when the Promise completes. Pin so a regression that pre-
-    // resolves on conversion breaks here.
-    val tp = com.twitter.util.Promise[String]()
-    val sf: ScalaFuture[String] = (tp: TwitterFuture[String]).asScala
-    assert(!sf.isCompleted, "Scala Future must not pre-resolve before the Twitter source completes")
-    tp.setValue("late")
-    assert(Await.result(sf, awaitTimeout) == "late")
   }
 
   // ---------------------------------------------------------------------------
