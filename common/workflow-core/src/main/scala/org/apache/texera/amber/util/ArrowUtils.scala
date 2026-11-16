@@ -56,6 +56,10 @@ object ArrowUtils extends LazyLogging {
   // Create a single allocator for the entire utility
   private val allocator: BufferAllocator = new RootAllocator()
 
+  // The shared utility allocator, for callers that must decode into a long-lived owned root
+  // (e.g. rebuilding a LocalColumnarBatch after deserialization).
+  def sharedAllocator: BufferAllocator = allocator
+
   implicit def bool2int(b: Boolean): Int = if (b) 1 else 0
 
   // Serialize a VectorSchemaRoot to Arrow IPC stream bytes. Does not close root.
@@ -127,6 +131,28 @@ object ArrowUtils extends LazyLogging {
         }
       }
       out.toArray
+    } finally reader.close()
+  }
+
+  // Decode one Arrow IPC batch into a root the caller OWNS (and must close), unlike
+  // deserializeRootFold which frees the root when it returns. The reader decodes into
+  // `allocator`, then the batch is transferred (zero-copy move, same allocator) into an
+  // independent root and the reader is closed. Used to rebuild a LocalColumnarBatch's live
+  // root after it was serialized (e.g. a checkpoint).
+  def deserializeRootOwned(bytes: Array[Byte], allocator: BufferAllocator): VectorSchemaRoot = {
+    val reader = new ArrowStreamReader(new ByteArrayInputStream(bytes), allocator)
+    try {
+      reader.loadNextBatch()
+      val src = reader.getVectorSchemaRoot
+      val dest = VectorSchemaRoot.create(src.getSchema, allocator)
+      val srcVecs = src.getFieldVectors
+      val destVecs = dest.getFieldVectors
+      var c = 0
+      while (c < srcVecs.size) {
+        srcVecs.get(c).makeTransferPair(destVecs.get(c)).transfer(); c += 1
+      }
+      dest.setRowCount(src.getRowCount)
+      dest
     } finally reader.close()
   }
 

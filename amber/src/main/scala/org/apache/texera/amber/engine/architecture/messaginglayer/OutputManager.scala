@@ -37,7 +37,7 @@ import org.apache.texera.amber.engine.architecture.worker.managers.{
   PortStorageWriterTerminateSignal
 }
 import org.apache.texera.amber.engine.common.AmberLogging
-import org.apache.texera.amber.engine.common.ambermessage.VectorFrame
+import org.apache.texera.amber.engine.common.ambermessage.{VectorFrame, LocalColumnarBatch}
 import org.apache.texera.amber.util.{ArrowUtils, VirtualIdentityUtils}
 import org.apache.arrow.memory.{BufferAllocator, RootAllocator}
 import org.apache.arrow.vector.VectorSchemaRoot
@@ -209,6 +209,39 @@ class OutputManager(
     * @return Some((portId, totalSerializedByteCount)) if it shipped the batch (caller
     *         records output statistics), or None if the port is not eligible (fall back).
     */
+  /**
+    * Local zero-copy fast path: hand the operator's Arrow result root to a co-located
+    * receiver by reference, with no serialization. Ownership transfers to the receiver (it
+    * closes the root), so on success the caller must NOT close it. Eligible only for the
+    * simplest single-consumer shape: the port has one one-to-one edge whose single receiver
+    * is known-local and columnar-capable, needs no storage, and whose schema matches, so the
+    * root goes to exactly one consumer. Every other shape returns None (the caller tries the
+    * remote columnar path, then rows).
+    *
+    * @return Some((portId, rootInMemSize)) if the root was handed off, else None.
+    */
+  def tryEmitLocalColumnarRoot(
+      root: VectorSchemaRoot,
+      outputPortId: Option[PortIdentity]
+  ): Option[(PortIdentity, Long)] = {
+    if (outputPortId.isEmpty && ports.size != 1) return None
+    val portId = outputPortId.getOrElse(ports.head._1)
+    if (outputPortResultWriterThreads.contains(portId)) return None
+    val links = partitioners.filter(_._1.fromPortId == portId).toSeq
+    if (links.size != 1) return None
+    val (link, partitioner) = links.head
+    val receivers = partitioner.allReceivers
+    if (receivers.size != 1) return None
+    val buffer = networkOutputBuffers((link, receivers.head))
+    // Receiver must be columnar-capable (planner flag) and known-local.
+    if (!buffer.columnar || !buffer.localityCheck().contains(true)) return None
+    val schema = getPort(portId).schema
+    if (ArrowUtils.toTexeraSchema(root.getSchema) != schema) return None
+    val batch = LocalColumnarBatch(root, root.getRowCount, schema)
+    buffer.sendLocalColumnar(batch)
+    Some((portId, batch.inMemSize))
+  }
+
   def tryEmitColumnarBatch(
       root: VectorSchemaRoot,
       outputPortId: Option[PortIdentity]

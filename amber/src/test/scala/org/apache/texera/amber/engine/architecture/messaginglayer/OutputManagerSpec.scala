@@ -644,6 +644,94 @@ class OutputManagerSpec extends AnyFlatSpec with MockFactory {
     assert(sent.head.payload.isInstanceOf[DataFrame])
   }
 
+  // -- tryEmitLocalColumnarRoot (phase 5b: local zero-copy, live root by reference) -----
+
+  // Build an owned root the test manages (deserializeRootFold would close it), run the
+  // live-emit, and clean up. Returns the result and the captured messages.
+  private def liveEmit(
+      om: OutputManager,
+      sent: ArrayBuffer[WorkflowFIFOMessage],
+      rows: Array[Tuple]
+  )(check: (Option[(PortIdentity, Long)], ArrayBuffer[WorkflowFIFOMessage]) => Unit): Unit = {
+    val alloc = new RootAllocator()
+    val root =
+      ArrowUtils.deserializeRootOwned(ArrowUtils.serializeTuples(schema, rows), alloc)
+    try check(om.tryEmitLocalColumnarRoot(root, None), sent)
+    finally { root.close(); alloc.close() }
+  }
+
+  private def oneToOneCapable(
+      om: OutputManager,
+      portId: PortIdentity,
+      rec: ActorVirtualIdentity
+  ): Unit = {
+    om.addPort(portId, schema, None)
+    om.addPartitionerWithPartitioning(
+      PhysicalLink(physicalOpId(), portId, physicalOpId(), portId),
+      OneToOnePartitioning(1000, Seq(channelTo(rec))),
+      columnar = true
+    )
+  }
+
+  "tryEmitLocalColumnarRoot" should "hand a live root to a local one-to-one columnar receiver" in {
+    val (om, sent) = capturingOutputManager()
+    val rec = ActorVirtualIdentity("live-rec")
+    oneToOneCapable(om, PortIdentity(50), rec)
+    om.isLocalReceiver = _ => Some(true)
+    liveEmit(om, sent, (0 until 10).map(rowWith).toArray) { (res, msgs) =>
+      assert(res.exists(_._1 == PortIdentity(50)))
+      assert(msgs.size == 1)
+      val batch = msgs.head.payload.asInstanceOf[LocalColumnarBatch]
+      assert(batch.rowCount == 10)
+      assert(ArrowUtils.tuplesOfRoot(batch.root).length == 10)
+    }
+  }
+
+  it should "decline a remote receiver (that hop serializes, so it is not zero-copy)" in {
+    val (om, sent) = capturingOutputManager()
+    oneToOneCapable(om, PortIdentity(51), ActorVirtualIdentity("remote-rec"))
+    om.isLocalReceiver = _ => Some(false)
+    liveEmit(om, sent, Array(sampleTuple())) { (res, msgs) =>
+      assert(res.isEmpty)
+      assert(msgs.isEmpty)
+    }
+  }
+
+  it should "decline when the receiver is not columnar-capable" in {
+    val (om, sent) = capturingOutputManager()
+    val rec = ActorVirtualIdentity("local-rowonly")
+    om.addPort(PortIdentity(52), schema, None)
+    om.addPartitionerWithPartitioning(
+      PhysicalLink(physicalOpId(), PortIdentity(52), physicalOpId(), PortIdentity(52)),
+      OneToOnePartitioning(1000, Seq(channelTo(rec)))
+      // columnar defaults to false: receiver cannot consume columns
+    )
+    om.isLocalReceiver = _ => Some(true)
+    liveEmit(om, sent, Array(sampleTuple())) { (res, msgs) =>
+      assert(res.isEmpty)
+      assert(msgs.isEmpty)
+    }
+  }
+
+  it should "decline a splitting shuffle (more than one consumer)" in {
+    val (om, sent) = capturingOutputManager()
+    om.addPort(PortIdentity(53), schema, None)
+    om.addPartitionerWithPartitioning(
+      PhysicalLink(physicalOpId(), PortIdentity(53), physicalOpId(), PortIdentity(53)),
+      HashBasedShufflePartitioning(
+        1000,
+        Seq(channelTo(ActorVirtualIdentity("a")), channelTo(ActorVirtualIdentity("b"))),
+        Seq("field1")
+      ),
+      columnar = true
+    )
+    om.isLocalReceiver = _ => Some(true)
+    liveEmit(om, sent, Array(sampleTuple())) { (res, msgs) =>
+      assert(res.isEmpty)
+      assert(msgs.isEmpty)
+    }
+  }
+
   "getSingleOutputPortIdentity" should "return the sole port when exactly one is present" in {
     val outputManager: OutputManager = wire[OutputManager]
     val portId = PortIdentity(13)

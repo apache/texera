@@ -64,6 +64,7 @@ import org.apache.texera.amber.engine.common.statetransition.WorkerStateManager
 import org.apache.texera.amber.engine.common.virtualidentity.util.COORDINATOR
 import org.apache.texera.amber.error.ErrorUtils.{mkConsoleMessage, mkPrintConsoleMessage, safely}
 import org.apache.texera.amber.util.ArrowUtils
+import org.apache.arrow.vector.VectorSchemaRoot
 
 import java.util.concurrent.LinkedBlockingQueue
 
@@ -175,40 +176,92 @@ class DataProcessor(
           // The executor declined this batch: fall back to the row path.
           startInputBatch(channelId, ArrowUtils.deserializeTuples(arrowIpcBytes))
         case consumed =>
-          // Consumed natively: no per-tuple input remains for the DP loop to drain.
-          // Report the whole batch's input statistics in one call.
-          inputManager.initBatch(channelId, Array.empty)
-          statisticsManager.increaseInputStatistics(
-            portId,
-            rowCount.toLong,
-            arrowIpcBytes.length.toLong
-          )
-          consumed match {
-            case ColumnarResult.EmitRows(rows) =>
-              outputManager.outputIterator.setTupleOutput(rows)
-            case ColumnarResult.Emit(root) =>
-              try {
-                val rowCount = root.getRowCount
-                // No round-trip: on an eligible (one-to-one, no-storage, columnar)
-                // edge, ship the Arrow batch straight downstream. Otherwise
-                // materialize it to output tuples (the row output path) and let the
-                // network buffer handle it.
-                outputManager.tryEmitColumnarBatch(root, None) match {
-                  case Some((portId, byteCount)) =>
-                    statisticsManager.increaseOutputStatistics(portId, rowCount.toLong, byteCount)
-                  case None =>
-                    val tuples = ArrowUtils.tuplesOfRoot(root)
-                    outputManager.outputIterator.setTupleOutput(
-                      tuples.iterator.map(t => (t: TupleLike, None: Option[PortIdentity]))
-                    )
-                }
-              } finally root.close()
-            case _ => // Consumed: a blocking operator accumulated the batch, nothing to emit now
-          }
+          routeConsumedResult(channelId, portId, rowCount, arrowIpcBytes.length.toLong, consumed)
       }
     } catch safely {
       case e => handleExecutorException(e)
     }
+  }
+
+  // Local zero-copy wire: a live Arrow root arrived by reference (no serialization). This
+  // worker owns the root and closes it here. A ColumnarOperatorExecutor consumes it
+  // directly via processColumnarRoot (no IPC decode); any other operator, or a decline,
+  // decodes it to tuples. Mirrors processVectorFrame, but the input is a live root.
+  private[this] def processLocalColumnarRoot(
+      channelId: ChannelIdentity,
+      portId: PortIdentity,
+      root: VectorSchemaRoot,
+      rowCount: Int,
+      inMemSize: Long
+  ): Unit = {
+    val columnarExecutor = executor match {
+      case c: ColumnarOperatorExecutor => c
+      case _                           => null
+    }
+    try {
+      if (columnarExecutor == null) {
+        startInputBatch(channelId, ArrowUtils.tuplesOfRoot(root))
+      } else {
+        transitToRunning()
+        inputManager.currentChannelId = channelId
+        bindStateReferences()
+        try {
+          columnarExecutor.processColumnarRoot(root, portId.id) match {
+            case ColumnarResult.Unsupported =>
+              startInputBatch(channelId, ArrowUtils.tuplesOfRoot(root))
+            case consumed =>
+              routeConsumedResult(channelId, portId, rowCount, inMemSize, consumed)
+          }
+        } catch safely {
+          case e => handleExecutorException(e)
+        }
+      }
+    } finally root.close() // the receiver owns the handed-off root
+  }
+
+  // Shared tail of the two columnar input paths for a natively-consumed batch: the DP loop
+  // has no per-tuple input to drain, so count the whole batch's input statistics once, then
+  // route the result. Emit ships a produced root downstream; EmitRows installs rows;
+  // Consumed (a blocking operator) emits nothing now.
+  private[this] def routeConsumedResult(
+      channelId: ChannelIdentity,
+      portId: PortIdentity,
+      rowCount: Int,
+      inputByteSize: Long,
+      consumed: ColumnarResult
+  ): Unit = {
+    inputManager.initBatch(channelId, Array.empty)
+    statisticsManager.increaseInputStatistics(portId, rowCount.toLong, inputByteSize)
+    consumed match {
+      case ColumnarResult.EmitRows(rows) => outputManager.outputIterator.setTupleOutput(rows)
+      case ColumnarResult.Emit(root)     => emitProducedRoot(root)
+      case _                             => // Consumed: a blocking operator accumulated the batch
+    }
+  }
+
+  // Ship an operator-produced Arrow result root downstream in the cheapest shape the edge
+  // allows: a live root by reference to a local receiver (ownership transfers, so the root
+  // is NOT closed here), Arrow bytes to a remote one, or decoded tuples (the row path).
+  private[this] def emitProducedRoot(outRoot: VectorSchemaRoot): Unit = {
+    var retained = false
+    try {
+      val rc = outRoot.getRowCount
+      outputManager.tryEmitLocalColumnarRoot(outRoot, None) match {
+        case Some((pid, sz)) =>
+          retained = true
+          statisticsManager.increaseOutputStatistics(pid, rc.toLong, sz)
+        case None =>
+          outputManager.tryEmitColumnarBatch(outRoot, None) match {
+            case Some((pid, bytes)) =>
+              statisticsManager.increaseOutputStatistics(pid, rc.toLong, bytes)
+            case None =>
+              val tuples = ArrowUtils.tuplesOfRoot(outRoot)
+              outputManager.outputIterator.setTupleOutput(
+                tuples.iterator.map(t => (t: TupleLike, None: Option[PortIdentity]))
+              )
+          }
+      }
+    } finally if (!retained) outRoot.close()
   }
 
   private[this] def processInputTuple(tuple: Tuple): Unit = {
@@ -347,6 +400,10 @@ class DataProcessor(
         // decode); any other operator, or one that declines the batch, decodes it
         // back to tuples and processes it exactly as a DataFrame.
         processVectorFrame(channelId, portId, arrowIpcBytes, rowCount)
+      case batch: LocalColumnarBatch =>
+        // Local zero-copy wire: a live Arrow root arrived by reference from a co-located
+        // sender. This worker owns and closes it.
+        processLocalColumnarRoot(channelId, portId, batch.root, batch.rowCount, batch.inMemSize)
       case StateFrame(state, loopCounter, loopStartId) =>
         processInputState(state, portId.id, loopCounter, loopStartId)
     }

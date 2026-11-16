@@ -24,7 +24,12 @@ import org.apache.texera.amber.core.state.State
 import org.apache.texera.amber.core.tuple.Tuple
 import org.apache.texera.amber.core.virtualidentity.ActorVirtualIdentity
 import org.apache.texera.amber.engine.architecture.messaginglayer.NetworkOutputGateway
-import org.apache.texera.amber.engine.common.ambermessage.{VectorFrame, DataFrame, StateFrame}
+import org.apache.texera.amber.engine.common.ambermessage.{
+  VectorFrame,
+  DataFrame,
+  LocalColumnarBatch,
+  StateFrame
+}
 import org.apache.texera.amber.util.ArrowUtils
 
 import scala.collection.mutable.ArrayBuffer
@@ -96,6 +101,13 @@ class NetworkOutputBuffer(
   def sendRows(tuples: Array[Tuple]): Unit = {
     flush()
     if (tuples.nonEmpty) dataOutputPort.sendTo(to, DataFrame(tuples))
+  }
+
+  // Local zero-copy: hand the receiver a live Arrow root by reference (no serialization).
+  // Ownership transfers to the receiver; the sender must not touch the root after this.
+  def sendLocalColumnar(batch: LocalColumnarBatch): Unit = {
+    flush()
+    dataOutputPort.sendTo(to, batch)
   }
 
   def flush(): Unit = {
