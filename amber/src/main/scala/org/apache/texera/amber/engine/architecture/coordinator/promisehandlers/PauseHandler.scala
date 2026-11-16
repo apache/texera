@@ -50,7 +50,7 @@ trait PauseHandler {
         cp.workflowExecution.getRunningRegionExecutions
           .flatMap(_.getAllOperatorExecutions)
           .map {
-            case (physicalOpId, opExecution) =>
+            case (_, opExecution) =>
               Future
                 .collect(
                   opExecution.getWorkerIds
@@ -64,7 +64,7 @@ trait PauseHandler {
                           workerExecution.updateState(resp.stateVersion, resp.state)
                           workerInterface
                             .queryStatistics(EmptyRequest(), mkContext(worker))
-                            // get the stats and current input tuple from the worker
+                            // get the stats from the worker
                             .map {
                               case WorkerMetricsResponse(metrics) =>
                                 workerExecution.updateStats(

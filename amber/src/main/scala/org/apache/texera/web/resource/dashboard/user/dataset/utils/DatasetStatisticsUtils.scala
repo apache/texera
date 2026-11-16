@@ -30,8 +30,8 @@ object DatasetStatisticsUtils {
     SqlServer
       .getInstance()
       .createDSLContext()
-  // this function would return a list of dataset ids that belongs to the user
-  private def getUserCreatedDatasetList(uid: Integer): List[DatasetQuota] = {
+  // this function returns the datasets that belong to the user
+  def getUserCreatedDatasets(uid: Integer): List[DatasetQuota] = {
     val result = context
       .select(
         DATASET.DID,
@@ -48,13 +48,10 @@ object DatasetStatisticsUtils {
           did = record.getValue(DATASET.DID),
           name = record.getValue(DATASET.NAME),
           creationTime = record.getValue(DATASET.CREATION_TIME).getTime,
+          // we disabled the size calculation due to the switch of dataset implementation
           size = 0
         )
       )
       .toList
-  }
-
-  def getUserCreatedDatasets(uid: Integer): List[DatasetQuota] = {
-    getUserCreatedDatasetList(uid)
   }
 }
