@@ -17,7 +17,7 @@
  * under the License.
  */
 
-import { generateText, type ModelMessage, type LanguageModel, stepCountIs } from "ai";
+import { ToolLoopAgent, isStepCount, type ModelMessage, type LanguageModel } from "ai";
 import { Subscription } from "rxjs";
 import { debounceTime } from "rxjs/operators";
 import { WorkflowState } from "./workflow-state";
@@ -47,7 +47,7 @@ import {
   TOOL_NAME_EXECUTE_OPERATOR,
   type ExecutionConfig,
 } from "./tools/workflow-execution-tools";
-import { assembleContext } from "./util/context-utils";
+import { dataflowMessage, unexecutedToolCallsMessage } from "./util/context-utils";
 import { compileWorkflowAsync, type WorkflowCompilationResponse } from "../api/compile-api";
 import { createLogger } from "../logger";
 import type { Logger } from "pino";
@@ -78,11 +78,12 @@ type ReActStepCallback = (step: ReActStep) => void;
 /**
  * A single Texera agent instance.
  *
- * Owns the conversation (ReAct step tree with HEAD tracking), the
- * workflow being edited (`WorkflowState`), cached operator execution results
- * (`WorkflowResultState`), and the tool surface exposed to the LLM. Each call
- * to `sendMessage` drives one multi-step generation via the Vercel AI SDK,
- * streaming step updates to subscribed clients.
+ * Owns the conversation (ReAct step tree with HEAD tracking, each step keeping
+ * the model messages it added), the workflow being edited (`WorkflowState`),
+ * cached operator execution results (`WorkflowResultState`), and the tool
+ * surface exposed to the LLM. Each call to `sendMessage` drives one multi-step
+ * run of the AI SDK's `ToolLoopAgent` over those messages, streaming step
+ * updates to subscribed clients.
  */
 export class TexeraAgent {
   readonly agentId: string;
@@ -106,6 +107,12 @@ export class TexeraAgent {
   private settings: AgentSettings;
 
   private reActStepsByMessageId: Map<string, ReActStep[]> = new Map();
+
+  /**
+   * The model messages each step added, by step id: a user step's message, an agent step's
+   * assistant message and tool results, or the note a stopped or failed turn ends with.
+   */
+  private messagesByStep: Map<string, ModelMessage[]> = new Map();
 
   private currentMessageId: string | undefined = undefined;
 
@@ -314,7 +321,8 @@ export class TexeraAgent {
     return `step-${this.agentId}-${++this.stepCounter}-${Date.now()}`;
   }
 
-  private addStep(step: ReActStep): void {
+  /** Records a step and the model messages it adds to the conversation. */
+  private addStep(step: ReActStep, messages: ModelMessage[] = []): void {
     let steps = this.reActStepsByMessageId.get(step.messageId);
     if (!steps) {
       steps = [];
@@ -322,9 +330,37 @@ export class TexeraAgent {
     }
     steps.push(step);
     this.stepsById.set(step.id, step);
+    this.messagesByStep.set(step.id, messages);
     if (this.stepCallback) {
       this.stepCallback(step);
     }
+  }
+
+  /**
+   * The conversation as the model reads it: the messages of the steps on the path from the root to
+   * HEAD, in order. A branch HEAD has left is not on that path, so the model never sees it.
+   */
+  private getConversation(): ModelMessage[] {
+    return this.getVisibleReActSteps().flatMap(step => this.messagesByStep.get(step.id) ?? []);
+  }
+
+  /**
+   * The block that ends each step's messages: the workflow as it stands now, compiled for its
+   * schemas, with the results this branch has seen. None while the workflow is empty.
+   */
+  private async currentDataflowMessage(): Promise<ModelMessage | null> {
+    let compilationResult: WorkflowCompilationResponse | null = null;
+    if (this.workflowState.getAllOperators().length > 0) {
+      try {
+        compilationResult = await compileWorkflowAsync(
+          this.workflowState.toLogicalPlan(),
+          this.delegateConfig?.userToken ?? this.userToken
+        );
+      } catch (e: any) {
+        this.log.warn({ err: e?.message || e }, "compilation failed; proceeding without schemas");
+      }
+    }
+    return dataflowMessage(this.workflowState, this.getFormattedResultsForDAG(), false, compilationResult);
   }
 
   getSystemInfo(): {
@@ -539,48 +575,27 @@ export class TexeraAgent {
           totalTokens: estimatedInputTokens,
         },
       };
-      this.addStep(userStep);
+      this.addStep(userStep, [{ role: "user", content: userMessage }]);
       this.head = userStepId;
 
       let isFirstStep = true;
       let lastPreparedMessages: ModelMessage[] | undefined;
 
-      // Pass only the current user turn; prepareStep rebuilds full context each step
-      // (historical interactions + DAG + this message).
-      const currentUserMessage: ModelMessage[] = [{ role: "user", content: userMessage }];
-      const result = await generateText({
+      const loop = new ToolLoopAgent({
         model: this.model,
-        system: this.systemPrompt,
-        messages: currentUserMessage,
+        instructions: this.systemPrompt,
         tools: this.getEnabledTools(),
         temperature: 0.2,
-        stopWhen: stepCountIs(this.settings.maxSteps),
-        prepareStep: async ({ stepNumber, messages: currentMessages }) => {
-          let compilationResult: WorkflowCompilationResponse | null = null;
-          if (this.workflowState.getAllOperators().length > 0) {
-            try {
-              const logicalPlan = this.workflowState.toLogicalPlan();
-              compilationResult = await compileWorkflowAsync(
-                logicalPlan,
-                this.delegateConfig?.userToken ?? this.userToken
-              );
-            } catch (e: any) {
-              this.log.warn({ err: e?.message || e }, "compilation failed; proceeding without schemas");
-            }
-          }
-
-          const visibleSteps = this.getVisibleReActSteps();
-          const processed = assembleContext(
-            visibleSteps,
-            this.workflowState,
-            this.getFormattedResultsForDAG(),
-            false,
-            compilationResult
-          );
-          lastPreparedMessages = processed;
-          return { messages: processed };
+        stopWhen: isStepCount(this.settings.maxSteps),
+        // Each step reads the conversation as it happened, then the workflow as it stands now. The
+        // dataflow block is written again for every step, so it is rebuilt from the turn's messages
+        // rather than returned on top of the previous step's, which would carry the old block along.
+        prepareStep: async ({ initialMessages, responseMessages }) => {
+          const dataflow = await this.currentDataflowMessage();
+          const messages = [...initialMessages, ...responseMessages, ...(dataflow ? [dataflow] : [])];
+          lastPreparedMessages = messages;
+          return { messages };
         },
-        abortSignal: this.abortController?.signal,
         // reasoning_effort is configured per-model in litellm-config.yaml via extra_body
         // to bypass LiteLLM's param validation — do not pass it here.
         providerOptions: {
@@ -588,7 +603,12 @@ export class TexeraAgent {
           anthropic: { disableParallelToolUse: true },
           mistral: { parallelToolCalls: false },
         },
-        onStepFinish: async ({ text, toolCalls, content, usage }) => {
+      });
+
+      const result = await loop.generate({
+        messages: this.getConversation(),
+        abortSignal: this.abortController?.signal,
+        onStepEnd: async ({ text, toolCalls, content, usage, response, finishReason }) => {
           stepIndex++;
 
           const formattedToolCalls = toolCalls?.map(tc => ({
@@ -638,7 +658,8 @@ export class TexeraAgent {
             afterWorkflowContent: afterStepContent,
           };
           lastPreparedMessages = undefined;
-          this.addStep(agentStep);
+          const unexecutedCalls = unexecutedToolCallsMessage(toolCalls, toolResultsByCallId, finishReason);
+          this.addStep(agentStep, unexecutedCalls ? [...response.messages, unexecutedCalls] : response.messages);
           this.head = agentStepId;
 
           const execConfig = this.buildExecutionConfig();
@@ -710,7 +731,8 @@ export class TexeraAgent {
           isBegin: false,
           isEnd: true,
         };
-        this.addStep(stoppedStep);
+        // The next turn reads that this one was stopped, as the chat shows it.
+        this.addStep(stoppedStep, [{ role: "assistant", content: stoppedStep.content }]);
         this.head = stoppedStepId;
 
         return {
@@ -734,7 +756,7 @@ export class TexeraAgent {
         isBegin: false,
         isEnd: true,
       };
-      this.addStep(errorStep);
+      this.addStep(errorStep, [{ role: "assistant", content: errorStep.content }]);
       this.head = errorStepId;
 
       return {
@@ -770,6 +792,7 @@ export class TexeraAgent {
   clearHistory(): void {
     this.reActStepsByMessageId.clear();
     this.stepsById.clear();
+    this.messagesByStep.clear();
     this.currentMessageId = undefined;
     this.head = INITIAL_STEP_ID;
     const initialStep: ReActStep = {
@@ -862,6 +885,7 @@ export class TexeraAgent {
 
     this.reActStepsByMessageId.clear();
     this.stepsById.clear();
+    this.messagesByStep.clear();
     this.currentMessageId = undefined;
   }
 }

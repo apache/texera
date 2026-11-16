@@ -24,139 +24,51 @@
 import type { ModelMessage } from "ai";
 import type { WorkflowState } from "../workflow-state";
 import type { OperatorPredicate, OperatorPortSchemaMap, PortSchema } from "../../types/workflow";
-import type { ReActStep } from "../../types/agent";
 import type { WorkflowCompilationResponse, WorkflowFatalError } from "../../api/compile-api";
 import { extractOperatorInputPortSchemaMap } from "./workflow-utils";
-import { createLogger } from "../../logger";
 
-const log = createLogger("ContextAssembler");
-
-export function assembleContext(
-  visibleSteps: ReActStep[],
+/**
+ * The message that ends what the model reads before each step: the workflow as it stands now, with
+ * each operator's state, schemas and cached result, then the links. It is written again for every
+ * step and never kept in the conversation, so the model always sees one current copy. An empty
+ * workflow has none.
+ */
+export function dataflowMessage(
   workflowState: WorkflowState,
   operatorExecutionResults: Map<string, string>,
   useRedact: boolean = false,
   compilationResult?: WorkflowCompilationResponse | null
-): ModelMessage[] {
-  const messageIds: string[] = [];
-  const stepsByMessage = new Map<string, ReActStep[]>();
-  for (const step of visibleSteps) {
-    let group = stepsByMessage.get(step.messageId);
-    if (!group) {
-      group = [];
-      stepsByMessage.set(step.messageId, group);
-      messageIds.push(step.messageId);
-    }
-    group.push(step);
-  }
-
-  const sections: string[] = [];
-  let completedCount = 0;
-  let hasOngoing = false;
-
-  for (const msgId of messageIds) {
-    const steps = stepsByMessage.get(msgId)!;
-    // A task is completed only when an *agent* step has isEnd=true; user steps
-    // always have isEnd=true because they are single-step messages.
-    const isCompleted = steps.some(s => s.role === "agent" && s.isEnd);
-
-    if (isCompleted) {
-      if (completedCount === 0) {
-        sections.push("# Completed Tasks");
-      }
-      sections.push("");
-      sections.push(serializeTask(steps, "completed"));
-      completedCount++;
-    } else {
-      hasOngoing = true;
-      sections.push("");
-      sections.push("# Ongoing Task");
-      sections.push(serializeTask(steps, "ongoing"));
-      sections.push("");
-      sections.push(
-        "Above is user's request and the steps you already took. You as an assistant please keep working on solving user's request based on the progress of current workflow."
-      );
-    }
-  }
-
+): ModelMessage | null {
   const dagSection = serializeDag(workflowState, operatorExecutionResults, useRedact, compilationResult);
-  if (dagSection) {
-    sections.push("");
-    sections.push("# Current Dataflow");
-    sections.push(dagSection);
-  }
-
-  const content = sections.join("\n");
-
-  log.debug(
-    {
-      completed: completedCount,
-      ongoing: hasOngoing ? 1 : 0,
-      operatorResults: operatorExecutionResults.size,
-      useRedact,
-    },
-    "built context"
-  );
-
-  return [{ role: "user", content }];
-}
-
-function serializeTask(steps: ReActStep[], status: "completed" | "ongoing"): string {
-  const lines: string[] = [];
-  lines.push(`## Task (${status})`);
-  lines.push("");
-
-  const userStep = steps.find(s => s.role === "user");
-  const assistantSteps = steps.filter(s => s.role === "agent");
-
-  if (userStep) {
-    lines.push("### User request");
-    lines.push("");
-    lines.push(userStep.content);
-    lines.push("");
-  }
-
-  for (const step of assistantSteps) {
-    lines.push(`### Turn ${step.stepId}`);
-    if (step.content) {
-      lines.push(`Thought: ${step.content}`);
-    }
-    if (step.toolCalls && step.toolCalls.length > 0) {
-      const toolResultsByCallId = new Map(step.toolResults?.map(result => [result.toolCallId, result]));
-      for (const tc of step.toolCalls) {
-        const tr = toolResultsByCallId.get(tc.toolCallId);
-        const statusAttr = !tr || tr.isError ? "failed" : "succeeded";
-        lines.push(`- ${tc.toolName} (${statusAttr})`);
-        lines.push(...serializeToolCallDetails(tc.input, tr));
-      }
-    }
-    lines.push("");
-  }
-
-  return lines.join("\n").trimEnd();
+  if (!dagSection) return null;
+  return { role: "user", content: `# Current Dataflow\n${dagSection}` };
 }
 
 /**
- * The `Summary` / `Output` / `Error` lines under a past tool call, in the layout the system prompt
- * describes. Output keeps only its first line: an operator's data is already in the dataflow
- * section, and the first line is the tool's one-line result. An error is kept whole, since it is
- * what the model needs to avoid repeating the call.
+ * A failed result for each of a step's tool calls that has none, or nothing when every call has
+ * one. The SDK runs a step's calls only when the response ended normally, not when it was cut off
+ * at the output limit or by a content filter, and it refuses a conversation in which a call has no
+ * result. Kept as it is, such a step would fail every later turn.
  */
-function serializeToolCallDetails(input: any, result: { output: any; isError?: boolean } | undefined): string[] {
-  const lines: string[] = [];
-  if (typeof input?.summary === "string" && input.summary) {
-    lines.push(`  - Summary: ${input.summary}`);
-  }
-  if (!result) return lines;
-  const text = typeof result.output === "string" ? result.output : JSON.stringify(result.output);
-  if (text === undefined || text === "") return lines;
-  if (result.isError) {
-    lines.push("  - Error:");
-    lines.push(...text.split("\n").map(line => `    ${line}`));
-  } else {
-    lines.push(`  - Output: ${text.split("\n")[0]}`);
-  }
-  return lines;
+export function unexecutedToolCallsMessage(
+  toolCalls: Array<{ toolCallId: string; toolName: string }>,
+  resultsByCallId: ReadonlyMap<string, unknown>,
+  finishReason: string
+): ModelMessage | null {
+  const unexecuted = toolCalls.filter(call => !resultsByCallId.has(call.toolCallId));
+  if (unexecuted.length === 0) return null;
+  return {
+    role: "tool",
+    content: unexecuted.map(call => ({
+      type: "tool-result",
+      toolCallId: call.toolCallId,
+      toolName: call.toolName,
+      output: {
+        type: "error-text",
+        value: `This call did not run: the response that made it ended with finish reason "${finishReason}".`,
+      },
+    })),
+  };
 }
 
 function serializeDag(
