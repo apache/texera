@@ -48,12 +48,8 @@ import { ComputingUnitStatusService } from "../../common/service/computing-unit/
 import { EntityType, HubService } from "../../hub/service/hub.service";
 import { commonTestProviders } from "../../common/testing/test-utils";
 import { WorkspaceComponent } from "./workspace.component";
-<<<<<<< HEAD
-import { USER_WORKSPACE } from "../../app-routing.constant";
-=======
 import { WorkflowVersionService } from "../../dashboard/service/user/workflow-version/workflow-version.service";
-import { USER_WORKSPACE, workspaceFormUrl } from "../../app-routing.constant";
->>>>>>> bde1f7d88 (fix(frontend): drop a version preview left open when leaving the workspace (#9367))
+import { USER_WORKSPACE } from "../../app-routing.constant";
 
 describe("WorkspaceComponent", () => {
   let component: WorkspaceComponent;
@@ -453,8 +449,6 @@ describe("WorkspaceComponent", () => {
       expect(workflowResultService.clearResults).toHaveBeenCalled();
     });
 
-<<<<<<< HEAD
-=======
     it("drops a version preview left open, after the workflow is cleared (issue #9354)", async () => {
       await createFixture();
       fixture.detectChanges();
@@ -468,101 +462,6 @@ describe("WorkspaceComponent", () => {
       );
     });
 
-    // Leaving the document (a refresh, a closed tab, a URL typed over this one) fires beforeunload,
-    // and the browser may then keep the document in its back/forward cache instead of discarding
-    // it. The Form View switch used to be such a navigation and routes now. Coming back restores the JavaScript
-    // state as it was left and re-runs nothing, so anything torn down here stays torn down: the
-    // graph came back empty, the workflow id came back as the default, and the still-subscribed
-    // autosave then wrote that default out as a new, blank workflow (issue #8599).
-    // Dispatching the DOM event, rather than calling the handler, is what would catch the host
-    // binding being removed or miswired.
-    it("saves on beforeunload and tears nothing down, so a page restored from the cache still works", async () => {
-      await createFixture();
-      fixture.detectChanges();
-
-      window.dispatchEvent(new Event("beforeunload"));
-
-      expect(workflowPersistService.persistWorkflow).toHaveBeenCalledWith(stubWorkflow);
-      expect(workflowActionService.clearWorkflow).not.toHaveBeenCalled();
-      expect(computingUnitStatusService.disconnect).not.toHaveBeenCalled();
-      expect(executeWorkflowService.resetExecutionAndWorkers).not.toHaveBeenCalled();
-      expect(workflowConsoleService.clearConsoleMessages).not.toHaveBeenCalled();
-      expect(workflowResultService.clearResults).not.toHaveBeenCalled();
-    });
-
-    // Handing the workflow to its own Form View is not leaving it. The session below the two
-    // views -- the shared document and its room, the computing unit, the running execution --
-    // is the same one, and dropping it here would cost the Form View a reconnect for nothing.
-    it("keeps the session when this workflow's Form View takes over", async () => {
-      await createFixture();
-      fixture.detectChanges();
-      routerMock.getCurrentNavigation.mockReturnValue({ finalUrl: workspaceFormUrl(42) });
-
-      component.ngOnDestroy();
-
-      expect(workflowActionService.clearWorkflow).not.toHaveBeenCalled();
-      expect(workflowVersionService.discardOpenVersionDisplay).not.toHaveBeenCalled();
-      expect(computingUnitStatusService.disconnect).not.toHaveBeenCalled();
-      expect(executeWorkflowService.resetExecutionAndWorkers).not.toHaveBeenCalled();
-      expect(workflowConsoleService.clearConsoleMessages).not.toHaveBeenCalled();
-      expect(workflowResultService.clearResults).not.toHaveBeenCalled();
-    });
-
-    it("skips even the save on beforeunload when the user is not signed in", async () => {
-      await createFixture();
-      fixture.detectChanges();
-      userService.isLogin.mockReturnValue(false);
-
-      component.onBeforeUnload();
-
-      expect(workflowPersistService.persistWorkflow).not.toHaveBeenCalled();
-    });
-
-    // A workflow created in this session has an id in its metadata after the first autosave, but
-    // its shared document stayed in the private room it was seeded with. Keyed on the metadata,
-    // this side handed such a workflow over while the arriving side, keyed on the room, declined
-    // it and reloaded -- so both key on the room, and this one is rebuilt on its first switch.
-    it("tears it down when the document is in no workflow's room, even bound for this one's form", async () => {
-      await createFixture();
-      fixture.detectChanges();
-      workflowActionService.getOpenWorkflowId.mockReturnValue(undefined);
-      routerMock.getCurrentNavigation.mockReturnValue({ finalUrl: workspaceFormUrl(42) });
-
-      component.ngOnDestroy();
-
-      expect(workflowActionService.clearWorkflow).toHaveBeenCalled();
-    });
-
-    // The heat-map overlay's view lives in the root-provided wrapper. It used to be reset by the
-    // editor on destroy, which the switch turned into "off again on every switch", after the
-    // arriving menu had just restored it (#8552). It goes with the metrics now: reset on leaving,
-    // kept on a hand-over.
-    it("resets the heat-map view on leaving and keeps it on a hand-over", async () => {
-      await createFixture();
-      fixture.detectChanges();
-      const setHeatmapView = workflowActionService.getJointGraphWrapper().setHeatmapView;
-
-      routerMock.getCurrentNavigation.mockReturnValue({ finalUrl: workspaceFormUrl(42) });
-      component.ngOnDestroy();
-      expect(setHeatmapView).not.toHaveBeenCalled();
-
-      routerMock.getCurrentNavigation.mockReturnValue(null);
-      component.ngOnDestroy();
-      expect(setHeatmapView).toHaveBeenCalledWith(null);
-    });
-
-    it("tears it down when the destination is another workflow's Form View", async () => {
-      await createFixture();
-      fixture.detectChanges();
-      routerMock.getCurrentNavigation.mockReturnValue({ finalUrl: workspaceFormUrl(43) });
-
-      component.ngOnDestroy();
-
-      expect(workflowActionService.clearWorkflow).toHaveBeenCalled();
-      expect(computingUnitStatusService.disconnect).toHaveBeenCalled();
-    });
-
->>>>>>> bde1f7d88 (fix(frontend): drop a version preview left open when leaving the workspace (#9367))
     it("clears the workflow session state when the computing unit is switched in-canvas (issue #3120)", async () => {
       await createFixture();
       fixture.detectChanges();
