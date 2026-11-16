@@ -50,7 +50,6 @@ describe("OperatorCacheStatusService", () => {
 });
 
 describe("OperatorCacheStatusService - behavior", () => {
-  let service: OperatorReuseCacheStatusService;
   let reuseCacheOpsChanged$: Subject<any>;
   let mockJointUIService: any;
   let mockJointGraphWrapper: any;
@@ -87,7 +86,7 @@ describe("OperatorCacheStatusService - behavior", () => {
       ],
     });
 
-    service = TestBed.inject(OperatorReuseCacheStatusService);
+    TestBed.inject(OperatorReuseCacheStatusService);
   });
 
   it("calls changeOperatorReuseCacheStatus for all ops in a reuse cache operators changed event", () => {

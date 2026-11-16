@@ -58,7 +58,7 @@ describe("FlarumService", () => {
         email: "alice@example.com",
         password: "secret-token",
       });
-      expect(req.request.headers.get("Authorization")).toContain("Token ");
+      expect(req.request.headers.has("Authorization")).toBe(false);
       req.flush({});
     });
 

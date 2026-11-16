@@ -300,6 +300,8 @@ class MachineLearningScorerOpDesc extends PythonOperatorDescriptor with Standalo
 
   override def generateStandaloneCode(): String = {
     val isRegressionStr = if (isRegression) "True" else "False"
+    // Rows come back Class first, then the metrics in the order picked, as the operator declares.
+    // The drop goes to its own name, and an empty result raises rather than scoring nothing.
     s"""import pandas as pd
        |from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score, mean_squared_error, root_mean_squared_error, mean_absolute_error, r2_score
        |
@@ -320,9 +322,6 @@ class MachineLearningScorerOpDesc extends PythonOperatorDescriptor with Standalo
        |
        |  labels = ['class_' + str(label) if type(label) != str else label for label in labels]
        |  result['Class'] = labels
-       |  # Class first and the metrics in the order they were picked, which is
-       |  # the column order this operator declares and so the order of the rows
-       |  # the workflow shows.
        |  return pd.DataFrame(result)[['Class'] + metric_list]
        |
        |def regression_metrics(y_true, y_pred, metric_list):
@@ -332,14 +331,9 @@ class MachineLearningScorerOpDesc extends PythonOperatorDescriptor with Standalo
        |    result[metric] = metrics_func[metric](y_true, y_pred)
        |  return pd.DataFrame(result, index=[0])
        |
-       |# Bound to a name of its own: the same frame can feed another branch of the
-       |# plan, which must still see every row.
        |scored_df = in1df.dropna(subset=[${pyStringLiteral(actualValueColumn)}, ${pyStringLiteral(
       predictValueColumn
     )}])
-       |# Nothing survived the drop. The metrics answer that badly and each in its own
-       |# way: the regression ones raise from inside scikit-learn, and the
-       |# classification ones return a NaN score, which reads as a result.
        |if scored_df.empty:
        |    raise ValueError("No rows left to score: every row is missing the actual value, the predicted value, or both.")
        |y_true = scored_df[${pyStringLiteral(actualValueColumn)}]

@@ -24,13 +24,16 @@
 # completeness or stability of the code, it does indicate that the project
 # has yet to be fully endorsed by the ASF.
 
-FROM oven/bun:1-alpine
+FROM docker.io/oven/bun:1.3.3-alpine@sha256:d2bc1fbc3afcd3d70afc2bb2544235bf559caae2a3084e9abed126e233797511
 
 WORKDIR /app
 
 COPY agent-service/package.json agent-service/bun.lock ./
 
-RUN bun install --frozen-lockfile --production
+# The download cache holds registry manifests fetched at build time; node_modules
+# keeps its own copy of every file.
+RUN bun install --frozen-lockfile --production \
+ && rm -rf /root/.bun/install/cache
 
 COPY agent-service/src ./src
 COPY agent-service/tsconfig.json ./
@@ -40,8 +43,11 @@ COPY NOTICE ./NOTICE
 COPY DISCLAIMER ./DISCLAIMER
 COPY licenses ./licenses
 
+# busybox adduser stamps the build day into /etc/shadow and ignores
+# SOURCE_DATE_EPOCH; blank that field so the layer does not depend on the date.
 RUN addgroup -S -g 1001 texera \
  && adduser -S -u 1001 -G texera -h /app texera \
+ && sed -i 's/^texera:!:[0-9]*:/texera:!::/' /etc/shadow \
  && chown -R texera:texera /app
 USER texera
 

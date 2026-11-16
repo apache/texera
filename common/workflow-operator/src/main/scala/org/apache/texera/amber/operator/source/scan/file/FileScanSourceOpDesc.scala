@@ -29,13 +29,23 @@ import org.apache.texera.amber.core.executor.OpExecWithClassName
 import org.apache.texera.amber.core.tuple.{AttributeType, Schema}
 import org.apache.texera.amber.core.virtualidentity.{ExecutionIdentity, WorkflowIdentity}
 import org.apache.texera.amber.core.workflow.{PhysicalOp, SchemaPropagationFunc}
+import org.apache.texera.amber.operator.StandaloneCodeGenerator
+import org.apache.texera.amber.operator.StandaloneCodeGenerator.SourceFilePlaceholder
 import org.apache.texera.amber.operator.metadata.annotations.HideAnnotation
 import org.apache.texera.amber.operator.source.scan.text.TextSourceOpDesc
-import org.apache.texera.amber.operator.source.scan.{FileDecodingMethod, ScanSourceOpDesc}
+import org.apache.texera.amber.operator.source.scan.{
+  FileAttributeType,
+  FileDecodingMethod,
+  ScanSourceOpDesc
+}
+import org.apache.texera.amber.pybuilder.PythonTemplateBuilder.pyStringLiteral
 import org.apache.texera.amber.util.JSONUtils.objectMapper
 
 @JsonIgnoreProperties(value = Array("limit", "offset", "fileEncoding"))
-class FileScanSourceOpDesc extends ScanSourceOpDesc with TextSourceOpDesc {
+class FileScanSourceOpDesc
+    extends ScanSourceOpDesc
+    with TextSourceOpDesc
+    with StandaloneCodeGenerator {
   @JsonProperty(defaultValue = "UTF_8", required = true)
   @JsonSchemaTitle("Encoding")
   @JsonSchemaInject(
@@ -67,6 +77,108 @@ class FileScanSourceOpDesc extends ScanSourceOpDesc with TextSourceOpDesc {
   val outputFileName: Boolean = false
 
   fileTypeName = Option("")
+
+  override def standaloneSourcePath(): Option[String] = fileName
+
+  override def generateStandaloneCode(): String = {
+    val col = attributeName
+    // `encoding` is the charset the panel offers, and the one the executor now
+    // decodes with.
+    val enc = encoding.toString.replace("_", "-").toLowerCase
+    val colLit = pyStringLiteral(col)
+    val encLit = pyStringLiteral(enc)
+    val buf = scala.collection.mutable.ArrayBuffer[String]()
+
+    val isBinary =
+      attributeType == FileAttributeType.BINARY || attributeType == FileAttributeType.LARGE_BINARY
+
+    val castExpr = attributeType match {
+      case FileAttributeType.INTEGER   => "_texera_parse_int(l, 32)"
+      case FileAttributeType.LONG      => "_texera_parse_int(l, 64)"
+      case FileAttributeType.DOUBLE    => "_texera_java_double(l)"
+      case FileAttributeType.BOOLEAN   => TextSourceOpDesc.BooleanParserCall
+      case FileAttributeType.TIMESTAMP => "l.rstrip()"
+      case _                           => """l.rstrip("\n")"""
+    }
+
+    // The slice applies to the raw lines, as the engine drops and takes before
+    // parsing: a line outside the window is never converted, so an unparseable
+    // one there costs nothing. Taking after dropping also keeps a large limit
+    // from overflowing the end index. With extract on, the window is per entry,
+    // as the engine's is: it drops and takes inside the flatMap over entries.
+    def windowed(lines: String): String =
+      if (fileScanOffset.isEmpty && fileScanLimit.isEmpty) lines
+      else {
+        val dropped =
+          fileScanOffset.filter(_ > 0).fold(s"$lines.readlines()")(o => s"$lines.readlines()[$o:]")
+        fileScanLimit.fold(dropped)(l => s"$dropped[:${l.max(0)}]")
+      }
+
+    // Every file and entry opens binary and is decoded by the shared
+    // `_texera_decode`, so UTF-16 without a byte-order mark reads as big-endian,
+    // as the engine reads it. A whole file keeps its CRLF; lines go through a
+    // universal-newline StringIO, which ends a line where the engine does.
+    val readWholeOf = if (isBinary) "_f.read()" else s"_texera_decode(_f.read(), $encLit)"
+    val linesOf = s"io.StringIO(_texera_decode(_f.read(), $encLit), newline=None)"
+
+    // Whatever the flag says, as the platform now reads it: every row carries
+    // the name of the file its value came from, a line's as much as a whole
+    // file's. See FileScanUtils.createTuplesFromFile.
+    val emitFilename = outputFileName
+
+    if (extract) {
+      // The engine reads the files INSIDE the archive, one tuple per entry, and
+      // skips the entries macOS adds. `zipfile` is the reader that matches: the
+      // platform casts what it opened to a ZipArchiveInputStream, so an archive
+      // that is not a zip fails on both sides. A directory entry is read, not
+      // skipped, there and here alike — it yields nothing. The filename column
+      // carries the ENTRY's name, which is what the engine puts there.
+      buf += "_rows = []"
+      buf += s"with zipfile.ZipFile($SourceFilePlaceholder) as _z:"
+      buf += "    for _name in _z.namelist():"
+      buf += """        if _name.startswith("__MACOSX"):"""
+      buf += "            continue"
+      buf += "        with _z.open(_name) as _f:"
+      if (attributeType.isSingle) {
+        if (emitFilename) buf += s"            _rows.append((_name, $readWholeOf))"
+        else buf += s"            _rows.append($readWholeOf)"
+      } else {
+        val linesExpr = windowed(linesOf)
+        val row = if (emitFilename) s"(_name, $castExpr)" else castExpr
+        buf += s"            _rows.extend($row for l in $linesExpr)"
+      }
+      if (emitFilename) buf += s"""out1df = pd.DataFrame(_rows, columns=["filename", $colLit])"""
+      else buf += s"""out1df = pd.DataFrame({$colLit: _rows})"""
+    } else if (attributeType.isSingle) {
+      val dfCols =
+        if (emitFilename) s"""{"filename": $SourceFilePlaceholder, $colLit: [$readWholeOf]}"""
+        else s"""{$colLit: [$readWholeOf]}"""
+      buf += s"""with open($SourceFilePlaceholder, "rb") as _f:"""
+      buf += s"""    out1df = pd.DataFrame($dfCols)"""
+    } else {
+      val linesExpr = windowed(linesOf)
+      val dfCols =
+        if (emitFilename)
+          s"""{"filename": $SourceFilePlaceholder, $colLit: [$castExpr for l in $linesExpr]}"""
+        else s"""{$colLit: [$castExpr for l in $linesExpr]}"""
+      buf += s"""with open($SourceFilePlaceholder, "rb") as _f:"""
+      buf += s"""    out1df = pd.DataFrame($dfCols)"""
+    }
+    buf ++= TextSourceOpDesc.parseTimestampColumn(attributeType, colLit)
+
+    buf.mkString("\n")
+  }
+
+  override def standaloneHelpers(): Seq[String] = {
+    val isBinary =
+      attributeType == FileAttributeType.BINARY || attributeType == FileAttributeType.LARGE_BINARY
+    TextSourceOpDesc.lineHelpers(attributeType) ++
+      (if (isBinary) Seq.empty else Seq(FileScanOpDesc.DecodeHelper))
+  }
+
+  override def standaloneImports(): Seq[String] =
+    (if (attributeType.isSingle) Seq.empty else Seq("import io")) ++
+      (if (extract) Seq("import zipfile") else Seq.empty)
 
   override def getPhysicalOp(
       workflowId: WorkflowIdentity,

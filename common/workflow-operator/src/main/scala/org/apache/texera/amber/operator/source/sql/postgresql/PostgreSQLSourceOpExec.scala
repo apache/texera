@@ -19,7 +19,6 @@
 
 package org.apache.texera.amber.operator.source.sql.postgresql
 
-import org.apache.texera.amber.core.tuple.AttributeType
 import org.apache.texera.amber.operator.source.sql.SQLSourceOpExec
 import org.apache.texera.amber.operator.source.sql.postgresql.PostgreSQLConnUtil.connect
 import org.apache.texera.amber.util.JSONUtils.objectMapper
@@ -41,33 +40,19 @@ class PostgreSQLSourceOpExec private[postgresql] (descString: String)
   @throws[RuntimeException]
   override def addFilterConditions(queryBuilder: StringBuilder): Unit = {
     val keywordSearchByColumn = desc.keywordSearchByColumn.orNull
-    if (
-      desc.keywordSearch.getOrElse(false) && keywordSearchByColumn != null && desc.keywords != null
-    ) {
-      val columnType = schema.getAttribute(keywordSearchByColumn).getType
-
-      if (columnType == AttributeType.STRING) {
-        // in sql prepared statement, column name cannot be inserted using PreparedStatement.setString either
-        queryBuilder ++= " AND " + keywordSearchByColumn + " @@ to_tsquery(?)"
-
-        // OPTIMIZE: no fulltext index is required, having a built fulltext index can help performance on large dataset.
-
-        // OPTIMIZE: limited support on the default language, english. equivalent `to_tsquery('english', ?)`
-      } else
-        throw new RuntimeException("Can't do keyword search on type " + columnType.toString)
+    addJdbcKeywordCondition(queryBuilder, keywordSearchByColumn)(
+      desc.keywordSearch.getOrElse(false) && keywordSearchByColumn != null && desc.keywords != null,
+      schema.getAttribute(keywordSearchByColumn).getType
+    ) { column =>
+      // PostgreSQL can run this search without a full-text index.
+      // to_tsquery uses the database's default language configuration.
+      " AND " + column + " @@ to_tsquery(?)"
     }
   }
 
   @throws[SQLException]
   override protected def loadTableNames(): Unit = {
     val preparedStatement = connection.prepareStatement(FETCH_TABLE_NAMES_SQL)
-    val resultSet = preparedStatement.executeQuery
-    while ({
-      resultSet.next
-    }) {
-      tableNames += resultSet.getString(1)
-    }
-    resultSet.close()
-    preparedStatement.close()
+    collectTableNames(preparedStatement)
   }
 }

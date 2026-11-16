@@ -20,6 +20,8 @@
 package org.apache.texera.service.util
 
 import io.fabric8.kubernetes.api.model.{Pod, PodBuilder}
+import io.fabric8.kubernetes.client.KubernetesClientException
+import jakarta.ws.rs.NotFoundException
 import org.apache.texera.dao.MockTexeraDB
 import org.apache.texera.dao.jooq.generated.enums.{
   PrivilegeEnum,
@@ -798,6 +800,38 @@ class ComputingUnitHelpersSpec
     val metrics = Map("computing-unit-51" -> Map("cpu" -> "100m", "memory" -> "64Mi"))
     when(k8s.getAllPodMetrics).thenReturn(metrics)
     ComputingUnitHelpers.podMetricsFor(List(kubernetesUnit(51)), k8s) shouldBe metrics
+  }
+
+  // ── clusterCapacity guard ────────────────────────────────────────────
+
+  // Passing `fail(...)` as the client proves the disabled branch never forces it.
+  "clusterCapacity" should "refuse, without touching the cluster, when kubernetes units are disabled" in {
+    val refused = intercept[NotFoundException] {
+      ComputingUnitHelpers.clusterCapacity(enabled = false, fail("the client must not be forced"))
+    }
+    refused.getMessage should include("Kubernetes")
+  }
+
+  it should "return the cluster's capacity when kubernetes units are enabled" in {
+    val k8s = mock(classOf[KubernetesClient])
+    val capacity = ClusterCapacity(
+      cpu = ResourceCapacity(total = 4000, allocated = 1000, available = 3000),
+      memory = ResourceCapacity(total = 8L << 30, allocated = 1L << 30, available = 7L << 30),
+      gpu = ResourceCapacity(total = 2, allocated = 1, available = 1)
+    )
+    when(k8s.getClusterCapacity).thenReturn(capacity)
+    ComputingUnitHelpers.clusterCapacity(enabled = true, k8s) shouldBe capacity
+  }
+
+  it should "surface a Kubernetes API failure as a service error that keeps the cluster's message" in {
+    val denied = new KubernetesClientException("nodes is forbidden: cannot list resource \"nodes\"")
+    val k8s = mock(classOf[KubernetesClient])
+    when(k8s.getClusterCapacity).thenThrow(denied)
+
+    val thrown = intercept[ComputingUnitManagingServiceException] {
+      ComputingUnitHelpers.clusterCapacity(enabled = true, k8s)
+    }
+    thrown shouldBe InternalError(denied.getMessage)
   }
 
   // ── resolveOwnerInfo (backed by the embedded database) ───────────────

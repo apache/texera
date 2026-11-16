@@ -19,17 +19,16 @@
 
 package org.apache.texera.amber.operator.visualization.lineChart
 
+import org.apache.texera.amber.operator.visualization.StandaloneChartCode._
 import com.fasterxml.jackson.annotation.{JsonProperty, JsonPropertyDescription}
 import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaTitle
-import org.apache.texera.amber.core.tuple.{AttributeType, Schema}
 import org.apache.texera.amber.pybuilder.PythonTemplateBuilder.{
   PythonTemplateBuilderStringContext,
   pyStringLiteral
 }
 import org.apache.texera.amber.pybuilder.PyStringTypes.EncodableString
-import org.apache.texera.amber.core.workflow.PortIdentity
-import org.apache.texera.amber.operator.PythonOperatorDescriptor
 import org.apache.texera.amber.operator.visualization.PlotlyStandaloneCode
+import org.apache.texera.amber.operator.visualization.PythonVisualizationOpDesc
 import org.apache.texera.amber.operator.metadata.{OperatorGroupConstants, OperatorInfo}
 import org.apache.texera.amber.pybuilder.PythonTemplateBuilder
 
@@ -37,7 +36,7 @@ import java.util
 import javax.validation.constraints.NotEmpty
 import scala.jdk.CollectionConverters.ListHasAsScala
 
-class LineChartOpDesc extends PythonOperatorDescriptor with PlotlyStandaloneCode {
+class LineChartOpDesc extends PythonVisualizationOpDesc with PlotlyStandaloneCode {
 
   @JsonProperty(value = "yLabel", required = false, defaultValue = "Y Axis")
   @JsonSchemaTitle("Y Label")
@@ -52,14 +51,6 @@ class LineChartOpDesc extends PythonOperatorDescriptor with PlotlyStandaloneCode
   @JsonProperty(value = "lines", required = true)
   @NotEmpty(message = "At least one line must be configured")
   var lines: util.List[LineConfig] = new util.ArrayList[LineConfig]()
-
-  override def getOutputSchemas(
-      inputSchemas: Map[PortIdentity, Schema]
-  ): Map[PortIdentity, Schema] = {
-    val outputSchema = Schema()
-      .add("html-content", AttributeType.STRING)
-    Map(operatorInfo.outputPorts.head.id -> outputSchema)
-  }
 
   override def operatorInfo: OperatorInfo =
     OperatorInfo.forVisualization(
@@ -133,8 +124,6 @@ class LineChartOpDesc extends PythonOperatorDescriptor with PlotlyStandaloneCode
     finalCode.encode
   }
 
-  override def producesDataFrame(): Boolean = false
-
   override def generateStandaloneCode(): String = {
     val traces = lines.asScala
       .map { lineConf =>
@@ -164,23 +153,17 @@ class LineChartOpDesc extends PythonOperatorDescriptor with PlotlyStandaloneCode
       .map(line => if (line.isEmpty) line else s"    $line")
       .mkString("\n")
 
-    s"""def render_error(error_msg) -> str:
-       |    return '''<h1>Line chart is not available.</h1>
-       |                  <p>Reason is: {} </p>
-       |               '''.format(error_msg)
+    s"""${standaloneError("Line chart is not available.", typed = true)}
        |
        |if in1df.empty:
-       |    with open(outputHtml, "w", encoding="utf-8") as output:
-       |        output.write(render_error("input table is empty."))
+       |${standaloneErrorPage("input table is empty.")}
        |else:
        |    fig = go.Figure()
        |$traces
        |    fig.update_layout(margin=dict(t=0, b=0, l=0, r=0),
        |                      xaxis_title=${pyStringLiteral(xLabel)},
        |                      yaxis_title=${pyStringLiteral(yLabel)})
-       |    fig.write_json(outputJson)
-       |    fig.write_html(outputHtml)
-       |    print("Line chart saved to " + outputJson + " and " + outputHtml)""".stripMargin
+       |${standaloneFigure("Line chart", indent = 4, bothOutputs = true)}""".stripMargin
   }
 
 }

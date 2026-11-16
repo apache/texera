@@ -19,14 +19,13 @@
 
 package org.apache.texera.amber.operator.visualization.sankeyDiagram
 
+import org.apache.texera.amber.operator.visualization.StandaloneChartCode._
 import com.fasterxml.jackson.annotation.{JsonProperty, JsonPropertyDescription}
 import com.kjetland.jackson.jsonSchema.annotations.{JsonSchemaInject, JsonSchemaTitle}
-import org.apache.texera.amber.core.tuple.{AttributeType, Schema}
 import org.apache.texera.amber.pybuilder.PythonTemplateBuilder.PythonTemplateBuilderStringContext
 import org.apache.texera.amber.pybuilder.PyStringTypes.EncodableString
-import org.apache.texera.amber.core.workflow.PortIdentity
-import org.apache.texera.amber.operator.PythonOperatorDescriptor
 import org.apache.texera.amber.operator.visualization.PlotlyStandaloneCode
+import org.apache.texera.amber.operator.visualization.PythonVisualizationOpDesc
 import org.apache.texera.amber.operator.metadata.annotations.{AutofillAttributeName, SampleColumn}
 import org.apache.texera.amber.operator.metadata.{OperatorGroupConstants, OperatorInfo}
 import org.apache.texera.amber.pybuilder.PythonTemplateBuilder
@@ -45,7 +44,7 @@ import javax.validation.constraints.NotNull
   }
 }
 """)
-class SankeyDiagramOpDesc extends PythonOperatorDescriptor with PlotlyStandaloneCode {
+class SankeyDiagramOpDesc extends PythonVisualizationOpDesc with PlotlyStandaloneCode {
 
   @JsonProperty(value = "Source Attribute", required = true)
   @JsonSchemaTitle("Source Attribute")
@@ -70,14 +69,6 @@ class SankeyDiagramOpDesc extends PythonOperatorDescriptor with PlotlyStandalone
   @SampleColumn("score")
   @NotNull(message = "Value Attribute cannot be empty")
   var valueAttribute: EncodableString = ""
-
-  override def getOutputSchemas(
-      inputSchemas: Map[PortIdentity, Schema]
-  ): Map[PortIdentity, Schema] = {
-    val outputSchema = Schema()
-      .add("html-content", AttributeType.STRING)
-    Map(operatorInfo.outputPorts.head.id -> outputSchema)
-  }
 
   override def operatorInfo: OperatorInfo =
     OperatorInfo.forVisualization(
@@ -149,25 +140,21 @@ class SankeyDiagramOpDesc extends PythonOperatorDescriptor with PlotlyStandalone
     finalCode.encode
   }
 
-  override def producesDataFrame(): Boolean = false
-
   override def generateStandaloneCode(): String = {
     val sourceLit = pyStringLiteral(sourceAttribute)
     val targetLit = pyStringLiteral(targetAttribute)
     val valueLit = pyStringLiteral(valueAttribute)
-    s"""def render_error(error_msg):
-       |    return '''<h1>Sankey Diagram is not available.</h1>
-       |                  <p>Reasons are: {} </p>
-       |               '''.format(error_msg)
+    s"""${standaloneError("Sankey Diagram is not available.", plural = true)}
        |
        |if in1df.empty:
-       |    with open(outputHtml, "w", encoding="utf-8") as output:
-       |        output.write(render_error("Input table is empty."))
+       |${standaloneErrorPage("Input table is empty.")}
        |else:
        |    table = in1df.groupby([$sourceLit, $targetLit])[$valueLit].sum().reset_index(name="value")
        |    if table.empty:
-       |        with open(outputHtml, "w", encoding="utf-8") as output:
-       |            output.write(render_error("No valid rows left (every row has at least 1 missing value)."))
+       |${standaloneErrorPage(
+      "No valid rows left (every row has at least 1 missing value).",
+      indent = 8
+    )}
        |    else:
        |        labels = pd.concat([table[$sourceLit], table[$targetLit]]).unique().tolist()
        |        table["source_index"] = table[$sourceLit].apply(lambda x: labels.index(x))
@@ -187,9 +174,7 @@ class SankeyDiagramOpDesc extends PythonOperatorDescriptor with PlotlyStandalone
        |            )
        |        )])
        |        fig.update_layout(title_text="Sankey Diagram", font_size=10)
-       |        fig.write_json(outputJson)
-       |        fig.write_html(outputHtml)
-       |        print("Sankey diagram saved to " + outputHtml)""".stripMargin
+       |${standaloneFigure("Sankey diagram")}""".stripMargin
   }
 
 }

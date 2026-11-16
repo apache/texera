@@ -236,10 +236,8 @@ class AccessControlServiceRunSpec extends AnyFlatSpec with Matchers {
     // below also passes for an initialize() that opens nothing at all, off a pool some earlier
     // test in this JVM installed.
     initialized.sqlServerAfter.map(_ ne initialized.sqlServerBefore.orNull) shouldBe Some(true)
-    // Not the test-cases database: pointing the running service at it would have every access
-    // check read a schema that the CI e2e specs truncate underneath it. Only the URL is pinned —
-    // storage.conf ships username and password as the same string ("postgres"), so nothing here
-    // can tell the two credential arguments apart.
+    // Only the URL is pinned — storage.conf ships username and password as the same string
+    // ("postgres"), so nothing here can tell the two credential arguments apart.
     initialized.pooledJdbcUrl.get shouldBe StorageConfig.jdbcUrl
   }
 }

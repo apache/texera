@@ -19,17 +19,16 @@
 
 package org.apache.texera.amber.operator.visualization.IcicleChart
 
+import org.apache.texera.amber.operator.visualization.StandaloneChartCode._
 import com.fasterxml.jackson.annotation.{JsonProperty, JsonPropertyDescription}
 import com.kjetland.jackson.jsonSchema.annotations.{JsonSchemaInject, JsonSchemaTitle}
-import org.apache.texera.amber.core.tuple.{AttributeType, Schema}
 import org.apache.texera.amber.pybuilder.PythonTemplateBuilder.{
   PythonTemplateBuilderStringContext,
   pyStringLiteral
 }
 import org.apache.texera.amber.pybuilder.PyStringTypes.EncodableString
-import org.apache.texera.amber.core.workflow.PortIdentity
-import org.apache.texera.amber.operator.PythonOperatorDescriptor
 import org.apache.texera.amber.operator.visualization.PlotlyStandaloneCode
+import org.apache.texera.amber.operator.visualization.PythonVisualizationOpDesc
 import org.apache.texera.amber.operator.metadata.annotations.AutofillAttributeName
 import org.apache.texera.amber.operator.metadata.{OperatorGroupConstants, OperatorInfo}
 import org.apache.texera.amber.operator.visualization.hierarchychart.HierarchySection
@@ -47,7 +46,7 @@ import javax.validation.constraints.{NotEmpty, NotNull}
   }
 }
 """)
-class IcicleChartOpDesc extends PythonOperatorDescriptor with PlotlyStandaloneCode {
+class IcicleChartOpDesc extends PythonVisualizationOpDesc with PlotlyStandaloneCode {
   @JsonProperty(required = true)
   @JsonSchemaTitle("Hierarchy Path")
   @JsonPropertyDescription(
@@ -62,14 +61,6 @@ class IcicleChartOpDesc extends PythonOperatorDescriptor with PlotlyStandaloneCo
   @AutofillAttributeName
   @NotNull(message = "Value Column cannot be empty")
   var value: EncodableString = ""
-
-  override def getOutputSchemas(
-      inputSchemas: Map[PortIdentity, Schema]
-  ): Map[PortIdentity, Schema] = {
-    val outputSchema = Schema()
-      .add("html-content", AttributeType.STRING)
-    Map(operatorInfo.outputPorts.head.id -> outputSchema)
-  }
 
   override def operatorInfo: OperatorInfo =
     OperatorInfo.forVisualization(
@@ -136,10 +127,6 @@ class IcicleChartOpDesc extends PythonOperatorDescriptor with PlotlyStandaloneCo
     finalCode.encode
   }
 
-  // Output is an HTML chart, not a tabular DataFrame.
-  // The translator skips it in the leaf-DataFrame print block.
-  override def producesDataFrame(): Boolean = false
-
   override def generateStandaloneCode(): String = {
     val attributes = hierarchy.map(section => pyStringLiteral(section.attributeName)).mkString(", ")
     val valueLit = pyStringLiteral(value)
@@ -147,11 +134,8 @@ class IcicleChartOpDesc extends PythonOperatorDescriptor with PlotlyStandaloneCo
     // reason for "no chart" is where the reader looks for the chart — printing it
     // to the terminal alone left that file absent. render_error's continuation
     // line keeps the runtime path's indentation, since the HTML is triple-quoted
-    // and those spaces reach the browser.
-    s"""def render_error(error_msg):
-       |    return '''<h1>Icicle chart is not available.</h1>
-       |                  <p>Reason is: {} </p>
-       |               '''.format(error_msg)
+    // and those spaces reach the browser. chart_df is a copy: the input can feed another branch.
+    s"""${standaloneError("Icicle chart is not available.")}
        |
        |def fail(error_msg):
        |    with open(outputHtml, "w", encoding="utf-8") as output:
@@ -161,8 +145,6 @@ class IcicleChartOpDesc extends PythonOperatorDescriptor with PlotlyStandaloneCo
        |if in1df.empty:
        |    fail("input table is empty.")
        |else:
-       |    # On a copy: the same frame can feed another branch of the plan, and
-       |    # both the assignment and the drop below would otherwise reach it.
        |    chart_df = in1df.copy()
        |    chart_df[$valueLit] = chart_df[chart_df[$valueLit] > 0][$valueLit]
        |    chart_df = chart_df.dropna(subset=[$attributes])
@@ -173,9 +155,7 @@ class IcicleChartOpDesc extends PythonOperatorDescriptor with PlotlyStandaloneCo
        |                         color=$valueLit, hover_data=[$attributes],
        |                         color_continuous_scale='RdBu')
        |        fig.update_layout(margin=dict(l=0, r=0, b=0, t=0))
-       |        fig.write_json(outputJson)
-       |        fig.write_html(outputHtml)
-       |        print("Icicle chart saved to " + outputHtml)""".stripMargin
+       |${standaloneFigure("Icicle chart")}""".stripMargin
   }
 
 }

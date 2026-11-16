@@ -19,14 +19,13 @@
 
 package org.apache.texera.amber.operator.visualization.scatterplot
 
+import org.apache.texera.amber.operator.visualization.StandaloneChartCode._
 import com.fasterxml.jackson.annotation.{JsonProperty, JsonPropertyDescription}
 import com.kjetland.jackson.jsonSchema.annotations.{JsonSchemaInject, JsonSchemaTitle}
-import org.apache.texera.amber.core.tuple.{AttributeType, Schema}
 import org.apache.texera.amber.pybuilder.PythonTemplateBuilder.PythonTemplateBuilderStringContext
 import org.apache.texera.amber.pybuilder.PyStringTypes.EncodableString
-import org.apache.texera.amber.core.workflow.PortIdentity
-import org.apache.texera.amber.operator.PythonOperatorDescriptor
 import org.apache.texera.amber.operator.visualization.PlotlyStandaloneCode
+import org.apache.texera.amber.operator.visualization.PythonVisualizationOpDesc
 import org.apache.texera.amber.operator.metadata.annotations.AutofillAttributeName
 import org.apache.texera.amber.operator.metadata.{OperatorGroupConstants, OperatorInfo}
 import org.apache.texera.amber.pybuilder.PythonTemplateBuilder
@@ -47,7 +46,7 @@ import javax.validation.constraints.NotNull
       "  }" +
       "}"
 )
-class ScatterplotOpDesc extends PythonOperatorDescriptor with PlotlyStandaloneCode {
+class ScatterplotOpDesc extends PythonVisualizationOpDesc with PlotlyStandaloneCode {
 
   @JsonProperty(required = true)
   @JsonSchemaTitle("X-Column")
@@ -92,14 +91,6 @@ class ScatterplotOpDesc extends PythonOperatorDescriptor with PlotlyStandaloneCo
   @JsonPropertyDescription("Column value to display when a dot is hovered over")
   @AutofillAttributeName
   var hoverName: EncodableString = ""
-
-  override def getOutputSchemas(
-      inputSchemas: Map[PortIdentity, Schema]
-  ): Map[PortIdentity, Schema] = {
-    val outputSchema = Schema()
-      .add("html-content", AttributeType.STRING)
-    Map(operatorInfo.outputPorts.head.id -> outputSchema)
-  }
 
   override def operatorInfo: OperatorInfo =
     OperatorInfo.forVisualization(
@@ -178,8 +169,6 @@ class ScatterplotOpDesc extends PythonOperatorDescriptor with PlotlyStandaloneCo
     finalCode.encode
   }
 
-  override def producesDataFrame(): Boolean = false
-
   override def generateStandaloneCode(): String = {
     val dropCols = List(xColumn, yColumn, colorColumn)
       .filter(_.nonEmpty)
@@ -195,25 +184,21 @@ class ScatterplotOpDesc extends PythonOperatorDescriptor with PlotlyStandaloneCo
     if (yLogScale) args += "log_y=True"
     if (hoverName.nonEmpty) args += s"""hover_name=${pyStringLiteral(hoverName)}"""
 
-    s"""def render_error(error_msg):
-       |    return '''<h1>Scatter Plot is not available.</h1>
-       |                  <p>Reasons are: {} </p>
-       |               '''.format(error_msg)
+    s"""${standaloneError("Scatter Plot is not available.", plural = true)}
        |
        |if in1df.empty:
-       |    with open(outputHtml, "w", encoding="utf-8") as output:
-       |        output.write(render_error("Input table is empty."))
+       |${standaloneErrorPage("Input table is empty.")}
        |else:
        |    table = in1df.dropna(subset=$dropCols).copy()
        |    if table.empty:
-       |        with open(outputHtml, "w", encoding="utf-8") as output:
-       |            output.write(render_error("No valid rows left (every row has at least 1 missing value)."))
+       |${standaloneErrorPage(
+      "No valid rows left (every row has at least 1 missing value).",
+      indent = 8
+    )}
        |    else:
        |        fig = go.Figure(px.scatter(table, ${args.mkString(", ")}))
        |        fig.update_layout(margin=dict(l=0, r=0, t=0, b=0))
-       |        fig.write_json(outputJson)
-       |        fig.write_html(outputHtml)
-       |        print("Scatter plot saved to " + outputHtml)""".stripMargin
+       |${standaloneFigure("Scatter plot")}""".stripMargin
   }
 
 }

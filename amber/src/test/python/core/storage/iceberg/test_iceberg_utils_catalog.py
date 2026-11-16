@@ -17,6 +17,10 @@
 
 from unittest.mock import MagicMock, patch
 
+import pytest
+from fsspec.config import conf
+from fsspec.implementations.local import LocalFileSystem
+from pyiceberg.io.fsspec import FsspecFileIO
 from pyiceberg.partitioning import UNPARTITIONED_PARTITION_SPEC
 
 from core.storage.iceberg import iceberg_utils
@@ -283,6 +287,28 @@ class TestCreateRestCatalog:
         assert mock_load_catalog.call_count == 1
         assert catalog is mock_load_catalog.return_value
         return mock_load_catalog.call_args
+
+    @pytest.mark.parametrize("cached", [None, False, True])
+    def test_signed_filesystems_are_isolated_between_file_ios(
+        self, monkeypatch, cached
+    ):
+        options = {} if cached is None else {"skip_instance_cache": cached}
+        monkeypatch.setitem(conf, "s3", options)
+        self._make("review", "warehouse", "http://127.0.0.1:1/catalog")
+        properties = {
+            "s3.signer": "S3V4RestSigner",
+            "uri": "http://127.0.0.1:1/catalog",
+            "s3.endpoint": "http://127.0.0.1:1",
+            "s3.region": "us-west-2",
+            "s3.access-key-id": "test",
+            "s3.secret-access-key": "test",
+        }
+        first = FsspecFileIO(properties)
+        second = FsspecFileIO(properties)
+        filesystem = first.get_fs("s3")
+        assert second.get_fs("s3") is not filesystem
+        assert first.get_fs("s3") is filesystem
+        assert LocalFileSystem() is LocalFileSystem()
 
     def test_catalog_name_uri_and_warehouse_are_forwarded_by_value(self):
         args, kwargs = self._make(

@@ -19,7 +19,13 @@
 
 package org.apache.texera.amber.operator.sortPartitions
 
+import org.apache.texera.amber.util.PythonTestSupport.{
+  NeedsPythonPackages,
+  canImport,
+  configuredPython
+}
 import org.apache.texera.amber.core.executor.OpExecWithClassName
+import org.apache.texera.amber.core.tuple.{AttributeType, Schema, Tuple}
 import org.apache.texera.amber.core.virtualidentity.{ExecutionIdentity, WorkflowIdentity}
 import org.apache.texera.amber.core.workflow.RangePartition
 import org.apache.texera.amber.operator.LogicalOp
@@ -27,6 +33,11 @@ import org.apache.texera.amber.operator.metadata.OperatorGroupConstants
 import org.apache.texera.amber.util.JSONUtils.objectMapper
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
+
+import java.nio.charset.StandardCharsets
+import java.nio.file.Files
+import java.util.concurrent.TimeUnit
+import scala.io.Source
 
 class SortPartitionsOpDescSpec extends AnyFlatSpec with Matchers {
 
@@ -76,5 +87,99 @@ class SortPartitionsOpDescSpec extends AnyFlatSpec with Matchers {
     sp.sortAttributeName shouldBe "age"
     sp.domainMin shouldBe 1L
     sp.domainMax shouldBe 99L
+  }
+
+  // The engine puts a null first and a NaN after positive infinity. Only a
+  // column read into a nullable dtype can hold both, which is what an Arrow
+  // file is read into, so that is where this is run.
+  "SortPartitionsOpDesc.generateStandaloneCode" should
+    "put a null first and a NaN after infinity" taggedAs NeedsPythonPackages in {
+    val python = configuredPython().getOrElse(cancel("No runnable python executable"))
+    if (!canImport(python, "pandas", "numpy")) cancel(s"'$python' cannot import pandas")
+
+    val driver =
+      s"""import pandas as pd, numpy as np
+         |
+         |# 3.0, a null, a stored NaN, 1.0, +inf
+         |in1df = pd.DataFrame({"v": pd.arrays.FloatingArray(
+         |    np.array([3.0, 0.0, np.nan, 1.0, np.inf]),
+         |    np.array([False, True, False, False, False]),
+         |)})
+         |${newDesc("v", 0L, 10L).generateStandaloneCode()}
+         |print([("NULL" if x is pd.NA else repr(float(x))) for x in out1df["v"]])
+         |""".stripMargin
+
+    val script = Files.createTempFile("sort-partitions-nan-", ".py")
+    script.toFile.deleteOnExit()
+    Files.write(script, driver.getBytes(StandardCharsets.UTF_8))
+    val process = new ProcessBuilder(python, script.toString).redirectErrorStream(true).start()
+    val out = Source.fromInputStream(process.getInputStream).mkString
+    process.waitFor(120, TimeUnit.SECONDS)
+
+    withClue(s"python said:\n$out\nscript:\n$driver") {
+      process.exitValue() shouldBe 0
+      out.trim shouldBe "['NULL', '1.0', '3.0', 'inf', 'nan']"
+    }
+  }
+
+  // AttributeTypeUtils.compare: Double.compare puts -0.0 below 0.0, and a
+  // timestamp is compared by getTime, so two inside one millisecond are a tie
+  // the stable sort leaves in input order. Each row carries its input position.
+  it should "order signed zeros and same-millisecond timestamps as the engine does" taggedAs NeedsPythonPackages in {
+    val python = configuredPython().getOrElse(cancel("No runnable python executable"))
+    if (!canImport(python, "pandas", "numpy")) cancel(s"'$python' cannot import pandas")
+
+    def engineOrder(attrType: AttributeType, values: Seq[Any]): List[Int] = {
+      val schema = Schema().add("v", attrType).add("i", AttributeType.INTEGER)
+      val exec = new SortPartitionsOpExec(objectMapper.writeValueAsString(newDesc("v", 0L, 10L)))
+      exec.open()
+      values.zipWithIndex.foreach {
+        case (v, i) => exec.processTuple(Tuple(schema, Array[Any](v, i)), 0)
+      }
+      exec.onFinish(0).map(_.getFields(1).asInstanceOf[Int]).toList
+    }
+    def timestamp(micros: Long): java.sql.Timestamp = {
+      val t = new java.sql.Timestamp(micros / 1000)
+      t.setNanos(((micros % 1000000) * 1000).toInt)
+      t
+    }
+
+    val doubles: Seq[java.lang.Double] = Seq(0.0, -0.0, Double.NaN, 1.0, null, -0.0)
+    // 2024-01-01 00:00:00.000900, .000100 and one millisecond before both.
+    val base = 1704067200000000L
+    val micros = Seq(base + 900, base + 100, base - 1000)
+    val engine = Seq(
+      engineOrder(AttributeType.DOUBLE, doubles),
+      engineOrder(AttributeType.TIMESTAMP, micros.map(timestamp))
+    ).map(_.mkString(" "))
+
+    val code = newDesc("v", 0L, 10L).generateStandaloneCode()
+    val driver =
+      s"""import pandas as pd, numpy as np
+         |
+         |def order(column):
+         |    in1df = pd.DataFrame({"v": column, "i": range(len(column))})
+         |    ns = {"pd": pd, "in1df": in1df}
+         |    exec(${objectMapper.writeValueAsString(code)}, ns)
+         |    print(" ".join(str(i) for i in ns["out1df"]["i"]))
+         |
+         |order(pd.arrays.FloatingArray(
+         |    np.array([0.0, -0.0, np.nan, 1.0, 0.0, -0.0]),
+         |    np.array([False, False, False, False, True, False]),
+         |))
+         |order(pd.Series(np.array([${micros.mkString(", ")}], dtype="datetime64[us]")))
+         |""".stripMargin
+
+    val script = Files.createTempFile("sort-partitions-zero-ms-", ".py")
+    script.toFile.deleteOnExit()
+    Files.write(script, driver.getBytes(StandardCharsets.UTF_8))
+    val process = new ProcessBuilder(python, script.toString).redirectErrorStream(true).start()
+    val out = Source.fromInputStream(process.getInputStream).mkString
+    process.waitFor(120, TimeUnit.SECONDS)
+
+    withClue(s"python said:\n$out\nscript:\n$driver") {
+      process.exitValue() shouldBe 0
+      out.trim.linesIterator.toList shouldBe engine
+    }
   }
 }
