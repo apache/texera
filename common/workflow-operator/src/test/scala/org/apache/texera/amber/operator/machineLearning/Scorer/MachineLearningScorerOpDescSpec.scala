@@ -19,15 +19,17 @@
 
 package org.apache.texera.amber.operator.machineLearning.Scorer
 
+import org.apache.texera.amber.util.PythonTestSupport.{
+  NeedsPythonPackages,
+  canImport,
+  configuredPython
+}
 import com.fasterxml.jackson.databind.node.ObjectNode
-import com.typesafe.config.ConfigFactory
 import org.apache.texera.amber.core.tuple.{Attribute, AttributeType, Schema}
 import org.apache.texera.amber.core.workflow.PortIdentity
 import org.apache.texera.amber.operator.LogicalOp
 import org.apache.texera.amber.operator.metadata.OperatorGroupConstants
-import org.apache.texera.amber.operator.tags.IntegrationTest
 import org.apache.texera.amber.util.JSONUtils.objectMapper
-import org.scalatest.Tag
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 
@@ -35,11 +37,8 @@ import java.nio.charset.StandardCharsets
 import java.nio.file.Files
 import java.util.Base64
 import java.util.concurrent.TimeUnit
-import scala.util.Try
 
 class MachineLearningScorerOpDescSpec extends AnyFlatSpec with Matchers {
-
-  private val NeedsPythonPackages = Tag(classOf[IntegrationTest].getName)
 
   /** An EncodableString field renders as a runtime decode site in the emitted code. */
   private val decodeSite = "self.decode_python_template"
@@ -333,42 +332,6 @@ class MachineLearningScorerOpDescSpec extends AnyFlatSpec with Matchers {
     }
   }
 
-  // Python executable resolution, following FilledAreaPlotOpDescSpec:
-  // udf.conf python.path (UDF_PYTHON_PATH), then python3 / python / py.
-  private def resolvePythonExecutable(): Option[String] = {
-    def fromConfig: Option[String] = {
-      val configOpt =
-        Try(ConfigFactory.parseResources("udf.conf").resolve()).toOption
-          .orElse(Try(ConfigFactory.load()).toOption)
-      configOpt
-        .flatMap(c => Try(c.getConfig("python").getString("path")).toOption)
-        .map(_.trim)
-        .filter(_.nonEmpty)
-    }
-
-    def isRunnable(exe: String): Boolean = {
-      val pTry = Try(new ProcessBuilder(exe, "--version").redirectErrorStream(true).start())
-      pTry.toOption.exists { p =>
-        val finished = p.waitFor(5, TimeUnit.SECONDS)
-        if (!finished) { p.destroyForcibly(); false }
-        else p.exitValue() == 0
-      }
-    }
-
-    (fromConfig.toList ++ List("python3", "python", "py")).distinct.find(isRunnable)
-  }
-
-  private def canImportPandasAndSklearn(python: String): Boolean = {
-    val pTry = Try(
-      new ProcessBuilder(python, "-c", "import pandas, sklearn").redirectErrorStream(true).start()
-    )
-    pTry.toOption.exists { p =>
-      val finished = p.waitFor(60, TimeUnit.SECONDS)
-      if (!finished) { p.destroyForcibly(); false }
-      else p.exitValue() == 0
-    }
-  }
-
   // Driver executed by the runtime test below. It stubs only the pytexera import seam;
   // the generated module runs unmodified, against the real scikit-learn metrics.
   private val runtimeDriverScript: String =
@@ -415,10 +378,10 @@ class MachineLearningScorerOpDescSpec extends AnyFlatSpec with Matchers {
       |""".stripMargin
 
   it should "score the rows it can and refuse a table that keeps none of them" taggedAs NeedsPythonPackages in {
-    val python = resolvePythonExecutable().getOrElse(
+    val python = configuredPython().getOrElse(
       cancel("No runnable python executable (udf.conf python.path, python3, python, py)")
     )
-    if (!canImportPandasAndSklearn(python)) {
+    if (!canImport(python, "pandas", "sklearn")) {
       cancel(s"'$python' cannot import pandas and sklearn; skipping runtime verification")
     }
 
