@@ -373,6 +373,34 @@ class ExecutionStatsServiceSpec
     }
   }
 
+  it should "sum multi-port output metrics and zero-out empty ports consistently" in {
+    withService { f =>
+      val batches = recordBatches(f.stateStore.statsStore) {
+        f.client.fire(
+          ExecutionStatsUpdate(
+            Map(
+              "multiOut" -> metrics(
+                RUNNING,
+                inputs = Seq.empty,
+                outputs = Seq((0, 2L, 20L), (1, 5L, 55L)),
+                numWorkers = 3
+              )
+            )
+          )
+        )
+      }
+
+      val published = statisticsEvents(batches.flatten)
+      val multiOut = published("multiOut")
+      multiOut.aggregatedInputRowCount shouldBe 0L
+      multiOut.aggregatedInputSize shouldBe 0L
+      multiOut.inputPortMetrics shouldBe Map.empty
+      multiOut.aggregatedOutputRowCount shouldBe 7L
+      multiOut.aggregatedOutputSize shouldBe 75L
+      multiOut.outputPortMetrics shouldBe Map("0" -> 2L, "1" -> 5L)
+    }
+  }
+
   "the worker assignment callback" should
     "publish one event per operator carrying that operator's workers" in {
     withService { f =>
@@ -580,6 +608,30 @@ class ExecutionStatsServiceSpec
           persistedRows() should have size 1
         }
       }
+    }
+  }
+
+  it should "sum multi-port input and output counts and sizes when persisting statistics" in {
+    withService { f =>
+      val multiPort = metrics(
+        RUNNING,
+        inputs = Seq((0, 2L, 20L), (1, 3L, 35L)),
+        outputs = Seq((0, 4L, 40L), (1, 5L, 55L)),
+        numWorkers = 2
+      )
+
+      f.client.fire(RuntimeStatisticsPersist(Map("opMulti" -> multiPort)))
+      awaitPersist(f.service)
+      f.client.fire(ExecutionStateUpdate(COMPLETED))
+
+      val rows = persistedRows()
+      rows should have size 1
+      val row = rows.head
+      row.getField[String]("operatorId") shouldBe "opMulti"
+      row.getField[Long]("inputTupleCnt") shouldBe 5L
+      row.getField[Long]("inputTupleSize") shouldBe 55L
+      row.getField[Long]("outputTupleCnt") shouldBe 9L
+      row.getField[Long]("outputTupleSize") shouldBe 95L
     }
   }
 }
