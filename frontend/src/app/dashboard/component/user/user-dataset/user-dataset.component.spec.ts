@@ -37,7 +37,7 @@ import { commonTestImports, commonTestProviders } from "../../../../common/testi
 
 import { UserDatasetComponent } from "./user-dataset.component";
 import { USER_DATASET } from "../../../../app-routing.constant";
-import { UserDatasetVersionCreatorComponent } from "./user-dataset-explorer/user-dataset-version-creator/user-dataset-version-creator.component";
+import { UserDatasetCreatorComponent } from "./user-dataset-creator/user-dataset-creator.component";
 import { SortMethod } from "../../../type/sort-method";
 import { User } from "../../../../common/type/user";
 
@@ -258,14 +258,14 @@ describe("UserDatasetComponent", () => {
   });
 
   describe("onClickOpenDatasetAddComponent", () => {
-    it("opens UserDatasetVersionCreatorComponent", () => {
+    it("opens UserDatasetCreatorComponent", () => {
       modalServiceMock.create.mockReturnValue({ afterClose: of(null) });
 
       component.onClickOpenDatasetAddComponent();
 
       expect(modalServiceMock.create).toHaveBeenCalledTimes(1);
       const config = modalServiceMock.create.mock.calls[0][0];
-      expect(config.nzContent).toBe(UserDatasetVersionCreatorComponent);
+      expect(config.nzContent).toBe(UserDatasetCreatorComponent);
       expect(config.nzFooter).toBeNull();
     });
 

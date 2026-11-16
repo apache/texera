@@ -30,7 +30,7 @@ import { WorkflowActionService } from "../../service/workflow-graph/model/workfl
 import { WorkflowResultService } from "../../service/workflow-result/workflow-result.service";
 import { ComputingUnitStatusService } from "../../../common/service/computing-unit/computing-unit-status/computing-unit-status.service";
 import { DashboardWorkflowComputingUnit } from "../../../common/type/workflow-computing-unit";
-import { UserDatasetVersionCreatorComponent } from "../../../dashboard/component/user/user-dataset/user-dataset-explorer/user-dataset-version-creator/user-dataset-version-creator.component";
+import { UserDatasetCreatorComponent } from "../../../dashboard/component/user/user-dataset/user-dataset-creator/user-dataset-creator.component";
 import { NgIf, NgFor } from "@angular/common";
 import { NzAlertComponent } from "ng-zorro-antd/alert";
 import { FormsModule } from "@angular/forms";
@@ -282,7 +282,7 @@ export class ResultExportationComponent implements OnInit {
   onClickCreateNewDataset(): void {
     const modal = this.modalService.create({
       nzTitle: "Create New Dataset",
-      nzContent: UserDatasetVersionCreatorComponent,
+      nzContent: UserDatasetCreatorComponent,
       nzFooter: null,
       nzWidth: 500,
     });

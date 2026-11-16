@@ -20,22 +20,22 @@
 import { Component, OnInit } from "@angular/core";
 import { FormGroup } from "@angular/forms";
 import { FormlyFieldConfig } from "@ngx-formly/core";
-import { DatasetService } from "../../../../../service/user/dataset/dataset.service";
-import { Dataset } from "../../../../../../common/type/dataset";
+import { DatasetService } from "../../../../service/user/dataset/dataset.service";
+import { Dataset } from "../../../../../common/type/dataset";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
-import { NotificationService } from "../../../../../../common/service/notification/notification.service";
+import { NotificationService } from "../../../../../common/service/notification/notification.service";
 import { HttpErrorResponse } from "@angular/common/http";
 import { NzModalRef } from "ng-zorro-antd/modal";
-import { contributorFieldGroup } from "../user-dataset-contributor-editor/contributor-form-fields";
-import { ResourceCreatorFormComponent } from "../../../resource-creator-form/resource-creator-form.component";
+import { contributorFieldGroup } from "../user-dataset-explorer/user-dataset-contributor-editor/contributor-form-fields";
+import { ResourceCreatorFormComponent } from "../../resource-creator-form/resource-creator-form.component";
 
 @UntilDestroy()
 @Component({
-  selector: "texera-user-dataset-version-creator",
-  templateUrl: "./user-dataset-version-creator.component.html",
+  selector: "texera-user-dataset-creator",
+  templateUrl: "./user-dataset-creator.component.html",
   imports: [ResourceCreatorFormComponent],
 })
-export class UserDatasetVersionCreatorComponent implements OnInit {
+export class UserDatasetCreatorComponent implements OnInit {
   public form: FormGroup = new FormGroup({});
   model: any = {};
   fields: FormlyFieldConfig[] = [];

@@ -26,10 +26,10 @@ import { FieldType, FieldTypeConfig, FormlyModule } from "@ngx-formly/core";
 import { HttpClientTestingModule } from "@angular/common/http/testing";
 import { NzModalRef } from "ng-zorro-antd/modal";
 import { of, Subject, throwError } from "rxjs";
-import { UserDatasetVersionCreatorComponent } from "./user-dataset-version-creator.component";
-import { DatasetService } from "../../../../../service/user/dataset/dataset.service";
-import { NotificationService } from "../../../../../../common/service/notification/notification.service";
-import { commonTestProviders } from "../../../../../../common/testing/test-utils";
+import { UserDatasetCreatorComponent } from "./user-dataset-creator.component";
+import { DatasetService } from "../../../../service/user/dataset/dataset.service";
+import { NotificationService } from "../../../../../common/service/notification/notification.service";
+import { commonTestProviders } from "../../../../../common/testing/test-utils";
 
 // Minimal stand-in for the "input" formly type (the real one comes from the app's
 // UI formly module). Registering it lets formly materialize the declared fields
@@ -37,13 +37,13 @@ import { commonTestProviders } from "../../../../../../common/testing/test-utils
 @Component({ template: "", standalone: true })
 class StubFormlyInputComponent extends FieldType<FieldTypeConfig> {}
 
-describe("UserDatasetVersionCreatorComponent", () => {
+describe("UserDatasetCreatorComponent", () => {
   let modalClose: ReturnType<typeof vi.fn>;
   let createDataset: ReturnType<typeof vi.fn>;
   let notifySuccess: ReturnType<typeof vi.fn>;
   let notifyError: ReturnType<typeof vi.fn>;
 
-  async function createFixture(): Promise<ComponentFixture<UserDatasetVersionCreatorComponent>> {
+  async function createFixture(): Promise<ComponentFixture<UserDatasetCreatorComponent>> {
     modalClose = vi.fn();
     createDataset = vi.fn();
     notifySuccess = vi.fn();
@@ -51,7 +51,7 @@ describe("UserDatasetVersionCreatorComponent", () => {
 
     await TestBed.configureTestingModule({
       imports: [
-        UserDatasetVersionCreatorComponent,
+        UserDatasetCreatorComponent,
         BrowserAnimationsModule,
         FormsModule,
         ReactiveFormsModule,
@@ -71,7 +71,7 @@ describe("UserDatasetVersionCreatorComponent", () => {
       ],
     }).compileComponents();
 
-    return TestBed.createComponent(UserDatasetVersionCreatorComponent);
+    return TestBed.createComponent(UserDatasetCreatorComponent);
   }
 
   it("should create and render the formly form", async () => {
@@ -232,7 +232,7 @@ describe("UserDatasetVersionCreatorComponent", () => {
    * swapping the two switches or the two buttons fails here.
    */
   describe("rendered controls", () => {
-    async function renderCreator(): Promise<ComponentFixture<UserDatasetVersionCreatorComponent>> {
+    async function renderCreator(): Promise<ComponentFixture<UserDatasetCreatorComponent>> {
       const fixture = await createFixture();
       fixture.detectChanges();
       fixture.componentInstance.form.get("name")?.setValue("My Dataset");
@@ -240,10 +240,10 @@ describe("UserDatasetVersionCreatorComponent", () => {
       return fixture;
     }
 
-    const switches = (fixture: ComponentFixture<UserDatasetVersionCreatorComponent>) =>
+    const switches = (fixture: ComponentFixture<UserDatasetCreatorComponent>) =>
       fixture.debugElement.queryAll(By.css("nz-switch"));
 
-    const click = (fixture: ComponentFixture<UserDatasetVersionCreatorComponent>, selector: string) =>
+    const click = (fixture: ComponentFixture<UserDatasetCreatorComponent>, selector: string) =>
       (fixture.nativeElement.querySelector(selector) as HTMLButtonElement).click();
 
     it("submits the dataset from the create button", async () => {

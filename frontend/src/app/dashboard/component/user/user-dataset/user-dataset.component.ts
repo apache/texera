@@ -32,7 +32,7 @@ import { SortButtonComponent } from "../sort-button/sort-button.component";
 import { firstValueFrom } from "rxjs";
 import { USER_DATASET } from "../../../../app-routing.constant";
 import { NzModalService } from "ng-zorro-antd/modal";
-import { UserDatasetVersionCreatorComponent } from "./user-dataset-explorer/user-dataset-version-creator/user-dataset-version-creator.component";
+import { UserDatasetCreatorComponent } from "./user-dataset-creator/user-dataset-creator.component";
 import { DashboardDataset } from "../../../type/dashboard-dataset.interface";
 import { NzMessageService } from "ng-zorro-antd/message";
 import { map, tap } from "rxjs/operators";
@@ -190,7 +190,7 @@ export class UserDatasetComponent implements AfterViewInit {
   public onClickOpenDatasetAddComponent(): void {
     const modal = this.modalService.create({
       nzTitle: "Create New Dataset",
-      nzContent: UserDatasetVersionCreatorComponent,
+      nzContent: UserDatasetCreatorComponent,
       nzFooter: null,
       nzBodyStyle: {
         resize: "both",
