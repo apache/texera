@@ -86,6 +86,7 @@ import org.scalatest.{BeforeAndAfterAll, PrivateMethodTester}
 
 import java.net.URI
 import java.sql.Timestamp
+import java.util.concurrent.{FutureTask, TimeUnit}
 import scala.jdk.CollectionConverters._
 
 /**
@@ -111,11 +112,6 @@ import scala.jdk.CollectionConverters._
   * per-row size (`rowChars`) rather than round numbers, which land in a neighbouring branch.
   *
   * Deliberately NOT covered, and why:
-  *   - `validateWorkflow` (lines 905-924). It has zero call sites: nothing in the repository, in
-  *     any language, invokes it (agent-service has a same-named TypeScript function of its own,
-  *     which is unrelated). It is reachable by reflection, but reflective reachability is not
-  *     liveness — a test here would only cement dead code and make its deletion look like a
-  *     regression. Reported as dead instead.
   *   - `shutdownPreviousExecution` (350-361) and `killExecution`'s `client.shutdown()` line (368).
   *     Both need an `AmberClient` test double; amber's test scope has no mocking library, and
   *     `AmberClient`'s constructor needs a started `AmberRuntime`. `shutdownPreviousExecution` is
@@ -124,10 +120,10 @@ import scala.jdk.CollectionConverters._
   *   - the document-reading half of `collectConsoleLogs`. Reachable by the same fixture technique
   *     (a console-messages document whose single column holds ASCII-serialized `ConsoleMessage`
   *     protos), just not done here; its database half, `getConsoleMessageUri`, is pinned below.
-  *   - the `Observable.amb` wait and its timeout/error handlers (lines 231-277), plus the
-  *     `ConsoleErrorDetected` / `TargetResultsReady` termination arms (284-298). Reaching them
-  *     needs an execution that is still non-terminal when `executeWorkflowSync` looks at it, i.e.
-  *     a live engine.
+  *   - the `Observable.amb` wait and construction of its timeout/error responses (lines 231-277),
+  *     plus the `ConsoleErrorDetected` / `TargetResultsReady` termination arms (284-298). Reaching
+  *     them needs an execution that is still non-terminal when `executeWorkflowSync` looks at it,
+  *     i.e. a live engine. Timeout cause classification is pinned independently below.
   */
 class SyncExecutionResourceSpec
     extends AnyFlatSpec
@@ -158,6 +154,7 @@ class SyncExecutionResourceSpec
 
   private val stateToString = PrivateMethod[String](Symbol("stateToString"))
   private val isTerminalState = PrivateMethod[Boolean](Symbol("isTerminalState"))
+  private val isCausedByTimeout = PrivateMethod[Boolean](Symbol("isCausedByTimeout"))
   private val hasConsoleError = PrivateMethod[Boolean](Symbol("hasConsoleError"))
   private val symmetricTruncateCellValue =
     PrivateMethod[String](Symbol("symmetricTruncateCellValue"))
@@ -361,6 +358,7 @@ class SyncExecutionResourceSpec
       ),
       stateStore,
       (_: Throwable) => (),
+      Integer.valueOf(1), // uid; these tests never resolve a file
       None,
       new URI("vfs:///sync-execution-spec")
     )
@@ -407,6 +405,37 @@ class SyncExecutionResourceSpec
 
   "healthCheck" should "report ok under the key the caller polls" in {
     resource.healthCheck shouldBe Map("status" -> "ok")
+  }
+
+  "isCausedByTimeout" should "detect direct and nested timeout exceptions" in {
+    val direct = new java.util.concurrent.TimeoutException("direct")
+    val nested = new RuntimeException(
+      "outer",
+      new RuntimeException("blockingGet wrapper", new java.util.concurrent.TimeoutException("wait"))
+    )
+
+    resource invokePrivate isCausedByTimeout(direct) shouldBe true
+    resource invokePrivate isCausedByTimeout(nested) shouldBe true
+  }
+
+  it should "reject unrelated and empty cause chains" in {
+    resource invokePrivate isCausedByTimeout(new RuntimeException("other")) shouldBe false
+    resource invokePrivate isCausedByTimeout(null.asInstanceOf[Throwable]) shouldBe false
+  }
+
+  it should "reject a cyclic cause chain without hanging" in {
+    val first = new RuntimeException("first")
+    val second = new RuntimeException("second")
+    first.initCause(second)
+    second.initCause(first)
+
+    val classification =
+      new FutureTask[Boolean](() => resource invokePrivate isCausedByTimeout(first))
+    val classificationThread = new Thread(classification)
+    classificationThread.setDaemon(true)
+    classificationThread.start()
+
+    classification.get(1, TimeUnit.SECONDS) shouldBe false
   }
 
   "stateToString" should "name every aggregated state and fall back to Unknown" in {

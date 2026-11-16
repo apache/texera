@@ -76,7 +76,6 @@ class VolcanoPlotOpDescSpec extends AnyFlatSpec with Matchers {
     val code = configured.generatePythonCode()
     code should include("class ProcessTableOperator(UDFTableOperator)")
     code should include("plotly.express")
-    code should include("-log10(pvalue)")
     val decodeOccurrences = "decode_python_template".r.findAllIn(code).length
     decodeOccurrences should be >= 2
   }
@@ -126,6 +125,72 @@ class VolcanoPlotOpDescSpec extends AnyFlatSpec with Matchers {
     val code = op.generatePythonCode()
     code should include(s"hover_name=${decoded(op.hoverName)},")
     code should not include "HOVER_SENT"
+  }
+
+  it should "name the y column and its axis after the selected p-value column" in {
+    // The y axis used to read "-log10(pvalue)" whatever column was chosen; a
+    // figure drawn from an adjusted column must say so.
+    val op = configured
+    op.pvalueColumn = "padj"
+    val code = op.generatePythonCode()
+    code should include(s"table[${decoded("-log10(padj)")}] = -np.log10(")
+    code should include(s"y=${decoded("-log10(padj)")}")
+    code should include(s"yaxis_title=${decoded("-log10(padj)")}")
+    code should not include "-log10(pvalue)"
+    code should not include b64("-log10(pvalue)")
+  }
+
+  it should "fall back to the column-derived labels when no label is set" in {
+    val code = configured.generatePythonCode()
+    code should include(s"title=${decoded("Volcano Plot")}")
+    code should include(s"xaxis_title=${decoded("log2fc")}")
+    code should include(s"yaxis_title=${decoded("-log10(pvalue)")}")
+    code should include(s"coloraxis_colorbar_title_text=${decoded("log2fc")}")
+  }
+
+  it should "route every configured label through the decoder instead of the default" in {
+    // Sentinels with quotes, a backslash and non-ASCII text: as decode sites
+    // they cannot break the Python source, and the raw text must never
+    // appear in it.
+    val op = configured
+    op.title = "TITLE_SENT \"quoted\" 火山"
+    op.xLabel = "X_LBL_SENT log₂ fold change"
+    op.yLabel = "Y_LBL_SENT -log₁₀(BH-adjusted p) \\ back\\slash"
+    val code = op.generatePythonCode()
+    code should include(s"title=${decoded(op.title)}")
+    code should include(s"xaxis_title=${decoded(op.xLabel)}")
+    code should include(s"yaxis_title=${decoded(op.yLabel)}")
+    // The color bar follows the x label, since both show the effect column.
+    code should include(s"coloraxis_colorbar_title_text=${decoded(op.xLabel)}")
+    Seq(op.title, op.xLabel, op.yLabel).foreach { sentinel =>
+      code should not include sentinel
+    }
+    // A set label replaces the default rather than being emitted next to it.
+    code should not include b64("Volcano Plot")
+    code should not include s"xaxis_title=${decoded("log2fc")}"
+    code should not include s"yaxis_title=${decoded("-log10(pvalue)")}"
+    code should not include s"coloraxis_colorbar_title_text=${decoded("log2fc")}"
+    // The y column itself keeps the derived name: a label is text on the axis,
+    // not a column rename.
+    code should include(s"y=${decoded("-log10(pvalue)")}")
+  }
+
+  it should "treat a whitespace-only label as empty and keep the default" in {
+    val op = configured
+    op.title = " "
+    op.xLabel = "\t"
+    op.yLabel = " \n "
+    op.generatePythonCode() shouldBe configured.generatePythonCode()
+  }
+
+  it should "treat each label independently so one set label leaves the others at their default" in {
+    val op = configured
+    op.yLabel = "Y_ONLY_SENT"
+    val code = op.generatePythonCode()
+    code should include(s"yaxis_title=${decoded("Y_ONLY_SENT")}")
+    code should include(s"title=${decoded("Volcano Plot")}")
+    code should include(s"xaxis_title=${decoded("log2fc")}")
+    code should include(s"coloraxis_colorbar_title_text=${decoded("log2fc")}")
   }
 
   it should "render a workflow saved before this change exactly as a default-constructed operator" in {
@@ -181,6 +246,61 @@ class VolcanoPlotOpDescSpec extends AnyFlatSpec with Matchers {
       op.hoverName = blank
       op.generateStandaloneCode() shouldBe configured.generateStandaloneCode()
     }
+  }
+
+  it should "name the y column and its axis after the selected p-value column" in {
+    val op = configured
+    op.pvalueColumn = "padj"
+    val code = op.generateStandaloneCode()
+    code should include("""table["-log10(padj)"] = -np.log10(table["padj"])""")
+    code should include("""y="-log10(padj)",""")
+    code should include("""yaxis_title="-log10(padj)",""")
+    code should not include "-log10(pvalue)"
+    // The derived y column is the one literal built from a column name rather than
+    // taken from a field, so a quote in that name must survive the wrap and the escape.
+    op.pvalueColumn = "p\"adj"
+    val quoted = op.generateStandaloneCode()
+    quoted should include("table[\"-log10(p\\\"adj)\"] = -np.log10(table[\"p\\\"adj\"])")
+    quoted should include("yaxis_title=\"-log10(p\\\"adj)\",")
+  }
+
+  it should "fall back to the column-derived labels when no label is set" in {
+    val code = configured.generateStandaloneCode()
+    code should include("""title="Volcano Plot"""")
+    code should include("""xaxis_title="log2fc",""")
+    code should include("""yaxis_title="-log10(pvalue)",""")
+    code should include("""coloraxis_colorbar_title_text="log2fc"""")
+  }
+
+  it should "emit every configured label as an escaped Python literal" in {
+    // The export has no decoder, so the text itself is in the script: a quote or
+    // a backslash must come out escaped, or the label would end the literal early.
+    val op = configured
+    op.title = "TITLE_SENT \"quoted\" 火山"
+    op.xLabel = "X_LBL_SENT log₂ fold change"
+    op.yLabel = "Y_LBL_SENT -log₁₀(BH-adjusted p) \\ back\\slash"
+    val code = op.generateStandaloneCode()
+    code should include("title=\"TITLE_SENT \\\"quoted\\\" 火山\"")
+    code should include("xaxis_title=\"X_LBL_SENT log₂ fold change\",")
+    code should include("yaxis_title=\"Y_LBL_SENT -log₁₀(BH-adjusted p) \\\\ back\\\\slash\",")
+    // The color bar follows the x label, since both show the effect column.
+    code should include("coloraxis_colorbar_title_text=\"X_LBL_SENT log₂ fold change\"")
+    // A set label replaces the default rather than being emitted next to it.
+    code should not include """title="Volcano Plot""""
+    code should not include """xaxis_title="log2fc""""
+    code should not include """yaxis_title="-log10(pvalue)""""
+    code should not include """coloraxis_colorbar_title_text="log2fc""""
+    // The y column itself keeps the derived name: a label is text on the axis,
+    // not a column rename.
+    code should include("""y="-log10(pvalue)",""")
+  }
+
+  it should "treat a whitespace-only label as empty and keep the default" in {
+    val op = configured
+    op.title = " "
+    op.xLabel = "\t"
+    op.yLabel = " \n "
+    op.generateStandaloneCode() shouldBe configured.generateStandaloneCode()
   }
 
   "VolcanoPlotOpDesc.generatePythonCode" should "currently render code even when required fields are empty (no assert guard)" in {
