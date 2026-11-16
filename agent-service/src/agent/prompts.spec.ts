@@ -18,73 +18,26 @@
  */
 
 import { describe, expect, test } from "bun:test";
-import type { OperatorSchema } from "../api/backend-api";
 import { buildSystemPrompt } from "./prompts";
-import { WorkflowSystemMetadata } from "./util/workflow-system-metadata";
-
-function makeOperatorSchema(operatorType: string, description: string): OperatorSchema {
-  return {
-    operatorType,
-    operatorVersion: "1.0",
-    jsonSchema: {
-      properties: {
-        condition: { type: "string" },
-      },
-      required: ["condition"],
-    },
-    additionalMetadata: {
-      userFriendlyName: operatorType,
-      operatorGroupName: "Test",
-      operatorDescription: description,
-      inputPorts: [],
-      outputPorts: [],
-    },
-  };
-}
-
-function makeMetadataStore(): WorkflowSystemMetadata {
-  const metadataStore = new WorkflowSystemMetadata();
-  metadataStore.loadFromMetadata({
-    operators: [
-      makeOperatorSchema("Filter", "Keeps rows that match a condition."),
-      makeOperatorSchema("PythonUDFV2", "Runs user-defined Python code."),
-      makeOperatorSchema("RUDF", "Runs user-defined R code."),
-    ],
-    groups: [],
-  });
-  return metadataStore;
-}
 
 describe("buildSystemPrompt", () => {
-  test("renders only explicitly allowed operators with their descriptions and compact schemas", () => {
-    const prompt = buildSystemPrompt(makeMetadataStore(), ["Filter"]);
+  const prompt = buildSystemPrompt();
 
-    expect(prompt).toContain("## Filter");
-    expect(prompt).toContain("Description: Keeps rows that match a condition.");
-    expect(prompt).toMatch(/"condition":\s*\{\s*"type":\s*"string"/);
-    expect(prompt).not.toContain("## PythonUDFV2");
-    expect(prompt).not.toContain("## RUDF");
-    expect(prompt).not.toContain("## Python UDF Guide");
-    expect(prompt).not.toContain("## R UDF Guide");
+  test("sends the model to the two operator tools, and describes no operator type itself", () => {
+    expect(prompt).toContain("`list_operator_types` names every operator type");
+    expect(prompt).toContain("`get_operator_schema` gives the properties");
+    // Neither a line per type nor a schema: both used to be written here.
+    expect(prompt).not.toMatch(/^- [A-Za-z][A-Za-z0-9]*: /m);
+    expect(prompt).not.toContain("```json");
+    expect(prompt).not.toContain("{{");
   });
 
-  test("adds guidance only for the UDF language in a restricted allowlist", () => {
-    const metadataStore = makeMetadataStore();
-    const pythonPrompt = buildSystemPrompt(metadataStore, ["PythonUDFV2"]);
-    const rPrompt = buildSystemPrompt(metadataStore, ["RUDF"]);
-
-    expect(pythonPrompt).toContain("## Python UDF Guide");
-    expect(pythonPrompt).not.toContain("## R UDF Guide");
-    expect(rPrompt).toContain("## R UDF Guide");
-    expect(rPrompt).not.toContain("## Python UDF Guide");
+  test("stays within its budget, so no list of types or schemas grows back into it", () => {
+    // The prompt was 27 KB with the schemas of 18 operator types in it, and 219 KB with all of them.
+    expect(new TextEncoder().encode(prompt).length).toBeLessThan(10_000);
   });
 
-  test("uses all metadata operators and both UDF guides when no allowlist is supplied", () => {
-    const prompt = buildSystemPrompt(makeMetadataStore());
-
-    expect(prompt).toContain("## Filter");
-    expect(prompt).toContain("## PythonUDFV2");
-    expect(prompt).toContain("## RUDF");
+  test("holds the guides for both UDF languages", () => {
     expect(prompt).toContain("## Python UDF Guide");
     expect(prompt).toContain("## R UDF Guide");
   });
@@ -92,8 +45,6 @@ describe("buildSystemPrompt", () => {
   test("sends the model to the read tools for the workflow, and gives no format for the conversation", () => {
     // The conversation reaches the model as native messages and nothing else is written into it, so
     // the prompt describes only what get_workflow returns.
-    const prompt = buildSystemPrompt(makeMetadataStore(), ["Filter"]);
-
     expect(prompt).toContain("## Reading the Workflow");
     expect(prompt).toContain("Call `get_workflow` to see it");
     expect(prompt).toContain("### Operator `<operator_id>` (<operator_type>)");
@@ -105,13 +56,5 @@ describe("buildSystemPrompt", () => {
     expect(prompt).not.toContain("# Completed Tasks");
     expect(prompt).not.toContain("# Ongoing Task");
     expect(prompt).not.toContain("### Turn");
-  });
-
-  test("reports that no operators are available when a restricted type is absent from metadata", () => {
-    const prompt = buildSystemPrompt(makeMetadataStore(), ["MissingOperator"]);
-
-    expect(prompt).toContain("No operators available.");
-    expect(prompt).not.toContain("## Python UDF Guide");
-    expect(prompt).not.toContain("## R UDF Guide");
   });
 });

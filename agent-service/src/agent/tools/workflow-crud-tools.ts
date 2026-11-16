@@ -23,6 +23,7 @@ import { WorkflowState } from "../workflow-state";
 import { autoLayoutWorkflow } from "../util/auto-layout";
 import { WorkflowUtilService } from "../util/workflow-utils";
 import type { OperatorLink, PortDescription } from "../../types/workflow";
+import { TOOL_NAME_GET_OPERATOR_SCHEMA, TOOL_NAME_LIST_OPERATOR_TYPES } from "./operator-tools";
 import {
   createToolResult,
   createErrorResult,
@@ -142,21 +143,23 @@ export function createAddOperatorTool(
   const workflowUtil = context?.metadataStore ? new WorkflowUtilService(context.metadataStore, workflowState) : null;
 
   return tool({
-    description: `Add a new operator to the workflow. Use getOperatorSchema first to understand required properties.
+    description: `Add a new operator to the workflow. Use ${TOOL_NAME_GET_OPERATOR_SCHEMA} first to understand required properties.
 
 Examples:
 1. Add a source operator (no inputs):
-   { "operatorId": "op1", "operatorType": "TableFileScan", "properties": { "fileName": "data.csv" }, "summary": "Load CSV data" }
+   { "operatorId": "op1", "operatorType": "CSVFileScan", "properties": { "fileName": "data.csv" }, "summary": "Load CSV data" }
 
 2. Add an operator with input connections:
-   { "operatorId": "op2", "operatorType": "TableFilter", "properties": { "predicates": [...] }, "inputOperatorIds": { "0": ["op1"] }, "summary": "Filter rows by condition" }${executionNote(context)}`,
+   { "operatorId": "op2", "operatorType": "Filter", "properties": { "predicates": [...] }, "inputOperatorIds": { "0": ["op1"] }, "summary": "Filter rows by condition" }${executionNote(context)}`,
     inputSchema: z.object({
       operatorId: z
         .string()
         .describe(
           "Name of Operator. Use the format 'op' followed by an incrementing number starting from 1 (e.g., op1, op2, op3)."
         ),
-      operatorType: z.string().describe("The operator type (e.g., 'DataProcessing', 'Aggregate')"),
+      operatorType: z
+        .string()
+        .describe(`The operator type, as ${TOOL_NAME_LIST_OPERATOR_TYPES} names it (e.g., 'CSVFileScan', 'Aggregate')`),
       properties: z.record(z.any()).describe("Properties to set on the operator"),
       inputOperatorIds: z
         .record(z.array(z.string()))
@@ -184,7 +187,7 @@ Examples:
         const schemaEntry = operatorSchemas.get(args.operatorType);
         if (!schemaEntry) {
           return createErrorResult(
-            `Unknown operator type: "${args.operatorType}". Available types: ${[...operatorSchemas.keys()].join(", ")}. ${inputInfo}`
+            `Unknown operator type: "${args.operatorType}". ${TOOL_NAME_LIST_OPERATOR_TYPES} names the types that exist. ${inputInfo}`
           );
         }
 

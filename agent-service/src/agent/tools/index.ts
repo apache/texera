@@ -21,3 +21,4 @@ export * from "./tools-utility";
 export * from "./workflow-crud-tools";
 export * from "./workflow-execution-tools";
 export * from "./workflow-read-tools";
+export * from "./operator-tools";
