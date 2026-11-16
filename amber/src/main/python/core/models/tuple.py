@@ -192,7 +192,7 @@ class Tuple:
         assert len(tuple_like) != 0
         self._field_data: "OrderedDict[str, Field]"
         if isinstance(tuple_like, Tuple):
-            self._field_data = tuple_like._field_data
+            self._field_data = tuple_like._field_data.copy()
         elif isinstance(tuple_like, pandas.Series):
             self._field_data = OrderedDict(tuple_like.to_dict())
         else:
