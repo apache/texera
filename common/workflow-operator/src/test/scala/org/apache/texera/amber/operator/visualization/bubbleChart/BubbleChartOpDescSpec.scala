@@ -22,11 +22,14 @@ package org.apache.texera.amber.operator.visualization.bubbleChart
 import org.apache.texera.amber.operator.metadata.OperatorMetadataGenerator
 import org.scalatest.BeforeAndAfter
 import org.scalatest.flatspec.AnyFlatSpec
-import org.scalatest.matchers.should.Matchers
+import org.apache.texera.amber.operator.GeneratedCodeAssertionChecks
 
 import scala.jdk.CollectionConverters._
 
-class BubbleChartOpDescSpec extends AnyFlatSpec with BeforeAndAfter with Matchers {
+class BubbleChartOpDescSpec
+    extends AnyFlatSpec
+    with BeforeAndAfter
+    with GeneratedCodeAssertionChecks {
   var opDesc: BubbleChartOpDesc = _
 
   before {
@@ -34,9 +37,6 @@ class BubbleChartOpDescSpec extends AnyFlatSpec with BeforeAndAfter with Matcher
   }
 
   // The part of an assert message that names the offending field.
-  private def fieldPart(msg: String): String =
-    msg.toLowerCase.replace("cannot be empty", "")
-
   it should "generate a plotly python figure with 3 columns" in {
     opDesc.xValue = "column1"
     opDesc.yValue = "column2"
@@ -94,34 +94,26 @@ class BubbleChartOpDescSpec extends AnyFlatSpec with BeforeAndAfter with Matcher
   it should "throw AssertionError naming the X-Column when only xValue is missing" in {
     opDesc.yValue = "column2"
     opDesc.zValue = "column3"
-    val ex = intercept[AssertionError](opDesc.createPlotlyFigure())
-    ex.getMessage should not be null
-    ex.getMessage should include("cannot be empty")
+    val ex = expectError[AssertionError]("cannot be empty")(opDesc.createPlotlyFigure())
     fieldPart(ex.getMessage) should include("x")
   }
 
   it should "throw AssertionError naming the Y-Column when only yValue is missing" in {
     opDesc.xValue = "column1"
     opDesc.zValue = "column3"
-    val ex = intercept[AssertionError](opDesc.createPlotlyFigure())
-    ex.getMessage should not be null
-    ex.getMessage should include("cannot be empty")
+    val ex = expectError[AssertionError]("cannot be empty")(opDesc.createPlotlyFigure())
     fieldPart(ex.getMessage) should include("y")
   }
 
   it should "throw AssertionError naming the Z-Column when only zValue is missing" in {
     opDesc.xValue = "column1"
     opDesc.yValue = "column2"
-    val ex = intercept[AssertionError](opDesc.createPlotlyFigure())
-    ex.getMessage should not be null
-    ex.getMessage should include("cannot be empty")
+    val ex = expectError[AssertionError]("cannot be empty")(opDesc.createPlotlyFigure())
     fieldPart(ex.getMessage) should include("z")
   }
 
   it should "throw AssertionError with a per-field message in manipulateTable when fields are missing" in {
-    val ex = intercept[AssertionError](opDesc.manipulateTable())
-    ex.getMessage should not be null
-    ex.getMessage should include("cannot be empty")
+    val ex = expectError[AssertionError]("cannot be empty")(opDesc.manipulateTable())
     fieldPart(ex.getMessage) should include("x")
   }
 

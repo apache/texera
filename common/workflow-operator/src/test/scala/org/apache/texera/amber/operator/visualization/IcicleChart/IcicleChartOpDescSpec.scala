@@ -22,27 +22,18 @@ package org.apache.texera.amber.operator.visualization.IcicleChart
 import org.apache.texera.amber.operator.visualization.hierarchychart.HierarchySection
 import org.scalatest.BeforeAndAfter
 import org.scalatest.flatspec.AnyFlatSpec
-import org.scalatest.matchers.should.Matchers
+import org.apache.texera.amber.operator.GeneratedCodeAssertionChecks
 
-import java.nio.charset.StandardCharsets
-import java.util.Base64
-
-class IcicleChartOpDescSpec extends AnyFlatSpec with BeforeAndAfter with Matchers {
+class IcicleChartOpDescSpec
+    extends AnyFlatSpec
+    with BeforeAndAfter
+    with GeneratedCodeAssertionChecks {
 
   var opDesc: IcicleChartOpDesc = _
 
   before {
     opDesc = new IcicleChartOpDesc()
   }
-
-  private def b64(s: String): String =
-    Base64.getEncoder.encodeToString(s.getBytes(StandardCharsets.UTF_8))
-
-  private def carries(output: String, name: String): Boolean =
-    output.contains(name) || output.contains(b64(name))
-
-  private def fieldPart(msg: String): String =
-    msg.toLowerCase.replace("cannot be empty", "")
 
   private def section(name: String): HierarchySection = {
     val s = new HierarchySection()
@@ -51,9 +42,7 @@ class IcicleChartOpDescSpec extends AnyFlatSpec with BeforeAndAfter with Matcher
   }
 
   it should "throw AssertionError naming the hierarchy when the hierarchy path is empty" in {
-    val ex = intercept[AssertionError](opDesc.createPlotlyFigure())
-    ex.getMessage should not be null
-    ex.getMessage should include("cannot be empty")
+    val ex = expectError[AssertionError]("cannot be empty")(opDesc.createPlotlyFigure())
     fieldPart(ex.getMessage) should include("hierarchy")
   }
 
@@ -61,9 +50,7 @@ class IcicleChartOpDescSpec extends AnyFlatSpec with BeforeAndAfter with Matcher
     // manipulateTable now guards `value` (it interpolates table[$value]),
     // closing the gap flagged in review round 1.
     opDesc.hierarchy = List(section("level_one"))
-    val ex = intercept[AssertionError](opDesc.manipulateTable())
-    ex.getMessage should not be null
-    ex.getMessage should include("cannot be empty")
+    val ex = expectError[AssertionError]("cannot be empty")(opDesc.manipulateTable())
     ex.getMessage should include("Value")
   }
 

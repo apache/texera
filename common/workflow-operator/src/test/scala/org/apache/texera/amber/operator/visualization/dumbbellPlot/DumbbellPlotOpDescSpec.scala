@@ -24,15 +24,9 @@ import org.apache.texera.amber.operator.LogicalOp
 import org.apache.texera.amber.operator.metadata.OperatorGroupConstants
 import org.apache.texera.amber.util.JSONUtils.objectMapper
 import org.scalatest.flatspec.AnyFlatSpec
-import org.scalatest.matchers.should.Matchers
+import org.apache.texera.amber.operator.GeneratedCodeAssertionChecks
 
-import java.nio.charset.StandardCharsets
-import java.util.Base64
-
-class DumbbellPlotOpDescSpec extends AnyFlatSpec with Matchers {
-
-  private def b64(s: String): String =
-    Base64.getEncoder.encodeToString(s.getBytes(StandardCharsets.UTF_8))
+class DumbbellPlotOpDescSpec extends AnyFlatSpec with GeneratedCodeAssertionChecks {
 
   "DumbbellPlotOpDesc.operatorInfo" should
     "advertise the name and Basic visualization group" in {

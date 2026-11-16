@@ -24,13 +24,14 @@ import org.apache.texera.amber.operator.metadata.OperatorMetadataGenerator
 import org.apache.texera.amber.util.JSONUtils.objectMapper
 import org.scalatest.BeforeAndAfter
 import org.scalatest.flatspec.AnyFlatSpec
-import org.scalatest.matchers.should.Matchers
+import org.apache.texera.amber.operator.GeneratedCodeAssertionChecks
 
-import java.nio.charset.StandardCharsets
-import java.util.Base64
 import scala.jdk.CollectionConverters._
 
-class HistogramChartOpDescSpec extends AnyFlatSpec with BeforeAndAfter with Matchers {
+class HistogramChartOpDescSpec
+    extends AnyFlatSpec
+    with BeforeAndAfter
+    with GeneratedCodeAssertionChecks {
 
   var opDesc: HistogramChartOpDesc = _
 
@@ -38,29 +39,16 @@ class HistogramChartOpDescSpec extends AnyFlatSpec with BeforeAndAfter with Matc
     opDesc = new HistogramChartOpDesc()
   }
 
-  private def b64(s: String): String =
-    Base64.getEncoder.encodeToString(s.getBytes(StandardCharsets.UTF_8))
-
   // A column name is carried either literally (plain chunks) or as the
   // base64 payload of a runtime decode site (encoded chunks).
-  private def carries(output: String, name: String): Boolean =
-    output.contains(name) || output.contains(b64(name))
-
   // The part of an assert message that names the offending field.
-  private def fieldPart(msg: String): String =
-    msg.toLowerCase.replace("cannot be empty", "")
-
   it should "throw AssertionError naming the Value Column when value is left empty" in {
-    val ex = intercept[AssertionError](opDesc.createPlotlyFigure())
-    ex.getMessage should not be null
-    ex.getMessage should include("cannot be empty")
+    val ex = expectError[AssertionError]("cannot be empty")(opDesc.createPlotlyFigure())
     fieldPart(ex.getMessage) should include("value")
   }
 
   it should "throw AssertionError with a non-blank message via generatePythonCode when value is empty" in {
-    val ex = intercept[AssertionError](opDesc.generatePythonCode())
-    ex.getMessage should not be null
-    ex.getMessage should include("cannot be empty")
+    val ex = expectError[AssertionError]("cannot be empty")(opDesc.generatePythonCode())
   }
 
   it should "render the figure with the configured value column when value is set" in {

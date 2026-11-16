@@ -19,19 +19,17 @@
 
 package org.apache.texera.amber.operator.visualization.ImageViz
 
-import org.apache.texera.amber.util.PythonTestSupport.configuredPython
+import org.apache.texera.amber.util.PythonTestSupport.{configuredPython, runSource}
 import org.apache.texera.amber.core.tuple.{AttributeType, Schema}
 import org.apache.texera.amber.operator.metadata.OperatorGroupConstants
 import org.scalatest.BeforeAndAfter
 import org.scalatest.flatspec.AnyFlatSpec
-import org.scalatest.matchers.should.Matchers
+import org.apache.texera.amber.operator.GeneratedCodeAssertionChecks
 
-import java.nio.charset.StandardCharsets
-import java.nio.file.Files
-import java.util.concurrent.TimeUnit
-import scala.io.Source
-
-class ImageVisualizerOpDescSpec extends AnyFlatSpec with BeforeAndAfter with Matchers {
+class ImageVisualizerOpDescSpec
+    extends AnyFlatSpec
+    with BeforeAndAfter
+    with GeneratedCodeAssertionChecks {
   var opDesc: ImageVisualizerOpDesc = _
   before {
     opDesc = new ImageVisualizerOpDesc()
@@ -42,21 +40,13 @@ class ImageVisualizerOpDescSpec extends AnyFlatSpec with BeforeAndAfter with Mat
     // operator reaches the nonEmpty assert and surfaces a domain error with
     // the standard "cannot be empty" message rather than a
     // NullPointerException from dereferencing null.
-    val ex = intercept[AssertionError] {
-      opDesc.createBinaryData()
-    }
-    ex.getMessage should not be null
-    ex.getMessage should include("cannot be empty")
+    val ex = expectError[AssertionError]("cannot be empty")(opDesc.createBinaryData())
   }
 
   it should "reject missing binaryContent with a controlled error via generatePythonCode" in {
     // The assert inside createBinaryData is also reachable through the
     // public codegen entry point; the same message must surface there.
-    val ex = intercept[AssertionError] {
-      opDesc.generatePythonCode()
-    }
-    ex.getMessage should not be null
-    ex.getMessage should include("cannot be empty")
+    val ex = expectError[AssertionError]("cannot be empty")(opDesc.generatePythonCode())
   }
 
   "ImageVisualizerOpDesc.operatorInfo" should "advertise the user-friendly name and Media group" in {
@@ -86,9 +76,7 @@ class ImageVisualizerOpDescSpec extends AnyFlatSpec with BeforeAndAfter with Mat
     // the nonEmpty assert, whose message must end with the standard
     // "cannot be empty" phrase.
     opDesc.binaryContent = ""
-    val ex = intercept[AssertionError](opDesc.createBinaryData())
-    ex.getMessage should not be null
-    ex.getMessage should include("cannot be empty")
+    val ex = expectError[AssertionError]("cannot be empty")(opDesc.createBinaryData())
   }
 
   it should "render the configured binary content column in createBinaryData" in {
@@ -159,14 +147,9 @@ class ImageVisualizerOpDescSpec extends AnyFlatSpec with BeforeAndAfter with Mat
          |print(encode_image_to_html("not an image"))
          |""".stripMargin
 
-    val script = Files.createTempFile("image-visualizer-string-", ".py")
-    script.toFile.deleteOnExit()
-    Files.write(script, driver.getBytes(StandardCharsets.UTF_8))
-    val process = new ProcessBuilder(python, script.toString).redirectErrorStream(true).start()
-    val out = Source.fromInputStream(process.getInputStream).mkString
-    process.waitFor(120, TimeUnit.SECONDS)
+    val (exitCode, out) = runSource(python, "image-visualizer-string-", driver)
     withClue(s"python said:\n$out\nscript:\n$driver") {
-      process.exitValue() shouldBe 0
+      exitCode shouldBe 0
       out should include("Image is not available.")
       out should include("Reason: Binary input is not valid")
       out should not include "img src"

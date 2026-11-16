@@ -21,9 +21,12 @@ package org.apache.texera.amber.operator.visualization.scatterplot
 
 import org.scalatest.BeforeAndAfter
 import org.scalatest.flatspec.AnyFlatSpec
-import org.scalatest.matchers.should.Matchers
+import org.apache.texera.amber.operator.GeneratedCodeAssertionChecks
 
-class ScatterPlotOpDescSpec extends AnyFlatSpec with BeforeAndAfter with Matchers {
+class ScatterPlotOpDescSpec
+    extends AnyFlatSpec
+    with BeforeAndAfter
+    with GeneratedCodeAssertionChecks {
 
   var opDesc: ScatterplotOpDesc = _
 
@@ -43,41 +46,20 @@ class ScatterPlotOpDescSpec extends AnyFlatSpec with BeforeAndAfter with Matcher
   }
 
   // The part of an assert message that names the offending field.
-  private def fieldPart(msg: String): String =
-    msg.toLowerCase.replace("cannot be empty", "")
-
-  it should "throw assertion error if value is empty" in {
-    assertThrows[AssertionError] {
-      opDesc.manipulateTable()
-    }
-  }
-
-  it should "throw assertion error if chart is empty" in {
-    assertThrows[AssertionError] {
-      opDesc.manipulateTable()
-    }
-  }
-
   it should "throw AssertionError naming the X-Column when both columns are empty" in {
-    val ex = intercept[AssertionError](opDesc.manipulateTable())
-    ex.getMessage should not be null
-    ex.getMessage should include("cannot be empty")
+    val ex = expectError[AssertionError]("cannot be empty")(opDesc.manipulateTable())
     fieldPart(ex.getMessage) should include("x")
   }
 
   it should "throw AssertionError naming the Y-Column when only xColumn is set" in {
     setPrivateField("xColumn", "scatter_x")
-    val ex = intercept[AssertionError](opDesc.manipulateTable())
-    ex.getMessage should not be null
-    ex.getMessage should include("cannot be empty")
+    val ex = expectError[AssertionError]("cannot be empty")(opDesc.manipulateTable())
     fieldPart(ex.getMessage) should include("y")
   }
 
   it should "throw AssertionError with a per-field message in createPlotlyFigure when only yColumn is set" in {
     setPrivateField("yColumn", "scatter_y")
-    val ex = intercept[AssertionError](opDesc.createPlotlyFigure())
-    ex.getMessage should not be null
-    ex.getMessage should include("cannot be empty")
+    val ex = expectError[AssertionError]("cannot be empty")(opDesc.createPlotlyFigure())
     fieldPart(ex.getMessage) should include("x")
   }
 

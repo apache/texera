@@ -22,7 +22,8 @@ package org.apache.texera.amber.operator.machineLearning.Scorer
 import org.apache.texera.amber.util.PythonTestSupport.{
   NeedsPythonPackages,
   canImport,
-  configuredPython
+  configuredPython,
+  withDriver
 }
 import com.fasterxml.jackson.databind.node.ObjectNode
 import org.apache.texera.amber.core.tuple.{Attribute, AttributeType, Schema}
@@ -31,20 +32,15 @@ import org.apache.texera.amber.operator.LogicalOp
 import org.apache.texera.amber.operator.metadata.OperatorGroupConstants
 import org.apache.texera.amber.util.JSONUtils.objectMapper
 import org.scalatest.flatspec.AnyFlatSpec
-import org.scalatest.matchers.should.Matchers
+import org.apache.texera.amber.operator.GeneratedCodeAssertionChecks
 
 import java.nio.charset.StandardCharsets
-import java.nio.file.Files
 import java.util.Base64
-import java.util.concurrent.TimeUnit
 
-class MachineLearningScorerOpDescSpec extends AnyFlatSpec with Matchers {
+class MachineLearningScorerOpDescSpec extends AnyFlatSpec with GeneratedCodeAssertionChecks {
 
   /** An EncodableString field renders as a runtime decode site in the emitted code. */
   private val decodeSite = "self.decode_python_template"
-
-  private def b64(s: String): String =
-    Base64.getEncoder.encodeToString(s.getBytes(StandardCharsets.UTF_8))
 
   /** The one emitted line that assigns metric_list, isolated from the template body. */
   private def metricListLine(code: String): String =
@@ -390,23 +386,17 @@ class MachineLearningScorerOpDescSpec extends AnyFlatSpec with Matchers {
     d.predictValueColumn = "yhat"
     d.classificationMetrics = List(classificationMetricsFnc.accuracy)
 
-    val moduleFile = Files.createTempFile("scorer_op_", ".py")
-    val driverFile = Files.createTempFile("scorer_driver_", ".py")
-    try {
-      Files.write(moduleFile, d.generatePythonCode().getBytes(StandardCharsets.UTF_8))
-      Files.write(driverFile, runtimeDriverScript.getBytes(StandardCharsets.UTF_8))
-
-      val process = new ProcessBuilder(python, driverFile.toString, moduleFile.toString)
-        .redirectErrorStream(true)
-        .start()
-      val finished = process.waitFor(120, TimeUnit.SECONDS)
-      if (!finished) {
-        process.destroyForcibly()
-        fail("Scoring driver timed out after 120s")
-      }
-      val output = new String(process.getInputStream.readAllBytes(), StandardCharsets.UTF_8)
+    withDriver(
+      python,
+      "scorer_op_",
+      "scorer_driver_",
+      d.generatePythonCode(),
+      runtimeDriverScript,
+      "Scoring driver timed out after 120s",
+      bestEffortCleanup = false
+    ) { (exitCode, output) =>
       withClue(s"Driver output:\n$output\n") {
-        process.exitValue() shouldBe 0
+        exitCode shouldBe 0
         // Every row usable: all three agree, so the score is 1.
         output should include("CASE filled ACCURACY 1.0")
         // Two rows dropped, three scored, two of those correct.
@@ -415,9 +405,6 @@ class MachineLearningScorerOpDescSpec extends AnyFlatSpec with Matchers {
         // handing back the NaN the classification metrics would produce.
         output should include("CASE all_blank REFUSED No rows left to score")
       }
-    } finally {
-      Files.deleteIfExists(moduleFile)
-      Files.deleteIfExists(driverFile)
     }
   }
 }

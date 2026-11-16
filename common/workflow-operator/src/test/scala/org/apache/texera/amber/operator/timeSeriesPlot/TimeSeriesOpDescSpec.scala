@@ -19,6 +19,8 @@
 
 package org.apache.texera.amber.operator.timeSeriesPlot
 
+import org.apache.texera.amber.operator.GeneratedCodeAssertions.{b64}
+
 import org.apache.texera.amber.core.tuple.{AttributeType, Schema}
 import org.apache.texera.amber.core.workflow.PortIdentity
 import org.apache.texera.amber.operator.LogicalOp
@@ -27,8 +29,6 @@ import org.apache.texera.amber.operator.visualization.timeSeriesplot.TimeSeriesO
 import org.apache.texera.amber.util.JSONUtils.objectMapper
 import org.scalatest.funsuite.AnyFunSuite
 
-import java.nio.charset.StandardCharsets
-import java.util.Base64
 import scala.jdk.CollectionConverters._
 
 class TimeSeriesOpDescSpec extends AnyFunSuite {
@@ -55,9 +55,6 @@ class TimeSeriesOpDescSpec extends AnyFunSuite {
 
   /** Column names reach the emitted Python base64-encoded inside a decode call. */
   private val decodeSite = "self.decode_python_template"
-
-  private def b64(s: String): String =
-    Base64.getEncoder.encodeToString(s.getBytes(StandardCharsets.UTF_8))
 
   private def decodeSiteCount(s: String): Int =
     s.split(java.util.regex.Pattern.quote(decodeSite), -1).length - 1

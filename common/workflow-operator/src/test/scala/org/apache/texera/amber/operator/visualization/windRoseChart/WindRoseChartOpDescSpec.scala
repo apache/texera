@@ -22,14 +22,14 @@ package org.apache.texera.amber.operator.visualization.windRoseChart
 import org.apache.texera.amber.operator.metadata.OperatorMetadataGenerator
 import org.scalatest.BeforeAndAfter
 import org.scalatest.flatspec.AnyFlatSpec
-import org.scalatest.matchers.should.Matchers
-
-import java.nio.charset.StandardCharsets
-import java.util.Base64
+import org.apache.texera.amber.operator.GeneratedCodeAssertionChecks
 
 import scala.jdk.CollectionConverters._
 
-class WindRoseChartOpDescSpec extends AnyFlatSpec with BeforeAndAfter with Matchers {
+class WindRoseChartOpDescSpec
+    extends AnyFlatSpec
+    with BeforeAndAfter
+    with GeneratedCodeAssertionChecks {
 
   var opDesc: WindRoseChartOpDesc = _
 
@@ -37,14 +37,8 @@ class WindRoseChartOpDescSpec extends AnyFlatSpec with BeforeAndAfter with Match
     opDesc = new WindRoseChartOpDesc()
   }
 
-  private def b64(s: String): String =
-    Base64.getEncoder.encodeToString(s.getBytes(StandardCharsets.UTF_8))
-
   // A column name is carried either literally (plain chunks) or as the
   // base64 payload of a runtime decode site (encoded chunks).
-  private def carries(output: String, name: String): Boolean =
-    output.contains(name) || output.contains(b64(name))
-
   it should "default rColumn and thetaColumn to non-null, empty strings" in {
     opDesc.rColumn should not be null
     opDesc.rColumn shouldBe ""
@@ -53,17 +47,17 @@ class WindRoseChartOpDescSpec extends AnyFlatSpec with BeforeAndAfter with Match
   }
 
   it should "throw an AssertionError (not a NullPointerException) naming the Radial column when rColumn is empty" in {
-    val ex = intercept[AssertionError](opDesc.createPlotlyFigure())
+    val ex = expectError[AssertionError]("Radial Values (r) column must be selected.")(
+      opDesc.createPlotlyFigure()
+    )
     ex shouldBe a[AssertionError]
-    ex.getMessage should not be null
-    ex.getMessage should include("Radial Values (r) column must be selected.")
   }
 
   it should "throw an AssertionError naming the Angular column when only rColumn is set" in {
     opDesc.rColumn = "r_col"
-    val ex = intercept[AssertionError](opDesc.createPlotlyFigure())
-    ex.getMessage should not be null
-    ex.getMessage should include("Angular Values (θ) column must be selected.")
+    val ex = expectError[AssertionError]("Angular Values (θ) column must be selected.")(
+      opDesc.createPlotlyFigure()
+    )
   }
 
   it should "render the configured r and theta columns when both are set" in {

@@ -19,14 +19,18 @@
 
 package org.apache.texera.amber.operator.huggingFace.codegen
 
+import org.apache.texera.amber.util.PythonTestSupport.{
+  configuredPython,
+  copyScriptResource,
+  withProbe
+}
+import org.apache.texera.amber.operator.huggingFace.codegen.HuggingFaceCodegenFixtures.textContext
 import com.fasterxml.jackson.databind.{JsonNode, ObjectMapper}
-import org.apache.texera.amber.util.PythonTestSupport.configuredPython
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 
 import java.nio.charset.StandardCharsets
-import java.nio.file.{Files, Path}
-import java.util.concurrent.TimeUnit
+import java.nio.file.Path
 import scala.jdk.CollectionConverters._
 
 /**
@@ -49,58 +53,27 @@ class HuggingFaceBinaryValueBehaviorSpec extends AnyFlatSpec with Matchers {
     override def parsePython(ctx: CodegenContext): String = "            return ''"
   }
 
-  private lazy val probe: Path = {
-    val script = scala.io.Source.fromInputStream(
+  private lazy val probe: Path =
+    copyScriptResource(
       getClass.getResourceAsStream("/python/hf_binary_value_probe.py"),
-      "UTF-8"
+      "hf_binary_value_probe"
     )
-    val body =
-      try script.mkString
-      finally script.close()
-    val file = Files.createTempFile("hf_binary_value_probe", ".py")
-    Files.write(file, body.getBytes(StandardCharsets.UTF_8))
-    file.toFile.deleteOnExit()
-    file
-  }
 
   /** Runs the probe once over the rendered operator; one entry per case. */
   private lazy val outcomes: JsonNode = {
     val exe =
       configuredPython().getOrElse(cancel("no python interpreter available to run the probe"))
-    val ctx = CodegenContext(
-      hfApiToken = "token",
+    val ctx = textContext.copy(
       modelId = "google/vit-base-patch16-224",
-      promptColumn = "prompt",
-      resultColumn = "hf_response",
       task = AnyCodegen.task,
-      systemPrompt = "",
-      safeMaxTokens = 256,
-      safeTemp = 0.7
+      systemPrompt = ""
     )
     val source = HuggingFaceCodegenBase.render(ctx, AnyCodegen)
 
-    // Files rather than pipes for the child's output, so a hung probe still
-    // reaches the timeout below (see HuggingFaceParseBehaviorSpec).
-    val outFile = Files.createTempFile("hf_binary_value_probe_out", ".json")
-    val errFile = Files.createTempFile("hf_binary_value_probe_err", ".txt")
-    try {
-      val process = new ProcessBuilder(exe, probe.toString)
-        .redirectOutput(outFile.toFile)
-        .redirectError(errFile.toFile)
-        .start()
-      process.getOutputStream.write(source.getBytes(StandardCharsets.UTF_8))
-      process.getOutputStream.close()
-      if (!process.waitFor(120, TimeUnit.SECONDS)) {
-        process.destroyForcibly()
-        fail("probe timed out")
-      }
-      val out = new String(Files.readAllBytes(outFile), StandardCharsets.UTF_8)
-      val err = new String(Files.readAllBytes(errFile), StandardCharsets.UTF_8)
-      withClue(s"probe stderr: $err\nprobe stdout: $out\n") { process.exitValue() shouldBe 0 }
-      mapper.readTree(out)
-    } finally {
-      Files.deleteIfExists(outFile)
-      Files.deleteIfExists(errFile)
+    withProbe(exe, probe, "hf_binary_value_probe", 120, source.getBytes(StandardCharsets.UTF_8)) {
+      (exitCode, out, err) =>
+        withClue(s"probe stderr: $err\nprobe stdout: $out\n") { exitCode shouldBe 0 }
+        mapper.readTree(out)
     }
   }
 

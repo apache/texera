@@ -22,12 +22,9 @@ package org.apache.texera.amber.operator.visualization.funnelPlot
 import org.apache.texera.amber.core.tuple.AttributeType
 import org.apache.texera.amber.operator.metadata.OperatorGroupConstants
 import org.scalatest.flatspec.AnyFlatSpec
-import org.scalatest.matchers.should.Matchers
+import org.apache.texera.amber.operator.GeneratedCodeAssertionChecks
 
-import java.nio.charset.StandardCharsets
-import java.util.Base64
-
-class FunnelPlotOpDescSpec extends AnyFlatSpec with Matchers {
+class FunnelPlotOpDescSpec extends AnyFlatSpec with GeneratedCodeAssertionChecks {
 
   private def configured: FunnelPlotOpDesc = {
     val op = new FunnelPlotOpDesc
@@ -36,13 +33,7 @@ class FunnelPlotOpDescSpec extends AnyFlatSpec with Matchers {
     op
   }
 
-  private def b64(s: String): String =
-    Base64.getEncoder.encodeToString(s.getBytes(StandardCharsets.UTF_8))
-
   // The part of an assert message that names the offending field.
-  private def fieldPart(msg: String): String =
-    msg.toLowerCase.replace("cannot be empty", "")
-
   "FunnelPlotOpDesc.operatorInfo" should "advertise the user-friendly name and Financial group" in {
     val info = (new FunnelPlotOpDesc).operatorInfo
     info.userFriendlyName shouldBe "Funnel Plot"
@@ -106,18 +97,14 @@ class FunnelPlotOpDescSpec extends AnyFlatSpec with Matchers {
   it should "throw AssertionError naming the X Column when only x is missing" in {
     val op = new FunnelPlotOpDesc
     op.y = "count"
-    val ex = intercept[AssertionError](op.generatePythonCode())
-    ex.getMessage should not be null
-    ex.getMessage should include("cannot be empty")
+    val ex = expectError[AssertionError]("cannot be empty")(op.generatePythonCode())
     fieldPart(ex.getMessage) should include("x")
   }
 
   it should "throw AssertionError naming the Y Column when only y is missing" in {
     val op = new FunnelPlotOpDesc
     op.x = "stage"
-    val ex = intercept[AssertionError](op.generatePythonCode())
-    ex.getMessage should not be null
-    ex.getMessage should include("cannot be empty")
+    val ex = expectError[AssertionError]("cannot be empty")(op.generatePythonCode())
     fieldPart(ex.getMessage) should include("y")
   }
 

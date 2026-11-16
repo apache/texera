@@ -21,12 +21,12 @@ package org.apache.texera.amber.operator.visualization.radarChart
 
 import org.scalatest.BeforeAndAfter
 import org.scalatest.flatspec.AnyFlatSpec
-import org.scalatest.matchers.should.Matchers
+import org.apache.texera.amber.operator.GeneratedCodeAssertionChecks
 
-import java.nio.charset.StandardCharsets
-import java.util.Base64
-
-class RadarChartOpDescSpec extends AnyFlatSpec with BeforeAndAfter with Matchers {
+class RadarChartOpDescSpec
+    extends AnyFlatSpec
+    with BeforeAndAfter
+    with GeneratedCodeAssertionChecks {
 
   var opDesc: RadarChartOpDesc = _
 
@@ -34,37 +34,22 @@ class RadarChartOpDescSpec extends AnyFlatSpec with BeforeAndAfter with Matchers
     opDesc = new RadarChartOpDesc()
   }
 
-  private def b64(s: String): String =
-    Base64.getEncoder.encodeToString(s.getBytes(StandardCharsets.UTF_8))
-
-  private def carries(output: String, name: String): Boolean =
-    output.contains(name) || output.contains(b64(name))
-
-  private def fieldPart(msg: String): String =
-    msg.toLowerCase.replace("cannot be empty", "")
-
   it should "throw AssertionError naming the Name Column when nothing is configured" in {
-    val ex = intercept[AssertionError](opDesc.manipulateTable())
-    ex.getMessage should not be null
-    ex.getMessage should include("cannot be empty")
+    val ex = expectError[AssertionError]("cannot be empty")(opDesc.manipulateTable())
     fieldPart(ex.getMessage) should include("name")
   }
 
   it should "throw AssertionError naming the Value Columns when only nameColumn is set (null list)" in {
     opDesc.nameColumn = "entity"
     // valueColumns defaults to null; the assert guards null before nonEmpty
-    val ex = intercept[AssertionError](opDesc.manipulateTable())
-    ex.getMessage should not be null
-    ex.getMessage should include("cannot be empty")
+    val ex = expectError[AssertionError]("cannot be empty")(opDesc.manipulateTable())
     fieldPart(ex.getMessage) should include("value")
   }
 
   it should "throw AssertionError naming the Value Columns when the list is explicitly empty" in {
     opDesc.nameColumn = "entity"
     opDesc.valueColumns = List()
-    val ex = intercept[AssertionError](opDesc.manipulateTable())
-    ex.getMessage should not be null
-    ex.getMessage should include("cannot be empty")
+    val ex = expectError[AssertionError]("cannot be empty")(opDesc.manipulateTable())
     fieldPart(ex.getMessage) should include("value")
   }
 
@@ -72,18 +57,14 @@ class RadarChartOpDescSpec extends AnyFlatSpec with BeforeAndAfter with Matchers
     // createPlotlyFigure now guards valueColumns directly (null-safe), so
     // calling it on an unconfigured operator fails fast with a message
     // instead of an NPE from mapping over null.
-    val ex = intercept[AssertionError](opDesc.createPlotlyFigure())
-    ex.getMessage should not be null
-    ex.getMessage should include("cannot be empty")
+    val ex = expectError[AssertionError]("cannot be empty")(opDesc.createPlotlyFigure())
     fieldPart(ex.getMessage) should include("value")
   }
 
   it should "throw AssertionError naming the Value Columns in createPlotlyFigure when the list is explicitly empty" in {
     opDesc.nameColumn = "entity"
     opDesc.valueColumns = List()
-    val ex = intercept[AssertionError](opDesc.createPlotlyFigure())
-    ex.getMessage should not be null
-    ex.getMessage should include("cannot be empty")
+    val ex = expectError[AssertionError]("cannot be empty")(opDesc.createPlotlyFigure())
     fieldPart(ex.getMessage) should include("value")
   }
 
