@@ -106,29 +106,18 @@ object UserQuotaResource {
   }
 
   def getUserQuotaSize(uid: Integer): Array[QuotaStorage] = {
-    val userExecutions = DSL
-      .select(WORKFLOW_EXECUTIONS.EID)
-      .from(WORKFLOW_EXECUTIONS)
-      .where(WORKFLOW_EXECUTIONS.UID.eq(uid))
-
-    val resultSize = DSL.sum(OPERATOR_PORT_EXECUTIONS.RESULT_SIZE).as("result_size")
-    val resultSizes = DSL
-      .select(OPERATOR_PORT_EXECUTIONS.WORKFLOW_EXECUTION_ID, resultSize)
-      .from(OPERATOR_PORT_EXECUTIONS)
-      .where(OPERATOR_PORT_EXECUTIONS.WORKFLOW_EXECUTION_ID.in(userExecutions))
-      .groupBy(OPERATOR_PORT_EXECUTIONS.WORKFLOW_EXECUTION_ID)
-      .asTable("result_sizes")
-
-    val logSize = DSL.sum(OPERATOR_EXECUTIONS.CONSOLE_MESSAGES_SIZE).as("log_size")
-    val logSizes = DSL
-      .select(OPERATOR_EXECUTIONS.WORKFLOW_EXECUTION_ID, logSize)
-      .from(OPERATOR_EXECUTIONS)
-      .where(OPERATOR_EXECUTIONS.WORKFLOW_EXECUTION_ID.in(userExecutions))
-      .groupBy(OPERATOR_EXECUTIONS.WORKFLOW_EXECUTION_ID)
-      .asTable("log_sizes")
-
-    val resultTotal = resultSizes.field(resultSize)
-    val logTotal = logSizes.field(logSize)
+    val resultTotal = DSL.field(
+      DSL
+        .select(DSL.sum(OPERATOR_PORT_EXECUTIONS.RESULT_SIZE))
+        .from(OPERATOR_PORT_EXECUTIONS)
+        .where(OPERATOR_PORT_EXECUTIONS.WORKFLOW_EXECUTION_ID.eq(WORKFLOW_EXECUTIONS.EID))
+    )
+    val logTotal = DSL.field(
+      DSL
+        .select(DSL.sum(OPERATOR_EXECUTIONS.CONSOLE_MESSAGES_SIZE))
+        .from(OPERATOR_EXECUTIONS)
+        .where(OPERATOR_EXECUTIONS.WORKFLOW_EXECUTION_ID.eq(WORKFLOW_EXECUTIONS.EID))
+    )
     context
       .select(
         WORKFLOW_EXECUTIONS.EID,
@@ -143,14 +132,6 @@ object UserQuotaResource {
       .on(WORKFLOW_EXECUTIONS.VID.eq(WORKFLOW_VERSION.VID))
       .leftJoin(WORKFLOW)
       .on(WORKFLOW_VERSION.WID.eq(WORKFLOW.WID))
-      .leftJoin(resultSizes)
-      .on(
-        resultSizes
-          .field(OPERATOR_PORT_EXECUTIONS.WORKFLOW_EXECUTION_ID)
-          .eq(WORKFLOW_EXECUTIONS.EID)
-      )
-      .leftJoin(logSizes)
-      .on(logSizes.field(OPERATOR_EXECUTIONS.WORKFLOW_EXECUTION_ID).eq(WORKFLOW_EXECUTIONS.EID))
       .where(WORKFLOW_EXECUTIONS.UID.eq(uid))
       .orderBy(WORKFLOW_EXECUTIONS.EID.desc)
       .fetch()

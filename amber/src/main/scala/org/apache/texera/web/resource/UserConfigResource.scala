@@ -27,7 +27,7 @@ import org.apache.texera.dao.jooq.generated.Tables.USER_CONFIG
 import javax.annotation.security.RolesAllowed
 import javax.ws.rs._
 import javax.ws.rs.core._
-import scala.jdk.CollectionConverters.CollectionHasAsScala
+import scala.jdk.CollectionConverters.MapHasAsScala
 
 /**
   * This class handles requests to read and write the user dictionary,
@@ -39,6 +39,8 @@ import scala.jdk.CollectionConverters.CollectionHasAsScala
 @RolesAllowed(Array("REGULAR", "ADMIN"))
 @Consumes(Array(MediaType.TEXT_PLAIN))
 class UserConfigResource {
+  private def context = SqlServer.getInstance().createDSLContext()
+
   private def requireValidKey(key: String): Unit =
     if (key == null || key.trim.isEmpty) {
       throw new BadRequestException("key cannot be null or empty")
@@ -47,7 +49,7 @@ class UserConfigResource {
   @GET
   @Produces(Array(MediaType.APPLICATION_JSON))
   def getAllDict(@Auth sessionUser: SessionUser): Map[String, String] = {
-    getDict(sessionUser.getUser.getUid)
+    getDict(sessionUser.getUid)
   }
 
   /**
@@ -55,15 +57,12 @@ class UserConfigResource {
     * the user_config table as a json object
     */
   private def getDict(uid: Integer): Map[String, String] = {
-    SqlServer
-      .getInstance()
-      .createDSLContext()
+    context
       .select(USER_CONFIG.KEY, USER_CONFIG.VALUE)
       .from(USER_CONFIG)
       .where(USER_CONFIG.UID.eq(uid))
-      .fetch()
+      .fetchMap(USER_CONFIG.KEY, USER_CONFIG.VALUE)
       .asScala
-      .map(entry => (entry.get(USER_CONFIG.KEY), entry.get(USER_CONFIG.VALUE)))
       .toMap
   }
 
@@ -72,12 +71,10 @@ class UserConfigResource {
   @Path("/{key}")
   def getEntry(@PathParam("key") key: String, @Auth sessionUser: SessionUser): String = {
     requireValidKey(key)
-    SqlServer
-      .getInstance()
-      .createDSLContext()
+    context
       .select(USER_CONFIG.VALUE)
       .from(USER_CONFIG)
-      .where(USER_CONFIG.UID.eq(sessionUser.getUser.getUid).and(USER_CONFIG.KEY.eq(key)))
+      .where(USER_CONFIG.UID.eq(sessionUser.getUid).and(USER_CONFIG.KEY.eq(key)))
       .fetchOne(USER_CONFIG.VALUE)
   }
 
@@ -93,11 +90,9 @@ class UserConfigResource {
       @Auth sessionUser: SessionUser
   ): Unit = {
     requireValidKey(key)
-    SqlServer
-      .getInstance()
-      .createDSLContext()
+    context
       .insertInto(USER_CONFIG, USER_CONFIG.UID, USER_CONFIG.KEY, USER_CONFIG.VALUE)
-      .values(sessionUser.getUser.getUid, key, value)
+      .values(sessionUser.getUid, key, value)
       .onConflict(USER_CONFIG.UID, USER_CONFIG.KEY)
       .doUpdate()
       .set(USER_CONFIG.VALUE, value)
@@ -112,11 +107,9 @@ class UserConfigResource {
   @Path("/{key}")
   def deleteEntry(@PathParam("key") key: String, @Auth sessionUser: SessionUser): Unit = {
     requireValidKey(key)
-    SqlServer
-      .getInstance()
-      .createDSLContext()
+    context
       .deleteFrom(USER_CONFIG)
-      .where(USER_CONFIG.UID.eq(sessionUser.getUser.getUid).and(USER_CONFIG.KEY.eq(key)))
+      .where(USER_CONFIG.UID.eq(sessionUser.getUid).and(USER_CONFIG.KEY.eq(key)))
       .execute()
   }
 }

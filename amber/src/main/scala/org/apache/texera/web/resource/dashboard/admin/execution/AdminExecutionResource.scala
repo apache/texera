@@ -21,6 +21,7 @@ package org.apache.texera.web.resource.dashboard.admin.execution
 
 import io.dropwizard.auth.Auth
 import org.apache.texera.auth.SessionUser
+import org.apache.texera.auth.util.WorkflowAccess
 import org.apache.texera.dao.SqlServer
 import org.apache.texera.dao.jooq.generated.Tables._
 import org.apache.texera.web.resource.dashboard.admin.execution.AdminExecutionResource._
@@ -125,31 +126,7 @@ class AdminExecutionResource {
     val filter_status = filter.asScala.map(mapToStatus).toSeq.filter(_ != -1).asJava
 
     val hasAccessField = DSL
-      .field(
-        DSL
-          .exists(
-            DSL
-              .selectOne()
-              .from(WORKFLOW_OF_USER)
-              .where(
-                WORKFLOW_OF_USER.UID
-                  .eq(current_user.getUid)
-                  .and(WORKFLOW_OF_USER.WID.eq(WORKFLOW_VERSION.WID))
-              )
-          )
-          .or(
-            DSL.exists(
-              DSL
-                .selectOne()
-                .from(WORKFLOW_USER_ACCESS)
-                .where(
-                  WORKFLOW_USER_ACCESS.UID
-                    .eq(current_user.getUid)
-                    .and(WORKFLOW_USER_ACCESS.WID.eq(WORKFLOW_VERSION.WID))
-                )
-            )
-          )
-      )
+      .field(WORKFLOW_VERSION.WID.in(WorkflowAccess.accessibleWids(current_user.getUid)))
       .as("has_access")
 
     // Base query that retrieves latest execution info for each workflow without sorting and filtering.
