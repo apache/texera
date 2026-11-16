@@ -328,7 +328,7 @@ G.WebSocket = InertWebSocket;
 // Suppress just these patterns at the process level.
 function isBenignIconError(err: unknown): boolean {
   const msg = err instanceof Error ? err.message : String(err);
-  const stack = err instanceof Error ? err.stack ?? "" : "";
+  const stack = err instanceof Error ? (err.stack ?? "") : "";
   return (
     msg.includes("[@ant-design/icons-angular]") ||
     (err instanceof Error && err.name === "AggregateError" && /xhr-utils/.test(stack)) ||

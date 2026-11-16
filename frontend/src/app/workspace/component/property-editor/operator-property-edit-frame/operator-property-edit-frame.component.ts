@@ -1160,13 +1160,11 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnChanges, On
       if (isDefined(mapSource.attributeTypeRules)) {
         mappedField.validators.checkAttributeType = {
           expression: (control: AbstractControl, field: FormlyFieldConfig) => {
-            if (
-              !(
-                isDefined(this.currentOperatorId) &&
-                isDefined(mapSource.attributeTypeRules) &&
-                isDefined(mapSource.properties)
-              )
-            ) {
+            if (!(
+              isDefined(this.currentOperatorId) &&
+              isDefined(mapSource.attributeTypeRules) &&
+              isDefined(mapSource.properties)
+            )) {
               return true;
             }
 

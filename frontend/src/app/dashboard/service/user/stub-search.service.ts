@@ -86,17 +86,16 @@ export class StubSearchService {
   ): Observable<{ entries: DashboardEntry[]; more: boolean; hasMismatch?: boolean }> {
     return this.search(keywords, params, start, count, type, orderBy, isLogin, includePublic).pipe(
       map(result => {
-        const hasMismatch = type === "dataset" ? result.hasMismatch ?? false : undefined;
+        const hasMismatch = type === "dataset" ? (result.hasMismatch ?? false) : undefined;
 
         const filteredResults = type === "dataset" ? result.results.filter(i => i.dataset != null) : result.results;
 
-        const entries: DashboardEntry[] = filteredResults.map(
-          i =>
-            this.testEntries.find(e => {
-              if (i.workflow && e.type === "workflow" && e.workflow === i.workflow) return true;
-              if (i.dataset && e.type === "dataset" && e.dataset === i.dataset) return true;
-              return false;
-            })!
+        const entries: DashboardEntry[] = filteredResults.map(i =>
+          this.testEntries.find(e => {
+            if (i.workflow && e.type === "workflow" && e.workflow === i.workflow) return true;
+            if (i.dataset && e.type === "dataset" && e.dataset === i.dataset) return true;
+            return false;
+          })!
         );
 
         entries.forEach(entry => {

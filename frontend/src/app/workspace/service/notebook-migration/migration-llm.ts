@@ -298,12 +298,10 @@ export class NotebookMigrationLLM {
    * the input-specific variant is chosen.
    */
   private seedDocumentation(documentation: string[] = PYTHON_NOTEBOOK_DOCUMENTATION): void {
-    this.messages = documentation.map(
-      (doc): ModelMessage => ({
-        role: "system",
-        content: doc,
-      })
-    );
+    this.messages = documentation.map((doc): ModelMessage => ({
+      role: "system",
+      content: doc,
+    }));
   }
 
   private parseJsonResponse(raw: string, context: string): any {

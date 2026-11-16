@@ -25,39 +25,35 @@
 
 import { OperatorCurrentTuples, WorkflowFatalError } from "./workflow-websocket.interface";
 
-export interface PortIdentity
-  extends Readonly<{
-    id: number;
-    internal: boolean;
-  }> {}
+export interface PortIdentity extends Readonly<{
+  id: number;
+  internal: boolean;
+}> {}
 
-export interface LogicalLink
-  extends Readonly<{
-    fromOpId: string;
-    fromPortId: PortIdentity;
-    toOpId: string;
-    toPortId: PortIdentity;
-  }> {}
+export interface LogicalLink extends Readonly<{
+  fromOpId: string;
+  fromPortId: PortIdentity;
+  toOpId: string;
+  toPortId: PortIdentity;
+}> {}
 
-export interface LogicalOperator
-  extends Readonly<{
-    operatorID: string;
-    operatorType: string;
-    [uniqueAttributes: string]: any;
-  }> {}
+export interface LogicalOperator extends Readonly<{
+  operatorID: string;
+  operatorType: string;
+  [uniqueAttributes: string]: any;
+}> {}
 
 /**
  * LogicalPlan is the backend interface equivalent of frontend interface WorkflowGraph,
  *  they represent the same thing - the backend term currently used is LogicalPlan.
  * However, the format and content of the backend interface is different.
  */
-export interface LogicalPlan
-  extends Readonly<{
-    operators: LogicalOperator[];
-    links: LogicalLink[];
-    opsToViewResult?: string[];
-    opsToReuseResult?: string[];
-  }> {}
+export interface LogicalPlan extends Readonly<{
+  operators: LogicalOperator[];
+  links: LogicalLink[];
+  opsToViewResult?: string[];
+  opsToReuseResult?: string[];
+}> {}
 export enum OperatorState {
   Uninitialized = "Uninitialized",
   Initializing = "Initializing",
@@ -70,22 +66,21 @@ export enum OperatorState {
   Recovering = "Recovering",
 }
 
-export interface OperatorStatistics
-  extends Readonly<{
-    // Provenance: the operator completed by reusing cached results (no workers ran).
-    reusedFromCache?: boolean;
-    aggregatedInputRowCount: number;
-    aggregatedInputSize?: number;
-    /** Absent when the snapshot has no per-port information at all; `{}` means every port was zero. */
-    inputPortMetrics?: Record<string, number>;
-    aggregatedOutputRowCount: number;
-    aggregatedOutputSize?: number;
-    outputPortMetrics?: Record<string, number>;
-    numWorkers?: number;
-    aggregatedDataProcessingTime?: number;
-    aggregatedControlProcessingTime?: number;
-    aggregatedIdleTime?: number;
-  }> {}
+export interface OperatorStatistics extends Readonly<{
+  // Provenance: the operator completed by reusing cached results (no workers ran).
+  reusedFromCache?: boolean;
+  aggregatedInputRowCount: number;
+  aggregatedInputSize?: number;
+  /** Absent when the snapshot has no per-port information at all; `{}` means every port was zero. */
+  inputPortMetrics?: Record<string, number>;
+  aggregatedOutputRowCount: number;
+  aggregatedOutputSize?: number;
+  outputPortMetrics?: Record<string, number>;
+  numWorkers?: number;
+  aggregatedDataProcessingTime?: number;
+  aggregatedControlProcessingTime?: number;
+  aggregatedIdleTime?: number;
+}> {}
 
 /**
  * Wire shape of one operator's entry in OperatorStatisticsUpdateEvent. The
@@ -94,44 +89,41 @@ export interface OperatorStatistics
  * sub-concepts (state and statistics).
  */
 export interface OperatorRuntimeStatus
-  extends OperatorStatistics,
+  extends
+    OperatorStatistics,
     Readonly<{
       operatorState: OperatorState;
     }> {}
 
-export interface OperatorStatsUpdate
-  extends Readonly<{
-    operatorStatistics: Record<string, OperatorRuntimeStatus>;
-  }> {}
+export interface OperatorStatsUpdate extends Readonly<{
+  operatorStatistics: Record<string, OperatorRuntimeStatus>;
+}> {}
 
 export type PaginationMode = { type: "PaginationMode" };
 export type SetSnapshotMode = { type: "SetSnapshotMode" };
 export type SetDeltaMode = { type: "SetDeltaMode" };
 export type WebOutputMode = PaginationMode | SetSnapshotMode | SetDeltaMode;
 
-export interface WebPaginationUpdate
-  extends Readonly<{
-    mode: PaginationMode;
-    totalNumTuples: number;
-    dirtyPageIndices: ReadonlyArray<number>;
-  }> {}
+export interface WebPaginationUpdate extends Readonly<{
+  mode: PaginationMode;
+  totalNumTuples: number;
+  dirtyPageIndices: ReadonlyArray<number>;
+}> {}
 
-export interface WebDataUpdate
-  extends Readonly<{
-    mode: SetSnapshotMode | SetDeltaMode;
-    table: ReadonlyArray<object>;
-  }> {}
+export interface WebDataUpdate extends Readonly<{
+  mode: SetSnapshotMode | SetDeltaMode;
+  table: ReadonlyArray<object>;
+}> {}
 
 export type WebResultUpdate = WebPaginationUpdate | WebDataUpdate;
 
 export type WorkflowResultUpdate = Record<string, WebResultUpdate>;
 export type WorkflowResultTableStats = Record<string, Record<string, Record<string, number>>>;
 
-export interface WorkflowResultUpdateEvent
-  extends Readonly<{
-    updates: WorkflowResultUpdate;
-    tableStats: WorkflowResultTableStats;
-  }> {}
+export interface WorkflowResultUpdateEvent extends Readonly<{
+  updates: WorkflowResultUpdate;
+  tableStats: WorkflowResultTableStats;
+}> {}
 
 // user-defined type guards to check the type of the result update
 // because TypeScript can't do Tagged Unions on nested data types https://github.com/microsoft/TypeScript/issues/18758

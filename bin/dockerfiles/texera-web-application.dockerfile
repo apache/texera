@@ -35,7 +35,7 @@ COPY frontend /frontend
 COPY common/workflow-operator/src/main/resources/udf/ui-parameter-types.json /common/workflow-operator/src/main/resources/udf/ui-parameter-types.json
 # The repo's .yarnrc.yml pins Yarn (yarnPath) and the node-modules linker;
 # --immutable fails rather than re-resolving anything yarn.lock does not pin.
-RUN corepack enable && corepack prepare yarn@4.14.1 --activate
+RUN corepack enable && corepack prepare yarn@4.18.1 --activate
 
 # Fixes the build number build-version.js bakes into the bundle; pass the
 # commit time (git log -1 --format=%ct) for a reproducible build.

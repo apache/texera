@@ -77,8 +77,9 @@
             border: 1px solid #d9d9d9;
             white-space: pre-wrap;
             word-break: break-word;
-            font-family: -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, Roboto, &quot;Helvetica Neue&quot;,
-              Arial, sans-serif;
+            font-family:
+              -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, Roboto, &quot;Helvetica Neue&quot;, Arial,
+              sans-serif;
             font-size: 14px;
             line-height: 1.6;
             color: #262626;
@@ -214,8 +215,7 @@
                   max-height: 300px;
                   overflow-y: auto;
                 ">
-{{ getTextFromMessage(msg) }}</pre
-              >
+{{ getTextFromMessage(msg) }}</pre>
             </div>
 
             <!-- Expanded content: Assistant -->
@@ -237,8 +237,7 @@
                     max-height: 200px;
                     overflow-y: auto;
                   ">
-{{ getTextFromMessage(msg) }}</pre
-                >
+{{ getTextFromMessage(msg) }}</pre>
               </div>
               <div
                 *ngFor="let call of getToolCallSummaries(msg)"
@@ -294,8 +293,7 @@
                     max-height: 300px;
                     overflow-y: auto;
                   ">
-{{ item.resultContent }}</pre
-                >
+{{ item.resultContent }}</pre>
               </div>
             </div>
           </nz-collapse-panel>
@@ -348,8 +346,7 @@
                   white-space: pre-wrap;
                   word-break: break-word;
                 ">
-{{ formatResult(getToolResult(step, idx)) }}</pre
-              >
+{{ formatResult(getToolResult(step, idx)) }}</pre>
             </div>
             <div
               *ngIf="getToolOperatorAccess(step, idx)"

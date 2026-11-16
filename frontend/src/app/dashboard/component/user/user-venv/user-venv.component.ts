@@ -124,7 +124,7 @@ export class UserVenvComponent implements OnInit {
       return {
         name,
         versionOp: (match ? match[1] : "==") as "==" | ">=" | "<=",
-        version: match ? match[2] : raw ?? "",
+        version: match ? match[2] : (raw ?? ""),
       };
     });
     return {

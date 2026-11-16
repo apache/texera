@@ -91,17 +91,16 @@ export function getDefaultFormBinding(): FormBindingConfig {
  *
  */
 
-export interface WorkflowContent
-  extends Readonly<{
-    operators: OperatorPredicate[];
-    operatorPositions: { [key: string]: Point };
-    links: OperatorLink[];
-    commentBoxes: CommentBox[];
-    settings: WorkflowSettings;
-    /** Present once an author set up the Form View. Rides in the content (like `settings`),
-     *  so it is saved/cloned/versioned/published with the workflow for free. */
-    formBinding?: FormBindingConfig;
-  }> {}
+export interface WorkflowContent extends Readonly<{
+  operators: OperatorPredicate[];
+  operatorPositions: { [key: string]: Point };
+  links: OperatorLink[];
+  commentBoxes: CommentBox[];
+  settings: WorkflowSettings;
+  /** Present once an author set up the Form View. Rides in the content (like `settings`),
+   *  so it is saved/cloned/versioned/published with the workflow for free. */
+  formBinding?: FormBindingConfig;
+}> {}
 
 export type Workflow = { content: WorkflowContent } & WorkflowMetadata;
 

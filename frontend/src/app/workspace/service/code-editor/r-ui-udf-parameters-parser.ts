@@ -70,7 +70,7 @@ function tokenize(code: string): Token[] {
     tokens.push({ text, kind, lineBreakBefore: code.slice(previousEnd, start).includes("\n") });
     previousEnd = end;
   };
-  for (let index = 0; index < code.length; ) {
+  for (let index = 0; index < code.length;) {
     const rest = code.slice(index);
     if (/\s/.test(code[index])) {
       index++;

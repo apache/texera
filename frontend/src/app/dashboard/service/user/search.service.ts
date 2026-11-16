@@ -158,7 +158,7 @@ export class SearchService {
         // that as a mismatch and the row is dropped here.
         const mismatchable = type === "dataset" || type === "model";
         const payloadOf = (i: SearchResultItem) => (type === "dataset" ? i.dataset : i.model);
-        const hasMismatch = mismatchable ? results.hasMismatch ?? false : undefined;
+        const hasMismatch = mismatchable ? (results.hasMismatch ?? false) : undefined;
         const filteredResults = mismatchable
           ? results.results.filter(i => i !== null && payloadOf(i) != null)
           : results.results;
