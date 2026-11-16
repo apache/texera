@@ -19,10 +19,12 @@
 
 package org.apache.texera.amber.operator.visualization.figureFactoryTable
 
-import com.typesafe.config.ConfigFactory
-import org.apache.texera.amber.operator.tags.IntegrationTest
+import org.apache.texera.amber.util.PythonTestSupport.{
+  NeedsPythonPackages,
+  canImport,
+  configuredPython
+}
 import org.scalatest.BeforeAndAfter
-import org.scalatest.Tag
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 
@@ -33,8 +35,6 @@ import java.util.concurrent.TimeUnit
 import scala.util.Try
 
 class FigureFactoryTableOpDescSpec extends AnyFlatSpec with BeforeAndAfter with Matchers {
-
-  private val NeedsPythonPackages = Tag(classOf[IntegrationTest].getName)
 
   var opDesc: FigureFactoryTableOpDesc = _
 
@@ -148,10 +148,10 @@ class FigureFactoryTableOpDescSpec extends AnyFlatSpec with BeforeAndAfter with 
       |""".stripMargin
 
   it should "render its message when the table is empty or every row has a hole" taggedAs NeedsPythonPackages in {
-    val python = resolvePythonExecutable().getOrElse(
+    val python = configuredPython().getOrElse(
       cancel("No runnable python executable (udf.conf python.path, python3, python, py)")
     )
-    if (!canImportPandasAndPlotly(python)) cancel(s"'$python' cannot import pandas and plotly")
+    if (!canImport(python, "pandas", "plotly")) cancel(s"'$python' cannot import pandas and plotly")
 
     withColumns()
     val moduleFile = Files.createTempFile("figure_factory_table_op_", ".py")
@@ -182,31 +182,4 @@ class FigureFactoryTableOpDescSpec extends AnyFlatSpec with BeforeAndAfter with 
       ()
     }
   }
-
-  // udf.conf python.path (UDF_PYTHON_PATH), then python3 / python / py.
-  private def resolvePythonExecutable(): Option[String] = {
-    def fromConfig: Option[String] =
-      Try(ConfigFactory.parseResources("udf.conf").resolve()).toOption
-        .orElse(Try(ConfigFactory.load()).toOption)
-        .flatMap(c => Try(c.getConfig("python").getString("path")).toOption)
-        .map(_.trim)
-        .filter(_.nonEmpty)
-
-    def isRunnable(exe: String): Boolean =
-      Try(new ProcessBuilder(exe, "--version").redirectErrorStream(true).start()).toOption
-        .exists { p =>
-          if (!p.waitFor(5, TimeUnit.SECONDS)) { p.destroyForcibly(); false }
-          else p.exitValue() == 0
-        }
-
-    (fromConfig.toList ++ List("python3", "python", "py")).distinct.find(isRunnable)
-  }
-
-  private def canImportPandasAndPlotly(python: String): Boolean =
-    Try(
-      new ProcessBuilder(python, "-c", "import pandas, plotly").redirectErrorStream(true).start()
-    ).toOption.exists { p =>
-      if (!p.waitFor(60, TimeUnit.SECONDS)) { p.destroyForcibly(); false }
-      else p.exitValue() == 0
-    }
 }

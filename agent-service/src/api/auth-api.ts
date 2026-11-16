@@ -38,11 +38,6 @@ export function extractUserFromToken(token: string): UserInfo {
   };
 }
 
-/** True only when the token is genuinely valid (signature + expiry verified). */
-export function validateToken(token: string): boolean {
-  return verifyToken(token) !== null;
-}
-
 export function extractBearerToken(header: string | undefined): string | undefined {
   if (!header) return undefined;
   const [scheme, token] = header.split(" ");

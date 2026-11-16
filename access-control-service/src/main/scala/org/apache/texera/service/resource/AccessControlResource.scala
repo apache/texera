@@ -317,9 +317,9 @@ object AccessControlResource extends LazyLogging {
   }
 }
 // The routing proxy authenticates each request itself via parseToken in the
-// resource body (returning 403 on missing/invalid tokens), so it must opt
-// out of the filter's eager 401 check. @PermitAll lets requests reach the
-// resource code, which then performs its own auth.
+// resource body (returning 401 on missing/invalid tokens, and 403 for unauthorized
+// roles), so it must opt out of the filter's eager 401 check. @PermitAll lets requests
+// reach the resource code, which then performs its own auth.
 @Produces(Array(MediaType.APPLICATION_JSON))
 @Path("/auth")
 @PermitAll

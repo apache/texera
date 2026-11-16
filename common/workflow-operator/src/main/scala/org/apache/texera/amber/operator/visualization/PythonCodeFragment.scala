@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -17,4 +17,13 @@
  * under the License.
  */
 
-// Styles for ReActStep detail modal
+package org.apache.texera.amber.operator.visualization
+
+private[visualization] object PythonCodeFragment {
+  def render(code: String, indent: Int): String =
+    code.stripMargin.linesIterator
+      .map { line =>
+        if (line.isEmpty) line else (" " * indent) + line
+      }
+      .mkString("\n")
+}

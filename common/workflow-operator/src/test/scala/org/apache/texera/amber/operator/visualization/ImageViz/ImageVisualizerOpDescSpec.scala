@@ -19,6 +19,7 @@
 
 package org.apache.texera.amber.operator.visualization.ImageViz
 
+import org.apache.texera.amber.util.PythonTestSupport.configuredPython
 import org.apache.texera.amber.core.tuple.{AttributeType, Schema}
 import org.apache.texera.amber.operator.metadata.OperatorGroupConstants
 import org.scalatest.BeforeAndAfter
@@ -29,7 +30,6 @@ import java.nio.charset.StandardCharsets
 import java.nio.file.Files
 import java.util.concurrent.TimeUnit
 import scala.io.Source
-import scala.util.Try
 
 class ImageVisualizerOpDescSpec extends AnyFlatSpec with BeforeAndAfter with Matchers {
   var opDesc: ImageVisualizerOpDesc = _
@@ -149,7 +149,7 @@ class ImageVisualizerOpDescSpec extends AnyFlatSpec with BeforeAndAfter with Mat
   // Both paths run the same two lines on a string, so the answer is one both can
   // be held to: b64encode raises, and the reason page is what the viewer sees.
   it should "answer a string column with the reason page in both paths" in {
-    val python = resolvePython().getOrElse(cancel("No runnable python executable"))
+    val python = configuredPython().getOrElse(cancel("No runnable python executable"))
 
     val body = standaloneFor(AttributeType.STRING).linesIterator
       .takeWhile(!_.startsWith("all_images_html"))
@@ -173,21 +173,5 @@ class ImageVisualizerOpDescSpec extends AnyFlatSpec with BeforeAndAfter with Mat
     }
     // The executor's own reason page, which the run showed for the same value.
     opDesc.generatePythonCode() should include("Image is not available.")
-  }
-
-  private def resolvePython(): Option[String] = {
-    def runnable(exe: String): Boolean =
-      Try(new ProcessBuilder(exe, "--version").redirectErrorStream(true).start()).toOption
-        .exists { p =>
-          if (!p.waitFor(5, TimeUnit.SECONDS)) { p.destroyForcibly(); false }
-          else p.exitValue() == 0
-        }
-
-    (sys.env.get("UDF_PYTHON_PATH").filter(_.nonEmpty).toList ++ List(
-      "python3",
-      "python",
-      "py"
-    )).distinct
-      .find(runnable)
   }
 }

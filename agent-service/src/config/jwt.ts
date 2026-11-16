@@ -58,7 +58,11 @@ function resolveSecret(): string {
   if (!secret) {
     throw new Error("JWT secret not found: neither AUTH_JWT_SECRET environment variable nor auth.conf was found.");
   }
-  return secret.toLowerCase();
+  const normalized = secret.toLowerCase();
+  if (normalized === "random") {
+    throw new Error('AUTH_JWT_SECRET="random" is not supported here; all services must share one fixed secret.');
+  }
+  return normalized;
 }
 
 // Resolution order mirrors HOCON's `256-bit-secret = "<default>"; 256-bit-secret

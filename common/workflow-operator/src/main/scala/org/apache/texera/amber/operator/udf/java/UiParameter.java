@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -17,36 +17,17 @@
  * under the License.
  */
 
-:host {
-  width: 100%;
-}
+package org.apache.texera.amber.operator.udf.java;
 
-.all-errors-notification {
-  color: blue;
-}
+import java.lang.annotation.ElementType;
+import java.lang.annotation.Retention;
+import java.lang.annotation.RetentionPolicy;
+import java.lang.annotation.Target;
 
-.goto-operator-icon {
-  color: blueviolet; /* change color */
-  font-size: 15px; /* change size */
-  border-width: 2px;
-  border-style: solid;
-  border-color: blueviolet;
-}
-
-.error-message {
-  font-family: monaco, serif;
-  font-size: 11px;
-  font-style: normal;
-  font-variant: normal;
-  font-weight: 200;
-  line-height: 14px;
-  color: red;
-  overflow-x: auto;
-  white-space: pre-line;
-  margin-left: 30px;
-  user-select: text;
-}
-
-.error-category {
-  font-weight: bold;
+/** A UI parameter on an uninitialized instance field of JavaUDFOpExec. */
+@Retention(RetentionPolicy.SOURCE)
+@Target(ElementType.FIELD)
+public @interface UiParameter {
+    String value();
+    String resource() default "";
 }

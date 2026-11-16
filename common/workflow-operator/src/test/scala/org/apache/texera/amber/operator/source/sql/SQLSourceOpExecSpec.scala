@@ -23,6 +23,7 @@ import org.apache.texera.amber.core.tuple.AttributeTypeUtils.parseTimestamp
 import org.apache.texera.amber.core.tuple.{Attribute, AttributeType, Schema, Tuple}
 import org.apache.texera.amber.operator.source.sql.postgresql.PostgreSQLSourceOpDesc
 import org.apache.texera.amber.util.JSONUtils.objectMapper
+import org.scalamock.matchers.MockParameter
 import org.scalamock.scalatest.MockFactory
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
@@ -138,6 +139,18 @@ class SQLSourceOpExecSpec extends AnyFlatSpec with Matchers with MockFactory {
     exec
   }
 
+  private def queryMocks(
+      sql: MockParameter[String],
+      conn: Connection = mock[Connection]
+  )(bind: PreparedStatement => Unit = _ => ()): (Connection, PreparedStatement, ResultSet) = {
+    val statement = mock[PreparedStatement]
+    val resultSet = mock[ResultSet]
+    (conn.prepareStatement(_: String)).expects(sql).returning(statement)
+    bind(statement)
+    (statement.executeQuery: () => ResultSet).expects().returning(resultSet)
+    (conn, statement, resultSet)
+  }
+
   /**
     * A connection answering the `SELECT MIN/MAX(col) FROM tbl;` boundary probes.
     * `sides` narrows it to the probes the executor is expected to actually issue.
@@ -149,13 +162,7 @@ class SQLSourceOpExecSpec extends AnyFlatSpec with Matchers with MockFactory {
   ): Connection = {
     val conn = mock[Connection]
     sides.foreach { side =>
-      val statement = mock[PreparedStatement]
-      val resultSet = mock[ResultSet]
-      (conn
-        .prepareStatement(_: String))
-        .expects(s"SELECT $side($column) FROM tbl;")
-        .returning(statement)
-      (statement.executeQuery: () => ResultSet).expects().returning(resultSet)
+      val (_, statement, resultSet) = queryMocks(s"SELECT $side($column) FROM tbl;", conn)()
       (resultSet.next _).expects().returning(true)
       stub(resultSet, side)
       (resultSet.close _).expects()
@@ -394,25 +401,20 @@ class SQLSourceOpExecSpec extends AnyFlatSpec with Matchers with MockFactory {
     exec.tableNames should contain("tbl")
   }
 
-  it should "reject progressive mode without min and max boundaries" in {
-    val exec = new TestSQLSourceOpExec(progressiveJson("big", None, None, 30L))
-    val thrown = intercept[IllegalArgumentException](exec.open())
-    thrown.getMessage should startWith("Missing required progressive configuration")
-  }
-
-  it should "reject progressive mode with a lower but no upper boundary" in {
-    val exec = new TestSQLSourceOpExec(progressiveJson("big", Option("0"), None, 30L))
-    val thrown = intercept[IllegalArgumentException](exec.open())
-    thrown.getMessage should startWith("Missing required progressive configuration")
-  }
-
-  it should "reject progressive mode with an upper but no lower boundary" in {
-    // the mirror of the case above: without this one, dropping the min check from the
-    // configuration guard would go unnoticed and desc.min.get would raise a bare
-    // NoSuchElementException instead of this message
-    val exec = new TestSQLSourceOpExec(progressiveJson("big", None, Option("100"), 30L))
-    val thrown = intercept[IllegalArgumentException](exec.open())
-    thrown.getMessage should startWith("Missing required progressive configuration")
+  // Include both one-sided configurations. Dropping the min check would let
+  // the upper-only case reach desc.min.get and throw a bare NoSuchElementException
+  // instead of reporting the missing progressive configuration.
+  Seq(
+    ("reject progressive mode without min and max boundaries", None, None),
+    ("reject progressive mode with a lower but no upper boundary", Option("0"), None),
+    ("reject progressive mode with an upper but no lower boundary", None, Option("100"))
+  ).foreach {
+    case (name, min, max) =>
+      it should name in {
+        val exec = new TestSQLSourceOpExec(progressiveJson("big", min, max, 30L))
+        val thrown = intercept[IllegalArgumentException](exec.open())
+        thrown.getMessage should startWith("Missing required progressive configuration")
+      }
   }
 
   it should "reject a non-auto upper bound on a column that is neither LONG nor TIMESTAMP" in {
@@ -479,14 +481,7 @@ class SQLSourceOpExecSpec extends AnyFlatSpec with Matchers with MockFactory {
   }
 
   it should "reject an auto boundary probe on an unsupported column type" in {
-    val conn = mock[Connection]
-    val statement = mock[PreparedStatement]
-    val resultSet = mock[ResultSet]
-    (conn
-      .prepareStatement(_: String))
-      .expects("SELECT MIN(name) FROM tbl;")
-      .returning(statement)
-    (statement.executeQuery: () => ResultSet).expects().returning(resultSet)
+    val (conn, statement, resultSet) = queryMocks("SELECT MIN(name) FROM tbl;")()
     (resultSet.next _).expects().returning(true)
     // the probe currently throws before closing; allow (but don't require) the close-out so a
     // later fix that releases the ResultSet/PreparedStatement on this path won't break the spec
@@ -508,12 +503,7 @@ class SQLSourceOpExecSpec extends AnyFlatSpec with Matchers with MockFactory {
   }
 
   "SQLSourceOpExec.produceTuple" should "stream every row of the single non-progressive query" in {
-    val resultSet = mock[ResultSet]
-    val statement = mock[PreparedStatement]
-    val conn = mock[Connection]
-
-    (conn.prepareStatement(_: String)).expects(BASE + ";").returning(statement)
-    (statement.executeQuery: () => ResultSet).expects().returning(resultSet)
+    val (conn, statement, resultSet) = queryMocks(BASE + ";")()
     inSequence {
       (resultSet.next _).expects().returning(true)
       (resultSet.next _).expects().returning(true)
@@ -540,18 +530,12 @@ class SQLSourceOpExecSpec extends AnyFlatSpec with Matchers with MockFactory {
   }
 
   it should "bind the keyword, limit and offset parameters and skip the offset rows" in {
-    val resultSet = mock[ResultSet]
-    val statement = mock[PreparedStatement]
-    val conn = mock[Connection]
-
-    (conn
-      .prepareStatement(_: String))
-      .expects(BASE + " AND name @@ to_tsquery(?) LIMIT ? OFFSET ?;")
-      .returning(statement)
-    (statement.setString _).expects(1, "foo")
-    (statement.setLong _).expects(2, 2L)
-    (statement.setLong _).expects(3, 1L)
-    (statement.executeQuery: () => ResultSet).expects().returning(resultSet)
+    val (conn, statement, resultSet) =
+      queryMocks(BASE + " AND name @@ to_tsquery(?) LIMIT ? OFFSET ?;") { statement =>
+        (statement.setString _).expects(1, "foo")
+        (statement.setLong _).expects(2, 2L)
+        (statement.setLong _).expects(3, 1L)
+      }
     inSequence {
       (resultSet.next _).expects().returning(true) // consumed by the manual offset skip
       (resultSet.next _).expects().returning(true)
@@ -583,20 +567,14 @@ class SQLSourceOpExecSpec extends AnyFlatSpec with Matchers with MockFactory {
   }
 
   it should "bind no fixed offset in progressive mode" in {
-    val resultSet = mock[ResultSet]
-    val statement = mock[PreparedStatement]
-    val conn = mock[Connection]
-
     // the limit is present so that progressive-ness and "has a limit" are distinguishable
-    // here, and so that the clause order (sliding window ahead of LIMIT) is pinned
-    (conn
-      .prepareStatement(_: String))
-      .expects(BASE + " AND big >= 0 AND big < 30 LIMIT ?;")
-      .returning(statement)
-    // only the limit is bound, at index 1: progressive mode carries its offset in the
-    // sliding window, and the strict mock rejects any further setLong, i.e. any offset
-    (statement.setLong _).expects(1, 2L)
-    (statement.executeQuery: () => ResultSet).expects().returning(resultSet)
+// here, and so that the clause order (sliding window ahead of LIMIT) is pinned
+    val (conn, statement, resultSet) = queryMocks(BASE + " AND big >= 0 AND big < 30 LIMIT ?;") {
+      statement =>
+        // only the limit is bound, at index 1: progressive mode carries its offset in the
+        // sliding window, and the strict mock rejects any further setLong, i.e. any offset
+        (statement.setLong _).expects(1, 2L)
+    }
     inSequence {
       (resultSet.next _).expects().returning(true) // consumed by the manual offset skip
       (resultSet.next _).expects().returning(true)
@@ -649,11 +627,7 @@ class SQLSourceOpExecSpec extends AnyFlatSpec with Matchers with MockFactory {
 
   /** A connection answering one query with the given (id, name) rows, then exhausting. */
   private def rowsConn(rows: Seq[(Any, Any)]): Connection = {
-    val conn = mock[Connection]
-    val statement = mock[PreparedStatement]
-    val resultSet = mock[ResultSet]
-    (conn.prepareStatement(_: String)).expects(*).returning(statement)
-    (statement.executeQuery: () => ResultSet).expects().returning(resultSet)
+    val (conn, statement, resultSet) = queryMocks(*)()
     inSequence {
       rows.foreach {
         case (id, name) =>
@@ -705,13 +679,10 @@ class SQLSourceOpExecSpec extends AnyFlatSpec with Matchers with MockFactory {
         keywords: Option[String],
         expectBinding: Boolean
     ): Unit = {
-      val conn = mock[Connection]
-      val statement = mock[PreparedStatement]
-      val resultSet = mock[ResultSet]
-      (conn.prepareStatement(_: String)).expects(*).returning(statement)
-      if (expectBinding) (statement.setString _).expects(1, keywords.get)
-      else (statement.setString _).expects(*, *).never()
-      (statement.executeQuery: () => ResultSet).expects().returning(resultSet)
+      val (conn, statement, resultSet) = queryMocks(*) { statement =>
+        if (expectBinding) (statement.setString _).expects(1, keywords.get)
+        else (statement.setString _).expects(*, *).never()
+      }
       (resultSet.next _).expects().returning(false)
       (resultSet.close _).expects()
       (statement.close _).expects()

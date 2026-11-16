@@ -20,7 +20,7 @@
 import { describe, expect, test } from "bun:test";
 import { createHmac } from "node:crypto";
 import { JWT_SECRET } from "../config/jwt";
-import { createAuthHeaders, extractBearerToken, extractUserFromToken, validateToken } from "./auth-api";
+import { createAuthHeaders, extractBearerToken, extractUserFromToken } from "./auth-api";
 
 function b64url(input: string | Buffer): string {
   return Buffer.from(input).toString("base64url");
@@ -85,33 +85,6 @@ describe("extractUserFromToken", () => {
   test("rejects a mis-signed token", () => {
     const badToken = tokenWith({ userId: 1, sub: "ada" }, "wrong-secret");
     expect(() => extractUserFromToken(badToken)).toThrow(/Invalid or expired token/);
-  });
-});
-
-describe("validateToken", () => {
-  test("accepts a token whose expiry is still in the future", () => {
-    expect(validateToken(tokenWith({ userId: 1, exp: nowInSeconds() + 60 }))).toBe(true);
-  });
-
-  test("rejects a token whose expiry has passed", () => {
-    expect(validateToken(tokenWith({ userId: 1, exp: nowInSeconds() - 60 }))).toBe(false);
-  });
-
-  test("rejects a token without exp (required claim)", () => {
-    const header = b64url(JSON.stringify({ alg: "HS256", typ: "JWT" }));
-    const body = b64url(JSON.stringify({ sub: "test-user", userId: 1 }));
-    const signature = b64url(
-      createHmac("sha256", new TextEncoder().encode(JWT_SECRET)).update(`${header}.${body}`).digest()
-    );
-    expect(validateToken(`${header}.${body}.${signature}`)).toBe(false);
-  });
-
-  test("rejects a malformed token rather than letting error escape", () => {
-    expect(validateToken("not-a-token")).toBe(false);
-  });
-
-  test("expiry is compared in seconds, not milliseconds", () => {
-    expect(validateToken(tokenWith({ exp: nowInSeconds() + 3600 }))).toBe(true);
   });
 });
 

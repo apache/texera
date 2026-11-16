@@ -27,6 +27,7 @@ import org.apache.texera.amber.operator.visualization.PlotlyStandaloneCode
 import org.apache.texera.amber.operator.visualization.PythonVisualizationOpDesc
 import org.apache.texera.amber.operator.metadata.annotations.{AutofillAttributeName, SampleColumn}
 import org.apache.texera.amber.operator.metadata.{OperatorGroupConstants, OperatorInfo}
+import org.apache.texera.amber.pybuilder.PythonTemplateBuilder
 import org.apache.texera.amber.pybuilder.PythonTemplateBuilder.pyStringLiteral
 
 import javax.validation.constraints.NotNull
@@ -67,12 +68,80 @@ class VolcanoPlotOpDesc extends PythonVisualizationOpDesc with PlotlyStandaloneC
   @NotNull(message = "P-Value Column cannot be empty")
   var pvalueColumn: EncodableString = ""
 
+  @JsonProperty(required = false)
+  @JsonSchemaTitle("Hover column")
+  @JsonPropertyDescription(
+    "Column value to display when a dot is hovered over; leave empty for the first column"
+  )
+  @AutofillAttributeName
+  var hoverName: EncodableString = ""
+
+  @JsonProperty(required = false)
+  @JsonSchemaTitle("Title")
+  @JsonPropertyDescription("The figure title; leave empty for Volcano Plot")
+  var title: EncodableString = ""
+
+  @JsonProperty(required = false)
+  @JsonSchemaTitle("X Label")
+  @JsonPropertyDescription(
+    "The label for the x axis and the color bar; leave empty for the effect size column name"
+  )
+  var xLabel: EncodableString = ""
+
+  @JsonProperty(required = false)
+  @JsonSchemaTitle("Y Label")
+  @JsonPropertyDescription("The label for the y axis; leave empty for -log10(<p-value column>)")
+  var yLabel: EncodableString = ""
+
   override def operatorInfo: OperatorInfo =
     OperatorInfo.forVisualization(
       userFriendlyName = "Volcano Plot",
       operatorDescription = "Displays statistical significance versus effect size",
       operatorGroupName = OperatorGroupConstants.VISUALIZATION_SCIENTIFIC_GROUP
     )
+
+  /** An empty or blank hover column keeps the first column, which is what saved
+    * workflows show. One rule for both code paths, so they cannot disagree.
+    */
+  private def hoverColumnSet: Boolean = hoverName.trim.nonEmpty
+
+  private def hoverColumn: PythonTemplateBuilder =
+    if (hoverColumnSet) pyb"$hoverName" else pyb"table.columns[0]"
+
+  /** A set hover column that the input lacks gets the operator's error page, like the
+    * two required columns, instead of the ValueError plotly would raise.
+    */
+  private def hoverColumnCheck: PythonTemplateBuilder =
+    if (hoverColumnSet)
+      pyb"""if $hoverName not in table.columns:
+         |            yield {"html-content": self.render_error("Missing hover column in table.")}
+         |            return
+         |"""
+    else pyb""
+
+  // The exported script's twins of the two helpers above, with the column name as a
+  // Python literal rather than decoded. The check is one more `elif` in the script's
+  // chain, so it ends with its own newline and the template puts `else:` right after it.
+  private def standaloneHoverColumn: String =
+    if (hoverColumnSet) pyStringLiteral(hoverName) else "table.columns[0]"
+
+  private def standaloneHoverColumnCheck: String =
+    if (hoverColumnSet)
+      s"""elif ${pyStringLiteral(hoverName)} not in in1df.columns:
+         |    with open(outputHtml, "w", encoding="utf-8") as output:
+         |        output.write(render_error("Missing hover column in table."))
+         |""".stripMargin
+    else ""
+
+  /** The y column is named after the selected p-value column, so a figure drawn
+    * from an adjusted column says so instead of always reading "-log10(pvalue)".
+    */
+  private def yColumn: EncodableString = s"-log10($pvalueColumn)"
+
+  // An empty or blank label keeps the text the figure derives from the selected columns.
+  private def titleText: EncodableString = if (title.trim.nonEmpty) title else "Volcano Plot"
+  private def xAxisTitle: EncodableString = if (xLabel.trim.nonEmpty) xLabel else effectColumn
+  private def yAxisTitle: EncodableString = if (yLabel.trim.nonEmpty) yLabel else yColumn
 
   override def generatePythonCode(): String = {
     pyb"""
@@ -95,23 +164,28 @@ class VolcanoPlotOpDesc extends PythonVisualizationOpDesc with PlotlyStandaloneC
        |        if $pvalueColumn not in table.columns or $effectColumn not in table.columns:
        |            yield {"html-content": self.render_error("Missing required columns in table.")}
        |            return
-       |
+       |        $hoverColumnCheck
        |        # Filter out non-positive p-values to avoid math errors
        |        table = table[table[$pvalueColumn] > 0]
        |        if table.empty:
        |            yield {"html-content": self.render_error("No rows with valid p-values.")}
        |            return
        |
-       |        table["-log10(pvalue)"] = -np.log10(table[$pvalueColumn])
+       |        table[$yColumn] = -np.log10(table[$pvalueColumn])
        |
        |        fig = px.scatter(
        |            table,
        |            x=$effectColumn,
-       |            y="-log10(pvalue)",
-       |            hover_name=table.columns[0],
+       |            y=$yColumn,
+       |            hover_name=$hoverColumn,
        |            color=$effectColumn,
        |            color_continuous_scale="RdBu",
-       |            title="Volcano Plot"
+       |            title=$titleText
+       |        )
+       |        fig.update_layout(
+       |            xaxis_title=$xAxisTitle,
+       |            yaxis_title=$yAxisTitle,
+       |            coloraxis_colorbar_title_text=$xAxisTitle
        |        )
        |
        |        html = plotly.io.to_html(fig, include_plotlyjs='cdn', auto_play=False)
@@ -119,9 +193,12 @@ class VolcanoPlotOpDesc extends PythonVisualizationOpDesc with PlotlyStandaloneC
        |""".encode
   }
 
+  // The exported script draws the same figure as the engine, so it labels it the same
+  // way; the only difference is that the text is a Python literal rather than decoded.
   override def generateStandaloneCode(): String = {
     val pvalueLit = pyStringLiteral(pvalueColumn)
     val effectLit = pyStringLiteral(effectColumn)
+    val yLit = pyStringLiteral(yColumn)
     s"""import numpy as np
        |
        |def render_error(msg):
@@ -133,21 +210,26 @@ class VolcanoPlotOpDesc extends PythonVisualizationOpDesc with PlotlyStandaloneC
        |elif $pvalueLit not in in1df.columns or $effectLit not in in1df.columns:
        |    with open(outputHtml, "w", encoding="utf-8") as output:
        |        output.write(render_error("Missing required columns in table."))
-       |else:
+       |${standaloneHoverColumnCheck}else:
        |    table = in1df[in1df[$pvalueLit] > 0].copy()
        |    if table.empty:
        |        with open(outputHtml, "w", encoding="utf-8") as output:
        |            output.write(render_error("No rows with valid p-values."))
        |    else:
-       |        table["-log10(pvalue)"] = -np.log10(table[$pvalueLit])
+       |        table[$yLit] = -np.log10(table[$pvalueLit])
        |        fig = px.scatter(
        |            table,
        |            x=$effectLit,
-       |            y="-log10(pvalue)",
-       |            hover_name=table.columns[0],
+       |            y=$yLit,
+       |            hover_name=$standaloneHoverColumn,
        |            color=$effectLit,
        |            color_continuous_scale="RdBu",
-       |            title="Volcano Plot"
+       |            title=${pyStringLiteral(titleText)}
+       |        )
+       |        fig.update_layout(
+       |            xaxis_title=${pyStringLiteral(xAxisTitle)},
+       |            yaxis_title=${pyStringLiteral(yAxisTitle)},
+       |            coloraxis_colorbar_title_text=${pyStringLiteral(xAxisTitle)}
        |        )
        |        fig.write_json(outputJson)
        |        fig.write_html(outputHtml)

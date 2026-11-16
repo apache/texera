@@ -19,14 +19,16 @@
 
 package org.apache.texera.amber.operator.visualization.filledAreaPlot
 
-import com.typesafe.config.ConfigFactory
+import org.apache.texera.amber.util.PythonTestSupport.{
+  NeedsPythonPackages,
+  canImport,
+  configuredPython
+}
 import org.apache.texera.amber.core.tuple.{AttributeType, Schema}
 import org.apache.texera.amber.operator.LogicalOp
 import org.apache.texera.amber.operator.metadata.OperatorMetadataGenerator
-import org.apache.texera.amber.operator.tags.IntegrationTest
 import org.apache.texera.amber.util.JSONUtils.objectMapper
 import org.scalatest.BeforeAndAfter
-import org.scalatest.Tag
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 
@@ -37,8 +39,6 @@ import scala.jdk.CollectionConverters._
 import scala.util.Try
 
 class FilledAreaPlotOpDescSpec extends AnyFlatSpec with BeforeAndAfter with Matchers {
-
-  private val NeedsPythonPackages = Tag(classOf[IntegrationTest].getName)
 
   var opDesc: FilledAreaPlotOpDesc = _
 
@@ -210,42 +210,6 @@ class FilledAreaPlotOpDescSpec extends AnyFlatSpec with BeforeAndAfter with Matc
     code should include("X or Y attribute does not exist")
   }
 
-  // Python executable resolution, following PythonCodeRawInvalidTextSpec:
-  // udf.conf python.path (UDF_PYTHON_PATH), then python3 / python / py.
-  private def resolvePythonExecutable(): Option[String] = {
-    def fromConfig: Option[String] = {
-      val configOpt =
-        Try(ConfigFactory.parseResources("udf.conf").resolve()).toOption
-          .orElse(Try(ConfigFactory.load()).toOption)
-      configOpt
-        .flatMap(c => Try(c.getConfig("python").getString("path")).toOption)
-        .map(_.trim)
-        .filter(_.nonEmpty)
-    }
-
-    def isRunnable(exe: String): Boolean = {
-      val pTry = Try(new ProcessBuilder(exe, "--version").redirectErrorStream(true).start())
-      pTry.toOption.exists { p =>
-        val finished = p.waitFor(5, TimeUnit.SECONDS)
-        if (!finished) { p.destroyForcibly(); false }
-        else p.exitValue() == 0
-      }
-    }
-
-    (fromConfig.toList ++ List("python3", "python", "py")).distinct.find(isRunnable)
-  }
-
-  private def canImportPandasAndPlotly(python: String): Boolean = {
-    val pTry = Try(
-      new ProcessBuilder(python, "-c", "import pandas, plotly").redirectErrorStream(true).start()
-    )
-    pTry.toOption.exists { p =>
-      val finished = p.waitFor(60, TimeUnit.SECONDS)
-      if (!finished) { p.destroyForcibly(); false }
-      else p.exitValue() == 0
-    }
-  }
-
   // Driver executed by the runtime test below. It stubs only the pytexera import seam
   // (base class, decorator, and type aliases); the generated module itself runs unmodified,
   // including the real pandas groupby guard and plotly rendering.
@@ -311,10 +275,10 @@ class FilledAreaPlotOpDescSpec extends AnyFlatSpec with BeforeAndAfter with Matc
       |""".stripMargin
 
   it should "enforce the five-percent tolerance at runtime boundaries" taggedAs NeedsPythonPackages in {
-    val python = resolvePythonExecutable().getOrElse(
+    val python = configuredPython().getOrElse(
       cancel("No runnable python executable (udf.conf python.path, python3, python, py)")
     )
-    if (!canImportPandasAndPlotly(python)) {
+    if (!canImport(python, "pandas", "plotly")) {
       cancel(s"'$python' cannot import pandas and plotly; skipping runtime verification")
     }
 
@@ -408,10 +372,10 @@ class FilledAreaPlotOpDescSpec extends AnyFlatSpec with BeforeAndAfter with Matc
   // and 8 are past it.
   "FilledAreaPlotOpDesc.generateStandaloneCode" should
     "refuse the same tables the operator refuses" taggedAs NeedsPythonPackages in {
-    val python = resolvePythonExecutable().getOrElse(
+    val python = configuredPython().getOrElse(
       cancel("No runnable python executable (udf.conf python.path, python3, python, py)")
     )
-    if (!canImportPandasAndPlotly(python)) {
+    if (!canImport(python, "pandas", "plotly")) {
       cancel(s"'$python' cannot import pandas and plotly; skipping runtime verification")
     }
 
