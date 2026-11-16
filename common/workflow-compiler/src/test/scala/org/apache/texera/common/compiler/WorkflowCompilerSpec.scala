@@ -22,6 +22,7 @@ package org.apache.texera.common.compiler
 import com.fasterxml.jackson.annotation.JsonProperty
 import org.apache.texera.common.compiler.WorkflowCompilerSpec.{
   ColumnReadingPyOp,
+  ElementWritingPyOp,
   FlagWritingPyOp,
   IntWritingPyOp,
   LongWritingPyOp,
@@ -1969,6 +1970,28 @@ class WorkflowCompilerSpec extends AnyFlatSpec {
     )
   }
 
+  it should "probe a list element, and a property with no default, with their first pair when no probe pair generates the code" in {
+    // n rejects 3 and 70, so the baseline sets n to its default, 1. The first ratio, an element of
+    // a list, and limit, null by default, have no default to start from: they keep their first
+    // probe pairs, land as they are and are read from the loop state, while n is reported.
+    val body = new ElementWritingPyOp
+    body.n = 0
+    body.ratios = List(0.0)
+    body.limit = 0
+    body.template = yielding("(<n>, <ratio>, <limit>)")
+    body.rejected = List(0, 3, 70)
+    body.stateReferences = Map("/n" -> "n", "/ratios/0" -> "r", "/limit" -> "limit")
+    assertOnlyError(
+      oneInputLoop(body),
+      body,
+      s"Element writing cannot refer to loop variables in /n yet: $checkedValueReason"
+    )
+    assert(
+      body.loopVariableBinding.code ==
+        yielding(s"(1, ${valueLookup("r", "number")}, ${valueLookup("limit", "integer")})")
+    )
+  }
+
   it should "report Figure Factory Table's Row Height inside a loop block as it does Font Size, not a probe it rejects" in {
     // Row Height must be at least 30, and every probe is below it, so no probe pair generates the
     // code; Font Size, at least 0, takes every probe. Either way the error is the check the loop's
@@ -2001,6 +2024,19 @@ class WorkflowCompilerSpec extends AnyFlatSpec {
       body,
       s"Int writing cannot refer to loop variables in /n yet: $generatedFromValueReason"
     )
+  }
+
+  it should "report an integer reference whose value decides whether generated code has a line" in {
+    // The value lands as it is, but the code from 5 has one more line than the code from 3, or
+    // one fewer: the two codes also differ where one of them ends.
+    Seq("<row if n > 4>", "<row if n < 4>").foreach { row =>
+      val body = intWriting(yielding("<n>") + row)
+      assertOnlyError(
+        oneInputLoop(body),
+        body,
+        s"Int writing cannot refer to loop variables in /n yet: $generatedFromValueReason"
+      )
+    }
   }
 
   it should "report an integer reference that lands in a text, a comment or next to a name" in {
@@ -2614,8 +2650,9 @@ object WorkflowCompilerSpec {
     * A test-only generated operator that writes its Ints `n` and `m` into its code where
     * `template` says: each `<n>` / `<m>` as Scala writes it, each `<2n>` twice `n`, each
     * `<n min 10>` `n`, at most 10, each `<max>` the larger of the two, each `<n+m-3>` their sum
-    * less 3. Generating rejects every `n` in `rejected` and every `m` in `rejectedM`, as a
-    * descriptor's own validation would.
+    * less 3, and each `<row if n > 4>` / `<row if n < 4>` one more line yielding the tuple's line
+    * where `n` is so. Generating rejects every `n` in `rejected` and every `m` in `rejectedM`, as
+    * a descriptor's own validation would.
     */
   private class IntWritingPyOp extends PythonOperatorDescriptor {
     @JsonProperty var n: Int = 1
@@ -2627,7 +2664,10 @@ object WorkflowCompilerSpec {
       generations.incrementAndGet()
       require(!rejected.contains(n), s"n cannot be $n")
       require(!rejectedM.contains(m), s"m cannot be $m")
+      val row = """        yield {"line": tuple_["line"], "v": 0}""" + "\n"
       template
+        .replace("<row if n > 4>", if (n > 4) row else "")
+        .replace("<row if n < 4>", if (n < 4) row else "")
         .replace("<2n>", (2 * n).toString)
         .replace("<n min 10>", n.min(10).toString)
         .replace("<max>", n.max(m).toString)
@@ -2642,6 +2682,37 @@ object WorkflowCompilerSpec {
       OperatorInfo(
         "Int writing",
         "writes its n into its code where its template says",
+        OperatorGroupConstants.PYTHON_GROUP,
+        List(InputPort()),
+        List(OutputPort())
+      )
+  }
+
+  /**
+    * A test-only generated operator that writes its Int `n`, the first of its Doubles `ratios` and
+    * its Integer `limit`, which has no default, into its code where `template` says `<n>`,
+    * `<ratio>` and `<limit>`. Generating rejects every `n` in `rejected`.
+    */
+  private class ElementWritingPyOp extends PythonOperatorDescriptor {
+    @JsonProperty var n: Int = 1
+    @JsonProperty var ratios: List[Double] = List.empty
+    @JsonProperty var limit: java.lang.Integer = null
+    @JsonProperty var template: String = ""
+    @JsonProperty var rejected: List[Int] = List.empty
+    override def generatePythonCode(): String = {
+      require(!rejected.contains(n), s"n cannot be $n")
+      template
+        .replace("<n>", n.toString)
+        .replace("<ratio>", ratios.headOption.fold("")(_.toString))
+        .replace("<limit>", String.valueOf(limit))
+    }
+    override def getOutputSchemas(
+        inputSchemas: Map[PortIdentity, Schema]
+    ): Map[PortIdentity, Schema] = Map(PortIdentity() -> inputSchemas.values.head)
+    override def operatorInfo: OperatorInfo =
+      OperatorInfo(
+        "Element writing",
+        "writes its n, its first ratio and its limit into its code where its template says",
         OperatorGroupConstants.PYTHON_GROUP,
         List(InputPort()),
         List(OutputPort())
