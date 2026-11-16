@@ -10,9 +10,10 @@
     "start": "bun run src/server.ts",
     "start:node": "npx tsx src/server.ts",
     "test": "bun test",
+    "eval": "bun run eval/run.ts",
     "typecheck": "tsc --noEmit",
-    "format": "prettier --write \"src/**/*.{ts,tsx,json}\"",
-    "format:check": "prettier --check \"src/**/*.{ts,tsx,json}\""
+    "format": "prettier --write \"src/**/*.{ts,tsx,json}\" \"eval/**/*.ts\"",
+    "format:check": "prettier --check \"src/**/*.{ts,tsx,json}\" \"eval/**/*.ts\""
   },
   "dependencies": {
     "@ai-sdk/openai": "4.0.118",
