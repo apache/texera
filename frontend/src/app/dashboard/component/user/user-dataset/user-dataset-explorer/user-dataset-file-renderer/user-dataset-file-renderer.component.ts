@@ -102,8 +102,6 @@ export const MIME_TYPE_SIZE_LIMITS_MB = {
   ],
 })
 export class UserDatasetFileRendererComponent implements OnInit, OnChanges, OnDestroy {
-  private DEFAULT_MAX_SIZE = 5 * 1024 * 1024; // 5 MB
-
   public fileURL: string | undefined;
   // safe url is used to display some formats including image
   public safeFileURL: SafeUrl | undefined;
@@ -205,7 +203,7 @@ export class UserDatasetFileRendererComponent implements OnInit, OnChanges, OnDe
       this.onFileTypePreviewUnsupported();
       return;
     }
-    const limit = MIME_TYPE_SIZE_LIMITS_MB[mimeType] ?? this.DEFAULT_MAX_SIZE;
+    const limit = MIME_TYPE_SIZE_LIMITS_MB[mimeType];
     if (this.fileSize != null && this.fileSize > limit) {
       this.onFileSizeNotLoadable();
       return;
@@ -225,7 +223,7 @@ export class UserDatasetFileRendererComponent implements OnInit, OnChanges, OnDe
               this.onFileTypePreviewUnsupported();
               return;
             }
-            const MaxSize = MIME_TYPE_SIZE_LIMITS_MB[blobMimeType] || this.DEFAULT_MAX_SIZE;
+            const MaxSize = MIME_TYPE_SIZE_LIMITS_MB[blobMimeType];
             const fileSize = blob.size;
             if (fileSize > MaxSize) {
               this.onFileSizeNotLoadable();
@@ -343,7 +341,7 @@ export class UserDatasetFileRendererComponent implements OnInit, OnChanges, OnDe
   }
 
   isPreviewSupported(mimeType: string) {
-    return mimeType !== MIME_TYPES.OCTET_STREAM && Object.hasOwnProperty.call(MIME_TYPE_SIZE_LIMITS_MB, mimeType);
+    return Object.hasOwnProperty.call(MIME_TYPE_SIZE_LIMITS_MB, mimeType);
   }
 
   private readFileAsText(blob: Blob, isCurrent: () => boolean = () => true) {
