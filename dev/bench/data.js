@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1794747569865,
+  "lastUpdate": 1794833821349,
   "repoUrl": "https://github.com/apache/texera",
   "entries": {
     "Arrow Flight E2E Throughput": [
@@ -22558,6 +22558,163 @@ window.BENCHMARK_DATA = {
           {
             "name": "throughput / bs=1000 sw=50 sl=512",
             "value": 512.9699562473805,
+            "unit": "tuples/sec"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "name": "Putluru Sandeep",
+            "username": "sunny-kavixo",
+            "email": "73680894+sunny-kavixo@users.noreply.github.com"
+          },
+          "committer": {
+            "name": "GitHub",
+            "username": "web-flow",
+            "email": "noreply@github.com"
+          },
+          "id": "7adc72932ed1336b2ca986a890fbebb301164e57",
+          "message": "refactor(frontend): clean up unused config and assert helpers (#9435)\n\n### What changes were proposed in this PR?\n\nClean up dead methods and helpers that remain unused in the latest\nupstream `main` and were only referenced by their own specs, as tracked\nin #9195:\n\n1. **`UserConfigService.getDict()`** in\n`frontend/src/app/common/service/user/config/user-config.service.ts`:\n   - Removed the unread dictionary getter.\n- Refactored `user-config.service.spec.ts` to preserve complete\nbehavioral coverage across fetch, set, delete, login, and logout using\nobservable behavior and public interfaces (verifying that `delete()`\nissues an HTTP DELETE request only when the target key is present in the\nlocal cache).\n2. **`GuiConfigService.source()`** in\n`frontend/src/app/common/service/gui-config.service.ts`:\n- Removed uncalled `source(name: ConfigSource)` which was superseded by\nmemoized configuration getters (`env`).\n   - Removed corresponding unit tests in `gui-config.service.spec.ts`.\n3. **`assert()`** in `frontend/src/app/common/util/assert.ts`:\n- Removed uncalled `assert()` function (`asType` and `isType` type\nguards remain).\n   - Removed corresponding unit tests in `assert.spec.ts`.\n\n*(Note: Per maintainer confirmation on #9195, `dictionaryChangedSubject`\nlanded earlier in #8817 and `localRemoveObject`/`sessionRemoveObject`\nlanded earlier in #9256; those completed changes are untouched.)*\n\n### Any related issues, documentation, discussions?\n\nCloses #9195\n\n### How was this PR tested?\n\nAll changes were thoroughly tested locally via the repository-standard\ntest runner:\n\n1. **Affected Spec Files:**\n- `yarn ng test --watch=false\n--include=src/app/common/util/assert.spec.ts` (6/6 passed)\n- `yarn ng test --watch=false\n--include=src/app/common/service/gui-config.service.spec.ts` (12/12\npassed)\n- `yarn ng test --watch=false\n--include=src/app/common/service/user/config/user-config.service.spec.ts`\n(20/20 passed)\n2. **Dependent / Downstream Spec Files:**\n- `yarn ng test --watch=false\n--include=src/app/workspace/service/preset/preset.service.spec.ts`\n(48/48 passed)\n3. **Common Suite:**\n- `yarn ng test --watch=false --include=\"src/app/common/**/*.spec.ts\"`\n(876/876 passed across 55 test files)\n4. **Code Quality, Type-Checking, and Build:**\n   - `yarn tsc --noEmit` (Passed with 0 errors)\n- `yarn tsc -p src/tsconfig.app.json --noEmit && yarn tsc -p\nsrc/tsconfig.spec.json --noEmit` (Passed with 0 errors)\n   - `yarn format:ci` (Passed cleanly)\n   - `yarn lint` (Passed with 0 errors)\n   - `yarn build` (Production frontend build succeeded)\n   - `git diff --check` (Clean)\n\n### Was this PR authored or co-authored using generative AI tooling?\n\nGenerated-by: Antigravity IDE (Gemini 3.8 Flash)",
+          "timestamp": "2026-11-16T10:07:16Z",
+          "url": "https://github.com/apache/texera/commit/7adc72932ed1336b2ca986a890fbebb301164e57"
+        },
+        "date": 1794833820587,
+        "tool": "customBiggerIsBetter",
+        "benches": [
+          {
+            "name": "throughput / bs=10 sw=1 sl=8",
+            "value": 1228.272264367171,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=1 sl=8",
+            "value": 2592.1455864467357,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=1 sl=8",
+            "value": 2834.1407688317086,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=1 sl=64",
+            "value": 1732.9496858845434,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=1 sl=64",
+            "value": 2732.509674845693,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=1 sl=64",
+            "value": 2854.441555316762,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=1 sl=512",
+            "value": 1871.5304609156185,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=1 sl=512",
+            "value": 2671.533903652142,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=1 sl=512",
+            "value": 2860.517831096426,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=10 sl=8",
+            "value": 1486.9834071038317,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=10 sl=8",
+            "value": 2129.2392065226018,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=10 sl=8",
+            "value": 2150.763117939353,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=10 sl=64",
+            "value": 1551.0642360472589,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=10 sl=64",
+            "value": 2099.3023195570568,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=10 sl=64",
+            "value": 2202.2225831395385,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=10 sl=512",
+            "value": 1597.2997826072599,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=10 sl=512",
+            "value": 2048.530004807816,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=10 sl=512",
+            "value": 2085.3921806655453,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=50 sl=8",
+            "value": 906.0877450977827,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=50 sl=8",
+            "value": 1093.979264012179,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=50 sl=8",
+            "value": 1151.3497438049435,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=50 sl=64",
+            "value": 956.6984028911303,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=50 sl=64",
+            "value": 1127.8772122730802,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=50 sl=64",
+            "value": 1117.030975502092,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=50 sl=512",
+            "value": 808.786969624074,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=50 sl=512",
+            "value": 1020.4844453627111,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=50 sl=512",
+            "value": 1056.7553615573258,
             "unit": "tuples/sec"
           }
         ]
