@@ -127,7 +127,10 @@ lazy val Config = (project in file("common/config")).settings(commonModuleSettin
 // on Config to read OTEL_* settings from observability.conf.
 lazy val Observability =
   (project in file("common/observability")).settings(commonModuleSettings).dependsOn(Config)
-lazy val Resource = (project in file("common/resource")).settings(commonModuleSettings).dependsOn(DAO)
+lazy val Resource = (project in file("common/resource"))
+  .settings(commonModuleSettings)
+  .dependsOn(DAO, Auth)
+  .dependsOn(DAO % "test->test") // reuse MockTexeraDB embedded Postgres in tests
 lazy val Auth = (project in file("common/auth"))
   .settings(commonModuleSettings)
   .configs(Test)
@@ -164,7 +167,7 @@ lazy val PyBuilder = (project in file("common/pybuilder"))
 
 lazy val WorkflowCore = (project in file("common/workflow-core"))
   .settings(commonModuleSettings)
-  .dependsOn(DAO, Config, PyBuilder, Util)
+  .dependsOn(DAO, Config, PyBuilder, Util, Resource)
   .configs(Test)
   .dependsOn(DAO % "test->test") // test scope dependency
 lazy val ComputingUnitManagingService = (project in file("computing-unit-managing-service"))
@@ -247,6 +250,8 @@ lazy val WorkflowCompiler = (project in file("common/workflow-compiler"))
   .dependsOn(WorkflowOperator)
 lazy val WorkflowCompilingService = (project in file("workflow-compiling-service"))
   .dependsOn(WorkflowCompiler, Auth, Config, Resource, Observability)
+  .configs(Test)
+  .dependsOn(DAO % "test->test") // reuse MockTexeraDB embedded Postgres in tests
   .settings(commonModuleSettings)
   .settings(
     dependencyOverrides ++= Seq(
@@ -254,7 +259,10 @@ lazy val WorkflowCompilingService = (project in file("workflow-compiling-service
       "com.fasterxml.jackson.module" %% "jackson-module-scala" % jacksonVersion,
       "com.fasterxml.jackson.core" % "jackson-databind" % jacksonVersion,
       "org.glassfish.jersey.core" % "jersey-common" % "3.0.12"
-    ) ++ nettyDependencyOverrides
+    ) ++ nettyDependencyOverrides,
+    // MockTexeraDB swaps a JVM-wide singleton (SqlServer's embedded Postgres),
+    // so run suites serially to avoid cross-suite races.
+    Test / parallelExecution := false
   )
 
 lazy val WorkflowExecutionService = (project in file("amber"))
@@ -276,6 +284,12 @@ lazy val WorkflowExecutionService = (project in file("amber"))
   )
   .configs(Test)
   .dependsOn(DAO % "test->test", Auth % "test->test") // test scope dependency
+  .settings(
+    // WorkflowMetricsRecorderSpec asserts exact counts on the process-wide WorkflowMetrics
+    // instruments; run suites serially so a concurrent execution suite does not record into
+    // them mid-assertion.
+    Test / parallelExecution := false
+  )
 lazy val NotebookMigrationService = (project in file("notebook-migration-service"))
   .dependsOn(Auth, Config, DAO, Resource, Observability)
   .settings(commonModuleSettings)

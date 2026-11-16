@@ -53,6 +53,45 @@ describe("compileWorkflowAsync", () => {
     });
   });
 
+  test("sends the user's token as a Bearer Authorization header when given", async () => {
+    const fetchSpy = spyOn(globalThis, "fetch").mockResolvedValue(
+      new Response(JSON.stringify({ operatorOutputSchemas: {}, operatorErrors: {} }), { status: 200 })
+    );
+
+    await compileWorkflowAsync(plan, "user-jwt");
+
+    const [, init] = fetchSpy.mock.calls[0] as [string, RequestInit];
+    expect(init.headers).toEqual({ Authorization: "Bearer user-jwt", "Content-Type": "application/json" });
+  });
+
+  test("omits the Authorization header when the token is empty", async () => {
+    const fetchSpy = spyOn(globalThis, "fetch").mockResolvedValue(
+      new Response(JSON.stringify({ operatorOutputSchemas: {}, operatorErrors: {} }), { status: 200 })
+    );
+
+    await compileWorkflowAsync(plan, "");
+
+    const [, init] = fetchSpy.mock.calls[0] as [string, RequestInit];
+    expect(init.headers).toEqual({ "Content-Type": "application/json" });
+  });
+
+  test("against a JWT-protected endpoint, returns schemas only when the token is passed", async () => {
+    const compilation: WorkflowCompilationResponse = {
+      operatorOutputSchemas: { opX: { "output-0": [{ attributeName: "a", attributeType: "string" }] } },
+      operatorErrors: {},
+    };
+    // Mirrors JwtAuthFilter: 401 unless a Bearer token is present.
+    spyOn(globalThis, "fetch").mockImplementation((async (_url: string, init?: RequestInit) => {
+      const auth = (init?.headers as Record<string, string> | undefined)?.Authorization ?? "";
+      return /^Bearer \S+$/.test(auth)
+        ? new Response(JSON.stringify(compilation), { status: 200 })
+        : new Response("", { status: 401, headers: { "WWW-Authenticate": 'Bearer realm="texera"' } });
+    }) as unknown as typeof fetch);
+
+    expect(await compileWorkflowAsync(plan)).toBeNull();
+    expect(await compileWorkflowAsync(plan, "user-jwt")).toEqual(compilation);
+  });
+
   test("returns null on a non-ok response", async () => {
     spyOn(globalThis, "fetch").mockResolvedValue(new Response("boom", { status: 500 }));
     expect(await compileWorkflowAsync(plan)).toBeNull();

@@ -276,6 +276,17 @@ class AdminExecutionResourceSpec
     rows.head.access shouldBe false
   }
 
+  it should "report access = true for the owner without an access row" in {
+    seedExecution()
+    getDSLContext
+      .insertInto(WORKFLOW_OF_USER)
+      .set(WORKFLOW_OF_USER.UID, Integer.valueOf(testUid))
+      .set(WORKFLOW_OF_USER.WID, Integer.valueOf(testWid))
+      .execute()
+
+    list().head.access shouldBe true
+  }
+
   it should "keep only the latest execution per workflow" in {
     seedExecution(name = "older")
     val latest = seedExecution(name = "newer")

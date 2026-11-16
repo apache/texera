@@ -55,3 +55,16 @@ export interface DashboardWorkflowComputingUnit {
   ownerAvatar: string;
   ownerName: string;
 }
+
+// CPU in millicores, memory in bytes, GPU in devices.
+export interface ResourceCapacity {
+  total: number;
+  allocated: number;
+  available: number;
+}
+
+export interface ClusterCapacity {
+  cpu: ResourceCapacity;
+  memory: ResourceCapacity;
+  gpu: ResourceCapacity;
+}

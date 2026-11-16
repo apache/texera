@@ -19,14 +19,13 @@
 
 package org.apache.texera.amber.operator.visualization.waterfallChart
 
+import org.apache.texera.amber.operator.visualization.StandaloneChartCode._
 import com.fasterxml.jackson.annotation.{JsonProperty, JsonPropertyDescription}
 import com.kjetland.jackson.jsonSchema.annotations.{JsonSchemaInject, JsonSchemaTitle}
-import org.apache.texera.amber.core.tuple.{AttributeType, Schema}
 import org.apache.texera.amber.pybuilder.PythonTemplateBuilder.PythonTemplateBuilderStringContext
 import org.apache.texera.amber.pybuilder.PyStringTypes.EncodableString
-import org.apache.texera.amber.core.workflow.PortIdentity
-import org.apache.texera.amber.operator.PythonOperatorDescriptor
 import org.apache.texera.amber.operator.visualization.PlotlyStandaloneCode
+import org.apache.texera.amber.operator.visualization.PythonVisualizationOpDesc
 import org.apache.texera.amber.operator.metadata.annotations.AutofillAttributeName
 import org.apache.texera.amber.operator.metadata.{OperatorGroupConstants, OperatorInfo}
 import org.apache.texera.amber.pybuilder.PythonTemplateBuilder
@@ -43,7 +42,7 @@ import javax.validation.constraints.NotNull
   }
 }
 """)
-class WaterfallChartOpDesc extends PythonOperatorDescriptor with PlotlyStandaloneCode {
+class WaterfallChartOpDesc extends PythonVisualizationOpDesc with PlotlyStandaloneCode {
 
   @JsonProperty(value = "xColumn", required = true)
   @JsonSchemaTitle("X Axis Values")
@@ -58,14 +57,6 @@ class WaterfallChartOpDesc extends PythonOperatorDescriptor with PlotlyStandalon
   @AutofillAttributeName
   @NotNull(message = "Y Axis Values cannot be empty")
   var yColumn: EncodableString = ""
-
-  override def getOutputSchemas(
-      inputSchemas: Map[PortIdentity, Schema]
-  ): Map[PortIdentity, Schema] = {
-    val outputSchema = Schema()
-      .add("html-content", AttributeType.STRING)
-    Map(operatorInfo.outputPorts.head.id -> outputSchema)
-  }
 
   override def operatorInfo: OperatorInfo =
     OperatorInfo.forVisualization(
@@ -127,17 +118,11 @@ class WaterfallChartOpDesc extends PythonOperatorDescriptor with PlotlyStandalon
     finalCode.encode
   }
 
-  override def producesDataFrame(): Boolean = false
-
   override def generateStandaloneCode(): String = {
-    s"""def render_error(error_msg) -> str:
-       |    return '''<h1>Waterfall chart is not available.</h1>
-       |                  <p>Reason is: {} </p>
-       |               '''.format(error_msg)
+    s"""${standaloneError("Waterfall chart is not available.", typed = true)}
        |
        |if in1df.empty:
-       |    with open(outputHtml, "w", encoding="utf-8") as output:
-       |        output.write(render_error("input table is empty."))
+       |${standaloneErrorPage("input table is empty.")}
        |else:
        |    table = in1df
        |    x_values = list(table[${pyStringLiteral(xColumn)}])
@@ -155,9 +140,7 @@ class WaterfallChartOpDesc extends PythonOperatorDescriptor with PlotlyStandalon
        |    ))
        |
        |    fig.update_layout(showlegend=True, waterfallgap=0.3, xaxis_type="category")
-       |    fig.write_json(outputJson)
-       |    fig.write_html(outputHtml)
-       |    print("Waterfall chart saved to " + outputHtml)""".stripMargin
+       |${standaloneFigure("Waterfall chart", indent = 4)}""".stripMargin
   }
 
 }

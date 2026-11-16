@@ -19,7 +19,7 @@ version: '3.8'
 
 services:
   rustfs:
-    image: rustfs/rustfs:1.0.0-rc.6
+    image: rustfs/rustfs:1.0.0
     container_name: rustfs
     ports:
       - "9500:9000"   # S3 API

@@ -19,17 +19,16 @@
 
 package org.apache.texera.amber.operator.visualization.ganttChart
 
+import org.apache.texera.amber.operator.visualization.StandaloneChartCode._
 import com.fasterxml.jackson.annotation.{JsonProperty, JsonPropertyDescription}
 import com.kjetland.jackson.jsonSchema.annotations.{JsonSchemaInject, JsonSchemaTitle}
-import org.apache.texera.amber.core.tuple.{AttributeType, Schema}
 import org.apache.texera.amber.pybuilder.PythonTemplateBuilder.{
   PythonTemplateBuilderStringContext,
   pyStringLiteral
 }
 import org.apache.texera.amber.pybuilder.PyStringTypes.EncodableString
-import org.apache.texera.amber.core.workflow.PortIdentity
-import org.apache.texera.amber.operator.PythonOperatorDescriptor
 import org.apache.texera.amber.operator.visualization.PlotlyStandaloneCode
+import org.apache.texera.amber.operator.visualization.PythonVisualizationOpDesc
 import org.apache.texera.amber.operator.metadata.annotations.AutofillAttributeName
 import org.apache.texera.amber.operator.metadata.{OperatorGroupConstants, OperatorInfo}
 import org.apache.texera.amber.pybuilder.PythonTemplateBuilder
@@ -48,7 +47,7 @@ import javax.validation.constraints.NotNull
   }
 }
 """)
-class GanttChartOpDesc extends PythonOperatorDescriptor with PlotlyStandaloneCode {
+class GanttChartOpDesc extends PythonVisualizationOpDesc with PlotlyStandaloneCode {
 
   @JsonProperty(value = "start", required = true)
   @JsonSchemaTitle("Start Datetime Column")
@@ -82,14 +81,6 @@ class GanttChartOpDesc extends PythonOperatorDescriptor with PlotlyStandaloneCod
   @JsonPropertyDescription("Add texture to the chart based on an attribute")
   @AutofillAttributeName
   var pattern: EncodableString = ""
-
-  override def getOutputSchemas(
-      inputSchemas: Map[PortIdentity, Schema]
-  ): Map[PortIdentity, Schema] = {
-    val outputSchema = Schema()
-      .add("html-content", AttributeType.STRING)
-    Map(operatorInfo.outputPorts.head.id -> outputSchema)
-  }
 
   override def operatorInfo: OperatorInfo =
     OperatorInfo.forVisualization(
@@ -150,8 +141,6 @@ class GanttChartOpDesc extends PythonOperatorDescriptor with PlotlyStandaloneCod
     finalCode.encode
   }
 
-  override def producesDataFrame(): Boolean = false
-
   override def generateStandaloneCode(): String = {
     val colorLit = pyStringLiteral(color)
     val startLit = pyStringLiteral(start)
@@ -169,20 +158,19 @@ class GanttChartOpDesc extends PythonOperatorDescriptor with PlotlyStandaloneCod
        |               '''.format(error_msg)
        |
        |if in1df.empty:
-       |    with open(outputHtml, "w", encoding="utf-8") as output:
-       |        output.write(render_error("Input table is empty."))
+       |${standaloneErrorPage("Input table is empty.")}
        |else:
        |    table = in1df[(in1df[$startLit].notnull()) & (in1df[$finishLit].notnull())$optionalFilter].copy()
        |    if table.empty:
-       |        with open(outputHtml, "w", encoding="utf-8") as output:
-       |            output.write(render_error("One or more of your input columns have all missing values"))
+       |${standaloneErrorPage(
+      "One or more of your input columns have all missing values",
+      indent = 8
+    )}
        |    else:
        |        fig = px.timeline(table, x_start=$startLit, x_end=$finishLit, y=$taskLit$colorSetting$patternSetting)
        |        fig.update_yaxes(autorange='reversed')
        |        fig.update_layout(margin=dict(t=0, b=0, l=0, r=0))
-       |        fig.write_json(outputJson)
-       |        fig.write_html(outputHtml)
-       |        print("Gantt chart saved to " + outputHtml)""".stripMargin
+       |${standaloneFigure("Gantt chart")}""".stripMargin
   }
 
 }

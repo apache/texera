@@ -19,12 +19,11 @@
 
 package org.apache.texera.amber.operator.visualization.parallelCoordinatesPlot
 
+import org.apache.texera.amber.operator.visualization.StandaloneChartCode._
 import com.fasterxml.jackson.annotation.{JsonProperty, JsonPropertyDescription}
 import com.kjetland.jackson.jsonSchema.annotations.{JsonSchemaInject, JsonSchemaTitle}
-import org.apache.texera.amber.core.tuple.{AttributeType, Schema}
-import org.apache.texera.amber.core.workflow.PortIdentity
-import org.apache.texera.amber.operator.PythonOperatorDescriptor
 import org.apache.texera.amber.operator.visualization.PlotlyStandaloneCode
+import org.apache.texera.amber.operator.visualization.PythonVisualizationOpDesc
 import org.apache.texera.amber.operator.metadata.annotations.{
   AutofillAttributeName,
   AutofillAttributeNameList
@@ -54,7 +53,7 @@ import javax.validation.constraints.{NotNull, Size}
   }
 }
 """)
-class ParallelCoordinatesPlotOpDesc extends PythonOperatorDescriptor with PlotlyStandaloneCode {
+class ParallelCoordinatesPlotOpDesc extends PythonVisualizationOpDesc with PlotlyStandaloneCode {
 
   @JsonProperty(value = "dimensions", required = true)
   @JsonSchemaTitle("Dimensions")
@@ -76,14 +75,6 @@ class ParallelCoordinatesPlotOpDesc extends PythonOperatorDescriptor with Plotly
       "Visualize multivariate data using parallel coordinate axes",
       OperatorGroupConstants.VISUALIZATION_SCIENTIFIC_GROUP
     )
-
-  override def getOutputSchemas(
-      inputSchemas: Map[PortIdentity, Schema]
-  ): Map[PortIdentity, Schema] = {
-    val outputSchema = Schema()
-      .add("html-content", AttributeType.STRING)
-    Map(operatorInfo.outputPorts.head.id -> outputSchema)
-  }
 
   def manipulateTable(): PythonTemplateBuilder = {
     val dimCols = dimensions.map(c => pyb"$c").mkString(",")
@@ -139,8 +130,6 @@ class ParallelCoordinatesPlotOpDesc extends PythonOperatorDescriptor with Plotly
     finalcode.encode
   }
 
-  override def producesDataFrame(): Boolean = false
-
   override def generateStandaloneCode(): String = {
     val dimCols = dimensions.map(pyStringLiteral).mkString("[", ", ", "]")
     val colorLit = pyStringLiteral(color)
@@ -149,27 +138,20 @@ class ParallelCoordinatesPlotOpDesc extends PythonOperatorDescriptor with Plotly
     val colorArg =
       if (color != null && color.nonEmpty) s""", color=$colorLit""" else ""
 
-    s"""def render_error(error_msg):
-       |    return '''<h1>Parallel coordinates plot is not available.</h1>
-       |                  <p>Reason is: {} </p>
-       |               '''.format(error_msg)
+    s"""${standaloneError("Parallel coordinates plot is not available.")}
        |
        |if in1df.empty:
-       |    with open(outputHtml, "w", encoding="utf-8") as output:
-       |        output.write(render_error("Input table is empty."))
+       |${standaloneErrorPage("Input table is empty.")}
        |else:
        |    table = in1df[in1df[$dimCols].notnull().all(axis=1)$colorFilter].copy()
        |    if table.empty:
-       |        with open(outputHtml, "w", encoding="utf-8") as output:
-       |            output.write(render_error("No valid rows after filtering."))
+       |${standaloneErrorPage("No valid rows after filtering.", indent = 8)}
        |    else:
        |        fig = px.parallel_coordinates(
        |            table,
        |            dimensions=$dimCols$colorArg
        |        )
-       |        fig.write_json(outputJson)
-       |        fig.write_html(outputHtml)
-       |        print("Parallel coordinates plot saved to " + outputHtml)""".stripMargin
+       |${standaloneFigure("Parallel coordinates plot")}""".stripMargin
   }
 
 }

@@ -21,13 +21,17 @@ package org.apache.texera.amber.operator.sort
 
 import com.fasterxml.jackson.annotation.{JsonProperty, JsonPropertyDescription}
 import org.apache.texera.amber.pybuilder.PyStringTypes.EncodableString
-import org.apache.texera.amber.operator.metadata.annotations.AutofillAttributeName
+import org.apache.texera.amber.operator.metadata.annotations.{AutofillAttributeName, SampleColumn}
 
 class SortCriteriaUnit {
 
+  // Verification picks a column with TIE GROUPS. Sorting on a unique key never
+  // puts two equal keys next to each other, so the stability this operator is
+  // named for goes unchecked.
   @JsonProperty(value = "attribute", required = true)
   @JsonPropertyDescription("Attribute name to sort by")
   @AutofillAttributeName
+  @SampleColumn("name")
   var attributeName: EncodableString = _
 
   @JsonProperty(value = "sortPreference", required = true)

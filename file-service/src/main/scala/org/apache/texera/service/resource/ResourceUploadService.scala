@@ -61,7 +61,7 @@ import software.amazon.awssdk.services.s3.model.UploadPartResponse
 import java.io.{InputStream, OutputStream}
 import java.net.URLDecoder
 import java.nio.charset.StandardCharsets
-import java.nio.file.{Files, Paths}
+import java.nio.file.Files
 import java.util.zip.{ZipEntry, ZipOutputStream}
 import java.sql.SQLException
 import java.time.OffsetDateTime
@@ -170,6 +170,19 @@ object ResourceStorage {
   */
 object ResourceUploadService {
 
+  private val MultipartOperations = Seq("list", "init", "finish", "abort")
+
+  /** The multipart `type` query param, lower-cased; a 400 when it is missing or unknown. */
+  def multipartOperationOrThrow(operationType: String): String = {
+    val operation = Option(operationType).map(_.trim.toLowerCase).getOrElse("")
+    if (!MultipartOperations.contains(operation)) {
+      throw new BadRequestException(
+        s"Invalid type parameter. Use ${MultipartOperations.map(o => s"'$o'").mkString(", ")}."
+      )
+    }
+    operation
+  }
+
   private def context: DSLContext =
     SqlServer
       .getInstance()
@@ -266,7 +279,7 @@ object ResourceUploadService {
             (repositoryName, commitHash, decodedPath)
           } else {
             val document = DocumentFactory
-              .openReadonlyDocument(FileResolver.resolve(decodedPath))
+              .openReadonlyDocument(FileResolver.resolveVersionedResource(decodedPath))
               .asInstanceOf[OnVersionedFileResource]
             requireReadAccessToRepository(ctx, s, document.getRepositoryName(), uid)
             (
@@ -386,9 +399,14 @@ object ResourceUploadService {
               val file = withLakeFSErrorHandling(s"downloading file '$filePath' for the zip") {
                 LakeFSStorageClient.getFileFromRepo(repositoryName, versionHash, filePath)
               }
-              zipOut.putNextEntry(new ZipEntry(filePath))
-              Files.copy(Paths.get(file.toURI), zipOut)
-              zipOut.closeEntry()
+              // The SDK saves each object to a temp file; drop it once it is in the zip.
+              try {
+                zipOut.putNextEntry(new ZipEntry(filePath))
+                Files.copy(file.toPath, zipOut)
+                zipOut.closeEntry()
+              } finally {
+                Files.deleteIfExists(file.toPath)
+              }
             }
           } finally {
             zipOut.close()

@@ -18,24 +18,23 @@
 
 package org.apache.texera.amber.operator.visualization.gaugeChart
 
+import org.apache.texera.amber.operator.visualization.StandaloneChartCode._
 import com.fasterxml.jackson.annotation.{JsonProperty, JsonPropertyDescription}
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize
 import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaTitle
-import org.apache.texera.amber.core.tuple.{AttributeType, Schema}
 import org.apache.texera.amber.pybuilder.PythonTemplateBuilder.{
   PythonTemplateBuilderStringContext,
   pyStringLiteral
 }
 import org.apache.texera.amber.pybuilder.PyStringTypes.{EncodableString, PythonLiteral}
-import org.apache.texera.amber.core.workflow.PortIdentity
-import org.apache.texera.amber.operator.PythonOperatorDescriptor
 import org.apache.texera.amber.operator.visualization.PlotlyStandaloneCode
+import org.apache.texera.amber.operator.visualization.PythonVisualizationOpDesc
 import org.apache.texera.amber.operator.metadata.annotations.AutofillAttributeName
 import org.apache.texera.amber.operator.metadata.{OperatorGroupConstants, OperatorInfo}
 
 import javax.validation.constraints.NotNull
 
-class GaugeChartOpDesc extends PythonOperatorDescriptor with PlotlyStandaloneCode {
+class GaugeChartOpDesc extends PythonVisualizationOpDesc with PlotlyStandaloneCode {
   @JsonProperty(value = "value", required = true)
   @JsonSchemaTitle("Gauge Value")
   @JsonPropertyDescription("The primary value displayed on the gauge chart")
@@ -61,13 +60,6 @@ class GaugeChartOpDesc extends PythonOperatorDescriptor with PlotlyStandaloneCod
   @JsonSchemaTitle("Steps")
   @JsonPropertyDescription("List of step ranges for the gauge")
   var steps: List[GaugeChartSteps] = List()
-
-  override def getOutputSchemas(
-      inputSchemas: Map[PortIdentity, Schema]
-  ): Map[PortIdentity, Schema] = {
-    val outputSchema = Schema().add("html-content", AttributeType.STRING)
-    Map(operatorInfo.outputPorts.head.id -> outputSchema)
-  }
 
   override def operatorInfo: OperatorInfo =
     OperatorInfo.forVisualization(
@@ -142,42 +134,7 @@ class GaugeChartOpDesc extends PythonOperatorDescriptor with PlotlyStandaloneCod
          |            html_chunks = []
          |            for _, row in table.iterrows():
          |                try:
-         |                    actual = float(row[gauge_value])
-         |                    max_val = actual
-         |                    if delta_ref is not None:
-         |                        max_val = max(max_val, delta_ref)
-         |                    if threshold_val is not None:
-         |                        max_val = max(max_val, threshold_val)
-         |                    if steps_list:
-         |                        for r in steps_list:
-         |                            max_val = max(max_val, r["range"][1])
-         |
-         |                    gauge_config = {'axis': {'range': [None, max_val * 1.2]}}
-         |                    if steps_list:
-         |                        gauge_config['steps'] = steps_list
-         |                    if threshold_val is not None:
-         |                        gauge_config['threshold'] = {
-         |                            "value": threshold_val,
-         |                            "line": {"color": "red", "width": 3},
-         |                            "thickness": 0.75
-         |                        }
-         |
-         |                    mode_parts = ["number", "gauge"]
-         |                    if delta_ref is not None:
-         |                        mode_parts.append("delta")
-         |                    mode = "+".join(mode_parts)
-         |                    delta_config = {"reference": delta_ref} if delta_ref is not None else None
-         |
-         |                    fig = go.Figure(go.Indicator(
-         |                        mode=mode,
-         |                        value=actual,
-         |                        delta=delta_config,
-         |                        gauge=gauge_config,
-         |                        domain={"x": [0, 1], "y": [0, 1]},
-         |                        title={"text": gauge_value}
-         |                    ))
-         |
-         |                    fig.update_layout(margin=dict(l=20, r=20, b=40, t=60), height=250)
+         |${GaugeChartPython.body(20)}
          |                    html_chunk = pio.to_html(fig, include_plotlyjs='cdn', auto_play=False)
          |
          |                    if hasattr(self, 'step_errors') and self.step_errors:
@@ -195,8 +152,6 @@ class GaugeChartOpDesc extends PythonOperatorDescriptor with PlotlyStandaloneCod
          |""".encode
   }
 
-  override def producesDataFrame(): Boolean = false
-
   override def generateStandaloneCode(): String = {
     // The column name is typed-in text, so it is emitted as a properly escaped
     // Python literal — hand-written quotes would let a quote, backslash or newline
@@ -207,7 +162,8 @@ class GaugeChartOpDesc extends PythonOperatorDescriptor with PlotlyStandaloneCod
     val thresholdExpr = numberOrNone(threshold)
     val stepsExpr = stepsLiteral
     // render_error's continuation line keeps the runtime path's indentation — the
-    // HTML is triple-quoted, so those spaces reach the browser.
+    // HTML is triple-quoted, so those spaces reach the browser. Drawing sits in a try so a
+    // surprise is an error page, and a lone figure is written as one object, not a list.
     s"""import plotly.graph_objects as go
        |import plotly.io as pio
        |
@@ -223,20 +179,15 @@ class GaugeChartOpDesc extends PythonOperatorDescriptor with PlotlyStandaloneCod
        |    return colors
        |
        |if in1df.empty:
-       |    with open(outputHtml, "w", encoding="utf-8") as output:
-       |        output.write(render_error("Input table is empty."))
+       |${standaloneErrorPage("Input table is empty.")}
        |else:
-       |    # Everything the operator draws inside its own try, so anything it did
-       |    # not foresee (a column that is not there, a step that is not a number)
-       |    # is a page saying so rather than the end of the exported run.
        |    try:
        |        gauge_value = $valueLit
        |        delta_ref = $deltaExpr
        |        threshold_val = $thresholdExpr
        |        table = in1df.dropna(subset=[gauge_value])
        |        if table.empty:
-       |            with open(outputHtml, "w", encoding="utf-8") as output:
-       |                output.write(render_error("No non-null rows found for the value column."))
+       |${standaloneErrorPage("No non-null rows found for the value column.", indent = 12)}
        |        else:
        |            valid_steps = $stepsExpr
        |            step_colors = generate_gray_gradient(len(valid_steps))
@@ -252,38 +203,7 @@ class GaugeChartOpDesc extends PythonOperatorDescriptor with PlotlyStandaloneCod
        |            figs = []
        |            for _, row in table.iterrows():
        |                try:
-       |                    actual = float(row[gauge_value])
-       |                    max_val = actual
-       |                    if delta_ref is not None:
-       |                        max_val = max(max_val, delta_ref)
-       |                    if threshold_val is not None:
-       |                        max_val = max(max_val, threshold_val)
-       |                    if steps_list:
-       |                        for r in steps_list:
-       |                            max_val = max(max_val, r["range"][1])
-       |                    gauge_config = {'axis': {'range': [None, max_val * 1.2]}}
-       |                    if steps_list:
-       |                        gauge_config['steps'] = steps_list
-       |                    if threshold_val is not None:
-       |                        gauge_config['threshold'] = {
-       |                            "value": threshold_val,
-       |                            "line": {"color": "red", "width": 3},
-       |                            "thickness": 0.75
-       |                        }
-       |                    mode_parts = ["number", "gauge"]
-       |                    if delta_ref is not None:
-       |                        mode_parts.append("delta")
-       |                    mode = "+".join(mode_parts)
-       |                    delta_config = {"reference": delta_ref} if delta_ref is not None else None
-       |                    fig = go.Figure(go.Indicator(
-       |                        mode=mode,
-       |                        value=actual,
-       |                        delta=delta_config,
-       |                        gauge=gauge_config,
-       |                        domain={"x": [0, 1], "y": [0, 1]},
-       |                        title={"text": gauge_value}
-       |                    ))
-       |                    fig.update_layout(margin=dict(l=20, r=20, b=40, t=60), height=250)
+       |${GaugeChartPython.body(20)}
        |                    figs.append(fig)
        |                    html_chunks.append(pio.to_html(fig, include_plotlyjs='cdn', auto_play=False))
        |                except Exception as e:
@@ -291,9 +211,6 @@ class GaugeChartOpDesc extends PythonOperatorDescriptor with PlotlyStandaloneCod
        |
        |            with open(outputHtml, "w", encoding="utf-8") as output:
        |                output.write("<div>" + "".join(html_chunks) + "</div>")
-       |            # One chart per row, so the file holds the whole sequence. A
-       |            # single figure still writes as a lone object, which is what
-       |            # every one-chart operator writes.
        |            if len(figs) == 1:
        |                figs[0].write_json(outputJson)
        |            elif figs:
@@ -304,4 +221,47 @@ class GaugeChartOpDesc extends PythonOperatorDescriptor with PlotlyStandaloneCod
        |        with open(outputHtml, "w", encoding="utf-8") as output:
        |            output.write(render_error(f"General error: {str(e)}"))""".stripMargin
   }
+}
+
+private object GaugeChartPython {
+  def body(indent: Int): String =
+    org.apache.texera.amber.operator.visualization.PythonCodeFragment.render(
+      """|actual = float(row[gauge_value])
+       |max_val = actual
+       |if delta_ref is not None:
+       |    max_val = max(max_val, delta_ref)
+       |if threshold_val is not None:
+       |    max_val = max(max_val, threshold_val)
+       |if steps_list:
+       |    for r in steps_list:
+       |        max_val = max(max_val, r["range"][1])
+       |
+       |gauge_config = {'axis': {'range': [None, max_val * 1.2]}}
+       |if steps_list:
+       |    gauge_config['steps'] = steps_list
+       |if threshold_val is not None:
+       |    gauge_config['threshold'] = {
+       |        "value": threshold_val,
+       |        "line": {"color": "red", "width": 3},
+       |        "thickness": 0.75
+       |    }
+       |
+       |mode_parts = ["number", "gauge"]
+       |if delta_ref is not None:
+       |    mode_parts.append("delta")
+       |mode = "+".join(mode_parts)
+       |delta_config = {"reference": delta_ref} if delta_ref is not None else None
+       |
+       |fig = go.Figure(go.Indicator(
+       |    mode=mode,
+       |    value=actual,
+       |    delta=delta_config,
+       |    gauge=gauge_config,
+       |    domain={"x": [0, 1], "y": [0, 1]},
+       |    title={"text": gauge_value}
+       |))
+       |
+       |fig.update_layout(margin=dict(l=20, r=20, b=40, t=60), height=250)""",
+      indent
+    )
 }

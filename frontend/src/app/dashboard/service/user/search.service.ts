@@ -20,7 +20,7 @@
 import { HttpClient } from "@angular/common/http";
 import { Injectable } from "@angular/core";
 import { forkJoin, Observable, of } from "rxjs";
-import { SearchResult, SearchResultBatch, SearchResultItem } from "../../type/search-result";
+import { SearchResult, SearchResultBatch, SearchResultItem, searchResultPayload } from "../../type/search-result";
 import { AppSettings } from "../../../common/app-setting";
 import { SearchFilterParameters, toQueryStrings } from "../../type/search-filter-parameters";
 import { SortMethod } from "../../type/sort-method";
@@ -106,7 +106,7 @@ export class SearchService {
           // and the search bar are unaffected. Not corrected here: that belongs in the
           // `LoadMoreFunction` contract shared by all five callers of `SearchResultsComponent.reset`,
           // and removing the backend half (#7461) ends the only condition that produces such rows.
-          results: result.results.filter(item => item.workflow != null || item.dataset != null || item.model != null),
+          results: result.results.filter(item => searchResultPayload(item) !== undefined),
         }))
       );
   }
@@ -247,7 +247,7 @@ export class SearchService {
         access.forEach(r => (accessMap[`${r.entityType}:${r.entityId}`] = r.userIds));
 
         return items.map(i => {
-          const payload = i.workflow ?? i.dataset ?? i.model;
+          const payload = searchResultPayload(i);
           if (!payload) {
             throw new Error(`Search result carries no payload for resource type ${i.resourceType}.`);
           }

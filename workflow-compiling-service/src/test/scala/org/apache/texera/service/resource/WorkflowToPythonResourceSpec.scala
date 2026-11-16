@@ -29,6 +29,7 @@ import org.apache.texera.amber.operator.limit.LimitOpDesc
 import org.apache.texera.amber.operator.source.scan.csv.CSVScanSourceOpDesc
 import org.apache.texera.amber.util.JSONUtils.objectMapper
 import org.apache.texera.common.compiler.model.{LogicalLink, LogicalPlanPojo}
+import org.apache.texera.dao.jooq.generated.tables.pojos.User
 import org.assertj.core.api.Assertions.assertThat
 import org.scalatest.BeforeAndAfterAll
 import org.scalatest.flatspec.AnyFlatSpec
@@ -43,16 +44,23 @@ import org.scalatest.flatspec.AnyFlatSpec
   * `WorkflowToPythonTranslatorSpec`, and what an operator emits in its own
   * spec, so a regression lands where it belongs.
   */
-class WorkflowToPythonResourceSpec extends AnyFlatSpec with BeforeAndAfterAll {
+class WorkflowToPythonResourceSpec
+    extends AnyFlatSpec
+    with BeforeAndAfterAll
+    with LoggedInResourceFixture {
 
-  private val resources: ResourceExtension = ResourceExtension
-    .builder()
-    .addResource(new WorkflowToPythonResource())
-    .setMapper(objectMapper)
-    .build()
+  private val resources: ResourceExtension = resourcesFor(new WorkflowToPythonResource())
 
-  override protected def beforeAll(): Unit = resources.before()
-  override protected def afterAll(): Unit = resources.after()
+  override protected def beforeAll(): Unit = {
+    initializeDBAndReplaceDSLContext()
+    insertUsersAndPrivateDataset()
+    resources.before()
+  }
+
+  override protected def afterAll(): Unit = {
+    resources.after()
+    shutdownDB()
+  }
 
   private def distinctOp(id: String): DistinctOpDesc = {
     val op = new DistinctOpDesc()
@@ -83,11 +91,36 @@ class WorkflowToPythonResourceSpec extends AnyFlatSpec with BeforeAndAfterAll {
     objectMapper.writeValueAsString(jsonNode)
   }
 
-  private def postExport(pojo: LogicalPlanPojo): Response =
+  private def postExport(pojo: LogicalPlanPojo, as: User = owner): Response =
     resources
       .target("/workflow-to-python")
       .request(MediaType.APPLICATION_JSON)
+      .header("Authorization", bearerTokenOf(as))
       .post(Entity.json(encodePojoAsFrontendJson(pojo)))
+
+  private def csvScanPlan(fileName: String): LogicalPlanPojo = {
+    val scan = new CSVScanSourceOpDesc()
+    scan.setOperatorId("scan")
+    scan.fileName = Some(fileName)
+    scan.customDelimiter = Some(",")
+    scan.hasHeader = true
+    LogicalPlanPojo(
+      operators = List(scan),
+      links = List.empty,
+      opsToViewResult = List.empty,
+      opsToReuseResult = List.empty
+    )
+  }
+
+  private def exportedCodeOf(response: Response): String = {
+    assertThat(response.getStatus).isEqualTo(200)
+    val parsed = objectMapper.readValue(
+      response.readEntity(classOf[String]),
+      classOf[WorkflowToPythonResponse]
+    )
+    assert(parsed.isInstanceOf[WorkflowToPythonSuccess], s"export failed: $parsed")
+    parsed.asInstanceOf[WorkflowToPythonSuccess].pythonCode
+  }
 
   private def chainOf(from: DistinctOpDesc, to: LimitOpDesc): LogicalPlanPojo =
     LogicalPlanPojo(
@@ -166,7 +199,7 @@ class WorkflowToPythonResourceSpec extends AnyFlatSpec with BeforeAndAfterAll {
     // Both operators of the chain, and the import every script carries: enough
     // to show the payload is the translated plan rather than an empty string.
     assert(code.contains("import pandas as pd"))
-    assert(code.contains("drop_duplicates"))
+    assert(code.contains("_texera_key_codes"))
     assert(code.contains("head(5)"))
   }
 
@@ -196,5 +229,23 @@ class WorkflowToPythonResourceSpec extends AnyFlatSpec with BeforeAndAfterAll {
     val node = objectMapper.readTree(response.readEntity(classOf[String]))
     assertThat(node.get("type").asText()).isEqualTo("failure")
     assertThat(node.has("errorMessage")).isTrue
+  }
+
+  it should "answer 401 to a request that carries no logged-in user" in {
+    val response = resources
+      .target("/workflow-to-python")
+      .request(MediaType.APPLICATION_JSON)
+      .post(
+        Entity.json(encodePojoAsFrontendJson(chainOf(distinctOp("distinct"), limitOp("limit", 5))))
+      )
+    assertThat(response.getStatus).isEqualTo(401)
+  }
+
+  it should "still export a workflow whose scan source file cannot be resolved for the user" in {
+    val privateCsvFilePath = "/dataset/owner@test.com/private_dataset/v1/table.csv"
+    val code = exportedCodeOf(postExport(csvScanPlan(privateCsvFilePath), as = otherUser))
+    assert(code.contains("import pandas as pd"), s"unexpected script: $code")
+    assert(!code.contains(privateDatasetRepositoryName), s"unexpected script: $code")
+    assert(!code.contains(privateDatasetVersionHash), s"unexpected script: $code")
   }
 }

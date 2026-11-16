@@ -19,15 +19,15 @@
 
 package org.apache.texera.amber.operator.visualization.windRoseChart
 
+import org.apache.texera.amber.operator.visualization.StandaloneChartCode._
 import com.fasterxml.jackson.annotation.{JsonProperty, JsonPropertyDescription}
 import com.kjetland.jackson.jsonSchema.annotations.{JsonSchemaInject, JsonSchemaTitle}
-import org.apache.texera.amber.core.tuple.{AttributeType, Schema}
 import org.apache.texera.amber.core.workflow.OutputPort.OutputMode
 import org.apache.texera.amber.pybuilder.PythonTemplateBuilder.PythonTemplateBuilderStringContext
 import org.apache.texera.amber.pybuilder.PyStringTypes.EncodableString
-import org.apache.texera.amber.core.workflow.{InputPort, OutputPort, PortIdentity}
-import org.apache.texera.amber.operator.PythonOperatorDescriptor
+import org.apache.texera.amber.core.workflow.{InputPort, OutputPort}
 import org.apache.texera.amber.operator.visualization.PlotlyStandaloneCode
+import org.apache.texera.amber.operator.visualization.PythonVisualizationOpDesc
 import org.apache.texera.amber.operator.metadata.annotations.{AutofillAttributeName, SampleColumn}
 import org.apache.texera.amber.operator.metadata.{OperatorGroupConstants, OperatorInfo}
 import org.apache.texera.amber.pybuilder.PythonTemplateBuilder
@@ -44,7 +44,7 @@ import javax.validation.constraints.NotNull
   }
 }
 """)
-class WindRoseChartOpDesc extends PythonOperatorDescriptor with PlotlyStandaloneCode {
+class WindRoseChartOpDesc extends PythonVisualizationOpDesc with PlotlyStandaloneCode {
 
   @JsonProperty(value = "rColumn", required = true)
   @JsonSchemaTitle("Radial Values (r)")
@@ -75,14 +75,6 @@ class WindRoseChartOpDesc extends PythonOperatorDescriptor with PlotlyStandalone
       inputPorts = List(InputPort()),
       outputPorts = List(OutputPort(mode = OutputMode.SINGLE_SNAPSHOT))
     )
-
-  override def getOutputSchemas(
-      inputSchemas: Map[PortIdentity, Schema]
-  ): Map[PortIdentity, Schema] = {
-    val outputSchema = Schema()
-      .add("html-content", AttributeType.STRING)
-    Map(operatorInfo.outputPorts.head.id -> outputSchema)
-  }
 
   def createPlotlyFigure(): PythonTemplateBuilder = {
     assert(rColumn.nonEmpty, "Radial Values (r) column must be selected.")
@@ -140,25 +132,18 @@ class WindRoseChartOpDesc extends PythonOperatorDescriptor with PlotlyStandalone
     finalCode.encode
   }
 
-  override def producesDataFrame(): Boolean = false
-
   override def generateStandaloneCode(): String = {
     val rLit = pyStringLiteral(rColumn)
     val colorArg =
       if (colorColumn != null && colorColumn.nonEmpty) s"""
        |            color=${pyStringLiteral(colorColumn)},"""
       else ""
-    s"""def render_error(error_msg) -> str:
-       |    return '''<h1>Wind Rose chart is not available.</h1>
-       |                  <p>Reason is: {} </p>
-       |               '''.format(error_msg)
+    s"""${standaloneError("Wind Rose chart is not available.", typed = true)}
        |
        |if in1df.empty:
-       |    with open(outputHtml, "w", encoding="utf-8") as output:
-       |        output.write(render_error("input table is empty."))
+       |${standaloneErrorPage("input table is empty.")}
        |elif in1df[$rLit].dtype.kind not in ["i", "u", "f"]:
-       |    with open(outputHtml, "w", encoding="utf-8") as output:
-       |        output.write(render_error("Radial column must be numeric (int, float, or double)."))
+       |${standaloneErrorPage("Radial column must be numeric (int, float, or double).")}
        |else:
        |    table = in1df
        |    fig = px.bar_polar(
@@ -167,9 +152,7 @@ class WindRoseChartOpDesc extends PythonOperatorDescriptor with PlotlyStandalone
        |        theta=${pyStringLiteral(thetaColumn)},$colorArg
        |        color_discrete_sequence=px.colors.sequential.Plasma_r
        |    )
-       |    fig.write_json(outputJson)
-       |    fig.write_html(outputHtml)
-       |    print("Wind rose chart saved to " + outputHtml)""".stripMargin
+       |${standaloneFigure("Wind rose chart", indent = 4)}""".stripMargin
   }
 
 }
