@@ -24,10 +24,15 @@ import ch.qos.logback.classic.{Level, Logger => LogbackLogger}
 import ch.qos.logback.core.read.ListAppender
 import com.fasterxml.jackson.databind.ObjectMapper
 import io.dropwizard.jersey.errors.LoggingExceptionMapper
-import org.apache.texera.auth.{JwtAuth, SessionUser}
+import org.apache.texera.auth.{InviteOnly, JwtAuth, SessionUser}
 import org.apache.texera.common.config.UserSystemConfig
-import org.apache.texera.dao.MockTexeraDB
-import org.apache.texera.dao.jooq.generated.Tables.{AUTH_PROVIDER, USER, USER_LAST_ACTIVE_TIME}
+import org.apache.texera.dao.{MockTexeraDB, SiteSettings}
+import org.apache.texera.dao.jooq.generated.Tables.{
+  AUTH_PROVIDER,
+  SITE_SETTINGS,
+  USER,
+  USER_LAST_ACTIVE_TIME
+}
 import org.apache.texera.dao.jooq.generated.enums.{ProviderTypeEnum, UserRoleEnum}
 import org.apache.texera.dao.jooq.generated.tables.daos.{AuthProviderDao, UserDao}
 import org.apache.texera.dao.jooq.generated.tables.pojos.{AuthProvider, User}
@@ -114,7 +119,18 @@ class AuthResourceSpec
     getDSLContext.deleteFrom(USER).where(USER.NAME.startsWith("authspec_")).execute()
     // createAdminUser() seeds the configured admin — remove it too so the test starts clean.
     getDSLContext.deleteFrom(USER).where(USER.NAME.eq(UserSystemConfig.adminUsername)).execute()
+    getDSLContext
+      .deleteFrom(SITE_SETTINGS)
+      .where(SITE_SETTINGS.KEY.eq(InviteOnly.SettingKey))
+      .execute()
   }
+
+  /**
+    * Flip the invite-only switch the way the admin settings page does. `cleanup` removes the row,
+    * so a test that depends on the switch sets it rather than inheriting default.conf's value.
+    */
+  private def setInviteOnly(on: Boolean): Unit =
+    SiteSettings.upsert(getDSLContext, InviteOnly.SettingKey, on.toString, "authspec_admin")
 
   /**
     * Seed a user plus the LOCAL auth_provider row it logs in with, mirroring
@@ -164,6 +180,10 @@ class AuthResourceSpec
 
   private def googleIdClaimOf(token: String): AnyRef =
     JwtAuth.jwtConsumer.processToClaims(token).getClaimValue("googleId")
+
+  /** The browser decides between the dashboard and the pending-approval screen from this claim. */
+  private def roleClaimOf(token: String): String =
+    String.valueOf(JwtAuth.jwtConsumer.processToClaims(token).getClaimValue("role"))
 
   /**
     * Runs `body` with a capturing appender on the logger `AuthResource`'s companion writes to, and
@@ -249,10 +269,13 @@ class AuthResourceSpec
 
   // ─── register ─────────────────────────────────────────────────────────────
 
-  "register" should "persist an INACTIVE user with a hashed password and issue a token" in {
+  "register" should "persist an INACTIVE user with a hashed password and issue a token while invite-only is on" in {
+    setInviteOnly(on = true)
+
     val response = resource.register(UserRegistrationRequest(uname("reg"), uemail("reg"), "pw"))
 
     subjectOf(response.accessToken) shouldBe uname("reg")
+    roleClaimOf(response.accessToken) shouldBe "INACTIVE"
     val persisted = userDao.fetchByName(uname("reg"))
     persisted.size() shouldBe 1
     val stored = persisted.get(0)
@@ -263,6 +286,29 @@ class AuthResourceSpec
     val storedPassword = storedPasswordOf(uname("reg"))
     storedPassword should not be "pw"
     encryptor.checkPassword("pw", storedPassword) shouldBe true
+  }
+
+  // Off means sign-up is open. An INACTIVE account here signs in to a dashboard where every request
+  // is refused, because nothing ever shows it the pending-approval screen.
+  it should "persist a REGULAR user and issue a REGULAR token while invite-only is off" in {
+    setInviteOnly(on = false)
+
+    val response = resource.register(UserRegistrationRequest(uname("open"), uemail("open"), "pw"))
+
+    userDao.fetchByName(uname("open")).get(0).getRole shouldBe UserRoleEnum.REGULAR
+    roleClaimOf(response.accessToken) shouldBe "REGULAR"
+  }
+
+  // The switch is edited on the admin settings page, so the next sign-up has to see a change without
+  // a restart.
+  it should "apply an invite-only change to the very next registration" in {
+    setInviteOnly(on = true)
+    resource.register(UserRegistrationRequest(uname("before"), uemail("before"), "pw"))
+    setInviteOnly(on = false)
+    resource.register(UserRegistrationRequest(uname("after"), uemail("after"), "pw"))
+
+    userDao.fetchByName(uname("before")).get(0).getRole shouldBe UserRoleEnum.INACTIVE
+    userDao.fetchByName(uname("after")).get(0).getRole shouldBe UserRoleEnum.REGULAR
   }
 
   it should "reject an empty username" in {
@@ -388,6 +434,7 @@ class AuthResourceSpec
     )
 
   it should "claim a placeholder account with the matching email" in {
+    setInviteOnly(on = true)
     val placeholder = seedPlaceholder(uname("ghost"), uemail("claim"))
 
     val response =
@@ -401,6 +448,18 @@ class AuthResourceSpec
     encryptor.checkPassword("secret-pw", storedPasswordOf(uname("claimer"))) shouldBe true
     claimed.getRole shouldEqual UserRoleEnum.INACTIVE
     claimed.getComment should include("Claimed contributor placeholder at ")
+  }
+
+  // Claiming a placeholder is how its owner signs up, so the account starts where a new one would.
+  it should "admit a claimed placeholder as REGULAR while invite-only is off" in {
+    setInviteOnly(on = false)
+    val placeholder = seedPlaceholder(uname("ghostopen"), uemail("claimopen"))
+
+    val response =
+      resource.register(UserRegistrationRequest(uname("claimeropen"), uemail("claimopen"), "pw"))
+
+    userDao.fetchOneByUid(placeholder.getUid).getRole shouldBe UserRoleEnum.REGULAR
+    roleClaimOf(response.accessToken) shouldBe "REGULAR"
   }
 
   it should "allow logging in with the claimed credentials" in {
@@ -652,6 +711,39 @@ class AuthResourceSpec
     emailClaimOf(response.accessToken) shouldBe uemail("fill")
   }
 
+  // A provider that asserts no address (ORCID) gets an INACTIVE account whatever the switch says,
+  // because the account is inert until it has an address. Supplying one is where that sign-up
+  // finishes, so that is where open sign-up admits it.
+  it should "admit an INACTIVE account as REGULAR once it supplies an address while invite-only is off" in {
+    setInviteOnly(on = false)
+    val user = seedEmaillessUser("admit")
+
+    val response = resource.setEmail(SetEmailRequest(uemail("admit")), new SessionUser(user))
+
+    userDao.fetchOneByUid(user.getUid).getRole shouldBe UserRoleEnum.REGULAR
+    roleClaimOf(response.accessToken) shouldBe "REGULAR"
+  }
+
+  it should "leave the account INACTIVE, awaiting approval, while invite-only is on" in {
+    setInviteOnly(on = true)
+    val user = seedEmaillessUser("await")
+
+    val response = resource.setEmail(SetEmailRequest(uemail("await")), new SessionUser(user))
+
+    userDao.fetchOneByUid(user.getUid).getRole shouldBe UserRoleEnum.INACTIVE
+    roleClaimOf(response.accessToken) shouldBe "INACTIVE"
+  }
+
+  // RESTRICTED is an admin's decision about this person, not a sign-up still in progress.
+  it should "keep a role an admin set when the account supplies its address" in {
+    setInviteOnly(on = false)
+    val user = seedEmaillessUser("restricted", role = UserRoleEnum.RESTRICTED)
+
+    resource.setEmail(SetEmailRequest(uemail("restricted")), new SessionUser(user))
+
+    userDao.fetchOneByUid(user.getUid).getRole shouldBe UserRoleEnum.RESTRICTED
+  }
+
   it should "reject a malformed address" in {
     val user = seedEmaillessUser("bad")
 
@@ -756,6 +848,30 @@ class AuthResourceSpec
     emailClaimOf(response.accessToken) shouldBe uemail("ghost")
   }
 
+  it should "admit the adopted placeholder as REGULAR while invite-only is off" in {
+    setInviteOnly(on = false)
+    val placeholder = seedPlaceholder(uname("ghostadmit"), uemail("ghostadmit"))
+    val caller = seedEmaillessUser("adopter")
+
+    val response =
+      resource.setEmail(SetEmailRequest(uemail("ghostadmit")), new SessionUser(caller))
+
+    userDao.fetchOneByUid(placeholder.getUid).getRole shouldBe UserRoleEnum.REGULAR
+    roleClaimOf(response.accessToken) shouldBe "REGULAR"
+  }
+
+  it should "keep the adopted placeholder INACTIVE while invite-only is on" in {
+    setInviteOnly(on = true)
+    val placeholder = seedPlaceholder(uname("ghostwait"), uemail("ghostwait"))
+    val caller = seedEmaillessUser("waiter")
+
+    val response =
+      resource.setEmail(SetEmailRequest(uemail("ghostwait")), new SessionUser(caller))
+
+    userDao.fetchOneByUid(placeholder.getUid).getRole shouldBe UserRoleEnum.INACTIVE
+    roleClaimOf(response.accessToken) shouldBe "INACTIVE"
+  }
+
   // `user_last_active_time.uid` references "user"(uid) with no ON DELETE CASCADE — the only FK to
   // "user" that does not cascade — so discarding the caller's row fails unless that row goes first.
   // Any authenticated request can have created it, so the adoption must not depend on its absence.
@@ -846,6 +962,7 @@ class AuthResourceSpec
   }
 
   "register/verify" should "create the account when the mailed code comes back" in {
+    setInviteOnly(on = true)
     verifying.register(UserRegistrationRequest(uname("done"), uemail("done"), "secret"))
 
     val response = verifying.registerVerify(

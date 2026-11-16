@@ -38,6 +38,12 @@ class DefaultsConfigSpec extends AnyFlatSpec with Matchers {
     )
   }
 
+  // A REGULAR account can run code on the server, so open sign-up has to be a deployment's own
+  // choice rather than what it gets by leaving USER_SYS_INVITE_ONLY unset.
+  "DefaultsConfig.inviteOnly" should "default to invite-only" in {
+    ifUnset("USER_SYS_INVITE_ONLY")(DefaultsConfig.inviteOnly shouldBe true)
+  }
+
   "DefaultsConfig.allDefaults" should "flatten default.conf into short-key/value entries" in {
     val defaults = DefaultsConfig.allDefaults
     defaults should not be empty
@@ -57,6 +63,8 @@ class DefaultsConfigSpec extends AnyFlatSpec with Matchers {
     ifUnset("OPERATOR_CSV_PARSER_MAX_COLUMNS")(
       defaults.get("csv_parser_max_columns") shouldBe Some("512")
     )
+    // the invite-only switch, seeded from the variable the user system has always read
+    ifUnset("USER_SYS_INVITE_ONLY")(defaults.get("invite_only") shouldBe Some("true"))
     // every value is rendered as a String
     defaults.values.foreach(_ shouldBe a[String])
   }

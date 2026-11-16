@@ -93,6 +93,28 @@ class SiteSettingsSpec
     SiteSettings.getLong("big", 0L) shouldBe 9999999999L
   }
 
+  "getBoolean" should "read a stored true or false regardless of case and surrounding whitespace" in {
+    SiteSettings.upsert(getDSLContext, "flag_on", " TRUE ", "admin")
+    SiteSettings.upsert(getDSLContext, "flag_off", "false", "admin")
+    SiteSettings.getBoolean("flag_on", default = false) shouldBe true
+    SiteSettings.getBoolean("flag_off", default = true) shouldBe false
+  }
+
+  it should "return the default when the key is absent" in {
+    SiteSettings.getBoolean("missing_flag", default = true) shouldBe true
+    SiteSettings.getBoolean("missing_flag", default = false) shouldBe false
+  }
+
+  // Only the two literals are answers. Reading "yes", "1" or a blank as false would quietly pick
+  // whichever side of a switch false stands for.
+  it should "return the default when the stored value is not a boolean literal" in {
+    Seq("yes", "1", "").foreach { raw =>
+      SiteSettings.upsert(getDSLContext, "bad_flag", raw, "admin")
+      SiteSettings.getBoolean("bad_flag", default = true) shouldBe true
+      SiteSettings.getBoolean("bad_flag", default = false) shouldBe false
+    }
+  }
+
   "upsert" should "insert a new row and then overwrite it with the latest value and writer" in {
     SiteSettings.upsert(getDSLContext, "k", "1", "admin")
     SiteSettings.getInt("k", 0) shouldBe 1
