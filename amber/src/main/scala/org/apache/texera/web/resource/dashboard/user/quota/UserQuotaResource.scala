@@ -27,6 +27,7 @@ import org.apache.texera.dao.jooq.generated.Tables._
 import org.apache.texera.web.resource.dashboard.user.dataset.utils.DatasetStatisticsUtils.getUserCreatedDatasets
 import org.apache.texera.web.resource.dashboard.user.quota.UserQuotaResource._
 import org.apache.texera.web.resource.dashboard.user.workflow.WorkflowExecutionsResource
+import org.jooq.impl.DSL
 
 import java.util
 import javax.annotation.security.RolesAllowed
@@ -67,7 +68,6 @@ object UserQuotaResource {
   def getUserCreatedWorkflow(uid: Integer): List[Workflow] = {
     val userWorkflowEntries = context
       .select(
-        WORKFLOW_OF_USER.UID,
         WORKFLOW_OF_USER.WID,
         WORKFLOW.NAME,
         WORKFLOW.CREATION_TIME,
@@ -90,7 +90,7 @@ object UserQuotaResource {
     userWorkflowEntries
       .map(workflowRecord => {
         Workflow(
-          workflowRecord.get(WORKFLOW_OF_USER.UID),
+          uid,
           workflowRecord.get(WORKFLOW_OF_USER.WID),
           workflowRecord.get(WORKFLOW.NAME),
           workflowRecord.get(WORKFLOW.CREATION_TIME).getTime,
@@ -106,62 +106,68 @@ object UserQuotaResource {
   }
 
   def getUserQuotaSize(uid: Integer): Array[QuotaStorage] = {
-    val executions = context
+    val userExecutions = DSL
+      .select(WORKFLOW_EXECUTIONS.EID)
+      .from(WORKFLOW_EXECUTIONS)
+      .where(WORKFLOW_EXECUTIONS.UID.eq(uid))
+
+    val resultSize = DSL.sum(OPERATOR_PORT_EXECUTIONS.RESULT_SIZE).as("result_size")
+    val resultSizes = DSL
+      .select(OPERATOR_PORT_EXECUTIONS.WORKFLOW_EXECUTION_ID, resultSize)
+      .from(OPERATOR_PORT_EXECUTIONS)
+      .where(OPERATOR_PORT_EXECUTIONS.WORKFLOW_EXECUTION_ID.in(userExecutions))
+      .groupBy(OPERATOR_PORT_EXECUTIONS.WORKFLOW_EXECUTION_ID)
+      .asTable("result_sizes")
+
+    val logSize = DSL.sum(OPERATOR_EXECUTIONS.CONSOLE_MESSAGES_SIZE).as("log_size")
+    val logSizes = DSL
+      .select(OPERATOR_EXECUTIONS.WORKFLOW_EXECUTION_ID, logSize)
+      .from(OPERATOR_EXECUTIONS)
+      .where(OPERATOR_EXECUTIONS.WORKFLOW_EXECUTION_ID.in(userExecutions))
+      .groupBy(OPERATOR_EXECUTIONS.WORKFLOW_EXECUTION_ID)
+      .asTable("log_sizes")
+
+    val resultTotal = resultSizes.field(resultSize)
+    val logTotal = logSizes.field(logSize)
+    context
       .select(
         WORKFLOW_EXECUTIONS.EID,
         WORKFLOW_EXECUTIONS.RUNTIME_STATS_SIZE,
         WORKFLOW.WID,
-        WORKFLOW.NAME
+        WORKFLOW.NAME,
+        resultTotal,
+        logTotal
       )
       .from(WORKFLOW_EXECUTIONS)
       .leftJoin(WORKFLOW_VERSION)
       .on(WORKFLOW_EXECUTIONS.VID.eq(WORKFLOW_VERSION.VID))
       .leftJoin(WORKFLOW)
       .on(WORKFLOW_VERSION.WID.eq(WORKFLOW.WID))
+      .leftJoin(resultSizes)
+      .on(
+        resultSizes
+          .field(OPERATOR_PORT_EXECUTIONS.WORKFLOW_EXECUTION_ID)
+          .eq(WORKFLOW_EXECUTIONS.EID)
+      )
+      .leftJoin(logSizes)
+      .on(logSizes.field(OPERATOR_EXECUTIONS.WORKFLOW_EXECUTION_ID).eq(WORKFLOW_EXECUTIONS.EID))
       .where(WORKFLOW_EXECUTIONS.UID.eq(uid))
       .orderBy(WORKFLOW_EXECUTIONS.EID.desc)
       .fetch()
-
-    if (executions == null || executions.isEmpty) {
-      return Array.empty
-    }
-
-    executions.asScala.map { record =>
-      val eid = record.get(WORKFLOW_EXECUTIONS.EID)
-      val wid = record.get(WORKFLOW.WID)
-      val workflowName = record.get(WORKFLOW.NAME)
-      val runTimeStatsSize =
-        Option(record.get(WORKFLOW_EXECUTIONS.RUNTIME_STATS_SIZE)).map(_.toLong).getOrElse(0L)
-
-      val resultSize = context
-        .select(OPERATOR_PORT_EXECUTIONS.RESULT_SIZE)
-        .from(OPERATOR_PORT_EXECUTIONS)
-        .where(OPERATOR_PORT_EXECUTIONS.WORKFLOW_EXECUTION_ID.eq(eid))
-        .fetch()
-        .asScala
-        .map(r => Option(r.get(OPERATOR_PORT_EXECUTIONS.RESULT_SIZE)).map(_.toLong).getOrElse(0L))
-        .sum
-
-      val logSize = context
-        .select(OPERATOR_EXECUTIONS.CONSOLE_MESSAGES_SIZE)
-        .from(OPERATOR_EXECUTIONS)
-        .where(OPERATOR_EXECUTIONS.WORKFLOW_EXECUTION_ID.eq(eid))
-        .fetch()
-        .asScala
-        .map(r =>
-          Option(r.get(OPERATOR_EXECUTIONS.CONSOLE_MESSAGES_SIZE)).map(_.toLong).getOrElse(0L)
+      .asScala
+      .map(record =>
+        QuotaStorage(
+          record.get(WORKFLOW_EXECUTIONS.EID),
+          record.get(WORKFLOW.WID),
+          record.get(WORKFLOW.NAME),
+          Option(record.get(resultTotal)).map(_.longValue()).getOrElse(0L),
+          Option(record.get(WORKFLOW_EXECUTIONS.RUNTIME_STATS_SIZE))
+            .map(_.longValue())
+            .getOrElse(0L),
+          Option(record.get(logTotal)).map(_.longValue()).getOrElse(0L)
         )
-        .sum
-
-      QuotaStorage(
-        eid,
-        wid,
-        workflowName,
-        resultSize,
-        runTimeStatsSize,
-        logSize
       )
-    }.toArray
+      .toArray
   }
 
   def deleteExecutionCollection(eid: Integer): Unit = {
