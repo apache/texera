@@ -19,15 +19,17 @@
 
 package org.apache.texera.amber.operator.typecasting
 
-import com.typesafe.config.ConfigFactory
+import org.apache.texera.amber.util.PythonTestSupport.{
+  NeedsPythonPackages,
+  canImport,
+  configuredPython
+}
 import org.apache.texera.amber.core.executor.OpExecWithClassName
 import org.apache.texera.amber.core.tuple.{Attribute, AttributeType, AttributeTypeUtils, Schema}
 import org.apache.texera.amber.core.virtualidentity.{ExecutionIdentity, WorkflowIdentity}
 import org.apache.texera.amber.operator.LogicalOp
 import org.apache.texera.amber.operator.metadata.OperatorGroupConstants
-import org.apache.texera.amber.operator.tags.IntegrationTest
 import org.apache.texera.amber.util.JSONUtils.objectMapper
-import org.scalatest.Tag
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 
@@ -38,8 +40,6 @@ import scala.io.Source
 import scala.util.Try
 
 class TypeCastingOpDescSpec extends AnyFlatSpec with Matchers {
-
-  private val NeedsPythonPackages = Tag(classOf[IntegrationTest].getName)
 
   private val workflowId = WorkflowIdentity(1L)
   private val executionId = ExecutionIdentity(1L)
@@ -139,10 +139,10 @@ class TypeCastingOpDescSpec extends AnyFlatSpec with Matchers {
       .getOrElse("error")
 
   it should "refuse a boolean the way AttributeTypeUtils does" taggedAs NeedsPythonPackages in {
-    val python = resolvePython().getOrElse(
+    val python = configuredPython().getOrElse(
       cancel("No runnable python executable (udf.conf python.path, python3, python, py)")
     )
-    if (!canImportPandas(python)) cancel(s"'$python' cannot import pandas")
+    if (!canImport(python, "pandas")) cancel(s"'$python' cannot import pandas")
 
     val op = new TypeCastingOpDesc
     op.typeCastingUnits = List(castUnit("v", AttributeType.BOOLEAN))
@@ -216,10 +216,10 @@ class TypeCastingOpDescSpec extends AnyFlatSpec with Matchers {
     Seq(AttributeType.STRING, AttributeType.INTEGER, AttributeType.LONG, AttributeType.BOOLEAN)
 
   it should "cast a stored NaN the way AttributeTypeUtils does" taggedAs NeedsPythonPackages in {
-    val python = resolvePython().getOrElse(
+    val python = configuredPython().getOrElse(
       cancel("No runnable python executable (udf.conf python.path, python3, python, py)")
     )
-    if (!canImportPandas(python)) cancel(s"'$python' cannot import pandas")
+    if (!canImport(python, "pandas")) cancel(s"'$python' cannot import pandas")
 
     // One column per target, each holding the same doubles.
     val columns = doubleTargets.map(_.name().toLowerCase)
@@ -284,10 +284,10 @@ class TypeCastingOpDescSpec extends AnyFlatSpec with Matchers {
   private val doubleTextCases = Seq("NaN", null, "1.25", "Infinity")
 
   it should "keep a NaN read from text apart from an empty cell" taggedAs NeedsPythonPackages in {
-    val python = resolvePython().getOrElse(
+    val python = configuredPython().getOrElse(
       cancel("No runnable python executable (udf.conf python.path, python3, python, py)")
     )
-    if (!canImportPandas(python)) cancel(s"'$python' cannot import pandas")
+    if (!canImport(python, "pandas")) cancel(s"'$python' cannot import pandas")
 
     val toDouble = new TypeCastingOpDesc
     toDouble.typeCastingUnits = List(castUnit("v", AttributeType.DOUBLE))
@@ -342,10 +342,10 @@ class TypeCastingOpDescSpec extends AnyFlatSpec with Matchers {
     Seq(Long.MaxValue, 9007199254740993L, null, -5L)
 
   it should "write a large LONG beside a null exactly" taggedAs NeedsPythonPackages in {
-    val python = resolvePython().getOrElse(
+    val python = configuredPython().getOrElse(
       cancel("No runnable python executable (udf.conf python.path, python3, python, py)")
     )
-    if (!canImportPandas(python)) cancel(s"'$python' cannot import pandas")
+    if (!canImport(python, "pandas")) cancel(s"'$python' cannot import pandas")
 
     val op = new TypeCastingOpDesc
     op.typeCastingUnits = List(castUnit("v", AttributeType.STRING))
@@ -438,10 +438,10 @@ class TypeCastingOpDescSpec extends AnyFlatSpec with Matchers {
       instants: Seq[java.time.ZonedDateTime],
       zone: Option[String]
   ): Seq[String] = {
-    val python = resolvePython().getOrElse(
+    val python = configuredPython().getOrElse(
       cancel("No runnable python executable (udf.conf python.path, python3, python, py)")
     )
-    if (!canImportPandas(python)) cancel(s"'$python' cannot import pandas")
+    if (!canImport(python, "pandas")) cancel(s"'$python' cannot import pandas")
 
     val op = new TypeCastingOpDesc
     op.typeCastingUnits = List(
@@ -564,10 +564,10 @@ class TypeCastingOpDescSpec extends AnyFlatSpec with Matchers {
     out.linesIterator.filter(_.startsWith("cell ")).map(_.drop("cell ".length)).toSeq
 
   it should "cast text to a timestamp the way AttributeTypeUtils does" taggedAs NeedsPythonPackages in {
-    val python = resolvePython().getOrElse(
+    val python = configuredPython().getOrElse(
       cancel("No runnable python executable (udf.conf python.path, python3, python, py)")
     )
-    if (!canImportPandas(python)) cancel(s"'$python' cannot import pandas")
+    if (!canImport(python, "pandas")) cancel(s"'$python' cannot import pandas")
 
     val op = new TypeCastingOpDesc
     op.typeCastingUnits = List(castUnit("v", AttributeType.TIMESTAMP))
@@ -640,10 +640,10 @@ class TypeCastingOpDescSpec extends AnyFlatSpec with Matchers {
     * wall clocks, returning the engine's.
     */
   private def readTextAsTheEngineDoes(texts: Seq[String], zone: String): Seq[String] = {
-    val python = resolvePython().getOrElse(
+    val python = configuredPython().getOrElse(
       cancel("No runnable python executable (udf.conf python.path, python3, python, py)")
     )
-    if (!canImportPandas(python)) cancel(s"'$python' cannot import pandas")
+    if (!canImport(python, "pandas")) cancel(s"'$python' cannot import pandas")
 
     val op = new TypeCastingOpDesc
     op.typeCastingUnits = List(castUnit("v", AttributeType.TIMESTAMP))
@@ -692,10 +692,10 @@ class TypeCastingOpDescSpec extends AnyFlatSpec with Matchers {
   )
 
   it should "keep the resolution a timestamp column arrived in" taggedAs NeedsPythonPackages in {
-    val python = resolvePython().getOrElse(
+    val python = configuredPython().getOrElse(
       cancel("No runnable python executable (udf.conf python.path, python3, python, py)")
     )
-    if (!canImportPandas(python)) cancel(s"'$python' cannot import pandas")
+    if (!canImport(python, "pandas")) cancel(s"'$python' cannot import pandas")
 
     val op = new TypeCastingOpDesc
     op.typeCastingUnits = List(castUnit("v", AttributeType.TIMESTAMP))
@@ -740,10 +740,10 @@ class TypeCastingOpDescSpec extends AnyFlatSpec with Matchers {
   // throws, and the script raises the engine's message rather than leaving the
   // cell empty.
   it should "refuse a cell it cannot read, as the engine does" taggedAs NeedsPythonPackages in {
-    val python = resolvePython().getOrElse(
+    val python = configuredPython().getOrElse(
       cancel("No runnable python executable (udf.conf python.path, python3, python, py)")
     )
-    if (!canImportPandas(python)) cancel(s"'$python' cannot import pandas")
+    if (!canImport(python, "pandas")) cancel(s"'$python' cannot import pandas")
 
     val op = new TypeCastingOpDesc
     op.typeCastingUnits = List(castUnit("v", AttributeType.TIMESTAMP))
@@ -774,33 +774,4 @@ class TypeCastingOpDescSpec extends AnyFlatSpec with Matchers {
     }
     engineAnswer("not a date", AttributeType.TIMESTAMP) shouldBe "error"
   }
-
-  // Python resolution follows FilledAreaPlotOpDescSpec: udf.conf python.path
-  // (UDF_PYTHON_PATH), then python3 / python / py.
-  private def resolvePython(): Option[String] = {
-    def fromConfig: Option[String] =
-      Try(ConfigFactory.parseResources("udf.conf").resolve()).toOption
-        .orElse(Try(ConfigFactory.load()).toOption)
-        .flatMap(c => Try(c.getConfig("python").getString("path")).toOption)
-        .map(_.trim)
-        .filter(_.nonEmpty)
-
-    def runnable(exe: String): Boolean =
-      Try(new ProcessBuilder(exe, "--version").redirectErrorStream(true).start()).toOption
-        .exists { p =>
-          if (!p.waitFor(5, TimeUnit.SECONDS)) { p.destroyForcibly(); false }
-          else p.exitValue() == 0
-        }
-
-    (fromConfig.toList ++ List("python3", "python", "py")).distinct.find(runnable)
-  }
-
-  private def canImportPandas(python: String): Boolean =
-    Try(
-      new ProcessBuilder(python, "-c", "import pandas").redirectErrorStream(true).start()
-    ).toOption
-      .exists { p =>
-        if (!p.waitFor(60, TimeUnit.SECONDS)) { p.destroyForcibly(); false }
-        else p.exitValue() == 0
-      }
 }

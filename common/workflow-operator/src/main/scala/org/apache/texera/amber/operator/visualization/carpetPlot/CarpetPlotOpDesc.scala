@@ -19,6 +19,7 @@
 
 package org.apache.texera.amber.operator.visualization.carpetPlot
 
+import org.apache.texera.amber.operator.visualization.StandaloneChartCode._
 import com.fasterxml.jackson.annotation.{JsonProperty, JsonPropertyDescription}
 import com.kjetland.jackson.jsonSchema.annotations.{JsonSchemaInject, JsonSchemaTitle}
 import org.apache.texera.amber.pybuilder.PythonTemplateBuilder.{
@@ -166,9 +167,7 @@ class CarpetPlotOpDesc extends PythonVisualizationOpDesc with PlotlyStandaloneCo
        |            except Exception as e:
        |                _write_page(f"<h3>Error generating carpet plot: {str(e)}</h3>")
        |            else:
-       |                fig.write_json(outputJson)
-       |                fig.write_html(outputHtml)
-       |                print("Carpet plot saved to " + outputJson + " and " + outputHtml)""".stripMargin
+       |${standaloneFigure("Carpet plot", indent = 16, bothOutputs = true)}""".stripMargin
   }
 
 }
