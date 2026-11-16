@@ -45,6 +45,8 @@ trait EndChannelHandler {
     val portId = dp.inputGateway.getChannel(channelId).getPortId
     dp.inputManager.getPort(portId).completed = true
     dp.inputManager.initBatch(channelId, Array.empty)
+    // Tell the executor this port's schema, even if the port got no rows.
+    dp.executor.inputSchemas(portId.id) = dp.inputManager.getPort(portId).schema
     if (ControlVariablePort.is(portId) && !dp.executor.isInstanceOf[SourceOperatorExecutor]) {
       // The control variables have arrived, and the data input may start. The operator finishes
       // when its data ends, so neither the binding nor the finish callbacks run here.

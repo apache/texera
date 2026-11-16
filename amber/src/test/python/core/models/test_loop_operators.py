@@ -25,7 +25,7 @@ emit so the behavior covered here is the same shape that ships at
 runtime.
 
 Coverage:
-  - LoopStart's first-entry state merge into self.variables.
+  - LoopStart's first-entry state merge into self.state.
   - LoopEnd's process_table identity yield; condition is abstract.
   - The guarded eval/exec helpers (eval_output / run_update / eval_condition)
     keep the reserved `table` name out of the persistent loop state, so user
@@ -100,11 +100,11 @@ class _StubLoopEnd(LoopEndOperator):
     Consume-only: the runtime owns loop_counter and the nested pass-through, so
     the operator only runs the matching-loop path. run_update / eval_condition
     run the user's `update` / `condition` in a guarded namespace (user vars +
-    table) so `table` never persists in or gets clobbered out of self.variables.
+    table) so `table` never persists in or gets clobbered out of self.state.
     """
 
     def __init__(self, update="i += 1", condition_expr="i < 3"):
-        # No self.variables seeding here: the real generated ProcessLoopEndOperator
+        # No self.state seeding here: the real generated ProcessLoopEndOperator
         # has no __init__/open, so it relies entirely on LoopEndOperator's base
         # __init__. Mirroring that lets the tests exercise the base init.
         super().__init__()
@@ -132,20 +132,18 @@ def _one_row_table() -> Table:
 
 
 class TestLoopStartProcessState:
-    def test_first_time_state_is_merged_into_self_variables_and_none_is_returned(self):
+    def test_first_time_state_is_merged_into_self_state_and_none_is_returned(self):
         # First entry: state from upstream (no LoopStartId stamped). The
-        # base class must merge it into self.variables and return None so
+        # base class must merge it into self.state and return None so
         # nothing flows downstream of LoopStart until the table is in.
         op = _StubLoopStart()
         op.open()
-        op.variables["i"] = 0  # simulate the user's initialization
+        op.state["i"] = 0  # simulate the user's initialization
 
         result = op.process_state(State({"upstream_key": "v"}), port=0)
 
         assert result is None, "first-time state must not be forwarded"
-        assert op.variables["upstream_key"] == "v", (
-            "state was not merged into self.variables"
-        )
+        assert op.state["upstream_key"] == "v", "state was not merged into self.state"
 
     # NOTE: LoopStart re-entry (+1) is owned by the worker runtime now, not the
     # operator (which only does the first-entry merge above). It and the nested
@@ -227,7 +225,7 @@ class TestLoopEndBase:
         # never consumed a matching state (run_update never ran) -- e.g. an
         # inner LoopEnd that only forwarded outer-loop pass-through state --
         # must return False (don't fire the back-edge) rather than raise
-        # AttributeError on self._loop_table / self.variables, or NameError when
+        # AttributeError on self._loop_table / self.state, or NameError when
         # the user's condition references undefined loop variables.
         op = _StubLoopEnd(condition_expr="i < len(table)")
         # _loop_table stays None until a matching state is consumed; that
@@ -260,7 +258,7 @@ class TestLoopEndMatchingBranch:
         # The matching-loop branch (loop_counter == 0) is where the user's
         # update expression runs. process_state must return None so no
         # state flows downstream; the actual loop-back is driven by
-        # main_loop.complete() reading executor.variables.
+        # main_loop.complete() reading executor.state.
         op = _StubLoopEnd(update="i += 1", condition_expr="i < 3")
         # Simulate the runtime's consume: it reads the loop's input table from
         # the Loop Start's input-port materialization and attaches it, then
@@ -273,12 +271,10 @@ class TestLoopEndMatchingBranch:
         result = op.process_state(incoming, port=0)
 
         assert result is None, "matching-loop branch must not emit state downstream"
-        assert op.variables["i"] == 2, (
-            "user's update did not run on the matching branch"
-        )
-        # Only user variables persist in self.variables; the decoded table is kept
+        assert op.state["i"] == 2, "user's update did not run on the matching branch"
+        # Only user variables persist in self.state; the decoded table is kept
         # off to the side (self._loop_table) for condition(), never in the state.
-        assert "table" not in op.variables
+        assert "table" not in op.state
         assert isinstance(op._loop_table, Table)
         # condition() evaluates the user expression against the stashed state.
         assert op.condition() is True  # i became 2, 2 < 3
@@ -363,17 +359,17 @@ class TestLoopRunsToCompletion:
                 break
 
             # Only the user loop variables cross the back-edge.
-            back_edge = State(end.variables)
+            back_edge = State(end.state)
 
         assert iterations == 3
         assert len(emitted) == 3  # one loop-body row emitted per iteration
-        assert end.variables["i"] == 3
-        assert end.variables["total"] == 60  # 10 + 20 + 30 carried across iterations
+        assert end.state["i"] == 3
+        assert end.state["total"] == 60  # 10 + 20 + 30 carried across iterations
         # `table` is runtime-reserved; it must never persist in the loop state
         # that crosses the back-edge. `output` is an ordinary user variable
         # (loop expressions are eval'd directly), so it persists like any other.
-        assert "table" not in end.variables
-        assert end.variables["output"] == 60
+        assert "table" not in end.state
+        assert end.state["output"] == 60
 
 
 class TestReservedStateKeysConstant:
@@ -449,14 +445,14 @@ class TestLoopExpressionScoping:
         op = _StubLoopEnd(update="total = sum(v + base for v in [1, 2, 3])")
         op.attach_loop_table(_one_row_table())
         op.process_state(State({"base": 10}), port=0)
-        assert op.variables["total"] == 36
+        assert op.state["total"] == 36
 
     def test_run_update_resolves_lambda_capturing_loop_vars(self):
         # A lambda in `update` closes over the loop variable `offset`.
         op = _StubLoopEnd(update="ranked = sorted([3, 1, 2], key=lambda e: e - offset)")
         op.attach_loop_table(_one_row_table())
         op.process_state(State({"offset": 0}), port=0)
-        assert op.variables["ranked"] == [1, 2, 3]
+        assert op.state["ranked"] == [1, 2, 3]
 
     def test_eval_condition_resolves_genexp_over_loop_vars(self):
         # `condition` is a genexp (`all(...)`) whose body references the loop
@@ -488,7 +484,7 @@ class TestLoopExpressionScoping:
         # would break State materialization on the back-edge).
         op = _StubLoopStart(initialization="i = 0")
         op.open()
-        assert "__builtins__" not in op.variables
+        assert "__builtins__" not in op.state
         list(op.process_tuple(Tuple({"v": 1}), port=0))
         produced = op.produce_state_on_finish(port=0)
         produced.to_tuple(0)  # must not raise
@@ -497,8 +493,8 @@ class TestLoopExpressionScoping:
         op = _StubLoopEnd(update="i += 1")
         op.attach_loop_table(_one_row_table())
         op.process_state(State({"i": 0}), port=0)
-        assert "__builtins__" not in op.variables
-        op.variables.to_tuple(0)  # must not raise
+        assert "__builtins__" not in op.state
+        op.state.to_tuple(0)  # must not raise
 
 
 # The stub subclasses above skip the base64 + `decode_python_template` layer
@@ -563,11 +559,11 @@ class TestGeneratedCodeShape:
         # init() runs once the input table has arrived.
         (out,) = list(op.process_table(Table([Tuple({"a": 1})]), 0))
         assert list(out["msg"]) == ["quote ' here"]
-        assert op.variables["i"] == 0
+        assert op.state["i"] == 0
         # The apostrophe survived base64 -> decode_python_template -> exec.
-        assert op.variables["note"] == "it's fine"
+        assert op.state["note"] == "it's fine"
         # So did the newline in output: its assignment is a control variable.
-        assert op.variables["msg"] == "quote ' here"
+        assert op.state["msg"] == "quote ' here"
 
     def test_generated_loop_end_execs_tricky_expressions(self):
         update_expr = "i += 1"
@@ -584,7 +580,7 @@ class TestGeneratedCodeShape:
         op.attach_loop_table(_one_row_table())
         incoming = State({"i": 1, "note": "it's"})
         assert op.process_state(incoming, port=0) is None
-        assert op.variables["i"] == 2  # update ran
+        assert op.state["i"] == 2  # update ran
         assert op.condition() is True  # quoted condition round-tripped
 
 
@@ -669,7 +665,7 @@ class TestLoopStartInitializationSeesInputData:
             Table([Tuple({"path": "a.txt"}), Tuple({"path": "b.txt"})])
         )
         end.process_state(State({"i": 0, "file": "a.txt"}), port=0)
-        assert end.variables["file"] == "b.txt"
+        assert end.state["file"] == "b.txt"
         assert end.condition() is True
 
 
@@ -812,7 +808,7 @@ class TestLoopStartOutputCell:
             end.process_state(State.from_tuple(State(produced).to_tuple()), port=0)
             if not end.condition():
                 break
-            back_edge = State(end.variables)
+            back_edge = State(end.state)
 
         assert files == ["a.txt", "b.txt", "c.txt"]
 
@@ -872,13 +868,13 @@ class TestLoopPrimitivesKeepOnlyValues:
         list(op.process_tuple(Tuple({"v": 1}), port=0))
         assert op.produce_state_on_finish(port=0) == State({"i": 0})
 
-    def test_update_keeps_helpers_out_of_the_variables(self):
+    def test_update_keeps_helpers_out_of_the_state(self):
         end = _StubLoopEnd(
             update="import math\ni = math.floor(i + 1.5)", condition_expr="i < 3"
         )
         end.attach_loop_table(Table([Tuple({"v": 1})]))
         end.process_state(State({"i": 0}), port=0)
-        assert end.variables == State({"i": 1})
+        assert end.state == State({"i": 1})
 
     def test_a_numeric_value_read_from_D_is_a_control_variable(self):
         op = _StubLoopStart(

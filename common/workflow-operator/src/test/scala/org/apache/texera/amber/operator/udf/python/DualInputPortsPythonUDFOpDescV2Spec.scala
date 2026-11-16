@@ -19,29 +19,14 @@
 
 package org.apache.texera.amber.operator.udf.python
 
-import org.apache.texera.amber.operator.udf.UiUDFParameter
-
 import org.apache.texera.amber.core.executor.OpExecWithCode
 import org.apache.texera.amber.core.tuple.{Attribute, AttributeType, Schema}
-import org.apache.texera.amber.core.virtualidentity.{ExecutionIdentity, WorkflowIdentity}
 import org.apache.texera.amber.core.workflow.{PortIdentity, UnknownPartition}
-import org.apache.texera.amber.operator.LogicalOp
 import org.apache.texera.amber.operator.metadata.OperatorGroupConstants
-import org.apache.texera.amber.util.JSONUtils.objectMapper
+import org.apache.texera.amber.operator.udf.UdfDescriptorSpecSupport
 import org.scalatest.flatspec.AnyFlatSpec
-import org.scalatest.matchers.should.Matchers
 
-class DualInputPortsPythonUDFOpDescV2Spec extends AnyFlatSpec with Matchers {
-
-  private val workflowId = WorkflowIdentity(1L)
-  private val executionId = ExecutionIdentity(1L)
-
-  private def uiParameter(name: String, value: String): UiUDFParameter = {
-    val parameter = new UiUDFParameter
-    parameter.attribute = new Attribute(name, AttributeType.INTEGER)
-    parameter.value = value
-    parameter
-  }
+class DualInputPortsPythonUDFOpDescV2Spec extends AnyFlatSpec with UdfDescriptorSpecSupport {
 
   private def twoPortSchemas(dataSchema: Schema): Map[PortIdentity, Schema] =
     Map(
@@ -51,35 +36,27 @@ class DualInputPortsPythonUDFOpDescV2Spec extends AnyFlatSpec with Matchers {
 
   "DualInputPortsPythonUDFOpDescV2.operatorInfo" should
     "advertise the 2-in Python UDF with a model port and a dependent tuples port" in {
-    val info = (new DualInputPortsPythonUDFOpDescV2).operatorInfo
-    info.userFriendlyName shouldBe "2-in Python UDF"
-    info.operatorGroupName shouldBe OperatorGroupConstants.PYTHON_GROUP
-    info.inputPorts should have length 2
+    val info = expectOperatorInfo(
+      new DualInputPortsPythonUDFOpDescV2,
+      "2-in Python UDF",
+      OperatorGroupConstants.PYTHON_GROUP,
+      2
+    )
     info.inputPorts.head.displayName shouldBe "model"
     info.inputPorts(1).displayName shouldBe "tuples"
     info.inputPorts(1).id shouldBe PortIdentity(1)
     info.inputPorts(1).dependencies shouldBe List(PortIdentity(0))
-    info.outputPorts should have length 1
   }
 
   "DualInputPortsPythonUDFOpDescV2.getPhysicalOp" should "reject a non-positive worker count" in {
-    val d = new DualInputPortsPythonUDFOpDescV2
-    d.workers = 0
-    intercept[IllegalArgumentException] {
-      d.getPhysicalOp(workflowId, executionId)
-    }
+    expectInvalidWorkerCount(new DualInputPortsPythonUDFOpDescV2)(_.workers = 0)
   }
 
   it should "wire a single-worker op with the default environment and unknown partition" in {
     val d = new DualInputPortsPythonUDFOpDescV2
     d.code = "yield t"
-    val physical = d.getPhysicalOp(workflowId, executionId)
-    physical.opExecInitInfo match {
-      case OpExecWithCode(code, language) =>
-        language shouldBe "python"
-        code shouldBe "yield t"
-      case other => fail(s"expected OpExecWithCode, got $other")
-    }
+    val physical = buildPhysicalOp(d)
+    physical.opExecInitInfo shouldBe OpExecWithCode("yield t", "python")
     physical.parallelizable shouldBe false
     physical.suggestedWorkerNum shouldBe None
     physical.pveName shouldBe ""
@@ -91,44 +68,25 @@ class DualInputPortsPythonUDFOpDescV2Spec extends AnyFlatSpec with Matchers {
   it should "wire a parallelizable op with the suggested worker count when workers > 1" in {
     val d = new DualInputPortsPythonUDFOpDescV2
     d.workers = 2
-    val physical = d.getPhysicalOp(workflowId, executionId)
+    val physical = buildPhysicalOp(d)
     physical.parallelizable shouldBe true
     physical.suggestedWorkerNum shouldBe Some(2)
   }
 
   it should "inject configured UI parameters into the generated Python code" in {
     val d = new DualInputPortsPythonUDFOpDescV2
-    d.code = """from pytexera import *
-        |
-        |class ProcessTupleOperator(UDFOperatorV2):
-        |    def process_tuple(self, tuple_, port):
-        |        yield tuple_
-        |""".stripMargin
+    d.code = tupleUdfCode
     d.uiParameters = List(uiParameter("count", "7"))
 
-    d.getPhysicalOp(workflowId, executionId).opExecInitInfo match {
-      case OpExecWithCode(code, "python") =>
-        code should include("def _texera_injected_ui_parameters")
-        code should include("self.decode_python_template")
-      case other => fail(s"expected Python OpExecWithCode, got $other")
-    }
+    expectInjectedPython(d)
   }
 
   it should "leave a resource parameter to the execution" in {
     val d = new DualInputPortsPythonUDFOpDescV2
-    d.code = """from pytexera import *
-        |
-        |class ProcessTupleOperator(UDFOperatorV2):
-        |    def process_tuple(self, tuple_, port):
-        |        yield tuple_
-        |""".stripMargin
-    val resource = new UiUDFParameter
-    resource.attribute = new Attribute("DS", AttributeType.STRING)
-    resource.inputType = "dataset"
-    resource.value = "/dataset/owner@x.com/ds/v1"
-    d.uiParameters = List(resource)
+    d.code = tupleUdfCode
+    d.uiParameters = List(datasetParameter("DS", "/dataset/owner@x.com/ds/v1"))
 
-    d.getPhysicalOp(workflowId, executionId).executionTimeBinding should not be empty
+    buildPhysicalOp(d).executionTimeBinding should not be empty
   }
 
   it should "reject a blank virtual-environment name when the default env is disabled" in {
@@ -136,7 +94,7 @@ class DualInputPortsPythonUDFOpDescV2Spec extends AnyFlatSpec with Matchers {
     d.defaultEnv = false
     d.envName = "   "
     val ex = intercept[RuntimeException] {
-      d.getPhysicalOp(workflowId, executionId)
+      buildPhysicalOp(d)
     }
     ex.getMessage shouldBe
       "Virtual Environment name is required when not using the default Python environment."
@@ -146,35 +104,21 @@ class DualInputPortsPythonUDFOpDescV2Spec extends AnyFlatSpec with Matchers {
     val d = new DualInputPortsPythonUDFOpDescV2
     d.defaultEnv = false
     d.envName = "  myenv  "
-    d.getPhysicalOp(workflowId, executionId).pveName shouldBe "myenv"
+    buildPhysicalOp(d).pveName shouldBe "myenv"
   }
 
   "DualInputPortsPythonUDFOpDescV2 schema propagation" should
     "emit only the output columns when input columns are not retained" in {
     val d = new DualInputPortsPythonUDFOpDescV2
-    d.outputColumns = List(new Attribute("res", AttributeType.INTEGER))
-    val out = d.getExternalOutputSchemas(
-      twoPortSchemas(Schema().add(new Attribute("in", AttributeType.STRING)))
-    )
-    out shouldBe Map(
-      d.operatorInfo.outputPorts.head.id -> Schema().add(
-        new Attribute("res", AttributeType.INTEGER)
-      )
-    )
+    d.outputColumns = List(resultColumn)
+    expectOutputColumns(d, retainInput = false, twoPortSchemas(inputSchema))
   }
 
   it should "retain the tuples-port columns (not the model port) when retaining input" in {
     val d = new DualInputPortsPythonUDFOpDescV2
     d.retainInputColumns = true
-    d.outputColumns = List(new Attribute("res", AttributeType.INTEGER))
-    val out = d.getExternalOutputSchemas(
-      twoPortSchemas(Schema().add(new Attribute("in", AttributeType.STRING)))
-    )
-    out shouldBe Map(
-      d.operatorInfo.outputPorts.head.id -> Schema()
-        .add(new Attribute("in", AttributeType.STRING))
-        .add(new Attribute("res", AttributeType.INTEGER))
-    )
+    d.outputColumns = List(resultColumn)
+    expectOutputColumns(d, retainInput = true, twoPortSchemas(inputSchema))
   }
 
   it should "reject an output column that collides with a retained input column" in {
@@ -199,9 +143,7 @@ class DualInputPortsPythonUDFOpDescV2Spec extends AnyFlatSpec with Matchers {
     d.envName = "myenv"
     d.outputColumns = List(new Attribute("res", AttributeType.INTEGER))
     d.uiParameters = List(uiParameter("count", "7"))
-    val restored = objectMapper.readValue(objectMapper.writeValueAsString(d), classOf[LogicalOp])
-    restored shouldBe a[DualInputPortsPythonUDFOpDescV2]
-    val r = restored.asInstanceOf[DualInputPortsPythonUDFOpDescV2]
+    val r = roundTrip(d)
     r.code shouldBe "print(1)"
     r.workers shouldBe 3
     r.retainInputColumns shouldBe true

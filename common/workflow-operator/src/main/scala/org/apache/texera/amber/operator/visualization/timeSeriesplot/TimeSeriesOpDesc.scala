@@ -18,6 +18,7 @@
  */
 package org.apache.texera.amber.operator.visualization.timeSeriesplot
 
+import org.apache.texera.amber.operator.visualization.StandaloneChartCode._
 import com.fasterxml.jackson.annotation.{JsonProperty, JsonPropertyDescription}
 import com.kjetland.jackson.jsonSchema.annotations.{JsonSchemaInject, JsonSchemaTitle}
 import org.apache.texera.amber.pybuilder.PythonTemplateBuilder.PythonTemplateBuilderStringContext
@@ -175,16 +176,14 @@ class TimeSeriesOpDesc extends PythonVisualizationOpDesc with PlotlyStandaloneCo
        |    return f"<h1>Time Series Plot is not available.</h1><p>Reason: {msg}</p>"
        |
        |if in1df.empty:
-       |    with open(outputHtml, "w", encoding="utf-8") as output:
-       |        output.write(render_error("Input table is empty."))
+       |${standaloneErrorPage("Input table is empty.")}
        |else:
        |    try:
        |        table = in1df.copy()
        |        table[$timeLit] = pd.to_datetime(table[$timeLit], errors='coerce')
        |        table = table.dropna(subset=$dropnaStr).sort_values(by=$timeLit)
        |        if table.empty:
-       |            with open(outputHtml, "w", encoding="utf-8") as output:
-       |                output.write(render_error("Table became empty after filtering."))
+       |${standaloneErrorPage("Table became empty after filtering.", indent = 12)}
        |        else:
        |            fig = $plotFunc(table, x=$timeLit, y=$valueLit$colorArg$facetArg)
        |            if $showSlider:
@@ -196,9 +195,7 @@ class TimeSeriesOpDesc extends PythonVisualizationOpDesc with PlotlyStandaloneCo
        |                yaxis_title=$valueLit,
        |                template="plotly_white"
        |            )
-       |            fig.write_json(outputJson)
-       |            fig.write_html(outputHtml)
-       |            print("Time series plot saved to " + outputHtml)
+       |${standaloneFigure("Time series plot", indent = 12)}
        |    except Exception as e:
        |        with open(outputHtml, "w", encoding="utf-8") as output:
        |            output.write(render_error(str(e)))""".stripMargin

@@ -24,7 +24,7 @@ import {
   createUiParameter,
 } from "./ui-udf-parameter";
 
-type Token = Readonly<{ text: string; kind: "name" | "string" | "symbol" }>;
+type Token = Readonly<{ text: string; kind: "name" | "keyword" | "string" | "symbol"; lineBreakBefore: boolean }>;
 const R_KEYWORDS = new Set(
   "if else repeat while function for in next break TRUE FALSE NULL Inf NaN NA NA_integer_ NA_real_ NA_complex_ NA_character_".split(
     " "
@@ -65,6 +65,11 @@ function decodeRString(text: string): string {
 /** Tokenize only the R syntax needed to recognize declarations, never evaluating user code. */
 function tokenize(code: string): Token[] {
   const tokens: Token[] = [];
+  let previousEnd = 0;
+  const push = (text: string, kind: Token["kind"], start: number, end: number) => {
+    tokens.push({ text, kind, lineBreakBefore: code.slice(previousEnd, start).includes("\n") });
+    previousEnd = end;
+  };
   for (let index = 0; index < code.length; ) {
     const rest = code.slice(index);
     if (/\s/.test(code[index])) {
@@ -82,7 +87,7 @@ function tokenize(code: string): Token[] {
       const close = ({ "(": ")", "[": "]", "{": "}" } as Record<string, string>)[raw[3]] + raw[2] + raw[1];
       const end = code.indexOf(close, index + raw[0].length);
       if (end < 0) break;
-      tokens.push({ text: code.slice(index + raw[0].length, end), kind: "string" });
+      push(code.slice(index + raw[0].length, end), "string", index, end + close.length);
       index = end + close.length;
       continue;
     }
@@ -90,21 +95,67 @@ function tokenize(code: string): Token[] {
     if (quote === '"' || quote === "'" || quote === "`") {
       const literal = /^(["'`])((?:\\[\s\S]|(?!\1)[^\\])*)\1/.exec(rest);
       if (!literal) break;
-      tokens.push({ text: decodeRString(literal[2]), kind: quote === "`" ? "name" : "string" });
+      push(decodeRString(literal[2]), quote === "`" ? "name" : "string", index, index + literal[0].length);
       index += literal[0].length;
       continue;
     }
     const name = /^[\p{L}_.][\p{L}\p{N}_.]*/u.exec(rest);
     if (name) {
-      tokens.push({ text: name[0], kind: "name" });
+      push(name[0], R_KEYWORDS.has(name[0]) ? "keyword" : "name", index, index + name[0].length);
       index += name[0].length;
       continue;
     }
     const symbol = /^(:::|::|<<-|<-|->>|->|.)/s.exec(rest)![0];
-    tokens.push({ text: symbol, kind: "symbol" });
+    push(symbol, "symbol", index, index + symbol.length);
     index += symbol.length;
   }
   return tokens;
+}
+
+/** Find the end of a function body without treating its local bindings as script bindings. */
+function endOfExpression(tokens: Token[], start: number, groupOnly = false): number {
+  const first = tokens[start];
+  if (!first) return start - 1;
+  if (groupOnly && first.kind === "symbol" && ["(", "[", "{"].includes(first.text)) {
+    let depth = 0;
+    for (let end = start; end < tokens.length; end++) {
+      if (tokens[end].kind !== "symbol") continue;
+      if (["(", "[", "{"].includes(tokens[end].text)) depth++;
+      else if ([")", "]", "}"].includes(tokens[end].text) && --depth === 0) return end;
+    }
+    return tokens.length - 1;
+  }
+  if (
+    (first.kind === "keyword" && ["function", "if", "for", "while"].includes(first.text)) ||
+    (first.kind === "symbol" && first.text === "\\")
+  ) {
+    const headerEnd = endOfExpression(tokens, start + 1, true);
+    const bodyEnd = endOfExpression(tokens, headerEnd + 1);
+    return first.text === "if" && tokens[bodyEnd + 1]?.kind === "keyword" && tokens[bodyEnd + 1].text === "else"
+      ? endOfExpression(tokens, bodyEnd + 2)
+      : bodyEnd;
+  }
+  if (first.kind === "keyword" && first.text === "repeat") return endOfExpression(tokens, start + 1);
+  for (let end = start; end < tokens.length; end++) {
+    if (tokens[end].kind === "symbol" && ["(", "[", "{"].includes(tokens[end].text))
+      end = endOfExpression(tokens, end, true);
+    else if (
+      (tokens[end].kind === "keyword" && ["function", "if", "for", "while", "repeat"].includes(tokens[end].text)) ||
+      (tokens[end].kind === "symbol" && tokens[end].text === "\\")
+    )
+      end = endOfExpression(tokens, end);
+    const current = tokens[end];
+    const next = tokens[end + 1];
+    if (
+      !next ||
+      (next.kind === "symbol" && [";", ")", "]", "}"].includes(next.text)) ||
+      (next.kind === "keyword" && next.text === "else")
+    )
+      return end;
+    const canEnd = current.kind !== "symbol" || [")", "]", "}"].includes(current.text) || /^\d$/.test(current.text);
+    if (next.lineBreakBefore && canEnd) return end;
+  }
+  return tokens.length - 1;
 }
 
 function member(tokens: Token[], receiver: string): string | undefined {
@@ -197,17 +248,33 @@ export function computeRParameterInsertion(
     identifier = `parameter_${identifier}`;
   const tokens = tokenize(code);
   const names = new Set<string>();
-  let depth = 0;
+  let argumentDepth = 0;
   for (let index = 0; index < tokens.length; index++) {
     const token = tokens[index];
+    if (
+      ((token.kind === "keyword" && token.text === "function") || (token.kind === "symbol" && token.text === "\\")) &&
+      tokens[index + 1]?.text === "("
+    ) {
+      index = endOfExpression(tokens, index);
+      continue;
+    }
     if (token.kind === "symbol") {
-      if (["(", "[", "{"].includes(token.text)) depth++;
-      else if ([")", "]", "}"].includes(token.text)) depth--;
+      if (["(", "["].includes(token.text)) argumentDepth++;
+      else if ([")", "]"].includes(token.text)) argumentDepth--;
     }
     if (
-      depth === 0 &&
+      token.kind === "keyword" &&
+      token.text === "for" &&
+      tokens[index + 1]?.text === "(" &&
+      tokens[index + 2]?.kind === "name" &&
+      tokens[index + 3]?.text === "in"
+    )
+      names.add(tokens[index + 2].text);
+    if (
       token.kind === "name" &&
-      (["<-", "<<-", "="].includes(tokens[index + 1]?.text) || ["->", "->>"].includes(tokens[index - 1]?.text))
+      (["<-", "<<-"].includes(tokens[index + 1]?.text) ||
+        ["->", "->>"].includes(tokens[index - 1]?.text) ||
+        (argumentDepth === 0 && tokens[index + 1]?.text === "="))
     )
       names.add(token.text);
   }

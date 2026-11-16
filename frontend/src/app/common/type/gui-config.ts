@@ -50,6 +50,7 @@ export interface GuiConfig {
   attributionEnabled: boolean;
   pythonNotebookMigrationEnabled: boolean;
   pythonNotebookMigrationTimeoutMinutes: number;
+  rNotebookMigrationEnabled: boolean;
   deploymentVersionCheckEnabled: boolean;
 }
 

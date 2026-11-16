@@ -19,12 +19,15 @@
 
 package org.apache.texera.amber.operator.source.scan.csv
 
+import org.apache.texera.amber.util.PythonTestSupport.{
+  NeedsPythonPackages,
+  canImport,
+  configuredPython
+}
 import com.fasterxml.jackson.databind.JsonNode
 import com.fasterxml.jackson.databind.node.TextNode
 import com.github.fge.jsonschema.main.JsonSchemaFactory
-import com.typesafe.config.ConfigFactory
 import org.apache.texera.amber.core.executor.SourceOperatorExecutor
-import org.apache.texera.amber.core.storage.FileResolver
 import org.apache.texera.amber.core.tuple.{AttributeType, Schema}
 import org.apache.texera.amber.core.workflow.WorkflowContext.{
   DEFAULT_EXECUTION_ID,
@@ -34,20 +37,16 @@ import org.apache.texera.amber.operator.{LogicalOp, StandaloneCodeGenerator, Tes
 import org.apache.texera.amber.operator.metadata.OperatorMetadataGenerator
 import org.apache.texera.amber.operator.source.scan.ScanSourceOpDesc
 import org.apache.texera.amber.operator.source.scan.csvOld.CSVOldScanSourceOpDesc
-import org.apache.texera.amber.operator.tags.IntegrationTest
 import org.apache.texera.amber.util.JSONUtils.objectMapper
-import org.scalatest.{BeforeAndAfter, Tag}
+import org.scalatest.BeforeAndAfter
 import org.scalatest.flatspec.AnyFlatSpec
 
 import java.nio.charset.StandardCharsets
 import java.nio.file.Files
 import java.util.concurrent.TimeUnit
 import scala.io.Source
-import scala.util.Try
 
 class CSVScanSourceOpDescSpec extends AnyFlatSpec with BeforeAndAfter {
-
-  private val NeedsPythonPackages = Tag(classOf[IntegrationTest].getName)
 
   var csvScanSourceOpDesc: CSVScanSourceOpDesc = _
   var parallelCsvScanSourceOpDesc: ParallelCSVScanSourceOpDesc = _
@@ -102,7 +101,7 @@ class CSVScanSourceOpDescSpec extends AnyFlatSpec with BeforeAndAfter {
 
   private def columnNames(opDesc: ScanSourceOpDesc, path: String): List[String] = {
     opDesc.fileName = Some(path)
-    opDesc.setResolvedFileName(FileResolver.resolve(path))
+    opDesc.setResolvedFileName(TestOperators.localFileUri(path))
     opDesc.sourceSchema().getAttributes.map(_.getName).toList
   }
 
@@ -152,7 +151,7 @@ class CSVScanSourceOpDescSpec extends AnyFlatSpec with BeforeAndAfter {
   it should "infer a numeric column as DOUBLE even when one of its cells is blank" in {
     val path = writeCsvWithBlankNumericCell()
     csvScanSourceOpDesc.fileName = Some(path)
-    csvScanSourceOpDesc.setResolvedFileName(FileResolver.resolve(path))
+    csvScanSourceOpDesc.setResolvedFileName(TestOperators.localFileUri(path))
 
     // A blank used to read as "" while inferring and as null while executing. The ""
     // fell through inferField to STRING, so one empty cell retyped the whole column
@@ -168,7 +167,7 @@ class CSVScanSourceOpDescSpec extends AnyFlatSpec with BeforeAndAfter {
     parallelCsvScanSourceOpDesc.customDelimiter = Some(",")
     parallelCsvScanSourceOpDesc.hasHeader = true
     parallelCsvScanSourceOpDesc.setResolvedFileName(
-      FileResolver.resolve(parallelCsvScanSourceOpDesc.fileName.get)
+      TestOperators.localFileUri(parallelCsvScanSourceOpDesc.fileName.get)
     )
     val inferredSchema: Schema = parallelCsvScanSourceOpDesc.sourceSchema()
 
@@ -184,7 +183,7 @@ class CSVScanSourceOpDescSpec extends AnyFlatSpec with BeforeAndAfter {
     parallelCsvScanSourceOpDesc.customDelimiter = Some(",")
     parallelCsvScanSourceOpDesc.hasHeader = false
     parallelCsvScanSourceOpDesc.setResolvedFileName(
-      FileResolver.resolve(parallelCsvScanSourceOpDesc.fileName.get)
+      TestOperators.localFileUri(parallelCsvScanSourceOpDesc.fileName.get)
     )
 
     val inferredSchema: Schema = parallelCsvScanSourceOpDesc.sourceSchema()
@@ -199,7 +198,9 @@ class CSVScanSourceOpDescSpec extends AnyFlatSpec with BeforeAndAfter {
     csvScanSourceOpDesc.fileName = Some(TestOperators.CountrySalesSmallMultiLineCsvPath)
     csvScanSourceOpDesc.customDelimiter = Some(",")
     csvScanSourceOpDesc.hasHeader = true
-    csvScanSourceOpDesc.setResolvedFileName(FileResolver.resolve(csvScanSourceOpDesc.fileName.get))
+    csvScanSourceOpDesc.setResolvedFileName(
+      TestOperators.localFileUri(csvScanSourceOpDesc.fileName.get)
+    )
 
     val inferredSchema: Schema = csvScanSourceOpDesc.sourceSchema()
 
@@ -213,7 +214,9 @@ class CSVScanSourceOpDescSpec extends AnyFlatSpec with BeforeAndAfter {
     csvScanSourceOpDesc.fileName = Some(TestOperators.CountrySalesHeaderlessSmallCsvPath)
     csvScanSourceOpDesc.customDelimiter = Some(",")
     csvScanSourceOpDesc.hasHeader = false
-    csvScanSourceOpDesc.setResolvedFileName(FileResolver.resolve(csvScanSourceOpDesc.fileName.get))
+    csvScanSourceOpDesc.setResolvedFileName(
+      TestOperators.localFileUri(csvScanSourceOpDesc.fileName.get)
+    )
 
     val inferredSchema: Schema = csvScanSourceOpDesc.sourceSchema()
 
@@ -228,7 +231,9 @@ class CSVScanSourceOpDescSpec extends AnyFlatSpec with BeforeAndAfter {
       Some(TestOperators.CountrySalesSmallMultiLineCustomDelimiterCsvPath)
     csvScanSourceOpDesc.customDelimiter = Some(";")
     csvScanSourceOpDesc.hasHeader = false
-    csvScanSourceOpDesc.setResolvedFileName(FileResolver.resolve(csvScanSourceOpDesc.fileName.get))
+    csvScanSourceOpDesc.setResolvedFileName(
+      TestOperators.localFileUri(csvScanSourceOpDesc.fileName.get)
+    )
 
     val inferredSchema: Schema = csvScanSourceOpDesc.sourceSchema()
 
@@ -243,7 +248,9 @@ class CSVScanSourceOpDescSpec extends AnyFlatSpec with BeforeAndAfter {
       Some(TestOperators.CountrySalesSmallMultiLineCustomDelimiterCsvPath)
     csvScanSourceOpDesc.customDelimiter = Some(";")
     csvScanSourceOpDesc.hasHeader = false
-    csvScanSourceOpDesc.setResolvedFileName(FileResolver.resolve(csvScanSourceOpDesc.fileName.get))
+    csvScanSourceOpDesc.setResolvedFileName(
+      TestOperators.localFileUri(csvScanSourceOpDesc.fileName.get)
+    )
 
     assert(
       !csvScanSourceOpDesc
@@ -259,7 +266,9 @@ class CSVScanSourceOpDescSpec extends AnyFlatSpec with BeforeAndAfter {
     csvScanSourceOpDesc.fileName = Some(TestOperators.CountrySalesSmallMultiLineCsvPath)
     csvScanSourceOpDesc.customDelimiter = Some(",")
     csvScanSourceOpDesc.hasHeader = true
-    csvScanSourceOpDesc.setResolvedFileName(FileResolver.resolve(csvScanSourceOpDesc.fileName.get))
+    csvScanSourceOpDesc.setResolvedFileName(
+      TestOperators.localFileUri(csvScanSourceOpDesc.fileName.get)
+    )
 
     val code = csvScanSourceOpDesc.generateStandaloneCode()
 
@@ -301,7 +310,7 @@ class CSVScanSourceOpDescSpec extends AnyFlatSpec with BeforeAndAfter {
     parallelCsvScanSourceOpDesc.fileName = Some(path)
     parallelCsvScanSourceOpDesc.customDelimiter = Some(",")
     parallelCsvScanSourceOpDesc.hasHeader = true
-    parallelCsvScanSourceOpDesc.setResolvedFileName(FileResolver.resolve(path))
+    parallelCsvScanSourceOpDesc.setResolvedFileName(TestOperators.localFileUri(path))
 
     assert(
       parallelCsvScanSourceOpDesc.sourceSchema().getAttribute("column-2").getType ==
@@ -319,7 +328,7 @@ class CSVScanSourceOpDescSpec extends AnyFlatSpec with BeforeAndAfter {
     val path = writeNullableLongCsv()
     parallelCsvScanSourceOpDesc.fileName = Some(path)
     parallelCsvScanSourceOpDesc.customDelimiter = Some(",")
-    parallelCsvScanSourceOpDesc.setResolvedFileName(FileResolver.resolve(path))
+    parallelCsvScanSourceOpDesc.setResolvedFileName(TestOperators.localFileUri(path))
 
     assert(
       parallelCsvScanSourceOpDesc.sourceSchema().getAttribute("big").getType ==
@@ -349,7 +358,7 @@ class CSVScanSourceOpDescSpec extends AnyFlatSpec with BeforeAndAfter {
     val path = writeNaCsv()
     parallelCsvScanSourceOpDesc.fileName = Some(path)
     parallelCsvScanSourceOpDesc.customDelimiter = Some(",")
-    parallelCsvScanSourceOpDesc.setResolvedFileName(FileResolver.resolve(path))
+    parallelCsvScanSourceOpDesc.setResolvedFileName(TestOperators.localFileUri(path))
 
     val exec = new ParallelCSVScanSourceOpExec(
       objectMapper.writeValueAsString(parallelCsvScanSourceOpDesc)
@@ -370,7 +379,7 @@ class CSVScanSourceOpDescSpec extends AnyFlatSpec with BeforeAndAfter {
     parallelCsvScanSourceOpDesc.fileName = Some(path)
     parallelCsvScanSourceOpDesc.customDelimiter = Some(",")
     parallelCsvScanSourceOpDesc.hasHeader = true
-    parallelCsvScanSourceOpDesc.setResolvedFileName(FileResolver.resolve(path))
+    parallelCsvScanSourceOpDesc.setResolvedFileName(TestOperators.localFileUri(path))
 
     assert(
       parallelCsvScanSourceOpDesc
@@ -385,7 +394,7 @@ class CSVScanSourceOpDescSpec extends AnyFlatSpec with BeforeAndAfter {
   it should "leave limit and offset out of the parallel CSV read, as its reader ignores them" in {
     val path = writeSixRowCsv()
     parallelCsvScanSourceOpDesc.fileName = Some(path)
-    parallelCsvScanSourceOpDesc.setResolvedFileName(FileResolver.resolve(path))
+    parallelCsvScanSourceOpDesc.setResolvedFileName(TestOperators.localFileUri(path))
     parallelCsvScanSourceOpDesc.customDelimiter = Some(",")
     parallelCsvScanSourceOpDesc.offset = Some(2)
     parallelCsvScanSourceOpDesc.limit = Some(2)
@@ -442,7 +451,7 @@ class CSVScanSourceOpDescSpec extends AnyFlatSpec with BeforeAndAfter {
     csvScanSourceOpDesc.fileName = Some(path)
     csvScanSourceOpDesc.customDelimiter = Some(",")
     csvScanSourceOpDesc.hasHeader = true
-    csvScanSourceOpDesc.setResolvedFileName(FileResolver.resolve(path))
+    csvScanSourceOpDesc.setResolvedFileName(TestOperators.localFileUri(path))
 
     val names = csvScanSourceOpDesc.sourceSchema().getAttributes.map(_.getName).toList
     assert(names == List("id", "name", "column-3", "age"))
@@ -453,7 +462,7 @@ class CSVScanSourceOpDescSpec extends AnyFlatSpec with BeforeAndAfter {
     parallelCsvScanSourceOpDesc.fileName = Some(path)
     parallelCsvScanSourceOpDesc.customDelimiter = Some(",")
     parallelCsvScanSourceOpDesc.hasHeader = true
-    parallelCsvScanSourceOpDesc.setResolvedFileName(FileResolver.resolve(path))
+    parallelCsvScanSourceOpDesc.setResolvedFileName(TestOperators.localFileUri(path))
 
     val names = parallelCsvScanSourceOpDesc.sourceSchema().getAttributes.map(_.getName).toList
     assert(names == List("id", "name", "column-3", "age"))
@@ -465,7 +474,7 @@ class CSVScanSourceOpDescSpec extends AnyFlatSpec with BeforeAndAfter {
     oldCsvScanSourceOpDesc.fileName = Some(path)
     oldCsvScanSourceOpDesc.customDelimiter = Some(",")
     oldCsvScanSourceOpDesc.hasHeader = true
-    oldCsvScanSourceOpDesc.setResolvedFileName(FileResolver.resolve(path))
+    oldCsvScanSourceOpDesc.setResolvedFileName(TestOperators.localFileUri(path))
 
     val names = oldCsvScanSourceOpDesc.sourceSchema().getAttributes.map(_.getName).toList
     assert(names == List("id", "name", "column-3", "age"))
@@ -586,7 +595,7 @@ class CSVScanSourceOpDescSpec extends AnyFlatSpec with BeforeAndAfter {
       val path = writeCsv(",", body)
       val csv = new CSVScanSourceOpDesc()
       csv.fileName = Some(path)
-      csv.setResolvedFileName(FileResolver.resolve(path))
+      csv.setResolvedFileName(TestOperators.localFileUri(path))
       csv.generateStandaloneCode()
     }
     val plain = code("id,name\n1,Alice\n")
@@ -650,8 +659,8 @@ class CSVScanSourceOpDescSpec extends AnyFlatSpec with BeforeAndAfter {
   // columns from and the script raised EmptyDataError where the engine emits no
   // rows.
   it should "read no rows with the schema's columns, as the engine does, when a headerless offset passes the end" taggedAs NeedsPythonPackages in {
-    val python = resolvePython().getOrElse(cancel("No runnable python executable"))
-    if (!canImportPandas(python)) cancel(s"'$python' cannot import pandas")
+    val python = configuredPython().getOrElse(cancel("No runnable python executable"))
+    if (!canImport(python, "pandas")) cancel(s"'$python' cannot import pandas")
 
     val tmpFile = Files.createTempFile("headerless-two-row-", ".csv")
     tmpFile.toFile.deleteOnExit()
@@ -661,7 +670,7 @@ class CSVScanSourceOpDescSpec extends AnyFlatSpec with BeforeAndAfter {
     csvScanSourceOpDesc.customDelimiter = Some(",")
     csvScanSourceOpDesc.hasHeader = false
     csvScanSourceOpDesc.offset = Some(10)
-    csvScanSourceOpDesc.setResolvedFileName(FileResolver.resolve(path))
+    csvScanSourceOpDesc.setResolvedFileName(TestOperators.localFileUri(path))
 
     val exec = new CSVScanSourceOpExec(objectMapper.writeValueAsString(csvScanSourceOpDesc))
     exec.open()
@@ -702,8 +711,8 @@ class CSVScanSourceOpDescSpec extends AnyFlatSpec with BeforeAndAfter {
   // as missing to every operator that reads its mask. "0x1p1024" is past the
   // largest double, which Java reads as an infinity.
   it should "read a DOUBLE column the way the engine's toDouble does" taggedAs NeedsPythonPackages in {
-    val python = resolvePython().getOrElse(cancel("No runnable python executable"))
-    if (!canImportPandas(python)) cancel(s"'$python' cannot import pandas")
+    val python = configuredPython().getOrElse(cancel("No runnable python executable"))
+    if (!canImport(python, "pandas")) cancel(s"'$python' cannot import pandas")
 
     val tmpFile = Files.createTempFile("java-doubles-", ".csv")
     tmpFile.toFile.deleteOnExit()
@@ -725,7 +734,7 @@ class CSVScanSourceOpDescSpec extends AnyFlatSpec with BeforeAndAfter {
     readers.foreach {
       case (desc, exec) =>
         desc.fileName = Some(path)
-        desc.setResolvedFileName(FileResolver.resolve(path))
+        desc.setResolvedFileName(TestOperators.localFileUri(path))
         assert(desc.sourceSchema().getAttribute("w").getType == AttributeType.DOUBLE)
         assert(desc.sourceSchema().getAttribute("u").getType == AttributeType.DOUBLE)
 
@@ -787,32 +796,4 @@ class CSVScanSourceOpDescSpec extends AnyFlatSpec with BeforeAndAfter {
     withClue(s"python said:\n$out\nscript:\n$driver")(assert(process.exitValue() == 0))
     out
   }
-
-  private def resolvePython(): Option[String] = {
-    def fromConfig: Option[String] =
-      Try(ConfigFactory.parseResources("udf.conf").resolve()).toOption
-        .orElse(Try(ConfigFactory.load()).toOption)
-        .flatMap(c => Try(c.getConfig("python").getString("path")).toOption)
-        .map(_.trim)
-        .filter(_.nonEmpty)
-
-    def runnable(exe: String): Boolean =
-      Try(new ProcessBuilder(exe, "--version").redirectErrorStream(true).start()).toOption
-        .exists { p =>
-          if (!p.waitFor(5, TimeUnit.SECONDS)) { p.destroyForcibly(); false }
-          else p.exitValue() == 0
-        }
-
-    (fromConfig.toList ++ List("python3", "python", "py")).distinct.find(runnable)
-  }
-
-  private def canImportPandas(python: String): Boolean =
-    Try(
-      new ProcessBuilder(python, "-c", "import pandas").redirectErrorStream(true).start()
-    ).toOption
-      .exists { p =>
-        if (!p.waitFor(60, TimeUnit.SECONDS)) { p.destroyForcibly(); false }
-        else p.exitValue() == 0
-      }
-
 }

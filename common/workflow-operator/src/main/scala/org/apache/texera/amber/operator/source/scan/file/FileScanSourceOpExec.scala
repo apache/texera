@@ -25,6 +25,8 @@ import org.apache.texera.amber.core.tuple.TupleLike
 import org.apache.texera.amber.util.JSONUtils.objectMapper
 
 import java.io.IOException
+import java.net.URI
+import java.nio.file.{Files, Paths}
 
 class FileScanSourceOpExec private[scan] (
     descString: String
@@ -38,7 +40,7 @@ class FileScanSourceOpExec private[scan] (
     // name the compiler already resolved stays as it is.
     val fileName = desc.fileName.get
     FileScanUtils.createTuplesFromFile(
-      fileName = FileResolver.resolve(fileName).toASCIIString,
+      fileName = locate(fileName).toASCIIString,
       displayFileName = fileName,
       attributeType = desc.attributeType,
       fileEncoding = desc.encoding,
@@ -48,4 +50,17 @@ class FileScanSourceOpExec private[scan] (
       fileScanLimit = desc.fileScanLimit
     )
   }
+
+  /**
+    * Resolves the file name to a URI the way FileScanOpExec resolves a name it reads on the
+    * worker: a resolved URI as it is, then a local path, then a dataset or model path.
+    */
+  private def locate(fileName: String): URI =
+    if (FileResolver.isFileResolved(fileName)) {
+      new URI(fileName)
+    } else {
+      val localPath = Paths.get(fileName)
+      if (Files.exists(localPath)) localPath.toUri
+      else FileResolver.resolveVersionedResource(fileName)
+    }
 }

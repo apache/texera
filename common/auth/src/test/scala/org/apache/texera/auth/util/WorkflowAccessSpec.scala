@@ -19,51 +19,20 @@
 
 package org.apache.texera.auth.util
 
-import org.apache.texera.dao.MockTexeraDB
+import org.apache.texera.dao.WorkflowAccessDatabaseSpec
 import org.apache.texera.dao.jooq.generated.Tables._
 import org.apache.texera.dao.jooq.generated.enums.PrivilegeEnum
-import org.apache.texera.dao.jooq.generated.tables.daos.{
-  UserDao,
-  WorkflowDao,
-  WorkflowOfUserDao,
-  WorkflowUserAccessDao
-}
-import org.apache.texera.dao.jooq.generated.tables.pojos.{
-  User,
-  Workflow,
-  WorkflowOfUser,
-  WorkflowUserAccess
-}
-import org.scalatest.flatspec.AnyFlatSpec
-import org.scalatest.{BeforeAndAfterAll, BeforeAndAfterEach}
+import org.apache.texera.dao.jooq.generated.tables.daos.{UserDao, WorkflowDao}
+import org.apache.texera.dao.jooq.generated.tables.pojos.{WorkflowOfUser, WorkflowUserAccess}
 
-import java.sql.Timestamp
 import scala.jdk.CollectionConverters._
 
-class WorkflowAccessSpec
-    extends AnyFlatSpec
-    with BeforeAndAfterAll
-    with BeforeAndAfterEach
-    with MockTexeraDB {
-
-  private val ownerUid = 1000 + scala.util.Random.nextInt(1000)
-  private val userWithWriteUid = 2000 + scala.util.Random.nextInt(1000)
-  private val userWithReadUid = 3000 + scala.util.Random.nextInt(1000)
-  private val testWorkflowWid = 5000 + scala.util.Random.nextInt(1000)
-  private val newGranteeUid = 6000 + scala.util.Random.nextInt(1000)
-
-  private var workflowOfUserDao: WorkflowOfUserDao = _
-  private var workflowUserAccessDao: WorkflowUserAccessDao = _
-
-  override protected def beforeAll(): Unit = {
-    initializeDBAndReplaceDSLContext()
-  }
+class WorkflowAccessSpec extends WorkflowAccessDatabaseSpec(withTargetUser = false) {
 
   override protected def beforeEach(): Unit = {
     val userDao = new UserDao(getDSLContext.configuration())
     val workflowDao = new WorkflowDao(getDSLContext.configuration())
-    workflowOfUserDao = new WorkflowOfUserDao(getDSLContext.configuration())
-    workflowUserAccessDao = new WorkflowUserAccessDao(getDSLContext.configuration())
+    super.beforeEach()
 
     cleanupTestData()
 
@@ -73,60 +42,11 @@ class WorkflowAccessSpec
       (userWithWriteUid, "user_with_write", "write@test.com"),
       (userWithReadUid, "user_with_read", "read@test.com")
     ).foreach {
-      case (uid, name, email) =>
-        val user = new User
-        user.setUid(uid)
-        user.setName(name)
-        user.setEmail(email)
-        userDao.insert(user)
+      case (uid, name, email) => userDao.insert(newUser(uid, name, email))
     }
 
-    val testWorkflow = new Workflow
-    testWorkflow.setWid(testWorkflowWid)
-    testWorkflow.setName("test_workflow")
-    testWorkflow.setContent("{}")
-    testWorkflow.setDescription("test description")
-    testWorkflow.setCreationTime(new Timestamp(System.currentTimeMillis()))
-    testWorkflow.setLastModifiedTime(new Timestamp(System.currentTimeMillis()))
-    workflowDao.insert(testWorkflow)
-
-    workflowOfUserDao.insert(new WorkflowOfUser(ownerUid, testWorkflowWid))
-    workflowUserAccessDao.insert(
-      new WorkflowUserAccess(userWithWriteUid, testWorkflowWid, PrivilegeEnum.WRITE)
-    )
-    workflowUserAccessDao.insert(
-      new WorkflowUserAccess(userWithReadUid, testWorkflowWid, PrivilegeEnum.READ)
-    )
-  }
-
-  override protected def afterEach(): Unit = {
-    cleanupTestData()
-  }
-
-  private def cleanupTestData(): Unit = {
-    getDSLContext
-      .deleteFrom(WORKFLOW_USER_ACCESS)
-      .where(WORKFLOW_USER_ACCESS.WID.eq(testWorkflowWid))
-      .execute()
-
-    getDSLContext
-      .deleteFrom(WORKFLOW_OF_USER)
-      .where(WORKFLOW_OF_USER.WID.eq(testWorkflowWid))
-      .execute()
-
-    getDSLContext
-      .deleteFrom(WORKFLOW)
-      .where(WORKFLOW.WID.eq(testWorkflowWid))
-      .execute()
-
-    getDSLContext
-      .deleteFrom(USER)
-      .where(USER.UID.in(ownerUid, userWithWriteUid, userWithReadUid, newGranteeUid))
-      .execute()
-  }
-
-  override protected def afterAll(): Unit = {
-    closeConnectionPool()
+    workflowDao.insert(newWorkflow())
+    seedOwnerAndGrantees()
   }
 
   "WorkflowAccess.getPrivilege" should "report the grantees' privileges and NONE for anyone else" in {

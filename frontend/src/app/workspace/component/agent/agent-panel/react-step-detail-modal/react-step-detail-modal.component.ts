@@ -34,7 +34,6 @@ import { NzCollapseComponent, NzCollapsePanelComponent } from "ng-zorro-antd/col
 @Component({
   selector: "texera-react-step-detail-modal",
   templateUrl: "./react-step-detail-modal.component.html",
-  styleUrls: ["./react-step-detail-modal.component.scss"],
   imports: [
     NzModalComponent,
     NzModalContentDirective,
@@ -54,7 +53,6 @@ import { NzCollapseComponent, NzCollapsePanelComponent } from "ng-zorro-antd/col
 export class ReActStepDetailModalComponent {
   @Input() visible: boolean = false;
   @Input() step: ReActStep | null = null;
-  @Input() agentId: string | null = null;
   @Output() visibleChange = new EventEmitter<boolean>();
 
   public closeModal(): void {
@@ -100,22 +98,6 @@ export class ReActStepDetailModalComponent {
     return !!step.operatorAccess && step.operatorAccess.size > 0;
   }
 
-  /**
-   * Get tag color for a message role.
-   */
-  public getMessageRoleColor(role: string): string {
-    switch (role) {
-      case "user":
-        return "blue";
-      case "assistant":
-        return "orange";
-      case "tool":
-        return "green";
-      default:
-        return "default";
-    }
-  }
-
   // ============================================================================
   // Input Messages helpers
   // ============================================================================
@@ -151,34 +133,6 @@ export class ReActStepDetailModalComponent {
           fullArgs: args,
         };
       });
-  }
-
-  /**
-   * Get tool calls from an assistant message, formatted as function-call strings.
-   */
-  public getToolCallStrings(msg: any): string[] {
-    if (!msg?.content || !Array.isArray(msg.content)) return [];
-    return msg.content.filter((p: any) => p.type === "tool-call").map((p: any) => this.formatAsFunction(p));
-  }
-
-  /**
-   * Format a tool-call part as function-call notation: toolName(key=val, key=val)
-   */
-  private formatAsFunction(part: any): string {
-    const args = part.args || part.input || {};
-    const params = Object.entries(args)
-      .map(([k, v]) => {
-        let val: string;
-        if (typeof v === "string") {
-          val = v.length > 60 ? `"${v.substring(0, 60)}..."` : `"${v}"`;
-        } else {
-          const s = JSON.stringify(v);
-          val = s.length > 60 ? s.substring(0, 60) + "..." : s;
-        }
-        return `${k}=${val}`;
-      })
-      .join(", ");
-    return `${part.toolName}(${params})`;
   }
 
   /**
