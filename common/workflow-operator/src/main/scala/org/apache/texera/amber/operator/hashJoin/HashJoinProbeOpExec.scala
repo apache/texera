@@ -28,6 +28,20 @@ import scala.collection.mutable
 import scala.collection.mutable.ListBuffer
 
 object JoinUtils {
+
+  /** The name a right column takes in the joined row: "#@1" appended until it is
+    * free of every left name and of every other right name. The schema the
+    * operator declares, a matched row and an unmatched right row all name their
+    * right columns by this one rule, since the row is matched to the schema by
+    * name and a column the two name apart loses its value.
+    */
+  def renamed(name: String, leftNames: Seq[String], rightNames: Seq[String]): String = {
+    val others = rightNames.filterNot(_ == name)
+    var newName = name
+    while (leftNames.contains(newName) || others.contains(newName)) newName = s"$newName#@1"
+    newName
+  }
+
   def joinTuples(
       leftTuple: Tuple,
       rightTuple: Tuple,
@@ -45,15 +59,7 @@ object JoinUtils {
     // Create a Map from rightTuple's fields, renaming conflicts
     val rightTupleFields = rightAttributeNames
       .map { name =>
-        var newName = name
-        while (
-          leftAttributeNames.contains(newName) || rightAttributeNames
-            .filter(attrName => name != attrName)
-            .contains(newName)
-        ) {
-          newName = s"$newName#@1"
-        }
-        newName -> rightTuple.getField[Any](name)
+        renamed(name, leftAttributeNames, rightAttributeNames) -> rightTuple.getField[Any](name)
       }
 
     TupleLike(leftTupleFields ++ rightTupleFields)
@@ -67,6 +73,16 @@ class HashJoinProbeOpExec[K](
   private val desc: HashJoinOpDesc[K] =
     objectMapper.readValue(descString, classOf[HashJoinOpDesc[K]])
   var buildTableHashMap: mutable.HashMap[K, (ListBuffer[Tuple], Boolean)] = _
+
+  // The build side's column names, from the schema its port declared. An
+  // unmatched right row has no build row of its own to name them, and a worker
+  // can receive no build rows at all. The build port finishes before the first
+  // right row arrives.
+  private def leftAttributeNames: List[String] =
+    inputSchemas
+      .get(0)
+      .map(_.getAttributeNames.filterNot(_ == HASH_JOIN_INTERNAL_KEY_NAME))
+      .getOrElse(List.empty)
 
   override def open(): Unit = {
     buildTableHashMap = new mutable.HashMap[K, (mutable.ListBuffer[Tuple], Boolean)]()
@@ -142,11 +158,24 @@ class HashJoinProbeOpExec[K](
     }
   }
 
-  private def performRightAntiJoin(tuple: Tuple): Iterator[TupleLike] =
+  // The right columns are named as a matched row names them, so a column the
+  // left side also names goes under its suffixed name and not into the left
+  // column. The probe key fills the left key column where both sides name the
+  // key alike, and is left out where a left payload shares its name, which it
+  // would otherwise fill.
+  private def performRightAntiJoin(tuple: Tuple): Iterator[TupleLike] = {
+    val keyName = desc.probeAttributeName
+    val rightNames = tuple.getSchema.getAttributeNames.filterNot(_ == keyName)
+    val key =
+      if (keyName == desc.buildAttributeName || !leftAttributeNames.contains(keyName))
+        Seq(keyName -> tuple.getField[Any](keyName))
+      else Seq.empty
     Iterator(
       TupleLike(
-        tuple.getSchema.getAttributeNames
-          .map(attributeName => attributeName -> tuple.getField(attributeName)): _*
+        key ++ rightNames.map { name =>
+          JoinUtils.renamed(name, leftAttributeNames, rightNames) -> tuple.getField[Any](name)
+        }: _*
       )
     )
+  }
 }

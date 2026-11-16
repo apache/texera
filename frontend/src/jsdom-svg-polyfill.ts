@@ -220,6 +220,13 @@ G.ResizeObserver ??= class {
   disconnect(): void {}
 };
 
+// `ClipboardItem` — jsdom doesn't implement it; once a spec has loaded monaco,
+// its WebKit clipboard workaround builds one on every click on the page, and
+// specs share the page within a worker.
+G.ClipboardItem ??= class {
+  constructor(public items: unknown) {}
+};
+
 // `window.getComputedStyle(elt, pseudoElt)` and `window.scrollTo` — jsdom
 // implements neither. Both route through its `notImplemented` helper, which
 // emits a `jsdomError` on the virtual console; vitest's jsdom environment

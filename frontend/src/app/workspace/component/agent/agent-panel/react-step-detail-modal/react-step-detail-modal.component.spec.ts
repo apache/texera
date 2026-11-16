@@ -180,15 +180,6 @@ describe("ReActStepDetailModalComponent", () => {
     });
   });
 
-  describe("getMessageRoleColor", () => {
-    it("maps known roles and falls back to default", () => {
-      expect(component.getMessageRoleColor("user")).toBe("blue");
-      expect(component.getMessageRoleColor("assistant")).toBe("orange");
-      expect(component.getMessageRoleColor("tool")).toBe("green");
-      expect(component.getMessageRoleColor("system")).toBe("default");
-    });
-  });
-
   describe("getTextFromMessage", () => {
     it("returns empty string when there is no content", () => {
       expect(component.getTextFromMessage(null)).toBe("");
@@ -228,26 +219,6 @@ describe("ReActStepDetailModalComponent", () => {
         { toolName: "addOperator", operatorId: "op1", fullArgs: { operatorId: "op1", k: "v" } },
         { toolName: "noOp", operatorId: "", fullArgs: {} },
       ]);
-    });
-  });
-
-  describe("getToolCallStrings (function-call formatting)", () => {
-    it("renders tool calls as toolName(key=value, ...)", () => {
-      const msg = {
-        content: [{ type: "tool-call", toolName: "filter", args: { col: "age", n: 5 } }],
-      };
-      expect(component.getToolCallStrings(msg)).toEqual(['filter(col="age", n=5)']);
-    });
-
-    it("truncates long string and non-string argument values", () => {
-      const longString = "a".repeat(80);
-      const longArray = Array.from({ length: 40 }, (_, i) => i);
-      const msg = {
-        content: [{ type: "tool-call", toolName: "t", args: { s: longString, arr: longArray } }],
-      };
-      const [rendered] = component.getToolCallStrings(msg);
-      expect(rendered).toContain(`s="${"a".repeat(60)}..."`);
-      expect(rendered).toContain(`arr=${JSON.stringify(longArray).substring(0, 60)}...`);
     });
   });
 

@@ -19,7 +19,11 @@
 
 package org.apache.texera.amber.operator.source.scan.arrow
 
-import com.typesafe.config.ConfigFactory
+import org.apache.texera.amber.util.PythonTestSupport.{
+  NeedsPythonPackages,
+  canImport,
+  configuredPython
+}
 import org.apache.arrow.memory.RootAllocator
 import org.apache.arrow.vector.{UInt8Vector, VectorSchemaRoot}
 import org.apache.arrow.vector.ipc.ArrowFileWriter
@@ -27,13 +31,11 @@ import org.apache.arrow.vector.types.pojo.{ArrowType, Field, FieldType, Schema =
 import org.apache.texera.amber.core.executor.OpExecWithClassName
 import org.apache.texera.amber.core.tuple.{Attribute, AttributeType, Schema, Tuple}
 import org.apache.texera.amber.core.virtualidentity.{ExecutionIdentity, WorkflowIdentity}
-import org.apache.texera.amber.operator.tags.IntegrationTest
 import org.apache.texera.amber.operator.{LogicalOp, StandaloneCodeGenerator}
 import org.apache.texera.amber.operator.metadata.OperatorGroupConstants
 import org.apache.texera.amber.operator.source.scan.FileDecodingMethod
 import org.apache.texera.amber.util.ArrowUtils
 import org.apache.texera.amber.util.JSONUtils.objectMapper
-import org.scalatest.Tag
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 
@@ -44,11 +46,8 @@ import java.nio.file.Files
 import java.util.concurrent.TimeUnit
 import scala.io.Source
 import scala.jdk.CollectionConverters._
-import scala.util.Try
 
 class ArrowSourceOpDescSpec extends AnyFlatSpec with Matchers {
-
-  private val NeedsPythonPackages = Tag(classOf[IntegrationTest].getName)
 
   private val workflowId = WorkflowIdentity(1L)
   private val executionId = ExecutionIdentity(1L)
@@ -176,8 +175,8 @@ class ArrowSourceOpDescSpec extends AnyFlatSpec with Matchers {
   // type the same way.
   "ArrowSourceOpDesc.generateStandaloneCode" should
     "keep a missing value apart from a NaN, and an integer integral" taggedAs NeedsPythonPackages in {
-    val python = resolvePython().getOrElse(cancel("No runnable python executable"))
-    if (!canImportPandas(python)) cancel(s"'$python' cannot import pandas")
+    val python = configuredPython().getOrElse(cancel("No runnable python executable"))
+    if (!canImport(python, "pandas", "pyarrow")) cancel(s"'$python' cannot import pandas")
 
     val schema = Schema(
       List(new Attribute("d", AttributeType.DOUBLE), new Attribute("i", AttributeType.INTEGER))
@@ -241,8 +240,8 @@ class ArrowSourceOpDescSpec extends AnyFlatSpec with Matchers {
   // under the names "1" and "2", which is what the executor reads, and comes
   // back out of pandas labelled 1 and 2.
   it should "keep the names a pandas frame of numbered columns was written under" taggedAs NeedsPythonPackages in {
-    val python = resolvePython().getOrElse(cancel("No runnable python executable"))
-    if (!canImportPandas(python)) cancel(s"'$python' cannot import pandas")
+    val python = configuredPython().getOrElse(cancel("No runnable python executable"))
+    if (!canImport(python, "pandas", "pyarrow")) cancel(s"'$python' cannot import pandas")
 
     val schema =
       Schema(
@@ -336,30 +335,4 @@ class ArrowSourceOpDescSpec extends AnyFlatSpec with Matchers {
   /** What a script needs before the block: its imports, and the file it reads. */
   private def scriptHeader(d: ArrowSourceOpDesc): String =
     (d.standaloneImports() :+ "import pandas as pd" :+ bindSourceFile(d)).mkString("\n")
-
-  private def resolvePython(): Option[String] = {
-    def fromConfig: Option[String] =
-      Try(ConfigFactory.parseResources("udf.conf").resolve()).toOption
-        .orElse(Try(ConfigFactory.load()).toOption)
-        .flatMap(c => Try(c.getConfig("python").getString("path")).toOption)
-        .map(_.trim)
-        .filter(_.nonEmpty)
-
-    def runnable(exe: String): Boolean =
-      Try(new ProcessBuilder(exe, "--version").redirectErrorStream(true).start()).toOption
-        .exists { p =>
-          if (!p.waitFor(5, TimeUnit.SECONDS)) { p.destroyForcibly(); false }
-          else p.exitValue() == 0
-        }
-
-    (fromConfig.toList ++ List("python3", "python", "py")).distinct.find(runnable)
-  }
-
-  private def canImportPandas(python: String): Boolean =
-    Try(
-      new ProcessBuilder(python, "-c", "import pandas, pyarrow").redirectErrorStream(true).start()
-    ).toOption.exists { p =>
-      if (!p.waitFor(60, TimeUnit.SECONDS)) { p.destroyForcibly(); false }
-      else p.exitValue() == 0
-    }
 }

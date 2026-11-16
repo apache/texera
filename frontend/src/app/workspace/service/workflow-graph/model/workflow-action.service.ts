@@ -108,8 +108,6 @@ export class WorkflowActionService {
 
   private workflowMetadata: WorkflowMetadata;
   private workflowMetadataChangeSubject: Subject<WorkflowMetadata> = new Subject<WorkflowMetadata>();
-  private resultPanelOpenSubject = new Subject<boolean>();
-  public readonly resultPanelOpen$: Observable<boolean> = this.resultPanelOpenSubject.asObservable();
 
   private workflowResetSubject = new Subject<void>();
 
@@ -677,14 +675,6 @@ export class WorkflowActionService {
 
   public setOperatorVersion(operatorId: string, newVersion: string): void {
     this.getTexeraGraph().changeOperatorVersion(operatorId, newVersion);
-  }
-
-  public openResultPanel(): void {
-    this.resultPanelOpenSubject.next(true);
-  }
-
-  public closeResultPanel(): void {
-    this.resultPanelOpenSubject.next(false);
   }
 
   //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////

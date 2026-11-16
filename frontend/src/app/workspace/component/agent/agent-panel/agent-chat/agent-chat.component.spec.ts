@@ -24,7 +24,7 @@ import { By } from "@angular/platform-browser";
 import { NoopAnimationsModule } from "@angular/platform-browser/animations";
 import { NzModalComponent, NzModalService } from "ng-zorro-antd/modal";
 import { MarkdownModule } from "ngx-markdown";
-import { BehaviorSubject, Observable, Subject, of, throwError } from "rxjs";
+import { BehaviorSubject, Observable, of, throwError } from "rxjs";
 import { AgentChatComponent } from "./agent-chat.component";
 import { ReActStepDetailModalComponent } from "../react-step-detail-modal/react-step-detail-modal.component";
 import { AgentInfo, AgentService, AgentSettingsApi } from "../../../../service/agent/agent.service";

@@ -21,13 +21,13 @@ package org.apache.texera.web.resource
 
 import com.typesafe.scalalogging.LazyLogging
 import org.apache.texera.amber.util.JSONUtils
+import org.apache.texera.auth.util.WorkflowAccess
 import org.apache.texera.dao.jooq.generated.tables.pojos.User
 import org.apache.texera.web.ServletAwareConfigurator
 import org.apache.texera.web.model.collab.event._
 import org.apache.texera.web.model.collab.request._
 import org.apache.texera.web.model.collab.response.HeartBeatResponse
 import org.apache.texera.web.resource.CollaborationResource._
-import org.apache.texera.web.resource.dashboard.user.workflow.WorkflowAccessResource
 
 import javax.websocket.server.ServerEndpoint
 import javax.websocket.{OnClose, OnMessage, OnOpen, Session}
@@ -43,7 +43,7 @@ object CollaborationResource {
   final val DUMMY_WID = -1
 
   private def checkIsReadOnly(wId: Int, uId: Int): Boolean = {
-    !WorkflowAccessResource.hasWriteAccess(Integer.valueOf(wId), Integer.valueOf(uId))
+    !WorkflowAccess.hasWriteAccess(Integer.valueOf(wId), Integer.valueOf(uId))
   }
 }
 
