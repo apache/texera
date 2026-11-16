@@ -383,6 +383,40 @@ describe("UiUdfParametersSyncService", () => {
   });
 });
 
+describe("Python parameter synchronization with the real parser", () => {
+  it("keeps a row and its value while a keyword is being added to its declaration", () => {
+    // The declaration is being extended (`value=` typed, the closing paren already there). The
+    // parser keeps the parameter, so the merged rows equal the stored ones and nothing is emitted:
+    // the value the user filled in stands. Before, the parser dropped the parameter and the rows
+    // were emitted without it, and the panel wrote them back that way.
+    const operator = {
+      operatorType: PYTHON_UDF_V2_OP_TYPE,
+      operatorProperties: { uiParameters: [parameter("threshold", "double", "0.5")] },
+    };
+    const graph = { getOperator: () => operator, getSharedOperatorType: () => undefined };
+    const realService = new UiUdfParametersSyncService(
+      { getTexeraGraph: () => graph } as unknown as WorkflowActionService,
+      new UiUdfParametersParserService()
+    );
+    const observer = vitest.fn();
+    realService.uiParametersChanged$.subscribe(observer);
+
+    realService.syncStructureFromCode(
+      "python-operator",
+      [
+        "class ProcessTupleOperator(UDFOperatorV2):",
+        "    def open(self):",
+        '        self.threshold = self.UiParameter(name="threshold", type=AttributeType.DOUBLE, value=).value',
+        "    def process_tuple(self, tuple_, port):",
+        "        yield tuple_",
+      ].join("\n")
+    );
+
+    expect(observer).not.toHaveBeenCalled();
+    expect(operator.operatorProperties.uiParameters).toEqual([parameter("threshold", "double", "0.5")]);
+  });
+});
+
 describe("R parameter synchronization with the real parser", () => {
   it.each(["RUDF", "RUDFSource"])("round-trips declarations through Yjs for %s", operatorType => {
     const operator = { operatorType, operatorProperties: { uiParameters: [parameter("count", "integer", "42")] } };

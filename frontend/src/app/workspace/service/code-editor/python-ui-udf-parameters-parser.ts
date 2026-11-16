@@ -50,8 +50,10 @@ const PYTHON_NODE = {
   VARIABLE_NAME: "VariableName",
 } as const;
 const ARGUMENT_DELIMITER_NODES = new Set(["(", ")", ","]);
-// "⚠" is lezer's error node: a body whose real statements are still commented out ends in one.
-const NON_STATEMENT_BODY_NODES = new Set([":", "Comment", "⚠"]);
+/** lezer's error node: what it leaves where syntax is missing. */
+const PARSE_ERROR_NODE = "⚠";
+// A body whose real statements are still commented out ends in an error node.
+const NON_STATEMENT_BODY_NODES = new Set([":", "Comment", PARSE_ERROR_NODE]);
 
 const UI_PARAMETER_CALLEE = ["self", "UiParameter"];
 const ATTRIBUTE_TYPE_RECEIVER = "AttributeType";
@@ -255,7 +257,15 @@ function readUiParameterArguments(argumentList: ParserSyntaxNode, code: string):
 
   for (const argument of readArguments(argumentList, code)) {
     if (argument.key) sawNamedArgument = true;
-    else if (sawNamedArgument) return undefined;
+    // An argument still being typed: `value=` with nothing after it yet, the closing paren the
+    // editor put there already, and lezer's error node where the value will go. Read as the value,
+    // that discarded the whole parameter -- and the rows are rebuilt from this parse, so the
+    // parameter's value went with it. The unfinished argument is left out instead; its keyword
+    // still counts as a named argument, so a positional after it is refused as it always was. A
+    // complete but wrong value (an unknown resource) is still refused below: this is about syntax
+    // that is not there yet, not about a wrong one.
+    if (argument.value.name === PARSE_ERROR_NODE) continue;
+    if (!argument.key && sawNamedArgument) return undefined;
 
     const key = argument.key ?? POSITIONAL_ARGUMENT_KEYS[positionalIndex++];
     const parsedArgument = readUiParameterArgument(key, argument.value, code);

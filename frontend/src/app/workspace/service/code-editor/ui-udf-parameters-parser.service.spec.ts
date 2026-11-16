@@ -506,6 +506,37 @@ describe("UiUdfParametersParserService degenerate sources", () => {
     expect(service.parse(twoNames, "python")).toEqual([]);
   });
 
+  it("should keep a parameter whose declaration has a keyword typed up to its '=', the closing paren already in place", () => {
+    // The editor closes the paren as it is opened, so a keyword being added to a declaration reads
+    // `value=)` for a moment, and lezer puts its error node where the value will go. Read as the
+    // value, that discarded the whole parameter -- and the sync then rebuilt the rows without it,
+    // taking the value the user had filled in with it. The unfinished argument is left out instead.
+    // A complete but unknown value still discards the parameter (the resource-parameters block's
+    // unknown-resource case): this is about syntax not yet there, not about a wrong one.
+    const code = pythonLines(
+      "class ProcessTupleOperator(UDFOperatorV2):",
+      "    def open(self):",
+      '        self.threshold = self.UiParameter(name="threshold", type=AttributeType.DOUBLE, value=).value',
+      "    def process_tuple(self, tuple_, port):",
+      "        yield tuple_"
+    );
+
+    expect(service.parse(code, "python")).toEqual([parameter("threshold", "double")]);
+  });
+
+  it("should still refuse a positional argument after a keyword that has no value yet", () => {
+    // The keyword is unfinished, not absent: "x" after it is a positional after a named argument,
+    // which Python refuses too, and reading "x" as the keyword's value would declare a parameter
+    // the code does not.
+    const code = pythonLines(
+      "class ProcessTupleOperator(UDFOperatorV2):",
+      "    def open(self):",
+      '        self.UiParameter(name=, "x", type=AttributeType.DOUBLE)'
+    );
+
+    expect(service.parse(code, "python")).toEqual([]);
+  });
+
   it("should ignore a type given as a plain string instead of an AttributeType member", () => {
     // "double" is not a member path, so there is nothing to resolve against the
     // AttributeType receiver — the call is skipped rather than guessed at.
