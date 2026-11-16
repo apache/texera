@@ -21,41 +21,9 @@ under the License.
 # VictoriaMetrics: metrics store, k8s counterpart of the docker-compose
 # victoriametrics service. Accepts Prometheus remote-write from the
 # collector; MetricsQL query API on the same port.
-apiVersion: v1
-kind: PersistentVolumeClaim
-metadata:
-  name: {{ .Release.Name }}-victoriametrics-data
-  namespace: {{ .Release.Namespace }}
-  labels:
-    app: {{ .Release.Name }}-victoriametrics
-spec:
-  accessModes: ["ReadWriteOnce"]
-  {{- if .Values.observability.metrics.storageClass }}
-  storageClassName: {{ .Values.observability.metrics.storageClass }}
-  {{- end }}
-  resources:
-    requests:
-      storage: {{ .Values.observability.metrics.storage }}
+{{ include "texera.observability.dataClaim" (dict "release" .Release "app" "victoriametrics" "storage" .Values.observability.metrics) }}
 ---
-apiVersion: apps/v1
-kind: Deployment
-metadata:
-  name: {{ .Release.Name }}-victoriametrics
-  namespace: {{ .Release.Namespace }}
-  labels:
-    app: {{ .Release.Name }}-victoriametrics
-spec:
-  replicas: 1
-  # Single writer bound to one RWO volume; never run two at once.
-  strategy:
-    type: Recreate
-  selector:
-    matchLabels:
-      app: {{ .Release.Name }}-victoriametrics
-  template:
-    metadata:
-      labels:
-        app: {{ .Release.Name }}-victoriametrics
+{{ include "texera.deploymentHeader" (dict "release" .Release "name" "victoriametrics" "replicas" 1 "recreate" true) }}
     spec:
       securityContext:
         runAsNonRoot: true
@@ -69,11 +37,7 @@ spec:
             - "-storageDataPath=/data"
             - "-retentionPeriod={{ .Values.observability.metrics.retentionPeriod }}"
             - "-httpListenAddr=:{{ .Values.observability.metrics.port }}"
-          securityContext:
-            readOnlyRootFilesystem: true
-            allowPrivilegeEscalation: false
-            capabilities:
-              drop: ["ALL"]
+          {{- include "texera.observability.containerSecurityContext" true | nindent 10 }}
           ports:
             - name: http
               containerPort: {{ .Values.observability.metrics.port }}
@@ -93,20 +57,7 @@ spec:
           persistentVolumeClaim:
             claimName: {{ .Release.Name }}-victoriametrics-data
 ---
-apiVersion: v1
-kind: Service
-metadata:
-  name: {{ .Release.Name }}-victoriametrics
-  namespace: {{ .Release.Namespace }}
-  labels:
-    app: {{ .Release.Name }}-victoriametrics
-spec:
-  type: ClusterIP
-  selector:
-    app: {{ .Release.Name }}-victoriametrics
-  ports:
-    - name: http
-      protocol: TCP
-      port: {{ .Values.observability.metrics.port }}
-      targetPort: {{ .Values.observability.metrics.port }}
+{{ include "texera.observability.service" (dict "release" .Release "app" "victoriametrics" "ports" (list
+    (dict "name" "http" "port" .Values.observability.metrics.port)
+)) }}
 {{- end }}
