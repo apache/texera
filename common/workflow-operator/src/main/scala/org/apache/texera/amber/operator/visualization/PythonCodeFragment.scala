@@ -20,9 +20,8 @@
 package org.apache.texera.amber.operator.visualization
 
 private[visualization] object PythonCodeFragment {
-  def render(code: String, indent: Int, keepLine: String => Boolean): String =
+  def render(code: String, indent: Int): String =
     code.stripMargin.linesIterator
-      .filter(keepLine)
       .map { line =>
         if (line.isEmpty) line else (" " * indent) + line
       }

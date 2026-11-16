@@ -72,7 +72,7 @@ class NestedTableOpDesc extends PythonVisualizationOpDesc {
        |
        |        df = pd.DataFrame(data, columns=columns)
        |
-       |${NestedTablePython.body(8, runtime = true)}
+       |${NestedTablePython.body(8)}
        |"""
   }
 
@@ -140,7 +140,7 @@ class NestedTableOpDesc extends PythonVisualizationOpDesc {
        |
        |    df = pd.DataFrame(data, columns=columns)
        |
-       |${NestedTablePython.body(4, runtime = false)}
+       |${NestedTablePython.body(4)}
        |
        |    html = styled_table.to_html()
        |    with open(outputHtml, "w", encoding="utf-8") as output:
@@ -150,7 +150,7 @@ class NestedTableOpDesc extends PythonVisualizationOpDesc {
 }
 
 private object NestedTablePython {
-  def body(indent: Int, runtime: Boolean): String =
+  def body(indent: Int): String =
     org.apache.texera.amber.operator.visualization.PythonCodeFragment.render(
       """|styles = [
        |    {'selector': 'th', 'props': [('background-color', '#f2f2f2'),
@@ -179,7 +179,6 @@ private object NestedTablePython {
        |    .set_table_attributes('class="dataframe"')
        |    .hide(axis="index")
        |)""",
-      indent,
-      _ => true
+      indent
     )
 }

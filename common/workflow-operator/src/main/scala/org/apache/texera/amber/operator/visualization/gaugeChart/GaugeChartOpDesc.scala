@@ -134,7 +134,7 @@ class GaugeChartOpDesc extends PythonVisualizationOpDesc with PlotlyStandaloneCo
          |            html_chunks = []
          |            for _, row in table.iterrows():
          |                try:
-         |${GaugeChartPython.body(20, runtime = true)}
+         |${GaugeChartPython.body(20)}
          |                    html_chunk = pio.to_html(fig, include_plotlyjs='cdn', auto_play=False)
          |
          |                    if hasattr(self, 'step_errors') and self.step_errors:
@@ -203,7 +203,7 @@ class GaugeChartOpDesc extends PythonVisualizationOpDesc with PlotlyStandaloneCo
        |            figs = []
        |            for _, row in table.iterrows():
        |                try:
-       |${GaugeChartPython.body(20, runtime = false)}
+       |${GaugeChartPython.body(20)}
        |                    figs.append(fig)
        |                    html_chunks.append(pio.to_html(fig, include_plotlyjs='cdn', auto_play=False))
        |                except Exception as e:
@@ -224,7 +224,7 @@ class GaugeChartOpDesc extends PythonVisualizationOpDesc with PlotlyStandaloneCo
 }
 
 private object GaugeChartPython {
-  def body(indent: Int, runtime: Boolean): String =
+  def body(indent: Int): String =
     org.apache.texera.amber.operator.visualization.PythonCodeFragment.render(
       """|actual = float(row[gauge_value])
        |max_val = actual
@@ -262,7 +262,6 @@ private object GaugeChartPython {
        |))
        |
        |fig.update_layout(margin=dict(l=20, r=20, b=40, t=60), height=250)""",
-      indent,
-      line => runtime || line.nonEmpty
+      indent
     )
 }

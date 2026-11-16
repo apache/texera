@@ -145,8 +145,7 @@ class WordCloudOpDesc extends PythonVisualizationOpDesc {
        |if table.empty:
        |${standaloneErrorPage("input table is empty.", handle = "f")}
        |elif not (pd.api.types.is_object_dtype(table[$textLit]) or pd.api.types.is_string_dtype(table[$textLit])):
-       |    with open(outputHtml, "w", encoding="utf-8") as f:
-       |        f.write(render_error("$NotTextMessage"))
+       |${standaloneErrorPage(NotTextMessage, handle = "f")}
        |else:
        |    table = table.dropna(subset=[$textLit])
        |    table = table[table[$textLit].str.contains(r'\\w', regex=True)]

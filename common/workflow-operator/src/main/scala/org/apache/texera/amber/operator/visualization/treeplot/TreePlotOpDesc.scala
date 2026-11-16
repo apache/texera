@@ -100,7 +100,7 @@ class TreePlotOpDesc extends PythonVisualizationOpDesc with PlotlyStandaloneCode
        |        return annotations
        |
        |    def build_tree_layout(self, edges):
-       |${TreePlotPython.body(8, runtime = true)}
+       |${TreePlotPython.body(8)}
        |
        |    @overrides
        |    def process_table(self, table: Table, port: int) -> Iterator[Optional[TableLike]]:
@@ -217,7 +217,7 @@ class TreePlotOpDesc extends PythonVisualizationOpDesc with PlotlyStandaloneCode
        |    return annotations
        |
        |def build_tree_layout(edges):
-       |${TreePlotPython.body(4, runtime = false)}
+       |${TreePlotPython.body(4)}
        |
        |def compute_tree_layout(edges):
        |    try:
@@ -295,7 +295,7 @@ class TreePlotOpDesc extends PythonVisualizationOpDesc with PlotlyStandaloneCode
 }
 
 private object TreePlotPython {
-  def body(indent: Int, runtime: Boolean): String =
+  def body(indent: Int): String =
     org.apache.texera.amber.operator.visualization.PythonCodeFragment.render(
       """|# Tidy top-down tree: depth picks the row, a leaf takes the next
        |# free column and a parent sits centred over its own children.
@@ -355,7 +355,6 @@ private object TreePlotPython {
        |        grow(label)
        |# The y-axis is inverted here so the tree grows top-down.
        |return labels, [(column[label], -depth[label]) for label in labels]""",
-      indent,
-      line => runtime || !line.trim.startsWith("#")
+      indent
     )
 }

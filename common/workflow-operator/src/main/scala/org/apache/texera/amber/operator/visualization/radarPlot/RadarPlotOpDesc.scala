@@ -137,7 +137,7 @@ class RadarPlotOpDesc extends PythonVisualizationOpDesc with PlotlyStandaloneCod
        |        show_markers = ${toPythonBool(showMarkers)}
        |        show_legend = ${toPythonBool(showLegend)}
        |
-       |${RadarPlotPython.body(8, runtime = true)}
+       |${RadarPlotPython.body(8)}
        |"""
   }
 
@@ -204,13 +204,13 @@ class RadarPlotOpDesc extends PythonVisualizationOpDesc with PlotlyStandaloneCod
        |        show_markers = ${toPythonBool(showMarkers)}
        |        show_legend = ${toPythonBool(showLegend)}
        |
-       |${RadarPlotPython.body(8, runtime = false)}
+       |${RadarPlotPython.body(8)}
        |${standaloneFigure("Radar plot")}""".stripMargin
   }
 }
 
 private object RadarPlotPython {
-  def body(indent: Int, runtime: Boolean): String =
+  def body(indent: Int): String =
     org.apache.texera.amber.operator.visualization.PythonCodeFragment.render(
       """|selected_table_df = table[categories].astype(float)
        |selected_table = selected_table_df.values
@@ -269,7 +269,6 @@ private object RadarPlotPython {
        |    width=600,
        |    height=600
        |)""",
-      indent,
-      line => runtime || !line.trim.startsWith("#")
+      indent
     )
 }

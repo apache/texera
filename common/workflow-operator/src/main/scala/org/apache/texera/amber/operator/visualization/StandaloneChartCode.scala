@@ -35,15 +35,13 @@ private[visualization] object StandaloneChartCode {
          |print(${pyStringLiteral(label + " saved to ")} + ${if (bothOutputs)
         """outputJson + " and " + outputHtml"""
       else "outputHtml"})""",
-      indent,
-      _ => true
+      indent
     )
 
   def standaloneErrorPage(message: String, indent: Int = 4, handle: String = "output"): String =
     PythonCodeFragment.render(
       s"""with open(outputHtml, "w", encoding="utf-8") as $handle:
          |    $handle.write(render_error(${pyStringLiteral(message)}))""",
-      indent,
-      _ => true
+      indent
     )
 }
