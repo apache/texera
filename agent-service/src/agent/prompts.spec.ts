@@ -89,6 +89,19 @@ describe("buildSystemPrompt", () => {
     expect(prompt).toContain("## R UDF Guide");
   });
 
+  test("describes the dataflow block that ends each step, and no format for the conversation", () => {
+    // The conversation reaches the model as native messages, so the prompt describes only the one
+    // block the service writes: the current dataflow.
+    const prompt = buildSystemPrompt(makeMetadataStore(), ["Filter"]);
+
+    expect(prompt).toContain("## Current Dataflow");
+    expect(prompt).toContain("### Operator `<operator_id>` (<operator_type>, executed|failed|not-executed)");
+    expect(prompt).not.toContain("## Context Format");
+    expect(prompt).not.toContain("# Completed Tasks");
+    expect(prompt).not.toContain("# Ongoing Task");
+    expect(prompt).not.toContain("### Turn");
+  });
+
   test("reports that no operators are available when a restricted type is absent from metadata", () => {
     const prompt = buildSystemPrompt(makeMetadataStore(), ["MissingOperator"]);
 
