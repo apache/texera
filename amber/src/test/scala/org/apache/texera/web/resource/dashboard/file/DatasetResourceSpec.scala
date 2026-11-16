@@ -19,12 +19,10 @@
 
 package org.apache.texera.web.resource.dashboard.file
 
-import org.apache.texera.auth.SessionUser
 import org.apache.texera.dao.MockTexeraDB
 import org.apache.texera.dao.jooq.generated.enums.UserRoleEnum
 import org.apache.texera.dao.jooq.generated.tables.pojos.User
 import org.apache.texera.web.resource.dashboard.DashboardResource.SearchQueryParams
-import org.apache.texera.web.resource.dashboard.user.dataset.DatasetResource.DashboardDataset
 import org.apache.texera.web.resource.dashboard.DatasetSearchQueryBuilder
 import org.scalatest.flatspec.AnyFlatSpec
 import org.apache.texera.dao.jooq.generated.tables.daos.{UserDao, DatasetDao, DatasetUserAccessDao}
@@ -75,14 +73,6 @@ class DatasetResourceSpec
     dataset
   }
 
-  private val sessionUser1: SessionUser = {
-    new SessionUser(ownerUser)
-  }
-
-  private val sessionUser2: SessionUser = {
-    new SessionUser(testUser)
-  }
-
   // get context lazily
   private lazy val datasetDao: DatasetDao = {
     new DatasetDao(getDSLContext.configuration())
@@ -114,7 +104,6 @@ class DatasetResourceSpec
 
   override protected def afterEach(): Unit = {
     // 1. Delete access rows before the dataset
-    val datasetUserAccessDao = new DatasetUserAccessDao(getDSLContext.configuration())
     getDSLContext
       .deleteFrom(org.apache.texera.dao.jooq.generated.tables.DatasetUserAccess.DATASET_USER_ACCESS)
       .execute()
@@ -127,10 +116,6 @@ class DatasetResourceSpec
 
   override protected def afterAll(): Unit = {
     shutdownDB()
-  }
-
-  private def assertSameDataset(a: Dataset, b: DashboardDataset): Unit = {
-    assert(a.getName == b.dataset.getName)
   }
 
   "User.accountCreationTime" should "be persisted and retrievable via UserDao" in {

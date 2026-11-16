@@ -42,7 +42,7 @@ class WorkflowSpec extends AnyFlatSpec {
     val keyword = TestOperators.keywordSearchOpDesc("Region", "Asia")
     val context = new WorkflowContext()
 
-    val result = new WorkflowCompiler(context).compile(
+    val result = new WorkflowCompiler(context, TestOperators.fixtureFileResolver).compile(
       LogicalPlanPojo(
         List(csv, keyword),
         List(
@@ -70,7 +70,7 @@ class WorkflowSpec extends AnyFlatSpec {
   it should "reject a result without a physical plan with a clear error" in {
     val context = new WorkflowContext()
     // Lenient default: the unset fileName becomes a per-operator error and physicalPlan = None.
-    val failed = new WorkflowCompiler(context).compile(
+    val failed = new WorkflowCompiler(context, TestOperators.fixtureFileResolver).compile(
       LogicalPlanPojo(List(new CSVScanSourceOpDesc()), List(), List(), List())
     )
     assert(failed.physicalPlan.isEmpty)

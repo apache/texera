@@ -29,7 +29,6 @@ import org.apache.texera.amber.core.state.StateReferencing
 import org.apache.texera.amber.core.workflow.OutputPort.OutputMode
 import org.apache.texera.amber.core.workflow.{InputPort, OutputPort}
 import org.apache.texera.amber.operator.LogicalOp
-import org.apache.texera.amber.operator.source.scan.csv.CSVScanSourceOpDesc
 import org.apache.texera.amber.util.JSONUtils.objectMapper
 
 import java.util
@@ -113,12 +112,6 @@ object OperatorMetadataGenerator {
       .toMap
   }
   val allOperatorMetadata: AllOperatorMetadata = generateAllOperatorMetadata()
-
-  def main(args: Array[String]): Unit = {
-    // run this if you want to check the json schema generated for an operator descriptor
-    // replace the argument with the class of your operator descriptor
-    println(generateOperatorJsonSchema(classOf[CSVScanSourceOpDesc]).toPrettyString)
-  }
 
   def generateOperatorJsonSchema(opDescClass: Class[_ <: LogicalOp]): JsonNode = {
     val jsonSchema = jsonSchemaGenerator.generateJsonSchema(opDescClass).asInstanceOf[ObjectNode]
