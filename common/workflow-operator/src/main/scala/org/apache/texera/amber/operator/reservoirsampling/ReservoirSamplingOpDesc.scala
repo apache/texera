@@ -64,8 +64,9 @@ class ReservoirSamplingOpDesc extends LogicalOp with StandaloneCodeGenerator {
   override def standaloneHelpers(): Seq[String] = Seq(SamplingHelpers.JavaRandom)
 
   // The executor runs Algorithm R (Vitter): fill the reservoir with the first k
-  // tuples, then for tuple m+1 (m >= k) draw i = rand.nextInt(m), uniform in
-  // [0, m), and replace reservoir[i] iff i < k.
+  // tuples, then for tuple m+1 (m >= k) draw i = rand.nextInt(m + 1), uniform in
+  // [0, m], and replace reservoir[i] iff i < k. It refuses a k below 1 at the
+  // first tuple, so the script refuses it once there is a row.
   //
   // Its generator is seeded with the worker count, so the rows agree with a
   // single-worker run and not with a wider one. See RandomKSamplingOpDesc for
@@ -78,12 +79,14 @@ class ReservoirSamplingOpDesc extends LogicalOp with StandaloneCodeGenerator {
   override def generateStandaloneCode(): String = {
     s"""_texera_rs_rng = _TexeraJavaRandom(1)
        |_texera_rs_k = $k
+       |if _texera_rs_k < 1 and len(in1df) > 0:
+       |    raise ValueError(f"Reservoir Sampling needs a sample size of at least 1, got {_texera_rs_k}")
        |_texera_rs_reservoir = []
        |for _texera_rs_n in range(len(in1df)):
        |    if _texera_rs_n < _texera_rs_k:
        |        _texera_rs_reservoir.append(_texera_rs_n)
        |    else:
-       |        _texera_rs_i = _texera_rs_rng.next_int(_texera_rs_n)
+       |        _texera_rs_i = _texera_rs_rng.next_int(_texera_rs_n + 1)
        |        if _texera_rs_i < _texera_rs_k:
        |            _texera_rs_reservoir[_texera_rs_i] = _texera_rs_n
        |out1df = in1df.iloc[_texera_rs_reservoir].reset_index(drop=True)""".stripMargin
