@@ -19,6 +19,7 @@
 
 package org.apache.texera.amber.engine.common.ambermessage
 
+import org.apache.arrow.vector.VectorSchemaRoot
 import org.apache.texera.amber.core.state.State
 import org.apache.texera.amber.core.tuple.{Schema, Tuple}
 
@@ -48,6 +49,27 @@ final case class StateFrame(frame: State, loopCounter: Long = 0L, loopStartId: S
 final case class VectorFrame(arrowIpcBytes: Array[Byte], rowCount: Int, schema: Schema)
     extends DataPayload {
   val inMemSize: Long = arrowIpcBytes.length.toLong
+}
+
+/**
+  * A batch handed to a co-located (same-JVM) receiver as a LIVE Arrow root, by reference,
+  * with no serialization at all: the local zero-copy wire. Ownership transfers to the
+  * receiver, which closes `root` after consuming it (via processColumnarRoot); the sender
+  * must not touch it after sending. Produced only for a single-consumer local columnar
+  * edge; a remote hop uses `VectorFrame` and a non-columnar receiver uses `DataFrame`.
+  * A custom Kryo serializer (AmberKryoInitializer) converts it to/from Arrow IPC bytes so
+  * an accidental serialization (e.g. a checkpoint of an in-flight batch) stays correct,
+  * losing only the zero-copy property.
+  */
+final case class LocalColumnarBatch(root: VectorSchemaRoot, rowCount: Int, schema: Schema)
+    extends DataPayload {
+  val inMemSize: Long = {
+    val vecs = root.getFieldVectors
+    var sum = 0L
+    var i = 0
+    while (i < vecs.size) { sum += vecs.get(i).getBufferSize.toLong; i += 1 }
+    sum
+  }
 }
 
 final case class DataFrame(frame: Array[Tuple]) extends DataPayload {

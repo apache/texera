@@ -61,6 +61,7 @@ import org.apache.texera.amber.engine.architecture.worker.statistics.WorkerState
 import org.apache.texera.amber.engine.common.ambermessage.{
   VectorFrame,
   DataFrame,
+  LocalColumnarBatch,
   StateFrame,
   WorkflowFIFOMessage
 }
@@ -862,6 +863,25 @@ class DataProcessorSpec extends AnyFlatSpec with MockFactory with Matchers with 
     assert(exec.columnarCalls == 1)
   }
 
+  "data processor" should "consume a local live root via processColumnarRoot and free it" in {
+    val exec = new DataProcessorSpec.EmitAllColumnarExec
+    val (dp, sent) = columnarSetup(exec)
+    dp.outputManager.setColumnarOutput(true)
+    val alloc = new RootAllocator()
+    val root =
+      ArrowUtils.deserializeRootOwned(ArrowUtils.serializeTuples(schema, columnarBatch), alloc)
+    dp.processDataPayload(senderChannel, LocalColumnarBatch(root, columnarBatch.length, schema))
+    drain(dp)
+    // The executor consumed the live root natively (processColumnarRoot, not processTuple),
+    // and the received root was closed by the receiver (the allocator is back to zero).
+    assert(exec.columnarRootCalls == 1)
+    assert(exec.processTupleCalls == 0)
+    assert(dp.statisticsManager.getInputTupleCount == columnarBatch.length.toLong)
+    assert(alloc.getAllocatedMemory == 0L, "the received live root must be freed by the receiver")
+    alloc.close()
+    exec.close()
+  }
+
   "data processor" should "decode a VectorFrame to tuples for a non-columnar operator" in {
     val exec = new DataProcessorSpec.RowOnlyExec
     val (dp, sent) = columnarSetup(exec)
@@ -889,13 +909,23 @@ object DataProcessorSpec {
   /** Consumes the Arrow batch and emits every row back (a pass-through filter). */
   class EmitAllColumnarExec extends EchoingExec with ColumnarOperatorExecutor {
     var columnarCalls = 0
+    var columnarRootCalls = 0
     private val alloc = new RootAllocator()
     override def processColumnarBatch(arrowIpcBytes: Array[Byte], port: Int): ColumnarResult = {
       columnarCalls += 1
-      ArrowUtils.deserializeRootFold(arrowIpcBytes, alloc) { root =>
-        ColumnarResult.Emit(ArrowUtils.selectRows(root, Array.fill(root.getRowCount)(true), alloc))
-      }
+      ArrowUtils.deserializeRootFold(arrowIpcBytes, alloc)(emitAll)
     }
+    // Zero-copy path: read the live root directly (selectRows copies, so the foreign root
+    // is only read, not freed).
+    override def processColumnarRoot(
+        root: org.apache.arrow.vector.VectorSchemaRoot,
+        port: Int
+    ): ColumnarResult = {
+      columnarRootCalls += 1
+      emitAll(root)
+    }
+    private def emitAll(root: org.apache.arrow.vector.VectorSchemaRoot): ColumnarResult =
+      ColumnarResult.Emit(ArrowUtils.selectRows(root, Array.fill(root.getRowCount)(true), alloc))
     override def close(): Unit = alloc.close()
   }
 
