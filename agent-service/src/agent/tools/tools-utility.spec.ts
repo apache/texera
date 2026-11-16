@@ -25,40 +25,155 @@ import {
   formatModifyOperatorResult,
   formatExecuteOperatorResult,
   formatOperatorError,
-  getVisibleResultHeaders,
+  formatOperatorOutput,
+  formatSampleTuplesAsTsv,
+  getOperatorErrorText,
+  tupleColumns,
+  tupleToRecord,
 } from "./tools-utility";
+import {
+  OperatorState,
+  WorkflowFatalErrorType,
+  type IndexedTuple,
+  type OperatorExecutionSummary,
+  type Tuple,
+  type WebOutputMode,
+  type WorkflowFatalError,
+} from "../../types/execution";
 
-describe("getVisibleResultHeaders", () => {
-  test("returns every key when no internal columns are present", () => {
-    expect(getVisibleResultHeaders({ a: 1, b: 2 })).toEqual(["a", "b"]);
+function makeFatal(message: string): WorkflowFatalError {
+  return {
+    type: { name: WorkflowFatalErrorType.EXECUTION_FAILURE },
+    timestamp: { seconds: 0, nanos: 0 },
+    message,
+    details: "",
+    operatorId: "",
+    workerId: "",
+  };
+}
+
+// Build an engine-style Tuple with an all-STRING schema from a column->value record.
+function recordToTuple(record: Record<string, unknown>): Tuple {
+  return {
+    schema: { attributes: Object.keys(record).map(name => ({ attributeName: name, attributeType: "string" })) },
+    fields: Object.values(record),
+  };
+}
+
+function toSampleTuples(records: ReadonlyArray<Record<string, unknown>>): ReadonlyArray<IndexedTuple> {
+  return records.map((record, rowIndex) => [rowIndex, recordToTuple(record)]);
+}
+
+function makeResultOpInfo(
+  records: ReadonlyArray<Record<string, unknown>>,
+  resultMode: WebOutputMode = { type: "PaginationMode" }
+): OperatorExecutionSummary {
+  return {
+    state: OperatorState.COMPLETED,
+    errorMessages: [],
+    resultSummary: { resultMode, sampleTuples: toSampleTuples(records), totalTuplesCount: records.length },
+  };
+}
+
+describe("getOperatorErrorText", () => {
+  test("joins the messages of every fatal error", () => {
+    const opInfo = { state: OperatorState.FAILED, errorMessages: [makeFatal("e1"), makeFatal("e2")] };
+    expect(getOperatorErrorText(opInfo)).toBe("e1; e2");
   });
 
-  test("strips __row_index__ from the result", () => {
-    expect(getVisibleResultHeaders({ __row_index__: 0, a: 1 })).toEqual(["a"]);
+  test("ignores errors whose message is empty", () => {
+    const opInfo = { state: OperatorState.FAILED, errorMessages: [makeFatal(""), makeFatal("real")] };
+    expect(getOperatorErrorText(opInfo)).toBe("real");
   });
 
-  test("strips __is_visualization__ from the result", () => {
-    expect(getVisibleResultHeaders({ __is_visualization__: true, a: 1 })).toEqual(["a"]);
+  test("returns an empty string when every error message is empty", () => {
+    const opInfo = { state: OperatorState.COMPLETED, errorMessages: [makeFatal("")] };
+    expect(getOperatorErrorText(opInfo)).toBe("");
   });
 
-  test("strips every known internal column at once", () => {
-    expect(getVisibleResultHeaders({ __row_index__: 0, __is_visualization__: true, a: 1, b: 2 })).toEqual(["a", "b"]);
+  test("returns an empty string when there are no errors", () => {
+    const opInfo = { state: OperatorState.COMPLETED, errorMessages: [] };
+    expect(getOperatorErrorText(opInfo)).toBe("");
+  });
+});
+
+describe("tupleColumns / tupleToRecord", () => {
+  const tuple: Tuple = {
+    schema: {
+      attributes: [
+        { attributeName: "z", attributeType: "string" },
+        { attributeName: "a", attributeType: "string" },
+      ],
+    },
+    fields: [1, 2],
+  };
+
+  test("tupleColumns returns column names in schema order", () => {
+    expect(tupleColumns(tuple)).toEqual(["z", "a"]);
   });
 
-  test("preserves visible column order", () => {
-    expect(getVisibleResultHeaders({ z: 1, __row_index__: 0, a: 2, __is_visualization__: true, m: 3 })).toEqual([
-      "z",
-      "a",
-      "m",
-    ]);
+  test("tupleToRecord projects fields back onto their column names", () => {
+    expect(tupleToRecord(tuple)).toEqual({ z: 1, a: 2 });
   });
 
-  test("returns an empty array for an empty row", () => {
-    expect(getVisibleResultHeaders({})).toEqual([]);
+  test("tupleColumns is empty for a schema with no attributes", () => {
+    expect(tupleColumns({ schema: { attributes: [] }, fields: [] })).toEqual([]);
+  });
+});
+
+describe("formatSampleTuplesAsTsv", () => {
+  test("returns empty string for no tuples or tuples with no columns", () => {
+    expect(formatSampleTuplesAsTsv([])).toBe("");
+    expect(formatSampleTuplesAsTsv([[0, { schema: { attributes: [] }, fields: [] }]])).toBe("");
   });
 
-  test("returns an empty array when only internal columns are present", () => {
-    expect(getVisibleResultHeaders({ __row_index__: 0, __is_visualization__: true })).toEqual([]);
+  test("formats tab-separated header and row values with index column", () => {
+    const rows = [
+      { colA: "val1", colB: 10, colC: null, colD: true },
+      { colA: "line\nbreak", colB: 20, colC: "NULL", colD: false },
+    ];
+    const lines = formatSampleTuplesAsTsv(toSampleTuples(rows)).split("\n");
+    expect(lines[0]).toBe("\tcolA\tcolB\tcolC\tcolD");
+    expect(lines[1]).toBe("0\tval1\t10\tNaN\ttrue");
+    expect(lines[2]).toBe("1\tline\\nbreak\t20\tNaN\tfalse");
+  });
+});
+
+describe("formatOperatorOutput - charLimit truncation", () => {
+  const rows = Array.from({ length: 100 }, (_, i) => ({ a: i, b: "x".repeat(20) }));
+  const opInfo = makeResultOpInfo(rows);
+
+  test("without charLimit keeps every row", () => {
+    const out = formatOperatorOutput("op1", opInfo);
+    expect(out).toContain("\n0\t0\t");
+    expect(out).toContain("\n50\t50\t");
+    expect(out).toContain("\n99\t99\t");
+  });
+
+  test("charLimit keeps head and tail rows and drops the middle", () => {
+    const out = formatOperatorOutput("op1", opInfo, 300);
+    expect(out).toContain("Output table shape: (100, 2)");
+    expect(out).toContain("\ta\tb");
+    expect(out).toContain("\n0\t0\t");
+    expect(out).toContain("\n99\t99\t");
+    expect(out).not.toContain("\n50\t50\t");
+  });
+
+  test("charLimit larger than the table leaves it untouched", () => {
+    expect(formatOperatorOutput("op1", opInfo, 1_000_000)).toBe(formatOperatorOutput("op1", opInfo));
+  });
+
+  test("tiny charLimit still keeps at least one row", () => {
+    const out = formatOperatorOutput("op1", opInfo, 1);
+    expect(out).toContain("\n0\t0\t");
+  });
+
+  test("visualization content is skipped even when charLimit is set", () => {
+    const html = "<html>" + "y".repeat(5000) + "</html>";
+    const vizInfo = makeResultOpInfo([{ "html-content": html }], { type: "SetSnapshotMode" });
+    const out = formatOperatorOutput("op1", vizInfo, 100_000);
+    expect(out).not.toContain("<html>");
+    expect(out).toContain("<skipped: visualization content>");
   });
 });
 

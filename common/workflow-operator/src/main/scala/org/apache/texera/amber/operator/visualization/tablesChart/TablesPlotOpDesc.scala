@@ -19,6 +19,7 @@
 
 package org.apache.texera.amber.operator.visualization.tablesChart
 
+import org.apache.texera.amber.operator.visualization.StandaloneChartCode._
 import com.fasterxml.jackson.annotation.{JsonProperty, JsonPropertyDescription}
 import org.apache.texera.amber.pybuilder.PythonTemplateBuilder.PythonTemplateBuilderStringContext
 import org.apache.texera.amber.operator.visualization.PlotlyStandaloneCode
@@ -119,13 +120,14 @@ class TablesPlotOpDesc extends PythonVisualizationOpDesc with PlotlyStandaloneCo
        |
        |attributes = $columnsList
        |if in1df.empty:
-       |    with open(outputHtml, "w", encoding="utf-8") as output:
-       |        output.write(render_error("input table is empty."))
+       |${standaloneErrorPage("input table is empty.")}
        |else:
        |    table = in1df.dropna(subset=attributes)
        |    if table.empty:
-       |        with open(outputHtml, "w", encoding="utf-8") as output:
-       |            output.write(render_error("value column contains only non-positive numbers or nulls."))
+       |${standaloneErrorPage(
+      "value column contains only non-positive numbers or nulls.",
+      indent = 8
+    )}
        |    else:
        |        filtered_table = table[attributes]
        |        headers = filtered_table.columns.tolist()

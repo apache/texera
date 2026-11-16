@@ -61,6 +61,50 @@ const getSelectedTask = (field: FormlyFieldConfig): string | undefined => {
   return undefined;
 };
 
+function hideUnlessTask(mappedField: FormlyFieldConfig, predicate: (task: string | undefined) => boolean): void {
+  mappedField.expressions = {
+    ...mappedField.expressions,
+    hide: (field: FormlyFieldConfig) => !predicate(getSelectedTask(field)),
+  };
+}
+
+function hideUnlessTaskIn(mappedField: FormlyFieldConfig, tasks: string[]): void {
+  hideUnlessTask(mappedField, task => task !== undefined && tasks.includes(task));
+}
+
+function bindMediaInput(
+  mappedField: FormlyFieldConfig,
+  tasks: string[],
+  validatorName: string,
+  columnKey: string,
+  inputKey: string,
+  message: string
+): void {
+  hideUnlessTaskIn(mappedField, tasks);
+  mappedField.validators = {
+    ...mappedField.validators,
+    [validatorName]: {
+      expression: (_control: AbstractControl, field: FormlyFieldConfig) => {
+        const t = getSelectedTask(field);
+        if (t === undefined || !tasks.includes(t)) {
+          return true;
+        }
+        const inputCol = field.model?.[columnKey];
+        if (typeof inputCol === "string" && inputCol.trim().length > 0) {
+          return true;
+        }
+        const value = field.formControl?.value ?? field.model?.[inputKey];
+        return typeof value === "string" && value.trim().length > 0;
+      },
+      message: () => message,
+    },
+  };
+  mappedField.validation = {
+    ...mappedField.validation,
+    show: true,
+  };
+}
+
 /**
  * Applies the HuggingFace operator's task-driven field behaviour to a single formly field: the
  * `task` field is hidden, and each input field (image/audio uploads and their column pickers, the
@@ -80,94 +124,34 @@ export function applyHuggingFaceFieldBindings(mappedField: FormlyFieldConfig): v
   const hfKey = mappedField.key;
   if (hfKey === "imageInput") {
     // type ("huggingface-image-upload") is set by customFormlyFieldType
-    mappedField.expressions = {
-      ...mappedField.expressions,
-      hide: (field: FormlyFieldConfig) => {
-        const t = getSelectedTask(field);
-        return t === undefined || !imageInputTasks.includes(t);
-      },
-    };
-    mappedField.validators = {
-      ...mappedField.validators,
-      requiredImageInput: {
-        expression: (_control: AbstractControl, field: FormlyFieldConfig) => {
-          const t = getSelectedTask(field);
-          if (t === undefined || !imageInputTasks.includes(t)) {
-            return true;
-          }
-          const inputImageCol = field.model?.inputImageColumn;
-          if (typeof inputImageCol === "string" && inputImageCol.trim().length > 0) {
-            return true;
-          }
-          const value = field.formControl?.value ?? field.model?.imageInput;
-          return typeof value === "string" && value.trim().length > 0;
-        },
-        message: () => "Upload an image or select an Input Image Column for this task.",
-      },
-    };
-    mappedField.validation = {
-      ...mappedField.validation,
-      show: true,
-    };
+    bindMediaInput(
+      mappedField,
+      imageInputTasks,
+      "requiredImageInput",
+      "inputImageColumn",
+      "imageInput",
+      "Upload an image or select an Input Image Column for this task."
+    );
   }
   if (hfKey === "audioInput") {
     // type ("huggingface-audio-upload") is set by customFormlyFieldType
-    mappedField.expressions = {
-      ...mappedField.expressions,
-      hide: (field: FormlyFieldConfig) => {
-        const t = getSelectedTask(field);
-        return t === undefined || !audioInputTasks.includes(t);
-      },
-    };
-    mappedField.validators = {
-      ...mappedField.validators,
-      requiredAudioInput: {
-        expression: (_control: AbstractControl, field: FormlyFieldConfig) => {
-          const t = getSelectedTask(field);
-          if (t === undefined || !audioInputTasks.includes(t)) {
-            return true;
-          }
-          const inputAudioCol = field.model?.inputAudioColumn;
-          if (typeof inputAudioCol === "string" && inputAudioCol.trim().length > 0) {
-            return true;
-          }
-          const value = field.formControl?.value ?? field.model?.audioInput;
-          return typeof value === "string" && value.trim().length > 0;
-        },
-        message: () => "Upload audio or select an Input Audio Column for this task.",
-      },
-    };
-    mappedField.validation = {
-      ...mappedField.validation,
-      show: true,
-    };
+    bindMediaInput(
+      mappedField,
+      audioInputTasks,
+      "requiredAudioInput",
+      "inputAudioColumn",
+      "audioInput",
+      "Upload audio or select an Input Audio Column for this task."
+    );
   }
   if (hfKey === "inputImageColumn") {
-    mappedField.expressions = {
-      ...mappedField.expressions,
-      hide: (field: FormlyFieldConfig) => {
-        const t = getSelectedTask(field);
-        return t === undefined || !imageInputTasks.includes(t);
-      },
-    };
+    hideUnlessTaskIn(mappedField, imageInputTasks);
   }
   if (hfKey === "inputAudioColumn") {
-    mappedField.expressions = {
-      ...mappedField.expressions,
-      hide: (field: FormlyFieldConfig) => {
-        const t = getSelectedTask(field);
-        return t === undefined || !audioInputTasks.includes(t);
-      },
-    };
+    hideUnlessTaskIn(mappedField, audioInputTasks);
   }
   if (hfKey === "promptColumn") {
-    mappedField.expressions = {
-      ...mappedField.expressions,
-      hide: (field: FormlyFieldConfig) => {
-        const t = getSelectedTask(field);
-        return t !== undefined && (imageOnlyTasks.includes(t) || audioInputTasks.includes(t));
-      },
-    };
+    hideUnlessTask(mappedField, t => t === undefined || (!imageOnlyTasks.includes(t) && !audioInputTasks.includes(t)));
     mappedField.validators = {
       ...mappedField.validators,
       requiredPromptColumn: {
@@ -188,36 +172,15 @@ export function applyHuggingFaceFieldBindings(mappedField: FormlyFieldConfig): v
     };
   }
   if (["systemPrompt", "maxNewTokens", "temperature"].includes(hfKey)) {
-    mappedField.expressions = {
-      ...mappedField.expressions,
-      hide: (field: FormlyFieldConfig) => {
-        const t = getSelectedTask(field);
-        return t !== "text-generation";
-      },
-    };
+    hideUnlessTask(mappedField, t => t === "text-generation");
   }
   if (hfKey === "contextColumn") {
-    mappedField.expressions = {
-      ...mappedField.expressions,
-      hide: (field: FormlyFieldConfig) => getSelectedTask(field) !== "question-answering",
-    };
+    hideUnlessTask(mappedField, t => t === "question-answering");
   }
   if (hfKey === "candidateLabels") {
-    mappedField.expressions = {
-      ...mappedField.expressions,
-      hide: (field: FormlyFieldConfig) => {
-        const t = getSelectedTask(field);
-        return t !== "zero-shot-classification" && t !== "zero-shot-image-classification";
-      },
-    };
+    hideUnlessTask(mappedField, t => t === "zero-shot-classification" || t === "zero-shot-image-classification");
   }
   if (hfKey === "sentencesColumn") {
-    mappedField.expressions = {
-      ...mappedField.expressions,
-      hide: (field: FormlyFieldConfig) => {
-        const t = getSelectedTask(field);
-        return t !== "sentence-similarity" && t !== "text-ranking";
-      },
-    };
+    hideUnlessTask(mappedField, t => t === "sentence-similarity" || t === "text-ranking");
   }
 }
