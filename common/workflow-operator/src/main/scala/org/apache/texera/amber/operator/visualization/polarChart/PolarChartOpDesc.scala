@@ -19,6 +19,7 @@
 
 package org.apache.texera.amber.operator.visualization.polarChart
 
+import org.apache.texera.amber.operator.visualization.StandaloneChartCode._
 import com.fasterxml.jackson.annotation.{JsonProperty, JsonPropertyDescription}
 import com.kjetland.jackson.jsonSchema.annotations.{JsonSchemaInject, JsonSchemaTitle}
 import org.apache.texera.amber.core.workflow.OutputPort.OutputMode
@@ -147,9 +148,7 @@ class PolarChartOpDesc extends PythonVisualizationOpDesc with PlotlyStandaloneCo
        |        marker=dict(size=10, opacity=0.7, line=dict(color='white'))
        |    ))
        |    fig.update_layout(title='Polar Chart', showlegend=False)
-       |    fig.write_json(outputJson)
-       |    fig.write_html(outputHtml)
-       |    print("Polar chart saved to " + outputHtml)""".stripMargin
+       |${standaloneFigure("Polar chart", indent = 4)}""".stripMargin
   }
 
 }
