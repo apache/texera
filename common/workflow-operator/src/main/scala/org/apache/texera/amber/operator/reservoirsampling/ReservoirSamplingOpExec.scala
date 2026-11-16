@@ -46,10 +46,16 @@ class ReservoirSamplingOpExec(descString: String, idx: Int, workerCount: Int)
 
   override def processTuple(tuple: Tuple, port: Int): Iterator[TupleLike] = {
     if (reservoir == null) reservoir = Array.ofDim(count)
+    // Checked at each pass's first tuple rather than in open(): inside a loop block `k` is
+    // written in after open().
+    if (n == 0)
+      require(desc.k >= 1, s"Reservoir Sampling needs a sample size of at least 1, got ${desc.k}")
     if (n < count) {
       reservoir(n) = tuple
     } else {
-      val i = rand.nextInt(n)
+      // Algorithm R: draw over the n + 1 tuples seen so far, this one included. A worker whose
+      // share of k is 0 never draws below it, so it keeps nothing.
+      val i = rand.nextInt(n + 1)
       if (i < count) {
         reservoir(i) = tuple
       }

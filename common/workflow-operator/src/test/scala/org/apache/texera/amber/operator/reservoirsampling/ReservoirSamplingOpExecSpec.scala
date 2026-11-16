@@ -26,6 +26,8 @@ import org.apache.texera.amber.core.tuple.{Attribute, AttributeType, Schema, Tup
 import org.apache.texera.amber.util.JSONUtils.objectMapper
 import org.scalatest.flatspec.AnyFlatSpec
 
+import scala.util.Random
+
 class ReservoirSamplingOpExecSpec extends AnyFlatSpec {
 
   private val schema: Schema =
@@ -154,6 +156,22 @@ class ReservoirSamplingOpExecSpec extends AnyFlatSpec {
     assert(emitted.distinct.size == emitted.size, "each input tuple is sampled at most once")
   }
 
+  // Algorithm R (Vitter, 1985): the tuple at 0-based position n >= k replaces a random slot with
+  // probability k / (n + 1), so its draw ranges over n + 1 positions. A reference run on the same
+  // seeded generator pins that bound.
+  it should "draw each replacement from n + 1 positions, as Algorithm R requires" in {
+    val k = 5
+    val input = 0 until 200
+    val rand = new Random(1) // the executor seeds its generator with the worker count, here 1
+    val expected = Array.tabulate(k)(identity)
+    input.drop(k).foreach { n =>
+      val i = rand.nextInt(n + 1)
+      if (i < k) expected(i) = n
+    }
+    val sampled = runFinish(newExec(k), input).map(_.getField[Integer]("v").intValue)
+    assert(sampled == expected.toList)
+  }
+
   it should "be deterministic across runs (RNG is seeded, so identical input yields identical samples)" in {
     val input = 0 until 100
     val firstRun = runFinish(newExec(k = 7), input)
@@ -170,6 +188,15 @@ class ReservoirSamplingOpExecSpec extends AnyFlatSpec {
     }
     assert(perWorkerSize == Seq(4, 3, 3))
     assert(perWorkerSize.sum == 10, "the per-worker reservoirs together hold the requested k")
+  }
+
+  it should "keep nothing, and not fail, on a worker whose share of k is zero (k=1, 2 workers -> 1,0)" in {
+    // Two workers per operator is the default, so k = 1 leaves worker 1 a share of 0. It still
+    // receives its part of the input and must finish with an empty sample.
+    val perWorker = (0 until 2).map { idx =>
+      runFinish(newExec(k = 1, idx = idx, workerCount = 2), 0 until 10)
+    }
+    assert(perWorker.map(_.size) == Seq(1, 0))
   }
 
   "ReservoirSamplingOpExec.open" should "reset state so a reused executor re-samples from scratch" in {
@@ -226,13 +253,32 @@ class ReservoirSamplingOpExecSpec extends AnyFlatSpec {
   }
 
   it should "coerce a null k to 0 and reject sampling a populated stream" in {
-    // A null k deserializes to the primitive default 0, yielding a zero-length
-    // reservoir; the first replacement draw then calls Random.nextInt(0).
+    // A null k deserializes to the primitive default 0, a sample size the executor
+    // refuses at the first tuple. Finishing first, as here, must not skip that check.
     val exec = new ReservoirSamplingOpExec(descWithNullK, 0, 1)
     exec.open()
     assert(exec.onFinish(0).isEmpty, "an empty reservoir emits nothing")
     assertThrows[IllegalArgumentException] {
       exec.processTuple(tuple(0), 0)
+    }
+  }
+
+  it should "refuse a sample size of 0 at the first tuple, with a message that says why" in {
+    val refused = intercept[IllegalArgumentException] {
+      newExec(k = 0).processTuple(tuple(0), 0)
+    }
+    assert(refused.getMessage.contains("needs a sample size of at least 1, got 0"))
+  }
+
+  it should "refuse a negative k even when every worker's share rounds to 0 (k=-1, 3 workers)" in {
+    // equallyPartitionGoal(-1, 3) gives each worker 0, so no reservoir is negative-sized and
+    // nothing fails at allocation: only the sample-size check refuses the request.
+    (0 until 3).foreach { idx =>
+      assert(newExec(k = -1, idx = idx, workerCount = 3).onFinish(0).isEmpty)
+      val refused = intercept[IllegalArgumentException] {
+        newExec(k = -1, idx = idx, workerCount = 3).processTuple(tuple(0), 0)
+      }
+      assert(refused.getMessage.contains("needs a sample size of at least 1, got -1"))
     }
   }
 }
