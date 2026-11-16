@@ -398,6 +398,8 @@ texeraEnvVars:
     value: "true"
   - name: COMPUTING_UNIT_SHARING_ENABLED
     value: "true"
+  # Only the starting value of Admin > Settings > Invite Only, stored when config-service first
+  # starts; after that the settings page owns it, and its Reset restores this value.
   - name: USER_SYS_INVITE_ONLY
     value: "true"
   # On by default; set to "false" to accept addresses unproven. This must agree with the

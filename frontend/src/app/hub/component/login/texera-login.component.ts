@@ -38,6 +38,7 @@ import { AppleAuthService } from "../../../common/service/user/apple-auth.servic
 import { NotificationService } from "../../../common/service/notification/notification.service";
 import { GuiConfigService } from "../../../common/service/gui-config.service";
 import { USER_WORKFLOW } from "../../../app-routing.constant";
+import { Role } from "../../../common/type/user";
 import { NzIconDirective } from "ng-zorro-antd/icon";
 import { NzTabComponent, NzTabsComponent } from "ng-zorro-antd/tabs";
 import { NzInputDirective, NzInputGroupComponent, NzInputGroupWhitSuffixOrPrefixDirective } from "ng-zorro-antd/input";
@@ -58,9 +59,12 @@ function reasonFor(e: unknown): string | undefined {
   return (e as HttpErrorResponse)?.error?.message ?? (e as Error)?.message;
 }
 
-/** Reported by every path that ends with an account existing. */
-const ACCOUNT_CREATED =
+/** Reported when a sign-up leaves the account waiting for an admin's approval (invite-only). */
+const ACCOUNT_PENDING =
   "Your account has been created. Please contact the Texera administrator to activate your account.";
+
+/** Reported when a sign-up has already signed the user in. */
+const ACCOUNT_READY = "Your account has been created.";
 
 type LoginMode = "signin" | "signup";
 
@@ -292,9 +296,11 @@ export class TexeraLoginComponent implements OnInit {
       .subscribe(({ verificationRequired }) => {
         // The button is only rendered where the config says verification is on. If the server
         // disagrees, `register` has just created the account outright and there is no code coming.
-        this.notificationService.success(
-          verificationRequired ? `A verification code has been sent to ${fields.email}.` : ACCOUNT_CREATED
-        );
+        if (verificationRequired) {
+          this.notificationService.success(`A verification code has been sent to ${fields.email}.`);
+        } else {
+          this.finishSignup();
+        }
       });
   }
 
@@ -326,7 +332,7 @@ export class TexeraLoginComponent implements OnInit {
           }),
           untilDestroyed(this)
         )
-        .subscribe(() => this.notificationService.success(ACCOUNT_CREATED));
+        .subscribe(() => this.finishSignup());
       return;
     }
 
@@ -339,7 +345,23 @@ export class TexeraLoginComponent implements OnInit {
         }),
         untilDestroyed(this)
       )
-      .subscribe(() => this.notificationService.success(ACCOUNT_CREATED));
+      .subscribe(() => this.finishSignup());
+  }
+
+  /**
+   * Close a sign-up that created the account. Registering signs the user in, so an account that can
+   * already be used (invite-only off) goes where a sign-in would. An account waiting for an admin is
+   * INACTIVE: the session is signed straight back out, or kept by a page whose config predates
+   * invite-only being turned on. Either way the user stays here and is told to wait.
+   */
+  private finishSignup(): void {
+    const user = this.userService.getCurrentUser();
+    if (user !== undefined && user.role !== Role.INACTIVE) {
+      this.notificationService.success(ACCOUNT_READY);
+      this.navigateAfterLogin();
+    } else {
+      this.notificationService.success(ACCOUNT_PENDING);
+    }
   }
 
   /**

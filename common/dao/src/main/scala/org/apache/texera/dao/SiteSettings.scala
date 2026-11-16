@@ -46,6 +46,10 @@ object SiteSettings {
   def getLong(key: String, default: => Long): Long =
     readAndParse(key, default)(_.toLong)
 
+  /** `true` or `false` in any case; any other value is unparsable and yields `default`. */
+  def getBoolean(key: String, default: => Boolean): Boolean =
+    readAndParse(key, default)(_.toBoolean)
+
   /** Insert or overwrite the row for `key`, stamping who/when. */
   def upsert(ctx: DSLContext, key: String, value: String, updatedBy: String): Unit =
     ctx

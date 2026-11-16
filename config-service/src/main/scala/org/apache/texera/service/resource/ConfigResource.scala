@@ -24,7 +24,7 @@ import io.dropwizard.auth.Auth
 import jakarta.annotation.security.{PermitAll, RolesAllowed}
 import jakarta.ws.rs.core.{MediaType, Response}
 import jakarta.ws.rs.{Consumes, GET, POST, PUT, Path, PathParam, Produces}
-import org.apache.texera.auth.SessionUser
+import org.apache.texera.auth.{InviteOnly, SessionUser}
 import org.apache.texera.common.config.{
   ApplicationConfig,
   ComputingUnitConfig,
@@ -72,7 +72,9 @@ class ConfigResource {
       ),
       "attributionEnabled" -> GuiConfig.guiAttributionEnabled,
       "deploymentVersionCheckEnabled" -> GuiConfig.guiDeploymentVersionCheckEnabled,
-      "inviteOnly" -> UserSystemConfig.inviteOnly,
+      // Read per request: admins switch it on the settings page, and the login flow uses it to
+      // decide whether an INACTIVE sign-in sees the pending-approval screen.
+      "inviteOnly" -> InviteOnly.enabled,
       // The sign-up form decides whether to expect a code step before anyone has a token, so this
       // has to be readable anonymously.
       "emailVerification" -> UserSystemConfig.emailVerification
@@ -122,8 +124,8 @@ class ConfigResource {
   @Path("/user-system")
   def getUserSystemConfig: Map[String, Any] =
     Map(
-      // flags from the user-system.conf
-      "inviteOnly" -> UserSystemConfig.inviteOnly
+      // the admin-editable invite_only site setting
+      "inviteOnly" -> InviteOnly.enabled
     )
 
   // The site_settings keys that non-admin pages consume: dashboard branding,
