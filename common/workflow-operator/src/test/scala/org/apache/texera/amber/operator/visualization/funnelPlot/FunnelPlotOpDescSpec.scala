@@ -33,7 +33,6 @@ class FunnelPlotOpDescSpec extends AnyFlatSpec with GeneratedCodeAssertionChecks
     op
   }
 
-  // The part of an assert message that names the offending field.
   "FunnelPlotOpDesc.operatorInfo" should "advertise the user-friendly name and Financial group" in {
     val info = (new FunnelPlotOpDesc).operatorInfo
     info.userFriendlyName shouldBe "Funnel Plot"

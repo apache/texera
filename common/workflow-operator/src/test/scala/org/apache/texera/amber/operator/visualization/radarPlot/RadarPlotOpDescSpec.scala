@@ -28,9 +28,6 @@ import org.apache.texera.amber.operator.EncodedGeneratedCodeAssertionChecks
 
 class RadarPlotOpDescSpec extends AnyFlatSpec with EncodedGeneratedCodeAssertionChecks {
 
-  // EncodableString axes are always base64-wrapped in .encode mode
-  // (self.decode_python_template('<base64>')), so assert on the base64 form only rather than
-  // the raw column name, which could appear in the generated Python for unrelated reasons.
   "RadarPlotOpDesc.operatorInfo" should
     "advertise the name and Scientific visualization group with a 1-in/1-out shape" in {
     val info = (new RadarPlotOpDesc).operatorInfo

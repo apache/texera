@@ -36,7 +36,6 @@ class BubbleChartOpDescSpec
     opDesc = new BubbleChartOpDesc()
   }
 
-  // The part of an assert message that names the offending field.
   it should "generate a plotly python figure with 3 columns" in {
     opDesc.xValue = "column1"
     opDesc.yValue = "column2"

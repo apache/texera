@@ -37,8 +37,6 @@ class WindRoseChartOpDescSpec
     opDesc = new WindRoseChartOpDesc()
   }
 
-  // A column name is carried either literally (plain chunks) or as the
-  // base64 payload of a runtime decode site (encoded chunks).
   it should "default rColumn and thetaColumn to non-null, empty strings" in {
     opDesc.rColumn should not be null
     opDesc.rColumn shouldBe ""

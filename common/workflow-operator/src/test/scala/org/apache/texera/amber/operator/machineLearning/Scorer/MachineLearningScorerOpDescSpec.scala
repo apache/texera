@@ -392,8 +392,7 @@ class MachineLearningScorerOpDescSpec extends AnyFlatSpec with GeneratedCodeAsse
       "scorer_driver_",
       d.generatePythonCode(),
       runtimeDriverScript,
-      "Scoring driver timed out after 120s",
-      bestEffortCleanup = false
+      "Scoring driver timed out after 120s"
     ) { (exitCode, output) =>
       withClue(s"Driver output:\n$output\n") {
         exitCode shouldBe 0

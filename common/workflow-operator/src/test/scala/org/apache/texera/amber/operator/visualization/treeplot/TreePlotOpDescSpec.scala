@@ -122,8 +122,7 @@ class TreePlotOpDescSpec extends AnyFlatSpec with BeforeAndAfter with GeneratedC
       "tree_plot_driver_",
       opDesc.generatePythonCode(),
       runtimeDriverScript,
-      "Layout driver timed out after 120s",
-      bestEffortCleanup = false
+      "Layout driver timed out after 120s"
     ) { (exitCode, output) =>
       withClue(s"Driver output:\n$output\n") {
         exitCode shouldBe 0

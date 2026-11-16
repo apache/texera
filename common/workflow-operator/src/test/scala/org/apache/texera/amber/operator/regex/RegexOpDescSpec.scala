@@ -23,7 +23,6 @@ import org.apache.texera.amber.util.PythonTestSupport.{
   NeedsPythonPackages,
   canImport,
   configuredPython,
-  readUtf8WithReplacement,
   runSource
 }
 import org.apache.texera.amber.core.executor.OpExecWithClassName
@@ -164,13 +163,7 @@ class RegexOpDescSpec extends AnyFlatSpec with Matchers {
 
     // The values arrive as JSON arrays, so a missing one reads as null.
     val driver = (Seq("import pandas as pd", "null = None") ++ runs.map(_._2)).mkString("\n")
-    val (exitCode, out) = runSource(
-      python,
-      "regex-engine-parity-",
-      driver,
-      environment = Map("PYTHONIOENCODING" -> "utf-8"),
-      readOutput = readUtf8WithReplacement
-    )
+    val (exitCode, out) = runSource(python, "regex-engine-parity-", driver)
 
     withClue(s"python said:\n$out\n") {
       exitCode shouldBe 0

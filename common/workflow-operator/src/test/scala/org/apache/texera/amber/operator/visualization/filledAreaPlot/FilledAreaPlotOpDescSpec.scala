@@ -46,7 +46,6 @@ class FilledAreaPlotOpDescSpec
     opDesc = new FilledAreaPlotOpDesc()
   }
 
-  // The part of an assert message that names the offending field.
   it should "throw error if X is empty" in {
     val y = "test1"
     val group = "test2"

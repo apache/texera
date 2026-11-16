@@ -34,9 +34,6 @@ class HierarchyChartOpDescSpec
     opDesc = new HierarchyChartOpDesc()
   }
 
-  // A column name is carried either literally (plain chunks) or as the
-  // base64 payload of a runtime decode site (encoded chunks).
-  // The part of an assert message that names the offending field.
   it should "generate a list of hierarchy sections in the python code" in {
     val attributes = Array.fill(3)(new HierarchySection())
     attributes(0).attributeName = "column_a"

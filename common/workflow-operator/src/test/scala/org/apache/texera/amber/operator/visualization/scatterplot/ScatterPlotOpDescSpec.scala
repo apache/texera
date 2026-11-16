@@ -45,7 +45,6 @@ class ScatterPlotOpDescSpec
     field.set(opDesc, value)
   }
 
-  // The part of an assert message that names the offending field.
   it should "throw AssertionError naming the X-Column when both columns are empty" in {
     val ex = expectError[AssertionError]("cannot be empty")(opDesc.manipulateTable())
     fieldPart(ex.getMessage) should include("x")

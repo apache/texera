@@ -34,7 +34,6 @@ class HeatMapOpDescSpec extends AnyFlatSpec with GeneratedCodeAssertionChecks {
     op
   }
 
-  // The part of an assert message that names the offending field.
   "HeatMapOpDesc.operatorInfo" should "advertise the user-friendly name and Scientific group" in {
     val info = (new HeatMapOpDesc).operatorInfo
     info.userFriendlyName shouldBe "Heatmap"

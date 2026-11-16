@@ -40,8 +40,6 @@ class WaterfallChartOpDescSpec
     opDesc = new WaterfallChartOpDesc()
   }
 
-  // A column name is carried either literally (plain chunks) or as the
-  // base64 payload of a runtime decode site (encoded chunks).
   it should "default xColumn and yColumn to non-null, empty strings" in {
     opDesc.xColumn should not be null
     opDesc.xColumn shouldBe ""

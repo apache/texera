@@ -36,8 +36,6 @@ class NestedTableOpDescSpec
     opDesc = new NestedTableOpDesc()
   }
 
-  // A column name is carried either literally (plain chunks) or as the
-  // base64 payload of a runtime decode site (encoded chunks).
   private def config(group: String, original: String): NestedTableConfig = {
     val c = new NestedTableConfig()
     c.attributeGroup = group

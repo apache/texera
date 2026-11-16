@@ -23,7 +23,6 @@ import org.apache.texera.amber.util.PythonTestSupport.{
   NeedsPythonPackages,
   canImport,
   configuredPython,
-  readUtf8WithReplacement,
   runSource
 }
 import org.apache.texera.amber.core.executor.OpExecWithClassName
@@ -137,13 +136,7 @@ class SubstringSearchOpDescSpec extends AnyFlatSpec with Matchers {
     }
 
     val driver = ("import pandas as pd" +: runs.map(_._2)).mkString("\n")
-    val (exitCode, out) = runSource(
-      python,
-      "substring-engine-parity-",
-      driver,
-      environment = Map("PYTHONIOENCODING" -> "utf-8"),
-      readOutput = readUtf8WithReplacement
-    )
+    val (exitCode, out) = runSource(python, "substring-engine-parity-", driver)
 
     withClue(s"python said:\n$out\n") {
       exitCode shouldBe 0

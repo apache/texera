@@ -36,8 +36,6 @@ class ContinuousErrorBandsOpDescSpec
     opDesc = new ContinuousErrorBandsOpDesc()
   }
 
-  // A column name is carried either literally (plain chunks) or as the
-  // base64 payload of a runtime decode site (encoded chunks).
   private def band(x: String, y: String, upper: String, lower: String): BandConfig = {
     val c = new BandConfig()
     c.xValue = x

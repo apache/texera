@@ -19,9 +19,8 @@
 
 package org.apache.texera.amber.testsupport.setop
 
-import org.apache.texera.amber.util.PythonTestSupport.{readUtf8, runSource}
-
 import org.apache.texera.amber.core.tuple.{AttributeType, Schema, Tuple, TupleLike}
+import org.apache.texera.amber.util.PythonTestSupport.runSource
 
 /** The two inputs the set operators' parity tests share, fed to the native
   * executor as tuples and to the export as nullable Arrow-style columns.
@@ -60,7 +59,7 @@ object SetRows {
          |for row in sorted(" ".join(render(v) for v in r) for r in out1df.itertuples(index=False)):
          |    print(row)
          |""".stripMargin
-    val (exitCode, out) = runSource(python, prefix, driver, readOutput = readUtf8)
+    val (exitCode, out) = runSource(python, prefix, driver)
     if (exitCode != 0) {
       throw new AssertionError(s"python said:\n$out\nscript:\n$driver")
     }

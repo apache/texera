@@ -26,12 +26,15 @@ private[operator] object GeneratedCodeAssertions {
   def b64(s: String): String =
     Base64.getEncoder.encodeToString(s.getBytes(StandardCharsets.UTF_8))
 
+  // A column name is carried either literally (plain chunks) or as the
+  // base64 payload of a runtime decode site (encoded chunks).
   def carries(output: String, name: String): Boolean =
     output.contains(name) || output.contains(b64(name))
 
   def carriesEncoded(output: String, name: String): Boolean =
     output.contains(b64(name))
 
+  // The part of an assert message that names the offending field.
   def fieldPart(msg: String): String =
     msg.toLowerCase.replace("cannot be empty", "")
 }
@@ -57,8 +60,10 @@ private[operator] trait GeneratedCodeAssertionChecks
   }
 }
 
-// Literal column names can also match fixed Python identifiers, tasks or labels and hide a
-// missing runtime splice. Check EncodableString columns in their Base64 form only.
+// EncodableString columns are always base64-wrapped in .encode mode
+// (self.decode_python_template('<base64>')), while a literal column name can also match fixed
+// Python identifiers, tasks or labels and hide a missing runtime splice. Check them in their Base64
+// form only.
 private[operator] trait EncodedGeneratedCodeAssertionChecks extends GeneratedCodeAssertionChecks {
   override protected def carries(output: String, name: String): Boolean =
     GeneratedCodeAssertions.carriesEncoded(output, name)

@@ -36,9 +36,6 @@ class ECDFPlotOpDescSpec extends AnyFlatSpec with BeforeAndAfter with GeneratedC
     opDesc = new ECDFPlotOpDesc()
   }
 
-  // A column name is carried either literally (plain chunks) or as the
-  // base64 payload of a runtime decode site (encoded chunks).
-  // The part of an assert message that names the offending field.
   it should "generate a plotly ecdf figure with optional parameters" in {
     opDesc.valueColumn = "score"
     opDesc.colorColumn = "group"

@@ -23,10 +23,8 @@ import org.apache.texera.amber.util.PythonTestSupport.{
   NeedsPythonPackages,
   canImport,
   configuredPython,
-  readUtf8,
   runSource
 }
-
 import org.apache.texera.amber.core.executor.OpExecWithClassName
 import org.apache.texera.amber.core.tuple.{AttributeType, Schema, Tuple}
 import org.apache.texera.amber.core.virtualidentity.{ExecutionIdentity, WorkflowIdentity}
@@ -155,7 +153,7 @@ class DistinctOpDescSpec extends AnyFlatSpec with Matchers {
          |for v in out1df["v"]:
          |    print("None" if v is pd.NA else repr(float(v)))
          |""".stripMargin
-    val (exitCode, out) = runSource(python, "distinct-nan-zero-", driver, readOutput = readUtf8)
+    val (exitCode, out) = runSource(python, "distinct-nan-zero-", driver)
 
     withClue(s"python said:\n$out\nscript:\n$driver") {
       exitCode shouldBe 0
