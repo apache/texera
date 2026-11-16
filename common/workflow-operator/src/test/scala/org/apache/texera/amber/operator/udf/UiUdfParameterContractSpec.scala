@@ -19,6 +19,7 @@
 
 package org.apache.texera.amber.operator.udf
 
+import org.apache.texera.amber.operator.udf.java.JavaUdfUiParameterInjector
 import org.apache.texera.amber.operator.udf.python.PythonUdfUiParameterInjector
 import org.apache.texera.amber.operator.udf.r.RUdfUiParameterInjector
 import org.apache.texera.amber.util.JSONUtils.objectMapper
@@ -35,6 +36,13 @@ class UiUdfParameterContractSpec extends AnyFlatSpec with Matchers {
       PythonUdfUiParameterInjector
         .inject("class ProcessTupleOperator(UDFOperatorV2):\n    pass\n", parameters)
     ),
+    "java" -> ((parameters: List[UiUDFParameter]) => {
+      val field =
+        if (Option(parameters).exists(_.nonEmpty))
+          "@org.apache.texera.amber.operator.udf.java.UiParameter(\"x\") String x;"
+        else ""
+      JavaUdfUiParameterInjector.inject(s"class JavaUDFOpExec { $field }", parameters)
+    }),
     "r" -> ((parameters: List[UiUDFParameter]) =>
       RUdfUiParameterInjector.inject("function() {}", parameters)
     )

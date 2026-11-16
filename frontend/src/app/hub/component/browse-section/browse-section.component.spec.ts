@@ -280,7 +280,7 @@ describe("BrowseSectionComponent rendering", () => {
     return fixture.nativeElement as HTMLElement;
   }
 
-  const entity = (over: Partial<Record<string, unknown>> = {}) =>
+  const entity = (over: Partial<Record<string, unknown>>) =>
     ({ id: 1, type: "dataset", accessibleUserIds: [], name: "flow", ...over }) as unknown as DashboardEntry;
 
   it("renders nothing at all for an empty section", () => {

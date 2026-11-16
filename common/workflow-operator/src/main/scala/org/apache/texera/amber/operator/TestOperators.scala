@@ -19,7 +19,8 @@
 
 package org.apache.texera.amber.operator
 
-import org.apache.texera.amber.core.storage.FileResolver
+import org.apache.commons.vfs2.FileNotFoundException
+import org.apache.texera.amber.core.storage.{FileResolver, ScanFileResolver}
 import org.apache.texera.amber.core.tuple.{Attribute, AttributeType}
 import org.apache.texera.amber.operator.aggregate.{
   AggregateOpDesc,
@@ -34,9 +35,31 @@ import org.apache.texera.amber.operator.source.sql.asterixdb.AsterixDBSourceOpDe
 import org.apache.texera.amber.operator.udf.python.PythonUDFOpDescV2
 import org.apache.texera.amber.operator.udf.python.source.PythonUDFSourceOpDescV2
 
-import java.nio.file.Path
+import java.net.URI
+import java.nio.file.{Files, Path, Paths}
 
 object TestOperators {
+
+  /**
+    * The URI of a fixture file on the local disk.
+    *
+    * @throws FileNotFoundException if there is no such file
+    */
+  def localFileUri(path: String): URI = {
+    val filePath = Paths.get(path)
+    if (!Files.exists(filePath)) {
+      throw new FileNotFoundException(s"Local file $path does not exist")
+    }
+    filePath.toUri
+  }
+
+  /**
+    * Resolves the fixture files the scan operators below read: a path on the local disk, or the
+    * `file:` URI one of them was already given. Tests hand this to the compiler in place of a
+    * user's resolver, which knows nothing about local files.
+    */
+  val fixtureFileResolver: ScanFileResolver = fileName =>
+    if (FileResolver.isFileResolved(fileName)) new URI(fileName) else localFileUri(fileName)
 
   val parentDir = Path
     .of(sys.env.getOrElse("TEXERA_HOME", "."))
@@ -93,7 +116,7 @@ object TestOperators {
     csvHeaderlessOp.fileName = Some(fileName)
     csvHeaderlessOp.customDelimiter = Some(",")
     csvHeaderlessOp.hasHeader = header
-    csvHeaderlessOp.setResolvedFileName(FileResolver.resolve(fileName))
+    csvHeaderlessOp.setResolvedFileName(localFileUri(fileName))
     csvHeaderlessOp
 
   }
@@ -102,7 +125,7 @@ object TestOperators {
     val jsonlOp = new JSONLScanSourceOpDesc
     jsonlOp.fileName = Some(fileName)
     jsonlOp.flatten = flatten
-    jsonlOp.setResolvedFileName(FileResolver.resolve(fileName))
+    jsonlOp.setResolvedFileName(localFileUri(fileName))
     jsonlOp
   }
 
