@@ -19,7 +19,6 @@
 
 package org.apache.texera.amber.operator.source.sql.asterixdb
 
-import com.sun.net.httpserver.{HttpExchange, HttpServer}
 import org.apache.texera.amber.core.executor.OpExecWithClassName
 import org.apache.texera.amber.core.tuple.{AttributeType, Schema}
 import org.apache.texera.amber.core.workflow.WorkflowContext.{
@@ -33,8 +32,6 @@ import org.scalatest.BeforeAndAfterAll
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 
-import java.net.{InetSocketAddress, URLDecoder}
-import java.nio.charset.StandardCharsets
 import scala.collection.mutable
 import scala.util.Try
 
@@ -56,33 +53,14 @@ class AsterixDBSourceOpDescSpec extends AnyFlatSpec with Matchers with BeforeAnd
   /** Decoded `statement` form field of every /query/service request, in order. */
   private val recordedStatements = mutable.Buffer[String]()
 
-  private val server: HttpServer = HttpServer.create(new InetSocketAddress(0), 0)
-  server.createContext(
-    "/admin/version",
-    (exchange: HttpExchange) => respond(exchange, """{"git.build.version":"0.9.9"}""")
-  )
-  server.createContext(
-    "/query/service",
-    (exchange: HttpExchange) => {
-      val is = exchange.getRequestBody
-      val body =
-        try new String(is.readAllBytes(), StandardCharsets.UTF_8)
-        finally is.close()
-      val statement = formField(body, "statement")
-      recordedStatements.synchronized { recordedStatements += statement }
-      respond(exchange, responseFor(statement))
-    }
-  )
+  private val server = AsterixDBTestServer.forStatements(recordedStatements)(responseFor)
 
   private val host = "localhost"
   private def port: String = server.getAddress.getPort.toString
 
   private def responseFor(statement: String): String =
     if (statement.contains("Metadata.`Datatype`")) {
-      val fields = datatypeFields
-        .map { case (name, tpe) => s"""{"FieldName":"$name","FieldType":"$tpe"}""" }
-        .mkString(",")
-      s"""{"results":[{"Fields":[$fields]}]}"""
+      AsterixDBTestServer.datatypeResult(datatypeFields)
     } else if (statement.contains("Metadata.`Dataset`")) {
       """{"results":[{"DatatypeName":"tweetType"}]}"""
     } else {
@@ -91,27 +69,6 @@ class AsterixDBSourceOpDescSpec extends AnyFlatSpec with Matchers with BeforeAnd
       // descriptor mistargets cannot still yield a plausible schema.
       """{"results":[]}"""
     }
-
-  private def respond(exchange: HttpExchange, body: String): Unit = {
-    val bytes = body.getBytes(StandardCharsets.UTF_8)
-    exchange.getResponseHeaders.add("Content-Type", "application/json")
-    exchange.sendResponseHeaders(200, bytes.length.toLong)
-    val os = exchange.getResponseBody
-    try os.write(bytes)
-    finally os.close()
-  }
-
-  private def formField(body: String, name: String): String =
-    body
-      .split("&")
-      .filter(_.contains("="))
-      .map { pair =>
-        val idx = pair.indexOf('=')
-        URLDecoder.decode(pair.substring(0, idx), StandardCharsets.UTF_8) ->
-          URLDecoder.decode(pair.substring(idx + 1), StandardCharsets.UTF_8)
-      }
-      .toMap
-      .getOrElse(name, "")
 
   override protected def beforeAll(): Unit = {
     super.beforeAll()
@@ -243,25 +200,14 @@ class AsterixDBSourceOpDescSpec extends AnyFlatSpec with Matchers with BeforeAnd
   it should "be applied by sourceSchema before it issues any query" in {
     // sourceSchema resolves `default` to 19002; stand up a minimal stub there so
     // the test doesn't depend on an external AsterixDB process.
-    val defaultPortServer = Try(HttpServer.create(new InetSocketAddress(19002), 0)).getOrElse {
+    val defaultPortServer = Try(
+      AsterixDBTestServer.bind(port = 19002) { form =>
+        (200, responseFor(form.getOrElse("statement", "")))
+      }
+    ).getOrElse {
       cancel("port 19002 is unavailable; cannot verify updatePort integration without a local stub")
     }
     try {
-      defaultPortServer.createContext(
-        "/admin/version",
-        (exchange: HttpExchange) => respond(exchange, """{"git.build.version":"0.9.9"}""")
-      )
-      defaultPortServer.createContext(
-        "/query/service",
-        (exchange: HttpExchange) => {
-          val is = exchange.getRequestBody
-          val body =
-            try new String(is.readAllBytes(), StandardCharsets.UTF_8)
-            finally is.close()
-          val statement = formField(body, "statement")
-          respond(exchange, responseFor(statement))
-        }
-      )
       defaultPortServer.start()
 
       val d = configured()
@@ -292,46 +238,21 @@ class AsterixDBSourceOpDescSpec extends AnyFlatSpec with Matchers with BeforeAnd
       "requirement failed: Please enter a valid host name for AsterixDB."
   }
 
-  it should "name the port when the port is missing" in {
-    val d = configured()
-    d.port = null
-    intercept[IllegalArgumentException](d.sourceSchema()).getMessage shouldBe
-      "requirement failed: Please enter a valid port for AsterixDB."
-  }
-
-  it should "name the port when the port is only whitespace" in {
-    val d = configured()
-    d.port = "  "
-    intercept[IllegalArgumentException](d.sourceSchema()).getMessage shouldBe
-      "requirement failed: Please enter a valid port for AsterixDB."
-  }
-
-  it should "name the database when the database is missing" in {
-    val d = configured()
-    d.database = null
-    intercept[IllegalArgumentException](d.sourceSchema()).getMessage shouldBe
-      "requirement failed: Please enter a valid database name for AsterixDB."
-  }
-
-  it should "name the database when the database is only whitespace" in {
-    val d = configured()
-    d.database = "  "
-    intercept[IllegalArgumentException](d.sourceSchema()).getMessage shouldBe
-      "requirement failed: Please enter a valid database name for AsterixDB."
-  }
-
-  it should "name the table when the table is missing" in {
-    val d = configured()
-    d.table = null
-    intercept[IllegalArgumentException](d.sourceSchema()).getMessage shouldBe
-      "requirement failed: Please enter a valid table name for AsterixDB."
-  }
-
-  it should "name the table when the table is only whitespace" in {
-    val d = configured()
-    d.table = "  "
-    intercept[IllegalArgumentException](d.sourceSchema()).getMessage shouldBe
-      "requirement failed: Please enter a valid table name for AsterixDB."
+  Seq[(String, String, (AsterixDBSourceOpDesc, String) => Unit)](
+    ("port", "port", (d, value) => d.port = value),
+    ("database", "database name", (d, value) => d.database = value),
+    ("table", "table name", (d, value) => d.table = value)
+  ).foreach {
+    case (field, label, setField) =>
+      Seq[(String, String)]("missing" -> null, "only whitespace" -> "  ").foreach {
+        case (description, value) =>
+          it should s"name the $field when the $field is $description" in {
+            val d = configured()
+            setField(d, value)
+            intercept[IllegalArgumentException](d.sourceSchema()).getMessage shouldBe
+              s"requirement failed: Please enter a valid $label for AsterixDB."
+          }
+      }
   }
 
   it should "name the first unset field, checking host, port, database, then table" in {
