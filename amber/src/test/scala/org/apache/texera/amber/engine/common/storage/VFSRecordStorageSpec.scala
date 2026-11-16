@@ -19,50 +19,13 @@
 
 package org.apache.texera.amber.engine.common.storage
 
-import org.apache.pekko.actor.ActorSystem
-import org.apache.pekko.serialization.{Serialization, SerializationExtension}
-import org.apache.pekko.testkit.TestKit
-import org.apache.texera.amber.engine.common.AmberRuntime
-import org.scalatest.BeforeAndAfterAll
+import org.apache.texera.amber.engine.common.AmberSerdeTestSupport
 import org.scalatest.flatspec.AnyFlatSpec
 
 import java.net.URI
 import java.nio.file.{Files, Path}
 
-class VFSRecordStorageSpec extends AnyFlatSpec with BeforeAndAfterAll {
-
-  // ---------------------------------------------------------------------------
-  // Suite-local Pekko serde injected into AmberRuntime via reflection
-  // ---------------------------------------------------------------------------
-  //
-  // `SequentialRecordWriter.writeRecord` hard-codes `AmberRuntime.serde`,
-  // so any test that round-trips a record needs AmberRuntime initialized.
-  // Pattern matches CheckpointSubsystemSpec / ClientEventSpec — own a
-  // suite-local ActorSystem, inject it into AmberRuntime's private vars,
-  // tear down in afterAll.
-
-  private val testSystem: ActorSystem =
-    ActorSystem("VFSRecordStorageSpec-test", AmberRuntime.pekkoConfig)
-  private val testSerde: Serialization = SerializationExtension(testSystem)
-
-  private def setAmberRuntimeField(name: String, value: AnyRef): Unit = {
-    val field = AmberRuntime.getClass.getDeclaredField(name)
-    field.setAccessible(true)
-    field.set(AmberRuntime, value)
-  }
-
-  override protected def beforeAll(): Unit = {
-    super.beforeAll()
-    setAmberRuntimeField("_actorSystem", testSystem)
-    setAmberRuntimeField("_serde", testSerde)
-  }
-
-  override protected def afterAll(): Unit = {
-    setAmberRuntimeField("_serde", null)
-    setAmberRuntimeField("_actorSystem", null)
-    TestKit.shutdownActorSystem(testSystem)
-    super.afterAll()
-  }
+class VFSRecordStorageSpec extends AnyFlatSpec with AmberSerdeTestSupport {
 
   // ---------------------------------------------------------------------------
   // Temp-directory helpers — every test owns its own scratch folder so the
@@ -80,23 +43,7 @@ class VFSRecordStorageSpec extends AnyFlatSpec with BeforeAndAfterAll {
     (sub, sub.toUri)
   }
 
-  // Always clean from the parent temp root so any sibling files / partial
-  // state created by a failing test are also removed. `Files.walk` returns
-  // a closeable Stream backed by an open directory handle — wrap in
-  // try/finally so the handle is released even if traversal throws,
-  // otherwise temp-dir deletion can flake on Windows.
-  private def cleanup(sub: Path): Unit = {
-    val root = sub.getParent
-    if (root == null || !Files.exists(root)) return
-    val stream = Files.walk(root)
-    try {
-      stream
-        .sorted(java.util.Comparator.reverseOrder())
-        .forEach(child => Files.deleteIfExists(child))
-    } finally {
-      stream.close()
-    }
-  }
+  private def cleanup(sub: Path): Unit = deleteRecursively(sub.getParent)
 
   // ---------------------------------------------------------------------------
   // Constructor — auto-create folder

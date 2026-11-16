@@ -19,12 +19,8 @@
 
 package org.apache.texera.amber.engine.e2e
 
-import org.apache.pekko.actor.{ActorSystem, Props}
-import org.apache.pekko.testkit.{ImplicitSender, TestKit}
-import org.apache.pekko.util.Timeout
 import com.twitter.util.{Await, Duration, Promise}
 import com.typesafe.scalalogging.Logger
-import org.apache.texera.amber.clustering.SingleNodeListener
 import org.apache.texera.amber.core.workflow.PortIdentity
 import org.apache.texera.amber.engine.architecture.coordinator.{
   CoordinatorConfig,
@@ -35,62 +31,14 @@ import org.apache.texera.amber.engine.architecture.rpc.controlreturns.WorkflowAg
   COMPLETED,
   PAUSED
 }
-import org.apache.texera.amber.engine.common.AmberRuntime
 import org.apache.texera.amber.engine.common.client.AmberClient
-import org.apache.texera.amber.engine.e2e.TestUtils.{
-  cleanupWorkflowExecutionData,
-  initiateTexeraDBForTestCases,
-  setUpWorkflowExecutionData,
-  stateReached
-}
+import org.apache.texera.amber.engine.e2e.TestUtils.stateReached
 import org.apache.texera.amber.operator.{LogicalOp, TestOperators}
 import org.apache.texera.common.compiler.model.LogicalLink
-import org.scalatest.flatspec.AnyFlatSpecLike
-import org.scalatest.{BeforeAndAfterAll, BeforeAndAfterEach, Outcome, Retries}
 
-import scala.concurrent.duration._
-
-class PauseSpec
-    extends TestKit(ActorSystem("PauseSpec", AmberRuntime.pekkoConfig))
-    with ImplicitSender
-    with AnyFlatSpecLike
-    with BeforeAndAfterAll
-    with BeforeAndAfterEach
-    with Retries {
-
-  /**
-    * This block retries each test once if it fails.
-    * In the CI environment, there is a chance that shouldPause does not receive "COMPLETED" status.
-    * Until we find the root cause of this issue, we use a retry mechanism here to stablize CI runs.
-    */
-  override def withFixture(test: NoArgTest): Outcome =
-    withRetry { super.withFixture(test) }
-
-  implicit val timeout: Timeout = Timeout(5.seconds)
+class PauseSpec extends RetryingDatabaseE2ESpec("PauseSpec", specId = 2) {
 
   val logger = Logger("PauseSpecLogger")
-
-  private val specId = 2
-
-  override protected def beforeEach(): Unit = {
-    setUpWorkflowExecutionData(specId)
-  }
-
-  override protected def afterEach(): Unit = {
-    cleanupWorkflowExecutionData(specId)
-  }
-
-  override def beforeAll(): Unit = {
-    system.actorOf(Props[SingleNodeListener](), "cluster-info")
-    // These test cases access postgres in CI, but occasionally the jdbc driver cannot be found during CI run.
-    // Explicitly load the JDBC driver to avoid flaky CI failures.
-    Class.forName("org.postgresql.Driver")
-    initiateTexeraDBForTestCases()
-  }
-
-  override def afterAll(): Unit = {
-    TestKit.shutdownActorSystem(system)
-  }
 
   def shouldPause(
       operators: List[LogicalOp],
