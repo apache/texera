@@ -19,15 +19,26 @@
 
 package org.apache.texera.amber.operator.set.symmetricDifference
 
+import org.apache.texera.amber.util.PythonTestSupport.{
+  NeedsPythonPackages,
+  canImport,
+  configuredPython
+}
 import org.apache.texera.amber.core.executor.OpExecWithClassName
 import org.apache.texera.amber.core.tuple.{Attribute, AttributeType, Schema}
 import org.apache.texera.amber.core.virtualidentity.{ExecutionIdentity, WorkflowIdentity}
 import org.apache.texera.amber.core.workflow.{HashPartition, PortIdentity}
 import org.apache.texera.amber.operator.LogicalOp
 import org.apache.texera.amber.operator.metadata.OperatorGroupConstants
+import org.apache.texera.amber.testsupport.setop.SetRows
 import org.apache.texera.amber.util.JSONUtils.objectMapper
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
+
+import java.nio.charset.StandardCharsets
+import java.nio.file.Files
+import java.util.concurrent.TimeUnit
+import scala.io.Source
 
 class SymmetricDifferenceOpDescSpec extends AnyFlatSpec with Matchers {
 
@@ -85,5 +96,63 @@ class SymmetricDifferenceOpDescSpec extends AnyFlatSpec with Matchers {
     // discriminator + type resolution, on par with the other specs in this PR.
     val json = objectMapper.writeValueAsString(new SymmetricDifferenceOpDesc)
     objectMapper.readValue(json, classOf[LogicalOp]) shouldBe a[SymmetricDifferenceOpDesc]
+  }
+
+  // A missing value and a stored NaN are two values to the engine's HashSet, so
+  // a left holding both against a right holding only the missing one leaves the
+  // NaN row alone in exactly one input. They are only distinct in a nullable
+  // dtype, which is what an Arrow file is read into.
+  "SymmetricDifferenceOpDesc.generateStandaloneCode" should
+    "keep the NaN row that a null row does not cancel" taggedAs NeedsPythonPackages in {
+    val python = configuredPython().getOrElse(cancel("No runnable python executable"))
+    if (!canImport(python, "pandas", "numpy")) cancel(s"'$python' cannot import pandas")
+
+    val driver =
+      s"""import pandas as pd, numpy as np
+         |
+         |def col(vals, mask):
+         |    return pd.arrays.FloatingArray(np.array(vals), np.array(mask))
+         |
+         |in1df = pd.DataFrame({"v": col([0.0, np.nan], [True, False])})
+         |in2df = pd.DataFrame({"v": col([0.0], [True])})
+         |${exported()}
+         |print(len(out1df), [("NULL" if x is pd.NA else repr(float(x))) for x in out1df["v"]])
+         |""".stripMargin
+
+    val script = Files.createTempFile("symmetric-difference-null-nan-", ".py")
+    script.toFile.deleteOnExit()
+    Files.write(script, driver.getBytes(StandardCharsets.UTF_8))
+    val process = new ProcessBuilder(python, script.toString).redirectErrorStream(true).start()
+    val out = Source.fromInputStream(process.getInputStream).mkString
+    process.waitFor(120, TimeUnit.SECONDS)
+
+    withClue(s"python said:\n$out\nscript:\n$driver") {
+      process.exitValue() shouldBe 0
+      out.trim shouldBe "1 ['nan']"
+    }
+  }
+
+  // The engine's HashSet compares rows with Scala's ==, under which NaN equals
+  // nothing, so every NaN row is in exactly one input, and hashes them by each
+  // double's bits, so 0.0 and -0.0 are each in one. A finite value and a null
+  // on both sides are the controls.
+  it should "match rows by the engine's equality for NaN and signed zero" taggedAs NeedsPythonPackages in {
+    val python = configuredPython().getOrElse(cancel("No runnable python executable"))
+    if (!canImport(python, "pandas", "numpy")) cancel(s"'$python' cannot import pandas")
+
+    val exec = new SymmetricDifferenceOpExec
+    exec.open()
+    SetRows.left.foreach(t => exec.processTuple(t, 0))
+    SetRows.right.foreach(t => exec.processTuple(t, 1))
+    exec.onFinish(0)
+    val engine = SetRows.rendered(exec.onFinish(1))
+
+    val out = SetRows.runExport(python, exported(), "symmetric-difference-nan-zero-")
+    withClue(s"script:\n${exported()}")(out shouldBe engine)
+  }
+
+  private def exported(): String = {
+    val desc = new SymmetricDifferenceOpDesc
+    (desc.standaloneHelpers() :+ desc.generateStandaloneCode()).mkString("\n")
   }
 }

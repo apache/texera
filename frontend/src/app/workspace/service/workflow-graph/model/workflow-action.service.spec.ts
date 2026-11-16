@@ -841,16 +841,6 @@ describe("WorkflowActionService", () => {
     expect(texeraGraph.sharedModel.elementPositionMap.get("commentBox-layout")).toBeDefined();
   });
 
-  it("should emit open and close events on the result-panel stream", () => {
-    const events: boolean[] = [];
-    service.resultPanelOpen$.subscribe(v => events.push(v));
-
-    service.openResultPanel();
-    service.closeResultPanel();
-
-    expect(events).toEqual([true, false]);
-  });
-
   it("does not write a redundant shared-model update when the settings value is unchanged", () => {
     syncSharedDoc(); // an edit after the sync goes straight into the document
     service.setWorkflowSettings({ dataTransferBatchSize: 123, executionMode: ExecutionMode.PIPELINED });

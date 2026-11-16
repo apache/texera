@@ -39,13 +39,11 @@ import { MockGuiConfigService } from "../../../common/service/gui-config.service
 import { DashboardWorkflowComputingUnit } from "../../../common/type/workflow-computing-unit";
 describe("WorkflowResultExportService", () => {
   let service: WorkflowResultExportService;
-  let workflowWebsocketServiceSpy: Mocked<WorkflowWebsocketService>;
   let workflowActionServiceSpy: Mocked<WorkflowActionService>;
   let notificationServiceSpy: Mocked<NotificationService>;
   let executeWorkflowServiceSpy: Mocked<ExecuteWorkflowService>;
   let workflowResultServiceSpy: Mocked<WorkflowResultService>;
   let downloadServiceSpy: Mocked<DownloadService>;
-  let datasetServiceSpy: Mocked<DatasetService>;
 
   let jointGraphWrapperSpy: Mocked<JointGraphWrapper>;
   let texeraGraphSpy: Mocked<WorkflowGraph>;
@@ -121,15 +119,13 @@ describe("WorkflowResultExportService", () => {
 
     // Inject the service and spies
     service = TestBed.inject(WorkflowResultExportService);
-    workflowWebsocketServiceSpy = TestBed.inject(
-      WorkflowWebsocketService
-    ) as unknown as Mocked<WorkflowWebsocketService>;
+    TestBed.inject(WorkflowWebsocketService) as unknown as Mocked<WorkflowWebsocketService>;
     workflowActionServiceSpy = TestBed.inject(WorkflowActionService) as unknown as Mocked<WorkflowActionService>;
     notificationServiceSpy = TestBed.inject(NotificationService) as unknown as Mocked<NotificationService>;
     executeWorkflowServiceSpy = TestBed.inject(ExecuteWorkflowService) as unknown as Mocked<ExecuteWorkflowService>;
     workflowResultServiceSpy = TestBed.inject(WorkflowResultService) as unknown as Mocked<WorkflowResultService>;
     downloadServiceSpy = TestBed.inject(DownloadService) as unknown as Mocked<DownloadService>;
-    datasetServiceSpy = TestBed.inject(DatasetService) as unknown as Mocked<DatasetService>;
+    TestBed.inject(DatasetService) as unknown as Mocked<DatasetService>;
 
     // Reset the GuiConfig to a known baseline (export disabled) so tests that
     // enable it via enableExport() do not leak state and become order-dependent.

@@ -124,15 +124,40 @@ function serializeTask(steps: ReActStep[], status: "completed" | "ongoing"): str
     if (step.toolCalls && step.toolCalls.length > 0) {
       for (let i = 0; i < step.toolCalls.length; i++) {
         const tc = step.toolCalls[i];
-        const tr = step.toolResults?.[i];
+        const tr = step.toolResults?.find(r => r.toolCallId === tc.toolCallId);
         const statusAttr = tr?.isError ? "failed" : "succeeded";
         lines.push(`- ${tc.toolName} (${statusAttr})`);
+        lines.push(...serializeToolCallDetails(tc.input, tr));
       }
     }
     lines.push("");
   }
 
   return lines.join("\n").trimEnd();
+}
+
+/**
+ * The `Summary` / `Output` / `Error` lines under a past tool call, in the layout the system prompt
+ * describes. Output keeps only its first line: an operator's data is already in the dataflow
+ * section, and the first line is the tool's one-line result. An error is kept whole, since it is
+ * what the model needs to avoid repeating the call.
+ */
+function serializeToolCallDetails(input: any, result: { output: any; isError?: boolean } | undefined): string[] {
+  const lines: string[] = [];
+  if (typeof input?.summary === "string" && input.summary) {
+    lines.push(`  - Summary: ${input.summary}`);
+  }
+  if (!result) return lines;
+  const text = typeof result.output === "string" ? result.output : JSON.stringify(result.output);
+  if (text === undefined || text === "") return lines;
+  // Tool errors come back as "[ERROR] ..." strings, so the marker counts as well as isError.
+  if (result.isError || text.startsWith("[ERROR]")) {
+    lines.push("  - Error:");
+    lines.push(...text.split("\n").map(line => `    ${line}`));
+  } else {
+    lines.push(`  - Output: ${text.split("\n")[0]}`);
+  }
+  return lines;
 }
 
 function serializeDag(

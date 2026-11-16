@@ -19,6 +19,7 @@
 
 package org.apache.texera.amber.operator.visualization.ganttChart
 
+import org.apache.texera.amber.operator.visualization.StandaloneChartCode._
 import com.fasterxml.jackson.annotation.{JsonProperty, JsonPropertyDescription}
 import com.kjetland.jackson.jsonSchema.annotations.{JsonSchemaInject, JsonSchemaTitle}
 import org.apache.texera.amber.pybuilder.PythonTemplateBuilder.{
@@ -157,20 +158,19 @@ class GanttChartOpDesc extends PythonVisualizationOpDesc with PlotlyStandaloneCo
        |               '''.format(error_msg)
        |
        |if in1df.empty:
-       |    with open(outputHtml, "w", encoding="utf-8") as output:
-       |        output.write(render_error("Input table is empty."))
+       |${standaloneErrorPage("Input table is empty.")}
        |else:
        |    table = in1df[(in1df[$startLit].notnull()) & (in1df[$finishLit].notnull())$optionalFilter].copy()
        |    if table.empty:
-       |        with open(outputHtml, "w", encoding="utf-8") as output:
-       |            output.write(render_error("One or more of your input columns have all missing values"))
+       |${standaloneErrorPage(
+      "One or more of your input columns have all missing values",
+      indent = 8
+    )}
        |    else:
        |        fig = px.timeline(table, x_start=$startLit, x_end=$finishLit, y=$taskLit$colorSetting$patternSetting)
        |        fig.update_yaxes(autorange='reversed')
        |        fig.update_layout(margin=dict(t=0, b=0, l=0, r=0))
-       |        fig.write_json(outputJson)
-       |        fig.write_html(outputHtml)
-       |        print("Gantt chart saved to " + outputHtml)""".stripMargin
+       |${standaloneFigure("Gantt chart")}""".stripMargin
   }
 
 }

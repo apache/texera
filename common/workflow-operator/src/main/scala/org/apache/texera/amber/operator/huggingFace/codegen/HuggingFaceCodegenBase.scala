@@ -999,6 +999,7 @@ object HuggingFaceCodegenBase {
        |        if value is None:
        |            return None
        |        if isinstance(value, bytes):
+       |            self._check_column_value_size(len(value), "byte")
        |            return value
        |        # Treat scalar pandas/numpy missing sentinels (NaN, pd.NA, NaT) as empty.
        |        # isinstance(value, float) only catches float('nan'); pd.NA / NaT are not
@@ -1010,7 +1011,11 @@ object HuggingFaceCodegenBase {
        |                return None
        |        except (TypeError, ValueError):
        |            pass
-       |        val = str(value).strip()
+       |        val = str(value)
+       |        # Bound the cell before it is stripped, sniffed or decoded: each of
+       |        # those passes over the whole value, once per row.
+       |        self._check_column_value_size(len(val), "character")
+       |        val = val.strip()
        |        if not val:
        |            return None
        |        if self._looks_like_html(val):
@@ -1029,6 +1034,14 @@ object HuggingFaceCodegenBase {
        |            return base64.b64decode(val, validate=True)
        |        except Exception:
        |            return val.encode("utf-8")
+       |
+       |    def _check_column_value_size(self, size, unit):
+       |        # The bound _fetch_remote_url applies, so a payload refused over HTTP
+       |        # is not accepted from a column instead.
+       |        if size > self.MAX_REMOTE_FETCH_BYTES:
+       |            raise ValueError(
+       |                f"Column value exceeds the {self.MAX_REMOTE_FETCH_BYTES} {unit} limit."
+       |            )
        |
        |    def _looks_like_html(self, val):
        |        s = val.lstrip()[:200].lower()
