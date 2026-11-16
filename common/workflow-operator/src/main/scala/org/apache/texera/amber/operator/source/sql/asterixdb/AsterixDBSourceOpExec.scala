@@ -57,10 +57,7 @@ class AsterixDBSourceOpExec private[asterixdb] (
   override def produceTuple(): Iterator[TupleLike] =
     iterateRows[Iterator[AnyRef]](curResultIterator, _.hasNext)(
       fetchNextHttpResult,
-      clearHttpResult,
-      f => cachedTuple.foreach(f),
-      f => curOffset.foreach(f),
-      f => curLimit.foreach(f)
+      clearHttpResult
     )
 
   private def fetchNextHttpResult(): Boolean = {

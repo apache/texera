@@ -50,13 +50,7 @@ abstract class SQLSourceOpExec(descString: String) extends SourceOperatorExecuto
     * @return Iterator[TupleLike]
     */
   override def produceTuple(): Iterator[TupleLike] =
-    iterateRows[ResultSet](curResultSet, _.next())(
-      fetchNextJdbcResult,
-      clearJdbcResult,
-      f => cachedTuple.foreach(f),
-      f => curOffset.foreach(f),
-      f => curLimit.foreach(f)
-    )
+    iterateRows[ResultSet](curResultSet, _.next())(fetchNextJdbcResult, clearJdbcResult)
 
   private def fetchNextJdbcResult(): Boolean = {
     curQuery = getNextQuery
@@ -82,10 +76,7 @@ abstract class SQLSourceOpExec(descString: String) extends SourceOperatorExecuto
       advanceRow: R => Boolean
   )(
       fetchNextResult: () => Boolean,
-      clearResult: () => Unit,
-      forCachedTuple: (Tuple => Unit) => Unit,
-      forOffset: (Long => Unit) => Unit,
-      forLimit: (Long => Unit) => Unit
+      clearResult: () => Unit
   ): Iterator[TupleLike] = {
     new Iterator[TupleLike]() {
       override def hasNext: Boolean = {
@@ -112,7 +103,7 @@ abstract class SQLSourceOpExec(descString: String) extends SourceOperatorExecuto
       override def next(): Tuple = {
 
         // if has the next Tuple in cache, return it and clear the cache
-        forCachedTuple(tuple => {
+        cachedTuple.foreach(tuple => {
           cachedTuple = None
           return tuple
         })
@@ -127,7 +118,7 @@ abstract class SQLSourceOpExec(descString: String) extends SourceOperatorExecuto
                 if (advanceRow(rows)) {
 
                   // manually skip until the offset position in order to adapt to progressive batches
-                  forOffset(offset => {
+                  curOffset.foreach(offset => {
                     if (offset > 0) {
                       curOffset = Option(offset - 1)
                       break()
@@ -141,7 +132,7 @@ abstract class SQLSourceOpExec(descString: String) extends SourceOperatorExecuto
                     break()
 
                   // update the limit in order to adapt to progressive batches
-                  forLimit(limit => {
+                  curLimit.foreach(limit => {
                     if (limit > 0) {
                       curLimit = Some(limit - 1)
                     }
@@ -424,6 +415,7 @@ abstract class SQLSourceOpExec(descString: String) extends SourceOperatorExecuto
       val columnType = typeForColumn
       if (columnType != AttributeType.STRING)
         throw new RuntimeException("Can't do keyword search on type " + columnType.toString)
+      // in sql prepared statement, column name cannot be inserted using PreparedStatement.setString either
       queryBuilder ++= conditionFor(column)
     }
   }
