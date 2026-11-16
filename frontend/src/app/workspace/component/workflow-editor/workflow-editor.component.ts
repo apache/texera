@@ -711,7 +711,14 @@ export class WorkflowEditorComponent implements OnInit, AfterViewInit, OnDestroy
 
   public pinResultPreview(): void {
     if (this.resultPreview === null) return;
-    this.pinnedResults = [...this.pinnedResults, { operatorId: this.resultPreview.operatorId, dx: 0, dy: 0 }];
+    this.pinResult(this.resultPreview.operatorId);
+  }
+
+  /** Pins an operator's result window. The right-click menu calls this too, so it works with the hover card off. */
+  public pinResult(operatorId: string): void {
+    if (!this.pinnedResults.some(pinned => pinned.operatorId === operatorId)) {
+      this.pinnedResults = [...this.pinnedResults, { operatorId, dx: 0, dy: 0 }];
+    }
     this.resultPreview = null;
   }
 
@@ -1100,7 +1107,7 @@ export class WorkflowEditorComponent implements OnInit, AfterViewInit, OnDestroy
 
   private handleHighlightMouseDBClickInput(): void {
     // on user mouse double-clicks a comment box, open that comment box
-    // on user mouse double-clicks an operator, highlight it and open result panel
+    // on user mouse double-clicks an operator, pin its result window
     fromJointPaperEvent(this.paper, "cell:pointerdblclick")
       .pipe(untilDestroyed(this))
       .subscribe(event => {
@@ -1112,7 +1119,9 @@ export class WorkflowEditorComponent implements OnInit, AfterViewInit, OnDestroy
           if (this.workflowActionService.getTexeraGraph().hasCommentBox(elementID)) {
             this.openCommentBox(elementID);
           } else if (this.workflowActionService.getTexeraGraph().hasOperator(elementID)) {
-            this.workflowActionService.openResultPanel();
+            this.pinResult(elementID);
+            // JointJS paper events fire outside Angular's zone (see handleHeatmapHover).
+            this.changeDetectorRef.detectChanges();
           }
         }
       });
