@@ -204,11 +204,10 @@ class CostBasedScheduleGenerator(
 
         // Enumerate all ports belonging to the Region
         val ports: Set[GlobalPortIdentity] = physicalOps.flatMap { op =>
-          op.inputPorts.keys
-            .map(inputPortId => GlobalPortIdentity(op.id, inputPortId, input = true))
-            .toSet ++ op.outputPorts.keys
-            .map(outputPortId => GlobalPortIdentity(op.id, outputPortId))
-            .toSet
+          op.inputPorts.keysIterator
+            .map(inputPortId => GlobalPortIdentity(op.id, inputPortId, input = true)) ++
+            op.outputPorts.keysIterator
+              .map(outputPortId => GlobalPortIdentity(op.id, outputPortId))
         }
 
         // Build the Region skeleton (no input‑port URIs yet)
@@ -234,9 +233,8 @@ class CostBasedScheduleGenerator(
 
     regionsWithOnlyOutputPortURIs.map { existingRegion =>
       // MatEdges that originally connected to the input ports of this region.
-      val relevantMatEdges: Set[PhysicalLink] = matEdges.filter { matEdge =>
-        existingRegion.getOperators.exists(_.id == matEdge.toOpId)
-      }
+      val relevantMatEdges: Set[PhysicalLink] =
+        matEdges.filter(matEdge => existingRegion.containsOperator(matEdge.toOpId))
 
       // Assign storage URIs to input ports of each materialized edge (each input port could have more than one URI)
       val inputPortConfigs: Map[GlobalPortIdentity, IntermediateInputPortConfig] =
@@ -401,6 +399,7 @@ class CostBasedScheduleGenerator(
       }
     // Queue to hold states to be explored, starting with the empty set
     val queue: mutable.Queue[Set[PhysicalLink]] = mutable.Queue(Set.empty[PhysicalLink])
+    val inQueue: mutable.Set[Set[PhysicalLink]] = mutable.Set(Set.empty[PhysicalLink])
     // Keep track of visited states to avoid revisiting
     val visited: mutable.Set[Set[PhysicalLink]] = mutable.Set.empty[Set[PhysicalLink]]
     // Used for the Early Stop optimization technique
@@ -415,6 +414,7 @@ class CostBasedScheduleGenerator(
     while (queue.nonEmpty) {
       // A state is represented as a set of materialized non-blocking edges.
       val currentState = queue.dequeue()
+      inQueue.remove(currentState)
       breakable {
         if (
           oEarlyStop && schedulableStates
@@ -474,7 +474,7 @@ class CostBasedScheduleGenerator(
         val unvisitedNeighborStates = candidateEdges
           .map(edge => currentState + edge)
           .filter(neighborState =>
-            !visited.contains(neighborState) && !queue.contains(neighborState)
+            !visited.contains(neighborState) && !inQueue.contains(neighborState)
           )
 
         val filteredNeighborStates = if (oEarlyStop) {
@@ -486,25 +486,7 @@ class CostBasedScheduleGenerator(
           unvisitedNeighborStates
         }
 
-        if (globalSearch) {
-          // include all unvisited neighbors
-          filteredNeighborStates.foreach(neighborState => queue.enqueue(neighborState))
-        } else {
-          // greedy search, only include an unvisited neighbor with the lowest cost
-          if (filteredNeighborStates.nonEmpty) {
-            val minCostNeighborState = filteredNeighborStates.minBy(neighborState =>
-              tryConnectRegionDAG(
-                physicalPlan.getBlockingAndDependeeLinks ++ neighborState
-              ) match {
-                case Left(regionDAG) =>
-                  allocateResourcesAndEvaluateCost(regionDAG)
-                case Right(_) =>
-                  Double.MaxValue
-              }
-            )
-            queue.enqueue(minCostNeighborState)
-          }
-        }
+        enqueueFrontier(filteredNeighborStates, queue, inQueue, globalSearch)
       }
     }
 
@@ -513,6 +495,31 @@ class CostBasedScheduleGenerator(
       searchTimeNanoSeconds = searchTime,
       numStatesExplored = visited.size
     )
+  }
+
+  private def enqueueFrontier(
+      neighbors: Iterable[Set[PhysicalLink]],
+      queue: mutable.Queue[Set[PhysicalLink]],
+      inQueue: mutable.Set[Set[PhysicalLink]],
+      globalSearch: Boolean
+  ): Unit = {
+    if (globalSearch) {
+      neighbors.foreach { neighborState =>
+        inQueue.add(neighborState)
+        queue.enqueue(neighborState)
+      }
+    } else if (neighbors.nonEmpty) {
+      val minCostNeighborState = neighbors.minBy(neighborState =>
+        tryConnectRegionDAG(
+          physicalPlan.getBlockingAndDependeeLinks ++ neighborState
+        ) match {
+          case Left(regionDAG) => allocateResourcesAndEvaluateCost(regionDAG)
+          case Right(_)        => Double.MaxValue
+        }
+      )
+      inQueue.add(minCostNeighborState)
+      queue.enqueue(minCostNeighborState)
+    }
   }
 
   /** Constructs a baseline fully materialized region plan (one operator per region) and evaluates its cost. */
@@ -577,6 +584,7 @@ class CostBasedScheduleGenerator(
 
     // Queue to hold states to be explored, starting with the seed state
     val queue: mutable.Queue[Set[PhysicalLink]] = mutable.Queue(finalSeedState)
+    val inQueue: mutable.Set[Set[PhysicalLink]] = mutable.Set(finalSeedState)
     // Keep track of visited states to avoid revisiting
     val visited: mutable.Set[Set[PhysicalLink]] = mutable.Set.empty[Set[PhysicalLink]]
     // Initialize the bestResult with an impossible high cost for comparison
@@ -588,6 +596,7 @@ class CostBasedScheduleGenerator(
 
     while (queue.nonEmpty) {
       val currentState = queue.dequeue()
+      inQueue.remove(currentState)
       visited.add(currentState)
       tryConnectRegionDAG(
         physicalPlan.getBlockingAndDependeeLinks ++ currentState
@@ -622,28 +631,10 @@ class CostBasedScheduleGenerator(
         val unvisitedNeighborStates = currentState
           .map(edge => currentState - edge)
           .filter(neighborState =>
-            !visited.contains(neighborState) && !queue.contains(neighborState)
+            !visited.contains(neighborState) && !inQueue.contains(neighborState)
           )
 
-        if (globalSearch) {
-          // include all unvisited neighbors
-          unvisitedNeighborStates.foreach(neighborState => queue.enqueue(neighborState))
-        } else {
-          // greedy search, only include an unvisited neighbor with the lowest cost
-          if (unvisitedNeighborStates.nonEmpty) {
-            val minCostNeighborState = unvisitedNeighborStates.minBy(neighborState =>
-              tryConnectRegionDAG(
-                physicalPlan.getBlockingAndDependeeLinks ++ neighborState
-              ) match {
-                case Left(regionDAG) =>
-                  allocateResourcesAndEvaluateCost(regionDAG)
-                case Right(_) =>
-                  Double.MaxValue
-              }
-            )
-            queue.enqueue(minCostNeighborState)
-          }
-        }
+        enqueueFrontier(unvisitedNeighborStates, queue, inQueue, globalSearch)
       }
     }
 

@@ -29,8 +29,7 @@ import org.apache.texera.amber.engine.architecture.scheduling.{Region, WorkflowE
 import org.jgrapht.alg.connectivity.ConnectivityInspector
 
 import scala.collection.mutable
-import scala.collection.mutable.ArrayBuffer
-import scala.jdk.CollectionConverters.SetHasAsScala
+import scala.jdk.CollectionConverters.{ListHasAsScala, SetHasAsScala}
 
 object FriesReconfigurationAlgorithm {
 
@@ -40,88 +39,102 @@ object FriesReconfigurationAlgorithm {
       reconfigurations: Set[UpdateExecutorRequest]
   )
 
-  private def getOneToManyOperators(region: Region): Set[PhysicalOpIdentity] = {
-    region.getOperators.filter(op => op.isOneToManyOp).map(op => op.id)
-  }
-
   def getReconfigurations(
       workflowExecutionManager: WorkflowExecutionManager,
       reconfiguration: WorkflowReconfigureRequest
   ): Set[FriesComponent] = {
     // independently schedule reconfigurations for each region:
     workflowExecutionManager.getExecutingRegions
-      .flatMap(region => computeMCS(region, reconfiguration, reconfiguration.reconfigurationId))
+      .flatMap(region => computeMCS(region, reconfiguration.reconfiguration))
   }
 
   private def computeMCS(
       region: Region,
-      reconfiguration: WorkflowReconfigureRequest,
-      epochMarkerId: String
+      reconfigurations: Seq[UpdateExecutorRequest]
   ): List[FriesComponent] = {
 
     // add all reconfiguration operators to M
-    val reconfigOps = reconfiguration.reconfiguration.map(req => req.targetOpId).toSet
+    val reconfigOps = reconfigurations.iterator.map(_.targetOpId).toSet
     val M = mutable.Set.empty ++ reconfigOps
 
     // for each one-to-many operator, add it to M if its downstream has a reconfiguration operator
-    val oneToManyOperators = getOneToManyOperators(region)
-    oneToManyOperators.foreach(oneToManyOp => {
-      val intersection = region.dag.getDescendants(oneToManyOp).asScala.intersect(reconfigOps)
-      if (intersection.nonEmpty) {
-        M += oneToManyOp
+    region.getOperators.foreach { op =>
+      if (op.isOneToManyOp) {
+        val descendants = region.dag.getDescendants(op.id)
+        if (reconfigOps.exists(descendants.contains)) {
+          M += op.id
+        }
       }
-    })
+    }
 
     // compute MCS based on M
-    var forwardVertices: Set[PhysicalOpIdentity] = Set()
-    var backwardVertices: Set[PhysicalOpIdentity] = Set()
+    var forwardVertices = Set.empty[PhysicalOpIdentity]
+    var backwardVertices = Set.empty[PhysicalOpIdentity]
 
     val topologicalOps = region.topologicalIterator().toList
-    val reverseTopologicalOps = topologicalOps.reverse
 
-    topologicalOps.foreach(opId => {
+    topologicalOps.foreach { opId =>
       val op = region.getOperator(opId)
-      val parents = op.inputPorts.flatMap(_._2._2).map(_.fromOpId)
-      val fromParent: Boolean = parents.exists(p => forwardVertices.contains(p))
+      val fromParent = op.inputPorts.valuesIterator
+        .flatMap(_._2)
+        .exists(link => forwardVertices.contains(link.fromOpId))
       if (M.contains(opId) || fromParent) {
         forwardVertices += opId
       }
-    })
+    }
 
-    reverseTopologicalOps.foreach(opId => {
+    topologicalOps.reverseIterator.foreach { opId =>
       val op = region.getOperator(opId)
-      val children = op.outputPorts.flatMap(_._2._2).map(_.toOpId)
-      val fromChildren: Boolean = children.exists(p => backwardVertices.contains(p))
-      if (M.contains(opId) || fromChildren) {
+      val fromChild = op.outputPorts.valuesIterator
+        .flatMap(_._2)
+        .exists(link => backwardVertices.contains(link.toOpId))
+      if (M.contains(opId) || fromChild) {
         backwardVertices += opId
       }
-    })
+    }
 
     val resultMCSOpIds = forwardVertices.intersect(backwardVertices)
     val newLinks =
       region.getLinks.filter(link =>
         resultMCSOpIds.contains(link.fromOpId) && resultMCSOpIds.contains(link.toOpId)
       )
-    val mcsPlan = PhysicalPlan(resultMCSOpIds.map(opId => region.getOperator(opId)), newLinks)
-
-    // find the MCS components,
-    // for each component, send an epoch marker to each of its source operators
-    val epochMarkers = new ArrayBuffer[FriesComponent]()
+    val mcsPlan = PhysicalPlan(resultMCSOpIds.map(region.getOperator), newLinks)
 
     val connectedSets = new ConnectivityInspector(mcsPlan.dag).connectedSets()
-    connectedSets.forEach(component => {
-      val componentSet = component.asScala.toSet
-      val componentPlan = mcsPlan.getSubPlan(componentSet)
-      val reconfigCommands =
-        reconfiguration.reconfiguration
-          .filter(req => component.contains(req.targetOpId))
-          .toSet
+    def getComponentSources(operators: Set[PhysicalOpIdentity]): Set[PhysicalOpIdentity] =
+      operators.filter(opId => mcsPlan.dag.inDegreeOf(opId) == 0)
 
-      // find the source operators of the component
-      val sources = componentSet.intersect(mcsPlan.getSourceOperatorIds)
-      epochMarkers += FriesComponent(sources, componentPlan.operators.map(_.id), reconfigCommands)
-    })
-    epochMarkers.toList
+    if (connectedSets.isEmpty) {
+      Nil
+    } else if (connectedSets.size() == 1) {
+      val operators = connectedSets.get(0).asScala.toSet
+      val commands =
+        reconfigurations.iterator.filter(req => operators.contains(req.targetOpId)).toSet
+      List(FriesComponent(getComponentSources(operators), operators, commands))
+    } else {
+      val componentByOperator = mutable.Map.empty[PhysicalOpIdentity, Int]
+      val components = connectedSets.asScala.iterator.zipWithIndex.map {
+        case (component, index) =>
+          val operators = component.asScala.toSet
+          operators.foreach(opId => componentByOperator.update(opId, index))
+          operators
+      }.toVector
+      val commandsByComponent = Array.fill(components.size)(Set.newBuilder[UpdateExecutorRequest])
+      reconfigurations.foreach { request =>
+        componentByOperator.get(request.targetOpId).foreach { index =>
+          commandsByComponent(index) += request
+        }
+      }
+
+      components.iterator.zipWithIndex.map {
+        case (operators, index) =>
+          FriesComponent(
+            getComponentSources(operators),
+            operators,
+            commandsByComponent(index).result()
+          )
+      }.toList
+    }
   }
 
 }
