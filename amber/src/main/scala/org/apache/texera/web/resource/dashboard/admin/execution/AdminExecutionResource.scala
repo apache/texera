@@ -100,15 +100,11 @@ class AdminExecutionResource {
   def getTotalWorkflows: Int = {
     context
       .select(
-        DSL.countDistinct(WORKFLOW.WID)
+        DSL.countDistinct(WORKFLOW_VERSION.WID)
       )
       .from(WORKFLOW_EXECUTIONS)
       .join(WORKFLOW_VERSION)
       .on(WORKFLOW_EXECUTIONS.VID.eq(WORKFLOW_VERSION.VID))
-      .join(USER)
-      .on(WORKFLOW_EXECUTIONS.UID.eq(USER.UID))
-      .join(WORKFLOW)
-      .on(WORKFLOW.WID.eq(WORKFLOW_VERSION.WID))
       .fetchOne(0, classOf[Int])
   }
 
@@ -129,6 +125,10 @@ class AdminExecutionResource {
   ): List[dashboardExecution] = {
     val filter_status = filter.asScala.map(mapToStatus).toSeq.filter(_ != -1).asJava
 
+    val hasAccessField = DSL
+      .field(WORKFLOW_VERSION.WID.in(WorkflowAccess.accessibleWids(current_user.getUid)))
+      .as("has_access")
+
     // Base query that retrieves latest execution info for each workflow without sorting and filtering.
     // Only retrieving executions in current page according to pageSize and pageIndex parameters.
     val executions_base_query = context
@@ -141,7 +141,8 @@ class AdminExecutionResource {
         WORKFLOW_EXECUTIONS.STARTING_TIME,
         WORKFLOW_EXECUTIONS.LAST_UPDATE_TIME,
         WORKFLOW_EXECUTIONS.STATUS,
-        WORKFLOW_EXECUTIONS.NAME
+        WORKFLOW_EXECUTIONS.NAME,
+        hasAccessField
       )
       .from(WORKFLOW_EXECUTIONS)
       .join(WORKFLOW_VERSION)
@@ -169,26 +170,17 @@ class AdminExecutionResource {
     }
 
     // Apply sorting if user specified.
-    var executions_apply_order =
-      executions_apply_filter.limit(page_size).offset(page_index * page_size)
-    if (sortField != "NO_SORTING") {
-      executions_apply_order = executions_apply_filter
-        .orderBy(
-          if (sortDirection == "desc") sortFieldMapping.getOrElse(sortField, WORKFLOW.NAME).desc()
-          else sortFieldMapping.getOrElse(sortField, WORKFLOW.NAME).asc()
-        )
-        .limit(page_size)
-        .offset(page_index * page_size)
-    }
+    val executions_apply_order =
+      (if (sortField != "NO_SORTING") {
+         executions_apply_filter.orderBy(
+           if (sortDirection == "desc") sortFieldMapping.getOrElse(sortField, WORKFLOW.NAME).desc()
+           else sortFieldMapping.getOrElse(sortField, WORKFLOW.NAME).asc()
+         )
+       } else {
+         executions_apply_filter
+       }).limit(page_size).offset(page_index * page_size)
 
     val executions = executions_apply_order.fetch()
-
-    // Retrieve the id of each workflow that the user has access to.
-    val availableWorkflowIds = context
-      .fetch(WorkflowAccess.accessibleWids(current_user.getUid))
-      .getValues(0, classOf[Integer])
-      .asScala
-      .toSet
 
     // Calculate the statistics needed for each execution.
     executions
@@ -196,15 +188,11 @@ class AdminExecutionResource {
         val startingTime =
           workflowRecord.get(WORKFLOW_EXECUTIONS.STARTING_TIME).getTime
 
-        var lastUpdateTime: Long = 0
-        if (workflowRecord.get(WORKFLOW_EXECUTIONS.LAST_UPDATE_TIME) == null) {
-          lastUpdateTime = 0
-        } else {
-          lastUpdateTime = workflowRecord.get(WORKFLOW_EXECUTIONS.LAST_UPDATE_TIME).getTime
-        }
+        val lastUpdateTime =
+          Option(workflowRecord.get(WORKFLOW_EXECUTIONS.LAST_UPDATE_TIME)).fold(0L)(_.getTime)
 
         val timeDifferenceSeconds = (lastUpdateTime - startingTime) / 1000.0
-        val hasAccess = availableWorkflowIds.contains(workflowRecord.get(WORKFLOW_VERSION.WID))
+        val hasAccess = java.lang.Boolean.TRUE.equals(workflowRecord.get(hasAccessField))
         dashboardExecution(
           workflowRecord.get(WORKFLOW.NAME),
           workflowRecord.get(WORKFLOW_VERSION.WID),
