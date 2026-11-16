@@ -15,12 +15,12 @@
     "format:check": "prettier --check \"src/**/*.{ts,tsx,json}\""
   },
   "dependencies": {
-    "@ai-sdk/openai": "4.0.101",
-    "@elysiajs/cors": "1.4.2",
-    "ai": "7.0.152",
+    "@ai-sdk/openai": "4.0.118",
+    "@elysiajs/cors": "1.4.3",
+    "ai": "7.0.173",
     "ajv": "8.20.0",
     "dagre": "0.8.5",
-    "elysia": "1.4.30",
+    "elysia": "1.4.32",
     "pino": "10.4.0",
     "rxjs": "7.8.2",
     "zod": "3.25.76"
