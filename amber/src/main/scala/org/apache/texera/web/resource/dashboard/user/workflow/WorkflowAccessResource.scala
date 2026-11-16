@@ -48,11 +48,10 @@ object WorkflowAccessResource {
 @RolesAllowed(Array("REGULAR", "ADMIN"))
 @Path("/access/workflow")
 class WorkflowAccessResource() {
-  final private val readContext = context
   final private val workflowUserAccessDao = new WorkflowUserAccessDao(context.configuration)
 
   private def ownerUid(wid: Integer): Integer =
-    readContext
+    context
       .select(WORKFLOW_OF_USER.UID)
       .from(WORKFLOW_OF_USER)
       .where(WORKFLOW_OF_USER.WID.eq(wid))
@@ -68,12 +67,14 @@ class WorkflowAccessResource() {
   @GET
   @Path("/owner/{wid}")
   def getOwner(@PathParam("wid") wid: Integer): String = {
-    readContext
+    context
       .select(USER.EMAIL)
-      .from(USER)
-      .where(USER.UID.eq(ownerUid(wid)))
-      .fetchOne()
-      .value1()
+      .from(WORKFLOW_OF_USER)
+      .join(USER)
+      .on(USER.UID.eq(WORKFLOW_OF_USER.UID))
+      .where(WORKFLOW_OF_USER.WID.eq(wid))
+      .fetch(USER.EMAIL)
+      .get(0)
   }
 
   /**
@@ -134,15 +135,9 @@ class WorkflowAccessResource() {
       throw new ForbiddenException(s"You do not have permission to modify workflow $wid")
     }
 
-    val targetUser = readContext
-      .select(USER.UID, USER.IS_PLACEHOLDER)
-      .from(USER)
-      .where(USER.EMAIL.eq(email))
-      .fetchOne()
-    if (targetUser == null || targetUser.value2()) {
-      throw new BadRequestException(s"No registered user with email $email")
-    }
-    val userUid = targetUser.value1()
+    val userUid = OwnerAccess
+      .registeredUid(context, email)
+      .getOrElse(throw new BadRequestException(s"No registered user with email $email"))
     if (isOwner(wid, userUid)) {
       // amber is on javax JAX-RS, so it raises its own ForbiddenException with the shared message.
       throw new ForbiddenException(OwnerAccess.ownerChangeRefused)
@@ -177,7 +172,7 @@ class WorkflowAccessResource() {
       @Auth user: SessionUser
   ): Unit = {
     try {
-      val targetUserUid = readContext
+      val targetUserUid = context
         .select(USER.UID)
         .from(USER)
         .where(USER.EMAIL.eq(email))

@@ -45,7 +45,7 @@ object ResourceAccess {
   private[service] def repositoryIds(
       ctx: DSLContext,
       repositoryName: String
-  ): (java.util.List[Integer], java.util.List[Integer]) = {
+  ): (List[Integer], List[Integer]) = {
     val datasetIds = ctx
       .select(DATASET.DID)
       .from(DATASET)
@@ -56,7 +56,7 @@ object ResourceAccess {
       .from(MODEL)
       .where(MODEL.REPOSITORY_NAME.eq(repositoryName))
       .fetch(MODEL.MID)
-    (datasetIds, modelIds)
+    (datasetIds.asScala.toList, modelIds.asScala.toList)
   }
 
   def isPublic[R <: Record, A <: Record](
@@ -152,10 +152,15 @@ object ResourceAccess {
       requesterUid: Integer
   ): String = {
     requireReadAccess(ctx, resource, id, requesterUid)
-    ownerUid(ctx, resource, id)
-      .flatMap(uid => Option(ctx.select(USER.EMAIL).from(USER).where(USER.UID.eq(uid)).fetchOne()))
-      .map(_.value1())
-      .getOrElse("")
+    Option(
+      ctx
+        .select(USER.EMAIL)
+        .from(resource.table)
+        .join(USER)
+        .on(USER.UID.eq(resource.ownerUidField))
+        .where(resource.idField.eq(id))
+        .fetchOne()
+    ).map(_.value1()).getOrElse("")
   }
 
   /**
@@ -172,12 +177,6 @@ object ResourceAccess {
       requesterUid: Integer
   ): java.util.List[AccessEntry] = {
     requireReadAccess(ctx, resource, id, requesterUid)
-    val ownerUid = ctx
-      .select(resource.ownerUidField)
-      .from(resource.table)
-      .where(resource.idField.eq(id))
-      .fetchOne()
-      .value1()
 
     ctx
       .select(USER.EMAIL, USER.NAME, resource.privilegeField)
@@ -187,7 +186,7 @@ object ResourceAccess {
       .where(
         resource.accessIdField
           .eq(id)
-          .and(resource.accessUidField.notEqual(ownerUid))
+          .and(resource.accessUidField.notEqual(ownerUid(ctx, resource, id).orNull))
       )
       .fetchInto(classOf[AccessEntry])
   }
@@ -275,15 +274,9 @@ object ResourceAccess {
       requesterUid: Integer
   ): Response = {
     requireWriteAccess(ctx, resource, id, requesterUid)
-    val grantee = ctx
-      .select(USER.UID, USER.IS_PLACEHOLDER)
-      .from(USER)
-      .where(USER.EMAIL.eq(email))
-      .fetchOne()
-    if (grantee == null || grantee.value2()) {
-      throw new BadRequestException(s"No registered user with email $email")
-    }
-    val granteeUid = grantee.value1()
+    val granteeUid = OwnerAccess
+      .registeredUid(ctx, email)
+      .getOrElse(throw new BadRequestException(s"No registered user with email $email"))
     OwnerAccess.requireNotOwner(userOwns(ctx, resource, id, granteeUid))
     val granted = PrivilegeEnum.valueOf(privilege)
 

@@ -149,19 +149,19 @@ class S3ProxyServlet extends HttpServlet with LazyLogging {
   private def authorizedToRead(uid: Integer, repositoryName: String): Boolean =
     withTransaction(SqlServer.getInstance().createDSLContext()) { ctx =>
       val (datasets, models) = ResourceAccess.repositoryIds(ctx, repositoryName)
-      (datasets.size(), models.size()) match {
-        case (1, 0) =>
-          DatasetAccessResource.userHasReadAccess(ctx, datasets.get(0), uid)
-        case (0, 1) =>
-          ModelAccessResource.userHasReadAccess(ctx, models.get(0), uid)
-        case (0, 0) =>
+      (datasets, models) match {
+        case (did :: Nil, Nil) =>
+          DatasetAccessResource.userHasReadAccess(ctx, did, uid)
+        case (Nil, mid :: Nil) =>
+          ModelAccessResource.userHasReadAccess(ctx, mid, uid)
+        case (Nil, Nil) =>
           false
         case _ =>
           // Logged because it means the data violates an assumption the mount path rests on,
           // and the owners of those rows will see an unexplained denial.
           logger.error(
-            s"repository '$repositoryName' matches ${datasets.size()} datasets and " +
-              s"${models.size()} models; denying rather than choosing one"
+            s"repository '$repositoryName' matches ${datasets.size} datasets and " +
+              s"${models.size} models; denying rather than choosing one"
           )
           false
       }

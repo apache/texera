@@ -161,23 +161,21 @@ class ComputingUnitMountResource(
       uid: Integer
   ): Unit =
     withTransaction(SqlServer.getInstance().createDSLContext()) { ctx =>
-      val (datasetIds, modelIds) = ResourceAccess.repositoryIds(ctx, repositoryName)
-
-      val readable = (datasetIds.size(), modelIds.size()) match {
-        case (1, 0) =>
-          val did = datasetIds.get(0)
+      val readable = ResourceAccess.repositoryIds(ctx, repositoryName) match {
+        case (did :: Nil, Nil) =>
           ResourceAccess.userHasReadAccess(ctx, ResourceTables.Dataset, did, uid) &&
-          ctx.fetchExists(
-            DATASET_VERSION,
-            DATASET_VERSION.DID.eq(did).and(DATASET_VERSION.VERSION_HASH.eq(commitHash))
-          )
-        case (0, 1) =>
-          val mid = modelIds.get(0)
+            ctx.fetchExists(
+              DATASET_VERSION,
+              DATASET_VERSION.DID
+                .eq(did)
+                .and(DATASET_VERSION.VERSION_HASH.eq(commitHash))
+            )
+        case (Nil, mid :: Nil) =>
           ResourceAccess.userHasReadAccess(ctx, ResourceTables.Model, mid, uid) &&
-          ctx.fetchExists(
-            MODEL_VERSION,
-            MODEL_VERSION.MID.eq(mid).and(MODEL_VERSION.VERSION_HASH.eq(commitHash))
-          )
+            ctx.fetchExists(
+              MODEL_VERSION,
+              MODEL_VERSION.MID.eq(mid).and(MODEL_VERSION.VERSION_HASH.eq(commitHash))
+            )
         case _ => false
       }
 
