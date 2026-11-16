@@ -266,21 +266,10 @@ describe("TexeraAgent", () => {
     });
 
     test("a disabled tool is reported as disabled in the system info", () => {
-      const toolName = agent.getSystemInfo().tools[0].name;
+      agent.updateSettings({ disabledTools: new Set(["addOperator"]) });
 
-      agent.updateSettings({ disabledTools: new Set([toolName]) });
-
-      const info = agent.getSystemInfo().tools.find(t => t.name === toolName);
+      const info = agent.getSystemInfo().tools.find(t => t.name === "addOperator");
       expect(info?.enabled).toBe(false);
-    });
-
-    test("restricting the allowed operator types rewrites the system prompt", () => {
-      const before = agent.getSystemInfo().systemPrompt;
-
-      agent.updateSettings({ allowedOperatorTypes: ["CSVFileScan"] });
-
-      expect(agent.getSystemInfo().systemPrompt).not.toBe(before);
-      expect(agent.getSettings().allowedOperatorTypes).toEqual(["CSVFileScan"]);
     });
   });
 
@@ -552,7 +541,13 @@ describe("sendMessage", () => {
     });
     expect(call.abortSignal).toBeInstanceOf(AbortSignal);
     expect(call.abortSignal.aborted).toBe(false);
-    expect(call.tools.map((t: any) => t.name)).toEqual(["deleteOperator", "addOperator", "modifyOperator"]);
+    expect(call.tools.map((t: any) => t.name)).toEqual([
+      "list_operator_types",
+      "get_operator_schema",
+      "deleteOperator",
+      "addOperator",
+      "modifyOperator",
+    ]);
     // An empty workflow has no dataflow block, so the user's words are the whole input.
     expect(promptOf(call)).toEqual([{ system: "SYS-XYZ" }, { user: "raw-user-text" }]);
     expect(agent.getAllSteps()[1].inputMessages).toEqual([{ role: "user", content: "raw-user-text" }]);
@@ -829,8 +824,15 @@ describe("sendMessage", () => {
     agent.updateSettings({ disabledTools: new Set(["modifyOperator"]) });
     await agent.sendMessage("go");
     const call = (model as any).doGenerateCalls[0];
-    expect(call.tools.map((t: any) => t.name)).toEqual(["deleteOperator", "addOperator"]);
+    expect(call.tools.map((t: any) => t.name)).toEqual([
+      "list_operator_types",
+      "get_operator_schema",
+      "deleteOperator",
+      "addOperator",
+    ]);
     expect(agent.getSystemInfo().tools.map(t => [t.name, t.enabled])).toEqual([
+      ["list_operator_types", true],
+      ["get_operator_schema", true],
       ["deleteOperator", true],
       ["addOperator", true],
       ["modifyOperator", false],
@@ -873,6 +875,101 @@ describe("sendMessage", () => {
     }) as any);
     await agent.sendMessage("del");
     expect(agent.getWorkflowState().getOperator("op1")).toBeDefined();
+  });
+
+  test("the two operator tools cannot be switched off", async () => {
+    // The prompt sends the model to them, and nothing else describes an operator type.
+    const model = textModel("ok");
+    const agent = makeAgentWith(model);
+    agent.updateSettings({ disabledTools: new Set(["list_operator_types", "get_operator_schema", "addOperator"]) });
+    await agent.sendMessage("go");
+    const call = (model as any).doGenerateCalls[0];
+    expect(call.tools.map((t: any) => t.name)).toEqual([
+      "list_operator_types",
+      "get_operator_schema",
+      "deleteOperator",
+      "modifyOperator",
+    ]);
+    expect(
+      agent
+        .getSystemInfo()
+        .tools.filter(t => !t.enabled)
+        .map(t => t.name)
+    ).toEqual(["addOperator"]);
+  });
+
+  describe("operator types", () => {
+    const op = (operatorType: string, description: string) => ({
+      operatorType,
+      jsonSchema: { type: "object", properties: {} },
+      additionalMetadata: {
+        userFriendlyName: operatorType,
+        operatorDescription: description,
+        inputPorts: [],
+        outputPorts: [{}],
+      },
+    });
+    let saved: unknown;
+
+    beforeEach(() => {
+      saved = (WorkflowSystemMetadata as any).instance;
+      (WorkflowSystemMetadata as any).instance = undefined;
+      WorkflowSystemMetadata.getInstance().loadFromMetadata({
+        operators: [op("Split", "Split data to two different ports"), op("CSVFileScan", "Read a CSV file")],
+      } as any);
+    });
+
+    afterEach(() => {
+      (WorkflowSystemMetadata as any).instance = saved;
+    });
+
+    test("an agent with default settings lists the types, then looks up and adds any of them", async () => {
+      // No list of allowed types stands between the agent and the metadata.
+      const agent = makeAgentWith(
+        scriptedModel([
+          { call: "list_operator_types", input: {} },
+          { call: "get_operator_schema", input: { operatorTypes: ["Split"] } },
+          { call: "addOperator", input: { operatorId: "op1", operatorType: "Split", properties: {}, summary: "s" } },
+          "done",
+        ])
+      );
+      compileOk();
+      await agent.sendMessage("split the data");
+      const [listed, lookedUp, added] = agent.getAllSteps().slice(1, 4);
+      expect(listed.toolResults?.[0]?.output).toBe(
+        "CSVFileScan: Read a CSV file\nSplit: Split data to two different ports"
+      );
+      expect(JSON.parse(String(lookedUp.toolResults?.[0]?.output))).toEqual({
+        Split: { description: "Split data to two different ports", properties: {}, required: [] },
+      });
+      expect(added.toolResults?.[0]?.isError).toBeFalsy();
+      expect(
+        agent
+          .getWorkflowState()
+          .getAllOperators()
+          .map(o => o.operatorType)
+      ).toEqual(["Split"]);
+    });
+
+    test("the lookup and the add tool refuse a type that does not exist", async () => {
+      const agent = makeAgentWith(
+        scriptedModel([
+          { call: "get_operator_schema", input: { operatorTypes: ["Pivot"] } },
+          { call: "addOperator", input: { operatorId: "op1", operatorType: "Pivot", properties: {}, summary: "s" } },
+          "done",
+        ])
+      );
+      await agent.sendMessage("pivot the data");
+      const [lookedUp, added] = agent.getAllSteps().slice(1, 3);
+      expect(lookedUp.toolResults?.[0]).toMatchObject({ isError: true });
+      expect(String(lookedUp.toolResults?.[0]?.output)).toContain(
+        "No such operator types: Pivot. list_operator_types names the types that exist."
+      );
+      expect(String(added.toolResults?.[0]?.output)).toStartWith(
+        '[ERROR] Unknown operator type: "Pivot". list_operator_types names the types that exist.'
+      );
+      expect(agent.getWorkflowState().getAllOperators()).toEqual([]);
+    });
   });
 
   test("caps the loop at maxSteps", async () => {

@@ -112,7 +112,6 @@ function getAgentInfo(agentId: string, agent: TexeraAgent): AgentInfo {
     executionTimeoutMinutes: Math.round(agentSettings.executionTimeoutMs / 60000),
     disabledTools: Array.from(agentSettings.disabledTools),
     maxSteps: agentSettings.maxSteps,
-    allowedOperatorTypes: agentSettings.allowedOperatorTypes,
   };
 
   const delegateConfig = agent.getDelegateConfig();
@@ -222,7 +221,6 @@ const agentsRouter = new Elysia({ prefix: "/agents" })
           executionTimeoutMs: settings.executionTimeoutMinutes ? settings.executionTimeoutMinutes * 60000 : undefined,
           disabledTools: settings.disabledTools ? new Set(settings.disabledTools) : undefined,
           maxSteps: settings.maxSteps,
-          allowedOperatorTypes: settings.allowedOperatorTypes,
         });
       }
 
@@ -243,7 +241,6 @@ const agentsRouter = new Elysia({ prefix: "/agents" })
             executionTimeoutMinutes: t.Optional(t.Number()),
             disabledTools: t.Optional(t.Array(t.String())),
             maxSteps: t.Optional(t.Integer({ minimum: 1 })),
-            allowedOperatorTypes: t.Optional(t.Array(t.String())),
           })
         ),
       }),
@@ -312,13 +309,6 @@ const agentsRouter = new Elysia({ prefix: "/agents" })
     return { status: "cleared" };
   })
 
-  .get("/:id/operator-types", ({ params: { id } }) => {
-    const agent = getAgent(id);
-    const metadataStore = agent.getMetadataStore();
-    const allTypes = metadataStore.getAllOperatorTypes();
-    return Object.entries(allTypes).map(([type, description]) => ({ type, description }));
-  })
-
   .get("/:id/settings", ({ params: { id } }) => {
     const agent = getAgent(id);
     const agentSettings = agent.getSettings();
@@ -330,7 +320,6 @@ const agentsRouter = new Elysia({ prefix: "/agents" })
       executionTimeoutMinutes: Math.round(agentSettings.executionTimeoutMs / 60000),
       disabledTools: Array.from(agentSettings.disabledTools),
       maxSteps: agentSettings.maxSteps,
-      allowedOperatorTypes: agentSettings.allowedOperatorTypes,
     };
   })
 
@@ -360,7 +349,6 @@ const agentsRouter = new Elysia({ prefix: "/agents" })
           settings.executionTimeoutMinutes !== undefined ? settings.executionTimeoutMinutes * 60000 : undefined,
         disabledTools: settings.disabledTools ? new Set(settings.disabledTools) : undefined,
         maxSteps: settings.maxSteps,
-        allowedOperatorTypes: settings.allowedOperatorTypes,
       });
 
       const agentSettings = agent.getSettings();
@@ -372,7 +360,6 @@ const agentsRouter = new Elysia({ prefix: "/agents" })
         executionTimeoutMinutes: Math.round(agentSettings.executionTimeoutMs / 60000),
         disabledTools: Array.from(agentSettings.disabledTools),
         maxSteps: agentSettings.maxSteps,
-        allowedOperatorTypes: agentSettings.allowedOperatorTypes,
       };
     },
     {
@@ -384,7 +371,6 @@ const agentsRouter = new Elysia({ prefix: "/agents" })
         executionTimeoutMinutes: t.Optional(t.Number()),
         maxSteps: t.Optional(t.Integer({ minimum: 1 })),
         disabledTools: t.Optional(t.Array(t.String())),
-        allowedOperatorTypes: t.Optional(t.Array(t.String())),
       }),
     }
   );

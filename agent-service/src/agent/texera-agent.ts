@@ -47,6 +47,12 @@ import {
   TOOL_NAME_EXECUTE_OPERATOR,
   type ExecutionConfig,
 } from "./tools/workflow-execution-tools";
+import {
+  createGetOperatorSchemaTool,
+  createListOperatorTypesTool,
+  TOOL_NAME_GET_OPERATOR_SCHEMA,
+  TOOL_NAME_LIST_OPERATOR_TYPES,
+} from "./tools/operator-tools";
 import { dataflowMessage, unexecutedToolCallsMessage } from "./util/context-utils";
 import { compileWorkflowAsync, type WorkflowCompilationResponse } from "../api/compile-api";
 import { createLogger } from "../logger";
@@ -54,6 +60,12 @@ import type { Logger } from "pino";
 import { isErrorResult } from "./tools/tools-utility";
 
 const PERSIST_DEBOUNCE_MS = 500;
+
+/** The tools `settings.disabledTools` cannot switch off. */
+const ALWAYS_ENABLED_TOOLS: ReadonlySet<string> = new Set([
+  TOOL_NAME_LIST_OPERATOR_TYPES,
+  TOOL_NAME_GET_OPERATOR_SCHEMA,
+]);
 
 export interface TexeraAgentConfig {
   model: LanguageModel;
@@ -184,18 +196,14 @@ export class TexeraAgent {
         await this.metadataStore.initializeFromBackend();
       }
 
-      this.rebuildSystemPrompt();
+      this.systemPrompt = buildSystemPrompt();
+      this.settings.systemPrompt = this.systemPrompt;
 
       this.tools = this.createTools();
       this.log.info({ operatorCount: this.metadataStore.getOperatorCount() }, "agent initialized");
     } catch (error) {
       this.log.error({ err: error }, "failed to initialize metadata");
     }
-  }
-
-  private rebuildSystemPrompt(): void {
-    this.systemPrompt = buildSystemPrompt(this.metadataStore, this.settings.allowedOperatorTypes);
-    this.settings.systemPrompt = this.systemPrompt;
   }
 
   private buildExecutionConfig(): ExecutionConfig | undefined {
@@ -244,6 +252,8 @@ export class TexeraAgent {
     };
 
     const tools: Record<string, any> = {
+      [TOOL_NAME_LIST_OPERATOR_TYPES]: createListOperatorTypesTool(this.metadataStore),
+      [TOOL_NAME_GET_OPERATOR_SCHEMA]: createGetOperatorSchemaTool(this.metadataStore),
       [TOOL_NAME_DELETE_OPERATOR]: createDeleteOperatorTool(this.workflowState, context),
       [TOOL_NAME_ADD_OPERATOR]: createAddOperatorTool(this.workflowState, operatorSchemas, context),
       [TOOL_NAME_MODIFY_OPERATOR]: createModifyOperatorTool(this.workflowState, context),
@@ -262,9 +272,17 @@ export class TexeraAgent {
     return tools;
   }
 
-  /** The tools the model may call: every tool except those in `settings.disabledTools`. */
+  /**
+   * Whether the model may call a tool: every tool except those in `settings.disabledTools`. The two
+   * operator tools cannot be switched off, since the prompt sends the model to them and nothing
+   * else describes an operator type.
+   */
+  private isToolEnabled(name: string): boolean {
+    return ALWAYS_ENABLED_TOOLS.has(name) || !this.settings.disabledTools.has(name);
+  }
+
   private getEnabledTools(): Record<string, any> {
-    return Object.fromEntries(Object.entries(this.tools).filter(([name]) => !this.settings.disabledTools.has(name)));
+    return Object.fromEntries(Object.entries(this.tools).filter(([name]) => this.isToolEnabled(name)));
   }
 
   getState(): AgentStateEnum {
@@ -273,10 +291,6 @@ export class TexeraAgent {
 
   getWorkflowState(): WorkflowState {
     return this.workflowState;
-  }
-
-  getMetadataStore(): WorkflowSystemMetadata {
-    return this.metadataStore;
   }
 
   getHead(): string {
@@ -387,7 +401,7 @@ export class TexeraAgent {
     const toolsInfo = Object.entries(this.tools).map(([name, toolDef]) => {
       const description = toolDef.description || "";
       const inputSchema = toolDef.parameters || {};
-      const enabled = !this.settings.disabledTools.has(name);
+      const enabled = this.isToolEnabled(name);
 
       return {
         name,
@@ -415,10 +429,7 @@ export class TexeraAgent {
     executionTimeoutMs?: number;
     disabledTools?: Set<string>;
     maxSteps?: number;
-    allowedOperatorTypes?: string[];
   }): void {
-    let promptNeedsRebuild = false;
-
     if (updates.maxOperatorResultCharLimit !== undefined) {
       this.settings.maxOperatorResultCharLimit = updates.maxOperatorResultCharLimit;
     }
@@ -439,14 +450,6 @@ export class TexeraAgent {
     }
     if (updates.maxSteps !== undefined) {
       this.settings.maxSteps = Math.max(1, Math.trunc(updates.maxSteps));
-    }
-    if (updates.allowedOperatorTypes !== undefined) {
-      this.settings.allowedOperatorTypes = updates.allowedOperatorTypes;
-      promptNeedsRebuild = true;
-    }
-
-    if (promptNeedsRebuild) {
-      this.rebuildSystemPrompt();
     }
 
     this.tools = this.createTools();

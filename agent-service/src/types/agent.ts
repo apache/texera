@@ -75,7 +75,6 @@ export interface AgentSettings {
   toolTimeoutMs: number;
   executionTimeoutMs: number;
   maxSteps: number;
-  allowedOperatorTypes: string[];
 }
 
 export const DEFAULT_AGENT_SETTINGS: Omit<AgentSettings, "systemPrompt"> = {
@@ -86,26 +85,6 @@ export const DEFAULT_AGENT_SETTINGS: Omit<AgentSettings, "systemPrompt"> = {
   toolTimeoutMs: 240000,
   executionTimeoutMs: 240000,
   maxSteps: 100,
-  allowedOperatorTypes: [
-    "CSVFileScan",
-    "Filter",
-    "Projection",
-    "TypeCasting",
-    "Sort",
-    "Limit",
-    "Distinct",
-    "Union",
-    "KeywordSearch",
-    "HashJoin",
-    "Aggregate",
-    "LineChart",
-    "BarChart",
-    "PieChart",
-    "Histogram",
-    "Scatterplot",
-    "WordCloud",
-    "PythonUDFV2",
-  ],
 };
 
 export interface UserInfo {
@@ -136,7 +115,6 @@ export interface AgentSettingsApi {
   executionTimeoutMinutes?: number;
   disabledTools?: string[];
   maxSteps?: number;
-  allowedOperatorTypes?: string[];
 }
 
 export interface AgentInfo {
@@ -165,5 +143,4 @@ export interface UpdateAgentSettingsRequest {
   executionTimeoutMinutes?: number;
   disabledTools?: string[];
   maxSteps?: number;
-  allowedOperatorTypes?: string[];
 }
