@@ -19,16 +19,34 @@
 
 import { TestBed } from "@angular/core/testing";
 import { HttpClientTestingModule, HttpTestingController } from "@angular/common/http/testing";
-import { of, throwError } from "rxjs";
+import { of, Subject, throwError } from "rxjs";
 import { AgentService, AgentInfo, AgentSettingsApi, ModelType, OperatorExecutionSummary } from "./agent.service";
 import { AgentState, ReActStep } from "./agent-types";
 import { NotificationService } from "../../../common/service/notification/notification.service";
 import { WorkflowPersistService } from "../../../common/service/workflow-persist/workflow-persist.service";
 import { ComputingUnitStatusService } from "../../../common/service/computing-unit/computing-unit-status/computing-unit-status.service";
 import { WarehouseService } from "../../../common/service/warehouse/warehouse.service";
+import { ExecuteWorkflowService, FORM_DEBOUNCE_TIME_MS } from "../execute-workflow/execute-workflow.service";
+import { WorkflowConsoleService } from "../workflow-console/workflow-console.service";
+import { WorkflowStatusService } from "../workflow-status/workflow-status.service";
+import { ExecutionState, LogicalPlan, OperatorState, OperatorStatistics } from "../../types/execute-workflow.interface";
+import { TexeraWebsocketEvent, WorkflowFatalError } from "../../types/workflow-websocket.interface";
+import { ConsoleMessage } from "../../types/workflow-common.interface";
 import { DashboardWorkflowComputingUnit } from "../../../common/type/workflow-computing-unit";
 import { Workflow } from "../../../common/type/workflow";
 import { commonTestProviders } from "../../../common/testing/test-utils";
+import { WorkflowWebsocketService } from "../workflow-websocket/workflow-websocket.service";
+import { WorkflowActionService } from "../workflow-graph/model/workflow-action.service";
+import { WorkflowUtilService } from "../workflow-graph/util/workflow-util.service";
+import { UndoRedoService } from "../undo-redo/undo-redo.service";
+import { JointUIService } from "../joint-ui/joint-ui.service";
+import { OperatorMetadataService } from "../operator-metadata/operator-metadata.service";
+import { StubOperatorMetadataService } from "../operator-metadata/stub-operator-metadata.service";
+import { MockComputingUnitStatusService } from "../../../common/service/computing-unit/computing-unit-status/mock-computing-unit-status.service";
+import { AuthService } from "../../../common/service/user/auth.service";
+import { StubAuthService } from "../../../common/service/user/stub-auth.service";
+import { UserService } from "../../../common/service/user/user.service";
+import { StubUserService } from "../../../common/service/user/stub-user.service";
 
 /**
  * Minimal WebSocket double. Installed with vi.stubGlobal so the service's
@@ -67,6 +85,13 @@ describe("AgentService", () => {
   let selectedWarehouseId: number | undefined;
   let notification: Record<"error" | "success" | "info" | "warning", ReturnType<typeof vi.fn>>;
   let workflowPersist: { retrieveWorkflow: ReturnType<typeof vi.fn> };
+  let executionState: ExecutionState;
+  let fatalErrors: WorkflowFatalError[];
+  let consoleMessages: Record<string, ConsoleMessage[]>;
+  let runStartedHere: boolean;
+  let markRunNotStartedHere: ReturnType<typeof vi.fn>;
+  let operatorStatistics: Record<string, OperatorStatistics>;
+  let operatorStates: Record<string, OperatorState>;
 
   const apiAgent = {
     id: "agent-1",
@@ -103,6 +128,13 @@ describe("AgentService", () => {
   }
 
   beforeEach(() => {
+    executionState = ExecutionState.Uninitialized;
+    fatalErrors = [];
+    consoleMessages = {};
+    runStartedHere = true;
+    markRunNotStartedHere = vi.fn();
+    operatorStatistics = {};
+    operatorStates = {};
     selectedUnit = null;
     selectedWarehouseId = undefined;
     notification = { error: vi.fn(), success: vi.fn(), info: vi.fn(), warning: vi.fn() };
@@ -120,6 +152,29 @@ describe("AgentService", () => {
         {
           provide: WarehouseService,
           useValue: { getSelectedWarehouseIdValue: () => selectedWarehouseId },
+        },
+        {
+          provide: ExecuteWorkflowService,
+          useValue: {
+            getExecutionState: () => ({ state: executionState }),
+            getErrorMessages: () => fatalErrors,
+            wasCurrentRunStartedHere: () => runStartedHere,
+            markCurrentRunNotStartedHere: markRunNotStartedHere,
+          },
+        },
+        {
+          provide: WorkflowStatusService,
+          useValue: {
+            getCurrentStatistics: () => operatorStatistics,
+            getCurrentState: () => operatorStates,
+          },
+        },
+        {
+          provide: WorkflowConsoleService,
+          useValue: {
+            getConsoleMessages: (operatorId: string) => consoleMessages[operatorId],
+            getOperatorIdsWithMessages: () => Object.keys(consoleMessages),
+          },
         },
         ...commonTestProviders,
       ],
@@ -707,6 +762,400 @@ describe("AgentService", () => {
         expect(notification.error).not.toHaveBeenCalled();
       });
 
+      describe("lastRun report", () => {
+        const fatal = (operatorId: string, message: string, details = ""): WorkflowFatalError =>
+          ({ message, details, operatorId, workerId: "w", type: { name: "EXECUTION_FAILURE" } }) as WorkflowFatalError;
+        const consoleMsg = (level: string, title: string, message = ""): ConsoleMessage =>
+          ({ msgType: { name: level }, title, message, source: "s", workerId: "w" }) as ConsoleMessage;
+        const stats = (inputRows: number, outputRows: number): OperatorStatistics => ({
+          aggregatedInputRowCount: inputRows,
+          aggregatedOutputRowCount: outputRows,
+        });
+
+        function openSocket(): FakeWebSocket {
+          seedAgent("agent-1");
+          service.activateAgent("agent-1");
+          const ws = FakeWebSocket.latest();
+          ws.readyState = FakeWebSocket.OPEN;
+          return ws;
+        }
+
+        function sentLastRun(ws: FakeWebSocket): unknown {
+          service.sendMessage("agent-1", "why");
+          return JSON.parse(ws.send.mock.calls[0][0]).lastRun;
+        }
+
+        it("attaches the fatal error of a failed run under its operator", () => {
+          const ws = openSocket();
+          executionState = ExecutionState.Failed;
+          fatalErrors = [fatal("op1", "ValueError: bad row")];
+
+          expect(sentLastRun(ws)).toEqual({
+            state: "Failed",
+            operatorErrors: [{ operatorId: "op1", message: "ValueError: bad row" }],
+            workflowErrors: [],
+            operatorStats: [],
+          });
+        });
+
+        it("attaches a console error of a completed run", () => {
+          const ws = openSocket();
+          executionState = ExecutionState.Completed;
+          consoleMessages = {
+            op1: [consoleMsg("PRINT", "hello"), consoleMsg("ERROR", "KeyError: x", "Traceback\n  line 2")],
+          };
+
+          expect(sentLastRun(ws)).toEqual({
+            state: "Completed",
+            operatorErrors: [{ operatorId: "op1", message: "KeyError: x\nTraceback\n  line 2" }],
+            workflowErrors: [],
+            operatorStats: [],
+          });
+        });
+
+        it.each([
+          ExecutionState.Running,
+          ExecutionState.Pausing,
+          ExecutionState.Paused,
+          ExecutionState.Resuming,
+          ExecutionState.Recovering,
+        ])("is omitted while the run is %s and no operator has logged an error", state => {
+          const ws = openSocket();
+          executionState = state;
+          consoleMessages = { op1: [consoleMsg("PRINT", "hello"), consoleMsg("WARNING", "slow")] };
+          operatorStatistics = { op1: stats(3, 3) };
+          operatorStates = { op1: OperatorState.Running };
+
+          expect(sentLastRun(ws)).toBeUndefined();
+          expect("lastRun" in JSON.parse(ws.send.mock.calls[0][0])).toBe(false);
+        });
+
+        it("attaches a run that is still going once an operator has logged an error", () => {
+          const ws = openSocket();
+          executionState = ExecutionState.Running;
+          consoleMessages = { udf: [consoleMsg("ERROR", "ValueError: boom", "Traceback\n  line 6")] };
+          operatorStatistics = { src: stats(0, 1), udf: stats(1, 0) };
+          operatorStates = { src: OperatorState.Completed, udf: OperatorState.Paused };
+
+          expect(sentLastRun(ws)).toEqual({
+            state: "Running",
+            operatorErrors: [{ operatorId: "udf", message: "ValueError: boom\nTraceback\n  line 6" }],
+            workflowErrors: [],
+            operatorStats: [
+              { operatorId: "src", state: "Completed", inputRows: 0, outputRows: 1 },
+              { operatorId: "udf", state: "Paused", inputRows: 1, outputRows: 0 },
+            ],
+          });
+        });
+
+        it.each([ExecutionState.Pausing, ExecutionState.Paused, ExecutionState.Resuming, ExecutionState.Recovering])(
+          "attaches a run that is %s once an operator has logged an error",
+          state => {
+            const ws = openSocket();
+            executionState = state;
+            consoleMessages = { udf: [consoleMsg("ERROR", "ValueError: boom")] };
+
+            expect(sentLastRun(ws)).toEqual({
+              state,
+              operatorErrors: [{ operatorId: "udf", message: "ValueError: boom" }],
+              workflowErrors: [],
+              operatorStats: [],
+            });
+          }
+        );
+
+        it.each([ExecutionState.Uninitialized, ExecutionState.Initializing])(
+          "is omitted while the run is %s even with a console error",
+          state => {
+            const ws = openSocket();
+            executionState = state;
+            consoleMessages = { udf: [consoleMsg("ERROR", "ValueError: boom")] };
+
+            expect(sentLastRun(ws)).toBeUndefined();
+            expect("lastRun" in JSON.parse(ws.send.mock.calls[0][0])).toBe(false);
+          }
+        );
+
+        it("is omitted for a run still going with an error that was not started from this browser", () => {
+          const ws = openSocket();
+          executionState = ExecutionState.Running;
+          consoleMessages = { udf: [consoleMsg("ERROR", "ValueError: boom")] };
+          runStartedHere = false;
+
+          expect(sentLastRun(ws)).toBeUndefined();
+          expect("lastRun" in JSON.parse(ws.send.mock.calls[0][0])).toBe(false);
+        });
+
+        it("truncates the messages and caps the entries of a run that is still going", () => {
+          const ws = openSocket();
+          executionState = ExecutionState.Paused;
+          const head = "H".repeat(1500);
+          const tail = "T".repeat(500);
+          consoleMessages = Object.fromEntries(
+            Array.from({ length: 12 }, (_, i) => [`op${i}`, [consoleMsg("ERROR", head + "M".repeat(1000) + tail)]])
+          );
+
+          const entries = (sentLastRun(ws) as any).operatorErrors as { operatorId: string; message: string }[];
+          expect(entries.map(e => e.operatorId)).toEqual(Array.from({ length: 10 }, (_, i) => `op${i}`));
+          expect(entries.every(e => e.message === `${head}\n...\n${tail}`)).toBe(true);
+        });
+
+        it.each([ExecutionState.Completed, ExecutionState.Failed, ExecutionState.Killed, ExecutionState.Terminated])(
+          "is attached for a finished run that is %s even when it reported no error",
+          state => {
+            const ws = openSocket();
+            executionState = state;
+
+            expect(sentLastRun(ws)).toEqual({ state, operatorErrors: [], workflowErrors: [], operatorStats: [] });
+          }
+        );
+
+        it("is attached with empty lists when the run finished cleanly", () => {
+          const ws = openSocket();
+          executionState = ExecutionState.Completed;
+
+          expect(sentLastRun(ws)).toEqual({
+            state: "Completed",
+            operatorErrors: [],
+            workflowErrors: [],
+            operatorStats: [],
+          });
+        });
+
+        it("prefers the fatal error over a console error for the same operator", () => {
+          const ws = openSocket();
+          executionState = ExecutionState.Failed;
+          fatalErrors = [fatal("op1", "fatal one")];
+          consoleMessages = { op1: [consoleMsg("ERROR", "console one")] };
+
+          expect((sentLastRun(ws) as any).operatorErrors).toEqual([{ operatorId: "op1", message: "fatal one" }]);
+        });
+
+        it("puts a fatal error without an operator into workflowErrors", () => {
+          const ws = openSocket();
+          executionState = ExecutionState.Failed;
+          fatalErrors = [fatal("", "computing unit lost"), fatal("op2", "boom")];
+
+          expect(sentLastRun(ws)).toEqual({
+            state: "Failed",
+            operatorErrors: [{ operatorId: "op2", message: "boom" }],
+            workflowErrors: ["computing unit lost"],
+            operatorStats: [],
+          });
+        });
+
+        it("puts a fatal error the backend filed under its placeholder operator id into workflowErrors", () => {
+          const ws = openSocket();
+          executionState = ExecutionState.Failed;
+          fatalErrors = [fatal("unknown operator", "java.lang.IllegalStateException: no schema"), fatal("op2", "boom")];
+
+          expect(sentLastRun(ws)).toEqual({
+            state: "Failed",
+            operatorErrors: [{ operatorId: "op2", message: "boom" }],
+            workflowErrors: ["java.lang.IllegalStateException: no schema"],
+            operatorStats: [],
+          });
+        });
+
+        it("sends the fatal error's message and its stack trace details together", () => {
+          const ws = openSocket();
+          executionState = ExecutionState.Failed;
+          fatalErrors = [fatal("op1", "java.lang.RuntimeException: wrapped", "Traceback\n  File udf.py\nKeyError: x")];
+
+          expect((sentLastRun(ws) as any).operatorErrors[0].message).toBe(
+            "java.lang.RuntimeException: wrapped\nTraceback\n  File udf.py\nKeyError: x"
+          );
+        });
+
+        it("sends only the message when the fatal error has no details", () => {
+          const ws = openSocket();
+          executionState = ExecutionState.Failed;
+          fatalErrors = [fatal("op1", "boom", "")];
+
+          expect((sentLastRun(ws) as any).operatorErrors[0].message).toBe("boom");
+        });
+
+        it("uses the last ERROR console message when an operator has several", () => {
+          const ws = openSocket();
+          executionState = ExecutionState.Completed;
+          consoleMessages = { op1: [consoleMsg("ERROR", "first error"), consoleMsg("ERROR", "second error")] };
+
+          expect((sentLastRun(ws) as any).operatorErrors).toEqual([{ operatorId: "op1", message: "second error" }]);
+        });
+
+        it("caps the workflow-level errors at ten", () => {
+          const ws = openSocket();
+          executionState = ExecutionState.Failed;
+          fatalErrors = Array.from({ length: 11 }, (_, i) => fatal("", `w${i}`));
+
+          const errors = (sentLastRun(ws) as any).workflowErrors as string[];
+          expect(errors).toHaveLength(10);
+          expect(errors[9]).toBe("w9");
+        });
+
+        it("restores the newlines the execution service rewrote as <br>", () => {
+          const ws = openSocket();
+          executionState = ExecutionState.Failed;
+          fatalErrors = [fatal("op1", "line one<br>line two<br>line three")];
+
+          expect((sentLastRun(ws) as any).operatorErrors[0].message).toBe("line one\nline two\nline three");
+        });
+
+        it("keeps the head and the tail of a long message", () => {
+          const ws = openSocket();
+          executionState = ExecutionState.Failed;
+          const head = "H".repeat(1500);
+          const middle = "M".repeat(1000);
+          const tail = "T".repeat(500);
+          fatalErrors = [fatal("op1", head + middle + tail)];
+
+          const message = (sentLastRun(ws) as any).operatorErrors[0].message as string;
+          expect(message).toBe(`${head}\n...\n${tail}`);
+          expect(message).not.toContain("M");
+        });
+
+        it("leaves a message at the limit untouched", () => {
+          const ws = openSocket();
+          executionState = ExecutionState.Failed;
+          const exact = "x".repeat(2000);
+          fatalErrors = [fatal("op1", exact)];
+
+          expect((sentLastRun(ws) as any).operatorErrors[0].message).toBe(exact);
+        });
+
+        it("caps the operator entries at ten", () => {
+          const ws = openSocket();
+          executionState = ExecutionState.Failed;
+          fatalErrors = Array.from({ length: 12 }, (_, i) => fatal(`op${i}`, `e${i}`));
+
+          const entries = (sentLastRun(ws) as any).operatorErrors as { operatorId: string }[];
+          expect(entries).toHaveLength(10);
+          expect(entries.map(e => e.operatorId)).toEqual(Array.from({ length: 10 }, (_, i) => `op${i}`));
+        });
+
+        it("reports one entry per operator even with several fatal errors for it", () => {
+          const ws = openSocket();
+          executionState = ExecutionState.Failed;
+          fatalErrors = [fatal("op1", "first"), fatal("op1", "second")];
+
+          expect((sentLastRun(ws) as any).operatorErrors).toEqual([{ operatorId: "op1", message: "first" }]);
+        });
+
+        it("is omitted for a finished run that was not started from this browser", () => {
+          const ws = openSocket();
+          executionState = ExecutionState.Failed;
+          fatalErrors = [fatal("op1", "boom")];
+          operatorStatistics = { op1: stats(3, 0) };
+          operatorStates = { op1: OperatorState.Completed };
+          runStartedHere = false;
+
+          expect(sentLastRun(ws)).toBeUndefined();
+          expect("lastRun" in JSON.parse(ws.send.mock.calls[0][0])).toBe(false);
+        });
+
+        it("attaches each operator's state and row counts", () => {
+          const ws = openSocket();
+          executionState = ExecutionState.Completed;
+          operatorStatistics = { scan: stats(0, 5000), filter: stats(5000, 0) };
+          operatorStates = { scan: OperatorState.Completed, filter: OperatorState.Completed };
+
+          expect((sentLastRun(ws) as any).operatorStats).toEqual([
+            { operatorId: "scan", state: "Completed", inputRows: 0, outputRows: 5000 },
+            { operatorId: "filter", state: "Completed", inputRows: 5000, outputRows: 0 },
+          ]);
+        });
+
+        it("reports the state of an operator that did not finish in a failed run", () => {
+          const ws = openSocket();
+          executionState = ExecutionState.Failed;
+          operatorStatistics = { udf: stats(12, 4), sink: stats(5, 0) };
+          operatorStates = { udf: OperatorState.Running, sink: OperatorState.Paused };
+
+          expect((sentLastRun(ws) as any).operatorStats).toEqual([
+            { operatorId: "udf", state: "Running", inputRows: 12, outputRows: 4 },
+            { operatorId: "sink", state: "Paused", inputRows: 5, outputRows: 0 },
+          ]);
+        });
+
+        it("leaves out operators that never started", () => {
+          const ws = openSocket();
+          executionState = ExecutionState.Failed;
+          operatorStatistics = { scan: stats(0, 9), udf: stats(0, 0), sink: stats(0, 0) };
+          operatorStates = {
+            scan: OperatorState.Completed,
+            udf: OperatorState.Uninitialized,
+            sink: OperatorState.Uninitialized,
+          };
+
+          expect((sentLastRun(ws) as any).operatorStats).toEqual([
+            { operatorId: "scan", state: "Completed", inputRows: 0, outputRows: 9 },
+          ]);
+        });
+
+        it("counts the cap after leaving out operators that never started", () => {
+          const ws = openSocket();
+          executionState = ExecutionState.Completed;
+          operatorStatistics = Object.fromEntries(Array.from({ length: 52 }, (_, i) => [`op${i}`, stats(i, i)]));
+          operatorStates = { op0: OperatorState.Uninitialized, op1: OperatorState.Uninitialized };
+
+          const entries = (sentLastRun(ws) as any).operatorStats as { operatorId: string }[];
+          expect(entries).toHaveLength(50);
+          expect(entries[0].operatorId).toBe("op2");
+          expect(entries[49].operatorId).toBe("op51");
+        });
+
+        it("passes the cache flag through only when it is set", () => {
+          const ws = openSocket();
+          executionState = ExecutionState.Completed;
+          operatorStatistics = {
+            cached: { ...stats(0, 0), reusedFromCache: true },
+            computed: { ...stats(1, 1), reusedFromCache: false },
+          };
+          operatorStates = { cached: OperatorState.Completed, computed: OperatorState.Completed };
+
+          expect((sentLastRun(ws) as any).operatorStats).toEqual([
+            { operatorId: "cached", state: "Completed", inputRows: 0, outputRows: 0, reusedFromCache: true },
+            { operatorId: "computed", state: "Completed", inputRows: 1, outputRows: 1 },
+          ]);
+        });
+
+        it("reports an operator without a known state as Unknown", () => {
+          const ws = openSocket();
+          executionState = ExecutionState.Completed;
+          operatorStatistics = { op1: stats(2, 2) };
+
+          expect((sentLastRun(ws) as any).operatorStats).toEqual([
+            { operatorId: "op1", state: "Unknown", inputRows: 2, outputRows: 2 },
+          ]);
+        });
+
+        it("skips an operator whose row counts are not whole non-negative numbers", () => {
+          const ws = openSocket();
+          executionState = ExecutionState.Completed;
+          operatorStatistics = {
+            negative: stats(-1, 0),
+            fractional: stats(1, 1.5),
+            missing: { aggregatedInputRowCount: 1 } as OperatorStatistics,
+            fine: stats(1, 1),
+          };
+
+          expect(((sentLastRun(ws) as any).operatorStats as { operatorId: string }[]).map(e => e.operatorId)).toEqual([
+            "fine",
+          ]);
+        });
+
+        it("caps the operator stats at fifty, keeping the first ones", () => {
+          const ws = openSocket();
+          executionState = ExecutionState.Completed;
+          operatorStatistics = Object.fromEntries(Array.from({ length: 51 }, (_, i) => [`op${i}`, stats(i, i)]));
+
+          const entries = (sentLastRun(ws) as any).operatorStats as { operatorId: string }[];
+          expect(entries).toHaveLength(50);
+          expect(entries[0].operatorId).toBe("op0");
+          expect(entries[49].operatorId).toBe("op49");
+        });
+      });
+
       it("surfaces send failures as a notification", () => {
         seedAgent("agent-1");
         service.activateAgent("agent-1");
@@ -821,6 +1270,66 @@ describe("AgentService", () => {
         expect(service.getHeadId("agent-1")).toBe("s2");
         expect(workflow!.content).toEqual({ operators: [1] });
         expect((service as any).agentStateTracking.get("agent-1").wsWorkflowActive).toBe(true);
+      });
+
+      it.each(["executeOperator", "addOperator", "modifyOperator"])(
+        "marks the run on screen as not started here when a step called %s",
+        toolName => {
+          seedAgent("agent-1");
+          service.activateAgent("agent-1");
+
+          emit(FakeWebSocket.latest(), {
+            type: "WsServerStepEvent",
+            step: {
+              messageId: "m1",
+              stepId: 1,
+              timestamp: "2026-06-11T00:00:00.000Z",
+              toolCalls: [{ toolName: "deleteOperator" }, { toolName }],
+            },
+          });
+
+          expect(markRunNotStartedHere).toHaveBeenCalledTimes(1);
+        }
+      );
+
+      it("leaves the run on screen alone for a step whose tool calls run no operator", () => {
+        seedAgent("agent-1");
+        service.activateAgent("agent-1");
+        const ws = FakeWebSocket.latest();
+
+        emit(ws, {
+          type: "WsServerStepEvent",
+          step: {
+            messageId: "m1",
+            stepId: 1,
+            timestamp: "2026-06-11T00:00:00.000Z",
+            toolCalls: [{ toolName: "deleteOperator" }, { toolName: "searchDocs" }, {}],
+          },
+        });
+        emit(ws, {
+          type: "WsServerStepEvent",
+          step: { messageId: "m1", stepId: 2, timestamp: "2026-06-11T00:00:01.000Z" },
+        });
+
+        expect(markRunNotStartedHere).not.toHaveBeenCalled();
+      });
+
+      it("leaves the run on screen alone for operator runs in the step history of a snapshot", () => {
+        seedAgent("agent-1");
+        service.activateAgent("agent-1");
+
+        emit(FakeWebSocket.latest(), {
+          type: "WsServerSnapshotEvent",
+          steps: [
+            {
+              messageId: "m1",
+              timestamp: "2026-06-11T00:00:00.000Z",
+              toolCalls: [{ toolName: "executeOperator" }],
+            },
+          ],
+        });
+
+        expect(markRunNotStartedHere).not.toHaveBeenCalled();
       });
 
       it("cleans up the agent when the backend reports 'Agent not found'", () => {
@@ -1580,6 +2089,133 @@ describe("AgentService", () => {
       const req = httpMock.expectOne(r => r.url === "/api/agents/agent-1/settings");
       expect(req.request.headers.get("X-Agent-Workflow-Id")).toBe("55");
       req.flush({});
+    });
+  });
+});
+
+/**
+ * The report is assembled from three services that each listen to the workflow websocket on
+ * their own. This drives the real ones through that one event stream.
+ */
+describe("AgentService lastRun report with the real run services", () => {
+  let service: AgentService;
+  let executeWorkflowService: ExecuteWorkflowService;
+  let ws: FakeWebSocket;
+
+  beforeEach(() => {
+    FakeWebSocket.instances = [];
+    vi.stubGlobal("WebSocket", FakeWebSocket);
+    vi.useFakeTimers();
+    TestBed.configureTestingModule({
+      imports: [HttpClientTestingModule],
+      providers: [
+        AgentService,
+        ExecuteWorkflowService,
+        WorkflowActionService,
+        WorkflowUtilService,
+        UndoRedoService,
+        JointUIService,
+        { provide: OperatorMetadataService, useClass: StubOperatorMetadataService },
+        { provide: ComputingUnitStatusService, useClass: MockComputingUnitStatusService },
+        { provide: AuthService, useClass: StubAuthService },
+        { provide: UserService, useClass: StubUserService },
+        {
+          provide: NotificationService,
+          useValue: { error: vi.fn(), success: vi.fn(), info: vi.fn(), warning: vi.fn() },
+        },
+        { provide: WorkflowPersistService, useValue: { retrieveWorkflow: vi.fn().mockReturnValue(of(null)) } },
+        { provide: WarehouseService, useValue: { getSelectedWarehouseIdValue: () => undefined } },
+        ...commonTestProviders,
+      ],
+    });
+    service = TestBed.inject(AgentService);
+    executeWorkflowService = TestBed.inject(ExecuteWorkflowService);
+    const httpMock = TestBed.inject(HttpTestingController);
+    httpMock.expectOne(req => req.method === "GET" && req.url === "/api/agents").flush({ agents: [] });
+    service.createAgent("gpt-5-mini", "Bob").subscribe();
+    httpMock
+      .expectOne(req => req.method === "POST" && req.url === "/api/agents")
+      .flush({ id: "agent-1", name: "Bob", modelType: "gpt-5-mini", state: "AVAILABLE", createdAt: "" });
+    service.activateAgent("agent-1");
+    ws = FakeWebSocket.latest();
+    ws.readyState = FakeWebSocket.OPEN;
+
+    const websocket = TestBed.inject(WorkflowWebsocketService);
+    vi.spyOn(websocket, "send").mockImplementation(() => {});
+    vi.spyOn(websocket, "isConnected", "get").mockReturnValue(true);
+    vi.spyOn(ExecuteWorkflowService, "getLogicalPlanRequest").mockReturnValue({} as LogicalPlan);
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+    vi.useRealTimers();
+    vi.restoreAllMocks();
+  });
+
+  const emit = (event: object): void =>
+    (TestBed.inject(WorkflowWebsocketService).websocketEvent() as Subject<TexeraWebsocketEvent>).next(
+      event as TexeraWebsocketEvent
+    );
+  const emitState = (state: ExecutionState): void => emit({ type: "WorkflowStateEvent", state });
+  const emitStats = (operatorState: OperatorState, inputRows: number, outputRows: number): void =>
+    emit({
+      type: "OperatorStatisticsUpdateEvent",
+      operatorStatistics: {
+        udf: { operatorState, aggregatedInputRowCount: inputRows, aggregatedOutputRowCount: outputRows },
+      },
+    });
+  /** Clicks Run the way the menu does and lets the request leave the browser. */
+  const startRun = (): void => {
+    expect(executeWorkflowService.executeWorkflow("run")).toBe(true);
+    vi.advanceTimersByTime(FORM_DEBOUNCE_TIME_MS + 1);
+  };
+  const sentLastRun = (): unknown => {
+    service.sendMessage("agent-1", "why");
+    return JSON.parse(ws.send.mock.calls[ws.send.mock.calls.length - 1][0]).lastRun;
+  };
+
+  it("does not carry a previous run's console error or row counts into the next run", () => {
+    startRun();
+    emitState(ExecutionState.Initializing);
+    emitState(ExecutionState.Initializing);
+    emitState(ExecutionState.Running);
+    emitStats(OperatorState.Paused, 1, 0);
+    emit({
+      type: "ConsoleUpdateEvent",
+      operatorId: "udf",
+      messages: [
+        { msgType: { name: "ERROR" }, title: "ValueError: boom", message: "Traceback", source: "s", workerId: "w" },
+      ],
+    });
+
+    const firstRunErrors = [{ operatorId: "udf", message: "ValueError: boom\nTraceback" }];
+    expect(sentLastRun()).toEqual({
+      state: "Running",
+      operatorErrors: firstRunErrors,
+      workflowErrors: [],
+      operatorStats: [{ operatorId: "udf", state: "Paused", inputRows: 1, outputRows: 0 }],
+    });
+    emitState(ExecutionState.Killed);
+    expect(sentLastRun()).toMatchObject({ state: "Killed", operatorErrors: firstRunErrors });
+
+    startRun();
+    expect(sentLastRun()).toBeUndefined();
+    emitState(ExecutionState.Initializing);
+    expect(sentLastRun()).toBeUndefined();
+    emitState(ExecutionState.Initializing);
+    emitState(ExecutionState.Running);
+    expect(sentLastRun()).toBeUndefined();
+
+    emit({
+      type: "ConsoleUpdateEvent",
+      operatorId: "udf",
+      messages: [{ msgType: { name: "ERROR" }, title: "KeyError: x", message: "", source: "s", workerId: "w" }],
+    });
+    expect(sentLastRun()).toEqual({
+      state: "Running",
+      operatorErrors: [{ operatorId: "udf", message: "KeyError: x" }],
+      workflowErrors: [],
+      operatorStats: [],
     });
   });
 });

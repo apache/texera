@@ -54,6 +54,15 @@ import { GuiConfigService } from "../../../common/service/gui-config.service";
 
 // TODO: change this declaration
 export const FORM_DEBOUNCE_TIME_MS = 150;
+/** States in which a run has begun and has not ended. */
+const RUN_IN_FLIGHT_STATES: ReadonlySet<ExecutionState> = new Set([
+  ExecutionState.Initializing,
+  ExecutionState.Running,
+  ExecutionState.Pausing,
+  ExecutionState.Paused,
+  ExecutionState.Resuming,
+  ExecutionState.Recovering,
+]);
 
 /**
  * ExecuteWorkflowService sends the current workflow data to the backend
@@ -106,6 +115,12 @@ export class ExecuteWorkflowService {
   /** Ticks while a run is going; replays the current value to a view that mounts mid-run. */
   private readonly executionDuration = new BehaviorSubject<number>(0);
   private durationTicker?: Subscription;
+  /** A run request went out from this browser and the backend has not answered it yet. */
+  private localRunPending = false;
+  /** The run on screen was requested from this browser. */
+  private currentRunStartedHere = false;
+  /** The backend may still repeat Initializing once for the run requested from this browser. */
+  private repeatedInitializingExpected = false;
 
   constructor(
     private workflowActionService: WorkflowActionService,
@@ -133,6 +148,7 @@ export class ExecuteWorkflowService {
           break;
         default:
           // workflow status related event
+          this.trackRunOrigin(event);
           this.handleReconfigurationEvent(event);
           const newState = this.handleExecutionEvent(event);
           if (newState !== undefined) {
@@ -140,6 +156,86 @@ export class ExecuteWorkflowService {
           }
       }
     });
+  }
+
+  /**
+   * Keeps track of whether the run on screen was requested from this browser.
+   * - Initializing answers a pending local request, and the run becomes ours.
+   * - The backend repeats Initializing once for a run it has announced; that one repeat is ignored.
+   * - Any other Initializing begins a run that was not requested here.
+   * - Uninitialized is sent when the socket opens, before the latest run is replayed, so nothing
+   *   after it is known to be ours.
+   * - An error answers a pending request without a run. With no run in flight it also belongs
+   *   to a run that never announced itself, unless it only adds to the errors already shown.
+   * - Several errors right after our own Initializing, before its repeat, are a refusal added
+   *   to the errors of the run that was on screen before.
+   */
+  private trackRunOrigin(event: TexeraWebsocketEvent): void {
+    if (event.type === "WorkflowErrorEvent") {
+      this.localRunPending = false;
+      const refusedOntoEarlierErrors =
+        this.repeatedInitializingExpected &&
+        this.currentState.state === ExecutionState.Initializing &&
+        event.fatalErrors.length > 1;
+      const belongsToUnannouncedRun =
+        !RUN_IN_FLIGHT_STATES.has(this.currentState.state) && !this.addsToShownErrors(event.fatalErrors);
+      if (refusedOntoEarlierErrors || belongsToUnannouncedRun) {
+        this.currentRunStartedHere = false;
+      }
+      return;
+    }
+    if (event.type !== "WorkflowStateEvent") {
+      return;
+    }
+    const state = ExecutionState[event.state];
+    if (state === ExecutionState.Uninitialized) {
+      this.localRunPending = false;
+      this.currentRunStartedHere = false;
+      return;
+    }
+    if (state !== ExecutionState.Initializing) {
+      return;
+    }
+    if (this.localRunPending) {
+      this.localRunPending = false;
+      this.currentRunStartedHere = true;
+      this.repeatedInitializingExpected = true;
+      return;
+    }
+    const isRepeat = this.repeatedInitializingExpected && this.currentState.state === ExecutionState.Initializing;
+    this.repeatedInitializingExpected = false;
+    if (!isRepeat) {
+      this.currentRunStartedHere = false;
+    }
+  }
+
+  /** Whether the errors extend, in order, the ones the failed run on screen already shows. */
+  private addsToShownErrors(errors: ReadonlyArray<WorkflowFatalError>): boolean {
+    if (this.currentState.state !== ExecutionState.Failed) {
+      return false;
+    }
+    const shown = this.currentState.errorMessages;
+    return (
+      shown.length > 0 &&
+      errors.length > shown.length &&
+      shown.every(
+        (error, index) =>
+          error.details === errors[index].details &&
+          error.operatorId === errors[index].operatorId &&
+          error.workerId === errors[index].workerId &&
+          isEqual(error.timestamp, errors[index].timestamp)
+      )
+    );
+  }
+
+  /** Whether the run on screen was requested from this browser, rather than by an agent or another session. */
+  public wasCurrentRunStartedHere(): boolean {
+    return this.currentRunStartedHere;
+  }
+
+  /** Marks the run on screen as one this browser did not request. A pending local request is kept. */
+  public markCurrentRunNotStartedHere(): void {
+    this.currentRunStartedHere = false;
   }
 
   public handleReconfigurationEvent(event: TexeraWebsocketEvent) {
@@ -383,6 +479,7 @@ export class ExecuteWorkflowService {
     };
     // wait for the form debounce to complete, then send
     window.setTimeout(() => {
+      this.localRunPending = this.workflowWebsocketService.isConnected;
       this.workflowWebsocketService.send("WorkflowExecuteRequest", workflowExecuteRequest);
     }, FORM_DEBOUNCE_TIME_MS);
 
@@ -478,6 +575,7 @@ export class ExecuteWorkflowService {
     this.currentState = {
       state: ExecutionState.Uninitialized,
     };
+    this.currentRunStartedHere = false;
     // Otherwise the next workflow's menu opens showing the previous run's time.
     this.anchorDuration(0, false);
   }
@@ -490,6 +588,8 @@ export class ExecuteWorkflowService {
   public resetExecutionAndWorkers(): void {
     this.updateExecutionState({ state: ExecutionState.Uninitialized });
     this.assignedWorkerIds.clear();
+    this.localRunPending = false;
+    this.currentRunStartedHere = false;
     // Leaving the workspace takes this path, not resetExecutionState, so the clock has to be
     // stopped here as well: otherwise the next workflow opens showing the last run's time, and
     // if that run was still going, showing it still counting up.

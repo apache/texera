@@ -70,6 +70,10 @@ export class WorkflowConsoleService {
     return this.consoleMessages.has(operatorId);
   }
 
+  getOperatorIdsWithMessages(): string[] {
+    return [...this.consoleMessages.keys()];
+  }
+
   getConsoleMessageUpdateStream(): Observable<void> {
     return this.consoleMessagesUpdateStream.asObservable();
   }

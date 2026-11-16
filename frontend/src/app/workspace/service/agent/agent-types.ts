@@ -79,3 +79,32 @@ export interface ReActStep {
   /** Workflow state after this step executed */
   afterWorkflowContent?: any;
 }
+
+/** One operator's state and row counts in the user's run, as of the prompt. */
+export interface LastRunOperatorStats {
+  operatorId: string;
+  state: string;
+  inputRows: number;
+  outputRows: number;
+  reusedFromCache?: boolean;
+}
+
+/**
+ * The last run the user started, sent to the agent with each prompt. Either a finished run, or
+ * one still in flight in which an operator has logged an error.
+ */
+export interface LastRunReport {
+  state:
+    | "Completed"
+    | "Failed"
+    | "Killed"
+    | "Terminated"
+    | "Running"
+    | "Pausing"
+    | "Paused"
+    | "Resuming"
+    | "Recovering";
+  operatorErrors: { operatorId: string; message: string }[];
+  workflowErrors: string[];
+  operatorStats: LastRunOperatorStats[];
+}

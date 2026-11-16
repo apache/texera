@@ -26,6 +26,7 @@ import { extractBearerToken, extractUserFromToken, validateToken } from "./api/a
 import { retrieveWorkflow } from "./api/workflow-api";
 import { WorkflowSystemMetadata } from "./agent/util/workflow-system-metadata";
 import { env } from "./config/env";
+import { parseLastRun } from "./agent/last-run";
 import { createLogger } from "./logger";
 
 const log = createLogger("Server");
@@ -492,6 +493,14 @@ export function buildApp() {
             // is off) forever (#7751).
             agent.setDelegateWarehouse(typeof msg.warehouseId === "number" ? msg.warehouseId : undefined);
 
+            // The report on the user's last run travels with the prompt. An absent field
+            // clears the previous report; a malformed one is dropped and the prompt still runs.
+            const lastRun = parseLastRun(msg.lastRun);
+            if (msg.lastRun !== undefined && msg.lastRun !== null && lastRun === undefined) {
+              wsLog.warn({ agentId }, "ignoring malformed lastRun report");
+            }
+            agent.setLastRun(lastRun);
+
             agent.setStepCallback((step: ReActStep) => {
               broadcastToAgentClients(agentId, new WsServerStepEvent(step));
             });
@@ -559,6 +568,11 @@ export function _resetAgentStoreForTests(): void {
 // `sendMessage`) when exercising the WebSocket handlers.
 export function _getAgentForTests(agentId: string): TexeraAgent | undefined {
   return agentStore.get(agentId);
+}
+
+// The WebSocket handlers' logger. Used by tests to observe a warning whatever the log level is.
+export function _getWsLoggerForTests() {
+  return wsLog;
 }
 
 function printStartupMessage(app: ReturnType<typeof buildApp>) {

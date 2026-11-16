@@ -882,6 +882,51 @@ describe("sendMessage", () => {
  * rather than being seeded on the agent. Destruction, which is what cancels the auto-persist
  * debounce, is centralized in the root `afterEach` so it runs even when a test fails mid-way.
  */
+describe("last run report", () => {
+  test("setLastRun puts the user's run error into the prompt and absent clears it", async () => {
+    const model = textModel("ok");
+    const agent = makeAgentWith(model);
+    agent.getWorkflowState().addOperator(srcOp("op1") as any);
+    fetchSpy.mockImplementation(
+      (async () => new Response(JSON.stringify({ operatorOutputSchemas: {}, operatorErrors: {} }))) as any
+    );
+
+    agent.setLastRun({ state: "Failed", operatorErrors: [{ operatorId: "op1", message: "boom" }], workflowErrors: [] });
+    await agent.sendMessage("why did it fail");
+    const first = (model as any).doGenerateCalls[0].prompt[1].content[0].text;
+    expect(first).toContain("Last Run Error (from the user's run): boom");
+    expect(first).toContain("## Last Run\nState: Failed");
+
+    agent.setLastRun(undefined);
+    await agent.sendMessage("and now");
+    const second = (model as any).doGenerateCalls[1].prompt[1].content[0].text;
+    expect(second).not.toContain("Last Run Error");
+    expect(second).not.toContain("## Last Run");
+  });
+
+  test("setLastRun puts the error of a run that is still in flight into the prompt", async () => {
+    const model = textModel("ok");
+    const agent = makeAgentWith(model);
+    agent.getWorkflowState().addOperator(srcOp("op1") as any);
+    fetchSpy.mockImplementation(
+      (async () => new Response(JSON.stringify({ operatorOutputSchemas: {}, operatorErrors: {} }))) as any
+    );
+
+    agent.setLastRun({
+      state: "Running",
+      operatorErrors: [{ operatorId: "op1", message: "boom" }],
+      workflowErrors: [],
+      operatorStats: [{ operatorId: "op1", state: "Paused", inputRows: 1, outputRows: 0 }],
+    });
+    await agent.sendMessage("why did it stop");
+    const prompt = (model as any).doGenerateCalls[0].prompt[1].content[0].text;
+
+    expect(prompt).toContain("Last Run (from the user's run): Paused, input rows 1, output rows 0");
+    expect(prompt).toContain("Last Run Error (from the user's run): boom");
+    expect(prompt).toContain("## Last Run\nState: Running (not finished)");
+  });
+});
+
 describe("delegate mode", () => {
   const wfBody = (ops: any[]) => ({
     wid: 7,
@@ -1159,6 +1204,237 @@ describe("delegate mode", () => {
       // every later test that touches the singleton.
       (WorkflowSystemMetadata as any).instance = saved;
     }
+  });
+
+  describe("the user's run report within a turn", () => {
+    const report = {
+      state: "Running" as const,
+      operatorErrors: [{ operatorId: "op-1", message: "boom" }],
+      workflowErrors: ["worker lost"],
+      operatorStats: [{ operatorId: "op-1", state: "Paused", inputRows: 1, outputRows: 0 }],
+    };
+    const failedExec = {
+      success: false,
+      state: "Failed",
+      operators: { "op-1": { state: "Failed", inputTuples: 0, outputTuples: 0, error: "KeyError: x" } },
+      errors: [],
+    };
+
+    /** A model that makes the given tool calls on its first step and answers in plain text afterwards. */
+    function callsThenText(calls: [toolName: string, input: Record<string, unknown>][]) {
+      let n = 0;
+      return new MockLanguageModelV4({
+        doGenerate: async () => {
+          n++;
+          if (n === 1)
+            return {
+              content: calls.map(([toolName, input], i) => ({
+                type: "tool-call",
+                toolCallId: `c${i + 1}`,
+                toolName,
+                input: JSON.stringify(input),
+              })),
+              finishReason: finish("tool-calls"),
+              usage: usage(1, 1),
+              warnings: [],
+            } as any;
+          return {
+            content: [{ type: "text", text: "d" }],
+            finishReason: finish("stop"),
+            usage: usage(1, 1),
+            warnings: [],
+          } as any;
+        },
+      });
+    }
+    const toolThenText = (toolName: string, input: Record<string, unknown>) => callsThenText([[toolName, input]]);
+    const contextOf = (model: any, call: number): string => model.doGenerateCalls[call].prompt[1].content[0].text;
+
+    async function runTurn(model: any, execBody: any = okExec): Promise<TexeraAgent> {
+      dispatch(execBody);
+      const agent = makeAgentWith(model);
+      agent.setDelegateConfig({ userToken: "tok", workflowId: 7, workflowName: "w" });
+      agent.setLastRun(report);
+      await agent.sendMessage("why did it stop");
+      return agent;
+    }
+
+    function expectReportShown(context: string): void {
+      expect(context).toContain("Last Run (from the user's run): Paused, input rows 1, output rows 0");
+      expect(context).toContain("Last Run Error (from the user's run): boom");
+      expect(context).toContain("## Last Run\nState: Running (not finished)");
+      expect(context).toContain("- worker lost");
+    }
+
+    test.each([
+      ["modifyOperator", { operatorId: "op-1", summary: "renamed" }],
+      ["executeOperator", { operatorId: "op-1" }],
+    ])("is shown on the first step and dropped once the agent calls %s", async (toolName, input) => {
+      const vSpy = spyOn(WorkflowSystemMetadata.getInstance(), "validateOperatorProperties").mockReturnValue({
+        isValid: true,
+      } as any);
+      try {
+        const model = toolThenText(toolName, input);
+        await runTurn(model);
+
+        expectReportShown(contextOf(model, 0));
+        expect(contextOf(model, 1)).toContain("### Operator `op-1`");
+        expect(contextOf(model, 1)).not.toContain("Last Run");
+        expect(contextOf(model, 1)).not.toContain("worker lost");
+      } finally {
+        vSpy.mockRestore();
+      }
+    });
+
+    test("is dropped once the agent adds an operator", async () => {
+      const saved = (WorkflowSystemMetadata as any).instance;
+      (WorkflowSystemMetadata as any).instance = undefined;
+      try {
+        WorkflowSystemMetadata.getInstance().loadFromMetadata({
+          operators: [
+            {
+              operatorType: "CSVFileScan",
+              jsonSchema: { type: "object", properties: { fileName: { type: "string" } }, required: ["fileName"] },
+              additionalMetadata: {
+                userFriendlyName: "CSV",
+                operatorDescription: "csv",
+                inputPorts: [],
+                outputPorts: [{ displayName: "out-0" }],
+              },
+            },
+          ],
+        } as any);
+        const model = toolThenText("addOperator", {
+          operatorId: "op2",
+          operatorType: "CSVFileScan",
+          properties: { fileName: "a.csv" },
+          summary: "load",
+        });
+        const agent = await runTurn(model);
+
+        expect(String(agent.getAllSteps()[1].toolResults?.[0]?.output)).not.toStartWith("[ERROR]");
+        expectReportShown(contextOf(model, 0));
+        expect(contextOf(model, 1)).toContain("### Operator `op2`");
+        expect(contextOf(model, 1)).not.toContain("Last Run");
+      } finally {
+        (WorkflowSystemMetadata as any).instance = saved;
+      }
+    });
+
+    test("is dropped after an executeOperator call that came back with an error", async () => {
+      const vSpy = spyOn(WorkflowSystemMetadata.getInstance(), "validateOperatorProperties").mockReturnValue({
+        isValid: true,
+      } as any);
+      try {
+        const model = toolThenText("executeOperator", { operatorId: "op-1" });
+        const agent = await runTurn(model, failedExec);
+
+        expect(String(agent.getAllSteps()[1].toolResults?.[0]?.output)).toStartWith("[ERROR]");
+        expectReportShown(contextOf(model, 0));
+        expect(contextOf(model, 1)).not.toContain("Last Run");
+      } finally {
+        vSpy.mockRestore();
+      }
+    });
+
+    test("stays after a tool call that runs no operator, here deleting the operator that failed", async () => {
+      const model = toolThenText("deleteOperator", { operatorId: "op-1" });
+      const agent = await runTurn(model);
+
+      expect(String(agent.getAllSteps()[1].toolResults?.[0]?.output)).not.toStartWith("[ERROR]");
+      expectReportShown(contextOf(model, 0));
+      const after = contextOf(model, 1);
+      expect(after).not.toContain("### Operator `op-1`");
+      expect(after).toContain("## Last Run\nState: Running (not finished)");
+      expect(after).toContain("for operators not in the workflow as you see it:\n- op-1: boom");
+      expect(after).toContain("- worker lost");
+      expect(urls.some(u => u.includes("/api/execution/"))).toBe(false);
+    });
+
+    test("stays after an edit the tool rejected", async () => {
+      const model = toolThenText("modifyOperator", { operatorId: "ghost", summary: "x" });
+      const agent = await runTurn(model);
+
+      expect(String(agent.getAllSteps()[1].toolResults?.[0]?.output)).toStartWith("[ERROR]");
+      expectReportShown(contextOf(model, 1));
+      expect(urls.some(u => u.includes("/api/execution/"))).toBe(false);
+    });
+
+    test("stays after an edit call that never reached the tool", async () => {
+      const model = toolThenText("modifyOperator", {});
+      const agent = await runTurn(model);
+
+      expect(agent.getAllSteps()[1].toolResults).toEqual([]);
+      expectReportShown(contextOf(model, 1));
+    });
+
+    test("is dropped after an executeOperator call that never reached the tool", async () => {
+      const model = toolThenText("executeOperator", {});
+      const agent = await runTurn(model);
+
+      expect(agent.getAllSteps()[1].toolResults).toEqual([]);
+      expectReportShown(contextOf(model, 0));
+      expect(contextOf(model, 1)).not.toContain("Last Run");
+    });
+
+    test("stays when a rejected edit shares its step with a call that runs no operator", async () => {
+      // Only the second call has a result. Paired by position it would look like the edit's.
+      const model = callsThenText([
+        ["modifyOperator", {}],
+        ["deleteOperator", { operatorId: "op-1" }],
+      ]);
+      const agent = await runTurn(model);
+
+      const results = agent.getAllSteps()[1].toolResults ?? [];
+      expect(results.map(r => r.toolCallId)).toEqual(["c2"]);
+      expect(String(results[0].output)).not.toStartWith("[ERROR]");
+      const after = contextOf(model, 1);
+      expect(after).toContain("## Last Run\nState: Running (not finished)");
+      expect(after).toContain("for operators not in the workflow as you see it:\n- op-1: boom");
+      expect(urls.some(u => u.includes("/api/execution/"))).toBe(false);
+    });
+
+    test("is dropped when an accepted edit follows a call that never reached its tool", async () => {
+      // Only the second call has a result. Paired by position the edit would look unanswered.
+      const vSpy = spyOn(WorkflowSystemMetadata.getInstance(), "validateOperatorProperties").mockReturnValue({
+        isValid: true,
+      } as any);
+      try {
+        const model = callsThenText([
+          ["deleteOperator", {}],
+          ["modifyOperator", { operatorId: "op-1", summary: "renamed" }],
+        ]);
+        const agent = await runTurn(model);
+
+        const results = agent.getAllSteps()[1].toolResults ?? [];
+        expect(results.map(r => r.toolCallId)).toEqual(["c2"]);
+        expect(String(results[0].output)).not.toStartWith("[ERROR]");
+        expectReportShown(contextOf(model, 0));
+        expect(contextOf(model, 1)).toContain("### Operator `op-1`");
+        expect(contextOf(model, 1)).not.toContain("Last Run");
+      } finally {
+        vSpy.mockRestore();
+      }
+    });
+
+    test("is shown again when the next prompt carries a report", async () => {
+      const vSpy = spyOn(WorkflowSystemMetadata.getInstance(), "validateOperatorProperties").mockReturnValue({
+        isValid: true,
+      } as any);
+      try {
+        const model = toolThenText("modifyOperator", { operatorId: "op-1", summary: "renamed" });
+        const agent = await runTurn(model);
+        expect(contextOf(model, 1)).not.toContain("Last Run");
+
+        agent.setLastRun({ ...report, state: "Killed" });
+        await agent.sendMessage("and now");
+
+        expect(contextOf(model, 2)).toContain("## Last Run\nState: Killed");
+        expect(contextOf(model, 2)).toContain("Last Run Error (from the user's run): boom");
+      } finally {
+        vSpy.mockRestore();
+      }
+    });
   });
 
   test("setDelegateWarehouse points an existing delegate at the current pick", async () => {
