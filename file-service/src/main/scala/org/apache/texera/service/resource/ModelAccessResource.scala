@@ -27,7 +27,6 @@ import org.apache.texera.auth.SessionUser
 import org.apache.texera.dao.SqlServer
 import org.apache.texera.dao.SqlServer.withTransaction
 import org.apache.texera.dao.jooq.generated.enums.PrivilegeEnum
-import org.apache.texera.dao.jooq.generated.tables.pojos.User
 import org.apache.texera.service.resource.ModelAccessResource.context
 import org.apache.texera.service.resource.ResourceTables.{Model => MODEL_RESOURCE}
 import org.jooq.DSLContext
@@ -59,8 +58,8 @@ object ModelAccessResource {
       uid: Integer
   ): PrivilegeEnum = ResourceAccess.privilegeOf(ctx, MODEL_RESOURCE, mid, uid)
 
-  def getOwner(ctx: DSLContext, mid: Integer): User =
-    ResourceAccess.owner(ctx, MODEL_RESOURCE, mid)
+  def getOwnerEmail(ctx: DSLContext, mid: Integer): String =
+    ResourceAccess.ownerEmailOf(ctx, MODEL_RESOURCE, mid)
 }
 
 @Produces(Array(MediaType.APPLICATION_JSON))
