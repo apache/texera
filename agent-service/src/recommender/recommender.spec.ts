@@ -30,7 +30,7 @@ function stubCatalog(known: string[], initialized = true): OperatorCatalog {
   const set = new Set(known);
   return {
     isInitialized: () => initialized,
-    operatorTypeExists: (t: string) => set.has(t),
+    getSchema: (t: string) => (set.has(t) ? {} : undefined),
     getAdditionalMetadata: (t: string) => (set.has(t) ? { userFriendlyName: `${t} (nice)` } : undefined),
   };
 }

@@ -33,7 +33,7 @@ import { candidateSuccessors, rationaleFor } from "./hardcoded-rules";
  */
 export interface OperatorCatalog {
   isInitialized(): boolean;
-  operatorTypeExists(operatorType: string): boolean;
+  getSchema(operatorType: string): unknown;
   getAdditionalMetadata(operatorType: string): { userFriendlyName?: string } | undefined;
 }
 
@@ -79,8 +79,9 @@ export function recommendOperators(req: RecommendationRequest, catalog?: Operato
     if (recommendations.length >= limit) break;
     // Never suggest the operator itself, and never suggest the same type twice.
     if (candidate === operatorType || seen.has(candidate)) continue;
-    // Drop suggestions the running system can't actually instantiate.
-    if (catalogReady && !catalog!.operatorTypeExists(candidate)) continue;
+    // Drop suggestions the running system can't actually instantiate: an
+    // operator exists in the catalog exactly when its schema was loaded.
+    if (catalogReady && catalog!.getSchema(candidate) === undefined) continue;
     seen.add(candidate);
 
     const userFriendlyName = catalogReady ? catalog!.getAdditionalMetadata(candidate)?.userFriendlyName : undefined;
