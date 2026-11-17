@@ -24,7 +24,7 @@
 # completeness or stability of the code, it does indicate that the project
 # has yet to be fully endorsed by the ASF.
 
-FROM sbtscala/scala-sbt:eclipse-temurin-jammy-17.0.5_8_1.9.3_2.13.11 AS build
+FROM docker.io/sbtscala/scala-sbt:eclipse-temurin-jammy-17.0.5_8_1.9.3_2.13.11@sha256:c20fad6183112843d6c87fd54bb9b507a424ab7893c6a570b1624acf2e0324c4 AS build
 
 # Set working directory
 WORKDIR /texera
@@ -37,27 +37,25 @@ COPY build.sbt build.sbt
 COPY .jvmopts .jvmopts
 
 # Update system and install dependencies
-RUN apt-get update && apt-get install -y \
-    netcat \
-    unzip \
-    libpq-dev \
-    && apt-get clean
+ARG PACKAGE_SNAPSHOT
+RUN --mount=type=bind,source=bin/dockerfiles/snapshot,target=/snapshot \
+    bash /snapshot/install.sh apt netcat unzip libpq-dev
 
-# Add .git for runtime calls to jgit from OPversion
-COPY .git .git
 COPY LICENSE NOTICE DISCLAIMER ./
 COPY licenses/ licenses/
 
+# Pins jar and dist-zip entry timestamps; pass the commit time
+# (git log -1 --format=%ct) for a reproducible build.
+ARG SOURCE_DATE_EPOCH
 RUN sbt clean ConfigService/dist
 
 # Unzip the texera binary
 RUN unzip config-service/target/universal/config-service-*.zip -d target/
 
-FROM eclipse-temurin:17-jre-jammy AS runtime
+FROM docker.io/library/eclipse-temurin:17-jre-jammy@sha256:97137382c6f0c30427d9b7c44ad8b2d55ac823b0768c171d81a643ed219023c5 AS runtime
 
 WORKDIR /texera
 
-COPY --from=build /texera/.git /texera/.git
 # Copy the built texera binary from the build phase
 COPY --from=build /texera/target/config-service-* /texera/
 # Copy resources directories from build phase
@@ -72,6 +70,9 @@ COPY --from=build /texera/config-service/NOTICE-binary /texera/NOTICE
 COPY --from=build /texera/licenses /texera/licenses
 COPY --from=build /texera/DISCLAIMER /texera/
 
+# Dates the texera account in /etc/shadow; pass the commit time
+# (git log -1 --format=%ct) for a reproducible build.
+ARG SOURCE_DATE_EPOCH
 RUN groupadd --system --gid 1001 texera \
  && useradd --system --uid 1001 --gid texera --home-dir /texera --no-create-home texera \
  && chown -R texera:texera /texera

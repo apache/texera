@@ -200,6 +200,10 @@ class MainLoop(StoppableQueueBlockingRunnable):
         with replace_print(
             self.context.worker_id, self.context.console_message_manager.print_buf
         ):
+            # This deferred consume bypasses DataProcessor.process_state, so
+            # register the state here too, before the callback runs. A
+            # matching loop state is consumed at loop_counter == 0.
+            executor.register_state(pending, 0)
             executor.process_state(pending, 0)
 
     def _jump_to_loop_start(
@@ -596,6 +600,7 @@ class MainLoop(StoppableQueueBlockingRunnable):
             return
 
         self.context.state_processing_manager.current_input_state = state
+        self.context.state_processing_manager.current_input_loop_counter = in_counter
         self.process_input_state(
             output_loop_counter=in_counter,
             output_loop_start_id=frame.loop_start_id,
@@ -812,7 +817,9 @@ class MainLoop(StoppableQueueBlockingRunnable):
                     self._process_state_frame,
                 )
             except Exception as err:
-                logger.exception(err)
+                self.context.report_exception(err)
+                self._check_exception()
+                return
 
     def _send_console_message(self, console_message: ConsoleMessage):
         self._async_rpc_client.coordinator_stub().console_message_triggered(

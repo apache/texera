@@ -23,9 +23,10 @@ import pytest
 from core.architecture.handlers.control.end_channel_handler import EndChannelHandler
 from core.architecture.handlers.control.start_channel_handler import StartChannelHandler
 from core.architecture.managers import Context
-from core.models import Schema, State, Tuple
+from core.models import Schema, State, Tuple, TupleOperatorV2
 from core.models.internal_queue import InternalQueue
 from core.models.internal_marker import EndChannel, InternalMarker, StartChannel
+from core.models.operator import LoopStartOperator
 from core.runnables.data_processor import DataProcessor
 from proto.org.apache.texera.amber.core import (
     ActorVirtualIdentity,
@@ -69,6 +70,9 @@ class _StubExecutor:
 
     def __init__(self):
         self.calls = []
+        # A real Operator carries this, and a finishing port declares its schema
+        # into it so an operator handed no rows can still say what it read.
+        self.input_schemas = {}
 
     def produce_state_on_start(self, port_id):
         self.calls.append(("produce_state_on_start", port_id))
@@ -198,6 +202,221 @@ class TestProcessInternalMarker:
         assert data_processor.switch_calls == 2
 
 
+class _StateSpy(TupleOperatorV2):
+    """
+    Records what `loop_variables` holds at the moment `process_state` runs, so
+    the test can pin that the runtime registers the state message BEFORE the
+    callback rather than after it.
+    """
+
+    def __init__(self):
+        super().__init__()
+        self.seen = []
+
+    def process_tuple(self, tuple_, port):
+        yield tuple_
+
+    def process_state(self, state, port):
+        self.seen.append((dict(self.loop_variables), port))
+        return super().process_state(state, port)
+
+
+class _LoopVariableReader(TupleOperatorV2):
+    """For every tuple, outputs the loop variable `i` it reads off `loop_variables`."""
+
+    def process_tuple(self, tuple_, port):
+        yield Tuple({"x": self.loop_variables["i"]})
+
+
+class _LoopStart(LoopStartOperator):
+    """A Loop Start whose `initialization` seeds one loop variable, `i = 0`."""
+
+    def open(self):
+        self.run_initialization("i = 0")
+
+    def process_table(self, table, port):
+        yield table
+
+
+class TestProcessState:
+    @pytest.mark.timeout(2)
+    def test_registers_state_before_invoking_process_state(
+        self, context, data_processor
+    ):
+        executor = _StateSpy()
+        context.executor_manager.executor = executor
+        context.tuple_processing_manager.current_input_port_id = PortIdentity(0, False)
+
+        state = State({"i": 2})
+        data_processor.process_state(state)
+
+        # The callback observed the state already registered, on its port...
+        assert executor.seen == [({"i": 2}, 0)]
+        # ...it stays registered afterwards, and the default still forwards.
+        assert executor.loop_variables == {"i": 2}
+        assert context.state_processing_manager.current_output_state is state
+        assert not context.exception_manager.has_exception()
+        # `_executor_session` always switches once on exit.
+        assert data_processor.switch_calls == 1
+
+    @pytest.mark.timeout(2)
+    def test_a_later_state_message_adds_to_the_registered_one(
+        self, context, data_processor
+    ):
+        # A copy of the loop's state (another upstream worker's), then a state
+        # with one more name: the operator holds both names, on its port.
+        executor = _StateSpy()
+        context.executor_manager.executor = executor
+        context.tuple_processing_manager.current_input_port_id = PortIdentity(1, False)
+
+        data_processor.process_state(State({"i": 0}))
+        data_processor.process_state(State({"i": 0}))
+        data_processor.process_state(State({"i": 0, "j": 1}))
+
+        assert executor.seen == [({"i": 0}, 1), ({"i": 0}, 1), ({"i": 0, "j": 1}, 1)]
+        assert executor.loop_variables == {"i": 0, "j": 1}
+        assert not context.exception_manager.has_exception()
+
+    @pytest.mark.timeout(2)
+    def test_reading_a_loop_variable_two_states_disagree_on_fails(
+        self, context, data_processor, monkeypatch
+    ):
+        # Xiaozhen's case on #8642: inside a loop, a body operator upstream
+        # returns i = 99 from produce_state_on_finish, after the loop's i = 0,
+        # both at depth 0. A JVM operator whose setting refers to i fails;
+        # this operator fails the same way when it reads i in process_tuple,
+        # and outputs nothing.
+        schema = Schema(raw_schema={"x": "INTEGER"})
+        monkeypatch.setattr(
+            context.output_manager,
+            "get_port",
+            lambda *args, **kwargs: SimpleNamespace(get_schema=lambda: schema),
+        )
+        context.executor_manager.executor = _LoopVariableReader()
+        tpm = context.tuple_processing_manager
+        tpm.current_input_port_id = PortIdentity(0, False)
+
+        data_processor.process_state(State({"i": 0}), 0)
+        data_processor.process_state(State({"i": 99}), 0)
+        assert not context.exception_manager.has_exception(), (
+            "registering the two states does not fail; reading i does"
+        )
+
+        outputs = []
+
+        def switch_and_collect():
+            if tpm.current_output_tuple is not None:
+                outputs.append(tpm.get_output_tuple())
+            # Ends process_tuple's loop even when the operator raises.
+            tpm.finished_current.set()
+
+        data_processor._switch_context = switch_and_collect
+        tpm.current_input_tuple = Tuple({"x": 0})
+        data_processor.process_tuple()
+
+        assert context.exception_manager.has_exception()
+        exc_type, exc_value, _ = context.exception_manager.get_exc_info()
+        assert exc_type is RuntimeError
+        assert str(exc_value) == (
+            "loop variable i got two different values in one iteration, 0 and 99: "
+            "a loop's variables must not change inside its body"
+        )
+        assert outputs == []
+
+    @pytest.mark.timeout(2)
+    def test_registers_on_the_running_operator_only(self, context, data_processor):
+        # The default lives on the class, so a registration written to the
+        # class (instead of the running instance) would reach every operator.
+        target, bystander = _StateSpy(), _StateSpy()
+        context.executor_manager.executor = target
+        context.tuple_processing_manager.current_input_port_id = PortIdentity(0, False)
+
+        data_processor.process_state(State({"i": 5}))
+
+        assert target.loop_variables == {"i": 5}
+        assert not bystander.loop_variables
+        assert not _StateSpy().loop_variables
+
+    @pytest.mark.timeout(2)
+    def test_reads_the_loop_variable_after_another_operators_state_arrives(
+        self, context, data_processor, monkeypatch
+    ):
+        # Xiaozhen's scenario on #8642: inside a loop, a body operator upstream
+        # returns its own state from produce_state_on_finish, which reaches
+        # this operator after the loop's state, both at depth 0. The operator
+        # must still read the loop's i, here in process_tuple.
+        schema = Schema(raw_schema={"x": "INTEGER"})
+        monkeypatch.setattr(
+            context.output_manager,
+            "get_port",
+            lambda *args, **kwargs: SimpleNamespace(get_schema=lambda: schema),
+        )
+        context.executor_manager.executor = _LoopVariableReader()
+        tpm = context.tuple_processing_manager
+        tpm.current_input_port_id = PortIdentity(0, False)
+
+        data_processor.process_state(State({"i": 2}), 0)
+        data_processor.process_state(State({"note": "from-body-op"}), 0)
+
+        outputs = []
+
+        def switch_and_collect():
+            if tpm.current_output_tuple is not None:
+                outputs.append(tpm.get_output_tuple())
+            # Ends process_tuple's loop even when the operator raises.
+            tpm.finished_current.set()
+
+        data_processor._switch_context = switch_and_collect
+        tpm.current_input_tuple = Tuple({"x": 0})
+        data_processor.process_tuple()
+
+        assert not context.exception_manager.has_exception(), (
+            context.exception_manager.get_exc_info()
+        )
+        assert [output["x"] for output in outputs] == [2]
+
+    @pytest.mark.timeout(2)
+    def test_an_inner_loops_value_wins_over_an_outer_one_arriving_after_it(
+        self, context, data_processor
+    ):
+        # i = 1 from the outer loop (depth 1), i = 5 from the inner loop
+        # (depth 0), then the outer message again: the operator reads the
+        # inner i, as a JVM operator binds it.
+        executor = _StateSpy()
+        context.executor_manager.executor = executor
+        context.tuple_processing_manager.current_input_port_id = PortIdentity(0, False)
+
+        data_processor.process_state(State({"i": 1}), 1)
+        data_processor.process_state(State({"i": 5}), 0)
+        data_processor.process_state(State({"i": 1}), 1)
+
+        assert executor.seen == [({"i": 1}, 0), ({"i": 5}, 0), ({"i": 5}, 0)]
+        assert executor.loop_variables == {"i": 5}
+
+    @pytest.mark.timeout(2)
+    def test_a_loop_start_keeps_its_own_state_apart_from_the_loop_variables(
+        self, context, data_processor
+    ):
+        # A LoopStart keeps its own loop variables on `state`, as on main; the
+        # runtime registers the incoming message on `loop_variables`, so the
+        # first-entry merge still merges the message into the LoopStart's own
+        # variables and leaves the message itself unchanged.
+        executor = _LoopStart()
+        executor.open()
+        context.executor_manager.executor = executor
+        context.tuple_processing_manager.current_input_port_id = PortIdentity(0, False)
+
+        state = State({"seed": 7})
+        data_processor.process_state(state)
+
+        assert executor.loop_variables == {"seed": 7}
+        assert state == State({"seed": 7}), "the registered message is unchanged"
+        assert executor.state == State({"i": 0, "seed": 7})
+        # LoopStart forwards nothing on first entry.
+        assert context.state_processing_manager.current_output_state is None
+        assert not context.exception_manager.has_exception()
+
+
 class TestExecutorSession:
     @pytest.mark.timeout(2)
     def test_exception_inside_session_is_reported_before_the_switch(
@@ -280,6 +499,26 @@ class TestRunInvariant:
         assert "marker=False, state=False, tuple=False" in str(excinfo.value)
 
     @pytest.mark.timeout(2)
+    def test_hands_a_queued_state_its_loop_counter(self, context, monkeypatch):
+        # MainLoop queues a state message with the nesting depth its envelope
+        # carried; run() passes both on, so the operator can tell an inner
+        # loop's value from an outer one's.
+        dp = self._drive_run_synchronously(context, monkeypatch)
+        spm = context.state_processing_manager
+        spm.current_input_state = State({"i": 1})
+        spm.current_input_loop_counter = 1
+        calls = []
+
+        def record(state, loop_counter):
+            calls.append((state, loop_counter))
+            dp.stop()
+
+        monkeypatch.setattr(dp, "process_state", record)
+        dp.run()
+
+        assert calls == [(State({"i": 1}), 1)]
+
+    @pytest.mark.timeout(2)
     def test_two_queued_inputs_raises_invariant_error(self, context, monkeypatch):
         dp = self._drive_run_synchronously(context, monkeypatch)
         # Populate two slots — has_marker + has_tuple == 2.
@@ -290,3 +529,178 @@ class TestRunInvariant:
         assert "expected exactly one queued input" in str(excinfo.value)
         assert "marker=True" in str(excinfo.value)
         assert "tuple=True" in str(excinfo.value)
+
+
+class _ReturningExecutor:
+    """process_tuple uses `return` instead of `yield`."""
+
+    def process_tuple(self, tuple_, port_id):
+        return tuple_
+
+
+class TestUDFOutputMistakes:
+    @pytest.fixture
+    def output_schema(self, context, monkeypatch):
+        schema = Schema(raw_schema={"x": "INTEGER"})
+        monkeypatch.setattr(
+            context.output_manager,
+            "get_port",
+            lambda *args, **kwargs: SimpleNamespace(get_schema=lambda: schema),
+        )
+        return schema
+
+    @pytest.mark.timeout(2)
+    def test_process_tuple_return_says_to_yield(self, context, data_processor):
+        context.executor_manager.executor = _ReturningExecutor()
+        context.tuple_processing_manager.current_input_tuple = Tuple({"x": 1})
+
+        def switch_and_stop():
+            data_processor.switch_calls += 1
+            context.tuple_processing_manager.finished_current.set()
+
+        data_processor._switch_context = switch_and_stop
+        data_processor.process_tuple()
+
+        exc_info = context.exception_manager.get_exc_info()
+        assert exc_info[0] is TypeError
+        assert "process_tuple must `yield` results, not `return` them" in str(
+            exc_info[1]
+        )
+
+    def test_dict_of_dataframes_says_to_yield_the_dataframe(
+        self, data_processor, output_schema
+    ):
+        import pandas
+
+        with pytest.raises(TypeError) as exc_info:
+            data_processor._set_output_tuple(
+                iter([{"x": pandas.DataFrame({"x": [1]})}])
+            )
+        assert "yield the DataFrame itself instead of a dict" in str(exc_info.value)
+
+    def test_schema_mismatch_points_to_output_columns(
+        self, data_processor, output_schema
+    ):
+        with pytest.raises(KeyError) as exc_info:
+            data_processor._set_output_tuple(iter([{"y": 1}]))
+        message = str(exc_info.value)
+        assert "expected but missing" in message
+        assert "Extra output column(s)" in message
+
+
+class _FinishReturningExecutor:
+    """on_finish uses `return` instead of `yield`."""
+
+    def produce_state_on_finish(self, port_id):
+        return None
+
+    def on_finish(self, port_id):
+        return {"x": 1}
+
+
+class TestUDFOutputMistakesFollowUp:
+    def _use_schema(self, context, monkeypatch, raw_schema):
+        schema = Schema(raw_schema=raw_schema)
+        monkeypatch.setattr(
+            context.output_manager,
+            "get_port",
+            lambda *args, **kwargs: SimpleNamespace(get_schema=lambda: schema),
+        )
+
+    def test_dict_holding_a_dataframe_into_a_binary_column_still_works(
+        self, context, data_processor, monkeypatch
+    ):
+        import pandas
+
+        # BINARY columns pickle any value, so this is valid output on main.
+        self._use_schema(context, monkeypatch, {"result": "BINARY"})
+        data_processor._set_output_tuple(
+            iter([{"result": pandas.DataFrame({"x": [1]})}])
+        )
+        assert context.tuple_processing_manager.finished_current.is_set()
+
+    def test_wrong_column_type_points_to_output_columns(
+        self, context, data_processor, monkeypatch
+    ):
+        self._use_schema(context, monkeypatch, {"x": "INTEGER"})
+        with pytest.raises(TypeError) as exc_info:
+            data_processor._set_output_tuple(iter([{"x": "not a number"}]))
+        message = str(exc_info.value)
+        assert "Unmatched type for field 'x'" in message
+        assert "Extra output column(s)" in message
+
+    @pytest.mark.timeout(2)
+    def test_on_finish_return_says_to_yield(self, context, data_processor):
+        context.executor_manager.executor = _FinishReturningExecutor()
+        data_processor.process_internal_marker(EndChannel(0))
+        exc_info = context.exception_manager.get_exc_info()
+        assert exc_info[0] is TypeError
+        assert "on_finish must `yield` results, not `return` them" in str(exc_info[1])
+
+    def test_misspelled_column_next_to_a_dataframe_gets_the_column_hint(
+        self, context, data_processor, monkeypatch
+    ):
+        import pandas
+
+        # The DataFrame is fine (BINARY column); the column name is wrong.
+        self._use_schema(context, monkeypatch, {"result": "BINARY"})
+        with pytest.raises(KeyError) as exc_info:
+            data_processor._set_output_tuple(
+                iter([{"res": pandas.DataFrame({"x": [1]})}])
+            )
+        message = str(exc_info.value)
+        assert "Extra output column(s)" in message
+        assert "dict of DataFrames" not in message
+
+    def test_dataframe_in_a_non_binary_column_says_to_yield_the_dataframe(
+        self, context, data_processor, monkeypatch
+    ):
+        import pandas
+
+        self._use_schema(context, monkeypatch, {"result": "STRING"})
+        with pytest.raises(TypeError) as exc_info:
+            data_processor._set_output_tuple(
+                iter([{"result": pandas.DataFrame({"x": [1]})}])
+            )
+        assert "yield the DataFrame itself" in str(exc_info.value)
+
+    def test_missing_column_is_reported_even_with_a_dataframe_in_another_column(
+        self, context, data_processor, monkeypatch
+    ):
+        import pandas
+
+        # The real problem is the missing "count" column, not the DataFrame.
+        self._use_schema(
+            context,
+            monkeypatch,
+            {"name": "STRING", "count": "INTEGER", "stats": "STRING"},
+        )
+        with pytest.raises(KeyError) as exc_info:
+            data_processor._set_output_tuple(
+                iter([{"name": "a", "stats": pandas.DataFrame({"v": [1]})}])
+            )
+        message = str(exc_info.value)
+        assert "'count'" in message and "expected but missing" in message
+        assert "DataFrame" not in message.split("]")[-1]
+
+    def test_dataframe_hint_names_the_column_and_keeps_the_original_error(
+        self, context, data_processor, monkeypatch
+    ):
+        import pandas
+
+        self._use_schema(context, monkeypatch, {"r": "LARGE_BINARY"})
+        with pytest.raises(TypeError) as exc_info:
+            data_processor._set_output_tuple(
+                iter([{"r": pandas.DataFrame({"x": [1]})}])
+            )
+        message = str(exc_info.value)
+        assert "Unmatched type for field 'r'" in message
+        assert "column 'r'" in message
+
+    def test_column_hint_mentions_the_source_udf_columns_setting(
+        self, context, data_processor, monkeypatch
+    ):
+        self._use_schema(context, monkeypatch, {"x": "INTEGER"})
+        with pytest.raises(KeyError) as exc_info:
+            data_processor._set_output_tuple(iter([{"y": 1}]))
+        assert "'Columns'" in str(exc_info.value)

@@ -95,6 +95,7 @@ import { NzModalCommentBoxComponent } from "./workspace/component/workflow-edito
 import { NzCommentModule } from "ng-zorro-antd/comment";
 import { AdminUserComponent } from "./dashboard/component/admin/user/admin-user.component";
 import { AdminExecutionComponent } from "./dashboard/component/admin/execution/admin-execution.component";
+import { AdminComputingUnitComponent } from "./dashboard/component/admin/computing-unit/admin-computing-unit.component";
 import { NzPopconfirmModule } from "ng-zorro-antd/popconfirm";
 import { AdminGuardService } from "./dashboard/service/admin/guard/admin-guard.service";
 import { ContextMenuComponent } from "./workspace/component/workflow-editor/context-menu/context-menu/context-menu.component";
@@ -106,6 +107,7 @@ import { HuggingFaceImageUploadComponent } from "./workspace/component/hugging-f
 import { HuggingFaceComponent } from "./workspace/component/hugging-face/hugging-face.component";
 import { HuggingFaceAudioUploadComponent } from "./workspace/component/hugging-face-audio-upload/hugging-face-audio-upload.component";
 import { DatasetFileSelectorComponent } from "./workspace/component/dataset-file-selector/dataset-file-selector.component";
+import { LoopVariableInputComponent } from "./workspace/component/loop-variable-input/loop-variable-input.component";
 import { DatasetVersionSelectorComponent } from "./workspace/component/dataset-version-selector/dataset-version-selector.component";
 import { DatasetSelectionModalComponent } from "./workspace/component/dataset-selection-modal/dataset-selection-modal.component";
 import { ReActStepDetailModalComponent } from "./workspace/component/agent/agent-panel/react-step-detail-modal/react-step-detail-modal.component";
@@ -120,7 +122,6 @@ import { MarkdownModule } from "ngx-markdown";
 import { FileSaverService } from "./dashboard/service/user/file/file-saver.service";
 import { DragDropModule } from "@angular/cdk/drag-drop";
 import { ScrollingModule } from "@angular/cdk/scrolling";
-import { UserWorkflowListItemComponent } from "./dashboard/component/user/user-workflow/user-workflow-list-item/user-workflow-list-item.component";
 import { SortButtonComponent } from "./dashboard/component/user/sort-button/sort-button.component";
 import { FiltersComponent } from "./dashboard/component/user/filters/filters.component";
 import { FiltersInstructionsComponent } from "./dashboard/component/user/filters-instructions/filters-instructions.component";
@@ -132,19 +133,17 @@ import { FormlyNgZorroAntdModule } from "@ngx-formly/ng-zorro-antd";
 import { FlarumComponent } from "./dashboard/component/user/flarum/flarum.component";
 import { NzAlertModule } from "ng-zorro-antd/alert";
 import { LeftPanelComponent } from "./workspace/component/left-panel/left-panel.component";
-import { ErrorFrameComponent } from "./workspace/component/result-panel/error-frame/error-frame.component";
 import { NzResizableModule } from "ng-zorro-antd/resizable";
 import { WorkflowRuntimeStatisticsComponent } from "./dashboard/component/user/user-workflow/ngbd-modal-workflow-executions/workflow-runtime-statistics/workflow-runtime-statistics.component";
 import { TimeTravelComponent } from "./workspace/component/left-panel/time-travel/time-travel.component";
 import { NzModalModule } from "ng-zorro-antd/modal";
 import { NzDescriptionsModule } from "ng-zorro-antd/descriptions";
 import { OverlayModule } from "@angular/cdk/overlay";
-import { HighlightSearchTermsPipe } from "./dashboard/component/user/user-workflow/user-workflow-list-item/highlight-search-terms.pipe";
 import { en_US, provideNzI18n } from "ng-zorro-antd/i18n";
 import { FilesUploaderComponent } from "./dashboard/component/user/files-uploader/files-uploader.component";
 import { ConflictingFileModalContentComponent } from "./dashboard/component/user/files-uploader/conflicting-file-modal-content/conflicting-file-modal-content.component";
 import { UserDatasetComponent } from "./dashboard/component/user/user-dataset/user-dataset.component";
-import { UserDatasetVersionCreatorComponent } from "./dashboard/component/user/user-dataset/user-dataset-explorer/user-dataset-version-creator/user-dataset-version-creator.component";
+import { UserDatasetCreatorComponent } from "./dashboard/component/user/user-dataset/user-dataset-creator/user-dataset-creator.component";
 import { DatasetDetailComponent } from "./dashboard/component/user/user-dataset/user-dataset-explorer/dataset-detail.component";
 import { UserDatasetVersionFiletreeComponent } from "./dashboard/component/user/user-dataset/user-dataset-explorer/user-dataset-version-filetree/user-dataset-version-filetree.component";
 import { UserDatasetFileRendererComponent } from "./dashboard/component/user/user-dataset/user-dataset-explorer/user-dataset-file-renderer/user-dataset-file-renderer.component";
@@ -282,6 +281,7 @@ registerLocaleData(en);
     DashboardComponent,
     AdminUserComponent,
     AdminExecutionComponent,
+    AdminComputingUnitComponent,
     UserIconComponent,
     UserAvatarComponent,
     UserWorkflowComponent,
@@ -302,13 +302,12 @@ registerLocaleData(en);
     ShareAccessComponent,
     WorkflowExecutionHistoryComponent,
     ConsoleFrameComponent,
-    ErrorFrameComponent,
     ResultTableFrameComponent,
     OperatorPropertyEditFrameComponent,
     FilesUploaderComponent,
     ConflictingFileModalContentComponent,
     UserDatasetComponent,
-    UserDatasetVersionCreatorComponent,
+    UserDatasetCreatorComponent,
     DatasetDetailComponent,
     UserDatasetVersionFiletreeComponent,
     UserDatasetFileRendererComponent,
@@ -325,13 +324,13 @@ registerLocaleData(en);
     HuggingFaceAudioUploadComponent,
     HuggingFaceImageUploadComponent,
     DatasetFileSelectorComponent,
+    LoopVariableInputComponent,
     DatasetVersionSelectorComponent,
     DatasetSelectionModalComponent,
     ReActStepDetailModalComponent,
     CollabWrapperComponent,
     AboutComponent,
     TexeraLoginComponent,
-    UserWorkflowListItemComponent,
     SortButtonComponent,
     FiltersComponent,
     FiltersInstructionsComponent,
@@ -339,7 +338,6 @@ registerLocaleData(en);
     PortPropertyEditFrameComponent,
     WorkflowRuntimeStatisticsComponent,
     FlarumComponent,
-    HighlightSearchTermsPipe,
     SearchBarComponent,
     ListItemComponent,
     CardItemComponent,

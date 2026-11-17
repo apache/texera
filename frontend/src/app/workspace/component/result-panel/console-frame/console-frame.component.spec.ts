@@ -29,12 +29,15 @@ import { ComputingUnitStatusService } from "../../../../common/service/computing
 import { MockComputingUnitStatusService } from "../../../../common/service/computing-unit/computing-unit-status/mock-computing-unit-status.service";
 import { commonTestProviders } from "../../../../common/testing/test-utils";
 import { ExecuteWorkflowService } from "../../../service/execute-workflow/execute-workflow.service";
+import { WorkflowCompilingService } from "../../../service/compile-workflow/workflow-compiling.service";
 import { WorkflowConsoleService } from "../../../service/workflow-console/workflow-console.service";
 import { WorkflowWebsocketService } from "../../../service/workflow-websocket/workflow-websocket.service";
 import { NotificationService } from "../../../../common/service/notification/notification.service";
 import { UdfDebugService } from "../../../service/operator-debug/udf-debug.service";
 import { ExecutionState } from "../../../types/execute-workflow.interface";
 import { ConsoleMessage } from "../../../types/workflow-common.interface";
+import { WorkflowActionService } from "../../../service/workflow-graph/model/workflow-action.service";
+import { mockPoint, mockScanPredicate } from "../../../service/workflow-graph/model/mock-workflow-data";
 
 function consoleMessage(name: string): ConsoleMessage {
   return {
@@ -55,6 +58,8 @@ describe("ConsoleFrameComponent", () => {
 
   let getWorkerIds: ReturnType<typeof vi.fn>;
   let getConsoleMessages: ReturnType<typeof vi.fn>;
+  let getAllConsoleMessages: ReturnType<typeof vi.fn>;
+  let getErrorMessages: ReturnType<typeof vi.fn>;
   let skipTuples: ReturnType<typeof vi.fn>;
   let retryExecution: ReturnType<typeof vi.fn>;
   let send: ReturnType<typeof vi.fn>;
@@ -67,6 +72,8 @@ describe("ConsoleFrameComponent", () => {
   beforeEach(async () => {
     getWorkerIds = vi.fn().mockReturnValue([]);
     getConsoleMessages = vi.fn().mockReturnValue([]);
+    getAllConsoleMessages = vi.fn().mockReturnValue([]);
+    getErrorMessages = vi.fn().mockReturnValue([]);
     skipTuples = vi.fn();
     retryExecution = vi.fn();
     send = vi.fn();
@@ -86,13 +93,18 @@ describe("ConsoleFrameComponent", () => {
           useValue: {
             getExecutionStateStream: () => executionStateStream.asObservable(),
             getWorkerIds,
+            getErrorMessages,
             skipTuples,
             retryExecution,
           },
         },
         {
           provide: WorkflowConsoleService,
-          useValue: { getConsoleMessageUpdateStream: () => consoleUpdateStream.asObservable(), getConsoleMessages },
+          useValue: {
+            getConsoleMessageUpdateStream: () => consoleUpdateStream.asObservable(),
+            getConsoleMessages,
+            getAllConsoleMessages,
+          },
         },
         { provide: WorkflowWebsocketService, useValue: { send } },
         { provide: NotificationService, useValue: { error: notifyError } },
@@ -165,11 +177,47 @@ describe("ConsoleFrameComponent", () => {
       expect(getConsoleMessages).toHaveBeenCalledWith("op1");
     });
 
-    it("renderConsole is a no-op without an operator id", () => {
-      component.operatorId = "";
+    it("renderConsole shows every operator's messages without an operator id, and no workers", () => {
+      component.operatorId = undefined;
+      component.workerIds = ["w-stale"];
       getWorkerIds.mockClear();
+      getAllConsoleMessages.mockReturnValue([
+        { operatorId: "opA", message: { ...consoleMessage("PRINT"), title: "from A" } },
+        { operatorId: "opB", message: { ...consoleMessage("PRINT"), title: "from B" } },
+      ]);
+
       component.renderConsole();
+
       expect(getWorkerIds).not.toHaveBeenCalled();
+      expect(component.workerIds).toEqual([]);
+      expect(component.consoleMessages.map(m => m.title)).toEqual(["from A", "from B"]);
+    });
+
+    it("adds the errors that stopped the run as ERROR messages, only the operator's own when one is set", () => {
+      const fatal = (operatorId: string, message: string) => ({
+        message,
+        details: "java.lang.IllegalArgumentException: bad value",
+        operatorId,
+        workerId: "",
+        type: { name: "EXECUTION_FAILURE" },
+        timestamp: { nanos: 0, seconds: 5 },
+      });
+      getErrorMessages.mockReturnValue([fatal("opA", "requirement failed: A broke"), fatal("opB", "B broke")]);
+      getConsoleMessages.mockReturnValue([consoleMessage("PRINT")]);
+
+      component.displayConsoleMessages("opA");
+
+      expect(component.consoleMessages.length).toBe(2);
+      const error = component.consoleMessages[1];
+      expect(error.msgType.name).toBe("ERROR");
+      expect(error.source).toBe("EXECUTION_FAILURE");
+      // the exception's class name and the requirement's prefix mean nothing to a user
+      expect(error.title).toBe("A broke");
+      expect(error.message).toBe("bad value");
+
+      component.displayConsoleMessages(undefined);
+
+      expect(component.consoleMessages.map(m => m.title)).toEqual(["A broke", "B broke"]);
     });
 
     it("displayConsoleMessages falls back to an empty list for an operator the service has never seen", () => {
@@ -319,6 +367,65 @@ describe("ConsoleFrameComponent", () => {
     });
   });
 
+  describe("which operator's messages", () => {
+    let actions: WorkflowActionService;
+    const scanId = mockScanPredicate.operatorID;
+    // a worker id ending in its index, as the worker tag's color is read from it
+    const print: ConsoleMessage = { ...consoleMessage("PRINT"), workerId: "w-1" };
+    const scanLabel = () => {
+      const operator = actions.getTexeraGraph().getOperator(scanId);
+      return operator.customDisplayName ?? operator.operatorType;
+    };
+
+    beforeEach(() => {
+      actions = TestBed.inject(WorkflowActionService);
+      actions.addOperator(mockScanPredicate, mockPoint);
+    });
+
+    it("tags each message with its operator while every operator is shown, and a tag narrows to it", () => {
+      const highlight = vi.spyOn(actions, "highlightOperators");
+      getAllConsoleMessages.mockReturnValue([{ operatorId: scanId, message: print }]);
+      component.operatorId = undefined;
+      component.renderConsole();
+      fixture.detectChanges();
+
+      const tag = fixture.debugElement.query(By.css(".operator-tag"));
+      expect((tag.nativeElement as HTMLElement).textContent?.trim()).toBe(scanLabel());
+      expect(fixture.debugElement.query(By.css(".operator-filter-notice"))).toBeNull();
+
+      tag.triggerEventHandler("click", new MouseEvent("click"));
+      expect(highlight).toHaveBeenCalledWith(false, scanId);
+    });
+
+    it("names the one operator shown, without tags, and its close button goes back to every operator", () => {
+      actions.getJointGraphWrapper().highlightOperators(scanId);
+      getConsoleMessages.mockReturnValue([print]);
+      component.operatorId = scanId;
+      component.renderConsole();
+      fixture.detectChanges();
+
+      const notice = fixture.debugElement.query(By.css(".operator-filter-notice"));
+      expect((notice.nativeElement as HTMLElement).textContent).toContain(`Showing: ${scanLabel()}`);
+      expect(fixture.debugElement.query(By.css(".operator-tag"))).toBeNull();
+
+      const awareness = vi.spyOn(actions.getTexeraGraph(), "updateSharedModelAwareness");
+      notice.query(By.css("button")).triggerEventHandler("click", new MouseEvent("click"));
+      expect(actions.getJointGraphWrapper().getCurrentHighlightedOperatorIDs()).toEqual([]);
+      // co-editors are told the highlight is gone too
+      expect(awareness).toHaveBeenCalledWith("highlighted", []);
+    });
+
+    it("leaves a message from an operator no longer on the canvas untagged", () => {
+      getAllConsoleMessages.mockReturnValue([{ operatorId: "deleted-op", message: print }]);
+      component.operatorId = undefined;
+      component.renderConsole();
+      fixture.detectChanges();
+
+      expect(fixture.debugElement.queryAll(By.css(".console-message-entry")).length).toBe(1);
+      expect(fixture.debugElement.query(By.css(".operator-tag"))).toBeNull();
+    });
+  });
+
   // The tests above drive the class directly; these render the template so its
   // *ngFor / *ngIf / (click) / [(ngModel)] branches actually execute.
   describe("template rendering", () => {
@@ -373,6 +480,204 @@ describe("ConsoleFrameComponent", () => {
       expect(fixture.debugElement.queryAll(By.css(".source-tag")).length).toBe(0);
       expect(fixture.debugElement.queryAll(By.css(".timestamp-tag")).length).toBe(0);
     });
+
+    it("hides the rows of a type switched off and leaves the other types rendered", () => {
+      component.consoleMessages = [withBody, noBody];
+      fixture.detectChanges();
+      expect(fixture.debugElement.queryAll(By.css(".console-message-entry")).length).toBe(2);
+
+      component.setTypeVisibility("PRINT", false);
+      fixture.detectChanges();
+
+      const rows = fixture.debugElement.queryAll(By.css(".console-message-entry"));
+      expect(rows.length).toBe(1);
+      expect(fixture.nativeElement.textContent).toContain("plain B");
+      expect(fixture.nativeElement.textContent).not.toContain("header A");
+    });
+
+    it("keeps a message whose type has no configured filter visible", () => {
+      const unmapped = { ...consoleMessage("SOMETHING_NEW"), title: "unmapped C", message: "", workerId: "" };
+      component.consoleMessages = [withBody, unmapped];
+      component.setTypeVisibility("PRINT", false);
+      fixture.detectChanges();
+
+      expect(fixture.debugElement.queryAll(By.css(".console-message-entry")).length).toBe(1);
+      expect(fixture.nativeElement.textContent).toContain("unmapped C");
+    });
+
+    it("reports how many messages the filter is hiding", () => {
+      component.consoleMessages = [withBody, noBody];
+      expect(component.hiddenMessageCount).toBe(0);
+
+      component.setTypeVisibility("PRINT", false);
+      fixture.detectChanges();
+
+      expect(component.hiddenMessageCount).toBe(1);
+      const notice = fixture.debugElement.query(By.css(".hidden-count-notice"));
+      expect(notice).toBeTruthy();
+      expect(notice.nativeElement.textContent).toContain("Hidden by filter: 1");
+    });
+
+    it("restores the hidden rows when the type is switched back on", () => {
+      component.consoleMessages = [withBody, noBody];
+      component.setTypeVisibility("PRINT", false);
+      fixture.detectChanges();
+      expect(fixture.debugElement.queryAll(By.css(".console-message-entry")).length).toBe(1);
+
+      component.setTypeVisibility("PRINT", true);
+      fixture.detectChanges();
+
+      expect(fixture.debugElement.queryAll(By.css(".console-message-entry")).length).toBe(2);
+      expect(component.hiddenMessageCount).toBe(0);
+      expect(fixture.debugElement.query(By.css(".hidden-count-notice"))).toBeNull();
+    });
+
+    it("applies the active filter to messages that arrive later", () => {
+      component.setTypeVisibility("PRINT", false);
+      component.consoleMessages = [withBody, noBody];
+      fixture.detectChanges();
+
+      expect(fixture.debugElement.queryAll(By.css(".console-message-entry")).length).toBe(1);
+      expect(fixture.nativeElement.textContent).toContain("plain B");
+    });
+
+    it("keeps the filter when clearConsole empties the list", () => {
+      component.setTypeVisibility("PRINT", false);
+      component.consoleMessages = [withBody, noBody];
+      component.clearConsole();
+      component.consoleMessages = [withBody, noBody];
+      fixture.detectChanges();
+
+      expect(component.isTypeVisible("PRINT")).toBe(false);
+      expect(fixture.debugElement.queryAll(By.css(".console-message-entry")).length).toBe(1);
+    });
+
+    it("keeps the filter when the bound operator changes", () => {
+      component.setTypeVisibility("PRINT", false);
+      getWorkerIds.mockReturnValue([]);
+      getConsoleMessages.mockReturnValue([withBody, noBody]);
+
+      component.ngOnChanges({ operatorId: { currentValue: "op2" } } as any);
+      fixture.detectChanges();
+
+      expect(component.isTypeVisible("PRINT")).toBe(false);
+      expect(component.hiddenMessageCount).toBe(1);
+    });
+
+    // jsdom performs no layout, so scrollHeight is always 0 and asserting on
+    // scrollTop's value would pass whether or not the component scrolled.
+    // These watch for the assignment itself.
+    function watchScroll(fixture: ComponentFixture<ConsoleFrameComponent>): () => boolean {
+      const list = fixture.debugElement.query(By.css(".console-list-container")).nativeElement;
+      let scrolled = false;
+      Object.defineProperty(list, "scrollTop", {
+        configurable: true,
+        get: () => 0,
+        set: () => {
+          scrolled = true;
+        },
+      });
+      return () => scrolled;
+    }
+
+    it("does not follow the tail when the arriving message is filtered out", fakeAsync(() => {
+      const print = { ...withBody, msgType: { name: "PRINT" } };
+      const error = { ...noBody, msgType: { name: "ERROR" } };
+      component.setTypeVisibility("PRINT", false);
+      getConsoleMessages.mockReturnValue([print, error]);
+      component.displayConsoleMessages("op1");
+      tick();
+      fixture.detectChanges();
+
+      const scrolled = watchScroll(fixture);
+
+      getConsoleMessages.mockReturnValue([print, error, { ...print, title: "later print" }]);
+      component.displayConsoleMessages("op1");
+      tick();
+      fixture.detectChanges();
+
+      expect(scrolled()).toBe(false);
+      flush();
+    }));
+
+    it("follows the tail when a visible message arrives", fakeAsync(() => {
+      const print = { ...withBody, msgType: { name: "PRINT" } };
+      const error = { ...noBody, msgType: { name: "ERROR" } };
+      component.setTypeVisibility("PRINT", false);
+      getConsoleMessages.mockReturnValue([print, error]);
+      component.displayConsoleMessages("op1");
+      tick();
+      fixture.detectChanges();
+
+      const scrolled = watchScroll(fixture);
+
+      getConsoleMessages.mockReturnValue([print, error, { ...error, title: "later error" }]);
+      component.displayConsoleMessages("op1");
+      tick();
+      fixture.detectChanges();
+
+      expect(scrolled()).toBe(true);
+      flush();
+    }));
+
+    // The error that failed the run is turned into a console message on every render. Unless it is
+    // the same message each time, the list takes it for a new one and jumps to its end.
+    it("stays where it is on a re-render while the run's error has not changed", fakeAsync(() => {
+      const fatal = {
+        message: "B broke",
+        details: "",
+        operatorId: "op1",
+        workerId: "w-1",
+        type: { name: "EXECUTION_FAILURE" },
+        timestamp: { nanos: 0, seconds: 5 },
+      };
+      getErrorMessages.mockReturnValue([fatal]);
+      getConsoleMessages.mockReturnValue([withBody]);
+      component.displayConsoleMessages("op1");
+      tick();
+      fixture.detectChanges();
+
+      const scrolled = watchScroll(fixture);
+
+      component.displayConsoleMessages("op1");
+      tick();
+      fixture.detectChanges();
+
+      expect(scrolled()).toBe(false);
+      flush();
+    }));
+
+    // Every compile sends a new error object with a new timestamp, though the error is the same.
+    it("stays where it is on a recompile that sends the same compilation error again", fakeAsync(() => {
+      let seconds = 0;
+      const compiledError = () => ({
+        op1: {
+          message: "IllegalArgumentException: no column 'a'",
+          details: "",
+          operatorId: "op1",
+          workerId: "",
+          type: { name: "COMPILATION_ERROR" },
+          timestamp: { nanos: 0, seconds: seconds++ },
+        },
+      });
+      vi.spyOn(TestBed.inject(WorkflowCompilingService), "getWorkflowCompilationErrors").mockImplementation(
+        compiledError
+      );
+      component.displayConsoleMessages("op1");
+      tick();
+      fixture.detectChanges();
+      const shown = component.consoleMessages[0];
+
+      const scrolled = watchScroll(fixture);
+
+      component.displayConsoleMessages("op1");
+      tick();
+      fixture.detectChanges();
+
+      expect(component.consoleMessages[0]).toBe(shown);
+      expect(scrolled()).toBe(false);
+      flush();
+    }));
 
     it("does not render the debug input group when console input is disabled", () => {
       component.consoleInputEnabled = false;
@@ -506,6 +811,7 @@ describe("ConsoleFrameComponent settings dropdown", () => {
           useValue: {
             getExecutionStateStream: () => new Subject<StateEvent>().asObservable(),
             getWorkerIds: () => [],
+            getErrorMessages: () => [],
             skipTuples: () => {},
             retryExecution: () => {},
           },
@@ -515,6 +821,7 @@ describe("ConsoleFrameComponent settings dropdown", () => {
           useValue: {
             getConsoleMessageUpdateStream: () => new Subject<void>().asObservable(),
             getConsoleMessages: () => [],
+            getAllConsoleMessages: () => [],
           },
         },
         { provide: WorkflowWebsocketService, useValue: { send: () => {} } },
@@ -524,6 +831,62 @@ describe("ConsoleFrameComponent settings dropdown", () => {
       ],
     }).compileComponents();
   });
+
+  /** Click a trigger and let the CDK overlay attach. */
+  function openMenu(fixture: ComponentFixture<ConsoleFrameComponent>, index: number): void {
+    fixture.debugElement.queryAll(By.css("button[nz-dropdown]"))[index].nativeElement.click();
+    tick(300);
+    fixture.detectChanges();
+  }
+
+  const menuItemText = (overlayClass: string): (string | undefined)[] =>
+    Array.from(document.querySelectorAll(`.${overlayClass} li[nz-menu-item]`)).map(item => item.textContent?.trim());
+
+  const typeCheckboxes = (): HTMLElement[] =>
+    Array.from(document.querySelectorAll(".console-type-filter label[nz-checkbox]")) as HTMLElement[];
+
+  const checkboxOf = (label: HTMLElement): HTMLElement => {
+    const box = label.querySelector(".ant-checkbox");
+    expect(box).toBeTruthy();
+    return box as HTMLElement;
+  };
+
+  const isChecked = (label: HTMLElement): boolean => checkboxOf(label).classList.contains("ant-checkbox-checked");
+
+  const isIndeterminate = (label: HTMLElement): boolean =>
+    checkboxOf(label).classList.contains("ant-checkbox-indeterminate");
+
+  it("exposes both toolbar triggers as labelled buttons", fakeAsync(() => {
+    const fixture = TestBed.createComponent(ConsoleFrameComponent);
+    fixture.detectChanges();
+
+    const triggers = fixture.debugElement.queryAll(By.css(".console-toolbar button[nz-dropdown]"));
+    expect(triggers.map(t => t.nativeElement.getAttribute("aria-label"))).toEqual([
+      "Display options",
+      "Filter by message type",
+    ]);
+    expect(triggers.every(t => t.nativeElement.tabIndex === 0)).toBe(true);
+    expect(triggers.every(t => t.nativeElement.getAttribute("aria-haspopup") === "true")).toBe(true);
+    expect(triggers.map(t => t.nativeElement.getAttribute("aria-expanded"))).toEqual(["false", "false"]);
+
+    openMenu(fixture, 1);
+    expect(triggers[1].nativeElement.getAttribute("aria-expanded")).toBe("true");
+
+    fixture.destroy();
+    flush();
+  }));
+
+  it("keeps the settings gear to display options only", fakeAsync(() => {
+    const fixture = TestBed.createComponent(ConsoleFrameComponent);
+    fixture.detectChanges();
+
+    openMenu(fixture, 0);
+
+    expect(menuItemText("console-display-settings")).toEqual(["Show Timestamp", "Show Source"]);
+
+    fixture.destroy();
+    flush();
+  }));
 
   it("toggles the timestamp and source tags independently from the settings menu", fakeAsync(() => {
     const fixture = TestBed.createComponent(ConsoleFrameComponent);
@@ -537,15 +900,8 @@ describe("ConsoleFrameComponent settings dropdown", () => {
     expect(timestampTags()).toBe(1);
     expect(sourceTags()).toBe(1);
 
-    // hovering the gear attaches the dropdown overlay
-    fixture.debugElement
-      .query(By.css("a[nz-dropdown]"))
-      .nativeElement.dispatchEvent(new MouseEvent("mouseenter", { bubbles: true }));
-    tick(300);
-    fixture.detectChanges();
+    openMenu(fixture, 0);
 
-    const menuItems = Array.from(document.querySelectorAll("li[nz-menu-item]"));
-    expect(menuItems.map(item => item.textContent?.trim())).toEqual(["Show Timestamp", "Show Source"]);
     const switches = Array.from(document.querySelectorAll("nz-switch button.ant-switch")) as HTMLElement[];
     expect(switches.length).toBe(2);
     expect(switches[0].classList.contains("ant-switch-checked")).toBe(true);
@@ -557,18 +913,175 @@ describe("ConsoleFrameComponent settings dropdown", () => {
     tick(300);
     fixture.detectChanges();
 
-    expect(switches[0].classList.contains("ant-switch-checked")).toBe(false);
     expect(timestampTags()).toBe(0);
     expect(sourceTags()).toBe(1);
 
-    // now flip "Show Source" as well
     switches[1].click();
     tick(300);
     fixture.detectChanges();
 
-    expect(switches[1].classList.contains("ant-switch-checked")).toBe(false);
     expect(sourceTags()).toBe(0);
     expect(timestampTags()).toBe(0);
+
+    fixture.destroy();
+    flush();
+  }));
+
+  it("lists the four message types as title-case checkboxes under the filter icon", fakeAsync(() => {
+    const fixture = TestBed.createComponent(ConsoleFrameComponent);
+    fixture.detectChanges();
+
+    openMenu(fixture, 1);
+
+    expect(menuItemText("console-type-filter")).toEqual(["Select all", "Print", "Command", "Debugger", "Error"]);
+    expect(typeCheckboxes().length).toBe(5);
+    // each option carries the same badge status as the rows it controls
+    expect(
+      Array.from(document.querySelectorAll(".console-type-filter .ant-badge-status-dot")).map(dot =>
+        Array.from(dot.classList).find(c => c.startsWith("ant-badge-status-") && c !== "ant-badge-status-dot")
+      )
+    ).toEqual([
+      "ant-badge-status-default",
+      "ant-badge-status-processing",
+      "ant-badge-status-warning",
+      "ant-badge-status-error",
+    ]);
+    expect(typeCheckboxes().every(isChecked)).toBe(true);
+
+    fixture.destroy();
+    flush();
+  }));
+
+  it("removes the rows of a type when its checkbox is unticked", fakeAsync(() => {
+    const fixture = TestBed.createComponent(ConsoleFrameComponent);
+    const error: ConsoleMessage = { ...message, msgType: { name: "ERROR" }, title: "the one error" };
+    fixture.componentInstance.consoleMessages = [message, error];
+    fixture.detectChanges();
+
+    const rows = () => fixture.debugElement.queryAll(By.css(".console-message-entry")).length;
+    expect(rows()).toBe(2);
+
+    openMenu(fixture, 1);
+
+    // checkboxes are [Select all, Print, Command, Debugger, Error]
+    typeCheckboxes()[1].click();
+    tick(300);
+    fixture.detectChanges();
+
+    expect(rows()).toBe(1);
+    expect(fixture.nativeElement.textContent).toContain("the one error");
+    expect(fixture.componentInstance.hiddenMessageCount).toBe(1);
+
+    fixture.destroy();
+    flush();
+  }));
+
+  it("binds each checkbox to its own message type", fakeAsync(() => {
+    const fixture = TestBed.createComponent(ConsoleFrameComponent);
+    const types = ["PRINT", "COMMAND", "DEBUGGER", "ERROR"];
+    fixture.componentInstance.consoleMessages = types.map(name => ({
+      ...message,
+      msgType: { name },
+      title: `title ${name}`,
+      message: "",
+      workerId: "",
+    }));
+    fixture.detectChanges();
+
+    openMenu(fixture, 1);
+    expect(typeCheckboxes().length).toBe(5);
+
+    // Check row content to catch swapped checkbox bindings.
+    types.forEach((name, index) => {
+      typeCheckboxes()[index + 1].click();
+      tick(300);
+      fixture.detectChanges();
+
+      const text = fixture.nativeElement.textContent as string;
+      expect(text).not.toContain(`title ${name}`);
+      types.slice(index + 1).forEach(remaining => expect(text).toContain(`title ${remaining}`));
+    });
+
+    expect(fixture.debugElement.queryAll(By.css(".console-message-entry")).length).toBe(0);
+
+    fixture.destroy();
+    flush();
+  }));
+
+  it("stays open while several type checkboxes are unticked in a row", fakeAsync(() => {
+    const fixture = TestBed.createComponent(ConsoleFrameComponent);
+    const error: ConsoleMessage = { ...message, msgType: { name: "ERROR" }, title: "the one error" };
+    fixture.componentInstance.consoleMessages = [message, error];
+    fixture.detectChanges();
+
+    openMenu(fixture, 1);
+
+    typeCheckboxes()[1].click();
+    tick(300);
+    fixture.detectChanges();
+    expect(typeCheckboxes().length).toBe(5);
+
+    typeCheckboxes()[4].click();
+    tick(300);
+    fixture.detectChanges();
+
+    expect(fixture.componentInstance.hiddenMessageCount).toBe(2);
+    expect(fixture.debugElement.queryAll(By.css(".console-message-entry")).length).toBe(0);
+
+    fixture.destroy();
+    flush();
+  }));
+
+  it("unticks and restores every type from the select-all checkbox", fakeAsync(() => {
+    const fixture = TestBed.createComponent(ConsoleFrameComponent);
+    fixture.componentInstance.consoleMessages = [message];
+    fixture.detectChanges();
+
+    openMenu(fixture, 1);
+    expect(typeCheckboxes().length).toBe(5);
+
+    typeCheckboxes()[0].click();
+    tick(300);
+    fixture.detectChanges();
+
+    expect(typeCheckboxes().slice(1).some(isChecked)).toBe(false);
+    expect(fixture.debugElement.queryAll(By.css(".console-message-entry")).length).toBe(0);
+
+    typeCheckboxes()[0].click();
+    tick(300);
+    fixture.detectChanges();
+
+    expect(typeCheckboxes().slice(1).every(isChecked)).toBe(true);
+    expect(fixture.componentInstance.hiddenMessageCount).toBe(0);
+
+    fixture.destroy();
+    flush();
+  }));
+
+  it("shows select-all as indeterminate only while some types are hidden", fakeAsync(() => {
+    const fixture = TestBed.createComponent(ConsoleFrameComponent);
+    fixture.detectChanges();
+
+    openMenu(fixture, 1);
+
+    expect(isIndeterminate(typeCheckboxes()[0])).toBe(false);
+    expect(isChecked(typeCheckboxes()[0])).toBe(true);
+
+    typeCheckboxes()[1].click();
+    tick(300);
+    fixture.detectChanges();
+
+    expect(isIndeterminate(typeCheckboxes()[0])).toBe(true);
+
+    // all hidden is a definite state, not a mixed one
+    typeCheckboxes()[2].click();
+    typeCheckboxes()[3].click();
+    typeCheckboxes()[4].click();
+    tick(300);
+    fixture.detectChanges();
+
+    expect(isIndeterminate(typeCheckboxes()[0])).toBe(false);
+    expect(isChecked(typeCheckboxes()[0])).toBe(false);
 
     fixture.destroy();
     flush();

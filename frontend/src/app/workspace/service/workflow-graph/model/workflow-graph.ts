@@ -35,6 +35,7 @@ import { CoeditorState, User } from "../../../../common/type/user";
 import { createYTypeFromObject, updateYTypeFromObject, YType } from "../../../types/shared-editing.interface";
 import { Awareness } from "y-protocols/awareness";
 import * as Y from "yjs";
+import type { UiUdfLanguage } from "../../code-editor/ui-udf-parameter";
 
 // define the restricted methods that could change the graph
 type restrictedMethods =
@@ -48,14 +49,12 @@ type restrictedMethods =
   | "setOperatorProperty"
   | "addPort"
   | "removePort"
-  | "setLinkBreakpoint"
   | "operatorAddSubject"
   | "operatorDeleteSubject"
   | "operatorDisplayNameChangedSubject"
   | "linkAddSubject"
   | "linkDeleteSubject"
   | "operatorPropertyChangeSubject"
-  | "breakpointChangeStream"
   | "commentBoxAddSubject"
   | "commentBoxDeleteSubject"
   | "commentBoxAddCommentSubject"
@@ -78,13 +77,21 @@ export const VIEW_RESULT_OP_TYPE = "SimpleSink";
 export const VIEW_RESULT_OP_NAME = "View Results";
 
 export function isSink(operator: OperatorPredicate): boolean {
-  return operator.operatorType.toLocaleLowerCase().includes("sink");
+  return operator.operatorType.toLowerCase().includes("sink");
 }
 
 export function isPythonUdf(operator: OperatorPredicate): boolean {
   return [PYTHON_UDF_V2_OP_TYPE, PYTHON_UDF_SOURCE_V2_OP_TYPE, DUAL_INPUT_PORTS_PYTHON_UDF_V2_OP_TYPE].includes(
     operator.operatorType
   );
+}
+
+export function getUiUdfLanguage(operator: OperatorPredicate | undefined): UiUdfLanguage | undefined {
+  if (!operator) return undefined;
+  if (operator.operatorType === "JavaUDF") return "java";
+  if (isPythonUdf(operator)) return "python";
+  if (["RUDF", "RUDFSource"].includes(operator.operatorType)) return "r";
+  return undefined;
 }
 
 /**
@@ -129,10 +136,6 @@ export class WorkflowGraph {
   }>();
   public readonly operatorPropertyChangeSubject = new Subject<{
     operator: OperatorPredicate;
-  }>();
-  public readonly breakpointChangeStream = new Subject<{
-    oldBreakpoint: object | undefined;
-    linkID: string;
   }>();
   public readonly portAddedOrDeletedSubject = new Subject<{
     newOperator: OperatorPredicate;
@@ -982,16 +985,6 @@ export class WorkflowGraph {
     operator: OperatorPredicate;
   }> {
     return this.operatorPropertyChangeSubject.asObservable();
-  }
-
-  /**
-   * Gets the observable event stream of a link breakpoint is changed.
-   */
-  public getBreakpointChangeStream(): Observable<{
-    oldBreakpoint: object | undefined;
-    linkID: string;
-  }> {
-    return this.breakpointChangeStream.asObservable();
   }
 
   public getPortAddedOrDeletedStream(): Observable<{

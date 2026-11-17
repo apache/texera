@@ -19,6 +19,8 @@
 
 package org.apache.texera.amber.operator.udf.python
 
+import org.apache.texera.amber.operator.udf.UiUDFParameter
+
 import org.apache.texera.amber.core.tuple.{Attribute, AttributeType}
 import org.apache.texera.amber.util.JSONUtils.objectMapper
 import org.scalatest.flatspec.AnyFlatSpec
@@ -40,6 +42,16 @@ class UiUDFParameterSpec extends AnyFlatSpec with Matchers {
       objectMapper.readValue(objectMapper.writeValueAsString(p), classOf[UiUDFParameter])
     restored.attribute shouldBe new Attribute("col", AttributeType.STRING)
     restored.value shouldBe "x"
+  }
+
+  it should "name no resource by default, and round-trip the one it names" in {
+    (new UiUDFParameter).inputType shouldBe ""
+    val p = new UiUDFParameter
+    p.attribute = new Attribute("MODEL", AttributeType.STRING)
+    p.inputType = "model"
+    objectMapper
+      .readValue(objectMapper.writeValueAsString(p), classOf[UiUDFParameter])
+      .inputType shouldBe "model"
   }
 
   it should "default value to the empty string when the JSON omits it" in {

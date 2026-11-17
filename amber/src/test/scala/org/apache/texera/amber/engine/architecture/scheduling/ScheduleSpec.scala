@@ -26,7 +26,8 @@ import org.apache.texera.amber.core.virtualidentity.{
   PhysicalOpIdentity,
   WorkflowIdentity
 }
-import org.apache.texera.amber.core.workflow.PhysicalOp
+import org.apache.texera.amber.core.workflow.{PhysicalOp, PhysicalPlan, WorkflowContext}
+import org.apache.texera.common.config.ApplicationConfig
 import org.scalatest.flatspec.AnyFlatSpec
 
 class ScheduleSpec extends AnyFlatSpec {
@@ -84,6 +85,50 @@ class ScheduleSpec extends AnyFlatSpec {
     assertThrows[IllegalArgumentException] {
       Schedule(Map(3 -> Set(region(3, "a")), 4 -> Set(region(4, "b"))))
     }
+  }
+
+  "ScheduleGenerator.generateScheduleFromRegionPlan" should "return an empty schedule for an empty region plan" in {
+    val generator = new ScheduleGenerator(
+      new WorkflowContext(),
+      PhysicalPlan(Set.empty, Set.empty)
+    ) {
+      override def generate(): (Schedule, PhysicalPlan) = (Schedule(Map.empty), physicalPlan)
+    }
+
+    val schedule = generator.generateScheduleFromRegionPlan(RegionPlan(Set.empty, Set.empty))
+    assert(schedule.getRegions.isEmpty)
+    assert(!schedule.hasNext)
+  }
+
+  it should "schedule a DAG of regions in topological batches capped by maxConcurrentRegions" in {
+    val r0 = region(0, "a")
+    val r1 = region(1, "b")
+    val r2 = region(2, "c")
+    val r3 = region(3, "d")
+    val plan = RegionPlan(
+      Set(r0, r1, r2, r3),
+      Set(
+        RegionLink(r0.id, r1.id),
+        RegionLink(r0.id, r2.id),
+        RegionLink(r1.id, r3.id),
+        RegionLink(r2.id, r3.id)
+      )
+    )
+    val generator = new ScheduleGenerator(
+      new WorkflowContext(),
+      PhysicalPlan(Set.empty, Set.empty)
+    ) {
+      override def generate(): (Schedule, PhysicalPlan) = (Schedule(Map.empty), physicalPlan)
+    }
+
+    val levels = generator.generateScheduleFromRegionPlan(plan).toList
+    val order = levels.flatten
+    assert(levels.forall(_.size <= ApplicationConfig.maxConcurrentRegions))
+    assert(order.toSet == Set(r0, r1, r2, r3))
+    assert(order.indexOf(r0) < order.indexOf(r1))
+    assert(order.indexOf(r0) < order.indexOf(r2))
+    assert(order.indexOf(r1) < order.indexOf(r3))
+    assert(order.indexOf(r2) < order.indexOf(r3))
   }
 
 }

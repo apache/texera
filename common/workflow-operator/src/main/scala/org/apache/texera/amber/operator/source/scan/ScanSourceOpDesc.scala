@@ -21,7 +21,7 @@ package org.apache.texera.amber.operator.source.scan
 
 import com.fasterxml.jackson.annotation.{JsonIgnore, JsonProperty, JsonPropertyDescription}
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize
-import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaTitle
+import com.kjetland.jackson.jsonSchema.annotations.{JsonSchemaInject, JsonSchemaTitle}
 import org.apache.texera.amber.core.storage.FileResolver
 import org.apache.texera.amber.core.tuple.Schema
 import org.apache.texera.amber.core.workflow.OutputPort
@@ -52,17 +52,45 @@ abstract class ScanSourceOpDesc extends SourceOperatorDescriptor {
   @JsonIgnore
   var fileTypeName: Option[String] = None
 
+  // Neither field means anything below zero, and a negative one is not read the
+  // same way twice: the executors take the window with `drop` and `take`, where
+  // a negative drop keeps every row and a negative take keeps none, while the
+  // scripts that take it with `iloc` count from the end instead.
   @JsonProperty()
   @JsonSchemaTitle("Limit")
   @JsonPropertyDescription("max output count")
   @JsonDeserialize(contentAs = classOf[Int])
+  @JsonSchemaInject(json = """{"minimum": 0}""")
   var limit: Option[Int] = None
 
   @JsonProperty()
   @JsonSchemaTitle("Offset")
   @JsonPropertyDescription("starting point of output")
   @JsonDeserialize(contentAs = classOf[Int])
+  @JsonSchemaInject(json = """{"minimum": 0}""")
   var offset: Option[Int] = None
+
+  // The bound above only reaches the property editor. A plan posted to the API, or
+  // an imported workflow file, is deserialized without it, so every reader takes
+  // the window through these two: a negative that arrived that way then means the
+  // same empty or whole window on all of them.
+  @JsonIgnore
+  def windowOffset: Int = offset.getOrElse(0).max(0)
+
+  @JsonIgnore
+  def windowLimit: Option[Int] = limit.map(_.max(0))
+
+  /** Rows actually used for type inference: INFER_READ_LIMIT, capped by `windowLimit`
+    * when smaller.
+    *
+    * A window of no rows is still a window on this file, and the file's columns do
+    * not depend on how many of its rows were asked for, so a Limit of 0 samples as
+    * if no limit were set. Capping by it left nothing to infer from, and the
+    * operator declared a schema of no columns at all.
+    */
+  @JsonIgnore
+  def inferSampleSize: Int =
+    windowLimit.filter(_ > 0).getOrElse(INFER_READ_LIMIT).min(INFER_READ_LIMIT)
 
   override def sourceSchema(): Schema = null
 

@@ -124,11 +124,10 @@ class OutputManager:
         if port_id.internal is None:
             port_id.internal = False
 
-        if storage_uri_base is not None:
-            self.set_up_port_storage_writer(port_id, storage_uri_base)
-
         # each port can only be added and initialized once.
         if port_id not in self._ports:
+            if storage_uri_base is not None:
+                self.set_up_port_storage_writer(port_id, storage_uri_base)
             self._ports[port_id] = WorkerPort(schema)
 
     def set_up_port_storage_writer(self, port_id: PortIdentity, storage_uri_base: str):

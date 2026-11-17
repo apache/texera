@@ -32,15 +32,12 @@ import org.apache.texera.dao.SqlServer
 import org.apache.texera.dao.SqlServer.withTransaction
 import org.apache.texera.dao.jooq.generated.Tables.{DATASET_VERSION, MODEL_VERSION}
 import org.apache.texera.dao.jooq.generated.enums.PrivilegeEnum
-import org.apache.texera.dao.jooq.generated.tables.daos.{DatasetDao, ModelDao}
 import org.apache.texera.service.resource.ComputingUnitMountResource._
 import org.apache.texera.service.util.{
   ComputingUnitNodeLocator,
   MountRequestValidation,
   MounterClient
 }
-
-import scala.jdk.CollectionConverters._
 
 /**
   * The mount authority: this service decides whether a user may act on a computing unit, so
@@ -164,23 +161,20 @@ class ComputingUnitMountResource(
       uid: Integer
   ): Unit =
     withTransaction(SqlServer.getInstance().createDSLContext()) { ctx =>
-      val datasets = new DatasetDao(ctx.configuration()).fetchByRepositoryName(repositoryName)
-      val models = new ModelDao(ctx.configuration()).fetchByRepositoryName(repositoryName)
-
-      val readable = (datasets.asScala.toList, models.asScala.toList) match {
-        case (dataset :: Nil, Nil) =>
-          ResourceAccess.userHasReadAccess(ctx, ResourceTables.Dataset, dataset.getDid, uid) &&
+      val readable = ResourceAccess.repositoryIds(ctx, repositoryName) match {
+        case (did :: Nil, Nil) =>
+          ResourceAccess.userHasReadAccess(ctx, ResourceTables.Dataset, did, uid) &&
             ctx.fetchExists(
               DATASET_VERSION,
               DATASET_VERSION.DID
-                .eq(dataset.getDid)
+                .eq(did)
                 .and(DATASET_VERSION.VERSION_HASH.eq(commitHash))
             )
-        case (Nil, model :: Nil) =>
-          ResourceAccess.userHasReadAccess(ctx, ResourceTables.Model, model.getMid, uid) &&
+        case (Nil, mid :: Nil) =>
+          ResourceAccess.userHasReadAccess(ctx, ResourceTables.Model, mid, uid) &&
             ctx.fetchExists(
               MODEL_VERSION,
-              MODEL_VERSION.MID.eq(model.getMid).and(MODEL_VERSION.VERSION_HASH.eq(commitHash))
+              MODEL_VERSION.MID.eq(mid).and(MODEL_VERSION.VERSION_HASH.eq(commitHash))
             )
         case _ => false
       }

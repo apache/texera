@@ -98,9 +98,13 @@ CREATE TYPE user_role_enum AS ENUM ('INACTIVE', 'RESTRICTED', 'REGULAR', 'ADMIN'
 CREATE TYPE action_enum AS ENUM ('like', 'unlike', 'view', 'clone');
 CREATE TYPE privilege_enum AS ENUM ('NONE', 'READ', 'WRITE');
 CREATE TYPE workflow_computing_unit_type_enum AS ENUM ('local', 'kubernetes');
+CREATE TYPE workflow_computing_unit_termination_reason_enum AS ENUM ('USER_REQUESTED', 'GARBAGE_COLLECTED');
 CREATE TYPE provider_type_enum AS ENUM ('LOCAL', 'GOOGLE', 'ORCID', 'APPLE');
 CREATE TYPE user_warehouse_flavor_enum AS ENUM ('local', 'aws');
 CREATE TYPE default_view_enum AS ENUM ('CANVAS', 'FORM');
+-- Mirrors OutputPort.OutputMode in workflow.proto: a new mode needs a value here, a migration,
+-- and a case in ExecutionResultService.toOutputModeEnum.
+CREATE TYPE output_mode_enum AS ENUM ('SET_SNAPSHOT', 'SET_DELTA', 'SINGLE_SNAPSHOT');
 
 -- ============================================
 -- 5. Create tables
@@ -246,6 +250,7 @@ CREATE TABLE IF NOT EXISTS workflow_computing_unit
     cuid               SERIAL PRIMARY KEY,
     creation_time      TIMESTAMP  NOT NULL DEFAULT CURRENT_TIMESTAMP,
     terminate_time     TIMESTAMP  DEFAULT NULL,
+    termination_reason workflow_computing_unit_termination_reason_enum DEFAULT NULL,
     type               workflow_computing_unit_type_enum,
     uri                TEXT NOT NULL DEFAULT '',
     resource           TEXT DEFAULT '',
@@ -332,6 +337,10 @@ CREATE TABLE IF NOT EXISTS workflow_executions
     FOREIGN KEY (cuid) REFERENCES workflow_computing_unit(cuid) ON DELETE CASCADE,
     FOREIGN KEY (whid) REFERENCES user_warehouse(whid) ON DELETE SET NULL
 );
+
+-- Postgres indexes only the referenced side of a foreign key, so cuid needs its own index for the
+-- idle computing unit sweep and every other per-computing-unit lookup on this table.
+CREATE INDEX idx_workflow_executions_cuid ON workflow_executions (cuid);
 
 -- dataset
 CREATE TABLE IF NOT EXISTS dataset
@@ -545,6 +554,10 @@ CREATE TABLE operator_port_executions
     global_port_id        VARCHAR(200) NOT NULL,
     result_uri            TEXT,
     result_size           BIGINT DEFAULT 0,
+    -- The port's declared output mode and row count, so a finished execution's results
+    -- can be listed without the engine's physical plan or opening each table (#8994).
+    output_mode           output_mode_enum,
+    result_count          BIGINT,
     PRIMARY KEY (workflow_execution_id, global_port_id),
     FOREIGN KEY (workflow_execution_id) REFERENCES workflow_executions(eid) ON DELETE CASCADE
 );

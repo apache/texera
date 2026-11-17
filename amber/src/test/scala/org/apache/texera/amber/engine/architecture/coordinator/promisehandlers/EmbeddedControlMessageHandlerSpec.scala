@@ -338,4 +338,32 @@ class EmbeddedControlMessageHandlerSpec extends AnyFlatSpec {
     )
     assert(fixture.logManager.marked.toSeq == Seq(ecmId))
   }
+
+  it should "inject one ECM per source worker when a source operator has multiple workers" in {
+    val fixture = newFixture()
+    seedRunningRegion(fixture.init)
+    val secondSourceWorker = mkWorkerId(sourceOp, 1)
+    val regionExec = fixture.init.cp.workflowExecution.getRunningRegionExecutions.head
+    regionExec.getOperatorExecution(sourceOp.id).initWorkerExecution(secondSourceWorker)
+
+    fixture.init.propagateEmbeddedControlMessage(request(), fixture.init.mkContext(COORDINATOR))
+
+    val sentMessages = embeddedMessages(fixture.sent)
+    assert(
+      sentMessages.map(_._1).toSet == Set(
+        ChannelIdentity(COORDINATOR, sourceWorker, isControl = true),
+        ChannelIdentity(COORDINATOR, secondSourceWorker, isControl = true)
+      )
+    )
+    val expectedControlChannels = Set(sourceWorker, secondSourceWorker).flatMap { w =>
+      Seq(
+        ChannelIdentity(COORDINATOR, w, isControl = true),
+        ChannelIdentity(w, COORDINATOR, isControl = true)
+      )
+    }
+    sentMessages.foreach {
+      case (_, ecm) =>
+        assert(expectedControlChannels.subsetOf(ecm.scope.toSet))
+    }
+  }
 }

@@ -48,9 +48,27 @@ spec:
         - path:
             type: PathPrefix
             value: /api/compile
+        # The Python export reads the same compiled workflow the compile endpoint does, so it
+        # is served by the same service. Without a rule of its own it falls to the /api
+        # catch-all below and reaches the webserver, which has no such resource.
+        - path:
+            type: PathPrefix
+            value: /api/workflow-to-python
       backendRefs:
         - name: workflow-compiling-service-svc
           port: 9090
+    # A version zip streams for as long as it takes to build and download, so Envoy's 15s
+    # default would cut it off mid-body. "0s" also drops the stream idle timeout; a finite value
+    # would only raise it to 1h or more. Envoy Gateway ranks this regex above the path prefixes.
+    - matches:
+        - path:
+            type: RegularExpression
+            value: "^/api/(dataset|model)/\\d+/versionZip$"
+      timeouts:
+        request: "0s"
+      backendRefs:
+        - name: file-service-svc
+          port: 9092
     - matches:
         - path:
             type: PathPrefix
@@ -217,6 +235,10 @@ spec:
         - path:
             type: PathPrefix
             value: /
+      # Presigned downloads can be many GB, so Envoy's 15s default would cut them off mid-body.
+      # "0s" also turns off the stream idle timeout, so Envoy keeps a stalled download open.
+      timeouts:
+        request: "0s"
       backendRefs:
         - name: {{ .Release.Name }}-rustfs-svc
           port: 9000

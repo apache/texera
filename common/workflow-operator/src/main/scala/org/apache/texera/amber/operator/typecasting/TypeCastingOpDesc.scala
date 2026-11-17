@@ -22,6 +22,7 @@ package org.apache.texera.amber.operator.typecasting
 import com.fasterxml.jackson.annotation.{JsonProperty, JsonPropertyDescription}
 import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaTitle
 import org.apache.texera.amber.core.executor.OpExecWithClassName
+import org.apache.texera.amber.core.state.NoLoopVariable
 import org.apache.texera.amber.core.tuple.{AttributeType, AttributeTypeUtils, Schema}
 import org.apache.texera.amber.core.virtualidentity.{ExecutionIdentity, WorkflowIdentity}
 import org.apache.texera.amber.core.workflow._
@@ -36,6 +37,7 @@ class TypeCastingOpDesc extends MapOpDesc with StandaloneCodeGenerator {
   @JsonProperty(required = true)
   @JsonSchemaTitle("TypeCasting Units")
   @JsonPropertyDescription("Multiple type castings")
+  @NoLoopVariable
   var typeCastingUnits: List[TypeCastingUnit] = List.empty
 
   override def getPhysicalOp(
@@ -84,8 +86,17 @@ class TypeCastingOpDesc extends MapOpDesc with StandaloneCodeGenerator {
     // `tupleCasting` takes a Map of column to target type and reads each column's
     // ORIGINAL value once, so two units naming one column collapse to the last.
     val lastPerColumn = units.zipWithIndex.groupBy(_._1.attribute).view.mapValues(_.last._2).toMap
+    // Unlike most operators, both `tupleCasting` and `SchemaCasting` match a column
+    // by its exact name, not through Schema, which ignores case. So a unit that
+    // names no column, or names one in a different case, casts nothing in the
+    // engine, where pandas would raise a KeyError. Without a schema there is
+    // nothing to check against, and every unit is kept.
+    val inputSchema = inputSchemas.values.headOption
     val effective = units.zipWithIndex.collect {
-      case (unit, i) if lastPerColumn(unit.attribute) == i => unit
+      case (unit, i)
+          if lastPerColumn(unit.attribute) == i &&
+            inputSchema.forall(_.getAttributeNames.contains(unit.attribute)) =>
+        unit
     }
 
     // What each column arrived as: no cast reads another's result.
@@ -117,23 +128,25 @@ class TypeCastingOpDesc extends MapOpDesc with StandaloneCodeGenerator {
           // declared type still says so: the values reach the helper as floats.
           val wrap = !declared.get(unit.attribute).contains(AttributeType.DOUBLE)
           val wrapArg = if (wrap) "True" else "False"
-          s"""out1df[$colLit].apply(lambda x: pd.NA if pd.isna(x) else _texera_cast_int32(x, $wrapArg)).astype("Int64")"""
+          // The column's mask decides the holes, so a stored NaN is cast like
+          // any other double; see `_texera_cast_cells`.
+          s"""_texera_cast_cells(out1df[$colLit], lambda x: _texera_cast_int32(x, $wrapArg), pd.NA).astype("Int64")"""
         case AttributeType.LONG =>
-          s"""out1df[$colLit].apply(lambda x: pd.NA if pd.isna(x) else _texera_cast_integral(x)).astype("Int64")"""
+          s"""_texera_cast_cells(out1df[$colLit], _texera_cast_integral, pd.NA).astype("Int64")"""
         case AttributeType.DOUBLE =>
-          // NaN rather than pd.NA: float64 is how a double column is held here,
-          // and it carries its hole as NaN. pd.NA would not survive the astype.
-          s"""out1df[$colLit].apply(lambda x: float("nan") if pd.isna(x) else _texera_cast_double(x)).astype("float64")"""
+          s"""_texera_cast_doubles(out1df[$colLit])"""
         case AttributeType.BOOLEAN =>
           // Nullable "boolean" for the same reason, and because `.astype(bool)`
           // reads NaN as True: NaN is a non-zero float.
-          s"""out1df[$colLit].apply(lambda x: pd.NA if pd.isna(x) else _texera_cast_boolean(x)).astype("boolean")"""
+          s"""_texera_cast_cells(out1df[$colLit], _texera_cast_boolean, pd.NA).astype("boolean")"""
         case AttributeType.TIMESTAMP =>
-          // A number is an instant in milliseconds and needs its own reading;
-          // see the helper. Text keeps the parser it already had.
+          // A number is an instant in milliseconds and needs its own reading.
+          // Text is read a cell at a time, and over the years the engine
+          // reaches rather than the ones pandas parses into by default; see
+          // the helpers.
           if (declared.get(unit.attribute).contains(AttributeType.LONG))
             s"""_texera_epoch_millis_to_timestamp(out1df[$colLit])"""
-          else s"""pd.to_datetime(out1df[$colLit], errors="coerce")"""
+          else s"""_texera_cast_timestamps(out1df[$colLit])"""
         case _ => s"""out1df[$colLit]"""
       }
       lines += s"""out1df[$colLit] = $expr"""

@@ -25,10 +25,10 @@ import com.fasterxml.jackson.databind.jsontype.NamedType
 import com.fasterxml.jackson.databind.node.{ArrayNode, ObjectNode}
 import com.kjetland.jackson.jsonSchema.JsonSchemaConfig.html5EnabledSchema
 import com.kjetland.jackson.jsonSchema.{JsonSchemaConfig, JsonSchemaDraft, JsonSchemaGenerator}
+import org.apache.texera.amber.core.state.StateReferencing
 import org.apache.texera.amber.core.workflow.OutputPort.OutputMode
 import org.apache.texera.amber.core.workflow.{InputPort, OutputPort}
 import org.apache.texera.amber.operator.LogicalOp
-import org.apache.texera.amber.operator.source.scan.csv.CSVScanSourceOpDesc
 import org.apache.texera.amber.util.JSONUtils.objectMapper
 
 import java.util
@@ -84,6 +84,9 @@ case class AllOperatorMetadata(
   */
 object OperatorMetadataGenerator {
 
+  /** The schema keyword, `true` on each property that cannot hold a loop variable. */
+  final val NO_LOOP_VARIABLE_KEYWORD = "noLoopVariable"
+
   val texeraSchemaGeneratorConfig: JsonSchemaConfig = html5EnabledSchema.copy(
     useOneOfForOption = false,
     useOneOfForNullables = false,
@@ -110,12 +113,6 @@ object OperatorMetadataGenerator {
   }
   val allOperatorMetadata: AllOperatorMetadata = generateAllOperatorMetadata()
 
-  def main(args: Array[String]): Unit = {
-    // run this if you want to check the json schema generated for an operator descriptor
-    // replace the argument with the class of your operator descriptor
-    println(generateOperatorJsonSchema(classOf[CSVScanSourceOpDesc]).toPrettyString)
-  }
-
   def generateOperatorJsonSchema(opDescClass: Class[_ <: LogicalOp]): JsonNode = {
     val jsonSchema = jsonSchemaGenerator.generateJsonSchema(opDescClass).asInstanceOf[ObjectNode]
     // remove operatorID from json schema
@@ -126,6 +123,8 @@ object OperatorMetadataGenerator {
     jsonSchema.get("properties").asInstanceOf[ObjectNode].remove("operatorType")
     // remove operatorVersion from json schema
     jsonSchema.get("properties").asInstanceOf[ObjectNode].remove("operatorVersion")
+    // remove the loop-variable sidecar (StateReferencing.stateReferences): the backend fills it in
+    jsonSchema.get("properties").asInstanceOf[ObjectNode].remove(StateReferencing.SIDECAR_PROPERTY)
     // remove inputPorts/outputPorts from json schema
     jsonSchema.get("properties").asInstanceOf[ObjectNode].remove("inputPorts")
     jsonSchema.get("properties").asInstanceOf[ObjectNode].remove("outputPorts")
@@ -140,6 +139,20 @@ object OperatorMetadataGenerator {
     jsonSchema.get("required").asInstanceOf[ArrayNode].remove(operatorTypeIndex)
     // remove "title" for the operator - frontend uses userFriendlyName to show operator title
     jsonSchema.remove("title")
+    // mark each property that cannot hold a loop variable (`NoLoopVariable`): the compiler rejects
+    // a `$name` there inside a loop block, so the property panel need not offer one
+    val properties = jsonSchema.get("properties").asInstanceOf[ObjectNode]
+    StateReferencing.noLoopVariableProperties(opDescClass).foreach { name =>
+      properties.get(name) match {
+        case property: ObjectNode => property.put(NO_LOOP_VARIABLE_KEYWORD, true)
+        case _                    =>
+      }
+    }
+    // let an operator add the part of its schema that its annotations cannot state
+    opDescClass.getConstructor().newInstance() match {
+      case customizer: JsonSchemaCustomizer => customizer.customizeJsonSchema(jsonSchema)
+      case _                                =>
+    }
     jsonSchema
   }
 

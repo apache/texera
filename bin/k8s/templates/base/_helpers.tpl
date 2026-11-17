@@ -56,6 +56,26 @@ services fall back to the in-cluster RustFS Service and its auto-generated
 {{- end -}}
 
 {{/*
+Observability emission env for a Scala service pod.
+
+Renders OTEL_EXPORTER_OTLP_ENDPOINT (pointing at the in-cluster OTel
+Collector Service) plus TEXERA_OTEL_ALLOWED_HOSTS. OtelInit validates the
+endpoint host against an allowlist whose default is localhost only, so the
+collector's Service name must be added explicitly or the SDK rejects it and
+emits nothing. Renders nothing unless both the observability stack and the
+collector are enabled, so the default install is unchanged. Include inside a
+container's `env:` list, e.g. `{{- include "texera.observability.env" . | nindent 12 }}`.
+*/}}
+{{- define "texera.observability.env" -}}
+{{- if and .Values.observability.enabled .Values.observability.collector.enabled }}
+- name: OTEL_EXPORTER_OTLP_ENDPOINT
+  value: "http://{{ .Release.Name }}-otel-collector:{{ .Values.observability.collector.grpcPort }}"
+- name: TEXERA_OTEL_ALLOWED_HOSTS
+  value: "{{ .Release.Name }}-otel-collector"
+{{- end }}
+{{- end -}}
+
+{{/*
 The audience the mounter's service-account tokens are bound to. Fixed rather than
 configurable: it is one half of a credential contract between access-control-service and the
 mounter -- the projected token declares it and the mounter's TokenReview requires it -- so
@@ -83,3 +103,243 @@ append the uid to it, so a bare value would render "http://<origin>jupyter/7". *
 {{- printf "/%s" (trimAll "/" .Values.jupyterPool.basePath) -}}
 {{- end -}}
 
+{{/* Start a release-scoped Deployment; the caller supplies the pod spec. */}}
+{{- define "texera.deploymentHeader" -}}
+{{- $app := printf "%s-" .release.Name -}}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ $app }}{{ .name }}
+  namespace: {{ .release.Namespace }}
+  labels:
+    app: {{ $app }}{{ .name }}
+spec:
+  replicas: {{ .replicas }}
+  {{- if .recreate }}
+  # Single writer bound to one RWO volume; never run two at once.
+  strategy:
+    type: Recreate
+  {{- end }}
+  selector:
+    matchLabels:
+      app: {{ $app }}{{ .name }}
+  template:
+    metadata:
+      labels:
+        app: {{ $app }}{{ .name }}
+{{- end -}}
+
+{{- define "texera.observability.containerSecurityContext" -}}
+securityContext:
+  {{- if . }}
+  readOnlyRootFilesystem: true
+  {{- end }}
+  allowPrivilegeEscalation: false
+  capabilities:
+    drop: ["ALL"]
+{{- end -}}
+
+{{- define "texera.observability.service" -}}
+{{- $app := printf "%s-%s" .release.Name .app -}}
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ $app }}
+  namespace: {{ .release.Namespace }}
+  labels:
+    app: {{ $app }}
+spec:
+  type: ClusterIP
+  selector:
+    app: {{ $app }}
+  ports:
+    {{- range .ports }}
+    - name: {{ .name }}
+      protocol: TCP
+      port: {{ .port }}
+      targetPort: {{ .port }}
+    {{- end }}
+{{- end -}}
+
+{{- define "texera.observability.dataClaim" -}}
+{{- $app := printf "%s-%s" .release.Name .app -}}
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: {{ $app }}-data
+  namespace: {{ .release.Namespace }}
+  labels:
+    app: {{ $app }}
+spec:
+  accessModes: ["ReadWriteOnce"]
+  {{- if .storage.storageClass }}
+  storageClassName: {{ .storage.storageClass }}
+  {{- end }}
+  resources:
+    requests:
+      storage: {{ .storage.storage }}
+{{- end -}}
+
+{{/* Grafana datasource provisioning body. Kept as a helper so the Deployment's
+checksum/config annotation can hash just this content; hashing the template that
+holds the annotation would make it reference itself and recurse. */}}
+{{- define "texera.observability.grafanaDatasources" -}}
+apiVersion: 1
+datasources:
+  # Metrics: VictoriaMetrics speaks the Prometheus query API. Default.
+  - name: Metrics
+    type: prometheus
+    uid: metrics
+    access: proxy
+    url: http://{{ .Release.Name }}-victoriametrics:{{ .Values.observability.metrics.port }}
+    isDefault: true
+    editable: false
+{{- if .Values.observability.logs.enabled }}
+  # Logs: Loki, LogQL over OTLP-ingested logs.
+  - name: Loki
+    type: loki
+    uid: loki
+    access: proxy
+    url: http://{{ .Release.Name }}-loki:{{ .Values.observability.logs.port }}
+    editable: false
+{{- end }}
+{{- if .Values.observability.traces.enabled }}
+  # Traces: Jaeger query API / UI backend.
+  - name: Jaeger
+    type: jaeger
+    uid: jaeger
+    access: proxy
+    url: http://{{ .Release.Name }}-jaeger:{{ .Values.observability.traces.queryPort }}
+    editable: false
+{{- end }}
+{{- end -}}
+
+{{/* Loki server config body. A helper for the same reason as the Grafana one,
+and so the checksum/config annotation hashes the config instead of its template.
+Retention is enforced here: the compactor deletes chunks older than
+observability.logs.retentionPeriod, which Loki otherwise ignores. */}}
+{{- define "texera.observability.lokiConfig" -}}
+# No multi-tenancy: one implicit tenant for the in-cluster stack.
+auth_enabled: false
+server:
+  http_listen_port: {{ .Values.observability.logs.port }}
+  grpc_listen_port: 9096
+common:
+  instance_addr: 127.0.0.1
+  # Every component's data path defaults under this prefix, the PVC at /loki.
+  path_prefix: /loki
+  storage:
+    filesystem:
+      chunks_directory: /loki/chunks
+      rules_directory: /loki/rules
+  replication_factor: 1
+  ring:
+    kvstore:
+      store: inmemory
+schema_config:
+  configs:
+    - from: 2024-01-01
+      store: tsdb
+      object_store: filesystem
+      schema: v13
+      index:
+        prefix: index_
+        period: 24h
+limits_config:
+  # Required for OTLP ingest (OTLP attributes -> structured metadata).
+  allow_structured_metadata: true
+  reject_old_samples: false
+  # Age after which log chunks are eligible for deletion by the compactor.
+  retention_period: {{ .Values.observability.logs.retentionPeriod }}
+compactor:
+  working_directory: /loki/compactor
+  # Without this the retention_period above is parsed but never enforced,
+  # so logs accumulate until the volume fills.
+  retention_enabled: true
+  delete_request_store: filesystem
+{{- end -}}
+{{- define "texera.releaseService" -}}
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ .name }}-svc
+  namespace: {{ .release.Namespace }}
+spec:
+  type: {{ .serviceType }}
+  selector:
+    app: {{ .release.Name }}-{{ .name }}
+  ports:
+    {{- if .portName }}
+    - name: {{ .portName }}
+      protocol: TCP
+    {{- else }}
+    - protocol: TCP
+    {{- end }}
+      port: {{ .port }}
+      targetPort: {{ .port }}
+      {{- if .useNodePort }}
+      # if service type is set to NodePort, include nodePort attribute
+      {{- if eq .serviceType "NodePort" }}
+      nodePort: {{ .nodePort }}
+      {{- end }}
+      {{- end }}
+{{- end -}}
+
+{{- define "texera.localPersistence" -}}
+{{- $hostBasePath := .hostBasePath }}
+{{- $name := .name }}
+{{- $persistence := .persistence }}
+{{- $volumeName := printf "%s-data-pv" $name }}
+{{- $claimName := printf "%s-data-pvc" $name }}
+{{- $storageClass := $persistence.storageClass | default "local-path" }}
+{{- $size := $persistence.size | default .defaultSize }}
+{{- $hostPath := printf "%s/%s/%s" $hostBasePath $.root.Release.Name $name }}
+
+{{/* Only create PV for local-path storage class */}}
+{{- if and (eq $storageClass "local-path") (ne $hostBasePath "") }}
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: {{ $volumeName }}
+  {{- if not $.root.Values.persistence.removeAfterUninstall }}
+  annotations:
+    "helm.sh/resource-policy": keep
+  {{- end }}
+  labels:
+    type: local
+    app: {{ $.root.Release.Name }}
+    component: {{ $name }}
+spec:
+  storageClassName: {{ $storageClass }}
+  capacity:
+    storage: {{ $size }}
+  accessModes:
+    - ReadWriteOnce
+  persistentVolumeReclaimPolicy: Retain
+  hostPath:
+    path: {{ $hostPath }}
+---
+{{- end }}
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: {{ $claimName }}
+  namespace: {{ $.root.Release.Namespace }}
+  {{- if not $.root.Values.persistence.removeAfterUninstall }}
+  annotations:
+    "helm.sh/resource-policy": keep
+  {{- end }}
+  labels:
+    app: {{ $.root.Release.Name }}
+    component: {{ $name }}
+spec:
+  storageClassName: {{ $storageClass }}
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: {{ $size }}
+  {{- if and (eq $storageClass "local-path") (ne $hostBasePath "") }}
+  volumeName: {{ $volumeName }}
+  {{- end }}
+{{- end }}

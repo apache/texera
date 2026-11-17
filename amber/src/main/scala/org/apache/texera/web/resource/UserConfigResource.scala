@@ -23,53 +23,46 @@ import io.dropwizard.auth.Auth
 import org.apache.texera.auth.SessionUser
 import org.apache.texera.dao.SqlServer
 import org.apache.texera.dao.jooq.generated.Tables.USER_CONFIG
-import org.apache.texera.dao.jooq.generated.tables.daos.UserConfigDao
-import org.apache.texera.dao.jooq.generated.tables.pojos.{User, UserConfig}
 
 import javax.annotation.security.RolesAllowed
 import javax.ws.rs._
 import javax.ws.rs.core._
-import scala.jdk.CollectionConverters.CollectionHasAsScala
+import scala.jdk.CollectionConverters.MapHasAsScala
 
 /**
   * This class handles requests to read and write the user dictionary,
   * an abstract collection of (key, value) string pairs that is unique for each user
-  * This is accomplished using a mysql table called user_dictionary.
-  * The details of user_dictionary can be found in /sql/texera_ddl.sql
+  * This is accomplished using a table called user_config.
+  * The details of user_config can be found in /sql/texera_ddl.sql
   */
 @Path("/user/config")
 @RolesAllowed(Array("REGULAR", "ADMIN"))
 @Consumes(Array(MediaType.TEXT_PLAIN))
 class UserConfigResource {
-  private def userDictionaryDao =
-    new UserConfigDao(
-      SqlServer
-        .getInstance()
-        .createDSLContext()
-        .configuration
-    )
+  private def context = SqlServer.getInstance().createDSLContext()
+
+  private def requireValidKey(key: String): Unit =
+    if (key == null || key.trim.isEmpty) {
+      throw new BadRequestException("key cannot be null or empty")
+    }
 
   @GET
   @Produces(Array(MediaType.APPLICATION_JSON))
   def getAllDict(@Auth sessionUser: SessionUser): Map[String, String] = {
-    val user = sessionUser.getUser
-    getDict(user)
+    getDict(sessionUser.getUid)
   }
 
   /**
     * This method retrieves all of a user's dictionary entries in
-    * the user_dictionary table as a json object
+    * the user_config table as a json object
     */
-  private def getDict(user: User): Map[String, String] = {
-    SqlServer
-      .getInstance()
-      .createDSLContext()
-      .select()
+  private def getDict(uid: Integer): Map[String, String] = {
+    context
+      .select(USER_CONFIG.KEY, USER_CONFIG.VALUE)
       .from(USER_CONFIG)
-      .where(USER_CONFIG.UID.eq(user.getUid))
-      .fetchInto(classOf[UserConfig])
+      .where(USER_CONFIG.UID.eq(uid))
+      .fetchMap(USER_CONFIG.KEY, USER_CONFIG.VALUE)
       .asScala
-      .map { entry => (entry.getKey, entry.getValue) }
       .toMap
   }
 
@@ -77,34 +70,12 @@ class UserConfigResource {
   @Produces(Array(MediaType.TEXT_PLAIN))
   @Path("/{key}")
   def getEntry(@PathParam("key") key: String, @Auth sessionUser: SessionUser): String = {
-    val user = sessionUser.getUser
-
-    if (key == null || key.trim.isEmpty) {
-      throw new BadRequestException("key cannot be null or empty")
-    }
-    if (!dictEntryExists(user, key)) {
-      null
-    } else {
-      getValueByKey(user, key)
-    }
-  }
-
-  /**
-    * This method retrieves a value from the user_dictionary table
-    * given a user's uid and key. each tuple (uid, key) is a primary key
-    * in user_dictionary, and should uniquely identify one value
-    *
-    * @return String or null if entry doesn't exist
-    */
-  private def getValueByKey(user: User, key: String): String = {
-    SqlServer
-      .getInstance()
-      .createDSLContext()
-      .fetchOne(
-        USER_CONFIG,
-        USER_CONFIG.UID.eq(user.getUid).and(USER_CONFIG.KEY.eq(key))
-      )
-      .getValue
+    requireValidKey(key)
+    context
+      .select(USER_CONFIG.VALUE)
+      .from(USER_CONFIG)
+      .where(USER_CONFIG.UID.eq(sessionUser.getUid).and(USER_CONFIG.KEY.eq(key)))
+      .fetchOne(USER_CONFIG.VALUE)
   }
 
   /**
@@ -118,65 +89,27 @@ class UserConfigResource {
       value: String,
       @Auth sessionUser: SessionUser
   ): Unit = {
-    val user = sessionUser.getUser
-    if (key == null || key.trim.isEmpty) {
-      throw new BadRequestException("key cannot be null or empty")
-    }
-    if (dictEntryExists(user, key)) {
-      userDictionaryDao.update(new UserConfig(user.getUid, key, value))
-    } else {
-      userDictionaryDao.insert(new UserConfig(user.getUid, key, value))
-    }
-  }
-
-  /**
-    * This method checks if a given entry exists
-    * each tuple (uid, key) is a primary key in user_dictionary,
-    * and should uniquely identify one value
-    */
-  private def dictEntryExists(user: User, key: String): Boolean = {
-    userDictionaryDao.existsById(
-      SqlServer
-        .getInstance()
-        .createDSLContext()
-        .newRecord(USER_CONFIG.UID, USER_CONFIG.KEY)
-        .values(user.getUid, key)
-    )
+    requireValidKey(key)
+    context
+      .insertInto(USER_CONFIG, USER_CONFIG.UID, USER_CONFIG.KEY, USER_CONFIG.VALUE)
+      .values(sessionUser.getUid, key, value)
+      .onConflict(USER_CONFIG.UID, USER_CONFIG.KEY)
+      .doUpdate()
+      .set(USER_CONFIG.VALUE, value)
+      .execute()
   }
 
   /**
     * This method deletes a key-value pair from the current in-session user's dictionary based on
     * the "key" attribute of the DeleteRequest
-    *
-    * @return
-    * 401 unauthorized -
-    * 400 bad request -
-    * 422 Unprocessable Entity - payload: "no such entry" (if no entry exists for provided key)
     */
   @DELETE
   @Path("/{key}")
   def deleteEntry(@PathParam("key") key: String, @Auth sessionUser: SessionUser): Unit = {
-    val user = sessionUser.getUser
-    if (key == null || key.trim.isEmpty) {
-      throw new BadRequestException("key cannot be null or empty")
-    }
-    if (dictEntryExists(user, key)) {
-      deleteDictEntry(user, key)
-    }
-  }
-
-  /**
-    * This method deletes a single entry
-    * each tuple (uid, key) is a primary key in user_dictionary,
-    * and should uniquely identify one value
-    */
-  private def deleteDictEntry(user: User, key: String): Unit = {
-    userDictionaryDao.deleteById(
-      SqlServer
-        .getInstance()
-        .createDSLContext()
-        .newRecord(USER_CONFIG.UID, USER_CONFIG.KEY)
-        .values(user.getUid, key)
-    )
+    requireValidKey(key)
+    context
+      .deleteFrom(USER_CONFIG)
+      .where(USER_CONFIG.UID.eq(sessionUser.getUid).and(USER_CONFIG.KEY.eq(key)))
+      .execute()
   }
 }

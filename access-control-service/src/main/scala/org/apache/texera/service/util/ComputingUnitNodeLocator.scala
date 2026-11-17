@@ -19,19 +19,10 @@
 
 package org.apache.texera.service.util
 
-import com.fasterxml.jackson.databind.{JsonNode, ObjectMapper}
 import com.typesafe.scalalogging.LazyLogging
+import io.fabric8.kubernetes.api.model.Pod
+import io.fabric8.kubernetes.client.{KubernetesClientBuilder, KubernetesClientException}
 import org.apache.texera.common.config.KubernetesConfig
-
-import java.io.FileInputStream
-import java.net.URI
-import java.net.http.{HttpClient, HttpRequest, HttpResponse}
-import java.nio.file.{Files, Paths}
-import java.security.KeyStore
-import java.security.cert.CertificateFactory
-import java.time.Duration
-import javax.net.ssl.{SSLContext, TrustManagerFactory}
-import scala.jdk.CollectionConverters._
 
 /**
   * Finds the node a computing unit's pod runs on, so a mount can be sent to that node's
@@ -41,73 +32,36 @@ import scala.jdk.CollectionConverters._
   * hand anything that can reach this service the ability to aim requests at any node's
   * privileged mounter.
   */
-class ComputingUnitNodeLocator(fetchPod: String => Option[JsonNode]) extends LazyLogging {
+class ComputingUnitNodeLocator(fetchPod: String => Option[Pod]) extends LazyLogging {
 
   def nodeIpOf(cuid: Int): Option[String] = {
     val podName = s"${KubernetesConfig.computeUnitPodNamePrefix}-$cuid"
-    fetchPod(podName).map(_.at("/status/hostIP").asText("")).filter(_.nonEmpty)
+    // Every field is nullable until the pod is scheduled, which reads as "no node yet".
+    fetchPod(podName)
+      .flatMap(pod => Option(pod.getStatus))
+      .flatMap(status => Option(status.getHostIP))
+      .filter(_.nonEmpty)
   }
 }
 
 object ComputingUnitNodeLocator extends ComputingUnitNodeLocator(InClusterKubernetesApi.getPod)
 
-// One read of one field, so the API is called directly rather than through a Kubernetes
-// client library and its transitive dependencies.
-private[util] object InClusterKubernetesApi extends LazyLogging {
+private[util] object InClusterKubernetesApi {
 
-  private val serviceAccountDir = "/var/run/secrets/kubernetes.io/serviceaccount"
-  private val mapper = new ObjectMapper()
+  // In-cluster config: the client reads the API address, the cluster CA and the projected
+  // service-account token itself, and refreshes that token as the kubelet rotates it.
+  private lazy val client = new KubernetesClientBuilder().build()
 
-  private lazy val client: HttpClient =
-    HttpClient
-      .newBuilder()
-      .connectTimeout(Duration.ofSeconds(5))
-      .sslContext(clusterSslContext)
-      .build()
-
-  /** Trusts only the cluster CA, so this talks to the API server and nothing else. */
-  private def clusterSslContext: SSLContext = {
-    val certificates = {
-      val stream = new FileInputStream(s"$serviceAccountDir/ca.crt")
-      try CertificateFactory.getInstance("X.509").generateCertificates(stream).asScala.toList
-      finally stream.close()
-    }
-    val keyStore = KeyStore.getInstance(KeyStore.getDefaultType)
-    keyStore.load(null, null)
-    certificates.zipWithIndex.foreach {
-      case (certificate, index) => keyStore.setCertificateEntry(s"cluster-ca-$index", certificate)
-    }
-    val trustManagerFactory =
-      TrustManagerFactory.getInstance(TrustManagerFactory.getDefaultAlgorithm)
-    trustManagerFactory.init(keyStore)
-    val context = SSLContext.getInstance("TLS")
-    context.init(null, trustManagerFactory.getTrustManagers, null)
-    context
-  }
-
-  def getPod(podName: String): Option[JsonNode] = {
-    val host = sys.env.getOrElse("KUBERNETES_SERVICE_HOST", "kubernetes.default.svc")
-    val port = sys.env.getOrElse("KUBERNETES_SERVICE_PORT", "443")
+  def getPod(podName: String): Option[Pod] = {
     val namespace = KubernetesConfig.computeUnitPoolNamespace
-    val token = Files.readString(Paths.get(s"$serviceAccountDir/token")).trim
-
-    val request = HttpRequest
-      .newBuilder()
-      .uri(URI.create(s"https://$host:$port/api/v1/namespaces/$namespace/pods/$podName"))
-      .header("Authorization", s"Bearer $token")
-      .timeout(Duration.ofSeconds(10))
-      .GET()
-      .build()
-
-    val response = client.send(request, HttpResponse.BodyHandlers.ofString())
-    response.statusCode() match {
-      case 200   => Some(mapper.readTree(response.body()))
-      case 404   => None
-      case other =>
-        // Distinguished from a missing pod: a missing RBAC rule or an unreachable API
-        // server must not read as "the computing unit is not running".
+    try Option(client.pods().inNamespace(namespace).withName(podName).get())
+    catch {
+      case e: KubernetesClientException =>
+        // Distinguished from a missing pod, which reads as None: a missing RBAC rule or an
+        // unreachable API server must not read as "the computing unit is not running".
         throw new IllegalStateException(
-          s"cannot read pod $podName in namespace $namespace: HTTP $other ${response.body()}"
+          s"cannot read pod $podName in namespace $namespace: ${e.getMessage}",
+          e
         )
     }
   }

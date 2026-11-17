@@ -99,6 +99,6 @@
     [viewMode]="viewType"
     [cardTemplate]="modelCardTpl"
     (deleted)="deleteModel($event)"
-    (refresh)="ngAfterViewInit()"
+    (refresh)="search(true)"
     [currentUid]="currentUid"></texera-search-results>
 </div>

@@ -230,6 +230,7 @@
       <section
         class="card param"
         [class.read-only]="!canEdit"
+        [texeraReadOnlyCard]="!canEdit"
         *ngFor="let r of rendered; let i = index; trackBy: trackByRendered"
         cdkDrag
         [cdkDragDisabled]="!authoring">
@@ -467,10 +468,9 @@
              inert mount and turns live when the run ends. The panel's own tab stop goes away with
              inert, so it does not sit in front of the form it now contains. persistPlacement stays
              off either way (this is not the docked canvas panel).
-             [hidden], not *ngIf: the property editor shows its operator by REACTING to the highlight
-             stream (no initial pull), so it must already be mounted and subscribed when the click
-             highlights a step. Mounting it on selection (*ngIf) subscribes too late, misses that
-             emission, and the panel opens empty. So keep it mounted and just hide it. -->
+             [hidden], not *ngIf: one mounted panel keeps its subscriptions, its frame and its size
+             across selections, where mounting it per step (*ngIf) would rebuild all of that on
+             every click. So keep it mounted and just hide it. -->
         <div
           class="panel"
           role="group"
@@ -483,6 +483,68 @@
             [actsAsEditor]="panelLive"
             [attr.inert]="panelLive ? null : ''"></texera-property-editor>
         </div>
+      </div>
+    </section>
+
+    <!-- The results this page can show, listed right under the preview since both are about the same
+         steps: one chip each, carrying the step's name and an eye. A reader with nothing to choose
+         from sees no section; an author always does, with the hint on how to add steps. The chips are
+         tracked by step, not by object: a change rebuilds the choices as new objects, and re-created
+         buttons would drop the keyboard focus from the chip just pressed. -->
+    <section
+      class="card respick"
+      *ngIf="authoring || resultChoices.length > 0">
+      <h3>Results shown here</h3>
+      <p>
+        {{ authoring ? "Click a name to look at that step; the eye sets whether its result shows for everyone. Until you
+        choose, every final step is on, and an earlier step needs its result view on the canvas first." : "Click a name
+        to bring its result to the top, and again to let the step go. The eye hides a result from your page only." }}
+      </p>
+      <div class="opts">
+        <!-- Two buttons in one chip: the name reaches the result (and the step it came from), the
+             eye decides whether it shows. Separate targets, so neither click has a second meaning
+             depending on a mode (#9033). -->
+        <div
+          class="pill"
+          *ngFor="let choice of resultChoices; trackBy: trackByChoice"
+          [class.on]="choice.shown"
+          [class.lead-result]="leadsResults(choice.operatorID)">
+          <!-- A hidden result has no card to bring to the top, so its name does nothing and does
+               not react to the pointer. Marked unavailable rather than disabled, so it keeps its
+               place in the tab order and says why instead of going silent -- the eye beside it is
+               live, and that is how the result comes back.
+               `aria-current` carries what the ring shows: which result is the one being looked at,
+               for a reader who does not see the ring. -->
+          <button
+            type="button"
+            class="pill-name"
+            [attr.aria-disabled]="!choice.shown"
+            [attr.aria-current]="leadsResults(choice.operatorID)"
+            [attr.title]="choice.shown ? null : 'Hidden. Turn its eye on to show this result.'"
+            (click)="onChoiceClick(choice)">
+            {{ choice.label }}
+          </button>
+          <!-- A toggle button: the name stays constant and aria-pressed carries the state, as on the
+               label wrapper's eye. A name that changed with the state would announce the opposite of
+               what the state says ("Hide Limit, pressed" for a result that is shown). -->
+          <button
+            type="button"
+            class="pill-eye"
+            [attr.aria-pressed]="choice.shown"
+            [attr.aria-label]="'Show ' + choice.label"
+            [attr.title]="choice.shown ? 'Shown here' : 'Hidden here'"
+            (click)="onToggleResult(choice)">
+            <i
+              nz-icon
+              [nzType]="choice.shown ? 'eye' : 'eye-invisible'"
+              aria-hidden="true"></i>
+          </button>
+        </div>
+        <p
+          class="hint"
+          *ngIf="resultChoices.length === 0">
+          No steps to choose from yet. Turn on a step's result view on the canvas to feature it here.
+        </p>
       </div>
     </section>
 
@@ -500,7 +562,12 @@
            yields one cannot be told from the graph, so a step earns its card at runtime rather than
            sitting on a permanent "No result yet." (a download/publish step never would). -->
       <ng-container *ngFor="let id of resultIdsToShow">
-        <div class="card result">
+        <!-- The lead card (the step pointed at, moved to the front) wears the canvas's selection
+             ring, so the move reads as "this is that step's result" rather than a reshuffle. -->
+        <div
+          class="card result"
+          [style.order]="resultOrder(id)"
+          [class.lead-result]="leadsResults(id)">
           <div class="result-head">
             <span>{{ resultLabel(id) }}</span>
             <!-- Zooming only means something once there is a picture to zoom. -->
@@ -554,38 +621,6 @@
           </div>
         </div>
       </ng-container>
-    </section>
-
-    <!-- Which results show after a run. Everyone gets the picker: in edit mode a pill sets the default
-         for all readers (written to the config); otherwise it changes only this viewer's page. A reader
-         with nothing to choose from sees no section; an author always does, with the hint on how to
-         add steps. The pills are tracked by step, not by object: a toggle rebuilds the choices as new
-         objects, and re-created buttons would drop the keyboard focus from the pill just pressed. -->
-    <section
-      class="card respick"
-      *ngIf="authoring || resultChoices.length > 0">
-      <h3>Results shown here</h3>
-      <p>
-        {{ authoring ? "What everyone sees after a run. Until you choose, every final step is on; an earlier step needs
-        its result view on the canvas first." : "Choose which results to show after a run. This changes only your view."
-        }}
-      </p>
-      <div class="opts">
-        <button
-          type="button"
-          class="pill"
-          *ngFor="let choice of resultChoices; trackBy: trackByChoice"
-          [class.on]="choice.shown"
-          [attr.aria-pressed]="choice.shown"
-          (click)="onToggleResult(choice)">
-          {{ choice.label }}
-        </button>
-        <p
-          class="hint"
-          *ngIf="resultChoices.length === 0">
-          No steps to choose from yet. Turn on a step's result view on the canvas to feature it here.
-        </p>
-      </div>
     </section>
   </div>
 </div>

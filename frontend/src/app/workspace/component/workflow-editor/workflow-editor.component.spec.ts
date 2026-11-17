@@ -19,12 +19,19 @@
 
 import { WorkflowActionService } from "../../service/workflow-graph/model/workflow-action.service";
 import { HeatmapView } from "../../service/heatmap/heatmap-scoring";
+import { HEATMAP_NO_DATA_COLOR, scoreToColor } from "../../service/heatmap/heatmap-color";
 import { UndoRedoService } from "../../service/undo-redo/undo-redo.service";
 import { DragDropService } from "../../service/drag-drop/drag-drop.service";
 import { WorkflowUtilService } from "../../service/workflow-graph/util/workflow-util.service";
 import { ComponentFixture, fakeAsync, TestBed, tick } from "@angular/core/testing";
 import { ValidationWorkflowService } from "../../service/validation/validation-workflow.service";
-import { WorkflowEditorComponent } from "./workflow-editor.component";
+import {
+  PINNED_HEADER_HEIGHT,
+  RESULT_PREVIEW_DELAY_MS,
+  RESULT_PREVIEW_HIDE_MS,
+  WorkflowEditorComponent,
+} from "./workflow-editor.component";
+import { PinnedResultWindowComponent } from "./pinned-result-window/pinned-result-window.component";
 import { workflowEditorTestImports, workflowEditorTestProviders } from "./workflow-editor.test-utils";
 import { OperatorMetadataService } from "../../service/operator-metadata/operator-metadata.service";
 import { StubOperatorMetadataService } from "../../service/operator-metadata/stub-operator-metadata.service";
@@ -34,7 +41,7 @@ import {
   operatorNameClass,
   operatorStateClass,
 } from "../../service/joint-ui/joint-ui.service";
-import { AgentService, OperatorResultSummary } from "../../service/agent/agent.service";
+import { AgentService, IndexedTuple, OperatorExecutionSummary } from "../../service/agent/agent.service";
 import { NzModalModule, NzModalService } from "ng-zorro-antd/modal";
 import { Overlay } from "@angular/cdk/overlay";
 import * as joint from "jointjs";
@@ -123,17 +130,105 @@ describe("WorkflowEditorComponent", () => {
       expect(component).toBeTruthy();
     });
 
-    it("should reset the heat-map view on destroy so a re-entered workspace starts with the overlay off", () => {
-      // The wrapper is root-provided and outlives the editor, while the menu's
-      // checkbox re-initializes to off on every workspace entry; without the
-      // reset the stale view repaints no-data colors and the first checkbox
-      // click re-publishes the view instead of clearing it.
+    // It used to reset the view on destroy so a re-entered workspace started with the overlay off.
+    // This component is now destroyed on every hand-over between a workflow's two views, after the
+    // arriving view has mounted and restored the persisted overlay (#8552), so a reset here switched
+    // it off again on every switch. Leaving the workspace resets it, in the views' own teardown.
+    it("leaves the heat-map view alone on destroy; leaving the workspace is what resets it", () => {
       const wrapper = TestBed.inject(WorkflowActionService).getJointGraphWrapper();
       wrapper.setHeatmapView(HeatmapView.Runtime);
+      try {
+        fixture.destroy();
+
+        expect(wrapper.getHeatmapView()).toBe(HeatmapView.Runtime);
+      } finally {
+        wrapper.setHeatmapView(null);
+      }
+    });
+
+    // Two of these editors are in the page at once for one tick when the two views of a workflow
+    // hand over: the arriving one initialises while the departing one is still being removed, and
+    // both templates carry id="workflow-editor". Searching the document found the departing view's
+    // container, so the paper was built into a div about to disappear and the arriving canvas came
+    // up blank -- nothing to pan, nothing to click, while the graph itself was untouched.
+    it("builds its paper in its own container, not whichever the document holds first", () => {
+      const decoy = document.createElement("div");
+      decoy.id = "workflow-editor";
+      // Earlier in document order than the fixture, as the departing view's container is.
+      document.body.insertBefore(decoy, document.body.firstChild);
+      try {
+        const other = TestBed.createComponent(WorkflowEditorComponent);
+        other.detectChanges();
+
+        const host = other.nativeElement as HTMLElement;
+        expect(host.contains((other.componentInstance as any).editor)).toBe(true);
+        expect((other.componentInstance as any).editor).not.toBe(decoy);
+        expect(decoy.querySelector("svg")).toBeNull();
+        other.destroy();
+      } finally {
+        decoy.remove();
+      }
+    });
+
+    // The paper is bound to the root-provided joint graph, which outlives this component. Once the
+    // switch between a workflow's two views routes instead of reloading, a mount happens on every
+    // switch, so an undisposed paper is left listening to that graph on each one.
+    it("disposes its paper on destroy, so none is left listening to the shared graph", () => {
+      const remove = vi.spyOn(component.paper, "remove");
 
       fixture.destroy();
 
-      expect(wrapper.getHeatmapView()).toBeNull();
+      expect(remove).toHaveBeenCalled();
+    });
+
+    // `.bind()` returns a new function every call, so removing a freshly bound one never matched
+    // what was added: one stale listener was left per mount, and after a few switches a single
+    // Ctrl/Cmd-Z was handled several times over.
+    it("removes the keydown listener it added, rather than a differently bound one", () => {
+      const handler = vi.spyOn(component as any, "_handleKeyboardAction");
+
+      fixture.destroy();
+      document.dispatchEvent(new KeyboardEvent("keydown", { key: "z", ctrlKey: true }));
+
+      expect(handler).not.toHaveBeenCalled();
+    });
+
+    // The zoom ratio lives in the root-provided wrapper and outlives this component, while a new
+    // paper starts at scale 1. Once the switch between a workflow's two views routes, the paper is
+    // new and the ratio is whatever was last chosen; disagreeing, the first "zoom in" after a
+    // switch stepped from the wrapper's ratio and could shrink the canvas.
+    it("starts its paper at the wrapper's zoom ratio, so the two agree after a remount", () => {
+      const wrapper = TestBed.inject(WorkflowActionService).getJointGraphWrapper();
+      wrapper.setZoomProperty(0.5);
+      try {
+        const other = TestBed.createComponent(WorkflowEditorComponent);
+        other.detectChanges();
+
+        expect(other.componentInstance.paper.scale().sx).toBe(0.5);
+        other.destroy();
+      } finally {
+        wrapper.setZoomProperty(1);
+      }
+    });
+
+    // The context keeps a static reference to the attached paper for async rendering. It must not
+    // outlive the paper it points at, or a context exit would update the views of a removed one.
+    // It is a no-op once a newer paper has been attached, which is the usual hand-over order.
+    it("detaches its paper from the rendering context on destroy, unless a newer one has taken over", () => {
+      const wrapper = TestBed.inject(WorkflowActionService).getJointGraphWrapper();
+      const context = (wrapper as any).jointGraphContext;
+      const mine = component.paper;
+      expect(context.jointPaper).toBe(mine);
+
+      fixture.destroy();
+      expect(context.jointPaper).toBeUndefined();
+
+      // A newer paper attached before the older editor goes: the older one leaves it alone.
+      const newer = TestBed.createComponent(WorkflowEditorComponent);
+      newer.detectChanges();
+      wrapper.detachMainJointPaper(mine);
+      expect(context.jointPaper).toBe(newer.componentInstance.paper);
+      newer.destroy();
     });
 
     it("should hide operator status on the canvas by default", () => {
@@ -286,6 +381,315 @@ describe("WorkflowEditorComponent", () => {
       expect(linkView.hasTools()).toBe(false);
     });
 
+    it("previews a hovered operator's result once the pointer rests, and hides it when the pointer leaves", fakeAsync(() => {
+      addLinkedPair();
+      const view = component.paper.findViewByModel(mockScanPredicate.operatorID);
+
+      component.paper.trigger("element:mouseenter", view, new MouseEvent("mouseenter"));
+      // passing over an operator opens nothing; only a pointer that rests on it does
+      tick(RESULT_PREVIEW_DELAY_MS - 1);
+      expect(component.resultPreview).toBeNull();
+      tick(1);
+      fixture.detectChanges();
+      expect(component.resultPreview?.operatorId).toBe(mockScanPredicate.operatorID);
+      expect(fixture.debugElement.query(By.css("texera-operator-result-preview"))).toBeTruthy();
+
+      component.paper.trigger("element:mouseleave", view, new MouseEvent("mouseleave"));
+      // the card lingers a moment, so the pointer can cross into it
+      tick(RESULT_PREVIEW_HIDE_MS);
+      fixture.detectChanges();
+      expect(component.resultPreview).toBeNull();
+      expect(fixture.debugElement.query(By.css("texera-operator-result-preview"))).toBeNull();
+    }));
+
+    it("closes the card, and cancels a pending one, when an output port is pressed to drag a link", fakeAsync(() => {
+      addLinkedPair();
+      const view = component.paper.findViewByModel(mockScanPredicate.operatorID);
+      const outputPort = view.el.querySelector("[port-group='out']")!;
+
+      component.paper.trigger("element:mouseenter", view, new MouseEvent("mouseenter"));
+      tick(RESULT_PREVIEW_DELAY_MS);
+      expect(component.resultPreview).not.toBeNull();
+      outputPort.dispatchEvent(new Event("pointerdown", { bubbles: true }));
+      expect(component.resultPreview).toBeNull();
+
+      component.paper.trigger("element:mouseenter", view, new MouseEvent("mouseenter"));
+      tick(RESULT_PREVIEW_DELAY_MS - 1);
+      outputPort.dispatchEvent(new Event("pointerdown", { bubbles: true }));
+      tick(1);
+      expect(component.resultPreview).toBeNull();
+    }));
+
+    it("closes the card, and cancels a pending one, when its operator is deleted, but not for another", fakeAsync(() => {
+      addLinkedPair();
+      const workflowActionService = TestBed.inject(WorkflowActionService);
+      const scanView = component.paper.findViewByModel(mockScanPredicate.operatorID);
+      const resultView = component.paper.findViewByModel(mockResultPredicate.operatorID);
+
+      component.paper.trigger("element:mouseenter", scanView, new MouseEvent("mouseenter"));
+      tick(RESULT_PREVIEW_DELAY_MS);
+      workflowActionService.deleteOperator(mockResultPredicate.operatorID);
+      expect(component.resultPreview?.operatorId).toBe(mockScanPredicate.operatorID);
+      workflowActionService.deleteOperator(mockScanPredicate.operatorID);
+      expect(component.resultPreview).toBeNull();
+
+      workflowActionService.addOperator(mockResultPredicate, mockPoint);
+      component.paper.trigger("element:mouseenter", resultView, new MouseEvent("mouseenter"));
+      tick(RESULT_PREVIEW_DELAY_MS - 1);
+      workflowActionService.deleteOperator(mockResultPredicate.operatorID);
+      tick(1);
+      expect(component.resultPreview).toBeNull();
+    }));
+
+    it("opens no card once the editor is destroyed", fakeAsync(() => {
+      addLinkedPair();
+      const view = component.paper.findViewByModel(mockScanPredicate.operatorID);
+
+      component.paper.trigger("element:mouseenter", view, new MouseEvent("mouseenter"));
+      fixture.destroy();
+      tick(RESULT_PREVIEW_DELAY_MS);
+
+      expect(component.resultPreview).toBeNull();
+    }));
+
+    it("leaves the hover to the heat-map tooltip while that overlay is on", fakeAsync(() => {
+      addLinkedPair();
+      vi.spyOn(TestBed.inject(WorkflowActionService).getJointGraphWrapper(), "getHeatmapView").mockReturnValue(
+        "throughput" as any
+      );
+      const view = component.paper.findViewByModel(mockScanPredicate.operatorID);
+
+      component.paper.trigger("element:mouseenter", view, new MouseEvent("mouseenter"));
+      tick(RESULT_PREVIEW_DELAY_MS);
+
+      expect(component.resultPreview).toBeNull();
+    }));
+
+    it("opens no card while Layers > Result preview is off", fakeAsync(() => {
+      addLinkedPair();
+      vi.spyOn(TestBed.inject(WorkflowActionService).getJointGraphWrapper(), "isResultPreviewEnabled").mockReturnValue(
+        false
+      );
+      const view = component.paper.findViewByModel(mockScanPredicate.operatorID);
+
+      component.paper.trigger("element:mouseenter", view, new MouseEvent("mouseenter"));
+      tick(RESULT_PREVIEW_DELAY_MS);
+
+      expect(component.resultPreview).toBeNull();
+    }));
+
+    /** Right-click with the scan operator selected and pick "pin result" from the menu. */
+    function pinScanFromContextMenu(): void {
+      TestBed.inject(WorkflowActionService).getJointGraphWrapper().highlightOperators(mockScanPredicate.operatorID);
+      fixture.detectChanges();
+      const menu = fixture.debugElement.query(By.directive(NzDropdownMenuComponent)).componentInstance;
+      component.nzContextMenu.create(new MouseEvent("contextmenu", { clientX: 5, clientY: 5 }), menu);
+      fixture.detectChanges();
+      const item = fixture.debugElement
+        .queryAll(By.css("texera-context-menu li[nz-menu-item]"))
+        .find(li => li.nativeElement.textContent.trim() === "pin result");
+      expect(item).toBeTruthy();
+      item!.triggerEventHandler("click", null);
+      fixture.detectChanges();
+      component.nzContextMenu.close();
+    }
+
+    // With the hover card off there is no Pin button, so the right-click menu is the way to a result window.
+    it("pins an operator's result from the right-click menu while Result preview is off", () => {
+      const wrapper = TestBed.inject(WorkflowActionService).getJointGraphWrapper();
+      wrapper.setResultPreviewEnabled(false);
+      try {
+        addLinkedPair();
+
+        pinScanFromContextMenu();
+        pinScanFromContextMenu();
+
+        // pinning the same operator twice keeps one window
+        expect(component.pinnedResults.map(pinned => pinned.operatorId)).toEqual([mockScanPredicate.operatorID]);
+        const windows = fixture.debugElement.queryAll(By.css("texera-pinned-result-window"));
+        expect(windows.length).toBe(1);
+        expect(windows[0].nativeElement.getAttribute("data-operator-id")).toBe(mockScanPredicate.operatorID);
+      } finally {
+        wrapper.setResultPreviewEnabled(true);
+      }
+    });
+
+    it("pins an operator's result from the right-click menu while the heat-map is on", () => {
+      addLinkedPair();
+      vi.spyOn(TestBed.inject(WorkflowActionService).getJointGraphWrapper(), "getHeatmapView").mockReturnValue(
+        "throughput" as any
+      );
+
+      pinScanFromContextMenu();
+
+      expect(component.pinnedResults.map(pinned => pinned.operatorId)).toEqual([mockScanPredicate.operatorID]);
+      expect(fixture.debugElement.query(By.css("texera-pinned-result-window"))).toBeTruthy();
+    });
+
+    describe("pinned result windows", () => {
+      const pinnedWindows = () => fixture.debugElement.queryAll(By.css("texera-pinned-result-window"));
+
+      /** Open the scan operator's card and pin it, as its Pin button does. */
+      function pinScan(): void {
+        const view = component.paper.findViewByModel(mockScanPredicate.operatorID);
+        component.paper.trigger("element:mouseenter", view, new MouseEvent("mouseenter"));
+        tick(RESULT_PREVIEW_DELAY_MS);
+        component.pinResultPreview();
+        fixture.detectChanges();
+      }
+
+      /** The scan operator's box as drawn, in the editor's coordinates. */
+      function scanBox(): { left: number; right: number; top: number; bottom: number } {
+        const bbox = component.paper.getModelById(mockScanPredicate.operatorID).getBBox();
+        const { sx, sy } = component.paper.scale();
+        const { tx, ty } = component.paper.translate();
+        return {
+          left: bbox.x * sx + tx,
+          right: (bbox.x + bbox.width) * sx + tx,
+          top: bbox.y * sy + ty,
+          bottom: (bbox.y + bbox.height) * sy + ty,
+        };
+      }
+
+      it("pins the card's operator as a window and closes the card, which that operator no longer opens", fakeAsync(() => {
+        addLinkedPair();
+        pinScan();
+
+        expect(component.resultPreview).toBeNull();
+        expect(component.pinnedResults).toEqual([{ operatorId: mockScanPredicate.operatorID, dx: 0, dy: 0 }]);
+        expect(pinnedWindows().length).toBe(1);
+        expect(pinnedWindows()[0].attributes["data-operator-id"]).toBe(mockScanPredicate.operatorID);
+
+        const view = component.paper.findViewByModel(mockScanPredicate.operatorID);
+        component.paper.trigger("element:mouseenter", view, new MouseEvent("mouseenter"));
+        tick(RESULT_PREVIEW_DELAY_MS);
+        expect(component.resultPreview).toBeNull();
+      }));
+
+      it("unpins a window when it is closed", fakeAsync(() => {
+        addLinkedPair();
+        pinScan();
+
+        (pinnedWindows()[0].componentInstance as PinnedResultWindowComponent).closed.emit();
+        fixture.detectChanges();
+
+        expect(component.pinnedResults).toEqual([]);
+        expect(pinnedWindows().length).toBe(0);
+      }));
+
+      it("unpins the window of a deleted operator, but not another's", fakeAsync(() => {
+        addLinkedPair();
+        pinScan();
+        const workflowActionService = TestBed.inject(WorkflowActionService);
+
+        workflowActionService.deleteOperator(mockResultPredicate.operatorID);
+        expect(component.pinnedResults.map(pinned => pinned.operatorId)).toEqual([mockScanPredicate.operatorID]);
+
+        workflowActionService.deleteOperator(mockScanPredicate.operatorID);
+        expect(component.pinnedResults).toEqual([]);
+        expect(pinnedWindows().length).toBe(0);
+      }));
+
+      it("places a window just right of its operator, level with its top, and keeps it there as the canvas moves", fakeAsync(() => {
+        addLinkedPair();
+        pinScan();
+        const pinned = component.pinnedResults[0];
+
+        let box = scanBox();
+        expect(component.pinnedResultPosition(pinned)).toEqual({ x: box.right + 12, y: box.top });
+
+        component.paper.translate(40, -25);
+        component.paper.scale(0.5, 0.5);
+        box = scanBox();
+        expect(component.pinnedResultPosition(pinned)).toEqual({ x: box.right + 12, y: box.top });
+      }));
+
+      it("keeps a dragged window at the offset it was dragged to", fakeAsync(() => {
+        addLinkedPair();
+        pinScan();
+        const box = scanBox();
+
+        component.movePinnedResult(mockScanPredicate.operatorID, { dx: 30, dy: 10 });
+        component.movePinnedResult(mockScanPredicate.operatorID, { dx: -5, dy: 15 });
+        component.movePinnedResult("another-operator", { dx: 100, dy: 100 });
+
+        expect(component.pinnedResults[0]).toEqual({ operatorId: mockScanPredicate.operatorID, dx: 25, dy: 25 });
+        expect(component.pinnedResultPosition(component.pinnedResults[0])).toEqual({
+          x: box.right + 12 + 25,
+          y: box.top + 25,
+        });
+      }));
+
+      describe("the line from an operator to its window", () => {
+        const WIDTH = 300;
+        const HEIGHT = 200;
+
+        // a window's size is read from the page, which lays nothing out in a test
+        beforeEach(() =>
+          vi.spyOn(component as any, "pinnedWindowSize").mockReturnValue({ width: WIDTH, height: HEIGHT })
+        );
+
+        /** The path's start and end points. */
+        function ends(path: string): number[][] {
+          const numbers = path.match(/-?[\d.]+/g)!.map(Number);
+          return [numbers.slice(0, 2), numbers.slice(-2)];
+        }
+
+        it("runs from the operator's right side into the header of a window on its right", fakeAsync(() => {
+          addLinkedPair();
+          pinScan();
+          const box = scanBox();
+          const corner = component.pinnedResultPosition(component.pinnedResults[0]);
+
+          expect(ends(component.pinnedConnectorPath(component.pinnedResults[0]))).toEqual([
+            [box.right, (box.top + box.bottom) / 2],
+            [corner.x, corner.y + PINNED_HEADER_HEIGHT / 2],
+          ]);
+        }));
+
+        it("runs from the operator's left side into the header of a window dragged to its left", fakeAsync(() => {
+          addLinkedPair();
+          pinScan();
+          const box = scanBox();
+          component.movePinnedResult(mockScanPredicate.operatorID, {
+            dx: -(box.right - box.left) - WIDTH - 100,
+            dy: 0,
+          });
+          const corner = component.pinnedResultPosition(component.pinnedResults[0]);
+
+          expect(ends(component.pinnedConnectorPath(component.pinnedResults[0]))).toEqual([
+            [box.left, (box.top + box.bottom) / 2],
+            [corner.x + WIDTH, corner.y + PINNED_HEADER_HEIGHT / 2],
+          ]);
+        }));
+
+        it("runs from the operator's bottom to the top of a window dragged below it, and top to bottom above", fakeAsync(() => {
+          addLinkedPair();
+          pinScan();
+          const box = scanBox();
+          const midX = (box.left + box.right) / 2;
+          // under the operator: the window's left edge left of the operator's middle
+          component.movePinnedResult(mockScanPredicate.operatorID, { dx: -(box.right - box.left), dy: 0 });
+          component.movePinnedResult(mockScanPredicate.operatorID, { dx: 0, dy: box.bottom - box.top + 50 });
+          let corner = component.pinnedResultPosition(component.pinnedResults[0]);
+          expect(ends(component.pinnedConnectorPath(component.pinnedResults[0]))).toEqual([
+            [midX, box.bottom],
+            [midX, corner.y],
+          ]);
+
+          component.movePinnedResult(mockScanPredicate.operatorID, {
+            dx: 0,
+            dy: -(box.bottom - box.top + 50) - HEIGHT - 80,
+          });
+          corner = component.pinnedResultPosition(component.pinnedResults[0]);
+          expect(ends(component.pinnedConnectorPath(component.pinnedResults[0]))).toEqual([
+            [midX, box.top],
+            [midX, corner.y + HEIGHT],
+          ]);
+        }));
+      });
+    });
+
     /** Select the scan operator the way a click does and return its model, whose attrs say what is on show. */
     function selectScanOperator(): joint.dia.Cell {
       addLinkedPair();
@@ -312,6 +716,25 @@ describe("WorkflowEditorComponent", () => {
       expect(model.attr(".chat-button/visibility")).toBe("hidden");
       expect(model.attr(".add-input-port-button/visibility")).toBe("hidden");
       expect(model.attr(".texera-operator-state/visibility")).toBe("visible");
+    });
+
+    // The selection lives in the wrapper, which both views of a workflow share and hand over
+    // between them, while this paper is new on every switch: a paper that only followed the
+    // highlight stream left the step the other view had selected drawn as not selected, beside a
+    // panel showing it. The highlight handler is re-run here, which is what a new paper wiring
+    // itself into the same shared selection comes down to.
+    it("rings the operators the shared selection already holds when the paper wires itself up", () => {
+      const workflowActionService = TestBed.inject(WorkflowActionService);
+      workflowActionService.addOperator(mockScanPredicate, mockPoint);
+      workflowActionService.getJointGraphWrapper().highlightOperators(mockScanPredicate.operatorID);
+      const view = component.paper.findViewByModel(mockScanPredicate.operatorID);
+      // Installed after the stream has done its work, so only the wiring-up pass is counted.
+      const highlight = vi.spyOn(view, "highlight");
+
+      (component as unknown as { handleElementHightlightEvent: () => void }).handleElementHightlightEvent();
+
+      expect(highlight).toHaveBeenCalledTimes(1);
+      expect(highlight).toHaveBeenCalledWith("rect.body", expect.anything());
     });
   });
 
@@ -603,115 +1026,6 @@ describe("WorkflowEditorComponent", () => {
       })
     );
 
-    //   // TODO: this test case related to websocket is not stable, find out why and fix it
-    // xdescribe('when executionStatus is enabled', () => {
-    //   beforeAll(() => {
-    //     environment.executionStatusEnabled = true;
-    //     workflowStatusService = TestBed.get(WorkflowStatusService);
-    //   });
-
-    //   afterAll(() => {
-    //     environment.executionStatusEnabled = false;
-    //   });
-
-    //   it('should display/hide operator status tooltip when cursor hovers/leaves an operator', () => {
-    //     // install a spy on the highlight operator function and pass the call through
-    //     const showTooltipFunctionSpy = vi.spyOn(jointUIService, 'showOperatorStatusToolTip');
-    //     const hideTooltipFunctionSpy = vi.spyOn(jointUIService, 'hideOperatorStatusToolTip');
-
-    //     workflowActionService.addOperator(mockScanPredicate, mockPoint);
-    //     // find the joint Cell View object of the operator element
-    //     const jointCellView = component.getJointPaper().findViewByModel(mockScanPredicate.operatorID);
-    //     const tooltipView = component.getJointPaper().findViewByModel(
-    //       JointUIService.getOperatorStatusTooltipElementID(mockScanPredicate.operatorID));
-
-    //     // workflow has not started yet
-    //     // trigger a mouseenter on the cell view using its jQuery element
-    //     jointCellView.$el.trigger('mouseenter');
-    //     fixture.detectChanges();
-    //     // assert the function is not called yet
-    //     expect(showTooltipFunctionSpy).not.toHaveBeenCalled();
-    //     expect(tooltipView.model.attr('polygon')['display']).toBe('none');
-
-    //     // mock start the workflow
-    //     component['operatorStatusTooltipDisplayEnabled'] = true;
-    //     // trigger event mouse enter
-    //     jointCellView.$el.trigger('mouseenter');
-    //     fixture.detectChanges();
-    //     // assert the function is called
-    //     expect(showTooltipFunctionSpy).toHaveBeenCalled();
-    //     expect(tooltipView.model.attr('polygon')['display']).toBeUndefined();
-
-    //     // trigger event mouse leave
-    //     jointCellView.$el.trigger('mouseleave');
-    //     // assert the function is called
-    //     expect(hideTooltipFunctionSpy).toHaveBeenCalled();
-    //     expect(tooltipView.model.attr('polygon')['display']).toBe('none');
-    //   });
-
-    //   it('should update operator status tooltip content when workflow-status.service emits processState', () => {
-    //     // spy on key function, create simple workflow
-    //     const changeOperatorTooltipInfoSpy = vi.spyOn(jointUIService, 'changeOperatorStatusTooltipInfo');
-    //     workflowActionService.addOperator(mockScanPredicateForStatus, mockPoint);
-    //     const tooltipView = component.getJointPaper().findViewByModel(
-    //       JointUIService.getOperatorStatusTooltipElementID(mockScanPredicateForStatus.operatorID));
-
-    //     // workflowStatusService emits a mock status
-    //     workflowStatusService['status'].next(mockStatus1 as ProcessStatus);
-    //     fixture.detectChanges();
-    //     // function should be called and content should be updated properly
-    //     expect(component['operatorStatusTooltipDisplayEnabled']).toBeTruthy();
-    //     expect(changeOperatorTooltipInfoSpy).toHaveBeenCalledTimes(1);
-    //     expect(tooltipView.model.attr('#operatorCount/text'))
-    //       .toBe('Output:' + (mockStatus1 as ProcessStatus).operatorStatistics[mockScanOperatorID].outputCount + ' tuples');
-    //     expect(tooltipView.model.attr('#operatorSpeed/text'))
-    //       .toBe('Speed:' + (mockStatus1 as ProcessStatus).operatorStatistics[mockScanOperatorID].speed + ' tuples/ms');
-
-    //     // workflowStatusService emits another mock status
-    //     workflowStatusService['status'].next(mockStatus2 as ProcessStatus);
-    //     fixture.detectChanges();
-    //     // function should be called again and content should be updated properly
-    //     expect(changeOperatorTooltipInfoSpy).toHaveBeenCalledTimes(2);
-    //     expect(tooltipView.model.attr('#operatorCount/text'))
-    //       .toBe('Output:' + (mockStatus2 as ProcessStatus).operatorStatistics[mockScanOperatorID].outputCount + ' tuples');
-    //     expect(tooltipView.model.attr('#operatorSpeed/text'))
-    //       .toBe('Speed:' + (mockStatus2 as ProcessStatus).operatorStatistics[mockScanOperatorID].speed + ' tuples/ms');
-    //   });
-
-    //   it('should change operator state when workflow-status.service emits processState', () => {
-    //     // spy on key function, create simple workflow
-    //     const changeOperatorStatesSpy = vi.spyOn(jointUIService, 'changeOperatorStates');
-    //     workflowActionService.addOperator(mockScanPredicateForStatus, mockPoint);
-    //     const jointCellView = component.getJointPaper().findViewByModel(mockScanPredicateForStatus.operatorID);
-
-    //     // workflowStatusService emits a mock status
-    //     workflowStatusService['status'].next(mockStatus1 as ProcessStatus);
-    //     fixture.detectChanges();
-    //     // function should be called and state name should be updated properly
-    //     expect(changeOperatorStatesSpy).toHaveBeenCalledTimes(1);
-    //     expect(jointCellView.model.attr('#operatorStates')['text'])
-    //     .toEqual(OperatorStates[(mockStatus1 as ProcessStatus).operatorStates[mockScanOperatorID]]);
-
-    //     // workflowStatusService emits another mock status
-    //     workflowStatusService['status'].next(mockStatus2 as ProcessStatus);
-    //     fixture.detectChanges();
-    //     // function should be called again and state name should be updated properly
-    //     expect(changeOperatorStatesSpy).toHaveBeenCalledTimes(2);
-    //     expect(jointCellView.model.attr('#operatorStates')['text'])
-    //     .toEqual(OperatorStates[OperatorStates.Completed]);
-    //   });
-
-    //   it('should throw error when processState contains non-existing operatorID', () => {
-    //     // workflowStatusService emits a processStatus with info for a scan operator
-    //     // however there is no scan operator on the joinGraph/texeraGraph
-    //     // an error should be thrown
-    //     workflowStatusService['status'].next(mockStatus1 as ProcessStatus);
-    //     fixture.detectChanges();
-    //     expect(component['handleOperatorStatisticsUpdate']).toThrowError();
-    //     expect(component['handleOperatorStatesChange']).toThrowError();
-    //   });
-    // });
-
     it("should delete the highlighted operator when user presses the backspace key", () => {
       const texeraGraph = workflowActionService.getTexeraGraph();
       const jointGraphWrapper = workflowActionService.getJointGraphWrapper();
@@ -779,122 +1093,6 @@ describe("WorkflowEditorComponent", () => {
       expect(texeraGraph.hasOperator(mockScanPredicate.operatorID)).toBeFalsy();
       expect(texeraGraph.hasOperator(mockResultPredicate.operatorID)).toBeFalsy();
     });
-
-    // the new method of copying and pasting would not pass this unit test, since the permisssion
-    // to write access to system clipboard is needed, and in the unit test, there is no way of turning
-    // on the permission as far as I am concerned
-    // it(`should create and highlight a new operator with the same metadata when user
-    //     copies and pastes the highlighted operator`, () => {
-    //   const jointGraphWrapper = workflowActionService.getJointGraphWrapper();
-    //   const texeraGraph = workflowActionService.getTexeraGraph();
-
-    //   workflowActionService.addOperator(mockScanPredicate, mockPoint);
-    //   jointGraphWrapper.highlightOperators(mockScanPredicate.operatorID);
-
-    //   // dispatch clipboard events for copy and paste
-    //   const copyEvent = new ClipboardEvent("copy");
-
-    //   (document.activeElement as HTMLElement)?.blur();
-    //   document.dispatchEvent(copyEvent);
-    //   const pasteEvent = new ClipboardEvent("paste");
-
-    //   (document.activeElement as HTMLElement)?.blur();
-    //   document.dispatchEvent(pasteEvent);
-
-    //   // the pasted operator should be highlighted
-    //   const pastedOperatorID = jointGraphWrapper.getCurrentHighlightedOperatorIDs()[0];
-    //   expect(pastedOperatorID).toBeDefined();
-
-    //   // get the pasted operator
-    //   let pastedOperator = null;
-    //   if (pastedOperatorID) {
-    //     pastedOperator = texeraGraph.getOperator(pastedOperatorID);
-    //   }
-    //   expect(pastedOperator).toBeDefined();
-
-    //   // two operators should have same metadata
-    //   expect(pastedOperatorID).not.toEqual(mockScanPredicate.operatorID);
-    //   if (pastedOperator) {
-    //     expect(pastedOperator.operatorType).toEqual(mockScanPredicate.operatorType);
-    //     expect(pastedOperator.operatorProperties).toEqual(mockScanPredicate.operatorProperties);
-    //     expect(pastedOperator.inputPorts).toEqual(mockScanPredicate.inputPorts);
-    //     expect(pastedOperator.outputPorts).toEqual(mockScanPredicate.outputPorts);
-    //     expect(pastedOperator.showAdvanced).toEqual(mockScanPredicate.showAdvanced);
-    //   }
-    // });
-
-    // the new method won't pass the unit test because as far as I am concerned, there's no way
-    // to grant the permission to the system clipboard in the Karma framework
-    // it(`should delete the highlighted operator, create and highlight a new operator with the same metadata
-    //     when user cuts and pastes the highlighted operator`, () => {
-    //   const jointGraphWrapper = workflowActionService.getJointGraphWrapper();
-    //   const texeraGraph = workflowActionService.getTexeraGraph();
-
-    //   workflowActionService.addOperator(mockScanPredicate, mockPoint);
-    //   jointGraphWrapper.highlightOperators(mockScanPredicate.operatorID);
-
-    //   // dispatch clipboard events for cut and paste
-    //   const cutEvent = new ClipboardEvent("cut");
-
-    //   (document.activeElement as HTMLElement)?.blur();
-    //   document.dispatchEvent(cutEvent);
-    //   const pasteEvent = new ClipboardEvent("paste");
-
-    //   (document.activeElement as HTMLElement)?.blur();
-    //   document.dispatchEvent(pasteEvent);
-
-    //   // the copied operator should be deleted
-    //   expect(() => {
-    //     texeraGraph.getOperator(mockScanPredicate.operatorID);
-    //   }).toThrowError(new RegExp("does not exist"));
-
-    //   // the pasted operator should be highlighted
-    //   const pastedOperatorID = jointGraphWrapper.getCurrentHighlightedOperatorIDs()[0];
-    //   expect(pastedOperatorID).toBeDefined();
-
-    //   // get the pasted operator
-    //   let pastedOperator = null;
-    //   if (pastedOperatorID) {
-    //     pastedOperator = texeraGraph.getOperator(pastedOperatorID);
-    //   }
-    //   expect(pastedOperator).toBeDefined();
-
-    //   // two operators should have same metadata
-    //   expect(pastedOperatorID).not.toEqual(mockScanPredicate.operatorID);
-    //   if (pastedOperator) {
-    //     expect(pastedOperator.operatorType).toEqual(mockScanPredicate.operatorType);
-    //     expect(pastedOperator.operatorProperties).toEqual(mockScanPredicate.operatorProperties);
-    //     expect(pastedOperator.inputPorts).toEqual(mockScanPredicate.inputPorts);
-    //     expect(pastedOperator.outputPorts).toEqual(mockScanPredicate.outputPorts);
-    //     expect(pastedOperator.showAdvanced).toEqual(mockScanPredicate.showAdvanced);
-    //   }
-    // });
-
-    // TODO: this test is unstable, find out why and fix it
-    // same reason as above: can't grant clipboard access when pasting during unit-testing
-    // it("should place the pasted operator in a non-overlapping position", () => {
-    //   const jointGraphWrapper = workflowActionService.getJointGraphWrapper();
-
-    //   workflowActionService.addOperator(mockScanPredicate, mockPoint);
-    //   jointGraphWrapper.highlightOperators(mockScanPredicate.operatorID);
-
-    //   // dispatch clipboard events for copy and paste
-    //   const copyEvent = new ClipboardEvent("copy");
-
-    //   (document.activeElement as HTMLElement)?.blur();
-    //   document.dispatchEvent(copyEvent);
-    //   const pasteEvent = new ClipboardEvent("paste");
-
-    //   (document.activeElement as HTMLElement)?.blur();
-    //   document.dispatchEvent(pasteEvent);
-    //   fixture.detectChanges();
-    //   // get the pasted operator
-    //   const pastedOperatorID = jointGraphWrapper.getCurrentHighlightedOperatorIDs()[0];
-    //   if (pastedOperatorID) {
-    //     const pastedOperatorPosition = jointGraphWrapper.getElementPosition(pastedOperatorID);
-    //     expect(pastedOperatorPosition).not.toEqual(mockPoint);
-    //   }
-    // });
 
     it("should highlight all operators when user presses command + A", () => {
       const jointGraphWrapper = workflowActionService.getJointGraphWrapper();
@@ -1336,41 +1534,42 @@ describe("WorkflowEditorComponent", () => {
 
       it("exposes seeded agent operator result summaries and falls back to undefined", () => {
         const agentService = TestBed.inject(AgentService);
-        const summaries = new Map<string, OperatorResultSummary>();
+        const summaries = new Map<string, OperatorExecutionSummary>();
+        const sampleTuples: ReadonlyArray<IndexedTuple> = [
+          [0, { schema: { attributes: [{ attributeName: "colA", attributeType: "string" }] }, fields: ["x"] }],
+        ];
         summaries.set("op-a", {
-          state: "Completed",
-          inputTuples: 1,
-          outputTuples: 2,
-          sampleRecords: [{ colA: "x" }],
-          resultStatistics: { rowCount: "2" },
+          resultSummary: { resultMode: { type: "PaginationMode" }, sampleTuples, totalTuplesCount: 2 },
         });
-        (agentService as any).operatorResultSummariesSubject.next(summaries);
+        (agentService as any).operatorExecutionSummariesSubject.next(summaries);
 
-        expect(component.getOperatorSampleRecords("op-a")).toEqual([{ colA: "x" }]);
-        expect(component.getOperatorResultStatistics("op-a")).toEqual({ rowCount: "2" });
-        expect(component.getOperatorSampleRecords("missing")).toBeUndefined();
-        expect(component.getOperatorResultStatistics("missing")).toBeUndefined();
+        expect(component.getOperatorSampleTuples("op-a")).toEqual(sampleTuples);
+        expect(component.getOperatorResultMode("op-a")).toEqual({ type: "PaginationMode" });
+        expect(component.getOperatorSampleTuples("missing")).toBeUndefined();
+        expect(component.getOperatorResultMode("missing")).toBeUndefined();
       });
 
-      it("detects visualization operators from the __is_visualization__ marker", () => {
+      it("detects visualization operators from the SetSnapshotMode result mode", () => {
         const agentService = TestBed.inject(AgentService);
-        const summaries = new Map<string, OperatorResultSummary>();
+        const summaries = new Map<string, OperatorExecutionSummary>();
+        const vizTuples: ReadonlyArray<IndexedTuple> = [
+          [
+            0,
+            { schema: { attributes: [{ attributeName: "html-content", attributeType: "string" }] }, fields: ["<p/>"] },
+          ],
+        ];
         summaries.set("viz-op", {
-          state: "Completed",
-          inputTuples: 0,
-          outputTuples: 1,
-          sampleRecords: [{ __is_visualization__: true }],
+          resultSummary: { resultMode: { type: "SetSnapshotMode" }, sampleTuples: vizTuples, totalTuplesCount: 1 },
         });
         summaries.set("plain-op", {
-          state: "Completed",
-          inputTuples: 0,
-          outputTuples: 1,
-          sampleRecords: [{ colA: "x" }],
+          resultSummary: { resultMode: { type: "PaginationMode" }, sampleTuples: [], totalTuplesCount: 0 },
         });
-        (agentService as any).operatorResultSummariesSubject.next(summaries);
+        summaries.set("no-result-op", {});
+        (agentService as any).operatorExecutionSummariesSubject.next(summaries);
 
         expect(component.isOperatorVisualization("viz-op")).toBe(true);
         expect(component.isOperatorVisualization("plain-op")).toBe(false);
+        expect(component.isOperatorVisualization("no-result-op")).toBe(false);
         expect(component.isOperatorVisualization("missing")).toBe(false);
       });
 
@@ -1776,24 +1975,6 @@ describe("WorkflowEditorComponent link breakpoints", () => {
     (component.paper as any).trigger("tool:breakpoint", view, { shiftKey: true });
 
     expect(wrapper.multiSelect).toBe(true);
-  });
-
-  it("shows and hides the tool as the breakpoint streams ask", () => {
-    // These two streams are how a link that already has a breakpoint keeps its marker visible after
-    // the cursor leaves it.
-    const { linkID, view } = withLink();
-    const wrapper = workflowActionService.getJointGraphWrapper();
-    const show = vi.spyOn(view, "showTools");
-    const hide = vi.spyOn(view, "hideTools");
-
-    (wrapper as any).jointLinkBreakpointShowStream.next({ linkID });
-    (wrapper as any).jointLinkBreakpointHideStream.next({ linkID });
-
-    expect(show).toHaveBeenCalledTimes(1);
-    expect(hide).toHaveBeenCalledTimes(1);
-    // Order matters, otherwise a handler pair wired to each other's stream passes: both would
-    // still be called once, just for the opposite reason.
-    expect(show.mock.invocationCallOrder[0]).toBeLessThan(hide.mock.invocationCallOrder[0]);
   });
 });
 
@@ -2203,18 +2384,18 @@ describe("WorkflowEditorComponent editor wiring", () => {
   });
 
   describe("selection and highlight handlers", () => {
-    it("opens the result panel when an operator is double-clicked, but not for a link", () => {
+    it("pins an operator's result window when it is double-clicked, but not for a link", () => {
       const { view: linkView } = addLinkedPair();
-      const opened: boolean[] = [];
-      workflowActionService.resultPanelOpen$.subscribe(value => opened.push(value));
+      const pinned = () => component.pinnedResults.map(pinnedResult => pinnedResult.operatorId);
       const operatorView = component.paper.findViewByModel(mockScanPredicate.operatorID);
 
       (component.paper as any).trigger("cell:pointerdblclick", operatorView, { shiftKey: false });
-      expect(opened).toEqual([true]);
+      expect(pinned()).toEqual([mockScanPredicate.operatorID]);
+      expect(fixture.debugElement.queryAll(By.css("texera-pinned-result-window")).length).toBe(1);
 
       // a link is not an element, so the handler skips it entirely
       (component.paper as any).trigger("cell:pointerdblclick", linkView, { shiftKey: false });
-      expect(opened).toEqual([true]);
+      expect(pinned()).toEqual([mockScanPredicate.operatorID]);
     });
 
     it("highlights the link running between two shift-selected operators", () => {
@@ -2562,14 +2743,294 @@ describe("WorkflowEditorComponent editor wiring", () => {
     it("re-renders only while the popover is open when new agent summaries arrive", () => {
       const detectChanges = vi.spyOn((component as any).changeDetectorRef, "detectChanges");
 
-      (agentService as any).operatorResultSummariesSubject.next(new Map());
+      (agentService as any).operatorExecutionSummariesSubject.next(new Map());
       expect(detectChanges).not.toHaveBeenCalled();
 
       clickChatButton(mockScanPredicate.operatorID);
       detectChanges.mockClear();
-      (agentService as any).operatorResultSummariesSubject.next(new Map());
+      (agentService as any).operatorExecutionSummariesSubject.next(new Map());
 
       expect(detectChanges).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  describe("heat-map overlay", () => {
+    const HOT = scoreToColor(1);
+    const COLD = scoreToColor(0);
+    const ENABLED_FILL = "#FFFFFF";
+    const DISABLED_FILL = "#E0E0E0";
+
+    const wrapper = () => workflowActionService.getJointGraphWrapper();
+    const fillOf = (operatorID: string) => component.paper.getModelById(operatorID).attr("rect.body/fill");
+
+    /**
+     * Drives the real statistics -> performance-metrics chain rather than pushing metrics
+     * directly, so the scoring the overlay reads is the one the service derives.
+     */
+    function publishStatistics(byOperator: Record<string, { dataNs?: number; inRows?: number; outRows?: number }>) {
+      const payload: Record<string, unknown> = {};
+      for (const [operatorID, m] of Object.entries(byOperator)) {
+        payload[operatorID] = {
+          ...emptyStatistics,
+          aggregatedDataProcessingTime: m.dataNs ?? 0,
+          aggregatedInputRowCount: m.inRows ?? 0,
+          aggregatedOutputRowCount: m.outRows ?? 0,
+        };
+      }
+      (workflowStatusService as any).statisticsSubject.next(payload);
+    }
+
+    /** scan is the hot operator, result the cold one, under the Runtime view. */
+    function addTwoOperatorsWithSpread() {
+      workflowActionService.addOperator(mockScanPredicate, mockPoint);
+      workflowActionService.addOperator(mockResultPredicate, mockPoint);
+      publishStatistics({
+        [mockScanPredicate.operatorID]: { dataNs: 1_000_000_000, inRows: 100, outRows: 10 },
+        [mockResultPredicate.operatorID]: { dataNs: 0, inRows: 10, outRows: 10 },
+      });
+    }
+
+    function hoverOver(operatorID: string, clientX = 0, clientY = 0): void {
+      const view = component.paper.findViewByModel(operatorID);
+      (component.paper as any).trigger("element:mouseenter", view, { clientX, clientY });
+    }
+
+    describe("painting", () => {
+      it("paints the heat spread as soon as a view is selected", () => {
+        addTwoOperatorsWithSpread();
+
+        wrapper().setHeatmapView(HeatmapView.Runtime);
+
+        expect(fillOf(mockScanPredicate.operatorID)).toEqual(HOT);
+        expect(fillOf(mockResultPredicate.operatorID)).toEqual(COLD);
+      });
+
+      it("repaints when new metrics arrive while a view is active", () => {
+        addTwoOperatorsWithSpread();
+        wrapper().setHeatmapView(HeatmapView.Runtime);
+
+        // The spread inverts: result becomes the slow one.
+        publishStatistics({
+          [mockScanPredicate.operatorID]: { dataNs: 0 },
+          [mockResultPredicate.operatorID]: { dataNs: 1_000_000_000 },
+        });
+
+        expect(fillOf(mockScanPredicate.operatorID)).toEqual(COLD);
+        expect(fillOf(mockResultPredicate.operatorID)).toEqual(HOT);
+      });
+
+      it("leaves fills alone while no view is active, even as metrics stream in", () => {
+        addTwoOperatorsWithSpread();
+
+        expect(fillOf(mockScanPredicate.operatorID)).toEqual(ENABLED_FILL);
+        expect(fillOf(mockResultPredicate.operatorID)).toEqual(ENABLED_FILL);
+      });
+
+      it("paints an operator with no metrics as no-data rather than coldest", () => {
+        // Absent from the payload entirely: it must not anchor the scale minimum.
+        workflowActionService.addOperator(mockScanPredicate, mockPoint);
+        workflowActionService.addOperator(mockResultPredicate, mockPoint);
+        publishStatistics({ [mockScanPredicate.operatorID]: { dataNs: 1_000_000_000 } });
+
+        wrapper().setHeatmapView(HeatmapView.Runtime);
+
+        expect(fillOf(mockResultPredicate.operatorID)).toEqual(HEATMAP_NO_DATA_COLOR);
+      });
+
+      it("paints an operator the active view cannot measure as no-data", () => {
+        // I/O imbalance is undefined without input rows (a source), which is a different
+        // thing from measuring zero.
+        addTwoOperatorsWithSpread();
+        publishStatistics({
+          [mockScanPredicate.operatorID]: { inRows: 0, outRows: 500 },
+          [mockResultPredicate.operatorID]: { inRows: 100, outRows: 1 },
+        });
+
+        wrapper().setHeatmapView(HeatmapView.IoImbalance);
+
+        expect(fillOf(mockScanPredicate.operatorID)).toEqual(HEATMAP_NO_DATA_COLOR);
+        expect(fillOf(mockResultPredicate.operatorID)).toEqual(HOT);
+      });
+
+      it("paints an operator added while the overlay is on", () => {
+        addTwoOperatorsWithSpread();
+        wrapper().setHeatmapView(HeatmapView.Runtime);
+
+        workflowActionService.addOperator(mockSentimentPredicate, mockPoint);
+
+        expect(fillOf(mockSentimentPredicate.operatorID)).toEqual(HEATMAP_NO_DATA_COLOR);
+      });
+
+      it("leaves an operator added while the overlay is off with its default fill", () => {
+        addTwoOperatorsWithSpread();
+
+        workflowActionService.addOperator(mockSentimentPredicate, mockPoint);
+
+        expect(fillOf(mockSentimentPredicate.operatorID)).toEqual(ENABLED_FILL);
+      });
+    });
+
+    describe("turning the overlay off", () => {
+      it("restores default fills, respecting each operator's disabled state", () => {
+        addTwoOperatorsWithSpread();
+        workflowActionService.disableOperators([mockResultPredicate.operatorID]);
+        wrapper().setHeatmapView(HeatmapView.Runtime);
+
+        wrapper().setHeatmapView(null);
+
+        expect(fillOf(mockScanPredicate.operatorID)).toEqual(ENABLED_FILL);
+        expect(fillOf(mockResultPredicate.operatorID)).toEqual(DISABLED_FILL);
+      });
+
+      it("toggles the transition-scoping class with the overlay", () => {
+        const editor = (component as any).editor as HTMLElement;
+
+        wrapper().setHeatmapView(HeatmapView.Runtime);
+        expect(editor.classList.contains("heatmap-active")).toBe(true);
+
+        wrapper().setHeatmapView(null);
+        expect(editor.classList.contains("heatmap-active")).toBe(false);
+      });
+
+      it("clears a tooltip left open when the overlay is switched off", () => {
+        addTwoOperatorsWithSpread();
+        wrapper().setHeatmapView(HeatmapView.Runtime);
+        hoverOver(mockScanPredicate.operatorID);
+        expect(component.heatmapTooltip).not.toBeNull();
+
+        wrapper().setHeatmapView(null);
+
+        expect(component.heatmapTooltip).toBeNull();
+      });
+    });
+
+    describe("disable/enable repaint", () => {
+      // Regression for the fix in #6213: changeOperatorDisableStatus rewrites the body fill
+      // with colors this overlay owns, so without the repaint the operator goes grey/white
+      // mid-overlay and stays that way on an otherwise idle workflow.
+      it("repaints with heat colors after an operator is disabled", () => {
+        addTwoOperatorsWithSpread();
+        wrapper().setHeatmapView(HeatmapView.Runtime);
+
+        workflowActionService.disableOperators([mockScanPredicate.operatorID]);
+
+        expect(fillOf(mockScanPredicate.operatorID)).toEqual(HOT);
+      });
+
+      it("repaints with heat colors after an operator is re-enabled", () => {
+        addTwoOperatorsWithSpread();
+        workflowActionService.disableOperators([mockScanPredicate.operatorID]);
+        wrapper().setHeatmapView(HeatmapView.Runtime);
+
+        workflowActionService.enableOperators([mockScanPredicate.operatorID]);
+
+        expect(fillOf(mockScanPredicate.operatorID)).toEqual(HOT);
+      });
+
+      it("lets the disabled fill through while the overlay is off", () => {
+        addTwoOperatorsWithSpread();
+
+        workflowActionService.disableOperators([mockScanPredicate.operatorID]);
+
+        expect(fillOf(mockScanPredicate.operatorID)).toEqual(DISABLED_FILL);
+      });
+    });
+
+    describe("hover tooltip", () => {
+      it("reports the metric and heat score of the hovered operator", () => {
+        addTwoOperatorsWithSpread();
+        wrapper().setHeatmapView(HeatmapView.Runtime);
+
+        hoverOver(mockScanPredicate.operatorID);
+
+        expect(component.heatmapTooltip).toMatchObject({
+          title: "Runtime",
+          metricLabel: "1.00 s",
+          heatLabel: "100%",
+        });
+      });
+
+      it("stays hidden while the overlay is off", () => {
+        addTwoOperatorsWithSpread();
+
+        hoverOver(mockScanPredicate.operatorID);
+
+        expect(component.heatmapTooltip).toBeNull();
+      });
+
+      it("ignores a cell that is not an operator", () => {
+        addTwoOperatorsWithSpread();
+        workflowActionService.addCommentBox(commentBox);
+        wrapper().setHeatmapView(HeatmapView.Runtime);
+
+        hoverOver(commentBox.commentBoxID);
+
+        expect(component.heatmapTooltip).toBeNull();
+      });
+
+      it("shows an em dash for an operator with no metrics at all", () => {
+        // Both labels read "—": neither absence can be mistaken for a measured zero.
+        workflowActionService.addOperator(mockScanPredicate, mockPoint);
+        workflowActionService.addOperator(mockResultPredicate, mockPoint);
+        publishStatistics({ [mockResultPredicate.operatorID]: { dataNs: 1_000_000_000 } });
+        wrapper().setHeatmapView(HeatmapView.Runtime);
+
+        hoverOver(mockScanPredicate.operatorID);
+
+        expect(component.heatmapTooltip).toMatchObject({ metricLabel: "—", heatLabel: "—" });
+      });
+
+      it("shows an em dash for a view the operator cannot be measured in", () => {
+        // Metrics exist, but I/O imbalance is undefined without input rows, so the metric
+        // is a dash while the operator is still known.
+        addTwoOperatorsWithSpread();
+        publishStatistics({ [mockScanPredicate.operatorID]: { inRows: 0, outRows: 500 } });
+        wrapper().setHeatmapView(HeatmapView.IoImbalance);
+
+        hoverOver(mockScanPredicate.operatorID);
+
+        expect(component.heatmapTooltip).toMatchObject({ title: "I/O imbalance", metricLabel: "—", heatLabel: "—" });
+      });
+
+      it("positions the tooltip relative to the editor, offset off the cursor", () => {
+        addTwoOperatorsWithSpread();
+        wrapper().setHeatmapView(HeatmapView.Runtime);
+        const rect = ((component as any).editor as HTMLElement).getBoundingClientRect();
+
+        hoverOver(mockScanPredicate.operatorID, 200, 150);
+
+        expect(component.heatmapTooltip).toMatchObject({ x: 200 - rect.left + 12, y: 150 - rect.top + 12 });
+      });
+
+      it("clears the tooltip on mouseleave", () => {
+        addTwoOperatorsWithSpread();
+        wrapper().setHeatmapView(HeatmapView.Runtime);
+        hoverOver(mockScanPredicate.operatorID);
+
+        (component.paper as any).trigger("element:mouseleave");
+
+        expect(component.heatmapTooltip).toBeNull();
+      });
+
+      it("skips the change-detection pass when there is nothing to clear", () => {
+        addTwoOperatorsWithSpread();
+        wrapper().setHeatmapView(HeatmapView.Runtime);
+        const detectChanges = vi.spyOn((component as any).changeDetectorRef, "detectChanges");
+
+        (component.paper as any).trigger("element:mouseleave");
+
+        expect(detectChanges).not.toHaveBeenCalled();
+      });
+
+      it("stays inert on mouseleave while the overlay is off", () => {
+        addTwoOperatorsWithSpread();
+        const detectChanges = vi.spyOn((component as any).changeDetectorRef, "detectChanges");
+
+        (component.paper as any).trigger("element:mouseleave");
+
+        expect(component.heatmapTooltip).toBeNull();
+        expect(detectChanges).not.toHaveBeenCalled();
+      });
     });
   });
 });

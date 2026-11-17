@@ -18,8 +18,14 @@
  */
 
 import { getBackendConfig } from "./backend-api";
+import { createAuthHeaders } from "./auth-api";
 import type { LogicalPlan, OperatorPortSchemaMap } from "../types/workflow";
+import type { WorkflowFatalError } from "../types/execution";
 import { createLogger } from "../logger";
+
+// WorkflowFatalError is defined in types/execution.ts (shared by compile and
+// execution errors); re-exported here for existing importers of this module.
+export type { WorkflowFatalError };
 
 const log = createLogger("CompileAPI");
 
@@ -30,19 +36,16 @@ export interface SchemaAttribute {
 
 export type PortSchema = ReadonlyArray<SchemaAttribute>;
 
-export interface WorkflowFatalError {
-  type: string;
-  message: string;
-  operatorId?: string;
-}
-
 export interface WorkflowCompilationResponse {
   physicalPlan?: any;
   operatorOutputSchemas: Record<string, OperatorPortSchemaMap>;
   operatorErrors: Record<string, WorkflowFatalError>;
 }
 
-export async function compileWorkflowAsync(logicalPlan: LogicalPlan): Promise<WorkflowCompilationResponse | null> {
+export async function compileWorkflowAsync(
+  logicalPlan: LogicalPlan,
+  token?: string
+): Promise<WorkflowCompilationResponse | null> {
   const config = getBackendConfig();
   const url = `${config.compileEndpoint}/api/compile`;
 
@@ -56,7 +59,7 @@ export async function compileWorkflowAsync(logicalPlan: LogicalPlan): Promise<Wo
   try {
     const response = await fetch(url, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: token ? createAuthHeaders(token) : { "Content-Type": "application/json" },
       body: JSON.stringify(body),
     });
 

@@ -19,7 +19,6 @@
 
 package org.apache.texera.amber.operator.source.sql.mysql
 
-import org.apache.texera.amber.core.tuple.AttributeType
 import org.apache.texera.amber.operator.source.sql.SQLSourceOpExec
 import org.apache.texera.amber.operator.source.sql.mysql.MySQLConnUtil.connect
 import org.apache.texera.amber.util.JSONUtils.objectMapper
@@ -43,16 +42,11 @@ class MySQLSourceOpExec private[mysql] (
   @throws[RuntimeException]
   override def addFilterConditions(queryBuilder: StringBuilder): Unit = {
     val keywordSearchByColumn = desc.keywordSearchByColumn.orNull
-    if (
-      desc.keywordSearch.getOrElse(false) && keywordSearchByColumn != null && desc.keywords != null
-    ) {
-      val columnType = schema.getAttribute(keywordSearchByColumn).getType
-
-      if (columnType == AttributeType.STRING)
-        // in sql prepared statement, column name cannot be inserted using PreparedStatement.setString either
-        queryBuilder ++= " AND MATCH(" + keywordSearchByColumn + ") AGAINST (? IN BOOLEAN MODE)"
-      else
-        throw new RuntimeException("Can't do keyword search on type " + columnType.toString)
+    addJdbcKeywordCondition(queryBuilder, keywordSearchByColumn)(
+      desc.keywordSearch.getOrElse(false) && keywordSearchByColumn != null && desc.keywords != null,
+      schema.getAttribute(keywordSearchByColumn).getType
+    ) { column =>
+      " AND MATCH(" + column + ") AGAINST (? IN BOOLEAN MODE)"
     }
   }
 
@@ -60,13 +54,6 @@ class MySQLSourceOpExec private[mysql] (
   override protected def loadTableNames(): Unit = {
     val preparedStatement = connection.prepareStatement(FETCH_TABLE_NAMES_SQL)
     preparedStatement.setString(1, desc.database)
-    val resultSet = preparedStatement.executeQuery
-    while ({
-      resultSet.next
-    }) {
-      tableNames += resultSet.getString(1)
-    }
-    resultSet.close()
-    preparedStatement.close()
+    collectTableNames(preparedStatement)
   }
 }

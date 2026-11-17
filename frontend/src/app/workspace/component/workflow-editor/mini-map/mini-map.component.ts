@@ -17,7 +17,7 @@
  * under the License.
  */
 
-import { AfterViewInit, Component, HostListener, OnDestroy, ViewChild } from "@angular/core";
+import { AfterViewInit, Component, ElementRef, HostListener, OnDestroy, ViewChild } from "@angular/core";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 import { WorkflowActionService } from "../../../service/workflow-graph/model/workflow-action.service";
 import { MAIN_CANVAS } from "../workflow-editor.component";
@@ -30,6 +30,9 @@ import { NzButtonComponent } from "ng-zorro-antd/button";
 import { NzWaveDirective } from "ng-zorro-antd/core/wave";
 import { ɵNzTransitionPatchDirective } from "ng-zorro-antd/core/transition-patch";
 import { NzIconDirective } from "ng-zorro-antd/icon";
+
+/** The main paper's events that move or resize its viewport, which is what the navigator tracks. */
+const MAIN_PAPER_EVENTS = ["translate", "scale", "resize"] as const;
 
 @UntilDestroy()
 @Component({
@@ -50,18 +53,25 @@ export class MiniMapComponent implements AfterViewInit, OnDestroy {
 
   scale = 0;
   paper!: joint.dia.Paper;
+  /** The mini-map's own paper, as opposed to `paper`, which is the main canvas's. */
+  private ownPaper!: joint.dia.Paper;
+  private map!: HTMLElement;
   dragging = false;
   hidden = false;
 
   constructor(
     private workflowActionService: WorkflowActionService,
-    private panelService: PanelService
+    private panelService: PanelService,
+    private elementRef: ElementRef
   ) {}
 
   ngAfterViewInit() {
-    const map = document.getElementById("mini-map")!;
+    // This component's own element, not whichever the document holds first: both views of a
+    // workflow mount a mini-map, and they overlap for a tick when the switch routes between them.
+    const map = (this.elementRef.nativeElement as HTMLElement).querySelector<HTMLElement>("#mini-map")!;
+    this.map = map;
     this.scale = map.offsetWidth / (MAIN_CANVAS.xMax - MAIN_CANVAS.xMin);
-    new joint.dia.Paper({
+    this.ownPaper = new joint.dia.Paper({
       el: map,
       model: this.workflowActionService.getJointGraphWrapper().jointGraph,
       background: { color: "#F6F6F6" },
@@ -76,11 +86,16 @@ export class MiniMapComponent implements AfterViewInit, OnDestroy {
       .getMainJointPaperAttachedStream()
       .pipe(untilDestroyed(this))
       .subscribe(mainPaper => {
+        // The stream replays, so the departing view -- still subscribed while its DOM is on its
+        // way out -- receives the arriving view's paper too. Whatever this component registered
+        // on the previous paper comes off before it registers on the next, and off again on
+        // destroy, so no paper is left calling into a component that is gone.
+        this.stopFollowingMainPaper();
         this.paper = mainPaper;
         this.updateNavigator();
-        mainPaper.on("translate", () => this.updateNavigator());
-        mainPaper.on("scale", () => this.updateNavigator());
-        mainPaper.on("resize", () => this.updateNavigator());
+        for (const event of MAIN_PAPER_EVENTS) {
+          mainPaper.on(event, this.followMainPaper);
+        }
       });
     this.hidden = JSON.parse(localStorage.getItem("mini-map") as string) || false;
 
@@ -88,8 +103,36 @@ export class MiniMapComponent implements AfterViewInit, OnDestroy {
     this.panelService.resetPanelStream.pipe(untilDestroyed(this)).subscribe(() => (this.hidden = false));
   }
 
+  /**
+   * The browser is leaving this document: remember whether the mini-map was hidden, and destroy
+   * nothing. The document may be kept in the back/forward cache and restored with its JavaScript
+   * state exactly as it was left, re-running nothing, so a paper disposed here would stay disposed
+   * on a page that looks live (the same reason the workspace stopped tearing down here, #8599).
+   */
   @HostListener("window:beforeunload")
+  onBeforeUnload(): void {
+    this.rememberVisibility();
+  }
+
   ngOnDestroy(): void {
+    // Bound to the root-provided joint graph, which outlives this component: an undisposed paper
+    // goes on listening to that graph from a detached node, and once the switch between a
+    // workflow's two views routes, one is left behind on every switch (issue #8582).
+    this.ownPaper?.remove();
+    this.stopFollowingMainPaper();
+    this.rememberVisibility();
+  }
+
+  /** One bound reference, so what was registered on the main paper is what can be removed. */
+  private readonly followMainPaper = (): void => this.updateNavigator();
+
+  private stopFollowingMainPaper(): void {
+    for (const event of MAIN_PAPER_EVENTS) {
+      this.paper?.off(event, this.followMainPaper);
+    }
+  }
+
+  private rememberVisibility(): void {
     localStorage.setItem("mini-map", JSON.stringify(this.hidden));
   }
 
@@ -102,8 +145,12 @@ export class MiniMapComponent implements AfterViewInit, OnDestroy {
 
   private updateNavigator(): void {
     if (!this.dragging) {
-      const editor = document.getElementById("workflow-editor")!;
-      const navigator = document.getElementById("mini-map-navigator")!;
+      // The main paper's own container, and this mini-map's own navigator: both views of a
+      // workflow mount one of each, so a document-wide lookup can answer with the other view's.
+      const editor = this.paper.el as HTMLElement;
+      const navigator = (this.elementRef.nativeElement as HTMLElement).querySelector<HTMLElement>(
+        "#mini-map-navigator"
+      )!;
       const editorRect = editor.getBoundingClientRect();
 
       const point = this.paper.pageToLocalPoint({

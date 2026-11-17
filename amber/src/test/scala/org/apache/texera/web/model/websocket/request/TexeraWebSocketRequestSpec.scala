@@ -52,7 +52,7 @@ import org.scalatest.matchers.should.Matchers
   *    1. key is the 'type' string, it must be the same as corresponding backend class name
   *    2. value is the payload this request/event needs"
   *
-  * The keys of `TexeraWebsocketRequestTypeMap` there are `EditingTimeCompilationRequest`,
+  * The keys of `TexeraWebsocketRequestTypeMap` there are
   * `HeartBeatRequest`, `ModifyLogicRequest`, `ResultExportRequest`,
   * `ResultPaginationRequest`, `RetryRequest`, `SkipTupleRequest`,
   * `WorkflowExecuteRequest`, `WorkflowKillRequest`, `WorkflowPauseRequest`,
@@ -77,7 +77,7 @@ class TexeraWebSocketRequestSpec extends AnyFlatSpec with Matchers {
   private def frame(typeId: String, fields: String): String =
     if (fields.isEmpty) s"""{"type":"$typeId"}""" else s"""{"type":"$typeId",$fields}"""
 
-  // A LogicalPlanPojo / EditingTimeCompilationRequest payload with all four lists empty.
+  // A LogicalPlanPojo payload with all four lists empty.
   private val emptyPlanFields =
     """"operators":[],"links":[],"opsToViewResult":[],"opsToReuseResult":[]"""
 
@@ -107,7 +107,6 @@ class TexeraWebSocketRequestSpec extends AnyFlatSpec with Matchers {
     */
   private val registeredRequests: List[(String, String, Class[_ <: TexeraWebSocketRequest])] =
     List(
-      ("EditingTimeCompilationRequest", emptyPlanFields, classOf[EditingTimeCompilationRequest]),
       ("HeartBeatRequest", "", classOf[HeartBeatRequest]),
       ("ModifyLogicRequest", s""""operator":$limitOpJson""", classOf[ModifyLogicRequest]),
       (
@@ -144,7 +143,6 @@ class TexeraWebSocketRequestSpec extends AnyFlatSpec with Matchers {
   // (web/model/http/request/result/, served by WorkflowExecutionsResource) and not a
   // TexeraWebSocketRequest subtype at all — see the divergence test below.
   private val expectedTypeIds: Set[String] = Set(
-    "EditingTimeCompilationRequest",
     "HeartBeatRequest",
     "ModifyLogicRequest",
     "ResultPaginationRequest",

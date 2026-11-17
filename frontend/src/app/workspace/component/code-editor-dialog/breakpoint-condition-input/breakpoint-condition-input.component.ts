@@ -64,28 +64,6 @@ export class BreakpointConditionInputComponent implements OnChanges {
     this.leftPosition = `${leftValue}px`;
   }
 
-  public left(): number {
-    if (!isDefined(this.monacoEditor)) {
-      return 0;
-    }
-
-    // Calculate the left position of the input popup based on the editor layout
-    const { glyphMarginLeft } = this.monacoEditor.getLayoutInfo()!;
-    const { left } = this.monacoEditor.getDomNode()!.getBoundingClientRect();
-    return left + glyphMarginLeft - this.monacoEditor.getScrollLeft() - 160;
-  }
-
-  public top(): number {
-    if (!(isDefined(this.monacoEditor) && isDefined(this.lineNum))) {
-      return 0;
-    }
-
-    // Calculate the top position of the input popup based on the editor layout
-    const topPixel = this.monacoEditor.getBottomForLineNumber(this.lineNum);
-    const editorRect = this.monacoEditor.getDomNode()?.getBoundingClientRect();
-    return (editorRect?.top || 0) + topPixel - this.monacoEditor.getScrollTop();
-  }
-
   get isVisible(): boolean {
     return isDefined(this.lineNum);
   }

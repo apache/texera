@@ -93,7 +93,9 @@ def _to_json_value(value: Any) -> Any:
             _PAYLOAD_MARKER: base64.b64encode(value).decode("ascii"),
         }
     if isinstance(value, dict):
-        return {str(key): _to_json_value(inner) for key, inner in value.items()}
+        if any(not isinstance(key, str) for key in value):
+            raise TypeError("State dictionary keys must be strings")
+        return {key: _to_json_value(inner) for key, inner in value.items()}
     if isinstance(value, (list, tuple)):
         return [_to_json_value(inner) for inner in value]
     raise TypeError(

@@ -70,36 +70,79 @@ object ArrowUtils extends LazyLogging {
   def getTexeraTuple(
       rowIndex: Int,
       vectorSchemaRoot: VectorSchemaRoot
+  ): Tuple = getTexeraTuple(rowIndex, vectorSchemaRoot, toTexeraSchema(vectorSchemaRoot.getSchema))
+
+  /**
+    * Reads a row like `getTexeraTuple(rowIndex, vectorSchemaRoot)`, given the root's schema
+    * already converted by `toTexeraSchema`, so a caller reading many rows of one root converts
+    * its schema once instead of once per row.
+    *
+    * @param schema `toTexeraSchema(vectorSchemaRoot.getSchema)`.
+    */
+  def getTexeraTuple(
+      rowIndex: Int,
+      vectorSchemaRoot: VectorSchemaRoot,
+      schema: Schema
   ): Tuple = {
-    val arrowSchema = vectorSchemaRoot.getSchema
-    val schema = toTexeraSchema(arrowSchema)
+    val fieldVectors = vectorSchemaRoot.getFieldVectors
+    val fieldValues = new Array[Any](fieldVectors.size())
+    val vectors = fieldVectors.iterator()
+    val attributes = schema.getAttributes.iterator
+    var index = 0
+    while (vectors.hasNext) {
+      val fieldVector = vectors.next()
+      val value: AnyRef = fieldVector.getObject(rowIndex)
+      val fieldValue =
+        try {
+          // Use the attribute type from the schema (which includes metadata)
+          // instead of deriving it from the Arrow type
+          val attributeType = attributes.next().getType
+          // A timestamp and an unsigned integer are the types whose field
+          // says more than the schema does, so they are the only ones that
+          // read the field: an unsigned column arrives as INTEGER or LONG.
+          attributeType match {
+            case AttributeType.TIMESTAMP => wallClockOf(value, fieldVector.getField.getType)
+            case AttributeType.INTEGER | AttributeType.LONG =>
+              AttributeTypeUtils.parseField(
+                unsignedValueOf(value, fieldVector.getField.getType),
+                attributeType
+              )
+            case _ => AttributeTypeUtils.parseField(value, attributeType)
+          }
+        } catch {
+          case e: Exception =>
+            logger.warn("Caught error during parsing Arrow value back to Texera value", e)
+            null
+        }
+      fieldValues(index) = fieldValue
+      index += 1
+    }
 
-    Tuple
-      .builder(schema)
-      .addSequentially(
-        vectorSchemaRoot.getFieldVectors.asScala.zipWithIndex.map {
-          case (fieldVector: FieldVector, index: Int) =>
-            val value: AnyRef = fieldVector.getObject(rowIndex)
-            try {
-              // Use the attribute type from the schema (which includes metadata)
-              // instead of deriving it from the Arrow type
-              val attributeType = schema.getAttributes(index).getType
-              // A timestamp is the one type whose field says more than the
-              // schema does, so it is the only one that reads the field.
-              attributeType match {
-                case AttributeType.TIMESTAMP => wallClockOf(value, fieldVector.getField.getType)
-                case _                       => AttributeTypeUtils.parseField(value, attributeType)
-              }
-            } catch {
-              case e: Exception =>
-                logger.warn("Caught error during parsing Arrow value back to Texera value", e)
-                null
-            }
-
-        }.toArray
-      )
-      .build()
+    Tuple.builder(schema).addSequentially(fieldValues).build()
   }
+
+  /** The number an unsigned column counts to, out of the storage it counts in.
+    *
+    * Arrow's unsigned vectors hand back the raw storage, signed: `UInt1Vector` a
+    * Byte, `UInt4Vector` an Int, each reading the file's largest value as -1.
+    * `UInt2Vector` is the exception and hands back a Character, which is already
+    * the number but is no kind of integer to the parse below. Every other value
+    * passes through untouched.
+    *
+    * Nothing wider is handled because nothing wider arrives: [[toAttributeType]]
+    * refuses an unsigned 64-bit column, having no Texera type to hold it.
+    */
+  private def unsignedValueOf(value: AnyRef, arrowType: ArrowType): AnyRef =
+    arrowType match {
+      case int: ArrowType.Int if !int.getIsSigned =>
+        value match {
+          case byte: java.lang.Byte      => Int.box(byte & 0xff)
+          case char: java.lang.Character => Int.box(char.toInt)
+          case integer: Integer          => Long.box(integer.toLong & 0xffffffffL)
+          case other                     => other
+        }
+      case _ => value
+    }
 
   /** The wall clock a timestamp column holds, read the way its own field states.
     *
@@ -140,13 +183,17 @@ object ArrowUtils extends LazyLogging {
       case TimeUnit.NANOSECOND  => Instant.EPOCH.plusNanos(number)
     }
 
-  /** The number a field of this unit records an instant as, inverting [[instantOf]]. */
+  /** The number a field of this unit records an instant as, inverting [[instantOf]].
+    * Microseconds are counted from the seconds, because ChronoUnit.MICROS goes
+    * through nanoseconds and overflows past 2262, a year a Timestamp holds.
+    */
   private def numberOf(instant: Instant, unit: TimeUnit): Long =
     unit match {
       case TimeUnit.SECOND      => instant.getEpochSecond
       case TimeUnit.MILLISECOND => instant.toEpochMilli
-      case TimeUnit.MICROSECOND => ChronoUnit.MICROS.between(Instant.EPOCH, instant)
-      case TimeUnit.NANOSECOND  => ChronoUnit.NANOS.between(Instant.EPOCH, instant)
+      case TimeUnit.MICROSECOND =>
+        Math.addExact(Math.multiplyExact(instant.getEpochSecond, 1000000L), instant.getNano / 1000L)
+      case TimeUnit.NANOSECOND => ChronoUnit.NANOS.between(Instant.EPOCH, instant)
     }
 
   /**
@@ -159,7 +206,7 @@ object ArrowUtils extends LazyLogging {
     */
   def toTexeraSchema(arrowSchema: org.apache.arrow.vector.types.pojo.Schema): Schema =
     Schema(
-      arrowSchema.getFields.asScala.map { field =>
+      arrowSchema.getFields.asScala.iterator.map { field =>
         val taggedType = Option(field.getMetadata)
           .flatMap(m => Option(m.get(TexeraTypeMetadataKey)))
           .collect {
@@ -182,15 +229,23 @@ object ArrowUtils extends LazyLogging {
   @throws[AttributeTypeException]
   def toAttributeType(srcType: ArrowType): AttributeType = {
     srcType match {
+      // An unsigned column counts up where its storage counts down: the largest
+      // unsigned 32-bit value is stored as -1, so read as its storage it would
+      // arrive as -1 where the file means 4294967295. The next Texera integer up
+      // holds it, and [[unsignedValueOf]] does the reading. Past 64 bits there is
+      // no next one. The same widening covers the narrow widths, Texera having no
+      // column shorter than a 32-bit integer.
       case int: ArrowType.Int =>
-        int.getBitWidth match {
-          case 16 | 32 =>
-            AttributeType.INTEGER
-
-          case 64 =>
-            AttributeType.LONG
-
-          case other =>
+        (int.getBitWidth, int.getIsSigned) match {
+          case (8 | 16 | 32, true) => AttributeType.INTEGER
+          case (8 | 16, false)     => AttributeType.INTEGER
+          case (64, true)          => AttributeType.LONG
+          case (32, false)         => AttributeType.LONG
+          case (64, false) =>
+            throw new AttributeTypeUtils.AttributeTypeException(
+              "Unsupported unsigned 64-bit Int, which is wider than any Texera column"
+            )
+          case (other, _) =>
             throw new AttributeTypeUtils.AttributeTypeException(
               s"Unsupported Int bit width: $other"
             )
@@ -218,9 +273,7 @@ object ArrowUtils extends LazyLogging {
   }
 
   def appendTexeraTuple(tuple: Tuple, vectorSchemaRoot: VectorSchemaRoot): Unit = {
-    val currentRowCount = vectorSchemaRoot.getRowCount
-    val nextRowIndex = currentRowCount
-    setTexeraTuple(tuple, nextRowIndex, vectorSchemaRoot)
+    setTexeraTuple(tuple, vectorSchemaRoot.getRowCount, vectorSchemaRoot)
   }
 
   /**
@@ -233,14 +286,13 @@ object ArrowUtils extends LazyLogging {
     *                         multiple Vectors.
     */
   def setTexeraTuple(tuple: Tuple, index: Int, vectorSchemaRoot: VectorSchemaRoot): Unit = {
-    val arrowSchema = vectorSchemaRoot.getSchema
-    val arrowFields = arrowSchema.getFields.asScala.toList
+    val arrowFields = vectorSchemaRoot.getSchema.getFields
 
-    for (i <- arrowFields.indices) {
+    for (i <- 0 until arrowFields.size()) {
       val vector: FieldVector = vectorSchemaRoot.getVector(i)
       val value = tuple.getField[AnyRef](i)
       val isNull = value == null
-      arrowFields.apply(i).getFieldType.getType match {
+      arrowFields.get(i).getFieldType.getType match {
         case _: ArrowType.Int =>
           vector.getField.getFieldType.getType.asInstanceOf[ArrowType.Int].getBitWidth match {
             case 16 | 32 =>
@@ -322,7 +374,9 @@ object ArrowUtils extends LazyLogging {
     * @return An Arrow Schema.
     */
   def fromTexeraSchema(schema: Schema): org.apache.arrow.vector.types.pojo.Schema = {
-    val arrowFields = schema.getAttributes.map { attribute =>
+    val attributes = schema.getAttributes
+    val arrowFields = new util.ArrayList[Field](attributes.size)
+    attributes.foreach { attribute =>
       val metadataTag = attribute.getType match {
         case AttributeType.LARGE_BINARY => "LARGE_BINARY"
         case AttributeType.ANY          => "ANY"
@@ -334,14 +388,16 @@ object ArrowUtils extends LazyLogging {
         map
       } else null
 
-      new Field(
-        attribute.getName,
-        new FieldType(true, fromAttributeType(attribute.getType), null, metadata),
-        null
+      arrowFields.add(
+        new Field(
+          attribute.getName,
+          new FieldType(true, fromAttributeType(attribute.getType), null, metadata),
+          null
+        )
       )
     }
 
-    new org.apache.arrow.vector.types.pojo.Schema(util.Arrays.asList(arrowFields: _*))
+    new org.apache.arrow.vector.types.pojo.Schema(arrowFields)
   }
 
   /**
@@ -366,8 +422,13 @@ object ArrowUtils extends LazyLogging {
       case AttributeType.BOOLEAN =>
         ArrowType.Bool.INSTANCE
 
+      // A wall clock with no zone, to the microsecond, which is what a Python
+      // worker maps TIMESTAMP to and the finest a datetime holds. Labelled UTC
+      // in milliseconds, a Python operator was handed an aware moment cut to
+      // the millisecond, where a JVM operator reads the same row with no zone
+      // and to the nanosecond.
       case AttributeType.TIMESTAMP =>
-        new ArrowType.Timestamp(TimeUnit.MILLISECOND, "UTC")
+        new ArrowType.Timestamp(TimeUnit.MICROSECOND, null)
 
       case AttributeType.BINARY =>
         new ArrowType.Binary

@@ -24,7 +24,7 @@ import {
   DEFAULT_WORKFLOW_NAME,
   WorkflowPersistService,
 } from "src/app/common/service/workflow-persist/workflow-persist.service";
-import { HttpClientTestingModule } from "@angular/common/http/testing";
+import { HttpClientTestingModule, HttpTestingController } from "@angular/common/http/testing";
 import { NzModalService } from "ng-zorro-antd/modal";
 import { of, throwError, Subject } from "rxjs";
 import { BrowserAnimationsModule } from "@angular/platform-browser/animations";
@@ -47,6 +47,7 @@ import { GuiConfigService } from "../../../../../common/service/gui-config.servi
 import { DefaultView } from "src/app/dashboard/type/workflow-metadata.interface";
 import { DatasetService, DEFAULT_DATASET_NAME } from "../../../../service/user/dataset/dataset.service";
 import { DownloadService } from "src/app/dashboard/service/user/download/download.service";
+import { ResourceRegistryService } from "src/app/dashboard/service/user/resource-registry/resource-registry.service";
 
 function makeWorkflowEntry(overrides: Partial<DashboardEntry> = {}): DashboardEntry {
   return {
@@ -80,6 +81,19 @@ function makeDatasetEntry(overrides: Partial<DashboardEntry> = {}): DashboardEnt
   } as unknown as DashboardEntry;
 }
 
+/**
+ * Makes the registry answer every lookup with a descriptor that has none of the optional
+ * capabilities. Every shipped kind can be renamed, re-described and shared, so the checks for those
+ * capabilities need one that cannot.
+ */
+function stubBareDescriptor(): void {
+  vi.spyOn(TestBed.inject(ResourceRegistryService), "get").mockReturnValue({
+    type: EntityType.Workflow,
+    iconType: "project",
+    isOwner: () => true,
+  });
+}
+
 describe("CardItemComponent", () => {
   let component: CardItemComponent;
   let fixture: ComponentFixture<CardItemComponent>;
@@ -94,7 +108,6 @@ describe("CardItemComponent", () => {
       setDefaultView: vi.fn(),
     };
     const workflowCoverServiceSpy = {
-      getCover: vi.fn().mockReturnValue(of(undefined)),
       setCoverFromFile: vi.fn(),
       clearCover: vi.fn().mockReturnValue(of(undefined)),
     };
@@ -267,7 +280,8 @@ describe("CardItemComponent", () => {
     component.entry = entry;
     component.ngOnChanges({ entry: { currentValue: component.entry } as any });
 
-    expect(workflowCoverService.getCover).not.toHaveBeenCalled();
+    // The cover arrives on the entry; a card must not fetch its own (#6280).
+    TestBed.inject(HttpTestingController).expectNone(req => req.url.endsWith("/cover"));
     expect(component.hasCustomImage).toBe(true);
     expect(component.coverImageSrc).toBe(cover);
   });
@@ -279,7 +293,7 @@ describe("CardItemComponent", () => {
     component.entry = entry;
     component.ngOnChanges({ entry: { currentValue: component.entry } as any });
 
-    expect(workflowCoverService.getCover).not.toHaveBeenCalled();
+    TestBed.inject(HttpTestingController).expectNone(req => req.url.endsWith("/cover"));
     expect(component.hasCustomImage).toBe(false);
     expect(component.coverImageSrc).toBe(CardItemComponent.DEFAULT_PREVIEW_IMAGE);
   });
@@ -442,21 +456,6 @@ describe("CardItemComponent", () => {
     expect(component.likeCount).toBe(9);
     expect(component.viewCount).toBe(4);
     expect(component.isLiked).toBe(true);
-  });
-
-  it("initializeEntry uses the folder-open icon for a file entry", () => {
-    component.entry = {
-      id: 8,
-      name: "f",
-      type: "file",
-      likeCount: 0,
-      viewCount: 0,
-      isLiked: false,
-    } as unknown as DashboardEntry;
-
-    component.initializeEntry();
-
-    expect(component.iconType).toBe("folder-open");
   });
 
   it("initializeEntry throws for an unexpected entry type", () => {
@@ -758,14 +757,8 @@ describe("CardItemComponent", () => {
     it("onClickOpenShareAccess does not open a modal for a non-shareable entry type", async () => {
       const modalService = TestBed.inject(NzModalService);
       const createSpy = vi.spyOn(modalService, "create");
-      component.entry = {
-        id: 3,
-        name: "f",
-        type: "file",
-        likeCount: 0,
-        viewCount: 0,
-        isLiked: false,
-      } as unknown as DashboardEntry;
+      stubBareDescriptor();
+      component.entry = makeWorkflowEntry({ id: 3 });
 
       await component.onClickOpenShareAccess();
 
@@ -1086,22 +1079,6 @@ describe("CardItemComponent", () => {
   });
 
   describe("guard paths", () => {
-    /** Files are the one registered kind with neither a rename nor a description endpoint. */
-    function makeFileEntry(overrides: Partial<DashboardEntry> = {}): DashboardEntry {
-      return {
-        id: 3,
-        name: "notes.txt",
-        description: "",
-        type: EntityType.File,
-        accessibleUserIds: [],
-        likeCount: 0,
-        viewCount: 0,
-        isLiked: false,
-        size: 0,
-        ...overrides,
-      } as unknown as DashboardEntry;
-    }
-
     it("ngOnChanges ignores a change set that does not carry the entry", () => {
       // initializeEntry resets the cover and the counters; re-running it on an unrelated input
       // change would discard a cover that had just finished loading.
@@ -1129,8 +1106,9 @@ describe("CardItemComponent", () => {
       // mocked so a regression fails on the assertion rather than on a TypeError out of
       // updateProperty.
       workflowPersistService.updateWorkflowName.mockReturnValue(of({} as Response));
-      component.entry = makeFileEntry({ name: "typed" });
-      component.originalName = "notes.txt";
+      stubBareDescriptor();
+      component.entry = makeWorkflowEntry({ name: "typed" });
+      component.originalName = "wf";
       component.editingName = true;
 
       component.confirmUpdateCustomName("typed");
@@ -1144,7 +1122,8 @@ describe("CardItemComponent", () => {
       // Mocked so that a regression here fails on the assertion below rather than on a TypeError
       // thrown out of updateProperty.
       workflowPersistService.updateWorkflowDescription.mockReturnValue(of({} as Response));
-      component.entry = makeFileEntry({ description: "typed" });
+      stubBareDescriptor();
+      component.entry = makeWorkflowEntry({ description: "typed" });
       component.originalDescription = "";
       component.editingDescription = true;
 

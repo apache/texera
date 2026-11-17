@@ -50,6 +50,9 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from urllib.parse import parse_qs, urlparse
 
 MOUNT_ROOT = os.environ.get("MOUNT_ROOT", "/var/lib/texera-mounts")
+# Where geesefs keeps its on-disk page cache, if a deployment gives it one. Empty means
+# no cache, which is geesefs's own default: every read goes back to the object store.
+CACHE_ROOT = os.environ.get("CACHE_ROOT", "").strip()
 MOUNTER_PORT = int(os.environ.get("MOUNTER_PORT", "8100"))
 POOL_NAMESPACE = os.environ.get("POOL_NAMESPACE", "texera-workflow-computing-unit-pool")
 MOUNT_SECRET_PLACEHOLDER = "texera-jwt-mount"
@@ -151,9 +154,15 @@ def is_mounted(path):
 
 
 def _responds(path):
-    """True if `path` can be stat()ed — false for a mount whose FUSE server is gone."""
+    """True if `path` can be listed — false for a mount whose FUSE server is gone.
+
+    stat() alone is not enough: the kernel can answer it from attributes cached while the
+    server was alive, so a dead mount may stat fine and fail with ENOTCONN only once it is
+    opened. Reporting that mount as live would hand it back as "already mounted" for ever.
+    """
     try:
-        os.stat(path)
+        with os.scandir(path) as entries:
+            next(entries, None)
         return True
     except OSError:
         return False
@@ -237,6 +246,23 @@ def do_mount(cuid, repo, commit, jwt, file_service_base):
         "--endpoint", file_service_base,
         "--memory-limit", "512",
         "-o", "ro,allow_other",
+    ]
+    if CACHE_ROOT:
+        # CACHE_ROOT itself is never created here, only the two levels under it. The chart
+        # mounts it as a volume, so if it is missing the volume is missing -- and creating
+        # it would put the cache in the container's own writable layer, where it is lost on
+        # restart and can fill the node's disk with hundreds of GB nobody is watching.
+        if not os.path.isdir(CACHE_ROOT):
+            raise RuntimeError(
+                f"CACHE_ROOT {CACHE_ROOT!r} is not a directory; is the cache volume mounted?"
+            )
+        # Keyed by repository and commit, not by computing unit: a commit is immutable, so
+        # every unit on this node reads one cache rather than each new unit starting cold.
+        # Both are already validated as single path segments above.
+        cache_dir = os.path.join(CACHE_ROOT, repo, commit)
+        os.makedirs(cache_dir, exist_ok=True)
+        cmd += ["--cache", cache_dir]
+    cmd += [
         f"{repo}:{commit}",
         target,
     ]

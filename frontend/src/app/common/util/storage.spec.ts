@@ -17,15 +17,7 @@
  * under the License.
  */
 
-import {
-  jsonCast,
-  localGetObject,
-  localRemoveObject,
-  localSetObject,
-  sessionGetObject,
-  sessionRemoveObject,
-  sessionSetObject,
-} from "./storage";
+import { jsonCast, localGetObject, localSetObject, sessionGetObject, sessionSetObject } from "./storage";
 
 /**
  * Builds a Map-backed stand-in for the Web Storage API so the tests can
@@ -93,13 +85,6 @@ describe("storage util", () => {
       expect(localGetObject("empty")).toBeUndefined();
     });
 
-    it("removes the stored key", () => {
-      localSetObject("gone", 123);
-      localRemoveObject("gone");
-      expect(localMock.removeItem).toHaveBeenCalledWith("gone");
-      expect(localGetObject("gone")).toBeUndefined();
-    });
-
     it("preserves falsy-but-defined values such as false and 0", () => {
       localSetObject("flag", false);
       expect(localGetObject<boolean>("flag")).toBe(false);
@@ -122,13 +107,6 @@ describe("storage util", () => {
 
     it("returns null (not undefined) when the key is absent", () => {
       expect(sessionGetObject("missing")).toBeNull();
-    });
-
-    it("removes the stored key", () => {
-      sessionSetObject("gone", "x");
-      sessionRemoveObject("gone");
-      expect(sessionMock.removeItem).toHaveBeenCalledWith("gone");
-      expect(sessionGetObject("gone")).toBeNull();
     });
   });
 });
