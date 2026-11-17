@@ -18,38 +18,56 @@
  */
 
 import {
-  DEFAULT_RECOMMENDATION_LIMIT,
-  MAX_RECOMMENDATION_LIMIT,
+  DEFAULT_OPERATOR_RECOMMENDATION_LIMIT,
+  DEFAULT_SOURCE_PORT_ID,
+  MAX_OPERATOR_RECOMMENDATION_LIMIT,
   type OperatorRecommendation,
-  type RecommendationRequest,
-  type RecommendationResponse,
-} from "./recommender-types";
-import { candidateSuccessors, rationaleFor } from "./hardcoded-rules";
+  type OperatorRecommendationRequest,
+  type OperatorRecommendationResponse,
+} from "./operator-recommendation-types";
+import {
+  candidateSuccessors,
+  categoryOf,
+  rationaleFor,
+  targetPortIdFor,
+  type OperatorCatalogEntry,
+} from "./operator-recommendation-rules";
 
 /**
  * Minimal read-only view of the operator catalog the recommender needs. The
  * `WorkflowSystemMetadata` singleton satisfies this structurally; tests can pass
- * a stub (or omit it entirely to exercise the un-initialized path).
+ * a stub (or omit it entirely to exercise the uninitialized path).
  */
 export interface OperatorCatalog {
   isInitialized(): boolean;
   getSchema(operatorType: string): unknown;
-  getAdditionalMetadata(operatorType: string): { userFriendlyName?: string } | undefined;
+  getAdditionalMetadata(operatorType: string): OperatorCatalogEntry | undefined;
 }
 
 // Top suggestion scores 0.9 and each lower rank drops one step, floored at 0.3.
-// With MAX_RECOMMENDATION_LIMIT = 5 this yields 0.9 / 0.75 / 0.6 / 0.45 / 0.3.
+// With MAX_OPERATOR_RECOMMENDATION_LIMIT = 5 this yields 0.9 / 0.75 / 0.6 / 0.45 / 0.3.
 const TOP_SCORE = 0.9;
 const SCORE_STEP = 0.15;
 const MIN_SCORE = 0.3;
+
+const OUTPUT_PORT_ID = /^output-(\d+)$/;
 
 function scoreForRank(rank: number): number {
   return Math.max(MIN_SCORE, +(TOP_SCORE - rank * SCORE_STEP).toFixed(2));
 }
 
 function clampLimit(limit: number | undefined): number {
-  if (limit === undefined || !Number.isFinite(limit)) return DEFAULT_RECOMMENDATION_LIMIT;
-  return Math.min(MAX_RECOMMENDATION_LIMIT, Math.max(1, Math.floor(limit)));
+  if (limit === undefined || !Number.isFinite(limit)) return DEFAULT_OPERATOR_RECOMMENDATION_LIMIT;
+  return Math.min(MAX_OPERATOR_RECOMMENDATION_LIMIT, Math.max(1, Math.floor(limit)));
+}
+
+/** Whether `portId` names an output port the operator actually has. */
+function hasOutputPort(entry: OperatorCatalogEntry | undefined, portId: string): boolean {
+  const match = OUTPUT_PORT_ID.exec(portId);
+  if (!match) return false;
+  // Without metadata, or with user-added ports, any well-formed port may exist.
+  if (!entry?.outputPorts || entry.dynamicOutputPorts) return true;
+  return Number(match[1]) < entry.outputPorts.length;
 }
 
 /**
@@ -57,25 +75,34 @@ function clampLimit(limit: number | undefined): number {
  * short ranked list of likely successors drawn from {@link candidateSuccessors}.
  *
  * The result is deterministic and requires no LLM call. When a `catalog` is
- * supplied and initialized, suggestions are filtered to operator types that
- * actually exist (so a stale rule never yields an unusable suggestion) and enriched
- * with the operator's display name; without an initialized catalog the raw
- * ranked candidates are returned as-is.
+ * supplied and initialized, the operator is classified from its metadata,
+ * suggestions are filtered to operator types that actually exist (so a stale
+ * rule never yields an unusable suggestion), and each suggestion is enriched
+ * with its display name and the input port to wire to. Without an initialized
+ * catalog, only the per-operator overrides and the generic fallback apply, and
+ * the raw ranked candidates are returned unvalidated.
  */
-export function recommendOperators(req: RecommendationRequest, catalog?: OperatorCatalog): RecommendationResponse {
+export function recommendOperators(
+  req: OperatorRecommendationRequest,
+  catalog?: OperatorCatalog
+): OperatorRecommendationResponse {
   const operatorType = req.operatorType?.trim();
   const limit = clampLimit(req.limit);
+  const empty: OperatorRecommendationResponse = { recommendations: [], strategy: "hardcoded" };
 
-  if (!operatorType) {
-    return { recommendations: [], strategy: "hardcoded" };
-  }
+  if (!operatorType) return empty;
 
   const catalogReady = catalog?.isInitialized() ?? false;
+  const metadataOf = (type: string) => (catalogReady ? catalog!.getAdditionalMetadata(type) : undefined);
+
+  const source = metadataOf(operatorType);
+  if (!hasOutputPort(source, req.sourcePortID ?? DEFAULT_SOURCE_PORT_ID)) return empty;
+  const sourceCategory = categoryOf(operatorType, source);
 
   const seen = new Set<string>();
   const recommendations: OperatorRecommendation[] = [];
 
-  for (const candidate of candidateSuccessors(operatorType)) {
+  for (const candidate of candidateSuccessors(operatorType, sourceCategory)) {
     if (recommendations.length >= limit) break;
     // Never suggest the operator itself, and never suggest the same type twice.
     if (candidate === operatorType || seen.has(candidate)) continue;
@@ -84,10 +111,12 @@ export function recommendOperators(req: RecommendationRequest, catalog?: Operato
     if (catalogReady && catalog!.getSchema(candidate) === undefined) continue;
     seen.add(candidate);
 
-    const userFriendlyName = catalogReady ? catalog!.getAdditionalMetadata(candidate)?.userFriendlyName : undefined;
+    const target = metadataOf(candidate);
+    const userFriendlyName = target?.userFriendlyName;
 
     recommendations.push({
       operatorType: candidate,
+      targetPortID: targetPortIdFor(sourceCategory, target),
       score: scoreForRank(recommendations.length),
       reason: rationaleFor(candidate),
       ...(userFriendlyName ? { userFriendlyName } : {}),

@@ -25,8 +25,11 @@ import { getBackendConfig } from "./api/backend-api";
 import { extractBearerToken, extractUserFromToken, validateToken } from "./api/auth-api";
 import { retrieveWorkflow } from "./api/workflow-api";
 import { WorkflowSystemMetadata } from "./agent/util/workflow-system-metadata";
-import { recommendOperators } from "./recommender/recommender";
-import type { RecommendationRequest } from "./recommender/recommender-types";
+import { recommendOperators } from "./operator-recommendation/operator-recommender";
+import {
+  MAX_OPERATOR_TYPE_LENGTH,
+  type OperatorRecommendationRequest,
+} from "./operator-recommendation/operator-recommendation-types";
 import { env } from "./config/env";
 import { createLogger } from "./logger";
 
@@ -155,6 +158,19 @@ const ERROR_STATUS: Record<string, number> = {
   "modelType is required": 400,
 };
 
+// The signed-in user's token from the Authorization header. Throws the errors
+// mapped to 401 above when it is missing, malformed, or expired.
+function requireUserToken(authorization: string | undefined): string {
+  const userToken = extractBearerToken(authorization);
+  if (!userToken) {
+    throw new Error("Authorization header with a Bearer token is required");
+  }
+  if (!validateToken(userToken)) {
+    throw new Error("Invalid or expired token");
+  }
+  return userToken;
+}
+
 const agentsRouter = new Elysia({ prefix: "/agents" })
   // Error handler must live on the same Elysia instance whose routes throw, or
   // its scope will not see the errors. Elysia 1.x defaults to local scoping for
@@ -187,13 +203,7 @@ const agentsRouter = new Elysia({ prefix: "/agents" })
       // The agent always calls the LLM gateway as the delegating user, so an
       // agent without a user token would be unable to generate anything. The
       // token travels in the Authorization header, never in the payload.
-      const userToken = extractBearerToken(headers.authorization);
-      if (!userToken) {
-        throw new Error("Authorization header with a Bearer token is required");
-      }
-      if (!validateToken(userToken)) {
-        throw new Error("Invalid or expired token");
-      }
+      const userToken = requireUserToken(headers.authorization);
 
       const userInfo = extractUserFromToken(userToken);
       const delegateConfig: AgentDelegateConfig = {
@@ -391,44 +401,64 @@ const agentsRouter = new Elysia({ prefix: "/agents" })
     }
   );
 
-// Stateless ambient operator recommender (apache/texera#5240). Given the
-// operator a user just added, returns a short ranked list of likely next
-// operators for the canvas to render as suggestions. Version 1 uses a
-// hardcoded rule table with no LLM call, so it needs no user token and no
-// per-request model configuration; it only reads the process-wide operator
-// catalog to validate and label its suggestions.
-const recommendRouter = new Elysia({ prefix: "/recommend" })
+// The process-wide operator catalog, loading it first if startup could not
+// (for example because the backend was not ready yet). Concurrent requests
+// share one load; a failed load is logged and retried on the next request, and
+// the caller proceeds with the catalog uninitialized.
+let operatorCatalogLoad: Promise<unknown> | null = null;
+
+async function getOperatorCatalog(): Promise<WorkflowSystemMetadata> {
+  const catalog = WorkflowSystemMetadata.getInstance();
+  if (!catalog.isInitialized()) {
+    operatorCatalogLoad ??= WorkflowSystemMetadata.initializeGlobal()
+      .catch(error => log.warn({ err: error }, "failed to load operator catalog; will retry on next request"))
+      .finally(() => {
+        operatorCatalogLoad = null;
+      });
+    await operatorCatalogLoad;
+  }
+  return WorkflowSystemMetadata.getInstance();
+}
+
+// Stateless operator recommender (apache/texera#5240). Given the operator a
+// user just added, returns a short ranked list of likely next operators for the
+// canvas to render as suggestions. Version 1 uses a hardcoded rule table with
+// no LLM call, but still requires the signed-in user's token, as agent creation
+// does, so that Version 2 can call the LLM gateway as that user without
+// changing the auth contract.
+const operatorRecommendationsRouter = new Elysia({ prefix: "/operator-recommendations" })
   // Local-scoped error handler, mirroring agentsRouter: body-schema and
   // malformed-JSON failures are client errors (400), not 500s.
   .onError(({ code, error, set }) => {
-    log.error({ err: error }, "recommend request error");
+    log.error({ err: error }, "operator recommendation request error");
     const errorMessage = error instanceof Error ? error.message : String(error);
     if (code === "VALIDATION" || code === "PARSE") {
       set.status = 400;
       return { error: errorMessage || "Invalid request body" };
     }
-    set.status = 500;
+    set.status = ERROR_STATUS[errorMessage] ?? 500;
     return { error: errorMessage || "Internal server error" };
   })
   .post(
-     "/",
-     ({ body, set }) => {
-       const req = body as RecommendationRequest;
-       const operatorType = req.operatorType.trim();
-       if (!operatorType) {
-         set.status = 400;
-         return { error: "operatorType must be a non-empty string" };
-       }
-       return recommendOperators({ ...req, operatorType }, WorkflowSystemMetadata.getInstance());
-     },
-     {
-       body: t.Object({
-         operatorType: t.String({ minLength: 1 }),
-         existingOperatorTypes: t.Optional(t.Array(t.String())),
-         limit: t.Optional(t.Number()),
-       }),
-     }
-   );
+    "/",
+    async ({ body, headers, set }) => {
+      requireUserToken(headers.authorization);
+      const req = body as OperatorRecommendationRequest;
+      const operatorType = req.operatorType.trim();
+      if (!operatorType) {
+        set.status = 400;
+        return { error: "operatorType must be a non-empty string" };
+      }
+      return recommendOperators({ ...req, operatorType }, await getOperatorCatalog());
+    },
+    {
+      body: t.Object({
+        operatorType: t.String({ minLength: 1, maxLength: MAX_OPERATOR_TYPE_LENGTH }),
+        sourcePortID: t.Optional(t.String({ pattern: "^output-[0-9]+$" })),
+        limit: t.Optional(t.Number()),
+      }),
+    }
+  );
 
 // Only resultSummary: the frontend's sole consumer (the operator popover) reads
 // nothing else, so state, errors and console messages stay server-side.
@@ -476,7 +506,7 @@ export function buildApp() {
           timestamp: new Date().toISOString(),
         }))
         .use(agentsRouter)
-        .use(recommendRouter)
+        .use(operatorRecommendationsRouter)
     )
     .ws(`${env.API_PREFIX}/agents/:id/react`, {
       open(ws) {

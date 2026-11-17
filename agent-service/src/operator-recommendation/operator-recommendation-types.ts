@@ -18,14 +18,14 @@
  */
 
 /**
- * Wire types for the ambient operator recommender (discussion apache/texera#5240).
+ * Wire types for the operator recommender (discussion apache/texera#5240).
  *
  * The recommender is a stateless endpoint that, given the operator a user just
  * added to the canvas, returns a short ranked list of likely "next" operators
- * to render as suggestion chips on the output port.
+ * to render as suggestions on one of its output ports.
  *
  * Version 1 (this file's consumer, `recommendOperators`) produces suggestions
- * from a hardcoded rule table — no LLM call, no persistent state — so it can
+ * from a hardcoded rule table (no LLM call, no persistent state), so it can
  * ship and validate the full canvas pipeline at zero API cost. Version 2 will
  * swap the ranking strategy for a small LLM behind the same request/response
  * shape; the `strategy` discriminator on the response lets clients tell the two
@@ -33,39 +33,56 @@
  */
 
 /** Ranking strategy that produced a response. `llm` is reserved for V2. */
-export type RecommendationStrategy = "hardcoded" | "llm";
+export type OperatorRecommendationStrategy = "hardcoded" | "llm";
 
 /** Hard ceiling on how many suggestions a single request may ask for. */
-export const MAX_RECOMMENDATION_LIMIT = 5;
+export const MAX_OPERATOR_RECOMMENDATION_LIMIT = 5;
 
 /** Default number of suggestions when the request does not specify a limit. */
-export const DEFAULT_RECOMMENDATION_LIMIT = 3;
+export const DEFAULT_OPERATOR_RECOMMENDATION_LIMIT = 3;
 
-export interface RecommendationRequest {
+/** Longest operator type string the route accepts. */
+export const MAX_OPERATOR_TYPE_LENGTH = 128;
+
+/** Output port suggestions attach to when the request does not name one. */
+export const DEFAULT_SOURCE_PORT_ID = "output-0";
+
+export interface OperatorRecommendationRequest {
   /**
-   * The operator type that was just added and whose output port we are
-   * suggesting successors for (e.g. `"CSVFileScan"`). Primary ranking signal.
+   * The operator type that was just added and whose output we are suggesting
+   * successors for (e.g. `"CSVFileScan"`). Primary ranking signal.
    */
   operatorType: string;
 
   /**
-   * Optional: operator types already present on the canvas. Unused by the V1
-   * hardcoded ranker; reserved so V2 can bias suggestions with graph context
-   * without a request-shape change.
+   * Optional: the output port of `operatorType` the suggestions will be wired
+   * from, using the canvas port ID format (`"output-<index>"`). Defaults to
+   * {@link DEFAULT_SOURCE_PORT_ID}. A port the operator does not have yields
+   * no suggestions.
    */
-  existingOperatorTypes?: string[];
+  sourcePortID?: string;
 
   /**
    * Optional: maximum number of suggestions to return. Defaults to
-   * {@link DEFAULT_RECOMMENDATION_LIMIT}, clamped to
-   * `[1, {@link MAX_RECOMMENDATION_LIMIT}]`.
+   * {@link DEFAULT_OPERATOR_RECOMMENDATION_LIMIT}, clamped to
+   * `[1, {@link MAX_OPERATOR_RECOMMENDATION_LIMIT}]`.
    */
   limit?: number;
 }
 
 export interface OperatorRecommendation {
-  /** Recommended operator type (validated against the live catalog when available). */
+  /**
+   * Recommended operator type. Validated against the live catalog when it is
+   * loaded; returned unvalidated otherwise.
+   */
   operatorType: string;
+  /**
+   * Input port of the recommended operator that the source port should be
+   * wired to, using the canvas port ID format (`"input-<index>"`). Matters for
+   * multi-input operators such as Sklearn Prediction, whose first port takes a
+   * trained model and whose second takes data rows.
+   */
+  targetPortID: string;
   /** Confidence in `[0, 1]`, monotonically non-increasing down the list. */
   score: number;
   /** Short, human-readable rationale shown alongside the suggested operator. */
@@ -74,8 +91,8 @@ export interface OperatorRecommendation {
   userFriendlyName?: string;
 }
 
-export interface RecommendationResponse {
+export interface OperatorRecommendationResponse {
   recommendations: OperatorRecommendation[];
   /** Which ranking strategy produced these results. */
-  strategy: RecommendationStrategy;
+  strategy: OperatorRecommendationStrategy;
 }
