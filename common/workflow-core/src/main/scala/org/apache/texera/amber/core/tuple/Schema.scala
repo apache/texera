@@ -28,6 +28,7 @@ import scala.collection.immutable.ListMap
   * Represents the schema of a tuple, consisting of a list of attributes.
   * The schema is immutable, and any modifications result in a new Schema instance.
   */
+@SerialVersionUID(-8380542583803575822L)
 case class Schema @JsonCreator() (
     @JsonProperty(value = "attributes", required = true) attributes: List[Attribute] = List()
 ) extends Serializable {
@@ -90,7 +91,7 @@ case class Schema @JsonCreator() (
     }
   }
 
-  override def toString: String = s"Schema[${attributes.map(_.toString).mkString(", ")}]"
+  override def toString: String = s"Schema[${attributes.mkString(", ")}]"
 
   /**
     * Creates a new Schema containing only the specified attributes.
@@ -108,12 +109,15 @@ case class Schema @JsonCreator() (
       list + (attr.getName -> attr.getType.name())
     )
 
+  private def lowerCaseAttributeNames: Set[String] =
+    attributes.iterator.map(_.getName.toLowerCase).toSet
+
   /**
     * Creates a new Schema by adding multiple attributes to the current schema.
     * Throws an exception if any attribute name already exists in the schema.
     */
   def add(attributesToAdd: Iterable[Attribute]): Schema = {
-    val existingNames = this.getAttributeNames.map(_.toLowerCase).toSet
+    val existingNames = lowerCaseAttributeNames
     val duplicateNames = attributesToAdd.map(_.getName.toLowerCase).toSet.intersect(existingNames)
 
     if (duplicateNames.nonEmpty) {
@@ -171,7 +175,8 @@ case class Schema @JsonCreator() (
     val attributesToRemove = attributeNames.map(_.toLowerCase).toSet
 
     // Check for non-existent attributes
-    val nonExistentAttributes = attributesToRemove.diff(attributes.map(_.getName.toLowerCase).toSet)
+    val existingNames = attributes.iterator.map(_.getName.toLowerCase).toSet
+    val nonExistentAttributes = attributesToRemove.diff(existingNames)
     if (nonExistentAttributes.nonEmpty) {
       throw new IllegalArgumentException(
         s"Cannot remove non-existent attributes: ${nonExistentAttributes.mkString(", ")}"

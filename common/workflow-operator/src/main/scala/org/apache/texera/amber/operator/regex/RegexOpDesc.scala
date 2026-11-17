@@ -125,11 +125,14 @@ object RegexOpDesc {
   def unicodeCase(pattern: String): String = {
     if (TurnsUnicodeOn.findFirstIn(pattern).isEmpty) return pattern
     val lead = LeadingFlags.findPrefixOf(pattern).getOrElse("")
-    val leadGroups = FlagGroup.findAllMatchIn(lead).toList
-    val leadOn = leadGroups.exists(_.group(1).contains('u'))
     val out = new StringBuilder
-    leadGroups.foreach { g =>
-      val on = g.group(1).filterNot(_ == 'u')
+    var leadOn = false
+    var leadingVerbose = false
+    FlagGroup.findAllMatchIn(lead).foreach { g =>
+      val flags = g.group(1)
+      leadOn = leadOn || flags.contains('u')
+      leadingVerbose = leadingVerbose || flags.contains('x')
+      val on = flags.filterNot(_ == 'u')
       val off = Option(g.group(2)).getOrElse("").filterNot(_ == 'u')
       if (on.nonEmpty || off.nonEmpty) out.append(s"(?$on${if (off.isEmpty) "" else s"-$off"})")
     }
@@ -178,7 +181,7 @@ object RegexOpDesc {
       }
     }
     // Under the x flag a trailing comment would swallow the closing parenthesis.
-    if (leadOn) out.append(if (leadGroups.exists(_.group(1).contains('x'))) "\n)" else ")")
+    if (leadOn) out.append(if (leadingVerbose) "\n)" else ")")
     out.toString
   }
 

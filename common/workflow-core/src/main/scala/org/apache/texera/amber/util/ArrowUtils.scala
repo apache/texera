@@ -74,37 +74,43 @@ object ArrowUtils extends LazyLogging {
     val arrowSchema = vectorSchemaRoot.getSchema
     val schema = toTexeraSchema(arrowSchema)
 
-    Tuple
-      .builder(schema)
-      .addSequentially(
-        vectorSchemaRoot.getFieldVectors.asScala.zipWithIndex.map {
-          case (fieldVector: FieldVector, index: Int) =>
-            val value: AnyRef = fieldVector.getObject(rowIndex)
-            try {
-              // Use the attribute type from the schema (which includes metadata)
-              // instead of deriving it from the Arrow type
-              val attributeType = schema.getAttributes(index).getType
-              // A timestamp and an unsigned integer are the types whose field
-              // says more than the schema does, so they are the only ones that
-              // read the field: an unsigned column arrives as INTEGER or LONG.
-              attributeType match {
-                case AttributeType.TIMESTAMP => wallClockOf(value, fieldVector.getField.getType)
-                case AttributeType.INTEGER | AttributeType.LONG =>
-                  AttributeTypeUtils.parseField(
-                    unsignedValueOf(value, fieldVector.getField.getType),
-                    attributeType
-                  )
-                case _ => AttributeTypeUtils.parseField(value, attributeType)
-              }
-            } catch {
-              case e: Exception =>
-                logger.warn("Caught error during parsing Arrow value back to Texera value", e)
-                null
-            }
+    val fieldVectors = vectorSchemaRoot.getFieldVectors
+    val fieldValues = new Array[Any](fieldVectors.size())
+    val vectors = fieldVectors.iterator()
+    val attributes = schema.getAttributes.iterator
+    var index = 0
+    while (vectors.hasNext) {
+      val fieldVector = vectors.next()
+      val value: AnyRef = fieldVector.getObject(rowIndex)
+      val fieldValue =
+        try {
+          // Use the attribute type from the schema (which includes metadata)
+          // instead of deriving it from the Arrow type. Preserve the indexed
+          // lookup's error when the vector list is wider than the schema.
+          val attribute = if (attributes.hasNext) attributes.next() else schema.getAttributes(index)
+          val attributeType = attribute.getType
+          // A timestamp and an unsigned integer are the types whose field
+          // says more than the schema does, so they are the only ones that
+          // read the field: an unsigned column arrives as INTEGER or LONG.
+          attributeType match {
+            case AttributeType.TIMESTAMP => wallClockOf(value, fieldVector.getField.getType)
+            case AttributeType.INTEGER | AttributeType.LONG =>
+              AttributeTypeUtils.parseField(
+                unsignedValueOf(value, fieldVector.getField.getType),
+                attributeType
+              )
+            case _ => AttributeTypeUtils.parseField(value, attributeType)
+          }
+        } catch {
+          case e: Exception =>
+            logger.warn("Caught error during parsing Arrow value back to Texera value", e)
+            null
+        }
+      fieldValues(index) = fieldValue
+      index += 1
+    }
 
-        }.toArray
-      )
-      .build()
+    Tuple.builder(schema).addSequentially(fieldValues).build()
   }
 
   /** The number an unsigned column counts to, out of the storage it counts in.
@@ -192,7 +198,7 @@ object ArrowUtils extends LazyLogging {
     */
   def toTexeraSchema(arrowSchema: org.apache.arrow.vector.types.pojo.Schema): Schema =
     Schema(
-      arrowSchema.getFields.asScala.map { field =>
+      arrowSchema.getFields.asScala.iterator.map { field =>
         val taggedType = Option(field.getMetadata)
           .flatMap(m => Option(m.get(TexeraTypeMetadataKey)))
           .collect {
@@ -259,9 +265,7 @@ object ArrowUtils extends LazyLogging {
   }
 
   def appendTexeraTuple(tuple: Tuple, vectorSchemaRoot: VectorSchemaRoot): Unit = {
-    val currentRowCount = vectorSchemaRoot.getRowCount
-    val nextRowIndex = currentRowCount
-    setTexeraTuple(tuple, nextRowIndex, vectorSchemaRoot)
+    setTexeraTuple(tuple, vectorSchemaRoot.getRowCount, vectorSchemaRoot)
   }
 
   /**
@@ -274,14 +278,13 @@ object ArrowUtils extends LazyLogging {
     *                         multiple Vectors.
     */
   def setTexeraTuple(tuple: Tuple, index: Int, vectorSchemaRoot: VectorSchemaRoot): Unit = {
-    val arrowSchema = vectorSchemaRoot.getSchema
-    val arrowFields = arrowSchema.getFields.asScala.toList
+    val arrowFields = vectorSchemaRoot.getSchema.getFields
 
-    for (i <- arrowFields.indices) {
+    for (i <- 0 until arrowFields.size()) {
       val vector: FieldVector = vectorSchemaRoot.getVector(i)
       val value = tuple.getField[AnyRef](i)
       val isNull = value == null
-      arrowFields.apply(i).getFieldType.getType match {
+      arrowFields.get(i).getFieldType.getType match {
         case _: ArrowType.Int =>
           vector.getField.getFieldType.getType.asInstanceOf[ArrowType.Int].getBitWidth match {
             case 16 | 32 =>
@@ -363,7 +366,9 @@ object ArrowUtils extends LazyLogging {
     * @return An Arrow Schema.
     */
   def fromTexeraSchema(schema: Schema): org.apache.arrow.vector.types.pojo.Schema = {
-    val arrowFields = schema.getAttributes.map { attribute =>
+    val attributes = schema.getAttributes
+    val arrowFields = new util.ArrayList[Field](attributes.size)
+    attributes.foreach { attribute =>
       val metadataTag = attribute.getType match {
         case AttributeType.LARGE_BINARY => "LARGE_BINARY"
         case AttributeType.ANY          => "ANY"
@@ -375,14 +380,16 @@ object ArrowUtils extends LazyLogging {
         map
       } else null
 
-      new Field(
-        attribute.getName,
-        new FieldType(true, fromAttributeType(attribute.getType), null, metadata),
-        null
+      arrowFields.add(
+        new Field(
+          attribute.getName,
+          new FieldType(true, fromAttributeType(attribute.getType), null, metadata),
+          null
+        )
       )
     }
 
-    new org.apache.arrow.vector.types.pojo.Schema(util.Arrays.asList(arrowFields: _*))
+    new org.apache.arrow.vector.types.pojo.Schema(arrowFields)
   }
 
   /**
