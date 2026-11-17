@@ -85,6 +85,7 @@ def _run_one(script_path: str, work_dir: str) -> "dict[str, object]":
     # still run their body (the translator does not emit one, but it is free
     # insurance and matches `python script.py` semantics).
     namespace = {"__name__": "__main__", "__file__": script_path}
+    home = os.getcwd()
     try:
         with open(script_path, "r", encoding="utf-8") as f:
             source = f.read()
@@ -103,6 +104,10 @@ def _run_one(script_path: str, work_dir: str) -> "dict[str, object]":
         # Match a nonzero subprocess exit: traceback goes to stderr, exit = 1.
         err = err_buf.getvalue() + traceback.format_exc()
         return {"exit": 1, "stdout": out_buf.getvalue(), "stderr": err}
+    finally:
+        # Windows cannot delete a directory a live process is standing in, so
+        # the worker steps back out of the job's directory before it answers.
+        os.chdir(home)
 
 
 def main() -> None:
