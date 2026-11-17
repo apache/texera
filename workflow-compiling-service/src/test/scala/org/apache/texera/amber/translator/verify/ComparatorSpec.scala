@@ -115,6 +115,41 @@ class ComparatorSpec extends AnyFlatSpec with Matchers {
     noException should be thrownBy Comparator.assertEqual(a, b, orderSensitive = false)
   }
 
+  // With no exact column, sorting on x put 1.0 first on both sides, which put
+  // y = 10.0 beside y = 100.0. Rows are paired within tolerance on every float.
+  it should "pair rows within tolerance across every float under orderSensitive=false" in {
+    val dir = Files.createTempDirectory("comparator-spec-reorder-two-floats-")
+    val doubles = Schema()
+      .add(new Attribute("x", AttributeType.DOUBLE))
+      .add(new Attribute("y", AttributeType.DOUBLE))
+    def write(name: String, rows: Seq[(Double, Double)]): Path = {
+      val p = dir.resolve(name)
+      val tuples = rows.map {
+        case (x, y) =>
+          Tuple
+            .builder(doubles)
+            .add(doubles.getAttribute("x"), Double.box(x))
+            .add(doubles.getAttribute("y"), Double.box(y))
+            .build()
+      }
+      TupleIO.writeTuples(p, tuples.iterator, doubles)
+      p
+    }
+    val a = write("a.jsonl", Seq((1.0, 10.0), (1.000001, 100.0)))
+    noException should be thrownBy Comparator.assertEqual(
+      a,
+      write("b.jsonl", Seq((1.000001, 10.0), (1.0, 100.0))),
+      orderSensitive = false
+    )
+    intercept[ComparatorMismatchException] {
+      Comparator.assertEqual(
+        a,
+        write("c.jsonl", Seq((1.000001, 10.0), (1.0, 99.0))),
+        orderSensitive = false
+      )
+    }
+  }
+
   // The tolerance a double needs was being applied to integers as well, so two
   // whole numbers a workflow would never call the same compared equal. The
   // declared type is what separates them: a double keeps the tolerance.
@@ -486,15 +521,18 @@ class ComparatorSpec extends AnyFlatSpec with Matchers {
          |    ("rows.jsonl", [(1, 0), (2, 1)]),
          |    ("reversed.jsonl", [(2, 1), (1, 0)]),
          |    ("swapped.jsonl", [(2, 0), (1, 1)]),
+         |    ("tied.jsonl", [(1, 0), (1, 1)]),
+         |    ("tied-reversed.jsonl", [(1, 1), (1, 0)]),
+         |    ("tied-changed.jsonl", [(1, 1), (1, 1)]),
          |):
          |    with open(rf"$dir/{name}", "w", encoding="utf-8") as handle:
          |        for id, c in rows:
          |            handle.write(json.dumps({"id": id, "model": predicting(c)}) + "\\n")
          |""".stripMargin
     )
-    def compare(expected: String): Unit =
+    def compare(expected: String, actual: String = "rows.jsonl"): Unit =
       Comparator.assertEqual(
-        dir.resolve("rows.jsonl"),
+        dir.resolve(actual),
         dir.resolve(expected),
         orderSensitive = false,
         modelColumns = Seq("model"),
@@ -504,6 +542,12 @@ class ComparatorSpec extends AnyFlatSpec with Matchers {
     noException should be thrownBy compare("reversed.jsonl")
     intercept[ComparatorMismatchException] {
       compare("swapped.jsonl")
+    }.getMessage should include("predictions differ")
+    // Two rows with the same id tie on every sorted column, so the sort kept
+    // them in file order and compared their models the wrong way round.
+    noException should be thrownBy compare("tied-reversed.jsonl", "tied.jsonl")
+    intercept[ComparatorMismatchException] {
+      compare("tied-changed.jsonl", "tied.jsonl")
     }.getMessage should include("predictions differ")
   }
 

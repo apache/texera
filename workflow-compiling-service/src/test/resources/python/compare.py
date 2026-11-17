@@ -25,9 +25,10 @@ Usage: compare.py [--unordered] [--ignore-cols c1,c2]
                   <actual.jsonl> <expected.jsonl>
        compare.py --plotly <actual.jsonl> <expected.json>
 
-  --unordered   Sort both DataFrames by their exact columns, then their float
-                columns, before comparing anything, models included, so rows
-                match as a set/bag rather than positionally.
+  --unordered   Pair each row with an equal row on the other side, by its exact
+                columns, its float columns within tolerance and its models'
+                answers, before comparing anything, so rows match as a
+                set/bag rather than positionally.
                 This is the norm: the engine runs operators across parallel
                 workers, so output row order is not part of the contract.
                 Without this flag the comparator matches rows positionally
@@ -112,20 +113,10 @@ def _holds_pickle(frame, col) -> bool:
     return True
 
 
-def _compare_model_predictions(actual, expected, model_cols, probe_path) -> None:
-    """For each model column, unpickle both sides and assert their predictions
-    on the probe set match. Raises AssertionError on any divergence."""
-    import base64
-    import pickle
-
-    import numpy as np
+def _load_probe(probe_path):
+    """The feature set both sides' models predict on. Raises AssertionError when
+    there is none to ask."""
     import pandas as pd
-
-    # A model column holds an sklearn estimator, so the unpickling below imports
-    # sklearn anyway; asking it what kind of estimator it handed back costs
-    # nothing more. Both are function-local so a run with no model column, which
-    # is most of them, never pays for either.
-    from sklearn.base import is_regressor
 
     if probe_path is None:
         raise AssertionError("--model-cols requires --probe with a feature set")
@@ -140,7 +131,93 @@ def _compare_model_predictions(actual, expected, model_cols, probe_path) -> None
         raise AssertionError(
             "probe has no complete row to predict on; the two models cannot be compared"
         )
+    return probe
 
+
+def _model_answer(cell, probe) -> tuple:
+    """What a pickled model was fitted on, what it predicts on the probe, and
+    whether it is a regressor."""
+    import base64
+    import pickle
+
+    import numpy as np
+
+    # A model column holds an sklearn estimator, so the unpickling below imports
+    # sklearn anyway; asking it what kind of estimator it handed back costs
+    # nothing more. Both are function-local so a run with no model column, which
+    # is most of them, never pays for either.
+    from sklearn.base import is_regressor
+
+    model = pickle.loads(base64.b64decode(cell))
+    # A model with feature_names_in_ selects its (numeric) feature columns from
+    # the probe, naturally dropping the training target the probe may still
+    # carry. A model WITHOUT it was fitted on a 1-D input rather than a named
+    # frame — i.e. a text pipeline (e.g. CountVectorizer) trained on a single
+    # text Series — so feed the probe's first column as a Series, not the whole
+    # frame (predicting on a DataFrame would make CountVectorizer iterate column
+    # labels).
+    names = getattr(model, "feature_names_in_", None)
+    listed = None if names is None else list(names)
+    # A model fitted on columns the probe lacks has nothing to be asked. Two such
+    # models still differ by their feature names, which are compared first.
+    if listed is not None and not set(listed) <= set(probe.columns):
+        return listed, None, is_regressor(model)
+    x = probe[listed] if listed is not None else probe.iloc[:, 0]
+    return listed, np.asarray(model.predict(x)), is_regressor(model)
+
+
+def _answers_differ(one, other) -> "str | None":
+    """How two models' answers differ, or None when they agree."""
+    import numpy as np
+
+    listed, pred_a, regressor_a = one
+    listed_e, pred_e, regressor_e = other
+    # What a model was fitted on is part of the model, and each side was being
+    # asked about its own features. Two models fitted on different columns still
+    # answer alike on a probe that carries both, so the predictions agreed while
+    # the models did not. One side having names where the other has none is the
+    # same divergence: it says the two were fitted on differently shaped input.
+    if listed != listed_e:
+        return (
+            "fitted feature names differ\n"
+            f"  actual:   {listed}\n"
+            f"  expected: {listed_e}"
+        )
+    if pred_a is None or pred_e is None:
+        return f"the probe lacks features the models were fitted on: {listed}"
+    if pred_a.shape != pred_e.shape:
+        return f"prediction shape differs ({pred_a.shape} vs {pred_e.shape})"
+    # Only a regressor predicts a measurement, where the last bits are
+    # arithmetic and a tolerance belongs. Every other estimator predicts a
+    # label, a class or a cluster, and a different label is a different answer
+    # however near the two numbers sit: classes 100000 and 100001 are one part
+    # in 1e5 apart, which allclose accepts. The estimator says which it is; the
+    # prediction's dtype cannot, since a numeric label is a number too. Anything
+    # sklearn does not call a regressor, including a non-sklearn pickle, is
+    # compared exactly.
+    tolerant = (
+        regressor_a
+        and regressor_e
+        and np.issubdtype(pred_a.dtype, np.number)
+        and np.issubdtype(pred_e.dtype, np.number)
+    )
+    ok = (
+        np.allclose(pred_a, pred_e, rtol=1e-5, atol=1e-8)
+        if tolerant
+        else np.array_equal(pred_a, pred_e)
+    )
+    if not ok:
+        return (
+            "predictions differ\n"
+            f"  actual:   {pred_a}\n"
+            f"  expected: {pred_e}"
+        )
+    return None
+
+
+def _compare_model_predictions(actual, expected, model_cols, probe) -> None:
+    """For each model column, assert both sides' models answer alike on the
+    probe, row by row. Raises AssertionError on any divergence."""
     for col in model_cols:
         # A requested column is one the engine declared as a model, so a side
         # that never emitted it IS the divergence. Skipping it here would hide
@@ -161,70 +238,12 @@ def _compare_model_predictions(actual, expected, model_cols, probe_path) -> None
                 f"({len(actual)} vs {len(expected)})"
             )
         for i in range(len(actual)):
-            m_actual = pickle.loads(base64.b64decode(actual[col].iloc[i]))
-            m_expected = pickle.loads(base64.b64decode(expected[col].iloc[i]))
-
-            # A model with feature_names_in_ selects its (numeric) feature
-            # columns from the probe, naturally dropping the training target the
-            # probe may still carry. A model WITHOUT it was fitted on a 1-D input
-            # rather than a named frame — i.e. a text pipeline (e.g.
-            # CountVectorizer) trained on a single text Series — so feed the
-            # probe's first column as a Series, not the whole frame (predicting
-            # on a DataFrame would make CountVectorizer iterate column labels).
-            names = getattr(m_actual, "feature_names_in_", None)
-            names_e = getattr(m_expected, "feature_names_in_", None)
-
-            # What a model was fitted on is part of the model, and each side was
-            # being asked about its own features. Two models fitted on different
-            # columns still answer alike on a probe that carries both, so the
-            # predictions agreed while the models did not. One side having names
-            # where the other has none is the same divergence: it says the two
-            # were fitted on differently shaped input.
-            listed = None if names is None else list(names)
-            listed_e = None if names_e is None else list(names_e)
-            if listed != listed_e:
-                raise AssertionError(
-                    f"model column {col!r} row {i}: fitted feature names differ\n"
-                    f"  actual:   {listed}\n"
-                    f"  expected: {listed_e}"
-                )
-
-            x_a = probe[listed] if listed is not None else probe.iloc[:, 0]
-            x_e = probe[listed_e] if listed_e is not None else probe.iloc[:, 0]
-
-            pred_a = np.asarray(m_actual.predict(x_a))
-            pred_e = np.asarray(m_expected.predict(x_e))
-
-            if pred_a.shape != pred_e.shape:
-                raise AssertionError(
-                    f"model column {col!r} row {i}: prediction shape differs "
-                    f"({pred_a.shape} vs {pred_e.shape})"
-                )
-            # Only a regressor predicts a measurement, where the last bits are
-            # arithmetic and a tolerance belongs. Every other estimator predicts
-            # a label, a class or a cluster, and a different label is a
-            # different answer however near the two numbers sit: classes 100000
-            # and 100001 are one part in 1e5 apart, which allclose accepts. The
-            # estimator says which it is; the prediction's dtype cannot, since a
-            # numeric label is a number too. Anything sklearn does not call a
-            # regressor, including a non-sklearn pickle, is compared exactly.
-            tolerant = (
-                is_regressor(m_actual)
-                and is_regressor(m_expected)
-                and np.issubdtype(pred_a.dtype, np.number)
-                and np.issubdtype(pred_e.dtype, np.number)
+            differ = _answers_differ(
+                _model_answer(actual[col].iloc[i], probe),
+                _model_answer(expected[col].iloc[i], probe),
             )
-            ok = (
-                np.allclose(pred_a, pred_e, rtol=1e-5, atol=1e-8)
-                if tolerant
-                else np.array_equal(pred_a, pred_e)
-            )
-            if not ok:
-                raise AssertionError(
-                    f"model column {col!r} row {i}: predictions differ\n"
-                    f"  actual:   {pred_a}\n"
-                    f"  expected: {pred_e}"
-                )
+            if differ:
+                raise AssertionError(f"model column {col!r} row {i}: {differ}")
 
 
 def _declared_types(actual_path: str) -> dict:
@@ -542,21 +561,31 @@ def _run_comparison(
         or _holds_pickle(expected, col)
     ]
 
+    # Two outputs without a row hold no model to ask, and read back from an
+    # empty file they hold no column either.
+    probe = None
+    if model_cols and (len(actual) or len(expected)):
+        try:
+            probe = _load_probe(probe_path)
+        except AssertionError as exc:
+            return str(exc)
+
     # Rows are paired before anything compares them. The models below are
     # compared row by row, so a model has to stay beside the row it belongs to.
     if unordered:
         unsorted = model_cols + ignore_cols
         actual, double_kinds_a = _sorted_rows(actual, double_kinds_a, unsorted)
         expected, double_kinds_e = _sorted_rows(expected, double_kinds_e, unsorted)
+        expected, double_kinds_e = _paired_rows(
+            actual, expected, double_kinds_a, double_kinds_e, unsorted, model_cols, probe
+        )
 
     # Model columns: compare behavior (predictions) rather than bytes, then drop
     # the raw columns so the frame comparison covers everything else exactly.
-    # Two outputs without a row hold no model to ask, and read back from an
-    # empty file they hold no column either.
     if model_cols:
-        if len(actual) or len(expected):
+        if probe is not None:
             try:
-                _compare_model_predictions(actual, expected, model_cols, probe_path)
+                _compare_model_predictions(actual, expected, model_cols, probe)
             except AssertionError as exc:
                 return str(exc)
         actual = actual.drop(columns=model_cols, errors="ignore")
@@ -660,6 +689,148 @@ def _sorted_rows(frame, kinds: dict, unsorted: list) -> tuple:
         frame.iloc[order].reset_index(drop=True),
         {column: [cells[i] for i in order] for column, cells in kinds.items()},
     )
+
+
+def _paired_rows(actual, expected, kinds_a, kinds_e, unsorted, model_cols, probe) -> tuple:
+    """`expected`'s rows reordered so each sits beside an `actual` row it
+    matches, with its kinds put in the same order. Sorting alone cannot pair
+    rows that tie on every exact column, or whose floats differ within the
+    tolerance: two such rows on one side can sort the other way round on the
+    other. Rows are grouped by their exact columns and kinds, and within a
+    group each is paired with a row whose floats are within tolerance and whose
+    models answer alike. When no such pairing exists, the sorted order stays,
+    and the comparison that follows reports the difference."""
+    from collections import defaultdict
+
+    import pandas as pd
+
+    if len(actual) != len(expected) or not len(actual):
+        return expected, kinds_e
+    keyed = [c for c in actual.columns if c not in unsorted and c in expected.columns]
+    floats = [
+        c
+        for c in keyed
+        if pd.api.types.is_float_dtype(actual[c]) and pd.api.types.is_float_dtype(expected[c])
+    ]
+    exact = [c for c in keyed if c not in floats]
+    kind_cols = [c for c in kinds_a if c not in unsorted and c in kinds_e]
+
+    def groups(frame, kinds) -> dict:
+        cells = [frame[c].tolist() for c in exact] + [kinds[c] for c in kind_cols]
+        found = defaultdict(list)
+        for row in range(len(frame)):
+            found[tuple(_cell_key(column[row]) for column in cells)].append(row)
+        return found
+
+    groups_a, groups_e = groups(actual, kinds_a), groups(expected, kinds_e)
+    if any(len(rows) != len(groups_e.get(key, ())) for key, rows in groups_a.items()):
+        return expected, kinds_e
+
+    numbers_a = actual[floats].to_numpy(dtype="float64")
+    numbers_e = expected[floats].to_numpy(dtype="float64")
+    shared = [c for c in model_cols if c in actual.columns and c in expected.columns]
+    answers = {}
+
+    def answer(side, frame, column, row):
+        if (side, column, row) not in answers:
+            try:
+                answers[side, column, row] = _model_answer(frame[column].iloc[row], probe)
+            except Exception:
+                answers[side, column, row] = None
+        return answers[side, column, row]
+
+    def agree(i, j) -> bool:
+        for column in shared:
+            one = answer("actual", actual, column, i)
+            other = answer("expected", expected, column, j)
+            if one is None or other is None or _answers_differ(one, other):
+                return False
+        return True
+
+    partner = [None] * len(actual)
+    for key, rows_a in groups_a.items():
+        rows_e = groups_e[key]
+        close = _close(numbers_a[rows_a][:, None, :], numbers_e[rows_e][None, :, :]).all(axis=2)
+        options = [
+            [j for j in range(len(rows_e)) if close[i, j] and agree(rows_a[i], rows_e[j])]
+            for i in range(len(rows_a))
+        ]
+        pairing = _matching(options)
+        if pairing is None:
+            return expected, kinds_e
+        for i, j in enumerate(pairing):
+            partner[rows_a[i]] = rows_e[j]
+    return (
+        expected.iloc[partner].reset_index(drop=True),
+        {column: [cells[i] for i in partner] for column, cells in kinds_e.items()},
+    )
+
+
+def _cell_key(cell):
+    """A cell as a grouping key: every null is one key, and a cell that cannot
+    be hashed is keyed by its spelling."""
+    import pandas as pd
+
+    try:
+        if pd.isna(cell) is True:
+            return None
+    except (TypeError, ValueError):
+        pass
+    try:
+        hash(cell)
+        return cell
+    except TypeError:
+        return repr(cell)
+
+
+def _close(one, other):
+    """Whether two float arrays agree within the tolerance the frame comparison
+    uses, element by element: math.isclose at rtol=1e-5, atol=1e-8, with NaN
+    equal to NaN."""
+    import numpy as np
+
+    with np.errstate(invalid="ignore"):
+        bound = np.maximum(1e-5 * np.maximum(np.abs(one), np.abs(other)), 1e-8)
+        same = (one == other) | (np.isnan(one) & np.isnan(other))
+        return same | (np.abs(one - other) <= bound)
+
+
+def _matching(options) -> "list | None":
+    """A distinct partner for every row, chosen from the partners that row may
+    take, or None when there is no such choice. Each row starts beside the row
+    at its own position, so sorted rows that already match cost no search."""
+    mine = [None] * len(options)
+    theirs = [None] * len(options)
+    for i, choices in enumerate(options):
+        if i in choices:
+            mine[i] = theirs[i] = i
+    for start in range(len(options)):
+        if mine[start] is not None:
+            continue
+        reached_from = {}
+        frontier = [start]
+        end = None
+        while frontier and end is None:
+            following = []
+            for i in frontier:
+                for j in options[i]:
+                    if j in reached_from:
+                        continue
+                    reached_from[j] = i
+                    if theirs[j] is None:
+                        end = j
+                        break
+                    following.append(theirs[j])
+                if end is not None:
+                    break
+            frontier = following
+        if end is None:
+            return None
+        j = end
+        while j is not None:
+            i = reached_from[j]
+            mine[i], theirs[j], j = j, i, mine[i]
+    return mine
 
 
 def _load_actual_plots(path) -> list:
