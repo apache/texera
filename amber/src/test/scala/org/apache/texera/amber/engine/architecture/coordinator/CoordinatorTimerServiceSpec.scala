@@ -396,7 +396,7 @@ class TimerCtxHolder extends Actor {
   * is what `cancel()` reports back: Pekko's contract returns false when the task
   * was already cancelled or the scheduler is shut down.
   */
-class RecordingCancellable(cancelResult: Boolean = true) extends Cancellable {
+class RecordingCancellable(cancelResult: Boolean) extends Cancellable {
   var cancelCount: Int = 0
 
   override def cancel(): Boolean = {
@@ -423,7 +423,7 @@ case class CapturedSchedule(
 class CapturingSelfSchedulerService(
     vid: ActorVirtualIdentity,
     ac: ActorContext,
-    cancelResult: Boolean = true
+    cancelResult: Boolean
 ) extends PekkoActorService(vid, ac) {
 
   val captured: mutable.ArrayBuffer[CapturedSchedule] = mutable.ArrayBuffer()

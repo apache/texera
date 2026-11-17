@@ -66,9 +66,7 @@ private[storage] class IcebergTableWriter[T](
   // Buffer to hold items before flushing to the table
   private val buffer = new ArrayBuffer[T]()
   // Incremental filename index, incremented each time a new buffer is flushed
-  private var filenameIdx = 0
-  // Incremental record ID, incremented for each record
-  private var recordId = 0
+  private var filenameIdx: Int = _
 
   override val bufferSize: Int = StorageConfig.icebergTableCommitBatchSize
 
@@ -138,9 +136,5 @@ private[storage] class IcebergTableWriter[T](
   /**
     * Close the writer, ensuring any remaining buffered items are flushed.
     */
-  override def close(): Unit = {
-    if (buffer.nonEmpty) {
-      flushBuffer()
-    }
-  }
+  override def close(): Unit = flushBuffer()
 }

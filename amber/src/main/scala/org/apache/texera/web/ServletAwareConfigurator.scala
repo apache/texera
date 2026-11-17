@@ -86,7 +86,7 @@ class ServletAwareConfigurator extends ServerEndpointConfig.Configurator with La
           .map(pair => pair.getName -> pair.getValue)
           .toMap
           .get("access-token")
-          .map(token => {
+          .foreach(token => {
             val claims = jwtConsumer.process(token).getJwtClaims
             config.getUserProperties.put(
               classOf[User].getName,

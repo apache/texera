@@ -86,10 +86,6 @@ class IcebergDocumentSpec extends VirtualDocumentSpec[Tuple] with BeforeAndAfter
     super.beforeEach()
   }
 
-  override def afterAll(): Unit = {
-    super.afterAll()
-  }
-
   override def getDocument: VirtualDocument[Tuple] = {
     DocumentFactory.openDocument(uri)._1.asInstanceOf[VirtualDocument[Tuple]]
   }

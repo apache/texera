@@ -33,6 +33,7 @@ import org.jooq.impl.DSL
 import org.jooq.{DSLContext, Record}
 
 import java.sql.Timestamp
+import scala.annotation.unused
 import scala.jdk.CollectionConverters._
 
 object CuratedImageResource extends LazyLogging {
@@ -199,18 +200,25 @@ object CuratedImageResource extends LazyLogging {
     else if (status != Status.Ready) None
     else pinnedRefOf(sourceRef, sourceDigest)
 
-  def readyImageFor(iid: Int): Option[String] = {
+  def readyImageFor(iid: Int): Option[String] =
+    readyImageWithNameFor(iid).map(_._2)
+
+  def readyImageWithNameFor(iid: Int): Option[(Option[String], String)] = {
     // Checked here too, which the rule below repeats: it makes the query pointless.
     if (!CuratedImageConfig.enabled) return None
     Option(
-      context.select(STATUS, SOURCE_REF, SOURCE_DIGEST).from(CU_IMAGE).where(IID.eq(iid)).fetchOne()
+      context
+        .select(NAME, STATUS, SOURCE_REF, SOURCE_DIGEST)
+        .from(CU_IMAGE)
+        .where(IID.eq(iid))
+        .fetchOne()
     ).flatMap { r =>
       startableRef(
         CuratedImageConfig.enabled,
         r.get(STATUS),
         r.get(SOURCE_REF),
         r.get(SOURCE_DIGEST)
-      )
+      ).map(ref => (Option(r.get(NAME)), ref))
     }
   }
 
@@ -371,7 +379,7 @@ object CuratedImageResource extends LazyLogging {
 
   private val AbsentGracePeriodMillis = 60_000L
 
-  private[service] def validate(request: CuratedImageRequest): Unit = {
+  private[service] def validate(request: CuratedImageRequest): (String, String) = {
     val name = Option(request.name).map(_.trim).getOrElse("")
     if (!isValidName(name)) {
       throw new BadRequestException(
@@ -384,37 +392,39 @@ object CuratedImageResource extends LazyLogging {
     if (ref.isEmpty) {
       throw new BadRequestException("Docker Hub link cannot be empty.")
     }
+    val normalizedRef = normaliseRef(ref)
     // Measured on the normalised reference, because that is the one stored: an untagged
     // reference grows by ":latest" and would otherwise overflow the column.
-    if (normaliseRef(ref).length > MaxRefLength) {
+    if (normalizedRef.length > MaxRefLength) {
       throw new BadRequestException(s"Docker Hub link exceeds $MaxRefLength characters.")
     }
     // Whitespace means two things were pasted; validation would fail less clearly.
-    if (normaliseRef(ref).exists(_.isWhitespace)) {
+    if (normalizedRef.exists(_.isWhitespace)) {
       throw new BadRequestException("Docker Hub link cannot contain spaces.")
     }
     // An unrecognised hub.docker.com address would be pulled as if hub.docker.com were a
     // registry; skopeo gets HTML back and reports it verbatim. Say so now instead.
-    if (normaliseRef(ref).startsWith(DockerHubHost + "/")) {
+    if (normalizedRef.startsWith(DockerHubHost + "/")) {
       throw new BadRequestException(
         s"'$ref' is a Docker Hub page, not an image reference, and its shape is not one " +
           "this recognises. Use the image's own reference -- for example " +
           "'acme/texera-cu-sklearn:1.0' -- or the address of its repository page."
       )
     }
-    if (!RefPattern.pattern.matcher(normaliseRef(ref)).matches()) {
+    if (!RefPattern.pattern.matcher(normalizedRef).matches()) {
       throw new BadRequestException(
         "Docker Hub link must start with a letter or digit and contain only letters, " +
           "digits, dots, hyphens, underscores, slashes, colons, at signs and plus signs."
       )
     }
-    if (!RepoPattern.pattern.matcher(repositoryOf(normaliseRef(ref))).matches()) {
+    if (!RepoPattern.pattern.matcher(repositoryOf(normalizedRef)).matches()) {
       throw new BadRequestException(
         s"'$ref' has an uppercase letter in its repository name. Registries only accept " +
           "lowercase there -- a tag after the colon may have capitals, the part before it " +
           "may not."
       )
     }
+    (name, normalizedRef)
   }
 
   /**
@@ -518,14 +528,11 @@ class CuratedImageResource extends LazyLogging {
   @GET
   @RolesAllowed(Array("REGULAR", "ADMIN"))
   @Path("")
-  def list(@Auth user: SessionUser): List[CuratedImage] = {
+  def list(@Auth @unused user: SessionUser): List[CuratedImage] = {
     requireEnabled()
     reconcileRunningValidations()
     reconcilePrepulls()
-    context
-      // Not select(): validation_log is unbounded and this endpoint discards it.
-      .select(IID, NAME, SOURCE_REF, SOURCE_DIGEST, STATUS, ATTEMPT, CREATION_TIME, UPDATE_TIME)
-      .from(CU_IMAGE)
+    selectImageSummaries()
       .orderBy(NAME.asc())
       .fetch()
       .asScala
@@ -536,7 +543,7 @@ class CuratedImageResource extends LazyLogging {
   @GET
   @RolesAllowed(Array("ADMIN"))
   @Path("/{iid}/log")
-  def log(@PathParam("iid") iid: Int, @Auth user: SessionUser): ValidationLog = {
+  def log(@PathParam("iid") iid: Int, @Auth @unused user: SessionUser): ValidationLog = {
     requireEnabled()
     reconcileRunningValidations()
     val record = Option(
@@ -557,11 +564,9 @@ class CuratedImageResource extends LazyLogging {
   @Path("")
   def create(request: CuratedImageRequest, @Auth user: SessionUser): CuratedImage = {
     requireEnabled()
-    validate(request)
-    val name = request.name.trim
-    val sourceRef = normaliseRef(request.sourceRef)
+    val (name, sourceRef) = validate(request)
 
-    if (context.fetchExists(context.selectFrom(CU_IMAGE).where(NAME.eq(name)))) {
+    if (context.fetchExists(CU_IMAGE, NAME.eq(name))) {
       throw new BadRequestException(s"An image named '$name' already exists.")
     }
 
@@ -586,7 +591,6 @@ class CuratedImageResource extends LazyLogging {
           .insertInto(CU_IMAGE)
           .set(NAME, name)
           .set(SOURCE_REF, sourceRef)
-          .set(STATUS, Status.Pending)
           .set(CREATED_BY, Integer.valueOf(user.getUid.intValue()))
           .returning(IID)
           .fetchOne()
@@ -611,7 +615,7 @@ class CuratedImageResource extends LazyLogging {
   @POST
   @RolesAllowed(Array("ADMIN"))
   @Path("/{iid}/refresh")
-  def refresh(@PathParam("iid") iid: Int, @Auth user: SessionUser): CuratedImage = {
+  def refresh(@PathParam("iid") iid: Int, @Auth @unused user: SessionUser): CuratedImage = {
     requireEnabled()
     val record = Option(
       context.select(SOURCE_REF).from(CU_IMAGE).where(IID.eq(iid)).fetchOne()
@@ -624,7 +628,7 @@ class CuratedImageResource extends LazyLogging {
   @DELETE
   @RolesAllowed(Array("ADMIN"))
   @Path("/{iid}")
-  def delete(@PathParam("iid") iid: Int, @Auth user: SessionUser): Unit = {
+  def delete(@PathParam("iid") iid: Int, @Auth @unused user: SessionUser): Unit = {
     requireEnabled()
     // Nothing of ours holds a copy. A running unit keeps going on what its node pulled.
     ImageValidationClient.deleteAllValidations(iid)
@@ -675,8 +679,14 @@ class CuratedImageResource extends LazyLogging {
     }
   }
 
+  // Not select(): validation_log is unbounded and CuratedImage discards it.
+  private def selectImageSummaries() =
+    context
+      .select(IID, NAME, SOURCE_REF, SOURCE_DIGEST, STATUS, ATTEMPT, CREATION_TIME, UPDATE_TIME)
+      .from(CU_IMAGE)
+
   private def fetch(iid: Int): CuratedImage =
-    Option(context.select().from(CU_IMAGE).where(IID.eq(iid)).fetchOne())
+    Option(selectImageSummaries().where(IID.eq(iid)).fetchOne())
       .map(toCuratedImage)
       .getOrElse(throw new NotFoundException(s"No curated image $iid."))
 }
