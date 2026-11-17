@@ -19,7 +19,7 @@
 
 package org.apache.texera.common.config
 
-import com.typesafe.config.ConfigFactory
+import com.typesafe.config.{ConfigException, ConfigFactory}
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 
@@ -55,6 +55,37 @@ class DefaultsConfigSpec extends AnyFlatSpec with Matchers {
           .seedValues(ConfigFactory.parseString(s"user-sys.invite_only = $spelling"))
           .get("invite_only") shouldBe Some(seeded)
     }
+  }
+
+  // default.conf as config-service resolves it, with one leaf overridden the way a `${?ENV}`
+  // substitution overrides it: as a string, in whatever spelling the variable used.
+  private def seededWith(path: String, spelling: String): Map[String, String] =
+    DefaultsConfig.seedValues(
+      ConfigFactory
+        .parseString(s"$path = $spelling")
+        .withFallback(ConfigFactory.parseResources("default.conf"))
+        .resolve()
+    )
+
+  // The dashboard and the admin page show a sidebar tab only when its row is exactly "true", so
+  // GUI_TABS_HUB_ENABLED=on used to hide the Hub tab it meant to show.
+  it should "seed every sidebar tab switch and the reset flag as true or false, whatever the spelling" in {
+    val tabs = DefaultsConfig.keysUnderSections(Set("gui")).filter(_.endsWith("_enabled"))
+    tabs should not be empty
+    val resetFlag = "config-service.always-reset-configurations-to-default-values"
+    val paths = tabs.map("gui.tabs." + _) + resetFlag
+    for {
+      path <- paths
+      (spelling, seeded) <- Seq("off" -> "false", "no" -> "false", "on" -> "true", "yes" -> "true")
+    } withClue(s"$path = $spelling: ") {
+      seededWith(path, spelling).get(path.split('.').last) shouldBe Some(seeded)
+    }
+  }
+
+  // Like USER_SYS_INVITE_ONLY and the reset flag, which are read with getBoolean at startup: a
+  // value that is not a boolean stops config-service there, rather than hiding a tab later.
+  it should "refuse a value that is not a boolean, rather than seed it" in {
+    a[ConfigException.WrongType] should be thrownBy seededWith("gui.tabs.hub_enabled", "maybe")
   }
 
   "DefaultsConfig.allDefaults" should "flatten default.conf into short-key/value entries" in {
