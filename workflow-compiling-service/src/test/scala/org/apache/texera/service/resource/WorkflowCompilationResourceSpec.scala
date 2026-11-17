@@ -25,9 +25,13 @@ import jakarta.ws.rs.client.Entity
 import jakarta.ws.rs.core.{MediaType, Response}
 import org.apache.texera.common.compiler.model.{LogicalLink, LogicalPlanPojo}
 import org.apache.texera.amber.core.workflow.PortIdentity
-import org.apache.texera.amber.operator.projection.{AttributeUnit, ProjectionOpDesc}
+import org.apache.texera.amber.operator.LogicalOp
+import org.apache.texera.amber.operator.limit.LimitOpDesc
 import org.apache.texera.amber.operator.source.scan.csv.CSVScanSourceOpDesc
+import org.apache.texera.amber.operator.source.scan.file.FileScanSourceOpDesc
+import org.apache.texera.amber.operator.source.scan.text.TextInputSourceOpDesc
 import org.apache.texera.amber.util.JSONUtils.objectMapper
+import org.apache.texera.dao.jooq.generated.tables.pojos.User
 import org.assertj.core.api.Assertions.assertThat
 import org.scalatest.BeforeAndAfterAll
 import org.scalatest.flatspec.AnyFlatSpec
@@ -43,19 +47,23 @@ import org.scalatest.flatspec.AnyFlatSpec
   * `org.apache.texera.common.compiler.WorkflowCompilerSpec` so a regression
   * lands on the right spec.
   */
-class WorkflowCompilationResourceSpec extends AnyFlatSpec with BeforeAndAfterAll {
+class WorkflowCompilationResourceSpec
+    extends AnyFlatSpec
+    with BeforeAndAfterAll
+    with LoggedInResourceFixture {
 
-  private val resources: ResourceExtension = ResourceExtension
-    .builder()
-    .addResource(new WorkflowCompilationResource())
-    .setMapper(objectMapper)
-    .build()
+  private val resources: ResourceExtension = resourcesFor(new WorkflowCompilationResource())
 
-  override protected def beforeAll(): Unit = resources.before()
-  override protected def afterAll(): Unit = resources.after()
+  override protected def beforeAll(): Unit = {
+    initializeDBAndReplaceDSLContext()
+    insertUsersAndPrivateDataset()
+    resources.before()
+  }
 
-  private val realCsvPath =
-    "workflow-compiling-service/src/test/resources/country_sales_small.csv"
+  override protected def afterAll(): Unit = {
+    resources.after()
+    shutdownDB()
+  }
 
   private def csvOp(fileName: String): CSVScanSourceOpDesc = {
     val op = new CSVScanSourceOpDesc()
@@ -65,12 +73,33 @@ class WorkflowCompilationResourceSpec extends AnyFlatSpec with BeforeAndAfterAll
     op
   }
 
-  private def projectOp(columns: List[String]): ProjectionOpDesc = {
-    val op = new ProjectionOpDesc()
-    op.attributes = columns.map(name => new AttributeUnit(name, ""))
-    op.isDrop = false
+  // A source that needs no file, for the tests that are about the envelope only.
+  private def textOp(text: String): TextInputSourceOpDesc = {
+    val op = new TextInputSourceOpDesc()
+    op.textInput = text
     op
   }
+
+  private def limitOp(rows: Int): LimitOpDesc = {
+    val op = new LimitOpDesc()
+    op.limit = rows
+    op
+  }
+
+  // Scans a whole file as one value, so compiling it resolves the name without reading the file.
+  private def wholeFileScanOp(fileName: String): FileScanSourceOpDesc = {
+    val op = new FileScanSourceOpDesc()
+    op.fileName = Some(fileName)
+    op
+  }
+
+  private def planOf(operator: LogicalOp): LogicalPlanPojo =
+    LogicalPlanPojo(
+      operators = List(operator),
+      links = List.empty,
+      opsToViewResult = List.empty,
+      opsToReuseResult = List.empty
+    )
 
   // The frontend serializes LogicalLink with `fromOpId` / `toOpId` as flat
   // strings, but the Scala case class stores them as nested `OperatorIdentity`
@@ -88,23 +117,24 @@ class WorkflowCompilationResourceSpec extends AnyFlatSpec with BeforeAndAfterAll
     objectMapper.writeValueAsString(jsonNode)
   }
 
-  private def postCompile(pojo: LogicalPlanPojo): Response =
+  private def postCompile(pojo: LogicalPlanPojo, as: User = owner): Response =
     resources
       .target("/compile")
       .request(MediaType.APPLICATION_JSON)
+      .header("Authorization", bearerTokenOf(as))
       .post(Entity.json(encodePojoAsFrontendJson(pojo)))
 
   "POST /compile" should "return HTTP 200 for a well-formed plan" in {
-    val csv = csvOp(realCsvPath)
-    val proj = projectOp(List("Region", "Total Profit"))
+    val text = textOp("north\nsouth")
+    val limit = limitOp(1)
     val response = postCompile(
       LogicalPlanPojo(
-        operators = List(csv, proj),
+        operators = List(text, limit),
         links = List(
           LogicalLink(
-            csv.operatorIdentifier,
+            text.operatorIdentifier,
             PortIdentity(0),
-            proj.operatorIdentifier,
+            limit.operatorIdentifier,
             PortIdentity(0)
           )
         ),
@@ -120,16 +150,16 @@ class WorkflowCompilationResourceSpec extends AnyFlatSpec with BeforeAndAfterAll
     // Both polymorphic deserialization (round-tripping through the trait) and
     // a raw-JSON `type == "success"` check need to hold so the Angular client
     // can branch without depending on Scala class names.
-    val csv = csvOp(realCsvPath)
-    val proj = projectOp(List("Region", "Total Profit"))
+    val text = textOp("north\nsouth")
+    val limit = limitOp(1)
     val response = postCompile(
       LogicalPlanPojo(
-        operators = List(csv, proj),
+        operators = List(text, limit),
         links = List(
           LogicalLink(
-            csv.operatorIdentifier,
+            text.operatorIdentifier,
             PortIdentity(0),
-            proj.operatorIdentifier,
+            limit.operatorIdentifier,
             PortIdentity(0)
           )
         ),
@@ -171,5 +201,60 @@ class WorkflowCompilationResourceSpec extends AnyFlatSpec with BeforeAndAfterAll
     val rootNode = objectMapper.readTree(responseBody)
     assertThat(rootNode.get("type").asText()).isEqualTo("failure")
     assertThat(rootNode.has("operatorErrors")).isTrue
+  }
+
+  it should "answer 401 to a request that carries no logged-in user" in {
+    val response = resources
+      .target("/compile")
+      .request(MediaType.APPLICATION_JSON)
+      .post(Entity.json(encodePojoAsFrontendJson(planOf(wholeFileScanOp(privateDatasetFilePath)))))
+    assertThat(response.getStatus).isEqualTo(401)
+  }
+
+  it should "compile a scan source whose file the logged-in user can read" in {
+    val scan = wholeFileScanOp(privateDatasetFilePath)
+    val response = postCompile(planOf(scan), as = owner)
+
+    assertThat(response.getStatus).isEqualTo(200)
+    val rootNode = objectMapper.readTree(response.readEntity(classOf[String]))
+    assert(rootNode.get("type").asText() == "success", s"expected success, got $rootNode")
+    assert(rootNode.get("operatorOutputSchemas").has(scan.operatorIdentifier.id))
+  }
+
+  it should "return WorkflowCompilationFailure when the scan source file is not readable by the user" in {
+    val scan = csvOp("/dataset/owner@test.com/private_dataset/v1/table.csv")
+    val response = postCompile(planOf(scan), as = otherUser)
+
+    assertThat(response.getStatus).isEqualTo(200)
+    val body = response.readEntity(classOf[String])
+    val rootNode = objectMapper.readTree(body)
+    assert(rootNode.get("type").asText() == "failure", s"expected failure, got $body")
+    assert(rootNode.get("operatorErrors").has(scan.operatorIdentifier.id))
+    val schemas = rootNode.get("operatorOutputSchemas").get(scan.operatorIdentifier.id)
+    assert(
+      schemas == null || !schemas.elements().hasNext ||
+        schemas.elements().next().isNull,
+      s"expected no schema for the operator, got $schemas"
+    )
+    assert(!body.contains(privateDatasetRepositoryName))
+    assert(!body.contains(privateDatasetVersionHash))
+  }
+
+  it should "return the same operator error for an unreadable file as for a missing one" in {
+    val unreadable = wholeFileScanOp(privateDatasetFilePath)
+    val missingPath = "/dataset/owner@test.com/no_such_dataset/v1/notes.txt"
+    val missing = wholeFileScanOp(missingPath)
+
+    def errorMessageOf(scan: FileScanSourceOpDesc): String = {
+      val rootNode = objectMapper.readTree(
+        postCompile(planOf(scan), as = otherUser).readEntity(classOf[String])
+      )
+      rootNode.get("operatorErrors").get(scan.operatorIdentifier.id).get("message").asText()
+    }
+
+    assert(
+      errorMessageOf(unreadable).replace(privateDatasetFilePath, "<path>")
+        == errorMessageOf(missing).replace(missingPath, "<path>")
+    )
   }
 }

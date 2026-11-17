@@ -19,8 +19,6 @@
 
 package org.apache.texera.web.service
 
-import com.twitter.util.Future
-import io.reactivex.rxjava3.disposables.Disposable
 import org.apache.pekko.actor.ActorSystem
 import org.apache.pekko.testkit.TestKit
 import org.apache.texera.amber.core.executor.{OpExecInitInfo, OpExecWithClassName}
@@ -40,15 +38,9 @@ import org.apache.texera.amber.core.workflow.{
   PortIdentity,
   WorkflowContext
 }
-import org.apache.texera.amber.engine.architecture.coordinator.{
-  CoordinatorConfig,
-  UpdateExecutorCompleted,
-  Workflow
-}
+import org.apache.texera.amber.engine.architecture.coordinator.{UpdateExecutorCompleted, Workflow}
 import org.apache.texera.amber.engine.architecture.rpc.controlcommands.WorkflowReconfigureRequest
-import org.apache.texera.amber.engine.architecture.rpc.controlreturns.EmptyReturn
-import org.apache.texera.amber.engine.architecture.rpc.coordinatorservice.CoordinatorServiceFs2Grpc
-import org.apache.texera.amber.engine.common.client.AmberClient
+import org.apache.texera.amber.operator.dummy.DummyOpDesc
 import org.apache.texera.amber.operator.filter.{
   ComparisonType,
   FilterPredicate,
@@ -75,10 +67,8 @@ import org.scalatest.BeforeAndAfterAll
 import org.scalatest.flatspec.AnyFlatSpecLike
 import org.scalatest.matchers.should.Matchers
 
-import java.lang.reflect.{InvocationHandler, Method, Proxy}
 import scala.collection.mutable
 import scala.concurrent.duration.DurationInt
-import scala.reflect.ClassTag
 import scala.util.{Failure, Success, Try}
 
 /**
@@ -108,11 +98,11 @@ class ExecutionReconfigurationServiceSpec
     with Matchers
     with BeforeAndAfterAll {
 
-  private var sharedClient: TestAmberClient = _
+  private var sharedClient: RecordingExecutionClient = _
 
   override def beforeAll(): Unit = {
     super.beforeAll()
-    sharedClient = new TestAmberClient
+    sharedClient = new RecordingExecutionClient(system)
   }
 
   override def afterAll(): Unit = {
@@ -156,12 +146,14 @@ class ExecutionReconfigurationServiceSpec
     op
   }
 
+  /** The message the test-only descriptor below throws from a reconfiguration with. */
+  private val thrownMessage = "this operator blew up while being reconfigured"
+
   /**
-    * No production descriptor ever returns `Failure` from `runtimeReconfiguration`: the six
-    * that override it all return `Success`, and the `LogicalOp` base throws
-    * `UnsupportedOperationException` instead. The failure arm therefore needs a test-only
-    * descriptor. It is invisible to `OperatorMetadataGenerator`, which resolves subtypes from
-    * the `@JsonSubTypes` annotation rather than by scanning the classpath.
+    * Returns `Failure` from `runtimeReconfiguration`. No production descriptor does: the six
+    * that override it all return `Success`, and the `LogicalOp` base throws instead. It is
+    * invisible to `OperatorMetadataGenerator`, which resolves subtypes from the `@JsonSubTypes`
+    * annotation rather than by scanning the classpath.
     */
   private class RejectingReconfigurationOpDesc extends LogicalOp {
     override def operatorInfo: OperatorInfo =
@@ -181,6 +173,29 @@ class ExecutionReconfigurationServiceSpec
         newOpDesc: LogicalOp
     ): Try[(PhysicalOp, Option[StateTransferFunc])] =
       Failure(new RuntimeException(rejectionMessage))
+  }
+
+  /** Throws `failure()` from `runtimeReconfiguration`, the way an override that fails while
+    * rebuilding its executor does.
+    */
+  private class ThrowingReconfigurationOpDesc(failure: () => Throwable) extends LogicalOp {
+    override def operatorInfo: OperatorInfo =
+      OperatorInfo(
+        "Throwing Reconfiguration",
+        "test-only operator whose runtime reconfiguration always throws",
+        OperatorGroupConstants.CLEANING_GROUP,
+        inputPorts = List(InputPort()),
+        outputPorts = List(OutputPort()),
+        supportReconfiguration = true
+      )
+
+    override def runtimeReconfiguration(
+        workflowId: WorkflowIdentity,
+        executionId: ExecutionIdentity,
+        oldOpDesc: LogicalOp,
+        newOpDesc: LogicalOp
+    ): Try[(PhysicalOp, Option[StateTransferFunc])] =
+      throw failure()
   }
 
   /**
@@ -252,90 +267,8 @@ class ExecutionReconfigurationServiceSpec
     override protected def registerWorkerCompletionCallback(): Unit = ()
   }
 
-  /** Real empty-plan client for constructor compatibility; calls made through its grpc interface
-    * are recorded instead of reaching the engine, and the engine callbacks are captured instead
-    * of being wired to actors. One instance per suite -- see the class comment.
-    */
-  private final class TestAmberClient
-      extends AmberClient(
-        system,
-        new WorkflowContext(),
-        PhysicalPlan(Set.empty, Set.empty),
-        CoordinatorConfig(None, None, None, None),
-        _ => ()
-      ) {
-    private val callbacks = mutable.Map.empty[Class[_], Any => Unit]
-
-    /** (method name, request) of every call made through `coordinatorInterface`. */
-    val coordinatorCalls: mutable.ArrayBuffer[(String, Any)] = mutable.ArrayBuffer.empty
-
-    /** Event class of every Disposable handed out by `registerCallback` that was later disposed.
-      * Recorded separately from `callbacks` because disposal removes the entry, which on its own
-      * is indistinguishable from a callback that was never registered (or one dropped by `reset`).
-      */
-    val disposedCallbacks: mutable.ArrayBuffer[Class[_]] = mutable.ArrayBuffer.empty
-
-    override val coordinatorInterface: CoordinatorServiceFs2Grpc[Future, Unit] =
-      Proxy
-        .newProxyInstance(
-          classOf[CoordinatorServiceFs2Grpc[Future, Unit]].getClassLoader,
-          Array(classOf[CoordinatorServiceFs2Grpc[Future, Unit]]),
-          new InvocationHandler {
-            override def invoke(proxy: Any, method: Method, args: Array[AnyRef]): AnyRef = {
-              if (args == null || args.isEmpty) {
-                // Object methods the proxy also routes here; never part of a dispatch.
-                if (method.getName == "hashCode") Integer.valueOf(System.identityHashCode(proxy))
-                else if (method.getName == "toString") "TestCoordinatorInterface"
-                else null
-              } else {
-                coordinatorCalls += ((method.getName, args(0)))
-                Future.value(EmptyReturn())
-              }
-            }
-          }
-        )
-        .asInstanceOf[CoordinatorServiceFs2Grpc[Future, Unit]]
-
-    /**
-      * Honours the Disposable it hands out, the way the real client's rx subscription does:
-      * disposing it detaches the callback, so nothing is delivered to it afterwards. A fake that
-      * ignored disposal would make every `registerCallback` call site in this package look
-      * correctly scoped, including one that dropped the Disposable on the floor.
-      */
-    override def registerCallback[T](callback: T => Unit)(implicit ct: ClassTag[T]): Disposable = {
-      val clazz = ct.runtimeClass
-      callbacks(clazz) = callback.asInstanceOf[Any => Unit]
-      Disposable.fromAction(() => {
-        callbacks.remove(clazz)
-        disposedCallbacks += clazz
-      })
-    }
-
-    /** Delivers an engine event the way the client's observable would. */
-    def fire[T <: AnyRef](event: T)(implicit ct: ClassTag[T]): Unit =
-      callbacks.getOrElse(
-        ct.runtimeClass,
-        fail(s"no callback is registered for ${ct.runtimeClass.getSimpleName}")
-      )(event)
-
-    /** Same delivery as `fire`, but tolerates there being no live callback instead of failing --
-      * the only way to check that an event arriving after teardown really is inert.
-      */
-    def fireIfRegistered[T <: AnyRef](event: T)(implicit ct: ClassTag[T]): Unit =
-      callbacks.get(ct.runtimeClass).foreach(deliver => deliver(event))
-
-    /** Per-test isolation for the one client the suite shares. */
-    def reset(): Unit = {
-      callbacks.clear()
-      coordinatorCalls.clear()
-      disposedCallbacks.clear()
-    }
-
-    def dispose(): Unit = super.shutdown()
-  }
-
   private final class LiveFixture(
-      val client: TestAmberClient,
+      val client: RecordingExecutionClient,
       val stateStore: ExecutionStateStore,
       val service: ExecutionReconfigurationService
   )
@@ -446,6 +379,25 @@ class ExecutionReconfigurationServiceSpec
     deployedOp.seenExecutionId shouldBe testExecutionId
   }
 
+  /** Sends an edit to a deployed `deployedOp` with one reconfiguration already pending and
+    * returns the response together with the ids left in the pending queue.
+    */
+  private def modifyWithOnePending(
+      deployedOp: LogicalOp,
+      request: LogicalOp
+  ): (TexeraWebSocketEvent, List[PhysicalOpIdentity]) = {
+    val stateStore = new ExecutionStateStore
+    val service = new WorkflowOnlyService(stateStore, mkWorkflow(List(deployedOp)))
+    // An edit the user already made earlier in the same pause.
+    val alreadyQueued = mkPhysicalOp("already-queued")
+    stateStore.reconfigurationStore.updateState(_ =>
+      ExecutionReconfigurationStore(unscheduledReconfigurations = List((alreadyQueued, None)))
+    )
+    val response = service.modifyOperatorLogic(ModifyLogicRequest(request))
+    val queued = stateStore.reconfigurationStore.getState.unscheduledReconfigurations
+    (response, queued.map(_._1.id))
+  }
+
   it should "report the deployed operator's rejection and leave the pending queue untouched" in {
     // The request carries a LimitOpDesc, which would reconfigure happily. Only the operator
     // that is actually deployed refuses, so an invalid response proves the service asked the
@@ -453,28 +405,74 @@ class ExecutionReconfigurationServiceSpec
     val opId = "rejecting-op"
     val deployedOp = new RejectingReconfigurationOpDesc
     deployedOp.setOperatorId(opId)
-    val stateStore = new ExecutionStateStore
-    val service = new WorkflowOnlyService(stateStore, mkWorkflow(List(deployedOp)))
 
-    // An edit the user already made earlier in the same pause.
-    val alreadyQueued = mkPhysicalOp("already-queued")
-    stateStore.reconfigurationStore.updateState(_ =>
-      ExecutionReconfigurationStore(unscheduledReconfigurations = List((alreadyQueued, None)))
-    )
-
-    val response = service.modifyOperatorLogic(ModifyLogicRequest(mkLimitOp(opId, 7)))
+    val (response, queued) = modifyWithOnePending(deployedOp, mkLimitOp(opId, 7))
 
     response shouldBe a[ModifyLogicResponse]
     val rejected = response.asInstanceOf[ModifyLogicResponse]
     rejected.opId shouldBe opId
     rejected.isValid shouldBe false
-    // The frontend shows this string in the operator's error box, so it has to be the reason the
+    // The frontend shows this string in an error notification, so it has to be the reason the
     // operator gave -- not an empty string, which is also what the valid arm reports.
     rejected.errorMessage shouldBe rejectionMessage
 
     // A rejected edit neither queues itself nor discards work that was already pending.
-    val queued = stateStore.reconfigurationStore.getState.unscheduledReconfigurations
-    queued.map(_._1.id) shouldBe List(alreadyQueued.id)
+    queued shouldBe List(mkPhysicalOp("already-queued").id)
+  }
+
+  it should "report an operator without a reconfiguration override as a rejected edit" in {
+    // DummyOpDesc advertises supportReconfiguration but inherits the LogicalOp base, which
+    // throws UnsupportedOperationException instead of returning Failure.
+    val opId = "dummy-op"
+    val deployedOp = new DummyOpDesc
+    deployedOp.setOperatorId(opId)
+
+    val (response, queued) = modifyWithOnePending(deployedOp, mkLimitOp(opId, 7))
+
+    response shouldBe a[ModifyLogicResponse]
+    val rejected = response.asInstanceOf[ModifyLogicResponse]
+    rejected.opId shouldBe opId
+    rejected.isValid shouldBe false
+    rejected.errorMessage should include("DummyOpDesc does not support reconfiguration")
+    queued shouldBe List(mkPhysicalOp("already-queued").id)
+  }
+
+  it should "report an operator whose reconfiguration override throws as a rejected edit" in {
+    val opId = "throwing-op"
+    val deployedOp =
+      new ThrowingReconfigurationOpDesc(() => new IllegalStateException(thrownMessage))
+    deployedOp.setOperatorId(opId)
+
+    val (response, queued) = modifyWithOnePending(deployedOp, mkLimitOp(opId, 7))
+
+    response shouldBe a[ModifyLogicResponse]
+    val rejected = response.asInstanceOf[ModifyLogicResponse]
+    rejected.opId shouldBe opId
+    rejected.isValid shouldBe false
+    rejected.errorMessage shouldBe thrownMessage
+    queued shouldBe List(mkPhysicalOp("already-queued").id)
+  }
+
+  it should "describe a rejection by its exception type when the exception has no message" in {
+    val opId = "throwing-op"
+    val deployedOp = new ThrowingReconfigurationOpDesc(() => new IllegalStateException())
+    deployedOp.setOperatorId(opId)
+
+    val (response, queued) = modifyWithOnePending(deployedOp, mkLimitOp(opId, 7))
+
+    response shouldBe a[ModifyLogicResponse]
+    val rejected = response.asInstanceOf[ModifyLogicResponse]
+    rejected.isValid shouldBe false
+    rejected.errorMessage shouldBe "java.lang.IllegalStateException"
+    queued shouldBe List(mkPhysicalOp("already-queued").id)
+  }
+
+  it should "let a fatal reconfiguration exception escape instead of reporting a rejection" in {
+    val opId = "throwing-op"
+    val deployedOp = new ThrowingReconfigurationOpDesc(() => new InterruptedException("stop"))
+    deployedOp.setOperatorId(opId)
+
+    an[InterruptedException] should be thrownBy modifyWithOnePending(deployedOp, mkLimitOp(opId, 7))
   }
 
   // ---------------------------------------------------------------------------

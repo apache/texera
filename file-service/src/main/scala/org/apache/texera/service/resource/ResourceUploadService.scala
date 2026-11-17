@@ -279,7 +279,7 @@ object ResourceUploadService {
             (repositoryName, commitHash, decodedPath)
           } else {
             val document = DocumentFactory
-              .openReadonlyDocument(FileResolver.resolve(decodedPath))
+              .openReadonlyDocument(FileResolver.resolveVersionedResource(decodedPath))
               .asInstanceOf[OnVersionedFileResource]
             requireReadAccessToRepository(ctx, s, document.getRepositoryName(), uid)
             (

@@ -480,7 +480,6 @@ This product bundles sample sales data from Excel BI Analytics as test data.
 From "100 Sales Records.csv":
   - common/workflow-core/src/test/resources/country_sales_small.csv
   - common/workflow-operator/src/test/resources/country_sales_small.csv
-  - workflow-compiling-service/src/test/resources/country_sales_small.csv
 
 Edited from "100 Sales Records.csv" for the CSV operator tests:
   - common/workflow-operator/src/test/resources/country_sales_headerless_small.csv

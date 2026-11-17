@@ -117,4 +117,26 @@ class DictionaryMatcherOpDescSpec extends AnyFlatSpec with Matchers {
       code should not include "Text"
     }
   }
+
+  it should "render stopwords and tokenized frozensets for conjunction matching and preserve case-folded entries for scan/substring" in {
+    val inputSchemas =
+      Map(PortIdentity() -> Schema().add(new Attribute("text", AttributeType.STRING)))
+
+    val conjunction =
+      newDesc("A Quick,Fox", "text", " ", MatchingType.CONJUNCTION_INDEXBASED)
+        .generateStandaloneCode(inputSchemas)
+    conjunction should include("""out1df["matched"]""")
+    conjunction should include("_TEXERA_DM_STOPWORDS")
+    conjunction should include("""_entries=[frozenset({"quick"}), frozenset({"fox"})]""")
+
+    val scan =
+      newDesc(" Alpha , BETA ", "text", "hit", MatchingType.SCANBASED)
+        .generateStandaloneCode(inputSchemas)
+    scan should include("""_entries=[" alpha ", " beta "]""")
+    scan should include("""out1df["hit"]""")
+
+    val sub =
+      newDesc(null, "text", "hit", MatchingType.SUBSTRING).generateStandaloneCode(inputSchemas)
+    sub should include("""_entries=[""]""")
+  }
 }

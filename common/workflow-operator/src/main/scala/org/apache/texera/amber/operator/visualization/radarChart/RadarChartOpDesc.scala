@@ -19,6 +19,7 @@
 
 package org.apache.texera.amber.operator.visualization.radarChart
 
+import org.apache.texera.amber.operator.visualization.StandaloneChartCode._
 import com.fasterxml.jackson.annotation.{JsonProperty, JsonPropertyDescription}
 import com.kjetland.jackson.jsonSchema.annotations.{JsonSchemaInject, JsonSchemaTitle}
 import org.apache.texera.amber.operator.visualization.PlotlyStandaloneCode
@@ -162,14 +163,10 @@ class RadarChartOpDesc extends PythonVisualizationOpDesc with PlotlyStandaloneCo
     val requiredCols =
       (Seq(pyStringLiteral(nameColumn)) ++ valueColumns.map(pyStringLiteral))
         .mkString("[", ", ", "]")
-    s"""def render_error(error_msg):
-       |    return '''<h1>RadarChart is not available.</h1>
-       |                  <p>Reason is: {} </p>
-       |               '''.format(error_msg)
+    s"""${standaloneError("RadarChart is not available.")}
        |
        |if in1df.empty:
-       |    with open(outputHtml, "w", encoding="utf-8") as output:
-       |        output.write(render_error("input table is empty."))
+       |${standaloneErrorPage("input table is empty.")}
        |else:
        |    table = in1df.copy()
        |    required_cols = $requiredCols
@@ -179,8 +176,7 @@ class RadarChartOpDesc extends PythonVisualizationOpDesc with PlotlyStandaloneCo
        |        table[col] = pd.to_numeric(table[col], errors='coerce')
        |    table.dropna(subset=value_cols, inplace=True)
        |    if table.empty:
-       |        with open(outputHtml, "w", encoding="utf-8") as output:
-       |            output.write(render_error("input table is empty after removing missing values."))
+       |${standaloneErrorPage("input table is empty after removing missing values.", indent = 8)}
        |    else:
        |        fig = go.Figure()
        |        categories = $valueColsList
@@ -205,9 +201,7 @@ class RadarChartOpDesc extends PythonVisualizationOpDesc with PlotlyStandaloneCo
        |            showlegend=True,
        |            margin=dict(t=40, b=40, l=40, r=40)
        |        )
-       |        fig.write_json(outputJson)
-       |        fig.write_html(outputHtml)
-       |        print("Radar chart saved to " + outputHtml)""".stripMargin
+       |${standaloneFigure("Radar chart")}""".stripMargin
   }
 
 }

@@ -19,9 +19,10 @@
 
 package org.apache.texera.web.resource.auth
 
+import org.apache.texera.auth.InviteOnly
 import org.apache.texera.common.config.UserSystemConfig
-import org.apache.texera.dao.MockTexeraDB
-import org.apache.texera.dao.jooq.generated.Tables.{AUTH_PROVIDER, USER}
+import org.apache.texera.dao.{MockTexeraDB, SiteSettings}
+import org.apache.texera.dao.jooq.generated.Tables.{AUTH_PROVIDER, SITE_SETTINGS, USER}
 import org.apache.texera.dao.jooq.generated.enums.{ProviderTypeEnum, UserRoleEnum}
 import org.apache.texera.dao.jooq.generated.tables.daos.UserDao
 import org.apache.texera.dao.jooq.generated.tables.pojos.User
@@ -64,11 +65,16 @@ class AppleAuthResourceSpec
 
   // Identity-only accounts have a NULL email, so they are matched by the name they are given
   // instead — the Apple `sub`. AUTH_PROVIDER cascades on delete.
-  private def cleanup(): Unit =
+  private def cleanup(): Unit = {
     getDSLContext
       .deleteFrom(USER)
       .where(USER.EMAIL.like("%" + emailDomain).or(USER.NAME.like("apple-sub-%")))
       .execute()
+    getDSLContext
+      .deleteFrom(SITE_SETTINGS)
+      .where(SITE_SETTINGS.KEY.eq(InviteOnly.SettingKey))
+      .execute()
+  }
 
   // ---- helpers -------------------------------------------------------------
 
@@ -113,6 +119,10 @@ class AppleAuthResourceSpec
   behavior of "login"
 
   it should "provision an INACTIVE user and an APPLE provider row on a first login" in {
+    // The role follows the admin's invite-only switch (ExternalAuthProvisionerSpec covers both
+    // sides); pinned on here so the assertion does not depend on default.conf.
+    SiteSettings.upsert(getDSLContext, InviteOnly.SettingKey, "true", "apple-spec-admin")
+
     loginWith(claims("apple-sub-new", "newcomer" + emailDomain))
 
     val user = userByEmail("newcomer")

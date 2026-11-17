@@ -39,20 +39,23 @@ trait UdfUiParameterSupport {
   protected def mounts: RepositoryMountManager = RepositoryMountManager
 
   protected final def injectUiParameters(code: String): String = {
-    resourceParameters(uiParameters).foreach(selectedVersionPath)
+    Option(uiParameters).getOrElse(Nil).foreach { parameter =>
+      if (isResource(parameter)) selectedVersionPath(parameter)
+    }
     injectParameterValues(code, uiParameters)
   }
 
   protected final def executionBinding(code: String): Option[ExecutionTimeBinding] =
-    Option.when(resourceParameters(uiParameters).nonEmpty) {
+    Option.when(Option(uiParameters).exists(_.exists(isResource))) {
       // Snapshot the compiled descriptor; resolving versions stays lazy until execution.
       val parameters = uiParameters
       val language = uiParameterLanguage
       val mountManager = mounts
       new ExecutionTimeBinding {
         private lazy val resolved = {
+          val locators = Set.newBuilder[String]
           val bound = parameters.map { parameter =>
-            if (!isResource(parameter)) (parameter, None)
+            if (!isResource(parameter)) parameter
             else {
               val (repositoryName, commitHash) =
                 FileResolver.resolveRepositoryVersion(selectedVersionPath(parameter))
@@ -61,10 +64,11 @@ trait UdfUiParameterSupport {
               mounted.attribute = parameter.attribute
               mounted.inputType = parameter.inputType
               mounted.value = mountManager.mountPointOf(locator).toString
-              (mounted, Some(locator))
+              locators += locator
+              mounted
             }
           }
-          (bound.map(_._1), bound.flatMap(_._2).toSet)
+          (bound, locators.result())
         }
 
         override lazy val opExecInitInfo: OpExecWithCode =
@@ -75,12 +79,8 @@ trait UdfUiParameterSupport {
     }
 
   private def isResource(parameter: UiUDFParameter): Boolean =
-    parameter != null && UiUdfParameterContract.resourceInputTypes.values.exists(
-      _ == Option(parameter.inputType).getOrElse("")
-    )
-
-  private def resourceParameters(parameters: List[UiUDFParameter]): List[UiUDFParameter] =
-    Option(parameters).getOrElse(Nil).filter(isResource)
+    parameter != null &&
+      UiUdfParameterContract.isResourceInputType(Option(parameter.inputType).getOrElse(""))
 
   private def selectedVersionPath(parameter: UiUDFParameter): String =
     Option(parameter.value).map(_.trim).filter(_.nonEmpty).getOrElse {

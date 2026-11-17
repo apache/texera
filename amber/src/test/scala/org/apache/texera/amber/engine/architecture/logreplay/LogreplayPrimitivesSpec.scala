@@ -19,9 +19,6 @@
 
 package org.apache.texera.amber.engine.architecture.logreplay
 
-import org.apache.pekko.actor.ActorSystem
-import org.apache.pekko.serialization.{Serialization, SerializationExtension}
-import org.apache.pekko.testkit.TestKit
 import org.apache.texera.amber.core.virtualidentity.{
   ActorVirtualIdentity,
   ChannelIdentity,
@@ -36,17 +33,16 @@ import org.apache.texera.amber.engine.architecture.rpc.controlreturns.{
   EmptyReturn,
   ReturnInvocation
 }
-import org.apache.texera.amber.engine.common.AmberRuntime
+import org.apache.texera.amber.engine.common.{AmberRuntime, AmberSerdeTestSupport}
 import org.apache.texera.amber.engine.common.ambermessage.{
   WorkflowFIFOMessage,
   WorkflowFIFOMessagePayload
 }
-import org.scalatest.BeforeAndAfterAll
 import org.scalatest.flatspec.AnyFlatSpec
 
 import scala.collection.mutable
 
-class LogreplayPrimitivesSpec extends AnyFlatSpec with BeforeAndAfterAll {
+class LogreplayPrimitivesSpec extends AnyFlatSpec with AmberSerdeTestSupport {
 
   private val workerId = ActorVirtualIdentity("worker-1")
   private val cidA =
@@ -55,34 +51,6 @@ class LogreplayPrimitivesSpec extends AnyFlatSpec with BeforeAndAfterAll {
     ChannelIdentity(ActorVirtualIdentity("up2"), workerId, isControl = false)
   private val cidC =
     ChannelIdentity(ActorVirtualIdentity("up3"), workerId, isControl = false)
-
-  // Suite-local ActorSystem + Serialization injected into AmberRuntime so the
-  // ReplayLogRecord round-trip below uses the same Pekko serialization stack
-  // that SequentialRecordStorage uses in production. Torn down in afterAll
-  // so no Pekko threads outlive the suite. (Same pattern as
-  // CheckpointSubsystemSpec.)
-  private val testSystem: ActorSystem =
-    ActorSystem("LogreplayPrimitivesSpec-test", AmberRuntime.pekkoConfig)
-  private val testSerde: Serialization = SerializationExtension(testSystem)
-
-  private def setAmberRuntimeField(name: String, value: AnyRef): Unit = {
-    val field = AmberRuntime.getClass.getDeclaredField(name)
-    field.setAccessible(true)
-    field.set(AmberRuntime, value)
-  }
-
-  override protected def beforeAll(): Unit = {
-    super.beforeAll()
-    setAmberRuntimeField("_actorSystem", testSystem)
-    setAmberRuntimeField("_serde", testSerde)
-  }
-
-  override protected def afterAll(): Unit = {
-    setAmberRuntimeField("_serde", null)
-    setAmberRuntimeField("_actorSystem", null)
-    TestKit.shutdownActorSystem(testSystem)
-    super.afterAll()
-  }
 
   private case class FixedSizePayload() extends WorkflowFIFOMessagePayload
   private def msg(seq: Long): WorkflowFIFOMessage =

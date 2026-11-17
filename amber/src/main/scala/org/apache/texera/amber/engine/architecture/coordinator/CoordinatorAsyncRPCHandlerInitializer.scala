@@ -20,12 +20,22 @@
 package org.apache.texera.amber.engine.architecture.coordinator
 
 import com.twitter.util.Future
-import org.apache.texera.amber.core.virtualidentity.ActorVirtualIdentity
+import org.apache.texera.amber.core.virtualidentity.{
+  ActorVirtualIdentity,
+  ChannelIdentity,
+  EmbeddedControlMessageIdentity,
+  PhysicalOpIdentity
+}
 import org.apache.texera.amber.engine.architecture.coordinator.promisehandlers._
-import org.apache.texera.amber.engine.architecture.rpc.controlcommands.AsyncRPCContext
+import org.apache.texera.amber.engine.architecture.rpc.controlcommands.{
+  AsyncRPCContext,
+  ControlInvocation,
+  EmbeddedControlMessageType
+}
 import org.apache.texera.amber.engine.architecture.rpc.coordinatorservice.CoordinatorServiceFs2Grpc
 import org.apache.texera.amber.engine.common.AmberLogging
 import org.apache.texera.amber.engine.common.rpc.AsyncRPCHandlerInitializer
+import org.apache.texera.amber.engine.common.virtualidentity.util.COORDINATOR
 
 class CoordinatorAsyncRPCHandlerInitializer(
     val cp: CoordinatorProcessor
@@ -51,4 +61,52 @@ class CoordinatorAsyncRPCHandlerInitializer(
     with RetrieveWorkflowStateHandler
     with ReconfigurationHandler {
   val actorId: ActorVirtualIdentity = cp.actorId
+
+  /**
+    * Resolves in-scope data channels and control channels across running regions, then
+    * injects an embedded control message to each source operator's workers.
+    */
+  private[coordinator] def sendEmbeddedControlMessageToSources(
+      ecmId: EmbeddedControlMessageIdentity,
+      ecmType: EmbeddedControlMessageType,
+      scopeOps: Set[PhysicalOpIdentity],
+      sourceOps: Iterable[PhysicalOpIdentity],
+      cmdMapping: Map[String, ControlInvocation]
+  ): Unit = {
+    if (sourceOps.isEmpty) {
+      return
+    }
+    val sourceWorkers = sourceOps.iterator
+      .flatMap(source => cp.workflowExecution.getLatestOperatorExecution(source).getWorkerIds)
+      .toList
+    if (sourceWorkers.isEmpty) {
+      return
+    }
+
+    val channelScope = cp.workflowExecution.getRunningRegionExecutions.iterator
+      .flatMap(_.getAllLinkExecutions.iterator)
+      .collect {
+        case (link, linkExecution)
+            if scopeOps.contains(link.fromOpId) && scopeOps.contains(link.toOpId) =>
+          linkExecution
+      }
+      .flatMap(_.getAllChannelExecutions.iterator.map(_._1))
+    val controlChannels = sourceWorkers.iterator.flatMap { worker =>
+      Seq(
+        ChannelIdentity(COORDINATOR, worker, isControl = true),
+        ChannelIdentity(worker, COORDINATOR, isControl = true)
+      )
+    }
+    val finalScope = (channelScope ++ controlChannels).toSet
+
+    sourceWorkers.foreach { worker =>
+      sendECM(
+        ecmId,
+        ecmType,
+        finalScope,
+        cmdMapping,
+        ChannelIdentity(actorId, worker, isControl = true)
+      )
+    }
+  }
 }
