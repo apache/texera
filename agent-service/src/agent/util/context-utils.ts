@@ -125,7 +125,7 @@ function serializeTask(steps: ReActStep[], status: "completed" | "ongoing"): str
       const toolResultsByCallId = new Map(step.toolResults?.map(result => [result.toolCallId, result]));
       for (const tc of step.toolCalls) {
         const tr = toolResultsByCallId.get(tc.toolCallId);
-        const statusAttr = tr?.isError ? "failed" : "succeeded";
+        const statusAttr = !tr || tr.isError ? "failed" : "succeeded";
         lines.push(`- ${tc.toolName} (${statusAttr})`);
         lines.push(...serializeToolCallDetails(tc.input, tr));
       }
@@ -150,8 +150,7 @@ function serializeToolCallDetails(input: any, result: { output: any; isError?: b
   if (!result) return lines;
   const text = typeof result.output === "string" ? result.output : JSON.stringify(result.output);
   if (text === undefined || text === "") return lines;
-  // Tool errors come back as "[ERROR] ..." strings, so the marker counts as well as isError.
-  if (result.isError || text.startsWith("[ERROR]")) {
+  if (result.isError) {
     lines.push("  - Error:");
     lines.push(...text.split("\n").map(line => `    ${line}`));
   } else {

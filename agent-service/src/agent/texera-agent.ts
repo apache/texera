@@ -601,7 +601,12 @@ export class TexeraAgent {
             .filter(part => part.type === "tool-result" || part.type === "tool-error")
             .map(part => ({
               toolCallId: part.toolCallId,
-              output: part.type === "tool-error" ? part.error : part.output,
+              output:
+                part.type === "tool-error"
+                  ? part.error instanceof Error
+                    ? part.error.message
+                    : String(part.error)
+                  : part.output,
               isError: part.type === "tool-error" || isErrorResult(part.output),
             }));
           const toolResultsByCallId = new Map(formattedToolResults.map(result => [result.toolCallId, result]));
