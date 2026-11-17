@@ -22,7 +22,8 @@ package org.apache.texera.amber.operator.ifStatement
 import org.apache.texera.amber.util.PythonTestSupport.{
   NeedsPythonPackages,
   canImport,
-  configuredPython
+  configuredPython,
+  runSource
 }
 import org.apache.texera.amber.core.executor.OpExecWithClassName
 import org.apache.texera.amber.core.tuple.{Attribute, AttributeType, Schema}
@@ -31,11 +32,6 @@ import org.apache.texera.amber.core.workflow.PortIdentity
 import org.apache.texera.amber.operator.metadata.OperatorGroupConstants
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
-
-import java.nio.charset.StandardCharsets
-import java.nio.file.Files
-import java.util.concurrent.TimeUnit
-import scala.io.Source
 
 class IfOpDescSpec extends AnyFlatSpec with Matchers {
 
@@ -118,15 +114,10 @@ class IfOpDescSpec extends AnyFlatSpec with Matchers {
          |    print(_switch, list(out1df["id"]), list(out2df["id"]))
          |""".stripMargin
 
-    val script = Files.createTempFile("if-standalone-", ".py")
-    script.toFile.deleteOnExit()
-    Files.write(script, driver.getBytes(StandardCharsets.UTF_8))
-    val process = new ProcessBuilder(python, script.toString).redirectErrorStream(true).start()
-    val out = Source.fromInputStream(process.getInputStream).mkString
-    process.waitFor(120, TimeUnit.SECONDS)
+    val (exitCode, out) = runSource(python, "if-standalone-", driver)
 
     withClue(s"python said:\n$out\nscript:\n$driver") {
-      process.exitValue() shouldBe 0
+      exitCode shouldBe 0
       val lines = out.trim.linesIterator.toSeq
       // out1df is the False port, out2df the True port. Each route has to be
       // exclusive: the rows leave by one and the other comes back empty.

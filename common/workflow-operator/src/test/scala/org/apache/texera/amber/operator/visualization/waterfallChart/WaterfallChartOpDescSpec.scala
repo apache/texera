@@ -22,33 +22,23 @@ package org.apache.texera.amber.operator.visualization.waterfallChart
 import org.apache.texera.amber.util.PythonTestSupport.{
   NeedsPythonPackages,
   canImport,
-  configuredPython
+  configuredPython,
+  withDriver
 }
 import org.scalatest.BeforeAndAfter
 import org.scalatest.flatspec.AnyFlatSpec
-import org.scalatest.matchers.should.Matchers
+import org.apache.texera.amber.operator.GeneratedCodeAssertionChecks
 
-import java.nio.charset.StandardCharsets
-import java.nio.file.Files
-import java.util.Base64
-import java.util.concurrent.TimeUnit
-import scala.util.Try
-
-class WaterfallChartOpDescSpec extends AnyFlatSpec with BeforeAndAfter with Matchers {
+class WaterfallChartOpDescSpec
+    extends AnyFlatSpec
+    with BeforeAndAfter
+    with GeneratedCodeAssertionChecks {
 
   var opDesc: WaterfallChartOpDesc = _
 
   before {
     opDesc = new WaterfallChartOpDesc()
   }
-
-  private def b64(s: String): String =
-    Base64.getEncoder.encodeToString(s.getBytes(StandardCharsets.UTF_8))
-
-  // A column name is carried either literally (plain chunks) or as the
-  // base64 payload of a runtime decode site (encoded chunks).
-  private def carries(output: String, name: String): Boolean =
-    output.contains(name) || output.contains(b64(name))
 
   it should "default xColumn and yColumn to non-null, empty strings" in {
     opDesc.xColumn should not be null
@@ -58,17 +48,15 @@ class WaterfallChartOpDescSpec extends AnyFlatSpec with BeforeAndAfter with Matc
   }
 
   it should "throw an AssertionError (not a NullPointerException) naming the X Axis when xColumn is left empty" in {
-    val ex = intercept[AssertionError](opDesc.createPlotlyFigure())
+    val ex =
+      expectError[AssertionError]("X Axis Values cannot be empty")(opDesc.createPlotlyFigure())
     ex shouldBe a[AssertionError]
-    ex.getMessage should not be null
-    ex.getMessage should include("X Axis Values cannot be empty")
   }
 
   it should "throw an AssertionError naming the Y Axis when only xColumn is set" in {
     opDesc.xColumn = "x_col"
-    val ex = intercept[AssertionError](opDesc.createPlotlyFigure())
-    ex.getMessage should not be null
-    ex.getMessage should include("Y Axis Values cannot be empty")
+    val ex =
+      expectError[AssertionError]("Y Axis Values cannot be empty")(opDesc.createPlotlyFigure())
   }
 
   it should "render the configured x and y columns when both are set" in {
@@ -163,23 +151,16 @@ class WaterfallChartOpDescSpec extends AnyFlatSpec with BeforeAndAfter with Matc
       cancel(s"'$python' cannot import pandas and plotly; skipping runtime verification")
     }
 
-    val moduleFile = Files.createTempFile("waterfall_chart_op_", ".py")
-    val driverFile = Files.createTempFile("waterfall_chart_driver_", ".py")
-    try {
-      Files.write(moduleFile, configured().generatePythonCode().getBytes(StandardCharsets.UTF_8))
-      Files.write(driverFile, runtimeDriverScript.getBytes(StandardCharsets.UTF_8))
-
-      val process = new ProcessBuilder(python, driverFile.toString, moduleFile.toString)
-        .redirectErrorStream(true)
-        .start()
-      val finished = process.waitFor(120, TimeUnit.SECONDS)
-      if (!finished) {
-        process.destroyForcibly()
-        fail("Runtime verification driver timed out after 120s")
-      }
-      val output = new String(process.getInputStream.readAllBytes(), StandardCharsets.UTF_8)
+    withDriver(
+      python,
+      "waterfall_chart_op_",
+      "waterfall_chart_driver_",
+      configured().generatePythonCode(),
+      runtimeDriverScript,
+      "Runtime verification driver timed out after 120s"
+    ) { (exitCode, output) =>
       withClue(s"Driver output:\n$output\n") {
-        process.exitValue() shouldBe 0
+        exitCode shouldBe 0
         // Four rows of 1, 2, 3, 4 give four bars plus a total of 10. The old measure list
         // spent the last row on the total, drawing three bars and a fourth at 6 labelled +4.
         output should include(
@@ -195,10 +176,6 @@ class WaterfallChartOpDescSpec extends AnyFlatSpec with BeforeAndAfter with Matc
             """text=["+1", "+2", "+3", "6"] xaxis=category"""
         )
       }
-    } finally {
-      Try(Files.deleteIfExists(moduleFile))
-      Try(Files.deleteIfExists(driverFile))
-      ()
     }
   }
 }

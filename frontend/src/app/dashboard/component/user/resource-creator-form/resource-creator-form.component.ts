@@ -20,7 +20,6 @@
 import { Component, EventEmitter, Input, Output } from "@angular/core";
 import { FormGroup, FormsModule } from "@angular/forms";
 import { FormlyFieldConfig, FormlyModule } from "@ngx-formly/core";
-import { NgIf } from "@angular/common";
 import { NzSpinComponent } from "ng-zorro-antd/spin";
 import { NzSwitchComponent } from "ng-zorro-antd/switch";
 import { NzButtonComponent } from "ng-zorro-antd/button";
@@ -39,7 +38,6 @@ import { ɵNzTransitionPatchDirective } from "ng-zorro-antd/core/transition-patc
   imports: [
     NzSpinComponent,
     FormlyModule,
-    NgIf,
     NzSwitchComponent,
     FormsModule,
     NzButtonComponent,
@@ -52,7 +50,6 @@ export class ResourceCreatorFormComponent {
   @Input({ required: true }) fields!: FormlyFieldConfig[];
   @Input({ required: true }) model!: Record<string, unknown>;
   @Input() isCreating = false;
-  @Input() showToggles = true;
   @Input() isPublic = false;
   @Input() isDownloadable = false;
   @Output() isPublicChange = new EventEmitter<boolean>();

@@ -90,8 +90,8 @@ class WorkflowLifecycleManagerSpec extends AnyFlatSpec with BeforeAndAfterAll {
 
   /** Counts the clean-ups instead of latching on the first one, so a repeat is observable. */
   private def managerWithCounter(
-      cleanUpTimeout: Int = 1,
-      id: String = "workflow-lifecycle-manager-spec"
+      cleanUpTimeout: Int,
+      id: String
   ): (WorkflowLifecycleManager, AtomicInteger) = {
     val cleanUps = new AtomicInteger(0)
     val manager = new WorkflowLifecycleManager(

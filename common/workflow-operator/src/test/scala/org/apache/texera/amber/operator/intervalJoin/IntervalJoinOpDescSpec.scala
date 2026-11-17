@@ -22,8 +22,10 @@ package org.apache.texera.amber.operator.intervalJoin
 import org.apache.texera.amber.util.PythonTestSupport.{
   NeedsPythonPackages,
   canImport,
-  configuredPython
+  configuredPython,
+  runSource
 }
+
 import org.apache.texera.amber.core.executor.OpExecWithClassName
 import org.apache.texera.amber.core.tuple.{Attribute, AttributeType, Schema, Tuple}
 import org.apache.texera.amber.core.virtualidentity.{ExecutionIdentity, WorkflowIdentity}
@@ -34,11 +36,7 @@ import org.apache.texera.amber.util.JSONUtils.objectMapper
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 
-import java.nio.charset.StandardCharsets
-import java.nio.file.Files
 import java.sql.Timestamp
-import java.util.concurrent.TimeUnit
-import scala.io.Source
 
 class IntervalJoinOpDescSpec extends AnyFlatSpec with Matchers {
 
@@ -163,14 +161,9 @@ class IntervalJoinOpDescSpec extends AnyFlatSpec with Matchers {
          |print(",".join(map(str, out1df.iloc[0].tolist())))
          |""".stripMargin
 
-    val script = Files.createTempFile("intervaljoin-columns-", ".py")
-    script.toFile.deleteOnExit()
-    Files.write(script, driver.getBytes(StandardCharsets.UTF_8))
-    val process = new ProcessBuilder(python, script.toString).redirectErrorStream(true).start()
-    val out = Source.fromInputStream(process.getInputStream).mkString
-    process.waitFor(120, TimeUnit.SECONDS)
+    val (exitCode, out) = runSource(python, "intervaljoin-columns-", driver)
     withClue(s"python said:\n$out\nscript:\n$driver") {
-      process.exitValue() shouldBe 0
+      exitCode shouldBe 0
       val lines = out.trim.linesIterator.toSeq
       lines.head.split(",").toList shouldBe promised
       // The payload the temporary used to overwrite, and the row still joins.
@@ -226,14 +219,9 @@ class IntervalJoinOpDescSpec extends AnyFlatSpec with Matchers {
            |    print(" ".join(pd.Timestamp(v).isoformat() for v in row))
            |""".stripMargin
 
-      val script = Files.createTempFile("intervaljoin-millis-", ".py")
-      script.toFile.deleteOnExit()
-      Files.write(script, driver.getBytes(StandardCharsets.UTF_8))
-      val process = new ProcessBuilder(python, script.toString).redirectErrorStream(true).start()
-      val out = Source.fromInputStream(process.getInputStream).mkString
-      process.waitFor(120, TimeUnit.SECONDS)
+      val (exitCode, out) = runSource(python, "intervaljoin-millis-", driver)
       withClue(s"python said:\n$out\nscript:\n$driver") {
-        process.exitValue() shouldBe 0
+        exitCode shouldBe 0
         out.trim.linesIterator.toSeq shouldBe engine
       }
       if (includeBounds) engine should have size 3
@@ -306,16 +294,10 @@ class IntervalJoinOpDescSpec extends AnyFlatSpec with Matchers {
                |    print(" ".join(pd.Timestamp(v).isoformat() for v in row))
                |""".stripMargin
 
-          val script = Files.createTempFile("intervaljoin-zone-", ".py")
-          script.toFile.deleteOnExit()
-          Files.write(script, driver.getBytes(StandardCharsets.UTF_8))
-          val builder = new ProcessBuilder(python, script.toString).redirectErrorStream(true)
-          builder.environment().put("TZ", zone)
-          val process = builder.start()
-          val out = Source.fromInputStream(process.getInputStream).mkString
-          process.waitFor(120, TimeUnit.SECONDS)
+          val (exitCode, out) =
+            runSource(python, "intervaljoin-zone-", driver, environment = Map("TZ" -> zone))
           withClue(s"$unit from $r, python said:\n$out\nscript:\n$driver") {
-            process.exitValue() shouldBe 0
+            exitCode shouldBe 0
             out.trim.linesIterator.filter(_.nonEmpty).toSeq shouldBe engine
             engine should have size 1
           }
@@ -375,14 +357,9 @@ class IntervalJoinOpDescSpec extends AnyFlatSpec with Matchers {
              |    print(" ".join(str(int(v)) for v in row))
              |""".stripMargin
 
-        val script = Files.createTempFile("intervaljoin-bound-", ".py")
-        script.toFile.deleteOnExit()
-        Files.write(script, driver.getBytes(StandardCharsets.UTF_8))
-        val process = new ProcessBuilder(python, script.toString).redirectErrorStream(true).start()
-        val out = Source.fromInputStream(process.getInputStream).mkString
-        process.waitFor(120, TimeUnit.SECONDS)
+        val (exitCode, out) = runSource(python, "intervaljoin-bound-", driver)
         withClue(s"$attrType constant $constant, python said:\n$out\nscript:\n$driver") {
-          process.exitValue() shouldBe 0
+          exitCode shouldBe 0
           out.trim.linesIterator.filter(_.nonEmpty).toSeq shouldBe engine
         }
     }

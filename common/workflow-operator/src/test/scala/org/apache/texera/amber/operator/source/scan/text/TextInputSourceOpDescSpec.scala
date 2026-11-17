@@ -22,7 +22,8 @@ package org.apache.texera.amber.operator.source.scan.text
 import org.apache.texera.amber.util.PythonTestSupport.{
   NeedsPythonPackages,
   canImport,
-  configuredPython
+  configuredPython,
+  runScript
 }
 import org.apache.texera.amber.core.executor.OpExecWithClassName
 import org.apache.texera.amber.core.tuple.{
@@ -41,8 +42,6 @@ import org.scalatest.flatspec.AnyFlatSpec
 
 import java.nio.charset.StandardCharsets
 import java.nio.file.{Files, Path, Paths}
-import java.util.concurrent.TimeUnit
-import scala.io.Source
 import scala.util.Try
 
 class TextInputSourceOpDescSpec extends AnyFlatSpec with BeforeAndAfter {
@@ -451,12 +450,10 @@ class TextInputSourceOpDescSpec extends AnyFlatSpec with BeforeAndAfter {
     dir.toFile.deleteOnExit()
     val script = dir.resolve("run.py")
     Files.write(script, driver.getBytes(StandardCharsets.UTF_8))
-    val process = new ProcessBuilder(python, script.toString).redirectErrorStream(true).start()
-    val out = Source.fromInputStream(process.getInputStream).mkString
-    process.waitFor(120, TimeUnit.SECONDS)
+    val (exitCode, out) = runScript(python, script)
 
     withClue(s"python said:\n$out\n") {
-      assert(process.exitValue() == 0)
+      assert(exitCode == 0)
       val printed = out.linesIterator.toList
       assert(printed.size == runs.size)
       runs.zip(printed).foreach {
@@ -527,13 +524,7 @@ class TextInputSourceOpDescSpec extends AnyFlatSpec with BeforeAndAfter {
          |""".stripMargin.getBytes(StandardCharsets.UTF_8)
     )
 
-    val process = new ProcessBuilder(python, script.toString)
-      .directory(dir.toFile)
-      .redirectErrorStream(true)
-      .start()
-    val out = Source.fromInputStream(process.getInputStream).mkString
-    process.waitFor(120, TimeUnit.SECONDS)
-    (process.exitValue(), out)
+    runScript(python, script, directory = Some(dir))
   }
 
   "TextInputSourceOpDesc.getPhysicalOp" should

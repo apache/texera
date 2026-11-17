@@ -24,12 +24,12 @@ import { BrowserAnimationsModule } from "@angular/platform-browser/animations";
 import { FormsModule, ReactiveFormsModule } from "@angular/forms";
 import { FieldType, FieldTypeConfig, FormlyModule } from "@ngx-formly/core";
 import { HttpClientTestingModule } from "@angular/common/http/testing";
-import { NZ_MODAL_DATA, NzModalRef } from "ng-zorro-antd/modal";
+import { NzModalRef } from "ng-zorro-antd/modal";
 import { of, Subject, throwError } from "rxjs";
-import { UserDatasetVersionCreatorComponent } from "./user-dataset-version-creator.component";
-import { DatasetService } from "../../../../../service/user/dataset/dataset.service";
-import { NotificationService } from "../../../../../../common/service/notification/notification.service";
-import { commonTestProviders } from "../../../../../../common/testing/test-utils";
+import { UserDatasetCreatorComponent } from "./user-dataset-creator.component";
+import { DatasetService } from "../../../../service/user/dataset/dataset.service";
+import { NotificationService } from "../../../../../common/service/notification/notification.service";
+import { commonTestProviders } from "../../../../../common/testing/test-utils";
 
 // Minimal stand-in for the "input" formly type (the real one comes from the app's
 // UI formly module). Registering it lets formly materialize the declared fields
@@ -37,26 +37,21 @@ import { commonTestProviders } from "../../../../../../common/testing/test-utils
 @Component({ template: "", standalone: true })
 class StubFormlyInputComponent extends FieldType<FieldTypeConfig> {}
 
-describe("UserDatasetVersionCreatorComponent", () => {
+describe("UserDatasetCreatorComponent", () => {
   let modalClose: ReturnType<typeof vi.fn>;
   let createDataset: ReturnType<typeof vi.fn>;
-  let createDatasetVersion: ReturnType<typeof vi.fn>;
   let notifySuccess: ReturnType<typeof vi.fn>;
   let notifyError: ReturnType<typeof vi.fn>;
 
-  async function createFixture(modalData: {
-    isCreatingVersion: boolean;
-    did?: number;
-  }): Promise<ComponentFixture<UserDatasetVersionCreatorComponent>> {
+  async function createFixture(): Promise<ComponentFixture<UserDatasetCreatorComponent>> {
     modalClose = vi.fn();
     createDataset = vi.fn();
-    createDatasetVersion = vi.fn();
     notifySuccess = vi.fn();
     notifyError = vi.fn();
 
     await TestBed.configureTestingModule({
       imports: [
-        UserDatasetVersionCreatorComponent,
+        UserDatasetCreatorComponent,
         BrowserAnimationsModule,
         FormsModule,
         ReactiveFormsModule,
@@ -69,19 +64,18 @@ describe("UserDatasetVersionCreatorComponent", () => {
         HttpClientTestingModule,
       ],
       providers: [
-        { provide: NZ_MODAL_DATA, useValue: modalData },
         { provide: NzModalRef, useValue: { close: modalClose } },
-        { provide: DatasetService, useValue: { createDataset, createDatasetVersion } },
+        { provide: DatasetService, useValue: { createDataset } },
         { provide: NotificationService, useValue: { success: notifySuccess, error: notifyError } },
         ...commonTestProviders,
       ],
     }).compileComponents();
 
-    return TestBed.createComponent(UserDatasetVersionCreatorComponent);
+    return TestBed.createComponent(UserDatasetCreatorComponent);
   }
 
-  it("should create and render the formly form (dataset-creation mode)", async () => {
-    const fixture = await createFixture({ isCreatingVersion: false });
+  it("should create and render the formly form", async () => {
+    const fixture = await createFixture();
     fixture.detectChanges();
 
     expect(fixture.componentInstance).toBeTruthy();
@@ -89,22 +83,15 @@ describe("UserDatasetVersionCreatorComponent", () => {
     expect(fixture.componentInstance.form.contains("name")).toBe(true);
   });
 
-  it("ngOnInit builds the version-description field when creating a version", async () => {
-    const fixture = await createFixture({ isCreatingVersion: true, did: 5 });
-    fixture.detectChanges();
-
-    expect(fixture.componentInstance.fields.map(f => f.key)).toEqual(["versionDescription"]);
-  });
-
-  it("ngOnInit builds the name + description fields when creating a dataset", async () => {
-    const fixture = await createFixture({ isCreatingVersion: false });
+  it("ngOnInit builds the name, description and contributors fields", async () => {
+    const fixture = await createFixture();
     fixture.detectChanges();
 
     expect(fixture.componentInstance.fields.map(f => f.key)).toEqual(["name", "description", "contributors"]);
   });
 
   it("onClickCreate does nothing when the required name is empty (invalid form)", async () => {
-    const fixture = await createFixture({ isCreatingVersion: false });
+    const fixture = await createFixture();
     fixture.detectChanges();
     const component = fixture.componentInstance;
 
@@ -116,7 +103,7 @@ describe("UserDatasetVersionCreatorComponent", () => {
   });
 
   it("onClickCreate creates a dataset with a sanitized name and closes the modal on success", async () => {
-    const fixture = await createFixture({ isCreatingVersion: false });
+    const fixture = await createFixture();
     fixture.detectChanges();
     const component = fixture.componentInstance;
     component.form.get("name")?.setValue("My Dataset");
@@ -139,7 +126,7 @@ describe("UserDatasetVersionCreatorComponent", () => {
   });
 
   it("onClickCreate reports both the typed and the sanitized name when the name had to be rewritten", async () => {
-    const fixture = await createFixture({ isCreatingVersion: false });
+    const fixture = await createFixture();
     fixture.detectChanges();
     const component = fixture.componentInstance;
     // Padded on both sides, and the only junk at the end is the whitespace itself.
@@ -164,7 +151,7 @@ describe("UserDatasetVersionCreatorComponent", () => {
   });
 
   it("onClickCreate reports a name that needed no rewriting just once", async () => {
-    const fixture = await createFixture({ isCreatingVersion: false });
+    const fixture = await createFixture();
     fixture.detectChanges();
     const component = fixture.componentInstance;
     // Already lower-case, alphanumeric and hyphenated: sanitization is a no-op.
@@ -178,7 +165,7 @@ describe("UserDatasetVersionCreatorComponent", () => {
   });
 
   it("onClickCreate notifies with the stored name and closes with null when dataset creation fails", async () => {
-    const fixture = await createFixture({ isCreatingVersion: false });
+    const fixture = await createFixture();
     fixture.detectChanges();
     const component = fixture.componentInstance;
     component.form.get("name")?.setValue("My Dataset");
@@ -195,7 +182,7 @@ describe("UserDatasetVersionCreatorComponent", () => {
   });
 
   it("onClickCreate locks the form while the creation request is still outstanding", async () => {
-    const fixture = await createFixture({ isCreatingVersion: false });
+    const fixture = await createFixture();
     fixture.detectChanges();
     const component = fixture.componentInstance;
     component.form.get("name")?.setValue("My Dataset");
@@ -210,37 +197,8 @@ describe("UserDatasetVersionCreatorComponent", () => {
     expect(modalClose).not.toHaveBeenCalled();
   });
 
-  it("onClickCreate creates a dataset version and closes the modal on success", async () => {
-    const fixture = await createFixture({ isCreatingVersion: true, did: 42 });
-    fixture.detectChanges();
-    const component = fixture.componentInstance;
-    component.form.get("versionDescription")?.setValue("v2 notes");
-    createDatasetVersion.mockReturnValue(of({ dvid: 1 }));
-
-    component.onClickCreate();
-
-    expect(createDatasetVersion).toHaveBeenCalledWith(42, "v2 notes");
-    expect(notifySuccess).toHaveBeenCalledWith("Version Created");
-    expect(modalClose).toHaveBeenCalledWith({ dvid: 1 });
-    expect(component.isCreating).toBe(false);
-  });
-
-  it("onClickCreate notifies and closes with null when version creation fails", async () => {
-    const fixture = await createFixture({ isCreatingVersion: true, did: 42 });
-    fixture.detectChanges();
-    const component = fixture.componentInstance;
-    component.form.get("versionDescription")?.setValue("v2");
-    createDatasetVersion.mockReturnValue(throwError(() => ({ error: { message: "boom" } })));
-
-    component.onClickCreate();
-
-    expect(notifyError).toHaveBeenCalled();
-    expect(modalClose).toHaveBeenCalledWith(null);
-    expect(component.isCreating).toBe(false);
-  });
-
   it("onClickCancel closes the modal with null", async () => {
-    const fixture = await createFixture({ isCreatingVersion: false });
+    const fixture = await createFixture();
     fixture.detectChanges();
 
     fixture.componentInstance.onClickCancel();
@@ -249,7 +207,7 @@ describe("UserDatasetVersionCreatorComponent", () => {
   });
 
   it("datasetNameSanitization lowercases, dashes non-alphanumerics, and flags the change", async () => {
-    const fixture = await createFixture({ isCreatingVersion: false });
+    const fixture = await createFixture();
     const component = fixture.componentInstance;
 
     expect(component.datasetNameSanitization("  My Data Set!! ")).toBe("my-data-set-");
@@ -257,7 +215,7 @@ describe("UserDatasetVersionCreatorComponent", () => {
   });
 
   it("switch handlers toggle the public and downloadable flags", async () => {
-    const fixture = await createFixture({ isCreatingVersion: false });
+    const fixture = await createFixture();
     const component = fixture.componentInstance;
 
     component.onPublicStatusChange(true);
@@ -274,19 +232,18 @@ describe("UserDatasetVersionCreatorComponent", () => {
    * swapping the two switches or the two buttons fails here.
    */
   describe("rendered controls", () => {
-    /** Renders in dataset-creation mode (the only mode that shows the switches). */
-    async function renderCreator(): Promise<ComponentFixture<UserDatasetVersionCreatorComponent>> {
-      const fixture = await createFixture({ isCreatingVersion: false });
+    async function renderCreator(): Promise<ComponentFixture<UserDatasetCreatorComponent>> {
+      const fixture = await createFixture();
       fixture.detectChanges();
       fixture.componentInstance.form.get("name")?.setValue("My Dataset");
       fixture.detectChanges();
       return fixture;
     }
 
-    const switches = (fixture: ComponentFixture<UserDatasetVersionCreatorComponent>) =>
+    const switches = (fixture: ComponentFixture<UserDatasetCreatorComponent>) =>
       fixture.debugElement.queryAll(By.css("nz-switch"));
 
-    const click = (fixture: ComponentFixture<UserDatasetVersionCreatorComponent>, selector: string) =>
+    const click = (fixture: ComponentFixture<UserDatasetCreatorComponent>, selector: string) =>
       (fixture.nativeElement.querySelector(selector) as HTMLButtonElement).click();
 
     it("submits the dataset from the create button", async () => {
@@ -326,15 +283,6 @@ describe("UserDatasetVersionCreatorComponent", () => {
       click(fixture, "button.create-btn");
 
       expect(createDataset.mock.calls[0][0]).toMatchObject({ isPublic: false, isDownloadable: true });
-    });
-
-    it("offers no visibility or downloadability switch when adding a version", async () => {
-      const fixture = await createFixture({ isCreatingVersion: true, did: 5 });
-      fixture.detectChanges();
-
-      // A version inherits both flags from its dataset, so the toggles are hidden.
-      expect(switches(fixture)).toHaveLength(0);
-      expect(fixture.nativeElement.querySelector("button.create-btn")).not.toBeNull();
     });
   });
 });

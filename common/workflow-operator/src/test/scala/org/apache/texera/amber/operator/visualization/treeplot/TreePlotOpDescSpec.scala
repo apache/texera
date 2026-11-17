@@ -22,18 +22,14 @@ package org.apache.texera.amber.operator.visualization.treeplot
 import org.apache.texera.amber.util.PythonTestSupport.{
   NeedsPythonPackages,
   canImport,
-  configuredPython
+  configuredPython,
+  withDriver
 }
 import org.scalatest.BeforeAndAfter
 import org.scalatest.flatspec.AnyFlatSpec
-import org.scalatest.matchers.should.Matchers
+import org.apache.texera.amber.operator.GeneratedCodeAssertionChecks
 
-import java.nio.charset.StandardCharsets
-import java.nio.file.Files
-import java.util.Base64
-import java.util.concurrent.TimeUnit
-
-class TreePlotOpDescSpec extends AnyFlatSpec with BeforeAndAfter with Matchers {
+class TreePlotOpDescSpec extends AnyFlatSpec with BeforeAndAfter with GeneratedCodeAssertionChecks {
 
   var opDesc: TreePlotOpDesc = _
 
@@ -41,20 +37,9 @@ class TreePlotOpDescSpec extends AnyFlatSpec with BeforeAndAfter with Matchers {
     opDesc = new TreePlotOpDesc()
   }
 
-  private def b64(s: String): String =
-    Base64.getEncoder.encodeToString(s.getBytes(StandardCharsets.UTF_8))
-
-  private def carries(output: String, name: String): Boolean =
-    output.contains(name) || output.contains(b64(name))
-
-  private def fieldPart(msg: String): String =
-    msg.toLowerCase.replace("cannot be empty", "")
-
   // The not-blank assert lives directly in generatePythonCode().
   it should "throw AssertionError naming the Edge List Column when it is left empty" in {
-    val ex = intercept[AssertionError](opDesc.generatePythonCode())
-    ex.getMessage should not be null
-    ex.getMessage should include("cannot be empty")
+    val ex = expectError[AssertionError]("cannot be empty")(opDesc.generatePythonCode())
     fieldPart(ex.getMessage) should include("edge")
   }
 
@@ -131,23 +116,16 @@ class TreePlotOpDescSpec extends AnyFlatSpec with BeforeAndAfter with Matchers {
     }
 
     opDesc.edgeListColumn = "edge_pairs"
-    val moduleFile = Files.createTempFile("tree_plot_op_", ".py")
-    val driverFile = Files.createTempFile("tree_plot_driver_", ".py")
-    try {
-      Files.write(moduleFile, opDesc.generatePythonCode().getBytes(StandardCharsets.UTF_8))
-      Files.write(driverFile, runtimeDriverScript.getBytes(StandardCharsets.UTF_8))
-
-      val process = new ProcessBuilder(python, driverFile.toString, moduleFile.toString)
-        .redirectErrorStream(true)
-        .start()
-      val finished = process.waitFor(120, TimeUnit.SECONDS)
-      if (!finished) {
-        process.destroyForcibly()
-        fail("Layout driver timed out after 120s")
-      }
-      val output = new String(process.getInputStream.readAllBytes(), StandardCharsets.UTF_8)
+    withDriver(
+      python,
+      "tree_plot_op_",
+      "tree_plot_driver_",
+      opDesc.generatePythonCode(),
+      runtimeDriverScript,
+      "Layout driver timed out after 120s"
+    ) { (exitCode, output) =>
       withClue(s"Driver output:\n$output\n") {
-        process.exitValue() shouldBe 0
+        exitCode shouldBe 0
       }
       "CASE (\\S+) (.*)".r
         .findAllMatchIn(output)
@@ -165,9 +143,6 @@ class TreePlotOpDescSpec extends AnyFlatSpec with BeforeAndAfter with Matchers {
             .toMap
         }
         .toMap
-    } finally {
-      Files.deleteIfExists(moduleFile)
-      Files.deleteIfExists(driverFile)
     }
   }
 

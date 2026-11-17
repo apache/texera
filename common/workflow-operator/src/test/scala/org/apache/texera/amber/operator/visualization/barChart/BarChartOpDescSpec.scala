@@ -25,21 +25,15 @@ import org.apache.texera.amber.operator.metadata.OperatorGroupConstants
 import org.apache.texera.amber.util.JSONUtils.objectMapper
 import org.scalatest.BeforeAndAfter
 import org.scalatest.flatspec.AnyFlatSpec
-import org.scalatest.matchers.should.Matchers
+import org.apache.texera.amber.operator.GeneratedCodeAssertionChecks
 
-import java.nio.charset.StandardCharsets
-import java.util.Base64
-
-class BarChartOpDescSpec extends AnyFlatSpec with BeforeAndAfter with Matchers {
+class BarChartOpDescSpec extends AnyFlatSpec with BeforeAndAfter with GeneratedCodeAssertionChecks {
 
   var opDesc: BarChartOpDesc = _
 
   before {
     opDesc = new BarChartOpDesc()
   }
-
-  private def b64(s: String): String =
-    Base64.getEncoder.encodeToString(s.getBytes(StandardCharsets.UTF_8))
 
   it should "throw assertion error if value is empty" in {
     assertThrows[AssertionError] {
@@ -56,12 +50,6 @@ class BarChartOpDescSpec extends AnyFlatSpec with BeforeAndAfter with Matchers {
     val temp = opDesc.manipulateTable().plain
     assert(temp.contains("geo.state_name"))
     assert(temp.contains("person.count"))
-  }
-
-  it should "throw assertion error if chart is empty" in {
-    assertThrows[AssertionError] {
-      opDesc.manipulateTable()
-    }
   }
 
   "BarChartOpDesc.operatorInfo" should "advertise the user-friendly name and Basic group" in {

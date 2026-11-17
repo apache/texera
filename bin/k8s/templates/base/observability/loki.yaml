@@ -34,41 +34,9 @@ data:
   config.yaml: |
     {{- include "texera.observability.lokiConfig" . | nindent 4 }}
 ---
-apiVersion: v1
-kind: PersistentVolumeClaim
-metadata:
-  name: {{ .Release.Name }}-loki-data
-  namespace: {{ .Release.Namespace }}
-  labels:
-    app: {{ .Release.Name }}-loki
-spec:
-  accessModes: ["ReadWriteOnce"]
-  {{- if .Values.observability.logs.storageClass }}
-  storageClassName: {{ .Values.observability.logs.storageClass }}
-  {{- end }}
-  resources:
-    requests:
-      storage: {{ .Values.observability.logs.storage }}
+{{ include "texera.observability.dataClaim" (dict "release" .Release "app" "loki" "storage" .Values.observability.logs) }}
 ---
-apiVersion: apps/v1
-kind: Deployment
-metadata:
-  name: {{ .Release.Name }}-loki
-  namespace: {{ .Release.Namespace }}
-  labels:
-    app: {{ .Release.Name }}-loki
-spec:
-  replicas: 1
-  # Single writer bound to one RWO volume; never run two at once.
-  strategy:
-    type: Recreate
-  selector:
-    matchLabels:
-      app: {{ .Release.Name }}-loki
-  template:
-    metadata:
-      labels:
-        app: {{ .Release.Name }}-loki
+{{ include "texera.deploymentHeader" (dict "release" .Release "name" "loki" "replicas" 1 "recreate" true) }}
       annotations:
         # Roll the pod when the rendered config changes.
         checksum/config: {{ include "texera.observability.lokiConfig" . | sha256sum }}
@@ -82,11 +50,7 @@ spec:
           image: {{ .Values.observability.logs.image }}
           imagePullPolicy: {{ .Values.texeraImages.pullPolicy }}
           args: ["-config.file=/etc/loki/config.yaml"]
-          securityContext:
-            readOnlyRootFilesystem: true
-            allowPrivilegeEscalation: false
-            capabilities:
-              drop: ["ALL"]
+          {{- include "texera.observability.containerSecurityContext" true | nindent 10 }}
           ports:
             - name: http
               containerPort: {{ .Values.observability.logs.port }}
@@ -117,20 +81,7 @@ spec:
         - name: tmp
           emptyDir: {}
 ---
-apiVersion: v1
-kind: Service
-metadata:
-  name: {{ .Release.Name }}-loki
-  namespace: {{ .Release.Namespace }}
-  labels:
-    app: {{ .Release.Name }}-loki
-spec:
-  type: ClusterIP
-  selector:
-    app: {{ .Release.Name }}-loki
-  ports:
-    - name: http
-      protocol: TCP
-      port: {{ .Values.observability.logs.port }}
-      targetPort: {{ .Values.observability.logs.port }}
+{{ include "texera.observability.service" (dict "release" .Release "app" "loki" "ports" (list
+    (dict "name" "http" "port" .Values.observability.logs.port)
+)) }}
 {{- end }}
