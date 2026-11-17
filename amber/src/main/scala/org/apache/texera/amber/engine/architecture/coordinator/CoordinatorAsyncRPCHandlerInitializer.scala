@@ -36,9 +36,6 @@ import org.apache.texera.amber.engine.architecture.rpc.coordinatorservice.Coordi
 import org.apache.texera.amber.engine.common.AmberLogging
 import org.apache.texera.amber.engine.common.rpc.AsyncRPCHandlerInitializer
 import org.apache.texera.amber.engine.common.virtualidentity.util.COORDINATOR
-import org.apache.texera.amber.util.VirtualIdentityUtils
-
-import scala.collection.mutable
 
 class CoordinatorAsyncRPCHandlerInitializer(
     val cp: CoordinatorProcessor
@@ -74,8 +71,7 @@ class CoordinatorAsyncRPCHandlerInitializer(
       ecmType: EmbeddedControlMessageType,
       scopeOps: Set[PhysicalOpIdentity],
       sourceOps: Iterable[PhysicalOpIdentity],
-      cmdMapping: Map[String, ControlInvocation],
-      physicalOpByWorker: mutable.Map[ActorVirtualIdentity, PhysicalOpIdentity] = mutable.Map.empty
+      cmdMapping: Map[String, ControlInvocation]
   ): Unit = {
     if (sourceOps.isEmpty) {
       return
@@ -87,17 +83,14 @@ class CoordinatorAsyncRPCHandlerInitializer(
       return
     }
 
-    def physicalOpFor(workerId: ActorVirtualIdentity): PhysicalOpIdentity =
-      physicalOpByWorker.getOrElseUpdate(workerId, VirtualIdentityUtils.getPhysicalOpId(workerId))
-
     val channelScope = cp.workflowExecution.getRunningRegionExecutions.iterator
       .flatMap(_.getAllLinkExecutions.iterator)
-      .flatMap(_._2.getAllChannelExecutions.iterator)
-      .map(_._1)
-      .filter(channelId =>
-        scopeOps.contains(physicalOpFor(channelId.fromWorkerId)) &&
-          scopeOps.contains(physicalOpFor(channelId.toWorkerId))
-      )
+      .collect {
+        case (link, linkExecution)
+            if scopeOps.contains(link.fromOpId) && scopeOps.contains(link.toOpId) =>
+          linkExecution
+      }
+      .flatMap(_.getAllChannelExecutions.iterator.map(_._1))
     val controlChannels = sourceWorkers.iterator.flatMap { worker =>
       Seq(
         ChannelIdentity(COORDINATOR, worker, isControl = true),

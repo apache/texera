@@ -101,39 +101,14 @@ object FriesReconfigurationAlgorithm {
     val mcsPlan = PhysicalPlan(resultMCSOpIds.map(region.getOperator), newLinks)
 
     val connectedSets = new ConnectivityInspector(mcsPlan.dag).connectedSets()
-    def getComponentSources(operators: Set[PhysicalOpIdentity]): Set[PhysicalOpIdentity] =
-      operators.filter(opId => mcsPlan.dag.inDegreeOf(opId) == 0)
-
-    if (connectedSets.isEmpty) {
-      Nil
-    } else if (connectedSets.size() == 1) {
-      val operators = connectedSets.get(0).asScala.toSet
-      val commands =
+    val mcsSources = mcsPlan.getSourceOperatorIds
+    connectedSets.asScala.toList.map { component =>
+      val operators = component.asScala.toSet
+      FriesComponent(
+        operators.intersect(mcsSources),
+        operators,
         reconfigurations.iterator.filter(req => operators.contains(req.targetOpId)).toSet
-      List(FriesComponent(getComponentSources(operators), operators, commands))
-    } else {
-      val componentByOperator = mutable.Map.empty[PhysicalOpIdentity, Int]
-      val components = connectedSets.asScala.iterator.zipWithIndex.map {
-        case (component, index) =>
-          val operators = component.asScala.toSet
-          operators.foreach(opId => componentByOperator.update(opId, index))
-          operators
-      }.toVector
-      val commandsByComponent = Array.fill(components.size)(Set.newBuilder[UpdateExecutorRequest])
-      reconfigurations.foreach { request =>
-        componentByOperator.get(request.targetOpId).foreach { index =>
-          commandsByComponent(index) += request
-        }
-      }
-
-      components.iterator.zipWithIndex.map {
-        case (operators, index) =>
-          FriesComponent(
-            getComponentSources(operators),
-            operators,
-            commandsByComponent(index).result()
-          )
-      }.toList
+      )
     }
   }
 

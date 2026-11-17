@@ -232,9 +232,10 @@ class CostBasedScheduleGenerator(
     // Pass 2 – add input‑port storage configs (reader URIs)
 
     regionsWithOnlyOutputPortURIs.map { existingRegion =>
+      val regionOpIds = existingRegion.getOperators.map(_.id)
       // MatEdges that originally connected to the input ports of this region.
       val relevantMatEdges: Set[PhysicalLink] =
-        matEdges.filter(matEdge => existingRegion.containsOperator(matEdge.toOpId))
+        matEdges.filter(matEdge => regionOpIds.contains(matEdge.toOpId))
 
       // Assign storage URIs to input ports of each materialized edge (each input port could have more than one URI)
       val inputPortConfigs: Map[GlobalPortIdentity, IntermediateInputPortConfig] =

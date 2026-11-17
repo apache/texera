@@ -22,8 +22,7 @@ package org.apache.texera.amber.engine.architecture.coordinator.promisehandlers
 import com.twitter.util.Future
 import org.apache.texera.amber.core.virtualidentity.{
   ActorVirtualIdentity,
-  EmbeddedControlMessageIdentity,
-  PhysicalOpIdentity
+  EmbeddedControlMessageIdentity
 }
 import org.apache.texera.amber.engine.architecture.coordinator.{
   CoordinatorAsyncRPCHandlerInitializer,
@@ -58,7 +57,6 @@ trait ReconfigurationHandler {
       )
     }
     val futures = mutable.ArrayBuffer[Future[_]]()
-    lazy val physicalOpByWorker = mutable.Map.empty[ActorVirtualIdentity, PhysicalOpIdentity]
     val friesComponents =
       FriesReconfigurationAlgorithm.getReconfigurations(cp.workflowExecutionManager, msg)
     friesComponents.foreach { friesComponent =>
@@ -96,8 +94,7 @@ trait ReconfigurationHandler {
           ALL_ALIGNMENT,
           friesComponent.scope,
           friesComponent.sources,
-          cmdMapping,
-          physicalOpByWorker
+          cmdMapping
         )
       }
     }

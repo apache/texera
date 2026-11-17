@@ -30,7 +30,6 @@ import scala.jdk.CollectionConverters.IteratorHasAsScala
 case class RegionLink(fromRegionId: RegionIdentity, toRegionId: RegionIdentity)
 
 case class RegionIdentity(id: Long)
-@SerialVersionUID(-8249900282346857462L)
 case class Region(
     id: RegionIdentity,
     physicalOps: Set[PhysicalOp],
@@ -68,9 +67,6 @@ case class Region(
   def getOperator(physicalOpId: PhysicalOpIdentity): PhysicalOp = {
     operators(physicalOpId)
   }
-
-  private[scheduling] def containsOperator(physicalOpId: PhysicalOpIdentity): Boolean =
-    operators.contains(physicalOpId)
 
   /**
     * Effective source operators in a region.
