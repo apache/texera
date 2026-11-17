@@ -23,6 +23,7 @@ import jakarta.annotation.security.RolesAllowed
 import jakarta.ws.rs.core.MediaType
 import jakarta.ws.rs._
 import org.apache.texera.auth.SessionUser
+import org.apache.texera.auth.util.OwnerAccess
 import org.apache.texera.common.config.ComputingUnitConfig
 import org.apache.texera.dao.SqlServer
 import org.apache.texera.dao.SqlServer.withTransaction
@@ -120,7 +121,7 @@ class ComputingUnitAccessResource {
     */
   private def resolveUidByEmail(email: String): Integer = {
     val user = userDao.fetchOneByEmail(email)
-    if (user == null) {
+    if (user == null || user.getIsPlaceholder) {
       throw new BadRequestException("User with the given email does not exist")
     }
     user.getUid
@@ -135,10 +136,17 @@ class ComputingUnitAccessResource {
   ): List[AccessEntry] = {
     ensureSharingIsEnabled()
     withTransaction(context) { ctx =>
-      val computingUnitUserAccessDao = new ComputingUnitUserAccessDao(ctx.configuration())
-      computingUnitUserAccessDao
-        .fetchByCuid(cuid)
-        .asScala
+      val unit = new WorkflowComputingUnitDao(ctx.configuration()).fetchOneByCuid(cuid)
+      val grants = new ComputingUnitUserAccessDao(ctx.configuration()).fetchByCuid(cuid).asScala
+      val canRead =
+        unit != null && (unit.getUid.equals(user.getUid) || grants.exists(
+          _.getUid.equals(user.getUid)
+        ))
+      if (!canRead) {
+        throw new ForbiddenException(s"You do not have access to computing unit $cuid")
+      }
+      grants
+        .filterNot(_.getUid.equals(unit.getUid))
         .map(access => {
           val user = userDao.fetchOneByUid(access.getUid)
           AccessEntry(
@@ -165,6 +173,7 @@ class ComputingUnitAccessResource {
     }
 
     val granteeId = resolveUidByEmail(email)
+    OwnerAccess.requireNotOwner(isOwner(cuid, granteeId))
 
     withTransaction(context) { ctx =>
       val computingUnitUserAccessDao = new ComputingUnitUserAccessDao(ctx.configuration())
@@ -192,6 +201,7 @@ class ComputingUnitAccessResource {
     }
 
     val granteeId = resolveUidByEmail(email)
+    OwnerAccess.requireNotOwner(isOwner(cuid, granteeId))
 
     withTransaction(context) { ctx =>
       ctx
@@ -214,7 +224,10 @@ class ComputingUnitAccessResource {
       val workflowComputingUnitDao = new WorkflowComputingUnitDao(ctx.configuration())
       val unit = workflowComputingUnitDao.fetchOneByCuid(cuid)
       if (unit == null) {
-        throw new IllegalArgumentException("Computing unit does not exist")
+        // JAX-RS exception so it maps to 404: the service registers no ExceptionMapper
+        // for IllegalArgumentException, which would otherwise surface as an HTTP 500.
+        // Message style matches ComputingUnitManagingResource's nonexistent-unit error.
+        throw new NotFoundException(s"Computing unit with cuid=$cuid does not exist.")
       }
 
       val uid = unit.getUid

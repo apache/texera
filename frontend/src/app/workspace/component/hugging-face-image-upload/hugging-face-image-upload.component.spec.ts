@@ -18,6 +18,7 @@
  */
 
 import { ComponentFixture, TestBed } from "@angular/core/testing";
+import { By } from "@angular/platform-browser";
 import { FormControl } from "@angular/forms";
 import { HuggingFaceImageUploadComponent } from "./hugging-face-image-upload.component";
 import { commonTestProviders } from "../../../common/testing/test-utils";
@@ -49,14 +50,14 @@ describe("HuggingFaceImageUploadComponent", () => {
 
   describe("derived view state", () => {
     it("reports no image when formControl is empty", () => {
-      expect(component.hasImage).toBe(false);
+      expect(component.hasMedia).toBe(false);
       expect(component.previewSrc).toBe("");
       expect(component.displayFileName).toBe("");
     });
 
     it("reports an image when formControl holds a data URL", () => {
       component.formControl.setValue("data:image/jpeg;base64,AAA");
-      expect(component.hasImage).toBe(true);
+      expect(component.hasMedia).toBe(true);
       expect(component.previewSrc).toBe("data:image/jpeg;base64,AAA");
       expect(component.displayFileName).toBe("Uploaded image");
     });
@@ -94,7 +95,19 @@ describe("HuggingFaceImageUploadComponent", () => {
       const input = makeFileInput(txtFile);
       await component.onFileSelected({ target: input } as unknown as Event);
       expect(component.errorMessage).toBe("Choose an image file.");
-      expect(component.hasImage).toBe(false);
+      expect(component.hasMedia).toBe(false);
+    });
+
+    it("clears a previously selected image when a non-image file is rejected", async () => {
+      component.formControl.setValue("data:image/jpeg;base64,AAA");
+      component.fileName = "old.jpg";
+      const txtFile = new File(["hi"], "note.txt", { type: "text/plain" });
+      const input = makeFileInput(txtFile);
+      await component.onFileSelected({ target: input } as unknown as Event);
+      expect(component.errorMessage).toBe("Choose an image file.");
+      expect(component.formControl.value).toBe("");
+      expect(component.fileName).toBe("");
+      expect(component.hasMedia).toBe(false);
     });
 
     it("reports an error when image compression fails", async () => {
@@ -115,7 +128,7 @@ describe("HuggingFaceImageUploadComponent", () => {
         const input = makeFileInput(imgFile);
         await component.onFileSelected({ target: input } as unknown as Event);
         expect(component.errorMessage).toBe("Could not prepare this image. Try a smaller image file.");
-        expect(component.hasImage).toBe(false);
+        expect(component.hasMedia).toBe(false);
       } finally {
         (globalThis as any).FileReader = realFileReader;
       }
@@ -144,25 +157,25 @@ describe("HuggingFaceImageUploadComponent", () => {
     });
   });
 
-  describe("hasImage edge cases", () => {
+  describe("hasMedia edge cases", () => {
     it("returns false for a server path string", () => {
       component.formControl.setValue("/uploads/photo.png");
-      expect(component.hasImage).toBe(false);
+      expect(component.hasMedia).toBe(false);
     });
 
     it("returns false for null value", () => {
       component.formControl.setValue(null);
-      expect(component.hasImage).toBe(false);
+      expect(component.hasMedia).toBe(false);
     });
 
     it("returns false for non-image data URL", () => {
       component.formControl.setValue("data:audio/wav;base64,AAA");
-      expect(component.hasImage).toBe(false);
+      expect(component.hasMedia).toBe(false);
     });
 
     it("returns true for data:image/png URL", () => {
       component.formControl.setValue("data:image/png;base64,AAA");
-      expect(component.hasImage).toBe(true);
+      expect(component.hasMedia).toBe(true);
     });
   });
 
@@ -196,6 +209,34 @@ describe("HuggingFaceImageUploadComponent", () => {
     it("returns fileName when set, even without image", () => {
       component.fileName = "photo.jpg";
       expect(component.displayFileName).toBe("photo.jpg");
+    });
+  });
+
+  describe("rendered preview label", () => {
+    const previewLabel = () => fixture.nativeElement.querySelector(".hf-image-meta span") as HTMLElement | null;
+
+    it("labels the preview 'Uploaded image' when an image has no filename", () => {
+      component.formControl.setValue("data:image/jpeg;base64,AAA");
+      fixture.detectChanges();
+
+      expect(previewLabel()?.textContent?.trim()).toBe("Uploaded image");
+    });
+
+    it("labels the preview with the filename once one is known", () => {
+      component.formControl.setValue("data:image/jpeg;base64,AAA");
+      component.fileName = "cat.jpg";
+      fixture.detectChanges();
+
+      expect(previewLabel()?.textContent?.trim()).toBe("cat.jpg");
+    });
+
+    it("renders no preview at all without an image, so the label is never empty", () => {
+      // The preview only renders while previewSrc is non-empty, which happens exactly
+      // when hasMedia is true — and displayFileName is never empty in that case.
+      component.formControl.setValue("");
+      fixture.detectChanges();
+
+      expect(previewLabel()).toBeNull();
     });
   });
 
@@ -318,7 +359,7 @@ describe("HuggingFaceImageUploadComponent", () => {
 
         expect(component.fileName).toBe("sunset.jpg");
         expect(component.formControl.value).toBe("data:image/jpeg;base64,SMALL");
-        expect(component.hasImage).toBe(true);
+        expect(component.hasMedia).toBe(true);
         expect(component.formControl.dirty).toBe(true);
         expect(component.formControl.touched).toBe(true);
         expect((component.model as any).image).toBe("data:image/jpeg;base64,SMALL");
@@ -352,7 +393,7 @@ describe("HuggingFaceImageUploadComponent", () => {
         const input = makeFileInput(imgFile);
         await component.onFileSelected({ target: input } as unknown as Event);
         expect(component.errorMessage).toBe("Could not prepare this image. Try a smaller image file.");
-        expect(component.hasImage).toBe(false);
+        expect(component.hasMedia).toBe(false);
       } finally {
         teardown();
       }
@@ -377,7 +418,7 @@ describe("HuggingFaceImageUploadComponent", () => {
         const input = makeFileInput(imgFile);
         await component.onFileSelected({ target: input } as unknown as Event);
         expect(component.errorMessage).toBe("Could not prepare this image. Try a smaller image file.");
-        expect(component.hasImage).toBe(false);
+        expect(component.hasMedia).toBe(false);
       } finally {
         teardown();
       }
@@ -601,6 +642,81 @@ describe("HuggingFaceImageUploadComponent", () => {
       } finally {
         teardown();
       }
+    });
+  });
+
+  // ── Rendered template ──
+
+  describe("template rendering", () => {
+    const DATA_URL = "data:image/jpeg;base64,AAA";
+
+    const preview = () => fixture.debugElement.query(By.css(".hf-image-preview"));
+
+    /** Put the component in the "image selected" state and render it. */
+    function renderWithImage(fileName = ""): void {
+      component.fileName = fileName;
+      component.formControl.setValue(DATA_URL);
+      fixture.detectChanges();
+    }
+
+    it("renders no preview panel while no image is selected", () => {
+      expect(preview()).toBeNull();
+    });
+
+    it("renders the preview image bound to the stored data URL", () => {
+      renderWithImage();
+
+      expect(preview()).toBeTruthy();
+      const img = fixture.debugElement.query(By.css(".hf-image-preview img"));
+      expect(img.nativeElement.getAttribute("src")).toBe(DATA_URL);
+      expect(img.nativeElement.getAttribute("alt")).toBe("Uploaded Hugging Face task input");
+    });
+
+    it("labels the preview with the default text when no file name is known", () => {
+      renderWithImage();
+
+      expect(fixture.debugElement.query(By.css(".hf-image-meta span")).nativeElement.textContent.trim()).toBe(
+        "Uploaded image"
+      );
+    });
+
+    it("labels the preview with the selected file name once one is known", () => {
+      renderWithImage("cat.png");
+
+      expect(fixture.debugElement.query(By.css(".hf-image-meta span")).nativeElement.textContent.trim()).toBe(
+        "cat.png"
+      );
+    });
+
+    it("the Clear button clears the image and removes the preview panel", () => {
+      renderWithImage("cat.png");
+
+      fixture.debugElement.query(By.css(".hf-image-meta button")).triggerEventHandler("click", null);
+      fixture.detectChanges();
+
+      expect(component.formControl.value).toBe("");
+      expect(component.fileName).toBe("");
+      expect(preview()).toBeNull();
+    });
+
+    it("renders the error message when one is set", () => {
+      component.errorMessage = "Choose an image file.";
+      fixture.detectChanges();
+
+      const error = fixture.debugElement.query(By.css(".hf-image-error"));
+      expect(error).toBeTruthy();
+      expect(error.nativeElement.textContent.trim()).toBe("Choose an image file.");
+    });
+
+    it("a change event with no file selected leaves the control untouched", () => {
+      const input = fixture.debugElement.query(By.css("input[type='file']"));
+
+      input.nativeElement.dispatchEvent(new Event("change"));
+      fixture.detectChanges();
+
+      expect(component.formControl.value).toBe("");
+      expect(component.errorMessage).toBe("");
+      expect(preview()).toBeNull();
     });
   });
 });

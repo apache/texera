@@ -175,7 +175,9 @@ trait QueryWorkerStatisticsHandler {
     processLayers(layers).map { _ =>
       collectedResults.foreach {
         case (wExec, resp, timestamp) =>
-          wExec.update(timestamp, resp.metrics.workerState, resp.metrics.workerStatistics)
+          // State is ordered by the worker's logical version; stats by receipt time.
+          wExec.updateState(resp.metrics.stateVersion, resp.metrics.workerState)
+          wExec.updateStats(timestamp, resp.metrics.workerStatistics)
       }
       forwardStats(msg.updateTarget)
       // Record the completion timestamp before releasing the lock so that any timer

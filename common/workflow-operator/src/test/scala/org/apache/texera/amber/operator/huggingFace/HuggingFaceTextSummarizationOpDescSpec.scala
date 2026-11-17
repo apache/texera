@@ -19,6 +19,7 @@
 
 package org.apache.texera.amber.operator.huggingFace
 
+import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaInject
 import org.apache.texera.amber.core.executor.OpExecWithCode
 import org.apache.texera.amber.core.tuple.{AttributeType, Schema}
 import org.apache.texera.amber.core.virtualidentity.{ExecutionIdentity, WorkflowIdentity}
@@ -26,25 +27,14 @@ import org.apache.texera.amber.operator.LogicalOp
 import org.apache.texera.amber.operator.metadata.OperatorGroupConstants
 import org.apache.texera.amber.util.JSONUtils.objectMapper
 import org.scalatest.flatspec.AnyFlatSpec
-import org.scalatest.matchers.should.Matchers
+import org.apache.texera.amber.operator.EncodedGeneratedCodeAssertionChecks
 
-import java.nio.charset.StandardCharsets
-import java.util.Base64
-
-class HuggingFaceTextSummarizationOpDescSpec extends AnyFlatSpec with Matchers {
+class HuggingFaceTextSummarizationOpDescSpec
+    extends AnyFlatSpec
+    with EncodedGeneratedCodeAssertionChecks {
 
   private val workflowId = WorkflowIdentity(1L)
   private val executionId = ExecutionIdentity(1L)
-
-  private def b64(s: String): String =
-    Base64.getEncoder.encodeToString(s.getBytes(StandardCharsets.UTF_8))
-
-  // EncodableString fields are always base64-wrapped in .encode mode
-  // (self.decode_python_template('<base64>')), so assert on the base64 form only: the raw
-  // column name can appear in the generated Python for unrelated reasons (e.g. the local
-  // variables "text"/"summary"), which would mask a missing splice.
-  private def carries(output: String, name: String): Boolean =
-    output.contains(b64(name))
 
   private def configured(): HuggingFaceTextSummarizationOpDesc = {
     val d = new HuggingFaceTextSummarizationOpDesc
@@ -101,6 +91,37 @@ class HuggingFaceTextSummarizationOpDescSpec extends AnyFlatSpec with Matchers {
     carries(code, "summary") shouldBe true
   }
 
+  it should "guard an empty text cell before it reaches the tokenizer" in {
+    val d = configured()
+    val code = d.generatePythonCode()
+
+    // An empty cell arrives as None, and the tokenizer answers it with
+    // `ValueError: text input must be of type str ...`, ending the run.
+    // pandas is asked rather than None compared, because the type rule naming the
+    // column string is a warning the editor prints, not a filter, and a numeric
+    // column reaches the executor with its own NaN.
+    val guard = code.linesIterator
+      .find(_.contains("pd.isna(text)"))
+      .getOrElse(fail("generated code no longer guards an empty text cell"))
+    guard should include("strip()")
+    code should include("import pandas as pd")
+    code.indexOf("pd.isna(text)") should be < code.indexOf("self.tokenizer([text]")
+  }
+
+  // The script reads a frame, where a column holding nothing else comes back as
+  // float64 and its cells as NaN, which `is None` does not catch.
+  it should "guard a missing text cell in the exported script, NaN included" in {
+    val d = configured()
+    val code = d.generateStandaloneCode()
+
+    val guard = code.linesIterator
+      .find(_.contains("pd.isna(_text)"))
+      .getOrElse(fail("exported script no longer guards a missing text cell"))
+    guard should include("strip()")
+    code should include("import pandas as pd")
+    code.indexOf("pd.isna(_text)") should be < code.indexOf("tokenizer([_text]")
+  }
+
   "HuggingFaceTextSummarizationOpDesc.getPhysicalOp" should
     "wire an OpExecWithCode python executor carrying the operator's ports" in {
     val d = configured()
@@ -121,5 +142,15 @@ class HuggingFaceTextSummarizationOpDescSpec extends AnyFlatSpec with Matchers {
     val h = restored.asInstanceOf[HuggingFaceTextSummarizationOpDesc]
     h.attribute shouldBe "text"
     h.resultAttribute shouldBe "summary"
+  }
+
+  "HuggingFaceTextSummarizationOpDesc (class-level)" should
+    "carry @JsonSchemaInject restricting `attribute` to STRING columns" in {
+    val ann = classOf[HuggingFaceTextSummarizationOpDesc].getAnnotation(classOf[JsonSchemaInject])
+    ann should not be null
+    val payload = ann.json
+    payload should include("attributeTypeRules")
+    payload should include("attribute")
+    payload should include("string")
   }
 }

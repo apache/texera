@@ -50,7 +50,8 @@ class KeywordSearchOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
     createTuple("Twitter"),
     createTuple("안녕하세요"),
     createTuple("你好"),
-    createTuple("_!@,-")
+    createTuple("_!@,-"),
+    createTuple("everything was absolutely perfect.")
   )
 
   it should "find exact match with single number" in {
@@ -235,6 +236,21 @@ class KeywordSearchOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
     val results = testData.filter(t => opExec.processTuple(t, inputPort).hasNext)
     assert(results.length == 1)
     assert(results.head.getField[String]("text") == "Twitter")
+    opExec.close()
+    opDesc.isCaseSensitive = false
+  }
+
+  it should "match a word adjacent to punctuation when case-sensitive" in {
+    // Regression test: case sensitivity must change only case handling, not
+    // punctuation -- "perfect" should still match "...perfect." (word-boundary split).
+    opDesc.attribute = "text"
+    opDesc.keyword = "perfect"
+    opDesc.isCaseSensitive = true
+    val opExec = new KeywordSearchOpExec(objectMapper.writeValueAsString(opDesc))
+    opExec.open()
+    val results = testData.filter(t => opExec.processTuple(t, inputPort).hasNext)
+    assert(results.length == 1)
+    assert(results.head.getField[String]("text") == "everything was absolutely perfect.")
     opExec.close()
     opDesc.isCaseSensitive = false
   }

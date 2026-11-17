@@ -19,13 +19,16 @@
 
 package org.apache.texera.amber.operator.visualization.lineChart
 
+import org.apache.texera.amber.operator.visualization.StandaloneChartCode._
 import com.fasterxml.jackson.annotation.{JsonProperty, JsonPropertyDescription}
 import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaTitle
-import org.apache.texera.amber.core.tuple.{AttributeType, Schema}
-import org.apache.texera.amber.pybuilder.PythonTemplateBuilder.PythonTemplateBuilderStringContext
+import org.apache.texera.amber.pybuilder.PythonTemplateBuilder.{
+  PythonTemplateBuilderStringContext,
+  pyStringLiteral
+}
 import org.apache.texera.amber.pybuilder.PyStringTypes.EncodableString
-import org.apache.texera.amber.core.workflow.PortIdentity
-import org.apache.texera.amber.operator.PythonOperatorDescriptor
+import org.apache.texera.amber.operator.visualization.PlotlyStandaloneCode
+import org.apache.texera.amber.operator.visualization.PythonVisualizationOpDesc
 import org.apache.texera.amber.operator.metadata.{OperatorGroupConstants, OperatorInfo}
 import org.apache.texera.amber.pybuilder.PythonTemplateBuilder
 
@@ -33,7 +36,7 @@ import java.util
 import javax.validation.constraints.NotEmpty
 import scala.jdk.CollectionConverters.ListHasAsScala
 
-class LineChartOpDesc extends PythonOperatorDescriptor {
+class LineChartOpDesc extends PythonVisualizationOpDesc with PlotlyStandaloneCode {
 
   @JsonProperty(value = "yLabel", required = false, defaultValue = "Y Axis")
   @JsonSchemaTitle("Y Label")
@@ -48,14 +51,6 @@ class LineChartOpDesc extends PythonOperatorDescriptor {
   @JsonProperty(value = "lines", required = true)
   @NotEmpty(message = "At least one line must be configured")
   var lines: util.List[LineConfig] = new util.ArrayList[LineConfig]()
-
-  override def getOutputSchemas(
-      inputSchemas: Map[PortIdentity, Schema]
-  ): Map[PortIdentity, Schema] = {
-    val outputSchema = Schema()
-      .add("html-content", AttributeType.STRING)
-    Map(operatorInfo.outputPorts.head.id -> outputSchema)
-  }
 
   override def operatorInfo: OperatorInfo =
     OperatorInfo.forVisualization(
@@ -127,6 +122,48 @@ class LineChartOpDesc extends PythonOperatorDescriptor {
          |        yield {'html-content': html}
          |"""
     finalCode.encode
+  }
+
+  override def generateStandaloneCode(): String = {
+    val traces = lines.asScala
+      .map { lineConf =>
+        // Values typed into the UI become escaped Python literals: the runtime
+        // path splices them as decode expressions, which a standalone script has
+        // no decoder for, and hand-written quotes break on a value containing one.
+        val colorLit = pyStringLiteral(lineConf.color)
+        val colorPart =
+          if (lineConf.color != "")
+            s"""line={'color':$colorLit}, marker={'color':$colorLit}, """
+          else ""
+        val namePart =
+          if (lineConf.name != "") s"""name=${pyStringLiteral(lineConf.name)}"""
+          else s"""name=${pyStringLiteral(lineConf.yValue)}"""
+
+        s"""fig.add_trace(go.Scatter(
+           |    x=in1df[${pyStringLiteral(lineConf.xValue)}],
+           |    y=in1df[${pyStringLiteral(lineConf.yValue)}],
+           |    mode='${lineConf.mode.getModeInPlotly}',
+           |    $colorPart
+           |    $namePart
+           |  ))""".stripMargin
+      }
+      .mkString("\n")
+      // The traces sit inside the non-empty branch below, so shift them in.
+      .linesIterator
+      .map(line => if (line.isEmpty) line else s"    $line")
+      .mkString("\n")
+
+    s"""${standaloneError("Line chart is not available.", typed = true)}
+       |
+       |if in1df.empty:
+       |${standaloneErrorPage("input table is empty.")}
+       |else:
+       |    fig = go.Figure()
+       |$traces
+       |    fig.update_layout(margin=dict(t=0, b=0, l=0, r=0),
+       |                      xaxis_title=${pyStringLiteral(xLabel)},
+       |                      yaxis_title=${pyStringLiteral(yLabel)})
+       |${standaloneFigure("Line chart", indent = 4, bothOutputs = true)}""".stripMargin
   }
 
 }

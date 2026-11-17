@@ -1,0 +1,83 @@
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+
+# Apache Texera is an effort undergoing incubation at The Apache Software
+# Foundation (ASF), sponsored by the Apache Incubator PMC. Incubation is
+# required of all newly accepted projects until a further review indicates
+# that the infrastructure, communications, and decision-making process have
+# stabilized in a manner consistent with other successful ASF projects.
+# While incubation status is not necessarily a reflection of the
+# completeness or stability of the code, it does indicate that the project
+# has yet to be fully endorsed by the ASF.
+
+FROM docker.io/sbtscala/scala-sbt:eclipse-temurin-jammy-17.0.5_8_1.9.3_2.13.11@sha256:c20fad6183112843d6c87fd54bb9b507a424ab7893c6a570b1624acf2e0324c4 AS build
+
+# Set working directory
+WORKDIR /texera
+
+# Copy modules for building the service
+COPY common/ common/
+COPY notebook-migration-service/ notebook-migration-service/
+COPY project/ project/
+COPY build.sbt build.sbt
+COPY .jvmopts .jvmopts
+
+# Update system and install dependencies
+ARG PACKAGE_SNAPSHOT
+RUN --mount=type=bind,source=bin/dockerfiles/snapshot,target=/snapshot \
+    bash /snapshot/install.sh apt netcat unzip libpq-dev
+
+COPY LICENSE NOTICE DISCLAIMER ./
+COPY licenses/ licenses/
+
+# Pins jar and dist-zip entry timestamps; pass the commit time
+# (git log -1 --format=%ct) for a reproducible build.
+ARG SOURCE_DATE_EPOCH
+RUN sbt clean NotebookMigrationService/dist
+
+# Unzip the texera binary
+RUN unzip notebook-migration-service/target/universal/notebook-migration-service-*.zip -d target/
+
+FROM docker.io/library/eclipse-temurin:17-jre-jammy@sha256:97137382c6f0c30427d9b7c44ad8b2d55ac823b0768c171d81a643ed219023c5 AS runtime
+
+WORKDIR /texera
+
+# Copy the built texera binary from the build phase
+COPY --from=build /texera/target/notebook-migration-service-* /texera/
+# Copy resources directories from build phase
+COPY --from=build /texera/common/config/src/main/resources /texera/common/config/src/main/resources
+COPY --from=build /texera/notebook-migration-service/src/main/resources /texera/notebook-migration-service/src/main/resources
+# Copy ASF licensing files. LICENSE-binary and NOTICE-binary describe the
+# bundled third-party contents of this image and ship as /texera/LICENSE
+# and /texera/NOTICE; licenses/ holds the per-license full texts referenced
+# by LICENSE-binary.
+COPY --from=build /texera/notebook-migration-service/LICENSE-binary /texera/LICENSE
+COPY --from=build /texera/notebook-migration-service/NOTICE-binary /texera/NOTICE
+COPY --from=build /texera/licenses /texera/licenses
+COPY --from=build /texera/DISCLAIMER /texera/
+
+# Dates the texera account in /etc/shadow; pass the commit time
+# (git log -1 --format=%ct) for a reproducible build.
+ARG SOURCE_DATE_EPOCH
+RUN groupadd --system --gid 1001 texera \
+ && useradd --system --uid 1001 --gid texera --home-dir /texera --no-create-home texera \
+ && chown -R texera:texera /texera
+USER texera
+
+CMD ["bin/notebook-migration-service"]
+
+EXPOSE 9098

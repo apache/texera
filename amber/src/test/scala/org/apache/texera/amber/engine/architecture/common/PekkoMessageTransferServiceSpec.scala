@@ -80,6 +80,13 @@ class PekkoMessageTransferServiceSpec
   private def net(id: Long, chan: ChannelIdentity, seq: Long): NetworkMessage =
     NetworkMessage(id, fifo(chan, seq))
 
+  private def backdateSentTime(cc: CongestionControl, id: Long): Unit = {
+    val field = classOf[CongestionControl].getDeclaredField("sentTime")
+    field.setAccessible(true)
+    val sentTime = field.get(cc).asInstanceOf[mutable.LongMap[Long]]
+    sentTime(id) = System.currentTimeMillis() - cc.resendTimeLimit - 1
+  }
+
   // Pin the assumed payload size so this test fails loudly if the size accounting
   // changes in a way that would invalidate the credit math below.
   assert(WorkflowMessage.getInMemSize(fifo(dataChannel(), 0L)) == 200L)
@@ -189,6 +196,46 @@ class PekkoMessageTransferServiceSpec
     service.stop() // cancels the (already-cancelled) captured handles; must not throw
     assert(service.channelToCC.contains(chan))
   }
+
+  "checkResend" should "resend a timed-out message when its destination is registered" in {
+    val actorService = new CapturingActorService(actorId, freshContext())
+    val sender = ActorVirtualIdentity("known-sender")
+    val destination = ActorVirtualIdentity("known-destination")
+    val refService = new RecordingRefService(actorService, Set(destination))
+    val service = new PekkoMessageTransferService(actorService, refService, _ => ())
+    val channel = ChannelIdentity(sender, destination, isControl = false)
+    val message = net(10L, channel, 0L)
+    val cc = new CongestionControl()
+    cc.markMessageInTransit(message)
+    backdateSentTime(cc, message.messageId)
+    service.channelToCC(channel) = cc
+
+    service.initialize()
+    actorService.capturedCallables.head()
+
+    assert(refService.queriedIds == Seq(destination))
+    assert(refService.forwardedMessages == Seq(message))
+  }
+
+  it should "not resend a timed-out message when only its sender is registered" in {
+    val actorService = new CapturingActorService(actorId, freshContext())
+    val sender = ActorVirtualIdentity("known-sender")
+    val destination = ActorVirtualIdentity("removed-destination")
+    val refService = new RecordingRefService(actorService, Set(sender))
+    val service = new PekkoMessageTransferService(actorService, refService, _ => ())
+    val channel = ChannelIdentity(sender, destination, isControl = false)
+    val message = net(11L, channel, 0L)
+    val cc = new CongestionControl()
+    cc.markMessageInTransit(message)
+    backdateSentTime(cc, message.messageId)
+    service.channelToCC(channel) = cc
+
+    service.initialize()
+    actorService.capturedCallables.head()
+
+    assert(refService.queriedIds == Seq(destination))
+    assert(refService.forwardedMessages.isEmpty)
+  }
 }
 
 /** Minimal actor used only to obtain a real `ActorContext` from Pekko TestKit. */
@@ -214,4 +261,20 @@ class CapturingActorService(vid: ActorVirtualIdentity, ac: ActorContext)
     capturedCallables += callable
     Cancellable.alreadyCancelled
   }
+}
+
+class RecordingRefService(
+    actorService: PekkoActorService,
+    knownIds: Set[ActorVirtualIdentity]
+) extends PekkoActorRefMappingService(actorService) {
+
+  val queriedIds: mutable.ArrayBuffer[ActorVirtualIdentity] = mutable.ArrayBuffer()
+  val forwardedMessages: mutable.ArrayBuffer[NetworkMessage] = mutable.ArrayBuffer()
+
+  override def hasActorRef(id: ActorVirtualIdentity): Boolean = {
+    queriedIds += id
+    knownIds.contains(id)
+  }
+
+  override def forwardToActor(msg: NetworkMessage): Unit = forwardedMessages += msg
 }

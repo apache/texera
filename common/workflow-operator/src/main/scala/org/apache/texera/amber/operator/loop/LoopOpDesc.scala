@@ -67,6 +67,17 @@ abstract class LoopOpDesc extends LogicalOp {
   @JsonIgnore
   protected def isLoopStart: Boolean = false
 
+  /**
+    * Whether this operator's input port takes exactly one inbound link.
+    *
+    * Only Loop Start does: the scheduler resolves its loop bookkeeping URIs
+    * from that port's single reader. Loop End accepts fan-in -- a loop body
+    * may branch and converge on it -- and the runtime consumes the loop state
+    * once per iteration no matter how many branches replay it (see
+    * MainLoop._process_state_frame).
+    */
+  protected def disallowMultiInputLinks: Boolean = false
+
   override def getPhysicalOp(
       workflowId: WorkflowIdentity,
       executionId: ExecutionIdentity
@@ -94,7 +105,11 @@ abstract class LoopOpDesc extends LogicalOp {
       operatorName,
       operatorDescription,
       OperatorGroupConstants.CONTROL_GROUP,
-      inputPorts = List(InputPort()),
+      // Declaring the single-link restriction here is what makes the GUI
+      // refuse to draw a second link, instead of the plan being rejected only
+      // at StartWorkflow (discussion #6966). It applies to Loop Start alone --
+      // see disallowMultiInputLinks.
+      inputPorts = List(InputPort(disallowMultiLinks = disallowMultiInputLinks)),
       // Loop End reuses its output storage across region re-executions (it
       // accumulates across the iterations of its own loop); the flag is
       // declared on the output port and the region scheduler reads it there.

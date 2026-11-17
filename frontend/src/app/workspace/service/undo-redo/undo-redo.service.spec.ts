@@ -27,6 +27,7 @@ import { inject, TestBed } from "@angular/core/testing";
 import { UndoRedoService } from "./undo-redo.service";
 import { WorkflowUtilService } from "../workflow-graph/util/workflow-util.service";
 import { commonTestProviders } from "../../../common/testing/test-utils";
+import * as Y from "yjs";
 
 describe("UndoRedoService", () => {
   let service: UndoRedoService;
@@ -82,5 +83,99 @@ describe("UndoRedoService", () => {
     workflowActionService.addOperator(mockResultPredicate, mockPoint);
     expect(service.getUndoLength()).toEqual(1);
     expect(service.getRedoLength()).toEqual(0);
+  });
+
+  describe("with a stubbed undo manager", () => {
+    let undoRedo: UndoRedoService;
+    let manager: {
+      canUndo: ReturnType<typeof vi.fn>;
+      canRedo: ReturnType<typeof vi.fn>;
+      undo: ReturnType<typeof vi.fn>;
+      redo: ReturnType<typeof vi.fn>;
+      clear: ReturnType<typeof vi.fn>;
+      undoStack: unknown[];
+      redoStack: unknown[];
+    };
+
+    beforeEach(() => {
+      undoRedo = new UndoRedoService();
+      manager = {
+        canUndo: vi.fn().mockReturnValue(true),
+        canRedo: vi.fn().mockReturnValue(true),
+        undo: vi.fn(),
+        redo: vi.fn(),
+        clear: vi.fn(),
+        undoStack: [1, 2, 3],
+        redoStack: [1],
+      };
+      undoRedo.setUndoManager(manager as unknown as Y.UndoManager);
+    });
+
+    afterEach(() => vi.restoreAllMocks()); // guarantees any console spy is restored even if an assertion throws
+
+    it("undoAction / redoAction delegate to the manager and toggle the joint-command guard back on", () => {
+      undoRedo.undoAction();
+      undoRedo.redoAction();
+
+      expect(manager.undo).toHaveBeenCalledTimes(1);
+      expect(manager.redo).toHaveBeenCalledTimes(1);
+      expect(undoRedo.listenJointCommand).toBe(true);
+    });
+
+    it("undoAction / redoAction are no-ops when the manager cannot undo/redo", () => {
+      manager.canUndo.mockReturnValue(false);
+      manager.canRedo.mockReturnValue(false);
+
+      undoRedo.undoAction();
+      undoRedo.redoAction();
+
+      expect(manager.undo).not.toHaveBeenCalled();
+      expect(manager.redo).not.toHaveBeenCalled();
+    });
+
+    it("undoAction / redoAction are no-ops while workflow modification is disabled", () => {
+      vi.spyOn(console, "error").mockImplementation(() => {}); // restored by afterEach
+      undoRedo.disableWorkFlowModification();
+
+      undoRedo.undoAction();
+      undoRedo.redoAction();
+
+      expect(manager.undo).not.toHaveBeenCalled();
+      expect(manager.redo).not.toHaveBeenCalled();
+    });
+
+    it("canUndo / canRedo require both the modification guard and the manager", () => {
+      expect(undoRedo.canUndo()).toBe(true);
+      expect(undoRedo.canRedo()).toBe(true);
+
+      undoRedo.disableWorkFlowModification();
+      expect(undoRedo.canUndo()).toBe(false);
+      expect(undoRedo.canRedo()).toBe(false);
+
+      undoRedo.enableWorkFlowModification();
+      manager.canUndo.mockReturnValue(false);
+      expect(undoRedo.canUndo()).toBe(false);
+    });
+
+    it("getUndoLength / getRedoLength reflect the manager stacks", () => {
+      expect(undoRedo.getUndoLength()).toBe(3);
+      expect(undoRedo.getRedoLength()).toBe(1);
+    });
+
+    it("clearUndoStack / clearRedoStack clear the correct side of the manager", () => {
+      undoRedo.clearUndoStack();
+      expect(manager.clear).toHaveBeenCalledWith(true, false);
+
+      undoRedo.clearRedoStack();
+      expect(manager.clear).toHaveBeenCalledWith(false, true);
+    });
+  });
+
+  describe("without an undo manager", () => {
+    it("canUndo / canRedo are false", () => {
+      const undoRedo = new UndoRedoService();
+      expect(undoRedo.canUndo()).toBe(false);
+      expect(undoRedo.canRedo()).toBe(false);
+    });
   });
 });

@@ -29,10 +29,10 @@ class GaugeChartStepsSpec extends AnyFlatSpec {
   // Defaults
   // ---------------------------------------------------------------------------
 
-  "GaugeChartSteps" should "default start and end to the empty string" in {
+  "GaugeChartSteps" should "default start and end to unset" in {
     val s = new GaugeChartSteps
-    assert(s.start == "")
-    assert(s.end == "")
+    assert(s.start.isEmpty)
+    assert(s.end.isEmpty)
   }
 
   // ---------------------------------------------------------------------------
@@ -41,10 +41,10 @@ class GaugeChartStepsSpec extends AnyFlatSpec {
 
   it should "allow start and end to be assigned post-construction" in {
     val s = new GaugeChartSteps
-    s.start = "10"
-    s.end = "90"
-    assert(s.start == "10")
-    assert(s.end == "90")
+    s.start = Some(10)
+    s.end = Some(90)
+    assert(s.start.contains(10))
+    assert(s.end.contains(90))
   }
 
   // ---------------------------------------------------------------------------
@@ -52,27 +52,61 @@ class GaugeChartStepsSpec extends AnyFlatSpec {
   // ---------------------------------------------------------------------------
 
   "GaugeChartSteps JSON round-trip" should
-    "serialize start and end under the canonical wire keys" in {
+    "serialize start and end as numbers under the canonical wire keys" in {
     val s = new GaugeChartSteps
-    s.start = "low"
-    s.end = "high"
+    s.start = Some(1.5)
+    s.end = Some(9.5)
     val tree = objectMapper.readTree(objectMapper.writeValueAsString(s))
     assert(tree.has("start"))
-    assert(tree.get("start").asText() == "low")
+    assert(tree.get("start").isNumber)
+    assert(tree.get("start").asDouble() == 1.5)
     assert(tree.has("end"))
-    assert(tree.get("end").asText() == "high")
+    assert(tree.get("end").isNumber)
+    assert(tree.get("end").asDouble() == 9.5)
   }
 
   it should "round-trip both fields cleanly" in {
     val s = new GaugeChartSteps
-    s.start = "0"
-    s.end = "100"
+    s.start = Some(0)
+    s.end = Some(100)
     val restored = objectMapper.readValue(
       objectMapper.writeValueAsString(s),
       classOf[GaugeChartSteps]
     )
-    assert(restored.start == "0")
-    assert(restored.end == "100")
+    assert(restored.start.contains(0))
+    assert(restored.end.contains(100))
+  }
+
+  /** `Option[Double]` erases its element type, so Jackson needs
+    * `@JsonDeserialize(contentAs = ...)` to know what to build. Without it a JSON
+    * string is left inside the Option unconverted and the first arithmetic use
+    * throws ClassCastException — which a round trip cannot catch, since it writes a
+    * number back. These read the shapes a stored workflow can actually hold.
+    */
+  private def read(json: String): GaugeChartSteps =
+    objectMapper.readValue(json, classOf[GaugeChartSteps])
+
+  "GaugeChartSteps bounds" should "deserialize JSON numbers" in {
+    val s = read("""{"start":1.5,"end":9.5}""")
+    assert(s.start.contains(1.5))
+    assert(s.end.contains(9.5))
+  }
+
+  it should "deserialize the numeric strings a workflow saved before the bounds were numeric" in {
+    val s = read("""{"start":"1.5","end":"9.5"}""")
+    assert(s.start.contains(1.5))
+    assert(s.end.contains(9.5))
+  }
+
+  it should "read absent, null and blank bounds as unset rather than as zero" in {
+    assert(read("""{}""").start.isEmpty)
+    assert(read("""{"start":null}""").start.isEmpty)
+    assert(read("""{"start":""}""").start.isEmpty)
+  }
+
+  it should "hold a Double, not the raw JSON value" in {
+    // The ClassCastException surfaces here, at the first use, not at read time.
+    assert(read("""{"start":"1.5"}""").start.map(_ * 2).contains(3.0))
   }
 
   // ---------------------------------------------------------------------------
@@ -102,7 +136,7 @@ class GaugeChartStepsSpec extends AnyFlatSpec {
   it should "construct two independent instances (no static state shared)" in {
     val a = new GaugeChartSteps
     val b = new GaugeChartSteps
-    a.start = "1"
-    assert(b.start == "")
+    a.start = Some(1)
+    assert(b.start.isEmpty)
   }
 }

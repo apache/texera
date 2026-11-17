@@ -1,0 +1,110 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
+ */
+
+.section-title {
+  margin-bottom: 16px;
+}
+
+.page-title {
+  margin: 0 0 8px;
+  font-size: 20px;
+  font-weight: 600;
+}
+
+.help-text {
+  max-width: 900px;
+  color: rgba(0, 0, 0, 0.6);
+  line-height: 1.6;
+}
+
+nz-alert {
+  margin-bottom: 16px;
+}
+
+nz-card {
+  margin-bottom: 16px;
+}
+
+.add-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.add-field {
+  display: flex;
+  flex-direction: column;
+  min-width: 220px;
+}
+
+// The longer of the two fields.
+.add-field-wide {
+  flex: 1;
+  min-width: 320px;
+}
+
+.field-label {
+  font-weight: 500;
+  margin-bottom: 4px;
+}
+
+.field-hint {
+  margin-top: 4px;
+  font-size: 12px;
+  color: rgba(0, 0, 0, 0.45);
+}
+
+.add-row button {
+  margin-top: 26px;
+}
+
+.ref {
+  font-family: monospace;
+  font-size: 12px;
+  word-break: break-all;
+}
+
+.digest {
+  color: rgba(0, 0, 0, 0.65);
+}
+
+.muted {
+  color: rgba(0, 0, 0, 0.35);
+}
+
+.spinner {
+  margin-left: 6px;
+  color: #1890ff;
+}
+
+.actions {
+  white-space: nowrap;
+}
+
+.log {
+  max-height: 460px;
+  overflow: auto;
+  background: #f5f5f5;
+  padding: 12px;
+  border-radius: 4px;
+  font-size: 12px;
+  white-space: pre-wrap;
+  word-break: break-all;
+}

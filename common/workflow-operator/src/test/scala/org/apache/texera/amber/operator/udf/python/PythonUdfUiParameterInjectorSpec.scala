@@ -18,6 +18,8 @@
  */
 package org.apache.texera.amber.operator.udf.python
 
+import org.apache.texera.amber.operator.udf.UiUDFParameter
+
 import org.apache.texera.amber.core.tuple.{Attribute, AttributeType}
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
@@ -104,9 +106,6 @@ class PythonUdfUiParameterInjectorSpec extends AnyFlatSpec with Matchers {
     val injectedCode = inject(uiParameter("date", AttributeType.TIMESTAMP, "2024-01-01T00:00:00Z"))
 
     injectedCode should include("class ProcessTupleOperator(UDFOperatorV2):")
-    injectedCode should include(
-      "# Follow-up runtime support exports Dict/Any and defines the base hook that @overrides targets."
-    )
     injectedCode should include("def _texera_injected_ui_parameters(self) -> Dict[str, Any]:")
     injectedCode should include("return {")
     injectedCode should include("self.decode_python_template")
@@ -209,6 +208,28 @@ class PythonUdfUiParameterInjectorSpec extends AnyFlatSpec with Matchers {
     }
 
     exception.getMessage should include("UiParameter name 'date' is declared more than once")
+  }
+
+  Seq(
+    AttributeType.INTEGER,
+    AttributeType.LONG,
+    AttributeType.DOUBLE,
+    AttributeType.BOOLEAN,
+    AttributeType.TIMESTAMP
+  ).foreach { attributeType =>
+    it should s"throw when a ${attributeType.name()} UI parameter value is blank" in {
+      val exception = the[RuntimeException] thrownBy {
+        inject(uiParameter("required", attributeType, "   "))
+      }
+
+      exception.getMessage should include("UiParameter 'required' requires a value")
+    }
+  }
+
+  it should "allow an empty string UI parameter value" in {
+    inject(uiParameter("optional_text", AttributeType.STRING, "")) should include(
+      "def _texera_injected_ui_parameters"
+    )
   }
 
   Seq(AttributeType.BINARY, AttributeType.LARGE_BINARY).foreach { unsupportedType =>

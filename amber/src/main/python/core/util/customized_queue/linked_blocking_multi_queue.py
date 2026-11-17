@@ -154,9 +154,11 @@ class LinkedBlockingMultiQueue(IKeyedQueue):
                 return False
             self.fully_lock()
             try:
+                # head is a sentinel, so the candidate node is always
+                # trail.next and trail is its predecessor.
                 trail = self.head
                 while trail.next is not None:
-                    if trail.item == obj:
+                    if trail.next.item == obj:
                         self.unlink(trail, trail.next)
                         return True
                     trail = trail.next
@@ -169,10 +171,11 @@ class LinkedBlockingMultiQueue(IKeyedQueue):
             trail: LinkedBlockingMultiQueue.Node,
             next_: LinkedBlockingMultiQueue.Node,
         ) -> None:
-            trail.item = None
+            next_.item = None
             trail.next = next_.next
             if self.last == next_:
                 self.last = trail
+            self.count.dec()
             if self.enabled:
                 self.owner.total_count.get_and_dec()
 
@@ -224,16 +227,13 @@ class LinkedBlockingMultiQueue(IKeyedQueue):
             return None
 
         def peek(self) -> Optional[T]:
-            start_idx = self.next_idx
+            idx = self.next_idx
             while True:
-                child = self.queues[self.next_idx]
+                child = self.queues[idx]
                 if child.enabled and child.size() > 0:
                     return child.head.next.item
-                else:
-                    self.next_idx += 1
-                    if self.next_idx == len(self.queues):
-                        self.next_idx = 0
-                if self.next_idx == start_idx:
+                idx = (idx + 1) % len(self.queues)
+                if idx == self.next_idx:
                     break
             return None
 
@@ -418,7 +418,7 @@ class LinkedBlockingMultiQueue(IKeyedQueue):
                         added = True
                         break
                     elif pg.priority > priority:
-                        new_pg = LinkedBlockingMultiQueue.PriorityGroup(priority)
+                        new_pg = self.PriorityGroup(priority)
                         new_pg.add_queue(sub_queue)
                         self.priority_groups.append(new_pg)
                         added = True
@@ -426,7 +426,7 @@ class LinkedBlockingMultiQueue(IKeyedQueue):
 
                     i += 1
                 if not added:
-                    new_pg = LinkedBlockingMultiQueue.PriorityGroup(priority)
+                    new_pg = self.PriorityGroup(priority)
                     new_pg.add_queue(sub_queue)
                     self.priority_groups.append(new_pg)
 

@@ -21,7 +21,6 @@ import { Elysia, t } from "elysia";
 import { cors } from "@elysiajs/cors";
 import { createOpenAI } from "@ai-sdk/openai";
 import { TexeraAgent } from "./agent/texera-agent";
-import { getVisibleResultHeaders } from "./agent/tools/tools-utility";
 import { getBackendConfig } from "./api/backend-api";
 import { extractBearerToken, extractUserFromToken, validateToken } from "./api/auth-api";
 import { retrieveWorkflow } from "./api/workflow-api";
@@ -44,7 +43,7 @@ import type {
 import { AgentState, OperatorResultSerializationMode } from "./types/agent";
 import type { WsClientCommand, WsServerEvent } from "./types/ws";
 import { WsServerSnapshotEvent, WsServerStepEvent, WsServerStatusEvent, WsServerErrorEvent } from "./types/ws";
-import type { OperatorResultSummary } from "./types/execution";
+import type { OperatorExecutionSummary } from "./types/execution";
 
 const agentStore = new Map<string, TexeraAgent>();
 let agentCounter = 0;
@@ -72,6 +71,7 @@ async function createAgentInstance(
     modelType,
     agentId,
     agentName: customName || "Bob",
+    userToken: delegateConfig.userToken,
   });
 
   await agent.initialize();
@@ -132,6 +132,7 @@ function getAgentInfo(agentId: string, agent: TexeraAgent): AgentInfo {
           workflowId: delegateConfig.workflowId,
           workflowName: delegateConfig.workflowName,
           computingUnitId: delegateConfig.computingUnitId,
+          warehouseId: delegateConfig.warehouseId,
         }
       : undefined,
     settings: settingsApi,
@@ -243,7 +244,7 @@ const agentsRouter = new Elysia({ prefix: "/agents" })
             toolTimeoutSeconds: t.Optional(t.Number()),
             executionTimeoutMinutes: t.Optional(t.Number()),
             disabledTools: t.Optional(t.Array(t.String())),
-            maxSteps: t.Optional(t.Number()),
+            maxSteps: t.Optional(t.Integer({ minimum: 1 })),
             allowedOperatorTypes: t.Optional(t.Array(t.String())),
           })
         ),
@@ -383,7 +384,7 @@ const agentsRouter = new Elysia({ prefix: "/agents" })
         operatorResultSerializationMode: t.Optional(t.Literal("tsv")),
         toolTimeoutSeconds: t.Optional(t.Number()),
         executionTimeoutMinutes: t.Optional(t.Number()),
-        maxSteps: t.Optional(t.Number()),
+        maxSteps: t.Optional(t.Integer({ minimum: 1 })),
         disabledTools: t.Optional(t.Array(t.String())),
         allowedOperatorTypes: t.Optional(t.Array(t.String())),
       }),
@@ -429,25 +430,16 @@ const recommendRouter = new Elysia({ prefix: "/recommend" })
      }
    );
 
-function getOperatorResultSummaries(agent: TexeraAgent): Record<string, OperatorResultSummary> {
+// Only resultSummary: the frontend's sole consumer (the operator popover) reads
+// nothing else, so state, errors and console messages stay server-side.
+function getOperatorResultSummaries(
+  agent: TexeraAgent
+): Record<string, Pick<OperatorExecutionSummary, "resultSummary">> {
   const resultState = agent.getWorkflowResultState();
   const visible = resultState.getAllVisible();
-  const results: Record<string, OperatorResultSummary> = {};
+  const results: Record<string, Pick<OperatorExecutionSummary, "resultSummary">> = {};
   for (const [opId, entry] of visible) {
-    const info = entry.operatorInfo;
-    results[opId] = {
-      state: info.state,
-      inputTuples: info.inputTuples,
-      outputTuples: info.outputTuples,
-      inputPortShapes: info.inputPortShapes,
-      outputColumns: info.result && info.result.length > 0 ? getVisibleResultHeaders(info.result[0]).length : undefined,
-      error: info.error,
-      warnings: info.warnings,
-      consoleLogCount: info.consoleLogs?.length,
-      totalRowCount: info.totalRowCount,
-      sampleRecords: info.result,
-      resultStatistics: info.resultStatistics,
-    };
+    results[opId] = { resultSummary: entry.operatorInfo.resultSummary };
   }
   return results;
 }
@@ -533,6 +525,14 @@ export function buildApp() {
             }
 
             wsLog.info({ agentId, preview: msg.content.substring(0, 50) }, "received command");
+
+            // The prompt carries the workspace's current warehouse pick, so a run
+            // uses what the user has selected now rather than whatever was
+            // selected when the agent was created. An absent field IS the
+            // current selection — none — so it clears a previous pick rather
+            // than leaving a stale id to be sent (and refused while the feature
+            // is off) forever (#7751).
+            agent.setDelegateWarehouse(typeof msg.warehouseId === "number" ? msg.warehouseId : undefined);
 
             agent.setStepCallback((step: ReActStep) => {
               broadcastToAgentClients(agentId, new WsServerStepEvent(step));

@@ -28,7 +28,16 @@ import { AppSettings } from "../app-setting";
 // least invasive fix.
 const ACCESS_TOKEN_KEY = "access_token";
 
-type PreLoginConfig = Pick<GuiConfig, "localLogin" | "googleLogin" | "defaultLocalUser" | "attributionEnabled">;
+type PreLoginConfig = Pick<
+  GuiConfig,
+  | "localLogin"
+  | "googleLogin"
+  | "orcidLogin"
+  | "appleLogin"
+  | "defaultLocalUser"
+  | "attributionEnabled"
+  | "emailVerification"
+>;
 // Fields served by /config/amber.
 type AmberConfig = Pick<GuiConfig, "defaultDataTransferBatchSize">;
 type GuiOnlyConfig = Omit<GuiConfig, keyof PreLoginConfig | keyof AmberConfig | "inviteOnly">;
@@ -119,12 +128,6 @@ export class GuiConfigService {
       ) as GuiConfig;
     }
     return this.mergedCache;
-  }
-
-  // One endpoint's payload, in isolation. Returns a shallow copy so callers
-  // cannot mutate the stored source and desync it from the memoized env view.
-  source(name: ConfigSource): Partial<GuiConfig> {
-    return { ...(this.configBySource[name] ?? {}) };
   }
 
   // Store a source payload and invalidate the merged view.

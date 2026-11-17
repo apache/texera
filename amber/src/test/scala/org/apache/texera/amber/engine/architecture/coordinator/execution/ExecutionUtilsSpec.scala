@@ -91,12 +91,12 @@ class ExecutionUtilsSpec extends AnyFlatSpec {
   // Anti / boundary cases — make sure unexpected inputs cannot smuggle in a wrong
   // state, and that branch precedence is what the contract claims.
 
-  it should "return UNKNOWN when completed and terminated are mixed (neither forall branch matches)" in {
-    // Both `forall(_ == completed)` and `forall(_ == terminated)` fail, no running
-    // sentinel is present, and the non-completed remainder is purely terminated —
-    // which is none of uninitialized / paused / ready, so the result must be
-    // UNKNOWN rather than COMPLETED.
-    assert(aggregate(Completed, Terminated) == WorkflowAggregatedState.UNKNOWN)
+  it should "return COMPLETED when completed and terminated are mixed (all states terminal)" in {
+    // Routine after region teardown: workers whose final COMPLETED report reached the
+    // controller stay COMPLETED (terminal absorption), while stragglers are stamped
+    // TERMINATED by forceTerminate. All workers being terminal means the execution is
+    // over, so the aggregate must be COMPLETED rather than UNKNOWN.
+    assert(aggregate(Completed, Terminated) == WorkflowAggregatedState.COMPLETED)
   }
 
   it should "give running precedence over completed and terminated" in {
@@ -190,11 +190,13 @@ class ExecutionUtilsSpec extends AnyFlatSpec {
       numWorkers: Int = 0,
       dataTime: Long = 0,
       controlTime: Long = 0,
-      idleTime: Long = 0
+      idleTime: Long = 0,
+      reused: Boolean = false
   ): OperatorMetrics =
     OperatorMetrics(
       state,
-      OperatorStatistics(input, output, numWorkers, dataTime, controlTime, idleTime)
+      OperatorStatistics(input, output, numWorkers, dataTime, controlTime, idleTime),
+      reusedFromCache = reused
     )
 
   "ExecutionUtils.aggregateMetrics" should "return UNINITIALIZED defaults when given no metrics" in {
@@ -336,5 +338,23 @@ class ExecutionUtilsSpec extends AnyFlatSpec {
     assert(result.operatorStatistics.outputMetrics.isEmpty)
     assert(result.operatorStatistics.numWorkers == 3)
     assert(result.operatorStatistics.dataProcessingTime == 12)
+  }
+
+  // -- aggregateMetrics: reused-from-cache provenance ----------------------
+
+  it should "report reusedFromCache only when every physical operator is reused" in {
+    val reusedA = metricsWith(WorkflowAggregatedState.COMPLETED, reused = true)
+    val reusedB = metricsWith(WorkflowAggregatedState.COMPLETED, reused = true)
+    val computed = metricsWith(WorkflowAggregatedState.COMPLETED)
+
+    assert(ExecutionUtils.aggregateMetrics(List(reusedA, reusedB)).reusedFromCache)
+    assert(!ExecutionUtils.aggregateMetrics(List(reusedA, computed)).reusedFromCache)
+    assert(!ExecutionUtils.aggregateMetrics(List(computed)).reusedFromCache)
+  }
+
+  it should "default reusedFromCache to false for empty input" in {
+    // Empty input takes the early-return path, whose default is false; metrics
+    // that no producer has marked keep that default too.
+    assert(!ExecutionUtils.aggregateMetrics(Iterable.empty).reusedFromCache)
   }
 }

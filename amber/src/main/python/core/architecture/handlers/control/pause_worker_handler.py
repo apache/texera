@@ -26,5 +26,5 @@ from proto.org.apache.texera.amber.engine.architecture.rpc import (
 class PauseWorkerHandler(ControlHandler):
     async def pause_worker(self, req: EmptyRequest) -> WorkerStateResponse:
         self.context.pause_manager.pause(PauseType.USER_PAUSE)
-        state = self.context.state_manager.get_current_state()
-        return WorkerStateResponse(state)
+        state, state_version = self.context.state_manager.get_state_with_version()
+        return WorkerStateResponse(state, state_version=state_version)

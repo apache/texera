@@ -58,12 +58,10 @@ class TestAtomicIntegerSingleThreaded:
         assert a.get_and_dec(2) == 10
         assert a.value == 8
 
-    def test_value_setter_replaces_state_with_int_coercion(self):
+    def test_value_is_read_only(self):
         a = AtomicInteger(10)
-        a.value = 42
-        assert a.value == 42
-        a.value = "100"
-        assert a.value == 100
+        with pytest.raises(AttributeError):
+            a.value = 42
 
     def test_get_and_set_does_not_deadlock_on_non_reentrant_lock(self):
         a = AtomicInteger(10)
@@ -85,8 +83,11 @@ class TestAtomicIntegerSingleThreaded:
         # scheduling delay alone could let the assertions below pass even on
         # a fixed implementation.
         assert started.wait(timeout=2.0), "worker thread never started"
-        # Give get_and_set a moment to either deadlock or return.
-        completed.wait(timeout=0.5)
+        # Join instead of waiting on `completed`: the worker sets that event
+        # before it exits, so `is_alive()` is only reliable after a join. A
+        # fixed implementation joins in microseconds; a deadlocked get_and_set
+        # stays alive past the timeout and still trips the assertion below.
+        worker.join(timeout=5)
         assert not errors, (
             f"get_and_set raised before reaching the deadlock spin: {errors[0]!r}"
         )

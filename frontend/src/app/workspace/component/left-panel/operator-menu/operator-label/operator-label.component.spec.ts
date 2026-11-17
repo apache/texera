@@ -30,6 +30,7 @@ import { WorkflowActionService } from "../../../../service/workflow-graph/model/
 import { UndoRedoService } from "../../../../service/undo-redo/undo-redo.service";
 import { RouterTestingModule } from "@angular/router/testing";
 import { commonTestProviders } from "../../../../../common/testing/test-utils";
+import { CdkDrag, CdkDragDrop, CdkDragStart } from "@angular/cdk/drag-drop";
 
 describe("OperatorLabelComponent", () => {
   const mockOperatorData = mockScanSourceSchema;
@@ -70,5 +71,52 @@ describe("OperatorLabelComponent", () => {
   it("should display operator user friendly name on the UI", () => {
     const element = <HTMLElement>fixture.debugElement.query(By.css(".text")).nativeElement;
     expect(element.textContent?.trim()).toEqual(mockOperatorData.additionalMetadata.userFriendlyName);
+  });
+
+  /**
+   * Dragging a label onto the canvas is the whole point of this component, and both of its handlers
+   * ran uncounted: the suite above only renders the label. These drive the two CdkDrag outputs the
+   * template binds rather than calling the methods directly, so the bindings are exercised too.
+   */
+  describe("drag handling", () => {
+    let dragDropService: DragDropService;
+    let cdkDrag: CdkDrag;
+
+    beforeEach(() => {
+      dragDropService = TestBed.inject(DragDropService);
+      cdkDrag = fixture.debugElement.query(By.directive(CdkDrag)).injector.get(CdkDrag);
+    });
+
+    it("announces the dragged operator's type, not its display name", () => {
+      // The canvas needs the type to instantiate an operator; "Source: Scan" would not resolve.
+      const dragStartedSpy = vi.spyOn(dragDropService, "dragStarted").mockImplementation(() => {});
+
+      cdkDrag.started.emit({ source: cdkDrag } as unknown as CdkDragStart);
+
+      expect(dragStartedSpy).toHaveBeenCalledExactlyOnceWith(mockOperatorData.operatorType);
+    });
+
+    it("refuses to start a drag while the workflow is read-only", () => {
+      const dragStartedSpy = vi.spyOn(dragDropService, "dragStarted").mockImplementation(() => {});
+      TestBed.inject(WorkflowActionService).disableWorkflowModification();
+      fixture.detectChanges();
+
+      // the label is visibly marked undraggable ...
+      const label = <HTMLElement>fixture.debugElement.query(By.css(".operator-label")).nativeElement;
+      expect(label.classList.contains("disable-drag-drop")).toBe(true);
+
+      // ... and a drag that fires anyway is dropped on the floor
+      cdkDrag.started.emit({ source: cdkDrag } as unknown as CdkDragStart);
+      expect(dragStartedSpy).not.toHaveBeenCalled();
+    });
+
+    it("forwards the drop point of a completed drag", () => {
+      const dragDroppedSpy = vi.spyOn(dragDropService, "dragDropped").mockImplementation(() => {});
+
+      // x and y differ so a handler that swapped them would not go unnoticed
+      cdkDrag.dropped.emit({ dropPoint: { x: 137, y: 421 } } as unknown as CdkDragDrop<unknown>);
+
+      expect(dragDroppedSpy).toHaveBeenCalledExactlyOnceWith({ x: 137, y: 421 });
+    });
   });
 });

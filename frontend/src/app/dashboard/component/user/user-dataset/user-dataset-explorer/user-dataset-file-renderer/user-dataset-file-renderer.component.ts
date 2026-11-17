@@ -17,9 +17,11 @@
  * under the License.
  */
 
-import { Component, EventEmitter, Input, OnChanges, OnDestroy, OnInit, Output, SimpleChanges } from "@angular/core";
-import { DatasetService } from "../../../../../service/user/dataset/dataset.service";
+import { Component, Input, OnChanges, OnDestroy, OnInit, SimpleChanges } from "@angular/core";
+import { ResourceRegistryService } from "../../../../../service/user/resource-registry/resource-registry.service";
+import { EntityType } from "../../../../../../hub/service/hub.service";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
+import { Subscription } from "rxjs";
 import * as Papa from "papaparse";
 import { ParseResult } from "papaparse";
 import { DomSanitizer, SafeUrl } from "@angular/platform-browser";
@@ -48,12 +50,9 @@ export const MIME_TYPES = {
   CSV: "text/csv",
   TXT: "text/plain",
   MD: "text/markdown",
-  HTML: "text/html",
   JSON: "application/json",
-  PDF: "application/pdf",
-  MSWORD: "application/msword",
   MSEXCEL: "application/vnd.ms-excel",
-  MSPOWERPOINT: "application/vnd.ms-powerpoint",
+  XLSX: "application/vnd.ms-excel",
   MP4: "video/mp4",
   MP3: "audio/mpeg",
   OCTET_STREAM: "application/octet-stream", // Default binary format
@@ -79,7 +78,6 @@ export const MIME_TYPE_SIZE_LIMITS_MB = {
   [MIME_TYPES.MSEXCEL]: 10 * 1024 * 1024, // 10 MB for Excel spreadsheets
   [MIME_TYPES.MP4]: 50 * 1024 * 1024, // 50 MB for MP4 videos
   [MIME_TYPES.MP3]: 10 * 1024 * 1024, // 10 MB for MP3 audio files
-  [MIME_TYPES.OCTET_STREAM]: 5 * 1024 * 1024, // Default size for other binary formats
 };
 
 @UntilDestroy()
@@ -104,8 +102,6 @@ export const MIME_TYPE_SIZE_LIMITS_MB = {
   ],
 })
 export class UserDatasetFileRendererComponent implements OnInit, OnChanges, OnDestroy {
-  private DEFAULT_MAX_SIZE = 5 * 1024 * 1024; // 5 MB
-
   public fileURL: string | undefined;
   // safe url is used to display some formats including image
   public safeFileURL: SafeUrl | undefined;
@@ -137,6 +133,8 @@ export class UserDatasetFileRendererComponent implements OnInit, OnChanges, OnDe
 
   // control flags
   public isLoading: boolean = false;
+  private fileLoad?: Subscription;
+  private loadId = 0;
   public isFileSizeUnloadable = false;
   public isFileLoadingError: boolean = false;
   public isFileTypePreviewUnsupported: boolean = false;
@@ -145,11 +143,15 @@ export class UserDatasetFileRendererComponent implements OnInit, OnChanges, OnDe
   @Input()
   isMaximized: boolean = false;
 
+  // Which kind of resource the file belongs to; the registry turns it into the fetch.
   @Input()
-  did: number | undefined;
+  resourceType: EntityType = EntityType.Dataset;
 
   @Input()
-  dvid: number | undefined;
+  resourceId: number | undefined;
+
+  @Input()
+  versionId: number | undefined;
 
   @Input()
   filePath: string = "";
@@ -160,11 +162,8 @@ export class UserDatasetFileRendererComponent implements OnInit, OnChanges, OnDe
   @Input()
   isLogin: boolean = false;
 
-  @Output()
-  loadFile = new EventEmitter<{ file: string; prefix: string }>();
-
   constructor(
-    private datasetService: DatasetService,
+    private resourceRegistry: ResourceRegistryService,
     private sanitizer: DomSanitizer,
     private notificationService: NotificationService
   ) {}
@@ -174,7 +173,7 @@ export class UserDatasetFileRendererComponent implements OnInit, OnChanges, OnDe
   }
 
   ngOnChanges(changes: SimpleChanges): void {
-    if ((changes.did && changes.dvid) || changes.filePath) {
+    if ((changes.resourceId && changes.versionId) || changes.filePath) {
       this.reloadFileContent();
     }
   }
@@ -192,6 +191,10 @@ export class UserDatasetFileRendererComponent implements OnInit, OnChanges, OnDe
   }
 
   reloadFileContent() {
+    this.fileLoad?.unsubscribe();
+    // Parsing finishes after the download, so its callbacks check they still belong to the shown file.
+    const loadId = ++this.loadId;
+    const isCurrent = () => loadId === this.loadId;
     this.turnOffAllDisplay();
 
     // Pre-check - file size
@@ -200,7 +203,7 @@ export class UserDatasetFileRendererComponent implements OnInit, OnChanges, OnDe
       this.onFileTypePreviewUnsupported();
       return;
     }
-    const limit = MIME_TYPE_SIZE_LIMITS_MB[mimeType] ?? this.DEFAULT_MAX_SIZE;
+    const limit = MIME_TYPE_SIZE_LIMITS_MB[mimeType];
     if (this.fileSize != null && this.fileSize > limit) {
       this.onFileSizeNotLoadable();
       return;
@@ -208,9 +211,9 @@ export class UserDatasetFileRendererComponent implements OnInit, OnChanges, OnDe
 
     // Load file
     this.isLoading = true;
-    if (this.did && this.dvid && this.filePath != "") {
-      this.datasetService
-        .retrieveDatasetVersionSingleFile(this.filePath, this.isLogin)
+    const retrieveSingleFile = this.resourceRegistry.get(this.resourceType).retrieveSingleFile;
+    if (retrieveSingleFile && this.resourceId && this.versionId && this.filePath != "") {
+      this.fileLoad = retrieveSingleFile(this.filePath, this.isLogin)
         .pipe(untilDestroyed(this))
         .subscribe({
           next: blob => {
@@ -220,7 +223,7 @@ export class UserDatasetFileRendererComponent implements OnInit, OnChanges, OnDe
               this.onFileTypePreviewUnsupported();
               return;
             }
-            const MaxSize = MIME_TYPE_SIZE_LIMITS_MB[blobMimeType] || this.DEFAULT_MAX_SIZE;
+            const MaxSize = MIME_TYPE_SIZE_LIMITS_MB[blobMimeType];
             const fileSize = blob.size;
             if (fileSize > MaxSize) {
               this.onFileSizeNotLoadable();
@@ -249,6 +252,7 @@ export class UserDatasetFileRendererComponent implements OnInit, OnChanges, OnDe
 
               case MIME_TYPES.MSEXCEL:
                 readXlsxFile(blob).then(rows => {
+                  if (!isCurrent()) return;
                   let parsedData: string[][] = [];
                   rows.forEach(row => {
                     // Convert each cell in the row to a string
@@ -267,11 +271,13 @@ export class UserDatasetFileRendererComponent implements OnInit, OnChanges, OnDe
                 // Handle CSV display
                 Papa.parse(this.currentFile, {
                   complete: (results: ParseResult<any>) => {
+                    if (!isCurrent()) return;
                     if (results.data.length > 0) {
                       this.loadTabularFile(results.data);
                     }
                   },
                   error: error => {
+                    if (!isCurrent()) return;
                     console.error("Error parsing file:", error);
                     this.onFileLoadingError();
                   },
@@ -279,19 +285,20 @@ export class UserDatasetFileRendererComponent implements OnInit, OnChanges, OnDe
                 break;
               case MIME_TYPES.MD:
                 this.displayMarkdown = true;
-                this.readFileAsText(blob);
+                this.readFileAsText(blob, isCurrent);
                 break;
               case MIME_TYPES.JSON:
                 this.displayJson = true;
-                this.readFileAsText(blob);
+                this.readFileAsText(blob, isCurrent);
                 break;
               case MIME_TYPES.TXT:
               default:
                 this.displayPlainText = true;
-                this.readFileAsText(blob);
+                this.readFileAsText(blob, isCurrent);
                 break;
             }
           },
+          error: () => this.onFileLoadingError(),
         });
     }
   }
@@ -334,13 +341,15 @@ export class UserDatasetFileRendererComponent implements OnInit, OnChanges, OnDe
   }
 
   isPreviewSupported(mimeType: string) {
-    return mimeType !== MIME_TYPES.OCTET_STREAM && Object.hasOwnProperty.call(MIME_TYPE_SIZE_LIMITS_MB, mimeType);
+    return Object.hasOwnProperty.call(MIME_TYPE_SIZE_LIMITS_MB, mimeType);
   }
 
-  private readFileAsText(blob: Blob) {
+  private readFileAsText(blob: Blob, isCurrent: () => boolean = () => true) {
     const txtReader = new FileReader();
     txtReader.onload = (event: any) => {
-      this.textContent = event.target.result;
+      if (isCurrent()) {
+        this.textContent = event.target.result;
+      }
     };
     txtReader.readAsText(blob);
   }
@@ -356,26 +365,13 @@ export class UserDatasetFileRendererComponent implements OnInit, OnChanges, OnDe
       this.tableDataHeader = data[0];
 
       // Process the rest of the rows
-      this.tableContent = data
-        .slice(1)
-        .map(row => {
-          // Normalize the row length to match the header length
-          while (row.length < this.tableDataHeader.length) {
-            row.push("");
-          }
-          return row;
-        })
-        .filter(row => {
-          // filter out all empty row
-          let areCellAllEmpty = true;
-          for (const cell in row) {
-            if (cell != "") {
-              areCellAllEmpty = false;
-              break;
-            }
-          }
-          return !areCellAllEmpty;
-        });
+      this.tableContent = data.slice(1).map(row => {
+        // Normalize the row length to match the header length
+        while (row.length < this.tableDataHeader.length) {
+          row.push("");
+        }
+        return row;
+      });
     }
   }
 }

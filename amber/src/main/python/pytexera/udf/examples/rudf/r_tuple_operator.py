@@ -30,11 +30,11 @@ r_tuple_source_one_tuple = """
 library(coro)
 coro::generator(function() {
     yield (list(
-            attr1 = 1L, # R integer
-            attr2 = "A", # R string
-            attr3 = TRUE, # R logical (boolean)
-            ))
-    })
+        attr1 = 1L,   # R integer
+        attr2 = "A",  # R string
+        attr3 = TRUE  # R logical (boolean)
+    ))
+})
 """
 
 r_tuple_source_multiple_tuples = """
@@ -42,11 +42,12 @@ library(coro)
 coro::generator(function() {
     for (i in 1:5) {
         yield (list(
-            attr1 = 1L, # R integer
-            attr2 = "A", # R string
-            attr3 = TRUE, # R logical (boolean)
-            ))
-    })
+            attr1 = i,    # R integer
+            attr2 = "A",  # R string
+            attr3 = TRUE  # R logical (boolean)
+        ))
+    }
+})
 """
 
 # --- UDF Operator ---
@@ -69,5 +70,6 @@ library(coro)
 coro::generator(function(tuple, port) {
     for (i in 1:5) {
         yield (tuple)
-    })
+    }
+})
 """

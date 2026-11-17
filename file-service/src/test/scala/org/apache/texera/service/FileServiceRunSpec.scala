@@ -23,7 +23,9 @@ import org.apache.texera.auth.RoleAnnotationEnforcer
 import org.apache.texera.service.resource.{
   DatasetAccessResource,
   DatasetResource,
-  HealthCheckResource
+  HealthCheckResource,
+  ModelAccessResource,
+  ModelResource
 }
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
@@ -36,6 +38,8 @@ class FileServiceRunSpec extends AnyFlatSpec with Matchers {
       Seq(
         classOf[DatasetResource],
         classOf[DatasetAccessResource],
+        classOf[ModelResource],
+        classOf[ModelAccessResource],
         classOf[HealthCheckResource]
       )
     ) shouldBe empty

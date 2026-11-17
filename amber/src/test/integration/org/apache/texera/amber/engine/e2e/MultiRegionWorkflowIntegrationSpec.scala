@@ -41,7 +41,7 @@ import org.apache.texera.amber.operator.sort.{SortCriteriaUnit, SortOpDesc, Sort
 import org.apache.texera.amber.operator.source.scan.text.TextInputSourceOpDesc
 import org.apache.texera.amber.operator.union.UnionOpDesc
 import org.apache.texera.amber.tags.IntegrationTest
-import org.apache.texera.workflow.LogicalLink
+import org.apache.texera.common.compiler.model.LogicalLink
 import org.scalatest.{BeforeAndAfterAll, BeforeAndAfterEach, Outcome, Retries}
 import org.scalatest.flatspec.AnyFlatSpecLike
 

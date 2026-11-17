@@ -23,22 +23,13 @@ import org.apache.texera.amber.core.tuple.{AttributeType, Schema}
 import org.apache.texera.amber.operator.LogicalOp
 import org.apache.texera.amber.operator.metadata.OperatorGroupConstants
 import org.apache.texera.amber.util.JSONUtils.objectMapper
+import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaInject
 import org.scalatest.flatspec.AnyFlatSpec
-import org.scalatest.matchers.should.Matchers
+import org.apache.texera.amber.operator.EncodedGeneratedCodeAssertionChecks
 
-import java.nio.charset.StandardCharsets
-import java.util.Base64
+import scala.jdk.CollectionConverters._
 
-class QuiverPlotOpDescSpec extends AnyFlatSpec with Matchers {
-
-  private def b64(s: String): String =
-    Base64.getEncoder.encodeToString(s.getBytes(StandardCharsets.UTF_8))
-
-  // EncodableString columns are always base64-wrapped in .encode mode
-  // (self.decode_python_template('<base64>')), so assert on the base64 form only rather than
-  // the raw column name, which could appear in the generated Python for unrelated reasons.
-  private def carries(output: String, name: String): Boolean =
-    output.contains(b64(name))
+class QuiverPlotOpDescSpec extends AnyFlatSpec with EncodedGeneratedCodeAssertionChecks {
 
   "QuiverPlotOpDesc.operatorInfo" should
     "advertise the name and Scientific visualization group with a 1-in/1-out shape" in {
@@ -95,5 +86,24 @@ class QuiverPlotOpDescSpec extends AnyFlatSpec with Matchers {
     q.y shouldBe "vy"
     q.u shouldBe "vu"
     q.v shouldBe "vv"
+  }
+
+  "QuiverPlotOpDesc @JsonSchemaInject" should
+    "constrain the real coordinate fields (x/y/u/v) to numeric" in {
+    // The rule keys must be actual @JsonProperty names; a key of "value" (no such
+    // field) matches nothing, so no numeric constraint reaches the column pickers.
+    val ann = classOf[QuiverPlotOpDesc].getAnnotation(classOf[JsonSchemaInject])
+    ann should not be null
+    val rules = objectMapper.readTree(ann.json).path("attributeTypeRules")
+    rules.fieldNames().asScala.toSet shouldBe Set("x", "y", "u", "v")
+    rules.fieldNames().asScala.foreach { f =>
+      rules
+        .path(f)
+        .path("enum")
+        .elements()
+        .asScala
+        .map(_.asText())
+        .toSet shouldBe Set("integer", "long", "double")
+    }
   }
 }

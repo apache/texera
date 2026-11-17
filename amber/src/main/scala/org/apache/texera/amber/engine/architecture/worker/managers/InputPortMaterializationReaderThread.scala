@@ -55,7 +55,7 @@ import org.apache.texera.amber.util.VirtualIdentityUtils.getFromActorIdForInputP
 
 import java.net.URI
 import java.util.concurrent.LinkedBlockingQueue
-import java.util.concurrent.atomic.{AtomicBoolean, AtomicLong}
+import java.util.concurrent.atomic.AtomicLong
 import scala.collection.mutable.ArrayBuffer
 
 class InputPortMaterializationReaderThread(
@@ -75,12 +75,6 @@ class InputPortMaterializationReaderThread(
   }
   private val partitioner = toPartitioner(partitioning, workerActorId)
   private val batchSize = ApplicationConfig.defaultDataTransferBatchSize
-  private val isFinished = new AtomicBoolean(false)
-
-  /**
-    * Whether the reader thread has completed.
-    */
-  def finished: Boolean = isFinished.get()
 
   /**
     * Read from the materialization storage, and mimics the behavior of an upstream worker's output manager.
@@ -104,9 +98,17 @@ class InputPortMaterializationReaderThread(
           .asInstanceOf[VirtualDocument[Tuple]]
       val stateReadIterator = stateDocument.get()
       while (stateReadIterator.hasNext) {
-        val state = State.fromTuple(stateReadIterator.next())
+        val row = stateReadIterator.next()
+        // Rebuild the loop envelope (loop_counter / loop_start_id) alongside
+        // the content: a JVM operator inside a loop body must carry it through
+        // unchanged, or the matching LoopEnd loses its back-jump target.
+        val stateFrame = StateFrame(
+          State.fromTuple(row),
+          State.loopCounterFrom(row),
+          State.loopStartIdFrom(row)
+        )
         inputMessageQueue.put(
-          FIFOMessageElement(WorkflowFIFOMessage(channelId, getSequenceNumber, StateFrame(state)))
+          FIFOMessageElement(WorkflowFIFOMessage(channelId, getSequenceNumber, stateFrame))
         )
       }
 
@@ -133,7 +135,6 @@ class InputPortMaterializationReaderThread(
       // Flush any remaining tuples in the buffer.
       if (buffer.nonEmpty) flush()
       emitECM(METHOD_END_CHANNEL, PORT_ALIGNMENT)
-      isFinished.set(true)
     } catch {
       case e: Exception =>
         throw new RuntimeException(s"Error reading input port materializations: ${e.getMessage}", e)

@@ -76,13 +76,13 @@ class PekkoActorRefMappingService(actorService: PekkoActorService) extends Amber
   def removeActorRef(id: ActorVirtualIdentity): Unit = {
     if (actorRefMapping.contains(id)) {
       val ref = actorRefMapping.remove(id).get
-      logger.warn(s"actor $id is not reachable anymore, it might have crashed. old ref = $ref")
+      logger.debug(s"actor $id is not reachable anymore. old ref = $ref")
     }
   }
 
   def registerActorRef(id: ActorVirtualIdentity, ref: ActorRef): Unit = {
     if (!actorRefMapping.contains(id)) {
-      logger.info(s"register ${VirtualIdentityUtils.toShorterString(id)} -> $ref")
+      logger.debug(s"register ${VirtualIdentityUtils.toShorterString(id)} -> $ref")
       actorRefMapping(id) = ref
       if (messageStash.contains(id)) {
         val stash = messageStash(id)
@@ -112,14 +112,19 @@ class PekkoActorRefMappingService(actorService: PekkoActorService) extends Amber
           queriedActorVirtualIdentities.add(id)
         } catch {
           case e: Throwable =>
+            // Deliberately does not read `actorService.parent` again: that is the value whose
+            // failure this handler exists to contain, so re-reading it to name the parent ref
+            // makes a persistently unreachable parent throw straight out of the catch block.
+            // The exception carries the detail (including which lookup failed and why).
             logger.warn(
-              s"Failed to fetch actorRef for ${VirtualIdentityUtils.toShorterString(id)} parentRef = " + actorService.parent
+              s"Failed to fetch actorRef for ${VirtualIdentityUtils.toShorterString(id)} from parent",
+              e
             )
         }
       }
     } else {
       // on coordinator, wait for actor ref registration.
-      logger.warn(s"unknown identifier: ${VirtualIdentityUtils.toShorterString(id)}")
+      logger.debug(s"unknown identifier: ${VirtualIdentityUtils.toShorterString(id)}")
       val toNotifySet = toNotifyOnRegistration.getOrElseUpdate(id, mutable.HashSet[ActorRef]())
       replyTo.foreach(toNotifySet.add)
     }

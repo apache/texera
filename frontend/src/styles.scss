@@ -65,11 +65,6 @@ hr {
   border: 0;
 }
 
-// due to innerHTML, this rule has to be global
-.highlight-search-terms {
-  color: blue;
-}
-
 .box {
   border-radius: 5px;
   box-shadow:
@@ -207,8 +202,7 @@ hr {
     font-style: italic;
   }
 
-  .package-header-row,
-  .package-inputs {
+  .package-header-row {
     display: grid;
     grid-template-columns: 1fr 1fr;
     gap: 12px;
@@ -450,12 +444,6 @@ hr {
 
     .title {
       font-weight: 500;
-    }
-
-    .subtitle {
-      font-size: 12px;
-      color: #8c8c8c;
-      margin-top: 2px;
     }
   }
 }

@@ -28,6 +28,7 @@ import org.apache.texera.dao.SqlServer
 import org.apache.texera.service.activity.UserActivityEventListener
 import org.apache.texera.service.resource.{
   AccessControlResource,
+  ComputingUnitMountResource,
   HealthCheckResource,
   LiteLLMModelsResource,
   LiteLLMProxyResource
@@ -58,6 +59,8 @@ class AccessControlService extends Application[AccessControlServiceConfiguration
       configuration: AccessControlServiceConfiguration,
       environment: Environment
   ): Unit = {
+    // Bridge this service's logs to the OTel collector under its own service.name.
+    org.apache.texera.observability.OtelInit.init("access-control-service")
     // Serve backend at /api
     environment.jersey.setUrlPattern("/api/*")
 
@@ -68,6 +71,7 @@ class AccessControlService extends Application[AccessControlServiceConfiguration
     environment.jersey.register(classOf[AccessControlResource])
     environment.jersey.register(classOf[LiteLLMProxyResource])
     environment.jersey.register(classOf[LiteLLMModelsResource])
+    environment.jersey.register(classOf[ComputingUnitMountResource])
 
     AuthFeatures.register(environment)
 

@@ -22,4 +22,7 @@ package org.apache.texera.amber.operator.sklearn
 class SklearnDummyClassifierOpDesc extends SklearnClassifierOpDesc {
   override def getImportStatements = "from sklearn.dummy import DummyClassifier"
   override def getUserFriendlyModelName = "Dummy Classifier"
+  // It predicts from the target's distribution and never reads a feature, so dropping
+  // a row for a blank feature would change the baseline it is meant to measure.
+  override def handlesMissingValues = true
 }

@@ -89,18 +89,18 @@ class LogreplayPrimitivesSpec extends AnyFlatSpec with BeforeAndAfterAll {
     WorkflowFIFOMessage(cidA, seq, FixedSizePayload())
 
   // ---------------------------------------------------------------------------
-  // ReplayLoggerImpl
+  // ReplayLogger
   // ---------------------------------------------------------------------------
 
-  "ReplayLoggerImpl.logCurrentStepWithMessage" should "append a ProcessingStep when the channel changes" in {
-    val l = new ReplayLoggerImpl()
+  "ReplayLogger.logCurrentStepWithMessage" should "append a ProcessingStep when the channel changes" in {
+    val l = new ReplayLogger()
     l.logCurrentStepWithMessage(0L, cidA, None)
     val drained = l.drainCurrentLogRecords(0L)
     assert(drained.toList == List(ProcessingStep(cidA, 0L)))
   }
 
   it should "skip a same-channel call with no message" in {
-    val l = new ReplayLoggerImpl()
+    val l = new ReplayLogger()
     l.logCurrentStepWithMessage(0L, cidA, None)
     l.drainCurrentLogRecords(0L) // reset
     l.logCurrentStepWithMessage(1L, cidA, None) // same channel, no message
@@ -110,7 +110,7 @@ class LogreplayPrimitivesSpec extends AnyFlatSpec with BeforeAndAfterAll {
   }
 
   it should "append both a ProcessingStep and a MessageContent when a message is provided" in {
-    val l = new ReplayLoggerImpl()
+    val l = new ReplayLogger()
     val m = msg(7L)
     l.logCurrentStepWithMessage(2L, cidA, Some(m))
     val drained = l.drainCurrentLogRecords(2L)
@@ -122,7 +122,7 @@ class LogreplayPrimitivesSpec extends AnyFlatSpec with BeforeAndAfterAll {
     // && message.isEmpty` — both conditions, not just the channel match. After a
     // first call sets the current channel, a *subsequent* same-channel call with
     // a non-empty message must still emit ProcessingStep + MessageContent.
-    val l = new ReplayLoggerImpl()
+    val l = new ReplayLogger()
     l.logCurrentStepWithMessage(0L, cidA, None) // sets currentChannelId = cidA
     l.drainCurrentLogRecords(0L) // reset
     val m = msg(11L)
@@ -132,21 +132,21 @@ class LogreplayPrimitivesSpec extends AnyFlatSpec with BeforeAndAfterAll {
   }
 
   it should "append a ProcessingStep on a channel switch even if no message is provided" in {
-    val l = new ReplayLoggerImpl()
+    val l = new ReplayLogger()
     l.logCurrentStepWithMessage(0L, cidA, None)
     l.logCurrentStepWithMessage(1L, cidB, None) // channel change → must record
     val drained = l.drainCurrentLogRecords(1L)
     assert(drained.toList == List(ProcessingStep(cidA, 0L), ProcessingStep(cidB, 1L)))
   }
 
-  "ReplayLoggerImpl.markAsReplayDestination" should
+  "ReplayLogger.markAsReplayDestination" should
     "preserve exact ordering: in-flight ProcessingStep, then ReplayDestination, then synthetic trailing step" in {
     // ReplayLogGenerator depends on the relative position of ReplayDestination
     // within the record stream — replay stops at it. So a `contains` check
     // would silently accept a regression that duplicated ReplayDestination or
     // moved it after the synthetic trailing ProcessingStep emitted by drain.
     // Pin the full sequence instead.
-    val l = new ReplayLoggerImpl()
+    val l = new ReplayLogger()
     val ecm = EmbeddedControlMessageIdentity("checkpoint-1")
     l.logCurrentStepWithMessage(0L, cidA, None) // sets currentChannelId, appends ProcessingStep
     l.markAsReplayDestination(ecm)
@@ -164,8 +164,8 @@ class LogreplayPrimitivesSpec extends AnyFlatSpec with BeforeAndAfterAll {
     )
   }
 
-  "ReplayLoggerImpl.drainCurrentLogRecords" should "clear the buffer between drains" in {
-    val l = new ReplayLoggerImpl()
+  "ReplayLogger.drainCurrentLogRecords" should "clear the buffer between drains" in {
+    val l = new ReplayLogger()
     l.logCurrentStepWithMessage(0L, cidA, None)
     val first = l.drainCurrentLogRecords(0L)
     val second = l.drainCurrentLogRecords(0L)
@@ -174,7 +174,7 @@ class LogreplayPrimitivesSpec extends AnyFlatSpec with BeforeAndAfterAll {
   }
 
   it should "append a synthetic ProcessingStep when the requested step differs from lastStep" in {
-    val l = new ReplayLoggerImpl()
+    val l = new ReplayLogger()
     l.logCurrentStepWithMessage(0L, cidA, None)
     val drained = l.drainCurrentLogRecords(5L)
     // Two records: the original ProcessingStep at step 0 and the synthetic one at step 5.

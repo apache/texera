@@ -24,9 +24,9 @@ import org.apache.texera.amber.operator.LogicalOp
 import org.apache.texera.amber.operator.metadata.OperatorGroupConstants
 import org.apache.texera.amber.util.JSONUtils.objectMapper
 import org.scalatest.flatspec.AnyFlatSpec
-import org.scalatest.matchers.should.Matchers
+import org.apache.texera.amber.operator.GeneratedCodeAssertionChecks
 
-class DumbbellPlotOpDescSpec extends AnyFlatSpec with Matchers {
+class DumbbellPlotOpDescSpec extends AnyFlatSpec with GeneratedCodeAssertionChecks {
 
   "DumbbellPlotOpDesc.operatorInfo" should
     "advertise the name and Basic visualization group" in {
@@ -65,6 +65,27 @@ class DumbbellPlotOpDescSpec extends AnyFlatSpec with Matchers {
     val code = d.generatePythonCode()
     code should include("class ProcessTableOperator(UDFTableOperator)")
     code should include("go.Scatter(")
+  }
+
+  it should "drop rows missing any configured column before laying the plot out" in {
+    val d = new DumbbellPlotOpDesc
+    d.categoryColumnName = "entity"
+    d.measurementColumnName = "metric"
+    d.comparedColumnName = "phase"
+    d.dumbbellStartValue = "before"
+    d.dumbbellEndValue = "after"
+    val code = d.generatePythonCode()
+
+    // Without this, an empty cell in the compared column reaches `sorted` as None
+    // and raises a TypeError against the other, string, entity names.
+    val dropna = code.linesIterator
+      .find(_.contains("dropna"))
+      .getOrElse(fail("generated code no longer drops rows with missing values"))
+    // The pyb macro base64-encodes interpolated column names, so the plain text
+    // never appears in the template.
+    Seq("phase", "entity", "metric").foreach(col => dropna should include(b64(col)))
+
+    code.indexOf("dropna") should be < code.indexOf("sorted(")
   }
 
   "DumbbellPlotOpDesc.createPlotlyDumbbellLineFigure" should

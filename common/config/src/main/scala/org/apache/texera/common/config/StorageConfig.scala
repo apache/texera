@@ -30,7 +30,6 @@ object StorageConfig {
 
   // JDBC specifics
   val jdbcUrl: String = conf.getString("storage.jdbc.url")
-  val jdbcUrlForTestCases: String = conf.getString("storage.jdbc.url-for-test-cases")
   val jdbcUsername: String = conf.getString("storage.jdbc.username")
   val jdbcPassword: String = conf.getString("storage.jdbc.password")
 
@@ -39,6 +38,8 @@ object StorageConfig {
   val icebergRESTCatalogUri: String = conf.getString("storage.iceberg.catalog.rest.uri")
   val icebergRESTCatalogWarehouseName: String =
     conf.getString("storage.iceberg.catalog.rest.warehouse-name")
+  val icebergRESTCatalogS3Bucket: String =
+    conf.getString("storage.iceberg.catalog.rest.s3-bucket")
 
   // Iceberg Postgres specifics
   val icebergPostgresCatalogUriWithoutScheme: String =
@@ -90,6 +91,12 @@ object StorageConfig {
   val cleanupRetentionHours: Int = conf.getInt("storage.cleanup.retention-hours")
   val cleanupIntervalMinutes: Int = conf.getInt("storage.cleanup.interval-minutes")
 
+  // Per-user warehouses (#6870). On only when the switch is on AND the catalog is REST
+  // (Lakekeeper): warehouses are Lakekeeper entities, so any other catalog type keeps
+  // the feature off regardless of the switch.
+  val warehouseEnabled: Boolean =
+    conf.getBoolean("storage.warehouse.enabled") && icebergCatalogType == "rest"
+
   // File storage configurations
   val fileStorageDirectoryPath: Path =
     Path
@@ -113,30 +120,13 @@ object StorageConfig {
   val ENV_ICEBERG_CATALOG_POSTGRES_USERNAME = "STORAGE_ICEBERG_CATALOG_POSTGRES_USERNAME"
   val ENV_ICEBERG_CATALOG_POSTGRES_PASSWORD = "STORAGE_ICEBERG_CATALOG_POSTGRES_PASSWORD"
 
-  // Iceberg Table
-  val ENV_ICEBERG_TABLE_RESULT_NAMESPACE = "STORAGE_ICEBERG_TABLE_RESULT_NAMESPACE"
-  val ENV_ICEBERG_TABLE_CONSOLE_MESSAGES_NAMESPACE =
-    "STORAGE_ICEBERG_TABLE_CONSOLE_MESSAGES_NAMESPACE"
-  val ENV_ICEBERG_TABLE_RUNTIME_STATISTICS_NAMESPACE =
-    "STORAGE_ICEBERG_TABLE_RUNTIME_STATISTICS_NAMESPACE"
-  val ENV_ICEBERG_TABLE_STATE_NAMESPACE = "STORAGE_ICEBERG_TABLE_STATE_NAMESPACE"
-  val ENV_ICEBERG_TABLE_COMMIT_BATCH_SIZE = "STORAGE_ICEBERG_TABLE_COMMIT_BATCH_SIZE"
-  val ENV_ICEBERG_TABLE_COMMIT_NUM_RETRIES = "STORAGE_ICEBERG_TABLE_COMMIT_NUM_RETRIES"
-  val ENV_ICEBERG_TABLE_COMMIT_MIN_WAIT_MS = "STORAGE_ICEBERG_TABLE_COMMIT_MIN_WAIT_MS"
-  val ENV_ICEBERG_TABLE_COMMIT_MAX_WAIT_MS = "STORAGE_ICEBERG_TABLE_COMMIT_MAX_WAIT_MS"
-
-  // LakeFS
-  val ENV_LAKEFS_ENDPOINT = "STORAGE_LAKEFS_ENDPOINT"
-  val ENV_LAKEFS_AUTH_API_SECRET = "STORAGE_LAKEFS_AUTH_API_SECRET"
-  val ENV_LAKEFS_AUTH_USERNAME = "STORAGE_LAKEFS_AUTH_USERNAME"
-  val ENV_LAKEFS_AUTH_PASSWORD = "STORAGE_LAKEFS_AUTH_PASSWORD"
-  val ENV_LAKEFS_BLOCK_STORAGE_TYPE = "STORAGE_LAKEFS_BLOCK_STORAGE_TYPE"
-  val ENV_LAKEFS_BLOCK_STORAGE_BUCKET_NAME = "STORAGE_LAKEFS_BLOCK_STORAGE_BUCKET_NAME"
-
   // Staged file cleanup
   val ENV_CLEANUP_ENABLED = "STORAGE_CLEANUP_ENABLED"
   val ENV_CLEANUP_RETENTION_HOURS = "STORAGE_CLEANUP_RETENTION_HOURS"
   val ENV_CLEANUP_INTERVAL_MINUTES = "STORAGE_CLEANUP_INTERVAL_MINUTES"
+
+  // Per-user warehouses
+  val ENV_WAREHOUSE_ENABLED = "STORAGE_WAREHOUSE_ENABLED"
 
   // S3
   val ENV_S3_ENDPOINT = "STORAGE_S3_ENDPOINT"
@@ -144,7 +134,12 @@ object StorageConfig {
   val ENV_S3_AUTH_USERNAME = "STORAGE_S3_AUTH_USERNAME"
   val ENV_S3_AUTH_PASSWORD = "STORAGE_S3_AUTH_PASSWORD"
 
-  // Jupyter
-  val jupyterURL: String = conf.getString("storage.jupyter.url")
+  // Jupyter. Internal for server-side calls, public for the browser iframe. Equal
+  // unless a deployment overrides one.
+  val jupyterInternalURL: String = conf.getString("storage.jupyter.internal-url")
+  val jupyterPublicURL: String = conf.getString("storage.jupyter.public-url")
   val jupyterToken: String = conf.getString("storage.jupyter.token")
+
+  // HMAC key for per-user token derivation; empty unless a deployment sets it.
+  val jupyterTokenSecret: String = conf.getString("storage.jupyter.token-secret")
 }

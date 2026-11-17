@@ -307,6 +307,29 @@ class OutputManagerSpec extends AnyFlatSpec with MockFactory {
     outputManager.emitState(state)
   }
 
+  it should "carry the loop envelope onto every emitted StateFrame" in {
+    // The loop envelope (loop_counter / loop_start_id) is owned by the Python
+    // runtime; a JVM hop only forwards it. emitState must stamp the incoming
+    // envelope onto the outgoing frames (and the storage write -- covered by
+    // State.toTuple in StateSpec), not reset it to the no-loop defaults.
+    val outputManager: OutputManager = wire[OutputManager]
+    val portA = PortIdentity(7)
+    outputManager.addPort(portA, schema, None)
+    // Fresh receiver: the spec-level gateway tracks sequence numbers per
+    // channel, so reusing another test's receiver would start at seq 1.
+    val rec = ActorVirtualIdentity("state-recEnvelope")
+    outputManager.addPartitionerWithPartitioning(
+      PhysicalLink(physicalOpId(), portA, physicalOpId(), portA),
+      OneToOnePartitioning(10, Seq(channelTo(rec)))
+    )
+
+    val state = State(Map("k" -> 1))
+    (mockHandler.apply _).expects(
+      WorkflowFIFOMessage(channelTo(rec), 0, StateFrame(state, 2L, "outer-loop"))
+    )
+    outputManager.emitState(state, loopCounter = 2L, loopStartId = "outer-loop")
+  }
+
   // -- addPort / storage no-ops / getSingleOutputPortIdentity --------------
 
   "addPort" should "be idempotent for a duplicate port id" in {

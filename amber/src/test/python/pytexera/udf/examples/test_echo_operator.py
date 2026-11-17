@@ -36,3 +36,16 @@ class TestEchoOperator:
         assert output_tuple == tuple_
         with pytest.raises(StopIteration):
             next(outputs)
+
+    def test_on_finish_emits_a_single_none(self, echo_operator):
+        # The echo operator has nothing buffered, so end-of-port emits one
+        # placeholder and nothing more.
+        #
+        # Resolve the override out of EchoOperator.__dict__ rather than off
+        # the instance: UDFOperatorV2.on_finish has a byte-identical body, so
+        # a plain attribute lookup falls back to the base class and the
+        # assertion below would still hold with this operator's own override
+        # deleted -- i.e. it would cover line 28 without pinning it.
+        on_finish = EchoOperator.__dict__["on_finish"]
+
+        assert list(on_finish(echo_operator, 0)) == [None]

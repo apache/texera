@@ -20,8 +20,6 @@
 package org.apache.texera.amber.engine.architecture.coordinator.promisehandlers
 
 import com.twitter.util.Future
-import org.apache.texera.amber.core.tuple.Tuple
-import org.apache.texera.amber.core.virtualidentity.ActorVirtualIdentity
 import org.apache.texera.amber.engine.architecture.coordinator.{
   CoordinatorAsyncRPCHandlerInitializer,
   ExecutionStateUpdate,
@@ -36,8 +34,6 @@ import org.apache.texera.amber.engine.architecture.rpc.controlreturns.{
   EmptyReturn,
   WorkerMetricsResponse
 }
-
-import scala.collection.mutable
 
 /** pause the entire workflow
   *
@@ -54,10 +50,7 @@ trait PauseHandler {
         cp.workflowExecution.getRunningRegionExecutions
           .flatMap(_.getAllOperatorExecutions)
           .map {
-            case (physicalOpId, opExecution) =>
-              // create a buffer for the current input tuple
-              // since we need to show them on the frontend
-              val buffer = mutable.ArrayBuffer[(Tuple, ActorVirtualIdentity)]()
+            case (_, opExecution) =>
               Future
                 .collect(
                   opExecution.getWorkerIds
@@ -68,13 +61,16 @@ trait PauseHandler {
                       // send a pause message
                       workerInterface.pauseWorker(EmptyRequest(), mkContext(worker)).flatMap {
                         resp =>
-                          workerExecution.update(System.nanoTime(), resp.state)
+                          workerExecution.updateState(resp.stateVersion, resp.state)
                           workerInterface
                             .queryStatistics(EmptyRequest(), mkContext(worker))
-                            // get the stats and current input tuple from the worker
+                            // get the stats from the worker
                             .map {
                               case WorkerMetricsResponse(metrics) =>
-                                workerExecution.update(System.nanoTime(), metrics.workerStatistics)
+                                workerExecution.updateStats(
+                                  System.nanoTime(),
+                                  metrics.workerStatistics
+                                )
                             }
                       }
                     }.toSeq

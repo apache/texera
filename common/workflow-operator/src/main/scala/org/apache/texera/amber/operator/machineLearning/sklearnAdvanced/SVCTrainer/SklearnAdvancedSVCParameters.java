@@ -22,20 +22,41 @@ package org.apache.texera.amber.operator.machineLearning.sklearnAdvanced.SVCTrai
 import org.apache.texera.amber.operator.machineLearning.sklearnAdvanced.base.ParamClass;
 
 public enum SklearnAdvancedSVCParameters implements ParamClass {
-    C("C", "float"),
-    kernel("kernel", "str"),
-    gamma("gamma", "float"),
-    degree("degree", "int"),
-    coef0("coef0", "float"),
-    tol("tol", "float"),
-    probability("probability", "(lambda value: value.lower() == \"true\")");
+    // Bounds are scikit-learn's own, whose ranges are open at zero for the two below and
+    // closed for degree.
+    C("C", "float", "1.0") { @Override public String getMinimum() { return ">0"; } },
+    kernel("kernel", "str", "", "rbf", "linear", "poly", "sigmoid", "precomputed"),
+    // gamma takes either of two words or a number, so no converter of a name covers it, and
+    // the pattern states what this one takes. Digits are [0-9] rather than \d so the browser
+    // and Python read it alike. It lets a negative through for the estimator to refuse, since
+    // excluding the sign would also exclude -0.0, which the estimator takes.
+    gamma(
+            "gamma",
+            "(lambda value: value.strip() if value.strip() in (\"scale\", \"auto\") else float(value))",
+            "scale") {
+        @Override
+        public String getPattern() {
+            return "^\\s*(?:scale|auto|[-+]?(?:(?:[0-9]+(?:_[0-9]+)*)?\\.(?:[0-9]+(?:_[0-9]+)*)"
+                    + "|(?:[0-9]+(?:_[0-9]+)*)\\.?)(?:[eE][-+]?[0-9]+(?:_[0-9]+)*)?)\\s*$";
+        }
+    },
+    degree("degree", "int", "3") { @Override public String getMinimum() { return ">=0"; } },
+    // coef0 is the one parameter here with no bound at either end.
+    coef0("coef0", "float", "0.0"),
+    tol("tol", "float", "0.001") { @Override public String getMinimum() { return ">0"; } },
+    probability("probability", "(lambda value: value.lower() == \"true\")", "", "false", "true");
 
     private final String name;
     private final String type;
+    private final String sampleValue;
+    private final String[] allowedValues;
 
-    SklearnAdvancedSVCParameters(String name, String type) {
+    SklearnAdvancedSVCParameters(
+            String name, String type, String sampleValue, String... allowedValues) {
         this.name = name;
         this.type = type;
+        this.sampleValue = sampleValue;
+        this.allowedValues = allowedValues;
     }
 
     public String getType() {
@@ -44,5 +65,13 @@ public enum SklearnAdvancedSVCParameters implements ParamClass {
 
     public String getName() {
         return this.name;
+    }
+
+    public String getSampleValue() {
+        return this.sampleValue;
+    }
+
+    public String[] getAllowedValues() {
+        return this.allowedValues.clone();
     }
 }

@@ -48,7 +48,6 @@ Global / concurrentRestrictions += Tags.limit(Tags.Test, 1)
 
 // Scala compiler options
 Compile / scalacOptions ++= Seq(
-  "-Xelide-below", "WARNING",       // Turn on optimizations with "WARNING" as the threshold
   "-feature",                       // Check feature warnings
   "-deprecation",                   // Check deprecation warnings
   "-Ywarn-unused:imports"           // Check for unused imports
@@ -83,5 +82,6 @@ libraryDependencies ++= Seq(
 libraryDependencies ++= Seq(
   "io.dropwizard" % "dropwizard-core" % dropwizardVersion,
   "io.dropwizard" % "dropwizard-auth" % dropwizardVersion, // Dropwizard Authentication module
-  "com.fasterxml.jackson.module" %% "jackson-module-scala" % "2.18.8"
+  "com.fasterxml.jackson.module" %% "jackson-module-scala" % "2.18.8",
+  "io.fabric8" % "kubernetes-client" % "6.12.1" // Provisions per-user JupyterLab pods
 )

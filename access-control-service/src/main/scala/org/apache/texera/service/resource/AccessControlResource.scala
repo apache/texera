@@ -27,12 +27,12 @@ import jakarta.ws.rs.{Consumes, DELETE, GET, POST, PUT, Path, Produces}
 import org.apache.texera.auth.JwtParser.parseToken
 import org.apache.texera.auth.SessionUser
 import org.apache.texera.auth.util.{ComputingUnitAccess, HeaderField}
-import org.apache.texera.common.config.{GuiConfig, LLMConfig}
+import org.apache.texera.common.config.{GuiConfig, KubernetesConfig, LLMConfig}
 import org.apache.texera.dao.SqlServer
 import org.apache.texera.dao.jooq.generated.enums.PrivilegeEnum
-import org.apache.texera.dao.jooq.generated.tables.daos.WorkflowComputingUnitDao
+import org.apache.texera.dao.jooq.generated.tables.daos.{UserJupyterDao, WorkflowComputingUnitDao}
 
-import java.net.URLDecoder
+import java.net.{URI, URLDecoder}
 import java.nio.charset.StandardCharsets
 import java.util.Optional
 import scala.jdk.CollectionConverters.{CollectionHasAsScala, MapHasAsScala}
@@ -51,6 +51,18 @@ object AccessControlResource extends LazyLogging {
   private val pvePvesCuidPath: Regex = """^/?(?:auth/)?(?:api/|wsapi/)?pve/pves/([0-9]+)$""".r
   private val pvePackagesCuidPath: Regex =
     """^/?(?:auth/)?(?:api/|wsapi/)?pve/([0-9]+)/[^/]+/packages/.+$""".r
+  // Per-user JupyterLab. The uid is in the path because a browser cannot attach Texera
+  // credentials to the requests Jupyter's own scripts make, so it is the only place the
+  // owner can be read from.
+  private val jupyterPath: Regex = jupyterPathRegex(KubernetesConfig.jupyterBaseUrl)
+
+  // Built from the same setting the gateway route and the pods are rendered from, so the
+  // prefix cannot be honoured in one place and not another. Quoted: it is a path, not a
+  // pattern.
+  private[texera] def jupyterPathRegex(basePath: String): Regex = {
+    val prefix = basePath.stripPrefix("/").stripSuffix("/")
+    ("^/?(?:auth/)?" + Regex.quote(prefix) + "/([0-9]+)(?:/.*)?$").r
+  }
 
   /**
     * Authorize the request based on the path and headers.
@@ -68,11 +80,47 @@ object AccessControlResource extends LazyLogging {
     logger.info(s"Authorizing request for path: $path")
 
     path match {
+      case jupyterPath(uid) => routeToJupyter(uid)
       case wsapiWorkflowWebsocket() | apiExecutionsStats() | apiExecutionsResultExport() |
           pveRoute() =>
         checkComputingUnitAccess(uriInfo, headers, bodyOpt)
       case _ =>
         logger.warn(s"No authorization logic for path: $path. Denying access.")
+        Response.status(Response.Status.FORBIDDEN).build()
+    }
+  }
+
+  /**
+    * Resolve which JupyterLab pod a request belongs to. This routes; it does not authorize.
+    *
+    * Jupyter is loaded in an iframe and then issues its own requests for assets, contents and
+    * kernel websockets. None of those can carry a Texera token, and there is no session cookie
+    * to fall back on, so the caller cannot be authenticated per request. What protects one
+    * user's notebooks from another is the per-user Jupyter token, which is derived from a
+    * server-held secret and is unguessable; reaching the right pod without it yields a 403 from
+    * Jupyter itself. Cross-pod traffic is blocked separately by a NetworkPolicy.
+    */
+  private def routeToJupyter(uid: String): Response = {
+    // Envoy routes on an authority, so the scheme and base path are stripped off. The parse
+    // stays inside the guard so a malformed row is denied rather than raised as a 500.
+    val authority =
+      try {
+        val dao = new UserJupyterDao(SqlServer.getInstance().createDSLContext().configuration())
+        Option(dao.fetchOneByUid(uid.toInt))
+          .map(row => new URI(row.getInternalUrl).getAuthority)
+          .filter(a => a != null && a.nonEmpty)
+      } catch {
+        case e: Exception =>
+          logger.error(s"Failed to resolve the Jupyter registered for user $uid", e)
+          return Response.status(Response.Status.FORBIDDEN).build()
+      }
+
+    authority match {
+      case Some(host) =>
+        logger.info(s"Routing Jupyter for user $uid to recorded host: $host")
+        Response.ok().header("Host", host).build()
+      case None =>
+        logger.warn(s"Refusing Jupyter for user $uid: no usable Jupyter address is registered")
         Response.status(Response.Status.FORBIDDEN).build()
     }
   }

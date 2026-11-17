@@ -19,16 +19,17 @@
 package org.apache.texera.amber.operator.keywordSearch
 
 import org.apache.lucene.analysis.{Analyzer, TokenStream}
-import org.apache.lucene.analysis.core.WhitespaceTokenizer
+import org.apache.lucene.analysis.standard.StandardTokenizer
 import org.apache.lucene.analysis.CharArraySet
 import org.apache.lucene.analysis.StopFilter
 import org.apache.lucene.analysis.Analyzer.TokenStreamComponents
 
-// Achieves case sensitivity by skipping the lowercasing and normalization
-// pipeline used in StandardAnalyzer.
+// Mirrors StandardAnalyzer but omits the LowerCaseFilter, so tokens keep their
+// case while still splitting on Unicode word boundaries. A bare WhitespaceTokenizer
+// would instead glue punctuation to tokens (e.g. "perfect." would not match "perfect").
 class CaseSensitiveAnalyzer extends Analyzer {
   override protected def createComponents(fieldName: String): TokenStreamComponents = {
-    val tokenizer = new WhitespaceTokenizer()
+    val tokenizer = new StandardTokenizer()
     val stream: TokenStream = new StopFilter(tokenizer, CharArraySet.EMPTY_SET)
     new TokenStreamComponents(tokenizer, stream)
   }

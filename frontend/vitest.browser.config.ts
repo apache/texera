@@ -64,6 +64,16 @@ export default defineConfig({
     // browser-mode the runtime has neither, so we install the `buffer` npm
     // package as a shim).
     setupFiles: ["src/browser-buffer-polyfill.ts", "src/test-zone-setup.ts"],
+    // Browser mode resolves larger defaults than jsdom off `browser.enabled`
+    // (15s per test, 30s per hook), but since #7717 raised the jsdom config to
+    // 20s per test, 15s is the tightest per-test ceiling left in the frontend
+    // job — on the slower of the two runtimes, since driving a real Chromium
+    // through playwright costs more than jsdom. Both legs run on the same
+    // macOS runners, whose stalls are what the jsdom raise was for, so this
+    // one gets at least as much headroom. `hookTimeout` is left alone — its
+    // browser-mode default is already the 30s the jsdom config sets. See
+    // apache/texera#6073.
+    testTimeout: 30_000,
     browser: {
       enabled: true,
       provider: playwright(),

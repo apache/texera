@@ -29,6 +29,14 @@ export interface DatasetVersion {
   fileNodes: DatasetFileNode[] | undefined;
 }
 
+export interface Contributor {
+  name: string;
+  creator: boolean;
+  affiliation?: string;
+  email?: string;
+  comments?: string;
+}
+
 export interface Dataset {
   did: number | undefined;
   ownerUid: number | undefined;

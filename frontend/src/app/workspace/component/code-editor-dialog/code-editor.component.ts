@@ -47,7 +47,7 @@ import {
   type MonacoVscodeApiConfig,
   getEnhancedMonacoEnvironment,
 } from "monaco-languageclient/vscodeApiWrapper";
-import { LanguageClientWrapper, type LanguageClientConfig } from "monaco-languageclient/lcwrapper";
+import { LanguageClientWrapper, LcWebSocket, type LanguageClientConfig } from "monaco-languageclient/lcwrapper";
 import { EditorApp, type EditorAppConfig } from "monaco-languageclient/editorApp";
 import { isDefined } from "../../../common/util/predicate";
 import { filter } from "rxjs/operators";
@@ -60,6 +60,9 @@ import { NzButtonComponent } from "ng-zorro-antd/button";
 import { ɵNzTransitionPatchDirective } from "ng-zorro-antd/core/transition-patch";
 import { NzIconDirective } from "ng-zorro-antd/icon";
 import { NgFor, NgComponentOutlet, NgIf } from "@angular/common";
+import { UiUdfParametersSyncService } from "../../service/code-editor/ui-udf-parameters-sync.service";
+import { NotificationService } from "../../../common/service/notification/notification.service";
+import { getUiUdfLanguage } from "../../service/workflow-graph/model/workflow-graph";
 
 type MonacoEditor = monaco.editor.IStandaloneCodeEditor;
 
@@ -110,6 +113,7 @@ export class CodeEditorComponent implements AfterViewInit, SafeStyle, OnDestroy 
   private editorApp?: EditorApp;
   private languageClientWrapper?: LanguageClientWrapper;
   private monacoBinding?: MonacoBinding;
+  private detachYCodeListener?: () => void;
 
   // Boolean to determine whether the suggestion UI should be shown
   public showAnnotationSuggestion: boolean = false;
@@ -127,34 +131,19 @@ export class CodeEditorComponent implements AfterViewInit, SafeStyle, OnDestroy 
   public codeDebuggerComponent!: Type<any> | null;
   public editorToPass!: MonacoEditor;
 
-  // Operator-type → editor language. The R types are kept on the frontend
-  // even though Texera's R UDF backend now ships as a separate plugin —
-  // when that plugin is installed, the workflow may still surface `RUDF` /
-  // `RUDFSource` operators and the editor needs to open them in R mode.
-  private static readonly PYTHON_OPERATOR_TYPES: ReadonlySet<string> = new Set([
-    "PythonUDFV2",
-    "PythonUDFSourceV2",
-    "DualInputPortsPythonUDFV2",
-  ]);
-  private static readonly R_OPERATOR_TYPES: ReadonlySet<string> = new Set(["RUDFSource", "RUDF"]);
-
   constructor(
     private sanitizer: DomSanitizer,
     private workflowActionService: WorkflowActionService,
     private workflowVersionService: WorkflowVersionService,
     public coeditorPresenceService: CoeditorPresenceService,
     private aiAssistantService: AIAssistantService,
-    private config: GuiConfigService
+    private config: GuiConfigService,
+    private uiUdfParametersSyncService: UiUdfParametersSyncService,
+    private notificationService: NotificationService
   ) {
     this.currentOperatorId = this.workflowActionService.getJointGraphWrapper().getCurrentHighlightedOperatorIDs()[0];
-    const operatorType = this.workflowActionService.getTexeraGraph().getOperator(this.currentOperatorId).operatorType;
-    if (CodeEditorComponent.PYTHON_OPERATOR_TYPES.has(operatorType)) {
-      this.language = "python";
-    } else if (CodeEditorComponent.R_OPERATOR_TYPES.has(operatorType)) {
-      this.language = "r";
-    } else {
-      this.language = "java";
-    }
+    const operator = this.workflowActionService.getTexeraGraph().getOperator(this.currentOperatorId);
+    this.language = getUiUdfLanguage(operator) ?? "java";
     this.languageTitle = `${this.language[0].toUpperCase()}${this.language.slice(1)} UDF`;
     this.workflowActionService.getTexeraGraph().updateSharedModelAwareness("editingCode", true);
     this.title = this.workflowActionService.getTexeraGraph().getOperator(this.currentOperatorId).customDisplayName;
@@ -170,6 +159,14 @@ export class CodeEditorComponent implements AfterViewInit, SafeStyle, OnDestroy 
     // hacky solution to reset view after view is rendered.
     const style = localStorage.getItem(this.currentOperatorId);
     if (style) this.containerElement.nativeElement.style.cssText = style;
+
+    this.uiUdfParametersSyncService.uiParametersParseError$
+      .pipe(untilDestroyed(this))
+      .subscribe(({ operatorId, message }) => {
+        if (operatorId === this.currentOperatorId && message) {
+          this.notificationService.error(`Could not update UDF parameters: ${message}`);
+        }
+      });
 
     // start editor
     this.workflowVersionService
@@ -196,6 +193,10 @@ export class CodeEditorComponent implements AfterViewInit, SafeStyle, OnDestroy 
 
     this.workflowVersionStreamSubject.next();
     this.workflowVersionStreamSubject.complete();
+
+    if (this.detachYCodeListener) {
+      this.detachYCodeListener();
+    }
   }
 
   /**
@@ -347,7 +348,11 @@ export class CodeEditorComponent implements AfterViewInit, SafeStyle, OnDestroy 
         const lcConfig: LanguageClientConfig = {
           languageId: this.language,
           connection: {
-            options: { $type: "WebSocketUrl", url: languageServerWebsocketUrl },
+            options: {
+              $family: "WebSocket",
+              webSocketUrl: languageServerWebsocketUrl,
+              realization: () => new LcWebSocket(),
+            },
           },
           clientOptions: { documentSelector: [this.language] },
         };
@@ -403,6 +408,13 @@ export class CodeEditorComponent implements AfterViewInit, SafeStyle, OnDestroy 
         }
         this.setupAIAssistantActions(editor);
         this.initCodeDebuggerComponent(editor);
+        if (this.detachYCodeListener) {
+          this.detachYCodeListener();
+        }
+
+        if (this.code) {
+          this.detachYCodeListener = this.uiUdfParametersSyncService.attachToYCode(this.currentOperatorId, this.code);
+        }
       });
   }
 

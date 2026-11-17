@@ -35,6 +35,26 @@ ThisBuild / conflictManager := ConflictManager.latestRevision
 // Restrict parallel execution of tests to avoid conflicts
 Global / concurrentRestrictions += Tags.limit(Tags.Test, 1)
 
+// Java UDF execution tests use javac, which needs the test classpath on the forked JVM.
+// Keep the repo-root working directory so MockTexeraDB can find sql/texera_ddl.sql.
+Test / fork := true
+Test / forkOptions := (Test / forkOptions).value
+  .withWorkingDirectory((ThisBuild / baseDirectory).value)
+
+
+// A test needing more than a bare Python interpreter is tagged, so the amber job
+// excludes it, and amber-integration, which installs amber's requirements files,
+// runs it. The amber job already sets this env var on the step that invokes
+// WorkflowOperator/jacoco, so no workflow change is needed for the exclusion.
+//
+// PythonCodeRawInvalidTextSpec reads the same env var and value directly, to tell
+// a missing package in amber-integration (a defect) from one on a developer's
+// machine (a local-setup fact). Changing the variable or the value here without
+// changing it there leaves that test cancelling in the job meant to fail it.
+Test / testOptions ++= TestFilters.integrationSplit(
+  envVar = "AMBER_TEST_FILTER",
+  tag = "org.apache.texera.amber.operator.tags.IntegrationTest"
+)
 
 /////////////////////////////////////////////////////////////////////////////
 // Compiler Options
@@ -42,7 +62,6 @@ Global / concurrentRestrictions += Tags.limit(Tags.Test, 1)
 
 // Scala compiler options
 Compile / scalacOptions ++= Seq(
-  "-Xelide-below", "WARNING",       // Turn on optimizations with "WARNING" as the threshold
   "-feature",                       // Check feature warnings
   "-deprecation",                   // Check deprecation warnings
   "-Ywarn-unused:imports"           // Check for unused imports

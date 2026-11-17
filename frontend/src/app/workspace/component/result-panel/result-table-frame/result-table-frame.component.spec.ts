@@ -19,8 +19,9 @@
 
 import { ComponentFixture, TestBed } from "@angular/core/testing";
 import { SimpleChange } from "@angular/core";
+import type { Mock } from "vitest";
 
-import { ResultTableFrameComponent } from "./result-table-frame.component";
+import { OTHER_PORT_REFRESH_MS, ResultTableFrameComponent } from "./result-table-frame.component";
 import { OperatorMetadataService } from "../../../service/operator-metadata/operator-metadata.service";
 import { StubOperatorMetadataService } from "../../../service/operator-metadata/stub-operator-metadata.service";
 import { HttpClientTestingModule } from "@angular/common/http/testing";
@@ -31,13 +32,16 @@ import { By, DomSanitizer } from "@angular/platform-browser";
 import { of, Subject } from "rxjs";
 import { commonTestProviders } from "../../../../common/testing/test-utils";
 import { GuiConfigService } from "../../../../common/service/gui-config.service";
+import { MockGuiConfigService } from "../../../../common/service/gui-config.service.mock";
+import { WorkflowActionService } from "../../../service/workflow-graph/model/workflow-action.service";
+import { isAudioUrl, isImageUrl, isVideoUrl } from "../../../../common/util/media-type.util";
 import {
   OperatorPaginationResultService,
   WorkflowResultService,
 } from "../../../service/workflow-result/workflow-result.service";
 import { WorkflowStatusService } from "../../../service/workflow-status/workflow-status.service";
 import { PanelResizeService } from "../../../service/workflow-result/panel-resize/panel-resize.service";
-import { OperatorState, OperatorStatistics, WebResultUpdate } from "../../../types/execute-workflow.interface";
+import { OperatorState, WebResultUpdate } from "../../../types/execute-workflow.interface";
 import { PaginatedResultEvent } from "../../../types/workflow-websocket.interface";
 import { IndexableObject } from "../../../types/result-table.interface";
 import { RowModalComponent } from "../result-panel-modal.component";
@@ -66,6 +70,8 @@ describe("ResultTableFrameComponent", () => {
     pageIndex,
     table,
     schema: [],
+    portIndex: 0,
+    totalTuples: table.length,
   });
 
   // Installs a paginated-result-service double behind WorkflowResultService.getPaginatedResultService.
@@ -83,14 +89,6 @@ describe("ResultTableFrameComponent", () => {
     return paginatedResultService;
   };
 
-  const makeStatistics = (state: OperatorState): OperatorStatistics => ({
-    operatorState: state,
-    aggregatedInputRowCount: 0,
-    inputPortMetrics: {},
-    aggregatedOutputRowCount: 0,
-    outputPortMetrics: {},
-  });
-
   const paginationUpdate = (totalNumTuples: number, dirtyPageIndices: number[]): WebResultUpdate => ({
     mode: { type: "PaginationMode" },
     totalNumTuples,
@@ -98,6 +96,13 @@ describe("ResultTableFrameComponent", () => {
   });
 
   const queryParams = (pageIndex: number): NzTableQueryParams => ({ pageIndex, pageSize: 5, sort: [], filter: [] });
+
+  // `commonTestProviders` supplies MockGuiConfigService, which is what the component receives,
+  // so the deployment's export switch is driven through it.
+  const setExport = (enabled: boolean): void =>
+    (TestBed.inject(GuiConfigService) as unknown as MockGuiConfigService).setConfig({
+      exportExecutionResultEnabled: enabled,
+    });
 
   // Re-creates the component so spies installed on service streams are picked up by ngOnInit.
   // Destroys the fixture created in beforeEach (or a prior recreate) first so its
@@ -148,10 +153,13 @@ describe("ResultTableFrameComponent", () => {
     expect(component).toBeTruthy();
   });
 
-  it("currentResult should not be modified if setupResultTable is called with empty (zero-length) execution result", () => {
+  // NOTE: this exercises the *missing operator* guard, not the empty-result guard - the
+  // fixture built in beforeEach has no operatorId, so setupResultTable returns before it
+  // ever looks at the row count. The empty-result guard is covered by
+  // "keeps the existing table when the fetched page comes back empty" below.
+  it("currentResult should not be modified if setupResultTable is called without a selected operator", () => {
     component.currentResult = [{ test: "property" }];
-    (component as any).setupResultTable([], 0);
-
+    component.setupResultTable([], 0);
     expect(component.currentResult).toEqual([{ test: "property" }]);
   });
 
@@ -194,6 +202,83 @@ describe("ResultTableFrameComponent", () => {
       expect(component.tableStats).toEqual({ name: { min: 1 } });
       expect(component.prevTableStats).toBe(component.tableStats);
     });
+
+    it("loads the output port it is given, and a change of port alone reloads", () => {
+      const secondPort = {
+        getCurrentTotalNumTuples: vi.fn().mockReturnValue(5),
+        getCurrentPageIndex: vi.fn().mockReturnValue(1),
+        getStats: vi.fn().mockReturnValue({}),
+        selectPage: vi.fn().mockReturnValue(of(makePageEvent(1))),
+      };
+      const getPortService = vi
+        .spyOn(workflowResultService, "getPortPaginatedResultService")
+        .mockReturnValue(secondPort as unknown as OperatorPaginationResultService);
+      component.operatorId = "op1";
+      component.portIndex = 1;
+
+      component.ngOnChanges({ portIndex: new SimpleChange(0, 1, false) });
+
+      // the operator stays when only the port changes
+      expect(component.operatorId).toBe("op1");
+      expect(getPortService).toHaveBeenCalledWith("op1", 1);
+      expect(secondPort.selectPage).toHaveBeenCalledTimes(1);
+      expect(component.currentResult).toEqual([SAMPLE_ROW]);
+    });
+
+    describe("switching between output ports", () => {
+      const OTHER_ROW: IndexableObject = { _id: 0, name: "bob", score: 75 };
+      // a port's service whose page replies the test sends when it chooses
+      const portService = (total: number) => {
+        const replies = new Subject<PaginatedResultEvent>();
+        const service = {
+          getCurrentTotalNumTuples: vi.fn().mockReturnValue(total),
+          getCurrentPageIndex: vi.fn().mockReturnValue(1),
+          getStats: vi.fn().mockReturnValue({}),
+          selectPage: vi.fn().mockReturnValue(replies),
+        };
+        return { service, replies };
+      };
+      const showPort = (portIndex: number) => {
+        component.portIndex = portIndex;
+        component.ngOnChanges({ portIndex: new SimpleChange(1 - portIndex, portIndex, false) });
+      };
+
+      it("clears the previous port's rows when the port shown is empty", () => {
+        const first = portService(1);
+        const second = portService(0);
+        vi.spyOn(workflowResultService, "getPortPaginatedResultService").mockImplementation(
+          (_, port) => (port === 0 ? first.service : second.service) as unknown as OperatorPaginationResultService
+        );
+        component.operatorId = "op1";
+        showPort(0);
+        first.replies.next(makePageEvent(1, [SAMPLE_ROW]));
+        expect(component.currentResult).toEqual([SAMPLE_ROW]);
+
+        showPort(1);
+        second.replies.next(makePageEvent(1, []));
+
+        // the empty port shows no rows, and is no longer loading
+        expect(component.currentResult).toEqual([]);
+        expect(component.isLoadingResult).toBe(false);
+      });
+
+      it("ignores a reply from a port that is no longer shown", () => {
+        const first = portService(1);
+        const second = portService(1);
+        vi.spyOn(workflowResultService, "getPortPaginatedResultService").mockImplementation(
+          (_, port) => (port === 0 ? first.service : second.service) as unknown as OperatorPaginationResultService
+        );
+        component.operatorId = "op1";
+        showPort(0);
+        showPort(1);
+        second.replies.next(makePageEvent(1, [OTHER_ROW]));
+
+        // port 0's page 1 arrives late, after port 1's
+        first.replies.next(makePageEvent(1, [SAMPLE_ROW]));
+
+        expect(component.currentResult).toEqual([OTHER_ROW]);
+      });
+    });
   });
 
   describe("changePaginatedResultData", () => {
@@ -235,6 +320,67 @@ describe("ResultTableFrameComponent", () => {
       expect(component.totalNumTuples).toBe(0);
     });
 
+    it("keeps the existing table when the fetched page comes back empty", () => {
+      component.operatorId = "op1";
+      const row: IndexableObject = { media: "https://example.com/clip.mp4" };
+      // build the "existing table" through the real code path so that cellMediaTypes is
+      // populated for real, making a guard that wiped it visible in the assertions below
+      component.setupResultTable([row], 5);
+
+      // An empty page whose reported total is NONZERO: the row count shrank while the user
+      // sat on a page index past the new end. The two comparands differ, so this pins that
+      // the guard tests the length of the fetched page and not the reported total.
+      component.setupResultTable([], 7);
+
+      expect(component.currentResult).toEqual([row]);
+      expect(component.currentColumns?.map(c => c.columnDef)).toEqual(["media"]);
+      // still the total from the non-empty page: the guard returns before totalNumTuples is
+      // reassigned from totalRowCount
+      expect(component.totalNumTuples).toBe(5);
+      // the precomputed media-type map is part of the table state and must survive as well,
+      // otherwise every media cell of the still-displayed table degrades to plain text
+      expect(component.getCellMediaType(row, 0)).toBe("video");
+    });
+
+    it("shows the schema's columns with no rows when the whole result is empty", () => {
+      component.operatorId = "op1";
+
+      component.setupResultTable([], 0, [
+        { attributeName: "name", attributeType: "string" },
+        { attributeName: "score", attributeType: "integer" },
+      ]);
+
+      expect(component.currentResult).toEqual([]);
+      expect(component.currentColumns?.map(c => c.header)).toEqual(["name", "score"]);
+      expect(component.totalNumTuples).toBe(0);
+    });
+
+    it("keeps the existing table for an empty page of a non-empty result, schema or not", () => {
+      component.operatorId = "op1";
+      component.setupResultTable([SAMPLE_ROW], 5);
+
+      component.setupResultTable([], 7, [{ attributeName: "other", attributeType: "string" }]);
+
+      expect(component.currentResult).toEqual([SAMPLE_ROW]);
+      expect(component.currentColumns?.map(c => c.header)).toEqual(["name", "score"]);
+    });
+
+    it("drops the old headers and stops loading when a search matches no column of an empty result", () => {
+      component.operatorId = "op1";
+      component.setupResultTable([], 0, [{ attributeName: "name", attributeType: "string" }]);
+      makePaginatedResultService({
+        getCurrentTotalNumTuples: vi.fn().mockReturnValue(0),
+        selectPage: vi.fn().mockReturnValue(of(makePageEvent(component.currentPageIndex, []))),
+      });
+
+      const input: HTMLInputElement = fixture.nativeElement.querySelector("input[nz-input]");
+      input.value = "missing";
+      input.dispatchEvent(new Event("input"));
+
+      expect(component.isLoadingResult).toBe(false);
+      expect(component.currentColumns).toEqual([]);
+    });
+
     it("builds columns from the first row and drops the internal _id column", () => {
       component.operatorId = "op1";
       component.isLoadingResult = true;
@@ -252,18 +398,50 @@ describe("ResultTableFrameComponent", () => {
 
   describe("workflow status stream", () => {
     it("marks the operator finished only while its reported state is Completed", () => {
-      const statusStream = new Subject<Record<string, OperatorStatistics>>();
-      vi.spyOn(workflowStatusService, "getStatusUpdateStream").mockReturnValue(statusStream.asObservable());
+      const stateStream = new Subject<Record<string, OperatorState>>();
+      vi.spyOn(workflowStatusService, "getStateUpdateStream").mockReturnValue(stateStream.asObservable());
       recreateComponent("op1");
 
-      statusStream.next({ op1: makeStatistics(OperatorState.Completed) });
+      stateStream.next({ op1: OperatorState.Completed });
       expect(component.isOperatorFinished).toBe(true);
 
-      statusStream.next({ op1: makeStatistics(OperatorState.Running) });
+      stateStream.next({ op1: OperatorState.Running });
       expect(component.isOperatorFinished).toBe(false);
 
-      statusStream.next({ otherOp: makeStatistics(OperatorState.Completed) });
+      stateStream.next({ otherOp: OperatorState.Completed });
       expect(component.isOperatorFinished).toBe(false);
+    });
+
+    it("asks once more for a port past the first when the operator completes, as no update may follow", () => {
+      const stateStream = new Subject<Record<string, OperatorState>>();
+      vi.spyOn(workflowStatusService, "getStateUpdateStream").mockReturnValue(stateStream.asObservable());
+      const secondPort = {
+        getCurrentTotalNumTuples: vi.fn().mockReturnValue(6),
+        selectPage: vi.fn().mockReturnValue(of(makePageEvent(1))),
+      };
+      vi.spyOn(workflowResultService, "getPortPaginatedResultService").mockReturnValue(
+        secondPort as unknown as OperatorPaginationResultService
+      );
+      recreateComponent("op1");
+      component.portIndex = 1;
+
+      stateStream.next({ op1: OperatorState.Running });
+      stateStream.next({ op1: OperatorState.Completed });
+      stateStream.next({ op1: OperatorState.Completed });
+
+      expect(secondPort.selectPage).toHaveBeenCalledTimes(1);
+      expect(component.totalNumTuples).toBe(6);
+    });
+
+    it("leaves the first port to its updates when the operator completes", () => {
+      const stateStream = new Subject<Record<string, OperatorState>>();
+      vi.spyOn(workflowStatusService, "getStateUpdateStream").mockReturnValue(stateStream.asObservable());
+      const paginated = makePaginatedResultService();
+      recreateComponent("op1");
+
+      stateStream.next({ op1: OperatorState.Completed });
+
+      expect(paginated.selectPage).not.toHaveBeenCalled();
     });
   });
 
@@ -315,6 +493,55 @@ describe("ResultTableFrameComponent", () => {
 
       expect(component.isFrontPagination).toBe(true);
       expect(component.totalNumTuples).toBe(0);
+    });
+
+    describe("on a port past the first", () => {
+      let secondPort: { getCurrentTotalNumTuples: Mock; selectPage: Mock };
+
+      beforeEach(() => {
+        vi.useFakeTimers();
+        secondPort = {
+          getCurrentTotalNumTuples: vi.fn().mockReturnValue(5),
+          selectPage: vi.fn().mockReturnValue(of(makePageEvent(1))),
+        };
+        vi.spyOn(workflowResultService, "getPortPaginatedResultService").mockReturnValue(
+          secondPort as unknown as OperatorPaginationResultService
+        );
+        recreateComponent("op1");
+        component.portIndex = 1;
+      });
+
+      afterEach(() => vi.useRealTimers());
+
+      it("asks for its page again on its operator's update, as the update counts the first port only", () => {
+        component.totalNumTuples = 3;
+
+        resultUpdates.next({ op1: paginationUpdate(63, [4]) });
+
+        expect(secondPort.selectPage).toHaveBeenCalledTimes(1);
+        // the count is the port's own, from the reply, not the first port's
+        expect(component.totalNumTuples).toBe(5);
+      });
+
+      it("ignores another operator's update", () => {
+        resultUpdates.next({ otherOp: paginationUpdate(9, [1]) });
+        vi.advanceTimersByTime(OTHER_PORT_REFRESH_MS);
+
+        expect(secondPort.selectPage).not.toHaveBeenCalled();
+      });
+
+      it("asks at most once a second while a run updates, and always for the last update", () => {
+        resultUpdates.next({ op1: paginationUpdate(1, [1]) });
+        resultUpdates.next({ op1: paginationUpdate(2, [1]) });
+        resultUpdates.next({ op1: paginationUpdate(3, [1]) });
+        expect(secondPort.selectPage).toHaveBeenCalledTimes(1);
+
+        vi.advanceTimersByTime(OTHER_PORT_REFRESH_MS);
+        expect(secondPort.selectPage).toHaveBeenCalledTimes(2);
+
+        vi.advanceTimersByTime(OTHER_PORT_REFRESH_MS);
+        expect(secondPort.selectPage).toHaveBeenCalledTimes(2);
+      });
     });
 
     it("ignores updates when the frame has no operator", () => {
@@ -401,6 +628,78 @@ describe("ResultTableFrameComponent", () => {
       expect(bypassSpy).toHaveBeenCalledWith(black("3") + black(".") + black("0") + black("0"));
     });
 
+    // `tableStats` is declared Record<string, Record<string, number>>, but the backend
+    // does put non-numeric values in it: IcebergDocument.getTableStatistics seeds a
+    // Timestamp column's min/max with an ISO date *string*, and the template feeds those
+    // straight into compare(). The casts below model that real payload, which is the only
+    // way to reach the non-numeric formatting branch. Note that String#toLocaleString is
+    // the identity, so a string payload cannot observe that call at all; what this test
+    // pins is that previousStr is derived from the previous snapshot instead of collapsing
+    // onto currentStr. The toLocaleString call itself is pinned by the numeric test below.
+    it("highlights only the character that changed when both stats are non-numeric strings", () => {
+      const bypassSpy = vi.spyOn(TestBed.inject(DomSanitizer), "bypassSecurityTrustHtml");
+      component.isOperatorFinished = false;
+      component.tableStats = { ts: { min: "2024-01-02" as unknown as number } };
+      component.prevTableStats = { ts: { min: "2024-01-09" as unknown as number } };
+
+      component.compare("ts", "min");
+
+      // the two dates agree up to the last character, which is the only one highlighted
+      expect(bypassSpy).toHaveBeenLastCalledWith(
+        "2024-01-0"
+          .split("")
+          .map(char => black(char))
+          .join("") + blue("2")
+      );
+    });
+
+    it("highlights the trailing characters that the shorter previous snapshot never reaches", () => {
+      const bypassSpy = vi.spyOn(TestBed.inject(DomSanitizer), "bypassSecurityTrustHtml");
+      component.isOperatorFinished = false;
+      component.tableStats = { ts: { min: "2024-01-02" as unknown as number } };
+      component.prevTableStats = { ts: { min: "2024" as unknown as number } };
+
+      component.compare("ts", "min");
+
+      // the first four characters match and stay black; for every index past the end of
+      // previousStr the lookup yields undefined, which counts as changed
+      expect(bypassSpy).toHaveBeenLastCalledWith(
+        "2024"
+          .split("")
+          .map(char => black(char))
+          .join("") +
+          "-01-02"
+            .split("")
+            .map(char => blue(char))
+            .join("")
+      );
+    });
+
+    // The non-numeric branch is also taken for a *numeric* current stat whose previous
+    // snapshot is missing (a column that has only just appeared in the stats stream), and
+    // there the difference between toLocaleString and plain String conversion is
+    // user-visible: a row count in the millions is rendered with group separators. The
+    // expectation is computed rather than hard-coded so it holds under any locale, and the
+    // first assertion keeps it from going vacuous on a runtime without number grouping.
+    it("formats large numeric stats with locale group separators", () => {
+      const bypassSpy = vi.spyOn(TestBed.inject(DomSanitizer), "bypassSecurityTrustHtml");
+      const toLocaleSpy = vi.spyOn(Number.prototype, "toLocaleString");
+      component.isOperatorFinished = false;
+      component.tableStats = { col: { count: 1234567 } };
+      component.prevTableStats = { col: {} };
+
+      component.compare("col", "count");
+
+      expect(toLocaleSpy).toHaveBeenCalled();
+      const grouped = String(toLocaleSpy.mock.results[0]?.value);
+      expect(bypassSpy).toHaveBeenLastCalledWith(
+        grouped
+          .split("")
+          .map(char => black(char))
+          .join("")
+      );
+    });
+
     it("falls back to plain formatting when the previous stat is missing", () => {
       const bypassSpy = vi.spyOn(TestBed.inject(DomSanitizer), "bypassSecurityTrustHtml");
       component.isOperatorFinished = false;
@@ -434,6 +733,48 @@ describe("ResultTableFrameComponent", () => {
 
       expect(component.pageSize).toBe(1);
       expect(component.currentPageIndex).toBe(3);
+    });
+
+    // A table in a pinned window fills that window instead of the result panel.
+    it("falls back to the panel's rule for the height it is given while no row is drawn", () => {
+      component.totalNumTuples = 30;
+      const paginated = makePaginatedResultService();
+      component.operatorId = "op1";
+      component.containerHeight = 700;
+
+      component.ngOnChanges({ containerHeight: new SimpleChange(undefined, 700, false) });
+
+      // the same 700 the result panel was given above, so the same 11 rows
+      expect(component.pageSize).toBe(11);
+      // a new height alone resizes the page; the table asks for the rows itself, as on a panel resize
+      expect(paginated.selectPage).not.toHaveBeenCalled();
+
+      resizeService.changePanelSize(800, 300);
+      expect(component.pageSize).toBe(11);
+    });
+
+    it("fits as many rows as the height leaves under what it measures around the drawn rows", () => {
+      component.totalNumTuples = 30;
+      component.operatorId = "op1";
+      // the server pages the rows, so both rows given are drawn
+      component.isFrontPagination = false;
+      component.setupResultTable([SAMPLE_ROW, { _id: 1, name: "bob", score: 75 }], 30);
+      fixture.detectChanges();
+      const host = fixture.nativeElement as HTMLElement;
+      const rows = Array.from(host.querySelectorAll<HTMLElement>("tbody tr.ant-table-row"));
+      expect(rows.length).toBe(2);
+      // the drawn table is 200px tall, its two rows 40px each, so 120px sit around the rows
+      const setHeight = (element: HTMLElement, height: number) =>
+        Object.defineProperty(element, "offsetHeight", { configurable: true, get: () => height });
+      setHeight(host.querySelector<HTMLElement>(".result-table")!, 200);
+      rows.forEach(row => setHeight(row, 40));
+      component.containerHeight = 450;
+
+      component.ngOnChanges({ containerHeight: new SimpleChange(undefined, 450, false) });
+
+      // (450 - 120) / 40 rounds down to 8 rows, where the panel's rule would give 4
+      expect(component.pageSize).toBe(8);
+      expect(resizeService.pageSize).toBe(8);
     });
   });
 
@@ -480,7 +821,7 @@ describe("ResultTableFrameComponent", () => {
       const config: any = createSpy.mock.calls[0][0];
       expect(config.nzTitle).toBe("Row Details");
       expect(config.nzContent).toBe(RowModalComponent);
-      expect(config.nzData).toEqual({ operatorId: "op1", rowIndex: 7 });
+      expect(config.nzData).toEqual({ operatorId: "op1", rowIndex: 7, portIndex: 0 });
       expect(config.nzAutofocus).toBeNull();
       const [prev, next, ok] = config.nzFooter;
       expect([prev.label, next.label, ok.label]).toEqual(["<", ">", "OK"]);
@@ -522,6 +863,7 @@ describe("ResultTableFrameComponent", () => {
   describe("downloadData", () => {
     it("opens the export modal for the clicked cell's absolute row index", () => {
       const createSpy = vi.spyOn(modalService, "create").mockReturnValue({} as any);
+      component.operatorId = "op1";
       component.currentPageIndex = 2;
       component.pageSize = 5;
 
@@ -534,6 +876,45 @@ describe("ResultTableFrameComponent", () => {
       expect(config.nzData).toEqual(
         expect.objectContaining({ exportType: "data", defaultFileName: "name_6", rowIndex: 6, columnIndex: 3 })
       );
+    });
+
+    // The export otherwise scopes itself to whatever the canvas has selected, which answers a
+    // different question: what the user picked, not what this frame shows. The frame also mounts
+    // on the Form View, where nothing is selected until the user clicks a step, so the export
+    // found an empty scope and did nothing.
+    it("names the operator whose results it is showing, so the export has a scope", () => {
+      const createSpy = vi.spyOn(modalService, "create").mockReturnValue({} as any);
+      component.operatorId = "op1";
+
+      component.downloadData("alice", 0, 0, "name");
+
+      expect((createSpy.mock.calls[0][0] as any).nzData).toEqual(expect.objectContaining({ operatorIds: ["op1"] }));
+    });
+
+    // `getWorkflowMetadata` is a method: read without calling it, `.name` is the function's own
+    // name, so every export carried the string "getWorkflowMetadata" as the workflow's name.
+    it("carries the workflow's real name, not the name of the accessor", () => {
+      const createSpy = vi.spyOn(modalService, "create").mockReturnValue({} as any);
+      vi.spyOn(TestBed.inject(WorkflowActionService), "getWorkflowMetadata").mockReturnValue({
+        name: "scGPT",
+      } as any);
+      component.operatorId = "op1";
+
+      component.downloadData("alice", 0, 0, "name");
+
+      expect((createSpy.mock.calls[0][0] as any).nzData).toEqual(expect.objectContaining({ workflowName: "scGPT" }));
+    });
+
+    // A cell belongs to the operator whose results the frame shows. With no operator there is
+    // nothing to scope an export to, and opening the dialog would only let the reader press
+    // buttons that export nothing.
+    it("does not open the dialog at all when the frame has no operator", () => {
+      const createSpy = vi.spyOn(modalService, "create").mockReturnValue({} as any);
+      component.operatorId = undefined;
+
+      component.downloadData("alice", 0, 0, "name");
+
+      expect(createSpy).not.toHaveBeenCalled();
     });
   });
 
@@ -597,7 +978,23 @@ describe("ResultTableFrameComponent", () => {
       expect(fixture.nativeElement.querySelector(".result-table").hidden).toBe(true);
     });
 
+    // Statistics come only with the first output port, and only once they arrive; an empty row of
+    // them would be a grey bar with nothing in it.
+    it("renders no statistics row while no column has statistics", () => {
+      component.operatorId = "op1";
+      component.setupResultTable([SAMPLE_ROW], 1);
+      component.isFrontPagination = false;
+      component.tableStats = {};
+      component.prevTableStats = {};
+      fixture.detectChanges();
+
+      expect(fixture.nativeElement.querySelector(".result-table").hidden).toBe(false);
+      expect(fixture.nativeElement.querySelector(".custom-stats-row")).toBeNull();
+    });
+
     it("renders headers, per-column stats, and clickable row cells once results arrive", () => {
+      // The download click below needs a rendered button, and the button is gated on the switch.
+      setExport(true);
       component.operatorId = "op1";
       component.setupResultTable([SAMPLE_ROW], 1);
       component.isFrontPagination = false;
@@ -645,6 +1042,132 @@ describe("ResultTableFrameComponent", () => {
       const download = fixture.debugElement.query(By.css("button.download-button"));
       download.triggerEventHandler("click", { stopPropagation: vi.fn() });
       expect(downloadSpy).toHaveBeenCalledWith("alice", 0, 0, "name");
+    });
+
+    // Result export is a deployment switch. Every action behind this button returns without
+    // sending a request when it is off, so the button is not rendered rather than left there
+    // to do nothing. The top menu and the context menu already honour the same switch.
+    describe("the per-cell download button and the export switch", () => {
+      const renderOneRow = (exportEnabled: boolean) => {
+        setExport(exportEnabled);
+        component.operatorId = "op1";
+        component.setupResultTable([SAMPLE_ROW], 1);
+        component.isFrontPagination = false;
+        fixture.detectChanges();
+      };
+
+      it("is rendered when result export is on", () => {
+        renderOneRow(true);
+        expect(fixture.debugElement.query(By.css("button.download-button"))).not.toBeNull();
+      });
+
+      it("is not rendered when result export is off", () => {
+        renderOneRow(false);
+        expect(fixture.debugElement.query(By.css("button.download-button"))).toBeNull();
+      });
+
+      it("is not rendered on a port past the first, as a cell export reads the first port", () => {
+        component.portIndex = 1;
+        renderOneRow(true);
+        expect(fixture.debugElement.query(By.css("button.download-button"))).toBeNull();
+      });
+    });
+  });
+
+  it("should detect media URLs for result cells", () => {
+    expect(component.isVideoCell("https://example.com/clip.mp4")).toBe(true);
+    expect(component.isAudioCell("https://example.com/sound.wav")).toBe(true);
+    expect(component.isImageCell("data:image/png;base64,AAAA")).toBe(true);
+  });
+
+  it("should reject non-media values for result cells", () => {
+    expect(component.isVideoCell("plain text")).toBe(false);
+    expect(component.isAudioCell(123 as unknown)).toBe(false);
+    expect(component.isImageCell(null as unknown)).toBe(false);
+  });
+
+  it("media-type util helpers should classify URLs consistently", () => {
+    expect(isVideoUrl("https://example.com/clip.webm")).toBe(true);
+    expect(isAudioUrl("https://example.com/track.flac")).toBe(true);
+    expect(isImageUrl("https://example.com/image.webp")).toBe(true);
+    expect(isVideoUrl("text")).toBe(false);
+    expect(isAudioUrl("text")).toBe(false);
+    expect(isImageUrl("text")).toBe(false);
+  });
+
+  describe("getCellMediaType", () => {
+    it("returns the media type precomputed for that exact row and column", () => {
+      component.cellMediaTypes = new Map();
+      expect(component.getCellMediaType({ media: "https://example.com/clip.mp4" }, 0)).toBe("text");
+
+      component.operatorId = "op1";
+      // Two rows x two columns with the media cells on opposite diagonals. A 1x1 fixture
+      // would leave both of the correspondences this map exists to encode unpinned: the
+      // per-row entry (keyed by row identity) and the position of each column's type
+      // inside that entry, which the template indexes by the *ngFor index over
+      // currentColumns.
+      const rows: IndexableObject[] = [
+        { pic: "https://example.com/a.png", clip: "plain" },
+        { pic: "plain", clip: "https://example.com/b.mp4" },
+      ];
+      component.setupResultTable(rows, 2);
+
+      expect(component.getCellMediaType(rows[0], 0)).toBe("image");
+      expect(component.getCellMediaType(rows[0], 1)).toBe("text");
+      expect(component.getCellMediaType(rows[1], 0)).toBe("text");
+      expect(component.getCellMediaType(rows[1], 1)).toBe("video");
+      // in the map, but past the end of its column list
+      expect(component.getCellMediaType(rows[1], 3)).toBe("text");
+      // an equal-valued row object that never went through setupResultTable: the map is
+      // keyed by identity, so this misses and falls back
+      expect(component.getCellMediaType({ ...rows[1] }, 1)).toBe("text");
+    });
+  });
+
+  describe("media cell rendering in table", () => {
+    beforeEach(() => {
+      component.operatorId = "test-op";
+    });
+
+    it("should render Play Video indicator for video URL cells", () => {
+      (component as any).setupResultTable([{ media: "https://example.com/clip.mp4" }], 1);
+      fixture.detectChanges();
+
+      const el = fixture.nativeElement as HTMLElement;
+      expect(el.textContent).toContain("Play Video");
+    });
+
+    it("should render Play Audio indicator for audio URL cells", () => {
+      (component as any).setupResultTable([{ media: "https://example.com/clip.mp3" }], 1);
+      fixture.detectChanges();
+
+      const el = fixture.nativeElement as HTMLElement;
+      expect(el.textContent).toContain("Play Audio");
+    });
+
+    it("should render View Image indicator for image URL cells", () => {
+      (component as any).setupResultTable([{ media: "https://example.com/photo.jpg" }], 1);
+      fixture.detectChanges();
+
+      const el = fixture.nativeElement as HTMLElement;
+      expect(el.textContent).toContain("View Image");
+    });
+
+    it("should render plain text for non-media cell values", () => {
+      (component as any).setupResultTable([{ label: "just text" }], 1);
+      fixture.detectChanges();
+
+      const el = fixture.nativeElement as HTMLElement;
+      expect(el.textContent).toContain("just text");
+    });
+
+    it("should render column headers matching the row keys", () => {
+      (component as any).setupResultTable([{ score: "0.95", url: "https://example.com/a.png" }], 1);
+      fixture.detectChanges();
+
+      const el = fixture.nativeElement as HTMLElement;
+      expect(el.textContent).toContain("score");
+      expect(el.textContent).toContain("url");
     });
   });
 });

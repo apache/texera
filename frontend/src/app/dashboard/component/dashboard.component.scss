@@ -26,10 +26,6 @@
   justify-content: space-between;
 }
 
-texera-filters-instructions {
-  margin-right: 10px;
-}
-
 texera-search-bar {
   flex: 1;
   max-width: calc(100% - 20px);
@@ -38,6 +34,12 @@ texera-search-bar {
 
 texera-user-icon {
   padding: 0 24px;
+}
+
+.nav-login-link {
+  margin: 0 8px;
+  padding: 0 36px;
+  border-radius: 4px;
 }
 
 button {

@@ -19,26 +19,20 @@
 
 package org.apache.texera.amber.operator.visualization.scatter3DChart
 
+import org.apache.texera.amber.operator.visualization.StandaloneChartCode._
 import com.fasterxml.jackson.annotation.{JsonProperty, JsonPropertyDescription}
-import com.kjetland.jackson.jsonSchema.annotations.{JsonSchemaInject, JsonSchemaTitle}
-import org.apache.texera.amber.core.tuple.{AttributeType, Schema}
+import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaTitle
 import org.apache.texera.amber.pybuilder.PythonTemplateBuilder.PythonTemplateBuilderStringContext
 import org.apache.texera.amber.pybuilder.PyStringTypes.EncodableString
-import org.apache.texera.amber.core.workflow.PortIdentity
-import org.apache.texera.amber.operator.PythonOperatorDescriptor
+import org.apache.texera.amber.operator.visualization.PlotlyStandaloneCode
+import org.apache.texera.amber.operator.visualization.PythonVisualizationOpDesc
 import org.apache.texera.amber.operator.metadata.annotations.AutofillAttributeName
 import org.apache.texera.amber.operator.metadata.{OperatorGroupConstants, OperatorInfo}
 import org.apache.texera.amber.pybuilder.PythonTemplateBuilder
+import org.apache.texera.amber.pybuilder.PythonTemplateBuilder.pyStringLiteral
 
 import javax.validation.constraints.NotNull
-@JsonSchemaInject(json = """
-{
-  "attributeTypeRules": {
-    "title": "string"
-  }
-}
-""")
-class Scatter3dChartOpDesc extends PythonOperatorDescriptor {
+class Scatter3dChartOpDesc extends PythonVisualizationOpDesc with PlotlyStandaloneCode {
   @JsonProperty(value = "x", required = true)
   @JsonSchemaTitle("X Column")
   @JsonPropertyDescription("Data column for the x-axis")
@@ -59,14 +53,6 @@ class Scatter3dChartOpDesc extends PythonOperatorDescriptor {
   @AutofillAttributeName
   @NotNull(message = "Z Column cannot be empty")
   var z: EncodableString = ""
-
-  override def getOutputSchemas(
-      inputSchemas: Map[PortIdentity, Schema]
-  ): Map[PortIdentity, Schema] = {
-    val outputSchema = Schema()
-      .add("html-content", AttributeType.STRING)
-    Map(operatorInfo.outputPorts.head.id -> outputSchema)
-  }
 
   override def operatorInfo: OperatorInfo =
     OperatorInfo.forVisualization(
@@ -133,4 +119,38 @@ class Scatter3dChartOpDesc extends PythonOperatorDescriptor {
          |"""
     finalcode.encode
   }
+
+  override def generateStandaloneCode(): String = {
+    val xLit = pyStringLiteral(x)
+    val yLit = pyStringLiteral(y)
+    val zLit = pyStringLiteral(z)
+    s"""${standaloneError("Chart is not available.")}
+       |
+       |if in1df.empty:
+       |${standaloneErrorPage("input table is empty.")}
+       |else:
+       |    table = in1df
+       |    fig = go.Figure(data=[go.Scatter3d(
+       |        x=table[$xLit],
+       |        y=table[$yLit],
+       |        z=table[$zLit],
+       |        mode='markers',
+       |        marker=dict(
+       |            size=12,
+       |            colorscale='Viridis',
+       |            opacity=0.8
+       |        )
+       |    )])
+       |    fig.update_traces(marker=dict(size=5, opacity=0.8))
+       |    fig.update_layout(
+       |        scene=dict(
+       |            xaxis_title='X:' + $xLit,
+       |            yaxis_title='Y:' + $yLit,
+       |            zaxis_title='Z:' + $zLit
+       |        ),
+       |        margin=dict(t=0, b=0, l=0, r=0)
+       |    )
+       |${standaloneFigure("Scatter3D chart", indent = 4)}""".stripMargin
+  }
+
 }

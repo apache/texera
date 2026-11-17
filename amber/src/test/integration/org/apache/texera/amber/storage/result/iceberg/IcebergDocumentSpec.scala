@@ -24,7 +24,6 @@ import org.apache.texera.amber.core.state.State
 import org.apache.texera.amber.core.storage.model.{VirtualDocument, VirtualDocumentSpec}
 import org.apache.texera.amber.core.storage.{DocumentFactory, IcebergCatalogInstance, VFSURIFactory}
 import org.apache.texera.amber.core.tuple.{Attribute, AttributeType, Schema, Tuple}
-import org.apache.iceberg.Table
 import org.apache.texera.amber.core.virtualidentity.{
   ExecutionIdentity,
   OperatorIdentity,
@@ -33,10 +32,7 @@ import org.apache.texera.amber.core.virtualidentity.{
 }
 import org.apache.texera.amber.core.workflow.{GlobalPortIdentity, PortIdentity}
 import org.apache.texera.amber.tags.IntegrationTest
-import org.apache.texera.amber.util.IcebergUtil
 import org.apache.iceberg.catalog.Catalog
-import org.apache.iceberg.data.Record
-import org.apache.iceberg.{Schema => IcebergSchema}
 import org.scalatest.BeforeAndAfterAll
 
 import java.lang.reflect.{InvocationHandler, InvocationTargetException, Method, Proxy}
@@ -49,11 +45,6 @@ import java.util.concurrent.atomic.AtomicInteger
 class IcebergDocumentSpec extends VirtualDocumentSpec[Tuple] with BeforeAndAfterAll {
 
   var amberSchema: Schema = _
-  var icebergSchema: IcebergSchema = _
-  var serde: (IcebergSchema, Tuple) => Record = _
-  var deserde: (IcebergSchema, Record) => Tuple = _
-  var catalog: Catalog = _
-  val tableNamespace = "test_namespace"
   var baseURI: URI = _
   var uri: URI = _
 
@@ -73,12 +64,6 @@ class IcebergDocumentSpec extends VirtualDocumentSpec[Tuple] with BeforeAndAfter
       )
     )
 
-    // Initialize Iceberg Schema
-    icebergSchema = IcebergUtil.toIcebergSchema(amberSchema)
-
-    // Initialize serialization and deserialization functions
-    serde = IcebergUtil.toGenericRecord
-    deserde = (schema, record) => IcebergUtil.fromRecord(record, amberSchema)
   }
 
   override def beforeEach(): Unit = {
@@ -114,19 +99,17 @@ class IcebergDocumentSpec extends VirtualDocumentSpec[Tuple] with BeforeAndAfter
     val (batch1, batch2) = items.splitAt(batchSize)
 
     // Write two separate batches to produce two committed data files.
-    // This also initialises `document.catalog` (lazy val) with the real catalog, which
-    // is why we open a fresh reader document below after injecting the spy.
     val writer1 = document.writer(UUID.randomUUID().toString)
     writer1.open(); batch1.foreach(writer1.putOne); writer1.close()
 
     val writer2 = document.writer(UUID.randomUUID().toString)
     writer2.open(); batch2.foreach(writer2.putOne); writer2.close()
 
-    val refreshCount = new AtomicInteger(0)
+    val loadCount = new AtomicInteger(0)
     val realCatalog = IcebergCatalogInstance.getInstance()
-    IcebergCatalogInstance.replaceInstance(catalogWithRefreshSpy(realCatalog, refreshCount))
-    // Open a fresh reader: its `catalog` lazy val hasn't been initialised yet, so it
-    // will pick up the spy catalog on first access inside seekToUsableFile.
+    IcebergCatalogInstance.replaceInstance(catalogWithLoadSpy(realCatalog, loadCount))
+    // Open a fresh reader; it resolves its catalog per use (#7290), so every metadata
+    // load inside seekToUsableFile goes through the spy installed above.
     val readerDoc = getDocument
     try {
       val retrieved = readerDoc.get().toList
@@ -134,12 +117,12 @@ class IcebergDocumentSpec extends VirtualDocumentSpec[Tuple] with BeforeAndAfter
         retrieved.toSet == items.toSet,
         "All records from both files should be read correctly"
       )
-      // With lazy file advancement seekToUsableFile() (and therefore table.refresh()) is called:
-      //   once on iterator creation, once when the last file is exhausted → 2 total.
-      // Without the fix it would be called once per hasNext() on the last file → O(batchSize).
+      // With lazy file advancement the table is resolved once per seekToUsableFile —
+      // the construction seek and the final exhausted-files seek → 2 total. Without
+      // lazy advancement it would be once per hasNext() on the last file → O(batchSize).
       assert(
-        refreshCount.get() <= 4,
-        s"table.refresh() should be called at most 4 times (lazy advancement), but was ${refreshCount.get()}"
+        loadCount.get() <= 4,
+        s"the table should be loaded at most 4 times (lazy advancement), but was ${loadCount.get()}"
       )
     } finally {
       IcebergCatalogInstance.replaceInstance(realCatalog)
@@ -309,35 +292,18 @@ class IcebergDocumentSpec extends VirtualDocumentSpec[Tuple] with BeforeAndAfter
     }
   }
 
-  /** Returns a dynamic proxy for `realTable` that increments `counter` on every `refresh()` call. */
-  private def tableWithRefreshSpy(realTable: Table, counter: AtomicInteger): Table =
-    Proxy
-      .newProxyInstance(
-        classOf[Table].getClassLoader,
-        Array(classOf[Table]),
-        new InvocationHandler {
-          override def invoke(proxy: Object, method: Method, args: Array[Object]): Object = {
-            if (method.getName == "refresh") counter.incrementAndGet()
-            if (args == null) method.invoke(realTable) else method.invoke(realTable, args: _*)
-          }
-        }
-      )
-      .asInstanceOf[Table]
-
-  /** Returns a dynamic proxy for `realCatalog` that wraps every loaded `Table` with a refresh spy. */
-  private def catalogWithRefreshSpy(realCatalog: Catalog, counter: AtomicInteger): Catalog =
+  /** Returns a dynamic proxy for `realCatalog` that counts `loadTable` calls. */
+  private def catalogWithLoadSpy(realCatalog: Catalog, counter: AtomicInteger): Catalog =
     Proxy
       .newProxyInstance(
         classOf[Catalog].getClassLoader,
         Array(classOf[Catalog]),
         new InvocationHandler {
           override def invoke(proxy: Object, method: Method, args: Array[Object]): Object = {
-            val result =
-              if (args == null) method.invoke(realCatalog) else method.invoke(realCatalog, args: _*)
-            if (method.getName == "loadTable" && result != null)
-              tableWithRefreshSpy(result.asInstanceOf[Table], counter)
-            else
-              result
+            // The reader re-resolves its table per seek (#7290) instead of refreshing a
+            // pinned one, so metadata loads now surface as `loadTable` calls here.
+            if (method.getName == "loadTable") counter.incrementAndGet()
+            if (args == null) method.invoke(realCatalog) else method.invoke(realCatalog, args: _*)
           }
         }
       )

@@ -76,4 +76,44 @@ class PekkoConfigSpec extends AnyFlatSpec with Matchers {
     }
     config.getString("pekko.stdout-loglevel") shouldBe "INFO"
   }
+
+  it should "expose exactly the normalized form of whatever the env supplied" in {
+    // Env-insensitive by construction: for ANY env value the exposed level must
+    // equal its normalized form (which is the identity for spellings the
+    // translation doesn't know). This pins the plumbing — pekkoConfig actually
+    // routes pekko.loglevel through normalizePekkoLogLevel — and is exercised
+    // for real by CI, which sets the logback spelling WARN.
+    sys.env
+      .get("TEXERA_SERVICE_LOG_LEVEL")
+      .orElse(sys.props.get("TEXERA_SERVICE_LOG_LEVEL"))
+      .foreach { raw =>
+        PekkoConfig.pekkoConfig.getString("pekko.loglevel") shouldBe
+          PekkoConfig.normalizePekkoLogLevel(raw)
+      }
+  }
+
+  "PekkoConfig.normalizePekkoLogLevel" should "map known spellings into pekko's set" in {
+    // Every spelling from the combined logback + pekko vocabulary must land in
+    // pekko's accepted set (Logging.levelFor); anything else makes every
+    // ActorSystem creation print a LoggerException and fall back to ERROR.
+    val pekkoAccepted = Set("OFF", "ERROR", "WARNING", "INFO", "DEBUG")
+    Seq("OFF", "ERROR", "WARN", "WARNING", "INFO", "DEBUG", "TRACE", "ALL").foreach { spelling =>
+      pekkoAccepted should contain(PekkoConfig.normalizePekkoLogLevel(spelling))
+    }
+  }
+
+  it should "translate logback-only spellings to pekko's" in {
+    PekkoConfig.normalizePekkoLogLevel("WARN") shouldBe "WARNING"
+    PekkoConfig.normalizePekkoLogLevel("warn") shouldBe "WARNING"
+    PekkoConfig.normalizePekkoLogLevel("TRACE") shouldBe "DEBUG"
+    PekkoConfig.normalizePekkoLogLevel("ALL") shouldBe "DEBUG"
+  }
+
+  it should "pass levels pekko already accepts through unchanged" in {
+    Seq("OFF", "ERROR", "WARNING", "INFO", "DEBUG").foreach { level =>
+      PekkoConfig.normalizePekkoLogLevel(level) shouldBe level
+    }
+    // pekko's levelFor is case-insensitive, so uppercasing valid input is harmless
+    PekkoConfig.normalizePekkoLogLevel("info") shouldBe "INFO"
+  }
 }

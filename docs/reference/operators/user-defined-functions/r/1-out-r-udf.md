@@ -1,3 +1,22 @@
+<!--
+  ~ Licensed to the Apache Software Foundation (ASF) under one
+  ~ or more contributor license agreements.  See the NOTICE file
+  ~ distributed with this work for additional information
+  ~ regarding copyright ownership.  The ASF licenses this file
+  ~ to you under the Apache License, Version 2.0 (the
+  ~ "License"); you may not use this file except in compliance
+  ~ with the License.  You may obtain a copy of the License at
+  ~
+  ~   http://www.apache.org/licenses/LICENSE-2.0
+  ~
+  ~ Unless required by applicable law or agreed to in writing,
+  ~ software distributed under the License is distributed on an
+  ~ "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+  ~ KIND, either express or implied.  See the License for the
+  ~ specific language governing permissions and limitations
+  ~ under the License.
+-->
+
 ---
 title: "1-out R UDF"
 description: "User-defined function operator in R script"
@@ -13,6 +32,7 @@ tags: [user-defined-functions, r]
 | Property | Requirement | Type | Default | Description |
 |----------|-------------|------|---------|-------------|
 | R Source UDF Script | ✓ | Code (r) | `See template below` | Input your code here |
+| Parameters |  | List<UiUDFParameter> | - | Values inferred from active `UiParameter(...)` calls. See [UI parameters](../#ui-parameters). |
 | Worker count | ✓ | Integer | 1 | Specify how many parallel workers to launch |
 | Use Tuple API? | ✓ | Boolean | false | Check this box to use Tuple API, leave unchecked<br>to use Table API |
 | Columns |  | List<Attribute> | - | The columns of the source |
@@ -24,6 +44,8 @@ tags: [user-defined-functions, r]
 **R Source UDF Script**
 
 ```r
+# Example UI parameter: count <- UiParameter("count", AttributeType$INT)$value
+# Use value=Resource$MODEL or Resource$DATASET for a version selection.
 # If using Table API:
 # function() { 
 #   return (data.frame(Column_Here = "Value_Here")) 

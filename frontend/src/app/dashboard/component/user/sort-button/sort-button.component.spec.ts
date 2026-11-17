@@ -18,6 +18,8 @@
  */
 
 import { ComponentFixture, TestBed } from "@angular/core/testing";
+import { By } from "@angular/platform-browser";
+import { NzDropdownMenuComponent } from "ng-zorro-antd/dropdown";
 import { SortButtonComponent } from "./sort-button.component";
 import { SortMethod } from "../../../type/sort-method";
 
@@ -77,10 +79,6 @@ describe("SortButtonComponent", () => {
     expect(emitSpy).toHaveBeenCalledWith(SortMethod.ExecutionTimeDesc);
   });
 
-  // Note: the sort options render inside an nz-dropdown-menu (a CDK overlay) that
-  // does not attach under the vitest/jsdom test environment, so we can't assert on
-  // the rendered menu text. We instead verify the input contract that the template's
-  // @if guards bind to (showEditTime / showExecutionTime).
   it("shows the edit-time and execution-time options by default (e.g. for workflows)", () => {
     expect(component.showEditTime).toBe(true);
     expect(component.showExecutionTime).toBe(true);
@@ -92,5 +90,71 @@ describe("SortButtonComponent", () => {
     fixture.detectChanges();
     expect(component.showEditTime).toBe(false);
     expect(component.showExecutionTime).toBe(false);
+  });
+
+  /**
+   * The options live in an nz-dropdown-menu, whose content is an <ng-template>
+   * that only mounts into a CDK overlay when the dropdown opens — jsdom never
+   * drives that, so none of the menu ever rendered and the tests above could
+   * only check the component's own methods. Instantiating the menu template
+   * directly puts the rows in the fixture's DOM, so the @if guards, the labels
+   * and the per-row (click) bindings all really run: re-pointing a row at the
+   * wrong sort method, or dropping a guard, fails here.
+   */
+  describe("rendered sort menu", () => {
+    /** Mounts the dropdown menu template into the fixture and returns its rows. */
+    function renderMenu(): HTMLButtonElement[] {
+      const menu = fixture.debugElement.query(By.directive(NzDropdownMenuComponent))
+        .componentInstance as NzDropdownMenuComponent;
+      menu.viewContainerRef.createEmbeddedView(menu.templateRef);
+      fixture.detectChanges();
+      return Array.from(fixture.nativeElement.querySelectorAll("li[nz-menu-item] button"));
+    }
+
+    const labelsOf = (rows: HTMLButtonElement[]): string[] => rows.map(row => row.textContent!.trim());
+
+    it("lists every sort option when the resource has both timestamps", () => {
+      expect(labelsOf(renderMenu())).toEqual([
+        "By Edit Time",
+        "By Create Time",
+        "By Execution Time",
+        "A -> Z",
+        "Z -> A",
+      ]);
+    });
+
+    it("drops only the edit-time option when the resource has no edit timestamp", () => {
+      component.showEditTime = false;
+
+      expect(labelsOf(renderMenu())).toEqual(["By Create Time", "By Execution Time", "A -> Z", "Z -> A"]);
+    });
+
+    it("drops only the execution-time option when the resource has no execution timestamp", () => {
+      component.showExecutionTime = false;
+
+      expect(labelsOf(renderMenu())).toEqual(["By Edit Time", "By Create Time", "A -> Z", "Z -> A"]);
+    });
+
+    it("emits the sort method that matches the clicked row", () => {
+      const emitted: SortMethod[] = [];
+      component.sortMethodChange.subscribe(method => emitted.push(method));
+      const rows = renderMenu();
+      const labels = labelsOf(rows);
+
+      // Click every row in turn: each label must reach its own sort method, so
+      // two rows wired to the same handler cannot pass.
+      rows.forEach(row => row.click());
+
+      expect(labels).toHaveLength(5);
+      expect(emitted).toEqual([
+        SortMethod.EditTimeDesc,
+        SortMethod.CreateTimeDesc,
+        SortMethod.ExecutionTimeDesc,
+        SortMethod.NameAsc,
+        SortMethod.NameDesc,
+      ]);
+      // ... and the last click is the state the button keeps.
+      expect(component.sortMethod).toBe(SortMethod.NameDesc);
+    });
   });
 });

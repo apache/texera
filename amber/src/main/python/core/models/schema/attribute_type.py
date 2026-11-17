@@ -16,6 +16,10 @@
 # under the License.
 
 import datetime
+import functools
+import os
+import time
+import zoneinfo
 import pyarrow as pa
 from bidict import bidict
 from enum import Enum
@@ -33,8 +37,11 @@ class AttributeType(Enum):
 
     STRING = 1
     INT = 2
+    # Attribute access needs Java names; RAW_TYPE_MAPPING handles raw schema strings.
+    INTEGER = 2
     LONG = 3
     BOOL = 4
+    BOOLEAN = 4
     DOUBLE = 5
     TIMESTAMP = 6
     BINARY = 7
@@ -78,6 +85,93 @@ FROM_ARROW_MAPPING = {
 }
 
 
+def _is_empty_value(v):
+    return v is None or (isinstance(v, str) and v.strip() == "")
+
+
+def _parse_bool(v):
+    if _is_empty_value(v):
+        return False
+
+    normalized_value = str(v).strip().lower()
+    if normalized_value == "true":
+        return True
+    if normalized_value == "false":
+        return False
+    return float(normalized_value) != 0
+
+
+def _parse_timestamp(v):
+    # A TIMESTAMP reaches a worker as a wall clock with no zone, so a value
+    # parsed here holds none either and compares with a row's. An offset is
+    # moved to the machine's zone first, as the engine's DateParserUtils does.
+    if _is_empty_value(v):
+        return datetime.datetime(1970, 1, 1)
+
+    normalized_value = str(v)
+    if normalized_value.endswith("Z"):
+        normalized_value = normalized_value[:-1] + "+00:00"
+    parsed_value = datetime.datetime.fromisoformat(normalized_value)
+    if parsed_value.utcoffset() is not None:
+        return _local_wall_clock(parsed_value)
+    return parsed_value
+
+
+def _local_wall_clock(moment):
+    # The wall clock the machine's zone shows at an instant that states its
+    # offset. Windows' localtime refuses an instant before 1970, so the zone is
+    # asked by name where it has one, and otherwise such an instant takes the
+    # machine's standard offset. Before 1900 the engine reads every zone at
+    # its standard offset, where a named zone would give its local mean time.
+    zone = _named_local_zone()
+    utc = moment.astimezone(datetime.timezone.utc).replace(tzinfo=None)
+    if utc < datetime.datetime(1900, 1, 1):
+        return utc + _standard_offset(zone)
+    if zone is not None:
+        return moment.astimezone(zone).replace(tzinfo=None)
+    try:
+        return moment.astimezone().replace(tzinfo=None)
+    except (OSError, OverflowError):
+        return utc + _standard_offset(None)
+
+
+def _standard_offset(zone):
+    if zone is None:
+        return datetime.timedelta(seconds=-time.timezone)
+    now = datetime.datetime.now(zone)
+    return now.utcoffset() - now.dst()
+
+
+def _named_local_zone():
+    return _zone_by_name(os.environ.get("TZ"))
+
+
+@functools.lru_cache(maxsize=None)
+def _zone_by_name(tz):
+    # TZ names the zone when it is set, and /etc/localtime links to it when
+    # not. A zone neither of them names is left to localtime.
+    if tz is not None:
+        name = tz.lstrip(":")
+    else:
+        link = os.path.realpath("/etc/localtime")
+        if "zoneinfo/" not in link:
+            return None
+        name = link.split("zoneinfo/", 1)[1]
+    try:
+        return zoneinfo.ZoneInfo(name)
+    except (ValueError, KeyError):
+        return None
+
+
+FROM_STRING_PARSER_MAPPING = {
+    AttributeType.STRING: str,
+    AttributeType.INT: lambda v: 0 if _is_empty_value(v) else int(v),
+    AttributeType.LONG: lambda v: 0 if _is_empty_value(v) else int(v),
+    AttributeType.DOUBLE: lambda v: 0.0 if _is_empty_value(v) else float(v),
+    AttributeType.BOOL: _parse_bool,
+    AttributeType.TIMESTAMP: _parse_timestamp,
+}
+
 # Only single-directional mapping.
 TO_PYOBJECT_MAPPING = {
     AttributeType.STRING: str,
@@ -88,16 +182,6 @@ TO_PYOBJECT_MAPPING = {
     AttributeType.BINARY: bytes,
     AttributeType.TIMESTAMP: datetime.datetime,
     AttributeType.LARGE_BINARY: largebinary,
-}
-
-FROM_PYOBJECT_MAPPING = {
-    str: AttributeType.STRING,
-    int: AttributeType.INT,
-    float: AttributeType.DOUBLE,
-    bool: AttributeType.BOOL,
-    bytes: AttributeType.BINARY,
-    datetime.datetime: AttributeType.TIMESTAMP,
-    largebinary: AttributeType.LARGE_BINARY,
 }
 
 # Signed value ranges within which an integral float can be safely cast back

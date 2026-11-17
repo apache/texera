@@ -22,4 +22,9 @@ package org.apache.texera.amber.operator.sklearn.training
 class SklearnTrainingGaussianNaiveBayesOpDesc extends SklearnTrainingOpDesc {
   override def getImportStatements = "from sklearn.naive_bayes import GaussianNB"
   override def getUserFriendlyModelName = "Training: Gaussian Naive Bayes"
+
+  // The same estimator as the classifier family's, with the same limitation: a mean
+  // and a variance per feature cannot be read off a sparse matrix without densifying.
+  override protected def countVectorizerAlternatives: Option[String] =
+    Some("Multinomial, Bernoulli or Complement Naive Bayes")
 }

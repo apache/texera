@@ -18,9 +18,11 @@
  */
 package org.apache.texera.amber.operator.udf.python
 
-import org.apache.texera.amber.core.tuple.{Attribute, AttributeType}
+import org.apache.texera.amber.operator.udf.{UiUDFParameter, UiUdfParameterContract}
+
 import org.apache.texera.amber.pybuilder.PythonLexerUtils.updateTripleQuotedStringState
 import org.apache.texera.amber.pybuilder.PythonTemplateBuilder
+import org.apache.texera.amber.pybuilder.PyStringTypes.EncodableString
 import org.apache.texera.amber.pybuilder.PythonTemplateBuilder.PythonTemplateBuilderStringContext
 
 import scala.util.matching.Regex
@@ -37,42 +39,13 @@ object PythonUdfUiParameterInjector {
   private val InjectedUiParametersHookMethodName = "_texera_injected_ui_parameters"
   private val InjectedUiParametersHookMethodHeader =
     s"def $InjectedUiParametersHookMethodName(self) -> Dict[str, Any]:"
-  private val UnsupportedUiParameterTypes = Set(AttributeType.BINARY, AttributeType.LARGE_BINARY)
-
   // Keep supported user-facing UDF class names in sync with the frontend parser.
   private val SupportedPythonUdfClassHeaderRegex: Regex =
     """(?m)^([ \t]*)class\s+(ProcessTupleOperator|ProcessBatchOperator|ProcessTableOperator|GenerateOperator)\s*\([^)]*\)\s*:\s*(?:#.*)?$""".r
 
-  private def validate(uiParameters: List[UiUDFParameter]): Unit = {
-    val attributes = uiParameters.map(parameterAttribute)
-    attributes.foreach(validateSupportedType)
-
-    attributes
-      .groupBy(_.getName)
-      .collectFirst {
-        case (parameterName, matchingAttributes) if matchingAttributes.size > 1 => parameterName
-      }
-      .foreach { duplicateName =>
-        throw new RuntimeException(s"UiParameter name '$duplicateName' is declared more than once.")
-      }
-  }
-
-  private def parameterAttribute(parameter: UiUDFParameter): Attribute =
-    Option(parameter).flatMap(parameter => Option(parameter.attribute)).getOrElse {
-      throw new RuntimeException("UiParameter attribute is required.")
-    }
-
-  private def validateSupportedType(attribute: Attribute): Unit = {
-    if (UnsupportedUiParameterTypes.contains(attribute.getType)) {
-      throw new RuntimeException(
-        s"UiParameter type '${attribute.getType.name()}' is not supported. " +
-          "Use string, integer, long, double, boolean, or timestamp instead."
-      )
-    }
-  }
-
   private def buildInjectedParameterEntry(parameter: UiUDFParameter): PythonTemplateBuilder = {
-    pyb"${parameter.attribute.getName}: ${parameter.value}"
+    val encodedValue: EncodableString = parameter.value
+    pyb"${parameter.attribute.getName}: $encodedValue"
   }
 
   private def buildInjectedParametersMap(
@@ -85,8 +58,7 @@ object PythonUdfUiParameterInjector {
   private def buildInjectedHookMethod(uiParameters: List[UiUDFParameter]): String = {
     val injectedParametersMap = buildInjectedParametersMap(uiParameters)
 
-    (pyb"""|# Follow-up runtime support exports Dict/Any and defines the base hook that @overrides targets.
-           |@overrides
+    (pyb"""|@overrides
            |$InjectedUiParametersHookMethodHeader
            |    return {""" +
       injectedParametersMap +
@@ -191,7 +163,7 @@ object PythonUdfUiParameterInjector {
     */
   def inject(code: String, uiParameters: List[UiUDFParameter]): String = {
     val parameters = Option(uiParameters).getOrElse(List.empty)
-    validate(parameters)
+    UiUdfParameterContract.validate(parameters)
 
     val userCode = Option(code).getOrElse("")
 

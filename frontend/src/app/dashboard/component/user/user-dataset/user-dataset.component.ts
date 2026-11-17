@@ -32,7 +32,7 @@ import { SortButtonComponent } from "../sort-button/sort-button.component";
 import { firstValueFrom } from "rxjs";
 import { USER_DATASET } from "../../../../app-routing.constant";
 import { NzModalService } from "ng-zorro-antd/modal";
-import { UserDatasetVersionCreatorComponent } from "./user-dataset-explorer/user-dataset-version-creator/user-dataset-version-creator.component";
+import { UserDatasetCreatorComponent } from "./user-dataset-creator/user-dataset-creator.component";
 import { DashboardDataset } from "../../../type/dashboard-dataset.interface";
 import { NzMessageService } from "ng-zorro-antd/message";
 import { map, tap } from "rxjs/operators";
@@ -45,6 +45,7 @@ import { NzIconDirective } from "ng-zorro-antd/icon";
 import { FiltersInstructionsComponent } from "../filters-instructions/filters-instructions.component";
 import { NzSelectComponent } from "ng-zorro-antd/select";
 import { FormsModule } from "@angular/forms";
+import { EntityType } from "../../../../hub/service/hub.service";
 
 @UntilDestroy()
 @Component({
@@ -69,6 +70,7 @@ import { FormsModule } from "@angular/forms";
   ],
 })
 export class UserDatasetComponent implements AfterViewInit {
+  public readonly entityType = EntityType.Dataset;
   private static readonly VIEW_MODE_STORAGE_KEY = "texera.userDataset.viewMode";
   // Datasets have no "last modified" timestamp, so EditTimeDesc leaves the sort key NULL for every
   // row and produces an undefined order. Default to CreateTimeDesc so newly created datasets appear first.
@@ -138,16 +140,8 @@ export class UserDatasetComponent implements AfterViewInit {
     localStorage.setItem(UserDatasetComponent.VIEW_MODE_STORAGE_KEY, viewType);
   }
 
-  /*
-   * Executes a dataset search with filtering, sorting.
-   *
-   * Parameters:
-   * - filterScope = "all" | "public" | "private" - Determines visibility scope for search:
-   *  - "all": includes all datasets, public and private
-   *  - "public": limits the search to public datasets
-   *  - "private": limits the search to dataset where the user has direct access rights.
-   */
-  async search(forced: Boolean = false, filterScope: "all" | "public" | "private" = "private"): Promise<void> {
+  /* Executes a dataset search with filtering, sorting. */
+  async search(forced: Boolean = false): Promise<void> {
     const sameList =
       this.masterFilterList !== null &&
       this.filters.masterFilterList.length === this.masterFilterList.length &&
@@ -163,11 +157,6 @@ export class UserDatasetComponent implements AfterViewInit {
     }
     let filterParams = this.filters.getSearchFilterParameters();
 
-    // if the filter requires only public datasets, the public search should be invoked, and the search method should
-    // set the isLogin parameter to false in this case
-    const isLogin = filterScope === "public" ? false : this.isLogin;
-    const includePublic = filterScope === "all" || filterScope === "public";
-
     this.searchResultsComponent.reset((start, count) => {
       return firstValueFrom(
         this.searchService
@@ -178,8 +167,8 @@ export class UserDatasetComponent implements AfterViewInit {
             count,
             "dataset",
             this.sortMethod,
-            isLogin,
-            includePublic
+            this.isLogin,
+            false
           )
           .pipe(
             tap(({ hasMismatch }) => {
@@ -201,11 +190,8 @@ export class UserDatasetComponent implements AfterViewInit {
   public onClickOpenDatasetAddComponent(): void {
     const modal = this.modalService.create({
       nzTitle: "Create New Dataset",
-      nzContent: UserDatasetVersionCreatorComponent,
+      nzContent: UserDatasetCreatorComponent,
       nzFooter: null,
-      nzData: {
-        isCreatingVersion: false,
-      },
       nzBodyStyle: {
         resize: "both",
         overflow: "auto",

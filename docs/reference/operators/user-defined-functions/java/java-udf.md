@@ -1,3 +1,22 @@
+<!--
+  ~ Licensed to the Apache Software Foundation (ASF) under one
+  ~ or more contributor license agreements.  See the NOTICE file
+  ~ distributed with this work for additional information
+  ~ regarding copyright ownership.  The ASF licenses this file
+  ~ to you under the Apache License, Version 2.0 (the
+  ~ "License"); you may not use this file except in compliance
+  ~ with the License.  You may obtain a copy of the License at
+  ~
+  ~   http://www.apache.org/licenses/LICENSE-2.0
+  ~
+  ~ Unless required by applicable law or agreed to in writing,
+  ~ software distributed under the License is distributed on an
+  ~ "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+  ~ KIND, either express or implied.  See the License for the
+  ~ specific language governing permissions and limitations
+  ~ under the License.
+-->
+
 ---
 title: "Java UDF"
 description: "User-defined function operator in Java script"
@@ -40,6 +59,32 @@ public class JavaUDFOpExec extends MapOpExec {
     }
 }
 ```
+
+### UI parameters
+
+Use **Parameters → Add parameter** in the Java UDF properties panel, or annotate an instance field inside `JavaUDFOpExec`:
+
+```java
+import org.apache.texera.amber.operator.udf.java.UiParameter;
+
+// Inside JavaUDFOpExec:
+@UiParameter("count") private final int count;
+@UiParameter("label") private String label;
+@UiParameter(value="model", resource="model") private String modelDirectory;
+```
+
+The panel infers names and types from the declarations and lets users edit values. Model and dataset parameters use the existing version selector; the field receives the selected version's mounted directory when the workflow runs. Use `resource="dataset"` for a dataset.
+
+| Java field type | Parameter type |
+| --- | --- |
+| `String` | string |
+| `int` / `Integer` | integer |
+| `long` / `Long` | long |
+| `double` / `Double` | double |
+| `boolean` / `Boolean` | boolean |
+| `java.sql.Timestamp` | timestamp |
+
+Declare one field per annotation, without a field initializer. Static fields and arrays are unsupported. Values are validated and compiled into instance field initializers, so they are available in the constructor, `open()`, and tuple processing. Resource parameters must be strings. Timestamp text uses ISO dates or datetimes, with UTC assumed when no offset is given. Long values retain all 64 bits.
 
 ### Output Ports
 

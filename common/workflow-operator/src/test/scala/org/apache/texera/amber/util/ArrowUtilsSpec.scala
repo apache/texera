@@ -42,7 +42,7 @@ class ArrowUtilsSpec extends AnyFlatSpec {
   val float = new ArrowType.FloatingPoint(FloatingPointPrecision.SINGLE)
   val double = new ArrowType.FloatingPoint(FloatingPointPrecision.DOUBLE)
   val half = new ArrowType.FloatingPoint(FloatingPointPrecision.HALF)
-  val timestamp = new ArrowType.Timestamp(TimeUnit.MILLISECOND, "UTC")
+  val timestamp = new ArrowType.Timestamp(TimeUnit.MICROSECOND, null)
   val string: ArrowType.Utf8 = ArrowType.Utf8.INSTANCE
 
   val texeraSchema: Schema = Schema()
@@ -70,10 +70,13 @@ class ArrowUtilsSpec extends AnyFlatSpec {
   it should "convert to AttributeTypes correctly" in {
     assert(ArrowUtils.toAttributeType(unsignedShortInt) == AttributeType.INTEGER)
     assert(ArrowUtils.toAttributeType(signedShortInt) == AttributeType.INTEGER)
-    assert(ArrowUtils.toAttributeType(unsignedInt) == AttributeType.INTEGER)
     assert(ArrowUtils.toAttributeType(signedInt) == AttributeType.INTEGER)
-    assert(ArrowUtils.toAttributeType(unsignedLongInt) == AttributeType.LONG)
     assert(ArrowUtils.toAttributeType(signedLongInt) == AttributeType.LONG)
+    // An unsigned column needs the width above its own: read at its own width it
+    // would hand back the storage, and the largest unsigned 32-bit value is
+    // stored as -1. Past 64 bits there is no width above to read it as.
+    assert(ArrowUtils.toAttributeType(unsignedInt) == AttributeType.LONG)
+    assertThrows[AttributeTypeException](ArrowUtils.toAttributeType(unsignedLongInt))
 
     assert(ArrowUtils.toAttributeType(boolean) == AttributeType.BOOLEAN)
 
@@ -149,7 +152,11 @@ class ArrowUtilsSpec extends AnyFlatSpec {
           Long.box(1L),
           Boolean.box(true),
           Double.box(1.1),
-          new Timestamp(10000L),
+          // Stated as a wall clock, which is what a Texera TIMESTAMP holds. Built
+          // from an epoch instead, the wall clock would be whichever one the
+          // machine's zone gives that instant, and what gets stored below would
+          // move with it.
+          Timestamp.valueOf("1970-01-01 00:00:10"),
           "hello world"
         )
       )
@@ -169,8 +176,12 @@ class ArrowUtilsSpec extends AnyFlatSpec {
     assert(vectorSchemaRoot.getVector(2).getObject(index).asInstanceOf[Boolean] == true)
     assert(vectorSchemaRoot.getVector(3).getObject(index).asInstanceOf[Double] == 1.1)
 
-    // the arrow storage type of timestamp is Long
-    assert(vectorSchemaRoot.getVector(4).getObject(index).asInstanceOf[Long] == 10000L)
+    // The field carries no zone, so the vector holds the wall clock above and
+    // hands it back as one: ten seconds past the epoch, on a server anywhere.
+    assert(
+      vectorSchemaRoot.getVector(4).getObject(index) ==
+        java.time.LocalDateTime.of(1970, 1, 1, 0, 0, 10)
+    )
 
     // the arrow storage type of string is Text
     assert(

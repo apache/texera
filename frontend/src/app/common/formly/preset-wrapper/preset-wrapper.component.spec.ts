@@ -18,6 +18,8 @@
  */
 
 import { ComponentFixture, TestBed } from "@angular/core/testing";
+import { By } from "@angular/platform-browser";
+import { NzDropdownDirective, NzDropdownMenuComponent } from "ng-zorro-antd/dropdown";
 import { FormControl } from "@angular/forms";
 import { FormlyFieldConfig } from "@ngx-formly/core";
 import { NzMessageService } from "ng-zorro-antd/message";
@@ -45,7 +47,6 @@ describe("PresetWrapperComponent", () => {
     getPresets: ReturnType<typeof vi.fn>;
     isValidPreset: ReturnType<typeof vi.fn>;
     savePresetsStream: Subject<{ type: string; target: string; presets: Preset[] }>;
-    applyPresetStream: Subject<{ type: string; target: string; preset: Preset }>;
   };
   let messageStub: {
     error: ReturnType<typeof vi.fn>;
@@ -55,9 +56,9 @@ describe("PresetWrapperComponent", () => {
   };
 
   // Builds a minimal FormlyFieldConfig sufficient for ngOnInit to run.
-  // ngOnInit also calls filterPresetFromForm(), which iterates
-  // field.parent.fieldGroup looking for sibling preset-wrapper fields, so
-  // we expose a single sibling pointing at an empty model by default.
+  // ngOnInit also requires field.parent.fieldGroup, where savePreset() looks
+  // for sibling preset-wrapper fields, so we expose a single sibling pointing
+  // at an empty model by default.
   const buildField = (overrides: Partial<FormlyFieldConfig> = {}): FormlyFieldConfig => {
     const self = {
       key: fieldKey,
@@ -83,7 +84,6 @@ describe("PresetWrapperComponent", () => {
       getPresets: vi.fn().mockReturnValue(of([])),
       isValidPreset: vi.fn().mockReturnValue(true),
       savePresetsStream: new Subject(),
-      applyPresetStream: new Subject(),
     };
     messageStub = {
       error: vi.fn(),
@@ -126,6 +126,11 @@ describe("PresetWrapperComponent", () => {
       expect(() => component.ngOnInit()).toThrow();
     });
 
+    it("throws when parent.fieldGroup is missing", () => {
+      component.field = buildField({ parent: undefined });
+      expect(() => component.ngOnInit()).toThrow(".parent.fieldGroup");
+    });
+
     it("populates searchResults from presetService.getPresets on init", () => {
       presetServiceStub.getPresets.mockReturnValue(of([testPreset, otherPreset]));
       component.field = buildField();
@@ -134,6 +139,25 @@ describe("PresetWrapperComponent", () => {
 
       expect(presetServiceStub.getPresets).toHaveBeenCalledWith(presetKey.presetType, presetKey.saveTarget);
       expect(component.searchResults).toEqual([testPreset, otherPreset]);
+    });
+  });
+
+  describe("setupFieldConfig", () => {
+    it("merges the preset wrappers and the preset key into the given config", () => {
+      const config: FormlyFieldConfig = { key: fieldKey, templateOptions: { label: "kept" } };
+
+      PresetWrapperComponent.setupFieldConfig(config, "operator", "MySQLSource", "MySQLSource-op-1");
+
+      expect(config.wrappers).toEqual(["form-field", "preset-wrapper"]);
+      expect(config.templateOptions?.presetKey).toEqual({
+        presetType: "operator",
+        saveTarget: "MySQLSource",
+        applyTarget: "MySQLSource-op-1",
+      });
+      // the browser's own autocomplete is turned off so it cannot cover the preset menu
+      expect(config.templateOptions?.attributes).toEqual({ autocomplete: "off" });
+      // pre-existing options survive the merge
+      expect(config.templateOptions?.label).toBe("kept");
     });
   });
 
@@ -173,35 +197,6 @@ describe("PresetWrapperComponent", () => {
           b: "second",
         })
       ).toBe("first, second");
-    });
-
-    describe("getSearchResults", () => {
-      it("returns a copy of all presets when showAllResults is true", () => {
-        const presets: Preset[] = [testPreset, otherPreset];
-        const results = component.getSearchResults(presets, "anything", true);
-        expect(results).toEqual(presets);
-        expect(results).not.toBe(presets);
-      });
-
-      it("returns all presets when showAllResults is true even if the search term doesn't match", () => {
-        expect(component.getSearchResults([testPreset], "no-match", true)).toEqual([testPreset]);
-      });
-
-      it("filters by case-insensitive prefix match on the entry title when showAllResults is false", () => {
-        const presets: Preset[] = [testPreset, otherPreset];
-        // testPreset title 'testPresetValue' starts with 'TEST'
-        expect(component.getSearchResults(presets, "TEST", false)).toEqual([testPreset]);
-        // otherPreset title 'otherPresetValue2' starts with 'other'
-        expect(component.getSearchResults(presets, "other", false)).toEqual([otherPreset]);
-      });
-
-      it("returns the full list when search term is empty and showAllResults is false", () => {
-        expect(component.getSearchResults([testPreset], "", false)).toEqual([testPreset]);
-      });
-
-      it("returns an empty list when the search term matches nothing", () => {
-        expect(component.getSearchResults([testPreset], "zzzz", false)).toEqual([]);
-      });
     });
   });
 
@@ -268,28 +263,6 @@ describe("PresetWrapperComponent", () => {
       expect(component.searchResults).toEqual([]);
     });
 
-    it("does not refresh searchResults from form value changes while the dropdown is closed", () => {
-      const baselineCalls = presetServiceStub.getPresets.mock.calls.length;
-      component.presetMenuVisible = false;
-
-      formControl.setValue("typing");
-
-      // No additional getPresets call because the menu is closed.
-      expect(presetServiceStub.getPresets.mock.calls.length).toBe(baselineCalls);
-    });
-
-    it("refreshes searchResults from form value changes while the dropdown is open", async () => {
-      component.presetMenuVisible = true;
-      presetServiceStub.getPresets.mockReturnValue(of([testPreset]));
-      const baselineCalls = presetServiceStub.getPresets.mock.calls.length;
-
-      formControl.setValue("typing");
-      // The valueChanges handler is debounced(0) — wait one microtask tick.
-      await new Promise(resolve => setTimeout(resolve, 0));
-
-      expect(presetServiceStub.getPresets.mock.calls.length).toBe(baselineCalls + 1);
-    });
-
     it("stops responding to stream events after ngOnDestroy", () => {
       component.searchResults = [];
       component.ngOnDestroy();
@@ -346,6 +319,97 @@ describe("PresetWrapperComponent", () => {
 
       expect(presetServiceStub.createPreset).not.toHaveBeenCalled();
       expect(messageStub.error).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  // ─── template rendering ────────────────────────────────────────────────────
+  describe("template rendering", () => {
+    const initWith = (presets: Preset[]): void => {
+      // ngOnInit re-populates searchResults from the service, so feed the presets
+      // through the stub rather than assigning after init (which it would overwrite).
+      presetServiceStub.getPresets.mockReturnValue(of(presets));
+      component.field = buildField();
+      component.ngOnInit();
+      fixture.detectChanges();
+    };
+
+    it("routes the dropdown's own visibility event into onDropdownVisibilityEvent", () => {
+      // the tests above call the handler directly; this drives it through the template
+      // binding, which is the wiring that would break if the output were renamed
+      initWith([testPreset]);
+      const handler = vi.spyOn(component, "onDropdownVisibilityEvent");
+
+      fixture.debugElement
+        .query(By.directive(NzDropdownDirective))
+        .injector.get(NzDropdownDirective)
+        .nzVisibleChange.emit(true);
+
+      expect(handler).toHaveBeenCalledWith(true);
+    });
+
+    it("renders the save button and saves the preset when it is clicked", () => {
+      initWith([]);
+
+      const saveBtn = fixture.nativeElement.querySelector(".save-button") as HTMLButtonElement;
+      expect(saveBtn).toBeTruthy();
+
+      const savePreset = vi.spyOn(component, "savePreset").mockImplementation(() => {});
+      saveBtn.click();
+
+      expect(savePreset).toHaveBeenCalled();
+    });
+
+    /**
+     * The rows live in an nz-dropdown-menu, whose content is an ng-template that only
+     * mounts into a CDK overlay when the dropdown opens — jsdom never drives that.
+     * Instantiating the template directly puts the rows in the fixture's DOM so the
+     * *ngFor, the interpolations and the row click handlers all really run.
+     */
+    const renderDropdownRows = (): HTMLElement[] => {
+      const menu = fixture.debugElement.query(By.directive(NzDropdownMenuComponent))
+        .componentInstance as NzDropdownMenuComponent;
+      menu.viewContainerRef.createEmbeddedView(menu.templateRef);
+      fixture.detectChanges();
+      return Array.from(fixture.nativeElement.querySelectorAll(".preset-dropdown-item"));
+    };
+
+    it("renders one dropdown row per preset, titled and described", () => {
+      initWith([testPreset, otherPreset]);
+
+      const rows = renderDropdownRows();
+
+      expect(rows).toHaveLength(2);
+      expect(rows[0].querySelector(".title")?.textContent).toBe(testPreset[fieldKey]);
+      expect(rows[0].querySelector(".description")?.textContent).toBe("otherPresetValue");
+      expect(rows[1].querySelector(".title")?.textContent).toBe(otherPreset[fieldKey]);
+    });
+
+    it("renders no dropdown rows when there are no presets", () => {
+      initWith([]);
+
+      expect(renderDropdownRows()).toHaveLength(0);
+    });
+
+    it("applies the preset when its row is clicked", () => {
+      initWith([testPreset]);
+
+      renderDropdownRows()[0].querySelector<HTMLElement>(".dropdown-entry")!.click();
+
+      expect(presetServiceStub.applyPreset).toHaveBeenCalledWith(
+        presetKey.presetType,
+        presetKey.applyTarget,
+        testPreset
+      );
+    });
+
+    it("deletes the preset from its row's delete button without applying it", () => {
+      initWith([testPreset]);
+
+      renderDropdownRows()[0].querySelector<HTMLElement>(".delete-button")!.click();
+
+      expect(presetServiceStub.deletePreset).toHaveBeenCalled();
+      // the button stops propagation so the surrounding row does not also apply it
+      expect(presetServiceStub.applyPreset).not.toHaveBeenCalled();
     });
   });
 });

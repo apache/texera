@@ -19,14 +19,16 @@
 
 package org.apache.texera.amber.operator.visualization.dendrogram
 
+import org.apache.texera.amber.operator.LogicalOp
+import org.apache.texera.amber.util.JSONUtils.objectMapper
 import org.scalatest.BeforeAndAfter
 import org.scalatest.flatspec.AnyFlatSpec
-import org.scalatest.matchers.should.Matchers
+import org.apache.texera.amber.operator.GeneratedCodeAssertionChecks
 
-import java.nio.charset.StandardCharsets
-import java.util.Base64
-
-class DendrogramOpDescSpec extends AnyFlatSpec with BeforeAndAfter with Matchers {
+class DendrogramOpDescSpec
+    extends AnyFlatSpec
+    with BeforeAndAfter
+    with GeneratedCodeAssertionChecks {
 
   var opDesc: DendrogramOpDesc = _
 
@@ -34,39 +36,24 @@ class DendrogramOpDescSpec extends AnyFlatSpec with BeforeAndAfter with Matchers
     opDesc = new DendrogramOpDesc()
   }
 
-  private def b64(s: String): String =
-    Base64.getEncoder.encodeToString(s.getBytes(StandardCharsets.UTF_8))
-
-  private def carries(output: String, name: String): Boolean =
-    output.contains(name) || output.contains(b64(name))
-
-  private def fieldPart(msg: String): String =
-    msg.toLowerCase.replace("cannot be empty", "")
-
   // createDendrogram() is private; generatePythonCode() is the public
   // entry point that reaches its asserts.
   it should "throw AssertionError naming the X column when all fields are empty" in {
-    val ex = intercept[AssertionError](opDesc.generatePythonCode())
-    ex.getMessage should not be null
-    ex.getMessage should include("cannot be empty")
+    val ex = expectError[AssertionError]("cannot be empty")(opDesc.generatePythonCode())
     fieldPart(ex.getMessage) should include("x")
   }
 
   it should "throw AssertionError naming the Y column when only xVal and labels are set" in {
     opDesc.xVal = "coord_a"
     opDesc.labels = "label_col"
-    val ex = intercept[AssertionError](opDesc.generatePythonCode())
-    ex.getMessage should not be null
-    ex.getMessage should include("cannot be empty")
+    val ex = expectError[AssertionError]("cannot be empty")(opDesc.generatePythonCode())
     fieldPart(ex.getMessage) should include("y")
   }
 
   it should "throw AssertionError naming the Labels column when only xVal and yVal are set" in {
     opDesc.xVal = "coord_a"
     opDesc.yVal = "coord_b"
-    val ex = intercept[AssertionError](opDesc.generatePythonCode())
-    ex.getMessage should not be null
-    ex.getMessage should include("cannot be empty")
+    val ex = expectError[AssertionError]("cannot be empty")(opDesc.generatePythonCode())
     fieldPart(ex.getMessage) should include("label")
   }
 
@@ -79,17 +66,70 @@ class DendrogramOpDescSpec extends AnyFlatSpec with BeforeAndAfter with Matchers
     assert(carries(code, "coord_b"))
     assert(carries(code, "label_col"))
     code should include("create_dendrogram")
-    // empty threshold falls back to color_threshold=None
+    // An unset threshold arrives as None, scipy's own 0.7 * max distance.
     code should include("color_threshold=None")
   }
 
-  it should "generate python code carrying a non-empty threshold when configured" in {
+  it should "generate python code passing a configured threshold as a number" in {
     opDesc.xVal = "coord_a"
     opDesc.yVal = "coord_b"
     opDesc.labels = "label_col"
-    opDesc.threshold = "42.5"
+    opDesc.threshold = Some(42.5)
     val code = opDesc.generatePythonCode()
-    assert(carries(code, "42.5"))
+    // A number, not a decoded string: a string raises inside scipy.
+    code should include("color_threshold=42.5")
     code should not include "color_threshold=None"
+  }
+
+  it should "drop the rows a blank coordinate leaves unusable, and answer an emptied table" in {
+    // The subset names both coordinates, and only those: a NaN anywhere in the
+    // point matrix makes scipy refuse the whole distance matrix, while a blank
+    // label is only a blank tick on the axis.
+    opDesc.xVal = "coord_a"
+    opDesc.yVal = "coord_b"
+    opDesc.labels = "label_col"
+    val code = opDesc.generatePythonCode()
+    code should include("table = table.dropna(subset=[")
+    assert(carries(code, "coord_a"))
+    assert(carries(code, "coord_b"))
+    code should include("input table has no rows with all of the configured columns filled in.")
+  }
+
+  it should "answer a table with too few rows to cluster" in {
+    // One row leaves an empty distance matrix, which scipy raises on rather than
+    // drawing an empty picture.
+    opDesc.xVal = "coord_a"
+    opDesc.yVal = "coord_b"
+    opDesc.labels = "label_col"
+    val code = opDesc.generatePythonCode()
+    code should include("if len(table) < 2:")
+    code should include("fewer than two rows to cluster")
+  }
+
+  /** Reads the shapes a stored workflow can hold. Without `contentAs` a JSON string
+    * stays unconverted inside the Option and the first use throws.
+    */
+  private def readThreshold(json: String): Option[Double] =
+    objectMapper
+      .readValue(s"""{"operatorType":"Dendrogram"$json}""", classOf[LogicalOp])
+      .asInstanceOf[DendrogramOpDesc]
+      .threshold
+
+  "DendrogramOpDesc.threshold" should "deserialize a JSON number" in {
+    readThreshold(""","threshold":42.5""") shouldBe Some(42.5)
+  }
+
+  it should "deserialize the numeric string a workflow saved before the field was numeric" in {
+    readThreshold(""","threshold":"42.5"""") shouldBe Some(42.5)
+  }
+
+  it should "read an absent, null or blank value as unset rather than as zero" in {
+    readThreshold("") shouldBe None
+    readThreshold(""","threshold":null""") shouldBe None
+    readThreshold(""","threshold":""""") shouldBe None
+  }
+
+  it should "hold a Double, not the raw JSON value" in {
+    readThreshold(""","threshold":"42.5"""").map(_ * 2) shouldBe Some(85.0)
   }
 }

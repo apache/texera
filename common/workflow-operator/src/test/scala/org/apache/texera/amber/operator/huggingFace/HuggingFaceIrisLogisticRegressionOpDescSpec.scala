@@ -19,6 +19,7 @@
 
 package org.apache.texera.amber.operator.huggingFace
 
+import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaInject
 import org.apache.texera.amber.core.executor.OpExecWithCode
 import org.apache.texera.amber.core.tuple.{AttributeType, Schema}
 import org.apache.texera.amber.core.virtualidentity.{ExecutionIdentity, WorkflowIdentity}
@@ -26,24 +27,14 @@ import org.apache.texera.amber.operator.LogicalOp
 import org.apache.texera.amber.operator.metadata.OperatorGroupConstants
 import org.apache.texera.amber.util.JSONUtils.objectMapper
 import org.scalatest.flatspec.AnyFlatSpec
-import org.scalatest.matchers.should.Matchers
+import org.apache.texera.amber.operator.EncodedGeneratedCodeAssertionChecks
 
-import java.nio.charset.StandardCharsets
-import java.util.Base64
-
-class HuggingFaceIrisLogisticRegressionOpDescSpec extends AnyFlatSpec with Matchers {
+class HuggingFaceIrisLogisticRegressionOpDescSpec
+    extends AnyFlatSpec
+    with EncodedGeneratedCodeAssertionChecks {
 
   private val workflowId = WorkflowIdentity(1L)
   private val executionId = ExecutionIdentity(1L)
-
-  private def b64(s: String): String =
-    Base64.getEncoder.encodeToString(s.getBytes(StandardCharsets.UTF_8))
-
-  // EncodableString fields are always base64-wrapped in .encode mode
-  // (self.decode_python_template('<base64>')), so assert on the base64 form only rather than
-  // the raw column name, which could appear in the generated Python for unrelated reasons.
-  private def carries(output: String, name: String): Boolean =
-    output.contains(b64(name))
 
   private def configured(): HuggingFaceIrisLogisticRegressionOpDesc = {
     val d = new HuggingFaceIrisLogisticRegressionOpDesc
@@ -105,6 +96,17 @@ class HuggingFaceIrisLogisticRegressionOpDescSpec extends AnyFlatSpec with Match
     carries(code, "species") shouldBe true
   }
 
+  // An empty cell reaches the standardization as a None, which numpy cannot
+  // subtract from, and a NaN is no measurement either, so the row is answered
+  // rather than ending the run or predicting from it, as the export does.
+  it should "leave the prediction empty when a measurement is missing, NaN included" in {
+    val d = configured()
+    val code = d.generatePythonCode()
+    code should include("if pd.isna(length) or pd.isna(width):")
+    code should include("yield tuple_")
+    code should include("return")
+  }
+
   "HuggingFaceIrisLogisticRegressionOpDesc.getPhysicalOp" should
     "wire an OpExecWithCode python executor carrying the operator's ports" in {
     val d = configured()
@@ -127,5 +129,19 @@ class HuggingFaceIrisLogisticRegressionOpDescSpec extends AnyFlatSpec with Match
     h.petalWidthCmAttribute shouldBe "petalWidth"
     h.predictionClassName shouldBe "species"
     h.predictionProbabilityName shouldBe "probability"
+  }
+
+  "HuggingFaceIrisLogisticRegressionOpDesc (class-level)" should
+    "carry @JsonSchemaInject restricting both petal columns to numeric attributes" in {
+    val ann =
+      classOf[HuggingFaceIrisLogisticRegressionOpDesc].getAnnotation(classOf[JsonSchemaInject])
+    ann should not be null
+    val payload = ann.json
+    payload should include("attributeTypeRules")
+    payload should include("petalLengthCmAttribute")
+    payload should include("petalWidthCmAttribute")
+    payload should include("integer")
+    payload should include("long")
+    payload should include("double")
   }
 }

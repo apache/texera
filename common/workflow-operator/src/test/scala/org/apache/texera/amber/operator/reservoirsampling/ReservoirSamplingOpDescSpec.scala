@@ -19,13 +19,22 @@
 
 package org.apache.texera.amber.operator.reservoirsampling
 
+import org.apache.texera.amber.util.PythonTestSupport.{
+  NeedsPythonPackages,
+  canImport,
+  configuredPython,
+  runScript
+}
 import org.apache.texera.amber.core.executor.OpExecWithClassName
 import org.apache.texera.amber.core.virtualidentity.{ExecutionIdentity, WorkflowIdentity}
-import org.apache.texera.amber.operator.LogicalOp
+import org.apache.texera.amber.operator.{LogicalOp, SamplingHelpers}
 import org.apache.texera.amber.operator.metadata.OperatorGroupConstants
 import org.apache.texera.amber.util.JSONUtils.objectMapper
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
+
+import java.nio.charset.StandardCharsets
+import java.nio.file.Files
 
 class ReservoirSamplingOpDescSpec extends AnyFlatSpec with Matchers {
 
@@ -57,6 +66,54 @@ class ReservoirSamplingOpDescSpec extends AnyFlatSpec with Matchers {
     val restored = objectMapper.readValue(json, classOf[LogicalOp])
     restored shouldBe a[ReservoirSamplingOpDesc]
     restored.asInstanceOf[ReservoirSamplingOpDesc].k shouldBe 100
+  }
+
+  // Algorithm R: fill the reservoir with the first k rows, then replace a
+  // uniformly-drawn slot for each later row. Pin the whole snippet — the
+  // generated Python is indentation-sensitive.
+  "ReservoirSamplingOpDesc.generateStandaloneCode" should
+    "emit a seeded Algorithm R reservoir over the input rows" in {
+    val d = new ReservoirSamplingOpDesc
+    d.k = 3
+    d.generateStandaloneCode() shouldBe
+      """_texera_rs_rng = _TexeraJavaRandom(1)
+        |_texera_rs_k = 3
+        |_texera_rs_reservoir = []
+        |for _texera_rs_n in range(len(in1df)):
+        |    if _texera_rs_n < _texera_rs_k:
+        |        _texera_rs_reservoir.append(_texera_rs_n)
+        |    else:
+        |        _texera_rs_i = _texera_rs_rng.next_int(_texera_rs_n)
+        |        if _texera_rs_i < _texera_rs_k:
+        |            _texera_rs_reservoir[_texera_rs_i] = _texera_rs_n
+        |out1df = in1df.iloc[_texera_rs_reservoir].reset_index(drop=True)""".stripMargin
+  }
+
+  // A reservoir of zero ends the engine's run on the first row: the executor
+  // skips the fill branch and hands nextInt a bound of zero, which Java refuses.
+  // The script has to refuse it there too. Answering with an empty table would
+  // report a result the run never produced.
+  it should "fail on the first row when the reservoir holds nothing" taggedAs NeedsPythonPackages in {
+    val python = configuredPython().getOrElse(cancel("No runnable python executable"))
+    if (!canImport(python, "pandas")) cancel(s"'$python' cannot import pandas")
+
+    val d = new ReservoirSamplingOpDesc
+    d.k = 0
+    val script = Files.createTempFile("reservoir-zero-", ".py")
+    script.toFile.deleteOnExit()
+    val driver =
+      s"""import pandas as pd
+         |${SamplingHelpers.JavaRandom}
+         |in1df = pd.DataFrame({"id": [1, 2, 3]})
+         |${d.generateStandaloneCode()}
+         |""".stripMargin
+    Files.write(script, driver.getBytes(StandardCharsets.UTF_8))
+
+    val (exitCode, out) = runScript(python, script, timeoutSeconds = 60)
+    withClue(s"python said:\n$out\nscript:\n$driver") {
+      exitCode should not be 0
+      out should include("bound must be positive")
+    }
   }
 
   "ReservoirSamplingOpDesc.getPhysicalOp" should

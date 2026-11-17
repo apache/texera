@@ -29,7 +29,7 @@ object WorkflowAccessResource {
   /**
     * Whether the given user holds a direct WRITE grant on the given workflow.
     *
-    * Only the direct WORKFLOW_USER_ACCESS grant is consulted — no project or
+    * Only the direct WORKFLOW_USER_ACCESS grant is consulted — no
     * public-visibility fallback — so the notebook endpoints stay self-contained.
     *
     * @param wid workflow id

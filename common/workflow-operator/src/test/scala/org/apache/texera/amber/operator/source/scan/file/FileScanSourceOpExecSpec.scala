@@ -22,8 +22,10 @@ package org.apache.texera.amber.operator.source.scan.file
 import org.apache.texera.amber.core.tuple.{AttributeType, LargeBinary, Schema, SchemaEnforceable}
 import org.apache.texera.amber.operator.source.scan.{FileAttributeType, FileDecodingMethod}
 import org.apache.texera.amber.util.JSONUtils.objectMapper
+import org.apache.texera.service.util.{LargeBinaryManager, S3StorageClient}
 import org.scalatest.BeforeAndAfterAll
 import org.scalatest.flatspec.AnyFlatSpec
+import software.amazon.awssdk.core.exception.SdkException
 
 import java.io.{BufferedOutputStream, FileOutputStream}
 import java.net.URI
@@ -35,6 +37,9 @@ import java.util.zip.{ZipEntry, ZipOutputStream}
   * Full integration tests with S3 and database are in LargeBinaryManagerSpec.
   */
 class FileScanSourceOpExecSpec extends AnyFlatSpec with BeforeAndAfterAll {
+
+  /** Execution id whose object prefix the large binaries created here are written under. */
+  private val testExecutionId: Long = 8888L
 
   private val testDir = Path
     .of(sys.env.getOrElse("TEXERA_HOME", "."))
@@ -122,28 +127,64 @@ class FileScanSourceOpExecSpec extends AnyFlatSpec with BeforeAndAfterAll {
 
   // Execution Tests
   it should "create LargeBinary when reading file with LARGE_BINARY type" in {
+    // FileScanUtils streams every LARGE_BINARY field to S3 through LargeBinaryOutputStream, so
+    // this test can only run where an S3 endpoint is reachable, and WorkflowOperator's test
+    // scope provides none (LargeBinaryManagerSpec gets one from testcontainers). Probe for the
+    // endpoint up front and cancel when it is absent, leaving the scan below uncaught: a catch
+    // around the scan would report a genuine operator failure as a skip, which is how this
+    // test used to be unable to fail at all.
+    try S3StorageClient.createBucketIfNotExist(LargeBinaryManager.DEFAULT_BUCKET)
+    catch {
+      case e: SdkException =>
+        // On stderr because `-u` is the only ScalaTest reporter this build configures, so
+        // info() and alert() go nowhere -- and the JUnit XML records a cancelled test as a
+        // plain passing <testcase>, leaving the console's "canceled 1" as the sole other clue.
+        Console.err.println(s"[FileScanSourceOpExecSpec] skipping LARGE_BINARY read: $e")
+        cancel("no reachable S3 endpoint in this test scope", e)
+    }
+
     val desc = createDescriptor()
     desc.setResolvedFileName(URI.create(testFile.toUri.toString))
 
     val executor = new FileScanSourceOpExec(objectMapper.writeValueAsString(desc))
 
-    try {
-      executor.open()
-      val tuples = executor.produceTuple().toSeq
-      executor.close()
+    // FileScanUtils mints each LARGE_BINARY field through LargeBinaryManager.create(), which
+    // reads a per-execution base URI off the calling thread. Seed it the way the coordinator
+    // does in production (and LargeBinaryManagerSpec does in test) so an unset base URI can
+    // never be mistaken for the operator misbehaving.
+    LargeBinaryManager.setCurrentBaseUri(LargeBinaryManager.baseUriForExecution(testExecutionId))
+    val tuples =
+      try {
+        executor.open()
+        val rows = executor.produceTuple()
+        try {
+          rows.toSeq
+        } finally {
+          // `produceTuple` hands back an AutoClosingIterator, which releases the underlying
+          // file handle only once `hasNext` turns false, so a scan that throws part way
+          // abandons the iterator with the handle still open. Windows then refuses to delete
+          // `testFile` in `afterAll`, which aborts the whole suite and buries the very failure
+          // that caused it; POSIX `unlink` hides the same leak on Linux CI. Draining fires the
+          // close hook on both paths, and a throw from the drain itself is dropped so it
+          // cannot displace an in-flight failure.
+          try while (rows.hasNext) rows.next()
+          catch { case _: Exception => }
+          executor.close()
+        }
+      } finally {
+        // An empty value clears the thread-local, so the seeded base URI cannot leak into
+        // another suite that happens to reuse this thread.
+        LargeBinaryManager.setCurrentBaseUri("")
+      }
 
-      assert(tuples.size == 1)
-      val field = tuples.head
-        .asInstanceOf[SchemaEnforceable]
-        .enforceSchema(desc.sourceSchema())
-        .getField[Any]("line")
+    assert(tuples.size == 1)
+    val field = tuples.head
+      .asInstanceOf[SchemaEnforceable]
+      .enforceSchema(desc.sourceSchema())
+      .getField[Any]("line")
 
-      assert(field.isInstanceOf[LargeBinary])
-      assert(field.asInstanceOf[LargeBinary].getUri.startsWith("s3://"))
-    } catch {
-      case e: Exception =>
-        info(s"S3 not configured: ${e.getMessage}")
-    }
+    assert(field.isInstanceOf[LargeBinary])
+    assert(field.asInstanceOf[LargeBinary].getUri.startsWith("s3://"))
   }
 
   // LargeBinary Tests

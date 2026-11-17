@@ -21,12 +21,12 @@ package org.apache.texera.amber.operator.visualization.scatter3DChart
 
 import org.scalatest.BeforeAndAfter
 import org.scalatest.flatspec.AnyFlatSpec
-import org.scalatest.matchers.should.Matchers
+import org.apache.texera.amber.operator.GeneratedCodeAssertionChecks
 
-import java.nio.charset.StandardCharsets
-import java.util.Base64
-
-class Scatter3dChartOpDescSpec extends AnyFlatSpec with BeforeAndAfter with Matchers {
+class Scatter3dChartOpDescSpec
+    extends AnyFlatSpec
+    with BeforeAndAfter
+    with GeneratedCodeAssertionChecks {
 
   var opDesc: Scatter3dChartOpDesc = _
 
@@ -34,39 +34,24 @@ class Scatter3dChartOpDescSpec extends AnyFlatSpec with BeforeAndAfter with Matc
     opDesc = new Scatter3dChartOpDesc()
   }
 
-  private def b64(s: String): String =
-    Base64.getEncoder.encodeToString(s.getBytes(StandardCharsets.UTF_8))
-
-  private def carries(output: String, name: String): Boolean =
-    output.contains(name) || output.contains(b64(name))
-
-  private def fieldPart(msg: String): String =
-    msg.toLowerCase.replace("cannot be empty", "")
-
   // createPlotlyFigure() is private; generatePythonCode() is the public
   // entry point that reaches its asserts.
   it should "throw AssertionError naming the X Column when all fields are empty" in {
-    val ex = intercept[AssertionError](opDesc.generatePythonCode())
-    ex.getMessage should not be null
-    ex.getMessage should include("cannot be empty")
+    val ex = expectError[AssertionError]("cannot be empty")(opDesc.generatePythonCode())
     fieldPart(ex.getMessage) should include("x")
   }
 
   it should "throw AssertionError naming the Y Column when only x and z are set" in {
     opDesc.x = "col_x"
     opDesc.z = "col_z"
-    val ex = intercept[AssertionError](opDesc.generatePythonCode())
-    ex.getMessage should not be null
-    ex.getMessage should include("cannot be empty")
+    val ex = expectError[AssertionError]("cannot be empty")(opDesc.generatePythonCode())
     fieldPart(ex.getMessage) should include("y")
   }
 
   it should "throw AssertionError naming the Z Column when only x and y are set" in {
     opDesc.x = "col_x"
     opDesc.y = "col_y"
-    val ex = intercept[AssertionError](opDesc.generatePythonCode())
-    ex.getMessage should not be null
-    ex.getMessage should include("cannot be empty")
+    val ex = expectError[AssertionError]("cannot be empty")(opDesc.generatePythonCode())
     fieldPart(ex.getMessage) should include("z")
   }
 

@@ -23,6 +23,8 @@ import { AppSettings } from "src/app/common/app-setting";
 import { UserConfigService, UserConfig } from "./user-config.service";
 import { UserService } from "../user.service";
 import { StubUserService, MOCK_USER } from "../stub-user.service";
+import { Subject } from "rxjs";
+import { User } from "../../../type/user";
 
 describe("UserConfigService", () => {
   let service: UserConfigService;
@@ -55,11 +57,15 @@ describe("UserConfigService", () => {
   });
 
   it("starts with an empty local dictionary after the initial fetch", () => {
-    expect(service.getDict()).toEqual({});
+    service.delete("anyKey");
+    httpMock.expectNone(`${endpoint}/anyKey`);
   });
 
   describe("fetchAll", () => {
     it("issues a GET to the config endpoint and replaces the local dictionary", () => {
+      service.set("prior", "zero");
+      httpMock.expectOne(`${endpoint}/prior`).flush(null);
+
       const observable = service.fetchAll();
 
       const req = httpMock.expectOne(endpoint);
@@ -69,18 +75,18 @@ describe("UserConfigService", () => {
       req.flush(payload);
 
       observable.subscribe(value => expect(value).toEqual(payload));
-      expect(service.getDict()).toEqual(payload);
-    });
 
-    it("notifies dictionaryChanged subscribers when the dictionary is replaced", () => {
-      const next = vi.fn();
-      const sub = (service as any).dictionaryChangedSubject.subscribe(next);
+      service.delete("foo");
+      httpMock.expectOne(`${endpoint}/foo`).flush(null);
 
-      service.fetchAll();
-      httpMock.expectOne(endpoint).flush({ k: "v" });
+      service.delete("bar");
+      httpMock.expectOne(`${endpoint}/bar`).flush(null);
 
-      expect(next).toHaveBeenCalledTimes(1);
-      sub.unsubscribe();
+      service.delete("prior");
+      httpMock.expectNone(`${endpoint}/prior`);
+
+      service.delete("baz");
+      httpMock.expectNone(`${endpoint}/baz`);
     });
 
     it("throws when the user is not logged in", () => {
@@ -100,22 +106,11 @@ describe("UserConfigService", () => {
       req.flush("one");
       observable.subscribe(value => expect(value).toEqual("one"));
 
-      expect(service.getDict()).toEqual({ alpha: "one" });
-    });
+      service.delete("alpha");
+      httpMock.expectOne(`${endpoint}/alpha`).flush(null);
 
-    it("notifies dictionaryChanged subscribers only when the value actually changes", () => {
-      const next = vi.fn();
-      const sub = (service as any).dictionaryChangedSubject.subscribe(next);
-
-      service.fetchKey("alpha");
-      httpMock.expectOne(`${endpoint}/alpha`).flush("one");
-      expect(next).toHaveBeenCalledTimes(1);
-
-      service.fetchKey("alpha");
-      httpMock.expectOne(`${endpoint}/alpha`).flush("one");
-      expect(next).toHaveBeenCalledTimes(1);
-
-      sub.unsubscribe();
+      service.delete("beta");
+      httpMock.expectNone(`${endpoint}/beta`);
     });
 
     it("throws when the user is not logged in", () => {
@@ -137,21 +132,25 @@ describe("UserConfigService", () => {
       expect(req.request.body).toEqual("one");
 
       req.flush(null);
-      expect(service.getDict()).toEqual({ alpha: "one" });
+      service.delete("alpha");
+      httpMock.expectOne(`${endpoint}/alpha`).flush(null);
+
+      service.delete("beta");
+      httpMock.expectNone(`${endpoint}/beta`);
     });
 
-    it("does not refire dictionaryChanged when setting the same value twice", () => {
+    it("issues a PUT and keeps the entry when setting the same value twice", () => {
       service.set("alpha", "one");
       httpMock.expectOne(`${endpoint}/alpha`).flush(null);
 
-      const next = vi.fn();
-      const sub = (service as any).dictionaryChangedSubject.subscribe(next);
-
       service.set("alpha", "one");
-      httpMock.expectOne(`${endpoint}/alpha`).flush(null);
+      const req = httpMock.expectOne(`${endpoint}/alpha`);
+      expect(req.request.method).toEqual("PUT");
+      expect(req.request.body).toEqual("one");
+      req.flush(null);
 
-      expect(next).not.toHaveBeenCalled();
-      sub.unsubscribe();
+      service.delete("alpha");
+      httpMock.expectOne(`${endpoint}/alpha`).flush(null);
     });
 
     it("throws when the user is not logged in", () => {
@@ -177,7 +176,8 @@ describe("UserConfigService", () => {
       expect(req.request.method).toEqual("DELETE");
       req.flush(null);
 
-      expect(service.getDict()).toEqual({});
+      service.delete("alpha");
+      httpMock.expectNone(`${endpoint}/alpha`);
     });
 
     it("is a no-op (no HTTP request) when the key is not present in the local dict", () => {
@@ -195,6 +195,27 @@ describe("UserConfigService", () => {
     });
   });
 
+  // updateEntry is private and validates its own arguments rather than trusting
+  // its callers. Both guards below are unreachable through the public API --
+  // fetchKey/set/delete reject a blank key before they ever tap into
+  // updateEntry, and delete() returns early when the key is absent -- so the
+  // contract updateEntry keeps for itself is pinned here by calling it directly.
+  describe("updateEntry (private, called directly)", () => {
+    it("rejects a blank key even though no public caller can supply one", () => {
+      expect(() => (service as any).updateEntry("   ", "v")).toThrowError(/key cannot be empty/);
+      // The guard runs before any mutation, so nothing was written under a
+      // trimmed or raw form of the blank key.
+      service.delete("v");
+      httpMock.expectNone(`${endpoint}/v`);
+    });
+
+    it("leaves the dictionary untouched when told to delete a key that is absent", () => {
+      expect(() => (service as any).updateEntry("absent", undefined)).not.toThrow();
+      service.delete("absent");
+      httpMock.expectNone(`${endpoint}/absent`);
+    });
+  });
+
   describe("user-change reactions", () => {
     it("re-fetches the dictionary when a logged-in user is emitted on userChanged", () => {
       stubUserService.userChangeSubject.next(MOCK_USER);
@@ -203,19 +224,72 @@ describe("UserConfigService", () => {
       expect(req.request.method).toEqual("GET");
       req.flush({ rehydrated: "yes" });
 
-      expect(service.getDict()).toEqual({ rehydrated: "yes" });
+      service.delete("rehydrated");
+      httpMock.expectOne(`${endpoint}/rehydrated`).flush(null);
+
+      service.delete("other");
+      httpMock.expectNone(`${endpoint}/other`);
     });
 
     it("clears the local dictionary when the user logs out", () => {
       service.set("alpha", "one");
       httpMock.expectOne(`${endpoint}/alpha`).flush(null);
-      expect(service.getDict()).toEqual({ alpha: "one" });
 
+      // User logs out: local dictionary is reset to {}
       stubUserService.user = undefined;
       stubUserService.userChangeSubject.next(undefined);
 
-      expect(service.getDict()).toEqual({});
       httpMock.expectNone(endpoint);
+
+      // Restore authentication without triggering a re-fetch so we test the post-logout cache state directly
+      stubUserService.user = MOCK_USER;
+
+      // Prove that alpha was evicted on logout: delete("alpha") sends no request
+      service.delete("alpha");
+      httpMock.expectNone(`${endpoint}/alpha`);
+
+      // Prove that the authenticated user CAN delete an active key, showing that the absence of
+      // the request above was due to cache eviction, not authentication failure
+      service.set("beta", "two");
+      httpMock.expectOne(`${endpoint}/beta`).flush(null);
+      service.delete("beta");
+      httpMock.expectOne(`${endpoint}/beta`).flush(null);
     });
+  });
+});
+
+// StubUserService hard-codes `this.user = MOCK_USER` in its constructor, so the
+// suite above can only ever bring the service up while logged in, and the
+// constructor's `if (this.userService.isLogin())` guard is only ever seen from
+// its true side. This second TestBed constructs the service logged out instead.
+describe("UserConfigService (constructed while logged out)", () => {
+  let httpMock: HttpTestingController;
+  const endpoint = `${AppSettings.getApiEndpoint()}/${UserConfigService.USER_DICTIONARY_ENDPOINT}`;
+
+  beforeEach(() => {
+    TestBed.configureTestingModule({
+      imports: [HttpClientTestingModule],
+      providers: [
+        { provide: UserService, useValue: { isLogin: () => false, userChanged: () => new Subject<User>() } },
+        UserConfigService,
+      ],
+    });
+    httpMock = TestBed.inject(HttpTestingController);
+  });
+
+  afterEach(() => {
+    httpMock.verify();
+  });
+
+  it("does not fetch the dictionary on construction when nobody is logged in", () => {
+    // The load-bearing assertion is that construction does not THROW. fetchAll()
+    // re-checks the login state and raises Error("user not logged in") before it
+    // issues any request, so a constructor that skipped the guard takes the whole
+    // service down at injection time; it never reaches a point where a request
+    // could be observed. (The cached dictionary is deliberately not asserted here: it is
+    // fixed at {} by its field initialiser and would hold either way.)
+    expect(() => TestBed.inject(UserConfigService)).not.toThrow();
+
+    httpMock.expectNone(endpoint);
   });
 });

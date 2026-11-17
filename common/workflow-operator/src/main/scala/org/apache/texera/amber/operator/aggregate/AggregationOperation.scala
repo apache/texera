@@ -237,7 +237,7 @@ class AggregationOperation {
       (partial1, partial2) =>
         if (AttributeTypeUtils.compare(partial1, partial2, attributeType) > 0) partial1
         else partial2,
-      partial => if (partial == AttributeTypeUtils.maxValue(attributeType)) null else partial
+      partial => if (partial == AttributeTypeUtils.minValue(attributeType)) null else partial
     )
   }
 

@@ -19,20 +19,22 @@
 
 package org.apache.texera.amber.operator.visualization.bubbleChart
 
+import org.apache.texera.amber.operator.metadata.OperatorMetadataGenerator
 import org.scalatest.BeforeAndAfter
 import org.scalatest.flatspec.AnyFlatSpec
-import org.scalatest.matchers.should.Matchers
+import org.apache.texera.amber.operator.GeneratedCodeAssertionChecks
 
-class BubbleChartOpDescSpec extends AnyFlatSpec with BeforeAndAfter with Matchers {
+import scala.jdk.CollectionConverters._
+
+class BubbleChartOpDescSpec
+    extends AnyFlatSpec
+    with BeforeAndAfter
+    with GeneratedCodeAssertionChecks {
   var opDesc: BubbleChartOpDesc = _
 
   before {
     opDesc = new BubbleChartOpDesc()
   }
-
-  // The part of an assert message that names the offending field.
-  private def fieldPart(msg: String): String =
-    msg.toLowerCase.replace("cannot be empty", "")
 
   it should "generate a plotly python figure with 3 columns" in {
     opDesc.xValue = "column1"
@@ -50,6 +52,38 @@ class BubbleChartOpDescSpec extends AnyFlatSpec with BeforeAndAfter with Matcher
     )
   }
 
+  it should "color by the chosen column when color is enabled" in {
+    opDesc.xValue = "column1"
+    opDesc.yValue = "column2"
+    opDesc.zValue = "column3"
+    opDesc.enableColor = true
+    opDesc.colorCategory = "column4"
+
+    opDesc.createPlotlyFigure().plain should include(
+      "fig = go.Figure(px.scatter(table, x=column1, y=column2, size=column3, color=column4, size_max=100))"
+    )
+  }
+
+  // px.scatter(color='') raises, so an unset column has to fall back to uniform bubbles.
+  it should "omit color when color is enabled but no column is chosen" in {
+    opDesc.xValue = "column1"
+    opDesc.yValue = "column2"
+    opDesc.zValue = "column3"
+    opDesc.enableColor = true
+
+    opDesc.createPlotlyFigure().plain should not include "color="
+  }
+
+  it should "omit color when a column is chosen but color is disabled" in {
+    opDesc.xValue = "column1"
+    opDesc.yValue = "column2"
+    opDesc.zValue = "column3"
+    opDesc.enableColor = false
+    opDesc.colorCategory = "column4"
+
+    opDesc.createPlotlyFigure().plain should not include "column4"
+  }
+
   it should "throw assertion error if variable xValue is empty" in {
     assertThrows[AssertionError] {
       opDesc.createPlotlyFigure()
@@ -59,34 +93,26 @@ class BubbleChartOpDescSpec extends AnyFlatSpec with BeforeAndAfter with Matcher
   it should "throw AssertionError naming the X-Column when only xValue is missing" in {
     opDesc.yValue = "column2"
     opDesc.zValue = "column3"
-    val ex = intercept[AssertionError](opDesc.createPlotlyFigure())
-    ex.getMessage should not be null
-    ex.getMessage should include("cannot be empty")
+    val ex = expectError[AssertionError]("cannot be empty")(opDesc.createPlotlyFigure())
     fieldPart(ex.getMessage) should include("x")
   }
 
   it should "throw AssertionError naming the Y-Column when only yValue is missing" in {
     opDesc.xValue = "column1"
     opDesc.zValue = "column3"
-    val ex = intercept[AssertionError](opDesc.createPlotlyFigure())
-    ex.getMessage should not be null
-    ex.getMessage should include("cannot be empty")
+    val ex = expectError[AssertionError]("cannot be empty")(opDesc.createPlotlyFigure())
     fieldPart(ex.getMessage) should include("y")
   }
 
   it should "throw AssertionError naming the Z-Column when only zValue is missing" in {
     opDesc.xValue = "column1"
     opDesc.yValue = "column2"
-    val ex = intercept[AssertionError](opDesc.createPlotlyFigure())
-    ex.getMessage should not be null
-    ex.getMessage should include("cannot be empty")
+    val ex = expectError[AssertionError]("cannot be empty")(opDesc.createPlotlyFigure())
     fieldPart(ex.getMessage) should include("z")
   }
 
   it should "throw AssertionError with a per-field message in manipulateTable when fields are missing" in {
-    val ex = intercept[AssertionError](opDesc.manipulateTable())
-    ex.getMessage should not be null
-    ex.getMessage should include("cannot be empty")
+    val ex = expectError[AssertionError]("cannot be empty")(opDesc.manipulateTable())
     fieldPart(ex.getMessage) should include("x")
   }
 
@@ -98,5 +124,22 @@ class BubbleChartOpDescSpec extends AnyFlatSpec with BeforeAndAfter with Matcher
     plain should include("column1")
     plain should include("column2")
     plain should include("column3")
+  }
+
+  "BubbleChartOpDesc's generated schema" should
+    "constrain the bubble size to numeric and leave the axes unconstrained" in {
+    // x and y are positions and read as any type, the way a scatter plot's do.
+    // Only the size is divided by a scale factor and so has to be a number.
+    val schema = OperatorMetadataGenerator.generateOperatorJsonSchema(classOf[BubbleChartOpDesc])
+    val rules = schema.path("attributeTypeRules")
+    rules.fieldNames().asScala.toSet shouldBe Set("zValue")
+
+    // The key has to name a property the form actually renders; one that names
+    // nothing parses fine and constrains nothing.
+    schema.path("properties").has("zValue") shouldBe true
+
+    val allowed = rules.path("zValue").path("enum").elements().asScala.map(_.asText()).toSet
+    allowed shouldBe Set("integer", "long", "double")
+    allowed should not contain "string"
   }
 }

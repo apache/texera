@@ -81,7 +81,9 @@ describe("ComputingUnitActionsService", () => {
         "4G",
         "1",
         "1G",
-        "64M"
+        "64M",
+        // No curated image chosen, so the unit runs the deployment's own.
+        undefined
       );
       expect(computingUnitService.createLocalComputingUnit).not.toHaveBeenCalled();
     });
@@ -149,6 +151,40 @@ describe("ComputingUnitActionsService", () => {
       expect(notificationService.error).toHaveBeenCalledWith("Failed to terminate computing unit");
     });
 
+    it("uses the disconnect wording and shows no destructive warning for a local unit", () => {
+      service.confirmAndTerminate(3, unit({ type: "local", name: "local1" }));
+
+      const config = modalService.confirm.mock.calls[0][0];
+      expect(config.nzTitle).toBe("Disconnect from Local Computing Unit");
+      expect(config.nzOkText).toBe("Disconnect");
+      expect(config.nzContent).toContain("disconnect from <strong>local1</strong>");
+      // A local unit holds no execution results, so the data-loss warning must not appear.
+      // Assert the copy itself, not only its colour, so restyling the shared warning
+      // (a CSS class, a theme token) cannot silently void this guard.
+      expect(config.nzContent).not.toContain("Warning:");
+      expect(config.nzContent).not.toContain("will be lost");
+      expect(config.nzContent).not.toContain("#ff4d4f");
+      // the cancel label is a fixed word; it must not co-vary with the unit type
+      expect(config.nzCancelText).toBe("Cancel");
+      expect(config.nzOkType).toBe("primary");
+    });
+
+    it("falls back to the kubernetes copy when the unit carries no type", () => {
+      // `type` is declared non-optional, so this pins the explicit `|| "kubernetes"` fallback.
+      // The name deliberately reuses the local case's "local1" so that `type` and `name` are not
+      // correlated across the suite: the copy cannot be keyed off the unit's name instead.
+      service.confirmAndTerminate(4, unit({ type: undefined, name: "local1" }));
+
+      const config = modalService.confirm.mock.calls[0][0];
+      expect(config.nzTitle).toBe("Terminate Computing Unit");
+      expect(config.nzOkText).toBe("Terminate");
+      expect(config.nzContent).toContain("terminate <strong>local1</strong>");
+      expect(config.nzContent).toContain("Warning:");
+      expect(config.nzContent).toContain("#ff4d4f");
+      expect(config.nzCancelText).toBe("Cancel");
+      expect(config.nzOkType).toBe("primary");
+    });
+
     it("notifies an error with the extracted message when the termination observable errors", () => {
       statusService.terminateComputingUnit.mockReturnValue(throwError(() => new Error("kaboom")));
       service.confirmAndTerminate(7, unit());
@@ -156,6 +192,52 @@ describe("ComputingUnitActionsService", () => {
       modalService.confirm.mock.calls[0][0].nzOnOk();
 
       expect(notificationService.error).toHaveBeenCalledWith("Failed to terminate computing unit: kaboom");
+    });
+
+    // ng-zorro renders string content as HTML, and an admin sees other users' unit names, so a name must reach the
+    // modal and the toast as text.
+    describe("a unit name that holds markup", () => {
+      const markup = '<a href="https://evil.example">Confirm</a> & <b>x</b>';
+      const escaped = "&lt;a href=&quot;https://evil.example&quot;&gt;Confirm&lt;/a&gt; &amp; &lt;b&gt;x&lt;/b&gt;";
+
+      it.each(["kubernetes", "local"])("is escaped in the confirmation modal of a %s unit", type => {
+        service.confirmAndTerminate(7, unit({ type, name: markup }));
+
+        expect(modalService.confirm.mock.calls[0][0].nzContent).toContain(escaped);
+      });
+
+      it("is escaped in the success message", () => {
+        service.confirmAndTerminate(7, unit({ name: markup }));
+
+        modalService.confirm.mock.calls[0][0].nzOnOk();
+
+        expect(notificationService.success).toHaveBeenCalledWith(`Terminated Computing Unit: ${escaped}`);
+      });
+    });
+
+    describe("onTerminated callback", () => {
+      it("runs once the confirmed termination succeeds, and not before the modal is confirmed", () => {
+        const onTerminated = vi.fn();
+        service.confirmAndTerminate(7, unit(), onTerminated);
+        expect(onTerminated).not.toHaveBeenCalled();
+
+        modalService.confirm.mock.calls[0][0].nzOnOk();
+
+        expect(onTerminated).toHaveBeenCalledTimes(1);
+      });
+
+      it.each([
+        ["reports failure", of(false)],
+        ["observable errors", throwError(() => new Error("kaboom"))],
+      ])("does not run when the termination %s", (_outcome, termination) => {
+        const onTerminated = vi.fn();
+        statusService.terminateComputingUnit.mockReturnValue(termination);
+        service.confirmAndTerminate(7, unit(), onTerminated);
+
+        modalService.confirm.mock.calls[0][0].nzOnOk();
+
+        expect(onTerminated).not.toHaveBeenCalled();
+      });
     });
   });
 });
