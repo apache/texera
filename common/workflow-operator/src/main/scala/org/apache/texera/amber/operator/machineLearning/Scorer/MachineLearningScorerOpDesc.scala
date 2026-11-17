@@ -38,6 +38,11 @@ import org.apache.texera.amber.operator.metadata.annotations.{
 import org.apache.texera.amber.operator.metadata.{OperatorGroupConstants, OperatorInfo}
 import org.apache.texera.amber.pybuilder.PythonTemplateBuilder.pyStringLiteral
 
+object MachineLearningScorerOpDesc {
+  private val NumericTypes: Set[AttributeType] =
+    Set(AttributeType.INTEGER, AttributeType.LONG, AttributeType.DOUBLE)
+}
+
 // Whichever metric list the task shows must hold at least one metric: an empty
 // one renders as `metric_list = ['']` and the metric lookup fails on the empty
 // name. The rule is conditional because only one of the two lists is visible at
@@ -135,33 +140,25 @@ class MachineLearningScorerOpDesc extends PythonOperatorDescriptor with Standalo
     * cannot tell the two apart.
     */
   private def validateScoredColumns(inputSchemas: Map[PortIdentity, Schema]): Unit = {
-    val numeric = Set(AttributeType.INTEGER, AttributeType.LONG, AttributeType.DOUBLE)
+    val numeric = MachineLearningScorerOpDesc.NumericTypes
     // Blank names are what the form reports before the user has picked; the
     // schema's own `required` already says so, and saying it twice would put a
     // second message on a half-filled operator.
     if (actualValueColumn.isEmpty || predictValueColumn.isEmpty) return
     inputSchemas.get(operatorInfo.inputPorts.head.id).foreach { schema =>
-      Seq(("Actual Value", actualValueColumn), ("Predicted Value", predictValueColumn))
-        .foreach {
-          case (label, column) =>
-            if (!schema.containsAttribute(column))
-              throw new RuntimeException(s"$label column '$column' is not in the input table")
-        }
+      requireScoredColumn(schema, "Actual Value", actualValueColumn)
+      requireScoredColumn(schema, "Predicted Value", predictValueColumn)
       val actualType = schema.getAttribute(actualValueColumn).getType
       val predictType = schema.getAttribute(predictValueColumn).getType
       if (isRegression) {
-        Seq(
-          ("Actual Value", actualValueColumn, actualType),
-          ("Predicted Value", predictValueColumn, predictType)
-        )
-          .foreach {
-            case (label, column, attributeType) =>
-              if (!numeric.contains(attributeType))
-                throw new RuntimeException(
-                  s"A regression metric needs a numeric $label column, but '$column' is " +
-                    s"${attributeType.getName}"
-                )
+        def requireNumeric(label: String, column: String, attrType: AttributeType): Unit =
+          if (!numeric.contains(attrType)) {
+            throw new RuntimeException(
+              s"A regression metric needs a numeric $label column, but '$column' is ${attrType.getName}"
+            )
           }
+        requireNumeric("Actual Value", actualValueColumn, actualType)
+        requireNumeric("Predicted Value", predictValueColumn, predictType)
       } else {
         val comparable = (numeric.contains(actualType) && numeric.contains(predictType)) ||
           actualType == predictType
@@ -174,12 +171,12 @@ class MachineLearningScorerOpDesc extends PythonOperatorDescriptor with Standalo
         // A matching pair can still be one sklearn refuses as labels. Bytes fail
         // every metric. Timestamps only fail the per-class ones, since Accuracy
         // just counts equal rows.
-        val perClass = classificationMetrics.filterNot(_ == classificationMetricsFnc.accuracy)
         val refusedBy =
-          if (Set(AttributeType.BINARY, AttributeType.LARGE_BINARY).contains(actualType))
+          if (actualType == AttributeType.BINARY || actualType == AttributeType.LARGE_BINARY)
             classificationMetrics
-          else if (actualType == AttributeType.TIMESTAMP) perClass
-          else List()
+          else if (actualType == AttributeType.TIMESTAMP)
+            classificationMetrics.filterNot(_ == classificationMetricsFnc.accuracy)
+          else Nil
         if (refusedBy.nonEmpty)
           throw new RuntimeException(
             s"Actual Value '$actualValueColumn' and Predicted Value '$predictValueColumn' are " +
@@ -190,23 +187,27 @@ class MachineLearningScorerOpDesc extends PythonOperatorDescriptor with Standalo
     }
   }
 
+  private def requireScoredColumn(
+      schema: Schema,
+      label: String,
+      column: String
+  ): Unit = {
+    if (!schema.containsAttribute(column)) {
+      throw new RuntimeException(s"$label column '$column' is not in the input table")
+    }
+  }
+
   override def getOutputSchemas(
       inputSchemas: Map[PortIdentity, Schema]
   ): Map[PortIdentity, Schema] = {
     validateScoredColumns(inputSchemas)
-    val metrics = if (isRegression) {
-      regressionMetrics.map(_.getName())
-    } else {
-      classificationMetrics.map(_.getName())
-    }
-    val baseSchema = if (!isRegression) {
-      Schema(List(new Attribute("Class", AttributeType.STRING)))
-    } else {
-      Schema(List())
-    }
-
-    val outputSchema = metrics.foldLeft(baseSchema) { (currentSchema, metricName) =>
-      currentSchema.add(new Attribute(metricName, AttributeType.DOUBLE))
+    val metricNames =
+      if (isRegression) regressionMetrics.map(_.getName())
+      else classificationMetrics.map(_.getName())
+    val baseSchema =
+      if (isRegression) Schema() else Schema(List(new Attribute("Class", AttributeType.STRING)))
+    val outputSchema = metricNames.foldLeft(baseSchema) { (schema, metricName) =>
+      schema.add(new Attribute(metricName, AttributeType.DOUBLE))
     }
 
     Map(operatorInfo.outputPorts.head.id -> outputSchema)
@@ -224,7 +225,7 @@ class MachineLearningScorerOpDesc extends PythonOperatorDescriptor with Standalo
   // re-encoded as one quoted value, collapsing the list into a single element.
   private def getSelectedMetrics(): String = {
     val metric = if (isRegression) regressionMetrics else classificationMetrics
-    metric.map(metric => getMetricName(metric)).mkString("'", "','", "'")
+    metric.iterator.map(getMetricName).mkString("'", "','", "'")
   }
 
   override def generatePythonCode(): String = {

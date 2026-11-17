@@ -36,15 +36,15 @@ type PreLoginConfig = Pick<
   | "appleLogin"
   | "defaultLocalUser"
   | "attributionEnabled"
+  | "inviteOnly"
   | "emailVerification"
 >;
 // Fields served by /config/amber.
 type AmberConfig = Pick<GuiConfig, "defaultDataTransferBatchSize">;
-type GuiOnlyConfig = Omit<GuiConfig, keyof PreLoginConfig | keyof AmberConfig | "inviteOnly">;
-type UserSystemConfig = Pick<GuiConfig, "inviteOnly">;
+type GuiOnlyConfig = Omit<GuiConfig, keyof PreLoginConfig | keyof AmberConfig>;
 
 // One entry per backend config endpoint.
-export type ConfigSource = "preLogin" | "gui" | "amber" | "userSystem";
+export type ConfigSource = "preLogin" | "gui" | "amber";
 
 @Injectable({ providedIn: "root" })
 export class GuiConfigService {
@@ -58,15 +58,15 @@ export class GuiConfigService {
   private mergedCache: GuiConfig | null = null;
 
   // Merge precedence when a key appears in multiple sources (later wins).
-  private static readonly MERGE_ORDER: ConfigSource[] = ["preLogin", "gui", "amber", "userSystem"];
+  private static readonly MERGE_ORDER: ConfigSource[] = ["preLogin", "gui", "amber"];
 
   constructor(private http: HttpClient) {}
 
   /**
    * APP_INITIALIZER entry point. Always loads /config/pre-login (anonymous). If
    * a JWT is already in localStorage (browser reload while logged in), chains
-   * /config/gui + /config/amber + /config/user-system in the same await so the
-   * full config is available before any post-login component mounts.
+   * /config/gui + /config/amber in the same await so the full config is
+   * available before any post-login component mounts.
    */
   load(): Observable<Partial<GuiConfig>> {
     return this.loadPreLogin().pipe(
@@ -108,12 +108,10 @@ export class GuiConfigService {
   loadPostLogin(): Observable<Partial<GuiConfig>> {
     const guiConfig$ = this.http.get<GuiOnlyConfig>(`${AppSettings.getApiEndpoint()}/config/gui`);
     const amberConfig$ = this.http.get<AmberConfig>(`${AppSettings.getApiEndpoint()}/config/amber`);
-    const userSystemConfig$ = this.http.get<UserSystemConfig>(`${AppSettings.getApiEndpoint()}/config/user-system`);
-    return forkJoin([guiConfig$, amberConfig$, userSystemConfig$]).pipe(
-      tap(([guiConfig, amberConfig, userSystemConfig]) => {
+    return forkJoin([guiConfig$, amberConfig$]).pipe(
+      tap(([guiConfig, amberConfig]) => {
         this.setSource("gui", guiConfig);
         this.setSource("amber", amberConfig);
-        this.setSource("userSystem", userSystemConfig);
       }),
       map(() => this.env)
     );

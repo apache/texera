@@ -307,8 +307,10 @@ Note: Jooq creates DAO for simple operations if the requested SQL query is compl
 ### Disable password login
 Edit `common/config/src/main/resources/gui.conf`, change `local-login` to `false`.
 
-### Enforce invite only
-Edit `common/config/src/main/resources/user-system.conf`, change `invite-only` to `true`.
+### Invite-only sign-up
+Invite-only is on by default: a new account stays inactive until an admin approves it on the **Users** page. To let new accounts in at once, sign in as an admin, open **Admin → Settings**, turn off **Invite Only** under **Registration**, and click **Save**. Accounts that sign up while it is off can run their own code in workflows.
+
+`USER_SYS_INVITE_ONLY` (or `invite_only` in `common/config/src/main/resources/default.conf`) only sets the starting value, which config-service stores the first time it starts. After that the settings page owns it, and its **Reset** button restores the configured value.
 
 ### Backend endpoints Role Annotation
 There are two types of permissions for the backend endpoints:

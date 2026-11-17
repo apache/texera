@@ -102,6 +102,9 @@ class RegexOpDescSpec extends AnyFlatSpec with Matchers {
       """(?u:(?a:\w)(?a:[\s])(?:[é]|(?a:[\d]))(?a:[^\W])(?:(?![é])(?a:[^\S]))(?:[\^]|(?a:[\w])))"""
     RegexOpDesc.unicodeCase("""x(?iu:é)\d\\w""") shouldBe """x(?iu:é)(?a:\d)\\w"""
     RegexOpDesc.unicodeCase("(?iux)é # note") shouldBe "(?ix)(?u:é # note\n)"
+    RegexOpDesc.unicodeCase("(?i-u)é") shouldBe "(?i-u)é"
+    RegexOpDesc.unicodeCase("(?u-i)é") shouldBe "(?-i)(?u:é)"
+    RegexOpDesc.unicodeCase("(?x)(?u)é # cmt") shouldBe "(?x)(?u:é # cmt\n)"
   }
 
   // Pattern without UNICODE_CASE ignores case for ASCII letters only, and its
