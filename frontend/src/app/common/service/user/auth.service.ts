@@ -56,9 +56,10 @@ export interface RegistrationResult {
 })
 export class AuthService {
   public static readonly LOGIN_ENDPOINT = "auth/login";
-  public static readonly REFRESH_TOKEN = "auth/refresh";
   public static readonly REGISTER_ENDPOINT = "auth/register";
   public static readonly GOOGLE_LOGIN_ENDPOINT = "auth/google/login";
+  public static readonly ORCID_LOGIN_ENDPOINT = "auth/orcid/login";
+  public static readonly APPLE_LOGIN_ENDPOINT = "auth/apple/login";
   public static readonly SET_EMAIL_ENDPOINT = "auth/email";
   public static readonly SET_EMAIL_CODE_ENDPOINT = "auth/email/code";
   public static readonly REGISTER_VERIFY_ENDPOINT = "auth/register/verify";
@@ -115,6 +116,40 @@ export class AuthService {
   public googleAuth(credential: string): Observable<Readonly<{ accessToken: string }>> {
     return this.http.post<Readonly<{ accessToken: string }>>(
       `${AppSettings.getApiEndpoint()}/${AuthService.GOOGLE_LOGIN_ENDPOINT}`,
+      credential,
+      {
+        headers: {
+          "Content-Type": "text/plain",
+          Accept: "application/json",
+        },
+      }
+    );
+  }
+
+  /**
+   * Trades the authorization code from `/callback/orcid` for a Texera token.
+   *
+   * ORCID authenticates an iD without asserting an email, so the account behind this token may have
+   * none — `loginWithExistingToken` asks for one before the email-keyed parts of the product
+   * (dataset paths, access grants) are reachable.
+   */
+  public orcidAuth(code: string): Observable<Readonly<{ accessToken: string }>> {
+    return this.http.post<Readonly<{ accessToken: string }>>(
+      `${AppSettings.getApiEndpoint()}/${AuthService.ORCID_LOGIN_ENDPOINT}`,
+      code,
+      {
+        headers: {
+          "Content-Type": "text/plain",
+          Accept: "application/json",
+        },
+      }
+    );
+  }
+
+  /** Exchanges an Apple identity token for a Texera access token. */
+  public appleAuth(credential: string): Observable<Readonly<{ accessToken: string }>> {
+    return this.http.post<Readonly<{ accessToken: string }>>(
+      `${AppSettings.getApiEndpoint()}/${AuthService.APPLE_LOGIN_ENDPOINT}`,
       credential,
       {
         headers: {
@@ -192,7 +227,10 @@ export class AuthService {
       return undefined;
     }
 
-    if (this.config.env.inviteOnly && role === Role.INACTIVE) {
+    // INACTIVE means waiting for an admin, whatever the invite-only switch says now: an account that
+    // signed up while it was on stays INACTIVE after it is turned off, and every request it makes is
+    // refused, so it gets the pending screen rather than an empty dashboard.
+    if (role === Role.INACTIVE) {
       this.checkRegistrationRequired(uid).subscribe(required => {
         if (required) {
           this.openRegistrationModal(uid, email, name);

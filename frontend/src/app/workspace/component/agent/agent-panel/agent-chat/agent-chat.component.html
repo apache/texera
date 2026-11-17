@@ -115,8 +115,11 @@
             style="position: relative">
             <div
               *ngIf="response.content"
-              class="message-content">
-              <markdown [data]="response.content"></markdown>
+              class="message-content"
+              #messageText>
+              <markdown
+                [data]="response.content"
+                (ready)="openLinksInNewTab(messageText)"></markdown>
             </div>
             <div
               *ngIf="response.toolCalls && response.toolCalls.length > 0"
@@ -184,7 +187,6 @@
       <!-- Input Area -->
       <div class="input-area">
         <textarea
-          #messageInput
           nz-input
           [(ngModel)]="currentMessage"
           placeholder="Ask me anything about your data science tasks..."
@@ -232,8 +234,7 @@
 <!-- ReAct Step Detail Modal -->
 <texera-react-step-detail-modal
   [(visible)]="isDetailsModalVisible"
-  [step]="selectedResponse"
-  [agentId]="agentInfo.id">
+  [step]="selectedResponse">
 </texera-react-step-detail-modal>
 
 <!-- System Info Modal (with editing capabilities) -->

@@ -28,10 +28,6 @@ object UdfConfig {
   // Python specifics
   val pythonPath: String = conf.getString("python.path")
   val pythonLogStreamHandlerLevel: String = conf.getString("python.log.streamHandler.level")
-  val pythonLogStreamHandlerFormat: String = conf.getString("python.log.streamHandler.format")
-  val pythonLogFileHandlerDir: String = conf.getString("python.log.fileHandler.dir")
-  val pythonLogFileHandlerLevel: String = conf.getString("python.log.fileHandler.level")
-  val pythonLogFileHandlerFormat: String = conf.getString("python.log.fileHandler.format")
 
   // R specifics
   val rPath: String = conf.getString("r.path")

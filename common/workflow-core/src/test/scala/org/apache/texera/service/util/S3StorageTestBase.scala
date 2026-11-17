@@ -19,14 +19,13 @@
 
 package org.apache.texera.service.util
 
-import com.dimafeng.testcontainers.MinIOContainer
+import com.dimafeng.testcontainers.GenericContainer
 import org.apache.texera.common.config.StorageConfig
 import org.scalatest.{BeforeAndAfterAll, Suite}
-import org.testcontainers.utility.DockerImageName
 
 /**
-  * Base trait for tests requiring S3 storage (MinIO).
-  * Provides access to a single shared MinIO container across all test suites.
+  * Base trait for tests requiring S3 storage (RustFS).
+  * Provides access to a single shared RustFS container across all test suites.
   *
   * Usage: Mix this trait into any test suite that needs S3 storage.
   */
@@ -40,21 +39,17 @@ trait S3StorageTestBase extends BeforeAndAfterAll { this: Suite =>
 }
 
 object S3StorageTestBase {
-  private lazy val container: MinIOContainer = {
-    val c = MinIOContainer(
-      dockerImageName = DockerImageName.parse("minio/minio:RELEASE.2025-02-28T09-55-16Z"),
-      userName = "texera_minio",
-      password = "password"
-    )
+  private lazy val container: GenericContainer = {
+    val c = RustFSContainer(region = StorageConfig.s3Region)
     c.start()
 
-    val endpoint = s"http://${c.host}:${c.mappedPort(9000)}"
+    val endpoint = s"http://${c.host}:${c.mappedPort(RustFSContainer.Port)}"
     StorageConfig.s3Endpoint = endpoint
 
-    println(s"[S3Storage] Started shared MinIO at $endpoint")
+    println(s"[S3Storage] Started shared RustFS at $endpoint")
 
     sys.addShutdownHook {
-      println("[S3Storage] Stopping shared MinIO...")
+      println("[S3Storage] Stopping shared RustFS...")
       c.stop()
     }
 

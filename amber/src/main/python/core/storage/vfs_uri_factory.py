@@ -33,8 +33,8 @@ from proto.org.apache.texera.amber.core import (
 
 class VFSResourceType(str, Enum):
     RESULT = "result"
-    RUNTIME_STATISTICS = "runtimeStatistics"
-    CONSOLE_MESSAGES = "consoleMessages"
+    RUNTIME_STATISTICS = "runtimestatistics"
+    CONSOLE_MESSAGES = "consolemessages"
     STATE = "state"
 
 

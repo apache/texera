@@ -320,6 +320,40 @@ export class FilesUploaderComponent implements OnInit {
       });
     });
 
+    this.addSelection(filePromises);
+  }
+
+  /**
+   * Files chosen from the picker. A folder arrives flattened, each file carrying
+   * webkitRelativePath, which is the structure the drop path gets from the entry tree.
+   */
+  public filesPicked(event: Event): void {
+    const input = event.target as HTMLInputElement;
+    const picked = Array.from(input.files ?? []);
+    // Cleared so choosing the same folder twice running still fires a change event.
+    input.value = "";
+    this.addSelection(picked.map(file => this.toUploadItem(file)));
+  }
+
+  /** Rejects an oversized file the way the drop path does, so both routes report it alike. */
+  private toUploadItem(file: File): Promise<FileUploadItem | null> {
+    if (file.size > this.singleFileUploadMaxSizeMiB * 1024 * 1024) {
+      this.notificationService.error(
+        `File ${file.name}'s size exceeds the maximum limit of ${this.singleFileUploadMaxSizeMiB}MiB.`
+      );
+      return Promise.reject(null);
+    }
+    return Promise.resolve({
+      file,
+      name: file.webkitRelativePath || file.name,
+      description: "",
+      uploadProgress: 0,
+      isUploadingFlag: false,
+      restart: false,
+    });
+  }
+
+  private addSelection(filePromises: Promise<FileUploadItem | null>[]): void {
     Promise.allSettled(filePromises)
       .then(async results => {
         const { ownerEmail, resourceName } = this.getOwnerAndName();

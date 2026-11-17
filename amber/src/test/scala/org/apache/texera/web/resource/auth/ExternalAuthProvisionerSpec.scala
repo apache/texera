@@ -19,8 +19,9 @@
 
 package org.apache.texera.web.resource.auth
 
-import org.apache.texera.dao.MockTexeraDB
-import org.apache.texera.dao.jooq.generated.Tables.{AUTH_PROVIDER, USER}
+import org.apache.texera.auth.InviteOnly
+import org.apache.texera.dao.{MockTexeraDB, SiteSettings}
+import org.apache.texera.dao.jooq.generated.Tables.{AUTH_PROVIDER, SITE_SETTINGS, USER}
 import org.apache.texera.dao.jooq.generated.enums.{ProviderTypeEnum, UserRoleEnum}
 import org.apache.texera.dao.jooq.generated.tables.daos.{AuthProviderDao, UserDao}
 import org.apache.texera.dao.jooq.generated.tables.pojos.{AuthProvider, User}
@@ -60,11 +61,42 @@ class ExternalAuthProvisionerSpec
   override protected def beforeEach(): Unit = cleanup()
   override protected def afterEach(): Unit = cleanup()
 
-  // Case-insensitive so it also collects rows seeded with a differing casing.
-  private def cleanup(): Unit =
+  // Case-insensitive so it also collects rows seeded with a differing casing. The ORCID arm
+  // catches what the email predicate cannot: an identity-only login leaves `email` NULL, so those
+  // accounts are identified by the provider row that cascades from them.
+  private def cleanup(): Unit = {
     getDSLContext.deleteFrom(USER).where(DSL.lower(USER.EMAIL).like("%" + emailDomain)).execute()
+    getDSLContext
+      .deleteFrom(USER)
+      .where(
+        USER.UID.in(
+          getDSLContext
+            .select(AUTH_PROVIDER.UID)
+            .from(AUTH_PROVIDER)
+            .where(AUTH_PROVIDER.PROVIDER_TYPE.eq(ProviderTypeEnum.ORCID))
+        )
+      )
+      .execute()
+    getDSLContext
+      .deleteFrom(SITE_SETTINGS)
+      .where(SITE_SETTINGS.KEY.eq(InviteOnly.SettingKey))
+      .execute()
+  }
 
   // ---- helpers -------------------------------------------------------------
+
+  /** Flip the invite-only switch the way the admin settings page does; `cleanup` removes it. */
+  private def setInviteOnly(on: Boolean): Unit =
+    SiteSettings.upsert(getDSLContext, InviteOnly.SettingKey, on.toString, "provisioner-admin")
+
+  /** A contributor placeholder as DatasetResource creates one: INACTIVE, with no credential. */
+  private def seedPlaceholder(name: String, localPart: String): User = {
+    val placeholder = seedUser(name, localPart)
+    placeholder.setIsPlaceholder(true)
+    placeholder.setRole(UserRoleEnum.INACTIVE)
+    userDao.update(placeholder)
+    placeholder
+  }
 
   /** Avatars are complete provider URLs now, so tests that assert on one have to use a URL. */
   private def avatarUrl(id: String): String = s"https://lh3.googleusercontent.com/a/$id"
@@ -76,6 +108,10 @@ class ExternalAuthProvisionerSpec
       avatar: Option[String] = Some(avatarUrl("pic"))
   ): ExternalProfile =
     ExternalProfile(ProviderTypeEnum.GOOGLE, providerId, name, email, avatar)
+
+  /** An identity-only login: ORCID's `/authenticate` scope asserts an iD and a name, no address. */
+  private def orcidIdentity(providerId: String, name: String): ExternalIdentity =
+    ExternalIdentity(ProviderTypeEnum.ORCID, providerId, name)
 
   /** Seed a user row directly; uid is DB-assigned and read back into the pojo. */
   private def seedUser(name: String, localPart: String, avatar: String = null): User =
@@ -118,7 +154,9 @@ class ExternalAuthProvisionerSpec
 
   // ---- new-identity provisioning -------------------------------------------
 
-  "ExternalAuthProvisioner.loginOrProvision" should "create an INACTIVE user and provider row for a brand-new Google identity" in {
+  "ExternalAuthProvisioner.loginOrProvision" should "create an INACTIVE user and provider row for a brand-new Google identity while invite-only is on" in {
+    setInviteOnly(on = true)
+
     val user = ExternalAuthProvisioner.loginOrProvision(
       profile("google-sub-1", "New User", "new" + emailDomain, avatar = Some(avatarUrl("a1")))
     )
@@ -131,6 +169,51 @@ class ExternalAuthProvisionerSpec
 
     providerRowCount(user.getUid) shouldBe 1
     providerIdOf(user.getUid, ProviderTypeEnum.GOOGLE) shouldBe "google-sub-1"
+  }
+
+  it should "create a REGULAR user for a brand-new Google identity while invite-only is off" in {
+    setInviteOnly(on = false)
+
+    val user = ExternalAuthProvisioner.loginOrProvision(
+      profile("google-sub-open", "Open User", "open" + emailDomain)
+    )
+
+    user.getRole shouldBe UserRoleEnum.REGULAR
+    userDao.fetchOneByUid(user.getUid).getRole shouldBe UserRoleEnum.REGULAR
+  }
+
+  // Claiming a placeholder is how its owner signs up, so it starts where a new account would.
+  it should "admit a claimed INACTIVE placeholder as REGULAR while invite-only is off" in {
+    setInviteOnly(on = false)
+    val placeholder = seedPlaceholder("Ghost", "admitme")
+
+    ExternalAuthProvisioner.loginOrProvision(profile("sub-admit", "Ghost", "admitme" + emailDomain))
+
+    userDao.fetchOneByUid(placeholder.getUid).getRole shouldBe UserRoleEnum.REGULAR
+  }
+
+  it should "keep a claimed placeholder INACTIVE while invite-only is on" in {
+    setInviteOnly(on = true)
+    val placeholder = seedPlaceholder("Ghost", "waitme")
+
+    ExternalAuthProvisioner.loginOrProvision(profile("sub-wait", "Ghost", "waitme" + emailDomain))
+
+    userDao.fetchOneByUid(placeholder.getUid).getRole shouldBe UserRoleEnum.INACTIVE
+  }
+
+  // An INACTIVE account that is not a placeholder is a sign-up already waiting for approval. Adding
+  // a sign-in method to it is not a new sign-up, so turning invite-only off does not approve it.
+  it should "leave an existing INACTIVE account INACTIVE when a provider links to it" in {
+    setInviteOnly(on = false)
+    val pending = seedUser("Pending", "pending")
+    pending.setRole(UserRoleEnum.INACTIVE)
+    userDao.update(pending)
+
+    ExternalAuthProvisioner.loginOrProvision(
+      profile("sub-pending", "Pending", "pending" + emailDomain)
+    )
+
+    userDao.fetchOneByUid(pending.getUid).getRole shouldBe UserRoleEnum.INACTIVE
   }
 
   // ---- returning known identity --------------------------------------------
@@ -257,6 +340,71 @@ class ExternalAuthProvisionerSpec
     val claimed = userDao.fetchOneByUid(placeholder.getUid)
     claimed.getIsPlaceholder shouldBe false
     claimed.getComment should include("Claimed contributor placeholder at ")
+  }
+
+  // ---- identity-only providers (no email asserted) --------------------------
+
+  it should "provision an emailless INACTIVE account for an identity-only provider" in {
+    val user =
+      ExternalAuthProvisioner.loginOrProvisionIdentityOnly(
+        orcidIdentity("0000-0001-0000-0001", "Researcher")
+      )
+
+    user.getUid should not be null
+    user.getName shouldBe "Researcher"
+    user.getEmail shouldBe null
+    user.getRole shouldBe UserRoleEnum.INACTIVE
+    providerIdOf(user.getUid, ProviderTypeEnum.ORCID) shouldBe "0000-0001-0000-0001"
+  }
+
+  // Such an account is inert until it has an address, and an INACTIVE caller is what lets
+  // AuthResource.setEmail hand it a contributor placeholder. The address step admits it instead.
+  it should "keep an identity-only account INACTIVE even while invite-only is off" in {
+    setInviteOnly(on = false)
+
+    val user =
+      ExternalAuthProvisioner.loginOrProvisionIdentityOnly(
+        orcidIdentity("0000-0001-0000-0009", "Open Researcher")
+      )
+
+    user.getRole shouldBe UserRoleEnum.INACTIVE
+  }
+
+  // Two emailless accounts have to be able to coexist: `"user".email` is UNIQUE, which in Postgres
+  // does not constrain repeated NULLs. If that ever changed, the second login would 500 here
+  // rather than silently merging, but this pins the behavior either way.
+  it should "keep two identity-only accounts separate rather than merging them on a null email" in {
+    val first =
+      ExternalAuthProvisioner.loginOrProvisionIdentityOnly(
+        orcidIdentity("0000-0001-0000-0002", "First")
+      )
+    val second =
+      ExternalAuthProvisioner.loginOrProvisionIdentityOnly(
+        orcidIdentity("0000-0001-0000-0003", "Second")
+      )
+
+    second.getUid should not be first.getUid
+    providerRowCount(first.getUid) shouldBe 1
+    providerRowCount(second.getUid) shouldBe 1
+  }
+
+  // The address is collected after the first login (AuthResource.setEmail), so every subsequent
+  // login arrives with a profile that still asserts no email. Refreshing must not blank it.
+  it should "preserve a later-collected email when an identity-only login returns" in {
+    val created =
+      ExternalAuthProvisioner.loginOrProvisionIdentityOnly(
+        orcidIdentity("0000-0001-0000-0004", "Returner")
+      )
+    created.setEmail("collected" + emailDomain)
+    userDao.update(created)
+
+    val returning =
+      ExternalAuthProvisioner.loginOrProvisionIdentityOnly(
+        orcidIdentity("0000-0001-0000-0004", "Returner")
+      )
+
+    returning.getUid shouldBe created.getUid
+    userDao.fetchOneByUid(created.getUid).getEmail shouldBe "collected" + emailDomain
   }
 
   // ---- provider id rotation -------------------------------------------------

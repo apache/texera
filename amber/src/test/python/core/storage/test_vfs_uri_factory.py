@@ -113,6 +113,17 @@ class TestDecodeUriRoundTrip:
         assert components.global_port_id is None
         assert components.resource_type == VFSResourceType.RESULT
 
+    @pytest.mark.parametrize(
+        ("suffix", "resource_type"),
+        [
+            ("runtimestatistics", VFSResourceType.RUNTIME_STATISTICS),
+            ("consolemessages", VFSResourceType.CONSOLE_MESSAGES),
+        ],
+    )
+    def test_scala_resource_type_wire_format_decodes(self, suffix, resource_type):
+        uri = f"vfs:///wid/11/eid/22/{suffix}"
+        assert VFSURIFactory.decode_uri(uri).resource_type == resource_type
+
 
 class TestDecodeUriErrorPaths:
     def test_rejects_non_vfs_scheme(self):

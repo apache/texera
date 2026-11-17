@@ -396,6 +396,17 @@ class TestAddOutputPort:
         assert output_manager.get_port_ids() == [port_id]
         assert output_manager.get_port().get_schema() is schema_first
 
+    def test_duplicate_port_does_not_start_replacement_storage_writers(
+        self, output_manager
+    ):
+        output_manager.set_up_port_storage_writer = MagicMock()
+        port_id = PortIdentity(id=0, internal=False)
+        output_manager.add_output_port(port_id, MagicMock(), "vfs:///first")
+        output_manager.add_output_port(port_id, MagicMock(), "vfs:///duplicate")
+        output_manager.set_up_port_storage_writer.assert_called_once_with(
+            port_id, "vfs:///first"
+        )
+
     def test_sets_up_storage_writer_only_when_uri_given(self, output_manager):
         output_manager.set_up_port_storage_writer = MagicMock()
         port_a = PortIdentity(id=0, internal=False)
@@ -567,6 +578,36 @@ class TestEmitChain:
         assert receiver == _worker("A")
         assert isinstance(frame, DataFrame)
         assert frame.frame.to_pydict() == {"k": [1, 2], "v": ["a", "b"]}
+
+    @pytest.mark.parametrize("sender_count", [1, 2, 3])
+    @pytest.mark.parametrize("receivers", [("A",), ("A", "B")])
+    def test_range_shuffle_with_planner_channels(
+        self, output_manager, link, sender_count, receivers
+    ):
+        # LinkConfig.toPartitioning includes every sender-receiver pair.
+        senders = [_WORKER_ID, "other-1", "other-2"][:sender_count]
+        partitioning = RangeBasedShufflePartitioning(
+            batch_size=1,
+            channels=[
+                ChannelIdentity(
+                    from_worker_id=_worker(sender), to_worker_id=_worker(receiver)
+                )
+                for sender in senders
+                for receiver in receivers
+            ],
+            range_attribute_names=["k"],
+            range_min=-10,
+            range_max=9,
+        )
+        output_manager.add_partitioning(link, set_one_of(Partitioning, partitioning))
+        assert len(output_manager.get_output_channel_ids()) == len(receivers)
+
+        expected = ["A"] * 6 if len(receivers) == 1 else ["B", "A", "A", "A", "B", "B"]
+        for value, receiver in zip([9, -11, -10, -1, 0, 10], expected):
+            out = list(output_manager.tuple_to_batch(Tuple({"k": value, "v": "a"})))
+            assert len(out) == 1
+            assert out[0][0] == _worker(receiver)
+            assert out[0][1].frame.to_pydict() == {"k": [value], "v": ["a"]}
 
     def test_tuple_to_batch_fans_out_to_every_partitioner(self, output_manager):
         # Two downstream links: the same tuple must reach both, in the

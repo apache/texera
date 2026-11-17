@@ -118,7 +118,7 @@ class ModelDownloadResourceSpec
   private def presignedUrlOf(response: Response): String =
     response.getEntity.asInstanceOf[Map[String, String]]("presignedUrl")
 
-  /** MinIO is bound to a fixed host port precisely so presigned URLs resolve here. */
+  /** RustFS is bound to a fixed host port precisely so presigned URLs resolve here. */
   private def fetch(url: String): Array[Byte] = {
     val stream = new java.net.URL(url).openStream()
     try stream.readAllBytes()

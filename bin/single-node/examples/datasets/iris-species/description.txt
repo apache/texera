@@ -1,1 +1,1 @@
-This dataset is from Kaggle at https://www.kaggle.com/datasets/uciml/iris
+Iris flower measurements from R. A. Fisher (1936), as distributed with scikit-learn 1.7.2 under the BSD 3-Clause License: https://github.com/scikit-learn/scikit-learn/blob/1.7.2/sklearn/datasets/data/iris.csv

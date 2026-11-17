@@ -37,6 +37,7 @@ export const MODEL_UPDATE_PUBLICITY_URL = "update/publicity";
 export const MODEL_UPDATE_DOWNLOADABLE_URL = "update/downloadable";
 export const MODEL_UPDATE_COVER_URL = "update/cover";
 export const MODEL_GET_OWNERS_URL = MODEL_BASE_URL + "/user-model-owners";
+export const MODEL_LIST_URL = MODEL_BASE_URL + "/list";
 
 export const MODEL_VERSION_BASE_URL = "version";
 export const MODEL_VERSION_RETRIEVE_LIST_URL = MODEL_VERSION_BASE_URL + "/list";
@@ -142,6 +143,11 @@ export class ModelService {
           return response.modelVersion;
         })
       );
+  }
+
+  /** The models the caller owns or has been granted. */
+  public retrieveAccessibleModels(): Observable<DashboardModel[]> {
+    return this.http.get<DashboardModel[]>(`${AppSettings.getApiEndpoint()}/${MODEL_LIST_URL}`);
   }
 
   /** A model's versions, newest first; an anonymous caller gets the public-only endpoint. */

@@ -20,11 +20,12 @@
 import { TestBed } from "@angular/core/testing";
 import { HttpClientTestingModule, HttpTestingController } from "@angular/common/http/testing";
 import { of, throwError } from "rxjs";
-import { AgentService, AgentInfo, AgentSettingsApi, ModelType, OperatorResultSummary } from "./agent.service";
+import { AgentService, AgentInfo, AgentSettingsApi, ModelType, OperatorExecutionSummary } from "./agent.service";
 import { AgentState, ReActStep } from "./agent-types";
 import { NotificationService } from "../../../common/service/notification/notification.service";
 import { WorkflowPersistService } from "../../../common/service/workflow-persist/workflow-persist.service";
 import { ComputingUnitStatusService } from "../../../common/service/computing-unit/computing-unit-status/computing-unit-status.service";
+import { WarehouseService } from "../../../common/service/warehouse/warehouse.service";
 import { DashboardWorkflowComputingUnit } from "../../../common/type/workflow-computing-unit";
 import { Workflow } from "../../../common/type/workflow";
 import { commonTestProviders } from "../../../common/testing/test-utils";
@@ -63,6 +64,7 @@ describe("AgentService", () => {
   let service: AgentService;
   let httpMock: HttpTestingController;
   let selectedUnit: DashboardWorkflowComputingUnit | null;
+  let selectedWarehouseId: number | undefined;
   let notification: Record<"error" | "success" | "info" | "warning", ReturnType<typeof vi.fn>>;
   let workflowPersist: { retrieveWorkflow: ReturnType<typeof vi.fn> };
 
@@ -102,6 +104,7 @@ describe("AgentService", () => {
 
   beforeEach(() => {
     selectedUnit = null;
+    selectedWarehouseId = undefined;
     notification = { error: vi.fn(), success: vi.fn(), info: vi.fn(), warning: vi.fn() };
     workflowPersist = { retrieveWorkflow: vi.fn().mockReturnValue(of(stubWorkflow)) };
     TestBed.configureTestingModule({
@@ -113,6 +116,10 @@ describe("AgentService", () => {
         {
           provide: ComputingUnitStatusService,
           useValue: { getSelectedComputingUnitValue: () => selectedUnit },
+        },
+        {
+          provide: WarehouseService,
+          useValue: { getSelectedWarehouseIdValue: () => selectedWarehouseId },
         },
         ...commonTestProviders,
       ],
@@ -161,26 +168,49 @@ describe("AgentService", () => {
   });
 
   describe("fetchOperatorResults", () => {
-    it("pulls operator results over REST and pushes them to operatorResultSummaries$", () => {
-      let latest: Map<string, OperatorResultSummary> | undefined;
-      service.operatorResultSummaries$.subscribe(m => (latest = m));
+    it("pulls operator results over REST and pushes them to operatorExecutionSummaries$", () => {
+      let latest: Map<string, OperatorExecutionSummary> | undefined;
+      service.operatorExecutionSummaries$.subscribe(m => (latest = m));
 
       service.fetchOperatorResults("agent-1");
 
       const req = httpMock.expectOne(r => r.method === "GET" && r.url === "/api/agents/agent-1/operator-results");
       req.flush({
         results: {
-          "op-1": { sampleRecords: [{ a: 1 }], resultStatistics: { a: "{}" } },
+          "op-1": {
+            resultSummary: {
+              resultMode: { type: "PaginationMode" },
+              sampleTuples: [
+                [
+                  0,
+                  {
+                    schema: { attributes: [{ attributeName: "a", attributeType: "string" }] },
+                    fields: ["1"],
+                  },
+                ],
+              ],
+              totalTuplesCount: 1,
+            },
+          },
         },
       });
 
       expect(latest?.has("op-1")).toBe(true);
-      expect(latest?.get("op-1")?.sampleRecords).toEqual([{ a: 1 }]);
+      expect(latest?.get("op-1")?.resultSummary?.resultMode).toEqual({ type: "PaginationMode" });
+      expect(latest?.get("op-1")?.resultSummary?.sampleTuples).toEqual([
+        [
+          0,
+          {
+            schema: { attributes: [{ attributeName: "a", attributeType: "string" }] },
+            fields: ["1"],
+          },
+        ],
+      ]);
     });
 
     it("falls back to empty results when the request fails", () => {
-      let latest: Map<string, OperatorResultSummary> | undefined;
-      service.operatorResultSummaries$.subscribe(m => (latest = m));
+      let latest: Map<string, OperatorExecutionSummary> | undefined;
+      service.operatorExecutionSummaries$.subscribe(m => (latest = m));
 
       service.fetchOperatorResults("agent-1");
 
@@ -639,6 +669,20 @@ describe("AgentService", () => {
         seedAgent("agent-1");
         service.sendMessage("agent-1", "hi");
         expect(notification.error).toHaveBeenCalledWith("WebSocket connection not available");
+      });
+
+      it("carries the warehouse picked right now, not the one fixed at agent creation", () => {
+        // An agent created before the picker loaded would otherwise carry no
+        // warehouse for its whole life and every run would be refused (#7751).
+        seedAgent("agent-1");
+        service.activateAgent("agent-1");
+        const ws = FakeWebSocket.latest();
+        ws.readyState = FakeWebSocket.OPEN;
+        selectedWarehouseId = 42;
+
+        service.sendMessage("agent-1", "run it");
+
+        expect(JSON.parse(ws.send.mock.calls[0][0]).warehouseId).toBe(42);
       });
 
       it("sends a WsClientPromptCommand carrying the message source over an open socket", () => {
@@ -1201,15 +1245,6 @@ describe("AgentService", () => {
 
       expect(seen).toEqual([true, false]);
       expect(service.getShowPortShapes()).toBe(false);
-    });
-
-    it("requestScrollToStep broadcasts the scroll target", () => {
-      let target: { agentId: string; messageId: string; stepId: number } | undefined;
-      service.scrollToStep$.subscribe(t => (target = t));
-
-      service.requestScrollToStep("agent-1", "m1", 4);
-
-      expect(target).toEqual({ agentId: "agent-1", messageId: "m1", stepId: 4 });
     });
   });
 

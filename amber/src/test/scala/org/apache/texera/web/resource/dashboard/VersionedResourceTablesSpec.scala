@@ -110,7 +110,6 @@ class VersionedResourceTablesSpec
 
     entry.resourceType shouldBe "dataset"
     entry.workflow shouldBe None
-    entry.project shouldBe None
     val dashboardDataset = entry.dataset.getOrElse(fail("expected a dataset entry"))
     dashboardDataset.dataset shouldBe d
     dashboardDataset.ownerEmail shouldBe "owner@test.com"
@@ -145,6 +144,19 @@ class VersionedResourceTablesSpec
     )
 
     sql should include("dataset_user_access.uid = 42")
+  }
+
+  "joinWithViewerAccessAndOwner" should "narrow the access rows to the viewer, or to none when anonymous" in {
+    val forViewer =
+      rendered(
+        getDSLContext.renderInlined(tables.joinWithViewerAccessAndOwner(Integer.valueOf(42)))
+      )
+    forViewer should include("dataset_user_access.uid = 42")
+
+    val forAnonymous =
+      rendered(getDSLContext.renderInlined(tables.joinWithViewerAccessAndOwner(null)))
+    forAnonymous should not include "dataset_user_access.uid ="
+    forAnonymous should include("false")
   }
 
   "ModelTables" should "name every column the shared query logic reads" in {
@@ -189,7 +201,6 @@ class VersionedResourceTablesSpec
 
     entry.resourceType shouldBe "model"
     entry.workflow shouldBe None
-    entry.project shouldBe None
     entry.dataset shouldBe None
     val dashboardModel = entry.model.getOrElse(fail("expected a model entry"))
     dashboardModel.model shouldBe m

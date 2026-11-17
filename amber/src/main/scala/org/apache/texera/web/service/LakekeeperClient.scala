@@ -87,7 +87,7 @@ class LakekeeperClient(
 
   /**
     * Creates a warehouse backed by this deployment's own object store (the Local flavor):
-    * the storage profile points at the configured MinIO/S3 endpoint and bucket, with the
+    * the storage profile points at the configured S3 endpoint and bucket, with the
     * platform's static credentials and STS off.
     *
     * @return the Lakekeeper-assigned warehouse id.
@@ -218,8 +218,7 @@ class LakekeeperClient(
   ): List[String] = {
     val results = ListBuffer[String]()
     var pageToken: Option[String] = None
-    var more = true
-    while (more) {
+    do {
       val request = Unirest.get(url)
       pageToken.foreach(request.queryString("pageToken", _))
       val response = request.asString()
@@ -233,8 +232,7 @@ class LakekeeperClient(
         .filterNot(_.isNull)
         .map(_.asText())
         .filter(_.nonEmpty)
-      more = pageToken.isDefined
-    }
+    } while (pageToken.isDefined)
     results.toList
   }
 }

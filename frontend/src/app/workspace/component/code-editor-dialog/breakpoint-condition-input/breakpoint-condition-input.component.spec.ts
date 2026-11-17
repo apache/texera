@@ -54,7 +54,6 @@ describe("BreakpointConditionInputComponent", () => {
         }) as HTMLDivElement,
       getBottomForLineNumber: () => 40,
       getScrollTop: () => 5,
-      getScrollLeft: () => 0,
       dispose: vi.fn(),
     } as unknown as editor.IStandaloneCodeEditor;
 
@@ -78,46 +77,6 @@ describe("BreakpointConditionInputComponent", () => {
    * expectation below is a specific number rather than a zero that jsdom would produce anyway.
    */
   describe("popup placement", () => {
-    it("offsets left by the glyph margin and the fixed popup width", () => {
-      // 30 (rect.left) + 10 (glyphMarginLeft) - 0 (scrollLeft) - 160 (popup width)
-      expect(component.left()).toBe(-120);
-    });
-
-    it("places the top at the bottom of the target line, less the scroll offset", () => {
-      // 20 (rect.top) + 40 (line bottom) - 5 (scrollTop)
-      expect(component.top()).toBe(55);
-    });
-
-    it("subtracts the horizontal scroll offset", () => {
-      // Only left() reads scrollLeft; a copy-paste of top()'s body would miss this.
-      component.monacoEditor = {
-        ...component.monacoEditor,
-        getScrollLeft: () => 25,
-      } as unknown as editor.IStandaloneCodeEditor;
-
-      expect(component.left()).toBe(-145);
-    });
-
-    it("falls back to 0 rather than throwing when there is no editor yet", () => {
-      const stub = component.monacoEditor;
-      component.monacoEditor = undefined as unknown as editor.IStandaloneCodeEditor;
-      try {
-        // The guards exist because the popup can be rendered a tick before the editor is attached.
-        expect(component.left()).toBe(0);
-        expect(component.top()).toBe(0);
-      } finally {
-        // afterEach disposes the editor, so put the stub back.
-        component.monacoEditor = stub;
-      }
-    });
-
-    it("falls back to 0 for top() when no line is targeted", () => {
-      component.lineNum = undefined;
-      expect(component.top()).toBe(0);
-      // left() does not depend on the line, so it still resolves.
-      expect(component.left()).toBe(-120);
-    });
-
     it("writes both css offsets when the target line changes", () => {
       mockUdfDebugService.getCondition.mockReturnValue("x > 1");
       component.lineNum = 3;
@@ -142,7 +101,6 @@ describe("BreakpointConditionInputComponent", () => {
         getDomNode: () => undefined,
         getBottomForLineNumber: () => 40,
         getScrollTop: () => 5,
-        getScrollLeft: () => 0,
         dispose: vi.fn(),
       } as unknown as editor.IStandaloneCodeEditor;
       component.lineNum = 3;
@@ -156,8 +114,6 @@ describe("BreakpointConditionInputComponent", () => {
       expect(component.topPosition).toBe("35px");
       // left: 0 (no rect) + 0 (glyph margin) - 160 (popup width)
       expect(component.leftPosition).toBe("-160px");
-      // top() reaches the same missing rect through its own fallback.
-      expect(component.top()).toBe(35);
     });
 
     it("defaults the condition to empty when the debugger holds none for that line", () => {

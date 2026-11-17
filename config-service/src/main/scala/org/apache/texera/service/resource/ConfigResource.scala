@@ -24,12 +24,13 @@ import io.dropwizard.auth.Auth
 import jakarta.annotation.security.{PermitAll, RolesAllowed}
 import jakarta.ws.rs.core.{MediaType, Response}
 import jakarta.ws.rs.{Consumes, GET, POST, PUT, Path, PathParam, Produces}
-import org.apache.texera.auth.SessionUser
+import org.apache.texera.auth.{InviteOnly, SessionUser}
 import org.apache.texera.common.config.{
   ApplicationConfig,
   ComputingUnitConfig,
   DefaultsConfig,
   GuiConfig,
+  StorageConfig,
   UserSystemConfig
 }
 import org.apache.texera.dao.{SiteSettings, SqlServer}
@@ -55,7 +56,7 @@ class ConfigResource {
   // Anonymous endpoint loaded by the frontend's APP_INITIALIZER before any user has
   // logged in. Only fields that the login page (or the logged-out branches of the
   // dashboard shell) actually need belong here — anything else lives on /gui or
-  // /user-system, both of which require authentication.
+  // /amber, both of which require authentication.
   @GET
   @PermitAll
   @Path("/pre-login")
@@ -63,13 +64,17 @@ class ConfigResource {
     Map(
       "localLogin" -> GuiConfig.guiLoginLocalLogin,
       "googleLogin" -> GuiConfig.guiLoginGoogleLogin,
+      "orcidLogin" -> GuiConfig.guiLoginOrcidLogin,
+      "appleLogin" -> GuiConfig.guiLoginAppleLogin,
       "defaultLocalUser" -> Map(
         "username" -> GuiConfig.guiLoginDefaultLocalUserUsername,
         "password" -> GuiConfig.guiLoginDefaultLocalUserPassword
       ),
       "attributionEnabled" -> GuiConfig.guiAttributionEnabled,
       "deploymentVersionCheckEnabled" -> GuiConfig.guiDeploymentVersionCheckEnabled,
-      "inviteOnly" -> UserSystemConfig.inviteOnly,
+      // Read per request: admins switch it on the settings page, and the sign-up form uses it to
+      // say whether a new account has to wait for an admin.
+      "inviteOnly" -> InviteOnly.enabled,
       // The sign-up form decides whether to expect a code step before anyone has a token, so this
       // has to be readable anonymously.
       "emailVerification" -> UserSystemConfig.emailVerification
@@ -93,13 +98,16 @@ class ConfigResource {
       "defaultExecutionMode" -> GuiConfig.guiWorkflowWorkspaceDefaultExecutionMode,
       "workflowEmailNotificationEnabled" -> GuiConfig.guiWorkflowWorkspaceWorkflowEmailNotificationEnabled,
       "sharingComputingUnitEnabled" -> ComputingUnitConfig.sharingComputingUnitEnabled,
+      "warehouseEnabled" -> StorageConfig.warehouseEnabled,
       "operatorConsoleMessageBufferSize" -> GuiConfig.guiWorkflowWorkspaceOperatorConsoleMessageBufferSize,
       "pythonLanguageServerPort" -> GuiConfig.guiWorkflowWorkspacePythonLanguageServerPort,
       "activeTimeInMinutes" -> GuiConfig.guiWorkflowWorkspaceActiveTimeInMinutes,
       "copilotEnabled" -> GuiConfig.guiWorkflowWorkspaceCopilotEnabled,
+      "aiFixModel" -> GuiConfig.guiWorkflowWorkspaceAiFixModel,
       "limitColumns" -> GuiConfig.guiWorkflowWorkspaceLimitColumns,
       "pythonNotebookMigrationEnabled" -> GuiConfig.guiWorkflowWorkspacePythonNotebookMigrationEnabled,
-      "pythonNotebookMigrationTimeoutMinutes" -> GuiConfig.guiWorkflowWorkspacePythonNotebookMigrationTimeoutMinutes
+      "pythonNotebookMigrationTimeoutMinutes" -> GuiConfig.guiWorkflowWorkspacePythonNotebookMigrationTimeoutMinutes,
+      "rNotebookMigrationEnabled" -> GuiConfig.guiWorkflowWorkspaceRNotebookMigrationEnabled
     )
 
   // Engine configs.
@@ -109,15 +117,6 @@ class ConfigResource {
   def getAmberConfig: Map[String, Any] =
     Map(
       "defaultDataTransferBatchSize" -> ApplicationConfig.defaultDataTransferBatchSize
-    )
-
-  @GET
-  @RolesAllowed(Array("REGULAR", "ADMIN"))
-  @Path("/user-system")
-  def getUserSystemConfig: Map[String, Any] =
-    Map(
-      // flags from the user-system.conf
-      "inviteOnly" -> UserSystemConfig.inviteOnly
     )
 
   // The site_settings keys that non-admin pages consume: dashboard branding,

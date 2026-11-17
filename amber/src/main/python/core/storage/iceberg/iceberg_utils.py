@@ -21,6 +21,7 @@ from urllib.parse import urlparse
 
 import pyarrow as pa
 import pyiceberg.table
+from fsspec.config import conf as fsspec_conf
 from pyiceberg.catalog import Catalog, load_catalog
 from pyiceberg.catalog.sql import SqlCatalog
 from pyiceberg.expressions import AlwaysTrue
@@ -233,6 +234,9 @@ def create_rest_catalog(
     :param rest_uri: the URI of the REST catalog endpoint.
     :return: a Catalog instance (REST catalog).
     """
+    # PyIceberg caches filesystems per FileIO thread. The additional global S3
+    # cache shares mutable signers between them: apache/iceberg-python#3896.
+    fsspec_conf.setdefault("s3", {})["skip_instance_cache"] = True
     # No Windows-local normalization here (unlike create_postgres_catalog):
     # `warehouse_name` is a logical warehouse identifier resolved by the REST
     # server, whose I/O goes through S3FileIO, not the local filesystem.

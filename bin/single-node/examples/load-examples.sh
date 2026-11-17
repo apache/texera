@@ -27,7 +27,15 @@ TEXERA_DASHBOARD_SERVICE_URL=${TEXERA_DASHBOARD_SERVICE_URL:-"http://dashboard-s
 TEXERA_FILE_SERVICE_URL=${TEXERA_FILE_SERVICE_URL:-"http://file-service:9092/api"}
 USERNAME=${TEXERA_EXAMPLE_USERNAME:-"texera"}
 PASSWORD=${TEXERA_EXAMPLE_PASSWORD:-"texera"}
-OWNER_EMAIL="$USERNAME@example.com"
+# Email this script registers the account with, on the path where it has to
+# create one. The server requires an `@`-shaped address here.
+REGISTER_EMAIL="$USERNAME@example.com"
+# The account's real email, resolved from the access token in authenticate().
+# It is not derivable from $USERNAME: a freshly registered account carries
+# $REGISTER_EMAIL, while an admin seeded from USER_SYS_ADMIN_USERNAME carries
+# the username itself (AuthResource.createAdminUser). file-service looks
+# datasets up by owner email, so guessing it fails every upload (#8721).
+OWNER_EMAIL=""
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 DATASET_DIR="$SCRIPT_DIR/datasets"
@@ -35,6 +43,12 @@ WORKFLOW_DIR="$SCRIPT_DIR/workflows"
 
 MAX_RETRIES=60
 RETRY_INTERVAL=5
+
+# Counts print_error calls so main() can exit non-zero. Each failure below is
+# deliberately non-fatal so one bad file does not abandon the rest, but they
+# used to leave no trace at all: the loader reported success even when nothing
+# was uploaded (#8721).
+FAILURES=0
 
 # Color codes for output
 GREEN='\033[0;32m'
@@ -47,11 +61,39 @@ print_status() {
 }
 
 print_error() {
+    FAILURES=$((FAILURES + 1))
     echo -e "${RED}[ERROR]${NC} $1"
 }
 
 print_warn() {
     echo -e "${YELLOW}[WARN]${NC} $1"
+}
+
+# Read one claim out of a server-issued JWT's payload. Only the payload is
+# decoded: the token came back from our own authenticated call, so there is
+# nothing to verify here -- this just avoids guessing a value the server has
+# already told us. jq does the base64 work because the `base64` binary's decode
+# flag differs between GNU and BSD, and this script's tests run on both.
+jwt_claim() {
+    local payload="$1" claim="$2"
+    payload=$(printf '%s' "$payload" | cut -d. -f2)
+    while [ $(( ${#payload} % 4 )) -ne 0 ]; do
+        payload="${payload}="
+    done
+    printf '%s' "$payload" \
+        | jq -Rr --arg c "$claim" '(gsub("-";"+") | gsub("_";"/") | @base64d | fromjson)[$c] // empty'
+}
+
+# Resolve the authenticated account's email. file-service identifies a dataset
+# by (ownerEmail, datasetName), so this has to be the address the server
+# actually stored for this account.
+resolve_owner_email() {
+    OWNER_EMAIL=$(jwt_claim "$TOKEN" email 2>/dev/null || true)
+    if [ -z "$OWNER_EMAIL" ]; then
+        print_error "Could not read the 'email' claim from the access token"
+        return 1
+    fi
+    print_status "Owner email resolved as '$OWNER_EMAIL'"
 }
 
 # Wait for a service to become healthy
@@ -86,17 +128,19 @@ authenticate() {
     if echo "$LOGIN_RESPONSE" | grep -q '"accessToken"'; then
         TOKEN=$(echo "$LOGIN_RESPONSE" | grep -o '"accessToken":"[^"]*' | cut -d'"' -f4)
         print_status "Login successful"
+        resolve_owner_email || return 1
         return 0
     fi
 
     print_status "User doesn't exist, attempting to register..."
     REGISTER_RESPONSE=$(curl -s -X POST "$TEXERA_DASHBOARD_SERVICE_URL/auth/register" \
         -H "Content-Type: application/json" \
-        -d "{\"username\": \"$USERNAME\", \"email\": \"$OWNER_EMAIL\", \"password\": \"$PASSWORD\"}")
+        -d "{\"username\": \"$USERNAME\", \"email\": \"$REGISTER_EMAIL\", \"password\": \"$PASSWORD\"}")
 
     if echo "$REGISTER_RESPONSE" | grep -q '"accessToken"'; then
         TOKEN=$(echo "$REGISTER_RESPONSE" | grep -o '"accessToken":"[^"]*' | cut -d'"' -f4)
         print_status "Registration successful"
+        resolve_owner_email || return 1
         return 0
     fi
 
@@ -261,8 +305,7 @@ load_workflows() {
             wid=$(echo "$response" | grep -o '"wid":[0-9]*' | cut -d':' -f2)
             print_status "Workflow '$workflow_name' created with ID $wid"
         else
-            print_error "Failed to create workflow '$workflow_name'"
-            print_error "Response: $response"
+            print_error "Failed to create workflow '$workflow_name': $response"
         fi
     done
 
@@ -280,6 +323,11 @@ main() {
 
     load_datasets
     load_workflows
+
+    if [ "$FAILURES" -ne 0 ]; then
+        echo -e "${RED}[ERROR]${NC} === Example data loading finished with $FAILURES error(s) ==="
+        return 1
+    fi
 
     print_status "=== Example data loading complete ==="
 }

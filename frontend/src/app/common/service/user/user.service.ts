@@ -67,6 +67,16 @@ export class UserService {
       .pipe(switchMap(({ accessToken }) => this.handleAccessToken(accessToken)));
   }
 
+  public orcidLogin(code: string): Observable<void> {
+    return this.authService.orcidAuth(code).pipe(switchMap(({ accessToken }) => this.handleAccessToken(accessToken)));
+  }
+
+  public appleLogin(credential: string): Observable<void> {
+    return this.authService
+      .appleAuth(credential)
+      .pipe(switchMap(({ accessToken }) => this.handleAccessToken(accessToken)));
+  }
+
   public isLogin(): boolean {
     return this.currentUser !== undefined;
   }
@@ -126,9 +136,10 @@ export class UserService {
 
   // Returns Observable<void> rather than void so callers (login / googleLogin /
   // register) can switchMap through the post-login config fetch. The /config/gui
-  // and /config/user-system endpoints are @RolesAllowed, so we must wait for the
-  // new JWT to be in localStorage before they will answer; loginWithExistingToken
-  // also reads config.env.inviteOnly, so it must run after loadPostLogin resolves.
+  // and /config/amber endpoints are @RolesAllowed, so we must wait for the
+  // new JWT to be in localStorage before they will answer; the user change that
+  // loginWithExistingToken feeds renders from that config, so it runs after
+  // loadPostLogin resolves.
   private handleAccessToken(accessToken: string): Observable<void> {
     AuthService.setAccessToken(accessToken);
     return this.config.loadPostLogin().pipe(

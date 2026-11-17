@@ -30,9 +30,10 @@ import org.apache.texera.dao.jooq.generated.enums.PrivilegeEnum
 import org.apache.texera.dao.jooq.generated.tables.daos.{UserDao, WorkflowComputingUnitDao}
 import org.apache.texera.dao.jooq.generated.tables.pojos.WorkflowComputingUnit
 import org.apache.texera.service.resource.ComputingUnitManagingResource.DashboardWorkflowComputingUnit
-import org.apache.texera.service.util.ComputingUnitHelpers
+import org.apache.texera.service.util.{ClusterCapacity, ComputingUnitHelpers}
 import org.jooq.DSLContext
 
+import scala.annotation.unused
 import scala.jdk.CollectionConverters.CollectionHasAsScala
 
 object AdminComputingUnitResource {
@@ -73,7 +74,7 @@ class AdminComputingUnitResource {
         .asScala
         .toList
 
-    val podPhases = ComputingUnitHelpers.podPhasesFor(activeUnits)
+    val podSnapshots = ComputingUnitHelpers.podSnapshotsFor(activeUnits)
 
     // Wrap only the reconcile write, not the Kubernetes round trips above: keeps a pooled
     // connection from being held open across them, while the transaction makes the batchUpdate
@@ -83,7 +84,7 @@ class AdminComputingUnitResource {
       ComputingUnitHelpers.reconcileVanishedKubernetesUnits(
         new WorkflowComputingUnitDao(txCtx.configuration()),
         activeUnits,
-        podPhases
+        podSnapshots
       )
     }
 
@@ -97,11 +98,21 @@ class AdminComputingUnitResource {
       ComputingUnitHelpers.buildDashboardUnit(
         unit,
         isOwner = unit.getUid.equals(user.getUid),
+        canViewStatusReason = true,
         accessPrivilege = PrivilegeEnum.WRITE,
         ownerInfo = ownerInfo,
-        podPhases = podPhases,
+        podSnapshots = podSnapshots,
         podMetrics = podMetrics
       )
     }
   }
+
+  /**
+    * Cluster CPU, memory and GPU as total, allocated and available, an upper bound for a new unit
+    * (ADMIN-only). 404 when units do not run on Kubernetes.
+    */
+  @GET
+  @Path("/cluster-capacity")
+  def getClusterCapacity(@Auth @unused user: SessionUser): ClusterCapacity =
+    ComputingUnitHelpers.clusterCapacity()
 }

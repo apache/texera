@@ -49,7 +49,7 @@ import org.apache.texera.amber.engine.architecture.rpc.controlreturns.WorkflowAg
   PAUSED
 }
 import org.apache.texera.amber.engine.common.client.AmberClient
-import org.apache.texera.amber.operator.LogicalOp
+import org.apache.texera.amber.operator.{LogicalOp, TestOperators}
 import org.apache.texera.dao.SqlServer
 import org.apache.texera.dao.jooq.generated.enums.UserRoleEnum
 import org.apache.texera.dao.jooq.generated.tables.daos.{
@@ -65,7 +65,7 @@ import org.apache.texera.dao.jooq.generated.tables.pojos.{
   Workflow => WorkflowPojo
 }
 import org.apache.texera.common.compiler.model.LogicalPlanPojo
-import org.apache.texera.web.resource.dashboard.user.workflow.WorkflowExecutionsResource.getResultUriByLogicalPortId
+import org.apache.texera.amber.core.storage.ExecutionResultUris.getResultUriByLogicalPortId
 import org.apache.texera.web.service.ExecutionResultService
 import org.apache.texera.common.compiler.model.LogicalLink
 import org.apache.texera.common.compiler.{CompilationErrorHandling, WorkflowCompiler}
@@ -93,9 +93,8 @@ object TestUtils {
       links: List[LogicalLink],
       context: WorkflowContext
   ): Workflow = {
-    val workflowCompiler = new WorkflowCompiler(
-      context
-    )
+    // the scan sources in these tests read fixture files on the local disk
+    val workflowCompiler = new WorkflowCompiler(context, TestOperators.fixtureFileResolver)
     // Execution path: strict, fail-fast on compilation errors. Strict guarantees
     // a defined physicalPlan (errors throw rather than clearing it).
     val compilationResult = workflowCompiler.compile(
@@ -231,20 +230,10 @@ object TestUtils {
     org.apache.texera.dao.MockTexeraDB.ensureInitialized()
     val embedded = org.apache.texera.dao.MockTexeraDB.getDBInstance
 
-    val dbName = "texera_db_for_test_cases_" + java.util.UUID.randomUUID().toString.replace("-", "")
+    val dbName =
+      "texera_db_for_test_cases_" + java.util.UUID.randomUUID().toString.replace("-", "")
 
-    scala.util.Using.resource(embedded.getPostgresDatabase.getConnection) { conn =>
-      scala.util.Using.resource(conn.createStatement()) { stmt =>
-        stmt.execute(s"CREATE DATABASE $dbName")
-      }
-    }
-
-    scala.util.Using.resource(embedded.getDatabase("postgres", dbName).getConnection) {
-      targetDbConn =>
-        scala.util.Using.resource(targetDbConn.createStatement()) { stmt =>
-          stmt.execute(org.apache.texera.dao.MockTexeraDB.getDDLScript)
-        }
-    }
+    org.apache.texera.dao.MockTexeraDB.createTestDatabase(dbName)
 
     SqlServer.initConnection(
       embedded.getJdbcUrl("postgres", dbName),

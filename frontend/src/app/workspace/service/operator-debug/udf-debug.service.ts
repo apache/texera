@@ -155,8 +155,8 @@ export class UdfDebugService {
    */
   private registerOperatorStateChangeHandler(operatorId: string) {
     this.workflowStatusService
-      .getStatusUpdateStream()
-      .pipe(filter(event => event[operatorId]?.operatorState === OperatorState.Uninitialized))
+      .getStateUpdateStream()
+      .pipe(filter(event => event[operatorId] === OperatorState.Uninitialized))
       .subscribe(() => this.getDebugState(operatorId).clear());
   }
 

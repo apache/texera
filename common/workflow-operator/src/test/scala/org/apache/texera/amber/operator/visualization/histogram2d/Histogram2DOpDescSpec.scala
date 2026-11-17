@@ -19,12 +19,21 @@
 
 package org.apache.texera.amber.operator.visualization.histogram2d
 
+import org.apache.texera.amber.util.PythonTestSupport.{
+  NeedsPythonPackages,
+  canImportWithin,
+  configuredPython,
+  runSource
+}
 import org.apache.texera.amber.core.tuple.{AttributeType, Schema}
 import org.apache.texera.amber.operator.LogicalOp
 import org.apache.texera.amber.operator.metadata.OperatorGroupConstants
+import org.apache.texera.amber.pybuilder.PythonTemplateBuilder.pyStringLiteral
 import org.apache.texera.amber.util.JSONUtils.objectMapper
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
+
+import java.nio.file.Files
 
 class Histogram2DOpDescSpec extends AnyFlatSpec with Matchers {
 
@@ -89,5 +98,44 @@ class Histogram2DOpDescSpec extends AnyFlatSpec with Matchers {
     h.xBins shouldBe 20
     h.yBins shouldBe 5
     h.normalize shouldBe NormalizationType.PROBABILITY
+  }
+
+  // The operator answers with a page: the engine emits `html-content`, and the two
+  // branches that cannot draw write that page themselves. A drawn chart owes the
+  // same file, and the JSON beside it is what the comparison reads.
+  "Histogram2DOpDesc.generateStandaloneCode" should "write the page as well as the figure" in {
+    val code = configured().generateStandaloneCode()
+    code should include("fig.write_json(outputJson)")
+    code should include("fig.write_html(outputHtml)")
+    // The branches that draw nothing, which already wrote the page.
+    code should include("""output.write(render_error("Input table is empty."))""")
+    code should include("""output.write(render_error("No rows after dropping nulls."))""")
+  }
+
+  it should "leave both files behind when it runs" taggedAs NeedsPythonPackages in {
+    val python = configuredPython().getOrElse(cancel("No runnable python executable"))
+    if (!canImportWithin(python, 120, "pandas", "plotly"))
+      cancel(s"'$python' cannot import pandas and plotly")
+
+    val dir = Files.createTempDirectory("histogram2d-outputs-")
+    val json = dir.resolve("output.json")
+    val html = dir.resolve("output.html")
+    val driver =
+      s"""import pandas as pd
+         |
+         |outputJson = ${pyStringLiteral(json.toString)}
+         |outputHtml = ${pyStringLiteral(html.toString)}
+         |in1df = pd.DataFrame({"x": [1.0, 2.0, 3.0, 4.0], "y": [2.0, 1.0, 4.0, 3.0]})
+         |${configured().generateStandaloneCode()}
+         |""".stripMargin
+
+    val (exitCode, out) = runSource(python, "histogram2d-", driver, timeoutSeconds = 300)
+    withClue(s"python said:\n$out\nscript:\n$driver") {
+      exitCode shouldBe 0
+      Files.exists(json) shouldBe true
+      Files.exists(html) shouldBe true
+      Files.size(json) should be > 0L
+      Files.size(html) should be > 0L
+    }
   }
 }

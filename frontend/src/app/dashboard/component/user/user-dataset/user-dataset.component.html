@@ -99,6 +99,6 @@
     [viewMode]="viewType"
     [cardTemplate]="datasetCardTpl"
     (deleted)="deleteDataset($event)"
-    (refresh)="ngAfterViewInit()"
+    (refresh)="search(true)"
     [currentUid]="currentUid"></texera-search-results>
 </div>

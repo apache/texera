@@ -1,0 +1,372 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
+ */
+
+package org.apache.texera.service.resource
+
+import jakarta.ws.rs.{BadRequestException, ForbiddenException}
+import jakarta.ws.rs.core.Response
+import org.apache.texera.auth.util.OwnerAccess
+import org.apache.texera.dao.jooq.generated.Tables.{DATASET, MODEL, USER}
+import org.apache.texera.dao.jooq.generated.enums.PrivilegeEnum
+import org.jooq.{DSLContext, EnumType, Record, Record1}
+
+import scala.jdk.CollectionConverters._
+
+/**
+  * Ownership and privilege rules shared by every access-controlled resource.
+  *
+  * A resource is readable when it is public, or the caller owns it, or the caller holds an
+  * explicit grant; it is writable when the caller owns it or holds a WRITE grant.
+  */
+object ResourceAccess {
+
+  /** One shared grant, as returned by the access-list endpoints. */
+  case class AccessEntry(email: String, name: String, privilege: EnumType) {}
+
+  /** All matching IDs in each resource table, so mounts can reject ambiguous legacy names. */
+  private[service] def repositoryIds(
+      ctx: DSLContext,
+      repositoryName: String
+  ): (List[Integer], List[Integer]) = {
+    val datasetIds = ctx
+      .select(DATASET.DID)
+      .from(DATASET)
+      .where(DATASET.REPOSITORY_NAME.eq(repositoryName))
+      .fetch(DATASET.DID)
+    val modelIds = ctx
+      .select(MODEL.MID)
+      .from(MODEL)
+      .where(MODEL.REPOSITORY_NAME.eq(repositoryName))
+      .fetch(MODEL.MID)
+    (datasetIds.asScala.toList, modelIds.asScala.toList)
+  }
+
+  def isPublic[R <: Record, A <: Record](
+      ctx: DSLContext,
+      resource: ResourceTables[R, A],
+      id: Integer
+  ): Boolean =
+    Option(
+      ctx
+        .select(resource.isPublicField)
+        .from(resource.table)
+        .where(resource.idField.eq(id))
+        .fetchOne()
+    ).flatMap(record => Option(record.value1()))
+      .exists(_.booleanValue())
+
+  private def ownerUid[R <: Record, A <: Record](
+      ctx: DSLContext,
+      resource: ResourceTables[R, A],
+      id: Integer
+  ): Option[Integer] =
+    Option(
+      ctx
+        .select(resource.ownerUidField)
+        .from(resource.table)
+        .where(resource.idField.eq(id))
+        .fetchOne()
+    ).flatMap(record => Option(record.value1()))
+
+  def userOwns[R <: Record, A <: Record](
+      ctx: DSLContext,
+      resource: ResourceTables[R, A],
+      id: Integer,
+      uid: Integer
+  ): Boolean =
+    ownerUid(ctx, resource, id).contains(uid)
+
+  /** The owner always has WRITE, whatever their own access row says. */
+  def privilegeOf[R <: Record, A <: Record](
+      ctx: DSLContext,
+      resource: ResourceTables[R, A],
+      id: Integer,
+      uid: Integer
+  ): PrivilegeEnum =
+    OwnerAccess.privilege(
+      userOwns(ctx, resource, id, uid),
+      ctx
+        .select(resource.privilegeField)
+        .from(resource.accessTable)
+        .where(
+          resource.accessIdField
+            .eq(id)
+            .and(resource.accessUidField.eq(uid))
+        )
+        .fetchOneInto(classOf[PrivilegeEnum])
+    )
+
+  def userHasWriteAccess[R <: Record, A <: Record](
+      ctx: DSLContext,
+      resource: ResourceTables[R, A],
+      id: Integer,
+      uid: Integer
+  ): Boolean =
+    privilegeOf(ctx, resource, id, uid) == PrivilegeEnum.WRITE
+
+  def userHasReadAccess[R <: Record, A <: Record](
+      ctx: DSLContext,
+      resource: ResourceTables[R, A],
+      id: Integer,
+      uid: Integer
+  ): Boolean =
+    isPublic(ctx, resource, id) || privilegeOf(ctx, resource, id, uid) != PrivilegeEnum.NONE
+
+  /** The owner's email row, or None when the resource does not exist; the email may be null. */
+  private def ownerEmailRow[R <: Record, A <: Record](
+      ctx: DSLContext,
+      resource: ResourceTables[R, A],
+      id: Integer
+  ): Option[Record1[String]] =
+    Option(
+      ctx
+        .select(USER.EMAIL)
+        .from(resource.table)
+        .join(USER)
+        .on(USER.UID.eq(resource.ownerUidField))
+        .where(resource.idField.eq(id))
+        .fetchOne()
+    )
+
+  /** The owner's email, or null when the resource does not exist. Does not check access. */
+  def ownerEmailOf[R <: Record, A <: Record](
+      ctx: DSLContext,
+      resource: ResourceTables[R, A],
+      id: Integer
+  ): String =
+    ownerEmailRow(ctx, resource, id).map(_.value1()).orNull
+
+  /**
+    * The owner's email.
+    *
+    * @throws jakarta.ws.rs.ForbiddenException if the caller cannot read the resource.
+    */
+  def ownerEmail[R <: Record, A <: Record](
+      ctx: DSLContext,
+      resource: ResourceTables[R, A],
+      id: Integer,
+      requesterUid: Integer
+  ): String = {
+    requireReadAccess(ctx, resource, id, requesterUid)
+    ownerEmailRow(ctx, resource, id).map(_.value1()).getOrElse("")
+  }
+
+  /**
+    * Everyone the resource is shared with, excluding the owner's own row.
+    *
+    * Read access is required rather than write,
+    *
+    * @throws jakarta.ws.rs.ForbiddenException if the caller cannot read the resource.
+    */
+  def accessList[R <: Record, A <: Record](
+      ctx: DSLContext,
+      resource: ResourceTables[R, A],
+      id: Integer,
+      requesterUid: Integer
+  ): java.util.List[AccessEntry] = {
+    requireReadAccess(ctx, resource, id, requesterUid)
+
+    ctx
+      .select(USER.EMAIL, USER.NAME, resource.privilegeField)
+      .from(resource.accessTable)
+      .join(USER)
+      .on(USER.UID.eq(resource.accessUidField))
+      .where(
+        resource.accessIdField
+          .eq(id)
+          .and(resource.accessUidField.notEqual(ownerUid(ctx, resource, id).orNull))
+      )
+      .fetchInto(classOf[AccessEntry])
+  }
+
+  /**
+    * Every resource of this type the user may see: the ones they own or hold an explicit grant on, plus
+    * every public one, with public entries dropped when they duplicate a granted entry.
+    *
+    * @param pojoClass  the generated POJO the resource table maps into
+    * @param idOf       reads the resource's id, used to de-duplicate the two passes
+    * @param fromGrant  builds an entry the user has an explicit grant on
+    * @param fromPublic builds an entry visible only because the resource is public
+    */
+  def listVisible[R <: Record, A <: Record, P, D](
+      ctx: DSLContext,
+      resource: ResourceTables[R, A],
+      uid: Integer,
+      pojoClass: Class[P],
+      idOf: P => Integer,
+      includePublic: Boolean = true
+  )(
+      fromGrant: (P, String, PrivilegeEnum, Boolean) => Option[D],
+      fromPublic: (P, String) => Option[D]
+  ): List[D] = {
+    // (id, entry) pairs so the public pass can skip ids already granted, without re-querying
+    val granted: List[(Integer, D)] = ctx
+      .select((resource.table.fields().toSeq ++ Seq(resource.privilegeField, USER.EMAIL)): _*)
+      .from(
+        resource.table
+          .leftJoin(resource.accessTable)
+          .on(resource.accessIdField.eq(resource.idField).and(resource.accessUidField.eq(uid)))
+          .leftJoin(USER)
+          .on(USER.UID.eq(resource.ownerUidField))
+      )
+      .where(resource.accessUidField.eq(uid).or(resource.ownerUidField.eq(uid)))
+      .fetch()
+      .asScala
+      .toList
+      .flatMap { record =>
+        val entity = record.into(resource.table).into(pojoClass)
+        val isOwner = record.get(resource.ownerUidField) == uid
+        val privilege =
+          OwnerAccess.privilege(
+            isOwner,
+            record.get(resource.privilegeField)
+          )
+        fromGrant(entity, record.get(USER.EMAIL), privilege, isOwner)
+          .map(entry => (idOf(entity), entry))
+      }
+
+    val public =
+      if (!includePublic) Nil
+      else {
+        val grantedIds = granted.map(_._1).toSet
+        ctx
+          .select((resource.table.fields().toSeq :+ USER.EMAIL): _*)
+          .from(
+            resource.table
+              .leftJoin(USER)
+              .on(USER.UID.eq(resource.ownerUidField))
+          )
+          .where(resource.isPublicField.eq(true))
+          .fetch()
+          .asScala
+          .toList
+          .flatMap { record =>
+            val entity = record.into(resource.table).into(pojoClass)
+            if (grantedIds.contains(idOf(entity))) None
+            else fromPublic(entity, record.get(USER.EMAIL))
+          }
+      }
+
+    granted.map(_._2) ++ public
+  }
+
+  /**
+    * Grants `privilege` to the user with `email`, replacing any privilege they already hold.
+    */
+  def grant[R <: Record, A <: Record](
+      ctx: DSLContext,
+      resource: ResourceTables[R, A],
+      id: Integer,
+      email: String,
+      privilege: String,
+      requesterUid: Integer
+  ): Response = {
+    requireWriteAccess(ctx, resource, id, requesterUid)
+    val granteeUid = OwnerAccess
+      .registeredUid(ctx, email)
+      .getOrElse(throw new BadRequestException(s"No registered user with email $email"))
+    OwnerAccess.requireNotOwner(userOwns(ctx, resource, id, granteeUid))
+    val granted = PrivilegeEnum.valueOf(privilege)
+
+    ctx
+      .insertInto(resource.accessTable)
+      .set(resource.accessIdField, id)
+      .set(resource.accessUidField, granteeUid)
+      .set(resource.privilegeField, granted)
+      .onConflict(resource.accessIdField, resource.accessUidField)
+      .doUpdate()
+      .set(resource.privilegeField, granted)
+      .execute()
+
+    Response.ok().build()
+  }
+
+  /**
+    * Removes the user's explicit grant; a no-op when they hold none.
+    *
+    * @throws jakarta.ws.rs.ForbiddenException if the caller cannot modify the resource, or the
+    *                                          user is its owner.
+    */
+  def revoke[R <: Record, A <: Record](
+      ctx: DSLContext,
+      resource: ResourceTables[R, A],
+      id: Integer,
+      email: String,
+      requesterUid: Integer
+  ): Response = {
+    requireWriteAccess(ctx, resource, id, requesterUid)
+    val granteeUid = ctx.select(USER.UID).from(USER).where(USER.EMAIL.eq(email)).fetchOne().value1()
+    OwnerAccess.requireNotOwner(userOwns(ctx, resource, id, granteeUid))
+
+    ctx
+      .delete(resource.accessTable)
+      .where(
+        resource.accessUidField
+          .eq(granteeUid)
+          .and(resource.accessIdField.eq(id))
+      )
+      .execute()
+
+    Response.ok().build()
+  }
+
+  private def requireWriteAccess[R <: Record, A <: Record](
+      ctx: DSLContext,
+      resource: ResourceTables[R, A],
+      id: Integer,
+      uid: Integer
+  ): Unit =
+    if (!userHasWriteAccess(ctx, resource, id, uid)) {
+      throw new ForbiddenException(
+        s"You do not have permission to modify ${resource.label} $id"
+      )
+    }
+
+  private def requireReadAccess[R <: Record, A <: Record](
+      ctx: DSLContext,
+      resource: ResourceTables[R, A],
+      id: Integer,
+      uid: Integer
+  ): Unit =
+    if (!userHasReadAccess(ctx, resource, id, uid)) {
+      throw new ForbiddenException(
+        s"You do not have access to ${resource.label} $id"
+      )
+    }
+
+  /**
+    * Emails of the owners of every resource the caller owns or has an explicit grant on, for the
+    * owner facet on list pages.
+    */
+  def ownerEmailsVisibleTo[R <: Record, A <: Record](
+      ctx: DSLContext,
+      resource: ResourceTables[R, A],
+      uid: Integer
+  ): java.util.List[String] =
+    ctx
+      .selectDistinct(USER.EMAIL)
+      .from(USER)
+      .join(resource.table)
+      .on(resource.ownerUidField.eq(USER.UID))
+      .leftJoin(resource.accessTable)
+      .on(resource.accessIdField.eq(resource.idField).and(resource.accessUidField.eq(uid)))
+      .where(resource.accessUidField.eq(uid).or(resource.ownerUidField.eq(uid)))
+      .fetchInto(classOf[String])
+
+}

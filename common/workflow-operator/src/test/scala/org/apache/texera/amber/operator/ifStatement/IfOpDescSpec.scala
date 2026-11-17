@@ -19,6 +19,12 @@
 
 package org.apache.texera.amber.operator.ifStatement
 
+import org.apache.texera.amber.util.PythonTestSupport.{
+  NeedsPythonPackages,
+  canImport,
+  configuredPython,
+  runSource
+}
 import org.apache.texera.amber.core.executor.OpExecWithClassName
 import org.apache.texera.amber.core.tuple.{Attribute, AttributeType, Schema}
 import org.apache.texera.amber.core.virtualidentity.{ExecutionIdentity, WorkflowIdentity}
@@ -75,5 +81,52 @@ class IfOpDescSpec extends AnyFlatSpec with Matchers {
       Map(PortIdentity() -> condSchema, PortIdentity(1) -> dataSchema)
     )
     out shouldBe Map(PortIdentity() -> dataSchema, PortIdentity(1) -> dataSchema)
+  }
+
+  "IfOpDesc.generateStandaloneCode" should
+    "name the switch after the condition so two Ifs in one script do not share it" in {
+    val op = new IfOpDesc
+    op.conditionName = "ready"
+    op.generateStandaloneCode() should include("\"_texera_if_ready\"")
+  }
+
+  // The engine picks the route from a State message, which the verification
+  // harness has no channel for, so False is only reachable here.
+  it should "send the rows to True by default and to False when the switch is off" taggedAs NeedsPythonPackages in {
+    val python = configuredPython().getOrElse(cancel("No runnable python executable"))
+    if (!canImport(python, "pandas")) cancel(s"'$python' cannot import pandas")
+
+    val op = new IfOpDesc
+    op.conditionName = "ready"
+    val body = op.generateStandaloneCode().linesIterator.map("    " + _).mkString("\n")
+
+    val driver =
+      s"""import pandas as pd
+         |import sys
+         |
+         |for _switch in (None, True, False):
+         |    in2df = pd.DataFrame({"id": [1, 2, 3]})
+         |    if _switch is None:
+         |        globals().pop("_texera_if_ready", None)
+         |    else:
+         |        globals()["_texera_if_ready"] = _switch
+         |$body
+         |    print(_switch, list(out1df["id"]), list(out2df["id"]))
+         |""".stripMargin
+
+    val (exitCode, out) = runSource(python, "if-standalone-", driver)
+
+    withClue(s"python said:\n$out\nscript:\n$driver") {
+      exitCode shouldBe 0
+      val lines = out.trim.linesIterator.toSeq
+      // out1df is the False port, out2df the True port. Each route has to be
+      // exclusive: the rows leave by one and the other comes back empty.
+      lines should contain("None [] [1, 2, 3]")
+      lines should contain("True [] [1, 2, 3]")
+      lines should contain("False [1, 2, 3] []")
+      // Only the unset switch takes True without being told to, so it alone
+      // says so.
+      lines.count(_.contains("_texera_if_ready = False before this step")) shouldBe 1
+    }
   }
 }

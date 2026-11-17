@@ -20,6 +20,7 @@
 import { Component, OnInit } from "@angular/core";
 import { FormBuilder, FormGroup, Validators, FormsModule, ReactiveFormsModule } from "@angular/forms";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
+import { merge } from "rxjs";
 import { WorkflowActionService } from "../../../service/workflow-graph/model/workflow-action.service";
 import { WorkflowPersistService } from "src/app/common/service/workflow-persist/workflow-persist.service";
 import { UserService } from "../../../../common/service/user/user.service";
@@ -71,8 +72,11 @@ export class SettingsComponent implements OnInit {
         this.updateExecutionMode(mode);
       });
 
-    this.workflowActionService
-      .workflowChanged()
+    // The settings can move without the form: undo/redo, a reloaded workflow (workflowChanged), or
+    // a co-editor's edit, which arrives on workflowSettingsChanged$ alone -- a settings change is
+    // not part of workflowChanged, since this panel persists its own and the autosave behind
+    // workflowChanged would save it a second time.
+    merge(this.workflowActionService.workflowChanged(), this.workflowActionService.workflowSettingsChanged$)
       .pipe(untilDestroyed(this))
       .subscribe(() => {
         this.settingsForm.patchValue(

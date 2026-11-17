@@ -28,20 +28,23 @@ import org.apache.texera.amber.core.workflow.{OutputPort, PhysicalOp, SchemaProp
 import org.apache.texera.amber.operator.metadata.{OperatorGroupConstants, OperatorInfo}
 import org.apache.texera.amber.operator.source.SourceOperatorDescriptor
 
-class RUDFSourceOpDesc extends SourceOperatorDescriptor {
+class RUDFSourceOpDesc extends SourceOperatorDescriptor with RUdfUiParameterSupport {
 
   @JsonProperty(
     required = true,
-    defaultValue = "# If using Table API:\n" +
-      "# function() { \n" +
-      "#   return (data.frame(Column_Here = \"Value_Here\")) \n" +
-      "# }\n" +
-      "\n" +
-      "# If using Tuple API:\n" +
-      "# library(coro)\n" +
-      "# coro::generator(function() {\n" +
-      "#   yield (list(text= \"hello world!\"))\n" +
-      "# })"
+    defaultValue =
+      "# Example UI parameter: count <- UiParameter(\"count\", AttributeType$INT)$value\n" +
+        "# Use value=Resource$MODEL or Resource$DATASET for a version selection.\n" +
+        "# If using Table API:\n" +
+        "# function() { \n" +
+        "#   return (data.frame(Column_Here = \"Value_Here\")) \n" +
+        "# }\n" +
+        "\n" +
+        "# If using Tuple API:\n" +
+        "# library(coro)\n" +
+        "# coro::generator(function() {\n" +
+        "#   yield (list(text= \"hello world!\"))\n" +
+        "# })"
   )
   @JsonSchemaTitle("R Source UDF Script")
   @JsonPropertyDescription("Input your code here")
@@ -66,7 +69,6 @@ class RUDFSourceOpDesc extends SourceOperatorDescriptor {
       workflowId: WorkflowIdentity,
       executionId: ExecutionIdentity
   ): PhysicalOp = {
-    val rOperatorType = if (useTupleAPI) "r-tuple" else "r-table"
     require(workers >= 1, "Need at least 1 worker.")
 
     val physicalOp = PhysicalOp
@@ -74,7 +76,7 @@ class RUDFSourceOpDesc extends SourceOperatorDescriptor {
         workflowId,
         executionId,
         operatorIdentifier,
-        OpExecWithCode(code, rOperatorType)
+        OpExecWithCode(injectUiParameters(code), uiParameterLanguage)
       )
       .withInputPorts(operatorInfo.inputPorts)
       .withOutputPorts(operatorInfo.outputPorts)
@@ -83,6 +85,7 @@ class RUDFSourceOpDesc extends SourceOperatorDescriptor {
         SchemaPropagationFunc(_ => Map(operatorInfo.outputPorts.head.id -> sourceSchema()))
       )
       .withLocationPreference(None)
+      .withExecutionTimeBinding(executionBinding(code))
 
     if (workers > 1) {
       physicalOp

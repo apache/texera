@@ -19,16 +19,17 @@
 
 package org.apache.texera.amber.operator.visualization.rangeSlider
 
+import org.apache.texera.amber.operator.visualization.StandaloneChartCode._
 import com.fasterxml.jackson.annotation.{JsonProperty, JsonPropertyDescription}
 import com.kjetland.jackson.jsonSchema.annotations.{JsonSchemaInject, JsonSchemaTitle}
-import org.apache.texera.amber.core.tuple.{AttributeType, Schema}
 import org.apache.texera.amber.pybuilder.PythonTemplateBuilder.PythonTemplateBuilderStringContext
 import org.apache.texera.amber.pybuilder.PyStringTypes.EncodableString
-import org.apache.texera.amber.core.workflow.PortIdentity
-import org.apache.texera.amber.operator.PythonOperatorDescriptor
+import org.apache.texera.amber.operator.visualization.PlotlyStandaloneCode
+import org.apache.texera.amber.operator.visualization.PythonVisualizationOpDesc
 import org.apache.texera.amber.operator.metadata.annotations.AutofillAttributeName
 import org.apache.texera.amber.operator.metadata.{OperatorGroupConstants, OperatorInfo}
 import org.apache.texera.amber.pybuilder.PythonTemplateBuilder
+import org.apache.texera.amber.pybuilder.PythonTemplateBuilder.pyStringLiteral
 
 import javax.validation.constraints.NotNull
 
@@ -43,7 +44,7 @@ import javax.validation.constraints.NotNull
   }
 }
 """)
-class RangeSliderOpDesc extends PythonOperatorDescriptor {
+class RangeSliderOpDesc extends PythonVisualizationOpDesc with PlotlyStandaloneCode {
   @JsonProperty(value = "Y-axis", required = true)
   @JsonSchemaTitle("Y-axis")
   @JsonPropertyDescription("The name of the column to represent y-axis")
@@ -62,14 +63,6 @@ class RangeSliderOpDesc extends PythonOperatorDescriptor {
   @JsonSchemaTitle("Handle Duplicates")
   @JsonPropertyDescription("How to handle duplicate values in y-axis")
   var duplicateType: RangeSliderHandleDuplicateFunction = RangeSliderHandleDuplicateFunction.NOTHING
-
-  override def getOutputSchemas(
-      inputSchemas: Map[PortIdentity, Schema]
-  ): Map[PortIdentity, Schema] = {
-    val outputSchema = Schema()
-      .add("html-content", AttributeType.STRING)
-    Map(operatorInfo.outputPorts.head.id -> outputSchema)
-  }
 
   override def operatorInfo: OperatorInfo =
     OperatorInfo.forVisualization(
@@ -141,6 +134,38 @@ class RangeSliderOpDesc extends PythonOperatorDescriptor {
          |        yield {'html-content': html}
          |"""
     finalcode.encode
+  }
+
+  override def generateStandaloneCode(): String = {
+    val functionType = duplicateType.getFunctionType
+    val xAxisLit = pyStringLiteral(xAxis)
+    val yAxisLit = pyStringLiteral(yAxis)
+    s"""${standaloneError("RangeChart is not available.")}
+       |
+       |if in1df.empty:
+       |${standaloneErrorPage("input table is empty.")}
+       |elif $yAxisLit.strip() == "" or $xAxisLit.strip() == "":
+       |${standaloneErrorPage("Y-axis or X-axis is empty")}
+       |else:
+       |    table = in1df
+       |    table = table.dropna(subset=[$xAxisLit, $yAxisLit])
+       |    functionType = ${pyStringLiteral(functionType)}
+       |    if functionType.lower() == "mean":
+       |        table = table.groupby($xAxisLit)[$yAxisLit].mean().reset_index()
+       |    elif functionType.lower() == "sum":
+       |        table = table.groupby($xAxisLit)[$yAxisLit].sum().reset_index()
+       |    fig = go.Figure()
+       |    fig.add_trace(go.Scatter(x=table[$xAxisLit], y=table[$yAxisLit], mode="markers+lines"))
+       |    fig.update_layout(
+       |        xaxis_title=$xAxisLit,
+       |        yaxis_title=$yAxisLit,
+       |        xaxis=dict(
+       |            rangeslider=dict(
+       |                visible=True
+       |            )
+       |        )
+       |    )
+       |${standaloneFigure("Range slider", indent = 4)}""".stripMargin
   }
 
 }

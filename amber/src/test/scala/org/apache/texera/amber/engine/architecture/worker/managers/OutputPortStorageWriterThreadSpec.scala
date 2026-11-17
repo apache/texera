@@ -42,7 +42,6 @@ class OutputPortStorageWriterThreadSpec extends AnyFlatSpec {
     var closeCalled = false
     def open(): Unit = ()
     def putOne(item: Tuple): Unit = onPutOne()
-    def removeOne(item: Tuple): Unit = ()
     def close(): Unit = {
       closeCalled = true
       onClose()

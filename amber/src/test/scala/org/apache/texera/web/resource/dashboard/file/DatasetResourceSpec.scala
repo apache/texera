@@ -19,13 +19,10 @@
 
 package org.apache.texera.web.resource.dashboard.file
 
-import org.apache.texera.auth.SessionUser
 import org.apache.texera.dao.MockTexeraDB
 import org.apache.texera.dao.jooq.generated.enums.UserRoleEnum
 import org.apache.texera.dao.jooq.generated.tables.pojos.User
 import org.apache.texera.web.resource.dashboard.DashboardResource.SearchQueryParams
-import org.apache.texera.web.resource.dashboard.user.dataset.DatasetResource.DashboardDataset
-import org.apache.texera.web.resource.dashboard.{FulltextSearchQueryUtils}
 import org.apache.texera.web.resource.dashboard.DatasetSearchQueryBuilder
 import org.scalatest.flatspec.AnyFlatSpec
 import org.apache.texera.dao.jooq.generated.tables.daos.{UserDao, DatasetDao, DatasetUserAccessDao}
@@ -33,7 +30,6 @@ import org.apache.texera.dao.jooq.generated.enums.PrivilegeEnum
 import org.apache.texera.dao.jooq.generated.tables.pojos.{Dataset, DatasetUserAccess}
 import org.scalatest.{BeforeAndAfterAll, BeforeAndAfterEach}
 import java.time.OffsetDateTime
-import java.util
 import org.apache.texera.web.resource.dashboard.SearchQueryBuilder.DATASET_RESOURCE_TYPE
 
 class DatasetResourceSpec
@@ -77,14 +73,6 @@ class DatasetResourceSpec
     dataset
   }
 
-  private val sessionUser1: SessionUser = {
-    new SessionUser(ownerUser)
-  }
-
-  private val sessionUser2: SessionUser = {
-    new SessionUser(testUser)
-  }
-
   // get context lazily
   private lazy val datasetDao: DatasetDao = {
     new DatasetDao(getDSLContext.configuration())
@@ -96,7 +84,14 @@ class DatasetResourceSpec
 
   override protected def beforeAll(): Unit = {
     initializeDBAndReplaceDSLContext()
-    FulltextSearchQueryUtils.usePgroonga = false // disable pgroonga
+    // `FulltextSearchQueryUtils.usePgroonga` is deliberately left at its production default here:
+    // no test in this suite reaches the read, because both `constructQuery` calls below pass no
+    // keywords and `getFullTextSearchFilter` returns before that read on an empty keyword list.
+    // A keyword test added here would need the `to_tsvector` arm instead — `MockTexeraDB` strips
+    // the full-text index block out of the DDL, so the embedded Postgres has no pgroonga extension
+    // — and would have to set the flag and put it back: amber has no `Test / fork`, so a value
+    // left behind here follows every suite scheduled after this one in the same JVM.
+
     // add test user directly
     val userDao = new UserDao(getDSLContext.configuration())
     userDao.insert(ownerUser)
@@ -109,7 +104,6 @@ class DatasetResourceSpec
 
   override protected def afterEach(): Unit = {
     // 1. Delete access rows before the dataset
-    val datasetUserAccessDao = new DatasetUserAccessDao(getDSLContext.configuration())
     getDSLContext
       .deleteFrom(org.apache.texera.dao.jooq.generated.tables.DatasetUserAccess.DATASET_USER_ACCESS)
       .execute()
@@ -122,18 +116,6 @@ class DatasetResourceSpec
 
   override protected def afterAll(): Unit = {
     shutdownDB()
-  }
-
-  private def getKeywordsArray(keywords: String*): util.ArrayList[String] = {
-    val keywordsList = new util.ArrayList[String]()
-    for (keyword <- keywords) {
-      keywordsList.add(keyword)
-    }
-    keywordsList
-  }
-
-  private def assertSameDataset(a: Dataset, b: DashboardDataset): Unit = {
-    assert(a.getName == b.dataset.getName)
   }
 
   "User.accountCreationTime" should "be persisted and retrievable via UserDao" in {

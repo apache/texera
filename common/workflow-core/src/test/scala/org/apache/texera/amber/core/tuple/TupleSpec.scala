@@ -19,7 +19,6 @@
 
 package org.apache.texera.amber.core.tuple
 
-import org.apache.texera.amber.core.tuple.TupleUtils.{json2tuple, tuple2json}
 import org.scalatest.flatspec.AnyFlatSpec
 
 import java.sql.Timestamp
@@ -102,22 +101,6 @@ class TupleSpec extends AnyFlatSpec {
     // This is the important test. Input tuple has 3 attributes but output tuple has only 2
     // It's because of isStrictSchemaMatch=false
     assert(outputTuple.length == 2);
-  }
-
-  it should "produce identical strings" in {
-    val inputSchema =
-      Schema().add(stringAttribute).add(integerAttribute).add(boolAttribute)
-    val inputTuple = Tuple
-      .builder(inputSchema)
-      .add(integerAttribute, 1)
-      .add(stringAttribute, "string-attr")
-      .add(boolAttribute, true)
-      .build()
-
-    val line = tuple2json(inputTuple.schema, inputTuple.fieldVals).toString
-    val newTuple = json2tuple(line)
-    assert(line == tuple2json(newTuple.schema, newTuple.fieldVals).toString)
-
   }
 
   it should "calculate hash" in {
@@ -407,5 +390,40 @@ class TupleSpec extends AnyFlatSpec {
     intercept[RuntimeException] {
       tuple.getPartialTuple(List("col-missing"))
     }
+  }
+
+  it should "preserve valid fields and compare null vs binary fields safely across equality and non-strict builds" in {
+    val binSchema = Schema().add(stringAttribute).add(binaryAttribute)
+    val withNull =
+      Tuple.builder(binSchema).add(stringAttribute, "a").add(binaryAttribute, null).build()
+    val otherNull =
+      Tuple.builder(binSchema).add(stringAttribute, "a").add(binaryAttribute, null).build()
+    val withBytes =
+      Tuple
+        .builder(binSchema)
+        .add(stringAttribute, "a")
+        .add(binaryAttribute, Array[Byte](1, 2))
+        .build()
+    val diffString =
+      Tuple
+        .builder(binSchema)
+        .add(stringAttribute, "b")
+        .add(binaryAttribute, Array[Byte](1, 2))
+        .build()
+
+    assert(withNull == otherNull)
+    assert(withNull != withBytes)
+    assert(withBytes != withNull)
+    assert(withBytes != diffString)
+
+    val narrowedSchema = Schema().add(stringAttribute)
+    val nonStrict =
+      Tuple.builder(narrowedSchema).add(withBytes, isStrictSchemaMatch = false).build()
+    assert(nonStrict.getSchema == narrowedSchema)
+    assert(nonStrict.getField[String]("col-string") == "a")
+
+    val reordered = withBytes.getPartialTuple(List("col-binary", "col-string"))
+    assert(reordered.getField[Array[Byte]](0).sameElements(Array[Byte](1, 2)))
+    assert(reordered.getField[String](1) == "a")
   }
 }

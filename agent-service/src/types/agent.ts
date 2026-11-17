@@ -121,6 +121,11 @@ export interface AgentDelegateConfig {
   workflowId?: number;
   workflowName?: string;
   computingUnitId?: number;
+  // The warehouse the delegating user has picked in the workspace. Unlike the
+  // rest of this config it is not fixed at creation: each prompt carries the
+  // current pick, so a run always writes into what the user has selected now
+  // (#7751).
+  warehouseId?: number;
 }
 
 export interface AgentSettingsApi {

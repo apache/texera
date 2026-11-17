@@ -24,7 +24,6 @@ import { of, Subject, throwError } from "rxjs";
 import { MarkdownService } from "ngx-markdown";
 import { NzModalService } from "ng-zorro-antd/modal";
 import { NgModel } from "@angular/forms";
-import { NzResizableDirective } from "ng-zorro-antd/resizable";
 import { By } from "@angular/platform-browser";
 import { commonTestImports, commonTestProviders } from "../../../../../common/testing/test-utils";
 import { NotificationService } from "../../../../../common/service/notification/notification.service";
@@ -194,9 +193,6 @@ describe("ModelDetailComponent", () => {
     expect(el, `expected to find "${selector}"`).not.toBeNull();
     return el as unknown as E;
   };
-
-  // The sider coalesces resize events into one write per animation frame.
-  const nextFrame = (): Promise<void> => new Promise<void>(resolve => requestAnimationFrame(() => resolve()));
 
   // ─── loading the model ──────────────────────────────────────────────────────
 
@@ -459,29 +455,6 @@ describe("ModelDetailComponent", () => {
     expect(component.isDownloadAllowed()).toBe(true);
   });
 
-  // ─── the file path clipboard ────────────────────────────────────────────────
-
-  it("copies the open file's path and reports failure", async () => {
-    create();
-    const writeText = vi.fn(() => Promise.resolve());
-    Object.defineProperty(navigator, "clipboard", { value: { writeText }, configurable: true });
-
-    render({ currentDisplayedFileName: "/model/a/b/v1/model.pt" });
-    await component.copyCurrentFilePath();
-    expect(writeText).toHaveBeenCalledWith("/model/a/b/v1/model.pt");
-    expect(notificationService["success"]).toHaveBeenCalled();
-
-    writeText.mockImplementationOnce(() => Promise.reject(new Error("denied")));
-    await component.copyCurrentFilePath();
-    expect(notificationService["error"]).toHaveBeenCalled();
-
-    // Nothing open: no clipboard call at all.
-    writeText.mockClear();
-    render({ currentDisplayedFileName: "" });
-    await component.copyCurrentFilePath();
-    expect(writeText).not.toHaveBeenCalled();
-  });
-
   // ─── template ───────────────────────────────────────────────────────────────
 
   it("renders the model's name, tags and stats", () => {
@@ -510,16 +483,6 @@ describe("ModelDetailComponent", () => {
 
     like.click();
     expect(hubService["toggleLike"]).toHaveBeenCalled();
-  });
-
-  it("dashes out the latest-version facts for a model with no versions", () => {
-    create();
-    const stats = q(render(), ".data-card-stats").textContent ?? "";
-
-    // "0 B" would assert a zero-byte version that does not exist; the card already
-    // uses an em dash for an absent framework or format.
-    expect(stats).not.toContain("0 B");
-    expect(stats.match(/—/g)?.length).toBe(3);
   });
 
   it("shows the empty-version notice until a version exists", () => {
@@ -558,6 +521,51 @@ describe("ModelDetailComponent", () => {
   //
   // The panel itself is covered by version-uploader.component.spec.ts; what matters here is that
   // the page hands it the model's own addressing, and what the page still owns around it.
+
+  it("offers the tree's write controls only to a writer", () => {
+    // A fresh page per access level: the Settings tab is gated on write access, so flipping the
+    // level on a live component removes a tab and nz-tabs can tear down the pane being asserted on.
+    const treeFor = (level: "READ" | "WRITE") => {
+      create();
+      component.userModelAccessLevel = level;
+      openTab("Versions & Files");
+      const filetree = fixture.debugElement.query(By.css("texera-user-dataset-version-filetree"));
+      expect(filetree, "expected the file tree to be rendered").not.toBeNull();
+      return filetree.componentInstance;
+    };
+
+    expect(treeFor("WRITE").isTreeNodeDeletable).toBe(true);
+    expect(treeFor("WRITE").isCoverSettable).toBe(true);
+
+    expect(treeFor("READ").isTreeNodeDeletable).toBe(false);
+    expect(treeFor("READ").isCoverSettable).toBe(false);
+  });
+
+  it("em-dashes the facts a model with no versions has none of, but keeps 0 B for its size", () => {
+    create();
+    const root = render({
+      versions: [],
+      latestVersionCreationTime: "",
+      latestVersionFileName: "",
+      latestVersionSize: undefined,
+      modelFormat: "",
+    });
+
+    /** The stat value rendered beside a label. */
+    const stat = (label: string): string => {
+      const row = Array.from(root.querySelectorAll<HTMLElement>(".stat-row")).find(
+        r => (q<HTMLElement>(r, ".stat-label").textContent ?? "").trim() === label
+      );
+      expect(row, `expected a stat row labelled "${label}"`).toBeDefined();
+      return (q<HTMLElement>(row!, ".stat-value").textContent ?? "").trim();
+    };
+
+    expect(stat("Last updated")).toBe("—");
+    expect(stat("Latest version file")).toBe("—");
+    expect(stat("Format")).toBe("—");
+    // A size has a meaningful zero, so it reads 0 B here and on the dataset page.
+    expect(stat("Latest version size")).toBe("0 B");
+  });
 
   it("hands the version uploader the model endpoint and the model's identity", () => {
     create();
@@ -986,13 +994,13 @@ describe("ModelDetailComponent", () => {
     const root = openTab("Versions & Files");
 
     expect(root.querySelector("nz-sider")).not.toBeNull();
-    component.onClickHideRightBar();
+    // The browser owns the toolbar controls; the page keeps the two flags and feeds them back in.
+    component.isRightBarCollapsed = true;
     fixture.detectChanges();
     expect(fixture.nativeElement.querySelector("nz-sider")).toBeNull();
 
-    component.onClickScaleTheView();
+    component.isMaximized = true;
     fixture.detectChanges();
-    expect(component.isMaximized).toBe(true);
     expect(fixture.nativeElement.querySelector(".model-header")).toBeNull();
   });
 
@@ -1017,23 +1025,6 @@ describe("ModelDetailComponent", () => {
 
     expect(component.isLogin).toBe(true);
     expect(component.currentUid).toBe(42);
-  });
-
-  // ─── the resizable sider ────────────────────────────────────────────────────
-
-  it("stores the dragged sider width on the next animation frame", async () => {
-    create();
-    expect(component.siderWidth).toBe(400);
-
-    // A drag emits continuously; the component coalesces to one write per frame.
-    component.onSideResize({ width: 250, height: 999 });
-
-    // The write is deferred, not immediate — that deferral is the whole point of the
-    // requestAnimationFrame hop, and a synchronous assignment would land here.
-    expect(component.siderWidth).toBe(400);
-    await nextFrame();
-
-    expect(component.siderWidth).toBe(250);
   });
 
   // ─── guards against an absent model id ──────────────────────────────────────
@@ -1332,19 +1323,6 @@ describe("ModelDetailComponent", () => {
     render({ isOwner: false, modelIsDownloadable: false, modelIsPublic: true });
     expect(byTooltip("Download the file").disabled).toBe(true);
     expect(q<HTMLButtonElement>(fixture.nativeElement, ".spaced-button").disabled).toBe(true);
-  });
-
-  it("wires the sider's resize handle to the width the page keeps", async () => {
-    oneVersionWithOneFile();
-    create();
-    openTab("Versions & Files");
-
-    const sider = fixture.debugElement.query(By.directive(NzResizableDirective));
-    expect(sider).not.toBeNull();
-    sider.injector.get(NzResizableDirective).nzResize.emit({ width: 275, height: 0 });
-    await nextFrame();
-
-    expect(component.siderWidth).toBe(275);
   });
 
   it("wires the version picker to both the selection and the file tree", () => {

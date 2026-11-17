@@ -45,7 +45,8 @@
     <div
       nz-col
       nzFlex="0"
-      class="type-icon">
+      class="type-icon"
+      [class.defaults-to-form]="defaultsToForm">
       <i
         nz-icon
         [nzType]="iconType"></i>
@@ -193,6 +194,26 @@
       <i
         nz-icon
         nzType="eye"></i>
+    </button>
+    <!-- Setting the default view is a write on the workflow row (the endpoint requires WRITE), so a
+         read-only collaborator is not offered a control that could only fail (the handler checks
+         the same rule, canToggleDefaultView). -->
+    <!-- A toggle button: the name stays constant and aria-pressed carries the state (a name that
+         changed with the state would announce the opposite of what the state says); the title spells
+         out what a click does. -->
+    <button
+      *ngIf="canToggleDefaultView"
+      nz-button
+      nzType="text"
+      class="default-view-toggle"
+      aria-label="Open in the Form View by default"
+      [attr.aria-pressed]="defaultsToForm"
+      [title]="defaultsToForm ? 'Open on the canvas by default' : 'Open in the Form View by default'"
+      [class.defaults-to-form-on]="defaultsToForm"
+      (click)="onToggleDefaultView()">
+      <i
+        nz-icon
+        nzType="solution"></i>
     </button>
     <button
       nz-button

@@ -15,7 +15,7 @@
     "secure": false,
     "changeOrigin": true
   },
-"/api/models": {
+  "/api/models": {
     "target": "http://localhost:9096",
     "secure": false,
     "changeOrigin": true
@@ -26,6 +26,11 @@
     "changeOrigin": true
   },
   "/api/compile": {
+    "target": "http://localhost:9090",
+    "secure": false,
+    "changeOrigin": true
+  },
+  "/api/workflow-to-python": {
     "target": "http://localhost:9090",
     "secure": false,
     "changeOrigin": true
@@ -41,11 +46,6 @@
     "changeOrigin": true
   },
   "/api/access/dataset/**": {
-    "target": "http://localhost:9092",
-    "secure": false,
-    "changeOrigin": true
-  },
-  "/api/model/**": {
     "target": "http://localhost:9092",
     "secure": false,
     "changeOrigin": true
@@ -74,6 +74,11 @@
     "target": "http://localhost:8085",
     "secure": false,
     "changeOrigin": false
+  },
+  "/api/cu-image": {
+    "target": "http://localhost:8888",
+    "secure": false,
+    "changeOrigin": true
   },
   "/api": {
     "target": "http://localhost:8080",

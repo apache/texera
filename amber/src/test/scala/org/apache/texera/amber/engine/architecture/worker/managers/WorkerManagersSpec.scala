@@ -21,7 +21,11 @@ package org.apache.texera.amber.engine.architecture.worker.managers
 
 import org.apache.texera.amber.core.executor.OperatorExecutor
 import org.apache.texera.amber.core.tuple.{Tuple, TupleLike}
-import org.apache.texera.amber.core.virtualidentity.{ActorVirtualIdentity, ChannelIdentity}
+import org.apache.texera.amber.core.virtualidentity.{
+  ActorVirtualIdentity,
+  ChannelIdentity,
+  EmbeddedControlMessageIdentity
+}
 import org.apache.texera.amber.core.workflow.PortIdentity
 import org.scalatest.flatspec.AnyFlatSpec
 
@@ -171,7 +175,7 @@ class WorkerManagersSpec extends AnyFlatSpec {
   import org.apache.texera.amber.engine.architecture.logreplay.OrderEnforcer
   import org.apache.texera.amber.engine.architecture.messaginglayer.{AmberFIFOChannel, InputGateway}
   import org.apache.texera.amber.engine.architecture.worker.{
-    BackpressurePause,
+    ECMPause,
     OperatorLogicPause,
     PauseManager,
     UserPause
@@ -241,9 +245,9 @@ class WorkerManagersSpec extends AnyFlatSpec {
     val (gw, a, _, _) = newGateway()
     val pm = new PauseManager(workerId, gw)
     pm.pause(UserPause)
-    pm.pause(BackpressurePause)
+    pm.pause(OperatorLogicPause)
     pm.resume(UserPause)
-    // backpressure still pausing → channels stay disabled
+    // operator-logic pause still active → channels stay disabled
     assert(pm.isPaused)
     assert(!a.isEnabled)
   }
@@ -262,10 +266,10 @@ class WorkerManagersSpec extends AnyFlatSpec {
     val (gw, a, b, _) = newGateway()
     val pm = new PauseManager(workerId, gw)
     pm.pauseInputChannel(OperatorLogicPause, List(dataA))
-    pm.pauseInputChannel(BackpressurePause, List(dataB))
+    pm.pauseInputChannel(ECMPause(EmbeddedControlMessageIdentity("ecm-b")), List(dataB))
     pm.resume(OperatorLogicPause)
     // dataA's only specific pause was OperatorLogicPause → re-enabled.
-    // dataB still has BackpressurePause → still disabled.
+    // dataB still has its ECMPause → still disabled.
     assert(a.isEnabled)
     assert(!b.isEnabled)
   }

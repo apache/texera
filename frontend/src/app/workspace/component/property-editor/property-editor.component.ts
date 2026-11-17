@@ -22,20 +22,26 @@ import {
   Component,
   ElementRef,
   HostListener,
+  Input,
+  OnChanges,
   OnDestroy,
   OnInit,
+  SimpleChanges,
   Type,
   ViewChild,
+  ViewRef,
 } from "@angular/core";
 import { merge } from "rxjs";
 import { WorkflowActionService } from "../../service/workflow-graph/model/workflow-action.service";
 import { OperatorPropertyEditFrameComponent } from "./operator-property-edit-frame/operator-property-edit-frame.component";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
-import { filter } from "rxjs/operators";
+import { distinctUntilChanged } from "rxjs/operators";
 import { PortPropertyEditFrameComponent } from "./port-property-edit-frame/port-property-edit-frame.component";
 import { NzResizeEvent, NzResizableDirective, NzResizeHandlesComponent } from "ng-zorro-antd/resizable";
 import { calculateTotalTranslate3d } from "../../../common/util/panel-dock";
 import { PanelService } from "../../service/panel/panel.service";
+import { FormBindingService } from "../../service/form-binding/form-binding.service";
+import { GuiConfigService } from "../../../common/service/gui-config.service";
 import { NzMenuDirective, NzMenuItemComponent, NzMenuDividerDirective } from "ng-zorro-antd/menu";
 import { NgClass, NgIf, NgComponentOutlet } from "@angular/common";
 import { ɵNzTransitionPatchDirective } from "ng-zorro-antd/core/transition-patch";
@@ -74,32 +80,115 @@ import { NzButtonComponent } from "ng-zorro-antd/button";
     NzResizeHandlesComponent,
   ],
 })
-export class PropertyEditorComponent implements OnInit, OnDestroy {
+export class PropertyEditorComponent implements OnInit, OnDestroy, OnChanges {
   @ViewChild("contentWrapper") contentWrapperRef!: ElementRef;
   protected readonly window = window;
   id = -1;
   width = 260;
   height = Math.max(300, window.innerHeight * 0.6);
   currentComponent: Type<any> | null = null;
+  /**
+   * Set while an author is choosing which properties the Form View offers.
+   * Forwarded to the operator frame, which puts a tick box beside each property.
+   */
+  @Input() exposeChoosing = false;
+  /**
+   * Whether this panel owns the docked canvas panel's saved size/position. The Form View mounts
+   * this same component read-only inside a preview box, where the canvas layout (#right-container)
+   * does not exist; with `false` it neither restores nor persists that shared placement, so it
+   * cannot crash on the missing element and cannot overwrite the canvas panel's geometry. Default
+   * `true` keeps the operator canvas exactly as it was.
+   */
+  @Input() persistPlacement = true;
+  /**
+   * Whether this panel behaves as an editor or as a pure viewer. On the operator canvas it is an
+   * editor: edits are the point, and a co-editor should see who is editing what. The Form View
+   * opens it only to inspect a step, so it mounts with `false` -- a reader is not editing the
+   * graph, and broadcasting would print the reader's own name in colour over that operator on
+   * everyone else's canvas. Default `true` keeps the canvas as it was. Forwarded to the operator
+   * frame, which owns the writes themselves (co-editor awareness, operator version, properties).
+   */
+  @Input() actsAsEditor = true;
+  /** Set from the toolbar toggle on the operator canvas; the input covers the form view. */
+  private choosingFromToolbar = false;
+
+  /** The choose-what-to-expose affordance appears wherever the feature flag is on: any
+   *  workflow can expose inputs to its Form View, independent of the default-view bit. Named
+   *  for the flag (not a per-workflow capability) so the gating reads clearly at the call site. */
+  public get formViewFeatureEnabled(): boolean {
+    return this.config.env.formViewEnabled;
+  }
+
+  public toggleChoosing(): void {
+    this.formBindingService.setChoosing(!this.formBindingService.isChoosing());
+  }
+
+  public get choosing(): boolean {
+    return this.exposeChoosing || this.choosingFromToolbar;
+  }
   componentInputs = {};
   dragPosition = { x: 0, y: 0 };
   returnPosition = { x: 0, y: 0 };
   constructor(
     public workflowActionService: WorkflowActionService,
     private changeDetectorRef: ChangeDetectorRef,
-    private panelService: PanelService
+    private panelService: PanelService,
+    private formBindingService: FormBindingService,
+    private config: GuiConfigService,
+    private elementRef: ElementRef
   ) {
     const width = localStorage.getItem("right-panel-width");
     if (width) this.width = Number(width);
     this.height = Number(localStorage.getItem("right-panel-height")) || this.height;
   }
 
+  /**
+   * The Form View sets both of these inputs, and both flip whenever the author enters or leaves
+   * edit mode. The frame builds its formly fields once, so without remounting here the tick boxes
+   * only appeared if the mode was already on when the panel opened -- entering edit mode with a
+   * step already selected showed none. `actsAsEditor` is remounted on for the same reason and one
+   * more: the frame reads it before every write, so a step opened as a viewer and then switched to
+   * edit mode has to be rebuilt as an editor, or the author's edits go nowhere.
+   */
+  ngOnChanges(changes: SimpleChanges): void {
+    const remountOn = ["exposeChoosing", "actsAsEditor"];
+    if (remountOn.some(input => changes[input] !== undefined && !changes[input].firstChange)) {
+      this.remountOperatorFrame();
+    }
+  }
+
   ngOnInit(): void {
-    const style = localStorage.getItem("right-panel-style");
-    if (style) document.getElementById("right-container")!.style.cssText = style;
-    const translates = document.getElementById("right-container")!.style.transform;
-    const [xOffset, yOffset, _] = calculateTotalTranslate3d(translates);
-    this.returnPosition = { x: -xOffset, y: -yOffset };
+    // Restoring the docked panel's saved placement reads #right-container, which only exists in the
+    // canvas layout. The Form View mounts this panel with persistPlacement=false, where that element
+    // is absent, so skip the restore there (it would throw on the missing element).
+    if (this.persistPlacement) {
+      // This panel's own container, not whichever the document holds first: both views of a
+      // workflow mount this panel, and they overlap for a tick when the switch routes between
+      // them, so a document-wide lookup could restore the placement onto the departing view's.
+      const container = this.rightContainer()!;
+      const style = localStorage.getItem("right-panel-style");
+      if (style) container.style.cssText = style;
+      const [xOffset, yOffset, _] = calculateTotalTranslate3d(container.style.transform);
+      this.returnPosition = { x: -xOffset, y: -yOffset };
+    }
+    // The toolbar's "choose fields" toggle lives in the service so both the canvas toolbar
+    // and this panel see the same state. Re-emit the frame's inputs when it changes, so tick
+    // boxes appear and disappear without needing a re-selection.
+    this.formBindingService.choosing$.pipe(distinctUntilChanged(), untilDestroyed(this)).subscribe(choosing => {
+      const wasChoosing = this.choosingFromToolbar;
+      this.choosingFromToolbar = choosing;
+      // Only an actual change needs the frame rebuilt. The stream is a BehaviorSubject, so it
+      // replays its current value on subscribe; remounting for that would tear the panel down
+      // during the page's first change-detection pass.
+      if (wasChoosing === choosing || this.currentComponent !== OperatorPropertyEditFrameComponent) {
+        return;
+      }
+      // Rebuild the frame so the tick boxes appear/disappear (see remountOperatorFrame).
+      this.remountOperatorFrame();
+    });
+    // After the toggle above has replayed its current value: the frame this may build on mount
+    // takes `choosing` from it, and building first would have the replay tear the frame down and
+    // rebuild it inside the page's first change-detection pass.
     this.registerHighlightEventsHandler();
     this.panelService.closePanelStream.pipe(untilDestroyed(this)).subscribe(() => this.closePanel());
     this.panelService.resetPanelStream.pipe(untilDestroyed(this)).subscribe(() => {
@@ -120,30 +209,77 @@ export class PropertyEditorComponent implements OnInit, OnDestroy {
     });
   }
 
+  /**
+   * Rebuild the operator frame so a changed tick-box mode takes effect. The frame builds its
+   * formly fields once when created, so a new input alone would not add or remove the tick
+   * boxes -- it has to be torn down and recreated. The recreation is deferred to a timer rather
+   * than run straight after the teardown so it lands in its own change-detection pass (a
+   * synchronous rebuild here fought the pass already running). The frame is restored before
+   * detectChanges, so the panel is never left on the `null` state the template hides on; and a
+   * timer that outlives the view (destroy within the same tick) is skipped, since detectChanges
+   * on a destroyed view throws.
+   */
+  private remountOperatorFrame(): void {
+    if (this.currentComponent !== OperatorPropertyEditFrameComponent) {
+      return;
+    }
+    // Both mode inputs are re-read from the live values, not carried over from the copy the frame
+    // was last built with: the spread would otherwise hand the rebuilt frame the mode it is being
+    // rebuilt to leave.
+    const inputs = { ...this.componentInputs, exposeChoosing: this.choosing, actsAsEditor: this.actsAsEditor };
+    this.currentComponent = null;
+    setTimeout(() => {
+      if ((this.changeDetectorRef as ViewRef).destroyed) {
+        return;
+      }
+      this.componentInputs = inputs;
+      this.currentComponent = OperatorPropertyEditFrameComponent;
+      this.changeDetectorRef.detectChanges();
+    });
+  }
+
   @HostListener("window:beforeunload")
   ngOnDestroy(): void {
-    localStorage.setItem("right-panel-width", String(this.width));
-    localStorage.setItem("right-panel-height", String(this.height));
+    // The Form View's read-only copy (persistPlacement=false) must not persist geometry: it is not
+    // the docked canvas panel, so writing these keys would overwrite the real panel's saved size.
+    // Guarding the block rather than returning early keeps any teardown added below it running for
+    // both mounts.
+    if (this.persistPlacement) {
+      localStorage.setItem("right-panel-width", String(this.width));
+      localStorage.setItem("right-panel-height", String(this.height));
 
-    const rightContainer = document.getElementById("right-container");
-    if (rightContainer) {
-      localStorage.setItem("right-panel-style", rightContainer.style.cssText);
+      const rightContainer = this.rightContainer();
+      if (rightContainer) {
+        localStorage.setItem("right-panel-style", rightContainer.style.cssText);
+      }
     }
   }
 
+  private rightContainer(): HTMLElement | null {
+    return (this.elementRef.nativeElement as HTMLElement).querySelector<HTMLElement>("#right-container");
+  }
+
   /**
-   * This method changes the property editor according to how operators are highlighted on the workflow editor.
-   *
-   * Displays the form of the highlighted operator if only one operator is highlighted;
-   * Displays the form of the link breakpoint if only one link is highlighted;
-   * hides the form if no operator/link is highlighted or multiple operators and/or groups and/or links are highlighted.
+   * Shows the selection the panel mounts into, then follows every change to it: one operator or
+   * one port opens its frame, anything else (nothing, several things, a link) shows no frame.
    */
   registerHighlightEventsHandler() {
+    // The selection outlives this panel: it lives in the graph wrapper, which both views of a
+    // workflow share and hand over between them, so a panel mounting into an existing selection
+    // never sees the event that made it. Show it now, then follow the changes -- otherwise the
+    // panel looks empty until the selection changes, and clicking the very step it should be
+    // showing is a no-op (an already-highlighted element emits nothing). Only when something is
+    // selected: a fresh mount has no frame to clear, and the no-frame branch is for a selection
+    // being dropped (it clears the editing marker and resizes the docked panel to its empty
+    // content), which a mount must not do. A link or a comment box alone leaves the panel as it
+    // mounted, empty -- what the branch would have shown anyway.
+    const wrapper = this.workflowActionService.getJointGraphWrapper();
+    if (wrapper.getCurrentHighlightedOperatorIDs().length > 0 || wrapper.getCurrentHighlightedPortIDs().length > 0) {
+      this.showHighlighted();
+    }
     merge(
       this.workflowActionService.getJointGraphWrapper().getJointOperatorHighlightStream(),
       this.workflowActionService.getJointGraphWrapper().getJointOperatorUnhighlightStream(),
-      this.workflowActionService.getJointGraphWrapper().getJointGroupHighlightStream(),
-      this.workflowActionService.getJointGraphWrapper().getJointGroupUnhighlightStream(),
       this.workflowActionService.getJointGraphWrapper().getLinkHighlightStream(),
       this.workflowActionService.getJointGraphWrapper().getLinkUnhighlightStream(),
       this.workflowActionService.getJointGraphWrapper().getJointCommentBoxHighlightStream(),
@@ -151,32 +287,44 @@ export class PropertyEditorComponent implements OnInit, OnDestroy {
       this.workflowActionService.getJointGraphWrapper().getJointPortHighlightStream(),
       this.workflowActionService.getJointGraphWrapper().getJointPortUnhighlightStream()
     )
-      .pipe(
-        filter(() => this.workflowActionService.getTexeraGraph().getSyncTexeraGraph()),
-        untilDestroyed(this)
-      )
-      .subscribe(_ => {
-        const highlightedOperators = this.workflowActionService
-          .getJointGraphWrapper()
-          .getCurrentHighlightedOperatorIDs();
-        const highlightLinks = this.workflowActionService.getJointGraphWrapper().getCurrentHighlightedLinkIDs();
-        this.workflowActionService.getJointGraphWrapper().getCurrentHighlightedCommentBoxIDs();
-        const highlightedPorts = this.workflowActionService.getJointGraphWrapper().getCurrentHighlightedPortIDs();
+      .pipe(untilDestroyed(this))
+      .subscribe(_ => this.showHighlighted());
+  }
 
-        if (highlightedOperators.length === 1 && highlightLinks.length === 0 && highlightedPorts.length === 0) {
-          this.currentComponent = OperatorPropertyEditFrameComponent;
-          this.componentInputs = { currentOperatorId: highlightedOperators[0] };
-        } else if (highlightedPorts.length === 1 && highlightLinks.length === 0) {
-          this.currentComponent = PortPropertyEditFrameComponent;
-          this.componentInputs = { currentPortID: highlightedPorts[0] };
-        } else {
-          this.currentComponent = null;
-          this.componentInputs = {};
-          this.workflowActionService.getTexeraGraph().updateSharedModelAwareness("currentlyEditing", undefined);
-        }
-        this.changeDetectorRef.detectChanges();
-        this.updateHeightBasedOnContent();
-      });
+  /**
+   * Show whatever the shared selection holds right now: one operator, one port, or nothing. Not
+   * while the graph is mid-sync with the shared model: the highlight set is then in flux and would
+   * be read again when the sync ends.
+   */
+  private showHighlighted(): void {
+    if (!this.workflowActionService.getTexeraGraph().getSyncTexeraGraph()) {
+      return;
+    }
+    const highlightedOperators = this.workflowActionService.getJointGraphWrapper().getCurrentHighlightedOperatorIDs();
+    const highlightedLinks = this.workflowActionService.getJointGraphWrapper().getCurrentHighlightedLinkIDs();
+    const highlightedPorts = this.workflowActionService.getJointGraphWrapper().getCurrentHighlightedPortIDs();
+
+    if (highlightedOperators.length === 1 && highlightedLinks.length === 0 && highlightedPorts.length === 0) {
+      this.currentComponent = OperatorPropertyEditFrameComponent;
+      this.componentInputs = {
+        currentOperatorId: highlightedOperators[0],
+        exposeChoosing: this.choosing,
+        actsAsEditor: this.actsAsEditor,
+      };
+    } else if (highlightedPorts.length === 1 && highlightedLinks.length === 0) {
+      this.currentComponent = PortPropertyEditFrameComponent;
+      this.componentInputs = { currentPortID: highlightedPorts[0] };
+    } else {
+      this.currentComponent = null;
+      this.componentInputs = {};
+      // Same gate as the frame's own broadcast: a viewer mount publishes nothing on the
+      // shared awareness channel, in either direction.
+      if (this.actsAsEditor) {
+        this.workflowActionService.getTexeraGraph().updateSharedModelAwareness("currentlyEditing", undefined);
+      }
+    }
+    this.changeDetectorRef.detectChanges();
+    this.updateHeightBasedOnContent();
   }
   onResize({ width, height }: NzResizeEvent) {
     cancelAnimationFrame(this.id);

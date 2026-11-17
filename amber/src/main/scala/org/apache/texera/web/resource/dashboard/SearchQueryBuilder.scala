@@ -39,12 +39,10 @@ object SearchQueryBuilder {
   // DATASET_RESOURCE_TYPE aliases ResourceType.Dataset, whose value doubles as the leading
   // segment of a storage logical path, so renaming that prefix silently changes search results
   // with no compile error here.
-  // TODO: give every resource type (file, workflow, project, dataset, model) a single shared
+  // TODO: give every resource type (workflow, dataset, model) a single shared
   //       constant/enum instead of these raw strings, so the search contract has one source of
   //       truth and no longer borrows an unrelated storage constant.
-  val FILE_RESOURCE_TYPE = "file"
   val WORKFLOW_RESOURCE_TYPE = "workflow"
-  val PROJECT_RESOURCE_TYPE = "project"
   val DATASET_RESOURCE_TYPE = ResourceType.Dataset.toString
   val MODEL_RESOURCE_TYPE = ResourceType.Model.toString
   val ALL_RESOURCE_TYPE = ""
@@ -60,7 +58,17 @@ trait SearchQueryBuilder {
       includePublic: Boolean = false
   ): TableLike[_]
 
-  protected def constructWhereClause(uid: Integer, params: SearchQueryParams): Condition
+  /**
+    * @param includePublic whether public resources the user has not been granted access to are in
+    *                      scope. Builders whose content differs between the public and the private
+    *                      view (workflows, whose public copy is a pinned version) need this to know
+    *                      which copy a filter may match against.
+    */
+  protected def constructWhereClause(
+      uid: Integer,
+      params: SearchQueryParams,
+      includePublic: Boolean = false
+  ): Condition
 
   protected def getGroupByFields: Seq[GroupField] = Seq.empty
 
@@ -80,7 +88,7 @@ trait SearchQueryBuilder {
     val query: SelectGroupByStep[Record] = context
       .selectDistinct(mappedResourceSchema.allFields: _*)
       .from(constructFromClause(uid, params, includePublic))
-      .where(constructWhereClause(uid, params))
+      .where(constructWhereClause(uid, params, includePublic))
     val groupByFields = getGroupByFields
     if (groupByFields.nonEmpty) {
       query.groupBy(groupByFields: _*)
