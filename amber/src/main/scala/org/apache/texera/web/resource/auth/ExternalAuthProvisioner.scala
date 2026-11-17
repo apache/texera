@@ -130,6 +130,9 @@ object ExternalAuthProvisioner extends LazyLogging {
   }
 
   private def provision(profile: Asserted): User = {
+    // Read before the transaction opens, as `AuthResource.newAccountRole` asks.
+    val startingRole = AuthResource.newAccountRole()
+
     SqlServer.withTransaction(SqlServer.getInstance().createDSLContext()) { ctx =>
       val txUserDao = new UserDao(ctx.configuration())
       val txAuthDao = new AuthProviderDao(ctx.configuration())
@@ -158,7 +161,7 @@ object ExternalAuthProvisioner extends LazyLogging {
             case Some(existing) =>
               existing.tap { user =>
                 val wasPlaceholder = user.getIsPlaceholder
-                if (wasPlaceholder) AuthResource.claimPlaceholder(user)
+                if (wasPlaceholder) AuthResource.claimPlaceholder(user, startingRole)
                 val drifted = refresh(user, profile)
                 if (drifted || wasPlaceholder) txUserDao.update(user)
               }
@@ -169,7 +172,12 @@ object ExternalAuthProvisioner extends LazyLogging {
               // index tolerates repeated NULLs, so several such accounts can coexist.
               profile.email.foreach(created.setEmail)
               profile.avatar.foreach(created.setAvatar)
-              created.setRole(UserRoleEnum.INACTIVE)
+              // Without an address the account is inert, so it starts INACTIVE whatever the
+              // invite-only switch says; `AuthResource.setEmail` admits it once it has one. An
+              // INACTIVE caller is also what lets that call hand it a contributor placeholder.
+              created.setRole(
+                if (profile.email.isDefined) startingRole else UserRoleEnum.INACTIVE
+              )
               txUserDao.insert(created)
               created
           }
