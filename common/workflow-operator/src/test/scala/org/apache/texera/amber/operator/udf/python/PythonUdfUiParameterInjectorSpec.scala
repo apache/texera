@@ -280,4 +280,20 @@ class PythonUdfUiParameterInjectorSpec extends AnyFlatSpec with Matchers {
 
     exception.getMessage should include("no supported Python UDF class was found")
   }
+
+  it should "preserve tab indentation and fall back to four spaces on empty single-line classes" in {
+    val tabIndented =
+      """class ProcessTupleOperator(UDFOperatorV2):
+        |	def open(self):
+        |		pass
+        |""".stripMargin
+    inject(tabIndented, uiParameter("k", AttributeType.STRING, "v")) should include(
+      "\n\tdef _texera_injected_ui_parameters(self) -> Dict[str, Any]:"
+    )
+
+    val emptyClass = "  class ProcessTupleOperator(UDFOperatorV2):\n"
+    inject(emptyClass, uiParameter("k", AttributeType.STRING, "v")) should include(
+      "\n      def _texera_injected_ui_parameters(self) -> Dict[str, Any]:"
+    )
+  }
 }

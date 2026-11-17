@@ -406,4 +406,38 @@ class MachineLearningScorerOpDescSpec extends AnyFlatSpec with GeneratedCodeAsse
       }
     }
   }
+
+  "MachineLearningScorerOpDesc.getOutputSchemas" should
+    "propagate classification errors eagerly on null metrics and refuse duplicate metric names" in {
+    val inputSchemas = Map(
+      PortIdentity() -> Schema(
+        List(
+          new Attribute("y", AttributeType.INTEGER),
+          new Attribute("yhat", AttributeType.INTEGER)
+        )
+      )
+    )
+
+    val nullMetricsDesc = new MachineLearningScorerOpDesc
+    nullMetricsDesc.actualValueColumn = "y"
+    nullMetricsDesc.predictValueColumn = "yhat"
+    nullMetricsDesc.classificationMetrics = null
+    intercept[NullPointerException](nullMetricsDesc.getOutputSchemas(inputSchemas))
+
+    val dupMetricsDesc = new MachineLearningScorerOpDesc
+    dupMetricsDesc.actualValueColumn = "y"
+    dupMetricsDesc.predictValueColumn = "yhat"
+    dupMetricsDesc.classificationMetrics =
+      List(classificationMetricsFnc.accuracy, classificationMetricsFnc.accuracy)
+    intercept[RuntimeException](
+      dupMetricsDesc.getOutputSchemas(inputSchemas)
+    ).getMessage should include("already exists in the schema")
+
+    val regDesc = new MachineLearningScorerOpDesc
+    regDesc.isRegression = true
+    regDesc.actualValueColumn = "y"
+    regDesc.predictValueColumn = "yhat"
+    regDesc.regressionMetrics = List(regressionMetricsFnc.mse, regressionMetricsFnc.r2)
+    regDesc.getOutputSchemas(inputSchemas).values.head.getAttributeNames shouldBe List("MSE", "R2")
+  }
 }
