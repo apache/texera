@@ -93,7 +93,7 @@ object WarehouseResource {
 
   private def ownerOf(user: User): Owner = ownerOf(user.getName, user.getAvatar)
 
-  private lazy val dashboardFields: Seq[Field[_]] = Seq(
+  private val dashboardFields: Seq[Field[_]] = Seq(
     USER_WAREHOUSE.WHID,
     USER_WAREHOUSE.NAME,
     USER_WAREHOUSE.LAKEKEEPER_WAREHOUSE_NAME,
@@ -213,7 +213,7 @@ class WarehouseResource(client: LakekeeperClient, enabled: Boolean) extends Lazy
     try {
       row.store()
       // created_at is filled by the DB default; fetch it back before serializing.
-      row.refresh(dashboardFields: _*)
+      row.refresh(USER_WAREHOUSE.CREATED_AT)
     } catch {
       case e: Exception =>
         // Compensate: without the row the user could neither list nor delete the
@@ -239,16 +239,16 @@ class WarehouseResource(client: LakekeeperClient, enabled: Boolean) extends Lazy
   @RolesAllowed(Array("REGULAR", "ADMIN"))
   def delete(@PathParam("whid") whid: Integer, @Auth current_user: SessionUser): Unit = {
     requireEnabled()
-    val row = context
+    val lakekeeperWarehouseId = context
       .select(USER_WAREHOUSE.LAKEKEEPER_WAREHOUSE_ID)
       .from(USER_WAREHOUSE)
       .where(USER_WAREHOUSE.WHID.eq(whid).and(USER_WAREHOUSE.UID.eq(current_user.getUid)))
-      .fetchOne()
-    if (row == null) {
+      .fetchOne(USER_WAREHOUSE.LAKEKEEPER_WAREHOUSE_ID)
+    if (lakekeeperWarehouseId == null) {
       throw new NotFoundException(s"no warehouse with id $whid")
     }
     try {
-      client.deleteWarehouseEmptyFirst(row.value1())
+      client.deleteWarehouseEmptyFirst(lakekeeperWarehouseId)
     } catch {
       case e: Exception =>
         throw new WebApplicationException(e.getMessage, 502)

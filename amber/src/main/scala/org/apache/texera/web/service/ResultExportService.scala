@@ -128,8 +128,7 @@ class ResultExportService(workflowIdentity: WorkflowIdentity, computingUnitId: I
     */
   def exportToLocal(request: ResultExportRequest): Response = {
     if (request.operators.size > 1) {
-      val (zipStream, zipFileNameOpt) = exportOperatorsAsZip(request)
-      val fileName = zipFileNameOpt.get
+      val (zipStream, fileName) = exportOperatorsAsZip(request)
 
       Response
         .ok(zipStream, "application/zip")
@@ -138,11 +137,8 @@ class ResultExportService(workflowIdentity: WorkflowIdentity, computingUnitId: I
 
     } else {
       val op = request.operators.head
-      val (streamingOutput, fileNameOpt) = exportOperatorResultAsStream(request, op)
-      if (streamingOutput == null) {
-        throw new RuntimeException("Failed to export operator")
-      }
-      val fileName = fileNameOpt.get
+      val (streamingOutput, fileName) = exportOperatorResultAsStream(request, op)
+        .getOrElse(throw new RuntimeException("Failed to export operator"))
 
       Response
         .ok(streamingOutput, MediaType.APPLICATION_OCTET_STREAM)
@@ -195,15 +191,15 @@ class ResultExportService(workflowIdentity: WorkflowIdentity, computingUnitId: I
   def exportOperatorResultAsStream(
       request: ResultExportRequest,
       operatorRequest: OperatorExportInfo
-  ): (StreamingOutput, Option[String]) = {
+  ): Option[(StreamingOutput, String)] = {
     val execIdOpt = getLatestExecutionId(workflowIdentity, computingUnitId)
     if (execIdOpt.isEmpty) {
-      return (null, None)
+      return None
     }
 
     val operatorDocument = getOperatorDocument(operatorRequest.id, computingUnitId)
     if (operatorDocument == null || operatorDocument.getCount == 0) {
-      return (null, None)
+      return None
     }
 
     val fileName =
@@ -226,7 +222,7 @@ class ResultExportService(workflowIdentity: WorkflowIdentity, computingUnitId: I
       }
     }
 
-    (streamingOutput, Some(fileName))
+    Some((streamingOutput, fileName))
   }
 
   /**
@@ -234,7 +230,7 @@ class ResultExportService(workflowIdentity: WorkflowIdentity, computingUnitId: I
     */
   def exportOperatorsAsZip(
       request: ResultExportRequest
-  ): (StreamingOutput, Option[String]) = {
+  ): (StreamingOutput, String) = {
     val timestamp = LocalDateTime
       .now()
       .truncatedTo(ChronoUnit.SECONDS)
@@ -280,7 +276,7 @@ class ResultExportService(workflowIdentity: WorkflowIdentity, computingUnitId: I
       }
     }
 
-    (streamingOutput, Some(zipFileName))
+    (streamingOutput, zipFileName)
   }
 
   /**
@@ -416,14 +412,8 @@ class ResultExportService(workflowIdentity: WorkflowIdentity, computingUnitId: I
   private def streamDocumentAsParquetZip(
       doc: VirtualDocument[Tuple],
       outputStream: OutputStream
-  ): Unit = {
-    val zipStream = doc.asInputStream()
-    try {
-      IOUtils.copy(zipStream, outputStream)
-    } finally {
-      zipStream.close()
-    }
-  }
+  ): Unit =
+    Using.resource(doc.asInputStream())(IOUtils.copy(_, outputStream))
 
   /*
    * Handle streaming a single (row, column) from an operator's result.

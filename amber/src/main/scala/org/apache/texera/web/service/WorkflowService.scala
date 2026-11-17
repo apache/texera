@@ -105,17 +105,17 @@ object WorkflowService {
       )
     }
     warehouseId.map(id => {
-      val row = SqlServer
+      val lakekeeperWarehouseName = SqlServer
         .getInstance()
         .createDSLContext()
         .select(USER_WAREHOUSE.LAKEKEEPER_WAREHOUSE_NAME)
         .from(USER_WAREHOUSE)
         .where(USER_WAREHOUSE.WHID.eq(id).and(USER_WAREHOUSE.UID.eq(uid)))
-        .fetchOne()
-      if (row == null) {
+        .fetchOne(USER_WAREHOUSE.LAKEKEEPER_WAREHOUSE_NAME)
+      if (lakekeeperWarehouseName == null) {
         throw new IllegalArgumentException(s"no warehouse with id $id owned by this user")
       }
-      row.value1()
+      lakekeeperWarehouseName
     })
   }
   val cleanUpDeadlineInSeconds: Int = ApplicationConfig.executionStateCleanUpInSecs
