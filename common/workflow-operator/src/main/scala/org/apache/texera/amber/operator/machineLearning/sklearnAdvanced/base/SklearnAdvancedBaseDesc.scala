@@ -49,10 +49,43 @@ import scala.util.Try
   * decide which values the estimator can be given. The two below state that so the form can
   * hold the user to it, rather than leaving it to be discovered when `fit` raises.
   */
-trait ParamClass {
-  def getName: String
+final case class ParamSpec(
+    name: String,
+    valueType: String,
+    sampleValue: String = "",
+    allowedValues: Array[String] = Array.empty,
+    pattern: String = "",
+    minimum: String = ""
+) {
+  def withPattern(pattern: String): ParamSpec = copy(pattern = pattern)
 
-  def getType: String
+  def withMinimum(minimum: String): ParamSpec = copy(minimum = minimum)
+}
+
+object ParamSpec {
+  final val Empty: ParamSpec = ParamSpec("", "")
+
+  // Shared pattern for SVM gamma ("scale", "auto", or floating-point literal).
+  final val GammaPattern: String =
+    "^\\s*(?:scale|auto|[-+]?(?:(?:[0-9]+(?:_[0-9]+)*)?\\.(?:[0-9]+(?:_[0-9]+)*)" +
+      "|(?:[0-9]+(?:_[0-9]+)*)\\.?)(?:[eE][-+]?[0-9]+(?:_[0-9]+)*)?)\\s*$"
+
+  @scala.annotation.varargs
+  def of(
+      name: String,
+      valueType: String,
+      sampleValue: String,
+      allowedValues: String*
+  ): ParamSpec =
+    ParamSpec(name, valueType, sampleValue, allowedValues.toArray)
+}
+
+trait ParamClass {
+  def paramSpec: ParamSpec = ParamSpec.Empty
+
+  def getName: String = paramSpec.name
+
+  def getType: String = paramSpec.valueType
 
   /** One value this parameter accepts, offered as an example rather than imposed as a
     * default: what the estimator itself documents as its default is the obvious choice, but
@@ -61,26 +94,26 @@ trait ParamClass {
     * estimator's own default is a value `getType` cannot convert, since an example the
     * operator would then reject is worse than none.
     */
-  def getSampleValue: String
+  def getSampleValue: String = paramSpec.sampleValue
 
   /** The values the estimator accepts, where it accepts a fixed set rather than a range, the
     * estimator's own default first. Empty for a parameter taking any number, which its
     * converter already constrains.
     */
-  def getAllowedValues: Array[String]
+  def getAllowedValues: Array[String] = paramSpec.allowedValues.clone()
 
   /** The shape the value takes, for a parameter that accepts neither a fixed set nor a plain
     * number but a choice between them. Empty for every parameter one of the other two
     * describes, which is most of them.
     */
-  def getPattern: String = ""
+  def getPattern: String = paramSpec.pattern
 
   /** How low the value may go, written the way the estimator's own range reads: `">0"` where
     * zero itself is refused and `">=1"` where the bound is included. Empty for a parameter
     * bounded by nothing, which a number alone cannot be told from one whose bound nobody
     * looked up.
     */
-  def getMinimum: String = ""
+  def getMinimum: String = paramSpec.minimum
 }
 
 // Every selected column goes into `fit` untouched, so each has to be one that

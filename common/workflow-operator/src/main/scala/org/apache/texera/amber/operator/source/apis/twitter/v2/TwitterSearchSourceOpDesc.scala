@@ -25,13 +25,10 @@ import com.kjetland.jackson.jsonSchema.annotations.{
   JsonSchemaInject,
   JsonSchemaTitle
 }
-import org.apache.texera.amber.core.executor.OpExecWithClassName
-import org.apache.texera.amber.core.tuple.{AttributeType, Schema}
 import org.apache.texera.amber.core.virtualidentity.{ExecutionIdentity, WorkflowIdentity}
-import org.apache.texera.amber.core.workflow.{PhysicalOp, SchemaPropagationFunc}
+import org.apache.texera.amber.core.workflow.PhysicalOp
 import org.apache.texera.amber.operator.metadata.annotations.UIWidget
 import org.apache.texera.amber.operator.source.apis.twitter.TwitterSourceOpDesc
-import org.apache.texera.amber.util.JSONUtils.objectMapper
 
 @deprecated("Twitter source operator is no longer executable.", "1.1.0-incubating")
 class TwitterSearchSourceOpDesc extends TwitterSourceOpDesc {
@@ -54,61 +51,9 @@ class TwitterSearchSourceOpDesc extends TwitterSourceOpDesc {
       workflowId: WorkflowIdentity,
       executionId: ExecutionIdentity
   ): PhysicalOp =
-    // TODO: use multiple workers
-    PhysicalOp
-      .sourcePhysicalOp(
-        workflowId,
-        executionId,
-        operatorIdentifier,
-        OpExecWithClassName(
-          "org.apache.texera.amber.operator.source.apis.twitter.v2.TwitterSearchSourceOpExec",
-          objectMapper.writeValueAsString(this)
-        )
-      )
-      .withInputPorts(operatorInfo.inputPorts)
-      .withOutputPorts(operatorInfo.outputPorts)
-      .withPropagateSchema(
-        SchemaPropagationFunc(_ => Map(operatorInfo.outputPorts.head.id -> sourceSchema()))
-      )
-
-  override def sourceSchema(): Schema = {
-
-    // twitter schema is hard coded for now. V2 API has changed many fields of the Tweet object.
-    // we are also currently depending on redouane59/twittered client library to parse tweet fields.
-
-    Schema()
-      .add("id", AttributeType.STRING)
-      .add("text", AttributeType.STRING)
-      .add("created_at", AttributeType.TIMESTAMP)
-      .add("lang", AttributeType.STRING)
-      .add("tweet_type", AttributeType.STRING)
-      .add("place_id", AttributeType.STRING)
-      .add("place_coordinate", AttributeType.STRING)
-      .add("in_reply_to_status_id", AttributeType.STRING)
-      .add("in_reply_to_user_id", AttributeType.STRING)
-      .add("like_count", AttributeType.LONG)
-      .add("quote_count", AttributeType.LONG)
-      .add("reply_count", AttributeType.LONG)
-      .add("retweet_count", AttributeType.LONG)
-      .add("hashtags", AttributeType.STRING)
-      .add("symbols", AttributeType.STRING)
-      .add("urls", AttributeType.STRING)
-      .add("mentions", AttributeType.STRING)
-      .add("user_id", AttributeType.STRING)
-      .add("user_created_at", AttributeType.TIMESTAMP)
-      .add("user_name", AttributeType.STRING)
-      .add("user_display_name", AttributeType.STRING)
-      .add("user_lang", AttributeType.STRING)
-      .add("user_description", AttributeType.STRING)
-      .add("user_followers_count", AttributeType.LONG)
-      .add("user_following_count", AttributeType.LONG)
-      .add("user_tweet_count", AttributeType.LONG)
-      .add("user_listed_count", AttributeType.LONG)
-      .add("user_location", AttributeType.STRING)
-      .add("user_url", AttributeType.STRING)
-      .add("user_profile_image_url", AttributeType.STRING)
-      .add("user_pinned_tweet_id", AttributeType.STRING)
-      .add("user_protected", AttributeType.BOOLEAN)
-      .add("user_verified", AttributeType.BOOLEAN)
-  }
+    tweetSourcePhysicalOp(
+      workflowId,
+      executionId,
+      "org.apache.texera.amber.operator.source.apis.twitter.v2.TwitterSearchSourceOpExec"
+    )
 }

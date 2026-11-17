@@ -20,6 +20,7 @@
 package org.apache.texera.amber.operator.visualization.treeplot
 
 import org.apache.texera.amber.operator.visualization.StandaloneChartCode._
+import org.apache.texera.amber.operator.visualization.PythonCodeFragment._
 import com.fasterxml.jackson.annotation.{JsonProperty, JsonPropertyDescription}
 import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaTitle
 import org.apache.texera.amber.pybuilder.PythonTemplateBuilder.PythonTemplateBuilderStringContext
@@ -104,9 +105,7 @@ class TreePlotOpDesc extends PythonVisualizationOpDesc with PlotlyStandaloneCode
        |
        |    @overrides
        |    def process_table(self, table: Table, port: int) -> Iterator[Optional[TableLike]]:
-       |        if table.empty:
-       |            yield {'html-content': self.render_error("Input table is empty.")}
-       |            return
+       |${emptyTableGuard("Input table is empty.", bodyIndent = 4)}
        |
        |        edges = []
        |        for item in table[$edgeListColumn].dropna():
@@ -174,8 +173,7 @@ class TreePlotOpDesc extends PythonVisualizationOpDesc with PlotlyStandaloneCode
        |                          hovermode='closest',
        |                          plot_bgcolor='rgb(248,248,248)')
        |
-       |        html = plotly.io.to_html(fig, include_plotlyjs='cdn', auto_play=False)
-       |        yield {'html-content': html}
+       |${plotlyHtmlYield()}
        |
        |""".encode
   }

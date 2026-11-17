@@ -20,6 +20,7 @@
 package org.apache.texera.amber.operator.visualization.barChart
 
 import org.apache.texera.amber.operator.visualization.StandaloneChartCode._
+import org.apache.texera.amber.operator.visualization.PythonCodeFragment._
 import com.fasterxml.jackson.annotation.{JsonProperty, JsonPropertyDescription}
 import com.kjetland.jackson.jsonSchema.annotations.{JsonSchemaInject, JsonSchemaTitle}
 import org.apache.texera.amber.pybuilder.PythonTemplateBuilder.{
@@ -36,15 +37,7 @@ import org.apache.texera.amber.pybuilder.PythonTemplateBuilder
 import javax.validation.constraints.NotNull
 
 //type constraint: value can only be numeric
-@JsonSchemaInject(json = """
-{
-  "attributeTypeRules": {
-    "value": {
-      "enum": ["integer", "long", "double"]
-    }
-  }
-}
-""")
+@JsonSchemaInject(json = PythonVisualizationOpDesc.NumericValueRuleJson)
 class BarChartOpDesc extends PythonVisualizationOpDesc with PlotlyStandaloneCode {
 
   @JsonProperty(value = "value", required = true)
@@ -124,10 +117,7 @@ class BarChartOpDesc extends PythonVisualizationOpDesc with PlotlyStandaloneCode
          |class ProcessTableOperator(UDFTableOperator):
          |
          |    # Generate custom error message as html string
-         |    def render_error(self, error_msg) -> str:
-         |        return '''<h1>Bar chart is not available.</h1>
-         |                  <p>Reason is: {} </p>
-         |               '''.format(error_msg)
+         |${runtimeError("Bar chart is not available.", typed = true)}
          |
          |    @overrides
          |    def process_table(self, table: Table, port: int) -> Iterator[Optional[TableLike]]:

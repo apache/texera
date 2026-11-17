@@ -224,24 +224,14 @@ object HuggingFaceCodegenBase {
        |                    img_b64 = ""
        |                    if use_raw_binary_body and isinstance(pipeline_payload, bytes):
        |                        img_b64 = base64.b64encode(pipeline_payload).decode("utf-8")
-       |                    chat_payload = {
-       |                        "model": provider_id,
-       |                        "messages": [{
-       |                            "role": "user",
-       |                            "content": [
-       |                                {"type": "image_url", "image_url": {"url": f"data:image/png;base64,{img_b64}"}} if img_b64 else None,
-       |                                {"type": "text", "text": self._chat_content_for_task(pipeline_payload, prompt_value) or "What is in this image?"},
-       |                            ],
-       |                        }],
-       |                    }
-       |                    chat_payload["messages"][0]["content"] = [c for c in chat_payload["messages"][0]["content"] if c is not None]
+       |                    parts = self._image_chat_parts(
+       |                        img_b64, self._chat_content_for_task(pipeline_payload, prompt_value) or "What is in this image?"
+       |                    )
+       |                    chat_payload = {"model": provider_id, "messages": [{"role": "user", "content": parts}]}
        |                    resp = requests.post(url, headers=json_headers, json=chat_payload, timeout=120)
        |                elif provider_name == "hf-inference":
        |                    url = f"https://router.huggingface.co/hf-inference/models/{self.MODEL_ID}"
-       |                    if use_raw_binary_body:
-       |                        resp = requests.post(url, headers=raw_binary_headers, data=pipeline_payload, timeout=120)
-       |                    else:
-       |                        resp = requests.post(url, headers=json_headers, json=pipeline_payload, timeout=120)
+       |                    resp = self._post_pipeline(url, json_headers, raw_binary_headers, pipeline_payload, use_raw_binary_body)
        |                else:
        |                    resp = self._call_provider(provider_name, provider_id, json_headers, raw_binary_headers, pipeline_payload, use_raw_binary_body, prompt_value)
        |            except Exception as e:
@@ -373,6 +363,87 @@ object HuggingFaceCodegenBase {
        |            return query or prompt_value
        |        return prompt_value
        |
+       |    def _post_pipeline(self, url, json_headers, raw_binary_headers, payload, binary):
+       |        if binary:
+       |            return requests.post(url, headers=raw_binary_headers, data=payload, timeout=120)
+       |        return requests.post(url, headers=json_headers, json=payload, timeout=120)
+       |
+       |    def _image_chat_parts(self, img_b64, text):
+       |        parts = []
+       |        if img_b64:
+       |            parts.append({"type": "image_url", "image_url": {"url": f"data:image/png;base64,{img_b64}"}})
+       |        parts.append({"type": "text", "text": text})
+       |        return parts
+       |
+       |    def _provider_chat_messages(self, pipeline_payload, prompt_value, img_b64, image_prompt):
+       |        content = self._chat_content_for_task(pipeline_payload, prompt_value)
+       |        if img_b64:
+       |            content = self._image_chat_parts(img_b64, self._chat_content_for_task(pipeline_payload, prompt_value) or image_prompt)
+       |        return [{"role": "user", "content": content}]
+       |
+       |    def _media_provider_payload(self, task, img_b64, raw_binary_headers, prompt_value, replicate):
+       |        if task == "text-to-speech":
+       |            return {"text": prompt_value}
+       |        elif task in ("text-to-image", "text-to-video") or not img_b64:
+       |            return {"prompt": prompt_value}
+       |        elif task in ("automatic-speech-recognition", "audio-classification") and img_b64:
+       |            if replicate:
+       |                audio_content_type = raw_binary_headers.get("Content-Type", "audio/mpeg")
+       |                return {"audio": f"data:{audio_content_type};base64,{img_b64}"}
+       |        data_url = f"data:image/png;base64,{img_b64}"
+       |        if task == "image-to-image":
+       |            if replicate:
+       |                return {"image": data_url, "images": [data_url], "input_image": data_url, "prompt": prompt_value}
+       |            return {"image_url": data_url, "image_urls": [data_url], "prompt": prompt_value}
+       |        return {("image" if replicate else "image_url"): data_url, "prompt": prompt_value}
+       |
+       |    def _poll_prediction(self, base, path, headers, poll_resp, attempts, delay, provider, is_terminal):
+       |        import time as _time
+       |        from urllib.parse import urlparse as _urlparse
+       |        poll_url = f"{base}{_urlparse(path).path}"
+       |        for poll_idx in range(attempts):
+       |            _time.sleep(delay)
+       |            poll_resp = requests.get(poll_url, headers=headers, timeout=30)
+       |            if poll_resp.status_code != 200:
+       |                continue
+       |            if is_terminal(poll_resp):
+       |                return poll_resp
+       |            if (poll_idx + 1) % 30 == 0:
+       |                print(f"[hf] {provider} still running for model '{self.MODEL_ID}' after {(poll_idx + 1) * delay}s; will wait up to {attempts * delay}s.")
+       |        return poll_resp
+       |
+       |    def _mark_failed_prediction(self, poll_resp, error):
+       |        # A successful HTTP poll can report a failed job. Surface it through provider fallback.
+       |        poll_resp.status_code = 502
+       |        poll_resp._content = json.dumps({"error": error}).encode("utf-8")
+       |
+       |    def _replicate_terminal(self, poll_resp):
+       |        status = poll_resp.json().get("status", "")
+       |        if status == "succeeded":
+       |            return True
+       |        if status in ("failed", "canceled"):
+       |            body_json = poll_resp.json() if poll_resp.text else {}
+       |            detail = (body_json.get("error") or body_json.get("logs") or status) if isinstance(body_json, dict) else status
+       |            self._mark_failed_prediction(poll_resp, f"Replicate prediction {status}: {detail}")
+       |            return True
+       |        return False
+       |
+       |    def _wavespeed_terminal(self, poll_resp):
+       |        body_json = poll_resp.json() if poll_resp.text else {}
+       |        data_obj = body_json.get("data", {}) if isinstance(body_json, dict) else {}
+       |        status = data_obj.get("status", "") if isinstance(data_obj, dict) else ""
+       |        if status == "completed":
+       |            return True
+       |        if status == "failed":
+       |            detail = (
+       |                (data_obj.get("error") if isinstance(data_obj, dict) else None)
+       |                or (body_json.get("error") if isinstance(body_json, dict) else None)
+       |                or "failed"
+       |            )
+       |            self._mark_failed_prediction(poll_resp, f"Wavespeed job failed: {detail}")
+       |            return True
+       |        return False
+       |
        |    def _call_provider(self, provider_name, provider_id, json_headers, raw_binary_headers, pipeline_payload, use_raw_binary_body, prompt_value):
        |        '''Route to a third-party provider using its native API format.
        |        Handles OpenAI-compatible chat providers for text-gen, zai-org's
@@ -410,89 +481,28 @@ object HuggingFaceCodegenBase {
        |                file_data = f"data:image/png;base64,{img_b64}" if img_b64 else ""
        |                return requests.post(url, headers=zai_headers, json={"model": provider_id, "file": file_data}, timeout=120)
        |            url = f"{base}/api/paas/v4/chat/completions"
-       |            messages = [{"role": "user", "content": self._chat_content_for_task(pipeline_payload, prompt_value)}]
-       |            if img_b64:
-       |                messages = [{"role": "user", "content": [
-       |                    {"type": "image_url", "image_url": {"url": f"data:image/png;base64,{img_b64}"}},
-       |                    {"type": "text", "text": self._chat_content_for_task(pipeline_payload, prompt_value) or "What is in this image?"},
-       |                ]}]
+       |            messages = self._provider_chat_messages(pipeline_payload, prompt_value, img_b64, "What is in this image?")
        |            return requests.post(url, headers=zai_headers, json={"model": provider_id, "messages": messages}, timeout=120)
        |
        |        # Replicate: synchronous predictions endpoint with polling fallback.
        |        if provider_name == "replicate":
        |            url = f"{base}/v1/models/{provider_id}/predictions"
        |            hdrs = {**json_headers, "Prefer": "wait"}
-       |            if task == "text-to-speech":
-       |                inp = {"text": prompt_value}
-       |            elif task in ("text-to-image", "text-to-video"):
-       |                inp = {"prompt": prompt_value}
-       |            elif task in ("automatic-speech-recognition", "audio-classification") and img_b64:
-       |                audio_content_type = raw_binary_headers.get("Content-Type", "audio/mpeg")
-       |                inp = {"audio": f"data:{audio_content_type};base64,{img_b64}"}
-       |            elif task == "image-to-image" and img_b64:
-       |                data_url = f"data:image/png;base64,{img_b64}"
-       |                inp = {"image": data_url, "images": [data_url], "input_image": data_url, "prompt": prompt_value}
-       |            elif img_b64:
-       |                inp = {"image": f"data:image/png;base64,{img_b64}", "prompt": prompt_value}
-       |            else:
-       |                inp = {"prompt": prompt_value}
+       |            inp = self._media_provider_payload(task, img_b64, raw_binary_headers, prompt_value, replicate=True)
        |            resp = requests.post(url, headers=hdrs, json={"input": inp}, timeout=120)
        |            if resp.status_code == 202:
-       |                import time as _time
-       |                pred = resp.json()
-       |                poll_url = pred.get("urls", {}).get("get", "")
-       |                if not poll_url:
-       |                    return resp
-       |                from urllib.parse import urlparse as _urlparse
-       |                poll_path = _urlparse(poll_url).path
-       |                poll_url = f"{base}{poll_path}"
-       |                # Worst case: 300 polls × 2s = ~10 minutes per row before we give
-       |                # up. Sized for text-to-video which legitimately takes minutes on
-       |                # Replicate. process_table is synchronous, so emit a progress
-       |                # line every 30 polls (~1 min) to distinguish slow work from a
-       |                # hang in the worker log.
-       |                for poll_idx in range(300):
-       |                    _time.sleep(2)
-       |                    poll_resp = requests.get(poll_url, headers=json_headers, timeout=30)
-       |                    if poll_resp.status_code != 200:
-       |                        continue
-       |                    status = poll_resp.json().get("status", "")
-       |                    if status == "succeeded":
-       |                        return poll_resp
-       |                    if status in ("failed", "canceled"):
-       |                        # The polling HTTP request itself returned 200, but the
-       |                        # Replicate prediction terminally failed. Without this
-       |                        # branch, process_table would treat the 200 as success
-       |                        # and emit json.dumps(body) (raw error JSON) into the
-       |                        # output cell. Convert to a synthetic 502 so
-       |                        # _post_with_fallback's non-200 handler surfaces the
-       |                        # actual failure detail via _format_error.
-       |                        body_json = poll_resp.json() if poll_resp.text else {}
-       |                        detail = (body_json.get("error") or body_json.get("logs") or status) \
-       |                            if isinstance(body_json, dict) else status
-       |                        poll_resp.status_code = 502
-       |                        poll_resp._content = json.dumps({
-       |                            "error": f"Replicate prediction {status}: {detail}"
-       |                        }).encode("utf-8")
-       |                        return poll_resp
-       |                    if (poll_idx + 1) % 30 == 0:
-       |                        print(f"[hf] Replicate still running for model '{self.MODEL_ID}' after {(poll_idx + 1) * 2}s; will wait up to 600s.")
-       |                return poll_resp
+       |                poll_url = resp.json().get("urls", {}).get("get", "")
+       |                if poll_url:
+       |                    return self._poll_prediction(
+       |                        base, poll_url, json_headers, resp, 300, 2, "Replicate", self._replicate_terminal
+       |                    )
        |            return resp
        |
        |        # Fal-ai: per-model endpoint.
        |        if provider_name == "fal-ai":
        |            url = f"{base}/{provider_id}"
-       |            if task == "text-to-speech":
-       |                return requests.post(url, headers=json_headers, json={"text": prompt_value}, timeout=120)
-       |            if task in ("text-to-image", "text-to-video"):
-       |                return requests.post(url, headers=json_headers, json={"prompt": prompt_value}, timeout=120)
-       |            if task == "image-to-image" and img_b64:
-       |                data_url = f"data:image/png;base64,{img_b64}"
-       |                return requests.post(url, headers=json_headers, json={"image_url": data_url, "image_urls": [data_url], "prompt": prompt_value}, timeout=120)
-       |            if img_b64:
-       |                return requests.post(url, headers=json_headers, json={"image_url": f"data:image/png;base64,{img_b64}", "prompt": prompt_value}, timeout=120)
-       |            return requests.post(url, headers=json_headers, json={"prompt": prompt_value}, timeout=120)
+       |            payload = self._media_provider_payload(task, img_b64, raw_binary_headers, prompt_value, replicate=False)
+       |            return requests.post(url, headers=json_headers, json=payload, timeout=120)
        |
        |        # Wavespeed: async submit + poll.
        |        if provider_name == "wavespeed":
@@ -507,42 +517,9 @@ object HuggingFaceCodegenBase {
        |            get_path = submit_resp.json().get("data", {}).get("urls", {}).get("get", "")
        |            if not get_path:
        |                return submit_resp
-       |            from urllib.parse import urlparse as _urlparse
-       |            result_url = f"{base}{_urlparse(get_path).path}"
-       |            import time as _time
-       |            poll_resp = submit_resp
-       |            # Worst case: 120 polls × 1s = ~2 minutes per row. Emit a progress
-       |            # line every 30 polls (~30 s) so the worker log distinguishes slow
-       |            # work from a hang.
-       |            for poll_idx in range(120):
-       |                _time.sleep(1)
-       |                poll_resp = requests.get(result_url, headers=json_headers, timeout=30)
-       |                if poll_resp.status_code != 200:
-       |                    continue
-       |                body_json = poll_resp.json() if poll_resp.text else {}
-       |                data_obj = body_json.get("data", {}) if isinstance(body_json, dict) else {}
-       |                status = data_obj.get("status", "") if isinstance(data_obj, dict) else ""
-       |                if status == "completed":
-       |                    return poll_resp
-       |                if status == "failed":
-       |                    # Same shape as Replicate: HTTP 200 + body says "failed".
-       |                    # Synthesize a 502 so _post_with_fallback's non-200 handler
-       |                    # reports the actual reason instead of process_table
-       |                    # parsing the success-shaped body and writing raw error
-       |                    # JSON into the result cell.
-       |                    detail = (
-       |                        (data_obj.get("error") if isinstance(data_obj, dict) else None)
-       |                        or (body_json.get("error") if isinstance(body_json, dict) else None)
-       |                        or "failed"
-       |                    )
-       |                    poll_resp.status_code = 502
-       |                    poll_resp._content = json.dumps({
-       |                        "error": f"Wavespeed job failed: {detail}"
-       |                    }).encode("utf-8")
-       |                    return poll_resp
-       |                if (poll_idx + 1) % 30 == 0:
-       |                    print(f"[hf] Wavespeed still running for model '{self.MODEL_ID}' after {poll_idx + 1}s; will wait up to 120s.")
-       |            return poll_resp
+       |            return self._poll_prediction(
+       |                base, get_path, json_headers, submit_resp, 120, 1, "Wavespeed", self._wavespeed_terminal
+       |            )
        |
        |        if provider_name in self.OPENAI_COMPATIBLE_PROVIDERS:
        |            if task == "text-to-image":
@@ -552,12 +529,7 @@ object HuggingFaceCodegenBase {
        |                url = f"{base}/v1/audio/speech"
        |                return requests.post(url, headers=json_headers, json={"model": provider_id, "input": prompt_value}, timeout=120)
        |            url = f"{base}/{self.CHAT_ROUTES.get(provider_name, 'v1/chat/completions')}"
-       |            messages = [{"role": "user", "content": self._chat_content_for_task(pipeline_payload, prompt_value)}]
-       |            if img_b64:
-       |                messages = [{"role": "user", "content": [
-       |                    {"type": "image_url", "image_url": {"url": f"data:image/png;base64,{img_b64}"}},
-       |                    {"type": "text", "text": self._chat_content_for_task(pipeline_payload, prompt_value) or "What is in this image?"},
-       |                ]}]
+       |            messages = self._provider_chat_messages(pipeline_payload, prompt_value, img_b64, "What is in this image?")
        |            return requests.post(
        |                url,
        |                headers=json_headers,
@@ -567,18 +539,10 @@ object HuggingFaceCodegenBase {
        |
        |        # Unknown provider: try pipeline format, then chat completions.
        |        url = f"{base}/{provider_id}"
-       |        if use_raw_binary_body:
-       |            resp = requests.post(url, headers=raw_binary_headers, data=pipeline_payload, timeout=120)
-       |        else:
-       |            resp = requests.post(url, headers=json_headers, json=pipeline_payload, timeout=120)
+       |        resp = self._post_pipeline(url, json_headers, raw_binary_headers, pipeline_payload, use_raw_binary_body)
        |        if resp.status_code in (400, 404, 422):
        |            url = f"{base}/v1/chat/completions"
-       |            messages = [{"role": "user", "content": self._chat_content_for_task(pipeline_payload, prompt_value)}]
-       |            if img_b64:
-       |                messages = [{"role": "user", "content": [
-       |                    {"type": "image_url", "image_url": {"url": f"data:image/png;base64,{img_b64}"}},
-       |                    {"type": "text", "text": self._chat_content_for_task(pipeline_payload, prompt_value) or "Describe this image."},
-       |                ]}]
+       |            messages = self._provider_chat_messages(pipeline_payload, prompt_value, img_b64, "Describe this image.")
        |            resp2 = requests.post(
        |                url,
        |                headers=json_headers,
@@ -677,60 +641,44 @@ object HuggingFaceCodegenBase {
        |                        str(v) if not pd.isna(v) else "" for v in table[col].tolist()
        |                    ]
        |
-       |        # --- resolve image source (upload or column) for image tasks ---
+       |        # --- resolve upload or column input for image and audio tasks ---
        |        has_image_upload = bool(self.IMAGE_INPUT) and bool(str(self.IMAGE_INPUT).strip())
        |        use_image_column = not has_image_upload and bool(self.INPUT_IMAGE_COLUMN) and self.INPUT_IMAGE_COLUMN in table.columns
-       |        image_bytes = None
-       |        image_error = None
        |        has_audio_upload = bool(self.AUDIO_INPUT) and bool(str(self.AUDIO_INPUT).strip())
        |        use_audio_column = not has_audio_upload and bool(self.INPUT_AUDIO_COLUMN) and self.INPUT_AUDIO_COLUMN in table.columns
        |        audio_headers = {
        |            "Authorization": f"Bearer {token}",
        |            "Content-Type": "application/octet-stream" if use_audio_column else self._get_audio_content_type(),
        |        }
-       |        audio_bytes = None
-       |        audio_error = None
-       |        if task in image_tasks and not use_image_column:
-       |            if not has_image_upload:
-       |                if self.INPUT_IMAGE_COLUMN and str(self.INPUT_IMAGE_COLUMN).strip():
-       |                    image_error = (
-       |                        f"Input Image Column '{self.INPUT_IMAGE_COLUMN}' not found in the input table. "
+       |        media_kind = "image" if task in image_tasks else ("audio" if task in audio_only_tasks else None)
+       |        media_bytes = media_error = None
+       |        if media_kind is not None:
+       |            is_image = media_kind == "image"
+       |            has_upload = has_image_upload if is_image else has_audio_upload
+       |            use_media_column = use_image_column if is_image else use_audio_column
+       |            media_column = self.INPUT_IMAGE_COLUMN if is_image else self.INPUT_AUDIO_COLUMN
+       |            if not use_media_column:
+       |                if has_upload:
+       |                    try:
+       |                        media_bytes = self._read_image_input() if is_image else self._read_audio_input()
+       |                    except Exception as e:
+       |                        media_error = f"Could not read {media_kind} input ({type(e).__name__}: {e})"
+       |                elif media_column and str(media_column).strip():
+       |                    media_error = (
+       |                        f"Input {media_kind.title()} Column '{media_column}' not found in the input table. "
        |                        f"Available columns: {list(table.columns)}"
        |                    )
        |                else:
-       |                    image_error = "No image source. Set an Input Image Column or upload an image."
-       |            else:
-       |                try:
-       |                    image_bytes = self._read_image_input()
-       |                except Exception as e:
-       |                    image_error = f"Could not read image input ({type(e).__name__}: {e})"
-       |        if task in audio_only_tasks and not use_audio_column:
-       |            if not has_audio_upload:
-       |                if self.INPUT_AUDIO_COLUMN and str(self.INPUT_AUDIO_COLUMN).strip():
-       |                    audio_error = (
-       |                        f"Input Audio Column '{self.INPUT_AUDIO_COLUMN}' not found in the input table. "
-       |                        f"Available columns: {list(table.columns)}"
-       |                    )
-       |                else:
-       |                    audio_error = "No audio source. Set an Input Audio Column or upload audio."
-       |            else:
-       |                try:
-       |                    audio_bytes = self._read_audio_input()
-       |                except Exception as e:
-       |                    audio_error = f"Could not read audio input ({type(e).__name__}: {e})"
+       |                    upload = "an image" if is_image else "audio"
+       |                    media_error = f"No {media_kind} source. Set an Input {media_kind.title()} Column or upload {upload}."
        |
        |        results = []
        |        for idx, row in table.iterrows():
-       |            if image_error is not None:
-       |                results.append(self._format_error("Image task configuration error", image_error))
-       |                continue
-       |            if audio_error is not None:
-       |                results.append(self._format_error("Audio task configuration error", audio_error))
+       |            if media_error is not None:
+       |                results.append(self._format_error(f"{media_kind.title()} task configuration error", media_error))
        |                continue
        |
-       |            if task in image_only_tasks:
-       |                prompt_value = ""
-       |            elif task in audio_only_tasks:
+       |            if task in image_only_tasks or task in audio_only_tasks:
        |                prompt_value = ""
        |            elif task in image_prompt_tasks and prompt_col not in table.columns:
        |                prompt_value = "What is shown in this image?"
@@ -741,30 +689,21 @@ object HuggingFaceCodegenBase {
        |                else:
        |                    prompt_value = str(prompt_value)
        |
-       |            # --- resolve per-row image bytes from column ---
-       |            current_image_bytes = image_bytes
-       |            if task in image_tasks and use_image_column:
+       |            # --- resolve per-row media bytes from column ---
+       |            current_media_bytes = media_bytes
+       |            if media_kind is not None and use_media_column:
        |                try:
-       |                    raw = self._read_binary_value(row[self.INPUT_IMAGE_COLUMN])
-       |                    if raw is None:
-       |                        results.append(self._format_error("Image data error", f"Row {idx}: image column is empty"))
+       |                    current_media_bytes = self._read_binary_value(row[media_column])
+       |                    if current_media_bytes is None:
+       |                        results.append(self._format_error(f"{media_kind.title()} data error", f"Row {idx}: {media_kind} column is empty"))
        |                        continue
-       |                    current_image_bytes = self._compress_image_bytes(raw)
+       |                    if is_image:
+       |                        current_media_bytes = self._compress_image_bytes(current_media_bytes)
        |                except Exception as e:
-       |                    results.append(self._format_error("Image data error", f"Row {idx}: {type(e).__name__}: {e}"))
+       |                    results.append(self._format_error(f"{media_kind.title()} data error", f"Row {idx}: {type(e).__name__}: {e}"))
        |                    continue
-       |
-       |            # --- resolve per-row audio bytes from column ---
-       |            current_audio_bytes = audio_bytes
-       |            if task in audio_only_tasks and use_audio_column:
-       |                try:
-       |                    current_audio_bytes = self._read_binary_value(row[self.INPUT_AUDIO_COLUMN])
-       |                    if current_audio_bytes is None:
-       |                        results.append(self._format_error("Audio data error", f"Row {idx}: audio column is empty"))
-       |                        continue
-       |                except Exception as e:
-       |                    results.append(self._format_error("Audio data error", f"Row {idx}: {type(e).__name__}: {e}"))
-       |                    continue
+       |            current_image_bytes = current_media_bytes if media_kind == "image" else None
+       |            current_audio_bytes = current_media_bytes if media_kind == "audio" else None
        |
        |            # --- build task-specific payload (provided by per-task codegen) ---
        |            use_raw_binary_body = False
@@ -809,11 +748,7 @@ object HuggingFaceCodegenBase {
        |                    continue
        |
        |                content_type = resp.headers.get("Content-Type", "")
-       |                if content_type.startswith("image/"):
-       |                    b64 = base64.b64encode(resp.content).decode("utf-8")
-       |                    results.append(f"data:{content_type};base64,{b64}")
-       |                    continue
-       |                if content_type.startswith("audio/") or content_type.startswith("video/"):
+       |                if content_type.startswith(("image/", "audio/", "video/")):
        |                    b64 = base64.b64encode(resp.content).decode("utf-8")
        |                    results.append(f"data:{content_type};base64,{b64}")
        |                    continue
@@ -930,19 +865,20 @@ object HuggingFaceCodegenBase {
        |            chunks.append(chunk)
        |        return content_type, b"".join(chunks)
        |
-       |    def _read_image_input(self):
-       |        image_input = str(self.IMAGE_INPUT or "").strip()
-       |        if image_input.startswith("data:"):
-       |            _, encoded = image_input.split(",", 1)
+       |    def _read_media_upload(self, value, error_message):
+       |        source = str(value or "").strip()
+       |        if source.startswith("data:"):
+       |            _, encoded = source.split(",", 1)
        |            return base64.b64decode(encoded)
-       |        if image_input.startswith("http://") or image_input.startswith("https://"):
-       |            _, data = self._fetch_remote_url(image_input)
+       |        if source.startswith(("http://", "https://")):
+       |            _, data = self._fetch_remote_url(source)
        |            return data
-       |        # Reading arbitrary worker-filesystem paths is intentionally NOT
-       |        # supported: a workflow could otherwise point this at any file on the
-       |        # worker (e.g. /etc/passwd) and exfiltrate it via the inference call.
-       |        # Uploaded images arrive as data URLs; remote images as https URLs.
-       |        raise ValueError(
+       |        # Reject worker-filesystem paths. Remote reads use the hardened URL fetch above.
+       |        raise ValueError(error_message)
+       |
+       |    def _read_image_input(self):
+       |        return self._read_media_upload(
+       |            self.IMAGE_INPUT,
        |            "Unsupported image input. Upload an image (sent as a data URL) "
        |            "or provide a public https image URL."
        |        )
@@ -980,17 +916,8 @@ object HuggingFaceCodegenBase {
        |        return base64.b64encode(image_bytes).decode("utf-8")
        |
        |    def _read_audio_input(self):
-       |        audio_input = str(self.AUDIO_INPUT or "").strip()
-       |        if audio_input.startswith("data:"):
-       |            _, encoded = audio_input.split(",", 1)
-       |            return base64.b64decode(encoded)
-       |        if audio_input.startswith("http://") or audio_input.startswith("https://"):
-       |            _, data = self._fetch_remote_url(audio_input)
-       |            return data
-       |        # Reading arbitrary worker-filesystem paths is intentionally NOT
-       |        # supported: uploaded audio arrives as a data URL and remote audio
-       |        # must be fetched through the hardened https-only helper above.
-       |        raise ValueError(
+       |        return self._read_media_upload(
+       |            self.AUDIO_INPUT,
        |            "Unsupported audio input. Upload an audio file (sent as a data URL) "
        |            "or provide a public https audio URL."
        |        )

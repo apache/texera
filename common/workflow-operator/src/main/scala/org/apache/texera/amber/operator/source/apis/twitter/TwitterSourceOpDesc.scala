@@ -21,9 +21,13 @@ package org.apache.texera.amber.operator.source.apis.twitter
 
 import com.fasterxml.jackson.annotation.{JsonIgnore, JsonProperty}
 import com.kjetland.jackson.jsonSchema.annotations.{JsonSchemaDescription, JsonSchemaTitle}
-import org.apache.texera.amber.core.workflow.OutputPort
+import org.apache.texera.amber.core.executor.OpExecWithClassName
+import org.apache.texera.amber.core.tuple.{AttributeType, Schema}
+import org.apache.texera.amber.core.virtualidentity.{ExecutionIdentity, WorkflowIdentity}
+import org.apache.texera.amber.core.workflow.{OutputPort, PhysicalOp, SchemaPropagationFunc}
 import org.apache.texera.amber.operator.metadata.{OperatorGroupConstants, OperatorInfo}
 import org.apache.texera.amber.operator.source.SourceOperatorDescriptor
+import org.apache.texera.amber.util.JSONUtils.objectMapper
 
 @deprecated("Twitter source operator is no longer executable.", "1.1.0-incubating")
 abstract class TwitterSourceOpDesc extends SourceOperatorDescriptor {
@@ -54,4 +58,63 @@ abstract class TwitterSourceOpDesc extends SourceOperatorDescriptor {
     )
   }
 
+  protected def tweetSourcePhysicalOp(
+      workflowId: WorkflowIdentity,
+      executionId: ExecutionIdentity,
+      executorClassName: String
+  ): PhysicalOp =
+    // TODO: use multiple workers
+    PhysicalOp
+      .sourcePhysicalOp(
+        workflowId,
+        executionId,
+        operatorIdentifier,
+        OpExecWithClassName(executorClassName, objectMapper.writeValueAsString(this))
+      )
+      .withInputPorts(operatorInfo.inputPorts)
+      .withOutputPorts(operatorInfo.outputPorts)
+      .withPropagateSchema(
+        SchemaPropagationFunc(_ => Map(operatorInfo.outputPorts.head.id -> sourceSchema()))
+      )
+
+  override def sourceSchema(): Schema = TweetSchema.create()
+}
+
+private[twitter] object TweetSchema {
+  def create(): Schema = {
+    Schema()
+      .add("id", AttributeType.STRING)
+      .add("text", AttributeType.STRING)
+      .add("created_at", AttributeType.TIMESTAMP)
+      .add("lang", AttributeType.STRING)
+      .add("tweet_type", AttributeType.STRING)
+      .add("place_id", AttributeType.STRING)
+      .add("place_coordinate", AttributeType.STRING)
+      .add("in_reply_to_status_id", AttributeType.STRING)
+      .add("in_reply_to_user_id", AttributeType.STRING)
+      .add("like_count", AttributeType.LONG)
+      .add("quote_count", AttributeType.LONG)
+      .add("reply_count", AttributeType.LONG)
+      .add("retweet_count", AttributeType.LONG)
+      .add("hashtags", AttributeType.STRING)
+      .add("symbols", AttributeType.STRING)
+      .add("urls", AttributeType.STRING)
+      .add("mentions", AttributeType.STRING)
+      .add("user_id", AttributeType.STRING)
+      .add("user_created_at", AttributeType.TIMESTAMP)
+      .add("user_name", AttributeType.STRING)
+      .add("user_display_name", AttributeType.STRING)
+      .add("user_lang", AttributeType.STRING)
+      .add("user_description", AttributeType.STRING)
+      .add("user_followers_count", AttributeType.LONG)
+      .add("user_following_count", AttributeType.LONG)
+      .add("user_tweet_count", AttributeType.LONG)
+      .add("user_listed_count", AttributeType.LONG)
+      .add("user_location", AttributeType.STRING)
+      .add("user_url", AttributeType.STRING)
+      .add("user_profile_image_url", AttributeType.STRING)
+      .add("user_pinned_tweet_id", AttributeType.STRING)
+      .add("user_protected", AttributeType.BOOLEAN)
+      .add("user_verified", AttributeType.BOOLEAN)
+  }
 }

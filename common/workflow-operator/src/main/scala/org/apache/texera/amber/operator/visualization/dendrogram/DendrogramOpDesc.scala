@@ -20,6 +20,7 @@
 package org.apache.texera.amber.operator.visualization.dendrogram
 
 import org.apache.texera.amber.operator.visualization.StandaloneChartCode._
+import org.apache.texera.amber.operator.visualization.PythonCodeFragment._
 import com.fasterxml.jackson.annotation.{JsonProperty, JsonPropertyDescription}
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize
 import com.kjetland.jackson.jsonSchema.annotations.{JsonSchemaInject, JsonSchemaTitle}
@@ -114,22 +115,15 @@ class DendrogramOpDesc extends PythonVisualizationOpDesc {
          |import numpy as np
          |
          |class ProcessTableOperator(UDFTableOperator):
-         |    def render_error(self, error_msg):
-         |        return '''<h1>Dendrogram is not available.</h1>
-         |                  <p>Reason is: {} </p>
-         |               '''.format(error_msg)
+         |${runtimeError("Dendrogram is not available.")}
          |
          |    @overrides
          |    def process_table(self, table: Table, port: int) -> Iterator[Optional[TableLike]]:
-         |        if table.empty:
-         |           yield {'html-content': self.render_error("input table is empty.")}
-         |           return
+         |${emptyTableGuard("input table is empty.")}
          |        # A row missing either coordinate has no position to cluster from, and
          |        # scipy refuses a NaN anywhere in the distance matrix.
          |        table = table.dropna(subset=[$xVal, $yVal]) #remove missing values
-         |        if table.empty:
-         |           yield {'html-content': self.render_error("input table has no rows with all of the configured columns filled in.")}
-         |           return
+         |${emptyTableGuard("input table has no rows with all of the configured columns filled in.")}
          |        # Clustering starts from the distances between rows, so a single row
          |        # leaves scipy an empty distance matrix and it raises rather than draws.
          |        if len(table) < 2:
@@ -137,8 +131,7 @@ class DendrogramOpDesc extends PythonVisualizationOpDesc {
          |           return
          |        ${createDendrogram()}
          |        # convert fig to html content
-         |        html = plotly.io.to_html(fig, include_plotlyjs='cdn', auto_play=False)
-         |        yield {'html-content': html}
+         |${plotlyHtmlYield()}
          |
          |"""
     finalcode.encode

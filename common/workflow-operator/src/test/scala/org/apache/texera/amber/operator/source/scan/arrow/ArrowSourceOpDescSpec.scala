@@ -35,6 +35,7 @@ import org.apache.texera.amber.core.virtualidentity.{ExecutionIdentity, Workflow
 import org.apache.texera.amber.operator.{LogicalOp, StandaloneCodeGenerator}
 import org.apache.texera.amber.operator.metadata.OperatorGroupConstants
 import org.apache.texera.amber.operator.source.scan.FileDecodingMethod
+import org.apache.texera.amber.operator.source.scan.arrow.ArrowSourceFixtures._
 import org.apache.texera.amber.util.ArrowUtils
 import org.apache.texera.amber.util.JSONUtils.objectMapper
 import org.scalatest.flatspec.AnyFlatSpec
@@ -50,39 +51,6 @@ class ArrowSourceOpDescSpec extends AnyFlatSpec with Matchers {
 
   private val workflowId = WorkflowIdentity(1L)
   private val executionId = ExecutionIdentity(1L)
-
-  private def writeArrowFile(
-      schema: Schema,
-      rows: Seq[Array[Any]],
-      schemaMetadata: Map[String, String] = Map.empty
-  ): File = {
-    val file = File.createTempFile("arrow-src-", ".arrow")
-    file.deleteOnExit()
-    val allocator = new RootAllocator()
-    val root = VectorSchemaRoot.create(
-      new ArrowFileSchema(ArrowUtils.fromTexeraSchema(schema).getFields, schemaMetadata.asJava),
-      allocator
-    )
-    val out = new FileOutputStream(file)
-    val writer = new ArrowFileWriter(root, null, Channels.newChannel(out))
-    try {
-      writer.start()
-      root.allocateNew()
-      rows.zipWithIndex.foreach {
-        case (values, i) =>
-          ArrowUtils.setTexeraTuple(Tuple.builder(schema).addSequentially(values).build(), i, root)
-      }
-      root.setRowCount(rows.size)
-      writer.writeBatch()
-      writer.end()
-    } finally {
-      writer.close()
-      root.close()
-      allocator.close()
-      out.close()
-    }
-    file
-  }
 
   "ArrowSourceOpDesc.operatorInfo" should
     "advertise the Arrow file-scan name in the Data Input group with no input and one output" in {
@@ -220,9 +188,7 @@ class ArrowSourceOpDescSpec extends AnyFlatSpec with Matchers {
   }
 
   it should "throw a friendly error when the file is not a valid Arrow file" in {
-    val bogus = File.createTempFile("not-arrow-", ".arrow")
-    bogus.deleteOnExit()
-    Files.write(bogus.toPath, "this is not arrow".getBytes)
+    val bogus = invalidArrowFile()
     val d = new ArrowSourceOpDesc
     d.fileName = Some(bogus.toURI.toString)
     val ex = intercept[RuntimeException](d.inferSchema())
@@ -291,24 +257,8 @@ class ArrowSourceOpDescSpec extends AnyFlatSpec with Matchers {
   // the schema rather than read as the -1 its storage counts down to.
   it should "refuse an unsigned 64-bit column, having no Texera type for it" in {
     val fields = List(new Field("u", FieldType.nullable(new ArrowType.Int(64, false)), null))
-    val file = File.createTempFile("arrow-u64-", ".arrow")
-    file.deleteOnExit()
-    val allocator = new RootAllocator()
-    val root = VectorSchemaRoot.create(new ArrowFileSchema(fields.asJava), allocator)
-    val out = new FileOutputStream(file)
-    val writer = new ArrowFileWriter(root, null, Channels.newChannel(out))
-    try {
-      writer.start()
-      root.allocateNew()
+    val file = writeRawArrowFile("arrow-u64-", new ArrowFileSchema(fields.asJava), 1) { root =>
       root.getVector("u").asInstanceOf[UInt8Vector].setSafe(0, -1L)
-      root.setRowCount(1)
-      writer.writeBatch()
-      writer.end()
-    } finally {
-      writer.close()
-      root.close()
-      allocator.close()
-      out.close()
     }
 
     val d = new ArrowSourceOpDesc
@@ -324,4 +274,77 @@ class ArrowSourceOpDescSpec extends AnyFlatSpec with Matchers {
   /** What a script needs before the block: its imports, and the file it reads. */
   private def scriptHeader(d: ArrowSourceOpDesc): String =
     (d.standaloneImports() :+ "import pandas as pd" :+ bindSourceFile(d)).mkString("\n")
+}
+
+private[arrow] object ArrowSourceFixtures {
+  def writeArrowFile(
+      schema: Schema,
+      rows: Seq[Array[Any]],
+      schemaMetadata: Map[String, String] = Map.empty
+  ): File =
+    writeArrowBatches(schema, Seq(rows), schemaMetadata)
+
+  def writeArrowBatches(
+      schema: Schema,
+      batches: Seq[Seq[Array[Any]]],
+      schemaMetadata: Map[String, String] = Map.empty
+  ): File =
+    writeRawArrowBatches(
+      "arrow-src-",
+      new ArrowFileSchema(ArrowUtils.fromTexeraSchema(schema).getFields, schemaMetadata.asJava),
+      batches.map { rows =>
+        rows.size -> { (root: VectorSchemaRoot) =>
+          rows.zipWithIndex.foreach {
+            case (values, i) =>
+              ArrowUtils.setTexeraTuple(
+                Tuple.builder(schema).addSequentially(values).build(),
+                i,
+                root
+              )
+          }
+        }
+      }
+    )
+
+  def writeRawArrowFile(prefix: String, schema: => ArrowFileSchema, rowCount: Int)(
+      populate: VectorSchemaRoot => Unit
+  ): File =
+    writeRawArrowBatches(prefix, schema, Seq(rowCount -> populate))
+
+  private def writeRawArrowBatches(
+      prefix: String,
+      schema: => ArrowFileSchema,
+      batches: Seq[(Int, VectorSchemaRoot => Unit)]
+  ): File = {
+    val file = File.createTempFile(prefix, ".arrow")
+    file.deleteOnExit()
+    val allocator = new RootAllocator()
+    val root = VectorSchemaRoot.create(schema, allocator)
+    val out = new FileOutputStream(file)
+    val writer = new ArrowFileWriter(root, null, Channels.newChannel(out))
+    try {
+      writer.start()
+      batches.foreach {
+        case (rowCount, populate) =>
+          root.allocateNew()
+          populate(root)
+          root.setRowCount(rowCount)
+          writer.writeBatch()
+      }
+      writer.end()
+    } finally {
+      writer.close()
+      root.close()
+      allocator.close()
+      out.close()
+    }
+    file
+  }
+
+  def invalidArrowFile(): File = {
+    val file = File.createTempFile("not-arrow-", ".arrow")
+    file.deleteOnExit()
+    Files.write(file.toPath, "this is not arrow".getBytes)
+    file
+  }
 }

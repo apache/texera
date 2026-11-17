@@ -20,6 +20,7 @@
 package org.apache.texera.amber.operator.visualization.radarChart
 
 import org.apache.texera.amber.operator.visualization.StandaloneChartCode._
+import org.apache.texera.amber.operator.visualization.PythonCodeFragment._
 import com.fasterxml.jackson.annotation.{JsonProperty, JsonPropertyDescription}
 import com.kjetland.jackson.jsonSchema.annotations.{JsonSchemaInject, JsonSchemaTitle}
 import org.apache.texera.amber.operator.visualization.PlotlyStandaloneCode
@@ -136,23 +137,15 @@ class RadarChartOpDesc extends PythonVisualizationOpDesc with PlotlyStandaloneCo
          |import pandas as pd
          |
          |class ProcessTableOperator(UDFTableOperator):
-         |    def render_error(self, error_msg):
-         |        return '''<h1>RadarChart is not available.</h1>
-         |                  <p>Reason is: {} </p>
-         |               '''.format(error_msg)
+         |${runtimeError("RadarChart is not available.")}
          |
          |    @overrides
          |    def process_table(self, table: Table, port: int) -> Iterator[Optional[TableLike]]:
-         |        if table.empty:
-         |           yield {'html-content': self.render_error("input table is empty.")}
-         |           return
+         |${emptyTableGuard("input table is empty.")}
          |        ${manipulateTable()}
-         |        if table.empty:
-         |           yield {'html-content': self.render_error("input table is empty after removing missing values.")}
-         |           return
+         |${emptyTableGuard("input table is empty after removing missing values.")}
          |        ${createPlotlyFigure()}
-         |        html = plotly.io.to_html(fig, include_plotlyjs='cdn', auto_play=False)
-         |        yield {'html-content': html}
+         |${plotlyHtmlYield()}
          |
          |"""
     finalcode.encode
