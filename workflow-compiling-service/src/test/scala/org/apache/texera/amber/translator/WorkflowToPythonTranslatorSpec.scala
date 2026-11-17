@@ -249,6 +249,16 @@ class WorkflowToPythonTranslatorSpec extends AnyFlatSpec with Matchers {
     script should include("""pd.read_csv("script-2.py")""")
   }
 
+  /** Windows and macOS treat names that differ only in case as one file, so
+    * `Script.py` would still be overwritten by the zip's `script.py`.
+    */
+  it should "compare source file names ignoring case" in {
+    translateSources("/alice/v1/Script.py") should include("""pd.read_csv("Script-2.py")""")
+    val script = translateSources("/alice/sales/v1/Data.csv", "/bob/ops/v3/data.csv")
+    script should include("""pd.read_csv("Data.csv")""")
+    script should include("""pd.read_csv("data-2.csv")""")
+  }
+
   /** A file name is the user's text, so it reaches the script through the escaper
     * the operators use and through the replacement quoting on top of that: a bare
     * `$` in a name is a group reference to `replaceAll`.

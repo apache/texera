@@ -27,6 +27,7 @@ import org.apache.texera.common.compiler.model.LogicalPlan
 import org.apache.texera.amber.operator.{StandaloneCodeGenerator, StandaloneHelpers}
 import org.apache.texera.amber.pybuilder.PythonTemplateBuilder.pyStringLiteral
 
+import java.util.Locale
 import java.util.regex.Matcher
 import scala.collection.mutable
 import scala.collection.mutable.ArrayBuffer
@@ -286,13 +287,16 @@ class WorkflowToPythonTranslator extends LazyLogging {
   // The offered name if no other source has taken it, otherwise the same name
   // numbered before its extension: data.csv, then data-2.csv. Numbering the stem
   // rather than appending keeps the suffix, which is what a reader opens the
-  // file by.
+  // file by. Names are compared ignoring case, since Windows and macOS treat
+  // Script.py and script.py as one file.
   private def distinctName(offered: String, taken: Set[String]): String = {
-    if (!taken.contains(offered)) return offered
+    val takenFolded = taken.map(_.toLowerCase(Locale.ROOT))
+    def free(name: String): Boolean = !takenFolded.contains(name.toLowerCase(Locale.ROOT))
+    if (free(offered)) return offered
     val dot = offered.lastIndexOf('.')
     val (stem, ext) =
       if (dot <= 0) (offered, "") else (offered.substring(0, dot), offered.substring(dot))
-    Iterator.from(2).map(n => s"$stem-$n$ext").find(!taken.contains(_)).get
+    Iterator.from(2).map(n => s"$stem-$n$ext").find(free).get
   }
 
   // Replaces in{N}df / out{N}df placeholders with concrete variable names.
