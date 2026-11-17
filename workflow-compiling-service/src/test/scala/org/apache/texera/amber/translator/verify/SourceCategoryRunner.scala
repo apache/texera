@@ -31,6 +31,7 @@ import org.apache.texera.amber.operator.source.scan.file.FileScanSourceOpDesc
 import org.apache.texera.amber.operator.source.scan.text.TextInputSourceOpDesc
 import com.fasterxml.jackson.databind.node.ObjectNode
 import org.apache.texera.amber.util.JSONUtils.objectMapper
+import org.apache.commons.io.FileUtils
 
 import java.nio.charset.StandardCharsets
 import java.nio.file.{Files, Path}
@@ -361,9 +362,15 @@ object SourceCategoryRunner {
         try runVariant(opDesc, workDir)
         catch {
           case e: Throwable =>
-            throw new AssertionError(s"[variant: $label] ${e.getMessage}", e)
+            throw new AssertionError(
+              s"[variant: $label] ${e.getMessage}\n  artifacts kept in $testRoot",
+              e
+            )
         }
     }
+    // A failed run keeps its directory so it can be read. A passing run has
+    // nothing worth reading, and across every operator the directories add up.
+    FileUtils.deleteDirectory(testRoot.toFile)
   }
 
   /** Drive one configured source through both paths inside `workDir`, which holds
