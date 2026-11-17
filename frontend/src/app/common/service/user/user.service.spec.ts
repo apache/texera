@@ -188,7 +188,7 @@ describe("UserService", () => {
     // Subscribers to userChanged (header, sidebar, routing guards) drive the
     // initial dashboard render. If userChanged fires before loadPostLogin
     // resolves, those subscribers see env without the authenticated fields and
-    // mis-render (e.g. copilot button missing, inviteOnly check skipped).
+    // mis-render (e.g. copilot button missing).
     const gate = new Subject<unknown>();
     vi.spyOn(config, "loadPostLogin").mockReturnValue(gate.asObservable() as any);
 

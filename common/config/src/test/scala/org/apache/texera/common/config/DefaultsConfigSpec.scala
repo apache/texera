@@ -44,6 +44,13 @@ class DefaultsConfigSpec extends AnyFlatSpec with Matchers {
     ifUnset("USER_SYS_INVITE_ONLY")(DefaultsConfig.inviteOnly shouldBe true)
   }
 
+  // HOCON also accepts yes/no and on/off, but every reader of the stored row expects true or false:
+  // the backend reads anything else as on, and so does the admin card. Holds whatever spelling
+  // USER_SYS_INVITE_ONLY uses; run with USER_SYS_INVITE_ONLY=off to exercise it.
+  it should "seed the parsed value, not the variable's own spelling" in {
+    DefaultsConfig.allDefaults.get("invite_only") shouldBe Some(DefaultsConfig.inviteOnly.toString)
+  }
+
   "DefaultsConfig.allDefaults" should "flatten default.conf into short-key/value entries" in {
     val defaults = DefaultsConfig.allDefaults
     defaults should not be empty

@@ -24,6 +24,8 @@ import org.scalatest.BeforeAndAfterEach
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 
+import scala.util.Success
+
 class SiteSettingsSpec
     extends AnyFlatSpec
     with Matchers
@@ -93,26 +95,24 @@ class SiteSettingsSpec
     SiteSettings.getLong("big", 0L) shouldBe 9999999999L
   }
 
-  "getBoolean" should "read a stored true or false regardless of case and surrounding whitespace" in {
-    SiteSettings.upsert(getDSLContext, "flag_on", " TRUE ", "admin")
-    SiteSettings.upsert(getDSLContext, "flag_off", "false", "admin")
-    SiteSettings.getBoolean("flag_on", default = false) shouldBe true
-    SiteSettings.getBoolean("flag_off", default = true) shouldBe false
+  "lookup" should "return the stored value, as written, for a key that has a row" in {
+    SiteSettings.upsert(getDSLContext, "flag", " TRUE ", "admin")
+    SiteSettings.lookup("flag") shouldBe Success(Some(" TRUE "))
   }
 
-  it should "return the default when the key is absent" in {
-    SiteSettings.getBoolean("missing_flag", default = true) shouldBe true
-    SiteSettings.getBoolean("missing_flag", default = false) shouldBe false
+  it should "return no value, rather than a failure, for a key without a row" in {
+    SiteSettings.lookup("missing_flag") shouldBe Success(None)
   }
 
-  // Only the two literals are answers. Reading "yes", "1" or a blank as false would quietly pick
-  // whichever side of a switch false stands for.
-  it should "return the default when the stored value is not a boolean literal" in {
-    Seq("yes", "1", "").foreach { raw =>
-      SiteSettings.upsert(getDSLContext, "bad_flag", raw, "admin")
-      SiteSettings.getBoolean("bad_flag", default = true) shouldBe true
-      SiteSettings.getBoolean("bad_flag", default = false) shouldBe false
-    }
+  // A caller deciding something security-relevant has to tell "never written" from "could not be
+  // read": only the first may fall back to a configured default.
+  it should "return a failure when the read itself fails" in {
+    SiteSettings.upsert(getDSLContext, "flag", "true", "admin")
+    getDSLContext.execute("ALTER TABLE texera_db.site_settings RENAME TO site_settings_away")
+    try SiteSettings.lookup("flag").isFailure shouldBe true
+    finally getDSLContext.execute(
+      "ALTER TABLE texera_db.site_settings_away RENAME TO site_settings"
+    )
   }
 
   "upsert" should "insert a new row and then overwrite it with the latest value and writer" in {

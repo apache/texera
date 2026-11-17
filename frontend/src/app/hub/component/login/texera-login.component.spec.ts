@@ -383,8 +383,8 @@ describe("TexeraLoginComponent", () => {
       expect(routerMock.navigateByUrl).not.toHaveBeenCalled();
     });
 
-    // A page loaded before an admin turned invite-only on still holds the old flag, and then keeps an
-    // INACTIVE session. That account can do nothing yet, so it is not sent to the dashboard.
+    // An INACTIVE account can do nothing yet, so even a session that is still around for one is not
+    // sent to the dashboard.
     it("does not open the dashboard for an INACTIVE account", () => {
       signedInAs(Role.INACTIVE);
       fillSignup();

@@ -26,10 +26,12 @@ import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.{BeforeAndAfterAll, BeforeAndAfterEach}
 
+import scala.util.{Failure, Success}
+
 /**
   * Spec for [[InviteOnly]]: the switch is the `invite_only` site setting the admin settings page
-  * writes, read again on every call, with default.conf's value standing in while no usable row
-  * is stored.
+  * writes, read again on every call. default.conf's value stands in only while no row is stored;
+  * a row that cannot be read or parsed keeps sign-up closed.
   */
 class InviteOnlySpec
     extends AnyFlatSpec
@@ -71,8 +73,43 @@ class InviteOnlySpec
     InviteOnly.enabled shouldBe configuredDefault
   }
 
-  it should "use the default.conf value when the stored row is not a boolean" in {
+  it should "keep sign-up closed when the stored row is not a boolean" in {
     store("sometimes")
-    InviteOnly.enabled shouldBe configuredDefault
+    InviteOnly.enabled shouldBe true
+  }
+
+  it should "keep sign-up closed when the setting cannot be read" in {
+    store("false")
+    getDSLContext.execute("ALTER TABLE texera_db.site_settings RENAME TO site_settings_away")
+    try InviteOnly.enabled shouldBe true
+    finally getDSLContext.execute(
+      "ALTER TABLE texera_db.site_settings_away RENAME TO site_settings"
+    )
+  }
+
+  // The decision on its own, so the configured value can be `false`: with the shipped default
+  // (`true`) falling back to it and failing closed look the same.
+  "InviteOnly.decide" should "take a stored true or false, in any case and padding" in {
+    InviteOnly.decide(Success(Some("true")), configured = false) shouldBe true
+    InviteOnly.decide(Success(Some(" FALSE ")), configured = true) shouldBe false
+  }
+
+  it should "use the configured value only while no row is stored" in {
+    InviteOnly.decide(Success(None), configured = false) shouldBe false
+    InviteOnly.decide(Success(None), configured = true) shouldBe true
+  }
+
+  // A REGULAR account can run code on the server, so only a row that says false opens sign-up.
+  it should "fail closed when the read fails, whatever the configured value" in {
+    InviteOnly.decide(
+      Failure(new RuntimeException("pool timeout")),
+      configured = false
+    ) shouldBe true
+  }
+
+  it should "fail closed when the stored value is not a boolean, whatever the configured value" in {
+    Seq("sometimes", "off", "").foreach { raw =>
+      InviteOnly.decide(Success(Some(raw)), configured = false) shouldBe true
+    }
   }
 }
