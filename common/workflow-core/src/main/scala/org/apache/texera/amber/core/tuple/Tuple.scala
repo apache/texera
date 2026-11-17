@@ -90,15 +90,17 @@ case class Tuple @JsonCreator() (
       case that: Tuple if this.schema == that.schema =>
         val left = this.getFields
         val right = that.getFields
-        (0 until math.min(left.length, right.length)).forall(i => fieldEquals(left(i), right(i)))
+        val fieldCount = math.min(left.length, right.length)
+        var index = 0
+        while (index < fieldCount && fieldEquals(left(index), right(index))) index += 1
+        index == fieldCount
       case _ => false
     }
 
   private def fieldEquals(left: Any, right: Any): Boolean =
-    (left, right) match {
-      case (l: Array[Byte], r: Array[Byte]) => util.Arrays.equals(l, r)
-      case _                                => left == right
-    }
+    if (left.isInstanceOf[Array[Byte]] && right.isInstanceOf[Array[Byte]])
+      util.Arrays.equals(left.asInstanceOf[Array[Byte]], right.asInstanceOf[Array[Byte]])
+    else left == right
 
   def getPartialTuple(attributeNames: List[String]): Tuple = {
     val partialSchema = schema.getPartialSchema(attributeNames)
