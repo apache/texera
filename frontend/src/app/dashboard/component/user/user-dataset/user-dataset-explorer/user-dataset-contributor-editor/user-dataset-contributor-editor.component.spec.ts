@@ -17,51 +17,31 @@
  * under the License.
  */
 
-import { Component } from "@angular/core";
-import { ComponentFixture, TestBed } from "@angular/core/testing";
-import { BrowserAnimationsModule } from "@angular/platform-browser/animations";
-import { ReactiveFormsModule } from "@angular/forms";
-import { FieldType, FieldTypeConfig, FormlyModule } from "@ngx-formly/core";
-import { NZ_MODAL_DATA, NzModalRef } from "ng-zorro-antd/modal";
+import { NZ_MODAL_DATA } from "ng-zorro-antd/modal";
 import { UserDatasetContributorEditorComponent } from "./user-dataset-contributor-editor.component";
 import { Contributor } from "../../../../../../common/type/dataset";
-import { commonTestProviders } from "../../../../../../common/testing/test-utils";
-
-@Component({ template: "", standalone: true })
-class StubFormlyFieldComponent extends FieldType<FieldTypeConfig> {}
+import { createFormlyModalFixture } from "../../../formly-modal-test-fixture";
 
 describe("UserDatasetContributorEditorComponent", () => {
   let modalClose: ReturnType<typeof vi.fn>;
 
-  async function createFixture(
-    modalData: Contributor | null
-  ): Promise<ComponentFixture<UserDatasetContributorEditorComponent>> {
+  async function render(modalData: Contributor | null): Promise<UserDatasetContributorEditorComponent> {
     modalClose = vi.fn();
 
-    await TestBed.configureTestingModule({
-      imports: [
-        UserDatasetContributorEditorComponent,
-        BrowserAnimationsModule,
-        ReactiveFormsModule,
-        FormlyModule.forRoot({
-          types: ["input", "checkbox", "textarea"].map(name => ({ name, component: StubFormlyFieldComponent })),
-        }),
-      ],
-      providers: [
-        { provide: NZ_MODAL_DATA, useValue: modalData },
-        { provide: NzModalRef, useValue: { close: modalClose } },
-        ...commonTestProviders,
-      ],
-    }).compileComponents();
-
-    return TestBed.createComponent(UserDatasetContributorEditorComponent);
+    const fixture = await createFormlyModalFixture(
+      UserDatasetContributorEditorComponent,
+      ["input", "checkbox", "textarea"],
+      modalClose,
+      { providers: [{ provide: NZ_MODAL_DATA, useValue: modalData }] }
+    );
+    fixture.detectChanges();
+    return fixture.componentInstance;
   }
 
   it("starts with an empty model when adding a new contributor", async () => {
-    const fixture = await createFixture(null);
-    fixture.detectChanges();
+    const component = await render(null);
 
-    expect(fixture.componentInstance.model).toEqual({
+    expect(component.model).toEqual({
       name: "",
       creator: false,
       email: "",
@@ -78,16 +58,13 @@ describe("UserDatasetContributorEditorComponent", () => {
       email: "contributor-a@test.com",
       comments: "collected the data",
     };
-    const fixture = await createFixture(contributor);
-    fixture.detectChanges();
+    const component = await render(contributor);
 
-    expect(fixture.componentInstance.model).toEqual(contributor);
+    expect(component.model).toEqual(contributor);
   });
 
   it("submit closes the modal with a copy of the model when the form is valid", async () => {
-    const fixture = await createFixture(null);
-    fixture.detectChanges();
-    const component = fixture.componentInstance;
+    const component = await render(null);
     component.contributorForm.get("name")?.setValue("Bob");
 
     component.submit();
@@ -97,9 +74,7 @@ describe("UserDatasetContributorEditorComponent", () => {
   });
 
   it("submit does nothing when the email is invalid", async () => {
-    const fixture = await createFixture(null);
-    fixture.detectChanges();
-    const component = fixture.componentInstance;
+    const component = await render(null);
     component.contributorForm.get("name")?.setValue("Contributor A");
     component.contributorForm.get("email")?.setValue("not-an-email");
 
@@ -114,19 +89,17 @@ describe("UserDatasetContributorEditorComponent", () => {
   });
 
   it("submit does nothing when the required name is empty (invalid form)", async () => {
-    const fixture = await createFixture(null);
-    fixture.detectChanges();
+    const component = await render(null);
 
-    fixture.componentInstance.submit();
+    component.submit();
 
     expect(modalClose).not.toHaveBeenCalled();
   });
 
   it("cancel closes the modal without a value", async () => {
-    const fixture = await createFixture(null);
-    fixture.detectChanges();
+    const component = await render(null);
 
-    fixture.componentInstance.cancel();
+    component.cancel();
 
     expect(modalClose).toHaveBeenCalledWith();
   });

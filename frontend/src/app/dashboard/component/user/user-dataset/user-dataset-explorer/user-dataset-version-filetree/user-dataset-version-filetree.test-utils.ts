@@ -22,6 +22,8 @@
  * two cannot drift.
  */
 
+import { ComponentFixture, TestBed } from "@angular/core/testing";
+import { UserDatasetVersionFiletreeComponent } from "./user-dataset-version-filetree.component";
 import { DatasetFileNode } from "../../../../../../common/type/datasetVersionFileTree";
 
 export const FILE_COUNT = 1000;
@@ -33,4 +35,10 @@ export function makeFlatFileNodes(count: number): DatasetFileNode[] {
     parentDir: "/owner/dataset/v1",
     size: 1,
   }));
+}
+
+/** Configures TestBed for `UserDatasetVersionFiletreeComponent` and returns a fresh fixture. */
+export function createFiletreeFixture(): ComponentFixture<UserDatasetVersionFiletreeComponent> {
+  TestBed.configureTestingModule({ imports: [UserDatasetVersionFiletreeComponent] });
+  return TestBed.createComponent(UserDatasetVersionFiletreeComponent);
 }
