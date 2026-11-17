@@ -351,8 +351,8 @@ export class TexeraLoginComponent implements OnInit {
   /**
    * Close a sign-up that created the account. Registering signs the user in, so an account that can
    * already be used (invite-only off) goes where a sign-in would. An account waiting for an admin is
-   * INACTIVE: the session is signed straight back out, or kept by a page whose config predates
-   * invite-only being turned on. Either way the user stays here and is told to wait.
+   * INACTIVE, which signs the session straight back out, so the user stays here and is told to wait.
+   * The role is checked as well, so an INACTIVE session is never sent to the dashboard.
    */
   private finishSignup(): void {
     const user = this.userService.getCurrentUser();

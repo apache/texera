@@ -46,9 +46,23 @@ object SiteSettings {
   def getLong(key: String, default: => Long): Long =
     readAndParse(key, default)(_.toLong)
 
-  /** `true` or `false` in any case; any other value is unparsable and yields `default`. */
-  def getBoolean(key: String, default: => Boolean): Boolean =
-    readAndParse(key, default)(_.toBoolean)
+  /**
+    * The stored value of `key`, unparsed: `Success(None)` when there is no row, and a `Failure`
+    * when the read itself fails. For a caller that must tell those apart, which the getters above
+    * fold into their default.
+    */
+  def lookup(key: String): Try[Option[String]] =
+    Try(
+      Option(
+        SqlServer
+          .getInstance()
+          .createDSLContext()
+          .select(SITE_SETTINGS.VALUE)
+          .from(SITE_SETTINGS)
+          .where(SITE_SETTINGS.KEY.eq(key))
+          .fetchOneInto(classOf[String])
+      )
+    )
 
   /** Insert or overwrite the row for `key`, stamping who/when. */
   def upsert(ctx: DSLContext, key: String, value: String, updatedBy: String): Unit =
@@ -81,14 +95,5 @@ object SiteSettings {
     raw.flatMap(s => Try(parse(s.trim)).toOption).getOrElse(default)
 
   private def readAndParse[T](key: String, default: => T)(parse: String => T): T =
-    Try {
-      val raw = SqlServer
-        .getInstance()
-        .createDSLContext()
-        .select(SITE_SETTINGS.VALUE)
-        .from(SITE_SETTINGS)
-        .where(SITE_SETTINGS.KEY.eq(key))
-        .fetchOneInto(classOf[String])
-      parseOrDefault(Option(raw), default)(parse)
-    }.getOrElse(default)
+    lookup(key).toOption.map(parseOrDefault(_, default)(parse)).getOrElse(default)
 }

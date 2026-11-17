@@ -19,21 +19,41 @@
 
 package org.apache.texera.auth
 
+import com.typesafe.scalalogging.LazyLogging
 import org.apache.texera.common.config.DefaultsConfig
 import org.apache.texera.dao.SiteSettings
+
+import scala.util.{Failure, Success, Try}
 
 /**
   * Whether a new account has to wait for an admin's approval before it can be used.
   *
   * The switch is the `invite_only` site setting, which admins flip on the Admin Settings page. It
   * is read on every call, so a change reaches the next sign-up without a restart. default.conf's
-  * `user-sys.invite_only` (USER_SYS_INVITE_ONLY) seeds that row and stands in whenever the row is
-  * missing, unreadable or not a boolean.
+  * `user-sys.invite_only` (USER_SYS_INVITE_ONLY) seeds that row and stands in while no row exists.
   */
-object InviteOnly {
+object InviteOnly extends LazyLogging {
 
   /** The `site_settings` key, which is also the default.conf leaf that seeds it. */
   val SettingKey = "invite_only"
 
-  def enabled: Boolean = SiteSettings.getBoolean(SettingKey, DefaultsConfig.inviteOnly)
+  def enabled: Boolean = decide(SiteSettings.lookup(SettingKey), DefaultsConfig.inviteOnly)
+
+  /**
+    * The configured value applies only while no row is stored. A read that fails, or a value that
+    * is neither true nor false, keeps sign-up closed: a REGULAR account can run code on the server,
+    * so sign-up is open only when the row says so.
+    */
+  private[auth] def decide(stored: Try[Option[String]], configured: => Boolean): Boolean =
+    stored match {
+      case Success(None) => configured
+      case Success(Some(value)) =>
+        value.trim.toBooleanOption.getOrElse {
+          logger.warn(s"The $SettingKey setting holds '$value', not true or false; keeping it on.")
+          true
+        }
+      case Failure(e) =>
+        logger.warn(s"Could not read the $SettingKey setting; keeping it on.", e)
+        true
+    }
 }

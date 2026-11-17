@@ -137,8 +137,9 @@ export class UserService {
   // Returns Observable<void> rather than void so callers (login / googleLogin /
   // register) can switchMap through the post-login config fetch. The /config/gui
   // and /config/user-system endpoints are @RolesAllowed, so we must wait for the
-  // new JWT to be in localStorage before they will answer; loginWithExistingToken
-  // also reads config.env.inviteOnly, so it must run after loadPostLogin resolves.
+  // new JWT to be in localStorage before they will answer; the user change that
+  // loginWithExistingToken feeds renders from that config, so it runs after
+  // loadPostLogin resolves.
   private handleAccessToken(accessToken: string): Observable<void> {
     AuthService.setAccessToken(accessToken);
     return this.config.loadPostLogin().pipe(

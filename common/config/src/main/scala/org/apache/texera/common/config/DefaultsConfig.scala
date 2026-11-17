@@ -29,8 +29,10 @@ object DefaultsConfig {
 
   // Typed rather than read off `allDefaults`: HOCON's parsing keeps the spellings
   // USER_SYS_INVITE_ONLY has always accepted (yes/no, on/off), and an unreadable value stops
-  // config-service at startup, when it loads this object to seed site_settings.
-  val inviteOnly: Boolean = conf.getBoolean("user-sys.invite_only")
+  // config-service at startup, when it loads this object to seed site_settings. `allDefaults`
+  // seeds this parsed value, because every reader of the row expects true or false.
+  private val InviteOnlyPath = "user-sys.invite_only"
+  val inviteOnly: Boolean = conf.getBoolean(InviteOnlyPath)
 
   // site_settings rows are keyed by the last path segment of a HOCON key, so
   // this is the single place that turns a config path into a row key.
@@ -63,7 +65,7 @@ object DefaultsConfig {
         "segment, so give these a unique leaf name."
     )
 
-    entries.toMap
+    entries.toMap.updated(shortKey(InviteOnlyPath), inviteOnly.toString)
   }
 
   /**
