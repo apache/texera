@@ -55,6 +55,17 @@ platform:
           - 'notebook-migration-service/**'
           - 'workflow-compiling-service/**'
 
+workflow-to-python:
+  # Fires the Workflow-to-Python verification for the paths no other label
+  # covers for it: the translator and the verification framework, and the
+  # protobuf that amber's Python runtime imports. Operators and core types
+  # reach it through `common`, and amber's Python code and its requirements
+  # through `pyamber`.
+  - changed-files:
+      - any-glob-to-any-file:
+          - 'workflow-compiling-service/**'
+          - 'amber/src/main/protobuf/**'
+
 agent-service:
   - changed-files:
       - any-glob-to-any-file:

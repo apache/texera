@@ -56,6 +56,10 @@ on:
         required: false
         type: boolean
         default: true
+      run_workflow_to_python:
+        required: false
+        type: boolean
+        default: true
       run_pyamber:
         required: false
         type: boolean
@@ -982,9 +986,11 @@ jobs:
       # --- workflow-compiling-service only: provision Python so the verify
       # spec (OperatorBehaviorSpec) can fork real interpreters. These four
       # steps mirror the retired standalone workflow-compiling-service-integration
-      # job; they are no-ops for every other service in the matrix.
+      # job; they are no-ops for every other service in the matrix. They and the
+      # verify step below also skip when precheck leaves run_workflow_to_python
+      # off, so a PR that cannot change either result only boots the service.
       - name: Setup Python for Scala-Python verification tests
-        if: ${{ matrix.service == 'workflow-compiling-service' }}
+        if: ${{ matrix.service == 'workflow-compiling-service' && inputs.run_workflow_to_python }}
         uses: actions/setup-python@v7
         with:
           python-version: "3.12"
@@ -994,7 +1000,7 @@ jobs:
         # to PYTHONPATH). Install amber's runtime deps, same as amber-integration.
         # dev-requirements.txt provides the betterproto plugin used by
         # bin/python-proto-gen.sh in the proto-generation step below.
-        if: ${{ matrix.service == 'workflow-compiling-service' }}
+        if: ${{ matrix.service == 'workflow-compiling-service' && inputs.run_workflow_to_python }}
         run: |
           python -m pip install uv
           if [ -f amber/requirements.txt ]; then uv pip install --system --index-strategy unsafe-best-match -r amber/requirements.txt; fi
@@ -1005,7 +1011,7 @@ jobs:
         # generated betterproto bindings in amber/src/main/python/proto (gitignored,
         # not checked in). Pin protoc to bin/protoc-version.txt via the upstream
         # release zip. Linux-only: this job runs on ubuntu-latest.
-        if: ${{ matrix.service == 'workflow-compiling-service' }}
+        if: ${{ matrix.service == 'workflow-compiling-service' && inputs.run_workflow_to_python }}
         run: |
           PROTOC_VERSION=$(cat bin/protoc-version.txt)
           curl -fsSL -o /tmp/protoc.zip "https://github.com/protocolbuffers/protobuf/releases/download/v${PROTOC_VERSION}/protoc-${PROTOC_VERSION}-linux-x86_64.zip"
@@ -1016,7 +1022,7 @@ jobs:
         # Regenerate amber/src/main/python/proto so the forked py_op_driver can
         # import pyamber; without this Path A fails with ImportError on proto
         # symbols (e.g. ChannelIdentity).
-        if: ${{ matrix.service == 'workflow-compiling-service' }}
+        if: ${{ matrix.service == 'workflow-compiling-service' && inputs.run_workflow_to_python }}
         run: bash bin/python-proto-gen.sh
       - name: Create Databases
         run: |
@@ -1114,7 +1120,7 @@ jobs:
         # operator that cannot run, recorded against an issue in the runner itself.
         # UDF_PYTHON_PATH points the harness at the provisioned interpreter (bare
         # name resolves via PATH); it auto-locates amber/src/main/python.
-        if: ${{ matrix.service == 'workflow-compiling-service' }}
+        if: ${{ matrix.service == 'workflow-compiling-service' && inputs.run_workflow_to_python }}
         env:
           WCS_TEST_FILTER: integration-only
           UDF_PYTHON_PATH: python
