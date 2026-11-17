@@ -19,9 +19,6 @@
 
 package org.apache.texera.web.service
 
-import com.fasterxml.jackson.core.`type`.TypeReference
-import com.fasterxml.jackson.databind.ObjectMapper
-import com.fasterxml.jackson.module.scala.DefaultScalaModule
 import com.github.tototoshi.csv.CSVWriter
 import org.apache.texera.amber.core.storage.{
   DocumentFactory,
@@ -59,7 +56,6 @@ import javax.ws.rs.WebApplicationException
 import javax.ws.rs.core.{MediaType, Response, StreamingOutput}
 import scala.collection.mutable
 import scala.collection.mutable.ArrayBuffer
-import scala.jdk.CollectionConverters._
 import scala.util.Using
 
 object Constants {
@@ -114,15 +110,13 @@ class ResultExportService(workflowIdentity: WorkflowIdentity, computingUnitId: I
       }
     }
 
-    var exportResponse: ResultExportResponse = null
-    if (errorMessages.isEmpty) {
-      exportResponse = ResultExportResponse("success", successMessages.mkString("\n"))
-    } else if (successMessages.isEmpty) {
-      exportResponse = ResultExportResponse("error", errorMessages.mkString("\n"))
-    } else {
-      // At least one success, so we consider overall success (with partial possible).
-      exportResponse = ResultExportResponse("success", successMessages.mkString("\n"))
-    }
+    // At least one successful export makes the overall result successful.
+    val exportResponse =
+      if (errorMessages.nonEmpty && successMessages.isEmpty) {
+        ResultExportResponse("error", errorMessages.mkString("\n"))
+      } else {
+        ResultExportResponse("success", successMessages.mkString("\n"))
+      }
 
     Response.ok(exportResponse).build()
   }
@@ -134,11 +128,7 @@ class ResultExportService(workflowIdentity: WorkflowIdentity, computingUnitId: I
     */
   def exportToLocal(request: ResultExportRequest): Response = {
     if (request.operators.size > 1) {
-      val (zipStream, zipFileNameOpt) = exportOperatorsAsZip(request)
-      if (zipStream == null) {
-        throw new RuntimeException("Zip stream is null")
-      }
-      val fileName = zipFileNameOpt.getOrElse("operators.zip")
+      val (zipStream, fileName) = exportOperatorsAsZip(request)
 
       Response
         .ok(zipStream, "application/zip")
@@ -147,11 +137,8 @@ class ResultExportService(workflowIdentity: WorkflowIdentity, computingUnitId: I
 
     } else {
       val op = request.operators.head
-      val (streamingOutput, fileNameOpt) = exportOperatorResultAsStream(request, op)
-      if (streamingOutput == null) {
-        throw new RuntimeException("Failed to export operator")
-      }
-      val fileName = fileNameOpt.getOrElse("download.dat")
+      val (streamingOutput, fileName) = exportOperatorResultAsStream(request, op)
+        .getOrElse(throw new RuntimeException("Failed to export operator"))
 
       Response
         .ok(streamingOutput, MediaType.APPLICATION_OCTET_STREAM)
@@ -204,15 +191,15 @@ class ResultExportService(workflowIdentity: WorkflowIdentity, computingUnitId: I
   def exportOperatorResultAsStream(
       request: ResultExportRequest,
       operatorRequest: OperatorExportInfo
-  ): (StreamingOutput, Option[String]) = {
+  ): Option[(StreamingOutput, String)] = {
     val execIdOpt = getLatestExecutionId(workflowIdentity, computingUnitId)
     if (execIdOpt.isEmpty) {
-      return (null, None)
+      return None
     }
 
     val operatorDocument = getOperatorDocument(operatorRequest.id, computingUnitId)
     if (operatorDocument == null || operatorDocument.getCount == 0) {
-      return (null, None)
+      return None
     }
 
     val fileName =
@@ -235,7 +222,7 @@ class ResultExportService(workflowIdentity: WorkflowIdentity, computingUnitId: I
       }
     }
 
-    (streamingOutput, Some(fileName))
+    Some((streamingOutput, fileName))
   }
 
   /**
@@ -243,7 +230,7 @@ class ResultExportService(workflowIdentity: WorkflowIdentity, computingUnitId: I
     */
   def exportOperatorsAsZip(
       request: ResultExportRequest
-  ): (StreamingOutput, Option[String]) = {
+  ): (StreamingOutput, String) = {
     val timestamp = LocalDateTime
       .now()
       .truncatedTo(ChronoUnit.SECONDS)
@@ -289,7 +276,7 @@ class ResultExportService(workflowIdentity: WorkflowIdentity, computingUnitId: I
       }
     }
 
-    (streamingOutput, Some(zipFileName))
+    (streamingOutput, zipFileName)
   }
 
   /**
@@ -425,19 +412,8 @@ class ResultExportService(workflowIdentity: WorkflowIdentity, computingUnitId: I
   private def streamDocumentAsParquetZip(
       doc: VirtualDocument[Tuple],
       outputStream: OutputStream
-  ): Unit = {
-    try {
-      val zipStream = doc.asInputStream()
-      try {
-        IOUtils.copy(zipStream, outputStream)
-      } finally {
-        zipStream.close()
-      }
-    } catch {
-      case e: Exception =>
-        throw e
-    }
-  }
+  ): Unit =
+    Using.resource(doc.asInputStream())(IOUtils.copy(_, outputStream))
 
   /*
    * Handle streaming a single (row, column) from an operator's result.
@@ -600,30 +576,5 @@ class ResultExportService(workflowIdentity: WorkflowIdentity, computingUnitId: I
       s"${request.workflowName}-op$operatorId-v$latestVersion-$timestamp.$extensionMatch"
     // remove path separators
     StringUtils.replaceEach(rawName, Array("/", "\\"), Array("", ""))
-  }
-
-  /**
-    * Parse a JSON string array of operators into a list of OperatorExportInfo objects.
-    */
-  def parseOperators(operatorsJson: String): List[OperatorExportInfo] = {
-    new ObjectMapper()
-      .registerModule(DefaultScalaModule)
-      .readValue(operatorsJson, new TypeReference[List[OperatorExportInfo]] {})
-  }
-
-  /**
-    * Validate an export request by checking if any operators are selected.
-    * Return an error response if none are selected, otherwise None.
-    */
-  def validateExportRequest(request: ResultExportRequest): Option[Response] = {
-    if (request.operators.isEmpty) {
-      Some(
-        Response
-          .status(Response.Status.BAD_REQUEST)
-          .`type`(MediaType.APPLICATION_JSON)
-          .entity(Map("error" -> "No operator selected").asJava)
-          .build()
-      )
-    } else None
   }
 }

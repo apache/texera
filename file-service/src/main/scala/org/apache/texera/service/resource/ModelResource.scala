@@ -210,7 +210,7 @@ class ModelResource extends LazyLogging with ResourceUploadSupport {
 
     DashboardModel(
       targetModel,
-      getOwner(ctx, mid).getEmail,
+      getOwnerEmail(ctx, mid),
       userAccessPrivilege,
       isOwner,
       withLakeFSErrorHandling(s"retrieving the size of model '${targetModel.getName}'") {
@@ -804,7 +804,7 @@ class ModelResource extends LazyLogging with ResourceUploadSupport {
         LakeFSFileNode
           .fromLakeFSRepositoryCommittedObjects(
             ResourceType.Model,
-            Map((getOwner(ctx, mid).getEmail, modelName, newVersionName) -> fileNodes)
+            Map((getOwnerEmail(ctx, mid), modelName, newVersionName) -> fileNodes)
           )
       )
     }
@@ -1008,7 +1008,7 @@ class ModelResource extends LazyLogging with ResourceUploadSupport {
 
       val document = CoverImageUtils.openCoverOrBadRequest(
         ResourceType.Model,
-        getOwner(ctx, mid).getEmail,
+        getOwnerEmail(ctx, mid),
         model.getName,
         normalized
       )
@@ -1035,7 +1035,7 @@ class ModelResource extends LazyLogging with ResourceUploadSupport {
       )
 
       val document = CoverImageUtils
-        .openCover(ResourceType.Model, getOwner(ctx, mid).getEmail, model.getName, coverImage)
+        .openCover(ResourceType.Model, getOwnerEmail(ctx, mid), model.getName, coverImage)
         .getOrElse(throw new NotFoundException("No cover image"))
 
       Response
@@ -1063,7 +1063,7 @@ class ModelResource extends LazyLogging with ResourceUploadSupport {
         case None => Response.ok(Map("url" -> null)).build()
         case Some(coverImage) =>
           val url = CoverImageUtils
-            .openCover(ResourceType.Model, getOwner(ctx, mid).getEmail, model.getName, coverImage)
+            .openCover(ResourceType.Model, getOwnerEmail(ctx, mid), model.getName, coverImage)
             .map(CoverImageUtils.presignedUrl(_, coverImage))
           Response.ok(Map("url" -> url.orNull)).build()
       }
@@ -1124,7 +1124,7 @@ class ModelResource extends LazyLogging with ResourceUploadSupport {
     ResourceUploadService
       .versionRootFileNodes(
         ResourceType.Model,
-        getOwner(ctx, mid).getEmail,
+        getOwnerEmail(ctx, mid),
         model.getName,
         modelVersion.getName,
         model.getRepositoryName,
