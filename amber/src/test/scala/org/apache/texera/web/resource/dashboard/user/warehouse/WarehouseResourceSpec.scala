@@ -22,7 +22,7 @@ package org.apache.texera.web.resource.dashboard.user.warehouse
 import org.apache.texera.auth.SessionUser
 import org.apache.texera.common.config.StorageConfig
 import org.apache.texera.dao.MockTexeraDB
-import org.apache.texera.dao.jooq.generated.Tables.USER_WAREHOUSE
+import org.apache.texera.dao.jooq.generated.Tables.{USER, USER_WAREHOUSE}
 import org.apache.texera.dao.jooq.generated.tables.daos.UserDao
 import org.apache.texera.dao.jooq.generated.tables.pojos.User
 import org.apache.texera.web.resource.dashboard.user.warehouse.WarehouseResource.{
@@ -30,6 +30,8 @@ import org.apache.texera.web.resource.dashboard.user.warehouse.WarehouseResource
   CreateWarehouseRequest
 }
 import org.apache.texera.web.service.LakekeeperClient
+import org.jooq.{ExecuteContext, ExecuteListener}
+import org.jooq.impl.{DefaultConfiguration, DefaultExecuteListenerProvider}
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.{BeforeAndAfterAll, BeforeAndAfterEach}
@@ -123,6 +125,39 @@ class WarehouseResourceSpec
     a[ForbiddenException] should be thrownBy
       disabledResource.create(CreateWarehouseRequest("mybucket"), sessionUser)
     a[ForbiddenException] should be thrownBy disabledResource.delete(1, sessionUser)
+  }
+
+  "status" should "read only the fields returned for an owned warehouse" in {
+    val owned = resource.create(CreateWarehouseRequest("mine"), sessionUser)
+    resource.create(CreateWarehouseRequest("theirs"), otherUser)
+
+    val selectedFields = mutable.Buffer.empty[List[String]]
+    val configuration = getDSLContext.configuration().asInstanceOf[DefaultConfiguration]
+    val previousListeners = configuration.executeListenerProviders()
+    configuration.set(new DefaultExecuteListenerProvider(new ExecuteListener {
+      override def executeEnd(ctx: ExecuteContext): Unit = {
+        val metadata = ctx.resultSet().getMetaData
+        selectedFields += (1 to metadata.getColumnCount).iterator
+          .map(i => s"${metadata.getTableName(i)}.${metadata.getColumnName(i)}")
+          .toList
+      }
+    }))
+    val status =
+      try resource.status(sessionUser)
+      finally configuration.set(previousListeners: _*)
+
+    status.warehouses shouldBe List(owned)
+    selectedFields.toList shouldBe List(
+      List(
+        USER_WAREHOUSE.WHID,
+        USER_WAREHOUSE.NAME,
+        USER_WAREHOUSE.LAKEKEEPER_WAREHOUSE_NAME,
+        USER_WAREHOUSE.FLAVOR,
+        USER_WAREHOUSE.CREATED_AT,
+        USER.NAME,
+        USER.AVATAR
+      ).map(field => s"${field.getTable.getName}.${field.getName}")
+    )
   }
 
   // ---------------------------------------------------------------------------
