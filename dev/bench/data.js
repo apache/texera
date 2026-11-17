@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1794833823970,
+  "lastUpdate": 1794920016091,
   "repoUrl": "https://github.com/apache/texera",
   "entries": {
     "Arrow Flight E2E Throughput": [
@@ -22715,6 +22715,163 @@ window.BENCHMARK_DATA = {
           {
             "name": "throughput / bs=1000 sw=50 sl=512",
             "value": 1056.7553615573258,
+            "unit": "tuples/sec"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "name": "Kary Zheng",
+            "username": "kz930",
+            "email": "150742834+kz930@users.noreply.github.com"
+          },
+          "committer": {
+            "name": "GitHub",
+            "username": "web-flow",
+            "email": "noreply@github.com"
+          },
+          "id": "2e98e44ed9945982250c1cdc66dbb792c10cd5ed",
+          "message": "test(verify): derive an operator's configuration from its schema (#8361)\n\n### What changes were proposed in this PR?\n\nAn operator is configured by a form, and the form is generated from the\ndescriptor's own annotations. The same annotations are enough to fill it\nwithout\na human: an enum offers its constants, a column knob takes a column of\nthe type\nits rule allows, a numeric knob its declared bounds, and a conditional\nfield is\nfilled only where the branch that shows it is taken.\n\n`@SampleColumn` names the column a knob means where a type cannot say\nit: the\nopening price among four numbers, the country code among several\nstrings.\n\nThis produces one configuration. Turning that configuration into the\nseveral a\nparity run needs is the change after this one, which is why this PR is\nnow half\nthe size it was when it was opened. The two halves share no member: this\nside\nreaches a value through `buildObject`, `decide` and `valueFor`, and the\nsweep\nreaches its own through `rowFills`, `columnFill` and `leafFill`. Nothing\nwas\nrewritten to make the seam. Whole members moved out, and every line that\nstays\nis the line that was there.\n\n### Any related issues, documentation, discussions?\n\nPart of #8325, 21 of 27; that issue lists the set in order. This is the\nfirst\nhalf of the configuration generator, and #8388 is the second.\n\nCloses #8423, the task this change is the whole of.\n\n### How was this PR tested?\n\nSeven tests here drive the generator across the config shapes it has to\nhandle:\nan operator with no config at all, a flat one with column knobs and an\nenum, a\nnested list of objects with a free-form value, and the three ways a\ncolumn knob\nresolves, by sample, by type rule, and by staying off a column a sibling\ntook.\n\n### Was this PR authored or co-authored using generative AI tooling?\n\nGenerated-by: Claude Code (Opus 5)\n\n---------\n\nCo-authored-by: Claude Opus 5 (1M context) <noreply@anthropic.com>",
+          "timestamp": "2026-11-17T11:37:07Z",
+          "url": "https://github.com/apache/texera/commit/2e98e44ed9945982250c1cdc66dbb792c10cd5ed"
+        },
+        "date": 1794920015253,
+        "tool": "customBiggerIsBetter",
+        "benches": [
+          {
+            "name": "throughput / bs=10 sw=1 sl=8",
+            "value": 1058.6282841686977,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=1 sl=8",
+            "value": 2354.4740143971294,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=1 sl=8",
+            "value": 2611.2902611609293,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=1 sl=64",
+            "value": 1612.5673761389316,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=1 sl=64",
+            "value": 2429.481431917343,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=1 sl=64",
+            "value": 2660.6304398979587,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=1 sl=512",
+            "value": 1817.693283367841,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=1 sl=512",
+            "value": 2562.7878634569247,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=1 sl=512",
+            "value": 2620.661223882669,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=10 sl=8",
+            "value": 1457.398236869344,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=10 sl=8",
+            "value": 1946.3353763029636,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=10 sl=8",
+            "value": 2025.9425193058203,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=10 sl=64",
+            "value": 1404.2259293276554,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=10 sl=64",
+            "value": 1934.659086544291,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=10 sl=64",
+            "value": 2003.4029366943232,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=10 sl=512",
+            "value": 1391.6124416239195,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=10 sl=512",
+            "value": 1877.8673798431903,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=10 sl=512",
+            "value": 1968.3296479851015,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=50 sl=8",
+            "value": 888.7194946083657,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=50 sl=8",
+            "value": 1032.8252921132505,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=50 sl=8",
+            "value": 1049.200520651353,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=50 sl=64",
+            "value": 900.8171167935695,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=50 sl=64",
+            "value": 1068.0046751131417,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=50 sl=64",
+            "value": 1052.9534725486683,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=50 sl=512",
+            "value": 778.287488804315,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=50 sl=512",
+            "value": 949.8088154720327,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=50 sl=512",
+            "value": 993.0452020979318,
             "unit": "tuples/sec"
           }
         ]
