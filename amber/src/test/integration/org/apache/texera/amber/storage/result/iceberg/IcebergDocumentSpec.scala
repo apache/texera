@@ -33,6 +33,7 @@ import org.apache.texera.amber.core.virtualidentity.{
 import org.apache.texera.amber.core.workflow.{GlobalPortIdentity, PortIdentity}
 import org.apache.texera.amber.tags.IntegrationTest
 import org.apache.iceberg.catalog.Catalog
+import org.apache.iceberg.exceptions.NoSuchTableException
 import org.scalatest.BeforeAndAfterAll
 
 import java.lang.reflect.{InvocationHandler, InvocationTargetException, Method, Proxy}
@@ -290,6 +291,26 @@ class IcebergDocumentSpec extends VirtualDocumentSpec[Tuple] with BeforeAndAfter
     } finally {
       stream.close()
     }
+  }
+
+  it should "report numeric/date table statistics, non-zero file size, and throw NoSuchTableException once cleared" in {
+    val items = generateSampleItems().take(3)
+    val writer = document.writer(UUID.randomUUID().toString)
+    writer.open()
+    items.foreach(writer.putOne)
+    writer.close()
+
+    val stats = document.getTableStatistics
+    assert(stats("col-int")("min") == -1)
+    assert(stats("col-int")("max") == Int.MaxValue)
+    assert(stats("col-timestamp")("min").isInstanceOf[String])
+    assert(stats("col-timestamp")("max").isInstanceOf[String])
+    assert(document.getTotalFileSize > 0L)
+
+    document.clear()
+    intercept[NoSuchTableException](document.getURI)
+    intercept[NoSuchTableException](document.getTableStatistics)
+    intercept[NoSuchTableException](document.getTotalFileSize)
   }
 
   /** Returns a dynamic proxy for `realCatalog` that counts `loadTable` calls. */

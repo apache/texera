@@ -373,6 +373,17 @@ class CoordinatorTimerServiceSpec
     assert(service.statusUpdateAskHandle.contains(statusHandle))
     assert(service.runtimeStatisticsAskHandle.isEmpty)
   }
+
+  it should "clear the handle even when cancel() returns false" in {
+    val (service, actorService) =
+      newTimerService(Some(statusIntervalMs), None, cancelResult = false)
+    service.enableStatusUpdate()
+    service.disableStatusUpdate()
+
+    val handle = actorService.captured.head.handle
+    assert(handle.cancelCount == 1)
+    assert(service.statusUpdateAskHandle.isEmpty)
+  }
 }
 
 /** Minimal actor used only to obtain a real `ActorContext` from Pekko TestKit. */
