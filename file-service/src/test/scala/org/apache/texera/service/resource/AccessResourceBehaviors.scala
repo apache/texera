@@ -68,7 +68,7 @@ abstract class AccessResourceBehaviors[R <: Record, A <: Record](tables: Resourc
   protected def userPrivilege(ctx: DSLContext, id: Integer, uid: Integer): PrivilegeEnum
   protected def userCanRead(ctx: DSLContext, id: Integer, uid: Integer): Boolean
   protected def userCanWrite(ctx: DSLContext, id: Integer, uid: Integer): Boolean
-  protected def resourceOwner(ctx: DSLContext, id: Integer): User
+  protected def resourceOwnerEmail(ctx: DSLContext, id: Integer): String
 
   // the resource's endpoints
   protected def grant(id: Integer, email: String, privilege: String, user: SessionUser): Response
@@ -247,16 +247,16 @@ abstract class AccessResourceBehaviors[R <: Record, A <: Record](tables: Resourc
     userCanWrite(getDSLContext, nonExistentId, ownerUser.getUid) shouldBe false
   }
 
-  "getOwner" should "return the owning user" in {
-    resourceOwner(getDSLContext, privateId).getEmail shouldEqual ownerUser.getEmail
+  "getOwnerEmail" should "return the owner's email" in {
+    resourceOwnerEmail(getDSLContext, privateId) shouldEqual ownerUser.getEmail
   }
 
   it should s"return null for a nonexistent $label" in {
-    resourceOwner(getDSLContext, nonExistentId) shouldBe null
+    resourceOwnerEmail(getDSLContext, nonExistentId) shouldBe null
   }
 
-  it should "give a null email for an owner without one" in {
-    resourceOwner(getDSLContext, emaillessOwnedId).getEmail shouldBe null
+  it should "return null for an owner without an email" in {
+    resourceOwnerEmail(getDSLContext, emaillessOwnedId) shouldBe null
   }
 
   // ===========================================================================

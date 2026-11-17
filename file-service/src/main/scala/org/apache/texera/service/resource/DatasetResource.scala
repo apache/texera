@@ -311,7 +311,7 @@ class DatasetResource extends LazyLogging {
 
     DashboardDataset(
       targetDataset,
-      getOwner(ctx, did).getEmail,
+      getOwnerEmail(ctx, did),
       userAccessPrivilege,
       isOwner,
       withLakeFSErrorHandling(s"retrieving the size of dataset '${targetDataset.getName}'") {
@@ -505,7 +505,7 @@ class DatasetResource extends LazyLogging {
         LakeFSFileNode
           .fromLakeFSRepositoryCommittedObjects(
             resourceType,
-            Map((getOwner(ctx, did).getEmail, datasetName, newVersionName) -> fileNodes)
+            Map((getOwnerEmail(ctx, did), datasetName, newVersionName) -> fileNodes)
           )
       )
     }
@@ -966,7 +966,7 @@ class DatasetResource extends LazyLogging {
         ResourceUploadService
           .versionRootFileNodes(
             resourceType,
-            getOwner(ctx, did).getEmail,
+            getOwnerEmail(ctx, did),
             dataset.getName,
             latestVersion.getName,
             dataset.getRepositoryName,
@@ -1206,7 +1206,7 @@ class DatasetResource extends LazyLogging {
 
       val document = CoverImageUtils.openCoverOrBadRequest(
         resourceType,
-        getOwner(ctx, did).getEmail,
+        getOwnerEmail(ctx, did),
         dataset.getName,
         normalized
       )
@@ -1240,7 +1240,7 @@ class DatasetResource extends LazyLogging {
       )
 
       val document = CoverImageUtils
-        .openCover(resourceType, getOwner(ctx, did).getEmail, dataset.getName, coverImage)
+        .openCover(resourceType, getOwnerEmail(ctx, did), dataset.getName, coverImage)
         .getOrElse(throw new NotFoundException("No cover image"))
 
       Response
@@ -1270,7 +1270,7 @@ class DatasetResource extends LazyLogging {
           Response.ok(Map("url" -> null)).build()
         case Some(coverImage) =>
           val url = CoverImageUtils
-            .openCover(resourceType, getOwner(ctx, did).getEmail, dataset.getName, coverImage)
+            .openCover(resourceType, getOwnerEmail(ctx, did), dataset.getName, coverImage)
             .map(CoverImageUtils.presignedUrl(_, coverImage))
           Response.ok(Map("url" -> url.orNull)).build()
       }

@@ -24,9 +24,7 @@ import jakarta.ws.rs.core.Response
 import org.apache.texera.auth.util.OwnerAccess
 import org.apache.texera.dao.jooq.generated.Tables.{DATASET, MODEL, USER}
 import org.apache.texera.dao.jooq.generated.enums.PrivilegeEnum
-import org.apache.texera.dao.jooq.generated.tables.daos.UserDao
-import org.apache.texera.dao.jooq.generated.tables.pojos.User
-import org.jooq.{DSLContext, EnumType, Record}
+import org.jooq.{DSLContext, EnumType, Record, Record1}
 
 import scala.jdk.CollectionConverters._
 
@@ -130,15 +128,29 @@ object ResourceAccess {
   ): Boolean =
     isPublic(ctx, resource, id) || privilegeOf(ctx, resource, id, uid) != PrivilegeEnum.NONE
 
-  /** The owning user, or null when the resource does not exist. */
-  def owner[R <: Record, A <: Record](
+  /** The owner's email row, or None when the resource does not exist; the email may be null. */
+  private def ownerEmailRow[R <: Record, A <: Record](
       ctx: DSLContext,
       resource: ResourceTables[R, A],
       id: Integer
-  ): User = {
-    val userDao = new UserDao(ctx.configuration())
-    ownerUid(ctx, resource, id).map(userDao.fetchOneByUid).orNull
-  }
+  ): Option[Record1[String]] =
+    Option(
+      ctx
+        .select(USER.EMAIL)
+        .from(resource.table)
+        .join(USER)
+        .on(USER.UID.eq(resource.ownerUidField))
+        .where(resource.idField.eq(id))
+        .fetchOne()
+    )
+
+  /** The owner's email, or null when the resource does not exist. Does not check access. */
+  def ownerEmailOf[R <: Record, A <: Record](
+      ctx: DSLContext,
+      resource: ResourceTables[R, A],
+      id: Integer
+  ): String =
+    ownerEmailRow(ctx, resource, id).map(_.value1()).orNull
 
   /**
     * The owner's email.
@@ -152,15 +164,7 @@ object ResourceAccess {
       requesterUid: Integer
   ): String = {
     requireReadAccess(ctx, resource, id, requesterUid)
-    Option(
-      ctx
-        .select(USER.EMAIL)
-        .from(resource.table)
-        .join(USER)
-        .on(USER.UID.eq(resource.ownerUidField))
-        .where(resource.idField.eq(id))
-        .fetchOne()
-    ).map(_.value1()).getOrElse("")
+    ownerEmailRow(ctx, resource, id).map(_.value1()).getOrElse("")
   }
 
   /**
