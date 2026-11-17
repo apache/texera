@@ -156,6 +156,7 @@ import org.apache.texera.amber.operator.visualization.treeplot.TreePlotOpDesc
 import org.apache.texera.amber.operator.visualization.volcanoPlot.VolcanoPlotOpDesc
 import org.apache.texera.amber.operator.visualization.waterfallChart.WaterfallChartOpDesc
 import org.apache.texera.amber.operator.visualization.windRoseChart.WindRoseChartOpDesc
+import org.apache.commons.io.FileUtils
 import java.nio.charset.StandardCharsets
 import java.nio.file.{Files, Path}
 import scala.jdk.CollectionConverters._
@@ -964,9 +965,15 @@ object TransformVerificationRunner {
           case None      => runVariant(opClass, opDesc, inputs, workDir)
         } catch {
           case e: Throwable =>
-            throw new AssertionError(s"[variant: $label] ${e.getMessage}", e)
+            throw new AssertionError(
+              s"[variant: $label] ${e.getMessage}\n  artifacts kept in $testRoot",
+              e
+            )
         }
     }
+    // A failed run keeps its directory so it can be read. A passing run has
+    // nothing worth reading, and across every operator the directories add up.
+    FileUtils.deleteDirectory(testRoot.toFile)
   }
 
   /** One extra run per operator, on `fixture` with one empty cell per column (see
