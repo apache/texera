@@ -18,12 +18,19 @@
 
 package org.apache.texera.common.config
 
-import com.typesafe.config.{Config, ConfigFactory, ConfigRenderOptions, ConfigValueType}
+import com.typesafe.config.{
+  Config,
+  ConfigFactory,
+  ConfigRenderOptions,
+  ConfigResolveOptions,
+  ConfigValueType
+}
 
 import scala.jdk.CollectionConverters.CollectionHasAsScala
 
 object DefaultsConfig {
-  private val conf = ConfigFactory.parseResources("default.conf").resolve()
+  private val declared = ConfigFactory.parseResources("default.conf")
+  private val conf = declared.resolve()
   val reinit: Boolean =
     conf.getBoolean("config-service.always-reset-configurations-to-default-values")
 
@@ -38,12 +45,27 @@ object DefaultsConfig {
   // this is the single place that turns a config path into a row key.
   private def shortKey(fullKey: String): String = fullKey.split("\\.").last
 
+  // The leaves default.conf itself declares as booleans. Resolved without the environment, because
+  // a `${?ENV}` override always arrives as a string: GUI_TABS_HUB_ENABLED=on would otherwise make
+  // its leaf look like a string setting.
+  private val booleanPaths: Set[String] =
+    declared
+      .resolve(ConfigResolveOptions.noSystem())
+      .entrySet()
+      .asScala
+      .collect {
+        case entry if entry.getValue.valueType() == ConfigValueType.BOOLEAN => entry.getKey
+      }
+      .toSet
+
   val allDefaults: Map[String, String] = seedValues(conf)
 
   /**
-    * The site_settings rows that `source` seeds: every leaf under its short key, with invite-only
-    * stored as true or false. A parameter rather than `conf`, so a test can feed in each spelling
-    * HOCON accepts without setting the environment.
+    * The site_settings rows that `source` seeds: every leaf under its short key, with each leaf that
+    * default.conf declares as a boolean stored as true or false, the only spellings its readers
+    * accept. A value HOCON cannot read as a boolean throws, which stops config-service at startup,
+    * as `reinit` and `inviteOnly` already do. A parameter rather than `conf`, so a test can feed in
+    * each spelling HOCON accepts without setting the environment.
     */
   private[config] def seedValues(source: Config): Map[String, String] = {
     val entries = source
@@ -51,13 +73,17 @@ object DefaultsConfig {
       .asScala
       .toSeq
       .map { entry =>
-        val value = entry.getValue.valueType() match {
-          case ConfigValueType.STRING | ConfigValueType.NUMBER | ConfigValueType.BOOLEAN =>
-            entry.getValue.unwrapped().toString
-          case _ =>
-            entry.getValue.render(ConfigRenderOptions.concise())
-        }
-        shortKey(entry.getKey) -> value
+        val path = entry.getKey
+        val value =
+          if (booleanPaths.contains(path)) source.getBoolean(path).toString
+          else
+            entry.getValue.valueType() match {
+              case ConfigValueType.STRING | ConfigValueType.NUMBER | ConfigValueType.BOOLEAN =>
+                entry.getValue.unwrapped().toString
+              case _ =>
+                entry.getValue.render(ConfigRenderOptions.concise())
+            }
+        shortKey(path) -> value
       }
 
     // Since the row key is only the last path segment, two entries under
@@ -72,7 +98,7 @@ object DefaultsConfig {
         "segment, so give these a unique leaf name."
     )
 
-    entries.toMap.updated(shortKey(InviteOnlyPath), source.getBoolean(InviteOnlyPath).toString)
+    entries.toMap
   }
 
   /**
