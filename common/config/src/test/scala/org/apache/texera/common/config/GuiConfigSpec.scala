@@ -62,9 +62,9 @@ class GuiConfigSpec extends AnyFlatSpec with Matchers {
     ifUnset("GUI_WORKFLOW_WORKSPACE_TIMETRAVEL_ENABLED")(
       GuiConfig.guiWorkflowWorkspaceTimetravelEnabled shouldBe false
     )
-    // Form View ships disabled so merging the feature never turns it on; the final PR flips it.
+    // Form View is on by default now that the whole feature has landed.
     ifUnset("GUI_WORKFLOW_WORKSPACE_FORM_VIEW_ENABLED")(
-      GuiConfig.guiWorkflowWorkspaceFormViewEnabled shouldBe false
+      GuiConfig.guiWorkflowWorkspaceFormViewEnabled shouldBe true
     )
     ifUnset("GUI_WORKFLOW_WORKSPACE_PRODUCTION_SHARED_EDITING_SERVER")(
       GuiConfig.guiWorkflowWorkspaceProductionSharedEditingServer shouldBe false
@@ -81,6 +81,9 @@ class GuiConfigSpec extends AnyFlatSpec with Matchers {
     )
     ifUnset("GUI_WORKFLOW_WORKSPACE_PYTHON_NOTEBOOK_MIGRATION_ENABLED")(
       GuiConfig.guiWorkflowWorkspacePythonNotebookMigrationEnabled shouldBe false
+    )
+    ifUnset("GUI_WORKFLOW_WORKSPACE_R_NOTEBOOK_MIGRATION_ENABLED")(
+      GuiConfig.guiWorkflowWorkspaceRNotebookMigrationEnabled shouldBe false
     )
   }
 

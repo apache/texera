@@ -39,6 +39,15 @@ object KubernetesConfig {
   val maxNumOfRunningComputingUnitsPerUser: Int =
     conf.getInt("kubernetes.max-num-of-running-computing-units-per-user")
 
+  val computingUnitIdleCleanupEnabled: Boolean =
+    conf.getBoolean("kubernetes.computing-unit-idle-cleanup-enabled")
+
+  val computingUnitIdleTimeoutMinutes: Long =
+    conf.getLong("kubernetes.computing-unit-idle-timeout-minutes")
+
+  val computingUnitIdleCheckIntervalMinutes: Long =
+    conf.getLong("kubernetes.computing-unit-idle-check-interval-minutes")
+
   val cpuLimitOptions: List[String] =
     conf
       .getString("kubernetes.computing-unit-cpu-limit-options")
@@ -90,4 +99,10 @@ object KubernetesConfig {
   // -- access-control-service does -- but it builds the CU pod spec, and the pod's hostPath
   // must be the <root>/<cuid> subtree the mounter mounts into.
   val mounterHostRoot: String = conf.getString("kubernetes.mounter-host-root")
+
+  // See kubernetes.conf on why the uid has to be given alongside runAsNonRoot.
+  val computingUnitRunAsNonRoot: Boolean =
+    conf.getBoolean("kubernetes.computing-unit-run-as-non-root")
+  val computingUnitRunAsUser: Long = conf.getLong("kubernetes.computing-unit-run-as-user")
+
 }

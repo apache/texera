@@ -92,14 +92,6 @@ private[storage] class IcebergTableWriter[T](
   }
 
   /**
-    * Remove a single item from the buffer.
-    * @param item the item to remove from the buffer.
-    */
-  override def removeOne(item: T): Unit = {
-    buffer -= item
-  }
-
-  /**
     * Flush the current buffer to a new Iceberg data file.
     * - Creates a new data file using the writer identifier and an incremental filename index.
     * - Writes all buffered items to the new file and commits it to the Iceberg table.

@@ -34,3 +34,10 @@ import com.fasterxml.jackson.annotation.{JsonSubTypes, JsonTypeInfo}
   )
 )
 trait CollabWebSocketRequest {}
+
+case class AcquireLockRequest() extends CollabWebSocketRequest
+case class CommandRequest(commandMessage: String) extends CollabWebSocketRequest
+case class HeartBeatRequest() extends CollabWebSocketRequest
+case class RestoreVersionRequest() extends CollabWebSocketRequest
+case class TryLockRequest() extends CollabWebSocketRequest
+case class WIdRequest(wId: Int) extends CollabWebSocketRequest

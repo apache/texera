@@ -56,7 +56,6 @@ export interface RegistrationResult {
 })
 export class AuthService {
   public static readonly LOGIN_ENDPOINT = "auth/login";
-  public static readonly REFRESH_TOKEN = "auth/refresh";
   public static readonly REGISTER_ENDPOINT = "auth/register";
   public static readonly GOOGLE_LOGIN_ENDPOINT = "auth/google/login";
   public static readonly ORCID_LOGIN_ENDPOINT = "auth/orcid/login";
@@ -228,7 +227,10 @@ export class AuthService {
       return undefined;
     }
 
-    if (this.config.env.inviteOnly && role === Role.INACTIVE) {
+    // INACTIVE means waiting for an admin, whatever the invite-only switch says now: an account that
+    // signed up while it was on stays INACTIVE after it is turned off, and every request it makes is
+    // refused, so it gets the pending screen rather than an empty dashboard.
+    if (role === Role.INACTIVE) {
       this.checkRegistrationRequired(uid).subscribe(required => {
         if (required) {
           this.openRegistrationModal(uid, email, name);

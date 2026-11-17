@@ -19,19 +19,22 @@
 
 package org.apache.texera.amber.operator.visualization.heatMap
 
+import org.apache.texera.amber.operator.visualization.StandaloneChartCode._
 import com.fasterxml.jackson.annotation.{JsonProperty, JsonPropertyDescription}
 import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaTitle
-import org.apache.texera.amber.core.tuple.{AttributeType, Schema}
-import org.apache.texera.amber.pybuilder.PythonTemplateBuilder.PythonTemplateBuilderStringContext
+import org.apache.texera.amber.pybuilder.PythonTemplateBuilder.{
+  PythonTemplateBuilderStringContext,
+  pyStringLiteral
+}
 import org.apache.texera.amber.pybuilder.PyStringTypes.EncodableString
-import org.apache.texera.amber.core.workflow.PortIdentity
-import org.apache.texera.amber.operator.PythonOperatorDescriptor
+import org.apache.texera.amber.operator.visualization.PlotlyStandaloneCode
+import org.apache.texera.amber.operator.visualization.PythonVisualizationOpDesc
 import org.apache.texera.amber.operator.metadata.annotations.AutofillAttributeName
 import org.apache.texera.amber.operator.metadata.{OperatorGroupConstants, OperatorInfo}
 import org.apache.texera.amber.pybuilder.PythonTemplateBuilder
 
 import javax.validation.constraints.NotNull
-class HeatMapOpDesc extends PythonOperatorDescriptor {
+class HeatMapOpDesc extends PythonVisualizationOpDesc with PlotlyStandaloneCode {
 
   @JsonProperty(value = "x", required = true)
   @JsonSchemaTitle("Value X Column")
@@ -53,14 +56,6 @@ class HeatMapOpDesc extends PythonOperatorDescriptor {
   @AutofillAttributeName
   @NotNull(message = "Values cannot be empty")
   var value: EncodableString = ""
-
-  override def getOutputSchemas(
-      inputSchemas: Map[PortIdentity, Schema]
-  ): Map[PortIdentity, Schema] = {
-    val outputSchema = Schema()
-      .add("html-content", AttributeType.STRING)
-    Map(operatorInfo.outputPorts.head.id -> outputSchema)
-  }
 
   override def operatorInfo: OperatorInfo =
     OperatorInfo.forVisualization(
@@ -109,6 +104,21 @@ class HeatMapOpDesc extends PythonOperatorDescriptor {
          |
          |"""
     finalcode.encode
+  }
+
+  override def generateStandaloneCode(): String = {
+    val valueLit = pyStringLiteral(value)
+    val xLit = pyStringLiteral(x)
+    val yLit = pyStringLiteral(y)
+    s"""${standaloneError("Chart is not available.")}
+       |
+       |if in1df.empty:
+       |${standaloneErrorPage("input table is empty.")}
+       |else:
+       |    heatmap = go.Heatmap(z=in1df[$valueLit], x=in1df[$xLit], y=in1df[$yLit])
+       |    layout = go.Layout(margin=dict(l=0, r=0, b=0, t=0))
+       |    fig = go.Figure(data=[heatmap], layout=layout)
+       |${standaloneFigure("Heatmap", indent = 4)}""".stripMargin
   }
 
 }

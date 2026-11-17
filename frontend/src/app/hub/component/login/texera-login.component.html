@@ -141,8 +141,9 @@
       nz-typography
       nzType="secondary"
       class="hint">
-      Password must be at least 6 characters. After registering, contact the Texera administrator to activate your
-      account.
+      Password must be at least 6 characters. @if (config.env.inviteOnly) {
+      <span>After registering, contact the Texera administrator to activate your account.</span>
+      }
     </p>
 
     <!-- Present from the outset where verification is on, so the code reads as part of signing up

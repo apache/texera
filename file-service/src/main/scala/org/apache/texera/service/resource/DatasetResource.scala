@@ -36,11 +36,7 @@ import org.apache.texera.dao.jooq.generated.tables.Dataset.DATASET
 import org.apache.texera.dao.jooq.generated.tables.DatasetContributor.DATASET_CONTRIBUTOR
 import org.apache.texera.dao.jooq.generated.tables.DatasetVersion.DATASET_VERSION
 import org.apache.texera.dao.jooq.generated.tables.User.USER
-import org.apache.texera.dao.jooq.generated.tables.daos.{
-  DatasetDao,
-  DatasetUserAccessDao,
-  DatasetVersionDao
-}
+import org.apache.texera.dao.jooq.generated.tables.daos.{DatasetDao, DatasetUserAccessDao}
 import org.apache.texera.dao.jooq.generated.tables.pojos.{
   Dataset,
   DatasetUserAccess,
@@ -83,15 +79,18 @@ object DatasetResource {
     dataset
   }
 
-  /**
-    * Helper function to get the dataset version from DB using dvid
+  /** Scoped to `did`: the access check runs against `did`, so an unscoped lookup would
+    * resolve another dataset's version through this repository.
     */
   private def getDatasetVersionByID(
       ctx: DSLContext,
+      did: Integer,
       dvid: Integer
   ): DatasetVersion = {
-    val datasetVersionDao = new DatasetVersionDao(ctx.configuration())
-    val version = datasetVersionDao.fetchOneByDvid(dvid)
+    val version = ctx
+      .selectFrom(DATASET_VERSION)
+      .where(DATASET_VERSION.DVID.eq(dvid).and(DATASET_VERSION.DID.eq(did)))
+      .fetchOneInto(classOf[DatasetVersion])
     if (version == null) {
       throw new NotFoundException("Dataset Version not found")
     }
@@ -262,7 +261,7 @@ object DatasetResource {
 
 @Produces(Array(MediaType.APPLICATION_JSON, "image/jpeg", "application/pdf"))
 @Path("/dataset")
-class DatasetResource extends LazyLogging {
+class DatasetResource extends LazyLogging with ResourceUploadSupport {
   private val ERR_USER_HAS_NO_ACCESS_TO_DATASET_MESSAGE = "User has no access to this dataset"
   private val ERR_DATASET_VERSION_NOT_FOUND_MESSAGE = "The version of the dataset not found"
   private val EXPIRATION_MINUTES = 5
@@ -270,7 +269,12 @@ class DatasetResource extends LazyLogging {
   // varchar(246) on DBs upgraded through sql/updates/18.sql, narrower than model's.
   private val COVER_IMAGE_MAX_PATH_LENGTH = 246
 
+  // Matches dataset_version.name VARCHAR(128).
+  private val MAX_VERSION_NAME_LENGTH = 128
+
   private val resourceType = ResourceType.Dataset
+
+  override protected def resourceStorage = ResourceStorage.Dataset
 
   /**
     * The single read rule for a dataset: anonymous callers get public datasets only, a
@@ -309,7 +313,7 @@ class DatasetResource extends LazyLogging {
 
     DashboardDataset(
       targetDataset,
-      getOwner(ctx, did).getEmail,
+      getOwnerEmail(ctx, did),
       userAccessPrivilege,
       isOwner,
       withLakeFSErrorHandling(s"retrieving the size of dataset '${targetDataset.getName}'") {
@@ -420,6 +424,8 @@ class DatasetResource extends LazyLogging {
         throw new ForbiddenException(ERR_USER_HAS_NO_ACCESS_TO_DATASET_MESSAGE)
       }
 
+      ResourceNaming.validateVersionDescription(versionName)
+
       val dataset = getDatasetByID(ctx, did)
       val datasetName = dataset.getName
       val repositoryName = dataset.getRepositoryName
@@ -448,6 +454,17 @@ class DatasetResource extends LazyLogging {
         s"v${versionCount + 1}"
       } else {
         s"v${versionCount + 1} - $sanitizedVersionName"
+      }
+
+      // Before the commit: the commit is outside this transaction, so a name the insert
+      // rejects would leave a commit no version points at and strand the staged files.
+      // Code points, not String.length: VARCHAR(n) counts characters, so an emoji counts once.
+      val newVersionNameLength = newVersionName.codePointCount(0, newVersionName.length)
+      if (newVersionNameLength > MAX_VERSION_NAME_LENGTH) {
+        throw new BadRequestException(
+          s"Version name is too long: $newVersionNameLength characters, " +
+            s"maximum is $MAX_VERSION_NAME_LENGTH."
+        )
       }
 
       // Create a commit in LakeFS
@@ -490,7 +507,7 @@ class DatasetResource extends LazyLogging {
         LakeFSFileNode
           .fromLakeFSRepositoryCommittedObjects(
             resourceType,
-            Map((getOwner(ctx, did).getEmail, datasetName, newVersionName) -> fileNodes)
+            Map((getOwnerEmail(ctx, did), datasetName, newVersionName) -> fileNodes)
           )
       )
     }
@@ -712,16 +729,16 @@ class DatasetResource extends LazyLogging {
       @Auth user: SessionUser
   ): Response = {
     val uid = user.getUid
+    // Validated before the getDatasetBy round-trip.
+    val operation = ResourceUploadService.multipartOperationOrThrow(operationType)
     val dataset: Dataset = getDatasetBy(ownerEmail, datasetName)
 
-    operationType.toLowerCase match {
+    operation match {
       case "list" => listMultipartUploads(dataset.getDid, uid)
       case "init" =>
         initMultipartUpload(dataset.getDid, filePath, fileSizeBytes, partSizeBytes, restart, uid)
       case "finish" => finishMultipartUpload(dataset.getDid, filePath, uid)
-      case "abort"  => abortMultipartUpload(dataset.getDid, filePath, uid)
-      case _ =>
-        throw new BadRequestException("Invalid type parameter. Use 'init', 'finish', or 'abort'.")
+      case _        => abortMultipartUpload(dataset.getDid, filePath, uid)
     }
   }
 
@@ -951,7 +968,7 @@ class DatasetResource extends LazyLogging {
         ResourceUploadService
           .versionRootFileNodes(
             resourceType,
-            getOwner(ctx, did).getEmail,
+            getOwnerEmail(ctx, did),
             dataset.getName,
             latestVersion.getName,
             dataset.getRepositoryName,
@@ -992,7 +1009,7 @@ class DatasetResource extends LazyLogging {
 
       // Determine which version to retrieve
       val datasetVersion = if (dvid != null) {
-        getDatasetVersionByID(ctx, dvid)
+        getDatasetVersionByID(ctx, did, dvid)
       } else if (java.lang.Boolean.TRUE.equals(latest)) {
         getLatestDatasetVersion(ctx, did).getOrElse(
           throw new NotFoundException(ERR_DATASET_VERSION_NOT_FOUND_MESSAGE)
@@ -1090,7 +1107,7 @@ class DatasetResource extends LazyLogging {
       uid: Option[Integer]
   ): DatasetVersionRootFileNodesResponse = {
     val dataset = getDashboardDataset(ctx, did, uid)
-    val datasetVersion = getDatasetVersionByID(ctx, dvid)
+    val datasetVersion = getDatasetVersionByID(ctx, did, dvid)
     val (nodes, size) = ResourceUploadService.versionRootFileNodes(
       resourceType,
       dataset.ownerEmail,
@@ -1101,20 +1118,6 @@ class DatasetResource extends LazyLogging {
     )
     DatasetVersionRootFileNodesResponse(nodes, size)
   }
-
-  private def generatePresignedResponse(
-      encodedUrl: String,
-      repositoryName: String,
-      commitHash: String,
-      uid: Integer
-  ): Response =
-    ResourceUploadService.presignedUrlResponse(
-      ResourceStorage.Dataset,
-      encodedUrl,
-      repositoryName,
-      commitHash,
-      uid
-    )
 
   // === Multipart helpers ===
 
@@ -1132,33 +1135,6 @@ class DatasetResource extends LazyLogging {
     }
     dataset
   }
-
-  private def listMultipartUploads(did: Integer, requesterUid: Int): Response =
-    ResourceUploadService.listUploads(ResourceStorage.Dataset, did, requesterUid)
-
-  private def initMultipartUpload(
-      did: Integer,
-      encodedFilePath: String,
-      fileSizeBytes: Optional[java.lang.Long],
-      partSizeBytes: Optional[java.lang.Long],
-      restart: Optional[java.lang.Boolean],
-      uid: Integer
-  ): Response =
-    ResourceUploadService.initUpload(
-      ResourceStorage.Dataset,
-      did,
-      encodedFilePath,
-      fileSizeBytes,
-      partSizeBytes,
-      restart,
-      uid
-    )
-
-  private def finishMultipartUpload(did: Integer, encodedFilePath: String, uid: Int): Response =
-    ResourceUploadService.finishUpload(ResourceStorage.Dataset, did, encodedFilePath, uid)
-
-  private def abortMultipartUpload(did: Integer, encodedFilePath: String, uid: Int): Response =
-    ResourceUploadService.abortUpload(ResourceStorage.Dataset, did, encodedFilePath, uid)
 
   /**
     * Updates the cover image for a dataset.
@@ -1191,7 +1167,7 @@ class DatasetResource extends LazyLogging {
 
       val document = CoverImageUtils.openCoverOrBadRequest(
         resourceType,
-        getOwner(ctx, did).getEmail,
+        getOwnerEmail(ctx, did),
         dataset.getName,
         normalized
       )
@@ -1225,7 +1201,7 @@ class DatasetResource extends LazyLogging {
       )
 
       val document = CoverImageUtils
-        .openCover(resourceType, getOwner(ctx, did).getEmail, dataset.getName, coverImage)
+        .openCover(resourceType, getOwnerEmail(ctx, did), dataset.getName, coverImage)
         .getOrElse(throw new NotFoundException("No cover image"))
 
       Response
@@ -1255,7 +1231,7 @@ class DatasetResource extends LazyLogging {
           Response.ok(Map("url" -> null)).build()
         case Some(coverImage) =>
           val url = CoverImageUtils
-            .openCover(resourceType, getOwner(ctx, did).getEmail, dataset.getName, coverImage)
+            .openCover(resourceType, getOwnerEmail(ctx, did), dataset.getName, coverImage)
             .map(CoverImageUtils.presignedUrl(_, coverImage))
           Response.ok(Map("url" -> url.orNull)).build()
       }

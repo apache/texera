@@ -19,6 +19,12 @@
 
 package org.apache.texera.amber.operator.visualization.gaugeChart
 
+import org.apache.texera.amber.util.PythonTestSupport.{
+  NeedsPythonPackages,
+  canImport,
+  configuredPython,
+  withDriver
+}
 import org.apache.texera.amber.core.tuple.{AttributeType, Schema}
 import org.apache.texera.amber.operator.LogicalOp
 import org.apache.texera.amber.operator.metadata.OperatorGroupConstants
@@ -126,4 +132,83 @@ class GaugeChartOpDescSpec extends AnyFlatSpec with Matchers {
 
     d.generatePythonCode() should include("valid_steps = []")
   }
+
+  // The operator draws inside a try and answers anything it did not foresee with
+  // a page. Without the same catch, a column that is not in the table reaches
+  // pandas as a KeyError and ends the whole exported run, not just this chart.
+  "GaugeChartOpDesc.generateStandaloneCode" should
+    "answer what it cannot draw the way the operator answers it" taggedAs NeedsPythonPackages in {
+    val python = configuredPython().getOrElse(
+      cancel("No runnable python executable (udf.conf python.path, python3, python, py)")
+    )
+    if (!canImport(python, "pandas", "plotly")) {
+      cancel(s"'$python' cannot import pandas and plotly; skipping runtime verification")
+    }
+
+    val d = new GaugeChartOpDesc
+    d.value = "score"
+    withDriver(
+      python,
+      "gauge_standalone_",
+      "gauge_driver_",
+      d.generateStandaloneCode(),
+      driverScript,
+      "Gauge driver timed out after 120s"
+    ) { (exitCode, output) =>
+      withClue(s"Driver output:\n$output\n") {
+        exitCode shouldBe 0
+        val verdicts = "CASE (\\S+) (\\S+)".r
+          .findAllMatchIn(output)
+          .map(m => m.group(1) -> m.group(2))
+          .toMap
+        verdicts shouldBe Map(
+          "missing" -> "GENERAL_ERROR",
+          "empty" -> "EMPTY",
+          "nulls" -> "NO_ROWS",
+          "good" -> "CHART"
+        )
+      }
+    }
+  }
+
+  // Runs the exported block over one frame per case and reports the page it
+  // wrote, so a branch that raises instead of answering fails here.
+  private val driverScript: String =
+    """import pathlib
+      |import sys
+      |import tempfile
+      |
+      |import pandas as pd
+      |
+      |source = pathlib.Path(sys.argv[1]).read_text(encoding="utf-8")
+      |
+      |cases = {
+      |    "good": pd.DataFrame({"score": [42.0]}),
+      |    "missing": pd.DataFrame({"other": [42.0]}),
+      |    "empty": pd.DataFrame({"score": []}),
+      |    "nulls": pd.DataFrame({"score": [None, None]}),
+      |}
+      |
+      |for name, frame in cases.items():
+      |    directory = tempfile.mkdtemp()
+      |    scope = {
+      |        "in1df": frame,
+      |        "outputHtml": directory + "/chart.html",
+      |        "outputJson": directory + "/chart.json",
+      |        "pd": pd,
+      |    }
+      |    exec(compile(source, "standalone", "exec"), scope)
+      |    page = pathlib.Path(scope["outputHtml"]).read_text(encoding="utf-8")
+      |    if "General error" in page:
+      |        verdict = "GENERAL_ERROR"
+      |    elif "Input table is empty" in page:
+      |        verdict = "EMPTY"
+      |    elif "No non-null rows" in page:
+      |        verdict = "NO_ROWS"
+      |    elif "Gauge chart is not available" in page:
+      |        verdict = "OTHER_PAGE"
+      |    else:
+      |        verdict = "CHART"
+      |    print("CASE %s %s" % (name, verdict))
+      |""".stripMargin
 }

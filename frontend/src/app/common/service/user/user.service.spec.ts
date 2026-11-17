@@ -165,7 +165,7 @@ describe("UserService", () => {
   // ─── post-login config fetch coordination ─────────────────────────────────
 
   it("loads the authenticated config when a fresh login succeeds", async () => {
-    // /config/gui and /config/user-system are @RolesAllowed; their values must
+    // /config/gui and /config/amber are @RolesAllowed; their values must
     // be in memory before any post-login component reads config.env, otherwise
     // the dashboard renders against undefined flags.
     const spy = vi.spyOn(config, "loadPostLogin");
@@ -188,7 +188,7 @@ describe("UserService", () => {
     // Subscribers to userChanged (header, sidebar, routing guards) drive the
     // initial dashboard render. If userChanged fires before loadPostLogin
     // resolves, those subscribers see env without the authenticated fields and
-    // mis-render (e.g. copilot button missing, inviteOnly check skipped).
+    // mis-render (e.g. copilot button missing).
     const gate = new Subject<unknown>();
     vi.spyOn(config, "loadPostLogin").mockReturnValue(gate.asObservable() as any);
 

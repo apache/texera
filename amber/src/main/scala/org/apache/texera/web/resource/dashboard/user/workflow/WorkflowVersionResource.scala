@@ -23,6 +23,7 @@ import com.flipkart.zjsonpatch.{JsonDiff, JsonPatch}
 import io.dropwizard.auth.Auth
 import org.apache.texera.amber.util.JSONUtils.objectMapper
 import org.apache.texera.auth.SessionUser
+import org.apache.texera.auth.util.WorkflowAccess
 import org.apache.texera.common.config.UserSystemConfig
 import org.apache.texera.dao.SqlServer
 import org.apache.texera.dao.jooq.generated.Tables.WORKFLOW_VERSION
@@ -54,6 +55,19 @@ object WorkflowVersionResource {
       .createDSLContext()
   private def workflowVersionDao = new WorkflowVersionDao(context.configuration)
   private def workflowDao = new WorkflowDao(context.configuration)
+
+  /**
+    * Whether this user may read the workflow's revision history.
+    *
+    * Read access is enough while nothing is pinned: the public copy is then the author's latest, and
+    * its history is the history of what everyone can already see. A pin changes that -- replaying a
+    * version folds deltas back from the author's *current* content, so handing the history to a
+    * public viewer would hand them the edits the pin is holding back.
+    */
+  private def canReadHistory(wid: Integer, uid: Integer): Boolean =
+    WorkflowAccess.hasGrantedAccess(wid, uid) ||
+      (WorkflowAccess.hasReadAccess(wid, uid) &&
+        Option(workflowDao.fetchOneByWid(wid)).forall(_.getPublishedContent == null))
   // constant to indicate versions should be aggregated if they are within the specified time limit
   private final val AGGREGATE_TIME_LIMIT_MILLSEC =
     UserSystemConfig.workflowVersionCollapseIntervalInMinutes * 60000
@@ -84,20 +98,6 @@ object WorkflowVersionResource {
     if (insertingNewWorkflow || !patch.isEmpty) {
       insertNewVersion(wid, patch.toString)
     }
-  }
-
-  /**
-    * This function updates the content of the latest version and inserts a new empty version for the current workflow
-    *
-    * @param patch to update latest version
-    * @param wid
-    */
-  private def updateLatestVersion(patch: String, wid: Integer): Unit = {
-    // get the latest version to update its content
-    val vid = getLatestVersion(wid)
-    val workflowVersion = workflowVersionDao.fetchOneByVid(vid)
-    workflowVersion.setContent(patch)
-    workflowVersionDao.update(workflowVersion)
   }
 
   /**
@@ -350,7 +350,7 @@ class WorkflowVersionResource {
       @Auth sessionUser: SessionUser
   ): List[VersionEntry] = {
     val user = sessionUser.getUser
-    if (!WorkflowAccessResource.hasReadAccess(wid, user.getUid)) {
+    if (!canReadHistory(wid, user.getUid)) {
       List()
     } else {
       encodeVersionImportance(
@@ -385,7 +385,7 @@ class WorkflowVersionResource {
       @Auth sessionUser: SessionUser
   ): Workflow = {
     val user = sessionUser.getUser
-    if (!WorkflowAccessResource.hasReadAccess(wid, user.getUid)) {
+    if (!canReadHistory(wid, user.getUid)) {
       throw new ForbiddenException("No sufficient access privilege.")
     } else {
       // fetch all versions equal to and subsequent to the specified version

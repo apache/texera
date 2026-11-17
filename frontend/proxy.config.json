@@ -30,6 +30,11 @@
     "secure": false,
     "changeOrigin": true
   },
+  "/api/workflow-to-python": {
+    "target": "http://localhost:9090",
+    "secure": false,
+    "changeOrigin": true
+  },
   "/api/dataset": {
     "target": "http://localhost:9092",
     "secure": false,
@@ -69,6 +74,11 @@
     "target": "http://localhost:8085",
     "secure": false,
     "changeOrigin": false
+  },
+  "/api/cu-image": {
+    "target": "http://localhost:8888",
+    "secure": false,
+    "changeOrigin": true
   },
   "/api": {
     "target": "http://localhost:8080",

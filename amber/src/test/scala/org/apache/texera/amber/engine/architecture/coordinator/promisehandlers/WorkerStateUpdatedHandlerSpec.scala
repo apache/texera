@@ -19,30 +19,13 @@
 
 package org.apache.texera.amber.engine.architecture.coordinator.promisehandlers
 
-import com.twitter.util.{Await, Duration}
-import org.apache.texera.amber.core.executor.OpExecInitInfo
-import org.apache.texera.amber.core.virtualidentity.{
-  ActorVirtualIdentity,
-  ChannelIdentity,
-  OperatorIdentity,
-  PhysicalOpIdentity
-}
-import org.apache.texera.amber.core.workflow.WorkflowContext.{
-  DEFAULT_EXECUTION_ID,
-  DEFAULT_WORKFLOW_ID
-}
-import org.apache.texera.amber.core.workflow.{
-  GlobalPortIdentity,
-  PhysicalOp,
-  PortIdentity,
-  WorkflowContext
-}
+import com.twitter.util.Await
+import org.apache.texera.amber.core.virtualidentity.{ActorVirtualIdentity, ChannelIdentity}
+import org.apache.texera.amber.core.workflow.{GlobalPortIdentity, PhysicalOp, PortIdentity}
 import org.apache.texera.amber.engine.architecture.coordinator.execution.RegionExecution
 import org.apache.texera.amber.engine.architecture.coordinator.{
   ClientEvent,
   CoordinatorAsyncRPCHandlerInitializer,
-  CoordinatorConfig,
-  CoordinatorProcessor,
   ExecutionStatsUpdate,
   RuntimeStatisticsPersist
 }
@@ -56,12 +39,10 @@ import org.apache.texera.amber.engine.architecture.rpc.controlreturns.{
   WorkflowAggregatedState
 }
 import org.apache.texera.amber.engine.architecture.scheduling.{Region, RegionIdentity}
-import org.apache.texera.amber.engine.architecture.worker.WorkflowWorker.MainThreadDelegateMessage
 import org.apache.texera.amber.engine.architecture.worker.statistics.WorkerState
 import org.apache.texera.amber.engine.common.ambermessage.WorkflowFIFOMessage
 import org.apache.texera.amber.engine.common.executionruntimestate.OperatorMetrics
 import org.apache.texera.amber.engine.common.virtualidentity.util.{CLIENT, COORDINATOR}
-import org.apache.texera.amber.util.VirtualIdentityUtils
 import org.scalatest.flatspec.AnyFlatSpec
 
 import scala.collection.mutable.ArrayBuffer
@@ -93,9 +74,8 @@ import scala.collection.mutable.ArrayBuffer
   * `CoordinatorAsyncRPCHandlerInitializer`, with the handler invoked directly and the dispatched
   * messages captured through the coordinator's output handler. No ActorSystem is needed.
   */
-class WorkerStateUpdatedHandlerSpec extends AnyFlatSpec {
+class WorkerStateUpdatedHandlerSpec extends AnyFlatSpec with CoordinatorMessageFixture {
 
-  private val awaitTimeout = Duration.fromSeconds(1)
   // The single output port each seeded region declares; completing it is what moves a region
   // execution out of the running set.
   private val outputPort = PortIdentity()
@@ -107,35 +87,14 @@ class WorkerStateUpdatedHandlerSpec extends AnyFlatSpec {
   private val workerA1 = mkWorkerId(opA, 1)
   private val workerB0 = mkWorkerId(opB, 0)
 
-  private def mkPhysicalOp(logicalOpId: String): PhysicalOp =
-    PhysicalOp(
-      PhysicalOpIdentity(OperatorIdentity(logicalOpId), "main"),
-      DEFAULT_WORKFLOW_ID,
-      DEFAULT_EXECUTION_ID,
-      OpExecInitInfo.Empty
-    )
-
-  private def mkWorkerId(physicalOp: PhysicalOp, index: Int): ActorVirtualIdentity =
-    VirtualIdentityUtils.createWorkerIdentity(DEFAULT_WORKFLOW_ID, physicalOp.id, index)
-
   private case class Fixture(
       init: CoordinatorAsyncRPCHandlerInitializer,
       sent: ArrayBuffer[WorkflowFIFOMessage]
   )
 
   private def newFixture(): Fixture = {
-    val sent = ArrayBuffer[WorkflowFIFOMessage]()
-    val outputHandler: Either[MainThreadDelegateMessage, WorkflowFIFOMessage] => Unit = {
-      case Right(m) => sent += m
-      case _        => ()
-    }
-    val cp = new CoordinatorProcessor(
-      new WorkflowContext(),
-      CoordinatorConfig(None, None, None, None),
-      COORDINATOR,
-      outputHandler
-    )
-    Fixture(new CoordinatorAsyncRPCHandlerInitializer(cp), sent)
+    val (init, sent) = createCoordinatorFixture()
+    Fixture(init, sent)
   }
 
   /**

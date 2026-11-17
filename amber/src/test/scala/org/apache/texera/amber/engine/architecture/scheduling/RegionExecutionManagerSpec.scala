@@ -20,11 +20,13 @@
 package org.apache.texera.amber.engine.architecture.scheduling
 
 import com.twitter.util.{Future, JavaTimer, Time, Timer}
-import org.apache.pekko.actor.ActorSystem
+import org.apache.pekko.actor.{ActorSystem, Props}
 import org.apache.pekko.testkit.TestKit
+import org.apache.texera.amber.core.executor.{OpExecInitInfo, OpExecWithClassName}
 import org.apache.texera.amber.core.storage.VFSURIFactory
 import org.apache.texera.amber.core.virtualidentity.{ActorVirtualIdentity, ChannelIdentity}
 import org.apache.texera.amber.core.workflow.{
+  ExecutionTimeBinding,
   GlobalPortIdentity,
   OutputPort,
   PhysicalOp,
@@ -53,6 +55,7 @@ import org.scalatest.flatspec.AnyFlatSpecLike
 
 import java.util.concurrent.{CountDownLatch, TimeUnit}
 import java.util.concurrent.atomic
+import scala.collection.mutable
 
 /**
   * Tests the real region-execution lifecycle around synchronous region kill.
@@ -104,6 +107,55 @@ class RegionExecutionManagerSpec
     assertControlChannelsAreRemoved(fixture)
   }
 
+  it should "mount the region's repositories before initializing any executor" in {
+    val binding = new ExecutionTimeBinding {
+      override def opExecInitInfo: OpExecInitInfo = OpExecWithClassName("bound")
+      override def mountLocators: Set[String] = Set("dataset-1:abc123")
+    }
+    // What had been sent to workers at the moment the mount was asked for.
+    val mounts = mutable.ArrayBuffer[(Set[String], Seq[String])]()
+    var probe: CoordinatorRpcProbe = null
+    val fixture = createSingleRegionFixture(
+      endWorkerResponse = _ => None,
+      physicalOp = createSourceOp("test-op").withExecutionTimeBinding(Some(binding)),
+      ensureMounted = locators => mounts += ((locators, probe.methodTrace))
+    )
+    probe = fixture.rpcProbe
+
+    launchRegion(fixture.manager)
+
+    assert(mounts.map(_._1) == Seq(Set("dataset-1:abc123")))
+    assert(!mounts.head._2.contains(InitializeExecutor))
+    assert(fixture.rpcProbe.methodTrace.contains(InitializeExecutor))
+  }
+
+  it should "fail the region without initializing any executor when a mount is refused" in {
+    val binding = new ExecutionTimeBinding {
+      override def opExecInitInfo: OpExecInitInfo = OpExecWithClassName("bound")
+      override def mountLocators: Set[String] = Set("dataset-1:abc123")
+    }
+    val fixture = createSingleRegionFixture(
+      endWorkerResponse = _ => None,
+      physicalOp = createSourceOp("test-op").withExecutionTimeBinding(Some(binding)),
+      ensureMounted = _ => throw new RuntimeException("the mount request was refused: HTTP 403")
+    )
+
+    val failure = intercept[RuntimeException](launchRegion(fixture.manager))
+
+    assert(failure.getMessage.contains("HTTP 403"))
+    assert(!fixture.rpcProbe.methodTrace.contains(InitializeExecutor))
+  }
+
+  it should "not mount anything for a region whose operators name nothing" in {
+    val mounts = mutable.ArrayBuffer[Set[String]]()
+    val fixture =
+      createSingleRegionFixture(endWorkerResponse = _ => None, ensureMounted = mounts += _)
+
+    launchRegion(fixture.manager)
+
+    assert(mounts.isEmpty)
+  }
+
   it should "retry EndWorker failures and delay gracefulStop until a retry succeeds" in {
     val attempts = new atomic.AtomicInteger(0)
     // The first EndWorker is sent on the test thread; the retry is sent later from the manager's
@@ -139,6 +191,127 @@ class RegionExecutionManagerSpec
     assert(fixture.rpcProbe.endWorkerCalls.size == 2)
     assert(!fixture.actorRefService.hasActorRef(fixture.workerId))
     assert(workerState(fixture) == WorkerState.TERMINATED)
+  }
+
+  it should "retry EndWorker when the termination timeout expires" in {
+    val fixture = createSingleRegionFixture(
+      endWorkerResponse = _ => None,
+      maxTerminationAttempts = 2,
+      killRetryBaseBackoffMs = fastRetryBackoffMs,
+      terminationTimeoutMs = 10L
+    )
+
+    launchRegion(fixture.manager)
+    val completion = requestRegionCompletion(fixture.manager)
+
+    val failure = intercept[IllegalStateException] {
+      await(completion)
+    }
+
+    assert(failure.getMessage.contains("could not be terminated after 2 attempts"))
+    assert(fixture.rpcProbe.endWorkerCalls.size == 2)
+    assert(!fixture.manager.isCompleted)
+  }
+
+  it should "complete once a retry succeeds after the termination timeout expired" in {
+    // First attempt times out; the retry succeeds.
+    val attempts = new atomic.AtomicInteger(0)
+    val fixture = createSingleRegionFixture(
+      endWorkerResponse = _ => if (attempts.incrementAndGet() == 1) None else Some(EmptyReturn()),
+      maxTerminationAttempts = 2,
+      killRetryBaseBackoffMs = fastRetryBackoffMs,
+      terminationTimeoutMs = 50L
+    )
+
+    launchRegion(fixture.manager)
+    val completion = requestRegionCompletion(fixture.manager)
+    await(completion)
+
+    assert(fixture.manager.isCompleted)
+    assert(fixture.rpcProbe.endWorkerCalls.size == 2)
+    assert(!fixture.actorRefService.hasActorRef(fixture.workerId))
+    assert(workerState(fixture) == WorkerState.TERMINATED)
+  }
+
+  it should "leave the actor ref and control channels in place when gracefulStop itself times out" in {
+    // Block the worker so gracefulStop times out. Cleanup should not happen on failure.
+    val blockGate = new CountDownLatch(1)
+    val physicalOp = createSourceOp("test-op")
+    val workerId = createWorkerId(physicalOp)
+    val region = createSingleWorkerRegion(1, physicalOp, workerId)
+
+    val workflowExecution = WorkflowExecution()
+    seedReusableWorkerExecution(workflowExecution, seedRegionId = 0, physicalOp, workerId)
+    workflowExecution.initRegionExecution(region)
+
+    val rpcProbe = new CoordinatorRpcProbe(_ => Some(EmptyReturn()))
+    val coordinator = createCoordinatorHarness(rpcProbe)
+    val workerRef = system.actorOf(Props(new BlockingActor(blockGate)))
+    coordinator.actorRefService.registerActorRef(workerId, workerRef)
+    workerRef ! BlockingActor.Block
+
+    val controlChannelId = ChannelIdentity(workerId, COORDINATOR, isControl = true)
+    rpcProbe.inputGateway.getChannel(controlChannelId)
+    rpcProbe.outputGateway.getSequenceNumber(
+      ChannelIdentity(COORDINATOR, workerId, isControl = true)
+    )
+
+    val manager = new RegionExecutionManager(
+      region,
+      isRestart = false,
+      workflowExecution,
+      rpcProbe.asyncRPCClient,
+      CoordinatorConfig(None, None, None, None),
+      coordinator.actorService,
+      coordinator.actorRefService,
+      maxTerminationAttempts = 1,
+      killRetryBaseBackoffMs = fastRetryBackoffMs,
+      killRetryTimer = new JavaTimer(true),
+      terminationTimeoutMs = 50L
+    )
+
+    try {
+      await(manager.syncStatusAndTransitionRegionExecutionPhase())
+      val failure = intercept[IllegalStateException] {
+        await(manager.syncStatusAndTransitionRegionExecutionPhase())
+      }
+
+      assert(failure.getMessage.contains("could not be terminated after 1 attempt"))
+      assert(!manager.isCompleted)
+      assert(coordinator.actorRefService.hasActorRef(workerId))
+      assert(rpcProbe.inputGateway.getAllControlChannels.exists(_.channelId == controlChannelId))
+    } finally {
+      blockGate.countDown()
+    }
+  }
+
+  it should "not complete the region until the coordinator has processed the cleanup message" in {
+    // Hold cleanup on the coordinator thread and verify completion waits for it.
+    val cleanupStarted = new CountDownLatch(1)
+    val cleanupGate = new CountDownLatch(1)
+    val fixture = createSingleRegionFixture(
+      endWorkerResponse = _ => None,
+      beforeCleanup = () => {
+        cleanupStarted.countDown()
+        cleanupGate.await()
+      }
+    )
+
+    launchRegion(fixture.manager)
+    val completion = requestRegionCompletion(fixture.manager)
+    fixture.rpcProbe.fulfill(fixture.rpcProbe.onlyEndWorkerCall, EmptyReturn())
+
+    assert(
+      cleanupStarted.await(testTimeout.inMilliseconds, TimeUnit.MILLISECONDS),
+      "cleanup was never attempted"
+    )
+    assert(completion.poll.isEmpty, "region completed before the coordinator processed cleanup")
+    assert(!fixture.manager.isCompleted)
+
+    cleanupGate.countDown()
+    await(completion)
+
+    assert(fixture.manager.isCompleted)
   }
 
   it should "give up with a descriptive error once the EndWorker retry budget is exhausted" in {
@@ -234,12 +407,14 @@ class RegionExecutionManagerSpec
     assert(fixture.rpcProbe.endWorkerCalls.size == fixture.workerIds.size * 2)
   }
 
-  it should "default to a bounded ~1.4s termination budget" in {
-    // 4 attempts from a 200 ms base, doubling: 200 + 400 + 800 ms = ~1.4 s of waiting, not the
-    // former 150 x 200 ms (~30 s). This is the documented contract for how long a stuck region
-    // blocks before failing loudly; pin it so changes are deliberate.
+  it should "default to a bounded ~25.4s termination budget" in {
+    // 4 attempts from a 200 ms base, doubling: 200 + 400 + 800 ms = ~1.4 s of backoff, plus
+    // a 6 s timeout per attempt. Worst-case teardown is ~25.4 s. This is the documented
+    // contract for how long a stuck region blocks before failing loudly; pin it so changes
+    // are deliberate.
     assert(RegionExecutionManager.DefaultMaxTerminationAttempts == 4)
     assert(RegionExecutionManager.DefaultKillRetryBaseBackoffMs == 200L)
+    assert(RegionExecutionManager.DefaultTerminationTimeoutMs == 6000L)
   }
 
   it should "back off exponentially and stop once the retry budget is exhausted" in {
@@ -251,7 +426,9 @@ class RegionExecutionManagerSpec
     Time.withCurrentTimeFrozen { _ =>
       val fixture = createSingleRegionFixture(
         endWorkerResponse = _ => Some(transientEndWorkerFailure),
-        killRetryTimer = timer
+        killRetryTimer = timer,
+        // Disable the termination timeout for this frozen-time retry test.
+        terminationTimeoutMs = Long.MaxValue
       )
 
       launchRegion(fixture.manager)
@@ -275,7 +452,9 @@ class RegionExecutionManagerSpec
         endWorkerResponse = _ =>
           if (attempts.incrementAndGet() == 1) Some(transientEndWorkerFailure)
           else Some(EmptyReturn()),
-        killRetryTimer = timer
+        killRetryTimer = timer,
+        // Disable the termination timeout for this frozen-time retry test.
+        terminationTimeoutMs = Long.MaxValue
       )
 
       launchRegion(fixture.manager)
@@ -352,7 +531,7 @@ class RegionExecutionManagerSpec
     workflowExecution.initRegionExecution(region)
 
     val rpcProbe = new CoordinatorRpcProbe(_ => None)
-    val coordinator = createCoordinatorHarness()
+    val coordinator = createCoordinatorHarness(rpcProbe)
     registerLiveWorker(coordinator.actorRefService, workerId)
 
     new RegionExecutionManager(
@@ -380,9 +559,12 @@ class RegionExecutionManagerSpec
       endWorkerResponse: WorkerRpcCall => Option[ControlReturn],
       maxTerminationAttempts: Int = RegionExecutionManager.DefaultMaxTerminationAttempts,
       killRetryBaseBackoffMs: Long = RegionExecutionManager.DefaultKillRetryBaseBackoffMs,
-      killRetryTimer: Timer = new JavaTimer(true)
+      killRetryTimer: Timer = new JavaTimer(true),
+      terminationTimeoutMs: Long = RegionExecutionManager.DefaultTerminationTimeoutMs,
+      physicalOp: PhysicalOp = createSourceOp("test-op"),
+      ensureMounted: Set[String] => Unit = _ => (),
+      beforeCleanup: () => Unit = () => ()
   ): SingleRegionFixture = {
-    val physicalOp = createSourceOp("test-op")
     val workerId = createWorkerId(physicalOp)
     val region = createSingleWorkerRegion(1, physicalOp, workerId)
 
@@ -391,7 +573,7 @@ class RegionExecutionManagerSpec
     workflowExecution.initRegionExecution(region)
 
     val rpcProbe = new CoordinatorRpcProbe(endWorkerResponse)
-    val coordinator = createCoordinatorHarness()
+    val coordinator = createCoordinatorHarness(rpcProbe, beforeCleanup)
     registerLiveWorker(coordinator.actorRefService, workerId)
 
     // Seed stale control channels to verify that successful termination removes them.
@@ -410,7 +592,9 @@ class RegionExecutionManagerSpec
       coordinator.actorRefService,
       maxTerminationAttempts,
       killRetryBaseBackoffMs,
-      killRetryTimer
+      killRetryTimer,
+      terminationTimeoutMs = terminationTimeoutMs,
+      ensureMounted = ensureMounted
     )
 
     SingleRegionFixture(
@@ -446,7 +630,7 @@ class RegionExecutionManagerSpec
     workflowExecution.initRegionExecution(region)
 
     val rpcProbe = new CoordinatorRpcProbe(_ => Some(transientEndWorkerFailure))
-    val coordinator = createCoordinatorHarness()
+    val coordinator = createCoordinatorHarness(rpcProbe)
     workerIds.foreach(registerLiveWorker(coordinator.actorRefService, _))
 
     val manager = new RegionExecutionManager(

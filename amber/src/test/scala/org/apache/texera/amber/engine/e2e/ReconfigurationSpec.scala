@@ -20,68 +20,17 @@
 package org.apache.texera.amber.engine.e2e
 
 import com.typesafe.scalalogging.Logger
-import org.apache.pekko.actor.{ActorSystem, Props}
-import org.apache.pekko.testkit.{ImplicitSender, TestKit}
-import org.apache.pekko.util.Timeout
-import org.apache.texera.amber.clustering.SingleNodeListener
 import org.apache.texera.amber.core.executor.OpExecInitInfo
 import org.apache.texera.amber.core.tuple.Tuple
 import org.apache.texera.amber.core.virtualidentity.OperatorIdentity
 import org.apache.texera.amber.core.workflow.PortIdentity
-import org.apache.texera.amber.engine.common.AmberRuntime
-import org.apache.texera.amber.engine.e2e.TestUtils.{
-  cleanupWorkflowExecutionData,
-  initiateTexeraDBForTestCases,
-  setUpWorkflowExecutionData
-}
 import org.apache.texera.amber.operator.{LogicalOp, TestOperators}
 import org.apache.texera.common.compiler.model.LogicalLink
-import org.scalatest.{BeforeAndAfterAll, BeforeAndAfterEach, Outcome, Retries}
-import org.scalatest.flatspec.AnyFlatSpecLike
 
-import scala.concurrent.duration._
-
-class ReconfigurationSpec
-    extends TestKit(ActorSystem("ReconfigurationSpec", AmberRuntime.pekkoConfig))
-    with ImplicitSender
-    with AnyFlatSpecLike
-    with BeforeAndAfterAll
-    with BeforeAndAfterEach
-    with Retries {
-
-  /**
-    * This block retries each test once if it fails.
-    * In the CI environment, there is a chance that executeWorkflow does not receive "COMPLETED" status.
-    * Until we find the root cause of this issue, we use a retry mechanism here to stabilize CI runs.
-    */
-  override def withFixture(test: NoArgTest): Outcome =
-    withRetry { super.withFixture(test) }
-
-  implicit val timeout: Timeout = Timeout(5.seconds)
+class ReconfigurationSpec extends RetryingDatabaseE2ESpec("ReconfigurationSpec", specId = 3) {
 
   val logger = Logger("ReconfigurationSpecLogger")
-  private val specId = 3
   val ctx = TestUtils.workflowContext(specId)
-
-  override protected def beforeEach(): Unit = {
-    setUpWorkflowExecutionData(specId)
-  }
-
-  override protected def afterEach(): Unit = {
-    cleanupWorkflowExecutionData(specId)
-  }
-
-  override def beforeAll(): Unit = {
-    system.actorOf(Props[SingleNodeListener](), "cluster-info")
-    // These test cases access postgres in CI, but occasionally the jdbc driver cannot be found during CI run.
-    // Explicitly load the JDBC driver to avoid flaky CI failures.
-    Class.forName("org.postgresql.Driver")
-    initiateTexeraDBForTestCases()
-  }
-
-  override def afterAll(): Unit = {
-    TestKit.shutdownActorSystem(system)
-  }
 
   // Thin wrapper around the shared TestUtils helper so call sites below stay
   // ctx/system-implicit. The actual workflow-driver logic lives in TestUtils

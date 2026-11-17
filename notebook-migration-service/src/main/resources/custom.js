@@ -23,62 +23,20 @@
 // without editing this file.
 const TEXERA_ORIGIN = "__TEXERA_ORIGIN__";
 
-// Use Jupyter's event system to ensure the notebook is fully loaded
-require(["base/js/events"], function (events) {
-  events.on("kernel_ready.Kernel", function () {
+// Delegated from document, so it can be bound before the notebook or a kernel exists.
+$(document).on("click", "#notebook-container .cell", function () {
+  const cell = $(this);
+  const index = $(".cell").index(cell);
+  const cellContent = cell.find(".input_area").text();
 
-    // Attach click event listener to cells. kernel_ready.Kernel fires on every
-    // kernel (re)start, so remove any previously bound handler first to avoid
-    // stacking duplicate listeners that would post N messages per click.
-    $("#notebook-container").off("click", ".cell").on("click", ".cell", function (event) {
-      const cell = $(this);
-      const index = $(".cell").index(cell);
-      const cellContent = cell.find(".input_area").text();
+  // Get the UUID from the cell's metadata, or use "N/A" if it doesn't exist
+  const cellUUID = Jupyter.notebook.get_cell(index).metadata.uuid || 'N/A';
 
-      // Get the UUID from the cell's metadata, or use "N/A" if it doesn't exist
-      const cellUUID = Jupyter.notebook.get_cell(index).metadata.uuid || 'N/A';
-
-      // Send a message to the parent window (Texera app)
-      window.parent.postMessage(
-        { action: "cellClicked", cellIndex: index, cellContent: cellContent, cellUUID: cellUUID },
-        TEXERA_ORIGIN
-      );
-    });
-  });
-});
-
-// Read-only viewing: the embedded notebook is a reference view of the generated
-// workflow, not an editing surface. Make every code cell's editor read-only and
-// disable Jupyter's keyboard shortcuts so cells cannot be edited or executed.
-// (The chrome hidden via custom.css already removes the run/save/menu controls.)
-require(["base/js/events"], function (events) {
-  function makeReadOnly() {
-    if (!window.Jupyter || !Jupyter.notebook) {
-      return;
-    }
-    // readOnly "true" blocks editing while still letting the
-    // editor take focus, so a viewer can select and copy the generated code.
-    Jupyter.notebook.get_cells().forEach(function (cell) {
-      if (cell.code_mirror) {
-        cell.code_mirror.setOption("readOnly", true);
-      }
-    });
-    if (Jupyter.keyboard_manager) {
-      Jupyter.keyboard_manager.disable();
-    }
-  }
-
-  // notebook_loaded fires once cells (and their editors) exist; kernel_ready
-  // fires on every (re)start and re-applies in case the manager was re-enabled.
-  events.on("notebook_loaded.Notebook", makeReadOnly);
-  events.on("kernel_ready.Kernel", makeReadOnly);
-});
-
-// Keep markdown cells rendered: overriding unrender() stops a double-click (or
-// Enter) from dropping a markdown cell into its editable source view. The
-// prototype override applies to all existing and future markdown cells.
-require(["notebook/js/textcell"], function (textcell) {
-  textcell.MarkdownCell.prototype.unrender = function () {};
+  // Send a message to the parent window (Texera app)
+  window.parent.postMessage(
+    { action: "cellClicked", cellIndex: index, cellContent: cellContent, cellUUID: cellUUID },
+    TEXERA_ORIGIN
+  );
 });
 
 // Listen for messages from the Texera app (or parent window)

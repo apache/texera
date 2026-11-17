@@ -49,14 +49,18 @@ export class MockGuiConfigService {
     defaultExecutionMode: ExecutionMode.PIPELINED,
     workflowEmailNotificationEnabled: false,
     sharingComputingUnitEnabled: false,
+    warehouseEnabled: false,
     operatorConsoleMessageBufferSize: 1000,
     defaultLocalUser: { username: "", password: "" },
     activeTimeInMinutes: 15,
     copilotEnabled: false,
+
+    aiFixModel: "claude-haiku-4.5",
     limitColumns: 15,
     attributionEnabled: false,
     pythonNotebookMigrationEnabled: false,
     pythonNotebookMigrationTimeoutMinutes: 10,
+    rNotebookMigrationEnabled: false,
     deploymentVersionCheckEnabled: false,
   };
 

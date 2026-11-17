@@ -18,7 +18,18 @@
  */
 
 import { UntilDestroy } from "@ngneat/until-destroy";
-import { AfterViewInit, Component, EventEmitter, Input, Output, ViewChild } from "@angular/core";
+import {
+  AfterViewInit,
+  Component,
+  ElementRef,
+  EventEmitter,
+  inject,
+  Input,
+  NgZone,
+  OnDestroy,
+  Output,
+  ViewChild,
+} from "@angular/core";
 import {
   DatasetFileNode,
   getRelativePathFromDatasetFileNode,
@@ -65,7 +76,10 @@ function countNodes(nodes: DatasetFileNode[]): number {
     NzTooltipDirective,
   ],
 })
-export class UserDatasetVersionFiletreeComponent implements AfterViewInit {
+export class UserDatasetVersionFiletreeComponent implements AfterViewInit, OnDestroy {
+  private ngZone = inject(NgZone);
+  private resizeObserver?: ResizeObserver;
+
   @Input()
   public isTreeNodeDeletable: boolean = false;
 
@@ -78,12 +92,8 @@ export class UserDatasetVersionFiletreeComponent implements AfterViewInit {
     const newHeight = this.computeContainerHeightPx();
     if (newHeight !== this.fileTreeContainerHeightPx) {
       this.fileTreeContainerHeightPx = newHeight;
-      // The tree measures its viewport once after init and again only on
-      // scroll, so a height change must trigger a re-measure (delayed past
-      // the throttle) — otherwise a tree that starts empty stays blank. For
-      // the same reason, a host that creates this component hidden must call
-      // tree.sizeChanged() on reveal.
-      setTimeout(() => this.tree?.sizeChanged(), TREE_VIEWPORT_REMEASURE_DELAY_MS);
+      // The tree re-measures its viewport only on scroll.
+      this.remeasureViewport();
     }
   }
   public get fileTreeNodes(): DatasetFileNode[] {
@@ -95,6 +105,7 @@ export class UserDatasetVersionFiletreeComponent implements AfterViewInit {
   public isExpandAllAfterViewInit = false;
 
   @ViewChild("tree") tree: any;
+  @ViewChild("container") container?: ElementRef<HTMLElement>;
 
   @Output()
   setCoverImage = new EventEmitter<string>();
@@ -143,6 +154,19 @@ export class UserDatasetVersionFiletreeComponent implements AfterViewInit {
     if (this.isExpandAllAfterViewInit) {
       this.tree.treeModel.expandAll();
     }
+    // Re-measure once a tree created hidden, e.g. in an inactive tab, is shown.
+    if (this.container) {
+      this.resizeObserver = new ResizeObserver(() => this.ngZone.run(() => this.remeasureViewport()));
+      this.resizeObserver.observe(this.container.nativeElement);
+    }
+  }
+
+  ngOnDestroy(): void {
+    this.resizeObserver?.disconnect();
+  }
+
+  private remeasureViewport(): void {
+    setTimeout(() => this.tree?.sizeChanged(), TREE_VIEWPORT_REMEASURE_DELAY_MS);
   }
 
   isImageFile(fileName: string): boolean {

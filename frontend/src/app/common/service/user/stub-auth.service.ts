@@ -110,8 +110,4 @@ export class StubAuthService implements PublicInterfaceOf<AuthService> {
   ): Observable<Readonly<RegistrationResult>> {
     return of(MOCK_TOKEN);
   }
-
-  validateUsername(username: string): { result: boolean; message: string } {
-    return { message: "", result: false };
-  }
 }

@@ -22,9 +22,10 @@ import { isDefined } from "../util/predicate";
 
 import { Observable } from "rxjs";
 import { FORM_DEBOUNCE_TIME_MS } from "../../workspace/service/execute-workflow/execute-workflow.service";
-import { debounceTime, distinctUntilChanged, filter, share } from "rxjs/operators";
-import { HideType } from "../../workspace/types/custom-json-schema.interface";
+import { debounceTime, distinctUntilChanged, filter, share, tap } from "rxjs/operators";
+import { HideType, ValueRuleSet } from "../../workspace/types/custom-json-schema.interface";
 import { PortSchema } from "../../workspace/types/workflow-compiling.interface";
+import { AbstractControl } from "@angular/forms";
 
 export function getFieldByName(fieldName: string, fields: FormlyFieldConfig[]): FormlyFieldConfig | undefined {
   return fields.filter((field, _, __) => field.key === fieldName)[0];
@@ -37,6 +38,134 @@ export function setHideExpression(toggleHidden: string[], fields: FormlyFieldCon
       fieldToBeHidden.expressions = { hide: "!field.parent.model." + hiddenBy };
     }
   });
+}
+
+type ValueRule = ValueRuleSet["allOf"][number]["then"];
+
+/**
+ * The one branch of `valueRules` that the row's current contents select, or undefined where
+ * none does. A branch names its sibling fields and the values of theirs it applies to, so the
+ * row model is what decides; `field.parent.model` is that row for an array item and the
+ * operator itself for a top-level field.
+ */
+export function matchingValueRule(rules: ValueRuleSet | undefined, rowModel: any): ValueRule | undefined {
+  if (!isDefined(rules) || !isDefined(rowModel)) {
+    return undefined;
+  }
+  return rules.allOf.find(branch =>
+    Object.entries(branch.if).every(([sibling, condition]) => (condition.valEnum ?? []).includes(rowModel[sibling]))
+  )?.then;
+}
+
+/**
+ * Validator holding a field to whichever branch of `valueRules` currently applies.
+ *
+ * An empty value passes: whether emptiness is allowed is `required`'s business, and a field
+ * that answers twice would report the wrong thing once. The numeric branches accept what
+ * JavaScript reads as a number, which is slightly narrower than the Python converters on the
+ * other end (they take `1_000` and `inf`); erring narrow here would be wrong for a field whose
+ * accepted set is open, but these two are bounded and the values it turns away are ones no one
+ * types into a hyperparameter.
+ */
+export function createValueRulesValidator(rules: ValueRuleSet) {
+  return (control: AbstractControl, field: FormlyFieldConfig): boolean => {
+    const rule = matchingValueRule(rules, field?.parent?.model);
+    if (!isDefined(rule)) {
+      return true;
+    }
+    const value = control.value;
+    if (value === null || value === undefined || value === "") {
+      return true;
+    }
+    const text = String(value).trim();
+    if (isDefined(rule.enum)) {
+      return rule.enum.includes(text);
+    }
+    if (isDefined(rule.pattern)) {
+      // anchored the way the declaration writes it, so the same expression judges the value
+      // here, in the operator's own tests and in the generated Python
+      return new RegExp(rule.pattern).test(String(value));
+    }
+    if (rule.type === "integer" && !/^[-+]?\d+$/.test(text)) {
+      return false;
+    }
+    if (rule.type === "number" && !(text.length > 0 && Number.isFinite(Number(text)))) {
+      return false;
+    }
+    if (isDefined(rule.type)) {
+      // the estimator's own bound, which it would otherwise raise on after the run started
+      const value = Number(text);
+      if (isDefined(rule.minimum) && value < rule.minimum) {
+        return false;
+      }
+      if (isDefined(rule.exclusiveMinimum) && value <= rule.exclusiveMinimum) {
+        return false;
+      }
+    }
+    return true;
+  };
+}
+
+/** Says what the field will take, naming the branch rather than the rule that rejected it. */
+export function valueRulesValidationMessage(_err: unknown, field: FormlyFieldConfig): string {
+  const rule = matchingValueRule(field?.props?.valueRules, field?.parent?.model);
+  if (isDefined(rule?.enum)) {
+    return `must be one of ${rule.enum.join(", ")}`;
+  }
+  if (isDefined(rule?.pattern)) {
+    // a pattern covers shapes no short phrase names, so point at a value that works instead
+    const example = rule.examples?.[0];
+    return isDefined(example)
+      ? `is not a value this parameter takes, such as ${example}`
+      : "is not a value this parameter takes";
+  }
+  const kind = rule?.type === "integer" ? "a whole number" : "a number";
+  if (isDefined(rule?.minimum)) {
+    return `must be ${kind} of at least ${rule.minimum}`;
+  }
+  if (isDefined(rule?.exclusiveMinimum)) {
+    return `must be ${kind} greater than ${rule.exclusiveMinimum}`;
+  }
+  return `must be ${kind}`;
+}
+
+/**
+ * Gives a field whose accepted values follow a sibling's both the control they call for and the
+ * validator holding it to them.
+ *
+ * Angular re-runs a validator only when the control carrying it changes, so the field has to be
+ * re-judged when the sibling deciding its rule changes. The hook reads formly's own event rather
+ * than the sibling control's because formly writes the row model before emitting, and the row
+ * model is what picks the branch.
+ */
+export function setValueRules(field: FormlyFieldConfig, rules: ValueRuleSet): void {
+  const siblings = new Set(rules.allOf.flatMap(branch => Object.keys(branch.if)));
+  field.type = "constrainedvalue";
+  // written into the existing object rather than over it: `props` and `templateOptions` are two
+  // names for one object, and replacing it leaves them pointing at different ones
+  field.props = field.props ?? {};
+  (field.props as Record<string, unknown>).valueRules = rules;
+  field.validators = {
+    ...field.validators,
+    valueRules: {
+      expression: createValueRulesValidator(rules),
+      message: valueRulesValidationMessage,
+    },
+  };
+  field.hooks = {
+    ...field.hooks,
+    // returned rather than subscribed, so that formly ends it with the field
+    onInit: valueField =>
+      valueField.options?.fieldChanges?.pipe(
+        filter(
+          change =>
+            change.type === "valueChanges" &&
+            change.field.parent === valueField.parent &&
+            siblings.has(String(change.field.key))
+        ),
+        tap(() => valueField.formControl?.updateValueAndValidity())
+      ),
+  };
 }
 
 /* Factory function to make functions that hide expressions for a particular field */

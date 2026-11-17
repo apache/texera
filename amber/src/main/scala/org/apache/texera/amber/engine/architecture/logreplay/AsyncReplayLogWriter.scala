@@ -27,7 +27,6 @@ import org.apache.texera.amber.engine.common.storage.SequentialRecordStorage.Seq
 
 import java.util
 import java.util.concurrent.CompletableFuture
-import scala.collection.mutable.ListBuffer
 import scala.jdk.CollectionConverters.ListHasAsScala
 
 class AsyncReplayLogWriter(
@@ -42,6 +41,7 @@ class AsyncReplayLogWriter(
     Queues.newLinkedBlockingQueue[
       Either[ReplayLogRecord, Either[MainThreadDelegateMessage, WorkflowFIFOMessage]]
     ]()
+  private val terminationEntry = Left(TerminateSignal)
   private var stopped = false
   private val logInterval =
     ApplicationConfig.faultToleranceLogFlushIntervalInMs
@@ -61,7 +61,7 @@ class AsyncReplayLogWriter(
 
   def terminate(): Unit = {
     stopped = true
-    writerQueue.put(Left(TerminateSignal))
+    writerQueue.put(terminationEntry)
     gracefullyStopped.get()
   }
 
@@ -78,31 +78,23 @@ class AsyncReplayLogWriter(
   }
 
   private def drainWriterQueueAndProcess(): Boolean = {
-    var stop = false
     if (writerQueue.drainTo(drained) == 0) {
       drained.add(writerQueue.take())
     }
-    var drainedScala = drained.asScala
-    if (drainedScala.last == Left(TerminateSignal)) {
-      drainedScala = drainedScala.dropRight(1)
-      stop = true
-    }
+    val lastIndex = drained.size() - 1
+    val stop = drained.get(lastIndex) == terminationEntry
+    // Keep the drained entries intact until all writes and callbacks succeed.
+    val batch = (if (stop) drained.subList(0, lastIndex) else drained).asScala
 
-    val (replayLogRecords, workflowFIFOMessages) =
-      drainedScala.foldLeft(
-        (
-          ListBuffer[ReplayLogRecord](),
-          ListBuffer[Either[MainThreadDelegateMessage, WorkflowFIFOMessage]]()
-        )
-      ) {
-        case ((accLogs, accMsgs), Left(logRecord))    => (accLogs += logRecord, accMsgs)
-        case ((accLogs, accMsgs), Right(fifoMessage)) => (accLogs, accMsgs += fifoMessage)
-      }
-    // write logs first
-    replayLogRecords.foreach(replayLogRecord => writer.writeRecord(replayLogRecord))
+    batch.foreach {
+      case Left(record) => writer.writeRecord(record)
+      case Right(_)     => ()
+    }
     writer.flush()
-    // send messages after logs are written
-    workflowFIFOMessages.foreach(workflowFIFOMessage => handler(workflowFIFOMessage))
+    batch.foreach {
+      case Left(_)        => ()
+      case Right(message) => handler(message)
+    }
 
     drained.clear()
     stop

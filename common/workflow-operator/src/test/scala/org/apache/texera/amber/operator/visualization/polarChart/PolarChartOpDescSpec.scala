@@ -19,6 +19,12 @@
 
 package org.apache.texera.amber.operator.visualization.polarChart
 
+import org.apache.texera.amber.util.PythonTestSupport.{
+  NeedsPythonPackages,
+  canImport,
+  configuredPython,
+  withDriver
+}
 import org.apache.texera.amber.core.tuple.{AttributeType, Schema}
 import org.apache.texera.amber.operator.LogicalOp
 import org.apache.texera.amber.operator.metadata.OperatorGroupConstants
@@ -72,4 +78,83 @@ class PolarChartOpDescSpec extends AnyFlatSpec with Matchers {
     p.r shouldBe "radius"
     p.theta shouldBe "angle"
   }
+
+  // A source read from Arrow hands over nullable dtypes such as Int64, which
+  // np.issubdtype cannot interpret; the check must draw them, not raise.
+  "PolarChartOpDesc.generateStandaloneCode" should
+    "draw nullable numeric columns and refuse non-numeric ones" taggedAs NeedsPythonPackages in {
+    val python = configuredPython().getOrElse(
+      cancel("No runnable python executable (udf.conf python.path, python3, python, py)")
+    )
+    if (!canImport(python, "pandas", "plotly")) {
+      cancel(s"'$python' cannot import pandas and plotly; skipping runtime verification")
+    }
+
+    val d = new PolarChartOpDesc
+    d.r = "r"
+    d.theta = "theta"
+    withDriver(
+      python,
+      "polar_standalone_",
+      "polar_driver_",
+      d.generateStandaloneCode(),
+      driverScript,
+      "Polar driver timed out after 120s"
+    ) { (exitCode, output) =>
+      withClue(s"Driver output:\n$output\n") {
+        exitCode shouldBe 0
+        val verdicts = "CASE (\\S+) (\\S+)".r
+          .findAllMatchIn(output)
+          .map(m => m.group(1) -> m.group(2))
+          .toMap
+        verdicts shouldBe Map(
+          "numpy" -> "CHART",
+          "nullable" -> "CHART",
+          "boolean" -> "NOT_NUMERIC",
+          "text" -> "NOT_NUMERIC"
+        )
+      }
+    }
+  }
+
+  // Runs the exported block over one frame per case and reports the page it
+  // wrote, so a check that raises instead of answering fails here.
+  private val driverScript: String =
+    """import pathlib
+      |import sys
+      |import tempfile
+      |
+      |import pandas as pd
+      |import plotly.graph_objects as go
+      |
+      |source = pathlib.Path(sys.argv[1]).read_text(encoding="utf-8")
+      |
+      |cases = {
+      |    "numpy": pd.DataFrame({"r": [1, 2], "theta": [0, 90]}),
+      |    "nullable": pd.DataFrame(
+      |        {"r": pd.array([1, 2], dtype="Int64"), "theta": pd.array([0, 90], dtype="Int64")}
+      |    ),
+      |    "boolean": pd.DataFrame({"r": [True, False], "theta": [0, 90]}),
+      |    "text": pd.DataFrame({"r": [1, 2], "theta": ["a", "b"]}),
+      |}
+      |
+      |for name, frame in cases.items():
+      |    directory = tempfile.mkdtemp()
+      |    scope = {
+      |        "in1df": frame,
+      |        "outputHtml": directory + "/chart.html",
+      |        "outputJson": directory + "/chart.json",
+      |        "pd": pd,
+      |        "go": go,
+      |    }
+      |    exec(compile(source, "standalone", "exec"), scope)
+      |    page = pathlib.Path(scope["outputHtml"]).read_text(encoding="utf-8")
+      |    if "Selected columns must be numeric" in page:
+      |        verdict = "NOT_NUMERIC"
+      |    elif "<h3>" in page:
+      |        verdict = "OTHER_PAGE"
+      |    else:
+      |        verdict = "CHART"
+      |    print("CASE %s %s" % (name, verdict))
+      |""".stripMargin
 }

@@ -108,6 +108,31 @@ describe("PropertyEditorComponent", () => {
     expect(container.style.width).toBe("321px");
   });
 
+  // Both views of a workflow mount this panel, and they overlap for a tick when the switch routes
+  // between them; a document-wide lookup then finds the departing view's container first and
+  // restores the saved placement onto it, leaving this panel's own unstyled.
+  it("restores the saved placement onto its own container, not the first one in the document", () => {
+    // `left`, not width: the template binds the width (nz-resizable) on the same change-detection
+    // pass that runs ngOnInit, which would overwrite the restored value and hide the outcome.
+    localStorage.setItem("right-panel-style", "left: 33px;");
+    // In the document before the panel is created, as the departing view's container is when the
+    // arriving one initialises.
+    const decoy = document.createElement("div");
+    decoy.id = "right-container";
+    document.body.insertBefore(decoy, document.body.firstChild);
+    try {
+      const arriving = TestBed.createComponent(PropertyEditorComponent);
+      arriving.detectChanges();
+      const own = arriving.nativeElement.querySelector("#right-container") as HTMLElement;
+
+      expect(own.style.left).toBe("33px");
+      expect(decoy.style.left).toBe("");
+      arriving.destroy();
+    } finally {
+      decoy.remove();
+    }
+  });
+
   // The crash this flag fixes: ngOnInit reads #right-container to restore the docked panel's
   // placement, and that element only exists in the canvas layout. The Form View mounts the panel
   // with persistPlacement=false, where the element is absent -- reading it there would throw. With
@@ -120,6 +145,72 @@ describe("PropertyEditorComponent", () => {
     expect(() => component.ngOnInit()).not.toThrow();
 
     expect(getById).not.toHaveBeenCalledWith("right-container");
+  });
+
+  // The selection lives in the graph wrapper, which both views of a workflow share and hand over
+  // between them: a panel that only followed the streams stayed empty on arrival, since the event
+  // that made the selection fired before it existed -- and clicking the selected operator emits
+  // nothing, so it took clicking a different one to bring the panel back. ngOnInit is re-run on the
+  // live fixture, which is what a fresh mount into the same shared selection comes down to.
+  it("shows what is already selected when it mounts, not only what is selected next", () => {
+    const jointGraphWrapper = workflowActionService.getJointGraphWrapper();
+    workflowActionService.addOperator(mockScanPredicate, mockPoint);
+    jointGraphWrapper.highlightOperators(mockScanPredicate.operatorID);
+    // As a panel that was not there when the selection was made: it has shown nothing so far.
+    component.currentComponent = null;
+    component.componentInputs = {};
+
+    component.ngOnInit();
+
+    expect(component.currentComponent).toBe(OperatorPropertyEditFrameComponent);
+    expect(component.componentInputs).toEqual(
+      expect.objectContaining({ currentOperatorId: mockScanPredicate.operatorID })
+    );
+  });
+
+  it("leaves the panel alone when it mounts into no selection, and shows no frame into several", () => {
+    const jointGraphWrapper = workflowActionService.getJointGraphWrapper();
+    // Nothing selected: the no-frame branch is for a selection being dropped (it clears the
+    // editing marker and resizes the docked panel), so a fresh mount must not run it.
+    component.currentComponent = OperatorPropertyEditFrameComponent;
+    component.ngOnInit();
+    expect(component.currentComponent).toBe(OperatorPropertyEditFrameComponent);
+
+    // Two selected: a selection exists but no single step to show, so no frame.
+    workflowActionService.addOperatorsAndLinks(
+      [
+        { op: mockScanPredicate, pos: mockPoint },
+        { op: mockResultPredicate, pos: mockPoint },
+      ],
+      []
+    );
+    jointGraphWrapper.setMultiSelectMode(true);
+    jointGraphWrapper.highlightOperators(mockScanPredicate.operatorID, mockResultPredicate.operatorID);
+    expect(jointGraphWrapper.getCurrentHighlightedOperatorIDs()).toHaveLength(2);
+    component.currentComponent = OperatorPropertyEditFrameComponent;
+
+    component.ngOnInit();
+    expect(component.currentComponent).toBeNull();
+  });
+
+  // The toolbar's choosing toggle replays its current value on subscribe. A frame built before
+  // that replay would be built without it and then torn down and rebuilt by it, inside the page's
+  // first change-detection pass; so the mount-time read comes after the subscription. Checked on
+  // a panel whose own toggle state is fresh, as a mounting panel's is.
+  it("builds the frame it mounts into with the toolbar's choosing state, without a rebuild", () => {
+    const jointGraphWrapper = workflowActionService.getJointGraphWrapper();
+    workflowActionService.addOperator(mockScanPredicate, mockPoint);
+    jointGraphWrapper.highlightOperators(mockScanPredicate.operatorID);
+    TestBed.inject(FormBindingService).setChoosing(true);
+    component.currentComponent = null;
+    component.componentInputs = {};
+    (component as unknown as { choosingFromToolbar: boolean }).choosingFromToolbar = false;
+
+    component.ngOnInit();
+
+    // Built once, with choosing on -- not built off and then nulled by the replay for a rebuild.
+    expect(component.currentComponent).toBe(OperatorPropertyEditFrameComponent);
+    expect(component.componentInputs).toEqual(expect.objectContaining({ exposeChoosing: true }));
   });
 
   /**
@@ -427,7 +518,8 @@ describe("PropertyEditorComponent", () => {
     localStorage.removeItem("right-panel-style");
     component.width = 137;
     component.height = 246;
-    vi.spyOn(document, "getElementById").mockReturnValue(null);
+    // The panel looks for the container inside its own host, so "missing" means gone from there.
+    (fixture.nativeElement.querySelector("#right-container") as HTMLElement).remove();
 
     component.ngOnDestroy();
 

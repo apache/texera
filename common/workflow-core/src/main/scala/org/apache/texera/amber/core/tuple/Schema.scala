@@ -90,7 +90,7 @@ case class Schema @JsonCreator() (
     }
   }
 
-  override def toString: String = s"Schema[${attributes.map(_.toString).mkString(", ")}]"
+  override def toString: String = s"Schema[${attributes.mkString(", ")}]"
 
   /**
     * Creates a new Schema containing only the specified attributes.
@@ -113,7 +113,7 @@ case class Schema @JsonCreator() (
     * Throws an exception if any attribute name already exists in the schema.
     */
   def add(attributesToAdd: Iterable[Attribute]): Schema = {
-    val existingNames = this.getAttributeNames.map(_.toLowerCase).toSet
+    val existingNames = attributeIndex.keySet
     val duplicateNames = attributesToAdd.map(_.getName.toLowerCase).toSet.intersect(existingNames)
 
     if (duplicateNames.nonEmpty) {
@@ -171,7 +171,7 @@ case class Schema @JsonCreator() (
     val attributesToRemove = attributeNames.map(_.toLowerCase).toSet
 
     // Check for non-existent attributes
-    val nonExistentAttributes = attributesToRemove.diff(attributes.map(_.getName.toLowerCase).toSet)
+    val nonExistentAttributes = attributesToRemove.diff(attributeIndex.keySet)
     if (nonExistentAttributes.nonEmpty) {
       throw new IllegalArgumentException(
         s"Cannot remove non-existent attributes: ${nonExistentAttributes.mkString(", ")}"

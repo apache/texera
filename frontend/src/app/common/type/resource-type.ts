@@ -21,4 +21,5 @@
  */
 export enum ResourceType {
   Dataset = "dataset",
+  Model = "model",
 }

@@ -95,6 +95,32 @@ def test_a_dead_mount_is_still_reported_as_mounted(mounter, cu_dir):
     assert mounter.is_mounted(target)  # what it should have asked
 
 
+# ─────────────────── _responds() ───────────────────
+
+def test_a_listable_directory_responds(mounter, tmp_path):
+    assert mounter._responds(str(tmp_path))
+
+
+def test_a_missing_path_does_not_respond(mounter, tmp_path):
+    assert not mounter._responds(str(tmp_path / "gone"))
+
+
+def test_a_mount_that_stats_but_cannot_be_listed_does_not_respond(mounter, tmp_path, monkeypatch):
+    """A dead FUSE mount can still stat() from attributes the kernel cached, and fail only
+    when opened. Such a mount must not count as live, or it is never remounted."""
+    real_scandir = os.scandir
+
+    def dead_mount(path):
+        if os.fspath(path) == str(tmp_path):
+            raise OSError(107, "Transport endpoint is not connected")
+        return real_scandir(path)
+
+    monkeypatch.setattr(os, "scandir", dead_mount)
+    os.stat(tmp_path)  # stat still succeeds
+
+    assert not mounter._responds(str(tmp_path))
+
+
 # ─────────────────── _cuid_of() ───────────────────
 
 @pytest.mark.parametrize(
@@ -144,6 +170,41 @@ def test_do_mount_passes_the_jwt_as_the_s3_access_key(mounter):
     assert "ro,allow_other" in cmd
     # The pod's own JWT is the credential; no global LakeFS secret ever reaches the node.
     assert kwargs["env"]["AWS_ACCESS_KEY_ID"] == "the-user-jwt"
+
+
+def test_do_mount_asks_for_no_cache_by_default(mounter):
+    mounter.do_mount("7", "dataset-1", "abc", "t", "http://file-service:9092")
+
+    cmd, _ = mounter.runs[0]
+    # geesefs's own default is no disk cache, and an unconfigured deployment keeps it.
+    assert "--cache" not in cmd
+
+
+def test_do_mount_caches_by_repository_and_commit_when_a_cache_root_is_set(mounter, tmp_path, monkeypatch):
+    # The chart mounts CACHE_ROOT as a volume, so it is already there.
+    (tmp_path / "cache").mkdir()
+    monkeypatch.setattr(mounter, "CACHE_ROOT", str(tmp_path / "cache"))
+
+    mounter.do_mount("7", "dataset-1", "abc", "t", "http://file-service:9092")
+
+    cmd, _ = mounter.runs[0]
+    cache_dir = cmd[cmd.index("--cache") + 1]
+    # Keyed by repo and commit, never by cuid: a commit is immutable, so a second computing
+    # unit on this node reuses the first one's cache instead of starting cold.
+    assert cache_dir == str(tmp_path / "cache" / "dataset-1" / "abc")
+    assert os.path.isdir(cache_dir)
+
+
+def test_do_mount_refuses_a_cache_root_that_is_not_there(mounter, tmp_path, monkeypatch):
+    absent = tmp_path / "not-mounted"
+    monkeypatch.setattr(mounter, "CACHE_ROOT", str(absent))
+
+    # Creating it would cache into the container's own filesystem instead of the volume.
+    with pytest.raises(RuntimeError):
+        mounter.do_mount("7", "dataset-1", "abc", "t", "http://file-service:9092")
+
+    assert not absent.exists()
+    assert mounter.runs == []
 
 
 def test_do_mount_is_idempotent_for_a_live_mount(mounter, cu_dir):

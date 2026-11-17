@@ -33,15 +33,22 @@ class PythonUDFSourceOpDescV2 extends SourceOperatorDescriptor with PythonUdfUiP
 
   @JsonProperty(
     required = true,
-    defaultValue = "# Define UiParameter inside GenerateOperator.open().\n" +
-      "# Example: self.count = self.UiParameter(\"count\", AttributeType.INT).value\n" +
-      "# See the Python UDF operator documentation for supported types and behavior.\n" +
+    defaultValue = "# Uncomment the class below. Its method must match its base class:\n" +
+      "#   UDFSourceOperator -> produce\n" +
+      "# Always `yield` results (never `return` a value). Put setup code in open();\n" +
+      "# if you override __init__, call super().__init__() first.\n" +
+      "# Keep exactly ONE class in this script.\n" +
       "# \n" +
-      "# from pytexera import *\n" +
+      "# Define UiParameter inside GenerateOperator.open().\n" +
+      "# Example: self.count = self.UiParameter(\"count\", AttributeType.INT).value\n" +
+      "# Add value=Resource.MODEL or Resource.DATASET to pick a version; the value is its mount directory.\n" +
+      "# See the Python UDF operator documentation for supported types and behavior.\n" +
+      "\n" +
+      "from pytexera import *\n" +
+      "\n" +
       "# class GenerateOperator(UDFSourceOperator):\n" +
       "# \n" +
       "#     @overrides\n" +
-      "#     \n" +
       "#     def produce(self) -> Iterator[Union[TupleLike, TableLike, None]]:\n" +
       "#         yield\n"
   )
@@ -104,6 +111,7 @@ class PythonUDFSourceOpDescV2 extends SourceOperatorDescriptor with PythonUdfUiP
       )
       .withLocationPreference(Option.empty)
       .withPveName(pveName)
+      .withExecutionTimeBinding(executionBinding(code))
 
     if (workers > 1) {
       physicalOp

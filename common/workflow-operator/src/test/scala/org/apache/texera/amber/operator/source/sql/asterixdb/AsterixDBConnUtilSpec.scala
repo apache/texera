@@ -19,14 +19,11 @@
 
 package org.apache.texera.amber.operator.source.sql.asterixdb
 
-import com.sun.net.httpserver.{HttpExchange, HttpServer}
 import kong.unirest.json.JSONException
 import org.scalatest.{BeforeAndAfterAll, BeforeAndAfterEach}
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 
-import java.net.{InetSocketAddress, URLDecoder}
-import java.nio.charset.StandardCharsets
 import java.util.concurrent.atomic.AtomicInteger
 import scala.collection.mutable
 
@@ -49,66 +46,23 @@ class AsterixDBConnUtilSpec
 
   private val versionHits = new AtomicInteger(0)
   @volatile private var versionStatus: Int = 200
-  @volatile private var versionBody: String = versionJson("0.9.9")
+  @volatile private var versionBody: String = AsterixDBTestServer.versionJson("0.9.9")
   // Responds to POST /query/service based on the submitted statement.
   @volatile private var queryResponder: String => (Int, String) =
     _ => (200, """{"results":[]}""")
   // Decoded form fields of every /query/service request, in arrival order.
   private val recordedQueries = mutable.Buffer[Map[String, String]]()
 
-  private val server: HttpServer = HttpServer.create(new InetSocketAddress(0), 0)
-  server.createContext(
-    "/admin/version",
-    (exchange: HttpExchange) => {
-      versionHits.incrementAndGet()
-      respond(exchange, versionStatus, versionBody)
-    }
-  )
-  server.createContext(
-    "/query/service",
-    (exchange: HttpExchange) => {
-      val is = exchange.getRequestBody
-      val body =
-        try new String(is.readAllBytes(), StandardCharsets.UTF_8)
-        finally is.close()
-      val form = parseForm(body)
-      recordedQueries.synchronized { recordedQueries += form }
-      val (status, responseBody) = queryResponder(form.getOrElse("statement", ""))
-      respond(exchange, status, responseBody)
-    }
-  )
+  private val server = AsterixDBTestServer.bind(version = {
+    versionHits.incrementAndGet()
+    (versionStatus, versionBody)
+  }) { form =>
+    recordedQueries.synchronized { recordedQueries += form }
+    queryResponder(form.getOrElse("statement", ""))
+  }
 
   private val host = "127.0.0.1"
   private def port: String = server.getAddress.getPort.toString
-
-  private def versionJson(version: String): String =
-    s"""{"git.build.version":"$version"}"""
-
-  private def respond(exchange: HttpExchange, status: Int, body: String): Unit = {
-    if (status == 204) {
-      // 204 must not carry a body; length -1 signals a bodyless response.
-      exchange.sendResponseHeaders(204, -1)
-      exchange.close()
-    } else {
-      val bytes = body.getBytes(StandardCharsets.UTF_8)
-      exchange.getResponseHeaders.add("Content-Type", "application/json")
-      exchange.sendResponseHeaders(status, bytes.length.toLong)
-      val os = exchange.getResponseBody
-      try os.write(bytes)
-      finally os.close()
-    }
-  }
-
-  private def parseForm(body: String): Map[String, String] =
-    body
-      .split("&")
-      .filter(_.contains("="))
-      .map { pair =>
-        val idx = pair.indexOf('=')
-        URLDecoder.decode(pair.substring(0, idx), StandardCharsets.UTF_8) ->
-          URLDecoder.decode(pair.substring(idx + 1), StandardCharsets.UTF_8)
-      }
-      .toMap
 
   private def lastQueryField(name: String): String =
     recordedQueries.synchronized { recordedQueries.last(name) }
@@ -137,7 +91,7 @@ class AsterixDBConnUtilSpec
     AsterixDBConnUtil.asterixDBVersionMapping -= host
     versionHits.set(0)
     versionStatus = 200
-    versionBody = versionJson("0.9.9")
+    versionBody = AsterixDBTestServer.versionJson("0.9.9")
     queryResponder = _ => (200, """{"results":[]}""")
     recordedQueries.synchronized { recordedQueries.clear() }
   }
@@ -173,7 +127,7 @@ class AsterixDBConnUtilSpec
   // ---------------------------------------------------------------------------
 
   it should "send the default format `csv` unprefixed when the server version is 0.9.5" in {
-    versionBody = versionJson("0.9.5")
+    versionBody = AsterixDBTestServer.versionJson("0.9.5")
     AsterixDBConnUtil.queryAsterixDB(host, port, "SELECT 1;")
     lastQueryField("format") shouldBe "csv"
   }
@@ -301,7 +255,7 @@ class AsterixDBConnUtilSpec
 
   "AsterixDBConnUtil.updateAsterixDBVersionMapping" should
     "store git.build.version for the host on HTTP 200" in {
-    versionBody = versionJson("1.0.0-SNAPSHOT")
+    versionBody = AsterixDBTestServer.versionJson("1.0.0-SNAPSHOT")
     AsterixDBConnUtil.updateAsterixDBVersionMapping(host, port)
     AsterixDBConnUtil.asterixDBVersionMapping.get(host) shouldBe Some("1.0.0-SNAPSHOT")
   }
@@ -314,7 +268,7 @@ class AsterixDBConnUtilSpec
 
   it should "overwrite an existing entry for the host on a later successful probe" in {
     AsterixDBConnUtil.asterixDBVersionMapping += (host -> "0.9.5")
-    versionBody = versionJson("0.9.9")
+    versionBody = AsterixDBTestServer.versionJson("0.9.9")
     AsterixDBConnUtil.updateAsterixDBVersionMapping(host, port)
     AsterixDBConnUtil.asterixDBVersionMapping.get(host) shouldBe Some("0.9.9")
   }

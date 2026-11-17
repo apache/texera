@@ -19,23 +19,26 @@
 
 package org.apache.texera.amber.operator.visualization.ecdfPlot
 
+import org.apache.texera.amber.operator.visualization.StandaloneChartCode._
 import com.fasterxml.jackson.annotation.{JsonProperty, JsonPropertyDescription}
 import com.kjetland.jackson.jsonSchema.annotations.{JsonSchemaInject, JsonSchemaTitle}
-import org.apache.texera.amber.core.tuple.{AttributeType, Schema}
-import org.apache.texera.amber.core.workflow.PortIdentity
-import org.apache.texera.amber.operator.PythonOperatorDescriptor
+import org.apache.texera.amber.operator.visualization.PlotlyStandaloneCode
+import org.apache.texera.amber.operator.visualization.PythonVisualizationOpDesc
 import org.apache.texera.amber.operator.metadata.annotations.AutofillAttributeName
 import org.apache.texera.amber.operator.metadata.{OperatorGroupConstants, OperatorInfo}
 import org.apache.texera.amber.pybuilder.PyStringTypes.EncodableString
 import org.apache.texera.amber.pybuilder.PythonTemplateBuilder
-import org.apache.texera.amber.pybuilder.PythonTemplateBuilder.PythonTemplateBuilderStringContext
+import org.apache.texera.amber.pybuilder.PythonTemplateBuilder.{
+  PythonTemplateBuilderStringContext,
+  pyStringLiteral
+}
 
 import javax.validation.constraints.NotNull
 
 @JsonSchemaInject(
   json = """{"attributeTypeRules":{"valueColumn":{"enum":["integer","long","double"]}}}"""
 )
-class ECDFPlotOpDesc extends PythonOperatorDescriptor {
+class ECDFPlotOpDesc extends PythonVisualizationOpDesc with PlotlyStandaloneCode {
 
   @JsonProperty(required = true)
   @JsonSchemaTitle("Value Column")
@@ -100,13 +103,6 @@ class ECDFPlotOpDesc extends PythonOperatorDescriptor {
       "Visualize the empirical cumulative distribution of a numeric column.",
       OperatorGroupConstants.VISUALIZATION_STATISTICAL_GROUP
     )
-
-  override def getOutputSchemas(
-      inputSchemas: Map[PortIdentity, Schema]
-  ): Map[PortIdentity, Schema] = {
-    val outputSchema = Schema().add("html-content", AttributeType.STRING)
-    Map(operatorInfo.outputPorts.head.id -> outputSchema)
-  }
 
   def manipulateTable(): PythonTemplateBuilder = {
     assert(valueColumn.nonEmpty, "Value Column cannot be empty")
@@ -183,4 +179,45 @@ class ECDFPlotOpDesc extends PythonOperatorDescriptor {
          |"""
     finalCode.encode
   }
+
+  override def generateStandaloneCode(): String = {
+    val requiredCols = List(valueColumn, colorColumn, separateBy).filter(_.nonEmpty)
+    val requiredColsLiteral = requiredCols.map(pyStringLiteral).mkString("[", ", ", "]")
+    val valueLit = pyStringLiteral(valueColumn)
+    val args = scala.collection.mutable.ArrayBuffer[String](
+      "table",
+      s"""x=$valueLit"""
+    )
+    if (colorColumn.nonEmpty) args += s"""color=${pyStringLiteral(colorColumn)}"""
+    if (separateBy.nonEmpty) args += s"""facet_col=${pyStringLiteral(separateBy)}"""
+    yAxisMode match {
+      case "count" => args += "ecdfnorm=None"
+      case "sum"   => args += "ecdfnorm=None"
+      case _       =>
+    }
+    if (yAxisMode == "sum") args += s"""y=$valueLit"""
+    if (cdfMode != "standard") args += s"""ecdfmode=${pyStringLiteral(cdfMode)}"""
+    if (orientation == "horizontal") args += "orientation='h'"
+    if (showMarkers) args += "markers=True"
+    if (marginal != "none") args += s"""marginal=${pyStringLiteral(marginal)}"""
+
+    s"""${standaloneError("Empirical cumulative distribution plot is not available.")}
+       |
+       |if in1df.empty:
+       |${standaloneErrorPage("input table is empty.")}
+       |else:
+       |    table = in1df.dropna(subset=$requiredColsLiteral).copy()
+       |    table[$valueLit] = pd.to_numeric(table[$valueLit], errors='coerce')
+       |    table.dropna(subset=[$valueLit], inplace=True)
+       |    if table.empty:
+       |${standaloneErrorPage(
+      "no valid rows left after removing missing or non-numeric values.",
+      indent = 8
+    )}
+       |    else:
+       |        fig = px.ecdf(${args.mkString(", ")})
+       |        fig.update_layout(margin=dict(l=0, r=0, t=30, b=0))
+       |${standaloneFigure("ECDF plot")}""".stripMargin
+  }
+
 }
