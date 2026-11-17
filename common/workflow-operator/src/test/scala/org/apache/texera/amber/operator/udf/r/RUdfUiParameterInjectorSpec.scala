@@ -73,4 +73,21 @@ class RUdfUiParameterInjectorSpec extends AnyFlatSpec with Matchers {
     code should not include "UiParameter <- function"
     code should not include "stop('injected')"
   }
+
+  it should "normalize CRLF and bare CR line endings and sort manifest entries deterministically" in {
+    val code = RUdfUiParameterInjector.inject(
+      "function() {\r\n  x <- 1\r  x\r\n}",
+      List(parameter("empty", AttributeType.STRING, ""))
+    )
+    code should not include "\r"
+    code should include("value=.texera_decode(c())")
+    code should include("0x73,0x74,0x72,0x69,0x6e,0x67")
+    val typesSection =
+      code.substring(code.indexOf("attribute_types=list("), code.indexOf("resources=list("))
+    val resourcesSection = code.substring(code.indexOf("resources=list("))
+    typesSection should include("BOOL=")
+    typesSection.indexOf("BOOL=") should be < typesSection.indexOf("TIMESTAMP=")
+    resourcesSection should include("DATASET=")
+    resourcesSection.indexOf("DATASET=") should be < resourcesSection.indexOf("MODEL=")
+  }
 }

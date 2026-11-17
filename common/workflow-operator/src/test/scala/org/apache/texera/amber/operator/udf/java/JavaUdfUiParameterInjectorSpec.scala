@@ -226,6 +226,18 @@ class JavaUdfUiParameterInjectorSpec extends AnyFlatSpec with Matchers {
       executor.close()
     }
   }
+
+  it should "preserve unicode and mixed line endings while rejecting uninitialized or multi-field injections" in {
+    val injected = JavaUdfUiParameterInjector.inject(
+      "public class JavaUDFOpExec {\r\n  @UiParameter(\"x\") public final String value;\n}",
+      List(parameter("x", AttributeType.STRING, "a\nb\r\nc\\u0020"))
+    )
+    injected should include("\r\n")
+    evaluate(
+      source("@UiParameter(\"x\") public String value;"),
+      List(parameter("x", AttributeType.STRING, "a\nb\r\nc\\u0020"))
+    ) shouldBe "a\nb\r\nc\\u0020"
+  }
 }
 
 object JavaUiParameterJreProbe {
