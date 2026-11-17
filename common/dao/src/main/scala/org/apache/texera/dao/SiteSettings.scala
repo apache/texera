@@ -32,11 +32,12 @@ import scala.util.Try
   * config-service startup seeder, so the column set / audit stamping live in
   * one place.
   *
-  * Failures swallowed by the outer Try on the read path include: SqlServer not
-  * initialised (e.g. on workers in distributed mode), no row for the key, and
-  * value that can't be parsed. In all of these cases the caller's default takes
-  * over. The write helpers take an explicit [[DSLContext]] so callers can run
-  * them inside their own transaction and surface failures.
+  * The typed getters fall back to the caller's default when the read fails (e.g.
+  * SqlServer not initialised on workers in distributed mode), when the key has
+  * no row, and when the value can't be parsed. [[lookup]] instead returns a
+  * failed read as a `Failure` and a missing row as `None`, for a caller that
+  * must tell them apart. The write helpers take an explicit [[DSLContext]] so
+  * callers can run them inside their own transaction and surface failures.
   */
 object SiteSettings {
 
@@ -95,5 +96,5 @@ object SiteSettings {
     raw.flatMap(s => Try(parse(s.trim)).toOption).getOrElse(default)
 
   private def readAndParse[T](key: String, default: => T)(parse: String => T): T =
-    lookup(key).toOption.map(parseOrDefault(_, default)(parse)).getOrElse(default)
+    parseOrDefault(lookup(key).toOption.flatten, default)(parse)
 }

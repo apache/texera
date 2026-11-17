@@ -136,7 +136,7 @@ export class UserService {
 
   // Returns Observable<void> rather than void so callers (login / googleLogin /
   // register) can switchMap through the post-login config fetch. The /config/gui
-  // and /config/user-system endpoints are @RolesAllowed, so we must wait for the
+  // and /config/amber endpoints are @RolesAllowed, so we must wait for the
   // new JWT to be in localStorage before they will answer; the user change that
   // loginWithExistingToken feeds renders from that config, so it runs after
   // loadPostLogin resolves.

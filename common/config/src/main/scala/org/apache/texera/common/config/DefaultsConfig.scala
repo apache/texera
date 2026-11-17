@@ -18,7 +18,7 @@
 
 package org.apache.texera.common.config
 
-import com.typesafe.config.{ConfigFactory, ConfigRenderOptions, ConfigValueType}
+import com.typesafe.config.{Config, ConfigFactory, ConfigRenderOptions, ConfigValueType}
 
 import scala.jdk.CollectionConverters.CollectionHasAsScala
 
@@ -29,8 +29,8 @@ object DefaultsConfig {
 
   // Typed rather than read off `allDefaults`: HOCON's parsing keeps the spellings
   // USER_SYS_INVITE_ONLY has always accepted (yes/no, on/off), and an unreadable value stops
-  // config-service at startup, when it loads this object to seed site_settings. `allDefaults`
-  // seeds this parsed value, because every reader of the row expects true or false.
+  // config-service at startup, when it loads this object to seed site_settings. `seedValues`
+  // stores the parsed value too, because every reader of the row expects true or false.
   private val InviteOnlyPath = "user-sys.invite_only"
   val inviteOnly: Boolean = conf.getBoolean(InviteOnlyPath)
 
@@ -38,8 +38,15 @@ object DefaultsConfig {
   // this is the single place that turns a config path into a row key.
   private def shortKey(fullKey: String): String = fullKey.split("\\.").last
 
-  val allDefaults: Map[String, String] = {
-    val entries = conf
+  val allDefaults: Map[String, String] = seedValues(conf)
+
+  /**
+    * The site_settings rows that `source` seeds: every leaf under its short key, with invite-only
+    * stored as true or false. A parameter rather than `conf`, so a test can feed in each spelling
+    * HOCON accepts without setting the environment.
+    */
+  private[config] def seedValues(source: Config): Map[String, String] = {
+    val entries = source
       .entrySet()
       .asScala
       .toSeq
@@ -65,7 +72,7 @@ object DefaultsConfig {
         "segment, so give these a unique leaf name."
     )
 
-    entries.toMap.updated(shortKey(InviteOnlyPath), inviteOnly.toString)
+    entries.toMap.updated(shortKey(InviteOnlyPath), source.getBoolean(InviteOnlyPath).toString)
   }
 
   /**
