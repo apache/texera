@@ -25,8 +25,9 @@ Usage: compare.py [--unordered] [--ignore-cols c1,c2]
                   <actual.jsonl> <expected.jsonl>
        compare.py --plotly <actual.jsonl> <expected.json>
 
-  --unordered   Sort both DataFrames lexicographically by all columns before
-                comparing, so rows match as a set/bag rather than positionally.
+  --unordered   Sort both DataFrames by their exact columns, then their float
+                columns, before comparing anything, models included, so rows
+                match as a set/bag rather than positionally.
                 This is the norm: the engine runs operators across parallel
                 workers, so output row order is not part of the contract.
                 Without this flag the comparator matches rows positionally
@@ -541,6 +542,13 @@ def _run_comparison(
         or _holds_pickle(expected, col)
     ]
 
+    # Rows are paired before anything compares them. The models below are
+    # compared row by row, so a model has to stay beside the row it belongs to.
+    if unordered:
+        unsorted = model_cols + ignore_cols
+        actual, double_kinds_a = _sorted_rows(actual, double_kinds_a, unsorted)
+        expected, double_kinds_e = _sorted_rows(expected, double_kinds_e, unsorted)
+
     # Model columns: compare behavior (predictions) rather than bytes, then drop
     # the raw columns so the frame comparison covers everything else exactly.
     # Two outputs without a row hold no model to ask, and read back from an
@@ -585,21 +593,10 @@ def _run_comparison(
 
     # Kept beside the frame, not in it. A column added under a made-up name
     # overwrote an output column that had the same name, and both sides then
-    # agreed on it. Each rides with its row through the sort below.
+    # agreed on it. Each rode with its row through the sort above.
     kind_cols = [column for column in double_cols if column in actual.columns]
     kinds_a = {column: double_kinds_a[column] for column in kind_cols}
     kinds_e = {column: double_kinds_e[column] for column in kind_cols}
-
-    if unordered:
-        # Sort both sides by the same column key so set-equal frames collapse
-        # to the same row sequence. assert_frame_equal still does the actual
-        # value diff and respects rtol/check_dtype. Mergesort = stable, so
-        # rows that are tied on all columns keep their relative order — not
-        # strictly necessary for set equality (no ties → no duplicates after
-        # the op's dedup step) but cheap insurance.
-        if len(actual.columns):
-            actual, kinds_a = _sorted_rows(actual, kinds_a)
-            expected, kinds_e = _sorted_rows(expected, kinds_e)
 
     # The tolerance was letting integers through with it: at rtol=1e-5, LONG
     # 100000 and 100001 compare equal. Integer columns are compared exactly.
@@ -638,14 +635,24 @@ def _run_comparison(
     return None
 
 
-def _sorted_rows(frame, kinds: dict) -> tuple:
-    """The frame's rows sorted by every column and then every kind, with the
-    kinds put in the same order. The sort key labels its columns by position,
-    so no kind can take the place of an output column."""
-    key = frame.reset_index(drop=True)
+def _sorted_rows(frame, kinds: dict, unsorted: list) -> tuple:
+    """The frame's rows sorted by its exact columns, then its float columns,
+    then every kind, with the kinds put in the same order. A float sorted first
+    pairs rows by a value the tolerance lets differ, so a row within tolerance
+    on the other side can land beside the wrong ID. `unsorted` columns ride
+    along without ordering anything. The sort key labels its columns by
+    position, so no kind can take the place of an output column."""
+    import pandas as pd
+
+    keyed = [column for column in frame.columns if column not in unsorted]
+    floats = [column for column in keyed if pd.api.types.is_float_dtype(frame[column])]
+    key = frame[[column for column in keyed if column not in floats] + floats]
+    key = key.reset_index(drop=True)
     key.columns = range(len(key.columns))
-    for offset, cells in enumerate(kinds.values()):
-        key[len(frame.columns) + offset] = cells
+    for offset, column in enumerate(c for c in kinds if c not in unsorted):
+        key[len(keyed) + offset] = kinds[column]
+    if not len(key.columns):
+        return frame, kinds
     order = list(
         key.sort_values(by=list(key.columns), kind="mergesort", na_position="last").index
     )

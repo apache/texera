@@ -106,6 +106,15 @@ class ComparatorSpec extends AnyFlatSpec with Matchers {
     }
   }
 
+  // Sorting on the float first paired 1.0 with 1.0 across the two sides, which
+  // put "a" beside "b". The exact column has to decide the pairing.
+  it should "pair rows by their exact columns before a float under orderSensitive=false" in {
+    val dir = Files.createTempDirectory("comparator-spec-reorder-float-")
+    val a = writeLines(dir, "a.jsonl", Seq("""{"x":1.0,"s":"a"}""", """{"x":1.000001,"s":"b"}"""))
+    val b = writeLines(dir, "b.jsonl", Seq("""{"x":1.000001,"s":"a"}""", """{"x":1.0,"s":"b"}"""))
+    noException should be thrownBy Comparator.assertEqual(a, b, orderSensitive = false)
+  }
+
   // The tolerance a double needs was being applied to integers as well, so two
   // whole numbers a workflow would never call the same compared equal. The
   // declared type is what separates them: a double keeps the tolerance.
@@ -380,6 +389,11 @@ class ComparatorSpec extends AnyFlatSpec with Matchers {
          |    with open(rf"$dir/{name}", "w", encoding="utf-8") as handle:
          |        handle.write(json.dumps({"model": model, "score": 1.0}) + "\\n")
          |""".stripMargin
+    runPython(program)
+    (dir.resolve("actual.jsonl"), dir.resolve("expected.jsonl"), dir.resolve("probe.jsonl"))
+  }
+
+  private def runPython(program: String): Unit = {
     val script = Files.createTempFile("comparator-spec-fit-", ".py")
     script.toFile.deleteOnExit()
     Files.writeString(script, program)
@@ -390,7 +404,6 @@ class ComparatorSpec extends AnyFlatSpec with Matchers {
     val said = Source.fromInputStream(process.getInputStream).mkString
     process.waitFor(120, TimeUnit.SECONDS)
     require(process.exitValue() == 0, s"fitting the models failed:\n$said")
-    (dir.resolve("actual.jsonl"), dir.resolve("expected.jsonl"), dir.resolve("probe.jsonl"))
   }
 
   // A classifier predicts a class, and a class that changed is a different
@@ -453,6 +466,45 @@ class ComparatorSpec extends AnyFlatSpec with Matchers {
       modelColumns = Seq("model"),
       probePath = Some(probe)
     )
+  }
+
+  // Unordered rows were paired only after the models had been compared by
+  // position, so a model could change rows and still pass.
+  it should "keep each model beside its row under orderSensitive=false" in {
+    val dir = Files.createTempDirectory("comparator-spec-model-unordered-")
+    runPython(
+      s"""import base64, json, pickle
+         |import pandas as pd
+         |from sklearn.tree import DecisionTreeClassifier
+         |
+         |x = pd.DataFrame({"petal_length": [1.0, 2.0, 3.0]})
+         |x.to_json(r"$dir/probe.jsonl", orient="records", lines=True)
+         |def predicting(c):
+         |    model = DecisionTreeClassifier().fit(x, [c] * 3)
+         |    return base64.b64encode(pickle.dumps(model)).decode()
+         |for name, rows in (
+         |    ("rows.jsonl", [(1, 0), (2, 1)]),
+         |    ("reversed.jsonl", [(2, 1), (1, 0)]),
+         |    ("swapped.jsonl", [(2, 0), (1, 1)]),
+         |):
+         |    with open(rf"$dir/{name}", "w", encoding="utf-8") as handle:
+         |        for id, c in rows:
+         |            handle.write(json.dumps({"id": id, "model": predicting(c)}) + "\\n")
+         |""".stripMargin
+    )
+    def compare(expected: String): Unit =
+      Comparator.assertEqual(
+        dir.resolve("rows.jsonl"),
+        dir.resolve(expected),
+        orderSensitive = false,
+        modelColumns = Seq("model"),
+        probePath = Some(dir.resolve("probe.jsonl"))
+      )
+
+    noException should be thrownBy compare("reversed.jsonl")
+    intercept[ComparatorMismatchException] {
+      compare("swapped.jsonl")
+    }.getMessage should include("predictions differ")
   }
 
   // An operator that draws a chart per row writes one JSONL row per chart on the
