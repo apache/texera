@@ -34,15 +34,14 @@ class CheckpointState extends Serializable {
   }
 
   def load[T <: Any](key: String): T = {
-    if (states.contains(key)) {
-      states(key).toObject(AmberRuntime.serde).asInstanceOf[T]
-    } else {
-      throw new RuntimeException(s"no state saved for key = $key")
+    states.get(key) match {
+      case Some(state) => state.toObject(AmberRuntime.serde).asInstanceOf[T]
+      case None        => throw new RuntimeException(s"no state saved for key = $key")
     }
   }
 
   def size(): Long = {
-    states.filter(_._2 != null).map(_._2.size()).sum
+    states.iterator.filter(_._2 != null).map(_._2.size()).sum
   }
 
 }

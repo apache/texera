@@ -39,27 +39,28 @@ trait TakeGlobalCheckpointHandler {
       msg: TakeGlobalCheckpointRequest,
       ctx: AsyncRPCContext
   ): Future[TakeGlobalCheckpointResponse] = {
-    var estimationOnly = msg.estimationOnly
+    val estimationRequested = msg.estimationOnly
     val destinationURI = new URI(msg.destination)
-    @transient val storage =
+    val storage =
       SequentialRecordStorage.getStorage[CheckpointState](Some(destinationURI))
-    if (storage.containsFolder(msg.checkpointId.toString)) {
+    val checkpointExists = storage.containsFolder(msg.checkpointId.toString)
+    if (checkpointExists) {
       logger.info("skip checkpoint since its already taken")
-      estimationOnly = true
     }
+    val estimationOnly = estimationRequested || checkpointExists
     val uri = destinationURI.resolve(msg.checkpointId.toString)
     var totalSize = 0L
-    val physicalOpIdsToTakeCheckpoint = cp.workflowScheduler.physicalPlan.operators.map(_.id)
+    val physicalOpIdsToTakeCheckpoint = cp.workflowScheduler.physicalPlan.operators.map(_.id).toSeq
     coordinatorInterface
       .propagateEmbeddedControlMessage(
         PropagateEmbeddedControlMessageRequest(
-          cp.workflowExecution.getAllRegionExecutions
-            .flatMap(_.getAllOperatorExecutions.map(_._1))
-            .toSeq,
+          cp.workflowExecution.getAllRegionExecutions.iterator
+            .flatMap(_.getAllOperatorExecutions.iterator.map(_._1))
+            .toList,
           msg.checkpointId,
           NO_ALIGNMENT,
-          cp.workflowScheduler.physicalPlan.operators.map(_.id).toSeq,
-          physicalOpIdsToTakeCheckpoint.toSeq,
+          physicalOpIdsToTakeCheckpoint,
+          physicalOpIdsToTakeCheckpoint,
           PrepareCheckpointRequest(msg.checkpointId, estimationOnly),
           METHOD_PREPARE_CHECKPOINT.getBareMethodName
         ),
@@ -67,7 +68,7 @@ trait TakeGlobalCheckpointHandler {
       )
       .flatMap { ret =>
         Future
-          .collect(ret.returns.map {
+          .join(ret.returns.iterator.map {
             case (workerId, _) =>
               val destActor = ActorVirtualIdentity(workerId)
               workerInterface
@@ -81,11 +82,13 @@ trait TakeGlobalCheckpointHandler {
                 .onFailure { err =>
                   throw err // TODO: handle failures.
                 }
-          }.toSeq)
+          }.toList)
           .map { _ =>
             logger.info("Start to take checkpoint")
-            val chkpt = new CheckpointState()
-            if (!estimationOnly) {
+            val coordinatorCheckpoint = if (estimationOnly) {
+              None
+            } else {
+              val chkpt = new CheckpointState()
               // serialize CP state
               chkpt.save(SerializedState.CP_STATE_KEY, this.cp)
               logger.info(
@@ -101,8 +104,9 @@ trait TakeGlobalCheckpointHandler {
               writer.writeRecord(chkpt)
               writer.flush()
               writer.close()
+              Some(chkpt)
             }
-            totalSize += chkpt.size()
+            totalSize += coordinatorCheckpoint.fold(0L)(_.size())
             logger.info(s"global checkpoint finalized, total size = $totalSize")
             TakeGlobalCheckpointResponse(totalSize)
           }
