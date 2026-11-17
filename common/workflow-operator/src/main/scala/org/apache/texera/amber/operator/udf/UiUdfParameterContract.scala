@@ -43,6 +43,11 @@ object UiUdfParameterContract {
   val javaTypes: Map[AttributeType, List[String]] = manifest.javaTypes
   val resourceInputTypes: Map[String, String] = manifest.resources
 
+  private lazy val resourceInputTypeNames = resourceInputTypes.values.toSet
+
+  private[udf] def isResourceInputType(inputType: String): Boolean =
+    resourceInputTypeNames.contains(inputType)
+
   def validate(uiParameters: List[UiUDFParameter]): Unit = {
     val names = Option(uiParameters).getOrElse(Nil).map { parameter =>
       val attribute = Option(parameter)
@@ -64,7 +69,7 @@ object UiUdfParameterContract {
       if (parameter.value == null)
         throw new RuntimeException(s"UiParameter '${attribute.getName}' value must be a string.")
       val resource = Option(parameter.inputType).getOrElse("")
-      if (resource.nonEmpty && !resourceInputTypes.values.toSet.contains(resource))
+      if (resource.nonEmpty && !isResourceInputType(resource))
         throw new RuntimeException(s"Unknown UiParameter resource '$resource'.")
       if (resource.nonEmpty && attribute.getType != AttributeType.STRING)
         throw new RuntimeException("Resource UiParameters must have type STRING.")

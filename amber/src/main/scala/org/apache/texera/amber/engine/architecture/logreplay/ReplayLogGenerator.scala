@@ -34,18 +34,20 @@ object ReplayLogGenerator {
     val logs = logStorage.getReader(logFileName).mkRecordIterator()
     val steps = mutable.Queue[ProcessingStep]()
     val messages = mutable.Queue[WorkflowFIFOMessage]()
-    logs.foreach {
-      case s: ProcessingStep =>
-        steps.enqueue(s)
-      case MessageContent(message) =>
-        messages.enqueue(message)
-      case ReplayDestination(id) =>
-        if (id == replayTo) {
-          // we only need log record upto this point
-          return (steps, messages)
-        }
-      case other =>
-        throw new RuntimeException(s"cannot handle $other in the log")
+    while (logs.hasNext) {
+      logs.next() match {
+        case s: ProcessingStep =>
+          steps.enqueue(s)
+        case MessageContent(message) =>
+          messages.enqueue(message)
+        case ReplayDestination(id) =>
+          if (id == replayTo) {
+            // we only need log record upto this point
+            return (steps, messages)
+          }
+        case other =>
+          throw new RuntimeException(s"cannot handle $other in the log")
+      }
     }
     (steps, messages)
   }

@@ -21,10 +21,9 @@ package org.apache.texera.amber.engine.common
 
 import com.typesafe.config.Config
 import org.apache.pekko.actor.{ActorRef, ActorSystem, DeadLetter}
-import org.apache.pekko.serialization.{Serialization, SerializationExtension}
+import org.apache.pekko.serialization.Serialization
 import org.apache.pekko.testkit.TestKit
 import org.apache.texera.amber.clustering.ClusterListener
-import org.scalatest.BeforeAndAfterAll
 import org.scalatest.flatspec.AnyFlatSpec
 
 import java.util.concurrent.CountDownLatch
@@ -78,49 +77,20 @@ import scala.util.Try
   * themselves restore them in a `finally` rather than deferring to `afterAll`, so the
   * write window is one test long.
   */
-class AmberRuntimeSpec extends AnyFlatSpec with BeforeAndAfterAll {
+class AmberRuntimeSpec extends AnyFlatSpec with AmberSerdeTestSupport {
 
-  // `lazy` matters: BeforeAndAfterAll skips beforeAll/afterAll entirely when the
-  // active filter selects no test from this suite (which is what the
-  // amber-integration CI job does via AMBER_TEST_FILTER). A strict `val` would
-  // still build an ActorSystem during suite construction and never shut it down.
-  private lazy val testSystem: ActorSystem =
-    ActorSystem("AmberRuntimeSpec-test", AmberRuntime.pekkoConfig)
-  private lazy val testSerde: Serialization = SerializationExtension(testSystem)
-
-  private def getAmberRuntimeField(name: String): AnyRef = {
-    val field = AmberRuntime.getClass.getDeclaredField(name)
-    field.setAccessible(true)
-    field.get(AmberRuntime)
-  }
-
-  private def setAmberRuntimeField(name: String, value: AnyRef): Unit = {
-    val field = AmberRuntime.getClass.getDeclaredField(name)
-    field.setAccessible(true)
-    field.set(AmberRuntime, value)
-  }
-
-  private var previousActorSystem: AnyRef = _
-  private var previousSerde: AnyRef = _
   private var previousNodeCount: Int = 0
 
   override protected def beforeAll(): Unit = {
-    super.beforeAll()
-    previousActorSystem = getAmberRuntimeField("_actorSystem")
-    previousSerde = getAmberRuntimeField("_serde")
     previousNodeCount = ClusterListener.numWorkerNodesInCluster
-    setAmberRuntimeField("_actorSystem", testSystem)
-    setAmberRuntimeField("_serde", testSerde)
+    super.beforeAll()
   }
 
   override protected def afterAll(): Unit = {
-    setAmberRuntimeField("_serde", previousSerde)
-    setAmberRuntimeField("_actorSystem", previousActorSystem)
     // Belt and braces: the worker system's seed list points at localhost:2552, so on
     // a host that happens to be running a local coordinator it could in principle
     // join and have ClusterListener bump this count.
     ClusterListener.numWorkerNodesInCluster = previousNodeCount
-    TestKit.shutdownActorSystem(testSystem)
     super.afterAll()
   }
 

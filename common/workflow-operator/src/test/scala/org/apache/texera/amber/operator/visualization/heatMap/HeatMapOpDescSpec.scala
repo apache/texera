@@ -22,12 +22,9 @@ package org.apache.texera.amber.operator.visualization.heatMap
 import org.apache.texera.amber.core.tuple.AttributeType
 import org.apache.texera.amber.operator.metadata.OperatorGroupConstants
 import org.scalatest.flatspec.AnyFlatSpec
-import org.scalatest.matchers.should.Matchers
+import org.apache.texera.amber.operator.GeneratedCodeAssertionChecks
 
-import java.nio.charset.StandardCharsets
-import java.util.Base64
-
-class HeatMapOpDescSpec extends AnyFlatSpec with Matchers {
+class HeatMapOpDescSpec extends AnyFlatSpec with GeneratedCodeAssertionChecks {
 
   private def configured: HeatMapOpDesc = {
     val op = new HeatMapOpDesc
@@ -36,13 +33,6 @@ class HeatMapOpDescSpec extends AnyFlatSpec with Matchers {
     op.value = "v"
     op
   }
-
-  private def b64(s: String): String =
-    Base64.getEncoder.encodeToString(s.getBytes(StandardCharsets.UTF_8))
-
-  // The part of an assert message that names the offending field.
-  private def fieldPart(msg: String): String =
-    msg.toLowerCase.replace("cannot be empty", "")
 
   "HeatMapOpDesc.operatorInfo" should "advertise the user-friendly name and Scientific group" in {
     val info = (new HeatMapOpDesc).operatorInfo
@@ -76,27 +66,16 @@ class HeatMapOpDescSpec extends AnyFlatSpec with Matchers {
     decodeOccurrences should be >= 3
   }
 
-  it should "fail-fast when any required field is unset (asserts inside createHeatMap)" in {
-    // createHeatMap asserts nonEmpty on x, y, AND value. Empty defaults
-    // ("") hit the assert path and surface as AssertionError.
-    val op = new HeatMapOpDesc
-    assertThrows[AssertionError](op.generatePythonCode())
-  }
-
   it should "throw AssertionError naming the X column when everything is empty" in {
     val op = new HeatMapOpDesc
-    val ex = intercept[AssertionError](op.generatePythonCode())
-    ex.getMessage should not be null
-    ex.getMessage should include("cannot be empty")
+    val ex = expectError[AssertionError]("cannot be empty")(op.generatePythonCode())
     fieldPart(ex.getMessage) should include("x")
   }
 
   it should "throw AssertionError naming the Y column when only x is set" in {
     val op = new HeatMapOpDesc
     op.x = "ax"
-    val ex = intercept[AssertionError](op.generatePythonCode())
-    ex.getMessage should not be null
-    ex.getMessage should include("cannot be empty")
+    val ex = expectError[AssertionError]("cannot be empty")(op.generatePythonCode())
     fieldPart(ex.getMessage) should include("y")
   }
 
@@ -104,9 +83,7 @@ class HeatMapOpDescSpec extends AnyFlatSpec with Matchers {
     val op = new HeatMapOpDesc
     op.x = "ax"
     op.y = "ay"
-    val ex = intercept[AssertionError](op.generatePythonCode())
-    ex.getMessage should not be null
-    ex.getMessage should include("cannot be empty")
+    val ex = expectError[AssertionError]("cannot be empty")(op.generatePythonCode())
     fieldPart(ex.getMessage) should include("value")
   }
 

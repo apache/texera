@@ -19,24 +19,20 @@
 
 package org.apache.texera.amber.operator.visualization.carpetPlot
 
-import com.typesafe.config.ConfigFactory
+import org.apache.texera.amber.util.PythonTestSupport.{
+  NeedsPythonPackages,
+  canImport,
+  configuredPython,
+  withDriver
+}
 import org.apache.texera.amber.core.tuple.{AttributeType, Schema}
 import org.apache.texera.amber.operator.LogicalOp
 import org.apache.texera.amber.operator.metadata.OperatorGroupConstants
-import org.apache.texera.amber.operator.tags.IntegrationTest
 import org.apache.texera.amber.util.JSONUtils.objectMapper
-import org.scalatest.Tag
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 
-import java.nio.charset.StandardCharsets
-import java.nio.file.Files
-import java.util.concurrent.TimeUnit
-import scala.util.Try
-
 class CarpetPlotOpDescSpec extends AnyFlatSpec with Matchers {
-
-  private val NeedsPythonPackages = Tag(classOf[IntegrationTest].getName)
 
   "CarpetPlotOpDesc.operatorInfo" should
     "advertise the name and Scientific visualization group" in {
@@ -79,10 +75,10 @@ class CarpetPlotOpDescSpec extends AnyFlatSpec with Matchers {
   // astype as a ValueError, both of them ending the whole exported run.
   "CarpetPlotOpDesc.generateStandaloneCode" should
     "write the page the operator yields for input it cannot plot" taggedAs NeedsPythonPackages in {
-    val python = resolvePythonExecutable().getOrElse(
+    val python = configuredPython().getOrElse(
       cancel("No runnable python executable (udf.conf python.path, python3, python, py)")
     )
-    if (!canImportPandasAndPlotly(python)) {
+    if (!canImport(python, "pandas", "plotly")) {
       cancel(s"'$python' cannot import pandas and plotly; skipping runtime verification")
     }
 
@@ -90,22 +86,16 @@ class CarpetPlotOpDescSpec extends AnyFlatSpec with Matchers {
     d.a = "ax"
     d.b = "bx"
     d.y = "yx"
-    val moduleFile = Files.createTempFile("carpet_standalone_", ".py")
-    val driverFile = Files.createTempFile("carpet_driver_", ".py")
-    try {
-      Files.write(moduleFile, d.generateStandaloneCode().getBytes(StandardCharsets.UTF_8))
-      Files.write(driverFile, driverScript.getBytes(StandardCharsets.UTF_8))
-
-      val process = new ProcessBuilder(python, driverFile.toString, moduleFile.toString)
-        .redirectErrorStream(true)
-        .start()
-      if (!process.waitFor(120, TimeUnit.SECONDS)) {
-        process.destroyForcibly()
-        fail("Carpet driver timed out after 120s")
-      }
-      val output = new String(process.getInputStream.readAllBytes(), StandardCharsets.UTF_8)
+    withDriver(
+      python,
+      "carpet_standalone_",
+      "carpet_driver_",
+      d.generateStandaloneCode(),
+      driverScript,
+      "Carpet driver timed out after 120s"
+    ) { (exitCode, output) =>
       withClue(s"Driver output:\n$output\n") {
-        process.exitValue() shouldBe 0
+        exitCode shouldBe 0
         val verdicts = "CASE (\\S+) (\\S+)".r
           .findAllMatchIn(output)
           .map(m => m.group(1) -> m.group(2))
@@ -118,10 +108,6 @@ class CarpetPlotOpDescSpec extends AnyFlatSpec with Matchers {
           "good" -> "CHART"
         )
       }
-    } finally {
-      Try(Files.deleteIfExists(moduleFile))
-      Try(Files.deleteIfExists(driverFile))
-      ()
     }
   }
 
@@ -200,40 +186,4 @@ class CarpetPlotOpDescSpec extends AnyFlatSpec with Matchers {
       |        verdict = "OTHER_PAGE"
       |    print("CASE %s %s" % (name, verdict))
       |""".stripMargin
-
-  // Python executable resolution, following FilledAreaPlotOpDescSpec:
-  // udf.conf python.path (UDF_PYTHON_PATH), then python3 / python / py.
-  private def resolvePythonExecutable(): Option[String] = {
-    def fromConfig: Option[String] = {
-      val configOpt =
-        Try(ConfigFactory.parseResources("udf.conf").resolve()).toOption
-          .orElse(Try(ConfigFactory.load()).toOption)
-      configOpt
-        .flatMap(c => Try(c.getConfig("python").getString("path")).toOption)
-        .map(_.trim)
-        .filter(_.nonEmpty)
-    }
-
-    def isRunnable(exe: String): Boolean = {
-      val pTry = Try(new ProcessBuilder(exe, "--version").redirectErrorStream(true).start())
-      pTry.toOption.exists { p =>
-        val finished = p.waitFor(5, TimeUnit.SECONDS)
-        if (!finished) { p.destroyForcibly(); false }
-        else p.exitValue() == 0
-      }
-    }
-
-    (fromConfig.toList ++ List("python3", "python", "py")).distinct.find(isRunnable)
-  }
-
-  private def canImportPandasAndPlotly(python: String): Boolean = {
-    val pTry = Try(
-      new ProcessBuilder(python, "-c", "import pandas, plotly").redirectErrorStream(true).start()
-    )
-    pTry.toOption.exists { p =>
-      val finished = p.waitFor(60, TimeUnit.SECONDS)
-      if (!finished) { p.destroyForcibly(); false }
-      else p.exitValue() == 0
-    }
-  }
 }

@@ -19,7 +19,21 @@
 
 package org.apache.texera.amber.engine.architecture.coordinator.promisehandlers
 
-import org.apache.texera.amber.core.workflow.{PhysicalPlan, WorkflowContext}
+import com.twitter.util.{Await, Duration}
+import org.apache.texera.amber.core.executor.OpExecInitInfo
+import org.apache.texera.amber.core.virtualidentity.{
+  ExecutionIdentity,
+  OperatorIdentity,
+  PhysicalOpIdentity,
+  WorkflowIdentity
+}
+import org.apache.texera.amber.core.workflow.{
+  GlobalPortIdentity,
+  PhysicalOp,
+  PhysicalPlan,
+  PortIdentity,
+  WorkflowContext
+}
 import org.apache.texera.amber.engine.architecture.coordinator.{
   CoordinatorAsyncRPCHandlerInitializer,
   CoordinatorConfig,
@@ -32,12 +46,21 @@ import org.apache.texera.amber.engine.architecture.rpc.controlcommands.{
   EmptyRequest,
   PropagateEmbeddedControlMessageRequest
 }
+import org.apache.texera.amber.engine.architecture.rpc.controlreturns.{
+  EmptyReturn,
+  PropagateEmbeddedControlMessageResponse,
+  RetrieveWorkflowStateResponse,
+  ReturnInvocation,
+  StringResponse
+}
 import org.apache.texera.amber.engine.architecture.rpc.workerservice.WorkerServiceGrpc.METHOD_RETRIEVE_STATE
+import org.apache.texera.amber.engine.architecture.scheduling.{Region, RegionIdentity}
 import org.apache.texera.amber.engine.architecture.worker.WorkflowWorker.MainThreadDelegateMessage
 import org.apache.texera.amber.engine.common.ambermessage.WorkflowFIFOMessage
 import org.apache.texera.amber.engine.common.virtualidentity.util.COORDINATOR
 import org.apache.texera.amber.engine.e2e.TestUtils.buildWorkflow
 import org.apache.texera.amber.operator.TestOperators
+import org.apache.texera.amber.util.VirtualIdentityUtils
 import org.scalatest.flatspec.AnyFlatSpec
 
 import scala.collection.mutable.ArrayBuffer
@@ -135,5 +158,75 @@ class RetrieveWorkflowStateHandlerSpec extends AnyFlatSpec {
     // `operators` is a Set, so compare set-wise rather than assuming a stable Seq order.
     assert(req.targetOps.toSet == expectedOps)
     assert(req.scope.toSet == expectedOps)
+  }
+
+  it should "map StringResponse replies to their strings and fallback other returns to empty strings" in {
+    val (init, sent) = newFixture()
+    init.cp.workflowScheduler.physicalPlan = PhysicalPlan(Set.empty, Set.empty)
+
+    val response = init.retrieveWorkflowState(EmptyRequest(), rpcContext)
+    assert(sent.size == 1)
+    val invocation = sent.head.payload.asInstanceOf[ControlInvocation]
+    init.cp.asyncRPCClient.fulfillPromise(
+      ReturnInvocation(
+        invocation.commandId,
+        PropagateEmbeddedControlMessageResponse(
+          Map("worker-a" -> StringResponse("state-a"), "worker-b" -> EmptyReturn())
+        )
+      )
+    )
+
+    assert(
+      Await.result(response, Duration.fromSeconds(5)) == RetrieveWorkflowStateResponse(
+        Map("worker-a" -> "state-a", "worker-b" -> "")
+      )
+    )
+  }
+
+  it should "include only running region operators in sourceOpToStartProp" in {
+    def mkOp(id: String): PhysicalOp =
+      PhysicalOp(
+        PhysicalOpIdentity(OperatorIdentity(id), "main"),
+        WorkflowIdentity(0),
+        ExecutionIdentity(0),
+        OpExecInitInfo.Empty
+      )
+
+    val runningOp = mkOp("running")
+    val completedOp = mkOp("completed")
+    val runningRegion = Region(
+      RegionIdentity(1),
+      physicalOps = Set(runningOp),
+      physicalLinks = Set.empty,
+      ports = Set(GlobalPortIdentity(runningOp.id, PortIdentity(), input = false))
+    )
+    val completedRegion = Region(
+      RegionIdentity(2),
+      physicalOps = Set(completedOp),
+      physicalLinks = Set.empty,
+      ports = Set(GlobalPortIdentity(completedOp.id, PortIdentity(), input = false))
+    )
+    val (init, sent) = newFixture()
+    val runningExec = init.cp.workflowExecution.initRegionExecution(runningRegion)
+    runningExec
+      .initOperatorExecution(runningOp.id)
+      .initWorkerExecution(
+        VirtualIdentityUtils.createWorkerIdentity(WorkflowIdentity(0), runningOp.id, 0)
+      )
+    val completedExec = init.cp.workflowExecution.initRegionExecution(completedRegion)
+    completedExec
+      .initOperatorExecution(completedOp.id)
+      .initWorkerExecution(
+        VirtualIdentityUtils.createWorkerIdentity(WorkflowIdentity(0), completedOp.id, 0)
+      )
+      .getOutputPortExecution(PortIdentity())
+      .setCompleted()
+    init.cp.workflowScheduler.physicalPlan = PhysicalPlan(Set(runningOp, completedOp), Set.empty)
+
+    init.retrieveWorkflowState(EmptyRequest(), rpcContext)
+
+    val req = dispatchedRequest(sent)
+    assert(req.sourceOpToStartProp.toSet == Set(runningOp.id))
+    assert(req.targetOps.toSet == Set(runningOp.id, completedOp.id))
   }
 }

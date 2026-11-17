@@ -19,7 +19,12 @@
 
 package org.apache.texera.amber.operator.source.scan.text
 
-import com.typesafe.config.ConfigFactory
+import org.apache.texera.amber.util.PythonTestSupport.{
+  NeedsPythonPackages,
+  canImport,
+  configuredPython,
+  runScript
+}
 import org.apache.texera.amber.core.executor.OpExecWithClassName
 import org.apache.texera.amber.core.tuple.{
   AttributeType,
@@ -31,21 +36,16 @@ import org.apache.texera.amber.core.tuple.{
 import org.apache.texera.amber.core.virtualidentity.{ExecutionIdentity, WorkflowIdentity}
 import org.apache.texera.amber.operator.TestOperators
 import org.apache.texera.amber.operator.source.scan.FileAttributeType
-import org.apache.texera.amber.operator.tags.IntegrationTest
 import org.apache.texera.amber.util.JSONUtils.objectMapper
 import org.scalatest.BeforeAndAfter
-import org.scalatest.Tag
 import org.scalatest.flatspec.AnyFlatSpec
 
 import java.nio.charset.StandardCharsets
 import java.nio.file.{Files, Path, Paths}
-import java.util.concurrent.TimeUnit
-import scala.io.Source
 import scala.util.Try
 
 class TextInputSourceOpDescSpec extends AnyFlatSpec with BeforeAndAfter {
 
-  private val NeedsPythonPackages = Tag(classOf[IntegrationTest].getName)
   var textInputSourceOpDesc: TextInputSourceOpDesc = _
 
   before {
@@ -294,10 +294,10 @@ class TextInputSourceOpDescSpec extends AnyFlatSpec with BeforeAndAfter {
   // integer that is true only at 1, and refuses anything else, which the export
   // has to refuse too rather than pass off as a row of false.
   "TextInputSourceOpDesc.generateStandaloneCode" should "refuse a boolean line the engine refuses" taggedAs NeedsPythonPackages in {
-    val python = resolvePython().getOrElse(
+    val python = configuredPython().getOrElse(
       cancel("No runnable python executable (udf.conf python.path, python3, python, py)")
     )
-    if (!canImportPandas(python)) cancel(s"'$python' cannot import pandas")
+    if (!canImport(python, "pandas")) cancel(s"'$python' cannot import pandas")
 
     textInputSourceOpDesc.attributeType = FileAttributeType.BOOLEAN
     textInputSourceOpDesc.textInput = "true\nyes"
@@ -314,10 +314,10 @@ class TextInputSourceOpDescSpec extends AnyFlatSpec with BeforeAndAfter {
   // ended one at eight other characters, so text holding U+2028 was one row in
   // the engine and two in the export.
   it should "split the text into the lines the engine splits it into" taggedAs NeedsPythonPackages in {
-    val python = resolvePython().getOrElse(
+    val python = configuredPython().getOrElse(
       cancel("No runnable python executable (udf.conf python.path, python3, python, py)")
     )
-    if (!canImportPandas(python)) cancel(s"'$python' cannot import pandas")
+    if (!canImport(python, "pandas")) cancel(s"'$python' cannot import pandas")
 
     val separators =
       Seq(
@@ -355,10 +355,10 @@ class TextInputSourceOpDescSpec extends AnyFlatSpec with BeforeAndAfter {
   // alone through the executor and through the export, and either both read
   // the same value or both refuse it.
   it should "read a number line the way the engine's parseField does" taggedAs NeedsPythonPackages in {
-    val python = resolvePython().getOrElse(
+    val python = configuredPython().getOrElse(
       cancel("No runnable python executable (udf.conf python.path, python3, python, py)")
     )
-    if (!canImportPandas(python)) cancel(s"'$python' cannot import pandas")
+    if (!canImport(python, "pandas")) cancel(s"'$python' cannot import pandas")
 
     val linesByType = Seq(
       FileAttributeType.INTEGER -> Seq(
@@ -450,12 +450,10 @@ class TextInputSourceOpDescSpec extends AnyFlatSpec with BeforeAndAfter {
     dir.toFile.deleteOnExit()
     val script = dir.resolve("run.py")
     Files.write(script, driver.getBytes(StandardCharsets.UTF_8))
-    val process = new ProcessBuilder(python, script.toString).redirectErrorStream(true).start()
-    val out = Source.fromInputStream(process.getInputStream).mkString
-    process.waitFor(120, TimeUnit.SECONDS)
+    val (exitCode, out) = runScript(python, script)
 
     withClue(s"python said:\n$out\n") {
-      assert(process.exitValue() == 0)
+      assert(exitCode == 0)
       val printed = out.linesIterator.toList
       assert(printed.size == runs.size)
       runs.zip(printed).foreach {
@@ -526,43 +524,8 @@ class TextInputSourceOpDescSpec extends AnyFlatSpec with BeforeAndAfter {
          |""".stripMargin.getBytes(StandardCharsets.UTF_8)
     )
 
-    val process = new ProcessBuilder(python, script.toString)
-      .directory(dir.toFile)
-      .redirectErrorStream(true)
-      .start()
-    val out = Source.fromInputStream(process.getInputStream).mkString
-    process.waitFor(120, TimeUnit.SECONDS)
-    (process.exitValue(), out)
+    runScript(python, script, directory = Some(dir))
   }
-
-  // Python resolution follows FilledAreaPlotOpDescSpec: udf.conf python.path
-  // (UDF_PYTHON_PATH), then python3 / python / py.
-  private def resolvePython(): Option[String] = {
-    def fromConfig: Option[String] =
-      Try(ConfigFactory.parseResources("udf.conf").resolve()).toOption
-        .orElse(Try(ConfigFactory.load()).toOption)
-        .flatMap(c => Try(c.getConfig("python").getString("path")).toOption)
-        .map(_.trim)
-        .filter(_.nonEmpty)
-
-    def runnable(exe: String): Boolean =
-      Try(new ProcessBuilder(exe, "--version").redirectErrorStream(true).start()).toOption
-        .exists { p =>
-          if (!p.waitFor(5, TimeUnit.SECONDS)) { p.destroyForcibly(); false }
-          else p.exitValue() == 0
-        }
-
-    (fromConfig.toList ++ List("python3", "python", "py")).distinct.find(runnable)
-  }
-
-  private def canImportPandas(python: String): Boolean =
-    Try(
-      new ProcessBuilder(python, "-c", "import pandas").redirectErrorStream(true).start()
-    ).toOption
-      .exists { p =>
-        if (!p.waitFor(60, TimeUnit.SECONDS)) { p.destroyForcibly(); false }
-        else p.exitValue() == 0
-      }
 
   "TextInputSourceOpDesc.getPhysicalOp" should
     "wire the TextInputSourceOpExec class as a source op with one output port" in {

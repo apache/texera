@@ -46,9 +46,8 @@ trait PrepareCheckpointHandler {
   ): Future[EmptyReturn] = {
     logger.info("Start to take checkpoint")
     if (!msg.estimationOnly) {
-      dp.serializationManager.registerSerialization(() => {
-        serializeWorkerState(msg.checkpointId)
-      })
+      val checkpointId = msg.checkpointId
+      dp.serializationManager.registerSerialization(() => serializeWorkerState(checkpointId))
     } else {
       logger.info(s"Checkpoint is estimation-only. do nothing.")
     }
@@ -65,9 +64,8 @@ trait PrepareCheckpointHandler {
     // 2. serialize operator state
     dp.executor match {
       case support: CheckpointSupport =>
-        dp.outputManager.outputIterator.setTupleOutput(
-          support.serializeState(dp.outputManager.outputIterator.outputIter, chkpt)
-        )
+        val outputIterator = dp.outputManager.outputIterator
+        outputIterator.setTupleOutput(support.serializeState(outputIterator.outputIter, chkpt))
         logger.info("Serialized operator state")
       case _ =>
         logger.info("Operator does not support checkpoint, skip")
@@ -78,9 +76,9 @@ trait PrepareCheckpointHandler {
     val closure = (worker: WorkflowWorker) => {
       val queuedMsgs = mutable.ArrayBuffer[WorkflowFIFOMessage]()
       worker.inputQueue.forEach {
-        case WorkflowWorker.FIFOMessageElement(msg)           => queuedMsgs.append(msg)
-        case WorkflowWorker.TimerBasedControlElement(control) => // skip
-        case WorkflowWorker.ActorCommandElement(cmd)          => // skip
+        case WorkflowWorker.FIFOMessageElement(msg)     => queuedMsgs.append(msg)
+        case WorkflowWorker.TimerBasedControlElement(_) => // skip
+        case WorkflowWorker.ActorCommandElement(_)      => // skip
       }
       chkpt.save(SerializedState.DP_QUEUED_MSG_KEY, queuedMsgs)
       // get all output messages from worker.transferService
