@@ -19,6 +19,7 @@
 
 package org.apache.texera.amber.engine.common.storage
 
+import org.apache.commons.io.FileUtils
 import org.apache.hadoop.conf.Configuration
 import org.apache.hadoop.fs.FileSystem
 import org.apache.texera.amber.engine.common.AmberSerdeTestSupport
@@ -52,9 +53,6 @@ import java.util.UUID
   * `withSeededHdfs` below for how the `hdfs` scheme is served locally.
   */
 class HDFSRecordStorageSpec extends AnyFlatSpec with AmberSerdeTestSupport {
-
-  override protected def lazyAmberActorSystem: Boolean = true
-  override protected def restorePriorAmberRuntime: Boolean = true
 
   // ---------------------------------------------------------------------------
   // Serving the `hdfs` scheme locally, with no cluster and no winutils
@@ -106,7 +104,7 @@ class HDFSRecordStorageSpec extends AnyFlatSpec with AmberSerdeTestSupport {
     }
   }
 
-  private def cleanup(root: Path): Unit = deleteRecursively(root, ignoreIOException = true)
+  private def cleanup(root: Path): Unit = FileUtils.deleteQuietly(root.toFile)
 
   // ---------------------------------------------------------------------------
   // Constructor — scheme guard

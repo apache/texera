@@ -48,7 +48,7 @@ class RecordingExecutionClient(
     ) {
 
   var shutdownCount = 0
-  private val callbacks = mutable.Map.empty[Class[_], Any => Unit]
+  private val callbacks = mutable.Map.empty[Class[_], mutable.ArrayBuffer[Any => Unit]]
 
   /** `(method name, request)` of every call made through `coordinatorInterface` when no mock is provided. */
   val coordinatorCalls: mutable.ArrayBuffer[(String, Any)] = mutable.ArrayBuffer.empty
@@ -85,9 +85,13 @@ class RecordingExecutionClient(
 
   override def registerCallback[T](callback: T => Unit)(implicit ct: ClassTag[T]): Disposable = {
     val clazz = ct.runtimeClass
-    callbacks(clazz) = callback.asInstanceOf[Any => Unit]
+    val registered = callback.asInstanceOf[Any => Unit]
+    callbacks.getOrElseUpdate(clazz, mutable.ArrayBuffer.empty) += registered
     Disposable.fromAction(() => {
-      callbacks.remove(clazz)
+      callbacks.get(clazz).foreach { registrations =>
+        registrations -= registered
+        if (registrations.isEmpty) callbacks.remove(clazz)
+      }
       disposedCallbacks += clazz
     })
   }
@@ -95,17 +99,20 @@ class RecordingExecutionClient(
   def hasCallback[T](implicit ct: ClassTag[T]): Boolean =
     callbacks.contains(ct.runtimeClass)
 
-  /** Delivers an engine event the way the client's observable would. */
-  def fire[T <: AnyRef](event: T)(implicit ct: ClassTag[T]): Unit =
-    callbacks
-      .getOrElse(
-        ct.runtimeClass,
-        throw new AssertionError(s"no callback is registered for ${ct.runtimeClass.getSimpleName}")
-      )(event)
+  /**
+    * Delivers an engine event to every callback registered for its class, in registration
+    * order, the way the client's observable would.
+    */
+  def fire[T <: AnyRef](event: T)(implicit ct: ClassTag[T]): Unit = {
+    if (!hasCallback[T]) {
+      throw new AssertionError(s"no callback is registered for ${ct.runtimeClass.getSimpleName}")
+    }
+    fireIfRegistered(event)
+  }
 
   /** Same delivery as `fire`, tolerating absent callbacks (e.g. after teardown). */
   def fireIfRegistered[T <: AnyRef](event: T)(implicit ct: ClassTag[T]): Unit =
-    callbacks.get(ct.runtimeClass).foreach(deliver => deliver(event))
+    callbacks.get(ct.runtimeClass).foreach(_.toList.foreach(deliver => deliver(event)))
 
   def reset(): Unit = {
     callbacks.clear()

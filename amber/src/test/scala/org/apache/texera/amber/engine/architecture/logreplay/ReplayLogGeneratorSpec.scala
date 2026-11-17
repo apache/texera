@@ -19,6 +19,7 @@
 
 package org.apache.texera.amber.engine.architecture.logreplay
 
+import org.apache.commons.io.FileUtils
 import org.apache.texera.amber.core.virtualidentity.{
   ActorVirtualIdentity,
   ChannelIdentity,
@@ -33,10 +34,7 @@ import java.nio.file.{Files, Path}
 
 class ReplayLogGeneratorSpec extends AnyFlatSpec with AmberSerdeTestSupport {
 
-  override protected def restorePriorAmberRuntime: Boolean = true
-
-  private def cleanup(sub: Path): Unit =
-    deleteRecursively(sub.getParent, ignoreWindowsFsException = true)
+  private def cleanup(sub: Path): Unit = FileUtils.deleteQuietly(sub.getParent.toFile)
 
   // ---------------------------------------------------------------------------
   // Fixtures

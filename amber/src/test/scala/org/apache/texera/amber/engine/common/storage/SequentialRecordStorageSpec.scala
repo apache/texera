@@ -19,6 +19,7 @@
 
 package org.apache.texera.amber.engine.common.storage
 
+import org.apache.commons.io.FileUtils
 import org.apache.texera.amber.engine.common.AmberSerdeTestSupport
 import org.apache.texera.amber.engine.common.storage.SequentialRecordStorage.{
   SequentialRecordReader,
@@ -124,7 +125,7 @@ class SequentialRecordStorageSpec extends AnyFlatSpec with AmberSerdeTestSupport
       val all = SequentialRecordStorage.fetchAllRecords(storage, "file-1").toList
       assert(all == List("r1", "r2", "r3"))
     } finally {
-      deleteRecursively(tmp)
+      FileUtils.deleteQuietly(tmp.toFile)
     }
   }
 
@@ -137,7 +138,7 @@ class SequentialRecordStorageSpec extends AnyFlatSpec with AmberSerdeTestSupport
       writer.flush(); writer.close()
       assert(SequentialRecordStorage.fetchAllRecords(storage, "empty").toList.isEmpty)
     } finally {
-      deleteRecursively(tmp)
+      FileUtils.deleteQuietly(tmp.toFile)
     }
   }
 
@@ -173,7 +174,7 @@ class SequentialRecordStorageSpec extends AnyFlatSpec with AmberSerdeTestSupport
       val r = storage.getReader("data").mkRecordIterator().toList
       assert(r == List("payload"))
     } finally {
-      deleteRecursively(tmp)
+      FileUtils.deleteQuietly(tmp.toFile)
     }
   }
 

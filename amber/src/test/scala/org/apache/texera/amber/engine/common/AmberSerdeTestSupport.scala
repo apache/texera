@@ -24,25 +24,17 @@ import org.apache.pekko.serialization.{Serialization, SerializationExtension}
 import org.apache.pekko.testkit.TestKit
 import org.scalatest.{BeforeAndAfterAll, Suite}
 
-import java.nio.file.{FileSystemException, Files, Path}
-
 /**
   * Mixin for specs that drive [[AmberRuntime.serde]] with a suite-local Pekko
-  * `ActorSystem`, plus best-effort recursive temp-directory cleanup.
+  * `ActorSystem`. The system is built on first use, so a suite whose tests are all
+  * filtered out (which skips `beforeAll` and `afterAll`) never starts one, and
+  * `afterAll` restores whatever runtime the suite found.
   */
 trait AmberSerdeTestSupport extends BeforeAndAfterAll { this: Suite =>
 
-  protected def amberSystemName: String = s"${getClass.getSimpleName}-test"
-  protected def lazyAmberActorSystem: Boolean = false
-  protected def restorePriorAmberRuntime: Boolean = false
-
   protected lazy val testSystem: ActorSystem =
-    ActorSystem(amberSystemName, AmberRuntime.pekkoConfig)
+    ActorSystem(s"${getClass.getSimpleName}-test", AmberRuntime.pekkoConfig)
   protected lazy val testSerde: Serialization = SerializationExtension(testSystem)
-
-  if (!lazyAmberActorSystem) {
-    val _ = testSerde
-  }
 
   private var previousActorSystem: AnyRef = _
   private var previousSerde: AnyRef = _
@@ -61,47 +53,16 @@ trait AmberSerdeTestSupport extends BeforeAndAfterAll { this: Suite =>
 
   override protected def beforeAll(): Unit = {
     super.beforeAll()
-    if (restorePriorAmberRuntime) {
-      previousActorSystem = getAmberRuntimeField("_actorSystem")
-      previousSerde = getAmberRuntimeField("_serde")
-    }
+    previousActorSystem = getAmberRuntimeField("_actorSystem")
+    previousSerde = getAmberRuntimeField("_serde")
     setAmberRuntimeField("_actorSystem", testSystem)
     setAmberRuntimeField("_serde", testSerde)
   }
 
   override protected def afterAll(): Unit = {
-    if (restorePriorAmberRuntime) {
-      setAmberRuntimeField("_serde", previousSerde)
-      setAmberRuntimeField("_actorSystem", previousActorSystem)
-    } else {
-      setAmberRuntimeField("_serde", null)
-      setAmberRuntimeField("_actorSystem", null)
-    }
+    setAmberRuntimeField("_serde", previousSerde)
+    setAmberRuntimeField("_actorSystem", previousActorSystem)
     TestKit.shutdownActorSystem(testSystem)
     super.afterAll()
-  }
-
-  protected def deleteRecursively(
-      path: Path,
-      ignoreIOException: Boolean = false,
-      ignoreWindowsFsException: Boolean = false
-  ): Unit = {
-    if (path == null || !Files.exists(path)) return
-    val isWindows = System.getProperty("os.name", "").toLowerCase.contains("win")
-    val stream = Files.walk(path)
-    try {
-      stream
-        .sorted(java.util.Comparator.reverseOrder())
-        .forEach { child =>
-          try Files.deleteIfExists(child)
-          catch {
-            case _: FileSystemException if ignoreWindowsFsException && isWindows => ()
-          }
-        }
-    } catch {
-      case _: java.io.IOException if ignoreIOException => ()
-    } finally {
-      stream.close()
-    }
   }
 }

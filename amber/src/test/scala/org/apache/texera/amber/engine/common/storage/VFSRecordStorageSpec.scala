@@ -19,6 +19,7 @@
 
 package org.apache.texera.amber.engine.common.storage
 
+import org.apache.commons.io.FileUtils
 import org.apache.texera.amber.engine.common.AmberSerdeTestSupport
 import org.scalatest.flatspec.AnyFlatSpec
 
@@ -43,7 +44,7 @@ class VFSRecordStorageSpec extends AnyFlatSpec with AmberSerdeTestSupport {
     (sub, sub.toUri)
   }
 
-  private def cleanup(sub: Path): Unit = deleteRecursively(sub.getParent)
+  private def cleanup(sub: Path): Unit = FileUtils.deleteQuietly(sub.getParent.toFile)
 
   // ---------------------------------------------------------------------------
   // Constructor — auto-create folder

@@ -79,9 +79,6 @@ import scala.util.Try
   */
 class AmberRuntimeSpec extends AnyFlatSpec with AmberSerdeTestSupport {
 
-  override protected def lazyAmberActorSystem: Boolean = true
-  override protected def restorePriorAmberRuntime: Boolean = true
-
   private var previousNodeCount: Int = 0
 
   override protected def beforeAll(): Unit = {
