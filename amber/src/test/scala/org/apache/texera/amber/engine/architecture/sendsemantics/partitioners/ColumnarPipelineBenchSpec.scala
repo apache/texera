@@ -19,6 +19,8 @@
 
 package org.apache.texera.amber.engine.architecture.sendsemantics.partitioners
 
+import org.apache.arrow.memory.RootAllocator
+import org.apache.arrow.vector.VectorSchemaRoot
 import org.apache.pekko.actor.ActorSystem
 import org.apache.pekko.serialization.SerializationExtension
 import org.apache.pekko.testkit.TestKit
@@ -195,6 +197,37 @@ class ColumnarPipelineBenchSpec extends AnyFlatSpecLike with BeforeAndAfterAll {
     aggExec.onFinish(0).foreach(_ => ())
   }
 
+  // Local regime (same-JVM, NO serialization): both paths pass data by reference, so this
+  // isolates vectorized processing vs per-tuple processing (the phase-5b question). The row
+  // path never serializes a DataFrame; the columnar path hands each operator a live root.
+  private def rowLocalRun(rows: Array[Tuple]): Unit = {
+    aggExec.open()
+    val projected = rows.map(t =>
+      projExec.processTuple(t, 0).next().asInstanceOf[SchemaEnforceable].enforceSchema(projSchema)
+    )
+    val filtered = projected.filter(filterExec.filterFunc)
+    var i = 0
+    while (i < filtered.length) { aggExec.processTuple(filtered(i), 0); i += 1 }
+    aggExec.onFinish(0).foreach(_ => ())
+  }
+
+  // srcRoot is read-only (projection copies it), so it is reused across trials.
+  private def colLocalRun(srcRoot: VectorSchemaRoot): Unit = {
+    aggExec.open()
+    val r1 = projExec.processColumnarRoot(srcRoot, 0) match {
+      case ColumnarResult.Emit(r) => r
+      case other                  => fail(s"projection: expected Emit, got $other")
+    }
+    val r2 = filterExec.processColumnarRoot(r1, 0) match {
+      case ColumnarResult.Emit(r) => r
+      case other                  => fail(s"filter: expected Emit, got $other")
+    }
+    r1.close()
+    aggExec.processColumnarRoot(r2, 0)
+    r2.close()
+    aggExec.onFinish(0).foreach(_ => ())
+  }
+
   private def benchEnabled: Boolean = sys.props.get("columnar.bench").contains("true")
 
   "a columnar region (project -> filter -> aggregate)" should "beat the row path across serialized edges" in {
@@ -212,6 +245,31 @@ class ColumnarPipelineBenchSpec extends AnyFlatSpecLike with BeforeAndAfterAll {
       println("%-10d | %12.2f %12.2f %8s".format(n, rowMs, colMs, pct(colMs, rowMs)))
     }
     println("(col/row < 1.00x means the columnar region is faster end to end)\n")
+    succeed
+  }
+
+  "a local columnar region (same-JVM, no serialization)" should "show the zero-copy processing tradeoff vs rows" in {
+    assume(benchEnabled, "set -Dcolumnar.bench=true to run the pipeline benchmark")
+    println(
+      "\n===== Pipeline LOCAL (same-JVM, no serialization): live-root columnar vs row (median of %d) ====="
+        .format(trials)
+    )
+    println("%-10s | %12s %14s %8s".format("rows", "row ms", "col-live ms", "col/row"))
+    for (n <- Seq(2000, 20000, 100000)) {
+      val rows = sourceRows(n)
+      val alloc = new RootAllocator()
+      val srcRoot =
+        ArrowUtils.deserializeRootOwned(ArrowUtils.serializeTuples(srcSchema, rows), alloc)
+      try {
+        for (_ <- 0 until warmups) { rowLocalRun(rows); colLocalRun(srcRoot) }
+        val rowMs = median((0 until trials).map(_ => timeMs(rowLocalRun(rows))))
+        val colMs = median((0 until trials).map(_ => timeMs(colLocalRun(srcRoot))))
+        println("%-10d | %12.2f %14.2f %8s".format(n, rowMs, colMs, pct(colMs, rowMs)))
+      } finally { srcRoot.close(); alloc.close() }
+    }
+    println(
+      "(col/row < 1.00x means the local live-root columnar path is faster; no serde either side)\n"
+    )
     succeed
   }
 
