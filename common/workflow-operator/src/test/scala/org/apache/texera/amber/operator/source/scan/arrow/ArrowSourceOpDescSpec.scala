@@ -22,7 +22,8 @@ package org.apache.texera.amber.operator.source.scan.arrow
 import org.apache.texera.amber.util.PythonTestSupport.{
   NeedsPythonPackages,
   canImport,
-  configuredPython
+  configuredPython,
+  runScript
 }
 import org.apache.arrow.memory.RootAllocator
 import org.apache.arrow.vector.{UInt8Vector, VectorSchemaRoot}
@@ -43,8 +44,6 @@ import java.io.{File, FileOutputStream}
 import java.nio.channels.Channels
 import java.nio.charset.StandardCharsets
 import java.nio.file.Files
-import java.util.concurrent.TimeUnit
-import scala.io.Source
 import scala.jdk.CollectionConverters._
 
 class ArrowSourceOpDescSpec extends AnyFlatSpec with Matchers {
@@ -207,15 +206,10 @@ class ArrowSourceOpDescSpec extends AnyFlatSpec with Matchers {
          |""".stripMargin.getBytes(StandardCharsets.UTF_8)
     )
 
-    val process = new ProcessBuilder(python, script.toString)
-      .directory(workDir.toFile)
-      .redirectErrorStream(true)
-      .start()
-    val out = Source.fromInputStream(process.getInputStream).mkString
-    process.waitFor(120, TimeUnit.SECONDS)
+    val (exitCode, out) = runScript(python, script, directory = Some(workDir))
 
     withClue(s"python said:\n$out") {
-      process.exitValue() shouldBe 0
+      exitCode shouldBe 0
       val lines = out.trim.linesIterator.toSeq
       lines.head shouldBe "Float64 Int32"
       // The first is the value that was missing, the second the NaN that was
@@ -283,15 +277,10 @@ class ArrowSourceOpDescSpec extends AnyFlatSpec with Matchers {
          |""".stripMargin.getBytes(StandardCharsets.UTF_8)
     )
 
-    val process = new ProcessBuilder(python, script.toString)
-      .directory(workDir.toFile)
-      .redirectErrorStream(true)
-      .start()
-    val out = Source.fromInputStream(process.getInputStream).mkString
-    process.waitFor(120, TimeUnit.SECONDS)
+    val (exitCode, out) = runScript(python, script, directory = Some(workDir))
 
     withClue(s"python said:\n$out") {
-      process.exitValue() shouldBe 0
+      exitCode shouldBe 0
       val lines = out.trim.linesIterator.toSeq
       lines.head shouldBe "['1', '2']"
       lines(1) shouldBe "[10, 20]"

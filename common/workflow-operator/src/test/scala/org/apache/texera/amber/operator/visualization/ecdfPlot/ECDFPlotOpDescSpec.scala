@@ -26,35 +26,14 @@ import org.apache.texera.amber.operator.metadata.OperatorGroupConstants
 import org.apache.texera.amber.util.JSONUtils.objectMapper
 import org.scalatest.BeforeAndAfter
 import org.scalatest.flatspec.AnyFlatSpec
-import org.scalatest.matchers.should.Matchers
+import org.apache.texera.amber.operator.GeneratedCodeAssertionChecks
 
-import java.nio.charset.StandardCharsets
-import java.util.Base64
-
-class ECDFPlotOpDescSpec extends AnyFlatSpec with BeforeAndAfter with Matchers {
+class ECDFPlotOpDescSpec extends AnyFlatSpec with BeforeAndAfter with GeneratedCodeAssertionChecks {
 
   var opDesc: ECDFPlotOpDesc = _
 
   before {
     opDesc = new ECDFPlotOpDesc()
-  }
-
-  private def b64(s: String): String =
-    Base64.getEncoder.encodeToString(s.getBytes(StandardCharsets.UTF_8))
-
-  // A column name is carried either literally (plain chunks) or as the
-  // base64 payload of a runtime decode site (encoded chunks).
-  private def carries(output: String, name: String): Boolean =
-    output.contains(name) || output.contains(b64(name))
-
-  // The part of an assert message that names the offending field.
-  private def fieldPart(msg: String): String =
-    msg.toLowerCase.replace("cannot be empty", "")
-
-  it should "throw assertion error if value column is empty" in {
-    assertThrows[AssertionError] {
-      opDesc.manipulateTable()
-    }
   }
 
   it should "generate a plotly ecdf figure with optional parameters" in {
@@ -85,16 +64,12 @@ class ECDFPlotOpDescSpec extends AnyFlatSpec with BeforeAndAfter with Matchers {
   }
 
   it should "throw AssertionError naming the Value Column when valueColumn is left empty (manipulateTable)" in {
-    val ex = intercept[AssertionError](opDesc.manipulateTable())
-    ex.getMessage should not be null
-    ex.getMessage should include("cannot be empty")
+    val ex = expectError[AssertionError]("cannot be empty")(opDesc.manipulateTable())
     fieldPart(ex.getMessage) should include("value")
   }
 
   it should "throw AssertionError naming the Value Column when valueColumn is left empty (createPlotlyFigure)" in {
-    val ex = intercept[AssertionError](opDesc.createPlotlyFigure())
-    ex.getMessage should not be null
-    ex.getMessage should include("cannot be empty")
+    val ex = expectError[AssertionError]("cannot be empty")(opDesc.createPlotlyFigure())
     fieldPart(ex.getMessage) should include("value")
   }
 

@@ -22,7 +22,8 @@ package org.apache.texera.amber.operator.source.scan.csvOld
 import org.apache.texera.amber.util.PythonTestSupport.{
   NeedsPythonPackages,
   canImport,
-  configuredPython
+  configuredPython,
+  runSource
 }
 import org.apache.texera.amber.core.executor.OpExecWithClassName
 import org.apache.texera.amber.core.tuple.AttributeType
@@ -36,8 +37,6 @@ import org.scalatest.matchers.should.Matchers
 
 import java.nio.charset.StandardCharsets
 import java.nio.file.Files
-import java.util.concurrent.TimeUnit
-import scala.io.Source
 
 class CSVOldScanSourceOpDescSpec extends AnyFlatSpec with Matchers {
 
@@ -149,15 +148,10 @@ class CSVOldScanSourceOpDescSpec extends AnyFlatSpec with Matchers {
          |${d.generateStandaloneCode()}
          |print(len(out1df), list(out1df.columns))
          |""".stripMargin
-    val script = Files.createTempFile("csv-old-standalone-", ".py")
-    script.toFile.deleteOnExit()
-    Files.write(script, driver.getBytes(StandardCharsets.UTF_8))
-    val process = new ProcessBuilder(python, script.toString).redirectErrorStream(true).start()
-    val out = Source.fromInputStream(process.getInputStream).mkString
-    process.waitFor(120, TimeUnit.SECONDS)
+    val (exitCode, out) = runSource(python, "csv-old-standalone-", driver)
 
     withClue(s"python said:\n$out\nscript:\n$driver") {
-      process.exitValue() shouldBe 0
+      exitCode shouldBe 0
       out.trim shouldBe "0 ['column-1', 'column-2']"
       d.sourceSchema().getAttributeNames shouldBe List("column-1", "column-2")
     }
@@ -197,15 +191,10 @@ class CSVOldScanSourceOpDescSpec extends AnyFlatSpec with Matchers {
          |    else:
          |        print(repr(float(x)))
          |""".stripMargin
-    val script = Files.createTempFile("csv-old-standalone-", ".py")
-    script.toFile.deleteOnExit()
-    Files.write(script, driver.getBytes(StandardCharsets.UTF_8))
-    val process = new ProcessBuilder(python, script.toString).redirectErrorStream(true).start()
-    val out = Source.fromInputStream(process.getInputStream).mkString
-    process.waitFor(120, TimeUnit.SECONDS)
+    val (exitCode, out) = runSource(python, "csv-old-standalone-", driver)
 
     withClue(s"python said:\n$out\nscript:\n$driver") {
-      process.exitValue() shouldBe 0
+      exitCode shouldBe 0
       out.trim.linesIterator.toList shouldBe engineText
     }
   }

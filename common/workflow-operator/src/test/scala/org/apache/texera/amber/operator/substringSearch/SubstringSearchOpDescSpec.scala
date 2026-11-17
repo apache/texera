@@ -22,7 +22,8 @@ package org.apache.texera.amber.operator.substringSearch
 import org.apache.texera.amber.util.PythonTestSupport.{
   NeedsPythonPackages,
   canImport,
-  configuredPython
+  configuredPython,
+  runSource
 }
 import org.apache.texera.amber.core.executor.OpExecWithClassName
 import org.apache.texera.amber.core.tuple.{Attribute, AttributeType, Schema, Tuple}
@@ -33,10 +34,6 @@ import org.apache.texera.amber.operator.metadata.OperatorGroupConstants
 import org.apache.texera.amber.util.JSONUtils.objectMapper
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
-
-import java.nio.charset.StandardCharsets
-import java.nio.file.Files
-import java.util.concurrent.TimeUnit
 
 class SubstringSearchOpDescSpec extends AnyFlatSpec with Matchers {
 
@@ -139,17 +136,10 @@ class SubstringSearchOpDescSpec extends AnyFlatSpec with Matchers {
     }
 
     val driver = ("import pandas as pd" +: runs.map(_._2)).mkString("\n")
-    val file = Files.createTempFile("substring-engine-parity-", ".py")
-    file.toFile.deleteOnExit()
-    Files.write(file, driver.getBytes(StandardCharsets.UTF_8))
-    val builder = new ProcessBuilder(python, file.toString).redirectErrorStream(true)
-    builder.environment().put("PYTHONIOENCODING", "utf-8")
-    val process = builder.start()
-    val out = new String(process.getInputStream.readAllBytes(), StandardCharsets.UTF_8)
-    process.waitFor(120, TimeUnit.SECONDS)
+    val (exitCode, out) = runSource(python, "substring-engine-parity-", driver)
 
     withClue(s"python said:\n$out\n") {
-      process.exitValue() shouldBe 0
+      exitCode shouldBe 0
       out.linesIterator.map(_.trim).toList shouldBe runs.map(_._1.trim).toList
     }
   }

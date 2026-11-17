@@ -22,7 +22,9 @@ package org.apache.texera.amber.operator.typecasting
 import org.apache.texera.amber.util.PythonTestSupport.{
   NeedsPythonPackages,
   canImport,
-  configuredPython
+  configuredPython,
+  runScript,
+  runSource
 }
 import org.apache.texera.amber.core.executor.OpExecWithClassName
 import org.apache.texera.amber.core.tuple.{Attribute, AttributeType, AttributeTypeUtils, Schema}
@@ -35,7 +37,6 @@ import org.scalatest.matchers.should.Matchers
 
 import java.nio.charset.StandardCharsets
 import java.nio.file.Files
-import java.util.concurrent.TimeUnit
 import scala.io.Source
 import scala.util.Try
 
@@ -178,12 +179,9 @@ class TypeCastingOpDescSpec extends AnyFlatSpec with Matchers {
     script.toFile.deleteOnExit()
     Files.write(script, driver.getBytes(StandardCharsets.UTF_8))
 
-    val process =
-      new ProcessBuilder(python, script.toString).redirectErrorStream(true).start()
-    val out = Source.fromInputStream(process.getInputStream).mkString
-    process.waitFor(120, TimeUnit.SECONDS)
+    val (exitCode, out) = runScript(python, script)
     withClue(s"python said:\n$out\nscript:\n${Source.fromFile(script.toFile).mkString}") {
-      process.exitValue() shouldBe 0
+      exitCode shouldBe 0
     }
 
     val fromScript = out.trim.linesIterator.toSeq
@@ -259,15 +257,8 @@ class TypeCastingOpDescSpec extends AnyFlatSpec with Matchers {
          |        print("cell", c, answer)
          |""".stripMargin
 
-    val script = Files.createTempFile("typecast-double-nan-", ".py")
-    script.toFile.deleteOnExit()
-    Files.write(script, driver.getBytes(StandardCharsets.UTF_8))
-
-    val process =
-      new ProcessBuilder(python, script.toString).redirectErrorStream(true).start()
-    val out = Source.fromInputStream(process.getInputStream).mkString
-    process.waitFor(120, TimeUnit.SECONDS)
-    withClue(s"python said:\n$out\nscript:\n$driver") { process.exitValue() shouldBe 0 }
+    val (exitCode, out) = runSource(python, "typecast-double-nan-", driver)
+    withClue(s"python said:\n$out\nscript:\n$driver") { exitCode shouldBe 0 }
 
     val fromScript = cellsOf(out)
     val fromEngine = doubleTargets.zip(columns).flatMap {
@@ -319,15 +310,8 @@ class TypeCastingOpDescSpec extends AnyFlatSpec with Matchers {
          |    print("cell", "null" if answer is None else answer)
          |""".stripMargin
 
-    val script = Files.createTempFile("typecast-double-text-", ".py")
-    script.toFile.deleteOnExit()
-    Files.write(script, driver.getBytes(StandardCharsets.UTF_8))
-
-    val process =
-      new ProcessBuilder(python, script.toString).redirectErrorStream(true).start()
-    val out = Source.fromInputStream(process.getInputStream).mkString
-    process.waitFor(120, TimeUnit.SECONDS)
-    withClue(s"python said:\n$out\nscript:\n$driver") { process.exitValue() shouldBe 0 }
+    val (exitCode, out) = runSource(python, "typecast-double-text-", driver)
+    withClue(s"python said:\n$out\nscript:\n$driver") { exitCode shouldBe 0 }
 
     val fromEngine = doubleTextCases.map { v =>
       engineAnswer(AttributeTypeUtils.parseField(v, AttributeType.DOUBLE), AttributeType.STRING)
@@ -370,15 +354,8 @@ class TypeCastingOpDescSpec extends AnyFlatSpec with Matchers {
          |    print("cell", "null" if answer is None else answer)
          |""".stripMargin
 
-    val script = Files.createTempFile("typecast-long-text-", ".py")
-    script.toFile.deleteOnExit()
-    Files.write(script, driver.getBytes(StandardCharsets.UTF_8))
-
-    val process =
-      new ProcessBuilder(python, script.toString).redirectErrorStream(true).start()
-    val out = Source.fromInputStream(process.getInputStream).mkString
-    process.waitFor(120, TimeUnit.SECONDS)
-    withClue(s"python said:\n$out\nscript:\n$driver") { process.exitValue() shouldBe 0 }
+    val (exitCode, out) = runSource(python, "typecast-long-text-", driver)
+    withClue(s"python said:\n$out\nscript:\n$driver") { exitCode shouldBe 0 }
 
     val fromEngine = longTextCases.map(v => engineAnswer(v, AttributeType.STRING))
     withClue(s"script said ${cellsOf(out)}\n") { cellsOf(out) shouldBe fromEngine }
@@ -489,16 +466,13 @@ class TypeCastingOpDescSpec extends AnyFlatSpec with Matchers {
          |        print("cell", c, "null" if pd.isna(answer) else str(answer))
          |""".stripMargin
 
-    val script = Files.createTempFile("typecast-before-1970-", ".py")
-    script.toFile.deleteOnExit()
-    Files.write(script, driver.getBytes(StandardCharsets.UTF_8))
-
-    val builder = new ProcessBuilder(python, script.toString).redirectErrorStream(true)
-    zone.foreach(z => builder.environment().put("TZ", z))
-    val process = builder.start()
-    val out = Source.fromInputStream(process.getInputStream).mkString
-    process.waitFor(120, TimeUnit.SECONDS)
-    withClue(s"python said:\n$out\nscript:\n$driver") { process.exitValue() shouldBe 0 }
+    val (exitCode, out) = runSource(
+      python,
+      "typecast-before-1970-",
+      driver,
+      environment = zone.map("TZ" -> _).toMap
+    )
+    withClue(s"python said:\n$out\nscript:\n$driver") { exitCode shouldBe 0 }
 
     // Every column names the same instants, so each has the engine's answer
     // for the milliseconds. The text is also asked directly.
@@ -589,15 +563,8 @@ class TypeCastingOpDescSpec extends AnyFlatSpec with Matchers {
          |    print("cell", "null" if pd.isna(answer) else str(answer))
          |""".stripMargin
 
-    val script = Files.createTempFile("typecast-timestamp-", ".py")
-    script.toFile.deleteOnExit()
-    Files.write(script, driver.getBytes(StandardCharsets.UTF_8))
-
-    val process =
-      new ProcessBuilder(python, script.toString).redirectErrorStream(true).start()
-    val out = Source.fromInputStream(process.getInputStream).mkString
-    process.waitFor(120, TimeUnit.SECONDS)
-    withClue(s"python said:\n$out\nscript:\n$driver") { process.exitValue() shouldBe 0 }
+    val (exitCode, out) = runSource(python, "typecast-timestamp-", driver)
+    withClue(s"python said:\n$out\nscript:\n$driver") { exitCode shouldBe 0 }
 
     // Only the printed cells, so nothing else written to the merged stderr is
     // read as one.
@@ -660,16 +627,13 @@ class TypeCastingOpDescSpec extends AnyFlatSpec with Matchers {
          |    print("cell", "null" if pd.isna(answer) else str(answer))
          |""".stripMargin
 
-    val script = Files.createTempFile("typecast-gap-", ".py")
-    script.toFile.deleteOnExit()
-    Files.write(script, driver.getBytes(StandardCharsets.UTF_8))
-
-    val builder = new ProcessBuilder(python, script.toString).redirectErrorStream(true)
-    builder.environment().put("TZ", zone)
-    val process = builder.start()
-    val out = Source.fromInputStream(process.getInputStream).mkString
-    process.waitFor(120, TimeUnit.SECONDS)
-    withClue(s"python said:\n$out\nscript:\n$driver") { process.exitValue() shouldBe 0 }
+    val (exitCode, out) = runSource(
+      python,
+      "typecast-gap-",
+      driver,
+      environment = Map("TZ" -> zone)
+    )
+    withClue(s"python said:\n$out\nscript:\n$driver") { exitCode shouldBe 0 }
 
     val machineZone = java.util.TimeZone.getDefault
     java.util.TimeZone.setDefault(java.util.TimeZone.getTimeZone(zone))
@@ -718,15 +682,8 @@ class TypeCastingOpDescSpec extends AnyFlatSpec with Matchers {
          |    print("cell", "null" if pd.isna(answer) else str(answer))
          |""".stripMargin
 
-    val script = Files.createTempFile("typecast-timestamp-nanos-", ".py")
-    script.toFile.deleteOnExit()
-    Files.write(script, driver.getBytes(StandardCharsets.UTF_8))
-
-    val process =
-      new ProcessBuilder(python, script.toString).redirectErrorStream(true).start()
-    val out = Source.fromInputStream(process.getInputStream).mkString
-    process.waitFor(120, TimeUnit.SECONDS)
-    withClue(s"python said:\n$out\nscript:\n$driver") { process.exitValue() shouldBe 0 }
+    val (exitCode, out) = runSource(python, "typecast-timestamp-nanos-", driver)
+    withClue(s"python said:\n$out\nscript:\n$driver") { exitCode shouldBe 0 }
 
     val fromScript = cellsOf(out)
     val fromEngine =
@@ -760,16 +717,9 @@ class TypeCastingOpDescSpec extends AnyFlatSpec with Matchers {
          |    print("cell", "null" if pd.isna(answer) else str(answer))
          |""".stripMargin
 
-    val script = Files.createTempFile("typecast-timestamp-unreadable-", ".py")
-    script.toFile.deleteOnExit()
-    Files.write(script, driver.getBytes(StandardCharsets.UTF_8))
-
-    val process =
-      new ProcessBuilder(python, script.toString).redirectErrorStream(true).start()
-    val out = Source.fromInputStream(process.getInputStream).mkString
-    process.waitFor(120, TimeUnit.SECONDS)
+    val (exitCode, out) = runSource(python, "typecast-timestamp-unreadable-", driver)
     withClue(s"python said:\n$out\nscript:\n$driver") {
-      process.exitValue() should not be 0
+      exitCode should not be 0
       out should include("Failed to parse type str to Timestamp: not a date")
     }
     engineAnswer("not a date", AttributeType.TIMESTAMP) shouldBe "error"

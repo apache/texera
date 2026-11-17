@@ -24,12 +24,9 @@ import org.apache.texera.amber.operator.LogicalOp
 import org.apache.texera.amber.operator.metadata.OperatorGroupConstants
 import org.apache.texera.amber.util.JSONUtils.objectMapper
 import org.scalatest.flatspec.AnyFlatSpec
-import org.scalatest.matchers.should.Matchers
+import org.apache.texera.amber.operator.GeneratedCodeAssertionChecks
 
-import java.nio.charset.StandardCharsets
-import java.util.Base64
-
-class VolcanoPlotOpDescSpec extends AnyFlatSpec with Matchers {
+class VolcanoPlotOpDescSpec extends AnyFlatSpec with GeneratedCodeAssertionChecks {
 
   private def configured: VolcanoPlotOpDesc = {
     val op = new VolcanoPlotOpDesc
@@ -37,9 +34,6 @@ class VolcanoPlotOpDescSpec extends AnyFlatSpec with Matchers {
     op.pvalueColumn = "pvalue"
     op
   }
-
-  private def b64(s: String): String =
-    Base64.getEncoder.encodeToString(s.getBytes(StandardCharsets.UTF_8))
 
   // Every UI-provided string reaches the generated code as this runtime
   // decode expression, never as a literal.

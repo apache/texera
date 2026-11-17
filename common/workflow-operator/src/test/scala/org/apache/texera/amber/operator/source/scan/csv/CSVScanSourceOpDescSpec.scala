@@ -22,7 +22,8 @@ package org.apache.texera.amber.operator.source.scan.csv
 import org.apache.texera.amber.util.PythonTestSupport.{
   NeedsPythonPackages,
   canImport,
-  configuredPython
+  configuredPython,
+  runSource
 }
 import com.fasterxml.jackson.databind.JsonNode
 import com.fasterxml.jackson.databind.node.TextNode
@@ -43,8 +44,6 @@ import org.scalatest.flatspec.AnyFlatSpec
 
 import java.nio.charset.StandardCharsets
 import java.nio.file.Files
-import java.util.concurrent.TimeUnit
-import scala.io.Source
 
 class CSVScanSourceOpDescSpec extends AnyFlatSpec with BeforeAndAfter {
 
@@ -687,15 +686,10 @@ class CSVScanSourceOpDescSpec extends AnyFlatSpec with BeforeAndAfter {
          |${csvScanSourceOpDesc.generateStandaloneCode()}
          |print(len(out1df), list(out1df.columns))
          |""".stripMargin
-    val script = Files.createTempFile("csv-standalone-", ".py")
-    script.toFile.deleteOnExit()
-    Files.write(script, driver.getBytes(StandardCharsets.UTF_8))
-    val process = new ProcessBuilder(python, script.toString).redirectErrorStream(true).start()
-    val out = Source.fromInputStream(process.getInputStream).mkString
-    process.waitFor(120, TimeUnit.SECONDS)
+    val (exitCode, out) = runSource(python, "csv-standalone-", driver)
 
     withClue(s"python said:\n$out\nscript:\n$driver") {
-      assert(process.exitValue() == 0)
+      assert(exitCode == 0)
       assert(out.trim == "0 ['column-1', 'column-2']")
       assert(
         csvScanSourceOpDesc.sourceSchema().getAttributes.map(_.getName).toList ==
@@ -787,13 +781,8 @@ class CSVScanSourceOpDescSpec extends AnyFlatSpec with BeforeAndAfter {
          |${desc.generateStandaloneCode()}
          |$report
          |""".stripMargin
-    val script = Files.createTempFile("csv-standalone-", ".py")
-    script.toFile.deleteOnExit()
-    Files.write(script, driver.getBytes(StandardCharsets.UTF_8))
-    val process = new ProcessBuilder(python, script.toString).redirectErrorStream(true).start()
-    val out = Source.fromInputStream(process.getInputStream).mkString
-    process.waitFor(120, TimeUnit.SECONDS)
-    withClue(s"python said:\n$out\nscript:\n$driver")(assert(process.exitValue() == 0))
+    val (exitCode, out) = runSource(python, "csv-standalone-", driver)
+    withClue(s"python said:\n$out\nscript:\n$driver")(assert(exitCode == 0))
     out
   }
 }
