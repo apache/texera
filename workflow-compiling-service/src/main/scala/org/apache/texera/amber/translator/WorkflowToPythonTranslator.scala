@@ -38,6 +38,11 @@ class WorkflowToPythonTranslator extends LazyLogging {
   // (e.g. Split has port 0 and port 1, each with its own assigned dfN var).
   private type PortKey = (String, Int) // (opId, portIdx)
 
+  // The files the export's zip holds, which unzip into the directory the script
+  // reads its sources from. A source offering one of these names would be
+  // overwritten by it, so they count as taken before any source is named.
+  private val archiveFileNames = Set("script.py", "texera_helpers.py")
+
   /**
     * @param outputSchemas what each operator's output ports carry, as
     *                      [[org.apache.texera.common.compiler.WorkflowCompiler]]
@@ -82,7 +87,10 @@ class WorkflowToPythonTranslator extends LazyLogging {
         gen.standaloneSourcePath().foreach { path =>
           sourceFileNames.getOrElseUpdate(
             path,
-            distinctName(gen.standaloneSourceName().getOrElse(""), sourceFileNames.values.toSet)
+            distinctName(
+              gen.standaloneSourceName().getOrElse(""),
+              sourceFileNames.values.toSet ++ archiveFileNames
+            )
           )
         }
       case _ => ()

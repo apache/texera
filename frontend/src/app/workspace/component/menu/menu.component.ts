@@ -820,6 +820,7 @@ export class MenuComponent implements OnInit, OnDestroy {
   /**
    * The script as a zip, with the `texera_helpers.py` it imports beside it: Python finds a
    * module in the script's own directory, so the unzipped folder runs with nothing installed.
+   * WorkflowToPythonTranslator keeps sources off both file names, since they unzip beside them.
    */
   public async downloadPythonZip(): Promise<void> {
     if (!this.pythonCodeForModal) {

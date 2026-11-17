@@ -240,6 +240,15 @@ class WorkflowToPythonTranslatorSpec extends AnyFlatSpec with Matchers {
     script should not include "data-2.csv"
   }
 
+  /** The zip unzips `script.py` and `texera_helpers.py` beside the sources, so a
+    * source by either name would be read back as the exported code.
+    */
+  it should "keep a source off the file names the zip holds" in {
+    val script = translateSources("/alice/v1/texera_helpers.py", "/alice/v1/script.py")
+    script should include("""pd.read_csv("texera_helpers-2.py")""")
+    script should include("""pd.read_csv("script-2.py")""")
+  }
+
   /** A file name is the user's text, so it reaches the script through the escaper
     * the operators use and through the replacement quoting on top of that: a bare
     * `$` in a name is a group reference to `replaceAll`.
