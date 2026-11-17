@@ -19,8 +19,6 @@
 
 package org.apache.texera.web.service
 
-import com.twitter.util.Future
-import io.reactivex.rxjava3.disposables.Disposable
 import org.apache.pekko.actor.ActorSystem
 import org.apache.pekko.testkit.TestKit
 import org.apache.texera.amber.core.executor.{OpExecInitInfo, OpExecWithClassName}
@@ -40,15 +38,8 @@ import org.apache.texera.amber.core.workflow.{
   PortIdentity,
   WorkflowContext
 }
-import org.apache.texera.amber.engine.architecture.coordinator.{
-  CoordinatorConfig,
-  UpdateExecutorCompleted,
-  Workflow
-}
+import org.apache.texera.amber.engine.architecture.coordinator.{UpdateExecutorCompleted, Workflow}
 import org.apache.texera.amber.engine.architecture.rpc.controlcommands.WorkflowReconfigureRequest
-import org.apache.texera.amber.engine.architecture.rpc.controlreturns.EmptyReturn
-import org.apache.texera.amber.engine.architecture.rpc.coordinatorservice.CoordinatorServiceFs2Grpc
-import org.apache.texera.amber.engine.common.client.AmberClient
 import org.apache.texera.amber.operator.dummy.DummyOpDesc
 import org.apache.texera.amber.operator.filter.{
   ComparisonType,
@@ -76,10 +67,8 @@ import org.scalatest.BeforeAndAfterAll
 import org.scalatest.flatspec.AnyFlatSpecLike
 import org.scalatest.matchers.should.Matchers
 
-import java.lang.reflect.{InvocationHandler, Method, Proxy}
 import scala.collection.mutable
 import scala.concurrent.duration.DurationInt
-import scala.reflect.ClassTag
 import scala.util.{Failure, Success, Try}
 
 /**
@@ -109,11 +98,11 @@ class ExecutionReconfigurationServiceSpec
     with Matchers
     with BeforeAndAfterAll {
 
-  private var sharedClient: TestAmberClient = _
+  private var sharedClient: RecordingExecutionClient = _
 
   override def beforeAll(): Unit = {
     super.beforeAll()
-    sharedClient = new TestAmberClient
+    sharedClient = new RecordingExecutionClient(system)
   }
 
   override def afterAll(): Unit = {
@@ -278,90 +267,8 @@ class ExecutionReconfigurationServiceSpec
     override protected def registerWorkerCompletionCallback(): Unit = ()
   }
 
-  /** Real empty-plan client for constructor compatibility; calls made through its grpc interface
-    * are recorded instead of reaching the engine, and the engine callbacks are captured instead
-    * of being wired to actors. One instance per suite -- see the class comment.
-    */
-  private final class TestAmberClient
-      extends AmberClient(
-        system,
-        new WorkflowContext(),
-        PhysicalPlan(Set.empty, Set.empty),
-        CoordinatorConfig(None, None, None, None),
-        _ => ()
-      ) {
-    private val callbacks = mutable.Map.empty[Class[_], Any => Unit]
-
-    /** (method name, request) of every call made through `coordinatorInterface`. */
-    val coordinatorCalls: mutable.ArrayBuffer[(String, Any)] = mutable.ArrayBuffer.empty
-
-    /** Event class of every Disposable handed out by `registerCallback` that was later disposed.
-      * Recorded separately from `callbacks` because disposal removes the entry, which on its own
-      * is indistinguishable from a callback that was never registered (or one dropped by `reset`).
-      */
-    val disposedCallbacks: mutable.ArrayBuffer[Class[_]] = mutable.ArrayBuffer.empty
-
-    override val coordinatorInterface: CoordinatorServiceFs2Grpc[Future, Unit] =
-      Proxy
-        .newProxyInstance(
-          classOf[CoordinatorServiceFs2Grpc[Future, Unit]].getClassLoader,
-          Array(classOf[CoordinatorServiceFs2Grpc[Future, Unit]]),
-          new InvocationHandler {
-            override def invoke(proxy: Any, method: Method, args: Array[AnyRef]): AnyRef = {
-              if (args == null || args.isEmpty) {
-                // Object methods the proxy also routes here; never part of a dispatch.
-                if (method.getName == "hashCode") Integer.valueOf(System.identityHashCode(proxy))
-                else if (method.getName == "toString") "TestCoordinatorInterface"
-                else null
-              } else {
-                coordinatorCalls += ((method.getName, args(0)))
-                Future.value(EmptyReturn())
-              }
-            }
-          }
-        )
-        .asInstanceOf[CoordinatorServiceFs2Grpc[Future, Unit]]
-
-    /**
-      * Honours the Disposable it hands out, the way the real client's rx subscription does:
-      * disposing it detaches the callback, so nothing is delivered to it afterwards. A fake that
-      * ignored disposal would make every `registerCallback` call site in this package look
-      * correctly scoped, including one that dropped the Disposable on the floor.
-      */
-    override def registerCallback[T](callback: T => Unit)(implicit ct: ClassTag[T]): Disposable = {
-      val clazz = ct.runtimeClass
-      callbacks(clazz) = callback.asInstanceOf[Any => Unit]
-      Disposable.fromAction(() => {
-        callbacks.remove(clazz)
-        disposedCallbacks += clazz
-      })
-    }
-
-    /** Delivers an engine event the way the client's observable would. */
-    def fire[T <: AnyRef](event: T)(implicit ct: ClassTag[T]): Unit =
-      callbacks.getOrElse(
-        ct.runtimeClass,
-        fail(s"no callback is registered for ${ct.runtimeClass.getSimpleName}")
-      )(event)
-
-    /** Same delivery as `fire`, but tolerates there being no live callback instead of failing --
-      * the only way to check that an event arriving after teardown really is inert.
-      */
-    def fireIfRegistered[T <: AnyRef](event: T)(implicit ct: ClassTag[T]): Unit =
-      callbacks.get(ct.runtimeClass).foreach(deliver => deliver(event))
-
-    /** Per-test isolation for the one client the suite shares. */
-    def reset(): Unit = {
-      callbacks.clear()
-      coordinatorCalls.clear()
-      disposedCallbacks.clear()
-    }
-
-    def dispose(): Unit = super.shutdown()
-  }
-
   private final class LiveFixture(
-      val client: TestAmberClient,
+      val client: RecordingExecutionClient,
       val stateStore: ExecutionStateStore,
       val service: ExecutionReconfigurationService
   )
