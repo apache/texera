@@ -178,22 +178,6 @@ class ConfigResourceSpec
     )
   }
 
-  "GET /config/user-system" should "return 401 with a Bearer challenge without an Authorization header" in {
-    val response =
-      resources.target("/config/user-system").request(MediaType.APPLICATION_JSON).get()
-    response.getStatus shouldBe 401
-    response.getHeaderString("WWW-Authenticate") shouldBe JwtAuthFilter.BearerChallenge
-  }
-
-  it should "return 200 with a valid Bearer token whose role matches @RolesAllowed" in {
-    val response = resources
-      .target("/config/user-system")
-      .request(MediaType.APPLICATION_JSON)
-      .header("Authorization", s"Bearer ${regularToken()}")
-      .get()
-    response.getStatus shouldBe 200
-  }
-
   "GET /config/amber" should "return 401 with a Bearer challenge without an Authorization header" in {
     val response =
       resources.target("/config/amber").request(MediaType.APPLICATION_JSON).get()
@@ -491,24 +475,21 @@ class ConfigResourceSpec
       DefaultsConfig.allDefaults("invite_only")
   }
 
-  // The login flow decides whether to show the pending-approval screen from these two payloads, and
+  // The sign-up form reads this payload to say whether a new account has to wait for an admin, and
   // the switch is now edited on the admin settings page. A value frozen at service start would keep
-  // the screen out of step with the role the next sign-up gets.
-  "getPreLoginConfig and getUserSystemConfig" should "report invite-only as the admin settings page last wrote it" in {
+  // the form out of step with the role the next sign-up gets.
+  "getPreLoginConfig" should "report invite-only as the admin settings page last wrote it" in {
     resource.updateSetting(adminSession(), "invite_only", ConfigSettingPojo("invite_only", "true"))
     resource.getPreLoginConfig("inviteOnly") shouldBe true
-    resource.getUserSystemConfig("inviteOnly") shouldBe true
 
     resource.updateSetting(adminSession(), "invite_only", ConfigSettingPojo("invite_only", "false"))
     resource.getPreLoginConfig("inviteOnly") shouldBe false
-    resource.getUserSystemConfig("inviteOnly") shouldBe false
   }
 
   it should "fall back to the default.conf value while no invite_only row is stored" in {
     getDSLContext.deleteFrom(SITE_SETTINGS).where(SITE_SETTINGS.KEY.eq("invite_only")).execute()
 
     resource.getPreLoginConfig("inviteOnly") shouldBe DefaultsConfig.inviteOnly
-    resource.getUserSystemConfig("inviteOnly") shouldBe DefaultsConfig.inviteOnly
   }
 }
 

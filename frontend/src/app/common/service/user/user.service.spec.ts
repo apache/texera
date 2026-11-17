@@ -165,7 +165,7 @@ describe("UserService", () => {
   // ─── post-login config fetch coordination ─────────────────────────────────
 
   it("loads the authenticated config when a fresh login succeeds", async () => {
-    // /config/gui and /config/user-system are @RolesAllowed; their values must
+    // /config/gui and /config/amber are @RolesAllowed; their values must
     // be in memory before any post-login component reads config.env, otherwise
     // the dashboard renders against undefined flags.
     const spy = vi.spyOn(config, "loadPostLogin");

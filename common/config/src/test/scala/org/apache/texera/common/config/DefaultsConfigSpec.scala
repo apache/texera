@@ -19,6 +19,7 @@
 
 package org.apache.texera.common.config
 
+import com.typesafe.config.ConfigFactory
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 
@@ -45,10 +46,15 @@ class DefaultsConfigSpec extends AnyFlatSpec with Matchers {
   }
 
   // HOCON also accepts yes/no and on/off, but every reader of the stored row expects true or false:
-  // the backend reads anything else as on, and so does the admin card. Holds whatever spelling
-  // USER_SYS_INVITE_ONLY uses; run with USER_SYS_INVITE_ONLY=off to exercise it.
-  it should "seed the parsed value, not the variable's own spelling" in {
-    DefaultsConfig.allDefaults.get("invite_only") shouldBe Some(DefaultsConfig.inviteOnly.toString)
+  // the backend reads anything else as on, and so does the admin card. The spellings are fed in
+  // directly because CI never sets USER_SYS_INVITE_ONLY.
+  "DefaultsConfig.seedValues" should "seed invite-only as true or false, whatever the spelling" in {
+    Seq("off" -> "false", "no" -> "false", "on" -> "true", "yes" -> "true").foreach {
+      case (spelling, seeded) =>
+        DefaultsConfig
+          .seedValues(ConfigFactory.parseString(s"user-sys.invite_only = $spelling"))
+          .get("invite_only") shouldBe Some(seeded)
+    }
   }
 
   "DefaultsConfig.allDefaults" should "flatten default.conf into short-key/value entries" in {

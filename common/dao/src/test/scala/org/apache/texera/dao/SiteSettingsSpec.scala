@@ -90,6 +90,16 @@ class SiteSettingsSpec
     SiteSettings.getInt("bad_int", 7) shouldBe 7
   }
 
+  // Unlike `lookup`, the getters fold a failed read into the default, as the object doc says.
+  it should "return the default when the read itself fails" in {
+    SiteSettings.upsert(getDSLContext, "max_x", "42", "admin")
+    getDSLContext.execute("ALTER TABLE texera_db.site_settings RENAME TO site_settings_away")
+    try SiteSettings.getInt("max_x", 7) shouldBe 7
+    finally getDSLContext.execute(
+      "ALTER TABLE texera_db.site_settings_away RENAME TO site_settings"
+    )
+  }
+
   "getLong" should "return the stored long value when the key is present" in {
     SiteSettings.upsert(getDSLContext, "big", "9999999999", "admin")
     SiteSettings.getLong("big", 0L) shouldBe 9999999999L
