@@ -57,7 +57,7 @@ trait SeqTupleLike extends TupleLike with SchemaEnforceable {
   override def enforceSchema(schema: Schema): Tuple = {
     val attributes = schema.getAttributes
     val builder = Tuple.builder(schema)
-    val fields = getFields.clone()
+    val fields = getFields
     val attributeIterator = attributes.iterator
     var index = 0
     while (index < fields.length) {

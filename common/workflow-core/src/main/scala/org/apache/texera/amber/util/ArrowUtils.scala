@@ -85,10 +85,8 @@ object ArrowUtils extends LazyLogging {
       val fieldValue =
         try {
           // Use the attribute type from the schema (which includes metadata)
-          // instead of deriving it from the Arrow type. Preserve the indexed
-          // lookup's error when the vector list is wider than the schema.
-          val attribute = if (attributes.hasNext) attributes.next() else schema.getAttributes(index)
-          val attributeType = attribute.getType
+          // instead of deriving it from the Arrow type
+          val attributeType = attributes.next().getType
           // A timestamp and an unsigned integer are the types whose field
           // says more than the schema does, so they are the only ones that
           // read the field: an unsigned column arrives as INTEGER or LONG.

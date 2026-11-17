@@ -42,7 +42,6 @@ class TupleBuildingException(errorMessage: String) extends RuntimeException(erro
   *
   * @throws java.lang.IllegalArgumentException if either schema or fieldVals is null, ensuring that every Tuple has a well-defined structure.
   */
-@SerialVersionUID(5822414727158387120L)
 case class Tuple @JsonCreator() (
     @JsonProperty(value = "schema", required = true) schema: Schema,
     @JsonProperty(value = "fields", required = true) fieldVals: Array[Any]
@@ -84,32 +83,21 @@ case class Tuple @JsonCreator() (
     this
   }
 
-  override def hashCode: Int =
-    util.Arrays.deepHashCode(getFields.clone().asInstanceOf[Array[AnyRef]])
+  override def hashCode: Int = util.Arrays.deepHashCode(getFields.asInstanceOf[Array[AnyRef]])
 
   override def equals(obj: Any): Boolean =
     obj match {
       case that: Tuple if this.schema == that.schema =>
-        val leftFields = this.getFields
-        val rightFields = that.getFields
-        val fieldCount = math.min(leftFields.length, rightFields.length)
-        // Capture field references before any user-defined equals can change either tuple.
-        val leftSnapshot = util.Arrays.copyOf(leftFields.asInstanceOf[Array[AnyRef]], fieldCount)
-        val rightSnapshot = util.Arrays.copyOf(rightFields.asInstanceOf[Array[AnyRef]], fieldCount)
-        var index = 0
-        var equal = true
-        while (index < fieldCount && equal) {
-          val left = leftSnapshot(index)
-          val right = rightSnapshot(index)
-          equal =
-            if (left.isInstanceOf[Array[Byte]] && right.isInstanceOf[Array[Byte]])
-              util.Arrays.equals(left.asInstanceOf[Array[Byte]], right.asInstanceOf[Array[Byte]])
-            else
-              left == right
-          index += 1
-        }
-        equal
+        val left = this.getFields
+        val right = that.getFields
+        (0 until math.min(left.length, right.length)).forall(i => fieldEquals(left(i), right(i)))
       case _ => false
+    }
+
+  private def fieldEquals(left: Any, right: Any): Boolean =
+    (left, right) match {
+      case (l: Array[Byte], r: Array[Byte]) => util.Arrays.equals(l, r)
+      case _                                => left == right
     }
 
   def getPartialTuple(attributeNames: List[String]): Tuple = {
@@ -189,21 +177,18 @@ object Tuple {
   /**
     * Builder class for constructing Tuple instances in a flexible and controlled manner.
     */
-  @SerialVersionUID(-699268362870086216L)
   case class Builder(schema: Schema) {
     private val fieldNameMap = mutable.Map.empty[String, Any]
 
     def add(tuple: Tuple, isStrictSchemaMatch: Boolean = true): Builder = {
       require(tuple != null, "Tuple cannot be null")
 
-      val fieldCount = tuple.getFields.length
-      var index = 0
-      while (index < fieldCount) {
-        val attribute = tuple.schema.getAttributes(index)
+      val attributes = tuple.schema.getAttributes.iterator
+      tuple.getFields.foreach { field =>
+        val attribute = attributes.next()
         if (isStrictSchemaMatch || schema.containsAttribute(attribute.getName)) {
-          this.add(attribute, tuple.getFields(index))
+          this.add(attribute, field)
         }
-        index += 1
       }
       this
     }
@@ -235,12 +220,7 @@ object Tuple {
       require(fields != null, "Fields cannot be null")
       checkSchemaMatchesFields(schema.getAttributes, fields)
       val attributes = schema.getAttributes.iterator
-      val values = fields.clone()
-      var index = 0
-      while (attributes.hasNext && index < values.length) {
-        this.add(attributes.next(), values(index))
-        index += 1
-      }
+      fields.foreach(field => this.add(attributes.next(), field))
       this
     }
 

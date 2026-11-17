@@ -38,8 +38,6 @@ import org.apache.texera.amber.operator.metadata.annotations.{
 import org.apache.texera.amber.operator.metadata.{OperatorGroupConstants, OperatorInfo}
 import org.apache.texera.amber.pybuilder.PythonTemplateBuilder.pyStringLiteral
 
-import scala.collection.mutable
-
 object MachineLearningScorerOpDesc {
   private val NumericTypes: Set[AttributeType] =
     Set(AttributeType.INTEGER, AttributeType.LONG, AttributeType.DOUBLE)
@@ -75,7 +73,6 @@ object MachineLearningScorerOpDesc {
   ]
 }
 """)
-@SerialVersionUID(-494076157308207456L)
 class MachineLearningScorerOpDesc extends PythonOperatorDescriptor with StandaloneCodeGenerator {
   @JsonProperty(required = true, defaultValue = "false")
   @JsonSchemaTitle("Regression")
@@ -142,16 +139,6 @@ class MachineLearningScorerOpDesc extends PythonOperatorDescriptor with Standalo
     * classification target even though a continuous one is not, and the schema
     * cannot tell the two apart.
     */
-  private def requireScoredColumn(
-      schema: Schema,
-      label: String,
-      column: String
-  ): Unit = {
-    if (!schema.containsAttribute(column)) {
-      throw new RuntimeException(s"$label column '$column' is not in the input table")
-    }
-  }
-
   private def validateScoredColumns(inputSchemas: Map[PortIdentity, Schema]): Unit = {
     val numeric = MachineLearningScorerOpDesc.NumericTypes
     // Blank names are what the form reports before the user has picked; the
@@ -184,15 +171,12 @@ class MachineLearningScorerOpDesc extends PythonOperatorDescriptor with Standalo
         // A matching pair can still be one sklearn refuses as labels. Bytes fail
         // every metric. Timestamps only fail the per-class ones, since Accuracy
         // just counts equal rows.
-        // Keep validation of a null metrics list ahead of schema construction.
-        val perClass =
-          if (classificationMetrics == null || actualType == AttributeType.TIMESTAMP)
-            classificationMetrics.filterNot(_ == classificationMetricsFnc.accuracy)
-          else Nil
         val refusedBy =
           if (actualType == AttributeType.BINARY || actualType == AttributeType.LARGE_BINARY)
             classificationMetrics
-          else perClass
+          else if (actualType == AttributeType.TIMESTAMP)
+            classificationMetrics.filterNot(_ == classificationMetricsFnc.accuracy)
+          else Nil
         if (refusedBy.nonEmpty)
           throw new RuntimeException(
             s"Actual Value '$actualValueColumn' and Predicted Value '$predictValueColumn' are " +
@@ -203,6 +187,16 @@ class MachineLearningScorerOpDesc extends PythonOperatorDescriptor with Standalo
     }
   }
 
+  private def requireScoredColumn(
+      schema: Schema,
+      label: String,
+      column: String
+  ): Unit = {
+    if (!schema.containsAttribute(column)) {
+      throw new RuntimeException(s"$label column '$column' is not in the input table")
+    }
+  }
+
   override def getOutputSchemas(
       inputSchemas: Map[PortIdentity, Schema]
   ): Map[PortIdentity, Schema] = {
@@ -210,20 +204,12 @@ class MachineLearningScorerOpDesc extends PythonOperatorDescriptor with Standalo
     val metricNames =
       if (isRegression) regressionMetrics.map(_.getName())
       else classificationMetrics.map(_.getName())
-    val builder = List.newBuilder[Attribute]
-    val seenNames = mutable.HashSet.empty[String]
-    if (!isRegression) {
-      seenNames += "class"
-      builder += new Attribute("Class", AttributeType.STRING)
-    }
-    metricNames.foreach { metricName =>
-      if (!seenNames.add(metricName.toLowerCase)) {
-        throw new RuntimeException(s"Attribute name '$metricName' already exists in the schema")
-      }
-      builder += new Attribute(metricName, AttributeType.DOUBLE)
+    val baseSchema =
+      if (isRegression) Schema() else Schema(List(new Attribute("Class", AttributeType.STRING)))
+    val outputSchema = metricNames.foldLeft(baseSchema) { (schema, metricName) =>
+      schema.add(new Attribute(metricName, AttributeType.DOUBLE))
     }
 
-    val outputSchema = Schema(builder.result())
     Map(operatorInfo.outputPorts.head.id -> outputSchema)
   }
 
