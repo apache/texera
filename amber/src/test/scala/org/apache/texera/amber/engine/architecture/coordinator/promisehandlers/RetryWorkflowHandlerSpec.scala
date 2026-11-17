@@ -20,23 +20,12 @@
 package org.apache.texera.amber.engine.architecture.coordinator.promisehandlers
 
 import org.apache.texera.amber.core.virtualidentity.ActorVirtualIdentity
-import org.apache.texera.amber.core.workflow.WorkflowContext
-import org.apache.texera.amber.engine.architecture.coordinator.{
-  CoordinatorAsyncRPCHandlerInitializer,
-  CoordinatorConfig,
-  CoordinatorProcessor
-}
 import org.apache.texera.amber.engine.architecture.rpc.controlcommands.{
   AsyncRPCContext,
-  ControlInvocation,
   RetryWorkflowRequest
 }
-import org.apache.texera.amber.engine.architecture.worker.WorkflowWorker.MainThreadDelegateMessage
-import org.apache.texera.amber.engine.common.ambermessage.WorkflowFIFOMessage
 import org.apache.texera.amber.engine.common.virtualidentity.util.{CLIENT, COORDINATOR}
 import org.scalatest.flatspec.AnyFlatSpec
-
-import scala.collection.mutable.ArrayBuffer
 
 /**
   * `retryWorkflow` is the coordinator-side entry point behind "retry" on a paused, failed
@@ -60,7 +49,7 @@ import scala.collection.mutable.ArrayBuffer
   * completes once a coordinator loop that does not exist here replies to it, and that pendency is
   * itself what proves the caller was handed the resume's own reply rather than a fabricated one.
   */
-class RetryWorkflowHandlerSpec extends AnyFlatSpec {
+class RetryWorkflowHandlerSpec extends AnyFlatSpec with CoordinatorMessageFixture {
 
   /** Two distinct workers, so "reached every worker" is distinguishable from "reached one". */
   private val firstWorkerId = ActorVirtualIdentity("Worker:WF1-udf-main-0")
@@ -69,38 +58,17 @@ class RetryWorkflowHandlerSpec extends AnyFlatSpec {
   /** The retry comes from the client, so a handler that reused `ctx` would be visible. */
   private val rpcContext = AsyncRPCContext(CLIENT, COORDINATOR)
 
-  private def newFixture()
-      : (CoordinatorAsyncRPCHandlerInitializer, ArrayBuffer[WorkflowFIFOMessage]) = {
-    val sent = ArrayBuffer[WorkflowFIFOMessage]()
-    val outputHandler: Either[MainThreadDelegateMessage, WorkflowFIFOMessage] => Unit = {
-      case Right(m) => sent += m
-      case _        => ()
-    }
-    val cp = new CoordinatorProcessor(
-      new WorkflowContext(),
-      CoordinatorConfig(None, None, None, None),
-      COORDINATOR,
-      outputHandler
-    )
-    (new CoordinatorAsyncRPCHandlerInitializer(cp), sent)
-  }
-
-  private def dispatched(sent: ArrayBuffer[WorkflowFIFOMessage]): Seq[ControlInvocation] =
-    sent.toSeq.collect {
-      case WorkflowFIFOMessage(_, _, invocation: ControlInvocation) => invocation
-    }
-
   behavior of "RetryWorkflowHandler"
 
   it should "send a retry to every worker the request names" in {
-    val (init, sent) = newFixture()
+    val (init, sent) = createCoordinatorFixture()
 
     init.retryWorkflow(
       RetryWorkflowRequest(Seq(firstWorkerId, secondWorkerId)),
       rpcContext
     )
 
-    val retries = dispatched(sent).filter(_.methodName == "retryCurrentTuple")
+    val retries = controlInvocationsNamed(sent, "retryCurrentTuple")
     assert(retries.size == 2)
     // Addressed to the workers named in the request body, not to the client that asked.
     assert(retries.map(_.context.receiver) == Seq(firstWorkerId, secondWorkerId))
@@ -111,11 +79,11 @@ class RetryWorkflowHandlerSpec extends AnyFlatSpec {
   }
 
   it should "resume the workflow through the coordinator itself" in {
-    val (init, sent) = newFixture()
+    val (init, sent) = createCoordinatorFixture()
 
     val response = init.retryWorkflow(RetryWorkflowRequest(Seq(firstWorkerId)), rpcContext)
 
-    val resumes = dispatched(sent).filter(_.methodName == "resumeWorkflow")
+    val resumes = controlInvocationsNamed(sent, "resumeWorkflow")
     assert(resumes.size == 1)
     // The coordinator resumes the workflow by calling its own handler, so both ends of the
     // invocation are the coordinator; the client is not in the loop.
@@ -129,7 +97,7 @@ class RetryWorkflowHandlerSpec extends AnyFlatSpec {
   }
 
   it should "prepare every worker before resuming the workflow" in {
-    val (init, sent) = newFixture()
+    val (init, sent) = createCoordinatorFixture()
 
     init.retryWorkflow(
       RetryWorkflowRequest(Seq(firstWorkerId, secondWorkerId)),
@@ -139,18 +107,18 @@ class RetryWorkflowHandlerSpec extends AnyFlatSpec {
     // A resume dispatched ahead of a retry would let a worker run past the tuple it failed on
     // before it was told to re-run it.
     assert(
-      dispatched(sent).map(_.methodName) ==
+      controlInvocations(sent).map(_.methodName) ==
         Seq("retryCurrentTuple", "retryCurrentTuple", "resumeWorkflow")
     )
   }
 
   it should "dispatch only the resume when the request names no workers" in {
-    val (init, sent) = newFixture()
+    val (init, sent) = createCoordinatorFixture()
 
     init.retryWorkflow(RetryWorkflowRequest(Seq.empty), rpcContext)
 
     // The worker list drives the fan-out; an empty one still resumes, because "retry" on an
     // execution whose workers all completed is just a resume.
-    assert(dispatched(sent).map(_.methodName) == Seq("resumeWorkflow"))
+    assert(controlInvocations(sent).map(_.methodName) == Seq("resumeWorkflow"))
   }
 }

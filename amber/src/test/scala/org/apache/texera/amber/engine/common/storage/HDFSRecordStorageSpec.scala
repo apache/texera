@@ -19,14 +19,11 @@
 
 package org.apache.texera.amber.engine.common.storage
 
+import org.apache.commons.io.FileUtils
 import org.apache.hadoop.conf.Configuration
 import org.apache.hadoop.fs.FileSystem
-import org.apache.pekko.actor.ActorSystem
-import org.apache.pekko.serialization.{Serialization, SerializationExtension}
-import org.apache.pekko.testkit.TestKit
-import org.apache.texera.amber.engine.common.AmberRuntime
+import org.apache.texera.amber.engine.common.AmberSerdeTestSupport
 import org.apache.texera.amber.util.WinutilsFreeLocalFileSystem
-import org.scalatest.BeforeAndAfterAll
 import org.scalatest.flatspec.AnyFlatSpec
 
 import java.net.URI
@@ -55,60 +52,7 @@ import java.util.UUID
   * No HDFS cluster and no native Hadoop install is needed — see
   * `withSeededHdfs` below for how the `hdfs` scheme is served locally.
   */
-class HDFSRecordStorageSpec extends AnyFlatSpec with BeforeAndAfterAll {
-
-  // ---------------------------------------------------------------------------
-  // Suite-local Pekko serde injected into AmberRuntime via reflection
-  // ---------------------------------------------------------------------------
-  //
-  // `SequentialRecordWriter.writeRecord` / `SequentialRecordReader`'s iterator
-  // both hard-code `AmberRuntime.serde`, so any test that round-trips a record
-  // needs AmberRuntime initialized. Pattern matches VFSRecordStorageSpec /
-  // SequentialRecordStorageSpec — own a suite-local ActorSystem, inject it into
-  // AmberRuntime's private vars, tear down in afterAll.
-
-  // `lazy` matters: BeforeAndAfterAll skips beforeAll/afterAll entirely when the
-  // active filter selects no test from this suite (which is what the
-  // amber-integration CI job does via AMBER_TEST_FILTER). A strict `val` would
-  // still build an ActorSystem during suite construction and never shut it down.
-  private lazy val testSystem: ActorSystem =
-    ActorSystem("HDFSRecordStorageSpec-test", AmberRuntime.pekkoConfig)
-  private lazy val testSerde: Serialization = SerializationExtension(testSystem)
-
-  private def getAmberRuntimeField(name: String): AnyRef = {
-    val field = AmberRuntime.getClass.getDeclaredField(name)
-    field.setAccessible(true)
-    field.get(AmberRuntime)
-  }
-
-  private def setAmberRuntimeField(name: String, value: AnyRef): Unit = {
-    val field = AmberRuntime.getClass.getDeclaredField(name)
-    field.setAccessible(true)
-    field.set(AmberRuntime, value)
-  }
-
-  private var previousActorSystem: AnyRef = _
-  private var previousSerde: AnyRef = _
-
-  override protected def beforeAll(): Unit = {
-    super.beforeAll()
-    previousActorSystem = getAmberRuntimeField("_actorSystem")
-    previousSerde = getAmberRuntimeField("_serde")
-    setAmberRuntimeField("_actorSystem", testSystem)
-    setAmberRuntimeField("_serde", testSerde)
-  }
-
-  override protected def afterAll(): Unit = {
-    // Restore whatever was there rather than nulling: sbt runs amber's suites
-    // concurrently in one JVM and several of them install their own serde into
-    // these same globals. Nulling makes `AmberRuntime.serde` take its
-    // lazy-bootstrap branch mid-run in a sibling suite, which spins up an
-    // untracked cluster ActorSystem; restoring leaves the globals as we found them.
-    setAmberRuntimeField("_serde", previousSerde)
-    setAmberRuntimeField("_actorSystem", previousActorSystem)
-    TestKit.shutdownActorSystem(testSystem)
-    super.afterAll()
-  }
+class HDFSRecordStorageSpec extends AnyFlatSpec with AmberSerdeTestSupport {
 
   // ---------------------------------------------------------------------------
   // Serving the `hdfs` scheme locally, with no cluster and no winutils
@@ -160,26 +104,7 @@ class HDFSRecordStorageSpec extends AnyFlatSpec with BeforeAndAfterAll {
     }
   }
 
-  // Always clean from the unique temp root so partial state left by a failing
-  // test is removed too. `Files.walk` returns a closeable Stream backed by an
-  // open directory handle — close it in a finally, otherwise temp-dir deletion
-  // can flake on Windows.
-  private def cleanup(root: Path): Unit = {
-    if (!Files.exists(root)) return
-    val stream = Files.walk(root)
-    try {
-      stream
-        .sorted(java.util.Comparator.reverseOrder())
-        .forEach(child => Files.deleteIfExists(child))
-    } catch {
-      // Best-effort: this runs from a `finally`, so an un-deletable leftover
-      // (a handle a *failing* test never closed) must not replace the real
-      // assertion failure with an AccessDeniedException from cleanup.
-      case _: java.io.IOException => ()
-    } finally {
-      stream.close()
-    }
-  }
+  private def cleanup(root: Path): Unit = FileUtils.deleteQuietly(root.toFile)
 
   // ---------------------------------------------------------------------------
   // Constructor — scheme guard
