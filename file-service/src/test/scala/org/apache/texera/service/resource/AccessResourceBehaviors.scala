@@ -101,6 +101,21 @@ abstract class AccessResourceBehaviors[R <: Record, A <: Record](tables: Resourc
   private lazy val readGranteeSession = new SessionUser(readGranteeUser)
   private lazy val strangerSession = new SessionUser(strangerUser)
 
+  // An owner with no email, and a private resource they own; inserted on first use.
+  private lazy val emaillessOwner: User = {
+    val user = new User
+    user.setName(s"${label}_emailless_owner")
+    user.setRole(UserRoleEnum.REGULAR)
+    new UserDao(getDSLContext.configuration()).insert(user)
+    user
+  }
+  private lazy val emaillessOwnedId: Integer = insertResource(
+    s"emailless-$label",
+    s"$label whose owner has no email",
+    isPublic = false,
+    emaillessOwner.getUid
+  )
+
   private def grantDirectly(id: Integer, uid: Integer, privilege: PrivilegeEnum): Unit =
     getDSLContext
       .insertInto(tables.accessTable)
@@ -238,6 +253,10 @@ abstract class AccessResourceBehaviors[R <: Record, A <: Record](tables: Resourc
 
   it should s"return null for a nonexistent $label" in {
     resourceOwner(getDSLContext, nonExistentId) shouldBe null
+  }
+
+  it should "give a null email for an owner without one" in {
+    resourceOwner(getDSLContext, emaillessOwnedId).getEmail shouldBe null
   }
 
   // ===========================================================================
@@ -420,6 +439,10 @@ abstract class AccessResourceBehaviors[R <: Record, A <: Record](tables: Resourc
 
   it should s"be readable by anyone for a public $label" in {
     ownerEmail(publicId, strangerSession) shouldEqual ownerUser.getEmail
+  }
+
+  it should "return null, not an empty string, for an owner without an email" in {
+    ownerEmail(emaillessOwnedId, new SessionUser(emaillessOwner)) shouldBe null
   }
 
   it should s"be forbidden for a nonexistent $label" in {
