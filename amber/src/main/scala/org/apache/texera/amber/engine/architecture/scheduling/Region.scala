@@ -73,14 +73,9 @@ case class Region(
     * The effective source contains operators that have 0 input links in this region.
     */
   def getSourceOperators: Set[PhysicalOp] = {
-    getOperators
-      .filter(physicalOp =>
-        physicalOp
-          .getInputLinks()
-          .map(link => link.fromOpId)
-          .forall(upstreamOpId => !getOperators.map(_.id).contains(upstreamOpId))
-      )
-
+    getOperators.filter(physicalOp =>
+      physicalOp.getInputLinks().forall(link => !operators.contains(link.fromOpId))
+    )
   }
 
   /**
@@ -90,16 +85,13 @@ case class Region(
   def getStarterOperators: Set[PhysicalOp] = {
     val opsReadingFromMaterialization = resourceConfig match {
       case Some(config) =>
-        config.portConfigs
-          .filter {
-            case (globalPortId, config) =>
-              globalPortId.input && config.storageURIs.nonEmpty
-          }
-          .map {
-            case (globalPortId, _) => globalPortId.opId
+        config.portConfigs.iterator
+          .collect {
+            case (globalPortId, portCfg) if globalPortId.input && portCfg.storageURIs.nonEmpty =>
+              globalPortId.opId
           }
           .toSet
-          .map(opId => getOperator(opId))
+          .map(getOperator)
       case None => Set.empty
     }
     opsReadingFromMaterialization ++ getSourceOperators

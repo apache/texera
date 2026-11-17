@@ -31,14 +31,23 @@ import org.apache.texera.amber.engine.architecture.rpc.controlcommands.{
   ConsoleMessageType,
   DebugCommandRequest => AmberDebugCommandRequest
 }
-import org.apache.texera.amber.engine.architecture.rpc.controlreturns.EmptyReturn
+import org.apache.texera.amber.engine.architecture.rpc.controlreturns.{
+  EmptyReturn,
+  EvaluatedValue,
+  TypedValue
+}
 import org.apache.texera.amber.engine.architecture.rpc.coordinatorservice.CoordinatorServiceFs2Grpc
 import org.apache.texera.amber.engine.common.client.AmberClient
-import org.apache.texera.amber.engine.common.executionruntimestate.ExecutionConsoleStore
+import org.apache.texera.amber.engine.common.executionruntimestate.{
+  EvaluatedValueList,
+  ExecutionConsoleStore,
+  OperatorConsole
+}
 import org.apache.texera.web.WebsocketInput
 import org.apache.texera.web.model.websocket.event.TexeraWebSocketEvent
 import org.apache.texera.web.model.websocket.event.python.ConsoleUpdateEvent
 import org.apache.texera.web.model.websocket.request.python.DebugCommandRequest
+import org.apache.texera.web.model.websocket.response.python.PythonExpressionEvaluateResponse
 import org.apache.texera.web.storage.ExecutionStateStore
 import org.scalamock.scalatest.MockFactory
 import org.scalatest.BeforeAndAfterAll
@@ -377,6 +386,47 @@ class ExecutionConsoleServiceSpec
       val titles =
         batches.last.collect { case e: ConsoleUpdateEvent => e.messages.map(_.title) }.flatten
       titles shouldBe Seq("second")
+    }
+  }
+
+  it should "emit PythonExpressionEvaluateResponse only for newly added evaluation keys" in {
+    withFixture { f =>
+      val val1 =
+        EvaluatedValue(Some(TypedValue("x", "r1", "1", "int", expandable = false)), Seq.empty)
+      val val2 =
+        EvaluatedValue(Some(TypedValue("y", "r2", "2", "int", expandable = false)), Seq.empty)
+      val val3 =
+        EvaluatedValue(Some(TypedValue("z", "r3", "3", "int", expandable = false)), Seq.empty)
+
+      val batches = ListBuffer.empty[Iterable[TexeraWebSocketEvent]]
+      val sub = f.stateStore.consoleStore.getWebsocketEventObservable
+        .subscribe((batch: Iterable[TexeraWebSocketEvent]) => batches += batch)
+
+      try {
+        f.stateStore.consoleStore.updateState { store =>
+          store.addOperatorConsole(
+            "udf1" -> OperatorConsole(evaluateExprResults =
+              Map("x" -> EvaluatedValueList(Seq(val1)), "y" -> EvaluatedValueList(Seq(val2)))
+            )
+          )
+        }
+        f.stateStore.consoleStore.updateState { store =>
+          val current = store.operatorConsole("udf1")
+          store.addOperatorConsole(
+            "udf1" -> current.addEvaluateExprResults("z" -> EvaluatedValueList(Seq(val3)))
+          )
+        }
+      } finally sub.dispose()
+
+      val firstEval = batches.head.collect {
+        case e: PythonExpressionEvaluateResponse => e.expression -> e.values
+      }.toMap
+      firstEval shouldBe Map("x" -> Seq(val1), "y" -> Seq(val2))
+
+      val secondEval = batches.last.collect {
+        case e: PythonExpressionEvaluateResponse => e.expression -> e.values
+      }.toMap
+      secondEval shouldBe Map("z" -> Seq(val3))
     }
   }
 
