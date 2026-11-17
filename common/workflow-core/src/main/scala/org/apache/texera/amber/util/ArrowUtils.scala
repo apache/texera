@@ -70,10 +70,20 @@ object ArrowUtils extends LazyLogging {
   def getTexeraTuple(
       rowIndex: Int,
       vectorSchemaRoot: VectorSchemaRoot
-  ): Tuple = {
-    val arrowSchema = vectorSchemaRoot.getSchema
-    val schema = toTexeraSchema(arrowSchema)
+  ): Tuple = getTexeraTuple(rowIndex, vectorSchemaRoot, toTexeraSchema(vectorSchemaRoot.getSchema))
 
+  /**
+    * Reads a row like `getTexeraTuple(rowIndex, vectorSchemaRoot)`, given the root's schema
+    * already converted by `toTexeraSchema`, so a caller reading many rows of one root converts
+    * its schema once instead of once per row.
+    *
+    * @param schema `toTexeraSchema(vectorSchemaRoot.getSchema)`.
+    */
+  def getTexeraTuple(
+      rowIndex: Int,
+      vectorSchemaRoot: VectorSchemaRoot,
+      schema: Schema
+  ): Tuple = {
     val fieldVectors = vectorSchemaRoot.getFieldVectors
     val fieldValues = new Array[Any](fieldVectors.size())
     val vectors = fieldVectors.iterator()
