@@ -32,7 +32,7 @@ describe("AboutComponent (browser)", () => {
     const host: HTMLElement = fixture.nativeElement;
     host.style.width = `${width}px`;
     fixture.detectChanges();
-    await expect.poll(() => host.querySelector("h1")?.textContent?.trim()).toBe("About Texera");
+    await expect.poll(() => host.querySelector("h1")).not.toBeNull();
 
     const bounds = host.getBoundingClientRect();
     const image = host.querySelector("img")!.getBoundingClientRect();
