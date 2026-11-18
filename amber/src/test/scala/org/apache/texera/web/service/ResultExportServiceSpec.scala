@@ -19,7 +19,6 @@
 
 package org.apache.texera.web.service
 
-import com.fasterxml.jackson.core.JsonProcessingException
 import com.github.tototoshi.csv.CSVReader
 import com.sun.net.httpserver.{HttpExchange, HttpHandler, HttpServer}
 import org.apache.arrow.memory.RootAllocator
@@ -85,8 +84,7 @@ import scala.collection.mutable.ArrayBuffer
   *
   * Two layers are covered:
   *
-  *  - The pure helpers (parseOperators / validateExportRequest) and the private
-  *    export-encoding writers. Every writer takes a VirtualDocument parameter,
+  *  - The private export-encoding writers. Every writer takes a VirtualDocument parameter,
   *    so an in-spec fake document is enough for those.
   *
   *  - The request-level entry points (exportToLocal / exportToDataset /
@@ -131,46 +129,6 @@ class ResultExportServiceSpec
       filename = "",
       computingUnitId = 0
     )
-
-  // -- parseOperators ---------------------------------------------------------
-
-  "parseOperators" should "deserialize a JSON array into OperatorExportInfo objects" in {
-    val json =
-      """[{"id":"op-1","outputType":"csv"},{"id":"op-2","outputType":"arrow"}]"""
-    val parsed = service.parseOperators(json)
-
-    parsed shouldBe List(
-      OperatorExportInfo("op-1", "csv"),
-      OperatorExportInfo("op-2", "arrow")
-    )
-  }
-
-  it should "round-trip an empty JSON array to an empty list" in {
-    service.parseOperators("[]") shouldBe List.empty[OperatorExportInfo]
-  }
-
-  it should "throw when given a malformed JSON string" in {
-    a[JsonProcessingException] should be thrownBy service.parseOperators("not json")
-  }
-
-  // -- validateExportRequest --------------------------------------------------
-
-  "validateExportRequest" should "return a 400 response when no operators are selected" in {
-    val result = service.validateExportRequest(requestWith(List.empty))
-
-    val response = result.getOrElse(fail("expected a validation error response"))
-    response.getStatus shouldBe Response.Status.BAD_REQUEST.getStatusCode
-    response.getEntity match {
-      case m: java.util.Map[_, _] => m.get("error") shouldBe "No operator selected"
-      case other                  => fail(s"unexpected entity: $other")
-    }
-  }
-
-  it should "return None when at least one operator is selected" in {
-    val result =
-      service.validateExportRequest(requestWith(List(OperatorExportInfo("op-1", "csv"))))
-    result shouldBe None
-  }
 
   // -- fakes for the export writers -------------------------------------------
 
@@ -591,11 +549,7 @@ class ResultExportServiceSpec
 
   "exportOperatorResultAsStream" should "yield no stream when the workflow never ran" in {
     val op = OperatorExportInfo("op-1", "csv")
-    val (stream, fileName) =
-      exportService.exportOperatorResultAsStream(dbRequestWith(List(op)), op)
-
-    stream shouldBe null
-    fileName shouldBe None
+    exportService.exportOperatorResultAsStream(dbRequestWith(List(op)), op) shouldBe None
   }
 
   it should "yield no stream when no stored result URI belongs to the operator" in {
@@ -606,11 +560,7 @@ class ResultExportServiceSpec
     insertResultUri(execution.getEid, resultUriOf(execution.getEid, "other-op"))
 
     val op = OperatorExportInfo("op-1", "csv")
-    val (stream, fileName) =
-      exportService.exportOperatorResultAsStream(dbRequestWith(List(op)), op)
-
-    stream shouldBe null
-    fileName shouldBe None
+    exportService.exportOperatorResultAsStream(dbRequestWith(List(op)), op) shouldBe None
   }
 
   it should "round-trip CSV special characters through the streamed export" in {
@@ -619,10 +569,11 @@ class ResultExportServiceSpec
     storeResult(execution.getEid, "rexs-special", Seq(tupleOf(special, 42)))
 
     val op = OperatorExportInfo("rexs-special", "csv")
-    val (stream, fileName) =
-      exportService.exportOperatorResultAsStream(dbRequestWith(List(op)), op)
+    val (stream, fileName) = exportService
+      .exportOperatorResultAsStream(dbRequestWith(List(op)), op)
+      .getOrElse(fail("expected a stream"))
 
-    fileName.getOrElse(fail("expected a file name")) should fullyMatch regex
+    fileName should fullyMatch regex
       s"""wf-oprexs-special-v${testVersion.getVid}-$timestampPattern\\.csv"""
 
     val out = new ByteArrayOutputStream()
@@ -640,12 +591,8 @@ class ResultExportServiceSpec
     insertExecution() // newer, and it registered no result
 
     val op = OperatorExportInfo("rexs-latest", "csv")
-    val (stream, fileName) =
-      exportService.exportOperatorResultAsStream(dbRequestWith(List(op)), op)
-
     // The older execution's rows must not leak into the newest execution's export.
-    stream shouldBe null
-    fileName shouldBe None
+    exportService.exportOperatorResultAsStream(dbRequestWith(List(op)), op) shouldBe None
   }
 
   it should "read the newest execution's rows when several executions stored results" in {
@@ -655,8 +602,9 @@ class ResultExportServiceSpec
     storeResult(newer.getEid, "rexs-latest2", Seq(tupleOf("new", 2)))
 
     val op = OperatorExportInfo("rexs-latest2", "csv")
-    val (stream, _) =
-      exportService.exportOperatorResultAsStream(dbRequestWith(List(op)), op)
+    val (stream, _) = exportService
+      .exportOperatorResultAsStream(dbRequestWith(List(op)), op)
+      .getOrElse(fail("expected a stream"))
 
     val out = new ByteArrayOutputStream()
     stream.write(out)
@@ -676,7 +624,9 @@ class ResultExportServiceSpec
     val op = OperatorExportInfo("rexs-cell", "data")
     val request =
       dbRequestWith(List(op)).copy(rowIndex = rowIndex, columnIndex = columnIndex)
-    val (stream, _) = exportService.exportOperatorResultAsStream(request, op)
+    val (stream, _) = exportService
+      .exportOperatorResultAsStream(request, op)
+      .getOrElse(fail("expected a stream"))
     val out = new ByteArrayOutputStream()
     stream.write(out)
     out
@@ -817,7 +767,7 @@ class ResultExportServiceSpec
     )
 
     // Deliberate asymmetry with exportOperatorResultAsStream, which reports the
-    // same condition as (null, None) and leaves the failure to its caller.
+    // same condition as None and leaves the failure to its caller.
     val ex = intercept[WebApplicationException] {
       exportService.exportOperatorsAsZip(request)
     }
@@ -841,8 +791,7 @@ class ResultExportServiceSpec
     )
 
     val (stream, zipName) = exportService.exportOperatorsAsZip(request)
-    zipName.getOrElse(fail("expected a zip file name")) should fullyMatch regex
-      s"""wf-$timestampPattern\\.zip"""
+    zipName should fullyMatch regex s"""wf-$timestampPattern\\.zip"""
 
     val body = new ByteArrayOutputStream()
     stream.write(body)

@@ -82,6 +82,7 @@ describe("AdminSettingsComponent", () => {
       model_max_number_of_concurrent_uploading_file_chunks: "4",
       model_multipart_upload_chunk_size_mib: "32",
       csv_parser_max_columns: "4096",
+      invite_only: "true",
     });
 
     expect(component.logoData).toBe("logo.png");
@@ -99,6 +100,28 @@ describe("AdminSettingsComponent", () => {
     expect(modelForm().maxConcurrentChunks).toBe(4);
     expect(modelForm().chunkSizeMiB).toBe(32);
     expect(component.csvMaxColumns).toBe(4096);
+    expect(component.inviteOnly).toBe(true);
+  });
+
+  it("reads invite-only as off for a stored false", () => {
+    httpTestingController.expectOne(SETTINGS_URL).flush({ invite_only: "false" });
+
+    expect(component.inviteOnly).toBe(false);
+  });
+
+  // The backend reads the row trimmed and case-insensitively, so the switch has to agree with it.
+  it("reads a padded or upper-case false as off", () => {
+    httpTestingController.expectOne(SETTINGS_URL).flush({ invite_only: " FALSE " });
+
+    expect(component.inviteOnly).toBe(false);
+  });
+
+  // Anything but false leaves sign-up closed on the backend too (an unreadable value falls back to
+  // the default, on), so the switch shows on rather than inviting a Save that opens sign-up.
+  it("reads a value that is not false as on", () => {
+    httpTestingController.expectOne(SETTINGS_URL).flush({ invite_only: "sometimes" });
+
+    expect(component.inviteOnly).toBe(true);
   });
 
   it("keeps the initializer defaults for missing or unparsable values", () => {
@@ -112,6 +135,8 @@ describe("AdminSettingsComponent", () => {
     // The model default is the 2 GiB ceiling #8000 gave models, not the dataset's 20 MiB.
     expect(modelForm().maxFileSizeMiB).toBe(2048);
     expect(component.csvMaxColumns).toBe(512);
+    // On is the default and the safe side: Save writes whatever the switch shows.
+    expect(component.inviteOnly).toBe(true);
   });
 
   it("surfaces a load failure through the message service", () => {
@@ -475,6 +500,72 @@ describe("AdminSettingsComponent", () => {
       });
     });
 
+    describe("registration settings", () => {
+      it("saveRegistrationSettings PUTs the invite-only switch and notifies success", () => {
+        completeLoad({ invite_only: "false" });
+        component.inviteOnly = true;
+
+        component.saveRegistrationSettings();
+
+        const req = httpTestingController.expectOne(updateUrl("invite_only"));
+        expect(req.request.method).toBe("PUT");
+        expect(req.request.body).toEqual({ value: "true" });
+        req.flush(null);
+
+        expect(notifySuccess).toHaveBeenCalledWith("Registration settings saved.");
+      });
+
+      it("saveRegistrationSettings writes false once the switch is turned off", () => {
+        completeLoad({ invite_only: "true" });
+        component.inviteOnly = false;
+
+        component.saveRegistrationSettings();
+
+        const req = httpTestingController.expectOne(updateUrl("invite_only"));
+        expect(req.request.body).toEqual({ value: "false" });
+        req.flush(null);
+      });
+
+      // A failed load leaves the switch at its initializer rather than the stored value, and saving
+      // that would overwrite the admin's choice of who may sign up.
+      it("saveRegistrationSettings refuses to save before the bulk load completes", () => {
+        const pending = httpTestingController.expectOne(SETTINGS_URL);
+
+        component.saveRegistrationSettings();
+
+        httpTestingController.expectNone((req: { method: string }) => req.method === "PUT");
+        expect(msgError).toHaveBeenCalledWith("Settings have not loaded; refresh before saving.");
+        pending.flush({});
+      });
+
+      it("saveRegistrationSettings notifies an error when the request fails", () => {
+        completeLoad();
+
+        component.saveRegistrationSettings();
+
+        httpTestingController.expectOne(updateUrl("invite_only")).flush("boom", HTTP_ERROR);
+        expect(notifyError).toHaveBeenCalledWith("Could not save registration settings.");
+      });
+
+      it("resetRegistrationSettings POSTs a reset and notifies info", () => {
+        completeLoad();
+
+        component.resetRegistrationSettings();
+
+        httpTestingController.expectOne(resetUrl("invite_only")).flush(null);
+        expect(notifyInfo).toHaveBeenCalledWith("Resetting registration settings...");
+      });
+
+      it("resetRegistrationSettings notifies an error when the reset fails", () => {
+        completeLoad();
+
+        component.resetRegistrationSettings();
+
+        httpTestingController.expectOne(resetUrl("invite_only")).flush("boom", HTTP_ERROR);
+        expect(notifyError).toHaveBeenCalledWith("Could not reset registration settings.");
+      });
+    });
+
     describe("onFileChange", () => {
       it("rejects a non-image file with an error and leaves the existing logo untouched", () => {
         completeLoad();
@@ -638,16 +729,26 @@ describe("AdminSettingsComponent wiring", () => {
     it("gives every switch its own setting, in template order", () => {
       // The point of the test: workflow_enabled/workflows_enabled and dataset_enabled/
       // datasets_enabled are one character apart, and a swap between them is invisible on screen.
-      expect(switches().length).toBe(SWITCH_KEYS.length);
+      // The Registration card's invite-only switch renders after every tab switch.
+      expect(switches().length).toBe(SWITCH_KEYS.length + 1);
+      const inviteOnlySwitch = SWITCH_KEYS.length;
 
       SWITCH_KEYS.forEach((key, i) => {
         SWITCH_KEYS.forEach(k => ((component.sidebarTabs as any)[k] = false));
+        component.inviteOnly = false;
 
         switches()[i].triggerEventHandler("ngModelChange", true);
 
         const flipped = SWITCH_KEYS.filter(k => (component.sidebarTabs as any)[k]);
         expect(flipped).toEqual([key]);
+        expect(component.inviteOnly).toBe(false);
       });
+
+      SWITCH_KEYS.forEach(k => ((component.sidebarTabs as any)[k] = false));
+      switches()[inviteOnlySwitch].triggerEventHandler("ngModelChange", true);
+
+      expect(component.inviteOnly).toBe(true);
+      expect(SWITCH_KEYS.filter(k => (component.sidebarTabs as any)[k])).toEqual([]);
     });
 
     it("locks the Hub children until Hub itself is on", () => {
@@ -723,9 +824,10 @@ describe("AdminSettingsComponent wiring", () => {
         saveTabs: vi.spyOn(component, "saveTabs").mockImplementation(() => {}),
         saveUploadSettings: vi.spyOn(component, "saveUploadSettings").mockImplementation(() => {}),
         saveCsvSettings: vi.spyOn(component, "saveCsvSettings").mockImplementation(() => {}),
+        saveRegistrationSettings: vi.spyOn(component, "saveRegistrationSettings").mockImplementation(() => {}),
       };
       const saves = buttonsLabelled("Save");
-      expect(saves.length).toBe(2 + component.uploadGroups.length + 1);
+      expect(saves.length).toBe(2 + component.uploadGroups.length + 2);
 
       saves.forEach(b => b.click());
 
@@ -734,6 +836,7 @@ describe("AdminSettingsComponent wiring", () => {
       // Each upload card passes its own group, so the two cards cannot save each other's keys.
       expect(spies.saveUploadSettings.mock.calls.map(call => call[0])).toEqual(component.uploadGroups);
       expect(spies.saveCsvSettings).toHaveBeenCalledTimes(1);
+      expect(spies.saveRegistrationSettings).toHaveBeenCalledTimes(1);
     });
 
     it("routes each card's Reset to that card's own handler", () => {
@@ -742,9 +845,10 @@ describe("AdminSettingsComponent wiring", () => {
         resetTabs: vi.spyOn(component, "resetTabs").mockImplementation(() => {}),
         resetUploadSettings: vi.spyOn(component, "resetUploadSettings").mockImplementation(() => {}),
         resetCsvSettings: vi.spyOn(component, "resetCsvSettings").mockImplementation(() => {}),
+        resetRegistrationSettings: vi.spyOn(component, "resetRegistrationSettings").mockImplementation(() => {}),
       };
       const resets = buttonsLabelled("Reset");
-      expect(resets.length).toBe(2 + component.uploadGroups.length + 1);
+      expect(resets.length).toBe(2 + component.uploadGroups.length + 2);
 
       resets.forEach(b => b.click());
 
@@ -752,6 +856,7 @@ describe("AdminSettingsComponent wiring", () => {
       expect(spies.resetTabs).toHaveBeenCalledTimes(1);
       expect(spies.resetUploadSettings.mock.calls.map(call => call[0])).toEqual(component.uploadGroups);
       expect(spies.resetCsvSettings).toHaveBeenCalledTimes(1);
+      expect(spies.resetRegistrationSettings).toHaveBeenCalledTimes(1);
     });
   });
 

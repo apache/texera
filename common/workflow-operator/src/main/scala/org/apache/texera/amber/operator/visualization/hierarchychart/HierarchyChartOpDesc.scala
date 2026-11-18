@@ -19,6 +19,7 @@
 
 package org.apache.texera.amber.operator.visualization.hierarchychart
 
+import org.apache.texera.amber.operator.visualization.StandaloneChartCode._
 import com.fasterxml.jackson.annotation.{JsonProperty, JsonPropertyDescription}
 import com.kjetland.jackson.jsonSchema.annotations.{JsonSchemaInject, JsonSchemaTitle}
 import org.apache.texera.amber.pybuilder.PythonTemplateBuilder.{
@@ -139,10 +140,7 @@ class HierarchyChartOpDesc extends PythonVisualizationOpDesc with PlotlyStandalo
     // to the terminal alone left that file absent. render_error's continuation
     // line keeps the runtime path's indentation, since the HTML is triple-quoted
     // and those spaces reach the browser. chart_df is a copy: the input can feed another branch.
-    s"""def render_error(error_msg):
-       |    return '''<h1>Hierarchy chart is not available.</h1>
-       |                  <p>Reason is: {} </p>
-       |               '''.format(error_msg)
+    s"""${standaloneError("Hierarchy chart is not available.")}
        |
        |def fail(error_msg):
        |    with open(outputHtml, "w", encoding="utf-8") as output:
@@ -162,9 +160,7 @@ class HierarchyChartOpDesc extends PythonVisualizationOpDesc with PlotlyStandalo
        |                         color=$valueLit, hover_data=[$attributes],
        |                         color_continuous_scale='RdBu')
        |        fig.update_layout(margin=dict(l=0, r=0, b=0, t=0))
-       |        fig.write_json(outputJson)
-       |        fig.write_html(outputHtml)
-       |        print("Hierarchy chart saved to " + outputHtml)""".stripMargin
+       |${standaloneFigure("Hierarchy chart")}""".stripMargin
   }
 
 }

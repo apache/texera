@@ -473,17 +473,58 @@ describe("SavedWorkflowSectionComponent", () => {
         expect(migration.sendToAIGenerateWorkflow).not.toHaveBeenCalled();
       });
 
-      it("rejects anything but a notebook for R", async () => {
+      it("rejects a Python file for R", async () => {
         const { migration } = mockRGenerationSuccess();
         const scriptSpy = vi.spyOn(migration, "parseScriptFile");
+        const errorSpy = vi.spyOn(TestBed.inject(NotificationService), "error").mockImplementation(() => {});
+
+        const proceed = await getRequestImport()({ name: "analysis.py" } as NzUploadFile, "gpt-4", "r");
+
+        expect(proceed).toBe(false);
+        expect(errorSpy).toHaveBeenCalledWith("Please upload an R Jupyter Notebook (.ipynb) or an R (.R) file.");
+        expect(migration.parseAndTagNotebook).not.toHaveBeenCalled();
+        expect(scriptSpy).not.toHaveBeenCalled();
+      });
+    });
+
+    describe("R file input", () => {
+      function mockRScriptGenerationSuccess() {
+        const migration = TestBed.inject(NotebookMigrationService);
+        vi.spyOn(migration, "parseScriptFile").mockResolvedValue("x <- 1\n");
+        const convertSpy = vi.spyOn(migration, "sendScriptToAIGenerateWorkflow").mockResolvedValue({
+          workflowContent: { operators: [] },
+          mappingContent: { operator_to_cell: {}, cell_to_operator: {} },
+          notebook: { cells: [] },
+        } as any);
+        vi.spyOn(migration, "storeNotebookAndMapping").mockReturnValue(of({ success: true }) as any);
+        (TestBed.inject(WorkflowPersistService) as any).createWorkflow = vi
+          .fn()
+          .mockReturnValue(of({ workflow: { wid: 8 } }));
+        vi.spyOn(TestBed.inject(Router), "navigate").mockResolvedValue(true);
+        return { migration, convertSpy };
+      }
+
+      ["analysis.R", "analysis.r"].forEach(name => {
+        it(`converts ${name} as an R script`, async () => {
+          const { convertSpy } = mockRScriptGenerationSuccess();
+
+          const proceed = await getRequestImport()({ name } as NzUploadFile, "gpt-4", "r");
+
+          expect(convertSpy).toHaveBeenCalledWith("x <- 1\n", "gpt-4", "r");
+          expect(proceed).toBe(true);
+        });
+      });
+
+      it("reports an unreadable R file with R wording", async () => {
+        const { migration, convertSpy } = mockRScriptGenerationSuccess();
+        vi.mocked(migration.parseScriptFile).mockRejectedValue(new Error("empty"));
         const errorSpy = vi.spyOn(TestBed.inject(NotificationService), "error").mockImplementation(() => {});
 
         const proceed = await getRequestImport()({ name: "analysis.R" } as NzUploadFile, "gpt-4", "r");
 
         expect(proceed).toBe(false);
-        expect(errorSpy).toHaveBeenCalledWith("Please upload an R Jupyter Notebook (.ipynb).");
-        expect(migration.parseAndTagNotebook).not.toHaveBeenCalled();
-        expect(scriptSpy).not.toHaveBeenCalled();
+        expect(errorSpy).toHaveBeenCalledWith("Failed to read the R file. Please upload a valid, non-empty .R file.");
+        expect(convertSpy).not.toHaveBeenCalled();
       });
     });
 
@@ -513,7 +554,7 @@ describe("SavedWorkflowSectionComponent", () => {
 
         const proceed = await getRequestImport()(pyFile, "gpt-4");
 
-        expect(convertSpy).toHaveBeenCalledWith("x = 1\n", "gpt-4");
+        expect(convertSpy).toHaveBeenCalledWith("x = 1\n", "gpt-4", "python");
         expect(persist.createWorkflow.mock.calls[0][1]).toBe("analysis_GENERATED_BY_LLM");
         // The stored notebook is the derived one; nothing else could have supplied it.
         expect(storeSpy).toHaveBeenCalledWith(42, expect.anything(), derivedNotebook);

@@ -80,6 +80,7 @@ import org.apache.texera.amber.operator.source.apis.twitter.v2.{
 import org.apache.texera.amber.operator.source.dataset.FileListerSourceOpDesc
 import org.apache.texera.amber.operator.source.fetcher.URLFetcherOpDesc
 import org.apache.texera.amber.operator.source.scan.arrow.ArrowSourceOpDesc
+import org.apache.texera.amber.operator.source.scan.parquet.ParquetScanSourceOpDesc
 import org.apache.texera.amber.operator.source.scan.csv.CSVScanSourceOpDesc
 import org.apache.texera.amber.operator.source.scan.csvOld.CSVOldScanSourceOpDesc
 import org.apache.texera.amber.operator.source.scan.json.JSONLScanSourceOpDesc
@@ -90,6 +91,7 @@ import org.apache.texera.amber.operator.source.sql.postgresql.PostgreSQLSourceOp
 import org.apache.texera.amber.operator.split.SplitOpDesc
 import org.apache.texera.amber.operator.substringSearch.SubstringSearchOpDesc
 import org.apache.texera.amber.operator.set.symmetricDifference.SymmetricDifferenceOpDesc
+import org.apache.texera.amber.operator.extractdatetime.ExtractDateTimeOpDesc
 import org.apache.texera.amber.operator.typecasting.TypeCastingOpDesc
 import org.apache.texera.amber.operator.udf.java.JavaUDFOpDesc
 import org.apache.texera.amber.operator.udf.python._
@@ -230,6 +232,7 @@ trait StateTransferFunc
     new Type(value = classOf[PostgreSQLSourceOpDesc], name = "PostgreSQLSource"),
     new Type(value = classOf[AsterixDBSourceOpDesc], name = "AsterixDBSource"),
     new Type(value = classOf[TypeCastingOpDesc], name = "TypeCasting"),
+    new Type(value = classOf[ExtractDateTimeOpDesc], name = "ExtractDateTime"),
     new Type(value = classOf[LimitOpDesc], name = "Limit"),
     new Type(value = classOf[SleepOpDesc], name = "Sleep"),
     new Type(value = classOf[LoopStartOpDesc], name = "LoopStart"),
@@ -283,6 +286,7 @@ trait StateTransferFunc
     new Type(value = classOf[RUDFOpDesc], name = "RUDF"),
     new Type(value = classOf[RUDFSourceOpDesc], name = "RUDFSource"),
     new Type(value = classOf[ArrowSourceOpDesc], name = "ArrowSource"),
+    new Type(value = classOf[ParquetScanSourceOpDesc], name = "ParquetFileScan"),
     new Type(value = classOf[MachineLearningScorerOpDesc], name = "Scorer"),
     new Type(value = classOf[SortOpDesc], name = "Sort"),
     new Type(value = classOf[StableMergeSortOpDesc], name = "StableMergeSort"),

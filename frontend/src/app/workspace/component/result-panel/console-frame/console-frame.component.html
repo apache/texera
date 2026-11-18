@@ -119,6 +119,24 @@
 </nz-dropdown-menu>
 
 <div
+  *ngIf="operatorId"
+  class="operator-filter-notice">
+  Showing: {{ operatorLabel(operatorId) }}
+  <button
+    nz-button
+    nzType="text"
+    nzSize="small"
+    nz-tooltip
+    nzTooltipTitle="Show every operator's messages"
+    aria-label="Show every operator's messages"
+    (click)="showAllOperators()">
+    <span
+      nz-icon
+      nzType="close"></span>
+  </button>
+</div>
+
+<div
   *ngIf="hiddenMessageCount > 0"
   class="hidden-count-notice">
   Hidden by filter: {{ hiddenMessageCount }}
@@ -180,6 +198,14 @@
           <div
             nz-col
             nzFlex="auto">
+            <nz-tag
+              *ngIf="!operatorId && messageOperatorId(entry) as entryOperatorId"
+              class="operator-tag"
+              nz-tooltip
+              nzTooltipTitle="Show only this operator's messages"
+              (click)="showOperator(entryOperatorId)">
+              {{ operatorLabel(entryOperatorId) }}
+            </nz-tag>
             <nz-tag
               *ngIf="showSource"
               class="source-tag">

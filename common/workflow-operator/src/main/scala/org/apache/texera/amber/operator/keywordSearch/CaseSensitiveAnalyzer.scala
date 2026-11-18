@@ -18,10 +18,8 @@
 
 package org.apache.texera.amber.operator.keywordSearch
 
-import org.apache.lucene.analysis.{Analyzer, TokenStream}
+import org.apache.lucene.analysis.Analyzer
 import org.apache.lucene.analysis.standard.StandardTokenizer
-import org.apache.lucene.analysis.CharArraySet
-import org.apache.lucene.analysis.StopFilter
 import org.apache.lucene.analysis.Analyzer.TokenStreamComponents
 
 // Mirrors StandardAnalyzer but omits the LowerCaseFilter, so tokens keep their
@@ -29,8 +27,6 @@ import org.apache.lucene.analysis.Analyzer.TokenStreamComponents
 // would instead glue punctuation to tokens (e.g. "perfect." would not match "perfect").
 class CaseSensitiveAnalyzer extends Analyzer {
   override protected def createComponents(fieldName: String): TokenStreamComponents = {
-    val tokenizer = new StandardTokenizer()
-    val stream: TokenStream = new StopFilter(tokenizer, CharArraySet.EMPTY_SET)
-    new TokenStreamComponents(tokenizer, stream)
+    new TokenStreamComponents(new StandardTokenizer())
   }
 }
