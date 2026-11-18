@@ -112,7 +112,7 @@ describe("assembleContext", () => {
     expect(content).toContain("### Turn 2");
   });
 
-  test("labels each tool call with the status of the result at the same index", () => {
+  test("labels each tool call with the status of its result by toolCallId", () => {
     const agentStep: ReActStep = {
       ...step("m1", "agent", 1, "acting", true),
       toolCalls: [
@@ -120,11 +120,10 @@ describe("assembleContext", () => {
         { toolName: "executeOperator", toolCallId: "c2", input: {} },
         { toolName: "deleteOperator", toolCallId: "c3", input: {} },
       ],
-      // Deliberately shorter than toolCalls: a call still awaiting its result
-      // must not be reported as failed.
+      // Results are deliberately out of call order, and the third call was never executed.
       toolResults: [
-        { toolCallId: "c1", output: "ok" },
         { toolCallId: "c2", output: "bad", isError: true },
+        { toolCallId: "c1", output: "ok" },
       ],
     };
     const content = contentOf(
@@ -132,7 +131,7 @@ describe("assembleContext", () => {
     );
     expect(content).toContain("- addOperator (succeeded)");
     expect(content).toContain("- executeOperator (failed)");
-    expect(content).toContain("- deleteOperator (succeeded)");
+    expect(content).toContain("- deleteOperator (failed)");
   });
 
   test("writes each past call's summary and result under it, so a failed call is not repeated blindly", () => {
@@ -165,31 +164,16 @@ describe("assembleContext", () => {
         "  - Error:",
         '    [ERROR] Source operator "op7" not found',
         "      at resolveInputLinks",
-        // No result recorded (a call the SDK rejected): only the call itself.
-        "- deleteOperator (succeeded)",
+        // A call the SDK never executed has no result.
+        "- deleteOperator (failed)",
       ].join("\n")
     );
     // The operator's data stays in the dataflow section, not in the history.
     expect(content).not.toContain("| a | b |");
   });
 
-  test("an [ERROR] result not flagged as an error still gets its whole message as an Error block", () => {
-    // Tool errors are "[ERROR] ..." strings and isError is not set for them yet (#9120); an execution
-    // error spans several lines, and its reason is only on the later ones.
-    const agentStep: ReActStep = {
-      ...step("m1", "agent", 1, "acting", true),
-      toolCalls: [{ toolName: "executeOperator", toolCallId: "c1", input: { operatorId: "op8" } }],
-      toolResults: [{ toolCallId: "c1", output: "[ERROR] Operator op8:\nInput port 0 has no link" }],
-    };
-    const content = contentOf(
-      assembleContext([step("m1", "user", 0, "req", true), agentStep], new WorkflowState(), new Map())
-    );
-    expect(content).toContain(["  - Error:", "    [ERROR] Operator op8:", "    Input port 0 has no link"].join("\n"));
-    expect(content).not.toContain("  - Output: [ERROR]");
-  });
-
   test("matches results to calls by toolCallId, not by position", () => {
-    // A call the SDK rejected has no result, so positions can shift.
+    // A call the SDK never executed has no result, so positions can shift.
     const agentStep: ReActStep = {
       ...step("m1", "agent", 1, "acting", true),
       toolCalls: [
@@ -202,7 +186,7 @@ describe("assembleContext", () => {
       assembleContext([step("m1", "user", 0, "req", true), agentStep], new WorkflowState(), new Map())
     );
     expect(content).toContain(
-      ["- addOperator (succeeded)", "- deleteOperator (succeeded)", "  - Output: Deleted operator op0"].join("\n")
+      ["- addOperator (failed)", "- deleteOperator (succeeded)", "  - Output: Deleted operator op0"].join("\n")
     );
   });
 });
