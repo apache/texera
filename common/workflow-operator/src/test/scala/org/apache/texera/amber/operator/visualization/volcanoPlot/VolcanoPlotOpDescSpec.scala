@@ -41,6 +41,15 @@ class VolcanoPlotOpDescSpec extends AnyFlatSpec with GeneratedCodeAssertionCheck
       |        fig.add_vline(x=-1.0, line_dash="dash", line_color="gray")""".stripMargin
   private val discreteMap =
     """color_discrete_map={"Up": "#B2182B", "Down": "#2166AC", "Not significant": "#9E9E9E"}"""
+  // The categories go to a column no input column is named after, and px reads it by name.
+  private val categoryColumn =
+    """significance_column = "Significance"
+      |        while significance_column in table.columns:
+      |            significance_column += "_"
+      |        table[significance_column] = np.select(""".stripMargin
+  private val categoryLabel = """labels={significance_column: "Significance"},"""
+  private val categoryOrders =
+    """category_orders={significance_column: ["Up", "Down", "Not significant"]},"""
 
   private def assertContinuousColoring(code: String): Unit = {
     code should include("""color_continuous_scale="RdBu"""")
@@ -208,22 +217,24 @@ class VolcanoPlotOpDescSpec extends AnyFlatSpec with GeneratedCodeAssertionCheck
     code should include("] < 0.05")
     code should include("] > 1.0)")
     code should include("] < -1.0)")
-    code should include("significance = np.select(")
+    code should include(categoryColumn)
     code should include("""["Up", "Down"],""")
     code should include("""default="Not significant",""")
-    code should include("color=significance,")
-    code should include("""labels={"color": "Significance"},""")
+    // The column's name, not an array, which px would name "color".
+    code should include("color=significance_column,")
+    code should include(categoryLabel)
     code should include(discreteMap)
-    code should include("""category_orders={"color": ["Up", "Down", "Not significant"]}""")
+    code should include(categoryOrders)
     code should not include "color_continuous_scale"
     code should include(hline)
     code should include(vlines)
   }
 
-  it should "leave an input column named Significance alone, in the exported script too" in {
+  it should "keep an effect column named Significance apart from the categories, in the exported script too" in {
     // Writing the categories into table["Significance"] would overwrite an input column
     // of that name before px reads the table; as the effect column, the x axis would
-    // show the category labels. The categories go to px directly instead.
+    // show the category labels. Labelling the category column Significance as well would
+    // give two hover lines one label, and px would show only one of them.
     val op = configured
     op.effectColumn = "Significance"
     op.significanceThreshold = Some(0.05)
@@ -231,7 +242,15 @@ class VolcanoPlotOpDescSpec extends AnyFlatSpec with GeneratedCodeAssertionCheck
     op.colorBySignificance = true
     Seq(op.generatePythonCode(), op.generateStandaloneCode()).foreach { code =>
       code should not include """table["Significance"] ="""
+      code should include(categoryColumn)
+      code should include("color=significance_column,")
+      code should not include "labels="
+      code should include(discreteMap)
+      code should include(categoryOrders)
     }
+    // Only that exact name drops the label.
+    op.effectColumn = "Significance_"
+    op.generateStandaloneCode() should include(categoryLabel)
   }
 
   it should "accept a significance threshold of exactly one, the schema maximum, and draw it at y = 0" in {
@@ -242,7 +261,7 @@ class VolcanoPlotOpDescSpec extends AnyFlatSpec with GeneratedCodeAssertionCheck
     val code = op.generatePythonCode()
     code should include("""fig.add_hline(y=-np.log10(1.0), line_dash="dash", line_color="gray")""")
     code should include(vlines)
-    code should include("color=significance,")
+    code should include("color=significance_column,")
     code should include("] < 1.0")
   }
 
@@ -435,10 +454,7 @@ class VolcanoPlotOpDescSpec extends AnyFlatSpec with GeneratedCodeAssertionCheck
     code should include(
       """[significant & (table["log2fc"] > 1.0), significant & (table["log2fc"] < -1.0)]"""
     )
-    code should include("color=significance,")
-    code should include("""labels={"color": "Significance"},""")
     code should include(discreteMap)
-    code should include("""category_orders={"color": ["Up", "Down", "Not significant"]},""")
     code should not include """color_continuous_scale="RdBu""""
     code should include(hline)
     code should include(vlines)
@@ -448,9 +464,11 @@ class VolcanoPlotOpDescSpec extends AnyFlatSpec with GeneratedCodeAssertionCheck
   it should "make the same cut-off and coloring decisions as the engine" in {
     // The export is drawn from the same figure, so for every shape a stored
     // threshold can take the two paths must agree on which lines to draw and on
-    // whether to color by category; a rule applied on one side only would make
-    // the exported figure differ from the one shown in the workflow.
+    // whether and how to color by category; a rule applied on one side only would
+    // make the exported figure differ from the one shown in the workflow.
     val cutOffLine = """fig\.add_[hv]line\([^\n]*""".r
+    // These lines name no input column, so they read the same in both paths.
+    val categoryLine = """[^\n]*significance_column[^\n]*""".r
     Seq(
       (None, None, false),
       (Some(0.05), Some(1.0), false),
@@ -469,8 +487,7 @@ class VolcanoPlotOpDescSpec extends AnyFlatSpec with GeneratedCodeAssertionCheck
         val engine = op.generatePythonCode()
         val export = op.generateStandaloneCode()
         cutOffLine.findAllIn(export).toSeq shouldBe cutOffLine.findAllIn(engine).toSeq
-        export.contains("Significance") shouldBe engine.contains("Significance")
-        export.contains(discreteMap) shouldBe engine.contains(discreteMap)
+        categoryLine.findAllIn(export).toSeq shouldBe categoryLine.findAllIn(engine).toSeq
     }
   }
 
