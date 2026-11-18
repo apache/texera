@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1794920019009,
+  "lastUpdate": 1795005902883,
   "repoUrl": "https://github.com/apache/texera",
   "entries": {
     "Arrow Flight E2E Throughput": [
@@ -22872,6 +22872,163 @@ window.BENCHMARK_DATA = {
           {
             "name": "throughput / bs=1000 sw=50 sl=512",
             "value": 993.0452020979318,
+            "unit": "tuples/sec"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "name": "Kary Zheng",
+            "username": "kz930",
+            "email": "150742834+kz930@users.noreply.github.com"
+          },
+          "committer": {
+            "name": "GitHub",
+            "username": "web-flow",
+            "email": "noreply@github.com"
+          },
+          "id": "fddc4303e8f739fe2a9e707a5d176e5032191753",
+          "message": "test(verify): sweep a configuration into the variants a parity run needs (#8388)\n\n### What changes were proposed in this PR?\n\nOne configuration exercises one path through an operator. A parity run\nwants\nmore than that: every value an enum offers, the optional knobs a default\nleaves\nempty, and a text knob carrying a value that breaks a Python literal if\nit was\nspliced rather than escaped.\n\nThis adds the sweep on top of the generator that derives the\nconfiguration. Four\nentry points return variants: one for an operator configured from its\nannotations, and three for a hand-written fixture, which needs them\nmore, since\nthe configuration it pins is otherwise the only one its operator ever\nruns.\n\nA column knob also runs once per type its rule admits. A picker takes\nthe first column that fits, so a type the table lists late, such as the\nLONG column, was never chosen. Each `columnType_<TYPE>` run points every\nknob that admits the type, and holds another, at a column of that type.\nA knob with no type rule, a `@SampleColumn` knob, a list knob and a join\nkey are left alone.\n\nThe sweep moves one knob at a time rather than crossing them, so a\nfailure names\nthe knob that caused it. The exceptions are the two variants that move\nevery\nknob of a kind at once, where bisecting by hand costs less than a run\nper field:\nall optional knobs filled together, and all free-text knobs carrying the\nhostile\nvalue together, numbered so no two knobs carry the same text. Two knobs\nsharing\none value is not a smaller version of the same test. Where both name an\noutput\ncolumn, it writes the same column twice and the run fails for a reason\nthat has\nnothing to do with escaping.\n\n### Any related issues, documentation, discussions?\n\nPart of #8325, 22 of 27; that issue lists the set in order. This is the\nsecond\nhalf of the configuration generator, and #8361 is the first. The two are\none\nScala object, so this branch carries that one's commit as well: the\nsweep does\nnot compile without the members it defines. Until #8361 merges the file\nview\nhere shows both halves, and once it does this narrows to the sweep on\nits own.\nThe last commit is the sweep, and it is the one to read.\n\nCloses #8424, the task this change is the whole of.\n\n### How was this PR tested?\n\nFour tests read the entry points rather than the members behind them: an\nenum\noffered once per value with each variant labelled by the knob it moved,\na\nboolean flipped in a variant of its own, an optional knob the base\nleaves empty\nand this fills, and two free-text knobs that come out holding different\ntext.\n\nThe sweep is exercised end to end once the last pieces of the set land,\nwhen\nevery operator runs through the engine and through its generated script\nand the\ntwo answers are compared. These four cover it in the meantime, and they\nname the\nknob rather than the operator when they fail.\n\n### Was this PR authored or co-authored using generative AI tooling?\n\nGenerated-by: Claude Code (Opus 5)\n\n---------\n\nCo-authored-by: Claude Opus 5 (1M context) <noreply@anthropic.com>",
+          "timestamp": "2026-11-18T04:49:53Z",
+          "url": "https://github.com/apache/texera/commit/fddc4303e8f739fe2a9e707a5d176e5032191753"
+        },
+        "date": 1795005901985,
+        "tool": "customBiggerIsBetter",
+        "benches": [
+          {
+            "name": "throughput / bs=10 sw=1 sl=8",
+            "value": 883.5598105942522,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=1 sl=8",
+            "value": 1739.319038523154,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=1 sl=8",
+            "value": 1938.284597648065,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=1 sl=64",
+            "value": 1155.5312926852537,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=1 sl=64",
+            "value": 1789.8991730599146,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=1 sl=64",
+            "value": 1943.5066412614785,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=1 sl=512",
+            "value": 1261.386269754322,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=1 sl=512",
+            "value": 1798.5955391906832,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=1 sl=512",
+            "value": 1914.8257979187597,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=10 sl=8",
+            "value": 973.1001441170072,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=10 sl=8",
+            "value": 1442.6070578589386,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=10 sl=8",
+            "value": 1496.7156227284913,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=10 sl=64",
+            "value": 1048.7721014778272,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=10 sl=64",
+            "value": 1436.6333228348815,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=10 sl=64",
+            "value": 1474.786926248617,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=10 sl=512",
+            "value": 1072.7666478273825,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=10 sl=512",
+            "value": 1413.4430763480457,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=10 sl=512",
+            "value": 1456.8422391033464,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=50 sl=8",
+            "value": 640.1589726749804,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=50 sl=8",
+            "value": 757.8942570104755,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=50 sl=8",
+            "value": 774.95748720877,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=50 sl=64",
+            "value": 624.461787508572,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=50 sl=64",
+            "value": 748.5646615083909,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=50 sl=64",
+            "value": 766.2044929892025,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=50 sl=512",
+            "value": 597.9922948686826,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=50 sl=512",
+            "value": 723.2063652308173,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=50 sl=512",
+            "value": 718.1407909079827,
             "unit": "tuples/sec"
           }
         ]
