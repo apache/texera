@@ -17,7 +17,7 @@
  * under the License.
  */
 
-import { AfterViewInit, Component, ElementRef, OnDestroy, ViewEncapsulation } from "@angular/core";
+import { AfterViewInit, Component, ElementRef, OnDestroy } from "@angular/core";
 import { createElement } from "react";
 import { createRoot, Root } from "react-dom/client";
 import { AboutContent } from "./about-content";
@@ -28,9 +28,6 @@ import { AboutContent } from "./about-content";
 @Component({
   selector: "texera-about",
   template: "",
-  host: { class: "texera-about" },
-  styleUrls: ["./about.component.scss"],
-  encapsulation: ViewEncapsulation.None,
 })
 export class AboutComponent implements AfterViewInit, OnDestroy {
   private root?: Root;
