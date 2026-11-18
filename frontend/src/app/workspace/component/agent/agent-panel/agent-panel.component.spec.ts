@@ -17,6 +17,7 @@
  * under the License.
  */
 
+import { CdkScrollable, ScrollDispatcher } from "@angular/cdk/scrolling";
 import { Component, EventEmitter, Input, Output } from "@angular/core";
 import { ComponentFixture, TestBed } from "@angular/core/testing";
 import { HttpClientTestingModule } from "@angular/common/http/testing";
@@ -166,6 +167,16 @@ describe("AgentPanelComponent", () => {
   }
 
   describe("initialization and agent list wiring", () => {
+    // An overlay opened inside (the agent chat's selects) follows this panel's scrolling only once
+    // the scroller is registered with the CDK's ScrollDispatcher -- the registration, not the
+    // directive's presence, is what the reposition strategy consults.
+    it("registers its scrolling container with the CDK", () => {
+      createComponent();
+      const scroller = fixture.debugElement.query(By.css("#content")).injector.get(CdkScrollable);
+
+      expect(TestBed.inject(ScrollDispatcher).scrollContainers.has(scroller)).toBe(true);
+    });
+
     it("loads the agents once on init and renders one tab per agent plus the registration tab", () => {
       agentService.agentList = [makeAgent("a"), makeAgent("b")];
       createComponent();

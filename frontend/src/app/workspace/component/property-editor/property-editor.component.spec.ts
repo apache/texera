@@ -18,6 +18,8 @@
  */
 
 import { CommonModule } from "@angular/common";
+import { By } from "@angular/platform-browser";
+import { CdkScrollable, ScrollDispatcher } from "@angular/cdk/scrolling";
 import { ComponentFixture, fakeAsync, TestBed, tick } from "@angular/core/testing";
 import { PropertyEditorComponent } from "./property-editor.component";
 import {
@@ -75,6 +77,15 @@ describe("PropertyEditorComponent", () => {
     localStorage.removeItem("right-panel-width");
     localStorage.removeItem("right-panel-height");
     localStorage.removeItem("right-panel-style");
+  });
+
+  // An overlay opened inside (a dropdown, an autocomplete) follows this panel's scrolling only once
+  // the scroller is registered with the CDK's ScrollDispatcher -- the registration, not the
+  // directive's presence, is what the reposition strategy consults.
+  it("registers its scrolling container with the CDK", () => {
+    const scroller = fixture.debugElement.query(By.css("#content")).injector.get(CdkScrollable);
+
+    expect(TestBed.inject(ScrollDispatcher).scrollContainers.has(scroller)).toBe(true);
   });
 
   it("should create", () => {
