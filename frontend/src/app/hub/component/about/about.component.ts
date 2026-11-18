@@ -17,16 +17,32 @@
  * under the License.
  */
 
-import { Component } from "@angular/core";
-import { NzRowDirective, NzColDirective } from "ng-zorro-antd/grid";
+import { AfterViewInit, Component, ElementRef, OnDestroy, ViewEncapsulation } from "@angular/core";
+import { createElement } from "react";
+import { createRoot, Root } from "react-dom/client";
+import { AboutContent } from "./about-content";
 
 /**
- * Static marketing copy for the platform.
+ * Hosts the public About page in the Angular router.
  */
 @Component({
   selector: "texera-about",
-  templateUrl: "./about.component.html",
+  template: "",
+  host: { class: "texera-about" },
   styleUrls: ["./about.component.scss"],
-  imports: [NzRowDirective, NzColDirective],
+  encapsulation: ViewEncapsulation.None,
 })
-export class AboutComponent {}
+export class AboutComponent implements AfterViewInit, OnDestroy {
+  private root?: Root;
+
+  constructor(private readonly host: ElementRef<HTMLElement>) {}
+
+  ngAfterViewInit(): void {
+    this.root = createRoot(this.host.nativeElement);
+    this.root.render(createElement(AboutContent));
+  }
+
+  ngOnDestroy(): void {
+    this.root?.unmount();
+  }
+}
