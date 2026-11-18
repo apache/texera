@@ -17,53 +17,42 @@
  * under the License.
  */
 
-import { Row, Col } from "antd";
+import { Typography } from "antd";
 
 export function AboutContent() {
   return (
-    <div className="about-page-container">
-      <div className="content">
-        <h1 className="about-title">About Texera</h1>
+    <Typography>
+      <h1>About Texera</h1>
 
-        <p>
-          Apache Texera (Incubating) is an open-source platform for human-AI collaborative data science using visual
-          workflows. It enables analysts to construct, execute, and refine data analysis tasks through an intuitive GUI,
-          assisted by AI agents that understand natural-language instructions. Texera is well-suited for a wide range of
-          applications, including “AI for Science,” by making advanced AI and data science capabilities accessible to a
-          broader community. It can run on a laptop for local use or be deployed in the cloud to support scalable
-          processing of large datasets.
-        </p>
+      <p>
+        Apache Texera (Incubating) is an open-source platform for human-AI collaborative data science using visual
+        workflows. It enables analysts to construct, execute, and refine data analysis tasks through an intuitive GUI,
+        assisted by AI agents that understand natural-language instructions. Texera is well-suited for a wide range of
+        applications, including “AI for Science,” by making advanced AI and data science capabilities accessible to a
+        broader community. It can run on a laptop for local use or be deployed in the cloud to support scalable
+        processing of large datasets.
+      </p>
 
-        <Row
-          align="top"
-          className="features-row">
-          <Col flex="auto">
-            <h2 className="content-title">The platform has the following key features:</h2>
-            <ul className="text-content">
-              <li>Natural-language data science through AI agents</li>
-              <li>Intuitive GUI-based workflows for data science</li>
-              <li>Real-time collaboration for workflow editing and execution</li>
-              <li>Parallel backend engine for scalable big-data processing</li>
-              <li>Language-agnostic workflow runtime, native support for Python and Java</li>
-              <li>Separation of compute and storage for flexible cloud deployment</li>
-              <li>Runtime debugging and interactive workflow execution</li>
-            </ul>
-          </Col>
-        </Row>
+      <h2>The platform has the following key features:</h2>
+      <ul>
+        <li>Natural-language data science through AI agents</li>
+        <li>Intuitive GUI-based workflows for data science</li>
+        <li>Real-time collaboration for workflow editing and execution</li>
+        <li>Parallel backend engine for scalable big-data processing</li>
+        <li>Language-agnostic workflow runtime, native support for Python and Java</li>
+        <li>Separation of compute and storage for flexible cloud deployment</li>
+        <li>Runtime debugging and interactive workflow execution</li>
+      </ul>
 
-        <img
-          className="workflow-gui-screenshot"
-          src="../../../../../assets/workflow_gui.png"
-          alt="workflow gui screenshot"
-        />
-        <h2 className="learn-more-title">Learn More</h2>
-        <div className="learn-more-section">
-          <p>
-            To learn more, please visit <a href="https://texera.apache.org/">https://texera.apache.org/</a>. The{" "}
-            <a href="https://github.com/apache/texera">source code</a> of the platform is available on GitHub.
-          </p>
-        </div>
-      </div>
-    </div>
+      <img
+        src="/assets/workflow_gui.png"
+        alt="workflow gui screenshot"
+      />
+      <h2>Learn More</h2>
+      <p>
+        To learn more, please visit <a href="https://texera.apache.org/">https://texera.apache.org/</a>. The{" "}
+        <a href="https://github.com/apache/texera">source code</a> of the platform is available on GitHub.
+      </p>
+    </Typography>
   );
 }

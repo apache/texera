@@ -18,67 +18,17 @@
  */
 
 .texera-about {
-  .about-page-container {
-    overflow-y: auto;
-    height: 100%;
-    padding: 0 133px;
-  }
+  display: block;
 
-  .content {
-    margin-top: 40px;
+  > article {
     max-width: 1600px;
-    width: 100%;
-    text-align: left;
-  }
-
-  .content > h1 {
-    font-size: 40px;
-    font-weight: bold;
-    margin: 0;
-  }
-
-  .content h2 {
-    font-size: 28px;
-    font-weight: bold;
-    margin-top: 10px;
-  }
-
-  .content > p {
+    margin: 0 auto;
+    padding: 40px 8%;
     font-size: 16px;
-    font-weight: 400;
-    line-height: 1.8;
-    margin-bottom: 10px;
   }
 
-  .workflow-gui-screenshot {
+  img {
+    display: block;
     width: 100%;
-    height: auto;
-  }
-
-  .text-content {
-    width: 70%;
-    font-size: 16px;
-    line-height: 1.8;
-    font-weight: 400;
-  }
-
-  .learn-more-section {
-    margin-top: 10px;
-    text-align: left;
-
-    p {
-      font-size: 16px;
-      line-height: 1.8;
-      margin-bottom: 10px;
-
-      a {
-        color: #007acc;
-        text-decoration: none;
-      }
-
-      a:hover {
-        text-decoration: underline;
-      }
-    }
   }
 }
