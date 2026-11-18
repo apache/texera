@@ -21,9 +21,7 @@ import { Card, Image, Typography } from "antd";
 
 export function AboutContent() {
   return (
-    <Card
-      variant="borderless"
-      style={{ maxWidth: 1280, marginInline: "auto" }}>
+    <Card variant="borderless">
       <Typography>
         <h1>About Texera</h1>
 

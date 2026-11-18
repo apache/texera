@@ -28,6 +28,7 @@ import { AboutContent } from "./about-content";
 @Component({
   selector: "texera-about",
   template: "",
+  styleUrls: ["./about.component.scss"],
 })
 export class AboutComponent implements AfterViewInit, OnDestroy {
   private root?: Root;
