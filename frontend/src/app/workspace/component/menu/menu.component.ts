@@ -758,6 +758,7 @@ export class MenuComponent implements OnInit, OnDestroy {
   public isTranslatingToPython = false;
   public pythonCodeForModal = "";
   public pythonHelpersModuleForModal?: string;
+  public pythonRenamedSourcesForModal: { from: string; to: string }[] = [];
 
   public onClickExportAsPython(): void {
     // Exporting the valid part of the graph answers a workflow with a required
@@ -782,6 +783,7 @@ export class MenuComponent implements OnInit, OnDestroy {
           if (response.type === "success") {
             this.pythonCodeForModal = response.pythonCode ?? "";
             this.pythonHelpersModuleForModal = response.helpersModule;
+            this.pythonRenamedSourcesForModal = response.renamedSources ?? [];
             this.modalService.create({
               nzTitle: "Workflow as Python Script",
               nzContent: this.workflowPythonScriptModal ?? "",

@@ -48,9 +48,18 @@ import org.apache.texera.auth.SessionUser
 )
 sealed trait WorkflowToPythonResponse
 
-/** @param helpersModule the `texera_helpers.py` the script imports from, when it imports any. */
-case class WorkflowToPythonSuccess(pythonCode: String, helpersModule: Option[String] = None)
-    extends WorkflowToPythonResponse
+/** An input the script reads under a name other than its own. */
+case class RenamedSource(from: String, to: String)
+
+/**
+  * @param helpersModule the `texera_helpers.py` the script imports from, when it imports any.
+  * @param renamedSources the inputs that must be saved under a new name next to the script.
+  */
+case class WorkflowToPythonSuccess(
+    pythonCode: String,
+    helpersModule: Option[String] = None,
+    renamedSources: Seq[RenamedSource] = Seq.empty
+) extends WorkflowToPythonResponse
 
 case class WorkflowToPythonFailure(errorMessage: String) extends WorkflowToPythonResponse
 
@@ -82,7 +91,8 @@ class WorkflowToPythonResource extends LazyLogging {
         pythonCode,
         Option.when(pythonCode.contains("from texera_helpers import"))(
           StandaloneHelpers.helpersModule
-        )
+        ),
+        translator.renamedSources(logicalPlan).map { case (from, to) => RenamedSource(from, to) }
       )
     } catch {
       case e: Exception =>

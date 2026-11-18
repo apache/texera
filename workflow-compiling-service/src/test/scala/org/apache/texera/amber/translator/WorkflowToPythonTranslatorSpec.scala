@@ -259,6 +259,14 @@ class WorkflowToPythonTranslatorSpec extends AnyFlatSpec with Matchers {
     script should include("""pd.read_csv("data-2.csv")""")
   }
 
+  it should "report the sources it renamed, and only those" in {
+    val plan = sourcesPlan("/alice/v1/Script.py", "/alice/v1/sales.csv", "/bob/v1/sales.csv")
+    new WorkflowToPythonTranslator().renamedSources(plan) shouldBe Seq(
+      "Script.py" -> "Script-2.py",
+      "sales.csv" -> "sales-2.csv"
+    )
+  }
+
   /** A file name is the user's text, so it reaches the script through the escaper
     * the operators use and through the replacement quoting on top of that: a bare
     * `$` in a name is a group reference to `replaceAll`.
@@ -268,7 +276,10 @@ class WorkflowToPythonTranslatorSpec extends AnyFlatSpec with Matchers {
     script should include("""pd.read_csv("we\"ird$1\\x.csv")""")
   }
 
-  private def translateSources(paths: String*): String = {
+  private def translateSources(paths: String*): String =
+    new WorkflowToPythonTranslator().translate(sourcesPlan(paths: _*))
+
+  private def sourcesPlan(paths: String*): LogicalPlan = {
     val ops = paths.zipWithIndex.map {
       case (path, i) =>
         val op =
@@ -278,7 +289,7 @@ class WorkflowToPythonTranslatorSpec extends AnyFlatSpec with Matchers {
         op.setOperatorId(s"source$i")
         op
     }
-    new WorkflowToPythonTranslator().translate(LogicalPlan(ops.toList, List.empty))
+    LogicalPlan(ops.toList, List.empty)
   }
 
   it should "import a helper with the other imports rather than define it" in {

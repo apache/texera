@@ -533,11 +533,14 @@
 <ng-template #workflowPythonScriptModal>
   <div class="workflow-python-modal">
     <div class="workflow-python-modal-toolbar">
-      <span>
-        <ng-container *ngIf="pythonHelpersModuleForModal">
+      <div>
+        <div *ngIf="pythonHelpersModuleForModal">
           Download the zip and run <code>script.py</code> next to the <code>texera_helpers.py</code> it holds.
-        </ng-container>
-      </span>
+        </div>
+        <div *ngFor="let renamed of pythonRenamedSourcesForModal">
+          Save <code>{{ renamed.from }}</code> as <code>{{ renamed.to }}</code> next to <code>script.py</code>.
+        </div>
+      </div>
       <span class="workflow-python-actions">
         <button
           nz-button

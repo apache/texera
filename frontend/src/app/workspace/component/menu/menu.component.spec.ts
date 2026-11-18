@@ -775,6 +775,19 @@ describe("MenuComponent", () => {
 
       expect(component.pythonHelpersModuleForModal).toBe("def f(): pass");
     });
+
+    it("keeps the inputs the script reads under a new name", () => {
+      const renamedSources = [{ from: "Script.py", to: "Script-2.py" }];
+      vi.spyOn(component["workflowToPythonService"], "convertToPython").mockReturnValue(
+        of({ type: "success", pythonCode: "print(1)", renamedSources } as any)
+      );
+      workflowActionService.addOperator(mockScanPredicate, mockPoint);
+      validationStream$.next({ errors: {}, workflowEmpty: false });
+
+      component.onClickExportAsPython();
+
+      expect(component.pythonRenamedSourcesForModal).toEqual(renamedSources);
+    });
   });
 
   describe("hasOperators", () => {

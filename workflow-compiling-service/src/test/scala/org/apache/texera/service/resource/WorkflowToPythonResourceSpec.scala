@@ -227,6 +227,20 @@ class WorkflowToPythonResourceSpec
     assert(success.helpersModule.isEmpty)
   }
 
+  it should "name each input the script reads under a new name" in {
+    val scan = new CSVScanSourceOpDesc()
+    scan.setOperatorId("scan")
+    scan.fileName = Some("/nonexistent/Script.py")
+    val success = exported(LogicalPlanPojo(List(scan), List.empty, List.empty, List.empty))
+    assert(success.renamedSources == Seq(RenamedSource("Script.py", "Script-2.py")))
+  }
+
+  it should "name no input when none is renamed" in {
+    val limit = limitOp("limit", 5)
+    val success = exported(LogicalPlanPojo(List(limit), List.empty, List.empty, List.empty))
+    assert(success.renamedSources.isEmpty)
+  }
+
   it should "return a failure body rather than HTTP 500 when the plan cannot be read" in {
     // A link naming an operator the plan does not carry: the DAG refuses the
     // edge, and the resource has to answer with a reason rather than a stack
