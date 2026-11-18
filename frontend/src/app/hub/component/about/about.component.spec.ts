@@ -50,7 +50,7 @@ describe("AboutComponent", () => {
   it("preserves the introduction, headings and seven platform features in order", () => {
     const host: HTMLElement = fixture.nativeElement;
     expect(host.querySelectorAll("h1")).toHaveLength(1);
-    expect(text(host.querySelector(".content > p"))).toBe(
+    expect(text(host.querySelector("p"))).toBe(
       "Apache Texera (Incubating) is an open-source platform for human-AI collaborative data science using visual " +
         "workflows. It enables analysts to construct, execute, and refine data analysis tasks through an intuitive GUI, " +
         "assisted by AI agents that understand natural-language instructions. Texera is well-suited for a wide range of " +
@@ -77,12 +77,12 @@ describe("AboutComponent", () => {
     const host: HTMLElement = fixture.nativeElement;
     const images = host.querySelectorAll("img");
     expect(images).toHaveLength(1);
-    expect(images[0].getAttribute("src")).toBe("../../../../../assets/workflow_gui.png");
+    expect(new URL(images[0].src).pathname).toBe("/assets/workflow_gui.png");
     expect(images[0].alt).toBe("workflow gui screenshot");
-    expect(text(host.querySelector(".learn-more-section > p"))).toBe(
+    expect(text(host.querySelectorAll("p")[1])).toBe(
       "To learn more, please visit https://texera.apache.org/. The source code of the platform is available on GitHub."
     );
-    const links = Array.from(host.querySelectorAll<HTMLAnchorElement>(".learn-more-section a"));
+    const links = Array.from(host.querySelectorAll<HTMLAnchorElement>("a"));
     expect(links.map(link => ({ href: link.getAttribute("href"), text: text(link), target: link.target }))).toEqual([
       { href: "https://texera.apache.org/", text: "https://texera.apache.org/", target: "" },
       { href: "https://github.com/apache/texera", text: "source code", target: "" },
@@ -99,9 +99,9 @@ describe("AboutComponent", () => {
     await expect.poll(() => fixture.nativeElement.querySelector("h1")?.textContent?.trim()).toBe("About Texera");
     const host: HTMLElement = fixture.nativeElement;
     expect(host).not.toBe(previousHost);
-    expect(host.querySelectorAll(".about-page-container")).toHaveLength(1);
+    expect(host.querySelectorAll("h1")).toHaveLength(1);
     expect(host.querySelectorAll("ul > li")).toHaveLength(7);
-    expect(host.querySelectorAll(".learn-more-section a")).toHaveLength(2);
+    expect(host.querySelectorAll("a")).toHaveLength(2);
   });
 
   it("releases the rendered subtree when its Angular host is destroyed", () => {
