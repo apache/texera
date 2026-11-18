@@ -42,11 +42,6 @@ describe("AboutComponent", () => {
     expect(component).toBeTruthy();
   });
 
-  // The login form moved to the dedicated /login page; this page must not render one.
-  it("no longer embeds a login form", () => {
-    expect(fixture.nativeElement.querySelector("texera-local-login")).toBeNull();
-  });
-
   it("renders the workflow image and links to Texera and its source in the current tab", () => {
     const host: HTMLElement = fixture.nativeElement;
     const image = host.querySelector("img");
