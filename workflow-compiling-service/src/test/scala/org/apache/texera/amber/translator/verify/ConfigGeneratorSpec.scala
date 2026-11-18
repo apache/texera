@@ -23,7 +23,11 @@ import org.apache.texera.amber.core.tuple.{Attribute, AttributeType, Schema}
 import org.apache.texera.amber.operator.filter.SpecializedFilterOpDesc
 import org.apache.texera.amber.operator.hashJoin.HashJoinOpDesc
 import org.apache.texera.amber.operator.intervalJoin.IntervalJoinOpDesc
+import org.apache.texera.amber.operator.regex.RegexOpDesc
 import org.apache.texera.amber.operator.set.intersect.IntersectOpDesc
+import org.apache.texera.amber.operator.source.scan.csv.CSVScanSourceOpDesc
+import org.apache.texera.amber.operator.source.scan.csvOld.CSVOldScanSourceOpDesc
+import org.apache.texera.amber.operator.unneststring.UnnestStringOpDesc
 import org.apache.texera.amber.operator.visualization.candlestickChart.CandlestickChartOpDesc
 import org.apache.texera.amber.operator.visualization.choroplethMap.ChoroplethMapOpDesc
 import org.apache.texera.amber.operator.visualization.histogram2d.Histogram2DOpDesc
@@ -193,5 +197,82 @@ class ConfigGeneratorSpec extends AnyFlatSpec with Matchers {
     result.isRight shouldBe false
     result.swap.toOption.get should include("valueColumns accepts")
     result.swap.toOption.get should include("no column at port 0")
+  }
+
+  private def variants(
+      opClass: Class[_ <: org.apache.texera.amber.operator.LogicalOp],
+      ports: Map[Int, Schema]
+  ): Seq[(String, org.apache.texera.amber.operator.LogicalOp)] = {
+    val result = ConfigGenerator.generateVariants(opClass, ports, 15)
+    withClue(result) { result.isRight shouldBe true }
+    result.toOption.get
+  }
+
+  "generateVariants" should "offer every value an enum can take, one per variant" in {
+    val vs = variants(classOf[HashJoinOpDesc[Any]], twoPorts)
+    val chosen = vs.map { case (_, op) => op.asInstanceOf[HashJoinOpDesc[Any]].joinType.toString }
+    // One variant per value, and no value twice: the sweep is linear over the
+    // enum rather than a product with anything else.
+    chosen.distinct.size shouldBe chosen.size
+    chosen.size should be > 1
+    vs.map(_._1).head shouldBe "default"
+    // Every non-default variant names the field it moved, so a failure points at
+    // the knob rather than at the operator. The value in the label is the one the
+    // form offers, which is not the enum constant's own name.
+    vs.tail.map(_._1).foreach(_ should startWith("joinType="))
+    vs.map(_._1).distinct.size shouldBe vs.size
+  }
+
+  it should "flip a boolean knob in a variant of its own" in {
+    val vs = variants(classOf[RegexOpDesc], Map(0 -> CanonicalFixture.schema))
+    val (_, base) = vs.head
+    base.asInstanceOf[RegexOpDesc].caseInsensitive shouldBe false
+    val flipped = vs.collectFirst { case ("caseInsensitive=true", op) => op }
+    withClue(vs.map(_._1)) { flipped shouldBe defined }
+    flipped.get.asInstanceOf[RegexOpDesc].caseInsensitive shouldBe true
+  }
+
+  it should "fill in one variant the optional knobs the base configuration leaves empty" in {
+    val vs = variants(classOf[SpecializedFilterOpDesc], Map(0 -> CanonicalFixture.schema))
+    // `value` is optional, so the base configuration does not set it.
+    vs.head._2.asInstanceOf[SpecializedFilterOpDesc].predicates.head.value shouldBe null
+    val optionals = vs.collectFirst {
+      case (label, op) if label.startsWith("optionals") => op.asInstanceOf[SpecializedFilterOpDesc]
+    }
+    withClue(vs.map(_._1)) { optionals shouldBe defined }
+    optionals.get.predicates.head.value should not be null
+  }
+
+  it should "run each delimiter the picker offers, and never invent one" in {
+    // The CSV scans list the picker's presets under `examples`. Old CSV's default is
+    // already a comma, so the base fill read as unset and the optionals variant made
+    // the delimiter the canonical "1", which split the fixture's numbers apart.
+    Seq(classOf[CSVScanSourceOpDesc], classOf[CSVOldScanSourceOpDesc]).foreach { opClass =>
+      val vs = variants(opClass, Map.empty)
+      val delimiters = vs.map {
+        case (_, op: CSVScanSourceOpDesc)    => op.customDelimiter
+        case (_, op: CSVOldScanSourceOpDesc) => op.customDelimiter
+        case (_, op)                         => fail(s"unexpected $op")
+      }
+      withClue(s"${opClass.getSimpleName} ${vs.map(_._1)}: ") {
+        delimiters.flatten.toSet shouldBe Set(",", "\t", ";", "|", " ")
+        // The runners name a directory after the label with every other character
+        // folded to `_`, so the labels have to stay apart once folded.
+        val dirs = vs.map(_._1.replaceAll("[^A-Za-z0-9]+", "_"))
+        dirs.distinct.size shouldBe dirs.size
+      }
+    }
+  }
+
+  it should "give each free-text knob its own hostile value, so two cannot collide" in {
+    val vs = variants(classOf[UnnestStringOpDesc], Map(0 -> CanonicalFixture.schema))
+    val hostile = vs.collectFirst {
+      case (label, op) if label.startsWith("hostileText") => op.asInstanceOf[UnnestStringOpDesc]
+    }
+    withClue(vs.map(_._1)) { hostile shouldBe defined }
+    // The first knob carries the bare value and the next is numbered. Sharing one
+    // value across both would have them write the same column name.
+    hostile.get.delimiter shouldBe "a\"b"
+    hostile.get.resultAttribute shouldBe "a\"b2"
   }
 }
