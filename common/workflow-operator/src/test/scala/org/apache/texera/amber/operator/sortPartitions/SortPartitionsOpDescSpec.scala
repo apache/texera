@@ -22,7 +22,8 @@ package org.apache.texera.amber.operator.sortPartitions
 import org.apache.texera.amber.util.PythonTestSupport.{
   NeedsPythonPackages,
   canImport,
-  configuredPython
+  configuredPython,
+  runSource
 }
 import org.apache.texera.amber.core.executor.OpExecWithClassName
 import org.apache.texera.amber.core.tuple.{AttributeType, Schema, Tuple}
@@ -33,11 +34,6 @@ import org.apache.texera.amber.operator.metadata.OperatorGroupConstants
 import org.apache.texera.amber.util.JSONUtils.objectMapper
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
-
-import java.nio.charset.StandardCharsets
-import java.nio.file.Files
-import java.util.concurrent.TimeUnit
-import scala.io.Source
 
 class SortPartitionsOpDescSpec extends AnyFlatSpec with Matchers {
 
@@ -109,15 +105,10 @@ class SortPartitionsOpDescSpec extends AnyFlatSpec with Matchers {
          |print([("NULL" if x is pd.NA else repr(float(x))) for x in out1df["v"]])
          |""".stripMargin
 
-    val script = Files.createTempFile("sort-partitions-nan-", ".py")
-    script.toFile.deleteOnExit()
-    Files.write(script, driver.getBytes(StandardCharsets.UTF_8))
-    val process = new ProcessBuilder(python, script.toString).redirectErrorStream(true).start()
-    val out = Source.fromInputStream(process.getInputStream).mkString
-    process.waitFor(120, TimeUnit.SECONDS)
+    val (exitCode, out) = runSource(python, "sort-partitions-nan-", driver)
 
     withClue(s"python said:\n$out\nscript:\n$driver") {
-      process.exitValue() shouldBe 0
+      exitCode shouldBe 0
       out.trim shouldBe "['NULL', '1.0', '3.0', 'inf', 'nan']"
     }
   }
@@ -170,15 +161,10 @@ class SortPartitionsOpDescSpec extends AnyFlatSpec with Matchers {
          |order(pd.Series(np.array([${micros.mkString(", ")}], dtype="datetime64[us]")))
          |""".stripMargin
 
-    val script = Files.createTempFile("sort-partitions-zero-ms-", ".py")
-    script.toFile.deleteOnExit()
-    Files.write(script, driver.getBytes(StandardCharsets.UTF_8))
-    val process = new ProcessBuilder(python, script.toString).redirectErrorStream(true).start()
-    val out = Source.fromInputStream(process.getInputStream).mkString
-    process.waitFor(120, TimeUnit.SECONDS)
+    val (exitCode, out) = runSource(python, "sort-partitions-zero-ms-", driver)
 
     withClue(s"python said:\n$out\nscript:\n$driver") {
-      process.exitValue() shouldBe 0
+      exitCode shouldBe 0
       out.trim.linesIterator.toList shouldBe engine
     }
   }

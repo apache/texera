@@ -22,7 +22,8 @@ package org.apache.texera.amber.operator.visualization.histogram2d
 import org.apache.texera.amber.util.PythonTestSupport.{
   NeedsPythonPackages,
   canImportWithin,
-  configuredPython
+  configuredPython,
+  runSource
 }
 import org.apache.texera.amber.core.tuple.{AttributeType, Schema}
 import org.apache.texera.amber.operator.LogicalOp
@@ -32,10 +33,7 @@ import org.apache.texera.amber.util.JSONUtils.objectMapper
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 
-import java.nio.charset.StandardCharsets
 import java.nio.file.Files
-import java.util.concurrent.TimeUnit
-import scala.io.Source
 
 class Histogram2DOpDescSpec extends AnyFlatSpec with Matchers {
 
@@ -131,14 +129,9 @@ class Histogram2DOpDescSpec extends AnyFlatSpec with Matchers {
          |${configured().generateStandaloneCode()}
          |""".stripMargin
 
-    val script = Files.createTempFile("histogram2d-", ".py")
-    script.toFile.deleteOnExit()
-    Files.write(script, driver.getBytes(StandardCharsets.UTF_8))
-    val process = new ProcessBuilder(python, script.toString).redirectErrorStream(true).start()
-    val out = Source.fromInputStream(process.getInputStream).mkString
-    process.waitFor(300, TimeUnit.SECONDS)
+    val (exitCode, out) = runSource(python, "histogram2d-", driver, timeoutSeconds = 300)
     withClue(s"python said:\n$out\nscript:\n$driver") {
-      process.exitValue() shouldBe 0
+      exitCode shouldBe 0
       Files.exists(json) shouldBe true
       Files.exists(html) shouldBe true
       Files.size(json) should be > 0L

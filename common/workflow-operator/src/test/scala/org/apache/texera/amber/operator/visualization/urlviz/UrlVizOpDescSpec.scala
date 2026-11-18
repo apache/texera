@@ -22,7 +22,8 @@ package org.apache.texera.amber.operator.visualization.urlviz
 import org.apache.texera.amber.util.PythonTestSupport.{
   NeedsPythonPackages,
   canImport,
-  configuredPython
+  configuredPython,
+  runSource
 }
 import com.fasterxml.jackson.annotation.JsonProperty
 import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaInject
@@ -36,11 +37,7 @@ import org.apache.texera.amber.util.JSONUtils.objectMapper
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 
-import java.nio.charset.StandardCharsets
-import java.nio.file.Files
-import java.util.concurrent.TimeUnit
 import javax.validation.constraints.NotNull
-import scala.io.Source
 
 class UrlVizOpDescSpec extends AnyFlatSpec with Matchers {
 
@@ -191,14 +188,9 @@ class UrlVizOpDescSpec extends AnyFlatSpec with Matchers {
          |print(out1df["html-content"].iloc[0])
          |""".stripMargin
 
-    val script = Files.createTempFile("urlviz-hostile-", ".py")
-    script.toFile.deleteOnExit()
-    Files.write(script, driver.getBytes(StandardCharsets.UTF_8))
-    val process = new ProcessBuilder(python, script.toString).redirectErrorStream(true).start()
-    val out = Source.fromInputStream(process.getInputStream).mkString
-    process.waitFor(120, TimeUnit.SECONDS)
+    val (exitCode, out) = runSource(python, "urlviz-hostile-", driver)
     withClue(s"python said:\n$out\nscript:\n$driver") {
-      process.exitValue() shouldBe 0
+      exitCode shouldBe 0
       out.trim shouldBe fromExecutor
     }
   }

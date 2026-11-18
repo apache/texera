@@ -185,9 +185,11 @@ object ModelResource {
 
 @Produces(Array(MediaType.APPLICATION_JSON))
 @Path("/model")
-class ModelResource extends LazyLogging {
+class ModelResource extends LazyLogging with ResourceUploadSupport {
   private val ERR_USER_HAS_NO_ACCESS_TO_MODEL_MESSAGE = "User has no access to this model"
   private val ERR_MODEL_VERSION_NOT_FOUND_MESSAGE = "The version of the model not found"
+
+  override protected def resourceStorage = ResourceStorage.Model
 
   /**
     * Helper function to get the model from DB with additional information including
@@ -208,7 +210,7 @@ class ModelResource extends LazyLogging {
 
     DashboardModel(
       targetModel,
-      getOwner(ctx, mid).getEmail,
+      getOwnerEmail(ctx, mid),
       userAccessPrivilege,
       isOwner,
       withLakeFSErrorHandling(s"retrieving the size of model '${targetModel.getName}'") {
@@ -646,10 +648,6 @@ class ModelResource extends LazyLogging {
   // Presigned downloads
   // ===========================================================================
 
-  /**
-    * Resolves a presign request against the model tables and wraps the signed URL.
-    * The resolution itself is shared with datasets; only the descriptor differs.
-    */
   /** Size of a model's LakeFS repository, or 0 if LakeFS cannot answer. */
   private def repositorySizeOrZero(model: Model): Long = {
     try {
@@ -663,20 +661,6 @@ class ModelResource extends LazyLogging {
         0L
     }
   }
-
-  private def generatePresignedResponse(
-      encodedUrl: String,
-      repositoryName: String,
-      commitHash: String,
-      uid: Integer
-  ): Response =
-    ResourceUploadService.presignedUrlResponse(
-      ResourceStorage.Model,
-      encodedUrl,
-      repositoryName,
-      commitHash,
-      uid
-    )
 
   @GET
   @RolesAllowed(Array("REGULAR", "ADMIN"))
@@ -820,7 +804,7 @@ class ModelResource extends LazyLogging {
         LakeFSFileNode
           .fromLakeFSRepositoryCommittedObjects(
             ResourceType.Model,
-            Map((getOwner(ctx, mid).getEmail, modelName, newVersionName) -> fileNodes)
+            Map((getOwnerEmail(ctx, mid), modelName, newVersionName) -> fileNodes)
           )
       )
     }
@@ -1024,7 +1008,7 @@ class ModelResource extends LazyLogging {
 
       val document = CoverImageUtils.openCoverOrBadRequest(
         ResourceType.Model,
-        getOwner(ctx, mid).getEmail,
+        getOwnerEmail(ctx, mid),
         model.getName,
         normalized
       )
@@ -1051,7 +1035,7 @@ class ModelResource extends LazyLogging {
       )
 
       val document = CoverImageUtils
-        .openCover(ResourceType.Model, getOwner(ctx, mid).getEmail, model.getName, coverImage)
+        .openCover(ResourceType.Model, getOwnerEmail(ctx, mid), model.getName, coverImage)
         .getOrElse(throw new NotFoundException("No cover image"))
 
       Response
@@ -1079,7 +1063,7 @@ class ModelResource extends LazyLogging {
         case None => Response.ok(Map("url" -> null)).build()
         case Some(coverImage) =>
           val url = CoverImageUtils
-            .openCover(ResourceType.Model, getOwner(ctx, mid).getEmail, model.getName, coverImage)
+            .openCover(ResourceType.Model, getOwnerEmail(ctx, mid), model.getName, coverImage)
             .map(CoverImageUtils.presignedUrl(_, coverImage))
           Response.ok(Map("url" -> url.orNull)).build()
       }
@@ -1140,7 +1124,7 @@ class ModelResource extends LazyLogging {
     ResourceUploadService
       .versionRootFileNodes(
         ResourceType.Model,
-        getOwner(ctx, mid).getEmail,
+        getOwnerEmail(ctx, mid),
         model.getName,
         modelVersion.getName,
         model.getRepositoryName,
@@ -1183,30 +1167,4 @@ class ModelResource extends LazyLogging {
     model
   }
 
-  private def listMultipartUploads(mid: Integer, requesterUid: Int): Response =
-    ResourceUploadService.listUploads(ResourceStorage.Model, mid, requesterUid)
-
-  private def initMultipartUpload(
-      mid: Integer,
-      encodedFilePath: String,
-      fileSizeBytes: Optional[java.lang.Long],
-      partSizeBytes: Optional[java.lang.Long],
-      restart: Optional[java.lang.Boolean],
-      uid: Integer
-  ): Response =
-    ResourceUploadService.initUpload(
-      ResourceStorage.Model,
-      mid,
-      encodedFilePath,
-      fileSizeBytes,
-      partSizeBytes,
-      restart,
-      uid
-    )
-
-  private def finishMultipartUpload(mid: Integer, encodedFilePath: String, uid: Int): Response =
-    ResourceUploadService.finishUpload(ResourceStorage.Model, mid, encodedFilePath, uid)
-
-  private def abortMultipartUpload(mid: Integer, encodedFilePath: String, uid: Int): Response =
-    ResourceUploadService.abortUpload(ResourceStorage.Model, mid, encodedFilePath, uid)
 }

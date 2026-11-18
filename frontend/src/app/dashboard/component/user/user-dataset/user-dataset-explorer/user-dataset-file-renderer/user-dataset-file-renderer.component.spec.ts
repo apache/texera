@@ -65,18 +65,21 @@ describe("UserDatasetFileRendererComponent", () => {
   });
 
   describe("reloadFileContent", () => {
-    it("flags an unsupported file type and does not hit the backend", () => {
-      const spy = vi.spyOn(TestBed.inject(DatasetService), "retrieveDatasetVersionSingleFile");
-      // The ids are set so the early-return is what stops the request, not the missing ids.
-      component.resourceId = 1;
-      component.versionId = 2;
-      component.filePath = "archive.bin"; // -> OCTET_STREAM -> unsupported
+    it.each(["archive.bin", "page.html", "report.pdf", "letter.msword", "slides.mspowerpoint"])(
+      "flags %s as unsupported and does not hit the backend",
+      filePath => {
+        const spy = vi.spyOn(TestBed.inject(DatasetService), "retrieveDatasetVersionSingleFile");
+        // The ids are set so the early-return is what stops the request, not the missing ids.
+        component.resourceId = 1;
+        component.versionId = 2;
+        component.filePath = filePath;
 
-      component.reloadFileContent();
+        component.reloadFileContent();
 
-      expect(component.isFileTypePreviewUnsupported).toBe(true);
-      expect(spy).not.toHaveBeenCalled();
-    });
+        expect(component.isFileTypePreviewUnsupported).toBe(true);
+        expect(spy).not.toHaveBeenCalled();
+      }
+    );
 
     it("flags an oversized file and does not hit the backend", () => {
       const spy = vi.spyOn(TestBed.inject(DatasetService), "retrieveDatasetVersionSingleFile");

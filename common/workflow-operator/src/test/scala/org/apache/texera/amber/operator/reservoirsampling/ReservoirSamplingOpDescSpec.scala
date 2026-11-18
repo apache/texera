@@ -22,7 +22,8 @@ package org.apache.texera.amber.operator.reservoirsampling
 import org.apache.texera.amber.util.PythonTestSupport.{
   NeedsPythonPackages,
   canImport,
-  configuredPython
+  configuredPython,
+  runScript
 }
 import org.apache.texera.amber.core.executor.OpExecWithClassName
 import org.apache.texera.amber.core.virtualidentity.{ExecutionIdentity, WorkflowIdentity}
@@ -34,8 +35,6 @@ import org.scalatest.matchers.should.Matchers
 
 import java.nio.charset.StandardCharsets
 import java.nio.file.Files
-import java.util.concurrent.TimeUnit
-import scala.io.Source
 
 class ReservoirSamplingOpDescSpec extends AnyFlatSpec with Matchers {
 
@@ -110,11 +109,9 @@ class ReservoirSamplingOpDescSpec extends AnyFlatSpec with Matchers {
          |""".stripMargin
     Files.write(script, driver.getBytes(StandardCharsets.UTF_8))
 
-    val process = new ProcessBuilder(python, script.toString).redirectErrorStream(true).start()
-    val out = Source.fromInputStream(process.getInputStream).mkString
-    process.waitFor(60, TimeUnit.SECONDS)
+    val (exitCode, out) = runScript(python, script, timeoutSeconds = 60)
     withClue(s"python said:\n$out\nscript:\n$driver") {
-      process.exitValue() should not be 0
+      exitCode should not be 0
       out should include("bound must be positive")
     }
   }

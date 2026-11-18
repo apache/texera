@@ -161,4 +161,18 @@ class KeywordSearchOpDescSpec extends AnyFlatSpec with Matchers {
     code should include("""in1df["title"]""")
     code should not include "Title"
   }
+
+  it should "emit a passthrough frame on blank keywords and escape regex metacharacters otherwise" in {
+    val inputSchemas =
+      Map(PortIdentity() -> Schema().add(new Attribute("title", AttributeType.STRING)))
+    newDesc("title", "", caseSensitive = false).generateStandaloneCode(inputSchemas) shouldBe
+      "out1df = in1df"
+    newDesc("title", "   \t ", caseSensitive = true).generateStandaloneCode(inputSchemas) shouldBe
+      "out1df = in1df"
+
+    val escaped =
+      newDesc("title", "a.b+c (foo)", caseSensitive = true).generateStandaloneCode(inputSchemas)
+    escaped should include("""\\b(?:a\\.b\\+c|\\(foo\\))\\b""")
+    escaped should include("case=True")
+  }
 }

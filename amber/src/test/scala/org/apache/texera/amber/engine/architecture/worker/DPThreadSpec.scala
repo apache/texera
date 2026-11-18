@@ -115,155 +115,58 @@ class DPThreadSpec extends AnyFlatSpec with Matchers with MockFactory {
       WorkflowFIFOMessage(dataChannelId, seq, DataFrame(tuples.slice(0, count)))
     )
 
-  "DP Thread" should "handle pause/resume during processing" in {
-    val inputQueue = new LinkedBlockingQueue[DPInputQueueElement]()
-    val dp = new DataProcessor(workerId, x => {}, inputMessageQueue = inputQueue)
-    dp.executor = executor
-    dp.inputManager.addPort(mockInputPortId, schema, List.empty, List.empty)
-    dp.inputGateway.getChannel(dataChannelId).setPortId(mockInputPortId)
-    dp.adaptiveBatchingMonitor = mock[WorkerTimerService]
-    val dpThread = new DPThread(workerId, dp, logManager, inputQueue)
-    dpThread.start()
+  private def expectTuplesProcessed(): Unit = {
     tuples.foreach { x =>
-      (
-          (
-              tuple: Tuple,
-              input: Int
-          ) => executor.processTupleMultiPort(tuple, input)
-      )
+      ((tuple: Tuple, input: Int) => executor.processTupleMultiPort(tuple, input))
         .expects(x, 0)
-    }
-    val message = WorkflowFIFOMessage(dataChannelId, 0, DataFrame(tuples))
-    inputQueue.put(FIFOMessageElement(message))
-    inputQueue.put(
-      TimerBasedControlElement(
-        ControlInvocation(METHOD_PAUSE_WORKER, EmptyRequest(), AsyncRPCContext(SELF, SELF), 0)
-      )
-    )
-    Thread.sleep(1000)
-    assert(dp.pauseManager.isPaused)
-    inputQueue.put(
-      TimerBasedControlElement(
-        ControlInvocation(METHOD_RESUME_WORKER, EmptyRequest(), AsyncRPCContext(SELF, SELF), 1)
-      )
-    )
-    Thread.sleep(1000)
-    while (dp.inputManager.hasUnfinishedInput) {
-      Thread.sleep(100)
     }
   }
 
-  "DP Thread" should "handle pause/resume using fifo messages" in {
-    val inputQueue = new LinkedBlockingQueue[DPInputQueueElement]()
-    val dp = new DataProcessor(workerId, x => {}, inputMessageQueue = inputQueue)
-    dp.inputManager.addPort(mockInputPortId, schema, List.empty, List.empty)
-    dp.inputGateway.getChannel(dataChannelId).setPortId(mockInputPortId)
-    dp.adaptiveBatchingMonitor = mock[WorkerTimerService]
-    val dpThread = new DPThread(workerId, dp, logManager, inputQueue)
-    dp.executor = executor
-    dpThread.start()
-    tuples.foreach { x =>
-      (
-          (
-              tuple: Tuple,
-              input: Int
-          ) => executor.processTupleMultiPort(tuple, input)
-      )
-        .expects(x, 0)
-    }
-    val message = WorkflowFIFOMessage(dataChannelId, 0, DataFrame(tuples))
-    val pauseControl = WorkflowFIFOMessage(
-      controlChannelId,
-      0,
-      ControlInvocation(METHOD_PAUSE_WORKER, EmptyRequest(), AsyncRPCContext(SELF, SELF), 0)
-    )
-    val resumeControl =
-      WorkflowFIFOMessage(
-        controlChannelId,
-        1,
-        ControlInvocation(METHOD_RESUME_WORKER, EmptyRequest(), AsyncRPCContext(SELF, SELF), 1)
-      )
-    inputQueue.put(FIFOMessageElement(message))
-    inputQueue.put(
-      FIFOMessageElement(pauseControl)
-    )
-    Thread.sleep(1000)
-    assert(dp.pauseManager.isPaused)
-    inputQueue.put(FIFOMessageElement(resumeControl))
-    Thread.sleep(1000)
-    while (dp.inputManager.hasUnfinishedInput) {
-      Thread.sleep(100)
-    }
-  }
-
-  "DP Thread" should "handle multiple batches from multiple sources" in {
-    val inputQueue = new LinkedBlockingQueue[DPInputQueueElement]()
-    val dp = new DataProcessor(workerId, x => {}, inputMessageQueue = inputQueue)
-    dp.executor = executor
-    val anotherSenderWorkerId = ActorVirtualIdentity("another")
-    dp.inputManager.addPort(mockInputPortId, schema, List.empty, List.empty)
-    dp.inputGateway.getChannel(dataChannelId).setPortId(mockInputPortId)
-    dp.inputGateway
-      .getChannel(ChannelIdentity(anotherSenderWorkerId, workerId, isControl = false))
-      .setPortId(mockInputPortId)
-    dp.adaptiveBatchingMonitor = mock[WorkerTimerService]
-    val dpThread = new DPThread(workerId, dp, logManager, inputQueue)
-    dpThread.start()
-    tuples.foreach { x =>
-      (
-          (
-              tuple: Tuple,
-              input: Int
-          ) => executor.processTupleMultiPort(tuple, input)
-      )
-        .expects(x, 0)
-    }
-    val dataChannelID2 = ChannelIdentity(anotherSenderWorkerId, workerId, isControl = false)
-    val message1 = WorkflowFIFOMessage(dataChannelId, 0, DataFrame(tuples.slice(0, 100)))
-    val message2 = WorkflowFIFOMessage(dataChannelId, 1, DataFrame(tuples.slice(100, 200)))
-    val message3 = WorkflowFIFOMessage(dataChannelID2, 0, DataFrame(tuples.slice(300, 1000)))
-    val message4 = WorkflowFIFOMessage(dataChannelId, 2, DataFrame(tuples.slice(200, 300)))
-    val message5 = WorkflowFIFOMessage(dataChannelID2, 1, DataFrame(tuples.slice(1000, 5000)))
-    inputQueue.put(FIFOMessageElement(message1))
-    inputQueue.put(FIFOMessageElement(message2))
-    inputQueue.put(FIFOMessageElement(message3))
-    inputQueue.put(FIFOMessageElement(message4))
-    inputQueue.put(FIFOMessageElement(message5))
-    Thread.sleep(1000)
-    while (dp.inputManager.hasUnfinishedInput) {
-      Thread.sleep(100)
-    }
-  }
-
-  "DP Thread" should "write determinant logs to local storage while processing" in {
+  private def runPauseResumeTest(
+      pauseElement: DPInputQueueElement,
+      resumeElement: DPInputQueueElement
+  ): Unit = {
     val inputQueue = new LinkedBlockingQueue[DPInputQueueElement]()
     val dp = new DataProcessor(workerId, _ => {}, inputMessageQueue = inputQueue)
     dp.executor = executor
-    val anotherSenderWorkerId = ActorVirtualIdentity("another")
+    dp.inputManager.addPort(mockInputPortId, schema, List.empty, List.empty)
+    dp.inputGateway.getChannel(dataChannelId).setPortId(mockInputPortId)
+    dp.adaptiveBatchingMonitor = mock[WorkerTimerService]
+    val dpThread = new DPThread(workerId, dp, logManager, inputQueue)
+    dpThread.start()
+    expectTuplesProcessed()
+    val message = WorkflowFIFOMessage(dataChannelId, 0, DataFrame(tuples))
+    inputQueue.put(FIFOMessageElement(message))
+    inputQueue.put(pauseElement)
+    Thread.sleep(1000)
+    assert(dp.pauseManager.isPaused)
+    inputQueue.put(resumeElement)
+    Thread.sleep(1000)
+    while (dp.inputManager.hasUnfinishedInput) {
+      Thread.sleep(100)
+    }
+  }
+
+  private def newMultiSourceDataProcessor(
+      inputQueue: LinkedBlockingQueue[DPInputQueueElement],
+      anotherSenderWorkerId: ActorVirtualIdentity
+  ): DataProcessor = {
+    val dp = new DataProcessor(workerId, _ => {}, inputMessageQueue = inputQueue)
+    dp.executor = executor
     dp.inputManager.addPort(mockInputPortId, schema, List.empty, List.empty)
     dp.inputGateway.getChannel(dataChannelId).setPortId(mockInputPortId)
     dp.inputGateway
       .getChannel(ChannelIdentity(anotherSenderWorkerId, workerId, isControl = false))
       .setPortId(mockInputPortId)
     dp.adaptiveBatchingMonitor = mock[WorkerTimerService]
-    val logStorage = SequentialRecordStorage.getStorage[ReplayLogRecord](
-      Some(new URI("ram:///recovery-logs/tmp"))
-    )
-    logStorage.deleteStorage()
-    val logManager: ReplayLogManager =
-      ReplayLogManager.createLogManager(logStorage, "tmpLog", _ => {})
-    val dpThread = new DPThread(workerId, dp, logManager, inputQueue)
-    dpThread.start()
-    tuples.foreach { x =>
-      (
-          (
-              tuple: Tuple,
-              input: Int
-          ) => executor.processTupleMultiPort(tuple, input)
-      )
-        .expects(x, 0)
-    }
-    val dataChannelId2 = ChannelIdentity(anotherSenderWorkerId, workerId, isControl = false)
+    dp
+  }
+
+  private def feedMultiSourceBatches(
+      inputQueue: LinkedBlockingQueue[DPInputQueueElement],
+      dataChannelId2: ChannelIdentity,
+      pauseBetweenBatches: Boolean
+  ): Unit = {
     val message1 = WorkflowFIFOMessage(dataChannelId, 0, DataFrame(tuples.slice(0, 100)))
     val message2 = WorkflowFIFOMessage(dataChannelId, 1, DataFrame(tuples.slice(100, 200)))
     val message3 = WorkflowFIFOMessage(dataChannelId2, 0, DataFrame(tuples.slice(300, 1000)))
@@ -272,10 +175,128 @@ class DPThreadSpec extends AnyFlatSpec with Matchers with MockFactory {
     inputQueue.put(FIFOMessageElement(message1))
     inputQueue.put(FIFOMessageElement(message2))
     inputQueue.put(FIFOMessageElement(message3))
-    Thread.sleep(1000)
+    if (pauseBetweenBatches) {
+      Thread.sleep(1000)
+    }
     inputQueue.put(FIFOMessageElement(message4))
     inputQueue.put(FIFOMessageElement(message5))
     Thread.sleep(1000)
+  }
+
+  private def assertMidBatchStall(
+      triggerStall: (DataProcessor, LinkedBlockingQueue[DPInputQueueElement]) => Unit,
+      verifyStallPickedUp: (
+          DataProcessor,
+          DPThread,
+          LinkedBlockingQueue[DPInputQueueElement]
+      ) => Unit,
+      liftStall: LinkedBlockingQueue[DPInputQueueElement] => Unit,
+      stallLabel: String
+  ): Unit = {
+    val inputQueue = new LinkedBlockingQueue[DPInputQueueElement]()
+    val dp = newDataProcessor(inputQueue)
+    val processed = new AtomicInteger(0)
+    val firstTuple = new CountDownLatch(1)
+    val gate = new CountDownLatch(1)
+    dp.executor = new OperatorExecutor {
+      override def processTuple(tuple: Tuple, port: Int): Iterator[TupleLike] = {
+        if (processed.getAndIncrement() == 0) {
+          firstTuple.countDown()
+          gate.await()
+        }
+        Iterator.empty
+      }
+    }
+    val dpThread = new DPThread(workerId, dp, logManager, inputQueue)
+    try {
+      dpThread.start()
+      inputQueue.put(dataFrameOf(2000))
+      assert(firstTuple.await(5, TimeUnit.SECONDS), "batch must start")
+      triggerStall(dp, inputQueue)
+      gate.countDown()
+      verifyStallPickedUp(dp, dpThread, inputQueue)
+
+      Thread.sleep(400)
+      assert(
+        dp.inputManager.hasUnfinishedInput,
+        s"a $stallLabel worker must not finish its batch, processed ${processed.get()} of 2000"
+      )
+      val stalledAt = processed.get()
+      Thread.sleep(400)
+      assert(
+        processed.get() == stalledAt,
+        s"no further tuple may be taken while $stallLabel, went $stalledAt -> ${processed.get()}"
+      )
+
+      liftStall(inputQueue)
+      assert(awaitCond(processed.get() == 2000), s"drained ${processed.get()} of 2000")
+    } finally {
+      dpThread.stop()
+    }
+  }
+
+  "DP Thread" should "handle pause/resume during processing" in {
+    runPauseResumeTest(
+      TimerBasedControlElement(
+        ControlInvocation(METHOD_PAUSE_WORKER, EmptyRequest(), AsyncRPCContext(SELF, SELF), 0)
+      ),
+      TimerBasedControlElement(
+        ControlInvocation(METHOD_RESUME_WORKER, EmptyRequest(), AsyncRPCContext(SELF, SELF), 1)
+      )
+    )
+  }
+
+  "DP Thread" should "handle pause/resume using fifo messages" in {
+    runPauseResumeTest(
+      FIFOMessageElement(
+        WorkflowFIFOMessage(
+          controlChannelId,
+          0,
+          ControlInvocation(METHOD_PAUSE_WORKER, EmptyRequest(), AsyncRPCContext(SELF, SELF), 0)
+        )
+      ),
+      FIFOMessageElement(
+        WorkflowFIFOMessage(
+          controlChannelId,
+          1,
+          ControlInvocation(METHOD_RESUME_WORKER, EmptyRequest(), AsyncRPCContext(SELF, SELF), 1)
+        )
+      )
+    )
+  }
+
+  "DP Thread" should "handle multiple batches from multiple sources" in {
+    val inputQueue = new LinkedBlockingQueue[DPInputQueueElement]()
+    val anotherSenderWorkerId = ActorVirtualIdentity("another")
+    val dp = newMultiSourceDataProcessor(inputQueue, anotherSenderWorkerId)
+    val dpThread = new DPThread(workerId, dp, logManager, inputQueue)
+    dpThread.start()
+    expectTuplesProcessed()
+    feedMultiSourceBatches(
+      inputQueue,
+      ChannelIdentity(anotherSenderWorkerId, workerId, isControl = false),
+      pauseBetweenBatches = false
+    )
+    while (dp.inputManager.hasUnfinishedInput) {
+      Thread.sleep(100)
+    }
+  }
+
+  "DP Thread" should "write determinant logs to local storage while processing" in {
+    val inputQueue = new LinkedBlockingQueue[DPInputQueueElement]()
+    val anotherSenderWorkerId = ActorVirtualIdentity("another")
+    val dp = newMultiSourceDataProcessor(inputQueue, anotherSenderWorkerId)
+    val logStorage = SequentialRecordStorage.getStorage[ReplayLogRecord](
+      Some(new URI("ram:///recovery-logs/tmp"))
+    )
+    logStorage.deleteStorage()
+    val logManager: ReplayLogManager =
+      ReplayLogManager.createLogManager(logStorage, "tmpLog", _ => {})
+    val dpThread = new DPThread(workerId, dp, logManager, inputQueue)
+    dpThread.start()
+    expectTuplesProcessed()
+    val dataChannelId2 = ChannelIdentity(anotherSenderWorkerId, workerId, isControl = false)
+    feedMultiSourceBatches(inputQueue, dataChannelId2, pauseBetweenBatches = true)
     while (logManager.getStep < 4999) {
       Thread.sleep(100)
     }
@@ -562,49 +583,22 @@ class DPThreadSpec extends AnyFlatSpec with Matchers with MockFactory {
     // Same switch, but flipped while a batch is half-consumed. Here the input
     // selection takes the "unfinished input" path, so it is the pause/backpressure
     // guard inside that path that has to hold the batch back.
-    val inputQueue = new LinkedBlockingQueue[DPInputQueueElement]()
-    val dp = newDataProcessor(inputQueue)
-    val processed = new AtomicInteger(0)
-    val firstTuple = new CountDownLatch(1)
-    val gate = new CountDownLatch(1)
-    dp.executor = new OperatorExecutor {
-      override def processTuple(tuple: Tuple, port: Int): Iterator[TupleLike] = {
-        if (processed.getAndIncrement() == 0) {
-          firstTuple.countDown()
-          gate.await()
-        }
-        Iterator.empty
-      }
-    }
-    val dpThread = new DPThread(workerId, dp, logManager, inputQueue)
-    try {
-      dpThread.start()
-      inputQueue.put(dataFrameOf(2000))
-      assert(firstTuple.await(5, TimeUnit.SECONDS), "batch must start")
-      // Queue the switch while the DP thread is parked inside the executor, so it
-      // is consumed on the very next loop iteration, mid-batch.
-      inputQueue.put(ActorCommandElement(Backpressure(enableBackpressure = true)))
-      // Inert trailing command, as above: draining it gives the happens-before edge
-      // that makes the non-volatile `backpressureStatus` read below well-defined.
-      inputQueue.put(ActorCommandElement(CreditUpdate()))
-      gate.countDown()
-      assert(awaitCond(inputQueue.isEmpty), "the queued commands must be consumed")
-      assert(dpThread.backpressureStatus, "backpressure must be picked up")
-
-      Thread.sleep(400)
-      assert(dp.inputManager.hasUnfinishedInput, "the batch must still be unfinished")
-      val stalledAt = processed.get()
-      Thread.sleep(400)
-      assert(
-        processed.get() == stalledAt,
-        s"no further tuple may be taken while backpressured, went $stalledAt -> ${processed.get()}"
-      )
-
-      inputQueue.put(ActorCommandElement(Backpressure(enableBackpressure = false)))
-      assert(awaitCond(processed.get() == 2000), s"drained ${processed.get()} of 2000")
-    } finally {
-      dpThread.stop()
-    }
+    assertMidBatchStall(
+      triggerStall = (_, inputQueue) => {
+        // Queue the switch while the DP thread is parked inside the executor, so it
+        // is consumed on the very next loop iteration, mid-batch.
+        inputQueue.put(ActorCommandElement(Backpressure(enableBackpressure = true)))
+        // Inert trailing command, as above: draining it gives the happens-before edge
+        // that makes the non-volatile `backpressureStatus` read below well-defined.
+        inputQueue.put(ActorCommandElement(CreditUpdate()))
+      },
+      verifyStallPickedUp = (_, dpThread, inputQueue) => {
+        assert(awaitCond(inputQueue.isEmpty), "the queued commands must be consumed")
+        assert(dpThread.backpressureStatus, "backpressure must be picked up")
+      },
+      liftStall = _.put(ActorCommandElement(Backpressure(enableBackpressure = false))),
+      stallLabel = "backpressured"
+    )
   }
 
   "DP Thread" should "stall the remainder of a batch when a pause arrives mid-batch" in {
@@ -614,56 +608,24 @@ class DPThreadSpec extends AnyFlatSpec with Matchers with MockFactory {
     // DataProcessor.continueDataProcessing have no pause check, and PauseManager.pause
     // only disables the data channels, which stops NEW frames, not the current one --
     // so this guard is the entire mid-batch pause contract.
-    val inputQueue = new LinkedBlockingQueue[DPInputQueueElement]()
-    val dp = newDataProcessor(inputQueue)
-    val processed = new AtomicInteger(0)
-    val firstTuple = new CountDownLatch(1)
-    val gate = new CountDownLatch(1)
-    dp.executor = new OperatorExecutor {
-      override def processTuple(tuple: Tuple, port: Int): Iterator[TupleLike] = {
-        if (processed.getAndIncrement() == 0) {
-          firstTuple.countDown()
-          gate.await()
-        }
-        Iterator.empty
-      }
-    }
-    val dpThread = new DPThread(workerId, dp, logManager, inputQueue)
-    try {
-      dpThread.start()
-      inputQueue.put(dataFrameOf(2000))
-      assert(firstTuple.await(5, TimeUnit.SECONDS), "batch must start")
-      // Queued while the DP thread is parked inside the executor, so it is picked up on
-      // the very next loop iteration -- with 1999 tuples of the batch still to go.
-      inputQueue.put(
-        TimerBasedControlElement(
-          ControlInvocation(METHOD_PAUSE_WORKER, EmptyRequest(), AsyncRPCContext(SELF, SELF), 0)
-        )
-      )
-      gate.countDown()
-      assert(awaitCond(dp.pauseManager.isPaused), "pause must be picked up")
-
-      Thread.sleep(400)
-      assert(
-        dp.inputManager.hasUnfinishedInput,
-        s"a paused worker must not finish its batch, processed ${processed.get()} of 2000"
-      )
-      val stalledAt = processed.get()
-      Thread.sleep(400)
-      assert(
-        processed.get() == stalledAt,
-        s"no further tuple may be taken while paused, went $stalledAt -> ${processed.get()}"
-      )
-
-      inputQueue.put(
+    assertMidBatchStall(
+      triggerStall = (_, inputQueue) =>
+        // Queued while the DP thread is parked inside the executor, so it is picked up on
+        // the very next loop iteration -- with 1999 tuples of the batch still to go.
+        inputQueue.put(
+          TimerBasedControlElement(
+            ControlInvocation(METHOD_PAUSE_WORKER, EmptyRequest(), AsyncRPCContext(SELF, SELF), 0)
+          )
+        ),
+      verifyStallPickedUp =
+        (dp, _, _) => assert(awaitCond(dp.pauseManager.isPaused), "pause must be picked up"),
+      liftStall = _.put(
         TimerBasedControlElement(
           ControlInvocation(METHOD_RESUME_WORKER, EmptyRequest(), AsyncRPCContext(SELF, SELF), 1)
         )
-      )
-      assert(awaitCond(processed.get() == 2000), s"drained ${processed.get()} of 2000")
-    } finally {
-      dpThread.stop()
-    }
+      ),
+      stallLabel = "paused"
+    )
   }
 
   "DP Thread" should "leave the main loop on the stopped flag without draining the batch" in {
