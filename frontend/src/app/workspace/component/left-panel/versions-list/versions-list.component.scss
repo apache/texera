@@ -37,3 +37,22 @@
   font-size: 11px;
   padding: 0;
 }
+
+// The version on public show, as a quiet secondary line under the timestamp rather than a tag:
+// no border, no fill, colour does the work.
+.publication {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  margin-top: 1px;
+  font-size: 10px;
+  line-height: 14px;
+  color: #1890ff;
+}
+
+.publication-mark {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: #1890ff;
+}

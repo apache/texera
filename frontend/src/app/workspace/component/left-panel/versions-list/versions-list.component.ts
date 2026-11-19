@@ -100,6 +100,16 @@ export class VersionsListComponent implements OnInit {
     if (wid === undefined) {
       return;
     }
+    this.loadVersions(wid);
+    // Which version the Hub serves is chosen in the share dialog, on top of this panel: without
+    // re-reading, the mark would still be on whichever version was public when the panel was opened.
+    this.workflowVersionService
+      .getPublicVersionChangedStream()
+      .pipe(untilDestroyed(this))
+      .subscribe(() => this.loadVersions(wid));
+  }
+
+  private loadVersions(wid: number): void {
     this.workflowVersionService
       .retrieveVersionsOfWorkflow(wid)
       .pipe(untilDestroyed(this))
@@ -109,6 +119,7 @@ export class VersionsListComponent implements OnInit {
           creationTime: version.creationTime,
           content: version.content,
           importance: version.importance,
+          isCurrentlyPublic: version.isCurrentlyPublic,
           expand: false,
         }));
       });
