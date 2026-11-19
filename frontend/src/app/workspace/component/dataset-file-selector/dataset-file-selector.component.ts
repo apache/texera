@@ -26,7 +26,7 @@ import { GuiConfigService } from "../../../common/service/gui-config.service";
 import { NgIf } from "@angular/common";
 import { NzSpaceCompactItemDirective } from "ng-zorro-antd/space";
 import { NzInputDirective } from "ng-zorro-antd/input";
-import { FormsModule, ReactiveFormsModule } from "@angular/forms";
+import { ReactiveFormsModule } from "@angular/forms";
 import { NzButtonComponent } from "ng-zorro-antd/button";
 import { NzWaveDirective } from "ng-zorro-antd/core/wave";
 import { ɵNzTransitionPatchDirective } from "ng-zorro-antd/core/transition-patch";
@@ -38,7 +38,6 @@ import { ɵNzTransitionPatchDirective } from "ng-zorro-antd/core/transition-patc
     NgIf,
     NzSpaceCompactItemDirective,
     NzInputDirective,
-    FormsModule,
     ReactiveFormsModule,
     NzButtonComponent,
     NzWaveDirective,

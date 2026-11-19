@@ -124,19 +124,17 @@ describe("LandingPageComponent", () => {
     expect(component).toBeTruthy();
   });
 
-  it("updates isLogin and currentUid when userChanged() emits", () => {
+  it("updates currentUid when userChanged() emits", () => {
     build();
     // Emit a logged-out state.
     userService.user = undefined;
     userService.userChangeSubject.next(undefined);
-    expect(component.isLogin).toBe(false);
     expect(component.currentUid).toBeUndefined();
 
     // Emit a logged-in state.
     const newUser = { uid: 99, name: "x", email: "x@x", role: "REGULAR" } as any;
     userService.user = newUser;
     userService.userChangeSubject.next(newUser);
-    expect(component.isLogin).toBe(true);
     expect(component.currentUid).toBe(99);
   });
 
@@ -234,7 +232,6 @@ describe("LandingPageComponent", () => {
     // The stub seeds a user in its constructor; clear it before the component reads it.
     userService.user = undefined;
     build();
-    expect(component.isLogin).toBe(false);
     expect(component.currentUid).toBeUndefined();
   });
 
