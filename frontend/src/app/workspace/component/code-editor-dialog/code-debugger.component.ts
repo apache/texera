@@ -187,10 +187,14 @@ export class CodeDebuggerComponent implements AfterViewInit, SafeStyle {
             } else {
               this.monacoBreakpoint?.removeHighlight();
             }
-            if (oldValue.condition !== newValue.condition) {
-              // recreate the decoration with condition
-              this.removeBreakpointDecoration(Number(lineNum));
-              this.createBreakpointDecoration(Number(lineNum));
+            if (oldValue.breakpointId !== newValue.breakpointId || oldValue.condition !== newValue.condition) {
+              // A paused position can gain or lose a breakpoint without a condition change.
+              if (isDefined(oldValue.breakpointId)) {
+                this.removeBreakpointDecoration(Number(lineNum));
+              }
+              if (isDefined(newValue.breakpointId)) {
+                this.createBreakpointDecoration(Number(lineNum));
+              }
             }
             break;
         }
