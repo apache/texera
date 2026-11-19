@@ -88,6 +88,8 @@ object ErrorUtils {
 
   def reconstructThrowable(controlError: ControlError): Throwable = {
     if (controlError.language == ErrorLanguage.PYTHON) {
+      // pyamber never sets relatedWorkerId; the coordinator tags a failed Python worker itself
+      // (RegionExecutionManager.attributeFailureTo).
       return new Throwable(controlError.errorMessage)
     } else {
       val reconstructedThrowable = controlError.relatedWorkerId match {
