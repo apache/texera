@@ -72,6 +72,17 @@ class TestLinkedBlockingMultiQueue:
         assert queue.get() == 1
         assert queue.is_empty()
 
+    def test_late_higher_priority_queue_is_selected_first(self):
+        queue = LinkedBlockingMultiQueue()
+        queue.add_sub_queue("data", 2)
+        queue.add_sub_queue("control", 1)
+        queue.put("data", "data message")
+        queue.put("control", "control message")
+
+        assert [group.priority for group in queue.priority_groups] == [1, 2]
+        assert queue.get() == "control message"
+        assert queue.get() == "data message"
+
     def test_can_maintain_order_respectively(self, queue):
         queue.put("data", 1)
         queue.put("control", "s1")
