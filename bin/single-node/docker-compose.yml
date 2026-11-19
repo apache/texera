@@ -529,6 +529,26 @@ services:
       retries: 5
       start_period: 15s
 
+  # ResultService serves the results of executions, so they can be read without a computing unit
+  result-service:
+    image: ${IMAGE_REGISTRY:-ghcr.io/apache}/texera-result-service:${IMAGE_TAG:-latest}
+    container_name: result-service
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+      lakekeeper:
+        condition: service_healthy
+      lakekeeper-init:
+        condition: service_completed_successfully
+    env_file:
+      - .env
+    healthcheck:
+      test: ["CMD", "curl", "-sf", "http://localhost:9102/api/healthcheck"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
   # Part 3: reverse proxy service for Texera's micro services
   nginx:
     image: nginx:1.30.5-alpine
@@ -543,6 +563,7 @@ services:
       - workflow-computing-unit-managing-service
       - agent-service
       - notebook-migration-service
+      - result-service
     volumes:
       - ./nginx.conf:/etc/nginx/nginx.conf:ro
     ports:
