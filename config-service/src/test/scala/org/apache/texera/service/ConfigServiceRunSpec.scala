@@ -180,7 +180,7 @@ class ConfigServiceRunSpec
   // Only the pool assertion needs the deployment's own database (this suite's embedded
   // MockTexeraDB one is a different URL). This service, access-control-service and
   // notebook-migration-service are the three entry points that call SqlServer.initConnection from
-  // initialize(); the other five call it from run(). That inconsistency is not endorsed here:
+  // initialize(); the other six call it from run(). That inconsistency is not endorsed here:
   // if the call moves into run(), the pool test below moves with it (and goes red until it does,
   // along with the two run() tests above, which would then be preloading the deployment's
   // site_settings instead of the fixture's).
