@@ -23,7 +23,7 @@ import { WorkflowWebsocketService } from "../workflow-websocket/workflow-websock
 import { WorkflowActionService } from "../workflow-graph/model/workflow-action.service";
 import { WorkflowStatusService } from "../workflow-status/workflow-status.service";
 import { ExecuteWorkflowService } from "../execute-workflow/execute-workflow.service";
-import { Observable, Subject } from "rxjs";
+import { config as rxjsConfig, Observable, Subject } from "rxjs";
 import { OperatorState } from "../../types/execute-workflow.interface";
 import { WorkflowGraphReadonly } from "../workflow-graph/model/workflow-graph";
 import { mockPoint, mockPythonUDFPredicate } from "../workflow-graph/model/mock-workflow-data";
@@ -33,6 +33,7 @@ import * as Y from "yjs";
 import { ConsoleMessage, ConsoleUpdateEvent } from "../../types/workflow-common.interface";
 import { TexeraWebsocketEvent } from "../../types/workflow-websocket.interface";
 import { commonTestProviders } from "../../../common/testing/test-utils";
+import { CodeDebuggerComponent } from "../../component/code-editor-dialog/code-debugger.component";
 import type { Mocked } from "vitest";
 describe("UdfDebugServiceSpec", () => {
   let service: UdfDebugService;
@@ -97,8 +98,15 @@ describe("UdfDebugServiceSpec", () => {
     consoleUpdateEventStream.complete();
   });
 
-  it("should initialize debug handlers on service creation", () => {
-    expect(texeraGraph.createOperatorDebugState).toHaveBeenCalledWith(mockPythonUDFPredicate.operatorID);
+  it("should give an operator present on service creation a usable debug state", () => {
+    service.doModifyBreakpoint(mockPythonUDFPredicate.operatorID, 3);
+
+    expect(mockWorkflowWebsocketService.send).toHaveBeenCalledWith("DebugCommandRequest", {
+      operatorId: mockPythonUDFPredicate.operatorID,
+      workerId: stubWorker,
+      cmd: "break 3",
+    });
+    expect(texeraGraph.getOperatorDebugState(mockPythonUDFPredicate.operatorID)).toBeInstanceOf(Y.Map);
   });
 
   it("should retrieve the debug state of an operator", () => {
@@ -615,5 +623,287 @@ describe("UdfDebugServiceSpec", () => {
 
     expect(debugState.get("1")).toEqual({ breakpointId: 1, condition: "x > 5", hit: false });
     expect(debugState.has("2")).toBe(false);
+  });
+});
+
+// The service is provided in root and outlives any one workflow, while each workflow (a new one,
+// or one opened again) brings a fresh shared document. These cases create the service first and
+// only then build the graph, the order a real session takes once any debugger UI has been shown.
+describe("UdfDebugService with workflows built after it", () => {
+  let workflowActionService: WorkflowActionService;
+  let texeraGraph: WorkflowGraphReadonly;
+  let mockWorkflowWebsocketService: Mocked<WorkflowWebsocketService>;
+  let mockExecuteWorkflowService: Mocked<ExecuteWorkflowService>;
+  let stateUpdateStream: Subject<Record<string, OperatorState>>;
+  let consoleUpdateEventStream: Subject<ConsoleUpdateEvent>;
+  let unhandledErrors: unknown[];
+
+  const preloaded = mockPythonUDFPredicate;
+  const addedLater = { ...mockPythonUDFPredicate, operatorID: "python-udf-added-later" };
+
+  function pdbEvent(operatorId: string, title: string): ConsoleUpdateEvent {
+    return {
+      operatorId,
+      messages: [
+        {
+          workerId: "worker1",
+          timestamp: { nanos: 0, seconds: 0 },
+          title,
+          source: "(Pdb)",
+          msgType: { name: "DEBUGGER" },
+          message: "",
+        },
+      ],
+    };
+  }
+
+  function sentCommands(): string[] {
+    return mockWorkflowWebsocketService.send.mock.calls.map(([, request]) => (request as { cmd: string }).cmd);
+  }
+
+  beforeEach(() => {
+    // an error thrown inside a subscriber is reported here, on a timer, instead of failing the emit
+    unhandledErrors = [];
+    rxjsConfig.onUnhandledError = error => unhandledErrors.push(error);
+
+    mockWorkflowWebsocketService = {
+      send: vi.fn(),
+      subscribeToEvent: vi.fn(),
+    } as unknown as Mocked<WorkflowWebsocketService>;
+    const mockWorkflowStatusService = {
+      getStateUpdateStream: vi.fn(),
+      getCurrentState: vi.fn(() => ({})),
+    } as unknown as Mocked<WorkflowStatusService>;
+    mockExecuteWorkflowService = { getWorkerIds: vi.fn() } as unknown as Mocked<ExecuteWorkflowService>;
+    stateUpdateStream = new Subject();
+    consoleUpdateEventStream = new Subject();
+    mockWorkflowStatusService.getStateUpdateStream.mockReturnValue(stateUpdateStream.asObservable());
+    mockWorkflowWebsocketService.subscribeToEvent.mockReturnValue(
+      consoleUpdateEventStream.asObservable() as Observable<TexeraWebsocketEvent>
+    );
+    mockExecuteWorkflowService.getWorkerIds.mockReturnValue(["worker1"]);
+
+    TestBed.configureTestingModule({
+      providers: [
+        UdfDebugService,
+        WorkflowActionService,
+        { provide: OperatorMetadataService, useClass: StubOperatorMetadataService },
+        { provide: WorkflowWebsocketService, useValue: mockWorkflowWebsocketService },
+        { provide: WorkflowStatusService, useValue: mockWorkflowStatusService },
+        { provide: ExecuteWorkflowService, useValue: mockExecuteWorkflowService },
+        ...commonTestProviders,
+      ],
+    });
+    workflowActionService = TestBed.inject(WorkflowActionService);
+    texeraGraph = workflowActionService.getTexeraGraph();
+  });
+
+  afterEach(() => {
+    rxjsConfig.onUnhandledError = null;
+    stateUpdateStream.complete();
+    consoleUpdateEventStream.complete();
+  });
+
+  it("should send a breakpoint for an operator added after the service was created", () => {
+    const service = TestBed.inject(UdfDebugService);
+    workflowActionService.addOperator(addedLater, mockPoint);
+
+    service.doModifyBreakpoint(addedLater.operatorID, 3);
+
+    expect(mockWorkflowWebsocketService.send).toHaveBeenCalledWith("DebugCommandRequest", {
+      operatorId: addedLater.operatorID,
+      workerId: "worker1",
+      cmd: "break 3",
+    });
+  });
+
+  it("should record the reply and continue for an operator added after the service was created", () => {
+    const service = TestBed.inject(UdfDebugService);
+    workflowActionService.addOperator(addedLater, mockPoint);
+
+    consoleUpdateEventStream.next(pdbEvent(addedLater.operatorID, "Breakpoint 1 at /path/to/udf.py:3"));
+
+    expect(service.getDebugState(addedLater.operatorID).get("3")).toEqual({
+      breakpointId: 1,
+      condition: "",
+      hit: false,
+    });
+    expect(sentCommands()).toEqual(["continue"]);
+  });
+
+  it("should mark the line an operator added later stops at", () => {
+    const service = TestBed.inject(UdfDebugService);
+    workflowActionService.addOperator(addedLater, mockPoint);
+
+    consoleUpdateEventStream.next(pdbEvent(addedLater.operatorID, "> /path/to/udf.py(12)produce()"));
+
+    expect(service.getDebugState(addedLater.operatorID).get("12")).toEqual({
+      breakpointId: undefined,
+      condition: "",
+      hit: true,
+    });
+  });
+
+  it("should work in a workflow started with 'create new' after the service was created", () => {
+    workflowActionService.addOperator(preloaded, mockPoint);
+    const service = TestBed.inject(UdfDebugService);
+    workflowActionService.resetAsNewWorkflow();
+    workflowActionService.addOperator(addedLater, mockPoint);
+
+    service.doModifyBreakpoint(addedLater.operatorID, 3);
+
+    expect(sentCommands()).toEqual(["break 3"]);
+  });
+
+  it("should work when the same workflow is opened again in a new document", () => {
+    workflowActionService.addOperator(preloaded, mockPoint);
+    const service = TestBed.inject(UdfDebugService);
+    // leaving the workspace swaps in a new document; opening the workflow again re-adds its operators
+    workflowActionService.clearWorkflow();
+    workflowActionService.addOperator(preloaded, mockPoint);
+
+    service.doModifyBreakpoint(preloaded.operatorID, 3);
+
+    expect(sentCommands()).toEqual(["break 3"]);
+  });
+
+  it("should ignore a reset for an operator of a previous workflow", async () => {
+    workflowActionService.addOperator(preloaded, mockPoint);
+    TestBed.inject(UdfDebugService);
+    workflowActionService.resetAsNewWorkflow();
+
+    stateUpdateStream.next({ [preloaded.operatorID]: OperatorState.Uninitialized });
+    await new Promise(resolve => setTimeout(resolve, 0));
+
+    expect(unhandledErrors).toEqual([]);
+  });
+
+  it("should not create debug state when resetting an operator that never used the debugger", () => {
+    TestBed.inject(UdfDebugService);
+    workflowActionService.addOperator(addedLater, mockPoint);
+
+    stateUpdateStream.next({ [addedLater.operatorID]: OperatorState.Uninitialized });
+
+    expect(() => texeraGraph.getOperatorDebugState(addedLater.operatorID)).toThrow();
+  });
+
+  it("should return the same debug state on every lookup and keep its entries", () => {
+    const service = TestBed.inject(UdfDebugService);
+    workflowActionService.addOperator(addedLater, mockPoint);
+
+    const first = service.getDebugState(addedLater.operatorID);
+    first.set("3", { breakpointId: 1, condition: "x > 1", hit: false });
+    const second = service.getDebugState(addedLater.operatorID);
+
+    expect(second).toBe(first);
+    expect(second.get("3")).toEqual({ breakpointId: 1, condition: "x > 1", hit: false });
+  });
+
+  it("should send one continue per reply after an operator is removed and added back", () => {
+    workflowActionService.addOperator(preloaded, mockPoint);
+    TestBed.inject(UdfDebugService);
+    workflowActionService.deleteOperator(preloaded.operatorID);
+    workflowActionService.addOperator(preloaded, mockPoint);
+
+    consoleUpdateEventStream.next(pdbEvent(preloaded.operatorID, "Breakpoint 1 at /path/to/udf.py:3"));
+
+    expect(sentCommands()).toEqual(["continue"]);
+  });
+
+  it("should send the breakpoint to every assigned worker", () => {
+    mockExecuteWorkflowService.getWorkerIds.mockReturnValue(["worker1", "worker2"]);
+    const service = TestBed.inject(UdfDebugService);
+    workflowActionService.addOperator(addedLater, mockPoint);
+
+    service.doModifyBreakpoint(addedLater.operatorID, 3);
+
+    expect(mockWorkflowWebsocketService.send.mock.calls.map(([, request]) => request)).toEqual([
+      { operatorId: addedLater.operatorID, workerId: "worker1", cmd: "break 3" },
+      { operatorId: addedLater.operatorID, workerId: "worker2", cmd: "break 3" },
+    ]);
+  });
+
+  it("should send nothing when no worker is assigned yet", () => {
+    mockExecuteWorkflowService.getWorkerIds.mockReturnValue([]);
+    const service = TestBed.inject(UdfDebugService);
+    workflowActionService.addOperator(addedLater, mockPoint);
+
+    service.doModifyBreakpoint(addedLater.operatorID, 3);
+
+    expect(mockWorkflowWebsocketService.send).not.toHaveBeenCalled();
+  });
+
+  it("should reject a breakpoint for an operator that is not in the workflow", () => {
+    const service = TestBed.inject(UdfDebugService);
+
+    expect(() => service.doModifyBreakpoint("missing-operator", 3)).toThrow(
+      "operator with ID missing-operator doesn't exist"
+    );
+    expect(mockWorkflowWebsocketService.send).not.toHaveBeenCalled();
+  });
+
+  it("should clear the debug state a deleted operator left behind when its run is reset", () => {
+    // left in place, it would come back with the old run's breakpoints if the deletion were undone
+    workflowActionService.addOperator(preloaded, mockPoint);
+    const service = TestBed.inject(UdfDebugService);
+    service.getDebugState(preloaded.operatorID).set("3", { breakpointId: 1, condition: "", hit: false });
+    workflowActionService.deleteOperator(preloaded.operatorID);
+
+    stateUpdateStream.next({ [preloaded.operatorID]: OperatorState.Uninitialized });
+
+    expect(texeraGraph.getOperatorDebugState(preloaded.operatorID).size).toBe(0);
+  });
+
+  it("should ignore debugger replies for a deleted operator whose debug state remains", () => {
+    workflowActionService.addOperator(preloaded, mockPoint);
+    const service = TestBed.inject(UdfDebugService);
+    service.getDebugState(preloaded.operatorID).set("3", { breakpointId: 1, condition: "", hit: false });
+    workflowActionService.deleteOperator(preloaded.operatorID);
+
+    consoleUpdateEventStream.next(pdbEvent(preloaded.operatorID, "> /path/to/udf.py(3)produce()"));
+
+    expect(texeraGraph.getOperatorDebugState(preloaded.operatorID).get("3")?.hit).toBe(false);
+    expect(mockWorkflowWebsocketService.send).not.toHaveBeenCalled();
+  });
+
+  it("should reject a breakpoint for a deleted operator whose debug state remains", () => {
+    workflowActionService.addOperator(preloaded, mockPoint);
+    const service = TestBed.inject(UdfDebugService);
+    service.getDebugState(preloaded.operatorID);
+    workflowActionService.deleteOperator(preloaded.operatorID);
+
+    expect(() => service.doModifyBreakpoint(preloaded.operatorID, 3)).toThrow(
+      `operator with ID ${preloaded.operatorID} doesn't exist`
+    );
+    expect(mockWorkflowWebsocketService.send).not.toHaveBeenCalled();
+  });
+
+  it("should still continue after a breakpoint reply once an editor opened before the run was closed", () => {
+    workflowActionService.addOperator(preloaded, mockPoint);
+    const service = TestBed.inject(UdfDebugService);
+    // the editor opened to write the code, and closed before the run started
+    const editor = TestBed.createComponent(CodeDebuggerComponent);
+    editor.componentInstance.currentOperatorId = preloaded.operatorID;
+    editor.componentInstance.monacoEditor = { dispose: vi.fn() } as unknown as CodeDebuggerComponent["monacoEditor"];
+    editor.detectChanges();
+    editor.destroy();
+
+    expect(() =>
+      consoleUpdateEventStream.next(pdbEvent(preloaded.operatorID, "Breakpoint 1 at /path/to/udf.py:3"))
+    ).not.toThrow();
+
+    expect(service.getDebugState(preloaded.operatorID).get("3")?.breakpointId).toBe(1);
+    expect(sentCommands()).toEqual(["continue"]);
+  });
+
+  it("should ignore debugger replies for an operator that is not in the workflow", async () => {
+    TestBed.inject(UdfDebugService);
+
+    consoleUpdateEventStream.next(pdbEvent("missing-operator", "Breakpoint 1 at /path/to/udf.py:3"));
+    await new Promise(resolve => setTimeout(resolve, 0));
+
+    expect(mockWorkflowWebsocketService.send).not.toHaveBeenCalled();
+    expect(() => texeraGraph.getOperatorDebugState("missing-operator")).toThrow();
+    expect(unhandledErrors).toEqual([]);
   });
 });
