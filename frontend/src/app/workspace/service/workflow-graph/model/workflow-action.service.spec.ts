@@ -617,6 +617,51 @@ describe("WorkflowActionService", () => {
       expect(jointGraph.getCell("commentBox-dangling").attr("rect/stroke-dasharray")).toEqual("none");
     });
 
+    it("returns an anchored comment box to its place when its operator's drag is undone", () => {
+      service.addOperator(mockScanPredicate, { x: 100, y: 100 });
+      addComment(anchoredID, { x: 170, y: 100 });
+      service.anchorCommentBox(anchoredID, mockScanPredicate.operatorID);
+      texeraGraph.sharedModel.undoManager.stopCapturing();
+      // The drag is the comment box's first move, the first time it enters the shared position map.
+      service.highlightOperators(false, mockScanPredicate.operatorID);
+      service.getJointGraphWrapper().setAbsolutePosition(mockScanPredicate.operatorID, 300, 250);
+      texeraGraph.sharedModel.undoManager.stopCapturing();
+
+      undoRedo.undoAction();
+
+      expect(service.getJointGraphWrapper().getElementPosition(anchoredID)).toEqual({ x: 170, y: 100 });
+      expect(texeraGraph.getCommentBox(anchoredID).commentBoxPosition).toEqual({ x: 170, y: 100 });
+    });
+
+    it("tells whether a comment box is within reach of an operator to stay anchored to it", () => {
+      service.addOperator(mockScanPredicate, { x: 100, y: 100 });
+      // The operator's right edge is at x 160.
+      addComment(anchoredID, { x: 160 + COMMENT_BOX_DETACH_DISTANCE, y: 100 });
+      addComment(floatingID, { x: 160 + COMMENT_BOX_DETACH_DISTANCE + 1, y: 100 });
+
+      expect(service.isCommentBoxWithinAnchorReach(anchoredID, mockScanPredicate.operatorID)).toBe(true);
+      expect(service.isCommentBoxWithinAnchorReach(floatingID, mockScanPredicate.operatorID)).toBe(false);
+      // The menu can still name a comment box that has just been deleted.
+      expect(service.isCommentBoxWithinAnchorReach("no-such-box", mockScanPredicate.operatorID)).toBe(false);
+    });
+
+    it("reports anchoring, detaching and their undo as workflow changes, so they are autosaved", () => {
+      service.addOperator(mockScanPredicate, { x: 100, y: 100 });
+      addComment(anchoredID, { x: 170, y: 100 });
+      texeraGraph.sharedModel.undoManager.stopCapturing();
+      let changes = 0;
+      const subscription = service.workflowChanged().subscribe(() => changes++);
+
+      service.anchorCommentBox(anchoredID, mockScanPredicate.operatorID);
+      expect(changes).toEqual(1);
+      texeraGraph.sharedModel.undoManager.stopCapturing();
+      service.detachCommentBox(anchoredID);
+      expect(changes).toEqual(2);
+      undoRedo.undoAction();
+      expect(changes).toEqual(3);
+      subscription.unsubscribe();
+    });
+
     it("undoes an anchor", () => {
       service.addOperator(mockScanPredicate, mockPoint);
       addComment(anchoredID, { x: 0, y: 0 });
@@ -751,6 +796,23 @@ describe("WorkflowActionService", () => {
         expect(texeraGraph.getCommentBox(commentBoxID).commentBoxPosition).toEqual(
           service.getJointGraphWrapper().getElementPosition(commentBoxID)
         );
+      });
+
+      it("places the comment box clear of the operator's delete and chat buttons", () => {
+        service.addOperator(mockScanPredicate, { x: 100, y: 100 });
+        const operator = jointGraph.getCell(mockScanPredicate.operatorID) as joint.dia.Element;
+        // The buttons are drawn relative to the operator; their sizes come from the operator's markup.
+        const button = (selector: string, size: number) => ({
+          x: 100 + operator.attr(`${selector}/x`),
+          y: 100 + operator.attr(`${selector}/y`),
+          width: size,
+          height: size,
+        });
+
+        const commentBoxID = service.addCommentBoxToOperator(mockScanPredicate.operatorID);
+
+        expect(overlaps(boundingBox(commentBoxID), button(".delete-button", 24))).toBe(false);
+        expect(overlaps(boundingBox(commentBoxID), button(".chat-button", 20))).toBe(false);
       });
 
       it("undoes the added comment box in one step", () => {

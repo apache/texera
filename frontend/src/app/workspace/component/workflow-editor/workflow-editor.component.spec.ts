@@ -1275,9 +1275,8 @@ describe("WorkflowEditorComponent", () => {
       }
 
       /** Presses on an element, drags it to (x, y), and returns a function that releases it. */
-      function pressAndDrag(elementID: string, x: number, y: number): () => void {
+      function pressAndDrag(elementID: string, x: number, y: number, event = new MouseEvent("mousedown")): () => void {
         const view = component.paper.findViewByModel(elementID);
-        const event = new MouseEvent("mousedown");
         (component.paper as any).trigger("cell:pointerdown", view, event, 0, 0);
         (component.paper as any).trigger("element:pointerdown", view, event, 0, 0);
         workflowActionService.getJointGraphWrapper().setAbsolutePosition(elementID, x, y);
@@ -1308,6 +1307,19 @@ describe("WorkflowEditorComponent", () => {
         release();
 
         expect(targetOutlined()).toBe(false);
+      });
+
+      it("leaves a selected comment box alone when the drag does not move it", () => {
+        // b floats 10px right of the operator, where a drop would anchor it.
+        addComment("box-a", 400, 400);
+        addComment("box-b", 170, 100);
+        workflowActionService.highlightCommentBoxes(true, "box-a", "box-b");
+
+        // Shift-pressing a selected box deselects it, so it is dragged alone.
+        pressAndDrag("box-a", 400, 500, new MouseEvent("mousedown", { shiftKey: true }))();
+
+        expect(workflowActionService.getJointGraphWrapper().getElementPosition("box-b")).toEqual({ x: 170, y: 100 });
+        expect(anchorOf("box-b")).toBeUndefined();
       });
 
       it("anchors every comment box dragged together, each by where it lands", () => {

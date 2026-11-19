@@ -525,6 +525,21 @@ export class WorkflowActionService {
   }
 
   /**
+   * Whether a comment box is close enough to an operator to stay anchored to it: anchored from farther
+   * than <code>COMMENT_BOX_DETACH_DISTANCE</code>, its next drop would detach it again. False when either
+   * is not on the canvas.
+   * @param commentBoxID
+   * @param operatorID
+   */
+  public isCommentBoxWithinAnchorReach(commentBoxID: string, operatorID: string): boolean {
+    return (
+      this.jointGraph.getCell(commentBoxID) !== undefined &&
+      this.jointGraph.getCell(operatorID) !== undefined &&
+      distanceBetween(this.getElementBBox(commentBoxID), this.getElementBBox(operatorID)) <= COMMENT_BOX_DETACH_DISTANCE
+    );
+  }
+
+  /**
    * Adds a new comment box beside an operator, already anchored to it, as a single undoable action.
    * @param operatorID
    * @returns the ID of the new comment box
@@ -534,10 +549,15 @@ export class WorkflowActionService {
     const operatorPosition = this.jointGraphWrapper.getElementPosition(operatorID);
     const commentBox: CommentBox = {
       ...this.workflowUtilService.getNewCommentBox(),
-      // Right of the operator's top-right corner, clear of its delete button.
+      // Off the operator's top-right corner, above its delete and chat buttons (which the right-click
+      // that opens the menu reveals) and clear of the links leaving its output ports on the right.
       commentBoxPosition: {
         x: operatorPosition.x + JointUIService.DEFAULT_OPERATOR_WIDTH + COMMENT_BOX_GAP,
-        y: operatorPosition.y - JointUIService.DEFAULT_COMMENT_HEIGHT / 2,
+        y:
+          operatorPosition.y +
+          JointUIService.OPERATOR_BUTTON_Y -
+          COMMENT_BOX_GAP -
+          JointUIService.DEFAULT_COMMENT_HEIGHT,
       },
     };
     this.texeraGraph.bundleActions(() => {
@@ -983,6 +1003,7 @@ export class WorkflowActionService {
       this.getTexeraGraph().getCommentBoxAddCommentStream(),
       this.getTexeraGraph().getCommentBoxDeleteCommentStream(),
       this.getTexeraGraph().getCommentBoxEditCommentStream(),
+      this.getTexeraGraph().getCommentBoxAnchorChangedStream(),
       this.getTexeraGraph().getViewResultOperatorsChangedStream(),
       this.getTexeraGraph().getReuseCacheOperatorsChangedStream(),
       this.getTexeraGraph().getOperatorDisplayNameChangedStream(),

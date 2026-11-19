@@ -191,13 +191,19 @@ export class ContextMenuComponent {
     this.workflowActionService.addCommentBoxToOperator(this.highlightedOperatorIds[0]);
   }
 
-  /** Anchoring takes the selected comment boxes and exactly one selected operator to anchor them to. */
+  /**
+   * Anchoring takes the selected comment boxes and exactly one selected operator to anchor them to,
+   * each box close enough to the operator that its next drop does not detach it again.
+   */
   public canAnchorCommentBoxes(): boolean {
     return (
       this.canModify &&
       this.highlightedOperatorIds.length === 1 &&
       this.highlightedCommentBoxIds.length > 0 &&
-      !this.hasHighlightedLinks()
+      !this.hasHighlightedLinks() &&
+      this.highlightedCommentBoxIds.every(commentBoxID =>
+        this.workflowActionService.isCommentBoxWithinAnchorReach(commentBoxID, this.highlightedOperatorIds[0])
+      )
     );
   }
 

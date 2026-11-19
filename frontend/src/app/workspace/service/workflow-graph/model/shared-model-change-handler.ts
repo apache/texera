@@ -240,7 +240,19 @@ export class SharedModelChangeHandler {
   private handleElementPositionChange(): void {
     this.texeraGraph.sharedModel.elementPositionMap?.observe((event: Y.YMapEvent<Point>) => {
       event.changes.keys.forEach((change, key) => {
-        if (change.action === "update" || (change.action === "add" && this.jointGraph.getCell(key) !== undefined)) {
+        if (change.action === "delete" && this.texeraGraph.hasCommentBox(key) && this.jointGraph.getCell(key)) {
+          // Undoing a comment box's first move removes it from the position map again; its saved
+          // position has been undone with it, so that is where it goes back to.
+          const savedPosition = this.texeraGraph.getCommentBox(key).commentBoxPosition;
+          this.texeraGraph.setSyncTexeraGraph(false);
+          this.jointGraphWrapper.setListenPositionChange(false);
+          this.jointGraphWrapper.setAbsolutePosition(key, savedPosition.x, savedPosition.y);
+          this.jointGraphWrapper.setListenPositionChange(true);
+          this.texeraGraph.setSyncTexeraGraph(true);
+        } else if (
+          change.action === "update" ||
+          (change.action === "add" && this.jointGraph.getCell(key) !== undefined)
+        ) {
           this.texeraGraph.setSyncTexeraGraph(false);
           const newPosition = this.texeraGraph.sharedModel.elementPositionMap?.get(key);
           if (newPosition) {
@@ -518,6 +530,7 @@ export class SharedModelChangeHandler {
           const commentBox: CommentBox = this.texeraGraph.getCommentBox(event.path[0] as string);
           if (event.path.length === 1 && event.changes.keys.has("anchoredOperatorID")) {
             this.refreshCommentBoxConnector(commentBox.commentBoxID);
+            this.texeraGraph.commentBoxAnchorChangedSubject.next({ commentBox });
           }
           if (event.path.length === 2 && event.path[event.path.length - 1] === "comments") {
             const addedComments = Array.from(event.changes.added.values());

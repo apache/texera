@@ -212,6 +212,8 @@ export class JointUIService {
   public static readonly DEFAULT_GROUP_MARGIN_BOTTOM = 40;
   public static readonly DEFAULT_COMMENT_WIDTH = 32;
   public static readonly DEFAULT_COMMENT_HEIGHT = 32;
+  /** How far above the operator its delete and chat buttons are drawn. */
+  public static readonly OPERATOR_BUTTON_Y = -20;
   public static readonly MAX_OPERATOR_NAME_PIXELS = 200;
   private static readonly OPERATOR_NAME_FONT = "14px sans-serif";
   private static measureCtx: CanvasRenderingContext2D | null = null;
@@ -924,7 +926,7 @@ export class JointUIService {
       },
       ".delete-button": {
         x: 60,
-        y: -20,
+        y: JointUIService.OPERATOR_BUTTON_Y,
         cursor: "pointer",
         fill: "#D8656A",
         event: "element:delete",
@@ -932,7 +934,7 @@ export class JointUIService {
       },
       ".chat-button": {
         x: 85,
-        y: -20,
+        y: JointUIService.OPERATOR_BUTTON_Y,
         cursor: "pointer",
         fill: "#1890ff",
         event: "element:chat",

@@ -58,7 +58,8 @@ type restrictedMethods =
   | "commentBoxDeleteSubject"
   | "commentBoxAddCommentSubject"
   | "commentBoxDeleteCommentSubject"
-  | "commentBoxEditCommentSubject";
+  | "commentBoxEditCommentSubject"
+  | "commentBoxAnchorChangedSubject";
 
 /**
  * WorkflowGraphReadonly is a type that only contains the readonly methods of WorkflowGraph.
@@ -136,6 +137,7 @@ export class WorkflowGraph {
   public readonly commentBoxAddCommentSubject = new Subject<{ addedComment: Comment; commentBox: CommentBox }>();
   public readonly commentBoxDeleteCommentSubject = new Subject<{ commentBox: CommentBox }>();
   public readonly commentBoxEditCommentSubject = new Subject<{ commentBox: CommentBox }>();
+  public readonly commentBoxAnchorChangedSubject = new Subject<{ commentBox: CommentBox }>();
 
   public readonly portDisplayNameChangedSubject = new Subject<{
     operatorID: string;
@@ -952,6 +954,14 @@ export class WorkflowGraph {
 
   public getCommentBoxEditCommentStream(): Observable<{ commentBox: CommentBox }> {
     return this.commentBoxEditCommentSubject.asObservable();
+  }
+
+  /**
+   * Emits when a comment box is anchored to an operator or detached, however the change came about:
+   * this editor, a co-editor, or undo and redo.
+   */
+  public getCommentBoxAnchorChangedStream(): Observable<{ commentBox: CommentBox }> {
+    return this.commentBoxAnchorChangedSubject.asObservable();
   }
 
   public getViewResultOperatorsChangedStream(): Observable<{

@@ -598,8 +598,8 @@ export class JointGraphWrapper {
   public autoLayoutJoint(anchoredCommentBoxIDs: ReadonlyMap<string, readonly string[]> = new Map()): void {
     const getElement = (id: string) => this.jointGraph.getCell(id) as joint.dia.Element;
     const anchored = new Set(Array.from(anchoredCommentBoxIDs.values()).flat());
-    // For each operator with anchored comment boxes: the bounding box of the group, and the
-    // operator's and each comment box's offset within it, so the group is laid out as one node.
+    // For each operator with anchored comment boxes: the bounding box of the group, the operator's
+    // offset within it, and each comment box's offset from the operator, so the group is laid out as one node.
     const groups = new Map<string, { size: joint.dia.Size; operatorOffset: Point; commentOffsets: Point[] }>();
     anchoredCommentBoxIDs.forEach((commentBoxIDs, operatorID) => {
       const operator = getElement(operatorID);

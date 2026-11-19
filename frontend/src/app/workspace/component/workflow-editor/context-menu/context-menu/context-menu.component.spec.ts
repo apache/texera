@@ -94,6 +94,7 @@ describe("ContextMenuComponent", () => {
       anchorCommentBox: vi.fn(),
       detachCommentBox: vi.fn(),
       addCommentBoxToOperator: vi.fn(),
+      isCommentBoxWithinAnchorReach: vi.fn(),
     };
     workflowActionServiceSpy.getJointGraphWrapper.mockReturnValue(jointGraphWrapperSpy);
     workflowActionServiceSpy.getWorkflowModificationEnabledStream.mockReturnValue(of(true));
@@ -838,7 +839,19 @@ describe("ContextMenuComponent", () => {
         commentBoxID: id,
         anchoredOperatorID: anchors[id],
       }));
+      workflowActionService.isCommentBoxWithinAnchorReach.mockReturnValue(true);
       component.isWorkflowModifiable = true;
+    });
+
+    it("offers no anchor when a selected comment box is too far from the operator to stay anchored", () => {
+      workflowActionService.isCommentBoxWithinAnchorReach.mockImplementation(
+        (commentBoxID: string) => commentBoxID !== "box-anchored"
+      );
+      select(["op2"], ["box-floating", "box-anchored"]);
+      expect(renderedLabels()).not.toContain(ANCHOR);
+      select(["op2"], ["box-floating"]);
+      expect(renderedLabels()).toContain(ANCHOR);
+      expect(workflowActionService.isCommentBoxWithinAnchorReach).toHaveBeenCalledWith("box-floating", "op2");
     });
 
     it("anchors every selected comment box to the one selected operator, in one bundled action", () => {
