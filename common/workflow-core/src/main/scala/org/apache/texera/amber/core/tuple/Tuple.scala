@@ -83,25 +83,35 @@ case class Tuple @JsonCreator() (
     this
   }
 
-  override def hashCode: Int = util.Arrays.deepHashCode(getFields.map(_.asInstanceOf[AnyRef]))
+  override def hashCode: Int = util.Arrays.deepHashCode(getFields.asInstanceOf[Array[AnyRef]])
 
   override def equals(obj: Any): Boolean =
     obj match {
-      case that: Tuple =>
-        this.schema == that.schema &&
-          this.getFields.zip(that.getFields).forall {
-            case (field1: Array[Byte], field2: Array[Byte]) =>
-              field1.sameElements(field2) // for Binary, use sameElements instead of == to compare
-            case (field1, field2) =>
-              field1 == field2
-          }
+      case that: Tuple if this.schema == that.schema =>
+        val left = this.getFields
+        val right = that.getFields
+        val fieldCount = math.min(left.length, right.length)
+        var index = 0
+        while (index < fieldCount && fieldEquals(left(index), right(index))) index += 1
+        index == fieldCount
       case _ => false
     }
+
+  private def fieldEquals(left: Any, right: Any): Boolean =
+    if (left.isInstanceOf[Array[Byte]] && right.isInstanceOf[Array[Byte]])
+      util.Arrays.equals(left.asInstanceOf[Array[Byte]], right.asInstanceOf[Array[Byte]])
+    else left == right
 
   def getPartialTuple(attributeNames: List[String]): Tuple = {
     val partialSchema = schema.getPartialSchema(attributeNames)
     val builder = Tuple.Builder(partialSchema)
-    val partialArray = attributeNames.map(getField[Any]).toArray
+    val partialArray = new Array[Any](attributeNames.length)
+    val names = attributeNames.iterator
+    var index = 0
+    while (names.hasNext) {
+      partialArray(index) = getField[Any](names.next())
+      index += 1
+    }
     builder.addSequentially(partialArray)
     builder.build()
   }
@@ -132,10 +142,8 @@ object Tuple {
       )
     }
 
-    (attributeList zip fieldList).foreach {
-      case (attribute, field) =>
-        checkAttributeMatchesField(attribute, field)
-    }
+    val fieldIterator = fieldList.iterator
+    attributeList.foreach(attribute => checkAttributeMatchesField(attribute, fieldIterator.next()))
   }
 
   /**
@@ -177,14 +185,12 @@ object Tuple {
     def add(tuple: Tuple, isStrictSchemaMatch: Boolean = true): Builder = {
       require(tuple != null, "Tuple cannot be null")
 
-      tuple.getFields.zipWithIndex.foreach {
-        case (field, i) =>
-          val attribute = tuple.schema.getAttributes(i)
-          if (!isStrictSchemaMatch && !schema.containsAttribute(attribute.getName)) {
-            // Skip if not matching in non-strict mode
-          } else {
-            add(attribute, tuple.getFields(i))
-          }
+      val attributes = tuple.schema.getAttributes.iterator
+      tuple.getFields.foreach { field =>
+        val attribute = attributes.next()
+        if (isStrictSchemaMatch || schema.containsAttribute(attribute.getName)) {
+          this.add(attribute, field)
+        }
       }
       this
     }
@@ -215,10 +221,8 @@ object Tuple {
     def addSequentially(fields: Array[Any]): Builder = {
       require(fields != null, "Fields cannot be null")
       checkSchemaMatchesFields(schema.getAttributes, fields)
-      schema.getAttributes.zip(fields).foreach {
-        case (attribute, field) =>
-          this.add(attribute, field)
-      }
+      val attributes = schema.getAttributes.iterator
+      fields.foreach(field => this.add(attributes.next(), field))
       this
     }
 
@@ -231,8 +235,14 @@ object Tuple {
         )
       }
 
-      val fields =
-        schema.getAttributes.map(attr => fieldNameMap(attr.getName.toLowerCase)).toArray
+      val attributes = schema.getAttributes
+      val fields = new Array[Any](attributes.length)
+      val attributeIterator = attributes.iterator
+      var index = 0
+      while (attributeIterator.hasNext) {
+        fields(index) = fieldNameMap(attributeIterator.next().getName.toLowerCase)
+        index += 1
+      }
       new Tuple(schema, fields)
     }
   }

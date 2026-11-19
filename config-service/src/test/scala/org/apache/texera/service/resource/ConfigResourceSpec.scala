@@ -178,22 +178,6 @@ class ConfigResourceSpec
     )
   }
 
-  "GET /config/user-system" should "return 401 with a Bearer challenge without an Authorization header" in {
-    val response =
-      resources.target("/config/user-system").request(MediaType.APPLICATION_JSON).get()
-    response.getStatus shouldBe 401
-    response.getHeaderString("WWW-Authenticate") shouldBe JwtAuthFilter.BearerChallenge
-  }
-
-  it should "return 200 with a valid Bearer token whose role matches @RolesAllowed" in {
-    val response = resources
-      .target("/config/user-system")
-      .request(MediaType.APPLICATION_JSON)
-      .header("Authorization", s"Bearer ${regularToken()}")
-      .get()
-    response.getStatus shouldBe 200
-  }
-
   "GET /config/amber" should "return 401 with a Bearer challenge without an Authorization header" in {
     val response =
       resources.target("/config/amber").request(MediaType.APPLICATION_JSON).get()
@@ -474,6 +458,38 @@ class ConfigResourceSpec
     resource.resetSetting(adminSession(), "csv_parser_max_columns").getStatus shouldBe 200
     resource.getSetting("csv_parser_max_columns").settingValue shouldBe
       DefaultsConfig.allDefaults("csv_parser_max_columns")
+  }
+
+  it should "restore the invite-only switch to its default.conf value" in {
+    // Write the opposite of the default, so the reset shows whichever way the default is set.
+    val opposite = (!DefaultsConfig.inviteOnly).toString
+    resource.updateSetting(
+      adminSession(),
+      "invite_only",
+      ConfigSettingPojo("invite_only", opposite)
+    )
+    resource.getSetting("invite_only").settingValue shouldBe opposite
+
+    resource.resetSetting(adminSession(), "invite_only").getStatus shouldBe 200
+    resource.getSetting("invite_only").settingValue shouldBe
+      DefaultsConfig.allDefaults("invite_only")
+  }
+
+  // The sign-up form reads this payload to say whether a new account has to wait for an admin, and
+  // the switch is now edited on the admin settings page. A value frozen at service start would keep
+  // the form out of step with the role the next sign-up gets.
+  "getPreLoginConfig" should "report invite-only as the admin settings page last wrote it" in {
+    resource.updateSetting(adminSession(), "invite_only", ConfigSettingPojo("invite_only", "true"))
+    resource.getPreLoginConfig("inviteOnly") shouldBe true
+
+    resource.updateSetting(adminSession(), "invite_only", ConfigSettingPojo("invite_only", "false"))
+    resource.getPreLoginConfig("inviteOnly") shouldBe false
+  }
+
+  it should "fall back to the default.conf value while no invite_only row is stored" in {
+    getDSLContext.deleteFrom(SITE_SETTINGS).where(SITE_SETTINGS.KEY.eq("invite_only")).execute()
+
+    resource.getPreLoginConfig("inviteOnly") shouldBe DefaultsConfig.inviteOnly
   }
 }
 

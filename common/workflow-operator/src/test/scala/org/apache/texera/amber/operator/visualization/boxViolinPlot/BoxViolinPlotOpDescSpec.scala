@@ -21,12 +21,12 @@ package org.apache.texera.amber.operator.visualization.boxViolinPlot
 
 import org.scalatest.BeforeAndAfter
 import org.scalatest.flatspec.AnyFlatSpec
-import org.scalatest.matchers.should.Matchers
+import org.apache.texera.amber.operator.GeneratedCodeAssertionChecks
 
-import java.nio.charset.StandardCharsets
-import java.util.Base64
-
-class BoxViolinPlotOpDescSpec extends AnyFlatSpec with BeforeAndAfter with Matchers {
+class BoxViolinPlotOpDescSpec
+    extends AnyFlatSpec
+    with BeforeAndAfter
+    with GeneratedCodeAssertionChecks {
 
   var opDesc: BoxViolinPlotOpDesc = _
 
@@ -34,19 +34,8 @@ class BoxViolinPlotOpDescSpec extends AnyFlatSpec with BeforeAndAfter with Match
     opDesc = new BoxViolinPlotOpDesc()
   }
 
-  private def b64(s: String): String =
-    Base64.getEncoder.encodeToString(s.getBytes(StandardCharsets.UTF_8))
-
-  private def carries(output: String, name: String): Boolean =
-    output.contains(name) || output.contains(b64(name))
-
-  private def fieldPart(msg: String): String =
-    msg.toLowerCase.replace("cannot be empty", "")
-
   it should "throw AssertionError naming the Value Column when value is left empty" in {
-    val ex = intercept[AssertionError](opDesc.manipulateTable())
-    ex.getMessage should not be null
-    ex.getMessage should include("cannot be empty")
+    val ex = expectError[AssertionError]("cannot be empty")(opDesc.manipulateTable())
     fieldPart(ex.getMessage) should include("value")
   }
 

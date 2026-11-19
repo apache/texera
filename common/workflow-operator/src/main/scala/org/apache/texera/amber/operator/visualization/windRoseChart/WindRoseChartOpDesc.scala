@@ -19,6 +19,7 @@
 
 package org.apache.texera.amber.operator.visualization.windRoseChart
 
+import org.apache.texera.amber.operator.visualization.StandaloneChartCode._
 import com.fasterxml.jackson.annotation.{JsonProperty, JsonPropertyDescription}
 import com.kjetland.jackson.jsonSchema.annotations.{JsonSchemaInject, JsonSchemaTitle}
 import org.apache.texera.amber.core.workflow.OutputPort.OutputMode
@@ -137,17 +138,12 @@ class WindRoseChartOpDesc extends PythonVisualizationOpDesc with PlotlyStandalon
       if (colorColumn != null && colorColumn.nonEmpty) s"""
        |            color=${pyStringLiteral(colorColumn)},"""
       else ""
-    s"""def render_error(error_msg) -> str:
-       |    return '''<h1>Wind Rose chart is not available.</h1>
-       |                  <p>Reason is: {} </p>
-       |               '''.format(error_msg)
+    s"""${standaloneError("Wind Rose chart is not available.", typed = true)}
        |
        |if in1df.empty:
-       |    with open(outputHtml, "w", encoding="utf-8") as output:
-       |        output.write(render_error("input table is empty."))
+       |${standaloneErrorPage("input table is empty.")}
        |elif in1df[$rLit].dtype.kind not in ["i", "u", "f"]:
-       |    with open(outputHtml, "w", encoding="utf-8") as output:
-       |        output.write(render_error("Radial column must be numeric (int, float, or double)."))
+       |${standaloneErrorPage("Radial column must be numeric (int, float, or double).")}
        |else:
        |    table = in1df
        |    fig = px.bar_polar(
@@ -156,9 +152,7 @@ class WindRoseChartOpDesc extends PythonVisualizationOpDesc with PlotlyStandalon
        |        theta=${pyStringLiteral(thetaColumn)},$colorArg
        |        color_discrete_sequence=px.colors.sequential.Plasma_r
        |    )
-       |    fig.write_json(outputJson)
-       |    fig.write_html(outputHtml)
-       |    print("Wind rose chart saved to " + outputHtml)""".stripMargin
+       |${standaloneFigure("Wind rose chart", indent = 4)}""".stripMargin
   }
 
 }

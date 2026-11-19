@@ -15,17 +15,5 @@
 # specific language governing permissions and limitations
 # under the License.
 {{- if .Values.notebookMigrationService.enabled }}
-apiVersion: v1
-kind: Service
-metadata:
-  name: {{ .Values.notebookMigrationService.name }}-svc
-  namespace: {{ .Release.Namespace }}
-spec:
-  type: {{ .Values.notebookMigrationService.service.type }}
-  selector:
-    app: {{ .Release.Name }}-{{ .Values.notebookMigrationService.name }}
-  ports:
-    - protocol: TCP
-      port: {{ .Values.notebookMigrationService.service.port }}
-      targetPort: {{ .Values.notebookMigrationService.service.port }}
+{{ include "texera.releaseService" (dict "release" .Release "name" .Values.notebookMigrationService.name "serviceType" .Values.notebookMigrationService.service.type "port" .Values.notebookMigrationService.service.port) }}
 {{- end }}

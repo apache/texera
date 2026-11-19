@@ -19,69 +19,18 @@
 
 package org.apache.texera.amber.engine.common.storage
 
-import org.apache.pekko.actor.ActorSystem
-import org.apache.pekko.serialization.{Serialization, SerializationExtension}
-import org.apache.pekko.testkit.TestKit
-import org.apache.texera.amber.engine.common.AmberRuntime
+import org.apache.commons.io.FileUtils
+import org.apache.texera.amber.engine.common.AmberSerdeTestSupport
 import org.apache.texera.amber.engine.common.storage.SequentialRecordStorage.{
   SequentialRecordReader,
   SequentialRecordWriter
 }
-import org.scalatest.BeforeAndAfterAll
 import org.scalatest.flatspec.AnyFlatSpec
 
 import java.io.{ByteArrayInputStream, ByteArrayOutputStream, DataInputStream, DataOutputStream}
-import java.nio.file.{Files, Path}
+import java.nio.file.Files
 
-class SequentialRecordStorageSpec extends AnyFlatSpec with BeforeAndAfterAll {
-
-  // ---------------------------------------------------------------------------
-  // Suite-local Pekko serde injected into AmberRuntime via reflection
-  // ---------------------------------------------------------------------------
-  //
-  // `SequentialRecordWriter.writeRecord` / `SequentialRecordReader`'s
-  // iterator both hard-code `AmberRuntime.serde`. Pattern matches
-  // CheckpointSubsystemSpec / ClientEventSpec: own a suite-local
-  // ActorSystem, inject it into AmberRuntime's private vars via
-  // reflection, tear down in afterAll.
-
-  private val testSystem: ActorSystem =
-    ActorSystem("SequentialRecordStorageSpec-test", AmberRuntime.pekkoConfig)
-  private val testSerde: Serialization = SerializationExtension(testSystem)
-
-  private def setAmberRuntimeField(name: String, value: AnyRef): Unit = {
-    val field = AmberRuntime.getClass.getDeclaredField(name)
-    field.setAccessible(true)
-    field.set(AmberRuntime, value)
-  }
-
-  override protected def beforeAll(): Unit = {
-    super.beforeAll()
-    setAmberRuntimeField("_actorSystem", testSystem)
-    setAmberRuntimeField("_serde", testSerde)
-  }
-
-  override protected def afterAll(): Unit = {
-    setAmberRuntimeField("_serde", null)
-    setAmberRuntimeField("_actorSystem", null)
-    TestKit.shutdownActorSystem(testSystem)
-    super.afterAll()
-  }
-
-  // `Files.walk` returns a closeable Stream backed by an open directory
-  // handle — wrap in try/finally so the handle is released even if
-  // traversal throws, otherwise temp-dir deletion can flake on Windows.
-  private def deleteRecursively(p: Path): Unit = {
-    if (!Files.exists(p)) return
-    val stream = Files.walk(p)
-    try {
-      stream
-        .sorted(java.util.Comparator.reverseOrder())
-        .forEach(child => Files.deleteIfExists(child))
-    } finally {
-      stream.close()
-    }
-  }
+class SequentialRecordStorageSpec extends AnyFlatSpec with AmberSerdeTestSupport {
 
   // ---------------------------------------------------------------------------
   // SequentialRecordWriter + SequentialRecordReader — in-memory round-trip
@@ -176,7 +125,7 @@ class SequentialRecordStorageSpec extends AnyFlatSpec with BeforeAndAfterAll {
       val all = SequentialRecordStorage.fetchAllRecords(storage, "file-1").toList
       assert(all == List("r1", "r2", "r3"))
     } finally {
-      deleteRecursively(tmp)
+      FileUtils.deleteQuietly(tmp.toFile)
     }
   }
 
@@ -189,7 +138,7 @@ class SequentialRecordStorageSpec extends AnyFlatSpec with BeforeAndAfterAll {
       writer.flush(); writer.close()
       assert(SequentialRecordStorage.fetchAllRecords(storage, "empty").toList.isEmpty)
     } finally {
-      deleteRecursively(tmp)
+      FileUtils.deleteQuietly(tmp.toFile)
     }
   }
 
@@ -225,7 +174,7 @@ class SequentialRecordStorageSpec extends AnyFlatSpec with BeforeAndAfterAll {
       val r = storage.getReader("data").mkRecordIterator().toList
       assert(r == List("payload"))
     } finally {
-      deleteRecursively(tmp)
+      FileUtils.deleteQuietly(tmp.toFile)
     }
   }
 

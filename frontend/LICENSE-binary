@@ -137,8 +137,8 @@
 
    6. Trademarks. This License does not grant permission to use the trade
       names, trademarks, service marks, or product names of the Licensor,
-      except as required for describing the origin of the Work and
-      reproducing the content of the NOTICE file.
+      except as required for reasonable and customary use in describing the
+      origin of the Work and reproducing the content of the NOTICE file.
 
    7. Disclaimer of Warranty. Unless required by applicable law or
       agreed to in writing, Licensor provides the Work (and each
@@ -162,7 +162,7 @@
       other commercial damages or losses), even if such Contributor
       has been advised of the possibility of such damages.
 
-   9. Accepting Warranty or Support. While redistributing
+   9. Accepting Warranty or Additional Liability. While redistributing
       the Work or Derivative Works thereof, You may choose to offer,
       and charge a fee for, acceptance of support, warranty, indemnity,
       or other liability obligations and/or rights consistent with this
@@ -171,7 +171,7 @@
       of any other Contributor, and only if You agree to indemnify,
       defend, and hold each Contributor harmless for any liability
       incurred by, or claims asserted against, such Contributor by reason
-      of your accepting any such warranty or support.
+      of your accepting any such warranty or additional liability.
 
    END OF TERMS AND CONDITIONS
 
@@ -196,9 +196,9 @@
 
    Unless required by applicable law or agreed to in writing, software
    distributed under the License is distributed on an "AS IS" BASIS,
-   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or
-   implied. See the License for the specific language governing
-   permissions and limitations under the License.
+   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+   See the License for the specific language governing permissions and
+   limitations under the License.
 
 ================================================================================
 THIRD-PARTY COMPONENTS
@@ -212,12 +212,12 @@ Dependencies under the Apache License, Version 2.0
 
 Angular / npm packages:
   - @ai-sdk/gateway@2.0.9
-  - @ai-sdk/openai@2.0.67
+  - @ai-sdk/openai@2.0.143
   - @ai-sdk/provider@2.0.0
   - @ai-sdk/provider-utils@3.0.17
   - @opentelemetry/api@1.9.0
   - @vercel/oidc@3.0.3
-  - ai@5.0.93
+  - ai@5.0.290
   - dompurify@3.4.15
   - fast-diff@1.3.0
   - fuse.js@7.5.0
@@ -229,6 +229,9 @@ Third-party assets:
     frontend/src/assets/notebook_migration_tool/tool_popup_diagram.png
     frontend/src/assets/notebook_migration_tool/python_file_diagram.png
     frontend/src/assets/notebook_migration_tool/python_folder_diagram.png
+    frontend/src/assets/notebook_migration_tool/r_notebook_diagram.png
+    frontend/src/assets/notebook_migration_tool/r_file_diagram.png
+    frontend/src/assets/notebook_migration_tool/r_folder_diagram.png
     https://github.com/google/material-design-icons
   - Google Material Symbols icons (area_chart, autorenew, batch_prediction, forest, join_inner, merge, table_chart, tune)
     frontend/src/assets/operator_images/FigureFactoryTable.png
@@ -247,7 +250,7 @@ Third-party assets:
     frontend/src/assets/operator_images/SklearnTrainingRidgeCV.png
     frontend/src/assets/operator_images/Union.png
     https://github.com/google/material-design-icons
-  - IBM Carbon Design System icons (chart--bubble, chart--bullet, chart--candlestick, chart--histogram, chart--line, chart--logistic-regression, chart--multi-line, chart--network, chart--parallel, chart--pie, chart--radar, chart--radial, chart--scatter, chart--stepper, chart--treemap, chart--venn-diagram, chart--violin-plot, chart--waterfall, data-table--reference, decision-tree, edge-cluster, flow--merge, heat-map, join--inner, math-curve, scatter-matrix, share, sigma, sort--descending, tree-view, word-cloud)
+  - IBM Carbon Design System icons (chart--bubble, chart--bullet, chart--candlestick, chart--histogram, chart--line, chart--logistic-regression, chart--multi-line, chart--network, chart--parallel, chart--pie, chart--radar, chart--radial, chart--scatter, chart--stepper, chart--treemap, chart--venn-diagram, chart--violin-plot, chart--waterfall, data-table--reference, decision-tree, edge-cluster, flow--merge, heat-map, join--inner, math-curve, sankey-diagram--alt, scatter-matrix, share, sigma, sort--descending, transform--binary, tree-view, word-cloud)
     frontend/src/assets/operator_images/Aggregate.png
     frontend/src/assets/operator_images/BoxViolinPlot.png
     frontend/src/assets/operator_images/BubbleChart.png
@@ -270,6 +273,7 @@ Third-party assets:
     frontend/src/assets/operator_images/RadarPlot.png
     frontend/src/assets/operator_images/SVCTrainer.png
     frontend/src/assets/operator_images/SVRTrainer.png
+    frontend/src/assets/operator_images/SankeyDiagram.png
     frontend/src/assets/operator_images/ScatterMatrixChart.png
     frontend/src/assets/operator_images/SklearnComplementNaiveBayes.png
     frontend/src/assets/operator_images/SklearnDecisionTree.png
@@ -291,9 +295,15 @@ Third-party assets:
     frontend/src/assets/operator_images/SklearnTrainingSDG.png
     frontend/src/assets/operator_images/SortPartitions.png
     frontend/src/assets/operator_images/TimeSeriesPlot.png
+    frontend/src/assets/operator_images/TypeCasting.png
     frontend/src/assets/operator_images/WaterfallChart.png
     frontend/src/assets/operator_images/WordCloud.png
     https://github.com/carbon-design-system/carbon
+  - Apache Arrow and Apache AsterixDB logos (The Apache Software Foundation)
+    frontend/src/assets/operator_images/ArrowSource.png
+    frontend/src/assets/operator_images/AsterixDBSource.png
+    https://github.com/apache/arrow-site/blob/229e92ede438bb6e13417eda141551c242cff334/img/arrow-logo_hex_black-txt_white-bg.png
+    https://github.com/apache/asterixdb-site/blob/00f9bf22dd19e8645315fb2b139527a575dae9c1/img/asterixdb_tm.png
 
 --------------------------------------------------------------------------------
 Dependencies under the MIT License
@@ -364,14 +374,14 @@ Source files derived from third-party MIT-licensed projects:
 
 Angular / npm packages:
   - @abacritt/angularx-social-login@2.3.0
-  - @ali-hm/angular-tree-component@12.0.5
-  - @angular/animations@21.2.18
+  - @ali-hm/angular-tree-component@12.0.6
+  - @angular/animations@21.2.26
   - @angular/cdk@21.2.14
-  - @angular/common@21.2.20
-  - @angular/core@21.2.20
-  - @angular/forms@21.2.18
-  - @angular/platform-browser@21.2.18
-  - @angular/router@21.2.18
+  - @angular/common@21.2.26
+  - @angular/core@21.2.26
+  - @angular/forms@21.2.26
+  - @angular/platform-browser@21.2.26
+  - @angular/router@21.2.26
   - @ant-design/colors@7.2.1
   - @ant-design/fast-color@2.0.6
   - @ant-design/icons-angular@21.0.0
@@ -409,6 +419,7 @@ Angular / npm packages:
   - @ctrl/tinycolor@3.6.1
   - @lezer/common@1.5.2
   - @lezer/highlight@1.2.3
+  - @lezer/java@1.1.5
   - @lezer/lr@1.4.10
   - @lezer/python@1.1.19
   - @ngneat/until-destroy@10.0.0
@@ -433,7 +444,7 @@ Angular / npm packages:
   - java@10.0.0
   - jquery@3.6.4
   - json-schema-traverse@1.0.0
-  - jszip@3.10.1
+  - jszip@3.10.2
   - lib0@0.2.117
   - lodash@4.18.1
   - lodash.clonedeep@4.5.0
@@ -443,7 +454,7 @@ Angular / npm packages:
   - mobx@4.14.1
   - monaco-breakpoints@0.2.0
   - monaco-languageclient@11.0.3
-  - ng-zorro-antd@21.3.2
+  - ng-zorro-antd@21.3.3
   - ngx-color-picker@12.0.1
   - ngx-file-drop@16.0.0
   - ngx-json-viewer@3.2.1
@@ -460,7 +471,7 @@ Angular / npm packages:
   - style-loader@3.3.4
   - theme-defaults@10.0.0
   - underscore@1.13.8
-  - uuid@14.0.1
+  - uuid@14.0.3
   - vscode-jsonrpc@9.0.3
   - vscode-languageclient@10.1.2
   - vscode-languageserver-protocol@3.18.5
@@ -471,7 +482,7 @@ Angular / npm packages:
   - y-protocols@1.0.7
   - y-quill@1.0.0
   - y-websocket@1.5.4
-  - yjs@13.6.31
+  - yjs@13.6.33
   - zod@3.25.76
   - zone.js@0.15.1
 
@@ -488,6 +499,7 @@ Angular / npm packages:
 Third-party assets:
   - Project Jupyter logo
     frontend/src/assets/notebook_migration_tool/tool_popup_diagram.png
+    frontend/src/assets/notebook_migration_tool/r_notebook_diagram.png
     https://github.com/jupyter/design
 
 --------------------------------------------------------------------------------

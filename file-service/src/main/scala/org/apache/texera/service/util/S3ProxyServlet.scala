@@ -25,8 +25,11 @@ import org.apache.texera.auth.JwtParser
 import org.apache.texera.common.config.StorageConfig
 import org.apache.texera.dao.SqlServer
 import org.apache.texera.dao.SqlServer.withTransaction
-import org.apache.texera.dao.jooq.generated.tables.daos.{DatasetDao, ModelDao}
-import org.apache.texera.service.resource.{DatasetAccessResource, ModelAccessResource}
+import org.apache.texera.service.resource.{
+  DatasetAccessResource,
+  ModelAccessResource,
+  ResourceAccess
+}
 import software.amazon.awssdk.auth.credentials.AwsBasicCredentials
 import software.amazon.awssdk.auth.signer.AwsS3V4Signer
 import software.amazon.awssdk.auth.signer.params.AwsS3V4SignerParams
@@ -145,19 +148,12 @@ class S3ProxyServlet extends HttpServlet with LazyLogging {
     */
   private def authorizedToRead(uid: Integer, repositoryName: String): Boolean =
     withTransaction(SqlServer.getInstance().createDSLContext()) { ctx =>
-      val datasets = new DatasetDao(ctx.configuration())
-        .fetchByRepositoryName(repositoryName)
-        .asScala
-        .toList
-      val models = new ModelDao(ctx.configuration())
-        .fetchByRepositoryName(repositoryName)
-        .asScala
-        .toList
+      val (datasets, models) = ResourceAccess.repositoryIds(ctx, repositoryName)
       (datasets, models) match {
-        case (dataset :: Nil, Nil) =>
-          DatasetAccessResource.userHasReadAccess(ctx, dataset.getDid, uid)
-        case (Nil, model :: Nil) =>
-          ModelAccessResource.userHasReadAccess(ctx, model.getMid, uid)
+        case (did :: Nil, Nil) =>
+          DatasetAccessResource.userHasReadAccess(ctx, did, uid)
+        case (Nil, mid :: Nil) =>
+          ModelAccessResource.userHasReadAccess(ctx, mid, uid)
         case (Nil, Nil) =>
           false
         case _ =>

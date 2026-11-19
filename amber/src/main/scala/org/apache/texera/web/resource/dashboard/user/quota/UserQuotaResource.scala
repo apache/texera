@@ -21,16 +21,16 @@ package org.apache.texera.web.resource.dashboard.user.quota
 
 import io.dropwizard.auth.Auth
 import org.apache.texera.auth.SessionUser
+import org.apache.texera.auth.util.WorkflowAccess
 import org.apache.texera.dao.SqlServer
 import org.apache.texera.dao.jooq.generated.Tables._
 import org.apache.texera.web.resource.dashboard.user.dataset.utils.DatasetStatisticsUtils.getUserCreatedDatasets
 import org.apache.texera.web.resource.dashboard.user.quota.UserQuotaResource._
-import org.apache.texera.web.resource.dashboard.user.workflow.{
-  WorkflowAccessResource,
-  WorkflowExecutionsResource
-}
+import org.apache.texera.web.resource.dashboard.user.workflow.WorkflowExecutionsResource
+import org.jooq.impl.DSL
 
 import java.util
+import javax.annotation.security.RolesAllowed
 import javax.ws.rs._
 import javax.ws.rs.core.MediaType
 import scala.jdk.CollectionConverters.IterableHasAsScala
@@ -68,7 +68,6 @@ object UserQuotaResource {
   def getUserCreatedWorkflow(uid: Integer): List[Workflow] = {
     val userWorkflowEntries = context
       .select(
-        WORKFLOW_OF_USER.UID,
         WORKFLOW_OF_USER.WID,
         WORKFLOW.NAME,
         WORKFLOW.CREATION_TIME,
@@ -91,7 +90,7 @@ object UserQuotaResource {
     userWorkflowEntries
       .map(workflowRecord => {
         Workflow(
-          workflowRecord.get(WORKFLOW_OF_USER.UID),
+          uid,
           workflowRecord.get(WORKFLOW_OF_USER.WID),
           workflowRecord.get(WORKFLOW.NAME),
           workflowRecord.get(WORKFLOW.CREATION_TIME).getTime,
@@ -103,16 +102,30 @@ object UserQuotaResource {
   }
 
   def getUserAccessedWorkflow(uid: Integer): util.List[Integer] = {
-    context.fetch(WorkflowAccessResource.accessibleWids(uid)).getValues(0, classOf[Integer])
+    context.fetch(WorkflowAccess.accessibleWids(uid)).getValues(0, classOf[Integer])
   }
 
   def getUserQuotaSize(uid: Integer): Array[QuotaStorage] = {
-    val executions = context
+    val resultTotal = DSL.field(
+      DSL
+        .select(DSL.sum(OPERATOR_PORT_EXECUTIONS.RESULT_SIZE))
+        .from(OPERATOR_PORT_EXECUTIONS)
+        .where(OPERATOR_PORT_EXECUTIONS.WORKFLOW_EXECUTION_ID.eq(WORKFLOW_EXECUTIONS.EID))
+    )
+    val logTotal = DSL.field(
+      DSL
+        .select(DSL.sum(OPERATOR_EXECUTIONS.CONSOLE_MESSAGES_SIZE))
+        .from(OPERATOR_EXECUTIONS)
+        .where(OPERATOR_EXECUTIONS.WORKFLOW_EXECUTION_ID.eq(WORKFLOW_EXECUTIONS.EID))
+    )
+    context
       .select(
         WORKFLOW_EXECUTIONS.EID,
         WORKFLOW_EXECUTIONS.RUNTIME_STATS_SIZE,
         WORKFLOW.WID,
-        WORKFLOW.NAME
+        WORKFLOW.NAME,
+        resultTotal,
+        logTotal
       )
       .from(WORKFLOW_EXECUTIONS)
       .leftJoin(WORKFLOW_VERSION)
@@ -122,47 +135,20 @@ object UserQuotaResource {
       .where(WORKFLOW_EXECUTIONS.UID.eq(uid))
       .orderBy(WORKFLOW_EXECUTIONS.EID.desc)
       .fetch()
-
-    if (executions == null || executions.isEmpty) {
-      return Array.empty
-    }
-
-    executions.asScala.map { record =>
-      val eid = record.get(WORKFLOW_EXECUTIONS.EID)
-      val wid = record.get(WORKFLOW.WID)
-      val workflowName = record.get(WORKFLOW.NAME)
-      val runTimeStatsSize =
-        Option(record.get(WORKFLOW_EXECUTIONS.RUNTIME_STATS_SIZE)).map(_.toLong).getOrElse(0L)
-
-      val resultSize = context
-        .select(OPERATOR_PORT_EXECUTIONS.RESULT_SIZE)
-        .from(OPERATOR_PORT_EXECUTIONS)
-        .where(OPERATOR_PORT_EXECUTIONS.WORKFLOW_EXECUTION_ID.eq(eid))
-        .fetch()
-        .asScala
-        .map(r => Option(r.get(OPERATOR_PORT_EXECUTIONS.RESULT_SIZE)).map(_.toLong).getOrElse(0L))
-        .sum
-
-      val logSize = context
-        .select(OPERATOR_EXECUTIONS.CONSOLE_MESSAGES_SIZE)
-        .from(OPERATOR_EXECUTIONS)
-        .where(OPERATOR_EXECUTIONS.WORKFLOW_EXECUTION_ID.eq(eid))
-        .fetch()
-        .asScala
-        .map(r =>
-          Option(r.get(OPERATOR_EXECUTIONS.CONSOLE_MESSAGES_SIZE)).map(_.toLong).getOrElse(0L)
+      .asScala
+      .map(record =>
+        QuotaStorage(
+          record.get(WORKFLOW_EXECUTIONS.EID),
+          record.get(WORKFLOW.WID),
+          record.get(WORKFLOW.NAME),
+          Option(record.get(resultTotal)).map(_.longValue()).getOrElse(0L),
+          Option(record.get(WORKFLOW_EXECUTIONS.RUNTIME_STATS_SIZE))
+            .map(_.longValue())
+            .getOrElse(0L),
+          Option(record.get(logTotal)).map(_.longValue()).getOrElse(0L)
         )
-        .sum
-
-      QuotaStorage(
-        eid,
-        wid,
-        workflowName,
-        resultSize,
-        runTimeStatsSize,
-        logSize
       )
-    }.toArray
+      .toArray
   }
 
   def deleteExecutionCollection(eid: Integer): Unit = {
@@ -171,6 +157,7 @@ object UserQuotaResource {
 }
 
 @Path("/quota")
+@RolesAllowed(Array("REGULAR", "ADMIN"))
 class UserQuotaResource {
 
   @GET
@@ -203,7 +190,16 @@ class UserQuotaResource {
 
   @DELETE
   @Path("/deleteCollection/{eid}")
-  def deleteCollection(@PathParam("eid") eid: Integer): Unit = {
+  @RolesAllowed(Array("REGULAR", "ADMIN"))
+  def deleteCollection(
+      @PathParam("eid") eid: Integer,
+      @Auth current_user: SessionUser
+  ): Unit = {
+    WorkflowExecutionsResource.validateUserCanAccessExecutions(
+      current_user.getUid,
+      Seq(eid),
+      requireWrite = true
+    )
     deleteExecutionCollection(eid)
   }
 }
