@@ -17,6 +17,7 @@
 
 import pytest
 import threading
+import pyarrow.flight as flight
 from pampy import MatchError
 from pyarrow import Table
 from types import SimpleNamespace
@@ -530,3 +531,69 @@ class TestNetworkReceiver:
         message = PythonActorMessage(payload=set_one_of(ActorCommand, CreditUpdate()))
         offline_receiver.actor_handler(bytes(message))
         assert replacement.calls == [CreditUpdate()]
+
+
+class TestNetworkReceiverQueuedCredit:
+    """The queue size the receiver returns over Flight is the JVM's queued credit."""
+
+    @pytest.fixture
+    def receiver_and_client(self, reraise):
+        queue = InternalQueue()
+        receiver = NetworkReceiver(queue, host="127.0.0.1", port=0)
+
+        def serve():
+            with reraise:
+                receiver.run()
+
+        thread = threading.Thread(target=serve, daemon=True)
+        thread.start()
+        client = flight.FlightClient(f"grpc://127.0.0.1:{receiver.proxy_server.port}")
+        try:
+            yield queue, client
+        finally:
+            client.close()
+            receiver.stop()
+            thread.join(timeout=5)
+            assert not thread.is_alive()
+            reraise()
+
+    def test_acks_and_credit_polls_report_queued_arrow_bytes(self, receiver_and_client):
+        queue, client = receiver_and_client
+        options = flight.FlightCallOptions(timeout=5)
+        header = PythonDataHeader(
+            tag=TestNetworkReceiver.data_channel(), payload_type="Data"
+        )
+        descriptor = flight.FlightDescriptor.for_command(bytes(header))
+        tables = [
+            Table.from_pydict({"x": ["a"]}),
+            Table.from_pydict({"x": ["x" * 1000] * 400}),
+        ]
+        sizes = [table.get_total_buffer_size() for table in tables]
+
+        # put each batch the way PythonProxyClient does; every put is
+        # acknowledged with the queue's running total
+        acknowledgements = []
+        for table in tables:
+            writer, reader = client.do_put(descriptor, table.schema, options=options)
+            with writer:
+                writer.write_table(table)
+                writer.done_writing()
+                acknowledgements.append(
+                    int.from_bytes(reader.read().to_pybytes(), "little")
+                )
+        assert acknowledgements == [sizes[0], sizes[0] + sizes[1]]
+
+        # the credit poll the JVM sends while backpressured reports the same total
+        credit_update = PythonActorMessage(
+            payload=set_one_of(ActorCommand, CreditUpdate())
+        )
+        credit_poll = flight.Action("actor", bytes(credit_update))
+
+        def poll() -> int:
+            (result,) = client.do_action(credit_poll, options)
+            return int(result.body.to_pybytes())
+
+        assert poll() == sum(sizes)
+        for table in tables:
+            assert queue.get().payload.frame.equals(table)
+        assert poll() == 0
