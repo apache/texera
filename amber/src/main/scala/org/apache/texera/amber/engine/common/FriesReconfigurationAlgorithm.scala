@@ -72,12 +72,16 @@ object FriesReconfigurationAlgorithm {
     var backwardVertices = Set.empty[PhysicalOpIdentity]
 
     val topologicalOps = region.topologicalIterator().toList
+    // Parents and children come from the region's own links. An operator's own link lists can
+    // also name a link from another operator of the region that carries no data in this
+    // execution, when the operator reads that port's saved result instead.
+    val regionLinks = region.getLinks
 
     topologicalOps.foreach { opId =>
       val op = region.getOperator(opId)
       val fromParent = op.inputPorts.valuesIterator
         .flatMap(_._2)
-        .exists(link => forwardVertices.contains(link.fromOpId))
+        .exists(link => regionLinks.contains(link) && forwardVertices.contains(link.fromOpId))
       if (M.contains(opId) || fromParent) {
         forwardVertices += opId
       }
@@ -87,7 +91,7 @@ object FriesReconfigurationAlgorithm {
       val op = region.getOperator(opId)
       val fromChild = op.outputPorts.valuesIterator
         .flatMap(_._2)
-        .exists(link => backwardVertices.contains(link.toOpId))
+        .exists(link => regionLinks.contains(link) && backwardVertices.contains(link.toOpId))
       if (M.contains(opId) || fromChild) {
         backwardVertices += opId
       }
