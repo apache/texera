@@ -115,10 +115,10 @@ class ProcessTupleOperator(UDFOperatorV2):
             yield tuple_
 ```
 
-Two more methods run once, if you write them:
+Two more optional methods:
 
-- `on_finish(self, port)` runs when an input ends, and can `yield` rows, e.g. a total after the last row. Use it with `UDFOperatorV2` or `UDFBatchOperator`.
-- `close(self)` runs at the very end. Use it to release what `open()` set up, e.g. close a file.
+- `on_finish(self, port)` runs once when each input ends, and can `yield` rows, e.g. a total after the last row. Use it with `UDFOperatorV2` or `UDFBatchOperator`.
+- `close(self)` runs once at the very end. Use it to release what `open()` set up, e.g. close a file.
 
 If you write `__init__` instead of `open()`, make its first line `super().__init__()`. Older Texera versions fail without it (see the table below).
 
