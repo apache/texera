@@ -44,7 +44,7 @@ After signing in you see the dashboard. The left menu has:
   - **Warehouses** (on some setups): where your run results are stored.
   - **Environments**: extra Python packages for Python operators.
   - **Quota**: how much storage and compute you have used.
-- **Admin**: users, executions and site settings. Admins only.
+- **Admin**: users, executions, computing units and site settings. Admins only.
 
 ## The workflow editor
 
@@ -65,7 +65,7 @@ Some Texera setups also need a **warehouse**, the place your run's results are s
 
 - One computing unit can run all your workflows. Reuse it.
 - A new unit usually won't fix an error in the workflow itself (code or settings). It can help when the run needs more memory, CPU or GPU, or different Python packages.
-- Stopping (terminating) a unit stops its machine. Your workflows and datasets are kept. To see results on another unit, run the workflow again there.
+- Terminating a unit stops it. Your workflows and datasets are kept; the results of runs on it are lost.
 
 More in [Computing Units](../computing-units/).
 
@@ -112,9 +112,8 @@ While a workflow runs, **Run** becomes **Pause**. **Pause** can be resumed. The 
 
 The run button says *Submitting* or *Pause*, the timer keeps counting, and every box stays at 0 rows. Check these in order:
 
-1. **Click the failed box, or an empty spot on the canvas,** and look at **Static Error**. Setup errors (for example in Python code) show up there.
-2. **Click each colored box** and look at its **Console**. A magenta box is paused on an error.
-3. **Is a box still orange, waiting for its input?** Operators such as Sort and Join wait for all their input. Check the box before it.
-4. **Stop** the run (red ⊗), fix the problem, and **Run** again.
-5. **Don't create a new computing unit just to retry.** Errors in code or settings happen on every unit. Switch units only if the error points at the unit, e.g. out of memory or a missing package.
-6. Nothing in Static Error or the Console? Ask your Texera administrator to check the computing unit logs.
+1. **Click each colored box** and look at its **Console**. A magenta box is paused on an error.
+2. **Is a box still orange, waiting for its input?** Operators such as Sort and Join wait for all their input. Check the box before it.
+3. **Stop** the run (red ⊗), fix the problem, and **Run** again.
+4. **Don't create a new computing unit just to retry.** Errors in code or settings happen on every unit. Switch units only if the error points at the unit, e.g. out of memory or a missing package.
+5. Nothing in the Console? Ask your Texera administrator to check the computing unit logs.

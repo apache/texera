@@ -39,15 +39,7 @@ Once logged in, you should see the following page:
 
 ### Navigation Bar
 
-On the left sidebar, you can switch between different resource modules:
-
-- **Hub**: workflows and datasets that others have made public.
-- **Your Work → Workflows**: your workflow projects.
-- **Your Work → Datasets**: upload and manage data files.
-- **Your Work → Compute**: the computing units that run your workflows.
-- **Your Work → Environments**: extra Python packages for Python operators.
-- **Your Work → Quota**: usage statistics and resource consumption.
-- **Admin**: manage system users (visible only to admins).
+The left sidebar switches between Hub, Your Work (workflows, datasets, computing units and more) and, for admins, Admin. Each item is described in [The dashboard](/docs/tutorials/guide-for-how-to-use-texera/#the-dashboard).
 
 For a walkthrough of the workflow editor, see the [Guide for how to use Texera](/docs/tutorials/guide-for-how-to-use-texera/).
 
