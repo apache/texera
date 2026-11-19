@@ -108,7 +108,7 @@
       }
     },
     {
-      "files": ["*.spec.ts"],
+      "files": ["*.spec.ts", "*.spec.tsx"],
       "rules": {
         "no-restricted-imports": [
           "error",
