@@ -44,206 +44,6 @@ describe("HuggingFaceImageUploadComponent", () => {
     fixture.detectChanges();
   });
 
-  it("should create", () => {
-    expect(component).toBeTruthy();
-  });
-
-  describe("derived view state", () => {
-    it("reports no image when formControl is empty", () => {
-      expect(component.hasMedia).toBe(false);
-      expect(component.previewSrc).toBe("");
-      expect(component.displayFileName).toBe("");
-    });
-
-    it("reports an image when formControl holds a data URL", () => {
-      component.formControl.setValue("data:image/jpeg;base64,AAA");
-      expect(component.hasMedia).toBe(true);
-      expect(component.previewSrc).toBe("data:image/jpeg;base64,AAA");
-      expect(component.displayFileName).toBe("Uploaded image");
-    });
-
-    it("prefers the explicit filename over the fallback label", () => {
-      component.formControl.setValue("data:image/jpeg;base64,AAA");
-      component.fileName = "cat.jpg";
-      expect(component.displayFileName).toBe("cat.jpg");
-    });
-  });
-
-  describe("onFileSelected", () => {
-    function makeFileInput(file?: File): HTMLInputElement {
-      const input = document.createElement("input");
-      input.type = "file";
-      if (file) {
-        Object.defineProperty(input, "files", {
-          value: [file] as unknown as FileList,
-          configurable: true,
-        });
-      }
-      return input;
-    }
-
-    it("clears prior error and returns early when no file is provided", async () => {
-      component.errorMessage = "previous error";
-      const input = makeFileInput();
-      await component.onFileSelected({ target: input } as unknown as Event);
-      expect(component.errorMessage).toBe("");
-      expect(component.formControl.value).toBe("");
-    });
-
-    it("rejects non-image files and resets the input", async () => {
-      const txtFile = new File(["hi"], "note.txt", { type: "text/plain" });
-      const input = makeFileInput(txtFile);
-      await component.onFileSelected({ target: input } as unknown as Event);
-      expect(component.errorMessage).toBe("Choose an image file.");
-      expect(component.hasMedia).toBe(false);
-    });
-
-    it("clears a previously selected image when a non-image file is rejected", async () => {
-      component.formControl.setValue("data:image/jpeg;base64,AAA");
-      component.fileName = "old.jpg";
-      const txtFile = new File(["hi"], "note.txt", { type: "text/plain" });
-      const input = makeFileInput(txtFile);
-      await component.onFileSelected({ target: input } as unknown as Event);
-      expect(component.errorMessage).toBe("Choose an image file.");
-      expect(component.formControl.value).toBe("");
-      expect(component.fileName).toBe("");
-      expect(component.hasMedia).toBe(false);
-    });
-
-    it("reports an error when image compression fails", async () => {
-      // jsdom's Image never fires onload/onerror, so compressImage would hang
-      // forever. Stub FileReader so it synchronously fires onerror, which
-      // makes compressImage reject and exercises the catch branch.
-      const realFileReader = globalThis.FileReader;
-      class FailingFileReader {
-        onload: ((e: Event) => void) | null = null;
-        onerror: ((e: Event) => void) | null = null;
-        readAsDataURL() {
-          queueMicrotask(() => this.onerror?.(new Event("error")));
-        }
-      }
-      (globalThis as any).FileReader = FailingFileReader;
-      try {
-        const imgFile = new File(["fake"], "broken.png", { type: "image/png" });
-        const input = makeFileInput(imgFile);
-        await component.onFileSelected({ target: input } as unknown as Event);
-        expect(component.errorMessage).toBe("Could not prepare this image. Try a smaller image file.");
-        expect(component.hasMedia).toBe(false);
-      } finally {
-        (globalThis as any).FileReader = realFileReader;
-      }
-    });
-  });
-
-  describe("clearImage", () => {
-    it("resets file state, the form control, and any model value", () => {
-      (component.field as any).model = { image: "data:image/jpeg;base64,AAA" };
-      component.formControl.setValue("data:image/jpeg;base64,AAA");
-      component.fileName = "cat.jpg";
-      component.errorMessage = "some error";
-
-      const input = document.createElement("input");
-      input.type = "file";
-
-      component.clearImage(input);
-
-      expect(component.fileName).toBe("");
-      expect(component.errorMessage).toBe("");
-      expect(input.value).toBe("");
-      expect(component.formControl.value).toBe("");
-      expect(component.formControl.dirty).toBe(true);
-      expect(component.formControl.touched).toBe(true);
-      expect((component.model as any).image).toBe("");
-    });
-  });
-
-  describe("hasMedia edge cases", () => {
-    it("returns false for a server path string", () => {
-      component.formControl.setValue("/uploads/photo.png");
-      expect(component.hasMedia).toBe(false);
-    });
-
-    it("returns false for null value", () => {
-      component.formControl.setValue(null);
-      expect(component.hasMedia).toBe(false);
-    });
-
-    it("returns false for non-image data URL", () => {
-      component.formControl.setValue("data:audio/wav;base64,AAA");
-      expect(component.hasMedia).toBe(false);
-    });
-
-    it("returns true for data:image/png URL", () => {
-      component.formControl.setValue("data:image/png;base64,AAA");
-      expect(component.hasMedia).toBe(true);
-    });
-  });
-
-  describe("previewSrc", () => {
-    it("returns data URL when formControl has image", () => {
-      component.formControl.setValue("data:image/jpeg;base64,AAA");
-      expect(component.previewSrc).toBe("data:image/jpeg;base64,AAA");
-    });
-
-    it("returns empty string when formControl has no image", () => {
-      component.formControl.setValue("");
-      expect(component.previewSrc).toBe("");
-    });
-
-    it("returns empty string for server path", () => {
-      component.formControl.setValue("/uploads/photo.png");
-      expect(component.previewSrc).toBe("");
-    });
-  });
-
-  describe("displayFileName", () => {
-    it("returns empty string when no image and no fileName", () => {
-      expect(component.displayFileName).toBe("");
-    });
-
-    it("returns 'Uploaded image' when image present but no fileName", () => {
-      component.formControl.setValue("data:image/jpeg;base64,AAA");
-      expect(component.displayFileName).toBe("Uploaded image");
-    });
-
-    it("returns fileName when set, even without image", () => {
-      component.fileName = "photo.jpg";
-      expect(component.displayFileName).toBe("photo.jpg");
-    });
-  });
-
-  describe("rendered preview label", () => {
-    const previewLabel = () => fixture.nativeElement.querySelector(".hf-image-meta span") as HTMLElement | null;
-
-    it("labels the preview 'Uploaded image' when an image has no filename", () => {
-      component.formControl.setValue("data:image/jpeg;base64,AAA");
-      fixture.detectChanges();
-
-      expect(previewLabel()?.textContent?.trim()).toBe("Uploaded image");
-    });
-
-    it("labels the preview with the filename once one is known", () => {
-      component.formControl.setValue("data:image/jpeg;base64,AAA");
-      component.fileName = "cat.jpg";
-      fixture.detectChanges();
-
-      expect(previewLabel()?.textContent?.trim()).toBe("cat.jpg");
-    });
-
-    it("renders no preview at all without an image, so the label is never empty", () => {
-      // The preview only renders while previewSrc is non-empty, which happens exactly
-      // when hasMedia is true — and displayFileName is never empty in that case.
-      component.formControl.setValue("");
-      fixture.detectChanges();
-
-      expect(previewLabel()).toBeNull();
-    });
-  });
-
-  // ── Shared mocking helpers ──────────────────────────────────────────────
-  // These helpers let us drive the private compressImage / renderCompressedDataUrl
-  // pipeline end-to-end through onFileSelected.
-
   function makeFileInput(file?: File): HTMLInputElement {
     const input = document.createElement("input");
     input.type = "file";
@@ -347,214 +147,280 @@ describe("HuggingFaceImageUploadComponent", () => {
     };
   }
 
+  async function selectImage(
+    name: string,
+    type: string,
+    opts?: CompressionMockOptions,
+    content = "fake"
+  ): Promise<HTMLInputElement> {
+    const teardown = installCompressionMocks(opts);
+    try {
+      const input = makeFileInput(new File([content], name, { type }));
+      await component.onFileSelected({ target: input } as unknown as Event);
+      return input;
+    } finally {
+      teardown();
+    }
+  }
+
+  it("should create", () => {
+    expect(component).toBeTruthy();
+  });
+
+  describe("derived view state", () => {
+    it("reports no image when formControl is empty", () => {
+      expect(component.hasMedia).toBe(false);
+      expect(component.previewSrc).toBe("");
+      expect(component.displayFileName).toBe("");
+    });
+
+    it("reports an image when formControl holds a data URL", () => {
+      component.formControl.setValue("data:image/jpeg;base64,AAA");
+      expect(component.hasMedia).toBe(true);
+      expect(component.previewSrc).toBe("data:image/jpeg;base64,AAA");
+      expect(component.displayFileName).toBe("Uploaded image");
+    });
+
+    it("prefers the explicit filename over the fallback label", () => {
+      component.formControl.setValue("data:image/jpeg;base64,AAA");
+      component.fileName = "cat.jpg";
+      expect(component.displayFileName).toBe("cat.jpg");
+    });
+  });
+
+  describe("onFileSelected", () => {
+    it("clears prior error and returns early when no file is provided", async () => {
+      component.errorMessage = "previous error";
+      const input = makeFileInput();
+      await component.onFileSelected({ target: input } as unknown as Event);
+      expect(component.errorMessage).toBe("");
+      expect(component.formControl.value).toBe("");
+    });
+
+    it("rejects non-image files and resets the input", async () => {
+      await selectImage("note.txt", "text/plain", undefined, "hi");
+      expect(component.errorMessage).toBe("Choose an image file.");
+      expect(component.hasMedia).toBe(false);
+    });
+
+    it("clears a previously selected image when a non-image file is rejected", async () => {
+      component.formControl.setValue("data:image/jpeg;base64,AAA");
+      component.fileName = "old.jpg";
+      await selectImage("note.txt", "text/plain", undefined, "hi");
+      expect(component.errorMessage).toBe("Choose an image file.");
+      expect(component.formControl.value).toBe("");
+      expect(component.fileName).toBe("");
+      expect(component.hasMedia).toBe(false);
+    });
+
+    it("reports an error when image compression fails", async () => {
+      // jsdom's Image never fires onload/onerror unless stubbed; simulate FileReader onerror
+      // so compressImage rejects and exercises the catch branch.
+      await selectImage("broken.png", "image/png", { readerError: true });
+      expect(component.errorMessage).toBe("Could not prepare this image. Try a smaller image file.");
+      expect(component.hasMedia).toBe(false);
+    });
+  });
+
+  describe("clearImage", () => {
+    it("resets file state, the form control, and any model value", () => {
+      (component.field as any).model = { image: "data:image/jpeg;base64,AAA" };
+      component.formControl.setValue("data:image/jpeg;base64,AAA");
+      component.fileName = "cat.jpg";
+      component.errorMessage = "some error";
+
+      const input = document.createElement("input");
+      input.type = "file";
+
+      component.clearImage(input);
+
+      expect(component.fileName).toBe("");
+      expect(component.errorMessage).toBe("");
+      expect(input.value).toBe("");
+      expect(component.formControl.value).toBe("");
+      expect(component.formControl.dirty).toBe(true);
+      expect(component.formControl.touched).toBe(true);
+      expect((component.model as any).image).toBe("");
+    });
+  });
+
+  describe("hasMedia edge cases", () => {
+    it.each<[string, string | null, boolean]>([
+      ["returns false for a server path string", "/uploads/photo.png", false],
+      ["returns false for null value", null, false],
+      ["returns false for non-image data URL", "data:audio/wav;base64,AAA", false],
+      ["returns true for data:image/png URL", "data:image/png;base64,AAA", true],
+    ])("%s", (_name, value, expected) => {
+      component.formControl.setValue(value);
+      expect(component.hasMedia).toBe(expected);
+    });
+  });
+
+  describe("previewSrc", () => {
+    it.each<[string, string, string]>([
+      ["returns data URL when formControl has image", "data:image/jpeg;base64,AAA", "data:image/jpeg;base64,AAA"],
+      ["returns empty string when formControl has no image", "", ""],
+      ["returns empty string for server path", "/uploads/photo.png", ""],
+    ])("%s", (_name, value, expected) => {
+      component.formControl.setValue(value);
+      expect(component.previewSrc).toBe(expected);
+    });
+  });
+
+  describe("displayFileName", () => {
+    it.each<[string, string, string, string]>([
+      ["returns empty string when no image and no fileName", "", "", ""],
+      [
+        "returns 'Uploaded image' when image present but no fileName",
+        "data:image/jpeg;base64,AAA",
+        "",
+        "Uploaded image",
+      ],
+      ["returns fileName when set, even without image", "", "photo.jpg", "photo.jpg"],
+    ])("%s", (_name, formValue, fileName, expected) => {
+      component.formControl.setValue(formValue);
+      component.fileName = fileName;
+      expect(component.displayFileName).toBe(expected);
+    });
+  });
+
+  describe("rendered preview label", () => {
+    const previewLabel = () => fixture.nativeElement.querySelector(".hf-image-meta span") as HTMLElement | null;
+
+    it("labels the preview 'Uploaded image' when an image has no filename", () => {
+      component.formControl.setValue("data:image/jpeg;base64,AAA");
+      fixture.detectChanges();
+
+      expect(previewLabel()?.textContent?.trim()).toBe("Uploaded image");
+    });
+
+    it("labels the preview with the filename once one is known", () => {
+      component.formControl.setValue("data:image/jpeg;base64,AAA");
+      component.fileName = "cat.jpg";
+      fixture.detectChanges();
+
+      expect(previewLabel()?.textContent?.trim()).toBe("cat.jpg");
+    });
+
+    it("renders no preview at all without an image, so the label is never empty", () => {
+      // The preview only renders while previewSrc is non-empty, which happens exactly
+      // when hasMedia is true — and displayFileName is never empty in that case.
+      component.formControl.setValue("");
+      fixture.detectChanges();
+
+      expect(previewLabel()).toBeNull();
+    });
+  });
+
   // ── Successful upload ─────────────────────────────────────────────────
 
   describe("successful upload", () => {
     it("sets fileName, formControl, model, and marks dirty/touched", async () => {
-      const teardown = installCompressionMocks();
-      try {
-        const imgFile = new File(["fake"], "sunset.jpg", { type: "image/jpeg" });
-        const input = makeFileInput(imgFile);
-        await component.onFileSelected({ target: input } as unknown as Event);
+      await selectImage("sunset.jpg", "image/jpeg");
 
-        expect(component.fileName).toBe("sunset.jpg");
-        expect(component.formControl.value).toBe("data:image/jpeg;base64,SMALL");
-        expect(component.hasMedia).toBe(true);
-        expect(component.formControl.dirty).toBe(true);
-        expect(component.formControl.touched).toBe(true);
-        expect((component.model as any).image).toBe("data:image/jpeg;base64,SMALL");
-        expect(component.errorMessage).toBe("");
-      } finally {
-        teardown();
-      }
+      expect(component.fileName).toBe("sunset.jpg");
+      expect(component.formControl.value).toBe("data:image/jpeg;base64,SMALL");
+      expect(component.hasMedia).toBe(true);
+      expect(component.formControl.dirty).toBe(true);
+      expect(component.formControl.touched).toBe(true);
+      expect((component.model as any).image).toBe("data:image/jpeg;base64,SMALL");
+      expect(component.errorMessage).toBe("");
     });
 
     it("clears a previous error on successful upload", async () => {
       component.errorMessage = "previous failure";
-      const teardown = installCompressionMocks();
-      try {
-        const imgFile = new File(["fake"], "ok.png", { type: "image/png" });
-        const input = makeFileInput(imgFile);
-        await component.onFileSelected({ target: input } as unknown as Event);
-        expect(component.errorMessage).toBe("");
-      } finally {
-        teardown();
-      }
+      await selectImage("ok.png", "image/png");
+      expect(component.errorMessage).toBe("");
     });
   });
 
   // ── compressImage rejection paths ─────────────────────────────────────
 
   describe("compressImage rejection paths", () => {
-    it("rejects when FileReader.result is not a string (ArrayBuffer)", async () => {
-      const teardown = installCompressionMocks({ readerResult: new ArrayBuffer(8) });
-      try {
-        const imgFile = new File(["fake"], "pic.png", { type: "image/png" });
-        const input = makeFileInput(imgFile);
-        await component.onFileSelected({ target: input } as unknown as Event);
-        expect(component.errorMessage).toBe("Could not prepare this image. Try a smaller image file.");
-        expect(component.hasMedia).toBe(false);
-      } finally {
-        teardown();
-      }
-    });
-
-    it("rejects when FileReader.result is null", async () => {
-      const teardown = installCompressionMocks({ readerResult: null });
-      try {
-        const imgFile = new File(["fake"], "pic.png", { type: "image/png" });
-        const input = makeFileInput(imgFile);
-        await component.onFileSelected({ target: input } as unknown as Event);
-        expect(component.errorMessage).toBe("Could not prepare this image. Try a smaller image file.");
-      } finally {
-        teardown();
-      }
-    });
-
-    it("rejects when Image fires onerror", async () => {
-      const teardown = installCompressionMocks({ imageError: true });
-      try {
-        const imgFile = new File(["fake"], "corrupt.jpg", { type: "image/jpeg" });
-        const input = makeFileInput(imgFile);
-        await component.onFileSelected({ target: input } as unknown as Event);
-        expect(component.errorMessage).toBe("Could not prepare this image. Try a smaller image file.");
-        expect(component.hasMedia).toBe(false);
-      } finally {
-        teardown();
-      }
+    it.each<[string, string, string, CompressionMockOptions]>([
+      [
+        "rejects when FileReader.result is not a string (ArrayBuffer)",
+        "pic.png",
+        "image/png",
+        { readerResult: new ArrayBuffer(8) },
+      ],
+      ["rejects when FileReader.result is null", "pic.png", "image/png", { readerResult: null }],
+      ["rejects when Image fires onerror", "corrupt.jpg", "image/jpeg", { imageError: true }],
+    ])("%s", async (_name, filename, type, opts) => {
+      await selectImage(filename, type, opts);
+      expect(component.errorMessage).toBe("Could not prepare this image. Try a smaller image file.");
+      expect(component.hasMedia).toBe(false);
     });
   });
 
   // ── renderCompressedDataUrl edge cases ────────────────────────────────
 
   describe("renderCompressedDataUrl (via onFileSelected)", () => {
-    it("returns empty when canvas context is null", async () => {
-      const teardown = installCompressionMocks({ nullCanvasContext: true });
-      try {
-        const imgFile = new File(["fake"], "pic.png", { type: "image/png" });
-        const input = makeFileInput(imgFile);
-        await component.onFileSelected({ target: input } as unknown as Event);
-        // bestDataUrl starts as "" → compressed is "" → fails startsWith check → rejects
-        expect(component.errorMessage).toBe("Could not prepare this image. Try a smaller image file.");
-      } finally {
-        teardown();
-      }
+    const oversized = "data:image/jpeg;base64," + "A".repeat(50000);
+
+    it.each<[string, string, string, CompressionMockOptions]>([
+      // bestDataUrl starts as "" → compressed is "" → fails startsWith check → rejects
+      ["returns empty when canvas context is null", "pic.png", "image/png", { nullCanvasContext: true }],
+      [
+        "rejects when compressed result never fits within size limit",
+        "enormous.jpg",
+        "image/jpeg",
+        { canvasDataUrls: [oversized] },
+      ],
+      [
+        "rejects when toDataURL returns a non-image data URL",
+        "weird.png",
+        "image/png",
+        { canvasDataUrls: ["data:text/plain;base64,broken"] },
+      ],
+    ])("%s", async (_name, filename, type, opts) => {
+      await selectImage(filename, type, opts);
+      expect(component.errorMessage).toBe("Could not prepare this image. Try a smaller image file.");
     });
 
-    it("accepts a data URL that fits within the size limit on first attempt", async () => {
-      const teardown = installCompressionMocks({
-        canvasDataUrls: ["data:image/jpeg;base64,FIT"],
-      });
-      try {
-        const imgFile = new File(["fake"], "small.jpg", { type: "image/jpeg" });
-        const input = makeFileInput(imgFile);
-        await component.onFileSelected({ target: input } as unknown as Event);
-        expect(component.formControl.value).toBe("data:image/jpeg;base64,FIT");
-        expect(component.errorMessage).toBe("");
-      } finally {
-        teardown();
-      }
-    });
-
-    it("reduces quality when the first toDataURL result exceeds the size limit", async () => {
-      // First call returns oversized URL, second call returns a small one
-      const oversized = "data:image/jpeg;base64," + "A".repeat(50000);
-      const small = "data:image/jpeg;base64,OK";
-      const teardown = installCompressionMocks({
-        canvasDataUrls: [oversized, small],
-      });
-      try {
-        const imgFile = new File(["fake"], "large.jpg", { type: "image/jpeg" });
-        const input = makeFileInput(imgFile);
-        await component.onFileSelected({ target: input } as unknown as Event);
-        expect(component.formControl.value).toBe(small);
-        expect(component.errorMessage).toBe("");
-      } finally {
-        teardown();
-      }
-    });
-
-    it("reduces dimension when quality loop alone is not enough", async () => {
-      // Quality has 5 steps (0.75, 0.65, 0.55, 0.45, 0.35).
-      // After exhausting quality at the first maxDimension, it shrinks dimension and retries.
-      // We make the first 5 calls oversized (quality loop at dim=512), then return small on the 6th (dim=384).
-      const oversized = "data:image/jpeg;base64," + "A".repeat(50000);
-      const small = "data:image/jpeg;base64,SHRUNK";
-      const teardown = installCompressionMocks({
-        canvasDataUrls: [oversized, oversized, oversized, oversized, oversized, small],
-      });
-      try {
-        const imgFile = new File(["fake"], "huge.jpg", { type: "image/jpeg" });
-        const input = makeFileInput(imgFile);
-        await component.onFileSelected({ target: input } as unknown as Event);
-        expect(component.formControl.value).toBe(small);
-      } finally {
-        teardown();
-      }
-    });
-
-    it("rejects when compressed result never fits within size limit", async () => {
-      // All toDataURL calls return oversized results
-      const oversized = "data:image/jpeg;base64," + "A".repeat(50000);
-      const teardown = installCompressionMocks({
-        canvasDataUrls: [oversized],
-      });
-      try {
-        const imgFile = new File(["fake"], "enormous.jpg", { type: "image/jpeg" });
-        const input = makeFileInput(imgFile);
-        await component.onFileSelected({ target: input } as unknown as Event);
-        expect(component.errorMessage).toBe("Could not prepare this image. Try a smaller image file.");
-      } finally {
-        teardown();
-      }
-    });
-
-    it("rejects when toDataURL returns a non-image data URL", async () => {
-      const teardown = installCompressionMocks({
-        canvasDataUrls: ["data:text/plain;base64,broken"],
-      });
-      try {
-        const imgFile = new File(["fake"], "weird.png", { type: "image/png" });
-        const input = makeFileInput(imgFile);
-        await component.onFileSelected({ target: input } as unknown as Event);
-        expect(component.errorMessage).toBe("Could not prepare this image. Try a smaller image file.");
-      } finally {
-        teardown();
-      }
-    });
-
-    it("handles a 1x1 pixel image without error", async () => {
-      const teardown = installCompressionMocks({
-        imageWidth: 1,
-        imageHeight: 1,
-        canvasDataUrls: ["data:image/jpeg;base64,TINY"],
-      });
-      try {
-        const imgFile = new File(["fake"], "pixel.png", { type: "image/png" });
-        const input = makeFileInput(imgFile);
-        await component.onFileSelected({ target: input } as unknown as Event);
-        expect(component.formControl.value).toBe("data:image/jpeg;base64,TINY");
-        expect(component.errorMessage).toBe("");
-      } finally {
-        teardown();
-      }
-    });
-
-    it("handles a very wide image (extreme aspect ratio)", async () => {
-      const teardown = installCompressionMocks({
-        imageWidth: 4000,
-        imageHeight: 10,
-        canvasDataUrls: ["data:image/jpeg;base64,WIDE"],
-      });
-      try {
-        const imgFile = new File(["fake"], "banner.jpg", { type: "image/jpeg" });
-        const input = makeFileInput(imgFile);
-        await component.onFileSelected({ target: input } as unknown as Event);
-        expect(component.formControl.value).toBe("data:image/jpeg;base64,WIDE");
-        expect(component.errorMessage).toBe("");
-      } finally {
-        teardown();
-      }
+    it.each<[string, string, string, CompressionMockOptions, string]>([
+      [
+        "accepts a data URL that fits within the size limit on first attempt",
+        "small.jpg",
+        "image/jpeg",
+        { canvasDataUrls: ["data:image/jpeg;base64,FIT"] },
+        "data:image/jpeg;base64,FIT",
+      ],
+      [
+        "reduces quality when the first toDataURL result exceeds the size limit",
+        "large.jpg",
+        "image/jpeg",
+        { canvasDataUrls: [oversized, "data:image/jpeg;base64,OK"] },
+        "data:image/jpeg;base64,OK",
+      ],
+      [
+        // Quality has 5 steps (0.75, 0.65, 0.55, 0.45, 0.35).
+        // After exhausting quality at the first maxDimension, it shrinks dimension and retries.
+        // We make the first 5 calls oversized (quality loop at dim=512), then return small on the 6th (dim=384).
+        "reduces dimension when quality loop alone is not enough",
+        "huge.jpg",
+        "image/jpeg",
+        { canvasDataUrls: [oversized, oversized, oversized, oversized, oversized, "data:image/jpeg;base64,SHRUNK"] },
+        "data:image/jpeg;base64,SHRUNK",
+      ],
+      [
+        "handles a 1x1 pixel image without error",
+        "pixel.png",
+        "image/png",
+        { imageWidth: 1, imageHeight: 1, canvasDataUrls: ["data:image/jpeg;base64,TINY"] },
+        "data:image/jpeg;base64,TINY",
+      ],
+      [
+        "handles a very wide image (extreme aspect ratio)",
+        "banner.jpg",
+        "image/jpeg",
+        { imageWidth: 4000, imageHeight: 10, canvasDataUrls: ["data:image/jpeg;base64,WIDE"] },
+        "data:image/jpeg;base64,WIDE",
+      ],
+    ])("%s", async (_name, filename, type, opts, expectedValue) => {
+      await selectImage(filename, type, opts);
+      expect(component.formControl.value).toBe(expectedValue);
+      expect(component.errorMessage).toBe("");
     });
   });
 
@@ -590,31 +456,13 @@ describe("HuggingFaceImageUploadComponent", () => {
 
   describe("consecutive uploads", () => {
     it("replaces previous upload value with new upload", async () => {
-      const teardown = installCompressionMocks({
-        canvasDataUrls: ["data:image/jpeg;base64,FIRST"],
-      });
-      try {
-        const firstFile = new File(["a"], "first.jpg", { type: "image/jpeg" });
-        const input1 = makeFileInput(firstFile);
-        await component.onFileSelected({ target: input1 } as unknown as Event);
-        expect(component.formControl.value).toBe("data:image/jpeg;base64,FIRST");
-        expect(component.fileName).toBe("first.jpg");
-      } finally {
-        teardown();
-      }
+      await selectImage("first.jpg", "image/jpeg", { canvasDataUrls: ["data:image/jpeg;base64,FIRST"] }, "a");
+      expect(component.formControl.value).toBe("data:image/jpeg;base64,FIRST");
+      expect(component.fileName).toBe("first.jpg");
 
-      const teardown2 = installCompressionMocks({
-        canvasDataUrls: ["data:image/jpeg;base64,SECOND"],
-      });
-      try {
-        const secondFile = new File(["b"], "second.png", { type: "image/png" });
-        const input2 = makeFileInput(secondFile);
-        await component.onFileSelected({ target: input2 } as unknown as Event);
-        expect(component.formControl.value).toBe("data:image/jpeg;base64,SECOND");
-        expect(component.fileName).toBe("second.png");
-      } finally {
-        teardown2();
-      }
+      await selectImage("second.png", "image/png", { canvasDataUrls: ["data:image/jpeg;base64,SECOND"] }, "b");
+      expect(component.formControl.value).toBe("data:image/jpeg;base64,SECOND");
+      expect(component.fileName).toBe("second.png");
     });
   });
 
@@ -630,18 +478,11 @@ describe("HuggingFaceImageUploadComponent", () => {
         model,
       } as any;
 
-      const teardown = installCompressionMocks();
-      try {
-        const imgFile = new File(["fake"], "pic.png", { type: "image/png" });
-        const input = makeFileInput(imgFile);
-        await component.onFileSelected({ target: input } as unknown as Event);
+      await selectImage("pic.png", "image/png");
 
-        // formControl should be updated but model should NOT have the key
-        expect(component.formControl.value).toBe("data:image/jpeg;base64,SMALL");
-        expect(model[123 as any]).toBeUndefined();
-      } finally {
-        teardown();
-      }
+      // formControl should be updated but model should NOT have the key
+      expect(component.formControl.value).toBe("data:image/jpeg;base64,SMALL");
+      expect(model[123 as any]).toBeUndefined();
     });
   });
 

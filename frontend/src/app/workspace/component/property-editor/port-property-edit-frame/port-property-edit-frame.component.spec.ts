@@ -72,6 +72,23 @@ describe("PortPropertyEditFrameComponent", () => {
     fixture.destroy();
   });
 
+  const customizableInputDescriptor: PortDescription = {
+    portID: "input-0",
+    displayName: "Input A",
+    partitionRequirement: { type: "hash", hashAttributeNames: ["a"] },
+    dependencies: [{ id: 1, internal: false }],
+  };
+
+  function stubPortGraph(descriptor: PortDescription, allowPortCustomization?: boolean): void {
+    vi.spyOn(texeraGraph, "hasPort").mockReturnValue(true);
+    vi.spyOn(texeraGraph, "getPortDescription").mockReturnValue(descriptor);
+    if (allowPortCustomization !== undefined) {
+      vi.spyOn(dynamicSchemaService, "getDynamicSchema").mockReturnValue({
+        additionalMetadata: { allowPortCustomization },
+      } as any);
+    }
+  }
+
   it("should create", () => {
     expect(component).toBeTruthy();
   });
@@ -130,17 +147,15 @@ describe("PortPropertyEditFrameComponent", () => {
     });
 
     it("should set the title but skip building the form when customization is not allowed", () => {
-      const descriptor: PortDescription = {
-        portID: "input-0",
-        displayName: "Input A",
-        partitionRequirement: { type: "none" },
-        dependencies: [],
-      };
-      vi.spyOn(texeraGraph, "hasPort").mockReturnValue(true);
-      vi.spyOn(texeraGraph, "getPortDescription").mockReturnValue(descriptor);
-      vi.spyOn(dynamicSchemaService, "getDynamicSchema").mockReturnValue({
-        additionalMetadata: { allowPortCustomization: false },
-      } as any);
+      stubPortGraph(
+        {
+          portID: "input-0",
+          displayName: "Input A",
+          partitionRequirement: { type: "none" },
+          dependencies: [],
+        },
+        false
+      );
 
       (component as any).showPortPropertyEditor(inputPort);
 
@@ -151,12 +166,7 @@ describe("PortPropertyEditFrameComponent", () => {
     });
 
     it("should skip building the form for an output port even when customization is allowed", () => {
-      const descriptor: PortDescription = { portID: "output-0", displayName: "Output A" };
-      vi.spyOn(texeraGraph, "hasPort").mockReturnValue(true);
-      vi.spyOn(texeraGraph, "getPortDescription").mockReturnValue(descriptor);
-      vi.spyOn(dynamicSchemaService, "getDynamicSchema").mockReturnValue({
-        additionalMetadata: { allowPortCustomization: true },
-      } as any);
+      stubPortGraph({ portID: "output-0", displayName: "Output A" }, true);
 
       (component as any).showPortPropertyEditor(outputPort);
 
@@ -166,17 +176,7 @@ describe("PortPropertyEditFrameComponent", () => {
 
     // The heading and the [formGroup] block only render once the form has been built.
     it("should render the title heading and the formly form once the form is built", () => {
-      const descriptor: PortDescription = {
-        portID: "input-0",
-        displayName: "Input A",
-        partitionRequirement: { type: "hash", hashAttributeNames: ["a"] },
-        dependencies: [{ id: 1, internal: false }],
-      };
-      vi.spyOn(texeraGraph, "hasPort").mockReturnValue(true);
-      vi.spyOn(texeraGraph, "getPortDescription").mockReturnValue(descriptor);
-      vi.spyOn(dynamicSchemaService, "getDynamicSchema").mockReturnValue({
-        additionalMetadata: { allowPortCustomization: true },
-      } as any);
+      stubPortGraph(customizableInputDescriptor, true);
 
       // Drive it through the public input hook rather than the private opener.
       component.ngOnChanges({ currentPortID: new SimpleChange(undefined, inputPort, true) });
@@ -197,17 +197,7 @@ describe("PortPropertyEditFrameComponent", () => {
     });
 
     it("should build the formly form from the port descriptor when customization is allowed on an input port", () => {
-      const descriptor: PortDescription = {
-        portID: "input-0",
-        displayName: "Input A",
-        partitionRequirement: { type: "hash", hashAttributeNames: ["a"] },
-        dependencies: [{ id: 1, internal: false }],
-      };
-      vi.spyOn(texeraGraph, "hasPort").mockReturnValue(true);
-      vi.spyOn(texeraGraph, "getPortDescription").mockReturnValue(descriptor);
-      vi.spyOn(dynamicSchemaService, "getDynamicSchema").mockReturnValue({
-        additionalMetadata: { allowPortCustomization: true },
-      } as any);
+      stubPortGraph(customizableInputDescriptor, true);
 
       (component as any).showPortPropertyEditor(inputPort);
 
@@ -261,11 +251,7 @@ describe("PortPropertyEditFrameComponent", () => {
 
     it("should compare form data against the port's partition requirement", () => {
       component.currentPortID = inputPort;
-      vi.spyOn(texeraGraph, "hasPort").mockReturnValue(true);
-      vi.spyOn(texeraGraph, "getPortDescription").mockReturnValue({
-        portID: "input-0",
-        partitionRequirement: { type: "none" },
-      } as PortDescription);
+      stubPortGraph({ portID: "input-0", partitionRequirement: { type: "none" } } as PortDescription);
 
       // identical to the current partition requirement -> no change
       expect((component as any).checkPort({ type: "none" })).toBe(false);
@@ -275,11 +261,14 @@ describe("PortPropertyEditFrameComponent", () => {
   });
 
   describe("registerOnFormChangeHandler (edit propagation)", () => {
-    it("should push a debounced, changed form value to WorkflowActionService.setPortProperty", fakeAsync(() => {
+    function setupFormChangeSpy(descriptor: PortDescription) {
       component.currentPortID = inputPort;
-      vi.spyOn(texeraGraph, "hasPort").mockReturnValue(true);
-      vi.spyOn(texeraGraph, "getPortDescription").mockReturnValue({ portID: "input-0" } as PortDescription);
-      const setSpy = vi.spyOn(workflowActionService, "setPortProperty").mockImplementation(() => {});
+      stubPortGraph(descriptor);
+      return vi.spyOn(workflowActionService, "setPortProperty").mockImplementation(() => {});
+    }
+
+    it("should push a debounced, changed form value to WorkflowActionService.setPortProperty", fakeAsync(() => {
+      const setSpy = setupFormChangeSpy({ portID: "input-0" } as PortDescription);
 
       const newValue = { type: "hash", hashAttributeNames: ["a"] };
       component.onFormChanges(newValue);
@@ -293,13 +282,10 @@ describe("PortPropertyEditFrameComponent", () => {
     }));
 
     it("should not propagate when the form value matches the current partition requirement", fakeAsync(() => {
-      component.currentPortID = inputPort;
-      vi.spyOn(texeraGraph, "hasPort").mockReturnValue(true);
-      vi.spyOn(texeraGraph, "getPortDescription").mockReturnValue({
+      const setSpy = setupFormChangeSpy({
         portID: "input-0",
         partitionRequirement: { type: "none" },
       } as PortDescription);
-      const setSpy = vi.spyOn(workflowActionService, "setPortProperty").mockImplementation(() => {});
 
       component.onFormChanges({ type: "none" });
       tick(FORM_DEBOUNCE_TIME_MS + 10);
@@ -309,12 +295,21 @@ describe("PortPropertyEditFrameComponent", () => {
   });
 
   describe("registerPortPropertyChangeHandler (programmatic updates)", () => {
-    it("should adopt the new property when the change targets the current port", () => {
+    function emitPortPropertyChange(
+      operatorPortID: LogicalPort,
+      newProperty: Record<string, unknown>,
+      initialFormData: Record<string, unknown> = { type: "none" },
+      listening = true
+    ): void {
       component.currentPortID = inputPort;
-      component.formData = { type: "none" };
+      component.formData = initialFormData;
+      component.listeningToChange = listening;
+      texeraGraph.portPropertyChangedSubject.next({ operatorPortID, newProperty });
+    }
 
+    it("should adopt the new property when the change targets the current port", () => {
       const newProperty = { partitionInfo: { type: "single" }, dependencies: [] };
-      texeraGraph.portPropertyChangedSubject.next({ operatorPortID: inputPort, newProperty });
+      emitPortPropertyChange(inputPort, newProperty);
 
       expect(component.formData).toEqual(newProperty);
       // stored as a clone
@@ -322,39 +317,18 @@ describe("PortPropertyEditFrameComponent", () => {
     });
 
     it("should ignore programmatic changes while not listening", () => {
-      component.currentPortID = inputPort;
-      component.formData = { type: "none" };
-      component.listeningToChange = false;
-
-      texeraGraph.portPropertyChangedSubject.next({
-        operatorPortID: inputPort,
-        newProperty: { partitionInfo: { type: "single" } },
-      });
-
+      emitPortPropertyChange(inputPort, { partitionInfo: { type: "single" } }, { type: "none" }, false);
       expect(component.formData).toEqual({ type: "none" });
     });
 
     it("should ignore changes targeting a different port", () => {
-      component.currentPortID = inputPort;
-      component.formData = { type: "none" };
-
-      texeraGraph.portPropertyChangedSubject.next({
-        operatorPortID: outputPort,
-        newProperty: { partitionInfo: { type: "single" } },
-      });
-
+      emitPortPropertyChange(outputPort, { partitionInfo: { type: "single" } });
       expect(component.formData).toEqual({ type: "none" });
     });
 
     it("should ignore a change equal to the currently held form data", () => {
-      component.currentPortID = inputPort;
       const current = { partitionInfo: { type: "single" }, dependencies: [] };
-      component.formData = current;
-
-      texeraGraph.portPropertyChangedSubject.next({
-        operatorPortID: inputPort,
-        newProperty: { partitionInfo: { type: "single" }, dependencies: [] },
-      });
+      emitPortPropertyChange(inputPort, { partitionInfo: { type: "single" }, dependencies: [] }, current);
 
       // filtered out because it equals the current form data -> same reference kept
       expect(component.formData).toBe(current);
@@ -362,45 +336,25 @@ describe("PortPropertyEditFrameComponent", () => {
   });
 
   describe("registerPortDisplayNameChangeHandler", () => {
-    it("should update the form title when the display-name change matches the current port", () => {
+    function emitDisplayNameAndExpect(operatorID: string, portID: string, expectedTitle: string): void {
       component.currentPortID = inputPort;
       component.formTitle = "old";
+      texeraGraph.portDisplayNameChangedSubject.next({ operatorID, portID, newDisplayName: "renamed" });
+      expect(component.formTitle).toBe(expectedTitle);
+    }
 
-      texeraGraph.portDisplayNameChangedSubject.next({
-        operatorID: inputPort.operatorID,
-        portID: inputPort.portID,
-        newDisplayName: "renamed",
-      });
-
-      expect(component.formTitle).toBe("renamed");
+    it("should update the form title when the display-name change matches the current port", () => {
+      emitDisplayNameAndExpect(inputPort.operatorID, inputPort.portID, "renamed");
     });
 
     it("should leave the form title unchanged for a different port", () => {
-      component.currentPortID = inputPort;
-      component.formTitle = "old";
-
-      texeraGraph.portDisplayNameChangedSubject.next({
-        operatorID: "other-op",
-        portID: inputPort.portID,
-        newDisplayName: "renamed",
-      });
-
-      expect(component.formTitle).toBe("old");
+      emitDisplayNameAndExpect("other-op", inputPort.portID, "old");
     });
 
     // The operator matches here, so the port half of the condition is the one doing the work —
     // the test above short-circuits on the operator and never evaluates it.
     it("should leave the form title unchanged for a sibling port of the same operator", () => {
-      component.currentPortID = inputPort;
-      component.formTitle = "old";
-
-      texeraGraph.portDisplayNameChangedSubject.next({
-        operatorID: inputPort.operatorID,
-        portID: outputPort.portID,
-        newDisplayName: "renamed",
-      });
-
-      expect(component.formTitle).toBe("old");
+      emitDisplayNameAndExpect(inputPort.operatorID, outputPort.portID, "old");
     });
   });
 
@@ -451,10 +405,21 @@ describe("PortPropertyEditFrameComponent", () => {
     /** The `#customName` div the component mounts the editor into, via the global lookup it uses. */
     const editorHost = () => document.getElementById("customName") as HTMLElement;
 
-    it("should create the shared display-name text and bind the editor to it", () => {
+    function stubSharedPortDescription(initialName?: string) {
       const sharedPortDescription = new Y.Doc().getMap("portDescription");
+      let existingTitle: Y.Text | undefined;
+      if (initialName !== undefined) {
+        existingTitle = new Y.Text();
+        sharedPortDescription.set("displayName", existingTitle);
+        existingTitle.insert(0, initialName);
+      }
       component.currentPortID = inputPort;
       const sharedSpy = vi.spyOn(texeraGraph, "getSharedPortDescriptionType").mockReturnValue(sharedPortDescription);
+      return { sharedPortDescription, sharedSpy, existingTitle };
+    }
+
+    it("should create the shared display-name text and bind the editor to it", () => {
+      const { sharedPortDescription, sharedSpy } = stubSharedPortDescription();
 
       component.connectQuillToText();
 
@@ -480,9 +445,7 @@ describe("PortPropertyEditFrameComponent", () => {
     // (`if (quillCursors !== null && awareness)`) so losing either fails silently while edits
     // keep flowing. QuillBinding keeps both on the instance, so they can be read back directly.
     it("should hand the binding the shared awareness and the cursors module", () => {
-      const sharedPortDescription = new Y.Doc().getMap("portDescription");
-      component.currentPortID = inputPort;
-      vi.spyOn(texeraGraph, "getSharedPortDescriptionType").mockReturnValue(sharedPortDescription);
+      stubSharedPortDescription();
 
       component.connectQuillToText();
 
@@ -492,12 +455,7 @@ describe("PortPropertyEditFrameComponent", () => {
     });
 
     it("should open on the existing shared text rather than replacing it", () => {
-      const sharedPortDescription = new Y.Doc().getMap("portDescription");
-      const existingTitle = new Y.Text();
-      sharedPortDescription.set("displayName", existingTitle);
-      existingTitle.insert(0, "already named");
-      component.currentPortID = inputPort;
-      vi.spyOn(texeraGraph, "getSharedPortDescriptionType").mockReturnValue(sharedPortDescription);
+      const { sharedPortDescription, existingTitle } = stubSharedPortDescription("already named");
 
       component.connectQuillToText();
 
@@ -513,9 +471,7 @@ describe("PortPropertyEditFrameComponent", () => {
      * UI without a single test noticing.
      */
     function openEditorFromButton(): Y.Map<unknown> {
-      const sharedPortDescription = new Y.Doc().getMap("portDescription");
-      component.currentPortID = inputPort;
-      vi.spyOn(texeraGraph, "getSharedPortDescriptionType").mockReturnValue(sharedPortDescription);
+      const { sharedPortDescription } = stubSharedPortDescription();
 
       fixture.debugElement.query(By.css("#formly-title button")).nativeElement.click();
       fixture.detectChanges();
@@ -573,53 +529,44 @@ describe("PortPropertyEditFrameComponent", () => {
       return keyPress;
     }
 
-    it("should commit the rename on Enter without appending a newline to the shared name", () => {
+    function openEditorWithTitle(initial?: string): Y.Text {
       const sharedTitle = openEditorFromButton().get("displayName") as Y.Text;
-      sharedTitle.insert(0, "renamed");
+      if (initial) {
+        sharedTitle.insert(0, initial);
+      }
+      return sharedTitle;
+    }
 
-      pressKey(sharedTitle.length, ENTER);
+    function expectEnterCommit(initial: string, caret: number, init: KeyboardEventInit, expected: string): void {
+      const sharedTitle = openEditorWithTitle(initial || undefined);
+      pressKey(caret, init);
+      expect(sharedTitle.toString()).toBe(expected);
+      expect(component.editingTitle).toBe(false);
+    }
 
-      expect(sharedTitle.toString()).toBe("renamed");
+    it("should commit the rename on Enter without appending a newline to the shared name", () => {
       // `editingTitle` is what proves the editor's own binding ran: no keyup was dispatched, so the
       // template's fallback cannot be the thing that closed the editor.
-      expect(component.editingTitle).toBe(false);
+      expectEnterCommit("renamed", "renamed".length, ENTER, "renamed");
       expect(component.quillBinding).toBeUndefined();
     });
 
     it("should not split the shared name when Enter is pressed mid-word", () => {
-      const sharedTitle = openEditorFromButton().get("displayName") as Y.Text;
-      sharedTitle.insert(0, "renamed");
-
-      pressKey(3, ENTER);
-
-      expect(sharedTitle.toString()).toBe("renamed");
-      expect(component.editingTitle).toBe(false);
+      expectEnterCommit("renamed", 3, ENTER, "renamed");
     });
 
     it("should leave an untouched name empty when Enter commits it", () => {
-      const sharedTitle = openEditorFromButton().get("displayName") as Y.Text;
-
-      pressKey(0, ENTER);
-
       // The empty document is the case Quill's own handler turns into a lone "\n" — a display name
       // that reads as blank but is no longer equal to the empty string it started as.
-      expect(sharedTitle.toString()).toBe("");
-      expect(component.editingTitle).toBe(false);
+      expectEnterCommit("", 0, ENTER, "");
     });
 
     it("should commit on Shift+Enter without appending a newline either", () => {
-      const sharedTitle = openEditorFromButton().get("displayName") as Y.Text;
-      sharedTitle.insert(0, "renamed");
-
-      pressKey(sharedTitle.length, { ...ENTER, shiftKey: true });
-
-      expect(sharedTitle.toString()).toBe("renamed");
-      expect(component.editingTitle).toBe(false);
+      expectEnterCommit("renamed", "renamed".length, { ...ENTER, shiftKey: true }, "renamed");
     });
 
     it("should leave ordinary typing alone", () => {
-      const sharedTitle = openEditorFromButton().get("displayName") as Y.Text;
-      sharedTitle.insert(0, "renamed");
+      const sharedTitle = openEditorWithTitle("renamed");
 
       const keyPress = pressKey(sharedTitle.length, { key: "a", keyCode: 65, which: 65 });
 
