@@ -408,7 +408,7 @@ class LinkedBlockingMultiQueue(IKeyedQueue):
 
         try:
             old_queue = self.sub_queues.get(key)
-            self.sub_queues[key] = sub_queue
+            self.sub_queues[key] = sub_queue if old_queue is None else old_queue
             if old_queue is None:
                 i = 0
                 added = False
