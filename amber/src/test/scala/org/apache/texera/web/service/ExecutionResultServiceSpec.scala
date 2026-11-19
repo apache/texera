@@ -1196,9 +1196,9 @@ class ExecutionResultServiceSpec
       // be reported with the same count.
       resultInfo(globalPortIdOf("erss-final-snapshot")).tupleCount shouldBe 3
       resultInfo(globalPortIdOf("erss-final-delta")).tupleCount shouldBe 2
-      // A SET_SNAPSHOT result is replaced wholesale, so its content can change
-      // without its count changing; the random change detector is what makes the
-      // frontend re-read it. A delta is append-only and needs no such nudge.
+      // A SET_SNAPSHOT result gets a random change detector, so the stored state differs on
+      // every poll and the diff handler runs. The handler still sends only the ports whose
+      // row count changed. A delta gets no detector.
       resultInfo(globalPortIdOf("erss-final-snapshot")).changeDetector should not be empty
       resultInfo(globalPortIdOf("erss-final-delta")).changeDetector shouldBe ""
     }

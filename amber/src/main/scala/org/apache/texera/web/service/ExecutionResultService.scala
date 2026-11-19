@@ -158,14 +158,13 @@ object ExecutionResultService {
     *   - for insert-retract delta: the union of all delta outputs, not compacted to a snapshot
     *
     * Produces the WebResultUpdate of one output port to send to frontend from a result update from
-    * the engine. `outputMode` is that port's own.
+    * the engine. `outputMode` is that port's own, and `storage` is that port's result document,
+    * if it has been created yet.
     */
   private def convertWebResultUpdate(
       workflowIdentity: WorkflowIdentity,
-      executionId: ExecutionIdentity,
-      logicalOpId: OperatorIdentity,
-      portId: PortIdentity,
       outputMode: OutputMode,
+      storage: Option[VirtualDocument[Tuple]],
       oldTupleCount: Int,
       newTupleCount: Int
   ): WebResultUpdate = {
@@ -184,14 +183,8 @@ object ExecutionResultService {
       }
     }
 
-    // Cannot assume the storage is available at this point. The storage object is only available
-    // after a region is scheduled to execute.
-    val storageUriOption =
-      ExecutionResultUris.getResultUriByLogicalPortId(executionId, logicalOpId, portId)
-    storageUriOption match {
-      case Some(storageUri) =>
-        val storage: VirtualDocument[Tuple] =
-          DocumentFactory.openDocument(storageUri)._1.asInstanceOf[VirtualDocument[Tuple]]
+    storage match {
+      case Some(storage) =>
         val webUpdate = webOutputMode match {
           case PaginationMode() =>
             val numTuples = storage.getCount
@@ -352,6 +345,8 @@ class ExecutionResultService(
         val updates =
           mutable.Map[String, mutable.Map[Int, ExecutionResultService.WebResultUpdate]]()
         val allTableStats = mutable.Map[String, mutable.Map[Int, Map[String, Map[String, Any]]]]()
+        // the operators with a changed table port, whose sizes are recorded once each below
+        val tableOpIds = mutable.LinkedHashSet[OperatorIdentity]()
         newState.resultInfo
           .filter(info => {
             // only update those output ports with changing tuple count.
@@ -364,30 +359,34 @@ class ExecutionResultService(
               val portId = globalPortId.portId
               val oldInfo = oldState.resultInfo.getOrElse(globalPortId, OperatorResultMetadata())
               val outputMode = ExecutionResultService.outputModeOf(physicalPlan, opId, portId)
+              // Cannot assume the storage is available at this point. The storage object is only
+              // available after a region is scheduled to execute. Opened once for the result
+              // update and the table statistics.
+              val storage = ExecutionResultUris
+                .getResultUriByLogicalPortId(executionId, opId, portId)
+                .map(DocumentFactory.openDocument(_)._1.asInstanceOf[VirtualDocument[Tuple]])
               updates.getOrElseUpdate(opId.id, mutable.Map())(portId.id) =
                 ExecutionResultService.convertWebResultUpdate(
                   workflowIdentity,
-                  executionId,
-                  opId,
-                  portId,
                   outputMode,
+                  storage,
                   oldInfo.tupleCount,
                   info.tupleCount
                 )
 
               // SINGLE_SNAPSHOT is used for HTML content, which is not a table
               if (outputMode != OutputMode.SINGLE_SNAPSHOT) {
-                ExecutionResultUris
-                  .getResultUriByLogicalPortId(executionId, opId, portId)
-                  .foreach { storageUri =>
-                    val opStorage = DocumentFactory.openDocument(storageUri)._1
-                    allTableStats.getOrElseUpdate(opId.id, mutable.Map())(portId.id) =
-                      opStorage.getTableStatistics
-                    WorkflowExecutionsResource.updateRuntimeStatsSize(executionId)
-                    WorkflowExecutionsResource.updateConsoleMessageSize(executionId, opId)
-                  }
+                storage.foreach { document =>
+                  allTableStats.getOrElseUpdate(opId.id, mutable.Map())(portId.id) =
+                    document.getTableStatistics
+                  tableOpIds += opId
+                }
               }
           }
+        if (tableOpIds.nonEmpty) {
+          WorkflowExecutionsResource.updateRuntimeStatsSize(executionId)
+          tableOpIds.foreach(WorkflowExecutionsResource.updateConsoleMessageSize(executionId, _))
+        }
         Iterable(
           WebResultUpdateEvent(
             updates.map { case (opId, ports) => opId -> ports.toMap }.toMap,
