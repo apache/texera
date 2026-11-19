@@ -545,6 +545,12 @@ class TestIcebergDocumentWithMockCatalog:
 
         assert load_table_metadata.call_args.args == (document.catalog, "ns", "tbl")
 
+    def test_an_empty_range_returns_no_records(self, document):
+        with patch.object(iceberg_document, "load_table_metadata", return_value=None):
+            iterator = document.get_range(0, 0)
+            iterator.current_record_iterator = iter(["unexpected row"])
+            assert list(iterator) == []
+
     @pytest.mark.parametrize(
         "read, from_index, until_index, total",
         [
