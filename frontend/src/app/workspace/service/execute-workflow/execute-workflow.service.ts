@@ -507,7 +507,13 @@ export class ExecuteWorkflowService {
     this.anchorDuration(0, false);
   }
 
-  private isExecutionInFlight(state: ExecutionState): boolean {
+  /**
+   * Whether a run is in flight, which is what locks the graph. Public and defaulted to the current
+   * state for a caller that must refuse a structural edit mid-run and has nowhere else honest to
+   * ask: a view whose own lock no longer means "a run is on" (the Form View clamps it off outside
+   * edit mode) cannot read it off that flag.
+   */
+  public isExecutionInFlight(state: ExecutionState = this.currentState.state): boolean {
     switch (state) {
       case ExecutionState.Initializing:
       case ExecutionState.Running:
