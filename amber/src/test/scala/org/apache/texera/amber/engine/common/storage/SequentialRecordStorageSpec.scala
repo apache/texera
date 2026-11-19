@@ -28,9 +28,104 @@ import org.apache.texera.amber.engine.common.storage.SequentialRecordStorage.{
 import org.scalatest.flatspec.AnyFlatSpec
 
 import java.io.{ByteArrayInputStream, ByteArrayOutputStream, DataInputStream, DataOutputStream}
-import java.nio.file.Files
+import java.nio.file.{Files, Path}
 
-class SequentialRecordStorageSpec extends AnyFlatSpec with AmberSerdeTestSupport {
+private[storage] trait RecordStorageTestSupport {
+  this: AnyFlatSpec =>
+
+  protected def withTempFolder(prefix: String)(body: Path => Unit): Unit = {
+    val root = Files.createTempDirectory(prefix)
+    try body(root.resolve("logs"))
+    finally FileUtils.deleteQuietly(root.toFile)
+  }
+
+  protected def writeRecords[T >: Null <: AnyRef](
+      storage: SequentialRecordStorage[T],
+      fileName: String,
+      records: T*
+  ): Unit = {
+    val writer = storage.getWriter(fileName)
+    records.foreach(writer.writeRecord)
+    writer.flush()
+    writer.close()
+  }
+
+  protected def readRecords[T >: Null <: AnyRef](
+      storage: SequentialRecordStorage[T],
+      fileName: String
+  ): List[T] =
+    storage.getReader(fileName).mkRecordIterator().toList
+
+  protected def assertCreatesFolder[T >: Null <: AnyRef](
+      folder: Path,
+      open: => SequentialRecordStorage[T]
+  ): Unit = {
+    assert(!Files.exists(folder), "precondition: folder must not exist before construction")
+    val _ = open
+    assert(Files.exists(folder), "constructor should auto-create the folder")
+    assert(Files.isDirectory(folder))
+  }
+
+  protected def assertPreservesExistingFolder[T >: Null <: AnyRef](
+      folder: Path,
+      open: => SequentialRecordStorage[T]
+  ): Unit = {
+    Files.createDirectories(folder)
+    val sentinel = folder.resolve("sentinel.txt")
+    Files.writeString(sentinel, "keep-me")
+    val _ = open
+    assert(Files.exists(sentinel), "constructor must not delete pre-existing files")
+    assert(Files.readString(sentinel) == "keep-me")
+  }
+
+  protected def assertRoundTripsThree(
+      folder: Path,
+      storage: SequentialRecordStorage[String]
+  ): Unit = {
+    writeRecords(storage, "records.bin", "one", "two", "three")
+    assert(Files.exists(folder.resolve("records.bin")))
+    assert(readRecords(storage, "records.bin") == List("one", "two", "three"))
+  }
+
+  protected def assertIndependentFiles(
+      storage: SequentialRecordStorage[String],
+      checkFolder: Option[Path] = None
+  ): Unit = {
+    writeRecords(storage, "a.bin", "from-a")
+    writeRecords(storage, "b.bin", "from-b")
+    checkFolder.foreach { folder =>
+      assert(Files.exists(folder.resolve("a.bin")))
+      assert(Files.exists(folder.resolve("b.bin")))
+    }
+    assert(readRecords(storage, "a.bin") == List("from-a"))
+    assert(readRecords(storage, "b.bin") == List("from-b"))
+  }
+
+  protected def assertDeleteRemovesFolder(
+      folder: Path,
+      storage: SequentialRecordStorage[String]
+  ): Unit = {
+    writeRecords(storage, "data.bin", "payload")
+    assert(Files.exists(folder.resolve("data.bin")))
+    storage.deleteStorage()
+    assert(!Files.exists(folder), "deleteStorage should remove the storage folder")
+  }
+}
+
+class SequentialRecordStorageSpec
+    extends AnyFlatSpec
+    with AmberSerdeTestSupport
+    with RecordStorageTestSupport {
+
+  private def readerForWrites(records: String*): SequentialRecordReader[String] = {
+    val baos = new ByteArrayOutputStream()
+    val writer = new SequentialRecordWriter[String](new DataOutputStream(baos))
+    records.foreach(writer.writeRecord)
+    writer.flush()
+    writer.close()
+    val payload = baos.toByteArray
+    new SequentialRecordReader[String](() => new DataInputStream(new ByteArrayInputStream(payload)))
+  }
 
   // ---------------------------------------------------------------------------
   // SequentialRecordWriter + SequentialRecordReader — in-memory round-trip
@@ -43,28 +138,12 @@ class SequentialRecordStorageSpec extends AnyFlatSpec with AmberSerdeTestSupport
 
   "SequentialRecordWriter + SequentialRecordReader" should
     "round-trip a sequence of records through a size-prefixed binary frame" in {
-    val baos = new ByteArrayOutputStream()
-    val writer = new SequentialRecordWriter[String](new DataOutputStream(baos))
-    writer.writeRecord("alpha")
-    writer.writeRecord("beta")
-    writer.writeRecord("gamma")
-    writer.flush()
-    writer.close()
-
-    val reader = new SequentialRecordReader[String](() =>
-      new DataInputStream(new ByteArrayInputStream(baos.toByteArray))
-    )
+    val reader = readerForWrites("alpha", "beta", "gamma")
     assert(reader.mkRecordIterator().toList == List("alpha", "beta", "gamma"))
   }
 
   it should "round-trip an empty stream as a zero-element iterator" in {
-    val baos = new ByteArrayOutputStream()
-    val writer = new SequentialRecordWriter[String](new DataOutputStream(baos))
-    writer.flush()
-    writer.close()
-    val reader = new SequentialRecordReader[String](() =>
-      new DataInputStream(new ByteArrayInputStream(baos.toByteArray))
-    )
+    val reader = readerForWrites()
     assert(reader.mkRecordIterator().toList.isEmpty)
   }
 
@@ -72,14 +151,7 @@ class SequentialRecordStorageSpec extends AnyFlatSpec with AmberSerdeTestSupport
     // The size-prefixed format has the same shape for 1 element as for
     // many, but pinning the 1-record case independently catches an
     // off-by-one in the iterator's prefetch logic.
-    val baos = new ByteArrayOutputStream()
-    val writer = new SequentialRecordWriter[String](new DataOutputStream(baos))
-    writer.writeRecord("only")
-    writer.flush()
-    writer.close()
-    val reader = new SequentialRecordReader[String](() =>
-      new DataInputStream(new ByteArrayInputStream(baos.toByteArray))
-    )
+    val reader = readerForWrites("only")
     val iter = reader.mkRecordIterator()
     assert(iter.hasNext)
     assert(iter.next() == "only")
@@ -92,16 +164,7 @@ class SequentialRecordStorageSpec extends AnyFlatSpec with AmberSerdeTestSupport
     // own DataInputStream (constructed by the thunk) and produce the
     // same sequence — proving the thunk is invoked per iterator and that
     // the reader holds no shared mutable input state.
-    val baos = new ByteArrayOutputStream()
-    val writer = new SequentialRecordWriter[String](new DataOutputStream(baos))
-    writer.writeRecord("a")
-    writer.writeRecord("b")
-    writer.flush()
-    writer.close()
-    val payload = baos.toByteArray
-    val reader = new SequentialRecordReader[String](() =>
-      new DataInputStream(new ByteArrayInputStream(payload))
-    )
+    val reader = readerForWrites("a", "b")
     assert(reader.mkRecordIterator().toList == List("a", "b"))
     assert(reader.mkRecordIterator().toList == List("a", "b"))
   }
@@ -112,33 +175,19 @@ class SequentialRecordStorageSpec extends AnyFlatSpec with AmberSerdeTestSupport
 
   "SequentialRecordStorage.fetchAllRecords" should
     "return every record written to the underlying storage in order" in {
-    val tmp = Files.createTempDirectory("seq-storage-fetch-all-")
-    val sub = tmp.resolve("logs")
-    try {
+    withTempFolder("seq-storage-fetch-all-") { sub =>
       val storage = new VFSRecordStorage[String](sub.toUri)
-      val writer = storage.getWriter("file-1")
-      writer.writeRecord("r1")
-      writer.writeRecord("r2")
-      writer.writeRecord("r3")
-      writer.flush(); writer.close()
-
+      writeRecords(storage, "file-1", "r1", "r2", "r3")
       val all = SequentialRecordStorage.fetchAllRecords(storage, "file-1").toList
       assert(all == List("r1", "r2", "r3"))
-    } finally {
-      FileUtils.deleteQuietly(tmp.toFile)
     }
   }
 
   it should "return an empty Iterable when the underlying reader has no records" in {
-    val tmp = Files.createTempDirectory("seq-storage-fetch-empty-")
-    val sub = tmp.resolve("logs")
-    try {
+    withTempFolder("seq-storage-fetch-empty-") { sub =>
       val storage = new VFSRecordStorage[String](sub.toUri)
-      val writer = storage.getWriter("empty")
-      writer.flush(); writer.close()
+      writeRecords(storage, "empty")
       assert(SequentialRecordStorage.fetchAllRecords(storage, "empty").toList.isEmpty)
-    } finally {
-      FileUtils.deleteQuietly(tmp.toFile)
     }
   }
 
@@ -160,21 +209,14 @@ class SequentialRecordStorageSpec extends AnyFlatSpec with AmberSerdeTestSupport
   }
 
   it should "return a VFSRecordStorage for a file:// URI" in {
-    val tmp = Files.createTempDirectory("seq-storage-factory-vfs-")
-    val sub = tmp.resolve("logs")
-    try {
+    withTempFolder("seq-storage-factory-vfs-") { sub =>
       val storage = SequentialRecordStorage.getStorage[String](Some(sub.toUri))
       assert(storage.isInstanceOf[VFSRecordStorage[_]])
       // Round-trip a record through the dispatched VFSRecordStorage to
       // prove the factory actually returned a usable instance (not a
       // half-initialized one).
-      val w = storage.getWriter("data")
-      w.writeRecord("payload")
-      w.flush(); w.close()
-      val r = storage.getReader("data").mkRecordIterator().toList
-      assert(r == List("payload"))
-    } finally {
-      FileUtils.deleteQuietly(tmp.toFile)
+      writeRecords(storage, "data", "payload")
+      assert(readRecords(storage, "data") == List("payload"))
     }
   }
 
