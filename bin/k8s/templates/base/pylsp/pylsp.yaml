@@ -31,6 +31,10 @@ spec:
     metadata:
       labels:
         app: {{ .Release.Name }}-{{ .Values.pythonLanguageServer.name }}
+      {{- with .Values.pythonLanguageServer.podAnnotations }}
+      annotations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
     spec:
       containers:
         - name: {{ .Values.pythonLanguageServer.name }}
