@@ -94,6 +94,7 @@ class ConfigResource {
       "asyncRenderingEnabled" -> GuiConfig.guiWorkflowWorkspaceAsyncRenderingEnabled,
       "timetravelEnabled" -> GuiConfig.guiWorkflowWorkspaceTimetravelEnabled,
       "formViewEnabled" -> GuiConfig.guiWorkflowWorkspaceFormViewEnabled,
+      "versionPinningEnabled" -> GuiConfig.guiWorkflowWorkspaceVersionPinningEnabled,
       "productionSharedEditingServer" -> GuiConfig.guiWorkflowWorkspaceProductionSharedEditingServer,
       "defaultExecutionMode" -> GuiConfig.guiWorkflowWorkspaceDefaultExecutionMode,
       "workflowEmailNotificationEnabled" -> GuiConfig.guiWorkflowWorkspaceWorkflowEmailNotificationEnabled,
