@@ -206,4 +206,32 @@ class RangeBasedShuffleSpec extends AnyFlatSpec with MockFactory {
     )
   }
 
+  it should "preserve decimals around a range boundary" in {
+    val decimalPartitioner = RangeBasedShufflePartitioner(
+      RangeBasedShufflePartitioning(
+        400,
+        List(
+          ChannelIdentity(identifier, fakeID1, isControl = false),
+          ChannelIdentity(identifier, fakeID2, isControl = false)
+        ),
+        Seq("decimal"),
+        -10,
+        9
+      )
+    )
+    val decimalAttr = new Attribute("decimal", AttributeType.DOUBLE)
+    val decimalSchema = Schema().add(decimalAttr)
+
+    assert(
+      decimalPartitioner
+        .getBucketIndex(Tuple.builder(decimalSchema).add(decimalAttr, -0.5).build())
+        .next() == 0
+    )
+    assert(
+      decimalPartitioner
+        .getBucketIndex(Tuple.builder(decimalSchema).add(decimalAttr, 0.0).build())
+        .next() == 1
+    )
+  }
+
 }
