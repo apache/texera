@@ -46,7 +46,6 @@ class AsterixDBSourceOpExec private[asterixdb] (
   private val formatter: DateTimeFormatter =
     DateTimeFormatter.ISO_LOCAL_DATE_TIME.withZone(ZoneId.from(ZoneOffset.UTC))
 
-  private var curQueryString: Option[String] = None
   private var curResultIterator: Option[Iterator[AnyRef]] = None
 
   override def open(): Unit = {
@@ -55,85 +54,25 @@ class AsterixDBSourceOpExec private[asterixdb] (
     super.open()
   }
 
-  /**
-    * A generator of a Tuple, which converted from a CSV row of fields from AsterixDB
-    *
-    * @return Iterator[TupleLike]
-    */
-  override def produceTuple(): Iterator[TupleLike] = {
-    new Iterator[TupleLike]() {
-      override def hasNext: Boolean = {
+  override def produceTuple(): Iterator[TupleLike] =
+    iterateRows[Iterator[AnyRef]](curResultIterator, _.hasNext)(
+      fetchNextHttpResult,
+      clearHttpResult
+    )
 
-        cachedTuple match {
-          // if existing Tuple in cache, means there exist next Tuple.
-          case Some(_) => true
-          case None    =>
-            // cache the next Tuple
-            cachedTuple = Option(next())
-            cachedTuple.isDefined
-        }
-      }
-
-      override def next(): Tuple = {
-        // if has the next Tuple in cache, return it and clear the cache
-        cachedTuple.foreach(tuple => {
-          cachedTuple = None
-          return tuple
-        })
-
-        // otherwise, send query to fetch for the next Tuple
-
-        while (true) {
-          breakable {
-            curResultIterator match {
-              case Some(resultSet) =>
-                if (resultSet.hasNext) {
-
-                  // manually skip until the offset position in order to adapt to progressive batches
-                  curOffset.foreach(offset => {
-                    if (offset > 0) {
-                      curOffset = Option(offset - 1)
-                      break()
-                    }
-                  })
-
-                  // construct Tuple from the next result.
-                  val tuple = buildTupleFromRow
-
-                  if (tuple == null)
-                    break()
-
-                  // update the limit in order to adapt to progressive batches
-                  curLimit.foreach(limit => {
-                    if (limit > 0) {
-                      curLimit = Option(limit - 1)
-                    }
-                  })
-                  return tuple
-                } else {
-                  // close the current resultSet and query
-                  curResultIterator = None
-                  curQueryString = None
-                  break()
-                }
-              case None =>
-                curQueryString = if (hasNextQuery) generateSqlQuery else None
-                curQueryString match {
-                  case Some(query) =>
-                    curResultIterator = queryAsterixDB(desc.host, desc.port, query)
-                    break()
-                  case None =>
-                    curResultIterator = None
-                    return null
-                }
-            }
-          }
-        }
-        null
-
-      }
+  private def fetchNextHttpResult(): Boolean = {
+    val query = if (hasNextQuery) generateSqlQuery else None
+    query match {
+      case Some(sql) =>
+        curResultIterator = queryAsterixDB(desc.host, desc.port, sql)
+        true
+      case None =>
+        curResultIterator = None
+        false
     }
   }
+
+  private def clearHttpResult(): Unit = curResultIterator = None
 
   /**
     * Build a Tuple from a row of curResultIterator
@@ -182,13 +121,7 @@ class AsterixDBSourceOpExec private[asterixdb] (
 
   }
 
-  /**
-    * close curResultIterator, curQueryString
-    */
-  override def close(): Unit = {
-    curResultIterator = None
-    curQueryString = None
-  }
+  override def close(): Unit = clearHttpResult()
 
   /**
     * add naive support for full text search.

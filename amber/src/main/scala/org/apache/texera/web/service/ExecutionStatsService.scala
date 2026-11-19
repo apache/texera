@@ -43,11 +43,11 @@ import org.apache.texera.amber.engine.architecture.rpc.controlreturns.WorkflowAg
   KILLED
 }
 import org.apache.texera.amber.engine.common.Utils
+import org.apache.texera.amber.engine.architecture.worker.statistics.PortTupleMetricsMapping
 import org.apache.texera.amber.engine.common.Utils.maptoStatusCode
 import org.apache.texera.amber.engine.common.client.AmberClient
 import org.apache.texera.amber.engine.common.executionruntimestate.{
   OperatorMetrics,
-  OperatorStatistics,
   OperatorWorkerMapping
 }
 import org.apache.texera.amber.error.ErrorUtils.{
@@ -104,23 +104,20 @@ class ExecutionStatsService(
       // Update operator stats if any operator updates its stat
       if (newState.operatorInfo.toSet != oldState.operatorInfo.toSet) {
         Iterable(
-          OperatorStatisticsUpdateEvent(newState.operatorInfo.collect {
-            case x =>
-              val metrics = x._2
-              val inMap = metrics.operatorStatistics.inputMetrics
-                .map(pm => pm.portId.id.toString -> pm.tupleMetrics.count)
-                .toMap
-              val outMap = metrics.operatorStatistics.outputMetrics
-                .map(pm => pm.portId.id.toString -> pm.tupleMetrics.count)
-                .toMap
+          OperatorStatisticsUpdateEvent(newState.operatorInfo.map {
+            case (opId, metrics) =>
+              val (inCount, inSize, inMap) =
+                summarizePortMetrics(metrics.operatorStatistics.inputMetrics)
+              val (outCount, outSize, outMap) =
+                summarizePortMetrics(metrics.operatorStatistics.outputMetrics)
 
               val res = OperatorAggregatedMetrics(
                 Utils.aggregatedStateToString(metrics.operatorState),
-                metrics.operatorStatistics.inputMetrics.map(_.tupleMetrics.count).sum,
-                metrics.operatorStatistics.inputMetrics.map(_.tupleMetrics.size).sum,
+                inCount,
+                inSize,
                 inMap,
-                metrics.operatorStatistics.outputMetrics.map(_.tupleMetrics.count).sum,
-                metrics.operatorStatistics.outputMetrics.map(_.tupleMetrics.size).sum,
+                outCount,
+                outSize,
                 outMap,
                 metrics.operatorStatistics.numWorkers,
                 metrics.operatorStatistics.dataProcessingTime,
@@ -128,7 +125,7 @@ class ExecutionStatsService(
                 metrics.operatorStatistics.idleTime,
                 reusedFromCache = metrics.reusedFromCache
               )
-              (x._1, res)
+              (opId, res)
           })
         )
       } else {
@@ -209,7 +206,7 @@ class ExecutionStatsService(
   addSubscription(
     client.registerCallback[ExecutionStateUpdate] {
       case ExecutionStateUpdate(state: WorkflowAggregatedState.Recognized)
-          if Set(COMPLETED, FAILED, KILLED).contains(state) =>
+          if state == COMPLETED || state == FAILED || state == KILLED =>
         logger.info("Workflow execution terminated. Commit runtime statistics.")
         try {
           runtimeStatsWriter.close()
@@ -224,38 +221,59 @@ class ExecutionStatsService(
   private def computeStatsDiff(
       newMetrics: Map[String, OperatorMetrics]
   ): Map[String, OperatorMetrics] = {
-    // Default metrics for new operators
-    val defaultMetrics = OperatorMetrics(
-      WorkflowAggregatedState.UNINITIALIZED,
-      OperatorStatistics(Seq.empty, Seq.empty, 0, 0, 0, 0)
+    val previousMetrics = lastPersistedMetrics
+    val missingKeys = previousMetrics.keySet.diff(newMetrics.keySet)
+    newMetrics ++ missingKeys.map(key => key -> previousMetrics(key))
+  }
+
+  private def summarizePortMetrics(
+      portMetrics: Seq[PortTupleMetricsMapping]
+  ): (Long, Long, Map[String, Long]) = {
+    val perPortCounts = Map.newBuilder[String, Long]
+    val (totalCount, totalSize) = aggregatePortMetrics(
+      portMetrics,
+      (portId, count) => perPortCounts += (portId -> count)
     )
+    (totalCount, totalSize, perPortCounts.result())
+  }
 
-    // Determine new and old keys
-    val newKeys = newMetrics.keySet.diff(lastPersistedMetrics.keySet)
-    val oldKeys = lastPersistedMetrics.keySet.diff(newMetrics.keySet)
-
-    // Update last metrics with default metrics for new keys
-    val updatedLastMetrics = lastPersistedMetrics ++ newKeys.map(_ -> defaultMetrics)
-
-    // Combine new metrics with old metrics for keys that are no longer present
-    newMetrics ++ oldKeys.map(key => key -> updatedLastMetrics(key))
+  private def aggregatePortMetrics(
+      portMetrics: Seq[PortTupleMetricsMapping],
+      onPort: (String, Long) => Unit = (_, _) => ()
+  ): (Long, Long) = {
+    var totalCount = 0L
+    var totalSize = 0L
+    portMetrics.foreach { pm =>
+      val count = pm.tupleMetrics.count
+      totalCount += count
+      totalSize += pm.tupleMetrics.size
+      onPort(pm.portId.id.toString, count)
+    }
+    (totalCount, totalSize)
   }
 
   private def storeRuntimeStatistics(
       operatorStatistics: scala.collection.immutable.Map[String, OperatorMetrics]
   ): Unit = {
+    if (operatorStatistics.isEmpty) {
+      return
+    }
     try {
+      val schema = ResultSchema.runtimeStatisticsSchema
+      val timestamp = new java.sql.Timestamp(System.currentTimeMillis())
       operatorStatistics.foreach {
         case (operatorId, stat) =>
+          val (inCount, inSize) = aggregatePortMetrics(stat.operatorStatistics.inputMetrics)
+          val (outCount, outSize) = aggregatePortMetrics(stat.operatorStatistics.outputMetrics)
           val runtimeStats = new Tuple(
-            ResultSchema.runtimeStatisticsSchema,
+            schema,
             Array(
               operatorId,
-              new java.sql.Timestamp(System.currentTimeMillis()),
-              stat.operatorStatistics.inputMetrics.map(_.tupleMetrics.count).sum,
-              stat.operatorStatistics.inputMetrics.map(_.tupleMetrics.size).sum,
-              stat.operatorStatistics.outputMetrics.map(_.tupleMetrics.count).sum,
-              stat.operatorStatistics.outputMetrics.map(_.tupleMetrics.size).sum,
+              timestamp,
+              inCount,
+              inSize,
+              outCount,
+              outSize,
               stat.operatorStatistics.dataProcessingTime,
               stat.operatorStatistics.controlProcessingTime,
               stat.operatorStatistics.idleTime,

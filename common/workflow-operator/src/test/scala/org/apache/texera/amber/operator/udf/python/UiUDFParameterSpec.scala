@@ -19,6 +19,8 @@
 
 package org.apache.texera.amber.operator.udf.python
 
+import org.apache.texera.amber.operator.udf.UiUDFParameter
+
 import org.apache.texera.amber.core.tuple.{Attribute, AttributeType}
 import org.apache.texera.amber.util.JSONUtils.objectMapper
 import org.scalatest.flatspec.AnyFlatSpec

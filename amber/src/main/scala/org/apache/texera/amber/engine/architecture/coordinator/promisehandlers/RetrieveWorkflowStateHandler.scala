@@ -46,9 +46,9 @@ trait RetrieveWorkflowStateHandler {
   ): Future[RetrieveWorkflowStateResponse] = {
     val targetOps = cp.workflowScheduler.physicalPlan.operators.map(_.id).toSeq
     val msg = PropagateEmbeddedControlMessageRequest(
-      cp.workflowExecution.getRunningRegionExecutions
-        .flatMap(_.getAllOperatorExecutions.map(_._1))
-        .toSeq,
+      cp.workflowExecution.getRunningRegionExecutions.iterator
+        .flatMap(_.getAllOperatorExecutions.iterator.map(_._1))
+        .toList,
       EmbeddedControlMessageIdentity("RetrieveWorkflowState_" + Instant.now().toString),
       NO_ALIGNMENT,
       targetOps,
@@ -63,13 +63,8 @@ trait RetrieveWorkflowStateHandler {
       )
       .map { ret =>
         RetrieveWorkflowStateResponse(ret.returns.map {
-          case (actorId, value) =>
-            val finalret = value match {
-              case s: StringResponse => s.value
-              case other =>
-                ""
-            }
-            (actorId, finalret)
+          case (actorId, response: StringResponse) => actorId -> response.value
+          case (actorId, _)                        => actorId -> ""
         })
       }
   }

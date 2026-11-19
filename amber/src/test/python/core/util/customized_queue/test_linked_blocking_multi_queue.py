@@ -273,7 +273,7 @@ class TestPeek:
         queue.disable("data")
         assert queue.peek() is None
 
-    def test_priority_group_peek_perturbs_round_robin_state(self):
+    def test_priority_group_peek_preserves_round_robin_state(self):
         lbmq = LinkedBlockingMultiQueue()
         lbmq.add_sub_queue("first", 1)
         lbmq.add_sub_queue("second", 1)
@@ -282,13 +282,37 @@ class TestPeek:
 
         assert group.next_idx == 0
         assert group.peek() == "s"
-        # Skipping the empty `first` queue advanced next_idx, so peek is not
-        # side-effect free on the group's round-robin cursor.
-        assert group.next_idx == 1
+        assert group.next_idx == 0
+
+        lbmq.put("first", "f")
+        assert lbmq.get() == "f"
 
     def test_priority_group_peek_returns_none_when_all_queues_empty(self, queue):
         group = queue.get_sub_queue("control").priority_group
         assert group.peek() is None
+
+    @pytest.mark.parametrize("disabled_first", [False, True])
+    def test_public_peek_preserves_cursor_when_wrapping(self, disabled_first):
+        lbmq = LinkedBlockingMultiQueue()
+        for name in ("first", "second", "third"):
+            lbmq.add_sub_queue(name, 1)
+        lbmq.put("first", "initial")
+        assert lbmq.get() == "initial"
+
+        lbmq.put("first", "first")
+        disabled = "second" if disabled_first else "third"
+        lbmq.put(disabled, disabled)
+        lbmq.disable(disabled)
+        assert lbmq.peek() == "first"
+        assert lbmq.peek() == "first"
+
+        if disabled_first:
+            lbmq.enable("second")
+        else:
+            lbmq.put("second", "second")
+        assert lbmq.get() == "second"
+        assert lbmq.get() == "first"
+        assert lbmq.peek() is None
 
     def test_selection_peek_returns_first_non_none_across_groups(self, queue):
         queue.put("data", 1)

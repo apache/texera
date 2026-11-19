@@ -37,7 +37,7 @@ import { commonTestImports, commonTestProviders } from "../../../../common/testi
 
 import { UserDatasetComponent } from "./user-dataset.component";
 import { USER_DATASET } from "../../../../app-routing.constant";
-import { UserDatasetVersionCreatorComponent } from "./user-dataset-explorer/user-dataset-version-creator/user-dataset-version-creator.component";
+import { UserDatasetCreatorComponent } from "./user-dataset-creator/user-dataset-creator.component";
 import { SortMethod } from "../../../type/sort-method";
 import { User } from "../../../../common/type/user";
 
@@ -168,8 +168,8 @@ describe("UserDatasetComponent", () => {
     });
   });
 
-  describe("search filterScope variants", () => {
-    it('defaults to "private": passes isLogin through, includePublic = false', async () => {
+  describe("search visibility", () => {
+    it("passes isLogin through and leaves public datasets out", async () => {
       component.isLogin = true;
       component.sortMethod = SortMethod.EditTimeDesc;
       await component.search();
@@ -191,29 +191,9 @@ describe("UserDatasetComponent", () => {
       );
     });
 
-    it('"public": forces isLogin = false, includePublic = true', async () => {
-      component.isLogin = true;
-      await component.search(false, "public");
-      await capturedLoadMoreFn!(0, 20);
-
-      const args = searchServiceMock.executeSearch.mock.calls[0];
-      expect(args[6]).toBe(false); // isLogin
-      expect(args[7]).toBe(true); // includePublic
-    });
-
-    it('"all": passes isLogin through, includePublic = true', async () => {
-      component.isLogin = true;
-      await component.search(false, "all");
-      await capturedLoadMoreFn!(0, 20);
-
-      const args = searchServiceMock.executeSearch.mock.calls[0];
-      expect(args[6]).toBe(true);
-      expect(args[7]).toBe(true);
-    });
-
-    it('"private" with isLogin = false: passes false through, includePublic = false', async () => {
+    it("passes a signed-out isLogin through and still leaves public datasets out", async () => {
       component.isLogin = false;
-      await component.search(false, "private");
+      await component.search();
       await capturedLoadMoreFn!(0, 20);
 
       const args = searchServiceMock.executeSearch.mock.calls[0];
@@ -278,15 +258,14 @@ describe("UserDatasetComponent", () => {
   });
 
   describe("onClickOpenDatasetAddComponent", () => {
-    it("opens UserDatasetVersionCreatorComponent with isCreatingVersion: false", () => {
+    it("opens UserDatasetCreatorComponent", () => {
       modalServiceMock.create.mockReturnValue({ afterClose: of(null) });
 
       component.onClickOpenDatasetAddComponent();
 
       expect(modalServiceMock.create).toHaveBeenCalledTimes(1);
       const config = modalServiceMock.create.mock.calls[0][0];
-      expect(config.nzContent).toBe(UserDatasetVersionCreatorComponent);
-      expect(config.nzData).toEqual({ isCreatingVersion: false });
+      expect(config.nzContent).toBe(UserDatasetCreatorComponent);
       expect(config.nzFooter).toBeNull();
     });
 

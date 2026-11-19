@@ -19,6 +19,7 @@
 
 package org.apache.texera.amber.operator.visualization.rangeSlider
 
+import org.apache.texera.amber.operator.visualization.StandaloneChartCode._
 import com.fasterxml.jackson.annotation.{JsonProperty, JsonPropertyDescription}
 import com.kjetland.jackson.jsonSchema.annotations.{JsonSchemaInject, JsonSchemaTitle}
 import org.apache.texera.amber.pybuilder.PythonTemplateBuilder.PythonTemplateBuilderStringContext
@@ -139,17 +140,12 @@ class RangeSliderOpDesc extends PythonVisualizationOpDesc with PlotlyStandaloneC
     val functionType = duplicateType.getFunctionType
     val xAxisLit = pyStringLiteral(xAxis)
     val yAxisLit = pyStringLiteral(yAxis)
-    s"""def render_error(error_msg):
-       |    return '''<h1>RangeChart is not available.</h1>
-       |                  <p>Reason is: {} </p>
-       |               '''.format(error_msg)
+    s"""${standaloneError("RangeChart is not available.")}
        |
        |if in1df.empty:
-       |    with open(outputHtml, "w", encoding="utf-8") as output:
-       |        output.write(render_error("input table is empty."))
+       |${standaloneErrorPage("input table is empty.")}
        |elif $yAxisLit.strip() == "" or $xAxisLit.strip() == "":
-       |    with open(outputHtml, "w", encoding="utf-8") as output:
-       |        output.write(render_error("Y-axis or X-axis is empty"))
+       |${standaloneErrorPage("Y-axis or X-axis is empty")}
        |else:
        |    table = in1df
        |    table = table.dropna(subset=[$xAxisLit, $yAxisLit])
@@ -169,9 +165,7 @@ class RangeSliderOpDesc extends PythonVisualizationOpDesc with PlotlyStandaloneC
        |            )
        |        )
        |    )
-       |    fig.write_json(outputJson)
-       |    fig.write_html(outputHtml)
-       |    print("Range slider saved to " + outputHtml)""".stripMargin
+       |${standaloneFigure("Range slider", indent = 4)}""".stripMargin
   }
 
 }

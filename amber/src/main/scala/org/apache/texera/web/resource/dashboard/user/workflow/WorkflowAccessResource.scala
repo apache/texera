@@ -22,24 +22,15 @@ package org.apache.texera.web.resource.dashboard.user.workflow
 import io.dropwizard.auth.Auth
 import org.apache.texera.auth.SessionUser
 import org.apache.texera.auth.util.OwnerAccess
+import org.apache.texera.auth.util.WorkflowAccess.{getPrivilege, hasWriteAccess, isOwner}
 import org.apache.texera.dao.SqlServer
 import org.apache.texera.dao.jooq.generated.Tables._
 import org.apache.texera.dao.jooq.generated.enums.PrivilegeEnum
-import org.apache.texera.dao.jooq.generated.tables.daos.{
-  UserDao,
-  WorkflowOfUserDao,
-  WorkflowUserAccessDao
-}
+import org.apache.texera.dao.jooq.generated.tables.daos.WorkflowUserAccessDao
 import org.apache.texera.dao.jooq.generated.tables.pojos.WorkflowUserAccess
 import org.apache.texera.web.model.common.AccessEntry
-import org.apache.texera.web.resource.dashboard.user.workflow.WorkflowAccessResource.{
-  context,
-  getPrivilege,
-  hasWriteAccess,
-  isOwner
-}
-import org.jooq.impl.DSL
-import org.jooq.{DSLContext, Record1, Select}
+import org.apache.texera.web.resource.dashboard.user.workflow.WorkflowAccessResource.context
+import org.jooq.DSLContext
 
 import java.util
 import javax.annotation.security.RolesAllowed
@@ -51,94 +42,21 @@ object WorkflowAccessResource {
     SqlServer
       .getInstance()
       .createDSLContext()
-
-  /**
-    * Identifies whether the given user has read-only access over the given workflow
-    *
-    * @param wid workflow id
-    * @param uid user id, works with workflow id as primary keys in database
-    * @return boolean value indicating yes/no
-    */
-  def hasReadAccess(wid: Integer, uid: Integer): Boolean = {
-    isPublic(wid) || !getPrivilege(wid, uid).eq(PrivilegeEnum.NONE)
-  }
-
-  /**
-    * Identifies whether the given user has write access over the given workflow
-    *
-    * @param wid workflow id
-    * @param uid user id, works with workflow id as primary keys in database
-    * @return boolean value indicating yes/no
-    */
-  def hasWriteAccess(wid: Integer, uid: Integer): Boolean = {
-    getPrivilege(wid, uid).eq(PrivilegeEnum.WRITE)
-  }
-
-  /**
-    * @param wid workflow id
-    * @param uid user id, works with workflow id as primary keys in database
-    * @return PrivilegeEnum value indicating NONE/READ/WRITE
-    */
-  def getPrivilege(wid: Integer, uid: Integer): PrivilegeEnum = {
-    // One round trip: the caller's own ownership row and grant, read together. Both joins are
-    // narrowed to the caller, so a workflow with several owners still yields one row.
-    val row = context
-      .select(WORKFLOW_OF_USER.UID, WORKFLOW_USER_ACCESS.PRIVILEGE)
-      .from(WORKFLOW)
-      .leftJoin(WORKFLOW_OF_USER)
-      .on(WORKFLOW_OF_USER.WID.eq(WORKFLOW.WID).and(WORKFLOW_OF_USER.UID.eq(uid)))
-      .leftJoin(WORKFLOW_USER_ACCESS)
-      .on(WORKFLOW_USER_ACCESS.WID.eq(WORKFLOW.WID).and(WORKFLOW_USER_ACCESS.UID.eq(uid)))
-      .where(WORKFLOW.WID.eq(wid))
-      .fetchOne()
-    if (row == null) PrivilegeEnum.NONE
-    else OwnerAccess.privilege(row.value1() != null, row.value2())
-  }
-
-  def isOwner(wid: Integer, uid: Integer): Boolean =
-    context.fetchExists(
-      WORKFLOW_OF_USER,
-      WORKFLOW_OF_USER.WID.eq(wid).and(WORKFLOW_OF_USER.UID.eq(uid))
-    )
-
-  /** Ids of the workflows `uid` owns or was granted. */
-  def accessibleWids(uid: Integer): Select[Record1[Integer]] =
-    DSL
-      .select(WORKFLOW_OF_USER.WID)
-      .from(WORKFLOW_OF_USER)
-      .where(WORKFLOW_OF_USER.UID.eq(uid))
-      .union(
-        DSL
-          .select(WORKFLOW_USER_ACCESS.WID)
-          .from(WORKFLOW_USER_ACCESS)
-          .where(WORKFLOW_USER_ACCESS.UID.eq(uid))
-      )
-
-  /**
-    * Whether the user was granted access to the workflow itself, rather than merely being able to
-    * read it because it is public. Granted access sees the author's working copy; public access is
-    * held at the pinned copy while one is pinned.
-    */
-  def hasGrantedAccess(wid: Integer, uid: Integer): Boolean = {
-    !getPrivilege(wid, uid).eq(PrivilegeEnum.NONE)
-  }
-
-  def isPublic(wid: Integer): Boolean = {
-    context
-      .select(WORKFLOW.IS_PUBLIC)
-      .from(WORKFLOW)
-      .where(WORKFLOW.WID.eq(wid))
-      .fetchOneInto(classOf[Boolean])
-  }
 }
 
 @Produces(Array(MediaType.APPLICATION_JSON))
 @RolesAllowed(Array("REGULAR", "ADMIN"))
 @Path("/access/workflow")
 class WorkflowAccessResource() {
-  final private val userDao = new UserDao(context.configuration())
-  final private val workflowOfUserDao = new WorkflowOfUserDao(context.configuration)
   final private val workflowUserAccessDao = new WorkflowUserAccessDao(context.configuration)
+
+  private def ownerUid(wid: Integer): Integer =
+    context
+      .select(WORKFLOW_OF_USER.UID)
+      .from(WORKFLOW_OF_USER)
+      .where(WORKFLOW_OF_USER.WID.eq(wid))
+      .fetch(WORKFLOW_OF_USER.UID)
+      .get(0)
 
   /**
     * This method returns the owner of a workflow
@@ -149,7 +67,14 @@ class WorkflowAccessResource() {
   @GET
   @Path("/owner/{wid}")
   def getOwner(@PathParam("wid") wid: Integer): String = {
-    userDao.fetchOneByUid(workflowOfUserDao.fetchByWid(wid).get(0).getUid).getEmail
+    context
+      .select(USER.EMAIL)
+      .from(WORKFLOW_OF_USER)
+      .join(USER)
+      .on(USER.UID.eq(WORKFLOW_OF_USER.UID))
+      .where(WORKFLOW_OF_USER.WID.eq(wid))
+      .fetch(USER.EMAIL)
+      .get(0)
   }
 
   /**
@@ -175,7 +100,7 @@ class WorkflowAccessResource() {
       .where(
         WORKFLOW_USER_ACCESS.WID
           .eq(wid)
-          .and(WORKFLOW_USER_ACCESS.UID.notEqual(workflowOfUserDao.fetchByWid(wid).get(0).getUid))
+          .and(WORKFLOW_USER_ACCESS.UID.notEqual(ownerUid(wid)))
       )
       .fetchInto(classOf[AccessEntry])
   }
@@ -210,11 +135,9 @@ class WorkflowAccessResource() {
       throw new ForbiddenException(s"You do not have permission to modify workflow $wid")
     }
 
-    val targetUser = userDao.fetchOneByEmail(email)
-    if (targetUser == null || targetUser.getIsPlaceholder) {
-      throw new BadRequestException(s"No registered user with email $email")
-    }
-    val userUid = targetUser.getUid
+    val userUid = OwnerAccess
+      .registeredUid(context, email)
+      .getOrElse(throw new BadRequestException(s"No registered user with email $email"))
     if (isOwner(wid, userUid)) {
       // amber is on javax JAX-RS, so it raises its own ForbiddenException with the shared message.
       throw new ForbiddenException(OwnerAccess.ownerChangeRefused)
@@ -249,7 +172,12 @@ class WorkflowAccessResource() {
       @Auth user: SessionUser
   ): Unit = {
     try {
-      val targetUserUid = userDao.fetchOneByEmail(email).getUid
+      val targetUserUid = context
+        .select(USER.UID)
+        .from(USER)
+        .where(USER.EMAIL.eq(email))
+        .fetchOne()
+        .value1()
 
       // Prevent owner from revoking their own access
       if (isOwner(wid, targetUserUid)) {

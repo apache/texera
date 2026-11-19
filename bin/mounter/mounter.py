@@ -154,9 +154,15 @@ def is_mounted(path):
 
 
 def _responds(path):
-    """True if `path` can be stat()ed — false for a mount whose FUSE server is gone."""
+    """True if `path` can be listed — false for a mount whose FUSE server is gone.
+
+    stat() alone is not enough: the kernel can answer it from attributes cached while the
+    server was alive, so a dead mount may stat fine and fail with ENOTCONN only once it is
+    opened. Reporting that mount as live would hand it back as "already mounted" for ever.
+    """
     try:
-        os.stat(path)
+        with os.scandir(path) as entries:
+            next(entries, None)
         return True
     except OSError:
         return False

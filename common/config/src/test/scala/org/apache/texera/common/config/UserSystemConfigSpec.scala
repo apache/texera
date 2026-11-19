@@ -70,7 +70,6 @@ class UserSystemConfigSpec extends AnyFlatSpec with Matchers {
       UserSystemConfig.orcidRedirectUri shouldBe "http://127.0.0.1:4200/callback/orcid"
     )
     ifUnset("USER_SYS_PROJECT_NAME")(UserSystemConfig.projectName shouldBe "Texera")
-    ifUnset("USER_SYS_INVITE_ONLY")(UserSystemConfig.inviteOnly shouldBe false)
     ifUnset("USER_SYS_EMAIL_VERIFICATION")(UserSystemConfig.emailVerification shouldBe false)
     ifUnset("USER_SYS_VERSION_TIME_LIMIT_IN_MINUTES")(
       UserSystemConfig.workflowVersionCollapseIntervalInMinutes shouldBe 60

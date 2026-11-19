@@ -19,7 +19,14 @@
 
 package org.apache.texera.amber.operator.distinct
 
+import org.apache.texera.amber.util.PythonTestSupport.{
+  NeedsPythonPackages,
+  canImport,
+  configuredPython,
+  runSource
+}
 import org.apache.texera.amber.core.executor.OpExecWithClassName
+import org.apache.texera.amber.core.tuple.{AttributeType, Schema, Tuple}
 import org.apache.texera.amber.core.virtualidentity.{ExecutionIdentity, WorkflowIdentity}
 import org.apache.texera.amber.core.workflow.{HashPartition, SinglePartition, UnknownPartition}
 import org.apache.texera.amber.operator.metadata.OperatorGroupConstants
@@ -107,11 +114,50 @@ class DistinctOpDescSpec extends AnyFlatSpec with Matchers {
     a.operatorIdentifier should not equal b.operatorIdentifier
   }
 
-  // The JVM operator keeps the first occurrence of a duplicate, which is what
-  // drop_duplicates does by default, so the emitted line says nothing about order.
-  "DistinctOpDesc.generateStandaloneCode" should "drop duplicates in place" in {
-    (new DistinctOpDesc).generateStandaloneCode() shouldBe
-      "out1df = in1df.drop_duplicates(ignore_index=True)"
-  }
+  // The engine's LinkedHashSet compares rows with Scala's ==, under which NaN
+  // equals nothing, and hashes them by each double's bits, which tell 0.0 from
+  // -0.0. A repeated finite value and a repeated null are the controls, and the
+  // rows are compared in order, since the first of each is the one kept.
+  "DistinctOpDesc.generateStandaloneCode" should
+    "keep the rows the engine keeps for NaN and signed zero" taggedAs NeedsPythonPackages in {
+    val python = configuredPython().getOrElse(cancel("No runnable python executable"))
+    if (!canImport(python, "pandas", "numpy")) cancel(s"'$python' cannot import pandas")
 
+    val values: Seq[java.lang.Double] =
+      Seq(1.0, Double.NaN, 0.0, -0.0, null, 1.0, Double.NaN, null, -0.0)
+    val schema = Schema().add("v", AttributeType.DOUBLE)
+
+    val exec = new DistinctOpExec
+    exec.open()
+    values.foreach(v => exec.processTuple(Tuple(schema, Array[Any](v)), 0))
+    val engine = exec
+      .onFinish(0)
+      .map(_.getFields.head match {
+        case null                           => "None"
+        case d: java.lang.Double if d.isNaN => "nan"
+        case d                              => d.toString
+      })
+      .toList
+    exec.close()
+
+    val desc = new DistinctOpDesc
+    val pyValues =
+      values.map(v => if (v == null) "None" else if (v.isNaN) "np.nan" else v.toString)
+    val driver =
+      s"""import pandas as pd, numpy as np
+         |vals = [${pyValues.mkString(", ")}]
+         |mask = np.array([v is None for v in vals])
+         |in1df = pd.DataFrame({"v": pd.arrays.FloatingArray(
+         |    np.array([0.0 if v is None else v for v in vals]), mask)})
+         |${(desc.standaloneHelpers() :+ desc.generateStandaloneCode()).mkString("\n")}
+         |for v in out1df["v"]:
+         |    print("None" if v is pd.NA else repr(float(v)))
+         |""".stripMargin
+    val (exitCode, out) = runSource(python, "distinct-nan-zero-", driver)
+
+    withClue(s"python said:\n$out\nscript:\n$driver") {
+      exitCode shouldBe 0
+      out.linesIterator.toList shouldBe engine
+    }
+  }
 }
