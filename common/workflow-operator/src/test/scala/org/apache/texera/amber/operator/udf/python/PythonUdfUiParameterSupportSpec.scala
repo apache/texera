@@ -22,7 +22,8 @@ package org.apache.texera.amber.operator.udf.python
 import org.apache.texera.amber.operator.udf.UiUDFParameter
 
 import org.apache.commons.vfs2.FileNotFoundException
-import org.apache.texera.amber.core.executor.OpExecWithCode
+import org.apache.texera.amber.core.executor.{OpExecWithCode, JavaRuntimeCompilation}
+import org.apache.texera.amber.operator.udf.java.JavaUDFOpDesc
 import org.apache.texera.amber.core.storage.RepositoryMountManager
 import org.apache.texera.amber.core.tuple.{Attribute, AttributeType}
 import org.apache.texera.amber.core.virtualidentity.{ExecutionIdentity, WorkflowIdentity}
@@ -256,4 +257,36 @@ class PythonUdfUiParameterSupportSpec
       parameters.head.value shouldBe "/dataset/owner@test.com/sales/v1"
     }
   }
+  "A Java UDF's execution-time binding" should "initialize fields with the selected resource mount directories" in {
+    for (workers <- Seq(1, 2)) {
+      val descriptor = new JavaUDFOpDesc {
+        override protected def mounts: RepositoryMountManager = podMounts
+      }
+      descriptor.code = """import org.apache.texera.amber.operator.udf.java.UiParameter;
+        |public class JavaUDFOpExec {
+        |  @UiParameter(value="DATA", resource="dataset") public String data;
+        |  @UiParameter(value="MODEL", resource="model") public String model;
+        |}
+        |""".stripMargin
+      descriptor.workers = workers
+      descriptor.uiParameters = List(
+        parameter("DATA", AttributeType.STRING, "dataset", "/dataset/owner@test.com/sales/v1"),
+        parameter("MODEL", AttributeType.STRING, "model", "/model/owner@test.com/iris/v2")
+      )
+      val op = descriptor.getPhysicalOp(WorkflowIdentity(1), ExecutionIdentity(1))
+      descriptor.uiParameters = Nil
+      op.mountLocators shouldBe Set("dataset-1:d4t4", "model-1:m0d3l")
+      val OpExecWithCode(code, language) = op.executableOpExecInitInfo: @unchecked
+      language shouldBe "java"
+      val cls = JavaRuntimeCompilation.compileCode(code)
+      val instance = cls.getDeclaredConstructor().newInstance()
+      cls.getField("data").get(instance) shouldBe Paths
+        .get("/mnt/texera-mounts/dataset-1/d4t4")
+        .toString
+      cls.getField("model").get(instance) shouldBe Paths
+        .get("/mnt/texera-mounts/model-1/m0d3l")
+        .toString
+    }
+  }
+
 }

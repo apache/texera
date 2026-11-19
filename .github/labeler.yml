@@ -44,6 +44,9 @@ common:
           - 'project/**'
           - '.scalafix.conf'
           - '.scalafmt.conf'
+          # The operator reference generator is a Scala module that reflects
+          # over common/workflow-operator and runs in the amber job.
+          - 'docs/operator-reference/**'
 
 platform:
   - changed-files:
@@ -77,7 +80,6 @@ engine:
           - 'amber/build.sbt'
           - 'amber/.scalafmt.conf'
           - 'amber/.scalafix.conf'
-          - 'amber/project/**'
           - 'amber/src/main/scala/**'
           - 'amber/src/main/java/**'
           - 'amber/src/main/protobuf/**'

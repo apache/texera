@@ -19,6 +19,7 @@
 
 package org.apache.texera.amber.operator.visualization.figureFactoryTable
 
+import org.apache.texera.amber.operator.visualization.StandaloneChartCode._
 import com.fasterxml.jackson.annotation.{JsonProperty, JsonPropertyDescription}
 import com.kjetland.jackson.jsonSchema.annotations.{JsonSchemaInject, JsonSchemaTitle}
 import org.apache.texera.amber.pybuilder.PythonTemplateBuilder.{
@@ -152,13 +153,14 @@ class FigureFactoryTableOpDesc extends PythonVisualizationOpDesc {
        |    )
        |
        |if in1df.empty:
-       |    with open(outputHtml, "w", encoding="utf-8") as output:
-       |        output.write(render_error("input table is empty."))
+       |${standaloneErrorPage("input table is empty.")}
        |else:
        |    table = in1df.dropna(subset=[$attributes])
        |    if table.empty:
-       |        with open(outputHtml, "w", encoding="utf-8") as output:
-       |            output.write(render_error("value column contains only non-positive numbers or nulls."))
+       |${standaloneErrorPage(
+      "value column contains only non-positive numbers or nulls.",
+      indent = 8
+    )}
        |    else:
        |        filtered_table = table[[$attributes]]
        |        headers = filtered_table.columns.tolist()
@@ -170,8 +172,6 @@ class FigureFactoryTableOpDesc extends PythonVisualizationOpDesc {
        |        for i in range(len(fig.layout.annotations)):
        |            fig.layout.annotations[i].font.size = $fontSize
        |        fig.update_layout(margin=dict(l=0, r=0, b=0, t=0))
-       |        fig.write_json(outputJson)
-       |        fig.write_html(outputHtml)
-       |        print("Figure factory table saved to " + outputHtml)""".stripMargin
+       |${standaloneFigure("Figure factory table")}""".stripMargin
   }
 }

@@ -24,16 +24,14 @@ import io.reactivex.rxjava3.disposables.Disposable
 import org.apache.pekko.actor.ActorSystem
 import org.apache.pekko.testkit.TestKit
 import org.apache.texera.amber.core.virtualidentity.{ExecutionIdentity, WorkflowIdentity}
-import org.apache.texera.amber.core.workflow.{PhysicalPlan, WorkflowContext, WorkflowSettings}
+import org.apache.texera.amber.core.workflow.{WorkflowContext, WorkflowSettings}
 import org.apache.texera.amber.core.workflowruntimestate.FatalErrorType.EXECUTION_FAILURE
 import org.apache.texera.amber.core.workflowruntimestate.WorkflowFatalError
-import org.apache.texera.amber.engine.architecture.coordinator.CoordinatorConfig
 import org.apache.texera.amber.engine.architecture.rpc.controlreturns.WorkflowAggregatedState.{
   COMPLETED,
   FAILED,
   RUNNING
 }
-import org.apache.texera.amber.engine.common.client.AmberClient
 import org.apache.texera.amber.operator.source.scan.csv.CSVScanSourceOpDesc
 import org.apache.texera.dao.MockTexeraDB
 import org.apache.texera.dao.jooq.generated.enums.WorkflowComputingUnitTypeEnum
@@ -70,7 +68,6 @@ import java.sql.{Timestamp => SqlTimestamp}
 import java.time.Instant
 import scala.collection.mutable
 import scala.collection.mutable.ListBuffer
-import scala.reflect.ClassTag
 
 /**
   * Regression guard for the consolidated init-error reporting path (#5921):
@@ -249,6 +246,7 @@ class WorkflowExecutionServiceSpec
       request,
       store,
       errorHandler,
+      Integer.valueOf(1), // uid; these tests never resolve a file
       None,
       new URI("vfs:///test")
     )
@@ -269,30 +267,6 @@ class WorkflowExecutionServiceSpec
   private final class Tracker {
     var disposed = false
     val disposable: Disposable = Disposable.fromAction(() => disposed = true)
-  }
-
-  /**
-    * Empty-plan client, the shape both `ExecutionRuntimeServiceSpec` and
-    * `ExecutionStatsServiceSpec` use: real enough for the services' constructors, with the
-    * engine-facing callbacks stubbed so nothing is registered against a live coordinator.
-    */
-  private final class TestAmberClient
-      extends AmberClient(
-        system,
-        new WorkflowContext(),
-        PhysicalPlan(Set.empty, Set.empty),
-        CoordinatorConfig(None, None, None, None),
-        _ => ()
-      ) {
-    var shutdownCount = 0
-
-    override def shutdown(): Unit = {
-      shutdownCount += 1
-      super.shutdown()
-    }
-
-    override def registerCallback[T](callback: T => Unit)(implicit ct: ClassTag[T]): Disposable =
-      Disposable.empty()
   }
 
   "WorkflowExecutionService" should
@@ -460,7 +434,7 @@ class WorkflowExecutionServiceSpec
     val service = buildService(store)
     val events = collectEvents(store)
 
-    val client = new TestAmberClient
+    val client = new RecordingExecutionClient(system)
     val wsInput = new WebsocketInput(_ => ())
     // `workflow` is only dereferenced by the reconfiguration diff handler when a
     // reconfiguration actually completes, which is not what this test drives.

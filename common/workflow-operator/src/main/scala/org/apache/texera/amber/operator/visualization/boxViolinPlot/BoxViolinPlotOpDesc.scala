@@ -19,6 +19,7 @@
 
 package org.apache.texera.amber.operator.visualization.boxViolinPlot
 
+import org.apache.texera.amber.operator.visualization.StandaloneChartCode._
 import com.fasterxml.jackson.annotation.{JsonProperty, JsonPropertyDescription, JsonPropertyOrder}
 import com.kjetland.jackson.jsonSchema.annotations.{JsonSchemaInject, JsonSchemaTitle}
 import org.apache.texera.amber.pybuilder.PythonTemplateBuilder.{
@@ -158,10 +159,7 @@ class BoxViolinPlotOpDesc extends PythonVisualizationOpDesc with PlotlyStandalon
     // to the terminal alone left that file absent. render_error's continuation
     // line keeps the runtime path's indentation, since the HTML is triple-quoted
     // and those spaces reach the browser. chart_df keeps the input whole for other branches.
-    s"""def render_error(error_msg):
-       |    return '''<h1>Box/Violin Plot is not available.</h1>
-       |                  <p>Reason is: {} </p>
-       |               '''.format(error_msg)
+    s"""${standaloneError("Box/Violin Plot is not available.")}
        |
        |def fail(error_msg):
        |    with open(outputHtml, "w", encoding="utf-8") as output:
@@ -187,9 +185,7 @@ class BoxViolinPlotOpDesc extends PythonVisualizationOpDesc with PlotlyStandalon
        |                fig = px.box(chart_df, y=$valueLit, boxmode="overlay", points='all')
        |        fig.update_traces(quartilemethod=${pyStringLiteral(quartileMethod)}, col=1)
        |        fig.update_layout(margin=dict(t=0, b=0, l=0, r=0))
-       |        fig.write_json(outputJson)
-       |        fig.write_html(outputHtml)
-       |        print("Box/Violin Plot saved to " + outputJson + " and " + outputHtml)""".stripMargin
+       |${standaloneFigure("Box/Violin Plot", bothOutputs = true)}""".stripMargin
   }
 
 }

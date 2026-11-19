@@ -192,7 +192,7 @@ class Tuple:
         assert len(tuple_like) != 0
         self._field_data: "OrderedDict[str, Field]"
         if isinstance(tuple_like, Tuple):
-            self._field_data = tuple_like._field_data
+            self._field_data = tuple_like._field_data.copy()
         elif isinstance(tuple_like, pandas.Series):
             self._field_data = OrderedDict(tuple_like.to_dict())
         else:
@@ -473,7 +473,9 @@ class Tuple:
             AttributeType.DOUBLE: lambda f: java_hash_long(double_to_long(f)),
             AttributeType.STRING: lambda f: java_hash_bytes(map(ord, f), 0, salt),
             AttributeType.TIMESTAMP: lambda f: java_hash_long(int(f.timestamp())),
-            AttributeType.BINARY: lambda f: java_hash_bytes(f, 1, salt),
+            AttributeType.BINARY: lambda f: java_hash_bytes(
+                (b if b < 128 else b - 256 for b in f), 1, salt
+            ),
         }
 
         for name, field in self.as_key_value_pairs():

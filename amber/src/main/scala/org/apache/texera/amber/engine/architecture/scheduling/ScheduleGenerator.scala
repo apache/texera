@@ -52,7 +52,7 @@ abstract class ScheduleGenerator(
   def generateScheduleFromRegionPlan(regionPlan: RegionPlan): Schedule = {
     val inDegree = mutable.Map.empty[RegionIdentity, Int]
     regionPlan.topologicalIterator().foreach { rid =>
-      inDegree(rid) = regionPlan.dag.incomingEdgesOf(rid).asScala.size
+      inDegree(rid) = regionPlan.dag.inDegreeOf(rid)
     }
 
     val readyRegionsQueue = mutable.Queue(
@@ -70,9 +70,13 @@ abstract class ScheduleGenerator(
     //      b. If a successor's in-degree reaches zero, enqueue it to the readyRegionsQueue.
     // 4. Increment level and repeat.
     while (readyRegionsQueue.nonEmpty) {
-      val batchIds = (1 to ApplicationConfig.maxConcurrentRegions).flatMap { _ =>
-        if (readyRegionsQueue.nonEmpty) Some(readyRegionsQueue.dequeue()) else None
-      }.toSet
+      val batch = Set.newBuilder[RegionIdentity]
+      var remaining = ApplicationConfig.maxConcurrentRegions
+      while (remaining > 0 && readyRegionsQueue.nonEmpty) {
+        batch += readyRegionsQueue.dequeue()
+        remaining -= 1
+      }
+      val batchIds = batch.result()
 
       tmpLevelSets(level) = batchIds
       batchIds.foreach { rid =>

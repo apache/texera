@@ -404,4 +404,49 @@ class FriesReconfigurationAlgorithmSpec extends AnyFlatSpec {
     assert(component.sources == Set(physicalOpId("m0"), physicalOpId("m1")))
     assert(component.reconfigurations == request.reconfiguration.toSet)
   }
+
+  it should "return no components for an empty reconfiguration request" in {
+    val region = buildRegion(1, Set(op("a"), op("b")), Set(link("a", "b")))
+    val request = reconfigureRequest()
+
+    val components =
+      FriesReconfigurationAlgorithm.getReconfigurations(managerWithRegions(region), request)
+
+    assert(components.isEmpty)
+  }
+
+  it should "keep multiple reconfigured operators in the same connected component" in {
+    val region = buildRegion(
+      1,
+      Set(op("a"), op("b"), op("c")),
+      Set(link("a", "b"), link("b", "c"))
+    )
+    val request = reconfigureRequest("a", "c")
+
+    val components =
+      FriesReconfigurationAlgorithm.getReconfigurations(managerWithRegions(region), request)
+
+    val component = singleComponent(components)
+    assert(component.scope == Set(physicalOpId("a"), physicalOpId("b"), physicalOpId("c")))
+    assert(component.sources == Set(physicalOpId("a")))
+    assert(component.reconfigurations == request.reconfiguration.toSet)
+  }
+
+  it should "ignore unknown target operators when splitting multiple disconnected components" in {
+    val region = buildRegion(
+      1,
+      Set(op("a1"), op("b1"), op("a2"), op("b2")),
+      Set(link("a1", "b1"), link("a2", "b2"))
+    )
+    val request = reconfigureRequest("b1", "b2", "missing")
+
+    val components =
+      FriesReconfigurationAlgorithm.getReconfigurations(managerWithRegions(region), request)
+
+    assert(components.size == 2)
+    val componentOfB1 = components.find(_.scope.contains(physicalOpId("b1"))).get
+    val componentOfB2 = components.find(_.scope.contains(physicalOpId("b2"))).get
+    assert(componentOfB1.reconfigurations.map(_.targetOpId) == Set(physicalOpId("b1")))
+    assert(componentOfB2.reconfigurations.map(_.targetOpId) == Set(physicalOpId("b2")))
+  }
 }

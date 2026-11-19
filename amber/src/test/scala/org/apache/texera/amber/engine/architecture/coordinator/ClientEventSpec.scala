@@ -19,48 +19,13 @@
 
 package org.apache.texera.amber.engine.architecture.coordinator
 
-import org.apache.pekko.actor.ActorSystem
-import org.apache.pekko.serialization.{Serialization, SerializationExtension}
-import org.apache.pekko.testkit.TestKit
 import org.apache.texera.amber.core.virtualidentity.ActorVirtualIdentity
 import org.apache.texera.amber.engine.architecture.rpc.controlreturns.WorkflowAggregatedState
-import org.apache.texera.amber.engine.common.AmberRuntime
+import org.apache.texera.amber.engine.common.{AmberRuntime, AmberSerdeTestSupport}
 import org.apache.texera.amber.engine.common.executionruntimestate.OperatorMetrics
-import org.scalatest.BeforeAndAfterAll
 import org.scalatest.flatspec.AnyFlatSpec
 
-class ClientEventSpec extends AnyFlatSpec with BeforeAndAfterAll {
-
-  // ---------------------------------------------------------------------------
-  // Suite-local ActorSystem injected into AmberRuntime.serde via reflection
-  // ---------------------------------------------------------------------------
-  //
-  // The serde round-trips below use the production wire path
-  // (AmberRuntime.serde), so we own a real ActorSystem and shut it down in
-  // afterAll. Pattern matches CheckpointSubsystemSpec / LogreplayPrimitivesSpec.
-
-  private val testSystem: ActorSystem =
-    ActorSystem("ClientEventSpec-test", AmberRuntime.pekkoConfig)
-  private val testSerde: Serialization = SerializationExtension(testSystem)
-
-  private def setAmberRuntimeField(name: String, value: AnyRef): Unit = {
-    val field = AmberRuntime.getClass.getDeclaredField(name)
-    field.setAccessible(true)
-    field.set(AmberRuntime, value)
-  }
-
-  override protected def beforeAll(): Unit = {
-    super.beforeAll()
-    setAmberRuntimeField("_actorSystem", testSystem)
-    setAmberRuntimeField("_serde", testSerde)
-  }
-
-  override protected def afterAll(): Unit = {
-    setAmberRuntimeField("_serde", null)
-    setAmberRuntimeField("_actorSystem", null)
-    TestKit.shutdownActorSystem(testSystem)
-    super.afterAll()
-  }
+class ClientEventSpec extends AnyFlatSpec with AmberSerdeTestSupport {
 
   private def roundTrip[T <: ClientEvent](e: T): T = {
     val bytes = AmberRuntime.serde.serialize(e).get

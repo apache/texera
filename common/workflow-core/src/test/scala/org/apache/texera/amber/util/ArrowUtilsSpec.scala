@@ -420,6 +420,58 @@ class ArrowUtilsSpec extends AnyFlatSpec with Matchers {
     }
   }
 
+  it should "read every row with a schema converted once as it does converting per row" in {
+    val tuples = Seq(
+      Array[Any](
+        Int.box(1),
+        Long.box(10L),
+        Double.box(1.5),
+        Boolean.box(true),
+        new Timestamp(1000L),
+        "a",
+        Array[Byte](1)
+      ),
+      Array[Any](null, null, null, null, null, null, null),
+      Array[Any](
+        Int.box(-3),
+        Long.box(Long.MaxValue),
+        Double.box(-0.25),
+        Boolean.box(false),
+        new Timestamp(-5000L),
+        "b",
+        Array[Byte](2, 3)
+      )
+    ).map(fields => Tuple.builder(tupleSchema).addSequentially(fields).build())
+    withRoot(tupleSchema) { root =>
+      tuples.foreach(ArrowUtils.appendTexeraTuple(_, root))
+      val schema = ArrowUtils.toTexeraSchema(root.getSchema)
+      tuples.indices.foreach { i =>
+        val read = ArrowUtils.getTexeraTuple(i, root, schema)
+        read shouldBe ArrowUtils.getTexeraTuple(i, root)
+        read shouldBe tuples(i)
+      }
+    }
+  }
+
+  it should "reject a converted schema narrower or wider than the root" in {
+    val rootSchema = Schema(
+      List(new Attribute("i", AttributeType.INTEGER), new Attribute("s", AttributeType.STRING))
+    )
+    val narrower = Schema(List(new Attribute("i", AttributeType.INTEGER)))
+    val wider = rootSchema.add(new Attribute("extra", AttributeType.STRING))
+    withRoot(rootSchema) { root =>
+      ArrowUtils.appendTexeraTuple(
+        Tuple.builder(rootSchema).addSequentially(Array[Any](Int.box(1), "a")).build(),
+        root
+      )
+      Seq(narrower, wider).foreach { schema =>
+        intercept[RuntimeException] {
+          ArrowUtils.getTexeraTuple(0, root, schema)
+        }.getMessage should include("are different")
+      }
+    }
+  }
+
   // ----- Tuple <-> Arrow data round-trip (the State wire-hop contract) -----
 
   "tuple round-trip through Arrow vectors" should "preserve every column of a multi-column State tuple" in {

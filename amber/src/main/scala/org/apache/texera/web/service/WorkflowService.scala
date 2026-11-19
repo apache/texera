@@ -45,7 +45,6 @@ import org.apache.texera.amber.core.workflowruntimestate.FatalErrorType.EXECUTIO
 import org.apache.texera.amber.core.workflowruntimestate.WorkflowFatalError
 import org.apache.texera.amber.engine.architecture.coordinator.CoordinatorConfig
 import org.apache.texera.amber.engine.architecture.rpc.controlreturns.WorkflowAggregatedState.{
-  COMPLETED,
   FAILED
 }
 import org.apache.texera.amber.engine.architecture.worker.WorkflowWorker.{
@@ -65,7 +64,6 @@ import org.apache.texera.web.service.WorkflowService.mkWorkflowStateId
 import org.apache.texera.web.storage.ExecutionStateStore.updateWorkflowState
 import org.apache.texera.web.storage.{ExecutionStateStore, WorkflowStateStore}
 import org.apache.texera.web.{SubscriptionManager, WorkflowLifecycleManager}
-import org.apache.texera.common.compiler.model.LogicalPlan
 import play.api.libs.json.Json
 
 import java.net.URI
@@ -107,16 +105,17 @@ object WorkflowService {
       )
     }
     warehouseId.map(id => {
-      val row = SqlServer
+      val lakekeeperWarehouseName = SqlServer
         .getInstance()
         .createDSLContext()
-        .selectFrom(USER_WAREHOUSE)
+        .select(USER_WAREHOUSE.LAKEKEEPER_WAREHOUSE_NAME)
+        .from(USER_WAREHOUSE)
         .where(USER_WAREHOUSE.WHID.eq(id).and(USER_WAREHOUSE.UID.eq(uid)))
-        .fetchOne()
-      if (row == null) {
+        .fetchOne(USER_WAREHOUSE.LAKEKEEPER_WAREHOUSE_NAME)
+      if (lakekeeperWarehouseName == null) {
         throw new IllegalArgumentException(s"no warehouse with id $id owned by this user")
       }
-      row.getLakekeeperWarehouseName
+      lakekeeperWarehouseName
     })
   }
   val cleanUpDeadlineInSeconds: Int = ApplicationConfig.executionStateCleanUpInSecs
@@ -176,22 +175,6 @@ class WorkflowService(
       unsubscribeAll()
     }
   )
-
-  var lastCompletedLogicalPlan: Option[LogicalPlan] = Option.empty
-
-  executionService.subscribe { executionService: WorkflowExecutionService =>
-    {
-      executionService.executionStateStore.metadataStore.registerDiffHandler {
-        (oldState, newState) =>
-          {
-            if (oldState.state != COMPLETED && newState.state == COMPLETED) {
-              lastCompletedLogicalPlan = Option.apply(executionService.workflow.logicalPlan)
-            }
-            Iterable.empty
-          }
-      }
-    }
-  }
 
   def connect(onNext: TexeraWebSocketEvent => Unit): Disposable = {
     lifeCycleManager.increaseUserCount()
@@ -320,7 +303,7 @@ class WorkflowService(
           val fromActorOpt = t match {
             case ex: WorkflowRuntimeException =>
               ex.relatedWorkerId
-            case other =>
+            case _ =>
               None
           }
           val (operatorId, workerId) = getOperatorFromActorIdOpt(fromActorOpt)
@@ -361,6 +344,7 @@ class WorkflowService(
           req,
           executionStateStore,
           errorHandler,
+          uid,
           userEmailOpt,
           sessionUri
         )
