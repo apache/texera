@@ -160,7 +160,7 @@ spec:
             value: /wsapi
         - path:
             type: RegularExpression
-            value: "^/api/executions/\\d+/stats/\\d+$"
+            value: "^/api/executions/\\d+/stats/\\d+(/canvas)?$"
         - path:
             type: PathPrefix
             value: /api/executions/result/export

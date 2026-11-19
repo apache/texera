@@ -17,7 +17,6 @@
  * under the License.
  */
 
-import { macroResultAliases } from "../util/workflow-macros";
 import type { WorkflowContent, OperatorPredicate, OperatorLink } from "../../types/workflow";
 import { z } from "zod";
 import { tool } from "ai";
@@ -190,8 +189,7 @@ async function executeWorkflowHttp(
   const request = {
     executionName: "agent-execution",
     logicalPlan: {
-      operators: logicalPlan.operators,
-      links: logicalPlan.links,
+      ...logicalPlan,
       opsToViewResult: logicalPlan.opsToViewResult || [],
       opsToReuseResult: [],
     },
@@ -362,33 +360,15 @@ export async function executeOperatorAndFormat(
   const release = await getWorkflowMutex(config.workflowId).acquire();
 
   try {
-    const expanded = workflowState.getMacroExpansion();
-    const logicalPlan = workflowState.toLogicalPlan(operatorId, expanded);
-    const aliases = expanded ? macroResultAliases(workflowState.getWorkflowContent(), expanded) : {};
-    const resultId = aliases[operatorId] ?? operatorId;
-    const canvasIds = Object.fromEntries(Object.entries(aliases).map(([canvas, runtime]) => [runtime, canvas]));
+    const logicalPlan = workflowState.toLogicalPlan(operatorId);
 
-    if (logicalPlan.operators.length === 0) {
+    if ((logicalPlan.executeOperatorIds ?? logicalPlan.operators).length === 0) {
       return createErrorResult("Cannot execute: workflow has no operators.");
     }
 
-    // Only block on the target operator's validation errors; upstream issues will
-    // surface as runtime errors that correctly identify the failing operator.
-    const validationResult = validateWorkflow(expanded?.content ?? workflowState.getWorkflowContent());
-    if (expanded) {
-      for (const [id, errors] of Object.entries(validationResult.errors)) {
-        const path = expanded.paths[id];
-        if (path?.length > 1) {
-          validationResult.errors[path[0]] = {
-            ...validationResult.errors[path[0]],
-            ...Object.fromEntries(
-              Object.entries(errors).map(([field, message]) => [`${path.slice(1).join(" / ")}: ${field}`, message])
-            ),
-          };
-        }
-      }
-    }
-    if (!validationResult.isValid) {
+    // Macro validation and result projection belong to the backend compiler.
+    if (!logicalPlan.macroContent) {
+      const validationResult = validateWorkflow(workflowState.getWorkflowContent());
       const targetErrors = validationResult.errors[operatorId];
       if (targetErrors) {
         const lines = [`Operator ${operatorId}:`];
@@ -434,7 +414,7 @@ export async function executeOperatorAndFormat(
       return createErrorResult(errorText);
     }
 
-    const opInfo = result.operators[resultId];
+    const opInfo = result.operators[operatorId];
     if (!opInfo) {
       return createErrorResult(
         formatExecutionError(undefined, undefined, [`No result found for operator: ${operatorId}`])
@@ -460,7 +440,7 @@ export async function executeOperatorAndFormat(
     if (options.onResult) {
       for (const [opId, info] of Object.entries(result.operators)) {
         if (info && !info.error) {
-          options.onResult(canvasIds[opId] ?? opId, info);
+          options.onResult(opId, info);
         }
       }
     }

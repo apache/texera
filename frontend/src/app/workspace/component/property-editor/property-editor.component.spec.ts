@@ -37,6 +37,9 @@ import { StubOperatorMetadataService } from "../../service/operator-metadata/stu
 import { ComputingUnitStatusService } from "../../../common/service/computing-unit/computing-unit-status/computing-unit-status.service";
 import { MockComputingUnitStatusService } from "../../../common/service/computing-unit/computing-unit-status/mock-computing-unit-status.service";
 import { commonTestProviders } from "../../../common/testing/test-utils";
+import { FormlyModule } from "@ngx-formly/core";
+import { FormlyNgZorroAntdModule } from "@ngx-formly/ng-zorro-antd";
+import { TEXERA_FORMLY_CONFIG } from "../../../common/formly/formly-config";
 
 describe("PropertyEditorComponent", () => {
   let component: PropertyEditorComponent;
@@ -46,7 +49,13 @@ describe("PropertyEditorComponent", () => {
 
   beforeEach(async () => {
     await TestBed.configureTestingModule({
-      imports: [PropertyEditorComponent, CommonModule, HttpClientTestingModule],
+      imports: [
+        PropertyEditorComponent,
+        CommonModule,
+        HttpClientTestingModule,
+        FormlyModule.forRoot(TEXERA_FORMLY_CONFIG),
+        FormlyNgZorroAntdModule,
+      ],
       providers: [
         {
           provide: OperatorMetadataService,
@@ -272,7 +281,7 @@ describe("PropertyEditorComponent", () => {
 
     expect(jointGraphWrapper.getCurrentHighlightedPortIDs()).toEqual([port]);
     expect(component.currentComponent).toBe(PortPropertyEditFrameComponent);
-    expect(component.componentInputs).toEqual({ currentPortID: port });
+    expect(component.componentInputs).toEqual({ currentPortID: port, actsAsEditor: true });
   });
 
   it("should switch from the operator frame to the port frame when the highlight moves from an operator to a port", () => {
@@ -293,7 +302,7 @@ describe("PropertyEditorComponent", () => {
 
     expect(jointGraphWrapper.getCurrentHighlightedOperatorIDs()).toEqual([]);
     expect(component.currentComponent).toBe(PortPropertyEditFrameComponent);
-    expect(component.componentInputs).toEqual({ currentPortID: port });
+    expect(component.componentInputs).toEqual({ currentPortID: port, actsAsEditor: true });
   });
 
   it("should clear the panel when a port and a link are highlighted at the same time", () => {

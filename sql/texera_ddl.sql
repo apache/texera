@@ -320,6 +320,7 @@ CREATE TABLE IF NOT EXISTS workflow_executions
     cuid                INT,
     status              SMALLINT NOT NULL DEFAULT 1,
     result              TEXT,
+    macro_content       TEXT,
     starting_time       TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     last_update_time    TIMESTAMP,
     bookmarked          BOOLEAN DEFAULT FALSE,

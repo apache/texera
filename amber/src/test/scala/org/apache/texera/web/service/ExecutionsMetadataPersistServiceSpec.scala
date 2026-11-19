@@ -169,13 +169,18 @@ class ExecutionsMetadataPersistServiceSpec
       testUid,
       executionName = "named-execution",
       environmentVersion = "env-1",
-      computingUnitId = seededCuid
+      computingUnitId = seededCuid,
+      macroContent = Some(
+        org.apache.texera.amber.util.JSONUtils.objectMapper
+          .readTree("""{"operators":[],"draft":true}""")
+      )
     )
     id should not be ExecutionIdentity(0L)
 
     val stored = workflowExecutionsDao.fetchOneByEid(id.id.toInt)
     stored should not be null
     stored.getVid shouldBe seededVid
+    stored.getMacroContent shouldBe """{"operators":[],"draft":true}"""
     stored.getUid shouldBe testUid
     stored.getName shouldBe "named-execution"
     stored.getEnvironmentVersion shouldBe "env-1"

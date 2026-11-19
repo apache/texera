@@ -79,8 +79,8 @@ object WorkflowAccessResource {
     * @param uid user id, works with workflow id as primary keys in database
     * @return PrivilegeEnum value indicating NONE/READ/WRITE
     */
-  def getPrivilege(wid: Integer, uid: Integer): PrivilegeEnum = {
-    val access = context
+  def getPrivilege(wid: Integer, uid: Integer, db: DSLContext = context): PrivilegeEnum = {
+    val access = db
       .select()
       .from(WORKFLOW_USER_ACCESS)
       .where(WORKFLOW_USER_ACCESS.WID.eq(wid).and(WORKFLOW_USER_ACCESS.UID.eq(uid)))

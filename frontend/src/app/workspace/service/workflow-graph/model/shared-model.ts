@@ -29,7 +29,7 @@ import {
 } from "../../../types/workflow-common.interface";
 import { CoeditorState, User } from "../../../../common/type/user";
 import { FormBindingConfig, WorkflowSettings } from "../../../../common/type/workflow";
-import { MacroDefinition, MacroInterface } from "../../../../common/util/workflow-macro";
+import { MacroDefinition } from "../../../../common/util/workflow-macro";
 import { getWebsocketUrl } from "../../../../common/util/url";
 import { v4 as uuid } from "uuid";
 import { YType } from "../../../types/shared-editing.interface";
@@ -39,7 +39,7 @@ import { YType } from "../../../types/shared-editing.interface";
  * the shared doc. Keyed "settings" (WorkflowSettings) and "formBinding" (the Form View
  * definition); the union keeps the map off `unknown` and rejects unrelated values.
  */
-export type ContentMetaValue = WorkflowSettings | FormBindingConfig | MacroInterface | MacroDefinition[];
+export type ContentMetaValue = WorkflowSettings | FormBindingConfig | { id: string } | MacroDefinition[];
 
 /** The keys `contentMetaMap` holds. */
 export type ContentMetaKey = "settings" | "formBinding" | "macroInterface" | "macroDependencies";

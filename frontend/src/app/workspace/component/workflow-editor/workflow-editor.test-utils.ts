@@ -31,6 +31,9 @@
  * the two TestBed setups don't drift over time.
  */
 
+import { ComputingUnitStatusService } from "../../../common/service/computing-unit/computing-unit-status/computing-unit-status.service";
+import { MockComputingUnitStatusService } from "../../../common/service/computing-unit/computing-unit-status/mock-computing-unit-status.service";
+import { TestBed } from "@angular/core/testing";
 import { Provider } from "@angular/core";
 import { HttpClientTestingModule } from "@angular/common/http/testing";
 import { NoopAnimationsModule } from "@angular/platform-browser/animations";
@@ -41,17 +44,8 @@ import { NzContextMenuService, NzDropDownModule } from "ng-zorro-antd/dropdown";
 import { WorkflowEditorComponent } from "./workflow-editor.component";
 import { NzModalCommentBoxComponent } from "./comment-box-modal/nz-modal-comment-box.component";
 
-import { WorkflowActionService } from "../../service/workflow-graph/model/workflow-action.service";
-import { WorkflowUtilService } from "../../service/workflow-graph/util/workflow-util.service";
-import { UndoRedoService } from "../../service/undo-redo/undo-redo.service";
-import { DragDropService } from "../../service/drag-drop/drag-drop.service";
-import { ValidationWorkflowService } from "../../service/validation/validation-workflow.service";
 import { OperatorMetadataService } from "../../service/operator-metadata/operator-metadata.service";
 import { StubOperatorMetadataService } from "../../service/operator-metadata/stub-operator-metadata.service";
-import { JointUIService } from "../../service/joint-ui/joint-ui.service";
-import { WorkflowStatusService } from "../../service/workflow-status/workflow-status.service";
-import { ExecuteWorkflowService } from "../../service/execute-workflow/execute-workflow.service";
-import { WorkflowVersionService } from "../../../dashboard/service/user/workflow-version/workflow-version.service";
 import { UserService } from "src/app/common/service/user/user.service";
 import { StubUserService } from "src/app/common/service/user/stub-user.service";
 import { commonTestProviders } from "../../../common/testing/test-utils";
@@ -67,18 +61,19 @@ export const workflowEditorTestImports = [
 ];
 
 export const workflowEditorTestProviders: Provider[] = [
-  JointUIService,
-  WorkflowUtilService,
-  WorkflowActionService,
-  UndoRedoService,
-  ValidationWorkflowService,
-  DragDropService,
   NzModalService,
   NzContextMenuService,
   { provide: OperatorMetadataService, useClass: StubOperatorMetadataService },
   { provide: UserService, useClass: StubUserService },
-  WorkflowStatusService,
-  ExecuteWorkflowService,
-  WorkflowVersionService,
   ...commonTestProviders,
 ];
+
+export function configureWorkflowEditor() {
+  return TestBed.configureTestingModule({
+    imports: workflowEditorTestImports,
+    providers: [
+      ...workflowEditorTestProviders,
+      { provide: ComputingUnitStatusService, useClass: MockComputingUnitStatusService },
+    ],
+  }).compileComponents();
+}

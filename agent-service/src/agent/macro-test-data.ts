@@ -17,56 +17,18 @@
  * under the License.
  */
 
-// Three levels with repeated IDs and dependency bundles stored inside legacy definition bodies.
-export function macroWorkflow() {
-  const port = { portID: "output-0" };
-  const leaf = {
-    operatorID: "leaf",
-    operatorType: "TestOp",
-    operatorVersion: "1",
-    operatorProperties: { value: "original" },
-    inputPorts: [],
-    outputPorts: [port],
-    showAdvanced: false,
-  };
-  const instance = (id: string, definition: string, value: string) => ({
-    ...leaf,
-    operatorID: id,
-    operatorType: `WorkflowMacro:${definition}:1`,
-    operatorProperties: { value },
-  });
-  const body = (id: string, operator: typeof leaf) => ({
-    operators: [operator],
-    links: [],
-    operatorPositions: { [operator.operatorID]: { x: 0, y: 0 } },
-    commentBoxes: [],
-    settings: { dataTransferBatchSize: 10 },
-    macroInterface: {
-      id,
-      inputs: [],
-      outputs: [{ ...port, targets: [{ operatorID: operator.operatorID, portID: port.portID }] }],
-    },
-    formBinding: {
-      fields: [{ id: "value", operatorID: operator.operatorID, propertyKey: "value", displayName: "Value" }],
-    },
-  });
-  const inner = { id: "inner", version: 1, name: "Inner", content: body("inner", leaf) };
-  const middle = {
-    id: "middle",
-    version: 1,
-    name: "Middle",
-    content: { ...body("middle", instance("child", "inner", "middle")), macroDependencies: [inner] },
-  };
-  const outer = {
-    id: "outer",
-    version: 1,
-    name: "Outer",
-    content: { ...body("outer", instance("child", "middle", "outer")), macroDependencies: [middle] },
-  };
-  return {
-    ...body("workflow", leaf),
-    macroInterface: undefined,
-    operators: [instance("one", "outer", "café 東京"), instance("two", "outer", "other")],
-    macroDependencies: [outer],
-  };
+import fixture from "../../../common/workflow-compiler/src/test/resources/macros/nested-expansion.json";
+
+export function macroWorkflow(leafProperty = "value") {
+  const content = structuredClone(fixture.content);
+  macroLeaf(content).formBinding.fields[0].propertyKey = leafProperty;
+  return content;
+}
+
+export function macroLeaf(content: typeof fixture.content) {
+  return content.macroDependencies[0].content.macroDependencies[0].content.macroDependencies[0].content;
+}
+
+export function macroExpansionResponse() {
+  return structuredClone(fixture.expected);
 }

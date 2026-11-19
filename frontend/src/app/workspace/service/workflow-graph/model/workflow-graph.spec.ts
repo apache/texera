@@ -56,6 +56,25 @@ describe("WorkflowGraph", () => {
     expect(workflowGraph.getAllLinks().length).toEqual(0);
   });
 
+  it("rejects graph ID collisions before adding an operator, link or comment box", () => {
+    workflowGraph.addOperator(mockScanPredicate);
+    workflowGraph.addOperator(mockResultPredicate);
+    const before = workflowGraph.getAllOperators();
+    expect(() => workflowGraph.addLink({ ...mockScanResultLink, linkID: mockScanPredicate.operatorID })).toThrow(
+      /already exists/
+    );
+    expect(() =>
+      workflowGraph.addCommentBox({ ...mockCommentBox, commentBoxID: mockScanPredicate.operatorID })
+    ).toThrow(/already exists/);
+    workflowGraph.addLink(mockScanResultLink);
+    expect(() =>
+      workflowGraph.addOperator({ ...mockSentimentPredicate, operatorID: mockScanResultLink.linkID })
+    ).toThrow(/already exists/);
+    expect(workflowGraph.getAllOperators()).toEqual(before);
+    expect(workflowGraph.getAllLinks()).toEqual([mockScanResultLink]);
+    expect(workflowGraph.getAllCommentBoxes()).toEqual([]);
+  });
+
   it("should load an existing graph properly", () => {
     workflowGraph = new WorkflowGraph(
       [mockScanPredicate, mockSentimentPredicate, mockResultPredicate],
@@ -497,6 +516,24 @@ describe("WorkflowGraph", () => {
         new RegExp("doesn't exist")
       );
       expect(() => workflowGraph.removePort("nonexist", false)).toThrowError(new RegExp("doesn't exist"));
+    });
+
+    it("resolves and edits imported macro ports by membership rather than their names", () => {
+      workflowGraph.addOperator({
+        ...mockSentimentPredicate,
+        inputPorts: [{ portID: "入口", displayName: "Rows" }],
+        outputPorts: [{ portID: "result", displayName: "Result" }],
+      });
+      const input = { operatorID: "2", portID: "入口" },
+        output = { operatorID: "2", portID: "result" };
+      expect(workflowGraph.hasPort(input)).toBe(true);
+      expect(workflowGraph.getPortDescription(input)?.displayName).toBe("Rows");
+      expect(workflowGraph.getPortDescription(output)?.displayName).toBe("Result");
+      expect(workflowGraph.getSharedPortDescriptionType(input)?.get("portID").toString()).toBe("入口");
+      workflowGraph.setPortProperty(input, { partitionInfo: { type: "none" }, dependencies: [] });
+      expect(workflowGraph.getPortDescription(input)?.partitionRequirement).toEqual({ type: "none" });
+      expect(workflowGraph.hasPort({ ...input, portID: "missing" })).toBe(false);
+      expect(workflowGraph.getSharedPortDescriptionType({ ...input, portID: "missing" })).toBeUndefined();
     });
 
     it("should report port existence via hasPort", () => {

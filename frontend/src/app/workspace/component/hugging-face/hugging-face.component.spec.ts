@@ -60,6 +60,18 @@ function buildFormlyOptions(showError = false) {
   return { detectChanges: vi.fn(), showError: () => showError, fieldChanges: new Subject() };
 }
 
+function buildField(form: FormGroup, model: object, key = "modelId"): FieldTypeConfig {
+  return {
+    key,
+    formControl: form.get(key)!,
+    form,
+    model,
+    props: {},
+    parent: { fieldGroup: [] },
+    options: buildFormlyOptions(),
+  } as unknown as FieldTypeConfig;
+}
+
 /**
  * Build a minimal FormlyFieldConfig with a FormGroup backing it,
  * similar to what Formly provides at runtime.
@@ -81,22 +93,37 @@ function buildFieldWithFormGroup(taskValue = "", modelIdValue = ""): { field: Fi
     temperature: new FormControl(0.7),
   });
 
-  const model: Record<string, unknown> = {
-    task: taskValue,
-    modelId: modelIdValue,
+  return { field: buildField(formGroup, { task: taskValue, modelId: modelIdValue }), formGroup };
+}
+
+function projectedField(exposeTask: boolean, singleCard = false) {
+  const bindings = {
+    modelId: "macro-model",
+    promptColumn: "macro-prompt",
+    ...(exposeTask ? { task: "macro-task" } : {}),
   };
-
-  const field = {
-    key: "modelId",
-    formControl: formGroup.get("modelId")! as FormControl,
-    form: formGroup,
-    model,
-    props: {},
-    parent: { fieldGroup: [] },
-    options: buildFormlyOptions(),
-  } as unknown as FieldTypeConfig;
-
-  return { field, formGroup };
+  const model = {
+    "macro-model": "saved/model",
+    "macro-prompt": "prompt",
+    ...(exposeTask ? { "macro-task": "text-generation" } : {}),
+    ...(singleCard ? { "form-model": "saved/model" } : {}),
+  };
+  const key = singleCard ? "form-model" : "macro-model";
+  const formGroup = new FormGroup(
+    Object.fromEntries(
+      Object.entries(model)
+        .filter(([name]) => !singleCard || name === key)
+        .map(([name, value]) => [name, new FormControl(value)])
+    )
+  );
+  const context = {
+    operatorType: "HuggingFace",
+    propertyKey: "modelId",
+    properties: { task: exposeTask ? "text-generation" : "image-classification", systemPrompt: "Pinned prompt" },
+    bindings,
+  };
+  const field = { ...buildField(formGroup, model, key), parent: { model }, props: { propertyContext: context } };
+  return { field, formGroup, context };
 }
 
 // ── Pure unit tests (no TestBed) ──
@@ -209,8 +236,11 @@ describe("HuggingFaceComponent (TestBed)", () => {
   }
 
   /** Set up field + trigger ngOnInit, then flush the two startup HTTP requests. */
-  function initComponent(taskTag = "text-generation", models: HuggingFaceModelOption[] = buildModels(3)) {
-    const { field } = buildFieldWithFormGroup(taskTag);
+  function initComponent(
+    taskTag = "text-generation",
+    models: HuggingFaceModelOption[] = buildModels(3),
+    field = buildFieldWithFormGroup(taskTag).field
+  ) {
     component.field = field;
     fixture.detectChanges(); // triggers ngOnInit
     flushIconRequests();
@@ -219,7 +249,7 @@ describe("HuggingFaceComponent (TestBed)", () => {
     const tasksReq = http.expectOne(`${API}/huggingface/tasks`);
     tasksReq.flush(buildTaskResponse());
 
-    const modelsReq = http.expectOne(req => req.url.startsWith(`${API}/huggingface/models`));
+    const modelsReq = http.expectOne(`${API}/huggingface/models?task=${taskTag}`);
     modelsReq.flush(models);
     flushIconRequests();
   }
@@ -234,6 +264,47 @@ describe("HuggingFaceComponent (TestBed)", () => {
   it("should default selectedTaskTag to text-generation", () => {
     initComponent();
     expect(component.selectedTaskTag).toBe("text-generation");
+  });
+
+  it("keeps an unexposed macro task pinned without adding native properties on initialization", () => {
+    const { field, context } = projectedField(false);
+    const before = JSON.stringify(context);
+    initComponent("image-classification", [], field);
+
+    expect(Object.keys(field.model!)).toEqual(["macro-model", "macro-prompt"]);
+    expect(fixture.debugElement.query(By.css("nz-select")).componentInstance.nzDisabled).toBe(true);
+    component.onTaskSelected("text-generation");
+    expect(component.selectedTaskTag).toBe("image-classification");
+    expect(JSON.stringify(context)).toBe(before);
+    component.onModelSelected("other/image-model");
+    expect(field.formControl.value).toBe("other/image-model");
+  });
+
+  it("changes exposed task aliases and restores only exposed task-specific values", () => {
+    const { field, formGroup, context } = projectedField(true);
+    const before = JSON.stringify(context);
+    initComponent("text-generation", [], field);
+    component.onTaskSelected("image-classification");
+    http.expectOne(`${API}/huggingface/models?task=image-classification`).flush([]);
+    expect(formGroup.get("macro-task")!.value).toBe("image-classification");
+    expect(Object.keys(field.model!)).toEqual(["macro-model", "macro-prompt", "macro-task"]);
+    expect(formGroup.get("macro-model")!.value).toBe("");
+
+    component.onTaskSelected("text-generation");
+    expect(formGroup.get("macro-model")!.value).toBe("saved/model");
+    expect(formGroup.get("macro-prompt")!.value).toBe("prompt");
+    expect(JSON.stringify(context)).toBe(before);
+  });
+
+  it("keeps task changes read-only in a Form View card while preserving its model control", () => {
+    const { field, formGroup } = projectedField(true, true);
+    initComponent("text-generation", [], field);
+    expect(fixture.debugElement.query(By.css("nz-select")).componentInstance.nzDisabled).toBe(true);
+    component.onTaskSelected("image-classification");
+    expect(component.selectedTaskTag).toBe("text-generation");
+    expect(field.model!["macro-task"]).toBe("text-generation");
+    component.onModelSelected("new/model");
+    expect(formGroup.get("form-model")!.value).toBe("new/model");
   });
 
   // ── Task loading ──

@@ -64,6 +64,8 @@ describe("ResultTableFrameComponent", () => {
     pageIndex: number,
     table: ReadonlyArray<IndexableObject> = [SAMPLE_ROW]
   ): PaginatedResultEvent => ({
+    portIndex: 0,
+    totalTuples: 0,
     requestID: "",
     operatorID: "op1",
     pageIndex,

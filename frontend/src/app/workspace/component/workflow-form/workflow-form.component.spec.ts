@@ -16,19 +16,20 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-
 import { FormArray, FormControl, FormGroup, Validators } from "@angular/forms";
 import { Router } from "@angular/router";
 import { of, Subject, throwError } from "rxjs";
 import { Workflow } from "../../../common/type/workflow";
 
 import { WorkflowFormComponent } from "./workflow-form.component";
-import { setupHarness, formViewWorkflow, resolved } from "./workflow-form.spec-harness";
+import { setupHarness, formViewWorkflow, binding, resolved } from "./workflow-form.spec-harness";
 import { USER_WORKFLOW, workspaceCanvasUrl, workspaceFormUrl } from "../../../app-routing.constant";
 import { DefaultView } from "../../../dashboard/type/workflow-metadata.interface";
 import { FORM_DEBOUNCE_TIME_MS } from "../../service/execute-workflow/execute-workflow.service";
 import { ExecutionState } from "../../types/execute-workflow.interface";
 import { ComputingUnitState } from "../../../common/type/computing-unit-connection.interface";
+import { FormlyJsonschema } from "@ngx-formly/core/json-schema";
+import { nestedMacroFieldTests } from "../macro-fields.spec-harness";
 
 /**
  * These exercise the page's own decisions -- what a reader is shown, where an ordinary
@@ -72,7 +73,8 @@ describe("WorkflowFormComponent", () => {
       h.panelResizeService as any,
       h.validationWorkflowService as any,
       h.config as any,
-      h.warehouseService as any
+      h.warehouseService as any,
+      h.macroNavigation as any
     );
     return component;
   };
@@ -1172,6 +1174,33 @@ describe("WorkflowFormComponent", () => {
     });
   });
 
+  describe("nested macro fields with real Formly schema conversion", () => {
+    nestedMacroFieldTests(
+      "form-input",
+      (schema, properties, propertyKey) => {
+        build(formViewWorkflow).ngOnInit();
+        (component as any).formlyJsonschema = new FormlyJsonschema();
+        vi.spyOn(h.dynamicSchemaService, "getDynamicSchema").mockReturnValue(schema);
+        h.hasOperatorIds.add("op-1");
+        h.graphOperators.push({
+          operatorID: "op-1",
+          operatorType: schema.operatorType,
+          operatorProperties: properties,
+        });
+        formBindingService.resolveFields.mockReturnValue([
+          resolved(propertyKey, "Macro parameter", {
+            binding: { ...binding("form-input", "Macro parameter"), propertyKey },
+            value: properties[propertyKey],
+          }),
+        ]);
+        (component as any).readConfig();
+        const { fields, model } = component.rendered[0];
+        return { field: fields[0], model };
+      },
+      () => h.workflowCompilingService
+    );
+  });
+
   // A nested (object) or repeated (array) property carries sub-fields; the author can rename and
   // hide each one, and the schema's own per-field notes are dropped so only the author's help text
   // guides a reader. Overrides are keyed by field path, array indices dropped.
@@ -1579,6 +1608,11 @@ describe("WorkflowFormComponent", () => {
       expect(rebuild).not.toHaveBeenCalled();
       expect(component.rendered[0]).toBe(cards[0]);
       expect(component.rendered[1]).toBe(cards[1]);
+      expect(cards[1].model["attributes"]).toEqual(["a", "b"]);
+      expect(component.canEdit).toBe(true);
+      cards[1].model[cards[1].resolved.binding.id] = true;
+      cards[1].flushWrite!();
+      expect(formBindingService.writeValue).toHaveBeenCalledWith(cards[1].resolved.binding, true);
     });
 
     it("leaves the cards alone when the operator's properties only came back in another order", async () => {
@@ -1947,6 +1981,30 @@ describe("WorkflowFormComponent", () => {
       h.validationStream.next({ errors: {}, workflowEmpty: false });
     };
 
+    it.each([true, false])("disables macro definition execution regardless of validity (%s)", valid => {
+      build(formViewWorkflow).ngOnInit();
+      makeReady();
+      workflowActionService.getMacroInterface.mockReturnValue({ id: "macro", inputs: [], outputs: [] });
+      component.isWorkflowValid = valid;
+      expect(component.runButtonState).toEqual({ label: "Run in workflow", icon: "caret-right", disabled: true });
+      component.onRun();
+      expect(h.executeWorkflowService.executeWorkflow).not.toHaveBeenCalled();
+      workflowActionService.getMacroInterface.mockReturnValue(undefined);
+      component.isWorkflowValid = true;
+      expect(component.runButtonState).toEqual({ label: "Run", icon: "caret-right", disabled: false });
+    });
+
+    it("blocks execution after a compiler error and releases Run after a successful compile", () => {
+      build(formViewWorkflow).ngOnInit();
+      makeReady();
+      h.workflowCompilingService.getWorkflowCompilationState.mockReturnValue("Failed");
+      component.onRun();
+      expect(component.runButtonState.disabled).toBe(true);
+      expect(h.executeWorkflowService.executeWorkflow).not.toHaveBeenCalled();
+      h.workflowCompilingService.getWorkflowCompilationState.mockReturnValue("Succeeded");
+      expect(component.runButtonState.disabled).toBe(false);
+    });
+
     it("stores the selected unit from the status service so Run can gate on write access", () => {
       build(formViewWorkflow).ngOnInit();
 
@@ -2177,6 +2235,35 @@ describe("WorkflowFormComponent", () => {
       (component as any).selectedUnit = { accessPrivilege: "WRITE" };
       h.validationStream.next({ errors: {}, workflowEmpty: false });
     };
+
+    it.each([false, true])(
+      "flushes a pending form value before Run and respects its validation (invalid=%s)",
+      invalid => {
+        build(formViewWorkflow).ngOnInit();
+        makeReady();
+        h.hasOperatorIds.add("op-1");
+        formBindingService.resolveFields.mockReturnValue([resolved("n_hvg", "n_hvg", { value: "before" })]);
+        formBindingService.readValue.mockReturnValue("before");
+        (component as any).readConfig();
+        const card = component.rendered[0];
+        card.model["n_hvg"] = invalid ? "bad value" : "東京";
+        card.form.addControl("n_hvg", new FormControl(card.model["n_hvg"]));
+        card.form.markAsDirty();
+        formBindingService.writeValue.mockImplementation(() => {
+          if (invalid)
+            h.validationStream.next({
+              errors: { "op-1": { isValid: false, messages: { type: "must be integer" } } },
+              workflowEmpty: false,
+            });
+        });
+        h.executeWorkflowService.executeWorkflow.mockImplementation(() => {
+          expect(formBindingService.writeValue).toHaveBeenCalledWith(card.resolved.binding, "東京");
+        });
+        component.onRun();
+        expect(card.pendingWrite).toBe(false);
+        expect(h.executeWorkflowService.executeWorkflow).toHaveBeenCalledTimes(invalid ? 0 : 1);
+      }
+    );
 
     it("runs the workflow with its name and clears any prior error", () => {
       build(formViewWorkflow).ngOnInit();

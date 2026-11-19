@@ -27,7 +27,7 @@ import { fromEventPattern, Observable } from "rxjs";
 import { Coeditor } from "../../../common/type/user";
 import { OperatorResultCacheStatus } from "../../types/workflow-websocket.interface";
 import { HEATMAP_NO_DATA_COLOR, scoreToColor } from "../heatmap/heatmap-color";
-import { isMacro } from "../../../common/util/workflow-macro";
+import { isMacro, isMacroTerminal } from "../../../common/util/workflow-macro";
 
 /**
  * Defines the SVG path for the delete button
@@ -297,6 +297,19 @@ export class JointUIService {
       throw new Error(`operator type ${operator.operatorType} doesn't exist`);
     }
 
+    return JointUIService.createJointOperatorElement(
+      operator,
+      point,
+      operatorSchema.additionalMetadata.userFriendlyName
+    );
+  }
+
+  /** Shared canvas rendering for executable operators and macro interface terminals. */
+  public static createJointOperatorElement(
+    operator: OperatorPredicate,
+    point: Point,
+    friendlyName: string
+  ): joint.dia.Element {
     // construct a custom Texera JointJS operator element
     //   and customize the styles of the operator box and ports
     const operatorElement = new TexeraCustomJointElement({
@@ -307,11 +320,9 @@ export class JointUIService {
       },
       attrs: JointUIService.getCustomOperatorStyleAttrs(
         operator,
-        JointUIService.truncateOperatorDisplayName(
-          operator.customDisplayName ?? operatorSchema.additionalMetadata.userFriendlyName
-        ),
-        operatorSchema.operatorType,
-        operatorSchema.additionalMetadata.userFriendlyName
+        JointUIService.truncateOperatorDisplayName(operator.customDisplayName ?? friendlyName),
+        operator.operatorType,
+        friendlyName
       ),
       ports: {
         groups: {
@@ -329,45 +340,40 @@ export class JointUIService {
     operatorElement.set("id", operator.operatorID);
     operatorElement.set("z", 1);
 
-    // set the input ports and output ports based on operator predicate
-    operator.inputPorts.forEach(port =>
-      operatorElement.addPort({
-        group: "in",
-        id: port.portID,
-        attrs: {
-          ".port-label": {
-            text: port.displayName ?? "",
-            event: "input-port-label:pointerdown",
-          },
-        },
-        label: {
-          position: {
-            name: "left",
-            args: { x: -5, y: 10 },
-          },
-        },
-      })
-    );
-    operator.outputPorts.forEach(port =>
-      operatorElement.addPort({
-        group: "out",
-        id: port.portID,
-        attrs: {
-          ".port-label": {
-            text: port.displayName ?? "",
-            event: "output-port-label:pointerdown",
-          },
-        },
-        label: {
-          position: {
-            name: "right",
-            args: { x: 5, y: -10 },
-          },
-        },
-      })
-    );
-
+    JointUIService.updateOperatorPorts(operatorElement, operator);
     return operatorElement;
+  }
+
+  public static updateOperatorPorts(
+    operatorElement: joint.dia.Element,
+    operator: Pick<OperatorPredicate, "inputPorts" | "outputPorts">
+  ): void {
+    const current = new Map(operatorElement.getPorts().map(port => [port.id, port]));
+    const ports = (declared: OperatorPredicate["inputPorts"], input: boolean) =>
+      declared.map(port => {
+        const previous = current.get(port.portID);
+        return {
+          ...previous,
+          id: port.portID,
+          group: input ? "in" : "out",
+          attrs: {
+            ...previous?.attrs,
+            ".port-label": {
+              ...previous?.attrs?.[".port-label"],
+              text: port.displayName ?? "",
+              port: port.portID,
+              event: input ? "input-port-label:pointerdown" : "output-port-label:pointerdown",
+            },
+          },
+          label: previous?.label ?? {
+            position: { name: input ? "left" : "right", args: { x: input ? -5 : 5, y: input ? 10 : -10 } },
+          },
+        };
+      });
+    // Reconcile by identity and preserve graph order, including a middle port restored by Undo.
+    operatorElement.prop("ports/items", [...ports(operator.inputPorts, true), ...ports(operator.outputPorts, false)], {
+      rewrite: true,
+    });
   }
 
   /**
@@ -420,6 +426,14 @@ export class JointUIService {
         }
       });
     }
+  }
+  public resetOperatorStatistics(jointPaper: joint.dia.Paper, operator: OperatorPredicate): void {
+    const element = jointPaper.getModelById(operator.operatorID) as joint.shapes.devs.Model;
+    if (!element) return;
+    element.attr(`.${operatorWorkerCountClass}/text`, "");
+    [...operator.inputPorts, ...operator.outputPorts].forEach(port =>
+      element.portProp(port.portID, "attrs/.port-label/text", port.displayName ?? "")
+    );
   }
   public foldOperatorDetails(jointPaper: joint.dia.Paper, operatorID: string): void {
     jointPaper.getModelById(operatorID).attr({
@@ -937,9 +951,9 @@ export class JointUIService {
         visibility: "hidden",
       },
       ".texera-operator-icon": {
-        "xlink:href": operatorType.startsWith("WorkflowMacro:")
+        "xlink:href": isMacro(operator)
           ? "assets/operator_images/SubWorkflow.svg"
-          : "assets/operator_images/" + operatorType + ".png",
+          : `assets/operator_images/${operatorType}.${isMacroTerminal(operator) ? "svg" : "png"}`,
         width: 35,
         height: 35,
         "ref-x": 0.5,

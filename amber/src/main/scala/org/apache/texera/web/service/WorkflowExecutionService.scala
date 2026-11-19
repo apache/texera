@@ -91,11 +91,10 @@ class WorkflowExecutionService(
   val wsInput = new WebsocketInput(errorHandler)
 
   private def createStateEvent(state: ExecutionMetadataStore): WorkflowStateEvent = {
-    if (state.isRecovering && state.state != COMPLETED) {
-      WorkflowStateEvent("Recovering")
-    } else {
-      WorkflowStateEvent(Utils.aggregatedStateToString(state.state))
-    }
+    val label =
+      if (state.isRecovering && state.state != COMPLETED) "Recovering"
+      else Utils.aggregatedStateToString(state.state)
+    WorkflowStateEvent(label, Option(workflowContext.executionId).map(_.id).filter(_ > 0))
   }
 
   var workflow: Workflow = _
@@ -129,7 +128,12 @@ class WorkflowExecutionService(
     )
     executionReconfigurationService =
       new ExecutionReconfigurationService(client, executionStateStore, workflow)
-    executionStatsService = new ExecutionStatsService(client, executionStateStore, workflow.context)
+    executionStatsService = new ExecutionStatsService(
+      client,
+      executionStateStore,
+      workflow.context,
+      request.logicalPlan.macroExpansion
+    )
     executionRuntimeService = new ExecutionRuntimeService(
       client,
       executionStateStore,

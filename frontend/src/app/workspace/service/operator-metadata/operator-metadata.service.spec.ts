@@ -16,7 +16,9 @@
  * specific language governing permissions and limitations
  * under the License.
  */
+import { testBinding } from "../../../common/testing/workflow-graph";
 
+import { macroGraph } from "../../../../../../common/workflow-core/src/test/typescript/macro-test-graph";
 import { TestBed } from "@angular/core/testing";
 import { HttpClient } from "@angular/common/http";
 import { HttpClientTestingModule, HttpTestingController } from "@angular/common/http/testing";
@@ -90,24 +92,24 @@ describe("OperatorMetadataService", () => {
       id: "child",
       version: 5,
       name: "Child",
-      content: {
+      content: macroGraph({
         operators: [{ ...mockScanPredicate, operatorID: "leaf", operatorProperties: { tableName: value } }],
         links: [],
         macroInterface: { id: "child", inputs: [], outputs: [] },
-        formBinding: { fields: [{ id: "table", operatorID: "leaf", propertyKey: "tableName", displayName: "Table" }] },
-      } as unknown as WorkflowContent,
+        formBinding: testBinding("leaf", "tableName", "table", "Table"),
+      }) as unknown as WorkflowContent,
     });
     const parent = (id: string, dependency: MacroDefinition): MacroDefinition => ({
       id,
       version: 8,
       name: id,
-      content: {
+      content: macroGraph({
         operators: [macroInstance(dependency, "inner")],
         links: [],
         macroDependencies: [dependency],
         macroInterface: { id, inputs: [], outputs: [] },
-        formBinding: { fields: [{ id: "table", operatorID: "inner", propertyKey: "table", displayName: "Table" }] },
-      } as unknown as WorkflowContent,
+        formBinding: testBinding("inner", "table", "table", "Table"),
+      }) as unknown as WorkflowContent,
     });
     const a = child("café"),
       b = child("東京");
@@ -120,11 +122,11 @@ describe("OperatorMetadataService", () => {
       ...a,
       content: {
         ...a.content,
-        formBinding: { fields: [{ id: "table", operatorID: "leaf", propertyKey: "missing", displayName: "Missing" }] },
+        formBinding: testBinding("leaf", "missing", "table", "Missing"),
       },
     });
     service.registerMacros([broken]);
-    expect(() => service.getOperatorSchema(macroType(broken))).toThrow(/Missing exposed property schema/);
+    expect(service.getOperatorSchema(macroType(broken)).jsonSchema.properties).toEqual({});
   });
 
   it("getOperatorSchema throws for an unknown operator type", () => {

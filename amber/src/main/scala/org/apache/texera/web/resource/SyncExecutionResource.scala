@@ -152,6 +152,18 @@ class SyncExecutionResource extends LazyLogging {
     )
 
     try {
+      // Validate the complete pinned graph before touching an existing execution.
+      require(
+        !request.logicalPlan.macroContent.exists(_.hasNonNull("macroInterface")),
+        "Run macro definitions inside a workflow"
+      )
+      val normalized = request.logicalPlan.normalized
+      val targetOperatorIds =
+        if (request.logicalPlan.macroContent.isDefined) normalized.opsToViewResult
+        else request.targetOperatorIds
+      val resultPorts = request.logicalPlan.macroResultPorts
+      val effectiveLogicalPlan = computeSubDAGIfNeeded(normalized, targetOperatorIds)
+
       val workflowService = WorkflowService.getOrCreate(
         WorkflowIdentity(workflowId),
         computingUnitId
@@ -165,10 +177,6 @@ class SyncExecutionResource extends LazyLogging {
       WorkflowService.resolveLakekeeperWarehouseName(request.warehouseId, user.getUser.getUid)
 
       shutdownPreviousExecution(workflowService)
-
-      // "Execute To" semantics: when a single target is given, run only its upstream sub-DAG.
-      val effectiveLogicalPlan =
-        computeSubDAGIfNeeded(request.logicalPlan, request.targetOperatorIds)
 
       val executeRequest = WorkflowExecuteRequest(
         executionName = request.executionName,
@@ -187,7 +195,8 @@ class SyncExecutionResource extends LazyLogging {
       workflowService.initExecutionService(
         executeRequest,
         Some(user.getUser),
-        new URI(s"sync-execution://$workflowId")
+        new URI(s"sync-execution://$workflowId"),
+        macroSnapshot = request.logicalPlan.macroContent
       )
 
       val executionService = workflowService.executionService.getValue
@@ -214,14 +223,14 @@ class SyncExecutionResource extends LazyLogging {
       // input port to be present in the operator's input metrics — port-1 stats only appear
       // once probe actually starts consuming, which closes the race.
       val targetExpectedExternalInputs: Map[String, Int] = effectiveLogicalPlan.operators
-        .filter(op => request.targetOperatorIds.contains(op.operatorIdentifier.id))
+        .filter(op => targetOperatorIds.contains(op.operatorIdentifier.id))
         .map(op => op.operatorIdentifier.id -> op.operatorInfo.inputPorts.count(!_.id.internal))
         .toMap
 
       // Require COMPLETED, not just "has output", so upstream operators finish flushing
       // their data downstream before we tear the execution down.
       def allTargetsCompleted(stats: ExecutionStatsStore): Boolean = {
-        request.targetOperatorIds.nonEmpty && request.targetOperatorIds.forall { opId =>
+        targetOperatorIds.nonEmpty && targetOperatorIds.forall { opId =>
           stats.operatorInfo.get(opId).exists { metrics =>
             val externalInputPortsReporting =
               metrics.operatorStatistics.inputMetrics.count(!_.portId.internal)
@@ -324,10 +333,11 @@ class SyncExecutionResource extends LazyLogging {
       val operatorInfos = collectOperatorInfos(
         executionId,
         executionService,
-        request.targetOperatorIds,
+        targetOperatorIds,
         maxOperatorResultCharLimit,
         maxOperatorResultCellCharLimit,
-        inMemoryConsoleState
+        inMemoryConsoleState,
+        resultPorts
       )
 
       val fatalErrors = finalState.fatalErrors
@@ -397,7 +407,8 @@ class SyncExecutionResource extends LazyLogging {
       targetOperatorIds: List[String],
       maxOperatorResultCharLimit: Int,
       maxOperatorResultCellCharLimit: Int,
-      inMemoryConsoleState: Option[ExecutionConsoleStore] = None
+      inMemoryConsoleState: Option[ExecutionConsoleStore] = None,
+      resultPorts: Map[String, (OperatorIdentity, PortIdentity)] = Map.empty
   ): Map[String, OperatorInfo] = {
     val operatorInfos = mutable.Map[String, OperatorInfo]()
 
@@ -418,14 +429,20 @@ class SyncExecutionResource extends LazyLogging {
       }
       .getOrElse(List.empty)
 
-    val targetOps = (baseTargetOps ++ consoleErrorOps).distinct
+    val targetOps = (baseTargetOps ++ consoleErrorOps ++ resultPorts.keys).distinct
 
-    for (opId <- targetOps) {
+    for (resultId <- targetOps) {
+      val (operator, port) =
+        resultPorts.getOrElse(resultId, (OperatorIdentity(resultId), PortIdentity()))
+      val opId = operator.id
       val stats = operatorStats.get(opId)
       val (state, inputTuples, outputTuples): (String, Long, Long) = stats match {
         case Some(s) =>
           val inputCount = s.operatorStatistics.inputMetrics.map(_.tupleMetrics.count).sum
-          val outputCount = s.operatorStatistics.outputMetrics.map(_.tupleMetrics.count).sum
+          val outputCount = s.operatorStatistics.outputMetrics
+            .filter(pm => !resultPorts.contains(resultId) || pm.portId == port)
+            .map(_.tupleMetrics.count)
+            .sum
           (stateToString(s.operatorState), inputCount, outputCount)
         case None => ("Unknown", 0L, 0L)
       }
@@ -443,7 +460,8 @@ class SyncExecutionResource extends LazyLogging {
           executionId,
           opId,
           maxOperatorResultCharLimit,
-          maxOperatorResultCellCharLimit
+          maxOperatorResultCellCharLimit,
+          port
         )
 
       // DB is authoritative once written; fall back to in-memory state for in-flight runs
@@ -480,7 +498,7 @@ class SyncExecutionResource extends LazyLogging {
         .map(_.filter(_.title.startsWith("WARNING: ")).map(_.title))
         .filter(_.nonEmpty)
 
-      operatorInfos(opId) = OperatorInfo(
+      operatorInfos(resultId) = OperatorInfo(
         state = state,
         inputTuples = inputTuples,
         outputTuples = outputTuples,
@@ -501,7 +519,7 @@ class SyncExecutionResource extends LazyLogging {
 
   private def handleExecutionError(e: Exception): SyncExecutionResult = {
     val errorMsg = e.getMessage
-    val isCompilationError = errorMsg != null && (
+    val isCompilationError = e.isInstanceOf[IllegalArgumentException] || errorMsg != null && (
       errorMsg.contains("compilation") ||
         errorMsg.contains("Compilation") ||
         errorMsg.contains("operator") ||
@@ -536,7 +554,8 @@ class SyncExecutionResource extends LazyLogging {
       executionId: ExecutionIdentity,
       opId: String,
       maxOperatorResultCharLimit: Int,
-      maxOperatorResultCellCharLimit: Int
+      maxOperatorResultCellCharLimit: Int,
+      port: PortIdentity
   ): (String, Option[Any], Option[Int], Option[Int], Option[Boolean]) = {
     import com.fasterxml.jackson.databind.node.ObjectNode
 
@@ -544,7 +563,7 @@ class SyncExecutionResource extends LazyLogging {
       val storageUriOption = WorkflowExecutionsResource.getResultUriByLogicalPortId(
         executionId,
         OperatorIdentity(opId),
-        PortIdentity()
+        port
       )
 
       storageUriOption match {
@@ -905,7 +924,7 @@ class SyncExecutionResource extends LazyLogging {
 
     dfs(targetOpId)
 
-    LogicalPlanPojo(
+    logicalPlan.copy(
       operators = subDagOperators.toList,
       links = subDagLinks.toList,
       opsToViewResult = targetOperatorIds.filter(id => visited.contains(id)),

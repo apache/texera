@@ -17,25 +17,140 @@
  * under the License.
  */
 
-import { cloneDeep, groupBy, isEqual, memoize, sumBy } from "lodash-es";
+import { cloneDeep, groupBy, isEqual, memoize } from "lodash-es";
 import { WorkflowContent, FormFieldBinding } from "../type/workflow";
-import { OperatorPredicate } from "../../workspace/types/workflow-common.interface";
+import { LogicalPort, OperatorLink, OperatorPredicate } from "../../workspace/types/workflow-common.interface";
 import { OperatorSchema } from "../../workspace/types/operator-schema.interface";
-import { CustomJSONSchema7 } from "../../workspace/types/custom-json-schema.interface";
-import { OperatorRuntimeStatus, OperatorState } from "../../workspace/types/execute-workflow.interface";
+import { CustomJSONSchema7, PropertyContext } from "../../workspace/types/custom-json-schema.interface";
+import { conditionalRequiredRules, customFormlyFieldType } from "../../workspace/util/custom-formly-type";
 import { assert } from "./assert";
 
-export { isMacro, macroType, portKey, macroInstance } from "@texera/workflow-macros";
+export {
+  assertWorkflowIDs,
+  isMacro,
+  isMacroTerminal,
+  readMacroInterface,
+  macroType,
+  portKey,
+  macroInstance,
+} from "@texera/workflow-macros";
 export type { MacroInterface, MacroPort } from "@texera/workflow-macros";
-import { isMacro, macroType, portKey, macroInstance, createMacroRuntime } from "@texera/workflow-macros";
+import {
+  isMacro,
+  isMacroTerminal,
+  readMacroInterface,
+  macroType,
+  portKey,
+  macroInstance,
+  createMacroRuntime,
+} from "@texera/workflow-macros";
 import { v5 as uuid } from "uuid";
 import type { MacroDefinition as Definition, MacroExpansion as Expansion, MacroPort } from "@texera/workflow-macros";
 const macros = createMacroRuntime(uuid, isEqual);
-export const { expandMacros, macroRuntimeID, macroResultAliases, mapMacroCompilation } = macros;
+export const { macroRuntimeID } = macros;
 export type MacroDefinition = Definition<WorkflowContent>;
 export type MacroExpansion = Expansion<WorkflowContent>;
 export const mergeMacroDefinitions = macros.mergeMacroDefinitions<WorkflowContent>;
 const fields = (content?: WorkflowContent): FormFieldBinding[] => content?.formBinding?.fields ?? [];
+
+/** Project a backend expansion into the breadcrumb document without expanding its definitions again. */
+export function projectMacroExpansion(content: WorkflowContent, root: MacroExpansion, prefix: string[]) {
+  assert(root.inspectors?.["[]"], "Missing root compiler mapping");
+  // Disabled occurrences and their descendants are absent from the executable graph.
+  const inspector = root.inspectors[JSON.stringify(prefix)];
+  const ids = inspector?.ids ?? {};
+  if (!prefix.length) return { local: root, ids, inspector };
+  const boundaries = inspector ? content.operators.filter(op => isMacro(op) || isMacroTerminal(op)) : [];
+  const localIDs = new Map(Object.entries(ids).map(([local, runtime]) => [runtime, local]));
+  const endpoint = (port: LogicalPort) => ({ ...port, operatorID: localIDs.get(port.operatorID) ?? port.operatorID });
+  const local: MacroExpansion = {
+    content: {
+      ...content,
+      macroInterface: undefined,
+      macroDependencies: undefined,
+      operators: root.content.operators
+        .filter(op => localIDs.has(op.operatorID))
+        .map(op => ({ ...op, operatorID: localIDs.get(op.operatorID)! })),
+      links: root.content.links
+        .filter(link => localIDs.has(link.source.operatorID) && localIDs.has(link.target.operatorID))
+        .map(link => ({ ...link, source: endpoint(link.source), target: endpoint(link.target) })),
+    },
+    paths: Object.fromEntries(
+      Object.entries(ids).flatMap(([localID, runtime]) =>
+        root.paths[runtime] ? [[localID, root.paths[runtime].slice(prefix.length)]] : []
+      )
+    ),
+    resultTargets: Object.fromEntries(
+      boundaries.flatMap(op => {
+        const runtime = ids[op.operatorID];
+        const target = runtime && root.resultTargets?.[runtime];
+        return target
+          ? [[op.operatorID, { ...target, operatorID: localIDs.get(target.operatorID) ?? target.operatorID }]]
+          : [];
+      })
+    ),
+    ports: Object.fromEntries(
+      boundaries.flatMap(op =>
+        (["inputs", "outputs"] as const).flatMap(direction =>
+          (direction === "inputs" ? op.inputPorts : op.outputPorts).map(port => [
+            portKey(op.operatorID, direction, port.portID),
+            (root.ports[portKey(ids[op.operatorID], direction, port.portID)] ?? []).map(endpoint),
+          ])
+        )
+      )
+    ),
+  };
+  return { local, ids, inspector };
+}
+/** Read compiler-issued ordinals even when the source lives outside the visible canvas. */
+export function compiledInputLinks(root: MacroExpansion, path: string[], op: OperatorPredicate) {
+  const references = root.inspectors?.[JSON.stringify(path)]?.inputs[op.operatorID] ?? [];
+  return references.map(({ link, input, output }) => {
+    const edge = root.content.links[link];
+    return {
+      ...edge,
+      source: { ...edge.source, portIndex: output },
+      target: { operatorID: op.operatorID, portID: op.inputPorts[input].portID, portIndex: input },
+    };
+  });
+}
+export const macroRevisionLabel = (d: MacroDefinition): string =>
+  Number.isSafeInteger(d.revision) && d.revision! > 0 ? `Revision ${d.revision}` : "Saved revision";
+
+/** Retarget one usage; retain every captured body, including the revision it used before. */
+export function replaceMacroVersion(content: WorkflowContent, id: string, next: MacroDefinition): WorkflowContent {
+  return {
+    ...retargetMacro(content, id, next),
+    macroDependencies: mergeMacroDefinitions(content.macroDependencies ?? [], [next]),
+  };
+}
+
+export function linkFitsMacroPorts(link: OperatorLink, macro: OperatorPredicate): boolean {
+  const fits = (end: LogicalPort, ports: OperatorPredicate["inputPorts"]) =>
+    end.operatorID !== macro.operatorID || ports.some(port => port.portID === end.portID);
+  return fits(link.source, macro.outputPorts) && fits(link.target, macro.inputPorts);
+}
+
+/** Update one interface; persistence attaches the committed definition after allocating its revision. */
+export function retargetMacro(content: WorkflowContent, id: string, next: MacroDefinition): WorkflowContent {
+  const op = content.operators.find(o => o.operatorID === id);
+  const previous = content.macroDependencies?.find(d => macroType(d) === op?.operatorType);
+  assert(op && previous, "Missing pinned macro definition");
+  const updated = adoptMacroVersion(op, previous, next);
+  return {
+    ...content,
+    links: content.links.filter(link => linkFitsMacroPorts(link, updated)),
+    operators: content.operators.map(o => (o === op ? updated : o)),
+    ...(content.formBinding && {
+      formBinding: {
+        ...content.formBinding,
+        fields: fields(content).filter(
+          f => f.operatorID !== id || fields(next.content).some(p => p.id === f.propertyKey)
+        ),
+      },
+    }),
+  };
+}
 
 /** Capture a convex selection; re-entering it through unselected nodes would create a macro cycle. */
 export function extractMacro(content: WorkflowContent, selected: readonly string[], id: string): WorkflowContent {
@@ -75,14 +190,46 @@ export function extractMacro(content: WorkflowContent, selected: readonly string
       )
       .map((p, i) => ({ ...p, portID: `${direction === "inputs" ? "input" : "output"}-${i}` }));
   };
+  const inputPorts = boundary("inputs"),
+    outputPorts = boundary("outputs");
+  const terminals: OperatorPredicate[] = [true, false].map(input => ({
+    operatorID: macroRuntimeID([id], input ? "inputs" : "outputs"),
+    operatorType: input ? "MacroInput" : "MacroOutput",
+    operatorVersion: "1",
+    operatorProperties: {},
+    inputPorts: input
+      ? []
+      : outputPorts.map(({ targets, ...port }) => ({ ...port, disallowMultiInputs: true, isDynamicPort: true })),
+    outputPorts: input ? inputPorts.map(({ targets, ...port }) => ({ ...port, isDynamicPort: true })) : [],
+    dynamicInputPorts: !input,
+    dynamicOutputPorts: input,
+    showAdvanced: false,
+  }));
+  const points = operators.map(op => content.operatorPositions[op.operatorID]);
+  const terminalLinks = [inputPorts, outputPorts].flatMap((ports, index) =>
+    ports.flatMap(port =>
+      port.targets.map((target, n) => {
+        const end = { operatorID: terminals[index].operatorID, portID: port.portID };
+        return {
+          linkID: macroRuntimeID([id, port.portID], String(n)),
+          source: index === 0 ? end : target,
+          target: index === 0 ? target : end,
+        };
+      })
+    )
+  );
   return cloneDeep({
     ...content,
     ...(content.macroDependencies ? { macroDependencies: mergeMacroDefinitions(content.macroDependencies) } : {}),
-    operators,
-    links,
-    operatorPositions: Object.fromEntries(operators.map(o => [o.operatorID, content.operatorPositions[o.operatorID]])),
+    operators: [...operators, ...terminals],
+    links: [...links, ...terminalLinks],
+    operatorPositions: {
+      ...Object.fromEntries(operators.map(o => [o.operatorID, content.operatorPositions[o.operatorID]])),
+      [terminals[0].operatorID]: { x: Math.min(...points.map(p => p.x)) - 180, y: Math.min(...points.map(p => p.y)) },
+      [terminals[1].operatorID]: { x: Math.max(...points.map(p => p.x)) + 180, y: Math.min(...points.map(p => p.y)) },
+    },
     commentBoxes: [],
-    macroInterface: { id, inputs: boundary("inputs"), outputs: boundary("outputs") },
+    macroInterface: { id },
     formBinding: { fields: fields(content).filter(f => ids.has(f.operatorID)) },
   });
 }
@@ -93,31 +240,34 @@ export function adoptMacroVersion(
   next: MacroDefinition
 ): OperatorPredicate {
   assert(previous.id === next.id && op.operatorType === macroType(previous), "Different macro definition");
-  const signature = (d: MacroDefinition) => [
-    d.content.macroInterface!.inputs.map(p => p.portID).sort(),
-    d.content.macroInterface!.outputs.map(p => p.portID).sort(),
-    fields(d.content)
-      .map(f => f.id)
-      .sort(),
-  ];
-  assert(
-    isEqual(signature(previous), signature(next)),
-    "Macro interface changed; insert the new version and reconnect explicitly"
-  );
+  const updated = macroInstance(next, op.operatorID);
   return {
-    ...macroInstance(next, op.operatorID),
-    operatorProperties: cloneDeep(op.operatorProperties),
-    customDisplayName: op.customDisplayName,
-    isDisabled: op.isDisabled,
-    viewResult: op.viewResult,
-    markedForReuse: op.markedForReuse,
+    ...op,
+    operatorType: updated.operatorType,
+    operatorVersion: updated.operatorVersion,
+    inputPorts: updated.inputPorts,
+    outputPorts: updated.outputPorts,
+    operatorProperties: cloneDeep(
+      Object.fromEntries(
+        Object.entries(op.operatorProperties).filter(([key]) => fields(next.content).some(f => f.id === key))
+      )
+    ),
   };
 }
 
 /** Exposed Form View fields become the macro's ordinary operator properties, including nested macros. */
-export function macroSchema(d: MacroDefinition, getSchema: (type: string) => OperatorSchema): OperatorSchema {
-  const schemaFor = memoize((type: string) => getSchema(type).jsonSchema);
+export function macroSchema(
+  d: MacroDefinition,
+  getSchema: (type: string) => OperatorSchema,
+  getOperatorSchema?: (op: OperatorPredicate) => OperatorSchema
+): OperatorSchema {
+  const boundary = readMacroInterface(d.content)!;
+  const schemaFor = memoize(
+    (op: OperatorPredicate) => (getOperatorSchema ? getOperatorSchema(op) : getSchema(op.operatorType)).jsonSchema,
+    op => (getOperatorSchema ? op : op.operatorType)
+  );
   const properties: Record<string, CustomJSONSchema7> = Object.create(null);
+  const required: string[] = [];
   const resolve = (value: any, root: CustomJSONSchema7, op: OperatorPredicate, refs: string[] = []): any => {
     if (Array.isArray(value)) return value.map(v => resolve(v, root, op, refs));
     if (!value || typeof value !== "object") return value;
@@ -137,7 +287,7 @@ export function macroSchema(d: MacroDefinition, getSchema: (type: string) => Ope
         .map(([key, v]) => [
           key,
           key === "autofillAttributeOnPort" && Number.isInteger(v)
-            ? d.content.macroInterface!.inputs.findIndex(p =>
+            ? boundary.inputs.findIndex(p =>
                 p.targets.some(t => t.operatorID === op.operatorID && t.portID === op.inputPorts[v as number]?.portID)
               )
             : resolve(v, root, op, refs),
@@ -146,107 +296,81 @@ export function macroSchema(d: MacroDefinition, getSchema: (type: string) => Ope
   };
   for (const f of fields(d.content)) {
     const op = d.content.operators.find(o => o.operatorID === f.operatorID);
-    assert(op, "Missing exposed property operator");
-    const root = schemaFor(op.operatorType);
+    if (!op) continue;
+    const root = schemaFor(op);
     const schema = root.properties?.[f.propertyKey];
-    assert(schema && typeof schema !== "boolean", "Missing exposed property schema");
+    if (!schema || typeof schema === "boolean") continue;
+    const aliases = Object.fromEntries(
+      fields(d.content)
+        .filter(p => p.operatorID === f.operatorID)
+        .map(p => [p.propertyKey, p.id])
+    );
+    const inherited = schema.widget?.formlyConfig?.props?.["propertyContext"] as PropertyContext | undefined;
+    const context: PropertyContext = inherited
+      ? {
+          ...inherited,
+          properties: {
+            ...inherited.properties,
+            ...Object.fromEntries(
+              Object.entries(inherited.bindings)
+                .filter(([, key]) => Object.hasOwn(op.operatorProperties, key))
+                .map(([key, id]) => [key, op.operatorProperties[id]])
+            ),
+          },
+          bindings: Object.fromEntries(
+            Object.entries(inherited.bindings)
+              .filter(([, id]) => aliases[id])
+              .map(([key, id]) => [key, aliases[id]])
+          ),
+        }
+      : {
+          operatorType: op.operatorType,
+          propertyKey: f.propertyKey,
+          properties: cloneDeep({
+            ...Object.fromEntries(
+              Object.entries(root.properties ?? {})
+                .filter(([, p]) => typeof p !== "boolean" && p.default !== undefined)
+                .map(([key, p]) => [key, (p as CustomJSONSchema7).default])
+            ),
+            ...op.operatorProperties,
+          }),
+          bindings: aliases,
+          required: conditionalRequiredRules(root).get(f.propertyKey),
+          hiddenBy: Object.entries(root.properties ?? {}).find(
+            ([, p]) => typeof p !== "boolean" && p.toggleHidden?.includes(f.propertyKey)
+          )?.[0],
+        };
+    const { widget: schemaWidget, ...valueSchema } = schema;
+    const widget = schemaWidget?.formlyConfig;
+    if (root.required?.includes(f.propertyKey)) required.push(f.id);
+    const type = customFormlyFieldType({
+      key: context.propertyKey,
+      operatorType: context.operatorType,
+      description: schema.description,
+      currentType: schema.type,
+    });
     properties[f.id] = {
-      ...resolve(schema, root, op),
+      ...resolve(valueSchema, root, op),
       title: f.displayName,
       description: f.helpText,
       default: cloneDeep(
         Object.hasOwn(op.operatorProperties, f.propertyKey) ? op.operatorProperties[f.propertyKey] : schema.default
       ),
+      widget: {
+        formlyConfig: { ...widget, ...(type ? { type } : {}), props: { ...widget?.props, propertyContext: context } },
+      },
     };
   }
   return {
     operatorType: macroType(d),
     operatorVersion: String(d.version),
-    jsonSchema: { type: "object", properties, additionalProperties: false },
+    jsonSchema: { type: "object", properties, ...(required.length ? { required } : {}), additionalProperties: false },
     additionalMetadata: {
-      userFriendlyName: `${d.name} (v${d.version})`,
+      userFriendlyName: `${d.name} (${macroRevisionLabel(d)})`,
       operatorGroupName: "Macros",
-      operatorDescription: "Reusable macro. Double-click to inspect its pinned definition.",
-      inputPorts: d.content.macroInterface!.inputs.map(p => ({ displayName: p.displayName })),
-      outputPorts: d.content.macroInterface!.outputs.map(p => ({ displayName: p.displayName })),
+      operatorDescription: "Reusable macro. Double-click to open this revision on the canvas.",
+      inputPorts: boundary.inputs.map(p => ({ displayName: p.displayName })),
+      outputPorts: boundary.outputs.map(p => ({ displayName: p.displayName })),
     },
   };
-}
-
-/** Count the external boundaries; summing every internal edge would multiply the row counts. */
-export function rollupMacroStatus(
-  content: WorkflowContent,
-  status: Record<string, OperatorRuntimeStatus>,
-  expanded = expandMacros(content)
-): Record<string, OperatorRuntimeStatus> {
-  const result = { ...status };
-  for (const op of content.operators.filter(isMacro)) {
-    const leaves = expanded.content.operators.filter(o => expanded.paths[o.operatorID]?.[0] === op.operatorID);
-    const updates = leaves.map(o => status[o.operatorID]).filter(Boolean);
-    if (!updates.length) continue;
-    const boundary = (direction: "inputs" | "outputs") => {
-      const values = (direction === "inputs" ? op.inputPorts : op.outputPorts).map(p => {
-        const targets = (expanded.ports[portKey(op.operatorID, direction, p.portID)] ?? []).map(target => {
-          const leaf = leaves.find(o => o.operatorID === target.operatorID)!;
-          const ports = direction === "inputs" ? leaf.inputPorts : leaf.outputPorts;
-          const update = status[target.operatorID];
-          const metrics = direction === "inputs" ? update?.inputPortMetrics : update?.outputPortMetrics;
-          return {
-            rows:
-              metrics !== undefined
-                ? metrics[String(ports.findIndex(p => p.portID === target.portID))] ?? 0
-                : ports.length === 1
-                  ? (direction === "inputs" ? update?.aggregatedInputRowCount : update?.aggregatedOutputRowCount) ?? 0
-                  : 0,
-            // The wire format cannot split a leaf's aggregate bytes across multiple ports.
-            size:
-              ports.length === 1
-                ? direction === "inputs"
-                  ? update?.aggregatedInputSize
-                  : update?.aggregatedOutputSize
-                : undefined,
-          };
-        });
-        return {
-          rows: Math.max(0, ...targets.map(t => t.rows)),
-          size: targets.length === 1 ? targets[0].size : undefined,
-        };
-      });
-      return {
-        ports: Object.fromEntries(values.map((value, index) => [String(index), value.rows])),
-        rows: sumBy(values, value => value.rows),
-        size: values.every(value => value.size !== undefined) ? sumBy(values, value => value.size ?? 0) : undefined,
-      };
-    };
-    const inputs = boundary("inputs"),
-      outputs = boundary("outputs");
-    const priority = [
-      OperatorState.Recovering,
-      OperatorState.Pausing,
-      OperatorState.Paused,
-      OperatorState.Resuming,
-      OperatorState.Running,
-      OperatorState.Initializing,
-      OperatorState.Ready,
-      OperatorState.Uninitialized,
-    ];
-    result[op.operatorID] = {
-      operatorState:
-        updates.length === leaves.length && updates.every(s => s.operatorState === OperatorState.Completed)
-          ? OperatorState.Completed
-          : priority.find(state => updates.some(s => s.operatorState === state)) ?? OperatorState.Uninitialized,
-      aggregatedInputRowCount: inputs.rows,
-      aggregatedInputSize: inputs.size,
-      inputPortMetrics: inputs.ports,
-      aggregatedOutputRowCount: outputs.rows,
-      aggregatedOutputSize: outputs.size,
-      outputPortMetrics: outputs.ports,
-      numWorkers: sumBy(updates, s => s.numWorkers ?? 0),
-      aggregatedDataProcessingTime: sumBy(updates, s => s.aggregatedDataProcessingTime ?? 0),
-      aggregatedControlProcessingTime: sumBy(updates, s => s.aggregatedControlProcessingTime ?? 0),
-      aggregatedIdleTime: sumBy(updates, s => s.aggregatedIdleTime ?? 0),
-      reusedFromCache: updates.length === leaves.length && updates.every(s => s.reusedFromCache === true),
-    };
-  }
-  return result;
 }

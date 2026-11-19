@@ -182,7 +182,7 @@ function serializeDag(
   lines.push("");
 
   for (const op of sortedOps) {
-    const inputSchemaMap = extractOperatorInputPortSchemaMap(op.operatorID, op, outputSchemas, allLinks);
+    const inputSchemaMap = extractOperatorInputPortSchemaMap(op.operatorID, op, outputSchemas, allLinks, allOperators);
     const outputSchemaMap = outputSchemas[op.operatorID];
     const compilationError = compilationErrors[op.operatorID];
     lines.push(

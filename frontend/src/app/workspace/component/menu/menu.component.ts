@@ -40,7 +40,7 @@ import { FileSaverService } from "../../../dashboard/service/user/file/file-save
 import { NotificationService } from "src/app/common/service/notification/notification.service";
 import { OperatorMenuService } from "../../service/operator-menu/operator-menu.service";
 import { CoeditorPresenceService } from "../../service/workflow-graph/model/coeditor-presence.service";
-import { firstValueFrom, of } from "rxjs";
+import { firstValueFrom, of, from } from "rxjs";
 import { NzModalService } from "ng-zorro-antd/modal";
 import { ResultExportationComponent } from "../result-exportation/result-exportation.component";
 import { ReportGenerationService } from "../../service/report-generation/report-generation.service";
@@ -102,12 +102,17 @@ export const HANDOVER_DRAIN_TIMEOUT_MS = 10_000;
 /** What the bounded wait yields past the bound, in place of the drain. */
 const DRAIN_TIMED_OUT = "drain timed out" as const;
 
+import { MacroNavigationService } from "../../service/macro/macro-navigation.service";
+
+import { MacroBreadcrumbsComponent } from "../left-panel/operator-menu/macro-breadcrumbs.component";
+
 @UntilDestroy()
 @Component({
   selector: "texera-menu",
   templateUrl: "menu.component.html",
   styleUrls: ["menu.component.scss"],
   imports: [
+    MacroBreadcrumbsComponent,
     NgIf,
     NzSpaceCompactItemDirective,
     NzButtonComponent,
@@ -190,6 +195,7 @@ export class MenuComponent implements OnInit, OnDestroy {
   @ViewChild(ComputingUnitSelectionComponent) computingUnitSelectionComponent!: ComputingUnitSelectionComponent;
 
   constructor(
+    public macroNavigation: MacroNavigationService,
     public executeWorkflowService: ExecuteWorkflowService,
     public workflowActionService: WorkflowActionService,
     public workflowWebsocketService: WorkflowWebsocketService,
@@ -433,6 +439,9 @@ export class MenuComponent implements OnInit, OnDestroy {
     disable: boolean;
     onClick: () => void;
   } {
+    if (this.workflowActionService.getMacroInterface()) {
+      return { text: "Run in workflow", icon: "play-circle", disable: true, onClick: () => {} };
+    }
     // If workflow is invalid, always disable and show "Invalid Workflow". A failed compile
     // does the same, but only where the button would start a run: a compile can answer
     // after the run started, and it must not take Pause/Resume away from that run.
@@ -762,7 +771,11 @@ export class MenuComponent implements OnInit, OnDestroy {
     }
 
     // The whole graph, now that it is known to be whole.
-    const logicalPlan = ExecuteWorkflowService.getLogicalPlanRequest(this.workflowActionService.getTexeraGraph());
+    const logicalPlan = ExecuteWorkflowService.getLogicalPlanRequest(
+      this.workflowActionService.getTexeraGraph(),
+      undefined,
+      this.workflowActionService.getMacroDependencies()
+    );
 
     this.isTranslatingToPython = true;
     this.workflowToPythonService
@@ -980,8 +993,10 @@ export class MenuComponent implements OnInit, OnDestroy {
 
   public persistWorkflow(): void {
     this.isSaving = true;
-    this.workflowPersistService
-      .persistWorkflow(this.workflowActionService.getWorkflow())
+    (this.macroNavigation.parents.length
+      ? from(this.macroNavigation.save())
+      : this.workflowPersistService.persistWorkflow(this.workflowActionService.getWorkflow())
+    )
       .pipe(
         tap((updatedWorkflow: Workflow) => {
           this.workflowActionService.setWorkflowMetadata(updatedWorkflow);

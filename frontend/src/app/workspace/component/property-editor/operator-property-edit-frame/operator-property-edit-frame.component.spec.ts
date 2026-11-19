@@ -17,6 +17,7 @@
  * under the License.
  */
 
+import { setMacroGraph } from "../../../../common/testing/macro-graph";
 import { ComponentFixture, discardPeriodicTasks, fakeAsync, TestBed, tick } from "@angular/core/testing";
 
 import { conditionalRequiredRules, OperatorPropertyEditFrameComponent } from "./operator-property-edit-frame.component";
@@ -46,6 +47,7 @@ import {
 import { configure } from "rxjs-marbles";
 import { SimpleChange } from "@angular/core";
 import { FormBindingService } from "../../../service/form-binding/form-binding.service";
+import { UndoRedoService } from "../../../service/undo-redo/undo-redo.service";
 import { cloneDeep } from "lodash-es";
 
 import Ajv from "ajv";
@@ -67,8 +69,32 @@ import { WorkflowVersionService } from "../../../../dashboard/service/user/workf
 import { GuiConfigService } from "../../../../common/service/gui-config.service";
 import { PresetWrapperComponent } from "src/app/common/formly/preset-wrapper/preset-wrapper.component";
 import * as Y from "yjs";
+import { nestedMacroFieldTests } from "../../macro-fields.spec-harness";
 
 const { marbles } = configure({ run: false });
+
+const configurePropertyEditorTestBed = () =>
+  TestBed.configureTestingModule({
+    providers: [
+      WorkflowActionService,
+      {
+        provide: OperatorMetadataService,
+        useClass: StubOperatorMetadataService,
+      },
+      { provide: ComputingUnitStatusService, useClass: MockComputingUnitStatusService },
+      DatePipe,
+      ...commonTestProviders,
+    ],
+    imports: [
+      OperatorPropertyEditFrameComponent,
+      BrowserAnimationsModule,
+      FormsModule,
+      FormlyModule.forRoot(TEXERA_FORMLY_CONFIG),
+      FormlyNgZorroAntdModule,
+      ReactiveFormsModule,
+      HttpClientTestingModule,
+    ],
+  });
 
 describe("conditionalRequiredRules", () => {
   it("reads a `then` rule, as Sklearn states it for the text column", () => {
@@ -131,27 +157,7 @@ describe("OperatorPropertyEditFrameComponent", () => {
     });
     /* eslint-enable no-restricted-syntax */
 
-    await TestBed.configureTestingModule({
-      providers: [
-        WorkflowActionService,
-        {
-          provide: OperatorMetadataService,
-          useClass: StubOperatorMetadataService,
-        },
-        { provide: ComputingUnitStatusService, useClass: MockComputingUnitStatusService },
-        DatePipe,
-        ...commonTestProviders,
-      ],
-      imports: [
-        OperatorPropertyEditFrameComponent,
-        BrowserAnimationsModule,
-        FormsModule,
-        FormlyModule.forRoot(TEXERA_FORMLY_CONFIG),
-        FormlyNgZorroAntdModule,
-        ReactiveFormsModule,
-        HttpClientTestingModule,
-      ],
-    }).compileComponents();
+    await configurePropertyEditorTestBed().compileComponents();
 
     fixture = TestBed.createComponent(OperatorPropertyEditFrameComponent);
     component = fixture.componentInstance;
@@ -176,6 +182,19 @@ describe("OperatorPropertyEditFrameComponent", () => {
     expect(spy).toHaveBeenCalledWith("currentlyEditing", mockScanPredicate.operatorID);
     expect(versionSpy).toHaveBeenCalledWith(mockScanPredicate.operatorID, expect.anything());
   });
+
+  it("writes the last pending property edit before the canvas changes documents", fakeAsync(() => {
+    workflowActionService.addOperator(mockScanPredicate, mockPoint);
+    component.currentOperatorId = mockScanPredicate.operatorID;
+    fixture.detectChanges();
+    component.onFormChanges({ tableName: "last keystroke" });
+    workflowActionService.editorChanging$.next();
+    expect(workflowActionService.getTexeraGraph().getOperator(mockScanPredicate.operatorID).operatorProperties).toEqual(
+      { tableName: "last keystroke" }
+    );
+    tick(FORM_DEBOUNCE_TIME_MS);
+    discardPeriodicTasks();
+  }));
 
   it("writes nothing at all when actsAsEditor is false (read-only inspect)", fakeAsync(() => {
     // The Form View mounts this frame with actsAsEditor=false so that a reader inspecting a
@@ -491,24 +510,7 @@ describe("OperatorPropertyEditFrameComponent", () => {
   describe("operator description truncation", () => {
     beforeEach(async () => {
       TestBed.resetTestingModule();
-      await TestBed.configureTestingModule({
-        providers: [
-          WorkflowActionService,
-          { provide: OperatorMetadataService, useClass: StubOperatorMetadataService },
-          { provide: ComputingUnitStatusService, useClass: MockComputingUnitStatusService },
-          DatePipe,
-          ...commonTestProviders,
-        ],
-        imports: [
-          OperatorPropertyEditFrameComponent,
-          BrowserAnimationsModule,
-          FormsModule,
-          FormlyModule.forRoot(TEXERA_FORMLY_CONFIG),
-          FormlyNgZorroAntdModule,
-          ReactiveFormsModule,
-          HttpClientTestingModule,
-        ],
-      }).compileComponents();
+      await configurePropertyEditorTestBed().compileComponents();
 
       fixture = TestBed.createComponent(OperatorPropertyEditFrameComponent);
       component = fixture.componentInstance;
@@ -630,7 +632,7 @@ describe("OperatorPropertyEditFrameComponent", () => {
 
   // ── HuggingFace field visibility and validator tests ──
 
-  function getHfField(key: string): FormlyFieldConfig | undefined {
+  function getField(key: string): FormlyFieldConfig | undefined {
     return component.formlyFields?.[0]?.fieldGroup?.find(f => f.key === key);
   }
 
@@ -664,66 +666,66 @@ describe("OperatorPropertyEditFrameComponent", () => {
 
   it("should hide imageInput for text-generation task", () => {
     initHfOperator("text-generation");
-    expect(evalHide(getHfField("imageInput"))).toBe(true);
+    expect(evalHide(getField("imageInput"))).toBe(true);
   });
 
   it("should show imageInput for image-classification task", () => {
     initHfOperator("image-classification");
-    expect(evalHide(getHfField("imageInput"))).toBe(false);
+    expect(evalHide(getField("imageInput"))).toBe(false);
   });
 
   it("should hide audioInput for text-generation task", () => {
     initHfOperator("text-generation");
-    expect(evalHide(getHfField("audioInput"))).toBe(true);
+    expect(evalHide(getField("audioInput"))).toBe(true);
   });
 
   it("should show audioInput for automatic-speech-recognition task", () => {
     initHfOperator("automatic-speech-recognition");
-    expect(evalHide(getHfField("audioInput"))).toBe(false);
+    expect(evalHide(getField("audioInput"))).toBe(false);
   });
 
   it("should hide promptColumn for image-only tasks", () => {
     initHfOperator("image-classification");
-    expect(evalHide(getHfField("promptColumn"))).toBe(true);
+    expect(evalHide(getField("promptColumn"))).toBe(true);
   });
 
   it("should hide promptColumn for audio-only tasks", () => {
     initHfOperator("automatic-speech-recognition");
-    expect(evalHide(getHfField("promptColumn"))).toBe(true);
+    expect(evalHide(getField("promptColumn"))).toBe(true);
   });
 
   it("should show promptColumn for text-generation task", () => {
     initHfOperator("text-generation");
-    expect(evalHide(getHfField("promptColumn"))).toBe(false);
+    expect(evalHide(getField("promptColumn"))).toBe(false);
   });
 
   it("should show systemPrompt only for text-generation", () => {
     initHfOperator("text-generation");
-    expect(evalHide(getHfField("systemPrompt"))).toBe(false);
+    expect(evalHide(getField("systemPrompt"))).toBe(false);
 
     initHfOperator("image-classification");
-    expect(evalHide(getHfField("systemPrompt"))).toBe(true);
+    expect(evalHide(getField("systemPrompt"))).toBe(true);
   });
 
   it("should show contextColumn only for question-answering", () => {
     initHfOperator("question-answering");
-    expect(evalHide(getHfField("contextColumn"))).toBe(false);
+    expect(evalHide(getField("contextColumn"))).toBe(false);
 
     initHfOperator("text-generation");
-    expect(evalHide(getHfField("contextColumn"))).toBe(true);
+    expect(evalHide(getField("contextColumn"))).toBe(true);
   });
 
   it("should show candidateLabels only for classification tasks", () => {
     initHfOperator("zero-shot-classification");
-    expect(evalHide(getHfField("candidateLabels"))).toBe(false);
+    expect(evalHide(getField("candidateLabels"))).toBe(false);
 
     initHfOperator("text-generation");
-    expect(evalHide(getHfField("candidateLabels"))).toBe(true);
+    expect(evalHide(getField("candidateLabels"))).toBe(true);
   });
 
   it("requiredPromptColumn validator should pass when not a prompt-required task", () => {
     initHfOperator("image-classification");
-    const field = getHfField("promptColumn");
+    const field = getField("promptColumn");
     const validator = field?.validators?.["requiredPromptColumn"];
     expect(validator).toBeDefined();
     const mockField = { ...field, model: { task: "image-classification", promptColumn: "" } } as FormlyFieldConfig;
@@ -732,7 +734,7 @@ describe("OperatorPropertyEditFrameComponent", () => {
 
   it("requiredPromptColumn validator should fail when prompt-required task has no column", () => {
     initHfOperator("text-generation");
-    const field = getHfField("promptColumn");
+    const field = getField("promptColumn");
     const validator = field?.validators?.["requiredPromptColumn"];
     expect(validator).toBeDefined();
     const mockField = { ...field, model: { task: "text-generation", promptColumn: "" } } as FormlyFieldConfig;
@@ -741,7 +743,7 @@ describe("OperatorPropertyEditFrameComponent", () => {
 
   it("requiredImageInput validator should pass when not an image task", () => {
     initHfOperator("text-generation");
-    const field = getHfField("imageInput");
+    const field = getField("imageInput");
     const validator = field?.validators?.["requiredImageInput"];
     expect(validator).toBeDefined();
     const mockField = { ...field, model: { task: "text-generation", imageInput: "" } } as FormlyFieldConfig;
@@ -750,7 +752,7 @@ describe("OperatorPropertyEditFrameComponent", () => {
 
   it("requiredAudioInput validator should pass when not an audio task", () => {
     initHfOperator("text-generation");
-    const field = getHfField("audioInput");
+    const field = getField("audioInput");
     const validator = field?.validators?.["requiredAudioInput"];
     expect(validator).toBeDefined();
     const mockField = { ...field, model: { task: "text-generation", audioInput: "" } } as FormlyFieldConfig;
@@ -761,51 +763,51 @@ describe("OperatorPropertyEditFrameComponent", () => {
 
   it("should show sentencesColumn only for sentence-similarity and text-ranking", () => {
     initHfOperator("sentence-similarity");
-    expect(evalHide(getHfField("sentencesColumn"))).toBe(false);
+    expect(evalHide(getField("sentencesColumn"))).toBe(false);
 
     initHfOperator("text-ranking");
-    expect(evalHide(getHfField("sentencesColumn"))).toBe(false);
+    expect(evalHide(getField("sentencesColumn"))).toBe(false);
 
     initHfOperator("text-generation");
-    expect(evalHide(getHfField("sentencesColumn"))).toBe(true);
+    expect(evalHide(getField("sentencesColumn"))).toBe(true);
   });
 
   it("should show inputImageColumn for image tasks", () => {
     initHfOperator("image-classification");
-    expect(evalHide(getHfField("inputImageColumn"))).toBe(false);
+    expect(evalHide(getField("inputImageColumn"))).toBe(false);
 
     initHfOperator("text-generation");
-    expect(evalHide(getHfField("inputImageColumn"))).toBe(true);
+    expect(evalHide(getField("inputImageColumn"))).toBe(true);
   });
 
   it("should show inputAudioColumn for audio tasks", () => {
     initHfOperator("automatic-speech-recognition");
-    expect(evalHide(getHfField("inputAudioColumn"))).toBe(false);
+    expect(evalHide(getField("inputAudioColumn"))).toBe(false);
 
     initHfOperator("text-generation");
-    expect(evalHide(getHfField("inputAudioColumn"))).toBe(true);
+    expect(evalHide(getField("inputAudioColumn"))).toBe(true);
   });
 
   it("should hide maxNewTokens and temperature for non-text-generation tasks", () => {
     initHfOperator("image-classification");
-    expect(evalHide(getHfField("maxNewTokens"))).toBe(true);
-    expect(evalHide(getHfField("temperature"))).toBe(true);
+    expect(evalHide(getField("maxNewTokens"))).toBe(true);
+    expect(evalHide(getField("temperature"))).toBe(true);
 
     initHfOperator("text-generation");
-    expect(evalHide(getHfField("maxNewTokens"))).toBe(false);
-    expect(evalHide(getHfField("temperature"))).toBe(false);
+    expect(evalHide(getField("maxNewTokens"))).toBe(false);
+    expect(evalHide(getField("temperature"))).toBe(false);
   });
 
   it("should show candidateLabels for zero-shot-image-classification", () => {
     initHfOperator("zero-shot-image-classification");
-    expect(evalHide(getHfField("candidateLabels"))).toBe(false);
+    expect(evalHide(getField("candidateLabels"))).toBe(false);
   });
 
   // ── Additional validator edge-case tests ──
 
   it("requiredPromptColumn validator should pass when prompt-required task has a column", () => {
     initHfOperator("text-generation");
-    const field = getHfField("promptColumn");
+    const field = getField("promptColumn");
     const validator = field?.validators?.["requiredPromptColumn"];
     const mockField = { ...field, model: { task: "text-generation", promptColumn: "text_col" } } as FormlyFieldConfig;
     expect(validator!.expression(null as any, mockField)).toBe(true);
@@ -813,7 +815,7 @@ describe("OperatorPropertyEditFrameComponent", () => {
 
   it("requiredImageInput validator should fail when image task has no image and no column", () => {
     initHfOperator("image-classification");
-    const field = getHfField("imageInput");
+    const field = getField("imageInput");
     const validator = field?.validators?.["requiredImageInput"];
     const mockField = {
       ...field,
@@ -824,7 +826,7 @@ describe("OperatorPropertyEditFrameComponent", () => {
 
   it("requiredImageInput validator should pass when image task has inputImageColumn set", () => {
     initHfOperator("image-classification");
-    const field = getHfField("imageInput");
+    const field = getField("imageInput");
     const validator = field?.validators?.["requiredImageInput"];
     const mockField = {
       ...field,
@@ -835,7 +837,7 @@ describe("OperatorPropertyEditFrameComponent", () => {
 
   it("requiredImageInput validator should pass when image task has image uploaded", () => {
     initHfOperator("image-classification");
-    const field = getHfField("imageInput");
+    const field = getField("imageInput");
     const validator = field?.validators?.["requiredImageInput"];
     const mockField = {
       ...field,
@@ -846,7 +848,7 @@ describe("OperatorPropertyEditFrameComponent", () => {
 
   it("requiredAudioInput validator should fail when audio task has no audio and no column", () => {
     initHfOperator("automatic-speech-recognition");
-    const field = getHfField("audioInput");
+    const field = getField("audioInput");
     const validator = field?.validators?.["requiredAudioInput"];
     const mockField = {
       ...field,
@@ -857,7 +859,7 @@ describe("OperatorPropertyEditFrameComponent", () => {
 
   it("requiredAudioInput validator should pass when audio task has inputAudioColumn set", () => {
     initHfOperator("automatic-speech-recognition");
-    const field = getHfField("audioInput");
+    const field = getField("audioInput");
     const validator = field?.validators?.["requiredAudioInput"];
     const mockField = {
       ...field,
@@ -868,7 +870,7 @@ describe("OperatorPropertyEditFrameComponent", () => {
 
   it("requiredAudioInput validator should pass when audio task has audio uploaded", () => {
     initHfOperator("automatic-speech-recognition");
-    const field = getHfField("audioInput");
+    const field = getField("audioInput");
     const validator = field?.validators?.["requiredAudioInput"];
     const mockField = {
       ...field,
@@ -911,7 +913,7 @@ describe("OperatorPropertyEditFrameComponent", () => {
 
   it("should hide the task field for HuggingFace operators", () => {
     initHfOperator("text-generation");
-    const taskField = getHfField("task");
+    const taskField = getField("task");
     expect(taskField?.hide).toBe(true);
   });
 
@@ -919,19 +921,19 @@ describe("OperatorPropertyEditFrameComponent", () => {
 
   it("should set modelId field type to 'huggingface' for HF operators", () => {
     initHfOperator("text-generation");
-    const field = getHfField("modelId");
+    const field = getField("modelId");
     expect(field?.type).toBe("huggingface");
   });
 
   it("should set imageInput field type to 'huggingface-image-upload'", () => {
     initHfOperator("image-classification");
-    const field = getHfField("imageInput");
+    const field = getField("imageInput");
     expect(field?.type).toBe("huggingface-image-upload");
   });
 
   it("should set audioInput field type to 'huggingface-audio-upload'", () => {
     initHfOperator("automatic-speech-recognition");
-    const field = getHfField("audioInput");
+    const field = getField("audioInput");
     expect(field?.type).toBe("huggingface-audio-upload");
   });
 
@@ -939,28 +941,28 @@ describe("OperatorPropertyEditFrameComponent", () => {
 
   it("should hide imageInput when task is undefined", () => {
     initHfOperator("text-generation");
-    const field = getHfField("imageInput");
+    const field = getField("imageInput");
     const hideFn = (field?.expressions as Record<string, Function>)?.["hide"];
     expect(hideFn({ model: {} } as FormlyFieldConfig)).toBe(true);
   });
 
   it("should hide audioInput when task is undefined", () => {
     initHfOperator("text-generation");
-    const field = getHfField("audioInput");
+    const field = getField("audioInput");
     const hideFn = (field?.expressions as Record<string, Function>)?.["hide"];
     expect(hideFn({ model: {} } as FormlyFieldConfig)).toBe(true);
   });
 
   it("should hide inputImageColumn when task is undefined", () => {
     initHfOperator("text-generation");
-    const field = getHfField("inputImageColumn");
+    const field = getField("inputImageColumn");
     const hideFn = (field?.expressions as Record<string, Function>)?.["hide"];
     expect(hideFn({ model: {} } as FormlyFieldConfig)).toBe(true);
   });
 
   it("should hide inputAudioColumn when task is undefined", () => {
     initHfOperator("text-generation");
-    const field = getHfField("inputAudioColumn");
+    const field = getField("inputAudioColumn");
     const hideFn = (field?.expressions as Record<string, Function>)?.["hide"];
     expect(hideFn({ model: {} } as FormlyFieldConfig)).toBe(true);
   });
@@ -969,68 +971,68 @@ describe("OperatorPropertyEditFrameComponent", () => {
 
   it("should show imageInput for image-to-video task", () => {
     initHfOperator("image-to-video");
-    expect(evalHide(getHfField("imageInput"))).toBe(false);
+    expect(evalHide(getField("imageInput"))).toBe(false);
   });
 
   it("should show imageInput for image-to-image task", () => {
     initHfOperator("image-to-image");
-    expect(evalHide(getHfField("imageInput"))).toBe(false);
+    expect(evalHide(getField("imageInput"))).toBe(false);
   });
 
   it("should show imageInput for document-question-answering task", () => {
     initHfOperator("document-question-answering");
-    expect(evalHide(getHfField("imageInput"))).toBe(false);
+    expect(evalHide(getField("imageInput"))).toBe(false);
   });
 
   it("should show imageInput for image-text-to-text task", () => {
     initHfOperator("image-text-to-text");
-    expect(evalHide(getHfField("imageInput"))).toBe(false);
+    expect(evalHide(getField("imageInput"))).toBe(false);
   });
 
   // ── Audio task visibility ──
 
   it("should show audioInput for audio-classification task", () => {
     initHfOperator("audio-classification");
-    expect(evalHide(getHfField("audioInput"))).toBe(false);
+    expect(evalHide(getField("audioInput"))).toBe(false);
   });
 
   it("should show inputAudioColumn for audio-classification task", () => {
     initHfOperator("audio-classification");
-    expect(evalHide(getHfField("inputAudioColumn"))).toBe(false);
+    expect(evalHide(getField("inputAudioColumn"))).toBe(false);
   });
 
   // ── promptColumn visibility for mixed tasks ──
 
   it("should show promptColumn for visual-question-answering (image + prompt)", () => {
     initHfOperator("visual-question-answering");
-    expect(evalHide(getHfField("promptColumn"))).toBe(false);
+    expect(evalHide(getField("promptColumn"))).toBe(false);
   });
 
   it("should show promptColumn for document-question-answering (image + prompt)", () => {
     initHfOperator("document-question-answering");
-    expect(evalHide(getHfField("promptColumn"))).toBe(false);
+    expect(evalHide(getField("promptColumn"))).toBe(false);
   });
 
   it("should show promptColumn for zero-shot-classification", () => {
     initHfOperator("zero-shot-classification");
-    expect(evalHide(getHfField("promptColumn"))).toBe(false);
+    expect(evalHide(getField("promptColumn"))).toBe(false);
   });
 
   it("should show promptColumn for summarization", () => {
     initHfOperator("summarization");
-    expect(evalHide(getHfField("promptColumn"))).toBe(false);
+    expect(evalHide(getField("promptColumn"))).toBe(false);
   });
 
   it("should show promptColumn for translation", () => {
     initHfOperator("translation");
-    expect(evalHide(getHfField("promptColumn"))).toBe(false);
+    expect(evalHide(getField("promptColumn"))).toBe(false);
   });
 
   // ── Validator with formControl value ──
 
   it("requiredImageInput validator should pass when image task has formControl value", () => {
     initHfOperator("image-classification");
-    const field = getHfField("imageInput");
+    const field = getField("imageInput");
     const validator = field?.validators?.["requiredImageInput"];
     const mockField = {
       ...field,
@@ -1042,7 +1044,7 @@ describe("OperatorPropertyEditFrameComponent", () => {
 
   it("requiredAudioInput validator should pass when audio task has formControl value", () => {
     initHfOperator("automatic-speech-recognition");
-    const field = getHfField("audioInput");
+    const field = getField("audioInput");
     const validator = field?.validators?.["requiredAudioInput"];
     const mockField = {
       ...field,
@@ -1054,7 +1056,7 @@ describe("OperatorPropertyEditFrameComponent", () => {
 
   it("requiredPromptColumn validator should pass when formControl has value", () => {
     initHfOperator("text-generation");
-    const field = getHfField("promptColumn");
+    const field = getField("promptColumn");
     const validator = field?.validators?.["requiredPromptColumn"];
     const mockField = {
       ...field,
@@ -1431,21 +1433,21 @@ describe("OperatorPropertyEditFrameComponent", () => {
 
   it("requiredImageInput validator should return correct message", () => {
     initHfOperator("image-classification");
-    const field = getHfField("imageInput");
+    const field = getField("imageInput");
     const validator = field?.validators?.["requiredImageInput"];
     expect(validator!.message()).toBe("Upload an image or select an Input Image Column for this task.");
   });
 
   it("requiredAudioInput validator should return correct message", () => {
     initHfOperator("automatic-speech-recognition");
-    const field = getHfField("audioInput");
+    const field = getField("audioInput");
     const validator = field?.validators?.["requiredAudioInput"];
     expect(validator!.message()).toBe("Upload audio or select an Input Audio Column for this task.");
   });
 
   it("requiredPromptColumn validator should return correct message", () => {
     initHfOperator("text-generation");
-    const field = getHfField("promptColumn");
+    const field = getField("promptColumn");
     const validator = field?.validators?.["requiredPromptColumn"];
     expect(validator!.message()).toBe("Select a prompt column for this task.");
   });
@@ -1454,101 +1456,101 @@ describe("OperatorPropertyEditFrameComponent", () => {
 
   it("should show promptColumn for token-classification", () => {
     initHfOperator("token-classification");
-    expect(evalHide(getHfField("promptColumn"))).toBe(false);
+    expect(evalHide(getField("promptColumn"))).toBe(false);
   });
 
   it("should show promptColumn for table-question-answering", () => {
     initHfOperator("table-question-answering");
-    expect(evalHide(getHfField("promptColumn"))).toBe(false);
+    expect(evalHide(getField("promptColumn"))).toBe(false);
   });
 
   it("should show promptColumn for feature-extraction", () => {
     initHfOperator("feature-extraction");
-    expect(evalHide(getHfField("promptColumn"))).toBe(false);
+    expect(evalHide(getField("promptColumn"))).toBe(false);
   });
 
   it("should show promptColumn for fill-mask", () => {
     initHfOperator("fill-mask");
-    expect(evalHide(getHfField("promptColumn"))).toBe(false);
+    expect(evalHide(getField("promptColumn"))).toBe(false);
   });
 
   it("should show promptColumn for sentence-similarity", () => {
     initHfOperator("sentence-similarity");
-    expect(evalHide(getHfField("promptColumn"))).toBe(false);
+    expect(evalHide(getField("promptColumn"))).toBe(false);
   });
 
   it("should show promptColumn for text-ranking", () => {
     initHfOperator("text-ranking");
-    expect(evalHide(getHfField("promptColumn"))).toBe(false);
+    expect(evalHide(getField("promptColumn"))).toBe(false);
   });
 
   it("should show promptColumn for image-text-to-text", () => {
     initHfOperator("image-text-to-text");
-    expect(evalHide(getHfField("promptColumn"))).toBe(false);
+    expect(evalHide(getField("promptColumn"))).toBe(false);
   });
 
   it("should hide promptColumn for object-detection (image-only)", () => {
     initHfOperator("object-detection");
-    expect(evalHide(getHfField("promptColumn"))).toBe(true);
+    expect(evalHide(getField("promptColumn"))).toBe(true);
   });
 
   it("should hide promptColumn for image-segmentation (image-only)", () => {
     initHfOperator("image-segmentation");
-    expect(evalHide(getHfField("promptColumn"))).toBe(true);
+    expect(evalHide(getField("promptColumn"))).toBe(true);
   });
 
   it("should hide promptColumn for image-to-text (image-only)", () => {
     initHfOperator("image-to-text");
-    expect(evalHide(getHfField("promptColumn"))).toBe(true);
+    expect(evalHide(getField("promptColumn"))).toBe(true);
   });
 
   // ── Field visibility for media-generation tasks ──
 
   it("should hide imageInput for text-to-image task", () => {
     initHfOperator("text-to-image");
-    expect(evalHide(getHfField("imageInput"))).toBe(true);
+    expect(evalHide(getField("imageInput"))).toBe(true);
   });
 
   it("should hide imageInput for text-to-speech task", () => {
     initHfOperator("text-to-speech");
-    expect(evalHide(getHfField("imageInput"))).toBe(true);
+    expect(evalHide(getField("imageInput"))).toBe(true);
   });
 
   it("should hide audioInput for text-to-image task", () => {
     initHfOperator("text-to-image");
-    expect(evalHide(getHfField("audioInput"))).toBe(true);
+    expect(evalHide(getField("audioInput"))).toBe(true);
   });
 
   it("should hide audioInput for text-to-speech task", () => {
     initHfOperator("text-to-speech");
-    expect(evalHide(getHfField("audioInput"))).toBe(true);
+    expect(evalHide(getField("audioInput"))).toBe(true);
   });
 
   it("should show imageInput for zero-shot-image-classification task", () => {
     initHfOperator("zero-shot-image-classification");
-    expect(evalHide(getHfField("imageInput"))).toBe(false);
+    expect(evalHide(getField("imageInput"))).toBe(false);
   });
 
   it("should show inputImageColumn for zero-shot-image-classification", () => {
     initHfOperator("zero-shot-image-classification");
-    expect(evalHide(getHfField("inputImageColumn"))).toBe(false);
+    expect(evalHide(getField("inputImageColumn"))).toBe(false);
   });
 
   it("should show inputImageColumn for image-to-image", () => {
     initHfOperator("image-to-image");
-    expect(evalHide(getHfField("inputImageColumn"))).toBe(false);
+    expect(evalHide(getField("inputImageColumn"))).toBe(false);
   });
 
   it("should show inputImageColumn for image-to-video", () => {
     initHfOperator("image-to-video");
-    expect(evalHide(getHfField("inputImageColumn"))).toBe(false);
+    expect(evalHide(getField("inputImageColumn"))).toBe(false);
   });
 
   // ── Validator edge cases: zero-shot-image-classification ──
 
   it("requiredImageInput validator should fail for zero-shot-image-classification with no input", () => {
     initHfOperator("zero-shot-image-classification");
-    const field = getHfField("imageInput");
+    const field = getField("imageInput");
     const validator = field?.validators?.["requiredImageInput"];
     const mockField = {
       ...field,
@@ -1559,7 +1561,7 @@ describe("OperatorPropertyEditFrameComponent", () => {
 
   it("requiredImageInput validator should pass for zero-shot-image-classification with column", () => {
     initHfOperator("zero-shot-image-classification");
-    const field = getHfField("imageInput");
+    const field = getField("imageInput");
     const validator = field?.validators?.["requiredImageInput"];
     const mockField = {
       ...field,
@@ -1572,7 +1574,7 @@ describe("OperatorPropertyEditFrameComponent", () => {
 
   it("requiredPromptColumn validator should fail when value is whitespace-only", () => {
     initHfOperator("text-generation");
-    const field = getHfField("promptColumn");
+    const field = getField("promptColumn");
     const validator = field?.validators?.["requiredPromptColumn"];
     const mockField = { ...field, model: { task: "text-generation", promptColumn: "   " } } as FormlyFieldConfig;
     expect(validator!.expression(null as any, mockField)).toBe(false);
@@ -1580,7 +1582,7 @@ describe("OperatorPropertyEditFrameComponent", () => {
 
   it("requiredImageInput validator should fail when imageInput is whitespace-only", () => {
     initHfOperator("image-classification");
-    const field = getHfField("imageInput");
+    const field = getField("imageInput");
     const validator = field?.validators?.["requiredImageInput"];
     const mockField = {
       ...field,
@@ -1591,7 +1593,7 @@ describe("OperatorPropertyEditFrameComponent", () => {
 
   it("requiredAudioInput validator should fail when audioInput is whitespace-only", () => {
     initHfOperator("automatic-speech-recognition");
-    const field = getHfField("audioInput");
+    const field = getField("audioInput");
     const validator = field?.validators?.["requiredAudioInput"];
     const mockField = {
       ...field,
@@ -1604,7 +1606,7 @@ describe("OperatorPropertyEditFrameComponent", () => {
 
   it("should use form.get task value for hide expression when model.task is undefined", () => {
     initHfOperator("text-generation");
-    const field = getHfField("imageInput");
+    const field = getField("imageInput");
     const hideFn = (field?.expressions as Record<string, Function>)?.["hide"];
     // Simulate: model has no task but form has it
     const mockField = {
@@ -1616,7 +1618,7 @@ describe("OperatorPropertyEditFrameComponent", () => {
 
   it("should use formControl.parent.get task value when model and form are empty", () => {
     initHfOperator("text-generation");
-    const field = getHfField("audioInput");
+    const field = getField("audioInput");
     const hideFn = (field?.expressions as Record<string, Function>)?.["hide"];
     const mockField = {
       model: {},
@@ -1646,31 +1648,31 @@ describe("OperatorPropertyEditFrameComponent", () => {
 
   it("should hide systemPrompt for automatic-speech-recognition", () => {
     initHfOperator("automatic-speech-recognition");
-    expect(evalHide(getHfField("systemPrompt"))).toBe(true);
-    expect(evalHide(getHfField("maxNewTokens"))).toBe(true);
-    expect(evalHide(getHfField("temperature"))).toBe(true);
+    expect(evalHide(getField("systemPrompt"))).toBe(true);
+    expect(evalHide(getField("maxNewTokens"))).toBe(true);
+    expect(evalHide(getField("temperature"))).toBe(true);
   });
 
   it("should hide contextColumn for image-classification", () => {
     initHfOperator("image-classification");
-    expect(evalHide(getHfField("contextColumn"))).toBe(true);
+    expect(evalHide(getField("contextColumn"))).toBe(true);
   });
 
   it("should hide candidateLabels for text-generation", () => {
     initHfOperator("text-generation");
-    expect(evalHide(getHfField("candidateLabels"))).toBe(true);
+    expect(evalHide(getField("candidateLabels"))).toBe(true);
   });
 
   it("should hide sentencesColumn for question-answering", () => {
     initHfOperator("question-answering");
-    expect(evalHide(getHfField("sentencesColumn"))).toBe(true);
+    expect(evalHide(getField("sentencesColumn"))).toBe(true);
   });
 
   // ── Visibility when task is undefined for remaining fields ──
 
   it("should hide promptColumn when task is undefined", () => {
     initHfOperator("text-generation");
-    const field = getHfField("promptColumn");
+    const field = getField("promptColumn");
     const hideFn = (field?.expressions as Record<string, Function>)?.["hide"];
     // promptColumn hides when task is in imageOnlyTasks or audioInputTasks;
     // with undefined task, those conditions are false, so it should NOT hide
@@ -1679,42 +1681,42 @@ describe("OperatorPropertyEditFrameComponent", () => {
 
   it("should hide systemPrompt when task is undefined", () => {
     initHfOperator("text-generation");
-    const field = getHfField("systemPrompt");
+    const field = getField("systemPrompt");
     const hideFn = (field?.expressions as Record<string, Function>)?.["hide"];
     expect(hideFn({ model: {} } as FormlyFieldConfig)).toBe(true);
   });
 
   it("should hide contextColumn when task is undefined", () => {
     initHfOperator("text-generation");
-    const field = getHfField("contextColumn");
+    const field = getField("contextColumn");
     const hideFn = (field?.expressions as Record<string, Function>)?.["hide"];
     expect(hideFn({ model: {} } as FormlyFieldConfig)).toBe(true);
   });
 
   it("should hide candidateLabels when task is undefined", () => {
     initHfOperator("text-generation");
-    const field = getHfField("candidateLabels");
+    const field = getField("candidateLabels");
     const hideFn = (field?.expressions as Record<string, Function>)?.["hide"];
     expect(hideFn({ model: {} } as FormlyFieldConfig)).toBe(true);
   });
 
   it("should hide sentencesColumn when task is undefined", () => {
     initHfOperator("text-generation");
-    const field = getHfField("sentencesColumn");
+    const field = getField("sentencesColumn");
     const hideFn = (field?.expressions as Record<string, Function>)?.["hide"];
     expect(hideFn({ model: {} } as FormlyFieldConfig)).toBe(true);
   });
 
   it("should hide maxNewTokens when task is undefined", () => {
     initHfOperator("text-generation");
-    const field = getHfField("maxNewTokens");
+    const field = getField("maxNewTokens");
     const hideFn = (field?.expressions as Record<string, Function>)?.["hide"];
     expect(hideFn({ model: {} } as FormlyFieldConfig)).toBe(true);
   });
 
   it("should hide temperature when task is undefined", () => {
     initHfOperator("text-generation");
-    const field = getHfField("temperature");
+    const field = getField("temperature");
     const hideFn = (field?.expressions as Record<string, Function>)?.["hide"];
     expect(hideFn({ model: {} } as FormlyFieldConfig)).toBe(true);
   });
@@ -1967,10 +1969,6 @@ describe("OperatorPropertyEditFrameComponent", () => {
   // Field-level validators / custom field-type mapping in setFormlyFormBinding
   // ──────────────────────────────────────────────────────────────────────────
   describe("field-level validators and type mapping", () => {
-    function getField(key: string): FormlyFieldConfig | undefined {
-      return component.formlyFields?.[0]?.fieldGroup?.find(f => f.key === key);
-    }
-
     it("adds an inEnum validator that rejects values no longer present in the schema enum", () => {
       component.setFormlyFormBinding({
         type: "object",
@@ -2044,10 +2042,6 @@ describe("OperatorPropertyEditFrameComponent", () => {
   // Operator-type-specific field behavior (FileScanOp hide, Projection reorder)
   // ──────────────────────────────────────────────────────────────────────────
   describe("operator-type-specific field behavior", () => {
-    function getField(key: string): FormlyFieldConfig | undefined {
-      return component.formlyFields?.[0]?.fieldGroup?.find(f => f.key === key);
-    }
-
     it("hides FileScanOp outputFileName unless extract is on or the type is a string/binary type", () => {
       component.currentOperatorSchema = { operatorType: "FileScanOp" } as any;
       component.setFormlyFormBinding({
@@ -2203,24 +2197,7 @@ describe("OperatorPropertyEditFrameComponent", () => {
 
     beforeEach(async () => {
       TestBed.resetTestingModule();
-      await TestBed.configureTestingModule({
-        providers: [
-          WorkflowActionService,
-          { provide: OperatorMetadataService, useClass: StubOperatorMetadataService },
-          { provide: ComputingUnitStatusService, useClass: MockComputingUnitStatusService },
-          DatePipe,
-          ...commonTestProviders,
-        ],
-        imports: [
-          OperatorPropertyEditFrameComponent,
-          BrowserAnimationsModule,
-          FormsModule,
-          FormlyModule.forRoot(TEXERA_FORMLY_CONFIG),
-          FormlyNgZorroAntdModule,
-          ReactiveFormsModule,
-          HttpClientTestingModule,
-        ],
-      }).compileComponents();
+      await configurePropertyEditorTestBed().compileComponents();
 
       realFixture = TestBed.createComponent(OperatorPropertyEditFrameComponent);
       realComponent = realFixture.componentInstance;
@@ -2560,13 +2537,13 @@ describe("OperatorPropertyEditFrameComponent", () => {
       expect(component.interactive).toBe(true);
     });
 
-    it("confirmModifyOperatorLogic pushes the change and locks the form again", () => {
+    it("confirmModifyOperatorLogic pushes the change and locks the form again", async () => {
       fixture.detectChanges();
       component.currentOperatorId = mockScanPredicate.operatorID;
-      const modifySpy = vi.spyOn(component.executeWorkflowService, "modifyOperatorLogic").mockImplementation(() => {});
+      const modifySpy = vi.spyOn(component.executeWorkflowService, "modifyOperatorLogic").mockResolvedValue(undefined);
       component.setInteractivity(true);
 
-      component.confirmModifyOperatorLogic();
+      await component.confirmModifyOperatorLogic();
 
       expect(modifySpy).toHaveBeenCalledWith(mockScanPredicate.operatorID);
       expect(component.interactive).toBe(false);
@@ -2942,10 +2919,6 @@ describe("OperatorPropertyEditFrameComponent", () => {
   // Field-mapping rules applied inside setFormlyFormBinding
   // ──────────────────────────────────────────────────────────────────────────
   describe("Formly field-mapping rules", () => {
-    function getField(key: string): FormlyFieldConfig | undefined {
-      return component.formlyFields?.[0]?.fieldGroup?.find(f => f.key === key);
-    }
-
     function expressionsOf(key: string): Record<string, Function> {
       return getField(key)?.expressions as Record<string, Function>;
     }
@@ -3034,6 +3007,25 @@ describe("OperatorPropertyEditFrameComponent", () => {
       expect(getField("fileName")?.type).toBe("inputautocomplete");
       expect(getField("huggingFaceModel")?.type).toBe("huggingface");
     });
+
+    nestedMacroFieldTests(
+      undefined,
+      (schema, model, key) => {
+        fixture.detectChanges();
+        component.currentOperatorId = "macro-instance";
+        component.currentOperatorSchema = schema;
+        component.setFormlyFormBinding(schema.jsonSchema);
+        return { field: getField(key)!, model };
+      },
+      () => TestBed.inject(WorkflowCompilingService),
+      field => {
+        const onChange = vi.spyOn(component, "onFormChanges");
+        component.formData = { "field-2-0": ["value"] };
+        expect(field.props?.reorder).toBeTypeOf("function");
+        field.props!.reorder();
+        expect(onChange).toHaveBeenCalledWith({ "field-2-0": ["value"] });
+      }
+    );
 
     it("attaches the diff style to an overridden field and nothing to the others", () => {
       const versionService = TestBed.inject(WorkflowVersionService);
@@ -3213,6 +3205,53 @@ describe("OperatorPropertyEditFrameComponent", () => {
   });
 
   describe("choosing which properties the Form View exposes", () => {
+    it("uses the Form View chooser inside a macro, including Undo/Redo and viewer locks", () => {
+      workflowActionService.addOperator(mockScanPredicate, mockPoint);
+      setMacroGraph(workflowActionService, { id: "macro", inputs: [], outputs: [] });
+      component.ngOnChanges({ currentOperatorId: new SimpleChange(undefined, mockScanPredicate.operatorID, true) });
+      const fields = () => component.formlyFields?.[0]?.fieldGroup ?? [];
+      const table = () => fields().find(f => f.key === "tableName")!;
+      expect(table().props?.["toggleExposed"]).toBeUndefined();
+      component.exposeChoosing = true;
+      component.setFormlyFormBinding(mockScanSourceSchema.jsonSchema);
+      expect(table().props?.["toggleExposed"]).toBeTypeOf("function");
+      expect(table().props?.["exposeOnMacro"]).toBeUndefined();
+      expect(table().props?.description).toBe(
+        (mockScanSourceSchema.jsonSchema.properties!["tableName"] as CustomJSONSchema7).description
+      );
+      expect(table().props?.["propertyPath"]).toBeUndefined();
+      expect(table().wrappers).toEqual(["form-field", "expose-property-wrapper"]);
+      fixture.detectChanges();
+      const repaint = vi.fn();
+      component.formlyOptions.detectChanges = repaint;
+      const before = workflowActionService.getWorkflowContent();
+      table().props!["toggleExposed"](true);
+      expect(TestBed.inject(FormBindingService).isExposed(mockScanPredicate.operatorID, "tableName")).toBe(true);
+      expect(table().props!["isExposed"]()).toBe(true);
+      expect(repaint).toHaveBeenCalledWith(component.formlyFields![0]);
+      repaint.mockClear();
+      const undo = TestBed.inject(UndoRedoService);
+      undo.undoAction();
+      expect(workflowActionService.getWorkflowContent()).toEqual(before);
+      expect(table().props!["isExposed"]()).toBe(false);
+      expect(repaint).toHaveBeenCalledWith(component.formlyFields![0]);
+      undo.redoAction();
+      expect(table().props!["isExposed"]()).toBe(true);
+      workflowActionService.disableWorkflowModification();
+      table().props!["toggleExposed"](false);
+      expect(TestBed.inject(FormBindingService).isExposed(mockScanPredicate.operatorID, "tableName")).toBe(true);
+      workflowActionService.enableWorkflowModification();
+      table().props!["toggleExposed"](false);
+      expect(TestBed.inject(FormBindingService).isExposed(mockScanPredicate.operatorID, "tableName")).toBe(false);
+      component.exposeChoosing = false;
+      component.setFormlyFormBinding(mockScanSourceSchema.jsonSchema);
+      expect(table().props?.["toggleExposed"]).toBeUndefined();
+      component.exposeChoosing = true;
+      component.actsAsEditor = false;
+      component.setFormlyFormBinding(mockScanSourceSchema.jsonSchema);
+      expect(table().props?.["toggleExposed"]).toBeUndefined();
+    });
+
     it("wires each top-level tick box to the exposure service", () => {
       const formBindingService = TestBed.inject(FormBindingService);
       const setExposed = vi.spyOn(formBindingService, "setExposed");
@@ -3304,24 +3343,7 @@ describe("OperatorPropertyEditFrameComponent", () => {
 
     beforeEach(async () => {
       TestBed.resetTestingModule();
-      await TestBed.configureTestingModule({
-        providers: [
-          WorkflowActionService,
-          { provide: OperatorMetadataService, useClass: StubOperatorMetadataService },
-          { provide: ComputingUnitStatusService, useClass: MockComputingUnitStatusService },
-          DatePipe,
-          ...commonTestProviders,
-        ],
-        imports: [
-          OperatorPropertyEditFrameComponent,
-          BrowserAnimationsModule,
-          FormsModule,
-          FormlyModule.forRoot(TEXERA_FORMLY_CONFIG),
-          FormlyNgZorroAntdModule,
-          ReactiveFormsModule,
-          HttpClientTestingModule,
-        ],
-      }).compileComponents();
+      await configurePropertyEditorTestBed().compileComponents();
 
       quillFixture = TestBed.createComponent(OperatorPropertyEditFrameComponent);
       quillComponent = quillFixture.componentInstance;

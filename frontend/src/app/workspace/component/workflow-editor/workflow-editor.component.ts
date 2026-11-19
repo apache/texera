@@ -37,7 +37,7 @@ import {
 } from "../../service/heatmap/heatmap-scoring";
 import { ExecutionState, OperatorState } from "../../types/execute-workflow.interface";
 import { LogicalPort, OperatorLink, OperatorPredicate } from "../../types/workflow-common.interface";
-import { auditTime, filter, map, takeUntil, withLatestFrom } from "rxjs/operators";
+import { auditTime, filter, map, takeUntil, withLatestFrom, take } from "rxjs/operators";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 import { UndoRedoService } from "../../service/undo-redo/undo-redo.service";
 import { WorkflowVersionService } from "../../../dashboard/service/user/workflow-version/workflow-version.service";
@@ -56,9 +56,9 @@ import { NgIf } from "@angular/common";
 import { AgentInteractionComponent } from "../agent/agent-interaction/agent-interaction.component";
 import { HeatmapLegendComponent } from "../heatmap-legend/heatmap-legend.component";
 import { JupyterPanelService } from "../../service/jupyter-panel/jupyter-panel.service";
+
 import { MacroService } from "../../service/macro/macro.service";
-import { isMacro, macroType } from "../../../common/util/workflow-macro";
-import { MacroInspectorComponent } from "../left-panel/operator-menu/macro-inspector.component";
+import { isMacro, isMacroTerminal } from "../../../common/util/workflow-macro";
 
 // jointjs interactive options for enabling and disabling interactivity
 // https://resources.jointjs.com/docs/jointjs/v3.2/joint.html#dia.Paper.prototype.options.interactive
@@ -142,7 +142,6 @@ export class WorkflowEditorComponent implements OnInit, AfterViewInit, OnDestroy
   private get interactive(): boolean {
     return this.paperInteractive && !this.structureLocked;
   }
-  private _onProcessKeyboardActionObservable: Subject<void> = new Subject();
   private wrapper;
   private currentOpenedOperatorID: string | null = null;
   private removeButton!: new () => joint.linkTools.Button;
@@ -185,7 +184,6 @@ export class WorkflowEditorComponent implements OnInit, AfterViewInit, OnDestroy
   private operatorSummaries: Map<string, OperatorResultSummary> = new Map();
 
   ngOnInit(): void {
-    this.macroService.inspect$.pipe(untilDestroyed(this)).subscribe(id => this.inspectMacro(id));
     // Cache the tool constructors
     this.removeButton = WorkflowEditorComponent.getRemoveButton();
     this.breakpointButton = WorkflowEditorComponent.getBreakpointButton();
@@ -244,8 +242,8 @@ export class WorkflowEditorComponent implements OnInit, AfterViewInit, OnDestroy
     this.handleReuseCacheOperator();
     this.registerOperatorDisplayNameChangeHandler();
     this.handleViewDeleteLink();
-    this.handleViewAddPort();
-    this.handleViewRemovePort();
+    this.handleViewPortChange(true);
+    this.handleViewPortChange(false);
     this.handlePortClick();
     this.handlePaperPan();
     this.handleOperatorSelectionEvents();
@@ -297,10 +295,10 @@ export class WorkflowEditorComponent implements OnInit, AfterViewInit, OnDestroy
   }
 
   private _handleKeyboardAction(event: any) {
-    this._onProcessKeyboardActionObservable = new Subject();
+    if (document.activeElement !== document.body) return;
     this.workflowVersionService
       .getDisplayParticularVersionStream()
-      .pipe(takeUntil(this._onProcessKeyboardActionObservable))
+      .pipe(take(1), untilDestroyed(this))
       .subscribe(displayParticularWorkflowVersion => {
         if (!displayParticularWorkflowVersion) {
           // cmd/ctrl+z undo ; ctrl+y or cmd/ctrl + shift+z for redo
@@ -320,7 +318,6 @@ export class WorkflowEditorComponent implements OnInit, AfterViewInit, OnDestroy
           }
           // below for future hotkeys
         }
-        this._onProcessKeyboardActionObservable.complete();
       });
   }
 
@@ -406,7 +403,13 @@ export class WorkflowEditorComponent implements OnInit, AfterViewInit, OnDestroy
           .getTexeraGraph()
           .getAllOperatorIDs()
           .forEach(operatorID => {
-            this.jointUIService.changeOperatorStatistics(this.paper, operatorID, statistics[operatorID]);
+            if (statistics[operatorID])
+              this.jointUIService.changeOperatorStatistics(this.paper, operatorID, statistics[operatorID]);
+            else
+              this.jointUIService.resetOperatorStatistics(
+                this.paper,
+                this.workflowActionService.getTexeraGraph().getOperator(operatorID)
+              );
           });
       });
 
@@ -664,7 +667,7 @@ export class WorkflowEditorComponent implements OnInit, AfterViewInit, OnDestroy
       }
     );
 
-    let regionMap: { regionElement: joint.dia.Element; operators: joint.dia.Cell[] }[] = [];
+    let regionMap: { regionElement: joint.dia.Element; operators: joint.dia.Cell[]; ports: LogicalPort[] }[] = [];
     // update region elements on execution
     this.executeWorkflowService
       .getRegionUpdateStream()
@@ -672,15 +675,28 @@ export class WorkflowEditorComponent implements OnInit, AfterViewInit, OnDestroy
       .subscribe(event => {
         this.paper.model
           .getCells()
-          .filter(element => element instanceof Region)
+          .filter(element => element.get("type") === "region")
           .forEach(element => element.remove());
 
         regionMap = event.regions.map(([id, region]) => {
           const element = new Region({ id: "region-" + id });
           const ops = region.map(id => this.paper.getModelById(id)).filter(Boolean);
+          const ports = (event.terminals?.[id] ?? []).flatMap(port => {
+            const node = this.paper.model.getElements().find(
+              e =>
+                this.workflowActionService
+                  .getTexeraGraph()
+                  .getAllOperators()
+                  .find(op => op.operatorID === e.id)?.operatorType ===
+                  (port.direction === "inputs" ? "MacroInput" : "MacroOutput") &&
+                port.portID &&
+                e.hasPort(port.portID)
+            );
+            return node && port.portID ? [{ operatorID: String(node.id), portID: port.portID }] : [];
+          });
           this.paper.model.addCell(element);
-          this.updateRegionElement(element, ops);
-          return { regionElement: element, operators: ops };
+          this.updateRegionElement(element, ops, ports);
+          return { regionElement: element, operators: ops, ports };
         });
         // regions are recreated on every update, so reapply the current toggle state to the new elements
         this.setRegionsVisibility(this.wrapper.getRegionsDisplayed());
@@ -694,8 +710,10 @@ export class WorkflowEditorComponent implements OnInit, AfterViewInit, OnDestroy
 
     this.paper.model.on("change:position", operator => {
       regionMap
-        .filter(region => region.operators.includes(operator))
-        .forEach(region => this.updateRegionElement(region.regionElement, region.operators));
+        .filter(
+          region => region.operators.includes(operator) || region.ports.some(p => p.operatorID === String(operator.id))
+        )
+        .forEach(region => this.updateRegionElement(region.regionElement, region.operators, region.ports));
     });
 
     // update region element colors on execution
@@ -708,7 +726,7 @@ export class WorkflowEditorComponent implements OnInit, AfterViewInit, OnDestroy
           ExecutingNonDependeePortsPhase: "rgba(255,213,79,0.2)",
           Completed: "rgba(76,175,80,0.2)",
         };
-        this.paper.getModelById("region-" + region.id).attr("body/fill", colorMap[region.state]);
+        this.paper.getModelById("region-" + region.id)?.attr("body/fill", colorMap[region.state]);
       });
   }
 
@@ -719,8 +737,12 @@ export class WorkflowEditorComponent implements OnInit, AfterViewInit, OnDestroy
       .forEach(element => element.attr("body/visibility", displayed ? "visible" : "hidden"));
   }
 
-  private updateRegionElement(regionElement: joint.dia.Element, operators: joint.dia.Cell[]) {
-    const points = operators.flatMap(op => {
+  private updateRegionElement(
+    regionElement: joint.dia.Element,
+    operators: joint.dia.Cell[],
+    ports: LogicalPort[] = []
+  ) {
+    const corners = (op: joint.dia.Cell) => {
       const { x, y, width, height } = op.getBBox(),
         padding = 15;
       return [
@@ -729,7 +751,21 @@ export class WorkflowEditorComponent implements OnInit, AfterViewInit, OnDestroy
         [x - padding, y + height + padding + 10],
         [x + width + padding, y + height + padding + 10],
       ];
-    });
+    };
+    const points = operators.flatMap(corners);
+    for (const [id, selected] of Object.entries(_.groupBy(ports, p => p.operatorID))) {
+      const node = this.paper.getModelById(id) as joint.dia.Element | undefined;
+      if (!node) continue;
+      if (selected.length === node.getPorts().length) points.push(...corners(node));
+      else
+        for (const port of selected) {
+          const offset = node.getPortsPositions(node.getPort(port.portID)?.group ?? "")[port.portID];
+          if (!offset) continue;
+          const x = node.position().x + offset.x,
+            y = node.position().y + offset.y;
+          points.push([x - 6, y - 6], [x + 6, y - 6], [x - 6, y + 6], [x + 6, y + 6]);
+        }
+    }
     regionElement.attr(
       "body/d",
       points.length ? line().curve(curveCatmullRomClosed)(concaveman(points, 2, 0) as [number, number][]) : null
@@ -922,35 +958,6 @@ export class WorkflowEditorComponent implements OnInit, AfterViewInit, OnDestroy
           }
         }
       });
-  }
-
-  private inspectMacro(id: string): void {
-    const content = this.workflowActionService.getWorkflowContent();
-    const op = content.operators.find(o => o.operatorID === id);
-    const definition = content.macroDependencies?.find(d => macroType(d) === op?.operatorType);
-    if (!definition) return;
-    const wid = this.workflowActionService.getWorkflowMetadata().wid;
-    this.nzModalService.create({
-      nzTitle: "Macro definition",
-      nzContent: MacroInspectorComponent,
-      nzWidth: 900,
-      nzStyle: { maxWidth: "calc(100vw - 32px)" },
-      nzFooter: null,
-      nzData: {
-        definition,
-        dependencies: content.macroDependencies,
-        runtime: {
-          operatorID: id,
-          getExpansion: () =>
-            this.workflowActionService.getWorkflowMetadata().wid === wid &&
-            this.workflowActionService
-              .getWorkflowContent()
-              .operators.some(o => o.operatorID === id && o.operatorType === macroType(definition))
-              ? this.workflowActionService.getMacroExpansion()
-              : undefined,
-        },
-      },
-    });
   }
 
   /**
@@ -1175,67 +1182,36 @@ export class WorkflowEditorComponent implements OnInit, AfterViewInit, OnDestroy
       });
   }
 
-  private handleViewAddPort(): void {
-    fromJointPaperEvent(this.paper, "element:add-input-port")
-      .pipe(
-        filter(() => this.interactive),
-        map(value => value[0])
-      )
-      .pipe(untilDestroyed(this))
-      .subscribe(elementView => {
-        if (this.workflowActionService.getTexeraGraph().hasOperator(elementView.model.id.toString())) {
-          this.workflowActionService.addPort(elementView.model.id.toString(), true, false);
-        }
-      });
-    fromJointPaperEvent(this.paper, "element:add-output-port")
-      .pipe(
-        filter(() => this.interactive),
-        map(value => value[0])
-      )
-      .pipe(untilDestroyed(this))
-      .subscribe(elementView => {
-        if (this.workflowActionService.getTexeraGraph().hasOperator(elementView.model.id.toString())) {
-          this.workflowActionService.addPort(elementView.model.id.toString(), false);
-        }
-      });
-  }
-
-  private handleViewRemovePort(): void {
-    fromJointPaperEvent(this.paper, "element:remove-input-port")
-      .pipe(
-        filter(() => this.interactive),
-        map(value => value[0])
-      )
-      .pipe(untilDestroyed(this))
-      .subscribe(elementView => {
-        if (this.workflowActionService.getTexeraGraph().hasOperator(elementView.model.id.toString())) {
-          this.workflowActionService.removePort(elementView.model.id.toString(), true);
-        }
-      });
-    fromJointPaperEvent(this.paper, "element:remove-output-port")
-      .pipe(
-        filter(() => this.interactive),
-        map(value => value[0])
-      )
-      .pipe(untilDestroyed(this))
-      .subscribe(elementView => {
-        if (this.workflowActionService.getTexeraGraph().hasOperator(elementView.model.id.toString())) {
-          this.workflowActionService.removePort(elementView.model.id.toString(), false);
-        }
-      });
+  private handleViewPortChange(add: boolean): void {
+    for (const input of [true, false]) {
+      fromJointPaperEvent(this.paper, `element:${add ? "add" : "remove"}-${input ? "input" : "output"}-port`)
+        .pipe(
+          filter(() => this.interactive),
+          untilDestroyed(this)
+        )
+        .subscribe(([view]) => {
+          if (this.workflowActionService.getTexeraGraph().hasOperator(String(view.model.id))) {
+            if (add) this.workflowActionService.addPort(String(view.model.id), input, input ? false : undefined);
+            else this.workflowActionService.removePort(String(view.model.id), input);
+          }
+        });
+    }
   }
 
   private handlePortClick(): void {
-    fromJointPaperEvent(this.paper, "element:magnet:pointerclick")
+    merge(
+      fromJointPaperEvent(this.paper, "element:magnet:pointerclick"),
+      fromJointPaperEvent(this.paper, "input-port-label:pointerdown"),
+      fromJointPaperEvent(this.paper, "output-port-label:pointerdown")
+    )
       .pipe(untilDestroyed(this))
       .subscribe(event => {
         // set the multi-select mode
         this.wrapper.setMultiSelectMode(<boolean>event[1].shiftKey);
 
-        const clickedPortID: LogicalPort = {
-          operatorID: event[0].model.id as string,
-          portID: event[2].getAttribute("port") as string,
-        };
+        const portID = event[2]?.getAttribute?.("port") ?? event[1].target?.closest?.("[port]")?.getAttribute("port");
+        if (!portID) return;
+        const clickedPortID: LogicalPort = { operatorID: String(event[0].model.id), portID };
 
         if (event[1].shiftKey) {
           if (_.find(this.wrapper.getCurrentHighlightedPortIDs(), clickedPortID) !== undefined) {
@@ -1256,7 +1232,10 @@ export class WorkflowEditorComponent implements OnInit, AfterViewInit, OnDestroy
 
   private handleOperatorSelectionEvents(): void {
     fromJointPaperEvent(this.paper, "element:pointerdown")
-      .pipe(untilDestroyed(this))
+      .pipe(
+        filter(([view]) => this.workflowActionService.getTexeraGraph().hasOperator(String(view.model.id))),
+        untilDestroyed(this)
+      )
       .subscribe(event => {
         const operatorID = event[0].model.id.toString();
 
@@ -1271,7 +1250,10 @@ export class WorkflowEditorComponent implements OnInit, AfterViewInit, OnDestroy
       });
 
     fromJointPaperEvent(this.paper, "element:contextmenu")
-      .pipe(untilDestroyed(this))
+      .pipe(
+        filter(([view]) => this.workflowActionService.getTexeraGraph().hasOperator(String(view.model.id))),
+        untilDestroyed(this)
+      )
       .subscribe(event => {
         const operatorID = event[0].model.id.toString();
 
@@ -1289,7 +1271,8 @@ export class WorkflowEditorComponent implements OnInit, AfterViewInit, OnDestroy
       .subscribe(event => {
         const linkID = event[0].model.id.toString();
         // Highlight the link when right-clicked
-        this.workflowActionService.highlightLinks(false, linkID);
+        if (this.workflowActionService.getTexeraGraph().hasLinkWithID(linkID))
+          this.workflowActionService.highlightLinks(false, linkID);
       });
 
     fromJointPaperEvent(this.paper, "blank:pointerdown")
@@ -1390,14 +1373,15 @@ export class WorkflowEditorComponent implements OnInit, AfterViewInit, OnDestroy
     const targetCellID = targetView.model.id.toString();
     const targetPortID = targetMagnet?.getAttribute("port");
 
-    return this.validateOperatorConnection(sourceCellID, sourcePortID, targetCellID, targetPortID);
+    return this.validateOperatorConnection(sourceCellID, sourcePortID, targetCellID, targetPortID, linkView?.model);
   }
 
   private validateOperatorConnection(
     sourceCellID: string,
     sourcePortID: string | null | undefined,
     targetCellID: string,
-    targetPortID: string | null | undefined
+    targetPortID: string | null | undefined,
+    link?: joint.dia.Link
   ): boolean {
     // cannot connect to itself
     if (sourceCellID === targetCellID) {
@@ -1421,7 +1405,10 @@ export class WorkflowEditorComponent implements OnInit, AfterViewInit, OnDestroy
     const connectedLinksToTargetPort = this.workflowActionService
       .getTexeraGraph()
       .getAllLinks()
-      .filter(link => link.target.operatorID === targetCellID && link.target.portID === targetPortID);
+      .filter(
+        edge =>
+          edge.linkID !== link?.id && edge.target.operatorID === targetCellID && edge.target.portID === targetPortID
+      );
 
     // check if this link already exists, duplicate links are not allowed
     const isDuplicateLink =
@@ -1441,7 +1428,11 @@ export class WorkflowEditorComponent implements OnInit, AfterViewInit, OnDestroy
       if (portIndex >= 0) {
         const portInfo =
           this.dynamicSchemaService.getDynamicSchema(targetCellID).additionalMetadata.inputPorts[portIndex];
-        disallowMultiInput = portInfo?.disallowMultiLinks ?? false;
+        disallowMultiInput =
+          portInfo?.disallowMultiLinks ??
+          this.workflowActionService.getTexeraGraph().getOperator(targetCellID).inputPorts[portIndex]
+            .disallowMultiInputs ??
+          false;
       }
     }
     return !(connectedLinksToTargetPort.length > 0 && disallowMultiInput);
@@ -1601,7 +1592,7 @@ export class WorkflowEditorComponent implements OnInit, AfterViewInit, OnDestroy
         const tools: joint.dia.ToolView[] = [new this.removeButton()];
 
         // If breakpoints are enabled, also add the breakpoint button
-        if (this.config.env.linkBreakpointEnabled) {
+        if (this.config.env.linkBreakpointEnabled && !this.isMacroBoundaryLink(linkView.model)) {
           tools.push(new this.breakpointButton());
         }
 
@@ -1629,6 +1620,13 @@ export class WorkflowEditorComponent implements OnInit, AfterViewInit, OnDestroy
   /**
    * handles events/observables related to the breakpoint
    */
+  private isMacroBoundaryLink(link: joint.dia.Link): boolean {
+    const graph = this.workflowActionService.getTexeraGraph();
+    return [link.source().id, link.target().id].some(
+      id => id && graph.hasOperator(String(id)) && isMacroTerminal(graph.getOperator(String(id)))
+    );
+  }
+
   private handleLinkBreakpoint(): void {
     this.handleLinkBreakpointToolAttachment();
     this.handleLinkBreakpointButtonClick();
@@ -1641,8 +1639,8 @@ export class WorkflowEditorComponent implements OnInit, AfterViewInit, OnDestroy
       .getJointLinkCellAddStream()
       .pipe(this.wrapper.jointGraphContext.bufferWhileAsync, untilDestroyed(this))
       .subscribe(link => {
-        // No breakpoint tool on a structure-locked preview either (see handleLinkCursorHover).
-        if (this.structureLocked) {
+        // Only runtime links offer breakpoints.
+        if (this.structureLocked || this.isMacroBoundaryLink(link)) {
           return;
         }
         const linkView = link.findView(this.paper);
@@ -1752,8 +1750,10 @@ export class WorkflowEditorComponent implements OnInit, AfterViewInit, OnDestroy
   }
 
   private setURLFragment(fragment: string | null): void {
+    if (this.router.getCurrentNavigation()) return;
     this.router.navigate([], {
       relativeTo: this.route,
+      queryParamsHandling: "preserve",
       fragment: fragment !== null ? fragment : undefined,
       preserveFragment: false,
     });

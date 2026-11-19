@@ -19,7 +19,6 @@
 
 import type {
   MacroDefinition,
-  MacroInterface,
   OperatorPredicate as CoreOperator,
   OperatorLink,
   PortDescription,
@@ -49,6 +48,8 @@ export interface LogicalLink {
 }
 
 export interface LogicalPlan {
+  readonly macroContent?: import("@texera/workflow-macros").MacroContent;
+  readonly executeOperatorIds?: string[];
   readonly operators: LogicalOperator[];
   readonly links: LogicalLink[];
   readonly opsToViewResult?: string[];
@@ -84,7 +85,7 @@ export interface WorkflowContent {
   // save untouched -- rebuilding content without it would leave a workflow whose default_view
   // is form with a form that has no fields. Carried through opaquely.
   readonly formBinding?: unknown;
-  readonly macroInterface?: MacroInterface;
+  readonly macroInterface?: { id: string };
   readonly macroDependencies?: MacroDefinition<WorkflowContent>[];
 }
 

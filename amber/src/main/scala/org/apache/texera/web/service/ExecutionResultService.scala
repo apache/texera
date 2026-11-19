@@ -471,14 +471,24 @@ class ExecutionResultService(
   def handleResultPagination(request: ResultPaginationRequest): TexeraWebSocketEvent = {
     // calculate from index (pageIndex starts from 1 instead of 0)
     val from = request.pageSize * (request.pageIndex - 1)
-    val latestExecutionId = getLatestExecutionId(workflowIdentity, computingUnitId).getOrElse(
-      throw new IllegalStateException("No execution is recorded")
-    )
+    val executionId = request.executionId match {
+      case Some(id)
+          if WorkflowExecutionsResource.ownsExecution(workflowIdentity, computingUnitId, id) =>
+        ExecutionIdentity(id)
+      case Some(_) =>
+        throw new IllegalArgumentException(
+          "Execution is unavailable for this workflow and computing unit"
+        )
+      case None =>
+        getLatestExecutionId(workflowIdentity, computingUnitId).getOrElse(
+          throw new IllegalStateException("No execution is recorded")
+        )
+    }
 
     val storageUriOption = WorkflowExecutionsResource.getResultUriByLogicalPortId(
-      latestExecutionId,
+      executionId,
       OperatorIdentity(request.operatorID),
-      PortIdentity()
+      PortIdentity(request.portIndex)
     )
 
     // Refuse to read a per-user-warehouse result while the feature is off (#6930).
@@ -511,7 +521,12 @@ class ExecutionResultService(
         val attributes = paginationIterable.headOption
           .map(_.getSchema.getAttributes)
           .getOrElse(List.empty)
-        PaginatedResultEvent.apply(request, mappedResults, attributes)
+        PaginatedResultEvent.apply(
+          request,
+          mappedResults,
+          attributes,
+          virtualDocument.getCount.toInt
+        )
 
       case None =>
         // Handle the case when storageUri is empty
@@ -524,6 +539,9 @@ class ExecutionResultService(
       val newInfo: Map[OperatorIdentity, OperatorResultMetadata] = {
         WorkflowExecutionsResource
           .getResultUrisByExecutionId(executionId)
+          .filter(uri =>
+            VFSURIFactory.decodeURI(uri).globalPortId.exists(_.portId == PortIdentity())
+          )
           .map(uri => {
             val count = DocumentFactory.openDocument(uri)._1.getCount.toInt
 

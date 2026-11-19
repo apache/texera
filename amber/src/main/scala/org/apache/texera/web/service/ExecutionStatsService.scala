@@ -24,8 +24,8 @@ import com.typesafe.scalalogging.LazyLogging
 import org.apache.texera.amber.core.storage.model.BufferedItemWriter
 import org.apache.texera.amber.core.storage.result.ResultSchema
 import org.apache.texera.amber.core.storage.{DocumentFactory, VFSURIFactory}
-import org.apache.texera.amber.core.tuple.Tuple
-import org.apache.texera.amber.core.workflow.WorkflowContext
+import org.apache.texera.amber.core.tuple.{AttributeType, Tuple}
+import org.apache.texera.amber.core.workflow.{PortIdentity, WorkflowContext}
 import org.apache.texera.amber.core.workflowruntimestate.FatalErrorType.EXECUTION_FAILURE
 import org.apache.texera.amber.core.workflowruntimestate.WorkflowFatalError
 import org.apache.texera.amber.engine.architecture.coordinator.{
@@ -42,12 +42,16 @@ import org.apache.texera.amber.engine.architecture.rpc.controlreturns.WorkflowAg
   FAILED,
   KILLED
 }
-import org.apache.texera.amber.engine.common.Utils
+import org.apache.texera.amber.engine.architecture.coordinator.execution.ExecutionUtils.aggregateStatistics
+import org.apache.texera.amber.engine.architecture.worker.statistics.{
+  PortTupleMetricsMapping,
+  TupleMetrics
+}
+import org.apache.texera.common.compiler.{MacroExpansion, MacroResultTarget}
 import org.apache.texera.amber.engine.common.Utils.maptoStatusCode
 import org.apache.texera.amber.engine.common.client.AmberClient
 import org.apache.texera.amber.engine.common.executionruntimestate.{
   OperatorMetrics,
-  OperatorStatistics,
   OperatorWorkerMapping
 }
 import org.apache.texera.amber.error.ErrorUtils.{
@@ -68,12 +72,103 @@ import org.apache.texera.web.storage.ExecutionStateStore.updateWorkflowState
 import java.time.Instant
 import java.util.concurrent.Executors
 
+object ExecutionStatsService {
+  val metricsColumn = "operatorMetrics"
+
+  private[service] def canvasStatistics(
+      expansion: Option[MacroExpansion],
+      native: Map[String, OperatorMetrics]
+  ) = {
+    val boundaries = expansion.iterator.flatMap(_.boundaries).flatMap {
+      case (id, boundary) =>
+        val owned = boundary.members
+        val members =
+          if (owned.nonEmpty) owned
+          else
+            (boundary.outputs.flatten ++ (if (boundary.terminal) boundary.inputs.flatten else Nil))
+              .map(_.operatorID)
+              .distinct
+        val updates = members.flatMap(native.get)
+        Option.when(updates.nonEmpty) {
+          def ports(bindings: List[List[MacroResultTarget]], input: Boolean) =
+            bindings.zipWithIndex.map {
+              case (targets, ordinal) =>
+                // A broadcast sends the same stream to several consumers; use the furthest progress.
+                val tuples = targets
+                  .flatMap { target =>
+                    native.get(target.operatorID).flatMap { m =>
+                      val stats = m.operatorStatistics
+                      (if (input) stats.inputMetrics else stats.outputMetrics)
+                        .find(_.portId == PortIdentity(target.portIndex))
+                        .map(_.tupleMetrics)
+                    }
+                  }
+                  .maxByOption(m => (m.count, m.size))
+                  .getOrElse(TupleMetrics.defaultInstance)
+                PortTupleMetricsMapping(PortIdentity(ordinal), tuples)
+            }
+          val states = updates.map(_.operatorState)
+          import WorkflowAggregatedState._
+          val complete = updates.size == members.size
+          val state =
+            if (complete && states.forall(s => s == COMPLETED || s == TERMINATED)) COMPLETED
+            else
+              List(FAILED, KILLED, PAUSING, PAUSED, RESUMING, RUNNING, READY)
+                .find(states.contains)
+                .getOrElse(UNINITIALIZED)
+          id -> OperatorMetrics(
+            state,
+            aggregateStatistics(
+              if (owned.nonEmpty) updates else Nil,
+              ports(boundary.inputs, !boundary.terminal),
+              ports(boundary.outputs, input = false)
+            ),
+            complete && updates.forall(_.reusedFromCache)
+          )
+        }
+    }
+    (native ++ boundaries).view.mapValues(OperatorAggregatedMetrics.from).toMap
+  }
+
+  def restore(
+      expansion: MacroExpansion,
+      rows: Iterator[Tuple]
+  ): Map[String, OperatorAggregatedMetrics] = {
+    val latest = scala.collection.mutable.Map.empty[String, Tuple]
+    rows.foreach { row =>
+      val id = row.getField[String]("operatorId")
+      if (
+        latest
+          .get(id)
+          .forall(r =>
+            !r.getField[java.sql.Timestamp]("time").after(row.getField[java.sql.Timestamp]("time"))
+          )
+      )
+        latest(id) = row
+    }
+    canvasStatistics(
+      Some(expansion),
+      latest.view
+        .mapValues(row => OperatorMetrics.parseFrom(row.getField[Array[Byte]](metricsColumn)))
+        .toMap
+    )
+  }
+}
+
 class ExecutionStatsService(
     client: AmberClient,
     stateStore: ExecutionStateStore,
-    workflowContext: WorkflowContext
+    workflowContext: WorkflowContext,
+    expansion: Option[MacroExpansion] = None
 ) extends SubscriptionManager
     with LazyLogging {
+  private val schema =
+    if (expansion.nonEmpty)
+      ResultSchema.runtimeStatisticsSchema.add(
+        ExecutionStatsService.metricsColumn,
+        AttributeType.BINARY
+      )
+    else ResultSchema.runtimeStatisticsSchema
   private val (metricsPersistThread, runtimeStatsWriter) = {
     val thread = Executors.newSingleThreadExecutor()
     val uri = VFSURIFactory.createRuntimeStatisticsURI(
@@ -82,7 +177,7 @@ class ExecutionStatsService(
       warehouse = workflowContext.warehouse
     )
     val writer = DocumentFactory
-      .createDocument(uri, ResultSchema.runtimeStatisticsSchema)
+      .createDocument(uri, schema)
       .writer("runtime_statistics")
       .asInstanceOf[BufferedItemWriter[Tuple]]
     WorkflowExecutionsResource.updateRuntimeStatsUri(
@@ -94,6 +189,7 @@ class ExecutionStatsService(
     (thread, writer)
   }
 
+  private var lastSampleTime = 0L
   private var lastPersistedMetrics: Map[String, OperatorMetrics] =
     Map.empty[String, OperatorMetrics]
 
@@ -104,32 +200,9 @@ class ExecutionStatsService(
       // Update operator stats if any operator updates its stat
       if (newState.operatorInfo.toSet != oldState.operatorInfo.toSet) {
         Iterable(
-          OperatorStatisticsUpdateEvent(newState.operatorInfo.collect {
-            case x =>
-              val metrics = x._2
-              val inMap = metrics.operatorStatistics.inputMetrics
-                .map(pm => pm.portId.id.toString -> pm.tupleMetrics.count)
-                .toMap
-              val outMap = metrics.operatorStatistics.outputMetrics
-                .map(pm => pm.portId.id.toString -> pm.tupleMetrics.count)
-                .toMap
-
-              val res = OperatorAggregatedMetrics(
-                Utils.aggregatedStateToString(metrics.operatorState),
-                metrics.operatorStatistics.inputMetrics.map(_.tupleMetrics.count).sum,
-                metrics.operatorStatistics.inputMetrics.map(_.tupleMetrics.size).sum,
-                inMap,
-                metrics.operatorStatistics.outputMetrics.map(_.tupleMetrics.count).sum,
-                metrics.operatorStatistics.outputMetrics.map(_.tupleMetrics.size).sum,
-                outMap,
-                metrics.operatorStatistics.numWorkers,
-                metrics.operatorStatistics.dataProcessingTime,
-                metrics.operatorStatistics.controlProcessingTime,
-                metrics.operatorStatistics.idleTime,
-                reusedFromCache = metrics.reusedFromCache
-              )
-              (x._1, res)
-          })
+          OperatorStatisticsUpdateEvent(
+            ExecutionStatsService.canvasStatistics(expansion, newState.operatorInfo)
+          )
         )
       } else {
         Iterable.empty
@@ -189,7 +262,7 @@ class ExecutionStatsService(
       client
         .registerCallback[ExecutionStatsUpdate]((evt: ExecutionStatsUpdate) => {
           stateStore.statsStore.updateState { statsStore =>
-            statsStore.withOperatorInfo(evt.operatorMetrics)
+            statsStore.withOperatorInfo(statsStore.operatorInfo ++ evt.operatorMetrics)
           }
         })
     )
@@ -199,8 +272,8 @@ class ExecutionStatsService(
       client
         .registerCallback[RuntimeStatisticsPersist]((evt: RuntimeStatisticsPersist) => {
           metricsPersistThread.execute(() => {
-            storeRuntimeStatistics(computeStatsDiff(evt.operatorMetrics))
-            lastPersistedMetrics = evt.operatorMetrics
+            lastPersistedMetrics ++= evt.operatorMetrics
+            storeRuntimeStatistics(lastPersistedMetrics)
           })
         })
     )
@@ -212,7 +285,7 @@ class ExecutionStatsService(
           if Set(COMPLETED, FAILED, KILLED).contains(state) =>
         logger.info("Workflow execution terminated. Commit runtime statistics.")
         try {
-          runtimeStatsWriter.close()
+          metricsPersistThread.submit((() => runtimeStatsWriter.close()): Runnable).get()
         } catch {
           case e: Exception =>
             logger.error("Failed to close runtime statistics writer", e)
@@ -221,37 +294,19 @@ class ExecutionStatsService(
     }
   )
 
-  private def computeStatsDiff(
-      newMetrics: Map[String, OperatorMetrics]
-  ): Map[String, OperatorMetrics] = {
-    // Default metrics for new operators
-    val defaultMetrics = OperatorMetrics(
-      WorkflowAggregatedState.UNINITIALIZED,
-      OperatorStatistics(Seq.empty, Seq.empty, 0, 0, 0, 0)
-    )
-
-    // Determine new and old keys
-    val newKeys = newMetrics.keySet.diff(lastPersistedMetrics.keySet)
-    val oldKeys = lastPersistedMetrics.keySet.diff(newMetrics.keySet)
-
-    // Update last metrics with default metrics for new keys
-    val updatedLastMetrics = lastPersistedMetrics ++ newKeys.map(_ -> defaultMetrics)
-
-    // Combine new metrics with old metrics for keys that are no longer present
-    newMetrics ++ oldKeys.map(key => key -> updatedLastMetrics(key))
-  }
-
   private def storeRuntimeStatistics(
       operatorStatistics: scala.collection.immutable.Map[String, OperatorMetrics]
   ): Unit = {
     try {
+      lastSampleTime = math.max(System.currentTimeMillis(), lastSampleTime + 1)
+      val timestamp = new java.sql.Timestamp(lastSampleTime)
       operatorStatistics.foreach {
         case (operatorId, stat) =>
           val runtimeStats = new Tuple(
-            ResultSchema.runtimeStatisticsSchema,
-            Array(
+            schema,
+            Array[Any](
               operatorId,
-              new java.sql.Timestamp(System.currentTimeMillis()),
+              timestamp,
               stat.operatorStatistics.inputMetrics.map(_.tupleMetrics.count).sum,
               stat.operatorStatistics.inputMetrics.map(_.tupleMetrics.size).sum,
               stat.operatorStatistics.outputMetrics.map(_.tupleMetrics.count).sum,
@@ -261,7 +316,7 @@ class ExecutionStatsService(
               stat.operatorStatistics.idleTime,
               stat.operatorStatistics.numWorkers,
               maptoStatusCode(stat.operatorState).toInt
-            )
+            ) ++ expansion.map(_ => stat.toByteArray)
           )
           runtimeStatsWriter.putOne(runtimeStats)
       }

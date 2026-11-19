@@ -56,8 +56,7 @@ summary {
   border-top: 1px solid #f0f0f0;
 }
 .muted,
-.empty-state,
-.target {
+.empty-state {
   color: #8c8c8c;
   font-size: 12px;
   line-height: 1.6;
@@ -87,53 +86,4 @@ nz-select {
 }
 form button {
   margin-top: 4px;
-}
-.mapping {
-  margin: 8px 0;
-  padding: 8px;
-  background: #fafafa;
-  border: 1px solid #f0f0f0;
-  border-radius: 6px;
-}
-.target {
-  display: block;
-  margin-bottom: 8px;
-  overflow-wrap: anywhere;
-}
-.inspector-header {
-  align-items: flex-start;
-  flex-wrap: wrap;
-}
-h3 {
-  margin: 0 0 6px;
-  font-size: 20px;
-  overflow-wrap: anywhere;
-}
-.graph-summary {
-  color: #595959;
-  font-size: 12px;
-  margin: 12px 0;
-}
-.graph-summary span + span {
-  border-left: 1px solid #d9d9d9;
-  padding-left: 8px;
-}
-.macro-graph {
-  height: 380px;
-  overflow: hidden;
-  border: 1px solid #e6e9f0;
-  border-radius: 8px;
-  background: radial-gradient(#e0e5ed 1px, transparent 1px) 0 0 / 16px 16px #fafbfc;
-}
-.operator-properties {
-  padding: 10px 12px;
-  margin: 8px 0;
-  border: 1px solid #f0f0f0;
-  border-radius: 6px;
-}
-pre {
-  margin: 12px 0 0;
-  max-height: 180px;
-  overflow: auto;
-  font-size: 12px;
 }

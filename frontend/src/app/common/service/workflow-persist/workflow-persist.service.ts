@@ -17,12 +17,13 @@
  * under the License.
  */
 
-import { HttpClient, HttpParams } from "@angular/common/http";
+import { HttpClient, HttpErrorResponse, HttpParams } from "@angular/common/http";
 import { Injectable, Injector } from "@angular/core";
 import { EMPTY, Observable, of, ReplaySubject, Subject, throwError } from "rxjs";
 import { catchError, concatMap, filter, finalize, map, take, tap } from "rxjs/operators";
 import { AppSettings } from "../../app-setting";
 import { Workflow, WorkflowContent } from "../../type/workflow";
+
 import { DashboardWorkflow } from "../../../dashboard/type/dashboard-workflow.interface";
 import { DefaultView } from "../../../dashboard/type/workflow-metadata.interface";
 import { WorkflowUtilService } from "../../../workspace/service/workflow-graph/util/workflow-util.service";
@@ -31,6 +32,24 @@ import { NotificationService } from "../notification/notification.service";
 import { SearchFilterParameters, toQueryStrings } from "../../../dashboard/type/search-filter-parameters";
 import { User } from "../../type/user";
 import { checkIfWorkflowBroken } from "../../util/workflow-check";
+import { assertWorkflowIDs, MacroDefinition } from "../../util/workflow-macro";
+
+export interface MacroSaveStep {
+  workflow: Workflow;
+  head?: { version: number; name: string; description?: string };
+  operatorID?: string;
+}
+export interface MacroCatalog {
+  definitions: MacroDefinition[];
+  usages: { id: string; wid: number; label: string; path: string[] }[];
+  errors: string[];
+}
+const workflowPayload = ({ wid, name, description, content }: Workflow) => ({
+  wid,
+  name,
+  description,
+  content: JSON.stringify(content),
+});
 
 export const WORKFLOW_BASE_URL = "workflow";
 export const WORKFLOW_PERSIST_URL = WORKFLOW_BASE_URL + "/persist";
@@ -153,6 +172,11 @@ export class WorkflowPersistService {
    * @param workflow
    */
   public persistWorkflow(workflow: Workflow): Observable<Workflow> {
+    try {
+      assertWorkflowIDs(workflow.content);
+    } catch (error) {
+      return throwError(() => error);
+    }
     if (checkIfWorkflowBroken(workflow)) {
       this.notificationService.error(
         "Sorry! The workflow is broken and cannot be persisted. Please contact the system admin."
@@ -164,12 +188,7 @@ export class WorkflowPersistService {
     // and it is not reliably known here anyway, since the metadata fed back after a save names
     // it differently (see WorkflowUtilService.parseWorkflowInfo).
     const send = this.http
-      .post<Workflow>(`${AppSettings.getApiEndpoint()}/${WORKFLOW_PERSIST_URL}`, {
-        wid: workflow.wid,
-        name: workflow.name,
-        description: workflow.description,
-        content: JSON.stringify(workflow.content),
-      })
+      .post<Workflow>(`${AppSettings.getApiEndpoint()}/${WORKFLOW_PERSIST_URL}`, workflowPayload(workflow))
       .pipe(
         filter((updatedWorkflow: Workflow) => updatedWorkflow != null),
         map(WorkflowUtilService.parseWorkflowInfo)
@@ -182,6 +201,23 @@ export class WorkflowPersistService {
     return result.asObservable();
   }
 
+  public persistMacroPath(steps: MacroSaveStep[], rootBefore: Workflow) {
+    return this.http
+      .post<{ version: number; revision: number; content: WorkflowContent }[]>(
+        `${AppSettings.getApiEndpoint()}/${WORKFLOW_PERSIST_URL}/macro-path`,
+        {
+          steps: steps.map(s => ({ ...s, workflow: workflowPayload(s.workflow) })),
+          rootBefore: workflowPayload(rootBefore),
+        }
+      )
+      .pipe(
+        catchError((error: unknown) => {
+          if (error instanceof HttpErrorResponse && error.error?.message) throw new Error(error.error.message);
+          throw error;
+        })
+      );
+  }
+
   /**
    * creates a workflow and insert it to backend database and return its information
    * @param newWorkflowName
@@ -192,6 +228,11 @@ export class WorkflowPersistService {
     newWorkflowName: string = DEFAULT_WORKFLOW_NAME,
     defaultView?: DefaultView
   ): Observable<DashboardWorkflow> {
+    try {
+      assertWorkflowIDs(newWorkflowContent);
+    } catch (error) {
+      return throwError(() => error);
+    }
     return this.http
       .post<DashboardWorkflow>(`${AppSettings.getApiEndpoint()}/${WORKFLOW_CREATE_URL}`, {
         name: newWorkflowName,
@@ -242,6 +283,10 @@ export class WorkflowPersistService {
   /**
    * retrieves a list of workflows from backend database that belongs to the user in the session.
    */
+  public retrieveMacroCatalog(): Observable<MacroCatalog> {
+    return this.http.get<MacroCatalog>(`${AppSettings.getApiEndpoint()}/${WORKFLOW_BASE_URL}/macros`);
+  }
+
   public retrieveWorkflowsBySessionUser(): Observable<DashboardWorkflow[]> {
     return this.makeRequestAndFormatWorkflowResponse(`${AppSettings.getApiEndpoint()}/${WORKFLOW_LIST_URL}`);
   }

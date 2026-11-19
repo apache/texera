@@ -16,6 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
+import { testOperator } from "../../../../common/testing/workflow-graph";
 
 import { CommentBox, OperatorLink, OperatorPredicate, Point } from "../../../types/workflow-common.interface";
 import { VIEW_RESULT_OP_TYPE } from "./workflow-graph";
@@ -46,155 +47,83 @@ export const mockPoint: Point = {
   y: 100,
 };
 
-export const mockScanPredicate: OperatorPredicate = {
-  operatorID: "1",
+export const mockScanPredicate = testOperator("1", {
   operatorType: "ScanSource",
   operatorVersion: "scan",
-  operatorProperties: {},
   inputPorts: [],
-  outputPorts: [{ portID: "output-0" }],
   showAdvanced: true,
   isDisabled: false,
-};
+});
 
-export const mockSentimentPredicate: OperatorPredicate = {
-  operatorID: "2",
+export const mockSentimentPredicate = testOperator("2", {
   operatorType: "NlpSentiment",
   operatorVersion: "nlp1",
-  operatorProperties: {},
-  inputPorts: [{ portID: "input-0" }],
-  outputPorts: [{ portID: "output-0" }],
   showAdvanced: true,
   isDisabled: false,
-};
+});
 
-export const mockResultPredicate: OperatorPredicate = {
-  operatorID: "3",
+export const mockResultPredicate = testOperator("3", {
   operatorType: VIEW_RESULT_OP_TYPE,
   operatorVersion: "view1",
-  operatorProperties: {},
-  inputPorts: [{ portID: "input-0" }],
   outputPorts: [],
   showAdvanced: true,
   isDisabled: false,
-};
+});
 
-export const mockMultiInputOutputPredicate: OperatorPredicate = {
-  operatorID: "4",
+export const mockMultiInputOutputPredicate = testOperator("4", {
   operatorType: "MultiInputOutput",
   operatorVersion: "m1",
-  operatorProperties: {},
   inputPorts: [{ portID: "input-0" }, { portID: "input-1" }, { portID: "input-2" }],
   outputPorts: [{ portID: "output-0" }, { portID: "output-1" }, { portID: "output-2" }],
   showAdvanced: true,
   isDisabled: false,
-};
+});
 
-export const mockPresetEnabledPredicate: OperatorPredicate = {
-  operatorID: "5",
+export const mockPresetEnabledPredicate = testOperator("5", {
   operatorType: "PresetEnabledOp",
   operatorVersion: "p1",
-  operatorProperties: {},
   inputPorts: [],
   outputPorts: [],
   showAdvanced: true,
-};
+});
 
-export const mockJavaUDFPredicate: OperatorPredicate = {
-  operatorID: "6",
+export const mockJavaUDFPredicate = testOperator("6", {
   operatorType: "JavaUDF",
   operatorVersion: "p1",
-  operatorProperties: {},
-  inputPorts: [{ portID: "input-0" }],
-  outputPorts: [{ portID: "output-0" }],
-  showAdvanced: false,
   isDisabled: false,
-};
+});
 
-export const mockPythonUDFPredicate: OperatorPredicate = {
-  operatorID: "7",
+export const mockPythonUDFPredicate = testOperator("7", {
   operatorType: "PythonUDF",
   operatorVersion: "p1",
-  operatorProperties: {},
-  inputPorts: [{ portID: "input-0" }],
-  outputPorts: [{ portID: "output-0" }],
-  showAdvanced: false,
   isDisabled: false,
-};
+});
 
-export const mockHuggingFacePredicate: OperatorPredicate = {
-  operatorID: "8",
+export const mockHuggingFacePredicate = testOperator("8", {
   operatorType: "HuggingFace",
   operatorVersion: "hf1",
   operatorProperties: { task: "text-generation", modelId: "" },
-  inputPorts: [{ portID: "input-0" }],
-  outputPorts: [{ portID: "output-0" }],
   showAdvanced: true,
   isDisabled: false,
-};
+});
 
-export const mockScanResultLink: OperatorLink = {
-  linkID: "link-1",
-  source: {
-    operatorID: mockScanPredicate.operatorID,
-    portID: mockScanPredicate.outputPorts[0].portID,
-  },
-  target: {
-    operatorID: mockResultPredicate.operatorID,
-    portID: mockResultPredicate.inputPorts[0].portID,
-  },
-};
+// Leave missing ports undefined so the invalid-link fixtures exercise graph validation.
+function firstPortLink(linkID: string, source: OperatorPredicate, target: OperatorPredicate): OperatorLink {
+  return {
+    linkID,
+    source: { operatorID: source.operatorID, portID: source.outputPorts[0]?.portID },
+    target: { operatorID: target.operatorID, portID: target.inputPorts[0]?.portID },
+  };
+}
 
-export const mockScanSentimentLink: OperatorLink = {
-  linkID: "link-2",
-  source: {
-    operatorID: mockScanPredicate.operatorID,
-    portID: mockScanPredicate.outputPorts[0].portID,
-  },
-  target: {
-    operatorID: mockSentimentPredicate.operatorID,
-    portID: mockSentimentPredicate.inputPorts[0].portID,
-  },
-};
-
-export const mockSentimentResultLink: OperatorLink = {
-  linkID: "link-3",
-  source: {
-    operatorID: mockSentimentPredicate.operatorID,
-    portID: mockSentimentPredicate.outputPorts[0].portID,
-  },
-  target: {
-    operatorID: mockResultPredicate.operatorID,
-    portID: mockResultPredicate.inputPorts[0].portID,
-  },
-};
-
-export const mockFalseResultSentimentLink: OperatorLink = {
-  linkID: "link-4",
-  source: {
-    operatorID: mockResultPredicate.operatorID,
-    portID: undefined as any,
-  },
-  target: {
-    operatorID: mockSentimentPredicate.operatorID,
-    portID: mockSentimentPredicate.inputPorts[0].portID,
-  },
-};
-
-export const mockFalseSentimentScanLink: OperatorLink = {
-  linkID: "link-5",
-  source: {
-    operatorID: mockSentimentPredicate.operatorID,
-    portID: mockSentimentPredicate.outputPorts[0].portID,
-  },
-  target: {
-    operatorID: mockScanPredicate.operatorID,
-    portID: undefined as any,
-  },
-};
+export const mockScanResultLink = firstPortLink("link-1", mockScanPredicate, mockResultPredicate);
+export const mockScanSentimentLink = firstPortLink("link-2", mockScanPredicate, mockSentimentPredicate);
+export const mockSentimentResultLink = firstPortLink("link-3", mockSentimentPredicate, mockResultPredicate);
+export const mockFalseResultSentimentLink = firstPortLink("link-4", mockResultPredicate, mockSentimentPredicate);
+export const mockFalseSentimentScanLink = firstPortLink("link-5", mockSentimentPredicate, mockScanPredicate);
 
 export const mockCommentBox: CommentBox = {
-  commentBoxID: "1",
+  commentBoxID: "comment-box-1",
   comments: [],
   commentBoxPosition: mockPoint,
 };

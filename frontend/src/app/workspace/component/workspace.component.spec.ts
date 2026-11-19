@@ -27,22 +27,24 @@ import { Location } from "@angular/common";
 import { CUSTOM_ELEMENTS_SCHEMA, NO_ERRORS_SCHEMA } from "@angular/core";
 import { ComponentFixture, TestBed } from "@angular/core/testing";
 import { HttpClientTestingModule } from "@angular/common/http/testing";
-import { ActivatedRoute, Router } from "@angular/router";
+import { ActivatedRoute, Router, convertToParamMap } from "@angular/router";
 import { NzMessageService } from "ng-zorro-antd/message";
 import { EMPTY, of, Subject, throwError } from "rxjs";
 
 import { NotificationService } from "../../common/service/notification/notification.service";
 import { UserService } from "../../common/service/user/user.service";
 import { WorkflowPersistService } from "../../common/service/workflow-persist/workflow-persist.service";
+import { testWorkflow } from "../../common/testing/workflow-graph";
 import { Workflow } from "../../common/type/workflow";
 import { CodeEditorService } from "../service/code-editor/code-editor.service";
+import { MacroNavigationService } from "../service/macro/macro-navigation.service";
 import { WorkflowCompilingService } from "../service/compile-workflow/workflow-compiling.service";
 import { OperatorMetadataService } from "../service/operator-metadata/operator-metadata.service";
 import { UndoRedoService } from "../service/undo-redo/undo-redo.service";
 import { WorkflowConsoleService } from "../service/workflow-console/workflow-console.service";
 import { ExecuteWorkflowService } from "../service/execute-workflow/execute-workflow.service";
 import { WorkflowResultService } from "../service/workflow-result/workflow-result.service";
-import { WorkflowActionService } from "../service/workflow-graph/model/workflow-action.service";
+import { DEFAULT_WORKFLOW, WorkflowActionService } from "../service/workflow-graph/model/workflow-action.service";
 import { OperatorReuseCacheStatusService } from "../service/workflow-status/operator-reuse-cache-status.service";
 import { ComputingUnitStatusService } from "../../common/service/computing-unit/computing-unit-status/computing-unit-status.service";
 import { EntityType, HubService } from "../../hub/service/hub.service";
@@ -71,29 +73,44 @@ describe("WorkspaceComponent", () => {
   let workflowResultService: any;
   let connectionResetSubject: Subject<void>;
   let metadataChangedSubject: Subject<void>;
+  let navigation: ReturnType<typeof routeNavigation>;
   let stubGraph: { triggerCenterEvent: ReturnType<typeof vi.fn>; hasElementWithID: ReturnType<typeof vi.fn> };
 
-  const stubWorkflow: Workflow = {
-    wid: 42,
-    name: "test",
-    creationTime: 0,
-    lastModifiedTime: 0,
-    content: {
-      operators: [],
-      operatorPositions: {},
-      links: [],
-      commentBoxes: [],
-      settings: { dataTransferBatchSize: 100 },
-    },
-  } as unknown as Workflow;
+  const stubWorkflow = { ...DEFAULT_WORKFLOW, wid: 42, name: "test", content: testWorkflow() };
+
+  function routeNavigation() {
+    const parents: { operatorID: string }[] = [];
+    const changed$ = new Subject<void>();
+    return {
+      parents,
+      changed$,
+      changing$: EMPTY,
+      get rootWorkflow() {
+        return workflowActionService.getWorkflow();
+      },
+      open: async (operatorID: string) => {
+        await Promise.resolve();
+        parents.push({ operatorID });
+        changed$.next();
+      },
+      back: vi.fn(async (index: number) => {
+        parents.splice(index);
+        changed$.next();
+      }),
+      save: async () => workflowActionService.getWorkflow(),
+      clear: () => parents.splice(0),
+    };
+  }
 
   function configureRoute(params: Record<string, any> = {}, queryParams: Record<string, any> = {}) {
     return {
       snapshot: { params, queryParams, fragment: null as string | null },
+      queryParamMap: of(convertToParamMap(queryParams)),
     };
   }
 
   async function createFixture(routeOverride: any = configureRoute()) {
+    navigation = routeNavigation();
     metadataChangedSubject = new Subject<void>();
     stubGraph = {
       triggerCenterEvent: vi.fn(),
@@ -113,13 +130,14 @@ describe("WorkspaceComponent", () => {
       highlightElements: vi.fn(),
       getTexeraGraph: vi.fn().mockReturnValue(stubGraph),
       getWorkflow: vi.fn().mockReturnValue(stubWorkflow),
+      getTempWorkflow: vi.fn().mockReturnValue(undefined),
       getWorkflowMetadata: vi.fn().mockReturnValue({ wid: 42, readonly: false }),
       // Off by default: most specs open a workflow that is not already live, and so load it.
       hasWorkflowOpen: vi.fn().mockReturnValue(false),
       // The room the shared document is in; the hand-over on the way out is keyed on this.
       getOpenWorkflowId: vi.fn().mockReturnValue(42),
       // One stub object, so the spy on it is the same one the assertions read.
-      getJointGraphWrapper: vi.fn().mockReturnValue({ setHeatmapView: vi.fn() }),
+      getJointGraphWrapper: vi.fn().mockReturnValue({ setHeatmapView: vi.fn(), getReloadingWorkflow: () => false }),
       workflowChanged: vi.fn().mockReturnValue(EMPTY),
       workflowMetaDataChanged: vi.fn().mockReturnValue(metadataChangedSubject.asObservable()),
       // As the real one does: the metadata it already holds, re-announced on the same stream.
@@ -189,6 +207,7 @@ describe("WorkspaceComponent", () => {
     await TestBed.configureTestingModule({
       imports: [WorkspaceComponent, HttpClientTestingModule],
       providers: [
+        { provide: MacroNavigationService, useValue: navigation },
         { provide: WorkflowActionService, useValue: workflowActionService },
         { provide: WorkflowPersistService, useValue: workflowPersistService },
         { provide: OperatorMetadataService, useValue: operatorMetadataService },
@@ -224,6 +243,28 @@ describe("WorkspaceComponent", () => {
     component.codeEditorViewRef = { clear: vi.fn() } as any;
   }
 
+  async function renderWorkspace(route = configureRoute()) {
+    await createFixture(route);
+    fixture.detectChanges();
+  }
+
+  describe("leaving a nested canvas", () => {
+    it.each([true, false])("restores the parent only if the draft saves (%s)", async saved => {
+      const route = configureRoute();
+      route.queryParamMap = EMPTY;
+      await renderWorkspace(route);
+      navigation.parents.push({ operatorID: "inner" });
+      if (!saved) navigation.back.mockRejectedValueOnce(new Error("save failed"));
+      expect(await component.canLeave()).toBe(saved);
+      expect(navigation.back).toHaveBeenCalledWith(0);
+      expect(navigation.parents.map(p => p.operatorID)).toEqual(saved ? [] : ["inner"]);
+      if (!saved) expect(notificationService.error).toHaveBeenCalledWith("save failed");
+      expect(routerMock.navigate).not.toHaveBeenCalled();
+      navigation.changed$.next();
+      expect(routerMock.navigate).toHaveBeenCalledOnce();
+    });
+  });
+
   describe("ngOnInit", () => {
     it("enables highlighting on the workflow action service", async () => {
       await createFixture();
@@ -234,8 +275,7 @@ describe("WorkspaceComponent", () => {
 
   describe("ngAfterViewInit", () => {
     it("cold start (no wid in route): does not flip isLoading and registers metadata listener", async () => {
-      await createFixture(configureRoute({}));
-      fixture.detectChanges(); // triggers ngOnInit + ngAfterViewInit
+      await renderWorkspace(configureRoute({}));
       expect(component.isLoading).toBe(false);
       expect(workflowActionService.disableWorkflowModification).not.toHaveBeenCalled();
       expect(operatorMetadataService.getOperatorMetadata).toHaveBeenCalled();
@@ -306,8 +346,7 @@ describe("WorkspaceComponent", () => {
 
   describe("loadWorkflowWithId", () => {
     it("on success: hands the workflow to the action service, clears undo/redo, and turns off loading", async () => {
-      await createFixture(configureRoute({ id: "42" }));
-      fixture.detectChanges();
+      await renderWorkspace(configureRoute({ id: "42" }));
       expect(workflowActionService.setNewSharedModel).toHaveBeenCalledWith(42, { uid: 7 });
       expect(workflowActionService.reloadWorkflow).toHaveBeenCalledWith(stubWorkflow, undefined);
       expect(undoRedoService.clearUndoStack).toHaveBeenCalled();
@@ -357,32 +396,85 @@ describe("WorkspaceComponent", () => {
     });
 
     it("without autolayout: uses the default rendering and does not lay out", async () => {
-      await createFixture(configureRoute({ id: "42" }));
-      fixture.detectChanges();
+      await renderWorkspace(configureRoute({ id: "42" }));
       expect(workflowActionService.reloadWorkflow).toHaveBeenCalledWith(stubWorkflow, undefined);
       expect(workflowActionService.autoLayoutWorkflow).not.toHaveBeenCalled();
     });
 
-    it("when URL fragment matches an element in the graph, highlights it", async () => {
+    const nestedPath = ["outer", "child"];
+    it.each([
+      { path: [], resumed: false, valid: true },
+      { path: [], resumed: false, valid: false },
+      { path: nestedPath, resumed: false, valid: true },
+      { path: nestedPath, resumed: true, valid: true },
+      { path: nestedPath, resumed: false, valid: false },
+    ])(
+      "resolves a fragment after restoring path $path (resumed=$resumed, valid=$valid)",
+      async ({ path, resumed, valid }) => {
+        const query = path.length ? { macro: path, ...(valid ? {} : { autolayout: "1" }) } : {};
+        const route = configureRoute({ id: "42" }, query);
+        const fragment = valid ? "operator-1" : "stale-id";
+        route.snapshot.fragment = fragment;
+        await createFixture(route);
+        workflowActionService.hasWorkflowOpen.mockReturnValue(resumed);
+        stubGraph.hasElementWithID.mockImplementation(
+          id => valid && id === fragment && navigation.parents.length === path.length
+        );
+
+        fixture.detectChanges();
+        await vi.waitFor(() => expect(stubGraph.hasElementWithID).toHaveBeenCalledWith(fragment));
+        expect(navigation.parents.map(parent => parent.operatorID)).toEqual(path);
+        if (valid) {
+          expect(workflowActionService.highlightElements).toHaveBeenCalledWith(false, fragment);
+          expect(notificationService.error).not.toHaveBeenCalled();
+        } else {
+          expect(workflowActionService.highlightElements).not.toHaveBeenCalled();
+          expect(notificationService.error).toHaveBeenCalledExactlyOnceWith(`Element ${fragment} doesn't exist`);
+        }
+        expect(stubGraph.hasElementWithID).toHaveBeenCalledOnce();
+        expect(routerMock.navigate).toHaveBeenLastCalledWith([], {
+          relativeTo: route,
+          ...(valid ? { fragment, preserveFragment: false } : {}),
+          queryParamsHandling: "preserve",
+        });
+      }
+    );
+
+    it("keeps a resumed historical canvas and its Undo stack when selecting a root fragment", async () => {
       const route = configureRoute({ id: "42" });
-      route.snapshot.fragment = "operator-1";
+      route.snapshot.fragment = "historical-operator";
       await createFixture(route);
+      workflowActionService.hasWorkflowOpen.mockReturnValue(true);
+      workflowActionService.getTempWorkflow.mockReturnValue(stubWorkflow);
       stubGraph.hasElementWithID.mockReturnValue(true);
+
       fixture.detectChanges();
-      expect(stubGraph.hasElementWithID).toHaveBeenCalledWith("operator-1");
-      expect(workflowActionService.highlightElements).toHaveBeenCalledWith(false, "operator-1");
+
+      expect(workflowActionService.highlightElements).toHaveBeenCalledWith(false, "historical-operator");
+      expect(workflowActionService.reloadWorkflow).not.toHaveBeenCalled();
+      expect(undoRedoService.clearUndoStack).not.toHaveBeenCalled();
+      expect(undoRedoService.clearRedoStack).not.toHaveBeenCalled();
+      expect(workflowActionService.getTempWorkflow()).toBe(stubWorkflow);
     });
 
-    it("when URL fragment does not match any element, surfaces an error and clears the fragment", async () => {
-      const route = configureRoute({ id: "42" });
-      route.snapshot.fragment = "stale-id";
+    it("preserves a nested fragment when correcting a macro definition's canvas route", async () => {
+      const route = configureRoute({ id: "42" }, { macro: ["outer", "child"] });
+      route.snapshot.fragment = "nested-operator";
+      (route.snapshot as any).routeConfig = { path: "workflow/:id" };
       await createFixture(route);
-      // Default mock already returns false, but state explicitly for clarity.
-      stubGraph.hasElementWithID.mockReturnValue(false);
+      routerMock.url = "/user/workflow/42?macro=outer&macro=child#nested-operator";
+      workflowActionService.getWorkflow.mockReturnValue({
+        ...stubWorkflow,
+        content: { ...stubWorkflow.content, macroInterface: { id: "definition" } },
+      });
+
       fixture.detectChanges();
-      expect(notificationService.error).toHaveBeenCalledWith(expect.stringContaining("stale-id"));
-      // Two router.navigate calls: one preserving fragment, one clearing it.
-      expect(routerMock.navigate).toHaveBeenLastCalledWith([], { relativeTo: route });
+
+      expect(routerMock.navigate).toHaveBeenLastCalledWith(["/user/macros/42"], {
+        replaceUrl: true,
+        queryParams: route.snapshot.queryParams,
+        fragment: "nested-operator",
+      });
     });
   });
 
@@ -494,8 +586,7 @@ describe("WorkspaceComponent", () => {
   describe("updateViewCount", () => {
     it("posts a view event with the route's wid and the current user's uid", async () => {
       const route = configureRoute({ id: "42" });
-      await createFixture(route);
-      fixture.detectChanges();
+      await renderWorkspace(route);
       expect(hubService.postView).toHaveBeenCalledWith("42", 7, EntityType.Workflow);
     });
 
@@ -511,8 +602,7 @@ describe("WorkspaceComponent", () => {
 
   describe("onWIDChange", () => {
     it("syncs writeAccess from metadata.readonly each time the metadata changes", async () => {
-      await createFixture();
-      fixture.detectChanges();
+      await renderWorkspace();
       expect(component.writeAccess).toBe(false); // default before any emission
 
       workflowActionService.getWorkflowMetadata.mockReturnValue({ wid: 42, readonly: false });
@@ -525,8 +615,7 @@ describe("WorkspaceComponent", () => {
     });
 
     it("ignores metadata emissions that have no wid yet", async () => {
-      await createFixture();
-      fixture.detectChanges();
+      await renderWorkspace();
       workflowActionService.getWorkflowMetadata.mockReturnValue({ wid: undefined, readonly: false });
       metadataChangedSubject.next();
       // writeAccess stays at its initial false — no metadata.wid means we don't know
@@ -537,16 +626,14 @@ describe("WorkspaceComponent", () => {
 
   describe("ngOnDestroy", () => {
     it("persists the workflow on destroy when the user is signed in and persist is enabled", async () => {
-      await createFixture();
-      fixture.detectChanges();
+      await renderWorkspace();
       component.ngOnDestroy();
       expect(workflowPersistService.persistWorkflow).toHaveBeenCalledWith(stubWorkflow);
       expect(workflowActionService.clearWorkflow).toHaveBeenCalled();
     });
 
     it("skips the persist call when the user is not signed in", async () => {
-      await createFixture();
-      fixture.detectChanges();
+      await renderWorkspace();
       userService.isLogin.mockReturnValue(false);
       component.ngOnDestroy();
       expect(workflowPersistService.persistWorkflow).not.toHaveBeenCalled();
@@ -555,8 +642,7 @@ describe("WorkspaceComponent", () => {
     });
 
     it("tears down every piece of websocket-derived state when leaving the workspace (issue #3120)", async () => {
-      await createFixture();
-      fixture.detectChanges();
+      await renderWorkspace();
       component.ngOnDestroy();
       expect(computingUnitStatusService.disconnect).toHaveBeenCalled();
       expect(executeWorkflowService.resetExecutionAndWorkers).toHaveBeenCalled();
@@ -573,8 +659,7 @@ describe("WorkspaceComponent", () => {
     // Dispatching the DOM event, rather than calling the handler, is what would catch the host
     // binding being removed or miswired.
     it("saves on beforeunload and tears nothing down, so a page restored from the cache still works", async () => {
-      await createFixture();
-      fixture.detectChanges();
+      await renderWorkspace();
 
       window.dispatchEvent(new Event("beforeunload"));
 
@@ -590,8 +675,7 @@ describe("WorkspaceComponent", () => {
     // views -- the shared document and its room, the computing unit, the running execution --
     // is the same one, and dropping it here would cost the Form View a reconnect for nothing.
     it("keeps the session when this workflow's Form View takes over", async () => {
-      await createFixture();
-      fixture.detectChanges();
+      await renderWorkspace();
       routerMock.getCurrentNavigation.mockReturnValue({ finalUrl: workspaceFormUrl(42) });
 
       component.ngOnDestroy();
@@ -604,8 +688,7 @@ describe("WorkspaceComponent", () => {
     });
 
     it("skips even the save on beforeunload when the user is not signed in", async () => {
-      await createFixture();
-      fixture.detectChanges();
+      await renderWorkspace();
       userService.isLogin.mockReturnValue(false);
 
       component.onBeforeUnload();
@@ -618,8 +701,7 @@ describe("WorkspaceComponent", () => {
     // this side handed such a workflow over while the arriving side, keyed on the room, declined
     // it and reloaded -- so both key on the room, and this one is rebuilt on its first switch.
     it("tears it down when the document is in no workflow's room, even bound for this one's form", async () => {
-      await createFixture();
-      fixture.detectChanges();
+      await renderWorkspace();
       workflowActionService.getOpenWorkflowId.mockReturnValue(undefined);
       routerMock.getCurrentNavigation.mockReturnValue({ finalUrl: workspaceFormUrl(42) });
 
@@ -633,8 +715,7 @@ describe("WorkspaceComponent", () => {
     // arriving menu had just restored it (#8552). It goes with the metrics now: reset on leaving,
     // kept on a hand-over.
     it("resets the heat-map view on leaving and keeps it on a hand-over", async () => {
-      await createFixture();
-      fixture.detectChanges();
+      await renderWorkspace();
       const setHeatmapView = workflowActionService.getJointGraphWrapper().setHeatmapView;
 
       routerMock.getCurrentNavigation.mockReturnValue({ finalUrl: workspaceFormUrl(42) });
@@ -647,8 +728,7 @@ describe("WorkspaceComponent", () => {
     });
 
     it("tears it down when the destination is another workflow's Form View", async () => {
-      await createFixture();
-      fixture.detectChanges();
+      await renderWorkspace();
       routerMock.getCurrentNavigation.mockReturnValue({ finalUrl: workspaceFormUrl(43) });
 
       component.ngOnDestroy();
@@ -658,8 +738,7 @@ describe("WorkspaceComponent", () => {
     });
 
     it("clears the workflow session state when the computing unit is switched in-canvas (issue #3120)", async () => {
-      await createFixture();
-      fixture.detectChanges();
+      await renderWorkspace();
       // Switching to a different unit emits on the connection-reset stream.
       connectionResetSubject.next();
       expect(executeWorkflowService.resetExecutionAndWorkers).toHaveBeenCalled();
@@ -682,8 +761,7 @@ describe("WorkspaceComponent", () => {
   describe("child rendering side effects", () => {
     it("publishes the resolved ViewContainerRef to CodeEditorService.vc on view init", async () => {
       codeEditorService.vc = undefined;
-      await createFixture();
-      fixture.detectChanges();
+      await renderWorkspace();
       // createEmbeddedView is present on a real ViewContainerRef but not on the
       // pre-fixture stub, so checking it distinguishes the resolved query from
       // the placeholder.

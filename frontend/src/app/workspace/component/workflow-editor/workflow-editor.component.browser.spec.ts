@@ -16,6 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
+import { testMacro, testPort, setMacroGraph } from "../../../common/testing/macro-graph";
 
 /**
  * Mouse / pointer event tests for WorkflowEditorComponent.
@@ -33,13 +34,16 @@
  * runner. Restored here per issue #5318.
  */
 
+import { macroInstance } from "../../../common/util/workflow-macro";
+import { readMacroInterface } from "../../../../../../common/workflow-core/src/main/typescript/workflow-macros";
 import { ComponentFixture, TestBed } from "@angular/core/testing";
 import { NzModalRef, NzModalService } from "ng-zorro-antd/modal";
 import * as jQuery from "jquery";
+import * as joint from "jointjs";
 
 import { WorkflowEditorComponent } from "./workflow-editor.component";
 import { NzModalCommentBoxComponent } from "./comment-box-modal/nz-modal-comment-box.component";
-import { workflowEditorTestImports, workflowEditorTestProviders } from "./workflow-editor.test-utils";
+import { configureWorkflowEditor } from "./workflow-editor.test-utils";
 
 import { WorkflowActionService } from "../../service/workflow-graph/model/workflow-action.service";
 import {
@@ -47,8 +51,14 @@ import {
   mockPoint,
   mockResultPredicate,
   mockScanPredicate,
+  mockSentimentPredicate,
 } from "../../service/workflow-graph/model/mock-workflow-data";
 import { createYTypeFromObject } from "../../types/shared-editing.interface";
+import { page, userEvent } from "vitest/browser";
+
+import { UndoRedoService } from "../../service/undo-redo/undo-redo.service";
+import { exportedWorkflow } from "../../../common/type/workflow";
+import { PortPropertyEditFrameComponent } from "../property-editor/port-property-edit-frame/port-property-edit-frame.component";
 
 const createJQueryEvent = (event: string, properties?: object): JQuery.Event =>
   (jQuery as unknown as JQueryStatic).Event(event, properties);
@@ -59,12 +69,7 @@ describe("WorkflowEditorComponent - mouse and pointer event integration", () => 
   let workflowActionService: WorkflowActionService;
   let nzModalService: NzModalService;
 
-  beforeEach(async () => {
-    await TestBed.configureTestingModule({
-      imports: workflowEditorTestImports,
-      providers: workflowEditorTestProviders,
-    }).compileComponents();
-  });
+  beforeEach(configureWorkflowEditor);
 
   beforeEach(() => {
     fixture = TestBed.createComponent(WorkflowEditorComponent);
@@ -73,6 +78,181 @@ describe("WorkflowEditorComponent - mouse and pointer event integration", () => 
     workflowActionService.setHighlightingEnabled(true);
     nzModalService = TestBed.inject(NzModalService);
     fixture.detectChanges();
+  });
+
+  const prepareMacroCanvas = async (x = 300, y = 70) => {
+    await page.viewport(1200, 600);
+    workflowActionService.suspendWorkflow().shared.wsProvider.disconnect();
+    fixture.nativeElement.style.cssText = "display:block;width:1200px;height:500px";
+    component.paper.setDimensions(1200, 500);
+    component.paper.translate(x, y);
+  };
+  const macroInterface = () => workflowActionService.getMacroInterface()!;
+  const terminalID = (direction: "inputs" | "outputs") =>
+    workflowActionService
+      .getTexeraGraph()
+      .getAllOperators()
+      .find(op => op.operatorType === (direction === "inputs" ? "MacroInput" : "MacroOutput"))!.operatorID;
+  const terminalSVG = (direction: "inputs" | "outputs", selector: string) =>
+    component.paper.findViewByModel(terminalID(direction)).el.querySelector(selector)!;
+  const magnet = (operatorID: string, portID: string) => {
+    // JointJS recreates port SVG nodes during a render. Track the graph port through those updates.
+    const id = `port:${operatorID}:${portID}`;
+    const cell = component.paper.getModelById(operatorID) as joint.dia.Element;
+    cell.portProp(portID, "attrs/.port-body/data-testid", id);
+    return page.getByTestId(id);
+  };
+
+  it("connects each saved macro output to an ordinary operator by dragging its magnet", async () => {
+    await prepareMacroCanvas(100, 50);
+    const definition = testMacro("macro", [mockScanPredicate], {
+      outputs: ["stream", "sorted"].map(portID => testPort(portID, mockScanPredicate.operatorID, "output-0")),
+      name: "Macro",
+    });
+    workflowActionService.setMacroDependencies([definition]);
+    workflowActionService.addOperator(macroInstance(definition, "macro"), { x: 100, y: 120 });
+    for (const [index, operatorID] of ["first", "second"].entries())
+      workflowActionService.addOperator({ ...mockSentimentPredicate, operatorID }, { x: 350, y: 60 + index * 160 });
+    const graph = workflowActionService.getTexeraGraph();
+    for (const [port, target] of [
+      ["stream", "first"],
+      ["sorted", "second"],
+    ]) {
+      await userEvent.dragAndDrop(magnet("macro", port), magnet(target, "input-0"));
+      expect(graph.getAllLinks()).toContainEqual(
+        expect.objectContaining({
+          source: { operatorID: "macro", portID: port },
+          target: { operatorID: target, portID: "input-0" },
+        })
+      );
+    }
+    const connected = graph.getAllLinks();
+    TestBed.inject(UndoRedoService).undoAction();
+    expect(graph.getAllLinks().length).toBeLessThan(connected.length);
+    TestBed.inject(UndoRedoService).redoAction();
+    expect(graph.getAllLinks()).toEqual(connected);
+  });
+
+  it("adds, wires, selects and removes grouped macro ports through real SVG controls", async () => {
+    await prepareMacroCanvas();
+    for (const [index, operatorID] of ["a", "b"].entries())
+      workflowActionService.addOperator({ ...mockSentimentPredicate, operatorID }, { x: 100 + index * 200, y: 140 });
+    setMacroGraph(workflowActionService, { id: "macro", inputs: [], outputs: [] });
+    const graph = workflowActionService.getJointGraph();
+    const operator = component.paper.findViewByModel("a").el;
+    expect(terminalSVG("inputs", ".body").getBoundingClientRect().width).toBe(
+      operator.querySelector(".body")!.getBoundingClientRect().width
+    );
+    expect(getComputedStyle(terminalSVG("inputs", ".add-output-port-button")).visibility).toBe("hidden");
+    await userEvent.click(terminalSVG("inputs", ".boundary"));
+    expect(getComputedStyle(terminalSVG("inputs", ".add-output-port-button")).visibility).toBe("visible");
+    await userEvent.click(terminalSVG("inputs", ".add-output-port-button rect"));
+    await userEvent.click(terminalSVG("inputs", ".add-output-port-button rect"));
+    await userEvent.click(terminalSVG("outputs", ".boundary"));
+    await userEvent.click(terminalSVG("outputs", ".add-input-port-button rect"));
+    const {
+      inputs: [first, second],
+      outputs: [output],
+    } = macroInterface();
+    expect(graph.getElements()).toHaveLength(4);
+    const boundaryMagnet = (direction: "inputs" | "outputs", id: string) => magnet(terminalID(direction), id);
+    await userEvent.dragAndDrop(boundaryMagnet("inputs", first.portID), magnet("a", "input-0"));
+    await userEvent.dragAndDrop(magnet("a", "output-0"), boundaryMagnet("outputs", output.portID));
+    const firstInput = { operatorID: "a", portID: "input-0" };
+    const firstOutput = { operatorID: "a", portID: "output-0" };
+    expect(macroInterface().inputs[0].targets).toEqual([firstInput]);
+    expect(macroInterface().outputs[0].targets).toEqual([firstOutput]);
+    await userEvent.dragAndDrop(magnet("b", "output-0"), boundaryMagnet("outputs", output.portID));
+    expect(macroInterface().outputs[0].targets).toEqual([firstOutput]);
+    await userEvent.click(terminalSVG("outputs", ".boundary"));
+    await userEvent.click(terminalSVG("outputs", ".add-input-port-button rect"));
+    const secondOutput = macroInterface().outputs[1];
+    await userEvent.dragAndDrop(magnet("b", "output-0"), boundaryMagnet("outputs", secondOutput.portID));
+    expect(macroInterface().outputs.map(p => p.targets)).toEqual([
+      [firstOutput],
+      [{ operatorID: "b", portID: "output-0" }],
+    ]);
+    await userEvent.click(terminalSVG("inputs", ".boundary"));
+    await userEvent.click(terminalSVG("inputs", ".joint-port-label"));
+    expect(workflowActionService.getJointGraphWrapper().getCurrentHighlightedPortIDs()).toContainEqual({
+      operatorID: terminalID("inputs"),
+      portID: first.portID,
+    });
+    await userEvent.click(terminalSVG("inputs", ".remove-output-port-button rect"));
+    expect(macroInterface().inputs.map(p => p.portID)).toEqual([second.portID]);
+    TestBed.inject(UndoRedoService).undoAction();
+    expect(macroInterface().inputs[0].targets).toEqual([firstInput]);
+    await userEvent.click(boundaryMagnet("inputs", second.portID));
+    await userEvent.click(terminalSVG("inputs", ".remove-output-port-button rect"));
+    const content = workflowActionService.getWorkflowContent();
+    expect(JSON.parse(JSON.stringify(exportedWorkflow(content, undefined)))).toEqual(
+      JSON.parse(JSON.stringify(content))
+    );
+    expect(content.operators).toHaveLength(4);
+    expect(content.links).toHaveLength(3);
+    component.structureLocked = true;
+    fixture.detectChanges();
+    expect(terminalSVG("inputs", ".add-output-port-button").getBoundingClientRect().width).toBe(0);
+  });
+
+  it.each(["inputs", "outputs"] as const)(
+    "removes a %s port with minus without first selecting a port",
+    async direction => {
+      await prepareMacroCanvas();
+      const ports = [0, 1].map(i => ({ portID: `port-${i}`, targets: [] }));
+      setMacroGraph(workflowActionService, { id: "macro", inputs: ports, outputs: ports });
+      const clickBoundary = () => userEvent.click(terminalSVG(direction, ".boundary"));
+      const side = direction === "inputs" ? "output" : "input";
+      const minus = () => userEvent.click(terminalSVG(direction, `.remove-${side}-port-button rect`));
+      await userEvent.click(terminalSVG(direction === "inputs" ? "outputs" : "inputs", ".port-body"));
+      await clickBoundary();
+      await minus();
+      expect(macroInterface()[direction].map(p => p.portID)).toEqual(["port-0"]);
+      TestBed.inject(UndoRedoService).undoAction();
+      expect(macroInterface()[direction]).toEqual(ports);
+      await clickBoundary();
+      await minus();
+      expect(macroInterface()[direction].map(p => p.portID)).toEqual(["port-0"]);
+      await minus();
+      await minus();
+      expect(macroInterface()[direction]).toEqual([]);
+    }
+  );
+
+  it("renames a saved terminal through the native port name editor, including clearing and Undo/Redo", async () => {
+    workflowActionService.suspendWorkflow().shared.wsProvider.disconnect();
+    workflowActionService.addOperator(mockSentimentPredicate, mockPoint);
+    setMacroGraph(workflowActionService, {
+      id: "macro",
+      inputs: [testPort("rows", mockSentimentPredicate.operatorID, "input-0", "Rows")],
+      outputs: [],
+    });
+    const before = workflowActionService.getWorkflowContent();
+    const snapshot = JSON.stringify(before);
+    const properties = TestBed.createComponent(PortPropertyEditFrameComponent);
+    properties.componentRef.setInput("currentPortID", { operatorID: terminalID("inputs"), portID: "rows" });
+    properties.detectChanges();
+    await userEvent.click(properties.nativeElement.querySelector("button"));
+    properties.detectChanges();
+    const editor = properties.nativeElement.querySelector(".ql-editor") as HTMLElement;
+    await userEvent.clear(editor);
+    expect(macroInterface().inputs[0].displayName).toBe("");
+    await userEvent.type(editor, "Rows 東京");
+    await userEvent.keyboard("{Home}{ArrowRight}{ArrowRight}{ArrowRight}{ArrowRight} café");
+    expect(macroInterface().inputs[0].displayName).toBe("Rows café 東京");
+    expect(document.activeElement).toBe(editor);
+    expect(workflowActionService.getWorkflowContent().links).toEqual(before.links);
+    expect(JSON.stringify(before)).toBe(snapshot);
+    const copied = JSON.parse(JSON.stringify(exportedWorkflow(workflowActionService.getWorkflowContent(), undefined)));
+    expect(readMacroInterface(copied)!.inputs[0].displayName).toBe("Rows café 東京");
+    properties.componentInstance.disconnectQuillFromText();
+    TestBed.inject(UndoRedoService).undoAction();
+    TestBed.inject(UndoRedoService).redoAction();
+    expect(macroInterface().inputs[0].displayName).toBe("Rows café 東京");
+    properties.componentRef.setInput("actsAsEditor", false);
+    properties.detectChanges();
+    expect(properties.nativeElement.querySelector("button").disabled).toBe(true);
+    properties.destroy();
   });
 
   it("should try to highlight the operator when user mouse clicks on an operator", () => {

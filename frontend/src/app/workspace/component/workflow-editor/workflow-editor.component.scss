@@ -27,6 +27,10 @@
   height: 100%;
 }
 
+::ng-deep .structure-locked [class$="-port-button"] {
+  display: none;
+}
+
 // Smoothly animate operator body fill changes for the heat-map recolor (view switch / toggle).
 // Scoped to the .heatmap-active class the overlay toggles, so it never animates the
 // disable/enable or validation fill paths when the overlay is off.

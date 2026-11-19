@@ -18,7 +18,20 @@
  */
 
 import { Inject, Injectable, DOCUMENT } from "@angular/core";
-import { BehaviorSubject, interval, map, Observable, Subject, Subscription } from "rxjs";
+import {
+  BehaviorSubject,
+  combineLatest,
+  distinctUntilChanged,
+  interval,
+  map,
+  merge,
+  mergeMap,
+  Observable,
+  ReplaySubject,
+  startWith,
+  Subject,
+  Subscription,
+} from "rxjs";
 import { WorkflowActionService } from "../workflow-graph/model/workflow-action.service";
 import { WorkflowGraphReadonly } from "../workflow-graph/model/workflow-graph";
 import {
@@ -50,8 +63,9 @@ import { ComputingUnitStatusService } from "../../../common/service/computing-un
 import { unavailableComputingUnitReason } from "../../../common/util/computing-unit.util";
 import { WarehouseService } from "../../../common/service/warehouse/warehouse.service";
 import { GuiConfigService } from "../../../common/service/gui-config.service";
-import { expandMacros, isMacro, MacroDefinition, portKey } from "../../../common/util/workflow-macro";
-import { expandMacroSubgraph, toLogicalGraph } from "@texera/workflow-macros";
+import { isMacro, MacroDefinition } from "../../../common/util/workflow-macro";
+import { toLogicalGraph } from "@texera/workflow-macros";
+import { MacroTerminal } from "../macro/macro-terminals";
 
 // TODO: change this declaration
 export const FORM_DEBOUNCE_TIME_MS = 150;
@@ -86,8 +100,9 @@ export class ExecuteWorkflowService {
     current: ExecutionStateInfo;
   }>();
 
-  private regionUpdateStream = new Subject<RegionUpdateEvent>();
+  private regionUpdateStream = new ReplaySubject<RegionUpdateEvent>(1);
   private regionStateStream = new Subject<RegionStateEvent>();
+  private regionStates = new Map<number, RegionStateEvent>();
 
   // TODO: move this to another service, or redesign how this
   //   information is stored on the frontend.
@@ -118,16 +133,14 @@ export class ExecuteWorkflowService {
     private warehouseService: WarehouseService,
     private config: GuiConfigService
   ) {
-    this.workflowStatusService.setMacroProvider(() => {
-      const expanded = this.workflowActionService.getMacroExpansion?.();
-      return expanded ? { expanded, content: this.workflowActionService.getWorkflowContent() } : undefined;
-    });
     workflowWebsocketService.websocketEvent().subscribe(event => {
       switch (event.type) {
         case "RegionUpdateEvent":
+          this.regionStates.clear();
           this.regionUpdateStream.next(event);
           break;
         case "RegionStateEvent":
+          this.regionStates.set(event.id, event);
           this.regionStateStream.next(event);
           break;
         case "WorkerAssignmentUpdateEvent":
@@ -272,44 +285,49 @@ export class ExecuteWorkflowService {
     executionName: string,
     emailNotificationEnabled: boolean,
     targetOperatorId?: string
-  ): void {
-    const logicalPlan = this.executionPlan(targetOperatorId);
-    if (!logicalPlan) return;
-    const settings = this.workflowActionService.getWorkflowSettings();
-    if (this.refuseToRunOnUnavailableUnit()) {
-      return;
-    }
-    if (this.refuseToRunWithoutWarehouse()) {
-      return;
-    }
-    this.resetExecutionState();
-    this.workflowStatusService.resetStatus();
-    this.sendExecutionRequest(executionName, logicalPlan, settings, emailNotificationEnabled);
+  ): void | Promise<void> {
+    return this.startExecution(executionName, emailNotificationEnabled, targetOperatorId);
   }
 
-  public executeWorkflow(executionName: string, targetOperatorId?: string): void {
-    this.executeWorkflowWithEmailNotification(executionName, false, targetOperatorId);
+  public executeWorkflow(executionName: string, targetOperatorId?: string): void | Promise<void> {
+    return this.executeWorkflowWithEmailNotification(executionName, false, targetOperatorId);
   }
 
-  public executeWorkflowWithReplay(replayExecutionInfo: ReplayExecutionInfo): void {
-    const logicalPlan = this.executionPlan();
-    if (!logicalPlan) return;
-    const settings = this.workflowActionService.getWorkflowSettings();
-    if (this.refuseToRunOnUnavailableUnit()) {
-      return;
-    }
-    if (this.refuseToRunWithoutWarehouse()) {
-      return;
-    }
-    this.resetExecutionState();
-    this.workflowStatusService.resetStatus();
-    this.sendExecutionRequest(
-      `Replay run of ${replayExecutionInfo.eid} to ${replayExecutionInfo.interaction}`,
-      logicalPlan,
-      settings,
-      false,
-      replayExecutionInfo
-    );
+  public executeWorkflowWithReplay(replayExecutionInfo: ReplayExecutionInfo): void | Promise<void> {
+    const name = `Replay run of ${replayExecutionInfo.eid} to ${replayExecutionInfo.interaction}`;
+    return this.startExecution(name, false, undefined, replayExecutionInfo);
+  }
+
+  private startExecution(
+    name: string,
+    notify: boolean,
+    target?: string,
+    replay?: ReplayExecutionInfo
+  ): void | Promise<void> {
+    const plan = this.executionPlan(target);
+    if (!plan) return;
+    const execute = () => {
+      if (this.refuseToRunOnUnavailableUnit() || this.refuseToRunWithoutWarehouse()) return;
+      this.resetExecutionState();
+      this.workflowStatusService.resetStatus();
+      this.sendExecutionRequest(name, plan, this.workflowActionService.getWorkflowSettings(), notify, replay);
+    };
+    if (!plan.macroContent) return execute();
+    const content = this.workflowActionService.getWorkflowContent();
+    const doc = this.workflowActionService.editorDocument;
+    return this.workflowActionService.macroExpansion
+      .expand(content)
+      .then(() => {
+        if (
+          this.workflowActionService.editorDocument !== doc ||
+          !isEqual(this.workflowActionService.getWorkflowContent(), content)
+        )
+          throw new Error("The workflow changed while preparing execution. Try again.");
+        execute();
+      })
+      .catch(error => {
+        this.notificationService.error(error instanceof Error ? error.message : String(error));
+      });
   }
 
   /**
@@ -464,12 +482,15 @@ export class ExecuteWorkflowService {
     this.workflowWebsocketService.send("RetryRequest", { workers });
   }
 
-  public modifyOperatorLogic(operatorID: string): void {
+  public async modifyOperatorLogic(operatorID: string): Promise<void> {
     if (this.currentState.state !== ExecutionState.Paused) {
       throw new Error("cannot modify logic, the current execution state is " + this.currentState.state);
     }
     const op = this.workflowActionService.getTexeraGraph().getOperator(operatorID);
-    const expanded = isMacro(op) ? expandMacros(this.workflowActionService.getWorkflowContent()) : undefined;
+    const expanded = isMacro(op)
+      ? await this.workflowActionService.macroExpansion.expand(this.workflowActionService.getWorkflowContent())
+      : undefined;
+    if (this.currentState.state !== ExecutionState.Paused) throw new Error("Execution is no longer paused");
     const operators = expanded
       ? expanded.content.operators.filter(o => expanded.paths[o.operatorID][0] === operatorID)
       : [op];
@@ -490,26 +511,74 @@ export class ExecuteWorkflowService {
     return this.executionStateStream.asObservable();
   }
 
-  public getRegionUpdateStream(): Observable<RegionUpdateEvent> {
-    return this.regionUpdateStream.pipe(
-      map(event => {
+  public getRegionUpdateStream(): Observable<RegionUpdateEvent & { terminals?: Record<number, MacroTerminal[]> }> {
+    return combineLatest([
+      this.regionUpdateStream,
+      this.workflowStatusService.getStatisticsUpdateStream().pipe(startWith(undefined)),
+    ]).pipe(
+      map(([event]) => {
         const paths = this.workflowActionService.getMacroExpansion?.()?.paths ?? {};
+        const ids = this.workflowActionService.runtimeOperatorIDs?.();
+        const localIDs = ids && Object.fromEntries(Object.entries(ids).map(([local, runtime]) => [runtime, local]));
+        const boundaries = this.workflowActionService.runtimeBoundaryLinks?.() ?? [];
         return {
           ...event,
+          ...(boundaries.length
+            ? {
+                terminals: Object.fromEntries(
+                  event.regions.map(([id, ops]) => [
+                    id,
+                    boundaries
+                      .filter(b =>
+                        b.links.some(
+                          link => ops.includes(link.source.operatorID) && ops.includes(link.target.operatorID)
+                        )
+                      )
+                      .map(b => b.terminal),
+                  ])
+                ),
+              }
+            : {}),
           regions: event.regions.map(([id, ops]): [number, string[]] => [
             id,
-            [...new Set(ops.map(op => paths[op]?.[0] ?? op))],
+            [
+              ...new Set(
+                ops.flatMap(op => {
+                  const local = localIDs ? localIDs[op] : op;
+                  return local === undefined ? [] : [paths[local]?.[0] ?? local];
+                })
+              ),
+            ],
           ]),
         };
-      })
+      }),
+      map(event => ({ event, document: this.workflowActionService.editorDocument })),
+      distinctUntilChanged(
+        (previous, current) => previous.document === current.document && isEqual(previous.event, current.event)
+      ),
+      map(({ event }) => event)
     );
   }
 
   public getRegionStateStream(): Observable<RegionStateEvent> {
-    return this.regionStateStream.asObservable();
+    // Reapply the latest phases after topology subscribers redraw the visible canvas.
+    return merge(
+      this.regionStateStream,
+      this.getRegionUpdateStream().pipe(
+        mergeMap(event =>
+          event.regions.flatMap(([id]) => (this.regionStates.has(id) ? [this.regionStates.get(id)!] : []))
+        )
+      )
+    );
+  }
+
+  private resetRegions(): void {
+    this.regionStates.clear();
+    this.regionUpdateStream.next({ regions: [] });
   }
 
   public resetExecutionState(): void {
+    this.resetRegions();
     this.currentState = {
       state: ExecutionState.Uninitialized,
     };
@@ -523,6 +592,8 @@ export class ExecuteWorkflowService {
    * executionStateStream so subscribers drop the previous unit's status.
    */
   public resetExecutionAndWorkers(): void {
+    this.resetRegions();
+    this.workflowStatusService.clearStatus();
     this.updateExecutionState({ state: ExecutionState.Uninitialized });
     this.assignedWorkerIds.clear();
     // Leaving the workspace takes this path, not resetExecutionState, so the clock has to be
@@ -593,24 +664,20 @@ export class ExecuteWorkflowService {
     let resultIDs = [...workflowGraph.getOperatorsToViewResult()];
     let reuseIDs = [...workflowGraph.getOperatorsMarkedForReuseResult()];
     if (workflowGraph.getAllOperators().some(isMacro)) {
-      const expanded = expandMacros({
-        operators: workflowGraph.getAllOperators(),
-        links: workflowGraph.getAllLinks(),
-        macroDependencies: dependencies,
-      });
-      const original = subDAG.operators;
-      subDAG = expandMacroSubgraph(subDAG, expanded);
-      resultIDs = resultIDs.flatMap(id => {
-        const op = original.find(o => o.operatorID === id);
-        return op && isMacro(op)
-          ? op.outputPorts.flatMap(p => expanded.ports[portKey(id, "outputs", p.portID)] ?? []).map(p => p.operatorID)
-          : [id];
-      });
-      resultIDs.push(...subDAG.operators.filter(o => o.viewResult).map(o => o.operatorID));
-      reuseIDs = subDAG.operators
-        .filter(o => o.markedForReuse || reuseIDs.includes(expanded.paths[o.operatorID]?.[0]))
-        .map(o => o.operatorID);
+      return {
+        operators: [],
+        links: [],
+        opsToViewResult: resultIDs,
+        opsToReuseResult: reuseIDs,
+        macroContent: {
+          operators: workflowGraph.getAllOperators(),
+          links: workflowGraph.getAllLinks(),
+          macroDependencies: dependencies,
+        },
+        executeOperatorIds: subDAG.operators.map(op => op.operatorID),
+      };
     }
+
     const operatorIds = new Set(subDAG.operators.map(op => op.operatorID));
 
     const opsToViewResult: string[] = Array.from(intersection(operatorIds, new Set(resultIDs)));
@@ -621,6 +688,9 @@ export class ExecuteWorkflowService {
   }
 
   public getWorkerIds(operatorId: string): ReadonlyArray<string> {
+    if (this.workflowActionService.getTempWorkflow()) return [];
+    const ids = this.workflowActionService.runtimeOperatorIDs?.();
+    if (ids && !Object.keys(ids).length) return [];
     const expanded = this.workflowActionService.getMacroExpansion?.();
     if (
       expanded &&
@@ -629,8 +699,8 @@ export class ExecuteWorkflowService {
     ) {
       return Object.entries(expanded.paths)
         .filter(([, path]) => path[0] === operatorId)
-        .flatMap(([id]) => this.assignedWorkerIds.get(id) ?? []);
+        .flatMap(([id]) => this.assignedWorkerIds.get(ids?.[id] ?? id) ?? []);
     }
-    return this.assignedWorkerIds.get(operatorId) || [];
+    return this.assignedWorkerIds.get(ids?.[operatorId] ?? operatorId) || [];
   }
 }

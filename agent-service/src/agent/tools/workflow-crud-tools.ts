@@ -17,13 +17,14 @@
  * under the License.
  */
 
-import { expandMacros, isMacro } from "../util/workflow-macros";
+import { isMacro } from "@texera/workflow-macros";
+import { validateMacroPropertiesAsync } from "../../api/compile-api";
 import { z } from "zod";
 import { tool } from "ai";
 import { WorkflowState } from "../workflow-state";
 import { autoLayoutWorkflow } from "../util/auto-layout";
 import { WorkflowUtilService } from "../util/workflow-utils";
-import type { OperatorLink } from "../../types/workflow";
+import type { OperatorLink, OperatorPredicate } from "../../types/workflow";
 import {
   createToolResult,
   createErrorResult,
@@ -38,6 +39,7 @@ import {
 } from "../util/workflow-system-metadata";
 
 export interface ToolContext {
+  userToken?: string;
   metadataStore?: WorkflowSystemMetadata;
   settings?: {
     maxOperatorResultCharLimit?: number;
@@ -56,6 +58,49 @@ function formatInputArgs(args: Record<string, any>): string {
     if (value !== undefined) compact[key] = value;
   }
   return `Input: ${JSON.stringify(compact)}`;
+}
+
+function propertyError(
+  metadata: WorkflowSystemMetadata,
+  type: string,
+  properties: Record<string, unknown>,
+  inputInfo: string
+): string | undefined {
+  const validation = metadata.validateOperatorProperties(type, properties);
+  if (validation.isValid) return;
+  const schema = metadata.getCompactSchema(type);
+  const expected = schema ? ` Expected: ${formatCompactSchemaForError(schema)}.` : "";
+  return `Invalid properties for "${type}": ${formatValidationErrors(validation)}.${expected} ${inputInfo}`;
+}
+
+function inputLinks(
+  state: WorkflowState,
+  operator: OperatorPredicate,
+  inputs: Record<string, string[]> = {},
+  inputInfo: string
+): Omit<OperatorLink, "linkID">[] | string {
+  const links: Omit<OperatorLink, "linkID">[] = [];
+  for (const [index, sources] of Object.entries(inputs)) {
+    const i = parseInt(index, 10);
+    if (isNaN(i) || i < 0) return `Invalid input port index: "${index}". Must be a non-negative integer. ${inputInfo}`;
+    const target = operator.inputPorts[i];
+    if (!target)
+      return `Input port index ${i} out of range. Operator "${operator.operatorID}" has ${operator.inputPorts.length} input port(s). ${inputInfo}`;
+    for (const id of sources) {
+      const source = id === operator.operatorID ? operator : state.getOperator(id);
+      if (!source)
+        return `Source operator "${id}" not found. Make sure it exists before referencing it in inputOperatorIds. ${inputInfo}`;
+      links.push({
+        source: { operatorID: id, portID: source.outputPorts[0]?.portID ?? "output-0" },
+        target: { operatorID: operator.operatorID, portID: target.portID },
+      });
+    }
+  }
+  return links;
+}
+
+function linkPair(link: Omit<OperatorLink, "linkID">) {
+  return { source: link.source.operatorID, target: link.target.operatorID };
 }
 
 export function createAddOperatorTool(
@@ -110,14 +155,8 @@ Examples:
         }
 
         if (context?.metadataStore && args.properties) {
-          const validation = context.metadataStore.validateOperatorProperties(args.operatorType, args.properties);
-          if (!validation.isValid) {
-            const compactSchema = context.metadataStore.getCompactSchema(args.operatorType);
-            const schemaStr = compactSchema ? ` Expected: ${formatCompactSchemaForError(compactSchema)}.` : "";
-            return createErrorResult(
-              `Invalid properties for "${args.operatorType}": ${formatValidationErrors(validation)}.${schemaStr} ${inputInfo}`
-            );
-          }
+          const error = propertyError(context.metadataStore, args.operatorType, args.properties, inputInfo);
+          if (error) return createErrorResult(error);
         }
 
         if (!workflowUtil) {
@@ -144,45 +183,10 @@ Examples:
           operatorProperties: { ...operator.operatorProperties, ...args.properties },
         };
 
+        const links = inputLinks(workflowState, operator, args.inputOperatorIds, inputInfo);
+        if (typeof links === "string") return createErrorResult(links);
         workflowState.addOperator(operator);
-
-        const createdLinkPairs: { source: string; target: string }[] = [];
-        if (args.inputOperatorIds) {
-          const addedOperator = workflowState.getOperator(operator.operatorID)!;
-          for (const [portIndexStr, sourceOpIds] of Object.entries(args.inputOperatorIds)) {
-            const targetPortIdx = parseInt(portIndexStr, 10);
-            if (isNaN(targetPortIdx) || targetPortIdx < 0) {
-              return createErrorResult(
-                `Invalid input port index: "${portIndexStr}". Must be a non-negative integer. ${inputInfo}`
-              );
-            }
-            if (targetPortIdx >= addedOperator.inputPorts.length) {
-              return createErrorResult(
-                `Input port index ${targetPortIdx} out of range. Operator "${args.operatorId}" has ${addedOperator.inputPorts.length} input port(s). ${inputInfo}`
-              );
-            }
-            const targetPortId = addedOperator.inputPorts[targetPortIdx].portID;
-
-            for (const sourceOpId of sourceOpIds) {
-              const sourceOp = workflowState.getOperator(sourceOpId);
-              if (!sourceOp) {
-                return createErrorResult(
-                  `Source operator "${sourceOpId}" not found. Make sure it exists before referencing it in inputOperatorIds. ${inputInfo}`
-                );
-              }
-              const sourcePortId = sourceOp.outputPorts.length > 0 ? sourceOp.outputPorts[0].portID : "output-0";
-
-              const linkId = workflowState.generateLinkId();
-              const link: OperatorLink = {
-                linkID: linkId,
-                source: { operatorID: sourceOpId, portID: sourcePortId },
-                target: { operatorID: args.operatorId, portID: targetPortId },
-              };
-              workflowState.addLink(link);
-              createdLinkPairs.push({ source: sourceOpId, target: args.operatorId });
-            }
-          }
-        }
+        links.forEach(link => workflowState.addLink({ ...link, linkID: workflowState.generateLinkId() }));
 
         autoLayoutWorkflow(workflowState);
 
@@ -194,7 +198,7 @@ Examples:
           operator.operatorID,
           numInputPorts,
           numOutputPorts,
-          createdLinkPairs.length > 0 ? createdLinkPairs : undefined
+          links.map(linkPair)
         );
 
         return createToolResult(resultMsg);
@@ -243,40 +247,24 @@ Examples:
         const operator = workflowState.getOperator(args.operatorId);
         if (!operator) return createErrorResult(`Operator ${args.operatorId} not found. ${inputInfo}`);
 
-        if (args.properties && context?.metadataStore) {
-          const metadataStore = context.metadataStore;
-          const mergedProperties = { ...operator.operatorProperties, ...args.properties };
-          const expanded = isMacro(operator)
-            ? expandMacros({
-                ...workflowState.getWorkflowContent(),
-                operators: workflowState
-                  .getAllOperators()
-                  .map(op =>
-                    op.operatorID === operator.operatorID
-                      ? { ...op, operatorProperties: mergedProperties, isDisabled: false }
-                      : op
-                  ),
-              })
-            : undefined;
-          const candidates = expanded
-            ? expanded.content.operators.filter(op => expanded.paths[op.operatorID][0] === operator.operatorID)
-            : [{ ...operator, operatorProperties: mergedProperties }];
-          const validation = candidates
-            .map(op => metadataStore.validateOperatorProperties(op.operatorType, op.operatorProperties))
-            .find(validation => !validation.isValid);
-          if (validation) {
-            const compactSchema = metadataStore.getCompactSchema(operator.operatorType);
-            const schemaStr = compactSchema ? ` Expected: ${formatCompactSchemaForError(compactSchema)}.` : "";
-            return createErrorResult(
-              `Invalid properties for "${operator.operatorType}": ${formatValidationErrors(validation)}.${schemaStr} ${inputInfo}`
-            );
-          }
-        }
-
-        const createdLinkPairs: { source: string; target: string }[] = [];
-        const deletedLinkPairs: { source: string; target: string }[] = [];
-
+        const links = inputLinks(workflowState, operator, args.inputOperatorIds, inputInfo);
+        if (typeof links === "string") return createErrorResult(links);
         if (args.properties) {
+          const proposed = { ...operator.operatorProperties, ...args.properties };
+          if (isMacro(operator)) {
+            const content = workflowState.getWorkflowContent();
+            const before = JSON.stringify(content);
+            await validateMacroPropertiesAsync(
+              { ...operator, operatorProperties: proposed },
+              content.macroDependencies,
+              context?.userToken
+            );
+            if (JSON.stringify(workflowState.getWorkflowContent()) !== before)
+              return createErrorResult("The workflow changed while validating properties. Try again.");
+          } else if (context?.metadataStore) {
+            const error = propertyError(context.metadataStore, operator.operatorType, proposed, inputInfo);
+            if (error) return createErrorResult(error);
+          }
           workflowState.updateOperatorProperties(args.operatorId, args.properties);
         }
 
@@ -284,58 +272,18 @@ Examples:
           workflowState.updateOperatorDisplayName(args.operatorId, args.summary);
         }
 
+        const removed = args.inputOperatorIds
+          ? workflowState
+              .getLinksConnectedToOperator(args.operatorId)
+              .filter(link => link.target.operatorID === args.operatorId)
+          : [];
         if (args.inputOperatorIds) {
-          const currentLinks = workflowState
-            .getLinksConnectedToOperator(args.operatorId)
-            .filter(link => link.target.operatorID === args.operatorId);
-          for (const link of currentLinks) {
-            deletedLinkPairs.push({ source: link.source.operatorID, target: link.target.operatorID });
-            workflowState.deleteLink(link.linkID);
-          }
-
-          for (const [portIndexStr, sourceOpIds] of Object.entries(args.inputOperatorIds)) {
-            const targetPortIdx = parseInt(portIndexStr, 10);
-            if (isNaN(targetPortIdx) || targetPortIdx < 0) {
-              return createErrorResult(
-                `Invalid input port index: "${portIndexStr}". Must be a non-negative integer. ${inputInfo}`
-              );
-            }
-            if (targetPortIdx >= operator.inputPorts.length) {
-              return createErrorResult(
-                `Input port index ${targetPortIdx} out of range. Operator "${args.operatorId}" has ${operator.inputPorts.length} input port(s). ${inputInfo}`
-              );
-            }
-            const targetPortId = operator.inputPorts[targetPortIdx].portID;
-
-            for (const sourceOpId of sourceOpIds) {
-              const sourceOp = workflowState.getOperator(sourceOpId);
-              if (!sourceOp) {
-                return createErrorResult(
-                  `Source operator "${sourceOpId}" not found. Make sure it exists before referencing it in inputOperatorIds. ${inputInfo}`
-                );
-              }
-              const sourcePortId = sourceOp.outputPorts.length > 0 ? sourceOp.outputPorts[0].portID : "output-0";
-
-              const linkId = workflowState.generateLinkId();
-              const link: OperatorLink = {
-                linkID: linkId,
-                source: { operatorID: sourceOpId, portID: sourcePortId },
-                target: { operatorID: args.operatorId, portID: targetPortId },
-              };
-              workflowState.addLink(link);
-              createdLinkPairs.push({ source: sourceOpId, target: args.operatorId });
-            }
-          }
-
+          removed.forEach(link => workflowState.deleteLink(link.linkID));
+          links.forEach(link => workflowState.addLink({ ...link, linkID: workflowState.generateLinkId() }));
           autoLayoutWorkflow(workflowState);
         }
 
-        let resultMsg = formatModifyOperatorResult(
-          args.operatorId,
-          createdLinkPairs.length > 0 ? createdLinkPairs : undefined,
-          deletedLinkPairs.length > 0 ? deletedLinkPairs : undefined
-        );
-
+        const resultMsg = formatModifyOperatorResult(args.operatorId, links.map(linkPair), removed.map(linkPair));
         return createToolResult(resultMsg);
       } catch (error: any) {
         return createErrorResult(formatOperatorError(args.operatorId, error.message || String(error)));

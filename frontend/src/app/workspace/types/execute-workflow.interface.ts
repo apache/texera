@@ -53,6 +53,8 @@ export interface LogicalOperator
  */
 export interface LogicalPlan
   extends Readonly<{
+    macroContent?: import("@texera/workflow-macros").MacroContent;
+    executeOperatorIds?: string[];
     operators: LogicalOperator[];
     links: LogicalLink[];
     opsToViewResult?: string[];
@@ -78,9 +80,11 @@ export interface OperatorStatistics
     aggregatedInputSize?: number;
     /** Absent when the snapshot has no per-port information at all; `{}` means every port was zero. */
     inputPortMetrics?: Record<string, number>;
+    inputPortSizes?: Record<string, number>;
     aggregatedOutputRowCount: number;
     aggregatedOutputSize?: number;
     outputPortMetrics?: Record<string, number>;
+    outputPortSizes?: Record<string, number>;
     numWorkers?: number;
     aggregatedDataProcessingTime?: number;
     aggregatedControlProcessingTime?: number;

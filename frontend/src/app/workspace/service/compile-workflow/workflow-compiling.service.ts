@@ -17,7 +17,7 @@
  * under the License.
  */
 
-import { HttpClient, HttpHeaders } from "@angular/common/http";
+import { HttpClient } from "@angular/common/http";
 import { Injectable } from "@angular/core";
 import { JSONSchema7Definition } from "json-schema";
 import { defer, EMPTY, merge, Observable, of, ReplaySubject } from "rxjs";
@@ -26,7 +26,7 @@ import { AppSettings } from "../../../common/app-setting";
 import { areOperatorSchemasEqual, OperatorSchema } from "../../types/operator-schema.interface";
 import { ExecuteWorkflowService } from "../execute-workflow/execute-workflow.service";
 import { WorkflowActionService } from "../workflow-graph/model/workflow-action.service";
-import { catchError, debounceTime, map, mergeMap } from "rxjs/operators";
+import { catchError, debounceTime, map, switchMap, filter } from "rxjs/operators";
 import { DynamicSchemaService } from "../dynamic-schema/dynamic-schema.service";
 import {
   AttributeType,
@@ -43,7 +43,14 @@ import { WorkflowGraphReadonly } from "../workflow-graph/model/workflow-graph";
 import { serializePortIdentity } from "../../../common/util/port-identity-serde";
 import { addCompilationError, areAllPortSchemasEqual } from "../../../common/util/workflow-compilation-utils";
 import { parseLogicalOperatorPortID } from "../../../common/util/logical-operator-port-serde";
-import { isMacro, mapMacroCompilation } from "../../../common/util/workflow-macro";
+import { isMacro, compiledInputLinks, macroSchema } from "../../../common/util/workflow-macro";
+import { portOrdinal } from "@texera/workflow-macros";
+
+import { MacroDraftRequest, MacroNavigationService } from "../macro/macro-navigation.service";
+import { LogicalPort, OperatorLink, OperatorPredicate } from "../../types/workflow-common.interface";
+import { MacroExpansionService } from "../macro/macro-expansion.service";
+import { WorkflowContent } from "../../../common/type/workflow";
+import { OperatorMetadataService } from "../operator-metadata/operator-metadata.service";
 
 // endpoint for workflow compile
 export const WORKFLOW_COMPILATION_ENDPOINT = "compile";
@@ -69,13 +76,22 @@ export class WorkflowCompilingService {
   private currentCompilationStateInfo: CompilationStateInfo = {
     state: CompilationState.Uninitialized,
   };
+  private macroInputs?: {
+    doc: object;
+    inputLinks: (id: string) => OperatorLink[];
+    schemas: Record<string, OperatorPortSchemaMap>;
+  };
   private compilationStateInfoChangedStream = new ReplaySubject<CompilationState>(1);
+  private macroSchemas = new Map<string, OperatorSchema>();
 
   constructor(
     private httpClient: HttpClient,
     private workflowActionService: WorkflowActionService,
     private dynamicSchemaService: DynamicSchemaService,
-    private validationWorkflowService: ValidationWorkflowService
+    private validationWorkflowService: ValidationWorkflowService,
+    private macros: MacroNavigationService,
+    private expansion: MacroExpansionService,
+    private metadata: OperatorMetadataService
   ) {
     // Subscribe to compilation state changes to apply schema propagation
     this.compilationStateInfoChangedStream.subscribe(() => {
@@ -92,21 +108,62 @@ export class WorkflowCompilingService {
       this.workflowActionService.getTexeraGraph().getOperatorDeleteStream(),
       this.workflowActionService.getTexeraGraph().getOperatorPropertyChangeStream(),
       this.workflowActionService.getTexeraGraph().getDisabledOperatorsChangedStream(),
-      this.workflowActionService.macroChanged$ ?? EMPTY
+      this.workflowActionService.macroChanged$ ?? EMPTY,
+      this.macros.changed$
     )
       .pipe(debounceTime(WORKFLOW_COMPILATION_DEBOUNCE_TIME_MS))
       .pipe(
-        mergeMap(() =>
+        switchMap(() =>
           defer(() => {
             const content = this.workflowActionService.getWorkflowContent();
-            const logicalPlan = ExecuteWorkflowService.getLogicalPlanRequest(
-              this.validationWorkflowService.getValidTexeraGraph(),
-              undefined,
-              this.workflowActionService.getMacroDependencies?.() ?? []
+            const doc = this.workflowActionService.editorDocument;
+            const draft = this.macros.compilationDraft();
+            const overrides = this.macros.parentOverrides();
+            const logicalPlan =
+              draft ??
+              (content.macroInterface
+                ? { operators: [], links: [], macroContent: content, opsToViewResult: [], opsToReuseResult: [] }
+                : ExecuteWorkflowService.getLogicalPlanRequest(
+                    this.validationWorkflowService.getValidTexeraGraph(),
+                    undefined,
+                    this.workflowActionService.getMacroDependencies?.() ?? []
+                  ));
+            return this.compile(logicalPlan).pipe(
+              filter(() => this.workflowActionService.editorDocument === doc),
+              map(response => {
+                if (response.macroExpansion && !draft) this.expansion.remember(content, response.macroExpansion);
+                const context =
+                  (draft || content.macroInterface) && response.macroExpansion
+                    ? this.macros.compilationContext(response.macroExpansion, content, overrides)
+                    : undefined;
+                this.macroInputs = context
+                  ? { doc, inputLinks: context.inputLinks, schemas: response.operatorOutputSchemas }
+                  : undefined;
+                const remap = <T>(values: Record<string, T>): Record<string, T> =>
+                  Object.fromEntries(
+                    Object.entries(context?.ids ?? {}).flatMap(([local, runtime]) =>
+                      values[runtime] === undefined ? [] : [[local, values[runtime]]]
+                    )
+                  );
+                const projected = context
+                  ? {
+                      ...response,
+                      operatorOutputSchemas: remap(response.operatorOutputSchemas),
+                      operatorErrors: Object.fromEntries(
+                        Object.entries(remap(response.operatorErrors ?? {})).map(([id, error]) => [
+                          id,
+                          { ...error, operatorId: id },
+                        ])
+                      ),
+                    }
+                  : response;
+                this.macroSchemas = this.compiledMacroSchemas(content, response, context?.path);
+                return projected;
+              })
             );
-            return this.compile(logicalPlan).pipe(map(response => mapMacroCompilation(response, content)));
           }).pipe(
             catchError((error: unknown) => {
+              this.macroSchemas.clear();
               const graph = this.workflowActionService.getTexeraGraph();
               const operatorID =
                 graph.getAllOperators().find(isMacro)?.operatorID ??
@@ -169,6 +226,10 @@ export class WorkflowCompilingService {
       return undefined;
     }
 
+    if (this.macroInputs && this.macroInputs.doc === this.workflowActionService.editorDocument)
+      return this.extractOperatorInputPortSchemaMap(operatorID, this.macroInputs.schemas, {
+        getInputLinksByOperatorId: this.macroInputs.inputLinks,
+      });
     return this.extractOperatorInputPortSchemaMap(
       operatorID,
       this.currentCompilationStateInfo.operatorOutputPortSchemaMap,
@@ -216,8 +277,10 @@ export class WorkflowCompilingService {
       const inputSchema = this.getOperatorInputSchemaMap(operatorID);
 
       let newDynamicSchema: OperatorSchema;
-      if (inputSchema) {
-        newDynamicSchema = WorkflowCompilingService.setOperatorInputAttrs(currentDynamicSchema, inputSchema);
+      if (inputSchema || this.macroSchemas.has(operatorID)) {
+        newDynamicSchema =
+          this.macroSchemas.get(operatorID) ??
+          WorkflowCompilingService.setOperatorInputAttrs(currentDynamicSchema, inputSchema);
 
         // Now that the list of input attributes is known, drop any operator property
         // values that reference attributes which no longer exist in the input schema (e.g. a copy-pasted
@@ -247,6 +310,34 @@ export class WorkflowCompilingService {
     });
   }
 
+  /** Resolve exposed properties against their actual compiled inputs, including internal transformations. */
+  private compiledMacroSchemas(
+    content: WorkflowContent,
+    response: WorkflowCompilationResponse,
+    prefix: string[] = []
+  ): Map<string, OperatorSchema> {
+    const expanded = response.macroExpansion;
+    if (!expanded) return new Map();
+    const getSchema = (type: string) => this.metadata.getOperatorSchema(type);
+    const schemaFor = (op: OperatorPredicate, path: string[] = prefix): OperatorSchema => {
+      if (isMacro(op))
+        return macroSchema(this.metadata.getMacroDefinition(op.operatorType)!, getSchema, child =>
+          schemaFor(child, [...path, op.operatorID])
+        );
+      const schema = getSchema(op.operatorType);
+      return WorkflowCompilingService.setOperatorInputAttrs(
+        schema,
+        this.extractOperatorInputPortSchemaMap(
+          op.operatorID,
+          response.operatorOutputSchemas,
+          { getInputLinksByOperatorId: () => compiledInputLinks(expanded, path, op) },
+          schema
+        )
+      );
+    };
+    return new Map(content.operators.filter(isMacro).map(op => [op.operatorID, schemaFor(op)]));
+  }
+
   /**
    * Extracts input schema per port for an operator by looking at the output schemas of operators that are connecting to it.
    *
@@ -258,14 +349,22 @@ export class WorkflowCompilingService {
   private extractOperatorInputPortSchemaMap(
     operatorID: string,
     outputSchemas: Record<string, OperatorPortSchemaMap>,
-    workflowGraph: WorkflowGraphReadonly
+    workflowGraph: Pick<WorkflowGraphReadonly, "getInputLinksByOperatorId">,
+    operatorSchema?: OperatorSchema
   ): OperatorPortSchemaMap | undefined {
     const inputLinks = workflowGraph.getInputLinksByOperatorId(operatorID);
     if (!inputLinks.length) return undefined;
 
     // Get the operator's dynamic schema to know what input ports it has
-    const dynamicSchema = this.dynamicSchemaService.getDynamicSchema(operatorID);
+    const dynamicSchema = operatorSchema ?? this.dynamicSchemaService.getDynamicSchema(operatorID);
     if (!dynamicSchema) return undefined;
+
+    const graph = this.workflowActionService.getTexeraGraph();
+    const ordinal = (end: LogicalPort & { portIndex?: number }, direction: "inputPorts" | "outputPorts") => {
+      if (end.portIndex !== undefined) return end.portIndex;
+      const op = graph.hasOperator(end.operatorID) ? graph.getOperator(end.operatorID) : undefined;
+      return op ? portOrdinal(op, direction, end.portID) : parseLogicalOperatorPortID(end.portID)?.portNumber;
+    };
 
     const inputPortSchemaMap = new Map<string, PortSchema | undefined>();
 
@@ -274,11 +373,7 @@ export class WorkflowCompilingService {
       inputPortSchemaMap.set(portId, undefined);
 
       // Find all links that connect to this input port
-      const linksToThisPort = inputLinks.filter(link => {
-        const inputPort = parseLogicalOperatorPortID(link.target.portID);
-        if (!inputPort) return false;
-        return inputPort.portNumber === portIndex;
-      });
+      const linksToThisPort = inputLinks.filter(link => ordinal(link.target, "inputPorts") === portIndex);
 
       if (linksToThisPort.length > 0) {
         // Check if multiple links have different schemas
@@ -288,12 +383,12 @@ export class WorkflowCompilingService {
             return undefined;
           }
 
-          const outputPort = parseLogicalOperatorPortID(link.source.portID);
-          if (!outputPort) {
+          const outputPort = ordinal(link.source, "outputPorts");
+          if (outputPort === undefined) {
             return undefined;
           }
 
-          return sourcePortSchemaMap[serializePortIdentity({ id: outputPort.portNumber, internal: false })];
+          return sourcePortSchemaMap[serializePortIdentity({ id: outputPort, internal: false })];
         });
 
         // Check if all schemas are the same using utility function
@@ -326,32 +421,19 @@ export class WorkflowCompilingService {
    * that users can easily set the properties of the next operator. For eg: If there are two operators Source:Scan and KeywordSearch and
    * a link is created between them, the attributed of the table selected in Source can be propagated to the KeywordSearch operator.
    */
-  private compile(logicalPlan: LogicalPlan): Observable<WorkflowCompilationResponse> {
-    // create a Logical Plan based on the workflow graph
-    // remove unnecessary information for schema propagation.
-    const body = {
-      operators: logicalPlan.operators,
-      links: logicalPlan.links,
-      opsToReuseResult: [],
-      opsToViewResult: [],
-    };
-    // make a http post request to the API endpoint with the logical plan object
-    return this.httpClient
-      .post<WorkflowCompilationResponse>(
-        `${AppSettings.getApiEndpoint()}/${WORKFLOW_COMPILATION_ENDPOINT}`,
-        JSON.stringify(body),
-        {
-          headers: new HttpHeaders({
-            "Content-Type": "application/json",
-          }),
-        }
-      )
-      .pipe(
-        catchError((err: unknown) => {
-          console.warn("compile workflow API returns error", err);
-          return EMPTY;
-        })
-      );
+  private compile(plan: LogicalPlan | MacroDraftRequest): Observable<WorkflowCompilationResponse> {
+    const url = `${AppSettings.getApiEndpoint()}/${WORKFLOW_COMPILATION_ENDPOINT}`;
+    const draft = "drafts" in plan;
+    const body = draft ? plan : { ...plan, opsToReuseResult: [], opsToViewResult: [] };
+    const request = this.httpClient.post<WorkflowCompilationResponse>(draft ? `${url}/draft` : url, body, {
+      headers: { "Content-Type": "application/json" },
+    });
+    return request.pipe(
+      catchError((error: unknown) => {
+        console.warn("compile workflow API returns error", error);
+        return EMPTY;
+      })
+    );
   }
 
   public static setOperatorInputAttrs(

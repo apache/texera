@@ -24,30 +24,15 @@ import org.apache.texera.auth.SessionUser
 import org.apache.texera.dao.MockTexeraDB
 import org.apache.texera.dao.jooq.generated.Tables
 import org.apache.texera.dao.jooq.generated.enums.{DefaultViewEnum, PrivilegeEnum}
-import org.apache.texera.dao.jooq.generated.tables.daos.{
-  UserDao,
-  WorkflowDao,
-  WorkflowOfUserDao,
-  WorkflowUserAccessDao,
-  WorkflowVersionDao
-}
-import org.apache.texera.dao.jooq.generated.tables.pojos.{
-  User,
-  Workflow,
-  WorkflowOfUser,
-  WorkflowUserAccess,
-  WorkflowVersion
-}
-import org.jooq.impl.DSL
+import org.apache.texera.dao.jooq.generated.tables.daos.{UserDao, WorkflowDao, WorkflowVersionDao}
+import org.apache.texera.dao.jooq.generated.tables.pojos.{User, Workflow, WorkflowVersion}
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.{BeforeAndAfterAll, BeforeAndAfterEach, PrivateMethodTester}
 
 import java.sql.Timestamp
-import java.util.UUID
 import java.util.concurrent.TimeUnit
 import javax.ws.rs.ForbiddenException
-import scala.collection.mutable.ArrayBuffer
 import scala.jdk.CollectionConverters._
 
 class WorkflowVersionResourceSpec
@@ -63,95 +48,46 @@ class WorkflowVersionResourceSpec
   private val strangerUid = 6000 + scala.util.Random.nextInt(1000)
 
   private var testWorkflow: Workflow = _
-  private var owner: User = _
-  private var stranger: User = _
-  private var workflowDao: WorkflowDao = _
-  private var workflowVersionDao: WorkflowVersionDao = _
-  private var userDao: UserDao = _
-  private var workflowOfUserDao: WorkflowOfUserDao = _
-  private var workflowUserAccessDao: WorkflowUserAccessDao = _
-  private var resource: WorkflowVersionResource = _
+  private val owner = makeUser(ownerUid, "wfv_owner")
+  private val stranger = makeUser(strangerUid, "wfv_stranger")
+  private lazy val workflowDao = new WorkflowDao(getDSLContext.configuration())
+  private lazy val workflowVersionDao = new WorkflowVersionDao(getDSLContext.configuration())
+  private lazy val resource = new WorkflowVersionResource()
 
-  private val capturedVersions = ArrayBuffer.empty[Integer]
-
-  override protected def beforeAll(): Unit = {
-    initializeDBAndReplaceDSLContext()
-  }
+  override protected def beforeAll(): Unit = initializeDBAndReplaceDSLContext()
+  override protected def afterAll(): Unit = closeConnectionPool()
 
   override protected def beforeEach(): Unit = {
-    workflowDao = new WorkflowDao(getDSLContext.configuration())
-    workflowVersionDao = new WorkflowVersionDao(getDSLContext.configuration())
-    userDao = new UserDao(getDSLContext.configuration())
-    workflowOfUserDao = new WorkflowOfUserDao(getDSLContext.configuration())
-    workflowUserAccessDao = new WorkflowUserAccessDao(getDSLContext.configuration())
-    resource = new WorkflowVersionResource()
-
-    testWorkflow = new Workflow
-    testWorkflow.setWid(Integer.valueOf(testWorkflowWid))
-    testWorkflow.setName("test_workflow_" + UUID.randomUUID().toString.substring(0, 8))
-    testWorkflow.setContent(createWorkflowContent("initial"))
-    testWorkflow.setDescription("test description")
-    testWorkflow.setIsPublic(false)
-    testWorkflow.setCreationTime(new Timestamp(System.currentTimeMillis()))
-    testWorkflow.setLastModifiedTime(new Timestamp(System.currentTimeMillis()))
-
-    owner = makeUser(ownerUid, "wfv_owner")
-    stranger = makeUser(strangerUid, "wfv_stranger")
-
-    cleanupTestData()
-    userDao.insert(owner)
-    userDao.insert(stranger)
-    workflowDao.insert(testWorkflow)
-
-    val ownership = new WorkflowOfUser
-    ownership.setUid(Integer.valueOf(ownerUid))
-    ownership.setWid(Integer.valueOf(testWorkflowWid))
-    workflowOfUserDao.insert(ownership)
+    val db = getDSLContext
+    new UserDao(db.configuration()).insert(owner, stranger)
+    val w = Tables.WORKFLOW
+    testWorkflow = db
+      .insertInto(w)
+      .set(w.WID, Int.box(testWorkflowWid))
+      .set(w.NAME, s"test_workflow_$testWorkflowWid")
+      .set(w.DESCRIPTION, "test description")
+      .set(w.CONTENT, createWorkflowContent("initial"))
+      .returning()
+      .fetchOneInto(classOf[Workflow])
+    val ownership = Tables.WORKFLOW_OF_USER
+    db.insertInto(ownership, ownership.UID, ownership.WID)
+      .values(owner.getUid, testWorkflow.getWid)
+      .execute()
     grantAccess(ownerUid, PrivilegeEnum.WRITE)
-
-    capturedVersions.clear()
   }
 
   override protected def afterEach(): Unit = {
-    cleanupTestData()
-  }
-
-  private def cleanupTestData(): Unit = {
-    val ctx = getDSLContext
-    // Purge the fixed test workflow plus anything our test users came to own
-    // (cloneVersion creates a fresh workflow), children before parents so the
-    // user rows can be removed without violating foreign keys.
-    val wids = (ctx
-      .select(Tables.WORKFLOW_OF_USER.WID)
-      .from(Tables.WORKFLOW_OF_USER)
-      .where(
-        Tables.WORKFLOW_OF_USER.UID.in(Integer.valueOf(ownerUid), Integer.valueOf(strangerUid))
-      )
-      .fetchInto(classOf[Integer])
-      .asScala
-      .toSet + Integer.valueOf(testWorkflowWid)).toList
-
-    ctx
-      .deleteFrom(Tables.WORKFLOW_VERSION)
-      .where(Tables.WORKFLOW_VERSION.WID.in(wids: _*))
+    // The fixture owns the source and any revision clones. Their access and version rows cascade.
+    val db = getDSLContext
+    val ownership = Tables.WORKFLOW_OF_USER
+    val owned = db
+      .select(ownership.WID)
+      .from(ownership)
+      .where(ownership.UID.in(owner.getUid, stranger.getUid))
+    db.deleteFrom(Tables.WORKFLOW)
+      .where(Tables.WORKFLOW.WID.eq(testWorkflowWid).or(Tables.WORKFLOW.WID.in(owned)))
       .execute()
-    ctx
-      .deleteFrom(Tables.WORKFLOW_USER_ACCESS)
-      .where(Tables.WORKFLOW_USER_ACCESS.WID.in(wids: _*))
-      .execute()
-    ctx
-      .deleteFrom(Tables.WORKFLOW_OF_USER)
-      .where(Tables.WORKFLOW_OF_USER.WID.in(wids: _*))
-      .execute()
-    ctx.deleteFrom(Tables.WORKFLOW).where(Tables.WORKFLOW.WID.in(wids: _*)).execute()
-    ctx
-      .deleteFrom(Tables.USER)
-      .where(Tables.USER.UID.in(Integer.valueOf(ownerUid), Integer.valueOf(strangerUid)))
-      .execute()
-  }
-
-  override protected def afterAll(): Unit = {
-    closeConnectionPool()
+    db.deleteFrom(Tables.USER).where(Tables.USER.UID.in(owner.getUid, stranger.getUid)).execute()
   }
 
   private def makeUser(uid: Int, name: String): User = {
@@ -163,42 +99,24 @@ class WorkflowVersionResourceSpec
   }
 
   private def grantAccess(uid: Int, privilege: PrivilegeEnum): Unit = {
-    val access = new WorkflowUserAccess
-    access.setUid(Integer.valueOf(uid))
-    access.setWid(Integer.valueOf(testWorkflowWid))
-    access.setPrivilege(privilege)
-    workflowUserAccessDao.insert(access)
+    val access = Tables.WORKFLOW_USER_ACCESS
+    getDSLContext
+      .insertInto(access, access.UID, access.WID, access.PRIVILEGE)
+      .values(Int.box(uid), testWorkflow.getWid, privilege)
+      .execute()
   }
 
   private def session(user: User): SessionUser = new SessionUser(user)
 
-  private def createWorkflowContent(value: String): String = {
-    val jsonNode = objectMapper.createObjectNode()
-    jsonNode.put("value", value)
-    jsonNode.toString
-  }
+  private def versionValue(value: String) = objectMapper.createObjectNode().put("value", value)
+  private def createWorkflowContent(value: String): String = versionValue(value).toString
+  private def createVersionDiff(oldValue: String, newValue: String): String =
+    com.flipkart.zjsonpatch.JsonDiff.asJson(versionValue(oldValue), versionValue(newValue)).toString
 
-  private def createVersionDiff(oldValue: String, newValue: String): String = {
-    val oldJson = objectMapper.createObjectNode()
-    oldJson.put("value", oldValue)
-
-    val newJson = objectMapper.createObjectNode()
-    newJson.put("value", newValue)
-
-    val patch = com.flipkart.zjsonpatch.JsonDiff.asJson(
-      oldJson,
-      newJson
-    )
-    patch.toString
-  }
-
-  /** A patch whose only op is an `add`, i.e. a semantically important change. */
-  private def createAddDiff(): String = {
-    val before = objectMapper.createObjectNode()
-    val after = objectMapper.createObjectNode()
-    after.put("addedKey", "x")
-    com.flipkart.zjsonpatch.JsonDiff.asJson(before, after).toString
-  }
+  private def createAddDiff(): String =
+    com.flipkart.zjsonpatch.JsonDiff
+      .asJson(objectMapper.createObjectNode(), versionValue("added"))
+      .toString
 
   private def seedVersion(content: String, minutesAgo: Int): Unit = {
     val version = new WorkflowVersion
@@ -224,91 +142,115 @@ class WorkflowVersionResourceSpec
 
   private def versionCount(): Int = versionVids().size
 
-  "WorkflowVersionResource" should "return versions in descending order from fetchSubsequentVersions and apply patches correctly" in {
-    var currentContent = "initial"
-    for (i <- 1 to 10) {
-      val newContent = s"version_$i"
-      val diffContent = createVersionDiff(currentContent, newContent)
-
-      val version = new WorkflowVersion
-      version.setWid(testWorkflow.getWid)
-      version.setContent(diffContent)
-      version.setCreationTime(
-        new Timestamp(System.currentTimeMillis() - TimeUnit.MINUTES.toMillis(10 - i))
-      )
-      workflowVersionDao.insert(version)
-
-      currentContent = newContent
-    }
-
-    testWorkflow.setContent(createWorkflowContent(currentContent))
+  it should "pin the result of the selected save and protect the author's history" in {
+    val workflows = new WorkflowResource
+    val author = session(owner)
+    val guest = session(stranger)
+    intercept[javax.ws.rs.BadRequestException](
+      resource.pinMacro(testWorkflowWid, "m", null, author)
+    ).getMessage should include("not a macro")
+    testWorkflow.setContent("""{"macroInterface":{"id":"m"},"operators":[]}""")
     workflowDao.update(testWorkflow)
-
-    val midVersionId = 5
-    val versions = WorkflowVersionResource.fetchSubsequentVersions(
-      testWorkflow.getWid,
-      midVersionId,
-      getDSLContext
-    )
-
-    assert(versions.nonEmpty, "No versions were returned")
-
-    for (i <- 0 until versions.length - 1) {
-      assert(
-        versions(i).getVid > versions(i + 1).getVid,
-        s"Versions not in descending order: ${versions(i).getVid} should be > ${versions(i + 1).getVid}"
-      )
+    intercept[javax.ws.rs.NotFoundException](
+      resource.pinMacro(testWorkflowWid, "m", null, author)
+    ).getMessage should include("no saved version")
+    def save(value: String): Unit = {
+      testWorkflow.setContent(s"""{"macroInterface":{"id":"m"},"operators":[],"value":"$value"}""")
+      workflows.persistWorkflow(testWorkflow, author)
     }
-
-    val highestVersionId = getDSLContext
-      .select(DSL.max(Tables.WORKFLOW_VERSION.VID))
-      .from(Tables.WORKFLOW_VERSION)
-      .where(Tables.WORKFLOW_VERSION.WID.eq(testWorkflowWid))
-      .fetchOneInto(classOf[Integer])
-
-    assert(versions.head.getVid === highestVersionId, "First version should have the highest VID")
-
-    capturedVersions.clear()
-    versions.foreach(v => capturedVersions.append(v.getVid))
-
-    val workflowFromDb = workflowDao.fetchOneByWid(testWorkflow.getWid)
-
-    val workflowVersionDirect = WorkflowVersionResource.applyPatch(versions, workflowFromDb)
-    val directVersionContent =
-      objectMapper.readTree(workflowVersionDirect.getContent).get("value").asText()
-
-    assert(
-      directVersionContent === s"version_$midVersionId",
-      s"Workflow content from direct applyPatch should be 'version_$midVersionId' but was '$directVersionContent'"
+    save("first")
+    save("second")
+    val ids = versionVids()
+    val summary = resource.macroSource(testWorkflowWid, "m", false, author)
+    summary.revisions shouldBe ids
+    summary.head shouldBe empty
+    summary.metadata.readonly shouldBe false
+    val older = resource.pinMacro(testWorkflowWid, "m", ids.head, author)
+    older.content.path("value").asText() shouldBe "first"
+    older.revision shouldBe 1
+    val latest = resource.pinMacro(testWorkflowWid, "m", null, author)
+    resource.macroSource(testWorkflowWid, "m", true, author).head shouldBe Some(latest)
+    latest.version shouldBe ids.last
+    latest.revision shouldBe 2
+    latest.content.path("value").asText() shouldBe "second"
+    intercept[javax.ws.rs.NotFoundException](resource.pinMacro(testWorkflowWid, "m", -1, author))
+    intercept[javax.ws.rs.BadRequestException](
+      resource.pinMacro(testWorkflowWid, "foreign", null, author)
     )
+    testWorkflow.setIsPublic(true)
+    testWorkflow.setPublishedContent(older.content.toString)
+    testWorkflow.setPublishedName("Public title")
+    testWorkflow.setPublishedDefaultView(DefaultViewEnum.CANVAS)
+    workflowDao.update(testWorkflow)
+    val visible = resource.macroSource(testWorkflowWid, "m", true, guest)
+    visible.metadata.name shouldBe "Public title"
+    visible.metadata.readonly shouldBe true
+    visible.revisions shouldBe empty
+    visible.head shouldBe empty
+    intercept[ForbiddenException](resource.pinMacro(testWorkflowWid, "m", ids.last, guest))
+    grantAccess(strangerUid, PrivilegeEnum.READ)
+    resource.pinMacro(testWorkflowWid, "m", ids.head, guest) shouldBe older
+    resource
+      .macroSource(testWorkflowWid, "m", false, guest)
+      .metadata
+      .name shouldBe testWorkflow.getName
+  }
 
-    val combinedVersions = WorkflowVersionResource.fetchSubsequentVersions(
-      testWorkflow.getWid,
-      midVersionId,
-      getDSLContext
+  it should "list only granted workflows and their reachable pinned macro occurrences" in {
+    val workflows = new WorkflowResource
+    val author = session(owner)
+    val guest = session(stranger)
+    val inner =
+      """{"name":"Inner","id":"i","version":3,"content":{"macroInterface":{"id":"i"},"operators":[]}}"""
+    val child =
+      """{"operatorID":"child","operatorType":"WorkflowMacro:i:3","customDisplayName":"Renamed"}"""
+    val outer =
+      s"""{"name":"Outer","id":"o","version":2,"content":{"macroInterface":{"id":"o"},"operators":[$child]}}"""
+    val occurrence = """{"operatorID":"selected","operatorType":"WorkflowMacro:o:2"}"""
+    val unused = inner.replace("\"i\"", "\"unused\"")
+    testWorkflow.setContent(
+      s"""{"macroInterface":{"id":"root"},"operators":[$occurrence,$child],"macroDependencies":[$inner,$outer,$unused]}"""
     )
-    val currentWorkflowForCombined = workflowDao.fetchOneByWid(testWorkflow.getWid)
-    val workflowVersion =
-      WorkflowVersionResource.applyPatch(combinedVersions, currentWorkflowForCombined)
-
-    assert(capturedVersions.nonEmpty, "No versions were captured")
-    assert(
-      capturedVersions.length === versions.length,
-      "Captured versions length doesn't match fetched versions"
+    workflows.persistWorkflow(testWorkflow, author)
+    val catalog = workflows.macroCatalog(author)
+    catalog.errors shouldBe empty
+    catalog.definitions.map(_.id) should contain only "root"
+    catalog.usages.map(u => u.id -> u.path).toSet shouldBe Set(
+      "o" -> List("selected"),
+      "i" -> List("selected", "child"),
+      "i" -> List("child")
     )
+    catalog.usages
+      .find(_.path.size == 2)
+      .get
+      .label shouldBe s"${testWorkflow.getName} / Outer / Renamed"
+    workflows.macroCatalog(guest).usages shouldBe empty
+    grantAccess(strangerUid, PrivilegeEnum.READ)
+    workflows.macroCatalog(guest) shouldBe catalog
+    testWorkflow.setContent(s"""{"operators":[$occurrence]}""")
+    workflowDao.update(testWorkflow)
+    workflows.macroCatalog(guest).errors.head should include("Missing referenced macro definition")
+  }
 
-    for (i <- versions.indices) {
-      assert(
-        capturedVersions(i) === versions(i).getVid,
-        s"Captured version ${capturedVersions(i)} doesn't match fetched version ${versions(i).getVid} at index $i"
-      )
+  "WorkflowVersionResource" should "return versions in descending order from fetchSubsequentVersions and apply patches correctly" in {
+    val values = "initial" +: (1 to 10).map(i => s"version_$i")
+    values.sliding(2).zipWithIndex.foreach {
+      case (pair, index) =>
+        seedVersion(createVersionDiff(pair.head, pair.last), 10 - index)
     }
-
-    val midVersionContent = objectMapper.readTree(workflowVersion.getContent).get("value").asText()
-    assert(
-      midVersionContent === s"version_$midVersionId",
-      s"Workflow content should be 'version_$midVersionId' but was '$midVersionContent'"
-    )
+    testWorkflow.setContent(createWorkflowContent(values.last))
+    workflowDao.update(testWorkflow)
+    val ids = versionVids()
+    val fifth = ids(4)
+    val versions =
+      WorkflowVersionResource.fetchSubsequentVersions(testWorkflowWid, fifth, getDSLContext)
+    versions.map(_.getVid) shouldBe ids.drop(4).reverse
+    val restored =
+      WorkflowVersionResource.applyPatch(versions, workflowDao.fetchOneByWid(testWorkflowWid))
+    objectMapper.readTree(restored.getContent).path("value").asText() shouldBe "version_5"
+    resource
+      .retrieveWorkflowVersion(testWorkflowWid, fifth, session(owner))
+      .getContent shouldBe restored.getContent
   }
 
   it should "reconstruct an older content by applying a stored delta (applyPatch, no DB)" in {
@@ -433,59 +375,23 @@ class WorkflowVersionResourceSpec
     }
   }
 
-  "cloneVersion" should "create a new workflow from an existing version" in {
-    // cloneVersion re-ids operators, so the version must reconstruct to a real
-    // workflow document; an empty delta keeps the workflow's own content.
-    val workflowContent =
-      """{"operators":[{"operatorID":"CSVFileScan-operator-a","operatorType":"CSVFileScan"}],"links":[]}"""
-    testWorkflow.setContent(workflowContent)
-    workflowDao.update(testWorkflow)
-    val version = WorkflowVersionResource.insertNewVersion(testWorkflowWid, "[]")
-
-    val newWid = resource.cloneVersion(
-      version.getVid,
-      session(owner),
-      Map("displayedVersionId" -> 1).asJava
-    )
-
-    newWid should not be null
-    newWid should not be Integer.valueOf(testWorkflowWid)
-    val cloned = workflowDao.fetchOneByWid(newWid)
-    cloned should not be null
-    cloned.getName should include("_copy")
-  }
-
-  it should "inherit the source workflow's default view" in {
-    val workflowContent =
-      """{"operators":[{"operatorID":"CSVFileScan-operator-a","operatorType":"CSVFileScan"}],"links":[]}"""
-    testWorkflow.setContent(workflowContent)
-    testWorkflow.setDefaultView(DefaultViewEnum.FORM)
-    workflowDao.update(testWorkflow)
-    val version = WorkflowVersionResource.insertNewVersion(testWorkflowWid, "[]")
-
-    val newWid = resource.cloneVersion(
-      version.getVid,
-      session(owner),
-      Map("displayedVersionId" -> 1).asJava
-    )
-
-    workflowDao.fetchOneByWid(newWid).getDefaultView shouldBe DefaultViewEnum.FORM
-  }
-
-  it should "leave the clone defaulting to canvas when the source does" in {
-    val workflowContent =
-      """{"operators":[{"operatorID":"CSVFileScan-operator-a","operatorType":"CSVFileScan"}],"links":[]}"""
-    testWorkflow.setContent(workflowContent)
-    workflowDao.update(testWorkflow)
-    val version = WorkflowVersionResource.insertNewVersion(testWorkflowWid, "[]")
-
-    val newWid = resource.cloneVersion(
-      version.getVid,
-      session(owner),
-      Map("displayedVersionId" -> 1).asJava
-    )
-
-    workflowDao.fetchOneByWid(newWid).getDefaultView shouldBe DefaultViewEnum.CANVAS
+  for (view <- List(DefaultViewEnum.CANVAS, DefaultViewEnum.FORM)) {
+    "cloneVersion" should s"create an independent workflow with the source's $view default" in {
+      testWorkflow.setContent(
+        """{"operators":[{"operatorID":"source","operatorType":"CSVFileScan"}],"links":[]}"""
+      )
+      if (view == DefaultViewEnum.FORM) testWorkflow.setDefaultView(view)
+      workflowDao.update(testWorkflow)
+      val saved = WorkflowVersionResource.insertNewVersion(testWorkflowWid, "[]")
+      val wid =
+        resource.cloneVersion(saved.getVid, session(owner), Map("displayedVersionId" -> 1).asJava)
+      wid should not be null
+      wid should not be testWorkflow.getWid
+      val cloned = workflowDao.fetchOneByWid(wid)
+      cloned should not be null
+      cloned.getName should include("_copy")
+      cloned.getDefaultView shouldBe view
+    }
   }
 
   // ─── version-importance helpers (pure JSON/timestamp logic) ────────────────

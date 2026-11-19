@@ -60,23 +60,12 @@ object ExecutionUtils {
       aggregatePortMetrics(filteredMetrics)
     }
 
-    val inputMetricsSum = sumMetrics(_.operatorStatistics.inputMetrics)
-    val outputMetricsSum = sumMetrics(_.operatorStatistics.outputMetrics)
-
-    val numWorkersSum = metrics.map(_.operatorStatistics.numWorkers).sum
-    val dataProcessingTimeSum = metrics.map(_.operatorStatistics.dataProcessingTime).sum
-    val controlProcessingTimeSum = metrics.map(_.operatorStatistics.controlProcessingTime).sum
-    val idleTimeSum = metrics.map(_.operatorStatistics.idleTime).sum
-
     OperatorMetrics(
       aggregatedState,
-      OperatorStatistics(
-        inputMetricsSum,
-        outputMetricsSum,
-        numWorkersSum,
-        dataProcessingTimeSum,
-        controlProcessingTimeSum,
-        idleTimeSum
+      aggregateStatistics(
+        metrics,
+        sumMetrics(_.operatorStatistics.inputMetrics),
+        sumMetrics(_.operatorStatistics.outputMetrics)
       ),
       // Fully-reused semantics: partial reuse is possible (HashJoin's build and
       // probe sit in different regions), and a partially reused operator reports
@@ -87,6 +76,21 @@ object ExecutionUtils {
       reusedFromCache = metrics.forall(_.reusedFromCache)
     )
   }
+
+  /** Sum worker costs once per operator; callers supply the ports visible at their boundary. */
+  def aggregateStatistics(
+      metrics: Iterable[OperatorMetrics],
+      inputs: Seq[PortTupleMetricsMapping],
+      outputs: Seq[PortTupleMetricsMapping]
+  ): OperatorStatistics =
+    OperatorStatistics(
+      inputs,
+      outputs,
+      metrics.iterator.map(_.operatorStatistics.numWorkers).sum,
+      metrics.iterator.map(_.operatorStatistics.dataProcessingTime).sum,
+      metrics.iterator.map(_.operatorStatistics.controlProcessingTime).sum,
+      metrics.iterator.map(_.operatorStatistics.idleTime).sum
+    )
 
   def aggregateStates[T](
       states: Iterable[T],

@@ -17,6 +17,8 @@
  * under the License.
  */
 
+import { ComputingUnitStatusService } from "../../../../common/service/computing-unit/computing-unit-status/computing-unit-status.service";
+import { MockComputingUnitStatusService } from "../../../../common/service/computing-unit/computing-unit-status/mock-computing-unit-status.service";
 import { ComponentFixture, TestBed } from "@angular/core/testing";
 import { By } from "@angular/platform-browser";
 import { HttpClientTestingModule } from "@angular/common/http/testing";
@@ -60,6 +62,7 @@ describe("TypecastingDisplayComponent", () => {
         WorkflowActionService,
         WorkflowCompilingService,
         ...commonTestProviders,
+        { provide: ComputingUnitStatusService, useClass: MockComputingUnitStatusService },
       ],
     }).compileComponents();
   });

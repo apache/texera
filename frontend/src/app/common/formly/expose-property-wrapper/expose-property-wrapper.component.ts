@@ -22,8 +22,7 @@ import { FieldWrapper, FormlyFieldConfig } from "@ngx-formly/core";
 import { merge } from "lodash-es";
 
 /**
- * A tick box beside an operator property, in the property editor, for an author to choose
- * whether it appears on the Form View. Rendered only while choosing.
+ * A tick box beside an operator property for an author to choose whether it appears on the Form View.
  */
 @Component({
   selector: "texera-expose-property-wrapper",
@@ -31,12 +30,20 @@ import { merge } from "lodash-es";
   styleUrls: ["./expose-property-wrapper.component.scss"],
 })
 export class ExposePropertyWrapperComponent extends FieldWrapper {
+  public get exposureLabel(): string {
+    const label = this.props.label || "this property";
+    return `Show ${label} on the Form View`;
+  }
   /** Add this wrapper to a field, carrying state + callback in `props`; `form-field` stays
    *  outermost so label/error rendering is untouched. */
-  public static decorate(config: FormlyFieldConfig, exposed: boolean, toggle: (checked: boolean) => void): void {
+  public static decorate(
+    config: FormlyFieldConfig,
+    isExposed: () => boolean,
+    toggle: (checked: boolean) => void
+  ): void {
     merge(config, {
       wrappers: [...(config.wrappers ?? ["form-field"]), "expose-property-wrapper"],
-      props: { ...config.props, exposed, toggleExposed: toggle },
+      props: { ...config.props, isExposed, toggleExposed: toggle },
     });
   }
 

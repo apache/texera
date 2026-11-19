@@ -20,7 +20,10 @@
 package org.apache.texera.web.service
 
 import io.reactivex.rxjava3.disposables.Disposable
-import org.apache.pekko.actor.ActorSystem
+import org.apache.pekko.actor.{ActorSystem, Props}
+import org.apache.texera.amber.clustering.SingleNodeListener
+import org.apache.texera.amber.engine.e2e.TestUtils
+import org.apache.texera.common.compiler.{CompilationErrorHandling, WorkflowCompiler}
 import org.apache.pekko.testkit.TestKit
 import org.apache.texera.amber.core.storage.model.VirtualDocument
 import org.apache.texera.amber.core.storage.{DocumentFactory, VFSURIFactory}
@@ -53,8 +56,13 @@ import org.apache.texera.amber.engine.common.executionruntimestate.{
   OperatorMetrics,
   OperatorStatistics
 }
+import org.apache.texera.common.compiler.{MacroExpansion, MacroTestUtils}
+import org.apache.texera.amber.util.JSONUtils.objectMapper
 import org.apache.texera.dao.MockTexeraDB
-import org.apache.texera.dao.jooq.generated.Tables.WORKFLOW_EXECUTIONS
+import org.apache.texera.auth.SessionUser
+import org.apache.texera.web.resource.dashboard.user.workflow.WorkflowExecutionsResource
+import org.apache.texera.dao.jooq.generated.enums.PrivilegeEnum
+import org.apache.texera.dao.jooq.generated.Tables.{WORKFLOW_USER_ACCESS, WORKFLOW_EXECUTIONS}
 import org.apache.texera.dao.jooq.generated.tables.daos.{
   UserDao,
   WorkflowDao,
@@ -87,12 +95,8 @@ import scala.collection.mutable.ListBuffer
 import scala.reflect.ClassTag
 
 /**
-  * The service class was entirely uncovered. It owns two independent outputs: the websocket
-  * diff handlers that tell the frontend what each operator is doing, and the runtime-statistics
-  * iceberg table that the dashboard replays after the execution is over.
-  *
-  * Everything here runs against an empty-plan AmberClient, so no engine is involved: the test
-  * fires the client events straight into the callbacks the service registered.
+  * The callback tests inject Amber events. The nested macro regression runs real workers and
+  * compares their websocket statistics with the execution history reopened from Iceberg.
   *
   * Two things about the ids below are deliberate. They must not collide with the
   * runtime-statistics URI of any other suite, because the constructor's `createDocument`
@@ -137,6 +141,13 @@ class ExecutionStatsServiceSpec
     workflow.setCreationTime(new Timestamp(System.currentTimeMillis()))
     workflow.setLastModifiedTime(new Timestamp(System.currentTimeMillis()))
     new WorkflowDao(getDSLContext.configuration()).insert(workflow)
+
+    getDSLContext
+      .insertInto(WORKFLOW_USER_ACCESS)
+      .set(WORKFLOW_USER_ACCESS.WID, testWid)
+      .set(WORKFLOW_USER_ACCESS.UID, testUid)
+      .set(WORKFLOW_USER_ACCESS.PRIVILEGE, PrivilegeEnum.READ)
+      .execute()
 
     val version = new WorkflowVersion
     version.setWid(testWid)
@@ -351,6 +362,181 @@ class ExecutionStatsServiceSpec
     }
   }
 
+  private val instancePaths = List(
+    List("left"),
+    List("right"),
+    List("wrapper", "child"),
+    List("another-wrapper", "child"),
+    List("deep", "middle", "child")
+  )
+  private def repeatedWorkflow = {
+    import MacroTestUtils._
+    val ports = List("accepted", "rejected")
+    def usage(id: String, definition: String) = instance(id, definition, List("in"), ports)
+    def body(id: String, child: com.fasterxml.jackson.databind.node.ObjectNode) =
+      forwardingBody(id, child, List("in" -> "in"), ports.map(port => port -> port))
+    val levels = List("inner", "outer", "top")
+    val nodes = instancePaths.zipWithIndex.flatMap {
+      case (path, index) =>
+        val source = textSource(s"src-${path.head}", (1 to (index + 1) * 10).mkString("\n"))
+        List(source, usage(path.head, levels(path.size - 1)))
+    }
+    val wires = instancePaths
+      .map(_.head)
+      .map(id => link(s"wire-$id", end(s"src-$id", "output-0"), end(id, "in")))
+    val split = operator("split", "Split", List("in"), ports, json("random" -> false, "k" -> 60))
+    pinned(
+      graph(nodes, wires),
+      definition("inner", "Inner", body("inner", split)),
+      definition("outer", "Outer", body("outer", usage("child", "inner"))),
+      definition("top", "Top", body("top", usage("middle", "outer")))
+    )
+  }
+
+  it should "stream and reopen the port counts emitted by real split workers for every occurrence" in {
+    val root = repeatedWorkflow
+    val snapshot = root.toString
+    val plan = MacroTestUtils.macroPlan(root, instancePaths.map(_.head))
+    val ctx = new WorkflowContext(
+      workflowId = WorkflowIdentity(testWid.toLong),
+      executionId = ExecutionIdentity(testEid.toLong)
+    )
+    val compiled = new WorkflowCompiler(ctx).compile(plan, CompilationErrorHandling.Strict)
+    val workflow = org.apache.texera.amber.engine.architecture.coordinator.Workflow
+      .fromCompilationResult(ctx, compiled)
+    val store = new ExecutionStateStore
+    system.actorOf(Props[SingleNodeListener](), "cluster-info")
+    val batches = recordBatches(store.statsStore) {
+      TestUtils.runWorkflowAndReadResults(
+        system,
+        workflow,
+        Nil,
+        _.get().size,
+        configureClient =
+          client => new ExecutionStatsService(client, store, ctx, plan.macroExpansion)
+      )
+    }
+    val live = statisticsEvents(batches.flatten)
+    val rows = persistedRows()
+    val expansion = plan.macroExpansion.get
+    rows.map(_.getField[String]("operatorId")).toSet shouldBe expansion.paths.keySet
+    ExecutionStatsService.restore(expansion, rows.reverseIterator) shouldBe live
+    getDSLContext
+      .update(WORKFLOW_EXECUTIONS)
+      .set(WORKFLOW_EXECUTIONS.MACRO_CONTENT, snapshot)
+      .where(WORKFLOW_EXECUTIONS.EID.eq(testEid))
+      .execute()
+    val user = new SessionUser(new UserDao(getDSLContext.configuration()).fetchOneByUid(testUid))
+    val endpoint = new WorkflowExecutionsResource
+    endpoint.canvasStatistics(testWid, testEid, user).getEntity shouldBe live
+    val reopened = MacroExpansion.expand(endpoint.macroContent(testWid, testEid, user))
+    reopened.inspectors shouldBe expansion.inspectors
+    endpoint
+      .retrieveWorkflowRuntimeStatistics(testWid, testEid, user)
+      .map(_.operatorId)
+      .toSet shouldBe expansion.paths.keySet
+    val denied = new User
+    denied.setUid(-1)
+    intercept[javax.ws.rs.WebApplicationException](
+      endpoint.canvasStatistics(testWid, testEid, new SessionUser(denied))
+    ).getResponse.getStatus shouldBe 401
+    instancePaths.zipWithIndex.foreach {
+      case (path, index) =>
+        val expected = (index + 1) * 10L
+        val ids = reopened.inspectors(objectMapper.writeValueAsString(path)).ids
+        val parent = reopened.inspectors(objectMapper.writeValueAsString(path.init))
+        val usage = live(parent.ids(path.last))
+        val split = live(ids("split"))
+        val inputs = live(ids("inner__inputs"))
+        val outputs = live(ids("inner__outputs"))
+        usage shouldBe split
+        live(path.head) shouldBe usage
+        usage.inputPortMetrics shouldBe Map("0" -> expected)
+        usage.outputPortMetrics.keySet shouldBe Set("0", "1")
+        usage.outputPortMetrics.values.sum shouldBe expected
+        all(usage.outputPortMetrics.values) should be > 0L
+        inputs.outputPortMetrics shouldBe usage.inputPortMetrics
+        outputs.inputPortMetrics shouldBe usage.outputPortMetrics
+        outputs.inputPortSizes shouldBe usage.outputPortSizes
+        outputs.numWorkers shouldBe 0
+    }
+    root.toString shouldBe snapshot
+  }
+
+  it should "count broadcasts once, keep partial state, and give passthroughs no workers" in {
+    import MacroTestUtils._
+    val a = operator("a", "Split", List("in"), List("hidden", "out"))
+    val b = changed(a, "operatorID" -> "b")
+    val off = changed(a, "operatorID" -> "off", "isDisabled" -> true)
+    val branches = List("a", "b", "off")
+    val fan = macroGraph(
+      "fan",
+      List(a, b, off),
+      branches.map(id => link(s"to-$id", end("fan__inputs", "in"), end(id, "in"))) ++
+        branches.map(id => link(s"from-$id", end(id, "out"), end("fan__outputs", id))),
+      List("in"),
+      branches
+    )
+    val identity = macroGraph(
+      "pass",
+      Nil,
+      List(link("through", end("pass__inputs", "in"), end("pass__outputs", "out"))),
+      List("in"),
+      List("out")
+    )
+    val snapshot = changed(
+      graph(
+        List(
+          textSource("src", "x"),
+          operator("identity", "WorkflowMacro:pass:1", List("in"), List("out")),
+          operator("fork", "WorkflowMacro:fan:1", List("in"), branches)
+        ),
+        List(
+          link("source", end("src", "output-0"), end("identity", "in")),
+          link("fork-in", end("identity", "out"), end("fork", "in"))
+        )
+      ),
+      "macroDependencies" -> List(
+        definition("pass", "Pass", identity),
+        definition("fan", "Fan", fan)
+      )
+    )
+    val exp = Some(MacroExpansion.expand(snapshot))
+    val first = MacroExpansion.operatorID(List("fork"), "a")
+    val second = MacroExpansion.operatorID(List("fork"), "b")
+    val completed =
+      metrics(COMPLETED, Seq((0, 8, 80)), Seq((0, 5, 50), (1, 3, 30)), dataProcessingTime = 100)
+        .withReusedFromCache(true)
+    val partial = Map("src" -> metrics(COMPLETED, outputs = Seq((0, 3, 30))), first -> completed)
+    def project(reports: Map[String, OperatorMetrics]) =
+      ExecutionStatsService.canvasStatistics(exp, reports)
+    project(Map.empty) shouldBe empty
+    project(partial.updated(second, completed))("fork").reusedFromCache shouldBe true
+    val one = project(partial)
+    one("identity").aggregatedOutputRowCount shouldBe 3
+    one("identity").numWorkers shouldBe 0
+    one("identity").aggregatedDataProcessingTime shouldBe 0
+    one("fork").operatorState shouldBe "Uninitialized"
+    one("fork").reusedFromCache shouldBe false
+    val report =
+      metrics(COMPLETED, Seq((0, 7, 70)), Seq((0, 7, 70), (1, 0, 0)), dataProcessingTime = 20)
+    val fork = project(partial.updated(second, report))("fork")
+    fork.inputPortMetrics shouldBe Map("0" -> 8)
+    fork.inputPortSizes shouldBe Map("0" -> 80)
+    fork.outputPortSizes shouldBe Map("0" -> 30, "1" -> 0, "2" -> 0)
+    fork.outputPortMetrics shouldBe Map("0" -> 3, "1" -> 0, "2" -> 0)
+    fork.numWorkers shouldBe 2
+    fork.aggregatedDataProcessingTime shouldBe 120
+    fork.operatorState shouldBe "Completed"
+    fork.reusedFromCache shouldBe false
+    List(PAUSED, PAUSING, RESUMING, RUNNING, READY).foreach { state =>
+      project(partial.updated(second, report.withOperatorState(state)))(
+        "fork"
+      ).operatorState shouldBe
+        org.apache.texera.amber.engine.common.Utils.aggregatedStateToString(state)
+    }
+  }
+
   it should "publish nothing when the reported metrics repeat" in {
     // The frontend redraws the whole statistics panel per event, so re-announcing identical
     // numbers is pure churn on every heartbeat of a long-running execution.
@@ -504,6 +690,10 @@ class ExecutionStatsServiceSpec
       .execute()
 
     withService { _ =>
+      val user = new SessionUser(new UserDao(getDSLContext.configuration()).fetchOneByUid(testUid))
+      new WorkflowExecutionsResource()
+        .canvasStatistics(testWid, testEid, user)
+        .getStatus shouldBe 204
       getDSLContext
         .select(WORKFLOW_EXECUTIONS.RUNTIME_STATS_URI)
         .from(WORKFLOW_EXECUTIONS)
@@ -531,11 +721,9 @@ class ExecutionStatsServiceSpec
           Map("opA" -> metrics(RUNNING, inputs = Seq((0, 1L, 10L))), "opB" -> opBFinal)
         )
       )
-      awaitPersist(f.service)
       // opB is gone from the second report, as happens once an operator completes and stops
       // being polled.
       f.client.fire(RuntimeStatisticsPersist(Map("opA" -> metrics(COMPLETED))))
-      awaitPersist(f.service)
       f.client.fire(ExecutionStateUpdate(COMPLETED))
 
       val rows = persistedRows()

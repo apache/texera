@@ -60,7 +60,7 @@ object LogicalPlan {
   def apply(
       pojo: LogicalPlanPojo
   ): LogicalPlan = {
-    LogicalPlan(pojo.operators, pojo.links)
+    LogicalPlan(pojo.normalized.operators, pojo.normalized.links)
   }
 }
 

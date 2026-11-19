@@ -148,6 +148,12 @@ routes.push({
         {
           path: "workflow/:id",
           component: WorkspaceComponent,
+          canDeactivate: [(component: WorkspaceComponent) => component.canLeave()],
+        },
+        {
+          path: "macros/:id",
+          component: WorkspaceComponent,
+          canDeactivate: [(component: WorkspaceComponent) => component.canLeave()],
         },
         {
           path: "dataset",

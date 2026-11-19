@@ -96,7 +96,7 @@ export class VersionsListComponent implements OnInit {
     const elements = this.workflowActionService.getJointGraphWrapper().getCurrentHighlights();
     this.workflowActionService.getJointGraphWrapper().unhighlightElements(elements);
     // gets the versions result and updates the workflow versions table displayed on the form
-    const wid = this.route.snapshot.params.id;
+    const wid = this.workflowActionService.getWorkflowMetadata().wid || this.route.snapshot.params.id;
     if (wid === undefined) {
       return;
     }
@@ -115,10 +115,13 @@ export class VersionsListComponent implements OnInit {
   }
 
   getVersion(vid: number, displayedVersionId: number, index: number) {
+    if (!this.workflowVersionService.canPreviewVersion) return;
     this.selectedRowIndex = index;
 
+    // Macro pins identify the result of a save; history patches undo that save inclusively.
+    const savedVersion = this.workflowActionService.getMacroInterface() ? vid + 1 : vid;
     this.workflowVersionService
-      .retrieveWorkflowByVersion(<number>this.workflowActionService.getWorkflowMetadata()?.wid, vid)
+      .retrieveWorkflowByVersion(<number>this.workflowActionService.getWorkflowMetadata()?.wid, savedVersion)
       .pipe(untilDestroyed(this))
       .subscribe(workflow => {
         this.workflowVersionService.displayParticularVersion(workflow, vid, displayedVersionId);

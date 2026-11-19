@@ -16,18 +16,16 @@
  * specific language governing permissions and limitations
  * under the License.
  */
+import { testPort, testMacro, setMacroGraph } from "../../../common/testing/macro-graph";
 
 import { WorkflowActionService } from "../../service/workflow-graph/model/workflow-action.service";
 import { HeatmapView } from "../../service/heatmap/heatmap-scoring";
 import { UndoRedoService } from "../../service/undo-redo/undo-redo.service";
 import { DragDropService } from "../../service/drag-drop/drag-drop.service";
-import { WorkflowUtilService } from "../../service/workflow-graph/util/workflow-util.service";
 import { ComponentFixture, fakeAsync, TestBed, tick } from "@angular/core/testing";
 import { ValidationWorkflowService } from "../../service/validation/validation-workflow.service";
 import { WorkflowEditorComponent } from "./workflow-editor.component";
-import { workflowEditorTestImports, workflowEditorTestProviders } from "./workflow-editor.test-utils";
-import { OperatorMetadataService } from "../../service/operator-metadata/operator-metadata.service";
-import { StubOperatorMetadataService } from "../../service/operator-metadata/stub-operator-metadata.service";
+import { configureWorkflowEditor } from "./workflow-editor.test-utils";
 import {
   JointUIService,
   operatorAgentActionProgressClass,
@@ -35,8 +33,7 @@ import {
   operatorStateClass,
 } from "../../service/joint-ui/joint-ui.service";
 import { AgentService, OperatorResultSummary } from "../../service/agent/agent.service";
-import { NzModalModule, NzModalService } from "ng-zorro-antd/modal";
-import { Overlay } from "@angular/cdk/overlay";
+import { NzModalService } from "ng-zorro-antd/modal";
 import * as joint from "jointjs";
 import { marbles } from "rxjs-marbles";
 import {
@@ -52,24 +49,20 @@ import {
 import { WorkflowStatusService } from "../../service/workflow-status/workflow-status.service";
 import { ExecutionState, OperatorState } from "../../types/execute-workflow.interface";
 import { ExecuteWorkflowService } from "../../service/execute-workflow/execute-workflow.service";
-import { HttpClientTestingModule } from "@angular/common/http/testing";
 import { OperatorLink, OperatorPredicate } from "../../types/workflow-common.interface";
 import { tap } from "rxjs/operators";
 import { WorkflowVersionService } from "../../../dashboard/service/user/workflow-version/workflow-version.service";
 import { config as rxjsConfig, of, Subject } from "rxjs";
-import { NzContextMenuService, NzDropDownModule, NzDropdownMenuComponent } from "ng-zorro-antd/dropdown";
+import { NzDropdownMenuComponent } from "ng-zorro-antd/dropdown";
 import { By } from "@angular/platform-browser";
 import { ActivatedRoute, Router } from "@angular/router";
-import { RouterTestingModule } from "@angular/router/testing";
 import { ContextMenuComponent } from "./context-menu/context-menu/context-menu.component";
-import { ComputingUnitStatusService } from "../../../common/service/computing-unit/computing-unit-status/computing-unit-status.service";
-import { MockComputingUnitStatusService } from "../../../common/service/computing-unit/computing-unit-status/mock-computing-unit-status.service";
-import { commonTestProviders } from "../../../common/testing/test-utils";
 import { OperatorMenuService } from "../../service/operator-menu/operator-menu.service";
 import { GuiConfigService } from "src/app/common/service/gui-config.service";
 import { MockGuiConfigService } from "src/app/common/service/gui-config.service.mock";
 import { macroInstance } from "../../../common/util/workflow-macro";
 import { MacroService } from "../../service/macro/macro.service";
+import { WorkflowWebsocketService } from "../../service/workflow-websocket/workflow-websocket.service";
 
 describe("WorkflowEditorComponent", () => {
   /**
@@ -82,36 +75,7 @@ describe("WorkflowEditorComponent", () => {
     let fixture: ComponentFixture<WorkflowEditorComponent>;
     let jointGraph: joint.dia.Graph;
 
-    beforeEach(async () => {
-      await TestBed.configureTestingModule({
-        imports: [
-          RouterTestingModule,
-          HttpClientTestingModule,
-          NzModalModule,
-          NzDropDownModule,
-          WorkflowEditorComponent,
-          ContextMenuComponent,
-        ],
-        providers: [
-          JointUIService,
-          WorkflowUtilService,
-          UndoRedoService,
-          DragDropService,
-          ValidationWorkflowService,
-          WorkflowActionService,
-          NzContextMenuService,
-          Overlay,
-          {
-            provide: OperatorMetadataService,
-            useClass: StubOperatorMetadataService,
-          },
-          { provide: ComputingUnitStatusService, useClass: MockComputingUnitStatusService },
-          WorkflowStatusService,
-          ExecuteWorkflowService,
-          ...commonTestProviders,
-        ],
-      }).compileComponents();
-    });
+    beforeEach(configureWorkflowEditor);
 
     beforeEach(() => {
       fixture = TestBed.createComponent(WorkflowEditorComponent);
@@ -419,12 +383,7 @@ describe("WorkflowEditorComponent", () => {
     let undoRedoService: UndoRedoService;
     let workflowVersionService: WorkflowVersionService;
 
-    beforeEach(async () => {
-      await TestBed.configureTestingModule({
-        imports: workflowEditorTestImports,
-        providers: workflowEditorTestProviders,
-      }).compileComponents();
-    });
+    beforeEach(configureWorkflowEditor);
 
     beforeEach(() => {
       fixture = TestBed.createComponent(WorkflowEditorComponent);
@@ -440,34 +399,17 @@ describe("WorkflowEditorComponent", () => {
       fixture.detectChanges();
     });
 
-    it("opens the selected pinned instance without an Operators panel and guards its runtime context", async () => {
+    it("requests canvas navigation for the selected pinned instance without an Operators panel", async () => {
       const actions = TestBed.inject(WorkflowActionService);
-      const definition = {
-        id: "macro",
-        version: 1,
+      const definition = testMacro("macro", [mockSentimentPredicate], {
+        inputs: [testPort("input-0", mockSentimentPredicate.operatorID)],
+        outputs: [testPort("output-0", mockSentimentPredicate.operatorID)],
         name: "Macro",
-        content: {
-          ...actions.getWorkflowContent(),
-          operators: [mockSentimentPredicate],
-          macroInterface: {
-            id: "macro",
-            inputs: [
-              { portID: "input-0", targets: [{ operatorID: mockSentimentPredicate.operatorID, portID: "input-0" }] },
-            ],
-            outputs: [
-              { portID: "output-0", targets: [{ operatorID: mockSentimentPredicate.operatorID, portID: "output-0" }] },
-            ],
-          },
-        },
-      };
+      });
       actions.setMacroDependencies([definition]);
       actions.addOperator(macroInstance(definition, "instance"), mockPoint);
-      let current = actions.getWorkflowContent(),
-        wid = 1;
-      vi.spyOn(actions, "getWorkflowMetadata").mockImplementation(() => ({ wid }) as any);
-      vi.spyOn(actions, "getWorkflowContent").mockImplementation(() => current);
-      vi.spyOn(TestBed.inject(MacroService), "refresh").mockReturnValue(new Promise(() => {}));
-      const create = vi.spyOn((component as any).nzModalService, "create").mockReturnValue({});
+      const inspect = vi.spyOn(TestBed.inject(MacroService).inspect$, "next");
+      const create = vi.spyOn((component as any).nzModalService, "create");
       component.paper.trigger(
         "cell:pointerdblclick",
         { model: component.paper.getModelById("instance") },
@@ -475,18 +417,8 @@ describe("WorkflowEditorComponent", () => {
       );
       await Promise.resolve();
       await Promise.resolve();
-      expect(create).toHaveBeenCalledOnce();
-      const data = (create.mock.calls[0][0] as any).nzData;
-      expect(data.definition).toEqual(definition);
-      expect(data.runtime.operatorID).toBe("instance");
-      expect(data.runtime.getExpansion()).toBeDefined();
-      wid = 2;
-      expect(data.runtime.getExpansion()).toBeUndefined();
-      wid = 1;
-      current = { ...current, operators: [{ ...current.operators[0], operatorType: "WorkflowMacro:macro:2" }] };
-      expect(data.runtime.getExpansion()).toBeUndefined();
-      current = { ...current, operators: [] };
-      expect(data.runtime.getExpansion()).toBeUndefined();
+      expect(inspect).toHaveBeenCalledWith("instance");
+      expect(create).not.toHaveBeenCalled();
     });
 
     it("should react to operator highlight event and change the appearance of the operator to be highlighted", () => {
@@ -830,6 +762,18 @@ describe("WorkflowEditorComponent", () => {
       // assert that all operators are highlighted
       expect(jointGraphWrapper.getCurrentHighlightedOperatorIDs()).toContain(mockScanPredicate.operatorID);
       expect(jointGraphWrapper.getCurrentHighlightedOperatorIDs()).toContain(mockResultPredicate.operatorID);
+    });
+
+    it("does not replay a completed keyboard action when the history context changes", () => {
+      const modes = new Subject<boolean>();
+      vi.spyOn(workflowVersionService, "getDisplayParticularVersionStream").mockReturnValue(modes);
+      vi.spyOn(undoRedoService, "canUndo").mockReturnValue(true);
+      const undo = vi.spyOn(undoRedoService, "undoAction").mockImplementation(() => {});
+      (component as any)._handleKeyboardAction({ ctrlKey: true, key: "z" });
+      modes.next(false);
+      modes.next(true);
+      modes.next(false);
+      expect(undo).toHaveBeenCalledOnce();
     });
 
     //undo
@@ -1235,6 +1179,25 @@ describe("WorkflowEditorComponent", () => {
         expect(navigateSpy).toHaveBeenLastCalledWith([], expect.objectContaining({ fragment: undefined }));
       });
 
+      it("does not cancel an outgoing route when restoring a macro changes the selection", () => {
+        const router = TestBed.inject(Router);
+        const navigate = vi.spyOn(router, "navigate").mockResolvedValue(true);
+        workflowActionService.addOperator(mockScanPredicate, mockPoint);
+        const wrapper = workflowActionService.getJointGraphWrapper();
+        wrapper.unhighlightOperators(...wrapper.getCurrentHighlightedOperatorIDs());
+        navigate.mockClear();
+        const pending = vi.spyOn(router, "getCurrentNavigation").mockReturnValue({} as any);
+        wrapper.highlightOperators(mockScanPredicate.operatorID);
+        wrapper.unhighlightOperators(mockScanPredicate.operatorID);
+        expect(navigate).not.toHaveBeenCalled();
+        pending.mockReturnValue(null);
+        wrapper.highlightOperators(mockScanPredicate.operatorID);
+        expect(navigate).toHaveBeenLastCalledWith(
+          [],
+          expect.objectContaining({ fragment: mockScanPredicate.operatorID })
+        );
+      });
+
       it("translates the paper toward the computed center on a center event", () => {
         workflowActionService.addOperator(mockScanPredicate, mockPoint);
         const translateSpy = vi.spyOn(component.paper, "translate");
@@ -1584,32 +1547,7 @@ describe("WorkflowEditorComponent link breakpoints", () => {
   let workflowActionService: WorkflowActionService;
 
   beforeEach(async () => {
-    TestBed.resetTestingModule();
-    await TestBed.configureTestingModule({
-      imports: [
-        RouterTestingModule,
-        HttpClientTestingModule,
-        NzModalModule,
-        NzDropDownModule,
-        WorkflowEditorComponent,
-        ContextMenuComponent,
-      ],
-      providers: [
-        JointUIService,
-        WorkflowUtilService,
-        UndoRedoService,
-        DragDropService,
-        ValidationWorkflowService,
-        WorkflowActionService,
-        NzContextMenuService,
-        Overlay,
-        { provide: OperatorMetadataService, useClass: StubOperatorMetadataService },
-        { provide: ComputingUnitStatusService, useClass: MockComputingUnitStatusService },
-        WorkflowStatusService,
-        ExecuteWorkflowService,
-        ...commonTestProviders,
-      ],
-    }).compileComponents();
+    await configureWorkflowEditor();
 
     // Both halves of the guard at workflow-editor.component.ts:202 must be satisfied, and both must
     // be set before the first detectChanges: ngAfterViewInit reads them once, when it decides
@@ -1654,6 +1592,21 @@ describe("WorkflowEditorComponent link breakpoints", () => {
     // The tool exists but stays out of sight until the cursor hovers the link or a breakpoint is
     // set; a visible one would put a button on every link on the canvas.
     expect(view._toolsView.tools[0].isVisible()).toBe(false);
+  });
+
+  it("offers only removal on interface wires, which are not executable links", () => {
+    workflowActionService.addOperator(mockSentimentPredicate, mockPoint);
+    setMacroGraph(workflowActionService, {
+      id: "macro",
+      inputs: [testPort("rows", mockSentimentPredicate.operatorID, "input-0")],
+      outputs: [],
+    });
+    const link = component.paper.model.getLinks()[0],
+      view = link.findView(component.paper) as any;
+    expect(view.hasTools()).toBe(false);
+    component.paper.trigger("link:mouseenter", view, new MouseEvent("mouseenter"));
+    expect(view._toolsView.tools).toHaveLength(1);
+    expect(view._toolsView.tools[0].el.getAttribute("data-tool-name")).toBe("remove-button");
   });
 
   it("highlights the link whose breakpoint button was clicked", () => {
@@ -1713,11 +1666,7 @@ describe("WorkflowEditorComponent editor wiring", () => {
   let agentService: AgentService;
 
   beforeEach(async () => {
-    TestBed.resetTestingModule();
-    await TestBed.configureTestingModule({
-      imports: workflowEditorTestImports,
-      providers: workflowEditorTestProviders,
-    }).compileComponents();
+    await configureWorkflowEditor();
 
     // ngAfterViewInit reads both of these once, so they have to be set before the first
     // detectChanges: the flag decides whether the breakpoint tool is ever attached, and
@@ -1856,14 +1805,17 @@ describe("WorkflowEditorComponent editor wiring", () => {
       workflowActionService.addOperator(mockScanPredicate, mockPoint);
       workflowActionService.addOperator(mockResultPredicate, mockPoint);
       const changeStatistics = vi.spyOn(jointUIService, "changeOperatorStatistics");
+      const resetStatistics = vi.spyOn(jointUIService, "resetOperatorStatistics");
 
       (workflowStatusService as any).statisticsSubject.next({
         [mockScanPredicate.operatorID]: emptyStatistics,
       });
 
       expect(changeStatistics).toHaveBeenCalledWith(component.paper, mockScanPredicate.operatorID, emptyStatistics);
-      // an operator missing from the payload is forwarded as undefined (a no-op render)
-      expect(changeStatistics).toHaveBeenCalledWith(component.paper, mockResultPredicate.operatorID, undefined);
+      expect(resetStatistics).toHaveBeenCalledWith(
+        component.paper,
+        expect.objectContaining({ operatorID: mockResultPredicate.operatorID })
+      );
     });
 
     it("paints each operator's reported state, defaulting missing ones to Uninitialized", () => {
@@ -1971,6 +1923,75 @@ describe("WorkflowEditorComponent editor wiring", () => {
   });
 
   describe("region overlays", () => {
+    it.each(["inputs", "outputs"] as const)(
+      "extends a region to %s only when all its ports continue that region",
+      direction => {
+        addRegions([[1, ["visible"]]]);
+        (component.paper.getModelById("visible") as joint.dia.Element).position(direction === "inputs" ? 300 : 0, 100);
+        setMacroGraph(workflowActionService, {
+          id: "boundary",
+          inputs: [],
+          outputs: [],
+          [direction]: [
+            { portID: "one", targets: [] },
+            { portID: "two", targets: [] },
+          ],
+        });
+        const operator = workflowActionService
+          .getTexeraGraph()
+          .getAllOperators()
+          .find(op => op.operatorType === (direction === "inputs" ? "MacroInput" : "MacroOutput"))!;
+        const terminal = component.paper.getModelById(operator.operatorID) as joint.dia.Element;
+        terminal.position(direction === "inputs" ? 0 : 300, 0);
+        const emit = (ports: string[]) =>
+          (executeWorkflowService as any).regionUpdateStream.next({
+            regions: [[1, ["visible"]]],
+            terminals: { 1: ports.map(portID => ({ direction, portID })) },
+          });
+        const bounds = () => new joint.g.Path(component.paper.getModelById("region-1").attr("body/d")).bbox()!;
+        const outerEdge = (rect: joint.g.Rect) => (direction === "inputs" ? -rect.x : rect.x + rect.width);
+        emit(["one", "two"]);
+        expect(outerEdge(bounds())).toBeGreaterThan(outerEdge(terminal.getBBox()));
+        emit(["one"]);
+        expect(outerEdge(bounds())).toBeLessThan(outerEdge(terminal.getBBox()));
+        const before = outerEdge(bounds());
+        terminal.translate(direction === "inputs" ? -100 : 100, 0);
+        expect(outerEdge(bounds())).toBeGreaterThan(before);
+        emit([]);
+        expect(outerEdge(bounds())).toBeLessThan(outerEdge(terminal.getBBox()) - 100);
+      }
+    );
+
+    it("ignores a late phase update after execution regions were cleared", fakeAsync(() => {
+      addRegions([[1, ["visible"]]]);
+      executeWorkflowService.resetExecutionState();
+      (TestBed.inject(WorkflowWebsocketService).websocketEvent() as Subject<unknown>).next({
+        type: "RegionStateEvent",
+        id: 1,
+        state: "Completed",
+      });
+      tick();
+      expect(component.paper.getModelById("region-1")).toBeUndefined();
+    }));
+
+    it("restores region geometry and phase colors when Canvas remounts after Form View", () => {
+      workflowActionService.getJointGraphWrapper().setRegionsDisplayed(true);
+      addRegions([[1, ["visible"]]]);
+      (TestBed.inject(WorkflowWebsocketService).websocketEvent() as Subject<unknown>).next({
+        type: "RegionStateEvent",
+        id: 1,
+        state: "Completed",
+      });
+      fixture.destroy();
+      fixture = TestBed.createComponent(WorkflowEditorComponent);
+      component = fixture.componentInstance;
+      fixture.detectChanges();
+      const region = component.paper.getModelById("region-1");
+      expect(region.attr("body/d")).toBeTruthy();
+      expect(region.attr("body/fill")).toBe("rgba(76,175,80,0.2)");
+      expect(region.attr("body/visibility")).toBe("visible");
+    });
+
     it("handles generated operators absent from the canvas and empty regions", fakeAsync(() => {
       addRegions([[1, ["visible"]]]);
       (executeWorkflowService as any).regionUpdateStream.next({

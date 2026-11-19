@@ -26,7 +26,12 @@ import {
 import { WorkflowWebsocketService } from "../workflow-websocket/workflow-websocket.service";
 import { firstValueFrom, of, Subject } from "rxjs";
 import { SchemaAttribute } from "../../types/workflow-compiling.interface";
-import { WebDataUpdate, WebPaginationUpdate } from "../../types/execute-workflow.interface";
+import {
+  WebDataUpdate,
+  WebPaginationUpdate,
+  WebResultUpdate,
+  WorkflowResultTableStats,
+} from "../../types/execute-workflow.interface";
 import { PaginatedResultEvent } from "../../types/workflow-websocket.interface";
 import { commonTestProviders } from "../../../common/testing/test-utils";
 import type { Mocked } from "vitest";
@@ -48,13 +53,19 @@ function snapshotUpdate(table: ReadonlyArray<object>): WebDataUpdate {
 }
 
 describe("WorkflowResultService", () => {
-  let service: WorkflowResultService;
+  let service: WorkflowResultService, ws: WorkflowWebsocketService;
+
+  const sendResults = (
+    updates: Record<string, WebResultUpdate | undefined>,
+    tableStats: WorkflowResultTableStats = {}
+  ) => pushWsEvent(ws, { type: "WebResultUpdateEvent", updates, tableStats });
 
   beforeEach(() => {
     TestBed.configureTestingModule({
       providers: [WorkflowResultService, ...commonTestProviders],
     });
     service = TestBed.inject(WorkflowResultService);
+    ws = TestBed.inject(WorkflowWebsocketService);
   });
 
   it("should be created", () => {
@@ -62,8 +73,7 @@ describe("WorkflowResultService", () => {
   });
 
   it("clearResults() drops cached operator results", () => {
-    (service as any).operatorResultServices.set("op1", {});
-    (service as any).paginatedResultServices.set("op2", {});
+    sendResults({ op1: snapshotUpdate([]), op2: paginationUpdate(0) });
     expect(service.hasAnyResult("op1")).toBe(true);
     expect(service.hasAnyResult("op2")).toBe(true);
 
@@ -89,7 +99,6 @@ describe("WorkflowResultService", () => {
   });
 
   it("routes pagination updates to a paginated service and data updates to a result service", () => {
-    const ws = TestBed.inject(WorkflowWebsocketService);
     const updateEvents: Record<string, unknown>[] = [];
     // Sampled from INSIDE the subscriber so the emit point is pinned, not just the payload:
     // consumers (visualization-frame-content) read the operator's result service back out of this
@@ -101,7 +110,7 @@ describe("WorkflowResultService", () => {
     });
 
     const updates = { pagOp: paginationUpdate(42, [2]), dataOp: snapshotUpdate([{ a: 1 }]) };
-    pushWsEvent(ws, { type: "WebResultUpdateEvent", updates, tableStats: {} });
+    sendResults(updates);
 
     expect(routedAtEmit).toEqual([true, true]);
     expect(service.hasPaginatedResult("pagOp")).toBe(true);
@@ -116,16 +125,11 @@ describe("WorkflowResultService", () => {
   });
 
   it("hasNonEmptyResult tells an empty result apart from one with rows", () => {
-    const ws = TestBed.inject(WorkflowWebsocketService);
-    pushWsEvent(ws, {
-      type: "WebResultUpdateEvent",
-      updates: {
-        emptyPag: paginationUpdate(0),
-        fullPag: paginationUpdate(5),
-        emptySnap: snapshotUpdate([]),
-        fullSnap: snapshotUpdate([{ a: 1 }]),
-      },
-      tableStats: {},
+    sendResults({
+      emptyPag: paginationUpdate(0),
+      fullPag: paginationUpdate(5),
+      emptySnap: snapshotUpdate([]),
+      fullSnap: snapshotUpdate([{ a: 1 }]),
     });
 
     // A service exists for the empty step (hasAnyResult), but it holds nothing.
@@ -138,28 +142,19 @@ describe("WorkflowResultService", () => {
   });
 
   it("announces newly-created operators on the result-initiate stream", () => {
-    const ws = TestBed.inject(WorkflowWebsocketService);
     const initiated: string[] = [];
     service.getResultInitiateStream().subscribe(op => initiated.push(op));
 
-    pushWsEvent(ws, {
-      type: "WebResultUpdateEvent",
-      updates: { pagOp: paginationUpdate(1), dataOp: snapshotUpdate([]) },
-      tableStats: {},
-    });
+    sendResults({ pagOp: paginationUpdate(1), dataOp: snapshotUpdate([]) });
 
     expect(initiated).toEqual(["pagOp", "dataOp"]);
   });
 
   it("resolves a macro result to the existing leaf service and forwards boundary updates", () => {
-    service.setMacroAliases(() => ({ macro: "leaf" }));
+    service.setMacroAliases(() => ({ macro: { operatorID: "leaf", portIndex: 0 } }));
     const updates: Record<string, unknown>[] = [];
     service.getResultUpdateStream().subscribe(update => updates.push(update));
-    pushWsEvent(TestBed.inject(WorkflowWebsocketService), {
-      type: "WebResultUpdateEvent",
-      updates: { leaf: snapshotUpdate([{ a: 1 }]) },
-      tableStats: {},
-    });
+    sendResults({ leaf: snapshotUpdate([{ a: 1 }]) });
     expect(service.getResultService("macro")).toBe(service.getResultService("leaf"));
     expect(service.hasNonEmptyResult("macro")).toBe(true);
     expect(updates[0]["macro"]).toBe(updates[0]["leaf"]);
@@ -167,8 +162,60 @@ describe("WorkflowResultService", () => {
     expect(service.hasAnyResult("macro")).toBe(false);
   });
 
+  it("keeps replayed results when the execution identity arrives after them", () => {
+    const send = vi.spyOn(ws, "send").mockImplementation(() => {});
+    sendResults({ op: paginationUpdate(3) });
+    pushWsEvent(ws, { type: "WorkflowStateEvent", state: "Completed", executionId: 23 });
+    expect(service.hasNonEmptyResult("op")).toBe(true);
+    service.getPaginatedResultService("op")!.selectPage(1, 10);
+    expect(send.mock.calls.at(-1)?.[1]).toMatchObject({ operatorID: "op", executionId: 23 });
+  });
+
+  it("pages the exact output of the reported execution and discards its cache on the next run", () => {
+    const send = vi.spyOn(ws, "send").mockImplementation(() => {});
+    service.setMacroAliases(() => ({ macro: { operatorID: "split", portIndex: 1 } }));
+    pushWsEvent(ws, { type: "WorkflowStateEvent", state: "Running", executionId: 23 });
+    const updates: Record<string, unknown>[] = [];
+    service.getResultUpdateStream().subscribe(update => updates.push(update));
+    const stats: Record<string, unknown>[] = [];
+    service.getResultTableStats().subscribe(([, current]) => stats.push(current));
+    sendResults({ split: paginationUpdate(0) }, { split: { firstColumn: { min: 1 } } });
+    expect(updates.at(-1)).not.toHaveProperty("macro");
+    expect(stats.at(-1)).not.toHaveProperty("macro");
+    const selected = service.getPaginatedResultService("macro")!;
+    const request = send.mock.calls.at(-1)![1] as { requestID: string };
+    expect(request).toMatchObject({ operatorID: "split", portIndex: 1, executionId: 23 });
+    pushWsEvent(ws, {
+      type: "PaginatedResultEvent",
+      requestID: request.requestID,
+      operatorID: "split",
+      portIndex: 1,
+      pageIndex: 1,
+      totalTuples: 7,
+      table: [],
+      schema: [],
+    });
+    expect(service.hasNonEmptyResult("macro")).toBe(true);
+    expect(service.hasNonEmptyResult("split")).toBe(false);
+    expect(updates.at(-1)).toEqual({ macro: paginationUpdate(7) });
+    pushWsEvent(ws, { type: "WorkflowStateEvent", state: "Running", executionId: 24 });
+    expect(service.getPaginatedResultService("macro")).toBeUndefined();
+    expect(selected.getCurrentTotalNumTuples()).toBe(7);
+  });
+
+  it("hides results and updates when the visible macro draft does not match the executed revision", () => {
+    sendResults({ leaf: snapshotUpdate([{ a: 1 }]) });
+    service.setMacroAliases(() => ({ leaf: null }));
+    expect(service.hasAnyResult("leaf")).toBe(false);
+    const updates: Record<string, unknown>[] = [];
+    service.getResultUpdateStream().subscribe(update => updates.push(update));
+    sendResults({ leaf: snapshotUpdate([{ a: 2 }]) });
+    expect(updates.at(-1)).toEqual({});
+    service.setMacroAliases(() => ({}));
+    expect(service.getResultService("leaf")?.getCurrentResultSnapshot()).toEqual([{ a: 2 }]);
+  });
+
   it("creates no result service for a cleared operator entry but still forwards the update record", () => {
-    const ws = TestBed.inject(WorkflowWebsocketService);
     const updateEvents: Record<string, unknown>[] = [];
     service.getResultUpdateStream().subscribe(u => updateEvents.push(u));
     const initiated: string[] = [];
@@ -177,7 +224,7 @@ describe("WorkflowResultService", () => {
     // An undefined entry means the operator's result was cleared: it is neither a pagination
     // nor a data update, so no service of either kind may be created for it.
     const updates = { clearedOp: undefined };
-    pushWsEvent(ws, { type: "WebResultUpdateEvent", updates, tableStats: {} });
+    sendResults(updates);
 
     expect(service.hasResult("clearedOp")).toBe(false);
     expect(service.hasPaginatedResult("clearedOp")).toBe(false);
@@ -189,15 +236,14 @@ describe("WorkflowResultService", () => {
   });
 
   it("reuses the existing result service for a second data update and announces the operator only once", () => {
-    const ws = TestBed.inject(WorkflowWebsocketService);
     const initiated: string[] = [];
     service.getResultInitiateStream().subscribe(op => initiated.push(op));
 
-    pushWsEvent(ws, { type: "WebResultUpdateEvent", updates: { op: snapshotUpdate([{ a: 1 }]) }, tableStats: {} });
+    sendResults({ op: snapshotUpdate([{ a: 1 }]) });
     const firstService = service.getResultService("op");
     expect(firstService).toBeDefined();
 
-    pushWsEvent(ws, { type: "WebResultUpdateEvent", updates: { op: snapshotUpdate([{ b: 2 }]) }, tableStats: {} });
+    sendResults({ op: snapshotUpdate([{ b: 2 }]) });
 
     // the SAME instance is reused for the second update -- this identity check carries the whole
     // reuse claim on its own
@@ -210,21 +256,16 @@ describe("WorkflowResultService", () => {
   });
 
   it("reuses the existing paginated service for a second pagination update and announces it only once", () => {
-    const ws = TestBed.inject(WorkflowWebsocketService);
     const initiated: string[] = [];
     service.getResultInitiateStream().subscribe(op => initiated.push(op));
 
     // tableStats also names pagOp, so handleTableStatsUpdate reaches the same get-or-init path in
     // the same frame; neither that nor the second frame may re-announce the operator.
-    pushWsEvent(ws, {
-      type: "WebResultUpdateEvent",
-      updates: { pagOp: paginationUpdate(3) },
-      tableStats: { pagOp: { colA: { count: 1 } } },
-    });
+    sendResults({ pagOp: paginationUpdate(3) }, { pagOp: { colA: { count: 1 } } });
     const firstService = service.getPaginatedResultService("pagOp");
     expect(firstService).toBeDefined();
 
-    pushWsEvent(ws, { type: "WebResultUpdateEvent", updates: { pagOp: paginationUpdate(9) }, tableStats: {} });
+    sendResults({ pagOp: paginationUpdate(9) });
 
     expect(service.getPaginatedResultService("pagOp")).toBe(firstService);
     expect(service.getPaginatedResultService("pagOp")!.getCurrentTotalNumTuples()).toBe(9);
@@ -232,39 +273,32 @@ describe("WorkflowResultService", () => {
   });
 
   it("feeds table stats to the matching paginated service and republishes the snapshot", () => {
-    const ws = TestBed.inject(WorkflowWebsocketService);
     const statsPairs: [unknown, unknown][] = [];
     service.getResultTableStats().subscribe(p => statsPairs.push(p));
 
     const tableStats = { pagOp: { colA: { count: 5 } } };
-    pushWsEvent(ws, { type: "WebResultUpdateEvent", updates: { pagOp: paginationUpdate(3) }, tableStats });
+    sendResults({ pagOp: paginationUpdate(3) }, tableStats);
 
     expect(service.getPaginatedResultService("pagOp")!.getStats()).toEqual({ colA: { count: 5 } });
     expect(statsPairs[statsPairs.length - 1][1]).toEqual(tableStats);
   });
 
   it("switches an operator from data output to paginated output and clears the stale service", () => {
-    const ws = TestBed.inject(WorkflowWebsocketService);
-    pushWsEvent(ws, { type: "WebResultUpdateEvent", updates: { op: snapshotUpdate([{ a: 1 }]) }, tableStats: {} });
+    sendResults({ op: snapshotUpdate([{ a: 1 }]) });
     expect(service.hasResult("op")).toBe(true);
     expect(service.hasPaginatedResult("op")).toBe(false);
 
-    pushWsEvent(ws, { type: "WebResultUpdateEvent", updates: { op: paginationUpdate(9) }, tableStats: {} });
+    sendResults({ op: paginationUpdate(9) });
     expect(service.hasPaginatedResult("op")).toBe(true);
     expect(service.hasResult("op")).toBe(false);
 
-    pushWsEvent(ws, { type: "WebResultUpdateEvent", updates: { op: snapshotUpdate([{ b: 2 }]) }, tableStats: {} });
+    sendResults({ op: snapshotUpdate([{ b: 2 }]) });
     expect(service.hasResult("op")).toBe(true);
     expect(service.hasPaginatedResult("op")).toBe(false);
   });
 
   it("determineOutputTypes distinguishes binary from non-binary paginated output", () => {
-    const ws = TestBed.inject(WorkflowWebsocketService);
-    pushWsEvent(ws, {
-      type: "WebResultUpdateEvent",
-      updates: { binOp: paginationUpdate(1), tblOp: paginationUpdate(1) },
-      tableStats: {},
-    });
+    sendResults({ binOp: paginationUpdate(1), tblOp: paginationUpdate(1) });
     (service.getPaginatedResultService("binOp") as any).schema = [{ attributeName: "b", attributeType: "binary" }];
     (service.getPaginatedResultService("tblOp") as any).schema = [{ attributeName: "s", attributeType: "string" }];
 
@@ -283,8 +317,7 @@ describe("WorkflowResultService", () => {
   });
 
   it("determineOutputTypes marks a data-only operator as visualization output", () => {
-    const ws = TestBed.inject(WorkflowWebsocketService);
-    pushWsEvent(ws, { type: "WebResultUpdateEvent", updates: { vizOp: snapshotUpdate([{ a: 1 }]) }, tableStats: {} });
+    sendResults({ vizOp: snapshotUpdate([{ a: 1 }]) });
 
     expect(service.determineOutputTypes("vizOp")).toEqual({
       hasAnyResult: true,
@@ -308,14 +341,12 @@ describe("WorkflowResultService", () => {
   });
 
   it("determineOutputExtension returns html for visualization output", () => {
-    const ws = TestBed.inject(WorkflowWebsocketService);
-    pushWsEvent(ws, { type: "WebResultUpdateEvent", updates: { vizOp: snapshotUpdate([{ a: 1 }]) }, tableStats: {} });
+    sendResults({ vizOp: snapshotUpdate([{ a: 1 }]) });
     expect(service.determineOutputExtension("vizOp", "csv")).toBe("html");
   });
 
   it("determineOutputExtension keeps csv for table output and passes other extensions through", () => {
-    const ws = TestBed.inject(WorkflowWebsocketService);
-    pushWsEvent(ws, { type: "WebResultUpdateEvent", updates: { tblOp: paginationUpdate(1) }, tableStats: {} });
+    sendResults({ tblOp: paginationUpdate(1) });
 
     expect(service.determineOutputExtension("tblOp", "csv")).toBe("csv");
     expect(service.determineOutputExtension("tblOp", "json")).toBe("json");
@@ -327,13 +358,14 @@ describe("WorkflowResultService", () => {
 describe("OperatorPaginationResultService", () => {
   let service: OperatorPaginationResultService;
   let mockWorkflowWebsocketService: Mocked<WorkflowWebsocketService>;
+  let eventSubject: Subject<PaginatedResultEvent>;
 
   beforeEach(() => {
+    eventSubject = new Subject<PaginatedResultEvent>();
     mockWorkflowWebsocketService = {
-      subscribeToEvent: vi.fn(),
+      subscribeToEvent: vi.fn().mockReturnValue(eventSubject.asObservable()),
       send: vi.fn(),
     } as unknown as Mocked<WorkflowWebsocketService>;
-    mockWorkflowWebsocketService.subscribeToEvent.mockReturnValue(new Subject());
 
     service = new OperatorPaginationResultService("testOperator", mockWorkflowWebsocketService);
   });
@@ -351,63 +383,48 @@ describe("OperatorPaginationResultService", () => {
   });
 
   describe("selectTuple", () => {
-    it("should return the correct tuple and schema", async () => {
-      const testSchema: SchemaAttribute[] = [
+    it.each([
+      { index: 1, rows: 3, expected: { id: 2, name: "Bob" } },
+      { index: 2, rows: 2, expected: undefined },
+    ])("reads tuple $index from a page with $rows rows", async ({ index, rows, expected }) => {
+      const schema: SchemaAttribute[] = [
         { attributeName: "id", attributeType: "integer" },
         { attributeName: "name", attributeType: "string" },
       ];
-      service["schema"] = testSchema;
-
-      const testTable = [
-        { id: 1, name: "Alice" },
-        { id: 2, name: "Bob" },
-        { id: 3, name: "Charlie" },
-      ];
-
-      vi.spyOn(service, "selectPage").mockReturnValue(
-        of({
-          requestID: "test",
-          operatorID: "testOperator",
-          pageIndex: 1,
-          table: testTable,
-          schema: testSchema,
-        })
-      );
-
-      const result = await firstValueFrom(service.selectTuple(1, 3));
-      expect(result.tuple).toEqual({ id: 2, name: "Bob" });
-      expect(result.schema).toEqual(testSchema);
-    });
-
-    it("should handle out-of-bounds tuple index", async () => {
-      const testSchema: SchemaAttribute[] = [
-        { attributeName: "id", attributeType: "integer" },
-        { attributeName: "name", attributeType: "string" },
-      ];
-      service["schema"] = testSchema;
-
-      const testTable = [
-        { id: 1, name: "Alice" },
-        { id: 2, name: "Bob" },
-      ];
-
-      vi.spyOn(service, "selectPage").mockReturnValue(
-        of({
-          requestID: "test",
-          operatorID: "testOperator",
-          pageIndex: 1,
-          table: testTable,
-          schema: testSchema,
-        })
-      );
-
-      const result = await firstValueFrom(service.selectTuple(2, 3));
-      expect(result.tuple).toBeUndefined();
-      expect(result.schema).toEqual(testSchema);
+      const table = ["Alice", "Bob", "Charlie"].slice(0, rows).map((name, i) => ({ id: i + 1, name }));
+      const result = firstValueFrom(service.selectTuple(index, 3));
+      const request = mockWorkflowWebsocketService.send.mock.calls[0][1] as { requestID: string };
+      eventSubject.next({
+        requestID: request.requestID,
+        operatorID: "testOperator",
+        portIndex: 0,
+        pageIndex: 1,
+        totalTuples: rows,
+        table,
+        schema,
+      });
+      expect(await result).toEqual({ tuple: expected, schema });
     });
   });
 
   describe("selectPage", () => {
+    it.each([undefined, Number.MAX_SAFE_INTEGER])("uses the backend's all-column default for %s", columnLimit => {
+      service.selectPage(1, 10, 0, columnLimit).subscribe();
+
+      const payload = mockWorkflowWebsocketService.send.mock.calls[0][1];
+      expect(JSON.parse(JSON.stringify(payload))).not.toHaveProperty("columnLimit");
+    });
+
+    it.each([0, 25])("preserves explicit column limit %s and bypasses the full-page cache", columnLimit => {
+      (service as any).resultCache.set(1, [{ id: 1 }]);
+      service.selectPage(1, 10, 0, columnLimit).subscribe();
+
+      expect(mockWorkflowWebsocketService.send).toHaveBeenCalledExactlyOnceWith(
+        "ResultPaginationRequest",
+        expect.objectContaining({ pageIndex: 1, pageSize: 10, columnOffset: 0, columnLimit })
+      );
+    });
+
     it("returns the cached page without contacting the server", () => {
       const cachedPage = [{ id: 1 }, { id: 2 }];
       (service as any).resultCache.set(2, cachedPage);
@@ -419,6 +436,8 @@ describe("OperatorPaginationResultService", () => {
       expect(mockWorkflowWebsocketService.send).not.toHaveBeenCalled();
       expect(result).toEqual({
         requestID: "",
+        portIndex: 0,
+        totalTuples: 0,
         operatorID: "testOperator",
         pageIndex: 2,
         table: cachedPage,
@@ -428,8 +447,6 @@ describe("OperatorPaginationResultService", () => {
     });
 
     it("fetches from the server and resolves once the matching page event arrives", () => {
-      const eventSubject = mockWorkflowWebsocketService.subscribeToEvent.mock.results[0]
-        .value as unknown as Subject<PaginatedResultEvent>;
       const received: PaginatedResultEvent[] = [];
       service.selectPage(3, 10).subscribe(e => received.push(e));
 
@@ -441,6 +458,8 @@ describe("OperatorPaginationResultService", () => {
 
       const requestID = (mockWorkflowWebsocketService.send.mock.calls[0][1] as any).requestID;
       const page: PaginatedResultEvent = {
+        portIndex: 0,
+        totalTuples: 1,
         requestID,
         operatorID: "testOperator",
         pageIndex: 3,
@@ -511,14 +530,20 @@ describe("OperatorPaginationResultService", () => {
   });
 
   describe("incoming page events", () => {
-    it("refreshes the schema but ignores events whose request id is unknown", () => {
-      const eventSubject = mockWorkflowWebsocketService.subscribeToEvent.mock.results[0]
-        .value as unknown as Subject<PaginatedResultEvent>;
+    it("keeps its schema when another port or operator receives a reply", () => {
       const schema: SchemaAttribute[] = [{ attributeName: "name", attributeType: "string" }];
 
-      eventSubject.next({ requestID: "no-such-request", operatorID: "testOperator", pageIndex: 1, table: [], schema });
+      eventSubject.next({
+        portIndex: 0,
+        totalTuples: 1,
+        requestID: "no-such-request",
+        operatorID: "testOperator",
+        pageIndex: 1,
+        table: [],
+        schema,
+      });
 
-      expect(service.getSchema()).toEqual(schema);
+      expect(service.getSchema()).toEqual([]);
     });
   });
 });

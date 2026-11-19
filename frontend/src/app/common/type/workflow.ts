@@ -19,7 +19,7 @@
 
 import { DefaultView, WorkflowMetadata } from "../../dashboard/type/workflow-metadata.interface";
 import { CommentBox, OperatorLink, OperatorPredicate, Point } from "../../workspace/types/workflow-common.interface";
-import type { MacroDefinition, MacroInterface } from "../util/workflow-macro";
+import type { MacroDefinition } from "../util/workflow-macro";
 
 export enum ExecutionMode {
   PIPELINED = "PIPELINED",
@@ -103,7 +103,7 @@ export interface WorkflowContent
      *  so it is saved/cloned/versioned/published with the workflow for free. */
     formBinding?: FormBindingConfig;
     /** A reusable definition; this graph runs only as part of a workflow. */
-    macroInterface?: MacroInterface;
+    macroInterface?: { id: string };
     /** Immutable, transitively bundled versions, keyed by definition id and version. */
     macroDependencies?: MacroDefinition[];
   }> {}

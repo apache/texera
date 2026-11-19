@@ -643,6 +643,31 @@ describe("sendMessage", () => {
     expect(res.error).toBeUndefined();
   });
 
+  test("uses authoritative macro boundary schemas and nested errors in the model's context", async () => {
+    const { macroWorkflow, macroExpansionResponse } = await import("./macro-test-data");
+    const content = macroWorkflow();
+    const before = JSON.stringify(content);
+    const model = textModel("ok", 1, 1);
+    const agent = makeAgentWith(model);
+    agent.getWorkflowState().setWorkflowContent(content);
+    fetchSpy.mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        macroExpansion: macroExpansionResponse(),
+        operatorOutputSchemas: { one: { "0_false": [{ attributeName: "boundary", attributeType: "integer" }] } },
+        operatorErrors: { one: { operatorId: "one", message: "Outer / Child / Scan: invalid column", type: "schema" } },
+      }),
+    } as any);
+
+    const result = await agent.sendMessage("inspect the macro");
+    const prompt = (model as any).doGenerateCalls[0].prompt[1].content[0].text;
+    expect(result.error).toBeUndefined();
+    expect(prompt).toContain("Output Schema: [boundary: integer]");
+    expect(prompt).toContain("Compilation Error: Outer / Child / Scan: invalid column");
+    expect(agent.getWorkflowState().getWorkflowContent()).toEqual(content);
+    expect(JSON.stringify(content)).toBe(before);
+  });
+
   test("reports a model failure as an error step", async () => {
     const model = new MockLanguageModelV4({
       doGenerate: async () => {

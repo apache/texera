@@ -30,7 +30,7 @@ import { UserService } from "../../../../common/service/user/user.service";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 import { NotificationService } from "../../../../common/service/notification/notification.service";
 import { ExecutionMode, ExportedWorkflow, WorkflowContent } from "../../../../common/type/workflow";
-import { expandMacros, isMacro } from "../../../../common/util/workflow-macro";
+import { isMacro, assertWorkflowIDs } from "../../../../common/util/workflow-macro";
 import { NzUploadFile, NzUploadComponent } from "ng-zorro-antd/upload";
 import JSZip from "jszip";
 import { FiltersComponent } from "../filters/filters.component";
@@ -102,6 +102,8 @@ import { FormsModule } from "@angular/forms";
  *
  *
  */
+import { MacroExpansionService } from "../../../../workspace/service/macro/macro-expansion.service";
+
 @UntilDestroy()
 @Component({
   selector: "texera-saved-workflow-section",
@@ -164,6 +166,7 @@ export class UserWorkflowComponent implements AfterViewInit, OnDestroy {
   lastSortMethod: SortMethod | null = null;
 
   constructor(
+    private macroExpansion: MacroExpansionService,
     private userService: UserService,
     private workflowPersistService: WorkflowPersistService,
     private notificationService: NotificationService,
@@ -637,8 +640,8 @@ export class UserWorkflowComponent implements AfterViewInit, OnDestroy {
     return new Observable<void>(observer => {
       let reader = new FileReader();
       reader.readAsText(file);
-      reader.onload = () => {
-        let validatingMacro = false;
+      reader.onload = async () => {
+        let validatingGraph = false;
         try {
           const result = reader.result;
           if (typeof result !== "string") {
@@ -647,15 +650,16 @@ export class UserWorkflowComponent implements AfterViewInit, OnDestroy {
           // The landing view rides as a sibling key next to the content (see exportedWorkflow);
           // pull it back out so it is stored on the workflow row, not inside content.
           const { defaultView, ...workflowContent } = JSON.parse(result) as ExportedWorkflow;
-          validatingMacro = !!(
+          validatingGraph = true;
+          assertWorkflowIDs(workflowContent);
+          if (
             workflowContent.macroInterface ||
             workflowContent.macroDependencies ||
             workflowContent.operators?.some(isMacro)
-          );
-          if (validatingMacro) {
-            expandMacros(workflowContent);
+          ) {
+            await this.macroExpansion.expand(workflowContent);
           }
-          validatingMacro = false;
+          validatingGraph = false;
           this.workflowPersistService
             .createWorkflow(workflowContent, this.deriveWorkflowName(name), defaultView)
             .pipe(untilDestroyed(this))
@@ -674,7 +678,7 @@ export class UserWorkflowComponent implements AfterViewInit, OnDestroy {
             });
         } catch (error) {
           this.notificationService.error(
-            validatingMacro && error instanceof Error
+            validatingGraph && error instanceof Error
               ? error.message
               : "An error occurred when importing the workflow. Please import a workflow json file."
           );

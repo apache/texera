@@ -82,6 +82,7 @@ describe("HeatmapStatsRestoreService", () => {
     savePersistedHeatmapView(HeatmapView.Runtime);
 
     executionsService = {
+      retrieveMacroStatistics: vi.fn(),
       retrieveWorkflowExecutions: vi.fn(() => of([makeExecution({})])),
       retrieveWorkflowRuntimeStatistics: vi.fn(() => of([makeStatsRow({})])),
     } as unknown as Mocked<WorkflowExecutionsService>;
@@ -118,15 +119,38 @@ describe("HeatmapStatsRestoreService", () => {
 
     expect(executionsService.retrieveWorkflowExecutions).toHaveBeenCalledWith(42);
     expect(executionsService.retrieveWorkflowRuntimeStatistics).toHaveBeenCalledWith(42, 1, 7);
-    expect(statusService.setExternalStatus).toHaveBeenCalledWith({
-      op1: expect.objectContaining({
+    expect(statusService.setExternalStatus).toHaveBeenCalledWith(
+      {
+        op1: expect.objectContaining({
+          operatorState: OperatorState.Completed,
+          aggregatedInputRowCount: 10,
+          aggregatedOutputRowCount: 5,
+          aggregatedDataProcessingTime: 1_000_000,
+          numWorkers: 2,
+        }),
+      },
+      1
+    );
+  });
+
+  it("reopens macro port counts with the heatmap off and falls back only for aggregate-only history", () => {
+    savePersistedHeatmapView(null);
+    const stats = {
+      inner: {
         operatorState: OperatorState.Completed,
-        aggregatedInputRowCount: 10,
-        aggregatedOutputRowCount: 5,
-        aggregatedDataProcessingTime: 1_000_000,
-        numWorkers: 2,
-      }),
-    });
+        aggregatedInputRowCount: 3,
+        aggregatedOutputRowCount: 3,
+        outputPortMetrics: { "0": 1, "1": 2 },
+        outputPortSizes: { "0": 4, "1": 9 },
+      },
+    };
+    executionsService.retrieveMacroStatistics.mockReturnValueOnce(of(stats)).mockReturnValueOnce(of(null));
+    service.restoreLatestRunStatistics(true).subscribe();
+    expect(executionsService.retrieveMacroStatistics).toHaveBeenCalledWith(42, 1, 7);
+    expect(statusService.setExternalStatus).toHaveBeenCalledWith(stats, 1);
+    expect(executionsService.retrieveWorkflowRuntimeStatistics).not.toHaveBeenCalled();
+    service.restoreLatestRunStatistics(true).subscribe();
+    expect(executionsService.retrieveWorkflowRuntimeStatistics).toHaveBeenCalledWith(42, 1, 7);
   });
 
   it("does nothing when the overlay is not persisted on", () => {

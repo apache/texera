@@ -707,8 +707,8 @@ class RegionExecutionManager(
 
   private def setPhase(phase: RegionExecutionPhase): Unit = {
     currentPhaseRef.set(phase)
-    SessionState.getAllSessionStates.foreach { state =>
-      state.send(RegionStateEvent(region.id.id, phase.toString))
+    region.physicalOps.headOption.foreach { op =>
+      SessionState.sendToWorkflow(op.workflowId, RegionStateEvent(region.id.id, phase.toString))
     }
   }
 

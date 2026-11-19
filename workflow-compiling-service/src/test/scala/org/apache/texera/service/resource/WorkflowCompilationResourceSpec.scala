@@ -19,10 +19,13 @@
 
 package org.apache.texera.service.resource
 
+import com.fasterxml.jackson.databind.JsonNode
 import com.fasterxml.jackson.databind.node.ObjectNode
 import io.dropwizard.testing.junit5.ResourceExtension
 import jakarta.ws.rs.client.Entity
 import jakarta.ws.rs.core.{MediaType, Response}
+import org.apache.texera.common.compiler.MacroTestUtils._
+import org.apache.texera.common.compiler.MacroExpansion
 import org.apache.texera.common.compiler.model.{LogicalLink, LogicalPlanPojo}
 import org.apache.texera.amber.core.workflow.PortIdentity
 import org.apache.texera.amber.operator.projection.{AttributeUnit, ProjectionOpDesc}
@@ -88,31 +91,154 @@ class WorkflowCompilationResourceSpec extends AnyFlatSpec with BeforeAndAfterAll
     objectMapper.writeValueAsString(jsonNode)
   }
 
+  private def postJson(path: String, body: String): Response =
+    resources.target(path).request(MediaType.APPLICATION_JSON).post(Entity.json(body))
+
   private def postCompile(pojo: LogicalPlanPojo): Response =
-    resources
-      .target("/compile")
-      .request(MediaType.APPLICATION_JSON)
-      .post(Entity.json(encodePojoAsFrontendJson(pojo)))
+    postJson("/compile", encodePojoAsFrontendJson(pojo))
+
+  private def postExpansion(content: String): Response = postJson("/compile/expand", content)
+
+  private def jsonBody(response: Response): JsonNode = {
+    assertThat(response.getStatus).isEqualTo(200)
+    objectMapper.readTree(response.readEntity(classOf[String]))
+  }
+
+  it should "compile a draft through HTTP without changing the executable pin" in {
+    val root = passthroughWorkflow
+    val before = root.deepCopy[JsonNode]()
+    val draft = objectAt(root, "/macroDependencies/0/content").deepCopy[ObjectNode]()
+    draft.withArray("links").removeAll()
+    val overrides = List(json("path" -> List("macro"), "content" -> draft))
+    val preview =
+      jsonBody(postJson("/compile/draft", json("content" -> root, "drafts" -> overrides).toString))
+    assertThat(preview.path("type").asText()).isEqualTo("failure")
+    assertThat(preview.at("/operatorErrors/macro/message").asText()).contains("Connect or remove")
+    val plan = objectMapper.readTree(encodePojoAsFrontendJson(macroPlan(root)))
+    val execution =
+      objectMapper.treeToValue(changed(plan, "drafts" -> overrides), classOf[LogicalPlanPojo])
+    assertThat(execution.macroExpansion.get.content)
+      .isEqualTo(MacroExpansion.expand(before).content)
+    assertThat(root).isEqualTo(before)
+  }
+
+  private def csvProjectionPlan: LogicalPlanPojo = {
+    val csv = csvOp(realCsvPath)
+    val projection = projectOp(List("Region", "Total Profit"))
+    val link = LogicalLink(
+      csv.operatorIdentifier,
+      PortIdentity(0),
+      projection.operatorIdentifier,
+      PortIdentity(0)
+    )
+    LogicalPlanPojo(List(csv, projection), List(link), Nil, Nil)
+  }
+
+  "POST /compile/expand" should "reject colliding canvas IDs with HTTP 400" in {
+    val response =
+      postExpansion("""{"operators":[{"operatorID":"same"}],"links":[{"linkID":"same"}]}""")
+    assertThat(response.getStatus).isEqualTo(400)
+    assertThat(response.readEntity(classOf[String])).contains("Duplicate graph element ID 'same'")
+  }
+
+  "POST /compile/validate-properties" should "validate a disabled nested instance with draft wiring and preserve pinned defaults" in {
+    // Both unconnected native and boundary ports are legitimate during property editing.
+    val udf = operator("python", "PythonUDFV2", List("in"), List("out"), json("code" -> "# 東京"))
+    val inner = macroGraph("inner", List(udf), inputs = List("rows"))
+    inner.set[JsonNode]("formBinding", formBinding(field("workers", "python", "workers")))
+    val nested = instance("nested", "inner", inputs = List("rows"))
+    val outer = macroGraph("outer", List(nested))
+    outer.set[JsonNode]("formBinding", formBinding(field("count", "nested", "workers")))
+    val edited = instance("selected", "outer").put("isDisabled", true)
+    val unused = macroGraph("unused", List(instance("broken", "missing")))
+    val deps = List(
+      definition("outer", "Outer", outer),
+      definition("inner", "Inner", inner),
+      definition("unused", "Unused", unused)
+    )
+    def post(op: JsonNode) =
+      postJson(
+        "/compile/validate-properties",
+        json("operator" -> op, "macroDependencies" -> deps).toString
+      )
+    val before = deps.map(_.toString)
+    assertThat(post(edited).getStatus).isEqualTo(204)
+    val properties = objectAt(edited, "/operatorProperties")
+    properties.put("count", 3)
+    assertThat(post(edited).getStatus).isEqualTo(204)
+    properties.put("count", "invalid")
+    val invalid = post(edited)
+    assertThat(invalid.getStatus).isEqualTo(400)
+    assertThat(invalid.readEntity(classOf[String]))
+      .contains("Outer / Inner / Python UDF", "workers")
+    properties.put("unknown", false)
+    assertThat(post(edited).readEntity(classOf[String]))
+      .contains("Outer", "Unknown macro property: unknown")
+    assertThat(post(instance("x", "missing")).readEntity(classOf[String]))
+      .contains("Missing macro version")
+    assertThat(post(json()).getStatus).isEqualTo(400)
+    assertThat(deps.map(_.toString)).isEqualTo(before)
+  }
+
+  "POST /compile" should "report duplicate native operator IDs through normal validation errors" in {
+    val csv = csvOp(realCsvPath)
+    csv.setOperatorId("same")
+    val response = postCompile(LogicalPlanPojo(List(csv, csv), Nil, Nil, Nil))
+    assertThat(response.getStatus).isEqualTo(200)
+    val body = response.readEntity(classOf[String])
+    assertThat(body).contains("Duplicate graph element ID 'same'")
+    assertThat(objectMapper.readTree(body).has("physicalPlan")).isFalse()
+  }
+
+  "POST /compile/expand" should "preserve an empty portable graph and reject malformed endpoints" in {
+    val body = jsonBody(postExpansion("""{"operators":[],"links":[]}"""))
+    assertThat(body.path("content").path("operators").size()).isEqualTo(0)
+    assertThat(body.path("paths").isObject).isTrue()
+    val invalid =
+      postExpansion("""{"operators":[],"links":[{"linkID":"bad","source":{},"target":{}}]}""")
+    assertThat(invalid.getStatus).isEqualTo(400)
+    assertThat(invalid.readEntity(classOf[String])).contains("Missing operator or port")
+  }
 
   "POST /compile" should "return HTTP 200 for a well-formed plan" in {
-    val csv = csvOp(realCsvPath)
-    val proj = projectOp(List("Region", "Total Profit"))
-    val response = postCompile(
-      LogicalPlanPojo(
-        operators = List(csv, proj),
-        links = List(
-          LogicalLink(
-            csv.operatorIdentifier,
-            PortIdentity(0),
-            proj.operatorIdentifier,
-            PortIdentity(0)
-          )
-        ),
-        opsToViewResult = List.empty,
-        opsToReuseResult = List.empty
-      )
-    )
+    val response = postCompile(csvProjectionPlan)
     assertThat(response.getStatus).isEqualTo(200)
+  }
+
+  it should "reject invalid nested properties at the root and compile valid pins without changing either snapshot" in {
+    def content(properties: String) = {
+      val text = operator(
+        "text",
+        "TextInput",
+        outputs = List("output-0"),
+        properties = objectMapper.readTree(properties)
+      )
+      val inner = definition("inner", "Inner", macroGraph("inner", List(text)))
+      val outer =
+        definition("outer", "Outer", macroGraph("outer", List(instance("nested", "inner"))))
+      pinned(graph(List(instance("root", "outer"))), outer, inner)
+    }
+    for (
+      (properties, error) <- List(
+        "{}" -> Some("textInput"),
+        """{"textInput":"hello","attributeName":null}""" -> Some("attributeName"),
+        """{"textInput":"hello"}""" -> None,
+        """{"textInput":"hello","attributeName":"line","attributeType":"string"}""" -> None
+      )
+    ) {
+      val pinned = content(properties)
+      val before = pinned.toString
+      val body = jsonBody(postCompile(macroPlan(pinned)))
+      assertThat(body.path("type").asText()).isEqualTo(if (error.isEmpty) "success" else "failure")
+      assertThat(body.path("macroExpansion").has("names")).isFalse()
+      error.foreach { property =>
+        assertThat(body.has("physicalPlan")).isFalse()
+        assertThat(body.path("operatorErrors").path("root").path("message").asText())
+          .contains("Outer / Inner / Text Input", property)
+        assertThat(body.path("operatorErrors").size()).isEqualTo(3)
+      }
+      assertThat(pinned.toString).isEqualTo(before)
+    }
   }
 
   it should "tag the response body with type=success so the frontend can route on the discriminator" in {
@@ -120,23 +246,7 @@ class WorkflowCompilationResourceSpec extends AnyFlatSpec with BeforeAndAfterAll
     // Both polymorphic deserialization (round-tripping through the trait) and
     // a raw-JSON `type == "success"` check need to hold so the Angular client
     // can branch without depending on Scala class names.
-    val csv = csvOp(realCsvPath)
-    val proj = projectOp(List("Region", "Total Profit"))
-    val response = postCompile(
-      LogicalPlanPojo(
-        operators = List(csv, proj),
-        links = List(
-          LogicalLink(
-            csv.operatorIdentifier,
-            PortIdentity(0),
-            proj.operatorIdentifier,
-            PortIdentity(0)
-          )
-        ),
-        opsToViewResult = List.empty,
-        opsToReuseResult = List.empty
-      )
-    )
+    val response = postCompile(csvProjectionPlan)
 
     val body = response.readEntity(classOf[String])
     val node = objectMapper.readTree(body)
@@ -172,4 +282,29 @@ class WorkflowCompilationResourceSpec extends AnyFlatSpec with BeforeAndAfterAll
     assertThat(rootNode.get("type").asText()).isEqualTo("failure")
     assertThat(rootNode.has("operatorErrors")).isTrue
   }
+  it should "return boundary schemas without executable terminal operators and reject disconnected boundaries" in {
+    val content = passthroughWorkflow
+    objectAt(content, "/operators/0/operatorProperties").put("attributeType", "integer")
+    val before = content.toString
+    val compiled = jsonBody(postCompile(macroPlan(content, List("macro"))))
+    assertThat(compiled.path("type").asText()).isEqualTo("success")
+    val schemas = compiled.path("operatorOutputSchemas")
+    assertThat(schemas.path("macro").path("0_false"))
+      .isEqualTo(schemas.path("source").path("0_false"))
+    assertThat(schemas.path("macro").path("0_false").get(0).path("attributeType").asText())
+      .isEqualTo("integer")
+    val expanded = compiled.path("macroExpansion")
+    assertThat(expanded.path("content").path("operators").size()).isEqualTo(2)
+    assertThat(expanded.path("paths").size()).isEqualTo(2)
+    val inputID = MacroExpansion.operatorID(List("macro"), "identity__inputs")
+    assertThat(schemas.path(inputID).path("0_false"))
+      .isEqualTo(schemas.path("source").path("0_false"))
+    assertThat(content.toString).isEqualTo(before)
+    objectAt(content, "/macroDependencies/0/content").putArray("links")
+    val failure = jsonBody(postCompile(macroPlan(content)))
+    assertThat(failure.path("type").asText()).isEqualTo("failure")
+    assertThat(failure.path("operatorErrors").path("macro").path("message").asText())
+      .contains("Connect or remove")
+  }
+
 }

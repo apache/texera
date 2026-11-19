@@ -19,18 +19,26 @@
 
 package org.apache.texera.service.resource
 
-import com.fasterxml.jackson.annotation.{JsonSubTypes, JsonTypeInfo}
+import com.fasterxml.jackson.annotation.{JsonInclude, JsonSubTypes, JsonTypeInfo}
+import com.fasterxml.jackson.databind.JsonNode
 import com.typesafe.scalalogging.LazyLogging
 import jakarta.annotation.security.RolesAllowed
-import jakarta.ws.rs.core.MediaType
-import jakarta.ws.rs.{Consumes, POST, Path, Produces}
-import org.apache.texera.common.compiler.{CompilationErrorHandling, WorkflowCompiler}
+import jakarta.ws.rs.core.{MediaType, Response}
+import jakarta.ws.rs.{BadRequestException, Consumes, POST, Path, Produces}
+import org.apache.texera.common.compiler.{
+  CompilationErrorHandling,
+  MacroExpansion,
+  MacroDraft,
+  WorkflowCompiler
+}
 import org.apache.texera.common.compiler.model.LogicalPlanPojo
 import org.apache.texera.amber.core.tuple.Attribute
 import org.apache.texera.amber.core.virtualidentity.WorkflowIdentity
 import org.apache.texera.amber.core.workflow.{PhysicalPlan, WorkflowContext}
 import org.apache.texera.amber.core.workflowruntimestate.WorkflowFatalError
 import org.apache.texera.amber.util.serde.PortIdentityKeySerializer
+
+case class MacroDraftRequest(content: JsonNode, drafts: List[MacroDraft])
 
 @JsonTypeInfo(
   use = JsonTypeInfo.Id.NAME,
@@ -46,19 +54,58 @@ import org.apache.texera.amber.util.serde.PortIdentityKeySerializer
 trait WorkflowCompilationResponse
 case class WorkflowCompilationSuccess(
     physicalPlan: PhysicalPlan,
-    operatorOutputSchemas: Map[String, Map[String, Option[List[Attribute]]]]
+    operatorOutputSchemas: Map[String, Map[String, Option[List[Attribute]]]],
+    @JsonInclude(JsonInclude.Include.NON_ABSENT) macroExpansion: Option[MacroExpansion] = None
 ) extends WorkflowCompilationResponse
 
 case class WorkflowCompilationFailure(
     operatorErrors: Map[String, WorkflowFatalError],
-    operatorOutputSchemas: Map[String, Map[String, Option[List[Attribute]]]]
+    operatorOutputSchemas: Map[String, Map[String, Option[List[Attribute]]]],
+    @JsonInclude(JsonInclude.Include.NON_ABSENT) macroExpansion: Option[MacroExpansion] = None
 ) extends WorkflowCompilationResponse
+
+case class MacroPropertyEdit(operator: JsonNode, macroDependencies: List[JsonNode] = Nil)
 
 @Consumes(Array(MediaType.APPLICATION_JSON))
 @Produces(Array(MediaType.APPLICATION_JSON))
 @RolesAllowed(Array("REGULAR", "ADMIN"))
 @Path("/compile")
 class WorkflowCompilationResource extends LazyLogging {
+
+  private def checked[A](result: => A): A =
+    try result
+    catch {
+      case scala.util.control.NonFatal(error) =>
+        throw new BadRequestException(
+          Response
+            .status(Response.Status.BAD_REQUEST)
+            .entity(Map("message" -> error.getMessage))
+            .build()
+        )
+    }
+
+  @POST
+  @Path("/expand")
+  def expandMacros(content: JsonNode): MacroExpansion = checked(MacroExpansion.expand(content))
+
+  @POST
+  @Path("/validate-properties")
+  def validateProperties(edit: MacroPropertyEdit): Response =
+    checked {
+      require(edit != null, "Expected a macro property edit")
+      MacroExpansion.validateProperties(edit.operator, edit.macroDependencies)
+      Response.noContent().build()
+    }
+
+  @POST
+  @Path("/draft")
+  def compileDraft(request: MacroDraftRequest): WorkflowCompilationResponse = {
+    if (request == null || request.content == null || request.drafts == null)
+      throw new BadRequestException("Missing draft workflow or occurrences")
+    compileWorkflow(
+      LogicalPlanPojo(Nil, Nil, Nil, Nil, Some(request.content), drafts = request.drafts)
+    )
+  }
 
   @POST
   @Path("")
@@ -72,8 +119,9 @@ class WorkflowCompilationResource extends LazyLogging {
     // throw, so pass Lenient explicitly (mirrors amber passing Strict)
     val compilationResult =
       new WorkflowCompiler(context).compile(logicalPlanPojo, CompilationErrorHandling.Lenient)
+    val expansion = scala.util.Try(logicalPlanPojo.macroExpansion).toOption.flatten
 
-    val operatorOutputSchemas = compilationResult.operatorIdToOutputSchemas.map {
+    val nativeSchemas = compilationResult.operatorIdToOutputSchemas.map {
       case (operatorIdentity, schemas) =>
         val opId = operatorIdentity.id
         val portIdAndAttributes = schemas.map {
@@ -86,11 +134,27 @@ class WorkflowCompilationResource extends LazyLogging {
         (opId, portIdAndAttributes)
     }
 
+    // Boundary nodes have no workers; their schemas are aliases of the compiled native ports.
+    val operatorOutputSchemas = nativeSchemas ++ expansion.toList.flatMap { expanded =>
+      expanded.boundaries.map {
+        case (id, boundary) =>
+          id -> boundary.outputs.zipWithIndex.flatMap {
+            case (targets, index) =>
+              targets.headOption
+                .flatMap(target =>
+                  nativeSchemas.get(target.operatorID).flatMap(_.get(s"${target.portIndex}_false"))
+                )
+                .map(schema => s"${index}_false" -> schema)
+          }.toMap
+      }
+    }
+
     // Handle success case: No errors in the compilation result
     if (compilationResult.operatorIdToError.isEmpty && compilationResult.physicalPlan.nonEmpty) {
       WorkflowCompilationSuccess(
         physicalPlan = compilationResult.physicalPlan.get,
-        operatorOutputSchemas = operatorOutputSchemas
+        operatorOutputSchemas = operatorOutputSchemas,
+        macroExpansion = expansion
       )
     }
     // Handle failure case: Errors found during compilation
@@ -99,7 +163,8 @@ class WorkflowCompilationResource extends LazyLogging {
         operatorErrors = compilationResult.operatorIdToError.map {
           case (operatorIdentity, error) => (operatorIdentity.id, error)
         },
-        operatorOutputSchemas = operatorOutputSchemas
+        operatorOutputSchemas = operatorOutputSchemas,
+        macroExpansion = expansion
       )
     }
   }

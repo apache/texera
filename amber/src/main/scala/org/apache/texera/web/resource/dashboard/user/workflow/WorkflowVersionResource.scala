@@ -20,12 +20,14 @@
 package org.apache.texera.web.resource.dashboard.user.workflow
 
 import com.flipkart.zjsonpatch.{JsonDiff, JsonPatch}
+import com.fasterxml.jackson.databind.JsonNode
 import io.dropwizard.auth.Auth
 import org.apache.texera.amber.util.JSONUtils.objectMapper
 import org.apache.texera.auth.SessionUser
 import org.apache.texera.common.config.UserSystemConfig
 import org.apache.texera.dao.SqlServer
-import org.apache.texera.dao.jooq.generated.Tables.WORKFLOW_VERSION
+import org.apache.texera.dao.jooq.generated.Tables.{WORKFLOW, WORKFLOW_VERSION}
+import org.apache.texera.dao.jooq.generated.enums.{DefaultViewEnum, PrivilegeEnum}
 import org.apache.texera.dao.jooq.generated.tables.daos.{WorkflowDao, WorkflowVersionDao}
 import org.apache.texera.dao.jooq.generated.tables.pojos.{Workflow, WorkflowVersion}
 import org.apache.texera.web.resource.dashboard.user.workflow.WorkflowResource.{
@@ -52,8 +54,37 @@ object WorkflowVersionResource {
     SqlServer
       .getInstance()
       .createDSLContext()
-  private def workflowVersionDao = new WorkflowVersionDao(context.configuration)
   private def workflowDao = new WorkflowDao(context.configuration)
+
+  case class MacroPin(
+      id: String,
+      wid: Integer,
+      name: String,
+      version: Integer,
+      revision: Int,
+      content: JsonNode
+  )
+
+  case class MacroMetadata(
+      wid: Integer,
+      name: String,
+      description: String,
+      readonly: Boolean,
+      creationTime: Timestamp,
+      lastModifiedTime: Timestamp,
+      isPublished: Boolean,
+      defaultView: DefaultViewEnum
+  )
+  case class MacroSource(metadata: MacroMetadata, revisions: List[Integer], head: Option[MacroPin])
+
+  private def revisionIDs(wid: Integer, db: DSLContext): List[Integer] =
+    db.select(WORKFLOW_VERSION.VID)
+      .from(WORKFLOW_VERSION)
+      .where(WORKFLOW_VERSION.WID.eq(wid))
+      .orderBy(WORKFLOW_VERSION.VID)
+      .fetchInto(classOf[Integer])
+      .asScala
+      .toList
 
   /**
     * Whether this user may read the workflow's revision history.
@@ -63,10 +94,14 @@ object WorkflowVersionResource {
     * version folds deltas back from the author's *current* content, so handing the history to a
     * public viewer would hand them the edits the pin is holding back.
     */
-  private def canReadHistory(wid: Integer, uid: Integer): Boolean =
-    WorkflowAccessResource.hasGrantedAccess(wid, uid) ||
-      (WorkflowAccessResource.hasReadAccess(wid, uid) &&
-        Option(workflowDao.fetchOneByWid(wid)).forall(_.getPublishedContent == null))
+  private def canReadHistory(wid: Integer, uid: Integer, db: DSLContext = context): Boolean =
+    WorkflowAccessResource.getPrivilege(wid, uid, db) != PrivilegeEnum.NONE ||
+      db.fetchExists(
+        WORKFLOW,
+        WORKFLOW.WID.eq(wid),
+        WORKFLOW.IS_PUBLIC.isTrue,
+        WORKFLOW.PUBLISHED_CONTENT.isNull
+      )
   // constant to indicate versions should be aggregated if they are within the specified time limit
   private final val AGGREGATE_TIME_LIMIT_MILLSEC =
     UserSystemConfig.workflowVersionCollapseIntervalInMinutes * 60000
@@ -80,10 +115,14 @@ object WorkflowVersionResource {
     * @param workflow
     * @param insertingNewWorkflow indicates if the workflow didn't exist before
     */
-  def insertVersion(workflow: Workflow, insertingNewWorkflow: Boolean): Unit = {
+  def insertVersion(
+      workflow: Workflow,
+      insertingNewWorkflow: Boolean,
+      db: DSLContext = context
+  ): Unit = {
     val wid = workflow.getWid
     // retrieve current workflow from DB
-    val currentWorkflow = workflowDao.fetchOneByWid(wid)
+    val currentWorkflow = new WorkflowDao(db.configuration).fetchOneByWid(wid)
     // if the workflow is new then previous workflow is empty
     val existingWorkflowContent = if (insertingNewWorkflow) "{}" else currentWorkflow.getContent
     // compute diff
@@ -95,7 +134,7 @@ object WorkflowVersionResource {
     // if we are creating a new workflow, even if it is empty, create a new version
     // otherwise, only when there is a diff we would create a new version
     if (insertingNewWorkflow || !patch.isEmpty) {
-      insertNewVersion(wid, patch.toString)
+      insertNewVersion(wid, patch.toString, db)
     }
   }
 
@@ -127,11 +166,15 @@ object WorkflowVersionResource {
     *
     * @param wid
     */
-  def insertNewVersion(wid: Integer, content: String = "[]"): WorkflowVersion = {
+  def insertNewVersion(
+      wid: Integer,
+      content: String = "[]",
+      db: DSLContext = context
+  ): WorkflowVersion = {
     val workflowVersion = new WorkflowVersion()
     workflowVersion.setContent(content)
     workflowVersion.setWid(wid)
-    workflowVersionDao.insert(workflowVersion)
+    new WorkflowVersionDao(db.configuration).insert(workflowVersion)
     workflowVersion
   }
 
@@ -334,6 +377,88 @@ object WorkflowVersionResource {
 @Path("/version")
 @Produces(Array(MediaType.APPLICATION_JSON))
 class WorkflowVersionResource {
+
+  @GET
+  @Path("/{wid}/macro-source")
+  @RolesAllowed(Array("REGULAR", "ADMIN"))
+  def macroSource(
+      @PathParam("wid") wid: Integer,
+      @QueryParam("id") id: String,
+      @QueryParam("head") head: Boolean,
+      @Auth user: SessionUser
+  ): MacroSource =
+    readMacro(wid, id, null, user, includeHead = head, requirePin = false)
+
+  /** A pinned revision names the result of its save. Its own inverse patch must never be applied. */
+  @GET
+  @Path("/{wid}/macro")
+  @RolesAllowed(Array("REGULAR", "ADMIN"))
+  def pinMacro(
+      @PathParam("wid") wid: Integer,
+      @QueryParam("id") id: String,
+      @QueryParam("version") selected: Integer,
+      @Auth user: SessionUser
+  ): MacroPin =
+    readMacro(wid, id, selected, user, includeHead = true, requirePin = true).head.get
+
+  private def readMacro(
+      wid: Integer,
+      id: String,
+      selected: Integer,
+      user: SessionUser,
+      includeHead: Boolean,
+      requirePin: Boolean
+  ): MacroSource =
+    context.transactionResult { config =>
+      val db = config.dsl()
+      val workflow = Option(
+        db.selectFrom(WORKFLOW)
+          .where(WORKFLOW.WID.eq(wid))
+          .forShare()
+          .fetchOneInto(classOf[Workflow])
+      )
+        .getOrElse(throw new NotFoundException("Macro source unavailable"))
+      val privilege = WorkflowAccessResource.getPrivilege(wid, user.getUid, db)
+      val granted = privilege != PrivilegeEnum.NONE
+      val historyVisible = granted || workflow.getPublishedContent == null
+      if (!granted && (!workflow.getIsPublic || (requirePin && !historyVisible)))
+        throw new ForbiddenException("No sufficient access privilege.")
+      val visible = WorkflowPublishService.visibleCopy(workflow, granted)
+      val body = objectMapper.readTree(visible.content)
+      def verify(graph: JsonNode): Unit = {
+        if (!graph.hasNonNull("macroInterface"))
+          throw new BadRequestException("Saved version is not a macro definition")
+        if (id == null || id.isEmpty || graph.path("macroInterface").path("id").textValue() != id)
+          throw new BadRequestException("Macro source identity differs")
+      }
+      verify(body)
+      val versions = if (historyVisible) revisionIDs(wid, db) else Nil
+      if (requirePin && versions.isEmpty) throw new NotFoundException("Macro has no saved version")
+      val head = if (includeHead && versions.nonEmpty) {
+        val version = Option(selected).getOrElse(versions.last)
+        val ordinal = versions.indexOf(version) + 1
+        if (ordinal == 0) throw new NotFoundException("Macro revision is not in its source history")
+        val snapshot =
+          if (ordinal == versions.size) body
+          else {
+            val patches = fetchSubsequentVersions(wid, version, db).filterNot(_.getVid == version)
+            objectMapper.readTree(applyPatch(patches, workflow).getContent)
+          }
+        verify(snapshot)
+        Some(MacroPin(id, wid, visible.name, version, ordinal, snapshot))
+      } else None
+      val metadata = MacroMetadata(
+        wid,
+        visible.name,
+        visible.description,
+        privilege != PrivilegeEnum.WRITE,
+        workflow.getCreationTime,
+        workflow.getLastModifiedTime,
+        workflow.getIsPublic,
+        visible.defaultView
+      )
+      MacroSource(metadata, versions, head)
+    }
 
   /**
     * This method returns the versions of a workflow given by its ID

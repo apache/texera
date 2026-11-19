@@ -29,7 +29,7 @@
     [nzBackfill]="false"
     (selectionChange)="onSelectionChange($event)">
     <nz-auto-option
-      *ngFor="let option of autocompleteOptions"
+      *ngFor="let option of availableOperators(autocompleteOptions)"
       [nzValue]="option"
       [nzLabel]="option.additionalMetadata.userFriendlyName"
       [nzDisabled]="! canModify">
@@ -60,7 +60,7 @@
         <ng-container
           *ngTemplateOutlet="menuTemplate; context: { $implicit: groupname.children, depth: depth + 1 }"></ng-container>
         <div
-          *ngFor="let operatorSchema of opList.get(groupname.groupName)"
+          *ngFor="let operatorSchema of availableOperators(opList.get(groupname.groupName))"
           class="operator-label">
           <texera-operator-label [operator]="operatorSchema"></texera-operator-label>
         </div>

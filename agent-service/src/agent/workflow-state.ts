@@ -17,8 +17,7 @@
  * under the License.
  */
 
-import { expandMacros, isMacro, macroResultAliases, type MacroExpansion } from "./util/workflow-macros";
-import { expandMacroSubgraph, toLogicalGraph } from "@texera/workflow-macros";
+import { assertWorkflowIDs, isMacro, toLogicalGraph } from "@texera/workflow-macros";
 import { Subject, Observable, merge, Subscription } from "rxjs";
 import type {
   OperatorPredicate,
@@ -95,14 +94,27 @@ export class WorkflowState {
   }
 
   generateOperatorId(operatorType: string): string {
-    return `${operatorType}-operator-${++this.operatorIdCounter}`;
+    let id: string;
+    do {
+      id = `${operatorType}-operator-${++this.operatorIdCounter}`;
+    } while (this.hasGraphID(id));
+    return id;
   }
 
   generateLinkId(): string {
-    return `link-${++this.linkIdCounter}`;
+    let id: string;
+    do {
+      id = `link-${++this.linkIdCounter}`;
+    } while (this.hasGraphID(id));
+    return id;
+  }
+
+  private hasGraphID(id: string): boolean {
+    return this.operators.has(id) || this.links.has(id) || this.commentBoxes.some(box => box.commentBoxID === id);
   }
 
   addOperator(operator: OperatorPredicate, position?: Point): void {
+    assertWorkflowIDs({ ...this.getWorkflowContent(), operators: [...this.getAllOperators(), operator] });
     this.operators.set(operator.operatorID, operator);
     const defaultPosition: Point = position || {
       x: 100 + (this.operators.size - 1) * 200,
@@ -216,6 +228,7 @@ export class WorkflowState {
   }
 
   addLink(link: OperatorLink): void {
+    assertWorkflowIDs({ ...this.getWorkflowContent(), links: [...this.getAllLinks(), link] });
     this.links.set(link.linkID, link);
     this.linkAddSubject.next(link);
   }
@@ -403,14 +416,9 @@ export class WorkflowState {
     };
   }
 
-  setWorkflowContent({
-    operators,
-    links,
-    operatorPositions,
-    commentBoxes,
-    settings,
-    ...contentMeta
-  }: WorkflowContent): void {
+  setWorkflowContent(content: WorkflowContent): void {
+    assertWorkflowIDs(content);
+    const { operators, links, operatorPositions, commentBoxes, settings, ...contentMeta } = content;
     this.operators.clear();
     this.links.clear();
     this.operatorPositions.clear();
@@ -435,23 +443,25 @@ export class WorkflowState {
     this.contentMeta = contentMeta;
   }
 
-  getMacroExpansion(): MacroExpansion<WorkflowContent> | undefined {
-    const content = this.getWorkflowContent();
-    return content.operators.some(isMacro) ? expandMacros(content) : undefined;
-  }
-
-  toLogicalPlan(targetOperatorId?: string, expanded = this.getMacroExpansion()): LogicalPlan {
+  toLogicalPlan(targetOperatorId?: string): LogicalPlan {
     let graph = targetOperatorId
       ? this.getSubDAG(targetOperatorId)
       : { operators: this.getAllEnabledOperators(), links: this.getAllLinks() };
-    if (expanded) graph = expandMacroSubgraph(graph, expanded);
+    const results = targetOperatorId !== undefined ? [targetOperatorId] : [...this.operatorsToViewResult];
+    if (this.contentMeta.macroInterface || this.getAllOperators().some(isMacro))
+      return {
+        operators: [],
+        links: [],
+        macroContent: this.getWorkflowContent(),
+        executeOperatorIds: graph.operators.map(op => op.operatorID),
+        opsToViewResult: results,
+        opsToReuseResult: [],
+      };
     const ids = new Set(graph.operators.map(op => op.operatorID));
     const links = graph.links.filter(link => ids.has(link.source.operatorID) && ids.has(link.target.operatorID));
-    const aliases = expanded ? macroResultAliases(this.getWorkflowContent(), expanded) : {};
-    const results = targetOperatorId !== undefined ? [targetOperatorId] : [...this.operatorsToViewResult];
     return {
       ...toLogicalGraph({ ...graph, links }, 0),
-      opsToViewResult: results.map(id => aliases[id] ?? id).filter(id => ids.has(id)),
+      opsToViewResult: results.filter(id => ids.has(id)),
       opsToReuseResult: [],
     };
   }

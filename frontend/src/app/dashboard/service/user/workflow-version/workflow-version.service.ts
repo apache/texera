@@ -18,21 +18,29 @@
  */
 
 import { Injectable } from "@angular/core";
-import { BehaviorSubject, Observable } from "rxjs";
+import { BehaviorSubject, Observable, merge } from "rxjs";
 import { WorkflowActionService } from "../../../../workspace/service/workflow-graph/model/workflow-action.service";
 import { Workflow, WorkflowContent } from "../../../../common/type/workflow";
+import type { WorkflowMetadata } from "../../../type/workflow-metadata.interface";
+import type { MacroDefinition } from "../../../../common/util/workflow-macro";
 import { WorkflowPersistService } from "../../../../common/service/workflow-persist/workflow-persist.service";
 import { UndoRedoService } from "../../../../workspace/service/undo-redo/undo-redo.service";
 import { isEqual } from "lodash";
 import { OperatorLink, OperatorPredicate, Point } from "../../../../workspace/types/workflow-common.interface";
 import { WorkflowVersionEntry } from "../../../type/workflow-version-entry";
 import { AppSettings } from "../../../../common/app-setting";
-import { filter, map } from "rxjs/operators";
+import { filter, map, startWith, distinctUntilChanged, skip } from "rxjs/operators";
 import { WorkflowUtilService } from "../../../../workspace/service/workflow-graph/util/workflow-util.service";
 
 import { HttpClient } from "@angular/common/http";
 
 export const WORKFLOW_VERSIONS_API_BASE_URL = "version";
+
+export interface MacroSource {
+  metadata: WorkflowMetadata;
+  revisions: number[];
+  head?: MacroDefinition;
+}
 
 type WorkflowContentKeys = keyof WorkflowContent;
 type Element = OperatorLink | OperatorPredicate | Point;
@@ -88,7 +96,20 @@ export class WorkflowVersionService {
   }
 
   public getDisplayParticularVersionStream(): Observable<boolean> {
-    return this.displayParticularWorkflowVersion.asObservable();
+    const documentChanges = this.workflowActionService.workflowMetaDataChanged().pipe(
+      map(() => this.canPreviewVersion),
+      startWith(this.canPreviewVersion),
+      distinctUntilChanged(),
+      skip(1)
+    );
+    return merge(this.displayParticularWorkflowVersion, documentChanges).pipe(
+      map(() => this.displayParticularWorkflowVersion.value && this.canPreviewVersion)
+    );
+  }
+
+  public get canPreviewVersion(): boolean {
+    const owner = this.workflowActionService.getTempWorkflow()?.wid;
+    return owner === undefined || owner === this.workflowActionService.getWorkflowMetadata().wid;
   }
 
   public get canRestoreVersion(): boolean {
@@ -294,6 +315,22 @@ export class WorkflowVersionService {
   retrieveVersionsOfWorkflow(wid: number): Observable<WorkflowVersionEntry[]> {
     return this.http.get<WorkflowVersionEntry[]>(
       `${AppSettings.getApiEndpoint()}/${WORKFLOW_VERSIONS_API_BASE_URL}/${wid}`
+    );
+  }
+
+  macroSource(wid: number, id: string, head: boolean): Observable<MacroSource> {
+    return this.http.get<MacroSource>(
+      `${AppSettings.getApiEndpoint()}/${WORKFLOW_VERSIONS_API_BASE_URL}/${wid}/macro-source`,
+      { params: { id, head } }
+    );
+  }
+
+  pinMacro(wid: number, id: string, version?: number): Observable<MacroDefinition> {
+    return this.http.get<MacroDefinition>(
+      `${AppSettings.getApiEndpoint()}/${WORKFLOW_VERSIONS_API_BASE_URL}/${wid}/macro`,
+      {
+        params: version === undefined ? { id } : { id, version },
+      }
     );
   }
 

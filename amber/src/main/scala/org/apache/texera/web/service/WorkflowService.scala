@@ -227,7 +227,8 @@ class WorkflowService(
   def initExecutionService(
       req: WorkflowExecuteRequest,
       userOpt: Option[User],
-      sessionUri: URI
+      sessionUri: URI,
+      macroSnapshot: Option[com.fasterxml.jackson.databind.JsonNode] = None
   ): Unit = {
 
     val (uidOpt, userEmailOpt) = userOpt.map(user => (user.getUid, user.getEmail)).unzip
@@ -263,7 +264,8 @@ class WorkflowService(
       req.executionName,
       convertToJson(req.engineVersion),
       req.computingUnitId,
-      req.warehouseId
+      req.warehouseId,
+      macroSnapshot.orElse(req.logicalPlan.macroContent)
     )
 
     if (ApplicationConfig.faultToleranceLogRootFolder.isDefined) {

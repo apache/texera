@@ -17,6 +17,7 @@
  * under the License.
  */
 
+import { isMacro } from "../../common/util/workflow-macro";
 import { Location, NgIf } from "@angular/common";
 import {
   AfterViewInit,
@@ -37,9 +38,9 @@ import { OperatorMetadataService } from "../service/operator-metadata/operator-m
 import { UndoRedoService } from "../service/undo-redo/undo-redo.service";
 import { WorkflowActionService } from "../service/workflow-graph/model/workflow-action.service";
 import { NzMessageService } from "ng-zorro-antd/message";
-import { debounceTime, distinctUntilChanged, filter, switchMap, throttleTime } from "rxjs/operators";
+import { debounceTime, distinctUntilChanged, filter, switchMap, throttleTime, concatMap, map } from "rxjs/operators";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
-import { forkJoin, of } from "rxjs";
+import { forkJoin, of, from, firstValueFrom } from "rxjs";
 import { isDefined } from "../../common/util/predicate";
 import { NotificationService } from "src/app/common/service/notification/notification.service";
 import { WorkflowConsoleService } from "../service/workflow-console/workflow-console.service";
@@ -49,7 +50,7 @@ import { WorkflowMetadata } from "src/app/dashboard/type/workflow-metadata.inter
 import { EntityType, HubService } from "../../hub/service/hub.service";
 import { THROTTLE_TIME_MS } from "../../hub/component/workflow/detail/hub-workflow-detail.component";
 import { WorkflowCompilingService } from "../service/compile-workflow/workflow-compiling.service";
-import { isLeavingWorkspace, USER_WORKSPACE } from "../../app-routing.constant";
+import { isLeavingWorkspace, USER_WORKSPACE, macroCanvasUrl, workspaceCanvasUrl } from "../../app-routing.constant";
 import { GuiConfigService } from "../../common/service/gui-config.service";
 import { ComputingUnitStatusService } from "../../common/service/computing-unit/computing-unit-status/computing-unit-status.service";
 import { ExecuteWorkflowService } from "../service/execute-workflow/execute-workflow.service";
@@ -64,6 +65,9 @@ import { MiniMapComponent } from "./workflow-editor/mini-map/mini-map.component"
 import { LeftPanelComponent } from "./left-panel/left-panel.component";
 import { AgentPanelComponent } from "./agent/agent-panel/agent-panel.component";
 import { PropertyEditorComponent } from "./property-editor/property-editor.component";
+import { MacroNavigationService } from "../service/macro/macro-navigation.service";
+import { MacroService } from "../service/macro/macro.service";
+import { WorkflowVersionService } from "../../dashboard/service/user/workflow-version/workflow-version.service";
 import { JupyterNotebookPanelComponent } from "./jupyter-notebook-panel/jupyter-notebook-panel.component";
 
 export const SAVE_DEBOUNCE_TIME_IN_MS = 5000;
@@ -115,6 +119,8 @@ export class WorkspaceComponent implements AfterViewInit, OnInit, OnDestroy {
    * what it is read from.
    */
   private resumedSession = false;
+  private macroNavigationRegistered = false;
+  private restoringMacroPath = false;
 
   constructor(
     private userService: UserService,
@@ -140,11 +146,18 @@ export class WorkspaceComponent implements AfterViewInit, OnInit, OnDestroy {
     private computingUnitStatusService: ComputingUnitStatusService,
     private executeWorkflowService: ExecuteWorkflowService,
     private workflowResultService: WorkflowResultService,
-    private heatmapStatsRestoreService: HeatmapStatsRestoreService
+    private heatmapStatsRestoreService: HeatmapStatsRestoreService,
+    public macroNavigation: MacroNavigationService,
+    private macros: MacroService,
+    private workflowVersions: WorkflowVersionService
   ) {}
 
   ngOnInit() {
-    this.workflowResultService.setMacroAliases?.(() => this.workflowActionService.getMacroResultAliases());
+    this.macroNavigation.changing$.pipe(untilDestroyed(this)).subscribe(() => this.codeEditorViewRef.clear());
+    this.macros.inspect$.pipe(untilDestroyed(this)).subscribe(id => {
+      this.macroNavigation.open(id).catch(error => this.notificationService.error(error.message));
+    });
+    this.workflowResultService.setMacroAliases?.(() => this.macroNavigation.resultAliases());
     this.workflowActionService.setHighlightingEnabled(true);
     // Clear session state when the user switches computing units in-canvas, so
     // the previous unit's status/console/results don't linger.
@@ -187,6 +200,7 @@ export class WorkspaceComponent implements AfterViewInit, OnInit, OnDestroy {
     this.updateViewCount();
     this.registerLoadOperatorMetadata();
     this.codeEditorService.vc = this.codeEditorViewRef;
+    this.changeDetectorRef.detectChanges();
   }
 
   /**
@@ -211,6 +225,7 @@ export class WorkspaceComponent implements AfterViewInit, OnInit, OnDestroy {
 
   ngOnDestroy() {
     this.persistBeforeLeaving();
+    this.macroNavigation.clear();
     this.codeEditorViewRef.clear();
     // Tear down the connection and all websocket-derived session state so a
     // re-entered workflow starts clean instead of reusing the previous one -- unless the Form
@@ -227,10 +242,108 @@ export class WorkspaceComponent implements AfterViewInit, OnInit, OnDestroy {
     }
   }
 
+  private registerMacroNavigation(initialFragment = this.route.snapshot.fragment): void {
+    if (this.macroNavigationRegistered) return;
+    this.macroNavigationRegistered = true;
+    const route = this.route.snapshot.routeConfig?.path;
+    if (route === "workflow/:id" || route === "macros/:id") {
+      const workflow = this.macroNavigation.rootWorkflow;
+      const target = workflow.content.macroInterface
+        ? macroCanvasUrl(workflow.wid!)
+        : workspaceCanvasUrl(workflow.wid!);
+      if (this.router.url.split(/[?#]/)[0] !== target) {
+        this.router.navigate([target], {
+          replaceUrl: true,
+          queryParams: this.route.snapshot.queryParams,
+          fragment: initialFragment ?? undefined,
+        });
+        return;
+      }
+    }
+    const syncURL = (replaceUrl = false) =>
+      this.router.navigate([], {
+        relativeTo: this.route,
+        queryParamsHandling: "merge",
+        replaceUrl,
+        queryParams: { macro: this.macroNavigation.parents.map(p => p.operatorID) },
+        fragment: undefined,
+      });
+    this.macroNavigation.changed$.pipe(untilDestroyed(this)).subscribe(() => {
+      if (!this.macroNavigation.parents.length && !this.workflowActionService.getTempWorkflow())
+        this.executeWorkflowService.reapplyExecutionLock();
+      if (!this.restoringMacroPath) syncURL();
+    });
+    this.route.queryParamMap
+      .pipe(
+        map((params, index) => ({
+          path: params.getAll("macro"),
+          fragment: index === 0 ? initialFragment : this.route.snapshot.fragment,
+        })),
+        distinctUntilChanged((a, b) => a.path.length === b.path.length && a.path.every((id, i) => id === b.path[i])),
+        concatMap(async ({ path, fragment }) => {
+          const current = this.macroNavigation.parents.map(p => p.operatorID);
+          let common = 0;
+          while (common < path.length && path[common] === current[common]) common++;
+          this.restoringMacroPath = true;
+          try {
+            if (common < current.length) await this.macroNavigation.back(common);
+            for (const id of path.slice(common)) await this.macroNavigation.open(id);
+          } catch (error) {
+            this.notificationService.error(error instanceof Error ? error.message : String(error));
+            syncURL(true);
+            return;
+          } finally {
+            this.restoringMacroPath = false;
+          }
+          this.selectURLFragment(fragment);
+        }),
+        untilDestroyed(this)
+      )
+      .subscribe();
+  }
+
+  private selectURLFragment(fragment: string | null): void {
+    // Loading a graph changes its highlights, so restore the URL after the breadcrumb document is ready.
+    this.router.navigate([], {
+      relativeTo: this.route,
+      fragment: fragment ?? undefined,
+      preserveFragment: false,
+      queryParamsHandling: "preserve",
+    });
+    if (!fragment) return;
+    if (this.workflowActionService.getTexeraGraph().hasElementWithID(fragment)) {
+      this.workflowActionService.highlightElements(false, fragment);
+    } else {
+      this.notificationService.error(`Element ${fragment} doesn't exist`);
+      this.router.navigate([], { relativeTo: this.route, queryParamsHandling: "preserve" });
+    }
+  }
+
+  public async canLeave(): Promise<boolean> {
+    // Restoring the root for an outgoing route must not start another breadcrumb navigation.
+    this.restoringMacroPath = true;
+    try {
+      if (this.macroNavigation.parents.length) await this.macroNavigation.back(0);
+      if (this.workflowActionService.getTempWorkflow()) this.workflowVersions.closeParticularVersionDisplay();
+      return true;
+    } catch (error) {
+      this.notificationService.error(error instanceof Error ? error.message : String(error));
+      return false;
+    } finally {
+      this.restoringMacroPath = false;
+    }
+  }
+
   private persistBeforeLeaving(): void {
     if (this.userService.isLogin() && this.workflowPersistService.isWorkflowPersistEnabled()) {
       const workflow = this.workflowActionService.getWorkflow();
-      this.workflowPersistService.persistWorkflow(workflow).pipe(untilDestroyed(this)).subscribe();
+      void firstValueFrom(
+        this.macroNavigation.parents.length
+          ? from(this.macroNavigation.save())
+          : this.workflowPersistService.persistWorkflow(workflow)
+      ).catch((error: unknown) =>
+        this.notificationService.error(error instanceof Error ? error.message : String(error))
+      );
     }
   }
 
@@ -253,18 +366,29 @@ export class WorkspaceComponent implements AfterViewInit, OnInit, OnDestroy {
 
     this.workflowActionService
       .workflowChanged()
-      .pipe(debounceTime(SAVE_DEBOUNCE_TIME_IN_MS))
+      .pipe(
+        filter(() => !this.workflowActionService.getJointGraphWrapper().getReloadingWorkflow()),
+        debounceTime(SAVE_DEBOUNCE_TIME_IN_MS)
+      )
       .pipe(untilDestroyed(this))
       .subscribe(() => {
         if (this.userService.isLogin() && this.workflowPersistService.isWorkflowPersistEnabled()) {
-          this.workflowPersistService
-            .persistWorkflow(this.workflowActionService.getWorkflow())
+          const wid = this.workflowActionService.getWorkflowMetadata().wid;
+          (this.macroNavigation.parents.length
+            ? from(this.macroNavigation.save())
+            : this.workflowPersistService.persistWorkflow(this.workflowActionService.getWorkflow())
+          )
             .pipe(untilDestroyed(this))
-            .subscribe((updatedWorkflow: Workflow) => {
-              if (this.workflowActionService.getWorkflowMetadata().wid !== updatedWorkflow.wid) {
-                this.location.go(`${USER_WORKSPACE}/${updatedWorkflow.wid}`);
-              }
-              this.workflowActionService.setWorkflowMetadata(updatedWorkflow);
+            .subscribe({
+              next: (updatedWorkflow: Workflow) => {
+                if (this.workflowActionService.getWorkflowMetadata().wid !== wid) return;
+                if (this.workflowActionService.getWorkflowMetadata().wid !== updatedWorkflow.wid) {
+                  this.location.go(`${USER_WORKSPACE}/${updatedWorkflow.wid}`);
+                }
+                this.workflowActionService.setWorkflowMetadata(updatedWorkflow);
+              },
+              error: (error: unknown) =>
+                this.notificationService.error(error instanceof Error ? error.message : String(error)),
             });
           // to sync up with the updated information, such as workflow.wid
         }
@@ -302,40 +426,18 @@ export class WorkspaceComponent implements AfterViewInit, OnInit, OnDestroy {
           if (shouldAutoLayout) {
             this.workflowActionService.autoLayoutWorkflow();
           }
-          // Best-effort: repaint the heat-map from the last run's persisted
-          // statistics. The service itself gates on the overlay being
-          // persisted-on (and skips during a live execution), so this is a
-          // no-op for everyone else. Fetch failures are swallowed there; an
-          // error arriving here is a mapping or ingestion bug, so it is logged.
           this.heatmapStatsRestoreService
-            .restoreLatestRunStatistics()
+            .restoreLatestRunStatistics(workflow.content.operators.some(isMacro))
             .pipe(untilDestroyed(this))
             .subscribe({
               error: (err: unknown) => console.error("Failed to restore heat-map statistics:", err),
             });
-          // set the URL fragment to previous value
-          // because reloadWorkflow will highlight/unhighlight all elements
-          // which will change the URL fragment
-          this.router.navigate([], {
-            relativeTo: this.route,
-            fragment: fragment !== null ? fragment : undefined,
-            preserveFragment: false,
-          });
-          // highlight the operator, comment box, or link in the URL fragment
-          if (fragment) {
-            if (this.workflowActionService.getTexeraGraph().hasElementWithID(fragment)) {
-              this.workflowActionService.highlightElements(false, fragment);
-            } else {
-              this.notificationService.error(`Element ${fragment} doesn't exist`);
-              // remove the fragment from the URL
-              this.router.navigate([], { relativeTo: this.route });
-            }
-          }
           // clear stack
           this.undoRedoService.clearUndoStack();
           this.undoRedoService.clearRedoStack();
           this.setLoadingState(false);
           this.triggerCenter();
+          this.registerMacroNavigation(fragment);
         },
         () => {
           this.workflowActionService.resetAsNewWorkflow();
@@ -372,6 +474,7 @@ export class WorkspaceComponent implements AfterViewInit, OnInit, OnDestroy {
       // and no id, the computing unit picker does not restore the unit this workflow last ran
       // on, and this page believes the user cannot write to the workflow.
       this.workflowActionService.republishWorkflowMetadata();
+      this.registerMacroNavigation();
       return;
     }
     // load workflow with wid if presented in the URL
@@ -390,6 +493,7 @@ export class WorkspaceComponent implements AfterViewInit, OnInit, OnDestroy {
       .subscribe(() => {
         // no workflow to load; directly register auto persist for brand-new workflow
         this.registerAutoPersistWorkflow();
+        this.registerMacroNavigation();
       });
   }
 

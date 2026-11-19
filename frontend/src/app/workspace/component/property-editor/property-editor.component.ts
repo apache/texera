@@ -154,6 +154,8 @@ export class PropertyEditorComponent implements OnInit, OnDestroy, OnChanges {
     const remountOn = ["exposeChoosing", "actsAsEditor"];
     if (remountOn.some(input => changes[input] !== undefined && !changes[input].firstChange)) {
       this.remountOperatorFrame();
+      if (this.currentComponent === PortPropertyEditFrameComponent)
+        this.componentInputs = { ...this.componentInputs, actsAsEditor: this.actsAsEditor };
     }
   }
 
@@ -295,7 +297,7 @@ export class PropertyEditorComponent implements OnInit, OnDestroy, OnChanges {
           };
         } else if (highlightedPorts.length === 1 && highlightLinks.length === 0) {
           this.currentComponent = PortPropertyEditFrameComponent;
-          this.componentInputs = { currentPortID: highlightedPorts[0] };
+          this.componentInputs = { currentPortID: highlightedPorts[0], actsAsEditor: this.actsAsEditor };
         } else {
           this.currentComponent = null;
           this.componentInputs = {};

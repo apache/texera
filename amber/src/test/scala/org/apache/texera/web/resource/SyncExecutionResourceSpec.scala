@@ -255,20 +255,23 @@ class SyncExecutionResourceSpec
       .execute()
   }
 
-  private def globalPortIdOf(opId: String): GlobalPortIdentity =
+  private def globalPortIdOf(
+      opId: String,
+      port: PortIdentity = PortIdentity()
+  ): GlobalPortIdentity =
     GlobalPortIdentity(
       PhysicalOpIdentity(OperatorIdentity(opId), "main"),
-      PortIdentity(),
+      port,
       input = false
     )
 
   /** The external-output result URI shape `getResultUriByLogicalPortId` decodes and matches. */
-  private def resultUriOf(opId: String): URI =
+  private def resultUriOf(opId: String, port: PortIdentity = PortIdentity()): URI =
     VFSURIFactory.resultURI(
       VFSURIFactory.createPortBaseURI(
         WorkflowIdentity(testWid.toLong),
         ExecutionIdentity(resultEid.toLong),
-        globalPortIdOf(opId)
+        globalPortIdOf(opId, port)
       )
     )
 
@@ -301,8 +304,13 @@ class SyncExecutionResourceSpec
     * workflow 9317, because an Iceberg table's identity derives from its URI path and sbt runs
     * amber's suites in one unforked JVM: an id another suite also uses would truncate its table.
     */
-  private def storeResult(opId: String, tuples: Seq[Tuple], schema: Schema = rowSchema): Unit = {
-    val uri = resultUriOf(opId)
+  private def storeResult(
+      opId: String,
+      tuples: Seq[Tuple],
+      schema: Schema = rowSchema,
+      port: PortIdentity = PortIdentity()
+  ): Unit = {
+    val uri = resultUriOf(opId, port)
     val writer = DocumentFactory
       .createDocument(uri, schema)
       .writer(opId)
@@ -318,7 +326,8 @@ class SyncExecutionResourceSpec
       ExecutionIdentity(resultEid.toLong),
       opId,
       charLimit,
-      cellCharLimit
+      cellCharLimit,
+      PortIdentity()
     )
 
   /**
@@ -708,7 +717,51 @@ class SyncExecutionResourceSpec
     )) should be theSameInstanceAs plan
   }
 
-  "collectOperatorInfos" should "report per-operator stats, summed across ports" in {
+  "collectOperatorInfos" should "preserve selected macro output ports and native aggregate statistics" in {
+    val opId = "serc-macro-selected-port"
+    storeResult(opId, Seq(row(0)))
+    storeResult(opId, Seq(row(4), row(5)), port = PortIdentity(1))
+    val state = new ExecutionStateStore()
+    state.statsStore.updateState(
+      _.withOperatorInfo(
+        Map(
+          opId -> metrics(
+            COMPLETED,
+            inputs = Seq(0 -> 3L),
+            outputs = Seq(0 -> 1L, 1 -> 2L)
+          )
+        )
+      )
+    )
+    val infos = resource invokePrivate collectOperatorInfos(
+      ExecutionIdentity(resultEid.toLong),
+      newExecution(state),
+      List(opId),
+      100000,
+      20000,
+      None,
+      Map(
+        "selected" -> (OperatorIdentity(opId), PortIdentity(1)),
+        "left" -> (OperatorIdentity(opId), PortIdentity())
+      )
+    )
+    def values(id: String) =
+      infos(id).result.get
+        .asInstanceOf[java.util.List[ObjectNode]]
+        .asScala
+        .toList
+        .map(_.path("v").asText())
+    infos.keySet shouldBe Set(opId, "selected", "left")
+    values(opId) shouldBe List("r0")
+    values("selected") shouldBe List("r4", "r5")
+    values("left") shouldBe List("r0")
+    infos(opId).outputTuples shouldBe 3L
+    infos("selected").outputTuples shouldBe 2L
+    infos("left").outputTuples shouldBe 1L
+    infos("selected").totalRowCount shouldBe Some(2)
+  }
+
+  it should "report per-operator stats, summed across ports" in {
     val stateStore = new ExecutionStateStore()
     stateStore.statsStore.updateState(
       _.withOperatorInfo(
@@ -730,7 +783,8 @@ class SyncExecutionResourceSpec
       List("op-with-stats", "op-no-ports", "op-never-ran"),
       100000,
       20000,
-      None
+      None,
+      Map.empty
     )
 
     infos.keySet shouldBe Set("op-with-stats", "op-no-ports", "op-never-ran")
@@ -787,7 +841,8 @@ class SyncExecutionResourceSpec
       List.empty,
       100000,
       20000,
-      None
+      None,
+      Map.empty
     )
 
     // Two operators, not one: "all of them" has to mean the whole stats map.
@@ -827,7 +882,8 @@ class SyncExecutionResourceSpec
       List("target"),
       100000,
       20000,
-      Some(consoleState)
+      Some(consoleState),
+      Map.empty
     )
 
     infos.keySet shouldBe Set("target", "upstream", "chatty", "silent")
@@ -885,7 +941,8 @@ class SyncExecutionResourceSpec
         List("guarded"),
         100000,
         20000,
-        None
+        None,
+        Map.empty
       )
     }
   }

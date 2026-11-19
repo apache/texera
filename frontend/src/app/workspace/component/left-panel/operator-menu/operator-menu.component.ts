@@ -20,7 +20,7 @@
 import { Component } from "@angular/core";
 import { combineLatest } from "rxjs";
 import { MacroService } from "../../../service/macro/macro.service";
-import { macroType } from "../../../../common/util/workflow-macro";
+import { macroType, isMacroTerminal } from "../../../../common/util/workflow-macro";
 import Fuse from "fuse.js";
 import { OperatorMetadataService } from "../../../service/operator-metadata/operator-metadata.service";
 import { GroupInfo, OperatorSchema } from "../../../types/operator-schema.interface";
@@ -102,7 +102,7 @@ export class OperatorMenuComponent {
       .pipe(untilDestroyed(this))
       .subscribe(([operatorMetadata, definitions]) => {
         const ops = operatorMetadata.operators.filter(
-          operatorSchema => operatorSchema.operatorType !== "PythonUDF" && operatorSchema.operatorType !== "Dummy"
+          operatorSchema => !["PythonUDF", "Dummy"].includes(operatorSchema.operatorType)
         );
         this.groupNames = operatorMetadata.groups;
         this.opList.clear();
@@ -125,6 +125,18 @@ export class OperatorMenuComponent {
         ]);
         this.search(this.searchInputValue);
       });
+  }
+
+  public availableOperators(operators: readonly OperatorSchema[] = []): readonly OperatorSchema[] {
+    return operators.filter(
+      op =>
+        !isMacroTerminal(op) ||
+        (!!this.workflowActionService.getMacroInterface() &&
+          !this.workflowActionService
+            .getTexeraGraph()
+            .getAllOperators()
+            .some(node => node.operatorType === op.operatorType))
+    );
   }
 
   /**

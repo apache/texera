@@ -17,6 +17,7 @@
  * under the License.
  */
 
+import { MacroNavigationService } from "../../service/macro/macro-navigation.service";
 import { DatePipe } from "@angular/common";
 import { CdkDropList } from "@angular/cdk/drag-drop";
 import { FormGroup } from "@angular/forms";
@@ -39,7 +40,7 @@ import {
   PlusOutline,
   UpOutline,
 } from "@ant-design/icons-angular/icons";
-import { EMPTY, of, Subject } from "rxjs";
+import { EMPTY, Subject } from "rxjs";
 
 import { WorkflowFormComponent } from "./workflow-form.component";
 import { UserIconComponent } from "../../../dashboard/component/user/user-icon/user-icon.component";
@@ -72,6 +73,8 @@ import { WorkflowPveService } from "../../service/virtual-environment/virtual-en
 import { NzModalService } from "ng-zorro-antd/modal";
 import { ExecutionState } from "../../types/execute-workflow.interface";
 import { GuiConfigService } from "../../../common/service/gui-config.service";
+import { FormBindingConfig } from "../../../common/type/workflow";
+import { setupHarness } from "./workflow-form.spec-harness";
 
 /**
  * The direct-construction spec exercises the component's logic without a DOM; this one stands
@@ -82,10 +85,19 @@ import { GuiConfigService } from "../../../common/service/gui-config.service";
 describe("WorkflowFormComponent (rendered template)", () => {
   let fixture: ComponentFixture<WorkflowFormComponent>;
   let workflow$: Subject<any>;
-  const navigate = vi.fn();
 
   const configure = async () => {
     workflow$ = new Subject<any>();
+    const h = setupHarness();
+    h.workflowPersistService.retrieveWorkflow.mockReturnValue(workflow$);
+    h.formBindingService.getConfig.mockReturnValue({
+      instruction: { title: "How to use this", body: "Fill in the inputs." },
+      fields: [],
+    });
+    h.formBindingService.updateConfig.mockImplementation((patch?: Partial<FormBindingConfig>) => {
+      h.formBindingService.getConfig.mockReturnValue({ ...h.formBindingService.getConfig(), ...patch });
+      h.formBindingChanged.next(undefined);
+    });
     // Blank out ONLY the two child icons: their ng-zorro dropdown/menu needs a host context this
     // page does not set up. The override is on the children, not the page, so the page's own
     // .component.html renders as shipped and stays covered -- which is the point of this spec, and
@@ -130,145 +142,40 @@ describe("WorkflowFormComponent (rendered template)", () => {
       // formly-form still builds instead of throwing "missing forRoot()".
       imports: [WorkflowFormComponent, FormlyModule.forRoot()],
       providers: [
-        // One co-editor so the collaborator row (the *ngFor) renders and is covered.
+        { provide: MacroNavigationService, useValue: h.macroNavigation },
         {
           provide: CoeditorPresenceService,
           useValue: { coeditors: [{ clientId: "c1", userName: "co", color: "#888" }] },
         },
-        { provide: ActivatedRoute, useValue: { snapshot: { params: { id: "7" } } } },
-        {
-          provide: Router,
-          useValue: { navigate, navigateByUrl: vi.fn(), getCurrentNavigation: () => null, serializeUrl: String },
-        },
-        {
-          provide: WorkflowActionService,
-          useValue: {
-            hasWorkflowOpen: () => false,
-            // The room the shared document is in: what the page keys the hand-over on, on its way out.
-            getOpenWorkflowId: () => 7,
-            resetAsNewWorkflow: vi.fn(),
-            setNewSharedModel: vi.fn(),
-            reloadWorkflow: vi.fn(),
-            disableWorkflowModification: vi.fn(),
-            getWorkflowModificationEnabledStream: () => EMPTY,
-            clearWorkflow: vi.fn(),
-            getWorkflowMetadata: () => ({ name: "scGPT", lastModifiedTime: undefined }),
-            getWorkflow: () => ({ wid: 7, content: { operators: [], operatorPositions: {} } }),
-            setWorkflowName: vi.fn(),
-            workflowChanged: () => EMPTY,
-            workflowMetaDataChanged: () => EMPTY,
-            formBindingChanged$: EMPTY,
-            setHighlightingEnabled: vi.fn(),
-            unhighlightOperators: vi.fn(),
-            getTexeraGraph: () => ({
-              triggerCenterEvent: vi.fn(),
-              hasOperator: () => false,
-              getOperator: () => undefined,
-              getAllOperators: () => [],
-              getAllEnabledLinks: () => [],
-              getOperatorsToViewResult: () => new Set<string>(),
-              getViewResultOperatorsChangedStream: () => EMPTY,
-              getOperatorAddStream: () => EMPTY,
-              getOperatorDeleteStream: () => EMPTY,
-              getLinkAddStream: () => EMPTY,
-              getLinkDeleteStream: () => EMPTY,
-              getDisabledOperatorsChangedStream: () => EMPTY,
-              getOperatorDisplayNameChangedStream: () => EMPTY,
-              updateSharedModelAwareness: vi.fn(),
-            }),
-            getJointGraphWrapper: () => ({
-              // Reset by the page on leaving the workspace; the rendered tests leave, so it must exist.
-              setHeatmapView: () => {},
-              getJointOperatorHighlightStream: () => EMPTY,
-              getJointOperatorUnhighlightStream: () => EMPTY,
-              getCurrentHighlightedOperatorIDs: () => [],
-              unhighlightOperators: vi.fn(),
-            }),
-          },
-        },
-        {
-          provide: WorkflowPersistService,
-          useValue: {
-            retrieveWorkflow: () => workflow$,
-            isWorkflowPersistEnabled: () => false,
-            persistWorkflow: () => of({}),
-          },
-        },
-        { provide: OperatorMetadataService, useValue: { getOperatorMetadata: () => of({}) } },
-        {
-          provide: FormBindingService,
-          useValue: {
-            // An instruction so the instruction card renders and is covered.
-            getConfig: () => ({
-              instruction: { title: "How to use this", body: "Fill in the inputs." },
-              fields: [],
-            }),
-            resolveFields: () => [],
-            readValue: () => undefined,
-            writeValue: vi.fn(),
-            // Author-mode writes the rendered controls reach.
-            updateConfig: vi.fn(),
-            toggleShownResult: vi.fn(),
-            removeBinding: vi.fn(),
-          },
-        },
-        { provide: FormlyJsonschema, useValue: { toFieldConfig: () => ({ fieldGroup: [] }) } },
-        { provide: DynamicSchemaService, useValue: { getDynamicSchema: () => ({ jsonSchema: {} }) } },
-        {
-          provide: WorkflowCompilingService,
-          useValue: { getCompilationStateInfoChangedStream: () => EMPTY },
-        },
-        {
-          provide: ExecuteWorkflowService,
-          useValue: {
-            getExecutionStateStream: () => EMPTY,
-            // The stream carries no current value, so the page reads the state it arrived on top
-            // of from here. Nothing is in flight in these tests.
-            getExecutionState: () => ({ state: ExecutionState.Uninitialized }),
-            getExecutionDurationStream: () => EMPTY,
-            executeWorkflow: vi.fn(),
-            killWorkflow: vi.fn(),
-            resetExecutionAndWorkers: vi.fn(),
-          },
-        },
-        {
-          provide: WorkflowResultService,
-          useValue: {
-            clearResults: vi.fn(),
-            getResultUpdateStream: () => EMPTY,
-            hasNonEmptyResult: () => false,
-            hasPaginatedResult: () => false,
-            getResultService: () => undefined,
-          },
-        },
-        { provide: PanelResizeService, useValue: { changePanelSize: vi.fn() } },
-        { provide: NotificationService, useValue: { error: vi.fn() } },
-        { provide: UserService, useValue: { getCurrentUser: () => undefined, isLogin: () => false } },
-        { provide: MarkdownService, useValue: { parse: (s: string) => s } },
+        { provide: ActivatedRoute, useValue: h.route },
+        { provide: Router, useValue: h.router },
+        { provide: WorkflowActionService, useValue: h.workflowActionService },
+        { provide: WorkflowPersistService, useValue: h.workflowPersistService },
+        { provide: OperatorMetadataService, useValue: h.operatorMetadataService },
+        { provide: FormBindingService, useValue: h.formBindingService },
+        { provide: FormlyJsonschema, useValue: h.formlyJsonschema },
+        { provide: DynamicSchemaService, useValue: h.dynamicSchemaService },
+        { provide: WorkflowCompilingService, useValue: h.workflowCompilingService },
+        { provide: ExecuteWorkflowService, useValue: h.executeWorkflowService },
+        { provide: WorkflowResultService, useValue: h.workflowResultService },
+        { provide: PanelResizeService, useValue: h.panelResizeService },
+        { provide: NotificationService, useValue: h.notificationService },
+        { provide: UserService, useValue: h.userService },
+        { provide: MarkdownService, useValue: h.markdownService },
+        { provide: WorkflowConsoleService, useValue: h.workflowConsoleService },
+        { provide: WorkflowWebsocketService, useValue: h.workflowWebsocketService },
+        { provide: ValidationWorkflowService, useValue: h.validationWorkflowService },
+        { provide: GuiConfigService, useValue: h.config },
+        // The blanked selector still initializes and subscribes to the computing-unit list.
         {
           provide: ComputingUnitStatusService,
-          useValue: {
-            disconnect: vi.fn(),
-            getSelectedComputingUnit: () => EMPTY,
-            getStatus: () => EMPTY,
-            // Read by the (blanked) computing-unit selector's own ngOnInit.
-            getAllComputingUnits: () => EMPTY,
-          },
+          useValue: { ...h.computingUnitStatusService, getAllComputingUnits: () => EMPTY },
         },
-        // The blanked computing-unit selector still constructs and runs ngOnInit; give it the few
-        // services it reads so it does not throw. It renders nothing (its template is blanked).
         { provide: WorkflowComputingUnitManagingService, useValue: { getComputingUnitLimitOptions: () => EMPTY } },
         { provide: WorkflowExecutionsService, useValue: {} },
         { provide: ComputingUnitActionsService, useValue: {} },
         { provide: WorkflowPveService, useValue: {} },
         { provide: NzModalService, useValue: {} },
-        { provide: WorkflowConsoleService, useValue: { clearConsoleMessages: vi.fn() } },
-        {
-          provide: WorkflowWebsocketService,
-          useValue: { subscribeToEvent: () => EMPTY, isConnected: true, getConnectionStatusStream: () => EMPTY },
-        },
-        { provide: ValidationWorkflowService, useValue: { getWorkflowValidationErrorStream: () => EMPTY } },
-        { provide: GuiConfigService, useValue: { env: { formViewEnabled: true } } },
         // Register the icons the run bar and instruction use, so nz-icon renders them inline instead
         // of fetching each SVG over HTTP (an unresolved fetch that would hang fixture.whenStable).
         {
@@ -367,6 +274,15 @@ describe("WorkflowFormComponent (rendered template)", () => {
     expect(el(".pc-section-head .label")?.textContent?.trim()).toBe("Inputs");
     expect(el(".empty")).not.toBeNull();
     expect(el(".params .param")).toBeNull();
+    const c = fixture.componentInstance;
+    c.canEdit = true;
+    fixture.detectChanges();
+    const choose = vi.spyOn(c, "toggleAuthoring").mockImplementation(() => {});
+    el(".empty button")!.click();
+    expect(choose).toHaveBeenCalledOnce();
+    c.canEdit = false;
+    fixture.detectChanges();
+    expect(el(".empty button")).toBeNull();
   });
 
   it("renders an exposed input as a card holding its formly field", () => {
@@ -410,7 +326,7 @@ describe("WorkflowFormComponent (rendered template)", () => {
 
   // Pointer blocking is hit testing only; the keyboard half is the directive on the same card. Here
   // it is wired through the real template, with a control of the kind a widget draws of its own.
-  it("keeps a read-only viewer's card out of the tab order, without hiding what it shows", () => {
+  it("keeps a read-only viewer's card out of the tab order, without hiding what it shows", async () => {
     fixture.detectChanges();
     finishLoad();
     const c = fixture.componentInstance;
@@ -425,13 +341,11 @@ describe("WorkflowFormComponent (rendered template)", () => {
     const widgetButton = document.createElement("button");
     widgetButton.className = "browse";
     card.querySelector(".param-form")!.appendChild(widgetButton);
-    // The directive watches the card for what a widget adds; MutationObserver delivers on a microtask.
-    return Promise.resolve().then(() => {
-      expect(card.querySelector(".browse")!.getAttribute("tabindex")).toBe("-1");
-      expect(card.querySelector(".browse")!.getAttribute("aria-disabled")).toBe("true");
-      // Not inert: a reader still has the card's content in the accessibility tree.
-      expect(card.hasAttribute("inert")).toBe(false);
-    });
+    // Wait for MutationObserver delivery in both jsdom and a real browser.
+    await expect.poll(() => widgetButton.getAttribute("tabindex")).toBe("-1");
+    expect(widgetButton.getAttribute("aria-disabled")).toBe("true");
+    // Not inert: a reader still has the card's content in the accessibility tree.
+    expect(card.hasAttribute("inert")).toBe(false);
   });
 
   it("renders the author's instruction card and toggles it", async () => {
@@ -700,6 +614,7 @@ describe("WorkflowFormComponent (rendered template)", () => {
 
     expect(el(".param .grip")).not.toBeNull();
     expect(el(".param .field-help")?.textContent?.trim()).toBe("From Scan");
+    expect(el(".param .field-help")?.getAttribute("title")).toBeNull();
     // While authoring, the help text is edited in its own box rather than shown as the reader's line.
     expect(el(".param .param-help-text")).toBeNull();
     const box = el(".param .edit input") as HTMLInputElement;

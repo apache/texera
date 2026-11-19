@@ -239,6 +239,9 @@ object WorkflowPublishService extends LazyLogging {
         workflow.getPublishedDefaultView
       )
 
+  private[workflow] def visibleCopy(workflow: Workflow, granted: Boolean): PublicCopy =
+    if (granted) workingCopyOf(workflow) else publicCopyOf(workflow)
+
   /** The author's own copy, in the same shape. */
   private def workingCopyOf(workflow: Workflow): PublicCopy =
     PublicCopy(

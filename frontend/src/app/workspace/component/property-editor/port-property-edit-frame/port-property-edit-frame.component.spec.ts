@@ -17,6 +17,9 @@
  * under the License.
  */
 
+import { OperatorMetadataService } from "../../../service/operator-metadata/operator-metadata.service";
+import { StubOperatorMetadataService } from "../../../service/operator-metadata/stub-operator-metadata.service";
+import { setMacroGraph } from "../../../../common/testing/macro-graph";
 import { SimpleChange } from "@angular/core";
 import { ComponentFixture, fakeAsync, TestBed, tick } from "@angular/core/testing";
 import { By } from "@angular/platform-browser";
@@ -48,7 +51,11 @@ describe("PortPropertyEditFrameComponent", () => {
 
   beforeEach(async () => {
     await TestBed.configureTestingModule({
-      providers: [WorkflowActionService, ...commonTestProviders],
+      providers: [
+        WorkflowActionService,
+        ...commonTestProviders,
+        { provide: OperatorMetadataService, useClass: StubOperatorMetadataService },
+      ],
       imports: [
         PortPropertyEditFrameComponent,
         HttpClientTestingModule,
@@ -70,6 +77,23 @@ describe("PortPropertyEditFrameComponent", () => {
   afterEach(() => {
     vi.restoreAllMocks();
     fixture.destroy();
+  });
+
+  it("offers explicit input replacement through the shared exposure action and respects viewer mode", () => {
+    const target = { operatorID: "op-1", portID: "input-0" };
+    component.currentPortID = target;
+    setMacroGraph(workflowActionService, { id: "macro", inputs: [], outputs: [] });
+    vi.spyOn(workflowActionService.macroTerminals, "direction").mockReturnValue("inputs");
+    vi.spyOn(workflowActionService.macroTerminals, "needsReplacement").mockReturnValue(true);
+    const expose = vi.spyOn(workflowActionService.macroTerminals, "expose").mockReturnValue(undefined);
+    fixture.detectChanges();
+    const button = fixture.nativeElement.querySelector('[data-action="expose-port"]');
+    expect(button.textContent).toContain("Replace with macro input");
+    button.click();
+    expect(expose).toHaveBeenCalledWith(target, true);
+    (component as any).actsAsEditor = false;
+    fixture.detectChanges();
+    expect(fixture.nativeElement.querySelector('[data-action="expose-port"]').disabled).toBe(true);
   });
 
   it("should create", () => {
@@ -428,7 +452,7 @@ describe("PortPropertyEditFrameComponent", () => {
     it("should blur, drop the binding and exit editing on disconnect", () => {
       const blur = vi.fn();
       component.quill = { blur } as any;
-      component.quillBinding = {} as any;
+      component.quillBinding = { destroy: vi.fn() } as any;
       component.editingTitle = true;
 
       component.disconnectQuillFromText();

@@ -19,6 +19,17 @@
 
 import { AbstractControl } from "@angular/forms";
 import { FormlyFieldConfig } from "@ngx-formly/core";
+import { PropertyContext } from "../types/custom-json-schema.interface";
+import { propertyModel } from "./custom-formly-type";
+
+/** Only exposed siblings are writable; a Form View card also renames its own control. */
+export function huggingFacePropertyKey(field: FormlyFieldConfig, key: string): string | undefined {
+  const context = field.props?.["propertyContext"] as PropertyContext | undefined;
+  if (!context) return key;
+  return key === context.propertyKey ? String(field.key) : context.bindings[key];
+}
+
+const nativeModel = (field: FormlyFieldConfig) => propertyModel(field) ?? field.model;
 
 const imageOnlyTasks = ["image-classification", "object-detection", "image-segmentation", "image-to-text"];
 const imageInputTasks = [
@@ -49,16 +60,14 @@ const promptRequiredTasks = [
   "zero-shot-image-classification",
 ];
 
+const hasText = (value: unknown): value is string => typeof value === "string" && value.trim().length > 0;
+
 const getSelectedTask = (field: FormlyFieldConfig): string | undefined => {
-  const fromForm = field.form?.get("task")?.value ?? field.formControl?.parent?.get("task")?.value;
-  if (typeof fromForm === "string" && fromForm.trim().length > 0) {
-    return fromForm;
-  }
-  const fromModel = field.model?.task;
-  if (typeof fromModel === "string" && fromModel.trim().length > 0) {
-    return fromModel;
-  }
-  return undefined;
+  const key = huggingFacePropertyKey(field, "task");
+  const fromForm = key ? field.form?.get(key)?.value ?? field.formControl?.parent?.get(key)?.value : undefined;
+  if (hasText(fromForm)) return fromForm;
+  const fromModel = nativeModel(field)?.task;
+  return hasText(fromModel) ? fromModel : undefined;
 };
 
 /**
@@ -70,154 +79,77 @@ const getSelectedTask = (field: FormlyFieldConfig): string | undefined => {
  * separately in {@link customFormlyFieldType}.
  */
 export function applyHuggingFaceFieldBindings(mappedField: FormlyFieldConfig): void {
-  if (mappedField.key === "task") {
-    mappedField.hide = true;
-  }
+  const context = mappedField.props?.["propertyContext"] as PropertyContext | undefined;
+  const hfKey = context?.propertyKey ?? mappedField.key;
+  if (typeof hfKey !== "string") return;
 
-  if (typeof mappedField.key !== "string") {
-    return;
-  }
-  const hfKey = mappedField.key;
-  if (hfKey === "imageInput") {
-    // type ("huggingface-image-upload") is set by customFormlyFieldType
+  const showWhen = (visible: (task: string) => boolean) => {
     mappedField.expressions = {
       ...mappedField.expressions,
-      hide: (field: FormlyFieldConfig) => {
-        const t = getSelectedTask(field);
-        return t === undefined || !imageInputTasks.includes(t);
-      },
+      hide: (field: FormlyFieldConfig) => !visible(getSelectedTask(field) ?? ""),
     };
+  };
+  const requireValue = (name: string, tasks: string[], message: string, alternativeColumn?: string) => {
     mappedField.validators = {
       ...mappedField.validators,
-      requiredImageInput: {
+      [name]: {
         expression: (_control: AbstractControl, field: FormlyFieldConfig) => {
-          const t = getSelectedTask(field);
-          if (t === undefined || !imageInputTasks.includes(t)) {
-            return true;
-          }
-          const inputImageCol = field.model?.inputImageColumn;
-          if (typeof inputImageCol === "string" && inputImageCol.trim().length > 0) {
-            return true;
-          }
-          const value = field.formControl?.value ?? field.model?.imageInput;
-          return typeof value === "string" && value.trim().length > 0;
+          if (!tasks.includes(getSelectedTask(field) ?? "")) return true;
+          const model = nativeModel(field);
+          return (
+            (alternativeColumn !== undefined && hasText(model?.[alternativeColumn])) ||
+            hasText(field.formControl?.value ?? model?.[hfKey])
+          );
         },
-        message: () => "Upload an image or select an Input Image Column for this task.",
+        message: () => message,
       },
     };
-    mappedField.validation = {
-      ...mappedField.validation,
-      show: true,
-    };
-  }
-  if (hfKey === "audioInput") {
-    // type ("huggingface-audio-upload") is set by customFormlyFieldType
-    mappedField.expressions = {
-      ...mappedField.expressions,
-      hide: (field: FormlyFieldConfig) => {
-        const t = getSelectedTask(field);
-        return t === undefined || !audioInputTasks.includes(t);
-      },
-    };
-    mappedField.validators = {
-      ...mappedField.validators,
-      requiredAudioInput: {
-        expression: (_control: AbstractControl, field: FormlyFieldConfig) => {
-          const t = getSelectedTask(field);
-          if (t === undefined || !audioInputTasks.includes(t)) {
-            return true;
-          }
-          const inputAudioCol = field.model?.inputAudioColumn;
-          if (typeof inputAudioCol === "string" && inputAudioCol.trim().length > 0) {
-            return true;
-          }
-          const value = field.formControl?.value ?? field.model?.audioInput;
-          return typeof value === "string" && value.trim().length > 0;
-        },
-        message: () => "Upload audio or select an Input Audio Column for this task.",
-      },
-    };
-    mappedField.validation = {
-      ...mappedField.validation,
-      show: true,
-    };
-  }
-  if (hfKey === "inputImageColumn") {
-    mappedField.expressions = {
-      ...mappedField.expressions,
-      hide: (field: FormlyFieldConfig) => {
-        const t = getSelectedTask(field);
-        return t === undefined || !imageInputTasks.includes(t);
-      },
-    };
-  }
-  if (hfKey === "inputAudioColumn") {
-    mappedField.expressions = {
-      ...mappedField.expressions,
-      hide: (field: FormlyFieldConfig) => {
-        const t = getSelectedTask(field);
-        return t === undefined || !audioInputTasks.includes(t);
-      },
-    };
-  }
-  if (hfKey === "promptColumn") {
-    mappedField.expressions = {
-      ...mappedField.expressions,
-      hide: (field: FormlyFieldConfig) => {
-        const t = getSelectedTask(field);
-        return t !== undefined && (imageOnlyTasks.includes(t) || audioInputTasks.includes(t));
-      },
-    };
-    mappedField.validators = {
-      ...mappedField.validators,
-      requiredPromptColumn: {
-        expression: (_control: AbstractControl, field: FormlyFieldConfig) => {
-          const t = getSelectedTask(field);
-          if (t === undefined || !promptRequiredTasks.includes(t)) {
-            return true;
-          }
-          const value = field.formControl?.value ?? field.model?.promptColumn;
-          return typeof value === "string" && value.trim().length > 0;
-        },
-        message: () => "Select a prompt column for this task.",
-      },
-    };
-    mappedField.validation = {
-      ...mappedField.validation,
-      show: true,
-    };
-  }
-  if (["systemPrompt", "maxNewTokens", "temperature"].includes(hfKey)) {
-    mappedField.expressions = {
-      ...mappedField.expressions,
-      hide: (field: FormlyFieldConfig) => {
-        const t = getSelectedTask(field);
-        return t !== "text-generation";
-      },
-    };
-  }
-  if (hfKey === "contextColumn") {
-    mappedField.expressions = {
-      ...mappedField.expressions,
-      hide: (field: FormlyFieldConfig) => getSelectedTask(field) !== "question-answering",
-    };
-  }
-  if (hfKey === "candidateLabels") {
-    mappedField.expressions = {
-      ...mappedField.expressions,
-      hide: (field: FormlyFieldConfig) => {
-        const t = getSelectedTask(field);
-        return t !== "zero-shot-classification" && t !== "zero-shot-image-classification";
-      },
-    };
-  }
-  if (hfKey === "sentencesColumn") {
-    mappedField.expressions = {
-      ...mappedField.expressions,
-      hide: (field: FormlyFieldConfig) => {
-        const t = getSelectedTask(field);
-        return t !== "sentence-similarity" && t !== "text-ranking";
-      },
-    };
+    mappedField.validation = { ...mappedField.validation, show: true };
+  };
+
+  switch (hfKey) {
+    case "task":
+      mappedField.hide = true;
+      break;
+    case "imageInput":
+    case "inputImageColumn":
+      showWhen(task => imageInputTasks.includes(task));
+      if (hfKey === "imageInput")
+        requireValue(
+          "requiredImageInput",
+          imageInputTasks,
+          "Upload an image or select an Input Image Column for this task.",
+          "inputImageColumn"
+        );
+      break;
+    case "audioInput":
+    case "inputAudioColumn":
+      showWhen(task => audioInputTasks.includes(task));
+      if (hfKey === "audioInput")
+        requireValue(
+          "requiredAudioInput",
+          audioInputTasks,
+          "Upload audio or select an Input Audio Column for this task.",
+          "inputAudioColumn"
+        );
+      break;
+    case "promptColumn":
+      showWhen(task => !imageOnlyTasks.includes(task) && !audioInputTasks.includes(task));
+      requireValue("requiredPromptColumn", promptRequiredTasks, "Select a prompt column for this task.");
+      break;
+    case "systemPrompt":
+    case "maxNewTokens":
+    case "temperature":
+      showWhen(task => task === "text-generation");
+      break;
+    case "contextColumn":
+      showWhen(task => task === "question-answering");
+      break;
+    case "candidateLabels":
+      showWhen(task => task === "zero-shot-classification" || task === "zero-shot-image-classification");
+      break;
+    case "sentencesColumn":
+      showWhen(task => task === "sentence-similarity" || task === "text-ranking");
+      break;
   }
 }

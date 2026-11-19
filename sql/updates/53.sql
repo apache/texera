@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -17,9 +17,4 @@
  * under the License.
  */
 
-import { v5 as uuid } from "uuid";
-import { isEqual } from "lodash-es";
-import { createMacroRuntime } from "@texera/workflow-macros";
-export { isMacro } from "@texera/workflow-macros";
-export type { MacroExpansion } from "@texera/workflow-macros";
-export const { expandMacros, macroResultAliases, mapMacroCompilation } = createMacroRuntime(uuid, isEqual);
+ALTER TABLE texera_db.workflow_executions ADD COLUMN IF NOT EXISTS macro_content TEXT;

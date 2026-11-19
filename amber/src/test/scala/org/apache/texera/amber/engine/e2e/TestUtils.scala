@@ -148,7 +148,8 @@ object TestUtils {
       workflow: Workflow,
       operatorIds: Iterable[OperatorIdentity],
       extract: VirtualDocument[Tuple] => T,
-      completionTimeout: Duration = Duration.fromMinutes(1)
+      completionTimeout: Duration = Duration.fromMinutes(1),
+      configureClient: AmberClient => Unit = _ => ()
   ): Map[OperatorIdentity, T] = {
     // The Promise carries the result so completing the run and handing back the
     // value are atomic. Every terminal path uses `updateIfEmpty`, so a second
@@ -176,6 +177,7 @@ object TestUtils {
       // post-completion `readMaterializedResults` lookup via
       // `getResultUriByLogicalPortId` finds the rows.
       registerResultUriPersistence(client, workflow.context.executionId)
+      configureClient(client)
       client.registerCallback[ExecutionStateUpdate](evt => {
         if (evt.state == COMPLETED) {
           completion.updateIfEmpty(

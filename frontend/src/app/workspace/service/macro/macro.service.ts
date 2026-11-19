@@ -17,30 +17,35 @@
  * under the License.
  */
 import { Injectable } from "@angular/core";
-import { BehaviorSubject, firstValueFrom, from, mergeMap, Subject, toArray } from "rxjs";
+import { BehaviorSubject, firstValueFrom, Subject } from "rxjs";
 import { v4 as uuid } from "uuid";
 import { WorkflowActionService } from "../workflow-graph/model/workflow-action.service";
-import { WorkflowPersistService } from "../../../common/service/workflow-persist/workflow-persist.service";
-import { WorkflowVersionService } from "../../../dashboard/service/user/workflow-version/workflow-version.service";
-import { OperatorMetadataService } from "../operator-metadata/operator-metadata.service";
-import { Workflow, WorkflowContent } from "../../../common/type/workflow";
 import {
-  adoptMacroVersion,
-  expandMacros,
+  MacroCatalog,
+  WorkflowPersistService,
+} from "../../../common/service/workflow-persist/workflow-persist.service";
+import {
+  MacroSource,
+  WorkflowVersionService,
+} from "../../../dashboard/service/user/workflow-version/workflow-version.service";
+import { OperatorMetadataService } from "../operator-metadata/operator-metadata.service";
+import { WorkflowContent } from "../../../common/type/workflow";
+import {
   extractMacro,
+  readMacroInterface,
+  isMacroTerminal,
   MacroDefinition,
   macroInstance,
-  macroSchema,
   macroType,
   mergeMacroDefinitions,
+  replaceMacroVersion,
 } from "../../../common/util/workflow-macro";
-import { WorkflowUtilService } from "../workflow-graph/util/workflow-util.service";
 import { LogicalPort } from "../../types/workflow-common.interface";
-import Ajv from "ajv";
 
 @Injectable({ providedIn: "root" })
 export class MacroService {
   public readonly library$ = new BehaviorSubject<MacroDefinition[]>([]);
+  public readonly usages$ = new BehaviorSubject<MacroCatalog["usages"]>([]);
   public readonly inspect$ = new Subject<string>();
   private refreshing?: Promise<MacroDefinition[]>;
 
@@ -51,7 +56,6 @@ export class MacroService {
     private metadata: OperatorMetadataService
   ) {}
 
-  /** The list endpoint omits content; bound concurrent reads rather than firing one request per saved workflow at once. */
   public refresh(): Promise<MacroDefinition[]> {
     return (this.refreshing ??= this.loadLibrary().finally(() => {
       this.refreshing = undefined;
@@ -59,47 +63,39 @@ export class MacroService {
   }
 
   private async loadLibrary(): Promise<MacroDefinition[]> {
-    const entries = await firstValueFrom(this.persist.retrieveWorkflowsBySessionUser());
-    const failed: string[] = [];
-    const loaded = await firstValueFrom(
-      from(entries).pipe(
-        mergeMap(async ({ workflow: entry }) => {
-          try {
-            const workflow = await firstValueFrom(this.persist.retrieveWorkflow(entry.wid!));
-            return workflow.content.macroInterface ? await this.pin(workflow) : undefined;
-          } catch (error) {
-            failed.push(`${entry.name ?? entry.wid}: ${error instanceof Error ? error.message : String(error)}`);
-            return undefined;
-          }
-        }, 6),
-        toArray()
-      )
-    );
-    const definitions = loaded.filter((d): d is MacroDefinition => d !== undefined);
-    definitions.sort((a, b) => a.name.localeCompare(b.name));
+    const catalog = await firstValueFrom(this.persist.retrieveMacroCatalog());
+    const errors = [...catalog.errors];
+    const definitions = catalog.definitions.filter(definition => {
+      try {
+        this.checkPin(definition);
+        return true;
+      } catch (error) {
+        errors.push(`${definition.name}: ${error instanceof Error ? error.message : String(error)}`);
+        return false;
+      }
+    });
     this.metadata.registerMacros(definitions.flatMap(d => [d, ...(d.content.macroDependencies ?? [])]));
     this.library$.next(definitions);
-    if (failed.length)
-      throw new Error(`Could not load library entries: ${failed.join(", ")}. Fix them or refresh to retry.`);
+    this.usages$.next(catalog.usages);
+    if (errors.length)
+      throw new Error(`Could not load library entries: ${errors.join(", ")}. Fix them or refresh to retry.`);
     return definitions;
   }
 
-  private async pin(workflow: Workflow): Promise<MacroDefinition> {
-    const versions = await firstValueFrom(this.versions.retrieveVersionsOfWorkflow(workflow.wid!));
-    const version = Math.max(...versions.map(v => v.vId));
-    if (!Number.isSafeInteger(version) || version <= 0) throw new Error("Macro has no saved version");
-    // History applies inverse patches inclusively; skip this save's patch to pin its resulting content.
-    const snapshot = await firstValueFrom(this.versions.retrieveWorkflowByVersion(workflow.wid!, version + 1));
-    const content = WorkflowUtilService.parseWorkflowInfo(snapshot).content;
-    if (!content.macroInterface) throw new Error("Saved version is not a macro definition");
-    expandMacros(content);
-    const definition = { id: content.macroInterface.id, version, name: workflow.name, wid: workflow.wid, content };
+  public checkPin(definition: MacroDefinition): MacroDefinition {
     mergeMacroDefinitions(this.actions.getMacroDependencies(), [definition]);
-    macroSchema(definition, type => this.metadata.getOperatorSchema(type, content.macroDependencies ?? []));
     return definition;
   }
 
-  public async copyDefinition(definition: MacroDefinition, dependencies: MacroDefinition[]): Promise<MacroDefinition> {
+  public async pin(source?: Pick<MacroDefinition, "id" | "wid">, version?: number): Promise<MacroDefinition> {
+    if (!source?.wid) throw new Error("Macro source unavailable; refresh the library before inserting it");
+    return this.checkPin(await firstValueFrom(this.versions.pinMacro(source.wid, source.id, version)));
+  }
+
+  public async copyDefinition(
+    definition: Pick<MacroDefinition, "name" | "content">,
+    dependencies: MacroDefinition[]
+  ): Promise<MacroDefinition> {
     return this.saveDefinition(
       {
         ...definition.content,
@@ -110,10 +106,20 @@ export class MacroService {
     );
   }
 
+  public async sourceFor(definition: MacroDefinition, head = false): Promise<MacroSource> {
+    if (!definition.wid) throw new Error("Macro source unavailable");
+    return firstValueFrom(this.versions.macroSource(definition.wid, definition.id, head));
+  }
+
+  public async latestFor(type: string): Promise<MacroDefinition> {
+    const latest = await this.pin(this.metadata.getMacroDefinition(type));
+    this.metadata.registerMacros([latest, ...(latest.content.macroDependencies ?? [])]);
+    return latest;
+  }
+
   private async saveDefinition(content: WorkflowContent, name: string): Promise<MacroDefinition> {
-    expandMacros(content);
     const created = await firstValueFrom(this.persist.createWorkflow(content, name));
-    const definition = await this.pin(WorkflowUtilService.parseWorkflowInfo(created.workflow));
+    const definition = await this.pin({ id: content.macroInterface!.id, wid: created.workflow.wid });
     this.metadata.registerMacros([definition, ...(definition.content.macroDependencies ?? [])]);
     this.library$.next([...this.library$.value, definition]);
     return definition;
@@ -124,7 +130,10 @@ export class MacroService {
     if (!name.trim()) throw new Error("Enter a macro name");
     const content = this.actions.getWorkflowContent();
     const before = this.snapshot(content);
-    const selected = [...this.actions.getJointGraphWrapper().getCurrentHighlightedOperatorIDs()];
+    const selected = this.actions
+      .getJointGraphWrapper()
+      .getCurrentHighlightedOperatorIDs()
+      .filter(id => !isMacroTerminal(this.actions.getTexeraGraph().getOperator(id)));
     const body = extractMacro(content, selected, uuid());
     const d = await this.saveDefinition(body, name.trim());
     if (!this.unchanged(before)) {
@@ -132,9 +141,10 @@ export class MacroService {
     }
     const instance = macroInstance(d, `WorkflowMacro-${uuid()}`);
     const ids = new Set(selected);
+    const exposed = readMacroInterface(body)!;
     const boundary = (p: LogicalPort, direction: "inputs" | "outputs"): LogicalPort => {
       if (!ids.has(p.operatorID)) return p;
-      const port = body.macroInterface![direction].find(b =>
+      const port = exposed[direction].find(b =>
         b.targets.some(t => t.operatorID === p.operatorID && t.portID === p.portID)
       );
       if (!port) throw new Error("Missing boundary mapping");
@@ -147,18 +157,6 @@ export class MacroService {
       this.actions.setMacroDependencies([...this.actions.getMacroDependencies(), d]);
       this.actions.deleteOperatorsAndLinks(selected);
       this.actions.addOperatorsAndLinks([{ op: instance, pos: content.operatorPositions[selected[0]] }], links);
-      if (content.macroInterface) {
-        const remap = (direction: "inputs" | "outputs") =>
-          content.macroInterface![direction].map(port => ({
-            ...port,
-            targets: port.targets.map(target => boundary(target, direction)),
-          }));
-        this.actions.setMacroInterface({
-          ...content.macroInterface,
-          inputs: remap("inputs"),
-          outputs: remap("outputs"),
-        });
-      }
       if (content.formBinding)
         this.actions.setFormBinding({
           ...content.formBinding,
@@ -177,41 +175,13 @@ export class MacroService {
     return d;
   }
 
-  public async adoptLatest(operatorID: string): Promise<void> {
+  public adoptVersion(operatorID: string, latest: MacroDefinition): void {
     if (!this.actions.checkWorkflowModificationEnabled()) throw new Error("Workflow is read-only");
     const content = this.actions.getWorkflowContent();
-    const before = this.snapshot(content);
-    const op = content.operators.find(o => o.operatorID === operatorID);
-    const previous = content.macroDependencies?.find(d => macroType(d) === op?.operatorType);
-    if (!previous) throw new Error("Missing pinned macro definition");
-    const matches = (await this.refresh()).filter(d => d.id === previous.id);
-    if (matches.length > 1)
-      throw new Error(
-        "Multiple definitions share this identity. Insert the intended version from the library explicitly."
-      );
-    const latest = matches[0];
-    if (!latest) throw new Error("Definition is not in this deployment's accessible macro library");
-    const definitions = mergeMacroDefinitions(this.actions.getMacroDependencies(), [latest]);
-    const updated = adoptMacroVersion(op!, previous, latest);
-    if (
-      !new Ajv({ strict: false }).validate(
-        macroSchema(latest, type => this.metadata.getOperatorSchema(type, latest.content.macroDependencies ?? []))
-          .jsonSchema,
-        updated.operatorProperties
-      )
-    ) {
-      throw new Error("Macro properties are incompatible with the new version; insert it explicitly.");
+    const result = replaceMacroVersion(content, operatorID, latest);
+    if (this.actions.getTexeraGraph().getOperator(operatorID).operatorType !== macroType(latest)) {
+      this.actions.updateMacroUsage(operatorID, result);
     }
-    if (!this.unchanged(before)) {
-      throw new Error("The workflow changed while checking versions. Try again.");
-    }
-    if (latest.version === previous.version) return;
-    const links = content.links.filter(l => l.source.operatorID === operatorID || l.target.operatorID === operatorID);
-    this.actions.bundleMacroActions(() => {
-      this.actions.setMacroDependencies(definitions);
-      this.actions.deleteOperatorsAndLinks([operatorID]);
-      this.actions.addOperatorsAndLinks([{ op: updated, pos: content.operatorPositions[operatorID] }], links);
-    });
   }
 
   private snapshot(content = this.actions.getWorkflowContent()): string {

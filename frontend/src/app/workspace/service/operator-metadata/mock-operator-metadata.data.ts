@@ -333,6 +333,19 @@ export const mockHuggingFaceSchema: OperatorSchema = {
 };
 
 export const mockOperatorSchemaList: ReadonlyArray<OperatorSchema> = [
+  ...[true, false].map(input => ({
+    operatorType: input ? "MacroInput" : "MacroOutput",
+    operatorVersion: "1",
+    jsonSchema: { type: "object" as const, properties: {} },
+    additionalMetadata: {
+      userFriendlyName: input ? "Inputs" : "Outputs",
+      operatorGroupName: "Utilities",
+      inputPorts: [],
+      outputPorts: [],
+      dynamicInputPorts: !input,
+      dynamicOutputPorts: input,
+    },
+  })),
   mockScanSourceSchema,
   mockFileSourceSchema,
   mockKeywordSourceSchema,

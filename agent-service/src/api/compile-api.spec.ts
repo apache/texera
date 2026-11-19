@@ -19,6 +19,7 @@
 
 import { afterEach, describe, expect, mock, spyOn, test } from "bun:test";
 import { compileWorkflowAsync, type WorkflowCompilationResponse } from "./compile-api";
+import { macroWorkflow } from "../agent/macro-test-data";
 import type { LogicalPlan } from "../types/workflow";
 
 const plan = {
@@ -53,24 +54,27 @@ describe("compileWorkflowAsync", () => {
     });
   });
 
-  test("returns null on a non-ok response", async () => {
-    spyOn(globalThis, "fetch").mockResolvedValue(new Response("boom", { status: 500 }));
-    expect(await compileWorkflowAsync(plan)).toBeNull();
+  test.each([
+    [500, undefined],
+    [401, "expired-token"],
+  ] as const)("returns null for HTTP %d", async (status, token) => {
+    spyOn(globalThis, "fetch").mockResolvedValue(new Response(null, { status }));
+    expect(await compileWorkflowAsync(plan, token)).toBeNull();
   });
 
-  test("forwards the user's authentication to the protected compiler", async () => {
-    const compilation = { operatorOutputSchemas: {}, operatorErrors: {} };
-    const fetchSpy = spyOn(globalThis, "fetch").mockResolvedValue(new Response(JSON.stringify(compilation)));
-    expect(await compileWorkflowAsync(plan, "user-token")).toEqual(compilation);
-    expect(fetchSpy.mock.calls[0][1]?.headers).toEqual({
-      Authorization: "Bearer user-token",
-      "Content-Type": "application/json",
-    });
-  });
-
-  test("returns no schemas when the compiler rejects a stale token", async () => {
-    spyOn(globalThis, "fetch").mockResolvedValue(new Response("Unauthorized", { status: 401 }));
-    expect(await compileWorkflowAsync(plan, "expired-token")).toBeNull();
+  test("sends the authenticated pinned bundle and preserves the compiler's boundary schemas and nested diagnostics", async () => {
+    const macroContent = macroWorkflow();
+    const compilation: WorkflowCompilationResponse = {
+      operatorOutputSchemas: { one: { "0_false": [{ attributeName: "value", attributeType: "string" }] } },
+      operatorErrors: { one: { operatorId: "one", message: "Outer / Inner / Scan: invalid column", type: "schema" } },
+      macroExpansion: { content: { ...macroContent, operators: [], links: [] }, paths: {}, ports: {} },
+    };
+    const fetchSpy = spyOn(globalThis, "fetch").mockResolvedValue(Response.json(compilation));
+    const request = { ...plan, macroContent, executeOperatorIds: ["one"] };
+    expect(await compileWorkflowAsync(request, "user-token")).toEqual(compilation);
+    const [, init] = fetchSpy.mock.calls[0];
+    expect(init?.headers).toEqual({ Authorization: "Bearer user-token", "Content-Type": "application/json" });
+    expect(JSON.parse(init!.body as string)).toMatchObject({ macroContent, executeOperatorIds: ["one"] });
   });
 
   test("returns null when fetch rejects", async () => {

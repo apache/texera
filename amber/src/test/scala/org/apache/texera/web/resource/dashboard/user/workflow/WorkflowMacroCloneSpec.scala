@@ -26,13 +26,9 @@ class WorkflowMacroCloneSpec extends AnyFlatSpec {
   private val mapper = new ObjectMapper()
 
   "Cloning a workflow" should "rewrite canvas references and preserve pinned dependencies" in {
-    val content = mapper.readTree("""{
-      "operators":[{"operatorID":"leaf","operatorType":"Filter"}],
-      "operatorPositions":{"leaf":{"x":0,"y":0}},
-      "formBinding":{"fields":[{"operatorID":"leaf","propertyKey":"value"}]},
-      "macroInterface":{"id":"definition","inputs":[{"targets":[{"operatorID":"leaf","portID":"input-0"}]}],"outputs":[]},
-      "macroDependencies":[{"id":"child","version":8,"content":{"operators":[{"operatorID":"leaf","operatorType":"Filter"}]}}]
-    }""")
+    val content = mapper.readTree(
+      """{"operators":[{"operatorID":"leaf","operatorType":"Filter"}],"operatorPositions":{"leaf":{"x":0,"y":0}},"formBinding":{"fields":[{"operatorID":"leaf","propertyKey":"value"}]},"macroInterface":{"id":"definition","inputs":[{"targets":[{"operatorID":"leaf","portID":"input-0"}]}],"outputs":[]},"macroDependencies":[{"id":"child","version":8,"content":{"operators":[{"operatorID":"leaf","operatorType":"Filter"}]}}]}"""
+    )
     val cloned = mapper.readTree(WorkflowResource.assignNewOperatorIds(content.toString))
     val id = cloned.at("/operators/0/operatorID").asText()
     assert(id != "leaf")

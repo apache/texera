@@ -16,74 +16,58 @@
  * specific language governing permissions and limitations
  * under the License.
  */
+import { testLink, testOperator } from "../../../../common/testing/workflow-graph";
+import { testWorkflowContent } from "../../../component/user-dashboard-test-fixtures";
 
 import { TestBed } from "@angular/core/testing";
 import { HttpClientTestingModule, HttpTestingController } from "@angular/common/http/testing";
-import { firstValueFrom } from "rxjs";
+import { firstValueFrom, Subject } from "rxjs";
 import { take, toArray } from "rxjs/operators";
 
 import { WORKFLOW_VERSIONS_API_BASE_URL, WorkflowVersionService } from "./workflow-version.service";
-import { WorkflowActionService } from "../../../../workspace/service/workflow-graph/model/workflow-action.service";
+import {
+  DEFAULT_WORKFLOW,
+  WorkflowActionService,
+} from "../../../../workspace/service/workflow-graph/model/workflow-action.service";
 import { WorkflowPersistService } from "../../../../common/service/workflow-persist/workflow-persist.service";
 import { UndoRedoService } from "../../../../workspace/service/undo-redo/undo-redo.service";
 import { AppSettings } from "../../../../common/app-setting";
 import { commonTestProviders } from "../../../../common/testing/test-utils";
-import { ExecutionMode, Workflow, WorkflowContent } from "../../../../common/type/workflow";
-import { CommentBox, OperatorLink, OperatorPredicate } from "../../../../workspace/types/workflow-common.interface";
+import { Workflow, WorkflowContent } from "../../../../common/type/workflow";
+import { OperatorPredicate } from "../../../../workspace/types/workflow-common.interface";
 import { WorkflowVersionEntry } from "../../../type/workflow-version-entry";
 
 const API = "api";
 
 function buildOperator(overrides: Partial<OperatorPredicate> = {}): OperatorPredicate {
-  return {
-    operatorID: "op-1",
-    operatorType: "Filter",
-    operatorVersion: "v1",
-    operatorProperties: {},
-    inputPorts: [],
-    outputPorts: [],
-    showAdvanced: false,
-    ...overrides,
-  };
+  return testOperator("op-1", { operatorVersion: "v1", inputPorts: [], outputPorts: [], ...overrides });
 }
 
-function buildLink(source: string, target: string): OperatorLink {
-  return {
-    linkID: `${source}->${target}`,
-    source: { operatorID: source, portID: "out-0" },
-    target: { operatorID: target, portID: "in-0" },
-  };
-}
+const buildLink = (source: string, target: string) => testLink(source, target, "out-0", "in-0", `${source}->${target}`);
 
 function buildContent(overrides: Partial<WorkflowContent> = {}): WorkflowContent {
-  return {
-    operators: [],
-    operatorPositions: {},
-    links: [],
-    commentBoxes: [] as CommentBox[],
-    settings: { dataTransferBatchSize: 400, executionMode: ExecutionMode.PIPELINED },
-    ...overrides,
-  };
+  return { ...testWorkflowContent([]), ...overrides };
 }
 
 function buildWorkflow(overrides: Partial<Workflow> = {}): Workflow {
   return {
+    ...DEFAULT_WORKFLOW,
     name: "wf",
-    description: undefined,
     wid: 1,
     creationTime: 0,
     lastModifiedTime: 0,
-    isPublished: 0,
-    readonly: false,
     content: buildContent(),
     ...overrides,
   };
 }
 
 describe("WorkflowVersionService", () => {
+  let metadataChanged: Subject<void>;
   let service: WorkflowVersionService;
   let http: HttpTestingController;
   let actionSpy: {
+    getWorkflowMetadata: ReturnType<typeof vi.fn>;
+    workflowMetaDataChanged: ReturnType<typeof vi.fn>;
     getJointGraphWrapper: ReturnType<typeof vi.fn>;
     getWorkflow: ReturnType<typeof vi.fn>;
     getWorkflowContent: ReturnType<typeof vi.fn>;
@@ -108,6 +92,7 @@ describe("WorkflowVersionService", () => {
   let getMainJointPaper: ReturnType<typeof vi.fn>;
 
   beforeEach(() => {
+    metadataChanged = new Subject<void>();
     modelAttr = vi.fn();
     paperGetModelById = vi.fn().mockReturnValue({ attr: modelAttr });
     getMainJointPaper = vi.fn().mockReturnValue({ getModelById: paperGetModelById });
@@ -116,6 +101,8 @@ describe("WorkflowVersionService", () => {
       unhighlightElements: vi.fn(),
     };
     actionSpy = {
+      getWorkflowMetadata: vi.fn().mockReturnValue(buildWorkflow()),
+      workflowMetaDataChanged: vi.fn(() => metadataChanged),
       getJointGraphWrapper: vi.fn().mockReturnValue({
         getCurrentHighlights: highlightedSpy.getCurrentHighlights,
         unhighlightElements: highlightedSpy.unhighlightElements,
@@ -181,6 +168,28 @@ describe("WorkflowVersionService", () => {
   // ─── setDisplayParticularVersion + streams ────────────────────────────────
 
   describe("setDisplayParticularVersion", () => {
+    it("keeps a parent's preview and revision selection scoped to that document while inspecting a child", () => {
+      const actions = TestBed.inject(WorkflowActionService);
+      const parent = buildWorkflow();
+      actionSpy.getWorkflowMetadata.mockReturnValue(parent);
+      metadataChanged.next();
+      actionSpy.getTempWorkflow.mockReturnValue(parent);
+      service.setDisplayParticularVersion(true, 7, 2);
+      const flags: boolean[] = [];
+      const subscription = service.getDisplayParticularVersionStream().subscribe(value => flags.push(value));
+      actionSpy.getWorkflowMetadata.mockReturnValue(buildWorkflow({ wid: 2 }));
+      metadataChanged.next();
+      expect(flags.at(-1)).toBe(false);
+      expect(service.canPreviewVersion).toBe(false);
+      expect(actions.getTempWorkflow()).toBe(parent);
+      expect(service.selectedVersionId.value).toBe(7);
+      actionSpy.getWorkflowMetadata.mockReturnValue(parent);
+      metadataChanged.next();
+      expect(flags.at(-1)).toBe(true);
+      expect(service.canPreviewVersion).toBe(true);
+      subscription.unsubscribe();
+    });
+
     it("publishes both ids and the flag when entering a particular version", async () => {
       const flag = firstValueFrom(service.getDisplayParticularVersionStream().pipe(take(2), toArray()));
       service.setDisplayParticularVersion(true, 7, 9);
@@ -502,6 +511,26 @@ describe("WorkflowVersionService", () => {
       expect(req.request.method).toBe("GET");
       req.flush(entries);
       expect(await pending).toEqual(entries);
+    });
+
+    it.each([true, false])("requests macro metadata with head=%s", async head => {
+      const pending = firstValueFrom(service.macroSource(42, "definition", head));
+      const req = http.expectOne(request => request.url === `${API}/version/42/macro-source`);
+      expect(req.request.params.get("id")).toBe("definition");
+      expect(req.request.params.get("head")).toBe(String(head));
+      const summary = { metadata: DEFAULT_WORKFLOW, revisions: [3, 64] };
+      req.flush(summary);
+      expect(await pending).toEqual(summary);
+    });
+
+    it.each([undefined, 5])("requests the pinned body by source identity and selected save (%s)", async version => {
+      const pending = firstValueFrom(service.pinMacro(42, "definition", version));
+      const request = http.expectOne(req => req.url === `${API}/${WORKFLOW_VERSIONS_API_BASE_URL}/42/macro`);
+      expect(request.request.params.get("id")).toBe("definition");
+      expect(request.request.params.get("version")).toBe(version?.toString() ?? null);
+      const body = { id: "definition", wid: 42, version: version ?? 64, revision: 2, content: buildContent() };
+      request.flush(body);
+      expect(await pending).toEqual(body);
     });
 
     it("retrieveWorkflowByVersion parses a string `content` into an object", async () => {

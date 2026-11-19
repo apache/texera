@@ -31,21 +31,25 @@
             nz-icon
             nzType="arrow-left"></i>
         </button>
-        <label>
-          <nz-avatar
-            style="vertical-align: top; margin-top: 1px; margin-left: 3px"
-            *ngIf="workflowId"
-            [nzText]="workflowId.toString() || ''"></nz-avatar>
-          <input
-            #workflowNameInput
-            *ngIf="!displayParticularWorkflowVersion"
-            (input)="adjustWorkflowNameWidth()"
-            (change)="onWorkflowNameChange()"
-            [(ngModel)]="currentWorkflowName"
-            class="workflow-name"
-            placeholder="Untitled Workflow" />
-          <span *ngIf="displayParticularWorkflowVersion"> {{particularVersionDate}} </span>
-        </label>
+        <texera-macro-breadcrumbs>
+          <label>
+            <nz-avatar
+              style="vertical-align: top; margin-top: 1px; margin-left: 3px"
+              *ngIf="workflowId"
+              [nzText]="workflowId.toString() || ''"></nz-avatar>
+            <input
+              [disabled]="macroNavigation.parents.length > 0 && !isWorkflowModifiable"
+              [style.max-width.px]="macroNavigation.parents.length ? 180 : null"
+              #workflowNameInput
+              *ngIf="!displayParticularWorkflowVersion"
+              (input)="adjustWorkflowNameWidth()"
+              (change)="onWorkflowNameChange()"
+              [(ngModel)]="currentWorkflowName"
+              class="workflow-name"
+              placeholder="Untitled Workflow" />
+            <span *ngIf="displayParticularWorkflowVersion"> {{particularVersionDate}} </span>
+          </label>
+        </texera-macro-breadcrumbs>
         <button
           *ngIf="displayParticularWorkflowVersion"
           nz-button
@@ -56,7 +60,7 @@
           Restore this version
         </button>
         <button
-          *ngIf="displayParticularWorkflowVersion"
+          *ngIf="displayParticularWorkflowVersion && !workflowActionService.getMacroInterface()"
           nz-button
           nzType="default"
           (click)="cloneVersion()"
@@ -81,7 +85,7 @@
            Every workflow offers both views, so this shows wherever the feature flag is on. -->
       <div
         class="view-switch"
-        *ngIf="this.config.env.formViewEnabled && !displayParticularWorkflowVersion">
+        *ngIf="this.config.env.formViewEnabled && !displayParticularWorkflowVersion && !macroNavigation.parents.length">
         <!-- The pressed segment stays a live button with no handler, deliberately: clicking the view
              you are already on is a no-op, and a real button keeps the segment focusable and announced
              with its pressed state. The Form View page mirrors this exactly, roles swapped. -->
@@ -460,7 +464,7 @@
           [nzPopoverTrigger]="'hover'"
           [nzPopoverContent]="executionSettings"
           nzPopoverPlacement="bottom"
-          [disabled]="runDisable || (!workflowWebsocketService.isConnected && computingUnitStatus !== ComputingUnitState.NoComputingUnit) || displayParticularWorkflowVersion || (selectedComputingUnit !== null && selectedComputingUnit.accessPrivilege !== Privilege.WRITE)"
+          [disabled]="macroNavigation.parents.length > 0 || runDisable || (!workflowWebsocketService.isConnected && computingUnitStatus !== ComputingUnitState.NoComputingUnit) || displayParticularWorkflowVersion || (selectedComputingUnit !== null && selectedComputingUnit.accessPrivilege !== Privilege.WRITE)"
           id="run-button"
           nz-button
           nzType="primary">

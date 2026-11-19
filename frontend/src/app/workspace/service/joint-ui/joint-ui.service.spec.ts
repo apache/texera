@@ -16,6 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
+import { testOperator } from "../../../common/testing/workflow-graph";
 
 import { of } from "rxjs";
 import * as joint from "jointjs";
@@ -502,6 +503,20 @@ describe("JointUIService", () => {
   });
 
   describe("getJointOperatorElement", () => {
+    it.each([
+      ["MacroInput", "MacroInput.svg"],
+      ["MacroOutput", "MacroOutput.svg"],
+      ["WorkflowMacro:example:1", "SubWorkflow.svg"],
+      ["TextInput", "TextInput.png"],
+    ])("uses the appropriate icon for %s", (operatorType, icon) => {
+      const element = JointUIService.createJointOperatorElement(
+        testOperator("icon", { operatorType }),
+        { x: 0, y: 0 },
+        "Icon"
+      );
+      expect(element.attr(".texera-operator-icon/xlink:href")).toBe(`assets/operator_images/${icon}`);
+    });
+
     function buildMetadataWithSchemas(schemas: object[]) {
       return {
         getOperatorMetadata: () =>
@@ -734,6 +749,18 @@ describe("JointUIService", () => {
   });
 
   describe("changeOperatorStatistics", () => {
+    it("restores port names and removes worker counts when a view loses its execution context", () => {
+      const { paper, attrSpy, portPropSpy } = makeStatsPaper(() => []);
+      const service = new JointUIService(emptyMetadataStub as never);
+      service.resetOperatorStatistics(paper, {
+        operatorID: "op-1",
+        inputPorts: [{ portID: "in", displayName: "Rows" }],
+        outputPorts: [{ portID: "out" }],
+      } as OperatorPredicate);
+      expect(attrSpy).toHaveBeenCalledWith(".operator-worker-count/text", "");
+      expect(portPropSpy).toHaveBeenCalledWith("in", "attrs/.port-label/text", "Rows");
+      expect(portPropSpy).toHaveBeenCalledWith("out", "attrs/.port-label/text", "");
+    });
     function makeStatsPaper(getPortsImpl: () => Array<{ id?: string; group?: string; attrs?: unknown }>) {
       const attrSpy = vi.fn();
       const portPropSpy = vi.fn();

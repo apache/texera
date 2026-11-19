@@ -241,7 +241,7 @@ lazy val WorkflowCompiler = (project in file("common/workflow-compiler"))
   .configs(Test)
   .dependsOn(WorkflowOperator)
 lazy val WorkflowCompilingService = (project in file("workflow-compiling-service"))
-  .dependsOn(WorkflowCompiler, Auth, Config, Resource)
+  .dependsOn(WorkflowCompiler % "compile->compile;test->test", Auth, Config, Resource)
   .settings(commonModuleSettings)
   .settings(
     dependencyOverrides ++= Seq(
@@ -253,7 +253,7 @@ lazy val WorkflowCompilingService = (project in file("workflow-compiling-service
   )
 
 lazy val WorkflowExecutionService = (project in file("amber"))
-  .dependsOn(WorkflowCompiler, Auth, Config)
+  .dependsOn(WorkflowCompiler % "compile->compile;test->test", Auth, Config)
   .settings(commonModuleSettings)
   .settings(
     dependencyOverrides ++= Seq(

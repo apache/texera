@@ -59,7 +59,8 @@ object WorkflowCompiler {
   // util function to convert the error list to an error map, and report the errors in the log
   private def convertErrorListToWorkflowFatalErrorMap(
       logger: Logger,
-      errorList: List[(OperatorIdentity, Throwable)]
+      errorList: List[(OperatorIdentity, Throwable)],
+      message: Throwable => String = _.toString
   ): Map[OperatorIdentity, WorkflowFatalError] = {
     val opIdToError = mutable.Map[OperatorIdentity, WorkflowFatalError]()
     errorList.foreach {
@@ -73,7 +74,7 @@ object WorkflowCompiler {
           opIdToError += (opId -> WorkflowFatalError(
             COMPILATION_ERROR,
             Timestamp(Instant.now),
-            err.toString,
+            message(err),
             getStackTraceWithAllCauses(err),
             opId.id
           ))
@@ -361,23 +362,79 @@ class WorkflowCompiler(
       logicalPlanPojo: LogicalPlanPojo,
       errorHandling: CompilationErrorHandling = CompilationErrorHandling.Lenient
   ): WorkflowCompilationResult = {
-    // Lenient collects into a buffer; Strict passes None so the first error is thrown.
+    val hasMacros =
+      logicalPlanPojo.macroContent.isDefined || logicalPlanPojo.expandedMacros.isDefined
+    // Macros collect errors so Strict failures can name their enclosing instances too.
     val errorList: Option[ArrayBuffer[(OperatorIdentity, Throwable)]] =
       errorHandling match {
-        case CompilationErrorHandling.Lenient =>
+        case CompilationErrorHandling.Strict if !hasMacros => None
+        case _ =>
           Some(new ArrayBuffer[(OperatorIdentity, Throwable)]())
-        case CompilationErrorHandling.Strict => None
       }
+    def errors(
+        failures: List[(OperatorIdentity, Throwable)]
+    ): Map[OperatorIdentity, WorkflowFatalError] = {
+      val result = convertErrorListToWorkflowFatalErrorMap(
+        logger,
+        failures,
+        error =>
+          if (hasMacros)
+            Option(error.getMessage).getOrElse(error.toString)
+          else error.toString
+      )
+      Try(logicalPlanPojo.macroExpansion).toOption.flatten
+        .map(MacroValidation.propagate(_, result))
+        .getOrElse(result)
+    }
 
+    val normalized =
+      try {
+        require(
+          errorHandling != CompilationErrorHandling.Strict ||
+            !logicalPlanPojo.macroContent.exists(_.hasNonNull("macroInterface")),
+          "Run macro definitions inside a workflow"
+        )
+        if (
+          errorHandling == CompilationErrorHandling.Lenient && logicalPlanPojo.macroContent.isDefined
+        )
+          MacroExpansion.logicalPlan(logicalPlanPojo, logicalPlanPojo.macroExpansion.get, errorList)
+        else logicalPlanPojo.normalized
+      } catch {
+        case scala.util.control.NonFatal(error)
+            if errorHandling == CompilationErrorHandling.Lenient =>
+          val operators = logicalPlanPojo.macroContent.toList
+            .flatMap(_.path("operators").elements().asScala)
+          val failures = error match {
+            case invalid: MacroValidation.ValidationErrors => invalid.errors
+            case _ =>
+              val id = error match {
+                case invalid: MacroExpansion.InvalidMacro => invalid.root
+                case _ =>
+                  operators
+                    .find(_.path("operatorType").asText().startsWith("WorkflowMacro:"))
+                    .orElse(operators.headOption)
+                    .map(_.path("operatorID").asText())
+                    .getOrElse("workflow")
+              }
+              List(OperatorIdentity(id) -> error)
+          }
+          return WorkflowCompilationResult(
+            LogicalPlan(Nil, Nil),
+            None,
+            Map.empty,
+            errors(failures),
+            Set.empty
+          )
+      }
     // 1. convert the pojo to logical plan
-    val logicalPlan: LogicalPlan = LogicalPlan(logicalPlanPojo)
+    val logicalPlan: LogicalPlan = LogicalPlan(normalized)
 
     // 2. resolve the file name in each scan source operator
     logicalPlan.resolveScanSourceOpFileName(errorList)
 
     // 3. expand the logical plan to the physical plan, and get the output ports that need storage
     val (physicalPlan, outputPortsNeedingStorage) =
-      expandLogicalPlan(logicalPlan, logicalPlanPojo.opsToViewResult, errorList)
+      expandLogicalPlan(logicalPlan, normalized.opsToViewResult, errorList)
 
     // 4. collect the output schema for each logical op
     // even if an error is encountered during logical => physical expansion, we still want to
@@ -388,7 +445,9 @@ class WorkflowCompiler(
     val schemaErrorList = errorList.getOrElse(new ArrayBuffer[(OperatorIdentity, Throwable)]())
     val opIdToOutputSchema = collectOutputSchemaFromPhysicalPlan(physicalPlan, schemaErrorList)
     if (errorHandling == CompilationErrorHandling.Strict && schemaErrorList.nonEmpty) {
-      throw schemaErrorList.head._2
+      throw logicalPlanPojo.macroExpansion
+        .map(new MacroValidation.ValidationErrors(schemaErrorList.toList, _))
+        .getOrElse(schemaErrorList.head._2)
     }
 
     val hasErrors = errorList.exists(_.nonEmpty)
@@ -397,10 +456,7 @@ class WorkflowCompiler(
       physicalPlan = if (hasErrors) None else Some(physicalPlan),
       operatorIdToOutputSchemas = opIdToOutputSchema,
       // map each error from OpId to WorkflowFatalError, and report them via logger
-      operatorIdToError = convertErrorListToWorkflowFatalErrorMap(
-        logger,
-        errorList.map(_.toList).getOrElse(List.empty)
-      ),
+      operatorIdToError = errors(errorList.map(_.toList).getOrElse(List.empty)),
       outputPortsNeedingStorage = outputPortsNeedingStorage
     )
   }
