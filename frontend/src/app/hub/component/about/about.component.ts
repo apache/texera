@@ -17,7 +17,7 @@
  * under the License.
  */
 
-import { AfterViewInit, Component, ElementRef, OnDestroy } from "@angular/core";
+import { AfterViewInit, Component, ElementRef, NgZone, OnDestroy } from "@angular/core";
 import { createElement } from "react";
 import { createRoot, Root } from "react-dom/client";
 import { AboutContent } from "./about-content";
@@ -33,14 +33,19 @@ import { AboutContent } from "./about-content";
 export class AboutComponent implements AfterViewInit, OnDestroy {
   private root?: Root;
 
-  constructor(private readonly host: ElementRef<HTMLElement>) {}
+  constructor(
+    private readonly host: ElementRef<HTMLElement>,
+    private readonly ngZone: NgZone
+  ) {}
 
   ngAfterViewInit(): void {
-    this.root = createRoot(this.host.nativeElement);
-    this.root.render(createElement(AboutContent));
+    this.ngZone.runOutsideAngular(() => {
+      this.root = createRoot(this.host.nativeElement);
+      this.root.render(createElement(AboutContent));
+    });
   }
 
   ngOnDestroy(): void {
-    this.root?.unmount();
+    this.ngZone.runOutsideAngular(() => this.root?.unmount());
   }
 }
