@@ -104,18 +104,26 @@ export class DatasetService {
   }
 
   /**
-   * Retrieves a single file from a dataset version using a pre-signed URL.
+   * Gets a pre-signed URL that reads a single file of a dataset version straight from the object store.
+   * The URL carries an attachment Content-Disposition with the file's name, so opening it downloads the file.
    * @param filePath Relative file path within the dataset.
    * @param isLogin Determine whether a user is currently logged in
-   * @returns Observable<Blob>
    */
-  public retrieveDatasetVersionSingleFile(filePath: string, isLogin: boolean = true): Observable<Blob> {
+  public getDatasetVersionSingleFilePresignedUrl(filePath: string, isLogin: boolean = true): Observable<string> {
     const endpointSegment = isLogin ? "presign-download" : "public-presign-download";
     const endpoint = `${AppSettings.getApiEndpoint()}/${DATASET_BASE_URL}/${endpointSegment}?filePath=${encodeURIComponent(filePath)}`;
+    return this.http.get<{ presignedUrl: string }>(endpoint).pipe(map(({ presignedUrl }) => presignedUrl));
+  }
 
-    return this.http
-      .get<{ presignedUrl: string }>(endpoint)
-      .pipe(switchMap(({ presignedUrl }) => this.http.get(presignedUrl, { responseType: "blob" })));
+  /**
+   * Retrieves a single file from a dataset version into memory, e.g. for previewing it.
+   * @param filePath Relative file path within the dataset.
+   * @param isLogin Determine whether a user is currently logged in
+   */
+  public retrieveDatasetVersionSingleFile(filePath: string, isLogin: boolean = true): Observable<Blob> {
+    return this.getDatasetVersionSingleFilePresignedUrl(filePath, isLogin).pipe(
+      switchMap(presignedUrl => this.http.get(presignedUrl, { responseType: "blob" }))
+    );
   }
 
   /**
