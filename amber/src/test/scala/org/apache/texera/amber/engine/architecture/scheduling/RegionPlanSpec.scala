@@ -236,4 +236,31 @@ class RegionPlanSpec extends AnyFlatSpec with BarePhysicalPlanFixture {
     assert(order.head == ids(0))
     assert(order.last == ids(8))
   }
+
+  "RegionPlan with skip regions" should "hold active and skipped regions together and resolve lookups across both" in {
+    val active = buildDiamondPlan()
+    val skippedInternalLink = link("skip-a", "skip-b")
+    val skippedPort = globalPort("skip-b")
+    val skipRegion = Region(
+      RegionIdentity(10),
+      physicalOps = Set(op("skip-a"), op("skip-b")),
+      physicalLinks = Set(skippedInternalLink),
+      ports = Set(skippedPort),
+      skipped = true
+    )
+    val plan = RegionPlan(
+      regions = active.regions + skipRegion,
+      regionLinks = active.regionLinks
+    )
+
+    assert(plan.getRegion(RegionIdentity(10)) == skipRegion)
+    assert(plan.getRegionOfLink(skippedInternalLink) == skipRegion)
+    assert(plan.getRegionOfPortId(skippedPort).contains(skipRegion))
+    val order = plan.topologicalIterator().toList
+    assert(order.toSet == active.regions.map(_.id) + skipRegion.id)
+    val pos = order.zipWithIndex.toMap
+    active.regionLinks.foreach { edge =>
+      assert(pos(edge.fromRegionId) < pos(edge.toRegionId))
+    }
+  }
 }

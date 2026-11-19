@@ -45,24 +45,40 @@ abstract class ScheduleGenerator(
   def generate(): (Schedule, PhysicalPlan)
 
   /**
-    * A schedule is a ranking on the regions of a region plan.
-    * Regions are dispatched in batches of up to ApplicationConfig.maxConcurrentRegions, respecting the DAG dependencies.
-    * When maxConcurrentRegions == 1, this is equivalent to a total order (fully sequential execution).
+    * A schedule is a ranking on the regions of a region plan. Skip regions (`Region.skipped`)
+    * share level 0 so they complete together without worker allocation; active regions follow in
+    * topological batches of up to ApplicationConfig.maxConcurrentRegions. When
+    * maxConcurrentRegions == 1, the active levels form a total order.
     */
   def generateScheduleFromRegionPlan(regionPlan: RegionPlan): Schedule = {
-    val inDegree = mutable.Map.empty[RegionIdentity, Int]
-    regionPlan.topologicalIterator().foreach { rid =>
-      inDegree(rid) = regionPlan.dag.inDegreeOf(rid)
+    val skippedIds = regionPlan.regions.filter(_.skipped).map(_.id)
+    require(
+      regionPlan.regionLinks.forall(link =>
+        !skippedIds.contains(link.fromRegionId) && !skippedIds.contains(link.toRegionId)
+      ),
+      "skip regions must not have region links"
+    )
+
+    val tmpLevelSets = mutable.Map.empty[Int, Set[RegionIdentity]]
+    var level = 0
+    if (skippedIds.nonEmpty) {
+      tmpLevelSets(0) = skippedIds
+      level = 1
     }
+
+    val inDegree = mutable.Map.empty[RegionIdentity, Int]
+    regionPlan
+      .topologicalIterator()
+      .filterNot(skippedIds.contains)
+      .foreach { rid =>
+        inDegree(rid) = regionPlan.dag.inDegreeOf(rid)
+      }
 
     val readyRegionsQueue = mutable.Queue(
       inDegree.collect { case (rid, 0) => rid }.toSeq: _*
     )
 
-    val tmpLevelSets = mutable.Map.empty[Int, Set[RegionIdentity]]
-    var level = 0
-
-    // While there are ready regions:
+    // While there are ready active regions:
     // 1. Dequeue up to maxConcurrentRegions regions to form the current batch.
     // 2. Record this batch under the current level.
     // 3. For each region in the batch:
