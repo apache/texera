@@ -17,6 +17,7 @@
  * under the License.
  */
 
+import { ViewContainerRef } from "@angular/core";
 import { CodeEditorService } from "./code-editor.service";
 
 describe("CodeEditorService", () => {
@@ -69,5 +70,33 @@ describe("CodeEditorService", () => {
     service.setEditorState("opA", true);
     expect(valueA).toBe(true);
     expect(valueB).toBe(false);
+  });
+
+  // The outlet the editor opens into, attached by whichever view is in front (#8760).
+  describe("the editor host", () => {
+    const outlet = (name: string) => ({ name }) as unknown as ViewContainerRef;
+
+    it("has no host until a view attaches one", () => {
+      expect(service.host).toBeUndefined();
+
+      const canvas = outlet("canvas");
+      service.attachHost(canvas);
+
+      expect(service.host).toBe(canvas);
+    });
+
+    it("lets go of the host that detaches, and keeps one that has replaced it", () => {
+      const canvas = outlet("canvas");
+      const form = outlet("form");
+      service.attachHost(canvas);
+      service.attachHost(form);
+
+      // The canvas's late destroy must not take the form's host with it.
+      service.detachHost(canvas);
+      expect(service.host).toBe(form);
+
+      service.detachHost(form);
+      expect(service.host).toBeUndefined();
+    });
   });
 });
