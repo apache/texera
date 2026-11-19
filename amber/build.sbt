@@ -289,7 +289,7 @@ libraryDependencies += "org.jooq" % "jooq" % "3.19.36"
 libraryDependencies += "org.jgrapht" % "jgrapht-core" % "1.4.0"
 
 // https://mvnrepository.com/artifact/com.esotericsoftware/kryo
-libraryDependencies += "com.esotericsoftware" % "kryo" % "5.6.2"
+libraryDependencies += "com.esotericsoftware" % "kryo" % "5.7.1"
 libraryDependencies += "com.esotericsoftware" % "kryo5" % "5.6.0"
 
 // https://mvnrepository.com/artifact/io.altoo/pekko-kryo-serialization
