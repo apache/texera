@@ -100,14 +100,17 @@ export class DatasetSelectionModalComponent implements OnInit {
 
   onDatasetChange(versionName?: string) {
     this.fileTree = [];
+    this.selectedVersion = undefined;
+    this.selectedPath = undefined;
     if (this.selectedDataset?.dataset.did !== undefined) {
       this.datasetService
         .retrieveDatasetVersionList(this.selectedDataset.dataset.did)
         .pipe(untilDestroyed(this))
         .subscribe(versions => {
           this.datasetVersions = versions;
-          if (this.data.fileMode) {
-            this.selectedVersion = versions.find(version => version.name === versionName) ?? versions[0];
+          const savedVersion = versions.find(version => version.name === versionName);
+          this.selectedVersion = this.data.fileMode ? savedVersion ?? versions[0] : savedVersion;
+          if (this.selectedVersion) {
             this.onVersionChange();
           }
         });

@@ -21,7 +21,6 @@ import { TestBed } from "@angular/core/testing";
 import { HttpClientTestingModule, HttpTestingController } from "@angular/common/http/testing";
 import { throwError } from "rxjs";
 import { AiAnalystService } from "./ai-analyst.service";
-import { WorkflowActionService } from "../workflow-graph/model/workflow-action.service";
 import { AppSettings } from "../../../common/app-setting";
 
 describe("AiAnalystService", () => {
@@ -33,9 +32,7 @@ describe("AiAnalystService", () => {
   beforeEach(() => {
     TestBed.configureTestingModule({
       imports: [HttpClientTestingModule],
-      // WorkflowActionService is a constructor dependency but unused by the tested
-      // methods, so an empty stub avoids pulling in the workflow-graph module.
-      providers: [AiAnalystService, { provide: WorkflowActionService, useValue: {} }],
+      providers: [AiAnalystService],
     });
     service = TestBed.inject(AiAnalystService);
     httpMock = TestBed.inject(HttpTestingController);

@@ -67,6 +67,13 @@ class TupleLikeSpec extends AnyFlatSpec {
     assertThrows[IndexOutOfBoundsException](TupleLike(42, "hello", true).enforceSchema(schema))
   }
 
+  it should "enforce null positional fields and reject field type mismatches" in {
+    val tuple = TupleLike(null, "hello").enforceSchema(schema)
+    assert(tuple.getField[Any]("col-int") == null)
+    assert(tuple.getField[String]("col-string") == "hello")
+    assertThrows[RuntimeException](TupleLike("wrong-type", "hello").enforceSchema(schema))
+  }
+
   // ----- MapTupleLike -----
 
   "MapTupleLike" should "expose its mapping values as fields and not implement inMemSize" in {

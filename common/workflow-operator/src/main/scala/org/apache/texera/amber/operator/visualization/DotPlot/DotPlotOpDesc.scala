@@ -19,24 +19,23 @@
 
 package org.apache.texera.amber.operator.visualization.DotPlot
 
+import org.apache.texera.amber.operator.visualization.StandaloneChartCode._
 import com.fasterxml.jackson.annotation.{JsonProperty, JsonPropertyDescription}
 import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaTitle
-import org.apache.texera.amber.core.tuple.{AttributeType, Schema}
 import org.apache.texera.amber.pybuilder.PythonTemplateBuilder.{
   PythonTemplateBuilderStringContext,
   pyStringLiteral
 }
 import org.apache.texera.amber.pybuilder.PyStringTypes.EncodableString
-import org.apache.texera.amber.core.workflow.PortIdentity
-import org.apache.texera.amber.operator.PythonOperatorDescriptor
 import org.apache.texera.amber.operator.visualization.PlotlyStandaloneCode
+import org.apache.texera.amber.operator.visualization.PythonVisualizationOpDesc
 import org.apache.texera.amber.operator.metadata.annotations.AutofillAttributeName
 import org.apache.texera.amber.operator.metadata.{OperatorGroupConstants, OperatorInfo}
 import org.apache.texera.amber.pybuilder.PythonTemplateBuilder
 
 import javax.validation.constraints.NotNull
 
-class DotPlotOpDesc extends PythonOperatorDescriptor with PlotlyStandaloneCode {
+class DotPlotOpDesc extends PythonVisualizationOpDesc with PlotlyStandaloneCode {
 
   @JsonProperty(value = "Count Attribute", required = true)
   @JsonSchemaTitle("Count Attribute")
@@ -44,14 +43,6 @@ class DotPlotOpDesc extends PythonOperatorDescriptor with PlotlyStandaloneCode {
   @AutofillAttributeName
   @NotNull(message = "Count Attribute column cannot be empty")
   var countAttribute: EncodableString = ""
-
-  override def getOutputSchemas(
-      inputSchemas: Map[PortIdentity, Schema]
-  ): Map[PortIdentity, Schema] = {
-    val outputSchema = Schema()
-      .add("html-content", AttributeType.STRING)
-    Map(operatorInfo.outputPorts.head.id -> outputSchema)
-  }
 
   override def operatorInfo: OperatorInfo =
     OperatorInfo.forVisualization(
@@ -104,10 +95,6 @@ class DotPlotOpDesc extends PythonOperatorDescriptor with PlotlyStandaloneCode {
     finalCode.encode
   }
 
-  // Output is an HTML chart, not a tabular DataFrame.
-  // The translator skips it in the leaf-DataFrame print block.
-  override def producesDataFrame(): Boolean = false
-
   override def generateStandaloneCode(): String = {
     val countLit = pyStringLiteral(countAttribute)
     // The error page is written to the same file a plotted chart lands in, so a
@@ -115,10 +102,7 @@ class DotPlotOpDesc extends PythonOperatorDescriptor with PlotlyStandaloneCode {
     // to the terminal alone left that file absent. render_error's continuation
     // line keeps the runtime path's indentation, since the HTML is triple-quoted
     // and those spaces reach the browser.
-    s"""def render_error(error_msg):
-       |    return '''<h1>DotPlot is not available.</h1>
-       |                  <p>Reasons are: {} </p>
-       |               '''.format(error_msg)
+    s"""${standaloneError("DotPlot is not available.", plural = true)}
        |
        |def fail(error_msg):
        |    with open(outputHtml, "w", encoding="utf-8") as output:
@@ -136,9 +120,7 @@ class DotPlotOpDesc extends PythonOperatorDescriptor with PlotlyStandaloneCode {
        |                       color_discrete_sequence=px.colors.qualitative.Dark2)
        |        fig.update_traces(marker=dict(size=12, line=dict(width=2, color='DarkSlateGrey')))
        |        fig.update_layout(margin=dict(t=0, b=0, l=0, r=0))
-       |        fig.write_json(outputJson)
-       |        fig.write_html(outputHtml)
-       |        print("Dot plot saved to " + outputHtml)""".stripMargin
+       |${standaloneFigure("Dot plot")}""".stripMargin
   }
 
 }

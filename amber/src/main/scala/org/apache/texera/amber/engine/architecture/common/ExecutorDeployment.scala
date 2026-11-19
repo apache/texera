@@ -49,6 +49,19 @@ object ExecutorDeployment {
       coordinatorActorService.getClusterNodeAddresses,
       coordinatorActorService.self.path.address
     )
+    lazy val isPythonBased = op.isPythonBased
+    lazy val replayInit = WorkerReplayInitialization(stateRestoreConfig, replayLoggingConfig)
+    lazy val preferredAddressFor: Int => Address =
+      op.locationPreference.getOrElse(RoundRobinPreference) match {
+        case PreferCoordinator =>
+          _ => addressInfo.coordinatorAddress
+        case RoundRobinPreference =>
+          assert(
+            addressInfo.allAddresses.nonEmpty,
+            "Execution failed to start, no available computation nodes"
+          )
+          workerIndex => addressInfo.allAddresses(workerIndex % addressInfo.allAddresses.length)
+      }
 
     operatorConfig.workerConfigs.foreach(workerConfig => {
       val workerId = workerConfig.workerId
@@ -59,28 +72,12 @@ object ExecutorDeployment {
             s"Expected worker actor id when deploying executor, got: ${workerId.name}"
           )
         )
-      val locationPreference = op.locationPreference.getOrElse(RoundRobinPreference)
-      val preferredAddress: Address = locationPreference match {
-        case PreferCoordinator =>
-          addressInfo.coordinatorAddress
-        case RoundRobinPreference =>
-          assert(
-            addressInfo.allAddresses.nonEmpty,
-            "Execution failed to start, no available computation nodes"
-          )
-          addressInfo.allAddresses(workerIndex % addressInfo.allAddresses.length)
-      }
+      val preferredAddress = preferredAddressFor(workerIndex)
 
-      val workflowWorker = if (op.isPythonBased) {
+      val workflowWorker = if (isPythonBased) {
         PythonWorkflowWorker.props(workerConfig)
       } else {
-        WorkflowWorker.props(
-          workerConfig,
-          WorkerReplayInitialization(
-            stateRestoreConfig,
-            replayLoggingConfig
-          )
-        )
+        WorkflowWorker.props(workerConfig, replayInit)
       }
       // Note: At this point, we don't know if the actor is fully initialized.
       // Thus, the ActorRef returned from `coordinatorActorService.actorOf` is ignored.

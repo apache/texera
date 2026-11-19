@@ -24,6 +24,7 @@ import { WorkflowState } from "../workflow-state";
 import type { ReActStep } from "../../types/agent";
 import type { OperatorLink, OperatorPredicate } from "../../types/workflow";
 import type { WorkflowCompilationResponse } from "../../api/compile-api";
+import { WorkflowFatalErrorType } from "../../types/execution";
 
 function step(messageId: string, role: "user" | "agent", stepId: number, content: string, isEnd: boolean): ReActStep {
   return {
@@ -111,7 +112,7 @@ describe("assembleContext", () => {
     expect(content).toContain("### Turn 2");
   });
 
-  test("labels each tool call with the status of the result at the same index", () => {
+  test("labels each tool call with the status of its result by toolCallId", () => {
     const agentStep: ReActStep = {
       ...step("m1", "agent", 1, "acting", true),
       toolCalls: [
@@ -119,11 +120,10 @@ describe("assembleContext", () => {
         { toolName: "executeOperator", toolCallId: "c2", input: {} },
         { toolName: "deleteOperator", toolCallId: "c3", input: {} },
       ],
-      // Deliberately shorter than toolCalls: a call still awaiting its result
-      // must not be reported as failed.
+      // Results are deliberately out of call order, and the third call was never executed.
       toolResults: [
-        { toolCallId: "c1", output: "ok" },
         { toolCallId: "c2", output: "bad", isError: true },
+        { toolCallId: "c1", output: "ok" },
       ],
     };
     const content = contentOf(
@@ -131,7 +131,63 @@ describe("assembleContext", () => {
     );
     expect(content).toContain("- addOperator (succeeded)");
     expect(content).toContain("- executeOperator (failed)");
-    expect(content).toContain("- deleteOperator (succeeded)");
+    expect(content).toContain("- deleteOperator (failed)");
+  });
+
+  test("writes each past call's summary and result under it, so a failed call is not repeated blindly", () => {
+    const agentStep: ReActStep = {
+      ...step("m1", "agent", 1, "acting", true),
+      toolCalls: [
+        { toolName: "addOperator", toolCallId: "c1", input: { operatorId: "op1", summary: "Load CSV data" } },
+        { toolName: "executeOperator", toolCallId: "c2", input: { operatorId: "op1" } },
+        { toolName: "modifyOperator", toolCallId: "c3", input: { operatorId: "op1", summary: "Link op7" } },
+        { toolName: "deleteOperator", toolCallId: "c4", input: { operatorId: "op1" } },
+      ],
+      toolResults: [
+        { toolCallId: "c1", output: "Added operator op1, input ports: 0, output ports: 1" },
+        { toolCallId: "c2", output: "Executed operator op1\nOutput(table shape): (3, 2)\n| a | b |" },
+        { toolCallId: "c3", output: '[ERROR] Source operator "op7" not found\n  at resolveInputLinks', isError: true },
+      ],
+    };
+    const content = contentOf(
+      assembleContext([step("m1", "user", 0, "req", true), agentStep], new WorkflowState(), new Map())
+    );
+    expect(content).toContain(
+      [
+        "- addOperator (succeeded)",
+        "  - Summary: Load CSV data",
+        "  - Output: Added operator op1, input ports: 0, output ports: 1",
+        "- executeOperator (succeeded)",
+        "  - Output: Executed operator op1",
+        "- modifyOperator (failed)",
+        "  - Summary: Link op7",
+        "  - Error:",
+        '    [ERROR] Source operator "op7" not found',
+        "      at resolveInputLinks",
+        // A call the SDK never executed has no result.
+        "- deleteOperator (failed)",
+      ].join("\n")
+    );
+    // The operator's data stays in the dataflow section, not in the history.
+    expect(content).not.toContain("| a | b |");
+  });
+
+  test("matches results to calls by toolCallId, not by position", () => {
+    // A call the SDK never executed has no result, so positions can shift.
+    const agentStep: ReActStep = {
+      ...step("m1", "agent", 1, "acting", true),
+      toolCalls: [
+        { toolName: "addOperator", toolCallId: "c1", input: { operatorId: "op1" } },
+        { toolName: "deleteOperator", toolCallId: "c2", input: { operatorId: "op0" } },
+      ],
+      toolResults: [{ toolCallId: "c2", output: "Deleted operator op0" }],
+    };
+    const content = contentOf(
+      assembleContext([step("m1", "user", 0, "req", true), agentStep], new WorkflowState(), new Map())
+    );
+    expect(content).toContain(
+      ["- addOperator (failed)", "- deleteOperator (succeeded)", "  - Output: Deleted operator op0"].join("\n")
+    );
   });
 });
 
@@ -234,7 +290,16 @@ describe("assembleContext — dataflow serialization", () => {
     workflowState.addOperator(makeOperator("op1"));
     const compilationResult: WorkflowCompilationResponse = {
       operatorOutputSchemas: {},
-      operatorErrors: { op1: { type: "CompilationError", message: "attribute x not found" } },
+      operatorErrors: {
+        op1: {
+          type: { name: WorkflowFatalErrorType.COMPILATION_ERROR },
+          timestamp: { seconds: 0, nanos: 0 },
+          message: "attribute x not found",
+          details: "",
+          operatorId: "op1",
+          workerId: "",
+        },
+      },
     };
 
     const content = contentOf(assembleContext([], workflowState, new Map(), false, compilationResult));

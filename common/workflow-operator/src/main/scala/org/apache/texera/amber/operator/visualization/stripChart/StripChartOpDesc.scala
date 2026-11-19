@@ -19,21 +19,20 @@
 
 package org.apache.texera.amber.operator.visualization.stripChart
 
+import org.apache.texera.amber.operator.visualization.StandaloneChartCode._
 import com.fasterxml.jackson.annotation.{JsonProperty, JsonPropertyDescription}
 import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaTitle
-import org.apache.texera.amber.core.tuple.{AttributeType, Schema}
 import org.apache.texera.amber.pybuilder.PythonTemplateBuilder.PythonTemplateBuilderStringContext
 import org.apache.texera.amber.pybuilder.PyStringTypes.EncodableString
-import org.apache.texera.amber.core.workflow.PortIdentity
-import org.apache.texera.amber.operator.PythonOperatorDescriptor
 import org.apache.texera.amber.operator.visualization.PlotlyStandaloneCode
+import org.apache.texera.amber.operator.visualization.PythonVisualizationOpDesc
 import org.apache.texera.amber.operator.metadata.annotations.AutofillAttributeName
 import org.apache.texera.amber.operator.metadata.{OperatorGroupConstants, OperatorInfo}
 import org.apache.texera.amber.pybuilder.PythonTemplateBuilder.pyStringLiteral
 
 import javax.validation.constraints.NotNull
 
-class StripChartOpDesc extends PythonOperatorDescriptor with PlotlyStandaloneCode {
+class StripChartOpDesc extends PythonVisualizationOpDesc with PlotlyStandaloneCode {
 
   @JsonProperty(value = "x", required = true)
   @JsonSchemaTitle("X-Axis Column")
@@ -60,14 +59,6 @@ class StripChartOpDesc extends PythonOperatorDescriptor with PlotlyStandaloneCod
   @JsonPropertyDescription("Optional - Create separate subplots for each category")
   @AutofillAttributeName
   var facetColumn: EncodableString = ""
-
-  override def getOutputSchemas(
-      inputSchemas: Map[PortIdentity, Schema]
-  ): Map[PortIdentity, Schema] = {
-    val outputSchema = Schema()
-      .add("html-content", AttributeType.STRING)
-    Map(operatorInfo.outputPorts.head.id -> outputSchema)
-  }
 
   override def operatorInfo: OperatorInfo =
     OperatorInfo.forVisualization(
@@ -124,8 +115,6 @@ class StripChartOpDesc extends PythonOperatorDescriptor with PlotlyStandaloneCod
        |""".encode
   }
 
-  override def producesDataFrame(): Boolean = false
-
   override def generateStandaloneCode(): String = {
     val xLit = pyStringLiteral(x)
     val yLit = pyStringLiteral(y)
@@ -150,9 +139,7 @@ class StripChartOpDesc extends PythonOperatorDescriptor with PlotlyStandaloneCod
        |    yaxis_title=$yLit,
        |    hovermode='closest'
        |)
-       |fig.write_json(outputJson)
-       |fig.write_html(outputHtml)
-       |print("Strip chart saved to " + outputHtml)""".stripMargin
+       |${standaloneFigure("Strip chart", indent = 0)}""".stripMargin
   }
 
 }

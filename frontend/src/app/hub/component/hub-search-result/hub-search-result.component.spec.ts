@@ -148,13 +148,11 @@ describe("HubSearchResultComponent", () => {
     });
   }
 
-  function build(entityType?: EntityType, detectChanges: boolean = true): void {
+  function build(entityType?: EntityType): void {
     configure(entityType);
     fixture = TestBed.createComponent(HubSearchResultComponent);
     component = fixture.componentInstance;
-    if (detectChanges) {
-      fixture.detectChanges();
-    }
+    fixture.detectChanges();
   }
 
   function makeFiltersMock(list: ReadonlyArray<string> = ["a"]): FiltersMock {

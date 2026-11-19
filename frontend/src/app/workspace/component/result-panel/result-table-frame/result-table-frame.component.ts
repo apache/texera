@@ -17,7 +17,7 @@
  * under the License.
  */
 
-import { ChangeDetectorRef, Component, Input, OnChanges, OnInit, SimpleChanges } from "@angular/core";
+import { ChangeDetectorRef, Component, ElementRef, Input, OnChanges, OnInit, SimpleChanges } from "@angular/core";
 import { NzModalRef, NzModalService } from "ng-zorro-antd/modal";
 import {
   NzTableQueryParams,
@@ -30,14 +30,19 @@ import {
   NzCellEllipsisDirective,
 } from "ng-zorro-antd/table";
 import { WorkflowActionService } from "../../../service/workflow-graph/model/workflow-action.service";
-import { WorkflowResultService } from "../../../service/workflow-result/workflow-result.service";
+import {
+  OperatorPaginationResultService,
+  WorkflowResultService,
+} from "../../../service/workflow-result/workflow-result.service";
 import { PanelResizeService } from "../../../service/workflow-result/panel-resize/panel-resize.service";
 import { isWebPaginationUpdate, OperatorState } from "../../../types/execute-workflow.interface";
 import { IndexableObject, TableColumn } from "../../../types/result-table.interface";
+import { SchemaAttribute } from "../../../types/workflow-compiling.interface";
 import { RowModalComponent } from "../result-panel-modal.component";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 import { DomSanitizer, SafeHtml } from "@angular/platform-browser";
 import { isAudioUrl, isVideoUrl, isImageUrl } from "../../../../common/util/media-type.util";
+import { isDefined } from "../../../../common/util/predicate";
 import { ResultExportationComponent } from "../../result-exportation/result-exportation.component";
 import { WorkflowStatusService } from "../../../service/workflow-status/workflow-status.service";
 import { GuiConfigService } from "../../../../common/service/gui-config.service";
@@ -48,6 +53,10 @@ import { NzButtonComponent } from "ng-zorro-antd/button";
 import { NzWaveDirective } from "ng-zorro-antd/core/wave";
 import { ɵNzTransitionPatchDirective } from "ng-zorro-antd/core/transition-patch";
 import { NzIconDirective } from "ng-zorro-antd/icon";
+import { asyncScheduler, filter, throttleTime } from "rxjs";
+
+// how often, at most, a table on a port past the first asks for its page again while a run updates
+export const OTHER_PORT_REFRESH_MS = 1000;
 
 export type MediaCellType = "video" | "audio" | "image" | "text";
 
@@ -88,6 +97,12 @@ export type MediaCellType = "video" | "audio" | "image" | "text";
 })
 export class ResultTableFrameComponent implements OnInit, OnChanges {
   @Input() operatorId?: string;
+  // which of the operator's output ports to show. The running execution reports only on the first,
+  // so another port is read when shown, and its counts and statistics are not followed live.
+  @Input() portIndex = 0;
+  // The height the table has to fill in a window of its own. Left out, the table fills the result
+  // panel and follows its height.
+  @Input() containerHeight?: number;
 
   // display result table
   currentColumns?: TableColumn[];
@@ -112,6 +127,14 @@ export class ResultTableFrameComponent implements OnInit, OnChanges {
   panelHeight = 0;
   tableStats: Record<string, Record<string, number>> = {};
   prevTableStats: Record<string, Record<string, number>> = {};
+
+  /**
+   * Whether any column has statistics to show. Until they arrive there are none, and an output
+   * port past the first never has any, as the statistics are the first port's.
+   */
+  get hasTableStats(): boolean {
+    return Object.keys(this.tableStats).length > 0;
+  }
   widthPercent: string = "";
   isOperatorFinished: boolean = false;
 
@@ -128,6 +151,7 @@ export class ResultTableFrameComponent implements OnInit, OnChanges {
     private workflowResultService: WorkflowResultService,
     private resizeService: PanelResizeService,
     private changeDetectorRef: ChangeDetectorRef,
+    private elementRef: ElementRef,
     private sanitizer: DomSanitizer,
     private workflowStatusService: WorkflowStatusService,
     // Read by the template only (the export button's flag); the template can see a protected member.
@@ -135,9 +159,17 @@ export class ResultTableFrameComponent implements OnInit, OnChanges {
   ) {}
 
   ngOnChanges(changes: SimpleChanges): void {
-    this.operatorId = changes.operatorId?.currentValue;
+    if (isDefined(this.containerHeight)) this.fitPageSizeToContainer(this.containerHeight);
+    if (changes.operatorId) this.operatorId = changes.operatorId.currentValue;
+    // A new height alone only resizes the page, as dragging the result panel's edge does.
+    if (Object.keys(changes).every(key => key === "containerHeight")) return;
+    // another port's rows are not this port's, so a new port starts from an empty table
+    if (changes.portIndex && !changes.portIndex.firstChange) {
+      this.currentResult = [];
+      this.currentColumns = undefined;
+    }
     if (this.operatorId) {
-      const paginatedResultService = this.workflowResultService.getPaginatedResultService(this.operatorId);
+      const paginatedResultService = this.paginatedResultService();
       if (paginatedResultService) {
         this.isFrontPagination = false;
         this.totalNumTuples = paginatedResultService.getCurrentTotalNumTuples();
@@ -150,12 +182,21 @@ export class ResultTableFrameComponent implements OnInit, OnChanges {
     }
   }
 
+  /** The service that pages the port shown. */
+  private paginatedResultService(): OperatorPaginationResultService | undefined {
+    if (!this.operatorId) return undefined;
+    return this.workflowResultService.getPortPaginatedResultService(this.operatorId, this.portIndex);
+  }
+
   ngOnInit(): void {
     this.workflowStatusService
       .getStateUpdateStream()
       .pipe(untilDestroyed(this))
       .subscribe(stateMap => {
         if (this.operatorId && stateMap[this.operatorId] === OperatorState.Completed) {
+          // Another port can still be filling after the first port's last update, so its table
+          // asks once more when the operator completes.
+          if (!this.isOperatorFinished && this.portIndex !== 0) this.changePaginatedResultData();
           this.isOperatorFinished = true;
           this.changeDetectorRef.detectChanges();
         } else {
@@ -169,7 +210,8 @@ export class ResultTableFrameComponent implements OnInit, OnChanges {
       .getResultUpdateStream()
       .pipe(untilDestroyed(this))
       .subscribe(update => {
-        if (!this.operatorId) {
+        // an update is about the operator's first port
+        if (!this.operatorId || this.portIndex !== 0) {
           return;
         }
         const opUpdate = update[this.operatorId];
@@ -186,11 +228,23 @@ export class ResultTableFrameComponent implements OnInit, OnChanges {
         this.changeDetectorRef.detectChanges();
       });
 
+    // Another port has no update of its own, so its table asks for its page again on the
+    // operator's updates, at most once a second; the last one is always asked for.
+    this.workflowResultService
+      .getResultUpdateStream()
+      .pipe(
+        filter(update => isDefined(this.operatorId) && this.portIndex !== 0 && isDefined(update[this.operatorId])),
+        throttleTime(OTHER_PORT_REFRESH_MS, asyncScheduler, { leading: true, trailing: true }),
+        untilDestroyed(this)
+      )
+      .subscribe(() => this.changePaginatedResultData());
+
     this.workflowResultService
       .getResultTableStats()
       .pipe(untilDestroyed(this))
       .subscribe(([prevStats, currentStats]) => {
-        if (!this.operatorId) {
+        // the statistics are the operator's first port's
+        if (!this.operatorId || this.portIndex !== 0) {
           return;
         }
 
@@ -205,12 +259,9 @@ export class ResultTableFrameComponent implements OnInit, OnChanges {
       });
 
     this.resizeService.currentSize.pipe(untilDestroyed(this)).subscribe(size => {
-      this.panelHeight = size.height;
-      this.adjustPageSizeBasedOnPanelSize(size.height);
-      let currentPageNum: number = Math.ceil(this.totalNumTuples / this.pageSize);
-      while (this.currentPageIndex > currentPageNum && this.currentPageIndex > 1) {
-        this.currentPageIndex -= 1;
-      }
+      // a table given its own height to fill does not follow the result panel's
+      if (isDefined(this.containerHeight)) return;
+      this.fitPageSize(size.height);
     });
 
     if (this.operatorId) {
@@ -306,14 +357,50 @@ export class ResultTableFrameComponent implements OnInit, OnChanges {
       PAGINATION_HEIGHT +
       SEARCH_BAR_HEIGHT_WITH_MARGIN;
 
-    const newPageSize = Math.max(1, Math.floor((panelHeight - usedHeight) / ROW_HEIGHT));
+    this.setPageSize(Math.max(1, Math.floor((panelHeight - usedHeight) / ROW_HEIGHT)));
+  }
 
+  private setPageSize(newPageSize: number): void {
     const oldOffset = (this.currentPageIndex - 1) * this.pageSize;
 
     this.pageSize = newPageSize;
     this.resizeService.pageSize = newPageSize;
 
     this.currentPageIndex = Math.floor(oldOffset / newPageSize) + 1;
+  }
+
+  /** As many rows to a page as fill the result panel, keeping the page within the result. */
+  private fitPageSize(height: number): void {
+    this.panelHeight = height;
+    this.adjustPageSizeBasedOnPanelSize(height);
+    this.keepPageWithinResult();
+  }
+
+  /**
+   * In a window of its own, the table measures what it draws around its rows, the search bar,
+   * header, statistics and pager, so its rows take up the rest. Until a row is drawn there is
+   * nothing to measure, and the panel's rule stands in.
+   */
+  private fitPageSizeToContainer(height: number): void {
+    const table = (this.elementRef.nativeElement as HTMLElement).querySelector<HTMLElement>(".result-table");
+    const rows = Array.from(table?.querySelectorAll<HTMLElement>("tbody tr.ant-table-row") ?? []);
+    const rowsHeight = rows.reduce((sum, row) => sum + row.offsetHeight, 0);
+    if (!table || rowsHeight === 0) {
+      this.fitPageSize(height);
+      return;
+    }
+    const aroundRows = table.offsetHeight - rowsHeight;
+    const pageSize = Math.max(1, Math.floor((height - aroundRows) / (rowsHeight / rows.length)));
+    if (pageSize === this.pageSize) return;
+    this.setPageSize(pageSize);
+    this.keepPageWithinResult();
+  }
+
+  private keepPageWithinResult(): void {
+    let currentPageNum: number = Math.ceil(this.totalNumTuples / this.pageSize);
+    while (this.currentPageIndex > currentPageNum && this.currentPageIndex > 1) {
+      this.currentPageIndex -= 1;
+    }
   }
 
   /**
@@ -347,7 +434,8 @@ export class ResultTableFrameComponent implements OnInit, OnChanges {
       // modal title
       nzTitle: "Row Details",
       nzContent: RowModalComponent,
-      nzData: { operatorId: this.operatorId, rowIndex: currentRowIndex }, // set the index value and page size to the modal for navigation
+      // set the index value and page size to the modal for navigation
+      nzData: { operatorId: this.operatorId, rowIndex: currentRowIndex, portIndex: this.portIndex },
       // prevent browser focusing close button (ugly square highlight)
       nzAutofocus: null,
       // modal footer buttons
@@ -395,19 +483,29 @@ export class ResultTableFrameComponent implements OnInit, OnChanges {
     if (!this.operatorId) {
       return;
     }
-    const paginatedResultService = this.workflowResultService.getPaginatedResultService(this.operatorId);
+    const paginatedResultService = this.paginatedResultService();
     if (!paginatedResultService) {
       return;
     }
     this.isLoadingResult = true;
+    // A reply can arrive after the table moved on to another operator or port; it is not theirs.
+    const operatorId = this.operatorId;
+    const portIndex = this.portIndex;
     paginatedResultService
       .selectPage(this.currentPageIndex, this.pageSize, this.currentColumnOffset, this.columnLimit, this.columnSearch)
       .pipe(untilDestroyed(this))
       .subscribe(pageData => {
-        if (this.currentPageIndex === pageData.pageIndex) {
-          this.setupResultTable(pageData.table, paginatedResultService.getCurrentTotalNumTuples());
-          this.changeDetectorRef.detectChanges();
+        if (
+          this.operatorId !== operatorId ||
+          this.portIndex !== portIndex ||
+          this.currentPageIndex !== pageData.pageIndex
+        ) {
+          return;
         }
+        this.setupResultTable(pageData.table, paginatedResultService.getCurrentTotalNumTuples(), pageData.schema);
+        this.changeDetectorRef.detectChanges();
+        // the rows are drawn now, so a table in a window can measure what fits
+        if (isDefined(this.containerHeight)) this.fitPageSizeToContainer(this.containerHeight);
       });
   }
 
@@ -418,16 +516,25 @@ export class ResultTableFrameComponent implements OnInit, OnChanges {
    * @param resultData rows of the result (may not be all rows if displaying result for workflow completed event)
    * @param totalRowCount
    */
-  setupResultTable(resultData: ReadonlyArray<IndexableObject>, totalRowCount: number) {
+  setupResultTable(
+    resultData: ReadonlyArray<IndexableObject>,
+    totalRowCount: number,
+    schema: ReadonlyArray<SchemaAttribute> = []
+  ) {
     if (!this.operatorId) {
       return;
     }
-    if (resultData.length < 1) {
-      return;
-    }
-
+    // Every page that arrives ends the fetch, including one that changes nothing below.
     this.isLoadingResult = false;
     this.changeDetectorRef.detectChanges();
+
+    // A result with no rows still has columns, and showing them tells the user what the
+    // operator would have produced. A column search can leave none, and the old headers must
+    // not stay. An empty page of a non-empty result is only a page index past the end, so the
+    // table already shown stays.
+    if (resultData.length < 1 && totalRowCount > 0) {
+      return;
+    }
 
     // creates a shallow copy of the readonly response.result,
     //  this copy will be has type object[] because MatTableDataSource's input needs to be object[]
@@ -439,7 +546,10 @@ export class ResultTableFrameComponent implements OnInit, OnChanges {
 
     let columns: { columnKey: any; columnText: string }[];
 
-    const columnKeys = Object.keys(resultData[0]).filter(x => x !== "_id");
+    const columnKeys =
+      resultData.length > 0
+        ? Object.keys(resultData[0]).filter(x => x !== "_id")
+        : schema.map(attribute => attribute.attributeName);
     columns = columnKeys.map(v => ({ columnKey: v, columnText: v }));
 
     // generate columnDef from first row, column definition is in order

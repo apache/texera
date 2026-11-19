@@ -24,10 +24,8 @@ import {
   USER_LIST_URL,
   USER_UPDATE_URL,
   USER_ADD_URL,
-  USER_CREATED_FILES,
   USER_CREATED_DATASETS,
   USER_CREATED_WORKFLOWS,
-  USER_ACCESS_FILES,
   USER_ACCESS_WORKFLOWS,
   USER_QUOTA_SIZE,
   USER_DELETE_EXECUTION_COLLECTION,
@@ -92,53 +90,22 @@ describe("AdminUserService", () => {
     req.flush({});
   });
 
-  it("getUploadedFiles() sends the uid as a user_id query param", () => {
-    service.getUploadedFiles(9).subscribe();
+  const userResourceQueryCases: { name: string; call: (uid: number) => Observable<unknown>; url: string }[] = [
+    { name: "getCreatedDatasets", call: uid => service.getCreatedDatasets(uid), url: USER_CREATED_DATASETS },
+    { name: "getCreatedWorkflows", call: uid => service.getCreatedWorkflows(uid), url: USER_CREATED_WORKFLOWS },
+    { name: "getAccessWorkflows", call: uid => service.getAccessWorkflows(uid), url: USER_ACCESS_WORKFLOWS },
+    { name: "getExecutionQuota", call: uid => service.getExecutionQuota(uid), url: USER_QUOTA_SIZE },
+  ];
 
-    const req = httpMock.expectOne(r => r.url === USER_CREATED_FILES);
-    expect(req.request.params.get("user_id")).toEqual("9");
-    req.flush([]);
-  });
+  userResourceQueryCases.forEach(({ name, call, url }) => {
+    it(`${name}() sends the uid as a user_id query param`, () => {
+      call(3).subscribe();
 
-  it("getCreatedDatasets() sends the uid as a user_id query param", () => {
-    service.getCreatedDatasets(9).subscribe();
-
-    const req = httpMock.expectOne(r => r.url === USER_CREATED_DATASETS);
-    expect(req.request.method).toEqual("GET");
-    expect(req.request.params.get("user_id")).toEqual("9");
-    req.flush([]);
-  });
-
-  it("getCreatedWorkflows() sends the uid as a user_id query param", () => {
-    service.getCreatedWorkflows(3).subscribe();
-
-    const req = httpMock.expectOne(r => r.url === USER_CREATED_WORKFLOWS);
-    expect(req.request.params.get("user_id")).toEqual("3");
-    req.flush([]);
-  });
-
-  it("getAccessFiles() sends the uid as a user_id query param", () => {
-    service.getAccessFiles(3).subscribe();
-
-    const req = httpMock.expectOne(r => r.url === USER_ACCESS_FILES);
-    expect(req.request.params.get("user_id")).toEqual("3");
-    req.flush([]);
-  });
-
-  it("getAccessWorkflows() sends the uid as a user_id query param", () => {
-    service.getAccessWorkflows(3).subscribe();
-
-    const req = httpMock.expectOne(r => r.url === USER_ACCESS_WORKFLOWS);
-    expect(req.request.params.get("user_id")).toEqual("3");
-    req.flush([]);
-  });
-
-  it("getExecutionQuota() sends the uid as a user_id query param", () => {
-    service.getExecutionQuota(3).subscribe();
-
-    const req = httpMock.expectOne(r => r.url === USER_QUOTA_SIZE);
-    expect(req.request.params.get("user_id")).toEqual("3");
-    req.flush([]);
+      const req = httpMock.expectOne(r => r.url === url);
+      expect(req.request.method).toEqual("GET");
+      expect(req.request.params.get("user_id")).toEqual("3");
+      req.flush([]);
+    });
   });
 
   it("deleteExecutionCollection() DELETEs the per-execution endpoint", () => {
@@ -158,10 +125,8 @@ describe("AdminUserService", () => {
         url: USER_UPDATE_URL,
       },
       { name: "addUser", call: () => service.addUser(), url: `${USER_ADD_URL}/` },
-      { name: "getUploadedFiles", call: () => service.getUploadedFiles(9), url: USER_CREATED_FILES },
       { name: "getCreatedDatasets", call: () => service.getCreatedDatasets(9), url: USER_CREATED_DATASETS },
       { name: "getCreatedWorkflows", call: () => service.getCreatedWorkflows(3), url: USER_CREATED_WORKFLOWS },
-      { name: "getAccessFiles", call: () => service.getAccessFiles(3), url: USER_ACCESS_FILES },
       { name: "getAccessWorkflows", call: () => service.getAccessWorkflows(3), url: USER_ACCESS_WORKFLOWS },
       { name: "getExecutionQuota", call: () => service.getExecutionQuota(3), url: USER_QUOTA_SIZE },
       {

@@ -122,14 +122,22 @@ ThisBuild / excludeDependencies += ExclusionRule("log4j", "log4j")
 lazy val Util = (project in file("common/util")).settings(commonModuleSettings)
 lazy val DAO = (project in file("common/dao")).settings(commonModuleSettings)
 lazy val Config = (project in file("common/config")).settings(commonModuleSettings)
-lazy val Resource = (project in file("common/resource")).settings(commonModuleSettings).dependsOn(DAO)
+// OpenTelemetry bootstrap (OtelInit, log appender, sanitizer) shared by every
+// service entry point; pins the OTel dependency versions in one place. Depends
+// on Config to read OTEL_* settings from observability.conf.
+lazy val Observability =
+  (project in file("common/observability")).settings(commonModuleSettings).dependsOn(Config)
+lazy val Resource = (project in file("common/resource"))
+  .settings(commonModuleSettings)
+  .dependsOn(DAO, Auth)
+  .dependsOn(DAO % "test->test") // reuse MockTexeraDB embedded Postgres in tests
 lazy val Auth = (project in file("common/auth"))
   .settings(commonModuleSettings)
   .configs(Test)
   .dependsOn(DAO, Config)
   .dependsOn(DAO % "test->test") // reuse MockTexeraDB embedded Postgres in tests
 lazy val ConfigService = (project in file("config-service"))
-  .dependsOn(Auth, Config, DAO, Resource)
+  .dependsOn(Auth, Config, DAO, Resource, Observability)
   .dependsOn(DAO % "test->test") // reuse MockTexeraDB embedded Postgres in tests
   .settings(commonModuleSettings)
   .settings(
@@ -139,7 +147,7 @@ lazy val ConfigService = (project in file("config-service"))
     )
   )
 lazy val AccessControlService = (project in file("access-control-service"))
-  .dependsOn(Auth, Config, DAO, Resource)
+  .dependsOn(Auth, Config, DAO, Resource, Observability)
   .settings(commonModuleSettings)
   .settings(
     dependencyOverrides ++= Seq(
@@ -159,11 +167,11 @@ lazy val PyBuilder = (project in file("common/pybuilder"))
 
 lazy val WorkflowCore = (project in file("common/workflow-core"))
   .settings(commonModuleSettings)
-  .dependsOn(DAO, Config, PyBuilder, Util)
+  .dependsOn(DAO, Config, PyBuilder, Util, Resource)
   .configs(Test)
   .dependsOn(DAO % "test->test") // test scope dependency
 lazy val ComputingUnitManagingService = (project in file("computing-unit-managing-service"))
-  .dependsOn(WorkflowCore, Auth, Config, Resource)
+  .dependsOn(WorkflowCore, Auth, Config, Resource, Observability)
   .configs(Test)
   .dependsOn(DAO % "test->test") // reuse MockTexeraDB embedded Postgres in tests
   .settings(commonModuleSettings)
@@ -210,7 +218,7 @@ lazy val ComputingUnitManagingService = (project in file("computing-unit-managin
   )
 lazy val FileService = (project in file("file-service"))
   .settings(commonModuleSettings)
-  .dependsOn(WorkflowCore, Auth, Config, Resource, Util)
+  .dependsOn(WorkflowCore, Auth, Config, Resource, Util, Observability)
   .configs(Test)
   .dependsOn(DAO % "test->test") // test scope dependency
   .dependsOn(WorkflowCore % "test->test") // reuse RustFSContainer in MockLakeFS
@@ -228,8 +236,14 @@ lazy val FileService = (project in file("file-service"))
     Test / fork := true,
     Test / forkOptions := (Test / forkOptions).value
       .withWorkingDirectory((ThisBuild / baseDirectory).value),
-    Test / testGrouping := (Test / definedTests).value.map { suite =>
-      Tests.Group(suite.name, Seq(suite), Tests.SubProcess((Test / forkOptions).value))
+    Test / testGrouping := {
+      // Read once, outside the loop: sbt lifts a `.value` written inside a lambda to
+      // the top of the task anyway, so leaving it there reads as one lookup per suite
+      // when it is not, and sbt warns about exactly that.
+      val forked = (Test / forkOptions).value
+      (Test / definedTests).value.map { suite =>
+        Tests.Group(suite.name, Seq(suite), Tests.SubProcess(forked))
+      }
     }
   )
 
@@ -241,7 +255,10 @@ lazy val WorkflowCompiler = (project in file("common/workflow-compiler"))
   .configs(Test)
   .dependsOn(WorkflowOperator)
 lazy val WorkflowCompilingService = (project in file("workflow-compiling-service"))
-  .dependsOn(WorkflowCompiler, Auth, Config, Resource)
+  .dependsOn(WorkflowCompiler, Auth, Config, Resource, Observability)
+  .configs(Test)
+  .dependsOn(DAO % "test->test") // reuse MockTexeraDB embedded Postgres in tests
+  .dependsOn(WorkflowOperator % "test->test") // reuse PythonWorkerPool in verify tests
   .settings(commonModuleSettings)
   .settings(
     dependencyOverrides ++= Seq(
@@ -249,11 +266,14 @@ lazy val WorkflowCompilingService = (project in file("workflow-compiling-service
       "com.fasterxml.jackson.module" %% "jackson-module-scala" % jacksonVersion,
       "com.fasterxml.jackson.core" % "jackson-databind" % jacksonVersion,
       "org.glassfish.jersey.core" % "jersey-common" % "3.0.12"
-    ) ++ nettyDependencyOverrides
+    ) ++ nettyDependencyOverrides,
+    // MockTexeraDB swaps a JVM-wide singleton (SqlServer's embedded Postgres),
+    // so run suites serially to avoid cross-suite races.
+    Test / parallelExecution := false
   )
 
 lazy val WorkflowExecutionService = (project in file("amber"))
-  .dependsOn(WorkflowCompiler, Auth, Config)
+  .dependsOn(WorkflowCompiler, Auth, Config, Observability)
   .settings(commonModuleSettings)
   .settings(
     dependencyOverrides ++= Seq(
@@ -271,8 +291,14 @@ lazy val WorkflowExecutionService = (project in file("amber"))
   )
   .configs(Test)
   .dependsOn(DAO % "test->test", Auth % "test->test") // test scope dependency
+  .settings(
+    // WorkflowMetricsRecorderSpec asserts exact counts on the process-wide WorkflowMetrics
+    // instruments; run suites serially so a concurrent execution suite does not record into
+    // them mid-assertion.
+    Test / parallelExecution := false
+  )
 lazy val NotebookMigrationService = (project in file("notebook-migration-service"))
-  .dependsOn(Auth, Config, DAO, Resource)
+  .dependsOn(Auth, Config, DAO, Resource, Observability)
   .settings(commonModuleSettings)
   .settings(
     dependencyOverrides ++= Seq(
@@ -282,12 +308,33 @@ lazy val NotebookMigrationService = (project in file("notebook-migration-service
   )
   .dependsOn(DAO % "test->test") // test scope dependency
 
+lazy val ResultService = (project in file("result-service"))
+  .dependsOn(WorkflowCore, Auth, Config, Resource, Observability)
+  .settings(commonModuleSettings)
+  .configs(Test)
+  .dependsOn(DAO % "test->test") // reuse MockTexeraDB embedded Postgres in tests
+  .dependsOn(WorkflowCore % "test->test") // reuse LocalHadoopIcebergCatalog in tests
+  .settings(
+    dependencyOverrides ++= Seq(
+      // override it as io.dropwizard 4 require 2.16.1 or higher
+      "com.fasterxml.jackson.module" %% "jackson-module-scala" % jacksonVersion,
+      "com.fasterxml.jackson.core" % "jackson-databind" % jacksonVersion,
+      "org.glassfish.jersey.core" % "jersey-common" % "3.0.12"
+    ) ++ nettyDependencyOverrides
+  )
+
+// Regenerates docs/reference/operators/ from the operator descriptors.
+lazy val OperatorReferenceGenerator = (project in file("docs/operator-reference"))
+  .settings(coverageReportSettings)
+  .dependsOn(WorkflowOperator)
+
 // root project definition
 lazy val TexeraProject = (project in file("."))
   .aggregate(
     // common libraries
     Auth,
     Config,
+    Observability,
     Resource,
     Util,
     DAO,
@@ -302,7 +349,9 @@ lazy val TexeraProject = (project in file("."))
     FileService,
     WorkflowCompilingService,
     WorkflowExecutionService,
-    NotebookMigrationService
+    NotebookMigrationService,
+    ResultService,
+    OperatorReferenceGenerator
   )
   .settings(
     name := "texera",

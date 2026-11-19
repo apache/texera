@@ -34,6 +34,7 @@ import org.apache.texera.amber.operator.udf.python.DualInputPortsPythonUDFOpDesc
 import org.apache.texera.amber.operator.udf.python.source.PythonUDFSourceOpDescV2
 import org.apache.texera.amber.operator.union.UnionOpDesc
 import org.apache.texera.amber.operator.{LogicalOp, TestOperators}
+import org.apache.texera.amber.util.JSONUtils.objectMapper
 import org.apache.texera.common.compiler.model.{LogicalLink, LogicalPlan, LogicalPlanPojo}
 import org.scalatest.flatspec.AnyFlatSpec
 
@@ -282,7 +283,7 @@ class LogicalPlanSpec extends AnyFlatSpec {
   }
 
   // ---------------------------------------------------------------------------
-  // operatorsInsideLoopBlocks: the cases mirror the frontend's `getEnclosingLoopStarts` spec
+  // operatorsInsideLoopBlocks; loop-blocks.json holds cases the frontend's port runs too
   // ---------------------------------------------------------------------------
 
   private def loopStart(id: String): LogicalOp = named(new LoopStartOpDesc, id)
@@ -291,7 +292,7 @@ class LogicalPlanSpec extends AnyFlatSpec {
 
   /**
     * The ids of the operators inside a loop block, `edges` as "from" -> "to" ids, checked against
-    * the property panel's walk, as are the LoopStarts around each (`enclosingLoopStarts`).
+    * a walk from each operator, as are the LoopStarts around each (`enclosingLoopStarts`).
     */
   private def inside(operators: List[LogicalOp], edges: (String, String)*): Set[String] = {
     val plan = LogicalPlan(
@@ -299,23 +300,20 @@ class LogicalPlanSpec extends AnyFlatSpec {
       edges.toList.map { case (from, to) => link(OperatorIdentity(from), OperatorIdentity(to)) }
     )
     val around = plan.enclosingLoopStarts.map { case (id, starts) => id.id -> starts.map(_.id) }
-    val byPanel = enclosingByPanel(operators, edges)
+    val byWalk = enclosingByWalk(operators, edges)
     assert(
-      around == byPanel,
-      s"the panel's walk finds $byPanel, not $around, in ${operators.map(_.operatorIdentifier.id)} " +
+      around == byWalk,
+      s"the walk finds $byWalk, not $around, in ${operators.map(_.operatorIdentifier.id)} " +
         s"with $edges"
     )
     plan.operatorsInsideLoopBlocks.map(_.id)
   }
 
   /**
-    * A port of the property panel's `getEnclosingLoopStarts` (frontend loop-block.util.ts), which
-    * decides where the panel offers `$K`: each operator with an enclosing LoopStart, and those
-    * LoopStarts. It walks from each operator where `enclosingLoopStarts` folds over the plan. It
-    * leaves out the panel's hop counts, which only order the LoopStarts, and its cap on open
-    * blocks, which binds only on a cycle.
+    * Each operator with an enclosing LoopStart, and those LoopStarts, found another way: it walks
+    * from each operator where `enclosingLoopStarts` folds over the plan.
     */
-  private def enclosingByPanel(
+  private def enclosingByWalk(
       operators: List[LogicalOp],
       edges: Seq[(String, String)]
   ): Map[String, Set[String]] = {
@@ -425,7 +423,7 @@ class LogicalPlanSpec extends AnyFlatSpec {
     )
   }
 
-  it should "agree with the property panel's walk on random graphs of loop and plain operators" in {
+  it should "agree with a walk from each operator on random graphs of loop and plain operators" in {
     val random = new Random(8640)
     (1 to 400).foreach { _ =>
       val size = 2 + random.nextInt(11)
@@ -440,14 +438,75 @@ class LogicalPlanSpec extends AnyFlatSpec {
     }
   }
 
+  /**
+    * The LoopStarts around each operator inside a block, outermost first, as the property panel
+    * lists them: fewer LoopStarts around a LoopStart first, then by id.
+    */
+  private def outermostFirst(plan: LogicalPlan): Map[String, List[String]] = {
+    val around = plan.enclosingLoopStarts.map { case (id, starts) => id.id -> starts.map(_.id) }
+    around.map {
+      case (id, starts) =>
+        id -> starts.toList.sortBy(start => (around.get(start).map(_.size).getOrElse(0), start))
+    }
+  }
+
+  "LogicalPlan.enclosingLoopStarts" should "give the answer of every case the frontend's port shares" in {
+    // loop-blocks.json, which loop-block.util.spec.ts runs against the frontend's port too.
+    val fixture = objectMapper.readTree(getClass.getResourceAsStream("/loop-blocks.json"))
+    val cases = (fixture.get("cases").elements().asScala ++
+      fixture.get("randomGraphs").elements().asScala).toList
+    assert(cases.size > 100, "the fixture lost its cases")
+    val mismatches = cases.flatMap { testCase =>
+      val operators = testCase.get("operators").elements().asScala.toList.map { operator =>
+        val id = operator.get("id").asText()
+        operator.get("type").asText() match {
+          case "Operator" => op(id)
+          // Read by the backend's own JSON type name, which the frontend's operators carry and its
+          // port matches, so the fixture cannot name a LoopStart or a LoopEnd any other way.
+          case controlType =>
+            val json = s"""{"operatorType": "$controlType"}"""
+            val control = objectMapper.readValue(json, classOf[LogicalOp])
+            assert(
+              control.isInstanceOf[LoopStartOpDesc] || control.isInstanceOf[LoopEndOpDesc],
+              s"$controlType reads as ${control.getClass.getSimpleName} in ${testCase.get("name")}"
+            )
+            named(control, id)
+        }
+      }
+      val ends = testCase.get("links").elements().asScala.toList.map { link =>
+        link.get("from").asText() -> link.get("to").asText()
+      }
+      // A second link into an operator arrives on a port of its own.
+      val links = ends.zipWithIndex.map {
+        case ((from, to), index) =>
+          link(
+            OperatorIdentity(from),
+            OperatorIdentity(to),
+            toPort = ends.take(index).count(_._2 == to)
+          )
+      }
+      val expected = testCase
+        .get("enclosingLoopStarts")
+        .fields()
+        .asScala
+        .map(entry => entry.getKey -> entry.getValue.elements().asScala.map(_.asText()).toList)
+        .toMap
+      val answer = outermostFirst(LogicalPlan(operators, links))
+      Option.when(answer != expected) {
+        s"${testCase.get("name").asText()}: the fixture says ${objectMapper.writeValueAsString(expected)}, " +
+          s"the plan ${objectMapper.writeValueAsString(answer)}"
+      }
+    }
+    if (mismatches.nonEmpty) fail(mismatches.mkString("\n"))
+  }
+
   // ---------------------------------------------------------------------------
   // resolveScanSourceOpFileName
   // ---------------------------------------------------------------------------
   //
-  // A successful resolution of a real file path is environment-dependent
-  // (resolved through FileResolver, which can reach LakeFS / dataset
-  // service), so we pin the FAILURE behavior here. The method has two modes,
-  // both used in production:
+  // How a name becomes a URI is the resolver's business, passed in by the caller;
+  // here it is the fixture resolver, which knows local files. The method has two
+  // failure modes, both used in production:
   //   1. Some(errorList) — every failing operator is appended to errorList by
   //      opId and resolution CONTINUES (collect-all). Used by the editing-path
   //      compiler in workflow-compiling-service so the UI can surface every
@@ -459,10 +518,7 @@ class LogicalPlanSpec extends AnyFlatSpec {
 
   private def csvWithMissingFile(): CSVScanSourceOpDesc = {
     val op = TestOperators.headerlessSmallCsvScanOpDesc()
-    // Use a relative single-segment file name so `FileResolver` short-
-    // circuits BOTH resolvers without touching the DB: localResolveFunc
-    // fails (file doesn't exist) and datasetResolveFunc's parser bails
-    // immediately (path segments < 4) before any dataset DB query.
+    // No such file on the local disk, so the fixture resolver refuses the name.
     op.fileName = Some("nonexistent-test-file.csv")
     op
   }
@@ -475,7 +531,7 @@ class LogicalPlanSpec extends AnyFlatSpec {
     val brokenB = csvWithMissingFile()
     val plan = LogicalPlan(List(brokenA, brokenB), List.empty)
     val errors = ArrayBuffer.empty[(OperatorIdentity, Throwable)]
-    plan.resolveScanSourceOpFileName(Some(errors))
+    plan.resolveScanSourceOpFileName(TestOperators.fixtureFileResolver, Some(errors))
     assert(errors.size == 2, s"expected both failures captured, got: $errors")
     assert(
       errors.map(_._1).toSet ==
@@ -484,14 +540,30 @@ class LogicalPlanSpec extends AnyFlatSpec {
   }
 
   it should "rethrow FileNotFoundException when no errorList is provided" in {
-    // `FileResolver.resolve` raises `org.apache.commons.vfs2.FileNotFoundException`
-    // when all resolvers fail. Pin the specific type so an unrelated failure
+    // The resolver raises `org.apache.commons.vfs2.FileNotFoundException` for a
+    // name it cannot resolve. Pin the specific type so an unrelated failure
     // mode (e.g. NPE) doesn't silently satisfy this test.
     val brokenOp = csvWithMissingFile()
     val plan = LogicalPlan(List(brokenOp), List.empty)
     intercept[FileNotFoundException] {
-      plan.resolveScanSourceOpFileName(None)
+      plan.resolveScanSourceOpFileName(TestOperators.fixtureFileResolver, None)
     }
+  }
+
+  it should "set on each scan source the URI the given resolver returns for its file name" in {
+    val resolved = new java.net.URI("dataset:///repository/commit/data.csv")
+    val asked = ArrayBuffer.empty[String]
+    val op = TestOperators.headerlessSmallCsvScanOpDesc()
+    op.fileName = Some("/dataset/owner@texera.io/sales/v1/data.csv")
+    val plan = LogicalPlan(List(op), List.empty)
+
+    plan.resolveScanSourceOpFileName(
+      fileName => { asked += fileName; resolved },
+      None
+    )
+
+    assert(asked.toList == List("/dataset/owner@texera.io/sales/v1/data.csv"))
+    assert(op.fileName.contains(resolved.toASCIIString))
   }
 
   it should "leave non-ScanSourceOpDesc operators untouched (no errors, no resolution)" in {
@@ -500,7 +572,7 @@ class LogicalPlanSpec extends AnyFlatSpec {
     val k = keyword()
     val plan = LogicalPlan(List(k), List.empty)
     val errors = ArrayBuffer.empty[(OperatorIdentity, Throwable)]
-    plan.resolveScanSourceOpFileName(Some(errors))
+    plan.resolveScanSourceOpFileName(TestOperators.fixtureFileResolver, Some(errors))
     assert(errors.isEmpty)
   }
 }

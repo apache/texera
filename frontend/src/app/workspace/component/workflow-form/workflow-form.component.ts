@@ -37,6 +37,7 @@ import { catchError, concatMap, debounceTime, finalize, observeOn, takeUntil, ta
 import { CdkDragDrop, DragDropModule } from "@angular/cdk/drag-drop";
 import { isLeavingWorkspace, USER_WORKFLOW, workspaceCanvasUrl } from "../../../app-routing.constant";
 import { EditableLabelWrapperComponent } from "../../../common/formly/editable-label-wrapper/editable-label-wrapper.component";
+import { SUB_FIELD_VIEW_PROP, SubFieldView } from "../../../common/formly/sub-field-view";
 import { FormFieldBinding, Workflow, WorkflowContent } from "../../../common/type/workflow";
 import { ComputingUnitStatusService } from "../../../common/service/computing-unit/computing-unit-status/computing-unit-status.service";
 import { ComputingUnitState } from "../../../common/type/computing-unit-connection.interface";
@@ -46,7 +47,9 @@ import { WorkflowPersistService } from "../../../common/service/workflow-persist
 import { NotificationService } from "../../../common/service/notification/notification.service";
 import { UserService } from "../../../common/service/user/user.service";
 import { DynamicSchemaService } from "../../service/dynamic-schema/dynamic-schema.service";
-import { customFormlyFieldType, CANVAS_ONLY_FORMLY_TYPES } from "../../util/custom-formly-type";
+import { customFormlyFieldType, CANVAS_ONLY_FORMLY_TYPES, FIELD_OPERATOR_ID_PROP } from "../../util/custom-formly-type";
+import { UiUdfParametersSyncService } from "../../service/code-editor/ui-udf-parameters-sync.service";
+import type { UiUdfParameter } from "../../service/code-editor/ui-udf-parameters-parser.service";
 import { WorkflowCompilingService } from "../../service/compile-workflow/workflow-compiling.service";
 import { ExecuteWorkflowService, FORM_DEBOUNCE_TIME_MS } from "../../service/execute-workflow/execute-workflow.service";
 import { OperatorMetadataService } from "../../service/operator-metadata/operator-metadata.service";
@@ -68,6 +71,7 @@ import { VisualizationFrameContentComponent } from "../visualization-panel-conte
 import { WorkflowEditorComponent } from "../workflow-editor/workflow-editor.component";
 import { MiniMapComponent } from "../workflow-editor/mini-map/mini-map.component";
 import { CoeditorUserIconComponent } from "../menu/coeditor-user-icon/coeditor-user-icon.component";
+import { ReadOnlyCardDirective } from "./read-only-card.directive";
 import { CoeditorPresenceService } from "../../service/workflow-graph/model/coeditor-presence.service";
 import { SAVE_DEBOUNCE_TIME_IN_MS } from "../workspace.component";
 
@@ -97,7 +101,26 @@ interface RenderedField {
   fields: FormlyFieldConfig[];
   form: FormGroup;
   model: Record<string, unknown>;
+  /** The operator schema the card was built from, serialized: a compilation that leaves it as it
+   *  is has nothing to rebuild for this card. Empty for a broken card. */
+  schemaKey: string;
+  /** The operator's other properties the card was seeded with, serialized: the context a custom
+   *  widget reads to decide what to show (the HuggingFace picker reads `task`). Only a rebuild
+   *  re-seeds it, so a change there has to count as a change the card shows. The card's own
+   *  property is left out -- that one is compared on its own, and the card's pending edit must not
+   *  read as a change. Empty for a broken card. */
+  contextKey: string;
+  /** An edit the card holds that its debounced write-back has not written to the operator yet. */
+  pendingWrite: boolean;
+  /** Write the card's value to the operator now, if it differs (what the debounced write-back does);
+   *  absent on a read-only card. */
+  flushWrite?: () => void;
 }
+
+/** Whether two property values are the same, taking an empty string and an absent value as one (formly's
+ *  blank default for a property the operator never had). */
+const sameValue = (a: unknown, b: unknown): boolean =>
+  JSON.stringify(a === "" ? null : a ?? null) === JSON.stringify(b === "" ? null : b ?? null);
 
 /** One row of the "which results to show" picker: a candidate step and whether it is currently shown. */
 interface ResultChoice {
@@ -148,6 +171,7 @@ interface ResultChoice {
     WorkflowEditorComponent,
     MiniMapComponent,
     CoeditorUserIconComponent,
+    ReadOnlyCardDirective,
   ],
 })
 export class WorkflowFormComponent implements OnInit, OnDestroy {
@@ -164,13 +188,13 @@ export class WorkflowFormComponent implements OnInit, OnDestroy {
   /** While authoring, the instruction is edited as raw markdown ("write") or shown rendered
    *  ("preview"); a reader always sees it rendered. */
   public instructionMode: "write" | "preview" = "write";
-  /** The "which results to show" picker: every candidate step with its shown flag. Everyone sees it:
-   *  in edit mode a toggle sets the default for all readers (saved in the config); otherwise it is
-   *  the viewer's own choice for this page (viewerResultIds), never written anywhere. */
+  /** The results listed under the preview: every candidate step with its shown flag. The name
+   *  reaches the result, the eye beside it decides whether it shows -- the author's default for
+   *  everyone while editing (saved in the config), the viewer's own page otherwise. */
   public resultChoices: ResultChoice[] = [];
-  /** A viewer's own pick of results for this page, once they have toggled anything; undefined means
-   *  "the author's default". Kept for the page's lifetime only, and cleared on entering edit mode so
-   *  the author edits the real default rather than their own view of it. */
+  /** A viewer's own pick of results for this page, once they have hidden or brought one back;
+   *  undefined means "the author's default". Kept for the page's lifetime only, and cleared on
+   *  entering edit mode so the author edits the real default rather than their own view of it. */
   private viewerResultIds?: Set<string>;
 
   /** The exposed inputs, resolved against the live graph, and the formly field built for each. */
@@ -302,7 +326,8 @@ export class WorkflowFormComponent implements OnInit, OnDestroy {
     // disabled here exactly when it is disabled there.
     private validationWorkflowService: ValidationWorkflowService,
     private config: GuiConfigService,
-    private warehouseService: WarehouseService
+    private warehouseService: WarehouseService,
+    private uiUdfParametersSyncService: UiUdfParametersSyncService
   ) {}
 
   ngOnInit(): void {
@@ -345,6 +370,10 @@ export class WorkflowFormComponent implements OnInit, OnDestroy {
       .getJointOperatorUnhighlightStream()
       .pipe(untilDestroyed(this))
       .subscribe(() => this.syncSelectionFromHighlight());
+
+    // And once now: the selection is the canvas's too, handed over rather than rebuilt when the
+    // views switch, so a step chosen there is already selected here and no event will say so.
+    this.syncSelectionFromHighlight();
 
     // A result changing bumps that operator's version (so its chart frame is rebuilt, not reused),
     // re-limits what the form shows to the currently-viewed set, and re-fits the visualisations.
@@ -479,15 +508,28 @@ export class WorkflowFormComponent implements OnInit, OnDestroy {
       });
 
     // Attribute boxes become dropdowns only after compilation writes the column enums into each
-    // operator's dynamic schema -- which lands after these cards were built. Rebuild on the
+    // operator's dynamic schema -- which lands after these cards were built. Follow the
     // compilation-state stream, a ReplaySubject(1) so a late subscriber (this page is created anew
-    // on every Canvas<->Form switch, mid-session) gets the current state at once. Held, not dropped, while
+    // on every Canvas<->Form switch, mid-session) gets the current state at once, and rebuild when
+    // it changed something the cards show (see onCompilationChanged). Held, not dropped, while
     // someone is typing (see rebuildFormOrDefer), so it neither throws away a half-entered value
     // under the cursor nor goes missing.
     this.workflowCompilingService
       .getCompilationStateInfoChangedStream()
       .pipe(debounceTime(FORM_DEBOUNCE_TIME_MS), untilDestroyed(this))
-      .subscribe(() => this.rebuildFormOrDefer(false));
+      .subscribe(() => this.onCompilationChanged());
+
+    // A Python UDF's code declares its UI parameters (`self.UiParameter(...)`); the parser announces
+    // them when the code changes, and the operator property panel's frame writes them onto the
+    // operator -- for the operator it shows, and only while it acts as the editor. A parameter added
+    // from a Form View card (the ui-udf-parameters widget's Add parameter) changes the code with the
+    // panel closed or on another step, so the form writes them then; see writeUiParameters.
+    this.uiUdfParametersSyncService.uiParametersChanged$
+      .pipe(untilDestroyed(this))
+      .subscribe(({ operatorId, parameters }) => {
+        this.writeUiParameters(operatorId, parameters);
+        this.followUiParameters(operatorId);
+      });
 
     // Exposing or un-exposing a property in the panel changes the definition; the inputs above have
     // to follow at once, which is the whole point of editing them side by side. Today this fires for
@@ -793,10 +835,10 @@ export class WorkflowFormComponent implements OnInit, OnDestroy {
    * operator (no enabled downstream) as well as every view-result operator, so a terminal's result is
    * always available. The author's default is the saved list (shownResultIds: exactly those steps, an
    * empty list meaning none) or, until the author has chosen, every terminal step. A viewer who has
-   * toggled the picker on this page sees their own set instead (viewerResultIds), which is never
-   * written anywhere. Either way this is a pure display filter that reads the graph and never writes
-   * it, so a normal canvas user's result-viewing is unaffected. A step that is neither viewed nor
-   * terminal (or was deleted) drops out rather than rendering a stale card.
+   * hidden one on this page sees their own set instead (viewerResultIds), which is never written
+   * anywhere. Either way this is a pure display filter that reads the graph and never writes it, so a
+   * normal canvas user's result-viewing is unaffected. A step that is neither viewed nor terminal (or
+   * was deleted) drops out rather than rendering a stale card.
    */
   private refreshShownResults(): void {
     const graph = this.workflowActionService.getTexeraGraph();
@@ -838,10 +880,140 @@ export class WorkflowFormComponent implements OnInit, OnDestroy {
    * exposed property. Each input gets its own form keyed by binding id.
    */
   private buildForm(): void {
+    // A rebuild ends every card's write-back subscription, so an edit whose debounced write has not
+    // fired yet is written now, and the rebuilt card is seeded with it rather than without it.
+    this.rendered.forEach(card => card.pendingWrite && card.flushWrite?.());
     this.formsRebuilt.next();
     this.rendered = this.visibleFields
       .map(field => this.renderField(field))
       .filter((r): r is RenderedField => r !== undefined);
+  }
+
+  /**
+   * A compilation result rebuilds the cards only when it changed something they show: a card's
+   * operator schema (the column enums compilation writes into it, which turn an attribute box into a
+   * dropdown), the set of inputs (an operator deleted on the canvas makes its card broken), or an
+   * operator value a card does not hold (a co-editor's edit; the card's own edit, written back or
+   * still on its way, is not that). Most compilations change none of these -- the one a card's own
+   * write triggers, for one -- and used to rebuild every card regardless: the controls were redrawn
+   * under the reader's eyes, the focus went with them, and a click made in the last moments before
+   * the rebuild was lost, since the rebuild cancelled that card's pending write. The canvas's
+   * property panel redraws only for a schema change; the form does the same. The result picker and
+   * the shown results still follow the graph either way.
+   */
+  private onCompilationChanged(): void {
+    if (this.cardsNeedRebuild()) {
+      this.rebuildFormOrDefer(false);
+      return;
+    }
+    this.refreshShownResults();
+    this.rebuildResultChoices();
+    this.cdr.markForCheck();
+  }
+
+  private cardsNeedRebuild(): boolean {
+    const fields = this.visibleOf(this.formBindingService.resolveFields());
+    const sameInputs =
+      fields.length === this.rendered.length &&
+      fields.every((field, i) => {
+        const shown = this.rendered[i].resolved;
+        return field.binding.id === shown.binding.id && (field.brokenReason ?? "") === (shown.brokenReason ?? "");
+      });
+    if (!sameInputs) {
+      return true;
+    }
+    return this.rendered.some(card => {
+      const { binding, brokenReason } = card.resolved;
+      if (brokenReason) {
+        return false;
+      }
+      if (this.schemaKeyFor(binding.operatorID) !== card.schemaKey) {
+        return true;
+      }
+      // The widget context the card was seeded with: checked before the pending-write skip below,
+      // which is only about the card's own property, and safe to rebuild through because buildForm
+      // flushes a pending write first.
+      if (this.contextKeyFor(binding.operatorID) !== card.contextKey) {
+        return true;
+      }
+      // The card's own edit is on its way to the operator; the two agree once it is written.
+      if (card.pendingWrite) {
+        return false;
+      }
+      return !sameValue(
+        card.model[binding.id],
+        this.formBindingService.readValue(binding.operatorID, binding.propertyKey)
+      );
+    });
+  }
+
+  private schemaKeyFor(operatorID: string): string {
+    return JSON.stringify(this.operatorSchemaFor(operatorID) ?? null);
+  }
+
+  /**
+   * The operator's properties other than the one a card is bound to, serialized with the keys
+   * sorted so a rewrite that only reorders them is not a change. This is the context the card is
+   * seeded with (see renderField): a widget reads a sibling to decide what to show, and nothing
+   * but a rebuild re-seeds it, so the card goes stale when the canvas or a co-editor changes one.
+   */
+  private contextKeyFor(operatorID: string): string {
+    const graph = this.workflowActionService.getTexeraGraph();
+    // getOperator throws for an operator that is gone, so it is only safe behind hasOperator.
+    const properties = graph.hasOperator(operatorID) ? graph.getOperator(operatorID)?.operatorProperties ?? {} : {};
+    // Every property an input is bound to is left out, this card's own and any other card's on the
+    // same operator: each is compared against the card that shows it, one by one. Counting them as
+    // context too would make one card's edit a change to every other card of that operator, and a
+    // form with two inputs from one step would rebuild wholesale on every keystroke's compilation --
+    // the churn this PR exists to stop (Copilot).
+    const bound = new Set(
+      this.parameters.filter(field => field.binding.operatorID === operatorID).map(field => field.binding.propertyKey)
+    );
+    return JSON.stringify(
+      Object.entries(properties)
+        .filter(([key]) => !bound.has(key))
+        .sort(([a], [b]) => a.localeCompare(b))
+    );
+  }
+
+  /**
+   * Write the UI parameters a Python UDF's code declares onto the operator, as the operator
+   * property panel's frame does for the operator it shows while it acts as the editor. The frame
+   * does that only then, so the form writes when the frame does not: a writer only (a reader's card
+   * changes no code, and may not write), not while the step panel shows that very step live (the
+   * frame writes then, and the same write twice is churn), and only for an operator still on the
+   * graph. The same value the frame writes: the operator's properties with the declared list.
+   */
+  private writeUiParameters(operatorId: string, parameters: UiUdfParameter[]): void {
+    const graph = this.workflowActionService.getTexeraGraph();
+    const frameWrites = this.selectedOperatorId === operatorId && this.panelLive;
+    if (!this.canEdit || frameWrites || !graph.hasOperator(operatorId)) {
+      return;
+    }
+    this.workflowActionService.setOperatorProperty(operatorId, {
+      ...cloneDeep(graph.getOperator(operatorId).operatorProperties),
+      uiParameters: cloneDeep(parameters),
+    });
+  }
+
+  /**
+   * Once the declared parameters are written -- by writeUiParameters, or by the step panel's frame
+   * for the step it shows live, whose subscription runs after this page's -- the operator has the new
+   * rows while this page's card for them still shows the old ones: a card is rebuilt from the
+   * compilation result, half a second and a round trip later. A value typed into the card in that
+   * window would have gone back with the old rows (the card writes its whole list), dropping the row
+   * just declared. So the cards are rebuilt right after the current tick, once every writer has
+   * written, when a card shows that operator's parameters; held while the reader is typing, as every
+   * rebuild is. The compilation result rebuilds them once more, to the same rows.
+   */
+  private followUiParameters(operatorId: string): void {
+    const shown = this.rendered.some(
+      card => card.resolved.binding.operatorID === operatorId && card.resolved.binding.propertyKey === "uiParameters"
+    );
+    if (!shown) {
+      return;
+    }
+    this.later(() => this.rebuildFormOrDefer(true), 0);
   }
 
   private renderField(resolved: ResolvedField): RenderedField | undefined {
@@ -850,12 +1022,21 @@ export class WorkflowFormComponent implements OnInit, OnDestroy {
     // sees it (visibleFields drops it for readers), rendered as an empty card so the author can
     // remove it; a reader never reaches here for one.
     if (resolved.brokenReason) {
-      return { resolved, fields: [], form: new FormGroup({}), model: {} };
+      return {
+        resolved,
+        fields: [],
+        form: new FormGroup({}),
+        model: {},
+        schemaKey: "",
+        contextKey: "",
+        pendingWrite: false,
+      };
     }
     const schema = this.operatorSchemaFor(binding.operatorID);
     if (!schema) {
       return undefined;
     }
+    const schemaKey = JSON.stringify(schema);
     const operator = this.workflowActionService.getTexeraGraph().getOperator(binding.operatorID);
     const operatorType = operator?.operatorType;
     const full = this.formlyJsonschema.toFieldConfig(cloneDeep(schema) as never, {
@@ -891,6 +1072,12 @@ export class WorkflowFormComponent implements OnInit, OnDestroy {
     field.props = {
       ...(field.props ?? {}),
       label: binding.displayName || schemaLabel,
+      // The operator the input belongs to rides on the field: nothing is highlighted on the form, so
+      // a shared widget that needs its operator (the ui-udf-parameters renderer, adding a declared
+      // parameter to the operator's code) reads it here, and the same mark tells it which host it is
+      // on where the two must differ (its columns follow the author's overrides here, and keep their
+      // fixed headers on the panel).
+      [FIELD_OPERATOR_ID_PROP]: binding.operatorID,
     };
 
     const form = new FormGroup({});
@@ -903,30 +1090,47 @@ export class WorkflowFormComponent implements OnInit, OnDestroy {
       ...cloneDeep(operator?.operatorProperties ?? {}),
       [binding.id]: cloneDeep(resolved.value),
     };
+    const card: RenderedField = {
+      resolved,
+      fields: [field],
+      form,
+      model,
+      schemaKey,
+      contextKey: this.contextKeyFor(binding.operatorID),
+      pendingWrite: false,
+    };
     if (this.canEdit) {
+      card.flushWrite = () => {
+        card.pendingWrite = false;
+        // Formly emits the schema's empty default while building the control, before any edit;
+        // writing that back silently wiped the operator's real value (both views edit one
+        // workflow). So only accept a dirtied form, or a value that differs from the operator's
+        // without being emptier (some controls set values without marking dirty).
+        const next = model[binding.id];
+        const current = this.formBindingService.readValue(binding.operatorID, binding.propertyKey);
+        const isEmpty = (v: unknown) => v === undefined || v === null || v === "";
+        const unchanged = JSON.stringify(next ?? null) === JSON.stringify(current ?? null);
+        if (unchanged || (!form.dirty && isEmpty(next) && !isEmpty(current))) {
+          return;
+        }
+        // Write straight onto the operator (the same edit the canvas makes) and refresh this
+        // card's snapshot, which the template reads.
+        this.formBindingService.writeValue(binding, next);
+        this.parameters = this.formBindingService.resolveFields();
+        const refreshed = this.parameters.find(p => p.binding.id === binding.id);
+        if (refreshed) {
+          card.resolved = refreshed;
+        }
+      };
+      // The card holds an unwritten edit from the first change until the debounced write below has
+      // run (or a rebuild has flushed it, see buildForm).
+      form.valueChanges.pipe(takeUntil(this.formsRebuilt), untilDestroyed(this)).subscribe(() => {
+        card.pendingWrite = true;
+      });
       form.valueChanges
         .pipe(debounceTime(FORM_DEBOUNCE_TIME_MS), takeUntil(this.formsRebuilt), untilDestroyed(this))
         .subscribe(() => {
-          // Formly emits the schema's empty default while building the control, before any edit;
-          // writing that back silently wiped the operator's real value (both views edit one
-          // workflow). So only accept a dirtied form, or a value that differs from the operator's
-          // without being emptier (some controls set values without marking dirty).
-          const next = model[binding.id];
-          const current = this.formBindingService.readValue(binding.operatorID, binding.propertyKey);
-          const isEmpty = (v: unknown) => v === undefined || v === null || v === "";
-          const unchanged = JSON.stringify(next ?? null) === JSON.stringify(current ?? null);
-          if (unchanged || (!form.dirty && isEmpty(next) && !isEmpty(current))) {
-            return;
-          }
-          // Write straight onto the operator (the same edit the canvas makes) and refresh this
-          // card's snapshot, which the template reads.
-          this.formBindingService.writeValue(binding, next);
-          this.parameters = this.formBindingService.resolveFields();
-          const refreshed = this.parameters.find(p => p.binding.id === binding.id);
-          const card = this.rendered.find(r => r.resolved.binding.id === binding.id);
-          if (refreshed && card) {
-            card.resolved = refreshed;
-          }
+          card.flushWrite?.();
           this.cdr.detectChanges();
         });
     } else {
@@ -939,7 +1143,7 @@ export class WorkflowFormComponent implements OnInit, OnDestroy {
     }
 
     this.applyFieldOverrides(field, binding, schemaLabel);
-    return { resolved, fields: [field], form, model };
+    return card;
   }
 
   /**
@@ -996,6 +1200,9 @@ export class WorkflowFormComponent implements OnInit, OnDestroy {
       }
     }
     const controlsAt = new Set<string>();
+    /** Published on the input's own field once the walk has seen every path; see sub-field-view. */
+    const subFieldView: Record<string, SubFieldView> = {};
+    this.subFieldViewByBinding.set(binding.id, subFieldView);
     const walk = (node: FormlyFieldConfig, path: string, root: boolean): void => {
       // Drop the schema's own description on every field, nested ones included: on this page the
       // one piece of guidance is the help text the form's author writes, rendered once by the card.
@@ -1042,8 +1249,20 @@ export class WorkflowFormComponent implements OnInit, OnDestroy {
         // placeholder and tooltip, and what clearing the box yields, since an empty name deletes the
         // override (setFieldOverride).
         const schemaOwnLabel = (node.props?.label as string) || path;
+        // What a widget that draws its own chrome has to show for this sub-field, resolved here
+        // where the author's decision is, rather than left for the widget to read back out of the
+        // fields below (see sub-field-view). The first node met for a path answers for it, as it
+        // does for the controls: the rows of a repeated section share one override.
+        subFieldView[path] ??= {
+          // The author's name only. A widget drawing its own chrome has a name of its own for the
+          // part and uses it when the author kept the schema's -- the table's "Type" heading, which
+          // the operator property panel shows too, rather than the schema's "Attribute Type".
+          label: override.displayName ?? "",
+          // An author keeps a hidden sub-field on screen, to bring it back; a reader does not see it.
+          shown: this.authoring || override.hidden !== true,
+        };
         if (override.displayName) {
-          node.props = { ...(node.props ?? {}), label: override.displayName };
+          node.props = { ...node.props, label: override.displayName };
         }
         if (this.authoring) {
           // An author edits the sub-field's label where it appears and keeps hidden fields on
@@ -1128,7 +1347,17 @@ export class WorkflowFormComponent implements OnInit, OnDestroy {
       }
     };
     walk(field, "", true);
+    // On the input's own field, where a widget drawing its own chrome reads it. Written after the
+    // walk so it carries every path, including the ones a repeated section's builder adds.
+    // The walk set props on the root before anything else, so there is always an object here.
+    field.props = { ...field.props, [SUB_FIELD_VIEW_PROP]: subFieldView };
   }
+
+  /**
+   * The sub-field view published on each input's field, kept here so a rename being typed can be
+   * written into the very object the field carries (see onSubFieldNamed and sub-field-view).
+   */
+  private readonly subFieldViewByBinding = new Map<string, Record<string, SubFieldView>>();
 
   /** Followers are kept per input and path; "/" cannot occur in a binding id (a uuid). */
   private static followerKey(bindingId: string, path: string): string {
@@ -1159,9 +1388,13 @@ export class WorkflowFormComponent implements OnInit, OnDestroy {
    * (below), to repair or remove them.
    */
   public get visibleFields(): ResolvedField[] {
-    // A reader never sees a broken input (its operator is gone, so filling it could not affect the
-    // run); an author sees it, to repair or remove it.
-    return this.authoring ? this.parameters : this.parameters.filter(field => !field.brokenReason);
+    return this.visibleOf(this.parameters);
+  }
+
+  /** A reader never sees a broken input (its operator is gone, so filling it could not affect the run);
+   *  an author sees it, to repair or remove it. */
+  private visibleOf(fields: ResolvedField[]): ResolvedField[] {
+    return this.authoring ? fields : fields.filter(field => !field.brokenReason);
   }
 
   public trackByRendered(_: number, rendered: RenderedField): string {
@@ -1190,6 +1423,63 @@ export class WorkflowFormComponent implements OnInit, OnDestroy {
    */
   public get resultIdsToShow(): string[] {
     return this.shownResultIds.filter(id => this.workflowResultService.hasNonEmptyResult(id));
+  }
+
+  /**
+   * Whether this step's card leads the Results: it is the selected step, and it has a card to lead
+   * with. What the ring marks, on the card and on the step's chip, and what puts the card first
+   * (see resultOrder). Read from the selection rather than kept beside it: a copy drifted from it
+   * (hiding the selected step's result cleared the lead but not the selection, and its name then
+   * read as "already leading" and let the step go instead of bringing the card back).
+   */
+  public leadsResults(operatorID: string): boolean {
+    return this.selectedOperatorId === operatorID && this.resultIdsToShow.includes(operatorID);
+  }
+
+  /**
+   * Where a card sits among the Results: the selected step's first, the rest in the saved order.
+   *
+   * The cards are laid out in a column and ordered by this, rather than by their order in the list
+   * the template repeats. Moving them in the list moves their DOM, and a chart's srcdoc iframe
+   * reloads when it is moved -- the picture comes back, but the zoom, the pan and the legend the
+   * reader had set do not, so selecting a step reset a chart they were reading (Copilot on #9334).
+   * The cards keep their order in the document, which is also the order they are read in; the one
+   * being looked at is named there by its chip's aria-current rather than by its position.
+   */
+  public resultOrder(operatorID: string): number {
+    return this.leadsResults(operatorID) ? -1 : 0;
+  }
+
+  /**
+   * A result's name, in either mode: a click selects that step, the same selection clicking the step
+   * on the preview makes -- through the action service, so co-editors see the ring as they do for a
+   * canvas click -- and its card comes to the front, ringed. Two steps with the same name are told
+   * apart by which one lights up. Clicking the name of the step already selected lets it go, putting
+   * the cards back. Nothing is written either way.
+   *
+   * A hidden result has no card to bring to the top, so its name does nothing at all: the template
+   * marks it unavailable, and this ignores it in case it is reached another way.
+   *
+   * The preview is left as the reader had it: opening it from here moved the results a third of the
+   * page down, out from under the name just clicked (#9033).
+   */
+  public onChoiceClick(choice: ResultChoice): void {
+    if (!choice.shown) {
+      return;
+    }
+    if (this.selectedOperatorId === choice.operatorID) {
+      this.closeOperatorPanel();
+      return;
+    }
+    // A step that is already highlighted as part of a multi-select has to be let go first. The
+    // wrapper drops an id it is already holding before it gets as far as clearing the others, so
+    // shift-selecting two steps on the preview and then clicking one of their names left both of
+    // them selected and no card leading -- the click did nothing (Copilot on #9334).
+    const highlighted = this.workflowActionService.getJointGraphWrapper().getCurrentHighlightedOperatorIDs();
+    if (highlighted.includes(choice.operatorID)) {
+      this.workflowActionService.unhighlightOperators(...highlighted);
+    }
+    this.workflowActionService.highlightOperators(false, choice.operatorID);
   }
 
   public isTabularResult(operatorID: string): boolean {
@@ -1349,8 +1639,8 @@ export class WorkflowFormComponent implements OnInit, OnDestroy {
     if (this.authoring) {
       // An author picks fields off the workflow, so show it.
       this.showWorkflow();
-      // In edit mode the picker sets the default for everyone, so the author's own view of the
-      // results (if they toggled any as a viewer) gives way to that default.
+      // In edit mode the eye sets the default for everyone, so the author's own view of the
+      // results (if they hid any as a viewer) gives way to that default.
       this.viewerResultIds = undefined;
     } else {
       this.workflowOpen = false;
@@ -1451,12 +1741,16 @@ export class WorkflowFormComponent implements OnInit, OnDestroy {
   }
 
   /**
-   * A pill in the picker. In edit mode this sets the default everyone sees: the step joins or leaves
-   * the saved list (which the first choice starts from the final steps, the default until then), and
-   * the config is re-read. Anyone else, a writer merely viewing included, only changes their own view
-   * of this page: nothing is written, so a reader without write access can choose too.
+   * The eye beside a result's name: whether that result shows after a run. Editing, it sets the
+   * default everyone gets -- the step joins or leaves the saved list (the first choice starts the
+   * list from the final steps, the default until then) and the config is re-read. Otherwise it
+   * changes only this viewer's page: nothing is written, so a reader without write access can hide
+   * a result they do not care about and bring it back.
    */
   public onToggleResult(choice: ResultChoice): void {
+    // Nothing to do about the order here: the card at the front is the selected step's, so hiding
+    // that result takes its card away and showing it again brings it back to the front, with the
+    // step still selected throughout.
     if (this.authoring && this.canEdit) {
       // Re-read once, here: the write's own announcement would rebuild the form a second time.
       this.reflectLocally(() =>
@@ -1500,6 +1794,13 @@ export class WorkflowFormComponent implements OnInit, OnDestroy {
     // box on the first row, so the rows agree without a rebuild.
     for (const node of this.followersByPath.get(WorkflowFormComponent.followerKey(bindingId, path)) ?? []) {
       node.props = { ...(node.props ?? {}), authorName: value };
+    }
+    // And the published view, for a widget drawing its own headers: the same object the field
+    // carries, so the header follows the typing without a rebuild. An emptied box deletes the
+    // override, and the widget falls back to its own name (subFieldLabel).
+    const view = this.subFieldViewByBinding.get(bindingId)?.[path];
+    if (view !== undefined) {
+      this.subFieldViewByBinding.get(bindingId)![path] = { ...view, label: value };
     }
   }
 
@@ -1734,6 +2035,9 @@ export class WorkflowFormComponent implements OnInit, OnDestroy {
     const graph = this.workflowActionService.getTexeraGraph();
     this.selectedOperatorId =
       highlighted.length === 1 && graph.hasOperator(highlighted[0]) ? highlighted[0] : undefined;
+    // The selected step's result leads the Results section while it is selected (resultIdsToShow),
+    // so the reader can see what a step produced without scrolling past the others; deselecting
+    // (empty canvas, a multi-select, the panel's close button) puts the cards back in their order.
     this.cdr.detectChanges();
   }
 

@@ -19,16 +19,17 @@
 
 package org.apache.texera.amber.operator.visualization.ternaryPlot
 
+import org.apache.texera.amber.operator.visualization.StandaloneChartCode._
 import com.fasterxml.jackson.annotation.{JsonProperty, JsonPropertyDescription}
 import com.kjetland.jackson.jsonSchema.annotations.{JsonSchemaInject, JsonSchemaTitle}
-import org.apache.texera.amber.core.tuple.{AttributeType, Schema}
 import org.apache.texera.amber.pybuilder.PythonTemplateBuilder.PythonTemplateBuilderStringContext
 import org.apache.texera.amber.pybuilder.PyStringTypes.EncodableString
-import org.apache.texera.amber.core.workflow.PortIdentity
-import org.apache.texera.amber.operator.PythonOperatorDescriptor
-import org.apache.texera.amber.operator.metadata.annotations.AutofillAttributeName
+import org.apache.texera.amber.operator.visualization.PlotlyStandaloneCode
+import org.apache.texera.amber.operator.visualization.PythonVisualizationOpDesc
+import org.apache.texera.amber.operator.metadata.annotations.{AutofillAttributeName, SampleColumn}
 import org.apache.texera.amber.operator.metadata.{OperatorGroupConstants, OperatorInfo}
 import org.apache.texera.amber.pybuilder.PythonTemplateBuilder
+import org.apache.texera.amber.pybuilder.PythonTemplateBuilder.pyStringLiteral
 
 import javax.validation.constraints.NotNull
 
@@ -51,13 +52,14 @@ import javax.validation.constraints.NotNull
   }
 }
 """)
-class TernaryPlotOpDesc extends PythonOperatorDescriptor {
+class TernaryPlotOpDesc extends PythonVisualizationOpDesc with PlotlyStandaloneCode {
 
   // Add annotations for the first variable
   @JsonProperty(value = "firstVariable", required = true)
   @JsonSchemaTitle("Variable 1")
   @JsonPropertyDescription("First variable data field")
   @AutofillAttributeName
+  @SampleColumn("comp_a")
   @NotNull(message = "Variable 1 cannot be empty")
   var firstVariable: EncodableString = ""
 
@@ -66,6 +68,7 @@ class TernaryPlotOpDesc extends PythonOperatorDescriptor {
   @JsonSchemaTitle("Variable 2")
   @JsonPropertyDescription("Second variable data field")
   @AutofillAttributeName
+  @SampleColumn("comp_b")
   @NotNull(message = "Variable 2 cannot be empty")
   var secondVariable: EncodableString = ""
 
@@ -74,6 +77,7 @@ class TernaryPlotOpDesc extends PythonOperatorDescriptor {
   @JsonSchemaTitle("Variable 3")
   @JsonPropertyDescription("Third variable data field")
   @AutofillAttributeName
+  @SampleColumn("comp_c")
   @NotNull(message = "Variable 3 cannot be empty")
   var thirdVariable: EncodableString = ""
 
@@ -95,14 +99,6 @@ class TernaryPlotOpDesc extends PythonOperatorDescriptor {
       operatorDescription = "Points are graphed on a Ternary Plot using 3 specified data fields",
       operatorGroupName = OperatorGroupConstants.VISUALIZATION_SCIENTIFIC_GROUP
     )
-
-  override def getOutputSchemas(
-      inputSchemas: Map[PortIdentity, Schema]
-  ): Map[PortIdentity, Schema] = {
-    val outputSchema = Schema()
-      .add("html-content", AttributeType.STRING)
-    Map(operatorInfo.outputPorts.head.id -> outputSchema)
-  }
 
   /** Returns a Python string that drops any tuples with missing values */
   def manipulateTable(): PythonTemplateBuilder = {
@@ -158,6 +154,30 @@ class TernaryPlotOpDesc extends PythonOperatorDescriptor {
          |        yield {'html-content':html}
          |"""
     finalCode.encode
+  }
+
+  override def generateStandaloneCode(): String = {
+    val colorArg =
+      if (colorEnabled && colorDataField.nonEmpty)
+        s""", color=${pyStringLiteral(colorDataField)}"""
+      else ""
+    val firstLit = pyStringLiteral(firstVariable)
+    val secondLit = pyStringLiteral(secondVariable)
+    val thirdLit = pyStringLiteral(thirdVariable)
+    s"""${standaloneError("TernaryPlot is not available.", plural = true)}
+       |
+       |if in1df.empty:
+       |${standaloneErrorPage("Input table is empty.")}
+       |else:
+       |    table = in1df.dropna(subset=[$firstLit, $secondLit, $thirdLit]).copy()
+       |    if table.empty:
+       |${standaloneErrorPage(
+      "No valid rows left (every row has at least 1 missing value).",
+      indent = 8
+    )}
+       |    else:
+       |        fig = px.scatter_ternary(table, a=$firstLit, b=$secondLit, c=$thirdLit$colorArg)
+       |${standaloneFigure("Ternary plot")}""".stripMargin
   }
 
 }

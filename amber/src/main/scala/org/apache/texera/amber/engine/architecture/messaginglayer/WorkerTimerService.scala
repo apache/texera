@@ -39,7 +39,6 @@ class WorkerTimerService(actorService: PekkoActorService) {
   private val adaptiveBatchInterval = ApplicationConfig.adaptiveBufferingTimeoutMs
 
   var adaptiveBatchingHandle: Option[Cancellable] = None
-  var isPaused = false
 
   def startAdaptiveBatching(): Unit = {
     if (!enabledAdaptiveBatching) {
@@ -65,18 +64,6 @@ class WorkerTimerService(actorService: PekkoActorService) {
   def stopAdaptiveBatching(): Unit = {
     if (adaptiveBatchingHandle.nonEmpty) {
       adaptiveBatchingHandle.get.cancel()
-    }
-    isPaused = false
-  }
-
-  def pauseAdaptiveBatching(): Unit = {
-    stopAdaptiveBatching()
-    isPaused = true
-  }
-
-  def resumeAdaptiveBatching(): Unit = {
-    if (isPaused) {
-      startAdaptiveBatching()
     }
   }
 }

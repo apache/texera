@@ -26,7 +26,7 @@ jobs:
     if: >-
       github.event.pull_request.merged == true && 
       contains(github.event.pull_request.labels.*.name, 'ddl-change')
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-slim
     steps:
       - name: Checkout
         uses: actions/checkout@v7

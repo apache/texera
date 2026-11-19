@@ -21,28 +21,20 @@ package org.apache.texera.web.resource.dashboard.admin.execution
 
 import org.apache.texera.auth.SessionUser
 import org.apache.texera.dao.MockTexeraDB
-import org.apache.texera.dao.jooq.generated.Tables._
+import org.apache.texera.dao.jooq.generated.Tables.WORKFLOW_OF_USER
 import org.apache.texera.dao.jooq.generated.enums.PrivilegeEnum
-import org.apache.texera.dao.jooq.generated.tables.daos.{
-  UserDao,
-  WorkflowDao,
-  WorkflowExecutionsDao,
-  WorkflowUserAccessDao,
-  WorkflowVersionDao
-}
+import org.apache.texera.dao.jooq.generated.tables.daos.WorkflowUserAccessDao
 import org.apache.texera.dao.jooq.generated.tables.pojos.{
   User,
-  Workflow,
   WorkflowExecutions,
   WorkflowUserAccess,
   WorkflowVersion
 }
-import org.scalatest.BeforeAndAfterAll
-import org.scalatest.BeforeAndAfterEach
+import org.apache.texera.web.ExecutionDatabaseTestSupport
+import org.scalatest.{BeforeAndAfterAll, BeforeAndAfterEach}
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 
-import java.sql.Timestamp
 import java.util.UUID
 import java.util.concurrent.TimeUnit
 
@@ -51,7 +43,8 @@ class AdminExecutionResourceSpec
     with Matchers
     with BeforeAndAfterAll
     with BeforeAndAfterEach
-    with MockTexeraDB {
+    with MockTexeraDB
+    with ExecutionDatabaseTestSupport {
 
   // MockTexeraDB's embedded Postgres is a JVM singleton shared by all suites, which
   // run sequentially. Random ids keep this suite's rows from colliding with data other
@@ -61,13 +54,7 @@ class AdminExecutionResourceSpec
   private val secondWid = testWid + 1
 
   private var testUser: User = _
-  private var testWorkflow: Workflow = _
   private var testVersion: WorkflowVersion = _
-
-  private var userDao: UserDao = _
-  private var workflowDao: WorkflowDao = _
-  private var workflowVersionDao: WorkflowVersionDao = _
-  private var workflowExecutionsDao: WorkflowExecutionsDao = _
   private var workflowUserAccessDao: WorkflowUserAccessDao = _
 
   private val resource = new AdminExecutionResource()
@@ -81,62 +68,28 @@ class AdminExecutionResourceSpec
   }
 
   override protected def beforeEach(): Unit = {
-    userDao = new UserDao(getDSLContext.configuration())
-    workflowDao = new WorkflowDao(getDSLContext.configuration())
-    workflowVersionDao = new WorkflowVersionDao(getDSLContext.configuration())
-    workflowExecutionsDao = new WorkflowExecutionsDao(getDSLContext.configuration())
     workflowUserAccessDao = new WorkflowUserAccessDao(getDSLContext.configuration())
-
     cleanupTestData()
 
-    testUser = new User
-    testUser.setUid(testUid)
-    testUser.setName("test_user")
-    testUser.setEmail("admin_exec_test@example.com")
-
-    testWorkflow = new Workflow
-    testWorkflow.setWid(testWid)
-    testWorkflow.setName("test_workflow_" + UUID.randomUUID().toString.substring(0, 8))
-    testWorkflow.setContent("{}")
-    testWorkflow.setDescription("test description")
-    testWorkflow.setCreationTime(new Timestamp(System.currentTimeMillis()))
-    testWorkflow.setLastModifiedTime(new Timestamp(System.currentTimeMillis()))
-
-    testVersion = new WorkflowVersion
-    testVersion.setWid(testWid)
-    testVersion.setContent("{}")
-    testVersion.setCreationTime(new Timestamp(System.currentTimeMillis()))
-
-    userDao.insert(testUser)
-    workflowDao.insert(testWorkflow)
-    workflowVersionDao.insert(testVersion)
+    testUser = insertUser(testUid, "test_user", "admin_exec_test@example.com")
+    insertWorkflow(
+      testWid,
+      "test_workflow_" + UUID.randomUUID().toString.substring(0, 8),
+      description = "test description"
+    )
+    testVersion = insertWorkflowVersion(testWid)
   }
 
   override protected def afterEach(): Unit = {
     cleanupTestData()
   }
 
-  private def cleanupTestData(): Unit = {
-    val vidSubquery = getDSLContext
-      .select(WORKFLOW_VERSION.VID)
-      .from(WORKFLOW_VERSION)
-      .where(WORKFLOW_VERSION.WID.in(testWid, secondWid))
-
-    getDSLContext
-      .deleteFrom(WORKFLOW_EXECUTIONS)
-      .where(WORKFLOW_EXECUTIONS.VID.in(vidSubquery))
-      .execute()
-    getDSLContext
-      .deleteFrom(WORKFLOW_USER_ACCESS)
-      .where(WORKFLOW_USER_ACCESS.WID.in(testWid, secondWid))
-      .execute()
-    getDSLContext
-      .deleteFrom(WORKFLOW_VERSION)
-      .where(WORKFLOW_VERSION.WID.in(testWid, secondWid))
-      .execute()
-    getDSLContext.deleteFrom(WORKFLOW).where(WORKFLOW.WID.in(testWid, secondWid)).execute()
-    getDSLContext.deleteFrom(USER).where(USER.UID.eq(testUid)).execute()
-  }
+  private def cleanupTestData(): Unit =
+    cleanupWorkflowRecords(
+      Seq(testWid, secondWid),
+      uids = Seq(testUid),
+      includeUserAccess = true
+    )
 
   // ─── helpers ────────────────────────────────────────────────────────────────
 
@@ -145,22 +98,17 @@ class AdminExecutionResourceSpec
       name: String = "run",
       startOffsetMillis: Long = 0L,
       durationMillis: Long = 1000L
-  ): WorkflowExecutions = {
-    val execution = new WorkflowExecutions
-    execution.setVid(testVersion.getVid)
-    execution.setUid(testUser.getUid)
-    execution.setStatus(status)
-    execution.setResult("")
-    execution.setLogLocation("")
-    val now = System.currentTimeMillis()
-    execution.setStartingTime(new Timestamp(now - startOffsetMillis))
-    execution.setLastUpdateTime(new Timestamp(now - startOffsetMillis + durationMillis))
-    execution.setBookmarked(false)
-    execution.setName(name)
-    execution.setEnvironmentVersion("test-env-1.0")
-    workflowExecutionsDao.insert(execution)
-    execution
-  }
+  ): WorkflowExecutions =
+    insertWorkflowExecution(
+      vid = testVersion.getVid,
+      uid = testUser.getUid,
+      status = status,
+      logLocation = Some(""),
+      envVersion = "test-env-1.0",
+      name = name,
+      startOffsetMillis = Some(startOffsetMillis),
+      durationMillis = Some(durationMillis)
+    )
 
   private def grantAccess(uid: Int, privilege: PrivilegeEnum): Unit = {
     val access = new WorkflowUserAccess
@@ -174,34 +122,22 @@ class AdminExecutionResourceSpec
   // testUser, whose latest execution ends `endOffsetMillis` before "now". Used to
   // give the ordering test two workflows with distinct end times.
   private def seedSecondWorkflow(endOffsetMillis: Long): Unit = {
-    val workflow = new Workflow
-    workflow.setWid(secondWid)
-    workflow.setName("second_workflow_" + UUID.randomUUID().toString.substring(0, 8))
-    workflow.setContent("{}")
-    workflow.setDescription("second")
-    workflow.setCreationTime(new Timestamp(System.currentTimeMillis()))
-    workflow.setLastModifiedTime(new Timestamp(System.currentTimeMillis()))
-    workflowDao.insert(workflow)
-
-    val version = new WorkflowVersion
-    version.setWid(secondWid)
-    version.setContent("{}")
-    version.setCreationTime(new Timestamp(System.currentTimeMillis()))
-    workflowVersionDao.insert(version)
-
-    val execution = new WorkflowExecutions
-    execution.setVid(version.getVid)
-    execution.setUid(testUser.getUid)
-    execution.setStatus(3.toByte)
-    execution.setResult("")
-    execution.setLogLocation("")
-    val now = System.currentTimeMillis()
-    execution.setStartingTime(new Timestamp(now - endOffsetMillis - 1000))
-    execution.setLastUpdateTime(new Timestamp(now - endOffsetMillis))
-    execution.setBookmarked(false)
-    execution.setName("second-run")
-    execution.setEnvironmentVersion("test-env-1.0")
-    workflowExecutionsDao.insert(execution)
+    insertWorkflow(
+      secondWid,
+      "second_workflow_" + UUID.randomUUID().toString.substring(0, 8),
+      description = "second"
+    )
+    val version = insertWorkflowVersion(secondWid)
+    insertWorkflowExecution(
+      vid = version.getVid,
+      uid = testUser.getUid,
+      status = 3.toByte,
+      logLocation = Some(""),
+      envVersion = "test-env-1.0",
+      name = "second-run",
+      startOffsetMillis = Some(endOffsetMillis + 1000),
+      durationMillis = Some(1000L)
+    )
   }
 
   private def emptyFilter: java.util.List[String] = new java.util.ArrayList[String]()
@@ -274,6 +210,17 @@ class AdminExecutionResourceSpec
 
     rows should have size 1
     rows.head.access shouldBe false
+  }
+
+  it should "report access = true for the owner without an access row" in {
+    seedExecution()
+    getDSLContext
+      .insertInto(WORKFLOW_OF_USER)
+      .set(WORKFLOW_OF_USER.UID, Integer.valueOf(testUid))
+      .set(WORKFLOW_OF_USER.WID, Integer.valueOf(testWid))
+      .execute()
+
+    list().head.access shouldBe true
   }
 
   it should "keep only the latest execution per workflow" in {

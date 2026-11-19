@@ -1,0 +1,138 @@
+<!--
+ Licensed to the Apache Software Foundation (ASF) under one
+ or more contributor license agreements.  See the NOTICE file
+ distributed with this work for additional information
+ regarding copyright ownership.  The ASF licenses this file
+ to you under the Apache License, Version 2.0 (the
+ "License"); you may not use this file except in compliance
+ with the License.  You may obtain a copy of the License at
+
+   http://www.apache.org/licenses/LICENSE-2.0
+
+ Unless required by applicable law or agreed to in writing,
+ software distributed under the License is distributed on an
+ "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ KIND, either express or implied.  See the License for the
+ specific language governing permissions and limitations
+ under the License.
+-->
+
+<nz-card
+  *ngIf="isVisible"
+  nzSize="small"
+  nzTitle="Cluster capacity"
+  [nzExtra]="headerExtra"
+  class="cluster-capacity">
+  <nz-alert
+    *ngIf="loadError !== undefined && !rows"
+    nzType="error"
+    nzShowIcon
+    nzMessage="Could not load cluster capacity: {{ loadError }}"></nz-alert>
+  <nz-alert
+    *ngIf="loadError !== undefined && rows"
+    class="capacity-alert"
+    nzType="warning"
+    nzShowIcon
+    nzMessage="Showing capacity from {{ lastUpdated | date: 'mediumTime' }}. The refresh is failing: {{ loadError }}"></nz-alert>
+
+  <ng-container *ngIf="rows">
+    <table
+      class="capacity-ledger"
+      aria-label="Cluster capacity">
+      <thead>
+        <tr>
+          <th scope="col">Resource</th>
+          <th
+            scope="col"
+            class="usage">
+            Share allocated
+          </th>
+          <th scope="col">Allocated</th>
+          <th scope="col">Available</th>
+          <th scope="col">Total</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr
+          *ngFor="let row of rows; trackBy: trackByResource"
+          [class]="row.status?.className">
+          <th scope="row">{{ row.resource }}</th>
+          <td class="usage">
+            <div
+              *ngIf="row.percentUsed !== undefined; else noMeter"
+              class="meter">
+              <div
+                class="meter-track"
+                aria-hidden="true">
+                <div
+                  class="meter-fill"
+                  [style.width.%]="row.fillPercent"></div>
+              </div>
+              <span class="percent-used">{{ row.percentUsed }}%</span>
+              <span class="status-slot">
+                <!-- `nz-icon` sets its own aria-label, so the label goes on a wrapper. -->
+                <span
+                  *ngIf="row.status"
+                  role="img"
+                  class="status-icon"
+                  [nz-tooltip]="row.status.label"
+                  [attr.aria-label]="row.status.label">
+                  <span
+                    nz-icon
+                    nzTheme="fill"
+                    aria-hidden="true"
+                    [nzType]="row.status.icon"></span>
+                </span>
+              </span>
+            </div>
+            <ng-template #noMeter>
+              <span class="meter-note">{{ row.note }}</span>
+            </ng-template>
+          </td>
+          <td
+            class="allocated"
+            data-label="Allocated">
+            {{ row.allocated }}
+          </td>
+          <td
+            class="available"
+            data-label="Available">
+            {{ row.available }}
+          </td>
+          <td
+            class="total"
+            data-label="Total">
+            {{ row.total }}
+          </td>
+        </tr>
+      </tbody>
+    </table>
+    <p class="capacity-note">
+      Allocated counts what running pods request, not what they use. Available is summed across nodes, so a unit too big
+      for any one node's free space still waits in Pending.
+    </p>
+  </ng-container>
+</nz-card>
+
+<ng-template #headerExtra>
+  <span class="capacity-extra">
+    <span
+      *ngIf="lastUpdated"
+      class="capacity-updated">
+      Updated {{ lastUpdated | date: "mediumTime" }}
+    </span>
+    <button
+      nz-button
+      nzType="text"
+      nzSize="small"
+      class="refresh-button"
+      nz-tooltip="Refresh"
+      aria-label="Refresh cluster capacity"
+      (click)="refresh()">
+      <span
+        nz-icon
+        nzType="reload"
+        [nzSpin]="isFetching"></span>
+    </button>
+  </span>
+</ng-template>

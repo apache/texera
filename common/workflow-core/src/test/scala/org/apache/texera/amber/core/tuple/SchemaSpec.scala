@@ -322,4 +322,30 @@ class SchemaSpec extends AnyFlatSpec {
     val restored = objectMapper.readValue(objectMapper.writeValueAsString(schema), classOf[Schema])
     assert(restored == schema)
   }
+
+  it should "reject duplicate adds and remove attributes case-insensitively while failing on absent removals" in {
+    val schema = Schema(
+      List(
+        new Attribute("Id", AttributeType.INTEGER),
+        new Attribute("Name", AttributeType.STRING)
+      )
+    )
+    val dupEx = intercept[RuntimeException] {
+      schema.add(
+        List(
+          new Attribute("ID", AttributeType.STRING),
+          new Attribute("Extra", AttributeType.STRING)
+        )
+      )
+    }
+    assert(dupEx.getMessage == "Cannot add attributes with duplicate names: id")
+
+    val removed = schema.remove(List("ID", "name"))
+    assert(removed.getAttributes.isEmpty)
+
+    val missingEx = intercept[IllegalArgumentException] {
+      schema.remove(List("ID", "MissingCol"))
+    }
+    assert(missingEx.getMessage == "Cannot remove non-existent attributes: missingcol")
+  }
 }

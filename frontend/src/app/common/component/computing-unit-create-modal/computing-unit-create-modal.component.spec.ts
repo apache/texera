@@ -40,7 +40,7 @@ import { buildLocalComputingUnitUri, getJvmMemorySliderConfig } from "../../util
 describe("ComputingUnitCreateModalComponent", () => {
   let component: ComputingUnitCreateModalComponent;
   let fixture: ComponentFixture<ComputingUnitCreateModalComponent>;
-  const curatedImage = (over: Partial<CuImage> = {}): CuImage => ({
+  const curatedImage = (over: Partial<CuImage>): CuImage => ({
     iid: 1,
     name: "Python ML",
     sourceRef: "owner/name:1",

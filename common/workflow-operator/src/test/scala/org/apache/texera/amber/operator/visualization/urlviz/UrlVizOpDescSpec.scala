@@ -19,13 +19,21 @@
 
 package org.apache.texera.amber.operator.visualization.urlviz
 
+import org.apache.texera.amber.util.PythonTestSupport.{
+  NeedsPythonPackages,
+  canImport,
+  configuredPython,
+  runSource
+}
 import com.fasterxml.jackson.annotation.JsonProperty
 import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaInject
 import org.apache.texera.amber.core.executor.OpExecWithClassName
-import org.apache.texera.amber.core.tuple.{Attribute, AttributeType, Schema}
+import org.apache.texera.amber.core.tuple.{Attribute, AttributeType, Schema, Tuple}
 import org.apache.texera.amber.core.virtualidentity.{ExecutionIdentity, WorkflowIdentity}
 import org.apache.texera.amber.operator.metadata.OperatorGroupConstants
 import org.apache.texera.amber.operator.metadata.annotations.AutofillAttributeName
+import org.apache.texera.amber.pybuilder.PythonTemplateBuilder.pyStringLiteral
+import org.apache.texera.amber.util.JSONUtils.objectMapper
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 
@@ -124,5 +132,66 @@ class UrlVizOpDescSpec extends AnyFlatSpec with Matchers {
     val a = new UrlVizOpDesc
     val b = new UrlVizOpDesc
     a.operatorIdentifier should not equal b.operatorIdentifier
+  }
+
+  // ---------------------------------------------------------------------------
+  // The cell lands where an attribute is expected
+  // ---------------------------------------------------------------------------
+
+  // A quote in the cell used to close `src=` and leave the rest of it standing as
+  // attributes of the iframe, which is the page speaking for whoever wrote the
+  // row. Both paths are held to the same written page for that value.
+  private val hostileUrl = """https://example.invalid/a" onload="alert(1)"""
+
+  /** A configured descriptor: `urlContentAttrName` is a val, so Jackson writes it. */
+  private def descFor(urlAttr: String): UrlVizOpDesc = {
+    val node = objectMapper.createObjectNode()
+    node.put("operatorType", "URLVisualizer")
+    node.put("urlContentAttrName", urlAttr)
+    objectMapper.readValue(node.toString, classOf[UrlVizOpDesc])
+  }
+
+  it should "escape a hostile cell rather than letting it add an attribute" in {
+    val attr = new Attribute("url", AttributeType.STRING)
+    val tuple = Tuple.builder(Schema().add(attr)).add(attr, hostileUrl).build()
+    val page = new UrlVizOpExec(objectMapper.writeValueAsString(descFor("url")))
+      .processTuple(tuple, port = 0)
+      .next()
+      .getFields
+      .head
+      .asInstanceOf[String]
+
+    page should include("""src="https://example.invalid/a&quot; onload=&quot;alert(1)"""")
+    page should not include """onload="alert"""
+  }
+
+  it should "write that cell the same way in the exported script" taggedAs NeedsPythonPackages in {
+    val python = configuredPython().getOrElse(cancel("No runnable python executable"))
+    if (!canImport(python, "pandas")) cancel(s"'$python' cannot import pandas")
+
+    val desc = descFor("url")
+    val attr = new Attribute("url", AttributeType.STRING)
+    val tuple = Tuple.builder(Schema().add(attr)).add(attr, hostileUrl).build()
+    val fromExecutor = new UrlVizOpExec(objectMapper.writeValueAsString(desc))
+      .processTuple(tuple, port = 0)
+      .next()
+      .getFields
+      .head
+      .asInstanceOf[String]
+
+    val driver =
+      s"""import pandas as pd
+         |
+         |in1df = pd.DataFrame({"url": [${pyStringLiteral(hostileUrl)}]})
+         |${desc.generateStandaloneCode()}
+         |
+         |print(out1df["html-content"].iloc[0])
+         |""".stripMargin
+
+    val (exitCode, out) = runSource(python, "urlviz-hostile-", driver)
+    withClue(s"python said:\n$out\nscript:\n$driver") {
+      exitCode shouldBe 0
+      out.trim shouldBe fromExecutor
+    }
   }
 }

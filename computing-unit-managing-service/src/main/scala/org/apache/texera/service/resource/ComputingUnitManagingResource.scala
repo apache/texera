@@ -26,8 +26,10 @@ import jakarta.annotation.security.RolesAllowed
 import jakarta.ws.rs._
 import jakarta.ws.rs.core.{MediaType, Response}
 import org.apache.commons.lang3.StringUtils
+import org.apache.texera.amber.core.workflow.TerminalWorkflowExecutionStatus
 import org.apache.texera.auth.JwtAuth.jwtClaims
 import org.apache.texera.auth.{JwtAuth, SessionUser}
+import org.apache.texera.auth.util.ComputingUnitAccess
 import org.apache.texera.common.config.KubernetesConfig.{
   cpuLimitOptions,
   gpuLimitOptions,
@@ -58,9 +60,10 @@ import org.apache.texera.dao.jooq.generated.tables.daos.{
   UserDao,
   WorkflowComputingUnitDao
 }
-import org.apache.texera.dao.jooq.generated.tables.pojos.WorkflowComputingUnit
+import org.apache.texera.dao.jooq.generated.tables.pojos.{User, WorkflowComputingUnit}
 import org.apache.texera.service.resource.ComputingUnitManagingResource._
 import org.apache.texera.service.util.{
+  ComputingUnitEmailNotifier,
   ComputingUnitHelpers,
   ComputingUnitManagingServiceException,
   InsufficientComputingUnitQuota,
@@ -88,44 +91,6 @@ object ComputingUnitManagingResource {
       unit: WorkflowComputingUnit,
       username: Option[String]
   )
-
-  /**
-    * The codes persisted in `workflow_executions.status`. These are the collapsed codes produced
-    * by amber's `Utils.maptoStatusCode`, NOT the ordinals of `WorkflowAggregatedState`, and this
-    * service cannot depend on the amber module to reuse either. Keep this in sync with
-    * `Utils.maptoStatusCode`.
-    *
-    * Only the terminal codes are listed, and the sweep treats every other code as an execution
-    * still in flight. That direction matters: `maptoStatusCode` collapses PAUSING, RESUMING,
-    * UNKNOWN and TERMINATED alike to -1, so enumerating the non-terminal codes instead would
-    * leave a paused-or-resuming execution looking idle and get its computing unit deleted out
-    * from under its owner.
-    *
-    * Known limitation: a non-terminal code is trusted without a time bound, so a row that never
-    * reaches 3/4/5 keeps its computing unit off this sweep indefinitely -- not for one more
-    * sweep, but permanently. Two ways in:
-    *   - a row left stuck at RUNNING -- a coordinator that died in place, an OOM inside the
-    *     container -- because nothing ever rewrites it;
-    *   - a row whose *final* status is -1, because `maptoStatusCode` gives an execution that
-    *     ended the same code as one that is merely paused. Today that is UNKNOWN, the fallback
-    *     `WorkflowExecution.getState` returns for a worker mix it cannot name. TERMINATED maps
-    *     to -1 as well, but is a worker-level state: `ExecutionUtils.aggregateStates` reports a
-    *     COMPLETED-or-TERMINATED worker set as COMPLETED, so it does not reach this column
-    *     today. If amber ever persists it, it lands in this same bucket.
-    * Neither is separable here -- a -1 carries nothing that distinguishes an ended execution
-    * from a live one, so the fix belongs in what amber persists. Nothing else reclaims such a
-    * unit either: `ComputingUnitHelpers.reconcileVanishedKubernetesUnits` only runs when someone
-    * calls a listing endpoint, and it keys off a vanished pod rather than a stale execution row.
-    * Tracked as a follow-up in apache/texera#8618.
-    */
-  private[resource] object TerminalWorkflowExecutionStatus extends Enumeration {
-    val Completed: Value = Value(3)
-    val Failed: Value = Value(4)
-    val Killed: Value = Value(5)
-
-    def dbStatuses: Seq[java.lang.Short] =
-      values.toSeq.map(status => Short.box(status.id.toShort))
-  }
 
   private[resource] def lastComputingUnitActivityTime(
       unit: WorkflowComputingUnit,
@@ -185,6 +150,12 @@ object ComputingUnitManagingResource {
     // gone (name is NULL), matching what a per-unit scan would produce.
     val latestUpdateTime = max(WORKFLOW_EXECUTIONS.LAST_UPDATE_TIME)
     val latestStartTime = max(WORKFLOW_EXECUTIONS.STARTING_TIME)
+    // Every code outside TerminalWorkflowExecutionStatus counts as in flight, so a paused or
+    // resuming execution keeps its unit from looking idle and being deleted out from under its
+    // owner. A row that never reaches a terminal code (see that object) keeps its unit off this
+    // sweep permanently, and nothing else reclaims it either:
+    // `ComputingUnitHelpers.reconcileVanishedKubernetesUnits` only runs when someone calls a
+    // listing endpoint, and it keys off a vanished pod rather than a stale execution row.
     val hasActiveExecution =
       boolOr(WORKFLOW_EXECUTIONS.STATUS.notIn(TerminalWorkflowExecutionStatus.dbStatuses: _*))
 
@@ -385,6 +356,46 @@ object ComputingUnitManagingResource {
       lookup(name).map(_.trim).filter(_.nonEmpty).map(name -> _)
     }.toMap
 
+  // Forwarded to a created unit so it emits to the same collector as the rest of
+  // the deployment. service.instance.id is NOT here: it is built per unit below.
+  private val observabilityComputingUnitEnvNames: Seq[String] = Seq(
+    EnvironmentalVariable.ENV_OTEL_SDK_DISABLED,
+    EnvironmentalVariable.ENV_OTEL_EXPORTER_OTLP_ENDPOINT,
+    EnvironmentalVariable.ENV_TEXERA_OTEL_ALLOWED_HOSTS,
+    EnvironmentalVariable.ENV_OTEL_METRIC_EXPORT_INTERVAL
+  )
+
+  /**
+    * Observability environment for a created unit. Without this a unit runs with
+    * the SDK-disabled default even when the manager has telemetry enabled, so a
+    * worker failure leaves no unit logs, metrics, or traces to investigate. The
+    * unit inherits the manager's collector endpoint and related settings, but is
+    * given its own service.instance.id (service.name stays shared) so units with
+    * the same name do not collapse into one metric series; an instance id the
+    * manager itself carries is dropped rather than copied. Returns nothing when no
+    * collector endpoint is configured, leaving the unit at its default-off state.
+    */
+  private[resource] def observabilityComputingUnitEnv(
+      cuid: Int,
+      lookup: String => Option[String]
+  ): Map[String, String] = {
+    val get = (name: String) => lookup(name).map(_.trim).filter(_.nonEmpty)
+    if (get(EnvironmentalVariable.ENV_OTEL_EXPORTER_OTLP_ENDPOINT).isEmpty) {
+      Map.empty
+    } else {
+      val forwarded =
+        observabilityComputingUnitEnvNames.flatMap(name => get(name).map(name -> _)).toMap
+      val kept = get(EnvironmentalVariable.ENV_OTEL_RESOURCE_ATTRIBUTES)
+        .getOrElse("")
+        .split(",")
+        .map(_.trim)
+        .filter(_.nonEmpty)
+        .filterNot(_.toLowerCase.startsWith("service.instance.id="))
+      val resourceAttrs = (kept :+ s"service.instance.id=computing-unit-$cuid").mkString(",")
+      forwarded + (EnvironmentalVariable.ENV_OTEL_RESOURCE_ATTRIBUTES -> resourceAttrs)
+    }
+  }
+
   // Environment variables passed to the created computing unit(pod)
   private lazy val computingUnitEnvironmentVariables: Map[String, Any] =
     icebergEnvironmentVariables ++ Map(
@@ -462,7 +473,10 @@ object ComputingUnitManagingResource {
 
 @Produces(Array(MediaType.APPLICATION_JSON))
 @Path("/computing-unit")
-class ComputingUnitManagingResource {
+class ComputingUnitManagingResource(
+    notifyOwnerOfAdminTermination: (WorkflowComputingUnit, User) => Unit =
+      ComputingUnitEmailNotifier.notifyOwnerOfAdminTermination
+) {
   private def getComputingUnitByCuid(ctx: DSLContext, cuid: Int): WorkflowComputingUnit = {
     val wcDao = new WorkflowComputingUnitDao(ctx.configuration())
     val unit = wcDao.fetchOneByCuid(cuid)
@@ -635,15 +649,15 @@ class ComputingUnitManagingResource {
     withTransaction(context) { ctx =>
       val wcDao = new WorkflowComputingUnitDao(ctx.configuration())
 
-      val units = wcDao
-        .fetchByUid(user.getUid)
-        .asScala
-        .filter(_.getTerminateTime == null) // Filter out terminated units
-
-      if (
-        units.size >= maxNumOfRunningComputingUnitsPerUser && cuType == WorkflowComputingUnitTypeEnum.kubernetes
-      ) {
-        throw InsufficientComputingUnitQuota(maxNumOfRunningComputingUnitsPerUser)
+      // Only Kubernetes units are quota-limited; skip the per-user lookup for local units.
+      if (cuType == WorkflowComputingUnitTypeEnum.kubernetes) {
+        val runningUnits = wcDao
+          .fetchByUid(user.getUid)
+          .asScala
+          .count(_.getTerminateTime == null)
+        if (runningUnits >= maxNumOfRunningComputingUnitsPerUser) {
+          throw InsufficientComputingUnitQuota(maxNumOfRunningComputingUnitsPerUser)
+        }
       }
 
       val resourceJson: String = cuType match {
@@ -733,7 +747,7 @@ class ComputingUnitManagingResource {
             computingUnitEnvironmentVariables ++ Map(
               EnvironmentalVariable.ENV_USER_JWT_TOKEN -> userToken,
               EnvironmentalVariable.ENV_JAVA_OPTS -> s"-Xmx${param.jvmMemorySize}"
-            ),
+            ) ++ observabilityComputingUnitEnv(cuid, EnvironmentalVariable.get),
             Some(param.shmSize),
             curatedImage
           )
@@ -884,22 +898,7 @@ class ComputingUnitManagingResource {
       statusReason = if (isOwner) statusReason else None,
       metrics = ComputingUnitHelpers.getComputingUnitMetrics(unit),
       isOwner = isOwner,
-      accessPrivilege = {
-        val cuAccessDao = new ComputingUnitUserAccessDao(context.configuration())
-        val access = cuAccessDao
-          .fetchByUid(user.getUid)
-          .asScala
-          .find(access => access.getCuid.equals(cuid))
-
-        if (access.isDefined) {
-          access.get.getPrivilege
-        } else if (unit.getUid.equals(user.getUid)) {
-          PrivilegeEnum.WRITE
-        } else {
-          // Default privilege for non-owners without explicit access
-          PrivilegeEnum.NONE
-        }
-      },
+      accessPrivilege = ComputingUnitAccess.getComputingUnitAccess(cuid, user.getUid),
       ownerAvatar,
       ownerUsername
     )
@@ -928,9 +927,11 @@ class ComputingUnitManagingResource {
     }
 
     // If successful, update the database
-    withTransaction(context) { ctx =>
+    val unitToNotifyOwnerOf = withTransaction(context) { ctx =>
       val cuDao = new WorkflowComputingUnitDao(ctx.configuration())
       val unit = getComputingUnitByCuid(ctx, cuid)
+      // Only an ADMIN gets here as a non-owner. Read before the stamp, so a repeat tells no one.
+      val notifyOwner = unit.getTerminateTime == null && unit.getUid != user.getUid
 
       // if the computing unit is kubernetes pod, then kill the pod
       if (unit.getType == WorkflowComputingUnitTypeEnum.kubernetes) {
@@ -948,6 +949,17 @@ class ComputingUnitManagingResource {
           s"owner_uid=${unit.getUid}, terminated_by_uid=${user.getUid}, " +
           s"terminated_by=${user.getName}, reason=${terminationReason.getLiteral}"
       )
+      Option.when(notifyOwner)(unit)
+    }
+    // After the commit, so an owner never hears of a termination that rolled back.
+    unitToNotifyOwnerOf.foreach { unit =>
+      try {
+        Option(new UserDao(context.configuration()).fetchOneByUid(unit.getUid))
+          .foreach(notifyOwnerOfAdminTermination(unit, _))
+      } catch {
+        case NonFatal(e) =>
+          logger.warn(s"Failed to notify the owner of terminated computing unit cuid=$cuid", e)
+      }
     }
     Response.ok().build()
   }
