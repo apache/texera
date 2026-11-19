@@ -333,7 +333,7 @@ export class UserWorkflowComponent implements AfterViewInit, OnDestroy {
     language: MigrationLanguage
   ): Promise<boolean> {
     if (Array.isArray(selection)) {
-      const generated = await this.generateFromFolder(selection, model);
+      const generated = await this.generateFromFolder(selection, model, language);
       // Null means the step already told the user what went wrong.
       if (!generated) {
         return false;
@@ -419,10 +419,14 @@ export class UserWorkflowComponent implements AfterViewInit, OnDestroy {
   }
 
   /** Read and convert a picked directory. The notebook comes back derived, as it does for a .py. */
-  private async generateFromFolder(files: NzUploadFile[], model: string): Promise<GeneratedWorkflowContent | null> {
+  private async generateFromFolder(
+    files: NzUploadFile[],
+    model: string,
+    language: MigrationLanguage
+  ): Promise<GeneratedWorkflowContent | null> {
     let folder: FolderDocument;
     try {
-      folder = await this.notebookMigrationService.parseFolder(files.map(pickedFileObject));
+      folder = await this.notebookMigrationService.parseFolder(files.map(pickedFileObject), language);
     } catch (error) {
       // parseFolder names what was wrong with the selection, so its message is shown as-is.
       this.notificationService.error(error instanceof Error ? error.message : "Failed to read the selected folder.");
@@ -431,7 +435,7 @@ export class UserWorkflowComponent implements AfterViewInit, OnDestroy {
     }
 
     try {
-      return await this.notebookMigrationService.sendFolderToAIGenerateWorkflow(folder, model);
+      return await this.notebookMigrationService.sendFolderToAIGenerateWorkflow(folder, model, language);
     } catch (error) {
       this.reportGenerationFailure(error, "folder");
       return null;
