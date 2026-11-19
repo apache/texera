@@ -96,7 +96,7 @@ describe("UserComputingUnitComponent", () => {
     expect(component.addComputeUnitModalVisible).toBe(false);
   });
 
-  describe("session, polling and termination", () => {
+  describe("fetching, polling and termination", () => {
     function makeUnit(cuid: number): DashboardWorkflowComputingUnit {
       return {
         computingUnit: {
