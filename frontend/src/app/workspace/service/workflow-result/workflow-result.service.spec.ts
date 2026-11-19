@@ -48,14 +48,21 @@ function snapshotUpdate(table: ReadonlyArray<object>): WebDataUpdate {
   return { mode: { type: "SetSnapshotMode" }, table };
 }
 
+/** An operator's updates or statistics on its first output port only. */
+function onPort0<T>(value: T): Record<number, T> {
+  return { 0: value };
+}
+
 describe("WorkflowResultService", () => {
   let service: WorkflowResultService;
+  let ws: WorkflowWebsocketService;
 
   beforeEach(() => {
     TestBed.configureTestingModule({
       providers: [WorkflowResultService, ...commonTestProviders],
     });
     service = TestBed.inject(WorkflowResultService);
+    ws = TestBed.inject(WorkflowWebsocketService);
   });
 
   it("should be created", () => {
@@ -63,15 +70,18 @@ describe("WorkflowResultService", () => {
   });
 
   it("clearResults() drops cached operator results", () => {
-    (service as any).operatorResultServices.set("op1", {});
-    (service as any).paginatedResultServices.set("op2", {});
+    pushWsEvent(ws, {
+      type: "WebResultUpdateEvent",
+      updates: { op1: onPort0(snapshotUpdate([{ a: 1 }])), op2: { 1: paginationUpdate(3) } },
+      tableStats: {},
+    });
     expect(service.hasAnyResult("op1")).toBe(true);
-    expect(service.hasAnyResult("op2")).toBe(true);
+    expect(service.hasAnyResult("op2", 1)).toBe(true);
 
     service.clearResults();
 
     expect(service.hasAnyResult("op1")).toBe(false);
-    expect(service.hasAnyResult("op2")).toBe(false);
+    expect(service.hasAnyResult("op2", 1)).toBe(false);
   });
 
   it("clearResults() resets table stats to empty for subscribers", () => {
@@ -90,7 +100,6 @@ describe("WorkflowResultService", () => {
   });
 
   it("routes pagination updates to a paginated service and data updates to a result service", () => {
-    const ws = TestBed.inject(WorkflowWebsocketService);
     const updateEvents: Record<string, unknown>[] = [];
     // Sampled from INSIDE the subscriber so the emit point is pinned, not just the payload:
     // consumers (visualization-frame-content) read the operator's result service back out of this
@@ -101,7 +110,7 @@ describe("WorkflowResultService", () => {
       routedAtEmit.push(service.hasResult("dataOp"), service.hasPaginatedResult("pagOp"));
     });
 
-    const updates = { pagOp: paginationUpdate(42, [2]), dataOp: snapshotUpdate([{ a: 1 }]) };
+    const updates = { pagOp: onPort0(paginationUpdate(42, [2])), dataOp: onPort0(snapshotUpdate([{ a: 1 }])) };
     pushWsEvent(ws, { type: "WebResultUpdateEvent", updates, tableStats: {} });
 
     expect(routedAtEmit).toEqual([true, true]);
@@ -116,42 +125,160 @@ describe("WorkflowResultService", () => {
     expect(updateEvents).toEqual([updates]);
   });
 
-  describe("getPortPaginatedResultService", () => {
-    it("gives the first port's service for port 0, and nothing for an operator without a table", () => {
-      const ws = TestBed.inject(WorkflowWebsocketService);
-      pushWsEvent(ws, { type: "WebResultUpdateEvent", updates: { pagOp: paginationUpdate(3) }, tableStats: {} });
+  describe("an operator's output ports", () => {
+    it("gives each port a service of its own, made by that port's updates", () => {
+      pushWsEvent(ws, {
+        type: "WebResultUpdateEvent",
+        // a port index arrives as a JSON object key
+        updates: { split: { "0": paginationUpdate(3), "1": paginationUpdate(12) } },
+        tableStats: {},
+      });
 
-      expect(service.getPortPaginatedResultService("pagOp", 0)).toBe(service.getPaginatedResultService("pagOp"));
-      expect(service.getPortPaginatedResultService("noResult", 0)).toBeUndefined();
-      expect(service.getPortPaginatedResultService("noResult", 1)).toBeUndefined();
+      const first = service.getPaginatedResultService("split", 0)!;
+      const second = service.getPaginatedResultService("split", 1)!;
+      expect(first.portIndex).toBe(0);
+      expect(second.portIndex).toBe(1);
+      expect(second.operatorID).toBe("split");
+      expect(first.getCurrentTotalNumTuples()).toBe(3);
+      expect(second.getCurrentTotalNumTuples()).toBe(12);
+      // a port is asked about by its index, and port 0 is the default
+      expect(service.getPaginatedResultService("split")).toBe(first);
+      // a port with no result has no service, and asking does not make one
+      expect(service.getPaginatedResultService("split", 2)).toBeUndefined();
+      expect(service.hasAnyResult("split", 2)).toBe(false);
     });
 
-    it("makes one service for another port, kept until the results are cleared", () => {
-      const ws = TestBed.inject(WorkflowWebsocketService);
-      pushWsEvent(ws, { type: "WebResultUpdateEvent", updates: { pagOp: paginationUpdate(3) }, tableStats: {} });
+    it("keeps a port's service across its updates, and an update of one port leaves the others alone", () => {
+      pushWsEvent(ws, {
+        type: "WebResultUpdateEvent",
+        updates: { split: { 0: paginationUpdate(3), 1: paginationUpdate(4) } },
+        tableStats: {},
+      });
+      const first = service.getPaginatedResultService("split", 0);
+      const second = service.getPaginatedResultService("split", 1);
 
-      const second = service.getPortPaginatedResultService("pagOp", 1)!;
+      pushWsEvent(ws, {
+        type: "WebResultUpdateEvent",
+        updates: { split: { 1: paginationUpdate(10) } },
+        tableStats: {},
+      });
 
-      expect(second.portIndex).toBe(1);
-      expect(second.operatorID).toBe("pagOp");
-      expect(second).not.toBe(service.getPaginatedResultService("pagOp"));
-      expect(service.getPortPaginatedResultService("pagOp", 1)).toBe(second);
+      expect(service.getPaginatedResultService("split", 1)).toBe(second);
+      expect(second!.getCurrentTotalNumTuples()).toBe(10);
+      expect(service.getPaginatedResultService("split", 0)).toBe(first);
+      expect(first!.getCurrentTotalNumTuples()).toBe(3);
+    });
 
-      service.clearResults();
-      pushWsEvent(ws, { type: "WebResultUpdateEvent", updates: { pagOp: paginationUpdate(3) }, tableStats: {} });
-      expect(service.getPortPaginatedResultService("pagOp", 1)).not.toBe(second);
+    it("lets a port be a table while another is a visualization", () => {
+      pushWsEvent(ws, {
+        type: "WebResultUpdateEvent",
+        updates: { op: { 0: paginationUpdate(4), 1: snapshotUpdate([{ "html-content": "<div></div>" }]) } },
+        tableStats: {},
+      });
+
+      expect(service.hasPaginatedResult("op", 0)).toBe(true);
+      expect(service.hasResult("op", 0)).toBe(false);
+      expect(service.hasResult("op", 1)).toBe(true);
+      expect(service.hasPaginatedResult("op", 1)).toBe(false);
+      expect(service.getResultService("op", 1)!.getCurrentResultSnapshot()).toEqual([
+        { "html-content": "<div></div>" },
+      ]);
+    });
+
+    it("turns one port from a visualization into a table and back without touching another port", () => {
+      pushWsEvent(ws, {
+        type: "WebResultUpdateEvent",
+        updates: { op: { 0: paginationUpdate(1), 1: snapshotUpdate([{ a: 1 }]) } },
+        tableStats: {},
+      });
+      const first = service.getPaginatedResultService("op", 0);
+
+      pushWsEvent(ws, { type: "WebResultUpdateEvent", updates: { op: { 1: paginationUpdate(5) } }, tableStats: {} });
+      expect(service.hasResult("op", 1)).toBe(false);
+      expect(service.getPaginatedResultService("op", 1)!.getCurrentTotalNumTuples()).toBe(5);
+
+      pushWsEvent(ws, {
+        type: "WebResultUpdateEvent",
+        updates: { op: { 1: snapshotUpdate([{ b: 2 }]) } },
+        tableStats: {},
+      });
+      expect(service.hasPaginatedResult("op", 1)).toBe(false);
+      expect(service.getResultService("op", 1)!.getCurrentResultSnapshot()).toEqual([{ b: 2 }]);
+      expect(service.getPaginatedResultService("op", 0)).toBe(first);
+    });
+
+    it("feeds each port its own table statistics", () => {
+      const tableStats = { split: { 0: { colA: { count: 3 } }, 1: { colA: { count: 12 } } } };
+      pushWsEvent(ws, {
+        type: "WebResultUpdateEvent",
+        updates: { split: { 0: paginationUpdate(3), 1: paginationUpdate(12) } },
+        tableStats,
+      });
+
+      expect(service.getPaginatedResultService("split", 0)!.getStats()).toEqual({ colA: { count: 3 } });
+      expect(service.getPaginatedResultService("split", 1)!.getStats()).toEqual({ colA: { count: 12 } });
+    });
+
+    it("keeps the ports of operators whose ids share a prefix apart", () => {
+      pushWsEvent(ws, {
+        type: "WebResultUpdateEvent",
+        updates: { op1: { 1: paginationUpdate(1) }, op10: { 1: paginationUpdate(2) } },
+        tableStats: {},
+      });
+
+      expect(service.getPaginatedResultService("op1", 1)!.getCurrentTotalNumTuples()).toBe(1);
+      expect(service.getPaginatedResultService("op10", 1)!.getCurrentTotalNumTuples()).toBe(2);
+    });
+
+    it("announces an operator when any of its ports gets its first result", () => {
+      const initiated: string[] = [];
+      service.getResultInitiateStream().subscribe(op => initiated.push(op));
+
+      pushWsEvent(ws, { type: "WebResultUpdateEvent", updates: { op: onPort0(paginationUpdate(1)) }, tableStats: {} });
+      pushWsEvent(ws, { type: "WebResultUpdateEvent", updates: { op: { 1: paginationUpdate(1) } }, tableStats: {} });
+      pushWsEvent(ws, { type: "WebResultUpdateEvent", updates: { op: { 1: paginationUpdate(2) } }, tableStats: {} });
+
+      expect(initiated).toEqual(["op", "op"]);
+    });
+
+    it("determineOutputTypes and determineOutputExtension answer for the port asked about", () => {
+      pushWsEvent(ws, {
+        type: "WebResultUpdateEvent",
+        updates: { op: { 0: snapshotUpdate([{ a: 1 }]), 1: paginationUpdate(4) } },
+        tableStats: {},
+      });
+      (service.getPaginatedResultService("op", 1) as any).schema = [{ attributeName: "b", attributeType: "binary" }];
+
+      expect(service.determineOutputTypes("op", 1)).toEqual({
+        hasAnyResult: true,
+        isTableOutput: true,
+        containsBinaryData: true,
+        isVisualizationOutput: false,
+      });
+      expect(service.determineOutputTypes("op", 0)).toEqual({
+        hasAnyResult: true,
+        isTableOutput: false,
+        containsBinaryData: false,
+        isVisualizationOutput: true,
+      });
+      expect(service.determineOutputTypes("op", 2).hasAnyResult).toBe(false);
+      expect(service.determineOutputExtension("op", "csv", 1)).toBe("csv");
+      expect(service.determineOutputExtension("op", "csv", 0)).toBe("html");
+      // without a port, the first one
+      expect(service.determineOutputTypes("op")).toEqual(service.determineOutputTypes("op", 0));
+      expect(service.determineOutputExtension("op", "csv")).toBe("html");
     });
   });
 
   it("hasNonEmptyResult tells an empty result apart from one with rows", () => {
-    const ws = TestBed.inject(WorkflowWebsocketService);
     pushWsEvent(ws, {
       type: "WebResultUpdateEvent",
       updates: {
-        emptyPag: paginationUpdate(0),
-        fullPag: paginationUpdate(5),
-        emptySnap: snapshotUpdate([]),
-        fullSnap: snapshotUpdate([{ a: 1 }]),
+        emptyPag: onPort0(paginationUpdate(0)),
+        fullPag: onPort0(paginationUpdate(5)),
+        emptySnap: onPort0(snapshotUpdate([])),
+        fullSnap: onPort0(snapshotUpdate([{ a: 1 }])),
+        laterPort: { 0: paginationUpdate(0), 1: paginationUpdate(2) },
       },
       tableStats: {},
     });
@@ -163,32 +290,32 @@ describe("WorkflowResultService", () => {
     expect(service.hasNonEmptyResult("emptySnap")).toBe(false);
     expect(service.hasNonEmptyResult("fullSnap")).toBe(true);
     expect(service.hasNonEmptyResult("never-ran")).toBe(false);
+    expect(service.hasNonEmptyResult("laterPort")).toBe(false);
+    expect(service.hasNonEmptyResult("laterPort", 1)).toBe(true);
   });
 
   it("announces newly-created operators on the result-initiate stream", () => {
-    const ws = TestBed.inject(WorkflowWebsocketService);
     const initiated: string[] = [];
     service.getResultInitiateStream().subscribe(op => initiated.push(op));
 
     pushWsEvent(ws, {
       type: "WebResultUpdateEvent",
-      updates: { pagOp: paginationUpdate(1), dataOp: snapshotUpdate([]) },
+      updates: { pagOp: onPort0(paginationUpdate(1)), dataOp: onPort0(snapshotUpdate([])) },
       tableStats: {},
     });
 
     expect(initiated).toEqual(["pagOp", "dataOp"]);
   });
 
-  it("creates no result service for a cleared operator entry but still forwards the update record", () => {
-    const ws = TestBed.inject(WorkflowWebsocketService);
+  it("creates no result service for a cleared port entry but still forwards the update record", () => {
     const updateEvents: Record<string, unknown>[] = [];
     service.getResultUpdateStream().subscribe(u => updateEvents.push(u));
     const initiated: string[] = [];
     service.getResultInitiateStream().subscribe(op => initiated.push(op));
 
-    // An undefined entry means the operator's result was cleared: it is neither a pagination
-    // nor a data update, so no service of either kind may be created for it.
-    const updates = { clearedOp: undefined };
+    // An undefined entry means the port's result was cleared: it is neither a pagination nor a
+    // data update, so no service of either kind may be created for it.
+    const updates = { clearedOp: { 0: undefined } };
     pushWsEvent(ws, { type: "WebResultUpdateEvent", updates, tableStats: {} });
 
     expect(service.hasResult("clearedOp")).toBe(false);
@@ -201,15 +328,22 @@ describe("WorkflowResultService", () => {
   });
 
   it("reuses the existing result service for a second data update and announces the operator only once", () => {
-    const ws = TestBed.inject(WorkflowWebsocketService);
     const initiated: string[] = [];
     service.getResultInitiateStream().subscribe(op => initiated.push(op));
 
-    pushWsEvent(ws, { type: "WebResultUpdateEvent", updates: { op: snapshotUpdate([{ a: 1 }]) }, tableStats: {} });
+    pushWsEvent(ws, {
+      type: "WebResultUpdateEvent",
+      updates: { op: onPort0(snapshotUpdate([{ a: 1 }])) },
+      tableStats: {},
+    });
     const firstService = service.getResultService("op");
     expect(firstService).toBeDefined();
 
-    pushWsEvent(ws, { type: "WebResultUpdateEvent", updates: { op: snapshotUpdate([{ b: 2 }]) }, tableStats: {} });
+    pushWsEvent(ws, {
+      type: "WebResultUpdateEvent",
+      updates: { op: onPort0(snapshotUpdate([{ b: 2 }])) },
+      tableStats: {},
+    });
 
     // the SAME instance is reused for the second update -- this identity check carries the whole
     // reuse claim on its own
@@ -222,7 +356,6 @@ describe("WorkflowResultService", () => {
   });
 
   it("reuses the existing paginated service for a second pagination update and announces it only once", () => {
-    const ws = TestBed.inject(WorkflowWebsocketService);
     const initiated: string[] = [];
     service.getResultInitiateStream().subscribe(op => initiated.push(op));
 
@@ -230,13 +363,13 @@ describe("WorkflowResultService", () => {
     // the same frame; neither that nor the second frame may re-announce the operator.
     pushWsEvent(ws, {
       type: "WebResultUpdateEvent",
-      updates: { pagOp: paginationUpdate(3) },
-      tableStats: { pagOp: { colA: { count: 1 } } },
+      updates: { pagOp: onPort0(paginationUpdate(3)) },
+      tableStats: { pagOp: onPort0({ colA: { count: 1 } }) },
     });
     const firstService = service.getPaginatedResultService("pagOp");
     expect(firstService).toBeDefined();
 
-    pushWsEvent(ws, { type: "WebResultUpdateEvent", updates: { pagOp: paginationUpdate(9) }, tableStats: {} });
+    pushWsEvent(ws, { type: "WebResultUpdateEvent", updates: { pagOp: onPort0(paginationUpdate(9)) }, tableStats: {} });
 
     expect(service.getPaginatedResultService("pagOp")).toBe(firstService);
     expect(service.getPaginatedResultService("pagOp")!.getCurrentTotalNumTuples()).toBe(9);
@@ -244,37 +377,42 @@ describe("WorkflowResultService", () => {
   });
 
   it("feeds table stats to the matching paginated service and republishes the snapshot", () => {
-    const ws = TestBed.inject(WorkflowWebsocketService);
     const statsPairs: [unknown, unknown][] = [];
     service.getResultTableStats().subscribe(p => statsPairs.push(p));
 
-    const tableStats = { pagOp: { colA: { count: 5 } } };
-    pushWsEvent(ws, { type: "WebResultUpdateEvent", updates: { pagOp: paginationUpdate(3) }, tableStats });
+    const tableStats = { pagOp: onPort0({ colA: { count: 5 } }) };
+    pushWsEvent(ws, { type: "WebResultUpdateEvent", updates: { pagOp: onPort0(paginationUpdate(3)) }, tableStats });
 
     expect(service.getPaginatedResultService("pagOp")!.getStats()).toEqual({ colA: { count: 5 } });
     expect(statsPairs[statsPairs.length - 1][1]).toEqual(tableStats);
   });
 
   it("switches an operator from data output to paginated output and clears the stale service", () => {
-    const ws = TestBed.inject(WorkflowWebsocketService);
-    pushWsEvent(ws, { type: "WebResultUpdateEvent", updates: { op: snapshotUpdate([{ a: 1 }]) }, tableStats: {} });
+    pushWsEvent(ws, {
+      type: "WebResultUpdateEvent",
+      updates: { op: onPort0(snapshotUpdate([{ a: 1 }])) },
+      tableStats: {},
+    });
     expect(service.hasResult("op")).toBe(true);
     expect(service.hasPaginatedResult("op")).toBe(false);
 
-    pushWsEvent(ws, { type: "WebResultUpdateEvent", updates: { op: paginationUpdate(9) }, tableStats: {} });
+    pushWsEvent(ws, { type: "WebResultUpdateEvent", updates: { op: onPort0(paginationUpdate(9)) }, tableStats: {} });
     expect(service.hasPaginatedResult("op")).toBe(true);
     expect(service.hasResult("op")).toBe(false);
 
-    pushWsEvent(ws, { type: "WebResultUpdateEvent", updates: { op: snapshotUpdate([{ b: 2 }]) }, tableStats: {} });
+    pushWsEvent(ws, {
+      type: "WebResultUpdateEvent",
+      updates: { op: onPort0(snapshotUpdate([{ b: 2 }])) },
+      tableStats: {},
+    });
     expect(service.hasResult("op")).toBe(true);
     expect(service.hasPaginatedResult("op")).toBe(false);
   });
 
   it("determineOutputTypes distinguishes binary from non-binary paginated output", () => {
-    const ws = TestBed.inject(WorkflowWebsocketService);
     pushWsEvent(ws, {
       type: "WebResultUpdateEvent",
-      updates: { binOp: paginationUpdate(1), tblOp: paginationUpdate(1) },
+      updates: { binOp: onPort0(paginationUpdate(1)), tblOp: onPort0(paginationUpdate(1)) },
       tableStats: {},
     });
     (service.getPaginatedResultService("binOp") as any).schema = [{ attributeName: "b", attributeType: "binary" }];
@@ -295,8 +433,11 @@ describe("WorkflowResultService", () => {
   });
 
   it("determineOutputTypes marks a data-only operator as visualization output", () => {
-    const ws = TestBed.inject(WorkflowWebsocketService);
-    pushWsEvent(ws, { type: "WebResultUpdateEvent", updates: { vizOp: snapshotUpdate([{ a: 1 }]) }, tableStats: {} });
+    pushWsEvent(ws, {
+      type: "WebResultUpdateEvent",
+      updates: { vizOp: onPort0(snapshotUpdate([{ a: 1 }])) },
+      tableStats: {},
+    });
 
     expect(service.determineOutputTypes("vizOp")).toEqual({
       hasAnyResult: true,
@@ -320,14 +461,16 @@ describe("WorkflowResultService", () => {
   });
 
   it("determineOutputExtension returns html for visualization output", () => {
-    const ws = TestBed.inject(WorkflowWebsocketService);
-    pushWsEvent(ws, { type: "WebResultUpdateEvent", updates: { vizOp: snapshotUpdate([{ a: 1 }]) }, tableStats: {} });
+    pushWsEvent(ws, {
+      type: "WebResultUpdateEvent",
+      updates: { vizOp: onPort0(snapshotUpdate([{ a: 1 }])) },
+      tableStats: {},
+    });
     expect(service.determineOutputExtension("vizOp", "csv")).toBe("html");
   });
 
   it("determineOutputExtension keeps csv for table output and passes other extensions through", () => {
-    const ws = TestBed.inject(WorkflowWebsocketService);
-    pushWsEvent(ws, { type: "WebResultUpdateEvent", updates: { tblOp: paginationUpdate(1) }, tableStats: {} });
+    pushWsEvent(ws, { type: "WebResultUpdateEvent", updates: { tblOp: onPort0(paginationUpdate(1)) }, tableStats: {} });
 
     expect(service.determineOutputExtension("tblOp", "csv")).toBe("csv");
     expect(service.determineOutputExtension("tblOp", "json")).toBe("json");
@@ -582,53 +725,28 @@ describe("OperatorPaginationResultService", () => {
 
   describe("for an output port past the first", () => {
     let secondPort: OperatorPaginationResultService;
-    let eventSubject: Subject<PaginatedResultEvent>;
-    const reply = (requestID: string, totalTuples: number): PaginatedResultEvent => ({
-      requestID,
-      operatorID: "testOperator",
-      pageIndex: 1,
-      table: [{ id: 1 }],
-      schema: [{ attributeName: "id", attributeType: "integer" }],
-      portIndex: 1,
-      totalTuples,
-    });
 
     beforeEach(() => {
       secondPort = new OperatorPaginationResultService("testOperator", mockWorkflowWebsocketService, 1);
-      eventSubject = mockWorkflowWebsocketService.subscribeToEvent.mock.results[1]
-        .value as unknown as Subject<PaginatedResultEvent>;
     });
 
-    it("names the port in every request, and the first port's service leaves it out", () => {
+    it("names its port in every request, as the first port's service does", () => {
       secondPort.selectPage(1, 10).subscribe();
       secondPort.peekFirstRows(5).subscribe();
       service.selectPage(1, 10).subscribe();
 
       const sent = mockWorkflowWebsocketService.send.mock.calls.map(call => call[1] as any);
-      expect(sent[0].portIndex).toBe(1);
-      expect(sent[1].portIndex).toBe(1);
-      expect("portIndex" in sent[2]).toBe(false);
+      expect(sent.map(request => request.portIndex)).toEqual([1, 1, 0]);
     });
 
-    it("takes its row count from each reply, as no live update reports on it", () => {
-      secondPort.selectPage(1, 10).subscribe();
-      const requestID = (mockWorkflowWebsocketService.send.mock.calls[0][1] as any).requestID;
+    it("follows its live updates and pages from its cache, as the first port's service does", () => {
+      (secondPort as any).resultCache.set(1, [{ id: 0 }]);
+      secondPort.handleResultUpdate({ mode: { type: "PaginationMode" }, totalNumTuples: 37, dirtyPageIndices: [2] });
 
-      eventSubject.next(reply(requestID, 37));
+      secondPort.selectPage(1, 10).subscribe();
 
       expect(secondPort.getCurrentTotalNumTuples()).toBe(37);
-      expect(secondPort.getSchema()).toEqual([{ attributeName: "id", attributeType: "integer" }]);
-      // the first port's service did not ask, so the reply changes nothing there
-      expect(service.getCurrentTotalNumTuples()).toBe(0);
-      expect(service.getSchema()).toEqual([]);
-    });
-
-    it("asks the server again for a page it has read, so the page is never stale", () => {
-      (secondPort as any).resultCache.set(1, [{ id: 0 }]);
-
-      secondPort.selectPage(1, 10).subscribe();
-
-      expect(mockWorkflowWebsocketService.send).toHaveBeenCalledTimes(1);
+      expect(mockWorkflowWebsocketService.send).not.toHaveBeenCalled();
     });
   });
 
