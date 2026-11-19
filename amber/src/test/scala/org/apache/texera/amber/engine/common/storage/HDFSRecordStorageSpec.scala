@@ -19,7 +19,6 @@
 
 package org.apache.texera.amber.engine.common.storage
 
-import org.apache.commons.io.FileUtils
 import org.apache.hadoop.conf.Configuration
 import org.apache.hadoop.fs.FileSystem
 import org.apache.texera.amber.engine.common.AmberSerdeTestSupport
@@ -52,7 +51,10 @@ import java.util.UUID
   * No HDFS cluster and no native Hadoop install is needed — see
   * `withSeededHdfs` below for how the `hdfs` scheme is served locally.
   */
-class HDFSRecordStorageSpec extends AnyFlatSpec with AmberSerdeTestSupport {
+class HDFSRecordStorageSpec
+    extends AnyFlatSpec
+    with AmberSerdeTestSupport
+    with RecordStorageTestSupport {
 
   // ---------------------------------------------------------------------------
   // Serving the `hdfs` scheme locally, with no cluster and no winutils
@@ -81,30 +83,29 @@ class HDFSRecordStorageSpec extends AnyFlatSpec with AmberSerdeTestSupport {
   // this spec runs unchanged on Linux/macOS CI.
 
   private def withSeededHdfs(prefix: String)(body: (URI, Path) => Unit): Unit = {
-    val root = Files.createTempDirectory(s"hdfs-record-storage-spec-$prefix-")
-    // A unique authority per test means a unique cache key per test: tests can
-    // neither see each other's FileSystem instance nor its working directory.
-    val authority = s"hdfs-record-storage-spec-${UUID.randomUUID()}:9000"
-    val conf = new Configuration()
-    conf.set("fs.hdfs.impl", classOf[WinutilsFreeLocalFileSystem].getName)
-    val fs = FileSystem.get(URI.create(s"hdfs://$authority/"), conf)
-    try {
-      // HDFSRecordStorage resolves its folder as
-      // `Path.mergePaths(fs.getWorkingDirectory, new Path(uri.getPath))`, so
-      // pointing the working directory at our temp root nests the URI's
-      // `/logs` path underneath it.
-      fs.setWorkingDirectory(new org.apache.hadoop.fs.Path(root.toUri.toString))
-      body(URI.create(s"hdfs://$authority/logs"), root.resolve("logs"))
-    } finally {
-      // `FileSystem.close()` removes only this instance's own key, so the
-      // JVM-global cache is left exactly as we found it. Close before walking
-      // the temp tree: an open handle makes deletion flake on Windows.
-      fs.close()
-      cleanup(root)
+    withTempFolder(s"hdfs-record-storage-spec-$prefix-") { folder =>
+      val root = folder.getParent
+      // A unique authority per test means a unique cache key per test: tests can
+      // neither see each other's FileSystem instance nor its working directory.
+      val authority = s"hdfs-record-storage-spec-${UUID.randomUUID()}:9000"
+      val conf = new Configuration()
+      conf.set("fs.hdfs.impl", classOf[WinutilsFreeLocalFileSystem].getName)
+      val fs = FileSystem.get(URI.create(s"hdfs://$authority/"), conf)
+      try {
+        // HDFSRecordStorage resolves its folder as
+        // `Path.mergePaths(fs.getWorkingDirectory, new Path(uri.getPath))`, so
+        // pointing the working directory at our temp root nests the URI's
+        // `/logs` path underneath it.
+        fs.setWorkingDirectory(new org.apache.hadoop.fs.Path(root.toUri.toString))
+        body(URI.create(s"hdfs://$authority/logs"), folder)
+      } finally {
+        // `FileSystem.close()` removes only this instance's own key, so the
+        // JVM-global cache is left exactly as we found it. Close before walking
+        // the temp tree: an open handle makes deletion flake on Windows.
+        fs.close()
+      }
     }
   }
-
-  private def cleanup(root: Path): Unit = FileUtils.deleteQuietly(root.toFile)
 
   // ---------------------------------------------------------------------------
   // Constructor — scheme guard
@@ -114,15 +115,11 @@ class HDFSRecordStorageSpec extends AnyFlatSpec with AmberSerdeTestSupport {
     // A file:// location belongs to VFSRecordStorage. The guard must also fire
     // *before* any file-system work, so nothing is created on disk — that is
     // what the second assertion pins.
-    val root = Files.createTempDirectory("hdfs-record-storage-spec-bad-scheme-")
-    val folder = root.resolve("logs")
-    try {
+    withTempFolder("hdfs-record-storage-spec-bad-scheme-") { folder =>
       intercept[AssertionError] {
         new HDFSRecordStorage[String](folder.toUri)
       }
       assert(!Files.exists(folder), "a rejected URI must not create anything on disk")
-    } finally {
-      cleanup(root)
     }
   }
 
@@ -131,25 +128,17 @@ class HDFSRecordStorageSpec extends AnyFlatSpec with AmberSerdeTestSupport {
   // ---------------------------------------------------------------------------
 
   it should "create the log folder when it does not yet exist" in {
-    withSeededHdfs("auto-create") { (uri, folder) =>
-      assert(!Files.exists(folder), "precondition: folder must not exist before construction")
-      val _ = new HDFSRecordStorage[String](uri)
-      assert(Files.exists(folder), "constructor should auto-create the folder")
-      assert(Files.isDirectory(folder))
-    }
+    withSeededHdfs("auto-create")((uri, folder) =>
+      assertCreatesFolder(folder, new HDFSRecordStorage[String](uri))
+    )
   }
 
   it should "leave an existing folder intact" in {
     // If the folder already exists the constructor's existence check
     // short-circuits; pre-existing logs must survive re-opening the storage.
-    withSeededHdfs("existing") { (uri, folder) =>
-      Files.createDirectories(folder)
-      val sentinel = folder.resolve("sentinel.txt")
-      Files.writeString(sentinel, "keep-me")
-      val _ = new HDFSRecordStorage[String](uri)
-      assert(Files.exists(sentinel), "constructor must not delete pre-existing files")
-      assert(Files.readString(sentinel) == "keep-me")
-    }
+    withSeededHdfs("existing")((uri, folder) =>
+      assertPreservesExistingFolder(folder, new HDFSRecordStorage[String](uri))
+    )
   }
 
   // ---------------------------------------------------------------------------
@@ -159,24 +148,7 @@ class HDFSRecordStorageSpec extends AnyFlatSpec with AmberSerdeTestSupport {
   "HDFSRecordStorage.getWriter + getReader" should
     "round-trip a sequence of records in write order" in {
     withSeededHdfs("round-trip") { (uri, folder) =>
-      val storage = new HDFSRecordStorage[String](uri)
-      val writer = storage.getWriter("records.bin")
-      writer.writeRecord("one")
-      writer.writeRecord("two")
-      writer.writeRecord("three")
-      writer.flush()
-      writer.close()
-
-      // The file must materialize *inside* the resolved log folder, i.e. under
-      // `mergePaths(fs.getWorkingDirectory, uri.getPath)`, which the fixture
-      // pins to root/logs. Note this is deliberately NOT a claim that the file
-      // lands at the URI's authority-rooted path: production appends the URI
-      // path to the working directory, so against a real NameNode
-      // `hdfs://nn:9000/logs` resolves under the user's home, not at `/logs`.
-      assert(Files.exists(folder.resolve("records.bin")))
-
-      val records = storage.getReader("records.bin").mkRecordIterator().toList
-      assert(records == List("one", "two", "three"))
+      assertRoundTripsThree(folder, new HDFSRecordStorage[String](uri))
     }
   }
 
@@ -184,17 +156,7 @@ class HDFSRecordStorageSpec extends AnyFlatSpec with AmberSerdeTestSupport {
     // Two writers from one HDFSRecordStorage must not cross-pollinate; the
     // payloads differ so a swapped-path bug cannot pass.
     withSeededHdfs("two-files") { (uri, folder) =>
-      val storage = new HDFSRecordStorage[String](uri)
-      val w1 = storage.getWriter("a.bin")
-      w1.writeRecord("from-a")
-      w1.flush(); w1.close()
-      val w2 = storage.getWriter("b.bin")
-      w2.writeRecord("from-b")
-      w2.flush(); w2.close()
-      assert(Files.exists(folder.resolve("a.bin")))
-      assert(Files.exists(folder.resolve("b.bin")))
-      assert(storage.getReader("a.bin").mkRecordIterator().toList == List("from-a"))
-      assert(storage.getReader("b.bin").mkRecordIterator().toList == List("from-b"))
+      assertIndependentFiles(new HDFSRecordStorage[String](uri), Some(folder))
     }
   }
 
@@ -204,16 +166,9 @@ class HDFSRecordStorageSpec extends AnyFlatSpec with AmberSerdeTestSupport {
     // contents — appending would resurrect stale records during recovery.
     withSeededHdfs("overwrite") { (uri, _) =>
       val storage = new HDFSRecordStorage[String](uri)
-      val first = storage.getWriter("log.bin")
-      first.writeRecord("stale-1")
-      first.writeRecord("stale-2")
-      first.flush(); first.close()
-
-      val second = storage.getWriter("log.bin")
-      second.writeRecord("fresh")
-      second.flush(); second.close()
-
-      assert(storage.getReader("log.bin").mkRecordIterator().toList == List("fresh"))
+      writeRecords(storage, "log.bin", "stale-1", "stale-2")
+      writeRecords(storage, "log.bin", "fresh")
+      assert(readRecords(storage, "log.bin") == List("fresh"))
     }
   }
 
@@ -228,17 +183,15 @@ class HDFSRecordStorageSpec extends AnyFlatSpec with AmberSerdeTestSupport {
       // Populate a *different* file first: the fallback must key off the
       // requested file's existence, not the folder being empty, and must not
       // hand back the sibling's records.
-      val writer = storage.getWriter("present.bin")
-      writer.writeRecord("sibling-payload")
-      writer.flush(); writer.close()
+      writeRecords(storage, "present.bin", "sibling-payload")
       assert(!Files.exists(folder.resolve("missing.bin")), "precondition: file must be absent")
 
       val iter = storage.getReader("missing.bin").mkRecordIterator()
       assert(!iter.hasNext, "absent file must yield a zero-element iterator")
-      assert(storage.getReader("missing.bin").mkRecordIterator().toList.isEmpty)
+      assert(readRecords(storage, "missing.bin").isEmpty)
       // Sanity: the present file is still readable, so the fallback did not
       // break the normal path.
-      assert(storage.getReader("present.bin").mkRecordIterator().toList == List("sibling-payload"))
+      assert(readRecords(storage, "present.bin") == List("sibling-payload"))
     }
   }
 
@@ -249,14 +202,7 @@ class HDFSRecordStorageSpec extends AnyFlatSpec with AmberSerdeTestSupport {
   "HDFSRecordStorage.deleteStorage" should
     "remove the log folder along with its contents" in {
     withSeededHdfs("delete") { (uri, folder) =>
-      val storage = new HDFSRecordStorage[String](uri)
-      val writer = storage.getWriter("data.bin")
-      writer.writeRecord("payload")
-      writer.flush(); writer.close()
-      assert(Files.exists(folder.resolve("data.bin")))
-
-      storage.deleteStorage()
-      assert(!Files.exists(folder), "deleteStorage should remove the storage folder recursively")
+      assertDeleteRemovesFolder(folder, new HDFSRecordStorage[String](uri))
     }
   }
 
@@ -319,11 +265,9 @@ class HDFSRecordStorageSpec extends AnyFlatSpec with AmberSerdeTestSupport {
       assert(storage.isInstanceOf[HDFSRecordStorage[_]])
       // Round-trip through the dispatched instance so the assertion proves a
       // usable storage, not just a type tag.
-      val writer = storage.getWriter("data.bin")
-      writer.writeRecord("via-factory")
-      writer.flush(); writer.close()
+      writeRecords(storage, "data.bin", "via-factory")
       assert(Files.exists(folder.resolve("data.bin")))
-      assert(storage.getReader("data.bin").mkRecordIterator().toList == List("via-factory"))
+      assert(readRecords(storage, "data.bin") == List("via-factory"))
     }
   }
 
@@ -337,11 +281,9 @@ class HDFSRecordStorageSpec extends AnyFlatSpec with AmberSerdeTestSupport {
       val upperCase = URI.create(s"HDFS://${uri.getAuthority}${uri.getPath}")
       val storage = SequentialRecordStorage.getStorage[String](Some(upperCase))
       assert(storage.isInstanceOf[HDFSRecordStorage[_]])
-      val writer = storage.getWriter("upper.bin")
-      writer.writeRecord("upper-case-scheme")
-      writer.flush(); writer.close()
+      writeRecords(storage, "upper.bin", "upper-case-scheme")
       assert(Files.exists(folder.resolve("upper.bin")))
-      assert(storage.getReader("upper.bin").mkRecordIterator().toList == List("upper-case-scheme"))
+      assert(readRecords(storage, "upper.bin") == List("upper-case-scheme"))
     }
   }
 }
