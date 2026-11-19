@@ -627,6 +627,80 @@ describe("WorkflowGraph", () => {
         new RegExp("does not have a debug state")
       );
     });
+
+    it("should clear every operator's debug state in one update, keeping each map", () => {
+      workflowGraph.addOperator(mockScanPredicate);
+      workflowGraph.addOperator(mockSentimentPredicate);
+      workflowGraph.createOperatorDebugState(mockScanPredicate.operatorID);
+      workflowGraph.createOperatorDebugState(mockSentimentPredicate.operatorID);
+      const scanState = workflowGraph.getOperatorDebugState(mockScanPredicate.operatorID);
+      const sentimentState = workflowGraph.getOperatorDebugState(mockSentimentPredicate.operatorID);
+      scanState.set("3", { breakpointId: 1, condition: "", hit: true });
+      scanState.set("5", { breakpointId: 2, condition: "", hit: false });
+      sentimentState.set("7", { breakpointId: 1, condition: "x > 1", hit: false });
+      const scanDeleted: string[][] = [];
+      const sentimentDeleted: string[][] = [];
+      scanState.observe(event => scanDeleted.push(Array.from(event.keysChanged).sort()));
+      sentimentState.observe(event => sentimentDeleted.push(Array.from(event.keysChanged)));
+      let updates = 0;
+      workflowGraph.sharedModel.yDoc.on("update", () => updates++);
+
+      workflowGraph.clearAllOperatorDebugStates();
+
+      expect(scanState.toJSON()).toEqual({});
+      expect(sentimentState.toJSON()).toEqual({});
+      expect(updates).toBe(1);
+      expect(scanDeleted).toEqual([["3", "5"]]);
+      expect(sentimentDeleted).toEqual([["7"]]);
+      // open editors observe these maps, so the maps themselves must survive
+      expect(workflowGraph.getOperatorDebugState(mockScanPredicate.operatorID)).toBe(scanState);
+      expect(workflowGraph.getOperatorDebugState(mockSentimentPredicate.operatorID)).toBe(sentimentState);
+    });
+
+    it("should also clear the debug state an operator left behind when it was deleted", () => {
+      workflowGraph.addOperator(mockScanPredicate);
+      workflowGraph.createOperatorDebugState(mockScanPredicate.operatorID);
+      workflowGraph.getOperatorDebugState(mockScanPredicate.operatorID).set("3", {
+        breakpointId: 1,
+        condition: "",
+        hit: false,
+      });
+      workflowGraph.deleteOperator(mockScanPredicate.operatorID);
+
+      workflowGraph.clearAllOperatorDebugStates();
+
+      expect(workflowGraph.getOperatorDebugState(mockScanPredicate.operatorID).toJSON()).toEqual({});
+    });
+
+    it("should send no update when there is no debug state to clear", () => {
+      let updates = 0;
+      workflowGraph.sharedModel.yDoc.on("update", () => updates++);
+
+      workflowGraph.clearAllOperatorDebugStates();
+      expect(updates).toBe(0);
+
+      workflowGraph.createOperatorDebugState(mockScanPredicate.operatorID);
+      updates = 0;
+      workflowGraph.clearAllOperatorDebugStates();
+      expect(updates).toBe(0);
+    });
+
+    it("should leave the graph and the undo history alone", () => {
+      workflowGraph.addOperator(mockScanPredicate);
+      workflowGraph.createOperatorDebugState(mockScanPredicate.operatorID);
+      workflowGraph.getOperatorDebugState(mockScanPredicate.operatorID).set("3", {
+        breakpointId: 1,
+        condition: "",
+        hit: false,
+      });
+      const undoDepth = workflowGraph.sharedModel.undoManager.undoStack.length;
+
+      workflowGraph.clearAllOperatorDebugStates();
+
+      expect(workflowGraph.getAllOperators()).toEqual([mockScanPredicate]);
+      // undoing an edit made before the run must not bring the old breakpoints back
+      expect(workflowGraph.sharedModel.undoManager.undoStack.length).toBe(undoDepth);
+    });
   });
 
   describe("link assertions and guards", () => {

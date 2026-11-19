@@ -17,7 +17,7 @@
  * under the License.
  */
 
-import { AfterViewInit, Component, Input, ViewChild } from "@angular/core";
+import { AfterViewInit, Component, Input, OnDestroy, ViewChild } from "@angular/core";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 import { SafeStyle } from "@angular/platform-browser";
 import { isDefined } from "../../../common/util/predicate";
@@ -26,8 +26,10 @@ import { MonacoBreakpoint } from "monaco-breakpoints";
 import { UdfDebugService } from "../../service/operator-debug/udf-debug.service";
 import { BreakpointConditionInputComponent } from "./breakpoint-condition-input/breakpoint-condition-input.component";
 import { WorkflowStatusService } from "../../service/workflow-status/workflow-status.service";
-import { distinctUntilChanged, map } from "rxjs/operators";
-import { OperatorState } from "../../types/execute-workflow.interface";
+import { ExecuteWorkflowService } from "../../service/execute-workflow/execute-workflow.service";
+import { combineLatest } from "rxjs";
+import { distinctUntilChanged, map, startWith } from "rxjs/operators";
+import { ExecutionState, OperatorState } from "../../types/execute-workflow.interface";
 
 type MonacoEditor = monaco.editor.IStandaloneCodeEditor;
 type EditorMouseEvent = monaco.editor.IEditorMouseEvent;
@@ -35,6 +37,15 @@ type EditorMouseTarget = monaco.editor.IMouseTargetMargin;
 type ModelDecorationOptions = monaco.editor.IModelDecorationOptions;
 type Range = monaco.IRange;
 const MouseTargetType = monaco.editor.MouseTargetType;
+
+// the states of a run whose workers are up to take a breakpoint
+const RUN_STATES_WITH_WORKERS: readonly ExecutionState[] = [
+  ExecutionState.Running,
+  ExecutionState.Pausing,
+  ExecutionState.Paused,
+  ExecutionState.Resuming,
+  ExecutionState.Recovering,
+];
 
 /**
  * This component is the main component for the code debugger.
@@ -45,7 +56,7 @@ const MouseTargetType = monaco.editor.MouseTargetType;
   templateUrl: "code-debugger.component.html",
   imports: [BreakpointConditionInputComponent],
 })
-export class CodeDebuggerComponent implements AfterViewInit, SafeStyle {
+export class CodeDebuggerComponent implements AfterViewInit, OnDestroy, SafeStyle {
   @Input() monacoEditor!: MonacoEditor;
   @Input() currentOperatorId!: string;
   @ViewChild(BreakpointConditionInputComponent) breakpointConditionInput!: BreakpointConditionInputComponent;
@@ -55,12 +66,18 @@ export class CodeDebuggerComponent implements AfterViewInit, SafeStyle {
 
   constructor(
     private udfDebugService: UdfDebugService,
-    private workflowStatusService: WorkflowStatusService
+    private workflowStatusService: WorkflowStatusService,
+    private executeWorkflowService: ExecuteWorkflowService
   ) {}
 
   ngAfterViewInit() {
     this.registerStateChangeHandler();
     this.registerBreakpointRenderingHandler();
+  }
+
+  ngOnDestroy() {
+    // the operator's Monaco model outlives this editor, so what this editor drew has to come off now
+    this.removeMonacoBreakpointMethods();
   }
 
   setupMonacoBreakpointMethods(editor: MonacoEditor) {
@@ -123,11 +140,19 @@ export class CodeDebuggerComponent implements AfterViewInit, SafeStyle {
   }
 
   removeMonacoBreakpointMethods() {
-    if (!isDefined(this.monacoBreakpoint)) {
+    // a condition entered once breakpoints are off would go to a run that is over
+    this.closeBreakpointConditionInput();
+    const breakpoint = this.monacoBreakpoint;
+    this.monacoBreakpoint = undefined;
+    if (!isDefined(breakpoint)) {
       return;
     }
-    this.monacoBreakpoint["mouseDownDisposable"]?.dispose();
-    this.monacoBreakpoint.dispose();
+    // MonacoBreakpoint.dispose() lets go of its editor before removing its decorations, so they would
+    // stay on the editor's model, which outlives this editor: remove them while the editor is attached.
+    breakpoint.clearBreakpoints();
+    breakpoint.removeHighlight();
+    breakpoint["mouseDownDisposable"]?.dispose();
+    breakpoint.dispose();
   }
 
   /**
@@ -198,8 +223,13 @@ export class CodeDebuggerComponent implements AfterViewInit, SafeStyle {
     });
   }
 
+  // Both do nothing while breakpoints are off (no run in progress, or the operator neither running nor
+  // paused); the breakpoints are drawn by rerenderExistingBreakpoints once they are turned on.
   private createBreakpointDecoration(lineNum: number) {
-    this.monacoBreakpoint!["createSpecifyDecoration"]({
+    if (!isDefined(this.monacoBreakpoint)) {
+      return;
+    }
+    this.monacoBreakpoint["createSpecifyDecoration"]({
       startLineNumber: Number(lineNum),
       startColumn: 1,
       endLineNumber: Number(lineNum),
@@ -208,8 +238,11 @@ export class CodeDebuggerComponent implements AfterViewInit, SafeStyle {
   }
 
   private removeBreakpointDecoration(lineNum: number) {
-    const decorationId = this.monacoBreakpoint!["lineNumberAndDecorationIdMap"].get(lineNum);
-    this.monacoBreakpoint!["removeSpecifyDecoration"](decorationId, lineNum);
+    if (!isDefined(this.monacoBreakpoint)) {
+      return;
+    }
+    const decorationId = this.monacoBreakpoint["lineNumberAndDecorationIdMap"].get(lineNum);
+    this.monacoBreakpoint["removeSpecifyDecoration"](decorationId, lineNum);
   }
 
   rerenderExistingBreakpoints() {
@@ -222,20 +255,28 @@ export class CodeDebuggerComponent implements AfterViewInit, SafeStyle {
   }
 
   private registerStateChangeHandler() {
-    this.workflowStatusService
-      .getStateUpdateStream()
+    combineLatest([
+      this.workflowStatusService.getStateUpdateStream(),
+      // the stream only carries changes, so an editor opened after a run ended starts from the state now
+      this.executeWorkflowService.getExecutionStateStream().pipe(
+        map(({ current }) => current.state),
+        startWith(this.executeWorkflowService.getExecutionState().state)
+      ),
+    ])
       .pipe(
+        // A killed or failed run sends no final status for its operators, and a run still starting has no
+        // workers yet, so the run's own state decides too
         map(
-          event =>
-            event[this.currentOperatorId] === OperatorState.Running ||
-            event[this.currentOperatorId] === OperatorState.Paused
+          ([operatorStates, executionState]) =>
+            RUN_STATES_WITH_WORKERS.includes(executionState) &&
+            (operatorStates[this.currentOperatorId] === OperatorState.Running ||
+              operatorStates[this.currentOperatorId] === OperatorState.Paused)
         ),
         distinctUntilChanged(),
         untilDestroyed(this)
       )
       .subscribe(enable => {
-        console.log("enable", enable);
-        // Only enable the breakpoint methods if the operator is running or paused
+        // Only enable the breakpoint methods while a run is in progress and the operator is running or paused
         if (enable) {
           this.setupMonacoBreakpointMethods(this.monacoEditor);
           this.rerenderExistingBreakpoints();
