@@ -24,6 +24,7 @@ import com.fasterxml.jackson.databind.JsonNode
 import io.dropwizard.auth.Auth
 import org.apache.texera.amber.util.JSONUtils.objectMapper
 import org.apache.texera.auth.SessionUser
+import org.apache.texera.auth.util.WorkflowAccess
 import org.apache.texera.common.config.UserSystemConfig
 import org.apache.texera.dao.SqlServer
 import org.apache.texera.dao.jooq.generated.Tables.{WORKFLOW, WORKFLOW_VERSION}
@@ -95,7 +96,7 @@ object WorkflowVersionResource {
     * public viewer would hand them the edits the pin is holding back.
     */
   private def canReadHistory(wid: Integer, uid: Integer, db: DSLContext = context): Boolean =
-    WorkflowAccessResource.getPrivilege(wid, uid, db) != PrivilegeEnum.NONE ||
+    WorkflowAccess.getPrivilege(wid, uid, db) != PrivilegeEnum.NONE ||
       db.fetchExists(
         WORKFLOW,
         WORKFLOW.WID.eq(wid),
@@ -418,7 +419,7 @@ class WorkflowVersionResource {
           .fetchOneInto(classOf[Workflow])
       )
         .getOrElse(throw new NotFoundException("Macro source unavailable"))
-      val privilege = WorkflowAccessResource.getPrivilege(wid, user.getUid, db)
+      val privilege = WorkflowAccess.getPrivilege(wid, user.getUid, db)
       val granted = privilege != PrivilegeEnum.NONE
       val historyVisible = granted || workflow.getPublishedContent == null
       if (!granted && (!workflow.getIsPublic || (requirePin && !historyVisible)))

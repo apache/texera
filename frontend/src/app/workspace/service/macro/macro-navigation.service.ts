@@ -318,25 +318,23 @@ export class MacroNavigationService {
     return { content, drafts };
   }
 
-  public resultAliases(): Record<string, ResultTarget | null> {
-    if (!this.parents.length) {
-      const current = this.actions.getWorkflowContent();
-      return this.matchesExecutedRoot(current)
-        ? this.actions.getMacroResultAliases()
-        : Object.fromEntries(current.operators.filter(isMacro).map(op => [op.operatorID, null]));
-    }
-    try {
-      const context = this.runtimeContext();
-      return Object.fromEntries(
-        this.actions.getWorkflowContent().operators.map(op => {
-          const id = context?.ids[op.operatorID];
-          const target = id && context ? context.root.resultTargets?.[id] ?? { operatorID: id, portIndex: 0 } : null;
-          return [op.operatorID, target];
-        })
-      );
-    } catch {
-      return {};
-    }
+  public resultAliases(portIndex = 0): Record<string, ResultTarget | null> {
+    const nested = this.parents.length > 0;
+    const current = this.actions.getWorkflowContent();
+    const operators = nested ? current.operators : current.operators.filter(isMacro);
+    if (!operators.length) return {};
+    const context = nested ? this.runtimeContext() : undefined;
+    const executed = !nested && this.matchingExecution(current);
+    const root = executed ? this.expansion.get(executed) : context?.root;
+    return Object.fromEntries(
+      operators.map(op => {
+        const id = nested ? context?.ids[op.operatorID] : op.operatorID;
+        if (!id || !root) return [op.operatorID, null];
+        if (!isMacro(op)) return [op.operatorID, { operatorID: id, portIndex }];
+        const target = portIndex === 0 ? root.resultTargets?.[id] : root.resultPorts?.[id]?.[portIndex];
+        return [op.operatorID, target ?? null];
+      })
+    );
   }
 
   private boundaryLinks() {
@@ -463,13 +461,12 @@ export class MacroNavigationService {
     }
   }
 
-  private matchesExecutedRoot(current: WorkflowContent): boolean {
+  private matchingExecution(current: WorkflowContent): WorkflowContent | undefined {
     const executed = this.status.getRuntimeContent();
     try {
-      return !!executed && isEqual(runtimePlan(current), runtimePlan(executed));
+      if (executed && isEqual(runtimePlan(current), runtimePlan(executed))) return executed;
     } catch {
       // A link can briefly outlive an endpoint during a collaborative edit.
-      return false;
     }
   }
 
@@ -477,7 +474,7 @@ export class MacroNavigationService {
     if (!this.parents.length) {
       const current = this.actions.getWorkflowContent();
       if (!current.operators.some(isMacro)) return raw;
-      if (this.matchesExecutedRoot(current)) return raw;
+      if (this.matchingExecution(current)) return raw;
       return Object.fromEntries(
         current.operators
           .filter(op => !isMacro(op) && raw[op.operatorID])

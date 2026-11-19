@@ -70,6 +70,50 @@ const getSelectedTask = (field: FormlyFieldConfig): string | undefined => {
   return hasText(fromModel) ? fromModel : undefined;
 };
 
+function hideUnlessTask(mappedField: FormlyFieldConfig, predicate: (task: string | undefined) => boolean): void {
+  mappedField.expressions = {
+    ...mappedField.expressions,
+    hide: (field: FormlyFieldConfig) => !predicate(getSelectedTask(field)),
+  };
+}
+
+function hideUnlessTaskIn(mappedField: FormlyFieldConfig, tasks: string[]): void {
+  hideUnlessTask(mappedField, task => task !== undefined && tasks.includes(task));
+}
+
+function bindMediaInput(
+  mappedField: FormlyFieldConfig,
+  tasks: string[],
+  validatorName: string,
+  columnKey: string,
+  inputKey: string,
+  message: string
+): void {
+  hideUnlessTaskIn(mappedField, tasks);
+  mappedField.validators = {
+    ...mappedField.validators,
+    [validatorName]: {
+      expression: (_control: AbstractControl, field: FormlyFieldConfig) => {
+        const t = getSelectedTask(field);
+        if (t === undefined || !tasks.includes(t)) {
+          return true;
+        }
+        const inputCol = nativeModel(field)?.[columnKey];
+        if (typeof inputCol === "string" && inputCol.trim().length > 0) {
+          return true;
+        }
+        const value = field.formControl?.value ?? nativeModel(field)?.[inputKey];
+        return typeof value === "string" && value.trim().length > 0;
+      },
+      message: () => message,
+    },
+  };
+  mappedField.validation = {
+    ...mappedField.validation,
+    show: true,
+  };
+}
+
 /**
  * Applies the HuggingFace operator's task-driven field behaviour to a single formly field: the
  * `task` field is hidden, and each input field (image/audio uploads and their column pickers, the
@@ -83,73 +127,66 @@ export function applyHuggingFaceFieldBindings(mappedField: FormlyFieldConfig): v
   const hfKey = context?.propertyKey ?? mappedField.key;
   if (typeof hfKey !== "string") return;
 
-  const showWhen = (visible: (task: string) => boolean) => {
-    mappedField.expressions = {
-      ...mappedField.expressions,
-      hide: (field: FormlyFieldConfig) => !visible(getSelectedTask(field) ?? ""),
-    };
-  };
-  const requireValue = (name: string, tasks: string[], message: string, alternativeColumn?: string) => {
+  if (hfKey === "task") mappedField.hide = true;
+  if (hfKey === "imageInput") {
+    // type ("huggingface-image-upload") is set by customFormlyFieldType
+    bindMediaInput(
+      mappedField,
+      imageInputTasks,
+      "requiredImageInput",
+      "inputImageColumn",
+      "imageInput",
+      "Upload an image or select an Input Image Column for this task."
+    );
+  }
+  if (hfKey === "audioInput") {
+    // type ("huggingface-audio-upload") is set by customFormlyFieldType
+    bindMediaInput(
+      mappedField,
+      audioInputTasks,
+      "requiredAudioInput",
+      "inputAudioColumn",
+      "audioInput",
+      "Upload audio or select an Input Audio Column for this task."
+    );
+  }
+  if (hfKey === "inputImageColumn") {
+    hideUnlessTaskIn(mappedField, imageInputTasks);
+  }
+  if (hfKey === "inputAudioColumn") {
+    hideUnlessTaskIn(mappedField, audioInputTasks);
+  }
+  if (hfKey === "promptColumn") {
+    hideUnlessTask(mappedField, t => t === undefined || (!imageOnlyTasks.includes(t) && !audioInputTasks.includes(t)));
     mappedField.validators = {
       ...mappedField.validators,
-      [name]: {
+      requiredPromptColumn: {
         expression: (_control: AbstractControl, field: FormlyFieldConfig) => {
-          if (!tasks.includes(getSelectedTask(field) ?? "")) return true;
-          const model = nativeModel(field);
-          return (
-            (alternativeColumn !== undefined && hasText(model?.[alternativeColumn])) ||
-            hasText(field.formControl?.value ?? model?.[hfKey])
-          );
+          const t = getSelectedTask(field);
+          if (t === undefined || !promptRequiredTasks.includes(t)) {
+            return true;
+          }
+          const value = field.formControl?.value ?? nativeModel(field)?.promptColumn;
+          return typeof value === "string" && value.trim().length > 0;
         },
-        message: () => message,
+        message: () => "Select a prompt column for this task.",
       },
     };
-    mappedField.validation = { ...mappedField.validation, show: true };
-  };
-
-  switch (hfKey) {
-    case "task":
-      mappedField.hide = true;
-      break;
-    case "imageInput":
-    case "inputImageColumn":
-      showWhen(task => imageInputTasks.includes(task));
-      if (hfKey === "imageInput")
-        requireValue(
-          "requiredImageInput",
-          imageInputTasks,
-          "Upload an image or select an Input Image Column for this task.",
-          "inputImageColumn"
-        );
-      break;
-    case "audioInput":
-    case "inputAudioColumn":
-      showWhen(task => audioInputTasks.includes(task));
-      if (hfKey === "audioInput")
-        requireValue(
-          "requiredAudioInput",
-          audioInputTasks,
-          "Upload audio or select an Input Audio Column for this task.",
-          "inputAudioColumn"
-        );
-      break;
-    case "promptColumn":
-      showWhen(task => !imageOnlyTasks.includes(task) && !audioInputTasks.includes(task));
-      requireValue("requiredPromptColumn", promptRequiredTasks, "Select a prompt column for this task.");
-      break;
-    case "systemPrompt":
-    case "maxNewTokens":
-    case "temperature":
-      showWhen(task => task === "text-generation");
-      break;
-    case "contextColumn":
-      showWhen(task => task === "question-answering");
-      break;
-    case "candidateLabels":
-      showWhen(task => task === "zero-shot-classification" || task === "zero-shot-image-classification");
-      break;
-    case "sentencesColumn":
-      showWhen(task => task === "sentence-similarity" || task === "text-ranking");
-      break;
+    mappedField.validation = {
+      ...mappedField.validation,
+      show: true,
+    };
+  }
+  if (["systemPrompt", "maxNewTokens", "temperature"].includes(hfKey)) {
+    hideUnlessTask(mappedField, t => t === "text-generation");
+  }
+  if (hfKey === "contextColumn") {
+    hideUnlessTask(mappedField, t => t === "question-answering");
+  }
+  if (hfKey === "candidateLabels") {
+    hideUnlessTask(mappedField, t => t === "zero-shot-classification" || t === "zero-shot-image-classification");
+  }
+  if (hfKey === "sentencesColumn") {
+    hideUnlessTask(mappedField, t => t === "sentence-similarity" || t === "text-ranking");
   }
 }

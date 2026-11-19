@@ -18,6 +18,7 @@
  */
 package org.apache.texera.common.compiler
 
+import org.apache.texera.amber.operator.TestOperators
 import com.fasterxml.jackson.databind.JsonNode
 import org.apache.texera.common.compiler.MacroTestUtils._
 import com.fasterxml.jackson.databind.node.ObjectNode
@@ -66,7 +67,10 @@ class MacroValidationSpec extends AnyFlatSpec with Matchers {
       mode: CompilationErrorHandling = CompilationErrorHandling.Lenient
   ): WorkflowCompilationResult = {
     val snapshot = request.macroContent.map(_.toString)
-    try new WorkflowCompiler(new WorkflowContext(WorkflowIdentity(0))).compile(request, mode)
+    try new WorkflowCompiler(
+      new WorkflowContext(WorkflowIdentity(0)),
+      TestOperators.fixtureFileResolver
+    ).compile(request, mode)
     finally request.macroContent.map(_.toString) shouldBe snapshot
   }
   private def sortBinding =

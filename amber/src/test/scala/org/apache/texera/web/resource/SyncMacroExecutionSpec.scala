@@ -18,6 +18,7 @@
  */
 package org.apache.texera.web.resource
 
+import org.apache.texera.amber.operator.TestOperators
 import org.apache.texera.amber.util.JSONUtils.objectMapper
 import com.fasterxml.jackson.databind.JsonNode
 import com.fasterxml.jackson.databind.node.ObjectNode
@@ -157,7 +158,10 @@ class SyncMacroExecutionSpec extends AnyFlatSpec with Matchers with PrivateMetho
     val target = normalized.macroExpansion.get.paths.find(_._2.last == "project").get._1
     val select = PrivateMethod[LogicalPlanPojo](Symbol("computeSubDAGIfNeeded"))
     val subDag = resource invokePrivate select(normalized, List(target))
-    val compiler = new WorkflowCompiler(new WorkflowContext(WorkflowIdentity(0)))
+    val compiler = new WorkflowCompiler(
+      new WorkflowContext(WorkflowIdentity(0)),
+      TestOperators.fixtureFileResolver
+    )
     val errors = compiler.compile(subDag).operatorIdToError
     errors(OperatorIdentity("instance")).message should include("Projection macro / Projection")
     errors(OperatorIdentity("instance")).message should include("missing")

@@ -112,23 +112,6 @@ export type PaginatedResultEvent = Readonly<{
   totalTuples: number;
 }>;
 
-export type ResultExportRequest = Readonly<{
-  exportType: string;
-  workflowId: number;
-  workflowName: string;
-  operatorId: string;
-  operatorName: string;
-  datasetIds: ReadonlyArray<number>;
-  rowIndex: number;
-  columnIndex: number;
-  filename: string;
-}>;
-
-export type ResultExportResponse = Readonly<{
-  status: "success" | "error";
-  message: string;
-}>;
-
 export type OperatorResultCacheStatus = "cache invalid" | "cache valid";
 
 export type PythonExpressionEvaluateRequest = Readonly<{
@@ -199,7 +182,6 @@ export type WorkflowStateInfo = Readonly<{
 export type TexeraWebsocketRequestTypeMap = {
   HeartBeatRequest: {};
   ModifyLogicRequest: ModifyOperatorLogic;
-  ResultExportRequest: ResultExportRequest;
   ResultPaginationRequest: PaginationRequest;
   RetryRequest: { workers: ReadonlyArray<string> };
   SkipTupleRequest: { workers: ReadonlyArray<string> };
@@ -222,7 +204,6 @@ export type TexeraWebsocketEventTypeMap = {
   ConsoleUpdateEvent: ConsoleUpdateEvent;
   OperatorCurrentTuplesUpdateEvent: OperatorCurrentTuples;
   PaginatedResultEvent: PaginatedResultEvent;
-  ResultExportResponse: ResultExportResponse;
   PythonExpressionEvaluateResponse: PythonExpressionEvaluateResponse;
   WorkerAssignmentUpdateEvent: WorkerAssignmentUpdateEvent;
   ModifyLogicResponse: ModifyLogicResponse;

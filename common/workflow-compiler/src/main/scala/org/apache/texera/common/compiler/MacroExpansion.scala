@@ -21,7 +21,7 @@ package org.apache.texera.common.compiler
 import org.apache.texera.amber.core.workflow.WorkflowGraphIDs
 
 import com.fasterxml.jackson.databind.JsonNode
-import com.fasterxml.jackson.annotation.JsonIgnoreProperties
+import com.fasterxml.jackson.annotation.{JsonIgnoreProperties, JsonProperty}
 import com.fasterxml.jackson.databind.node.ObjectNode
 import org.apache.texera.amber.util.JSONUtils.objectMapper
 import org.apache.texera.common.compiler.model.{LogicalLink, LogicalPlanPojo}
@@ -66,7 +66,16 @@ case class MacroExpansion(
     resultTargets: Map[String, MacroResultTarget] = Map.empty,
     boundaries: Map[String, MacroBoundary] = Map.empty,
     inspectors: Map[String, MacroInspector] = Map.empty
-)
+) {
+
+  /** A pinned result tab selects the native port behind that particular macro output. */
+  @JsonProperty("resultPorts")
+  def resultPorts: Map[String, List[Option[MacroResultTarget]]] =
+    boundaries.collect {
+      case (id, boundary) if !boundary.terminal && boundary.outputs.size > 1 =>
+        id -> boundary.outputs.map(_.headOption)
+    }
+}
 
 /** Expands immutable, self-contained workflow snapshots before ordinary logical compilation. */
 object MacroExpansion {

@@ -19,6 +19,7 @@
 
 import { TestBed } from "@angular/core/testing";
 import {
+  ALL_COLUMNS,
   OperatorPaginationResultService,
   OperatorResultService,
   WorkflowResultService,
@@ -124,6 +125,33 @@ describe("WorkflowResultService", () => {
     expect(updateEvents).toEqual([updates]);
   });
 
+  describe("getPortPaginatedResultService", () => {
+    it("gives the first port's service for port 0, and nothing for an operator without a table", () => {
+      const ws = TestBed.inject(WorkflowWebsocketService);
+      pushWsEvent(ws, { type: "WebResultUpdateEvent", updates: { pagOp: paginationUpdate(3) }, tableStats: {} });
+
+      expect(service.getPortPaginatedResultService("pagOp", 0)).toBe(service.getPaginatedResultService("pagOp"));
+      expect(service.getPortPaginatedResultService("noResult", 0)).toBeUndefined();
+      expect(service.getPortPaginatedResultService("noResult", 1)).toBeUndefined();
+    });
+
+    it("makes one service for another port, kept until the results are cleared", () => {
+      const ws = TestBed.inject(WorkflowWebsocketService);
+      pushWsEvent(ws, { type: "WebResultUpdateEvent", updates: { pagOp: paginationUpdate(3) }, tableStats: {} });
+
+      const second = service.getPortPaginatedResultService("pagOp", 1)!;
+
+      expect(second.portIndex).toBe(1);
+      expect(second.operatorID).toBe("pagOp");
+      expect(second).not.toBe(service.getPaginatedResultService("pagOp"));
+      expect(service.getPortPaginatedResultService("pagOp", 1)).toBe(second);
+
+      service.clearResults();
+      pushWsEvent(ws, { type: "WebResultUpdateEvent", updates: { pagOp: paginationUpdate(3) }, tableStats: {} });
+      expect(service.getPortPaginatedResultService("pagOp", 1)).not.toBe(second);
+    });
+  });
+
   it("hasNonEmptyResult tells an empty result apart from one with rows", () => {
     sendResults({
       emptyPag: paginationUpdate(0),
@@ -173,7 +201,9 @@ describe("WorkflowResultService", () => {
 
   it("pages the exact output of the reported execution and discards its cache on the next run", () => {
     const send = vi.spyOn(ws, "send").mockImplementation(() => {});
-    service.setMacroAliases(() => ({ macro: { operatorID: "split", portIndex: 1 } }));
+    service.setMacroAliases((port = 0) => ({
+      macro: port === 0 ? { operatorID: "split", portIndex: 1 } : { operatorID: "leaf", portIndex: 0 },
+    }));
     pushWsEvent(ws, { type: "WorkflowStateEvent", state: "Running", executionId: 23 });
     const updates: Record<string, unknown>[] = [];
     service.getResultUpdateStream().subscribe(update => updates.push(update));
@@ -198,6 +228,11 @@ describe("WorkflowResultService", () => {
     expect(service.hasNonEmptyResult("macro")).toBe(true);
     expect(service.hasNonEmptyResult("split")).toBe(false);
     expect(updates.at(-1)).toEqual({ macro: paginationUpdate(7) });
+    sendResults({ leaf: paginationUpdate(11) });
+    const second = service.getPortPaginatedResultService("macro", 1)!;
+    expect(second).toBe(service.getPaginatedResultService("leaf"));
+    second.peekFirstRows(5);
+    expect(send.mock.calls.at(-1)![1]).toMatchObject({ operatorID: "leaf", executionId: 23 });
     pushWsEvent(ws, { type: "WorkflowStateEvent", state: "Running", executionId: 24 });
     expect(service.getPaginatedResultService("macro")).toBeUndefined();
     expect(selected.getCurrentTotalNumTuples()).toBe(7);
@@ -408,7 +443,8 @@ describe("OperatorPaginationResultService", () => {
   });
 
   describe("selectPage", () => {
-    it.each([undefined, Number.MAX_SAFE_INTEGER])("uses the backend's all-column default for %s", columnLimit => {
+    it("omits a column limit larger than the server can represent", () => {
+      const columnLimit = Number.MAX_SAFE_INTEGER;
       service.selectPage(1, 10, 0, columnLimit).subscribe();
 
       const payload = mockWorkflowWebsocketService.send.mock.calls[0][1];
@@ -436,12 +472,12 @@ describe("OperatorPaginationResultService", () => {
       expect(mockWorkflowWebsocketService.send).not.toHaveBeenCalled();
       expect(result).toEqual({
         requestID: "",
-        portIndex: 0,
-        totalTuples: 0,
         operatorID: "testOperator",
         pageIndex: 2,
         table: cachedPage,
         schema: [{ attributeName: "id", attributeType: "integer" }],
+        portIndex: 0,
+        totalTuples: 0,
       });
       expect(service.getCurrentPageIndex()).toBe(2);
     });
@@ -458,13 +494,13 @@ describe("OperatorPaginationResultService", () => {
 
       const requestID = (mockWorkflowWebsocketService.send.mock.calls[0][1] as any).requestID;
       const page: PaginatedResultEvent = {
-        portIndex: 0,
-        totalTuples: 1,
         requestID,
         operatorID: "testOperator",
         pageIndex: 3,
         table: [{ id: 7 }],
         schema: [{ attributeName: "id", attributeType: "integer" }],
+        portIndex: 0,
+        totalTuples: 1,
       };
       eventSubject.next(page);
 
@@ -472,6 +508,15 @@ describe("OperatorPaginationResultService", () => {
       // schema is refreshed from the event and the pending request is cleared once completed
       expect(service.getSchema()).toEqual([{ attributeName: "id", attributeType: "integer" }]);
       expect((service as any).pendingRequests.size).toBe(0);
+    });
+
+    it("asks for every column within the server's Int when no column limit is given", () => {
+      service.selectPage(3, 10).subscribe();
+
+      expect(mockWorkflowWebsocketService.send).toHaveBeenCalledWith(
+        "ResultPaginationRequest",
+        expect.objectContaining({ columnLimit: ALL_COLUMNS })
+      );
     });
 
     it("bypasses the frontend cache when column filters are set", () => {
@@ -482,6 +527,45 @@ describe("OperatorPaginationResultService", () => {
         "ResultPaginationRequest",
         expect.objectContaining({ pageIndex: 2, columnOffset: 5 })
       );
+    });
+  });
+
+  describe("peekFirstRows", () => {
+    // A hover preview asks for the first rows while the result table may be on any page; the
+    // table's page and cache must come through untouched.
+    it("fetches the first rows without moving the table's page or reading its cache", () => {
+      (service as any).currentPageIndex = 4;
+      (service as any).resultCache.set(1, [{ id: "cached" }]);
+      const received: PaginatedResultEvent[] = [];
+
+      service.peekFirstRows(5).subscribe(e => received.push(e));
+
+      expect(mockWorkflowWebsocketService.send).toHaveBeenCalledWith(
+        "ResultPaginationRequest",
+        expect.objectContaining({
+          operatorID: "testOperator",
+          pageIndex: 1,
+          pageSize: 5,
+          columnOffset: 0,
+          // within the server's Int, which a larger number fails to parse as
+          columnLimit: 2147483647,
+        })
+      );
+      const requestID = (mockWorkflowWebsocketService.send.mock.calls[0][1] as any).requestID;
+      const page: PaginatedResultEvent = {
+        requestID,
+        operatorID: "testOperator",
+        pageIndex: 1,
+        table: [{ id: 1 }],
+        schema: [{ attributeName: "id", attributeType: "integer" }],
+        portIndex: 0,
+        totalTuples: 1,
+      };
+      eventSubject.next(page);
+
+      expect(received).toEqual([page]);
+      expect(service.getCurrentPageIndex()).toBe(4);
+      expect((service as any).resultCache.get(1)).toEqual([{ id: "cached" }]);
     });
   });
 
@@ -526,6 +610,55 @@ describe("OperatorPaginationResultService", () => {
       expect((service as any).pendingRequests.size).toBe(0);
       expect(service.getCurrentPageIndex()).toBe(1);
       expect(service.getCurrentTotalNumTuples()).toBe(0);
+    });
+  });
+
+  describe("for an output port past the first", () => {
+    let secondPort: OperatorPaginationResultService;
+    const reply = (requestID: string, totalTuples: number): PaginatedResultEvent => ({
+      requestID,
+      operatorID: "testOperator",
+      pageIndex: 1,
+      table: [{ id: 1 }],
+      schema: [{ attributeName: "id", attributeType: "integer" }],
+      portIndex: 1,
+      totalTuples,
+    });
+
+    beforeEach(() => {
+      secondPort = new OperatorPaginationResultService("testOperator", mockWorkflowWebsocketService, 1);
+    });
+
+    it("names the port in every request, and the first port's service leaves it out", () => {
+      secondPort.selectPage(1, 10).subscribe();
+      secondPort.peekFirstRows(5).subscribe();
+      service.selectPage(1, 10).subscribe();
+
+      const sent = mockWorkflowWebsocketService.send.mock.calls.map(call => call[1] as any);
+      expect(sent[0].portIndex).toBe(1);
+      expect(sent[1].portIndex).toBe(1);
+      expect("portIndex" in sent[2]).toBe(false);
+    });
+
+    it("takes its row count from each reply, as no live update reports on it", () => {
+      secondPort.selectPage(1, 10).subscribe();
+      const requestID = (mockWorkflowWebsocketService.send.mock.calls[0][1] as any).requestID;
+
+      eventSubject.next(reply(requestID, 37));
+
+      expect(secondPort.getCurrentTotalNumTuples()).toBe(37);
+      expect(secondPort.getSchema()).toEqual([{ attributeName: "id", attributeType: "integer" }]);
+      // the first port's service did not ask, so the reply changes nothing there
+      expect(service.getCurrentTotalNumTuples()).toBe(0);
+      expect(service.getSchema()).toEqual([]);
+    });
+
+    it("asks the server again for a page it has read, so the page is never stale", () => {
+      (secondPort as any).resultCache.set(1, [{ id: 0 }]);
+
+      secondPort.selectPage(1, 10).subscribe();
+
+      expect(mockWorkflowWebsocketService.send).toHaveBeenCalledTimes(1);
     });
   });
 

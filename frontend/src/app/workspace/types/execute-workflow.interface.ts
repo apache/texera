@@ -111,6 +111,7 @@ export interface OperatorStatsUpdate
 export type PaginationMode = { type: "PaginationMode" };
 export type SetSnapshotMode = { type: "SetSnapshotMode" };
 export type SetDeltaMode = { type: "SetDeltaMode" };
+export type WebOutputMode = PaginationMode | SetSnapshotMode | SetDeltaMode;
 
 export interface WebPaginationUpdate
   extends Readonly<{

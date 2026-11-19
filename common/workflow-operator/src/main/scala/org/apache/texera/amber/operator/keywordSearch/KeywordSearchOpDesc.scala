@@ -95,14 +95,16 @@ class KeywordSearchOpDesc extends FilterOpDesc with StandaloneCodeGenerator {
     // themselves, so a query that uses the syntax — a phrase, a boolean, a
     // wildcard, a fuzzy match — reads here as the words it is written with.
     val raw = Option(keyword).getOrElse("")
-    val terms = raw.trim.split("\\s+").filter(_.nonEmpty).toList
-    if (terms.isEmpty) return "out1df = in1df"
+    val terms = raw.trim.split("\\s+").iterator.filter(_.nonEmpty)
+    if (!terms.hasNext) return "out1df = in1df"
 
-    val regexSpecials = Set('.', '^', '$', '*', '+', '?', '(', ')', '[', ']', '{', '}', '|', '\\')
-    val escaped = terms.map(_.flatMap(c => if (regexSpecials.contains(c)) s"\\$c" else c.toString))
+    val regexSpecials = ".^$*+?()[]{}|\\"
+    val escaped =
+      terms.map(_.flatMap(c => if (regexSpecials.indexOf(c) >= 0) s"\\$c" else c.toString))
     val pattern = escaped.mkString("\\b(?:", "|", ")\\b")
     val pyLiteral = pyStringLiteral(pattern)
-    val attrLit = pyStringLiteral(attribute)
+    // The engine reads the field through Schema, which ignores case. See [[columnAsStored]].
+    val attrLit = pyStringLiteral(columnAsStored(attribute, inputSchemas.values.headOption))
     // Case follows the flag, which picks the analyzer the engine indexes with:
     // StandardAnalyzer lower-cases both the field and the query, CaseSensitiveAnalyzer
     // is the same tokenizer with that filter left out.

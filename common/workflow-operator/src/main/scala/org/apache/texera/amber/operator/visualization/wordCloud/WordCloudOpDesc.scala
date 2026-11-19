@@ -19,17 +19,16 @@
 
 package org.apache.texera.amber.operator.visualization.wordCloud
 
+import org.apache.texera.amber.operator.visualization.StandaloneChartCode._
 import com.fasterxml.jackson.annotation.JsonProperty
 import com.kjetland.jackson.jsonSchema.annotations.{
   JsonSchemaInject,
   JsonSchemaInt,
   JsonSchemaTitle
 }
-import org.apache.texera.amber.core.tuple.{AttributeType, Schema}
 import org.apache.texera.amber.pybuilder.PythonTemplateBuilder.PythonTemplateBuilderStringContext
 import org.apache.texera.amber.pybuilder.PyStringTypes.EncodableString
-import org.apache.texera.amber.core.workflow.PortIdentity
-import org.apache.texera.amber.operator.{PythonOperatorDescriptor, StandaloneCodeGenerator}
+import org.apache.texera.amber.operator.visualization.PythonVisualizationOpDesc
 import org.apache.texera.amber.operator.metadata.annotations.AutofillAttributeName
 import org.apache.texera.amber.operator.metadata.{OperatorGroupConstants, OperatorInfo}
 import org.apache.texera.amber.operator.visualization.ImageUtility
@@ -47,7 +46,7 @@ import javax.validation.constraints.NotNull
   }
 }
 """)
-class WordCloudOpDesc extends PythonOperatorDescriptor with StandaloneCodeGenerator {
+class WordCloudOpDesc extends PythonVisualizationOpDesc {
   @JsonProperty(required = true)
   @JsonSchemaTitle("Text column")
   @AutofillAttributeName
@@ -58,14 +57,6 @@ class WordCloudOpDesc extends PythonOperatorDescriptor with StandaloneCodeGenera
   @JsonSchemaTitle("Number of most frequent words")
   @JsonSchemaInject(ints = Array(new JsonSchemaInt(path = "exclusiveMinimum", value = 0)))
   var topN: Integer = 100
-
-  override def getOutputSchemas(
-      inputSchemas: Map[PortIdentity, Schema]
-  ): Map[PortIdentity, Schema] = {
-    val outputSchema = Schema()
-      .add("html-content", AttributeType.STRING)
-    Map(operatorInfo.outputPorts.head.id -> outputSchema)
-  }
 
   override def operatorInfo: OperatorInfo =
     OperatorInfo.forVisualization(
@@ -142,32 +133,28 @@ class WordCloudOpDesc extends PythonOperatorDescriptor with StandaloneCodeGenera
          |""".encode
   }
 
-  override def producesDataFrame(): Boolean = false
-
   // The two guards mirror generatePythonCode's: WordCloud.generate raises on a
   // wordless string, so without them an input that is empty — or whose text
   // column survives neither the dropna nor the word filter — crashes here where
   // the runtime path explains itself.
   override def generateStandaloneCode(): String = {
     val textLit = pyStringLiteral(textColumn)
-    s"""def render_error(error_msg):
-       |    return '''<h1>Wordcloud is not available.</h1>
-       |                  <p>Reason is: {} </p>
-       |               '''.format(error_msg)
+    s"""${standaloneError("Wordcloud is not available.")}
        |
        |table = in1df
        |if table.empty:
-       |    with open(outputHtml, "w", encoding="utf-8") as f:
-       |        f.write(render_error("input table is empty."))
+       |${standaloneErrorPage("input table is empty.", handle = "f")}
        |elif not (pd.api.types.is_object_dtype(table[$textLit]) or pd.api.types.is_string_dtype(table[$textLit])):
-       |    with open(outputHtml, "w", encoding="utf-8") as f:
-       |        f.write(render_error("$NotTextMessage"))
+       |${standaloneErrorPage(NotTextMessage, handle = "f")}
        |else:
        |    table = table.dropna(subset=[$textLit])
        |    table = table[table[$textLit].str.contains(r'\\w', regex=True)]
        |    if table.empty:
-       |        with open(outputHtml, "w", encoding="utf-8") as f:
-       |            f.write(render_error("text column does not contain words or contains only nulls."))
+       |${standaloneErrorPage(
+      "text column does not contain words or contains only nulls.",
+      indent = 8,
+      handle = "f"
+    )}
        |    else:
        |        text = ' '.join(table[$textLit])
        |        from wordcloud import WordCloud, STOPWORDS

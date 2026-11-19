@@ -19,13 +19,16 @@
 
 package org.apache.texera.web.service
 
-import com.fasterxml.jackson.core.JsonProcessingException
 import com.github.tototoshi.csv.CSVReader
 import com.sun.net.httpserver.{HttpExchange, HttpHandler, HttpServer}
 import org.apache.arrow.memory.RootAllocator
 import org.apache.arrow.vector.ipc.ArrowFileReader
 import org.apache.arrow.vector.util.ByteArrayReadableSeekableByteChannel
-import org.apache.texera.amber.core.storage.{DocumentFactory, VFSURIFactory}
+import org.apache.texera.amber.core.storage.{
+  DocumentFactory,
+  VFSURIFactory,
+  WarehouseUnavailableException
+}
 import org.apache.texera.amber.core.storage.model.{BufferedItemWriter, VirtualDocument}
 import org.apache.texera.amber.core.tuple.{AttributeType, Schema, Tuple}
 import org.apache.texera.amber.core.virtualidentity.{
@@ -38,22 +41,14 @@ import org.apache.texera.amber.core.workflow.{GlobalPortIdentity, PortIdentity}
 import org.apache.texera.amber.util.ArrowUtils
 import org.apache.texera.auth.JwtAuth
 import org.apache.texera.dao.MockTexeraDB
-import org.apache.texera.dao.jooq.generated.Tables.{OPERATOR_PORT_EXECUTIONS, WORKFLOW_EXECUTIONS}
-import org.apache.texera.dao.jooq.generated.enums.WorkflowComputingUnitTypeEnum
-import org.apache.texera.dao.jooq.generated.tables.daos.{
-  UserDao,
-  WorkflowComputingUnitDao,
-  WorkflowDao,
-  WorkflowExecutionsDao,
-  WorkflowVersionDao
-}
+import org.apache.texera.dao.jooq.generated.Tables.OPERATOR_PORT_EXECUTIONS
 import org.apache.texera.dao.jooq.generated.tables.pojos.{
   User,
-  Workflow,
   WorkflowComputingUnit,
   WorkflowExecutions,
   WorkflowVersion
 }
+import org.apache.texera.web.ExecutionDatabaseTestSupport
 import org.apache.texera.web.model.http.request.result.{OperatorExportInfo, ResultExportRequest}
 import org.apache.texera.web.model.http.response.result.ResultExportResponse
 import org.scalatest.{BeforeAndAfterAll, BeforeAndAfterEach, PrivateMethodTester}
@@ -69,7 +64,6 @@ import java.io.{
 }
 import java.net.{InetSocketAddress, URI, URL}
 import java.nio.charset.StandardCharsets
-import java.sql.Timestamp
 import java.util.UUID
 import java.util.zip.{ZipException, ZipInputStream}
 import javax.ws.rs.WebApplicationException
@@ -81,8 +75,7 @@ import scala.collection.mutable.ArrayBuffer
   *
   * Two layers are covered:
   *
-  *  - The pure helpers (parseOperators / validateExportRequest) and the private
-  *    export-encoding writers. Every writer takes a VirtualDocument parameter,
+  *  - The private export-encoding writers. Every writer takes a VirtualDocument parameter,
   *    so an in-spec fake document is enough for those.
   *
   *  - The request-level entry points (exportToLocal / exportToDataset /
@@ -111,7 +104,8 @@ class ResultExportServiceSpec
     with PrivateMethodTester
     with BeforeAndAfterAll
     with BeforeAndAfterEach
-    with MockTexeraDB {
+    with MockTexeraDB
+    with ExecutionDatabaseTestSupport {
 
   private val service = new ResultExportService(WorkflowIdentity(1L), computingUnitId = 0)
 
@@ -127,46 +121,6 @@ class ResultExportServiceSpec
       filename = "",
       computingUnitId = 0
     )
-
-  // -- parseOperators ---------------------------------------------------------
-
-  "parseOperators" should "deserialize a JSON array into OperatorExportInfo objects" in {
-    val json =
-      """[{"id":"op-1","outputType":"csv"},{"id":"op-2","outputType":"arrow"}]"""
-    val parsed = service.parseOperators(json)
-
-    parsed shouldBe List(
-      OperatorExportInfo("op-1", "csv"),
-      OperatorExportInfo("op-2", "arrow")
-    )
-  }
-
-  it should "round-trip an empty JSON array to an empty list" in {
-    service.parseOperators("[]") shouldBe List.empty[OperatorExportInfo]
-  }
-
-  it should "throw when given a malformed JSON string" in {
-    a[JsonProcessingException] should be thrownBy service.parseOperators("not json")
-  }
-
-  // -- validateExportRequest --------------------------------------------------
-
-  "validateExportRequest" should "return a 400 response when no operators are selected" in {
-    val result = service.validateExportRequest(requestWith(List.empty))
-
-    val response = result.getOrElse(fail("expected a validation error response"))
-    response.getStatus shouldBe Response.Status.BAD_REQUEST.getStatusCode
-    response.getEntity match {
-      case m: java.util.Map[_, _] => m.get("error") shouldBe "No operator selected"
-      case other                  => fail(s"unexpected entity: $other")
-    }
-  }
-
-  it should "return None when at least one operator is selected" in {
-    val result =
-      service.validateExportRequest(requestWith(List(OperatorExportInfo("op-1", "csv"))))
-    result shouldBe None
-  }
 
   // -- fakes for the export writers -------------------------------------------
 
@@ -440,60 +394,20 @@ class ResultExportServiceSpec
   private var testUser: User = _
   private var testVersion: WorkflowVersion = _
   private var testComputingUnit: WorkflowComputingUnit = _
-  private var workflowExecutionsDao: WorkflowExecutionsDao = _
 
   override protected def beforeAll(): Unit = {
     initializeDBAndReplaceDSLContext()
 
-    testUser = new User
-    testUser.setUid(testUserId)
-    testUser.setName("export_user")
-    testUser.setEmail("export@example.com")
-    new UserDao(getDSLContext.configuration()).insert(testUser)
-
-    val workflow = new Workflow
-    workflow.setWid(testWorkflowWid)
-    workflow.setName("wf-" + UUID.randomUUID().toString.substring(0, 8))
-    workflow.setContent("{}")
-    workflow.setDescription("")
-    workflow.setCreationTime(new Timestamp(System.currentTimeMillis()))
-    workflow.setLastModifiedTime(new Timestamp(System.currentTimeMillis()))
-    new WorkflowDao(getDSLContext.configuration()).insert(workflow)
-
-    testVersion = new WorkflowVersion
-    testVersion.setWid(testWorkflowWid)
-    testVersion.setContent("{}")
-    testVersion.setCreationTime(new Timestamp(System.currentTimeMillis()))
-    new WorkflowVersionDao(getDSLContext.configuration()).insert(testVersion)
-
-    testComputingUnit = new WorkflowComputingUnit
-    testComputingUnit.setUid(testUserId)
-    testComputingUnit.setName("export-unit")
-    testComputingUnit.setCreationTime(new Timestamp(System.currentTimeMillis()))
-    testComputingUnit.setType(WorkflowComputingUnitTypeEnum.local)
-    testComputingUnit.setUri("local://test")
-    testComputingUnit.setResource("{}")
-    new WorkflowComputingUnitDao(getDSLContext.configuration()).insert(testComputingUnit)
-
-    workflowExecutionsDao = new WorkflowExecutionsDao(getDSLContext.configuration())
+    testUser = insertUser(testUserId, "export_user", "export@example.com")
+    insertWorkflow(testWorkflowWid, "wf-" + UUID.randomUUID().toString.substring(0, 8))
+    testVersion = insertWorkflowVersion(testWorkflowWid)
+    testComputingUnit = insertComputingUnit(testUserId, "export-unit")
   }
 
   // Executions are per-test state: several cases below distinguish "no
   // execution at all" from "an execution with no stored result URI".
-  override protected def afterEach(): Unit = {
-    val eids = getDSLContext
-      .select(WORKFLOW_EXECUTIONS.EID)
-      .from(WORKFLOW_EXECUTIONS)
-      .where(WORKFLOW_EXECUTIONS.VID.eq(testVersion.getVid))
-    getDSLContext
-      .deleteFrom(OPERATOR_PORT_EXECUTIONS)
-      .where(OPERATOR_PORT_EXECUTIONS.WORKFLOW_EXECUTION_ID.in(eids))
-      .execute()
-    getDSLContext
-      .deleteFrom(WORKFLOW_EXECUTIONS)
-      .where(WORKFLOW_EXECUTIONS.VID.eq(testVersion.getVid))
-      .execute()
-  }
+  override protected def afterEach(): Unit =
+    cleanupExecutionsForVersion(testVersion.getVid, includePortExecutions = true)
 
   override protected def afterAll(): Unit = closeConnectionPool()
 
@@ -519,21 +433,15 @@ class ResultExportServiceSpec
       computingUnitId = testComputingUnit.getCuid
     )
 
-  private def insertExecution(): WorkflowExecutions = {
-    val execution = new WorkflowExecutions
-    execution.setVid(testVersion.getVid)
-    execution.setUid(testUser.getUid)
-    execution.setStatus(0.toByte)
-    execution.setResult("")
-    execution.setLogLocation("")
-    execution.setStartingTime(new Timestamp(System.currentTimeMillis()))
-    execution.setBookmarked(false)
-    execution.setName("export-execution")
-    execution.setEnvironmentVersion("test-env-1.0")
-    execution.setCuid(testComputingUnit.getCuid)
-    workflowExecutionsDao.insert(execution)
-    execution
-  }
+  private def insertExecution(): WorkflowExecutions =
+    insertWorkflowExecution(
+      vid = testVersion.getVid,
+      uid = testUser.getUid,
+      cuidOpt = Some(testComputingUnit.getCuid),
+      logLocation = Some(""),
+      name = "export-execution",
+      envVersion = "test-env-1.0"
+    )
 
   private def insertResultUri(eid: Integer, resultUri: String): Unit =
     getDSLContext
@@ -587,11 +495,7 @@ class ResultExportServiceSpec
 
   "exportOperatorResultAsStream" should "yield no stream when the workflow never ran" in {
     val op = OperatorExportInfo("op-1", "csv")
-    val (stream, fileName) =
-      exportService.exportOperatorResultAsStream(dbRequestWith(List(op)), op)
-
-    stream shouldBe null
-    fileName shouldBe None
+    exportService.exportOperatorResultAsStream(dbRequestWith(List(op)), op) shouldBe None
   }
 
   it should "yield no stream when no stored result URI belongs to the operator" in {
@@ -602,11 +506,7 @@ class ResultExportServiceSpec
     insertResultUri(execution.getEid, resultUriOf(execution.getEid, "other-op"))
 
     val op = OperatorExportInfo("op-1", "csv")
-    val (stream, fileName) =
-      exportService.exportOperatorResultAsStream(dbRequestWith(List(op)), op)
-
-    stream shouldBe null
-    fileName shouldBe None
+    exportService.exportOperatorResultAsStream(dbRequestWith(List(op)), op) shouldBe None
   }
 
   it should "round-trip CSV special characters through the streamed export" in {
@@ -615,10 +515,11 @@ class ResultExportServiceSpec
     storeResult(execution.getEid, "rexs-special", Seq(tupleOf(special, 42)))
 
     val op = OperatorExportInfo("rexs-special", "csv")
-    val (stream, fileName) =
-      exportService.exportOperatorResultAsStream(dbRequestWith(List(op)), op)
+    val (stream, fileName) = exportService
+      .exportOperatorResultAsStream(dbRequestWith(List(op)), op)
+      .getOrElse(fail("expected a stream"))
 
-    fileName.getOrElse(fail("expected a file name")) should fullyMatch regex
+    fileName should fullyMatch regex
       s"""wf-oprexs-special-v${testVersion.getVid}-$timestampPattern\\.csv"""
 
     val out = new ByteArrayOutputStream()
@@ -636,12 +537,8 @@ class ResultExportServiceSpec
     insertExecution() // newer, and it registered no result
 
     val op = OperatorExportInfo("rexs-latest", "csv")
-    val (stream, fileName) =
-      exportService.exportOperatorResultAsStream(dbRequestWith(List(op)), op)
-
     // The older execution's rows must not leak into the newest execution's export.
-    stream shouldBe null
-    fileName shouldBe None
+    exportService.exportOperatorResultAsStream(dbRequestWith(List(op)), op) shouldBe None
   }
 
   it should "read the newest execution's rows when several executions stored results" in {
@@ -651,8 +548,9 @@ class ResultExportServiceSpec
     storeResult(newer.getEid, "rexs-latest2", Seq(tupleOf("new", 2)))
 
     val op = OperatorExportInfo("rexs-latest2", "csv")
-    val (stream, _) =
-      exportService.exportOperatorResultAsStream(dbRequestWith(List(op)), op)
+    val (stream, _) = exportService
+      .exportOperatorResultAsStream(dbRequestWith(List(op)), op)
+      .getOrElse(fail("expected a stream"))
 
     val out = new ByteArrayOutputStream()
     stream.write(out)
@@ -672,7 +570,9 @@ class ResultExportServiceSpec
     val op = OperatorExportInfo("rexs-cell", "data")
     val request =
       dbRequestWith(List(op)).copy(rowIndex = rowIndex, columnIndex = columnIndex)
-    val (stream, _) = exportService.exportOperatorResultAsStream(request, op)
+    val (stream, _) = exportService
+      .exportOperatorResultAsStream(request, op)
+      .getOrElse(fail("expected a stream"))
     val out = new ByteArrayOutputStream()
     stream.write(out)
     out
@@ -813,7 +713,7 @@ class ResultExportServiceSpec
     )
 
     // Deliberate asymmetry with exportOperatorResultAsStream, which reports the
-    // same condition as (null, None) and leaves the failure to its caller.
+    // same condition as None and leaves the failure to its caller.
     val ex = intercept[WebApplicationException] {
       exportService.exportOperatorsAsZip(request)
     }
@@ -837,8 +737,7 @@ class ResultExportServiceSpec
     )
 
     val (stream, zipName) = exportService.exportOperatorsAsZip(request)
-    zipName.getOrElse(fail("expected a zip file name")) should fullyMatch regex
-      s"""wf-$timestampPattern\\.zip"""
+    zipName should fullyMatch regex s"""wf-$timestampPattern\\.zip"""
 
     val body = new ByteArrayOutputStream()
     stream.write(body)

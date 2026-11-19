@@ -20,7 +20,7 @@
 package org.apache.texera.common.compiler.model
 
 import com.typesafe.scalalogging.LazyLogging
-import org.apache.texera.amber.core.storage.FileResolver
+import org.apache.texera.amber.core.storage.ScanFileResolver
 import org.apache.texera.amber.core.virtualidentity.OperatorIdentity
 import org.apache.texera.amber.operator.LogicalOp
 import org.apache.texera.amber.operator.loop.{LoopEndOpDesc, LoopStartOpDesc}
@@ -93,9 +93,9 @@ case class LogicalPlan(
     * whose two ends match, each with the LoopStarts of the blocks it is inside: those with a path
     * to it on which no LoopEnd closes their block (a LoopEnd closes the innermost block the path
     * opened). A control operator is not inside its own block, but an inner block's are inside the
-    * outer one. The property panel decides where it offers `$K` with its own walk from each
-    * operator (`getEnclosingLoopStarts`, loop-block.util.ts); `LogicalPlanSpec` checks that the
-    * two agree on the same graph.
+    * outer one. The property panel decides where it offers `$K` with a port of this
+    * (`enclosingLoopStarts`, loop-block.util.ts); `LogicalPlanSpec` and the port's spec run the same
+    * cases (loop-blocks.json), so the two agree.
     */
   lazy val enclosingLoopStarts: Map[OperatorIdentity, Set[OperatorIdentity]] = {
     val order = getTopologicalOpIds.asScala.toList
@@ -135,10 +135,12 @@ case class LogicalPlan(
     * Resolves each scan source operator's user-given file name to a URI and sets it on the
     * operator via `setResolvedFileName`.
     *
+    * @param fileResolver resolves scan source file names to URIs
     * @param errorList if given, errors encountered during resolution are appended to it;
     *                  otherwise the first error is thrown
     */
   def resolveScanSourceOpFileName(
+      fileResolver: ScanFileResolver,
       errorList: Option[ArrayBuffer[(OperatorIdentity, Throwable)]]
   ): Unit = {
     operators.foreach {
@@ -150,7 +152,7 @@ case class LogicalPlan(
               "No file selected. Please select a file from the 'File' dropdown in the right panel."
             )
           )
-          val fileUri = FileResolver.resolve(fileName) // Convert to URI
+          val fileUri = fileResolver.resolve(fileName) // Convert to URI
 
           // Set the URI in the ScanSourceOpDesc
           scanOp.setResolvedFileName(fileUri)

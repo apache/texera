@@ -20,16 +20,17 @@
 package org.apache.texera.amber.operator.huggingFace.codegen
 
 import com.fasterxml.jackson.databind.ObjectMapper
-import com.typesafe.config.ConfigFactory
-import org.apache.texera.amber.pybuilder.PyStringTypes.EncodableString
+import org.apache.texera.amber.operator.huggingFace.codegen.HuggingFaceCodegenFixtures.textContext
+import org.apache.texera.amber.util.PythonTestSupport.{
+  configuredPython,
+  copyScriptResource,
+  withProbe
+}
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 
-import java.nio.charset.StandardCharsets
-import java.nio.file.{Files, Path}
-import java.util.concurrent.TimeUnit
+import java.nio.file.Path
 import scala.jdk.CollectionConverters._
-import scala.util.Try
 
 /**
   * Executes the *generated* response parser instead of matching its source text.
@@ -48,85 +49,24 @@ class HuggingFaceParseBehaviorSpec extends AnyFlatSpec with Matchers {
 
   private val mapper = new ObjectMapper()
 
-  private def makeCtx(task: EncodableString): CodegenContext =
-    CodegenContext(
-      hfApiToken = "token",
-      modelId = "Qwen/Qwen2.5-72B-Instruct",
-      promptColumn = "prompt",
-      resultColumn = "hf_response",
-      task = task,
-      systemPrompt = "You are a helpful assistant.",
-      safeMaxTokens = 256,
-      safeTemp = 0.7
-    )
+  private lazy val pythonExe: Option[String] = configuredPython()
 
-  /** Same resolution order as PythonCodeRawInvalidTextSpec: udf.conf, then PATH. */
-  private lazy val pythonExe: Option[String] = {
-    def fromConfig: Option[String] =
-      Try(ConfigFactory.parseResources("udf.conf").resolve()).toOption
-        .orElse(Try(ConfigFactory.load()).toOption)
-        .flatMap(c => Try(c.getConfig("python").getString("path")).toOption)
-        .map(_.trim)
-        .filter(_.nonEmpty)
-
-    def isRunnable(exe: String): Boolean =
-      Try(new ProcessBuilder(exe, "--version").redirectErrorStream(true).start()).toOption
-        .exists { p =>
-          if (!p.waitFor(5, TimeUnit.SECONDS)) { p.destroyForcibly(); false }
-          else p.exitValue() == 0
-        }
-
-    (fromConfig.toList ++ List("python3", "python", "py")).distinct.find(isRunnable)
-  }
-
-  private lazy val probe: Path = {
-    val script =
-      scala.io.Source.fromInputStream(
-        getClass.getResourceAsStream("/python/hf_parse_probe.py"),
-        "UTF-8"
-      )
-    val body =
-      try script.mkString
-      finally script.close()
-    val file = Files.createTempFile("hf_parse_probe", ".py")
-    Files.write(file, body.getBytes(StandardCharsets.UTF_8))
-    file.toFile.deleteOnExit()
-    file
-  }
+  private lazy val probe: Path =
+    copyScriptResource(getClass.getResourceAsStream("/python/hf_parse_probe.py"), "hf_parse_probe")
 
   /** Runs the generated parser for `task` over `bodies`; returns one outcome each. */
   private def parseAll(codegen: TaskCodegen, task: String, bodies: Seq[String]): Seq[String] = {
     val exe = pythonExe.getOrElse(cancel("no python interpreter available to run the probe"))
     val request = mapper.createObjectNode()
-    request.put("source", HuggingFaceCodegenBase.render(makeCtx(task), codegen))
+    request.put("source", HuggingFaceCodegenBase.render(textContext.copy(task = task), codegen))
     request.put("task", task)
     val arr = request.putArray("bodies")
     bodies.foreach(b => arr.add(mapper.readTree(b)))
 
-    // Redirect to files rather than pipes: reading a pipe blocks until the child
-    // closes it, so a probe that hung would never reach the timeout below, and
-    // waiting first with the output still in a pipe would deadlock instead once
-    // it filled. Files bound neither side, so the timeout is always reached.
-    val outFile = Files.createTempFile("hf_parse_probe_out", ".json")
-    val errFile = Files.createTempFile("hf_parse_probe_err", ".txt")
-    try {
-      val process = new ProcessBuilder(exe, probe.toString)
-        .redirectOutput(outFile.toFile)
-        .redirectError(errFile.toFile)
-        .start()
-      process.getOutputStream.write(mapper.writeValueAsBytes(request))
-      process.getOutputStream.close()
-      if (!process.waitFor(60, TimeUnit.SECONDS)) {
-        process.destroyForcibly()
-        fail("probe timed out")
-      }
-      val out = new String(Files.readAllBytes(outFile), StandardCharsets.UTF_8)
-      val err = new String(Files.readAllBytes(errFile), StandardCharsets.UTF_8)
-      withClue(s"probe stderr: $err\nprobe stdout: $out\n") { process.exitValue() shouldBe 0 }
-      readResults(out)
-    } finally {
-      Files.deleteIfExists(outFile)
-      Files.deleteIfExists(errFile)
+    withProbe(exe, probe, "hf_parse_probe", 60, mapper.writeValueAsBytes(request)) {
+      (exitCode, out, err) =>
+        withClue(s"probe stderr: $err\nprobe stdout: $out\n") { exitCode shouldBe 0 }
+        readResults(out)
     }
   }
 

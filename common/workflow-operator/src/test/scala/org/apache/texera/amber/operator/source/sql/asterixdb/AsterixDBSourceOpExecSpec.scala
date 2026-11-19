@@ -19,7 +19,6 @@
 
 package org.apache.texera.amber.operator.source.sql.asterixdb
 
-import com.sun.net.httpserver.{HttpExchange, HttpServer}
 import org.apache.texera.amber.core.tuple.{Attribute, AttributeType, Tuple}
 import org.apache.texera.amber.operator.filter.{ComparisonType, FilterPredicate}
 import org.apache.texera.amber.util.JSONUtils.objectMapper
@@ -27,8 +26,6 @@ import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.{BeforeAndAfterAll, BeforeAndAfterEach}
 
-import java.net.{InetSocketAddress, URLDecoder}
-import java.nio.charset.StandardCharsets
 import java.sql.Timestamp
 import scala.collection.mutable
 
@@ -76,33 +73,14 @@ class AsterixDBSourceOpExecSpec
   // Decoded `statement` form field of every /query/service request, in order.
   private val recordedStatements = mutable.Buffer[String]()
 
-  private val server: HttpServer = HttpServer.create(new InetSocketAddress(0), 0)
-  server.createContext(
-    "/admin/version",
-    (exchange: HttpExchange) => respond(exchange, """{"git.build.version":"0.9.9"}""")
-  )
-  server.createContext(
-    "/query/service",
-    (exchange: HttpExchange) => {
-      val is = exchange.getRequestBody
-      val body =
-        try new String(is.readAllBytes(), StandardCharsets.UTF_8)
-        finally is.close()
-      val statement = formField(body, "statement")
-      recordedStatements.synchronized { recordedStatements += statement }
-      respond(exchange, responseFor(statement))
-    }
-  )
+  private val server = AsterixDBTestServer.forStatements(recordedStatements)(responseFor)
 
   private val host = "localhost"
   private def port: String = server.getAddress.getPort.toString
 
   private def responseFor(statement: String): String =
     if (statement.contains("Metadata.`Datatype`")) {
-      val fields = datatypeFields
-        .map { case (name, tpe) => s"""{"FieldName":"$name","FieldType":"$tpe"}""" }
-        .mkString(",")
-      s"""{"results":[{"Fields":[$fields]}]}"""
+      AsterixDBTestServer.datatypeResult(datatypeFields)
     } else if (statement.contains("SELECT DatatypeName FROM Metadata.`Dataset`")) {
       """{"results":[{"DatatypeName":"tweetType"}]}"""
     } else if (statement.contains("select `DatasetName` from Metadata.`Dataset`")) {
@@ -119,27 +97,6 @@ class AsterixDBSourceOpExecSpec
       .replace("\\", "\\\\")
       .replace("\"", "\\\"")
       .replace("\n", "\\n") + "\""
-
-  private def respond(exchange: HttpExchange, body: String): Unit = {
-    val bytes = body.getBytes(StandardCharsets.UTF_8)
-    exchange.getResponseHeaders.add("Content-Type", "application/json")
-    exchange.sendResponseHeaders(200, bytes.length.toLong)
-    val os = exchange.getResponseBody
-    try os.write(bytes)
-    finally os.close()
-  }
-
-  private def formField(body: String, name: String): String =
-    body
-      .split("&")
-      .filter(_.contains("="))
-      .map { pair =>
-        val idx = pair.indexOf('=')
-        URLDecoder.decode(pair.substring(0, idx), StandardCharsets.UTF_8) ->
-          URLDecoder.decode(pair.substring(idx + 1), StandardCharsets.UTF_8)
-      }
-      .toMap
-      .getOrElse(name, "")
 
   /** Statements the executor issued that are not metadata bookkeeping. */
   private def dataStatements: Seq[String] =
@@ -775,7 +732,7 @@ class AsterixDBSourceOpExecSpec
     // NOT covered here, on purpose: this drives next() directly, so `cachedTuple`
     // is empty by the time close() runs. The engine's own loop is
     // `while (it.hasNext) it.next()`, i.e. hasNext always peeks first, and
-    // close() clears curResultIterator/curQueryString but not the inherited
+    // close() clears the HTTP result iterator but not the inherited
     // cachedTuple (neither does SQLSourceOpExec.close()) - so a peeked but
     // unconsumed row is still handed out after close(). That is left unpinned on
     // purpose: asserting it would cement what looks like a leak, and asserting

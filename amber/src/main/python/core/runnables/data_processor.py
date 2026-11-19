@@ -64,7 +64,9 @@ class DataProcessor(Runnable, Stoppable):
             if has_marker:
                 self.process_internal_marker(tpm.get_internal_marker())
             elif has_state:
-                self.process_state(spm.get_input_state())
+                self.process_state(
+                    spm.get_input_state(), spm.current_input_loop_counter
+                )
             else:
                 self.process_tuple()
 
@@ -79,16 +81,42 @@ class DataProcessor(Runnable, Stoppable):
                 # Flush the state to MainLoop before producing tuples so the
                 # state and the tuple stream don't share a single switch.
                 self._switch_context()
+                self._declare_input_schema(executor, port_id)
                 self._set_output_tuple(
                     require_yielded(executor.on_finish(port_id), "on_finish")
                 )
 
-    def process_state(self, state: State) -> None:
+    def _declare_input_schema(self, executor, port_id: int) -> None:
+        """
+        Tell the executor what the finishing port was declared to carry, so an
+        operator handed no rows can still say what its columns were.
+
+        The marker names the port by number, but a port is registered under its
+        whole identity, so the channel the marker arrived on is what can name
+        the port object holding the schema.
+        """
+        channel_id = self._context.current_input_channel_id
+        if channel_id is None:
+            return
+        try:
+            port_identity = self._context.input_manager.get_port_id(channel_id)
+        except KeyError:
+            # A channel the input manager does not know is no port of ours.
+            return
+        executor.input_schemas[port_id] = self._context.input_manager.get_port(
+            port_identity
+        ).get_schema()
+
+    def process_state(self, state: State, loop_counter: int = 0) -> None:
         """
         Process an input marker by invoking appropriate state
         or tuple generation based on the marker type.
         """
         with self._executor_session() as (executor, port_id):
+            # Register the state message, with the nesting depth its envelope
+            # carried, before the callback runs, so process_state (and every
+            # call after it) can read its values in self.loop_variables.
+            executor.register_state(state, loop_counter)
             self._set_output_state(executor.process_state(state, port_id))
 
     def process_tuple(self) -> None:

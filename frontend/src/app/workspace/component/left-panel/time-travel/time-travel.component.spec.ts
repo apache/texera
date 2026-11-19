@@ -197,7 +197,7 @@ describe("TimeTravelComponent", () => {
         vi.spyOn(versionService, "retrieveWorkflowByVersion").mockReturnValue(of(versionedWorkflow));
         const displaySpy = vi.spyOn(versionService, "displayReadonlyWorkflow").mockImplementation(() => {});
         const infoSpy = vi.spyOn(notificationService, "info").mockImplementation(() => undefined as any);
-        const replaySpy = vi.spyOn(executeService, "executeWorkflowWithReplay").mockImplementation(() => {});
+        const replaySpy = vi.spyOn(executeService, "executeWorkflowWithReplay").mockReturnValue(true);
         // This test sets revertedToInteraction, so ngOnDestroy (via fixture.destroy in
         // afterEach) would run the real replay-cleanup; keep those calls inert.
         vi.spyOn(versionService, "closeReadonlyWorkflowDisplay").mockImplementation(() => {});

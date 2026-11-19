@@ -19,13 +19,17 @@
 
 package org.apache.texera.amber.operator.visualization.ImageViz
 
-import org.apache.texera.amber.core.tuple.AttributeType
+import org.apache.texera.amber.util.PythonTestSupport.{configuredPython, runSource}
+import org.apache.texera.amber.core.tuple.{AttributeType, Schema}
 import org.apache.texera.amber.operator.metadata.OperatorGroupConstants
 import org.scalatest.BeforeAndAfter
 import org.scalatest.flatspec.AnyFlatSpec
-import org.scalatest.matchers.should.Matchers
+import org.apache.texera.amber.operator.GeneratedCodeAssertionChecks
 
-class ImageVisualizerOpDescSpec extends AnyFlatSpec with BeforeAndAfter with Matchers {
+class ImageVisualizerOpDescSpec
+    extends AnyFlatSpec
+    with BeforeAndAfter
+    with GeneratedCodeAssertionChecks {
   var opDesc: ImageVisualizerOpDesc = _
   before {
     opDesc = new ImageVisualizerOpDesc()
@@ -36,21 +40,13 @@ class ImageVisualizerOpDescSpec extends AnyFlatSpec with BeforeAndAfter with Mat
     // operator reaches the nonEmpty assert and surfaces a domain error with
     // the standard "cannot be empty" message rather than a
     // NullPointerException from dereferencing null.
-    val ex = intercept[AssertionError] {
-      opDesc.createBinaryData()
-    }
-    ex.getMessage should not be null
-    ex.getMessage should include("cannot be empty")
+    val ex = expectError[AssertionError]("cannot be empty")(opDesc.createBinaryData())
   }
 
   it should "reject missing binaryContent with a controlled error via generatePythonCode" in {
     // The assert inside createBinaryData is also reachable through the
     // public codegen entry point; the same message must surface there.
-    val ex = intercept[AssertionError] {
-      opDesc.generatePythonCode()
-    }
-    ex.getMessage should not be null
-    ex.getMessage should include("cannot be empty")
+    val ex = expectError[AssertionError]("cannot be empty")(opDesc.generatePythonCode())
   }
 
   "ImageVisualizerOpDesc.operatorInfo" should "advertise the user-friendly name and Media group" in {
@@ -80,9 +76,7 @@ class ImageVisualizerOpDescSpec extends AnyFlatSpec with BeforeAndAfter with Mat
     // the nonEmpty assert, whose message must end with the standard
     // "cannot be empty" phrase.
     opDesc.binaryContent = ""
-    val ex = intercept[AssertionError](opDesc.createBinaryData())
-    ex.getMessage should not be null
-    ex.getMessage should include("cannot be empty")
+    val ex = expectError[AssertionError]("cannot be empty")(opDesc.createBinaryData())
   }
 
   it should "render the configured binary content column in createBinaryData" in {
@@ -102,5 +96,65 @@ class ImageVisualizerOpDescSpec extends AnyFlatSpec with BeforeAndAfter with Mat
     code should include("class ProcessTupleOperator(UDFOperatorV2)")
     code should include("encode_image_to_html")
     code should include("decode_python_template")
+  }
+
+  "ImageVisualizerOpDesc.generateStandaloneCode" should "avoid literal HTML tags that the UI code viewer can render away" in {
+    opDesc.binaryContent = "image_bytes"
+    val code = opDesc.generateStandaloneCode()
+
+    code should include("LT = chr(60)")
+    code should include("GT = chr(62)")
+    code should include("encoded_image_str")
+    code should not include "<img"
+    code should not include "<h1"
+    code should not include "<p"
+    code should not include "<div"
+  }
+
+  // The executor hands b64encode whatever the column holds, and b64encode refuses
+  // a str, so a column of text ends in the reason page. The exported script reads
+  // the same column out of JSONL, where a BINARY column arrives as the base64 text
+  // of its bytes, so text is the image there and only there.
+  private val inPort = new ImageVisualizerOpDesc().operatorInfo.inputPorts.head.id
+
+  private def standaloneFor(columnType: AttributeType): String = {
+    opDesc.binaryContent = "image_bytes"
+    opDesc.generateStandaloneCode(Map(inPort -> Schema().add("image_bytes", columnType)))
+  }
+
+  it should "read the column's text as the image only where it was declared binary" in {
+    standaloneFor(AttributeType.BINARY) should include("if isinstance(binary_image_data, str):")
+  }
+
+  it should "let a text column fail in b64encode, the way the executor does" in {
+    val code = standaloneFor(AttributeType.STRING)
+    code should include("if False:")
+    code should not include "isinstance(binary_image_data, str)"
+    // The call the executor makes on the same value, left to refuse it here too.
+    code should include("base64.b64encode(binary_image_data)")
+  }
+
+  // Both paths run the same two lines on a string, so the answer is one both can
+  // be held to: b64encode raises, and the reason page is what the viewer sees.
+  it should "answer a string column with the reason page in both paths" in {
+    val python = configuredPython().getOrElse(cancel("No runnable python executable"))
+
+    val body = standaloneFor(AttributeType.STRING).linesIterator
+      .takeWhile(!_.startsWith("all_images_html"))
+      .mkString("\n")
+    val driver =
+      s"""$body
+         |print(encode_image_to_html("not an image"))
+         |""".stripMargin
+
+    val (exitCode, out) = runSource(python, "image-visualizer-string-", driver)
+    withClue(s"python said:\n$out\nscript:\n$driver") {
+      exitCode shouldBe 0
+      out should include("Image is not available.")
+      out should include("Reason: Binary input is not valid")
+      out should not include "img src"
+    }
+    // The executor's own reason page, which the run showed for the same value.
+    opDesc.generatePythonCode() should include("Image is not available.")
   }
 }

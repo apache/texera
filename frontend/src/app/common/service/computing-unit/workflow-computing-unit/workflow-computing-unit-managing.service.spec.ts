@@ -29,6 +29,7 @@ import {
   COMPUTING_UNIT_LIST_URL,
   COMPUTING_UNIT_TYPES_URL,
 } from "./workflow-computing-unit-managing.service";
+import { ClusterCapacity } from "../../../type/workflow-computing-unit";
 
 describe("WorkflowComputingUnitManagingService", () => {
   let service: WorkflowComputingUnitManagingService;
@@ -181,6 +182,34 @@ describe("WorkflowComputingUnitManagingService", () => {
       .flush("forbidden", { status: 403, statusText: "Forbidden" });
 
     expect(status).toBe(403);
+  });
+
+  // Spelled out, so a typo in the constant cannot pass by matching itself.
+  it("getClusterCapacity() GETs the admin cluster capacity endpoint and returns the body as is", () => {
+    const capacity: ClusterCapacity = {
+      cpu: { total: 16000, allocated: 12500, available: 3500 },
+      memory: { total: 68719476736, allocated: 17179869184, available: 51539607552 },
+      gpu: { total: 0, allocated: 0, available: 0 },
+    };
+    let result: ClusterCapacity | undefined;
+    service.getClusterCapacity().subscribe(r => (result = r));
+
+    const req = httpMock.expectOne(`${api}/computing-unit/admin/cluster-capacity`);
+    expect(req.request.method).toEqual("GET");
+    req.flush(capacity);
+
+    expect(result).toEqual(capacity);
+  });
+
+  it("getClusterCapacity() surfaces the 404 a deployment without Kubernetes answers", () => {
+    let status: number | undefined;
+    service.getClusterCapacity().subscribe({ error: (e: unknown) => (status = (e as HttpErrorResponse).status) });
+
+    httpMock
+      .expectOne(`${api}/computing-unit/admin/cluster-capacity`)
+      .flush({ message: "not on Kubernetes" }, { status: 404, statusText: "Not Found" });
+
+    expect(status).toBe(404);
   });
 
   it("renameComputingUnit() PUTs to a URI-encoded rename endpoint", () => {

@@ -107,6 +107,63 @@ export const mockHuggingFacePredicate = testOperator("8", {
   isDisabled: false,
 });
 
+/** An operator backed by a Scala executor, where a loop-variable reference binds; see mockScalaExecutorSchema. */
+export const mockScalaExecutorPredicate: OperatorPredicate = {
+  operatorID: "12",
+  operatorType: "ScalaExecutorOp",
+  operatorVersion: "scala1",
+  operatorProperties: { limit: 5 },
+  inputPorts: [{ portID: "input-0" }],
+  outputPorts: [{ portID: "output-0" }],
+  showAdvanced: false,
+  isDisabled: false,
+};
+
+/** The start of a control block that declares the loop variable K. */
+export const mockLoopStartPredicate: OperatorPredicate = {
+  operatorID: "10",
+  operatorType: "LoopStart",
+  operatorVersion: "loop1",
+  operatorProperties: { initialization: "K = 2", output: "table.iloc[K]" },
+  inputPorts: [{ portID: "input-0" }],
+  outputPorts: [{ portID: "output-0" }],
+  showAdvanced: false,
+  isDisabled: false,
+};
+
+export const mockLoopEndPredicate: OperatorPredicate = {
+  operatorID: "11",
+  operatorType: "LoopEnd",
+  operatorVersion: "loop1",
+  operatorProperties: { update: "K += 1", condition: "K < 10" },
+  inputPorts: [{ portID: "input-0" }],
+  outputPorts: [{ portID: "output-0" }],
+  showAdvanced: false,
+  isDisabled: false,
+};
+
+export const mockLoopStartScalaExecutorLink: OperatorLink = {
+  linkID: "link-loop-1",
+  source: {
+    operatorID: mockLoopStartPredicate.operatorID,
+    portID: mockLoopStartPredicate.outputPorts[0].portID,
+  },
+  target: {
+    operatorID: mockScalaExecutorPredicate.operatorID,
+    portID: mockScalaExecutorPredicate.inputPorts[0].portID,
+  },
+};
+export const mockScalaExecutorLoopEndLink: OperatorLink = {
+  linkID: "link-loop-2",
+  source: {
+    operatorID: mockScalaExecutorPredicate.operatorID,
+    portID: mockScalaExecutorPredicate.outputPorts[0].portID,
+  },
+  target: {
+    operatorID: mockLoopEndPredicate.operatorID,
+    portID: mockLoopEndPredicate.inputPorts[0].portID,
+  },
+};
 // Leave missing ports undefined so the invalid-link fixtures exercise graph validation.
 function firstPortLink(linkID: string, source: OperatorPredicate, target: OperatorPredicate): OperatorLink {
   return {

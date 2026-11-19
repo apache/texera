@@ -282,7 +282,7 @@ class ExecutionStatsService(
   addSubscription(
     client.registerCallback[ExecutionStateUpdate] {
       case ExecutionStateUpdate(state: WorkflowAggregatedState.Recognized)
-          if Set(COMPLETED, FAILED, KILLED).contains(state) =>
+          if state == COMPLETED || state == FAILED || state == KILLED =>
         logger.info("Workflow execution terminated. Commit runtime statistics.")
         try {
           metricsPersistThread.submit((() => runtimeStatsWriter.close()): Runnable).get()
@@ -294,23 +294,41 @@ class ExecutionStatsService(
     }
   )
 
+  private def aggregatePortMetrics(
+      portMetrics: Seq[PortTupleMetricsMapping]
+  ): (Long, Long) = {
+    var totalCount = 0L
+    var totalSize = 0L
+    portMetrics.foreach { pm =>
+      val count = pm.tupleMetrics.count
+      totalCount += count
+      totalSize += pm.tupleMetrics.size
+    }
+    (totalCount, totalSize)
+  }
+
   private def storeRuntimeStatistics(
       operatorStatistics: scala.collection.immutable.Map[String, OperatorMetrics]
   ): Unit = {
+    if (operatorStatistics.isEmpty) {
+      return
+    }
     try {
       lastSampleTime = math.max(System.currentTimeMillis(), lastSampleTime + 1)
       val timestamp = new java.sql.Timestamp(lastSampleTime)
       operatorStatistics.foreach {
         case (operatorId, stat) =>
+          val (inCount, inSize) = aggregatePortMetrics(stat.operatorStatistics.inputMetrics)
+          val (outCount, outSize) = aggregatePortMetrics(stat.operatorStatistics.outputMetrics)
           val runtimeStats = new Tuple(
             schema,
             Array[Any](
               operatorId,
               timestamp,
-              stat.operatorStatistics.inputMetrics.map(_.tupleMetrics.count).sum,
-              stat.operatorStatistics.inputMetrics.map(_.tupleMetrics.size).sum,
-              stat.operatorStatistics.outputMetrics.map(_.tupleMetrics.count).sum,
-              stat.operatorStatistics.outputMetrics.map(_.tupleMetrics.size).sum,
+              inCount,
+              inSize,
+              outCount,
+              outSize,
               stat.operatorStatistics.dataProcessingTime,
               stat.operatorStatistics.controlProcessingTime,
               stat.operatorStatistics.idleTime,

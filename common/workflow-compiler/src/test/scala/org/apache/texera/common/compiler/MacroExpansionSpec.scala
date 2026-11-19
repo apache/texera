@@ -18,6 +18,7 @@
  */
 package org.apache.texera.common.compiler
 
+import org.apache.texera.amber.operator.TestOperators
 import org.apache.texera.amber.util.JSONUtils.objectMapper
 import com.fasterxml.jackson.databind.JsonNode
 import org.apache.texera.common.compiler.MacroTestUtils._
@@ -210,7 +211,10 @@ class MacroExpansionSpec extends AnyFlatSpec with Matchers {
     val content = pinnedSource
     val original = content.deepCopy[JsonNode]()
     val pojo = macroPlan(content)
-    val result = new WorkflowCompiler(new WorkflowContext(WorkflowIdentity(0)))
+    val result = new WorkflowCompiler(
+      new WorkflowContext(WorkflowIdentity(0)),
+      TestOperators.fixtureFileResolver
+    )
       .compile(pojo, CompilationErrorHandling.Strict)
     result.physicalPlan should not be empty
     result.logicalPlan.operators.size shouldBe 1
@@ -239,7 +243,10 @@ class MacroExpansionSpec extends AnyFlatSpec with Matchers {
         pinnedSource.at("/macroDependencies/0/content/operators/0")
       )
     val pojo = macroPlan(invalid)
-    val compiler = new WorkflowCompiler(new WorkflowContext(WorkflowIdentity(0)))
+    val compiler = new WorkflowCompiler(
+      new WorkflowContext(WorkflowIdentity(0)),
+      TestOperators.fixtureFileResolver
+    )
     val result = compiler.compile(pojo)
     result.physicalPlan shouldBe None
     result.operatorIdToError.keys.map(_.id).toList shouldBe List("macro")
@@ -267,6 +274,10 @@ class MacroExpansionSpec extends AnyFlatSpec with Matchers {
     val pojo = macroPlan(content, List("macro"))
     val ids = pojo.macroExpansion.get.paths.map { case (id, path) => path.last -> id }
     pojo.normalized.opsToViewResult shouldBe List(ids("second"), ids("leaf"))
+    val ports = objectMapper.valueToTree[JsonNode](pojo.macroExpansion.get).at("/resultPorts/macro")
+    ports.get(0).path("operatorID").asText() shouldBe ids("second")
+    ports.get(1).path("operatorID").asText() shouldBe ids("leaf")
+    ports.get(1).path("portIndex").asInt(-1) shouldBe 0
   }
 
   it should "reject numeric pins and malformed bundles instead of accepting coerced values" in {
@@ -397,7 +408,10 @@ class MacroExpansionSpec extends AnyFlatSpec with Matchers {
     val pojo = macroPlan(content, List("macro"))
     pojo.normalized.operators.size shouldBe 2
     pojo.normalized.opsToViewResult shouldBe List("source")
-    new WorkflowCompiler(new WorkflowContext(WorkflowIdentity(0)))
+    new WorkflowCompiler(
+      new WorkflowContext(WorkflowIdentity(0)),
+      TestOperators.fixtureFileResolver
+    )
       .compile(pojo, CompilationErrorHandling.Strict)
       .physicalPlan should not be empty
     content.toString shouldBe before

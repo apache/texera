@@ -57,6 +57,7 @@ import { ExecuteWorkflowService } from "../service/execute-workflow/execute-work
 import { HeatmapStatsRestoreService } from "../service/heatmap/heatmap-stats-restore.service";
 import { WorkflowResultService } from "../service/workflow-result/workflow-result.service";
 import { checkIfWorkflowBroken } from "../../common/util/workflow-check";
+import { WorkflowVersionService } from "../../dashboard/service/user/workflow-version/workflow-version.service";
 import { NzSpinComponent } from "ng-zorro-antd/spin";
 import { ResultPanelComponent } from "./result-panel/result-panel.component";
 import { WorkflowEditorComponent } from "./workflow-editor/workflow-editor.component";
@@ -67,7 +68,6 @@ import { AgentPanelComponent } from "./agent/agent-panel/agent-panel.component";
 import { PropertyEditorComponent } from "./property-editor/property-editor.component";
 import { MacroNavigationService } from "../service/macro/macro-navigation.service";
 import { MacroService } from "../service/macro/macro.service";
-import { WorkflowVersionService } from "../../dashboard/service/user/workflow-version/workflow-version.service";
 import { JupyterNotebookPanelComponent } from "./jupyter-notebook-panel/jupyter-notebook-panel.component";
 
 export const SAVE_DEBOUNCE_TIME_IN_MS = 5000;
@@ -149,7 +149,7 @@ export class WorkspaceComponent implements AfterViewInit, OnInit, OnDestroy {
     private heatmapStatsRestoreService: HeatmapStatsRestoreService,
     public macroNavigation: MacroNavigationService,
     private macros: MacroService,
-    private workflowVersions: WorkflowVersionService
+    private workflowVersionService: WorkflowVersionService
   ) {}
 
   ngOnInit() {
@@ -157,7 +157,7 @@ export class WorkspaceComponent implements AfterViewInit, OnInit, OnDestroy {
     this.macros.inspect$.pipe(untilDestroyed(this)).subscribe(id => {
       this.macroNavigation.open(id).catch(error => this.notificationService.error(error.message));
     });
-    this.workflowResultService.setMacroAliases?.(() => this.macroNavigation.resultAliases());
+    this.workflowResultService.setMacroAliases?.(port => this.macroNavigation.resultAliases(port));
     this.workflowActionService.setHighlightingEnabled(true);
     // Clear session state when the user switches computing units in-canvas, so
     // the previous unit's status/console/results don't linger.
@@ -233,6 +233,7 @@ export class WorkspaceComponent implements AfterViewInit, OnInit, OnDestroy {
     // rather than rebuilt, which is what used to make the switch take seconds.
     if (isLeavingWorkspace(this.router, this.workflowActionService.getOpenWorkflowId())) {
       this.workflowActionService.clearWorkflow();
+      this.workflowVersionService.discardOpenVersionDisplay();
       this.computingUnitStatusService.disconnect();
       this.resetWorkflowSessionState();
       // The overlay's view lives in the root-provided wrapper; the metrics behind it are cleared
@@ -324,7 +325,7 @@ export class WorkspaceComponent implements AfterViewInit, OnInit, OnDestroy {
     this.restoringMacroPath = true;
     try {
       if (this.macroNavigation.parents.length) await this.macroNavigation.back(0);
-      if (this.workflowActionService.getTempWorkflow()) this.workflowVersions.closeParticularVersionDisplay();
+      if (this.workflowActionService.getTempWorkflow()) this.workflowVersionService.closeParticularVersionDisplay();
       return true;
     } catch (error) {
       this.notificationService.error(error instanceof Error ? error.message : String(error));

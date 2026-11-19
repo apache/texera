@@ -32,18 +32,18 @@ describe("NotebookMigrationService", () => {
   let service: NotebookMigrationService;
   let httpMock: HttpTestingController;
   let mockNotificationService: { success: ReturnType<typeof vi.fn>; error: ReturnType<typeof vi.fn> };
-  // Mutable so individual describe blocks can flip the flag mid-spec by
-  // reassigning `mockGuiConfigService.env.pythonNotebookMigrationEnabled`.
-  // The service stores a reference to this object, so mutations are observed
-  // on the next read of `this.enabled`.
-  let mockGuiConfigService: { env: { pythonNotebookMigrationEnabled: boolean } };
+  // Mutable so individual describe blocks can flip the flags mid-spec by
+  // reassigning `mockGuiConfigService.env.pythonNotebookMigrationEnabled` or
+  // `rNotebookMigrationEnabled`. The service stores a reference to this object,
+  // so mutations are observed on the next read.
+  let mockGuiConfigService: { env: { pythonNotebookMigrationEnabled: boolean; rNotebookMigrationEnabled: boolean } };
 
   beforeEach(() => {
     mockNotificationService = {
       success: vi.fn(),
       error: vi.fn(),
     };
-    mockGuiConfigService = { env: { pythonNotebookMigrationEnabled: true } };
+    mockGuiConfigService = { env: { pythonNotebookMigrationEnabled: true, rNotebookMigrationEnabled: true } };
 
     TestBed.configureTestingModule({
       imports: [HttpClientTestingModule],
@@ -352,8 +352,19 @@ describe("NotebookMigrationService", () => {
       const result = await service.sendToAIGenerateWorkflow({ cells: [] } as any, "gpt-4");
 
       expect(result).toEqual({ workflowContent: { ops: 1 }, mappingContent: { m: 2 } });
+      expect(fakeLLM.convertNotebookToWorkflow).toHaveBeenCalledWith({ cells: [] }, "python");
       expect(fakeLLM.initialize).toHaveBeenCalledWith("gpt-4");
       expect(fakeLLM.close).toHaveBeenCalled();
+    });
+
+    it("passes the source language to the conversion", async () => {
+      fakeLLM.convertNotebookToWorkflow.mockResolvedValue(
+        JSON.stringify({ workflowJSON: { ops: 1 }, workflowNotebookMapping: { m: 2 } })
+      );
+
+      await service.sendToAIGenerateWorkflow({ cells: [] } as any, "gpt-4", "r");
+
+      expect(fakeLLM.convertNotebookToWorkflow).toHaveBeenCalledWith({ cells: [] }, "r");
     });
 
     it("rejects when the connection cannot be verified, and still closes the client", async () => {
@@ -408,9 +419,17 @@ describe("NotebookMigrationService", () => {
         mappingContent: { m: 2 },
         notebook: conversion.notebook,
       });
-      expect(fakeLLM.convertScriptToWorkflow).toHaveBeenCalledWith("x = 1");
+      expect(fakeLLM.convertScriptToWorkflow).toHaveBeenCalledWith("x = 1", "python");
       expect(fakeLLM.initialize).toHaveBeenCalledWith("gpt-4");
       expect(fakeLLM.close).toHaveBeenCalled();
+    });
+
+    it("passes the source language to the conversion", async () => {
+      fakeLLM.convertScriptToWorkflow.mockResolvedValue(conversion);
+
+      await service.sendScriptToAIGenerateWorkflow("x <- 1", "gpt-4", "r");
+
+      expect(fakeLLM.convertScriptToWorkflow).toHaveBeenCalledWith("x <- 1", "r");
     });
 
     it("rejects when the connection cannot be verified, and still closes the client", async () => {
@@ -426,6 +445,38 @@ describe("NotebookMigrationService", () => {
 
       await expect(service.sendScriptToAIGenerateWorkflow("x = 1", "gpt-4")).rejects.toThrow(/conversion boom/);
       expect(fakeLLM.close).toHaveBeenCalled();
+    });
+  });
+
+  describe("when the R flag is disabled", () => {
+    let createMigrationLLM: ReturnType<typeof vi.spyOn>;
+
+    beforeEach(() => {
+      mockGuiConfigService.env.rNotebookMigrationEnabled = false;
+      createMigrationLLM = vi.spyOn(service as any, "createMigrationLLM");
+    });
+
+    it("rejects an R notebook before creating or pinging a client", async () => {
+      await expect(service.sendToAIGenerateWorkflow({ cells: [] } as any, "gpt-4", "r")).rejects.toThrow(
+        "R notebook migration is disabled"
+      );
+      expect(createMigrationLLM).not.toHaveBeenCalled();
+    });
+
+    it("rejects an R script before creating or pinging a client", async () => {
+      await expect(service.sendScriptToAIGenerateWorkflow("x <- 1", "gpt-4", "r")).rejects.toThrow(
+        "R notebook migration is disabled"
+      );
+      expect(createMigrationLLM).not.toHaveBeenCalled();
+    });
+
+    it("rejects an R folder before creating or pinging a client", async () => {
+      const folder = { source: "x <- 1", forcedBoundaries: [1], files: [], tree: "proj/" };
+
+      await expect(service.sendFolderToAIGenerateWorkflow(folder, "gpt-4", "r")).rejects.toThrow(
+        "R notebook migration is disabled"
+      );
+      expect(createMigrationLLM).not.toHaveBeenCalled();
     });
   });
 
@@ -615,8 +666,16 @@ describe("NotebookMigrationService", () => {
         mappingContent: { m: 2 },
         notebook: conversion.notebook,
       });
-      expect(fakeLLM.convertFolderToWorkflow).toHaveBeenCalledWith(folder);
+      expect(fakeLLM.convertFolderToWorkflow).toHaveBeenCalledWith(folder, "python");
       expect(fakeLLM.close).toHaveBeenCalled();
+    });
+
+    it("passes the source language to the conversion", async () => {
+      fakeLLM.convertFolderToWorkflow.mockResolvedValue(conversion);
+
+      await service.sendFolderToAIGenerateWorkflow(folder, "gpt-4", "r");
+
+      expect(fakeLLM.convertFolderToWorkflow).toHaveBeenCalledWith(folder, "r");
     });
 
     it("rejects when the connection cannot be verified, and still closes the client", async () => {
@@ -752,6 +811,34 @@ describe("NotebookMigrationService", () => {
       });
 
       await expect(service.parseFolder([pickedFile("proj/main.py", "main()")])).rejects.toThrow(/Failed to read/);
+    });
+
+    it("keeps R source for R and names the Python files in the layout instead", async () => {
+      const folder = await service.parseFolder(
+        [
+          pickedFile("proj/main.R", "main()"),
+          pickedFile("proj/R/helpers.r", "helper <- function() 1"),
+          pickedFile("proj/legacy.py", "print(1)"),
+          pickedFile("proj/renv/activate.R", "renv"),
+        ],
+        "r"
+      );
+
+      expect(folder.files.map(file => file.path)).toEqual(["main.R", "R/helpers.r"]);
+      expect(folder.tree).toBe(["proj/", "  legacy.py", "  main.R", "  R/", "    helpers.r"].join("\n"));
+      expect(folder.source).not.toContain("print(1)");
+    });
+
+    it("names R when an R selection has no R source", async () => {
+      await expect(service.parseFolder([pickedFile("proj/main.py", "main()")], "r")).rejects.toThrow(
+        "No R files were found in the selected folder."
+      );
+    });
+
+    it("names R when every R file is blank", async () => {
+      await expect(service.parseFolder([pickedFile("proj/empty.R", "  \n")], "r")).rejects.toThrow(
+        "The R files in the selected folder are all empty."
+      );
     });
   });
 });

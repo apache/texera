@@ -30,10 +30,6 @@ import org.apache.texera.amber.core.virtualidentity.{
 }
 import org.apache.texera.amber.core.workflow.{GlobalPortIdentity, PortIdentity}
 import org.apache.texera.amber.tags.IntegrationTest
-import org.apache.texera.amber.util.IcebergUtil
-import org.apache.iceberg.catalog.Catalog
-import org.apache.iceberg.data.Record
-import org.apache.iceberg.{Schema => IcebergSchema}
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.{BeforeAndAfterAll, Suite}
 
@@ -47,11 +43,6 @@ import java.util.UUID
 class IcebergTableStatsSpec extends AnyFlatSpec with BeforeAndAfterAll with Suite {
 
   var amberSchema: Schema = _
-  var icebergSchema: IcebergSchema = _
-  var serde: (IcebergSchema, Tuple) => Record = _
-  var deserde: (IcebergSchema, Record) => Tuple = _
-  var catalog: Catalog = _
-  val tableNamespace = "test_namespace"
   var uri: URI = VFSURIFactory.resultURI(
     VFSURIFactory.createPortBaseURI(
       WorkflowIdentity(0),
@@ -83,12 +74,6 @@ class IcebergTableStatsSpec extends AnyFlatSpec with BeforeAndAfterAll with Suit
       )
     )
 
-    // Initialize Iceberg Schema
-    icebergSchema = IcebergUtil.toIcebergSchema(amberSchema)
-
-    // Initialize serialization and deserialization functions
-    serde = IcebergUtil.toGenericRecord
-    deserde = (schema, record) => IcebergUtil.fromRecord(record, amberSchema)
   }
 
   behavior of "TableStatistics"

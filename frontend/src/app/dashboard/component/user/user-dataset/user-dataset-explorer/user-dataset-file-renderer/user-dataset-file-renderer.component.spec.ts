@@ -65,18 +65,21 @@ describe("UserDatasetFileRendererComponent", () => {
   });
 
   describe("reloadFileContent", () => {
-    it("flags an unsupported file type and does not hit the backend", () => {
-      const spy = vi.spyOn(TestBed.inject(DatasetService), "retrieveDatasetVersionSingleFile");
-      // The ids are set so the early-return is what stops the request, not the missing ids.
-      component.resourceId = 1;
-      component.versionId = 2;
-      component.filePath = "archive.bin"; // -> OCTET_STREAM -> unsupported
+    it.each(["archive.bin", "page.html", "report.pdf", "letter.msword", "slides.mspowerpoint"])(
+      "flags %s as unsupported and does not hit the backend",
+      filePath => {
+        const spy = vi.spyOn(TestBed.inject(DatasetService), "retrieveDatasetVersionSingleFile");
+        // The ids are set so the early-return is what stops the request, not the missing ids.
+        component.resourceId = 1;
+        component.versionId = 2;
+        component.filePath = filePath;
 
-      component.reloadFileContent();
+        component.reloadFileContent();
 
-      expect(component.isFileTypePreviewUnsupported).toBe(true);
-      expect(spy).not.toHaveBeenCalled();
-    });
+        expect(component.isFileTypePreviewUnsupported).toBe(true);
+        expect(spy).not.toHaveBeenCalled();
+      }
+    );
 
     it("flags an oversized file and does not hit the backend", () => {
       const spy = vi.spyOn(TestBed.inject(DatasetService), "retrieveDatasetVersionSingleFile");
@@ -459,7 +462,8 @@ describe("UserDatasetFileRendererComponent", () => {
       const blob = new Blob(["h1,h2\na,b\n"], { type: "text/csv" });
       loadWith("data.csv", blob);
       expect(component.displayCSV).toBe(true);
-      await vi.waitFor(() => expect(component.tableDataHeader.length).toBeGreaterThan(0));
+      // FileReader can exceed vi.waitFor's one-second default on busy CI runners.
+      await vi.waitFor(() => expect(component.tableDataHeader.length).toBeGreaterThan(0), { timeout: 10000 });
       expect(component.tableDataHeader).toEqual(["h1", "h2"]);
       expect(component.tableContent[0]).toEqual(["a", "b"]);
     });

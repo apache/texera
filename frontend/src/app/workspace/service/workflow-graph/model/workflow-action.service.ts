@@ -145,8 +145,6 @@ export class WorkflowActionService {
 
   private workflowMetadata: WorkflowMetadata;
   private workflowMetadataChangeSubject: Subject<WorkflowMetadata> = new Subject<WorkflowMetadata>();
-  private resultPanelOpenSubject = new Subject<boolean>();
-  public readonly resultPanelOpen$: Observable<boolean> = this.resultPanelOpenSubject.asObservable();
 
   private workflowResetSubject = new Subject<void>();
   public readonly macroChanged$ = new Subject<void>();
@@ -761,14 +759,6 @@ export class WorkflowActionService {
     this.getTexeraGraph().changeOperatorVersion(operatorId, newVersion);
   }
 
-  public openResultPanel(): void {
-    this.resultPanelOpenSubject.next(true);
-  }
-
-  public closeResultPanel(): void {
-    this.resultPanelOpenSubject.next(false);
-  }
-
   //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
   //                             Below are workflow-level and metadata-related methods.                               //
   //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -1262,10 +1252,6 @@ export class WorkflowActionService {
     } catch {
       return undefined; // Compilation reports malformed edits; runtime streams stay alive.
     }
-  }
-
-  public getMacroResultAliases() {
-    return this.getMacroExpansion()?.resultTargets ?? {};
   }
 
   public setMacroDependencies(definitions: MacroDefinition[], shared = this.texeraGraph.sharedModel): void {

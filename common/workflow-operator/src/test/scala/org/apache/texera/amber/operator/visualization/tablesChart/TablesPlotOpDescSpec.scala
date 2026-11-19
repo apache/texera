@@ -19,26 +19,26 @@
 
 package org.apache.texera.amber.operator.visualization.tablesChart
 
+import org.apache.texera.amber.util.PythonTestSupport.{
+  NeedsPythonPackages,
+  canImport,
+  configuredPython,
+  withDriver
+}
 import org.scalatest.BeforeAndAfter
 import org.scalatest.flatspec.AnyFlatSpec
-import org.scalatest.matchers.should.Matchers
+import org.apache.texera.amber.operator.GeneratedCodeAssertionChecks
 
-import java.nio.charset.StandardCharsets
-import java.util.Base64
-
-class TablesPlotOpDescSpec extends AnyFlatSpec with BeforeAndAfter with Matchers {
+class TablesPlotOpDescSpec
+    extends AnyFlatSpec
+    with BeforeAndAfter
+    with GeneratedCodeAssertionChecks {
 
   var opDesc: TablesPlotOpDesc = _
 
   before {
     opDesc = new TablesPlotOpDesc()
   }
-
-  private def b64(s: String): String =
-    Base64.getEncoder.encodeToString(s.getBytes(StandardCharsets.UTF_8))
-
-  private def carries(output: String, name: String): Boolean =
-    output.contains(name) || output.contains(b64(name))
 
   private def column(name: String): TablesConfig = {
     val config = new TablesConfig()
@@ -47,15 +47,11 @@ class TablesPlotOpDescSpec extends AnyFlatSpec with BeforeAndAfter with Matchers
   }
 
   it should "throw AssertionError with a 'cannot be empty' message when included columns list is empty (manipulateTable)" in {
-    val ex = intercept[AssertionError](opDesc.manipulateTable())
-    ex.getMessage should not be null
-    ex.getMessage should include("cannot be empty")
+    val ex = expectError[AssertionError]("cannot be empty")(opDesc.manipulateTable())
   }
 
   it should "throw AssertionError with a 'cannot be empty' message when included columns list is empty (createPlotlyFigure)" in {
-    val ex = intercept[AssertionError](opDesc.createPlotlyFigure())
-    ex.getMessage should not be null
-    ex.getMessage should include("cannot be empty")
+    val ex = expectError[AssertionError]("cannot be empty")(opDesc.createPlotlyFigure())
   }
 
   it should "render the configured columns when the included columns list is set" in {
@@ -89,14 +85,69 @@ class TablesPlotOpDescSpec extends AnyFlatSpec with BeforeAndAfter with Matchers
     code should not include "')','"
   }
 
-  it should "define the render_error the empty-table branches call" in {
-    // Both empty-table branches call self.render_error; without the definition they
-    // raised AttributeError instead of rendering the message.
-    opDesc.includedColumns = List(column("col_one"), column("col_two"))
-    val code = opDesc.generatePythonCode()
-    code should include("def render_error(self, error_msg) -> str:")
-    code should include(
-      """return f"<h1>Tables Plot is not available.</h1><p>Reason is: {error_msg}</p>""""
+  // Stubs only the pytexera import seam, then hands the operator a table that arrives
+  // empty, one whose every row has a hole in a chosen column, and one that draws.
+  // Both empty branches call self.render_error, which once was not defined.
+  private val runtimeDriverScript: String =
+    """import base64
+      |import sys
+      |import types
+      |from typing import Iterator, Optional
+      |
+      |import pandas as pd
+      |
+      |class UDFTableOperator:
+      |    def decode_python_template(self, data):
+      |        return base64.b64decode(data).decode("utf-8")
+      |
+      |stub = types.ModuleType("pytexera")
+      |stub.UDFTableOperator = UDFTableOperator
+      |stub.overrides = lambda fn: fn
+      |stub.Table = pd.DataFrame
+      |stub.TableLike = object
+      |stub.Iterator = Iterator
+      |stub.Optional = Optional
+      |sys.modules["pytexera"] = stub
+      |
+      |ns = {"__name__": "generated_table_chart"}
+      |with open(sys.argv[1], encoding="utf-8") as f:
+      |    exec(compile(f.read(), sys.argv[1], "exec"), ns)
+      |op = ns["TableChartOperator"]()
+      |
+      |cases = [
+      |    ("empty", pd.DataFrame({"col_one": [], "col_two": []})),
+      |    ("every_row_holed", pd.DataFrame({"col_one": [1.0, None], "col_two": [None, "b"]})),
+      |    ("filled", pd.DataFrame({"col_one": [1, 2], "col_two": ["a", "b"]})),
+      |]
+      |for cid, df in cases:
+      |    page = list(op.process_table(df, 0))[0]["html-content"]
+      |    print("CASE %s %s" % (cid, page if "not available" in page else "CHART"))
+      |""".stripMargin
+
+  it should "render its message when the table is empty or every row has a hole" taggedAs NeedsPythonPackages in {
+    val python = configuredPython().getOrElse(
+      cancel("No runnable python executable (udf.conf python.path, python3, python, py)")
     )
+    if (!canImport(python, "pandas", "plotly")) cancel(s"'$python' cannot import pandas and plotly")
+
+    opDesc.includedColumns = List(column("col_one"), column("col_two"))
+    withDriver(
+      python,
+      "tables_plot_op_",
+      "tables_plot_driver_",
+      opDesc.generatePythonCode(),
+      runtimeDriverScript,
+      "Runtime driver timed out after 120s"
+    ) { (exitCode, output) =>
+      val page = "<h1>Tables Plot is not available.</h1><p>Reason is: "
+      withClue(s"Driver output:\n$output\n") {
+        exitCode shouldBe 0
+        output should include(s"CASE empty ${page}input table is empty.</p>")
+        output should include(
+          s"CASE every_row_holed ${page}value column contains only non-positive numbers or nulls.</p>"
+        )
+        output should include("CASE filled CHART")
+      }
+    }
   }
 }

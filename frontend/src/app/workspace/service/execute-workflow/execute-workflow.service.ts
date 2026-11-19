@@ -158,6 +158,17 @@ export class ExecuteWorkflowService {
           }
       }
     });
+
+    // Ends an in-flight run once its unit is gone or Failed and the socket is down; console and results are kept.
+    combineLatest([
+      computingUnitStatusService.getSelectedComputingUnit(),
+      workflowWebsocketService.getConnectionStatusStream(),
+    ]).subscribe(([unit, connected]) => {
+      const unitLost = unit === null || unit.status === "Failed";
+      if (!connected && unitLost && this.isExecutionInFlight(this.currentState.state)) {
+        this.resetExecutionAndWorkers();
+      }
+    });
   }
 
   public handleReconfigurationEvent(event: TexeraWebsocketEvent) {
@@ -281,19 +292,26 @@ export class ExecuteWorkflowService {
     return [];
   }
 
+  /**
+   * Returns whether the request was sent, so a caller that reports on it does not have to
+   * repeat the refusal conditions. False means this method turned the run down locally --
+   * no computing unit, no warehouse -- and showed its own toast. True only means the request
+   * left the browser: the deployment can still reject it, which arrives on the execution
+   * state stream. Callers that only fire and forget can keep ignoring the result.
+   */
   public executeWorkflowWithEmailNotification(
     executionName: string,
     emailNotificationEnabled: boolean,
     targetOperatorId?: string
-  ): void | Promise<void> {
+  ): boolean | Promise<boolean> {
     return this.startExecution(executionName, emailNotificationEnabled, targetOperatorId);
   }
 
-  public executeWorkflow(executionName: string, targetOperatorId?: string): void | Promise<void> {
+  public executeWorkflow(executionName: string, targetOperatorId?: string): boolean | Promise<boolean> {
     return this.executeWorkflowWithEmailNotification(executionName, false, targetOperatorId);
   }
 
-  public executeWorkflowWithReplay(replayExecutionInfo: ReplayExecutionInfo): void | Promise<void> {
+  public executeWorkflowWithReplay(replayExecutionInfo: ReplayExecutionInfo): boolean | Promise<boolean> {
     const name = `Replay run of ${replayExecutionInfo.eid} to ${replayExecutionInfo.interaction}`;
     return this.startExecution(name, false, undefined, replayExecutionInfo);
   }
@@ -303,14 +321,15 @@ export class ExecuteWorkflowService {
     notify: boolean,
     target?: string,
     replay?: ReplayExecutionInfo
-  ): void | Promise<void> {
+  ): boolean | Promise<boolean> {
     const plan = this.executionPlan(target);
-    if (!plan) return;
+    if (!plan) return false;
     const execute = () => {
-      if (this.refuseToRunOnUnavailableUnit() || this.refuseToRunWithoutWarehouse()) return;
+      if (this.refuseToRunOnUnavailableUnit() || this.refuseToRunWithoutWarehouse()) return false;
       this.resetExecutionState();
       this.workflowStatusService.resetStatus();
       this.sendExecutionRequest(name, plan, this.workflowActionService.getWorkflowSettings(), notify, replay);
+      return true;
     };
     if (!plan.macroContent) return execute();
     const content = this.workflowActionService.getWorkflowContent();
@@ -323,10 +342,11 @@ export class ExecuteWorkflowService {
           !isEqual(this.workflowActionService.getWorkflowContent(), content)
         )
           throw new Error("The workflow changed while preparing execution. Try again.");
-        execute();
+        return execute();
       })
       .catch(error => {
         this.notificationService.error(error instanceof Error ? error.message : String(error));
+        return false;
       });
   }
 
@@ -602,6 +622,32 @@ export class ExecuteWorkflowService {
     this.anchorDuration(0, false);
   }
 
+  /**
+   * Whether a run is in flight, which is what locks the graph. Public and defaulted to the current
+   * state for a caller that must refuse a structural edit mid-run and has nowhere else honest to
+   * ask: a view whose own lock no longer means "a run is on" (the Form View clamps it off outside
+   * edit mode) cannot read it off that flag.
+   */
+  public isExecutionInFlight(state: ExecutionState = this.currentState.state): boolean {
+    switch (state) {
+      case ExecutionState.Initializing:
+      case ExecutionState.Running:
+      case ExecutionState.Pausing:
+      case ExecutionState.Paused:
+      case ExecutionState.Resuming:
+      case ExecutionState.Recovering:
+        return true;
+      case ExecutionState.Uninitialized:
+      case ExecutionState.Completed:
+      case ExecutionState.Terminated:
+      case ExecutionState.Failed:
+      case ExecutionState.Killed:
+        return false;
+      default:
+        return exhaustiveGuard(state);
+    }
+  }
+
   private updateExecutionState(stateInfo: ExecutionStateInfo): void {
     if (isEqual(this.currentState, stateInfo)) {
       return;
@@ -621,24 +667,10 @@ export class ExecuteWorkflowService {
    * enables or disables workflow action service based on execution state
    */
   private updateWorkflowActionLock(stateInfo: ExecutionStateInfo): void {
-    switch (stateInfo.state) {
-      case ExecutionState.Completed:
-      case ExecutionState.Terminated:
-      case ExecutionState.Failed:
-      case ExecutionState.Uninitialized:
-      case ExecutionState.Killed:
-        this.workflowActionService.enableWorkflowModification();
-        return;
-      case ExecutionState.Paused:
-      case ExecutionState.Pausing:
-      case ExecutionState.Recovering:
-      case ExecutionState.Resuming:
-      case ExecutionState.Running:
-      case ExecutionState.Initializing:
-        this.workflowActionService.disableWorkflowModification();
-        return;
-      default:
-        return exhaustiveGuard(stateInfo);
+    if (this.isExecutionInFlight(stateInfo.state)) {
+      this.workflowActionService.disableWorkflowModification();
+    } else {
+      this.workflowActionService.enableWorkflowModification();
     }
   }
 

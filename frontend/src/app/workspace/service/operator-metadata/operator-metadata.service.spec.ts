@@ -33,7 +33,6 @@ import { mockScanPredicate } from "../workflow-graph/model/mock-workflow-data";
 
 describe("OperatorMetadataService", () => {
   let service: OperatorMetadataService;
-  let httpClient: HttpClient;
   let httpTestingController: HttpTestingController;
 
   beforeEach(() => {
@@ -42,7 +41,7 @@ describe("OperatorMetadataService", () => {
       providers: [OperatorMetadataService, ...commonTestProviders],
     });
 
-    httpClient = TestBed.inject(HttpClient);
+    TestBed.inject(HttpClient);
     httpTestingController = TestBed.inject(HttpTestingController);
     service = TestBed.inject(OperatorMetadataService);
   });

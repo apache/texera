@@ -116,6 +116,25 @@ export function setupHarness() {
     unhighlightOperators(...ops);
     updateSharedModelAwareness("highlighted", [...highlightedIds]);
   });
+  // The action service's highlight, modelled as the real chain. The page only ever asks for a single
+  // selection (`highlightOperators(false, id)`), so the wrapper replaces the selection rather than
+  // adding to it, emits on the highlight stream -- which is what runs the form's own handler, as a
+  // canvas click does -- and the service publishes the selection to co-editors. The multi-select
+  // flag is taken and ignored, as the one caller never sets it.
+  //
+  // With one exception modelled from the real wrapper (joint-graph-wrapper's highlightElement): an
+  // id it is ALREADY holding is dropped before it gets as far as clearing the others, so asking for
+  // a step that is part of a multi-select changes nothing and emits nothing.
+  const serviceHighlightOperators = vi.fn((_multiSelect: boolean, ...ops: string[]) => {
+    const fresh = ops.filter(op => !highlightedIds.includes(op));
+    if (fresh.length === 0) {
+      return;
+    }
+    highlightedIds.length = 0;
+    highlightedIds.push(...fresh);
+    highlightStream.next([...fresh]);
+    updateSharedModelAwareness("highlighted", [...highlightedIds]);
+  });
   // Operators that produced a non-empty result -- drives hasNonEmptyResult in the result mock.
   const anyResultIds = new Set<string>();
   // Operators the engine treats as terminal (out-degree 0 on the ENABLED plan): the engine materializes
@@ -135,8 +154,12 @@ export function setupHarness() {
     // The heat-map overlay's view; reset by the views on leaving the workspace, kept on a hand-over.
     setHeatmapView: vi.fn(),
   };
+  // The parser's announcement of the UI parameters a Python UDF's code declares.
+  const uiParametersChanged = new Subject<{ operatorId: string; parameters: unknown[] }>();
+  const uiUdfParametersSyncService = { uiParametersChanged$: uiParametersChanged.asObservable() };
   const workflowActionService = {
     getMacroInterface: vi.fn().mockReturnValue(undefined),
+    setOperatorProperty: vi.fn(),
     resetAsNewWorkflow: vi.fn(),
     setNewSharedModel: vi.fn(),
     reloadWorkflow: vi.fn(),
@@ -160,6 +183,7 @@ export function setupHarness() {
     setWorkflowName: vi.fn(),
     setWorkflowMetadata: vi.fn(),
     setHighlightingEnabled: vi.fn(),
+    highlightOperators: serviceHighlightOperators,
     unhighlightOperators: serviceUnhighlightOperators,
     getTexeraGraph: () => ({
       triggerCenterEvent,
@@ -382,6 +406,8 @@ export function setupHarness() {
     computingUnitStatusService,
     workflowConsoleService,
     workflowWebsocketService,
+    uiUdfParametersSyncService,
+    uiParametersChanged,
     panelResizeService,
     validationWorkflowService,
     host,
@@ -418,6 +444,7 @@ export function setupHarness() {
     highlightedIds,
     unhighlightOperators,
     serviceUnhighlightOperators,
+    serviceHighlightOperators,
     updateSharedModelAwareness,
   };
 }

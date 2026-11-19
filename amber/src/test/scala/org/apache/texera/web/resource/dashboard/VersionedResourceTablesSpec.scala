@@ -146,6 +146,19 @@ class VersionedResourceTablesSpec
     sql should include("dataset_user_access.uid = 42")
   }
 
+  "joinWithViewerAccessAndOwner" should "narrow the access rows to the viewer, or to none when anonymous" in {
+    val forViewer =
+      rendered(
+        getDSLContext.renderInlined(tables.joinWithViewerAccessAndOwner(Integer.valueOf(42)))
+      )
+    forViewer should include("dataset_user_access.uid = 42")
+
+    val forAnonymous =
+      rendered(getDSLContext.renderInlined(tables.joinWithViewerAccessAndOwner(null)))
+    forAnonymous should not include "dataset_user_access.uid ="
+    forAnonymous should include("false")
+  }
+
   "ModelTables" should "name every column the shared query logic reads" in {
     modelTables.table.getName shouldBe "model"
     modelTables.idColumn.getName shouldBe "mid"

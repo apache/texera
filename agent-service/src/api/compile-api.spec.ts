@@ -17,6 +17,7 @@
  * under the License.
  */
 
+import { WorkflowFatalErrorType } from "../types/execution";
 import { afterEach, describe, expect, mock, spyOn, test } from "bun:test";
 import { compileWorkflowAsync, type WorkflowCompilationResponse } from "./compile-api";
 import { macroWorkflow } from "../agent/macro-test-data";
@@ -66,7 +67,16 @@ describe("compileWorkflowAsync", () => {
     const macroContent = macroWorkflow();
     const compilation: WorkflowCompilationResponse = {
       operatorOutputSchemas: { one: { "0_false": [{ attributeName: "value", attributeType: "string" }] } },
-      operatorErrors: { one: { operatorId: "one", message: "Outer / Inner / Scan: invalid column", type: "schema" } },
+      operatorErrors: {
+        one: {
+          operatorId: "one",
+          message: "Outer / Inner / Scan: invalid column",
+          type: { name: WorkflowFatalErrorType.COMPILATION_ERROR },
+          timestamp: { seconds: 0, nanos: 0 },
+          workerId: "",
+          details: "",
+        },
+      },
       macroExpansion: { content: { ...macroContent, operators: [], links: [] }, paths: {}, ports: {} },
     };
     const fetchSpy = spyOn(globalThis, "fetch").mockResolvedValue(Response.json(compilation));
@@ -75,6 +85,50 @@ describe("compileWorkflowAsync", () => {
     const [, init] = fetchSpy.mock.calls[0];
     expect(init?.headers).toEqual({ Authorization: "Bearer user-token", "Content-Type": "application/json" });
     expect(JSON.parse(init!.body as string)).toMatchObject({ macroContent, executeOperatorIds: ["one"] });
+  });
+
+  test("sends the user's token as a Bearer Authorization header when given", async () => {
+    const fetchSpy = spyOn(globalThis, "fetch").mockResolvedValue(
+      new Response(JSON.stringify({ operatorOutputSchemas: {}, operatorErrors: {} }), { status: 200 })
+    );
+
+    await compileWorkflowAsync(plan, "user-jwt");
+
+    const [, init] = fetchSpy.mock.calls[0] as [string, RequestInit];
+    expect(init.headers).toEqual({ Authorization: "Bearer user-jwt", "Content-Type": "application/json" });
+  });
+
+  test("omits the Authorization header when the token is empty", async () => {
+    const fetchSpy = spyOn(globalThis, "fetch").mockResolvedValue(
+      new Response(JSON.stringify({ operatorOutputSchemas: {}, operatorErrors: {} }), { status: 200 })
+    );
+
+    await compileWorkflowAsync(plan, "");
+
+    const [, init] = fetchSpy.mock.calls[0] as [string, RequestInit];
+    expect(init.headers).toEqual({ "Content-Type": "application/json" });
+  });
+
+  test("against a JWT-protected endpoint, returns schemas only when the token is passed", async () => {
+    const compilation: WorkflowCompilationResponse = {
+      operatorOutputSchemas: { opX: { "output-0": [{ attributeName: "a", attributeType: "string" }] } },
+      operatorErrors: {},
+    };
+    // Mirrors JwtAuthFilter: 401 unless a Bearer token is present.
+    spyOn(globalThis, "fetch").mockImplementation((async (_url: string, init?: RequestInit) => {
+      const auth = (init?.headers as Record<string, string> | undefined)?.Authorization ?? "";
+      return /^Bearer \S+$/.test(auth)
+        ? new Response(JSON.stringify(compilation), { status: 200 })
+        : new Response("", { status: 401, headers: { "WWW-Authenticate": 'Bearer realm="texera"' } });
+    }) as unknown as typeof fetch);
+
+    expect(await compileWorkflowAsync(plan)).toBeNull();
+    expect(await compileWorkflowAsync(plan, "user-jwt")).toEqual(compilation);
+  });
+
+  test("returns null on a non-ok response", async () => {
+    spyOn(globalThis, "fetch").mockResolvedValue(new Response("boom", { status: 500 }));
+    expect(await compileWorkflowAsync(plan)).toBeNull();
   });
 
   test("returns null when fetch rejects", async () => {

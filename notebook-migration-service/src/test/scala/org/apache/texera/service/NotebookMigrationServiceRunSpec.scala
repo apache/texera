@@ -79,7 +79,7 @@ class NotebookMigrationServiceRunSpec extends AnyFlatSpec with Matchers {
 
   // Only the pool assertion needs a database. This service, access-control-service and
   // config-service are the three entry points that call SqlServer.initConnection from
-  // initialize(); the other five call it from run(). That inconsistency is not endorsed here:
+  // initialize(); the other six call it from run(). That inconsistency is not endorsed here:
   // if the call moves into run(), the pool test below moves with it (and goes red until it does).
   private def databaseReachable: Boolean =
     try {
@@ -222,10 +222,8 @@ class NotebookMigrationServiceRunSpec extends AnyFlatSpec with Matchers {
     // below also passes for an initialize() that opens nothing at all, off a pool some earlier
     // test in this JVM installed.
     initialized.sqlServerAfter.map(_ ne initialized.sqlServerBefore.orNull) shouldBe Some(true)
-    // Not the test-cases database: pointing the running service at it would have every migration
-    // record land in a schema that the CI e2e specs truncate underneath it. Only the URL is
-    // pinned — storage.conf ships username and password as the same string ("postgres"), so
-    // nothing here can tell the two credential arguments apart.
+    // Only the URL is pinned — storage.conf ships username and password as the same string
+    // ("postgres"), so nothing here can tell the two credential arguments apart.
     initialized.pooledJdbcUrl.get shouldBe StorageConfig.jdbcUrl
   }
 }

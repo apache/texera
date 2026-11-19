@@ -19,33 +19,28 @@
 
 package org.apache.texera.amber.operator.machineLearning.Scorer
 
+import org.apache.texera.amber.util.PythonTestSupport.{
+  NeedsPythonPackages,
+  canImport,
+  configuredPython,
+  withDriver
+}
 import com.fasterxml.jackson.databind.node.ObjectNode
-import com.typesafe.config.ConfigFactory
 import org.apache.texera.amber.core.tuple.{Attribute, AttributeType, Schema}
 import org.apache.texera.amber.core.workflow.PortIdentity
 import org.apache.texera.amber.operator.LogicalOp
 import org.apache.texera.amber.operator.metadata.OperatorGroupConstants
-import org.apache.texera.amber.operator.tags.IntegrationTest
 import org.apache.texera.amber.util.JSONUtils.objectMapper
-import org.scalatest.Tag
 import org.scalatest.flatspec.AnyFlatSpec
-import org.scalatest.matchers.should.Matchers
+import org.apache.texera.amber.operator.GeneratedCodeAssertionChecks
 
 import java.nio.charset.StandardCharsets
-import java.nio.file.Files
 import java.util.Base64
-import java.util.concurrent.TimeUnit
-import scala.util.Try
 
-class MachineLearningScorerOpDescSpec extends AnyFlatSpec with Matchers {
-
-  private val NeedsPythonPackages = Tag(classOf[IntegrationTest].getName)
+class MachineLearningScorerOpDescSpec extends AnyFlatSpec with GeneratedCodeAssertionChecks {
 
   /** An EncodableString field renders as a runtime decode site in the emitted code. */
   private val decodeSite = "self.decode_python_template"
-
-  private def b64(s: String): String =
-    Base64.getEncoder.encodeToString(s.getBytes(StandardCharsets.UTF_8))
 
   /** The one emitted line that assigns metric_list, isolated from the template body. */
   private def metricListLine(code: String): String =
@@ -333,42 +328,6 @@ class MachineLearningScorerOpDescSpec extends AnyFlatSpec with Matchers {
     }
   }
 
-  // Python executable resolution, following FilledAreaPlotOpDescSpec:
-  // udf.conf python.path (UDF_PYTHON_PATH), then python3 / python / py.
-  private def resolvePythonExecutable(): Option[String] = {
-    def fromConfig: Option[String] = {
-      val configOpt =
-        Try(ConfigFactory.parseResources("udf.conf").resolve()).toOption
-          .orElse(Try(ConfigFactory.load()).toOption)
-      configOpt
-        .flatMap(c => Try(c.getConfig("python").getString("path")).toOption)
-        .map(_.trim)
-        .filter(_.nonEmpty)
-    }
-
-    def isRunnable(exe: String): Boolean = {
-      val pTry = Try(new ProcessBuilder(exe, "--version").redirectErrorStream(true).start())
-      pTry.toOption.exists { p =>
-        val finished = p.waitFor(5, TimeUnit.SECONDS)
-        if (!finished) { p.destroyForcibly(); false }
-        else p.exitValue() == 0
-      }
-    }
-
-    (fromConfig.toList ++ List("python3", "python", "py")).distinct.find(isRunnable)
-  }
-
-  private def canImportPandasAndSklearn(python: String): Boolean = {
-    val pTry = Try(
-      new ProcessBuilder(python, "-c", "import pandas, sklearn").redirectErrorStream(true).start()
-    )
-    pTry.toOption.exists { p =>
-      val finished = p.waitFor(60, TimeUnit.SECONDS)
-      if (!finished) { p.destroyForcibly(); false }
-      else p.exitValue() == 0
-    }
-  }
-
   // Driver executed by the runtime test below. It stubs only the pytexera import seam;
   // the generated module runs unmodified, against the real scikit-learn metrics.
   private val runtimeDriverScript: String =
@@ -394,7 +353,7 @@ class MachineLearningScorerOpDescSpec extends AnyFlatSpec with Matchers {
       |sys.modules["pytexera"] = stub
       |
       |ns = {"__name__": "generated_scorer"}
-      |with open(sys.argv[1]) as f:
+      |with open(sys.argv[1], encoding="utf-8") as f:
       |    exec(compile(f.read(), sys.argv[1], "exec"), ns)
       |op = ns["ProcessTableOperator"]()
       |
@@ -415,10 +374,10 @@ class MachineLearningScorerOpDescSpec extends AnyFlatSpec with Matchers {
       |""".stripMargin
 
   it should "score the rows it can and refuse a table that keeps none of them" taggedAs NeedsPythonPackages in {
-    val python = resolvePythonExecutable().getOrElse(
+    val python = configuredPython().getOrElse(
       cancel("No runnable python executable (udf.conf python.path, python3, python, py)")
     )
-    if (!canImportPandasAndSklearn(python)) {
+    if (!canImport(python, "pandas", "sklearn")) {
       cancel(s"'$python' cannot import pandas and sklearn; skipping runtime verification")
     }
 
@@ -427,23 +386,16 @@ class MachineLearningScorerOpDescSpec extends AnyFlatSpec with Matchers {
     d.predictValueColumn = "yhat"
     d.classificationMetrics = List(classificationMetricsFnc.accuracy)
 
-    val moduleFile = Files.createTempFile("scorer_op_", ".py")
-    val driverFile = Files.createTempFile("scorer_driver_", ".py")
-    try {
-      Files.write(moduleFile, d.generatePythonCode().getBytes(StandardCharsets.UTF_8))
-      Files.write(driverFile, runtimeDriverScript.getBytes(StandardCharsets.UTF_8))
-
-      val process = new ProcessBuilder(python, driverFile.toString, moduleFile.toString)
-        .redirectErrorStream(true)
-        .start()
-      val finished = process.waitFor(120, TimeUnit.SECONDS)
-      if (!finished) {
-        process.destroyForcibly()
-        fail("Scoring driver timed out after 120s")
-      }
-      val output = new String(process.getInputStream.readAllBytes(), StandardCharsets.UTF_8)
+    withDriver(
+      python,
+      "scorer_op_",
+      "scorer_driver_",
+      d.generatePythonCode(),
+      runtimeDriverScript,
+      "Scoring driver timed out after 120s"
+    ) { (exitCode, output) =>
       withClue(s"Driver output:\n$output\n") {
-        process.exitValue() shouldBe 0
+        exitCode shouldBe 0
         // Every row usable: all three agree, so the score is 1.
         output should include("CASE filled ACCURACY 1.0")
         // Two rows dropped, three scored, two of those correct.
@@ -452,9 +404,40 @@ class MachineLearningScorerOpDescSpec extends AnyFlatSpec with Matchers {
         // handing back the NaN the classification metrics would produce.
         output should include("CASE all_blank REFUSED No rows left to score")
       }
-    } finally {
-      Files.deleteIfExists(moduleFile)
-      Files.deleteIfExists(driverFile)
     }
+  }
+
+  "MachineLearningScorerOpDesc.getOutputSchemas" should
+    "propagate classification errors eagerly on null metrics and refuse duplicate metric names" in {
+    val inputSchemas = Map(
+      PortIdentity() -> Schema(
+        List(
+          new Attribute("y", AttributeType.INTEGER),
+          new Attribute("yhat", AttributeType.INTEGER)
+        )
+      )
+    )
+
+    val nullMetricsDesc = new MachineLearningScorerOpDesc
+    nullMetricsDesc.actualValueColumn = "y"
+    nullMetricsDesc.predictValueColumn = "yhat"
+    nullMetricsDesc.classificationMetrics = null
+    intercept[NullPointerException](nullMetricsDesc.getOutputSchemas(inputSchemas))
+
+    val dupMetricsDesc = new MachineLearningScorerOpDesc
+    dupMetricsDesc.actualValueColumn = "y"
+    dupMetricsDesc.predictValueColumn = "yhat"
+    dupMetricsDesc.classificationMetrics =
+      List(classificationMetricsFnc.accuracy, classificationMetricsFnc.accuracy)
+    intercept[RuntimeException](
+      dupMetricsDesc.getOutputSchemas(inputSchemas)
+    ).getMessage should include("already exists in the schema")
+
+    val regDesc = new MachineLearningScorerOpDesc
+    regDesc.isRegression = true
+    regDesc.actualValueColumn = "y"
+    regDesc.predictValueColumn = "yhat"
+    regDesc.regressionMetrics = List(regressionMetricsFnc.mse, regressionMetricsFnc.r2)
+    regDesc.getOutputSchemas(inputSchemas).values.head.getAttributeNames shouldBe List("MSE", "R2")
   }
 }

@@ -671,6 +671,36 @@ describe("MacroNavigationService", () => {
     expect(service.resultAliases()).toEqual({ selected: null, other: null });
   });
 
+  it("resolves each pinned output to its occurrence before and after reopening", async () => {
+    const scan = mockScanPredicate;
+    leaf = sourceMacro("leaf", [scan], { outputs: [testPort("rows", scan.operatorID, "output-0")] });
+    parent = sourceMacro("parent", siblings(leaf, "child", "sibling"), {
+      macroDependencies: [leaf],
+      outputs: [testPort("left", "child", "rows"), testPort("right", "sibling", "rows")],
+    });
+    install(siblingRoot(leaf));
+    const compiled = cacheExpansion(root.content);
+    const targets = (instance: string) =>
+      ["child", "sibling"].map(child => ({
+        operatorID: macroRuntimeID([instance, child], scan.operatorID),
+        portIndex: 0,
+      }));
+    compiled.resultPorts = { selected: targets("selected"), other: targets("other") };
+    compiled.resultTargets = Object.fromEntries(
+      Object.entries(compiled.resultPorts).map(([id, ports]) => [id, ports[0]!])
+    );
+    const check = () => {
+      expect(service.resultAliases().selected).toEqual(targets("selected")[0]);
+      expect(service.resultAliases(1)).toEqual({ selected: targets("selected")[1], other: targets("other")[1] });
+      expect(service.resultAliases(2).selected).toBeNull();
+    };
+    status.setRuntimeContent(root.content);
+    check();
+    status.clearStatus();
+    await recordedExecution({}, 42);
+    check();
+  });
+
   it.each([false, true])(
     "reopens the exact execution and ignores slower responses (invalid draft: %s)",
     async invalidDraft => {

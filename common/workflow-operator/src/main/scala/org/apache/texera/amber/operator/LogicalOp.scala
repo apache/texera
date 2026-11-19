@@ -38,7 +38,7 @@ import org.apache.texera.amber.core.workflow.{PhysicalOp, PhysicalPlan, PortIden
 import org.apache.texera.amber.operator.aggregate.AggregateOpDesc
 import org.apache.texera.amber.operator.cartesianProduct.CartesianProductOpDesc
 import org.apache.texera.amber.operator.dictionary.DictionaryMatcherOpDesc
-import org.apache.texera.amber.operator.difference.DifferenceOpDesc
+import org.apache.texera.amber.operator.set.difference.DifferenceOpDesc
 import org.apache.texera.amber.operator.distinct.DistinctOpDesc
 import org.apache.texera.amber.operator.macroterminal.{MacroInputOpDesc, MacroOutputOpDesc}
 import org.apache.texera.amber.operator.dummy.DummyOpDesc
@@ -52,7 +52,7 @@ import org.apache.texera.amber.operator.huggingFace.{
   HuggingFaceTextSummarizationOpDesc
 }
 import org.apache.texera.amber.operator.ifStatement.IfOpDesc
-import org.apache.texera.amber.operator.intersect.IntersectOpDesc
+import org.apache.texera.amber.operator.set.intersect.IntersectOpDesc
 import org.apache.texera.amber.operator.intervalJoin.IntervalJoinOpDesc
 import org.apache.texera.amber.operator.keywordSearch.KeywordSearchOpDesc
 import org.apache.texera.amber.operator.limit.LimitOpDesc
@@ -81,6 +81,7 @@ import org.apache.texera.amber.operator.source.apis.twitter.v2.{
 import org.apache.texera.amber.operator.source.dataset.FileListerSourceOpDesc
 import org.apache.texera.amber.operator.source.fetcher.URLFetcherOpDesc
 import org.apache.texera.amber.operator.source.scan.arrow.ArrowSourceOpDesc
+import org.apache.texera.amber.operator.source.scan.parquet.ParquetScanSourceOpDesc
 import org.apache.texera.amber.operator.source.scan.csv.CSVScanSourceOpDesc
 import org.apache.texera.amber.operator.source.scan.csvOld.CSVOldScanSourceOpDesc
 import org.apache.texera.amber.operator.source.scan.json.JSONLScanSourceOpDesc
@@ -90,7 +91,9 @@ import org.apache.texera.amber.operator.source.sql.mysql.MySQLSourceOpDesc
 import org.apache.texera.amber.operator.source.sql.postgresql.PostgreSQLSourceOpDesc
 import org.apache.texera.amber.operator.split.SplitOpDesc
 import org.apache.texera.amber.operator.substringSearch.SubstringSearchOpDesc
-import org.apache.texera.amber.operator.symmetricDifference.SymmetricDifferenceOpDesc
+import org.apache.texera.amber.operator.set.symmetricDifference.SymmetricDifferenceOpDesc
+import org.apache.texera.amber.operator.extractdatetime.ExtractDateTimeOpDesc
+import org.apache.texera.amber.operator.binning.BinningOpDesc
 import org.apache.texera.amber.operator.typecasting.TypeCastingOpDesc
 import org.apache.texera.amber.operator.udf.java.JavaUDFOpDesc
 import org.apache.texera.amber.operator.udf.python._
@@ -231,6 +234,8 @@ trait StateTransferFunc
     new Type(value = classOf[PostgreSQLSourceOpDesc], name = "PostgreSQLSource"),
     new Type(value = classOf[AsterixDBSourceOpDesc], name = "AsterixDBSource"),
     new Type(value = classOf[TypeCastingOpDesc], name = "TypeCasting"),
+    new Type(value = classOf[ExtractDateTimeOpDesc], name = "ExtractDateTime"),
+    new Type(value = classOf[BinningOpDesc], name = "Binning"),
     new Type(value = classOf[LimitOpDesc], name = "Limit"),
     new Type(value = classOf[SleepOpDesc], name = "Sleep"),
     new Type(value = classOf[LoopStartOpDesc], name = "LoopStart"),
@@ -286,6 +291,7 @@ trait StateTransferFunc
     new Type(value = classOf[RUDFOpDesc], name = "RUDF"),
     new Type(value = classOf[RUDFSourceOpDesc], name = "RUDFSource"),
     new Type(value = classOf[ArrowSourceOpDesc], name = "ArrowSource"),
+    new Type(value = classOf[ParquetScanSourceOpDesc], name = "ParquetFileScan"),
     new Type(value = classOf[MachineLearningScorerOpDesc], name = "Scorer"),
     new Type(value = classOf[SortOpDesc], name = "Sort"),
     new Type(value = classOf[StableMergeSortOpDesc], name = "StableMergeSort"),
@@ -471,6 +477,18 @@ abstract class LogicalOp extends PortDescriptor with StateReferencing with Seria
   }
 
   def operatorInfo: OperatorInfo
+
+  /**
+    * Whether the row ORDER of this operator's output is part of its contract.
+    * Defaults to false: the engine runs operators across parallel workers, so
+    * for almost every operator the output row order is an implementation-defined
+    * interleaving. Only operators whose very purpose is to establish an order
+    * override this, which here is the sort family: Sort, Stable Merge Sort and
+    * Sort Partitions. Anything comparing two runs of an operator reads it to
+    * decide whether the rows have to arrive in the same order or only be the
+    * same rows.
+    */
+  def orderSensitive: Boolean = false
 
   private def getOperatorVersion: String = {
     val path = "amber/src/main/scala/"

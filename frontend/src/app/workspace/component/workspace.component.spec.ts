@@ -50,6 +50,7 @@ import { ComputingUnitStatusService } from "../../common/service/computing-unit/
 import { EntityType, HubService } from "../../hub/service/hub.service";
 import { commonTestProviders } from "../../common/testing/test-utils";
 import { WorkspaceComponent } from "./workspace.component";
+import { WorkflowVersionService } from "../../dashboard/service/user/workflow-version/workflow-version.service";
 import { USER_WORKSPACE, workspaceFormUrl } from "../../app-routing.constant";
 
 describe("WorkspaceComponent", () => {
@@ -71,6 +72,7 @@ describe("WorkspaceComponent", () => {
   let executeWorkflowService: any;
   let workflowConsoleService: any;
   let workflowResultService: any;
+  let workflowVersionService: any;
   let connectionResetSubject: Subject<void>;
   let metadataChangedSubject: Subject<void>;
   let navigation: ReturnType<typeof routeNavigation>;
@@ -191,6 +193,7 @@ describe("WorkspaceComponent", () => {
     };
     workflowConsoleService = { clearConsoleMessages: vi.fn() };
     workflowResultService = { clearResults: vi.fn() };
+    workflowVersionService = { discardOpenVersionDisplay: vi.fn() };
 
     // Drop the standalone component's child imports and allow unknown elements via
     // CUSTOM_ELEMENTS_SCHEMA. The template still renders, so `<ng-template #codeEditor>`
@@ -228,6 +231,7 @@ describe("WorkspaceComponent", () => {
         { provide: ComputingUnitStatusService, useValue: computingUnitStatusService },
         { provide: ExecuteWorkflowService, useValue: executeWorkflowService },
         { provide: WorkflowResultService, useValue: workflowResultService },
+        { provide: WorkflowVersionService, useValue: workflowVersionService },
         ...commonTestProviders,
       ],
       schemas: [NO_ERRORS_SCHEMA],
@@ -650,6 +654,19 @@ describe("WorkspaceComponent", () => {
       expect(workflowResultService.clearResults).toHaveBeenCalled();
     });
 
+    it("drops a version preview left open, after the workflow is cleared (issue #9354)", async () => {
+      await createFixture();
+      fixture.detectChanges();
+
+      component.ngOnDestroy();
+
+      expect(workflowVersionService.discardOpenVersionDisplay).toHaveBeenCalled();
+      // Cleared first, so the clear still runs with saving off.
+      expect(workflowActionService.clearWorkflow.mock.invocationCallOrder[0]).toBeLessThan(
+        workflowVersionService.discardOpenVersionDisplay.mock.invocationCallOrder[0]
+      );
+    });
+
     // Leaving the document (a refresh, a closed tab, a URL typed over this one) fires beforeunload,
     // and the browser may then keep the document in its back/forward cache instead of discarding
     // it. The Form View switch used to be such a navigation and routes now. Coming back restores the JavaScript
@@ -681,6 +698,7 @@ describe("WorkspaceComponent", () => {
       component.ngOnDestroy();
 
       expect(workflowActionService.clearWorkflow).not.toHaveBeenCalled();
+      expect(workflowVersionService.discardOpenVersionDisplay).not.toHaveBeenCalled();
       expect(computingUnitStatusService.disconnect).not.toHaveBeenCalled();
       expect(executeWorkflowService.resetExecutionAndWorkers).not.toHaveBeenCalled();
       expect(workflowConsoleService.clearConsoleMessages).not.toHaveBeenCalled();

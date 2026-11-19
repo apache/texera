@@ -216,6 +216,7 @@ export interface MacroExpansion<C extends MacroContent = MacroContent> {
   /** Runtime id -> instance chain followed by the definition's leaf id. */
   paths: Record<string, string[]>;
   resultTargets?: Record<string, ResultTarget>;
+  resultPorts?: Record<string, (ResultTarget | null)[]>;
   inspectors?: Record<string, MacroInspector>;
   /** Canvas boundary -> runtime ports, for result and schema lookup. */
   ports: Record<string, LogicalPort[]>;

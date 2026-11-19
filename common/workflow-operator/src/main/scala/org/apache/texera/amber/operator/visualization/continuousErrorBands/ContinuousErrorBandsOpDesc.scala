@@ -19,24 +19,23 @@
 
 package org.apache.texera.amber.operator.visualization.continuousErrorBands
 
+import org.apache.texera.amber.operator.visualization.StandaloneChartCode._
 import com.fasterxml.jackson.annotation.{JsonProperty, JsonPropertyDescription}
 import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaTitle
-import org.apache.texera.amber.core.tuple.{AttributeType, Schema}
 import org.apache.texera.amber.pybuilder.PythonTemplateBuilder.{
   PythonTemplateBuilderStringContext,
   pyStringLiteral
 }
 import org.apache.texera.amber.pybuilder.PyStringTypes.EncodableString
-import org.apache.texera.amber.core.workflow.PortIdentity
-import org.apache.texera.amber.operator.PythonOperatorDescriptor
 import org.apache.texera.amber.operator.visualization.PlotlyStandaloneCode
+import org.apache.texera.amber.operator.visualization.PythonVisualizationOpDesc
 import org.apache.texera.amber.operator.metadata.{OperatorGroupConstants, OperatorInfo}
 import org.apache.texera.amber.pybuilder.PythonTemplateBuilder
 
 import java.util
 import javax.validation.constraints.NotEmpty
 import scala.jdk.CollectionConverters.ListHasAsScala
-class ContinuousErrorBandsOpDesc extends PythonOperatorDescriptor with PlotlyStandaloneCode {
+class ContinuousErrorBandsOpDesc extends PythonVisualizationOpDesc with PlotlyStandaloneCode {
 
   @JsonProperty(value = "xLabel", required = false, defaultValue = "X Axis")
   @JsonSchemaTitle("X Label")
@@ -51,14 +50,6 @@ class ContinuousErrorBandsOpDesc extends PythonOperatorDescriptor with PlotlySta
   @JsonProperty(value = "bands", required = true)
   @NotEmpty(message = "Bands cannot be empty")
   var bands: util.List[BandConfig] = new util.ArrayList[BandConfig]()
-
-  override def getOutputSchemas(
-      inputSchemas: Map[PortIdentity, Schema]
-  ): Map[PortIdentity, Schema] = {
-    val outputSchema = Schema()
-      .add("html-content", AttributeType.STRING)
-    Map(operatorInfo.outputPorts.head.id -> outputSchema)
-  }
 
   override def operatorInfo: OperatorInfo =
     OperatorInfo.forVisualization(
@@ -158,8 +149,6 @@ class ContinuousErrorBandsOpDesc extends PythonOperatorDescriptor with PlotlySta
     finalCode.encode
   }
 
-  override def producesDataFrame(): Boolean = false
-
   override def generateStandaloneCode(): String = {
     val traces =
       bands.asScala
@@ -217,14 +206,10 @@ class ContinuousErrorBandsOpDesc extends PythonOperatorDescriptor with PlotlySta
     // The empty-input branch mirrors generatePythonCode's `if table.empty`
     // guard: without it the traces index columns of a frame that has none, and
     // an empty input silently renders a blank chart instead of saying why.
-    s"""def render_error(error_msg):
-       |    return '''<h1>Continuous Error Bands is not available.</h1>
-       |                  <p>Reason is: {} </p>
-       |               '''.format(error_msg)
+    s"""${standaloneError("Continuous Error Bands is not available.")}
        |
        |if in1df.empty:
-       |    with open(outputHtml, "w", encoding="utf-8") as output:
-       |        output.write(render_error("input table is empty."))
+       |${standaloneErrorPage("input table is empty.")}
        |else:
        |    fig = go.Figure()
        |$indentedTraces
@@ -232,8 +217,6 @@ class ContinuousErrorBandsOpDesc extends PythonOperatorDescriptor with PlotlySta
        |                      xaxis_title=${pyStringLiteral(xLabel)},
        |                      yaxis_title=${pyStringLiteral(yLabel)},
        |                      hovermode="x")
-       |    fig.write_json(outputJson)
-       |    fig.write_html(outputHtml)
-       |    print("Continuous error bands saved to " + outputJson + " and " + outputHtml)""".stripMargin
+       |${standaloneFigure("Continuous error bands", indent = 4, bothOutputs = true)}""".stripMargin
   }
 }

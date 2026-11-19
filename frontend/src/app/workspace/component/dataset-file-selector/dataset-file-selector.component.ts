@@ -20,7 +20,6 @@
 import { Component } from "@angular/core";
 import { FieldType, FieldTypeConfig } from "@ngx-formly/core";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
-import { WorkflowActionService } from "../../service/workflow-graph/model/workflow-action.service";
 import { NzModalService } from "ng-zorro-antd/modal";
 import { DatasetSelectionModalComponent } from "../dataset-selection-modal/dataset-selection-modal.component";
 import { GuiConfigService } from "../../../common/service/gui-config.service";
@@ -49,7 +48,6 @@ import { ɵNzTransitionPatchDirective } from "ng-zorro-antd/core/transition-patc
 export class DatasetFileSelectorComponent extends FieldType<FieldTypeConfig> {
   constructor(
     private modalService: NzModalService,
-    public workflowActionService: WorkflowActionService,
     private config: GuiConfigService
   ) {
     super();

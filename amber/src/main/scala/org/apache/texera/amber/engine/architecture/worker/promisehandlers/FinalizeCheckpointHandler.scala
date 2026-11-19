@@ -44,40 +44,43 @@ trait FinalizeCheckpointHandler {
       msg: FinalizeCheckpointRequest,
       ctx: AsyncRPCContext
   ): Future[FinalizeCheckpointResponse] = {
-    val checkpointSize = if (dp.ecmManager.checkpoints.contains(msg.checkpointId)) {
-      val waitFuture = new CompletableFuture[Unit]()
-      val chkpt = dp.ecmManager.checkpoints(msg.checkpointId)
-      val closure = (worker: WorkflowWorker) => {
-        logger.info(s"Main thread: start to serialize recorded messages.")
-        chkpt.save(
-          SerializedState.IN_FLIGHT_MSG_KEY,
-          worker.recordedInputs.getOrElse(msg.checkpointId, new ArrayBuffer())
-        )
-        worker.recordedInputs.remove(msg.checkpointId)
-        logger.info(s"Main thread: recorded messages serialized.")
-        waitFuture.complete(())
-        ()
-      }
-      // TODO: find a way to skip logging for the following output?
-      dp.outputHandler(
-        Left(MainThreadDelegateMessage(closure))
-      ) //this will create duplicate log records!
-      waitFuture.get()
-      logger.info(s"Start to write checkpoint to storage. Destination: ${msg.writeTo}")
-      val storage = SequentialRecordStorage.getStorage[CheckpointState](Some(new URI(msg.writeTo)))
-      val writer = storage.getWriter(actorId.name.replace("Worker:", ""))
-      writer.writeRecord(chkpt)
-      writer.flush()
-      writer.close()
-      logger.info(s"Checkpoint finalized, total size = ${chkpt.size()} bytes")
-      chkpt.size()
-    } else {
-      logger.info(s"Checkpoint is estimation-only. report estimated size.")
-      dp.executor match {
-        case support: CheckpointSupport =>
-          support.getEstimatedCheckpointCost
-        case _ => 0L
-      } // for estimation
+    val checkpointId = msg.checkpointId
+    val checkpointSize = dp.ecmManager.checkpoints.get(checkpointId) match {
+      case Some(chkpt) =>
+        val waitFuture = new CompletableFuture[Unit]()
+        val closure = (worker: WorkflowWorker) => {
+          logger.info(s"Main thread: start to serialize recorded messages.")
+          chkpt.save(
+            SerializedState.IN_FLIGHT_MSG_KEY,
+            worker.recordedInputs.getOrElse(checkpointId, new ArrayBuffer())
+          )
+          worker.recordedInputs.remove(checkpointId)
+          logger.info(s"Main thread: recorded messages serialized.")
+          waitFuture.complete(())
+          ()
+        }
+        // TODO: find a way to skip logging for the following output?
+        dp.outputHandler(
+          Left(MainThreadDelegateMessage(closure))
+        ) //this will create duplicate log records!
+        waitFuture.get()
+        logger.info(s"Start to write checkpoint to storage. Destination: ${msg.writeTo}")
+        val storage =
+          SequentialRecordStorage.getStorage[CheckpointState](Some(new URI(msg.writeTo)))
+        val writer = storage.getWriter(actorId.name.replace("Worker:", ""))
+        writer.writeRecord(chkpt)
+        writer.flush()
+        writer.close()
+        val size = chkpt.size()
+        logger.info(s"Checkpoint finalized, total size = $size bytes")
+        size
+      case None =>
+        logger.info(s"Checkpoint is estimation-only. report estimated size.")
+        dp.executor match {
+          case support: CheckpointSupport =>
+            support.getEstimatedCheckpointCost
+          case _ => 0L
+        } // for estimation
     }
     FinalizeCheckpointResponse(checkpointSize)
   }

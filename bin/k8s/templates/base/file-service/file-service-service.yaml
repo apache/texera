@@ -15,21 +15,4 @@
 # specific language governing permissions and limitations
 # under the License.
 
-apiVersion: v1
-kind: Service
-metadata:
-  name: {{ .Values.fileService.name }}-svc
-  namespace: {{ .Release.Namespace }}
-spec:
-  type: {{ .Values.fileService.service.type }}
-  selector:
-    app: {{ .Release.Name }}-{{ .Values.fileService.name }}
-  ports:
-    - name: api-port
-      protocol: TCP
-      port: {{ .Values.fileService.service.port }}
-      targetPort: {{ .Values.fileService.service.port }}
-      # if service type is set to NodePort, include nodePort attribute
-      {{- if eq .Values.fileService.service.type "NodePort" }}
-      nodePort: {{ .Values.fileService.service.nodePort }}
-      {{- end }}
+{{ include "texera.releaseService" (dict "release" .Release "name" .Values.fileService.name "serviceType" .Values.fileService.service.type "port" .Values.fileService.service.port "nodePort" .Values.fileService.service.nodePort "portName" "api-port" "useNodePort" true) }}

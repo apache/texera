@@ -20,9 +20,14 @@
 import { getBackendConfig } from "./backend-api";
 import { createAuthHeaders } from "./auth-api";
 import type { LogicalPlan, OperatorPortSchemaMap } from "../types/workflow";
+import type { WorkflowFatalError } from "../types/execution";
 import { createLogger } from "../logger";
 import type { MacroExpansion } from "@texera/workflow-macros";
 import type { OperatorPredicate, WorkflowContent } from "../types/workflow";
+
+// WorkflowFatalError is defined in types/execution.ts (shared by compile and
+// execution errors); re-exported here for existing importers of this module.
+export type { WorkflowFatalError };
 
 const log = createLogger("CompileAPI");
 
@@ -32,12 +37,6 @@ export interface SchemaAttribute {
 }
 
 export type PortSchema = ReadonlyArray<SchemaAttribute>;
-
-export interface WorkflowFatalError {
-  type: string;
-  message: string;
-  operatorId?: string;
-}
 
 export interface WorkflowCompilationResponse {
   macroExpansion?: MacroExpansion<WorkflowContent>;

@@ -107,6 +107,7 @@ import { HuggingFaceImageUploadComponent } from "./workspace/component/hugging-f
 import { HuggingFaceComponent } from "./workspace/component/hugging-face/hugging-face.component";
 import { HuggingFaceAudioUploadComponent } from "./workspace/component/hugging-face-audio-upload/hugging-face-audio-upload.component";
 import { DatasetFileSelectorComponent } from "./workspace/component/dataset-file-selector/dataset-file-selector.component";
+import { LoopVariableInputComponent } from "./workspace/component/loop-variable-input/loop-variable-input.component";
 import { DatasetVersionSelectorComponent } from "./workspace/component/dataset-version-selector/dataset-version-selector.component";
 import { DatasetSelectionModalComponent } from "./workspace/component/dataset-selection-modal/dataset-selection-modal.component";
 import { ReActStepDetailModalComponent } from "./workspace/component/agent/agent-panel/react-step-detail-modal/react-step-detail-modal.component";
@@ -132,7 +133,6 @@ import { FormlyNgZorroAntdModule } from "@ngx-formly/ng-zorro-antd";
 import { FlarumComponent } from "./dashboard/component/user/flarum/flarum.component";
 import { NzAlertModule } from "ng-zorro-antd/alert";
 import { LeftPanelComponent } from "./workspace/component/left-panel/left-panel.component";
-import { ErrorFrameComponent } from "./workspace/component/result-panel/error-frame/error-frame.component";
 import { NzResizableModule } from "ng-zorro-antd/resizable";
 import { WorkflowRuntimeStatisticsComponent } from "./dashboard/component/user/user-workflow/ngbd-modal-workflow-executions/workflow-runtime-statistics/workflow-runtime-statistics.component";
 import { TimeTravelComponent } from "./workspace/component/left-panel/time-travel/time-travel.component";
@@ -143,7 +143,7 @@ import { en_US, provideNzI18n } from "ng-zorro-antd/i18n";
 import { FilesUploaderComponent } from "./dashboard/component/user/files-uploader/files-uploader.component";
 import { ConflictingFileModalContentComponent } from "./dashboard/component/user/files-uploader/conflicting-file-modal-content/conflicting-file-modal-content.component";
 import { UserDatasetComponent } from "./dashboard/component/user/user-dataset/user-dataset.component";
-import { UserDatasetVersionCreatorComponent } from "./dashboard/component/user/user-dataset/user-dataset-explorer/user-dataset-version-creator/user-dataset-version-creator.component";
+import { UserDatasetCreatorComponent } from "./dashboard/component/user/user-dataset/user-dataset-creator/user-dataset-creator.component";
 import { DatasetDetailComponent } from "./dashboard/component/user/user-dataset/user-dataset-explorer/dataset-detail.component";
 import { UserDatasetVersionFiletreeComponent } from "./dashboard/component/user/user-dataset/user-dataset-explorer/user-dataset-version-filetree/user-dataset-version-filetree.component";
 import { UserDatasetFileRendererComponent } from "./dashboard/component/user/user-dataset/user-dataset-explorer/user-dataset-file-renderer/user-dataset-file-renderer.component";
@@ -302,13 +302,12 @@ registerLocaleData(en);
     ShareAccessComponent,
     WorkflowExecutionHistoryComponent,
     ConsoleFrameComponent,
-    ErrorFrameComponent,
     ResultTableFrameComponent,
     OperatorPropertyEditFrameComponent,
     FilesUploaderComponent,
     ConflictingFileModalContentComponent,
     UserDatasetComponent,
-    UserDatasetVersionCreatorComponent,
+    UserDatasetCreatorComponent,
     DatasetDetailComponent,
     UserDatasetVersionFiletreeComponent,
     UserDatasetFileRendererComponent,
@@ -325,6 +324,7 @@ registerLocaleData(en);
     HuggingFaceAudioUploadComponent,
     HuggingFaceImageUploadComponent,
     DatasetFileSelectorComponent,
+    LoopVariableInputComponent,
     DatasetVersionSelectorComponent,
     DatasetSelectionModalComponent,
     ReActStepDetailModalComponent,

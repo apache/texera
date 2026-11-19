@@ -44,8 +44,8 @@ import { SchemaAttribute } from "../../types/workflow-compiling.interface";
   providedIn: "root",
 })
 export class WorkflowResultService {
-  private macroAliases: () => Record<string, ResultTarget | null> = () => ({});
-  public setMacroAliases(provider: () => Record<string, ResultTarget | null>): void {
+  private macroAliases: (portIndex?: number) => Record<string, ResultTarget | null> = () => ({});
+  public setMacroAliases(provider: (portIndex?: number) => Record<string, ResultTarget | null>): void {
     this.macroAliases = provider;
   }
   private withMacroAliases<T>(event: Record<string, T>): Record<string, T> {
@@ -142,9 +142,7 @@ export class WorkflowResultService {
 
   public getPaginatedResultService(operatorID: string): OperatorPaginationResultService | undefined {
     const id = this.macroAliases()[operatorID];
-    return id === null
-      ? undefined
-      : this.getPortPaginatedResultService(id?.operatorID ?? operatorID, id?.portIndex ?? 0);
+    return id === null ? undefined : this.tableForPort(id?.operatorID ?? operatorID, id?.portIndex ?? 0);
   }
 
   /**
@@ -156,6 +154,14 @@ export class WorkflowResultService {
     operatorID: string,
     portIndex: number
   ): OperatorPaginationResultService | undefined {
+    if (portIndex === 0) return this.getPaginatedResultService(operatorID);
+    const target = this.macroAliases(portIndex)[operatorID];
+    return target === null
+      ? undefined
+      : this.tableForPort(target?.operatorID ?? operatorID, target?.portIndex ?? portIndex);
+  }
+
+  private tableForPort(operatorID: string, portIndex: number): OperatorPaginationResultService | undefined {
     const firstPort = this.tables.get(operatorID)?.get(0);
     if (portIndex === 0 || (!firstPort && !this.operatorResultServices.has(operatorID))) return firstPort;
     return this.getOrInitPaginatedResultService(operatorID, portIndex);
@@ -303,6 +309,12 @@ export class OperatorResultService {
   }
 }
 
+/**
+ * A column limit that asks for every column. The server reads the limit as a 32-bit Int, so it is
+ * Int.MaxValue there; Number.MAX_SAFE_INTEGER fails to parse and the request is never answered.
+ */
+export const ALL_COLUMNS = 2147483647;
+
 export class OperatorPaginationResultService {
   private readonly subscription;
   public get hasPendingPage(): boolean {
@@ -369,14 +381,13 @@ export class OperatorPaginationResultService {
     pageIndex: number,
     pageSize: number,
     columnOffset: number = 0,
-    columnLimit: number = Number.MAX_SAFE_INTEGER,
+    columnLimit: number = ALL_COLUMNS,
     columnSearch: string = ""
   ): Observable<PaginatedResultEvent> {
     // update currently selected page
     this.currentPageIndex = pageIndex;
     // first fetch from frontend result cache
-    const useCache =
-      this.portIndex === 0 && columnOffset === 0 && columnLimit === Number.MAX_SAFE_INTEGER && columnSearch === "";
+    const useCache = this.portIndex === 0 && columnOffset === 0 && columnLimit === ALL_COLUMNS && columnSearch === "";
     const pageCache = useCache ? this.resultCache.get(pageIndex) : undefined;
     if (pageCache) {
       return of(<PaginatedResultEvent>{
@@ -388,25 +399,42 @@ export class OperatorPaginationResultService {
         portIndex: this.portIndex,
         totalTuples: this.currentTotalNumTuples,
       });
-    } else {
-      // fetch result data from server
-      const requestID = uuid();
-      const operatorID = this.operatorID;
-      const pendingRequestSubject = new ReplaySubject<PaginatedResultEvent>(1);
-      this.pendingRequests.set(requestID, pendingRequestSubject);
-      this.workflowWebsocketService.send("ResultPaginationRequest", {
-        requestID,
-        operatorID,
-        pageIndex,
-        pageSize,
-        columnOffset,
-        columnLimit: columnLimit === Number.MAX_SAFE_INTEGER ? undefined : columnLimit,
-        columnSearch,
-        ...(this.portIndex !== 0 && { portIndex: this.portIndex }),
-        ...(this.executionId && { executionId: this.executionId }),
-      });
-      return pendingRequestSubject;
     }
+    return this.requestPage(pageIndex, pageSize, columnOffset, columnLimit, columnSearch);
+  }
+
+  /**
+   * The first rows of the result, for a glance at it. Unlike selectPage this leaves the page the
+   * result table is on alone and never touches its cache, so a preview cannot move the table.
+   * Every column is asked for, so the schema the reply carries is the whole one, as a table
+   * page's would be.
+   */
+  public peekFirstRows(rowCount: number): Observable<PaginatedResultEvent> {
+    return this.requestPage(1, rowCount, 0, ALL_COLUMNS, "");
+  }
+
+  private requestPage(
+    pageIndex: number,
+    pageSize: number,
+    columnOffset: number,
+    columnLimit: number,
+    columnSearch: string
+  ) {
+    const requestID = uuid();
+    const response = new ReplaySubject<PaginatedResultEvent>(1);
+    this.pendingRequests.set(requestID, response);
+    this.workflowWebsocketService.send("ResultPaginationRequest", {
+      requestID,
+      operatorID: this.operatorID,
+      pageIndex,
+      pageSize,
+      columnOffset,
+      columnLimit: columnLimit === Number.MAX_SAFE_INTEGER ? undefined : columnLimit,
+      columnSearch,
+      ...(this.portIndex !== 0 && { portIndex: this.portIndex }),
+      ...(this.executionId !== undefined && { executionId: this.executionId }),
+    });
+    return response.asObservable();
   }
 
   public reset(): void {

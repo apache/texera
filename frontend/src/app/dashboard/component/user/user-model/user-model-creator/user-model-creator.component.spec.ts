@@ -86,11 +86,10 @@ describe("UserModelCreatorComponent", () => {
     return TestBed.createComponent(UserModelCreatorComponent);
   }
 
-  it("renders the four create fields, with no version-description field", async () => {
+  it("renders the four create fields", async () => {
     const fixture = await createFixture();
     fixture.detectChanges();
 
-    // Create-only: the dataset creator's dual-purpose version branch is deliberately not forked.
     expect(fixture.componentInstance.fields.map(f => f.key)).toEqual(["name", "description", "framework", "format"]);
     expect(fixture.componentInstance.form.contains("name")).toBe(true);
   });
