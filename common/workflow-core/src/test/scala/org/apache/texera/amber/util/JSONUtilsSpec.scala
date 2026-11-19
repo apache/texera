@@ -45,9 +45,14 @@ class JSONUtilsSpec extends AnyFlatSpec with Matchers {
     )
   }
 
-  it should "render JSON null as the literal string \"null\" for top-level fields" in {
-    val node = parse("""{"a":null}""")
-    JSONUtils.JSONToMap(node) shouldBe Map("a" -> "null")
+  it should "skip JSON null values for top-level fields" in {
+    val node = parse("""{"a":null,"b":"x"}""")
+    JSONUtils.JSONToMap(node) shouldBe Map("b" -> "x")
+  }
+
+  it should "contribute no entries when every field is null" in {
+    val node = parse("""{"a":null,"b":null}""")
+    JSONUtils.JSONToMap(node) shouldBe Map.empty[String, String]
   }
 
   it should "skip nested objects when flatten=false" in {
@@ -147,9 +152,17 @@ class JSONUtilsSpec extends AnyFlatSpec with Matchers {
     )
   }
 
-  it should "render JSON null as the literal string \"null\" for nested fields when flatten=true" in {
-    val node = parse("""{"outer":{"a":null}}""")
-    JSONUtils.JSONToMap(node, flatten = true) shouldBe Map("outer.a" -> "null")
+  it should "skip JSON null values for nested fields when flatten=true" in {
+    val node = parse("""{"outer":{"a":null},"b":"x"}""")
+    JSONUtils.JSONToMap(node, flatten = true) shouldBe Map("b" -> "x")
+  }
+
+  it should "skip JSON null elements inside a flattened array" in {
+    val node = parse("""{"arr":[1,null,"x"]}""")
+    JSONUtils.JSONToMap(node, flatten = true) shouldBe Map(
+      "arr1" -> "1",
+      "arr3" -> "x"
+    )
   }
 
   it should "contribute no entries for empty nested objects and arrays when flatten=true" in {
