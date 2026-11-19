@@ -660,11 +660,23 @@ describe("SavedWorkflowSectionComponent", () => {
 
         // The Files themselves are what carry webkitRelativePath, so those are what get passed on.
         expect(parseSpy.mock.calls[0][0]).toEqual(selection);
-        expect(convertSpy).toHaveBeenCalledWith(assembled, "gpt-4");
+        expect(parseSpy.mock.calls[0][1]).toBe("python");
+        expect(convertSpy).toHaveBeenCalledWith(assembled, "gpt-4", "python");
         // Named after the selected folder, with no extension to strip.
         expect(persist.createWorkflow.mock.calls[0][1]).toBe("proj_GENERATED_BY_LLM");
         expect(storeSpy).toHaveBeenCalledWith(77, expect.anything(), derivedNotebook);
         expect(navigateSpy).toHaveBeenCalledWith([USER_WORKSPACE, 77], { queryParams: { autolayout: 1 } });
+        expect(proceed).toBe(true);
+      });
+
+      it("reads and converts an R folder as R", async () => {
+        const { parseSpy, convertSpy } = mockFolderGenerationSuccess();
+        vi.spyOn(TestBed.inject(Router), "navigate").mockResolvedValue(true);
+
+        const proceed = await getRequestImport()(selection, "gpt-4", "r");
+
+        expect(parseSpy.mock.calls[0][1]).toBe("r");
+        expect(convertSpy).toHaveBeenCalledWith(assembled, "gpt-4", "r");
         expect(proceed).toBe(true);
       });
 

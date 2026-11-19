@@ -57,6 +57,9 @@ import {
   R_MAPPING_PROMPT,
   R_SCRIPT_WORKFLOW_PROMPT,
   R_SCRIPT_MAPPING_PROMPT,
+  R_EXAMPLE_OF_MULTIPLE_UDF_CONVERSION_FOLDER,
+  R_FOLDER_WORKFLOW_PROMPT,
+  R_FOLDER_MAPPING_PROMPT,
 } from "./migration-prompts-r";
 import { DerivedCell, ScriptSegmentation, segmentScript, splitScriptLines } from "./script-segmentation";
 import { FolderDocument, resolveEntryPoint, scopeSegmentationToSpan } from "./folder-assembly";
@@ -166,6 +169,10 @@ const R_SCRIPT_DOCUMENTATION: string[] = R_NOTEBOOK_DOCUMENTATION.map(doc =>
   doc === R_EXAMPLE_OF_MULTIPLE_UDF_CONVERSION ? R_EXAMPLE_OF_MULTIPLE_UDF_CONVERSION_SCRIPT : doc
 );
 
+const R_FOLDER_DOCUMENTATION: string[] = R_SCRIPT_DOCUMENTATION.map(doc =>
+  doc === R_EXAMPLE_OF_MULTIPLE_UDF_CONVERSION_SCRIPT ? R_EXAMPLE_OF_MULTIPLE_UDF_CONVERSION_FOLDER : doc
+);
+
 export type MigrationLanguage = "python" | "r";
 
 interface UdfOperator {
@@ -181,6 +188,9 @@ interface MigrationPromptSet {
   scriptDocumentation: string[];
   scriptWorkflowPrompt: string;
   scriptMappingPrompt: string;
+  folderDocumentation: string[];
+  folderWorkflowPrompt: string;
+  folderMappingPrompt: string;
   operator: UdfOperator;
   notebookMetadata: Notebook["metadata"];
 }
@@ -193,6 +203,9 @@ const PROMPT_SETS: Record<MigrationLanguage, MigrationPromptSet> = {
     scriptDocumentation: PYTHON_SCRIPT_DOCUMENTATION,
     scriptWorkflowPrompt: SCRIPT_WORKFLOW_PROMPT,
     scriptMappingPrompt: SCRIPT_MAPPING_PROMPT,
+    folderDocumentation: PYTHON_FOLDER_DOCUMENTATION,
+    folderWorkflowPrompt: FOLDER_WORKFLOW_PROMPT,
+    folderMappingPrompt: FOLDER_MAPPING_PROMPT,
     operator: { type: "PythonUDFV2", properties: {} },
     notebookMetadata: {
       kernelspec: { display_name: "Python 3", language: "python", name: "python3" },
@@ -206,6 +219,9 @@ const PROMPT_SETS: Record<MigrationLanguage, MigrationPromptSet> = {
     scriptDocumentation: R_SCRIPT_DOCUMENTATION,
     scriptWorkflowPrompt: R_SCRIPT_WORKFLOW_PROMPT,
     scriptMappingPrompt: R_SCRIPT_MAPPING_PROMPT,
+    folderDocumentation: R_FOLDER_DOCUMENTATION,
+    folderWorkflowPrompt: R_FOLDER_WORKFLOW_PROMPT,
+    folderMappingPrompt: R_FOLDER_MAPPING_PROMPT,
     // The prompts only teach the Table API.
     operator: { type: "RUDF", properties: { useTupleAPI: false } },
     notebookMetadata: {
@@ -526,17 +542,20 @@ export class NotebookMigrationLLM {
    * reports is in that file's lines, so clicking an operator highlights the call that runs it.
    * Still keyed on cell uuids, so nothing downstream learns the input was a folder.
    */
-  public async convertFolderToWorkflow(document: FolderDocument): Promise<SourceConversion> {
+  public async convertFolderToWorkflow(
+    document: FolderDocument,
+    language: MigrationLanguage = "python"
+  ): Promise<SourceConversion> {
     this.assertEnabled();
     if (!this.initialized) {
       throw new Error("LLM session not initialized");
     }
 
-    const prompts = PROMPT_SETS.python;
+    const prompts = this.promptsFor(language);
     const { workflowJSON, udfIdToOperatorId, workflowResponse, reportedRanges } = await this.requestConversion(
-      PYTHON_FOLDER_DOCUMENTATION,
-      FOLDER_WORKFLOW_PROMPT,
-      FOLDER_MAPPING_PROMPT,
+      prompts.folderDocumentation,
+      prompts.folderWorkflowPrompt,
+      prompts.folderMappingPrompt,
       prompts.operator,
       document.source,
       // The layout is prompt text, never part of the numbered document: numbering it would shift
