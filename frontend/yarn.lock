@@ -5815,12 +5815,11 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@texera/workflow-macros@file:../common/workflow-core/src/main/typescript/workflow-macros::locator=gui%40workspace%3A.":
-  version: 0.0.0
-  resolution: "@texera/workflow-macros@file:../common/workflow-core/src/main/typescript/workflow-macros#../common/workflow-core/src/main/typescript/workflow-macros::hash=45fee0&locator=gui%40workspace%3A."
-  checksum: 10c0/dc3ab1a46ae5ecb850e80d50d5e2c1c9a3c45bde8e3bdbe9feb5ef8efd305262ac223348fcaafdce9cd5bf551a7744ce4ff1ce504af452d72fa37b5694b1825e
+"@texera/workflow-macros@portal:../common/workflow-core/src/main/typescript/workflow-macros::locator=gui%40workspace%3A.":
+  version: 0.0.0-use.local
+  resolution: "@texera/workflow-macros@portal:../common/workflow-core/src/main/typescript/workflow-macros::locator=gui%40workspace%3A."
   languageName: node
-  linkType: hard
+  linkType: soft
 
 "@tsconfig/node10@npm:^1.0.7":
   version: 1.0.12
@@ -10710,7 +10709,7 @@ __metadata:
     "@ngx-formly/ng-zorro-antd": "npm:7.1.0"
     "@nx/angular": "npm:23.0.2"
     "@schematics/angular": "npm:21.2.30"
-    "@texera/workflow-macros": "file:../common/workflow-core/src/main/typescript/workflow-macros"
+    "@texera/workflow-macros": "portal:../common/workflow-core/src/main/typescript/workflow-macros"
     "@types/backbone": "npm:1.4.23"
     "@types/concaveman": "npm:1.1.6"
     "@types/d3-shape": "npm:2.1.7"

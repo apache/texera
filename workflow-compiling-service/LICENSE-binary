@@ -221,11 +221,12 @@ Dependencies under the Apache License, Version 2.0
 
 Scala/Java jars:
   - ch.qos.reload4j.reload4j-1.2.22.jar
+  - com.ethlo.time.itu-1.14.0.jar
   - com.fasterxml.classmate-1.7.0.jar
   - com.fasterxml.jackson.core.jackson-annotations-2.21.jar
   - com.fasterxml.jackson.core.jackson-core-2.21.0.jar
   - com.fasterxml.jackson.core.jackson-databind-2.18.8.jar
-  - com.fasterxml.jackson.dataformat.jackson-dataformat-yaml-2.16.1.jar
+  - com.fasterxml.jackson.dataformat.jackson-dataformat-yaml-2.18.3.jar
   - com.fasterxml.jackson.datatype.jackson-datatype-guava-2.16.1.jar
   - com.fasterxml.jackson.datatype.jackson-datatype-jdk8-2.16.1.jar
   - com.fasterxml.jackson.datatype.jackson-datatype-jsr310-2.21.0.jar
@@ -258,6 +259,7 @@ Scala/Java jars:
   - com.google.j2objc.j2objc-annotations-3.1.jar
   - com.googlecode.javaewah.JavaEWAH-1.1.12.jar
   - com.helger.profiler-1.1.1.jar
+  - com.networknt.json-schema-validator-1.5.9.jar
   - com.nimbusds.nimbus-jose-jwt-10.4.jar
   - com.squareup.okhttp3.logging-interceptor-4.12.0.jar
   - com.squareup.okhttp3.okhttp-4.12.0.jar
@@ -461,7 +463,7 @@ Scala/Java jars:
   - org.slf4j.jcl-over-slf4j-2.0.12.jar
   - org.slf4j.log4j-over-slf4j-2.0.12.jar
   - org.xerial.snappy.snappy-java-1.1.10.7.jar
-  - org.yaml.snakeyaml-2.2.jar
+  - org.yaml.snakeyaml-2.3.jar
   - software.amazon.awssdk.annotations-2.29.51.jar
   - software.amazon.awssdk.apache-client-2.29.51.jar
   - software.amazon.awssdk.arns-2.29.51.jar

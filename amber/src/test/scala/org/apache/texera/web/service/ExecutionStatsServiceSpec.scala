@@ -20,7 +20,6 @@
 package org.apache.texera.web.service
 
 import org.apache.texera.amber.operator.TestOperators
-import io.reactivex.rxjava3.disposables.Disposable
 import org.apache.pekko.actor.{ActorSystem, Props}
 import org.apache.texera.amber.clustering.SingleNodeListener
 import org.apache.texera.amber.engine.e2e.TestUtils

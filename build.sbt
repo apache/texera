@@ -255,7 +255,8 @@ lazy val WorkflowCompiler = (project in file("common/workflow-compiler"))
   .configs(Test)
   .dependsOn(WorkflowOperator)
 lazy val WorkflowCompilingService = (project in file("workflow-compiling-service"))
-  .dependsOn(WorkflowCompiler % "compile->compile;test->test", Auth, Config, Resource, Observability)
+  .dependsOn(WorkflowCompiler, Auth, Config, Resource, Observability)
+  .dependsOn(WorkflowCompiler % "test->test")
   .configs(Test)
   .dependsOn(DAO % "test->test") // reuse MockTexeraDB embedded Postgres in tests
   .dependsOn(WorkflowOperator % "test->test") // reuse PythonWorkerPool in verify tests
@@ -273,7 +274,8 @@ lazy val WorkflowCompilingService = (project in file("workflow-compiling-service
   )
 
 lazy val WorkflowExecutionService = (project in file("amber"))
-  .dependsOn(WorkflowCompiler % "compile->compile;test->test", Auth, Config, Observability)
+  .dependsOn(WorkflowCompiler, Auth, Config, Observability)
+  .dependsOn(WorkflowCompiler % "test->test")
   .settings(commonModuleSettings)
   .settings(
     dependencyOverrides ++= Seq(
