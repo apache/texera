@@ -42,17 +42,17 @@ import org.apache.texera.amber.core.storage.{
   WarehouseUnavailableException
 }
 import org.apache.texera.amber.core.tuple.{Attribute, Schema, Tuple, TupleUtils}
-import org.apache.texera.amber.core.workflow.GlobalPortIdentity
+import org.apache.texera.amber.core.workflow.{GlobalPortIdentity, TerminalWorkflowExecutionStatus}
 import org.apache.texera.amber.util.serde.GlobalPortIdentitySerde
 import org.apache.texera.auth.SessionUser
-import org.apache.texera.auth.util.WorkflowAccess
+import org.apache.texera.auth.util.ComputingUnitAccess
 import org.apache.texera.dao.SqlServer
 import org.apache.texera.dao.jooq.generated.Tables.{
   OPERATOR_PORT_EXECUTIONS,
   WORKFLOW_EXECUTIONS,
   WORKFLOW_VERSION
 }
-import org.apache.texera.dao.jooq.generated.enums.OutputModeEnum
+import org.apache.texera.dao.jooq.generated.enums.{OutputModeEnum, PrivilegeEnum}
 import org.apache.texera.service.resource.ResultResource._
 import org.jooq.DSLContext
 
@@ -61,10 +61,6 @@ import java.util.Locale
 import scala.jdk.CollectionConverters._
 
 object ResultResource {
-  // workflow_executions.status of a run that has ended: COMPLETED, FAILED and KILLED.
-  private val FinishedStatuses: java.util.List[java.lang.Short] =
-    List[java.lang.Short](3.toShort, 4.toShort, 5.toShort).asJava
-
   // A page is read into memory in a service everyone shares, so one request must not be able to
   // ask for a whole table. This is far above the rows a result panel shows at once.
   private val MaxPageSize = 1000
@@ -118,7 +114,7 @@ class ResultResource {
       .on(WORKFLOW_VERSION.VID.eq(WORKFLOW_EXECUTIONS.VID))
       .where(WORKFLOW_VERSION.WID.eq(wid))
       .and(WORKFLOW_EXECUTIONS.UID.eq(user.getUid))
-      .and(WORKFLOW_EXECUTIONS.STATUS.in(FinishedStatuses))
+      .and(WORKFLOW_EXECUTIONS.STATUS.in(TerminalWorkflowExecutionStatus.dbStatuses: _*))
       .orderBy(WORKFLOW_EXECUTIONS.EID.desc())
       .limit(1)
       .fetchOneInto(classOf[Integer])
@@ -175,10 +171,10 @@ class ResultResource {
       .take(columnLimit)
     val from = pageSize * (pageIndex - 1)
     // A visualization is HTML in a single cell, so it is sent whole, as the computing unit's result
-    // push sends it. A result recorded before output modes were is not one.
+    // push sends it. A result with no recorded output mode is not treated as a visualization.
     val visualization = result.outputMode.contains(OutputModeEnum.SINGLE_SNAPSHOT)
-    // A row at a time, so a page holds at most one decoded row: the JSON keeps only a preview of
-    // each long value, except in a visualization.
+    // Convert one row at a time, so building a page keeps at most one decoded row in memory. The
+    // JSON keeps only a preview of each long value, except in a visualization.
     val table = document
       .getRange(from, from + pageSize, Some(columns))
       .map(row => TupleUtils.convertTuplesToJson(List(row), visualization).head)
@@ -204,22 +200,23 @@ class ResultResource {
   }
 
   /**
-    * The caller may read an execution they started, or any execution of a workflow they own or
-    * were granted. Being able to see a workflow because it is public is not enough: a public
-    * workflow shows what its author published, not what an execution of it read from private
-    * datasets. An execution that does not exist gets the same refusal, so ids cannot be probed.
+    * The caller may read an execution they started, or one that ran on a computing unit they can
+    * use: the boundary these rows sit behind today, when they are read through that unit. Access
+    * to the workflow is not enough, whether it is public or granted, since a run reads datasets
+    * with the access of the user who started it, and anyone who can write a workflow can grant
+    * reading it. An execution that does not exist gets the same refusal, so ids cannot be probed.
     */
   private def requireReadable(eid: Integer, user: SessionUser): Unit = {
     val execution = context
-      .select(WORKFLOW_VERSION.WID, WORKFLOW_EXECUTIONS.UID)
+      .select(WORKFLOW_EXECUTIONS.UID, WORKFLOW_EXECUTIONS.CUID)
       .from(WORKFLOW_EXECUTIONS)
-      .join(WORKFLOW_VERSION)
-      .on(WORKFLOW_VERSION.VID.eq(WORKFLOW_EXECUTIONS.VID))
       .where(WORKFLOW_EXECUTIONS.EID.eq(eid))
       .fetchOne()
     val readable = execution != null && (
-      execution.value2() == user.getUid ||
-        WorkflowAccess.hasGrantedAccess(execution.value1(), user.getUid)
+      execution.value1() == user.getUid ||
+        Option(execution.value2()).exists(cuid =>
+          ComputingUnitAccess.getComputingUnitAccess(cuid, user.getUid) != PrivilegeEnum.NONE
+        )
     )
     if (!readable) {
       throw new ForbiddenException(s"you cannot read the results of execution $eid")

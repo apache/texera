@@ -26,6 +26,7 @@ import jakarta.annotation.security.RolesAllowed
 import jakarta.ws.rs._
 import jakarta.ws.rs.core.{MediaType, Response}
 import org.apache.commons.lang3.StringUtils
+import org.apache.texera.amber.core.workflow.TerminalWorkflowExecutionStatus
 import org.apache.texera.auth.JwtAuth.jwtClaims
 import org.apache.texera.auth.{JwtAuth, SessionUser}
 import org.apache.texera.auth.util.ComputingUnitAccess
@@ -91,44 +92,6 @@ object ComputingUnitManagingResource {
       username: Option[String]
   )
 
-  /**
-    * The codes persisted in `workflow_executions.status`. These are the collapsed codes produced
-    * by amber's `Utils.maptoStatusCode`, NOT the ordinals of `WorkflowAggregatedState`, and this
-    * service cannot depend on the amber module to reuse either. Keep this in sync with
-    * `Utils.maptoStatusCode`.
-    *
-    * Only the terminal codes are listed, and the sweep treats every other code as an execution
-    * still in flight. That direction matters: `maptoStatusCode` collapses PAUSING, RESUMING,
-    * UNKNOWN and TERMINATED alike to -1, so enumerating the non-terminal codes instead would
-    * leave a paused-or-resuming execution looking idle and get its computing unit deleted out
-    * from under its owner.
-    *
-    * Known limitation: a non-terminal code is trusted without a time bound, so a row that never
-    * reaches 3/4/5 keeps its computing unit off this sweep indefinitely -- not for one more
-    * sweep, but permanently. Two ways in:
-    *   - a row left stuck at RUNNING -- a coordinator that died in place, an OOM inside the
-    *     container -- because nothing ever rewrites it;
-    *   - a row whose *final* status is -1, because `maptoStatusCode` gives an execution that
-    *     ended the same code as one that is merely paused. Today that is UNKNOWN, the fallback
-    *     `WorkflowExecution.getState` returns for a worker mix it cannot name. TERMINATED maps
-    *     to -1 as well, but is a worker-level state: `ExecutionUtils.aggregateStates` reports a
-    *     COMPLETED-or-TERMINATED worker set as COMPLETED, so it does not reach this column
-    *     today. If amber ever persists it, it lands in this same bucket.
-    * Neither is separable here -- a -1 carries nothing that distinguishes an ended execution
-    * from a live one, so the fix belongs in what amber persists. Nothing else reclaims such a
-    * unit either: `ComputingUnitHelpers.reconcileVanishedKubernetesUnits` only runs when someone
-    * calls a listing endpoint, and it keys off a vanished pod rather than a stale execution row.
-    * Tracked as a follow-up in apache/texera#8618.
-    */
-  private[resource] object TerminalWorkflowExecutionStatus extends Enumeration {
-    val Completed: Value = Value(3)
-    val Failed: Value = Value(4)
-    val Killed: Value = Value(5)
-
-    def dbStatuses: Seq[java.lang.Short] =
-      values.toSeq.map(status => Short.box(status.id.toShort))
-  }
-
   private[resource] def lastComputingUnitActivityTime(
       unit: WorkflowComputingUnit,
       latestUpdateTime: Option[Timestamp],
@@ -187,6 +150,12 @@ object ComputingUnitManagingResource {
     // gone (name is NULL), matching what a per-unit scan would produce.
     val latestUpdateTime = max(WORKFLOW_EXECUTIONS.LAST_UPDATE_TIME)
     val latestStartTime = max(WORKFLOW_EXECUTIONS.STARTING_TIME)
+    // Every code outside TerminalWorkflowExecutionStatus counts as in flight, so a paused or
+    // resuming execution keeps its unit from looking idle and being deleted out from under its
+    // owner. A row that never reaches a terminal code (see that object) keeps its unit off this
+    // sweep permanently, and nothing else reclaims it either:
+    // `ComputingUnitHelpers.reconcileVanishedKubernetesUnits` only runs when someone calls a
+    // listing endpoint, and it keys off a vanished pod rather than a stale execution row.
     val hasActiveExecution =
       boolOr(WORKFLOW_EXECUTIONS.STATUS.notIn(TerminalWorkflowExecutionStatus.dbStatuses: _*))
 

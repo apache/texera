@@ -46,10 +46,17 @@ import org.apache.texera.amber.util.serde.GlobalPortIdentitySerde.SerdeOps
 import org.apache.texera.auth.{JwtAuth, JwtAuthFilter, SessionUser, UnauthorizedExceptionMapper}
 import org.apache.texera.dao.MockTexeraDB
 import org.apache.texera.dao.jooq.generated.Tables.{OPERATOR_PORT_EXECUTIONS, WORKFLOW_EXECUTIONS}
-import org.apache.texera.dao.jooq.generated.enums.{OutputModeEnum, PrivilegeEnum, UserRoleEnum}
+import org.apache.texera.dao.jooq.generated.enums.{
+  OutputModeEnum,
+  PrivilegeEnum,
+  UserRoleEnum,
+  WorkflowComputingUnitTypeEnum
+}
 import org.apache.texera.dao.jooq.generated.tables.daos.{
+  ComputingUnitUserAccessDao,
   OperatorPortExecutionsDao,
   UserDao,
+  WorkflowComputingUnitDao,
   WorkflowDao,
   WorkflowExecutionsDao,
   WorkflowOfUserDao,
@@ -57,9 +64,11 @@ import org.apache.texera.dao.jooq.generated.tables.daos.{
   WorkflowVersionDao
 }
 import org.apache.texera.dao.jooq.generated.tables.pojos.{
+  ComputingUnitUserAccess,
   OperatorPortExecutions,
   User,
   Workflow,
+  WorkflowComputingUnit,
   WorkflowExecutions,
   WorkflowOfUser,
   WorkflowUserAccess,
@@ -71,6 +80,7 @@ import org.scalatest.matchers.should.Matchers
 import org.scalatest.{BeforeAndAfterAll, BeforeAndAfterEach}
 
 import java.net.URI
+import java.sql.Timestamp
 import java.util.Locale
 
 /**
@@ -121,13 +131,18 @@ class ResultResourceSpec
     user
   }
 
+  // Owns the workflow below and the computing unit its runs use.
   private val owner = newUser(1, "owner")
+  // Granted the workflow, but not the computing unit.
   private val grantee = newUser(2, "grantee")
   // Holds no grant: the workflow below is public, which is all this user has.
   private val publicViewer = newUser(3, "public-viewer")
+  // Shares the owner's computing unit, but not the workflow.
+  private val unitSharer = newUser(4, "unit-sharer")
 
   private var wid: Integer = _
   private var vid: Integer = _
+  private var unit: Integer = _
 
   override protected def beforeAll(): Unit = {
     initializeDBAndReplaceDSLContext()
@@ -136,7 +151,23 @@ class ResultResourceSpec
 
     val configuration = getDSLContext.configuration()
     val userDao = new UserDao(configuration)
-    Seq(owner, grantee, publicViewer).foreach(user => userDao.insert(user))
+    Seq(owner, grantee, publicViewer, unitSharer).foreach(user => userDao.insert(user))
+
+    val computingUnit = new WorkflowComputingUnit
+    computingUnit.setUid(owner.getUid)
+    computingUnit.setName("owner-unit")
+    computingUnit.setCreationTime(new Timestamp(0L))
+    computingUnit.setType(WorkflowComputingUnitTypeEnum.local)
+    computingUnit.setUri("local://owner-unit")
+    computingUnit.setResource("{}")
+    new WorkflowComputingUnitDao(configuration).insert(computingUnit)
+    unit = computingUnit.getCuid
+
+    val unitAccess = new ComputingUnitUserAccess
+    unitAccess.setCuid(unit)
+    unitAccess.setUid(unitSharer.getUid)
+    unitAccess.setPrivilege(PrivilegeEnum.READ)
+    new ComputingUnitUserAccessDao(configuration).insert(unitAccess)
 
     val workflow = new Workflow
     workflow.setName("public-workflow")
@@ -173,10 +204,16 @@ class ResultResourceSpec
     getDSLContext.deleteFrom(WORKFLOW_EXECUTIONS).execute()
   }
 
-  private def insertExecution(startedBy: User, status: Short = Completed): Integer = {
+  /** An execution of the workflow, on the owner's computing unit unless `on` says otherwise. */
+  private def insertExecution(
+      startedBy: User,
+      status: Short = Completed,
+      on: Option[Integer] = Some(unit)
+  ): Integer = {
     val execution = new WorkflowExecutions
     execution.setVid(vid)
     execution.setUid(startedBy.getUid)
+    execution.setCuid(on.orNull)
     execution.setStatus(status)
     execution.setEnvironmentVersion("test")
     new WorkflowExecutionsDao(getDSLContext.configuration()).insert(execution)
@@ -312,21 +349,36 @@ class ResultResourceSpec
     readPaths(eid).foreach(path => withClue(path)(get(publicViewer, path).getStatus shouldBe 200))
   }
 
-  it should "be allowed for the owner and anyone granted the workflow" in {
+  it should "be allowed for anyone who can use the computing unit it ran on" in {
     val eid = insertExecution(publicViewer)
     storeResult(eid)
 
-    for (caller <- Seq(owner, grantee); path <- readPaths(eid)) {
+    // The unit's owner, and a user the unit was shared with who holds nothing on the workflow.
+    for (caller <- Seq(owner, unitSharer); path <- readPaths(eid)) {
       withClue(s"${caller.getName} on $path")(get(caller, path).getStatus shouldBe 200)
     }
   }
 
-  it should "be refused for a user who only sees the workflow because it is public" in {
+  it should "be refused for a user who only has the workflow, granted or public" in {
     val eid = insertExecution(owner)
     // No table is stored, so a refusal that came after reading it would be a 404.
     insertResult(eid)
 
-    readPaths(eid).foreach(path => withClue(path)(get(publicViewer, path).getStatus shouldBe 403))
+    for (caller <- Seq(grantee, publicViewer); path <- readPaths(eid)) {
+      withClue(s"${caller.getName} on $path")(get(caller, path).getStatus shouldBe 403)
+    }
+  }
+
+  it should "be refused to all but its starter when no computing unit was recorded" in {
+    val eid = insertExecution(owner, on = None)
+    storeResult(eid)
+
+    readPaths(eid).foreach { path =>
+      withClue(path) {
+        get(owner, path).getStatus shouldBe 200
+        get(unitSharer, path).getStatus shouldBe 403
+      }
+    }
   }
 
   it should "give an execution that does not exist the same refusal" in {
