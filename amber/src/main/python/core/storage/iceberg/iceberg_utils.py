@@ -32,7 +32,6 @@ from pyiceberg.table import Table
 from typing import Optional, Iterable
 from pyiceberg import types as iceberg_types
 
-import core
 import core.models
 from core.models import ArrowTableTupleProvider, Tuple
 from core.models.schema.attribute_type import AttributeType, TO_ARROW_MAPPING
@@ -242,11 +241,9 @@ def create_rest_catalog(
     # server, whose I/O goes through S3FileIO, not the local filesystem.
     return load_catalog(
         catalog_name,
-        **{
-            "type": "rest",
-            "uri": rest_uri,
-            "warehouse": warehouse_name,
-        },
+        type="rest",
+        uri=rest_uri,
+        warehouse=warehouse_name,
     )
 
 
@@ -278,13 +275,11 @@ def create_table(
     if catalog.table_exists(identifier) and override_if_exists:
         catalog.drop_table(identifier)
 
-    table = catalog.create_table(
+    return catalog.create_table(
         identifier=identifier,
         schema=table_schema,
         partition_spec=UNPARTITIONED_PARTITION_SPEC,
     )
-
-    return table
 
 
 def load_table_metadata(

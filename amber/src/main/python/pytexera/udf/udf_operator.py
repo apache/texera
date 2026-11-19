@@ -232,7 +232,6 @@ class UDFOperatorV2(_UiParameterSupport, TupleOperatorV2):
         Open a context of the operator. Usually can be used for loading/initiating some
         resources, such as a file, a model, or an API client.
         """
-        pass
 
     @abstractmethod
     def process_tuple(self, tuple_: Tuple, port: int) -> Iterator[Optional[TupleLike]]:
@@ -262,7 +261,6 @@ class UDFOperatorV2(_UiParameterSupport, TupleOperatorV2):
         """
         Close the context of the operator.
         """
-        pass
 
 
 class UDFSourceOperator(_UiParameterSupport, SourceOperator):
@@ -271,7 +269,6 @@ class UDFSourceOperator(_UiParameterSupport, SourceOperator):
         Open a context of the operator. Usually can be used for loading/initiating some
         resources, such as a file, a model, or an API client.
         """
-        pass
 
     @abstractmethod
     def produce(self) -> Iterator[Optional[Union[TupleLike, TableLike]]]:
@@ -287,7 +284,6 @@ class UDFSourceOperator(_UiParameterSupport, SourceOperator):
         """
         Close the context of the operator.
         """
-        pass
 
 
 class UDFTableOperator(_UiParameterSupport, TableOperator):
@@ -301,7 +297,6 @@ class UDFTableOperator(_UiParameterSupport, TableOperator):
         Open a context of the operator. Usually can be used for loading/initiating some
         resources, such as a file, a model, or an API client.
         """
-        pass
 
     @abstractmethod
     def process_table(self, table: Table, port: int) -> Iterator[Optional[TableLike]]:
@@ -320,7 +315,6 @@ class UDFTableOperator(_UiParameterSupport, TableOperator):
         """
         Close the context of the operator.
         """
-        pass
 
 
 class UDFBatchOperator(_UiParameterSupport, BatchOperator):
@@ -334,7 +328,6 @@ class UDFBatchOperator(_UiParameterSupport, BatchOperator):
         Open a context of the operator. Usually can be used for loading/initiating some
         resources, such as a file, a model, or an API client.
         """
-        pass
 
     @abstractmethod
     def process_batch(self, batch: Batch, port: int) -> Iterator[Optional[BatchLike]]:
@@ -353,4 +346,3 @@ class UDFBatchOperator(_UiParameterSupport, BatchOperator):
         """
         Close the context of the operator.
         """
-        pass

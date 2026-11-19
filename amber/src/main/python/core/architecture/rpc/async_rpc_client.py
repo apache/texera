@@ -57,7 +57,7 @@ class AsyncRPCClient:
         self._context = context
         self._output_queue = output_queue
         self._send_sequences: Dict[ActorVirtualIdentity, int] = defaultdict(int)
-        self._unfulfilled_promises: Dict[(ActorVirtualIdentity, int), Future] = dict()
+        self._unfulfilled_promises: Dict[(ActorVirtualIdentity, int), Future] = {}
         # TODO: is this correct?
         self._coordinator_service_stub = CoordinatorServiceStub("")
         rpc_context = AsyncRpcContext(
