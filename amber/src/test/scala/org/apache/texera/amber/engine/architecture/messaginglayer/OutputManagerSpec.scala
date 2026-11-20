@@ -505,9 +505,9 @@ class OutputManagerSpec extends AnyFlatSpec with MockFactory {
     receivers.foreach(r => assert(got.getOrElse(r, Nil) == rows.toList))
   }
 
-  // -- locality guard (phase 2b): a local (same-JVM) receiver stays on rows ---------
+  // -- local columnar: a local columnar-capable edge hands off a live Arrow root ----
 
-  "locality guard" should "keep a local one-to-one edge on rows even when columnar is enabled" in {
+  "local columnar" should "hand a local one-to-one columnar edge a live root, not rows" in {
     val (om, sent) = capturingOutputManager()
     val rec = ActorVirtualIdentity("local-o2o")
     val portId = PortIdentity(40)
@@ -519,14 +519,15 @@ class OutputManagerSpec extends AnyFlatSpec with MockFactory {
     )
     om.isLocalReceiver = id => if (id == rec) Some(true) else None
     om.passTupleToDownstream(sampleTuple(), Some(portId))
-    // columnar is on, but the receiver is local, so the batch goes out as rows.
+    // columnar is on and the receiver is local, so the batch is handed off as a live
+    // Arrow root (zero-copy), letting the co-located receiver process columns.
     assert(sent.size == 1)
-    assert(sent.head.payload.isInstanceOf[DataFrame])
+    assert(sent.head.payload.isInstanceOf[LocalColumnarBatch])
   }
 
-  it should "decline the no-decode fast path for a local receiver, take it for a remote one" in {
-    def fastPathTaken(local: Boolean): Boolean = {
-      val (om, _) = capturingOutputManager()
+  it should "take the no-decode path for both local and remote, as a live root vs Arrow bytes" in {
+    def payloadsFor(local: Boolean): (Boolean, Seq[Any]) = {
+      val (om, sent) = capturingOutputManager()
       val rec = ActorVirtualIdentity(s"fast-$local")
       val portId = PortIdentity(if (local) 41 else 42)
       om.addPort(portId, schema, None)
@@ -536,13 +537,17 @@ class OutputManagerSpec extends AnyFlatSpec with MockFactory {
         columnar = true
       )
       om.isLocalReceiver = _ => Some(local)
-      emitThrough(om, Array(sampleTuple())).isDefined
+      (emitThrough(om, Array(sampleTuple())).isDefined, sent.map(_.payload).toSeq)
     }
-    assert(!fastPathTaken(local = true)) // local -> fall back to the row path
-    assert(fastPathTaken(local = false)) // remote -> columnar fast path
+    val (localTaken, localPayloads) = payloadsFor(local = true)
+    val (remoteTaken, remotePayloads) = payloadsFor(local = false)
+    assert(localTaken && remoteTaken) // no-decode path taken for both, neither decodes to rows
+    assert(localPayloads.forall(_.isInstanceOf[LocalColumnarBatch])) // local -> live root
+    assert(remotePayloads.forall(_.isInstanceOf[VectorFrame])) // remote -> Arrow bytes
+    localPayloads.foreach(_.asInstanceOf[LocalColumnarBatch].root.close())
   }
 
-  it should "in the row path, send rows to a local receiver and Arrow to a remote one on a mixed shuffle" in {
+  it should "in the row path, send a local root to a local receiver and Arrow to a remote one on a mixed shuffle" in {
     val local = ActorVirtualIdentity("mix-local")
     val remote = ActorVirtualIdentity("mix-remote")
     val (om, sent) = capturingOutputManager()
@@ -558,14 +563,15 @@ class OutputManagerSpec extends AnyFlatSpec with MockFactory {
     (0 until 40).foreach(v => om.passTupleToDownstream(rowWith(v), Some(portId)))
     om.flush()
     val byReceiver = sent.groupBy(_.channelId.toWorkerId)
-    // Both buckets got data, the local one as DataFrames and the remote one as VectorFrames.
+    // Both buckets got data: the local one as a live Arrow root (zero-copy), the remote
+    // one as VectorFrames.
     assert(byReceiver.get(local).exists(_.nonEmpty))
     assert(byReceiver.get(remote).exists(_.nonEmpty))
-    assert(byReceiver(local).forall(_.payload.isInstanceOf[DataFrame]))
+    assert(byReceiver(local).forall(_.payload.isInstanceOf[LocalColumnarBatch]))
     assert(byReceiver(remote).forall(_.payload.isInstanceOf[VectorFrame]))
   }
 
-  it should "in the fast path, ship Arrow to remote buckets and rows to local buckets on a mixed shuffle" in {
+  it should "in the fast path, ship Arrow to remote buckets and a live root to local buckets on a mixed shuffle" in {
     val local = ActorVirtualIdentity("c-local")
     val remote = ActorVirtualIdentity("c-remote")
     val (om, sent) = capturingOutputManager()
@@ -581,19 +587,22 @@ class OutputManagerSpec extends AnyFlatSpec with MockFactory {
     om.isLocalReceiver = id => Some(id == local)
 
     val rows = (0 until 40).map(rowWith).toArray
-    assert(emitThrough(om, rows).isDefined) // a remote receiver is present, so the fast path runs
+    assert(emitThrough(om, rows).isDefined) // the fast path runs for every columnar receiver
 
     val byReceiver = sent.groupBy(_.channelId.toWorkerId)
-    // The local bucket arrives as rows, the remote bucket as Arrow.
-    assert(byReceiver(local).forall(_.payload.isInstanceOf[DataFrame]))
+    // The local bucket arrives as a live Arrow root (zero-copy), the remote bucket as Arrow bytes.
+    assert(byReceiver(local).forall(_.payload.isInstanceOf[LocalColumnarBatch]))
     assert(byReceiver(remote).forall(_.payload.isInstanceOf[VectorFrame]))
     // Both buckets hold exactly the rows the row partitioner assigns, nothing lost.
     val got: Map[ActorVirtualIdentity, List[Tuple]] = byReceiver.map {
       case (r, msgs) =>
         r -> msgs.flatMap {
           case m if m.payload.isInstanceOf[VectorFrame] =>
-            ArrowUtils.deserializeTuples(m.payload.asInstanceOf[VectorFrame].arrowIpcBytes)
-          case m => m.payload.asInstanceOf[DataFrame].frame.toSeq
+            ArrowUtils.deserializeTuples(m.payload.asInstanceOf[VectorFrame].arrowIpcBytes).toList
+          case m =>
+            val b = m.payload.asInstanceOf[LocalColumnarBatch]
+            try ArrowUtils.tuplesOfRoot(b.root).toList
+            finally b.root.close()
         }.toList
     }
     val expected =

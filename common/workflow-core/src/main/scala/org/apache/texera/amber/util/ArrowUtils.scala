@@ -84,14 +84,24 @@ object ArrowUtils extends LazyLogging {
   }
 
   // Serialize a batch of tuples to Arrow IPC stream bytes (columnar wire format).
+  // Build a live Arrow root from Texera tuples directly (no IPC round-trip). The caller
+  // owns the returned root and must close it, or transfer ownership (e.g. LocalColumnarBatch).
+  def rootFromTuples(
+      schema: Schema,
+      tuples: Array[Tuple],
+      alloc: BufferAllocator
+  ): VectorSchemaRoot = {
+    val root = VectorSchemaRoot.create(fromTexeraSchema(schema), alloc)
+    var i = 0
+    while (i < tuples.length) { setTexeraTuple(tuples(i), i, root); i += 1 }
+    root.setRowCount(tuples.length)
+    root
+  }
+
   def serializeTuples(schema: Schema, tuples: Array[Tuple]): Array[Byte] = {
-    val root = VectorSchemaRoot.create(fromTexeraSchema(schema), allocator)
-    try {
-      var i = 0
-      while (i < tuples.length) { setTexeraTuple(tuples(i), i, root); i += 1 }
-      root.setRowCount(tuples.length)
-      serializeRoot(root)
-    } finally root.close()
+    val root = rootFromTuples(schema, tuples, allocator)
+    try serializeRoot(root)
+    finally root.close()
   }
 
   // Inverse of serializeTuples: decode Arrow IPC stream bytes back to tuples.
@@ -499,82 +509,88 @@ object ArrowUtils extends LazyLogging {
     */
   def setTexeraTuple(tuple: Tuple, index: Int, vectorSchemaRoot: VectorSchemaRoot): Unit = {
     val arrowFields = vectorSchemaRoot.getSchema.getFields
-
     for (i <- 0 until arrowFields.size()) {
-      val vector: FieldVector = vectorSchemaRoot.getVector(i)
-      val value = tuple.getField[AnyRef](i)
-      val isNull = value == null
-      arrowFields.get(i).getFieldType.getType match {
-        case _: ArrowType.Int =>
-          vector.getField.getFieldType.getType.asInstanceOf[ArrowType.Int].getBitWidth match {
-            case 16 | 32 =>
-              vector
-                .asInstanceOf[IntVector]
-                .setSafe(index, !isNull, if (isNull) 0 else value.asInstanceOf[Int])
-
-            case 64 =>
-              vector
-                .asInstanceOf[BigIntVector]
-                .setSafe(index, !isNull, if (isNull) 0 else value.asInstanceOf[Long])
-
-            case other =>
-              throw new AttributeTypeUtils.AttributeTypeException(
-                s"Unsupported Int bit width: $other"
-              )
-          }
-
-        case _: ArrowType.Bool =>
-          vector
-            .asInstanceOf[BitVector]
-            .setSafe(index, !isNull, if (isNull) 0 else value.asInstanceOf[Boolean])
-
-        case _: ArrowType.FloatingPoint =>
-          vector
-            .asInstanceOf[Float8Vector]
-            .setSafe(index, !isNull, if (isNull) 0 else value.asInstanceOf[Double])
-
-        // The wall clock written as the field's own zone and unit, so the number
-        // and the label beside it agree. Going through the value's own epoch
-        // would have read the wall clock in the JVM's zone instead, putting a
-        // machine's setting into the file: the same table written in two places
-        // would hold two different instants under one label. Inverts
-        // [[wallClockOf]].
-        case timestamp: ArrowType.Timestamp =>
-          vector
-            .asInstanceOf[TimeStampVector]
-            .setSafe(
-              index,
-              !isNull,
-              if (isNull) 0L
-              else
-                numberOf(
-                  AttributeTypeUtils
-                    .parseField(value, AttributeType.TIMESTAMP)
-                    .asInstanceOf[Timestamp]
-                    .toLocalDateTime
-                    .atZone(zoneOf(timestamp))
-                    .toInstant,
-                  timestamp.getUnit
-                )
-            )
-
-        case _: ArrowType.Utf8 =>
-          if (isNull) vector.asInstanceOf[VarCharVector].setNull(index)
-          else
-            vector
-              .asInstanceOf[VarCharVector]
-              .setSafe(index, value.toString.getBytes(StandardCharsets.UTF_8))
-        case _: ArrowType.Binary | _: ArrowType.LargeBinary =>
-          if (isNull) vector.asInstanceOf[VarBinaryVector].setNull(index)
-          else
-            vector
-              .asInstanceOf[VarBinaryVector]
-              .setSafe(index, value.asInstanceOf[Array[Byte]])
-
-      }
+      setCell(vectorSchemaRoot.getVector(i), index, tuple.getField[AnyRef](i))
     }
-
     vectorSchemaRoot.setRowCount(vectorSchemaRoot.getRowCount + 1)
+  }
+
+  /**
+    * Writes one already-decoded Texera value into a column vector at `index`, dispatching on the
+    * vector's Arrow type (null is written as the vector's null). Does not touch the root's row
+    * count. Shared by setTexeraTuple and by a columnar source that fills vectors column by column
+    * with no Tuple built.
+    */
+  def setCell(vector: FieldVector, index: Int, value: AnyRef): Unit = {
+    val isNull = value == null
+    vector.getField.getFieldType.getType match {
+      case _: ArrowType.Int =>
+        vector.getField.getFieldType.getType.asInstanceOf[ArrowType.Int].getBitWidth match {
+          case 16 | 32 =>
+            vector
+              .asInstanceOf[IntVector]
+              .setSafe(index, !isNull, if (isNull) 0 else value.asInstanceOf[Int])
+
+          case 64 =>
+            vector
+              .asInstanceOf[BigIntVector]
+              .setSafe(index, !isNull, if (isNull) 0 else value.asInstanceOf[Long])
+
+          case other =>
+            throw new AttributeTypeUtils.AttributeTypeException(
+              s"Unsupported Int bit width: $other"
+            )
+        }
+
+      case _: ArrowType.Bool =>
+        vector
+          .asInstanceOf[BitVector]
+          .setSafe(index, !isNull, if (isNull) 0 else value.asInstanceOf[Boolean])
+
+      case _: ArrowType.FloatingPoint =>
+        vector
+          .asInstanceOf[Float8Vector]
+          .setSafe(index, !isNull, if (isNull) 0 else value.asInstanceOf[Double])
+
+      // The wall clock written as the field's own zone and unit, so the number
+      // and the label beside it agree. Going through the value's own epoch
+      // would have read the wall clock in the JVM's zone instead, putting a
+      // machine's setting into the file: the same table written in two places
+      // would hold two different instants under one label. Inverts
+      // [[wallClockOf]].
+      case timestamp: ArrowType.Timestamp =>
+        vector
+          .asInstanceOf[TimeStampVector]
+          .setSafe(
+            index,
+            !isNull,
+            if (isNull) 0L
+            else
+              numberOf(
+                AttributeTypeUtils
+                  .parseField(value, AttributeType.TIMESTAMP)
+                  .asInstanceOf[Timestamp]
+                  .toLocalDateTime
+                  .atZone(zoneOf(timestamp))
+                  .toInstant,
+                timestamp.getUnit
+              )
+          )
+
+      case _: ArrowType.Utf8 =>
+        if (isNull) vector.asInstanceOf[VarCharVector].setNull(index)
+        else
+          vector
+            .asInstanceOf[VarCharVector]
+            .setSafe(index, value.toString.getBytes(StandardCharsets.UTF_8))
+      case _: ArrowType.Binary | _: ArrowType.LargeBinary =>
+        if (isNull) vector.asInstanceOf[VarBinaryVector].setNull(index)
+        else
+          vector
+            .asInstanceOf[VarBinaryVector]
+            .setSafe(index, value.asInstanceOf[Array[Byte]])
+
+    }
   }
 
   /**

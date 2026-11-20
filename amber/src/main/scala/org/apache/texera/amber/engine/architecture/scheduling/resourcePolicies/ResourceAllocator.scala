@@ -94,9 +94,10 @@ class DefaultResourceAllocator(
         // Per-edge columnar-wire decision: enabled only when the wire is on and the
         // downstream operator consumes columns natively (otherwise shipping Arrow
         // would force a costly per-tuple decode on the receiver). Locality (same-JVM
-        // links gain nothing) is a later refinement.
+        // links gain nothing) is a later refinement. The wire is on when this run
+        // requests it (workflowSettings.columnar), else the cluster default.
         columnar =
-          ApplicationConfig.enableColumnarWire &&
+          workflowSettings.columnar.getOrElse(ApplicationConfig.enableColumnarWire) &&
             physicalPlan.getOperator(physicalLink.toOpId).isColumnarCapable
       )
     }.toMap

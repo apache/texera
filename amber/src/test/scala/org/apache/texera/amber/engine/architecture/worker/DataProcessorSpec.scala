@@ -26,7 +26,8 @@ import org.apache.texera.amber.core.executor.{
   ColumnarResult,
   ExecFactory,
   OpExecWithClassName,
-  OperatorExecutor
+  OperatorExecutor,
+  SourceOperatorExecutor
 }
 import org.apache.texera.amber.core.state.{State, StateReferencing}
 import org.apache.texera.amber.core.tuple.{AttributeType, Schema, Tuple, TupleLike}
@@ -893,6 +894,26 @@ class DataProcessorSpec extends AnyFlatSpec with MockFactory with Matchers with 
     assert(exec.processTupleCalls == columnarBatch.length)
   }
 
+  "data processor" should "ship a columnar source's Arrow batch downstream without building rows" in {
+    val alloc = new RootAllocator()
+    val root = ArrowUtils.rootFromTuples(schema, columnarBatch, alloc)
+    val exec = new DataProcessorSpec.ColumnarSourceExec(Seq(root))
+    val (dp, sent) = columnarSetup(exec)
+    // Wire off: the source is not columnar-eligible, so it would take the row path.
+    assert(dp.sourceColumnarOutput().isEmpty)
+    // Wire on: the source emits its native Arrow batch; produceTuple is never called.
+    dp.outputManager.setColumnarOutput(true)
+    dp.outputManager.outputIterator.setTupleOutput(dp.sourceColumnarOutput().get)
+    drain(dp)
+    val frames = sent.map(_.payload).collect { case cf: VectorFrame => cf }
+    assert(frames.size == 1)
+    assert(ArrowUtils.deserializeTuples(frames.head.arrowIpcBytes).toList == columnarBatch.toList)
+    assert(exec.produceTupleCalls == 0, "a columnar source must not build rows")
+    assert(dp.statisticsManager.getOutputTupleCount == columnarBatch.length.toLong)
+    assert(alloc.getAllocatedMemory == 0L, "emitProducedRoot must close the shipped root")
+    alloc.close()
+  }
+
 }
 
 object DataProcessorSpec {
@@ -957,6 +978,16 @@ object DataProcessorSpec {
 
   /** A plain operator with no columnar path. */
   class RowOnlyExec extends EchoingExec
+
+  /** A source whose data is natively columnar: hands out the given Arrow roots and never
+    * builds rows. produceTuple would signal a mis-route, so it counts its calls. */
+  class ColumnarSourceExec(roots: Seq[org.apache.arrow.vector.VectorSchemaRoot])
+      extends SourceOperatorExecutor {
+    var produceTupleCalls = 0
+    override def produceTuple(): Iterator[TupleLike] = { produceTupleCalls += 1; Iterator.empty }
+    override def produceColumnarBatch(): Option[Iterator[org.apache.arrow.vector.VectorSchemaRoot]] =
+      Some(roots.iterator)
+  }
 
   /** A descString whose `limit` refers to the loop variable `n`. */
   val limitReferringToN = """{"limit":0,"stateReferences":{"/limit":"n"}}"""

@@ -24,7 +24,8 @@ import io.grpc.MethodDescriptor
 import org.apache.texera.amber.core.executor.{
   ColumnarOperatorExecutor,
   ColumnarResult,
-  OperatorExecutor
+  OperatorExecutor,
+  SourceOperatorExecutor
 }
 import org.apache.texera.amber.core.state.State
 import org.apache.texera.amber.core.tuple._
@@ -264,6 +265,22 @@ class DataProcessor(
     } finally if (!retained) outRoot.close()
   }
 
+  // Source output: a source whose data is already columnar (produceColumnarBatch returns Some)
+  // and whose edges are columnar-eligible emits its Arrow roots straight downstream, each
+  // wrapped as a ColumnarBatchMarker that the DP loop ships via emitProducedRoot, so NO per-row
+  // Tuple is built on the source path. Returns None when the source has no native columnar path
+  // or the edges are not eligible, so endChannel uses the row path (onFinishMultiPort ->
+  // produceTuple).
+  def sourceColumnarOutput(): Option[Iterator[(TupleLike, Option[PortIdentity])]] = {
+    executor match {
+      case src: SourceOperatorExecutor if outputManager.columnarSourceEmitEligible =>
+        src
+          .produceColumnarBatch()
+          .map(_.map(root => (ColumnarBatchMarker(root): TupleLike, Option.empty[PortIdentity])))
+      case _ => None
+    }
+  }
+
   private[this] def processInputTuple(tuple: Tuple): Unit = {
     try {
       val portIdentity: PortIdentity =
@@ -364,6 +381,11 @@ class DataProcessor(
           PortCompletedRequest(portId, input),
           asyncRPCClient.mkContext(COORDINATOR)
         )
+      case ColumnarBatchMarker(root) =>
+        // A columnar source handed out a native Arrow batch: ship it downstream in the
+        // cheapest shape the edge allows (live root / Arrow bytes / rows), no Tuple built.
+        emitProducedRoot(root)
+
       case schemaEnforceable: SchemaEnforceable =>
         val portIdentity = outputPortOpt.getOrElse(outputManager.getSingleOutputPortIdentity)
         val tuple = schemaEnforceable.enforceSchema(outputManager.getPort(portIdentity).schema)

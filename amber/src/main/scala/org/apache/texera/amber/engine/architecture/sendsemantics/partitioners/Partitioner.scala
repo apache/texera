@@ -31,6 +31,7 @@ import org.apache.texera.amber.engine.common.ambermessage.{
   StateFrame
 }
 import org.apache.texera.amber.util.ArrowUtils
+import org.apache.arrow.memory.BufferAllocator
 
 import scala.collection.mutable.ArrayBuffer
 
@@ -60,7 +61,10 @@ class NetworkOutputBuffer(
     // planner decides this per edge (it folds in ApplicationConfig.enableColumnarWire
     // and the downstream operator's columnar capability) and passes it in; off by
     // default so the row wire is unchanged. A var so the output manager can set it.
-    var columnar: Boolean = false
+    var columnar: Boolean = false,
+    // Allocator for building a live Arrow root on a local columnar handoff. Null disables
+    // the local columnar path (the edge falls back to rows).
+    val columnarAllocator: BufferAllocator = null
 ) {
 
   // Set by the output manager: whether `to` is co-located (same ActorSystem). A local hop
@@ -120,6 +124,13 @@ class NetworkOutputBuffer(
           to,
           VectorFrame(ArrowUtils.serializeTuples(schema, batch), batch.length, schema)
         )
+      } else if (columnar && localityCheck().contains(true) && columnarAllocator != null) {
+        // Local columnar: build one live Arrow root and hand it to the co-located
+        // columnar-capable receiver by reference (no serialization), so it processes
+        // columns in a batch instead of per-tuple rows. Ownership transfers to the receiver.
+        val schema = batch(0).getSchema
+        val root = ArrowUtils.rootFromTuples(schema, batch, columnarAllocator)
+        dataOutputPort.sendTo(to, LocalColumnarBatch(root, batch.length, schema))
       } else {
         dataOutputPort.sendTo(to, DataFrame(batch))
       }

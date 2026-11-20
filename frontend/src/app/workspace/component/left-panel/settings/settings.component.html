@@ -35,6 +35,21 @@
       >
     </nz-radio-group>
     <br />
+    <b>Processing Mode:</b>
+    <nz-radio-group formControlName="columnar">
+      <label
+        nz-radio
+        [nzValue]="false"
+        >Row</label
+      >
+      <br />
+      <label
+        nz-radio
+        [nzValue]="true"
+        >Columnar (experimental)</label
+      >
+    </nz-radio-group>
+    <br />
     <div class="form-group">
       <label for="dataTransferBatchSize">Data Transfer Batch Size:</label>
       <input

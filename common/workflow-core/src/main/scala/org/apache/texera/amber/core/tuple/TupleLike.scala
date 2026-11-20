@@ -19,6 +19,7 @@
 
 package org.apache.texera.amber.core.tuple
 
+import org.apache.arrow.vector.VectorSchemaRoot
 import org.apache.texera.amber.core.workflow.PortIdentity
 
 import scala.jdk.CollectionConverters.CollectionHasAsScala
@@ -41,6 +42,12 @@ trait InternalMarker extends TupleLike {
 
 final case class FinalizePort(portId: PortIdentity, input: Boolean) extends InternalMarker
 final case class FinalizeExecutor() extends InternalMarker
+
+// Carries a native Arrow batch from a columnar source through the output iterator so the DP
+// loop ships it straight downstream (emitProducedRoot) with no per-row Tuple built. The DP
+// loop owns the root and closes it. getFields stays empty (InternalMarker): it is never read
+// as a row.
+final case class ColumnarBatchMarker(root: VectorSchemaRoot) extends InternalMarker
 
 trait SeqTupleLike extends TupleLike with SchemaEnforceable {
   override def inMemSize: Long = ???

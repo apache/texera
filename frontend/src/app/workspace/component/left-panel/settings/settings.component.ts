@@ -52,6 +52,7 @@ export class SettingsComponent implements OnInit {
         [Validators.required, Validators.min(1)],
       ],
       executionMode: [this.workflowActionService.getWorkflowContent().settings.executionMode],
+      columnar: [this.workflowActionService.getWorkflowContent().settings.columnar ?? false],
     });
   }
 
@@ -72,6 +73,13 @@ export class SettingsComponent implements OnInit {
         this.updateExecutionMode(mode);
       });
 
+    this.settingsForm
+      .get("columnar")!
+      .valueChanges.pipe(untilDestroyed(this))
+      .subscribe((columnar: boolean) => {
+        this.updateColumnar(columnar);
+      });
+
     // The settings can move without the form: undo/redo, a reloaded workflow (workflowChanged), or
     // a co-editor's edit, which arrives on workflowSettingsChanged$ alone -- a settings change is
     // not part of workflowChanged, since this panel persists its own and the autosave behind
@@ -83,6 +91,7 @@ export class SettingsComponent implements OnInit {
           {
             dataTransferBatchSize: this.workflowActionService.getWorkflowContent().settings.dataTransferBatchSize,
             executionMode: this.workflowActionService.getWorkflowContent().settings.executionMode,
+            columnar: this.workflowActionService.getWorkflowContent().settings.columnar ?? false,
           },
           { emitEvent: false }
         );
@@ -109,6 +118,11 @@ export class SettingsComponent implements OnInit {
 
   public updateExecutionMode(mode: ExecutionMode) {
     this.workflowActionService.updateExecutionMode(mode);
+    this.persistWorkflow();
+  }
+
+  public updateColumnar(columnar: boolean) {
+    this.workflowActionService.updateColumnar(columnar);
     this.persistWorkflow();
   }
 
