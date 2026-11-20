@@ -117,6 +117,8 @@ const MIGRATION_INPUTS: Record<
 
 const MIGRATION_LANGUAGES = Object.keys(MIGRATION_INPUTS) as MigrationLanguage[];
 
+const MIGRATION_ERROR_DURATION_MS = 8000;
+
 /** The language a notebook declares, lowercased. Undefined when it declares none. */
 function notebookKernelLanguage(notebook: Notebook): string | undefined {
   const declared = notebook.metadata?.["kernelspec"]?.language ?? notebook.metadata?.["language_info"]?.name;
@@ -346,6 +348,11 @@ export class UserWorkflowComponent implements AfterViewInit, OnDestroy {
     return this.config.env.pythonNotebookMigrationEnabled;
   }
 
+  // Migration errors run to two instructional sentences, more than the default toast leaves time to read.
+  private migrationError(message: string): void {
+    this.notificationService.error(message, { nzDuration: MIGRATION_ERROR_DURATION_MS });
+  }
+
   // Python needs no check: the import modal only opens while the migration flag is on.
   private isLanguageEnabled(language: MigrationLanguage): boolean {
     return language !== "r" || this.config.env.rNotebookMigrationEnabled;
@@ -391,7 +398,7 @@ export class UserWorkflowComponent implements AfterViewInit, OnDestroy {
     if (Array.isArray(selection)) {
       const mismatch = this.folderLanguageMismatch(selection, language);
       if (mismatch) {
-        this.notificationService.error(mismatch);
+        this.migrationError(mismatch);
         return false;
       }
       const generated = await this.generateFromFolder(selection, model, language);
@@ -405,7 +412,7 @@ export class UserWorkflowComponent implements AfterViewInit, OnDestroy {
     const fileExtension = selection.name.split(".").pop()?.toLowerCase();
     const fileLanguage = languageOfExtension(fileExtension);
     if (fileExtension !== "ipynb" && fileLanguage !== language) {
-      this.notificationService.error(
+      this.migrationError(
         fileLanguage ? this.fileLanguageMismatch(fileLanguage) : MIGRATION_INPUTS[language].uploadHint
       );
       return false;
@@ -432,14 +439,14 @@ export class UserWorkflowComponent implements AfterViewInit, OnDestroy {
     try {
       notebook = await this.notebookMigrationService.parseAndTagNotebook(file as unknown as File);
     } catch (error) {
-      this.notificationService.error("Failed to read the notebook file. Please upload a valid .ipynb file.");
+      this.migrationError("Failed to read the notebook file. Please upload a valid .ipynb file.");
       console.error("Notebook parse failed:", error);
       return null;
     }
 
     const mismatch = this.notebookLanguageMismatch(notebook, language);
     if (mismatch) {
-      this.notificationService.error(mismatch);
+      this.migrationError(mismatch);
       return null;
     }
 
@@ -516,9 +523,7 @@ export class UserWorkflowComponent implements AfterViewInit, OnDestroy {
     try {
       scriptSource = await this.notebookMigrationService.parseScriptFile(file as unknown as File, language);
     } catch (error) {
-      this.notificationService.error(
-        `Failed to read the ${name} file. Please upload a valid, non-empty .${extension} file.`
-      );
+      this.migrationError(`Failed to read the ${name} file. Please upload a valid, non-empty .${extension} file.`);
       console.error(`${name} file read failed:`, error);
       return null;
     }
@@ -542,7 +547,7 @@ export class UserWorkflowComponent implements AfterViewInit, OnDestroy {
       folder = await this.notebookMigrationService.parseFolder(files.map(pickedFileObject), language);
     } catch (error) {
       // parseFolder names what was wrong with the selection, so its message is shown as-is.
-      this.notificationService.error(error instanceof Error ? error.message : "Failed to read the selected folder.");
+      this.migrationError(error instanceof Error ? error.message : "Failed to read the selected folder.");
       console.error("Folder read failed:", error);
       return null;
     }
@@ -559,13 +564,13 @@ export class UserWorkflowComponent implements AfterViewInit, OnDestroy {
   // a faster model or trimming the input.
   private reportGenerationFailure(error: unknown, input: "notebook" | "script" | "folder"): void {
     if (error instanceof LlmResponseTruncatedError) {
-      this.notificationService.error(`${error.message} This ${input} may be too large to convert.`);
+      this.migrationError(`${error.message} This ${input} may be too large to convert.`);
     } else if (error instanceof LlmRequestTimeoutError) {
-      this.notificationService.error(
+      this.migrationError(
         `Generation timed out after ${error.minutes} minutes. Try again, choose a faster model, or simplify the ${input}.`
       );
     } else {
-      this.notificationService.error("Error while communicating with the LLM, check console for details.");
+      this.migrationError("Error while communicating with the LLM, check console for details.");
     }
     console.error("LLM generation failed:", error);
   }
@@ -591,7 +596,7 @@ export class UserWorkflowComponent implements AfterViewInit, OnDestroy {
       }
       wid = createdWorkflow.workflow.wid;
     } catch (error) {
-      this.notificationService.error("Failed to save the generated workflow, check console for details.");
+      this.migrationError("Failed to save the generated workflow, check console for details.");
       console.error("Saving the generated workflow failed:", error);
       return false;
     }

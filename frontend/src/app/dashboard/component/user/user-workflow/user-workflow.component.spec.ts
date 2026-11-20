@@ -322,6 +322,8 @@ describe("SavedWorkflowSectionComponent", () => {
 
   describe("AI generate workflow (dashboard entry point)", () => {
     const ipynbFile = { name: "analysis.ipynb" } as NzUploadFile;
+    // Migration errors stay up longer than the default toast so their instructions can be read.
+    const MIGRATION_ERROR_OPTIONS = { nzDuration: 8000 };
     const AI_BUTTON_SELECTOR = 'button[title="AI generate a workflow from source code"]';
 
     // Opens the modal and returns the requestImport callback the component handed to it; calling
@@ -419,7 +421,10 @@ describe("SavedWorkflowSectionComponent", () => {
       const proceed = await getRequestImport()({ name: "data.txt" } as NzUploadFile, "gpt-4");
 
       expect(proceed).toBe(false);
-      expect(errorSpy).toHaveBeenCalledWith("Please upload a Jupyter Notebook (.ipynb) or a Python (.py) file.");
+      expect(errorSpy).toHaveBeenCalledWith(
+        "Please upload a Jupyter Notebook (.ipynb) or a Python (.py) file.",
+        MIGRATION_ERROR_OPTIONS
+      );
       expect(notebookSpy).not.toHaveBeenCalled();
       expect(scriptSpy).not.toHaveBeenCalled();
     });
@@ -468,7 +473,8 @@ describe("SavedWorkflowSectionComponent", () => {
 
         expect(proceed).toBe(false);
         expect(errorSpy).toHaveBeenCalledWith(
-          "This notebook uses a Python kernel, not R. Switch the notebook type to Python Notebook."
+          "This notebook uses a Python kernel, not R. Switch the notebook type to Python Notebook.",
+          MIGRATION_ERROR_OPTIONS
         );
         expect(migration.sendToAIGenerateWorkflow).not.toHaveBeenCalled();
       });
@@ -481,7 +487,10 @@ describe("SavedWorkflowSectionComponent", () => {
         const proceed = await getRequestImport()({ name: "analysis.py" } as NzUploadFile, "gpt-4", "r");
 
         expect(proceed).toBe(false);
-        expect(errorSpy).toHaveBeenCalledWith("This is a Python file. Upload it under the Python File tab.");
+        expect(errorSpy).toHaveBeenCalledWith(
+          "This is a Python file. Upload it under the Python File tab.",
+          MIGRATION_ERROR_OPTIONS
+        );
         expect(migration.parseAndTagNotebook).not.toHaveBeenCalled();
         expect(scriptSpy).not.toHaveBeenCalled();
       });
@@ -521,7 +530,8 @@ describe("SavedWorkflowSectionComponent", () => {
 
         expect(proceed).toBe(false);
         expect(errorSpy).toHaveBeenCalledWith(
-          "This notebook uses an R kernel, not Python. Switch the notebook type to R Notebook."
+          "This notebook uses an R kernel, not Python. Switch the notebook type to R Notebook.",
+          MIGRATION_ERROR_OPTIONS
         );
         expect(notebookConvert).not.toHaveBeenCalled();
       });
@@ -532,7 +542,8 @@ describe("SavedWorkflowSectionComponent", () => {
         await getRequestImport()(ipynbFile, "gpt-4", "python");
 
         expect(errorSpy).toHaveBeenCalledWith(
-          "This notebook uses an R kernel, and R is not enabled on this deployment."
+          "This notebook uses an R kernel, and R is not enabled on this deployment.",
+          MIGRATION_ERROR_OPTIONS
         );
         expect(notebookConvert).not.toHaveBeenCalled();
       });
@@ -543,7 +554,8 @@ describe("SavedWorkflowSectionComponent", () => {
         await getRequestImport()(ipynbFile, "gpt-4", "r");
 
         expect(errorSpy).toHaveBeenCalledWith(
-          "This notebook uses a Python kernel, not R. Switch the notebook type to Python Notebook."
+          "This notebook uses a Python kernel, not R. Switch the notebook type to Python Notebook.",
+          MIGRATION_ERROR_OPTIONS
         );
       });
 
@@ -554,7 +566,8 @@ describe("SavedWorkflowSectionComponent", () => {
         await getRequestImport()(ipynbFile, "gpt-4", "python");
 
         expect(errorSpy).toHaveBeenCalledWith(
-          "This notebook uses an R kernel, not Python. Switch the notebook type to R Notebook."
+          "This notebook uses an R kernel, not Python. Switch the notebook type to R Notebook.",
+          MIGRATION_ERROR_OPTIONS
         );
       });
 
@@ -565,7 +578,10 @@ describe("SavedWorkflowSectionComponent", () => {
         await getRequestImport()(ipynbFile, "gpt-4", "r");
 
         const message = "This notebook uses a julia kernel. Only Python and R notebooks can be converted.";
-        expect(errorSpy.mock.calls).toEqual([[message], [message]]);
+        expect(errorSpy.mock.calls).toEqual([
+          [message, MIGRATION_ERROR_OPTIONS],
+          [message, MIGRATION_ERROR_OPTIONS],
+        ]);
         expect(notebookConvert).not.toHaveBeenCalled();
       });
 
@@ -575,7 +591,8 @@ describe("SavedWorkflowSectionComponent", () => {
         await getRequestImport()(ipynbFile, "gpt-4", "python");
 
         expect(errorSpy).toHaveBeenCalledWith(
-          "This notebook uses an ocaml kernel. Only Python and R notebooks can be converted."
+          "This notebook uses an ocaml kernel. Only Python and R notebooks can be converted.",
+          MIGRATION_ERROR_OPTIONS
         );
       });
 
@@ -586,7 +603,10 @@ describe("SavedWorkflowSectionComponent", () => {
         const proceed = await getRequestImport()({ name: "analysis.R" } as NzUploadFile, "gpt-4", "python");
 
         expect(proceed).toBe(false);
-        expect(errorSpy).toHaveBeenCalledWith("This is an R file. Upload it under the R File tab.");
+        expect(errorSpy).toHaveBeenCalledWith(
+          "This is an R file. Upload it under the R File tab.",
+          MIGRATION_ERROR_OPTIONS
+        );
         expect(scriptParse).not.toHaveBeenCalled();
       });
 
@@ -595,7 +615,10 @@ describe("SavedWorkflowSectionComponent", () => {
 
         await getRequestImport()({ name: "analysis.r" } as NzUploadFile, "gpt-4", "python");
 
-        expect(errorSpy).toHaveBeenCalledWith("This is an R file, and R is not enabled on this deployment.");
+        expect(errorSpy).toHaveBeenCalledWith(
+          "This is an R file, and R is not enabled on this deployment.",
+          MIGRATION_ERROR_OPTIONS
+        );
       });
 
       it("keeps the upload hint for an extension no language claims", async () => {
@@ -603,7 +626,10 @@ describe("SavedWorkflowSectionComponent", () => {
 
         await getRequestImport()({ name: "data.txt" } as NzUploadFile, "gpt-4", "r");
 
-        expect(errorSpy).toHaveBeenCalledWith("Please upload an R Jupyter Notebook (.ipynb) or an R (.R) file.");
+        expect(errorSpy).toHaveBeenCalledWith(
+          "Please upload an R Jupyter Notebook (.ipynb) or an R (.R) file.",
+          MIGRATION_ERROR_OPTIONS
+        );
       });
 
       it("points a folder of Python files on the R Folder tab at the Python Folder tab", async () => {
@@ -617,7 +643,8 @@ describe("SavedWorkflowSectionComponent", () => {
 
         expect(proceed).toBe(false);
         expect(errorSpy).toHaveBeenCalledWith(
-          "This folder holds Python files, not R. Upload it under the Python Folder tab."
+          "This folder holds Python files, not R. Upload it under the Python Folder tab.",
+          MIGRATION_ERROR_OPTIONS
         );
         expect(folderParse).not.toHaveBeenCalled();
       });
@@ -629,7 +656,8 @@ describe("SavedWorkflowSectionComponent", () => {
         await getRequestImport()([pickedFile("proj/main.R")], "gpt-4", "python");
 
         expect(errorSpy).toHaveBeenCalledWith(
-          "This folder holds R files, not Python. Upload it under the R Folder tab."
+          "This folder holds R files, not Python. Upload it under the R Folder tab.",
+          MIGRATION_ERROR_OPTIONS
         );
         expect(folderParse).not.toHaveBeenCalled();
       });
@@ -639,7 +667,10 @@ describe("SavedWorkflowSectionComponent", () => {
 
         await getRequestImport()([pickedFile("proj/main.R")], "gpt-4", "python");
 
-        expect(errorSpy).toHaveBeenCalledWith("This folder holds R files, and R is not enabled on this deployment.");
+        expect(errorSpy).toHaveBeenCalledWith(
+          "This folder holds R files, and R is not enabled on this deployment.",
+          MIGRATION_ERROR_OPTIONS
+        );
       });
 
       it("leaves a folder with files in the selected language to parseFolder, even if it holds others too", async () => {
@@ -656,7 +687,7 @@ describe("SavedWorkflowSectionComponent", () => {
         await getRequestImport()([pickedFile("proj/README.md")], "gpt-4", "r");
 
         expect(folderParse).toHaveBeenCalled();
-        expect(errorSpy).toHaveBeenCalledWith("stop");
+        expect(errorSpy).toHaveBeenCalledWith("stop", MIGRATION_ERROR_OPTIONS);
       });
     });
 
@@ -697,7 +728,10 @@ describe("SavedWorkflowSectionComponent", () => {
         const proceed = await getRequestImport()({ name: "analysis.R" } as NzUploadFile, "gpt-4", "r");
 
         expect(proceed).toBe(false);
-        expect(errorSpy).toHaveBeenCalledWith("Failed to read the R file. Please upload a valid, non-empty .R file.");
+        expect(errorSpy).toHaveBeenCalledWith(
+          "Failed to read the R file. Please upload a valid, non-empty .R file.",
+          MIGRATION_ERROR_OPTIONS
+        );
         expect(convertSpy).not.toHaveBeenCalled();
       });
     });
@@ -759,7 +793,8 @@ describe("SavedWorkflowSectionComponent", () => {
 
         expect(proceed).toBe(false);
         expect(errorSpy).toHaveBeenCalledWith(
-          "Failed to read the Python file. Please upload a valid, non-empty .py file."
+          "Failed to read the Python file. Please upload a valid, non-empty .py file.",
+          MIGRATION_ERROR_OPTIONS
         );
         expect(convertSpy).not.toHaveBeenCalled();
       });
@@ -773,7 +808,7 @@ describe("SavedWorkflowSectionComponent", () => {
         const proceed = await getRequestImport()(pyFile, "gpt-4");
 
         expect(proceed).toBe(false);
-        expect(errorSpy).toHaveBeenCalledWith(expect.stringContaining("simplify the script"));
+        expect(errorSpy).toHaveBeenCalledWith(expect.stringContaining("simplify the script"), MIGRATION_ERROR_OPTIONS);
       });
 
       it("reports a generation failure and resolves false", async () => {
@@ -785,7 +820,10 @@ describe("SavedWorkflowSectionComponent", () => {
         const proceed = await getRequestImport()(pyFile, "gpt-4");
 
         expect(proceed).toBe(false);
-        expect(errorSpy).toHaveBeenCalledWith("Error while communicating with the LLM, check console for details.");
+        expect(errorSpy).toHaveBeenCalledWith(
+          "Error while communicating with the LLM, check console for details.",
+          MIGRATION_ERROR_OPTIONS
+        );
       });
     });
 
@@ -882,7 +920,10 @@ describe("SavedWorkflowSectionComponent", () => {
         const proceed = await getRequestImport()(selection, "gpt-4");
 
         expect(proceed).toBe(false);
-        expect(errorSpy).toHaveBeenCalledWith("No Python files were found in the selected folder.");
+        expect(errorSpy).toHaveBeenCalledWith(
+          "No Python files were found in the selected folder.",
+          MIGRATION_ERROR_OPTIONS
+        );
         expect(convertSpy).not.toHaveBeenCalled();
       });
 
@@ -895,8 +936,8 @@ describe("SavedWorkflowSectionComponent", () => {
         const proceed = await getRequestImport()(selection, "gpt-4");
 
         expect(proceed).toBe(false);
-        expect(errorSpy).toHaveBeenCalledWith(expect.stringContaining("cut off"));
-        expect(errorSpy).toHaveBeenCalledWith(expect.stringContaining("folder"));
+        expect(errorSpy).toHaveBeenCalledWith(expect.stringContaining("cut off"), MIGRATION_ERROR_OPTIONS);
+        expect(errorSpy).toHaveBeenCalledWith(expect.stringContaining("folder"), MIGRATION_ERROR_OPTIONS);
       });
 
       it("falls back to a generic message when something other than an Error is thrown", async () => {
@@ -907,7 +948,7 @@ describe("SavedWorkflowSectionComponent", () => {
         const proceed = await getRequestImport()(selection, "gpt-4");
 
         expect(proceed).toBe(false);
-        expect(errorSpy).toHaveBeenCalledWith("Failed to read the selected folder.");
+        expect(errorSpy).toHaveBeenCalledWith("Failed to read the selected folder.", MIGRATION_ERROR_OPTIONS);
       });
 
       it("names the folder in the timeout message so the advice matches the input", async () => {
@@ -919,7 +960,7 @@ describe("SavedWorkflowSectionComponent", () => {
         const proceed = await getRequestImport()(selection, "gpt-4");
 
         expect(proceed).toBe(false);
-        expect(errorSpy).toHaveBeenCalledWith(expect.stringContaining("simplify the folder"));
+        expect(errorSpy).toHaveBeenCalledWith(expect.stringContaining("simplify the folder"), MIGRATION_ERROR_OPTIONS);
       });
 
       it("names the workflow after the folder when the file arrives wrapped", async () => {
@@ -957,7 +998,10 @@ describe("SavedWorkflowSectionComponent", () => {
       const proceed = await getRequestImport()(ipynbFile, "gpt-4");
 
       expect(proceed).toBe(false);
-      expect(errorSpy).toHaveBeenCalledWith("Failed to read the notebook file. Please upload a valid .ipynb file.");
+      expect(errorSpy).toHaveBeenCalledWith(
+        "Failed to read the notebook file. Please upload a valid .ipynb file.",
+        MIGRATION_ERROR_OPTIONS
+      );
       expect(llmSpy).not.toHaveBeenCalled();
     });
 
@@ -972,7 +1016,10 @@ describe("SavedWorkflowSectionComponent", () => {
       const proceed = await getRequestImport()(ipynbFile, "gpt-4");
 
       expect(proceed).toBe(false);
-      expect(errorSpy).toHaveBeenCalledWith("Error while communicating with the LLM, check console for details.");
+      expect(errorSpy).toHaveBeenCalledWith(
+        "Error while communicating with the LLM, check console for details.",
+        MIGRATION_ERROR_OPTIONS
+      );
       expect(persist.createWorkflow).not.toHaveBeenCalled();
     });
 
@@ -988,7 +1035,8 @@ describe("SavedWorkflowSectionComponent", () => {
 
       expect(proceed).toBe(false);
       expect(errorSpy).toHaveBeenCalledWith(
-        "Generation timed out after 10 minutes. Try again, choose a faster model, or simplify the notebook."
+        "Generation timed out after 10 minutes. Try again, choose a faster model, or simplify the notebook.",
+        MIGRATION_ERROR_OPTIONS
       );
       expect(persist.createWorkflow).not.toHaveBeenCalled();
     });
@@ -1008,7 +1056,10 @@ describe("SavedWorkflowSectionComponent", () => {
       const proceed = await getRequestImport()(ipynbFile, "gpt-4");
 
       expect(proceed).toBe(false);
-      expect(errorSpy).toHaveBeenCalledWith("Failed to save the generated workflow, check console for details.");
+      expect(errorSpy).toHaveBeenCalledWith(
+        "Failed to save the generated workflow, check console for details.",
+        MIGRATION_ERROR_OPTIONS
+      );
       expect(storeSpy).not.toHaveBeenCalled();
     });
 
