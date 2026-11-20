@@ -52,7 +52,7 @@ case class Tuple @JsonCreator() (
   checkNotNull(fieldVals)
   checkSchemaMatchesFields(schema.getAttributes, fieldVals)
 
-  override val inMemSize: Long = SizeOf.newInstance().deepSizeOf(this)
+  override val inMemSize: Long = Tuple.sharedSizeOf.deepSizeOf(this)
 
   @JsonIgnore def length: Int = fieldVals.length
 
@@ -121,6 +121,10 @@ case class Tuple @JsonCreator() (
 }
 
 object Tuple {
+
+  // One engine for all tuples, so its reflection caches are built once instead of per row.
+  // Each deepSizeOf call keeps its own traversal state, and the caches are thread-safe.
+  private val sharedSizeOf: SizeOf = SizeOf.newInstance()
 
   /**
     * Validates that the provided attributes match the provided fields in type and order.
