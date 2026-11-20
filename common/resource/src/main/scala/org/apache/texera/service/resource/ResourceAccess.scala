@@ -311,7 +311,9 @@ object ResourceAccess {
       requesterUid: Integer
   ): Response = {
     requireWriteAccess(ctx, resource, id, requesterUid)
-    val granteeUid = ctx.select(USER.UID).from(USER).where(USER.EMAIL.eq(email)).fetchOne().value1()
+    val granteeUid = OwnerAccess
+      .registeredUid(ctx, email)
+      .getOrElse(throw new BadRequestException(s"No registered user with email $email"))
     OwnerAccess.requireNotOwner(userOwns(ctx, resource, id, granteeUid))
 
     ctx

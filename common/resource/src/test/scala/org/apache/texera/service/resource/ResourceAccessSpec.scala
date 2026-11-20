@@ -18,7 +18,7 @@
 
 package org.apache.texera.service.resource
 
-import jakarta.ws.rs.ForbiddenException
+import jakarta.ws.rs.{BadRequestException, ForbiddenException}
 import org.apache.texera.dao.MockTexeraDB
 import org.apache.texera.dao.jooq.generated.enums.{PrivilegeEnum, UserRoleEnum}
 import org.apache.texera.dao.jooq.generated.tables.DatasetUserAccess.DATASET_USER_ACCESS
@@ -262,5 +262,12 @@ class ResourceAccessSpec
       .revoke(getDSLContext, resource, did, grantee.getEmail, owner.getUid)
       .getStatus shouldBe 200
     rowOf(grantee.getUid) shouldBe None
+  }
+
+  it should "reject an unregistered email with 400, not crash with a 500" in {
+    val ex = intercept[BadRequestException] {
+      ResourceAccess.revoke(getDSLContext, resource, did, "nobody@test.com", owner.getUid)
+    }
+    ex.getResponse.getStatus shouldBe 400
   }
 }
