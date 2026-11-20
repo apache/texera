@@ -125,6 +125,12 @@ class LargeBinaryOutputStream(IOBase):
         self._upload_thread: Optional[threading.Thread] = None
         self._lock = threading.Lock()
 
+    def _raise_if_upload_failed(self) -> None:
+        with self._lock:
+            exception = self._upload_exception
+        if exception is not None:
+            raise IOError(f"Background upload failed: {exception}") from exception
+
     def write(self, b: Union[bytes, bytearray]) -> int:
         """
         Write bytes to the stream.
@@ -142,12 +148,7 @@ class LargeBinaryOutputStream(IOBase):
         if self.closed:
             raise ValueError("I/O operation on closed stream")
 
-        # Check if upload has failed
-        with self._lock:
-            if self._upload_exception is not None:
-                raise IOError(
-                    f"Background upload failed: {self._upload_exception}"
-                ) from self._upload_exception
+        self._raise_if_upload_failed()
 
         # Start upload thread on first write
         if self._upload_thread is None:
@@ -181,7 +182,13 @@ class LargeBinaryOutputStream(IOBase):
         # Write data in chunks
         data = bytes(b)
         for offset in range(0, len(data), _CHUNK_SIZE):
-            self._queue.put(data[offset : offset + _CHUNK_SIZE], block=True)
+            chunk = data[offset : offset + _CHUNK_SIZE]
+            while True:
+                try:
+                    self._queue.put(chunk, timeout=_QUEUE_TIMEOUT)
+                    break
+                except queue.Full:
+                    self._raise_if_upload_failed()
 
         return len(data)
 
@@ -221,7 +228,12 @@ class LargeBinaryOutputStream(IOBase):
         try:
             # Signal EOF to upload thread and wait for completion
             if self._upload_thread is not None:
-                self._queue.put(None, block=True)  # EOF marker
+                while not self._upload_complete.is_set():
+                    try:
+                        self._queue.put(None, timeout=_QUEUE_TIMEOUT)
+                        break
+                    except queue.Full:
+                        pass
                 self._upload_thread.join()
                 self._upload_complete.wait()
 

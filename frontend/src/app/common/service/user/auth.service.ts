@@ -227,7 +227,10 @@ export class AuthService {
       return undefined;
     }
 
-    if (this.config.env.inviteOnly && role === Role.INACTIVE) {
+    // INACTIVE means waiting for an admin, whatever the invite-only switch says now: an account that
+    // signed up while it was on stays INACTIVE after it is turned off, and every request it makes is
+    // refused, so it gets the pending screen rather than an empty dashboard.
+    if (role === Role.INACTIVE) {
       this.checkRegistrationRequired(uid).subscribe(required => {
         if (required) {
           this.openRegistrationModal(uid, email, name);

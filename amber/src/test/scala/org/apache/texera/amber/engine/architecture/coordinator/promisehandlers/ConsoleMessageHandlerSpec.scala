@@ -20,14 +20,8 @@
 package org.apache.texera.amber.engine.architecture.coordinator.promisehandlers
 
 import com.google.protobuf.timestamp.Timestamp
-import com.twitter.util.{Await, Duration}
+import com.twitter.util.Await
 import org.apache.texera.amber.core.virtualidentity.{ActorVirtualIdentity, ChannelIdentity}
-import org.apache.texera.amber.core.workflow.WorkflowContext
-import org.apache.texera.amber.engine.architecture.coordinator.{
-  CoordinatorAsyncRPCHandlerInitializer,
-  CoordinatorConfig,
-  CoordinatorProcessor
-}
 import org.apache.texera.amber.engine.architecture.rpc.controlcommands.{
   AsyncRPCContext,
   ConsoleMessage,
@@ -35,13 +29,10 @@ import org.apache.texera.amber.engine.architecture.rpc.controlcommands.{
   ConsoleMessageType
 }
 import org.apache.texera.amber.engine.architecture.rpc.controlreturns.EmptyReturn
-import org.apache.texera.amber.engine.architecture.worker.WorkflowWorker.MainThreadDelegateMessage
-import org.apache.texera.amber.engine.common.ambermessage.WorkflowFIFOMessage
 import org.apache.texera.amber.engine.common.virtualidentity.util.{CLIENT, COORDINATOR}
 import org.scalatest.flatspec.AnyFlatSpec
 
 import java.time.Instant
-import scala.collection.mutable.ArrayBuffer
 
 /**
   * `consoleMessageTriggered` is the coordinator's half of the console: a worker reports a print, an
@@ -58,9 +49,7 @@ import scala.collection.mutable.ArrayBuffer
   * handler emits and asserts on the wire message the client actor would receive. The harness is the
   * one from `EvaluatePythonExpressionHandlerSpec`; no ActorSystem is involved.
   */
-class ConsoleMessageHandlerSpec extends AnyFlatSpec {
-
-  private val awaitTimeout = Duration.fromSeconds(1)
+class ConsoleMessageHandlerSpec extends AnyFlatSpec with CoordinatorMessageFixture {
 
   /** The worker that reported the message; also the RPC sender, as in production. */
   private val reportingWorkerId = ActorVirtualIdentity("Worker:WF1-udf-main-2")
@@ -82,26 +71,10 @@ class ConsoleMessageHandlerSpec extends AnyFlatSpec {
     message = "Traceback (most recent call last)"
   )
 
-  private def newFixture()
-      : (CoordinatorAsyncRPCHandlerInitializer, ArrayBuffer[WorkflowFIFOMessage]) = {
-    val sent = ArrayBuffer[WorkflowFIFOMessage]()
-    val outputHandler: Either[MainThreadDelegateMessage, WorkflowFIFOMessage] => Unit = {
-      case Right(m) => sent += m
-      case _        => ()
-    }
-    val cp = new CoordinatorProcessor(
-      new WorkflowContext(),
-      CoordinatorConfig(None, None, None, None),
-      COORDINATOR,
-      outputHandler
-    )
-    (new CoordinatorAsyncRPCHandlerInitializer(cp), sent)
-  }
-
   behavior of "ConsoleMessageHandler"
 
   it should "put the message on the client channel and nowhere else" in {
-    val (init, sent) = newFixture()
+    val (init, sent) = createCoordinatorFixture()
 
     init.consoleMessageTriggered(ConsoleMessageTriggeredRequest(consoleMessage), rpcContext)
 
@@ -112,7 +85,7 @@ class ConsoleMessageHandlerSpec extends AnyFlatSpec {
   }
 
   it should "hand the client the reported message unchanged" in {
-    val (init, sent) = newFixture()
+    val (init, sent) = createCoordinatorFixture()
 
     init.consoleMessageTriggered(ConsoleMessageTriggeredRequest(consoleMessage), rpcContext)
 
@@ -122,7 +95,7 @@ class ConsoleMessageHandlerSpec extends AnyFlatSpec {
   }
 
   it should "acknowledge the reporting worker" in {
-    val (init, _) = newFixture()
+    val (init, _) = createCoordinatorFixture()
 
     val response =
       init.consoleMessageTriggered(ConsoleMessageTriggeredRequest(consoleMessage), rpcContext)

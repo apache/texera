@@ -19,47 +19,30 @@
 
 package org.apache.texera.amber.engine.architecture.worker.promisehandlers
 
-import com.twitter.util.{Await, Duration, Future}
-import org.apache.pekko.actor.{ActorSystem, Props}
-import org.apache.pekko.testkit.{TestActorRef, TestKit}
-import org.apache.texera.amber.clustering.SingleNodeListener
+import org.apache.pekko.testkit.TestActorRef
 import org.apache.texera.amber.core.executor.OperatorExecutor
 import org.apache.texera.amber.core.tuple.{Schema, Tuple, TupleLike}
-import org.apache.texera.amber.core.virtualidentity.{
-  ActorVirtualIdentity,
-  ChannelIdentity,
-  EmbeddedControlMessageIdentity
-}
 import org.apache.texera.amber.core.workflow.PortIdentity
 import org.apache.texera.amber.engine.architecture.rpc.controlcommands.{
-  AsyncRPCContext,
   EmptyRequest,
   PrepareCheckpointRequest
 }
 import org.apache.texera.amber.engine.architecture.rpc.controlreturns.EmptyReturn
 import org.apache.texera.amber.engine.architecture.rpc.workerservice.WorkerServiceGrpc.METHOD_QUERY_STATISTICS
-import org.apache.texera.amber.engine.architecture.scheduling.config.WorkerConfig
 import org.apache.texera.amber.engine.architecture.worker.WorkflowWorker.{
-  DPInputQueueElement,
   FIFOMessageElement,
   MainThreadDelegateMessage,
-  TimerBasedControlElement,
-  WorkerReplayInitialization
+  TimerBasedControlElement
 }
+import org.apache.texera.amber.engine.architecture.worker.promisehandlers.CheckpointHandlerSpecSupport.PlainExecutor
 import org.apache.texera.amber.engine.architecture.worker.{
-  DataProcessor,
   DataProcessorRPCHandlerInitializer,
   WorkflowWorker
 }
-import org.apache.texera.amber.engine.common.AmberRuntime
 import org.apache.texera.amber.engine.common.ambermessage.WorkflowFIFOMessage
 import org.apache.texera.amber.engine.common.rpc.AsyncRPCClient.ControlInvocation
-import org.apache.texera.amber.engine.common.virtualidentity.util.COORDINATOR
 import org.apache.texera.amber.engine.common.{CheckpointState, CheckpointSupport, SerializedState}
-import org.scalatest.BeforeAndAfterAll
-import org.scalatest.flatspec.AnyFlatSpecLike
 
-import java.util.concurrent.LinkedBlockingQueue
 import scala.collection.mutable.ArrayBuffer
 
 /**
@@ -91,25 +74,14 @@ import scala.collection.mutable.ArrayBuffer
   * prepare-to-finalize handshake is verified end to end.
   */
 class PrepareCheckpointHandlerSpec
-    extends TestKit(ActorSystem("PrepareCheckpointHandlerSpec", AmberRuntime.pekkoConfig))
-    with AnyFlatSpecLike
-    with BeforeAndAfterAll {
+    extends CheckpointHandlerSpecSupport(
+      "PrepareCheckpointHandlerSpec",
+      "Worker:WF1-prepare-main-0",
+      "prepare-checkpoint-1",
+      5
+    ) {
 
   import PrepareCheckpointHandlerSpec._
-
-  private val workerId = ActorVirtualIdentity("Worker:WF1-prepare-main-0")
-  private val rpcContext = AsyncRPCContext(COORDINATOR, workerId)
-  private val awaitTimeout = Duration.fromSeconds(5)
-  private val checkpointId = EmbeddedControlMessageIdentity("prepare-checkpoint-1")
-
-  override def beforeAll(): Unit = {
-    // WorkflowActor's actor service resolves node addresses through /user/cluster-info.
-    system.actorOf(Props[SingleNodeListener](), "cluster-info")
-  }
-
-  override def afterAll(): Unit = {
-    TestKit.shutdownActorSystem(system)
-  }
 
   /** Records main-thread hand-offs, then aborts so the blocking wait is never reached. */
   private class OutputRecorder {
@@ -128,29 +100,7 @@ class PrepareCheckpointHandlerSpec
       executor: OperatorExecutor
   ): (DataProcessorRPCHandlerInitializer, OutputRecorder) = {
     val recorder = new OutputRecorder
-    val dp = new DataProcessor(
-      workerId,
-      recorder.handle,
-      new LinkedBlockingQueue[DPInputQueueElement]()
-    )
-    dp.executor = executor
-    (new DataProcessorRPCHandlerInitializer(dp), recorder)
-  }
-
-  private def await[T](future: Future[T]): T = Await.result(future, awaitTimeout)
-
-  /**
-    * A live worker, so the main-thread hand-off is delivered the way production delivers it
-    * (`self !` -> `handleTriggerClosure`). `TestActorRef` dispatches on the calling thread, so the
-    * closure runs inside `dp.outputHandler` exactly as the blocking wait after it assumes.
-    */
-  private def liveWorker(): TestActorRef[WorkflowWorker] = {
-    val worker = TestActorRef(
-      new WorkflowWorker(WorkerConfig(workerId), WorkerReplayInitialization())
-    )
-    // The DP thread would otherwise race the assertions on the worker's queue and recorded inputs.
-    worker.underlyingActor.dpThread.stop()
-    worker
+    (newDpHandler(executor, recorder.handle), recorder)
   }
 
   /**
@@ -161,24 +111,21 @@ class PrepareCheckpointHandlerSpec
   private def newHandlerOn(
       worker: TestActorRef[WorkflowWorker],
       executor: OperatorExecutor
-  ): DataProcessorRPCHandlerInitializer = {
-    val dp = new DataProcessor(
-      workerId,
+  ): DataProcessorRPCHandlerInitializer =
+    newDpHandler(
+      executor,
       {
         case Left(delegate) => worker ! delegate
         case Right(_)       => ()
       },
       worker.underlyingActor.inputQueue
     )
-    dp.executor = executor
-    new DataProcessorRPCHandlerInitializer(dp)
-  }
 
-  private def queryStatisticsMessage(sequenceNumber: Long): WorkflowFIFOMessage =
-    WorkflowFIFOMessage(
-      ChannelIdentity(COORDINATOR, workerId, isControl = true),
-      sequenceNumber,
-      ControlInvocation(METHOD_QUERY_STATISTICS, EmptyRequest(), rpcContext, sequenceNumber)
+  private def prepare(handler: DataProcessorRPCHandlerInitializer, estimateOnly: Boolean): Unit =
+    assert(
+      await(
+        handler.prepareCheckpoint(PrepareCheckpointRequest(checkpointId, estimateOnly), rpcContext)
+      ) == EmptyReturn()
     )
 
   behavior of "PrepareCheckpointHandler"
@@ -186,11 +133,7 @@ class PrepareCheckpointHandlerSpec
   it should "register no serialization for an estimate-only request" in {
     val (handler, recorder) = newHandler(new PlainExecutor)
 
-    assert(
-      await(
-        handler.prepareCheckpoint(PrepareCheckpointRequest(checkpointId, true), rpcContext)
-      ) == EmptyReturn()
-    )
+    prepare(handler, estimateOnly = true)
 
     // Nothing was registered, so the DP's serialization point is a no-op and no checkpoint state
     // exists for this id — the coordinator will get a size estimate from `finalizeCheckpoint`
@@ -203,11 +146,7 @@ class PrepareCheckpointHandlerSpec
   it should "reply before any state is serialized for a real checkpoint" in {
     val (handler, recorder) = newHandler(new PlainExecutor)
 
-    assert(
-      await(
-        handler.prepareCheckpoint(PrepareCheckpointRequest(checkpointId, false), rpcContext)
-      ) == EmptyReturn()
-    )
+    prepare(handler, estimateOnly = false)
 
     // The reply is what releases the embedded control message; the serialization itself must still
     // be pending, waiting for the DP loop to reach a safe point.
@@ -225,7 +164,7 @@ class PrepareCheckpointHandlerSpec
     // this executor has no serializeState at all, so it could never appear.)
     val pendingOutput: (TupleLike, Option[PortIdentity]) = (emptyTuple, Some(PortIdentity(3)))
     handler.dp.outputManager.outputIterator.setTupleOutput(Iterator(pendingOutput))
-    await(handler.prepareCheckpoint(PrepareCheckpointRequest(checkpointId, false), rpcContext))
+    prepare(handler, estimateOnly = false)
 
     intercept[MainThreadHandOffReached] {
       handler.dp.serializationManager.applySerialization()
@@ -242,7 +181,7 @@ class PrepareCheckpointHandlerSpec
     val (handler, _) = newHandler(executor)
     val pendingOutput: (TupleLike, Option[PortIdentity]) = (emptyTuple, Some(PortIdentity(3)))
     handler.dp.outputManager.outputIterator.setTupleOutput(Iterator(pendingOutput))
-    await(handler.prepareCheckpoint(PrepareCheckpointRequest(checkpointId, false), rpcContext))
+    prepare(handler, estimateOnly = false)
 
     intercept[MainThreadHandOffReached] {
       handler.dp.serializationManager.applySerialization()
@@ -274,7 +213,7 @@ class PrepareCheckpointHandlerSpec
       )
     )
 
-    await(handler.prepareCheckpoint(PrepareCheckpointRequest(checkpointId, false), rpcContext))
+    prepare(handler, estimateOnly = false)
     handler.dp.serializationManager.applySerialization()
 
     val checkpoint = handler.dp.ecmManager.checkpoints(checkpointId)
@@ -306,11 +245,6 @@ object PrepareCheckpointHandlerSpec {
 
   class MainThreadHandOffReached
       extends RuntimeException("output handler reached the main-thread hand-off")
-
-  /** Not `CheckpointSupport`, so `serializeWorkerState` must take its skip branch. */
-  class PlainExecutor extends OperatorExecutor {
-    override def processTuple(tuple: Tuple, port: Int): Iterator[TupleLike] = Iterator.empty
-  }
 
   class CheckpointAwareExecutor extends OperatorExecutor with CheckpointSupport {
     var receivedOutputState: List[(TupleLike, Option[PortIdentity])] = Nil

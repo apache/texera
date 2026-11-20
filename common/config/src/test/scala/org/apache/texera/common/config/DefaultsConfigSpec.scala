@@ -19,6 +19,7 @@
 
 package org.apache.texera.common.config
 
+import com.typesafe.config.{ConfigException, ConfigFactory}
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 
@@ -36,6 +37,55 @@ class DefaultsConfigSpec extends AnyFlatSpec with Matchers {
     ifUnset("CONFIG_SERVICE_ALWAYS_RESET_CONFIGURATIONS_TO_DEFAULT_VALUES")(
       DefaultsConfig.reinit shouldBe false
     )
+  }
+
+  // A REGULAR account can run code on the server, so open sign-up has to be a deployment's own
+  // choice rather than what it gets by leaving USER_SYS_INVITE_ONLY unset.
+  "DefaultsConfig.inviteOnly" should "default to invite-only" in {
+    ifUnset("USER_SYS_INVITE_ONLY")(DefaultsConfig.inviteOnly shouldBe true)
+  }
+
+  // HOCON also accepts yes/no and on/off, but every reader of the stored row expects true or false:
+  // the backend reads anything else as on, and so does the admin card. The spellings are fed in
+  // directly because CI never sets USER_SYS_INVITE_ONLY.
+  "DefaultsConfig.seedValues" should "seed invite-only as true or false, whatever the spelling" in {
+    Seq("off" -> "false", "no" -> "false", "on" -> "true", "yes" -> "true").foreach {
+      case (spelling, seeded) =>
+        DefaultsConfig
+          .seedValues(ConfigFactory.parseString(s"user-sys.invite_only = $spelling"))
+          .get("invite_only") shouldBe Some(seeded)
+    }
+  }
+
+  // default.conf as config-service resolves it, with one leaf overridden the way a `${?ENV}`
+  // substitution overrides it: as a string, in whatever spelling the variable used.
+  private def seededWith(path: String, spelling: String): Map[String, String] =
+    DefaultsConfig.seedValues(
+      ConfigFactory
+        .parseString(s"$path = $spelling")
+        .withFallback(ConfigFactory.parseResources("default.conf"))
+        .resolve()
+    )
+
+  // The dashboard and the admin page show a sidebar tab only when its row is exactly "true", so
+  // GUI_TABS_HUB_ENABLED=on used to hide the Hub tab it meant to show.
+  it should "seed every sidebar tab switch and the reset flag as true or false, whatever the spelling" in {
+    val tabs = DefaultsConfig.keysUnderSections(Set("gui")).filter(_.endsWith("_enabled"))
+    tabs should not be empty
+    val resetFlag = "config-service.always-reset-configurations-to-default-values"
+    val paths = tabs.map("gui.tabs." + _) + resetFlag
+    for {
+      path <- paths
+      (spelling, seeded) <- Seq("off" -> "false", "no" -> "false", "on" -> "true", "yes" -> "true")
+    } withClue(s"$path = $spelling: ") {
+      seededWith(path, spelling).get(path.split('.').last) shouldBe Some(seeded)
+    }
+  }
+
+  // Like USER_SYS_INVITE_ONLY and the reset flag, which are read with getBoolean at startup: a
+  // value that is not a boolean stops config-service there, rather than hiding a tab later.
+  it should "refuse a value that is not a boolean, rather than seed it" in {
+    a[ConfigException.WrongType] should be thrownBy seededWith("gui.tabs.hub_enabled", "maybe")
   }
 
   "DefaultsConfig.allDefaults" should "flatten default.conf into short-key/value entries" in {
@@ -57,6 +107,8 @@ class DefaultsConfigSpec extends AnyFlatSpec with Matchers {
     ifUnset("OPERATOR_CSV_PARSER_MAX_COLUMNS")(
       defaults.get("csv_parser_max_columns") shouldBe Some("512")
     )
+    // the invite-only switch, seeded from the variable the user system has always read
+    ifUnset("USER_SYS_INVITE_ONLY")(defaults.get("invite_only") shouldBe Some("true"))
     // every value is rendered as a String
     defaults.values.foreach(_ shouldBe a[String])
   }

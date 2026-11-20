@@ -1,0 +1,80 @@
+/**
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
+ */
+
+/* The author's two label controls -- the dashed name box and the quiet eye -- as one definition,
+   so a host that draws them itself (a table's column header, see props.labelHosted) shows the same
+   control the wrapper draws everywhere else, and a change to either lands in both. */
+
+@mixin editable-label-input {
+  flex: 1;
+  min-width: 0;
+  border: 1px dashed #dcdcdc;
+  border-radius: 4px;
+  background: none;
+  padding: 1px 5px;
+  font-size: 13px;
+  font-weight: 500;
+  color: rgba(0, 0, 0, 0.85);
+  outline: none;
+  cursor: text;
+
+  &::placeholder {
+    color: rgba(0, 0, 0, 0.45);
+    font-weight: 400;
+  }
+
+  &:hover {
+    border-style: solid;
+    border-color: #b0b0b0;
+  }
+
+  &:focus {
+    border-style: solid;
+    border-color: #1890ff;
+    background: #fff;
+  }
+}
+
+@mixin editable-label-eye {
+  flex: none;
+  border: 0;
+  background: none;
+  cursor: pointer;
+  line-height: 0;
+  padding: 3px;
+  border-radius: 4px;
+  color: rgba(0, 0, 0, 0.45);
+  font-size: 14px;
+
+  &:hover {
+    color: rgba(0, 0, 0, 0.85);
+    background: #f5f5f5;
+  }
+
+  &:focus-visible {
+    outline: 2px solid #1890ff;
+    outline-offset: 1px;
+  }
+
+  /* Hidden is a state worth seeing at a glance, so it keeps the accent rather than
+     fading like the rest of the row. */
+  &.off {
+    color: #1890ff;
+  }
+}

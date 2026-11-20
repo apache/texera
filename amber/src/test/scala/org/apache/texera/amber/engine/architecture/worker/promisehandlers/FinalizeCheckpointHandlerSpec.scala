@@ -19,49 +19,18 @@
 
 package org.apache.texera.amber.engine.architecture.worker.promisehandlers
 
-import com.twitter.util.{Await, Duration, Future}
-import org.apache.pekko.actor.{ActorSystem, Props}
-import org.apache.pekko.testkit.{TestActorRef, TestKit}
-import org.apache.texera.amber.clustering.SingleNodeListener
 import org.apache.texera.amber.core.executor.OperatorExecutor
 import org.apache.texera.amber.core.tuple.{Tuple, TupleLike}
-import org.apache.texera.amber.core.virtualidentity.{
-  ActorVirtualIdentity,
-  ChannelIdentity,
-  EmbeddedControlMessageIdentity
-}
+import org.apache.texera.amber.core.virtualidentity.EmbeddedControlMessageIdentity
 import org.apache.texera.amber.core.workflow.PortIdentity
-import org.apache.texera.amber.engine.architecture.rpc.controlcommands.{
-  AsyncRPCContext,
-  EmptyRequest,
-  FinalizeCheckpointRequest
-}
-import org.apache.texera.amber.engine.architecture.rpc.workerservice.WorkerServiceGrpc.METHOD_QUERY_STATISTICS
-import org.apache.texera.amber.engine.architecture.scheduling.config.WorkerConfig
-import org.apache.texera.amber.engine.architecture.worker.WorkflowWorker.{
-  DPInputQueueElement,
-  WorkerReplayInitialization
-}
-import org.apache.texera.amber.engine.architecture.worker.{
-  DataProcessor,
-  DataProcessorRPCHandlerInitializer,
-  WorkflowWorker
-}
+import org.apache.texera.amber.engine.architecture.rpc.controlcommands.FinalizeCheckpointRequest
+import org.apache.texera.amber.engine.architecture.worker.DataProcessorRPCHandlerInitializer
+import org.apache.texera.amber.engine.architecture.worker.promisehandlers.CheckpointHandlerSpecSupport.PlainExecutor
 import org.apache.texera.amber.engine.common.ambermessage.WorkflowFIFOMessage
-import org.apache.texera.amber.engine.common.rpc.AsyncRPCClient.ControlInvocation
 import org.apache.texera.amber.engine.common.storage.SequentialRecordStorage
-import org.apache.texera.amber.engine.common.virtualidentity.util.COORDINATOR
-import org.apache.texera.amber.engine.common.{
-  AmberRuntime,
-  CheckpointState,
-  CheckpointSupport,
-  SerializedState
-}
-import org.scalatest.BeforeAndAfterAll
-import org.scalatest.flatspec.AnyFlatSpecLike
+import org.apache.texera.amber.engine.common.{CheckpointState, CheckpointSupport, SerializedState}
 
 import java.net.URI
-import java.util.concurrent.LinkedBlockingQueue
 import scala.collection.mutable
 import scala.collection.mutable.ArrayBuffer
 
@@ -87,59 +56,21 @@ import scala.collection.mutable.ArrayBuffer
   * main thread and uses a bare `DataProcessor`.
   */
 class FinalizeCheckpointHandlerSpec
-    extends TestKit(ActorSystem("FinalizeCheckpointHandlerSpec", AmberRuntime.pekkoConfig))
-    with AnyFlatSpecLike
-    with BeforeAndAfterAll {
+    extends CheckpointHandlerSpecSupport(
+      "FinalizeCheckpointHandlerSpec",
+      "Worker:WF1-finalize-main-0",
+      "finalize-checkpoint-1",
+      10
+    ) {
 
   import FinalizeCheckpointHandlerSpec._
 
-  private val workerId = ActorVirtualIdentity("Worker:WF1-finalize-main-0")
-  private val rpcContext = AsyncRPCContext(COORDINATOR, workerId)
-  private val awaitTimeout = Duration.fromSeconds(10)
-  private val checkpointId = EmbeddedControlMessageIdentity("finalize-checkpoint-1")
   private val unrelatedCheckpointId = EmbeddedControlMessageIdentity("some-other-checkpoint")
 
-  override def beforeAll(): Unit = {
-    // WorkflowActor's actor service resolves node addresses through /user/cluster-info.
-    system.actorOf(Props[SingleNodeListener](), "cluster-info")
-  }
-
-  override def afterAll(): Unit = {
-    TestKit.shutdownActorSystem(system)
-  }
-
-  private def await[T](future: Future[T]): T = Await.result(future, awaitTimeout)
-
-  /** A handler over a bare DataProcessor: enough for the estimate branch. */
-  private def estimateHandler(executor: OperatorExecutor): DataProcessorRPCHandlerInitializer = {
-    val dp = new DataProcessor(
-      workerId,
-      _ => (),
-      new LinkedBlockingQueue[DPInputQueueElement]()
-    )
-    dp.executor = executor
-    new DataProcessorRPCHandlerInitializer(dp)
-  }
-
-  /**
-    * A live worker, so the main-thread hand-off in the write branch is delivered exactly as in
-    * production (`logManager.sendCommitted` -> `self !` -> `handleTriggerClosure`).
-    */
-  private def liveWorker(): TestActorRef[WorkflowWorker] = {
-    val worker = TestActorRef(
-      new WorkflowWorker(WorkerConfig(workerId), WorkerReplayInitialization())
-    )
-    // The DP thread would otherwise race the assertions on the worker's recorded inputs.
-    worker.underlyingActor.dpThread.stop()
-    worker
-  }
-
-  private def recordedMessage(seq: Long): WorkflowFIFOMessage =
-    WorkflowFIFOMessage(
-      ChannelIdentity(COORDINATOR, workerId, isControl = true),
-      seq,
-      ControlInvocation(METHOD_QUERY_STATISTICS, EmptyRequest(), rpcContext, seq)
-    )
+  private def finalizeSize(handler: DataProcessorRPCHandlerInitializer, writeTo: String): Long =
+    await(
+      handler.finalizeCheckpoint(FinalizeCheckpointRequest(checkpointId, writeTo), rpcContext)
+    ).size
 
   private def storageAt(uri: String): SequentialRecordStorage[CheckpointState] =
     SequentialRecordStorage.getStorage[CheckpointState](Some(new URI(uri)))
@@ -147,40 +78,23 @@ class FinalizeCheckpointHandlerSpec
   behavior of "FinalizeCheckpointHandler"
 
   it should "report zero for an operator that cannot checkpoint" in {
-    val handler = estimateHandler(new PlainExecutor)
-
-    val response = await(
-      handler.finalizeCheckpoint(
-        FinalizeCheckpointRequest(checkpointId, "ram:///finalize-plain-estimate/"),
-        rpcContext
-      )
-    )
-
-    assert(response.size == 0L)
+    assert(finalizeSize(newDpHandler(new PlainExecutor), "ram:///finalize-plain-estimate/") == 0L)
   }
 
   it should "report the operator's own estimated cost when it can checkpoint" in {
-    val handler = estimateHandler(new EstimatingExecutor(estimatedCost = 4242L))
-
-    val response = await(
-      handler.finalizeCheckpoint(
-        FinalizeCheckpointRequest(checkpointId, "ram:///finalize-supported-estimate/"),
-        rpcContext
-      )
+    assert(
+      finalizeSize(
+        newDpHandler(new EstimatingExecutor(estimatedCost = 4242L)),
+        "ram:///finalize-supported-estimate/"
+      ) == 4242L
     )
-
-    assert(response.size == 4242L)
   }
 
   it should "not create the destination folder for an estimate-only request" in {
-    val handler = estimateHandler(new EstimatingExecutor(estimatedCost = 1L))
     val parent = "ram:///finalize-estimate-no-write/"
-
-    await(
-      handler.finalizeCheckpoint(
-        FinalizeCheckpointRequest(checkpointId, parent + "checkpoint-folder/"),
-        rpcContext
-      )
+    finalizeSize(
+      newDpHandler(new EstimatingExecutor(estimatedCost = 1L)),
+      parent + "checkpoint-folder/"
     )
 
     // Opening a writer creates the folder, so its absence is what shows nothing was written.
@@ -194,19 +108,13 @@ class FinalizeCheckpointHandlerSpec
     val checkpoint = new CheckpointState()
     checkpoint.save("unicode-payload", "checkpoint-δ")
     dp.ecmManager.checkpoints(checkpointId) = checkpoint
-    val handler = new DataProcessorRPCHandlerInitializer(dp)
 
-    val response = await(
-      handler.finalizeCheckpoint(
-        FinalizeCheckpointRequest(checkpointId, destination),
-        rpcContext
-      )
-    )
+    val size = finalizeSize(new DataProcessorRPCHandlerInitializer(dp), destination)
 
     val restored = SequentialRecordStorage
       .fetchAllRecords(storageAt(destination), workerId.name.replace("Worker:", ""))
       .toList
-    assert(response.size > 0L)
+    assert(size > 0L)
     assert(restored.size == 1)
     assert(restored.head.load[String]("unicode-payload") == "checkpoint-δ")
   }
@@ -219,17 +127,12 @@ class FinalizeCheckpointHandlerSpec
     dp.executor = new EstimatingExecutor(estimatedCost = 4242L)
     val checkpoint = new CheckpointState()
     dp.ecmManager.checkpoints(checkpointId) = checkpoint
-    val recorded = ArrayBuffer(recordedMessage(1), recordedMessage(2))
+    val recorded = ArrayBuffer(queryStatisticsMessage(1), queryStatisticsMessage(2))
     worker.underlyingActor.recordedInputs(checkpointId) = recorded
-    worker.underlyingActor.recordedInputs(unrelatedCheckpointId) = ArrayBuffer(recordedMessage(99))
-    val handler = new DataProcessorRPCHandlerInitializer(dp)
+    worker.underlyingActor.recordedInputs(unrelatedCheckpointId) =
+      ArrayBuffer(queryStatisticsMessage(99))
 
-    await(
-      handler.finalizeCheckpoint(
-        FinalizeCheckpointRequest(checkpointId, "ram:///finalize-fold/"),
-        rpcContext
-      )
-    )
+    finalizeSize(new DataProcessorRPCHandlerInitializer(dp), "ram:///finalize-fold/")
 
     assert(
       checkpoint.load[mutable.ArrayBuffer[WorkflowFIFOMessage]](
@@ -246,14 +149,8 @@ class FinalizeCheckpointHandlerSpec
     val dp = worker.underlyingActor.dp
     val checkpoint = new CheckpointState()
     dp.ecmManager.checkpoints(checkpointId) = checkpoint
-    val handler = new DataProcessorRPCHandlerInitializer(dp)
 
-    await(
-      handler.finalizeCheckpoint(
-        FinalizeCheckpointRequest(checkpointId, "ram:///finalize-fold-empty/"),
-        rpcContext
-      )
-    )
+    finalizeSize(new DataProcessorRPCHandlerInitializer(dp), "ram:///finalize-fold-empty/")
 
     // `WorkflowWorker.loadFromCheckpoint` reads this key unconditionally, so it has to be present
     // even when no input arrived between prepare and finalize.
@@ -266,11 +163,6 @@ class FinalizeCheckpointHandlerSpec
 }
 
 object FinalizeCheckpointHandlerSpec {
-
-  /** Not `CheckpointSupport`: the estimate branch must fall through to 0. */
-  class PlainExecutor extends OperatorExecutor {
-    override def processTuple(tuple: Tuple, port: Int): Iterator[TupleLike] = Iterator.empty
-  }
 
   class EstimatingExecutor(estimatedCost: Long) extends OperatorExecutor with CheckpointSupport {
     override def processTuple(tuple: Tuple, port: Int): Iterator[TupleLike] = Iterator.empty

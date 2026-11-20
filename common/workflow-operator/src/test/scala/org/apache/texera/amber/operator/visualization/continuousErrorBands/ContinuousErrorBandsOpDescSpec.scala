@@ -21,27 +21,20 @@ package org.apache.texera.amber.operator.visualization.continuousErrorBands
 
 import org.scalatest.BeforeAndAfter
 import org.scalatest.flatspec.AnyFlatSpec
-import org.scalatest.matchers.should.Matchers
+import org.apache.texera.amber.operator.GeneratedCodeAssertionChecks
 
-import java.nio.charset.StandardCharsets
 import java.util
-import java.util.Base64
 
-class ContinuousErrorBandsOpDescSpec extends AnyFlatSpec with BeforeAndAfter with Matchers {
+class ContinuousErrorBandsOpDescSpec
+    extends AnyFlatSpec
+    with BeforeAndAfter
+    with GeneratedCodeAssertionChecks {
 
   var opDesc: ContinuousErrorBandsOpDesc = _
 
   before {
     opDesc = new ContinuousErrorBandsOpDesc()
   }
-
-  private def b64(s: String): String =
-    Base64.getEncoder.encodeToString(s.getBytes(StandardCharsets.UTF_8))
-
-  // A column name is carried either literally (plain chunks) or as the
-  // base64 payload of a runtime decode site (encoded chunks).
-  private def carries(output: String, name: String): Boolean =
-    output.contains(name) || output.contains(b64(name))
 
   private def band(x: String, y: String, upper: String, lower: String): BandConfig = {
     val c = new BandConfig()
@@ -58,16 +51,12 @@ class ContinuousErrorBandsOpDescSpec extends AnyFlatSpec with BeforeAndAfter wit
   }
 
   it should "throw an AssertionError (not a NullPointerException) when bands is left empty (createPlotlyFigure)" in {
-    val ex = intercept[AssertionError](opDesc.createPlotlyFigure())
+    val ex = expectError[AssertionError]("Bands cannot be empty")(opDesc.createPlotlyFigure())
     ex shouldBe a[AssertionError]
-    ex.getMessage should not be null
-    ex.getMessage should include("Bands cannot be empty")
   }
 
   it should "throw an AssertionError naming the Bands when generating python code with an empty bands list" in {
-    val ex = intercept[AssertionError](opDesc.generatePythonCode())
-    ex.getMessage should not be null
-    ex.getMessage should include("Bands cannot be empty")
+    val ex = expectError[AssertionError]("Bands cannot be empty")(opDesc.generatePythonCode())
   }
 
   it should "render the configured band columns when the bands list is set" in {

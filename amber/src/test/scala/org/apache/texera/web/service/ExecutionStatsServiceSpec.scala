@@ -19,7 +19,6 @@
 
 package org.apache.texera.web.service
 
-import io.reactivex.rxjava3.disposables.Disposable
 import org.apache.pekko.actor.ActorSystem
 import org.apache.pekko.testkit.TestKit
 import org.apache.texera.amber.core.storage.model.VirtualDocument
@@ -30,10 +29,9 @@ import org.apache.texera.amber.core.virtualidentity.{
   ExecutionIdentity,
   WorkflowIdentity
 }
-import org.apache.texera.amber.core.workflow.{PhysicalPlan, PortIdentity, WorkflowContext}
+import org.apache.texera.amber.core.workflow.{PortIdentity, WorkflowContext}
 import org.apache.texera.amber.core.workflowruntimestate.FatalErrorType.EXECUTION_FAILURE
 import org.apache.texera.amber.engine.architecture.coordinator.{
-  CoordinatorConfig,
   ExecutionStateUpdate,
   ExecutionStatsUpdate,
   FatalError,
@@ -47,9 +45,7 @@ import org.apache.texera.amber.engine.architecture.worker.statistics.{
   PortTupleMetricsMapping,
   TupleMetrics
 }
-import org.apache.texera.amber.engine.common.client.AmberClient
 import org.apache.texera.amber.engine.common.executionruntimestate.{
-  ExecutionStatsStore,
   OperatorMetrics,
   OperatorStatistics
 }
@@ -74,7 +70,8 @@ import org.apache.texera.web.model.websocket.event.{
   TexeraWebSocketEvent,
   WorkerAssignmentUpdateEvent
 }
-import org.apache.texera.web.storage.{ExecutionStateStore, StateStore}
+import org.apache.texera.web.service.RecordingExecutionClient.recordBatches
+import org.apache.texera.web.storage.ExecutionStateStore
 import org.scalatest.BeforeAndAfterAll
 import org.scalatest.flatspec.AnyFlatSpecLike
 import org.scalatest.matchers.should.Matchers
@@ -82,9 +79,6 @@ import org.scalatest.matchers.should.Matchers
 import java.net.URI
 import java.sql.Timestamp
 import java.util.concurrent.ExecutorService
-import scala.collection.mutable
-import scala.collection.mutable.ListBuffer
-import scala.reflect.ClassTag
 
 /**
   * The service class was entirely uncovered. It owns two independent outputs: the websocket
@@ -165,37 +159,8 @@ class ExecutionStatsServiceSpec
     } finally super.afterAll()
   }
 
-  /** Empty-plan client that captures every callback the service registers, keyed by event type. */
-  private final class TestAmberClient
-      extends AmberClient(
-        system,
-        new WorkflowContext(),
-        PhysicalPlan(Set.empty, Set.empty),
-        CoordinatorConfig(None, None, None, None),
-        _ => ()
-      ) {
-    var shutdownCount = 0
-    private val callbacks = mutable.Map.empty[Class[_], Any => Unit]
-
-    override def shutdown(): Unit = {
-      shutdownCount += 1
-      super.shutdown()
-    }
-
-    override def registerCallback[T](callback: T => Unit)(implicit ct: ClassTag[T]): Disposable = {
-      callbacks(ct.runtimeClass) = callback.asInstanceOf[Any => Unit]
-      Disposable.empty()
-    }
-
-    /** Delivers an engine event the way the client's observable would. */
-    def fire[T <: AnyRef](event: T)(implicit ct: ClassTag[T]): Unit =
-      callbacks(ct.runtimeClass)(event)
-
-    def dispose(): Unit = super.shutdown()
-  }
-
   private final class Fixture(
-      val client: TestAmberClient,
+      val client: RecordingExecutionClient,
       val stateStore: ExecutionStateStore,
       val service: ExecutionStatsService
   ) {
@@ -206,7 +171,7 @@ class ExecutionStatsServiceSpec
   }
 
   private def withService(body: Fixture => Unit): Unit = {
-    val client = new TestAmberClient
+    val client = new RecordingExecutionClient(system)
     val stateStore = new ExecutionStateStore
     val service = new ExecutionStatsService(
       client,
@@ -219,22 +184,6 @@ class ExecutionStatsServiceSpec
     val fixture = new Fixture(client, stateStore, service)
     try body(fixture)
     finally fixture.close()
-  }
-
-  /**
-    * One batch of websocket events is published per state update, so a test that cares about
-    * what a *second* update publishes has to subscribe before the first one. Subscribing later
-    * would also replay the diff between the default state and the current one as a batch.
-    */
-  private def recordBatches(
-      store: StateStore[ExecutionStatsStore]
-  )(body: => Unit): Seq[Iterable[TexeraWebSocketEvent]] = {
-    val batches = ListBuffer.empty[Iterable[TexeraWebSocketEvent]]
-    val subscription = store.getWebsocketEventObservable
-      .subscribe((batch: Iterable[TexeraWebSocketEvent]) => batches += batch)
-    try body
-    finally subscription.dispose()
-    batches.toSeq
   }
 
   private def metrics(
@@ -370,6 +319,34 @@ class ExecutionStatsServiceSpec
       // present-but-empty OperatorStatisticsUpdateEvent as "nothing published", when it is in fact
       // churn on the websocket. This matches the two sibling "publish nothing" tests below.
       batches.last.collect { case e: OperatorStatisticsUpdateEvent => e } shouldBe empty
+    }
+  }
+
+  it should "sum multi-port output metrics and zero-out empty ports consistently" in {
+    withService { f =>
+      val batches = recordBatches(f.stateStore.statsStore) {
+        f.client.fire(
+          ExecutionStatsUpdate(
+            Map(
+              "multiOut" -> metrics(
+                RUNNING,
+                inputs = Seq.empty,
+                outputs = Seq((0, 2L, 20L), (1, 5L, 55L)),
+                numWorkers = 3
+              )
+            )
+          )
+        )
+      }
+
+      val published = statisticsEvents(batches.flatten)
+      val multiOut = published("multiOut")
+      multiOut.aggregatedInputRowCount shouldBe 0L
+      multiOut.aggregatedInputSize shouldBe 0L
+      multiOut.inputPortMetrics shouldBe Map.empty
+      multiOut.aggregatedOutputRowCount shouldBe 7L
+      multiOut.aggregatedOutputSize shouldBe 75L
+      multiOut.outputPortMetrics shouldBe Map("0" -> 2L, "1" -> 5L)
     }
   }
 
@@ -580,6 +557,30 @@ class ExecutionStatsServiceSpec
           persistedRows() should have size 1
         }
       }
+    }
+  }
+
+  it should "sum multi-port input and output counts and sizes when persisting statistics" in {
+    withService { f =>
+      val multiPort = metrics(
+        RUNNING,
+        inputs = Seq((0, 2L, 20L), (1, 3L, 35L)),
+        outputs = Seq((0, 4L, 40L), (1, 5L, 55L)),
+        numWorkers = 2
+      )
+
+      f.client.fire(RuntimeStatisticsPersist(Map("opMulti" -> multiPort)))
+      awaitPersist(f.service)
+      f.client.fire(ExecutionStateUpdate(COMPLETED))
+
+      val rows = persistedRows()
+      rows should have size 1
+      val row = rows.head
+      row.getField[String]("operatorId") shouldBe "opMulti"
+      row.getField[Long]("inputTupleCnt") shouldBe 5L
+      row.getField[Long]("inputTupleSize") shouldBe 55L
+      row.getField[Long]("outputTupleCnt") shouldBe 9L
+      row.getField[Long]("outputTupleSize") shouldBe 95L
     }
   }
 }

@@ -27,24 +27,14 @@ import org.apache.texera.amber.operator.LogicalOp
 import org.apache.texera.amber.operator.metadata.OperatorGroupConstants
 import org.apache.texera.amber.util.JSONUtils.objectMapper
 import org.scalatest.flatspec.AnyFlatSpec
-import org.scalatest.matchers.should.Matchers
+import org.apache.texera.amber.operator.EncodedGeneratedCodeAssertionChecks
 
-import java.nio.charset.StandardCharsets
-import java.util.Base64
-
-class HuggingFaceIrisLogisticRegressionOpDescSpec extends AnyFlatSpec with Matchers {
+class HuggingFaceIrisLogisticRegressionOpDescSpec
+    extends AnyFlatSpec
+    with EncodedGeneratedCodeAssertionChecks {
 
   private val workflowId = WorkflowIdentity(1L)
   private val executionId = ExecutionIdentity(1L)
-
-  private def b64(s: String): String =
-    Base64.getEncoder.encodeToString(s.getBytes(StandardCharsets.UTF_8))
-
-  // EncodableString fields are always base64-wrapped in .encode mode
-  // (self.decode_python_template('<base64>')), so assert on the base64 form only rather than
-  // the raw column name, which could appear in the generated Python for unrelated reasons.
-  private def carries(output: String, name: String): Boolean =
-    output.contains(b64(name))
 
   private def configured(): HuggingFaceIrisLogisticRegressionOpDesc = {
     val d = new HuggingFaceIrisLogisticRegressionOpDesc

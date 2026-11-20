@@ -25,7 +25,13 @@ import { DragDropService } from "../../service/drag-drop/drag-drop.service";
 import { WorkflowUtilService } from "../../service/workflow-graph/util/workflow-util.service";
 import { ComponentFixture, fakeAsync, TestBed, tick } from "@angular/core/testing";
 import { ValidationWorkflowService } from "../../service/validation/validation-workflow.service";
-import { RESULT_PREVIEW_DELAY_MS, RESULT_PREVIEW_HIDE_MS, WorkflowEditorComponent } from "./workflow-editor.component";
+import {
+  PINNED_HEADER_HEIGHT,
+  RESULT_PREVIEW_DELAY_MS,
+  RESULT_PREVIEW_HIDE_MS,
+  WorkflowEditorComponent,
+} from "./workflow-editor.component";
+import { PinnedResultWindowComponent } from "./pinned-result-window/pinned-result-window.component";
 import { workflowEditorTestImports, workflowEditorTestProviders } from "./workflow-editor.test-utils";
 import { OperatorMetadataService } from "../../service/operator-metadata/operator-metadata.service";
 import { StubOperatorMetadataService } from "../../service/operator-metadata/stub-operator-metadata.service";
@@ -35,7 +41,7 @@ import {
   operatorNameClass,
   operatorStateClass,
 } from "../../service/joint-ui/joint-ui.service";
-import { AgentService, OperatorResultSummary } from "../../service/agent/agent.service";
+import { AgentService, IndexedTuple, OperatorExecutionSummary } from "../../service/agent/agent.service";
 import { NzModalModule, NzModalService } from "ng-zorro-antd/modal";
 import { Overlay } from "@angular/cdk/overlay";
 import * as joint from "jointjs";
@@ -472,6 +478,218 @@ describe("WorkflowEditorComponent", () => {
       expect(component.resultPreview).toBeNull();
     }));
 
+    /** Right-click with the scan operator selected and pick "pin result" from the menu. */
+    function pinScanFromContextMenu(): void {
+      TestBed.inject(WorkflowActionService).getJointGraphWrapper().highlightOperators(mockScanPredicate.operatorID);
+      fixture.detectChanges();
+      const menu = fixture.debugElement.query(By.directive(NzDropdownMenuComponent)).componentInstance;
+      component.nzContextMenu.create(new MouseEvent("contextmenu", { clientX: 5, clientY: 5 }), menu);
+      fixture.detectChanges();
+      const item = fixture.debugElement
+        .queryAll(By.css("texera-context-menu li[nz-menu-item]"))
+        .find(li => li.nativeElement.textContent.trim() === "pin result");
+      expect(item).toBeTruthy();
+      item!.triggerEventHandler("click", null);
+      fixture.detectChanges();
+      component.nzContextMenu.close();
+    }
+
+    // With the hover card off there is no Pin button, so the right-click menu is the way to a result window.
+    it("pins an operator's result from the right-click menu while Result preview is off", () => {
+      const wrapper = TestBed.inject(WorkflowActionService).getJointGraphWrapper();
+      wrapper.setResultPreviewEnabled(false);
+      try {
+        addLinkedPair();
+
+        pinScanFromContextMenu();
+        pinScanFromContextMenu();
+
+        // pinning the same operator twice keeps one window
+        expect(component.pinnedResults.map(pinned => pinned.operatorId)).toEqual([mockScanPredicate.operatorID]);
+        const windows = fixture.debugElement.queryAll(By.css("texera-pinned-result-window"));
+        expect(windows.length).toBe(1);
+        expect(windows[0].nativeElement.getAttribute("data-operator-id")).toBe(mockScanPredicate.operatorID);
+      } finally {
+        wrapper.setResultPreviewEnabled(true);
+      }
+    });
+
+    it("pins an operator's result from the right-click menu while the heat-map is on", () => {
+      addLinkedPair();
+      vi.spyOn(TestBed.inject(WorkflowActionService).getJointGraphWrapper(), "getHeatmapView").mockReturnValue(
+        "throughput" as any
+      );
+
+      pinScanFromContextMenu();
+
+      expect(component.pinnedResults.map(pinned => pinned.operatorId)).toEqual([mockScanPredicate.operatorID]);
+      expect(fixture.debugElement.query(By.css("texera-pinned-result-window"))).toBeTruthy();
+    });
+
+    describe("pinned result windows", () => {
+      const pinnedWindows = () => fixture.debugElement.queryAll(By.css("texera-pinned-result-window"));
+
+      /** Open the scan operator's card and pin it, as its Pin button does. */
+      function pinScan(): void {
+        const view = component.paper.findViewByModel(mockScanPredicate.operatorID);
+        component.paper.trigger("element:mouseenter", view, new MouseEvent("mouseenter"));
+        tick(RESULT_PREVIEW_DELAY_MS);
+        component.pinResultPreview();
+        fixture.detectChanges();
+      }
+
+      /** The scan operator's box as drawn, in the editor's coordinates. */
+      function scanBox(): { left: number; right: number; top: number; bottom: number } {
+        const bbox = component.paper.getModelById(mockScanPredicate.operatorID).getBBox();
+        const { sx, sy } = component.paper.scale();
+        const { tx, ty } = component.paper.translate();
+        return {
+          left: bbox.x * sx + tx,
+          right: (bbox.x + bbox.width) * sx + tx,
+          top: bbox.y * sy + ty,
+          bottom: (bbox.y + bbox.height) * sy + ty,
+        };
+      }
+
+      it("pins the card's operator as a window and closes the card, which that operator no longer opens", fakeAsync(() => {
+        addLinkedPair();
+        pinScan();
+
+        expect(component.resultPreview).toBeNull();
+        expect(component.pinnedResults).toEqual([{ operatorId: mockScanPredicate.operatorID, dx: 0, dy: 0 }]);
+        expect(pinnedWindows().length).toBe(1);
+        expect(pinnedWindows()[0].attributes["data-operator-id"]).toBe(mockScanPredicate.operatorID);
+
+        const view = component.paper.findViewByModel(mockScanPredicate.operatorID);
+        component.paper.trigger("element:mouseenter", view, new MouseEvent("mouseenter"));
+        tick(RESULT_PREVIEW_DELAY_MS);
+        expect(component.resultPreview).toBeNull();
+      }));
+
+      it("unpins a window when it is closed", fakeAsync(() => {
+        addLinkedPair();
+        pinScan();
+
+        (pinnedWindows()[0].componentInstance as PinnedResultWindowComponent).closed.emit();
+        fixture.detectChanges();
+
+        expect(component.pinnedResults).toEqual([]);
+        expect(pinnedWindows().length).toBe(0);
+      }));
+
+      it("unpins the window of a deleted operator, but not another's", fakeAsync(() => {
+        addLinkedPair();
+        pinScan();
+        const workflowActionService = TestBed.inject(WorkflowActionService);
+
+        workflowActionService.deleteOperator(mockResultPredicate.operatorID);
+        expect(component.pinnedResults.map(pinned => pinned.operatorId)).toEqual([mockScanPredicate.operatorID]);
+
+        workflowActionService.deleteOperator(mockScanPredicate.operatorID);
+        expect(component.pinnedResults).toEqual([]);
+        expect(pinnedWindows().length).toBe(0);
+      }));
+
+      it("places a window just right of its operator, level with its top, and keeps it there as the canvas moves", fakeAsync(() => {
+        addLinkedPair();
+        pinScan();
+        const pinned = component.pinnedResults[0];
+
+        let box = scanBox();
+        expect(component.pinnedResultPosition(pinned)).toEqual({ x: box.right + 12, y: box.top });
+
+        component.paper.translate(40, -25);
+        component.paper.scale(0.5, 0.5);
+        box = scanBox();
+        expect(component.pinnedResultPosition(pinned)).toEqual({ x: box.right + 12, y: box.top });
+      }));
+
+      it("keeps a dragged window at the offset it was dragged to", fakeAsync(() => {
+        addLinkedPair();
+        pinScan();
+        const box = scanBox();
+
+        component.movePinnedResult(mockScanPredicate.operatorID, { dx: 30, dy: 10 });
+        component.movePinnedResult(mockScanPredicate.operatorID, { dx: -5, dy: 15 });
+        component.movePinnedResult("another-operator", { dx: 100, dy: 100 });
+
+        expect(component.pinnedResults[0]).toEqual({ operatorId: mockScanPredicate.operatorID, dx: 25, dy: 25 });
+        expect(component.pinnedResultPosition(component.pinnedResults[0])).toEqual({
+          x: box.right + 12 + 25,
+          y: box.top + 25,
+        });
+      }));
+
+      describe("the line from an operator to its window", () => {
+        const WIDTH = 300;
+        const HEIGHT = 200;
+
+        // a window's size is read from the page, which lays nothing out in a test
+        beforeEach(() =>
+          vi.spyOn(component as any, "pinnedWindowSize").mockReturnValue({ width: WIDTH, height: HEIGHT })
+        );
+
+        /** The path's start and end points. */
+        function ends(path: string): number[][] {
+          const numbers = path.match(/-?[\d.]+/g)!.map(Number);
+          return [numbers.slice(0, 2), numbers.slice(-2)];
+        }
+
+        it("runs from the operator's right side into the header of a window on its right", fakeAsync(() => {
+          addLinkedPair();
+          pinScan();
+          const box = scanBox();
+          const corner = component.pinnedResultPosition(component.pinnedResults[0]);
+
+          expect(ends(component.pinnedConnectorPath(component.pinnedResults[0]))).toEqual([
+            [box.right, (box.top + box.bottom) / 2],
+            [corner.x, corner.y + PINNED_HEADER_HEIGHT / 2],
+          ]);
+        }));
+
+        it("runs from the operator's left side into the header of a window dragged to its left", fakeAsync(() => {
+          addLinkedPair();
+          pinScan();
+          const box = scanBox();
+          component.movePinnedResult(mockScanPredicate.operatorID, {
+            dx: -(box.right - box.left) - WIDTH - 100,
+            dy: 0,
+          });
+          const corner = component.pinnedResultPosition(component.pinnedResults[0]);
+
+          expect(ends(component.pinnedConnectorPath(component.pinnedResults[0]))).toEqual([
+            [box.left, (box.top + box.bottom) / 2],
+            [corner.x + WIDTH, corner.y + PINNED_HEADER_HEIGHT / 2],
+          ]);
+        }));
+
+        it("runs from the operator's bottom to the top of a window dragged below it, and top to bottom above", fakeAsync(() => {
+          addLinkedPair();
+          pinScan();
+          const box = scanBox();
+          const midX = (box.left + box.right) / 2;
+          // under the operator: the window's left edge left of the operator's middle
+          component.movePinnedResult(mockScanPredicate.operatorID, { dx: -(box.right - box.left), dy: 0 });
+          component.movePinnedResult(mockScanPredicate.operatorID, { dx: 0, dy: box.bottom - box.top + 50 });
+          let corner = component.pinnedResultPosition(component.pinnedResults[0]);
+          expect(ends(component.pinnedConnectorPath(component.pinnedResults[0]))).toEqual([
+            [midX, box.bottom],
+            [midX, corner.y],
+          ]);
+
+          component.movePinnedResult(mockScanPredicate.operatorID, {
+            dx: 0,
+            dy: -(box.bottom - box.top + 50) - HEIGHT - 80,
+          });
+          corner = component.pinnedResultPosition(component.pinnedResults[0]);
+          expect(ends(component.pinnedConnectorPath(component.pinnedResults[0]))).toEqual([
+            [midX, box.top],
+            [midX, corner.y + HEIGHT],
+          ]);
+        }));
+      });
+    });
+
     /** Select the scan operator the way a click does and return its model, whose attrs say what is on show. */
     function selectScanOperator(): joint.dia.Cell {
       addLinkedPair();
@@ -498,6 +716,25 @@ describe("WorkflowEditorComponent", () => {
       expect(model.attr(".chat-button/visibility")).toBe("hidden");
       expect(model.attr(".add-input-port-button/visibility")).toBe("hidden");
       expect(model.attr(".texera-operator-state/visibility")).toBe("visible");
+    });
+
+    // The selection lives in the wrapper, which both views of a workflow share and hand over
+    // between them, while this paper is new on every switch: a paper that only followed the
+    // highlight stream left the step the other view had selected drawn as not selected, beside a
+    // panel showing it. The highlight handler is re-run here, which is what a new paper wiring
+    // itself into the same shared selection comes down to.
+    it("rings the operators the shared selection already holds when the paper wires itself up", () => {
+      const workflowActionService = TestBed.inject(WorkflowActionService);
+      workflowActionService.addOperator(mockScanPredicate, mockPoint);
+      workflowActionService.getJointGraphWrapper().highlightOperators(mockScanPredicate.operatorID);
+      const view = component.paper.findViewByModel(mockScanPredicate.operatorID);
+      // Installed after the stream has done its work, so only the wiring-up pass is counted.
+      const highlight = vi.spyOn(view, "highlight");
+
+      (component as unknown as { handleElementHightlightEvent: () => void }).handleElementHightlightEvent();
+
+      expect(highlight).toHaveBeenCalledTimes(1);
+      expect(highlight).toHaveBeenCalledWith("rect.body", expect.anything());
     });
   });
 
@@ -1297,41 +1534,42 @@ describe("WorkflowEditorComponent", () => {
 
       it("exposes seeded agent operator result summaries and falls back to undefined", () => {
         const agentService = TestBed.inject(AgentService);
-        const summaries = new Map<string, OperatorResultSummary>();
+        const summaries = new Map<string, OperatorExecutionSummary>();
+        const sampleTuples: ReadonlyArray<IndexedTuple> = [
+          [0, { schema: { attributes: [{ attributeName: "colA", attributeType: "string" }] }, fields: ["x"] }],
+        ];
         summaries.set("op-a", {
-          state: "Completed",
-          inputTuples: 1,
-          outputTuples: 2,
-          sampleRecords: [{ colA: "x" }],
-          resultStatistics: { rowCount: "2" },
+          resultSummary: { resultMode: { type: "PaginationMode" }, sampleTuples, totalTuplesCount: 2 },
         });
-        (agentService as any).operatorResultSummariesSubject.next(summaries);
+        (agentService as any).operatorExecutionSummariesSubject.next(summaries);
 
-        expect(component.getOperatorSampleRecords("op-a")).toEqual([{ colA: "x" }]);
-        expect(component.getOperatorResultStatistics("op-a")).toEqual({ rowCount: "2" });
-        expect(component.getOperatorSampleRecords("missing")).toBeUndefined();
-        expect(component.getOperatorResultStatistics("missing")).toBeUndefined();
+        expect(component.getOperatorSampleTuples("op-a")).toEqual(sampleTuples);
+        expect(component.getOperatorResultMode("op-a")).toEqual({ type: "PaginationMode" });
+        expect(component.getOperatorSampleTuples("missing")).toBeUndefined();
+        expect(component.getOperatorResultMode("missing")).toBeUndefined();
       });
 
-      it("detects visualization operators from the __is_visualization__ marker", () => {
+      it("detects visualization operators from the SetSnapshotMode result mode", () => {
         const agentService = TestBed.inject(AgentService);
-        const summaries = new Map<string, OperatorResultSummary>();
+        const summaries = new Map<string, OperatorExecutionSummary>();
+        const vizTuples: ReadonlyArray<IndexedTuple> = [
+          [
+            0,
+            { schema: { attributes: [{ attributeName: "html-content", attributeType: "string" }] }, fields: ["<p/>"] },
+          ],
+        ];
         summaries.set("viz-op", {
-          state: "Completed",
-          inputTuples: 0,
-          outputTuples: 1,
-          sampleRecords: [{ __is_visualization__: true }],
+          resultSummary: { resultMode: { type: "SetSnapshotMode" }, sampleTuples: vizTuples, totalTuplesCount: 1 },
         });
         summaries.set("plain-op", {
-          state: "Completed",
-          inputTuples: 0,
-          outputTuples: 1,
-          sampleRecords: [{ colA: "x" }],
+          resultSummary: { resultMode: { type: "PaginationMode" }, sampleTuples: [], totalTuplesCount: 0 },
         });
-        (agentService as any).operatorResultSummariesSubject.next(summaries);
+        summaries.set("no-result-op", {});
+        (agentService as any).operatorExecutionSummariesSubject.next(summaries);
 
         expect(component.isOperatorVisualization("viz-op")).toBe(true);
         expect(component.isOperatorVisualization("plain-op")).toBe(false);
+        expect(component.isOperatorVisualization("no-result-op")).toBe(false);
         expect(component.isOperatorVisualization("missing")).toBe(false);
       });
 
@@ -2146,18 +2384,18 @@ describe("WorkflowEditorComponent editor wiring", () => {
   });
 
   describe("selection and highlight handlers", () => {
-    it("opens the result panel when an operator is double-clicked, but not for a link", () => {
+    it("pins an operator's result window when it is double-clicked, but not for a link", () => {
       const { view: linkView } = addLinkedPair();
-      const opened: boolean[] = [];
-      workflowActionService.resultPanelOpen$.subscribe(value => opened.push(value));
+      const pinned = () => component.pinnedResults.map(pinnedResult => pinnedResult.operatorId);
       const operatorView = component.paper.findViewByModel(mockScanPredicate.operatorID);
 
       (component.paper as any).trigger("cell:pointerdblclick", operatorView, { shiftKey: false });
-      expect(opened).toEqual([true]);
+      expect(pinned()).toEqual([mockScanPredicate.operatorID]);
+      expect(fixture.debugElement.queryAll(By.css("texera-pinned-result-window")).length).toBe(1);
 
       // a link is not an element, so the handler skips it entirely
       (component.paper as any).trigger("cell:pointerdblclick", linkView, { shiftKey: false });
-      expect(opened).toEqual([true]);
+      expect(pinned()).toEqual([mockScanPredicate.operatorID]);
     });
 
     it("highlights the link running between two shift-selected operators", () => {
@@ -2505,12 +2743,12 @@ describe("WorkflowEditorComponent editor wiring", () => {
     it("re-renders only while the popover is open when new agent summaries arrive", () => {
       const detectChanges = vi.spyOn((component as any).changeDetectorRef, "detectChanges");
 
-      (agentService as any).operatorResultSummariesSubject.next(new Map());
+      (agentService as any).operatorExecutionSummariesSubject.next(new Map());
       expect(detectChanges).not.toHaveBeenCalled();
 
       clickChatButton(mockScanPredicate.operatorID);
       detectChanges.mockClear();
-      (agentService as any).operatorResultSummariesSubject.next(new Map());
+      (agentService as any).operatorExecutionSummariesSubject.next(new Map());
 
       expect(detectChanges).toHaveBeenCalledTimes(1);
     });

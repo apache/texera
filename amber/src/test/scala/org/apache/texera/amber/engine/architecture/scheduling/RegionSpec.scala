@@ -19,36 +19,29 @@
 
 package org.apache.texera.amber.engine.architecture.scheduling
 
-import org.apache.texera.amber.core.executor.OpExecInitInfo
-import org.apache.texera.amber.core.virtualidentity.{
-  ExecutionIdentity,
-  OperatorIdentity,
-  PhysicalOpIdentity,
-  WorkflowIdentity
-}
 import org.apache.texera.amber.core.workflow.{
   GlobalPortIdentity,
-  PhysicalLink,
+  InputPort,
+  OutputPort,
   PhysicalOp,
   PortIdentity
 }
+import org.apache.texera.amber.engine.architecture.scheduling.config.{
+  IntermediateInputPortConfig,
+  OutputPortConfig,
+  ResourceConfig
+}
+import org.apache.texera.amber.engine.common.BarePhysicalPlanFixture
 import org.scalatest.flatspec.AnyFlatSpec
 
-class RegionSpec extends AnyFlatSpec {
+import java.net.URI
 
-  private def physicalOpId(opId: String): PhysicalOpIdentity =
-    PhysicalOpIdentity(OperatorIdentity(opId), "main")
+class RegionSpec extends AnyFlatSpec with BarePhysicalPlanFixture {
 
-  private def op(opId: String): PhysicalOp =
-    PhysicalOp(
-      physicalOpId(opId),
-      WorkflowIdentity(0),
-      ExecutionIdentity(0),
-      OpExecInitInfo.Empty
-    )
-
-  private def link(fromOp: String, toOp: String): PhysicalLink =
-    PhysicalLink(physicalOpId(fromOp), PortIdentity(0), physicalOpId(toOp), PortIdentity(0))
+  private def wiredOp(opId: String): PhysicalOp =
+    op(opId)
+      .withInputPorts(List(InputPort(PortIdentity(0))))
+      .withOutputPorts(List(OutputPort(PortIdentity(0))))
 
   "Region" should "expose the physical operators provided at construction" in {
     val a = op("a")
@@ -114,11 +107,49 @@ class RegionSpec extends AnyFlatSpec {
     assert(region.getSourceOperators == Set(a, b))
   }
 
+  it should "exclude operators fed by internal links and keep operators fed only from outside" in {
+    val internalLink = link("a", "b")
+    val externalLink = link("external", "c")
+    val a = wiredOp("a").addOutputLink(internalLink)
+    val b = wiredOp("b").addInputLink(internalLink)
+    val c = wiredOp("c").addInputLink(externalLink)
+    val region = Region(RegionIdentity(1), Set(a, b, c), Set(internalLink))
+
+    assert(region.getSourceOperators == Set(a, c))
+  }
+
   "Region.getStarterOperators" should "match getSourceOperators when no resource config is provided" in {
     val a = op("a")
     val b = op("b")
     val region = Region(RegionIdentity(1), Set(a, b), Set.empty)
 
     assert(region.getStarterOperators == region.getSourceOperators)
+  }
+
+  it should "promote only operators reading from materialized input ports in resourceConfig" in {
+    val ab = link("a", "b")
+    val ac = link("a", "c")
+    val a = wiredOp("a").addOutputLink(ab).addOutputLink(ac)
+    val b = wiredOp("b").addInputLink(ab)
+    val c = wiredOp("c").addInputLink(ac)
+    val baseUri = new URI("ram:///materialized/")
+    val resourceConfig = ResourceConfig(
+      portConfigs = Map(
+        GlobalPortIdentity(b.id, PortIdentity(0), input = true) ->
+          IntermediateInputPortConfig(List(baseUri)),
+        GlobalPortIdentity(c.id, PortIdentity(0), input = true) ->
+          IntermediateInputPortConfig(List.empty),
+        GlobalPortIdentity(c.id, PortIdentity(0), input = false) ->
+          OutputPortConfig(baseUri)
+      )
+    )
+    val region = Region(
+      RegionIdentity(1),
+      Set(a, b, c),
+      Set(ab, ac),
+      resourceConfig = Some(resourceConfig)
+    )
+
+    assert(region.getStarterOperators == Set(a, b))
   }
 }

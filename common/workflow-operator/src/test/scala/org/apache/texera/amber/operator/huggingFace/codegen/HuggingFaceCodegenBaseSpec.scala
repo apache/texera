@@ -19,7 +19,7 @@
 
 package org.apache.texera.amber.operator.huggingFace.codegen
 
-import org.apache.texera.amber.pybuilder.PyStringTypes.EncodableString
+import org.apache.texera.amber.operator.huggingFace.codegen.HuggingFaceCodegenFixtures.textContext
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 
@@ -38,29 +38,8 @@ class HuggingFaceCodegenBaseSpec extends AnyFlatSpec with Matchers {
       "            return STUB_PARSE_zX7q42"
   }
 
-  private def makeCtx(
-      hfApiToken: EncodableString = "token",
-      modelId: EncodableString = "Qwen/Qwen2.5-72B-Instruct",
-      promptColumn: EncodableString = "prompt",
-      resultColumn: EncodableString = "hf_response",
-      task: EncodableString = "text-generation",
-      systemPrompt: EncodableString = "You are a helpful assistant.",
-      safeMaxTokens: Int = 256,
-      safeTemp: Double = 0.7
-  ): CodegenContext =
-    CodegenContext(
-      hfApiToken = hfApiToken,
-      modelId = modelId,
-      promptColumn = promptColumn,
-      resultColumn = resultColumn,
-      task = task,
-      systemPrompt = systemPrompt,
-      safeMaxTokens = safeMaxTokens,
-      safeTemp = safeTemp
-    )
-
   "HuggingFaceCodegenBase.render" should "emit the ProcessTableOperator skeleton and shared helpers" in {
-    val out = HuggingFaceCodegenBase.render(makeCtx(), StubCodegen)
+    val out = HuggingFaceCodegenBase.render(textContext, StubCodegen)
     out should include("class ProcessTableOperator(UDFTableOperator):")
     out should include("def open(self):")
     out should include("def process_table(")
@@ -73,7 +52,7 @@ class HuggingFaceCodegenBaseSpec extends AnyFlatSpec with Matchers {
   }
 
   it should "splice the per-task codegen's payload and parse snippets into the template" in {
-    val out = HuggingFaceCodegenBase.render(makeCtx(), StubCodegen)
+    val out = HuggingFaceCodegenBase.render(textContext, StubCodegen)
     out should include("STUB_PAYLOAD_zX7q42")
     out should include("STUB_PARSE_zX7q42")
   }
@@ -82,8 +61,8 @@ class HuggingFaceCodegenBaseSpec extends AnyFlatSpec with Matchers {
     // The same context routed through two different codegens must yield the
     // spliced fragments of whichever codegen is passed, proving the base is a
     // pure host for the codegen's snippets.
-    val stub = HuggingFaceCodegenBase.render(makeCtx(), StubCodegen)
-    val real = HuggingFaceCodegenBase.render(makeCtx(), TextGenCodegen)
+    val stub = HuggingFaceCodegenBase.render(textContext, StubCodegen)
+    val real = HuggingFaceCodegenBase.render(textContext, TextGenCodegen)
     stub should include("STUB_PAYLOAD_zX7q42")
     real should not include "STUB_PAYLOAD_zX7q42"
     // TextGenCodegen's real payload/parse markers appear only in the real run.
@@ -97,13 +76,16 @@ class HuggingFaceCodegenBaseSpec extends AnyFlatSpec with Matchers {
 
   it should "interpolate the numeric context fields as raw Python literals" in {
     val out =
-      HuggingFaceCodegenBase.render(makeCtx(safeMaxTokens = 512, safeTemp = 0.9), StubCodegen)
+      HuggingFaceCodegenBase.render(
+        textContext.copy(safeMaxTokens = 512, safeTemp = 0.9),
+        StubCodegen
+      )
     out should include("self.MAX_NEW_TOKENS = 512")
     out should include("self.TEMPERATURE = 0.9")
   }
 
   it should "assign user-provided strings via runtime base64 decode expressions, not raw literals" in {
-    val out = HuggingFaceCodegenBase.render(makeCtx(), StubCodegen)
+    val out = HuggingFaceCodegenBase.render(textContext, StubCodegen)
     // Every user-supplied string field open() assigns is set through the safe
     // decode helper. This covers all EncodableString context fields, including
     // the result/task and per-task (image/audio/context/labels/sentences)
@@ -127,7 +109,7 @@ class HuggingFaceCodegenBaseSpec extends AnyFlatSpec with Matchers {
     // Sentinels contain underscores, which base64 output cannot contain, so a
     // literal match here can only mean the raw value leaked past the encoder.
     val out = HuggingFaceCodegenBase.render(
-      makeCtx(
+      textContext.copy(
         hfApiToken = "MARKER_TOKEN_zXyq42",
         modelId = "MARKER_MODEL_zXyq42",
         promptColumn = "MARKER_PROMPT_zXyq42",
@@ -150,7 +132,7 @@ class HuggingFaceCodegenBaseSpec extends AnyFlatSpec with Matchers {
   // [image_url, text=prompt_value] and dropped them, so a chat provider got an
   // unlabelled image and returned a caption instead of a classification.
   it should "carry the candidate labels into the chat message for zero-shot-image-classification" in {
-    val helper = chatContentHelper(HuggingFaceCodegenBase.render(makeCtx(), StubCodegen))
+    val helper = chatContentHelper(HuggingFaceCodegenBase.render(textContext, StubCodegen))
     helper should include("""if task == "zero-shot-image-classification":""")
     helper should include("candidate_labels")
     helper should include("Classify the image into exactly one of these labels:")
@@ -161,7 +143,7 @@ class HuggingFaceCodegenBaseSpec extends AnyFlatSpec with Matchers {
     // _call_provider (zai-org, OpenAI-compatible, unknown-provider fallback) and
     // the model-author one in _post_with_fallback. The text part must be the
     // reformulated prompt, not the bare prompt_value.
-    val out = HuggingFaceCodegenBase.render(makeCtx(), StubCodegen)
+    val out = HuggingFaceCodegenBase.render(textContext, StubCodegen)
     out.split("""\{"type": "text", "text": self\._chat_content_for_task\(""").length - 1 shouldBe 4
     out should not include """{"type": "text", "text": prompt_value if prompt_value else"""
   }
@@ -170,7 +152,7 @@ class HuggingFaceCodegenBaseSpec extends AnyFlatSpec with Matchers {
     // For this task `inputs` is the image itself, unlike zero-shot-classification
     // where it is the text being classified. Reusing that branch would inline the
     // whole base64 blob into the chat message.
-    val branch = chatContentHelper(HuggingFaceCodegenBase.render(makeCtx(), StubCodegen))
+    val branch = chatContentHelper(HuggingFaceCodegenBase.render(textContext, StubCodegen))
       .split("""if task == "zero-shot-image-classification":""")(1)
       .split("        if task ==")(0)
     branch should not include "Text: {text}"
@@ -188,7 +170,7 @@ class HuggingFaceCodegenBaseSpec extends AnyFlatSpec with Matchers {
   // `content` may be null or a list of parts. Every level is type-checked in one
   // shared helper so all eight chat extractions degrade identically.
   it should "emit a type-checked chat-content helper" in {
-    val out = HuggingFaceCodegenBase.render(makeCtx(), StubCodegen)
+    val out = HuggingFaceCodegenBase.render(textContext, StubCodegen)
     out should include("def _chat_message_content(self, body):")
     val helper = out.split("def _chat_message_content")(1).split("    def ")(0)
     helper should include("isinstance(choices, list)")
@@ -202,7 +184,7 @@ class HuggingFaceCodegenBaseSpec extends AnyFlatSpec with Matchers {
   // size, while _fetch_remote_url stops the same payload at MAX_REMOTE_FETCH_BYTES.
   // Both kinds of cell have to be bounded before any of that work starts.
   it should "bound a column value's size before parsing it" in {
-    val out = HuggingFaceCodegenBase.render(makeCtx(), StubCodegen)
+    val out = HuggingFaceCodegenBase.render(textContext, StubCodegen)
     val reader = out.split("def _read_binary_value")(1).split("    def ")(0)
 
     val bytesCheck = reader.indexOf("self._check_column_value_size(len(value), \"byte\")")
