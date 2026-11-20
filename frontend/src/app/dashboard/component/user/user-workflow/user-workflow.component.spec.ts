@@ -679,10 +679,11 @@ describe("SavedWorkflowSectionComponent", () => {
 
       ["analysis.R", "analysis.r"].forEach(name => {
         it(`converts ${name} as an R script`, async () => {
-          const { convertSpy } = mockRScriptGenerationSuccess();
+          const { migration, convertSpy } = mockRScriptGenerationSuccess();
 
           const proceed = await getRequestImport()({ name } as NzUploadFile, "gpt-4", "r");
 
+          expect(migration.parseScriptFile).toHaveBeenCalledWith(expect.anything(), "r");
           expect(convertSpy).toHaveBeenCalledWith("x <- 1\n", "gpt-4", "r");
           expect(proceed).toBe(true);
         });

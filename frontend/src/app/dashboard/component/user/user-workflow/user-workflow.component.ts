@@ -514,7 +514,7 @@ export class UserWorkflowComponent implements AfterViewInit, OnDestroy {
     const { name, extension } = MIGRATION_INPUTS[language];
     let scriptSource: string;
     try {
-      scriptSource = await this.notebookMigrationService.parseScriptFile(file as unknown as File);
+      scriptSource = await this.notebookMigrationService.parseScriptFile(file as unknown as File, language);
     } catch (error) {
       this.notificationService.error(
         `Failed to read the ${name} file. Please upload a valid, non-empty .${extension} file.`
