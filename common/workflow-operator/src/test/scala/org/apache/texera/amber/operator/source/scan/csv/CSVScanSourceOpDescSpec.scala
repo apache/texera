@@ -19,7 +19,6 @@
 
 package org.apache.texera.amber.operator.source.scan.csv
 
-import org.apache.texera.amber.core.storage.FileResolver
 import org.apache.texera.amber.core.tuple.{AttributeType, Schema}
 import org.apache.texera.amber.core.workflow.WorkflowContext.{
   DEFAULT_EXECUTION_ID,
@@ -60,7 +59,7 @@ class CSVScanSourceOpDescSpec extends AnyFlatSpec with BeforeAndAfter {
     parallelCsvScanSourceOpDesc.customDelimiter = Some(",")
     parallelCsvScanSourceOpDesc.hasHeader = true
     parallelCsvScanSourceOpDesc.setResolvedFileName(
-      FileResolver.resolve(parallelCsvScanSourceOpDesc.fileName.get)
+      TestOperators.localFileUri(parallelCsvScanSourceOpDesc.fileName.get)
     )
     val inferredSchema: Schema = parallelCsvScanSourceOpDesc.sourceSchema()
 
@@ -76,7 +75,7 @@ class CSVScanSourceOpDescSpec extends AnyFlatSpec with BeforeAndAfter {
     parallelCsvScanSourceOpDesc.customDelimiter = Some(",")
     parallelCsvScanSourceOpDesc.hasHeader = false
     parallelCsvScanSourceOpDesc.setResolvedFileName(
-      FileResolver.resolve(parallelCsvScanSourceOpDesc.fileName.get)
+      TestOperators.localFileUri(parallelCsvScanSourceOpDesc.fileName.get)
     )
 
     val inferredSchema: Schema = parallelCsvScanSourceOpDesc.sourceSchema()
@@ -91,7 +90,9 @@ class CSVScanSourceOpDescSpec extends AnyFlatSpec with BeforeAndAfter {
     csvScanSourceOpDesc.fileName = Some(TestOperators.CountrySalesSmallMultiLineCsvPath)
     csvScanSourceOpDesc.customDelimiter = Some(",")
     csvScanSourceOpDesc.hasHeader = true
-    csvScanSourceOpDesc.setResolvedFileName(FileResolver.resolve(csvScanSourceOpDesc.fileName.get))
+    csvScanSourceOpDesc.setResolvedFileName(
+      TestOperators.localFileUri(csvScanSourceOpDesc.fileName.get)
+    )
 
     val inferredSchema: Schema = csvScanSourceOpDesc.sourceSchema()
 
@@ -105,7 +106,9 @@ class CSVScanSourceOpDescSpec extends AnyFlatSpec with BeforeAndAfter {
     csvScanSourceOpDesc.fileName = Some(TestOperators.CountrySalesHeaderlessSmallCsvPath)
     csvScanSourceOpDesc.customDelimiter = Some(",")
     csvScanSourceOpDesc.hasHeader = false
-    csvScanSourceOpDesc.setResolvedFileName(FileResolver.resolve(csvScanSourceOpDesc.fileName.get))
+    csvScanSourceOpDesc.setResolvedFileName(
+      TestOperators.localFileUri(csvScanSourceOpDesc.fileName.get)
+    )
 
     val inferredSchema: Schema = csvScanSourceOpDesc.sourceSchema()
 
@@ -120,7 +123,9 @@ class CSVScanSourceOpDescSpec extends AnyFlatSpec with BeforeAndAfter {
       Some(TestOperators.CountrySalesSmallMultiLineCustomDelimiterCsvPath)
     csvScanSourceOpDesc.customDelimiter = Some(";")
     csvScanSourceOpDesc.hasHeader = false
-    csvScanSourceOpDesc.setResolvedFileName(FileResolver.resolve(csvScanSourceOpDesc.fileName.get))
+    csvScanSourceOpDesc.setResolvedFileName(
+      TestOperators.localFileUri(csvScanSourceOpDesc.fileName.get)
+    )
 
     val inferredSchema: Schema = csvScanSourceOpDesc.sourceSchema()
 
@@ -135,7 +140,9 @@ class CSVScanSourceOpDescSpec extends AnyFlatSpec with BeforeAndAfter {
       Some(TestOperators.CountrySalesSmallMultiLineCustomDelimiterCsvPath)
     csvScanSourceOpDesc.customDelimiter = Some(";")
     csvScanSourceOpDesc.hasHeader = false
-    csvScanSourceOpDesc.setResolvedFileName(FileResolver.resolve(csvScanSourceOpDesc.fileName.get))
+    csvScanSourceOpDesc.setResolvedFileName(
+      TestOperators.localFileUri(csvScanSourceOpDesc.fileName.get)
+    )
 
     assert(
       !csvScanSourceOpDesc
@@ -181,7 +188,7 @@ class CSVScanSourceOpDescSpec extends AnyFlatSpec with BeforeAndAfter {
     csvScanSourceOpDesc.fileName = Some(path)
     csvScanSourceOpDesc.customDelimiter = Some(",")
     csvScanSourceOpDesc.hasHeader = true
-    csvScanSourceOpDesc.setResolvedFileName(FileResolver.resolve(path))
+    csvScanSourceOpDesc.setResolvedFileName(TestOperators.localFileUri(path))
 
     val names = csvScanSourceOpDesc.sourceSchema().getAttributes.map(_.getName).toList
     assert(names == List("id", "name", "column-3", "age"))
@@ -192,7 +199,7 @@ class CSVScanSourceOpDescSpec extends AnyFlatSpec with BeforeAndAfter {
     parallelCsvScanSourceOpDesc.fileName = Some(path)
     parallelCsvScanSourceOpDesc.customDelimiter = Some(",")
     parallelCsvScanSourceOpDesc.hasHeader = true
-    parallelCsvScanSourceOpDesc.setResolvedFileName(FileResolver.resolve(path))
+    parallelCsvScanSourceOpDesc.setResolvedFileName(TestOperators.localFileUri(path))
 
     val names = parallelCsvScanSourceOpDesc.sourceSchema().getAttributes.map(_.getName).toList
     assert(names == List("id", "name", "column-3", "age"))
@@ -204,7 +211,7 @@ class CSVScanSourceOpDescSpec extends AnyFlatSpec with BeforeAndAfter {
     oldCsvScanSourceOpDesc.fileName = Some(path)
     oldCsvScanSourceOpDesc.customDelimiter = Some(",")
     oldCsvScanSourceOpDesc.hasHeader = true
-    oldCsvScanSourceOpDesc.setResolvedFileName(FileResolver.resolve(path))
+    oldCsvScanSourceOpDesc.setResolvedFileName(TestOperators.localFileUri(path))
 
     val names = oldCsvScanSourceOpDesc.sourceSchema().getAttributes.map(_.getName).toList
     assert(names == List("id", "name", "column-3", "age"))

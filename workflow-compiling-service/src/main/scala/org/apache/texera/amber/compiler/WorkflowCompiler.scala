@@ -26,6 +26,7 @@ import org.apache.texera.amber.compiler.WorkflowCompiler.{
   convertErrorListToWorkflowFatalErrorMap
 }
 import org.apache.texera.amber.compiler.model.{LogicalPlan, LogicalPlanPojo}
+import org.apache.texera.amber.core.storage.ScanFileResolver
 import org.apache.texera.amber.core.tuple.Schema
 import org.apache.texera.amber.core.virtualidentity.OperatorIdentity
 import org.apache.texera.amber.core.workflow.{
@@ -122,7 +123,8 @@ case class WorkflowCompilationResult(
 )
 
 class WorkflowCompiler(
-    context: WorkflowContext
+    context: WorkflowContext,
+    fileResolver: ScanFileResolver
 ) extends LazyLogging {
 
   // function to expand logical plan to physical plan
@@ -208,7 +210,7 @@ class WorkflowCompiler(
     val logicalPlan: LogicalPlan = LogicalPlan(logicalPlanPojo)
 
     // 2. resolve the file name in each scan source operator
-    logicalPlan.resolveScanSourceOpFileName(Some(errorList))
+    logicalPlan.resolveScanSourceOpFileName(fileResolver, Some(errorList))
 
     // 3. expand the logical plan to the physical plan
     val physicalPlan = expandLogicalPlan(logicalPlan, Some(errorList))

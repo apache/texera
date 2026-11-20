@@ -24,6 +24,7 @@ import org.apache.texera.amber.core.tuple.{Attribute, AttributeType}
 import org.apache.texera.amber.core.virtualidentity.WorkflowIdentity
 import org.apache.texera.amber.core.workflow.{PortIdentity, WorkflowContext}
 import org.apache.texera.amber.core.workflowruntimestate.FatalErrorType.COMPILATION_ERROR
+import org.apache.texera.amber.operator.TestOperators
 import org.apache.texera.amber.operator.filter.{
   ComparisonType,
   FilterPredicate,
@@ -94,7 +95,7 @@ class WorkflowCompilerSpec extends AnyFlatSpec {
   "WorkflowCompiler" should "produce a populated physicalPlan and no errors for a well-formed plan" in {
     val csv = csvOp(realCsvPath)
     val proj = projectOp(List("Region", "Total Profit"))
-    val result = new WorkflowCompiler(newContext()).compile(
+    val result = new WorkflowCompiler(newContext(), TestOperators.fixtureFileResolver).compile(
       LogicalPlanPojo(
         operators = List(csv, proj),
         links = List(
@@ -133,7 +134,7 @@ class WorkflowCompilerSpec extends AnyFlatSpec {
     val filter2 = filterOp(new FilterPredicate("Region", ComparisonType.NOT_EQUAL_TO, "JPN"))
     val limit2 = limitOp(5)
 
-    val result = new WorkflowCompiler(newContext()).compile(
+    val result = new WorkflowCompiler(newContext(), TestOperators.fixtureFileResolver).compile(
       LogicalPlanPojo(
         operators = List(csv, proj, limit1, filter1, filter2, limit2),
         links = List(
@@ -197,7 +198,7 @@ class WorkflowCompilerSpec extends AnyFlatSpec {
   "WorkflowCompiler" should "accumulate, not throw, when a scan source has no fileName" in {
     val orphan = csvOpNoFile()
 
-    val result = new WorkflowCompiler(newContext()).compile(
+    val result = new WorkflowCompiler(newContext(), TestOperators.fixtureFileResolver).compile(
       LogicalPlanPojo(
         operators = List(orphan),
         links = List.empty,
@@ -217,7 +218,7 @@ class WorkflowCompilerSpec extends AnyFlatSpec {
   it should "accumulate when a scan source's fileName points to a non-existent path" in {
     val broken = csvOp("/does/not/exist/missing.csv")
 
-    val result = new WorkflowCompiler(newContext()).compile(
+    val result = new WorkflowCompiler(newContext(), TestOperators.fixtureFileResolver).compile(
       LogicalPlanPojo(
         operators = List(broken),
         links = List.empty,
@@ -228,11 +229,9 @@ class WorkflowCompilerSpec extends AnyFlatSpec {
 
     assert(result.physicalPlan.isEmpty)
     assert(result.operatorIdToError.contains(broken.operatorIdentifier))
-    // FileResolver.resolve falls through both resolvers and rethrows
-    // org.apache.commons.vfs2.FileNotFoundException(fileName); its message bundle
-    // renders as `Could not read from "<path>" because it is not a file.`, so the
-    // only stable substring across that wording and any java.io.FileNotFoundException
-    // fallback is the bad path itself.
+    // The resolver raises org.apache.commons.vfs2.FileNotFoundException; its message
+    // bundle wraps whatever text it is given, so the only stable substring across that
+    // wording and any java.io.FileNotFoundException fallback is the bad path itself.
     assert(
       result.operatorIdToError(broken.operatorIdentifier).message.contains("missing.csv"),
       s"unexpected message: ${result.operatorIdToError(broken.operatorIdentifier).message}"
@@ -243,7 +242,7 @@ class WorkflowCompilerSpec extends AnyFlatSpec {
     val csv = csvOp(realCsvPath)
     val badProjection = projectOp(List("DoesNotExist"))
 
-    val result = new WorkflowCompiler(newContext()).compile(
+    val result = new WorkflowCompiler(newContext(), TestOperators.fixtureFileResolver).compile(
       LogicalPlanPojo(
         operators = List(csv, badProjection),
         links = List(
@@ -273,7 +272,7 @@ class WorkflowCompilerSpec extends AnyFlatSpec {
   }
 
   it should "not throw when given an empty plan" in {
-    val result = new WorkflowCompiler(newContext()).compile(
+    val result = new WorkflowCompiler(newContext(), TestOperators.fixtureFileResolver).compile(
       LogicalPlanPojo(
         operators = List.empty,
         links = List.empty,
@@ -295,7 +294,7 @@ class WorkflowCompilerSpec extends AnyFlatSpec {
     val orphan1 = csvOpNoFile()
     val orphan2 = csvOpNoFile()
 
-    val result = new WorkflowCompiler(newContext()).compile(
+    val result = new WorkflowCompiler(newContext(), TestOperators.fixtureFileResolver).compile(
       LogicalPlanPojo(
         operators = List(orphan1, orphan2),
         links = List.empty,
