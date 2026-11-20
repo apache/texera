@@ -468,7 +468,7 @@ describe("SavedWorkflowSectionComponent", () => {
 
         expect(proceed).toBe(false);
         expect(errorSpy).toHaveBeenCalledWith(
-          "This notebook uses a python kernel, not R. Switch the notebook type to Python Notebook."
+          "This notebook uses a Python kernel, not R. Switch the notebook type to Python Notebook."
         );
         expect(migration.sendToAIGenerateWorkflow).not.toHaveBeenCalled();
       });
@@ -481,9 +481,182 @@ describe("SavedWorkflowSectionComponent", () => {
         const proceed = await getRequestImport()({ name: "analysis.py" } as NzUploadFile, "gpt-4", "r");
 
         expect(proceed).toBe(false);
-        expect(errorSpy).toHaveBeenCalledWith("Please upload an R Jupyter Notebook (.ipynb) or an R (.R) file.");
+        expect(errorSpy).toHaveBeenCalledWith("This is a Python file. Upload it under the Python File tab.");
         expect(migration.parseAndTagNotebook).not.toHaveBeenCalled();
         expect(scriptSpy).not.toHaveBeenCalled();
+      });
+    });
+
+    describe("language mismatches", () => {
+      function spies(notebook: unknown = { cells: [] }) {
+        const migration = TestBed.inject(NotebookMigrationService);
+        return {
+          notebookConvert: vi.spyOn(migration, "sendToAIGenerateWorkflow"),
+          notebookParse: vi.spyOn(migration, "parseAndTagNotebook").mockResolvedValue(notebook as any),
+          scriptParse: vi.spyOn(migration, "parseScriptFile"),
+          folderParse: vi.spyOn(migration, "parseFolder").mockRejectedValue(new Error("stop")),
+          errorSpy: vi.spyOn(TestBed.inject(NotificationService), "error").mockImplementation(() => {}),
+        };
+      }
+
+      function enableR() {
+        (TestBed.inject(GuiConfigService) as unknown as MockGuiConfigService).setConfig({
+          rNotebookMigrationEnabled: true,
+        });
+      }
+
+      function pickedFile(relativePath: string): NzUploadFile {
+        const file = new File([""], relativePath.split("/").pop() ?? relativePath);
+        Object.defineProperty(file, "webkitRelativePath", { value: relativePath });
+        return file as unknown as NzUploadFile;
+      }
+
+      const rKernel = { cells: [], metadata: { kernelspec: { language: "R" } } };
+
+      it("points an R notebook uploaded as Python at the R notebook type", async () => {
+        enableR();
+        const { notebookConvert, errorSpy } = spies(rKernel);
+
+        const proceed = await getRequestImport()(ipynbFile, "gpt-4", "python");
+
+        expect(proceed).toBe(false);
+        expect(errorSpy).toHaveBeenCalledWith(
+          "This notebook uses an R kernel, not Python. Switch the notebook type to R Notebook."
+        );
+        expect(notebookConvert).not.toHaveBeenCalled();
+      });
+
+      it("says R is off instead of pointing at a disabled control", async () => {
+        const { notebookConvert, errorSpy } = spies(rKernel);
+
+        await getRequestImport()(ipynbFile, "gpt-4", "python");
+
+        expect(errorSpy).toHaveBeenCalledWith(
+          "This notebook uses an R kernel, and R is not enabled on this deployment."
+        );
+        expect(notebookConvert).not.toHaveBeenCalled();
+      });
+
+      it("ignores case and surrounding space in the declared language", async () => {
+        const { errorSpy } = spies({ cells: [], metadata: { kernelspec: { language: " PYTHON " } } });
+
+        await getRequestImport()(ipynbFile, "gpt-4", "r");
+
+        expect(errorSpy).toHaveBeenCalledWith(
+          "This notebook uses a Python kernel, not R. Switch the notebook type to Python Notebook."
+        );
+      });
+
+      it("falls back to language_info when there is no kernelspec", async () => {
+        enableR();
+        const { errorSpy } = spies({ cells: [], metadata: { language_info: { name: "R" } } });
+
+        await getRequestImport()(ipynbFile, "gpt-4", "python");
+
+        expect(errorSpy).toHaveBeenCalledWith(
+          "This notebook uses an R kernel, not Python. Switch the notebook type to R Notebook."
+        );
+      });
+
+      it("rejects a kernel in no supported language whichever type was chosen", async () => {
+        const { notebookConvert, errorSpy } = spies({ cells: [], metadata: { kernelspec: { language: "julia" } } });
+
+        await getRequestImport()(ipynbFile, "gpt-4", "python");
+        await getRequestImport()(ipynbFile, "gpt-4", "r");
+
+        const message = "This notebook uses a julia kernel. Only Python and R notebooks can be converted.";
+        expect(errorSpy.mock.calls).toEqual([[message], [message]]);
+        expect(notebookConvert).not.toHaveBeenCalled();
+      });
+
+      it("uses an before a kernel language starting with a vowel", async () => {
+        const { errorSpy } = spies({ cells: [], metadata: { kernelspec: { language: "ocaml" } } });
+
+        await getRequestImport()(ipynbFile, "gpt-4", "python");
+
+        expect(errorSpy).toHaveBeenCalledWith(
+          "This notebook uses an ocaml kernel. Only Python and R notebooks can be converted."
+        );
+      });
+
+      it("points an R file uploaded under a Python tab at the R File tab", async () => {
+        enableR();
+        const { scriptParse, errorSpy } = spies();
+
+        const proceed = await getRequestImport()({ name: "analysis.R" } as NzUploadFile, "gpt-4", "python");
+
+        expect(proceed).toBe(false);
+        expect(errorSpy).toHaveBeenCalledWith("This is an R file. Upload it under the R File tab.");
+        expect(scriptParse).not.toHaveBeenCalled();
+      });
+
+      it("says R is off for an R file while R is disabled", async () => {
+        const { errorSpy } = spies();
+
+        await getRequestImport()({ name: "analysis.r" } as NzUploadFile, "gpt-4", "python");
+
+        expect(errorSpy).toHaveBeenCalledWith("This is an R file, and R is not enabled on this deployment.");
+      });
+
+      it("keeps the upload hint for an extension no language claims", async () => {
+        const { errorSpy } = spies();
+
+        await getRequestImport()({ name: "data.txt" } as NzUploadFile, "gpt-4", "r");
+
+        expect(errorSpy).toHaveBeenCalledWith("Please upload an R Jupyter Notebook (.ipynb) or an R (.R) file.");
+      });
+
+      it("points a folder of Python files on the R Folder tab at the Python Folder tab", async () => {
+        const { folderParse, errorSpy } = spies();
+
+        const proceed = await getRequestImport()(
+          [pickedFile("proj/main.py"), pickedFile("proj/README.md")],
+          "gpt-4",
+          "r"
+        );
+
+        expect(proceed).toBe(false);
+        expect(errorSpy).toHaveBeenCalledWith(
+          "This folder holds Python files, not R. Upload it under the Python Folder tab."
+        );
+        expect(folderParse).not.toHaveBeenCalled();
+      });
+
+      it("points a folder of R files on the Python Folder tab at the R Folder tab", async () => {
+        enableR();
+        const { folderParse, errorSpy } = spies();
+
+        await getRequestImport()([pickedFile("proj/main.R")], "gpt-4", "python");
+
+        expect(errorSpy).toHaveBeenCalledWith(
+          "This folder holds R files, not Python. Upload it under the R Folder tab."
+        );
+        expect(folderParse).not.toHaveBeenCalled();
+      });
+
+      it("says R is off for a folder of R files while R is disabled", async () => {
+        const { errorSpy } = spies();
+
+        await getRequestImport()([pickedFile("proj/main.R")], "gpt-4", "python");
+
+        expect(errorSpy).toHaveBeenCalledWith("This folder holds R files, and R is not enabled on this deployment.");
+      });
+
+      it("leaves a folder with files in the selected language to parseFolder, even if it holds others too", async () => {
+        const { folderParse } = spies();
+
+        await getRequestImport()([pickedFile("proj/main.R"), pickedFile("proj/legacy.py")], "gpt-4", "r");
+
+        expect(folderParse).toHaveBeenCalled();
+      });
+
+      it("leaves a folder with no source in any language to parseFolder's own message", async () => {
+        const { folderParse, errorSpy } = spies();
+
+        await getRequestImport()([pickedFile("proj/README.md")], "gpt-4", "r");
+
+        expect(folderParse).toHaveBeenCalled();
+        expect(errorSpy).toHaveBeenCalledWith("stop");
       });
     });
 
@@ -673,7 +846,11 @@ describe("SavedWorkflowSectionComponent", () => {
         const { parseSpy, convertSpy } = mockFolderGenerationSuccess();
         vi.spyOn(TestBed.inject(Router), "navigate").mockResolvedValue(true);
 
-        const proceed = await getRequestImport()(selection, "gpt-4", "r");
+        const proceed = await getRequestImport()(
+          [pickedFile("proj/main.R"), pickedFile("proj/R/helpers.R")],
+          "gpt-4",
+          "r"
+        );
 
         expect(parseSpy.mock.calls[0][1]).toBe("r");
         expect(convertSpy).toHaveBeenCalledWith(assembled, "gpt-4", "r");
