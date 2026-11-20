@@ -45,7 +45,7 @@ export class DatasetCardItemComponent implements OnChanges {
 
   entryLink: string[] = [];
   coverImageSrc: string = "";
-  readonly defaultCover = "assets/card_background.jpg";
+  readonly defaultCover = "assets/card_background.svg";
   likeCount = 0;
   viewCount = 0;
   isLiked = false;
