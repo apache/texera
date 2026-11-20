@@ -19,6 +19,8 @@
 
 package org.apache.texera.amber.operator.reservoirsampling
 
+import com.fasterxml.jackson.databind.node.IntNode
+import com.github.fge.jsonschema.main.JsonSchemaFactory
 import org.apache.texera.amber.util.PythonTestSupport.{
   NeedsPythonPackages,
   canImport,
@@ -28,7 +30,7 @@ import org.apache.texera.amber.util.PythonTestSupport.{
 import org.apache.texera.amber.core.executor.OpExecWithClassName
 import org.apache.texera.amber.core.virtualidentity.{ExecutionIdentity, WorkflowIdentity}
 import org.apache.texera.amber.operator.{LogicalOp, SamplingHelpers}
-import org.apache.texera.amber.operator.metadata.OperatorGroupConstants
+import org.apache.texera.amber.operator.metadata.{OperatorGroupConstants, OperatorMetadataGenerator}
 import org.apache.texera.amber.util.JSONUtils.objectMapper
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
@@ -54,6 +56,27 @@ class ReservoirSamplingOpDescSpec extends AnyFlatSpec with Matchers {
     // ReservoirSampling does not opt into reconfiguration (unlike RandomKSampling),
     // so it inherits the OperatorInfo default of false.
     info.supportReconfiguration shouldBe false
+  }
+
+  // A sample size below 1 is never valid. Validate through the schema the property editor
+  // validates against, rather than restating the bound it declares.
+  private def schemaTakesK(value: Int): Boolean =
+    JsonSchemaFactory
+      .byDefault()
+      .getJsonSchema(
+        OperatorMetadataGenerator
+          .generateOperatorJsonSchema(classOf[ReservoirSamplingOpDesc])
+          .path("properties")
+          .path(WireKey)
+      )
+      .validate(IntNode.valueOf(value))
+      .isSuccess
+
+  "ReservoirSamplingOpDesc" should "let the property editor refuse a sample size below 1" in {
+    schemaTakesK(-1) shouldBe false
+    schemaTakesK(0) shouldBe false
+    schemaTakesK(1) shouldBe true
+    schemaTakesK(5) shouldBe true
   }
 
   "ReservoirSamplingOpDesc" should "serialize k under its wire-key and round-trip it" in {
