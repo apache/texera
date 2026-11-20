@@ -23,22 +23,7 @@ under the License.
 # otlpPort). In-memory storage: a restart wipes traces, same as the
 # single-node compose. Swap in a persistent storage backend for
 # multi-node / production use.
-apiVersion: apps/v1
-kind: Deployment
-metadata:
-  name: {{ .Release.Name }}-jaeger
-  namespace: {{ .Release.Namespace }}
-  labels:
-    app: {{ .Release.Name }}-jaeger
-spec:
-  replicas: 1
-  selector:
-    matchLabels:
-      app: {{ .Release.Name }}-jaeger
-  template:
-    metadata:
-      labels:
-        app: {{ .Release.Name }}-jaeger
+{{ include "texera.deploymentHeader" (dict "release" .Release "name" "jaeger" "replicas" 1) }}
     spec:
       securityContext:
         runAsNonRoot: true
@@ -46,10 +31,7 @@ spec:
         - name: jaeger
           image: {{ .Values.observability.traces.image }}
           imagePullPolicy: {{ .Values.texeraImages.pullPolicy }}
-          securityContext:
-            allowPrivilegeEscalation: false
-            capabilities:
-              drop: ["ALL"]
+          {{- include "texera.observability.containerSecurityContext" false | nindent 10 }}
           ports:
             - name: query
               containerPort: {{ .Values.observability.traces.queryPort }}
@@ -58,24 +40,8 @@ spec:
           resources:
             {{- toYaml .Values.observability.traces.resources | nindent 12 }}
 ---
-apiVersion: v1
-kind: Service
-metadata:
-  name: {{ .Release.Name }}-jaeger
-  namespace: {{ .Release.Namespace }}
-  labels:
-    app: {{ .Release.Name }}-jaeger
-spec:
-  type: ClusterIP
-  selector:
-    app: {{ .Release.Name }}-jaeger
-  ports:
-    - name: query
-      protocol: TCP
-      port: {{ .Values.observability.traces.queryPort }}
-      targetPort: {{ .Values.observability.traces.queryPort }}
-    - name: otlp-grpc
-      protocol: TCP
-      port: {{ .Values.observability.traces.otlpPort }}
-      targetPort: {{ .Values.observability.traces.otlpPort }}
+{{ include "texera.observability.service" (dict "release" .Release "app" "jaeger" "ports" (list
+    (dict "name" "query" "port" .Values.observability.traces.queryPort)
+    (dict "name" "otlp-grpc" "port" .Values.observability.traces.otlpPort)
+)) }}
 {{- end }}

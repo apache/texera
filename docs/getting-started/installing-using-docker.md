@@ -71,7 +71,7 @@ If either command produces output, that port is occupied by another process. You
 
 ## Download Texera
 
-Download the [docker compose tarball](https://downloads.apache.org/incubator/texera/1.1.0-incubating/apache-texera-1.1.0-incubating-docker-compose.tar.gz) and extract it.
+Download the docker compose tarball (`apache-texera-<version>-docker-compose.tar.gz`) of the latest release from the [Downloads page](https://texera.apache.org/downloads/) and extract it.
 
 
 ## Launch Texera
@@ -147,7 +147,7 @@ To enable it:
 
 Once Texera is up, create a new workflow and open the Texera agent panel at the bottom right. Type a task like:
 
-> For /texera/popular-movies-of-imdb/v1/TMDb_updated.csv, visualize the top 10 most-voted movies.
+> For /dataset/texera/iris-species/v1/Iris.csv, visualize the average petal length of each species.
 
 To switch providers or add more LLMs, see [Add more LLMs or providers](#add-more-llms-or-providers).
 

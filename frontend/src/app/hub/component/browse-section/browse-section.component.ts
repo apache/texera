@@ -51,7 +51,7 @@ export class BrowseSectionComponent implements OnInit, OnChanges {
   @Input() sectionTitle: string = "";
   @Input() currentUid: number | undefined;
 
-  defaultBackground: string = "../../../../../assets/card_background.jpg";
+  defaultBackground: string = "../../../../../assets/card_background.svg";
 
   /** Both maps are keyed by type and id: ids are only unique within a kind, and sections may mix kinds. */
   private coverImageUrls = new Map<string, string>();

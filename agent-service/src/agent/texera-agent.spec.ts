@@ -22,6 +22,7 @@ import { TexeraAgent } from "./texera-agent";
 import { AgentState, INITIAL_STEP_ID, type ReActStep } from "../types/agent";
 import { MockLanguageModelV4 } from "ai/test";
 import { WorkflowSystemMetadata } from "./util/workflow-system-metadata";
+import { OperatorState, type OperatorExecutionSummary, type Tuple } from "../types/execution";
 
 /**
  * These tests cover the agent's bookkeeping — the ReAct step tree, settings, and client set — which
@@ -33,6 +34,7 @@ function makeAgent(): TexeraAgent {
     model: {} as any,
     modelType: "test-model",
     agentId: "agent-1",
+    userToken: "user-token",
   });
 }
 
@@ -68,6 +70,28 @@ function toolStep(id: string, toolName: string, output: unknown, isError = false
   });
 }
 
+/** An engine-style Tuple (all-string schema) built from a column->value record. */
+function recordToTuple(row: Record<string, unknown>): Tuple {
+  return {
+    schema: { attributes: Object.keys(row).map(name => ({ attributeName: name, attributeType: "string" })) },
+    fields: Object.values(row),
+  };
+}
+
+/** A completed operator whose sampled rows are `rows`, indexed from 0 — the shape the execution
+ *  adapter produces, so a cached result can be seeded without a backend call. */
+function completedSummary(rows: Record<string, unknown>[]): OperatorExecutionSummary {
+  return {
+    state: OperatorState.COMPLETED,
+    errorMessages: [],
+    resultSummary: {
+      resultMode: { type: "PaginationMode" },
+      sampleTuples: rows.map((row, i) => [i, recordToTuple(row)] as const),
+      totalTuplesCount: rows.length,
+    },
+  };
+}
+
 describe("TexeraAgent", () => {
   let agent: TexeraAgent;
 
@@ -85,9 +109,10 @@ describe("TexeraAgent", () => {
 
     test("falls back to a name derived from the id", () => {
       expect(makeAgent().agentName).toBe("Agent-agent-1");
-      expect(new TexeraAgent({ model: {} as any, modelType: "m", agentId: "a", agentName: "Named" }).agentName).toBe(
-        "Named"
-      );
+      expect(
+        new TexeraAgent({ model: {} as any, modelType: "m", agentId: "a", agentName: "Named", userToken: "t" })
+          .agentName
+      ).toBe("Named");
     });
   });
 
@@ -311,11 +336,38 @@ describe("TexeraAgent", () => {
   });
 });
 
+/** `getFormattedResultsForDAG` is private; it is what feeds cached operator results into the prompt. */
+function getFormattedResultsForDAG(agent: TexeraAgent): Map<string, string> {
+  return (agent as unknown as { getFormattedResultsForDAG(): Map<string, string> }).getFormattedResultsForDAG();
+}
+
+describe("TexeraAgent DAG result formatting", () => {
+  test("formats results visible from the current step", () => {
+    const agent = makeAgent();
+    agent.getWorkflowResultState().set("op-1", INITIAL_STEP_ID, {
+      state: OperatorState.COMPLETED,
+      errorMessages: [],
+    });
+
+    expect(getFormattedResultsForDAG(agent)).toEqual(new Map([["op-1", "(no result data)"]]));
+  });
+
+  test("omits results outside the current step ancestry", () => {
+    const agent = makeAgent();
+    agent.getWorkflowResultState().set("op-1", "unrelated-step", {
+      state: OperatorState.COMPLETED,
+      errorMessages: [],
+    });
+
+    expect(getFormattedResultsForDAG(agent)).toEqual(new Map());
+  });
+});
+
 /**
  * LanguageModelV4FinishReason is an object, not a string: a bare `finishReason: "stop"` runs fine
  * under `bun test` but fails `tsc --noEmit`, so the mocks below build it through here.
  */
-const finish = (unified: "stop" | "tool-calls") => ({ unified, raw: undefined });
+const finish = (unified: "stop" | "tool-calls" | "length") => ({ unified, raw: undefined });
 
 /**
  * LanguageModelV4Usage is nested. A flat `{ inputTokens: 11 }` is silently discarded, and every
@@ -345,7 +397,13 @@ const textModel = (text: string, i = 11, o = 7) =>
  *  could then fire after the fetch spy is restored and issue a real request. */
 const liveAgents: TexeraAgent[] = [];
 function makeAgentWith(model: any): TexeraAgent {
-  const agent = new TexeraAgent({ model, modelType: "test-model", agentId: "agent-1", systemPrompt: "SYS-XYZ" });
+  const agent = new TexeraAgent({
+    model,
+    modelType: "test-model",
+    agentId: "agent-1",
+    systemPrompt: "SYS-XYZ",
+    userToken: "user-token",
+  });
   liveAgents.push(agent);
   return agent;
 }
@@ -479,7 +537,7 @@ describe("sendMessage", () => {
       { toolName: "deleteOperator", toolCallId: "c1", input: { operatorId: "ghost" } },
     ]);
     expect(steps[1].toolResults).toEqual([
-      { toolCallId: "c1", output: "[ERROR] Operator ghost not found", isError: false },
+      { toolCallId: "c1", output: "[ERROR] Operator ghost not found", isError: true },
     ]);
     expect(steps[1].content).toBe("");
     expect(steps.map(s => [s.stepId, s.isBegin, s.isEnd])).toEqual([
@@ -488,6 +546,7 @@ describe("sendMessage", () => {
       [2, false, true],
     ]);
     expect(steps[2].parentId).toBe(steps[1].id);
+    expect(steps[2].inputMessages?.[0]?.content).toContain("- deleteOperator (failed)");
     expect(urls).toEqual([]);
   });
 
@@ -525,14 +584,149 @@ describe("sendMessage", () => {
       return { ok: true, json: async () => ({ operatorOutputSchemas: {}, operatorErrors: {} }) } as any;
     }) as any);
     await agent.sendMessage("del");
-    const counts = agent
-      .getAllSteps()
-      .map(s => [s.role, s.beforeWorkflowContent?.operators.length, s.afterWorkflowContent?.operators.length]);
+    const steps = agent.getAllSteps();
+    const counts = steps.map(s => [
+      s.role,
+      s.beforeWorkflowContent?.operators.length,
+      s.afterWorkflowContent?.operators.length,
+    ]);
     expect(counts).toEqual([
       ["user", 1, 1],
       ["agent", 1, 0],
       ["agent", 0, 0],
     ]);
+    expect(steps[1].toolResults).toEqual([{ toolCallId: "c1", output: "Deleted operator: op1", isError: false }]);
+    expect(steps[2].inputMessages?.[0]?.content).toContain("- deleteOperator (succeeded)");
+  });
+
+  test.each([new Error("The operation was aborted."), "tool failed", null])(
+    "preserves a thrown tool error in stored JSON and subsequent context: %p",
+    async thrown => {
+      let n = 0;
+      const model = new MockLanguageModelV4({
+        doGenerate: async () => {
+          n++;
+          return {
+            content:
+              n === 1
+                ? [
+                    {
+                      type: "tool-call",
+                      toolCallId: "c1",
+                      toolName: "deleteOperator",
+                      input: JSON.stringify({ operatorId: "ghost" }),
+                    },
+                  ]
+                : [{ type: "text", text: "done" }],
+            finishReason: finish(n === 1 ? "tool-calls" : "stop"),
+            usage: usage(1, 1),
+            warnings: [],
+          } as any;
+        },
+      });
+      const agent = makeAgentWith(model);
+      const throwingTool = spyOn((agent as any).tools.deleteOperator, "execute").mockImplementation(async () => {
+        throw thrown;
+      });
+      try {
+        await agent.sendMessage("delete it");
+        const steps = agent.getAllSteps();
+        const expected = thrown instanceof Error ? thrown.message : String(thrown);
+        expect(steps[1].toolResults).toEqual([{ toolCallId: "c1", output: expected, isError: true }]);
+        expect(JSON.parse(JSON.stringify(steps))[1].toolResults[0].output).toBe(expected);
+        expect(steps[2].inputMessages?.[0]?.content).toContain(`  - Error:\n    ${expected}`);
+      } finally {
+        throwingTool.mockRestore();
+      }
+    }
+  );
+
+  test("a length-limited tool call is not executed and appears as failed on the next turn", async () => {
+    let n = 0;
+    const model = new MockLanguageModelV4({
+      doGenerate: async () => {
+        n++;
+        return {
+          content:
+            n === 1
+              ? [
+                  {
+                    type: "tool-call",
+                    toolCallId: "c1",
+                    toolName: "deleteOperator",
+                    input: JSON.stringify({ operatorId: "ghost" }),
+                  },
+                ]
+              : [{ type: "text", text: "done" }],
+          finishReason: finish(n === 1 ? "length" : "stop"),
+          usage: usage(1, 1),
+          warnings: [],
+        } as any;
+      },
+    });
+    const agent = makeAgentWith(model);
+    const execute = spyOn((agent as any).tools.deleteOperator, "execute");
+    try {
+      await agent.sendMessage("delete it");
+      expect(execute).not.toHaveBeenCalled();
+      expect(agent.getAllSteps()[1].toolResults).toEqual([]);
+      await agent.sendMessage("continue");
+      expect(agent.getAllSteps().at(-1)?.inputMessages?.[0]?.content).toContain("- deleteOperator (failed)");
+    } finally {
+      execute.mockRestore();
+    }
+  });
+
+  test("leaves disabled tools out of the model call but still lists them", async () => {
+    const model = textModel("ok");
+    const agent = makeAgentWith(model);
+    agent.updateSettings({ disabledTools: new Set(["modifyOperator"]) });
+    await agent.sendMessage("go");
+    const call = (model as any).doGenerateCalls[0];
+    expect(call.tools.map((t: any) => t.name)).toEqual(["deleteOperator", "addOperator"]);
+    expect(agent.getSystemInfo().tools.map(t => [t.name, t.enabled])).toEqual([
+      ["deleteOperator", true],
+      ["addOperator", true],
+      ["modifyOperator", false],
+    ]);
+  });
+
+  test("a disabled tool does not run when the model calls it anyway", async () => {
+    let n = 0;
+    const model = new MockLanguageModelV4({
+      doGenerate: async () => {
+        n++;
+        if (n === 1)
+          return {
+            content: [
+              {
+                type: "tool-call",
+                toolCallId: "c1",
+                toolName: "deleteOperator",
+                input: JSON.stringify({ operatorId: "op1" }),
+              },
+            ],
+            finishReason: finish("tool-calls"),
+            usage: usage(1, 1),
+            warnings: [],
+          } as any;
+        return {
+          content: [{ type: "text", text: "x" }],
+          finishReason: finish("stop"),
+          usage: usage(1, 1),
+          warnings: [],
+        } as any;
+      },
+    });
+    const agent = makeAgentWith(model);
+    agent.updateSettings({ disabledTools: new Set(["deleteOperator"]) });
+    agent.getWorkflowState().addOperator(srcOp("op1") as any);
+    fetchSpy.mockImplementation((async (u: any) => {
+      urls.push(String(u));
+      return { ok: true, json: async () => ({ operatorOutputSchemas: {}, operatorErrors: {} }) } as any;
+    }) as any);
+    await agent.sendMessage("del");
+    expect(agent.getWorkflowState().getOperator("op1")).toBeDefined();
   });
 
   test("caps the loop at maxSteps", async () => {
@@ -600,15 +794,11 @@ describe("sendMessage", () => {
     const model = textModel("ok", 1, 1);
     const agent = makeAgentWith(model);
     agent.getWorkflowState().addOperator(srcOp("op-1", { fileName: "f.csv" }) as any);
-    agent.getWorkflowResultState().set("op-1", INITIAL_STEP_ID, {
-      state: "COMPLETED",
-      inputTuples: 0,
-      outputTuples: 2,
-      resultMode: "SET_SNAPSHOT",
-      result: [{ a: 1 }, { a: 2 }],
-    } as any);
-    fetchSpy.mockImplementation((async (u: any) => {
+    agent.getWorkflowResultState().set("op-1", INITIAL_STEP_ID, completedSummary([{ a: 1 }, { a: 2 }]));
+    let compileHeaders: any;
+    fetchSpy.mockImplementation((async (u: any, init: any) => {
       urls.push(String(u));
+      compileHeaders = init?.headers;
       return {
         ok: true,
         json: async () => ({
@@ -621,9 +811,10 @@ describe("sendMessage", () => {
     const txt = (model as any).doGenerateCalls[0].prompt[1].content[0].text;
     expect(res.error).toBeUndefined();
     expect(urls).toEqual(["http://localhost:9090/api/compile"]);
+    expect(compileHeaders.Authorization).toBe("Bearer user-token");
     expect(txt).toContain("Output Schema: [a: integer]");
     expect(txt).toContain("(CSVFileScan, executed)");
-    expect(txt).toContain("Result:\n  Executed operator op-1\n  Output table shape: (2, 1)");
+    expect(txt).toContain("Result:\n  Executed operator op-1\n  Output table shape: (2, 1)\n  \ta\n  0\t1\n  1\t2");
     expect(txt).toContain("Properties:\n  fileName: f.csv");
   });
 
@@ -853,8 +1044,10 @@ describe("delegate mode", () => {
     }) as any);
   }
 
-  /** A completed run. The field is `operators`, not `operatorResults`; with the wrong key the
-   *  result callback silently never fires and the assertions below all still look plausible. */
+  /** A completed run in the backend's legacy sync-execution wire shape, which
+   *  `adaptLegacySyncExecutionResult` validates and converts into OperatorExecutionSummary values.
+   *  The field is `operators`, not `operatorResults`: a body the schema rejects is recorded as a
+   *  FAILED result, so the tests below check the adapted state and not only the step key. */
   const okExec = {
     success: true,
     state: "Completed",
@@ -962,7 +1155,10 @@ describe("delegate mode", () => {
       const steps = agent.getAllSteps();
       const txt2 = (model as any).doGenerateCalls[1].prompt[1].content[0].text;
       expect(urls.some(u => u.includes("/api/execution/7/0/run"))).toBe(true);
-      expect((agent.getWorkflowResultState() as any).get("op-1").stepId).toBe(steps[1].id);
+      const entry = agent.getWorkflowResultState().get("op-1");
+      expect(entry?.stepId).toBe(steps[1].id);
+      expect(entry?.operatorInfo.state).toBe(OperatorState.COMPLETED);
+      expect(entry?.operatorInfo.resultSummary?.totalTuplesCount).toBe(1);
     } finally {
       // A leaked always-valid stub would let the rejected-modification test below pass validation
       // and execute, so the restore has to survive a failed assertion.
@@ -1009,15 +1205,13 @@ describe("delegate mode", () => {
       await agent.sendMessage("run it");
       const steps = agent.getAllSteps();
       expect(urls.filter(u => u.includes("/api/execution/")).length).toBe(1);
-      expect((agent.getWorkflowResultState() as any).get("op-1").stepId).toBe(steps[0].id);
+      expect(agent.getWorkflowResultState().get("op-1")?.stepId).toBe(steps[0].id);
     } finally {
       vSpy.mockRestore();
     }
   });
 
-  test("a tool call missing operatorId does not trigger a whole-workflow run", async () => {
-    // Without the guard an incomplete tool call falls through to a run of the entire workflow, which is
-    // both expensive and not what was asked for.
+  test("an SDK-rejected modifyOperator is recorded as failed and does not run", async () => {
     dispatch(okExec);
     let n = 0;
     const model = new MockLanguageModelV4({
@@ -1042,7 +1236,9 @@ describe("delegate mode", () => {
     agent.setDelegateConfig({ userToken: "tok", workflowId: 7 });
     await agent.sendMessage("bad call");
     const step = agent.getAllSteps()[1];
-    expect(step.toolResults).toEqual([]);
+    expect(step.toolResults).toHaveLength(1);
+    expect(step.toolResults?.[0]).toMatchObject({ toolCallId: "c1", isError: true });
+    expect(agent.getAllSteps()[2].inputMessages?.[0]?.content).toContain("- modifyOperator (failed)");
     expect(urls.some(u => u.includes("/api/execution/"))).toBe(false);
   });
 

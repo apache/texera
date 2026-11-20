@@ -32,7 +32,7 @@ import { DatasetService } from "../../../dashboard/service/user/dataset/dataset.
 import { WorkflowActionService } from "../../service/workflow-graph/model/workflow-action.service";
 import { WorkflowResultService } from "../../service/workflow-result/workflow-result.service";
 import { ComputingUnitStatusService } from "../../../common/service/computing-unit/computing-unit-status/computing-unit-status.service";
-import { UserDatasetVersionCreatorComponent } from "../../../dashboard/component/user/user-dataset/user-dataset-explorer/user-dataset-version-creator/user-dataset-version-creator.component";
+import { UserDatasetCreatorComponent } from "../../../dashboard/component/user/user-dataset/user-dataset-creator/user-dataset-creator.component";
 import { DashboardDataset } from "../../../dashboard/type/dashboard-dataset.interface";
 import { NZ_MODAL_DATA, NzModalRef, NzModalService } from "ng-zorro-antd/modal";
 
@@ -205,7 +205,7 @@ describe("ResultExportationComponent", () => {
     expect(modalCreate).toHaveBeenCalledTimes(1);
     const config = modalCreate.mock.calls[0][0];
     expect(config.nzTitle).toBe("Create New Dataset");
-    expect(config.nzContent).toBe(UserDatasetVersionCreatorComponent);
+    expect(config.nzContent).toBe(UserDatasetCreatorComponent);
     // afterClose emitted a dataset, so the component adopts it into its lists.
     expect(component.userAccessibleDatasets[0]).toBe(created);
     expect(component.inputDatasetName).toBe("brand-new");

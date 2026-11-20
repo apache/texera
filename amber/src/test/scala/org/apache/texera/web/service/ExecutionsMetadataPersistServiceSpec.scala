@@ -24,28 +24,14 @@ import org.apache.texera.amber.engine.architecture.rpc.controlreturns.WorkflowAg
 import org.apache.texera.amber.engine.common.Utils.maptoStatusCode
 import org.apache.texera.amber.engine.common.executionruntimestate.ExecutionMetadataStore
 import org.apache.texera.dao.MockTexeraDB
-import org.apache.texera.dao.jooq.generated.Tables._
+import org.apache.texera.dao.jooq.generated.Tables.USER_WAREHOUSE
 import org.apache.texera.dao.jooq.generated.enums.UserWarehouseFlavorEnum
-import org.apache.texera.dao.jooq.generated.tables.daos.{
-  UserDao,
-  WorkflowComputingUnitDao,
-  WorkflowDao,
-  WorkflowExecutionsDao,
-  WorkflowVersionDao
-}
-import org.apache.texera.dao.jooq.generated.tables.pojos.{
-  User,
-  Workflow,
-  WorkflowComputingUnit,
-  WorkflowExecutions,
-  WorkflowVersion
-}
+import org.apache.texera.web.ExecutionDatabaseTestSupport
 import org.apache.texera.web.storage.ExecutionStateStore
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.{BeforeAndAfterAll, BeforeAndAfterEach}
 
-import java.sql.Timestamp
 import java.util.UUID
 
 class ExecutionsMetadataPersistServiceSpec
@@ -53,18 +39,14 @@ class ExecutionsMetadataPersistServiceSpec
     with Matchers
     with BeforeAndAfterAll
     with BeforeAndAfterEach
-    with MockTexeraDB {
+    with MockTexeraDB
+    with ExecutionDatabaseTestSupport {
 
   // Randomise the seeded wid/uid so a parallel run of unrelated specs that
   // happen to seed the same ids wouldn't collide on the embedded postgres.
   private val testWid = 7000 + scala.util.Random.nextInt(1000)
   private val testUid = 7000 + scala.util.Random.nextInt(1000)
 
-  private var workflowDao: WorkflowDao = _
-  private var workflowVersionDao: WorkflowVersionDao = _
-  private var workflowExecutionsDao: WorkflowExecutionsDao = _
-  private var userDao: UserDao = _
-  private var computingUnitDao: WorkflowComputingUnitDao = _
   private var seededVid: Integer = _
   private var seededCuid: Integer = _
 
@@ -77,89 +59,35 @@ class ExecutionsMetadataPersistServiceSpec
   }
 
   override protected def beforeEach(): Unit = {
-    val cfg = getDSLContext.configuration()
-    workflowDao = new WorkflowDao(cfg)
-    workflowVersionDao = new WorkflowVersionDao(cfg)
-    workflowExecutionsDao = new WorkflowExecutionsDao(cfg)
-    userDao = new UserDao(cfg)
-    computingUnitDao = new WorkflowComputingUnitDao(cfg)
     cleanup()
-
-    val user = new User
-    user.setUid(testUid)
-    user.setName("metadata_persist_spec_user")
-    user.setEmail(s"user_${UUID.randomUUID()}@example.com")
-    userDao.insert(user)
-
-    val workflow = new Workflow
-    workflow.setWid(testWid)
-    workflow.setName(s"wf_${UUID.randomUUID().toString.substring(0, 8)}")
-    workflow.setContent("{}")
-    workflow.setDescription("")
-    workflow.setCreationTime(new Timestamp(System.currentTimeMillis()))
-    workflow.setLastModifiedTime(new Timestamp(System.currentTimeMillis()))
-    workflowDao.insert(workflow)
+    insertUser(testUid, "metadata_persist_spec_user", s"user_${UUID.randomUUID()}@example.com")
+    insertWorkflow(testWid, s"wf_${UUID.randomUUID().toString.substring(0, 8)}")
 
     // Seed one version explicitly so insertNewExecution's getLatestVersion
     // takes the happy "max(existing)" branch instead of falling into the
     // back-compat "insert one for you" branch (which would drag in
     // WorkflowVersionResource.insertNewVersion's diff/aggregate logic).
-    val version = new WorkflowVersion
-    version.setWid(testWid)
-    version.setContent("{}")
-    version.setCreationTime(new Timestamp(System.currentTimeMillis()))
-    workflowVersionDao.insert(version)
-    seededVid = version.getVid
+    seededVid = insertWorkflowVersion(testWid).getVid
 
     // workflow_executions.cuid has a FK to workflow_computing_unit; seed one
     // so insertNewExecution's setCuid(...) call doesn't trip the constraint.
-    val cu = new WorkflowComputingUnit
-    cu.setUid(testUid)
-    cu.setName("test-cu")
-    computingUnitDao.insert(cu)
-    seededCuid = cu.getCuid
+    seededCuid =
+      insertComputingUnit(testUid, "test-cu", unitType = None, uri = None, resource = None).getCuid
   }
 
   override protected def afterEach(): Unit = cleanup()
 
-  private def cleanup(): Unit = {
-    getDSLContext
-      .deleteFrom(WORKFLOW_EXECUTIONS)
-      .where(
-        WORKFLOW_EXECUTIONS.VID.in(
-          getDSLContext
-            .select(WORKFLOW_VERSION.VID)
-            .from(WORKFLOW_VERSION)
-            .where(WORKFLOW_VERSION.WID.eq(testWid))
-        )
-      )
-      .execute()
-    getDSLContext
-      .deleteFrom(WORKFLOW_VERSION)
-      .where(WORKFLOW_VERSION.WID.eq(testWid))
-      .execute()
-    getDSLContext.deleteFrom(WORKFLOW).where(WORKFLOW.WID.eq(testWid)).execute()
-    getDSLContext
-      .deleteFrom(WORKFLOW_COMPUTING_UNIT)
-      .where(WORKFLOW_COMPUTING_UNIT.UID.eq(testUid))
-      .execute()
-    getDSLContext.deleteFrom(USER).where(USER.UID.eq(testUid)).execute()
-  }
+  private def cleanup(): Unit =
+    cleanupWorkflowRecords(Seq(testWid), uids = Seq(testUid), includeComputingUnits = true)
 
   // Helper: insert an execution row tied to the seeded version and return its eid.
-  private def seedExecution(status: Byte = 0): Integer = {
-    val exec = new WorkflowExecutions
-    exec.setVid(seededVid)
-    exec.setUid(testUid)
-    exec.setStatus(status)
-    exec.setResult("")
-    exec.setStartingTime(new Timestamp(System.currentTimeMillis()))
-    exec.setBookmarked(false)
-    exec.setName("seeded execution")
-    exec.setEnvironmentVersion("test-env")
-    workflowExecutionsDao.insert(exec)
-    exec.getEid
-  }
+  private def seedExecution(status: Byte = 0): Integer =
+    insertWorkflowExecution(
+      vid = seededVid,
+      uid = testUid,
+      status = status,
+      name = "seeded execution"
+    ).getEid
 
   // -- insertNewExecution -----------------------------------------------------
 

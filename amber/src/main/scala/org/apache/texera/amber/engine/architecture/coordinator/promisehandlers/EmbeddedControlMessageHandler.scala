@@ -20,7 +20,7 @@
 package org.apache.texera.amber.engine.architecture.coordinator.promisehandlers
 
 import com.twitter.util.Future
-import org.apache.texera.amber.core.virtualidentity.{ActorVirtualIdentity, ChannelIdentity}
+import org.apache.texera.amber.core.virtualidentity.ActorVirtualIdentity
 import org.apache.texera.amber.engine.architecture.coordinator.CoordinatorAsyncRPCHandlerInitializer
 import org.apache.texera.amber.engine.architecture.rpc.controlcommands.{
   AsyncRPCContext,
@@ -31,8 +31,6 @@ import org.apache.texera.amber.engine.architecture.rpc.controlreturns.{
   ControlReturn,
   PropagateEmbeddedControlMessageResponse
 }
-import org.apache.texera.amber.engine.common.virtualidentity.util.COORDINATOR
-import org.apache.texera.amber.util.VirtualIdentityUtils
 
 trait EmbeddedControlMessageHandler {
   this: CoordinatorAsyncRPCHandlerInitializer =>
@@ -50,54 +48,26 @@ trait EmbeddedControlMessageHandler {
         })
     }
     // step 2: packing all control commands into one compound command.
-    val cmdMapping: Map[String, ControlInvocation] = inputSet.map {
+    val cmdMapping: Map[String, ControlInvocation] = inputSet.iterator.map {
       case (workerId, (control, _)) => (workerId.name, control)
     }.toMap
-    val futures: Set[Future[(ActorVirtualIdentity, ControlReturn)]] = inputSet.map {
-      case (workerId, (_, future)) => future.map(ret => (workerId, ret.asInstanceOf[ControlReturn]))
+    val futures: Set[Future[(ActorVirtualIdentity, ControlReturn)]] = inputSet.iterator.map {
+      case (workerId, (_, future)) => future.map(ret => (workerId, ret))
     }.toSet
 
-    // step 3: convert scope DAG to channels.
-    val channelScope = cp.workflowExecution.getRunningRegionExecutions
-      .flatMap(regionExecution =>
-        regionExecution.getAllLinkExecutions
-          .map(_._2)
-          .flatMap(linkExecution => linkExecution.getAllChannelExecutions.map(_._1))
-      )
-      .filter(channelId => {
-        msg.scope
-          .contains(VirtualIdentityUtils.getPhysicalOpId(channelId.fromWorkerId)) &&
-          msg.scope
-            .contains(VirtualIdentityUtils.getPhysicalOpId(channelId.toWorkerId))
-      })
-    val controlChannels = msg.sourceOpToStartProp.flatMap { source =>
-      cp.workflowExecution.getLatestOperatorExecution(source).getWorkerIds.flatMap { worker =>
-        Seq(
-          ChannelIdentity(COORDINATOR, worker, isControl = true),
-          ChannelIdentity(worker, COORDINATOR, isControl = true)
-        )
-      }
-    }
-
-    val finalScope = channelScope ++ controlChannels
-
-    // step 4: start prop, send ECM through control channel with the compound command from sources.
-    msg.sourceOpToStartProp.foreach { source =>
-      cp.workflowExecution.getLatestOperatorExecution(source).getWorkerIds.foreach { worker =>
-        sendECM(
-          msg.id,
-          msg.ecmType,
-          finalScope.toSet,
-          cmdMapping,
-          ChannelIdentity(actorId, worker, isControl = true)
-        )
-      }
-    }
+    // step 3 & 4: resolve scope channels and send ECM through source control channels.
+    sendEmbeddedControlMessageToSources(
+      msg.id,
+      msg.ecmType,
+      msg.scope.toSet,
+      msg.sourceOpToStartProp,
+      cmdMapping
+    )
 
     // step 5: wait for the ECM propagation.
     Future.collect(futures.toList).map { ret =>
       cp.logManager.markAsReplayDestination(msg.id)
-      PropagateEmbeddedControlMessageResponse(ret.map(x => (x._1.name, x._2)).toMap)
+      PropagateEmbeddedControlMessageResponse(ret.iterator.map(x => (x._1.name, x._2)).toMap)
     }
   }
 }
