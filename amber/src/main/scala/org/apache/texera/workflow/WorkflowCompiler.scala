@@ -20,6 +20,7 @@
 package org.apache.texera.workflow
 
 import com.typesafe.scalalogging.LazyLogging
+import org.apache.texera.amber.core.storage.ScanFileResolver
 import org.apache.texera.amber.core.virtualidentity.OperatorIdentity
 import org.apache.texera.amber.core.workflow._
 import org.apache.texera.amber.engine.architecture.controller.Workflow
@@ -31,7 +32,8 @@ import scala.jdk.CollectionConverters.IteratorHasAsScala
 import scala.util.{Failure, Success, Try}
 
 class WorkflowCompiler(
-    context: WorkflowContext
+    context: WorkflowContext,
+    fileResolver: ScanFileResolver
 ) extends LazyLogging {
 
   /**
@@ -145,7 +147,7 @@ class WorkflowCompiler(
     val logicalPlan: LogicalPlan = LogicalPlan(logicalPlanPojo)
 
     // 2. resolve the file name in each scan source operator
-    logicalPlan.resolveScanSourceOpFileName(None)
+    logicalPlan.resolveScanSourceOpFileName(fileResolver, None)
 
     // 3. expand the logical plan to the physical plan, and get a set of output ports that need storage
     val (physicalPlan, outputPortsNeedingStorage) =

@@ -20,6 +20,7 @@
 package org.apache.texera.web.service
 
 import com.typesafe.scalalogging.LazyLogging
+import org.apache.texera.amber.core.storage.FileResolver
 import org.apache.texera.amber.core.virtualidentity.{ExecutionIdentity, WorkflowIdentity}
 import org.apache.texera.amber.core.workflow.WorkflowContext
 import org.apache.texera.amber.engine.architecture.controller.{ControllerConfig, Workflow}
@@ -61,6 +62,7 @@ class WorkflowExecutionService(
     request: WorkflowExecuteRequest,
     val executionStateStore: ExecutionStateStore,
     errorHandler: Throwable => Unit,
+    uid: Integer,
     userEmailOpt: Option[String],
     sessionUri: URI
 ) extends SubscriptionManager
@@ -105,7 +107,7 @@ class WorkflowExecutionService(
 
   def executeWorkflow(): Unit = {
     try {
-      workflow = new WorkflowCompiler(workflowContext)
+      workflow = new WorkflowCompiler(workflowContext, FileResolver.forUser(uid))
         .compile(request.logicalPlan)
     } catch {
       case err: Throwable =>

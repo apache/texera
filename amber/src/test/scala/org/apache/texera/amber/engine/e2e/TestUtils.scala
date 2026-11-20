@@ -48,7 +48,7 @@ import org.apache.texera.amber.engine.architecture.rpc.controlreturns.WorkflowAg
   PAUSED
 }
 import org.apache.texera.amber.engine.common.client.AmberClient
-import org.apache.texera.amber.operator.LogicalOp
+import org.apache.texera.amber.operator.{LogicalOp, TestOperators}
 import org.apache.texera.dao.SqlServer
 import org.apache.texera.dao.jooq.generated.enums.UserRoleEnum
 import org.apache.texera.dao.jooq.generated.tables.daos.{
@@ -90,9 +90,8 @@ object TestUtils {
       links: List[LogicalLink],
       context: WorkflowContext
   ): Workflow = {
-    val workflowCompiler = new WorkflowCompiler(
-      context
-    )
+    // the scan sources in these tests read fixture files on the local disk
+    val workflowCompiler = new WorkflowCompiler(context, TestOperators.fixtureFileResolver)
     workflowCompiler.compile(
       LogicalPlanPojo(operators, links, List(), List())
     )

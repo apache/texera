@@ -180,6 +180,8 @@ lazy val FileService = (project in file("file-service"))
 lazy val WorkflowOperator = (project in file("common/workflow-operator")).settings(asfLicensingSettingsWithVendored).dependsOn(WorkflowCore)
 lazy val WorkflowCompilingService = (project in file("workflow-compiling-service"))
   .dependsOn(WorkflowOperator, Auth, Config)
+  .configs(Test)
+  .dependsOn(DAO % "test->test") // reuse MockTexeraDB embedded Postgres in tests
   .settings(asfLicensingSettings)
   .settings(
     dependencyOverrides ++= Seq(
@@ -187,7 +189,10 @@ lazy val WorkflowCompilingService = (project in file("workflow-compiling-service
       "com.fasterxml.jackson.module" %% "jackson-module-scala" % jacksonVersion,
       "com.fasterxml.jackson.core" % "jackson-databind" % jacksonVersion,
       "org.glassfish.jersey.core" % "jersey-common" % "3.0.12"
-    ) ++ nettyDependencyOverrides
+    ) ++ nettyDependencyOverrides,
+    // MockTexeraDB swaps a JVM-wide singleton (SqlServer's embedded Postgres),
+    // so run suites serially to avoid cross-suite races.
+    Test / parallelExecution := false
   )
 
 lazy val WorkflowExecutionService = (project in file("amber"))
