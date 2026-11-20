@@ -18,16 +18,22 @@
  */
 
 import { describe, expect, test } from "bun:test";
+import { createHmac } from "node:crypto";
+import { readFileSync } from "node:fs";
 import { createAuthHeaders, extractBearerToken, extractUserFromToken, validateToken } from "./auth-api";
+import { env, EnvSchema } from "../config/env";
+
+function segment(value: Record<string, unknown>): string {
+  return Buffer.from(JSON.stringify(value), "utf-8").toString("base64url");
+}
 
 /**
- * Builds a well-formed three-segment token carrying the given payload. All three segments are
- * required — `decodeJWT` rejects anything that is not exactly three — but only the payload one is
- * decoded, so the header and signature just have to be present.
+ * Builds a token carrying the given payload, signed the way the dashboard service signs one:
+ * HS256 over the first two segments, with the shared secret unless a test names another.
  */
-function tokenWith(payload: Record<string, unknown>): string {
-  const encoded = Buffer.from(JSON.stringify(payload), "utf-8").toString("base64");
-  return `header.${encoded}.signature`;
+function tokenWith(payload: Record<string, unknown>, secret: string = env.AUTH_JWT_SECRET): string {
+  const signed = `${segment({ alg: "HS256" })}.${segment(payload)}`;
+  return `${signed}.${createHmac("sha256", secret).update(signed).digest("base64url")}`;
 }
 
 /** `exp` is a UNIX second count, so expiries are built in seconds throughout. */
@@ -100,6 +106,36 @@ describe("validateToken", () => {
     // exp is a UNIX second count; reading it as milliseconds would place every real token in 1970
     // and reject it. A far-future second count must still validate.
     expect(validateToken(tokenWith({ exp: nowInSeconds() + 3600 }))).toBe(true);
+  });
+
+  test("rejects a token signed with another secret, whatever it claims", () => {
+    // Anyone can write these claims; only the dashboard service's secret can sign them. The
+    // agent service gives a token's user their agents, so an unsigned claim must count for nothing.
+    const forged = tokenWith({ userId: 1, sub: "texera", role: "ADMIN", exp: nowInSeconds() + 60 }, "not-the-secret");
+
+    expect(validateToken(forged)).toBe(false);
+  });
+
+  test("rejects a token whose claims were edited after it was signed", () => {
+    const [header, , signature] = tokenWith({ userId: 2, sub: "bob", exp: nowInSeconds() + 60 }).split(".");
+    const edited = segment({ userId: 1, sub: "bob", exp: nowInSeconds() + 60 });
+
+    expect(validateToken(`${header}.${edited}.${signature}`)).toBe(false);
+  });
+
+  test("rejects an unsigned token that declares no algorithm", () => {
+    // The check never reads the header's `alg`, so a token cannot ask for a weaker one.
+    const unsigned = `${segment({ alg: "none" })}.${segment({ userId: 1, sub: "texera", exp: nowInSeconds() + 60 })}.`;
+
+    expect(validateToken(unsigned)).toBe(false);
+  });
+
+  test("defaults to the secret auth.conf gives the dashboard service", () => {
+    // env.ts repeats auth.conf's default. If the two drift, a stack that sets neither (local
+    // development, single-node) would reject every login token.
+    const conf = readFileSync(new URL("../../../common/config/src/main/resources/auth.conf", import.meta.url), "utf-8");
+
+    expect(EnvSchema.parse({}).AUTH_JWT_SECRET).toBe(/256-bit-secret = "([^"]+)"/.exec(conf)![1]);
   });
 });
 

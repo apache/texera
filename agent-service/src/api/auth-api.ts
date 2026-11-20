@@ -17,6 +17,8 @@
  * under the License.
  */
 
+import { createHmac, timingSafeEqual } from "node:crypto";
+import { env } from "../config/env";
 import type { UserInfo } from "../types/agent";
 
 export type { UserInfo } from "../types/agent";
@@ -53,8 +55,23 @@ function isTokenExpired(token: string): boolean {
   }
 }
 
+// Whether the dashboard service issued this token: its signature is the HMAC-SHA256
+// of the first two segments under the shared secret, as JwtAuth.scala writes it. The
+// header's own `alg` is never consulted, so a token cannot choose a weaker check.
+function isSignedByTexera(token: string): boolean {
+  const parts = token.split(".");
+  if (parts.length !== 3) {
+    return false;
+  }
+  const expected = createHmac("sha256", env.AUTH_JWT_SECRET).update(`${parts[0]}.${parts[1]}`).digest();
+  const actual = Buffer.from(parts[2], "base64url");
+  return actual.length === expected.length && timingSafeEqual(actual, expected);
+}
+
+// A token's claims can be trusted only when this holds: anyone can write the claims,
+// only the dashboard service can sign them.
 export function validateToken(token: string): boolean {
-  return !isTokenExpired(token);
+  return isSignedByTexera(token) && !isTokenExpired(token);
 }
 
 export function extractBearerToken(header: string | undefined): string | undefined {

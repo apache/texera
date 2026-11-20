@@ -18,6 +18,7 @@
  */
 
 import { beforeEach, describe, expect, spyOn, test } from "bun:test";
+import { createHmac } from "node:crypto";
 import { buildApp, start, _resetAgentStoreForTests, _getAgentForTests } from "./server";
 import { WorkflowSystemMetadata } from "./agent/util/workflow-system-metadata";
 import { env } from "./config/env";
@@ -26,27 +27,42 @@ import { ConsoleMessageType, OperatorState } from "./types/execution";
 const API = env.API_PREFIX;
 const app = buildApp();
 
-function mintTestToken(): string {
+// Signed as the dashboard service signs a login token, unless a test names another secret.
+function mintTestToken(userId = 1, secret: string = env.AUTH_JWT_SECRET): string {
   const header = Buffer.from(JSON.stringify({ alg: "HS256", typ: "JWT" })).toString("base64url");
   const payload = Buffer.from(
     JSON.stringify({
       sub: "tester",
-      userId: 1,
+      userId,
       email: "tester@example.com",
       role: "REGULAR",
       exp: Math.floor(Date.now() / 1000) + 3600,
     })
   ).toString("base64url");
-  return `${header}.${payload}.test-signature`;
+  const signature = createHmac("sha256", secret).update(`${header}.${payload}`).digest("base64url");
+  return `${header}.${payload}.${signature}`;
 }
 
 const TOKEN = mintTestToken();
+const OTHER_USER_TOKEN = mintTestToken(2);
+// TOKEN's claims under a signature the dashboard service did not make.
+const FORGED_TOKEN = mintTestToken(1, "not-the-secret");
 
 function url(path: string): string {
   return `http://localhost${path}`;
 }
 
-async function postJson(path: string, body: unknown, headers: Record<string, string> = {}): Promise<Response> {
+// Every agent route needs a user, so the helpers below act as TOKEN's user
+// unless a test names another token, or null for none.
+function bearer(token: string | null): Record<string, string> {
+  return token ? { Authorization: `Bearer ${token}` } : {};
+}
+
+async function postJson(
+  path: string,
+  body: unknown,
+  headers: Record<string, string> = bearer(TOKEN)
+): Promise<Response> {
   return app.handle(
     new Request(url(path), {
       method: "POST",
@@ -57,25 +73,25 @@ async function postJson(path: string, body: unknown, headers: Record<string, str
 }
 
 async function createAgent(body: Record<string, unknown> = {}, token: string | null = TOKEN): Promise<Response> {
-  return postJson(`${API}/agents`, { modelType: "m", ...body }, token ? { Authorization: `Bearer ${token}` } : {});
+  return postJson(`${API}/agents`, { modelType: "m", ...body }, bearer(token));
 }
 
-async function patchJson(path: string, body: unknown): Promise<Response> {
+async function patchJson(path: string, body: unknown, token: string | null = TOKEN): Promise<Response> {
   return app.handle(
     new Request(url(path), {
       method: "PATCH",
-      headers: { "Content-Type": "application/json" },
+      headers: { "Content-Type": "application/json", ...bearer(token) },
       body: JSON.stringify(body),
     })
   );
 }
 
-async function getJson(path: string): Promise<Response> {
-  return app.handle(new Request(url(path)));
+async function getJson(path: string, token: string | null = TOKEN): Promise<Response> {
+  return app.handle(new Request(url(path), { headers: bearer(token) }));
 }
 
-async function del(path: string): Promise<Response> {
-  return app.handle(new Request(url(path), { method: "DELETE" }));
+async function del(path: string, token: string | null = TOKEN): Promise<Response> {
+  return app.handle(new Request(url(path), { method: "DELETE", headers: bearer(token) }));
 }
 
 async function readJson<T = unknown>(res: Response): Promise<T> {
@@ -166,6 +182,77 @@ describe(`GET ${API}/agents`, () => {
     const body = await readJson<{ agents: { name: string }[] }>(res);
     expect(body.agents).toHaveLength(2);
     expect(body.agents.map(a => a.name).sort()).toEqual(["one", "two"]);
+  });
+
+  test("lists each user only their own agents", async () => {
+    await createAgent({ name: "mine" });
+    await createAgent({ name: "theirs" }, OTHER_USER_TOKEN);
+
+    const names = async (token: string) =>
+      (await readJson<{ agents: { name: string }[] }>(await getJson(`${API}/agents`, token))).agents.map(a => a.name);
+    expect(await names(TOKEN)).toEqual(["mine"]);
+    expect(await names(OTHER_USER_TOKEN)).toEqual(["theirs"]);
+  });
+
+  test("rejects a request without a token", async () => {
+    const res = await getJson(`${API}/agents`, null);
+    expect(res.status).toBe(401);
+  });
+
+  test("rejects a token the dashboard service did not sign, and lists it nothing", async () => {
+    await createAgent({ name: "mine" });
+
+    const res = await getJson(`${API}/agents`, FORGED_TOKEN);
+    expect(res.status).toBe(401);
+    expect(await readJson<unknown>(res)).toEqual({ error: "Invalid or expired token" });
+  });
+});
+
+// An agent answers only to the user who created it. For anyone else every route
+// that names it gives the answer for an agent that does not exist.
+describe("an agent created by another user", () => {
+  const ROUTES: [method: string, path: string, body?: unknown][] = [
+    ["GET", ""],
+    ["DELETE", ""],
+    ["GET", "/react-steps"],
+    ["GET", "/operator-results"],
+    ["POST", "/steps-by-operators", { operatorIds: [] }],
+    ["GET", "/system-info"],
+    ["POST", "/stop", {}],
+    ["POST", "/clear", {}],
+    ["GET", "/operator-types"],
+    ["GET", "/settings"],
+    ["PATCH", "/settings", { maxSteps: 3 }],
+  ];
+
+  function request(method: string, path: string, body: unknown, token: string | null): Promise<Response> {
+    return app.handle(
+      new Request(url(path), {
+        method,
+        headers: { ...(body === undefined ? {} : { "Content-Type": "application/json" }), ...bearer(token) },
+        body: body === undefined ? undefined : JSON.stringify(body),
+      })
+    );
+  }
+
+  test.each(ROUTES)("%s /:id%s is not found, and needs a signed token", async (method, path, body) => {
+    const id = (await readJson<{ id: string }>(await createAgent())).id;
+    const settingsBefore = _getAgentForTests(id)!.getSettings().maxSteps;
+
+    const asOther = await request(method, `${API}/agents/${id}${path}`, body, OTHER_USER_TOKEN);
+    expect(asOther.status).toBe(404);
+    expect((await readJson<{ error: string }>(asOther)).error).toBe("Agent not found");
+
+    const withoutToken = await request(method, `${API}/agents/${id}${path}`, body, null);
+    expect(withoutToken.status).toBe(401);
+
+    // The owner's own claims, forged: the user id in a token counts only once it is signed.
+    const forged = await request(method, `${API}/agents/${id}${path}`, body, FORGED_TOKEN);
+    expect(forged.status).toBe(401);
+
+    // None of the calls reached the agent: it is still there for its owner, unchanged.
+    expect((await getJson(`${API}/agents/${id}`)).status).toBe(200);
+    expect(_getAgentForTests(id)!.getSettings().maxSteps).toBe(settingsBefore);
   });
 });
 

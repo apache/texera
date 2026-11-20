@@ -24,6 +24,7 @@
 // perform WS upgrades.
 
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, test } from "bun:test";
+import { createHmac } from "node:crypto";
 import { buildApp, _resetAgentStoreForTests, _getAgentForTests } from "./server";
 import { env } from "./config/env";
 import { AgentState } from "./types/agent";
@@ -34,21 +35,26 @@ let app: ReturnType<typeof buildApp>;
 let port: number;
 const openSockets: WebSocket[] = [];
 
-function mintTestToken(): string {
+// Signed as the dashboard service signs a login token, unless a test names another secret.
+function mintTestToken(userId = 1, secret: string = env.AUTH_JWT_SECRET): string {
   const header = Buffer.from(JSON.stringify({ alg: "HS256", typ: "JWT" })).toString("base64url");
   const payload = Buffer.from(
     JSON.stringify({
       sub: "tester",
-      userId: 1,
+      userId,
       email: "tester@example.com",
       role: "REGULAR",
       exp: Math.floor(Date.now() / 1000) + 3600,
     })
   ).toString("base64url");
-  return `${header}.${payload}.test-signature`;
+  const signature = createHmac("sha256", secret).update(`${header}.${payload}`).digest("base64url");
+  return `${header}.${payload}.${signature}`;
 }
 
 const TOKEN = mintTestToken();
+const OTHER_USER_TOKEN = mintTestToken(2);
+// TOKEN's claims under a signature the dashboard service did not make.
+const FORGED_TOKEN = mintTestToken(1, "not-the-secret");
 
 async function createAgent(): Promise<string> {
   const res = await app.handle(
@@ -112,8 +118,10 @@ function collect(ws: WebSocket): Collector {
   };
 }
 
-function connect(agentId: string): { ws: WebSocket; messages: Collector } {
-  const ws = new WebSocket(`ws://localhost:${port}${API}/agents/${agentId}/react`);
+// A browser cannot set headers on a WebSocket, so the token rides in the query.
+function connect(agentId: string, token: string | null = TOKEN): { ws: WebSocket; messages: Collector } {
+  const query = token ? `?access-token=${token}` : "";
+  const ws = new WebSocket(`ws://localhost:${port}${API}/agents/${agentId}/react${query}`);
   openSockets.push(ws);
   return { ws, messages: collect(ws) };
 }
@@ -168,6 +176,46 @@ describe(`WS ${API}/agents/:id/react`, () => {
     const { messages } = connect("agent-does-not-exist");
     const err = await messages.waitFor(m => m.type === "WsServerErrorEvent");
     expect(err.error).toBe("Agent not found");
+  });
+
+  // An agent answers only to its owner: the answer for anyone else is the one for
+  // an agent that does not exist, and the socket never joins the agent's clients.
+  test.each([
+    ["another user's token", OTHER_USER_TOKEN],
+    ["the owner's claims under a forged signature", FORGED_TOKEN],
+    ["no token", null],
+    ["a token that is not a JWT", "not-a-jwt"],
+  ])("refuses a socket carrying %s", async (_label, token) => {
+    const id = await createAgent();
+    const { ws, messages } = connect(id, token);
+    const closed = new Promise<void>(resolve => ws.addEventListener("close", () => resolve(), { once: true }));
+
+    const err = await messages.waitFor(m => m.type === "WsServerErrorEvent");
+    expect(err.error).toBe("Agent not found");
+    await closed;
+    expect(_getAgentForTests(id)!.getClients().size).toBe(0);
+  });
+
+  test("ignores a prompt sent on a socket that does not belong to the owner", async () => {
+    const id = await createAgent();
+    const agent = _getAgentForTests(id)!;
+    let ran = false;
+    (agent as any).sendMessage = async () => {
+      ran = true;
+      return { response: "", messages: [], usage: {}, stopped: false };
+    };
+
+    const { ws, messages } = connect(id, OTHER_USER_TOKEN);
+    // Send as soon as the socket opens, before the server's close reaches the client.
+    ws.addEventListener(
+      "open",
+      () => ws.send(JSON.stringify({ type: "WsClientPromptCommand", content: "run as the owner" })),
+      { once: true }
+    );
+    await new Promise<void>(resolve => ws.addEventListener("close", () => resolve(), { once: true }));
+    await messages.waitFor(m => m.type === "WsServerErrorEvent");
+
+    expect(ran).toBe(false);
   });
 
   test("a stop command mid-run broadcasts a STOPPING status frame", async () => {

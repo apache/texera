@@ -41,6 +41,7 @@ import { AgentState, ReActStep, ModelMessage } from "./agent-types";
 import { Workflow, WorkflowContent } from "../../../common/type/workflow";
 import { ComputingUnitStatusService } from "../../../common/service/computing-unit/computing-unit-status/computing-unit-status.service";
 import { WarehouseService } from "../../../common/service/warehouse/warehouse.service";
+import { AuthService } from "../../../common/service/user/auth.service";
 import type { WebOutputMode } from "../../types/execute-workflow.interface";
 import type { SchemaAttribute } from "../../types/workflow-compiling.interface";
 
@@ -458,9 +459,14 @@ export class AgentService {
    * Start WebSocket connection for real-time ReActSteps updates
    */
   private startStatePolling(agentId: string, tracking: AgentStateTracking): void {
-    // Build WebSocket URL
+    // Build WebSocket URL. The agent service opens the socket only for the agent's owner, and a
+    // browser cannot set headers on a WebSocket, so the user's token rides in the query, as it
+    // does on the workflow websocket.
     const wsProtocol = window.location.protocol === "https:" ? "wss:" : "ws:";
-    const wsUrl = `${wsProtocol}//${window.location.host}${this.AGENT_API_BASE}/agents/${agentId}/react`;
+    const token = AuthService.getAccessToken();
+    const wsUrl =
+      `${wsProtocol}//${window.location.host}${this.AGENT_API_BASE}/agents/${agentId}/react` +
+      (token !== null ? `?access-token=${encodeURIComponent(token)}` : "");
 
     const ws = new WebSocket(wsUrl);
     tracking.websocket = ws;
