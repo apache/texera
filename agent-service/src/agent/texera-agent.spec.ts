@@ -1349,48 +1349,33 @@ describe("delegate mode", () => {
     ).toEqual(["local-op"]);
   });
 
-  test("auto-executes after modifyOperator and keys the result at the agent step", async () => {
+  test("modifyOperator executes the operator inside the call, so a later turn still reads the result", async () => {
     dispatch(okExec);
     const vSpy = spyOn(WorkflowSystemMetadata.getInstance(), "validateOperatorProperties").mockReturnValue({
       isValid: true,
     } as any);
     try {
-      let n = 0;
-      const model = new MockLanguageModelV4({
-        doGenerate: async () => {
-          n++;
-          if (n === 1)
-            return {
-              content: [
-                {
-                  type: "tool-call",
-                  toolCallId: "c1",
-                  toolName: "modifyOperator",
-                  input: JSON.stringify({ operatorId: "op-1", summary: "renamed" }),
-                },
-              ],
-              finishReason: finish("tool-calls"),
-              usage: usage(1, 1),
-              warnings: [],
-            } as any;
-          return {
-            content: [{ type: "text", text: "d" }],
-            finishReason: finish("stop"),
-            usage: usage(1, 1),
-            warnings: [],
-          } as any;
-        },
-      });
+      const model = scriptedModel([{ call: "modifyOperator", input: { operatorId: "op-1", summary: "renamed" } }, "d"]);
       const agent = makeAgentWith(model);
       agent.setDelegateConfig({ userToken: "tok", workflowId: 7, workflowName: "w" });
       await agent.sendMessage("modify it");
       const steps = agent.getAllSteps();
-      const txt2 = (model as any).doGenerateCalls[1].prompt[1].content[0].text;
-      expect(urls.some(u => u.includes("/api/execution/7/0/run"))).toBe(true);
+      // The tool call is the only thing that executes the operator: nothing executes it again after the step.
+      expect(urls.filter(u => u.includes("/api/execution/7/0/run"))).toHaveLength(1);
+      // The call changed the workflow, so its result is filed under the step that made the call.
       const entry = agent.getWorkflowResultState().get("op-1");
       expect(entry?.stepId).toBe(steps[1].id);
       expect(entry?.operatorInfo.state).toBe(OperatorState.COMPLETED);
       expect(entry?.operatorInfo.resultSummary?.totalTuplesCount).toBe(1);
+      // The execution's result is part of the tool result. A later turn finds it there: the dataflow
+      // block that showed it during this turn is not kept, and an answer whose numbers are in no tool
+      // result reads as unverified.
+      const result = "Operator op-1 modified\nExecuted operator op-1\nOutput table shape: (1, 1)\n\tz\n0\t9";
+      expect(steps[1].toolResults).toEqual([{ toolCallId: "c1", output: result, isError: false }]);
+      await agent.sendMessage("and now?");
+      expect(toolOutputsOf(agent.getAllSteps().at(-1)?.inputMessages)).toEqual([
+        ["modifyOperator", { type: "text", value: result }],
+      ]);
     } finally {
       // A leaked always-valid stub would let the rejected-modification test below pass validation
       // and execute, so the restore has to survive a failed assertion.
@@ -1398,9 +1383,44 @@ describe("delegate mode", () => {
     }
   });
 
+  test("a turn stopped while the changed operator executes keeps the change and ends as stopped", async () => {
+    let agent!: TexeraAgent;
+    dispatch(okExec);
+    const routed = fetchSpy.getMockImplementation()!;
+    fetchSpy.mockImplementation((async (u: any, init?: RequestInit) => {
+      if (!String(u).includes("/api/execution/")) return routed(u, init);
+      agent.stop();
+      throw Object.assign(new Error("The operation was aborted."), { name: "AbortError" });
+    }) as any);
+    const vSpy = spyOn(WorkflowSystemMetadata.getInstance(), "validateOperatorProperties").mockReturnValue({
+      isValid: true,
+    } as any);
+    try {
+      agent = makeAgentWith(
+        scriptedModel([{ call: "modifyOperator", input: { operatorId: "op-1", summary: "renamed" } }, "d"])
+      );
+      agent.setDelegateConfig({ userToken: "tok", workflowId: 7, workflowName: "w" });
+      const res = await agent.sendMessage("modify it");
+      const steps = agent.getAllSteps();
+      expect(res.stopped).toBe(true);
+      expect(steps.map(step => step.content)).toEqual(["modify it", "", "Generation stopped by user."]);
+      expect(steps[1].toolResults).toEqual([
+        {
+          toolCallId: "c1",
+          output: "Operator op-1 modified\n[ERROR] Execution did not finish: The operation was aborted.",
+          isError: false,
+        },
+      ]);
+      expect(agent.getWorkflowState().getOperator("op-1")?.customDisplayName).toBe("renamed");
+      expect(agent.getWorkflowResultState().get("op-1")).toBeUndefined();
+    } finally {
+      vSpy.mockRestore();
+    }
+  });
+
   test("executeOperator tool keys its result at the current head (the user step)", async () => {
-    // The contrast with the previous test is the point: an explicit executeOperator call has no agent
-    // step of its own yet, so its result belongs at the head rather than at a step that follows it.
+    // The contrast with the modifyOperator test above is the point: an explicit executeOperator call
+    // changes nothing, so its result already holds at the head the step started from.
     dispatch(okExec);
     const vSpy = spyOn(WorkflowSystemMetadata.getInstance(), "validateOperatorProperties").mockReturnValue({
       isValid: true,
