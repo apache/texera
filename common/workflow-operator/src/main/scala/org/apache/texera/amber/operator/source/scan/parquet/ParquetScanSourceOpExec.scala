@@ -35,9 +35,11 @@ import org.apache.parquet.schema.LogicalTypeAnnotation.{
 }
 import org.apache.parquet.schema.PrimitiveType.PrimitiveTypeName
 import org.apache.parquet.schema.{MessageType, PrimitiveType}
+import org.apache.arrow.vector.VectorSchemaRoot
 import org.apache.texera.amber.core.executor.SourceOperatorExecutor
 import org.apache.texera.amber.core.storage.DocumentFactory
 import org.apache.texera.amber.core.tuple.TupleLike
+import org.apache.texera.amber.util.ArrowUtils
 import org.apache.texera.amber.util.JSONUtils.objectMapper
 
 import java.net.URI
@@ -83,6 +85,45 @@ class ParquetScanSourceOpExec(descString: String) extends SourceOperatorExecutor
 
     val afterOffset = rows.drop(desc.offset.getOrElse(0))
     desc.limit.fold(afterOffset)(afterOffset.take)
+  }
+
+  // Columnar produce: fill Arrow vectors column by column from each row group, so no per-row
+  // Tuple (and no Tuple.inMemSize deepSizeOf walk) is built. Each cell is decoded by the same
+  // readField the row path uses, so the columns match the row path exactly. One Arrow batch per
+  // Parquet row group, allocated in the shared allocator so a handed-off batch outlives this
+  // exec's close (the receiver / emit path closes it). Falls back to the row path (None) when
+  // offset/limit are set.
+  override def produceColumnarBatch(): Option[Iterator[VectorSchemaRoot]] = {
+    if (desc.offset.exists(_ > 0) || desc.limit.isDefined) return None
+    val fileReader = reader.get
+    val messageType = fileReader.getFooter.getFileMetaData.getSchema
+    val arrowSchema = ArrowUtils.fromTexeraSchema(ParquetSchemaMapping.toTexeraSchema(messageType))
+    val numCols = messageType.getFieldCount
+    Some(
+      Iterator
+        .continually(fileReader.readNextRowGroup())
+        .takeWhile(_ != null)
+        .map { pages =>
+          val recordReader = new ColumnIOFactory()
+            .getColumnIO(messageType)
+            .getRecordReader(pages, new GroupRecordConverter(messageType))
+          val rowCount = pages.getRowCount.toInt
+          val root = VectorSchemaRoot.create(arrowSchema, ArrowUtils.sharedAllocator)
+          root.allocateNew()
+          var r = 0
+          while (r < rowCount) {
+            val group = recordReader.read()
+            var c = 0
+            while (c < numCols) {
+              ArrowUtils.setCell(root.getVector(c), r, readField(group, c, messageType).asInstanceOf[AnyRef])
+              c += 1
+            }
+            r += 1
+          }
+          root.setRowCount(rowCount)
+          root
+        }
+    )
   }
 
   /** One cell, as the Texera type [[ParquetSchemaMapping]] said the column is. */

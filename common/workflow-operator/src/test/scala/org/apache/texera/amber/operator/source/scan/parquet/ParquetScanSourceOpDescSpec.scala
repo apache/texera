@@ -31,6 +31,7 @@ import org.apache.parquet.schema.PrimitiveType.PrimitiveTypeName
 import org.apache.parquet.schema.{LogicalTypeAnnotation, MessageType, Type, Types}
 import org.apache.texera.amber.core.executor.OpExecWithClassName
 import org.apache.texera.amber.core.tuple.{AttributeType, SeqTupleLike}
+import org.apache.texera.amber.util.ArrowUtils
 import org.apache.texera.amber.core.virtualidentity.{ExecutionIdentity, WorkflowIdentity}
 import org.apache.texera.amber.operator.LogicalOp
 import org.apache.texera.amber.operator.metadata.OperatorGroupConstants
@@ -223,6 +224,43 @@ class ParquetScanSourceOpDescSpec extends AnyFlatSpec with Matchers {
       .optional(PrimitiveTypeName.INT32)
       .as(LogicalTypeAnnotation.intType(bitWidth, false))
       .named(name)
+
+  // The columnar source path must hand back exactly the rows the row path builds, across every
+  // type the mapping treats specially and the all-null second row.
+  "ParquetScanSourceOpExec.produceColumnarBatch" should "match the row path cell for cell" in {
+    val d = descFor(sampleFile())
+    val schema = d.inferSchema()
+    val colExec = new ParquetScanSourceOpExec(objectMapper.writeValueAsString(d))
+    colExec.open()
+    val columnarRows =
+      try colExec
+        .produceColumnarBatch()
+        .get
+        .flatMap(root => try ArrowUtils.tuplesOfRoot(root).toList finally root.close())
+        .toList
+        .map(_.getFields.toList)
+      finally colExec.close()
+
+    val rowExec = new ParquetScanSourceOpExec(objectMapper.writeValueAsString(d))
+    rowExec.open()
+    val rowRows =
+      try rowExec
+        .produceTuple()
+        .toList
+        .map(_.asInstanceOf[SeqTupleLike].enforceSchema(schema).getFields.toList)
+      finally rowExec.close()
+
+    columnarRows shouldBe rowRows
+  }
+
+  it should "fall back to the row path (None) when offset or limit is set" in {
+    val d = descFor(sampleFile())
+    d.limit = Some(1)
+    val exec = new ParquetScanSourceOpExec(objectMapper.writeValueAsString(d))
+    exec.open()
+    try exec.produceColumnarBatch() shouldBe None
+    finally exec.close()
+  }
 
   "ParquetScanSourceOpDesc.operatorInfo" should
     "advertise the Parquet file-scan name in the Data Input group with no input and one output" in {
