@@ -126,6 +126,12 @@ export class TexeraAgent {
    */
   private messagesByStep: Map<string, ModelMessage[]> = new Map();
 
+  /**
+   * The id the agent step now being generated will take. A step is recorded when it ends, but an
+   * add or modify call executes its operator before that, and the result is filed under this step.
+   */
+  private stepInProgress: string | undefined = undefined;
+
   private currentMessageId: string | undefined = undefined;
 
   private delegateConfig?: {
@@ -236,6 +242,17 @@ export class TexeraAgent {
         toolTimeoutMs: this.settings.toolTimeoutMs,
         executionTimeoutMs: this.settings.executionTimeoutMs,
       },
+      // An add or modify call changes the workflow, so the result of executing the changed operator
+      // holds from the step that made the call on, not from the head that step started at.
+      executeOperator: getExecutionConfig
+        ? (operatorId, options) =>
+            executeOperatorAndFormat(this.workflowState, getExecutionConfig(), operatorId, {
+              ...options,
+              onResult: (opId, operatorInfo) => {
+                this.workflowResultState.set(opId, this.stepInProgress ?? this.head, operatorInfo);
+              },
+            })
+        : undefined,
     };
 
     const tools: Record<string, any> = {
@@ -633,6 +650,7 @@ export class TexeraAgent {
         // dataflow block is written again for every step, so it is rebuilt from the turn's messages
         // rather than returned on top of the previous step's, which would carry the old block along.
         prepareStep: async ({ initialMessages, responseMessages }) => {
+          this.stepInProgress = this.generateStepId();
           const dataflow = await this.currentDataflowMessage();
           const messages = [...initialMessages, ...responseMessages, ...(dataflow ? [dataflow] : [])];
           lastPreparedMessages = messages;
@@ -675,7 +693,8 @@ export class TexeraAgent {
 
           const afterStepContent = this.workflowState.getWorkflowContent();
 
-          const agentStepId = this.generateStepId();
+          const agentStepId = this.stepInProgress ?? this.generateStepId();
+          this.stepInProgress = undefined;
           const agentStep: ReActStep = {
             id: agentStepId,
             parentId: this.head,
@@ -703,31 +722,6 @@ export class TexeraAgent {
           const unexecutedCalls = unexecutedToolCallsMessage(toolCalls, toolResultsByCallId, finishReason);
           this.addStep(agentStep, unexecutedCalls ? [...response.messages, unexecutedCalls] : response.messages);
           this.head = agentStepId;
-
-          const execConfig = this.buildExecutionConfig();
-          if (execConfig && toolCalls) {
-            const EXECUTE_AFTER_TOOLS = new Set([TOOL_NAME_ADD_OPERATOR, TOOL_NAME_MODIFY_OPERATOR]);
-
-            for (const tc of toolCalls) {
-              const tr = toolResultsByCallId.get(tc.toolCallId);
-              if (!EXECUTE_AFTER_TOOLS.has(tc.toolName)) continue;
-              if (!tr || tr.isError) continue;
-
-              const operatorId = (tc.input as any)?.operatorId;
-              if (!operatorId) continue;
-
-              try {
-                await executeOperatorAndFormat(this.workflowState, execConfig, operatorId, {
-                  abortSignal: this.abortController?.signal,
-                  onResult: (opId, operatorInfo) => {
-                    this.workflowResultState.set(opId, this.head, operatorInfo);
-                  },
-                });
-              } catch (e: any) {
-                this.log.warn({ operatorId, err: e?.message || e }, "post-step execution failed");
-              }
-            }
-          }
 
           beforeStepContent = afterStepContent;
           isFirstStep = false;
@@ -787,6 +781,7 @@ export class TexeraAgent {
       };
     } finally {
       this.abortController = null;
+      this.stepInProgress = undefined;
       this.currentMessageId = undefined;
       this.state = AgentStateEnum.AVAILABLE;
     }
