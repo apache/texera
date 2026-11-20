@@ -72,10 +72,13 @@
       AI Agents
     </h4>
 
-    <!-- Tabs -->
+    <!-- Tabs. Not animated: an animated pane is hidden only once its fade-out transition ends,
+         and none ends while this panel is docked ([hidden] above). The panes of the agents
+         loaded meanwhile would stay, invisible, over the registration tab and take its clicks. -->
     <nz-tabs
       [nzSelectedIndex]="selectedTabIndex"
       (nzSelectedIndexChange)="onTabSelectChange($event)"
+      [nzAnimated]="false"
       class="agent-tabs"
       nzType="card">
       <ng-template nzTabBarExtraContent="end">
