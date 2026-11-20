@@ -56,7 +56,9 @@ function readSecretFromAuthConf(): string | undefined {
 function resolveSecret(): string {
   const secret = env.AUTH_JWT_SECRET || readSecretFromAuthConf();
   if (!secret) {
-    throw new Error("JWT secret not found: neither AUTH_JWT_SECRET environment variable nor auth.conf was found.");
+    throw new Error(
+      "JWT secret not found: AUTH_JWT_SECRET is unset and no auth.conf with a quoted 256-bit-secret was found."
+    );
   }
   const normalized = secret.toLowerCase();
   if (normalized === "random") {

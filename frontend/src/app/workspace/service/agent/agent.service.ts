@@ -830,23 +830,21 @@ export class AgentService {
    */
   public fetchModelTypes(): Observable<ModelType[]> {
     if (!this.modelTypes$) {
-      this.modelTypes$ = this.http
-        .get<LiteLLMModelsResponse>(`${AppSettings.getApiEndpoint()}/models`)
-        .pipe(
-          map(response =>
-            response.data.map((model: LiteLLMModel) => ({
-              id: model.id,
-              name: this.formatModelName(model.id),
-              description: `Model: ${model.id}`,
-              icon: "robot",
-            }))
-          ),
-          catchError((error: unknown) => {
-            console.error("Failed to fetch models from API:", error);
-            return of([]);
-          }),
-          shareReplay(1)
-        );
+      this.modelTypes$ = this.http.get<LiteLLMModelsResponse>(`${AppSettings.getApiEndpoint()}/models`).pipe(
+        map(response =>
+          response.data.map((model: LiteLLMModel) => ({
+            id: model.id,
+            name: this.formatModelName(model.id),
+            description: `Model: ${model.id}`,
+            icon: "robot",
+          }))
+        ),
+        catchError((error: unknown) => {
+          console.error("Failed to fetch models from API:", error);
+          return of([]);
+        }),
+        shareReplay(1)
+      );
     }
     return this.modelTypes$;
   }

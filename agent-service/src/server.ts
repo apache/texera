@@ -149,6 +149,8 @@ function getAgent(agentId: string): TexeraAgent {
 const ERROR_STATUS: Record<string, number> = {
   "Agent not found": 404,
   "modelType is required": 400,
+  Unauthorized: 401,
+  Forbidden: 403,
 };
 
 const agentsRouter = new Elysia({ prefix: "/agents" })
@@ -170,16 +172,16 @@ const agentsRouter = new Elysia({ prefix: "/agents" })
   // (defense in depth — the gateway ext_authz also checks it, but this also
   // covers direct access, e.g. bare-metal dev). The WebSocket route is guarded
   // separately in its open() handler via the access-token query param.
-  .onBeforeHandle(({ request, set }) => {
+  // Using onTransform ensures authentication runs before body schema validation,
+  // so unauthenticated requests receive 401/403 rather than validation 400s.
+  .onTransform(({ request }) => {
     const token = extractBearerToken(request.headers.get("authorization") ?? undefined);
     const user = verifyToken(token);
     if (!user) {
-      set.status = 401;
-      return { error: "Unauthorized" };
+      throw new Error("Unauthorized");
     }
     if (user.role !== "REGULAR" && user.role !== "ADMIN") {
-      set.status = 403;
-      return { error: "Forbidden" };
+      throw new Error("Forbidden");
     }
   })
   .get("/", () => {

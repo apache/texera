@@ -152,6 +152,7 @@ describe("AgentService", () => {
       expect(req.request.body.name).toEqual("Bob");
       expect(req.request.body.workflowId).toBeUndefined();
       expect(req.request.body.computingUnitId).toBeUndefined();
+      expect(req.request.headers.has("X-Agent-Workflow-Id")).toBe(false);
       req.flush(apiAgent);
 
       expect(created?.id).toEqual("agent-1");
@@ -166,6 +167,7 @@ describe("AgentService", () => {
       expect(req.request.body.workflowId).toEqual(42);
       expect(req.request.body.computingUnitId).toEqual(7);
       expect(req.request.body.userToken).toBeUndefined();
+      expect(req.request.headers.get("X-Agent-Workflow-Id")).toEqual("42");
       req.flush(apiAgent);
     });
   });
