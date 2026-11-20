@@ -90,5 +90,5 @@ libraryDependencies ++= Seq(
   "com.fasterxml.jackson.module" %% "jackson-module-scala" % "2.18.8",
   "jakarta.ws.rs" % "jakarta.ws.rs-api" % "3.1.0", // Ensure Jakarta JAX-RS API is available
   "org.bitbucket.b_c" % "jose4j" % "0.9.6",
-  "org.playframework" %% "play-json" % "3.1.0-M1",
+  "org.playframework" %% "play-json" % "3.0.6",
 )

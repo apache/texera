@@ -21,8 +21,9 @@ package org.apache.texera.amber.operator.filter
 
 import com.fasterxml.jackson.annotation.{JsonProperty, JsonPropertyDescription}
 import org.apache.texera.amber.core.executor.OpExecWithClassName
+import org.apache.texera.amber.core.tuple.Schema
 import org.apache.texera.amber.core.virtualidentity.{ExecutionIdentity, WorkflowIdentity}
-import org.apache.texera.amber.core.workflow.{InputPort, OutputPort, PhysicalOp}
+import org.apache.texera.amber.core.workflow.{InputPort, OutputPort, PhysicalOp, PortIdentity}
 import org.apache.texera.amber.operator.StandaloneCodeGenerator
 import org.apache.texera.amber.operator.metadata.{OperatorGroupConstants, OperatorInfo}
 import org.apache.texera.amber.pybuilder.PythonTemplateBuilder.pyStringLiteral
@@ -63,13 +64,17 @@ class SpecializedFilterOpDesc extends FilterOpDesc with StandaloneCodeGenerator 
     )
   }
 
-  override def generateStandaloneCode(): String = {
+  override def generateStandaloneCode(): String = generateStandaloneCode(Map.empty)
+
+  override def generateStandaloneCode(inputSchemas: Map[PortIdentity, Schema]): String = {
     // No predicate keeps no row: the executor's filter is `predicates.exists`,
     // which answers false on an empty list. Passing the frame through would be
     // the opposite answer.
     if (predicates.isEmpty) return "out1df = in1df.iloc[0:0].copy()"
     val conditions = predicates.map { p =>
-      val colLit = pyStringLiteral(p.attribute)
+      // FilterPredicate reads the field through Schema, which ignores case. See
+      // [[columnAsStored]].
+      val colLit = pyStringLiteral(columnAsStored(p.attribute, inputSchemas.values.headOption))
       p.condition match {
         case ComparisonType.IS_NULL     => s"""(in1df[$colLit].isna())"""
         case ComparisonType.IS_NOT_NULL => s"""(in1df[$colLit].notna())"""

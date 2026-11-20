@@ -73,6 +73,8 @@ object GuiConfig {
     conf.getInt("gui.workflow-workspace.active-time-in-minutes")
   val guiWorkflowWorkspaceCopilotEnabled: Boolean =
     conf.getBoolean("gui.workflow-workspace.copilot-enabled")
+  val guiWorkflowWorkspaceAiFixModel: String =
+    conf.getString("gui.workflow-workspace.ai-fix-model")
   val guiWorkflowWorkspaceLimitColumns: Int =
     conf.getInt("gui.workflow-workspace.limit-columns")
   val guiAttributionEnabled: Boolean =

@@ -21,11 +21,13 @@ package org.apache.texera.amber.operator.visualization.ScatterMatrixChart
 
 import com.fasterxml.jackson.annotation.{JsonProperty, JsonPropertyDescription}
 import com.kjetland.jackson.jsonSchema.annotations.{JsonSchemaInject, JsonSchemaTitle}
-import org.apache.texera.amber.core.tuple.{AttributeType, Schema}
-import org.apache.texera.amber.pybuilder.PythonTemplateBuilder.PythonTemplateBuilderStringContext
+import org.apache.texera.amber.pybuilder.PythonTemplateBuilder.{
+  PythonTemplateBuilderStringContext,
+  pyStringLiteral
+}
 import org.apache.texera.amber.pybuilder.PyStringTypes.EncodableString
-import org.apache.texera.amber.core.workflow.PortIdentity
-import org.apache.texera.amber.operator.PythonOperatorDescriptor
+import org.apache.texera.amber.operator.visualization.PlotlyStandaloneCode
+import org.apache.texera.amber.operator.visualization.PythonVisualizationOpDesc
 import org.apache.texera.amber.operator.metadata.annotations.{
   AutofillAttributeName,
   AutofillAttributeNameList
@@ -46,7 +48,7 @@ import javax.validation.constraints.{NotEmpty, NotNull}
   }
 }
 """)
-class ScatterMatrixChartOpDesc extends PythonOperatorDescriptor {
+class ScatterMatrixChartOpDesc extends PythonVisualizationOpDesc with PlotlyStandaloneCode {
 
   @JsonProperty(value = "Selected Attributes", required = true)
   @JsonSchemaTitle("Selected Attributes")
@@ -61,14 +63,6 @@ class ScatterMatrixChartOpDesc extends PythonOperatorDescriptor {
   @AutofillAttributeName
   @NotNull(message = "Color Column cannot be empty")
   var color: EncodableString = ""
-
-  override def getOutputSchemas(
-      inputSchemas: Map[PortIdentity, Schema]
-  ): Map[PortIdentity, Schema] = {
-    val outputSchema = Schema()
-      .add("html-content", AttributeType.STRING)
-    Map(operatorInfo.outputPorts.head.id -> outputSchema)
-  }
 
   override def operatorInfo: OperatorInfo =
     OperatorInfo.forVisualization(
@@ -114,4 +108,16 @@ class ScatterMatrixChartOpDesc extends PythonOperatorDescriptor {
     finalcode.encode
   }
 
+  override def generateStandaloneCode(): String = {
+    val dimensions = selectedAttributes.map(pyStringLiteral).mkString(", ")
+    // No empty-input guard, matching generatePythonCode: it goes straight to
+    // the figure, so an empty table raises out of px.scatter_matrix on both
+    // paths. A guard here would only be a divergence — and the one removed
+    // here printed to stdout without writing any output at all.
+    s"""fig = px.scatter_matrix(in1df, dimensions=[$dimensions], color=${pyStringLiteral(color)})
+       |fig.update_layout(margin=dict(t=0, b=0, l=0, r=0))
+       |fig.write_json(outputJson)
+       |fig.write_html(outputHtml)
+       |print("Scatter matrix saved to " + outputHtml)""".stripMargin
+  }
 }

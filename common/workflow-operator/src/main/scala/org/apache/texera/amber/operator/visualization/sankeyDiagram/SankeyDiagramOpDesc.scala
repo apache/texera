@@ -21,12 +21,10 @@ package org.apache.texera.amber.operator.visualization.sankeyDiagram
 
 import com.fasterxml.jackson.annotation.{JsonProperty, JsonPropertyDescription}
 import com.kjetland.jackson.jsonSchema.annotations.{JsonSchemaInject, JsonSchemaTitle}
-import org.apache.texera.amber.core.tuple.{AttributeType, Schema}
 import org.apache.texera.amber.pybuilder.PythonTemplateBuilder.PythonTemplateBuilderStringContext
 import org.apache.texera.amber.pybuilder.PyStringTypes.EncodableString
-import org.apache.texera.amber.core.workflow.PortIdentity
-import org.apache.texera.amber.operator.PythonOperatorDescriptor
 import org.apache.texera.amber.operator.visualization.PlotlyStandaloneCode
+import org.apache.texera.amber.operator.visualization.PythonVisualizationOpDesc
 import org.apache.texera.amber.operator.metadata.annotations.{AutofillAttributeName, SampleColumn}
 import org.apache.texera.amber.operator.metadata.{OperatorGroupConstants, OperatorInfo}
 import org.apache.texera.amber.pybuilder.PythonTemplateBuilder
@@ -45,7 +43,7 @@ import javax.validation.constraints.NotNull
   }
 }
 """)
-class SankeyDiagramOpDesc extends PythonOperatorDescriptor with PlotlyStandaloneCode {
+class SankeyDiagramOpDesc extends PythonVisualizationOpDesc with PlotlyStandaloneCode {
 
   @JsonProperty(value = "Source Attribute", required = true)
   @JsonSchemaTitle("Source Attribute")
@@ -70,14 +68,6 @@ class SankeyDiagramOpDesc extends PythonOperatorDescriptor with PlotlyStandalone
   @SampleColumn("score")
   @NotNull(message = "Value Attribute cannot be empty")
   var valueAttribute: EncodableString = ""
-
-  override def getOutputSchemas(
-      inputSchemas: Map[PortIdentity, Schema]
-  ): Map[PortIdentity, Schema] = {
-    val outputSchema = Schema()
-      .add("html-content", AttributeType.STRING)
-    Map(operatorInfo.outputPorts.head.id -> outputSchema)
-  }
 
   override def operatorInfo: OperatorInfo =
     OperatorInfo.forVisualization(
@@ -148,8 +138,6 @@ class SankeyDiagramOpDesc extends PythonOperatorDescriptor with PlotlyStandalone
          |"""
     finalCode.encode
   }
-
-  override def producesDataFrame(): Boolean = false
 
   override def generateStandaloneCode(): String = {
     val sourceLit = pyStringLiteral(sourceAttribute)

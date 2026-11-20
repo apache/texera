@@ -18,6 +18,11 @@ frontend:
   - changed-files:
       - any-glob-to-any-file:
           - 'frontend/**'
+          # Shared with the backend's LogicalPlanSpec: loop-block.util.spec.ts
+          # runs the frontend's port of LogicalPlan.enclosingLoopStarts against
+          # it, so a change to it (as after a change to LogicalPlan) must run
+          # the frontend stack too, not only the `common` ones.
+          - 'common/workflow-compiler/src/test/resources/loop-blocks.json'
 
 pyright-language-service:
   # Standalone Pyright LSP bridge served to the frontend code editor. It is

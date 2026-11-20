@@ -25,7 +25,10 @@ import org.apache.texera.dao.SqlServer
 import org.apache.texera.dao.jooq.generated.Tables._
 import org.apache.texera.web.resource.dashboard.user.dataset.utils.DatasetStatisticsUtils.getUserCreatedDatasets
 import org.apache.texera.web.resource.dashboard.user.quota.UserQuotaResource._
-import org.apache.texera.web.resource.dashboard.user.workflow.WorkflowExecutionsResource
+import org.apache.texera.web.resource.dashboard.user.workflow.{
+  WorkflowAccessResource,
+  WorkflowExecutionsResource
+}
 
 import java.util
 import javax.ws.rs._
@@ -100,19 +103,7 @@ object UserQuotaResource {
   }
 
   def getUserAccessedWorkflow(uid: Integer): util.List[Integer] = {
-    val availableWorkflowIds = context
-      .select(
-        WORKFLOW_USER_ACCESS.WID
-      )
-      .from(
-        WORKFLOW_USER_ACCESS
-      )
-      .where(
-        WORKFLOW_USER_ACCESS.UID.eq(uid)
-      )
-      .fetchInto(classOf[Integer])
-
-    availableWorkflowIds
+    context.fetch(WorkflowAccessResource.accessibleWids(uid)).getValues(0, classOf[Integer])
   }
 
   def getUserQuotaSize(uid: Integer): Array[QuotaStorage] = {

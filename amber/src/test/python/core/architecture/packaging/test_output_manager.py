@@ -396,6 +396,17 @@ class TestAddOutputPort:
         assert output_manager.get_port_ids() == [port_id]
         assert output_manager.get_port().get_schema() is schema_first
 
+    def test_duplicate_port_does_not_start_replacement_storage_writers(
+        self, output_manager
+    ):
+        output_manager.set_up_port_storage_writer = MagicMock()
+        port_id = PortIdentity(id=0, internal=False)
+        output_manager.add_output_port(port_id, MagicMock(), "vfs:///first")
+        output_manager.add_output_port(port_id, MagicMock(), "vfs:///duplicate")
+        output_manager.set_up_port_storage_writer.assert_called_once_with(
+            port_id, "vfs:///first"
+        )
+
     def test_sets_up_storage_writer_only_when_uri_given(self, output_manager):
         output_manager.set_up_port_storage_writer = MagicMock()
         port_a = PortIdentity(id=0, internal=False)

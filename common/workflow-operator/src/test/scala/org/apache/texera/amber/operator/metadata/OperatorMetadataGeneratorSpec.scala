@@ -19,9 +19,16 @@
 
 package org.apache.texera.amber.operator.metadata
 
+import com.fasterxml.jackson.databind.node.BooleanNode
 import org.apache.texera.amber.core.state.StateReferencing
 import org.apache.texera.amber.operator.LogicalOp
+import org.apache.texera.amber.operator.dictionary.DictionaryMatcherOpDesc
 import org.apache.texera.amber.operator.filter.SpecializedFilterOpDesc
+import org.apache.texera.amber.operator.limit.LimitOpDesc
+import org.apache.texera.amber.operator.projection.ProjectionOpDesc
+import org.apache.texera.amber.operator.sortPartitions.SortPartitionsOpDesc
+import org.apache.texera.amber.operator.source.scan.file.FileScanOpDesc
+import org.apache.texera.amber.operator.unneststring.UnnestStringOpDesc
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 
@@ -51,5 +58,54 @@ class OperatorMetadataGeneratorSpec extends AnyFlatSpec with Matchers {
     properties.has(StateReferencing.SIDECAR_PROPERTY) shouldBe false
     val required = schema.get("required").elements().asScala.map(_.asText()).toList
     required should not contain StateReferencing.SIDECAR_PROPERTY
+  }
+
+  /** The properties of `opDescClass`'s schema whose `noLoopVariable` keyword is `true`. */
+  private def markedNoLoopVariable(opDescClass: Class[_ <: LogicalOp]): Set[String] =
+    OperatorMetadataGenerator
+      .generateOperatorJsonSchema(opDescClass)
+      .get("properties")
+      .fields()
+      .asScala
+      .filter(_.getValue.get("noLoopVariable") == BooleanNode.TRUE)
+      .map(_.getKey)
+      .toSet
+
+  it should "mark each property that cannot hold a loop variable with 'noLoopVariable', by its JSON name" in {
+    markedNoLoopVariable(classOf[ProjectionOpDesc]) shouldBe Set("isDrop", "attributes")
+    // Renamed in JSON: the panel looks the property up by the name the schema gives it.
+    markedNoLoopVariable(classOf[DictionaryMatcherOpDesc]) shouldBe Set("result attribute")
+    markedNoLoopVariable(classOf[UnnestStringOpDesc]) shouldBe Set("Result attribute")
+    // `attributeName` is declared and marked by the TextSourceOpDesc trait.
+    markedNoLoopVariable(classOf[FileScanOpDesc]) shouldBe Set("attributeName", "outputFileName")
+    markedNoLoopVariable(classOf[SortPartitionsOpDesc]) shouldBe
+      Set("sortAttributeName", "domainMin", "domainMax")
+  }
+
+  it should "leave 'noLoopVariable' off a property the executor reads after the loop state wrote it" in {
+    val properties = Seq(
+      classOf[SpecializedFilterOpDesc] -> "predicates",
+      classOf[LimitOpDesc] -> "limit",
+      classOf[DictionaryMatcherOpDesc] -> "Dictionary",
+      classOf[UnnestStringOpDesc] -> "Delimiter"
+    )
+    properties.foreach {
+      case (opDescClass, name) =>
+        val schema = OperatorMetadataGenerator.generateOperatorJsonSchema(opDescClass)
+        withClue(s"${opDescClass.getSimpleName}.$name: ") {
+          schema.get("properties").has(name) shouldBe true
+          schema.get("properties").get(name).has("noLoopVariable") shouldBe false
+        }
+    }
+  }
+
+  it should "generate every operator's schema, marking exactly the properties the compiler rejects a loop variable in" in {
+    // One list behind both: what the schema marks is exactly what the compiler checks.
+    OperatorMetadataGenerator.operatorTypeMap.keys.foreach { opDescClass =>
+      withClue(s"${opDescClass.getSimpleName}: ") {
+        markedNoLoopVariable(opDescClass) shouldBe
+          StateReferencing.noLoopVariableProperties(opDescClass)
+      }
+    }
   }
 }

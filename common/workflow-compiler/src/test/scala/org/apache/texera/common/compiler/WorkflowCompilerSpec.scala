@@ -1021,6 +1021,139 @@ class WorkflowCompilerSpec extends AnyFlatSpec {
     )
   }
 
+  /** TextInput -> LoopStart -> `op` -> LoopEnd, every input of `op` fed by the LoopStart. */
+  private def insideLoopBlock(op: LogicalOp): LogicalPlanPojo = {
+    val src = textInputOp("0\n1")
+    val start = loopStartOp()
+    val end = loopEndOp()
+    val inputs = op.operatorInfo.inputPorts.map(input => linked(start, op, input.id.id))
+    pojo(List(src, start, op, end), linked(src, start) :: inputs ::: List(linked(op, end)))
+  }
+
+  /**
+    * A reference in each property the compiled plan is built from -- an output column's name or
+    * type, or what the input is partitioned on: the operator as the frontend sends it, its name,
+    * and the references the error names.
+    */
+  private val referencesInNoLoopVariableProperties: List[(String, String, String)] = List(
+    (
+      """{"isDrop":false,"attributes":[{"originalAttribute":"line","alias":"$a"}],
+        |"operatorType":"Projection"}""".stripMargin,
+      "Projection",
+      "/attributes/0/alias -> $a"
+    ),
+    (
+      """{"isDrop":"$d","attributes":[{"originalAttribute":"line","alias":""}],
+        |"operatorType":"Projection"}""".stripMargin,
+      "Projection",
+      "/isDrop -> $d"
+    ),
+    (
+      """{"Dictionary":"x","Attribute":"line","result attribute":"$r","Matching type":"Scan",
+        |"operatorType":"DictionaryMatcher"}""".stripMargin,
+      "Dictionary matcher",
+      "/result attribute -> $r"
+    ),
+    (
+      """{"Delimiter":",","Attribute":"line","Result attribute":"$r",
+        |"operatorType":"UnnestString"}""".stripMargin,
+      "Unnest String",
+      "/Result attribute -> $r"
+    ),
+    (
+      """{"aggregations":[{"aggFunction":"count","attribute":"line","result attribute":"$r"}],
+        |"groupByKeys":["$g"],"operatorType":"Aggregate"}""".stripMargin,
+      "Aggregate",
+      "/aggregations/0/result attribute -> $r, /groupByKeys/0 -> $g"
+    ),
+    (
+      """{"attributeName":"$c","outputFileName":"$f","operatorType":"FileScanOp"}""",
+      "File Scan From Input",
+      "/attributeName -> $c, /outputFileName -> $f"
+    ),
+    (
+      """{"typeCastingUnits":[{"attribute":"$c","resultType":"integer"}],
+        |"operatorType":"TypeCasting"}""".stripMargin,
+      "Type Casting",
+      "/typeCastingUnits/0/attribute -> $c"
+    ),
+    (
+      """{"buildAttributeName":"$b","probeAttributeName":"$p","joinType":"inner",
+        |"operatorType":"HashJoin"}""".stripMargin,
+      "Hash Join",
+      "/buildAttributeName -> $b, /probeAttributeName -> $p"
+    ),
+    (
+      """{"leftAttributeName":"$l","rightAttributeName":"$r","constant":10,"includeLeftBound":true,
+        |"includeRightBound":true,"operatorType":"IntervalJoin"}""".stripMargin,
+      "Interval Join",
+      "/leftAttributeName -> $l, /rightAttributeName -> $r"
+    ),
+    (
+      """{"sortAttributeName":"$s","domainMin":"$lo","domainMax":"$hi",
+        |"operatorType":"SortPartitions"}""".stripMargin,
+      "Sort Partitions",
+      "/domainMax -> $hi, /domainMin -> $lo, /sortAttributeName -> $s"
+    )
+  )
+
+  it should "report a reference inside a loop block in a property the compiled plan is built from" in {
+    // Built from the placeholder, the plan would never see the loop's value: a Projection alias
+    // "$a" would output a column named "$a", every row null; a SortPartitions domain would stay
+    // 0 to 0. Reported before the physical plan, ahead of a schema error the placeholder causes.
+    referencesInNoLoopVariableProperties.foreach {
+      case (json, name, references) =>
+        val those = if (references.contains(", ")) "those properties" else "that property"
+        val message = s"$name cannot refer to loop variables ($references): its output schema " +
+          s"or partitioning is built from $those when the workflow is compiled, before the loop " +
+          "runs"
+        val op = parsed(json)
+
+        val result = new WorkflowCompiler(newContext()).compile(insideLoopBlock(op))
+
+        assert(result.physicalPlan.isEmpty, name)
+        assert(
+          result.operatorIdToError.get(op.operatorIdentifier).exists(_.message.contains(message)),
+          s"$name: ${result.operatorIdToError}"
+        )
+        val ex = intercept[IllegalArgumentException] {
+          new WorkflowCompiler(newContext())
+            .compile(insideLoopBlock(parsed(json)), CompilationErrorHandling.Strict)
+        }
+        assert(ex.getMessage == message, name)
+    }
+  }
+
+  it should "accept a reference inside a loop block in a property the executor reads, on an operator the plan is built from in part" in {
+    // The dictionary and the delimiter are read by the executor, after the loop state wrote them.
+    Seq(
+      """{"Dictionary":"$w","Attribute":"line","result attribute":"matched","Matching type":"Scan",
+        |"operatorType":"DictionaryMatcher"}""".stripMargin -> Map("/Dictionary" -> "w"),
+      """{"Delimiter":"$d","Attribute":"line","Result attribute":"unnested",
+        |"operatorType":"UnnestString"}""".stripMargin -> Map("/Delimiter" -> "d")
+    ).foreach {
+      case (json, sidecar) =>
+        val op = parsed(json)
+        val result = new WorkflowCompiler(newContext()).compile(insideLoopBlock(op))
+        assert(result.operatorIdToError.isEmpty, s"unexpected errors: ${result.operatorIdToError}")
+        val (_, descString) = executorInit(result, op)
+        assert(sidecarOf(descString) == sidecar)
+    }
+  }
+
+  it should "keep a '$a' Projection alias outside every loop block the literal column name it is on main" in {
+    val src = textInputOp("0")
+    val projection = parsed(referencesInNoLoopVariableProperties.head._1)
+
+    val result = new WorkflowCompiler(newContext()).compile(
+      pojo(List(src, projection), List(linked(src, projection)))
+    )
+
+    assert(result.operatorIdToError.isEmpty, s"unexpected errors: ${result.operatorIdToError}")
+    val schema = result.operatorIdToOutputSchemas(projection.operatorIdentifier)(PortIdentity())
+    assert(schema.map(_.getAttributeNames).contains(List("$a")))
+  }
+
   private def intervalJoinOp(): LogicalOp =
     parsed(
       """{"leftAttributeName":"line","rightAttributeName":"line","constant":"$i",

@@ -22,6 +22,7 @@ package org.apache.texera.amber.operator.unneststring
 import com.fasterxml.jackson.annotation.{JsonProperty, JsonPropertyDescription}
 import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaInject
 import org.apache.texera.amber.core.executor.OpExecWithClassName
+import org.apache.texera.amber.core.state.NoLoopVariable
 import org.apache.texera.amber.core.tuple.{AttributeType, Schema}
 import org.apache.texera.amber.core.virtualidentity.{ExecutionIdentity, WorkflowIdentity}
 import org.apache.texera.amber.core.workflow.{
@@ -58,6 +59,7 @@ class UnnestStringOpDesc extends FlatMapOpDesc with StandaloneCodeGenerator {
 
   @JsonProperty(value = "Result attribute", required = true, defaultValue = "unnestResult")
   @JsonPropertyDescription("column name of the unnest result")
+  @NoLoopVariable
   var resultAttribute: String = _
 
   override def operatorInfo: OperatorInfo =
@@ -143,17 +145,16 @@ class UnnestStringOpDesc extends FlatMapOpDesc with StandaloneCodeGenerator {
     // and the two column names are rendered as escaped Python literals.
     val delim = pyStringLiteral(Option(delimiter).getOrElse(""))
     val resultLit = pyStringLiteral(resultAttribute)
-    val attributeLit = pyStringLiteral(attribute)
+    // The engine reads the field through Schema, which ignores case. See [[columnAsStored]].
+    val attributeLit = pyStringLiteral(columnAsStored(attribute, inputSchemas.values.headOption))
     // What is split is the text the engine split, not whatever pandas made of the
     // column. See [[renderedAsText]].
     val declared = inputSchemas.values.headOption
       .flatMap(schema => scala.util.Try(schema.getAttribute(attribute)).toOption)
       .map(_.getType)
     val column = renderedAsText(s"out1df[$attributeLit]", declared)
-    s"""# Nothing in the column unnests to nothing, the way the operator answers a null
-       |# field with no rows at all. Dropped before the split rather than after: the
-       |# rendering would turn the empty cell into text and unnest that.
-       |out1df = in1df[in1df[$attributeLit].notna()].copy()
+    // A null unnests to no rows, so it is dropped before the rendering turns it into text.
+    s"""out1df = in1df[in1df[$attributeLit].notna()].copy()
        |out1df[$resultLit] = $column.str.split($delim, regex=True)
        |out1df = out1df.explode($resultLit, ignore_index=True)
        |out1df = out1df[(out1df[$resultLit].notna()) & (out1df[$resultLit] != "")].reset_index(drop=True)""".stripMargin

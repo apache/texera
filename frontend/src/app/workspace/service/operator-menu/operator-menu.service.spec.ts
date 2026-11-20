@@ -252,7 +252,7 @@ describe("OperatorMenuService", () => {
       const notificationService = TestBed.inject(NotificationService);
       const executeWorkflowService = TestBed.inject(ExecuteWorkflowService);
       const errorSpy = vi.spyOn(notificationService, "error").mockImplementation(() => {});
-      const executeSpy = vi.spyOn(executeWorkflowService, "executeWorkflow").mockImplementation(() => undefined);
+      const executeSpy = vi.spyOn(executeWorkflowService, "executeWorkflow").mockImplementation(() => true);
 
       service.executeUpToOperator();
 
@@ -264,7 +264,7 @@ describe("OperatorMenuService", () => {
       const notificationService = TestBed.inject(NotificationService);
       const executeWorkflowService = TestBed.inject(ExecuteWorkflowService);
       const errorSpy = vi.spyOn(notificationService, "error").mockImplementation(() => {});
-      const executeSpy = vi.spyOn(executeWorkflowService, "executeWorkflow").mockImplementation(() => undefined);
+      const executeSpy = vi.spyOn(executeWorkflowService, "executeWorkflow").mockImplementation(() => true);
       workflowActionService.addOperatorsAndLinks(
         [
           { op: mockScanPredicate, pos: mockPoint },
@@ -285,7 +285,7 @@ describe("OperatorMenuService", () => {
 
     it("executes the workflow up to the single highlighted operator", () => {
       const executeWorkflowService = TestBed.inject(ExecuteWorkflowService);
-      const executeSpy = vi.spyOn(executeWorkflowService, "executeWorkflow").mockImplementation(() => undefined);
+      const executeSpy = vi.spyOn(executeWorkflowService, "executeWorkflow").mockImplementation(() => true);
       workflowActionService.addOperator(mockScanPredicate, mockPoint);
       workflowActionService.getJointGraphWrapper().highlightOperators(mockScanPredicate.operatorID);
 

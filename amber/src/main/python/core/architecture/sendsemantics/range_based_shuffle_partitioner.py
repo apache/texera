@@ -15,30 +15,23 @@
 # specific language governing permissions and limitations
 # under the License.
 
-import typing
 from loguru import logger
 from overrides import overrides
-from typing import Iterator
 
-from core.architecture.sendsemantics.partitioner import Partitioner
+from core.architecture.sendsemantics.indexed_shuffle_partitioner import (
+    IndexedShufflePartitioner,
+)
 from core.models import Tuple
-from core.models.state import State
-from core.util import set_one_of
-from proto.org.apache.texera.amber.core import ActorVirtualIdentity
-from proto.org.apache.texera.amber.engine.architecture.rpc import EmbeddedControlMessage
 from proto.org.apache.texera.amber.engine.architecture.sendsemantics import (
     RangeBasedShufflePartitioning,
-    Partitioning,
 )
 
 
-class RangeBasedShufflePartitioner(Partitioner):
+class RangeBasedShufflePartitioner(IndexedShufflePartitioner):
     def __init__(self, partitioning: RangeBasedShufflePartitioning):
-        super().__init__(set_one_of(Partitioning, partitioning))
+        super().__init__(partitioning)
         logger.info(f"got {partitioning}")
-        self.batch_size = partitioning.batch_size
         # Indexed by get_receiver_index to choose the downstream worker to send to.
-        self.receivers = self.build_receiver_batches(partitioning.channels)
         self.range_attribute_names = partitioning.range_attribute_names
         self.range_min = partitioning.range_min
         self.range_max = partitioning.range_max
@@ -59,34 +52,6 @@ class RangeBasedShufflePartitioner(Partitioner):
             return int((column_val - self.range_min) // self.keys_per_receiver)
 
     @overrides
-    def add_tuple_to_batch(
-        self, tuple_: Tuple
-    ) -> Iterator[typing.Tuple[ActorVirtualIdentity, typing.List[Tuple]]]:
+    def _route(self, tuple_: Tuple) -> int:
         column_val = tuple_[self.range_attribute_names[0]]
-        receiver_index = self.get_receiver_index(column_val)
-        receiver, batch = self.receivers[receiver_index]
-        batch.append(tuple_)
-        if len(batch) == self.batch_size:
-            yield receiver, batch
-            self.receivers[receiver_index] = (receiver, list())
-
-    @overrides
-    def flush(
-        self, to: ActorVirtualIdentity, ecm: EmbeddedControlMessage
-    ) -> Iterator[typing.Union[EmbeddedControlMessage, typing.List[Tuple]]]:
-        for receiver, batch in self.receivers:
-            if receiver == to:
-                if len(batch) > 0:
-                    yield batch
-                yield ecm
-
-    @overrides
-    def flush_state(
-        self, state: State
-    ) -> Iterator[
-        typing.Tuple[ActorVirtualIdentity, typing.Union[State, typing.List[Tuple]]]
-    ]:
-        for receiver, batch in self.receivers:
-            if len(batch) > 0:
-                yield receiver, batch
-            yield receiver, state
+        return self.get_receiver_index(column_val)

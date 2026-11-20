@@ -430,7 +430,12 @@ class WorkflowExecutionServiceSpec
     // null `workflow` on the way in, and throws out of `executeWorkflow` -- which is also what
     // keeps a "unit" test out of the live-runtime half on whatever actor system the shared JVM
     // holds.
-    noException should be thrownBy service.executeWorkflow()
+    var setupFailure: Option[Throwable] = None
+    noException should be thrownBy { setupFailure = service.executeWorkflow() }
+
+    // The compilation failure is returned (not thrown) so the caller can record it on the
+    // still-open setup span, on top of reaching the UI through errorHandler.
+    setupFailure.map(_.getMessage).getOrElse("") should include("No file selected")
 
     errors should have size 1
     errors.head.getMessage should include("No file selected")

@@ -21,12 +21,10 @@ package org.apache.texera.amber.operator.visualization.treeplot
 
 import com.fasterxml.jackson.annotation.{JsonProperty, JsonPropertyDescription}
 import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaTitle
-import org.apache.texera.amber.core.tuple.{AttributeType, Schema}
 import org.apache.texera.amber.pybuilder.PythonTemplateBuilder.PythonTemplateBuilderStringContext
 import org.apache.texera.amber.pybuilder.PyStringTypes.EncodableString
-import org.apache.texera.amber.core.workflow.PortIdentity
-import org.apache.texera.amber.operator.PythonOperatorDescriptor
 import org.apache.texera.amber.operator.visualization.PlotlyStandaloneCode
+import org.apache.texera.amber.operator.visualization.PythonVisualizationOpDesc
 import org.apache.texera.amber.operator.metadata.annotations.{AutofillAttributeName, SampleColumn}
 import org.apache.texera.amber.operator.metadata.{OperatorGroupConstants, OperatorInfo}
 import org.apache.texera.amber.pybuilder.PythonTemplateBuilder.pyStringLiteral
@@ -40,7 +38,7 @@ import javax.validation.constraints.NotNull
   * to construct and visualize an interactive, top-down tree that automatically
   * sizes itself and supports intuitive scroll/pinch zooming.
   */
-class TreePlotOpDesc extends PythonOperatorDescriptor with PlotlyStandaloneCode {
+class TreePlotOpDesc extends PythonVisualizationOpDesc with PlotlyStandaloneCode {
 
   @JsonProperty(value = "Edge List Column", required = true)
   @JsonSchemaTitle("Edge List Column")
@@ -57,15 +55,6 @@ class TreePlotOpDesc extends PythonOperatorDescriptor with PlotlyStandaloneCode 
         "Visualize hierarchical data as a top-down, interactive, auto-sizing tree",
       operatorGroupName = OperatorGroupConstants.VISUALIZATION_STATISTICAL_GROUP
     )
-
-  override def getOutputSchemas(
-      inputSchemas: Map[PortIdentity, Schema]
-  ): Map[PortIdentity, Schema] = {
-    Map(
-      operatorInfo.outputPorts.head.id -> Schema()
-        .add("html-content", AttributeType.STRING)
-    )
-  }
 
   override def generatePythonCode(): String = {
     assert(edgeListColumn.nonEmpty, "Edge List Column cannot be empty")
@@ -247,13 +236,11 @@ class TreePlotOpDesc extends PythonOperatorDescriptor with PlotlyStandaloneCode 
        |""".encode
   }
 
-  override def producesDataFrame(): Boolean = false
-
+  // Only a layout failure renders an error page, as in the operator. A label keeps its cell
+  // value, so None is not "None"; layout is a tidy top-down tree, each node placed once.
   override def generateStandaloneCode(): String = {
     s"""import ast
        |
-       |# Only a layout failure renders an error page; everything else propagates,
-       |# matching the operator's own error handling.
        |class TreeLayoutError(Exception):
        |    pass
        |
@@ -269,9 +256,6 @@ class TreePlotOpDesc extends PythonOperatorDescriptor with PlotlyStandaloneCode 
        |    for node_name, coords in pos.items():
        |        annotations.append(
        |            dict(
-       |                # The label goes in as it came out of the cell, the way the
-       |                # operator passes it: plotly stringifies it, and a str() here
-       |                # would turn a None node into the text "None".
        |                text=node_name,
        |                x=coords[0],
        |                y=coords[1],
@@ -289,8 +273,6 @@ class TreePlotOpDesc extends PythonOperatorDescriptor with PlotlyStandaloneCode 
        |    return annotations
        |
        |def build_tree_layout(edges):
-       |    # Tidy top-down tree: depth picks the row, a leaf takes the next
-       |    # free column and a parent sits centred over its own children.
        |    labels = []
        |    known = set()
        |    for parent, child in edges:
@@ -329,8 +311,6 @@ class TreePlotOpDesc extends PythonOperatorDescriptor with PlotlyStandaloneCode 
        |                    next_column += 1
        |                continue
        |            depth[node] = level
-       |            # A node belongs to whichever parent reaches it first, so a
-       |            # cycle or a shared child is never laid out twice.
        |            kids = [kid for kid in children[node] if kid not in placed]
        |            placed.update(kids)
        |            claimed[node] = kids
@@ -341,11 +321,9 @@ class TreePlotOpDesc extends PythonOperatorDescriptor with PlotlyStandaloneCode 
        |    for label in labels:
        |        if label not in placed and label not in has_parent:
        |            grow(label)
-       |    # Whatever is left sits in a cycle that no root can reach.
        |    for label in labels:
        |        if label not in placed:
        |            grow(label)
-       |    # The y-axis is inverted here so the tree grows top-down.
        |    return labels, [(column[label], -depth[label]) for label in labels]
        |
        |def compute_tree_layout(edges):

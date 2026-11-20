@@ -45,6 +45,7 @@ export interface GuiConfig {
   defaultLocalUser?: { username?: string; password?: string };
   activeTimeInMinutes: number;
   copilotEnabled: boolean;
+  aiFixModel: string;
   limitColumns: number;
   attributionEnabled: boolean;
   pythonNotebookMigrationEnabled: boolean;

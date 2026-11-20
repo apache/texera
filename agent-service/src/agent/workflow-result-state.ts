@@ -58,10 +58,6 @@ export class WorkflowResultState {
     return undefined;
   }
 
-  getOperatorInfo(operatorId: string): OperatorInfo | undefined {
-    return this.get(operatorId)?.operatorInfo;
-  }
-
   getAllVisible(): Map<string, ResultEntry> {
     const result = new Map<string, ResultEntry>();
     const path = this.getAncestorPath();

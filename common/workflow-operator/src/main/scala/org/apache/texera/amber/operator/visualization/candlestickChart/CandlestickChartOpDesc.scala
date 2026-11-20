@@ -21,22 +21,25 @@ package org.apache.texera.amber.operator.visualization.candlestickChart
 
 import com.fasterxml.jackson.annotation.{JsonProperty, JsonPropertyDescription}
 import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaTitle
-import org.apache.texera.amber.core.tuple.{AttributeType, Schema}
-import org.apache.texera.amber.pybuilder.PythonTemplateBuilder.PythonTemplateBuilderStringContext
+import org.apache.texera.amber.pybuilder.PythonTemplateBuilder.{
+  PythonTemplateBuilderStringContext,
+  pyStringLiteral
+}
 import org.apache.texera.amber.pybuilder.PyStringTypes.EncodableString
-import org.apache.texera.amber.core.workflow.PortIdentity
-import org.apache.texera.amber.operator.PythonOperatorDescriptor
-import org.apache.texera.amber.operator.metadata.annotations.AutofillAttributeName
+import org.apache.texera.amber.operator.visualization.PlotlyStandaloneCode
+import org.apache.texera.amber.operator.visualization.PythonVisualizationOpDesc
+import org.apache.texera.amber.operator.metadata.annotations.{AutofillAttributeName, SampleColumn}
 import org.apache.texera.amber.operator.metadata.{OperatorGroupConstants, OperatorInfo}
 
 import javax.validation.constraints.NotNull
 
-class CandlestickChartOpDesc extends PythonOperatorDescriptor {
+class CandlestickChartOpDesc extends PythonVisualizationOpDesc with PlotlyStandaloneCode {
 
   @JsonProperty(value = "date", required = true)
   @JsonSchemaTitle("Date Column")
   @JsonPropertyDescription("the date of the candlestick")
   @AutofillAttributeName
+  @SampleColumn("trade_date")
   @NotNull(message = "Date Column cannot be empty")
   var date: EncodableString = ""
 
@@ -44,6 +47,7 @@ class CandlestickChartOpDesc extends PythonOperatorDescriptor {
   @JsonSchemaTitle("Opening Price Column")
   @JsonPropertyDescription("the opening price of the candlestick")
   @AutofillAttributeName
+  @SampleColumn("open")
   @NotNull(message = "Opening Price Column cannot be empty")
   var open: EncodableString = ""
 
@@ -51,6 +55,7 @@ class CandlestickChartOpDesc extends PythonOperatorDescriptor {
   @JsonSchemaTitle("Highest Price Column")
   @JsonPropertyDescription("the highest price of the candlestick")
   @AutofillAttributeName
+  @SampleColumn("high")
   @NotNull(message = "Highest Price Column cannot be empty")
   var high: EncodableString = ""
 
@@ -58,6 +63,7 @@ class CandlestickChartOpDesc extends PythonOperatorDescriptor {
   @JsonSchemaTitle("Lowest Price Column")
   @JsonPropertyDescription("the lowest price of the candlestick")
   @AutofillAttributeName
+  @SampleColumn("low")
   @NotNull(message = "Lowest Price Column cannot be empty")
   var low: EncodableString = ""
 
@@ -65,16 +71,9 @@ class CandlestickChartOpDesc extends PythonOperatorDescriptor {
   @JsonSchemaTitle("Closing Price Column")
   @JsonPropertyDescription("the closing price of the candlestick")
   @AutofillAttributeName
+  @SampleColumn("close")
   @NotNull(message = "Closing Price Column cannot be empty")
   var close: EncodableString = ""
-
-  override def getOutputSchemas(
-      inputSchemas: Map[PortIdentity, Schema]
-  ): Map[PortIdentity, Schema] = {
-    val outputSchema = Schema()
-      .add("html-content", AttributeType.STRING)
-    Map(operatorInfo.outputPorts.head.id -> outputSchema)
-  }
 
   override def operatorInfo: OperatorInfo =
     OperatorInfo.forVisualization(
@@ -112,5 +111,18 @@ class CandlestickChartOpDesc extends PythonOperatorDescriptor {
        |        yield {'html-content': html}
        |""".encode
   }
+
+  override def generateStandaloneCode(): String =
+    s"""fig = go.Figure(data=[go.Candlestick(
+       |    x=in1df[${pyStringLiteral(date)}],
+       |    open=in1df[${pyStringLiteral(open)}],
+       |    high=in1df[${pyStringLiteral(high)}],
+       |    low=in1df[${pyStringLiteral(low)}],
+       |    close=in1df[${pyStringLiteral(close)}]
+       |)])
+       |fig.update_layout(title='Candlestick Chart')
+       |fig.write_json(outputJson)
+       |fig.write_html(outputHtml)
+       |print("Candlestick chart saved to " + outputJson + " and " + outputHtml)""".stripMargin
 
 }

@@ -21,11 +21,13 @@ package org.apache.texera.amber.operator.visualization.ganttChart
 
 import com.fasterxml.jackson.annotation.{JsonProperty, JsonPropertyDescription}
 import com.kjetland.jackson.jsonSchema.annotations.{JsonSchemaInject, JsonSchemaTitle}
-import org.apache.texera.amber.core.tuple.{AttributeType, Schema}
-import org.apache.texera.amber.pybuilder.PythonTemplateBuilder.PythonTemplateBuilderStringContext
+import org.apache.texera.amber.pybuilder.PythonTemplateBuilder.{
+  PythonTemplateBuilderStringContext,
+  pyStringLiteral
+}
 import org.apache.texera.amber.pybuilder.PyStringTypes.EncodableString
-import org.apache.texera.amber.core.workflow.PortIdentity
-import org.apache.texera.amber.operator.PythonOperatorDescriptor
+import org.apache.texera.amber.operator.visualization.PlotlyStandaloneCode
+import org.apache.texera.amber.operator.visualization.PythonVisualizationOpDesc
 import org.apache.texera.amber.operator.metadata.annotations.AutofillAttributeName
 import org.apache.texera.amber.operator.metadata.{OperatorGroupConstants, OperatorInfo}
 import org.apache.texera.amber.pybuilder.PythonTemplateBuilder
@@ -44,7 +46,7 @@ import javax.validation.constraints.NotNull
   }
 }
 """)
-class GanttChartOpDesc extends PythonOperatorDescriptor {
+class GanttChartOpDesc extends PythonVisualizationOpDesc with PlotlyStandaloneCode {
 
   @JsonProperty(value = "start", required = true)
   @JsonSchemaTitle("Start Datetime Column")
@@ -78,14 +80,6 @@ class GanttChartOpDesc extends PythonOperatorDescriptor {
   @JsonPropertyDescription("Add texture to the chart based on an attribute")
   @AutofillAttributeName
   var pattern: EncodableString = ""
-
-  override def getOutputSchemas(
-      inputSchemas: Map[PortIdentity, Schema]
-  ): Map[PortIdentity, Schema] = {
-    val outputSchema = Schema()
-      .add("html-content", AttributeType.STRING)
-    Map(operatorInfo.outputPorts.head.id -> outputSchema)
-  }
 
   override def operatorInfo: OperatorInfo =
     OperatorInfo.forVisualization(
@@ -145,4 +139,38 @@ class GanttChartOpDesc extends PythonOperatorDescriptor {
          |"""
     finalCode.encode
   }
+
+  override def generateStandaloneCode(): String = {
+    val colorLit = pyStringLiteral(color)
+    val startLit = pyStringLiteral(start)
+    val finishLit = pyStringLiteral(finish)
+    val taskLit = pyStringLiteral(task)
+    val optionalFilter =
+      if (color.nonEmpty) s""" & (in1df[$colorLit].notnull())""" else ""
+    val colorSetting = if (color.nonEmpty) s""", color=$colorLit""" else ""
+    val patternSetting =
+      if (pattern.nonEmpty) s""", pattern_shape=${pyStringLiteral(pattern)}""" else ""
+
+    s"""def render_error(error_msg):
+       |    return '''<h1>Gantt Chart is not available.</h1>
+       |                  <p>Reason: {} </p>
+       |               '''.format(error_msg)
+       |
+       |if in1df.empty:
+       |    with open(outputHtml, "w", encoding="utf-8") as output:
+       |        output.write(render_error("Input table is empty."))
+       |else:
+       |    table = in1df[(in1df[$startLit].notnull()) & (in1df[$finishLit].notnull())$optionalFilter].copy()
+       |    if table.empty:
+       |        with open(outputHtml, "w", encoding="utf-8") as output:
+       |            output.write(render_error("One or more of your input columns have all missing values"))
+       |    else:
+       |        fig = px.timeline(table, x_start=$startLit, x_end=$finishLit, y=$taskLit$colorSetting$patternSetting)
+       |        fig.update_yaxes(autorange='reversed')
+       |        fig.update_layout(margin=dict(t=0, b=0, l=0, r=0))
+       |        fig.write_json(outputJson)
+       |        fig.write_html(outputHtml)
+       |        print("Gantt chart saved to " + outputHtml)""".stripMargin
+  }
+
 }
