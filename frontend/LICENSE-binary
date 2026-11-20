@@ -233,7 +233,7 @@ Third-party assets:
     frontend/src/assets/operator_images/SklearnTrainingRidgeCV.png
     frontend/src/assets/operator_images/Union.png
     https://github.com/google/material-design-icons
-  - IBM Carbon Design System icons (chart--bubble, chart--bullet, chart--candlestick, chart--histogram, chart--line, chart--logistic-regression, chart--multi-line, chart--network, chart--parallel, chart--pie, chart--radar, chart--radial, chart--scatter, chart--stepper, chart--treemap, chart--venn-diagram, chart--violin-plot, chart--waterfall, data-table--reference, decision-tree, edge-cluster, flow--merge, heat-map, join--inner, math-curve, scatter-matrix, share, sigma, sort--descending, tree-view, word-cloud)
+  - IBM Carbon Design System icons (chart--bubble, chart--bullet, chart--candlestick, chart--histogram, chart--line, chart--logistic-regression, chart--multi-line, chart--network, chart--parallel, chart--pie, chart--radar, chart--radial, chart--scatter, chart--stepper, chart--treemap, chart--venn-diagram, chart--violin-plot, chart--waterfall, data-table--reference, decision-tree, edge-cluster, flow--merge, heat-map, join--inner, math-curve, sankey-diagram--alt, scatter-matrix, share, sigma, sort--descending, transform--binary, tree-view, word-cloud)
     frontend/src/assets/operator_images/Aggregate.png
     frontend/src/assets/operator_images/BoxViolinPlot.png
     frontend/src/assets/operator_images/BubbleChart.png
@@ -256,6 +256,7 @@ Third-party assets:
     frontend/src/assets/operator_images/RadarPlot.png
     frontend/src/assets/operator_images/SVCTrainer.png
     frontend/src/assets/operator_images/SVRTrainer.png
+    frontend/src/assets/operator_images/SankeyDiagram.png
     frontend/src/assets/operator_images/ScatterMatrixChart.png
     frontend/src/assets/operator_images/SklearnComplementNaiveBayes.png
     frontend/src/assets/operator_images/SklearnDecisionTree.png
@@ -277,9 +278,15 @@ Third-party assets:
     frontend/src/assets/operator_images/SklearnTrainingSDG.png
     frontend/src/assets/operator_images/SortPartitions.png
     frontend/src/assets/operator_images/TimeSeriesPlot.png
+    frontend/src/assets/operator_images/TypeCasting.png
     frontend/src/assets/operator_images/WaterfallChart.png
     frontend/src/assets/operator_images/WordCloud.png
     https://github.com/carbon-design-system/carbon
+  - Apache Arrow and Apache AsterixDB logos (The Apache Software Foundation)
+    frontend/src/assets/operator_images/ArrowSource.png
+    frontend/src/assets/operator_images/AsterixDBSource.png
+    https://github.com/apache/arrow-site/blob/229e92ede438bb6e13417eda141551c242cff334/img/arrow-logo_hex_black-txt_white-bg.png
+    https://github.com/apache/asterixdb-site/blob/00f9bf22dd19e8645315fb2b139527a575dae9c1/img/asterixdb_tm.png
 
 --------------------------------------------------------------------------------
 Dependencies under the MIT License
