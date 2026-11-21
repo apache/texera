@@ -39,12 +39,9 @@ Once logged in, you should see the following page:
 
 ### Navigation Bar
 
-On the left sidebar, you can switch between different resource modules:
+The left sidebar switches between Hub, Your Work (workflows, datasets, computing units and more) and, for admins, Admin. Each item is described in [The dashboard](/docs/tutorials/guide-for-how-to-use-texera/#the-dashboard).
 
-- **Workflows** — manage workflow projects.
-- **Datasets** — upload and manage data files.
-- **Quota** — check usage statistics and resource consumption.
-- **Admin** — manage system users (visible only to admins).
+For a walkthrough of the workflow editor, see the [Guide for how to use Texera](/docs/tutorials/guide-for-how-to-use-texera/).
 
 {{< alert color="success" title="Tip" >}}
 Hover over the navigation icons to see quick tooltips for each section.
