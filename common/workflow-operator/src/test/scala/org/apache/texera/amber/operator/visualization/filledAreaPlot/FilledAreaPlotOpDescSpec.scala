@@ -19,36 +19,32 @@
 
 package org.apache.texera.amber.operator.visualization.filledAreaPlot
 
-import com.typesafe.config.ConfigFactory
+import org.apache.texera.amber.util.PythonTestSupport.{
+  NeedsPythonPackages,
+  canImport,
+  configuredPython,
+  withDriver
+}
 import org.apache.texera.amber.core.tuple.{AttributeType, Schema}
 import org.apache.texera.amber.operator.LogicalOp
 import org.apache.texera.amber.operator.metadata.OperatorMetadataGenerator
-import org.apache.texera.amber.operator.tags.IntegrationTest
 import org.apache.texera.amber.util.JSONUtils.objectMapper
 import org.scalatest.BeforeAndAfter
-import org.scalatest.Tag
 import org.scalatest.flatspec.AnyFlatSpec
-import org.scalatest.matchers.should.Matchers
+import org.apache.texera.amber.operator.GeneratedCodeAssertionChecks
 
-import java.nio.charset.StandardCharsets
-import java.nio.file.Files
-import java.util.concurrent.TimeUnit
 import scala.jdk.CollectionConverters._
-import scala.util.Try
 
-class FilledAreaPlotOpDescSpec extends AnyFlatSpec with BeforeAndAfter with Matchers {
-
-  private val NeedsPythonPackages = Tag(classOf[IntegrationTest].getName)
+class FilledAreaPlotOpDescSpec
+    extends AnyFlatSpec
+    with BeforeAndAfter
+    with GeneratedCodeAssertionChecks {
 
   var opDesc: FilledAreaPlotOpDesc = _
 
   before {
     opDesc = new FilledAreaPlotOpDesc()
   }
-
-  // The part of an assert message that names the offending field.
-  private def fieldPart(msg: String): String =
-    msg.toLowerCase.replace("cannot be empty", "")
 
   it should "throw error if X is empty" in {
     val y = "test1"
@@ -87,17 +83,13 @@ class FilledAreaPlotOpDescSpec extends AnyFlatSpec with BeforeAndAfter with Matc
 
   it should "throw AssertionError naming the X-axis Attribute when only x is missing" in {
     opDesc.y = "area_y"
-    val ex = intercept[AssertionError](opDesc.createPlotlyFigure())
-    ex.getMessage should not be null
-    ex.getMessage should include("cannot be empty")
+    val ex = expectError[AssertionError]("cannot be empty")(opDesc.createPlotlyFigure())
     fieldPart(ex.getMessage) should include("x")
   }
 
   it should "throw AssertionError naming the Y-axis Attribute when only y is missing" in {
     opDesc.x = "area_x"
-    val ex = intercept[AssertionError](opDesc.createPlotlyFigure())
-    ex.getMessage should not be null
-    ex.getMessage should include("cannot be empty")
+    val ex = expectError[AssertionError]("cannot be empty")(opDesc.createPlotlyFigure())
     fieldPart(ex.getMessage) should include("y")
   }
 
@@ -105,9 +97,7 @@ class FilledAreaPlotOpDescSpec extends AnyFlatSpec with BeforeAndAfter with Matc
     opDesc.x = "area_x"
     opDesc.y = "area_y"
     opDesc.facetColumn = true
-    val ex = intercept[AssertionError](opDesc.createPlotlyFigure())
-    ex.getMessage should not be null
-    ex.getMessage should include("cannot be empty")
+    val ex = expectError[AssertionError]("cannot be empty")(opDesc.createPlotlyFigure())
     fieldPart(ex.getMessage) should include("line")
   }
 
@@ -210,42 +200,6 @@ class FilledAreaPlotOpDescSpec extends AnyFlatSpec with BeforeAndAfter with Matc
     code should include("X or Y attribute does not exist")
   }
 
-  // Python executable resolution, following PythonCodeRawInvalidTextSpec:
-  // udf.conf python.path (UDF_PYTHON_PATH), then python3 / python / py.
-  private def resolvePythonExecutable(): Option[String] = {
-    def fromConfig: Option[String] = {
-      val configOpt =
-        Try(ConfigFactory.parseResources("udf.conf").resolve()).toOption
-          .orElse(Try(ConfigFactory.load()).toOption)
-      configOpt
-        .flatMap(c => Try(c.getConfig("python").getString("path")).toOption)
-        .map(_.trim)
-        .filter(_.nonEmpty)
-    }
-
-    def isRunnable(exe: String): Boolean = {
-      val pTry = Try(new ProcessBuilder(exe, "--version").redirectErrorStream(true).start())
-      pTry.toOption.exists { p =>
-        val finished = p.waitFor(5, TimeUnit.SECONDS)
-        if (!finished) { p.destroyForcibly(); false }
-        else p.exitValue() == 0
-      }
-    }
-
-    (fromConfig.toList ++ List("python3", "python", "py")).distinct.find(isRunnable)
-  }
-
-  private def canImportPandasAndPlotly(python: String): Boolean = {
-    val pTry = Try(
-      new ProcessBuilder(python, "-c", "import pandas, plotly").redirectErrorStream(true).start()
-    )
-    pTry.toOption.exists { p =>
-      val finished = p.waitFor(60, TimeUnit.SECONDS)
-      if (!finished) { p.destroyForcibly(); false }
-      else p.exitValue() == 0
-    }
-  }
-
   // Driver executed by the runtime test below. It stubs only the pytexera import seam
   // (base class, decorator, and type aliases); the generated module itself runs unmodified,
   // including the real pandas groupby guard and plotly rendering.
@@ -311,30 +265,23 @@ class FilledAreaPlotOpDescSpec extends AnyFlatSpec with BeforeAndAfter with Matc
       |""".stripMargin
 
   it should "enforce the five-percent tolerance at runtime boundaries" taggedAs NeedsPythonPackages in {
-    val python = resolvePythonExecutable().getOrElse(
+    val python = configuredPython().getOrElse(
       cancel("No runnable python executable (udf.conf python.path, python3, python, py)")
     )
-    if (!canImportPandasAndPlotly(python)) {
+    if (!canImport(python, "pandas", "plotly")) {
       cancel(s"'$python' cannot import pandas and plotly; skipping runtime verification")
     }
 
-    val moduleFile = Files.createTempFile("filled_area_plot_op_", ".py")
-    val driverFile = Files.createTempFile("filled_area_plot_driver_", ".py")
-    try {
-      Files.write(moduleFile, generatedGuardCode().getBytes(StandardCharsets.UTF_8))
-      Files.write(driverFile, runtimeDriverScript.getBytes(StandardCharsets.UTF_8))
-
-      val process = new ProcessBuilder(python, driverFile.toString, moduleFile.toString)
-        .redirectErrorStream(true)
-        .start()
-      val finished = process.waitFor(120, TimeUnit.SECONDS)
-      if (!finished) {
-        process.destroyForcibly()
-        fail("Runtime verification driver timed out after 120s")
-      }
-      val output = new String(process.getInputStream.readAllBytes(), StandardCharsets.UTF_8)
+    withDriver(
+      python,
+      "filled_area_plot_op_",
+      "filled_area_plot_driver_",
+      generatedGuardCode(),
+      runtimeDriverScript,
+      "Runtime verification driver timed out after 120s"
+    ) { (exitCode, output) =>
       withClue(s"Driver output:\n$output\n") {
-        process.exitValue() shouldBe 0
+        exitCode shouldBe 0
         val verdicts = "CASE (\\S+) (\\S+)".r
           .findAllMatchIn(output)
           .map(m => m.group(1) -> m.group(2))
@@ -351,10 +298,6 @@ class FilledAreaPlotOpDescSpec extends AnyFlatSpec with BeforeAndAfter with Matc
           "miscol" -> "MISSING" // x column absent
         )
       }
-    } finally {
-      Try(Files.deleteIfExists(moduleFile))
-      Try(Files.deleteIfExists(driverFile))
-      ()
     }
   }
 
@@ -408,42 +351,32 @@ class FilledAreaPlotOpDescSpec extends AnyFlatSpec with BeforeAndAfter with Matc
   // and 8 are past it.
   "FilledAreaPlotOpDesc.generateStandaloneCode" should
     "refuse the same tables the operator refuses" taggedAs NeedsPythonPackages in {
-    val python = resolvePythonExecutable().getOrElse(
+    val python = configuredPython().getOrElse(
       cancel("No runnable python executable (udf.conf python.path, python3, python, py)")
     )
-    if (!canImportPandasAndPlotly(python)) {
+    if (!canImport(python, "pandas", "plotly")) {
       cancel(s"'$python' cannot import pandas and plotly; skipping runtime verification")
     }
 
     opDesc.x = "x"
     opDesc.y = "y"
     opDesc.lineGroup = "grp"
-    val moduleFile = Files.createTempFile("filled_area_standalone_", ".py")
-    val driverFile = Files.createTempFile("filled_area_boundary_", ".py")
-    try {
-      Files.write(moduleFile, opDesc.generateStandaloneCode().getBytes(StandardCharsets.UTF_8))
-      Files.write(driverFile, boundaryDriverScript.getBytes(StandardCharsets.UTF_8))
-
-      val process = new ProcessBuilder(python, driverFile.toString, moduleFile.toString)
-        .redirectErrorStream(true)
-        .start()
-      if (!process.waitFor(120, TimeUnit.SECONDS)) {
-        process.destroyForcibly()
-        fail("Boundary driver timed out after 120s")
-      }
-      val output = new String(process.getInputStream.readAllBytes(), StandardCharsets.UTF_8)
+    withDriver(
+      python,
+      "filled_area_standalone_",
+      "filled_area_boundary_",
+      opDesc.generateStandaloneCode(),
+      boundaryDriverScript,
+      "Boundary driver timed out after 120s"
+    ) { (exitCode, output) =>
       withClue(s"Driver output:\n$output\n") {
-        process.exitValue() shouldBe 0
+        exitCode shouldBe 0
         val verdicts = "CASE (\\S+) (\\S+)".r
           .findAllMatchIn(output)
           .map(m => m.group(1) -> m.group(2))
           .toMap
         verdicts shouldBe Map("7" -> "CHART", "8" -> "FALLBACK")
       }
-    } finally {
-      Try(Files.deleteIfExists(moduleFile))
-      Try(Files.deleteIfExists(driverFile))
-      ()
     }
   }
 

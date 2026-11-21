@@ -19,30 +19,13 @@
 
 package org.apache.texera.amber.engine.architecture.scheduling
 
-import org.apache.texera.amber.core.executor.OpExecInitInfo
-import org.apache.texera.amber.core.virtualidentity.{
-  ExecutionIdentity,
-  OperatorIdentity,
-  PhysicalOpIdentity,
-  WorkflowIdentity
-}
-import org.apache.texera.amber.core.workflow.PhysicalOp
+import org.apache.texera.amber.engine.common.BarePhysicalPlanFixture
 import org.jgrapht.graph.DirectedAcyclicGraph
 import org.scalatest.flatspec.AnyFlatSpec
 
 import scala.jdk.CollectionConverters.CollectionHasAsScala
 
-class SchedulingUtilsSpec extends AnyFlatSpec {
-
-  private def region(regionId: Long, opId: String): Region = {
-    val physicalOp = PhysicalOp(
-      PhysicalOpIdentity(OperatorIdentity(opId), "main"),
-      WorkflowIdentity(0),
-      ExecutionIdentity(0),
-      OpExecInitInfo.Empty
-    )
-    Region(RegionIdentity(regionId), Set(physicalOp), Set.empty)
-  }
+class SchedulingUtilsSpec extends AnyFlatSpec with BarePhysicalPlanFixture {
 
   private def newGraph(): DirectedAcyclicGraph[Region, RegionLink] =
     new DirectedAcyclicGraph[Region, RegionLink](classOf[RegionLink])

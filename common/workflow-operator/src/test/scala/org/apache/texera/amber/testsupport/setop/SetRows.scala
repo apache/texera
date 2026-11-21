@@ -20,11 +20,7 @@
 package org.apache.texera.amber.testsupport.setop
 
 import org.apache.texera.amber.core.tuple.{AttributeType, Schema, Tuple, TupleLike}
-
-import java.nio.charset.StandardCharsets
-import java.nio.file.Files
-import java.util.concurrent.TimeUnit
-import scala.io.Source
+import org.apache.texera.amber.util.PythonTestSupport.runSource
 
 /** The two inputs the set operators' parity tests share, fed to the native
   * executor as tuples and to the export as nullable Arrow-style columns.
@@ -63,13 +59,8 @@ object SetRows {
          |for row in sorted(" ".join(render(v) for v in r) for r in out1df.itertuples(index=False)):
          |    print(row)
          |""".stripMargin
-    val script = Files.createTempFile(prefix, ".py")
-    script.toFile.deleteOnExit()
-    Files.write(script, driver.getBytes(StandardCharsets.UTF_8))
-    val process = new ProcessBuilder(python, script.toString).redirectErrorStream(true).start()
-    val out = Source.fromInputStream(process.getInputStream, "UTF-8").mkString
-    process.waitFor(120, TimeUnit.SECONDS)
-    if (process.exitValue() != 0) {
+    val (exitCode, out) = runSource(python, prefix, driver)
+    if (exitCode != 0) {
       throw new AssertionError(s"python said:\n$out\nscript:\n$driver")
     }
     out.linesIterator.toSeq

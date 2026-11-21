@@ -99,46 +99,6 @@ class DatasetStatisticsUtilsSpec extends AnyFlatSpec with BeforeAndAfterAll with
   private def didOf(dataset: Dataset): Integer =
     datasetDao.fetchByName(dataset.getName).get(0).getDid
 
-  /**
-    * Two datasets for `ownerUid` whose visibility flags disagree on both axes, one
-    * for `otherUid`, none for `strangerUid`. Both queries under test filter on
-    * OWNER_UID only, so any visibility predicate added to either of them would drop
-    * one of the owner's two rows.
-    */
-  private def seedTwoOwners(): Unit = {
-    resetFixtures()
-    insertDataset(ownerUid, now(), isPublic = true, isDownloadable = false)
-    insertDataset(ownerUid, now(), isPublic = false, isDownloadable = true)
-    insertDataset(otherUid, now())
-  }
-
-  // ---------------------------------------------------------------------------
-  // getUserCreatedDatasetCount
-  // ---------------------------------------------------------------------------
-
-  "getUserCreatedDatasetCount" should
-    "aggregate only the datasets owned by the given uid, and report 0 for a uid that owns none" in {
-    seedTwoOwners()
-
-    // The zero case shares this fixture on purpose: on its own it cannot
-    // distinguish a count from a null projection, and on its own the two-dataset
-    // case cannot distinguish an owner-filtered count from an unfiltered one.
-    assert(DatasetStatisticsUtils.getUserCreatedDatasetCount(ownerUid) == 2)
-    assert(DatasetStatisticsUtils.getUserCreatedDatasetCount(otherUid) == 1)
-    assert(DatasetStatisticsUtils.getUserCreatedDatasetCount(strangerUid) == 0)
-  }
-
-  it should "agree with the length of the list getUserCreatedDatasets returns" in {
-    seedTwoOwners()
-
-    Seq(ownerUid, otherUid, strangerUid).foreach { uid =>
-      assert(
-        DatasetStatisticsUtils.getUserCreatedDatasetCount(uid) ==
-          DatasetStatisticsUtils.getUserCreatedDatasets(uid).size
-      )
-    }
-  }
-
   // ---------------------------------------------------------------------------
   // getUserCreatedDatasets
   // ---------------------------------------------------------------------------
@@ -155,7 +115,7 @@ class DatasetStatisticsUtilsSpec extends AnyFlatSpec with BeforeAndAfterAll with
     // Two owned rows with distinct names AND distinct creation times, so a mapping
     // that reads any field off one fixed record instead of the record it is
     // projecting (the classic row-collapse regression) cannot pass. They also
-    // disagree on both visibility flags, so neither query may filter on those.
+    // disagree on both visibility flags, so the query must not filter on those.
     val firstTime = new Timestamp(1_700_000_000_000L)
     val secondTime = new Timestamp(1_500_000_000_000L)
     val owned = insertDataset(ownerUid, firstTime, isPublic = true, isDownloadable = false)

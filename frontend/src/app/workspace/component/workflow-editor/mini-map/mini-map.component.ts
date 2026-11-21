@@ -55,7 +55,6 @@ export class MiniMapComponent implements AfterViewInit, OnDestroy {
   paper!: joint.dia.Paper;
   /** The mini-map's own paper, as opposed to `paper`, which is the main canvas's. */
   private ownPaper!: joint.dia.Paper;
-  private map!: HTMLElement;
   dragging = false;
   hidden = false;
 
@@ -69,7 +68,6 @@ export class MiniMapComponent implements AfterViewInit, OnDestroy {
     // This component's own element, not whichever the document holds first: both views of a
     // workflow mount a mini-map, and they overlap for a tick when the switch routes between them.
     const map = (this.elementRef.nativeElement as HTMLElement).querySelector<HTMLElement>("#mini-map")!;
-    this.map = map;
     this.scale = map.offsetWidth / (MAIN_CANVAS.xMax - MAIN_CANVAS.xMin);
     this.ownPaper = new joint.dia.Paper({
       el: map,

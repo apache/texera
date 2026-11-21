@@ -15,21 +15,4 @@
 # specific language governing permissions and limitations
 # under the License.
 
-apiVersion: v1
-kind: Service
-metadata:
-  name: {{ .Values.workflowCompilingService.name }}-svc
-  namespace: {{ .Release.Namespace }}
-spec:
-  type: {{ .Values.workflowCompilingService.service.type }}
-  selector:
-    app: {{ .Release.Name }}-{{ .Values.workflowCompilingService.name }}
-  ports:
-    - name: api-port
-      protocol: TCP
-      port: {{ .Values.workflowCompilingService.service.port }}
-      targetPort: {{ .Values.workflowCompilingService.service.port }}
-      # if service type is set to NodePort, include nodePort attribute
-      {{- if eq .Values.workflowCompilingService.service.type "NodePort" }}
-      nodePort: {{ .Values.workflowCompilingService.service.nodePort }}
-      {{- end }}
+{{ include "texera.releaseService" (dict "release" .Release "name" .Values.workflowCompilingService.name "serviceType" .Values.workflowCompilingService.service.type "port" .Values.workflowCompilingService.service.port "nodePort" .Values.workflowCompilingService.service.nodePort "portName" "api-port" "useNodePort" true) }}

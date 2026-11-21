@@ -19,6 +19,8 @@
 
 package org.apache.texera.amber.operator.visualization.barChart
 
+import org.apache.texera.amber.operator.visualization.StandaloneChartCode._
+import org.apache.texera.amber.operator.visualization.PythonCodeFragment._
 import com.fasterxml.jackson.annotation.{JsonProperty, JsonPropertyDescription}
 import com.kjetland.jackson.jsonSchema.annotations.{JsonSchemaInject, JsonSchemaTitle}
 import org.apache.texera.amber.pybuilder.PythonTemplateBuilder.{
@@ -35,15 +37,7 @@ import org.apache.texera.amber.pybuilder.PythonTemplateBuilder
 import javax.validation.constraints.NotNull
 
 //type constraint: value can only be numeric
-@JsonSchemaInject(json = """
-{
-  "attributeTypeRules": {
-    "value": {
-      "enum": ["integer", "long", "double"]
-    }
-  }
-}
-""")
+@JsonSchemaInject(json = PythonVisualizationOpDesc.NumericValueRuleJson)
 class BarChartOpDesc extends PythonVisualizationOpDesc with PlotlyStandaloneCode {
 
   @JsonProperty(value = "value", required = true)
@@ -123,10 +117,7 @@ class BarChartOpDesc extends PythonVisualizationOpDesc with PlotlyStandaloneCode
          |class ProcessTableOperator(UDFTableOperator):
          |
          |    # Generate custom error message as html string
-         |    def render_error(self, error_msg) -> str:
-         |        return '''<h1>Bar chart is not available.</h1>
-         |                  <p>Reason is: {} </p>
-         |               '''.format(error_msg)
+         |${runtimeError("Bar chart is not available.", typed = true)}
          |
          |    @overrides
          |    def process_table(self, table: Table, port: int) -> Iterator[Optional[TableLike]]:
@@ -168,10 +159,7 @@ class BarChartOpDesc extends PythonVisualizationOpDesc with PlotlyStandaloneCode
     // line keeps the runtime path's indentation, since the HTML is triple-quoted
     // and those spaces reach the browser. Empty is checked before the dropna, since an empty
     // table read back from JSONL has no columns to name, and chart_df keeps the input whole.
-    s"""def render_error(error_msg):
-       |    return '''<h1>Bar chart is not available.</h1>
-       |                  <p>Reason is: {} </p>
-       |               '''.format(error_msg)
+    s"""${standaloneError("Bar chart is not available.")}
        |
        |def fail(error_msg):
        |    with open(outputHtml, "w", encoding="utf-8") as output:
@@ -189,8 +177,6 @@ class BarChartOpDesc extends PythonVisualizationOpDesc with PlotlyStandaloneCode
        |    else:
        |        fig = go.Figure(px.bar(chart_df, $barArgs))
        |        fig.update_layout(margin=dict(l=0, r=0, t=0, b=0))
-       |        fig.write_json(outputJson)
-       |        fig.write_html(outputHtml)
-       |        print("Bar chart saved to " + outputJson + " and " + outputHtml)""".stripMargin
+       |${standaloneFigure("Bar chart", bothOutputs = true)}""".stripMargin
   }
 }

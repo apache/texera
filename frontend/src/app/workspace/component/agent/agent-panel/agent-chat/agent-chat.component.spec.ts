@@ -712,6 +712,197 @@ describe("AgentChatComponent", () => {
       expect(messages[1].querySelector("button")).toBeTruthy();
     });
 
+    describe("links in a message", () => {
+      // <markdown> fills its element after an awaited parse(), so a macrotask has to pass
+      // before the rendered links exist.
+      const flushMarkdown = async (): Promise<void> => {
+        fixture.detectChanges();
+        await new Promise(resolve => setTimeout(resolve, 0));
+        fixture.detectChanges();
+      };
+
+      const renderMessage = async (content: string, role: "user" | "agent" = "agent"): Promise<void> => {
+        createComponent();
+        agentService.stepsSubject.next([makeStep({ messageId: "m1", stepId: 1, role, content, isBegin: true })]);
+        await flushMarkdown();
+      };
+
+      const links = (): HTMLAnchorElement[] =>
+        Array.from(fixture.nativeElement.querySelectorAll(".messages-container a") as NodeListOf<HTMLAnchorElement>);
+
+      const linkNamed = (text: string): HTMLAnchorElement => {
+        const found = links().find(a => a.textContent === text);
+        expect(found, `expected a rendered link with the text "${text}"`).toBeTruthy();
+        return found!;
+      };
+
+      const opensInNewTab = (a: HTMLAnchorElement): boolean =>
+        a.getAttribute("target") === "_blank" && a.getAttribute("rel") === "noopener noreferrer";
+
+      const untouched = (a: HTMLAnchorElement): boolean => !a.hasAttribute("target") && !a.hasAttribute("rel");
+
+      it("opens a web link in a new tab without handing it the opener", async () => {
+        await renderMessage(
+          "See the [Limit docs](https://texera.apache.org/docs/latest/reference/operators/data-cleaning/limit/) and [plain http](http://example.com/a?b=1#c)."
+        );
+
+        const docs = linkNamed("Limit docs");
+        expect(docs.getAttribute("href")).toBe(
+          "https://texera.apache.org/docs/latest/reference/operators/data-cleaning/limit/"
+        );
+        expect(opensInNewTab(docs)).toBe(true);
+        expect(opensInNewTab(linkNamed("plain http"))).toBe(true);
+      });
+
+      it("opens a protocol-relative link and a bare URL in the text in a new tab", async () => {
+        await renderMessage("Try [cdn](//cdn.example.com/lib.js) or https://texera.apache.org/docs/latest/ directly.");
+
+        expect(opensInNewTab(linkNamed("cdn"))).toBe(true);
+        expect(opensInNewTab(linkNamed("https://texera.apache.org/docs/latest/"))).toBe(true);
+      });
+
+      // A rendered link is not a router link and the app has <base href="/">, so each of these
+      // would load another page of the app in the editor's tab.
+      it("opens an anchor link in a new tab, since it resolves to the app root", async () => {
+        await renderMessage("Jump to [the summary](#summary).");
+
+        const anchor = linkNamed("the summary");
+        expect(anchor.getAttribute("href")).toBe("#summary");
+        expect(opensInNewTab(anchor)).toBe(true);
+      });
+
+      it("opens a link without a protocol and an absolute path in a new tab", async () => {
+        await renderMessage("Open [the docs](texera.apache.org/docs) or [your datasets](/dashboard/user/dataset).");
+
+        expect(opensInNewTab(linkNamed("the docs"))).toBe(true);
+        expect(opensInNewTab(linkNamed("your datasets"))).toBe(true);
+      });
+
+      it("opens a full link to this app, and to this host on another port, in a new tab", async () => {
+        await renderMessage(
+          `Back to [this workflow](${window.location.origin}/user/workflow/9) or [the server](http://${window.location.hostname}:8080).`
+        );
+
+        expect(opensInNewTab(linkNamed("this workflow"))).toBe(true);
+        expect(opensInNewTab(linkNamed("the server"))).toBe(true);
+      });
+
+      it("opens a link with an empty address in a new tab, since it resolves to the app root", async () => {
+        await renderMessage("An [empty]() link.");
+
+        const empty = linkNamed("empty");
+        expect(empty.getAttribute("href")).toBe("");
+        expect(opensInNewTab(empty)).toBe(true);
+      });
+
+      it("leaves a link whose address cannot be parsed as it is", async () => {
+        await renderMessage("A [broken](http://) link.");
+
+        expect(untouched(linkNamed("broken"))).toBe(true);
+      });
+
+      it("replaces the target and rel a link already carries", async () => {
+        await renderMessage('Raw <a href="https://example.org/" target="_self" rel="opener">html link</a>.');
+
+        const raw = linkNamed("html link");
+        expect(raw.getAttribute("target")).toBe("_blank");
+        expect(raw.getAttribute("rel")).toBe("noopener noreferrer");
+      });
+
+      it("leaves a link that is not http as it is", async () => {
+        await renderMessage("Write to [the list](mailto:dev@texera.apache.org).");
+
+        const mail = linkNamed("the list");
+        expect(mail.getAttribute("href")).toBe("mailto:dev@texera.apache.org");
+        expect(untouched(mail)).toBe(true);
+      });
+
+      it("leaves a javascript link as it is", async () => {
+        // Angular warns when it defuses the address.
+        vi.spyOn(console, "warn").mockImplementation(() => {});
+        await renderMessage("Do not [run this](javascript:void(0)).");
+
+        const script = linkNamed("run this");
+        expect(script.getAttribute("href")).toBe("unsafe:javascript:void(0)");
+        expect(untouched(script)).toBe(true);
+      });
+
+      it("renders a message without links unchanged", async () => {
+        await renderMessage("No links here, only **bold** text.");
+
+        expect(links()).toEqual([]);
+        expect(fixture.nativeElement.querySelector(".messages-container strong")?.textContent).toBe("bold");
+      });
+
+      it("handles each link of a message on its own", async () => {
+        await renderMessage(
+          "[out](https://example.org/) then [mail](mailto:dev@texera.apache.org) then [out again](https://example.net/x)"
+        );
+
+        expect(links().map(a => [a.textContent, opensInNewTab(a)])).toEqual([
+          ["out", true],
+          ["mail", false],
+          ["out again", true],
+        ]);
+      });
+
+      it("applies to a link the user typed as well", async () => {
+        await renderMessage("what is https://texera.apache.org/docs/latest/ about?", "user");
+
+        expect(opensInNewTab(linkNamed("https://texera.apache.org/docs/latest/"))).toBe(true);
+      });
+
+      it("handles the links again when a message is rendered again with new text", async () => {
+        await renderMessage("Looking it up.");
+        expect(links()).toEqual([]);
+
+        // The same step arrives again with more text.
+        agentService.stepsSubject.next([
+          makeStep({
+            messageId: "m1",
+            stepId: 1,
+            role: "agent",
+            content: "Looking it up. Found the [guide](https://texera.apache.org/docs/latest/tutorials/).",
+            isBegin: true,
+          }),
+        ]);
+        await flushMarkdown();
+        expect(opensInNewTab(linkNamed("guide"))).toBe(true);
+
+        // A later render turns the link into a mail link: the new-tab marks must not stick.
+        agentService.stepsSubject.next([
+          makeStep({
+            messageId: "m1",
+            stepId: 1,
+            role: "agent",
+            content: "Ask [guide](mailto:dev@texera.apache.org).",
+            isBegin: true,
+          }),
+        ]);
+        await flushMarkdown();
+        expect(untouched(linkNamed("guide"))).toBe(true);
+      });
+
+      it("handles the links of every message in the conversation", async () => {
+        createComponent();
+        agentService.stepsSubject.next([
+          makeStep({ messageId: "m1", stepId: 0, role: "user", content: "where are the docs?" }),
+          makeStep({
+            messageId: "m1",
+            stepId: 1,
+            role: "agent",
+            content: "[first](https://a.example/)",
+            isBegin: true,
+          }),
+          makeStep({ messageId: "m1", stepId: 2, role: "agent", content: "[second](https://b.example/)", isEnd: true }),
+        ]);
+        await flushMarkdown();
+
+        expect(opensInNewTab(linkNamed("first"))).toBe(true);
+        expect(opensInNewTab(linkNamed("second"))).toBe(true);
+      });
+    });
+
     it("pluralises the tool-call summary and opens the details modal from the hover button", () => {
       createComponent();
       // A pure tool-call step carries no text, so nothing here waits on <markdown>.

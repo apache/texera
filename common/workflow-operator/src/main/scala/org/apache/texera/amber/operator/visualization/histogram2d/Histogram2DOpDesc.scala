@@ -18,6 +18,8 @@
 
 package org.apache.texera.amber.operator.visualization.histogram2d
 
+import org.apache.texera.amber.operator.visualization.StandaloneChartCode._
+import org.apache.texera.amber.operator.visualization.PythonCodeFragment._
 import com.fasterxml.jackson.annotation.{JsonProperty, JsonPropertyDescription}
 import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaTitle
 import org.apache.texera.amber.pybuilder.PythonTemplateBuilder.{
@@ -91,15 +93,11 @@ class Histogram2DOpDesc extends PythonVisualizationOpDesc with PlotlyStandaloneC
        |    @overrides
        |    def process_table(self, table: Table, port: int) -> Iterator[Optional[TableLike]]:
        |        # Empty-table guard
-       |        if table.empty:
-       |            yield {"html-content": self.render_error("Input table is empty.")}
-       |            return
+       |${emptyTableGuard("Input table is empty.", bodyIndent = 4, doubleQuoted = true)}
        |
        |        # Drop rows with missing x/y
        |        table.dropna(subset=[$xColumn, $yColumn], inplace=True)
-       |        if table.empty:
-       |            yield {"html-content": self.render_error("No rows after dropping nulls.")}
-       |            return
+       |${emptyTableGuard("No rows after dropping nulls.", bodyIndent = 4, doubleQuoted = true)}
        |
        |        fig = px.density_heatmap(
        |            table,
@@ -111,8 +109,7 @@ class Histogram2DOpDesc extends PythonVisualizationOpDesc with PlotlyStandaloneC
        |            text_auto=True
        |        )
        |
-       |        html = plotly.io.to_html(fig, include_plotlyjs='cdn', auto_play=False)
-       |        yield {"html-content": html}
+       |${plotlyHtmlYield(doubleQuoted = true)}
        |""".encode
   }
 
@@ -129,13 +126,11 @@ class Histogram2DOpDesc extends PythonVisualizationOpDesc with PlotlyStandaloneC
        |    return f"<h1>2D Histogram failed</h1><p>{msg}</p>"
        |
        |if in1df.empty:
-       |    with open(outputHtml, "w", encoding="utf-8") as output:
-       |        output.write(render_error("Input table is empty."))
+       |${standaloneErrorPage("Input table is empty.")}
        |else:
        |    chart_df = in1df.dropna(subset=[$xLit, $yLit])
        |    if chart_df.empty:
-       |        with open(outputHtml, "w", encoding="utf-8") as output:
-       |            output.write(render_error("No rows after dropping nulls."))
+       |${standaloneErrorPage("No rows after dropping nulls.", indent = 8)}
        |    else:
        |        fig = px.density_heatmap(
        |            chart_df,
@@ -146,8 +141,6 @@ class Histogram2DOpDesc extends PythonVisualizationOpDesc with PlotlyStandaloneC
        |            histnorm='${normalize.getValue}',
        |            text_auto=True
        |        )
-       |        fig.write_json(outputJson)
-       |        fig.write_html(outputHtml)
-       |        print("2D histogram saved to " + outputJson + " and " + outputHtml)""".stripMargin
+       |${standaloneFigure("2D histogram", bothOutputs = true)}""".stripMargin
   }
 }

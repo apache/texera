@@ -367,7 +367,7 @@ describe("TexeraAgent DAG result formatting", () => {
  * LanguageModelV4FinishReason is an object, not a string: a bare `finishReason: "stop"` runs fine
  * under `bun test` but fails `tsc --noEmit`, so the mocks below build it through here.
  */
-const finish = (unified: "stop" | "tool-calls") => ({ unified, raw: undefined });
+const finish = (unified: "stop" | "tool-calls" | "length") => ({ unified, raw: undefined });
 
 /**
  * LanguageModelV4Usage is nested. A flat `{ inputTokens: 11 }` is silently discarded, and every
@@ -537,7 +537,7 @@ describe("sendMessage", () => {
       { toolName: "deleteOperator", toolCallId: "c1", input: { operatorId: "ghost" } },
     ]);
     expect(steps[1].toolResults).toEqual([
-      { toolCallId: "c1", output: "[ERROR] Operator ghost not found", isError: false },
+      { toolCallId: "c1", output: "[ERROR] Operator ghost not found", isError: true },
     ]);
     expect(steps[1].content).toBe("");
     expect(steps.map(s => [s.stepId, s.isBegin, s.isEnd])).toEqual([
@@ -546,6 +546,7 @@ describe("sendMessage", () => {
       [2, false, true],
     ]);
     expect(steps[2].parentId).toBe(steps[1].id);
+    expect(steps[2].inputMessages?.[0]?.content).toContain("- deleteOperator (failed)");
     expect(urls).toEqual([]);
   });
 
@@ -583,14 +584,149 @@ describe("sendMessage", () => {
       return { ok: true, json: async () => ({ operatorOutputSchemas: {}, operatorErrors: {} }) } as any;
     }) as any);
     await agent.sendMessage("del");
-    const counts = agent
-      .getAllSteps()
-      .map(s => [s.role, s.beforeWorkflowContent?.operators.length, s.afterWorkflowContent?.operators.length]);
+    const steps = agent.getAllSteps();
+    const counts = steps.map(s => [
+      s.role,
+      s.beforeWorkflowContent?.operators.length,
+      s.afterWorkflowContent?.operators.length,
+    ]);
     expect(counts).toEqual([
       ["user", 1, 1],
       ["agent", 1, 0],
       ["agent", 0, 0],
     ]);
+    expect(steps[1].toolResults).toEqual([{ toolCallId: "c1", output: "Deleted operator: op1", isError: false }]);
+    expect(steps[2].inputMessages?.[0]?.content).toContain("- deleteOperator (succeeded)");
+  });
+
+  test.each([new Error("The operation was aborted."), "tool failed", null])(
+    "preserves a thrown tool error in stored JSON and subsequent context: %p",
+    async thrown => {
+      let n = 0;
+      const model = new MockLanguageModelV4({
+        doGenerate: async () => {
+          n++;
+          return {
+            content:
+              n === 1
+                ? [
+                    {
+                      type: "tool-call",
+                      toolCallId: "c1",
+                      toolName: "deleteOperator",
+                      input: JSON.stringify({ operatorId: "ghost" }),
+                    },
+                  ]
+                : [{ type: "text", text: "done" }],
+            finishReason: finish(n === 1 ? "tool-calls" : "stop"),
+            usage: usage(1, 1),
+            warnings: [],
+          } as any;
+        },
+      });
+      const agent = makeAgentWith(model);
+      const throwingTool = spyOn((agent as any).tools.deleteOperator, "execute").mockImplementation(async () => {
+        throw thrown;
+      });
+      try {
+        await agent.sendMessage("delete it");
+        const steps = agent.getAllSteps();
+        const expected = thrown instanceof Error ? thrown.message : String(thrown);
+        expect(steps[1].toolResults).toEqual([{ toolCallId: "c1", output: expected, isError: true }]);
+        expect(JSON.parse(JSON.stringify(steps))[1].toolResults[0].output).toBe(expected);
+        expect(steps[2].inputMessages?.[0]?.content).toContain(`  - Error:\n    ${expected}`);
+      } finally {
+        throwingTool.mockRestore();
+      }
+    }
+  );
+
+  test("a length-limited tool call is not executed and appears as failed on the next turn", async () => {
+    let n = 0;
+    const model = new MockLanguageModelV4({
+      doGenerate: async () => {
+        n++;
+        return {
+          content:
+            n === 1
+              ? [
+                  {
+                    type: "tool-call",
+                    toolCallId: "c1",
+                    toolName: "deleteOperator",
+                    input: JSON.stringify({ operatorId: "ghost" }),
+                  },
+                ]
+              : [{ type: "text", text: "done" }],
+          finishReason: finish(n === 1 ? "length" : "stop"),
+          usage: usage(1, 1),
+          warnings: [],
+        } as any;
+      },
+    });
+    const agent = makeAgentWith(model);
+    const execute = spyOn((agent as any).tools.deleteOperator, "execute");
+    try {
+      await agent.sendMessage("delete it");
+      expect(execute).not.toHaveBeenCalled();
+      expect(agent.getAllSteps()[1].toolResults).toEqual([]);
+      await agent.sendMessage("continue");
+      expect(agent.getAllSteps().at(-1)?.inputMessages?.[0]?.content).toContain("- deleteOperator (failed)");
+    } finally {
+      execute.mockRestore();
+    }
+  });
+
+  test("leaves disabled tools out of the model call but still lists them", async () => {
+    const model = textModel("ok");
+    const agent = makeAgentWith(model);
+    agent.updateSettings({ disabledTools: new Set(["modifyOperator"]) });
+    await agent.sendMessage("go");
+    const call = (model as any).doGenerateCalls[0];
+    expect(call.tools.map((t: any) => t.name)).toEqual(["deleteOperator", "addOperator"]);
+    expect(agent.getSystemInfo().tools.map(t => [t.name, t.enabled])).toEqual([
+      ["deleteOperator", true],
+      ["addOperator", true],
+      ["modifyOperator", false],
+    ]);
+  });
+
+  test("a disabled tool does not run when the model calls it anyway", async () => {
+    let n = 0;
+    const model = new MockLanguageModelV4({
+      doGenerate: async () => {
+        n++;
+        if (n === 1)
+          return {
+            content: [
+              {
+                type: "tool-call",
+                toolCallId: "c1",
+                toolName: "deleteOperator",
+                input: JSON.stringify({ operatorId: "op1" }),
+              },
+            ],
+            finishReason: finish("tool-calls"),
+            usage: usage(1, 1),
+            warnings: [],
+          } as any;
+        return {
+          content: [{ type: "text", text: "x" }],
+          finishReason: finish("stop"),
+          usage: usage(1, 1),
+          warnings: [],
+        } as any;
+      },
+    });
+    const agent = makeAgentWith(model);
+    agent.updateSettings({ disabledTools: new Set(["deleteOperator"]) });
+    agent.getWorkflowState().addOperator(srcOp("op1") as any);
+    fetchSpy.mockImplementation((async (u: any) => {
+      urls.push(String(u));
+      return { ok: true, json: async () => ({ operatorOutputSchemas: {}, operatorErrors: {} }) } as any;
+    }) as any);
+    await agent.sendMessage("del");
+    expect(agent.getWorkflowState().getOperator("op1")).toBeDefined();
   });
 
   test("caps the loop at maxSteps", async () => {
@@ -1075,9 +1211,7 @@ describe("delegate mode", () => {
     }
   });
 
-  test("a tool call missing operatorId does not trigger a whole-workflow run", async () => {
-    // Without the guard an incomplete tool call falls through to a run of the entire workflow, which is
-    // both expensive and not what was asked for.
+  test("an SDK-rejected modifyOperator is recorded as failed and does not run", async () => {
     dispatch(okExec);
     let n = 0;
     const model = new MockLanguageModelV4({
@@ -1102,7 +1236,9 @@ describe("delegate mode", () => {
     agent.setDelegateConfig({ userToken: "tok", workflowId: 7 });
     await agent.sendMessage("bad call");
     const step = agent.getAllSteps()[1];
-    expect(step.toolResults).toEqual([]);
+    expect(step.toolResults).toHaveLength(1);
+    expect(step.toolResults?.[0]).toMatchObject({ toolCallId: "c1", isError: true });
+    expect(agent.getAllSteps()[2].inputMessages?.[0]?.content).toContain("- modifyOperator (failed)");
     expect(urls.some(u => u.includes("/api/execution/"))).toBe(false);
   });
 

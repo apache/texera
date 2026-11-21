@@ -18,6 +18,8 @@
  */
 package org.apache.texera.amber.operator.visualization.timeSeriesplot
 
+import org.apache.texera.amber.operator.visualization.StandaloneChartCode._
+import org.apache.texera.amber.operator.visualization.PythonCodeFragment._
 import com.fasterxml.jackson.annotation.{JsonProperty, JsonPropertyDescription}
 import com.kjetland.jackson.jsonSchema.annotations.{JsonSchemaInject, JsonSchemaTitle}
 import org.apache.texera.amber.pybuilder.PythonTemplateBuilder.PythonTemplateBuilderStringContext
@@ -123,17 +125,13 @@ class TimeSeriesOpDesc extends PythonVisualizationOpDesc with PlotlyStandaloneCo
        |
        |    @overrides
        |    def process_table(self, table: Table, port: int):
-       |        if table.empty:
-       |            yield {'html-content': self.render_error("Input table is empty.")}
-       |            return
+       |${emptyTableGuard("Input table is empty.", bodyIndent = 4)}
        |
        |        try:
        |            table[$timeColumn] = pd.to_datetime(table[$timeColumn], errors='coerce')
        |            table = table.dropna(subset=$dropnaStr).sort_values(by=$timeColumn)
        |
-       |            if table.empty:
-       |                yield {'html-content': self.render_error("Table became empty after filtering.")}
-       |                return
+       |${emptyTableGuard("Table became empty after filtering.", indent = 12, bodyIndent = 4)}
        |
        |            fig = $plotFunc(table, x=$timeColumn, y=$valueColumn$colorArg$facetArg)
        |
@@ -148,8 +146,7 @@ class TimeSeriesOpDesc extends PythonVisualizationOpDesc with PlotlyStandaloneCo
        |                template="plotly_white"
        |            )
        |
-       |            html = plotly.io.to_html(fig, include_plotlyjs='cdn', full_html=False)
-       |            yield {'html-content': html}
+       |${plotlyHtmlYield(indent = 12, extraArgs = "full_html=False")}
        |
        |        except Exception as e:
        |            yield {'html-content': self.render_error(str(e))}
@@ -175,16 +172,14 @@ class TimeSeriesOpDesc extends PythonVisualizationOpDesc with PlotlyStandaloneCo
        |    return f"<h1>Time Series Plot is not available.</h1><p>Reason: {msg}</p>"
        |
        |if in1df.empty:
-       |    with open(outputHtml, "w", encoding="utf-8") as output:
-       |        output.write(render_error("Input table is empty."))
+       |${standaloneErrorPage("Input table is empty.")}
        |else:
        |    try:
        |        table = in1df.copy()
        |        table[$timeLit] = pd.to_datetime(table[$timeLit], errors='coerce')
        |        table = table.dropna(subset=$dropnaStr).sort_values(by=$timeLit)
        |        if table.empty:
-       |            with open(outputHtml, "w", encoding="utf-8") as output:
-       |                output.write(render_error("Table became empty after filtering."))
+       |${standaloneErrorPage("Table became empty after filtering.", indent = 12)}
        |        else:
        |            fig = $plotFunc(table, x=$timeLit, y=$valueLit$colorArg$facetArg)
        |            if $showSlider:
@@ -196,9 +191,7 @@ class TimeSeriesOpDesc extends PythonVisualizationOpDesc with PlotlyStandaloneCo
        |                yaxis_title=$valueLit,
        |                template="plotly_white"
        |            )
-       |            fig.write_json(outputJson)
-       |            fig.write_html(outputHtml)
-       |            print("Time series plot saved to " + outputHtml)
+       |${standaloneFigure("Time series plot", indent = 12)}
        |    except Exception as e:
        |        with open(outputHtml, "w", encoding="utf-8") as output:
        |            output.write(render_error(str(e)))""".stripMargin

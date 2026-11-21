@@ -58,6 +58,7 @@ import org.apache.texera.amber.pybuilder.PyStringTypes.EncodableString
   * `PythonCodeRawInvalidTextSpec`'s contract that arbitrary `@JsonProperty`
   * values must not leak into generated source.
   */
+@SerialVersionUID(-3887825915400170939L)
 class HuggingFaceInferenceOpDesc extends PythonOperatorDescriptor {
 
   @JsonProperty(value = "hfApiToken", required = true)
@@ -169,15 +170,10 @@ class HuggingFaceInferenceOpDesc extends PythonOperatorDescriptor {
     * keeps `generatePythonCode` total (it never throws on arbitrary input,
     * which is required by `PythonCodeRawInvalidTextSpec`).
     */
-  private val registeredCodegens: Map[String, TaskCodegen] = {
-    val byTask = scala.collection.mutable.Map.empty[String, TaskCodegen]
-    byTask += (TextGenCodegen.task -> TextGenCodegen)
-    ImageTaskCodegen.tasks.foreach(t => byTask += (t -> ImageTaskCodegen))
-    AudioTaskCodegen.tasks.foreach(t => byTask += (t -> AudioTaskCodegen))
-    MediaGenCodegen.tasks.foreach(t => byTask += (t -> MediaGenCodegen))
-    QaRankingCodegen.tasks.foreach(t => byTask += (t -> QaRankingCodegen))
-    byTask.toMap
-  }
+  private val registeredCodegens: Map[String, TaskCodegen] =
+    Seq(TextGenCodegen, ImageTaskCodegen, AudioTaskCodegen, MediaGenCodegen, QaRankingCodegen)
+      .flatMap(codegen => codegen.tasks.map(task => task -> codegen))
+      .toMap
 
   private def codegenForTask(t: String): TaskCodegen =
     registeredCodegens.getOrElse(t, TextGenCodegen)
@@ -200,52 +196,24 @@ class HuggingFaceInferenceOpDesc extends PythonOperatorDescriptor {
   override def generatePythonCode(): String = {
     val safeTask: EncodableString =
       if (task == null || task.trim.isEmpty) "text-generation" else task
-    val safeModelId: EncodableString =
-      if (modelId == null) "" else modelId.trim
-    val safePromptCol: EncodableString =
-      if (promptColumn == null) "" else promptColumn
-    val safeResultCol: EncodableString = resolvedResultColumn
-    val safeSystemPrompt: EncodableString =
-      if (systemPrompt == null) "" else systemPrompt
-    val safeToken: EncodableString =
-      if (hfApiToken == null) "" else hfApiToken
-
-    val safeMaxTokens =
-      math.max(1, math.min(if (maxNewTokens != null) maxNewTokens.intValue else 256, 4096))
-    val safeTemp =
-      math.max(0.0, math.min(if (temperature != null) temperature.doubleValue else 0.7, 2.0))
-
-    val safeImageInput: EncodableString =
-      if (imageInput == null) "" else imageInput
-    val safeInputImageColumn: EncodableString =
-      if (inputImageColumn == null) "" else inputImageColumn
-    val safeAudioInput: EncodableString =
-      if (audioInput == null) "" else audioInput
-    val safeInputAudioColumn: EncodableString =
-      if (inputAudioColumn == null) "" else inputAudioColumn
-    val safeContextColumn: EncodableString =
-      if (contextColumn == null) "" else contextColumn
-    val safeCandidateLabels: EncodableString =
-      if (candidateLabels == null) "" else candidateLabels
-    val safeSentencesColumn: EncodableString =
-      if (sentencesColumn == null) "" else sentencesColumn
-
     val ctx = CodegenContext(
-      hfApiToken = safeToken,
-      modelId = safeModelId,
-      promptColumn = safePromptCol,
-      resultColumn = safeResultCol,
-      task = safeTask,
-      systemPrompt = safeSystemPrompt,
-      safeMaxTokens = safeMaxTokens,
-      safeTemp = safeTemp,
-      imageInput = safeImageInput,
-      inputImageColumn = safeInputImageColumn,
-      audioInput = safeAudioInput,
-      inputAudioColumn = safeInputAudioColumn,
-      contextColumn = safeContextColumn,
-      candidateLabels = safeCandidateLabels,
-      sentencesColumn = safeSentencesColumn
+      modelId = if (modelId == null) "" else modelId.trim,
+      promptColumn = if (promptColumn == null) "" else promptColumn,
+      resultColumn = resolvedResultColumn,
+      systemPrompt = if (systemPrompt == null) "" else systemPrompt,
+      hfApiToken = if (hfApiToken == null) "" else hfApiToken,
+      safeMaxTokens =
+        math.max(1, math.min(if (maxNewTokens != null) maxNewTokens.intValue else 256, 4096)),
+      safeTemp =
+        math.max(0.0, math.min(if (temperature != null) temperature.doubleValue else 0.7, 2.0)),
+      imageInput = if (imageInput == null) "" else imageInput,
+      inputImageColumn = if (inputImageColumn == null) "" else inputImageColumn,
+      audioInput = if (audioInput == null) "" else audioInput,
+      inputAudioColumn = if (inputAudioColumn == null) "" else inputAudioColumn,
+      contextColumn = if (contextColumn == null) "" else contextColumn,
+      candidateLabels = if (candidateLabels == null) "" else candidateLabels,
+      sentencesColumn = if (sentencesColumn == null) "" else sentencesColumn,
+      task = safeTask
     )
 
     HuggingFaceCodegenBase.render(ctx, codegenForTask(safeTask))

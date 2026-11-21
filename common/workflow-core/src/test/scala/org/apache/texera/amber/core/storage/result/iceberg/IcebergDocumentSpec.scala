@@ -386,12 +386,12 @@ class IcebergDocumentSpec extends AnyFlatSpec with Matchers with BeforeAndAfterA
       stream.close()
     }
 
-    // The archive should carry at least one .parquet entry.
+    // The archive should carry at least one .parquet entry, named by its zero-padded index.
     val zip = new ZipInputStream(doc.asInputStream())
     try {
       val entry = zip.getNextEntry
       entry should not be null
-      entry.getName should endWith(".parquet")
+      entry.getName shouldBe "part-00000.parquet"
     } finally {
       zip.close()
     }

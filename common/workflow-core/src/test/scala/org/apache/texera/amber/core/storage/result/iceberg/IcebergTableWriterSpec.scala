@@ -190,4 +190,12 @@ class IcebergTableWriterSpec extends AnyFlatSpec with BeforeAndAfterAll {
     assert(readTuples(tableName) == List(tuple(1)), "the tuple must reach the table")
   }
 
+  it should "commit zero snapshots when opened and closed with an empty buffer" in {
+    val tableName = freshTableName()
+    val writer = createWriter(tableName)
+    writer.open()
+    writer.close()
+    assert(loadTable(tableName).snapshots().asScala.isEmpty)
+  }
+
 }

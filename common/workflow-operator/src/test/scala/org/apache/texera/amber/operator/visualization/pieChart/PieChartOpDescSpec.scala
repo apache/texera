@@ -23,21 +23,12 @@ import org.apache.texera.amber.core.tuple.AttributeType
 import org.apache.texera.amber.operator.metadata.OperatorGroupConstants
 import org.scalatest.BeforeAndAfter
 import org.scalatest.flatspec.AnyFlatSpec
-import org.scalatest.matchers.should.Matchers
+import org.apache.texera.amber.operator.GeneratedCodeAssertionChecks
 
-import java.nio.charset.StandardCharsets
-import java.util.Base64
-
-class PieChartOpDescSpec extends AnyFlatSpec with BeforeAndAfter with Matchers {
+class PieChartOpDescSpec extends AnyFlatSpec with BeforeAndAfter with GeneratedCodeAssertionChecks {
   var opDesc: PieChartOpDesc = _
   before {
     opDesc = new PieChartOpDesc()
-  }
-
-  it should "throw assertion error if value is empty" in {
-    assertThrows[AssertionError] {
-      opDesc.manipulateTable()
-    }
   }
 
   "PieChartOpDesc.operatorInfo" should "advertise the user-friendly name and Basic group" in {
@@ -74,9 +65,6 @@ class PieChartOpDescSpec extends AnyFlatSpec with BeforeAndAfter with Matchers {
     code should include("class ProcessTableOperator(UDFTableOperator)")
     code should include("plotly.express")
 
-    def b64(s: String): String =
-      Base64.getEncoder.encodeToString(s.getBytes(StandardCharsets.UTF_8))
-
     code should include(s"self.decode_python_template('${b64("VAL_SENT")}')")
     code should include(s"self.decode_python_template('${b64("NAME_SENT")}')")
     code should not include "VAL_SENT"
@@ -92,16 +80,12 @@ class PieChartOpDescSpec extends AnyFlatSpec with BeforeAndAfter with Matchers {
   }
 
   it should "throw AssertionError naming the Value Column when value is left empty (manipulateTable)" in {
-    val ex = intercept[AssertionError](opDesc.manipulateTable())
-    ex.getMessage should not be null
-    ex.getMessage should include("cannot be empty")
+    val ex = expectError[AssertionError]("cannot be empty")(opDesc.manipulateTable())
     ex.getMessage.toLowerCase should include("value")
   }
 
   it should "throw AssertionError naming the Value Column when value is left empty (createPlotlyFigure)" in {
-    val ex = intercept[AssertionError](opDesc.createPlotlyFigure())
-    ex.getMessage should not be null
-    ex.getMessage should include("cannot be empty")
+    val ex = expectError[AssertionError]("cannot be empty")(opDesc.createPlotlyFigure())
     ex.getMessage.toLowerCase should include("value")
   }
 

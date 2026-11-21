@@ -247,6 +247,22 @@ class PythonProxyServerSpec extends AnyFlatSpec {
     }
   }
 
+  it should "deliver an empty Data put as an empty DataFrame" in {
+    withServer { fixture =>
+      val to =
+        ChannelIdentity(pythonWorkerId, ActorVirtualIdentity("downstream"), isControl = false)
+      val schema = Schema().add(new Attribute("v", AttributeType.INTEGER))
+
+      putBatch(fixture, PythonDataHeader(to, "Data"), ArrowUtils.fromTexeraSchema(schema), _ => ())
+
+      awaitTrue()(fixture.messages.nonEmpty)
+      val out = fixture.messages
+      assert(out.size == 1)
+      assert(out.head.channelId == to)
+      assert(out.head.payload == DataFrame(Array.empty[Tuple]))
+    }
+  }
+
   it should "reassemble a single-row State put into a StateFrame carrying the loop envelope" in {
     withServer { fixture =>
       val to =

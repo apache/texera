@@ -19,6 +19,8 @@
 
 package org.apache.texera.amber.operator.visualization.pieChart
 
+import org.apache.texera.amber.operator.visualization.StandaloneChartCode._
+import org.apache.texera.amber.operator.visualization.PythonCodeFragment._
 import com.fasterxml.jackson.annotation.{JsonProperty, JsonPropertyDescription}
 import com.kjetland.jackson.jsonSchema.annotations.{JsonSchemaInject, JsonSchemaTitle}
 import org.apache.texera.amber.pybuilder.PythonTemplateBuilder.{
@@ -35,15 +37,7 @@ import org.apache.texera.amber.pybuilder.PythonTemplateBuilder
 import javax.validation.constraints.NotNull
 
 // type constraint: value can only be numeric
-@JsonSchemaInject(json = """
-{
-  "attributeTypeRules": {
-    "value": {
-      "enum": ["integer", "long", "double"]
-    }
-  }
-}
-""")
+@JsonSchemaInject(json = PythonVisualizationOpDesc.NumericValueRuleJson)
 class PieChartOpDesc extends PythonVisualizationOpDesc with PlotlyStandaloneCode {
 
   @JsonProperty(value = "value", required = true)
@@ -95,29 +89,21 @@ class PieChartOpDesc extends PythonVisualizationOpDesc with PlotlyStandaloneCode
          |import numpy as np
          |
          |class ProcessTableOperator(UDFTableOperator):
-         |    def render_error(self, error_msg):
-         |        return '''<h1>PieChart is not available.</h1>
-         |                  <p>Reason is: {} </p>
-         |               '''.format(error_msg)
+         |${runtimeError("PieChart is not available.")}
          |
          |    @overrides
          |    def process_table(self, table: Table, port: int) -> Iterator[Optional[TableLike]]:
          |        original_table = table
-         |        if table.empty:
-         |           yield {'html-content': self.render_error("input table is empty.")}
-         |           return
+         |${emptyTableGuard("input table is empty.")}
          |        ${manipulateTable()}
-         |        if table.empty:
-         |           yield {'html-content': self.render_error("value column contains only non-positive numbers.")}
-         |           return
+         |${emptyTableGuard("value column contains only non-positive numbers.")}
          |        duplicates = table.duplicated(subset=[$name])
          |        if duplicates.any():
          |           yield {'html-content': self.render_error("duplicates in name column, need to aggregate")}
          |           return
          |        ${createPlotlyFigure()}
          |        # convert fig to html content
-         |        html = plotly.io.to_html(fig, include_plotlyjs='cdn', auto_play=False)
-         |        yield {'html-content': html}
+         |${plotlyHtmlYield()}
          |
          |"""
     finalcode.encode
@@ -126,29 +112,21 @@ class PieChartOpDesc extends PythonVisualizationOpDesc with PlotlyStandaloneCode
   override def generateStandaloneCode(): String = {
     val nameLit = pyStringLiteral(name)
     val valueLit = pyStringLiteral(value)
-    s"""def render_error(error_msg):
-       |    return '''<h1>PieChart is not available.</h1>
-       |                  <p>Reason is: {} </p>
-       |               '''.format(error_msg)
+    s"""${standaloneError("PieChart is not available.")}
        |
        |if in1df.empty:
-       |    with open(outputHtml, "w", encoding="utf-8") as output:
-       |        output.write(render_error("input table is empty."))
+       |${standaloneErrorPage("input table is empty.")}
        |else:
        |    table = in1df.dropna(subset=[$valueLit, $nameLit])
        |    if table.empty:
-       |        with open(outputHtml, "w", encoding="utf-8") as output:
-       |            output.write(render_error("value column contains only non-positive numbers."))
+       |${standaloneErrorPage("value column contains only non-positive numbers.", indent = 8)}
        |    elif table.duplicated(subset=[$nameLit]).any():
-       |        with open(outputHtml, "w", encoding="utf-8") as output:
-       |            output.write(render_error("duplicates in name column, need to aggregate"))
+       |${standaloneErrorPage("duplicates in name column, need to aggregate", indent = 8)}
        |    else:
        |        fig = px.pie(table, names=$nameLit, values=$valueLit)
        |        fig.update_traces(textposition='inside', textinfo='percent+label')
        |        fig.update_layout(margin=dict(t=0, b=0, l=0, r=0))
-       |        fig.write_json(outputJson)
-       |        fig.write_html(outputHtml)
-       |        print("Pie chart saved to " + outputHtml)""".stripMargin
+       |${standaloneFigure("Pie chart")}""".stripMargin
   }
 
 }

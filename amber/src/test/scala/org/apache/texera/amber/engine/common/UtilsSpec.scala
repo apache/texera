@@ -288,11 +288,13 @@ class UtilsSpec extends AnyFlatSpec {
 
   it should "release the lock when the body throws" in {
     implicit val lock: ReentrantLock = new ReentrantLock()
-    intercept[RuntimeException] {
+    val boom = new RuntimeException("boom")
+    val caught = intercept[RuntimeException] {
       Utils.withLock[Unit] {
-        throw new RuntimeException("boom")
+        throw boom
       }
     }
+    assert(caught eq boom)
     assert(!lock.isHeldByCurrentThread)
   }
 }

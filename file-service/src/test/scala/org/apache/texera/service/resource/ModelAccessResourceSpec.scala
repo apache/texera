@@ -23,7 +23,7 @@ import jakarta.ws.rs.core.Response
 import org.apache.texera.auth.SessionUser
 import org.apache.texera.dao.jooq.generated.enums.PrivilegeEnum
 import org.apache.texera.dao.jooq.generated.tables.daos.ModelDao
-import org.apache.texera.dao.jooq.generated.tables.pojos.{Model, User}
+import org.apache.texera.dao.jooq.generated.tables.pojos.Model
 import org.jooq.DSLContext
 
 class ModelAccessResourceSpec extends AccessResourceBehaviors(ResourceTables.Model) {
@@ -63,8 +63,8 @@ class ModelAccessResourceSpec extends AccessResourceBehaviors(ResourceTables.Mod
   override protected def userCanWrite(ctx: DSLContext, id: Integer, uid: Integer): Boolean =
     ModelAccessResource.userHasWriteAccess(ctx, id, uid)
 
-  override protected def resourceOwner(ctx: DSLContext, id: Integer): User =
-    ModelAccessResource.getOwner(ctx, id)
+  override protected def resourceOwnerEmail(ctx: DSLContext, id: Integer): String =
+    ModelAccessResource.getOwnerEmail(ctx, id)
 
   override protected def grant(
       id: Integer,

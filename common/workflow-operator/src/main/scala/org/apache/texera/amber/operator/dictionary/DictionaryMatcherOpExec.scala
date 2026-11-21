@@ -39,27 +39,13 @@ class DictionaryMatcherOpExec(descString: String) extends MapOpExec {
   var dictionaryEntries: List[String] = _
   var luceneAnalyzer: Analyzer = _
 
-  /** An unmodifiable set containing some common URL words that are not usually useful
-    * for searching.
-    */
-  private final val URL_STOP_WORDS_SET = List[String](
-    "http",
-    "https",
-    "org",
-    "net",
-    "com",
-    "store",
-    "www",
-    "html"
-  )
-
   /**
     * first prepare the dictionary by splitting the values using a comma delimiter then tokenize the split values
     * at the first tuple: inside a loop block the loop state may write the dictionary after open()
     */
   private def prepareDictionary(): Unit = {
     // create the dictionary by splitting the values first
-    dictionaryEntries = desc.dictionary.split(",").toList.map(_.toLowerCase)
+    dictionaryEntries = desc.dictionary.split(",").iterator.map(_.toLowerCase).toList
     if (desc.matchingType == MatchingType.CONJUNCTION_INDEXBASED) {
       // then tokenize each entry
       this.luceneAnalyzer = new EnglishAnalyzer
@@ -131,8 +117,8 @@ class DictionaryMatcherOpExec(descString: String) extends MapOpExec {
       while (tokenStream.incrementToken()) {
         val term = charTermAttribute.toString.toLowerCase
         if (
-          !EnglishAnalyzer.ENGLISH_STOP_WORDS_SET.contains(term) && !URL_STOP_WORDS_SET
-            .contains(term)
+          !EnglishAnalyzer.ENGLISH_STOP_WORDS_SET.contains(term) &&
+          !DictionaryMatcherOpExec.UrlStopWords.contains(term)
         ) {
           tokens += term
         }
@@ -157,4 +143,17 @@ class DictionaryMatcherOpExec(descString: String) extends MapOpExec {
   }
 
   setMapFunc(labelTupleIfMatched)
+}
+
+private object DictionaryMatcherOpExec {
+  private val UrlStopWords: Set[String] = Set(
+    "http",
+    "https",
+    "org",
+    "net",
+    "com",
+    "store",
+    "www",
+    "html"
+  )
 }

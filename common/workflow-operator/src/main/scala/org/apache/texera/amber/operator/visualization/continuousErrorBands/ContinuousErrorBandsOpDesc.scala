@@ -19,6 +19,8 @@
 
 package org.apache.texera.amber.operator.visualization.continuousErrorBands
 
+import org.apache.texera.amber.operator.visualization.StandaloneChartCode._
+import org.apache.texera.amber.operator.visualization.PythonCodeFragment._
 import com.fasterxml.jackson.annotation.{JsonProperty, JsonPropertyDescription}
 import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaTitle
 import org.apache.texera.amber.pybuilder.PythonTemplateBuilder.{
@@ -130,20 +132,14 @@ class ContinuousErrorBandsOpDesc extends PythonVisualizationOpDesc with PlotlySt
          |class ProcessTableOperator(UDFTableOperator):
          |
          |    # Generate custom error message as html string
-         |    def render_error(self, error_msg) -> str:
-         |        return '''<h1>Continuous Error Bands is not available.</h1>
-         |                  <p>Reason is: {} </p>
-         |               '''.format(error_msg)
+         |${runtimeError("Continuous Error Bands is not available.", typed = true)}
          |
          |    @overrides
          |    def process_table(self, table: Table, port: int) -> Iterator[Optional[TableLike]]:
-         |        if table.empty:
-         |           yield {'html-content': self.render_error("input table is empty.")}
-         |           return
+         |${emptyTableGuard("input table is empty.")}
          |        ${createPlotlyFigure()}
          |        # convert fig to html content
-         |        html = plotly.io.to_html(fig, include_plotlyjs='cdn', auto_play=False)
-         |        yield {'html-content': html}
+         |${plotlyHtmlYield()}
          |"""
     finalCode.encode
   }
@@ -205,14 +201,10 @@ class ContinuousErrorBandsOpDesc extends PythonVisualizationOpDesc with PlotlySt
     // The empty-input branch mirrors generatePythonCode's `if table.empty`
     // guard: without it the traces index columns of a frame that has none, and
     // an empty input silently renders a blank chart instead of saying why.
-    s"""def render_error(error_msg):
-       |    return '''<h1>Continuous Error Bands is not available.</h1>
-       |                  <p>Reason is: {} </p>
-       |               '''.format(error_msg)
+    s"""${standaloneError("Continuous Error Bands is not available.")}
        |
        |if in1df.empty:
-       |    with open(outputHtml, "w", encoding="utf-8") as output:
-       |        output.write(render_error("input table is empty."))
+       |${standaloneErrorPage("input table is empty.")}
        |else:
        |    fig = go.Figure()
        |$indentedTraces
@@ -220,8 +212,6 @@ class ContinuousErrorBandsOpDesc extends PythonVisualizationOpDesc with PlotlySt
        |                      xaxis_title=${pyStringLiteral(xLabel)},
        |                      yaxis_title=${pyStringLiteral(yLabel)},
        |                      hovermode="x")
-       |    fig.write_json(outputJson)
-       |    fig.write_html(outputHtml)
-       |    print("Continuous error bands saved to " + outputJson + " and " + outputHtml)""".stripMargin
+       |${standaloneFigure("Continuous error bands", indent = 4, bothOutputs = true)}""".stripMargin
   }
 }

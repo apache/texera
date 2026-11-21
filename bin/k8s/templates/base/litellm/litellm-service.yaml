@@ -16,17 +16,5 @@
 # under the License.
 
 {{- if .Values.litellm.enabled }}
-apiVersion: v1
-kind: Service
-metadata:
-  name: {{ .Values.litellm.name }}-svc
-  namespace: {{ .Release.Namespace }}
-spec:
-  type: {{ .Values.litellm.service.type }}
-  selector:
-    app: {{ .Release.Name }}-{{ .Values.litellm.name }}
-  ports:
-    - protocol: TCP
-      port: {{ .Values.litellm.service.port }}
-      targetPort: {{ .Values.litellm.service.port }}
+{{ include "texera.releaseService" (dict "release" .Release "name" .Values.litellm.name "serviceType" .Values.litellm.service.type "port" .Values.litellm.service.port) }}
 {{- end }}
