@@ -20,59 +20,38 @@
 package org.apache.texera.amber.operator.machineLearning.sklearnAdvanced.SVRTrainer;
 
 import org.apache.texera.amber.operator.machineLearning.sklearnAdvanced.base.ParamClass;
+import org.apache.texera.amber.operator.machineLearning.sklearnAdvanced.base.ParamSpec;
 
 public enum SklearnAdvancedSVRParameters implements ParamClass {
     // Bounds are scikit-learn's own; see SVC for the shared ones.
-    C("C", "float", "1.0") { @Override public String getMinimum() { return ">0"; } },
-    kernel("kernel", "str", "", "rbf", "linear", "poly", "sigmoid", "precomputed"),
-    // Same converter and shape as SVC's gamma -- see there for why each is spelled this way.
-    gamma(
-            "gamma",
-            "(lambda value: value.strip() if value.strip() in (\"scale\", \"auto\") else float(value))",
-            "scale") {
-        @Override
-        public String getPattern() {
-            return "^\\s*(?:scale|auto|[-+]?(?:(?:[0-9]+(?:_[0-9]+)*)?\\.(?:[0-9]+(?:_[0-9]+)*)"
-                    + "|(?:[0-9]+(?:_[0-9]+)*)\\.?)(?:[eE][-+]?[0-9]+(?:_[0-9]+)*)?)\\s*$";
-        }
-    },
-    degree("degree", "int", "3") { @Override public String getMinimum() { return ">=0"; } },
-    coef0("coef0", "float", "0.0"),
-    tol("tol", "float", "0.001") { @Override public String getMinimum() { return ">0"; } },
-    shrinking("shrinking", "(lambda value: value.lower() == \"true\")", "", "true", "false"),
-    verbose("verbose", "(lambda value: value.lower() == \"true\")", "", "false", "true"),
-    epsilon("epsilon", "float", "0.1") { @Override public String getMinimum() { return ">=0"; } },
-    cache_size("cache_size", "int", "200") { @Override public String getMinimum() { return ">0"; } },
+    C(ParamSpec.of("C", "float", "1.0").withMinimum(">0")),
+    kernel(ParamSpec.of("kernel", "str", "", "rbf", "linear", "poly", "sigmoid", "precomputed")),
+    gamma(ParamSpec.of(
+                    "gamma",
+                    "(lambda value: value.strip() if value.strip() in (\"scale\", \"auto\") else float(value))",
+                    "scale")
+            .withPattern(ParamSpec.GammaPattern())),
+    degree(ParamSpec.of("degree", "int", "3").withMinimum(">=0")),
+    coef0(ParamSpec.of("coef0", "float", "0.0")),
+    tol(ParamSpec.of("tol", "float", "0.001").withMinimum(">0")),
+    shrinking(ParamSpec.of(
+            "shrinking", "(lambda value: value.lower() == \"true\")", "", "true", "false")),
+    verbose(ParamSpec.of(
+            "verbose", "(lambda value: value.lower() == \"true\")", "", "false", "true")),
+    epsilon(ParamSpec.of("epsilon", "float", "0.1").withMinimum(">=0")),
+    cache_size(ParamSpec.of("cache_size", "int", "200").withMinimum(">0")),
     // -1 is SVR's own value for no iteration limit, which is also why the bound is -1 and not
     // zero: the sentinel has to remain reachable.
-    max_iter("max_iter", "int", "-1") { @Override public String getMinimum() { return ">=-1"; } };
+    max_iter(ParamSpec.of("max_iter", "int", "-1").withMinimum(">=-1"));
 
-    private final String name;
-    private final String type;
-    private final String sampleValue;
-    private final String[] allowedValues;
+    private final ParamSpec paramSpec;
 
-    SklearnAdvancedSVRParameters(
-            String name, String type, String sampleValue, String... allowedValues) {
-        this.name = name;
-        this.type = type;
-        this.sampleValue = sampleValue;
-        this.allowedValues = allowedValues;
+    SklearnAdvancedSVRParameters(ParamSpec paramSpec) {
+        this.paramSpec = paramSpec;
     }
 
-    public String getType() {
-        return this.type;
-    }
-
-    public String getName() {
-        return this.name;
-    }
-
-    public String getSampleValue() {
-        return this.sampleValue;
-    }
-
-    public String[] getAllowedValues() {
-        return this.allowedValues.clone();
+    @Override
+    public ParamSpec paramSpec() {
+        return this.paramSpec;
     }
 }

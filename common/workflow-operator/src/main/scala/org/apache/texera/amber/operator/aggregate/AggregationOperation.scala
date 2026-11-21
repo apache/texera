@@ -133,7 +133,7 @@ class AggregationOperation {
     res
   }
 
-  private def sumAgg(attributeType: AttributeType): DistributedAggregation[Object] = {
+  private def requireNumericOrTimestamp(opName: String, attributeType: AttributeType): Unit =
     if (
       attributeType != AttributeType.INTEGER &&
       attributeType != AttributeType.DOUBLE &&
@@ -141,9 +141,12 @@ class AggregationOperation {
       attributeType != AttributeType.TIMESTAMP
     ) {
       throw new UnsupportedOperationException(
-        "Unsupported attribute type for sum aggregation: " + attributeType
+        s"Unsupported attribute type for $opName aggregation: $attributeType"
       )
     }
+
+  private def sumAgg(attributeType: AttributeType): DistributedAggregation[Object] = {
+    requireNumericOrTimestamp("sum", attributeType)
     new DistributedAggregation[Object](
       () => AttributeTypeUtils.zeroValue(attributeType),
       (partial, tuple) => {
@@ -191,55 +194,32 @@ class AggregationOperation {
     )
   }
 
-  private def minAgg(attributeType: AttributeType): DistributedAggregation[Object] = {
-    if (
-      attributeType != AttributeType.INTEGER &&
-      attributeType != AttributeType.DOUBLE &&
-      attributeType != AttributeType.LONG &&
-      attributeType != AttributeType.TIMESTAMP
-    ) {
-      throw new UnsupportedOperationException(
-        "Unsupported attribute type for min aggregation: " + attributeType
-      )
-    }
+  private def extremumAgg(
+      opName: String,
+      sentinel: AttributeType => Object,
+      isBetter: Int => Boolean,
+      attributeType: AttributeType
+  ): DistributedAggregation[Object] = {
+    requireNumericOrTimestamp(opName, attributeType)
     new DistributedAggregation[Object](
-      () => AttributeTypeUtils.maxValue(attributeType),
+      () => sentinel(attributeType),
       (partial, tuple) => {
         val value = tuple.getField[Object](attribute)
         val comp = AttributeTypeUtils.compare(value, partial, attributeType)
-        if (value != null && comp < 0) value else partial
+        if (value != null && isBetter(comp)) value else partial
       },
       (partial1, partial2) =>
-        if (AttributeTypeUtils.compare(partial1, partial2, attributeType) < 0) partial1
+        if (isBetter(AttributeTypeUtils.compare(partial1, partial2, attributeType))) partial1
         else partial2,
-      partial => if (partial == AttributeTypeUtils.maxValue(attributeType)) null else partial
+      partial => if (partial == sentinel(attributeType)) null else partial
     )
   }
 
-  private def maxAgg(attributeType: AttributeType): DistributedAggregation[Object] = {
-    if (
-      attributeType != AttributeType.INTEGER &&
-      attributeType != AttributeType.DOUBLE &&
-      attributeType != AttributeType.LONG &&
-      attributeType != AttributeType.TIMESTAMP
-    ) {
-      throw new UnsupportedOperationException(
-        "Unsupported attribute type for max aggregation: " + attributeType
-      )
-    }
-    new DistributedAggregation[Object](
-      () => AttributeTypeUtils.minValue(attributeType),
-      (partial, tuple) => {
-        val value = tuple.getField[Object](attribute)
-        val comp = AttributeTypeUtils.compare(value, partial, attributeType)
-        if (value != null && comp > 0) value else partial
-      },
-      (partial1, partial2) =>
-        if (AttributeTypeUtils.compare(partial1, partial2, attributeType) > 0) partial1
-        else partial2,
-      partial => if (partial == AttributeTypeUtils.minValue(attributeType)) null else partial
-    )
-  }
+  private def minAgg(attributeType: AttributeType): DistributedAggregation[Object] =
+    extremumAgg("min", AttributeTypeUtils.maxValue, _ < 0, attributeType)
+
+  private def maxAgg(attributeType: AttributeType): DistributedAggregation[Object] =
+    extremumAgg("max", AttributeTypeUtils.minValue, _ > 0, attributeType)
 
   private def getNumericalValue(tuple: Tuple): Option[Double] = {
     val value: Object = tuple.getField(attribute)

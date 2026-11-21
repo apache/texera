@@ -21,15 +21,13 @@ package org.apache.texera.amber.operator.source.scan.text
 
 import com.fasterxml.jackson.annotation.{JsonProperty, JsonPropertyDescription}
 import com.kjetland.jackson.jsonSchema.annotations.{JsonSchemaInject, JsonSchemaTitle}
-import org.apache.texera.amber.core.executor.OpExecWithClassName
 import org.apache.texera.amber.core.tuple.Schema
 import org.apache.texera.amber.core.virtualidentity.{ExecutionIdentity, WorkflowIdentity}
-import org.apache.texera.amber.core.workflow.{OutputPort, PhysicalOp, SchemaPropagationFunc}
+import org.apache.texera.amber.core.workflow.{OutputPort, PhysicalOp}
 import org.apache.texera.amber.operator.StandaloneCodeGenerator
 import org.apache.texera.amber.operator.metadata.annotations.UIWidget
 import org.apache.texera.amber.operator.metadata.{OperatorGroupConstants, OperatorInfo}
 import org.apache.texera.amber.operator.source.SourceOperatorDescriptor
-import org.apache.texera.amber.operator.source.scan.FileAttributeType
 import org.apache.texera.amber.pybuilder.PythonTemplateBuilder.pyStringLiteral
 import org.apache.texera.amber.util.JSONUtils.objectMapper
 
@@ -47,24 +45,13 @@ class TextInputSourceOpDesc
       workflowId: WorkflowIdentity,
       executionId: ExecutionIdentity
   ): PhysicalOp =
-    PhysicalOp
-      .sourcePhysicalOp(
-        workflowId,
-        executionId,
-        operatorIdentifier,
-        OpExecWithClassName(
-          "org.apache.texera.amber.operator.source.scan.text.TextInputSourceOpExec",
-          objectMapper.writeValueAsString(this)
-        )
-      )
-      .withInputPorts(operatorInfo.inputPorts)
-      .withOutputPorts(operatorInfo.outputPorts)
-      .withPropagateSchema(
-        SchemaPropagationFunc(_ => Map(operatorInfo.outputPorts.head.id -> sourceSchema()))
-      )
+    sourcePhysicalOp(
+      workflowId,
+      executionId,
+      "org.apache.texera.amber.operator.source.scan.text.TextInputSourceOpExec"
+    )
 
-  override def sourceSchema(): Schema =
-    Schema().add(attributeName, attributeType.getType)
+  override def sourceSchema(): Schema = Schema().add(attributeName, attributeType.getType)
 
   override def operatorInfo: OperatorInfo =
     OperatorInfo(
@@ -77,40 +64,22 @@ class TextInputSourceOpDesc
 
   override def generateStandaloneCode(): String = {
     val text = objectMapper.writeValueAsString(textInput)
-    val col = attributeName
-    val colLit = pyStringLiteral(col)
+    val colLit = pyStringLiteral(attributeName)
     val buf = scala.collection.mutable.ArrayBuffer[String]()
 
     buf += s"_text = $text"
 
-    val isBinary =
-      attributeType == FileAttributeType.BINARY || attributeType == FileAttributeType.LARGE_BINARY
-
     if (attributeType.isSingle) {
-      val valueExpr = if (isBinary) """_text.encode("utf-8")""" else "_text"
+      val valueExpr =
+        if (TextSourceOpDesc.isBinaryAttribute(attributeType)) """_text.encode("utf-8")"""
+        else "_text"
       buf += s"""out1df = pd.DataFrame({$colLit: [$valueExpr]})"""
     } else {
-      val castExpr = attributeType match {
-        case FileAttributeType.INTEGER   => "_texera_parse_int(l, 32)"
-        case FileAttributeType.LONG      => "_texera_parse_int(l, 64)"
-        case FileAttributeType.DOUBLE    => "_texera_java_double(l)"
-        case FileAttributeType.BOOLEAN   => TextSourceOpDesc.BooleanParserCall
-        case FileAttributeType.TIMESTAMP => "l"
-        case _                           => "l"
-      }
-      // The engine splits with linesIterator, which ends a line only at LF, CR
-      // and CRLF. splitlines also ends one at eight other characters, U+2028
-      // and NEL among them, so a row holding one came out as two. A newline at
-      // the very end closes the last line rather than opening an empty one.
+      val castExpr = TextSourceOpDesc.lineCastExpr(attributeType, "l", "l")
       buf += """_lines = _text.replace("\r\n", "\n").replace("\r", "\n").split("\n")"""
       buf += """if _lines[-1] == "":"""
       buf += "    _lines.pop()"
-      // The slice applies to the raw lines, as the engine drops and takes
-      // before parsing: a line outside the window is never converted, so an
-      // unparseable one there costs nothing. Taking after dropping also keeps
-      // a large limit from overflowing the end index.
-      val dropped = fileScanOffset.filter(_ > 0).fold("_lines")(o => s"_lines[$o:]")
-      val linesExpr = fileScanLimit.fold(dropped)(l => s"$dropped[:${l.max(0)}]")
+      val linesExpr = TextSourceOpDesc.sliceLinesExpr("_lines", fileScanOffset, fileScanLimit)
       buf += s"""out1df = pd.DataFrame({$colLit: [$castExpr for l in $linesExpr]})"""
       buf ++= TextSourceOpDesc.parseTimestampColumn(attributeType, colLit)
     }
@@ -118,5 +87,6 @@ class TextInputSourceOpDesc
     buf.mkString("\n")
   }
 
-  override def standaloneHelpers(): Seq[String] = TextSourceOpDesc.lineHelpers(attributeType)
+  override def standaloneHelpers(): Seq[String] =
+    TextSourceOpDesc.lineHelpers(attributeType)
 }
