@@ -32,4 +32,7 @@ case class BroadcastPartitioner(partitioning: BroadcastPartitioning) extends Par
   }
 
   override def allReceivers: Seq[ActorVirtualIdentity] = receivers
+
+  // The whole batch goes to every receiver; no per-row split.
+  override def columnarSplits: Boolean = false
 }

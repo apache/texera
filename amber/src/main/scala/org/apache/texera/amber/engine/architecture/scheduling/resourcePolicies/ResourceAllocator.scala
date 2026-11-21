@@ -19,6 +19,7 @@
 
 package org.apache.texera.amber.engine.architecture.scheduling.resourcePolicies
 
+import org.apache.texera.common.config.ApplicationConfig
 import org.apache.texera.amber.core.virtualidentity.PhysicalOpIdentity
 import org.apache.texera.amber.core.workflow._
 import org.apache.texera.amber.engine.architecture.scheduling.Region
@@ -89,7 +90,14 @@ class DefaultResourceAllocator(
           operatorConfigs(physicalLink.toOpId).workerConfigs.map(_.workerId),
           linkPartitionInfos(physicalLink),
           workflowSettings.dataTransferBatchSize
-        )
+        ),
+        // Per-edge columnar-wire decision: enabled only when the wire is on and the
+        // downstream operator consumes columns natively (otherwise shipping Arrow
+        // would force a costly per-tuple decode on the receiver). Locality (same-JVM
+        // links gain nothing) is a later refinement.
+        columnar =
+          ApplicationConfig.enableColumnarWire &&
+            physicalPlan.getOperator(physicalLink.toOpId).isColumnarCapable
       )
     }.toMap
 
