@@ -156,27 +156,20 @@ export class VersionUploaderComponent implements OnInit {
   // A missing key or failed fetch keeps the field defaults; NaN here would silently stall the
   // upload queue (`activeUploads < NaN` is always false).
   private loadUploadSettings(): void {
-    this.adminSettingsService
-      .getPublicSetting(this.endpoint.chunkSizeSettingKey)
-      .pipe(untilDestroyed(this))
-      .subscribe({
-        next: value => (this.chunkSizeMiB = parseIntOrDefault(value, this.chunkSizeMiB)),
-        error: () => {},
-      });
-    this.adminSettingsService
-      .getPublicSetting(this.endpoint.maxConcurrentChunksSettingKey)
-      .pipe(untilDestroyed(this))
-      .subscribe({
-        next: value => (this.maxConcurrentChunks = parseIntOrDefault(value, this.maxConcurrentChunks)),
-        error: () => {},
-      });
-    this.adminSettingsService
-      .getPublicSetting(this.endpoint.maxConcurrentFilesSettingKey)
-      .pipe(untilDestroyed(this))
-      .subscribe({
-        next: value => (this.maxConcurrentFiles = parseIntOrDefault(value, this.maxConcurrentFiles)),
-        error: () => {},
-      });
+    const settings = [
+      ["chunkSizeSettingKey", "chunkSizeMiB"],
+      ["maxConcurrentChunksSettingKey", "maxConcurrentChunks"],
+      ["maxConcurrentFilesSettingKey", "maxConcurrentFiles"],
+    ] as const;
+    for (const [key, field] of settings) {
+      this.adminSettingsService
+        .getPublicSetting(this.endpoint[key])
+        .pipe(untilDestroyed(this))
+        .subscribe({
+          next: value => (this[field] = parseIntOrDefault(value, this[field])),
+          error: () => {},
+        });
+    }
   }
 
   onNewUploadFilesChanged(files: FileUploadItem[]): void {

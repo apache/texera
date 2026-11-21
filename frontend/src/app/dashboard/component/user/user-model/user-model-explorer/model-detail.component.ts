@@ -30,13 +30,9 @@ import { NzTooltipDirective } from "ng-zorro-antd/tooltip";
 import { NzTagComponent } from "ng-zorro-antd/tag";
 import { ɵNzTransitionPatchDirective } from "ng-zorro-antd/core/transition-patch";
 import { NzIconDirective } from "ng-zorro-antd/icon";
-import { NzButtonComponent } from "ng-zorro-antd/button";
-import { NzWaveDirective } from "ng-zorro-antd/core/wave";
 import { NzSelectComponent, NzOptionComponent } from "ng-zorro-antd/select";
 import { NzTabsComponent, NzTabComponent } from "ng-zorro-antd/tabs";
 import { NzDividerComponent } from "ng-zorro-antd/divider";
-import { NzInputDirective } from "ng-zorro-antd/input";
-import { NzSwitchComponent } from "ng-zorro-antd/switch";
 
 import {
   MODEL_FORMATS,
@@ -61,6 +57,7 @@ import {
 } from "../../../../../common/type/datasetVersionFileTree";
 import { MarkdownDescriptionComponent } from "../../markdown-description/markdown-description.component";
 import { VersionsFilesBrowserComponent } from "../../versions-files-browser/versions-files-browser.component";
+import { ResourceDetailSettingsComponent } from "../../resource-detail-settings.component";
 
 @UntilDestroy()
 @Component({
@@ -77,17 +74,14 @@ import { VersionsFilesBrowserComponent } from "../../versions-files-browser/vers
     NzTagComponent,
     ɵNzTransitionPatchDirective,
     NzIconDirective,
-    NzButtonComponent,
-    NzWaveDirective,
     NzSelectComponent,
     NzOptionComponent,
     NzTabsComponent,
     NzTabComponent,
     NzDividerComponent,
-    NzInputDirective,
-    NzSwitchComponent,
     MarkdownDescriptionComponent,
     VersionsFilesBrowserComponent,
+    ResourceDetailSettingsComponent,
   ],
 })
 export class ModelDetailComponent implements OnInit {
@@ -145,7 +139,17 @@ export class ModelDetailComponent implements OnInit {
   // blocks it until the panel is idle.
   public uploadsInFlight = false;
 
-  formatSize = formatSize;
+  protected get overviewStatistics() {
+    return [
+      { label: "Created", value: this.modelCreationTime },
+      { label: "Last updated", value: this.latestVersionCreationTime || "—" },
+      { label: "Versions", value: this.versions.length },
+      { label: "Framework", value: this.modelFramework || "—" },
+      { label: "Format", value: this.modelFormat || "—" },
+      { label: "Latest version file", value: this.latestVersionFileName || "—" },
+      { label: "Latest version size", value: formatSize(this.latestVersionSize) },
+    ];
+  }
   formatCount = formatCount;
 
   constructor(
@@ -502,40 +506,44 @@ export class ModelDetailComponent implements OnInit {
   }
 
   onModelDescriptionChange(description: string): void {
-    const updatedDescription = description ?? "";
-    const previousDescription = this.modelDescription;
-
-    if (!this.mid || previousDescription === updatedDescription) {
-      return;
-    }
-    this.modelDescription = updatedDescription;
-
-    this.modelService
-      .updateModelDescription(this.mid, updatedDescription)
-      .pipe(untilDestroyed(this))
-      .subscribe({
-        error: () => {
-          this.modelDescription = previousDescription;
-          this.notificationService.error("Failed to update model description");
-        },
-      });
+    this.saveTextSetting(
+      "modelDescription",
+      description ?? "",
+      (id, value) => this.modelService.updateModelDescription(id, value),
+      { error: "Failed to update model description" }
+    );
   }
 
   onFrameworkChange(framework: string): void {
-    const previous = this.modelFramework;
-    if (!this.mid || previous === framework) {
+    this.saveTextSetting(
+      "modelFramework",
+      framework,
+      (id, value) => this.modelService.updateModelFramework(id, value),
+      { success: `Framework set to '${framework}'` }
+    );
+  }
+
+  private saveTextSetting<K extends "modelDescription" | "modelFramework" | "modelFormat">(
+    field: K,
+    value: ModelDetailComponent[K] & string,
+    save: (mid: number, value: string) => Observable<unknown>,
+    { error, success }: { error?: string; success?: string }
+  ): void {
+    const model: ModelDetailComponent = this;
+    const previous = model[field];
+    const mid = this.mid;
+    if (!mid || previous === value) {
       return;
     }
-    this.modelFramework = framework;
 
-    this.modelService
-      .updateModelFramework(this.mid, framework)
+    model[field] = value;
+    save(mid, value)
       .pipe(untilDestroyed(this))
       .subscribe({
-        next: () => this.notificationService.success(`Framework set to '${framework}'`),
+        next: success === undefined ? undefined : () => this.notificationService.success(success),
         error: (err: unknown) => {
-          this.modelFramework = previous;
-          this.notificationService.error(extractErrorMessage(err));
+          model[field] = previous;
+          this.notificationService.error(error ?? extractErrorMessage(err));
         },
       });
   }
@@ -624,21 +632,8 @@ export class ModelDetailComponent implements OnInit {
   }
 
   onFormatChange(modelFormat: string): void {
-    const previous = this.modelFormat;
-    if (!this.mid || previous === modelFormat) {
-      return;
-    }
-    this.modelFormat = modelFormat;
-
-    this.modelService
-      .updateModelFormat(this.mid, modelFormat)
-      .pipe(untilDestroyed(this))
-      .subscribe({
-        next: () => this.notificationService.success(`Format set to '${modelFormat}'`),
-        error: (err: unknown) => {
-          this.modelFormat = previous;
-          this.notificationService.error(extractErrorMessage(err));
-        },
-      });
+    this.saveTextSetting("modelFormat", modelFormat, (id, value) => this.modelService.updateModelFormat(id, value), {
+      success: `Format set to '${modelFormat}'`,
+    });
   }
 }
