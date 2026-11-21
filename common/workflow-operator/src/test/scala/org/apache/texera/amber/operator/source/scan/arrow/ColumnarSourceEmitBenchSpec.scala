@@ -36,11 +36,9 @@ import org.scalatest.flatspec.AnyFlatSpec
 
 import java.io.File
 
-// Measures what wiring the columnar source buys on a real Arrow file: the row path builds a
-// Tuple per row (each paying Tuple.inMemSize's deepSizeOf walk) then filters per tuple; the
-// columnar path hands out the file's Arrow batches straight to the vectorized filter, no Tuple
-// built. Same file, same single numeric predicate, same surviving-row count. Off unless
-// -Dcolumnar.srcbench=true; the file is -Dcolumnar.srcbench.file=/abs/path/big.arrow.
+// Times the row path (Tuple per row, then filter) vs the columnar path (Arrow batches to the
+// vectorized filter, no Tuple) on a real file. Off unless -Dcolumnar.srcbench=true, with
+// -Dcolumnar.srcbench.file=/abs/path.
 class ColumnarSourceEmitBenchSpec extends AnyFlatSpec {
 
   private def enabled: Boolean = sys.props.get("columnar.srcbench").contains("true")

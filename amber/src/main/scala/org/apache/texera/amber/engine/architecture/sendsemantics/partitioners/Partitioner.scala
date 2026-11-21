@@ -57,23 +57,18 @@ class NetworkOutputBuffer(
     val to: ActorVirtualIdentity,
     val dataOutputPort: NetworkOutputGateway,
     val batchSize: Int = ApplicationConfig.defaultDataTransferBatchSize,
-    // Columnar wire: flush as VectorFrame (Arrow IPC) instead of DataFrame. The
-    // planner decides this per edge (it folds in ApplicationConfig.enableColumnarWire
-    // and the downstream operator's columnar capability) and passes it in; off by
-    // default so the row wire is unchanged. A var so the output manager can set it.
+    // Per edge (from the planner): flush as VectorFrame (Arrow) instead of DataFrame. Off by default.
     var columnar: Boolean = false,
-    // Allocator for building a live Arrow root on a local columnar handoff. Null disables
-    // the local columnar path (the edge falls back to rows).
+    // Allocator for the live Arrow root on a local columnar handoff; null disables that path (rows).
     val columnarAllocator: BufferAllocator = null
 ) {
 
-  // Set by the output manager: whether `to` is co-located (same ActorSystem). A local hop
-  // never serializes, so the columnar wire is pure overhead there; None means not yet
-  // known, treated as remote.
+  // Whether `to` is co-located (same ActorSystem); None = unknown, treated as remote.
   var localityCheck: () => Option[Boolean] = () => None
 
-  // The columnar decision after locality: honor the planner's flag only for a receiver
-  // that is remote (or not yet known). A known-local receiver stays on rows.
+  // A columnar edge to a REMOTE (or unknown) receiver, which must be serialized to Arrow bytes
+  // (VectorFrame). A co-located columnar receiver skips this and gets a zero-copy live root
+  // (LocalColumnarBatch) instead; see flush.
   def remoteColumnar: Boolean = columnar && !localityCheck().getOrElse(false)
 
   var buffer = new ArrayBuffer[Tuple]()
@@ -91,24 +86,19 @@ class NetworkOutputBuffer(
     flush()
   }
 
-  // Columnar fast path: ship an already-serialized Arrow batch straight to the
-  // receiver, skipping the per-tuple accumulate/re-encode. Any tuples already
-  // buffered are flushed first so the batch keeps its place in the FIFO stream.
+  // Ship an already-serialized Arrow batch; flush buffered tuples first to keep FIFO order.
   def sendVectorFrame(frame: VectorFrame): Unit = {
     flush()
     dataOutputPort.sendTo(to, frame)
   }
 
-  // Row counterpart of sendVectorFrame: ship a prebuilt row batch (a DataFrame) to a
-  // local receiver, flushing any buffered tuples first to keep FIFO order. Used when a
-  // mixed-locality edge sends Arrow to its remote receivers and rows to its local ones.
+  // Ship a prebuilt row batch (DataFrame); flush buffered tuples first to keep FIFO order.
   def sendRows(tuples: Array[Tuple]): Unit = {
     flush()
     if (tuples.nonEmpty) dataOutputPort.sendTo(to, DataFrame(tuples))
   }
 
-  // Local zero-copy: hand the receiver a live Arrow root by reference (no serialization).
-  // Ownership transfers to the receiver; the sender must not touch the root after this.
+  // Hand the receiver a live Arrow root by reference (no serialize); ownership transfers.
   def sendLocalColumnar(batch: LocalColumnarBatch): Unit = {
     flush()
     dataOutputPort.sendTo(to, batch)
@@ -125,9 +115,7 @@ class NetworkOutputBuffer(
           VectorFrame(ArrowUtils.serializeTuples(schema, batch), batch.length, schema)
         )
       } else if (columnar && localityCheck().contains(true) && columnarAllocator != null) {
-        // Local columnar: build one live Arrow root and hand it to the co-located
-        // columnar-capable receiver by reference (no serialization), so it processes
-        // columns in a batch instead of per-tuple rows. Ownership transfers to the receiver.
+        // Local columnar: build one live Arrow root and hand it to the co-located receiver.
         val schema = batch(0).getSchema
         val root = ArrowUtils.rootFromTuples(schema, batch, columnarAllocator)
         dataOutputPort.sendTo(to, LocalColumnarBatch(root, batch.length, schema))

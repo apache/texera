@@ -93,13 +93,9 @@ class CSVScanSourceOpExec private[csv] (descString: String) extends SourceOperat
     tupleIterator
   }
 
-  // Columnar produce: parse each CSV row's typed values straight into Arrow vectors (the same
-  // AttributeTypeUtils.parseFields + per-column setCell the row path's values go through), so no
-  // per-row Tuple (and no Tuple.inMemSize deepSizeOf walk) is built. Rows are packed into bounded
-  // Arrow batches (COLUMNAR_BATCH_ROWS each) so the batch streams and pauses at a batch boundary.
-  // An unparsable row is skipped and reported, exactly as on the row path. Roots are allocated in
-  // the shared allocator so a handed-off batch outlives this exec. Falls back to the row path
-  // (None) when a scan window (offset/limit) is set.
+  // Parse each CSV row's values straight into Arrow vectors (same parseFields + setCell as the row
+  // path), no Tuple built, in batches of COLUMNAR_BATCH_ROWS. Unparsable rows are skipped and
+  // reported as on the row path. None (row path) when a scan window is set.
   override def produceColumnarBatch(
       outputSchema: Schema
   ): Option[Iterator[VectorSchemaRoot]] = {
@@ -175,8 +171,7 @@ class CSVScanSourceOpExec private[csv] (descString: String) extends SourceOperat
 object CSVScanSourceOpExec {
   val DEFAULT_MAX_COLUMNS = 512
 
-  // Rows per Arrow batch on the columnar path: large enough to amortize vectorized processing,
-  // small enough to stream and to bound a pause to one batch.
+  // Rows per Arrow batch on the columnar path.
   val COLUMNAR_BATCH_ROWS = 10000
 
   def getMaxColumns: Int =

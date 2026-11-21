@@ -144,8 +144,7 @@ class OutputManager(
   def addPartitionerWithPartitioning(
       link: PhysicalLink,
       partitioning: Partitioning,
-      // Per-edge columnar-wire decision from the planner: ship this edge's batches as
-      // Arrow (VectorFrame) rather than rows. Defaults off so the row wire is unchanged.
+      // Per edge: ship this edge's batches as Arrow, not rows. Off by default.
       columnar: Boolean = false
   ): Unit = {
     val partitioner = toPartitioner(partitioning, actorId)
@@ -189,52 +188,21 @@ class OutputManager(
     }
   }
 
-  /**
-    * Provisional (phase 1): turn the columnar output path on or off for every current
-    * edge. Phase 2 replaces this blanket switch with a per-edge decision made by the
-    * planner (local vs cross-node, and whether the receiver consumes columns).
-    */
+  /** Turn columnar output on or off for every current edge. */
   def setColumnarOutput(enabled: Boolean): Unit =
     networkOutputBuffers.values.foreach(_.columnar = enabled)
 
-  /**
-    * Whether a source may emit its native Arrow batches straight downstream (no per-row Tuple
-    * built). True only when emitProducedRoot will take a columnar branch for every edge: the
-    * wire is columnar on at least one receiver and no output port needs row storage (a storage
-    * writer takes Tuples). Those are exactly the cases the root emit would otherwise fall back
-    * to decoding the batch to rows, so gating here keeps the no-decode guarantee.
-    */
+  /** True if a source may emit Arrow batches directly: some edge is columnar and no output port needs row storage. */
   def columnarSourceEmitEligible: Boolean =
     outputPortResultWriterThreads.isEmpty && networkOutputBuffers.values.exists(_.columnar)
 
-  // Backs the per-bucket roots the columnar shuffle materializes; each is freed right
-  // after it is serialized, so this allocator's outstanding bytes return to zero.
+  // Allocator for the per-bucket roots the columnar shuffle builds; each is freed after serialization.
   private lazy val columnarAllocator: BufferAllocator = new RootAllocator()
 
   /**
-    * Columnar output path (no round-trip): ship an operator's Arrow result batch straight
-    * downstream without decoding it to tuples and re-encoding it. Eligible only when the
-    * output port needs no storage and every edge on it is in columnar mode. A
-    * non-splitting edge (one-to-one, broadcast) sends the whole batch, serialized once, to
-    * each receiver. A splitting edge (hash/range/round-robin) assigns each row a bucket
-    * through the same getBucketIndex the row path uses (reading only the key columns into a
-    * partial tuple), gathers each bucket's rows in Arrow, and sends one VectorFrame per
-    * non-empty bucket. Bucket assignment is therefore identical to the row path. Does NOT
-    * close `root` (caller owns it).
-    *
-    * @return Some((portId, totalSerializedByteCount)) if it shipped the batch (caller
-    *         records output statistics), or None if the port is not eligible (fall back).
-    */
-  /**
-    * Local zero-copy fast path: hand the operator's Arrow result root to a co-located
-    * receiver by reference, with no serialization. Ownership transfers to the receiver (it
-    * closes the root), so on success the caller must NOT close it. Eligible only for the
-    * simplest single-consumer shape: the port has one one-to-one edge whose single receiver
-    * is known-local and columnar-capable, needs no storage, and whose schema matches, so the
-    * root goes to exactly one consumer. Every other shape returns None (the caller tries the
-    * remote columnar path, then rows).
-    *
-    * @return Some((portId, rootInMemSize)) if the root was handed off, else None.
+    * Zero-copy: hand `root` to a single co-located columnar receiver by reference (the receiver
+    * closes it, so the caller must not). Only for a port with one one-to-one local columnar edge,
+    * no storage, matching schema; any other shape returns None. Returns (portId, size) on success.
     */
   def tryEmitLocalColumnarRoot(
       root: VectorSchemaRoot,
@@ -265,10 +233,7 @@ class OutputManager(
     if (outputPortId.isEmpty && ports.size != 1) return None
     val portId = outputPortId.getOrElse(ports.head._1)
     val links = partitioners.filter(_._1.fromPortId == portId).toSeq
-    // Take the no-decode path when at least one receiver's edge is columnar (the planner flag),
-    // local or remote: a remote receiver gets Arrow bytes, a co-located one gets a live root by
-    // reference (LocalColumnarBatch), both with no per-tuple decode. Only when no receiver is
-    // columnar (the wire is off) do we fall back so the caller decodes the batch to rows once.
+    // Use the no-decode path if any receiver's edge is columnar; else return None (caller uses rows).
     val anyColumnar = links.exists {
       case (link, partitioner) =>
         partitioner.allReceivers.exists(r =>
@@ -277,16 +242,13 @@ class OutputManager(
     }
     if (links.isEmpty || outputPortResultWriterThreads.contains(portId) || !anyColumnar) return None
     val schema = getPort(portId).schema
-    // The executor's Arrow schema must match the declared output port schema; if not,
-    // fall back so the row path's enforceSchema can adjust it.
+    // Fall back to rows if the batch schema doesn't match the output port schema.
     if (ArrowUtils.toTexeraSchema(root.getSchema) != schema) return None
     Some((portId, links.map { case (link, p) => emitColumnarToLink(root, schema, link, p) }.sum))
   }
 
-  // Ship `root` to one link's receivers, splitting per bucket if the partitioner splits.
-  // Each receiver gets Arrow if its buffer is columnar (remote) or rows if it is local, so
-  // a mixed-locality edge keeps the remote buckets columnar while sending rows locally.
-  // Returns the total bytes accounted for this link (serialized Arrow + local row sizes).
+  // Ship `root` to one link's receivers (splitting per bucket if the partitioner splits): each gets
+  // Arrow bytes (remote), a live root (local columnar), or rows (non-columnar). Returns bytes sent.
   private def emitColumnarToLink(
       root: VectorSchemaRoot,
       schema: Schema,
@@ -295,9 +257,8 @@ class OutputManager(
   ): Long = {
     val receivers = partitioner.allReceivers
     if (!partitioner.columnarSplits) {
-      // One-to-one / broadcast: the whole batch goes to each receiver. Serialize to Arrow once
-      // for remote-columnar receivers, hand each local-columnar receiver its own live-root copy
-      // (no serialize, no tuples), and decode to rows only for non-columnar receivers.
+      // One-to-one / broadcast: whole batch to each receiver -- Arrow bytes (remote), a live-root
+      // copy (local columnar), or rows (non-columnar).
       val remote = receivers.filter(r => networkOutputBuffers((link, r)).remoteColumnar)
       val localCol = receivers.filter(r => {
         val b = networkOutputBuffers((link, r)); b.columnar && !b.remoteColumnar
@@ -311,7 +272,7 @@ class OutputManager(
         bytes += arrow.length.toLong
       }
       localCol.foreach { r =>
-        // Each co-located receiver owns and closes its own copy, so give each its own root.
+        // Each local receiver owns and closes its own copy.
         val copy = ArrowUtils.gather(root, Array.range(0, root.getRowCount), columnarAllocator)
         val batch = LocalColumnarBatch(copy, copy.getRowCount, schema)
         networkOutputBuffers((link, r)).sendLocalColumnar(batch)
@@ -324,8 +285,7 @@ class OutputManager(
       }
       bytes
     } else {
-      // Splitting shuffle: assign each row a bucket, then send each bucket to its receiver
-      // as Arrow (remote) or rows (local).
+      // Splitting shuffle: assign each row a bucket, then send each bucket to its receiver.
       val n = root.getRowCount
       val rowsPerBucket = Array.fill(receivers.length)(new mutable.ArrayBuffer[Int]())
       // Build only the columns getBucketIndex needs into a partial tuple per row.
@@ -365,10 +325,8 @@ class OutputManager(
     }
   }
 
-  // Send one bucket's rows to a receiver in the cheapest shape its edge allows: gather + Arrow
-  // bytes (VectorFrame) to a remote-columnar receiver, gather + a live root by reference
-  // (LocalColumnarBatch) to a co-located columnar one (no serialize, no tuple), or decoded rows
-  // to a non-columnar one. Returns the bytes accounted for the send.
+  // Send one bucket to a receiver as Arrow bytes (remote), a live gathered root (local columnar),
+  // or decoded rows (non-columnar). Returns bytes sent.
   private def sendBucket(
       root: VectorSchemaRoot,
       schema: Schema,

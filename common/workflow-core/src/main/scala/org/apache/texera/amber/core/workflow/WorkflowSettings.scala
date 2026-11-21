@@ -26,7 +26,6 @@ case class WorkflowSettings(
     executionMode: ExecutionMode =
       ExecutionMode.valueOf(GuiConfig.guiWorkflowWorkspaceDefaultExecutionMode),
     outputPortsNeedingStorage: Set[GlobalPortIdentity] = Set.empty,
-    // Per-run row/columnar processing choice. None falls back to the cluster default
-    // (ApplicationConfig.enableColumnarWire); Some(true/false) overrides it for this run.
+    // Per-run row/columnar choice; None uses the cluster default.
     columnar: Option[Boolean] = None
 )

@@ -27,8 +27,7 @@ import org.apache.texera.amber.util.ArrowUtils
 import scala.collection.mutable.ArrayBuffer
 
 object SourceOperatorExecutor {
-  // Rows per Arrow batch on the generic columnar path: large enough to amortize vectorized
-  // downstream processing, small enough to stream and bound a pause to one batch.
+  // Rows per Arrow batch on the generic columnar path.
   val ColumnarBatchRows = 10000
 }
 
@@ -46,15 +45,10 @@ trait SourceOperatorExecutor extends OperatorExecutor {
   def produceTuple(): Iterator[TupleLike]
 
   /**
-    * Columnar output for this source, honored only when the run is in columnar mode and the
-    * downstream edge consumes columns. Every source is columnar-capable: the default batches
-    * produceTuple's rows into Arrow VectorSchemaRoots (ColumnarBatchRows per batch) matching the
-    * given output-port schema. It builds a Tuple only to copy its fields into Arrow vectors and
-    * never reads Tuple.inMemSize, so with the lazy size it pays no deepSizeOf walk. A source whose
-    * data is already columnar (Arrow) or decodes columns natively (Parquet) or parses straight
-    * into vectors (CSV) overrides this to skip the Tuple entirely. The caller owns and closes each
-    * returned root; roots are allocated in ArrowUtils.sharedAllocator so a handed-off batch
-    * outlives this executor.
+    * This source's output as Arrow batches (used in columnar mode). The default batches
+    * produceTuple's rows into roots of ColumnarBatchRows matching `schema`; it builds Tuples only
+    * to copy their fields in and never reads inMemSize, so it pays no deepSizeOf. Arrow/Parquet/CSV
+    * override this to skip the Tuple. Roots come from ArrowUtils.sharedAllocator; the caller closes them.
     */
   def produceColumnarBatch(schema: Schema): Option[Iterator[VectorSchemaRoot]] = {
     val rows = produceTuple()
