@@ -270,7 +270,7 @@ class DataProcessor(
         val schema =
           outputManager.getPort(outputManager.getSingleOutputPortIdentity).schema
         src
-          .produceColumnarBatch(schema)
+          .produceColumnarBatch(schema, outputManager.outputBatchSize)
           .map(_.map(root => (ColumnarBatchMarker(root): TupleLike, Option.empty[PortIdentity])))
       case _ => None
     }

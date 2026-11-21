@@ -19,6 +19,7 @@
 
 package org.apache.texera.amber.engine.architecture.messaginglayer
 
+import org.apache.texera.common.config.ApplicationConfig
 import org.apache.texera.amber.core.state.State
 import org.apache.texera.amber.core.storage.{DocumentFactory, VFSURIFactory}
 import org.apache.texera.amber.core.storage.model.BufferedItemWriter
@@ -196,6 +197,12 @@ class OutputManager(
   def columnarSourceEmitEligible: Boolean =
     outputPortResultWriterThreads.isEmpty && networkOutputBuffers.values.exists(_.columnar)
 
+  /** Rows per Arrow batch a columnar source should emit: the output edge's batchSize (= dataTransferBatchSize). */
+  def outputBatchSize: Int =
+    networkOutputBuffers.values.headOption
+      .map(_.batchSize)
+      .getOrElse(ApplicationConfig.defaultDataTransferBatchSize)
+
   // Allocator for the per-bucket roots the columnar shuffle builds; each is freed after serialization.
   private lazy val columnarAllocator: BufferAllocator = new RootAllocator()
 
@@ -236,9 +243,7 @@ class OutputManager(
     // Use the no-decode path if any receiver's edge is columnar; else return None (caller uses rows).
     val anyColumnar = links.exists {
       case (link, partitioner) =>
-        partitioner.allReceivers.exists(r =>
-          networkOutputBuffers.get((link, r)).exists(_.columnar)
-        )
+        partitioner.allReceivers.exists(r => networkOutputBuffers.get((link, r)).exists(_.columnar))
     }
     if (links.isEmpty || outputPortResultWriterThreads.contains(portId) || !anyColumnar) return None
     val schema = getPort(portId).schema

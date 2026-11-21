@@ -194,9 +194,12 @@ class CSVScanSourceOpExecSpec extends AnyFlatSpec with BeforeAndAfterAll {
     val schema = colExec.desc.sourceSchema()
     val colRows =
       try colExec
-        .produceColumnarBatch(schema)
+        .produceColumnarBatch(schema, 10000)
         .get
-        .flatMap(root => try ArrowUtils.tuplesOfRoot(root).toList finally root.close())
+        .flatMap(root =>
+          try ArrowUtils.tuplesOfRoot(root).toList
+          finally root.close()
+        )
         .toList
         .map(_.getFields.toList)
       finally colExec.close()
@@ -216,8 +219,25 @@ class CSVScanSourceOpExecSpec extends AnyFlatSpec with BeforeAndAfterAll {
   it should "fall back to the row path (None) on the columnar path when a window is set" in {
     val exec = execOver(writeTempCsv("a,b\n1,x\n2,y\n"), hasHeader = true, limit = Some(1))
     exec.open()
-    try assert(exec.produceColumnarBatch(exec.desc.sourceSchema()).isEmpty)
+    try assert(exec.produceColumnarBatch(exec.desc.sourceSchema(), 10000).isEmpty)
     finally exec.close()
+  }
+
+  it should "cap each columnar batch at maxBatchRows so a big input does not materialize at once" in {
+    val cap = 3
+    val sb = new StringBuilder("a,b\n")
+    var i = 0
+    while (i < cap + 2) { sb.append(i).append(",x\n"); i += 1 } // cap + 2 data rows
+    val exec = execOver(writeTempCsv(sb.toString), hasHeader = true)
+    exec.open()
+    val sizes =
+      try exec
+        .produceColumnarBatch(exec.desc.sourceSchema(), cap)
+        .get
+        .map(r => { val n = r.getRowCount; r.close(); n })
+        .toList
+      finally exec.close()
+    assert(sizes == List(cap, 2)) // split, not one giant batch
   }
 
   it should "read a negative window as the empty or whole one, not from the end" in {

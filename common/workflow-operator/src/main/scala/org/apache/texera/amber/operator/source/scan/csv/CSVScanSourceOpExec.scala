@@ -94,15 +94,16 @@ class CSVScanSourceOpExec private[csv] (descString: String) extends SourceOperat
   }
 
   // Parse each CSV row's values straight into Arrow vectors (same parseFields + setCell as the row
-  // path), no Tuple built, in batches of COLUMNAR_BATCH_ROWS. Unparsable rows are skipped and
+  // path), no Tuple built, in batches of at most maxBatchRows. Unparsable rows are skipped and
   // reported as on the row path. None (row path) when a scan window is set.
   override def produceColumnarBatch(
-      outputSchema: Schema
+      outputSchema: Schema,
+      maxBatchRows: Int
   ): Option[Iterator[VectorSchemaRoot]] = {
     if (desc.windowOffset > 0 || desc.windowLimit.isDefined) return None
     val arrowSchema = ArrowUtils.fromTexeraSchema(schema)
     val numCols = schema.getAttributes.length
-    val batchSize = CSVScanSourceOpExec.COLUMNAR_BATCH_ROWS
+    val batchSize = math.max(1, maxBatchRows)
     Some(new Iterator[VectorSchemaRoot] {
       private var pending: Array[String] = CSVScanSourceOpExec.parseNextRow(parser, maxColumns)
       override def hasNext: Boolean = pending != null
@@ -170,9 +171,6 @@ class CSVScanSourceOpExec private[csv] (descString: String) extends SourceOperat
 
 object CSVScanSourceOpExec {
   val DEFAULT_MAX_COLUMNS = 512
-
-  // Rows per Arrow batch on the columnar path.
-  val COLUMNAR_BATCH_ROWS = 10000
 
   def getMaxColumns: Int =
     SiteSettings.getInt("csv_parser_max_columns", DEFAULT_MAX_COLUMNS)

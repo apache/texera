@@ -26,11 +26,6 @@ import org.apache.texera.amber.util.ArrowUtils
 
 import scala.collection.mutable.ArrayBuffer
 
-object SourceOperatorExecutor {
-  // Rows per Arrow batch on the generic columnar path.
-  val ColumnarBatchRows = 10000
-}
-
 trait SourceOperatorExecutor extends OperatorExecutor {
   override def open(): Unit = {}
 
@@ -46,17 +41,21 @@ trait SourceOperatorExecutor extends OperatorExecutor {
 
   /**
     * This source's output as Arrow batches (used in columnar mode). The default batches
-    * produceTuple's rows into roots of ColumnarBatchRows matching `schema`; it builds Tuples only
-    * to copy their fields in and never reads inMemSize, so it pays no deepSizeOf. Arrow/Parquet/CSV
+    * produceTuple's rows into roots of at most maxBatchRows matching `schema`; it builds Tuples
+    * only to copy their fields in and never reads inMemSize, so it pays no deepSizeOf. Arrow/Parquet/CSV
     * override this to skip the Tuple. Roots come from ArrowUtils.sharedAllocator; the caller closes them.
     */
-  def produceColumnarBatch(schema: Schema): Option[Iterator[VectorSchemaRoot]] = {
+  def produceColumnarBatch(
+      schema: Schema,
+      maxBatchRows: Int
+  ): Option[Iterator[VectorSchemaRoot]] = {
     val rows = produceTuple()
+    val cap = math.max(1, maxBatchRows)
     Some(new Iterator[VectorSchemaRoot] {
       override def hasNext: Boolean = rows.hasNext
       override def next(): VectorSchemaRoot = {
-        val batch = new ArrayBuffer[Tuple](SourceOperatorExecutor.ColumnarBatchRows)
-        while (batch.size < SourceOperatorExecutor.ColumnarBatchRows && rows.hasNext) {
+        val batch = new ArrayBuffer[Tuple](cap)
+        while (batch.size < cap && rows.hasNext) {
           rows.next() match {
             case se: SchemaEnforceable => batch += se.enforceSchema(schema)
             case other                 => batch += TupleLike(other.getFields).enforceSchema(schema)
