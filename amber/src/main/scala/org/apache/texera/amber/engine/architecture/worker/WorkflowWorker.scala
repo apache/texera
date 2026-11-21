@@ -86,6 +86,9 @@ class WorkflowWorker(
   // Internal inputQueue is passed to dp.InputManager because input port materialization
   // reader threads need to put input data read from materialization into this queue.
   var dp = new DataProcessor(workerConfig.workerId, logManager.sendCommitted, inputQueue)
+  // Let the output manager tell a local (same-JVM) receiver from a remote one, so the
+  // columnar wire is used only where it pays (a remote hop that actually serializes).
+  dp.outputManager.isLocalReceiver = actorRefMappingService.isLocalWorker
   val timerService = new WorkerTimerService(actorService)
 
   var dpThread: DPThread = _
@@ -173,6 +176,7 @@ class WorkflowWorker(
     logger.info("output messages restored.")
     dp = dpState // overwrite dp state
     dp.outputHandler = logManager.sendCommitted
+    dp.outputManager.isLocalReceiver = actorRefMappingService.isLocalWorker
     dp.initTimerService(timerService)
     logger.info("start re-initialize executor from checkpoint.")
     val (executor, iter) = dp.serializationManager.restoreExecutorState(chkpt)

@@ -21,7 +21,12 @@ package org.apache.texera.amber.core.workflow
 
 import com.fasterxml.jackson.annotation.{JsonIgnore, JsonIgnoreProperties}
 import com.typesafe.scalalogging.LazyLogging
-import org.apache.texera.amber.core.executor.{OpExecInitInfo, OpExecWithCode}
+import org.apache.texera.amber.core.executor.{
+  ColumnarOperatorExecutor,
+  OpExecInitInfo,
+  OpExecWithClassName,
+  OpExecWithCode
+}
 import org.apache.texera.amber.core.tuple.Schema
 import org.apache.texera.amber.core.virtualidentity.{
   ExecutionIdentity,
@@ -267,6 +272,25 @@ case class PhysicalOp(
     opExecInitInfo match {
       case OpExecWithCode(code, _) => code
       case _                       => throw new IllegalAccessError("No code information in this physical operator")
+    }
+  }
+
+  /**
+    * Whether this operator's executor can consume an Arrow columnar batch directly,
+    * i.e. its class mixes in ColumnarOperatorExecutor. Resolved by name without loading
+    * (initializing) or instantiating the class; any lookup failure (e.g. a code-based or
+    * unknown executor) is treated as not capable. The planner uses this to decide, per
+    * edge, whether to ship columns to this operator.
+    */
+  @JsonIgnore
+  def isColumnarCapable: Boolean = {
+    opExecInitInfo match {
+      case OpExecWithClassName(className, _) =>
+        try {
+          val cls = Class.forName(className, false, getClass.getClassLoader)
+          classOf[ColumnarOperatorExecutor].isAssignableFrom(cls)
+        } catch { case _: Throwable => false }
+      case _ => false
     }
   }
 
