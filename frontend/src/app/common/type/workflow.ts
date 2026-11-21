@@ -28,6 +28,8 @@ export enum ExecutionMode {
 export interface WorkflowSettings {
   dataTransferBatchSize: number;
   executionMode: ExecutionMode;
+  // Per-run row/columnar processing choice. Omitted falls back to the cluster default.
+  columnar?: boolean;
 }
 
 /**

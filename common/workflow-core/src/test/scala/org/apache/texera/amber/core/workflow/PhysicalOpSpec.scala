@@ -19,7 +19,7 @@
 
 package org.apache.texera.amber.core.workflow
 
-import org.apache.texera.amber.core.executor.{OpExecInitInfo, OpExecWithCode}
+import org.apache.texera.amber.core.executor.{OpExecInitInfo, OpExecWithClassName, OpExecWithCode}
 import org.apache.texera.amber.core.tuple.{Attribute, AttributeType, Schema}
 import org.apache.texera.amber.core.virtualidentity.{
   ExecutionIdentity,
@@ -142,6 +142,21 @@ class PhysicalOpSpec extends AnyFlatSpec {
     assert(!newOp("p").isPythonBased)
   }
 
+  "PhysicalOp.isColumnarCapable" should "hold only for executors that mix in ColumnarOperatorExecutor" in {
+    def withClass(cls: Class[_]): PhysicalOp =
+      newOp("cc").copy(opExecInitInfo = OpExecWithClassName(cls.getName, "{}"))
+    // A class that implements the columnar contract is capable; a plain executor is not.
+    assert(withClass(classOf[PhysicalOpSpec.CapableExec]).isColumnarCapable)
+    assert(!withClass(classOf[PhysicalOpSpec.PlainExec]).isColumnarCapable)
+    // A code-based executor and an unresolvable class name are both not capable.
+    assert(!newOp("cc").copy(opExecInitInfo = OpExecWithCode("code", "python")).isColumnarCapable)
+    assert(
+      !newOp("cc")
+        .copy(opExecInitInfo = OpExecWithClassName("no.such.Class", "{}"))
+        .isColumnarCapable
+    )
+  }
+
   "PhysicalOp.getCode" should "return the code or reject executors without code" in {
     val op = newOp("c").copy(opExecInitInfo = OpExecWithCode("print(1)", "python"))
     assert(op.getCode == "print(1)")
@@ -248,4 +263,17 @@ class PhysicalOpSpec extends AnyFlatSpec {
     val schemas = Map(PortIdentity(0) -> intSchema)
     assert(op.propagateSchema.func(schemas) == schemas)
   }
+}
+
+object PhysicalOpSpec {
+  // Resolved by name in the isColumnarCapable test; must be top-level (not inner)
+  // so Class.forName can find them.
+  class CapableExec extends org.apache.texera.amber.core.executor.ColumnarOperatorExecutor {
+    override def processColumnarBatch(
+        arrowIpcBytes: Array[Byte],
+        port: Int
+    ): org.apache.texera.amber.core.executor.ColumnarResult =
+      org.apache.texera.amber.core.executor.ColumnarResult.Unsupported
+  }
+  class PlainExec
 }

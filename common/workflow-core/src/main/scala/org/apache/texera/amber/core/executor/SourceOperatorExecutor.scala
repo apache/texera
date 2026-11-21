@@ -19,8 +19,12 @@
 
 package org.apache.texera.amber.core.executor
 
-import org.apache.texera.amber.core.tuple.{Tuple, TupleLike}
+import org.apache.arrow.vector.VectorSchemaRoot
+import org.apache.texera.amber.core.tuple.{Schema, SchemaEnforceable, Tuple, TupleLike}
 import org.apache.texera.amber.core.workflow.PortIdentity
+import org.apache.texera.amber.util.ArrowUtils
+
+import scala.collection.mutable.ArrayBuffer
 
 trait SourceOperatorExecutor extends OperatorExecutor {
   override def open(): Unit = {}
@@ -34,6 +38,33 @@ trait SourceOperatorExecutor extends OperatorExecutor {
   override def processTuple(tuple: Tuple, port: Int): Iterator[TupleLike] = Iterator.empty
 
   def produceTuple(): Iterator[TupleLike]
+
+  /**
+    * This source's output as Arrow batches (used in columnar mode). The default batches
+    * produceTuple's rows into roots of at most maxBatchRows matching `schema`; it builds Tuples
+    * only to copy their fields in and never reads inMemSize, so it pays no deepSizeOf. Arrow/Parquet/CSV
+    * override this to skip the Tuple. Roots come from ArrowUtils.sharedAllocator; the caller closes them.
+    */
+  def produceColumnarBatch(
+      schema: Schema,
+      maxBatchRows: Int
+  ): Option[Iterator[VectorSchemaRoot]] = {
+    val rows = produceTuple()
+    val cap = math.max(1, maxBatchRows)
+    Some(new Iterator[VectorSchemaRoot] {
+      override def hasNext: Boolean = rows.hasNext
+      override def next(): VectorSchemaRoot = {
+        val batch = new ArrayBuffer[Tuple](cap)
+        while (batch.size < cap && rows.hasNext) {
+          rows.next() match {
+            case se: SchemaEnforceable => batch += se.enforceSchema(schema)
+            case other                 => batch += TupleLike(other.getFields).enforceSchema(schema)
+          }
+        }
+        ArrowUtils.rootFromTuples(schema, batch.toArray, ArrowUtils.sharedAllocator)
+      }
+    })
+  }
 
   override def onFinishMultiPort(port: Int): Iterator[(TupleLike, Option[PortIdentity])] = {
     // We assume there is only one input port for source operators. The current assumption

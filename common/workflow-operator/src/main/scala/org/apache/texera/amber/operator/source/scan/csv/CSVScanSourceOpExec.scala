@@ -21,10 +21,12 @@ package org.apache.texera.amber.operator.source.scan.csv
 
 import com.univocity.parsers.common.TextParsingException
 import com.univocity.parsers.csv.{CsvFormat, CsvParser, CsvParserSettings}
+import org.apache.arrow.vector.VectorSchemaRoot
 import org.apache.texera.amber.core.executor.SourceOperatorExecutor
 import org.apache.texera.amber.core.storage.DocumentFactory
 import org.apache.texera.amber.core.tuple.{AttributeTypeUtils, Schema, TupleLike}
 import org.apache.texera.amber.operator.source.scan.{ScanRowParseError, SkippedRowReporter}
+import org.apache.texera.amber.util.ArrowUtils
 import org.apache.texera.amber.util.JSONUtils.objectMapper
 import org.apache.texera.dao.SiteSettings
 
@@ -89,6 +91,49 @@ class CSVScanSourceOpExec private[csv] (descString: String) extends SourceOperat
     if (desc.windowLimit.isDefined) tupleIterator = tupleIterator.take(desc.windowLimit.get)
 
     tupleIterator
+  }
+
+  // Parse each CSV row's values straight into Arrow vectors (same parseFields + setCell as the row
+  // path), no Tuple built, in batches of at most maxBatchRows. Unparsable rows are skipped and
+  // reported as on the row path. None (row path) when a scan window is set.
+  override def produceColumnarBatch(
+      outputSchema: Schema,
+      maxBatchRows: Int
+  ): Option[Iterator[VectorSchemaRoot]] = {
+    if (desc.windowOffset > 0 || desc.windowLimit.isDefined) return None
+    val arrowSchema = ArrowUtils.fromTexeraSchema(schema)
+    val numCols = schema.getAttributes.length
+    val batchSize = math.max(1, maxBatchRows)
+    Some(new Iterator[VectorSchemaRoot] {
+      private var pending: Array[String] = CSVScanSourceOpExec.parseNextRow(parser, maxColumns)
+      override def hasNext: Boolean = pending != null
+      override def next(): VectorSchemaRoot = {
+        val root = VectorSchemaRoot.create(arrowSchema, ArrowUtils.sharedAllocator)
+        root.allocateNew()
+        var r = 0
+        while (r < batchSize && pending != null) {
+          val row = pending
+          numRowGenerated += 1
+          pending = CSVScanSourceOpExec.parseNextRow(parser, maxColumns)
+          try {
+            val values = AttributeTypeUtils.parseFields(row.asInstanceOf[Array[Any]], schema)
+            var c = 0
+            while (c < numCols) {
+              ArrowUtils.setCell(root.getVector(c), r, values(c).asInstanceOf[AnyRef]); c += 1
+            }
+            r += 1
+          } catch {
+            case e: Throwable =>
+              skippedRows.record(
+                ScanRowParseError
+                  .skipWarning(row.toSeq, schema, desc.inferSampleSize, Some(numRowGenerated), e)
+              )
+          }
+        }
+        root.setRowCount(r)
+        root
+      }
+    })
   }
 
   override def open(): Unit = {

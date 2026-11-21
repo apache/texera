@@ -38,4 +38,8 @@ case class HashBasedShufflePartitioner(partitioning: HashBasedShufflePartitionin
   }
 
   override def allReceivers: Seq[ActorVirtualIdentity] = receivers
+
+  // Hash reads the key columns (or the whole tuple when no keys are named).
+  override def bucketKeyColumns: Seq[String] = partitioning.hashAttributeNames
+  override def requiresFullTuple: Boolean = partitioning.hashAttributeNames.isEmpty
 }

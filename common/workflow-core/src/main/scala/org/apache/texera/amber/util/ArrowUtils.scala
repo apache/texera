@@ -38,7 +38,10 @@ import org.apache.arrow.vector.{
   VarCharVector,
   VectorSchemaRoot
 }
+import org.apache.arrow.vector.ipc.{ArrowStreamReader, ArrowStreamWriter}
 
+import java.io.{ByteArrayInputStream, ByteArrayOutputStream}
+import java.nio.channels.Channels
 import java.nio.charset.StandardCharsets
 import java.sql.Timestamp
 import java.time.temporal.ChronoUnit
@@ -53,7 +56,224 @@ object ArrowUtils extends LazyLogging {
   // Create a single allocator for the entire utility
   private val allocator: BufferAllocator = new RootAllocator()
 
+  // The shared utility allocator, for callers that must decode into a long-lived owned root
+  // (e.g. rebuilding a LocalColumnarBatch after deserialization).
+  def sharedAllocator: BufferAllocator = allocator
+
   implicit def bool2int(b: Boolean): Int = if (b) 1 else 0
+
+  // Serialize a VectorSchemaRoot to Arrow IPC stream bytes. Does not close root.
+  def serializeRoot(root: VectorSchemaRoot): Array[Byte] = {
+    val out = new ByteArrayOutputStream()
+    val writer = new ArrowStreamWriter(root, null, Channels.newChannel(out))
+    try { writer.start(); writer.writeBatch(); writer.end() }
+    finally writer.close()
+    out.toByteArray
+  }
+
+  // Read one Arrow IPC batch, apply `f` to the live root, then close the reader.
+  // `f` must copy anything it needs out (the root is freed on return).
+  def deserializeRootFold[T](bytes: Array[Byte], allocator: BufferAllocator)(
+      f: VectorSchemaRoot => T
+  ): T = {
+    val reader = new ArrowStreamReader(new ByteArrayInputStream(bytes), allocator)
+    try {
+      reader.loadNextBatch()
+      f(reader.getVectorSchemaRoot)
+    } finally reader.close()
+  }
+
+  // Build a live Arrow root from Texera tuples (no IPC round-trip). The caller owns and closes it.
+  def rootFromTuples(
+      schema: Schema,
+      tuples: Array[Tuple],
+      alloc: BufferAllocator
+  ): VectorSchemaRoot = {
+    val root = VectorSchemaRoot.create(fromTexeraSchema(schema), alloc)
+    var i = 0
+    while (i < tuples.length) { setTexeraTuple(tuples(i), i, root); i += 1 }
+    root.setRowCount(tuples.length)
+    root
+  }
+
+  def serializeTuples(schema: Schema, tuples: Array[Tuple]): Array[Byte] = {
+    val root = rootFromTuples(schema, tuples, allocator)
+    try serializeRoot(root)
+    finally root.close()
+  }
+
+  // Inverse of serializeTuples: decode Arrow IPC stream bytes back to tuples.
+  def deserializeTuples(bytes: Array[Byte]): Array[Tuple] = {
+    val reader = new ArrowStreamReader(new ByteArrayInputStream(bytes), allocator)
+    try {
+      val out = scala.collection.mutable.ArrayBuffer[Tuple]()
+      val root = reader.getVectorSchemaRoot
+      // Resolved once per stream and reused per row: the Texera schema, the field
+      // vectors as a plain array, and each column's attribute type. Rebuilding these
+      // per row (an Arrow-to-Texera schema conversion plus collection allocation) was
+      // the dominant decode cost.
+      var schema: Schema = null
+      var vecs: Array[FieldVector] = null
+      var types: Array[AttributeType] = null
+      var numCols = 0
+      while (reader.loadNextBatch()) {
+        if (schema == null) {
+          schema = toTexeraSchema(root.getSchema)
+          val fv = root.getFieldVectors
+          numCols = fv.size
+          vecs = new Array[FieldVector](numCols)
+          types = new Array[AttributeType](numCols)
+          var c = 0
+          while (c < numCols) {
+            vecs(c) = fv.get(c); types(c) = schema.getAttributes(c).getType; c += 1
+          }
+        }
+        val n = root.getRowCount
+        var i = 0
+        while (i < n) {
+          val values = new Array[Any](numCols)
+          var c = 0
+          while (c < numCols) { values(c) = getCell(vecs(c), i, types(c)); c += 1 }
+          out += Tuple(schema, values)
+          i += 1
+        }
+      }
+      out.toArray
+    } finally reader.close()
+  }
+
+  // Decode one Arrow IPC batch into a root the caller OWNS (and must close), unlike
+  // deserializeRootFold which frees the root when it returns. The reader decodes into
+  // `allocator`, then the batch is transferred (zero-copy move, same allocator) into an
+  // independent root and the reader is closed. Used to rebuild a LocalColumnarBatch's live
+  // root after it was serialized (e.g. a checkpoint).
+  def deserializeRootOwned(bytes: Array[Byte], allocator: BufferAllocator): VectorSchemaRoot = {
+    val reader = new ArrowStreamReader(new ByteArrayInputStream(bytes), allocator)
+    try {
+      reader.loadNextBatch()
+      val src = reader.getVectorSchemaRoot
+      val dest = VectorSchemaRoot.create(src.getSchema, allocator)
+      val srcVecs = src.getFieldVectors
+      val destVecs = dest.getFieldVectors
+      var c = 0
+      while (c < srcVecs.size) {
+        srcVecs.get(c).makeTransferPair(destVecs.get(c)).transfer(); c += 1
+      }
+      dest.setRowCount(src.getRowCount)
+      dest
+    } finally reader.close()
+  }
+
+  // Decode a live Arrow root to tuples. Like deserializeTuples but over an
+  // already-open root (the Emit output path's root-to-rows step); does not close
+  // the root. Resolves the schema, field vectors, and column types once, then
+  // reads each row with a plain index loop.
+  def tuplesOfRoot(root: VectorSchemaRoot): Array[Tuple] = {
+    val schema = toTexeraSchema(root.getSchema)
+    val fv = root.getFieldVectors
+    val numCols = fv.size
+    val vecs = new Array[FieldVector](numCols)
+    val types = new Array[AttributeType](numCols)
+    var c0 = 0
+    while (c0 < numCols) {
+      vecs(c0) = fv.get(c0); types(c0) = schema.getAttributes(c0).getType; c0 += 1
+    }
+    val n = root.getRowCount
+    val out = new Array[Tuple](n)
+    var i = 0
+    while (i < n) {
+      val values = new Array[Any](numCols)
+      var c = 0
+      while (c < numCols) { values(c) = getCell(vecs(c), i, types(c)); c += 1 }
+      out(i) = Tuple(schema, values)
+      i += 1
+    }
+    out
+  }
+
+  // Copy the rows of `src` where keep(i) is true into a new independent root.
+  def selectRows(
+      src: VectorSchemaRoot,
+      keep: Array[Boolean],
+      allocator: BufferAllocator
+  ): VectorSchemaRoot = {
+    val dest = VectorSchemaRoot.create(src.getSchema, allocator)
+    val srcVecs = src.getFieldVectors
+    val destVecs = dest.getFieldVectors
+    var destIdx = 0
+    var i = 0
+    val n = src.getRowCount
+    while (i < n) {
+      if (keep(i)) {
+        var c = 0
+        while (c < srcVecs.size) {
+          destVecs.get(c).copyFromSafe(i, destIdx, srcVecs.get(c)); c += 1
+        }
+        destIdx += 1
+      }
+      i += 1
+    }
+    dest.setRowCount(destIdx)
+    dest
+  }
+
+  // Selection vector: the indices of `src`'s rows where keep(i) is true, in order.
+  // Records which rows passed without copying any cell (unlike selectRows). A
+  // consumer that only needs a count or an aggregate reads the indices and never
+  // materializes; a consumer that needs contiguous rows calls `gather`.
+  def selectionOf(keep: Array[Boolean], rowCount: Int): Array[Int] = {
+    val sel = new Array[Int](rowCount)
+    var n = 0
+    var i = 0
+    while (i < rowCount) { if (keep(i)) { sel(n) = i; n += 1 }; i += 1 }
+    if (n == rowCount) sel else java.util.Arrays.copyOf(sel, n)
+  }
+
+  // Materialize the rows named by a selection vector into a new compacted root
+  // (the deferred copy). Inverse endpoint of selectionOf for consumers that need
+  // contiguous Arrow columns (e.g. shipping to the wire).
+  def gather(
+      src: VectorSchemaRoot,
+      selection: Array[Int],
+      allocator: BufferAllocator
+  ): VectorSchemaRoot = {
+    val dest = VectorSchemaRoot.create(src.getSchema, allocator)
+    val srcVecs = src.getFieldVectors
+    val destVecs = dest.getFieldVectors
+    var di = 0
+    while (di < selection.length) {
+      val i = selection(di)
+      var c = 0
+      while (c < srcVecs.size) { destVecs.get(c).copyFromSafe(i, di, srcVecs.get(c)); c += 1 }
+      di += 1
+    }
+    dest.setRowCount(selection.length)
+    dest
+  }
+
+  // Resolve the column indices of `names` in an Arrow batch, by exact name.
+  def projectionIndices(root: VectorSchemaRoot, names: Seq[String]): Array[Int] = {
+    val fields = root.getSchema.getFields
+    names.map { name =>
+      var idx = -1
+      var k = 0
+      while (k < fields.size && idx < 0) { if (fields.get(k).getName == name) idx = k; k += 1 }
+      if (idx < 0) throw new IllegalArgumentException(s"column '$name' not found in Arrow batch")
+      idx
+    }.toArray
+  }
+
+  // Read one cell as the Texera value for `attrType`, returning null on any
+  // conversion failure (matches the row path's lenient decode).
+  def getCell(vector: FieldVector, rowIndex: Int, attrType: AttributeType): AnyRef = {
+    val raw = vector.getObject(rowIndex)
+    try {
+      attrType match {
+        case AttributeType.TIMESTAMP => wallClockOf(raw, vector.getField.getType)
+        case _                       => AttributeTypeUtils.parseField(raw, attrType).asInstanceOf[AnyRef]
+      }
+    } catch { case _: Exception => null }
+  }
 
   /**
     * Reads a row of the given Arrow Vectors into a Texera.Tuple
@@ -287,82 +507,86 @@ object ArrowUtils extends LazyLogging {
     */
   def setTexeraTuple(tuple: Tuple, index: Int, vectorSchemaRoot: VectorSchemaRoot): Unit = {
     val arrowFields = vectorSchemaRoot.getSchema.getFields
-
     for (i <- 0 until arrowFields.size()) {
-      val vector: FieldVector = vectorSchemaRoot.getVector(i)
-      val value = tuple.getField[AnyRef](i)
-      val isNull = value == null
-      arrowFields.get(i).getFieldType.getType match {
-        case _: ArrowType.Int =>
-          vector.getField.getFieldType.getType.asInstanceOf[ArrowType.Int].getBitWidth match {
-            case 16 | 32 =>
-              vector
-                .asInstanceOf[IntVector]
-                .setSafe(index, !isNull, if (isNull) 0 else value.asInstanceOf[Int])
-
-            case 64 =>
-              vector
-                .asInstanceOf[BigIntVector]
-                .setSafe(index, !isNull, if (isNull) 0 else value.asInstanceOf[Long])
-
-            case other =>
-              throw new AttributeTypeUtils.AttributeTypeException(
-                s"Unsupported Int bit width: $other"
-              )
-          }
-
-        case _: ArrowType.Bool =>
-          vector
-            .asInstanceOf[BitVector]
-            .setSafe(index, !isNull, if (isNull) 0 else value.asInstanceOf[Boolean])
-
-        case _: ArrowType.FloatingPoint =>
-          vector
-            .asInstanceOf[Float8Vector]
-            .setSafe(index, !isNull, if (isNull) 0 else value.asInstanceOf[Double])
-
-        // The wall clock written as the field's own zone and unit, so the number
-        // and the label beside it agree. Going through the value's own epoch
-        // would have read the wall clock in the JVM's zone instead, putting a
-        // machine's setting into the file: the same table written in two places
-        // would hold two different instants under one label. Inverts
-        // [[wallClockOf]].
-        case timestamp: ArrowType.Timestamp =>
-          vector
-            .asInstanceOf[TimeStampVector]
-            .setSafe(
-              index,
-              !isNull,
-              if (isNull) 0L
-              else
-                numberOf(
-                  AttributeTypeUtils
-                    .parseField(value, AttributeType.TIMESTAMP)
-                    .asInstanceOf[Timestamp]
-                    .toLocalDateTime
-                    .atZone(zoneOf(timestamp))
-                    .toInstant,
-                  timestamp.getUnit
-                )
-            )
-
-        case _: ArrowType.Utf8 =>
-          if (isNull) vector.asInstanceOf[VarCharVector].setNull(index)
-          else
-            vector
-              .asInstanceOf[VarCharVector]
-              .setSafe(index, value.toString.getBytes(StandardCharsets.UTF_8))
-        case _: ArrowType.Binary | _: ArrowType.LargeBinary =>
-          if (isNull) vector.asInstanceOf[VarBinaryVector].setNull(index)
-          else
-            vector
-              .asInstanceOf[VarBinaryVector]
-              .setSafe(index, value.asInstanceOf[Array[Byte]])
-
-      }
+      setCell(vectorSchemaRoot.getVector(i), index, tuple.getField[AnyRef](i))
     }
-
     vectorSchemaRoot.setRowCount(vectorSchemaRoot.getRowCount + 1)
+  }
+
+  /**
+    * Write one Texera value into a column vector at `index`, dispatching on the vector's Arrow type
+    * (null -> the vector's null). Does not change the row count.
+    */
+  def setCell(vector: FieldVector, index: Int, value: AnyRef): Unit = {
+    val isNull = value == null
+    vector.getField.getFieldType.getType match {
+      case _: ArrowType.Int =>
+        vector.getField.getFieldType.getType.asInstanceOf[ArrowType.Int].getBitWidth match {
+          case 16 | 32 =>
+            vector
+              .asInstanceOf[IntVector]
+              .setSafe(index, !isNull, if (isNull) 0 else value.asInstanceOf[Int])
+
+          case 64 =>
+            vector
+              .asInstanceOf[BigIntVector]
+              .setSafe(index, !isNull, if (isNull) 0 else value.asInstanceOf[Long])
+
+          case other =>
+            throw new AttributeTypeUtils.AttributeTypeException(
+              s"Unsupported Int bit width: $other"
+            )
+        }
+
+      case _: ArrowType.Bool =>
+        vector
+          .asInstanceOf[BitVector]
+          .setSafe(index, !isNull, if (isNull) 0 else value.asInstanceOf[Boolean])
+
+      case _: ArrowType.FloatingPoint =>
+        vector
+          .asInstanceOf[Float8Vector]
+          .setSafe(index, !isNull, if (isNull) 0 else value.asInstanceOf[Double])
+
+      // The wall clock written as the field's own zone and unit, so the number
+      // and the label beside it agree. Going through the value's own epoch
+      // would have read the wall clock in the JVM's zone instead, putting a
+      // machine's setting into the file: the same table written in two places
+      // would hold two different instants under one label. Inverts
+      // [[wallClockOf]].
+      case timestamp: ArrowType.Timestamp =>
+        vector
+          .asInstanceOf[TimeStampVector]
+          .setSafe(
+            index,
+            !isNull,
+            if (isNull) 0L
+            else
+              numberOf(
+                AttributeTypeUtils
+                  .parseField(value, AttributeType.TIMESTAMP)
+                  .asInstanceOf[Timestamp]
+                  .toLocalDateTime
+                  .atZone(zoneOf(timestamp))
+                  .toInstant,
+                timestamp.getUnit
+              )
+          )
+
+      case _: ArrowType.Utf8 =>
+        if (isNull) vector.asInstanceOf[VarCharVector].setNull(index)
+        else
+          vector
+            .asInstanceOf[VarCharVector]
+            .setSafe(index, value.toString.getBytes(StandardCharsets.UTF_8))
+      case _: ArrowType.Binary | _: ArrowType.LargeBinary =>
+        if (isNull) vector.asInstanceOf[VarBinaryVector].setNull(index)
+        else
+          vector
+            .asInstanceOf[VarBinaryVector]
+            .setSafe(index, value.asInstanceOf[Array[Byte]])
+
+    }
   }
 
   /**

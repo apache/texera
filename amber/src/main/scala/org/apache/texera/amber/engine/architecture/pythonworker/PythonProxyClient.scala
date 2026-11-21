@@ -124,6 +124,14 @@ class PythonProxyClient(portNumberPromise: Promise[Int], val actorId: ActorVirtu
     dataPayload match {
       case DataFrame(frame) =>
         writeArrowStream(mutable.Queue(ArraySeq.unsafeWrapArray(frame): _*), from, "Data")
+      case VectorFrame(arrowIpcBytes, _, _) =>
+        // A columnar-wire batch headed to a Python worker: decode it back to tuples
+        // and hand it over as a Data batch, same as a DataFrame.
+        writeArrowStream(
+          mutable.Queue(ArraySeq.unsafeWrapArray(ArrowUtils.deserializeTuples(arrowIpcBytes)): _*),
+          from,
+          "Data"
+        )
       case StateFrame(state, loopCounter, loopStartId) =>
         // The Arrow wire format for states IS the State row (content +
         // loop_counter + loop_start_id), so the envelope rides its own

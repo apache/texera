@@ -43,10 +43,17 @@ import org.apache.texera.amber.core.tuple.Tuple
 case class DistributedAggregation[P <: AnyRef](
     // () => PartialObject
     init: () => P,
-    // PartialObject + Tuple => PartialObject
-    iterate: (P, Tuple) => P,
+    // PartialObject + inputValue => PartialObject. The value is the one cell this
+    // aggregation reads (already extracted), or null for COUNT(*). Both the row path
+    // (via `iterate`) and the columnar path feed this, so accumulation is defined once.
+    iterateValue: (P, Object) => P,
     // PartialObject + PartialObject => PartialObject
     merge: (P, P) => P,
     // PartialObject => Tuple with one column, later be combined into FinalObject
-    finalAgg: (P) => Object
-)
+    finalAgg: (P) => Object,
+    // Pull the one value this aggregation reads out of a tuple (null for COUNT(*)).
+    extract: Tuple => Object
+) {
+  // Row path: extract the value this aggregation reads, then accumulate it.
+  def iterate(partial: P, tuple: Tuple): P = iterateValue(partial, extract(tuple))
+}

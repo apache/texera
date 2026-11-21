@@ -20,6 +20,8 @@
 package org.apache.texera.amber.operator.aggregate
 
 import org.apache.texera.amber.core.tuple.AttributeType
+import org.apache.texera.amber.util.ArrowUtils
+import org.apache.texera.amber.util.JSONUtils.objectMapper
 import org.scalatest.funsuite.AnyFunSuite
 
 import java.sql.Timestamp
@@ -449,5 +451,105 @@ class AggregateOpSpec extends AnyFunSuite {
     exec.open()
     val results = runAggregateExec(exec, makeTuple(schema, "NY", 3))
     assert(results.size == 1 && results.head.getFields(1).asInstanceOf[Number].intValue() == 3)
+  }
+
+  test("AggregateOpExec columnar accumulate matches the row path (grouped SUM/COUNT/AVG/MIN/MAX)") {
+    // The native-Arrow accumulate (processColumnarBatch) must produce the same
+    // grouped result as feeding the same rows through processTuple, so enabling the
+    // columnar wire never changes an aggregate's output.
+    val schema = makeSchema(
+      "city" -> AttributeType.STRING,
+      "sales" -> AttributeType.INTEGER
+    )
+    val rows = Seq(
+      makeTuple(schema, "NY", 10),
+      makeTuple(schema, "SF", 20),
+      makeTuple(schema, "NY", 5),
+      makeTuple(schema, "SF", 7),
+      makeTuple(schema, "NY", null) // a null value: counted by COUNT(*) only, skipped by the rest
+    )
+
+    val desc = new AggregateOpDesc()
+    desc.aggregations = List(
+      makeAggregationOp(AggregationFunction.SUM, "sales", "sum_sales"),
+      makeAggregationOp(AggregationFunction.COUNT, "", "n_rows"),
+      makeAggregationOp(AggregationFunction.AVERAGE, "sales", "avg_sales"),
+      makeAggregationOp(AggregationFunction.MIN, "sales", "min_sales"),
+      makeAggregationOp(AggregationFunction.MAX, "sales", "max_sales")
+    )
+    desc.groupByKeys = List("city")
+    val descJson = objectMapper.writeValueAsString(desc)
+
+    def resultsOf(feed: AggregateOpExec => Unit): Map[String, List[Any]] = {
+      val exec = new AggregateOpExec(descJson)
+      exec.open()
+      feed(exec)
+      val out = exec
+        .onFinish(0)
+        .toList
+        .map { t =>
+          val f = t.getFields
+          f(0).asInstanceOf[String] -> f.drop(1).toList
+        }
+        .toMap
+      exec.close()
+      out
+    }
+
+    val rowResult = resultsOf(exec => rows.foreach(exec.processTuple(_, 0)))
+    val colResult =
+      resultsOf(exec =>
+        exec.processColumnarBatch(ArrowUtils.serializeTuples(schema, rows.toArray), 0)
+      )
+
+    assert(colResult.keySet == rowResult.keySet)
+    colResult.keys.foreach { city =>
+      assert(colResult(city) == rowResult(city), s"group $city differs")
+    }
+  }
+
+  test("processColumnarRoot accumulates a live root identically to processColumnarBatch") {
+    val schema = makeSchema("city" -> AttributeType.STRING, "sales" -> AttributeType.INTEGER)
+    val rows = Seq(
+      makeTuple(schema, "NY", 10),
+      makeTuple(schema, "SF", 20),
+      makeTuple(schema, "NY", 5),
+      makeTuple(schema, "SF", null)
+    )
+    val desc = new AggregateOpDesc()
+    desc.aggregations = List(
+      makeAggregationOp(AggregationFunction.SUM, "sales", "sum_sales"),
+      makeAggregationOp(AggregationFunction.COUNT, "", "n_rows")
+    )
+    desc.groupByKeys = List("city")
+    val descJson = objectMapper.writeValueAsString(desc)
+
+    def resultsOf(feed: AggregateOpExec => Unit): Map[String, List[Any]] = {
+      val exec = new AggregateOpExec(descJson)
+      exec.open()
+      feed(exec)
+      val out = exec
+        .onFinish(0)
+        .toList
+        .map { t =>
+          val f = t.getFields; f(0).asInstanceOf[String] -> f.drop(1).toList
+        }
+        .toMap
+      exec.close()
+      out
+    }
+
+    val bytesResult = resultsOf(exec =>
+      exec.processColumnarBatch(ArrowUtils.serializeTuples(schema, rows.toArray), 0)
+    )
+    val rootResult = resultsOf { exec =>
+      val alloc = new org.apache.arrow.memory.RootAllocator()
+      try {
+        ArrowUtils.deserializeRootFold(ArrowUtils.serializeTuples(schema, rows.toArray), alloc)(
+          exec.processColumnarRoot(_, 0)
+        )
+      } finally alloc.close()
+    }
+    assert(rootResult == bytesResult)
   }
 }

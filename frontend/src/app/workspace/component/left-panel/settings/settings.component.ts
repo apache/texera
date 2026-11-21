@@ -29,6 +29,10 @@ import { ExecutionMode } from "../../../../common/type/workflow";
 import { NzRadioGroupComponent, NzRadioComponent } from "ng-zorro-antd/radio";
 import { NgClass, NgIf } from "@angular/common";
 
+// Default batch size per mode loaded into the input box on toggle; a custom value is kept.
+const ROW_DEFAULT_BATCH_SIZE = 400;
+const COLUMNAR_DEFAULT_BATCH_SIZE = 10000;
+
 @UntilDestroy()
 @Component({
   selector: "texera-settings",
@@ -52,6 +56,7 @@ export class SettingsComponent implements OnInit {
         [Validators.required, Validators.min(1)],
       ],
       executionMode: [this.workflowActionService.getWorkflowContent().settings.executionMode],
+      columnar: [this.workflowActionService.getWorkflowContent().settings.columnar ?? false],
     });
   }
 
@@ -72,6 +77,13 @@ export class SettingsComponent implements OnInit {
         this.updateExecutionMode(mode);
       });
 
+    this.settingsForm
+      .get("columnar")!
+      .valueChanges.pipe(untilDestroyed(this))
+      .subscribe((columnar: boolean) => {
+        this.updateColumnar(columnar);
+      });
+
     // The settings can move without the form: undo/redo, a reloaded workflow (workflowChanged), or
     // a co-editor's edit, which arrives on workflowSettingsChanged$ alone -- a settings change is
     // not part of workflowChanged, since this panel persists its own and the autosave behind
@@ -83,6 +95,7 @@ export class SettingsComponent implements OnInit {
           {
             dataTransferBatchSize: this.workflowActionService.getWorkflowContent().settings.dataTransferBatchSize,
             executionMode: this.workflowActionService.getWorkflowContent().settings.executionMode,
+            columnar: this.workflowActionService.getWorkflowContent().settings.columnar ?? false,
           },
           { emitEvent: false }
         );
@@ -110,6 +123,25 @@ export class SettingsComponent implements OnInit {
   public updateExecutionMode(mode: ExecutionMode) {
     this.workflowActionService.updateExecutionMode(mode);
     this.persistWorkflow();
+  }
+
+  public updateColumnar(columnar: boolean) {
+    this.workflowActionService.updateColumnar(columnar);
+    this.loadModeDefaultBatchSize(columnar);
+    this.persistWorkflow();
+  }
+
+  // Load the target mode's default batch size into the box, unless the current value is a custom
+  // override (it differs from the mode we are leaving). The box stays editable either way.
+  private loadModeDefaultBatchSize(columnar: boolean): void {
+    const fromDefault = columnar ? ROW_DEFAULT_BATCH_SIZE : COLUMNAR_DEFAULT_BATCH_SIZE;
+    const toDefault = columnar ? COLUMNAR_DEFAULT_BATCH_SIZE : ROW_DEFAULT_BATCH_SIZE;
+    const current = this.settingsForm.get("dataTransferBatchSize")!.value;
+    if (current !== fromDefault) {
+      return;
+    }
+    this.settingsForm.get("dataTransferBatchSize")!.setValue(toDefault, { emitEvent: false });
+    this.workflowActionService.setWorkflowDataTransferBatchSize(toDefault);
   }
 
   protected readonly ExecutionMode = ExecutionMode;

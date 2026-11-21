@@ -1138,6 +1138,10 @@ export class WorkflowActionService {
     this.setWorkflowSettings({ ...this.getWorkflowSettings(), executionMode: mode });
   }
 
+  public updateColumnar(columnar: boolean): void {
+    this.setWorkflowSettings({ ...this.getWorkflowSettings(), columnar });
+  }
+
   public clearWorkflow(): void {
     this.destroySharedModel();
     this.setWorkflowMetadata(undefined);

@@ -19,6 +19,7 @@
 
 package org.apache.texera.amber.engine.architecture.scheduling.resourcePolicies
 
+import org.apache.texera.common.config.ApplicationConfig
 import org.apache.texera.amber.core.virtualidentity.PhysicalOpIdentity
 import org.apache.texera.amber.core.workflow._
 import org.apache.texera.amber.engine.architecture.scheduling.Region
@@ -89,7 +90,12 @@ class DefaultResourceAllocator(
           operatorConfigs(physicalLink.toOpId).workerConfigs.map(_.workerId),
           linkPartitionInfos(physicalLink),
           workflowSettings.dataTransferBatchSize
-        )
+        ),
+        // Per edge: columnar when this run requests it (workflowSettings.columnar, else the cluster
+        // default) and the downstream operator consumes columns natively.
+        columnar =
+          workflowSettings.columnar.getOrElse(ApplicationConfig.enableColumnarWire) &&
+            physicalPlan.getOperator(physicalLink.toOpId).isColumnarCapable
       )
     }.toMap
 
