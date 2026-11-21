@@ -84,7 +84,7 @@ RUN python3 bin/licensing/concat_license_binary.py amber/LICENSE-binary-combined
         amber/LICENSE-binary-java \
         amber/LICENSE-binary-python
 
-FROM docker.io/library/eclipse-temurin:17-jdk-jammy@sha256:60fcdd4a85c94a23ef86d0d55867c6a8dbc4f7c3efc8286e259956c3ea4ef08c AS runtime
+FROM docker.io/library/eclipse-temurin:17-jdk-jammy@sha256:96ac8197b2cbc2bb0f9fbcbf91dbb0015f43b3c76a1cb351892da12e7bb91bed AS runtime
 
 WORKDIR /texera/amber
 

@@ -19,7 +19,7 @@
 # FUSE mount that computing-unit pods used to do themselves, so that CU pods (which run
 # untrusted user code) can be unprivileged. It needs python3 (the mounter), fuse3 + geesefs
 # (to mount), and util-linux (umount) — all part of a minimal Debian base.
-FROM docker.io/library/debian:bookworm-slim@sha256:3783cc01769c7b2b1b83a5c5ad96c815348e28ed7da68e2e3687004faa906251
+FROM docker.io/library/debian:bookworm-slim@sha256:734a72b3d6142a71993b4bc580ca01d8ca687f77a2c422d96a961d3376b179bc
 
 ARG GEESEFS_VERSION=v0.43.8
 ARG PACKAGE_SNAPSHOT
