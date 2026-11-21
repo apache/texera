@@ -87,8 +87,9 @@ class ColumnarSourceEmitBenchSpec extends AnyFlatSpec {
   // c0 >= 0.0: a single vectorizable Float8 predicate, ~half the random doubles.
   private def filterDesc: String = {
     val d = new SpecializedFilterOpDesc()
-    d.predicates =
-      List(new FilterPredicate(filterCol, ComparisonType.GREATER_THAN_OR_EQUAL_TO, "0.0"))
+    d.predicates = List(
+      new FilterPredicate(filterCol, ComparisonType.GREATER_THAN_OR_EQUAL_TO, "0.0")
+    )
     objectMapper.writeValueAsString(d)
   }
 
@@ -126,7 +127,7 @@ class ColumnarSourceEmitBenchSpec extends AnyFlatSpec {
     var survived = 0L
     val t0 = System.nanoTime()
     try {
-      exec.produceColumnarBatch(schema).get.foreach { root =>
+      exec.produceColumnarBatch(schema, 10000).get.foreach { root =>
         try filter.processColumnarRoot(root, 0) match {
           case ColumnarResult.Emit(out) => survived += out.getRowCount; out.close()
           case _                        => survived += root.getRowCount

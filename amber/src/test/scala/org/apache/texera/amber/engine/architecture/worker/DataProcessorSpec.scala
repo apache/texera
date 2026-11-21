@@ -980,13 +980,15 @@ object DataProcessorSpec {
   class RowOnlyExec extends EchoingExec
 
   /** A source whose data is natively columnar: hands out the given Arrow roots and never
-    * builds rows. produceTuple would signal a mis-route, so it counts its calls. */
+    * builds rows. produceTuple would signal a mis-route, so it counts its calls.
+    */
   class ColumnarSourceExec(roots: Seq[org.apache.arrow.vector.VectorSchemaRoot])
       extends SourceOperatorExecutor {
     var produceTupleCalls = 0
     override def produceTuple(): Iterator[TupleLike] = { produceTupleCalls += 1; Iterator.empty }
     override def produceColumnarBatch(
-        schema: org.apache.texera.amber.core.tuple.Schema
+        schema: org.apache.texera.amber.core.tuple.Schema,
+        maxBatchRows: Int
     ): Option[Iterator[org.apache.arrow.vector.VectorSchemaRoot]] =
       Some(roots.iterator)
   }

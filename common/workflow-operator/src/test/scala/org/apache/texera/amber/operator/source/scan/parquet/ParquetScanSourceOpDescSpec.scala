@@ -233,9 +233,12 @@ class ParquetScanSourceOpDescSpec extends AnyFlatSpec with Matchers {
     colExec.open()
     val columnarRows =
       try colExec
-        .produceColumnarBatch(schema)
+        .produceColumnarBatch(schema, 10000)
         .get
-        .flatMap(root => try ArrowUtils.tuplesOfRoot(root).toList finally root.close())
+        .flatMap(root =>
+          try ArrowUtils.tuplesOfRoot(root).toList
+          finally root.close()
+        )
         .toList
         .map(_.getFields.toList)
       finally colExec.close()
@@ -257,8 +260,30 @@ class ParquetScanSourceOpDescSpec extends AnyFlatSpec with Matchers {
     d.limit = Some(1)
     val exec = new ParquetScanSourceOpExec(objectMapper.writeValueAsString(d))
     exec.open()
-    try exec.produceColumnarBatch(d.inferSchema()) shouldBe None
+    try exec.produceColumnarBatch(d.inferSchema(), 10000) shouldBe None
     finally exec.close()
+  }
+
+  // A big row group must be split into bounded batches of maxBatchRows, not one huge Arrow root.
+  it should "cap each columnar batch at maxBatchRows" in {
+    val cap = 3
+    val mt = Types
+      .buildMessage()
+      .addField(Types.optional(PrimitiveTypeName.INT32).named("id"))
+      .named("m")
+    val rows: Seq[Group => Unit] =
+      (0 until cap + 2).map(i => (g: Group) => { g.append("id", i); () })
+    val d = descFor(writeFile(mt)(rows: _*))
+    val exec = new ParquetScanSourceOpExec(objectMapper.writeValueAsString(d))
+    exec.open()
+    val sizes =
+      try exec
+        .produceColumnarBatch(d.inferSchema(), cap)
+        .get
+        .map(r => { val n = r.getRowCount; r.close(); n })
+        .toList
+      finally exec.close()
+    assert(sizes.forall(_ <= cap) && sizes.sum == cap + 2 && sizes.head == cap)
   }
 
   "ParquetScanSourceOpDesc.operatorInfo" should
