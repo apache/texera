@@ -134,6 +134,7 @@ jobs:
       run_amber_integration: ${{ needs.precheck.outputs.run_amber_integration == 'true' }}
       run_platform: ${{ needs.precheck.outputs.run_platform == 'true' }}
       run_platform_integration: ${{ needs.precheck.outputs.run_platform_integration == 'true' }}
+      run_workflow_to_python: ${{ needs.precheck.outputs.run_workflow_to_python == 'true' }}
       run_pyamber: ${{ needs.precheck.outputs.run_pyamber == 'true' }}
       run_agent_service: ${{ needs.precheck.outputs.run_agent_service == 'true' }}
       run_infra: ${{ needs.precheck.outputs.run_infra == 'true' }}
