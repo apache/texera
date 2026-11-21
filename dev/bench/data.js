@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1795180028308,
+  "lastUpdate": 1795265038399,
   "repoUrl": "https://github.com/apache/texera",
   "entries": {
     "Arrow Flight E2E Throughput": [
@@ -23343,6 +23343,163 @@ window.BENCHMARK_DATA = {
           {
             "name": "throughput / bs=1000 sw=50 sl=512",
             "value": 500.6658753254992,
+            "unit": "tuples/sec"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "name": "Xinyuan Lin",
+            "username": "aglinxinyuan",
+            "email": "xinyual3@uci.edu"
+          },
+          "committer": {
+            "name": "GitHub",
+            "username": "web-flow",
+            "email": "noreply@github.com"
+          },
+          "id": "f030df12b73c2c6a8f2e8b325c6e762d54fead7f",
+          "message": "refactor(frontend): remove unused imports, modules, and state (#9538)\n\n### What changes were proposed in this PR?\n\nRemove unused imports, redundant standalone module imports, dead\nhelper/stub methods, unmatched SCSS rules, unused template refs, and\nunread component/service fields across the Angular frontend with no\nobservable UI or runtime behavior change:\n\n- **User/auth services and test stubs:** Remove unused\n`GuiConfigService` injection in `AuthGuardService`, unused `HttpClient`\ninjection and `AppSettings` import in `UserService`, unused `Input`\nimport in `RegistrationRequestModalComponent`, and dead\n`checkAffiliation`/`updateAffiliation` methods on `StubUserService`.\n- **Dashboard search, unread state, and dataset helpers:** Remove unused\n`#searchInput` template references in `SearchBarComponent`,\n`UserDatasetComponent`, and `UserModelComponent`, unmatched\n`.nz-input-group`/`.nz-prefix-icon` SCSS rules in `SearchBarComponent`,\nunused `getUid()` and `UserService` injection in\n`SearchResultsComponent` (with its `getUid`-only unit tests), unread\n`isLogin`/`currentUid` state and `UserService` subscription in\n`UserComputingUnitComponent` (with its paired unit test), unread\n`isLogin` in `LandingPageComponent` (retaining `currentUid` and its\nassertions), unread `map` in `MiniMapComponent`, unread `coeditorStates`\nin `CoeditorPresenceService`, unread `viewPort` `@ViewChild` in\n`ConsoleFrameComponent`, unused `DICT_PREFIX` and `of` import in\n`PresetService`, and spec-only `getPathsUnderOrEqualDatasetFileNode`\n(with its unit tests).\n- **Standalone and duplicate imports:** Remove redundant `FormsModule`\nstandalone imports alongside `ReactiveFormsModule` in\n`AdminGmailComponent` (and its spec), `DatasetFileSelectorComponent`,\n`DatasetVersionSelectorComponent`, `SettingsComponent`,\n`PortPropertyEditFrameComponent`, and\n`OperatorPropertyEditFrameComponent`, unused `NzTooltipModule` in\n`HubSearchResultComponent`, unused `NzButtonModule` in\n`JupyterNotebookPanelComponent`, and duplicate module imports in\n`WarehouseActionsService`, `UserDatasetFileRendererComponent`, and\n`UiUdfParametersParserService`.\n\n### Any related issues, documentation, discussions?\n\nCloses #9537.\n\n### How was this PR tested?\n\nRan in `frontend/` on `5202d9582b` (Node 24, `node\n.yarn/releases/yarn-4.14.1.cjs install --immutable --inline-builds`):\n\n```bash\nnode .yarn/releases/yarn-4.14.1.cjs format:ci\nnode .yarn/releases/yarn-4.14.1.cjs exec tsc -p src/tsconfig.app.json --noEmit\nnode .yarn/releases/yarn-4.14.1.cjs exec tsc -p src/tsconfig.spec.json --noEmit\nnode .yarn/releases/yarn-4.14.1.cjs build\nnode .yarn/releases/yarn-4.14.1.cjs test\n```\n\n- `format:ci` (`prettier-eslint --list-different` and `eslint ./src`):\npassed.\n- `tsc --noEmit` (`src/tsconfig.app.json` and `src/tsconfig.spec.json`):\npassed.\n- `build` (production Angular AOT build): passed.\n- `test` (Vitest): `255` suites passed (`7,379` passed, `0` failed, `1`\npre-existing skipped in untouched\n`operator-property-edit-frame.component.spec.ts`).\n\n### Was this PR authored or co-authored using generative AI tooling?\n\nGenerated-by: Antigravity (Gemini 4 Neon), Claude Code (Claude Opus 5.5)",
+          "timestamp": "2026-11-21T06:51:24Z",
+          "url": "https://github.com/apache/texera/commit/f030df12b73c2c6a8f2e8b325c6e762d54fead7f"
+        },
+        "date": 1795265037504,
+        "tool": "customBiggerIsBetter",
+        "benches": [
+          {
+            "name": "throughput / bs=10 sw=1 sl=8",
+            "value": 903.1457290064168,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=1 sl=8",
+            "value": 1729.438109744249,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=1 sl=8",
+            "value": 1881.1744647996727,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=1 sl=64",
+            "value": 1113.2983142973535,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=1 sl=64",
+            "value": 1804.8550410915097,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=1 sl=64",
+            "value": 1931.353339937868,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=1 sl=512",
+            "value": 1232.9983711801763,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=1 sl=512",
+            "value": 1808.9028242099516,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=1 sl=512",
+            "value": 1924.3689919722517,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=10 sl=8",
+            "value": 1050.3145618065435,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=10 sl=8",
+            "value": 1446.8206996347844,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=10 sl=8",
+            "value": 1481.389626063237,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=10 sl=64",
+            "value": 1048.3492180569708,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=10 sl=64",
+            "value": 1423.2234521531745,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=10 sl=64",
+            "value": 1479.0319507910003,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=10 sl=512",
+            "value": 1043.1037659369279,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=10 sl=512",
+            "value": 1397.4845957571872,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=10 sl=512",
+            "value": 1446.6524094013741,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=50 sl=8",
+            "value": 626.4448939733654,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=50 sl=8",
+            "value": 754.5340479966804,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=50 sl=8",
+            "value": 773.1064642804704,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=50 sl=64",
+            "value": 629.176434833989,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=50 sl=64",
+            "value": 763.0835154704628,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=50 sl=64",
+            "value": 764.8123375706151,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=50 sl=512",
+            "value": 604.3521638443196,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=50 sl=512",
+            "value": 725.8267552700903,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=50 sl=512",
+            "value": 724.5538482079037,
             "unit": "tuples/sec"
           }
         ]
