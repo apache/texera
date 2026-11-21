@@ -87,11 +87,8 @@ class ParquetScanSourceOpExec(descString: String) extends SourceOperatorExecutor
     desc.limit.fold(afterOffset)(afterOffset.take)
   }
 
-  // Columnar produce: fill Arrow vectors column by column from each row group, so no per-row
-  // Tuple (and no Tuple.inMemSize deepSizeOf walk) is built. Each cell is decoded by the same
-  // readField the row path uses, so the columns match the row path exactly. One Arrow batch per
-  // Parquet row group, allocated in the shared allocator so a handed-off batch outlives this
-  // exec's close (the receiver / emit path closes it). Falls back to the row path (None) when
+  // Fill Arrow vectors column by column from each row group (one batch per row group), decoding
+  // each cell with the same readField as the row path, so no Tuple is built. None (row path) when
   // offset/limit are set.
   override def produceColumnarBatch(
       schema: org.apache.texera.amber.core.tuple.Schema

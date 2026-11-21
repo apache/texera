@@ -225,8 +225,7 @@ class ParquetScanSourceOpDescSpec extends AnyFlatSpec with Matchers {
       .as(LogicalTypeAnnotation.intType(bitWidth, false))
       .named(name)
 
-  // The columnar source path must hand back exactly the rows the row path builds, across every
-  // type the mapping treats specially and the all-null second row.
+  // The columnar path must return the same rows as the row path, incl. the all-null row.
   "ParquetScanSourceOpExec.produceColumnarBatch" should "match the row path cell for cell" in {
     val d = descFor(sampleFile())
     val schema = d.inferSchema()

@@ -83,9 +83,7 @@ object ArrowUtils extends LazyLogging {
     } finally reader.close()
   }
 
-  // Serialize a batch of tuples to Arrow IPC stream bytes (columnar wire format).
-  // Build a live Arrow root from Texera tuples directly (no IPC round-trip). The caller
-  // owns the returned root and must close it, or transfer ownership (e.g. LocalColumnarBatch).
+  // Build a live Arrow root from Texera tuples (no IPC round-trip). The caller owns and closes it.
   def rootFromTuples(
       schema: Schema,
       tuples: Array[Tuple],
@@ -516,10 +514,8 @@ object ArrowUtils extends LazyLogging {
   }
 
   /**
-    * Writes one already-decoded Texera value into a column vector at `index`, dispatching on the
-    * vector's Arrow type (null is written as the vector's null). Does not touch the root's row
-    * count. Shared by setTexeraTuple and by a columnar source that fills vectors column by column
-    * with no Tuple built.
+    * Write one Texera value into a column vector at `index`, dispatching on the vector's Arrow type
+    * (null -> the vector's null). Does not change the row count.
     */
   def setCell(vector: FieldVector, index: Int, value: AnyRef): Unit = {
     val isNull = value == null

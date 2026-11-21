@@ -58,11 +58,8 @@ class ArrowSourceOpExec(
     }
   }
 
-  // Columnar produce: the file is already Arrow batches, so hand each one out
-  // directly (no per-row Tuple decode, no text parse). Each loaded batch's vectors
-  // are moved into an independent root via zero-copy TransferPair so the caller can
-  // serialize and close it while the reader loads the next batch. Falls back to the
-  // row path (None) when offset/limit are set.
+  // The file is already Arrow batches: hand each out directly (no Tuple, no parse), each loaded
+  // batch moved into its own root via zero-copy TransferPair. None (row path) when offset/limit set.
   override def produceColumnarBatch(
       schema: org.apache.texera.amber.core.tuple.Schema
   ): Option[Iterator[VectorSchemaRoot]] = {

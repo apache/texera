@@ -149,10 +149,8 @@ class DataProcessor(
     )
   }
 
-  // Columnar wire: an Arrow batch arrived. If the executor can consume Arrow
-  // columns directly (a ColumnarOperatorExecutor), hand it the batch and route the
-  // result; otherwise, or if the executor declines the batch (Unsupported), decode
-  // to tuples and process it exactly as a DataFrame.
+  // An Arrow batch arrived. A ColumnarOperatorExecutor consumes it directly; otherwise (or if it
+  // declines) decode to tuples and process as a DataFrame.
   private[this] def processVectorFrame(
       channelId: ChannelIdentity,
       portId: PortIdentity,
@@ -184,10 +182,8 @@ class DataProcessor(
     }
   }
 
-  // Local zero-copy wire: a live Arrow root arrived by reference (no serialization). This
-  // worker owns the root and closes it here. A ColumnarOperatorExecutor consumes it
-  // directly via processColumnarRoot (no IPC decode); any other operator, or a decline,
-  // decodes it to tuples. Mirrors processVectorFrame, but the input is a live root.
+  // A live Arrow root arrived by reference (this worker owns and closes it). Like processVectorFrame
+  // but with no IPC decode: a ColumnarOperatorExecutor reads it directly, else decode to tuples.
   private[this] def processLocalColumnarRoot(
       channelId: ChannelIdentity,
       portId: PortIdentity,
@@ -220,10 +216,8 @@ class DataProcessor(
     } finally root.close() // the receiver owns the handed-off root
   }
 
-  // Shared tail of the two columnar input paths for a natively-consumed batch: the DP loop
-  // has no per-tuple input to drain, so count the whole batch's input statistics once, then
-  // route the result. Emit ships a produced root downstream; EmitRows installs rows;
-  // Consumed (a blocking operator) emits nothing now.
+  // After an executor consumes a whole Arrow batch: count input stats once, then route the result
+  // (Emit ships a root, EmitRows installs rows, Consumed emits nothing).
   private[this] def routeConsumedResult(
       channelId: ChannelIdentity,
       portId: PortIdentity,
@@ -240,13 +234,12 @@ class DataProcessor(
     }
   }
 
-  // Ship an operator-produced Arrow result root downstream in the cheapest shape the edge
-  // allows: a live root by reference to a local receiver (ownership transfers, so the root
-  // is NOT closed here), Arrow bytes to a remote one, or decoded tuples (the row path).
-  // Counts native Arrow batches a columnar source emitted (no Tuple built), for a visible
-  // console summary when the worker finishes.
+  // Counts the Arrow batches a columnar source emitted, for the console summary on finish.
   @transient private var columnarBatchCount = 0
   @transient private var columnarRowCount = 0L
+
+  // Ship a produced Arrow root downstream in the cheapest shape: a live root to a local receiver
+  // (not closed here, ownership transfers), Arrow bytes to a remote one, or decoded rows.
   private[this] def emitProducedRoot(outRoot: VectorSchemaRoot): Unit = {
     var retained = false
     try {
@@ -269,12 +262,8 @@ class DataProcessor(
     } finally if (!retained) outRoot.close()
   }
 
-  // Source output: a source whose data is already columnar (produceColumnarBatch returns Some)
-  // and whose edges are columnar-eligible emits its Arrow roots straight downstream, each
-  // wrapped as a ColumnarBatchMarker that the DP loop ships via emitProducedRoot, so NO per-row
-  // Tuple is built on the source path. Returns None when the source has no native columnar path
-  // or the edges are not eligible, so endChannel uses the row path (onFinishMultiPort ->
-  // produceTuple).
+  // A columnar-eligible source's Arrow batches, each wrapped as a ColumnarBatchMarker for the DP
+  // loop to ship via emitProducedRoot (no Tuple built). None means endChannel uses the row path.
   def sourceColumnarOutput(): Option[Iterator[(TupleLike, Option[PortIdentity])]] = {
     executor match {
       case src: SourceOperatorExecutor if outputManager.columnarSourceEmitEligible =>
@@ -366,8 +355,7 @@ class DataProcessor(
             asyncRPCClient.mkContext(COORDINATOR)
           )
         }
-        // Make the columnar source path visible: when this worker emitted native Arrow batches
-        // (no Tuple built), report how many batches and rows went out as columns.
+        // If this worker emitted Arrow batches (columnar source), report the batch/row count.
         if (columnarBatchCount > 0) {
           asyncRPCClient.coordinatorInterface.consoleMessageTriggered(
             ConsoleMessageTriggeredRequest(
@@ -402,8 +390,7 @@ class DataProcessor(
           asyncRPCClient.mkContext(COORDINATOR)
         )
       case ColumnarBatchMarker(root) =>
-        // A columnar source handed out a native Arrow batch: ship it downstream in the
-        // cheapest shape the edge allows (live root / Arrow bytes / rows), no Tuple built.
+        // A columnar source's Arrow batch: ship it downstream via emitProducedRoot, no Tuple built.
         columnarBatchCount += 1
         columnarRowCount += root.getRowCount
         emitProducedRoot(root)
