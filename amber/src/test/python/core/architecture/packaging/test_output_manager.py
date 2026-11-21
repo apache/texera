@@ -688,6 +688,51 @@ class TestEmitChain:
         assert state_frame.loop_start_id == ""
 
 
+class TestGetPort:
+    @pytest.fixture
+    def output_manager(self):
+        return OutputManager(worker_id=_WORKER_ID)
+
+    def test_returns_first_port_when_port_id_omitted(self, output_manager):
+        schema_a = MagicMock(name="schema_a")
+        output_manager.add_output_port(PortIdentity(id=0, internal=False), schema_a)
+        output_manager.add_output_port(
+            PortIdentity(id=1, internal=False), MagicMock(name="schema_b")
+        )
+        assert output_manager.get_port().get_schema() is schema_a
+
+    def test_raises_when_no_port_added_and_port_id_omitted(self, output_manager):
+        # Previously this indexed an empty list and raised IndexError; the
+        # guard turns it into a named error.
+        with pytest.raises(KeyError, match="no output port"):
+            output_manager.get_port()
+
+    def test_returns_matching_port_when_port_id_given(self, output_manager):
+        schema_a = MagicMock(name="schema_a")
+        schema_b = MagicMock(name="schema_b")
+        port_a = PortIdentity(id=0, internal=False)
+        port_b = PortIdentity(id=1, internal=False)
+        output_manager.add_output_port(port_a, schema_a)
+        output_manager.add_output_port(port_b, schema_b)
+
+        # A non-first port id must resolve to its own port, not the first.
+        assert output_manager.get_port(port_b).get_schema() is schema_b
+
+    def test_normalizes_unset_fields_before_lookup(self, output_manager):
+        schema_b = MagicMock(name="schema_b")
+        output_manager.add_output_port(PortIdentity(id=0, internal=False), MagicMock())
+        output_manager.add_output_port(PortIdentity(id=1, internal=False), schema_b)
+
+        lookup = PortIdentity(id=1)
+        lookup.internal = None
+        assert output_manager.get_port(lookup).get_schema() is schema_b
+
+    def test_raises_on_unknown_port_id(self, output_manager):
+        output_manager.add_output_port(PortIdentity(id=0, internal=False), MagicMock())
+        with pytest.raises(KeyError, match="unknown output port"):
+            output_manager.get_port(PortIdentity(id=9, internal=False))
+
+
 class TestQueryMethods:
     @pytest.fixture
     def output_manager(self):
