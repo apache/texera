@@ -19,28 +19,12 @@
 
 package org.apache.texera.amber.engine.architecture.scheduling
 
-import org.apache.texera.amber.core.executor.OpExecInitInfo
-import org.apache.texera.amber.core.virtualidentity.{
-  ExecutionIdentity,
-  OperatorIdentity,
-  PhysicalOpIdentity,
-  WorkflowIdentity
-}
-import org.apache.texera.amber.core.workflow.{PhysicalOp, PhysicalPlan, WorkflowContext}
+import org.apache.texera.amber.core.workflow.{PhysicalPlan, WorkflowContext}
+import org.apache.texera.amber.engine.common.BarePhysicalPlanFixture
 import org.apache.texera.common.config.ApplicationConfig
 import org.scalatest.flatspec.AnyFlatSpec
 
-class ScheduleSpec extends AnyFlatSpec {
-
-  private def region(regionId: Long, opId: String): Region = {
-    val physicalOp = PhysicalOp(
-      PhysicalOpIdentity(OperatorIdentity(opId), "main"),
-      WorkflowIdentity(0),
-      ExecutionIdentity(0),
-      OpExecInitInfo.Empty
-    )
-    Region(RegionIdentity(regionId), Set(physicalOp), Set.empty)
-  }
+class ScheduleSpec extends AnyFlatSpec with BarePhysicalPlanFixture {
 
   "Schedule.getRegions" should "return all regions across all levels" in {
     val r0 = region(0, "a")
