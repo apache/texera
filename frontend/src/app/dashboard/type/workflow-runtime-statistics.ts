@@ -25,9 +25,9 @@ export interface WorkflowRuntimeStatistics {
   inputTupleSize: number;
   outputTupleCount: number;
   outputTupleSize: number;
-  totalDataProcessingTime: number;
-  totalControlProcessingTime: number;
-  totalIdleTime: number;
-  numberOfWorkers: number;
+  dataProcessingTime: number;
+  controlProcessingTime: number;
+  idleTime: number;
+  numWorkers: number;
   status: number; // Operator status (e.g., RUNNING, COMPLETED, FAILED, etc.)
 }
