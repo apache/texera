@@ -20,7 +20,6 @@
 package org.apache.texera.amber.operator.sort
 
 import org.apache.texera.amber.core.executor.OperatorExecutor
-import org.apache.texera.amber.core.tuple.AttributeTypeUtils
 import org.apache.texera.amber.core.tuple.{AttributeType, Schema, Tuple, TupleLike}
 import org.apache.texera.amber.util.JSONUtils.objectMapper
 
@@ -244,16 +243,34 @@ class StableMergeSortOpExec(descString: String) extends OperatorExecutor {
       attrType: AttributeType
   ): Int =
     attrType match {
-      case AttributeType.INTEGER | AttributeType.LONG | AttributeType.DOUBLE |
-          AttributeType.BOOLEAN | AttributeType.BINARY =>
-        AttributeTypeUtils.compare(leftValue, rightValue, attrType)
-      // Keep timestamp precision and strict strings: the shared helper differs here.
+      case AttributeType.INTEGER =>
+        java.lang.Integer.compare(
+          leftValue.asInstanceOf[Number].intValue(),
+          rightValue.asInstanceOf[Number].intValue()
+        )
+      case AttributeType.LONG =>
+        java.lang.Long.compare(
+          leftValue.asInstanceOf[Number].longValue(),
+          rightValue.asInstanceOf[Number].longValue()
+        )
+      case AttributeType.DOUBLE =>
+        java.lang.Double.compare(
+          leftValue.asInstanceOf[Number].doubleValue(),
+          rightValue.asInstanceOf[Number].doubleValue()
+        )
+      case AttributeType.BOOLEAN =>
+        java.lang.Boolean.compare(leftValue.asInstanceOf[Boolean], rightValue.asInstanceOf[Boolean])
       case AttributeType.TIMESTAMP =>
         leftValue
           .asInstanceOf[java.sql.Timestamp]
           .compareTo(rightValue.asInstanceOf[java.sql.Timestamp])
       case AttributeType.STRING =>
         leftValue.asInstanceOf[String].compareTo(rightValue.asInstanceOf[String])
+      case AttributeType.BINARY =>
+        java.util.Arrays.compareUnsigned(
+          leftValue.asInstanceOf[Array[Byte]],
+          rightValue.asInstanceOf[Array[Byte]]
+        )
       case other =>
         throw new IllegalStateException(s"Unsupported attribute type $other in StableMergeSort")
     }
