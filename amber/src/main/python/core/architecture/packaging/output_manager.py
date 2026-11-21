@@ -26,7 +26,11 @@ from threading import Thread
 from typing import Iterable, Iterator
 from typing import Union
 
-from core.architecture.packaging.input_manager import WorkerPort, Channel
+from core.architecture.packaging.input_manager import (
+    WorkerPort,
+    Channel,
+    canonicalize_port_id,
+)
 from core.architecture.sendsemantics.broad_cast_partitioner import (
     BroadcastPartitioner,
 )
@@ -119,10 +123,7 @@ class OutputManager:
         schema: Schema,
         storage_uri_base: typing.Optional[str] = None,
     ) -> None:
-        if port_id.id is None:
-            port_id.id = 0
-        if port_id.internal is None:
-            port_id.internal = False
+        canonicalize_port_id(port_id)
 
         # each port can only be added and initialized once.
         if port_id not in self._ports:
