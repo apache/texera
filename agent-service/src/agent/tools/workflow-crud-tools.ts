@@ -23,6 +23,7 @@ import { WorkflowState } from "../workflow-state";
 import { autoLayoutWorkflow } from "../util/auto-layout";
 import { WorkflowUtilService } from "../util/workflow-utils";
 import type { OperatorLink, PortDescription } from "../../types/workflow";
+import { TOOL_NAME_GET_OPERATOR_SCHEMA, TOOL_NAME_LIST_OPERATOR_TYPES } from "./operator-tools";
 import {
   createToolResult,
   createErrorResult,
@@ -43,6 +44,11 @@ export interface ToolContext {
     toolTimeoutMs?: number;
     executionTimeoutMs?: number;
   };
+  /**
+   * Executes an operator and returns the result as the execute tool words it. When it is set,
+   * adding or modifying an operator executes that operator too.
+   */
+  executeOperator?: (operatorId: string, options: { abortSignal?: AbortSignal }) => Promise<string>;
 }
 
 export const TOOL_NAME_ADD_OPERATOR = "addOperator";
@@ -55,6 +61,34 @@ function formatInputArgs(args: Record<string, any>): string {
     if (value !== undefined) compact[key] = value;
   }
   return `Input: ${JSON.stringify(compact)}`;
+}
+
+/** What a tool's description says about the execution that follows its change, if there is one. */
+function executionNote(context: ToolContext | undefined): string {
+  return context?.executeOperator
+    ? "\n\nThe operator is then executed, and this tool's result ends with the result or the error of that execution."
+    : "";
+}
+
+/**
+ * The result of a change that went through, followed by the result of executing the operator it
+ * changed. The execution is part of the tool call so that its result stays in the conversation:
+ * the agent reports numbers from it, and a later turn that found them in no tool result would take
+ * them for unverified. The change stands whatever the execution returns, so a failed or stopped
+ * execution follows the change's own line and never replaces it.
+ */
+async function withExecutionResult(
+  changeResult: string,
+  operatorId: string,
+  context: ToolContext | undefined,
+  abortSignal: AbortSignal | undefined
+): Promise<string> {
+  if (!context?.executeOperator) return changeResult;
+  try {
+    return `${changeResult}\n${await context.executeOperator(operatorId, { abortSignal })}`;
+  } catch (error: any) {
+    return `${changeResult}\n${createErrorResult(`Execution did not finish: ${error?.message || String(error)}`)}`;
+  }
 }
 
 /**
@@ -109,21 +143,23 @@ export function createAddOperatorTool(
   const workflowUtil = context?.metadataStore ? new WorkflowUtilService(context.metadataStore, workflowState) : null;
 
   return tool({
-    description: `Add a new operator to the workflow. Use getOperatorSchema first to understand required properties.
+    description: `Add a new operator to the workflow. Use ${TOOL_NAME_GET_OPERATOR_SCHEMA} first to understand required properties.
 
 Examples:
 1. Add a source operator (no inputs):
-   { "operatorId": "op1", "operatorType": "TableFileScan", "properties": { "fileName": "data.csv" }, "summary": "Load CSV data" }
+   { "operatorId": "op1", "operatorType": "CSVFileScan", "properties": { "fileName": "data.csv" }, "summary": "Load CSV data" }
 
 2. Add an operator with input connections:
-   { "operatorId": "op2", "operatorType": "TableFilter", "properties": { "predicates": [...] }, "inputOperatorIds": { "0": ["op1"] }, "summary": "Filter rows by condition" }`,
+   { "operatorId": "op2", "operatorType": "Filter", "properties": { "predicates": [...] }, "inputOperatorIds": { "0": ["op1"] }, "summary": "Filter rows by condition" }${executionNote(context)}`,
     inputSchema: z.object({
       operatorId: z
         .string()
         .describe(
           "Name of Operator. Use the format 'op' followed by an incrementing number starting from 1 (e.g., op1, op2, op3)."
         ),
-      operatorType: z.string().describe("The operator type (e.g., 'DataProcessing', 'Aggregate')"),
+      operatorType: z
+        .string()
+        .describe(`The operator type, as ${TOOL_NAME_LIST_OPERATOR_TYPES} names it (e.g., 'CSVFileScan', 'Aggregate')`),
       properties: z.record(z.any()).describe("Properties to set on the operator"),
       inputOperatorIds: z
         .record(z.array(z.string()))
@@ -135,20 +171,23 @@ Examples:
         ),
       summary: z.string().describe("Very brief summary of operator behavior. Within 5 words"),
     }),
-    execute: async (args: {
-      operatorId: string;
-      operatorType: string;
-      properties?: Record<string, any>;
-      inputOperatorIds?: Record<string, string[]>;
-      summary: string;
-    }) => {
+    execute: async (
+      args: {
+        operatorId: string;
+        operatorType: string;
+        properties?: Record<string, any>;
+        inputOperatorIds?: Record<string, string[]>;
+        summary: string;
+      },
+      options?: { abortSignal?: AbortSignal }
+    ) => {
       try {
         const inputInfo = formatInputArgs(args);
 
         const schemaEntry = operatorSchemas.get(args.operatorType);
         if (!schemaEntry) {
           return createErrorResult(
-            `Unknown operator type: "${args.operatorType}". Available types: ${[...operatorSchemas.keys()].join(", ")}. ${inputInfo}`
+            `Unknown operator type: "${args.operatorType}". ${TOOL_NAME_LIST_OPERATOR_TYPES} names the types that exist. ${inputInfo}`
           );
         }
 
@@ -217,7 +256,12 @@ Examples:
           createdLinkPairs.length > 0 ? createdLinkPairs : undefined
         );
 
-        return createToolResult(resultMsg);
+        return await withExecutionResult(
+          createToolResult(resultMsg),
+          operator.operatorID,
+          context,
+          options?.abortSignal
+        );
       } catch (error: any) {
         return createErrorResult(error.message || String(error));
       }
@@ -237,7 +281,7 @@ Examples:
    { "operatorId": "join_op", "inputOperatorIds": { "0": ["users"], "1": ["orders"] }, "summary": "Re-link join inputs" }
 
 3. Modify both properties and links:
-   { "operatorId": "filter", "properties": { "predicates": [...] }, "inputOperatorIds": { "0": ["cleaned"] }, "summary": "Update filter and re-link" }`,
+   { "operatorId": "filter", "properties": { "predicates": [...] }, "inputOperatorIds": { "0": ["cleaned"] }, "summary": "Update filter and re-link" }${executionNote(context)}`,
     inputSchema: z.object({
       operatorId: z.string().describe("ID of the operator to modify"),
       properties: z.record(z.any()).optional().describe("Properties to update (merged with existing)"),
@@ -251,12 +295,15 @@ Examples:
         ),
       summary: z.string().describe("Very brief summary of operator behavior after your modification. Within 5 words"),
     }),
-    execute: async (args: {
-      operatorId: string;
-      properties?: Record<string, any>;
-      inputOperatorIds?: Record<string, string[]>;
-      summary?: string;
-    }) => {
+    execute: async (
+      args: {
+        operatorId: string;
+        properties?: Record<string, any>;
+        inputOperatorIds?: Record<string, string[]>;
+        summary?: string;
+      },
+      options?: { abortSignal?: AbortSignal }
+    ) => {
       try {
         const inputInfo = formatInputArgs(args);
 
@@ -318,7 +365,7 @@ Examples:
           deletedLinkPairs.length > 0 ? deletedLinkPairs : undefined
         );
 
-        return createToolResult(resultMsg);
+        return await withExecutionResult(createToolResult(resultMsg), args.operatorId, context, options?.abortSignal);
       } catch (error: any) {
         return createErrorResult(formatOperatorError(args.operatorId, error.message || String(error)));
       }

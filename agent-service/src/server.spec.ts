@@ -310,12 +310,6 @@ describe("agent read routes", () => {
     expect(res.status).toBe(200);
   });
 
-  test("GET /:id/operator-types returns a list", async () => {
-    const res = await getJson(`${API}/agents/${id}/operator-types`);
-    expect(res.status).toBe(200);
-    expect(Array.isArray(await readJson(res))).toBe(true);
-  });
-
   test("POST /:id/steps-by-operators returns steps", async () => {
     const res = await postJson(`${API}/agents/${id}/steps-by-operators`, { operatorIds: [] });
     expect(res.status).toBe(200);

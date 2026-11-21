@@ -1167,7 +1167,6 @@ describe("AgentService", () => {
         executionTimeoutMinutes: 10,
         disabledTools: [],
         maxSteps: 10,
-        allowedOperatorTypes: [],
       });
     });
 
@@ -1212,20 +1211,13 @@ describe("AgentService", () => {
       expect(result?.steps[0].id).toBe("m1-0");
     });
 
-    it("falls back for system-info, operator-types and steps-by-operators failures", () => {
+    it("falls back for system-info and steps-by-operators failures", () => {
       let systemInfo: { systemPrompt: string; tools: unknown[] } | undefined;
       service.getSystemInfo("agent-1").subscribe(s => (systemInfo = s));
       httpMock
         .expectOne(r => r.url === "/api/agents/agent-1/system-info")
         .flush("boom", { status: 500, statusText: "Server Error" });
       expect(systemInfo).toEqual({ systemPrompt: "Unable to retrieve system prompt", tools: [] });
-
-      let operatorTypes: Array<{ type: string; description: string }> | undefined;
-      service.getAvailableOperatorTypes("agent-1").subscribe(t => (operatorTypes = t));
-      httpMock
-        .expectOne(r => r.url === "/api/agents/agent-1/operator-types")
-        .flush("boom", { status: 500, statusText: "Server Error" });
-      expect(operatorTypes).toEqual([]);
 
       let steps: { steps: ReActStep[] } | undefined;
       service.getStepsByOperatorIds("agent-1", ["op-1"]).subscribe(s => (steps = s));
