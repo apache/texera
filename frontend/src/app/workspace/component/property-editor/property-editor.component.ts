@@ -17,6 +17,7 @@
  * under the License.
  */
 
+import { CdkScrollable } from "@angular/cdk/scrolling";
 import {
   ChangeDetectorRef,
   Component,
@@ -63,6 +64,8 @@ import { NzButtonComponent } from "ng-zorro-antd/button";
   templateUrl: "property-editor.component.html",
   styleUrls: ["property-editor.component.scss"],
   imports: [
+    // Registers #content as a CDK scroll container; see the directive's comment in the template.
+    CdkScrollable,
     NzMenuDirective,
     NgClass,
     NgIf,
