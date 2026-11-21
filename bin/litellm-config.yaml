@@ -24,6 +24,11 @@
 # 3. Start litellm by:
 #    litellm --config bin/litellm-config.yaml
 # By default, litellm is running on http://0.0.0.0:4000
+litellm_settings:
+  # Claude caches only what a request marks. This has LiteLLM (1.94 or later)
+  # mark the system prompt and the latest message of every request to a Claude model.
+  enable_anthropic_prompt_caching: true
+
 model_list:
   - model_name: claude-haiku-4.5
     litellm_params:
