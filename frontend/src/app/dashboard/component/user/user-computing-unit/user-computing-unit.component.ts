@@ -23,7 +23,6 @@ import { DashboardEntry } from "../../../type/dashboard-entry";
 import { DashboardWorkflowComputingUnit } from "../../../../common/type/workflow-computing-unit";
 import { NotificationService } from "../../../../common/service/notification/notification.service";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
-import { UserService } from "../../../../common/service/user/user.service";
 import { ComputingUnitActionsService } from "../../../../common/service/computing-unit/computing-unit-actions/computing-unit-actions.service";
 import { interval } from "rxjs";
 import { NzCardComponent } from "ng-zorro-antd/card";
@@ -59,9 +58,6 @@ import { ComputingUnitCreateModalComponent } from "../../../../common/component/
 })
 export class UserComputingUnitComponent implements OnInit {
   public entries: DashboardEntry[] = [];
-  public isLogin = this.userService.isLogin();
-  public currentUid = this.userService.getCurrentUser()?.uid;
-
   allComputingUnits: DashboardWorkflowComputingUnit[] = [];
 
   // visibility of the shared create-computing-unit modal
@@ -69,18 +65,9 @@ export class UserComputingUnitComponent implements OnInit {
 
   constructor(
     private notificationService: NotificationService,
-    private userService: UserService,
     private computingUnitStatusService: ComputingUnitStatusService,
     private computingUnitActionsService: ComputingUnitActionsService
-  ) {
-    this.userService
-      .userChanged()
-      .pipe(untilDestroyed(this))
-      .subscribe(() => {
-        this.isLogin = this.userService.isLogin();
-        this.currentUid = this.userService.getCurrentUser()?.uid;
-      });
-  }
+  ) {}
 
   ngOnInit() {
     this.computingUnitStatusService

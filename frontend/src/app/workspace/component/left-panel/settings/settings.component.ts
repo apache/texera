@@ -18,7 +18,7 @@
  */
 
 import { Component, OnInit } from "@angular/core";
-import { FormBuilder, FormGroup, Validators, FormsModule, ReactiveFormsModule } from "@angular/forms";
+import { FormBuilder, FormGroup, Validators, ReactiveFormsModule } from "@angular/forms";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 import { merge } from "rxjs";
 import { WorkflowActionService } from "../../../service/workflow-graph/model/workflow-action.service";
@@ -34,7 +34,7 @@ import { NgClass, NgIf } from "@angular/common";
   selector: "texera-settings",
   templateUrl: "./settings.component.html",
   styleUrls: ["./settings.component.scss"],
-  imports: [FormsModule, ReactiveFormsModule, NzRadioGroupComponent, NzRadioComponent, NgClass, NgIf],
+  imports: [ReactiveFormsModule, NzRadioGroupComponent, NzRadioComponent, NgClass, NgIf],
 })
 export class SettingsComponent implements OnInit {
   settingsForm: FormGroup;

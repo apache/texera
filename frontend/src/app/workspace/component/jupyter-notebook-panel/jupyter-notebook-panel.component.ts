@@ -24,7 +24,6 @@ import { catchError, switchMap, takeUntil } from "rxjs/operators";
 import { DomSanitizer, SafeResourceUrl } from "@angular/platform-browser";
 import { CommonModule } from "@angular/common";
 import { DragDropModule } from "@angular/cdk/drag-drop";
-import { NzButtonModule } from "ng-zorro-antd/button";
 import { NzIconModule } from "ng-zorro-antd/icon";
 import { NzPopconfirmModule } from "ng-zorro-antd/popconfirm";
 import { NzTooltipModule } from "ng-zorro-antd/tooltip";
@@ -33,7 +32,7 @@ import { NzTooltipModule } from "ng-zorro-antd/tooltip";
   selector: "texera-jupyter-notebook-panel",
   templateUrl: "./jupyter-notebook-panel.component.html",
   styleUrls: ["./jupyter-notebook-panel.component.scss"],
-  imports: [CommonModule, DragDropModule, NzButtonModule, NzIconModule, NzPopconfirmModule, NzTooltipModule],
+  imports: [CommonModule, DragDropModule, NzIconModule, NzPopconfirmModule, NzTooltipModule],
 })
 export class JupyterNotebookPanelComponent implements OnInit, AfterViewInit, OnDestroy {
   @ViewChild("iframeRef", { static: false }) iframeRef!: ElementRef<HTMLIFrameElement>; // Use static: false
