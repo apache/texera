@@ -63,8 +63,6 @@ final case class ParamSpec(
 }
 
 object ParamSpec {
-  final val Empty: ParamSpec = ParamSpec("", "")
-
   // Shared pattern for SVM gamma ("scale", "auto", or floating-point literal).
   final val GammaPattern: String =
     "^\\s*(?:scale|auto|[-+]?(?:(?:[0-9]+(?:_[0-9]+)*)?\\.(?:[0-9]+(?:_[0-9]+)*)" +
@@ -81,7 +79,11 @@ object ParamSpec {
 }
 
 trait ParamClass {
-  def paramSpec: ParamSpec = ParamSpec.Empty
+
+  /** Left abstract, so a parameter enum that does not declare its spec fails to compile
+    * instead of passing the estimator an empty keyword.
+    */
+  def paramSpec: ParamSpec
 
   def getName: String = paramSpec.name
 
