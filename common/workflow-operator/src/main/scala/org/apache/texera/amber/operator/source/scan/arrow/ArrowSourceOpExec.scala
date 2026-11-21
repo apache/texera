@@ -63,7 +63,9 @@ class ArrowSourceOpExec(
   // are moved into an independent root via zero-copy TransferPair so the caller can
   // serialize and close it while the reader loads the next batch. Falls back to the
   // row path (None) when offset/limit are set.
-  override def produceColumnarBatch(): Option[Iterator[VectorSchemaRoot]] = {
+  override def produceColumnarBatch(
+      schema: org.apache.texera.amber.core.tuple.Schema
+  ): Option[Iterator[VectorSchemaRoot]] = {
     if (desc.offset.exists(_ > 0) || desc.limit.isDefined) return None
     (reader, root, allocator) match {
       case (Some(arrowReader), Some(srcRoot), Some(alloc)) =>

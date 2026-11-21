@@ -234,7 +234,7 @@ class ParquetScanSourceOpDescSpec extends AnyFlatSpec with Matchers {
     colExec.open()
     val columnarRows =
       try colExec
-        .produceColumnarBatch()
+        .produceColumnarBatch(schema)
         .get
         .flatMap(root => try ArrowUtils.tuplesOfRoot(root).toList finally root.close())
         .toList
@@ -258,7 +258,7 @@ class ParquetScanSourceOpDescSpec extends AnyFlatSpec with Matchers {
     d.limit = Some(1)
     val exec = new ParquetScanSourceOpExec(objectMapper.writeValueAsString(d))
     exec.open()
-    try exec.produceColumnarBatch() shouldBe None
+    try exec.produceColumnarBatch(d.inferSchema()) shouldBe None
     finally exec.close()
   }
 
