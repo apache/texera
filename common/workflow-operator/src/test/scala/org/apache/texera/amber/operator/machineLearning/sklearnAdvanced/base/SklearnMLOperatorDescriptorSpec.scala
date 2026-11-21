@@ -87,3 +87,50 @@ class SklearnMLOperatorDescriptorSpec extends AnyFlatSpec with Matchers {
     op.selectedFeatures shouldBe null
   }
 }
+
+private[sklearnAdvanced] trait SklearnTrainerOpDescSpecBehaviors {
+  self: org.scalatest.flatspec.AnyFlatSpec =>
+
+  protected def trainerDescriptorBehaviors[P <: ParamClass, D <: SklearnMLOperatorDescriptor[P]](
+      descriptorName: String,
+      newOp: () => D,
+      expectedImport: String,
+      expectedOperatorInfo: String,
+      importCaseSuffix: String = "",
+      operatorInfoQuoteSingle: Boolean = true,
+      expectedImportToken: String
+  ): Unit = {
+    val importSuffix = if (importCaseSuffix.nonEmpty) s" ($importCaseSuffix)" else ""
+    val infoQuote =
+      if (operatorInfoQuoteSingle) s"'$expectedOperatorInfo'" else expectedOperatorInfo
+
+    s"$descriptorName.getImportStatements" should s"return the canonical $expectedImportToken import$importSuffix" in {
+      assert(newOp().getImportStatements == expectedImport)
+    }
+
+    s"$descriptorName.getOperatorInfo" should s"return $infoQuote" in {
+      assert(newOp().getOperatorInfo == expectedOperatorInfo)
+    }
+
+    it should "be stable across two instances (no instance-state interaction)" in {
+      val a = newOp()
+      val b = newOp()
+      assert(a.getImportStatements == b.getImportStatements)
+      assert(a.getOperatorInfo == b.getOperatorInfo)
+    }
+
+    descriptorName should "extend SklearnMLOperatorDescriptor (compile-time enforced)" in {
+      val d: SklearnMLOperatorDescriptor[P] = newOp()
+      assert(d.getImportStatements.contains(expectedImportToken))
+    }
+
+    it should "be matchable via the SklearnMLOperatorDescriptor type-pattern" in {
+      val any: AnyRef = newOp()
+      val matched = any match {
+        case _: SklearnMLOperatorDescriptor[_] => true
+        case _                                 => false
+      }
+      assert(matched)
+    }
+  }
+}

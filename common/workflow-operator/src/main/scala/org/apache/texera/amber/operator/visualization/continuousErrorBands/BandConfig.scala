@@ -25,6 +25,8 @@ import org.apache.texera.amber.pybuilder.PyStringTypes.EncodableString
 import org.apache.texera.amber.operator.metadata.annotations.AutofillAttributeName
 import org.apache.texera.amber.operator.visualization.lineChart.LineConfig
 
+import org.apache.texera.amber.operator.visualization.PythonVisualizationOpDesc
+
 import javax.validation.constraints.NotNull
 
 class BandConfig extends LineConfig {
@@ -47,11 +49,6 @@ class BandConfig extends LineConfig {
   @JsonProperty(required = false)
   @JsonSchemaTitle("Fill Color")
   @JsonPropertyDescription("must be a valid CSS color or hex color string")
-  @JsonSchemaInject(json = """
-{
-  "pattern": "^\\s*$|^\\s*#(?:\\s*[0-9a-fA-F]){3}(?:(?:\\s*[0-9a-fA-F]){3})?\\s*$|^\\s*(?:[rR]\\s*[gG]\\s*[bB]|[hH]\\s*[sS]\\s*[lL]|[hH]\\s*[sS]\\s*[vV])(?:\\s*[aA])?\\s*\\(\\s*(?:\\s*[0-9.])+(?:\\s*%)?(?:\\s*,(?:\\s*[0-9.])+(?:\\s*%)?){2,3}\\s*\\)\\s*$|^\\s*[vV]\\s*[aA]\\s*[rR]\\s*\\(\\s*-\\s*-[^)]*\\)\\s*$|^\\s*[a-zA-Z][a-zA-Z\\s]*$",
-  "examples": ["red"]
-}
-""")
+  @JsonSchemaInject(json = PythonVisualizationOpDesc.ColorPatternJson)
   var fillColor: EncodableString = ""
 }

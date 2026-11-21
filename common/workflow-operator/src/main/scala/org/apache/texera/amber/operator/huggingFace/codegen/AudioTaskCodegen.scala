@@ -45,35 +45,21 @@ object AudioTaskCodegen extends TaskCodegen {
       |                payload = {"inputs": prompt_value}""".stripMargin
 
   override def parsePython(ctx: CodegenContext): String =
-    """            if task == "text-to-speech":
+    s"""            if task == "text-to-speech":
       |                # Every value below comes from the provider, so each is type-checked
       |                # before use: an unchecked one lands in the result column as a data
       |                # URL nothing can play (e.g. "data:audio/mpeg;base64,None") or as a
       |                # non-string cell, instead of falling back to the body.
       |                if isinstance(body, dict):
-      |                    if "output" in body:
-      |                        out = body["output"]
-      |                        url = out[0] if isinstance(out, list) else out
-      |                        if isinstance(url, str) and url.startswith("http"):
-      |                            return self._url_to_data_url(url)
+      |${BinaryResponseFragments.outputUrl}
       |                    if "audio" in body:
       |                        audio = body["audio"]
       |                        if isinstance(audio, dict):
-      |                            url = audio.get("url")
-      |                            if isinstance(url, str) and url.startswith("http"):
-      |                                return self._url_to_data_url(url)
-      |                            b64 = audio.get("b64_json")
-      |                            if isinstance(b64, str) and b64:
-      |                                return f"data:audio/mpeg;base64,{b64}"
+      |${audioDataUrl("audio")}
       |                    if "data" in body:
       |                        data = body["data"]
       |                        if isinstance(data, list) and data and isinstance(data[0], dict):
-      |                            url = data[0].get("url")
-      |                            if isinstance(url, str) and url.startswith("http"):
-      |                                return self._url_to_data_url(url)
-      |                            b64 = data[0].get("b64_json")
-      |                            if isinstance(b64, str) and b64:
-      |                                return f"data:audio/mpeg;base64,{b64}"
+      |${audioDataUrl("data[0]")}
       |                return json.dumps(body)
       |            elif task == "automatic-speech-recognition":
       |                if isinstance(body, dict):
@@ -86,4 +72,12 @@ object AudioTaskCodegen extends TaskCodegen {
       |                return json.dumps(body)
       |            elif task == "audio-classification":
       |                return json.dumps(body)""".stripMargin
+
+  private def audioDataUrl(value: String): String =
+    s"""                            url = ${value}.get("url")
+      |                            if isinstance(url, str) and url.startswith("http"):
+      |                                return self._url_to_data_url(url)
+      |                            b64 = ${value}.get("b64_json")
+      |                            if isinstance(b64, str) and b64:
+      |                                return f"data:audio/mpeg;base64,{b64}"""".stripMargin
 }

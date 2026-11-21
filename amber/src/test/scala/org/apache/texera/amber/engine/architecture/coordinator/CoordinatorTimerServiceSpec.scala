@@ -373,6 +373,17 @@ class CoordinatorTimerServiceSpec
     assert(service.statusUpdateAskHandle.contains(statusHandle))
     assert(service.runtimeStatisticsAskHandle.isEmpty)
   }
+
+  it should "clear the handle even when cancel() returns false" in {
+    val (service, actorService) =
+      newTimerService(Some(statusIntervalMs), None, cancelResult = false)
+    service.enableStatusUpdate()
+    service.disableStatusUpdate()
+
+    val handle = actorService.captured.head.handle
+    assert(handle.cancelCount == 1)
+    assert(service.statusUpdateAskHandle.isEmpty)
+  }
 }
 
 /** Minimal actor used only to obtain a real `ActorContext` from Pekko TestKit. */
@@ -385,7 +396,7 @@ class TimerCtxHolder extends Actor {
   * is what `cancel()` reports back: Pekko's contract returns false when the task
   * was already cancelled or the scheduler is shut down.
   */
-class RecordingCancellable(cancelResult: Boolean = true) extends Cancellable {
+class RecordingCancellable(cancelResult: Boolean) extends Cancellable {
   var cancelCount: Int = 0
 
   override def cancel(): Boolean = {
@@ -412,7 +423,7 @@ case class CapturedSchedule(
 class CapturingSelfSchedulerService(
     vid: ActorVirtualIdentity,
     ac: ActorContext,
-    cancelResult: Boolean = true
+    cancelResult: Boolean
 ) extends PekkoActorService(vid, ac) {
 
   val captured: mutable.ArrayBuffer[CapturedSchedule] = mutable.ArrayBuffer()

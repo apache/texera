@@ -174,9 +174,6 @@ object Utils extends LazyLogging {
     lock.lock()
     try {
       instructions
-    } catch {
-      case e: Throwable =>
-        throw e
     } finally {
       lock.unlock()
     }

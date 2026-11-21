@@ -566,4 +566,27 @@ describe("WorkflowVersionService", () => {
       expect(await pending).toBe(99);
     });
   });
+
+  describe("getOperatorsDifference", () => {
+    const op = (operatorProperties: Record<string, any>, operatorVersion = "1") =>
+      buildOperator({ operatorProperties, operatorVersion });
+
+    it("does not flag object or array properties that are deeply equal", () => {
+      const diff = service.getOperatorsDifference(
+        op({ list: [1, 2], cfg: { x: 1 } }),
+        op({ list: [1, 2], cfg: { x: 1 } })
+      );
+      expect(diff.size).toBe(0);
+    });
+
+    it("flags a property whose nested value changed", () => {
+      const diff = service.getOperatorsDifference(op({ cfg: { x: 1 } }), op({ cfg: { x: 2 } }));
+      expect(diff.has("cfg")).toBe(true);
+    });
+
+    it("flags a property present only in the second operator", () => {
+      const diff = service.getOperatorsDifference(op({}), op({ extra: 5 }));
+      expect(diff.has("extra")).toBe(true);
+    });
+  });
 });

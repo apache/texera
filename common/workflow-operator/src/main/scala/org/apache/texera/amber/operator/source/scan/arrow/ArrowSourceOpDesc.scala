@@ -20,16 +20,14 @@
 package org.apache.texera.amber.operator.source.scan.arrow
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties
-import org.apache.texera.amber.core.executor.OpExecWithClassName
 import org.apache.texera.amber.core.storage.DocumentFactory
 import org.apache.texera.amber.core.tuple.Schema
 import org.apache.texera.amber.core.virtualidentity.{ExecutionIdentity, WorkflowIdentity}
-import org.apache.texera.amber.core.workflow.{PhysicalOp, SchemaPropagationFunc}
+import org.apache.texera.amber.core.workflow.PhysicalOp
 import org.apache.texera.amber.operator.StandaloneCodeGenerator
 import org.apache.texera.amber.operator.StandaloneCodeGenerator.SourceFilePlaceholder
 import org.apache.texera.amber.operator.source.scan.ScanSourceOpDesc
 import org.apache.texera.amber.util.ArrowUtils
-import org.apache.texera.amber.util.JSONUtils.objectMapper
 import org.apache.arrow.memory.RootAllocator
 import org.apache.arrow.vector.ipc.ArrowFileReader
 import org.apache.arrow.vector.types.pojo.{Schema => ArrowSchema}
@@ -136,21 +134,12 @@ class ArrowSourceOpDesc extends ScanSourceOpDesc with StandaloneCodeGenerator {
       workflowId: WorkflowIdentity,
       executionId: ExecutionIdentity
   ): PhysicalOp = {
-    PhysicalOp
-      .sourcePhysicalOp(
-        workflowId,
-        executionId,
-        operatorIdentifier,
-        OpExecWithClassName(
-          "org.apache.texera.amber.operator.source.scan.arrow.ArrowSourceOpExec",
-          objectMapper.writeValueAsString(this)
-        )
-      )
-      .withInputPorts(operatorInfo.inputPorts)
-      .withOutputPorts(operatorInfo.outputPorts)
-      .withPropagateSchema(
-        SchemaPropagationFunc(_ => Map(operatorInfo.outputPorts.head.id -> inferSchema()))
-      )
+    sourcePhysicalOp(
+      workflowId,
+      executionId,
+      "org.apache.texera.amber.operator.source.scan.arrow.ArrowSourceOpExec",
+      outputSchema = () => inferSchema()
+    )
   }
 
   /**

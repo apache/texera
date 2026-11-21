@@ -20,6 +20,7 @@
 package org.apache.texera.amber.operator.visualization.bulletChart
 
 import org.apache.texera.amber.operator.visualization.StandaloneChartCode._
+import org.apache.texera.amber.operator.visualization.PythonCodeFragment._
 import com.fasterxml.jackson.annotation.{JsonProperty, JsonPropertyDescription}
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize
 import com.kjetland.jackson.jsonSchema.annotations.{JsonSchemaInject, JsonSchemaTitle}
@@ -118,9 +119,12 @@ class BulletChartOpDesc extends PythonVisualizationOpDesc with PlotlyStandaloneC
          |class ProcessTableOperator(UDFTableOperator):
          |
          |    # Render an error message in HTML format
-         |    def render_error(self, error_msg) -> str:
-         |        return '''<h1>Bullet chart is not available.</h1>
-         |                  <p>Reason: {} </p>'''.format(error_msg)
+         |${runtimeError(
+        "Bullet chart is not available.",
+        typed = true,
+        colonOnly = true,
+        singleLineClose = true
+      )}
          |
          |    # Generate a list of grayscale HSL colors with decreasing brightness
          |    def generate_gray_gradient(self, step_count):
@@ -146,9 +150,7 @@ class BulletChartOpDesc extends PythonVisualizationOpDesc with PlotlyStandaloneC
          |
          |    @overrides
          |    def process_table(self, table: Table, port: int) -> Iterator[Optional[TableLike]]:
-         |        if table.empty:
-         |            yield {'html-content': self.render_error("Input table is empty.")}
-         |            return
+         |${emptyTableGuard("Input table is empty.", bodyIndent = 4)}
          |
          |        try:
          |            value_col = $value
@@ -159,9 +161,11 @@ class BulletChartOpDesc extends PythonVisualizationOpDesc with PlotlyStandaloneC
          |                return
          |
          |            table = table.dropna(subset=[value_col])
-         |            if table.empty:
-         |                yield {'html-content': self.render_error("No valid data rows found after dropping nulls.")}
-         |                return
+         |${emptyTableGuard(
+        "No valid data rows found after dropping nulls.",
+        indent = 12,
+        bodyIndent = 4
+      )}
          |
          |            threshold_val = $thresholdExpr
          |
