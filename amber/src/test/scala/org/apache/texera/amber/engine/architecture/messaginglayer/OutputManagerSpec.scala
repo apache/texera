@@ -49,8 +49,12 @@ import org.apache.texera.amber.engine.architecture.messaginglayer.OutputManager.
   toPartitioner
 }
 import org.apache.texera.amber.engine.common.ambermessage._
+import org.apache.texera.amber.util.ArrowUtils
+import org.apache.arrow.memory.RootAllocator
 import org.scalamock.scalatest.MockFactory
 import org.scalatest.flatspec.AnyFlatSpec
+
+import scala.collection.mutable.ArrayBuffer
 
 class OutputManagerSpec extends AnyFlatSpec with MockFactory {
   private val mockHandler =
@@ -375,6 +379,106 @@ class OutputManagerSpec extends AnyFlatSpec with MockFactory {
     // branches are the None/absent case: no exception, no join.
     outputManager.closeOutputStorageWriterIfNeeded(portId)
     outputManager.closeOutputStorageWriterIfNeeded(PortIdentity(998))
+  }
+
+  // -- tryEmitColumnarBatch (phase 1: no-round-trip columnar output) --------
+
+  private def capturingOutputManager(): (OutputManager, ArrayBuffer[WorkflowFIFOMessage]) = {
+    val sent = ArrayBuffer[WorkflowFIFOMessage]()
+    val om =
+      new OutputManager(identifier, new NetworkOutputGateway(identifier, m => { sent += m; () }))
+    (om, sent)
+  }
+
+  private def emitThrough(
+      om: OutputManager,
+      rows: Array[Tuple]
+  ): Option[(PortIdentity, Long)] = {
+    val alloc = new RootAllocator()
+    try {
+      ArrowUtils.deserializeRootFold(ArrowUtils.serializeTuples(schema, rows), alloc)(root =>
+        om.tryEmitColumnarBatch(root, None)
+      )
+    } finally alloc.close()
+  }
+
+  "tryEmitColumnarBatch" should "ship a one-to-one columnar edge as a single VectorFrame" in {
+    val (om, sent) = capturingOutputManager()
+    val portId = PortIdentity(20)
+    om.addPort(portId, schema, None)
+    om.addPartitionerWithPartitioning(
+      PhysicalLink(physicalOpId(), portId, physicalOpId(), portId),
+      OneToOnePartitioning(1000, Seq(channelTo(ActorVirtualIdentity("o2o-col-rec"))))
+    )
+    om.setColumnarOutput(true)
+
+    val rows = Array(sampleTuple(), sampleTuple(), sampleTuple())
+    val result = emitThrough(om, rows)
+
+    assert(result.exists(_._1 == portId))
+    assert(sent.size == 1)
+    val cf = sent.head.payload.asInstanceOf[VectorFrame]
+    assert(cf.rowCount == 3)
+    assert(ArrowUtils.deserializeTuples(cf.arrowIpcBytes).toList == rows.toList)
+  }
+
+  it should "decline a hash-shuffle edge (it needs per-row partitioning)" in {
+    val (om, sent) = capturingOutputManager()
+    val portId = PortIdentity(21)
+    om.addPort(portId, schema, None)
+    om.addPartitionerWithPartitioning(
+      PhysicalLink(physicalOpId(), portId, physicalOpId(), portId),
+      HashBasedShufflePartitioning(
+        1000,
+        Seq(channelTo(ActorVirtualIdentity("hash-rec"))),
+        Seq("field1")
+      )
+    )
+    om.setColumnarOutput(true)
+
+    assert(emitThrough(om, Array(sampleTuple())).isEmpty)
+    assert(sent.isEmpty)
+  }
+
+  it should "decline when columnar output is off" in {
+    val (om, sent) = capturingOutputManager()
+    val portId = PortIdentity(22)
+    om.addPort(portId, schema, None)
+    om.addPartitionerWithPartitioning(
+      PhysicalLink(physicalOpId(), portId, physicalOpId(), portId),
+      OneToOnePartitioning(1000, Seq(channelTo(ActorVirtualIdentity("off-rec"))))
+    )
+    // Columnar output left off.
+    assert(emitThrough(om, Array(sampleTuple())).isEmpty)
+    assert(sent.isEmpty)
+  }
+
+  "addPartitionerWithPartitioning" should "make the edge's buffers columnar when told to" in {
+    val (om, sent) = capturingOutputManager()
+    val portId = PortIdentity(23)
+    om.addPort(portId, schema, None)
+    om.addPartitionerWithPartitioning(
+      PhysicalLink(physicalOpId(), portId, physicalOpId(), portId),
+      // batchSize 1 so the single tuple auto-flushes.
+      OneToOnePartitioning(1, Seq(channelTo(ActorVirtualIdentity("col-edge-rec")))),
+      columnar = true
+    )
+    om.passTupleToDownstream(sampleTuple(), Some(portId))
+    assert(sent.size == 1)
+    assert(sent.head.payload.isInstanceOf[VectorFrame])
+  }
+
+  it should "keep the edge's buffers on rows by default" in {
+    val (om, sent) = capturingOutputManager()
+    val portId = PortIdentity(24)
+    om.addPort(portId, schema, None)
+    om.addPartitionerWithPartitioning(
+      PhysicalLink(physicalOpId(), portId, physicalOpId(), portId),
+      OneToOnePartitioning(1, Seq(channelTo(ActorVirtualIdentity("row-edge-rec"))))
+    )
+    om.passTupleToDownstream(sampleTuple(), Some(portId))
+    assert(sent.size == 1)
+    assert(sent.head.payload.isInstanceOf[DataFrame])
   }
 
   "getSingleOutputPortIdentity" should "return the sole port when exactly one is present" in {

@@ -19,8 +19,15 @@
 
 package org.apache.texera.amber.operator.aggregate
 
-import org.apache.texera.amber.core.executor.OperatorExecutor
-import org.apache.texera.amber.core.tuple.{Tuple, TupleLike}
+import org.apache.arrow.memory.RootAllocator
+import org.apache.arrow.vector.VectorSchemaRoot
+import org.apache.texera.amber.core.executor.{
+  ColumnarOperatorExecutor,
+  ColumnarResult,
+  OperatorExecutor
+}
+import org.apache.texera.amber.core.tuple.{AttributeType, Schema, Tuple, TupleLike}
+import org.apache.texera.amber.util.ArrowUtils
 import org.apache.texera.amber.util.JSONUtils.objectMapper
 
 import scala.collection.mutable
@@ -28,7 +35,7 @@ import scala.collection.mutable
 /**
   * AggregateOpExec performs aggregation operations on input tuples, optionally grouping them by specified keys.
   */
-class AggregateOpExec(descString: String) extends OperatorExecutor {
+class AggregateOpExec(descString: String) extends OperatorExecutor with ColumnarOperatorExecutor {
   private val desc: AggregateOpDesc = objectMapper.readValue(descString, classOf[AggregateOpDesc])
   private var keyedPartialAggregates: mutable.HashMap[List[Object], List[Object]] = _
   private var distributedAggregations: List[DistributedAggregation[Object]] = _
@@ -41,6 +48,7 @@ class AggregateOpExec(descString: String) extends OperatorExecutor {
   override def close(): Unit = {
     keyedPartialAggregates.clear()
     distributedAggregations = null
+    if (columnarAllocator != null) { columnarAllocator.close(); columnarAllocator = null }
   }
 
   override def processTuple(tuple: Tuple, port: Int): Iterator[TupleLike] = {
@@ -76,6 +84,75 @@ class AggregateOpExec(descString: String) extends OperatorExecutor {
     keyedPartialAggregates(key) = updatedAggregates
     Iterator.empty
 
+  }
+
+  // ---- Native-Arrow path: accumulate an Arrow batch by reading only the group
+  // keys and aggregated cells per row (no projected Tuple), feeding the same
+  // per-value accumulation (iterateValue) the row path uses. Blocking operator, so
+  // it emits nothing per batch (Consumed); results are produced at onFinish.
+  @transient private var columnarAllocator: RootAllocator = _
+  // Per-batch resolution: the source-column index and Texera type of each group-by
+  // key, and of each aggregation's input column (index -1 for COUNT(*), which reads
+  // no column).
+  @transient private var colGroupIndices: Array[Int] = _
+  @transient private var colGroupTypes: Array[AttributeType] = _
+  @transient private var colAggIndices: Array[Int] = _
+  @transient private var colAggTypes: Array[AttributeType] = _
+
+  private def aggInputType(agg: AggregationOperation, full: Schema): AttributeType =
+    if (
+      agg.aggFunction == AggregationFunction.COUNT &&
+      (agg.attribute == null || agg.attribute.trim.isEmpty)
+    ) null
+    else full.getAttribute(agg.attribute).getType
+
+  // Accumulate one Arrow batch into the group state, reading each group key and
+  // aggregated value straight from its Arrow vector. Mirrors processTuple's
+  // accumulation exactly, feeding each aggregation the already-extracted value via
+  // iterateValue. Blocking operator, so it emits nothing now (Consumed). Does not
+  // close `root`.
+  private def accumulateRoot(root: VectorSchemaRoot): ColumnarResult = {
+    if (distributedAggregations == null || colGroupIndices == null) {
+      val full = ArrowUtils.toTexeraSchema(root.getSchema)
+      if (distributedAggregations == null) {
+        distributedAggregations =
+          desc.aggregations.map(agg => agg.getAggFunc(aggInputType(agg, full)))
+      }
+      colGroupIndices = ArrowUtils.projectionIndices(root, desc.groupByKeys)
+      colGroupTypes = desc.groupByKeys.map(full.getAttribute(_).getType).toArray
+      colAggIndices = desc.aggregations.map { agg =>
+        if (agg.attribute == null || agg.attribute.trim.isEmpty) -1
+        else ArrowUtils.projectionIndices(root, Seq(agg.attribute))(0)
+      }.toArray
+      colAggTypes = desc.aggregations.map(agg => aggInputType(agg, full)).toArray
+    }
+    val vectors = root.getFieldVectors
+    val n = root.getRowCount
+    val numGroups = colGroupIndices.length
+    var i = 0
+    while (i < n) {
+      val key =
+        (0 until numGroups)
+          .map(g => ArrowUtils.getCell(vectors.get(colGroupIndices(g)), i, colGroupTypes(g)))
+          .toList
+      val partials =
+        keyedPartialAggregates.getOrElseUpdate(key, distributedAggregations.map(_.init()))
+      val updated = distributedAggregations.zip(partials).zipWithIndex.map {
+        case ((aggregation, partial), j) =>
+          val idx = colAggIndices(j)
+          val value: Object =
+            if (idx < 0) null else ArrowUtils.getCell(vectors.get(idx), i, colAggTypes(j))
+          aggregation.iterateValue(partial, value)
+      }
+      keyedPartialAggregates(key) = updated
+      i += 1
+    }
+    ColumnarResult.Consumed
+  }
+
+  override def processColumnarBatch(arrowIpcBytes: Array[Byte], port: Int): ColumnarResult = {
+    if (columnarAllocator == null) columnarAllocator = new RootAllocator()
+    ArrowUtils.deserializeRootFold(arrowIpcBytes, columnarAllocator)(accumulateRoot)
   }
 
   override def onFinish(port: Int): Iterator[TupleLike] = {

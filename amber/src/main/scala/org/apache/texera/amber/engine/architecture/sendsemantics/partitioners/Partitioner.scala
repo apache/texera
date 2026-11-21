@@ -24,7 +24,8 @@ import org.apache.texera.amber.core.state.State
 import org.apache.texera.amber.core.tuple.Tuple
 import org.apache.texera.amber.core.virtualidentity.ActorVirtualIdentity
 import org.apache.texera.amber.engine.architecture.messaginglayer.NetworkOutputGateway
-import org.apache.texera.amber.engine.common.ambermessage.{DataFrame, StateFrame}
+import org.apache.texera.amber.engine.common.ambermessage.{VectorFrame, DataFrame, StateFrame}
+import org.apache.texera.amber.util.ArrowUtils
 
 import scala.collection.mutable.ArrayBuffer
 
@@ -37,7 +38,12 @@ trait Partitioner extends Serializable {
 class NetworkOutputBuffer(
     val to: ActorVirtualIdentity,
     val dataOutputPort: NetworkOutputGateway,
-    val batchSize: Int = ApplicationConfig.defaultDataTransferBatchSize
+    val batchSize: Int = ApplicationConfig.defaultDataTransferBatchSize,
+    // Columnar wire: flush as VectorFrame (Arrow IPC) instead of DataFrame. The
+    // planner decides this per edge (it folds in ApplicationConfig.enableColumnarWire
+    // and the downstream operator's columnar capability) and passes it in; off by
+    // default so the row wire is unchanged. A var so the output manager can set it.
+    var columnar: Boolean = false
 ) {
 
   var buffer = new ArrayBuffer[Tuple]()
@@ -55,9 +61,27 @@ class NetworkOutputBuffer(
     flush()
   }
 
+  // Columnar fast path: ship an already-serialized Arrow batch straight to the
+  // receiver, skipping the per-tuple accumulate/re-encode. Any tuples already
+  // buffered are flushed first so the batch keeps its place in the FIFO stream.
+  def sendVectorFrame(frame: VectorFrame): Unit = {
+    flush()
+    dataOutputPort.sendTo(to, frame)
+  }
+
   def flush(): Unit = {
     if (buffer.nonEmpty) {
-      dataOutputPort.sendTo(to, DataFrame(buffer.toArray))
+      val batch = buffer.toArray
+      if (columnar) {
+        // Serialize the batch to Arrow once; all tuples on a link share the schema.
+        val schema = batch(0).getSchema
+        dataOutputPort.sendTo(
+          to,
+          VectorFrame(ArrowUtils.serializeTuples(schema, batch), batch.length, schema)
+        )
+      } else {
+        dataOutputPort.sendTo(to, DataFrame(batch))
+      }
       buffer = new ArrayBuffer[Tuple]()
     }
   }

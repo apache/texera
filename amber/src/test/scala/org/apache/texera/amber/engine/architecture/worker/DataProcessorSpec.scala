@@ -20,7 +20,14 @@
 package org.apache.texera.amber.engine.architecture.worker
 
 import com.fasterxml.jackson.annotation.JsonProperty
-import org.apache.texera.amber.core.executor.{ExecFactory, OpExecWithClassName, OperatorExecutor}
+import org.apache.arrow.memory.RootAllocator
+import org.apache.texera.amber.core.executor.{
+  ColumnarOperatorExecutor,
+  ColumnarResult,
+  ExecFactory,
+  OpExecWithClassName,
+  OperatorExecutor
+}
 import org.apache.texera.amber.core.state.{State, StateReferencing}
 import org.apache.texera.amber.core.tuple.{AttributeType, Schema, Tuple, TupleLike}
 import org.apache.texera.amber.core.virtualidentity._
@@ -52,10 +59,12 @@ import org.apache.texera.amber.engine.architecture.worker.WorkflowWorker.{
 }
 import org.apache.texera.amber.engine.architecture.worker.statistics.WorkerState.READY
 import org.apache.texera.amber.engine.common.ambermessage.{
+  VectorFrame,
   DataFrame,
   StateFrame,
   WorkflowFIFOMessage
 }
+import org.apache.texera.amber.util.ArrowUtils
 import org.apache.texera.amber.engine.common.rpc.AsyncRPCClient.ControlInvocation
 import org.apache.texera.amber.engine.common.storage.SequentialRecordStorage
 import org.apache.texera.amber.engine.common.virtualidentity.util.COORDINATOR
@@ -745,9 +754,179 @@ class DataProcessorSpec extends AnyFlatSpec with MockFactory with Matchers with 
     dp.pauseManager.isPaused shouldBe false
   }
 
+  // ---------------------------------------------------------------------------
+  // Columnar wire: routing a VectorFrame to a ColumnarOperatorExecutor
+  // ---------------------------------------------------------------------------
+
+  // A batchSize-1 OneToOne partitioner flushes every output tuple immediately as a
+  // DataFrame (columnar wire is off by default), so what the operator emits is
+  // observable through the output handler without an explicit flush.
+  private def columnarSetup(
+      exec: OperatorExecutor
+  ): (DataProcessor, ArrayBuffer[WorkflowFIFOMessage]) = {
+    val dp = mkDataProcessor
+    val sent = ArrayBuffer[WorkflowFIFOMessage]()
+    (outputHandler.apply _)
+      .expects(*)
+      .onCall { (m: Either[MainThreadDelegateMessage, WorkflowFIFOMessage]) =>
+        m.foreach(sent += _); ()
+      }
+      .anyNumberOfTimes()
+    (adaptiveBatchingMonitor.startAdaptiveBatching _).expects().anyNumberOfTimes()
+    dp.executor = exec
+    dp.stateManager.transitTo(READY)
+    dp.inputManager.addPort(inputPortId, schema, List.empty, List.empty)
+    dp.inputGateway.getChannel(senderChannel).setPortId(inputPortId)
+    dp.outputManager.addPort(outputPortId, schema, None)
+    dp.outputManager.addPartitionerWithPartitioning(
+      PhysicalLink(testOpId, outputPortId, upstreamOpId, inputPortId),
+      OneToOnePartitioning(1, Seq(ChannelIdentity(testWorkerId, senderWorkerId, isControl = false)))
+    )
+    (dp, sent)
+  }
+
+  private val columnarBatch: Array[Tuple] = tuples.take(5)
+  private def columnarFrame: VectorFrame =
+    VectorFrame(
+      ArrowUtils.serializeTuples(schema, columnarBatch),
+      columnarBatch.length,
+      schema
+    )
+
+  "data processor" should "materialize an Emit result to tuples when the output edge is not columnar" in {
+    val exec = new DataProcessorSpec.EmitAllColumnarExec
+    val (dp, sent) = columnarSetup(exec)
+    // Columnar output is off by default, so the Emit falls back to the row output path.
+    dp.processDataPayload(senderChannel, columnarFrame)
+    drain(dp)
+    // Emit(root): the emitted Arrow batch is materialized to output tuples. The
+    // executor consumed the batch natively, so processTuple was never called.
+    assert(tuplesSent(sent) == columnarBatch.toList)
+    assert(exec.processTupleCalls == 0)
+    assert(exec.columnarCalls == 1)
+    assert(dp.statisticsManager.getInputTupleCount == columnarBatch.length.toLong)
+    exec.close()
+  }
+
+  "data processor" should "ship an Emit result downstream as a VectorFrame with no round-trip on an eligible edge" in {
+    val exec = new DataProcessorSpec.EmitAllColumnarExec
+    val (dp, sent) = columnarSetup(exec)
+    // One-to-one edge, no storage: enable columnar output so the fast path applies.
+    dp.outputManager.setColumnarOutput(true)
+    dp.processDataPayload(senderChannel, columnarFrame)
+    drain(dp)
+    // The batch goes out as a single VectorFrame (not decoded to tuples and
+    // re-encoded), decoding back to the input rows, and processTuple never ran.
+    val frames = sent.map(_.payload).collect { case cf: VectorFrame => cf }
+    assert(frames.size == 1)
+    assert(frames.head.rowCount == columnarBatch.length)
+    assert(ArrowUtils.deserializeTuples(frames.head.arrowIpcBytes).toList == columnarBatch.toList)
+    assert(tuplesSent(sent).isEmpty)
+    assert(exec.processTupleCalls == 0)
+    assert(dp.statisticsManager.getOutputTupleCount == columnarBatch.length.toLong)
+    exec.close()
+  }
+
+  "data processor" should "emit the rows a ColumnarOperatorExecutor returns via EmitRows" in {
+    val rows = columnarBatch.toList.map(t => (t: TupleLike, None: Option[PortIdentity]))
+    val exec = new DataProcessorSpec.EmitRowsColumnarExec(rows.iterator)
+    val (dp, sent) = columnarSetup(exec)
+    dp.processDataPayload(senderChannel, columnarFrame)
+    drain(dp)
+    assert(tuplesSent(sent) == columnarBatch.toList)
+    assert(exec.processTupleCalls == 0)
+  }
+
+  "data processor" should "emit nothing for a blocking ColumnarOperatorExecutor that returns Consumed" in {
+    val exec = new DataProcessorSpec.ConsumedColumnarExec
+    val (dp, sent) = columnarSetup(exec)
+    dp.processDataPayload(senderChannel, columnarFrame)
+    drain(dp)
+    // Consumed: the batch was accumulated, nothing emitted now, and the row path
+    // (processTuple) was not taken. Input statistics still count the whole batch.
+    assert(tuplesSent(sent).isEmpty)
+    assert(exec.processTupleCalls == 0)
+    assert(exec.columnarCalls == 1)
+    assert(dp.statisticsManager.getInputTupleCount == columnarBatch.length.toLong)
+  }
+
+  "data processor" should "fall back to the row path when a ColumnarOperatorExecutor returns Unsupported" in {
+    val exec = new DataProcessorSpec.UnsupportedColumnarExec
+    val (dp, sent) = columnarSetup(exec)
+    dp.processDataPayload(senderChannel, columnarFrame)
+    drain(dp)
+    // Unsupported: the frame is decoded to tuples and processed tuple by tuple, so
+    // the echoing processTuple sees every row and emits it.
+    assert(tuplesSent(sent) == columnarBatch.toList)
+    assert(exec.processTupleCalls == columnarBatch.length)
+    assert(exec.columnarCalls == 1)
+  }
+
+  "data processor" should "decode a VectorFrame to tuples for a non-columnar operator" in {
+    val exec = new DataProcessorSpec.RowOnlyExec
+    val (dp, sent) = columnarSetup(exec)
+    dp.processDataPayload(senderChannel, columnarFrame)
+    drain(dp)
+    // A plain OperatorExecutor cannot consume Arrow, so the frame is decoded and
+    // processed through the row path.
+    assert(tuplesSent(sent) == columnarBatch.toList)
+    assert(exec.processTupleCalls == columnarBatch.length)
+  }
+
 }
 
 object DataProcessorSpec {
+
+  /** Echoes each input tuple, counting the row-path calls. Base for the columnar fakes. */
+  class EchoingExec extends OperatorExecutor {
+    var processTupleCalls = 0
+    override def processTuple(tuple: Tuple, port: Int): Iterator[TupleLike] = {
+      processTupleCalls += 1
+      Iterator.single(tuple)
+    }
+  }
+
+  /** Consumes the Arrow batch and emits every row back (a pass-through filter). */
+  class EmitAllColumnarExec extends EchoingExec with ColumnarOperatorExecutor {
+    var columnarCalls = 0
+    private val alloc = new RootAllocator()
+    override def processColumnarBatch(arrowIpcBytes: Array[Byte], port: Int): ColumnarResult = {
+      columnarCalls += 1
+      ArrowUtils.deserializeRootFold(arrowIpcBytes, alloc) { root =>
+        ColumnarResult.Emit(ArrowUtils.selectRows(root, Array.fill(root.getRowCount)(true), alloc))
+      }
+    }
+    override def close(): Unit = alloc.close()
+  }
+
+  /** Returns the given rows directly (a join-shaped output). */
+  class EmitRowsColumnarExec(rows: Iterator[(TupleLike, Option[PortIdentity])])
+      extends EchoingExec
+      with ColumnarOperatorExecutor {
+    override def processColumnarBatch(arrowIpcBytes: Array[Byte], port: Int): ColumnarResult =
+      ColumnarResult.EmitRows(rows)
+  }
+
+  /** Accumulates with no per-batch output (a blocking operator). */
+  class ConsumedColumnarExec extends EchoingExec with ColumnarOperatorExecutor {
+    var columnarCalls = 0
+    override def processColumnarBatch(arrowIpcBytes: Array[Byte], port: Int): ColumnarResult = {
+      columnarCalls += 1
+      ColumnarResult.Consumed
+    }
+  }
+
+  /** Declines every batch, forcing the row fallback. */
+  class UnsupportedColumnarExec extends EchoingExec with ColumnarOperatorExecutor {
+    var columnarCalls = 0
+    override def processColumnarBatch(arrowIpcBytes: Array[Byte], port: Int): ColumnarResult = {
+      columnarCalls += 1
+      ColumnarResult.Unsupported
+    }
+  }
+
+  /** A plain operator with no columnar path. */
+  class RowOnlyExec extends EchoingExec
 
   /** A descString whose `limit` refers to the loop variable `n`. */
   val limitReferringToN = """{"limit":0,"stateReferences":{"/limit":"n"}}"""
