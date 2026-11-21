@@ -255,7 +255,7 @@ object ConfigGenerator {
       schemas: Map[Int, Schema],
       used: mutable.Set[(Int, String)],
       rowCount: Int,
-      switches: Map[String, JsonNode] = Map.empty
+      switches: Map[String, JsonNode]
   ): Seq[Variant] =
     Seq(
       merged(
@@ -1082,8 +1082,8 @@ object ConfigGenerator {
   private def enumVariants(
       opClass: Class[_ <: LogicalOp],
       baseNode: ObjectNode,
-      pinned: Set[String] = Set.empty,
-      fill: FillContext = FillContext()
+      pinned: Set[String],
+      fill: FillContext
   ): Seq[Variant] =
     enumSites(opClass, baseNode, "", Map.empty, SchemaScope.of(opClass), fill)
       .filterNot(site => pinned.contains(site.pointer.stripPrefix("/")))
@@ -1417,9 +1417,9 @@ object ConfigGenerator {
       schemas: Map[Int, Schema],
       used: mutable.Set[(Int, String)],
       rowCount: Int,
-      siblings: JsonNode = noSiblings,
-      bindings: TypeBindings = Map.empty,
-      scope: SchemaScope = SchemaScope.empty
+      siblings: JsonNode,
+      bindings: TypeBindings,
+      scope: SchemaScope
   ): Decision = {
     val jp = Option(f.getAnnotation(classOf[JsonProperty]))
     val jsonName = jp.map(_.value).filter(_.nonEmpty).getOrElse(f.getName)
@@ -1469,9 +1469,9 @@ object ConfigGenerator {
       schemas: Map[Int, Schema],
       used: mutable.Set[(Int, String)],
       rowCount: Int,
-      siblings: JsonNode = noSiblings,
-      bindings: TypeBindings = Map.empty,
-      scope: SchemaScope = SchemaScope.empty
+      siblings: JsonNode,
+      bindings: TypeBindings,
+      scope: SchemaScope
   ): Either[String, JsonNode] = {
     val ruled = schemaValueRule(f, scope, siblings).flatMap(ruleFill)
     val nested = scope.descend(jsonNameOf(f))
@@ -1566,8 +1566,8 @@ object ConfigGenerator {
       schemas: Map[Int, Schema],
       used: mutable.Set[(Int, String)],
       rowCount: Int,
-      bindings: TypeBindings = Map.empty,
-      scope: SchemaScope = SchemaScope.empty
+      bindings: TypeBindings,
+      scope: SchemaScope
   ): Either[String, JsonNode] =
     scalarNode(clazz, None, schemas, used, NumHint(Bounds(None, None), rowCount), bindings, scope)
 
@@ -1954,7 +1954,7 @@ object ConfigGenerator {
       schemas: Map[Int, Schema],
       port: Int,
       used: mutable.Set[(Int, String)],
-      siblings: JsonNode = noSiblings
+      siblings: JsonNode
   ): Either[String, String] = {
     def take(col: String): String = { used += ((port, col)); col }
     Option(f.getAnnotation(classOf[SampleColumn])).map(_.value) match {
@@ -2078,11 +2078,6 @@ object ConfigGenerator {
       permitted.isArray &&
       permitted.elements().asScala.exists(_.asText == siblings.path(clause.getKey).asText)
     }
-
-  /** The empty object, for a caller with no sibling context: only the unconditional
-    * part of a rule can bind.
-    */
-  private def noSiblings: JsonNode = objectMapper.getNodeFactory.objectNode()
 
   /** Where a field's constraints are read from when its own annotation cannot carry
     * them: the operator's finished JSON schema, and the node within it describing the
