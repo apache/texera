@@ -67,6 +67,8 @@ import javax.ws.rs.core.MediaType
 import scala.collection.mutable
 import scala.jdk.CollectionConverters._
 import com.fasterxml.jackson.databind.ObjectMapper
+import org.apache.texera.observability.{SpanAttrs, TexeraTracer}
+import io.opentelemetry.api.trace.StatusCode
 
 case class SyncExecutionRequest(
     executionName: String,
@@ -153,7 +155,14 @@ class SyncExecutionResource extends LazyLogging {
         s"maxOperatorResultCellCharLimit=${request.maxOperatorResultCellCharLimit} (capped to $maxOperatorResultCellCharLimit)"
     )
 
-    try {
+    val span = TexeraTracer.tracer
+      .spanBuilder("SyncExecutionResource.executeWorkflowSync")
+      .setAttribute(SpanAttrs.WorkflowId, Long.box(workflowId))
+      .setAttribute(SpanAttrs.ComputingUnitId, Long.box(computingUnitId.toLong))
+      .setAttribute(SpanAttrs.OperatorCount, Long.box(request.logicalPlan.operators.size.toLong))
+      .startSpan()
+    val scope = span.makeCurrent()
+    def runExecution(): SyncExecutionResult = {
       val workflowService = WorkflowService.getOrCreate(
         WorkflowIdentity(workflowId),
         computingUnitId
@@ -353,11 +362,24 @@ class SyncExecutionResource extends LazyLogging {
         compilationErrors = None,
         errors = if (fatalErrors.nonEmpty) Some(fatalErrors) else None
       )
+    }
 
-    } catch {
-      case e: Exception =>
-        logger.error(s"Sync execution error: ${e.getMessage}", e)
-        handleExecutionError(e)
+    try {
+      // A failed run (an early return or a caught exception) must mark the span ERROR, or
+      // Jaeger's error filter skips it; set it once from the single result.
+      val result =
+        try runExecution()
+        catch {
+          case e: Exception =>
+            logger.error(s"Sync execution error: ${e.getMessage}", e)
+            span.recordException(e)
+            handleExecutionError(e)
+        }
+      if (!result.success) span.setStatus(StatusCode.ERROR)
+      result
+    } finally {
+      scope.close()
+      span.end()
     }
   }
 

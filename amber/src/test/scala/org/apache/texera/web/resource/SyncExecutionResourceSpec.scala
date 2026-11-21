@@ -88,6 +88,14 @@ import java.net.URI
 import java.sql.Timestamp
 import java.util.concurrent.{FutureTask, TimeUnit}
 import scala.jdk.CollectionConverters._
+import io.opentelemetry.api.GlobalOpenTelemetry
+import io.opentelemetry.api.trace.StatusCode
+import io.opentelemetry.sdk.OpenTelemetrySdk
+import io.opentelemetry.sdk.common.CompletableResultCode
+import io.opentelemetry.sdk.trace.SdkTracerProvider
+import io.opentelemetry.sdk.trace.`export`.{SimpleSpanProcessor, SpanExporter}
+import io.opentelemetry.sdk.trace.data.SpanData
+import org.apache.texera.observability.SpanAttrs
 
 /**
   * Unit tests for the synchronous "run this workflow and hand me the results" endpoint used by
@@ -152,6 +160,18 @@ class SyncExecutionResourceSpec
 
   private val resource = new SyncExecutionResource()
 
+  // Captures the spans the resource emits so a case can assert their status and attributes.
+  private val exportedSpans =
+    java.util.Collections.synchronizedList(new java.util.ArrayList[SpanData]())
+  private object CollectingSpanExporter extends SpanExporter {
+    override def `export`(spans: java.util.Collection[SpanData]): CompletableResultCode = {
+      exportedSpans.addAll(spans)
+      CompletableResultCode.ofSuccess()
+    }
+    override def flush(): CompletableResultCode = CompletableResultCode.ofSuccess()
+    override def shutdown(): CompletableResultCode = CompletableResultCode.ofSuccess()
+  }
+
   private val stateToString = PrivateMethod[String](Symbol("stateToString"))
   private val isTerminalState = PrivateMethod[Boolean](Symbol("isTerminalState"))
   private val isCausedByTimeout = PrivateMethod[Boolean](Symbol("isCausedByTimeout"))
@@ -184,6 +204,20 @@ class SyncExecutionResourceSpec
   private var resultEid: Int = 0
 
   override protected def beforeAll(): Unit = {
+    // Install an in-memory span exporter before anything emits a span; TexeraTracer reads the
+    // tracer from GlobalOpenTelemetry, so the resource's spans land in exportedSpans.
+    GlobalOpenTelemetry.resetForTest()
+    GlobalOpenTelemetry.set(
+      OpenTelemetrySdk
+        .builder()
+        .setTracerProvider(
+          SdkTracerProvider
+            .builder()
+            .addSpanProcessor(SimpleSpanProcessor.create(CollectingSpanExporter))
+            .build()
+        )
+        .build()
+    )
     initializeDBAndReplaceDSLContext()
     val cfg = getDSLContext.configuration()
 
@@ -226,7 +260,10 @@ class SyncExecutionResourceSpec
     resultEid = insertExecution("result-fixture")
   }
 
-  override protected def afterAll(): Unit = closeConnectionPool()
+  override protected def afterAll(): Unit = {
+    try closeConnectionPool()
+    finally GlobalOpenTelemetry.resetForTest()
+  }
 
   private def insertExecution(name: String): Int = {
     import org.apache.texera.dao.jooq.generated.Tables.{WORKFLOW_EXECUTIONS, WORKFLOW_VERSION}
@@ -1216,5 +1253,38 @@ class SyncExecutionResourceSpec
     result.operators.keySet shouldBe Set("scan-op")
     result.operators("scan-op").state shouldBe "Unknown"
     result.operators("scan-op").error shouldBe None
+  }
+
+  it should "mark the execution span ERROR with correlation labels on a failed run" in {
+    exportedSpans.clear()
+    val scan = new CSVScanSourceOpDesc()
+    scan.setOperatorId("scan-op")
+    val user = new User
+    user.setUid(testUid)
+    user.setEmail("sync-exec@example.com")
+
+    val result = resource.executeWorkflowSync(
+      testWid.toLong,
+      testCuid,
+      SyncExecutionRequest(
+        executionName = "sync-spec-span",
+        logicalPlan = LogicalPlanPojo(List(scan), List.empty, List.empty, List.empty),
+        workflowSettings = None,
+        targetOperatorIds = List("scan-op"),
+        timeoutSeconds = 5,
+        maxOperatorResultCharLimit = 100000,
+        maxOperatorResultCellCharLimit = 20000
+      ),
+      new SessionUser(user)
+    )
+    result.success shouldBe false
+
+    val span = exportedSpans.asScala
+      .find(_.getName == "SyncExecutionResource.executeWorkflowSync")
+      .getOrElse(fail("expected the executeWorkflowSync span to be exported"))
+    span.getStatus.getStatusCode shouldBe StatusCode.ERROR
+    span.getAttributes.get(SpanAttrs.WorkflowId) shouldBe testWid.toLong
+    span.getAttributes.get(SpanAttrs.ComputingUnitId) shouldBe testCuid.toLong
+    span.getAttributes.get(SpanAttrs.OperatorCount) shouldBe 1L
   }
 }
