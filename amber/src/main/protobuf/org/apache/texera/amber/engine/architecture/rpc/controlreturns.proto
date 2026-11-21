@@ -18,6 +18,7 @@
 syntax = "proto3";
 package org.apache.texera.amber.engine.architecture.rpc;
 
+import "org/apache/texera/amber/core/virtualidentity.proto";
 import "org/apache/texera/amber/engine/architecture/worker/statistics.proto";
 import "scalapb/scalapb.proto";
 
@@ -65,6 +66,9 @@ message ControlError {
   string errorDetails = 2;
   string stackTrace = 3;
   ErrorLanguage language = 4;
+  // The worker the error came from, when known (a WorkflowRuntimeException's
+  // relatedWorkerId), so the receiver can attribute it to that operator.
+  core.ActorVirtualIdentity relatedWorkerId = 5;
 }
 
 message ReturnInvocation {

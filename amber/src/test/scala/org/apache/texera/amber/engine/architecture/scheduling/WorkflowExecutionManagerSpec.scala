@@ -213,7 +213,8 @@ class WorkflowExecutionManagerSpec
             errorMessage = udfInitError,
             errorDetails = "",
             stackTrace = "",
-            language = ErrorLanguage.PYTHON
+            language = ErrorLanguage.PYTHON,
+            None
           )
         else EmptyReturn()
     )

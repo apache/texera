@@ -305,6 +305,33 @@ class DataProcessingSpec extends RetryingDatabaseE2ESpec("DataProcessingSpec", s
     assert(error.relatedWorkerId.exists(_.name.contains("JavaUDFOpDesc")))
   }
 
+  "Engine" should "name the failing worker when a udf in the first region fails to initialize" in {
+    // A UDF in the first region fails while the workflow starts, so the error comes back to the
+    // client as the reply to startWorkflow (a ControlError), not as a FatalError event. The
+    // failing worker must survive that hop so the UI can attribute the error to the UDF.
+    val headerlessCsvOpDesc = TestOperators.headerlessSmallCsvScanOpDesc()
+    val javaUdfOpDesc = new JavaUDFOpDesc()
+    javaUdfOpDesc.retainInputColumns = true
+    javaUdfOpDesc.code = "public class JavaUDFOpExec { not valid java }"
+    val workflow = buildWorkflow(
+      List(headerlessCsvOpDesc, javaUdfOpDesc),
+      List(
+        LogicalLink(
+          headerlessCsvOpDesc.operatorIdentifier,
+          PortIdentity(),
+          javaUdfOpDesc.operatorIdentifier,
+          PortIdentity()
+        )
+      ),
+      workflowContext
+    )
+    val error = intercept[WorkflowRuntimeException] {
+      executeWorkflow(workflow)
+    }
+    assert(error.getMessage.contains("Error at line"))
+    assert(error.relatedWorkerId.exists(_.name.contains("JavaUDFOpDesc")))
+  }
+
   "Engine" should "execute headerlessCsv->keyword workflow with MATERIALIZED mode" in {
     val headerlessCsvOpDesc = TestOperators.headerlessSmallCsvScanOpDesc()
     val keywordOpDesc = TestOperators.keywordSearchOpDesc("column-1", "Asia")
