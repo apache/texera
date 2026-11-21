@@ -20,6 +20,7 @@
 package org.apache.texera.amber.operator.reservoirsampling
 
 import com.fasterxml.jackson.annotation.{JsonProperty, JsonPropertyDescription}
+import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaInject
 import org.apache.texera.amber.core.executor.OpExecWithClassName
 import org.apache.texera.amber.core.virtualidentity.{ExecutionIdentity, WorkflowIdentity}
 import org.apache.texera.amber.core.workflow.{InputPort, OutputPort, PhysicalOp}
@@ -29,8 +30,12 @@ import org.apache.texera.amber.util.JSONUtils.objectMapper
 
 class ReservoirSamplingOpDesc extends LogicalOp with StandaloneCodeGenerator {
 
+  // A sample size below 1 is never valid. The bound reaches the property editor only: a k
+  // from the API, an imported workflow or a loop variable is refused by the executor at
+  // its first row instead.
   @JsonProperty(value = "number of item sampled in reservoir sampling", required = true)
   @JsonPropertyDescription("reservoir sampling with k items being kept randomly")
+  @JsonSchemaInject(json = """{"minimum": 1}""")
   var k: Int = _
 
   override def getPhysicalOp(
