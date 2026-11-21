@@ -906,6 +906,35 @@ describe("sendMessage", () => {
     expect(agent.getAllSteps().map(s => s.stepId)).toEqual([0, 1, 2, 3]);
   });
 
+  test("stops a looping model at the default step limit", async () => {
+    // Nothing sets maxSteps here, so the default is all that bounds a model that never stops
+    // calling tools.
+    let n = 0;
+    const model = new MockLanguageModelV4({
+      doGenerate: async () => {
+        n++;
+        if (n > 200) throw new Error("runaway");
+        return {
+          content: [
+            {
+              type: "tool-call",
+              toolCallId: "c" + n,
+              toolName: "deleteOperator",
+              input: JSON.stringify({ operatorId: "ghost" }),
+            },
+          ],
+          finishReason: finish("tool-calls"),
+          usage: usage(1, 1),
+          warnings: [],
+        } as any;
+      },
+    });
+    const agent = makeAgentWith(model);
+    expect(agent.getSettings().maxSteps).toBe(25);
+    await agent.sendMessage("go");
+    expect(n).toBe(25);
+  });
+
   test("second turn chains on and reads turn 1 as completed", async () => {
     const model = textModel("a", 1, 1);
     const agent = makeAgentWith(model);
