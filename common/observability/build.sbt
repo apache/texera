@@ -66,10 +66,10 @@ libraryDependencies ++= Seq(
   // appender. Marked `provided` because every service already brings
   // Logback in transitively (via Dropwizard / SLF4J), so we don't
   // bundle a second copy.
-  "ch.qos.logback" % "logback-classic" % "1.2.13" % "provided",
+  "ch.qos.logback" % "logback-classic" % "1.6.8" % "provided",
   // Test-only: in-memory exporter for OtelInitSpec; avoids hitting a real
   // collector during unit tests.
   "io.opentelemetry" % "opentelemetry-sdk-testing" % openTelemetryVersion % Test,
-  "ch.qos.logback" % "logback-classic" % "1.2.13" % Test,
+  "ch.qos.logback" % "logback-classic" % "1.6.8" % Test,
   "org.scalatest" %% "scalatest" % "3.2.15" % Test // ScalaTest (for unit tests)
 )
