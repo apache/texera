@@ -109,7 +109,7 @@ export class RowModalComponent implements OnChanges, OnDestroy {
   /** Fetches the current row; a later row change cancels it. */
   private loadRow(): void {
     this.workflowResultService
-      .getPortPaginatedResultService(this.operatorId, this.portIndex)
+      .getPaginatedResultService(this.operatorId, this.portIndex)
       ?.selectTuple(this.rowIndex, this.resizeService.pageSize)
       .pipe(takeUntil(this.rowChange), untilDestroyed(this))
       .subscribe(res => {

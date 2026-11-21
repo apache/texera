@@ -21,7 +21,7 @@ import { ComponentFixture, TestBed } from "@angular/core/testing";
 import { SimpleChange } from "@angular/core";
 import type { Mock } from "vitest";
 
-import { OTHER_PORT_REFRESH_MS, ResultTableFrameComponent } from "./result-table-frame.component";
+import { ResultTableFrameComponent } from "./result-table-frame.component";
 import { OperatorMetadataService } from "../../../service/operator-metadata/operator-metadata.service";
 import { StubOperatorMetadataService } from "../../../service/operator-metadata/stub-operator-metadata.service";
 import { HttpClientTestingModule } from "@angular/common/http/testing";
@@ -41,13 +41,16 @@ import {
 } from "../../../service/workflow-result/workflow-result.service";
 import { WorkflowStatusService } from "../../../service/workflow-status/workflow-status.service";
 import { PanelResizeService } from "../../../service/workflow-result/panel-resize/panel-resize.service";
-import { OperatorState, WebResultUpdate } from "../../../types/execute-workflow.interface";
+import {
+  OperatorState,
+  WebResultUpdate,
+  WorkflowResultTableStats,
+  WorkflowResultUpdate,
+} from "../../../types/execute-workflow.interface";
 import { PaginatedResultEvent } from "../../../types/workflow-websocket.interface";
 import { IndexableObject } from "../../../types/result-table.interface";
 import { RowModalComponent } from "../result-panel-modal.component";
 import { ResultExportationComponent } from "../../result-exportation/result-exportation.component";
-
-type OperatorStatsMap = Record<string, Record<string, Record<string, number>>>;
 
 describe("ResultTableFrameComponent", () => {
   let component: ResultTableFrameComponent;
@@ -211,7 +214,7 @@ describe("ResultTableFrameComponent", () => {
         selectPage: vi.fn().mockReturnValue(of(makePageEvent(1))),
       };
       const getPortService = vi
-        .spyOn(workflowResultService, "getPortPaginatedResultService")
+        .spyOn(workflowResultService, "getPaginatedResultService")
         .mockReturnValue(secondPort as unknown as OperatorPaginationResultService);
       component.operatorId = "op1";
       component.portIndex = 1;
@@ -246,7 +249,7 @@ describe("ResultTableFrameComponent", () => {
       it("clears the previous port's rows when the port shown is empty", () => {
         const first = portService(1);
         const second = portService(0);
-        vi.spyOn(workflowResultService, "getPortPaginatedResultService").mockImplementation(
+        vi.spyOn(workflowResultService, "getPaginatedResultService").mockImplementation(
           (_, port) => (port === 0 ? first.service : second.service) as unknown as OperatorPaginationResultService
         );
         component.operatorId = "op1";
@@ -265,7 +268,7 @@ describe("ResultTableFrameComponent", () => {
       it("ignores a reply from a port that is no longer shown", () => {
         const first = portService(1);
         const second = portService(1);
-        vi.spyOn(workflowResultService, "getPortPaginatedResultService").mockImplementation(
+        vi.spyOn(workflowResultService, "getPaginatedResultService").mockImplementation(
           (_, port) => (port === 0 ? first.service : second.service) as unknown as OperatorPaginationResultService
         );
         component.operatorId = "op1";
@@ -412,28 +415,7 @@ describe("ResultTableFrameComponent", () => {
       expect(component.isOperatorFinished).toBe(false);
     });
 
-    it("asks once more for a port past the first when the operator completes, as no update may follow", () => {
-      const stateStream = new Subject<Record<string, OperatorState>>();
-      vi.spyOn(workflowStatusService, "getStateUpdateStream").mockReturnValue(stateStream.asObservable());
-      const secondPort = {
-        getCurrentTotalNumTuples: vi.fn().mockReturnValue(6),
-        selectPage: vi.fn().mockReturnValue(of(makePageEvent(1))),
-      };
-      vi.spyOn(workflowResultService, "getPortPaginatedResultService").mockReturnValue(
-        secondPort as unknown as OperatorPaginationResultService
-      );
-      recreateComponent("op1");
-      component.portIndex = 1;
-
-      stateStream.next({ op1: OperatorState.Running });
-      stateStream.next({ op1: OperatorState.Completed });
-      stateStream.next({ op1: OperatorState.Completed });
-
-      expect(secondPort.selectPage).toHaveBeenCalledTimes(1);
-      expect(component.totalNumTuples).toBe(6);
-    });
-
-    it("leaves the first port to its updates when the operator completes", () => {
+    it("leaves the table to its port's updates when the operator completes", () => {
       const stateStream = new Subject<Record<string, OperatorState>>();
       vi.spyOn(workflowStatusService, "getStateUpdateStream").mockReturnValue(stateStream.asObservable());
       const paginated = makePaginatedResultService();
@@ -446,10 +428,10 @@ describe("ResultTableFrameComponent", () => {
   });
 
   describe("result update stream", () => {
-    let resultUpdates: Subject<Record<string, WebResultUpdate | undefined>>;
+    let resultUpdates: Subject<WorkflowResultUpdate>;
 
     beforeEach(() => {
-      resultUpdates = new Subject<Record<string, WebResultUpdate | undefined>>();
+      resultUpdates = new Subject<WorkflowResultUpdate>();
       vi.spyOn(workflowResultService, "getResultUpdateStream").mockReturnValue(resultUpdates.asObservable());
     });
 
@@ -463,7 +445,7 @@ describe("ResultTableFrameComponent", () => {
         { columnKey: "score", columnText: "score" },
       ]);
 
-      resultUpdates.next({ op1: paginationUpdate(77, [1]) });
+      resultUpdates.next({ op1: { 0: paginationUpdate(77, [1]) } });
 
       expect(component.isFrontPagination).toBe(false);
       expect(component.widthPercent).toBe("50%");
@@ -476,7 +458,7 @@ describe("ResultTableFrameComponent", () => {
       const paginated = makePaginatedResultService();
       recreateComponent("op1");
 
-      resultUpdates.next({ op1: paginationUpdate(63, [4]) });
+      resultUpdates.next({ op1: { 0: paginationUpdate(63, [4]) } });
 
       expect(component.totalNumTuples).toBe(63);
       expect(component.isFrontPagination).toBe(false);
@@ -487,9 +469,9 @@ describe("ResultTableFrameComponent", () => {
     it("ignores snapshot updates, cleared entries, and updates for other operators", () => {
       recreateComponent("op1");
 
-      resultUpdates.next({ op1: { mode: { type: "SetSnapshotMode" }, table: [] } });
-      resultUpdates.next({ op1: undefined });
-      resultUpdates.next({ otherOp: paginationUpdate(9, [1]) });
+      resultUpdates.next({ op1: { 0: { mode: { type: "SetSnapshotMode" }, table: [] } } });
+      resultUpdates.next({ op1: { 0: undefined as unknown as WebResultUpdate } });
+      resultUpdates.next({ otherOp: { 0: paginationUpdate(9, [1]) } });
 
       expect(component.isFrontPagination).toBe(true);
       expect(component.totalNumTuples).toBe(0);
@@ -499,55 +481,36 @@ describe("ResultTableFrameComponent", () => {
       let secondPort: { getCurrentTotalNumTuples: Mock; selectPage: Mock };
 
       beforeEach(() => {
-        vi.useFakeTimers();
         secondPort = {
           getCurrentTotalNumTuples: vi.fn().mockReturnValue(5),
           selectPage: vi.fn().mockReturnValue(of(makePageEvent(1))),
         };
-        vi.spyOn(workflowResultService, "getPortPaginatedResultService").mockReturnValue(
+        vi.spyOn(workflowResultService, "getPaginatedResultService").mockReturnValue(
           secondPort as unknown as OperatorPaginationResultService
         );
         recreateComponent("op1");
         component.portIndex = 1;
       });
 
-      afterEach(() => vi.useRealTimers());
+      it("follows its own port's updates, as the first port's table does", () => {
+        resultUpdates.next({ op1: { 1: paginationUpdate(5, [1]) } });
 
-      it("asks for its page again on its operator's update, as the update counts the first port only", () => {
-        component.totalNumTuples = 3;
-
-        resultUpdates.next({ op1: paginationUpdate(63, [4]) });
-
-        expect(secondPort.selectPage).toHaveBeenCalledTimes(1);
-        // the count is the port's own, from the reply, not the first port's
         expect(component.totalNumTuples).toBe(5);
-      });
-
-      it("ignores another operator's update", () => {
-        resultUpdates.next({ otherOp: paginationUpdate(9, [1]) });
-        vi.advanceTimersByTime(OTHER_PORT_REFRESH_MS);
-
-        expect(secondPort.selectPage).not.toHaveBeenCalled();
-      });
-
-      it("asks at most once a second while a run updates, and always for the last update", () => {
-        resultUpdates.next({ op1: paginationUpdate(1, [1]) });
-        resultUpdates.next({ op1: paginationUpdate(2, [1]) });
-        resultUpdates.next({ op1: paginationUpdate(3, [1]) });
         expect(secondPort.selectPage).toHaveBeenCalledTimes(1);
+      });
 
-        vi.advanceTimersByTime(OTHER_PORT_REFRESH_MS);
-        expect(secondPort.selectPage).toHaveBeenCalledTimes(2);
+      it("ignores the updates of the operator's other ports", () => {
+        resultUpdates.next({ op1: { 0: paginationUpdate(63, [1]) } });
 
-        vi.advanceTimersByTime(OTHER_PORT_REFRESH_MS);
-        expect(secondPort.selectPage).toHaveBeenCalledTimes(2);
+        expect(component.totalNumTuples).toBe(0);
+        expect(secondPort.selectPage).not.toHaveBeenCalled();
       });
     });
 
     it("ignores updates when the frame has no operator", () => {
       recreateComponent(undefined);
 
-      resultUpdates.next({ op1: paginationUpdate(9, [1]) });
+      resultUpdates.next({ op1: { 0: paginationUpdate(9, [1]) } });
 
       expect(component.isFrontPagination).toBe(true);
       expect(component.totalNumTuples).toBe(0);
@@ -555,17 +518,17 @@ describe("ResultTableFrameComponent", () => {
   });
 
   describe("result table stats stream", () => {
-    let statsStream: Subject<[OperatorStatsMap, OperatorStatsMap]>;
+    let statsStream: Subject<[WorkflowResultTableStats, WorkflowResultTableStats]>;
 
     beforeEach(() => {
-      statsStream = new Subject<[OperatorStatsMap, OperatorStatsMap]>();
+      statsStream = new Subject<[WorkflowResultTableStats, WorkflowResultTableStats]>();
       vi.spyOn(workflowResultService, "getResultTableStats").mockReturnValue(statsStream.asObservable());
     });
 
     it("keeps the previous stats when both snapshots describe the same columns", () => {
       recreateComponent("op1");
 
-      statsStream.next([{ op1: { colA: { min: 1 } } }, { op1: { colA: { min: 2 } } }]);
+      statsStream.next([{ op1: { 0: { colA: { min: 1 } } } }, { op1: { 0: { colA: { min: 2 } } } }]);
 
       expect(component.tableStats).toEqual({ colA: { min: 2 } });
       expect(component.prevTableStats).toEqual({ colA: { min: 1 } });
@@ -574,23 +537,32 @@ describe("ResultTableFrameComponent", () => {
     it("falls back to the current stats when columns changed or no previous stats exist", () => {
       recreateComponent("op1");
 
-      statsStream.next([{ op1: { colB: { min: 1 } } }, { op1: { colA: { min: 2 } } }]);
+      statsStream.next([{ op1: { 0: { colB: { min: 1 } } } }, { op1: { 0: { colA: { min: 2 } } } }]);
       expect(component.tableStats).toEqual({ colA: { min: 2 } });
       expect(component.prevTableStats).toBe(component.tableStats);
 
-      statsStream.next([{}, { op1: { colC: { max: 3 } } }]);
+      statsStream.next([{}, { op1: { 0: { colC: { max: 3 } } } }]);
       expect(component.tableStats).toEqual({ colC: { max: 3 } });
       expect(component.prevTableStats).toBe(component.tableStats);
     });
 
     it("ignores stats without an operator id or without an entry for this operator", () => {
       recreateComponent(undefined);
-      statsStream.next([{ op1: { colA: { min: 1 } } }, { op1: { colA: { min: 2 } } }]);
+      statsStream.next([{ op1: { 0: { colA: { min: 1 } } } }, { op1: { 0: { colA: { min: 2 } } } }]);
       expect(component.tableStats).toEqual({});
 
       recreateComponent("op1");
       statsStream.next([{}, {}]);
       expect(component.tableStats).toEqual({});
+    });
+
+    it("shows the statistics of the port it shows", () => {
+      recreateComponent("op1");
+      component.portIndex = 1;
+
+      statsStream.next([{}, { op1: { 0: { colA: { min: 1 } }, 1: { colA: { min: 9 } } } }]);
+
+      expect(component.tableStats).toEqual({ colA: { min: 9 } });
     });
   });
 

@@ -48,6 +48,7 @@ import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 
 import java.time.Instant
+import scala.jdk.CollectionConverters._
 
 /**
   * Pins the server -> client half of the websocket wire contract.
@@ -138,8 +139,13 @@ class TexeraWebSocketEventSpec extends AnyFlatSpec with Matchers {
     "WorkflowStateEvent" -> WorkflowStateEvent("Running"),
     "OperatorStatisticsUpdateEvent" -> OperatorStatisticsUpdateEvent(Map("op-stats" -> metrics)),
     "WebResultUpdateEvent" -> WebResultUpdateEvent(
-      Map("op-page" -> WebPaginationUpdate(PaginationMode(), 7L, List(1, 3))),
-      Map("op-page" -> Map("city" -> Map[String, Any]("distinct" -> 2)))
+      Map(
+        "op-page" -> Map(
+          0 -> WebPaginationUpdate(PaginationMode(), 7L, List(1, 3)),
+          1 -> WebPaginationUpdate(PaginationMode(), 4L, List(1))
+        )
+      ),
+      Map("op-page" -> Map(0 -> Map("city" -> Map[String, Any]("distinct" -> 2))))
     ),
     "ConsoleUpdateEvent" -> ConsoleUpdateEvent("op-console", Seq(consoleMessage)),
     "PaginatedResultEvent" -> PaginatedResultEvent(
@@ -268,7 +274,8 @@ class TexeraWebSocketEventSpec extends AnyFlatSpec with Matchers {
     // subsumes NON_NULL but is NOT NON_EMPTY.
     // The Angular WorkflowResultUpdateEvent reads `updates` and `tableStats`
     // unconditionally, so tightening the inclusion rule would break the result panel.
-    val json = objectMapper.readTree(write(WebResultUpdateEvent(Map.empty, Map.empty)))
+    val json =
+      objectMapper.readTree(write(WebResultUpdateEvent(Map.empty, Map.empty)))
     json.get("type").asText() shouldBe "WebResultUpdateEvent"
     json.has("updates") shouldBe true
     json.get("updates").isObject shouldBe true
@@ -283,12 +290,12 @@ class TexeraWebSocketEventSpec extends AnyFlatSpec with Matchers {
     val paginated = objectMapper.readTree(
       write(
         WebResultUpdateEvent(
-          Map("op-page" -> WebPaginationUpdate(PaginationMode(), 7L, List(1, 3))),
+          Map("op-page" -> Map(0 -> WebPaginationUpdate(PaginationMode(), 7L, List(1, 3)))),
           Map.empty
         )
       )
     )
-    val update = paginated.get("updates").get("op-page")
+    val update = paginated.get("updates").get("op-page").get("0")
     update.get("mode").get("type").asText() shouldBe "PaginationMode"
     update.get("totalNumTuples").asLong() shouldBe 7L
     update.get("dirtyPageIndices").toString shouldBe "[1,3]"
@@ -296,12 +303,57 @@ class TexeraWebSocketEventSpec extends AnyFlatSpec with Matchers {
     val delta = objectMapper.readTree(
       write(
         WebResultUpdateEvent(
-          Map("op-delta" -> WebDataUpdate(SetDeltaMode(), List.empty)),
+          Map("op-delta" -> Map(0 -> WebDataUpdate(SetDeltaMode(), List.empty))),
           Map.empty
         )
       )
     )
-    delta.get("updates").get("op-delta").get("mode").get("type").asText() shouldBe "SetDeltaMode"
+    delta
+      .get("updates")
+      .get("op-delta")
+      .get("0")
+      .get("mode")
+      .get("type")
+      .asText() shouldBe "SetDeltaMode"
+  }
+
+  it should "key updates and tableStats by operator id, then by the port index as a JSON string" in {
+    // The frontend reads `updates[opId]["1"]` and `tableStats[opId]["1"]`. JSON object keys are
+    // always strings, so the Int index must be written as "1", not dropped or turned into an
+    // array; and port 0 is keyed the same way as every other port.
+    val json = objectMapper.readTree(
+      write(
+        WebResultUpdateEvent(
+          Map(
+            "Split-1" -> Map(
+              0 -> WebPaginationUpdate(PaginationMode(), 4L, List(1)),
+              1 -> WebPaginationUpdate(PaginationMode(), 9L, List(1, 2)),
+              2 -> WebDataUpdate(SetDeltaMode(), List.empty)
+            )
+          ),
+          Map(
+            "Split-1" -> Map(
+              0 -> Map("city" -> Map[String, Any]("distinct" -> 2)),
+              1 -> Map("city" -> Map[String, Any]("distinct" -> 5))
+            )
+          )
+        )
+      )
+    )
+    json.fieldNames().asScala.toSet shouldBe Set("type", "updates", "tableStats")
+
+    val ports = json.get("updates").get("Split-1")
+    ports.isObject shouldBe true
+    ports.fieldNames().asScala.toSet shouldBe Set("0", "1", "2")
+    ports.get("0").get("totalNumTuples").asLong() shouldBe 4L
+    ports.get("1").get("mode").get("type").asText() shouldBe "PaginationMode"
+    ports.get("1").get("totalNumTuples").asLong() shouldBe 9L
+    ports.get("1").get("dirtyPageIndices").toString shouldBe "[1,2]"
+    ports.get("2").get("mode").get("type").asText() shouldBe "SetDeltaMode"
+
+    val stats = json.get("tableStats").get("Split-1")
+    stats.fieldNames().asScala.toSet shouldBe Set("0", "1")
+    stats.get("1").get("city").get("distinct").asInt() shouldBe 5
   }
 
   "PythonExpressionEvaluateResponse" should "emit a value object even for an empty proto Option" in {
