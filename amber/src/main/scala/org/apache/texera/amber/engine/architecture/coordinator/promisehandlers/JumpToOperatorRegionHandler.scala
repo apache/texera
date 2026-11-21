@@ -26,6 +26,7 @@ import org.apache.texera.amber.engine.architecture.rpc.controlcommands.{
   JumpToOperatorRegionRequest
 }
 import org.apache.texera.amber.engine.architecture.rpc.controlreturns.EmptyReturn
+import org.apache.texera.amber.util.VirtualIdentityUtils
 
 trait JumpToOperatorRegionHandler {
   this: CoordinatorAsyncRPCHandlerInitializer =>
@@ -42,6 +43,10 @@ trait JumpToOperatorRegionHandler {
           level
       }
       .foreach { targetLevel =>
+        manager.resumeLoop(
+          msg.targetOperatorId,
+          VirtualIdentityUtils.getPhysicalOpId(ctx.sender).logicalOpId
+        )
         manager.schedule = manager.schedule.copy(initialLevelIndex = targetLevel)
       }
     EmptyReturn()

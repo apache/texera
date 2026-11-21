@@ -38,6 +38,7 @@ same payload.
 import tempfile
 import threading
 import uuid
+from unittest.mock import Mock
 
 import pytest
 from pyiceberg.catalog.sql import SqlCatalog
@@ -45,6 +46,7 @@ from pyiceberg.catalog.sql import SqlCatalog
 from core.architecture.packaging.output_manager import OutputManager
 from core.models import State, StateFrame
 from core.models.internal_queue import DataElement, InternalQueue
+from core.runnables.main_loop import MainLoop
 from core.storage.document_factory import DocumentFactory
 from core.storage.iceberg.iceberg_catalog_instance import IcebergCatalogInstance
 from core.storage.runnables.input_port_materialization_reader_runnable import (
@@ -250,6 +252,34 @@ def test_state_written_by_output_manager_is_replayed_by_reader():
         f"loop_start_id must round-trip through its own column; "
         f"got {state_frames[0].loop_start_id!r}"
     )
+
+
+@pytest.mark.parametrize("updates", [(2, 3), (3, 2)])
+def test_loop_jump_preserves_enclosing_input_in_order(updates):
+    base = _fresh_base_uri()
+    input_uri = VFSURIFactory.state_uri(base)
+    writer = DocumentFactory.create_document(input_uri, State.SCHEMA).writer("0")
+    for k in updates:
+        writer.put_one(State({"k": k}).to_tuple(0, "outer"))
+    writer.close()
+
+    worker = MainLoop("Worker:WF0-inner-end-main-0", InternalQueue(), InternalQueue())
+    try:
+        worker.context.loop_start_port_uris = {"inner": base}
+        worker._loop_start_id = "inner"
+        worker._jump_to_loop_start(Mock(state=State({"j": 1})), Mock())
+        worker.context.is_loop_continuation = True
+        worker._jump_to_loop_start(Mock(state=State({"j": 2})), Mock())
+        checkpoint, _ = DocumentFactory.open_document(
+            VFSURIFactory.loop_checkpoint_uri(base, "inner")
+        )
+        assert [State.from_tuple(row) for row in checkpoint.get()] == [{"j": 2}]
+        doc, _ = DocumentFactory.open_document(input_uri)
+        assert [(State.from_tuple(r), r[State.LOOP_START_ID]) for r in doc.get()] == [
+            ({"k": k}, "outer") for k in updates
+        ]
+    finally:
+        worker.data_processor.stop()
 
 
 def test_state_table_persists_across_writer_close():

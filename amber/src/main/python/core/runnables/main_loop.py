@@ -108,6 +108,7 @@ class MainLoop(StoppableQueueBlockingRunnable):
         # _consume_pending_loop_state for why the table read must not overlap
         # this worker's own materialization reader).
         self._pending_loop_state: Optional[State] = None
+        self._forwarded_enclosing_state = False
 
         self.context = Context(worker_id, input_queue)
         self._async_rpc_server = AsyncRPCServer(output_queue, context=self.context)
@@ -118,16 +119,17 @@ class MainLoop(StoppableQueueBlockingRunnable):
             target=self.data_processor.run, daemon=True, name="data_processor_thread"
         ).start()
 
-    def _loop_start_base_uri(self) -> str:
+    def _loop_start_base_uri(self, start_id: Optional[str] = None) -> str:
         # The loop's bookkeeping base URI is setup config, keyed by the
         # captured id (see InitializeExecutorRequest.loopStartPortUris). Fail
         # loud on a missing entry: anything raised here is reported by the
         # caller's guard as an operator-facing error.
-        uri = self.context.loop_start_port_uris.get(self._loop_start_id)
+        start_id = self._loop_start_id if start_id is None else start_id
+        uri = self.context.loop_start_port_uris.get(start_id)
         if not uri:
             raise RuntimeError(
                 f"no loop bookkeeping URI configured for LoopStart "
-                f"'{self._loop_start_id}' "
+                f"'{start_id}' "
                 f"(have: {sorted(self.context.loop_start_port_uris)})"
             )
         return uri
@@ -136,9 +138,8 @@ class MainLoop(StoppableQueueBlockingRunnable):
         # The loop's input table is the Loop Start's input-port
         # materialization: the output doc of whatever feeds this loop level.
         # It is stable for the duration of the loop level that reads it -- the
-        # back-edge rewrites only the state doc under the same base URI, never
-        # this result doc. For an INNER loop that upstream is the outer Loop
-        # Start, whose output doc is recreated on each OUTER iteration; that is
+        # back-edge writes a separate checkpoint. For an inner loop the upstream
+        # may be the outer Loop Start, whose output is recreated each outer iteration; that is
         # still stable across every inner iteration that reads it, which is the
         # window that matters here. Reading it means the table never has to
         # ride inside the State content through the loop body. Callers must
@@ -206,23 +207,24 @@ class MainLoop(StoppableQueueBlockingRunnable):
             executor.register_state(pending, 0)
             executor.process_state(pending, 0)
 
+    def _checkpoint_uri(self, start_id: str) -> str:
+        return VFSURIFactory.loop_checkpoint_uri(
+            self._loop_start_base_uri(start_id), start_id
+        )
+
     def _jump_to_loop_start(
         self, executor: LoopEndOperator, coordinator_interface
     ) -> None:
-        # Resolve the write address BEFORE the jump RPC so a misconfigured
-        # loop does not rewind the schedule without a back-edge write.
-        # Anything raised here (a missing URI, or a failed state write after
-        # the jump) is reported by complete()'s guard as an operator-facing
-        # error.
-        uri = VFSURIFactory.state_uri(self._loop_start_base_uri())
+        # The producer's input to this loop must remain readable on every iteration.
+        uri = self._checkpoint_uri(self._loop_start_id)
+        if self.context.is_loop_continuation:
+            doc, _ = DocumentFactory.open_document(uri)
+        else:
+            doc = DocumentFactory.create_document(uri, State.SCHEMA)
+        doc.replace_one(executor.state.to_tuple(0))
         coordinator_interface.jump_to_operator_region(
             JumpToOperatorRegionRequest(OperatorIdentity(self._loop_start_id))
         )
-        writer = DocumentFactory.create_document(uri, State.SCHEMA).writer("0")
-        # The back-edge fires only after the matching LoopEnd consumed at
-        # loop_counter == 0, so the next iteration's input starts at depth 0.
-        writer.put_one(executor.state.to_tuple(0))
-        writer.close()
 
     def _check_loop_state_arrived(self) -> None:
         # Keep the LOUD failure for a real loop state that lost its stamp
@@ -266,44 +268,26 @@ class MainLoop(StoppableQueueBlockingRunnable):
                 "stop after one iteration"
             )
 
+    def _finish_loop_iteration(self, executor: LoopEndOperator) -> None:
+        with replace_print(
+            self.context.worker_id, self.context.console_message_manager.print_buf
+        ):
+            again = executor.condition()
+        if again:
+            self._jump_to_loop_start(
+                executor, self._async_rpc_client.coordinator_stub()
+            )
+        elif self.context.is_loop_continuation and self._loop_start_id:
+            doc, _ = DocumentFactory.open_document(
+                self._checkpoint_uri(self._loop_start_id)
+            )
+            doc.clear()
+
     def complete(self) -> None:
-        """
-        Complete the DataProcessor, marking state to COMPLETED, and notify the
-        coordinator.
-        """
-        # flush the buffered console prints
+        """Close the worker and notify the coordinator."""
         self._check_and_report_console_messages(force_flush=True)
         coordinator_interface = self._async_rpc_client.coordinator_stub()
         executor = self.context.executor_manager.executor
-        if isinstance(executor, LoopEndOperator):
-            # condition() evaluates a user-supplied expression, and the
-            # loop-back edge writes state to iceberg after the jump DCM --
-            # both on this main loop thread, outside DataProcessor's guarded
-            # executor session. A UDF error on the data path is caught and
-            # reported via Context.report_exception
-            # (DataProcessor._executor_session); reuse it here so a bad
-            # condition (a typo, an undefined name) or a failed back-edge
-            # write surfaces as an operator-facing error and pauses the
-            # worker, instead of killing the thread through run()'s
-            # @logger.catch(reraise=True).
-            try:
-                # condition() is user code on the main loop thread, same as the
-                # `update` in the deferred consume: capture its prints too.
-                with replace_print(
-                    self.context.worker_id,
-                    self.context.console_message_manager.print_buf,
-                ):
-                    should_iterate = executor.condition()
-                if should_iterate:
-                    self._jump_to_loop_start(executor, coordinator_interface)
-            except Exception as err:
-                self.context.report_exception(err)
-                self._check_exception()
-                return
-            # The opening flush above happened before condition() ran, and the
-            # worker is about to shut down, so anything it printed would never
-            # be sent. (_check_exception flushes on the error path.)
-            self._check_and_report_console_messages(force_flush=True)
         executor.close()
         # stop the data processing thread
         self.data_processor.stop()
@@ -500,24 +484,14 @@ class MainLoop(StoppableQueueBlockingRunnable):
         executor = self.context.executor_manager.executor
 
         if isinstance(executor, LoopEndOperator) and in_counter > 0:
-            # An inner Loop End receiving the enclosing (outer) loop's boundary
-            # state (loop_counter > 0): the signal that the outer loop has
-            # advanced. Reset this Loop End's output now, before forwarding, so
-            # the new outer iteration's inner results accumulate from empty
-            # instead of concatenating across outer iterations. The input reader
-            # replays all states before any data each region execution, so the
-            # result/state tables still hold the PREVIOUS outer iteration's rows
-            # at this point. This fires exactly once per outer iteration: the
-            # inner LoopStart's output (and thus this pass-through) is recreated
-            # on every inner back-edge, so the outer state only reaches here on
-            # the first inner iteration of each outer iteration. A single /
-            # outermost Loop End never reaches this branch (no enclosing loop,
-            # so never loop_counter > 0) and so never resets -- it accumulates
-            # all of its own iterations.
-            self.context.output_manager.reset_output_storage()
-            # State belongs to an outer loop: step one level out and forward,
-            # carrying the outer loop's id unchanged.
-            self._emit_and_save_state(state, in_counter - 1, frame.loop_start_id)
+            # On a new invocation, forward the enclosing states once in input
+            # order. On an inner jump the output already holds them and the
+            # results of the earlier inner iterations.
+            if not self.context.is_loop_continuation:
+                if not self._forwarded_enclosing_state:
+                    self.context.output_manager.reset_output_storage()
+                    self._forwarded_enclosing_state = True
+                self._emit_and_save_state(state, in_counter - 1, frame.loop_start_id)
             self._check_and_process_control()
             return
         if isinstance(executor, LoopStartOperator) and frame.loop_start_id:
@@ -529,22 +503,14 @@ class MainLoop(StoppableQueueBlockingRunnable):
             self._check_and_process_control()
             return
 
-        # A LoopStart handles only the STAMPED case above. An UNstamped
-        # counter-0 state at a LoopStart takes neither branch: it falls all the
-        # way through to process_input_state at the bottom, and the operator's
-        # process_state MERGES its keys into the loop variables. That is the
-        # opposite of what the LoopEnd branch below does with the identical
-        # frame, and the asymmetry is forced, not an oversight. The back-edge
-        # writes the next iteration's variables to the LoopStart's own
-        # input-port state URI with that very same "no loop" envelope
-        # (_jump_to_loop_start -> State.to_tuple(0)), so an unstamped counter-0
-        # frame at a LoopStart is indistinguishable from -- and normally IS --
-        # the loop's own state. A LoopEnd may forward instead of consuming
-        # because its inbound loop state is always stamped by the matching
-        # LoopStart; a LoopStart has no such signal. Consequence of the merge:
-        # an upstream or body operator emitting a key that collides with a loop
-        # variable overwrites it, and one emitting `table` trips
-        # _reserved_name_error in produce_state_on_finish (see #7248).
+        if (
+            isinstance(executor, LoopStartOperator)
+            and self.context.is_loop_continuation
+        ):
+            # Unstamped input seeds a new invocation. Reapplying it after a jump
+            # could bring back a name the previous update removed.
+            self._check_and_process_control()
+            return
 
         if isinstance(executor, LoopEndOperator):
             if not frame.loop_start_id:
@@ -614,6 +580,19 @@ class MainLoop(StoppableQueueBlockingRunnable):
         self.process_input_state()
 
     def _process_end_channel(self) -> None:
+        executor = self.context.executor_manager.executor
+        if self.context.is_loop_continuation and isinstance(
+            executor, LoopStartOperator
+        ):
+            try:
+                start_id = get_logical_op_id(self.context.worker_id)
+                doc, _ = DocumentFactory.open_document(self._checkpoint_uri(start_id))
+                (row,) = doc.get()
+                executor.state.update(State.from_tuple(row))
+            except Exception as err:
+                self.context.report_exception(err)
+                self._check_exception()
+                return
         self.process_input_state()
         try:
             self._check_loop_state_arrived()
@@ -636,7 +615,6 @@ class MainLoop(StoppableQueueBlockingRunnable):
         # (region completion is port-based) -- a reported error that still
         # reads as success. This is still past the reader: EndChannel means it
         # finished streaming.
-        executor = self.context.executor_manager.executor
         if isinstance(executor, LoopEndOperator):
             try:
                 self._consume_pending_loop_state(executor)
@@ -648,6 +626,22 @@ class MainLoop(StoppableQueueBlockingRunnable):
             # update). Hold the region for the same reason as above.
             return
         self.process_input_tuple()
+
+        finishing = (
+            self.context.input_manager.all_ports_completed()
+            and not self.context.output_manager.is_missing_output_ports()
+        )
+        if finishing:
+            self.context.output_manager.close_port_storage_writers()
+            if isinstance(executor, LoopEndOperator):
+                # A completion notification can start another region. Commit
+                # the checkpoint and request the jump before releasing this one.
+                try:
+                    self._finish_loop_iteration(executor)
+                except Exception as err:
+                    self.context.report_exception(err)
+                    self._check_exception()
+                    return
 
         input_port_id = self.context.input_manager.get_port_id(
             self.context.current_input_channel_id
@@ -661,13 +655,7 @@ class MainLoop(StoppableQueueBlockingRunnable):
                 )
             )
 
-        if self.context.input_manager.all_ports_completed():
-            # Special case for the hack of input port dependency.
-            # See documentation of is_missing_output_ports
-            if self.context.output_manager.is_missing_output_ports():
-                return
-            self.context.output_manager.close_port_storage_writers()
-
+        if finishing:
             self._send_ecm_to_data_channels(
                 "EndChannel", EmbeddedControlMessageType.PORT_ALIGNMENT
             )

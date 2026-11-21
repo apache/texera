@@ -32,4 +32,5 @@ class InitializeExecutorHandler(ControlHandler):
         )
         # Loop bookkeeping base URIs; see the proto field doc on loopStartPortUris.
         self.context.loop_start_port_uris = dict(req.loop_start_port_uris)
+        self.context.is_loop_continuation = req.is_loop_continuation
         return EmptyReturn()

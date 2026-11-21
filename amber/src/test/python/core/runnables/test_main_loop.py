@@ -2428,14 +2428,7 @@ class TestMainLoop:
     def test_complete_reports_loopend_condition_error_instead_of_crashing(
         self, main_loop, monkeypatch
     ):
-        # Reviewer feedback (#discussion_r3400851492): complete() evaluates a
-        # LoopEnd's user-supplied condition() on the main loop thread, before
-        # close()/COMPLETED and outside DataProcessor's guarded executor
-        # session. A typo or undefined name in the condition would otherwise
-        # propagate through run()'s @logger.catch(reraise=True) and kill the
-        # worker thread silently. The guard must report it like a UDF error
-        # (record on the exception manager + ERROR console message +
-        # EXCEPTION_PAUSE) and skip both the loop-back edge and completion.
+        # A user condition error must hold the region before any port completes.
         class _BoomLoopEnd(LoopEndOperator):
             def __init__(self):
                 super().__init__()
@@ -2466,7 +2459,16 @@ class TestMainLoop:
         )
 
         # Must not raise: a bad condition is reported, not propagated.
-        main_loop.complete()
+        ports, _, completed = self._capture_end_channel_effects(main_loop, monkeypatch)
+        monkeypatch.setattr(
+            main_loop.context.input_manager, "all_ports_completed", lambda: True
+        )
+        monkeypatch.setattr(
+            main_loop.context.output_manager, "is_missing_output_ports", lambda: False
+        )
+        main_loop._process_end_channel()
+        assert ports == []
+        assert completed == []
 
         assert jumped == [], "must not take the loop-back edge on a failed condition"
         assert not executor.closed, "must return before completing the worker"
@@ -2481,12 +2483,7 @@ class TestMainLoop:
     def test_complete_reports_loopback_write_error_instead_of_crashing(
         self, main_loop, monkeypatch
     ):
-        # Reviewer feedback (#discussion_r3561096471): the back-edge state
-        # write in _jump_to_loop_start runs after the jump DCM, on the main
-        # loop thread, outside DataProcessor's guarded executor session. A
-        # put_one/close failure must be reported the same way as a condition
-        # error (exception manager + ERROR console message + EXCEPTION_PAUSE)
-        # and skip completion, not propagate and kill the worker thread.
+        # A failed checkpoint leaves the worker paused before it can request a jump.
         class _JumpingLoopEnd(LoopEndOperator):
             def __init__(self):
                 super().__init__()
@@ -2515,16 +2512,9 @@ class TestMainLoop:
             lambda pause_type, change_state=True: pauses.append(pause_type),
         )
 
-        class _BoomWriter:
-            def put_one(self, item):
-                raise OSError("iceberg commit failed")
-
-            def close(self):
-                pass
-
         class _Doc:
-            def writer(self, name):
-                return _BoomWriter()
+            def replace_one(self, item):
+                raise OSError("iceberg commit failed")
 
         monkeypatch.setattr(
             "core.runnables.main_loop.DocumentFactory.create_document",
@@ -2532,7 +2522,16 @@ class TestMainLoop:
         )
 
         # Must not raise: a failed back-edge write is reported, not propagated.
-        main_loop.complete()
+        ports, _, completed = self._capture_end_channel_effects(main_loop, monkeypatch)
+        monkeypatch.setattr(
+            main_loop.context.input_manager, "all_ports_completed", lambda: True
+        )
+        monkeypatch.setattr(
+            main_loop.context.output_manager, "is_missing_output_ports", lambda: False
+        )
+        main_loop._process_end_channel()
+        assert ports == []
+        assert completed == []
 
         assert not executor.closed, "must return before completing the worker"
         assert main_loop.context.exception_manager.has_exception()
@@ -2710,14 +2709,7 @@ class TestMainLoop:
     def test_loopstart_merges_unstamped_state_instead_of_forwarding_it(
         self, main_loop, monkeypatch
     ):
-        # The deliberate asymmetry with the LoopEnd branch: an UNstamped
-        # counter-0 frame at a LoopStart is MERGED into the loop variables,
-        # not forwarded. It has to be -- the back-edge writes the next
-        # iteration's variables to this LoopStart's own input-port state URI
-        # with the identical "no loop" envelope (State.to_tuple(0)), so a
-        # LoopStart cannot tell the loop's own state from an upstream/body
-        # operator's boundary state. A LoopEnd can, because its inbound loop
-        # state is always stamped.
+        # Unstamped upstream values seed the first iteration.
         class StubLoopStart(LoopStartOperator):
             def process_table(self, table, port):
                 yield
@@ -2744,6 +2736,13 @@ class TestMainLoop:
         # LoopStartOperator.process_state merges it into self.state.
         passed = main_loop.context.state_processing_manager.current_input_state
         assert passed == State({"seed": 7})
+
+        main_loop.context.is_loop_continuation = True
+        switched.clear()
+        main_loop._process_state_frame(
+            StateFrame(State({"seed": 7}), loop_counter=0, loop_start_id="")
+        )
+        assert switched == [], "a jump must not reintroduce an upstream-only seed"
 
     def test_loopend_passthrough_decrements_resets_output_and_skips_operator(
         self, main_loop, monkeypatch
@@ -2776,6 +2775,19 @@ class TestMainLoop:
         assert emitted_state["outer_var"] == "v"
         # the outer loop's id rides through unchanged
         assert emitted_id == "outer-loop"
+
+        following = StateFrame(State({"k": 3}), loop_counter=1, loop_start_id="parent")
+        main_loop._process_state_frame(following)
+        assert emitted[-1] == ({"k": 3}, 0, "parent")
+        assert reset_calls == [True], (
+            "a second enclosing frame must not clear the first"
+        )
+
+        main_loop.context.is_loop_continuation = True
+        main_loop._forwarded_enclosing_state = False  # fresh worker on a back edge
+        main_loop._process_state_frame(following)
+        assert len(emitted) == 2
+        assert reset_calls == [True]
 
     def test_loopend_consume_defers_operator_to_end_channel(
         self, main_loop, monkeypatch
@@ -2937,8 +2949,8 @@ class TestMainLoop:
 
         main_loop._jump_to_loop_start(executor, self._stub_coordinator([]))
 
-        puts = [event for event in events if event[0] == "put_one"]
-        assert puts == [("put_one", State({"i": 8}).to_tuple(0))]
+        puts = [event for event in events if event[0] == "replace_one"]
+        assert puts == [("replace_one", State({"i": 8}).to_tuple(0))]
 
     def test_loopend_forwards_unstamped_state_without_consuming(
         self, main_loop, monkeypatch
@@ -3161,33 +3173,13 @@ class TestMainLoop:
 
     @staticmethod
     def _patch_create_document(monkeypatch, write_log):
-        """Patch DocumentFactory.create_document at the symbol imported
-        into main_loop. Each call appends ``(uri, schema)`` to
-        ``write_log`` and returns an object whose ``writer(name)`` yields
-        a mock that records ``put_one`` and ``close`` calls into the
-        same list (tagged so order is observable)."""
-
-        class _Writer:
-            def __init__(self, log):
-                self._log = log
-
-            def put_one(self, item):
-                self._log.append(("put_one", item))
-
-            def close(self):
-                self._log.append(("close",))
-
         class _Doc:
-            def __init__(self, log):
-                self._log = log
-
-            def writer(self, name):
-                self._log.append(("writer", name))
-                return _Writer(self._log)
+            def replace_one(self, item):
+                write_log.append(("replace_one", item))
 
         def _create(uri, schema):
             write_log.append(("create_document", uri, schema))
-            return _Doc(write_log)
+            return _Doc()
 
         monkeypatch.setattr(
             "core.runnables.main_loop.DocumentFactory.create_document",
@@ -3198,10 +3190,7 @@ class TestMainLoop:
     def test_complete_flushes_prints_from_the_user_condition(
         self, main_loop, monkeypatch
     ):
-        # complete() flushes console messages on entry, before condition()
-        # runs, and then shuts the worker down -- so without a second flush a
-        # print() inside the user's condition would be captured and never sent.
-        #
+        # The worker must flush prints captured during the condition before shutting down.
         # Mirrors LoopEndOpDesc.generatePythonCode: the user's text goes
         # through eval_condition, i.e. eval() against a bare namespace dict --
         # NOT a method of a module-level class -- so the print executes in a
@@ -3239,6 +3228,7 @@ class TestMainLoop:
             main_loop._async_rpc_client, "coordinator_stub", lambda: _Coordinator()
         )
 
+        main_loop._finish_loop_iteration(executor)
         main_loop.complete()
 
         printed = [m for m in console_msgs if "hello from condition" in m.title]
@@ -3399,7 +3389,7 @@ class TestMainLoop:
         assert port_completed_calls == [], "no port may be reported complete"
         assert completed == [], "the worker must not complete"
 
-    def test_jump_to_loop_start_sends_rpc_then_writes_state_in_order(
+    def test_jump_to_loop_start_persists_checkpoint_before_requesting_jump(
         self, main_loop, monkeypatch
     ):
         # One shared event log for the jump RPC and the storage calls, so
@@ -3421,29 +3411,14 @@ class TestMainLoop:
 
         main_loop._jump_to_loop_start(_Executor(), _Coordinator())
 
-        assert len(events) == 5
-        # (i) The jump RPC fires before any storage event, carrying the
-        # loop_start_id we captured from the incoming StateFrame envelope
-        # -- never read off user state.
-        kind, request = events[0]
-        assert kind == "jump"
-        assert request.target_operator_id.id == "outer-loop"
-        # (ii) Then the exact iceberg write contract, in order:
-        # create_document with the state URI DERIVED from the configured base
-        # URI and State.SCHEMA, open
-        # writer("0"), a single put_one with the State as a depth-0 tuple
-        # (the back-edge fires only after the matching LoopEnd consumed at
-        # loop_counter == 0, so the next iteration starts at depth 0),
-        # then close. The tuple object's internals are exercised elsewhere.
-        assert events[1] == (
-            "create_document",
-            VFSURIFactory.state_uri("vfs:///wf/port/outer"),
-            State.SCHEMA,
-        )
-        assert events[2] == ("writer", "0")
-        assert events[3][0] == "put_one"
-        assert events[3][1] == State({"i": 7}).to_tuple(0)
-        assert events[4] == ("close",)
+        uri = VFSURIFactory.loop_checkpoint_uri("vfs:///wf/port/outer", "outer-loop")
+        assert events[:2] == [
+            ("create_document", uri, State.SCHEMA),
+            ("replace_one", State({"i": 7}).to_tuple(0)),
+        ]
+        assert len(events) == 3
+        assert events[2][0] == "jump"
+        assert events[2][1].target_operator_id.id == "outer-loop"
 
     def test_jump_to_loop_start_raises_when_uri_not_configured(
         self, main_loop, monkeypatch
