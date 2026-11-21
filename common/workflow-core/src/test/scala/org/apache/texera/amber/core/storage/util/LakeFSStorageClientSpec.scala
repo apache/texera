@@ -705,6 +705,38 @@ class LakeFSStorageClientSpec
     onlyRequest.query.get("path") shouldBe Some("staged/one.bin")
   }
 
+  "withRepoRollback" should "return the body's result and send nothing when the body succeeds" in {
+    LakeFSStorageClient.withRepoRollback("texera-rollback-ok")(42) shouldBe 42
+    recorded shouldBe empty
+  }
+
+  it should "delete the repository and rethrow when the body fails" in {
+    val repo = "texera-rollback-fail"
+    stub {
+      case StubRequest("DELETE", p, _, _) if p == s"/api/v1/repositories/$repo" => StubResponse(204)
+    }
+
+    val ex = intercept[IllegalStateException] {
+      LakeFSStorageClient.withRepoRollback(repo)(throw new IllegalStateException("insert failed"))
+    }
+    ex.getMessage shouldBe "insert failed"
+    onlyRequest.method shouldBe "DELETE"
+  }
+
+  it should "still rethrow the body's failure when the delete fails too" in {
+    val repo = "texera-rollback-delete-fails"
+    stub {
+      case StubRequest("DELETE", p, _, _) if p == s"/api/v1/repositories/$repo" =>
+        StubResponse(500, """{"message":"boom"}""")
+    }
+
+    val ex = intercept[IllegalStateException] {
+      LakeFSStorageClient.withRepoRollback(repo)(throw new IllegalStateException("insert failed"))
+    }
+    ex.getMessage shouldBe "insert failed"
+    ex.getSuppressed should have length 1
+  }
+
   // Left uncovered on purpose:
   //   - `deleteRepo` is a one-line passthrough with no choice of its own to assert, so a test
   //     could only restate its body;

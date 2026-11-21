@@ -296,6 +296,19 @@ object LakeFSStorageClient extends LazyLogging {
     repoApi.deleteRepository(repoName).execute()
   }
 
+  /**
+    * Runs `body`, the steps that follow creating `repoName`, and deletes the repository if they fail,
+    * so a failed create leaves no repository behind. The original failure is rethrown.
+    */
+  def withRepoRollback[T](repoName: String)(body: => T): T =
+    try body
+    catch {
+      case e: Exception =>
+        try deleteRepo(repoName)
+        catch { case cleanup: Exception => e.addSuppressed(cleanup) }
+        throw e
+    }
+
   private def retrieveVersionsOfRepository(repoName: String): List[Commit] = {
     refsApi
       .logCommits(repoName, branchName)
