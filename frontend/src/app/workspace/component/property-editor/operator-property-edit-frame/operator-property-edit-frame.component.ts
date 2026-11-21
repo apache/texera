@@ -83,9 +83,10 @@ import { NzFormDirective } from "ng-zorro-antd/form";
 import { NzWaveDirective } from "ng-zorro-antd/core/wave";
 import { WorkflowPveService } from "../../../service/virtual-environment/virtual-environment.service";
 import { ComputingUnitStatusService } from "../../../../common/service/computing-unit/computing-unit-status/computing-unit-status.service";
-import { of } from "rxjs";
+import { merge, of } from "rxjs";
 import { map, switchMap, take } from "rxjs/operators";
 import { UiUdfParametersSyncService } from "../../../service/code-editor/ui-udf-parameters-sync.service";
+import { isControlVariableLink } from "../../../service/workflow-graph/model/control-variable-port";
 
 Quill.register("modules/cursors", QuillCursors);
 
@@ -250,6 +251,8 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnChanges, On
   // The loop variables the form was last built with, undefined for an operator outside every block;
   // see registerLoopScopeChangeHandler.
   private loopVariableScope: string[] | undefined;
+  /** Whether the operator's control-variable port was fed when its form was built. */
+  private controlVariablePortFed = false;
 
   readonly huggingFaceTaskPreviewSamples: Record<
     string,
@@ -870,32 +873,54 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnChanges, On
   }
 
   /**
+   * Whether an enabled link enters the control-variable port of the operator being edited; a link from or
+   * to a disabled operator feeds nothing, as in loopVariablesInScope.
+   */
+  private fedThroughControlVariablePort(): boolean {
+    const operatorID = this.currentOperatorId;
+    return (
+      operatorID !== undefined &&
+      this.workflowActionService
+        .getTexeraGraph()
+        .getAllEnabledLinks()
+        .some(link => isControlVariableLink(link) && link.target.operatorID === operatorID)
+    );
+  }
+
+  /**
    * The loop variables in scope of the operator being edited, or undefined when it is not inside any
-   * control block (or not in the graph at all), so that such operators keep today's form exactly.
+   * control block and has no link into its control-variable port (or is not in the graph at all), so
+   * that such operators keep today's form exactly.
    */
   private loopVariableNamesInScope(): string[] | undefined {
     if (this.currentOperatorId === undefined) {
       return undefined;
     }
-    return loopVariablesInScope(this.workflowActionService.getTexeraGraph(), this.currentOperatorId);
+    return loopVariablesInScope(this.workflowActionService.getTexeraGraph(), this.currentOperatorId, (opID, portID) =>
+      this.workflowCompilingService.outputColumnNames(opID, portID)
+    );
   }
 
   /**
    * Which fields take a $reference, and which variables they offer, depend on the blocks around the
-   * operator and on their Loop Starts' variables, which other operators' links and properties decide. So
-   * on every edit that can change them (loopScopeChangeStream, on which ValidationWorkflowService
-   * re-validates the operators holding a reference), rebuild the form when the operator's scope is no
-   * longer the one it was built with, rather than only when the operator is next opened.
+   * operator and on their Loop Starts' variables, which other operators' links and properties decide, and
+   * on what feeds its control-variable port: whether anything does decides which fields take a variable
+   * (a reader's file name) even with the names unchanged, and an operator other than a Loop Start offers
+   * its output columns, which the compile result tells. So on every edit that can change them
+   * (loopScopeChangeStream, on which ValidationWorkflowService re-validates the operators holding a
+   * reference) and after every compile result, rebuild the form when the operator's scope is no longer
+   * the one it was built with, rather than only when the operator is next opened.
    */
   private registerLoopScopeChangeHandler(): void {
     const graph = this.workflowActionService.getTexeraGraph();
-    loopScopeChangeStream(graph)
+    merge(loopScopeChangeStream(graph), this.workflowCompilingService.getCompilationStateInfoChangedStream())
       .pipe(untilDestroyed(this))
       .subscribe(() => {
         if (
           this.currentOperatorId !== undefined &&
           graph.hasOperator(this.currentOperatorId) &&
-          !isEqual(this.loopVariableNamesInScope(), this.loopVariableScope)
+          (!isEqual(this.loopVariableNamesInScope(), this.loopVariableScope) ||
+            this.fedThroughControlVariablePort() !== this.controlVariablePortFed)
         ) {
           this.rerenderEditorForm();
         }
@@ -919,6 +944,7 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnChanges, On
     // undefined outside every block, where the form keeps today's controls untouched.
     const loopVariableNames = this.loopVariableNamesInScope();
     this.loopVariableScope = loopVariableNames;
+    this.controlVariablePortFed = this.fedThroughControlVariablePort();
     // intercept JsonSchema -> FormlySchema process, adding custom options
     // this requires a one-to-one mapping.
     // for relational custom options, have to do it after FormlySchema is generated.
@@ -1029,6 +1055,17 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnChanges, On
         !isDefined(mapSource.enum) &&
         mapSource.noLoopVariable !== true
       ) {
+        applyLoopVariableField(mappedField, loopSchemaType, loopVariableNames);
+      } else if (
+        loopVariableNames !== undefined &&
+        customType === "inputautocomplete" &&
+        loopSchemaType === "string" &&
+        mapSource.noLoopVariable !== true &&
+        this.fedThroughControlVariablePort()
+      ) {
+        // A reader fed through its control-variable port takes its file name from a variable, e.g.
+        // "$file", and opens the file once the variable arrives. The file picker cannot hold a name
+        // (its box is read-only), so the field becomes the variable input.
         applyLoopVariableField(mappedField, loopSchemaType, loopVariableNames);
       }
 

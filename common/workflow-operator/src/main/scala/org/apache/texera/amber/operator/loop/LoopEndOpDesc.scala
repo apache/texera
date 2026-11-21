@@ -20,17 +20,21 @@
 package org.apache.texera.amber.operator.loop
 
 import com.fasterxml.jackson.annotation.JsonProperty
-import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaTitle
+import com.kjetland.jackson.jsonSchema.annotations.{JsonSchemaInject, JsonSchemaTitle}
+import org.apache.texera.amber.operator.metadata.annotations.UIWidget
 import org.apache.texera.amber.pybuilder.PyStringTypes.EncodableString
 import org.apache.texera.amber.pybuilder.PythonTemplateBuilder.PythonTemplateBuilderStringContext
 
 class LoopEndOpDesc extends LoopOpDesc {
+  // Both fields are Python that may span several lines, hence the text area.
   @JsonProperty(required = true, defaultValue = "i += 1")
   @JsonSchemaTitle("Update")
+  @JsonSchemaInject(json = UIWidget.UIWidgetTextArea)
   var update: EncodableString = ""
 
   @JsonProperty(required = true, defaultValue = "i < len(table)")
   @JsonSchemaTitle("Condition")
+  @JsonSchemaInject(json = UIWidget.UIWidgetTextArea)
   var condition: EncodableString = ""
 
   override protected def operatorName: String = "Loop End"

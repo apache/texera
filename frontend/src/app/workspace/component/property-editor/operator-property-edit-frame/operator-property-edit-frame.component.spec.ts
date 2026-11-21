@@ -17,6 +17,7 @@
  * under the License.
  */
 
+import { CONTROL_VARIABLE_PORT_ID } from "../../../service/workflow-graph/model/control-variable-port";
 import { ComponentFixture, discardPeriodicTasks, fakeAsync, TestBed, tick } from "@angular/core/testing";
 
 import { conditionalRequiredRules, OperatorPropertyEditFrameComponent } from "./operator-property-edit-frame.component";
@@ -2119,6 +2120,119 @@ describe("OperatorPropertyEditFrameComponent", () => {
       expect(getField("order")?.props?.["loopVariableWarning"]).toBeUndefined();
       expect(getField("columns")?.type).toBe("array");
       expect(getField("columns")?.props?.["loopVariableWarning"]).toBeUndefined();
+    });
+
+    it("turns the file name into the variable input once a Loop Start feeds the control-variable port", () => {
+      workflowActionService.addOperator(mockLoopStartPredicate, mockPoint);
+      workflowActionService.addOperator(body, mockPoint);
+      workflowActionService.addLink({
+        linkID: "start-to-body-control",
+        source: { operatorID: mockLoopStartPredicate.operatorID, portID: "output-0" },
+        target: { operatorID: body.operatorID, portID: CONTROL_VARIABLE_PORT_ID },
+      });
+      openBody();
+
+      expect(getField("fileName")?.type).toBe("loopvariableinput");
+      expect(getField("fileName")?.props?.["loopVariableOptions"]).toEqual(["$K"]);
+      // the other fields take a reference as inside a block; enums and arrays keep their controls
+      expect(getField("limit")?.type).toBe("loopvariableinput");
+      expect(getField("order")?.type).toBe("enum");
+    });
+
+    it("rebuilds the open form as soon as a link into its control-variable port is drawn or deleted", () => {
+      // the port's names come from the graph, so the form does not wait for a compile result
+      workflowActionService.addOperator(mockLoopStartPredicate, mockPoint);
+      workflowActionService.addOperator(body, mockPoint);
+      openBody();
+      expect(getField("fileName")?.type).toBe("inputautocomplete");
+
+      const controlLink = {
+        linkID: "start-to-body-control",
+        source: { operatorID: mockLoopStartPredicate.operatorID, portID: "output-0" },
+        target: { operatorID: body.operatorID, portID: CONTROL_VARIABLE_PORT_ID },
+      };
+      workflowActionService.addLink(controlLink);
+      expect(getField("fileName")?.type).toBe("loopvariableinput");
+      expect(getField("fileName")?.props?.["loopVariableOptions"]).toEqual(["$K"]);
+
+      workflowActionService.deleteLinkWithID(controlLink.linkID);
+      expect(getField("fileName")?.type).toBe("inputautocomplete");
+    });
+
+    it("rebuilds on a port link even when the operator's variables stay the same, as inside a block", () => {
+      // inside the block the same names are in scope with or without the port, yet the file-name field
+      // takes a variable only while the port is fed
+      addBlockAroundBody();
+      openBody();
+      expect(getField("fileName")?.type).toBe("inputautocomplete");
+
+      const controlLink = {
+        linkID: "start-to-body-control",
+        source: { operatorID: mockLoopStartPredicate.operatorID, portID: "output-0" },
+        target: { operatorID: body.operatorID, portID: CONTROL_VARIABLE_PORT_ID },
+      };
+      workflowActionService.addLink(controlLink);
+      expect(getField("fileName")?.type).toBe("loopvariableinput");
+
+      workflowActionService.deleteLinkWithID(controlLink.linkID);
+      expect(getField("fileName")?.type).toBe("inputautocomplete");
+    });
+
+    it("rebuilds once the operator feeding its control-variable port is disabled, and again once enabled", () => {
+      // a feeder other than a Loop Start adds no name before the workflow compiles, so inside the block the names
+      // stay the same; a disabled operator feeds no port, so the file-name field gives up its variable
+      addBlockAroundBody();
+      workflowActionService.addOperator(mockScanPredicate, mockPoint);
+      workflowActionService.addLink({
+        linkID: "scan-to-body-control",
+        source: { operatorID: mockScanPredicate.operatorID, portID: "output-0" },
+        target: { operatorID: body.operatorID, portID: CONTROL_VARIABLE_PORT_ID },
+      });
+      openBody();
+      expect(getField("fileName")?.type).toBe("loopvariableinput");
+
+      workflowActionService.disableOperators([mockScanPredicate.operatorID]);
+      expect(getField("fileName")?.type).toBe("inputautocomplete");
+      expect(getField("limit")?.props?.["loopVariableOptions"]).toEqual(["$K"]);
+
+      workflowActionService.enableOperators([mockScanPredicate.operatorID]);
+      expect(getField("fileName")?.type).toBe("loopvariableinput");
+    });
+
+    it("offers the name a feeding Loop Start's Output assigns, after its Initialization's", () => {
+      // the files example: each iteration's Output picks the name of the file the body reads
+      workflowActionService.addOperator(
+        { ...mockLoopStartPredicate, operatorProperties: { initialization: "i = 0", output: "file = D.line[i]" } },
+        mockPoint
+      );
+      workflowActionService.addOperator(body, mockPoint);
+      workflowActionService.addLink({
+        linkID: "start-to-body-control",
+        source: { operatorID: mockLoopStartPredicate.operatorID, portID: "output-0" },
+        target: { operatorID: body.operatorID, portID: CONTROL_VARIABLE_PORT_ID },
+      });
+      openBody();
+
+      expect(getField("fileName")?.props?.["loopVariableOptions"]).toEqual(["$i", "$file"]);
+    });
+
+    it("rebuilds the open form when the enclosing Loop Start's Output starts or stops assigning a name", () => {
+      addBlockAroundBody();
+      openBody();
+      expect(getField("limit")?.props?.["loopVariableOptions"]).toEqual(["$K"]);
+
+      // the edit to the Loop Start alone rebuilds the form, as a change to its Initialization does
+      workflowActionService.setOperatorProperty(mockLoopStartPredicate.operatorID, {
+        initialization: "K = 2",
+        output: "file = D.line[K]; D.iloc[[K]]",
+      });
+      expect(getField("limit")?.props?.["loopVariableOptions"]).toEqual(["$K", "$file"]);
+
+      workflowActionService.setOperatorProperty(mockLoopStartPredicate.operatorID, {
+        initialization: "K = 2",
+        output: "D.iloc[[K]]",
+      });
+      expect(getField("limit")?.props?.["loopVariableOptions"]).toEqual(["$K"]);
     });
 
     it("keeps today's controls and validators for an operator outside every block", () => {

@@ -225,11 +225,7 @@ case class PhysicalPlan(
     )
 
     // partition requirement of this PhysicalOp on this input port
-    val requiredPartitionInfo =
-      toPhysicalOp.partitionRequirement
-        .lift(link.toPortId.id)
-        .flatten
-        .getOrElse(UnknownPartition())
+    val requiredPartitionInfo = toPhysicalOp.inputPartitionRequirement(link.toPortId)
 
     // the upstream partition info satisfies the requirement, and number of worker match
     if (
@@ -258,9 +254,10 @@ case class PhysicalPlan(
                   link.fromOpId == upstreamPhysicalOpId && link.toOpId == physicalOp.id
                 )
                 .filter(link =>
-                  getOperator(physicalOp.id).isInputLinkDependee(
-                    link
-                  ) || getOperator(upstreamPhysicalOpId).isOutputLinkBlocking(link)
+                  getOperator(physicalOp.id).isInputLinkDependee(link) ||
+                    // an edge into a control-variable port ends before its receiver starts
+                    getOperator(physicalOp.id).isInputLinkControlVariable(link) ||
+                    getOperator(upstreamPhysicalOpId).isOutputLinkBlocking(link)
                 )
             }
         }

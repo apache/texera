@@ -250,7 +250,7 @@ case class PhysicalOp(
     */
   @JsonIgnore
   def isSourceOperator: Boolean = {
-    inputPorts.isEmpty
+    inputPorts.keys.forall(ControlVariablePort.is)
   }
 
   @JsonIgnore // this is needed to prevent the serialization issue
@@ -294,6 +294,19 @@ case class PhysicalOp(
         )
         .toMap
     )
+  }
+
+  /**
+    * Adds the control-variable port next to the existing input ports. The port has no schema,
+    * so it starts with an empty one and ignores the schemas of the links into it.
+    */
+  def withControlVariablePort: PhysicalOp = {
+    if (inputPorts.contains(ControlVariablePort.Id)) this
+    else
+      this.copy(inputPorts =
+        inputPorts + (ControlVariablePort.Id -> (ControlVariablePort.inputPort, List
+          .empty[PhysicalLink], Right(Schema())))
+      )
   }
 
   /**
@@ -473,26 +486,32 @@ case class PhysicalOp(
     */
   def propagateSchema(newInputSchema: Option[(PortIdentity, Schema)] = None): PhysicalOp = {
     // Update the input schema if a new one is provided
-    val updatedOp = newInputSchema.foldLeft(this) { (op, schemaEntry) =>
-      val (portId, schema) = schemaEntry
-      op.inputPorts(portId)._3 match {
-        case Left(_) =>
-          op.withInputSchema(portId, Right(schema))
-        case Right(existingSchema) if existingSchema != schema =>
-          throw new IllegalArgumentException(
-            s"Conflict schemas received on port ${portId.id}, $existingSchema != $schema"
-          )
-        case _ =>
-          op
+    // The control-variable port has no schema, so whatever arrives on it is ignored here.
+    val updatedOp =
+      newInputSchema.filterNot(entry => ControlVariablePort.is(entry._1)).foldLeft(this) {
+        (op, schemaEntry) =>
+          val (portId, schema) = schemaEntry
+          op.inputPorts(portId)._3 match {
+            case Left(_) =>
+              op.withInputSchema(portId, Right(schema))
+            case Right(existingSchema) if existingSchema != schema =>
+              throw new IllegalArgumentException(
+                s"Conflict schemas received on port ${portId.id}, $existingSchema != $schema"
+              )
+            case _ =>
+              op
+          }
       }
-    }
 
-    // Extract input schemas, checking if all are defined
-    val inputSchemas = updatedOp.inputPorts.collect {
+    // Extract the schemas of the data ports, checking if all are defined
+    val dataPorts = updatedOp.inputPorts.filterNot {
+      case (portId, _) => ControlVariablePort.is(portId)
+    }
+    val inputSchemas = dataPorts.collect {
       case (portId, (_, _, Right(schema))) => portId -> schema
     }
 
-    if (updatedOp.inputPorts.size == inputSchemas.size) {
+    if (dataPorts.size == inputSchemas.size) {
       // All input schemas are available, propagate to output schema
       val schemaPropagationResult = Try(propagateSchema.func(inputSchemas))
       schemaPropagationResult match {
@@ -544,6 +563,28 @@ case class PhysicalOp(
   def isInputLinkDependee(link: PhysicalLink): Boolean = {
     dependeeInputs.contains(link.toPortId)
   }
+
+  /**
+    * Tells whether the link ends at this operator's control-variable port.
+    */
+  def isInputLinkControlVariable(link: PhysicalLink): Boolean = {
+    ControlVariablePort.is(link.toPortId)
+  }
+
+  /**
+    * The partitioning this operator needs on input port `portId`. Every worker needs the control
+    * variables, so whatever arrives on the control-variable port goes to every worker.
+    */
+  def inputPartitionRequirement(portId: PortIdentity): PartitionInfo =
+    if (ControlVariablePort.is(portId)) BroadcastPartition()
+    else partitionRequirement.lift(portId.id).flatten.getOrElse(UnknownPartition())
+
+  /**
+    * Whether input port `portId` is read in its region's dependee phase. The control-variable port
+    * is read before every data port, so it joins that phase whenever the operator has one.
+    */
+  def readsInDependeePhase(portId: PortIdentity): Boolean =
+    dependeeInputs.contains(portId) || (ControlVariablePort.is(portId) && dependeeInputs.nonEmpty)
 
   /**
     * Tells whether the output on this link is blocking i.e. the operator doesn't output anything till this link

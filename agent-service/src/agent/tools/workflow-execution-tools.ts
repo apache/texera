@@ -20,7 +20,7 @@
 import { z } from "zod";
 import { tool } from "ai";
 import { createErrorResult, formatOperatorOutput, getOperatorErrorText } from "./tools-utility";
-import type { WorkflowState } from "../workflow-state";
+import { CONTROL_VARIABLE_PORT_ID, CONTROL_VARIABLE_PORT_INDEX, type WorkflowState } from "../workflow-state";
 import { getBackendConfig } from "../../api/backend-api";
 import { env } from "../../config/env";
 import { adaptLegacySyncExecutionResult, type LogicalPlan, type LogicalLink } from "../../api/execution-api";
@@ -184,6 +184,7 @@ function buildLogicalPlan(workflowState: WorkflowState, opsToViewResult?: string
   let linksList: LogicalLink[];
 
   const getInputPortOrdinal = (operatorID: string, inputPortID: string): number => {
+    if (inputPortID === CONTROL_VARIABLE_PORT_ID) return CONTROL_VARIABLE_PORT_INDEX;
     const op = workflowState.getOperator(operatorID);
     if (!op) return 0;
     const idx = op.inputPorts.findIndex(port => port.portID === inputPortID);

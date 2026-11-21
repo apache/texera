@@ -17,6 +17,12 @@
  * under the License.
  */
 
+import {
+  CONTROL_VARIABLE_COLOR,
+  CONTROL_VARIABLE_PORT_GROUP,
+  CONTROL_VARIABLE_PORT_ID,
+  isControlVariableLink,
+} from "../workflow-graph/model/control-variable-port";
 import { Injectable } from "@angular/core";
 import { OperatorMetadataService } from "../operator-metadata/operator-metadata.service";
 import { OperatorSchema } from "../../types/operator-schema.interface";
@@ -314,6 +320,13 @@ export class JointUIService {
         groups: {
           in: { attrs: JointUIService.getCustomPortStyleAttrs() },
           out: { attrs: JointUIService.getCustomPortStyleAttrs() },
+          [CONTROL_VARIABLE_PORT_GROUP]: {
+            position: { name: "bottom" },
+            attrs: {
+              ".port-body": { fill: CONTROL_VARIABLE_COLOR, r: 5, stroke: "none", magnet: "passive" },
+              ".port-label": { visibility: "hidden" },
+            },
+          },
         },
       },
       markup: TexeraCustomJointElement.getMarkup(
@@ -363,6 +376,9 @@ export class JointUIService {
         },
       })
     );
+
+    // Every operator, a source included, has the control-variable port.
+    operatorElement.addPort({ group: CONTROL_VARIABLE_PORT_GROUP, id: CONTROL_VARIABLE_PORT_ID });
 
     return operatorElement;
   }
@@ -619,7 +635,16 @@ export class JointUIService {
     });
     jointLinkCell.set("id", link.linkID);
     jointLinkCell.set("z", 0);
+    if (isControlVariableLink(link)) {
+      JointUIService.paintControlVariableLink(jointLinkCell);
+    }
     return jointLinkCell;
+  }
+
+  /** Draws a link into a control-variable port in the port's purple. */
+  public static paintControlVariableLink(jointLinkCell: joint.dia.Link): void {
+    jointLinkCell.attr(".connection/stroke", CONTROL_VARIABLE_COLOR);
+    jointLinkCell.attr(".marker-target/fill", CONTROL_VARIABLE_COLOR);
   }
 
   /**

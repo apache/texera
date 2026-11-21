@@ -83,6 +83,17 @@ class TestState:
         assert decoded["blobs"] == [b"first", b"second"]
         assert decoded["nested"]["sub_blob"] == b"inside"
 
+    def test_json_round_trip_numpy_scalars(self):
+        # A value read from a numeric or boolean pandas column is a numpy scalar.
+        import numpy
+
+        state = State(
+            {"k": numpy.int64(3), "x": numpy.float64(0.5), "ok": numpy.bool_(True)}
+        )
+        restored = State.from_json(state.to_json())
+        assert restored == {"k": 3, "x": 0.5, "ok": True}
+        assert type(restored["k"]) is int and type(restored["ok"]) is bool
+
     def test_to_json_rejects_non_serializable_value(self):
         class Custom:
             pass

@@ -41,6 +41,9 @@ import { marbles } from "rxjs-marbles";
 import { WorkflowUtilService } from "../workflow-graph/util/workflow-util.service";
 import { map } from "rxjs/operators";
 import { commonTestProviders } from "../../../common/testing/test-utils";
+import { CONTROL_VARIABLE_PORT_ID } from "../workflow-graph/model/control-variable-port";
+import { loopVariablesInScope } from "../../util/loop-variable.util";
+import { unknownReferenceWarning } from "../../util/loop-variable-field.util";
 
 describe("ValidationWorkflowService", () => {
   let validationWorkflowService: ValidationWorkflowService;
@@ -316,6 +319,12 @@ describe("ValidationWorkflowService", () => {
       source: { operatorID: from, portID: "output-0" },
       target: { operatorID: to, portID: "input-0" },
     });
+    /** A link into an operator's control-variable port, which is none of its data inputs. */
+    const controlLink = (linkID: string, from: string, to: string) => ({
+      linkID,
+      source: { operatorID: from, portID: "output-0" },
+      target: { operatorID: to, portID: CONTROL_VARIABLE_PORT_ID },
+    });
     /** A second plain operator, for a body of two. */
     const other = { ...mockScalaExecutorPredicate, operatorID: "13", operatorProperties: { limit: 1 } };
 
@@ -382,6 +391,45 @@ describe("ValidationWorkflowService", () => {
       expect((validation as ValidationError).messages["type"]).toBe("must be integer");
     });
 
+    it("accepts any reference on an operator fed through its control-variable port, whose names come at run time", () => {
+      workflowActionservice.addOperator(mockScanPredicate, mockPoint);
+      workflowActionservice.addOperator(mockSentimentPredicate, mockPoint);
+      workflowActionservice.addOperator({ ...body, operatorProperties: { limit: "$n" } }, mockPoint);
+      workflowActionservice.addLink(link("scan-to-body", mockScanPredicate.operatorID, body.operatorID));
+      // the port is not a data input: the body still needs (and has) its one data input
+      workflowActionservice.addLink(
+        controlLink("sentiment-to-body-control", mockSentimentPredicate.operatorID, body.operatorID)
+      );
+      // no block encloses the body: the link into its port alone waives the type check
+      expect(validationWorkflowService.validateOperator(body.operatorID)).toEqual({ isValid: true });
+
+      // and without that link, the reference is a type error again, as outside every block
+      workflowActionservice.deleteLinkWithID("sentiment-to-body-control");
+      expect(validationWorkflowService.validateOperator(body.operatorID)).toEqual({
+        isValid: false,
+        messages: { type: "must be integer" },
+      });
+    });
+
+    // A disabled operator, and every link touching one, is no part of the plan the backend compiles and runs,
+    // so it feeds no port.
+    it("reports the type error once the operator feeding the control-variable port is disabled", () => {
+      workflowActionservice.addOperator(mockScanPredicate, mockPoint);
+      workflowActionservice.addOperator(mockSentimentPredicate, mockPoint);
+      workflowActionservice.addOperator({ ...body, operatorProperties: { limit: "$n" } }, mockPoint);
+      workflowActionservice.addLink(link("scan-to-body", mockScanPredicate.operatorID, body.operatorID));
+      workflowActionservice.addLink(
+        controlLink("sentiment-to-body-control", mockSentimentPredicate.operatorID, body.operatorID)
+      );
+      expect(currentError(body.operatorID)).toBeUndefined();
+
+      workflowActionservice.disableOperators([mockSentimentPredicate.operatorID]);
+      expect(currentError(body.operatorID)?.messages["type"]).toBe("must be integer");
+
+      workflowActionservice.enableOperators([mockSentimentPredicate.operatorID]);
+      expect(currentError(body.operatorID)).toBeUndefined();
+    });
+
     it("counts an operator inside its block from the graph alone, before any compile", () => {
       addBlockAround({ limit: "$K" });
       expect(validationWorkflowService.validateOperator(body.operatorID)).toEqual({ isValid: true });
@@ -416,6 +464,33 @@ describe("ValidationWorkflowService", () => {
           output: "table.iloc[i]",
         });
         expect(currentError(body.operatorID)).toBeUndefined();
+      });
+
+      // A name the Loop Start's Output assigns is in scope like one its Initialization assigns. As any name,
+      // one that is not keeps the operator valid; only the property panel warns about it.
+      it("keeps a reference to a name the Loop Start's Output assigns valid, warning only once Output no longer does", () => {
+        const panelWarning = () => {
+          const names = loopVariablesInScope(workflowActionservice.getTexeraGraph(), body.operatorID) ?? [];
+          return unknownReferenceWarning(names)("$n");
+        };
+        addBlockAround({ limit: "$n" });
+        expect(currentError(body.operatorID)).toBeUndefined();
+        expect(panelWarning()).toBeDefined();
+
+        workflowActionservice.setOperatorProperty(mockLoopStartPredicate.operatorID, {
+          initialization: "K = 2",
+          output: "n = K + 1; table.iloc[[K]]",
+        });
+        expect(currentError(body.operatorID)).toBeUndefined();
+        expect(panelWarning()).toBeUndefined();
+
+        // a single expression, as every Output was before it took statements, assigns nothing
+        workflowActionservice.setOperatorProperty(mockLoopStartPredicate.operatorID, {
+          initialization: "K = 2",
+          output: "table.iloc[[K]]",
+        });
+        expect(currentError(body.operatorID)).toBeUndefined();
+        expect(panelWarning()).toBeDefined();
       });
 
       it("reports the type error as soon as an edit opens the block around the operator", () => {

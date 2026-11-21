@@ -113,6 +113,13 @@ class LoopEndOpDescSpec extends AnyFlatSpec with LoopOpDescSpecMixin {
     code should include(s"return self.eval_condition(${decodeExpr("i < 3")})")
   }
 
+  "LoopEndOpDesc json schema" should "render update and condition as multi-line text areas" in {
+    // A single-line box drops the newline between statements, e.g.
+    // "i += 1\nfile = D.line.get(i)", and cannot take a new one.
+    assertTextArea(classOf[LoopEndOpDesc], "update")
+    assertTextArea(classOf[LoopEndOpDesc], "condition")
+  }
+
   // Tricky-input round-trips (quotes / newlines / backslashes / unicode)
   // through the base64 codegen are pinned exhaustively by PythonTemplateBuilderSpec.
 

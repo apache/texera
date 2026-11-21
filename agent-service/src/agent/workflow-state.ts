@@ -35,6 +35,14 @@ const DEFAULT_WORKFLOW_SETTINGS: WorkflowSettings = {
 };
 
 /**
+ * The port the frontend draws on every operator besides its data ports, whose links carry control
+ * variables. It is none of the operator's input ports, so a plan names it by the reserved port id -1,
+ * as the frontend's does (control-variable-port.ts).
+ */
+export const CONTROL_VARIABLE_PORT_ID = "control-variables";
+export const CONTROL_VARIABLE_PORT_INDEX = -1;
+
+/**
  * In-memory logical plan the agent edits across a conversation.
  *
  * Holds operators, links, positions, comment boxes, and workflow settings,
@@ -299,7 +307,10 @@ export class WorkflowState {
           fromOpId: link.source.operatorID,
           fromPortId: { id: fromPortIdx >= 0 ? fromPortIdx : 0, internal: false },
           toOpId: link.target.operatorID,
-          toPortId: { id: toPortIdx >= 0 ? toPortIdx : 0, internal: false },
+          toPortId:
+            link.target.portID === CONTROL_VARIABLE_PORT_ID
+              ? { id: CONTROL_VARIABLE_PORT_INDEX, internal: false }
+              : { id: toPortIdx >= 0 ? toPortIdx : 0, internal: false },
         };
       });
 

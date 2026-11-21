@@ -201,6 +201,84 @@ class TestProcessInternalMarker:
         # does not switch.
         assert data_processor.switch_calls == 2
 
+    @pytest.mark.timeout(2)
+    def test_end_channel_declares_the_port_schema_before_producing_the_state(
+        self, context, data_processor
+    ):
+        # A Loop Start runs its cells on the port's table when it produces the
+        # state, so a port that carried no rows must have declared its columns
+        # by then.
+        schema = Schema(raw_schema={"path": "STRING"})
+        port = PortIdentity(0, False)
+        channel = ChannelIdentity(
+            ActorVirtualIdentity("upstream-0"),
+            ActorVirtualIdentity(context.worker_id),
+            False,
+        )
+        context.input_manager.add_input_port(port, schema, [], [])
+        context.input_manager.register_input(channel, port)
+        context.current_input_channel_id = channel
+        executor = _StubExecutor()
+        declared_when_producing = []
+        produce_state_on_finish = executor.produce_state_on_finish
+
+        def spy(port_id):
+            declared_when_producing.append(dict(executor.input_schemas))
+            return produce_state_on_finish(port_id)
+
+        executor.produce_state_on_finish = spy
+        context.executor_manager.executor = executor
+
+        data_processor.process_internal_marker(EndChannel(0))
+
+        assert declared_when_producing == [{0: schema}]
+
+
+class _LoopStartWithOutputCell(LoopStartOperator):
+    """A Loop Start whose Output cell sets `file` and sends the matching row."""
+
+    def open(self):
+        self.run_initialization("i = 0")
+        self.run_output("file = D.path[i]\nD.iloc[[i]]")
+
+    def process_table(self, table, port):
+        yield self.eval_output(table)
+
+
+class TestLoopStartOutputCellOrder:
+    @pytest.mark.timeout(2)
+    def test_the_output_cell_has_run_when_the_state_is_flushed(
+        self, context, data_processor, monkeypatch
+    ):
+        # EndChannel produces the state and flushes it BEFORE on_finish drains
+        # the data, so a control variable the Output cell sets must already be
+        # in the state that leaves first.
+        executor = _LoopStartWithOutputCell()
+        executor.open()
+        for path in ("a.txt", "b.txt"):
+            list(executor.process_tuple(Tuple({"path": path}), 0))
+        context.executor_manager.executor = executor
+        spm = context.state_processing_manager
+        flushed, emitted = [], []
+        monkeypatch.setattr(
+            data_processor,
+            "_switch_context",
+            lambda: flushed.append((spm.current_output_state, len(emitted))),
+        )
+        monkeypatch.setattr(
+            data_processor,
+            "_set_output_tuple",
+            lambda outputs: emitted.extend(o for o in outputs if o is not None),
+        )
+
+        data_processor.process_internal_marker(EndChannel(0))
+
+        assert not context.exception_manager.has_exception()
+        # The first switch is the state's flush; no data has been drained yet.
+        assert flushed[0] == (State({"i": 0, "file": "a.txt"}), 0)
+        (data,) = emitted
+        assert list(data["path"]) == ["a.txt"]
+
 
 class _StateSpy(TupleOperatorV2):
     """
@@ -278,14 +356,13 @@ class TestProcessState:
         assert not context.exception_manager.has_exception()
 
     @pytest.mark.timeout(2)
-    def test_reading_a_loop_variable_two_states_disagree_on_fails(
+    def test_reads_the_later_value_of_a_loop_variable_two_states_disagree_on(
         self, context, data_processor, monkeypatch
     ):
         # Xiaozhen's case on #8642: inside a loop, a body operator upstream
         # returns i = 99 from produce_state_on_finish, after the loop's i = 0,
-        # both at depth 0. A JVM operator whose setting refers to i fails;
-        # this operator fails the same way when it reads i in process_tuple,
-        # and outputs nothing.
+        # both at depth 0. The later value wins: the operator reads it in
+        # process_tuple, and nothing fails.
         schema = Schema(raw_schema={"x": "INTEGER"})
         monkeypatch.setattr(
             context.output_manager,
@@ -298,9 +375,6 @@ class TestProcessState:
 
         data_processor.process_state(State({"i": 0}), 0)
         data_processor.process_state(State({"i": 99}), 0)
-        assert not context.exception_manager.has_exception(), (
-            "registering the two states does not fail; reading i does"
-        )
 
         outputs = []
 
@@ -314,14 +388,10 @@ class TestProcessState:
         tpm.current_input_tuple = Tuple({"x": 0})
         data_processor.process_tuple()
 
-        assert context.exception_manager.has_exception()
-        exc_type, exc_value, _ = context.exception_manager.get_exc_info()
-        assert exc_type is RuntimeError
-        assert str(exc_value) == (
-            "loop variable i got two different values in one iteration, 0 and 99: "
-            "a loop's variables must not change inside its body"
+        assert not context.exception_manager.has_exception(), (
+            context.exception_manager.get_exc_info()
         )
-        assert outputs == []
+        assert [output["x"] for output in outputs] == [99]
 
     @pytest.mark.timeout(2)
     def test_registers_on_the_running_operator_only(self, context, data_processor):
@@ -411,7 +481,8 @@ class TestProcessState:
 
         assert executor.loop_variables == {"seed": 7}
         assert state == State({"seed": 7}), "the registered message is unchanged"
-        assert executor.state == State({"i": 0, "seed": 7})
+        # init() runs once the input data has arrived; the merged value stays.
+        assert executor.produce_state_on_finish(0) == State({"i": 0, "seed": 7})
         # LoopStart forwards nothing on first entry.
         assert context.state_processing_manager.current_output_state is None
         assert not context.exception_manager.has_exception()

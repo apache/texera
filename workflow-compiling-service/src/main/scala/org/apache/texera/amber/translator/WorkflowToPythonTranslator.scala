@@ -22,7 +22,7 @@ package org.apache.texera.amber.translator
 import com.typesafe.scalalogging.LazyLogging
 import org.apache.texera.amber.core.tuple.Schema
 import org.apache.texera.amber.core.virtualidentity.OperatorIdentity
-import org.apache.texera.amber.core.workflow.PortIdentity
+import org.apache.texera.amber.core.workflow.{ControlVariablePort, PortIdentity}
 import org.apache.texera.common.compiler.model.LogicalPlan
 import org.apache.texera.amber.operator.StandaloneCodeGenerator
 import org.apache.texera.amber.pybuilder.PythonTemplateBuilder.pyStringLiteral
@@ -69,6 +69,17 @@ class WorkflowToPythonTranslator extends LazyLogging {
     // getTopologicalOpIds() uses jgrapht internally — no need for a custom topo sort
     val topoOrder = logicalPlan.getTopologicalOpIds.asScala.toList
 
+    // What reaches an operator through its control-variable port is bound to its settings
+    // only while the workflow runs, so the block it would generate reads them as typed: a
+    // File Scan given its file name there would open a file called `$file`. Nor is that port
+    // a data input, though its link (-1) would be numbered ahead of port 0 below. Such an
+    // operator is left as a TODO, like one with no generator.
+    val fedThroughControlVariablePort =
+      logicalPlan.links.filter(link => ControlVariablePort.is(link.toPortId)).map(_.toOpId).toSet
+    // The operators the script may hold code for, in topological order. A TODO brings no
+    // file name, import or helper of its operator along.
+    val codedOps = topoOrder.filterNot(fedThroughControlVariablePort).map(logicalPlan.getOperator)
+
     // What each source's file is called in the directory the script runs from.
     // A source offers the last segment of its resolved path, which is the name a
     // person would give the file, but two sources reading different files can
@@ -77,7 +88,7 @@ class WorkflowToPythonTranslator extends LazyLogging {
     // chart's output file is numbered. Keyed by the resolved path, so one file
     // read by two operators keeps one name.
     val sourceFileNames = mutable.Map[String, String]()
-    topoOrder.map(logicalPlan.getOperator).foreach {
+    codedOps.foreach {
       case gen: StandaloneCodeGenerator =>
         gen.standaloneSourcePath().foreach { path =>
           sourceFileNames.getOrElseUpdate(
@@ -93,8 +104,7 @@ class WorkflowToPythonTranslator extends LazyLogging {
     // operators in the plan, so a script that draws nothing does not require a
     // plotting library to start.
     script += "import pandas as pd"
-    topoOrder
-      .map(logicalPlan.getOperator)
+    codedOps
       .collect { case gen: StandaloneCodeGenerator => gen.standaloneImports() }
       .flatten
       .distinct
@@ -106,8 +116,7 @@ class WorkflowToPythonTranslator extends LazyLogging {
     // that share one helper still emits it once. Order follows the topological
     // order, which keeps the script stable for a given plan. They go in once the
     // bodies are written, since which of them the script calls is only known then.
-    val helpers = topoOrder
-      .map(logicalPlan.getOperator)
+    val helpers = codedOps
       .collect {
         case gen: StandaloneCodeGenerator =>
           gen.standaloneHelpers() ++ gen.standaloneInputAdapter().map(_.definition)
@@ -149,6 +158,17 @@ class WorkflowToPythonTranslator extends LazyLogging {
       // Jackson deserializes each operator into its concrete subclass via @JsonSubTypes on LogicalOp,
       // so the pattern match below will resolve to the correct descriptor (e.g. BarChartOpDesc).
       op match {
+        case _ if fedThroughControlVariablePort.contains(opIdentity) =>
+          logger.warn(
+            s"Operator '$displayName' is fed through its control-variable port, which the " +
+              "translator does not support. Skipping."
+          )
+          script += s"# TODO: '$displayName' is fed through its control-variable port, which " +
+            "the translator does not support yet."
+          outVars.zipWithIndex.foreach {
+            case (v, i) => script += s"# $v = <output port $i of $displayName>"
+          }
+
         case gen: StandaloneCodeGenerator =>
           // Each upstream link carries its source port's schema to the port it
           // arrives at. An unresolved source is left out rather than guessed at.
@@ -206,6 +226,10 @@ class WorkflowToPythonTranslator extends LazyLogging {
     val leafPorts = outputVar.keys.toList
       .sortBy { case (_, portIdx) => portIdx }
       .filter(key => outgoingFromPort(key) == 0)
+      // A TODO binds no frame, so it leaves none to print.
+      .filterNot {
+        case (opId, _) => fedThroughControlVariablePort.contains(OperatorIdentity(opId))
+      }
     val dataFrameLeafPorts = leafPorts.filter {
       case (opId, _) =>
         logicalPlan.getOperator(OperatorIdentity(opId)) match {
