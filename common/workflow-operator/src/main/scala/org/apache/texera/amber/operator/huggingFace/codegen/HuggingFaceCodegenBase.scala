@@ -664,10 +664,11 @@ object HuggingFaceCodegenBase {
        |                    except Exception as e:
        |                        media_error = f"Could not read {media_kind} input ({type(e).__name__}: {e})"
        |                elif media_column and str(media_column).strip():
-       |                    media_error = (
-       |                        f"Input {media_kind.title()} Column '{media_column}' not found in the input table. "
-       |                        f"Available columns: {list(table.columns)}"
-       |                    )
+       |                    if is_image:
+       |                        media_error = f"Input Image Column '{media_column}' not found in the input table. "
+       |                    else:
+       |                        media_error = f"Input Audio Column '{media_column}' not found in the input table. "
+       |                    media_error += f"Available columns: {list(table.columns)}"
        |                else:
        |                    upload = "an image" if is_image else "audio"
        |                    media_error = f"No {media_kind} source. Set an Input {media_kind.title()} Column or upload {upload}."
