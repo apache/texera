@@ -133,7 +133,7 @@ class AggregationOperation {
     res
   }
 
-  private def sumAgg(attributeType: AttributeType): DistributedAggregation[Object] = {
+  private def requireNumericType(attributeType: AttributeType, aggName: String): Unit = {
     if (
       attributeType != AttributeType.INTEGER &&
       attributeType != AttributeType.DOUBLE &&
@@ -141,9 +141,13 @@ class AggregationOperation {
       attributeType != AttributeType.TIMESTAMP
     ) {
       throw new UnsupportedOperationException(
-        "Unsupported attribute type for sum aggregation: " + attributeType
+        s"Unsupported attribute type for $aggName aggregation: " + attributeType
       )
     }
+  }
+
+  private def sumAgg(attributeType: AttributeType): DistributedAggregation[Object] = {
+    requireNumericType(attributeType, "sum")
     new DistributedAggregation[Object](
       () => AttributeTypeUtils.zeroValue(attributeType),
       (partial, tuple) => {
@@ -192,16 +196,7 @@ class AggregationOperation {
   }
 
   private def minAgg(attributeType: AttributeType): DistributedAggregation[Object] = {
-    if (
-      attributeType != AttributeType.INTEGER &&
-      attributeType != AttributeType.DOUBLE &&
-      attributeType != AttributeType.LONG &&
-      attributeType != AttributeType.TIMESTAMP
-    ) {
-      throw new UnsupportedOperationException(
-        "Unsupported attribute type for min aggregation: " + attributeType
-      )
-    }
+    requireNumericType(attributeType, "min")
     new DistributedAggregation[Object](
       () => AttributeTypeUtils.maxValue(attributeType),
       (partial, tuple) => {
@@ -217,16 +212,7 @@ class AggregationOperation {
   }
 
   private def maxAgg(attributeType: AttributeType): DistributedAggregation[Object] = {
-    if (
-      attributeType != AttributeType.INTEGER &&
-      attributeType != AttributeType.DOUBLE &&
-      attributeType != AttributeType.LONG &&
-      attributeType != AttributeType.TIMESTAMP
-    ) {
-      throw new UnsupportedOperationException(
-        "Unsupported attribute type for max aggregation: " + attributeType
-      )
-    }
+    requireNumericType(attributeType, "max")
     new DistributedAggregation[Object](
       () => AttributeTypeUtils.minValue(attributeType),
       (partial, tuple) => {
