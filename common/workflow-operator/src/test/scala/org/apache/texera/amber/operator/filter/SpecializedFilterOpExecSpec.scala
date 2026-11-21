@@ -61,6 +61,10 @@ class SpecializedFilterOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
     .add(new Attribute("long", AttributeType.LONG), Long.MaxValue)
     .build()
 
+  before {
+    opDesc.predicateCombinator = PredicateCombinator.OR
+  }
+
   it should "open and close" in {
     opDesc.predicates = List()
     val opExec = new SpecializedFilterOpExec(objectMapper.writeValueAsString(opDesc))
@@ -134,5 +138,77 @@ class SpecializedFilterOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
         assert(opExec.processTuple(nullTuple, inputPort).isEmpty)
         opExec.close()
       })
+  }
+
+  it should "keep a tuple under OR when only one predicate matches" in {
+    opDesc.predicates = List(
+      new FilterPredicate("int", ComparisonType.EQUAL_TO, "0"),
+      new FilterPredicate("string", ComparisonType.EQUAL_TO, "world")
+    )
+    val opExec = new SpecializedFilterOpExec(objectMapper.writeValueAsString(opDesc))
+    opExec.open()
+    assert(opExec.processTuple(nonNullTuple, inputPort).nonEmpty)
+    opExec.close()
+  }
+
+  it should "drop a tuple under AND when only one predicate matches" in {
+    opDesc.predicates = List(
+      new FilterPredicate("int", ComparisonType.EQUAL_TO, "0"),
+      new FilterPredicate("string", ComparisonType.EQUAL_TO, "world")
+    )
+    opDesc.predicateCombinator = PredicateCombinator.AND
+    val opExec = new SpecializedFilterOpExec(objectMapper.writeValueAsString(opDesc))
+    opExec.open()
+    assert(opExec.processTuple(nonNullTuple, inputPort).isEmpty)
+    opExec.close()
+  }
+
+  it should "drop a tuple under AND when the first predicate fails" in {
+    opDesc.predicates = List(
+      new FilterPredicate("string", ComparisonType.EQUAL_TO, "world"),
+      new FilterPredicate("int", ComparisonType.EQUAL_TO, "0")
+    )
+    opDesc.predicateCombinator = PredicateCombinator.AND
+    val opExec = new SpecializedFilterOpExec(objectMapper.writeValueAsString(opDesc))
+    opExec.open()
+    assert(opExec.processTuple(nonNullTuple, inputPort).isEmpty)
+    opExec.close()
+  }
+
+  it should "keep a tuple under AND when every predicate matches" in {
+    opDesc.predicates = List(
+      new FilterPredicate("int", ComparisonType.EQUAL_TO, "0"),
+      new FilterPredicate("string", ComparisonType.EQUAL_TO, "hello")
+    )
+    opDesc.predicateCombinator = PredicateCombinator.AND
+    val opExec = new SpecializedFilterOpExec(objectMapper.writeValueAsString(opDesc))
+    opExec.open()
+    assert(opExec.processTuple(nonNullTuple, inputPort).nonEmpty)
+    opExec.close()
+  }
+
+  it should "do nothing under AND when predicates is an empty list" in {
+    opDesc.predicates = List()
+    opDesc.predicateCombinator = PredicateCombinator.AND
+    val opExec = new SpecializedFilterOpExec(objectMapper.writeValueAsString(opDesc))
+    opExec.open()
+    assert(opExec.processTuple(allNullTuple, inputPort).isEmpty)
+    assert(opExec.processTuple(nonNullTuple, inputPort).isEmpty)
+    opExec.close()
+  }
+
+  it should "agree with OR on a single predicate under AND" in {
+    opDesc.predicates = List(new FilterPredicate("string", ComparisonType.EQUAL_TO, "hello"))
+    opDesc.predicateCombinator = PredicateCombinator.AND
+    val andExec = new SpecializedFilterOpExec(objectMapper.writeValueAsString(opDesc))
+    andExec.open()
+    assert(andExec.processTuple(nonNullTuple, inputPort).nonEmpty)
+    andExec.close()
+
+    opDesc.predicateCombinator = PredicateCombinator.OR
+    val orExec = new SpecializedFilterOpExec(objectMapper.writeValueAsString(opDesc))
+    orExec.open()
+    assert(orExec.processTuple(nonNullTuple, inputPort).nonEmpty)
+    orExec.close()
   }
 }
