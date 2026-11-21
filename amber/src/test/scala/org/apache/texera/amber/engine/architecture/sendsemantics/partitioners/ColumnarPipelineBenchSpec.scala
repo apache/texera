@@ -67,12 +67,11 @@ import scala.util.Random
   * pay off. Run with:
   *   sbt -Dcolumnar.bench=true "WorkflowExecutionService/testOnly *ColumnarPipelineBenchSpec"
   */
-class ColumnarPipelineBenchSpec
-    extends TestKit(ActorSystem("ColumnarPipelineBench", AmberRuntime.pekkoConfig))
-    with AnyFlatSpecLike
-    with BeforeAndAfterAll {
+class ColumnarPipelineBenchSpec extends AnyFlatSpecLike with BeforeAndAfterAll {
 
-  private val serde = SerializationExtension(system)
+  // Built on first use so a disabled run (the default in CI) spins up no ActorSystem.
+  private lazy val system = ActorSystem("ColumnarPipelineBench", AmberRuntime.pekkoConfig)
+  private lazy val serde = SerializationExtension(system)
   private val rng = new Random(7)
 
   // Source schema: a shuffle/group key, a numeric filter column, and two string payload
@@ -108,14 +107,14 @@ class ColumnarPipelineBenchSpec
 
   // ---- operators (one instance each; aggregate is reset per run via open()) ----------
 
-  private val projExec: ProjectionOpExec = {
+  private lazy val projExec: ProjectionOpExec = {
     val d = new ProjectionOpDesc()
     d.isDrop = false
     d.attributes = List(new AttributeUnit("key", "key"), new AttributeUnit("v", "v"))
     val e = new ProjectionOpExec(om.writeValueAsString(d)); e.open(); e
   }
 
-  private val filterExec: SpecializedFilterOpExec = {
+  private lazy val filterExec: SpecializedFilterOpExec = {
     val d = new SpecializedFilterOpDesc()
     d.predicates = List(new FilterPredicate("v", ComparisonType.GREATER_THAN, "0"))
     val e = new SpecializedFilterOpExec(om.writeValueAsString(d)); e.open(); e
@@ -131,7 +130,7 @@ class ColumnarPipelineBenchSpec
     d.groupByKeys = List("key")
     om.writeValueAsString(d)
   }
-  private val aggExec: AggregateOpExec = new AggregateOpExec(aggJson)
+  private lazy val aggExec: AggregateOpExec = new AggregateOpExec(aggJson)
 
   // ---- timing helpers ---------------------------------------------------------------
 
@@ -217,8 +216,12 @@ class ColumnarPipelineBenchSpec
   }
 
   override def afterAll(): Unit = {
-    projExec.close(); filterExec.close(); aggExec.close()
-    TestKit.shutdownActorSystem(system)
+    // Only tear down what the benchmark actually built; otherwise the lazy fixtures
+    // would be forced into existence just to close them.
+    if (benchEnabled) {
+      projExec.close(); filterExec.close(); aggExec.close()
+      TestKit.shutdownActorSystem(system)
+    }
     super.afterAll()
   }
 }
