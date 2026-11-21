@@ -41,6 +41,7 @@ import { AgentState, ReActStep, ModelMessage } from "./agent-types";
 import { Workflow, WorkflowContent } from "../../../common/type/workflow";
 import { ComputingUnitStatusService } from "../../../common/service/computing-unit/computing-unit-status/computing-unit-status.service";
 import { WarehouseService } from "../../../common/service/warehouse/warehouse.service";
+import { AuthService } from "../../../common/service/user/auth.service";
 import type { WebOutputMode } from "../../types/execute-workflow.interface";
 import type { SchemaAttribute } from "../../types/workflow-compiling.interface";
 
@@ -263,13 +264,11 @@ export class AgentService {
    * Build HTTP headers for agent-service requests.
    * Includes X-Agent-Workflow-Id for consistent hash routing in k8s.
    */
-  private agentHeaders(agentId?: string): { headers: HttpHeaders } {
+  private agentHeaders(agentId?: string, workflowId?: number): { headers: HttpHeaders } {
     let headers = new HttpHeaders();
-    if (agentId) {
-      const wid = this.agentStateTracking.get(agentId)?.workflowId;
-      if (wid !== undefined) {
-        headers = headers.set("X-Agent-Workflow-Id", String(wid));
-      }
+    const wid = (agentId ? this.agentStateTracking.get(agentId)?.workflowId : undefined) ?? workflowId;
+    if (wid !== undefined) {
+      headers = headers.set("X-Agent-Workflow-Id", String(wid));
     }
     return { headers };
   }
@@ -460,7 +459,11 @@ export class AgentService {
   private startStatePolling(agentId: string, tracking: AgentStateTracking): void {
     // Build WebSocket URL
     const wsProtocol = window.location.protocol === "https:" ? "wss:" : "ws:";
-    const wsUrl = `${wsProtocol}//${window.location.host}${this.AGENT_API_BASE}/agents/${agentId}/react`;
+    let wsUrl = `${wsProtocol}//${window.location.host}${this.AGENT_API_BASE}/agents/${agentId}/react`;
+    const token = AuthService.getAccessToken();
+    if (token) {
+      wsUrl += `?access-token=${encodeURIComponent(token)}`;
+    }
 
     const ws = new WebSocket(wsUrl);
     tracking.websocket = ws;
@@ -718,26 +721,28 @@ export class AgentService {
         body.computingUnitId = selectedUnit.computingUnit.cuid;
       }
 
-      return this.http.post<ApiAgentInfo>(`${this.AGENT_API_BASE}/agents`, body).pipe(
-        map(response => {
-          const agentInfo = this.mapApiAgentInfo(response);
+      return this.http
+        .post<ApiAgentInfo>(`${this.AGENT_API_BASE}/agents`, body, this.agentHeaders(undefined, workflowId))
+        .pipe(
+          map(response => {
+            const agentInfo = this.mapApiAgentInfo(response);
 
-          this.agents.set(response.id, agentInfo);
-          // Pass workflowId to enable workflow polling from backend database
-          const tracking = this.getOrCreateStateTracking(response.id, workflowId);
-          // Set the initial state from the API response (agent is AVAILABLE after creation)
-          tracking.stateSubject.next(agentInfo.state || AgentState.AVAILABLE);
-          this.agentChangeSubject.next();
+            this.agents.set(response.id, agentInfo);
+            // Pass workflowId to enable workflow polling from backend database
+            const tracking = this.getOrCreateStateTracking(response.id, workflowId);
+            // Set the initial state from the API response (agent is AVAILABLE after creation)
+            tracking.stateSubject.next(agentInfo.state || AgentState.AVAILABLE);
+            this.agentChangeSubject.next();
 
-          return agentInfo;
-        }),
-        catchError((error: unknown) => {
-          const err = error as { error?: { error?: string }; message?: string };
-          const errorMsg = err.error?.error || err.message || "Failed to create agent";
-          this.notificationService.error(errorMsg);
-          return throwError(() => new Error(errorMsg));
-        })
-      );
+            return agentInfo;
+          }),
+          catchError((error: unknown) => {
+            const err = error as { error?: { error?: string }; message?: string };
+            const errorMsg = err.error?.error || err.message || "Failed to create agent";
+            this.notificationService.error(errorMsg);
+            return throwError(() => new Error(errorMsg));
+          })
+        );
     });
   }
 

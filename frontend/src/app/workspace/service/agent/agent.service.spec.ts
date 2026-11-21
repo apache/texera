@@ -29,6 +29,7 @@ import { WarehouseService } from "../../../common/service/warehouse/warehouse.se
 import { DashboardWorkflowComputingUnit } from "../../../common/type/workflow-computing-unit";
 import { Workflow } from "../../../common/type/workflow";
 import { commonTestProviders } from "../../../common/testing/test-utils";
+import { AuthService } from "../../../common/service/user/auth.service";
 
 /**
  * Minimal WebSocket double. Installed with vi.stubGlobal so the service's
@@ -103,6 +104,7 @@ describe("AgentService", () => {
   }
 
   beforeEach(() => {
+    AuthService.removeAccessToken();
     selectedUnit = null;
     selectedWarehouseId = undefined;
     notification = { error: vi.fn(), success: vi.fn(), info: vi.fn(), warning: vi.fn() };
@@ -131,6 +133,7 @@ describe("AgentService", () => {
   });
 
   afterEach(() => {
+    AuthService.removeAccessToken();
     httpMock.verify();
     // Belt and braces: TestBed rebuilds the injector per test, so the spies installed
     // on the service's own collaborators are already discarded with it. This keeps the
@@ -149,6 +152,7 @@ describe("AgentService", () => {
       expect(req.request.body.name).toEqual("Bob");
       expect(req.request.body.workflowId).toBeUndefined();
       expect(req.request.body.computingUnitId).toBeUndefined();
+      expect(req.request.headers.has("X-Agent-Workflow-Id")).toBe(false);
       req.flush(apiAgent);
 
       expect(created?.id).toEqual("agent-1");
@@ -163,6 +167,7 @@ describe("AgentService", () => {
       expect(req.request.body.workflowId).toEqual(42);
       expect(req.request.body.computingUnitId).toEqual(7);
       expect(req.request.body.userToken).toBeUndefined();
+      expect(req.request.headers.get("X-Agent-Workflow-Id")).toEqual("42");
       req.flush(apiAgent);
     });
   });
@@ -612,6 +617,19 @@ describe("AgentService", () => {
         withLocation({ protocol: "https:", host: "texera.example.org" }, () => service.activateAgent("agent-1"));
 
         expect(FakeWebSocket.latest().url).toBe("wss://texera.example.org/api/agents/agent-1/react");
+      });
+
+      it("appends access-token query parameter when authenticated", () => {
+        seedAgent("agent-auth");
+        AuthService.setAccessToken("test-jwt-token");
+        try {
+          withLocation({ protocol: "https:", host: "texera.example.org" }, () => service.activateAgent("agent-auth"));
+          expect(FakeWebSocket.latest().url).toBe(
+            "wss://texera.example.org/api/agents/agent-auth/react?access-token=test-jwt-token"
+          );
+        } finally {
+          AuthService.removeAccessToken();
+        }
       });
 
       it("logs a payload that is not valid JSON instead of throwing out of the handler", () => {
