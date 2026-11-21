@@ -77,6 +77,18 @@ class FileServiceSpec extends AnyFlatSpec {
     assert(ex.getMessage.contains("after 6 attempts"))
   }
 
+  it should "cap the backoff delay at maxDelayMillis" in {
+    val delays = ListBuffer.empty[Long]
+    val ex = intercept[RuntimeException] {
+      service.awaitDependency("reach dep", 6, 200L, delays += _, maxDelayMillis = 500L) {
+        throw new RuntimeException("down")
+      }
+    }
+    // Doubling from 200ms, then held at the 500ms cap for the remaining waits.
+    assert(delays.toList == List(200L, 400L, 500L, 500L, 500L))
+    assert(ex.getMessage.contains("after 6 attempts"))
+  }
+
   it should "give up after maxAttempts and preserve the last failure as the cause" in {
     var attempts = 0
     val cause = new RuntimeException("still down")
