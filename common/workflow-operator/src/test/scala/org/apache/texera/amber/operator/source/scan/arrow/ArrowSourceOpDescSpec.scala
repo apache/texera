@@ -88,6 +88,14 @@ class ArrowSourceOpDescSpec extends AnyFlatSpec with Matchers {
     physical.outputPorts.keySet shouldBe d.operatorInfo.outputPorts.map(_.id).toSet
   }
 
+  it should "propagate the schema read from the file, not sourceSchema, to its output port" in {
+    val schema = Schema(List(new Attribute("s", AttributeType.STRING)))
+    val d = new ArrowSourceOpDesc
+    d.fileName = Some(writeArrowFile(schema, Seq(Array[Any]("a"))).toURI.toString)
+    val propagated = d.getPhysicalOp(workflowId, executionId).propagateSchema.func(Map.empty)
+    propagated shouldBe Map(d.operatorInfo.outputPorts.head.id -> schema)
+  }
+
   "ArrowSourceOpDesc" should "round-trip its config fields through the polymorphic base" in {
     val d = new ArrowSourceOpDesc
     d.fileName = Some("file:///tmp/data.arrow")
