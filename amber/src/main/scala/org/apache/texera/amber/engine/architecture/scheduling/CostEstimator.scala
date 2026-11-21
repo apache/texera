@@ -58,31 +58,48 @@ object DefaultCostEstimator {
   * is the execution time of its longest-running operator. Otherwise the cost is the number of materialized ports in the
   * region.
   */
-class DefaultCostEstimator(
+class DefaultCostEstimator private (
     workflowContext: WorkflowContext,
     val resourceAllocator: ResourceAllocator,
-    val actorId: ActorVirtualIdentity
+    val actorId: ActorVirtualIdentity,
+    preloadedStats: Option[Option[Map[String, Double]]]
 ) extends CostEstimator
     with AmberLogging {
 
+  def this(
+      workflowContext: WorkflowContext,
+      resourceAllocator: ResourceAllocator,
+      actorId: ActorVirtualIdentity
+  ) =
+    this(workflowContext, resourceAllocator, actorId, preloadedStats = None)
+
   // Requires mysql database to retrieve execution statistics, otherwise use number of materialized ports as a default.
-  private val operatorEstimatedTimeOption = Try(
-    this.getOperatorExecutionTimeInSeconds(
-      this.workflowContext.workflowId.id
-    )
-  ) match {
-    case Failure(_)      => None
-    case Success(result) => result
+  private val operatorEstimatedTimeOption = preloadedStats.getOrElse {
+    Try(
+      this.getOperatorExecutionTimeInSeconds(
+        this.workflowContext.workflowId.id
+      )
+    ) match {
+      case Failure(_)      => None
+      case Success(result) => result
+    }
   }
 
-  operatorEstimatedTimeOption match {
-    case None =>
-      logger.info(
-        s"WID: ${workflowContext.workflowId.id}, EID: ${workflowContext.executionId.id}, " +
-          s"no past execution statistics available. Using number of materialized output ports as the cost. "
-      )
-    case Some(_) =>
+  if (preloadedStats.isEmpty && operatorEstimatedTimeOption.isEmpty) {
+    logger.info(
+      s"WID: ${workflowContext.workflowId.id}, EID: ${workflowContext.executionId.id}, " +
+        s"no past execution statistics available. Using number of materialized output ports as the cost. "
+    )
   }
+
+  /** Returns a cost estimator sharing the loaded execution statistics with `newAllocator`. */
+  def withResourceAllocator(newAllocator: ResourceAllocator): DefaultCostEstimator =
+    new DefaultCostEstimator(
+      workflowContext,
+      newAllocator,
+      actorId,
+      preloadedStats = Some(operatorEstimatedTimeOption)
+    )
 
   override def allocateResourcesAndEstimateCost(
       region: Region,

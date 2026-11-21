@@ -25,6 +25,11 @@ import org.jgrapht.traverse.TopologicalOrderIterator
 
 import scala.jdk.CollectionConverters.IteratorHasAsScala
 
+/**
+  * Region-level execution plan of a workflow. `regions` holds both active regions
+  * (`skipped = false`) and skip regions (`skipped = true`); `regionLinks` captures materialized
+  * dependencies among active regions.
+  */
 case class RegionPlan(
     regions: Set[Region],
     regionLinks: Set[RegionLink]
