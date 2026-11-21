@@ -52,7 +52,11 @@ case class Tuple @JsonCreator() (
   checkNotNull(fieldVals)
   checkSchemaMatchesFields(schema.getAttributes, fieldVals)
 
-  override val inMemSize: Long = SizeOf.newInstance().deepSizeOf(this)
+  // Lazy: the deepSizeOf object-graph walk runs only when something reads the size (the row
+  // path, for per-tuple statistics). The columnar path builds Tuples only to copy their fields
+  // into Arrow vectors and never reads this, so it pays nothing. JsonIgnore keeps a derived,
+  // non-constructor field out of the serialized form.
+  @JsonIgnore override lazy val inMemSize: Long = SizeOf.newInstance().deepSizeOf(this)
 
   @JsonIgnore def length: Int = fieldVals.length
 
