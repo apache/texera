@@ -1981,6 +1981,82 @@ class TestMainLoop:
 
         reraise()
 
+    @pytest.mark.timeout(2)
+    def test_main_loop_thread_binds_the_loop_variables_at_the_first_tuple(
+        self,
+        mock_data_input_channel,
+        mock_data_output_channel,
+        mock_control_output_channel,
+        input_queue,
+        output_queue,
+        main_loop,
+        main_loop_thread,
+        mock_assign_input_port,
+        mock_assign_output_port,
+        mock_add_input_channel,
+        mock_add_partitioning,
+        mock_initialize_executor,
+        mock_data_element,
+        command_sequence,
+        reraise,
+    ):
+        # Through the real MainLoop and DataProcessor threads: the outer
+        # loop's i, a tuple, then a deeper i (a body UDF's
+        # produce_state_on_finish), then another tuple. The operator's
+        # generated code reads the i bound at its first tuple, as a JVM
+        # operator does; UDF code reads the later one.
+        class BoundTextReader(UDFOperatorV2):
+            def process_state(self, state, port):
+                return None  # emit no state, so the tuples are the only output
+
+            def process_tuple(self, tuple_, port):
+                yield Tuple(
+                    {
+                        "test-1": self.loop_variable_text("i"),
+                        "test-2": self.loop_variables["i"],
+                    }
+                )
+
+        main_loop_thread.start()
+
+        for setup_msg in [
+            mock_assign_input_port,
+            mock_assign_output_port,
+            mock_add_input_channel,
+            mock_add_partitioning,
+            mock_initialize_executor,
+        ]:
+            input_queue.put(setup_msg)
+            assert output_queue.get() == DCMElement(
+                tag=mock_control_output_channel,
+                payload=DirectControlMessagePayloadV2(
+                    return_invocation=ReturnInvocation(
+                        command_id=command_sequence,
+                        return_value=ControlReturn(empty_return=EmptyReturn()),
+                    )
+                ),
+            )
+
+        main_loop.context.executor_manager.executor = BoundTextReader()
+
+        for payload in (
+            StateFrame(State({"i": 1}), loop_counter=1, loop_start_id="outer"),
+            mock_data_element.payload,
+            StateFrame(State({"i": 5})),
+            mock_data_element.payload,
+        ):
+            input_queue.put(DataElement(tag=mock_data_input_channel, payload=payload))
+
+        rows = []
+        for _ in range(2):
+            output: DataElement = output_queue.get()
+            assert output.tag == mock_data_output_channel
+            assert isinstance(output.payload, DataFrame), output
+            rows += output.payload.frame.to_pylist()
+        assert rows == [{"test-1": "1", "test-2": 1}, {"test-1": "1", "test-2": 5}]
+
+        reraise()
+
     @staticmethod
     def _expected_port_completed_dcm(
         mock_control_output_channel, command_id, port_id, is_input
@@ -2877,6 +2953,7 @@ class TestMainLoop:
 
         assert seen == [({"i": 7}, pending)]
         assert executor.loop_variables == {"i": 7}
+        assert executor.loop_variable_text("i") == "7"
 
     def test_state_frame_reaches_the_operator_with_its_loop_counter(
         self, main_loop, monkeypatch
