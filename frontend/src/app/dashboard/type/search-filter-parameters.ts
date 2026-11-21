@@ -28,7 +28,6 @@ export interface SearchFilterParameters {
   owners: string[];
   ids: string[];
   operators: string[];
-  projectIds: number[];
 }
 
 export const toQueryStrings = (
@@ -36,7 +35,7 @@ export const toQueryStrings = (
   params: SearchFilterParameters,
   start?: number,
   count?: number,
-  type?: "workflow" | "project" | "file" | "dataset" | null,
+  type?: "workflow" | "file" | "dataset" | null,
   orderBy?: SortMethod
 ): string => {
   function* getQueryParameters(): Iterable<[name: string, value: string]> {
@@ -62,9 +61,6 @@ export const toQueryStrings = (
     for (const operator of params.operators) {
       yield ["operator", operator];
     }
-    for (const id of params.projectIds) {
-      yield ["projectId", id.toString()];
-    }
   }
   const concatenateQueryStrings = (queryStrings: ReturnType<typeof getQueryParameters>): string =>
     [
@@ -85,7 +81,7 @@ export const searchTestEntries = (
   keywords: string[],
   params: SearchFilterParameters,
   testEntries: DashboardEntry[],
-  type: "workflow" | "project" | "file" | "dataset" | null
+  type: "workflow" | "file" | "dataset" | null
 ): DashboardEntry[] => {
   const endOfDay = (date: Date) => {
     date.setHours(23);
@@ -128,13 +124,6 @@ export const searchTestEntries = (
         e.workflow.workflow.content.operators.some(operator =>
           params.operators.some(operatorTypeFilterBy => operatorTypeFilterBy === operator.operatorType)
         )
-    );
-  }
-  if (params.projectIds.length > 0) {
-    testEntries = testEntries.filter(
-      e =>
-        e.type === "workflow" &&
-        e.workflow.projectIDs.some(id => params.projectIds.some(projectIdToFilterBy => projectIdToFilterBy == id))
     );
   }
   if (type) {

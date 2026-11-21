@@ -86,18 +86,7 @@ object WorkflowAccessResource {
       .where(WORKFLOW_USER_ACCESS.WID.eq(wid).and(WORKFLOW_USER_ACCESS.UID.eq(uid)))
       .fetchOneInto(classOf[WorkflowUserAccess])
     if (access == null) {
-      val projectAccess = context
-        .select()
-        .from(PROJECT_USER_ACCESS)
-        .join(WORKFLOW_OF_PROJECT)
-        .on(WORKFLOW_OF_PROJECT.PID.eq(PROJECT_USER_ACCESS.PID))
-        .where(WORKFLOW_OF_PROJECT.WID.eq(wid).and(PROJECT_USER_ACCESS.UID.eq(uid)))
-        .fetchOneInto(classOf[WorkflowUserAccess])
-      if (projectAccess == null) {
-        PrivilegeEnum.NONE
-      } else {
-        projectAccess.getPrivilege
-      }
+      PrivilegeEnum.NONE
     } else {
       access.getPrivilege
     }

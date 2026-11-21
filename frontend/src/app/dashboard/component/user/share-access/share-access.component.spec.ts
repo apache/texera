@@ -164,7 +164,7 @@ describe("ShareAccessComponent", () => {
     });
 
     it("does not query publish state for non-workflow/dataset types", () => {
-      setupComponent({ type: "project", id: 4 });
+      setupComponent({ type: "file", id: 4 });
       expect(workflowPersistSpy.getWorkflowIsPublished).not.toHaveBeenCalled();
       expect(datasetServiceSpy.getDataset).not.toHaveBeenCalled();
     });
@@ -249,11 +249,6 @@ describe("ShareAccessComponent", () => {
     it("uses the dataset dashboard path when sharing a dataset", () => {
       const message = grantAndCaptureMessage(setupComponent({ type: "dataset", id: 22 }));
       expect(message).toContain("/user/dataset/22");
-    });
-
-    it("uses the project dashboard path when sharing a project", () => {
-      const message = grantAndCaptureMessage(setupComponent({ type: "project", id: 33 }));
-      expect(message).toContain("/user/project/33");
     });
 
     it("omits the access URL when sharing a computing-unit", () => {

@@ -25,8 +25,6 @@ import { testWorkflowEntries } from "../../../user-dashboard-test-fixtures";
 import { By } from "@angular/platform-browser";
 import { StubWorkflowPersistService } from "../../../../../common/service/workflow-persist/stub-workflow-persist.service";
 import { WorkflowPersistService } from "../../../../../common/service/workflow-persist/workflow-persist.service";
-import { UserProjectService } from "../../../../service/user/project/user-project.service";
-import { StubUserProjectService } from "../../../../service/user/project/stub-user-project.service";
 import { NzListComponent } from "ng-zorro-antd/list";
 import { NzModalModule } from "ng-zorro-antd/modal";
 import { HttpClientTestingModule } from "@angular/common/http/testing";
@@ -64,7 +62,6 @@ describe("UserWorkflowListItemComponent", () => {
       imports: [TestHostComponent, NzModalModule, HttpClientTestingModule, NzTooltipModule],
       providers: [
         { provide: WorkflowPersistService, useValue: new StubWorkflowPersistService(testWorkflowEntries) },
-        { provide: UserProjectService, useValue: new StubUserProjectService() },
         { provide: FileSaverService, useValue: fileSaverServiceSpy },
         provideRouter([]),
         ...commonTestProviders,

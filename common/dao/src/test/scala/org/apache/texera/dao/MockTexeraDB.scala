@@ -127,15 +127,6 @@ trait MockTexeraDB {
         |    )
         |    );
         |
-        |CREATE INDEX idx_user_project_name_description
-        |    ON project
-        |    USING GIN (
-        |    to_tsvector('english',
-        |    COALESCE(name, '') || ' ' ||
-        |    COALESCE(description, '')
-        |    )
-        |    );
-        |
         |CREATE INDEX idx_dataset_name_description
         |    ON dataset
         |    USING GIN (
