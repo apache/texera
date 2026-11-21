@@ -85,7 +85,7 @@ class LoggingSpec
     ),
     ControlInvocation(
       METHOD_ADD_PARTITIONING,
-      AddPartitioningRequest(mockLink, mockPolicy),
+      AddPartitioningRequest(mockLink, mockPolicy, columnar = false),
       AsyncRPCContext(COORDINATOR, identifier1),
       0
     ),

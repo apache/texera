@@ -40,7 +40,7 @@ trait AddPartitioningHandler {
       ctx: AsyncRPCContext
   ): Future[EmptyReturn] = {
     dp.stateManager.assertState(READY, RUNNING, PAUSED)
-    dp.outputManager.addPartitionerWithPartitioning(msg.tag, msg.partitioning)
+    dp.outputManager.addPartitionerWithPartitioning(msg.tag, msg.partitioning, msg.columnar)
     EmptyReturn()
   }
 
