@@ -211,17 +211,20 @@ describe(`GET ${API}/agents`, () => {
 // An agent answers only to the user who created it. For anyone else every route
 // that names it gives the answer for an agent that does not exist.
 describe("an agent created by another user", () => {
-  const ROUTES: [method: string, path: string, body?: unknown][] = [
-    ["GET", ""],
-    ["DELETE", ""],
-    ["GET", "/react-steps"],
-    ["GET", "/operator-results"],
+  // Every row names its body, `undefined` for none. Given a row shorter than the test's parameter
+  // list, Bun fills the missing place with a `done` callback: the request then carries a JSON
+  // content type, and the test can time out waiting for a callback that nobody calls.
+  const ROUTES: [method: string, path: string, body: unknown][] = [
+    ["GET", "", undefined],
+    ["DELETE", "", undefined],
+    ["GET", "/react-steps", undefined],
+    ["GET", "/operator-results", undefined],
     ["POST", "/steps-by-operators", { operatorIds: [] }],
-    ["GET", "/system-info"],
+    ["GET", "/system-info", undefined],
     ["POST", "/stop", {}],
     ["POST", "/clear", {}],
-    ["GET", "/operator-types"],
-    ["GET", "/settings"],
+    ["GET", "/operator-types", undefined],
+    ["GET", "/settings", undefined],
     ["PATCH", "/settings", { maxSteps: 3 }],
   ];
 
