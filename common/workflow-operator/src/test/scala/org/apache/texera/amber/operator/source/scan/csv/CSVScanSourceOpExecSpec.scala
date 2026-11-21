@@ -21,6 +21,8 @@ package org.apache.texera.amber.operator.source.scan.csv
 
 import com.univocity.parsers.common.TextParsingException
 import com.univocity.parsers.csv.{CsvParser, CsvParserSettings}
+import org.apache.texera.amber.core.tuple.SchemaEnforceable
+import org.apache.texera.amber.util.ArrowUtils
 import org.apache.texera.amber.util.JSONUtils.objectMapper
 import org.scalatest.BeforeAndAfterAll
 import org.scalatest.flatspec.AnyFlatSpec
@@ -183,6 +185,39 @@ class CSVScanSourceOpExecSpec extends AnyFlatSpec with BeforeAndAfterAll {
     assert(tuples.size == 2)
     val firstCol = tuples.map(_.getFields(0).toString)
     assert(firstCol == List("2", "3"))
+  }
+
+  it should "produce the same rows on the columnar path as the row path" in {
+    val path = writeTempCsv("a,b\n1,x\n2,y\n3,z\n")
+    val colExec = execOver(path, hasHeader = true)
+    colExec.open()
+    val schema = colExec.desc.sourceSchema()
+    val colRows =
+      try colExec
+        .produceColumnarBatch(schema)
+        .get
+        .flatMap(root => try ArrowUtils.tuplesOfRoot(root).toList finally root.close())
+        .toList
+        .map(_.getFields.toList)
+      finally colExec.close()
+
+    val rowExec = execOver(path, hasHeader = true)
+    rowExec.open()
+    val rowRows =
+      try rowExec
+        .produceTuple()
+        .toList
+        .map(_.asInstanceOf[SchemaEnforceable].enforceSchema(schema).getFields.toList)
+      finally rowExec.close()
+
+    assert(colRows == rowRows)
+  }
+
+  it should "fall back to the row path (None) on the columnar path when a window is set" in {
+    val exec = execOver(writeTempCsv("a,b\n1,x\n2,y\n"), hasHeader = true, limit = Some(1))
+    exec.open()
+    try assert(exec.produceColumnarBatch(exec.desc.sourceSchema()).isEmpty)
+    finally exec.close()
   }
 
   it should "read a negative window as the empty or whole one, not from the end" in {
