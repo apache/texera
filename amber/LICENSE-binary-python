@@ -356,7 +356,7 @@ Dependencies under the Mozilla Public License, Version 2.0
 
 Python packages:
   - bidict==0.22.0
-  - certifi==2026.10.23
+  - certifi==2026.11.20
   - tqdm==4.70.1
 
 --------------------------------------------------------------------------------
