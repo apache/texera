@@ -18,6 +18,7 @@
  */
 
 import { describe, expect, test } from "bun:test";
+import { macroWorkflow } from "./macro-test-data";
 import { WorkflowState } from "./workflow-state";
 import type { OperatorPredicate, OperatorLink, WorkflowContent } from "../types/workflow";
 
@@ -43,6 +44,23 @@ function makeLink(linkId: string, sourceId: string, targetId: string): OperatorL
 }
 
 describe("WorkflowState - operators", () => {
+  test("rejects colliding additions and imports without replacing the current graph", () => {
+    const state = new WorkflowState();
+    state.addOperator(makeOperator("a"));
+    state.addOperator(makeOperator("b"));
+    const before = state.getWorkflowContent();
+    expect(() => state.addLink(makeLink("a", "a", "b"))).toThrow(/Duplicate graph element ID/);
+    expect(() => state.setWorkflowContent({ ...before, links: [makeLink("a", "a", "b")] })).toThrow(
+      /Duplicate graph element ID/
+    );
+    expect(state.getWorkflowContent()).toEqual(before);
+    state.addLink(makeLink("edge", "a", "b"));
+    expect(() => state.addOperator(makeOperator("edge"))).toThrow(/Duplicate graph element ID/);
+    state.addOperator(makeOperator("link-1"));
+    expect(state.generateLinkId()).toBe("link-2");
+    state.addOperator(makeOperator("TestOp-operator-1"));
+    expect(state.generateOperatorId("TestOp")).toBe("TestOp-operator-2");
+  });
   test("add and get operator round-trips", () => {
     const state = new WorkflowState();
     const op = makeOperator("op1");
@@ -176,6 +194,27 @@ describe("WorkflowState - getSubDAG", () => {
 });
 
 describe("WorkflowState - toLogicalPlan", () => {
+  test("keeps the empty plan and legacy missing-port fallback without serializing dangling links", () => {
+    const state = new WorkflowState();
+    expect(state.toLogicalPlan()).toEqual({ operators: [], links: [], opsToViewResult: [], opsToReuseResult: [] });
+    state.addOperator(makeOperator("café", { operatorProperties: { operatorID: "user value", value: "東京" } }));
+    state.addOperator(makeOperator("dst"));
+    state.addLink({
+      linkID: "missing ports",
+      source: { operatorID: "café", portID: "missing" },
+      target: { operatorID: "dst", portID: "missing" },
+    });
+    state.addLink(makeLink("dangling", "absent", "dst"));
+    const before = JSON.stringify(state.getWorkflowContent());
+    const plan = state.toLogicalPlan();
+    expect(plan.operators[0]).toMatchObject({ operatorID: "café", value: "東京" });
+    expect(plan.links).toEqual([
+      { fromOpId: "café", fromPortId: { id: 0, internal: false }, toOpId: "dst", toPortId: { id: 0, internal: false } },
+    ]);
+    expect(JSON.stringify(state.getWorkflowContent())).toBe(before);
+    state.destroy();
+  });
+
   test("produces operators, port-indexed links, and an empty reuse list", () => {
     const state = new WorkflowState();
     state.addOperator(makeOperator("op1"));
@@ -308,5 +347,43 @@ describe("WorkflowState - workflow content round-trip", () => {
     });
 
     expect("formBinding" in state.getWorkflowContent()).toBe(false);
+  });
+});
+
+describe("macro workflow compatibility", () => {
+  test("sends nested pins intact for full and run-up-to selections", () => {
+    const content = macroWorkflow();
+    const before = JSON.stringify(content);
+    const state = new WorkflowState();
+    state.setWorkflowContent(content);
+    for (const target of [undefined, "one"]) {
+      const plan = state.toLogicalPlan(target);
+      const ids = target ? [target] : ["one", "two"];
+      expect(plan).toMatchObject({ operators: [], links: [], macroContent: content, executeOperatorIds: ids });
+      if (target) expect(plan.opsToViewResult).toEqual([target]);
+      expect(state.toLogicalPlan(target)).toEqual(plan);
+    }
+    expect(state.toLogicalPlan("absent").operators).toEqual([]);
+    expect(state.getWorkflowContent()).toEqual(content);
+    expect(JSON.stringify(content)).toBe(before);
+    state.destroy();
+  });
+
+  test("preserves pinned snapshots and definition interfaces through agent edits and reset", () => {
+    const original = macroWorkflow();
+    const state = new WorkflowState();
+    state.setWorkflowContent(original);
+    state.updateOperatorDisplayName("one", "Renamed");
+    expect(state.getWorkflowContent()).toEqual({
+      ...original,
+      operators: [{ ...original.operators[0], customDisplayName: "Renamed" }, original.operators[1]],
+    });
+    const definition = original.macroDependencies[0].content;
+    state.setWorkflowContent(definition);
+    expect(state.getWorkflowContent()).toEqual(definition);
+    state.reset();
+    expect(state.getWorkflowContent()).not.toHaveProperty("macroDependencies");
+    expect(state.getWorkflowContent()).not.toHaveProperty("macroInterface");
+    state.destroy();
   });
 });

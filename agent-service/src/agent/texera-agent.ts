@@ -211,6 +211,7 @@ export class TexeraAgent {
     const getExecutionConfig = this.delegateConfig ? () => this.buildExecutionConfig()! : undefined;
 
     const context: ToolContext = {
+      userToken: this.delegateConfig?.userToken,
       metadataStore: this.metadataStore,
       settings: {
         maxOperatorResultCharLimit: this.settings.maxOperatorResultCharLimit,

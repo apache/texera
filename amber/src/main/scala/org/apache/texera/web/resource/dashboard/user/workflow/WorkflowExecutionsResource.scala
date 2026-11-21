@@ -43,6 +43,8 @@ import org.apache.texera.dao.jooq.generated.enums.UserRoleEnum
 import org.apache.texera.dao.jooq.generated.tables.daos.WorkflowExecutionsDao
 import org.apache.texera.dao.jooq.generated.tables.pojos.{WorkflowExecutions, User => UserPojo}
 import org.apache.texera.web.model.http.request.result.ResultExportRequest
+import org.apache.texera.common.compiler.MacroExpansion
+import org.apache.texera.web.service.ExecutionStatsService
 import org.apache.texera.web.resource.dashboard.user.workflow.WorkflowExecutionsResource._
 import org.apache.texera.web.service.ResultExportService
 import org.jooq.DSLContext
@@ -58,6 +60,21 @@ import scala.collection.mutable
 import scala.jdk.CollectionConverters._
 
 object WorkflowExecutionsResource {
+  def ownsExecution(wid: WorkflowIdentity, cuid: Int, eid: Long): Boolean =
+    eid > 0 && eid <= Int.MaxValue && context.fetchExists(
+      context
+        .selectOne()
+        .from(WORKFLOW_EXECUTIONS)
+        .join(WORKFLOW_VERSION)
+        .on(WORKFLOW_VERSION.VID.eq(WORKFLOW_EXECUTIONS.VID))
+        .where(
+          WORKFLOW_VERSION.WID
+            .eq(wid.id.toInt)
+            .and(WORKFLOW_EXECUTIONS.CUID.eq(cuid))
+            .and(WORKFLOW_EXECUTIONS.EID.eq(eid.toInt))
+        )
+    )
+
   private def context: DSLContext =
     SqlServer
       .getInstance()
@@ -675,6 +692,32 @@ class WorkflowExecutionsResource {
 
   @GET
   @Produces(Array(MediaType.APPLICATION_JSON))
+  @Path("/{wid}/macro-content/{eid}")
+  @RolesAllowed(Array("REGULAR", "ADMIN"))
+  def macroContent(
+      @PathParam("wid") wid: Integer,
+      @PathParam("eid") eid: Integer,
+      @Auth user: SessionUser
+  ): com.fasterxml.jackson.databind.JsonNode = {
+    validateUserCanAccessWorkflow(user.getUid, wid)
+    val visible =
+      if (WorkflowAccess.hasGrantedAccess(wid, user.getUid))
+        org.jooq.impl.DSL.trueCondition()
+      else WORKFLOW_EXECUTIONS.UID.eq(user.getUid)
+    val content = context
+      .select(WORKFLOW_EXECUTIONS.MACRO_CONTENT)
+      .from(WORKFLOW_EXECUTIONS)
+      .join(WORKFLOW_VERSION)
+      .on(WORKFLOW_VERSION.VID.eq(WORKFLOW_EXECUTIONS.VID))
+      .where(WORKFLOW_VERSION.WID.eq(wid).and(WORKFLOW_EXECUTIONS.EID.eq(eid)).and(visible))
+      .fetchOne(WORKFLOW_EXECUTIONS.MACRO_CONTENT)
+    Option(content)
+      .map(objectMapper.readTree(_))
+      .getOrElse(throw new javax.ws.rs.NotFoundException())
+  }
+
+  @GET
+  @Produces(Array(MediaType.APPLICATION_JSON))
   @Path("/{wid}/stats/{eid}")
   @RolesAllowed(Array("REGULAR", "ADMIN"))
   def retrieveWorkflowRuntimeStatistics(
@@ -682,6 +725,49 @@ class WorkflowExecutionsResource {
       @PathParam("eid") eid: Integer,
       @Auth sessionUser: SessionUser
   ): List[WorkflowRuntimeStatistics] = {
+    val (document, _) = statisticsDocument(wid, eid, sessionUser)
+
+    // Read all records from Iceberg and convert to WorkflowRuntimeStatistics
+    document
+      .get()
+      .map(tuple => {
+        val record = tuple.asInstanceOf[Tuple]
+        WorkflowRuntimeStatistics(
+          operatorId = record.getField(0).asInstanceOf[String],
+          timestamp = record.getField(1).asInstanceOf[Timestamp],
+          inputTupleCount = record.getField(2).asInstanceOf[Long],
+          inputTupleSize = record.getField(3).asInstanceOf[Long],
+          outputTupleCount = record.getField(4).asInstanceOf[Long],
+          outputTupleSize = record.getField(5).asInstanceOf[Long],
+          dataProcessingTime = record.getField(6).asInstanceOf[Long],
+          controlProcessingTime = record.getField(7).asInstanceOf[Long],
+          idleTime = record.getField(8).asInstanceOf[Long],
+          numWorkers = record.getField(9).asInstanceOf[Int],
+          status = record.getField(10).asInstanceOf[Int]
+        )
+      })
+      .toList
+  }
+
+  @GET
+  @Produces(Array(MediaType.APPLICATION_JSON))
+  @Path("/{wid}/stats/{eid}/canvas")
+  @RolesAllowed(Array("REGULAR", "ADMIN"))
+  def canvasStatistics(
+      @PathParam("wid") wid: Integer,
+      @PathParam("eid") eid: Integer,
+      @Auth user: SessionUser
+  ): Response = {
+    val stored = statisticsDocument(wid, eid, user)
+    if (stored._2.exists(_.containsAttribute(ExecutionStatsService.metricsColumn))) {
+      val expansion = MacroExpansion.expand(macroContent(wid, eid, user))
+      Response
+        .ok(ExecutionStatsService.restore(expansion, stored._1.get().map(_.asInstanceOf[Tuple])))
+        .build()
+    } else Response.noContent().build()
+  }
+
+  private def statisticsDocument(wid: Integer, eid: Integer, sessionUser: SessionUser) = {
     validateUserCanAccessWorkflow(sessionUser.getUser.getUid, wid)
 
     // Create URI for runtime statistics
@@ -711,28 +797,7 @@ class WorkflowExecutionsResource {
     val uri: URI = new URI(uriString)
     // Refuse to read per-user-warehouse statistics while the feature is off (#6930).
     WarehouseReadGuard.assertReadable(uri)
-    val document = DocumentFactory.openDocument(uri)._1
-
-    // Read all records from Iceberg and convert to WorkflowRuntimeStatistics
-    document
-      .get()
-      .map(tuple => {
-        val record = tuple.asInstanceOf[Tuple]
-        WorkflowRuntimeStatistics(
-          operatorId = record.getField(0).asInstanceOf[String],
-          timestamp = record.getField(1).asInstanceOf[Timestamp],
-          inputTupleCount = record.getField(2).asInstanceOf[Long],
-          inputTupleSize = record.getField(3).asInstanceOf[Long],
-          outputTupleCount = record.getField(4).asInstanceOf[Long],
-          outputTupleSize = record.getField(5).asInstanceOf[Long],
-          dataProcessingTime = record.getField(6).asInstanceOf[Long],
-          controlProcessingTime = record.getField(7).asInstanceOf[Long],
-          idleTime = record.getField(8).asInstanceOf[Long],
-          numWorkers = record.getField(9).asInstanceOf[Int],
-          status = record.getField(10).asInstanceOf[Int]
-        )
-      })
-      .toList
+    DocumentFactory.openDocument(uri)
   }
 
   /** Sets a group of executions' bookmarks to the payload passed in the body. */

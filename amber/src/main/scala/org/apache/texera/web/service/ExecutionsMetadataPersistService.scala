@@ -57,7 +57,8 @@ object ExecutionsMetadataPersistService extends LazyLogging {
       executionName: String,
       environmentVersion: String,
       computingUnitId: Integer,
-      warehouseId: Option[Int] = None
+      warehouseId: Option[Int] = None,
+      macroContent: Option[com.fasterxml.jackson.databind.JsonNode] = None
   ): ExecutionIdentity = {
     // first retrieve the latest version of this workflow
     val vid = getLatestVersion(workflowId.id.toInt)
@@ -66,6 +67,7 @@ object ExecutionsMetadataPersistService extends LazyLogging {
       newExecution.setName(executionName)
     }
     newExecution.setVid(vid)
+    macroContent.foreach(content => newExecution.setMacroContent(content.toString))
     newExecution.setUid(uid)
     newExecution.setStartingTime(new Timestamp(System.currentTimeMillis()))
     newExecution.setEnvironmentVersion(environmentVersion)

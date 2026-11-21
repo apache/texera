@@ -40,6 +40,7 @@ import org.apache.texera.amber.operator.cartesianProduct.CartesianProductOpDesc
 import org.apache.texera.amber.operator.dictionary.DictionaryMatcherOpDesc
 import org.apache.texera.amber.operator.set.difference.DifferenceOpDesc
 import org.apache.texera.amber.operator.distinct.DistinctOpDesc
+import org.apache.texera.amber.operator.macroterminal.{MacroInputOpDesc, MacroOutputOpDesc}
 import org.apache.texera.amber.operator.dummy.DummyOpDesc
 import org.apache.texera.amber.operator.filter.SpecializedFilterOpDesc
 import org.apache.texera.amber.operator.hashJoin.HashJoinOpDesc
@@ -268,6 +269,8 @@ trait StateTransferFunc
     new Type(value = classOf[ImageVisualizerOpDesc], name = "ImageVisualizer"),
     new Type(value = classOf[HierarchyChartOpDesc], name = "HierarchyChart"),
     new Type(value = classOf[DumbbellPlotOpDesc], name = "DumbbellPlot"),
+    new Type(value = classOf[MacroInputOpDesc], name = "MacroInput"),
+    new Type(value = classOf[MacroOutputOpDesc], name = "MacroOutput"),
     new Type(value = classOf[DummyOpDesc], name = "Dummy"),
     new Type(value = classOf[BoxViolinPlotOpDesc], name = "BoxViolinPlot"),
     new Type(value = classOf[NetworkGraphOpDesc], name = "NetworkGraph"),

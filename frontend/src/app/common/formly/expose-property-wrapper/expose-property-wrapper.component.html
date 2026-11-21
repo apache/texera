@@ -20,11 +20,12 @@
 <div class="expose-row choosing">
   <label
     class="expose-box"
-    [title]="'Show ' + (props.label || 'this property') + ' on the Form View'">
+    [title]="exposureLabel">
     <input
       type="checkbox"
-      [checked]="props.exposed"
-      [attr.aria-label]="'Show ' + (props.label || 'this property') + ' on the Form View'"
+      [checked]="props.isExposed()"
+      [disabled]="formControl.disabled"
+      [attr.aria-label]="exposureLabel"
       (change)="onToggle($event)" />
   </label>
   <div class="expose-field">

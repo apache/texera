@@ -25,7 +25,7 @@ import { StubOperatorMetadataService } from "../../operator-metadata/stub-operat
 import { JointUIService } from "../../joint-ui/joint-ui.service";
 import { UndoRedoService } from "../../undo-redo/undo-redo.service";
 import { WorkflowUtilService } from "../util/workflow-util.service";
-import { WorkflowActionService } from "./workflow-action.service";
+import { DEFAULT_WORKFLOW, WorkflowActionService } from "./workflow-action.service";
 import { WorkflowGraph } from "./workflow-graph";
 import { JointGraphWrapper } from "./joint-graph-wrapper";
 import { commonTestProviders } from "../../../../common/testing/test-utils";
@@ -98,6 +98,44 @@ describe("SharedModelChangeHandler", () => {
   }
 
   describe("operator add and delete", () => {
+    for (const withComment of [false, true]) {
+      it(`reloads a shared document whose visual cells are already cleared (comments: ${withComment})`, () => {
+        addOperatorWithPosition(mockScanPredicate);
+        addOperatorWithPosition(mockResultPredicate);
+        texeraGraph.addLink(mockScanResultLink);
+        if (withComment) texeraGraph.addCommentBox(mockCommentBox);
+        const content = service.getWorkflowContent();
+        jointGraph.clear({ silent: true });
+        expect(texeraGraph.getAllOperators()).toHaveLength(2);
+        expect(() => service.reloadWorkflow({ ...DEFAULT_WORKFLOW, content }, false, false)).not.toThrow();
+        expect(service.getWorkflowContent().operators).toEqual(content.operators);
+        expect(service.getWorkflowContent().links).toEqual(content.links);
+        expect(service.getWorkflowContent().commentBoxes).toEqual(content.commentBoxes);
+        expect(jointGraph.getCell(mockScanPredicate.operatorID)).toBeDefined();
+        expect(jointGraph.getCell(mockScanResultLink.linkID)).toBeDefined();
+        expect(texeraGraph.getSyncTexeraGraph()).toBe(true);
+      });
+    }
+
+    it("updates a replaced operator in one transaction without losing its links", () => {
+      addOperatorWithPosition(mockScanPredicate);
+      addOperatorWithPosition(mockResultPredicate);
+      texeraGraph.addLink(mockScanResultLink);
+      const link = jointGraph.getCell(mockScanResultLink.linkID);
+      const updated = { ...mockSentimentPredicate, operatorID: mockScanPredicate.operatorID };
+      const added: string[] = [];
+      const subscription = texeraGraph.getOperatorAddStream().subscribe(op => added.push(op.operatorID));
+      texeraGraph.bundleActions(() => {
+        texeraGraph.deleteOperator(updated.operatorID);
+        texeraGraph.addOperator(updated);
+      });
+      expect((jointGraph.getCell(updated.operatorID) as joint.dia.Element).getPorts().length).toBe(
+        updated.inputPorts.length + updated.outputPorts.length
+      );
+      expect(jointGraph.getCell(mockScanResultLink.linkID)).toBe(link);
+      expect(added).toEqual([updated.operatorID]);
+      subscription.unsubscribe();
+    });
     it("should emit operatorAddSubject and add a joint element when an operator is added", () => {
       let added: OperatorPredicate | undefined;
       const sub = texeraGraph.getOperatorAddStream().subscribe(op => (added = op));
@@ -518,7 +556,11 @@ describe("SharedModelChangeHandler", () => {
       const element = jointGraph.getCell(mockScanPredicate.operatorID) as joint.dia.Element;
       const portsBefore = element.getPorts().length;
 
-      (handler as any).onPortRemoved(mockScanPredicate.operatorID, true);
+      (handler as any).handlePortEvent(
+        { path: [mockScanPredicate.operatorID, "inputPorts"] },
+        mockScanPredicate.operatorID,
+        true
+      );
 
       expect(element.getPorts().length).toEqual(portsBefore);
     });

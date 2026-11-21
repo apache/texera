@@ -313,9 +313,9 @@ class WorkflowExecutionServiceSpec
 
     events.collect { case e: WorkflowStateEvent => e } shouldBe
       Seq(
-        WorkflowStateEvent("Running"),
-        WorkflowStateEvent("Recovering"),
-        WorkflowStateEvent("Running")
+        WorkflowStateEvent("Running", Some(1L)),
+        WorkflowStateEvent("Recovering", Some(1L)),
+        WorkflowStateEvent("Running", Some(1L))
       )
   }
 
@@ -336,7 +336,7 @@ class WorkflowExecutionServiceSpec
     store.metadataStore.updateState(_.withState(COMPLETED).withIsRecovering(true))
 
     events.collect { case e: WorkflowStateEvent => e } shouldBe
-      Seq(WorkflowStateEvent("Completed"))
+      Seq(WorkflowStateEvent("Completed", Some(1L)))
   }
 
   it should "report a compilation failure and leave the workflow and the client unset" in {

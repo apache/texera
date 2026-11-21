@@ -22,6 +22,8 @@ import { createAuthHeaders } from "./auth-api";
 import type { LogicalPlan, OperatorPortSchemaMap } from "../types/workflow";
 import type { WorkflowFatalError } from "../types/execution";
 import { createLogger } from "../logger";
+import type { MacroExpansion } from "@texera/workflow-macros";
+import type { OperatorPredicate, WorkflowContent } from "../types/workflow";
 
 // WorkflowFatalError is defined in types/execution.ts (shared by compile and
 // execution errors); re-exported here for existing importers of this module.
@@ -37,6 +39,7 @@ export interface SchemaAttribute {
 export type PortSchema = ReadonlyArray<SchemaAttribute>;
 
 export interface WorkflowCompilationResponse {
+  macroExpansion?: MacroExpansion<WorkflowContent>;
   physicalPlan?: any;
   operatorOutputSchemas: Record<string, OperatorPortSchemaMap>;
   operatorErrors: Record<string, WorkflowFatalError>;
@@ -50,8 +53,7 @@ export async function compileWorkflowAsync(
   const url = `${config.compileEndpoint}/api/compile`;
 
   const body = {
-    operators: logicalPlan.operators,
-    links: logicalPlan.links,
+    ...logicalPlan,
     opsToReuseResult: [],
     opsToViewResult: [],
   };
@@ -73,5 +75,21 @@ export async function compileWorkflowAsync(
   } catch (error) {
     log.warn({ err: error }, "compile workflow API error");
     return null;
+  }
+}
+
+export async function validateMacroPropertiesAsync(
+  operator: OperatorPredicate,
+  macroDependencies: WorkflowContent["macroDependencies"],
+  token?: string
+): Promise<void> {
+  const response = await fetch(`${getBackendConfig().compileEndpoint}/api/compile/validate-properties`, {
+    method: "POST",
+    headers: token ? createAuthHeaders(token) : { "Content-Type": "application/json" },
+    body: JSON.stringify({ operator, macroDependencies }),
+  });
+  if (!response.ok) {
+    const error = (await response.json().catch(() => ({}))) as { message?: string };
+    throw new Error(error.message ?? `Macro validation failed (${response.status})`);
   }
 }

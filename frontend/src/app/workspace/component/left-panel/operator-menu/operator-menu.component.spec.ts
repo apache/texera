@@ -17,6 +17,7 @@
  * under the License.
  */
 
+import { testMacro } from "../../../../common/testing/macro-graph";
 import {
   mockOperatorGroup,
   mockScanSourceSchema,
@@ -24,6 +25,7 @@ import {
 import { UndoRedoService } from "../../../service/undo-redo/undo-redo.service";
 import { DragDropService } from "../../../service/drag-drop/drag-drop.service";
 import { ComponentFixture, fakeAsync, TestBed, tick } from "@angular/core/testing";
+import { By } from "@angular/platform-browser";
 import { BrowserAnimationsModule } from "@angular/platform-browser/animations";
 import { OperatorMenuComponent } from "./operator-menu.component";
 import { OperatorLabelComponent } from "./operator-label/operator-label.component";
@@ -38,6 +40,11 @@ import { NzCollapseModule } from "ng-zorro-antd/collapse";
 import type { NzAutocompleteOptionComponent } from "ng-zorro-antd/auto-complete";
 import type * as joint from "jointjs";
 import { commonTestProviders } from "../../../../common/testing/test-utils";
+
+import { MacroService } from "../../../service/macro/macro.service";
+import { macroType } from "../../../../common/util/workflow-macro";
+import { MacroPanelComponent } from "./macro-panel.component";
+import { NotificationService } from "../../../../common/service/notification/notification.service";
 
 describe("OperatorPanelComponent", () => {
   let component: OperatorMenuComponent;
@@ -72,6 +79,110 @@ describe("OperatorPanelComponent", () => {
     fixture = TestBed.createComponent(OperatorMenuComponent);
     fixture.detectChanges();
     component = fixture.componentInstance;
+  });
+
+  it("finds loaded saved macros through the existing operator search and selection flow", () => {
+    const actions = TestBed.inject(WorkflowActionService);
+    const definition = testMacro("saved", actions.getWorkflowContent().operators, {
+      ...actions.getWorkflowContent(),
+      name: "Saved 清理",
+    });
+    component.searchInputValue = "Saved 清理";
+    component.onInput({ target: { value: "Saved 清理" } } as unknown as Event);
+    expect(component.autocompleteOptions).toEqual([]);
+    TestBed.inject(OperatorMetadataService).registerMacros([definition]);
+    TestBed.inject(MacroService).library$.next([definition]);
+    expect(component.autocompleteOptions.map(op => op.operatorType)).toContain(macroType(definition));
+    component.onSelectionChange({ nzValue: component.autocompleteOptions[0] } as NzAutocompleteOptionComponent);
+    expect(
+      actions
+        .getTexeraGraph()
+        .getAllOperators()
+        .some(op => op.operatorType === macroType(definition))
+    ).toBe(true);
+    TestBed.inject(MacroService).library$.next([]);
+    expect(component.autocompleteOptions).toEqual([]);
+  });
+
+  it("offers boundary operators only inside a macro and only while that role is missing", () => {
+    const actions = TestBed.inject(WorkflowActionService);
+    const types = ["MacroInput", "MacroOutput"];
+    const schemas = types.map(type => TestBed.inject(OperatorMetadataService).getOperatorSchema(type));
+    expect(component.availableOperators(schemas)).toEqual([]);
+    actions.setMacroInterface({ id: "definition" });
+    expect(component.availableOperators(schemas).map(op => op.operatorType)).toEqual(types);
+    const operator = TestBed.inject(WorkflowUtilService).getNewOperatorPredicate("MacroInput");
+    actions.addOperator(operator, { x: 0, y: 0 });
+    expect(component.availableOperators(schemas).map(op => op.operatorType)).toEqual(["MacroOutput"]);
+    actions.deleteOperatorsAndLinks([operator.operatorID]);
+    expect(component.availableOperators(schemas).map(op => op.operatorType)).toEqual(types);
+  });
+
+  describe("Macros library", () => {
+    let panel: MacroPanelComponent;
+    let panelElement: HTMLElement;
+    let actions: WorkflowActionService;
+    const createButton = () => panelElement.querySelector<HTMLButtonElement>('[data-action="create"]')!;
+
+    beforeEach(() => {
+      const child = fixture.debugElement.query(By.directive(MacroPanelComponent));
+      panel = child.componentInstance;
+      panelElement = child.nativeElement;
+      actions = TestBed.inject(WorkflowActionService);
+      vi.spyOn(actions.getJointGraphWrapper(), "getCurrentHighlightedOperatorIDs").mockReturnValue(["leaf"]);
+    });
+
+    it("labels library tooltips with the workflow revision rather than its storage id", () => {
+      const definition = { ...testMacro("macro", [], { version: 64, name: "Macro" }), revision: 2 };
+      TestBed.inject(OperatorMetadataService).registerMacros([definition]);
+      TestBed.inject(MacroService).library$.next([definition]);
+      fixture.detectChanges();
+      expect(panelElement.querySelector(".operator-label[title]")?.getAttribute("title")).toBe("Macro · Revision 2");
+    });
+
+    it("explains empty selection and read-only state without hiding the library", () => {
+      vi.mocked(actions.getJointGraphWrapper().getCurrentHighlightedOperatorIDs).mockReturnValue([]);
+      fixture.detectChanges();
+      expect(panelElement.textContent).toContain("No saved macros yet");
+      expect(panelElement.textContent).toContain("Select operators on the canvas");
+      expect(createButton().disabled).toBe(true);
+      actions.disableWorkflowModification();
+      fixture.detectChanges();
+      expect(panelElement.textContent).toContain("Read-only workflow");
+      expect(panelElement.querySelector(".ant-collapse-header")?.textContent).toContain("Macros");
+    });
+
+    it("submits a named selection from the keyboard and clears the name only after success", async () => {
+      const create = vi
+        .spyOn(TestBed.inject(MacroService), "createFromSelection")
+        .mockResolvedValue(testMacro("macro", []));
+      const notifications = TestBed.inject(NotificationService);
+      const success = vi.spyOn(notifications, "success").mockImplementation(() => {});
+      const error = vi.spyOn(notifications, "error").mockImplementation(() => {});
+      panel.name = "清理 · café";
+      actions.disableWorkflowModification();
+      fixture.detectChanges();
+      expect(createButton().disabled).toBe(true);
+      actions.enableWorkflowModification();
+      fixture.detectChanges();
+      expect(panelElement.textContent).toContain("1 operator selected");
+      panelElement.querySelector("form")!.dispatchEvent(new Event("submit", { cancelable: true }));
+      await vi.waitFor(() => expect(success).toHaveBeenCalledWith("Macro created"));
+      expect(create).toHaveBeenCalledWith("清理 · café");
+      expect(panel.name).toBe("");
+      create.mockRejectedValue(new Error("save failed"));
+      panel.name = "Try again";
+      await panel.create();
+      expect(panel.name).toBe("Try again");
+      expect(panel.busy).toBe(false);
+      expect(error).toHaveBeenCalledWith("save failed");
+    });
+
+    it("keeps interface and usage controls out of the operator library", () => {
+      expect(panelElement.textContent).not.toContain("Used by");
+      expect(panelElement.querySelector('[data-action="add-input"]')).toBeNull();
+      expect(panelElement.querySelector('[aria-label="Property target"]')).toBeNull();
+    });
   });
 
   it("should create", () => {

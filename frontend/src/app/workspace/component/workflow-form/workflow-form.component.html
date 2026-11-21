@@ -219,8 +219,15 @@
     <div
       class="empty"
       *ngIf="visibleFields.length === 0">
-      {{ authoring ? "No inputs yet. Open the workflow below and click a step to expose its settings." : "This workflow
-      has no inputs to fill in." }}
+      {{ authoring ? "No inputs yet. Click an operator or macro in the workflow below and select the properties to show
+      here." : "This workflow has no inputs to fill in." }}
+      <button
+        *ngIf="canEdit && !authoring"
+        type="button"
+        nz-button
+        (click)="toggleAuthoring()">
+        Choose properties
+      </button>
     </div>
 
     <div

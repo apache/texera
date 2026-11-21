@@ -36,6 +36,7 @@ Compile / scalacOptions ++= Seq(
 //////////////////////////////////////////////////////////////////////////////
 
 libraryDependencies ++= Seq(
+  "com.networknt" % "json-schema-validator" % "1.5.9",
   "org.scalatest" %% "scalatest" % "3.2.15" % Test
 )
 

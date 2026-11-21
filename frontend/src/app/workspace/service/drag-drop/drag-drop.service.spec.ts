@@ -16,7 +16,11 @@
  * specific language governing permissions and limitations
  * under the License.
  */
+import { testMacro } from "../../../common/testing/macro-graph";
 
+import { MacroService } from "../macro/macro.service";
+import { MacroDefinition, macroInstance, macroType } from "../../../common/util/workflow-macro";
+import { NotificationService } from "../../../common/service/notification/notification.service";
 import { JointUIService } from "../joint-ui/joint-ui.service";
 import { inject, TestBed } from "@angular/core/testing";
 import { DragDropService } from "./drag-drop.service";
@@ -64,6 +68,77 @@ describe("DragDropService", () => {
         }
       }
     );
+  });
+
+  describe("asynchronous macro drops", () => {
+    let actions: WorkflowActionService,
+      resolve: (d: MacroDefinition) => void,
+      latest: ReturnType<typeof vi.spyOn>,
+      definition: MacroDefinition,
+      notification: ReturnType<typeof vi.spyOn>,
+      complete: ReturnType<typeof vi.spyOn>;
+    beforeEach(() => {
+      actions = TestBed.inject(WorkflowActionService);
+      actions.suspendWorkflow().shared.wsProvider.disconnect();
+      definition = testMacro("macro", actions.getWorkflowContent().operators, {
+        ...actions.getWorkflowContent(),
+        name: "Macro1",
+        version: 2,
+      });
+      (dragDropService as any).op = macroInstance({ ...definition, version: 1 }, "pending-drop");
+      latest = vi.spyOn(TestBed.inject(MacroService), "latestFor").mockImplementation(
+        () =>
+          new Promise(r => {
+            resolve = r;
+          })
+      );
+      notification = vi.spyOn(TestBed.inject(NotificationService), "error").mockImplementation(() => {});
+      complete = vi.spyOn(dragDropService as any, "completeDrop").mockImplementation(() => {});
+    });
+    it("accepts autosave metadata changes while preserving the requested drop and latest pin", async () => {
+      dragDropService.dragDropped({ x: 100, y: 200 });
+      actions.setWorkflowMetadata({ ...actions.getWorkflowMetadata(), lastModifiedTime: 123 });
+      resolve(definition);
+      await vi.waitFor(() => expect(complete).toHaveBeenCalledWith({ x: 100, y: 200 }));
+      expect((dragDropService as any).op.operatorType).toBe(macroType(definition));
+      expect(notification).not.toHaveBeenCalled();
+    });
+    it("ignores a drop on a read-only canvas without fetching a macro or showing a false change error", async () => {
+      actions.disableWorkflowModification();
+      dragDropService.dragDropped({ x: 100, y: 200 });
+      await Promise.resolve();
+      expect(latest).not.toHaveBeenCalled();
+      expect(complete).not.toHaveBeenCalled();
+      expect(notification).not.toHaveBeenCalled();
+    });
+    it("cancels a pending drop when editing is disabled", async () => {
+      dragDropService.dragDropped({ x: 100, y: 200 });
+      actions.disableWorkflowModification();
+      resolve(definition);
+      await Promise.resolve();
+      await Promise.resolve();
+      expect(complete).not.toHaveBeenCalled();
+      expect(notification).not.toHaveBeenCalled();
+    });
+    it("rejects real graph changes while a macro loads", async () => {
+      dragDropService.dragDropped({ x: 100, y: 200 });
+      actions.addOperator(mockScanPredicate, { x: 10, y: 20 });
+      resolve(definition);
+      await vi.waitFor(() =>
+        expect(notification).toHaveBeenCalledWith("The workflow changed while loading the macro. Drag it again.")
+      );
+      expect(complete).not.toHaveBeenCalled();
+      expect(actions.getTexeraGraph().hasOperator(mockScanPredicate.operatorID)).toBe(true);
+    });
+    it("does not insert into another editor document with identical workflow content", async () => {
+      const workflow = actions.getWorkflow();
+      dragDropService.dragDropped({ x: 100, y: 200 });
+      actions.openWorkflowDraft(workflow, false);
+      resolve(definition);
+      await Promise.resolve();
+      await Promise.resolve();
+      expect(complete).not.toHaveBeenCalled();
+    });
   });
 
   it("should be created", inject([DragDropService], (injectedService: DragDropService) => {

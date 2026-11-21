@@ -249,7 +249,8 @@ class WorkflowWebsocketResourceSpec
     override def initExecutionService(
         req: WorkflowExecuteRequest,
         userOpt: Option[User],
-        sessionUri: URI
+        sessionUri: URI,
+        macroSnapshot: Option[com.fasterxml.jackson.databind.JsonNode]
     ): Unit = {
       initCalls = initCalls :+ ((req, userOpt, sessionUri))
       publishThenFail.foreach { execution =>

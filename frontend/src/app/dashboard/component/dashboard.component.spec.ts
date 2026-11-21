@@ -261,6 +261,27 @@ describe("DashboardComponent", () => {
     expect(component.isNavbarEnabled("/user/workflow")).toBe(true);
   });
 
+  it.each([
+    { url: "/user/macros/33", hidden: true },
+    { url: "/user/macros/33?macro=outer&macro=inner#operator", hidden: true },
+    { url: "/user/workflow/42", hidden: true },
+    { url: "/user/workflow/42/form?macro=child", hidden: true },
+    { url: "/user/workflow/42#operator", hidden: true },
+    { url: "", hidden: false },
+    { url: "/user/workflow", hidden: false },
+    { url: "/user/workflow?search=33", hidden: false },
+    { url: "/user/macros", hidden: false },
+    { url: "/user/macros/new", hidden: false },
+    { url: "/user/macros/33x", hidden: false },
+    { url: "/user/workflow/42x", hidden: false },
+    { url: "/user/dataset", hidden: false },
+  ])("sets search header hidden=$hidden for '$url'", ({ url, hidden }) => {
+    Object.assign(routerMock, { url });
+    component.checkRoute();
+    fixture.detectChanges();
+    expect(fixture.debugElement.query(By.css("#nav")).nativeElement.hidden).toBe(hidden);
+  });
+
   it("exposes route constants without the legacy /dashboard prefix", () => {
     expect(USER_WORKFLOW).toBe("/user/workflow");
     expect(USER_DATASET).toBe("/user/dataset");

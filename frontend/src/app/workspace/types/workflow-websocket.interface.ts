@@ -98,6 +98,7 @@ export type PaginationRequest = Readonly<{
   columnSearch?: string;
   // which of the operator's output ports to read; left out, the first
   portIndex?: number;
+  executionId?: number;
 }>;
 
 export type PaginatedResultEvent = Readonly<{
@@ -175,6 +176,7 @@ export type DebugCommandRequest = Readonly<{
 
 export type WorkflowStateInfo = Readonly<{
   state: ExecutionState;
+  executionId?: number;
 }>;
 
 export type TexeraWebsocketRequestTypeMap = {

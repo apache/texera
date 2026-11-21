@@ -19,6 +19,7 @@
 
 import { ComponentFixture, TestBed } from "@angular/core/testing";
 import { FormlyFieldConfig } from "@ngx-formly/core";
+import { FormControl } from "@angular/forms";
 import { ExposePropertyWrapperComponent } from "./expose-property-wrapper.component";
 
 describe("ExposePropertyWrapperComponent", () => {
@@ -34,50 +35,67 @@ describe("ExposePropertyWrapperComponent", () => {
   });
 
   describe("decorate", () => {
-    it("keeps form-field outermost and appends the wrapper when no wrappers are set", () => {
-      const config: FormlyFieldConfig = { key: "k" };
-      ExposePropertyWrapperComponent.decorate(config, true, () => {});
-      expect(config.wrappers).toEqual(["form-field", "expose-property-wrapper"]);
-    });
-
-    it("appends after existing wrappers without dropping them", () => {
-      const config: FormlyFieldConfig = { key: "k", wrappers: ["custom"] };
-      ExposePropertyWrapperComponent.decorate(config, false, () => {});
-      expect(config.wrappers).toEqual(["custom", "expose-property-wrapper"]);
+    it.each([
+      { wrappers: undefined, first: "form-field" },
+      { wrappers: ["custom"], first: "custom" },
+    ])("preserves $first as the outer wrapper", ({ wrappers, first }) => {
+      const config: FormlyFieldConfig = { key: "k", wrappers };
+      ExposePropertyWrapperComponent.decorate(config, () => true, vi.fn());
+      expect(config.wrappers).toEqual([first, "expose-property-wrapper"]);
     });
 
     it("carries the exposed state and toggle callback in props, preserving existing props", () => {
       const toggle = vi.fn();
+      let exposed = true;
       const config: FormlyFieldConfig = { key: "k", props: { label: "kept" } };
-      ExposePropertyWrapperComponent.decorate(config, true, toggle);
+      ExposePropertyWrapperComponent.decorate(config, () => exposed, toggle);
       expect(config.props?.["label"]).toBe("kept");
-      expect(config.props?.["exposed"]).toBe(true);
+      expect(config.props?.["isExposed"]()).toBe(true);
+      exposed = false;
+      expect(config.props?.["isExposed"]()).toBe(false);
       expect(config.props?.["toggleExposed"]).toBe(toggle);
     });
   });
 
-  describe("onToggle", () => {
-    it("forwards the checkbox checked state to toggleExposed", () => {
-      const toggle = vi.fn();
-      component.field = { props: { exposed: false, toggleExposed: toggle } } as unknown as FormlyFieldConfig;
-      component.onToggle({ target: { checked: true } } as unknown as Event);
-      expect(toggle).toHaveBeenCalledWith(true);
-    });
-  });
-
   describe("template", () => {
-    it("renders a checkbox reflecting props.exposed and drives onToggle on change", () => {
+    const checkbox = (): HTMLInputElement => fixture.nativeElement.querySelector("input[type=checkbox]");
+
+    it.each([
+      { label: "Text", expected: "Show Text on the Form View" },
+      { label: undefined, expected: "Show this property on the Form View" },
+    ])("uses the accessible label '$expected' and follows the form control", ({ label, expected }) => {
+      const formControl = new FormControl({ value: "text", disabled: true });
+      component.field = { formControl, props: { label, isExposed: () => false } };
+      fixture.detectChanges();
+      expect(checkbox().getAttribute("aria-label")).toBe(expected);
+      expect(checkbox().disabled).toBe(true);
+      formControl.enable();
+      fixture.detectChanges();
+      expect(checkbox().disabled).toBe(false);
+    });
+
+    it("reflects binding changes without remounting and drives onToggle on change", () => {
       const toggle = vi.fn();
-      component.field = { props: { exposed: true, toggleExposed: toggle } } as unknown as FormlyFieldConfig;
+      let exposed = true;
+      component.field = { formControl: new FormControl(), props: { isExposed: () => exposed, toggleExposed: toggle } };
       fixture.detectChanges();
 
-      const box = fixture.nativeElement.querySelector("input[type=checkbox]") as HTMLInputElement;
+      const box = checkbox();
       expect(box).toBeTruthy();
       expect(box.checked).toBe(true);
 
-      box.checked = false;
-      box.dispatchEvent(new Event("change"));
-      expect(toggle).toHaveBeenCalledWith(false);
+      exposed = false;
+      fixture.detectChanges();
+      expect(box.checked).toBe(false);
+      exposed = true;
+      fixture.detectChanges();
+      expect(box.checked).toBe(true);
+
+      for (const checked of [false, true]) {
+        box.checked = checked;
+        box.dispatchEvent(new Event("change"));
+        expect(toggle).toHaveBeenLastCalledWith(checked);
+      }
     });
   });
 });

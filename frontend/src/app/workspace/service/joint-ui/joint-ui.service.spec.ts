@@ -16,6 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
+import { testOperator } from "../../../common/testing/workflow-graph";
 
 import { of } from "rxjs";
 import * as joint from "jointjs";
@@ -502,6 +503,20 @@ describe("JointUIService", () => {
   });
 
   describe("getJointOperatorElement", () => {
+    it.each([
+      ["MacroInput", "MacroInput.svg"],
+      ["MacroOutput", "MacroOutput.svg"],
+      ["WorkflowMacro:example:1", "SubWorkflow.svg"],
+      ["TextInput", "TextInput.png"],
+    ])("uses the appropriate icon for %s", (operatorType, icon) => {
+      const element = JointUIService.createJointOperatorElement(
+        testOperator("icon", { operatorType }),
+        { x: 0, y: 0 },
+        "Icon"
+      );
+      expect(element.attr(".texera-operator-icon/xlink:href")).toBe(`assets/operator_images/${icon}`);
+    });
+
     function buildMetadataWithSchemas(schemas: object[]) {
       return {
         getOperatorMetadata: () =>
@@ -734,6 +749,18 @@ describe("JointUIService", () => {
   });
 
   describe("changeOperatorStatistics", () => {
+    it("restores port names and removes worker counts when a view loses its execution context", () => {
+      const { paper, attrSpy, portPropSpy } = makeStatsPaper(() => []);
+      const service = new JointUIService(emptyMetadataStub as never);
+      service.resetOperatorStatistics(paper, {
+        operatorID: "op-1",
+        inputPorts: [{ portID: "in", displayName: "Rows" }],
+        outputPorts: [{ portID: "out" }],
+      } as OperatorPredicate);
+      expect(attrSpy).toHaveBeenCalledWith(".operator-worker-count/text", "");
+      expect(portPropSpy).toHaveBeenCalledWith("in", "attrs/.port-label/text", "Rows");
+      expect(portPropSpy).toHaveBeenCalledWith("out", "attrs/.port-label/text", "");
+    });
     function makeStatsPaper(getPortsImpl: () => Array<{ id?: string; group?: string; attrs?: unknown }>) {
       const attrSpy = vi.fn();
       const portPropSpy = vi.fn();
@@ -800,6 +827,25 @@ describe("JointUIService", () => {
       // attr() is called once with the workers selector and the formatted string.
       const valuesWritten = attrSpy.mock.calls.map(c => c[1]);
       expect(valuesWritten).toContain("#workers: 8");
+    });
+
+    it("uses boundary ordinals when named ports have been removed or reordered, including zero counts", () => {
+      const { paper, portPropSpy } = makeStatsPaper(() => [
+        { id: "input-1", group: "in" },
+        { id: "input-0", group: "in" },
+        { id: "output-1", group: "out" },
+        { id: "output-0", group: "out" },
+      ]);
+      new JointUIService(emptyMetadataStub as never).changeOperatorStatistics(paper, "macro", {
+        aggregatedInputRowCount: 21,
+        aggregatedOutputRowCount: 5,
+        inputPortMetrics: { "0": 0, "1": 21 },
+        outputPortMetrics: { "0": 5, "1": 0 },
+      });
+      expect(portPropSpy).toHaveBeenCalledWith("input-1", "attrs/.port-label/text", "0");
+      expect(portPropSpy).toHaveBeenCalledWith("input-0", "attrs/.port-label/text", "21");
+      expect(portPropSpy).toHaveBeenCalledWith("output-1", "attrs/.port-label/text", "5");
+      expect(portPropSpy).toHaveBeenCalledWith("output-0", "attrs/.port-label/text", "0");
     });
 
     it("defaults the worker count to 1 when numWorkers is unspecified", () => {

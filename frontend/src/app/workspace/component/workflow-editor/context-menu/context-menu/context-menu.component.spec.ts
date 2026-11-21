@@ -17,6 +17,8 @@
  * under the License.
  */
 
+import { ComputingUnitStatusService } from "../../../../../common/service/computing-unit/computing-unit-status/computing-unit-status.service";
+import { MockComputingUnitStatusService } from "../../../../../common/service/computing-unit/computing-unit-status/mock-computing-unit-status.service";
 import { ComponentFixture, TestBed } from "@angular/core/testing";
 import { By } from "@angular/platform-browser";
 import { OperatorMetadataService } from "src/app/workspace/service/operator-metadata/operator-metadata.service";
@@ -144,6 +146,7 @@ describe("ContextMenuComponent", () => {
         { provide: WorkflowCompilingService, useValue: workflowCompilingServiceSpy },
         NzModalService, // Provide NzModalService
         ...commonTestProviders,
+        { provide: ComputingUnitStatusService, useClass: MockComputingUnitStatusService },
       ],
       imports: [
         ContextMenuComponent,
@@ -858,6 +861,7 @@ describe("ContextMenuComponent onDelete with real WorkflowActionService", () => 
         { provide: ValidationWorkflowService, useValue: { validateOperator: vi.fn() } },
         NzModalService,
         ...commonTestProviders,
+        { provide: ComputingUnitStatusService, useClass: MockComputingUnitStatusService },
       ],
       imports: [
         ContextMenuComponent,

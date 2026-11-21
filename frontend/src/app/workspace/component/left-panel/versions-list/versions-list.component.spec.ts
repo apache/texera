@@ -17,6 +17,9 @@
  * under the License.
  */
 
+import { OperatorMetadataService } from "../../../service/operator-metadata/operator-metadata.service";
+import { StubOperatorMetadataService } from "../../../service/operator-metadata/stub-operator-metadata.service";
+import { setMacroGraph } from "../../../../common/testing/macro-graph";
 import { ComponentFixture, TestBed } from "@angular/core/testing";
 import { By } from "@angular/platform-browser";
 import { WorkflowActionService } from "../../../service/workflow-graph/model/workflow-action.service";
@@ -42,7 +45,11 @@ describe("VersionsListComponent", () => {
 
   beforeEach(async () => {
     await TestBed.configureTestingModule({
-      providers: [WorkflowActionService, ...commonTestProviders],
+      providers: [
+        WorkflowActionService,
+        ...commonTestProviders,
+        { provide: OperatorMetadataService, useClass: StubOperatorMetadataService },
+      ],
       imports: [
         VersionsListComponent,
         BrowserAnimationsModule,
@@ -188,6 +195,14 @@ describe("VersionsListComponent", () => {
 
   describe("getVersion", () => {
     const mockWorkflow = { content: {} } as unknown as Workflow;
+
+    it("previews the saved macro revision, matching the property panel's captured body", () => {
+      setMacroGraph(workflowActionService, { id: "macro", inputs: [], outputs: [] });
+      const retrieve = vi.spyOn(workflowVersionService, "retrieveWorkflowByVersion").mockReturnValue(of(mockWorkflow));
+      vi.spyOn(workflowVersionService, "displayParticularVersion").mockImplementation(() => {});
+      component.getVersion(7, 2, 0);
+      expect(retrieve).toHaveBeenCalledWith(0, 8);
+    });
 
     it("should select the row, fetch the version and display it", () => {
       const retrieveSpy = vi

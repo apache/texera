@@ -16,6 +16,9 @@
  * specific language governing permissions and limitations
  * under the License.
  */
+import { testOperator } from "../../../../common/testing/workflow-graph";
+import { macroWorkspaceTestProviders } from "../../../../workspace/service/macro/macro-workspace.spec-harness";
+import { MacroExpansionService } from "../../../../workspace/service/macro/macro-expansion.service";
 
 import { ComponentFixture, TestBed } from "@angular/core/testing";
 import { By } from "@angular/platform-browser";
@@ -44,9 +47,7 @@ import { NzPopoverModule } from "ng-zorro-antd/popover";
 import { NzDatePickerModule } from "ng-zorro-antd/date-picker";
 import { en_US, NZ_I18N } from "ng-zorro-antd/i18n";
 import { NoopAnimationsModule } from "@angular/platform-browser/animations";
-import { OperatorMetadataService } from "../../../../workspace/service/operator-metadata/operator-metadata.service";
-import { StubOperatorMetadataService } from "../../../../workspace/service/operator-metadata/stub-operator-metadata.service";
-import { NzUploadModule } from "ng-zorro-antd/upload";
+import { NzUploadModule, NzUploadFile } from "ng-zorro-antd/upload";
 import { ScrollingModule } from "@angular/cdk/scrolling";
 import { NzAvatarModule } from "ng-zorro-antd/avatar";
 import { NzTooltipModule } from "ng-zorro-antd/tooltip";
@@ -65,7 +66,6 @@ import JSZip from "jszip";
 import { ModalOptions, NzModalRef, NzModalService } from "ng-zorro-antd/modal";
 import { NzButtonModule } from "ng-zorro-antd/button";
 import { DownloadService } from "../../../service/user/download/download.service";
-import { commonTestProviders } from "../../../../common/testing/test-utils";
 import { Router } from "@angular/router";
 import { USER_WORKSPACE } from "../../../../app-routing.constant";
 import { GuiConfigService } from "../../../../common/service/gui-config.service";
@@ -80,7 +80,6 @@ import {
   NotebookImportModalComponent,
   NotebookImportModalData,
 } from "../../../../workspace/component/notebook-import-modal/notebook-import-modal.component";
-import { NzUploadFile } from "ng-zorro-antd/upload";
 import type { Mocked } from "vitest";
 describe("SavedWorkflowSectionComponent", () => {
   let component: UserWorkflowComponent;
@@ -96,7 +95,6 @@ describe("SavedWorkflowSectionComponent", () => {
         NzModalService,
         { provide: WorkflowPersistService, useValue: new StubWorkflowPersistService(testWorkflowEntries) },
         ShareAccessService,
-        { provide: OperatorMetadataService, useClass: StubOperatorMetadataService },
         { provide: NZ_I18N, useValue: en_US },
         { provide: UserService, useClass: StubUserService },
         {
@@ -104,7 +102,7 @@ describe("SavedWorkflowSectionComponent", () => {
           useValue: new StubSearchService(testWorkflowEntries, mockUserInfo),
         },
         { provide: DownloadService, useValue: downloadServiceSpy },
-        ...commonTestProviders,
+        ...macroWorkspaceTestProviders,
       ],
       imports: [
         UserWorkflowComponent,
@@ -1091,6 +1089,36 @@ describe("SavedWorkflowSectionComponent", () => {
     });
 
     describe("workflow uploads", () => {
+      it.each([
+        {
+          error: "Duplicate graph element ID",
+          graph: { operators: [{ operatorID: "same" }], links: [{ linkID: "same" }] },
+        },
+        {
+          error: "Missing macro version",
+          graph: { operators: [testOperator("missing", { operatorType: "WorkflowMacro:missing:1" })], links: [] },
+        },
+      ])("rejects $error before saving and keeps the list", async ({ error, graph }) => {
+        const expansion = vi
+          .spyOn(TestBed.inject(MacroExpansionService), "expand")
+          .mockRejectedValue(new Error("Missing macro version"));
+        const create = vi.fn();
+        TestBed.inject(WorkflowPersistService).createWorkflow = create;
+        const notify = vi
+          .spyOn(TestBed.inject(NotificationService), "error")
+          .mockImplementation(() => undefined as any);
+        const entries = component.searchResultsComponent.entries;
+        const file = new File([JSON.stringify({ ...testWorkflowContent([]), ...graph })], "broken.json");
+
+        await expect(firstValueFrom(component.onClickUploadExistingWorkflowFromLocal(file as any))).rejects.toThrow(
+          error
+        );
+        expect(expansion).toHaveBeenCalledTimes(error === "Missing macro version" ? 1 : 0);
+        expect(create).not.toHaveBeenCalled();
+        expect(component.searchResultsComponent.entries).toBe(entries);
+        expect(notify).toHaveBeenCalledWith(expect.stringContaining(error));
+      });
+
       it("imports a valid .json workflow, appending an entry and toasting success", async () => {
         const persist = TestBed.inject(WorkflowPersistService) as any;
         persist.createWorkflow = vi.fn().mockReturnValue(of(makeDashboardWorkflow(42, "wf")));

@@ -58,6 +58,6 @@ export class OperatorLabelComponent implements AfterContentInit {
   }
 
   dragDropped(dropPoint: Point) {
-    this.dragDropService.dragDropped(dropPoint);
+    if (this.draggable) this.dragDropService.dragDropped(dropPoint);
   }
 }

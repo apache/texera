@@ -26,6 +26,7 @@ import { WorkflowUtilService } from "../workflow-graph/util/workflow-util.servic
 import { NotificationService } from "src/app/common/service/notification/notification.service";
 import { ExecuteWorkflowService } from "../execute-workflow/execute-workflow.service";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
+import { isMacroTerminal, isMacro, MacroDefinition, mergeMacroDefinitions } from "../../../common/util/workflow-macro";
 
 type OperatorPositions = {
   [key: string]: Point;
@@ -42,6 +43,7 @@ type SerializedString = {
   operatorPositions: OperatorPositions;
   links: OperatorLink[];
   commentBoxes: CommentBox[];
+  macroDependencies?: MacroDefinition[];
 };
 
 /**
@@ -51,6 +53,8 @@ type SerializedString = {
  *  - right-click menu
  *  - keyboard shortcuts
  */
+import { MacroExpansionService } from "../macro/macro-expansion.service";
+
 @UntilDestroy()
 @Injectable({
   providedIn: "root",
@@ -76,6 +80,7 @@ export class OperatorMenuService {
   public readonly COPY_OFFSET = 20;
 
   constructor(
+    private macroExpansion: MacroExpansionService,
     private workflowActionService: WorkflowActionService,
     private workflowUtilService: WorkflowUtilService,
     private notificationService: NotificationService,
@@ -154,7 +159,10 @@ export class OperatorMenuService {
 
     const allDisabled = highlighted.every(op => texeraGraph.isOperatorDisabled(op));
     this.isDisableOperator = !allDisabled;
-    this.isDisableOperatorClickable = highlighted.length !== 0 && modificationEnabled;
+    this.isDisableOperatorClickable =
+      highlighted.length !== 0 &&
+      modificationEnabled &&
+      highlighted.every(id => !isMacroTerminal(texeraGraph.getOperator(id)));
 
     const allViewing = highlightedExcludingSinks.every(op => texeraGraph.isViewingResult(op));
     this.isToViewResult = !allViewing;
@@ -167,7 +175,9 @@ export class OperatorMenuService {
 
   private highlightedOperatorIdsExcludingSinks(): string[] {
     const texeraGraph = this.workflowActionService.getTexeraGraph();
-    return this._highlightedOperators$.value.filter(op => !isSink(texeraGraph.getOperator(op)));
+    return this._highlightedOperators$.value.filter(
+      op => !isSink(texeraGraph.getOperator(op)) && !isMacroTerminal(texeraGraph.getOperator(op))
+    );
   }
 
   /**
@@ -210,6 +220,8 @@ export class OperatorMenuService {
     });
 
     serializedString.operators = operatorsCopy;
+    if (operatorsCopy.some(isMacro))
+      serializedString.macroDependencies = this.workflowActionService.getMacroDependencies();
     serializedString.operatorPositions = operatorPositionsCopy;
 
     // get all the highlighted links, and sort them by their layers
@@ -263,7 +275,7 @@ export class OperatorMenuService {
     // by reading from the clipboard, permission needs to be granted
     // a permission prompt automatically shows up by calling readText()
     navigator.clipboard.readText().then(
-      text => {
+      async text => {
         try {
           // convert the JSON string in the system clipboard to a JS Map
           var elementsInClipboard: Map<string, any> = new Map(Object.entries(JSON.parse(text)));
@@ -296,7 +308,32 @@ export class OperatorMenuService {
         ) as OperatorPositions;
         // get all the operators from the clipboard, which are already sorted by their layers
         let copiedOps: OperatorPredicate[] = elementsInClipboard.get("operators") as OperatorPredicate[];
+        let dependencies: MacroDefinition[] | undefined;
+        const session = this.workflowActionService.editorDocument;
+        if (copiedOps.some(isMacro)) {
+          try {
+            dependencies = mergeMacroDefinitions(
+              this.workflowActionService.getMacroDependencies(),
+              elementsInClipboard.get("macroDependencies") ?? []
+            );
+            await this.macroExpansion.expand({
+              ...this.workflowActionService.getWorkflowContent(),
+              operators: copiedOps,
+              links: linksInClipboard,
+              macroInterface: undefined,
+              macroDependencies: dependencies,
+            });
+          } catch (error) {
+            this.notificationService.error(error instanceof Error ? error.message : String(error));
+            return;
+          }
+        }
 
+        if (
+          this.workflowActionService.editorDocument !== session ||
+          !this.workflowActionService.checkWorkflowModificationEnabled()
+        )
+          return;
         let linksCopy: LinkWithID = {};
         copiedOps.forEach(copiedOperator => {
           // copyOperator assigns a new randomly generated operator ID to the new operator
@@ -352,7 +389,12 @@ export class OperatorMenuService {
 
         // actually add all operators and links to the workflow
         try {
-          this.workflowActionService.addOperatorsAndLinks(operatorsAndPositions, links);
+          const add = () => {
+            if (dependencies) this.workflowActionService.setMacroDependencies(dependencies);
+            this.workflowActionService.addOperatorsAndLinks(operatorsAndPositions, links);
+          };
+          if (dependencies) this.workflowActionService.bundleMacroActions(add);
+          else add();
         } catch (e) {
           this.notificationService.info(
             "Some of the links that you selected don't have operators attached to both ends of them. These links won't be pasted, since links can't exist without operators."

@@ -17,14 +17,13 @@
  * under the License.
  */
 
+import { assertWorkflowIDs, isMacro, toLogicalGraph } from "@texera/workflow-macros";
 import { Subject, Observable, merge, Subscription } from "rxjs";
 import type {
   OperatorPredicate,
   OperatorLink,
   WorkflowContent,
   LogicalPlan,
-  LogicalOperator,
-  LogicalLink,
   Point,
   CommentBox,
   WorkflowSettings,
@@ -48,9 +47,7 @@ export class WorkflowState {
   private operatorPositions: Map<string, Point> = new Map();
   private commentBoxes: CommentBox[] = [];
   private settings: WorkflowSettings = { ...DEFAULT_WORKFLOW_SETTINGS };
-  // Opaque Form View definition carried through unchanged (the agent never touches it);
-  // see WorkflowContent.formBinding.
-  private formBinding: unknown = undefined;
+  private contentMeta: Pick<WorkflowContent, "formBinding" | "macroInterface" | "macroDependencies"> = {};
   private operatorsToViewResult: Set<string> = new Set();
 
   private operatorIdCounter: number = 0;
@@ -84,14 +81,27 @@ export class WorkflowState {
   }
 
   generateOperatorId(operatorType: string): string {
-    return `${operatorType}-operator-${++this.operatorIdCounter}`;
+    let id: string;
+    do {
+      id = `${operatorType}-operator-${++this.operatorIdCounter}`;
+    } while (this.hasGraphID(id));
+    return id;
   }
 
   generateLinkId(): string {
-    return `link-${++this.linkIdCounter}`;
+    let id: string;
+    do {
+      id = `link-${++this.linkIdCounter}`;
+    } while (this.hasGraphID(id));
+    return id;
+  }
+
+  private hasGraphID(id: string): boolean {
+    return this.operators.has(id) || this.links.has(id) || this.commentBoxes.some(box => box.commentBoxID === id);
   }
 
   addOperator(operator: OperatorPredicate, position?: Point): void {
+    assertWorkflowIDs({ ...this.getWorkflowContent(), operators: [...this.getAllOperators(), operator] });
     this.operators.set(operator.operatorID, operator);
     const defaultPosition: Point = position || {
       x: 100 + (this.operators.size - 1) * 200,
@@ -173,6 +183,7 @@ export class WorkflowState {
   }
 
   addLink(link: OperatorLink): void {
+    assertWorkflowIDs({ ...this.getWorkflowContent(), links: [...this.getAllLinks(), link] });
     this.links.set(link.linkID, link);
     this.linkAddSubject.next(link);
   }
@@ -242,71 +253,56 @@ export class WorkflowState {
       links: this.getAllLinks(),
       commentBoxes: [...this.commentBoxes],
       settings: { ...this.settings },
-      // Only re-emit the key when the loaded workflow carried one, so plain workflows
-      // stay byte-identical (JSON.stringify would otherwise add "formBinding":null).
-      ...(this.formBinding !== undefined ? { formBinding: this.formBinding } : {}),
+      ...this.contentMeta,
     };
   }
 
   setWorkflowContent(content: WorkflowContent): void {
+    assertWorkflowIDs(content);
+    const { operators, links, operatorPositions, commentBoxes, settings, ...contentMeta } = content;
     this.operators.clear();
     this.links.clear();
     this.operatorPositions.clear();
 
-    for (const op of content.operators) {
+    for (const op of operators) {
       this.operators.set(op.operatorID, op);
     }
-    for (const link of content.links) {
+    for (const link of links) {
       this.links.set(link.linkID, link);
     }
 
-    if (content.operatorPositions) {
-      for (const [id, pos] of Object.entries(content.operatorPositions)) {
+    if (operatorPositions) {
+      for (const [id, pos] of Object.entries(operatorPositions)) {
         this.operatorPositions.set(id, pos);
       }
     }
 
-    this.commentBoxes = content.commentBoxes ? [...content.commentBoxes] : [];
+    this.commentBoxes = commentBoxes ? [...commentBoxes] : [];
 
-    this.settings = content.settings ? { ...content.settings } : { ...DEFAULT_WORKFLOW_SETTINGS };
+    this.settings = settings ? { ...settings } : { ...DEFAULT_WORKFLOW_SETTINGS };
 
-    this.formBinding = content.formBinding;
+    this.contentMeta = contentMeta;
   }
 
-  toLogicalPlan(): LogicalPlan {
-    const enabledOperators = this.getAllEnabledOperators();
-
-    const operators: LogicalOperator[] = enabledOperators.map(op => ({
-      operatorID: op.operatorID,
-      operatorType: op.operatorType,
-      ...op.operatorProperties,
-      inputPorts: op.inputPorts,
-      outputPorts: op.outputPorts,
-    }));
-
-    const operatorIds = new Set(operators.map(op => op.operatorID));
-
-    const links: LogicalLink[] = this.getAllLinks()
-      .filter(link => operatorIds.has(link.source.operatorID) && operatorIds.has(link.target.operatorID))
-      .map(link => {
-        const sourceOp = this.getOperator(link.source.operatorID)!;
-        const targetOp = this.getOperator(link.target.operatorID)!;
-
-        const fromPortIdx = sourceOp.outputPorts.findIndex(p => p.portID === link.source.portID);
-        const toPortIdx = targetOp.inputPorts.findIndex(p => p.portID === link.target.portID);
-
-        return {
-          fromOpId: link.source.operatorID,
-          fromPortId: { id: fromPortIdx >= 0 ? fromPortIdx : 0, internal: false },
-          toOpId: link.target.operatorID,
-          toPortId: { id: toPortIdx >= 0 ? toPortIdx : 0, internal: false },
-        };
-      });
-
+  toLogicalPlan(targetOperatorId?: string): LogicalPlan {
+    let graph = targetOperatorId
+      ? this.getSubDAG(targetOperatorId)
+      : { operators: this.getAllEnabledOperators(), links: this.getAllLinks() };
+    const results = targetOperatorId !== undefined ? [targetOperatorId] : [...this.operatorsToViewResult];
+    if (this.contentMeta.macroInterface || this.getAllOperators().some(isMacro))
+      return {
+        operators: [],
+        links: [],
+        macroContent: this.getWorkflowContent(),
+        executeOperatorIds: graph.operators.map(op => op.operatorID),
+        opsToViewResult: results,
+        opsToReuseResult: [],
+      };
+    const ids = new Set(graph.operators.map(op => op.operatorID));
+    const links = graph.links.filter(link => ids.has(link.source.operatorID) && ids.has(link.target.operatorID));
     return {
-      operators,
-      links,
-      opsToViewResult: Array.from(this.operatorsToViewResult).filter(id => operatorIds.has(id)),
+      ...toLogicalGraph({ ...graph, links }, 0),
+      opsToViewResult: results.filter(id => ids.has(id)),
       opsToReuseResult: [],
     };
   }
@@ -321,7 +317,7 @@ export class WorkflowState {
     this.operatorPositions.clear();
     this.commentBoxes = [];
     this.settings = { ...DEFAULT_WORKFLOW_SETTINGS };
-    this.formBinding = undefined;
+    this.contentMeta = {};
     this.operatorsToViewResult.clear();
   }
 

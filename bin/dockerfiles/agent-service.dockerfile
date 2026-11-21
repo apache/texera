@@ -28,6 +28,7 @@ FROM docker.io/oven/bun:1.3.3-alpine@sha256:d2bc1fbc3afcd3d70afc2bb2544235bf559c
 
 WORKDIR /app
 
+COPY common/workflow-core/src/main/typescript/workflow-macros /common/workflow-core/src/main/typescript/workflow-macros
 COPY agent-service/package.json agent-service/bun.lock ./
 
 # The download cache holds registry manifests fetched at build time; node_modules

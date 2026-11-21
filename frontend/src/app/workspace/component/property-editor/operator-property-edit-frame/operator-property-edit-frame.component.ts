@@ -35,10 +35,13 @@ import {
   AttributeTypeEnumRule,
   AttributeTypeRuleSet,
   CustomJSONSchema7,
-  hideTypes,
 } from "../../../types/custom-json-schema.interface";
 import { isDefined } from "../../../../common/util/predicate";
-import { customFormlyFieldType, NON_FORM_FIELD_TYPES } from "../../../util/custom-formly-type";
+import {
+  conditionalRequiredRules,
+  customFormlyFieldType,
+  NON_FORM_FIELD_TYPES,
+} from "../../../util/custom-formly-type";
 import { applyHuggingFaceFieldBindings } from "../../../util/hugging-face-field-bindings";
 import {
   applyLoopVariableField,
@@ -51,10 +54,8 @@ import { DynamicSchemaService } from "../../../service/dynamic-schema/dynamic-sc
 import { WorkflowCompilingService } from "../../../service/compile-workflow/workflow-compiling.service";
 import {
   createOutputFormChangeEventStream,
-  createShouldHideFieldFunc,
-  setChildTypeDependency,
-  setHideExpression,
-  setValueRules,
+  setFieldBehavior,
+  setFieldDependencies,
 } from "src/app/common/formly/formly-utils";
 import {
   TYPE_CASTING_OPERATOR_TYPE,
@@ -70,7 +71,7 @@ import Quill from "quill";
 import QuillCursors from "quill-cursors";
 import * as Y from "yjs";
 import { OperatorSchema } from "src/app/workspace/types/operator-schema.interface";
-import { AttributeType, PortSchema } from "../../../types/workflow-compiling.interface";
+import { AttributeType } from "../../../types/workflow-compiling.interface";
 import { GuiConfigService } from "../../../../common/service/gui-config.service";
 import { NgFor, NgIf, NgSwitch, NgSwitchCase } from "@angular/common";
 import { NzSpaceCompactItemDirective } from "ng-zorro-antd/space";
@@ -89,57 +90,7 @@ import { UiUdfParametersSyncService } from "../../../service/code-editor/ui-udf-
 
 Quill.register("modules/cursors", QuillCursors);
 
-/** A field the schema requires only while a sibling holds a particular value. */
-export interface ConditionalRequiredRule {
-  sibling: string;
-  value: unknown;
-  requiredOnMatch: boolean;
-}
-
-/**
- * The conditional `required` rules a schema declares, keyed by the field each
- * governs. A schema states one as
- *
- *   allOf: [{ if: { properties: { sibling: { const: v } } }, then: { required: [field] } }]
- *
- * with `else` for the inverted form. Validation already honours these, but a
- * field's own config never learns of them, so the required marker would not
- * appear. Reading them out lets the marker follow the condition the validator
- * applies, and lets an operator declare it in one place rather than here.
- *
- * The walk covers nested schemas because a rule may govern a field inside an
- * array item, where it sits under `definitions`. Keying by field name is enough:
- * the marker resolves the sibling against the field's own parent model, which is
- * the row for an array item and the operator for a top-level field.
- */
-export function conditionalRequiredRules(schema: unknown): Map<string, ConditionalRequiredRule> {
-  const rules = new Map<string, ConditionalRequiredRule>();
-  const visit = (node: any): void => {
-    if (node === null || typeof node !== "object") {
-      return;
-    }
-    for (const branch of Array.isArray(node.allOf) ? node.allOf : []) {
-      // `if.properties` distinguishes a real condition from the `attributeTypeRules`
-      // blocks, which name the sibling directly and require nothing.
-      const condition = branch?.if?.properties;
-      const sibling = condition === undefined ? undefined : Object.keys(condition)[0];
-      if (sibling === undefined || !("const" in (condition[sibling] ?? {}))) {
-        continue;
-      }
-      for (const [outcome, requiredOnMatch] of [
-        ["then", true],
-        ["else", false],
-      ] as const) {
-        for (const field of branch?.[outcome]?.required ?? []) {
-          rules.set(field, { sibling, value: condition[sibling].const, requiredOnMatch });
-        }
-      }
-    }
-    Object.values(node).forEach(visit);
-  };
-  visit(schema);
-  return rules;
-}
+export { conditionalRequiredRules } from "../../../util/custom-formly-type";
 
 /**
  * Property Editor uses JSON Schema to automatically generate the form from the JSON Schema of an operator.
@@ -157,6 +108,10 @@ export function conditionalRequiredRules(schema: unknown): Map<string, Condition
  * We use library `@ngx-formly` to generate form from json schema
  * https://github.com/ngx-formly/ngx-formly
  */
+import { MacroVersionComponent } from "../../left-panel/operator-menu/macro-version.component";
+
+import { isMacro } from "../../../../common/util/workflow-macro";
+
 @UntilDestroy()
 @Component({
   selector: "texera-formly-form-frame",
@@ -179,6 +134,7 @@ export function conditionalRequiredRules(schema: unknown): Map<string, Condition
     FormlyModule,
     TypeCastingDisplayComponent,
     NzWaveDirective,
+    MacroVersionComponent,
   ],
 })
 export class OperatorPropertyEditFrameComponent implements OnInit, OnChanges, OnDestroy {
@@ -213,8 +169,10 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnChanges, On
   sourceFormChangeEventStream = new Subject<Record<string, unknown>>();
 
   // the output form change event stream after debounce time and filtering out values
-  operatorPropertyChangeStream = createOutputFormChangeEventStream(this.sourceFormChangeEventStream, data =>
-    this.checkOperatorProperty(data)
+  operatorPropertyChangeStream = createOutputFormChangeEventStream(
+    this.sourceFormChangeEventStream,
+    data => this.checkOperatorProperty(data),
+    this.workflowActionService.editorChanging$
   );
 
   listeningToChange: boolean = true;
@@ -580,6 +538,9 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnChanges, On
 
     this.registerOperatorDisplayNameChangeHandler();
 
+    this.workflowActionService.formBindingChanged$
+      .pipe(untilDestroyed(this))
+      .subscribe(() => this.formlyFields?.forEach(field => this.formlyOptions.detectChanges?.(field)));
     this.registerLoopScopeChangeHandler();
 
     this.workflowStatusSerivce
@@ -672,7 +633,7 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnChanges, On
     if (this.actsAsEditor) {
       this.workflowActionService.setOperatorVersion(operator.operatorID, this.currentOperatorSchema.operatorVersion);
     }
-    this.operatorVersion = operator.operatorVersion.slice(0, 9);
+    this.operatorVersion = isMacro(operator) ? "" : operator.operatorVersion.slice(0, 9);
     this.setFormlyFormBinding(this.currentOperatorSchema.jsonSchema);
     this.formTitle = operator.customDisplayName ?? this.currentOperatorSchema.additionalMetadata.userFriendlyName;
     this.operatorDescription = this.currentOperatorSchema.additionalMetadata.operatorDescription;
@@ -971,29 +932,7 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnChanges, On
         };
       }
 
-      // conditionally hide the field according to the schema
-      if (
-        isDefined(mapSource.hideExpectedValue) &&
-        isDefined(mapSource.hideTarget) &&
-        isDefined(mapSource.hideType) &&
-        hideTypes.includes(mapSource.hideType)
-      ) {
-        mappedField.expressions = {
-          ...mappedField.expressions,
-          hide: createShouldHideFieldFunc(
-            mapSource.hideTarget,
-            mapSource.hideType,
-            mapSource.hideExpectedValue,
-            mapSource.hideOnNull
-          ),
-        };
-      }
-
-      // a field whose accepted values follow a sibling's: give it the control those values
-      // call for, and hold it to them before the workflow can be run
-      if (isDefined(mapSource.valueRules)) {
-        setValueRules(mappedField, mapSource.valueRules);
-      }
+      setFieldBehavior(mappedField, mapSource, conditionalRules.get(mappedField.key as string));
 
       // The custom widget this property renders as (file picker, model picker, uploaders, dataset
       // selector, code box, drag-reorder list). Extracted to customFormlyFieldType so a later view
@@ -1034,19 +973,6 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnChanges, On
 
       if (this.currentOperatorSchema?.operatorType === "HuggingFace") {
         applyHuggingFaceFieldBindings(mappedField);
-      }
-
-      // Show the required marker for a field the schema requires conditionally,
-      // e.g. Sklearn's Text Attribute once Count Vectorizer is on, or Aggregate's
-      // attribute for every function but `count`.
-      const conditionalRequired = conditionalRules.get(mappedField.key as string);
-      if (conditionalRequired !== undefined) {
-        mappedField.expressions = {
-          ...mappedField.expressions,
-          "props.required": (field: FormlyFieldConfig) =>
-            (field.parent?.model?.[conditionalRequired.sibling] === conditionalRequired.value) ===
-            conditionalRequired.requiredOnMatch,
-        };
       }
 
       if (this.currentOperatorSchema?.operatorType === "FileScanOp" && mappedField.key === "outputFileName") {
@@ -1094,7 +1020,7 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnChanges, On
       //   );
       // }
 
-      if (this.currentOperatorSchema?.operatorType === "Projection" && mappedField.key === "attributes") {
+      if (mappedField.type === "repeat-section-dnd") {
         // type ("repeat-section-dnd") is set by customFormlyFieldType above; the reorder callback
         // is the canvas's own and stays here.
         mappedField.props = {
@@ -1329,51 +1255,37 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnChanges, On
       },
     };
 
-    const schemaProperties = schema.properties;
     const fields = field.fieldGroup;
 
-    // A tick box beside each TOP-LEVEL property only, added over the root field group rather
-    // than inside the per-field map (which runs at every depth and so could not tell a nested
-    // field from a same-named top-level one -- an array-of-objects property would otherwise
-    // sprout boxes on the array, each item and each nested field).
-    if (this.exposeChoosing && this.currentOperatorId && fields) {
+    // Expose top-level properties only; nested fields retain their operator's normal controls.
+    if (this.actsAsEditor && this.exposeChoosing && this.currentOperatorId && fields) {
       const operatorId = this.currentOperatorId;
       for (const topLevelField of fields) {
-        // A property whose control cannot be a form field (the code editor) is not offered for
-        // exposure -- its type was already resolved by customFormlyFieldType when the field was
-        // built, so the shared NON_FORM_FIELD_TYPES set decides it here.
         const fieldType = topLevelField.type;
         const isNonFormField = typeof fieldType === "string" && NON_FORM_FIELD_TYPES.has(fieldType);
         if (typeof topLevelField.key === "string" && !isNonFormField) {
           const propertyKey = topLevelField.key;
           ExposePropertyWrapperComponent.decorate(
             topLevelField,
-            this.formBindingService.isExposed(operatorId, propertyKey),
-            (checked: boolean) => this.formBindingService.setExposed(operatorId, propertyKey, checked)
+            () => this.formBindingService.isExposed(operatorId, propertyKey),
+            (checked: boolean) => {
+              if (this.actsAsEditor && this.workflowActionService.checkWorkflowModificationEnabled())
+                this.workflowActionService.bundleMacroActions(() =>
+                  this.formBindingService.setExposed(operatorId, propertyKey, checked)
+                );
+            }
           );
         }
       }
     }
 
-    // adding custom options, relational N-to-M mapping.
-    if (schemaProperties && fields) {
-      Object.entries(schemaProperties).forEach(([propertyName, propertyValue]) => {
-        if (typeof propertyValue === "boolean") {
-          return;
-        }
-        if (propertyValue.toggleHidden) {
-          setHideExpression(propertyValue.toggleHidden, fields, propertyName);
-        }
-
-        if (propertyValue.dependOn) {
-          if (isDefined(this.currentOperatorId)) {
-            const attributes: Readonly<Record<string, PortSchema | undefined>> | undefined =
-              this.workflowCompilingService.getOperatorInputSchemaMap(this.currentOperatorId);
-            setChildTypeDependency(attributes, propertyValue.dependOn, fields, propertyName);
-          }
-        }
-      });
-    }
+    setFieldDependencies(
+      schema,
+      fields ?? [],
+      this.currentOperatorId
+        ? this.workflowCompilingService.getOperatorInputSchemaMap(this.currentOperatorId)
+        : undefined
+    );
     // not return field.fieldGroup directly because
     // doing so the validator in the field will not be triggered
     this.formlyFields = [field];
@@ -1383,10 +1295,10 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnChanges, On
     this.setInteractivity(true);
   }
 
-  confirmModifyOperatorLogic(): void {
+  async confirmModifyOperatorLogic(): Promise<void> {
     if (this.currentOperatorId) {
       try {
-        this.executeWorkflowService.modifyOperatorLogic(this.currentOperatorId);
+        await this.executeWorkflowService.modifyOperatorLogic(this.currentOperatorId);
         this.setInteractivity(false);
       } catch (e) {
         this.notificationService.error((e as Error).message);

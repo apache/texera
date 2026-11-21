@@ -16,80 +16,33 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-
-import { ExecutionMode } from "../type/workflow";
+import { testWorkflow, testLink, testOperator } from "../testing/workflow-graph";
+import { DEFAULT_WORKFLOW } from "../../workspace/service/workflow-graph/model/workflow-action.service";
 import { checkIfWorkflowBroken } from "./workflow-check";
+import { assertWorkflowIDs } from "@texera/workflow-macros";
+import { graphIDCases } from "../../../../../common/workflow-core/src/test/typescript/macro-test-graph";
 
-type WorkflowInput = Parameters<typeof checkIfWorkflowBroken>[0];
-
-function createWorkflow(
-  operatorIDs: ReadonlyArray<string>,
-  links: ReadonlyArray<{
-    sourceOperatorID: string;
-    targetOperatorID: string;
-  }>
-): WorkflowInput {
-  return {
-    name: "test-workflow",
-    description: undefined,
-    wid: undefined,
-    creationTime: undefined,
-    lastModifiedTime: undefined,
-    isPublished: 0,
-    readonly: false,
-    content: {
-      operators: operatorIDs.map(operatorID => ({
-        operatorID,
-        operatorType: "TestOperator",
-        operatorVersion: "0",
-        operatorProperties: {},
-        inputPorts: [],
-        outputPorts: [],
-        showAdvanced: false,
-      })),
-      operatorPositions: {},
-      links: links.map(({ sourceOperatorID, targetOperatorID }, index) => ({
-        linkID: `link-${index}`,
-        source: { operatorID: sourceOperatorID, portID: "output-0" },
-        target: { operatorID: targetOperatorID, portID: "input-0" },
-      })),
-      commentBoxes: [],
-      settings: { dataTransferBatchSize: 1, executionMode: ExecutionMode.PIPELINED },
-    },
-  };
-}
+describe("workflow graph identities", () => {
+  for (const example of graphIDCases) {
+    it(example.name, () => {
+      const before = JSON.stringify(example.content);
+      if (example.error) expect(() => assertWorkflowIDs(example.content)).toThrow(example.error);
+      else expect(() => assertWorkflowIDs(example.content)).not.toThrow();
+      expect(JSON.stringify(example.content)).toBe(before);
+    });
+  }
+});
 
 describe("checkIfWorkflowBroken", () => {
-  it("should return false when every link references existing operators", () => {
-    const workflow = createWorkflow(
-      ["operator-1", "operator-2"],
-      [{ sourceOperatorID: "operator-1", targetOperatorID: "operator-2" }]
-    );
+  const operators = ["source", "target"].map(id => testOperator(id));
 
-    expect(checkIfWorkflowBroken(workflow)).toBe(false);
-  });
-
-  it("should return true when a link source references a missing operator", () => {
-    const workflow = createWorkflow(
-      ["operator-2"],
-      [{ sourceOperatorID: "missing-operator", targetOperatorID: "operator-2" }]
-    );
-
-    expect(checkIfWorkflowBroken(workflow)).toBe(true);
-  });
-
-  it("should return true when a link target references a missing operator", () => {
-    const workflow = createWorkflow(
-      ["operator-1"],
-      [{ sourceOperatorID: "operator-1", targetOperatorID: "missing-operator" }]
-    );
-
-    expect(checkIfWorkflowBroken(workflow)).toBe(true);
-  });
-
-  it("should return false when the workflow has no links", () => {
-    const workflow = createWorkflow(["operator-1"], []);
-
-    expect(checkIfWorkflowBroken(workflow)).toBe(false);
+  it.each([
+    { scenario: "connected operators", links: [testLink("source", "target")], broken: false },
+    { scenario: "missing source", links: [testLink("missing", "target")], broken: true },
+    { scenario: "missing target", links: [testLink("source", "missing")], broken: true },
+    { scenario: "no links", links: [], broken: false },
+  ])("checks links for $scenario", ({ links, broken }) => {
+    const content = testWorkflow(operators, links);
+    expect(checkIfWorkflowBroken({ ...DEFAULT_WORKFLOW, content })).toBe(broken);
   });
 });

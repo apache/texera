@@ -21,6 +21,7 @@ package org.apache.texera.web
 
 import io.reactivex.rxjava3.disposables.Disposable
 import org.apache.texera.amber.util.JSONUtils.objectMapper
+import org.apache.texera.amber.core.virtualidentity.WorkflowIdentity
 import org.apache.texera.dao.jooq.generated.enums.PrivilegeEnum
 import org.apache.texera.web.model.websocket.event.TexeraWebSocketEvent
 import org.apache.texera.web.service.WorkflowService
@@ -46,6 +47,12 @@ object SessionState {
 
   def getAllSessionStates: Iterable[SessionState] = {
     sessionIdToSessionState.values
+  }
+
+  def sendToWorkflow(workflowId: WorkflowIdentity, msg: TexeraWebSocketEvent): Unit = {
+    getAllSessionStates
+      .filter(_.getCurrentWorkflowState.exists(_.workflowId == workflowId))
+      .foreach(_.send(msg))
   }
 
 }

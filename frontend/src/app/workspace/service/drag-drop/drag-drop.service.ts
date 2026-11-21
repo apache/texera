@@ -24,8 +24,13 @@ import { WorkflowUtilService } from "../workflow-graph/util/workflow-util.servic
 import { JointUIService } from "../joint-ui/joint-ui.service";
 import { Injectable } from "@angular/core";
 import { filter, first, map } from "rxjs/operators";
+import { isEqual } from "lodash-es";
 import TinyQueue from "tinyqueue";
 import * as joint from "jointjs";
+
+import { MacroService } from "../macro/macro.service";
+import { isMacro, macroInstance } from "../../../common/util/workflow-macro";
+import { NotificationService } from "../../../common/service/notification/notification.service";
 
 @Injectable({
   providedIn: "root",
@@ -42,7 +47,9 @@ export class DragDropService {
   constructor(
     private jointUIService: JointUIService,
     private workflowUtilService: WorkflowUtilService,
-    private workflowActionService: WorkflowActionService
+    private workflowActionService: WorkflowActionService,
+    private macros: MacroService,
+    private notification: NotificationService
   ) {}
 
   public dragStarted(operatorType: string): void {
@@ -58,6 +65,41 @@ export class DragDropService {
   }
 
   public dragDropped(dropPoint: Point): void {
+    if (!this.op || !this.workflowActionService.checkWorkflowModificationEnabled()) {
+      this.resetSuggestions();
+      return;
+    }
+    if (!isMacro(this.op)) {
+      this.completeDrop(dropPoint);
+      return;
+    }
+    const op = this.op;
+    const before = this.workflowActionService.getWorkflow();
+    const document = this.workflowActionService.editorDocument;
+    this.macros
+      .latestFor(op.operatorType)
+      .then(definition => {
+        if (this.op !== op) return;
+        if (
+          !this.workflowActionService.checkWorkflowModificationEnabled() ||
+          this.workflowActionService.editorDocument !== document ||
+          this.workflowActionService.getWorkflowMetadata().wid !== before.wid
+        ) {
+          this.resetSuggestions();
+          return;
+        }
+        if (!isEqual(this.workflowActionService.getWorkflowContent(), before.content))
+          throw new Error("The workflow changed while loading the macro. Drag it again.");
+        this.op = macroInstance(definition, op.operatorID);
+        this.completeDrop(dropPoint);
+      })
+      .catch(error => {
+        this.resetSuggestions();
+        this.notification.error(error instanceof Error ? error.message : String(error));
+      });
+  }
+
+  private completeDrop(dropPoint: Point): void {
     const coordinates = this.workflowActionService
       .getJointGraphWrapper()
       .getMainJointPaper()

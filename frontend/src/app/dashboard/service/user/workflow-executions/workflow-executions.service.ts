@@ -22,8 +22,9 @@ import { Observable } from "rxjs";
 import { AppSettings } from "../../../../common/app-setting";
 import { HttpClient, HttpParams } from "@angular/common/http";
 import { WorkflowExecutionsEntry } from "../../../type/workflow-executions-entry";
+import type { WorkflowContent } from "../../../../common/type/workflow";
 import { WorkflowRuntimeStatistics } from "../../../type/workflow-runtime-statistics";
-import { ExecutionState } from "../../../../workspace/types/execute-workflow.interface";
+import { ExecutionState, OperatorRuntimeStatus } from "../../../../workspace/types/execute-workflow.interface";
 
 export const WORKFLOW_EXECUTIONS_API_BASE_URL = `${AppSettings.getApiEndpoint()}/executions`;
 
@@ -83,6 +84,21 @@ export class WorkflowExecutionsService {
       eId,
       executionName,
     });
+  }
+
+  retrieveMacroContent(wid: number, eid: number): Observable<WorkflowContent> {
+    return this.http.get<WorkflowContent>(`${WORKFLOW_EXECUTIONS_API_BASE_URL}/${wid}/macro-content/${eid}`);
+  }
+
+  retrieveMacroStatistics(
+    wid: number,
+    eid: number,
+    cuid: number
+  ): Observable<Record<string, OperatorRuntimeStatus> | null> {
+    return this.http.get<Record<string, OperatorRuntimeStatus> | null>(
+      `${WORKFLOW_EXECUTIONS_API_BASE_URL}/${wid}/stats/${eid}/canvas`,
+      { params: { cuid } }
+    );
   }
 
   retrieveWorkflowRuntimeStatistics(wid: number, eId: number, cuid: number): Observable<WorkflowRuntimeStatistics[]> {

@@ -20,24 +20,74 @@
 import { FormlyFieldConfig } from "@ngx-formly/core";
 import { isDefined } from "../util/predicate";
 
-import { Observable } from "rxjs";
+import { Observable, EMPTY, merge, timer } from "rxjs";
 import { FORM_DEBOUNCE_TIME_MS } from "../../workspace/service/execute-workflow/execute-workflow.service";
-import { debounceTime, distinctUntilChanged, filter, share, tap } from "rxjs/operators";
-import { HideType, ValueRuleSet } from "../../workspace/types/custom-json-schema.interface";
+import { debounce, distinctUntilChanged, filter, share, tap } from "rxjs/operators";
+import {
+  CustomJSONSchema7,
+  HideType,
+  PropertyContext,
+  ValueRuleSet,
+} from "../../workspace/types/custom-json-schema.interface";
 import { PortSchema } from "../../workspace/types/workflow-compiling.interface";
 import { AbstractControl } from "@angular/forms";
+import { propertyModel, ConditionalRequiredRule } from "../../workspace/util/custom-formly-type";
+import { applyHuggingFaceFieldBindings } from "../../workspace/util/hugging-face-field-bindings";
 
 export function getFieldByName(fieldName: string, fields: FormlyFieldConfig[]): FormlyFieldConfig | undefined {
   return fields.filter((field, _, __) => field.key === fieldName)[0];
 }
 
 export function setHideExpression(toggleHidden: string[], fields: FormlyFieldConfig[], hiddenBy: string): void {
+  const context = getFieldByName(hiddenBy, fields)?.props?.["propertyContext"] as PropertyContext | undefined;
   toggleHidden.forEach(hiddenFieldName => {
-    const fieldToBeHidden = getFieldByName(hiddenFieldName, fields);
+    const fieldToBeHidden = getFieldByName(context?.bindings[hiddenFieldName] ?? hiddenFieldName, fields);
     if (isDefined(fieldToBeHidden)) {
-      fieldToBeHidden.expressions = { hide: "!field.parent.model." + hiddenBy };
+      fieldToBeHidden.expressions = {
+        ...fieldToBeHidden.expressions,
+        hide: context
+          ? (field: FormlyFieldConfig) => !propertyModel(field)?.[context.propertyKey]
+          : "!field.parent.model." + hiddenBy,
+      };
     }
   });
+}
+
+export function setFieldDependencies(
+  schema: CustomJSONSchema7,
+  fields: FormlyFieldConfig[],
+  attributes?: Readonly<Record<string, PortSchema | undefined>>
+): void {
+  Object.entries(schema.properties ?? {}).forEach(([key, property]) => {
+    if (typeof property === "boolean") return;
+    if (property.toggleHidden) setHideExpression(property.toggleHidden, fields, key);
+    if (property.dependOn) setChildTypeDependency(attributes, property.dependOn, fields, key);
+  });
+}
+
+/** Apply the same schema-driven behaviour in the property panel and Form View. */
+export function setFieldBehavior(
+  field: FormlyFieldConfig,
+  schema: CustomJSONSchema7,
+  required?: ConditionalRequiredRule
+): void {
+  const context = field.props?.["propertyContext"] as PropertyContext | undefined;
+  if (context?.operatorType === "HuggingFace") applyHuggingFaceFieldBindings(field);
+  if (schema.hideExpectedValue !== undefined && schema.hideTarget && schema.hideType) {
+    field.expressions = {
+      ...field.expressions,
+      hide: createShouldHideFieldFunc(schema.hideTarget, schema.hideType, schema.hideExpectedValue, schema.hideOnNull),
+    };
+  }
+  if (context?.hiddenBy)
+    field.expressions = { ...field.expressions, hide: f => !propertyModel(f)?.[context.hiddenBy!] };
+  if (schema.valueRules) setValueRules(field, schema.valueRules);
+  const rule = context?.required ?? required;
+  if (rule)
+    field.expressions = {
+      ...field.expressions,
+      "props.required": f => (propertyModel(f)?.[rule.sibling] === rule.value) === rule.requiredOnMatch,
+    };
 }
 
 type ValueRule = ValueRuleSet["allOf"][number]["then"];
@@ -69,7 +119,7 @@ export function matchingValueRule(rules: ValueRuleSet | undefined, rowModel: any
  */
 export function createValueRulesValidator(rules: ValueRuleSet) {
   return (control: AbstractControl, field: FormlyFieldConfig): boolean => {
-    const rule = matchingValueRule(rules, field?.parent?.model);
+    const rule = matchingValueRule(rules, propertyModel(field));
     if (!isDefined(rule)) {
       return true;
     }
@@ -108,7 +158,7 @@ export function createValueRulesValidator(rules: ValueRuleSet) {
 
 /** Says what the field will take, naming the branch rather than the rule that rejected it. */
 export function valueRulesValidationMessage(_err: unknown, field: FormlyFieldConfig): string {
-  const rule = matchingValueRule(field?.props?.valueRules, field?.parent?.model);
+  const rule = matchingValueRule(field?.props?.valueRules, propertyModel(field));
   if (isDefined(rule?.enum)) {
     return `must be one of ${rule.enum.join(", ")}`;
   }
@@ -139,7 +189,10 @@ export function valueRulesValidationMessage(_err: unknown, field: FormlyFieldCon
  * model is what picks the branch.
  */
 export function setValueRules(field: FormlyFieldConfig, rules: ValueRuleSet): void {
-  const siblings = new Set(rules.allOf.flatMap(branch => Object.keys(branch.if)));
+  const context = field.props?.["propertyContext"] as PropertyContext | undefined;
+  const siblings = new Set(
+    rules.allOf.flatMap(branch => Object.keys(branch.if)).map(key => context?.bindings[key] ?? key)
+  );
   field.type = "constrainedvalue";
   // written into the existing object rather than over it: `props` and `templateOptions` are two
   // names for one object, and replacing it leaves them pointing at different ones
@@ -178,7 +231,7 @@ export function createShouldHideFieldFunc(
   let shared_regex: RegExp | null = null;
 
   const hideFunc = (field?: FormlyFieldConfig | undefined) => {
-    const model = field?.parent?.model;
+    const model = propertyModel(field);
     if (model === null || model === undefined) {
       console.debug("Formly main model not detected. Hiding will fail.");
       return false;
@@ -219,14 +272,19 @@ export function setChildTypeDependency(
     const childField = getFieldByName(childName, fields);
     if (isDefined(childField)) {
       childField.expressions = {
+        ...childField.expressions,
         // 'type': 'string',
         // 'templateOptions.type': JSON.stringify(timestampFieldNames) + '.includes(model.' + parentName + ')? \'string\' : \'number\'',
 
-        "templateOptions.description":
-          JSON.stringify(timestampFieldNames) +
-          ".includes(model." +
-          parentName +
-          ")? 'Input a datetime string' : 'Input a positive number'",
+        "templateOptions.description": childField.props?.["propertyContext"]
+          ? (field: FormlyFieldConfig) =>
+              timestampFieldNames.includes(propertyModel(field)?.[parentName])
+                ? "Input a datetime string"
+                : "Input a positive number"
+          : JSON.stringify(timestampFieldNames) +
+            ".includes(model." +
+            parentName +
+            ")? 'Input a datetime string' : 'Input a positive number'",
       };
     }
   }
@@ -243,14 +301,15 @@ export function setChildTypeDependency(
  */
 export function createOutputFormChangeEventStream(
   formChangeEvent: Observable<Record<string, unknown>>,
-  modelCheck: (formData: Record<string, unknown>) => boolean
+  modelCheck: (formData: Record<string, unknown>) => boolean,
+  flush: Observable<unknown> = EMPTY
 ): Observable<Record<string, unknown>> {
   return (
     formChangeEvent
       // set a debounce time to avoid events triggering too often
       //  and to circumvent a bug of the library - each action triggers event twice
       .pipe(
-        debounceTime(FORM_DEBOUNCE_TIME_MS),
+        debounce(() => merge(timer(FORM_DEBOUNCE_TIME_MS), flush)),
         // .do(evt => console.log(evt))
         // don't emit the event until the data is changed
         distinctUntilChanged(),

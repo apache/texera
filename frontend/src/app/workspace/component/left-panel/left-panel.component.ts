@@ -109,11 +109,16 @@ export class LeftPanelComponent implements OnDestroy, OnInit, AfterViewInit {
     // Initialize items array with config values
     this.updateItemsWithConfig();
 
-    const savedOrder = localStorage.getItem("left-panel-order")?.split(",").map(Number);
-    this.order = savedOrder && new Set(savedOrder).size === new Set(this.order).size ? savedOrder : this.order;
+    const savedOrder = localStorage
+      .getItem("left-panel-order")
+      ?.split(",")
+      .map(Number)
+      .filter(i => this.order.includes(i));
+    if (savedOrder?.length === this.order.length && new Set(savedOrder).size === savedOrder.length)
+      this.order = savedOrder;
 
     const savedIndex = Number(localStorage.getItem("left-panel-index"));
-    this.openFrame(savedIndex < this.items.length && this.items[savedIndex].enabled ? savedIndex : 1);
+    this.openFrame(this.items[savedIndex]?.enabled ? savedIndex : 1);
 
     this.width = Number(localStorage.getItem("left-panel-width")) || this.width;
     this.height = Number(localStorage.getItem("left-panel-height")) || this.height;

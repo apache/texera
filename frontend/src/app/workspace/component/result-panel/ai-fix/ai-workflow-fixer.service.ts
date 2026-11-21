@@ -339,7 +339,7 @@ export class AiWorkflowFixerService {
       // here means every one it gains has to be repeated, and missing one reports
       // "re-running" over a toast saying the opposite. The empty execution name is the one
       // the operator menu uses for an ad-hoc run.
-      const started = this.executeWorkflowService.executeWorkflow("");
+      const started = await this.executeWorkflowService.executeWorkflow("");
       if (seq !== this.analysisSeq) {
         return;
       }

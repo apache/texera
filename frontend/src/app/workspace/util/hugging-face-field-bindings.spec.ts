@@ -49,123 +49,103 @@ function validatorPasses(
 }
 
 describe("applyHuggingFaceFieldBindings", () => {
+  it("keeps task visibility and validators on projected macro field aliases", () => {
+    const model = { "public-task": "image-classification", "public-image": "", "public-column": "" };
+    const field: FormlyFieldConfig = {
+      key: "public-image",
+      model,
+      parent: { model },
+      props: {
+        propertyContext: {
+          operatorType: "HuggingFace",
+          propertyKey: "imageInput",
+          properties: {},
+          bindings: { task: "public-task", imageInput: "public-image", inputImageColumn: "public-column" },
+        },
+      },
+      formControl: { value: "" } as AbstractControl,
+    };
+    applyHuggingFaceFieldBindings(field);
+    const hide = field.expressions?.hide as (f: FormlyFieldConfig) => boolean;
+    const valid = (field.validators as any)?.requiredImageInput?.expression;
+    expect(hide?.(field)).toBe(false);
+    expect(valid?.({} as AbstractControl, field)).toBe(false);
+    model["public-column"] = "image";
+    expect(valid({} as AbstractControl, field)).toBe(true);
+    model["public-task"] = "text-generation";
+    expect(hide(field)).toBe(true);
+  });
   it("hides the task field itself", () => {
     expect(bind("task").hide).toBe(true);
   });
 
-  it("does nothing for a non-string key", () => {
-    const field = bind(undefined);
+  it.each([undefined, "modelId"])("leaves an unmanaged field %s alone", key => {
+    const field = bind(key);
     expect(field.expressions).toBeUndefined();
     expect(field.validators).toBeUndefined();
   });
 
-  it("does nothing for a key the operator does not drive", () => {
-    const field = bind("modelId");
-    expect(field.expressions).toBeUndefined();
-    expect(field.validators).toBeUndefined();
+  it.each([
+    {
+      key: "imageInput",
+      visible: ["image-classification", "visual-question-answering"],
+      hidden: ["text-generation", undefined],
+    },
+    { key: "audioInput", visible: ["automatic-speech-recognition"], hidden: ["image-classification"] },
+    { key: "inputImageColumn", visible: ["object-detection"], hidden: ["audio-classification"] },
+    { key: "inputAudioColumn", visible: ["audio-classification"], hidden: ["object-detection"] },
+    {
+      key: "promptColumn",
+      visible: ["text-generation", "visual-question-answering", undefined],
+      hidden: ["image-classification", "audio-classification"],
+    },
+    ...["systemPrompt", "maxNewTokens", "temperature"].map(key => ({
+      key,
+      visible: ["text-generation"],
+      hidden: ["summarization"],
+    })),
+    { key: "contextColumn", visible: ["question-answering"], hidden: ["text-generation"] },
+    {
+      key: "candidateLabels",
+      visible: ["zero-shot-classification", "zero-shot-image-classification"],
+      hidden: ["text-classification"],
+    },
+    { key: "sentencesColumn", visible: ["sentence-similarity", "text-ranking"], hidden: ["translation"] },
+  ])("shows $key for its supported task families", ({ key, visible, hidden }) => {
+    const field = bind(key);
+    for (const task of visible) expect(hiddenForTask(field, task), String(task)).toBe(false);
+    for (const task of hidden) expect(hiddenForTask(field, task), String(task)).toBe(true);
   });
 
-  describe("imageInput", () => {
-    it("shows for an image task and hides otherwise", () => {
-      const field = bind("imageInput");
-      expect(hiddenForTask(field, "image-classification")).toBe(false);
-      expect(hiddenForTask(field, "visual-question-answering")).toBe(false);
-      expect(hiddenForTask(field, "text-generation")).toBe(true);
-      expect(hiddenForTask(field, undefined)).toBe(true);
-    });
-
-    it("requires an upload or an Input Image Column only for an image task", () => {
-      const field = bind("imageInput");
-      // non-image task: always valid
-      expect(validatorPasses(field, "requiredImageInput", { task: "text-generation" })).toBe(true);
-      // image task, nothing provided: invalid
-      expect(validatorPasses(field, "requiredImageInput", { task: "image-classification" })).toBe(false);
-      // satisfied by an uploaded value
-      expect(validatorPasses(field, "requiredImageInput", { task: "image-classification", value: "pic.png" })).toBe(
-        true
-      );
-      // satisfied by an Input Image Column instead
-      expect(
-        validatorPasses(field, "requiredImageInput", {
-          task: "image-classification",
-          model: { inputImageColumn: "col" },
-        })
-      ).toBe(true);
-    });
+  it.each([
+    {
+      key: "imageInput",
+      validator: "requiredImageInput",
+      task: "image-classification",
+      column: "inputImageColumn",
+      upload: "pic.png",
+    },
+    {
+      key: "audioInput",
+      validator: "requiredAudioInput",
+      task: "audio-classification",
+      column: "inputAudioColumn",
+      upload: "a.wav",
+    },
+  ])("requires an upload or a column for $key when applicable", ({ key, validator, task, column, upload }) => {
+    const field = bind(key);
+    expect(validatorPasses(field, validator, { task: "text-generation" })).toBe(true);
+    expect(validatorPasses(field, validator, { task })).toBe(false);
+    expect(validatorPasses(field, validator, { task, value: upload })).toBe(true);
+    expect(validatorPasses(field, validator, { task, model: { [column]: "col" } })).toBe(true);
+    expect(validatorPasses(field, validator, { task, value: " ", model: { [column]: " " } })).toBe(false);
   });
 
-  describe("audioInput", () => {
-    it("shows for an audio task and hides otherwise", () => {
-      const field = bind("audioInput");
-      expect(hiddenForTask(field, "automatic-speech-recognition")).toBe(false);
-      expect(hiddenForTask(field, "image-classification")).toBe(true);
-    });
-
-    it("requires an upload or an Input Audio Column only for an audio task", () => {
-      const field = bind("audioInput");
-      expect(validatorPasses(field, "requiredAudioInput", { task: "text-generation" })).toBe(true);
-      expect(validatorPasses(field, "requiredAudioInput", { task: "audio-classification" })).toBe(false);
-      expect(validatorPasses(field, "requiredAudioInput", { task: "audio-classification", value: "a.wav" })).toBe(true);
-      expect(
-        validatorPasses(field, "requiredAudioInput", {
-          task: "audio-classification",
-          model: { inputAudioColumn: "col" },
-        })
-      ).toBe(true);
-    });
-  });
-
-  it("hides inputImageColumn / inputAudioColumn by their task families", () => {
-    expect(hiddenForTask(bind("inputImageColumn"), "object-detection")).toBe(false);
-    expect(hiddenForTask(bind("inputImageColumn"), "audio-classification")).toBe(true);
-    expect(hiddenForTask(bind("inputAudioColumn"), "audio-classification")).toBe(false);
-    expect(hiddenForTask(bind("inputAudioColumn"), "object-detection")).toBe(true);
-  });
-
-  describe("promptColumn", () => {
-    it("hides only for image-only and audio tasks", () => {
-      const field = bind("promptColumn");
-      expect(hiddenForTask(field, "image-classification")).toBe(true);
-      expect(hiddenForTask(field, "audio-classification")).toBe(true);
-      expect(hiddenForTask(field, "text-generation")).toBe(false);
-      expect(hiddenForTask(field, "visual-question-answering")).toBe(false);
-      expect(hiddenForTask(field, undefined)).toBe(false);
-    });
-
-    it("requires a value only for a prompt-required task", () => {
-      const field = bind("promptColumn");
-      expect(validatorPasses(field, "requiredPromptColumn", { task: "image-classification" })).toBe(true);
-      expect(validatorPasses(field, "requiredPromptColumn", { task: "summarization" })).toBe(false);
-      expect(validatorPasses(field, "requiredPromptColumn", { task: "summarization", value: "col" })).toBe(true);
-    });
-  });
-
-  it("shows text-generation-only controls solely for text-generation", () => {
-    for (const key of ["systemPrompt", "maxNewTokens", "temperature"]) {
-      const field = bind(key);
-      expect(hiddenForTask(field, "text-generation")).toBe(false);
-      expect(hiddenForTask(field, "summarization")).toBe(true);
-    }
-  });
-
-  it("shows contextColumn only for question-answering", () => {
-    const field = bind("contextColumn");
-    expect(hiddenForTask(field, "question-answering")).toBe(false);
-    expect(hiddenForTask(field, "text-generation")).toBe(true);
-  });
-
-  it("shows candidateLabels only for the zero-shot tasks", () => {
-    const field = bind("candidateLabels");
-    expect(hiddenForTask(field, "zero-shot-classification")).toBe(false);
-    expect(hiddenForTask(field, "zero-shot-image-classification")).toBe(false);
-    expect(hiddenForTask(field, "text-classification")).toBe(true);
-  });
-
-  it("shows sentencesColumn only for similarity and ranking tasks", () => {
-    const field = bind("sentencesColumn");
-    expect(hiddenForTask(field, "sentence-similarity")).toBe(false);
-    expect(hiddenForTask(field, "text-ranking")).toBe(false);
-    expect(hiddenForTask(field, "translation")).toBe(true);
+  it("requires a prompt column only for a prompt-required task", () => {
+    const field = bind("promptColumn");
+    expect(validatorPasses(field, "requiredPromptColumn", { task: "image-classification" })).toBe(true);
+    expect(validatorPasses(field, "requiredPromptColumn", { task: "summarization" })).toBe(false);
+    expect(validatorPasses(field, "requiredPromptColumn", { task: "summarization", value: "col" })).toBe(true);
   });
 
   it("preserves expressions already present on the field", () => {

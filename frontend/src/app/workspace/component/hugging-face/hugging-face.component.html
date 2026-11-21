@@ -25,6 +25,7 @@
     (ngModelChange)="onTaskSelected($event)"
     nzPlaceHolder="Select a task"
     [nzLoading]="tasksLoading"
+    [nzDisabled]="!canSelectTask"
     style="width: 100%; margin-bottom: 4px">
     <nz-option
       *ngFor="let task of taskOptions"

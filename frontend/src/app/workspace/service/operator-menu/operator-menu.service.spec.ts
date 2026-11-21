@@ -16,16 +16,16 @@
  * specific language governing permissions and limitations
  * under the License.
  */
+import { testMacro, expansionFixture } from "../../../common/testing/macro-graph";
+import { testWorkflow } from "../../../common/testing/workflow-graph";
+import { macroWorkspaceTestProviders } from "../macro/macro-workspace.spec-harness";
 
 import { TestBed } from "@angular/core/testing";
-import { OperatorMetadataService } from "../operator-metadata/operator-metadata.service";
-import { StubOperatorMetadataService } from "../operator-metadata/stub-operator-metadata.service";
 
 import { OperatorMenuService } from "./operator-menu.service";
 import { HttpClientTestingModule } from "@angular/common/http/testing";
 import { ComputingUnitStatusService } from "../../../common/service/computing-unit/computing-unit-status/computing-unit-status.service";
 import { MockComputingUnitStatusService } from "../../../common/service/computing-unit/computing-unit-status/mock-computing-unit-status.service";
-import { commonTestProviders } from "../../../common/testing/test-utils";
 import { WorkflowActionService } from "../workflow-graph/model/workflow-action.service";
 import {
   mockCommentBox,
@@ -39,6 +39,9 @@ import {
 import { CommentBox } from "../../types/workflow-common.interface";
 import { NotificationService } from "../../../common/service/notification/notification.service";
 import { ExecuteWorkflowService } from "../execute-workflow/execute-workflow.service";
+import { macroInstance } from "../../../common/util/workflow-macro";
+
+import { MacroExpansionService } from "../macro/macro-expansion.service";
 import { Subscription } from "rxjs";
 
 describe("OperatorMenuService", () => {
@@ -51,7 +54,6 @@ describe("OperatorMenuService", () => {
   beforeEach(() => {
     TestBed.configureTestingModule({
       providers: [
-        { provide: OperatorMetadataService, useClass: StubOperatorMetadataService },
         { provide: ComputingUnitStatusService, useClass: MockComputingUnitStatusService },
         // Stub the two collaborators OperatorMenuService only calls into (executeWorkflow,
         // error/info toasts) so the spec doesn't boot the real execution/notification stacks
@@ -61,7 +63,7 @@ describe("OperatorMenuService", () => {
           provide: NotificationService,
           useValue: { error: vi.fn(), info: vi.fn(), success: vi.fn(), warning: vi.fn() },
         },
-        ...commonTestProviders,
+        ...macroWorkspaceTestProviders,
       ],
       imports: [HttpClientTestingModule],
     });
@@ -360,6 +362,33 @@ describe("OperatorMenuService", () => {
 
       expect(errorSpy).toHaveBeenCalledWith("Copy failed. You don't have the permission to write to the clipboard.");
     });
+
+    it("bundles pinned definitions when copying a macro to another workflow", async () => {
+      vi.spyOn(TestBed.inject(MacroExpansionService), "expand").mockResolvedValue(expansionFixture(testWorkflow(), []));
+      const d = testMacro("clipboard-macro", [mockScanPredicate], {
+        operatorPositions: { [mockScanPredicate.operatorID]: mockPoint },
+        version: 4,
+        name: "Scan",
+      });
+      workflowActionService.setMacroDependencies([d]);
+      const instance = macroInstance(d, "macro-instance");
+      workflowActionService.addOperator(instance, mockPoint);
+      workflowActionService.getJointGraphWrapper().highlightOperators(instance.operatorID);
+      service.saveHighlightedElements();
+      const saved = writeText.mock.calls[0][0];
+      expect(JSON.parse(saved).macroDependencies).toEqual([d]);
+      workflowActionService.clearWorkflow();
+      Object.defineProperty(navigator, "clipboard", {
+        value: { readText: vi.fn().mockResolvedValue(saved) },
+        configurable: true,
+      });
+      service.performPasteOperation();
+      await flushAsync();
+      const content = workflowActionService.getWorkflowContent();
+      expect(content.operators).toHaveLength(1);
+      expect(content.operators[0].operatorID).not.toBe(instance.operatorID);
+      expect(content.macroDependencies![0].content.operators[0].operatorType).toBe(mockScanPredicate.operatorType);
+    });
   });
 
   describe("performPasteOperation", () => {
@@ -424,6 +453,24 @@ describe("OperatorMenuService", () => {
 
       expect(errorSpy).toHaveBeenCalledWith("You haven't copied any element yet.");
       expect(workflowActionService.getTexeraGraph().getAllOperators().length).toBe(0);
+    });
+
+    it("refuses a clipboard macro with a missing definition before changing the graph", async () => {
+      vi.spyOn(TestBed.inject(MacroExpansionService), "expand").mockRejectedValue(new Error("Missing macro version"));
+      const invalid = { ...mockScanPredicate, operatorType: "WorkflowMacro:missing:1" };
+      readText.mockResolvedValue(
+        JSON.stringify({
+          operators: [invalid],
+          links: [],
+          commentBoxes: [],
+          operatorPositions: { [invalid.operatorID]: mockPoint },
+        })
+      );
+      const error = vi.spyOn(TestBed.inject(NotificationService), "error").mockImplementation(() => {});
+      service.performPasteOperation();
+      await flushAsync();
+      expect(error).toHaveBeenCalledWith(expect.stringMatching(/macro version/i));
+      expect(workflowActionService.getTexeraGraph().getAllOperators()).toEqual([]);
     });
 
     it("notifies the user when reading the clipboard is rejected", async () => {

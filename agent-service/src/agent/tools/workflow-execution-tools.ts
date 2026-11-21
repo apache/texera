@@ -17,6 +17,7 @@
  * under the License.
  */
 
+import type { WorkflowContent, OperatorPredicate, OperatorLink } from "../../types/workflow";
 import { z } from "zod";
 import { tool } from "ai";
 import { createErrorResult, formatOperatorOutput, getOperatorErrorText } from "./tools-utility";
@@ -103,14 +104,9 @@ function validateOperatorSchema(operatorType: string, operatorProperties: Record
   return validation.isValid ? { isValid: true, messages: {} } : { isValid: false, messages: validation.messages };
 }
 
-function validateOperatorConnection(operatorId: string, workflowState: WorkflowState): OperatorValidation {
-  const operator = workflowState.getOperator(operatorId);
-  if (!operator) {
-    return { isValid: false, messages: { error: `Operator ${operatorId} not found` } };
-  }
-
+function validateOperatorConnection(operator: OperatorPredicate, allLinks: OperatorLink[]): OperatorValidation {
+  const operatorId = operator.operatorID;
   const numInputLinksByPort = new Map<string, number>();
-  const allLinks = workflowState.getAllLinks();
 
   for (const link of allLinks) {
     if (link.target.operatorID === operatorId) {
@@ -157,12 +153,12 @@ function combineValidations(...validations: OperatorValidation[]): OperatorValid
   return { isValid, messages };
 }
 
-function validateWorkflow(workflowState: WorkflowState): WorkflowValidationResult {
+function validateWorkflow(content: WorkflowContent): WorkflowValidationResult {
   const errors: Record<string, Record<string, string>> = {};
 
-  for (const operator of workflowState.getAllEnabledOperators()) {
+  for (const operator of content.operators) {
     const schemaValidation = validateOperatorSchema(operator.operatorType, operator.operatorProperties);
-    const connectionValidation = validateOperatorConnection(operator.operatorID, workflowState);
+    const connectionValidation = validateOperatorConnection(operator, content.links);
     const combined = combineValidations(schemaValidation, connectionValidation);
 
     if (!combined.isValid) {
@@ -173,78 +169,6 @@ function validateWorkflow(workflowState: WorkflowState): WorkflowValidationResul
   return {
     isValid: Object.keys(errors).length === 0,
     errors,
-  };
-}
-
-function buildLogicalPlan(workflowState: WorkflowState, opsToViewResult?: string[]): LogicalPlan {
-  const useSubDAG = opsToViewResult && opsToViewResult.length === 1;
-  const targetOperatorId = useSubDAG ? opsToViewResult[0] : undefined;
-
-  let operatorsList: { operatorID: string; operatorType: string; [key: string]: any }[];
-  let linksList: LogicalLink[];
-
-  const getInputPortOrdinal = (operatorID: string, inputPortID: string): number => {
-    const op = workflowState.getOperator(operatorID);
-    if (!op) return 0;
-    const idx = op.inputPorts.findIndex(port => port.portID === inputPortID);
-    return idx >= 0 ? idx : 0;
-  };
-
-  const getOutputPortOrdinal = (operatorID: string, outputPortID: string): number => {
-    const op = workflowState.getOperator(operatorID);
-    if (!op) return 0;
-    const idx = op.outputPorts.findIndex(port => port.portID === outputPortID);
-    return idx >= 0 ? idx : 0;
-  };
-
-  if (targetOperatorId) {
-    const subDAG = workflowState.getSubDAG(targetOperatorId);
-
-    operatorsList = subDAG.operators.map(op => ({
-      ...op.operatorProperties,
-      operatorID: op.operatorID,
-      operatorType: op.operatorType,
-      inputPorts: op.inputPorts,
-      outputPorts: op.outputPorts,
-    }));
-
-    linksList = subDAG.links.map(link => ({
-      fromOpId: link.source.operatorID,
-      fromPortId: { id: getOutputPortOrdinal(link.source.operatorID, link.source.portID), internal: false },
-      toOpId: link.target.operatorID,
-      toPortId: { id: getInputPortOrdinal(link.target.operatorID, link.target.portID), internal: false },
-    }));
-  } else {
-    operatorsList = workflowState.getAllEnabledOperators().map(op => ({
-      ...op.operatorProperties,
-      operatorID: op.operatorID,
-      operatorType: op.operatorType,
-      inputPorts: op.inputPorts,
-      outputPorts: op.outputPorts,
-    }));
-
-    linksList = workflowState.getAllLinks().map(link => ({
-      fromOpId: link.source.operatorID,
-      fromPortId: { id: getOutputPortOrdinal(link.source.operatorID, link.source.portID), internal: false },
-      toOpId: link.target.operatorID,
-      toPortId: { id: getInputPortOrdinal(link.target.operatorID, link.target.portID), internal: false },
-    }));
-  }
-
-  let allOpsToView: string[];
-  if (opsToViewResult && opsToViewResult.length > 0) {
-    const operatorIds = new Set(operatorsList.map(op => op.operatorID));
-    allOpsToView = opsToViewResult.filter(id => operatorIds.has(id));
-  } else {
-    allOpsToView = operatorsList
-      .filter(op => !linksList.some(link => link.fromOpId === op.operatorID))
-      .map(op => op.operatorID);
-  }
-
-  return {
-    operators: operatorsList,
-    links: linksList,
-    opsToViewResult: allOpsToView,
   };
 }
 
@@ -272,8 +196,7 @@ async function executeWorkflowHttp(
   const request = {
     executionName: "agent-execution",
     logicalPlan: {
-      operators: logicalPlan.operators,
-      links: logicalPlan.links,
+      ...logicalPlan,
       opsToViewResult: logicalPlan.opsToViewResult || [],
       opsToReuseResult: [],
     },
@@ -384,16 +307,15 @@ export async function executeOperatorAndFormat(
   const release = await getWorkflowMutex(config.workflowId).acquire();
 
   try {
-    const logicalPlan = buildLogicalPlan(workflowState, [operatorId]);
+    const logicalPlan = workflowState.toLogicalPlan(operatorId);
 
-    if (logicalPlan.operators.length === 0) {
+    if ((logicalPlan.executeOperatorIds ?? logicalPlan.operators).length === 0) {
       return createErrorResult("Cannot execute: workflow has no operators.");
     }
 
-    // Only block on the target operator's validation errors; upstream issues will
-    // surface as runtime errors that correctly identify the failing operator.
-    const validationResult = validateWorkflow(workflowState);
-    if (!validationResult.isValid) {
+    // Macro validation and result projection belong to the backend compiler.
+    if (!logicalPlan.macroContent) {
+      const validationResult = validateWorkflow(workflowState.getWorkflowContent());
       const targetErrors = validationResult.errors[operatorId];
       if (targetErrors) {
         const lines = [`Operator ${operatorId}:`];

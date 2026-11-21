@@ -17,8 +17,10 @@
  * under the License.
  */
 
+import { WorkflowFatalErrorType } from "../types/execution";
 import { afterEach, describe, expect, mock, spyOn, test } from "bun:test";
 import { compileWorkflowAsync, type WorkflowCompilationResponse } from "./compile-api";
+import { macroWorkflow } from "../agent/macro-test-data";
 import type { LogicalPlan } from "../types/workflow";
 
 const plan = {
@@ -51,6 +53,38 @@ describe("compileWorkflowAsync", () => {
       opsToReuseResult: [],
       opsToViewResult: [],
     });
+  });
+
+  test.each([
+    [500, undefined],
+    [401, "expired-token"],
+  ] as const)("returns null for HTTP %d", async (status, token) => {
+    spyOn(globalThis, "fetch").mockResolvedValue(new Response(null, { status }));
+    expect(await compileWorkflowAsync(plan, token)).toBeNull();
+  });
+
+  test("sends the authenticated pinned bundle and preserves the compiler's boundary schemas and nested diagnostics", async () => {
+    const macroContent = macroWorkflow();
+    const compilation: WorkflowCompilationResponse = {
+      operatorOutputSchemas: { one: { "0_false": [{ attributeName: "value", attributeType: "string" }] } },
+      operatorErrors: {
+        one: {
+          operatorId: "one",
+          message: "Outer / Inner / Scan: invalid column",
+          type: { name: WorkflowFatalErrorType.COMPILATION_ERROR },
+          timestamp: { seconds: 0, nanos: 0 },
+          workerId: "",
+          details: "",
+        },
+      },
+      macroExpansion: { content: { ...macroContent, operators: [], links: [] }, paths: {}, ports: {} },
+    };
+    const fetchSpy = spyOn(globalThis, "fetch").mockResolvedValue(Response.json(compilation));
+    const request = { ...plan, macroContent, executeOperatorIds: ["one"] };
+    expect(await compileWorkflowAsync(request, "user-token")).toEqual(compilation);
+    const [, init] = fetchSpy.mock.calls[0];
+    expect(init?.headers).toEqual({ Authorization: "Bearer user-token", "Content-Type": "application/json" });
+    expect(JSON.parse(init!.body as string)).toMatchObject({ macroContent, executeOperatorIds: ["one"] });
   });
 
   test("sends the user's token as a Bearer Authorization header when given", async () => {

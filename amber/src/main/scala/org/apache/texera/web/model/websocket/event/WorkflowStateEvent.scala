@@ -19,4 +19,5 @@
 
 package org.apache.texera.web.model.websocket.event
 
-case class WorkflowStateEvent(state: String) extends TexeraWebSocketEvent
+case class WorkflowStateEvent(state: String, executionId: Option[Long] = None)
+    extends TexeraWebSocketEvent

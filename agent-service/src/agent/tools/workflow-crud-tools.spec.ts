@@ -17,12 +17,15 @@
  * under the License.
  */
 
-import { describe, expect, test } from "bun:test";
+import { afterEach, beforeEach, describe, expect, test, spyOn } from "bun:test";
 import { createAddOperatorTool, createModifyOperatorTool, createDeleteOperatorTool } from "./workflow-crud-tools";
+import { macroWorkflow } from "../macro-test-data";
 import { WorkflowState } from "../workflow-state";
 import { WorkflowSystemMetadata } from "../util/workflow-system-metadata";
 import type { OperatorMetadata } from "../../api/backend-api";
 import type { OperatorPredicate } from "../../types/workflow";
+
+const fetchTarget: { fetch: (...args: Parameters<typeof fetch>) => ReturnType<typeof fetch> } = globalThis;
 
 // A single synthetic operator type with one input and one output port, backed
 // by a real (in-memory, no backend fetch) WorkflowSystemMetadata so the tools
@@ -780,5 +783,61 @@ describe("createAddOperatorTool", () => {
     // Unlike modifyOperator, addOperator reports the raw message with no id prefix.
     expect(result).toBe("[ERROR] insert failed");
     expect(state.getAllOperators()).toHaveLength(0);
+  });
+});
+
+describe("macro property edits", () => {
+  const content = macroWorkflow("count");
+  let state: WorkflowState;
+  let fetchSpy: ReturnType<typeof spyOn<typeof fetchTarget, "fetch">>;
+  const run = (id: string, value: unknown, other = {}) =>
+    runTool(createModifyOperatorTool(state, { ...context, userToken: "token" }), {
+      operatorId: id,
+      properties: { value },
+      ...other,
+    });
+
+  beforeEach(() => {
+    state = new WorkflowState();
+    state.setWorkflowContent({
+      ...content,
+      operators: [content.operators[0], { ...content.operators[1], isDisabled: true }],
+    });
+    fetchSpy = spyOn(fetchTarget, "fetch").mockResolvedValue(new Response(null, { status: 204 }));
+  });
+  afterEach(() => {
+    fetchSpy.mockRestore();
+    state.destroy();
+  });
+
+  test("submits the proposed pin with its bearer token and commits only accepted edits", async () => {
+    expect(await run("one", 42)).not.toContain("[ERROR]");
+    expect(state.getOperator("one")!.operatorProperties.value).toBe(42);
+    const before = structuredClone(state.getWorkflowContent());
+    for (const operator of before.operators) {
+      const message = "Outer / Inner / Leaf: count must be an integer";
+      fetchSpy.mockResolvedValueOnce(Response.json({ message }, { status: 400 }));
+      expect(await run(operator.operatorID, "bad", { summary: "Rename" })).toContain(message);
+      const [url, init] = fetchSpy.mock.calls.at(-1)!;
+      expect(String(url)).toEndWith("/api/compile/validate-properties");
+      expect(init!.headers).toMatchObject({ Authorization: "Bearer token" });
+      expect(JSON.parse(init!.body as string)).toEqual({
+        operator: { ...operator, operatorProperties: { ...operator.operatorProperties, value: "bad" } },
+        macroDependencies: before.macroDependencies,
+      });
+    }
+    expect(await run("one", 7, { summary: "Rename", inputOperatorIds: { "9": ["two"] } })).toContain("out of range");
+    expect(state.getWorkflowContent()).toEqual(before);
+  });
+
+  test("keeps a concurrent change made while validation is pending", async () => {
+    const validation = Promise.withResolvers<Response>();
+    fetchSpy.mockReturnValueOnce(validation.promise);
+    const pending = run("one", 42);
+    expect(fetchSpy).toHaveBeenCalledTimes(1);
+    state.updateOperatorProperties("one", { value: 20 });
+    validation.resolve(new Response(null, { status: 204 }));
+    expect(await pending).toContain("workflow changed");
+    expect(state.getOperator("one")!.operatorProperties.value).toBe(20);
   });
 });

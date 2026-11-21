@@ -210,7 +210,9 @@ export class WorkflowGraph {
   }
 
   public getSharedPortDescriptionType(operatorPortID: LogicalPort): YType<PortDescription> | undefined {
-    const isInput = operatorPortID?.portID.includes("input");
+    const isInput = this.getOperator(operatorPortID.operatorID).inputPorts.some(
+      p => p.portID === operatorPortID.portID
+    );
     const portListObject = isInput
       ? this.getOperator(operatorPortID.operatorID).inputPorts
       : this.getOperator(operatorPortID.operatorID).outputPorts;
@@ -679,44 +681,33 @@ export class WorkflowGraph {
     }
   }
 
-  public removePort(operatorID: string, isInput: boolean): void {
+  public removePort(operatorID: string, isInput: boolean, portID?: string): void {
     this.assertOperatorExists(operatorID);
-    if (isInput) {
-      const inputPorts = this.sharedModel.operatorIDMap.get(operatorID)?.get("inputPorts") as Y.Array<
-        YType<PortDescription>
-      >;
-      inputPorts.delete(inputPorts.length - 1, 1);
-    } else {
-      const outputPorts = this.sharedModel.operatorIDMap.get(operatorID)?.get("outputPorts") as Y.Array<
-        YType<PortDescription>
-      >;
-      outputPorts.delete(outputPorts.length - 1, 1);
+    const ports = this.sharedModel.operatorIDMap
+      .get(operatorID)!
+      .get(isInput ? "inputPorts" : "outputPorts") as Y.Array<YType<PortDescription>>;
+    const selected = portID ? ports.toArray().findIndex(port => port.get("portID").toJSON() === portID) : -1;
+    const index = selected >= 0 ? selected : ports.length - 1;
+    if (index < 0) return;
+    const removed = ports.get(index).get("portID").toJSON();
+    for (const link of this.getAllLinks()) {
+      const end = isInput ? link.target : link.source;
+      if (end.operatorID === operatorID && end.portID === removed) this.deleteLinkWithID(link.linkID);
     }
+    ports.delete(index, 1);
   }
 
   public hasPort(operatorPortID: LogicalPort): boolean {
     if (!this.hasOperator(operatorPortID.operatorID)) return false;
     const operator = this.getOperator(operatorPortID.operatorID);
-    if (operatorPortID.portID.includes("input")) {
-      return (
-        operator.inputPorts.find(portDescription => portDescription.portID === operatorPortID.portID) !== undefined
-      );
-    } else if (operatorPortID.portID.includes("output")) {
-      return (
-        operator.outputPorts.find(portDescription => portDescription.portID === operatorPortID.portID) !== undefined
-      );
-    } else return false;
+    return [...operator.inputPorts, ...operator.outputPorts].some(p => p.portID === operatorPortID.portID);
   }
 
   public getPortDescription(operatorPortID: LogicalPort): PortDescription | undefined {
     if (!this.hasPort(operatorPortID))
       throw new Error(`operator port ${(operatorPortID.operatorID, operatorPortID.portID)} does not exist`);
     const operator = this.getOperator(operatorPortID.operatorID);
-    if (operatorPortID.portID.includes("input")) {
-      return operator.inputPorts.find(portDescription => portDescription.portID === operatorPortID.portID);
-    } else if (operatorPortID.portID.includes("output")) {
-      return operator.outputPorts.find(portDescription => portDescription.portID === operatorPortID.portID);
-    } else return undefined;
+    return [...operator.inputPorts, ...operator.outputPorts].find(p => p.portID === operatorPortID.portID);
   }
 
   /**
@@ -1041,15 +1032,17 @@ export class WorkflowGraph {
    * @param operator
    */
   public assertOperatorNotExists(operatorID: string): void {
-    if (this.hasOperator(operatorID)) {
-      throw new Error(`operator with ID ${operatorID} already exists`);
-    }
+    this.assertCellIDUnused(operatorID, "operator");
   }
 
   public assertCommentBoxNotExists(commentBoxID: string): void {
-    if (this.hasCommentBox(commentBoxID)) {
-      throw new Error(`commentBox with ID ${commentBoxID} already exists`);
-    }
+    this.assertCellIDUnused(commentBoxID, "commentBox");
+  }
+
+  private assertCellIDUnused(id: string, kind: string): void {
+    if (typeof id !== "string" || !id.trim()) throw new Error("Invalid graph element ID");
+    if (this.hasOperator(id) || this.hasLinkWithID(id) || this.hasCommentBox(id))
+      throw new Error(`${kind} with ID ${id} already exists`);
   }
 
   /**
@@ -1061,9 +1054,7 @@ export class WorkflowGraph {
    * @param link
    */
   public assertLinkNotExists(link: OperatorLink): void {
-    if (this.hasLinkWithID(link.linkID)) {
-      throw new Error(`link with ID ${link.linkID} already exists`);
-    }
+    this.assertCellIDUnused(link.linkID, "link");
     if (this.hasLink(link.source, link.target)) {
       throw new Error(`link from ${link.source.operatorID}.${link.source.portID}
         to ${link.target.operatorID}.${link.target.portID} already exists`);

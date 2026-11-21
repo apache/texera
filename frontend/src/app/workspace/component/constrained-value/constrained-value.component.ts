@@ -23,6 +23,7 @@ import { FormsModule } from "@angular/forms";
 import { FieldType, FieldTypeConfig, FormlyModule } from "@ngx-formly/core";
 import { NzInputModule } from "ng-zorro-antd/input";
 import { NzSelectModule } from "ng-zorro-antd/select";
+import { propertyModel } from "../../util/custom-formly-type";
 import { matchingValueRule } from "../../../common/formly/formly-utils";
 
 /**
@@ -65,7 +66,7 @@ import { matchingValueRule } from "../../../common/formly/formly-utils";
 export class ConstrainedValueComponent extends FieldType<FieldTypeConfig> {
   /** The branch of the rules that the sibling's current value selects, if any. */
   private get rule() {
-    return matchingValueRule(this.props.valueRules, this.field?.parent?.model);
+    return matchingValueRule(this.props.valueRules, propertyModel(this.field));
   }
 
   get acceptedValues(): ReadonlyArray<string> {

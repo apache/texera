@@ -241,7 +241,7 @@ export class ComputingUnitSelectionComponent implements OnInit {
       .getSelectedComputingUnit()
       .pipe(untilDestroyed(this))
       .subscribe(unit => {
-        const wid = this.workflowActionService.getWorkflowMetadata()?.wid;
+        const wid = this.workflowActionService.getExecutionWorkflowMetadata()?.wid;
 
         // ── compare with the *previous* cuid, not the one we are just about to store ──
         if (isDefined(wid) && unit?.computingUnit.cuid !== this.lastSelectedCuid) {
@@ -341,7 +341,7 @@ export class ComputingUnitSelectionComponent implements OnInit {
       .workflowMetaDataChanged()
       .pipe(untilDestroyed(this))
       .subscribe(() => {
-        const wid = this.workflowActionService.getWorkflowMetadata()?.wid;
+        const wid = this.workflowActionService.getExecutionWorkflowMetadata()?.wid;
         if (wid !== this.workflowId) {
           this.workflowId = wid;
           // The previous workflow's execution — and pick — must not steer this

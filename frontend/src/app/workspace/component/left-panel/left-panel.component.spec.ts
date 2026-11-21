@@ -17,6 +17,7 @@
  * under the License.
  */
 
+import { setMacroGraph } from "../../../common/testing/macro-graph";
 import { ComponentFixture, fakeAsync, TestBed, tick } from "@angular/core/testing";
 import { By } from "@angular/platform-browser";
 import { DebugElement } from "@angular/core";
@@ -41,6 +42,8 @@ const PANEL_LOCAL_STORAGE_KEYS = [
   "left-panel-index",
   "left-panel-style",
 ];
+
+import { of } from "rxjs";
 
 describe("LeftPanelComponent", () => {
   let component: LeftPanelComponent;
@@ -78,6 +81,25 @@ describe("LeftPanelComponent", () => {
     clearPanelStorage();
   });
 
+  it("keeps macro editing on the canvas without an Interface dock", () => {
+    component.openFrame(1);
+    setMacroGraph(workflowActionService, { id: "m", inputs: [], outputs: [] });
+    fixture.detectChanges();
+    expect(component.items.some(i => i.title === "Interface")).toBe(false);
+    expect(fixture.nativeElement.querySelector('#dock [nztype="api"], #docked-buttons [nztype="api"]')).toBeNull();
+    expect(component.currentComponent).toBe(OperatorMenuComponent);
+  });
+
+  it("restores the remaining dock order when Interface was previously selected", () => {
+    localStorage.setItem("left-panel-order", "5,6,4,3,2,1");
+    localStorage.setItem("left-panel-index", "6");
+    const fresh = TestBed.createComponent(LeftPanelComponent);
+    fresh.detectChanges();
+    expect(fresh.componentInstance.order).toEqual([5, 4, 3, 2, 1]);
+    expect(fresh.componentInstance.currentComponent).toBe(OperatorMenuComponent);
+    fresh.destroy();
+  });
+
   it("should create", () => {
     expect(component).toBeTruthy();
   });
@@ -96,7 +118,11 @@ describe("LeftPanelComponent", () => {
 
     // click on versions display
     component.openFrame(2);
-    new VersionsListComponent(workflowActionService, {} as never, { snapshot: { params: {} } } as never).ngOnInit();
+    new VersionsListComponent(
+      workflowActionService,
+      { retrieveVersionsOfWorkflow: () => of([]) } as never,
+      { snapshot: { params: {} } } as never
+    ).ngOnInit();
 
     // all the elements shall be un-highlighted
     expect(workflowActionService.getJointGraphWrapper().getCurrentHighlightedOperatorIDs().length).toBe(0);
@@ -303,6 +329,13 @@ describe("LeftPanelComponent", () => {
     expect(fresh.order).toEqual([5, 4, 3, 2, 1]);
 
     freshFixture.destroy();
+  });
+
+  it.each(["-1", "NaN", "999"])("ignores an invalid saved dock index %s", saved => {
+    localStorage.setItem("left-panel-index", saved);
+    const fresh = TestBed.createComponent(LeftPanelComponent);
+    expect(fresh.componentInstance.currentIndex).toBe(1);
+    fresh.destroy();
   });
 
   it("constructor ignores a saved tab order whose unique-entry count differs from the default", () => {

@@ -150,9 +150,7 @@ class Coordinator(
         (region.id.id, region.physicalOps.map(_.id.logicalOpId.id).toList)
       }
 
-    SessionState.getAllSessionStates.foreach { state =>
-      state.send(RegionUpdateEvent(regions))
-    }
+    SessionState.sendToWorkflow(workflowContext.workflowId, RegionUpdateEvent(regions))
 
     val coordinatorRestoreConf = coordinatorConfig.stateRestoreConfOpt
     if (coordinatorRestoreConf.isDefined) {

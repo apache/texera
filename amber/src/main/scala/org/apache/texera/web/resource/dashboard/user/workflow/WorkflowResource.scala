@@ -19,7 +19,8 @@
 
 package org.apache.texera.web.resource.dashboard.user.workflow
 
-import com.fasterxml.jackson.databind.ObjectMapper
+import com.fasterxml.jackson.databind.{JsonNode, ObjectMapper}
+import com.fasterxml.jackson.databind.node.{ArrayNode, ObjectNode}
 import com.fasterxml.jackson.module.scala.DefaultScalaModule
 import com.typesafe.scalalogging.LazyLogging
 import io.dropwizard.auth.Auth
@@ -32,6 +33,9 @@ import org.apache.texera.amber.core.virtualidentity.ExecutionIdentity
 import org.apache.texera.auth.SessionUser
 import org.apache.texera.auth.util.OwnerAccess
 import org.apache.texera.auth.util.WorkflowAccess
+import org.apache.texera.amber.core.workflow.WorkflowGraphIDs
+import org.apache.texera.amber.util.JSONUtils.objectMapper
+import org.apache.texera.common.compiler.MacroExpansion
 import org.apache.texera.dao.SqlServer
 import org.apache.texera.dao.jooq.generated.Tables._
 import org.apache.texera.dao.jooq.generated.enums.{DefaultViewEnum, PrivilegeEnum}
@@ -46,8 +50,9 @@ import org.apache.texera.service.util.LargeBinaryManager
 import org.apache.texera.web.resource.dashboard.hub.EntityType
 import org.apache.texera.web.resource.dashboard.hub.HubResource.recordCloneAction
 import org.apache.texera.web.resource.dashboard.user.workflow.WorkflowResource._
+import org.apache.texera.web.resource.dashboard.user.workflow.WorkflowVersionResource.MacroPin
+import org.jooq.impl.DSL.{coalesce, count, lateral, max, select}
 import org.jooq.impl.DSL
-import org.jooq.impl.DSL.max
 import org.jooq.{DSLContext, Record10, Result, SelectOnConditionStep, TableField}
 
 import java.sql.Timestamp
@@ -68,6 +73,13 @@ import scala.util.control.NonFatal
   */
 
 object WorkflowResource {
+  private def validatedContent(workflow: Workflow): ObjectNode =
+    try {
+      val graph = objectMapper.readTree(workflow.getContent)
+      WorkflowGraphIDs.validate(graph)
+      graph.asInstanceOf[ObjectNode]
+    } catch { case NonFatal(error) => throw new BadRequestException(error.getMessage, error) }
+
   private def context: DSLContext =
     SqlServer
       .getInstance()
@@ -141,6 +153,17 @@ object WorkflowResource {
 
   case class WorkflowIDs(wids: List[Integer])
 
+  case class MacroHead(version: Int, name: String, description: String)
+  case class MacroSaveStep(workflow: Workflow, head: Option[MacroHead], operatorID: Option[String])
+  case class MacroPathSave(steps: List[MacroSaveStep], rootBefore: Workflow)
+  case class SavedRevision(version: Int, revision: Int, content: JsonNode)
+  case class MacroUsage(id: String, wid: Integer, path: List[String], label: String)
+  case class MacroCatalog(
+      definitions: List[MacroPin],
+      usages: List[MacroUsage],
+      errors: List[String]
+  )
+
   /** Clears every column that describes a pinned public copy. */
   private def clearPublishState(workflow: Workflow): Unit = {
     workflow.setPublishedVersionId(null)
@@ -178,16 +201,10 @@ object WorkflowResource {
     * up carrying the published graph under a title the author never published.
     */
   private def copyVisibleTo(workflow: Workflow, uid: Integer): WorkflowPublishService.PublicCopy =
-    if (uid != null && WorkflowAccess.hasGrantedAccess(workflow.getWid, uid)) {
-      WorkflowPublishService.PublicCopy(
-        workflow.getName,
-        workflow.getDescription,
-        workflow.getContent,
-        workflow.getDefaultView
-      )
-    } else {
-      WorkflowPublishService.publicCopyOf(workflow)
-    }
+    WorkflowPublishService.visibleCopy(
+      workflow,
+      uid != null && WorkflowAccess.hasGrantedAccess(workflow.getWid, uid)
+    )
 
   /**
     * One column as the public sees it: the frozen value while a pin is in place, the live one
@@ -241,22 +258,54 @@ object WorkflowResource {
     */
   def assignNewOperatorIds(workflowContent: String): String = {
     val objectMapper = new ObjectMapper().registerModule(DefaultScalaModule)
-    val operatorIdMap = objectMapper
-      .readValue(workflowContent, classOf[Map[String, List[Map[String, String]]]])("operators")
+    val canvas = objectMapper.readTree(workflowContent).asInstanceOf[ObjectNode]
+    val operators = Option(canvas.get("operators"))
+      .filter(_.isArray)
+      .getOrElse(throw new IllegalArgumentException("Missing operators array"))
+    val operatorIdMap = operators
+      .elements()
+      .asScala
       .map(operator => {
-        val oldOperatorId = operator("operatorID")
-        val operatorType = operator("operatorType")
+        require(operator.path("operatorID").isTextual && operator.path("operatorType").isTextual)
+        val oldOperatorId = operator.get("operatorID").asText()
+        val operatorType = operator.get("operatorType").asText()
         // operator id in frontend: operatorSchema.operatorType + "-operator-" + uuid(); // v4 = UUID.randomUUID().toString
         val newOperatorId = s"$operatorType-operator-${UUID.randomUUID()}"
+        operator.asInstanceOf[ObjectNode].put("operatorID", newOperatorId)
         oldOperatorId -> newOperatorId
       })
       .toMap
 
-    // replace all old operator ids with new operator ids
-    operatorIdMap.foldLeft(workflowContent) {
-      case (updatedContent, (oldId, newId)) =>
-        updatedContent.replace(oldId, newId)
+    // Only graph references change; pinned snapshots and user values stay untouched.
+    Seq("/links", "/formBinding/fields", "/macroInterface/inputs", "/macroInterface/outputs")
+      .foreach { path =>
+        canvas.at(path).findParents("operatorID").asScala.foreach { node =>
+          val ref = node.asInstanceOf[ObjectNode]
+          operatorIdMap
+            .get(ref.path("operatorID").asText())
+            .foreach(id => ref.put("operatorID", id))
+        }
+      }
+    Option(canvas.get("operatorPositions")).collect { case p: ObjectNode => p }.foreach {
+      positions =>
+        operatorIdMap.foreach {
+          case (oldId, newId) =>
+            Option(positions.remove(oldId)).foreach(value => positions.set[JsonNode](newId, value))
+        }
     }
+    val shown = canvas.at("/formBinding/shownResultIds")
+    shown.elements().asScala.zipWithIndex.foreach {
+      case (entry, index) =>
+        operatorIdMap
+          .get(entry.asText())
+          .foreach(id =>
+            shown.asInstanceOf[ArrayNode].set(index, objectMapper.getNodeFactory.textNode(id))
+          )
+    }
+    Option(canvas.get("macroInterface")).filter(_.isObject).foreach { boundary =>
+      boundary.asInstanceOf[ObjectNode].put("id", UUID.randomUUID().toString)
+    }
+    canvas.toString
   }
 
   /** The access join is narrowed to `uid`, so each row carries only the viewer's grant. */
@@ -397,6 +446,60 @@ class WorkflowResource extends LazyLogging {
     mapWorkflowEntries(workflowEntries, user.getUid)
   }
 
+  @GET
+  @RolesAllowed(Array("REGULAR", "ADMIN"))
+  @Path("/macros")
+  def macroCatalog(@Auth user: SessionUser): MacroCatalog = {
+    val definitions = List.newBuilder[MacroPin]
+    val usages = List.newBuilder[MacroUsage]
+    val errors = List.newBuilder[String]
+    val version = max(WORKFLOW_VERSION.VID).as("version")
+    val ordinal = count().as("ordinal")
+    val head = lateral(
+      select(version, ordinal).from(WORKFLOW_VERSION).where(WORKFLOW_VERSION.WID.eq(WORKFLOW.WID))
+    ).as("head")
+    context
+      .select(
+        WORKFLOW.WID,
+        WORKFLOW.NAME,
+        WORKFLOW.CONTENT,
+        head.field(version),
+        head.field(ordinal)
+      )
+      .from(WORKFLOW)
+      .join(WORKFLOW_USER_ACCESS)
+      .on(WORKFLOW_USER_ACCESS.WID.eq(WORKFLOW.WID))
+      .crossJoin(head)
+      .where(
+        WORKFLOW_USER_ACCESS.UID
+          .eq(user.getUid)
+          .and(WORKFLOW_USER_ACCESS.PRIVILEGE.ne(PrivilegeEnum.NONE))
+      )
+      .fetch()
+      .asScala
+      .foreach { row =>
+        val name = row.value2()
+        try {
+          val body = objectMapper.readTree(row.value3())
+          val wid = row.value1()
+          MacroExpansion.references(body).foreach { ref =>
+            usages += MacroUsage(ref.id, wid, ref.path, (name :: ref.names).mkString(" / "))
+          }
+          if (body.hasNonNull("macroInterface")) {
+            val id = body.path("macroInterface").path("id").textValue()
+            require(id != null && id.nonEmpty, "Malformed macro definition")
+            require(row.value4() != null, "Macro has no saved version")
+            definitions += MacroPin(id, wid, name, row.value4(), row.value5(), body)
+          }
+        } catch { case NonFatal(error) => errors += s"$name: ${error.getMessage}" }
+      }
+    MacroCatalog(
+      definitions.result().sortBy(_.name),
+      usages.result().sortBy(_.label),
+      errors.result()
+    )
+  }
+
   /**
     * This method handles the client request to get a specific workflow to be displayed in canvas
     * at current design, it only takes the workflowID and searches within the database for the matching workflow
@@ -448,11 +551,11 @@ class WorkflowResource extends LazyLogging {
   @RolesAllowed(Array("REGULAR", "ADMIN"))
   @Path("/persist")
   def persistWorkflow(workflow: Workflow, @Auth sessionUser: SessionUser): Workflow = {
+    validatedContent(workflow)
     val user = sessionUser.getUser
 
     if (WorkflowAccess.isOwner(workflow.getWid, user.getUid)) {
-      WorkflowVersionResource.insertVersion(workflow, insertingNewWorkflow = false)
-      saveWorkflowFields(workflow)
+      saveExisting(workflow)
     } else {
       if (!WorkflowAccess.hasReadAccess(workflow.getWid, user.getUid)) {
         // Check if this workflow exists in the database
@@ -467,9 +570,7 @@ class WorkflowResource extends LazyLogging {
         insertWorkflow(workflow, user)
         WorkflowVersionResource.insertVersion(workflow, insertingNewWorkflow = true)
       } else if (WorkflowAccess.hasWriteAccess(workflow.getWid, user.getUid)) {
-        WorkflowVersionResource.insertVersion(workflow, insertingNewWorkflow = false)
-        // not owner but has write access
-        saveWorkflowFields(workflow)
+        saveExisting(workflow)
       } else {
         // not owner and no write access -> rejected
         throw new ForbiddenException("No sufficient access privilege.")
@@ -480,6 +581,138 @@ class WorkflowResource extends LazyLogging {
     workflowDao.fetchOneByWid(wid)
   }
 
+  /** Commit the edited leaf and its parent usages in order, including repeated occurrences of the same workflow. */
+  @POST
+  @Consumes(Array(MediaType.APPLICATION_JSON))
+  @Produces(Array(MediaType.APPLICATION_JSON))
+  @RolesAllowed(Array("REGULAR", "ADMIN"))
+  @Path("/persist/macro-path")
+  def persistMacroPath(
+      request: MacroPathSave,
+      @Auth sessionUser: SessionUser
+  ): List[SavedRevision] = {
+    if (request == null) throw new BadRequestException("Missing macro save path")
+    val steps = request.steps
+    if (
+      steps == null || steps.length < 2 || steps.length > 33 || request.rootBefore == null ||
+      steps.exists(s => s == null || s.workflow == null || s.workflow.getWid == null) ||
+      steps.head.operatorID.nonEmpty || steps.tail.exists(_.operatorID.isEmpty) ||
+      steps.init.exists(_.head.isEmpty) || request.rootBefore.getWid != steps.last.workflow.getWid
+    )
+      throw new BadRequestException("Invalid macro save path")
+    val graphs = steps.map(s => s -> validatedContent(s.workflow))
+    val original = validatedContent(request.rootBefore)
+    val uid = sessionUser.getUser.getUid
+    def conflict(): Nothing =
+      throw new WebApplicationException(
+        "The workflow has a newer saved revision. Your draft is still open.",
+        409
+      )
+    context.transactionResult { config =>
+      val db = config.dsl()
+      val ids = steps.map(_.workflow.getWid).distinct
+      val rows = db
+        .selectFrom(WORKFLOW)
+        .where(WORKFLOW.WID.in(ids.asJava))
+        .orderBy(WORKFLOW.WID)
+        .forUpdate()
+        .fetchMap(WORKFLOW.WID)
+      if (
+        ids.exists(id =>
+          !rows
+            .containsKey(id) || !(WorkflowAccess.getPrivilege(id, uid, db) == PrivilegeEnum.WRITE)
+        )
+      )
+        throw new ForbiddenException("The workflow or macro source is read-only.")
+      def revision(wid: Integer) =
+        db
+          .select(coalesce(max(WORKFLOW_VERSION.VID), Int.box(0)), count())
+          .from(WORKFLOW_VERSION)
+          .where(WORKFLOW_VERSION.WID.eq(wid))
+          .fetchSingle()
+
+      val before = request.rootBefore
+      val root = rows.get(before.getWid)
+      if (
+        root.getName != before.getName || root.getDescription != before.getDescription ||
+        objectMapper.readTree(root.getContent) != original
+      ) conflict()
+      graphs.init.foreach {
+        case (s, graph) =>
+          val wid = s.workflow.getWid
+          val row = rows.get(wid)
+          val expectedId = objectMapper.readTree(row.getContent).path("macroInterface").path("id")
+          if (
+            !expectedId.isTextual || expectedId != graph.path("macroInterface").path("id") ||
+            !s.head.contains(
+              MacroHead(revision(wid).value1(), row.getName, row.getDescription)
+            )
+          ) conflict()
+      }
+      var child: Option[(Workflow, SavedRevision)] = None
+      graphs.map {
+        case (step, graph) =>
+          val workflow = step.workflow
+          child.foreach {
+            case (saved, pin) =>
+              val body = pin.content.deepCopy[ObjectNode]()
+              val id = body.path("macroInterface").path("id").asText()
+              def operatorType(version: Long): String = s"WorkflowMacro:$id:$version"
+              val op = graph
+                .path("operators")
+                .elements()
+                .asScala
+                .collectFirst {
+                  case value: ObjectNode
+                      if value.path("operatorID").asText() == step.operatorID.get =>
+                    value
+                }
+                .getOrElse(conflict())
+              val dependencies = graph.withArray("macroDependencies")
+              val currentType = op.path("operatorType").asText()
+              val pinned = dependencies.elements().asScala.exists { d =>
+                d.path("id").asText() == id && operatorType(
+                  d.path("version").asLong()
+                ) == currentType
+              }
+              if (id.isEmpty || !pinned) conflict()
+              op.put("operatorType", operatorType(pin.version))
+                .put("operatorVersion", pin.version.toString)
+              val nested =
+                Option(body.remove("macroDependencies")).toList.flatMap(_.elements().asScala)
+              val definition = objectMapper.valueToTree[ObjectNode](
+                MacroPin(id, saved.getWid, saved.getName, pin.version, pin.revision, body)
+              )
+              val merged = scala.collection.mutable.LinkedHashMap.empty[(String, Long), JsonNode]
+              (dependencies.elements().asScala ++ Iterator.single(definition) ++ nested).foreach {
+                d =>
+                  val key = (d.path("id").asText(), d.path("version").asLong())
+                  if (merged.get(key).exists(_.path("content") != d.path("content"))) conflict()
+                  merged(key) = d
+              }
+              dependencies.removeAll().addAll(merged.values.toList.asJava)
+              workflow.setContent(graph.toString)
+          }
+          saveRevision(workflow, db)
+          val row = revision(workflow.getWid)
+          val pin = SavedRevision(row.value1(), row.value2(), graph)
+          child = Some(workflow -> pin)
+          pin
+      }
+    }
+  }
+
+  private def saveExisting(workflow: Workflow): Unit =
+    context.transaction { config =>
+      val db = config.dsl()
+      db.select(WORKFLOW.WID)
+        .from(WORKFLOW)
+        .where(WORKFLOW.WID.eq(workflow.getWid))
+        .forUpdate()
+        .fetch()
+      saveRevision(workflow, db)
+    }
+
   /**
     * Persists a plain save by updating only what a save is: name, description and content.
     * `is_public` is not written here. Publishing has its own endpoints (/public, /private), and
@@ -489,8 +722,9 @@ class WorkflowResource extends LazyLogging {
     * save failed with 500. `default_view` is likewise owned by /set-default-view alone, and the
     * timestamps are not rewritten here, so a save can never clobber a concurrent change to either.
     */
-  private def saveWorkflowFields(workflow: Workflow): Unit = {
-    context
+  private def saveRevision(workflow: Workflow, db: DSLContext): Unit = {
+    WorkflowVersionResource.insertVersion(workflow, insertingNewWorkflow = false, db = db)
+    db
       .update(WORKFLOW)
       .set(WORKFLOW.NAME, workflow.getName)
       .set(WORKFLOW.DESCRIPTION, workflow.getDescription)
@@ -597,6 +831,7 @@ class WorkflowResource extends LazyLogging {
   @RolesAllowed(Array("REGULAR", "ADMIN"))
   @Path("/create")
   def createWorkflow(workflow: Workflow, @Auth sessionUser: SessionUser): DashboardWorkflow = {
+    validatedContent(workflow)
     val user = sessionUser.getUser
     if (workflow.getWid != null) {
       throw new BadRequestException("Cannot create a new workflow with a provided id.")

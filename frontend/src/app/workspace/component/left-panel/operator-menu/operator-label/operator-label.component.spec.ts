@@ -104,6 +104,10 @@ describe("OperatorLabelComponent", () => {
       // the label is visibly marked undraggable ...
       const label = <HTMLElement>fixture.debugElement.query(By.css(".operator-label")).nativeElement;
       expect(label.classList.contains("disable-drag-drop")).toBe(true);
+      expect(cdkDrag.disabled).toBe(true);
+      const drop = vi.spyOn(dragDropService, "dragDropped").mockImplementation(() => {});
+      cdkDrag.dropped.emit({ dropPoint: { x: 137, y: 421 } } as unknown as CdkDragDrop<unknown>);
+      expect(drop).not.toHaveBeenCalled();
 
       // ... and a drag that fires anyway is dropped on the floor
       cdkDrag.started.emit({ source: cdkDrag } as unknown as CdkDragStart);

@@ -24,6 +24,7 @@ import org.apache.texera.amber.core.virtualidentity.WorkflowIdentity
 import org.apache.texera.amber.util.JSONUtils.objectMapper
 import org.apache.texera.dao.jooq.generated.enums.PrivilegeEnum
 import org.apache.texera.web.model.websocket.event.{TexeraWebSocketEvent, WorkflowStateEvent}
+import org.apache.texera.web.model.websocket.response.RegionUpdateEvent
 import org.apache.texera.web.service.WorkflowService
 import org.scalamock.scalatest.MockFactory
 import org.scalatest.flatspec.AnyFlatSpec
@@ -124,6 +125,32 @@ class SessionStateSpec extends AnyFlatSpec with Matchers with MockFactory {
     secondService.executionSubscription.disposeCalls shouldBe 1
     secondService.disconnectCalls shouldBe 1
     state.getCurrentWorkflowState shouldBe None
+  }
+
+  it should "send region events only to sessions subscribed to their workflow" in {
+    val entries = (1 to 4).map { _ =>
+      val (session, messages) = messageCollectingSession()
+      val state = new SessionState(session)
+      val id = UUID.randomUUID().toString
+      SessionState.setState(id, state)
+      (id, state, messages)
+    }
+    try {
+      val first = new TestWorkflowService(94L)
+      entries(0)._2.subscribe(first)
+      entries(1)._2.subscribe(first)
+      entries(2)._2.subscribe(new TestWorkflowService(106L))
+      val event = RegionUpdateEvent(List((0L, List("operator"))))
+      SessionState.sendToWorkflow(WorkflowIdentity(94L), event)
+      entries.take(2).foreach(_._3 should have size 1)
+      entries.drop(2).foreach(_._3 shouldBe empty)
+
+      entries(0)._2.subscribe(new TestWorkflowService(106L))
+      SessionState.sendToWorkflow(WorkflowIdentity(94L), event)
+      entries(0)._3 should have size 1
+      entries(1)._3 should have size 2
+      entries.drop(2).foreach(_._3 shouldBe empty)
+    } finally entries.foreach(entry => removeStateIfPresent(entry._1))
   }
 
   it should "remove registered sessions, cleaning up subscriptions, and retain their computing-unit access level" in {

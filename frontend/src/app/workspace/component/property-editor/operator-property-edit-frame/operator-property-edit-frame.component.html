@@ -97,6 +97,11 @@
   (focusout)="disconnectQuillFromText()"
   (keyup.enter)="disconnectQuillFromText()"></div>
 
+<texera-macro-version
+  *ngIf="actsAsEditor"
+  [operatorID]="currentOperatorId"
+  [disabled]="!actsAsEditor || !interactive"></texera-macro-version>
+
 <form
   nz-form
   [nzLayout]="'vertical'"
@@ -235,6 +240,8 @@
   Confirm Change
 </button>
 
-<div class="operator-version">
+<div
+  *ngIf="operatorVersion"
+  class="operator-version">
   <span>Operator Version: {{ operatorVersion }}</span>
 </div>

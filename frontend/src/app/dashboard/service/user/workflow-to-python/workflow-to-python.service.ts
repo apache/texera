@@ -39,8 +39,7 @@ export class WorkflowToPythonService {
 
   public convertToPython(logicalPlan: LogicalPlan): Observable<WorkflowToPythonResponse> {
     const body = {
-      operators: logicalPlan.operators,
-      links: logicalPlan.links,
+      ...logicalPlan,
       opsToReuseResult: [],
       opsToViewResult: [],
     };

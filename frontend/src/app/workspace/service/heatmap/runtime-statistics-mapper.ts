@@ -48,8 +48,8 @@ export function operatorStateFromStatusCode(code: number): OperatorState {
  * per operator (by timestamp; the later row wins a tie, matching write
  * order), mapped to the wire shape WorkflowStatusService ingests.
  *
- * The engine sums the ports away before persisting, so the port maps are left
- * absent rather than empty — an empty map would zero the port labels.
+ * Aggregate history rows carry no port counters. Omitting the maps lets the
+ * canvas fall back to the aggregate where appropriate.
  */
 export function toOperatorRuntimeStatusMap(rows: WorkflowRuntimeStatistics[]): Record<string, OperatorRuntimeStatus> {
   const latestByOperator: Record<string, WorkflowRuntimeStatistics> = {};
