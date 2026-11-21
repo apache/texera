@@ -21,10 +21,12 @@ package org.apache.texera.amber.operator.source.scan.csv
 
 import com.univocity.parsers.common.TextParsingException
 import com.univocity.parsers.csv.{CsvFormat, CsvParser, CsvParserSettings}
+import org.apache.arrow.vector.VectorSchemaRoot
 import org.apache.texera.amber.core.executor.SourceOperatorExecutor
 import org.apache.texera.amber.core.storage.DocumentFactory
 import org.apache.texera.amber.core.tuple.{AttributeTypeUtils, Schema, TupleLike}
 import org.apache.texera.amber.operator.source.scan.{ScanRowParseError, SkippedRowReporter}
+import org.apache.texera.amber.util.ArrowUtils
 import org.apache.texera.amber.util.JSONUtils.objectMapper
 import org.apache.texera.dao.SiteSettings
 
@@ -91,6 +93,52 @@ class CSVScanSourceOpExec private[csv] (descString: String) extends SourceOperat
     tupleIterator
   }
 
+  // Columnar produce: parse each CSV row's typed values straight into Arrow vectors (the same
+  // AttributeTypeUtils.parseFields + per-column setCell the row path's values go through), so no
+  // per-row Tuple (and no Tuple.inMemSize deepSizeOf walk) is built. Rows are packed into bounded
+  // Arrow batches (COLUMNAR_BATCH_ROWS each) so the batch streams and pauses at a batch boundary.
+  // An unparsable row is skipped and reported, exactly as on the row path. Roots are allocated in
+  // the shared allocator so a handed-off batch outlives this exec. Falls back to the row path
+  // (None) when a scan window (offset/limit) is set.
+  override def produceColumnarBatch(
+      outputSchema: Schema
+  ): Option[Iterator[VectorSchemaRoot]] = {
+    if (desc.windowOffset > 0 || desc.windowLimit.isDefined) return None
+    val arrowSchema = ArrowUtils.fromTexeraSchema(schema)
+    val numCols = schema.getAttributes.length
+    val batchSize = CSVScanSourceOpExec.COLUMNAR_BATCH_ROWS
+    Some(new Iterator[VectorSchemaRoot] {
+      private var pending: Array[String] = CSVScanSourceOpExec.parseNextRow(parser, maxColumns)
+      override def hasNext: Boolean = pending != null
+      override def next(): VectorSchemaRoot = {
+        val root = VectorSchemaRoot.create(arrowSchema, ArrowUtils.sharedAllocator)
+        root.allocateNew()
+        var r = 0
+        while (r < batchSize && pending != null) {
+          val row = pending
+          numRowGenerated += 1
+          pending = CSVScanSourceOpExec.parseNextRow(parser, maxColumns)
+          try {
+            val values = AttributeTypeUtils.parseFields(row.asInstanceOf[Array[Any]], schema)
+            var c = 0
+            while (c < numCols) {
+              ArrowUtils.setCell(root.getVector(c), r, values(c).asInstanceOf[AnyRef]); c += 1
+            }
+            r += 1
+          } catch {
+            case e: Throwable =>
+              skippedRows.record(
+                ScanRowParseError
+                  .skipWarning(row.toSeq, schema, desc.inferSampleSize, Some(numRowGenerated), e)
+              )
+          }
+        }
+        root.setRowCount(r)
+        root
+      }
+    })
+  }
+
   override def open(): Unit = {
     inputReader = new InputStreamReader(
       DocumentFactory.openReadonlyDocument(new URI(desc.fileName.get)).asInputStream(),
@@ -126,6 +174,10 @@ class CSVScanSourceOpExec private[csv] (descString: String) extends SourceOperat
 
 object CSVScanSourceOpExec {
   val DEFAULT_MAX_COLUMNS = 512
+
+  // Rows per Arrow batch on the columnar path: large enough to amortize vectorized processing,
+  // small enough to stream and to bound a pause to one batch.
+  val COLUMNAR_BATCH_ROWS = 10000
 
   def getMaxColumns: Int =
     SiteSettings.getInt("csv_parser_max_columns", DEFAULT_MAX_COLUMNS)
