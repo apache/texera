@@ -985,7 +985,9 @@ object DataProcessorSpec {
       extends SourceOperatorExecutor {
     var produceTupleCalls = 0
     override def produceTuple(): Iterator[TupleLike] = { produceTupleCalls += 1; Iterator.empty }
-    override def produceColumnarBatch(): Option[Iterator[org.apache.arrow.vector.VectorSchemaRoot]] =
+    override def produceColumnarBatch(
+        schema: org.apache.texera.amber.core.tuple.Schema
+    ): Option[Iterator[org.apache.arrow.vector.VectorSchemaRoot]] =
       Some(roots.iterator)
   }
 

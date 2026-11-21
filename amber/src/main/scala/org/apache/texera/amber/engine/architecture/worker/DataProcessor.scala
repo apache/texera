@@ -243,6 +243,10 @@ class DataProcessor(
   // Ship an operator-produced Arrow result root downstream in the cheapest shape the edge
   // allows: a live root by reference to a local receiver (ownership transfers, so the root
   // is NOT closed here), Arrow bytes to a remote one, or decoded tuples (the row path).
+  // Counts native Arrow batches a columnar source emitted (no Tuple built), for a visible
+  // console summary when the worker finishes.
+  @transient private var columnarBatchCount = 0
+  @transient private var columnarRowCount = 0L
   private[this] def emitProducedRoot(outRoot: VectorSchemaRoot): Unit = {
     var retained = false
     try {
@@ -274,8 +278,10 @@ class DataProcessor(
   def sourceColumnarOutput(): Option[Iterator[(TupleLike, Option[PortIdentity])]] = {
     executor match {
       case src: SourceOperatorExecutor if outputManager.columnarSourceEmitEligible =>
+        val schema =
+          outputManager.getPort(outputManager.getSingleOutputPortIdentity).schema
         src
-          .produceColumnarBatch()
+          .produceColumnarBatch(schema)
           .map(_.map(root => (ColumnarBatchMarker(root): TupleLike, Option.empty[PortIdentity])))
       case _ => None
     }
@@ -360,6 +366,20 @@ class DataProcessor(
             asyncRPCClient.mkContext(COORDINATOR)
           )
         }
+        // Make the columnar source path visible: when this worker emitted native Arrow batches
+        // (no Tuple built), report how many batches and rows went out as columns.
+        if (columnarBatchCount > 0) {
+          asyncRPCClient.coordinatorInterface.consoleMessageTriggered(
+            ConsoleMessageTriggeredRequest(
+              mkPrintConsoleMessage(
+                actorId,
+                s"[columnar] emitted $columnarBatchCount Arrow column batch(es), " +
+                  s"$columnarRowCount rows, with 0 row objects built"
+              )
+            ),
+            asyncRPCClient.mkContext(COORDINATOR)
+          )
+        }
         // Send Completed signal to worker actor.
         executor.close()
         adaptiveBatchingMonitor.stopAdaptiveBatching()
@@ -384,6 +404,8 @@ class DataProcessor(
       case ColumnarBatchMarker(root) =>
         // A columnar source handed out a native Arrow batch: ship it downstream in the
         // cheapest shape the edge allows (live root / Arrow bytes / rows), no Tuple built.
+        columnarBatchCount += 1
+        columnarRowCount += root.getRowCount
         emitProducedRoot(root)
 
       case schemaEnforceable: SchemaEnforceable =>

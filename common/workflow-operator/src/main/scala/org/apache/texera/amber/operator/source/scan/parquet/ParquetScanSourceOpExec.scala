@@ -93,7 +93,9 @@ class ParquetScanSourceOpExec(descString: String) extends SourceOperatorExecutor
   // Parquet row group, allocated in the shared allocator so a handed-off batch outlives this
   // exec's close (the receiver / emit path closes it). Falls back to the row path (None) when
   // offset/limit are set.
-  override def produceColumnarBatch(): Option[Iterator[VectorSchemaRoot]] = {
+  override def produceColumnarBatch(
+      schema: org.apache.texera.amber.core.tuple.Schema
+  ): Option[Iterator[VectorSchemaRoot]] = {
     if (desc.offset.exists(_ > 0) || desc.limit.isDefined) return None
     val fileReader = reader.get
     val messageType = fileReader.getFooter.getFileMetaData.getSchema

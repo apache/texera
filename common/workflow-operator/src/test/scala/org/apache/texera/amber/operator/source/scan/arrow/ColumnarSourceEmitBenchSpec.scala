@@ -49,12 +49,22 @@ class ColumnarSourceEmitBenchSpec extends AnyFlatSpec {
   private val trials = sys.props.getOrElse("columnar.srcbench.trials", "5").toInt
 
   private def isParquet: Boolean = arrowFile.endsWith(".parquet")
+  private def isCsv: Boolean = arrowFile.endsWith(".csv")
 
-  // The source executor for the file, Arrow or Parquet, both of which now have a native columnar
-  // path (produceColumnarBatch).
+  // The source executor for the file: CSV, Parquet, or Arrow, each with a native columnar path.
   private def makeSource(): SourceOperatorExecutor = {
     val uri = new File(arrowFile).toURI.toString
-    if (isParquet) {
+    if (isCsv) {
+      val d = new org.apache.texera.amber.operator.source.scan.csv.CSVScanSourceOpDesc()
+      d.customDelimiter = Some(","); d.hasHeader = true
+      d.setResolvedFileName(java.net.URI.create(uri))
+      // CSVScanSourceOpExec's constructor is private[csv]; build it reflectively for the bench.
+      val ctor = Class
+        .forName("org.apache.texera.amber.operator.source.scan.csv.CSVScanSourceOpExec")
+        .getDeclaredConstructor(classOf[String])
+      ctor.setAccessible(true)
+      ctor.newInstance(objectMapper.writeValueAsString(d)).asInstanceOf[SourceOperatorExecutor]
+    } else if (isParquet) {
       val d = new ParquetScanSourceOpDesc(); d.fileName = Some(uri)
       new ParquetScanSourceOpExec(objectMapper.writeValueAsString(d))
     } else {
@@ -63,14 +73,18 @@ class ColumnarSourceEmitBenchSpec extends AnyFlatSpec {
     }
   }
 
-  // The port schema, for enforcing the Parquet row path's SeqTupleLike into a Tuple (the engine
-  // does this per row). The Arrow source already yields Tuples, so it needs no schema (null).
+  // The port schema, for enforcing a row-path SeqTupleLike into a Tuple (the engine does this per
+  // row). The Arrow source already yields Tuples, so it needs no schema (null).
   private def portSchema: Schema =
-    if (!isParquet) null
-    else {
+    if (isCsv) {
+      val d = new org.apache.texera.amber.operator.source.scan.csv.CSVScanSourceOpDesc()
+      d.customDelimiter = Some(","); d.hasHeader = true
+      d.setResolvedFileName(java.net.URI.create(new File(arrowFile).toURI.toString))
+      d.sourceSchema()
+    } else if (isParquet) {
       val d = new ParquetScanSourceOpDesc(); d.fileName = Some(new File(arrowFile).toURI.toString)
       d.inferSchema()
-    }
+    } else null
 
   // c0 >= 0.0: a single vectorizable Float8 predicate, ~half the random doubles.
   private def filterDesc: String = {
@@ -87,29 +101,34 @@ class ColumnarSourceEmitBenchSpec extends AnyFlatSpec {
     exec.open()
     val filter = new SpecializedFilterOpExec(filterDesc)
     var survived = 0L
+    var sizeAcc = 0L
     val t0 = System.nanoTime()
     try {
       exec.produceTuple().foreach { tl =>
         // The engine enforces the port schema per row before the operator sees it; a source
-        // already yielding a Tuple (Arrow) keeps it, a SeqTupleLike (Parquet) is enforced.
+        // already yielding a Tuple (Arrow) keeps it, a SeqTupleLike (Parquet/CSV) is enforced.
         val tuple = tl match {
           case t: Tuple              => t
           case se: SchemaEnforceable => se.enforceSchema(schema)
         }
+        // The engine reads inMemSize per tuple for input statistics; mirror that so the row path
+        // pays the same deepSizeOf walk it does in production (the columnar path never reads it).
+        sizeAcc += tuple.inMemSize
         if (filter.processTuple(tuple, 0).hasNext) survived += 1
       }
     } finally { filter.close(); exec.close() }
+    assert(sizeAcc >= 0)
     ((System.nanoTime() - t0) / 1e9, survived)
   }
 
-  private def timeColumnar(): (Double, Long) = {
+  private def timeColumnar(schema: Schema): (Double, Long) = {
     val exec = makeSource()
     exec.open()
     val filter = new SpecializedFilterOpExec(filterDesc)
     var survived = 0L
     val t0 = System.nanoTime()
     try {
-      exec.produceColumnarBatch().get.foreach { root =>
+      exec.produceColumnarBatch(schema).get.foreach { root =>
         try filter.processColumnarRoot(root, 0) match {
           case ColumnarResult.Emit(out) => survived += out.getRowCount; out.close()
           case _                        => survived += root.getRowCount
@@ -122,9 +141,9 @@ class ColumnarSourceEmitBenchSpec extends AnyFlatSpec {
   "columnar source emit" should "run the row vs columnar source benchmark" in {
     assume(enabled && arrowFile.nonEmpty)
     val schema = portSchema
-    timeRow(schema); timeColumnar() // warmup
+    timeRow(schema); timeColumnar(schema) // warmup
     val rows = (1 to trials).map(_ => timeRow(schema))
-    val cols = (1 to trials).map(_ => timeColumnar())
+    val cols = (1 to trials).map(_ => timeColumnar(schema))
     val rowMed = median(rows.map(_._1))
     val colMed = median(cols.map(_._1))
     println(s"=== columnar source emit benchmark ($arrowFile, filter $filterCol >= 0.0) ===")
