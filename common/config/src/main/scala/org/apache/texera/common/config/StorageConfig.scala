@@ -49,6 +49,11 @@ object StorageConfig {
   val icebergPostgresCatalogPassword: String =
     conf.getString("storage.iceberg.catalog.postgres.password")
 
+  // Iceberg catalog cache specifics
+  val icebergCatalogCacheMaxSize: Int = conf.getInt("storage.iceberg.catalog.cache.max-size")
+  val icebergCatalogCacheIdleExpiryMinutes: Int =
+    conf.getInt("storage.iceberg.catalog.cache.idle-expiry-minutes")
+
   // Iceberg Table specifics
   val icebergTableResultNamespace: String = conf.getString("storage.iceberg.table.result-namespace")
   val icebergTableConsoleMessagesNamespace: String =
