@@ -51,7 +51,8 @@ class TwitterSearchSourceOpDesc extends TwitterSourceOpDesc {
       workflowId: WorkflowIdentity,
       executionId: ExecutionIdentity
   ): PhysicalOp =
-    tweetSourcePhysicalOp(
+    // TODO: use multiple workers
+    sourcePhysicalOp(
       workflowId,
       executionId,
       "org.apache.texera.amber.operator.source.apis.twitter.v2.TwitterSearchSourceOpExec"

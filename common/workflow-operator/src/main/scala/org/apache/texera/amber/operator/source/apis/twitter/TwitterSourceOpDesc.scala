@@ -21,13 +21,10 @@ package org.apache.texera.amber.operator.source.apis.twitter
 
 import com.fasterxml.jackson.annotation.{JsonIgnore, JsonProperty}
 import com.kjetland.jackson.jsonSchema.annotations.{JsonSchemaDescription, JsonSchemaTitle}
-import org.apache.texera.amber.core.executor.OpExecWithClassName
 import org.apache.texera.amber.core.tuple.{AttributeType, Schema}
-import org.apache.texera.amber.core.virtualidentity.{ExecutionIdentity, WorkflowIdentity}
-import org.apache.texera.amber.core.workflow.{OutputPort, PhysicalOp, SchemaPropagationFunc}
+import org.apache.texera.amber.core.workflow.OutputPort
 import org.apache.texera.amber.operator.metadata.{OperatorGroupConstants, OperatorInfo}
 import org.apache.texera.amber.operator.source.SourceOperatorDescriptor
-import org.apache.texera.amber.util.JSONUtils.objectMapper
 
 @deprecated("Twitter source operator is no longer executable.", "1.1.0-incubating")
 abstract class TwitterSourceOpDesc extends SourceOperatorDescriptor {
@@ -57,25 +54,6 @@ abstract class TwitterSourceOpDesc extends SourceOperatorDescriptor {
       outputPorts = List(OutputPort())
     )
   }
-
-  protected def tweetSourcePhysicalOp(
-      workflowId: WorkflowIdentity,
-      executionId: ExecutionIdentity,
-      executorClassName: String
-  ): PhysicalOp =
-    // TODO: use multiple workers
-    PhysicalOp
-      .sourcePhysicalOp(
-        workflowId,
-        executionId,
-        operatorIdentifier,
-        OpExecWithClassName(executorClassName, objectMapper.writeValueAsString(this))
-      )
-      .withInputPorts(operatorInfo.inputPorts)
-      .withOutputPorts(operatorInfo.outputPorts)
-      .withPropagateSchema(
-        SchemaPropagationFunc(_ => Map(operatorInfo.outputPorts.head.id -> sourceSchema()))
-      )
 
   override def sourceSchema(): Schema = TweetSchema.create()
 }

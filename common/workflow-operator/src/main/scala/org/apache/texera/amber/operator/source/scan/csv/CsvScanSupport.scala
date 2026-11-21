@@ -19,45 +19,19 @@
 
 package org.apache.texera.amber.operator.source.scan.csv
 
-import org.apache.texera.amber.core.executor.OpExecWithClassName
 import org.apache.texera.amber.core.tuple.{Attribute, AttributeType, Schema}
-import org.apache.texera.amber.core.virtualidentity.{ExecutionIdentity, WorkflowIdentity}
-import org.apache.texera.amber.core.workflow.{PhysicalOp, SchemaPropagationFunc}
 import org.apache.texera.amber.operator.StandaloneCodeGenerator.SourceFilePlaceholder
 import org.apache.texera.amber.operator.source.scan.ScanSourceOpDesc
 import org.apache.texera.amber.pybuilder.PythonTemplateBuilder.pyStringLiteral
-import org.apache.texera.amber.util.JSONUtils.objectMapper
 
 import java.net.URI
 import scala.util.Try
 
-/** Shared physical-op wiring, URI/delimiter resolution, schema building, and standalone codegen for CSV scans. */
+/** Shared URI/delimiter resolution, schema building, and standalone codegen for CSV scans. */
 private[source] object CsvScanSupport {
 
   def resolveDelimiterChar(customDelimiter: Option[String]): String =
     customDelimiter.filter(_.nonEmpty).getOrElse(",").charAt(0).toString
-
-  def csvPhysicalOp(
-      desc: ScanSourceOpDesc,
-      workflowId: WorkflowIdentity,
-      executionId: ExecutionIdentity,
-      execClassName: String,
-      parallelizable: Boolean = false
-  ): PhysicalOp = {
-    val base = PhysicalOp
-      .sourcePhysicalOp(
-        workflowId,
-        executionId,
-        desc.operatorIdentifier,
-        OpExecWithClassName(execClassName, objectMapper.writeValueAsString(desc))
-      )
-      .withInputPorts(desc.operatorInfo.inputPorts)
-      .withOutputPorts(desc.operatorInfo.outputPorts)
-    val withParallel = if (parallelizable) base.withParallelizable(true) else base
-    withParallel.withPropagateSchema(
-      SchemaPropagationFunc(_ => Map(desc.operatorInfo.outputPorts.head.id -> desc.sourceSchema()))
-    )
-  }
 
   def resolveCsvUriAndDelimiter(
       desc: ScanSourceOpDesc,

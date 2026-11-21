@@ -59,8 +59,7 @@ class ParallelCSVScanSourceOpDesc extends ScanSourceOpDesc with StandaloneCodeGe
     if (customDelimiter.forall(_.isEmpty)) {
       customDelimiter = Option(",")
     }
-    CsvScanSupport.csvPhysicalOp(
-      this,
+    sourcePhysicalOp(
       workflowId,
       executionId,
       "org.apache.texera.amber.operator.source.scan.csv.ParallelCSVScanSourceOpExec",

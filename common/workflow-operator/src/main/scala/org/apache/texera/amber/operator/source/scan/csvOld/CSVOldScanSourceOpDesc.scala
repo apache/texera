@@ -57,8 +57,7 @@ class CSVOldScanSourceOpDesc extends ScanSourceOpDesc with StandaloneCodeGenerat
     if (customDelimiter.get.isEmpty) {
       customDelimiter = Option(",")
     }
-    CsvScanSupport.csvPhysicalOp(
-      this,
+    sourcePhysicalOp(
       workflowId,
       executionId,
       "org.apache.texera.amber.operator.source.scan.csvOld.CSVOldScanSourceOpExec"

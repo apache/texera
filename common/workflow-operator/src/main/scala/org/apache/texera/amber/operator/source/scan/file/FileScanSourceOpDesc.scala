@@ -131,8 +131,7 @@ class FileScanSourceOpDesc
       workflowId: WorkflowIdentity,
       executionId: ExecutionIdentity
   ): PhysicalOp =
-    TextSourceOpDesc.buildPhysicalOp(
-      this,
+    sourcePhysicalOp(
       workflowId,
       executionId,
       "org.apache.texera.amber.operator.source.scan.file.FileScanSourceOpExec"

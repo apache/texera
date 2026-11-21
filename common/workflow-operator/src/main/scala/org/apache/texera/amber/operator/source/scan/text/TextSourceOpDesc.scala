@@ -26,16 +26,11 @@ import com.kjetland.jackson.jsonSchema.annotations.{
   JsonSchemaString,
   JsonSchemaTitle
 }
-import org.apache.texera.amber.core.executor.OpExecWithClassName
 import org.apache.texera.amber.core.state.NoLoopVariable
 import org.apache.texera.amber.core.tuple.{AttributeType, Schema}
-import org.apache.texera.amber.core.virtualidentity.{ExecutionIdentity, WorkflowIdentity}
-import org.apache.texera.amber.core.workflow.{PhysicalOp, SchemaPropagationFunc}
 import org.apache.texera.amber.operator.StandaloneHelpers
 import org.apache.texera.amber.operator.metadata.annotations.HideAnnotation
-import org.apache.texera.amber.operator.source.SourceOperatorDescriptor
 import org.apache.texera.amber.operator.source.scan.FileAttributeType
-import org.apache.texera.amber.util.JSONUtils.objectMapper
 
 /**
   * TextSourceOpDesc is a trait holding commonly used properties and functions used for variations of text input processing
@@ -123,27 +118,6 @@ object TextSourceOpDesc {
 
   private[source] def isBinaryAttribute(attributeType: FileAttributeType): Boolean =
     attributeType == FileAttributeType.BINARY || attributeType == FileAttributeType.LARGE_BINARY
-
-  private[source] def buildPhysicalOp(
-      desc: SourceOperatorDescriptor,
-      workflowId: WorkflowIdentity,
-      executionId: ExecutionIdentity,
-      execClassName: String
-  ): PhysicalOp =
-    PhysicalOp
-      .sourcePhysicalOp(
-        workflowId,
-        executionId,
-        desc.operatorIdentifier,
-        OpExecWithClassName(execClassName, objectMapper.writeValueAsString(desc))
-      )
-      .withInputPorts(desc.operatorInfo.inputPorts)
-      .withOutputPorts(desc.operatorInfo.outputPorts)
-      .withPropagateSchema(
-        SchemaPropagationFunc(_ =>
-          Map(desc.operatorInfo.outputPorts.head.id -> desc.sourceSchema())
-        )
-      )
 
   private[source] def buildFileScanSchema(
       attributeName: String,
