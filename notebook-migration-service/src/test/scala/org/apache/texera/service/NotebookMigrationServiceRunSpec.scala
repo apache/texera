@@ -79,7 +79,7 @@ class NotebookMigrationServiceRunSpec extends AnyFlatSpec with Matchers {
 
   // Only the pool assertion needs a database. This service, access-control-service and
   // config-service are the three entry points that call SqlServer.initConnection from
-  // initialize(); the other five call it from run(). That inconsistency is not endorsed here:
+  // initialize(); the other six call it from run(). That inconsistency is not endorsed here:
   // if the call moves into run(), the pool test below moves with it (and goes red until it does).
   private def databaseReachable: Boolean =
     try {

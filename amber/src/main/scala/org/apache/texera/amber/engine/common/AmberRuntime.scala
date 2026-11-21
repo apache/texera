@@ -77,13 +77,9 @@ object AmberRuntime extends LazyLogging {
   }
 
   private def getNodeIpAddress: String = {
-    try {
-      val query = new URL("http://checkip.amazonaws.com")
-      val in = new BufferedReader(new InputStreamReader(query.openStream()))
-      in.readLine()
-    } catch {
-      case e: Exception => throw e
-    }
+    val query = new URL("http://checkip.amazonaws.com")
+    val in = new BufferedReader(new InputStreamReader(query.openStream()))
+    in.readLine()
   }
 
   def startActorMaster(clusterMode: Boolean): Unit = {

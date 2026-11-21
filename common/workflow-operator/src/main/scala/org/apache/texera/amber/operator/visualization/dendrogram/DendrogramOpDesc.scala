@@ -19,6 +19,8 @@
 
 package org.apache.texera.amber.operator.visualization.dendrogram
 
+import org.apache.texera.amber.operator.visualization.StandaloneChartCode._
+import org.apache.texera.amber.operator.visualization.PythonCodeFragment._
 import com.fasterxml.jackson.annotation.{JsonProperty, JsonPropertyDescription}
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize
 import com.kjetland.jackson.jsonSchema.annotations.{JsonSchemaInject, JsonSchemaTitle}
@@ -113,22 +115,15 @@ class DendrogramOpDesc extends PythonVisualizationOpDesc {
          |import numpy as np
          |
          |class ProcessTableOperator(UDFTableOperator):
-         |    def render_error(self, error_msg):
-         |        return '''<h1>Dendrogram is not available.</h1>
-         |                  <p>Reason is: {} </p>
-         |               '''.format(error_msg)
+         |${runtimeError("Dendrogram is not available.")}
          |
          |    @overrides
          |    def process_table(self, table: Table, port: int) -> Iterator[Optional[TableLike]]:
-         |        if table.empty:
-         |           yield {'html-content': self.render_error("input table is empty.")}
-         |           return
+         |${emptyTableGuard("input table is empty.")}
          |        # A row missing either coordinate has no position to cluster from, and
          |        # scipy refuses a NaN anywhere in the distance matrix.
          |        table = table.dropna(subset=[$xVal, $yVal]) #remove missing values
-         |        if table.empty:
-         |           yield {'html-content': self.render_error("input table has no rows with all of the configured columns filled in.")}
-         |           return
+         |${emptyTableGuard("input table has no rows with all of the configured columns filled in.")}
          |        # Clustering starts from the distances between rows, so a single row
          |        # leaves scipy an empty distance matrix and it raises rather than draws.
          |        if len(table) < 2:
@@ -136,8 +131,7 @@ class DendrogramOpDesc extends PythonVisualizationOpDesc {
          |           return
          |        ${createDendrogram()}
          |        # convert fig to html content
-         |        html = plotly.io.to_html(fig, include_plotlyjs='cdn', auto_play=False)
-         |        yield {'html-content': html}
+         |${plotlyHtmlYield()}
          |
          |"""
     finalcode.encode
@@ -151,10 +145,7 @@ class DendrogramOpDesc extends PythonVisualizationOpDesc {
     s"""import numpy as np
        |import plotly.figure_factory as ff
        |
-       |def render_error(error_msg):
-       |    return '''<h1>Dendrogram is not available.</h1>
-       |                  <p>Reason is: {} </p>
-       |               '''.format(error_msg)
+       |${standaloneError("Dendrogram is not available.")}
        |
        |def _write_error(message):
        |    with open(outputHtml, "w", encoding="utf-8") as output:
@@ -175,9 +166,7 @@ class DendrogramOpDesc extends PythonVisualizationOpDesc {
        |        labels = chart_df[${pyStringLiteral(labels)}].tolist()
        |        fig = ff.create_dendrogram(data, labels=labels, color_threshold=$thresholdExpr)
        |        fig.update_layout(yaxis_title="Linkage Distance", margin=dict(l=0, r=0, b=0, t=0))
-       |        fig.write_json(outputJson)
-       |        fig.write_html(outputHtml)
-       |        print("Dendrogram saved to " + outputHtml)""".stripMargin
+       |${standaloneFigure("Dendrogram")}""".stripMargin
   }
 
 }

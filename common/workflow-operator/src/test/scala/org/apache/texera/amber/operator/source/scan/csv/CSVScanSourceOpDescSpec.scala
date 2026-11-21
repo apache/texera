@@ -19,10 +19,15 @@
 
 package org.apache.texera.amber.operator.source.scan.csv
 
+import org.apache.texera.amber.util.PythonTestSupport.{
+  NeedsPythonPackages,
+  canImport,
+  configuredPython,
+  runSource
+}
 import com.fasterxml.jackson.databind.JsonNode
 import com.fasterxml.jackson.databind.node.TextNode
 import com.github.fge.jsonschema.main.JsonSchemaFactory
-import com.typesafe.config.ConfigFactory
 import org.apache.texera.amber.core.executor.SourceOperatorExecutor
 import org.apache.texera.amber.core.tuple.{AttributeType, Schema}
 import org.apache.texera.amber.core.workflow.WorkflowContext.{
@@ -33,20 +38,14 @@ import org.apache.texera.amber.operator.{LogicalOp, StandaloneCodeGenerator, Tes
 import org.apache.texera.amber.operator.metadata.OperatorMetadataGenerator
 import org.apache.texera.amber.operator.source.scan.ScanSourceOpDesc
 import org.apache.texera.amber.operator.source.scan.csvOld.CSVOldScanSourceOpDesc
-import org.apache.texera.amber.operator.tags.IntegrationTest
 import org.apache.texera.amber.util.JSONUtils.objectMapper
-import org.scalatest.{BeforeAndAfter, Tag}
+import org.scalatest.BeforeAndAfter
 import org.scalatest.flatspec.AnyFlatSpec
 
 import java.nio.charset.StandardCharsets
 import java.nio.file.Files
-import java.util.concurrent.TimeUnit
-import scala.io.Source
-import scala.util.Try
 
 class CSVScanSourceOpDescSpec extends AnyFlatSpec with BeforeAndAfter {
-
-  private val NeedsPythonPackages = Tag(classOf[IntegrationTest].getName)
 
   var csvScanSourceOpDesc: CSVScanSourceOpDesc = _
   var parallelCsvScanSourceOpDesc: ParallelCSVScanSourceOpDesc = _
@@ -659,8 +658,8 @@ class CSVScanSourceOpDescSpec extends AnyFlatSpec with BeforeAndAfter {
   // columns from and the script raised EmptyDataError where the engine emits no
   // rows.
   it should "read no rows with the schema's columns, as the engine does, when a headerless offset passes the end" taggedAs NeedsPythonPackages in {
-    val python = resolvePython().getOrElse(cancel("No runnable python executable"))
-    if (!canImportPandas(python)) cancel(s"'$python' cannot import pandas")
+    val python = configuredPython().getOrElse(cancel("No runnable python executable"))
+    if (!canImport(python, "pandas")) cancel(s"'$python' cannot import pandas")
 
     val tmpFile = Files.createTempFile("headerless-two-row-", ".csv")
     tmpFile.toFile.deleteOnExit()
@@ -687,15 +686,10 @@ class CSVScanSourceOpDescSpec extends AnyFlatSpec with BeforeAndAfter {
          |${csvScanSourceOpDesc.generateStandaloneCode()}
          |print(len(out1df), list(out1df.columns))
          |""".stripMargin
-    val script = Files.createTempFile("csv-standalone-", ".py")
-    script.toFile.deleteOnExit()
-    Files.write(script, driver.getBytes(StandardCharsets.UTF_8))
-    val process = new ProcessBuilder(python, script.toString).redirectErrorStream(true).start()
-    val out = Source.fromInputStream(process.getInputStream).mkString
-    process.waitFor(120, TimeUnit.SECONDS)
+    val (exitCode, out) = runSource(python, "csv-standalone-", driver)
 
     withClue(s"python said:\n$out\nscript:\n$driver") {
-      assert(process.exitValue() == 0)
+      assert(exitCode == 0)
       assert(out.trim == "0 ['column-1', 'column-2']")
       assert(
         csvScanSourceOpDesc.sourceSchema().getAttributes.map(_.getName).toList ==
@@ -711,8 +705,8 @@ class CSVScanSourceOpDescSpec extends AnyFlatSpec with BeforeAndAfter {
   // as missing to every operator that reads its mask. "0x1p1024" is past the
   // largest double, which Java reads as an infinity.
   it should "read a DOUBLE column the way the engine's toDouble does" taggedAs NeedsPythonPackages in {
-    val python = resolvePython().getOrElse(cancel("No runnable python executable"))
-    if (!canImportPandas(python)) cancel(s"'$python' cannot import pandas")
+    val python = configuredPython().getOrElse(cancel("No runnable python executable"))
+    if (!canImport(python, "pandas")) cancel(s"'$python' cannot import pandas")
 
     val tmpFile = Files.createTempFile("java-doubles-", ".csv")
     tmpFile.toFile.deleteOnExit()
@@ -787,41 +781,8 @@ class CSVScanSourceOpDescSpec extends AnyFlatSpec with BeforeAndAfter {
          |${desc.generateStandaloneCode()}
          |$report
          |""".stripMargin
-    val script = Files.createTempFile("csv-standalone-", ".py")
-    script.toFile.deleteOnExit()
-    Files.write(script, driver.getBytes(StandardCharsets.UTF_8))
-    val process = new ProcessBuilder(python, script.toString).redirectErrorStream(true).start()
-    val out = Source.fromInputStream(process.getInputStream).mkString
-    process.waitFor(120, TimeUnit.SECONDS)
-    withClue(s"python said:\n$out\nscript:\n$driver")(assert(process.exitValue() == 0))
+    val (exitCode, out) = runSource(python, "csv-standalone-", driver)
+    withClue(s"python said:\n$out\nscript:\n$driver")(assert(exitCode == 0))
     out
   }
-
-  private def resolvePython(): Option[String] = {
-    def fromConfig: Option[String] =
-      Try(ConfigFactory.parseResources("udf.conf").resolve()).toOption
-        .orElse(Try(ConfigFactory.load()).toOption)
-        .flatMap(c => Try(c.getConfig("python").getString("path")).toOption)
-        .map(_.trim)
-        .filter(_.nonEmpty)
-
-    def runnable(exe: String): Boolean =
-      Try(new ProcessBuilder(exe, "--version").redirectErrorStream(true).start()).toOption
-        .exists { p =>
-          if (!p.waitFor(5, TimeUnit.SECONDS)) { p.destroyForcibly(); false }
-          else p.exitValue() == 0
-        }
-
-    (fromConfig.toList ++ List("python3", "python", "py")).distinct.find(runnable)
-  }
-
-  private def canImportPandas(python: String): Boolean =
-    Try(
-      new ProcessBuilder(python, "-c", "import pandas").redirectErrorStream(true).start()
-    ).toOption
-      .exists { p =>
-        if (!p.waitFor(60, TimeUnit.SECONDS)) { p.destroyForcibly(); false }
-        else p.exitValue() == 0
-      }
-
 }

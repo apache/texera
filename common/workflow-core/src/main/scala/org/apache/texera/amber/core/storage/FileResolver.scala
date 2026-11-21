@@ -27,12 +27,6 @@ import org.apache.texera.dao.jooq.generated.tables.DatasetVersion.DATASET_VERSIO
 import org.apache.texera.dao.jooq.generated.tables.Model.MODEL
 import org.apache.texera.dao.jooq.generated.tables.ModelVersion.MODEL_VERSION
 import org.apache.texera.dao.jooq.generated.tables.User.USER
-import org.apache.texera.dao.jooq.generated.tables.pojos.{
-  Dataset,
-  DatasetVersion,
-  Model,
-  ModelVersion
-}
 import org.apache.texera.service.resource.{ResourceAccess, ResourceTables}
 import org.jooq.{DSLContext, Record}
 
@@ -226,28 +220,29 @@ object FileResolver {
         .createDSLContext()
     ) { ctx =>
       val dataset = ctx
-        .select(DATASET.fields: _*)
+        .select(DATASET.DID, DATASET.REPOSITORY_NAME)
         .from(DATASET)
         .leftJoin(USER)
         .on(USER.UID.eq(DATASET.OWNER_UID))
         .where(USER.EMAIL.eq(ownerEmail))
         .and(DATASET.NAME.eq(datasetName))
-        .fetchOneInto(classOf[Dataset])
+        .fetchOne()
 
-      if (dataset == null || !readableBy(ctx, ResourceTables.Dataset, dataset.getDid, reader)) {
+      if (dataset == null || !readableBy(ctx, ResourceTables.Dataset, dataset.value1(), reader)) {
         throw new FileNotFoundException(s"Dataset file $fileName not found.")
       }
 
       val datasetVersion = ctx
-        .selectFrom(DATASET_VERSION)
-        .where(DATASET_VERSION.DID.eq(dataset.getDid))
+        .select(DATASET_VERSION.VERSION_HASH)
+        .from(DATASET_VERSION)
+        .where(DATASET_VERSION.DID.eq(dataset.value1()))
         .and(DATASET_VERSION.NAME.eq(versionName))
-        .fetchOneInto(classOf[DatasetVersion])
+        .fetchOne()
 
       if (datasetVersion == null) {
         throw new FileNotFoundException(s"Dataset file $fileName not found.")
       }
-      (dataset.getRepositoryName, datasetVersion.getVersionHash)
+      (dataset.value2(), datasetVersion.value1())
     }
 
   /**
@@ -271,28 +266,29 @@ object FileResolver {
         .createDSLContext()
     ) { ctx =>
       val model = ctx
-        .select(MODEL.fields: _*)
+        .select(MODEL.MID, MODEL.REPOSITORY_NAME)
         .from(MODEL)
         .leftJoin(USER)
         .on(USER.UID.eq(MODEL.OWNER_UID))
         .where(USER.EMAIL.eq(ownerEmail))
         .and(MODEL.NAME.eq(modelName))
-        .fetchOneInto(classOf[Model])
+        .fetchOne()
 
-      if (model == null || !readableBy(ctx, ResourceTables.Model, model.getMid, reader)) {
+      if (model == null || !readableBy(ctx, ResourceTables.Model, model.value1(), reader)) {
         throw new FileNotFoundException(s"Model file $fileName not found.")
       }
 
       val modelVersion = ctx
-        .selectFrom(MODEL_VERSION)
-        .where(MODEL_VERSION.MID.eq(model.getMid))
+        .select(MODEL_VERSION.VERSION_HASH)
+        .from(MODEL_VERSION)
+        .where(MODEL_VERSION.MID.eq(model.value1()))
         .and(MODEL_VERSION.NAME.eq(versionName))
-        .fetchOneInto(classOf[ModelVersion])
+        .fetchOne()
 
       if (modelVersion == null) {
         throw new FileNotFoundException(s"Model file $fileName not found.")
       }
-      (model.getRepositoryName, modelVersion.getVersionHash)
+      (model.value2(), modelVersion.value1())
     }
 
   /**

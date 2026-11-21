@@ -19,6 +19,8 @@
 
 package org.apache.texera.amber.operator.visualization.lineChart
 
+import org.apache.texera.amber.operator.visualization.StandaloneChartCode._
+import org.apache.texera.amber.operator.visualization.PythonCodeFragment._
 import com.fasterxml.jackson.annotation.{JsonProperty, JsonPropertyDescription}
 import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaTitle
 import org.apache.texera.amber.pybuilder.PythonTemplateBuilder.{
@@ -105,20 +107,14 @@ class LineChartOpDesc extends PythonVisualizationOpDesc with PlotlyStandaloneCod
          |class ProcessTableOperator(UDFTableOperator):
          |
          |    # Generate custom error message as html string
-         |    def render_error(self, error_msg) -> str:
-         |        return '''<h1>Line chart is not available.</h1>
-         |                  <p>Reason is: {} </p>
-         |               '''.format(error_msg)
+         |${runtimeError("Line chart is not available.", typed = true)}
          |
          |    @overrides
          |    def process_table(self, table: Table, port: int) -> Iterator[Optional[TableLike]]:
-         |        if table.empty:
-         |            yield {'html-content': self.render_error("input table is empty.")}
-         |            return
+         |${emptyTableGuard("input table is empty.", bodyIndent = 4)}
          |        ${createPlotlyFigure()}
          |        # convert fig to html content
-         |        html = plotly.io.to_html(fig, include_plotlyjs='cdn', auto_play=False)
-         |        yield {'html-content': html}
+         |${plotlyHtmlYield()}
          |"""
     finalCode.encode
   }
@@ -152,23 +148,17 @@ class LineChartOpDesc extends PythonVisualizationOpDesc with PlotlyStandaloneCod
       .map(line => if (line.isEmpty) line else s"    $line")
       .mkString("\n")
 
-    s"""def render_error(error_msg) -> str:
-       |    return '''<h1>Line chart is not available.</h1>
-       |                  <p>Reason is: {} </p>
-       |               '''.format(error_msg)
+    s"""${standaloneError("Line chart is not available.", typed = true)}
        |
        |if in1df.empty:
-       |    with open(outputHtml, "w", encoding="utf-8") as output:
-       |        output.write(render_error("input table is empty."))
+       |${standaloneErrorPage("input table is empty.")}
        |else:
        |    fig = go.Figure()
        |$traces
        |    fig.update_layout(margin=dict(t=0, b=0, l=0, r=0),
        |                      xaxis_title=${pyStringLiteral(xLabel)},
        |                      yaxis_title=${pyStringLiteral(yLabel)})
-       |    fig.write_json(outputJson)
-       |    fig.write_html(outputHtml)
-       |    print("Line chart saved to " + outputJson + " and " + outputHtml)""".stripMargin
+       |${standaloneFigure("Line chart", indent = 4, bothOutputs = true)}""".stripMargin
   }
 
 }

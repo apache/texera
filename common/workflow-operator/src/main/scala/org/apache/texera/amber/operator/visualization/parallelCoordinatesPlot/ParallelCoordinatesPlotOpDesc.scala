@@ -19,6 +19,8 @@
 
 package org.apache.texera.amber.operator.visualization.parallelCoordinatesPlot
 
+import org.apache.texera.amber.operator.visualization.StandaloneChartCode._
+import org.apache.texera.amber.operator.visualization.PythonCodeFragment._
 import com.fasterxml.jackson.annotation.{JsonProperty, JsonPropertyDescription}
 import com.kjetland.jackson.jsonSchema.annotations.{JsonSchemaInject, JsonSchemaTitle}
 import org.apache.texera.amber.operator.visualization.PlotlyStandaloneCode
@@ -108,23 +110,15 @@ class ParallelCoordinatesPlotOpDesc extends PythonVisualizationOpDesc with Plotl
          |
          |class ProcessTableOperator(UDFTableOperator):
          |
-         |    def render_error(self, error_msg):
-         |        return '''<h1>Parallel coordinates plot is not available.</h1>
-         |                  <p>Reason is: {} </p>
-         |               '''.format(error_msg)
+         |${runtimeError("Parallel coordinates plot is not available.")}
          |
          |    @overrides
          |    def process_table(self, table: Table, port: int) -> Iterator[Optional[TableLike]]:
-         |        if table.empty:
-         |            yield {'html-content': self.render_error("Input table is empty.")}
-         |            return
+         |${emptyTableGuard("Input table is empty.", bodyIndent = 4)}
          |        ${manipulateTable()}
-         |        if table.empty:
-         |            yield {'html-content': self.render_error("No valid rows after filtering.")}
-         |            return
+         |${emptyTableGuard("No valid rows after filtering.", bodyIndent = 4)}
          |        ${createPlotlyFigure()}
-         |        html = plotly.io.to_html(fig, include_plotlyjs='cdn', auto_play=False)
-         |        yield {'html-content': html}
+         |${plotlyHtmlYield()}
          |"""
     finalcode.encode
   }
@@ -137,27 +131,20 @@ class ParallelCoordinatesPlotOpDesc extends PythonVisualizationOpDesc with Plotl
     val colorArg =
       if (color != null && color.nonEmpty) s""", color=$colorLit""" else ""
 
-    s"""def render_error(error_msg):
-       |    return '''<h1>Parallel coordinates plot is not available.</h1>
-       |                  <p>Reason is: {} </p>
-       |               '''.format(error_msg)
+    s"""${standaloneError("Parallel coordinates plot is not available.")}
        |
        |if in1df.empty:
-       |    with open(outputHtml, "w", encoding="utf-8") as output:
-       |        output.write(render_error("Input table is empty."))
+       |${standaloneErrorPage("Input table is empty.")}
        |else:
        |    table = in1df[in1df[$dimCols].notnull().all(axis=1)$colorFilter].copy()
        |    if table.empty:
-       |        with open(outputHtml, "w", encoding="utf-8") as output:
-       |            output.write(render_error("No valid rows after filtering."))
+       |${standaloneErrorPage("No valid rows after filtering.", indent = 8)}
        |    else:
        |        fig = px.parallel_coordinates(
        |            table,
        |            dimensions=$dimCols$colorArg
        |        )
-       |        fig.write_json(outputJson)
-       |        fig.write_html(outputHtml)
-       |        print("Parallel coordinates plot saved to " + outputHtml)""".stripMargin
+       |${standaloneFigure("Parallel coordinates plot")}""".stripMargin
   }
 
 }

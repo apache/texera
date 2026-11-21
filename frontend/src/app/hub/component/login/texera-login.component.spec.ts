@@ -33,6 +33,7 @@ import { MockGuiConfigService } from "../../../common/service/gui-config.service
 import { commonTestProviders } from "../../../common/testing/test-utils";
 import { USER_WORKFLOW } from "../../../app-routing.constant";
 import { ORCID_STATE_KEY } from "../../../common/service/user/orcid-auth.service";
+import { Role, User } from "../../../common/type/user";
 import { By } from "@angular/platform-browser";
 import { NzIconDirective } from "ng-zorro-antd/icon";
 import { NzTabsComponent } from "ng-zorro-antd/tabs";
@@ -56,6 +57,7 @@ describe("TexeraLoginComponent", () => {
     authState$ = new Subject<SocialUser | null>();
     userServiceMock = {
       isLogin: vi.fn().mockReturnValue(false),
+      getCurrentUser: vi.fn().mockReturnValue(undefined),
       login: vi.fn().mockReturnValue(of(undefined)),
       register: vi.fn().mockReturnValue(of({ verificationRequired: false })),
       registerVerify: vi.fn().mockReturnValue(of(undefined)),
@@ -347,6 +349,54 @@ describe("TexeraLoginComponent", () => {
       expect(notificationServiceMock.success).toHaveBeenCalled();
     });
 
+    const fillSignup = () =>
+      component.form.patchValue({
+        username: "alice",
+        email: "alice@example.com",
+        password: "secret1",
+        confirm: "secret1",
+      });
+    const signedInAs = (role: Role) =>
+      (userServiceMock.getCurrentUser as any).mockReturnValue({ uid: 7, name: "alice", role } as User);
+
+    // With invite-only off the account is REGULAR and registering has already signed the user in,
+    // so the page goes where a sign-in would rather than telling them to wait for an admin.
+    it("opens the dashboard when the new account can be used at once", () => {
+      signedInAs(Role.REGULAR);
+      fillSignup();
+
+      component.submit();
+
+      expect(notificationServiceMock.success).toHaveBeenCalledWith("Your account has been created.");
+      expect(routerMock.navigateByUrl).toHaveBeenCalledWith(USER_WORKFLOW);
+    });
+
+    // With invite-only on the account is INACTIVE, and signing in with it signs straight back out.
+    it("asks the user to wait for an admin when the new account is not signed in", () => {
+      fillSignup();
+
+      component.submit();
+
+      expect(notificationServiceMock.success).toHaveBeenCalledWith(
+        "Your account has been created. Please contact the Texera administrator to activate your account."
+      );
+      expect(routerMock.navigateByUrl).not.toHaveBeenCalled();
+    });
+
+    // An INACTIVE account can do nothing yet, so even a session that is still around for one is not
+    // sent to the dashboard.
+    it("does not open the dashboard for an INACTIVE account", () => {
+      signedInAs(Role.INACTIVE);
+      fillSignup();
+
+      component.submit();
+
+      expect(notificationServiceMock.success).toHaveBeenCalledWith(
+        "Your account has been created. Please contact the Texera administrator to activate your account."
+      );
+      expect(routerMock.navigateByUrl).not.toHaveBeenCalled();
+    });
+
     // Where verification is on the code field is present from the outset, and mailing the code is
     // its own button. Signing up is then a single submit that carries the code, rather than a first
     // submit that silently sent mail and a second that completed.
@@ -430,6 +480,30 @@ describe("TexeraLoginComponent", () => {
 
         expect(userServiceMock.registerVerify).toHaveBeenCalledWith("alice", "alice@example.com", "secret1", "123456");
         expect(notificationServiceMock.success).toHaveBeenCalled();
+      });
+
+      it("opens the dashboard once the code completes a sign-up that can be used at once", () => {
+        signedInAs(Role.REGULAR);
+        fillForm();
+        component.form.patchValue({ code: "123456" });
+
+        component.submit();
+
+        expect(notificationServiceMock.success).toHaveBeenCalledWith("Your account has been created.");
+        expect(routerMock.navigateByUrl).toHaveBeenCalledWith(USER_WORKFLOW);
+      });
+
+      // The button only shows where the config says verification is on. A server that disagrees has
+      // just created the account outright, and that sign-up ends like any other.
+      it("ends the sign-up when the server created the account without a code", () => {
+        (userServiceMock.register as any).mockReturnValue(of({ verificationRequired: false }));
+        signedInAs(Role.REGULAR);
+        fillForm();
+
+        component.sendCode();
+
+        expect(notificationServiceMock.success).toHaveBeenCalledWith("Your account has been created.");
+        expect(routerMock.navigateByUrl).toHaveBeenCalledWith(USER_WORKFLOW);
       });
 
       it("asks for the code rather than submitting an empty one", () => {
@@ -743,10 +817,21 @@ describe("TexeraLoginComponent", () => {
 
         expect(input("email")).toBeTruthy();
         expect(input("confirm")).toBeTruthy();
+        // Invite-only is off in the default config, so there is no approval to wait for.
+        expect(host().querySelector("p.hint")?.textContent?.replace(/\s+/g, " ").trim()).toBe(
+          "Password must be at least 6 characters."
+        );
+        expect(submitButton()?.textContent?.trim()).toBe("Sign up");
+      });
+
+      it("says an admin has to activate the account while invite-only is on", () => {
+        (TestBed.inject(GuiConfigService) as unknown as MockGuiConfigService).setConfig({ inviteOnly: true });
+        component.setMode("signup");
+        fixture.detectChanges();
+
         expect(host().querySelector("p.hint")?.textContent?.replace(/\s+/g, " ").trim()).toBe(
           "Password must be at least 6 characters. After registering, contact the Texera administrator to activate your account."
         );
-        expect(submitButton()?.textContent?.trim()).toBe("Sign up");
       });
 
       it("switches mode from the tab strip in both directions", () => {

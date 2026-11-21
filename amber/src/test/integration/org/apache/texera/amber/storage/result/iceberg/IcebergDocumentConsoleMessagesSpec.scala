@@ -53,10 +53,6 @@ class IcebergDocumentConsoleMessagesSpec
     super.beforeEach()
   }
 
-  override def afterAll(): Unit = {
-    super.afterAll()
-  }
-
   override def generateSampleItems(): List[Tuple] =
     List(
       new Tuple(amberSchema, Array("First console message")),

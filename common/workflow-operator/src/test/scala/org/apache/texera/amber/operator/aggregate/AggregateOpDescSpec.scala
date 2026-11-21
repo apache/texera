@@ -19,6 +19,8 @@
 
 package org.apache.texera.amber.operator.aggregate
 
+import org.apache.texera.amber.util.PythonTestSupport.runSource
+
 import org.apache.texera.amber.core.tuple.{AttributeType, Schema, Tuple}
 import org.apache.texera.amber.core.virtualidentity.{ExecutionIdentity, WorkflowIdentity}
 import org.apache.texera.amber.core.workflow.PortIdentity
@@ -30,10 +32,7 @@ import org.scalatest.Tag
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 
-import java.nio.charset.StandardCharsets
-import java.nio.file.Files
 import java.util.concurrent.TimeUnit
-import scala.io.Source
 import scala.jdk.CollectionConverters._
 import scala.util.Try
 
@@ -310,15 +309,8 @@ class AggregateOpDescSpec extends AnyFlatSpec with Matchers {
     * timestamp's arithmetic reads the one in force where it runs.
     */
   private def runPython(python: String, driver: String, prefix: String, zone: String): String = {
-    val script = Files.createTempFile(prefix, ".py")
-    script.toFile.deleteOnExit()
-    Files.write(script, driver.getBytes(StandardCharsets.UTF_8))
-    val builder = new ProcessBuilder(python, script.toString).redirectErrorStream(true)
-    builder.environment().put("TZ", zone)
-    val process = builder.start()
-    val out = Source.fromInputStream(process.getInputStream).mkString
-    process.waitFor(120, TimeUnit.SECONDS)
-    withClue(s"python said:\n$out\nscript:\n$driver")(process.exitValue() shouldBe 0)
+    val (exitCode, out) = runSource(python, prefix, driver, environment = Map("TZ" -> zone))
+    withClue(s"python said:\n$out\nscript:\n$driver")(exitCode shouldBe 0)
     out
   }
 
@@ -343,14 +335,9 @@ class AggregateOpDescSpec extends AnyFlatSpec with Matchers {
          |print(len(out1df), sorted(int(x) for x in out1df["total"]))
          |""".stripMargin
 
-    val script = Files.createTempFile("aggregate-null-nan-", ".py")
-    script.toFile.deleteOnExit()
-    Files.write(script, driver.getBytes(StandardCharsets.UTF_8))
-    val process = new ProcessBuilder(python, script.toString).redirectErrorStream(true).start()
-    val out = Source.fromInputStream(process.getInputStream).mkString
-    process.waitFor(120, TimeUnit.SECONDS)
+    val (exitCode, out) = runSource(python, "aggregate-null-nan-", driver)
     withClue(s"python said:\n$out\nscript:\n$driver") {
-      process.exitValue() shouldBe 0
+      exitCode shouldBe 0
       // Two groups of one row each, not one group totalling 3.
       out.trim shouldBe "2 [1, 2]"
     }
@@ -412,14 +399,9 @@ class AggregateOpDescSpec extends AnyFlatSpec with Matchers {
          |print("\\n".join(sorted(rows)))
          |""".stripMargin
 
-    val script = Files.createTempFile("aggregate-nan-zero-", ".py")
-    script.toFile.deleteOnExit()
-    Files.write(script, driver.getBytes(StandardCharsets.UTF_8))
-    val process = new ProcessBuilder(python, script.toString).redirectErrorStream(true).start()
-    val out = Source.fromInputStream(process.getInputStream).mkString
-    process.waitFor(120, TimeUnit.SECONDS)
+    val (exitCode, out) = runSource(python, "aggregate-nan-zero-", driver)
     withClue(s"python said:\n$out\nscript:\n$driver") {
-      process.exitValue() shouldBe 0
+      exitCode shouldBe 0
       out.trim.linesIterator.toList shouldBe engine
     }
   }

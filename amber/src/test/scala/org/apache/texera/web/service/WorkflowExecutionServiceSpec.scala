@@ -24,34 +24,17 @@ import io.reactivex.rxjava3.disposables.Disposable
 import org.apache.pekko.actor.ActorSystem
 import org.apache.pekko.testkit.TestKit
 import org.apache.texera.amber.core.virtualidentity.{ExecutionIdentity, WorkflowIdentity}
-import org.apache.texera.amber.core.workflow.{PhysicalPlan, WorkflowContext, WorkflowSettings}
+import org.apache.texera.amber.core.workflow.{WorkflowContext, WorkflowSettings}
 import org.apache.texera.amber.core.workflowruntimestate.FatalErrorType.EXECUTION_FAILURE
 import org.apache.texera.amber.core.workflowruntimestate.WorkflowFatalError
-import org.apache.texera.amber.engine.architecture.coordinator.CoordinatorConfig
 import org.apache.texera.amber.engine.architecture.rpc.controlreturns.WorkflowAggregatedState.{
   COMPLETED,
   FAILED,
   RUNNING
 }
-import org.apache.texera.amber.engine.common.client.AmberClient
 import org.apache.texera.amber.operator.source.scan.csv.CSVScanSourceOpDesc
 import org.apache.texera.dao.MockTexeraDB
-import org.apache.texera.dao.jooq.generated.enums.WorkflowComputingUnitTypeEnum
-import org.apache.texera.dao.jooq.generated.tables.daos.{
-  UserDao,
-  WorkflowComputingUnitDao,
-  WorkflowDao,
-  WorkflowExecutionsDao,
-  WorkflowVersionDao
-}
-import org.apache.texera.dao.jooq.generated.tables.pojos.{
-  User,
-  Workflow,
-  WorkflowComputingUnit,
-  WorkflowExecutions,
-  WorkflowVersion
-}
-import org.apache.texera.web.WebsocketInput
+import org.apache.texera.web.{ExecutionDatabaseTestSupport, WebsocketInput}
 import org.apache.texera.web.model.websocket.event.{
   TexeraWebSocketEvent,
   WorkflowErrorEvent,
@@ -66,11 +49,9 @@ import org.scalatest.flatspec.AnyFlatSpecLike
 import org.scalatest.matchers.should.Matchers
 
 import java.net.URI
-import java.sql.{Timestamp => SqlTimestamp}
 import java.time.Instant
 import scala.collection.mutable
 import scala.collection.mutable.ListBuffer
-import scala.reflect.ClassTag
 
 /**
   * Regression guard for the consolidated init-error reporting path (#5921):
@@ -137,7 +118,8 @@ class WorkflowExecutionServiceSpec
     with AnyFlatSpecLike
     with Matchers
     with BeforeAndAfterAll
-    with MockTexeraDB {
+    with MockTexeraDB
+    with ExecutionDatabaseTestSupport {
 
   // Distinct from every other suite's ids: the statistics URI is derived from wid/eid and
   // `createDocument` truncates whatever table already sits at it (ExecutionStatsServiceSpec
@@ -161,59 +143,25 @@ class WorkflowExecutionServiceSpec
     super.beforeAll()
     initializeDBAndReplaceDSLContext()
 
-    // Set explicitly rather than left to the SERIAL default: the computing-unit and execution
-    // rows below bind `testUid` into their `uid` foreign keys, so a generated value would leave
-    // them pointing at a user that does not exist.
-    val user = new User
-    user.setUid(testUid)
-    user.setName("workflow-execution-test-user")
-    user.setEmail(s"u$testUid@example.com")
-    new UserDao(getDSLContext.configuration()).insert(user)
+    insertUser(testUid, "workflow-execution-test-user", s"u$testUid@example.com")
+    insertWorkflow(testWid, s"workflow-execution-test-$testWid")
+    val version = insertWorkflowVersion(testWid)
 
-    val workflow = new Workflow
-    workflow.setWid(testWid)
-    workflow.setName(s"workflow-execution-test-$testWid")
-    workflow.setContent("{}")
-    workflow.setDescription("")
-    workflow.setCreationTime(new SqlTimestamp(System.currentTimeMillis()))
-    workflow.setLastModifiedTime(new SqlTimestamp(System.currentTimeMillis()))
-    new WorkflowDao(getDSLContext.configuration()).insert(workflow)
-
-    val version = new WorkflowVersion
-    version.setWid(testWid)
-    version.setContent("{}")
-    version.setCreationTime(new SqlTimestamp(System.currentTimeMillis()))
-    new WorkflowVersionDao(getDSLContext.configuration()).insert(version)
-
-    val computingUnitDao = new WorkflowComputingUnitDao(getDSLContext.configuration())
     List(testCuid -> "workflow-execution-test-unit", otherCuid -> "workflow-execution-idle-unit")
       .foreach {
-        case (cuid, name) =>
-          val unit = new WorkflowComputingUnit
-          unit.setCuid(cuid)
-          unit.setUid(testUid)
-          unit.setName(name)
-          unit.setCreationTime(new SqlTimestamp(System.currentTimeMillis()))
-          unit.setType(WorkflowComputingUnitTypeEnum.local)
-          unit.setUri("local://test")
-          unit.setResource("{}")
-          computingUnitDao.insert(unit)
+        case (cuid, name) => insertComputingUnit(testUid, name, cuidOpt = Some(cuid))
       }
 
     // `ExecutionStatsService`'s constructor stamps the runtime-statistics URI onto this row,
     // reaching it from the workflow through workflow_version. `cuid` is set because
     // `getLatestExecutionID` matches on it and a NULL cuid matches no value at all.
-    val execution = new WorkflowExecutions
-    execution.setEid(testEid)
-    execution.setVid(version.getVid)
-    execution.setUid(testUid)
-    execution.setCuid(testCuid)
-    execution.setStatus(0.toByte)
-    execution.setStartingTime(new SqlTimestamp(System.currentTimeMillis()))
-    execution.setBookmarked(false)
-    execution.setName("workflow-execution-test-execution")
-    execution.setEnvironmentVersion("test-env")
-    new WorkflowExecutionsDao(getDSLContext.configuration()).insert(execution)
+    insertWorkflowExecution(
+      vid = version.getVid,
+      uid = testUid,
+      eidOpt = Some(testEid),
+      cuidOpt = Some(testCuid),
+      name = "workflow-execution-test-execution"
+    )
   }
 
   override protected def afterAll(): Unit = {
@@ -270,30 +218,6 @@ class WorkflowExecutionServiceSpec
   private final class Tracker {
     var disposed = false
     val disposable: Disposable = Disposable.fromAction(() => disposed = true)
-  }
-
-  /**
-    * Empty-plan client, the shape both `ExecutionRuntimeServiceSpec` and
-    * `ExecutionStatsServiceSpec` use: real enough for the services' constructors, with the
-    * engine-facing callbacks stubbed so nothing is registered against a live coordinator.
-    */
-  private final class TestAmberClient
-      extends AmberClient(
-        system,
-        new WorkflowContext(),
-        PhysicalPlan(Set.empty, Set.empty),
-        CoordinatorConfig(None, None, None, None),
-        _ => ()
-      ) {
-    var shutdownCount = 0
-
-    override def shutdown(): Unit = {
-      shutdownCount += 1
-      super.shutdown()
-    }
-
-    override def registerCallback[T](callback: T => Unit)(implicit ct: ClassTag[T]): Disposable =
-      Disposable.empty()
   }
 
   "WorkflowExecutionService" should
@@ -461,7 +385,7 @@ class WorkflowExecutionServiceSpec
     val service = buildService(store)
     val events = collectEvents(store)
 
-    val client = new TestAmberClient
+    val client = new RecordingExecutionClient(system)
     val wsInput = new WebsocketInput(_ => ())
     // `workflow` is only dereferenced by the reconfiguration diff handler when a
     // reconfiguration actually completes, which is not what this test drives.

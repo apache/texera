@@ -18,9 +18,11 @@
 package org.apache.texera.auth.util
 
 import jakarta.ws.rs.ForbiddenException
+import org.apache.texera.dao.jooq.generated.Tables.USER
 import org.apache.texera.dao.jooq.generated.enums.PrivilegeEnum
+import org.jooq.DSLContext
 
-/** The rule every shared resource applies to its owner. */
+/** The rules every shared resource applies to its owner and to the users it is shared with. */
 object OwnerAccess {
 
   /** The owner always has WRITE; anyone else has what they were granted, or NONE.
@@ -34,4 +36,16 @@ object OwnerAccess {
   /** Refuses any change to the owner's own access. */
   def requireNotOwner(isOwner: Boolean): Unit =
     if (isOwner) throw new ForbiddenException(ownerChangeRefused)
+
+  /** The uid of the registered account with this email, or None when the email is unknown or
+    * belongs to a placeholder; neither can be granted access.
+    */
+  def registeredUid(ctx: DSLContext, email: String): Option[Integer] =
+    Option(
+      ctx
+        .select(USER.UID)
+        .from(USER)
+        .where(USER.EMAIL.eq(email).and(USER.IS_PLACEHOLDER.isFalse))
+        .fetchOne(USER.UID)
+    )
 }

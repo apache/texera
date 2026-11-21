@@ -24,6 +24,7 @@ import org.apache.texera.amber.core.tuple.AttributeType
 import org.apache.texera.amber.core.virtualidentity.{ExecutionIdentity, WorkflowIdentity}
 import org.apache.texera.amber.operator.LogicalOp
 import org.apache.texera.amber.operator.metadata.OperatorGroupConstants
+import org.apache.texera.amber.operator.source.apis.twitter.TwitterSourceOpDesc
 import org.apache.texera.amber.util.JSONUtils.objectMapper
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
@@ -33,16 +34,11 @@ import scala.annotation.nowarn
 // The Twitter source operators are @deprecated (no longer executable) but retained so
 // legacy workflows still deserialize; the coverage below pins that backward-compatible contract.
 @nowarn("cat=deprecation")
-class TwitterSearchSourceOpDescSpec extends AnyFlatSpec with Matchers {
+class TwitterSearchSourceOpDescSpec extends AnyFlatSpec with TwitterSourceOpDescSpecSupport {
 
   "TwitterSearchSourceOpDesc.operatorInfo" should
     "advertise the Twitter Search API source in the External API group" in {
-    val info = (new TwitterSearchSourceOpDesc).operatorInfo
-    info.userFriendlyName shouldBe "Twitter Search API"
-    info.operatorDescription shouldBe "Retrieve data from Twitter Search API"
-    info.operatorGroupName shouldBe OperatorGroupConstants.API_GROUP
-    info.inputPorts shouldBe empty
-    info.outputPorts should have length 1
+    checkOperatorInfo(new TwitterSearchSourceOpDesc, "Twitter Search API")
   }
 
   "TwitterSearchSourceOpDesc" should "default its query/credential fields (limit is 0, not 100)" in {
@@ -57,12 +53,7 @@ class TwitterSearchSourceOpDescSpec extends AnyFlatSpec with Matchers {
 
   "TwitterSearchSourceOpDesc.sourceSchema" should
     "describe the fixed 33-column tweet schema" in {
-    val schema = (new TwitterSearchSourceOpDesc).sourceSchema()
-    schema.getAttributes should have length 33
-    schema.getAttribute("id").getType shouldBe AttributeType.STRING
-    schema.getAttribute("created_at").getType shouldBe AttributeType.TIMESTAMP
-    schema.getAttribute("like_count").getType shouldBe AttributeType.LONG
-    schema.getAttribute("user_protected").getType shouldBe AttributeType.BOOLEAN
+    checkTweetSchema(new TwitterSearchSourceOpDesc)
   }
 
   "TwitterSearchSourceOpDesc" should "round-trip its config fields through the polymorphic base" in {
@@ -89,21 +80,45 @@ class TwitterSearchSourceOpDescSpec extends AnyFlatSpec with Matchers {
     val d = new TwitterSearchSourceOpDesc
     d.searchQuery = "texera"
     d.limit = 50
-    val p = d.getPhysicalOp(WorkflowIdentity(1L), ExecutionIdentity(1L))
+    checkSourceWiring(d, "TwitterSearchSourceOpExec")
+  }
+}
 
-    p.opExecInitInfo match {
+@nowarn("cat=deprecation")
+private[v2] trait TwitterSourceOpDescSpecSupport extends Matchers {
+
+  protected def checkOperatorInfo(desc: TwitterSourceOpDesc, title: String): Unit = {
+    val info = desc.operatorInfo
+    info.userFriendlyName shouldBe title
+    info.operatorDescription shouldBe s"Retrieve data from $title"
+    info.operatorGroupName shouldBe OperatorGroupConstants.API_GROUP
+    info.inputPorts shouldBe empty
+    info.outputPorts should have length 1
+  }
+
+  protected def checkTweetSchema(desc: TwitterSourceOpDesc): Unit = {
+    val schema = desc.sourceSchema()
+    schema.getAttributes should have length 33
+    schema.getAttribute("id").getType shouldBe AttributeType.STRING
+    schema.getAttribute("created_at").getType shouldBe AttributeType.TIMESTAMP
+    schema.getAttribute("retweet_count").getType shouldBe AttributeType.LONG
+    schema.getAttribute("user_verified").getType shouldBe AttributeType.BOOLEAN
+    schema.getAttribute("like_count").getType shouldBe AttributeType.LONG
+    schema.getAttribute("user_protected").getType shouldBe AttributeType.BOOLEAN
+  }
+
+  protected def checkSourceWiring(desc: TwitterSourceOpDesc, executorName: String): Unit = {
+    val physical = desc.getPhysicalOp(WorkflowIdentity(1L), ExecutionIdentity(1L))
+    physical.opExecInitInfo match {
       case OpExecWithClassName(className, descString) =>
-        className shouldBe
-          "org.apache.texera.amber.operator.source.apis.twitter.v2.TwitterSearchSourceOpExec"
+        className shouldBe s"org.apache.texera.amber.operator.source.apis.twitter.v2.$executorName"
         descString should include("texera")
       case other => fail(s"expected OpExecWithClassName, got $other")
     }
+    physical.inputPorts shouldBe empty
+    physical.outputPorts should have size 1
 
-    p.inputPorts shouldBe empty
-    p.outputPorts should have size 1
-
-    // Invoke the schema-propagation closure so its body (not just the wiring) is exercised.
-    val propagated = p.propagateSchema.func(Map.empty)
-    propagated.keySet shouldBe d.operatorInfo.outputPorts.map(_.id).toSet
+    val propagated = physical.propagateSchema.func(Map.empty)
+    propagated.keySet shouldBe desc.operatorInfo.outputPorts.map(_.id).toSet
   }
 }

@@ -218,8 +218,7 @@ class LakekeeperClient(
   ): List[String] = {
     val results = ListBuffer[String]()
     var pageToken: Option[String] = None
-    var more = true
-    while (more) {
+    do {
       val request = Unirest.get(url)
       pageToken.foreach(request.queryString("pageToken", _))
       val response = request.asString()
@@ -233,8 +232,7 @@ class LakekeeperClient(
         .filterNot(_.isNull)
         .map(_.asText())
         .filter(_.nonEmpty)
-      more = pageToken.isDefined
-    }
+    } while (pageToken.isDefined)
     results.toList
   }
 }

@@ -20,58 +20,33 @@
 package org.apache.texera.amber.operator.machineLearning.sklearnAdvanced.SVCTrainer;
 
 import org.apache.texera.amber.operator.machineLearning.sklearnAdvanced.base.ParamClass;
+import org.apache.texera.amber.operator.machineLearning.sklearnAdvanced.base.ParamSpec;
 
 public enum SklearnAdvancedSVCParameters implements ParamClass {
     // Bounds are scikit-learn's own, whose ranges are open at zero for the two below and
     // closed for degree.
-    C("C", "float", "1.0") { @Override public String getMinimum() { return ">0"; } },
-    kernel("kernel", "str", "", "rbf", "linear", "poly", "sigmoid", "precomputed"),
-    // gamma takes either of two words or a number, so no converter of a name covers it, and
-    // the pattern states what this one takes. Digits are [0-9] rather than \d so the browser
-    // and Python read it alike. It lets a negative through for the estimator to refuse, since
-    // excluding the sign would also exclude -0.0, which the estimator takes.
-    gamma(
-            "gamma",
-            "(lambda value: value.strip() if value.strip() in (\"scale\", \"auto\") else float(value))",
-            "scale") {
-        @Override
-        public String getPattern() {
-            return "^\\s*(?:scale|auto|[-+]?(?:(?:[0-9]+(?:_[0-9]+)*)?\\.(?:[0-9]+(?:_[0-9]+)*)"
-                    + "|(?:[0-9]+(?:_[0-9]+)*)\\.?)(?:[eE][-+]?[0-9]+(?:_[0-9]+)*)?)\\s*$";
-        }
-    },
-    degree("degree", "int", "3") { @Override public String getMinimum() { return ">=0"; } },
+    C(ParamSpec.of("C", "float", "1.0").withMinimum(">0")),
+    kernel(ParamSpec.of("kernel", "str", "", "rbf", "linear", "poly", "sigmoid", "precomputed")),
+    gamma(ParamSpec.of(
+                    "gamma",
+                    "(lambda value: value.strip() if value.strip() in (\"scale\", \"auto\") else float(value))",
+                    "scale")
+            .withPattern(ParamSpec.GammaPattern())),
+    degree(ParamSpec.of("degree", "int", "3").withMinimum(">=0")),
     // coef0 is the one parameter here with no bound at either end.
-    coef0("coef0", "float", "0.0"),
-    tol("tol", "float", "0.001") { @Override public String getMinimum() { return ">0"; } },
-    probability("probability", "(lambda value: value.lower() == \"true\")", "", "false", "true");
+    coef0(ParamSpec.of("coef0", "float", "0.0")),
+    tol(ParamSpec.of("tol", "float", "0.001").withMinimum(">0")),
+    probability(ParamSpec.of(
+            "probability", "(lambda value: value.lower() == \"true\")", "", "false", "true"));
 
-    private final String name;
-    private final String type;
-    private final String sampleValue;
-    private final String[] allowedValues;
+    private final ParamSpec paramSpec;
 
-    SklearnAdvancedSVCParameters(
-            String name, String type, String sampleValue, String... allowedValues) {
-        this.name = name;
-        this.type = type;
-        this.sampleValue = sampleValue;
-        this.allowedValues = allowedValues;
+    SklearnAdvancedSVCParameters(ParamSpec paramSpec) {
+        this.paramSpec = paramSpec;
     }
 
-    public String getType() {
-        return this.type;
-    }
-
-    public String getName() {
-        return this.name;
-    }
-
-    public String getSampleValue() {
-        return this.sampleValue;
-    }
-
-    public String[] getAllowedValues() {
-        return this.allowedValues.clone();
+    @Override
+    public ParamSpec paramSpec() {
+        return this.paramSpec;
     }
 }
