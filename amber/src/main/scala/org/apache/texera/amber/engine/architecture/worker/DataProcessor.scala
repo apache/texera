@@ -59,8 +59,11 @@ import org.apache.texera.amber.engine.common.ambermessage._
 import org.apache.texera.amber.engine.common.statetransition.WorkerStateManager
 import org.apache.texera.amber.engine.common.virtualidentity.util.COORDINATOR
 import org.apache.texera.amber.error.ErrorUtils.{mkConsoleMessage, mkPrintConsoleMessage, safely}
+import org.apache.texera.amber.util.JSONUtils.objectMapper
 
+import java.util.UUID
 import java.util.concurrent.LinkedBlockingQueue
+import scala.collection.mutable
 
 class DataProcessor(
     actorId: ActorVirtualIdentity,
@@ -73,6 +76,13 @@ class DataProcessor(
 
   /** The executor whose loop-variable references `bindStateReferences` has bound. */
   @transient private var executorWithBoundReferences: OperatorExecutor = _
+
+  /**
+    * The ids of the state messages this worker has processed since it got its output ports. A
+    * message reaches a worker once per path to it, through branches that meet again or several
+    * upstream workers, so only the first copy of an id is processed then (see `processInputState`).
+    */
+  private val processedStateMessages = mutable.HashSet[String]()
 
   def initTimerService(adaptiveBatchingMonitor: WorkerTimerService): Unit = {
     this.adaptiveBatchingMonitor = adaptiveBatchingMonitor
@@ -140,8 +150,21 @@ class DataProcessor(
       state: State,
       port: Int,
       loopCounter: Long,
-      loopStartId: String
+      loopStartId: String,
+      messageId: String
   ): Unit = {
+    // A copy of a message already processed (the same id, arriving on another edge or channel) is
+    // not registered, handed to the operator or sent on again. An empty id is a state nobody
+    // issued, never a copy. A message processed while the worker has no output port is not
+    // recorded. In two-phase region execution (`RegionExecutionManager`) an operator reads its
+    // dependee input ports, the ones another of its ports depends on, in a phase of their own,
+    // before the worker has any output port (see `OutputManager.isMissingOutputPort`): what it
+    // sends then reaches no one, so the copy of the message on its other port is processed again
+    // and sent on.
+    if (
+      messageId.nonEmpty && !outputManager.isMissingOutputPort &&
+      !processedStateMessages.add(messageId)
+    ) return
     try {
       // Before processState, which then sees the loop variables written into the setting.
       executor.registerState(state, loopCounter)
@@ -150,14 +173,57 @@ class DataProcessor(
         // Carry the incoming loop envelope through unchanged: loop operators
         // are Python-only, so a JVM operator inside a loop body only ever
         // forwards the envelope (the +1/-1 bookkeeping lives in the Python
-        // runtime's _process_state_frame).
-        outputManager.emitState(outputState.get, loopCounter, loopStartId)
+        // runtime's _process_state_frame). A state sent on unchanged is the
+        // same message and keeps its id; a changed one is a new message.
+        // A State's map cannot change, so the very state handed over (what
+        // the default processState returns) is the same message without
+        // serializing either; only another one is compared by its JSON. A
+        // value an operator edits in place inside it, such as a byte array,
+        // is not seen as a change.
+        if ((outputState.get eq state) || sameJson(outputState.get, state)) {
+          outputManager.emitState(outputState.get, loopCounter, loopStartId, messageId)
+        } else {
+          if (loopStartId.nonEmpty) {
+            // A change does not replace a loop's message (one stamped with its Loop Start): the
+            // message goes on unchanged first, under its id, and the change follows as a new
+            // message. The loop body may split before this operator and meet again after it,
+            // with the other branch sending the same message on unchanged; arriving there after
+            // the change, that branch's copy is one the meeting operator already processed and
+            // recorded, so it drops the copy, which cannot undo the change. A worker records an id
+            // only once it has output ports (see above), so an operator that reads one input before
+            // another processes the copy on its other input again: a change that reached it only
+            // through the input it reads first goes no further, and its processState gets the
+            // message before the change again after it. The operators downstream run on both
+            // messages, so each operator in a row that changes the loop's message doubles the
+            // messages after it.
+            outputManager.emitState(state, loopCounter, loopStartId, messageId)
+          }
+          outputManager.emitState(
+            outputState.get,
+            loopCounter,
+            loopStartId,
+            UUID.randomUUID().toString
+          )
+        }
+      } else if (loopStartId.nonEmpty) {
+        // A loop's message always goes on: body operators forward their loop's messages, so one
+        // whose processState returns None for a message stamped with its Loop Start sends that
+        // message on unchanged, under its id, and the operators after it and the Loop End still
+        // get it. A state without the stamp is not sent on.
+        outputManager.emitState(state, loopCounter, loopStartId, messageId)
       }
     } catch safely {
       case e =>
         handleExecutorException(e)
     }
   }
+
+  /**
+    * Whether two states write the same JSON, whatever the order of an object's keys: Scala's `==`
+    * would also call 2 and 2.0 equal, which their JSON tells apart.
+    */
+  private[this] def sameJson(a: State, b: State): Boolean =
+    objectMapper.readTree(a.toJson) == objectMapper.readTree(b.toJson)
 
   /** transfer one tuple from iterator to downstream.
     * this function is only called by the DP thread
@@ -256,8 +322,8 @@ class DataProcessor(
         )
         inputManager.initBatch(channelId, tuples)
         processInputTuple(inputManager.getNextTuple)
-      case StateFrame(state, loopCounter, loopStartId) =>
-        processInputState(state, portId.id, loopCounter, loopStartId)
+      case StateFrame(state, loopCounter, loopStartId, messageId) =>
+        processInputState(state, portId.id, loopCounter, loopStartId, messageId)
     }
     statisticsManager.increaseDataProcessingTime(System.nanoTime() - dataProcessingStartTime)
   }

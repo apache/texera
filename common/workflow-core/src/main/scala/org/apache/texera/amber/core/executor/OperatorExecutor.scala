@@ -78,8 +78,8 @@ trait OperatorExecutor {
     * The worker calls it for every state message, right before `processState`, with the message's
     * `loopCounter`: 0 from the innermost loop around this operator, 1 from the one around that, and
     * so on. Until `bindStateReferences`, it also writes each loop variable the message carries that
-    * the executor's setting (the descriptor it holds) refers to into that setting, in place. It
-    * fails when a message from the same loop gives such a variable another value.
+    * the executor's setting (the descriptor it holds) refers to into that setting, in place,
+    * replacing a value from the same loop or an enclosing one, never one from an inner loop.
     */
   final def registerState(state: State, loopCounter: Long = 0L): Unit = {
     Option(OperatorExecutor.bindings.get(this)).foreach(_.write(state, loopCounter))

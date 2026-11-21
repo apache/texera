@@ -95,34 +95,44 @@ class StateReferenceBindingSpec extends AnyFlatSpec {
     assert(exec.state.contains(outer))
   }
 
-  it should "accept copies from one loop that agree, and fail on one that gives a variable another value, bound or not" in {
-    def conflict(earlier: Any, later: Any): String =
-      s"loop variable n got two different values in one iteration, $earlier and $later: " +
-        "a loop's variables must not change inside its body"
+  it should "let a later message from the same loop replace a value until binding, and change nothing after it" in {
+    // The worker drops the copies of a message it has processed (they keep its id), and an operator
+    // that changes a loop's message sends the message on before the change, so a late copy never
+    // counts as a later value.
     val exec = build(Map("/limit" -> "n", "/name" -> "i"))
-    // Copies from several upstream workers or branches: the same number whatever its boxed type,
-    // and a variable no property refers to may differ.
-    exec.registerState(State(Map("n" -> 1L, "unrelated" -> 1)), loopCounter = 1)
-    val copy = State(Map("n" -> 1, "unrelated" -> 2))
-    exec.registerState(copy, loopCounter = 1)
-
-    assert(
-      intercept[IllegalStateException](
-        exec.registerState(State(Map("i" -> "x", "n" -> 2L)), loopCounter = 1)
-      ).getMessage == conflict(1, 2)
-    )
-    // Nothing of the refused message is written, not even its i, which no message carried yet and
-    // which sorts before n; nor is the message registered.
-    assert((exec.setting.limit, exec.setting.name) == ((1, "$i")))
-    assert(exec.state.contains(copy))
-    exec.registerState(State(Map("i" -> "y")), loopCounter = 1)
+    exec.registerState(State(Map("n" -> 1L, "i" -> "x")), loopCounter = 1)
+    exec.registerState(State(Map("n" -> 2L)), loopCounter = 1)
+    assert((exec.setting.limit, exec.setting.name) == ((2, "x")))
+    // An enclosing loop's later message does not replace it.
+    exec.registerState(State(Map("n" -> 3L, "i" -> "y")), loopCounter = 2)
+    assert((exec.setting.limit, exec.setting.name) == ((2, "x")))
     exec.bindStateReferences()
+
+    // Once bound, a later message from the same loop is still registered, but it neither fails nor
+    // changes the setting.
+    val later = State(Map("n" -> 4L, "i" -> "z"))
+    exec.registerState(later, loopCounter = 1)
+    exec.bindStateReferences()
+    assert(exec.state.contains(later))
+    assert((exec.setting.limit, exec.setting.name) == ((2, "x")))
+  }
+
+  it should "let a later value from the same loop replace one that did not fit, and report a later one that does not fit" in {
+    val exec = build(Map("/limit" -> "n"))
+    exec.registerState(State(Map("n" -> "not a number")))
+    exec.registerState(State(Map("n" -> 5L)))
+    exec.bindStateReferences()
+    assert(exec.setting.limit == 5)
+
+    val refused = build(Map("/limit" -> "n"))
+    refused.registerState(State(Map("n" -> 5L)))
+    refused.registerState(State(Map("n" -> "seven")))
     assert(
-      intercept[IllegalStateException](
-        exec.registerState(State(Map("n" -> "x")), loopCounter = 1)
-      ).getMessage == conflict(1, "x")
+      intercept[IllegalStateException](refused.bindStateReferences()).getMessage ==
+        "property /limit refers to loop variable n, but its value seven is not an integer"
     )
-    assert((exec.setting.limit, exec.setting.name) == ((1, "y")))
+    // The later value could not be written, so the property still holds the earlier one.
+    assert(refused.setting.limit == 5)
   }
 
   it should "fail at binding, naming every reference no state message carried, until one does" in {

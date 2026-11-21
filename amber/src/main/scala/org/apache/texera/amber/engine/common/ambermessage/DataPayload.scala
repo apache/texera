@@ -32,10 +32,17 @@ sealed trait DataPayload extends WorkflowFIFOMessagePayload {}
   * content (see `State.toTuple`). Loop operators are Python-only, so a JVM
   * operator inside a loop body only ever carries the envelope through
   * unchanged; the defaults are the "no loop" values for all non-loop state.
+  * `messageId` is the id the message was issued with, kept by every copy of it
+  * so a worker that has its output ports processes it once; empty for a state
+  * nobody issued.
   * Mirrors the Python `StateFrame` (core/models/payload.py).
   */
-final case class StateFrame(frame: State, loopCounter: Long = 0L, loopStartId: String = "")
-    extends DataPayload
+final case class StateFrame(
+    frame: State,
+    loopCounter: Long = 0L,
+    loopStartId: String = "",
+    messageId: String = ""
+) extends DataPayload
 
 final case class DataFrame(frame: Array[Tuple]) extends DataPayload {
   val inMemSize: Long = {

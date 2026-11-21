@@ -29,21 +29,45 @@ class IfOpExec(descString: String) extends OperatorExecutor {
   private val desc: IfOpDesc = objectMapper.readValue(descString, classOf[IfOpDesc])
   private var outputPort: PortIdentity = PortIdentity(1) // by default, it should be the true port.
 
-  //This function can handle one or more states.
-  //The state can have mutiple key-value pairs. Keys are not identified by conditionName will be ignored.
-  //It can accept any value that can be converted to a boolean. For example, Int 1 will be converted to true.
+  // Whether a state arrived, whether one that arrived set the route by the condition, and the last
+  // value of the condition that was not a Boolean.
+  private var stateArrived = false
+  private var conditionArrived = false
+  private var nonBooleanCondition: Option[Any] = None
+
+  // This function can handle one or more states, each with any number of key-value pairs; keys
+  // other than conditionName are ignored. A state that carries conditionName sets the route by its
+  // value: true takes the true port, false or null the false port, and any other value throws a
+  // ClassCastException. A state without conditionName is passed on and keeps the route: inside a
+  // loop, an operator upstream whose processState adds the condition sends the loop's state on
+  // first, without it, and the change after it.
   override def processState(state: State, port: Int): Option[State] = {
-    outputPort =
-      if (state.values(desc.conditionName).asInstanceOf[Boolean]) PortIdentity(1)
-      else PortIdentity()
+    stateArrived = true
+    state.values.get(desc.conditionName).foreach { value =>
+      if (value != null && !value.isInstanceOf[Boolean]) nonBooleanCondition = Some(value)
+      outputPort = if (value.asInstanceOf[Boolean]) PortIdentity(1) else PortIdentity()
+      conditionArrived = true
+    }
     Some(state)
   }
 
+  // Before any state arrives, a tuple takes the true port. Once states arrived, a tuple fails
+  // while none of them has set the route by the condition, instead of taking a route the condition
+  // never chose: no state carried it, or the value it carried was not a Boolean.
   override def processTupleMultiPort(
       tuple: Tuple,
       port: Int
-  ): Iterator[(TupleLike, Option[PortIdentity])] =
+  ): Iterator[(TupleLike, Option[PortIdentity])] = {
+    if (stateArrived && !conditionArrived) {
+      throw new IllegalStateException(
+        s"the If's condition refers to loop variable ${desc.conditionName}, but " +
+          nonBooleanCondition.fold("no state message carried it")(value =>
+            s"its value $value, a ${value.getClass.getSimpleName}, is not a Boolean"
+          )
+      )
+    }
     Iterator((tuple, Some(outputPort)))
+  }
 
   override def processTuple(tuple: Tuple, port: Int): Iterator[TupleLike] = ???
 }

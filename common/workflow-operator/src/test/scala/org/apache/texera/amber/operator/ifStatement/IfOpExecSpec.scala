@@ -82,14 +82,52 @@ class IfOpExecSpec extends AnyFlatSpec {
     }
   }
 
-  "IfOpExec.processState" should "throw when the configured conditionName is missing from the state" in {
+  "IfOpExec.processState" should "pass on a state without the condition and keep its route" in {
+    // Inside a loop, an operator upstream that adds the condition in its processState sends the
+    // loop's message on first, without the condition, and the change after it.
     val exec = new IfOpExec(desc("flag"))
-    // `state.values(desc.conditionName)` does an unsafe Map.apply, so a
-    // missing key surfaces as NoSuchElementException rather than a quiet
-    // misroute.
-    assertThrows[NoSuchElementException] {
-      exec.processState(State(Map[String, Any]("other" -> true)), 0)
+    exec.processState(State(Map[String, Any]("flag" -> false)), 0)
+    val without = State(Map[String, Any]("other" -> true))
+    assert(exec.processState(without, 0).exists(_ eq without))
+    val out = exec.processTupleMultiPort(tuple(1), 0).toList
+    assert(out == List((tuple(1), Some(falsePortId))))
+  }
+
+  it should "route by a later state that carries the condition after one that does not" in {
+    val exec = new IfOpExec(desc("flag"))
+    exec.processState(State(Map[String, Any]("i" -> 0)), 0)
+    exec.processState(State(Map[String, Any]("i" -> 0, "flag" -> false)), 0)
+    val out = exec.processTupleMultiPort(tuple(1), 0).toList
+    assert(out == List((tuple(1), Some(falsePortId))))
+  }
+
+  "IfOpExec.processTupleMultiPort" should "fail a tuple, naming the condition, while no state that arrived carried it" in {
+    val exec = new IfOpExec(desc("flag"))
+    exec.processState(State(Map[String, Any]("i" -> 0)), 0)
+    exec.processState(State(Map[String, Any]("i" -> 1)), 0)
+    val error = intercept[IllegalStateException](exec.processTupleMultiPort(tuple(1), 0).toList)
+    assert(
+      error.getMessage ==
+        "the If's condition refers to loop variable flag, but no state message carried it"
+    )
+    // A later tuple fails too, until a state carries the condition.
+    assertThrows[IllegalStateException](exec.processTupleMultiPort(tuple(2), 0).toList)
+    exec.processState(State(Map[String, Any]("flag" -> true)), 0)
+    assert(exec.processTupleMultiPort(tuple(3), 0).toList == List((tuple(3), Some(truePortId))))
+  }
+
+  it should "fail a tuple, naming the value and its type, after a condition that is not a Boolean" in {
+    val exec = new IfOpExec(desc("flag"))
+    assertThrows[ClassCastException] {
+      exec.processState(State(Map[String, Any]("flag" -> "true")), 0)
     }
+    // A state carried the condition, so the error names its value rather than a missing state.
+    val error = intercept[IllegalStateException](exec.processTupleMultiPort(tuple(1), 0).toList)
+    assert(
+      error.getMessage ==
+        "the If's condition refers to loop variable flag, but its value true, a String, is not " +
+          "a Boolean"
+    )
   }
 
   it should "throw ClassCastException when the conditionName value is a String" in {

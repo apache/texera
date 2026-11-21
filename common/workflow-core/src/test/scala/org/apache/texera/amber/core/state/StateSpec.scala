@@ -46,15 +46,15 @@ class StateSpec extends AnyFlatSpec {
     assert(decoded.values("bool_false") == false)
   }
 
-  it should "drop null entries during JSON serialization" in {
-    // The shared `objectMapper` is configured with `Include.NON_NULL`, so
-    // null values are stripped before they hit the wire. Document the
-    // behavior here so callers know they cannot transport an explicit null
-    // through a State -- Python's serializer keeps nulls but Scala does not.
-    val original = State(Map("present" -> "value", "absent" -> null))
+  it should "keep null entries during JSON serialization, as the Python serializer does" in {
+    // The shared `objectMapper` is configured with `Include.NON_NULL`, which drops a null map
+    // value. A State keeps it, nested ones too: a loop variable set to Python's None
+    // (`prev = None`) must still be there after a JVM operator in the loop body sends the state on.
+    val original = State(
+      Map("present" -> "value", "absent" -> null, "nested" -> Map("inner" -> null))
+    )
     val decoded = State.fromJson(original.toJson)
-    assert(decoded.values.keySet == Set("present"))
-    assert(decoded.values("present") == "value")
+    assert(decoded == original)
   }
 
   it should "json-round-trip byte arrays via the bytes type marker" in {
@@ -131,15 +131,24 @@ class StateSpec extends AnyFlatSpec {
     // exist precisely so the envelope survives storage. These extractors are
     // what InputPortMaterializationReaderThread / PythonProxyServer read; a
     // rename of the columns on either side must break this.
-    val tuple = State(Map("i" -> 1L)).toTuple(2L, "outer-loop")
+    val tuple = State(Map("i" -> 1L)).toTuple(2L, "outer-loop", "issued-A")
     assert(State.loopCounterFrom(tuple) == 2L)
     assert(State.loopStartIdFrom(tuple) == "outer-loop")
+    assert(State.messageIdFrom(tuple) == "issued-A")
   }
 
   it should "default the loop envelope to the no-loop values" in {
     val tuple = State(Map("i" -> 1L)).toTuple()
     assert(State.loopCounterFrom(tuple) == 0L)
     assert(State.loopStartIdFrom(tuple) == "")
+    assert(State.messageIdFrom(tuple) == "")
+  }
+
+  it should "keep the message id out of the content, apart from a user variable of the same name" in {
+    val original = State(Map("message_id" -> "user value", "K" -> 2L))
+    val tuple = original.toTuple(1L, "outer", "issued-A")
+    assert(State.messageIdFrom(tuple) == "issued-A")
+    assert(State.fromTuple(tuple) == original)
   }
 
   it should "decode a payload encoded by the Python serializer" in {
