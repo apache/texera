@@ -19,25 +19,11 @@
 
 import { describe, expect, test } from "bun:test";
 import type { ModelMessage } from "ai";
-import { assembleContext } from "./context-utils";
+import { dataflowMessage } from "./context-utils";
 import { WorkflowState } from "../workflow-state";
-import type { ReActStep } from "../../types/agent";
 import type { OperatorLink, OperatorPredicate } from "../../types/workflow";
 import type { WorkflowCompilationResponse } from "../../api/compile-api";
 import { WorkflowFatalErrorType } from "../../types/execution";
-
-function step(messageId: string, role: "user" | "agent", stepId: number, content: string, isEnd: boolean): ReActStep {
-  return {
-    id: `${messageId}-${stepId}`,
-    messageId,
-    stepId,
-    timestamp: 0,
-    role,
-    content,
-    isBegin: true,
-    isEnd,
-  };
-}
 
 function makeOperator(id: string, overrides: Partial<OperatorPredicate> = {}): OperatorPredicate {
   return {
@@ -60,138 +46,29 @@ function makeLink(source: string, sourcePort: string, target: string, targetPort
   };
 }
 
-// assembleContext always returns a single user message whose content is a joined string.
-function contentOf(result: ModelMessage[]): string {
-  expect(result).toHaveLength(1);
-  expect(result[0].role).toBe("user");
-  expect(typeof result[0].content).toBe("string");
-  return result[0].content as string;
+// The dataflow block is one user message whose content is a string.
+function contentOf(message: ModelMessage | null): string {
+  expect(message).not.toBeNull();
+  expect(message!.role).toBe("user");
+  expect(typeof message!.content).toBe("string");
+  return message!.content as string;
 }
 
-describe("assembleContext", () => {
-  test("returns a single user message with no task sections for empty steps", () => {
-    const result = assembleContext([], new WorkflowState(), new Map());
-    expect(result).toHaveLength(1);
-    expect(result[0].role).toBe("user");
-    expect(contentOf(result)).toBe("");
+describe("dataflowMessage", () => {
+  test("is absent for an empty workflow", () => {
+    expect(dataflowMessage(new WorkflowState(), new Map())).toBeNull();
   });
 
-  test("renders a completed task under a Completed Tasks heading", () => {
-    const steps = [step("m1", "user", 0, "do X", true), step("m1", "agent", 1, "thinking", true)];
-    const content = contentOf(assembleContext(steps, new WorkflowState(), new Map()));
-    expect(content).toContain("# Completed Tasks");
-    expect(content).toContain("## Task (completed)");
-    expect(content).toContain("do X"); // the user request
-    expect(content).toContain("### Turn 1"); // the agent step
-  });
-
-  test("renders an unfinished task under an Ongoing Task heading", () => {
-    const steps = [step("m1", "user", 0, "do Y", true), step("m1", "agent", 1, "working", false)];
-    const content = contentOf(assembleContext(steps, new WorkflowState(), new Map()));
-    expect(content).toContain("# Ongoing Task");
-    expect(content).toContain("## Task (ongoing)");
-  });
-
-  test("appends a Current Dataflow section when the workflow has operators", () => {
+  test("is one user message headed Current Dataflow, with the operators under it", () => {
     const workflowState = new WorkflowState();
     workflowState.addOperator(makeOperator("op1"));
-    const content = contentOf(assembleContext([], workflowState, new Map()));
-    expect(content).toContain("# Current Dataflow");
-    expect(content).toContain("## Operators");
-  });
-
-  test("groups steps sharing a messageId into a single task", () => {
-    const steps = [
-      step("m1", "user", 0, "req", true),
-      step("m1", "agent", 1, "turn one", false),
-      step("m1", "agent", 2, "turn two", true),
-    ];
-    const content = contentOf(assembleContext(steps, new WorkflowState(), new Map()));
-    expect((content.match(/## Task/g) ?? []).length).toBe(1);
-    expect(content).toContain("### Turn 1");
-    expect(content).toContain("### Turn 2");
-  });
-
-  test("labels each tool call with the status of its result by toolCallId", () => {
-    const agentStep: ReActStep = {
-      ...step("m1", "agent", 1, "acting", true),
-      toolCalls: [
-        { toolName: "addOperator", toolCallId: "c1", input: {} },
-        { toolName: "executeOperator", toolCallId: "c2", input: {} },
-        { toolName: "deleteOperator", toolCallId: "c3", input: {} },
-      ],
-      // Results are deliberately out of call order, and the third call was never executed.
-      toolResults: [
-        { toolCallId: "c2", output: "bad", isError: true },
-        { toolCallId: "c1", output: "ok" },
-      ],
-    };
-    const content = contentOf(
-      assembleContext([step("m1", "user", 0, "req", true), agentStep], new WorkflowState(), new Map())
-    );
-    expect(content).toContain("- addOperator (succeeded)");
-    expect(content).toContain("- executeOperator (failed)");
-    expect(content).toContain("- deleteOperator (failed)");
-  });
-
-  test("writes each past call's summary and result under it, so a failed call is not repeated blindly", () => {
-    const agentStep: ReActStep = {
-      ...step("m1", "agent", 1, "acting", true),
-      toolCalls: [
-        { toolName: "addOperator", toolCallId: "c1", input: { operatorId: "op1", summary: "Load CSV data" } },
-        { toolName: "executeOperator", toolCallId: "c2", input: { operatorId: "op1" } },
-        { toolName: "modifyOperator", toolCallId: "c3", input: { operatorId: "op1", summary: "Link op7" } },
-        { toolName: "deleteOperator", toolCallId: "c4", input: { operatorId: "op1" } },
-      ],
-      toolResults: [
-        { toolCallId: "c1", output: "Added operator op1, input ports: 0, output ports: 1" },
-        { toolCallId: "c2", output: "Executed operator op1\nOutput(table shape): (3, 2)\n| a | b |" },
-        { toolCallId: "c3", output: '[ERROR] Source operator "op7" not found\n  at resolveInputLinks', isError: true },
-      ],
-    };
-    const content = contentOf(
-      assembleContext([step("m1", "user", 0, "req", true), agentStep], new WorkflowState(), new Map())
-    );
-    expect(content).toContain(
-      [
-        "- addOperator (succeeded)",
-        "  - Summary: Load CSV data",
-        "  - Output: Added operator op1, input ports: 0, output ports: 1",
-        "- executeOperator (succeeded)",
-        "  - Output: Executed operator op1",
-        "- modifyOperator (failed)",
-        "  - Summary: Link op7",
-        "  - Error:",
-        '    [ERROR] Source operator "op7" not found',
-        "      at resolveInputLinks",
-        // A call the SDK never executed has no result.
-        "- deleteOperator (failed)",
-      ].join("\n")
-    );
-    // The operator's data stays in the dataflow section, not in the history.
-    expect(content).not.toContain("| a | b |");
-  });
-
-  test("matches results to calls by toolCallId, not by position", () => {
-    // A call the SDK never executed has no result, so positions can shift.
-    const agentStep: ReActStep = {
-      ...step("m1", "agent", 1, "acting", true),
-      toolCalls: [
-        { toolName: "addOperator", toolCallId: "c1", input: { operatorId: "op1" } },
-        { toolName: "deleteOperator", toolCallId: "c2", input: { operatorId: "op0" } },
-      ],
-      toolResults: [{ toolCallId: "c2", output: "Deleted operator op0" }],
-    };
-    const content = contentOf(
-      assembleContext([step("m1", "user", 0, "req", true), agentStep], new WorkflowState(), new Map())
-    );
-    expect(content).toContain(
-      ["- addOperator (failed)", "- deleteOperator (succeeded)", "  - Output: Deleted operator op0"].join("\n")
-    );
+    const content = contentOf(dataflowMessage(workflowState, new Map()));
+    expect(content).toStartWith("# Current Dataflow\n## Operators\n");
+    expect(content).toContain("### Operator `op1` (TestOp, not-executed)");
   });
 });
 
-describe("assembleContext — dataflow serialization", () => {
+describe("dataflowMessage — serialization", () => {
   test("orders operators and links topologically rather than by insertion order", () => {
     const workflowState = new WorkflowState();
     // Inserted leaf-first, so insertion order is the reverse of the dataflow order.
@@ -202,7 +79,7 @@ describe("assembleContext — dataflow serialization", () => {
     workflowState.addLink(makeLink("a", "output-0", "c", "input-1"));
     workflowState.addLink(makeLink("a", "output-0", "b", "input-0"));
 
-    const content = contentOf(assembleContext([], workflowState, new Map()));
+    const content = contentOf(dataflowMessage(workflowState, new Map()));
 
     expect(content.indexOf("### Operator `a`")).toBeLessThan(content.indexOf("### Operator `b`"));
     expect(content.indexOf("### Operator `b`")).toBeLessThan(content.indexOf("### Operator `c`"));
@@ -231,7 +108,7 @@ describe("assembleContext — dataflow serialization", () => {
       operatorErrors: {},
     };
 
-    const content = contentOf(assembleContext([], workflowState, new Map(), false, compilationResult));
+    const content = contentOf(dataflowMessage(workflowState, new Map(), false, compilationResult));
 
     expect(content).toContain("Input Schema (port 0): [a: string, n: integer]");
     expect(content).toContain("Output Schema: [a: string, n: integer]");
@@ -248,7 +125,7 @@ describe("assembleContext — dataflow serialization", () => {
       })
     );
 
-    const content = contentOf(assembleContext([], workflowState, new Map()));
+    const content = contentOf(dataflowMessage(workflowState, new Map()));
 
     expect(content).toContain("Summary: op1"); // no display name -> falls back to the id
     expect(content).toContain("  name: alice");
@@ -263,13 +140,13 @@ describe("assembleContext — dataflow serialization", () => {
     const workflowState = new WorkflowState();
     workflowState.addOperator(makeOperator("op1", { operatorProperties: { secret: "s3cr3t" } }));
 
-    const redacted = contentOf(assembleContext([], workflowState, new Map(), true));
+    const redacted = contentOf(dataflowMessage(workflowState, new Map(), true));
     expect(redacted).toContain("(TestOp, not-executed)");
     expect(redacted).not.toContain("Properties:");
 
     // A failing operator keeps its properties even when redacting, so the model
     // can see what caused the failure.
-    const failed = contentOf(assembleContext([], workflowState, new Map([["op1", "[ERROR] boom"]]), true));
+    const failed = contentOf(dataflowMessage(workflowState, new Map([["op1", "[ERROR] boom"]]), true));
     expect(failed).toContain("(TestOp, failed)");
     expect(failed).toContain("  secret: s3cr3t");
   });
@@ -278,7 +155,7 @@ describe("assembleContext — dataflow serialization", () => {
     const workflowState = new WorkflowState();
     workflowState.addOperator(makeOperator("op1", { customDisplayName: "My Filter" }));
 
-    const content = contentOf(assembleContext([], workflowState, new Map([["op1", "header\nrow1"]])));
+    const content = contentOf(dataflowMessage(workflowState, new Map([["op1", "header\nrow1"]])));
 
     expect(content).toContain("### Operator `op1` (TestOp, executed)");
     expect(content).toContain("Summary: My Filter");
@@ -302,7 +179,7 @@ describe("assembleContext — dataflow serialization", () => {
       },
     };
 
-    const content = contentOf(assembleContext([], workflowState, new Map(), false, compilationResult));
+    const content = contentOf(dataflowMessage(workflowState, new Map(), false, compilationResult));
 
     expect(content).toContain("Compilation Error: attribute x not found");
   });

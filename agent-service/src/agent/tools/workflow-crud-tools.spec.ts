@@ -19,6 +19,7 @@
 
 import { describe, expect, test } from "bun:test";
 import { createAddOperatorTool, createModifyOperatorTool, createDeleteOperatorTool } from "./workflow-crud-tools";
+import { isErrorResult } from "./tools-utility";
 import { WorkflowState } from "../workflow-state";
 import { WorkflowSystemMetadata } from "../util/workflow-system-metadata";
 import type { OperatorMetadata } from "../../api/backend-api";
@@ -780,5 +781,103 @@ describe("createAddOperatorTool", () => {
     // Unlike modifyOperator, addOperator reports the raw message with no id prefix.
     expect(result).toBe("[ERROR] insert failed");
     expect(state.getAllOperators()).toHaveLength(0);
+  });
+});
+
+// With `executeOperator` in the context, a change that goes through executes the operator it changed,
+// and the tool's result carries the execution's result after its own line.
+describe("executing the changed operator", () => {
+  const EXECUTED = "Executed operator op1\nOutput table shape: (3, 2)\n\ta\tb\n0\t1\t2";
+  const ADD_OP1 = { operatorId: "op1", operatorType: "TestOp", properties: {}, summary: "x" };
+
+  /** A context whose executions return `outcome`, or throw it when it is an error, and record each call. */
+  function executingContext(outcome: string | Error) {
+    const calls: Array<{ operatorId: string; abortSignal?: AbortSignal }> = [];
+    const executeOperator = async (operatorId: string, options: { abortSignal?: AbortSignal }) => {
+      calls.push({ operatorId, abortSignal: options.abortSignal });
+      if (outcome instanceof Error) throw outcome;
+      return outcome;
+    };
+    return { calls, context: { metadataStore, executeOperator } };
+  }
+
+  test("addOperator executes the new operator and appends the result, passing the call's abort signal", async () => {
+    const { calls, context: executing } = executingContext(EXECUTED);
+    const abortSignal = new AbortController().signal;
+
+    const result = await (createAddOperatorTool(new WorkflowState(), operatorSchemas, executing) as any).execute(
+      ADD_OP1,
+      { toolCallId: "test-call", messages: [], abortSignal }
+    );
+
+    expect(result).toBe(`Added operator op1, input ports: 1, output ports: 1\n${EXECUTED}`);
+    expect(calls).toEqual([{ operatorId: "op1", abortSignal }]);
+  });
+
+  test("modifyOperator executes the modified operator and appends the result", async () => {
+    const state = new WorkflowState();
+    state.addOperator(makeOperator("op1", 0, 1));
+    const { calls, context: executing } = executingContext(EXECUTED);
+
+    const result = await runTool(createModifyOperatorTool(state, executing), {
+      operatorId: "op1",
+      properties: { title: "t" },
+      summary: "retitled",
+    });
+
+    expect(result).toBe(`Operator op1 modified\n${EXECUTED}`);
+    expect(calls.map(call => call.operatorId)).toEqual(["op1"]);
+  });
+
+  test("a change that is refused executes nothing", async () => {
+    const state = new WorkflowState();
+    const { calls, context: executing } = executingContext(EXECUTED);
+
+    const added = await runTool(createAddOperatorTool(state, operatorSchemas, executing), {
+      ...ADD_OP1,
+      inputOperatorIds: { "0": ["ghost"] },
+    });
+    const modified = await runTool(createModifyOperatorTool(state, executing), { operatorId: "ghost", summary: "x" });
+
+    expect(isErrorResult(added)).toBe(true);
+    expect(isErrorResult(modified)).toBe(true);
+    expect(calls).toEqual([]);
+  });
+
+  test("a failed execution follows the change and does not turn it into a failure", async () => {
+    const state = new WorkflowState();
+    const failure = "[ERROR] Execution failed due to the following error:\nExecution error:\n  op1: boom";
+    const { context: executing } = executingContext(failure);
+
+    const result = await runTool(createAddOperatorTool(state, operatorSchemas, executing), ADD_OP1);
+
+    expect(result).toBe(`Added operator op1, input ports: 1, output ports: 1\n${failure}`);
+    expect(isErrorResult(result)).toBe(false);
+    expect(state.getOperator("op1")).toBeDefined();
+  });
+
+  test("an execution that is stopped is reported after the change, which stands", async () => {
+    const state = new WorkflowState();
+    const aborted = Object.assign(new Error("The operation was aborted."), { name: "AbortError" });
+    const { context: executing } = executingContext(aborted);
+
+    const result = await runTool(createAddOperatorTool(state, operatorSchemas, executing), ADD_OP1);
+
+    expect(result).toBe(
+      "Added operator op1, input ports: 1, output ports: 1\n[ERROR] Execution did not finish: The operation was aborted."
+    );
+    expect(isErrorResult(result)).toBe(false);
+    expect(state.getOperator("op1")).toBeDefined();
+  });
+
+  test("the tool descriptions mention the execution only when there is one", () => {
+    const state = new WorkflowState();
+    const { context: executing } = executingContext(EXECUTED);
+    const note = "The operator is then executed";
+
+    expect(createAddOperatorTool(state, operatorSchemas, executing).description).toContain(note);
+    expect(createModifyOperatorTool(state, executing).description).toContain(note);
+    expect(createAddOperatorTool(state, operatorSchemas, context).description).not.toContain(note);
+    expect(createModifyOperatorTool(state, context).description).not.toContain(note);
   });
 });
