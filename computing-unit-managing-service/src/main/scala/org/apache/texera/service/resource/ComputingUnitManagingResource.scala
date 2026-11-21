@@ -664,16 +664,16 @@ class ComputingUnitManagingResource(
 
     // Resolved before anything is written. Starting from an image that is not ready would
     // leave a computing-unit row behind that can never run.
-    val curatedImageInfo: Option[(Option[String], String)] = param.iid.map { iid =>
+    val readyImage: Option[CuratedImageResource.ReadyImage] = param.iid.map { iid =>
       CuratedImageResource
-        .readyImageWithNameFor(iid)
+        .readyImageFor(iid)
         .getOrElse(
           throw new ForbiddenException(
             s"Image $iid is not available. It must exist and have passed its check."
           )
         )
     }
-    val curatedImage: Option[String] = curatedImageInfo.map(_._2)
+    val curatedImage: Option[String] = readyImage.map(_.ref)
 
     withTransaction(context) { ctx =>
       val wcDao = new WorkflowComputingUnitDao(ctx.configuration())
@@ -703,7 +703,7 @@ class ComputingUnitManagingResource(
               // while a unit started from it is still up, and "what is this running?"
               // should still have an answer then.
               "iid" -> param.iid,
-              "imageName" -> curatedImageInfo.flatMap(_._1),
+              "imageName" -> readyImage.flatMap(_.name),
               "curatedImage" -> curatedImage,
               "nodeAddresses" -> Json.arr() // filled in later
             )
@@ -725,32 +725,25 @@ class ComputingUnitManagingResource(
         case _ => "{}"
       }
 
-      val creationTime = new Timestamp(System.currentTimeMillis())
-      val uri =
-        if (cuType == WorkflowComputingUnitTypeEnum.local) param.uri.get
-        else "" // placeholder for kubernetes
-      val cuid = ctx
-        .insertInto(WORKFLOW_COMPUTING_UNIT)
-        .set(WORKFLOW_COMPUTING_UNIT.UID, user.getUid)
-        .set(WORKFLOW_COMPUTING_UNIT.NAME, param.name)
-        .set(WORKFLOW_COMPUTING_UNIT.CREATION_TIME, creationTime)
-        .set(WORKFLOW_COMPUTING_UNIT.TYPE, cuType)
-        .set(WORKFLOW_COMPUTING_UNIT.RESOURCE, resourceJson)
-        .set(WORKFLOW_COMPUTING_UNIT.URI, uri)
-        .returningResult(WORKFLOW_COMPUTING_UNIT.CUID)
-        .fetchOne()
-        .value1()
-        .intValue()
-
       val computingUnit = new WorkflowComputingUnit()
       val userToken = JwtAuth.jwtToken(jwtClaims(user.user))
-      computingUnit.setCuid(cuid)
       computingUnit.setUid(user.getUid)
       computingUnit.setName(param.name)
-      computingUnit.setCreationTime(creationTime)
+      computingUnit.setCreationTime(new Timestamp(System.currentTimeMillis()))
       computingUnit.setType(cuType)
       computingUnit.setResource(resourceJson)
-      computingUnit.setUri(uri)
+
+      // Set URI during initial insert for local only
+      if (cuType == WorkflowComputingUnitTypeEnum.local) {
+        computingUnit.setUri(param.uri.get)
+      } else {
+        computingUnit.setUri("") // placeholder for kubernetes
+      }
+
+      // Dao.insert writes the generated cuid back into computingUnit, so the same object
+      // is both the row and the response.
+      wcDao.insert(computingUnit)
+      val cuid: Int = computingUnit.getCuid
 
       val userDao = new UserDao(ctx.configuration())
       val ownerUser = Option(userDao.fetchOneByUid(user.getUid))
@@ -761,22 +754,16 @@ class ComputingUnitManagingResource(
 
       if (cuType == WorkflowComputingUnitTypeEnum.kubernetes) {
         // 1. Update the DB with the URI
-        val podUri = KubernetesClient.generatePodURI(cuid)
+        computingUnit.setUri(KubernetesClient.generatePodURI(cuid))
+
         val updatedResource: JsObject =
           Json
-            .parse(resourceJson)
+            .parse(computingUnit.getResource)
             .as[JsObject] ++
-            Json.obj("nodeAddresses" -> Json.arr(podUri))
-        val updatedResourceJson = Json.stringify(updatedResource)
+            Json.obj("nodeAddresses" -> Json.arr(computingUnit.getUri))
 
-        computingUnit.setUri(podUri)
-        computingUnit.setResource(updatedResourceJson)
-        ctx
-          .update(WORKFLOW_COMPUTING_UNIT)
-          .set(WORKFLOW_COMPUTING_UNIT.URI, podUri)
-          .set(WORKFLOW_COMPUTING_UNIT.RESOURCE, updatedResourceJson)
-          .where(WORKFLOW_COMPUTING_UNIT.CUID.eq(cuid))
-          .execute()
+        computingUnit.setResource(Json.stringify(updatedResource))
+        wcDao.update(computingUnit)
 
         // 2. Launch the pod as CU
         try {
@@ -796,9 +783,6 @@ class ComputingUnitManagingResource(
         } catch {
           case e: KubernetesClientException =>
             throw ComputingUnitManagingServiceException.fromKubernetes(e)
-
-          case t: Throwable =>
-            throw t
         }
       }
 

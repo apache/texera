@@ -200,10 +200,10 @@ object CuratedImageResource extends LazyLogging {
     else if (status != Status.Ready) None
     else pinnedRefOf(sourceRef, sourceDigest)
 
-  def readyImageFor(iid: Int): Option[String] =
-    readyImageWithNameFor(iid).map(_._2)
+  /** What a unit started from a ready image runs, and that image's display name. */
+  final case class ReadyImage(ref: String, name: Option[String])
 
-  def readyImageWithNameFor(iid: Int): Option[(Option[String], String)] = {
+  def readyImageFor(iid: Int): Option[ReadyImage] = {
     // Checked here too, which the rule below repeats: it makes the query pointless.
     if (!CuratedImageConfig.enabled) return None
     Option(
@@ -218,12 +218,9 @@ object CuratedImageResource extends LazyLogging {
         r.get(STATUS),
         r.get(SOURCE_REF),
         r.get(SOURCE_DIGEST)
-      ).map(ref => (Option(r.get(NAME)), ref))
+      ).map(ReadyImage(_, Option(r.get(NAME))))
     }
   }
-
-  def nameOf(iid: Int): Option[String] =
-    Option(context.select(NAME).from(CU_IMAGE).where(IID.eq(iid)).fetchOne()).map(_.get(NAME))
 
   /**
     * Brings the pre-pulls into line with the ready images: adds the missing, repoints the

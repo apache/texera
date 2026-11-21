@@ -63,10 +63,7 @@ class CoordinatorTimerService(
   }
 
   private def disableTimer(handleOpt: Option[Cancellable]): Option[Cancellable] = {
-    if (handleOpt.nonEmpty) {
-      handleOpt.get.cancel()
-      ()
-    }
+    handleOpt.foreach(_.cancel())
     None
   }
 

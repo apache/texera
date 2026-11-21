@@ -26,7 +26,6 @@ import org.apache.texera.amber.util.IcebergUtil
 import org.apache.commons.io.IOUtils
 import org.apache.iceberg.catalog.{Catalog, TableIdentifier}
 import org.apache.iceberg.data.Record
-import org.apache.iceberg.exceptions.NoSuchTableException
 import org.apache.iceberg.io.CloseableIterator
 import org.apache.iceberg.types.{Conversions, Types}
 import org.apache.iceberg.{FileScanTask, Table}
@@ -77,13 +76,6 @@ private[storage] class IcebergDocument[T >: Null <: AnyRef](
   // entries (#7290), so a pinned reference could outlive its catalog. A public def
   // (not a lazy val) also means a replaced/rebuilt catalog is picked up immediately.
   def catalog: Catalog = IcebergCatalogInstance.getInstance(warehouse)
-
-  private def requireTable(): Table =
-    IcebergUtil
-      .loadTableMetadata(catalog, tableNamespace, tableName)
-      .getOrElse(
-        throw new NoSuchTableException(f"table ${tableNamespace}.${tableName} doesn't exist")
-      )
 
   /**
     * Returns the URI of the table location.
@@ -191,10 +183,10 @@ private[storage] class IcebergDocument[T >: Null <: AnyRef](
         private var lastSnapshotId: Option[Long] = None
 
         // Counter for how many records have been skipped
-        private var numOfSkippedRecords: Int = _
+        private var numOfSkippedRecords = 0
 
         // Counter for how many records have been returned
-        private var numOfReturnedRecords: Int = _
+        private var numOfReturnedRecords = 0
 
         // Total number of records to return
         private val totalRecordsToReturn = until.map(_ - from).getOrElse(Int.MaxValue)
@@ -546,6 +538,7 @@ private[storage] class IcebergDocument[T >: Null <: AnyRef](
       identifier: TableIdentifier
   ): InputStream = {
     val file = fileTask.file()
+    // Loaded per part, never held across the export: it could outlive its catalog (#7290).
     val table = catalog.loadTable(identifier)
     table.io().newInputFile(file.location()).newStream()
   }
@@ -557,9 +550,8 @@ private[storage] class IcebergDocument[T >: Null <: AnyRef](
     * @return An InputStream that streams the contents of the Iceberg table as a ZIP archive.
     */
   override def asInputStream(): InputStream = {
-    val planningCatalog = catalog
     val identifier = TableIdentifier.of(tableNamespace, tableName)
-    val table = planningCatalog.loadTable(identifier)
+    val table = catalog.loadTable(identifier)
     table.refresh()
     val fileScanTasks = Using.resource(table.newScan().planFiles()) { tasks =>
       tasks.iterator().asScala.toSeq
@@ -578,7 +570,7 @@ private[storage] class IcebergDocument[T >: Null <: AnyRef](
         Using.resource(new ZipOutputStream(pipeOut)) { zipOut =>
           fileScanTasks.iterator.zipWithIndex.foreach {
             case (fileTask, i) =>
-              val entryName = String.format("part-%05d.parquet", Int.box(i))
+              val entryName = f"part-$i%05d.parquet"
               zipOut.putNextEntry(new ZipEntry(entryName))
               Using.resource(getParquetFileStream(fileTask, identifier)) { fileInputStream =>
                 IOUtils.copy(fileInputStream, zipOut)
