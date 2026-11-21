@@ -53,7 +53,7 @@ class WindRoseChartOpDescSpec
 
   it should "throw an AssertionError naming the Angular column when only rColumn is set" in {
     opDesc.rColumn = "r_col"
-    val ex = expectError[AssertionError]("Angular Values (θ) column must be selected.")(
+    expectError[AssertionError]("Angular Values (θ) column must be selected.")(
       opDesc.createPlotlyFigure()
     )
   }

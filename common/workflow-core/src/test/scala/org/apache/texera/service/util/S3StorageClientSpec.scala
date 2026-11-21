@@ -21,7 +21,7 @@ package org.apache.texera.service.util
 
 import org.apache.texera.common.config.StorageConfig
 import org.apache.texera.common.tags.NonParallelTest
-import org.scalatest.{BeforeAndAfterAll, BeforeAndAfterEach}
+import org.scalatest.BeforeAndAfterAll
 import org.scalatest.funsuite.AnyFunSuite
 import software.amazon.awssdk.auth.credentials.{AwsBasicCredentials, StaticCredentialsProvider}
 import software.amazon.awssdk.regions.Region
@@ -36,11 +36,7 @@ import scala.jdk.CollectionConverters._
 import scala.util.Random
 
 @NonParallelTest
-class S3StorageClientSpec
-    extends AnyFunSuite
-    with S3StorageTestBase
-    with BeforeAndAfterAll
-    with BeforeAndAfterEach {
+class S3StorageClientSpec extends AnyFunSuite with S3StorageTestBase with BeforeAndAfterAll {
 
   private val testBucketName = "test-s3-storage-client"
 

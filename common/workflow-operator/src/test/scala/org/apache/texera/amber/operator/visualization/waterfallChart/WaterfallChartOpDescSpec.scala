@@ -55,8 +55,7 @@ class WaterfallChartOpDescSpec
 
   it should "throw an AssertionError naming the Y Axis when only xColumn is set" in {
     opDesc.xColumn = "x_col"
-    val ex =
-      expectError[AssertionError]("Y Axis Values cannot be empty")(opDesc.createPlotlyFigure())
+    expectError[AssertionError]("Y Axis Values cannot be empty")(opDesc.createPlotlyFigure())
   }
 
   it should "render the configured x and y columns when both are set" in {

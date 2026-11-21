@@ -56,7 +56,7 @@ class ContinuousErrorBandsOpDescSpec
   }
 
   it should "throw an AssertionError naming the Bands when generating python code with an empty bands list" in {
-    val ex = expectError[AssertionError]("Bands cannot be empty")(opDesc.generatePythonCode())
+    expectError[AssertionError]("Bands cannot be empty")(opDesc.generatePythonCode())
   }
 
   it should "render the configured band columns when the bands list is set" in {
