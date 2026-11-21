@@ -17,10 +17,10 @@
  * under the License.
  */
 
-import type { ModelMessage } from "ai";
+import type { ModelMessage, TextPart, ToolCallPart, ToolResultPart } from "ai";
 
-// Re-export ModelMessage for use in other modules
-export type { ModelMessage };
+// Re-export the SDK message types for use in other modules
+export type { ModelMessage, TextPart, ToolCallPart, ToolResultPart };
 
 /**
  * Operator access information for a tool call.
@@ -63,7 +63,7 @@ export interface ReActStep {
     cachedInputTokens?: number;
   };
   /** Messages array sent to the LLM for this step (only when context optimization is active) */
-  inputMessages?: any[];
+  inputMessages?: ModelMessage[];
   // Map from tool call index to operator access information
   operatorAccess?: Map<number, ToolOperatorAccess>;
 

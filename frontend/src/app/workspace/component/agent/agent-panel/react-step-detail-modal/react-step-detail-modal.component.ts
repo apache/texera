@@ -18,7 +18,7 @@
  */
 
 import { Component, Input, Output, EventEmitter } from "@angular/core";
-import { ReActStep } from "../../../../service/agent/agent-types";
+import { ReActStep, ModelMessage, TextPart, ToolCallPart, ToolResultPart } from "../../../../service/agent/agent-types";
 import { NzModalComponent, NzModalContentDirective } from "ng-zorro-antd/modal";
 import { NgIf, NgFor, SlicePipe, DatePipe } from "@angular/common";
 import { ɵNzTransitionPatchDirective } from "ng-zorro-antd/core/transition-patch";
@@ -26,6 +26,15 @@ import { NzIconDirective } from "ng-zorro-antd/icon";
 import { NzDescriptionsComponent, NzDescriptionsItemComponent } from "ng-zorro-antd/descriptions";
 import { NzTagComponent } from "ng-zorro-antd/tag";
 import { NzCollapseComponent, NzCollapsePanelComponent } from "ng-zorro-antd/collapse";
+
+/** The array content of a ModelMessage, i.e. its typed parts rather than a plain string. */
+type MessageParts = Exclude<ModelMessage["content"], string>;
+
+/** A tool-result part's output is a structured { type, value }; unwrap the displayable value. */
+function toolResultValue(part: ToolResultPart): unknown {
+  const output = part.output as { value?: unknown };
+  return output?.value ?? part.output;
+}
 
 /**
  * Reusable modal component for displaying ReActStep details.
@@ -65,22 +74,22 @@ export class ReActStepDetailModalComponent {
    * If the data is a string, return it as-is (with newlines preserved).
    * If it's an object, JSON.stringify it with formatting.
    */
-  public formatResult(data: any): string {
+  public formatResult(data: unknown): string {
     if (typeof data === "string") {
       return data;
     }
     return JSON.stringify(data, null, 2);
   }
 
-  public formatJson(data: any): string {
+  public formatJson(data: unknown): string {
     return JSON.stringify(data, null, 2);
   }
 
-  public getToolResult(step: ReActStep, toolCallIndex: number): any {
+  public getToolResult(step: ReActStep, toolCallIndex: number): unknown {
     if (!step.toolResults || toolCallIndex >= step.toolResults.length) {
       return null;
     }
-    const toolResult = step.toolResults[toolCallIndex];
+    const toolResult = step.toolResults[toolCallIndex] as { output?: unknown; result?: unknown };
     return toolResult.output || toolResult.result || toolResult;
   }
 
@@ -105,28 +114,27 @@ export class ReActStepDetailModalComponent {
   /**
    * Get text content from a message (user or assistant text parts).
    */
-  public getTextFromMessage(msg: any): string {
+  public getTextFromMessage(msg: ModelMessage | null): string {
     if (!msg?.content) return "";
     if (typeof msg.content === "string") return msg.content;
-    if (Array.isArray(msg.content)) {
-      return msg.content
-        .filter((p: any) => p.type === "text")
-        .map((p: any) => p.text || "")
-        .join("\n");
-    }
-    return "";
+    return (msg.content as MessageParts)
+      .filter((p): p is TextPart => p.type === "text")
+      .map(p => p.text)
+      .join("\n");
   }
 
   /**
    * Get tool call summaries from an assistant message.
    * Returns array of { toolName, operatorId, fullArgs } for display.
    */
-  public getToolCallSummaries(msg: any): { toolName: string; operatorId: string; fullArgs: any }[] {
-    if (!msg?.content || !Array.isArray(msg.content)) return [];
-    return msg.content
-      .filter((p: any) => p.type === "tool-call")
-      .map((p: any) => {
-        const args = p.args || p.input || {};
+  public getToolCallSummaries(
+    msg: ModelMessage | null
+  ): { toolName: string; operatorId: string; fullArgs: Record<string, unknown> }[] {
+    if (!msg?.content || typeof msg.content === "string") return [];
+    return (msg.content as MessageParts)
+      .filter((p): p is ToolCallPart => p.type === "tool-call")
+      .map(p => {
+        const args = (p.input ?? {}) as { operatorId?: string } & Record<string, unknown>;
         return {
           toolName: p.toolName,
           operatorId: args.operatorId || "",
@@ -136,38 +144,20 @@ export class ReActStepDetailModalComponent {
   }
 
   /**
-   * Build a toolCallId → toolName map from all input messages.
-   */
-  private buildToolCallNameMap(messages: any[]): Map<string, string> {
-    const map = new Map<string, string>();
-    for (const msg of messages) {
-      if (msg.role === "assistant" && Array.isArray(msg.content)) {
-        for (const part of msg.content) {
-          if (part.type === "tool-call") {
-            map.set(part.toolCallId, part.toolName);
-          }
-        }
-      }
-    }
-    return map;
-  }
-
-  /**
    * Get full tool result content items for expanded view.
    * Each item includes: toolName, resultContent string, approximate token count, and whether it was trimmed.
    */
   public getToolResultFullItems(
-    msg: any
+    msg: ModelMessage | null
   ): { toolName: string; resultContent: string; tokenCount: number; isTrimmed: boolean }[] {
-    if (!msg?.content || !Array.isArray(msg.content)) return [];
-    const nameMap = this.step?.inputMessages ? this.buildToolCallNameMap(this.step.inputMessages) : new Map();
-    return msg.content
-      .filter((p: any) => p.type === "tool-result")
-      .map((p: any) => {
-        const raw = p.result ?? p.output ?? p.content ?? "";
+    if (!msg?.content || typeof msg.content === "string") return [];
+    return (msg.content as MessageParts)
+      .filter((p): p is ToolResultPart => p.type === "tool-result")
+      .map(p => {
+        const raw = toolResultValue(p);
         const resultStr = typeof raw === "string" ? raw : JSON.stringify(raw, null, 2);
         return {
-          toolName: nameMap.get(p.toolCallId) || p.toolCallId,
+          toolName: p.toolName || p.toolCallId,
           resultContent: resultStr,
           tokenCount: Math.ceil(resultStr.length / 4),
           isTrimmed: resultStr.includes("context compaction"),
@@ -179,16 +169,15 @@ export class ReActStepDetailModalComponent {
    * Get structured tool results from a tool message.
    * Each result includes: toolName, approximate token count, and whether it was trimmed.
    */
-  public getToolResultItems(msg: any): { toolName: string; tokenCount: number; isTrimmed: boolean }[] {
-    if (!msg?.content || !Array.isArray(msg.content)) return [];
-    const nameMap = this.step?.inputMessages ? this.buildToolCallNameMap(this.step.inputMessages) : new Map();
-    return msg.content
-      .filter((p: any) => p.type === "tool-result")
-      .map((p: any) => {
-        const raw = p.result ?? p.output ?? p.content ?? "";
+  public getToolResultItems(msg: ModelMessage | null): { toolName: string; tokenCount: number; isTrimmed: boolean }[] {
+    if (!msg?.content || typeof msg.content === "string") return [];
+    return (msg.content as MessageParts)
+      .filter((p): p is ToolResultPart => p.type === "tool-result")
+      .map(p => {
+        const raw = toolResultValue(p);
         const resultStr = typeof raw === "string" ? raw : JSON.stringify(raw);
         return {
-          toolName: nameMap.get(p.toolCallId) || p.toolCallId,
+          toolName: p.toolName || p.toolCallId,
           tokenCount: Math.ceil(resultStr.length / 4),
           isTrimmed: resultStr.includes("context compaction"),
         };
