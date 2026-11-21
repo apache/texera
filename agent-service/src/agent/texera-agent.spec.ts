@@ -35,6 +35,7 @@ function makeAgent(): TexeraAgent {
     modelType: "test-model",
     agentId: "agent-1",
     userToken: "user-token",
+    ownerUid: 1,
   });
 }
 
@@ -110,8 +111,14 @@ describe("TexeraAgent", () => {
     test("falls back to a name derived from the id", () => {
       expect(makeAgent().agentName).toBe("Agent-agent-1");
       expect(
-        new TexeraAgent({ model: {} as any, modelType: "m", agentId: "a", agentName: "Named", userToken: "t" })
-          .agentName
+        new TexeraAgent({
+          model: {} as any,
+          modelType: "m",
+          agentId: "a",
+          agentName: "Named",
+          userToken: "t",
+          ownerUid: 1,
+        }).agentName
       ).toBe("Named");
     });
   });
@@ -403,6 +410,7 @@ function makeAgentWith(model: any): TexeraAgent {
     agentId: "agent-1",
     systemPrompt: "SYS-XYZ",
     userToken: "user-token",
+    ownerUid: 1,
   });
   liveAgents.push(agent);
   return agent;

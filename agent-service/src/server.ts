@@ -37,6 +37,7 @@ import type {
   UpdateAgentSettingsRequest,
   AgentSettingsApi,
   ReActStep,
+  UserInfo,
 } from "./types/agent";
 import { AgentState, OperatorResultSerializationMode } from "./types/agent";
 import type { WsClientCommand, WsServerEvent } from "./types/ws";
@@ -48,6 +49,7 @@ let agentCounter = 0;
 
 async function createAgentInstance(
   modelType: string,
+  owner: UserInfo,
   delegateConfig: AgentDelegateConfig,
   customName?: string
 ): Promise<{ agentId: string; agent: TexeraAgent }> {
@@ -70,6 +72,7 @@ async function createAgentInstance(
     agentId,
     agentName: customName || "Bob",
     userToken: delegateConfig.userToken,
+    ownerUid: owner.uid,
   });
 
   await agent.initialize();
@@ -145,6 +148,22 @@ function getAgent(agentId: string): TexeraAgent {
   return agent;
 }
 
+// The user a token identifies, or undefined when it is missing, malformed or expired.
+function userOfToken(token: string | undefined): UserInfo | undefined {
+  if (!token || !validateToken(token)) {
+    return undefined;
+  }
+  const user = extractUserFromToken(token);
+  return typeof user.uid === "number" ? user : undefined;
+}
+
+// An agent answers only to the user who created it. To anyone else it does not
+// exist, so a caller cannot tell another user's agent from an id never issued.
+function ownedAgent(agentId: string | undefined, user: UserInfo | undefined): TexeraAgent | undefined {
+  const agent = agentId === undefined ? undefined : agentStore.get(agentId);
+  return agent && user && agent.ownerUid === user.uid ? agent : undefined;
+}
+
 // Status codes for handler-thrown errors; anything unlisted is a 500.
 const ERROR_STATUS: Record<string, number> = {
   "Agent not found": 404,
@@ -168,40 +187,51 @@ const agentsRouter = new Elysia({ prefix: "/agents" })
     set.status = ERROR_STATUS[errorMessage] ?? 500;
     return { error: errorMessage || "Internal server error" };
   })
-  .get("/", () => {
-    const agentList = Array.from(agentStore.entries()).map(([id, agent]) => getAgentInfo(id, agent));
+  // Every agent route acts as the user in the request's bearer token, which
+  // travels in the Authorization header, never in the payload. A route that
+  // names an agent is served only to that agent's owner.
+  .derive(({ headers, params }) => {
+    const userToken = extractBearerToken(headers.authorization);
+    if (!userToken) {
+      throw new Error("Authorization header with a Bearer token is required");
+    }
+    const user = userOfToken(userToken);
+    if (!user) {
+      throw new Error("Invalid or expired token");
+    }
+    // Routes without a path parameter carry no `params` at all.
+    const agentId = (params as { id?: string } | undefined)?.id;
+    if (agentId !== undefined && !ownedAgent(agentId, user)) {
+      throw new Error("Agent not found");
+    }
+    return { userToken, user };
+  })
+  .get("/", ({ user }) => {
+    const agentList = Array.from(agentStore.entries())
+      .filter(([, agent]) => agent.ownerUid === user.uid)
+      .map(([id, agent]) => getAgentInfo(id, agent));
     return { agents: agentList };
   })
 
   .post(
     "/",
-    async ({ body, headers }) => {
+    async ({ body, userToken, user }) => {
       const { modelType, name, workflowId, computingUnitId, settings } = body as CreateAgentRequest;
 
       if (!modelType) {
         throw new Error("modelType is required");
       }
 
-      // The agent always calls the LLM gateway as the delegating user, so an
-      // agent without a user token would be unable to generate anything. The
-      // token travels in the Authorization header, never in the payload.
-      const userToken = extractBearerToken(headers.authorization);
-      if (!userToken) {
-        throw new Error("Authorization header with a Bearer token is required");
-      }
-      if (!validateToken(userToken)) {
-        throw new Error("Invalid or expired token");
-      }
-
-      const userInfo = extractUserFromToken(userToken);
+      // The agent always calls the LLM gateway as the delegating user, so it
+      // keeps that user's token.
       const delegateConfig: AgentDelegateConfig = {
         userToken,
-        userInfo,
+        userInfo: user,
         workflowId,
         computingUnitId,
       };
 
-      const { agentId, agent } = await createAgentInstance(modelType, delegateConfig, name);
+      const { agentId, agent } = await createAgentInstance(modelType, user, delegateConfig, name);
 
       if (settings) {
         log.info(
@@ -259,13 +289,8 @@ const agentsRouter = new Elysia({ prefix: "/agents" })
     };
   })
 
-  .delete("/:id", ({ params: { id }, set }) => {
-    const agent = agentStore.get(id);
-    if (!agent) {
-      set.status = 404;
-      return { error: "Agent not found" };
-    }
-
+  .delete("/:id", ({ params: { id } }) => {
+    const agent = getAgent(id);
     agent.destroy();
     agentStore.delete(id);
     return { deleted: true };
@@ -409,6 +434,14 @@ function sendEventToClient(ws: { send(data: string): void }, event: WsServerEven
   ws.send(JSON.stringify(event));
 }
 
+// The agent a socket may use: the one in its path, when the token in its query
+// is the owner's. A browser cannot set headers on a WebSocket, so the token
+// arrives as `access-token`, as it does on the workflow websocket.
+function socketAgent(ws: { data: unknown }): TexeraAgent | undefined {
+  const { params, query } = ws.data as { params?: { id?: string }; query?: Record<string, string | undefined> };
+  return ownedAgent(params?.id, userOfToken(query?.["access-token"]));
+}
+
 // Broadcast a server event to every client attached to the agent.
 function broadcastToAgentClients(agentId: string, event: WsServerEvent): void {
   const agent = agentStore.get(agentId);
@@ -441,7 +474,7 @@ export function buildApp() {
         const agentId = (ws.data as any).params?.id;
         wsLog.info({ agentId }, "client connected");
 
-        const agent = agentStore.get(agentId);
+        const agent = socketAgent(ws);
         if (!agent) {
           sendEventToClient(ws, new WsServerErrorEvent("Agent not found"));
           ws.close();
@@ -455,7 +488,7 @@ export function buildApp() {
 
       async message(ws, messageData) {
         const agentId = (ws.data as any).params?.id;
-        const agent = agentStore.get(agentId);
+        const agent = socketAgent(ws);
 
         if (!agent) {
           sendEventToClient(ws, new WsServerErrorEvent("Agent not found"));

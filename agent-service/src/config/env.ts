@@ -19,7 +19,7 @@
 
 import { z } from "zod";
 
-const EnvSchema = z.object({
+export const EnvSchema = z.object({
   PORT: z.coerce.number().default(3001),
   API_PREFIX: z.string().default("/api"),
   TEXERA_SERVICE_LOG_LEVEL: z
@@ -33,6 +33,12 @@ const EnvSchema = z.object({
   WORKFLOW_COMPILING_SERVICE_ENDPOINT: z.string().url().default("http://localhost:9090"),
   WORKFLOW_EXECUTION_SERVICE_ENDPOINT: z.string().url().default("http://localhost:8085"),
   EXECUTION_ENDPOINT_TEMPLATE: z.string().optional(),
+
+  // The secret the dashboard service signs login tokens with (HS256). The same
+  // variable overrides it there, and the default here is the one in
+  // common/config/src/main/resources/auth.conf, so the two agree unless a
+  // deployment sets it for one service and not the other.
+  AUTH_JWT_SECRET: z.string().min(1).default("8a1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d"),
 });
 
 export const env = EnvSchema.parse(process.env);
