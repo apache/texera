@@ -17,17 +17,17 @@
 
 wordcloud==1.9.6
 plotly==5.24.1
-praw==7.6.1
+praw==7.8.2
 pillow==12.3.0
 
 # Pin torch to the CPU wheel on Linux: PyPI's Linux wheels, x86_64 and aarch64
 # alike, depend on the NVIDIA CUDA libraries.
 --extra-index-url https://download.pytorch.org/whl/cpu
-torch==2.13.0+cpu ; platform_system == "Linux"
-torch==2.13.0 ; platform_system != "Linux"
+torch==2.15.0+cpu ; platform_system == "Linux"
+torch==2.15.0+cpu ; platform_system != "Linux"
 
-scikit-learn==1.7.2
-transformers==5.10.1
+scikit-learn==1.9.1
+transformers==5.23.0
 # Not imported by any operator template: plotly's create_ternary_contour
 # (ternary contour operator, #4193) requires scikit-image at runtime.
-scikit-image==0.25.2
+scikit-image==0.26.0
