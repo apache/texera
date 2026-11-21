@@ -42,7 +42,7 @@ import org.apache.texera.service.resource.AccessControlResource
 import org.mockito.Mockito._
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
-import org.scalatest.{BeforeAndAfterAll, BeforeAndAfterEach}
+import org.scalatest.BeforeAndAfterAll
 
 import java.net.{URI, URLEncoder}
 import java.nio.charset.StandardCharsets
@@ -52,7 +52,6 @@ class AccessControlResourceSpec
     extends AnyFlatSpec
     with Matchers
     with BeforeAndAfterAll
-    with BeforeAndAfterEach
     with MockTexeraDB {
 
   private val testURI: String = "http://localhost:8080/"
