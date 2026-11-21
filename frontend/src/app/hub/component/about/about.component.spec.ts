@@ -17,8 +17,10 @@
  * under the License.
  */
 
+import { NgZone, provideZoneChangeDetection } from "@angular/core";
 import { ComponentFixture, TestBed } from "@angular/core/testing";
 import { RouterTestingModule } from "@angular/router/testing";
+import { flushSync } from "react-dom";
 
 import { AboutComponent } from "./about.component";
 import { commonTestProviders } from "../../../common/testing/test-utils";
@@ -30,19 +32,50 @@ describe("AboutComponent", () => {
   beforeEach(() => {
     TestBed.configureTestingModule({
       imports: [AboutComponent, RouterTestingModule.withRoutes([])],
-      providers: [...commonTestProviders],
+      providers: [provideZoneChangeDetection(), ...commonTestProviders],
     });
     fixture = TestBed.createComponent(AboutComponent);
     component = fixture.componentInstance;
-    fixture.detectChanges();
+    flushSync(() => fixture.detectChanges());
   });
 
   it("should create", () => {
     expect(component).toBeTruthy();
   });
 
-  // The login form moved to the dedicated /login page; this page must not render one.
-  it("no longer embeds a login form", () => {
-    expect(fixture.nativeElement.querySelector("texera-local-login")).toBeNull();
+  it("renders the workflow image and links to Texera and its source in the current tab", () => {
+    const host: HTMLElement = fixture.nativeElement;
+    const image = host.querySelector("img");
+    expect(image?.getAttribute("src")).toBe("/assets/workflow_gui.png");
+    expect(image?.alt.trim()).toBeTruthy();
+    const links = Array.from(host.querySelectorAll<HTMLAnchorElement>("a"));
+    expect(links.map(link => ({ href: link.href, target: link.target }))).toEqual([
+      { href: "https://texera.apache.org/", target: "" },
+      { href: "https://github.com/apache/texera", target: "" },
+    ]);
+  });
+
+  it("keeps React DOM events outside Angular's zone", () => {
+    const zone = TestBed.inject(NgZone);
+    expect(zone.run(() => NgZone.isInAngularZone())).toBe(true);
+    const onUnstable = vi.fn();
+    const subscription = zone.onUnstable.subscribe(onUnstable);
+    try {
+      const heading: HTMLElement = fixture.nativeElement.querySelector("h1");
+      zone.runOutsideAngular(() => heading.click());
+      expect(onUnstable).not.toHaveBeenCalled();
+    } finally {
+      subscription.unsubscribe();
+    }
+  });
+
+  it("clears the React subtree on destroy and renders it again on remount", () => {
+    const previousHost: HTMLElement = fixture.nativeElement;
+    fixture.destroy();
+    expect(previousHost.childElementCount).toBe(0);
+
+    fixture = TestBed.createComponent(AboutComponent);
+    flushSync(() => fixture.detectChanges());
+    expect(fixture.nativeElement.querySelectorAll("h1").length).toBe(1);
   });
 });

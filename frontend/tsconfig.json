@@ -14,6 +14,7 @@
     "sourceMap": true,
     "declaration": false,
     "moduleResolution": "bundler",
+    "jsx": "react-jsx",
     "emitDecoratorMetadata": true,
     "experimentalDecorators": true,
     "target": "ES2022",
