@@ -58,7 +58,7 @@ import org.jooq.impl.DSL.{inline => inl}
 import org.jooq.{DSLContext, Record, Record2, Result, Table, TableField}
 import software.amazon.awssdk.services.s3.model.UploadPartResponse
 
-import java.io.{InputStream, OutputStream}
+import java.io.{ByteArrayInputStream, InputStream, OutputStream}
 import java.net.URLDecoder
 import java.nio.charset.StandardCharsets
 import java.nio.file.Files
@@ -593,19 +593,20 @@ object ResourceUploadService {
           ) // “+1” for the last (possibly small) part
           .getOrElse(MAXIMUM_NUM_OF_MULTIPART_S3_PARTS)
 
-        // ---------- ask LakeFS for presigned URLs ----------
+        // ---------- initiate the multipart upload through LakeFS ----------
         val presign = LakeFSStorageClient
           .initiatePresignedMultipartUploads(repoName, filePath, expectedParts)
         uploadId = presign.getUploadId
-        val presignedUrls = presign.getPresignedUrls.asScala.iterator
         physicalAddress = presign.getPhysicalAddress
+        // Object-store bucket/key LakeFS staged for this upload.
+        val (partBucket, partKey) = LakeFSStorageClient.parsePhysicalAddress(physicalAddress)
 
         // ---------- stream & upload parts ----------
         /*
         1. Reads the input stream in chunks of 'partSize' bytes by stacking them in a buffer
-        2. Uploads each chunk (part) using a presigned URL
+        2. Uploads each chunk (part) to the object store with the internal S3 client
         3. Tracks each part number and ETag returned from S3
-        4. After all parts are uploaded, completes the multipart upload
+        4. After all parts are uploaded, completes the multipart upload through LakeFS
          */
         val buf = new Array[Byte](partSize.toInt)
         var buffered = 0
@@ -614,10 +615,15 @@ object ResourceUploadService {
 
         @inline def flush(): Unit = {
           if (buffered == 0) return
-          if (!presignedUrls.hasNext)
-            throw new WebApplicationException("Ran out of presigned part URLs – ask for more parts")
-
-          val etag = LakeFSStorageClient.put(buf, buffered, presignedUrls.next(), partNumber)
+          val response = S3StorageClient.uploadPartWithRequest(
+            bucket = partBucket,
+            key = partKey,
+            uploadId = uploadId,
+            partNumber = partNumber,
+            inputStream = new ByteArrayInputStream(buf, 0, buffered),
+            contentLength = Some(buffered.toLong)
+          )
+          val etag = Option(response.eTag()).map(_.replace("\"", "").trim).getOrElse("")
           completedParts += ((partNumber, etag))
           partNumber += 1
           buffered = 0
