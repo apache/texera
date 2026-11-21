@@ -96,10 +96,9 @@ export class WorkflowRuntimeStatisticsComponent implements OnInit {
 
         const processedStat = {
           ...stat,
-          dataProcessingTime: stat.totalDataProcessingTime / NANOSECONDS_TO_SECONDS,
-          controlProcessingTime: stat.totalControlProcessingTime / NANOSECONDS_TO_SECONDS,
-          idleTime: stat.totalIdleTime / NANOSECONDS_TO_SECONDS,
-          numberOfWorkers: stat.numberOfWorkers,
+          dataProcessingTime: stat.dataProcessingTime / NANOSECONDS_TO_SECONDS,
+          controlProcessingTime: stat.controlProcessingTime / NANOSECONDS_TO_SECONDS,
+          idleTime: stat.idleTime / NANOSECONDS_TO_SECONDS,
           timestamp: stat.timestamp - initialTimestamp,
         };
 
@@ -131,10 +130,10 @@ export class WorkflowRuntimeStatisticsComponent implements OnInit {
       "dataProcessingTime",
       "controlProcessingTime",
       "idleTime",
-      "numberOfWorkers",
+      "numWorkers",
     ];
 
-    const yValuesKey = metricKeys[metricIndex] || "numberOfWorkers";
+    const yValuesKey = metricKeys[metricIndex] || "numWorkers";
 
     return Object.entries(this.groupedStatistics)
       .map(([operatorId, stats]) => {

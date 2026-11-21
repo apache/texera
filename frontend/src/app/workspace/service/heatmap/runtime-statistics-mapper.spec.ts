@@ -29,10 +29,10 @@ function makeRow(overrides: Partial<WorkflowRuntimeStatistics>): WorkflowRuntime
     inputTupleSize: 0,
     outputTupleCount: 0,
     outputTupleSize: 0,
-    totalDataProcessingTime: 0,
-    totalControlProcessingTime: 0,
-    totalIdleTime: 0,
-    numberOfWorkers: 1,
+    dataProcessingTime: 0,
+    controlProcessingTime: 0,
+    idleTime: 0,
+    numWorkers: 1,
     status: 3,
     ...overrides,
   };
@@ -65,10 +65,10 @@ describe("toOperatorRuntimeStatusMap", () => {
         inputTupleSize: 8_000,
         outputTupleCount: 250,
         outputTupleSize: 2_000,
-        totalDataProcessingTime: 5_000_000,
-        totalControlProcessingTime: 1_000_000,
-        totalIdleTime: 700_000,
-        numberOfWorkers: 2,
+        dataProcessingTime: 5_000_000,
+        controlProcessingTime: 1_000_000,
+        idleTime: 700_000,
+        numWorkers: 2,
         status: 1,
       }),
     ]);
@@ -86,6 +86,21 @@ describe("toOperatorRuntimeStatusMap", () => {
         aggregatedIdleTime: 700_000,
       },
     });
+  });
+
+  it("reads the timing and worker fields from the JSON the stats endpoint returns", () => {
+    // Parsed from the exact body `WorkflowExecutionsResource.WorkflowRuntimeStatistics` serializes, so a renamed
+    // field on either side fails here instead of restoring zero times and one worker.
+    const rows: WorkflowRuntimeStatistics[] = JSON.parse(
+      '[{"operatorId":"op1","timestamp":1700000000000,"inputTupleCount":10,"inputTupleSize":80,' +
+        '"outputTupleCount":5,"outputTupleSize":40,"dataProcessingTime":5000000,"controlProcessingTime":1000000,' +
+        '"idleTime":700000,"numWorkers":3,"status":3}]'
+    );
+    const restored = toOperatorRuntimeStatusMap(rows).op1;
+    expect(restored.aggregatedDataProcessingTime).toBe(5_000_000);
+    expect(restored.aggregatedControlProcessingTime).toBe(1_000_000);
+    expect(restored.aggregatedIdleTime).toBe(700_000);
+    expect(restored.numWorkers).toBe(3);
   });
 
   it("omits the port maps rather than emitting empty ones, so port labels survive a restore", () => {
