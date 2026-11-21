@@ -157,6 +157,37 @@
 
   <li
     nz-menu-item
+    *ngIf="canAddCommentBoxToOperator()"
+    (click)="onAddCommentBoxToOperator()">
+    <span
+      nz-icon
+      nzType="message"
+      nzTheme="outline"></span
+    >add comment
+  </li>
+  <li
+    nz-menu-item
+    *ngIf="canAnchorCommentBoxes()"
+    (click)="onAnchorCommentBoxes()">
+    <span
+      nz-icon
+      nzType="pushpin"
+      nzTheme="outline"></span
+    >anchor to operator
+  </li>
+  <li
+    nz-menu-item
+    *ngIf="canDetachCommentBoxes()"
+    (click)="onDetachCommentBoxes()">
+    <span
+      nz-icon
+      nzType="disconnect"
+      nzTheme="outline"></span
+    >detach from operator
+  </li>
+
+  <li
+    nz-menu-item
     *ngIf="highlightedOperatorIds.length === 1 &&
   highlightedCommentBoxIds.length === 0 &&
   !hasHighlightedLinks()"

@@ -57,6 +57,7 @@ export class SharedModelChangeHandler {
     this.handleCommentBoxAddAndDelete();
     this.handleOperatorDeep();
     this.handleCommentBoxDeep();
+    this.handleCommentBoxConnectors();
     this.texeraGraph.newYDocLoadedSubject.subscribe(_ => {
       this.handleOperatorAddAndDelete();
       this.handleLinkAddAndDelete();
@@ -232,12 +233,26 @@ export class SharedModelChangeHandler {
 
   /**
    * Syncs element positions. Will temporarily block local updates.
+   * An "add" counts too when the element is already on the canvas: a comment box enters the
+   * position map only when it first moves, so its first move arrives as an add.
    * @private
    */
   private handleElementPositionChange(): void {
     this.texeraGraph.sharedModel.elementPositionMap?.observe((event: Y.YMapEvent<Point>) => {
       event.changes.keys.forEach((change, key) => {
-        if (change.action === "update") {
+        if (change.action === "delete" && this.texeraGraph.hasCommentBox(key) && this.jointGraph.getCell(key)) {
+          // Undoing a comment box's first move removes it from the position map again; its saved
+          // position has been undone with it, so that is where it goes back to.
+          const savedPosition = this.texeraGraph.getCommentBox(key).commentBoxPosition;
+          this.texeraGraph.setSyncTexeraGraph(false);
+          this.jointGraphWrapper.setListenPositionChange(false);
+          this.jointGraphWrapper.setAbsolutePosition(key, savedPosition.x, savedPosition.y);
+          this.jointGraphWrapper.setListenPositionChange(true);
+          this.texeraGraph.setSyncTexeraGraph(true);
+        } else if (
+          change.action === "update" ||
+          (change.action === "add" && this.jointGraph.getCell(key) !== undefined)
+        ) {
           this.texeraGraph.setSyncTexeraGraph(false);
           const newPosition = this.texeraGraph.sharedModel.elementPositionMap?.get(key);
           if (newPosition) {
@@ -464,10 +479,48 @@ export class SharedModelChangeHandler {
   }
 
   /**
+   * Keeps each anchored comment box's outline and connector line on its operator: redrawn whenever the
+   * comment box or the operator is added to the joint graph, moves, or the operator is removed.
+   * An anchor to an operator that is not on the canvas (e.g. deleted by an editor that predates anchoring)
+   * is drawn as floating.
+   * Listens on the joint graph itself, which outlives every shared model, so it is registered once.
+   * @private
+   */
+  private handleCommentBoxConnectors(): void {
+    this.jointGraph.on("add remove change:position", (cell: joint.dia.Cell) => {
+      const elementID = cell.id.toString();
+      if (this.texeraGraph.hasCommentBox(elementID)) {
+        this.refreshCommentBoxConnector(elementID);
+      } else {
+        // A removed operator is already gone from the texera graph, so look up its comment boxes by ID alone.
+        this.texeraGraph
+          .getCommentBoxesAnchoredTo(elementID)
+          .forEach(commentBoxID => this.refreshCommentBoxConnector(commentBoxID));
+      }
+    });
+  }
+
+  private refreshCommentBoxConnector(commentBoxID: string): void {
+    const commentElement = this.jointGraph.getCell(commentBoxID) as joint.dia.Element | undefined;
+    if (commentElement === undefined) {
+      return;
+    }
+    const operatorID = this.texeraGraph.getCommentBox(commentBoxID).anchoredOperatorID;
+    const operatorElement =
+      operatorID === undefined ? undefined : (this.jointGraph.getCell(operatorID) as joint.dia.Element | undefined);
+    commentElement.attr("rect", JointUIService.getCommentBoxAnchorAttrs(operatorElement !== undefined));
+    commentElement.attr(
+      ".anchor-connector",
+      JointUIService.getCommentBoxConnectorAttrs(commentElement.getBBox(), operatorElement?.getBBox())
+    );
+  }
+
+  /**
    * Syncs changes that are on nested-structures of comment boxes, including changes of:
    *  - adding comments
    *  - deleting comments
    *  - editing comments (processed as deleting and then adding in-place)
+   *  - anchoring the box to an operator, or detaching it
    * @private
    */
   private handleCommentBoxDeep(): void {
@@ -475,6 +528,10 @@ export class SharedModelChangeHandler {
       events.forEach(event => {
         if (event.target !== this.texeraGraph.sharedModel.commentBoxMap) {
           const commentBox: CommentBox = this.texeraGraph.getCommentBox(event.path[0] as string);
+          if (event.path.length === 1 && event.changes.keys.has("anchoredOperatorID")) {
+            this.refreshCommentBoxConnector(commentBox.commentBoxID);
+            this.texeraGraph.commentBoxAnchorChangedSubject.next({ commentBox });
+          }
           if (event.path.length === 2 && event.path[event.path.length - 1] === "comments") {
             const addedComments = Array.from(event.changes.added.values());
             const deletedComments = Array.from(event.changes.deleted.values());

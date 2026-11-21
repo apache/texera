@@ -36,7 +36,8 @@ import {
   rawMetricForView,
 } from "../../service/heatmap/heatmap-scoring";
 import { ExecutionState, OperatorState } from "../../types/execute-workflow.interface";
-import { LogicalPort, OperatorLink, OperatorPredicate } from "../../types/workflow-common.interface";
+import { LogicalPort, OperatorLink, OperatorPredicate, Point } from "../../types/workflow-common.interface";
+import { isDefined } from "../../../common/util/predicate";
 import { auditTime, filter, map, takeUntil, withLatestFrom } from "rxjs/operators";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 import { UndoRedoService } from "../../service/undo-redo/undo-redo.service";
@@ -271,6 +272,7 @@ export class WorkflowEditorComponent implements OnInit, AfterViewInit, OnDestroy
     this.handlePortClick();
     this.handlePaperPan();
     this.handleOperatorSelectionEvents();
+    this.handleCommentBoxDragToAnchor();
     this.handlePortHighlightEvent();
     this.registerPortDisplayNameChangeHandler();
     this.handleOperatorStatusUpdate();
@@ -1480,6 +1482,100 @@ export class WorkflowEditorComponent implements OnInit, AfterViewInit, OnDestroy
           this.jointUIService.foldOperatorDetails(this.paper, this.currentOpenedOperatorID);
           this.currentOpenedOperatorID = null;
         }
+      });
+  }
+
+  /**
+   * Anchors comment boxes by dragging them: while comment boxes are dragged without any operator, the
+   * operators they would anchor to are outlined, and on drop each dragged box settles its own anchor
+   * by where it landed (see anchorCommentBoxOnDrop, which also detaches a box dropped far from its
+   * operator). Dragging them along with operators changes nothing.
+   */
+  private handleCommentBoxDragToAnchor(): void {
+    const TARGET_HIGHLIGHT_ID = "commentBoxAnchorTarget";
+    const texeraGraph = this.workflowActionService.getTexeraGraph();
+    // The comment box under the pointer, and where each comment box the drag may move (the pressed one
+    // and the rest of the selection) started. A selected box can stay put: shift-pressing a selected box
+    // deselects it, and it is then dragged alone.
+    let drag: { pressedID: string; starts: Map<string, Point> } | undefined;
+    let targetOperatorIDs: string[] = [];
+    const setTargets = (operatorIDs: string[]) => {
+      targetOperatorIDs
+        .filter(operatorID => !operatorIDs.includes(operatorID))
+        .map(operatorID => this.paper.findViewByModel(operatorID))
+        .forEach(view => view && joint.highlighters.mask.remove(view, TARGET_HIGHLIGHT_ID));
+      operatorIDs
+        .filter(operatorID => !targetOperatorIDs.includes(operatorID))
+        .map(operatorID => this.paper.findViewByModel(operatorID))
+        .forEach(
+          view =>
+            view &&
+            joint.highlighters.mask.add(view, "rect.body", TARGET_HIGHLIGHT_ID, {
+              padding: 6,
+              rx: 5,
+              ry: 5,
+              attrs: { "stroke-width": 2, stroke: "#1890FF", "stroke-dasharray": "4 2" },
+            })
+        );
+      targetOperatorIDs = operatorIDs;
+    };
+    const movedCommentBoxIDs = () =>
+      Array.from(drag!.starts)
+        .filter(
+          ([commentBoxID, start]) =>
+            texeraGraph.hasCommentBox(commentBoxID) && !_.isEqual(this.wrapper.getElementPosition(commentBoxID), start)
+        )
+        .map(([commentBoxID]) => commentBoxID);
+
+    fromJointPaperEvent(this.paper, "element:pointerdown")
+      .pipe(untilDestroyed(this))
+      .subscribe(event => {
+        const pressedID = event[0].model.id.toString();
+        drag =
+          this.interactive &&
+          texeraGraph.hasCommentBox(pressedID) &&
+          this.wrapper.getCurrentHighlightedOperatorIDs().length === 0
+            ? {
+                pressedID,
+                starts: new Map(
+                  _.union([pressedID], this.wrapper.getCurrentHighlightedCommentBoxIDs()).map(commentBoxID => [
+                    commentBoxID,
+                    this.wrapper.getElementPosition(commentBoxID),
+                  ])
+                ),
+              }
+            : undefined;
+      });
+
+    fromJointPaperEvent(this.paper, "element:pointermove")
+      .pipe(
+        filter(() => drag !== undefined),
+        untilDestroyed(this)
+      )
+      .subscribe(() =>
+        setTargets(
+          _.uniq(
+            movedCommentBoxIDs()
+              .map(commentBoxID => this.workflowActionService.findCommentBoxAnchorTarget(commentBoxID))
+              .filter(isDefined)
+          )
+        )
+      );
+
+    fromJointPaperEvent(this.paper, "element:pointerup")
+      .pipe(untilDestroyed(this))
+      .subscribe(() => {
+        setTargets([]);
+        if (drag === undefined || !this.interactive || !movedCommentBoxIDs().includes(drag.pressedID)) {
+          // Not a comment box drag, or a click that moved nothing: leave the anchors alone.
+          drag = undefined;
+          return;
+        }
+        const commentBoxIDs = movedCommentBoxIDs();
+        drag = undefined;
+        texeraGraph.bundleActions(() =>
+          commentBoxIDs.forEach(commentBoxID => this.workflowActionService.anchorCommentBoxOnDrop(commentBoxID))
+        );
       });
   }
 
