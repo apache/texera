@@ -620,7 +620,7 @@ class WorkflowResource extends LazyLogging {
     *
     * @param workflowIDs The IDs of workflows to delete
     * @param sessionUser Current authenticated user
-    * @return Unit, with appropriate HTTP status: 200 if deleted, 400 if not exists
+    * @return Unit, with 204 if all were deleted, or 403 (nothing deleted) if the user does not own one
     */
   @POST
   @RolesAllowed(Array("REGULAR", "ADMIN"))
@@ -629,6 +629,11 @@ class WorkflowResource extends LazyLogging {
     val user = sessionUser.getUser
 
     try {
+      // Check every workflow first, so a selection with one the user does not own deletes nothing
+      if (!workflowIDs.wids.forall(wid => WorkflowAccess.isOwner(wid, user.getUid))) {
+        throw new ForbiddenException("Only the owner can delete a workflow.")
+      }
+
       // Find all execution IDs related to these workflows
       val eids = context
         .select(WORKFLOW_EXECUTIONS.EID)
@@ -657,14 +662,8 @@ class WorkflowResource extends LazyLogging {
       }
 
       // Delete workflows in a transaction
-      context.transaction { _ =>
-        for (wid <- workflowIDs.wids) {
-          if (WorkflowAccess.isOwner(wid, user.getUid)) {
-            workflowDao.deleteById(wid)
-          } else {
-            throw new BadRequestException("The workflow does not exist.")
-          }
-        }
+      context.transaction { txConfig =>
+        new WorkflowDao(txConfig).deleteById(workflowIDs.wids.asJava)
       }
 
       // Delete large binaries for each execution belonging to the workflows being
@@ -690,8 +689,8 @@ class WorkflowResource extends LazyLogging {
           logger.error("Failed to clean up execution results", e)
       }
     } catch {
-      case _: BadRequestException =>
-      case NonFatal(exception)    => throw new WebApplicationException(exception)
+      case e: ForbiddenException => throw e
+      case NonFatal(exception)   => throw new WebApplicationException(exception)
     }
   }
 
