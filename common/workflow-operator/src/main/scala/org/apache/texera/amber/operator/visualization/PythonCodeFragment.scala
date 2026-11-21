@@ -66,7 +66,6 @@ private[visualization] object PythonCodeFragment {
 
   def plotlyHtmlYield(
       indent: Int = 8,
-      includeComment: Boolean = false,
       module: String = "plotly.io",
       extraArgs: String = "auto_play=False",
       yieldVar: String = "html",
@@ -78,8 +77,7 @@ private[visualization] object PythonCodeFragment {
     val eq = if (spacesAroundEq) " = " else "="
     val kv = if (compactDict) ":" else ": "
     val q = if (doubleQuoted) "\"" else "'"
-    val comment = if (includeComment) s"$p# convert fig to html content\n" else ""
-    s"""$comment$p$yieldVar = $module.to_html(fig, include_plotlyjs${eq}'cdn', $extraArgs)
+    s"""$p$yieldVar = $module.to_html(fig, include_plotlyjs${eq}'cdn', $extraArgs)
        |${p}yield {${q}html-content${q}$kv$yieldVar}""".stripMargin
   }
 }
