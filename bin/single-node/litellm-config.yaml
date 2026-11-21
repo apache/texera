@@ -21,6 +21,9 @@
 
 litellm_settings:
   drop_params: true
+  # Claude caches only what a request marks. This has LiteLLM mark the system
+  # prompt and the latest message of every request to a Claude model.
+  enable_anthropic_prompt_caching: true
 
 model_list:
   - model_name: claude-haiku-4.5
