@@ -180,6 +180,71 @@ describe("WorkflowResultExportService", () => {
     return { computingUnit: { cuid: 1, type: "local" } } as unknown as DashboardWorkflowComputingUnit;
   }
 
+  function setCanvasOperators(ids: string[], highlighted: string[] = []): void {
+    texeraGraphSpy.getAllOperators.mockReturnValue(ids.map(operatorID => ({ operatorID })) as any);
+    if (highlighted.length > 0) {
+      jointGraphWrapperSpy.getCurrentHighlightedOperatorIDs.mockReturnValue(highlighted);
+    }
+  }
+
+  function setupExportScenario(
+    options: {
+      enable?: boolean;
+      operators?: string[];
+      highlighted?: string[];
+      wid?: string | undefined;
+      hasWidOverride?: boolean;
+      downloadability?: Record<string, string[]>;
+      datasetResponse?: HttpResponse<unknown>;
+      datasetError?: unknown;
+      withWarningSpy?: boolean;
+    } = {}
+  ) {
+    if (options.enable !== false) {
+      enableExport();
+    }
+    if (options.hasWidOverride) {
+      workflowActionServiceSpy.getWorkflow.mockReturnValue({ wid: options.wid } as any);
+    }
+    if (options.withWarningSpy) {
+      (notificationServiceSpy as any).warning = vi.fn();
+    }
+    setCanvasOperators(options.operators ?? ["op1"], options.highlighted ?? []);
+    return stubDownloadService({
+      downloadability: options.downloadability,
+      datasetResponse: options.datasetResponse,
+      datasetError: options.datasetError,
+    });
+  }
+
+  function expectExportAborted(download: ReturnType<typeof stubDownloadService>, expectedError?: string): void {
+    if (expectedError !== undefined) {
+      expect(notificationServiceSpy.error).toHaveBeenCalledWith(expectedError);
+    } else {
+      expect(notificationServiceSpy.error).not.toHaveBeenCalled();
+    }
+    expect(notificationServiceSpy.loading).not.toHaveBeenCalled();
+    expect(download.exportWorkflowResultToDataset).not.toHaveBeenCalled();
+  }
+
+  function expectDatasetExported(
+    download: ReturnType<typeof stubDownloadService>,
+    operatorIds: string[],
+    datasetIds = [7]
+  ): void {
+    expect(download.exportWorkflowResultToDataset).toHaveBeenCalledWith(
+      "csv",
+      "workflow1",
+      "wf",
+      operatorIds.map(id => ({ id, outputType: "csv" })),
+      datasetIds,
+      1,
+      2,
+      "file",
+      expect.anything()
+    );
+  }
+
   /** Stubs the export-flow methods the real DownloadService exposes but the base spy omits. */
   function stubDownloadService(overrides?: {
     downloadability?: Record<string, string[]>;
@@ -248,35 +313,23 @@ describe("WorkflowResultExportService", () => {
 
   describe("export flow (exportWorkflowExecutionResult / performExport)", () => {
     it("does nothing when export is disabled in the gui config", () => {
-      const download = stubDownloadService();
-      texeraGraphSpy.getAllOperators.mockReturnValue([{ operatorID: "op1" }] as any);
+      const download = setupExportScenario({ enable: false });
 
       service.exportWorkflowExecutionResult("csv", "wf", [1], 0, 0, "file", "dataset", makeUnit(), ["op1"]);
 
-      expect(notificationServiceSpy.loading).not.toHaveBeenCalled();
-      expect(notificationServiceSpy.error).not.toHaveBeenCalled();
-      expect(download.exportWorkflowResultToDataset).not.toHaveBeenCalled();
+      expectExportAborted(download);
     });
 
     it("errors when the computing unit is null", () => {
-      enableExport();
-      const download = stubDownloadService();
-      texeraGraphSpy.getAllOperators.mockReturnValue([{ operatorID: "op1" }] as any);
+      const download = setupExportScenario();
 
       service.exportWorkflowExecutionResult("csv", "wf", [1], 0, 0, "file", "dataset", null, ["op1"]);
 
-      expect(notificationServiceSpy.error).toHaveBeenCalledWith(
-        "Cannot export result: computing unit is not available"
-      );
-      expect(notificationServiceSpy.loading).not.toHaveBeenCalled();
-      expect(download.exportWorkflowResultToDataset).not.toHaveBeenCalled();
+      expectExportAborted(download, "Cannot export result: computing unit is not available");
     });
 
     it("errors when the workflow id is not available", () => {
-      enableExport();
-      workflowActionServiceSpy.getWorkflow.mockReturnValue({ wid: undefined } as any);
-      const download = stubDownloadService();
-      texeraGraphSpy.getAllOperators.mockReturnValue([{ operatorID: "op1" }] as any);
+      const download = setupExportScenario({ hasWidOverride: true, wid: undefined });
 
       service.exportWorkflowExecutionResult("csv", "wf", [1], 0, 0, "file", "dataset", makeUnit(), ["op1"]);
 
@@ -285,46 +338,29 @@ describe("WorkflowResultExportService", () => {
     });
 
     it("does nothing when the caller's scope is empty", () => {
-      enableExport();
-      const download = stubDownloadService();
+      const download = setupExportScenario({ operators: [] });
 
       service.exportWorkflowExecutionResult("csv", "wf", [1], 0, 0, "file", "dataset", makeUnit(), []);
 
-      expect(notificationServiceSpy.loading).not.toHaveBeenCalled();
-      expect(notificationServiceSpy.error).not.toHaveBeenCalled();
-      expect(download.exportWorkflowResultToDataset).not.toHaveBeenCalled();
+      expectExportAborted(download);
     });
 
     // The scope is the caller's to decide and the service does not second-guess it: the dialog
     // resolves what the export covers in order to report on it, and the same list is what gets
     // exported. Which list that is, for each way of opening the dialog, is the dialog's own spec.
     it("exports exactly the operators it was given, whatever the canvas has selected", () => {
-      enableExport();
-      const download = stubDownloadService();
-      jointGraphWrapperSpy.getCurrentHighlightedOperatorIDs.mockReturnValue(["opHighlighted"]);
-      texeraGraphSpy.getAllOperators.mockReturnValue([{ operatorID: "opA" }, { operatorID: "opB" }] as any);
+      const download = setupExportScenario({ operators: ["opA", "opB"], highlighted: ["opHighlighted"] });
 
       service.exportWorkflowExecutionResult("csv", "wf", [7], 1, 2, "file", "dataset", makeUnit(), ["opNamed"]);
 
-      expect(download.exportWorkflowResultToDataset).toHaveBeenCalledWith(
-        "csv",
-        "workflow1",
-        "wf",
-        [{ id: "opNamed", outputType: "csv" }],
-        [7],
-        1,
-        2,
-        "file",
-        expect.anything()
-      );
+      expectDatasetExported(download, ["opNamed"]);
     });
 
     // The restriction analysis is asynchronous, and a caller may hand over the canvas selection,
     // which is the live array rather than a copy of it. Without a snapshot the export would go
     // out with whatever is selected when the analysis answers, not what was asked for.
     it("exports the scope it was given, not what that array became while the analysis ran", () => {
-      enableExport();
-      const download = stubDownloadService();
+      const download = setupExportScenario({ operators: [] });
       const pending = new Subject<Record<string, string[]>>();
       downloadServiceSpy.getWorkflowResultDownloadability.mockReturnValue(pending as any);
       const liveSelection = ["opA"];
@@ -334,131 +370,79 @@ describe("WorkflowResultExportService", () => {
       pending.next({});
       pending.complete();
 
-      expect(download.exportWorkflowResultToDataset).toHaveBeenCalledWith(
-        "csv",
-        "workflow1",
-        "wf",
-        [{ id: "opA", outputType: "csv" }],
-        [7],
-        1,
-        2,
-        "file",
-        expect.anything()
-      );
+      expectDatasetExported(download, ["opA"]);
     });
 
     it("exports every operator it was given, in the order it was given them", () => {
-      enableExport();
-      const download = stubDownloadService();
+      const download = setupExportScenario({ operators: [] });
 
       service.exportWorkflowExecutionResult("csv", "wf", [7], 1, 2, "file", "dataset", makeUnit(), ["opA", "opB"]);
 
-      expect(download.exportWorkflowResultToDataset).toHaveBeenCalledWith(
-        "csv",
-        "workflow1",
-        "wf",
-        [
-          { id: "opA", outputType: "csv" },
-          { id: "opB", outputType: "csv" },
-        ],
-        [7],
-        1,
-        2,
-        "file",
-        expect.anything()
-      );
+      expectDatasetExported(download, ["opA", "opB"]);
     });
 
-    it("errors (no export) when every selected operator is blocked by a non-downloadable dataset", () => {
-      enableExport();
-      const download = stubDownloadService({ downloadability: { op1: ["ds1 (a@x.com)"] } });
-      texeraGraphSpy.getAllOperators.mockReturnValue([{ operatorID: "op1" }] as any);
+    [
+      {
+        title: "errors (no export) when every selected operator is blocked by a non-downloadable dataset",
+        blockedLabels: ["ds1 (a@x.com)"],
+        expectedMessage:
+          "Cannot export result: selection depends on dataset(s) that are not downloadable: ds1 (a@x.com)",
+      },
+      {
+        // The backend can mark an operator restricted while naming no dataset labels for it,
+        // which leaves the message with nothing to append.
+        title: "errors without a dataset list when every operator is blocked but no dataset was named",
+        blockedLabels: [] as string[],
+        expectedMessage: "Cannot export result: selection depends on dataset(s) that are not downloadable",
+      },
+    ].forEach(({ title, blockedLabels, expectedMessage }) => {
+      it(title, () => {
+        const download = setupExportScenario({ downloadability: { op1: blockedLabels } });
 
-      service.exportWorkflowExecutionResult("csv", "wf", [1], 0, 0, "file", "dataset", makeUnit(), ["op1"]);
+        service.exportWorkflowExecutionResult("csv", "wf", [1], 0, 0, "file", "dataset", makeUnit(), ["op1"]);
 
-      expect(notificationServiceSpy.error).toHaveBeenCalledWith(
-        "Cannot export result: selection depends on dataset(s) that are not downloadable: ds1 (a@x.com)"
-      );
-      expect(notificationServiceSpy.loading).not.toHaveBeenCalled();
-      expect(download.exportWorkflowResultToDataset).not.toHaveBeenCalled();
+        expectExportAborted(download, expectedMessage);
+      });
     });
 
-    it("warns and still exports the unblocked operators when only some are blocked", () => {
-      enableExport();
-      (notificationServiceSpy as any).warning = vi.fn();
-      const download = stubDownloadService({ downloadability: { op2: ["ds2 (b@y.com)"] } });
-      texeraGraphSpy.getAllOperators.mockReturnValue([{ operatorID: "op1" }, { operatorID: "op2" }] as any);
+    [
+      {
+        title: "warns and still exports the unblocked operators when only some are blocked",
+        blockedLabels: ["ds2 (b@y.com)"],
+        expectedWarning:
+          "Some operators were skipped because their results depend on dataset(s) that are not downloadable" +
+          " (ds2 (b@y.com))",
+        expectSuccessToast: true,
+      },
+      {
+        title: "warns without a dataset list when only some operators are blocked and no dataset was named",
+        blockedLabels: [] as string[],
+        expectedWarning:
+          "Some operators were skipped because their results depend on dataset(s) that are not downloadable",
+        expectSuccessToast: false,
+      },
+    ].forEach(({ title, blockedLabels, expectedWarning, expectSuccessToast }) => {
+      it(title, () => {
+        const download = setupExportScenario({
+          operators: ["op1", "op2"],
+          downloadability: { op2: blockedLabels },
+          withWarningSpy: true,
+        });
 
-      // Both are in scope; only op2 is blocked, which is what makes this the partial case.
-      service.exportWorkflowExecutionResult("csv", "wf", [7], 1, 2, "file", "dataset", makeUnit(), ["op1", "op2"]);
+        // Both are in scope; only op2 is blocked, which is what makes this the partial case.
+        service.exportWorkflowExecutionResult("csv", "wf", [7], 1, 2, "file", "dataset", makeUnit(), ["op1", "op2"]);
 
-      expect(notificationServiceSpy.warning).toHaveBeenCalledWith(
-        "Some operators were skipped because their results depend on dataset(s) that are not downloadable" +
-          " (ds2 (b@y.com))"
-      );
-      expect(notificationServiceSpy.loading).toHaveBeenCalledWith("Exporting...");
-      expect(download.exportWorkflowResultToDataset).toHaveBeenCalledWith(
-        "csv",
-        "workflow1",
-        "wf",
-        [{ id: "op1", outputType: "csv" }],
-        [7],
-        1,
-        2,
-        "file",
-        expect.anything()
-      );
-      expect(notificationServiceSpy.success).toHaveBeenCalledWith("Result exported successfully");
-    });
-
-    it("errors without a dataset list when every operator is blocked but no dataset was named", () => {
-      enableExport();
-      // The backend can mark an operator restricted while naming no dataset labels for it,
-      // which leaves the message with nothing to append.
-      const download = stubDownloadService({ downloadability: { op1: [] } });
-      texeraGraphSpy.getAllOperators.mockReturnValue([{ operatorID: "op1" }] as any);
-
-      service.exportWorkflowExecutionResult("csv", "wf", [1], 0, 0, "file", "dataset", makeUnit(), ["op1"]);
-
-      expect(notificationServiceSpy.error).toHaveBeenCalledWith(
-        "Cannot export result: selection depends on dataset(s) that are not downloadable"
-      );
-      expect(notificationServiceSpy.loading).not.toHaveBeenCalled();
-      expect(download.exportWorkflowResultToDataset).not.toHaveBeenCalled();
-    });
-
-    it("warns without a dataset list when only some operators are blocked and no dataset was named", () => {
-      enableExport();
-      notificationServiceSpy.warning = vi.fn();
-      const download = stubDownloadService({ downloadability: { op2: [] } });
-      texeraGraphSpy.getAllOperators.mockReturnValue([{ operatorID: "op1" }, { operatorID: "op2" }] as any);
-
-      // Both are in scope; only op2 is blocked, which is what makes this the partial case.
-      service.exportWorkflowExecutionResult("csv", "wf", [7], 1, 2, "file", "dataset", makeUnit(), ["op1", "op2"]);
-
-      expect(notificationServiceSpy.warning).toHaveBeenCalledWith(
-        "Some operators were skipped because their results depend on dataset(s) that are not downloadable"
-      );
-      // the unblocked operator is still exported despite the label-less restriction
-      expect(notificationServiceSpy.loading).toHaveBeenCalledWith("Exporting...");
-      expect(download.exportWorkflowResultToDataset).toHaveBeenCalledWith(
-        "csv",
-        "workflow1",
-        "wf",
-        [{ id: "op1", outputType: "csv" }],
-        [7],
-        1,
-        2,
-        "file",
-        expect.anything()
-      );
+        expect(notificationServiceSpy.warning).toHaveBeenCalledWith(expectedWarning);
+        expect(notificationServiceSpy.loading).toHaveBeenCalledWith("Exporting...");
+        expectDatasetExported(download, ["op1"]);
+        if (expectSuccessToast) {
+          expect(notificationServiceSpy.success).toHaveBeenCalledWith("Result exported successfully");
+        }
+      });
     });
 
     it("exports to dataset and reports success on a success response", () => {
-      enableExport();
-      (notificationServiceSpy as any).warning = vi.fn();
-      const download = stubDownloadService();
-      texeraGraphSpy.getAllOperators.mockReturnValue([{ operatorID: "op1" }] as any);
+      const download = setupExportScenario({ withWarningSpy: true });
 
       service.exportWorkflowExecutionResult("csv", "wf", [5], 0, 0, "file", "dataset", makeUnit(), ["op1"]);
 
@@ -468,71 +452,52 @@ describe("WorkflowResultExportService", () => {
       expect(notificationServiceSpy.success).toHaveBeenCalledWith("Result exported successfully");
     });
 
-    it("reports the server message when the dataset export response is not successful", () => {
-      enableExport();
-      stubDownloadService({
-        datasetResponse: new HttpResponse({ body: { status: "failure", message: "quota exceeded" } }),
+    [
+      {
+        title: "reports the server message when the dataset export response is not successful",
+        overrides: {
+          datasetResponse: new HttpResponse({ body: { status: "failure", message: "quota exceeded" } }),
+        },
+        expectedError: "quota exceeded",
+        checkNoSuccess: true,
+      },
+      {
+        title: "reports a default error message when the dataset export response has no body",
+        overrides: { datasetResponse: new HttpResponse({}) },
+        expectedError: "An error occurred during export",
+      },
+      {
+        title: "reports the extracted error message when the dataset export call fails",
+        overrides: { datasetError: { error: { message: "server exploded" } } },
+        expectedError: "An error happened in exporting operator results: server exploded",
+      },
+      {
+        // .error is present but is a bare string, so there is no .error.message to extract.
+        title: "reports the error payload itself when the failure carries no nested message",
+        overrides: { datasetError: { error: "dataset quota exceeded" } },
+        expectedError: "An error happened in exporting operator results: dataset quota exceeded",
+      },
+      {
+        // e.g. a transport-level failure surfacing as a bare value rather than an HttpErrorResponse.
+        title: "reports the raw failure when it carries no error field at all",
+        overrides: { datasetError: "connection reset by peer" },
+        expectedError: "An error happened in exporting operator results: connection reset by peer",
+      },
+    ].forEach(({ title, overrides, expectedError, checkNoSuccess }) => {
+      it(title, () => {
+        setupExportScenario(overrides);
+
+        service.exportWorkflowExecutionResult("csv", "wf", [5], 0, 0, "file", "dataset", makeUnit(), ["op1"]);
+
+        expect(notificationServiceSpy.error).toHaveBeenCalledWith(expectedError);
+        if (checkNoSuccess) {
+          expect(notificationServiceSpy.success).not.toHaveBeenCalled();
+        }
       });
-      texeraGraphSpy.getAllOperators.mockReturnValue([{ operatorID: "op1" }] as any);
-
-      service.exportWorkflowExecutionResult("csv", "wf", [5], 0, 0, "file", "dataset", makeUnit(), ["op1"]);
-
-      expect(notificationServiceSpy.error).toHaveBeenCalledWith("quota exceeded");
-      expect(notificationServiceSpy.success).not.toHaveBeenCalled();
-    });
-
-    it("reports a default error message when the dataset export response has no body", () => {
-      enableExport();
-      stubDownloadService({ datasetResponse: new HttpResponse({}) });
-      texeraGraphSpy.getAllOperators.mockReturnValue([{ operatorID: "op1" }] as any);
-
-      service.exportWorkflowExecutionResult("csv", "wf", [5], 0, 0, "file", "dataset", makeUnit(), ["op1"]);
-
-      expect(notificationServiceSpy.error).toHaveBeenCalledWith("An error occurred during export");
-    });
-
-    it("reports the extracted error message when the dataset export call fails", () => {
-      enableExport();
-      stubDownloadService({ datasetError: { error: { message: "server exploded" } } });
-      texeraGraphSpy.getAllOperators.mockReturnValue([{ operatorID: "op1" }] as any);
-
-      service.exportWorkflowExecutionResult("csv", "wf", [5], 0, 0, "file", "dataset", makeUnit(), ["op1"]);
-
-      expect(notificationServiceSpy.error).toHaveBeenCalledWith(
-        "An error happened in exporting operator results: server exploded"
-      );
-    });
-
-    it("reports the error payload itself when the failure carries no nested message", () => {
-      enableExport();
-      // .error is present but is a bare string, so there is no .error.message to extract.
-      stubDownloadService({ datasetError: { error: "dataset quota exceeded" } });
-      texeraGraphSpy.getAllOperators.mockReturnValue([{ operatorID: "op1" }] as any);
-
-      service.exportWorkflowExecutionResult("csv", "wf", [5], 0, 0, "file", "dataset", makeUnit(), ["op1"]);
-
-      expect(notificationServiceSpy.error).toHaveBeenCalledWith(
-        "An error happened in exporting operator results: dataset quota exceeded"
-      );
-    });
-
-    it("reports the raw failure when it carries no error field at all", () => {
-      enableExport();
-      // e.g. a transport-level failure surfacing as a bare value rather than an HttpErrorResponse.
-      stubDownloadService({ datasetError: "connection reset by peer" });
-      texeraGraphSpy.getAllOperators.mockReturnValue([{ operatorID: "op1" }] as any);
-
-      service.exportWorkflowExecutionResult("csv", "wf", [5], 0, 0, "file", "dataset", makeUnit(), ["op1"]);
-
-      expect(notificationServiceSpy.error).toHaveBeenCalledWith(
-        "An error happened in exporting operator results: connection reset by peer"
-      );
     });
 
     it("routes to the local-filesystem export when destination is 'local'", () => {
-      enableExport();
-      const download = stubDownloadService();
-      texeraGraphSpy.getAllOperators.mockReturnValue([{ operatorID: "op1" }] as any);
+      const download = setupExportScenario();
 
       service.exportWorkflowExecutionResult("json", "wf", [], 3, 4, "local-file", "local", makeUnit(), ["op1"]);
 
@@ -551,18 +516,22 @@ describe("WorkflowResultExportService", () => {
     });
   });
 
+  function setupAvailabilityCheck(state: ExecutionState, hasAnyResult: boolean, operatorWithSnapshot?: string): void {
+    executeWorkflowServiceSpy.getExecutionState.mockReturnValue({ state } as any);
+    setCanvasOperators(["opA"], ["opH"]);
+    workflowResultServiceSpy.hasAnyResult.mockReturnValue(hasAnyResult);
+    workflowResultServiceSpy.getResultService.mockImplementation((operatorId: string) =>
+      operatorWithSnapshot === undefined || operatorId === operatorWithSnapshot
+        ? ({ getCurrentResultSnapshot: () => ({}) } as any)
+        : undefined
+    );
+    (service as any).updateExportAvailabilityFlags();
+  }
+
   describe("updateExportAvailabilityFlags", () => {
     it("marks results exportable when execution is idle and operators have a result snapshot", () => {
-      executeWorkflowServiceSpy.getExecutionState.mockReturnValue({ state: ExecutionState.Completed } as any);
-      jointGraphWrapperSpy.getCurrentHighlightedOperatorIDs.mockReturnValue(["opH"]);
-      texeraGraphSpy.getAllOperators.mockReturnValue([{ operatorID: "opA" }] as any);
       // hasAnyResult is false, so the snapshot side of the OR must decide exportability.
-      workflowResultServiceSpy.hasAnyResult.mockReturnValue(false);
-      workflowResultServiceSpy.getResultService.mockReturnValue({
-        getCurrentResultSnapshot: () => ({}),
-      } as any);
-
-      (service as any).updateExportAvailabilityFlags();
+      setupAvailabilityCheck(ExecutionState.Completed, false);
 
       expect(service.hasResultToExportOnHighlightedOperators).toBe(true);
       expect(service.hasResultToExportOnAllOperators.value).toBe(true);
@@ -586,15 +555,7 @@ describe("WorkflowResultExportService", () => {
       },
     ].forEach(({ scope, operatorWithSnapshot, expectedHighlightedFlag, expectedAllOperatorsFlag }) => {
       it(`marks only the matching flag exportable when just ${scope} has a result`, () => {
-        executeWorkflowServiceSpy.getExecutionState.mockReturnValue({ state: ExecutionState.Completed } as any);
-        jointGraphWrapperSpy.getCurrentHighlightedOperatorIDs.mockReturnValue(["opH"]);
-        texeraGraphSpy.getAllOperators.mockReturnValue([{ operatorID: "opA" }] as any);
-        workflowResultServiceSpy.hasAnyResult.mockReturnValue(false);
-        workflowResultServiceSpy.getResultService.mockImplementation((operatorId: string) =>
-          operatorId === operatorWithSnapshot ? ({ getCurrentResultSnapshot: () => ({}) } as any) : undefined
-        );
-
-        (service as any).updateExportAvailabilityFlags();
+        setupAvailabilityCheck(ExecutionState.Completed, false, operatorWithSnapshot);
 
         expect(service.hasResultToExportOnHighlightedOperators).toBe(expectedHighlightedFlag);
         expect(service.hasResultToExportOnAllOperators.value).toBe(expectedAllOperatorsFlag);
@@ -602,15 +563,7 @@ describe("WorkflowResultExportService", () => {
     });
 
     it("keeps results non-exportable while a workflow is still executing", () => {
-      executeWorkflowServiceSpy.getExecutionState.mockReturnValue({ state: ExecutionState.Running } as any);
-      jointGraphWrapperSpy.getCurrentHighlightedOperatorIDs.mockReturnValue(["opH"]);
-      texeraGraphSpy.getAllOperators.mockReturnValue([{ operatorID: "opA" }] as any);
-      workflowResultServiceSpy.hasAnyResult.mockReturnValue(true);
-      workflowResultServiceSpy.getResultService.mockReturnValue({
-        getCurrentResultSnapshot: () => ({}),
-      } as any);
-
-      (service as any).updateExportAvailabilityFlags();
+      setupAvailabilityCheck(ExecutionState.Running, true);
 
       expect(service.hasResultToExportOnHighlightedOperators).toBe(false);
       expect(service.hasResultToExportOnAllOperators.value).toBe(false);

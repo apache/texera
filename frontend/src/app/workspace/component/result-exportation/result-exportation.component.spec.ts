@@ -36,15 +36,18 @@ import { UserDatasetCreatorComponent } from "../../../dashboard/component/user/u
 import { DashboardDataset } from "../../../dashboard/type/dashboard-dataset.interface";
 import { NZ_MODAL_DATA, NzModalRef, NzModalService } from "ng-zorro-antd/modal";
 
-const writeDataset = {
-  dataset: { did: 1, name: "writable" },
-  accessPrivilege: "WRITE",
-} as unknown as DashboardDataset;
+const makeDataset = (
+  did: number | undefined,
+  name: string,
+  accessPrivilege: "WRITE" | "READ" = "WRITE"
+): DashboardDataset =>
+  ({
+    dataset: { did, name },
+    accessPrivilege,
+  }) as unknown as DashboardDataset;
 
-const readDataset = {
-  dataset: { did: 2, name: "readonly" },
-  accessPrivilege: "READ",
-} as unknown as DashboardDataset;
+const writeDataset = makeDataset(1, "writable", "WRITE");
+const readDataset = makeDataset(2, "readonly", "READ");
 
 const MODAL_DATA = {
   sourceTriggered: "menu",
@@ -55,6 +58,100 @@ const MODAL_DATA = {
   exportType: "csv",
 };
 
+interface OutputTypeFlags {
+  hasAnyResult: boolean;
+  isTableOutput: boolean;
+  isVisualizationOutput: boolean;
+  containsBinaryData: boolean;
+}
+
+const DEFAULT_OUTPUT_TYPES: OutputTypeFlags = {
+  hasAnyResult: false,
+  isTableOutput: false,
+  isVisualizationOutput: false,
+  containsBinaryData: false,
+};
+
+interface MountOptions {
+  accessibleDatasets?: DashboardDataset[];
+  allOperatorIds?: string[];
+  highlightedOperatorIds?: string[];
+  outputTypes?: OutputTypeFlags;
+}
+
+async function mountResultExportation(modalData: object, options: MountOptions = {}) {
+  const {
+    accessibleDatasets = [],
+    allOperatorIds = [],
+    highlightedOperatorIds = [],
+    outputTypes = DEFAULT_OUTPUT_TYPES,
+  } = options;
+  const exportWorkflowExecutionResult = vi.fn();
+  const modalClose = vi.fn();
+  const modalCreate = vi.fn().mockReturnValue({ afterClose: of(null) });
+
+  await TestBed.configureTestingModule({
+    imports: [ResultExportationComponent],
+    providers: [
+      { provide: NZ_MODAL_DATA, useValue: modalData },
+      { provide: NzModalRef, useValue: { close: modalClose, getConfig: () => ({}) } },
+      { provide: NzModalService, useValue: { create: modalCreate } },
+      {
+        provide: WorkflowResultExportService,
+        useValue: {
+          computeRestrictionAnalysis: vi.fn().mockReturnValue(of(new WorkflowResultDownloadability(new Map()))),
+          exportWorkflowExecutionResult,
+        },
+      },
+      {
+        provide: DatasetService,
+        useValue: { retrieveAccessibleDatasets: vi.fn().mockReturnValue(of(accessibleDatasets)) },
+      },
+      {
+        provide: WorkflowActionService,
+        useValue: {
+          getTexeraGraph: vi.fn().mockReturnValue({
+            getAllOperators: vi.fn().mockReturnValue(allOperatorIds.map(operatorID => ({ operatorID }))),
+            getAllOperatorIDs: vi.fn().mockReturnValue(allOperatorIds),
+          }),
+          getJointGraphWrapper: vi
+            .fn()
+            .mockReturnValue({ getCurrentHighlightedOperatorIDs: vi.fn().mockReturnValue(highlightedOperatorIds) }),
+        },
+      },
+      {
+        provide: WorkflowResultService,
+        useValue: { determineOutputTypes: vi.fn().mockReturnValue(outputTypes) },
+      },
+      {
+        provide: ComputingUnitStatusService,
+        useValue: { getSelectedComputingUnit: vi.fn().mockReturnValue(of(null)) },
+      },
+    ],
+  }).compileComponents();
+
+  const fixture = TestBed.createComponent(ResultExportationComponent);
+  const component = fixture.componentInstance;
+  fixture.detectChanges();
+  return { fixture, component, exportWorkflowExecutionResult, modalClose, modalCreate };
+}
+
+function setAllOperators(ids: string[]): void {
+  const graph = TestBed.inject(WorkflowActionService) as unknown as {
+    getTexeraGraph: ReturnType<typeof vi.fn>;
+  };
+  graph.getTexeraGraph.mockReturnValue({
+    getAllOperators: () => ids.map(id => ({ operatorID: id })),
+    getAllOperatorIDs: () => ids,
+  });
+}
+
+function setDownloadability(component: ResultExportationComponent, entries: Record<string, string[]> = {}): void {
+  const map = new Map<string, Set<string>>();
+  Object.entries(entries).forEach(([op, labels]) => map.set(op, new Set(labels)));
+  component.downloadability = new WorkflowResultDownloadability(map);
+}
+
 describe("ResultExportationComponent", () => {
   let component: ResultExportationComponent;
   let fixture: ComponentFixture<ResultExportationComponent>;
@@ -64,60 +161,10 @@ describe("ResultExportationComponent", () => {
   let modalCreate: ReturnType<typeof vi.fn>;
 
   beforeEach(async () => {
-    exportWorkflowExecutionResult = vi.fn();
-    modalClose = vi.fn();
-    modalCreate = vi.fn().mockReturnValue({ afterClose: of(null) });
-
-    await TestBed.configureTestingModule({
-      imports: [ResultExportationComponent],
-      providers: [
-        { provide: NZ_MODAL_DATA, useValue: MODAL_DATA },
-        { provide: NzModalRef, useValue: { close: modalClose, getConfig: () => ({}) } },
-        { provide: NzModalService, useValue: { create: modalCreate } },
-        {
-          provide: WorkflowResultExportService,
-          useValue: {
-            computeRestrictionAnalysis: vi.fn().mockReturnValue(of(new WorkflowResultDownloadability(new Map()))),
-            exportWorkflowExecutionResult,
-          },
-        },
-        {
-          provide: DatasetService,
-          useValue: { retrieveAccessibleDatasets: vi.fn().mockReturnValue(of([writeDataset, readDataset])) },
-        },
-        {
-          provide: WorkflowActionService,
-          useValue: {
-            getTexeraGraph: vi.fn().mockReturnValue({
-              getAllOperators: vi.fn().mockReturnValue([]),
-              getAllOperatorIDs: vi.fn().mockReturnValue([]),
-            }),
-            getJointGraphWrapper: vi
-              .fn()
-              .mockReturnValue({ getCurrentHighlightedOperatorIDs: vi.fn().mockReturnValue([]) }),
-          },
-        },
-        {
-          provide: WorkflowResultService,
-          useValue: {
-            determineOutputTypes: vi.fn().mockReturnValue({
-              hasAnyResult: false,
-              isTableOutput: false,
-              isVisualizationOutput: false,
-              containsBinaryData: false,
-            }),
-          },
-        },
-        {
-          provide: ComputingUnitStatusService,
-          useValue: { getSelectedComputingUnit: vi.fn().mockReturnValue(of(null)) },
-        },
-      ],
-    }).compileComponents();
-
-    fixture = TestBed.createComponent(ResultExportationComponent);
-    component = fixture.componentInstance;
-    fixture.detectChanges();
+    ({ fixture, component, exportWorkflowExecutionResult, modalClose, modalCreate } = await mountResultExportation(
+      MODAL_DATA,
+      { accessibleDatasets: [writeDataset, readDataset] }
+    ));
   });
 
   afterEach(() => {
@@ -194,10 +241,7 @@ describe("ResultExportationComponent", () => {
   });
 
   it("onClickCreateNewDataset opens the dataset-creator modal and adopts the created dataset", () => {
-    const created = {
-      dataset: { did: 9, name: "brand-new" },
-      accessPrivilege: "WRITE",
-    } as unknown as DashboardDataset;
+    const created = makeDataset(9, "brand-new");
     modalCreate.mockReturnValue({ afterClose: of(created) });
 
     component.onClickCreateNewDataset();
@@ -214,25 +258,10 @@ describe("ResultExportationComponent", () => {
   describe("operator-id resolution and downloadability getters (menu source)", () => {
     // Reconfigure the graph mock so the "menu" branch of getOperatorIdsToCheck
     // returns concrete operator IDs (drives the `.getAllOperators().map(op => op.operatorID)` branch).
-    function setAllOperators(ids: string[]): void {
-      const graph = TestBed.inject(WorkflowActionService) as unknown as {
-        getTexeraGraph: ReturnType<typeof vi.fn>;
-      };
-      graph.getTexeraGraph.mockReturnValue({
-        getAllOperators: () => ids.map(id => ({ operatorID: id })),
-        getAllOperatorIDs: () => ids,
-      });
-    }
-
-    function restrict(entries: Record<string, string[]>): void {
-      const map = new Map<string, Set<string>>();
-      Object.entries(entries).forEach(([op, labels]) => map.set(op, new Set(labels)));
-      component.downloadability = new WorkflowResultDownloadability(map);
-    }
 
     it("exportableOperatorIds maps all operators and filters out restricted ones", () => {
       setAllOperators(["op-a", "op-b", "op-c"]);
-      restrict({ "op-b": ["ds (owner@x.com)"] });
+      setDownloadability(component, { "op-b": ["ds (owner@x.com)"] });
 
       expect(component.exportableOperatorIds).toEqual(["op-a", "op-c"]);
       expect(component.blockedOperatorIds).toEqual(["op-b"]);
@@ -248,7 +277,7 @@ describe("ResultExportationComponent", () => {
 
     it("blockingDatasetLabels and blockingDatasetSummary surface the blocking datasets", () => {
       setAllOperators(["op-a", "op-b"]);
-      restrict({ "op-a": ["Sales (a@x.com)"], "op-b": ["Sales (a@x.com)", "HR (b@x.com)"] });
+      setDownloadability(component, { "op-a": ["Sales (a@x.com)"], "op-b": ["Sales (a@x.com)", "HR (b@x.com)"] });
 
       expect(component.blockingDatasetLabels).toEqual(["Sales (a@x.com)", "HR (b@x.com)"]);
       expect(component.blockingDatasetSummary).toBe("Sales (a@x.com), HR (b@x.com)");
@@ -256,7 +285,7 @@ describe("ResultExportationComponent", () => {
 
     it("isExportRestricted is true only when every operator is blocked", () => {
       setAllOperators(["op-a", "op-b"]);
-      restrict({ "op-a": ["ds1"], "op-b": ["ds2"] });
+      setDownloadability(component, { "op-a": ["ds1"], "op-b": ["ds2"] });
 
       expect(component.isExportRestricted).toBe(true);
       expect(component.hasPartialNonDownloadable).toBe(false);
@@ -264,7 +293,7 @@ describe("ResultExportationComponent", () => {
 
     it("hasPartialNonDownloadable is true when some but not all operators are blocked", () => {
       setAllOperators(["op-a", "op-b"]);
-      restrict({ "op-b": ["ds1"] });
+      setDownloadability(component, { "op-b": ["ds1"] });
 
       expect(component.isExportRestricted).toBe(false);
       expect(component.hasPartialNonDownloadable).toBe(true);
@@ -272,17 +301,13 @@ describe("ResultExportationComponent", () => {
   });
 
   describe("updateOutputType", () => {
-    function setAllOperators(ids: string[]): void {
-      const graph = TestBed.inject(WorkflowActionService) as unknown as {
-        getTexeraGraph: ReturnType<typeof vi.fn>;
-      };
-      graph.getTexeraGraph.mockReturnValue({
-        getAllOperators: () => ids.map(id => ({ operatorID: id })),
-        getAllOperatorIDs: () => ids,
-      });
-    }
+    const flags = (over: Partial<OutputTypeFlags> = {}): OutputTypeFlags => ({
+      ...DEFAULT_OUTPUT_TYPES,
+      hasAnyResult: true,
+      ...over,
+    });
 
-    function outputTypes(byOperator: Record<string, unknown>): void {
+    function outputTypes(byOperator: Record<string, OutputTypeFlags>): void {
       const results = TestBed.inject(WorkflowResultService) as unknown as {
         determineOutputTypes: ReturnType<typeof vi.fn>;
       };
@@ -305,7 +330,7 @@ describe("ResultExportationComponent", () => {
 
     it("clears every output flag when all selected operators are export-restricted", () => {
       setAllOperators(["op-a"]);
-      component.downloadability = new WorkflowResultDownloadability(new Map([["op-a", new Set(["ds"])]]));
+      setDownloadability(component, { "op-a": ["ds"] });
       component.isTableOutput = true;
       component.isVisualizationOutput = true;
       component.containsBinaryData = true;
@@ -319,24 +344,14 @@ describe("ResultExportationComponent", () => {
 
     it("aggregates mixed output types across exportable operators", () => {
       setAllOperators(["skip", "table-only", "viz-binary"]);
-      component.downloadability = new WorkflowResultDownloadability(new Map());
+      setDownloadability(component);
       outputTypes({
         // No result at all -> skipped via `continue`.
         skip: { hasAnyResult: false, isTableOutput: true, isVisualizationOutput: true, containsBinaryData: true },
         // Pure table output.
-        "table-only": {
-          hasAnyResult: true,
-          isTableOutput: true,
-          isVisualizationOutput: false,
-          containsBinaryData: false,
-        },
+        "table-only": flags({ isTableOutput: true }),
         // Visualization output carrying binary data.
-        "viz-binary": {
-          hasAnyResult: true,
-          isTableOutput: false,
-          isVisualizationOutput: true,
-          containsBinaryData: true,
-        },
+        "viz-binary": flags({ isVisualizationOutput: true, containsBinaryData: true }),
       });
 
       component.updateOutputType();
@@ -349,10 +364,10 @@ describe("ResultExportationComponent", () => {
 
     it("reports table output when every operator with a result is a table", () => {
       setAllOperators(["t1", "t2"]);
-      component.downloadability = new WorkflowResultDownloadability(new Map());
+      setDownloadability(component);
       outputTypes({
-        t1: { hasAnyResult: true, isTableOutput: true, isVisualizationOutput: false, containsBinaryData: false },
-        t2: { hasAnyResult: true, isTableOutput: true, isVisualizationOutput: false, containsBinaryData: false },
+        t1: flags({ isTableOutput: true }),
+        t2: flags({ isTableOutput: true }),
       });
 
       component.updateOutputType();
@@ -364,18 +379,9 @@ describe("ResultExportationComponent", () => {
   });
 
   describe("onUserInputDatasetName", () => {
-    const alpha = {
-      dataset: { did: 1, name: "Alpha" },
-      accessPrivilege: "WRITE",
-    } as unknown as DashboardDataset;
-    const beta = {
-      dataset: { did: 2, name: "Beta" },
-      accessPrivilege: "WRITE",
-    } as unknown as DashboardDataset;
-    const noId = {
-      dataset: { did: undefined, name: "AlphaLike" },
-      accessPrivilege: "WRITE",
-    } as unknown as DashboardDataset;
+    const alpha = makeDataset(1, "Alpha");
+    const beta = makeDataset(2, "Beta");
+    const noId = makeDataset(undefined, "AlphaLike");
 
     it("filters datasets by case-insensitive name match and requires a dataset id", () => {
       component.userAccessibleDatasets = [alpha, beta, noId];
@@ -414,20 +420,20 @@ describe("ResultExportationComponent", () => {
   // Renders the template in each of the states it switches on so the *ngIf / *ngFor /
   // (click) / [(ngModel)] constructs actually execute. detectChanges() is the coverage switch.
   describe("template rendering", () => {
-    function setAllOperators(ids: string[]): void {
-      const graph = TestBed.inject(WorkflowActionService) as unknown as {
-        getTexeraGraph: ReturnType<typeof vi.fn>;
-      };
-      graph.getTexeraGraph.mockReturnValue({
-        getAllOperators: () => ids.map(id => ({ operatorID: id })),
-        getAllOperatorIDs: () => ids,
-      });
-    }
-
-    function restrict(entries: Record<string, string[]>): void {
-      const map = new Map<string, Set<string>>();
-      Object.entries(entries).forEach(([op, labels]) => map.set(op, new Set(labels)));
-      component.downloadability = new WorkflowResultDownloadability(map);
+    function setupRender(
+      ids: string[] = ["op-a"],
+      entries: Record<string, string[]> = {},
+      state: Partial<
+        Pick<
+          ResultExportationComponent,
+          "exportType" | "destination" | "isTableOutput" | "isVisualizationOutput" | "containsBinaryData"
+        >
+      > = {}
+    ): void {
+      setAllOperators(ids);
+      setDownloadability(component, entries);
+      Object.assign(component, state);
+      fixture.detectChanges();
     }
 
     // nz-select does not project its <nz-option> content, so the option host elements are
@@ -441,40 +447,53 @@ describe("ResultExportationComponent", () => {
       ).listOfNzOptionComponent.map(option => option.nzValue);
     }
 
-    it("renders the restricted-export error alert when every operator is blocked", () => {
-      setAllOperators(["op-a"]);
-      restrict({ "op-a": ["Sales (a@x.com)"] });
-      fixture.detectChanges();
-
-      expect(component.isExportRestricted).toBe(true);
+    function expectAlert(expectedText: string, expectedType?: string, expectedDescription?: string | null): void {
       const alert = fixture.debugElement.query(By.css("nz-alert"));
       expect(alert).toBeTruthy();
-      expect(alert.nativeElement.textContent).toContain("Export unavailable");
+      expect(alert.nativeElement.textContent).toContain(expectedText);
+      if (expectedType !== undefined) {
+        expect((alert.componentInstance as { nzType: string }).nzType).toBe(expectedType);
+      }
+      if (expectedDescription !== undefined) {
+        expect((alert.componentInstance as { nzDescription: unknown }).nzDescription).toBe(expectedDescription);
+        if (expectedDescription === null) {
+          expect(alert.nativeElement.querySelectorAll(".ant-alert-description").length).toBe(0);
+        } else {
+          const description = alert.nativeElement.querySelector(".ant-alert-description");
+          expect(description).toBeTruthy();
+          expect(description.textContent).toContain(expectedDescription);
+        }
+      }
+    }
+
+    it("renders the restricted-export error alert when every operator is blocked", () => {
+      setupRender(["op-a"], { "op-a": ["Sales (a@x.com)"] });
+
+      expect(component.isExportRestricted).toBe(true);
       // A fully blocked export is fatal, so it must be the red alert, not the yellow one.
-      expect((alert.componentInstance as { nzType: string }).nzType).toBe("error");
+      expectAlert("Export unavailable", "error");
     });
 
     it("renders the partial-skip warning alert when only some operators are blocked", () => {
-      setAllOperators(["op-a", "op-b"]);
-      restrict({ "op-a": ["Sales (a@x.com)"] });
-      fixture.detectChanges();
+      setupRender(["op-a", "op-b"], { "op-a": ["Sales (a@x.com)"] });
 
       expect(component.hasPartialNonDownloadable).toBe(true);
-      expect(fixture.nativeElement.textContent).toContain("Some operators will be skipped");
-      const alert = fixture.debugElement.query(By.css("nz-alert"));
-      expect(alert).toBeTruthy();
       // A partial skip is recoverable, so it must be the yellow alert, not the red one.
-      expect((alert.componentInstance as { nzType: string }).nzType).toBe("warning");
+      expectAlert("Some operators will be skipped", "warning");
     });
 
     it("renders the export-type select and its output-gated options when export is allowed", () => {
-      setAllOperators(["op-a"]);
-      restrict({}); // nothing blocked -> not restricted
-      component.exportType = "csv"; // != "data"
-      component.isTableOutput = true;
-      component.isVisualizationOutput = true;
-      component.containsBinaryData = false;
-      fixture.detectChanges();
+      // nothing blocked -> not restricted; != "data"
+      setupRender(
+        ["op-a"],
+        {},
+        {
+          exportType: "csv",
+          isTableOutput: true,
+          isVisualizationOutput: true,
+          containsBinaryData: false,
+        }
+      );
 
       expect(component.isExportRestricted).toBe(false);
       expect(fixture.debugElement.query(By.css("#exportTypeInput"))).toBeTruthy();
@@ -502,19 +521,13 @@ describe("ResultExportationComponent", () => {
     });
 
     it("renders the filename input when the export type is 'data'", () => {
-      setAllOperators(["op-a"]);
-      restrict({});
-      component.exportType = "data";
-      fixture.detectChanges();
+      setupRender(["op-a"], {}, { exportType: "data" });
 
       expect(fixture.debugElement.query(By.css("#filenameInput"))).toBeTruthy();
     });
 
     it("renders the local Export button and exports on click", () => {
-      setAllOperators(["op-a"]);
-      restrict({});
-      component.destination = "local";
-      fixture.detectChanges();
+      setupRender(["op-a"], {}, { destination: "local" });
 
       const exportBtn = fixture.debugElement
         .queryAll(By.css("button"))
@@ -528,10 +541,7 @@ describe("ResultExportationComponent", () => {
     });
 
     it("renders the dataset destination with its list and create button", () => {
-      setAllOperators(["op-a"]);
-      restrict({});
-      component.destination = "dataset";
-      fixture.detectChanges();
+      setupRender(["op-a"], {}, { destination: "dataset" });
 
       // the dataset search input drives the (input) handler
       const search = fixture.debugElement.query(By.css("input[name='datasetName']"));
@@ -559,11 +569,7 @@ describe("ResultExportationComponent", () => {
     // `[(ngModel)]` only runs when the control emits. `ngModelChange` is the output
     // Angular's two-way binding subscribes to, so triggering it drives the write.
     it("writes the chosen export type back through its two-way binding", () => {
-      setAllOperators(["op-a"]);
-      restrict({});
-      component.exportType = "csv";
-      component.isTableOutput = true;
-      fixture.detectChanges();
+      setupRender(["op-a"], {}, { exportType: "csv", isTableOutput: true });
 
       const select = fixture.debugElement.query(By.css("#exportTypeInput"));
       expect(select).toBeTruthy();
@@ -577,9 +583,7 @@ describe("ResultExportationComponent", () => {
     });
 
     it("writes the chosen destination back through its two-way binding and swaps in the local Export button", () => {
-      setAllOperators(["op-a"]);
-      restrict({});
-      fixture.detectChanges();
+      setupRender(["op-a"]);
 
       const select = fixture.debugElement.query(By.css("#destinationInput"));
       expect(select).toBeTruthy();
@@ -597,10 +601,7 @@ describe("ResultExportationComponent", () => {
     });
 
     it("writes the binary-data filename back through its two-way binding", () => {
-      setAllOperators(["op-a"]);
-      restrict({});
-      component.exportType = "data";
-      fixture.detectChanges();
+      setupRender(["op-a"], {}, { exportType: "data" });
 
       const filename = fixture.debugElement.query(By.css("#filenameInput"));
       expect(filename).toBeTruthy();
@@ -626,10 +627,7 @@ describe("ResultExportationComponent", () => {
     }
 
     it("offers a Save button per selectable dataset and exports to the clicked one", () => {
-      setAllOperators(["op-a"]);
-      restrict({});
-      component.destination = "dataset";
-      fixture.detectChanges();
+      setupRender(["op-a"], {}, { destination: "dataset" });
 
       const saveButtons = openDatasetPanel();
       // Derived from the component's own list so a stale overlay cannot make this vacuous.
@@ -646,12 +644,9 @@ describe("ResultExportationComponent", () => {
     });
 
     it("prints each option's dataset id, and prints nothing for a dataset that has none", () => {
-      const pending = {
-        dataset: { did: undefined, name: "pending" },
-        accessPrivilege: "WRITE",
-      } as unknown as DashboardDataset;
+      const pending = makeDataset(undefined, "pending");
       setAllOperators(["op-a"]);
-      restrict({});
+      setDownloadability(component);
       component.destination = "dataset";
       // An empty search box copies the full WRITE list through, id-less datasets included.
       component.userAccessibleDatasets = [writeDataset, pending];
@@ -668,12 +663,9 @@ describe("ResultExportationComponent", () => {
     });
 
     it("narrows the dataset options to the typed search text and labels each option by its name", () => {
-      const other = {
-        dataset: { did: 7, name: "other" },
-        accessPrivilege: "WRITE",
-      } as unknown as DashboardDataset;
+      const other = makeDataset(7, "other");
       setAllOperators(["op-a"]);
-      restrict({});
+      setDownloadability(component);
       component.destination = "dataset";
       // Two accessible datasets, so the filtered list and the full list can actually differ.
       component.userAccessibleDatasets = [writeDataset, other];
@@ -708,76 +700,48 @@ describe("ResultExportationComponent", () => {
     });
 
     it("renders the restricted-export alert with no description when no blocking dataset is named", () => {
-      setAllOperators(["op-a"]);
       // The only operator is blocked, but the analysis reported no dataset labels for it.
-      restrict({ "op-a": [] });
-      fixture.detectChanges();
+      setupRender(["op-a"], { "op-a": [] });
 
       expect(component.isExportRestricted).toBe(true);
       expect(component.blockingDatasetSummary).toBe("");
-      const alert = fixture.debugElement.query(By.css("nz-alert"));
-      expect(alert).toBeTruthy();
-      expect(alert.nativeElement.textContent).toContain("Export unavailable");
       // The absent description node alone proves nothing: nz-alert renders the node only
       // for a truthy nzDescription, so the empty string would look identical. The bound
       // VALUE is what separates the `|| null` fallback from binding the summary directly.
-      expect((alert.componentInstance as { nzDescription: unknown }).nzDescription).toBeNull();
-      expect(alert.nativeElement.querySelectorAll(".ant-alert-description").length).toBe(0);
+      expectAlert("Export unavailable", undefined, null);
     });
 
     it("renders the restricted-export alert with every blocking dataset named in its description", () => {
-      setAllOperators(["op-a"]);
       // Two blocking labels, so binding only the first one is distinguishable from
       // binding the joined summary.
-      restrict({ "op-a": ["Sales (a@x.com)", "HR (b@x.com)"] });
-      fixture.detectChanges();
+      setupRender(["op-a"], { "op-a": ["Sales (a@x.com)", "HR (b@x.com)"] });
 
-      const alert = fixture.debugElement.query(By.css("nz-alert"));
-      expect((alert.componentInstance as { nzDescription: unknown }).nzDescription).toBe(
-        "Sales (a@x.com), HR (b@x.com)"
-      );
-      const description = alert.nativeElement.querySelector(".ant-alert-description");
-      expect(description).toBeTruthy();
-      expect(description.textContent).toContain("Sales (a@x.com), HR (b@x.com)");
+      expectAlert("Export unavailable", undefined, "Sales (a@x.com), HR (b@x.com)");
     });
 
     it("renders the partial-skip warning with no description when the blocking label is blank", () => {
-      setAllOperators(["op-a", "op-b"]);
       // A blank label still counts as a blocking label, so the alert renders, but the
       // joined summary is empty and the `|| null` fallback suppresses the description.
-      restrict({ "op-b": [""] });
-      fixture.detectChanges();
+      setupRender(["op-a", "op-b"], { "op-b": [""] });
 
       expect(component.hasPartialNonDownloadable).toBe(true);
       expect(component.blockingDatasetLabels).toEqual([""]);
       expect(component.blockingDatasetSummary).toBe("");
-      const alert = fixture.debugElement.query(By.css("nz-alert"));
-      expect(alert).toBeTruthy();
-      expect(alert.nativeElement.textContent).toContain("Some operators will be skipped");
       // Same reasoning as the restricted-export sibling: the bound value, not the node.
-      expect((alert.componentInstance as { nzDescription: unknown }).nzDescription).toBeNull();
-      expect(alert.nativeElement.querySelectorAll(".ant-alert-description").length).toBe(0);
+      expectAlert("Some operators will be skipped", undefined, null);
     });
 
     it("renders the partial-skip warning with every blocking dataset named in its description", () => {
-      setAllOperators(["op-a", "op-b"]);
-      restrict({ "op-b": ["HR (b@x.com)", "Ops (c@x.com)"] });
-      fixture.detectChanges();
+      setupRender(["op-a", "op-b"], { "op-b": ["HR (b@x.com)", "Ops (c@x.com)"] });
 
-      const alert = fixture.debugElement.query(By.css("nz-alert"));
-      expect((alert.componentInstance as { nzDescription: unknown }).nzDescription).toBe("HR (b@x.com), Ops (c@x.com)");
-      const description = alert.nativeElement.querySelector(".ant-alert-description");
-      expect(description).toBeTruthy();
-      expect(description.textContent).toContain("HR (b@x.com), Ops (c@x.com)");
+      expectAlert("Some operators will be skipped", undefined, "HR (b@x.com), Ops (c@x.com)");
     });
 
     it("renders no partial-skip warning when the blocked operator reports no blocking dataset", () => {
-      setAllOperators(["op-a", "op-b"]);
       // op-b is blocked, but the restriction analysis named no dataset for it, so there is
       // no reason to show. The second half of the guard is what suppresses the alert here;
       // the first half (`hasPartialNonDownloadable`) is already true.
-      restrict({ "op-b": [] });
-      fixture.detectChanges();
+      setupRender(["op-a", "op-b"], { "op-b": [] });
 
       expect(component.hasPartialNonDownloadable).toBe(true);
       expect(component.blockingDatasetLabels).toEqual([]);
@@ -790,6 +754,7 @@ describe("ResultExportationComponent", () => {
 describe("ResultExportationComponent (context-menu source with default modal data)", () => {
   let component: ResultExportationComponent;
   let fixture: ComponentFixture<ResultExportationComponent>;
+  let exportWorkflowExecutionResult: ReturnType<typeof vi.fn>;
 
   // Modal data intentionally omits defaultFileName / rowIndex / columnIndex / exportType
   // so the component's `?? default` initializers are exercised, and uses a non-"menu"
@@ -800,56 +765,9 @@ describe("ResultExportationComponent (context-menu source with default modal dat
   };
 
   beforeEach(async () => {
-    await TestBed.configureTestingModule({
-      imports: [ResultExportationComponent],
-      providers: [
-        { provide: NZ_MODAL_DATA, useValue: CONTEXT_MENU_DATA },
-        { provide: NzModalRef, useValue: { close: vi.fn(), getConfig: () => ({}) } },
-        { provide: NzModalService, useValue: { create: vi.fn().mockReturnValue({ afterClose: of(null) }) } },
-        {
-          provide: WorkflowResultExportService,
-          useValue: {
-            computeRestrictionAnalysis: vi.fn().mockReturnValue(of(new WorkflowResultDownloadability(new Map()))),
-            exportWorkflowExecutionResult: vi.fn(),
-          },
-        },
-        {
-          provide: DatasetService,
-          useValue: { retrieveAccessibleDatasets: vi.fn().mockReturnValue(of([])) },
-        },
-        {
-          provide: WorkflowActionService,
-          useValue: {
-            getTexeraGraph: vi.fn().mockReturnValue({
-              getAllOperators: vi.fn().mockReturnValue([]),
-              getAllOperatorIDs: vi.fn().mockReturnValue([]),
-            }),
-            getJointGraphWrapper: vi.fn().mockReturnValue({
-              getCurrentHighlightedOperatorIDs: vi.fn().mockReturnValue(["hl-1", "hl-2"]),
-            }),
-          },
-        },
-        {
-          provide: WorkflowResultService,
-          useValue: {
-            determineOutputTypes: vi.fn().mockReturnValue({
-              hasAnyResult: false,
-              isTableOutput: false,
-              isVisualizationOutput: false,
-              containsBinaryData: false,
-            }),
-          },
-        },
-        {
-          provide: ComputingUnitStatusService,
-          useValue: { getSelectedComputingUnit: vi.fn().mockReturnValue(of(null)) },
-        },
-      ],
-    }).compileComponents();
-
-    fixture = TestBed.createComponent(ResultExportationComponent);
-    component = fixture.componentInstance;
-    fixture.detectChanges();
+    ({ fixture, component, exportWorkflowExecutionResult } = await mountResultExportation(CONTEXT_MENU_DATA, {
+      highlightedOperatorIds: ["hl-1", "hl-2"],
+    }));
   });
 
   afterEach(() => {
@@ -870,13 +788,10 @@ describe("ResultExportationComponent (context-menu source with default modal dat
   });
 
   it("exports to the destination it was given for a context-menu trigger", () => {
-    const exportService = TestBed.inject(WorkflowResultExportService)
-      .exportWorkflowExecutionResult as unknown as ReturnType<typeof vi.fn>;
-
     component.onClickExportResult("local");
 
-    expect(exportService).toHaveBeenCalledTimes(1);
-    const args = exportService.mock.calls[0];
+    expect(exportWorkflowExecutionResult).toHaveBeenCalledTimes(1);
+    const args = exportWorkflowExecutionResult.mock.calls[0];
     expect(args[6]).toBe("local"); // destination
   });
 
@@ -884,12 +799,9 @@ describe("ResultExportationComponent (context-menu source with default modal dat
   // hands that over. It does not pass nothing and leave the export to read the canvas a second
   // time, which would let what is exported differ from what the dialog reported on.
   it("hands over the selection it resolved, not an empty scope", () => {
-    const exportService = TestBed.inject(WorkflowResultExportService)
-      .exportWorkflowExecutionResult as unknown as ReturnType<typeof vi.fn>;
-
     component.onClickExportResult("local");
 
-    expect(exportService.mock.calls[0][8]).toEqual(["hl-1", "hl-2"]);
+    expect(exportWorkflowExecutionResult.mock.calls[0][8]).toEqual(["hl-1", "hl-2"]);
   });
 });
 
@@ -900,6 +812,7 @@ describe("ResultExportationComponent (context-menu source with default modal dat
 describe("ResultExportationComponent (a caller that names its operators)", () => {
   let component: ResultExportationComponent;
   let fixture: ComponentFixture<ResultExportationComponent>;
+  let exportWorkflowExecutionResult: ReturnType<typeof vi.fn>;
 
   // Exactly what result-table-frame.component.ts puts in nzData, including the absence of
   // sourceTriggered: a result cell names its operator instead of naming a trigger.
@@ -913,57 +826,18 @@ describe("ResultExportationComponent (a caller that names its operators)", () =>
   };
 
   beforeEach(async () => {
-    await TestBed.configureTestingModule({
-      imports: [ResultExportationComponent],
-      providers: [
-        { provide: NZ_MODAL_DATA, useValue: CELL_DATA },
-        { provide: NzModalRef, useValue: { close: vi.fn(), getConfig: () => ({}) } },
-        { provide: NzModalService, useValue: { create: vi.fn().mockReturnValue({ afterClose: of(null) }) } },
-        {
-          provide: WorkflowResultExportService,
-          useValue: {
-            computeRestrictionAnalysis: vi.fn().mockReturnValue(of(new WorkflowResultDownloadability(new Map()))),
-            exportWorkflowExecutionResult: vi.fn(),
-          },
-        },
-        {
-          provide: DatasetService,
-          useValue: { retrieveAccessibleDatasets: vi.fn().mockReturnValue(of([])) },
-        },
-        {
-          provide: WorkflowActionService,
-          useValue: {
-            // Both fallbacks answer with something else, so a passing test can only be reading
-            // the operator the caller named.
-            getTexeraGraph: vi.fn().mockReturnValue({
-              getAllOperators: vi.fn().mockReturnValue([{ operatorID: "op-all" }]),
-              getAllOperatorIDs: vi.fn().mockReturnValue(["op-all"]),
-            }),
-            getJointGraphWrapper: vi.fn().mockReturnValue({
-              getCurrentHighlightedOperatorIDs: vi.fn().mockReturnValue(["op-highlighted"]),
-            }),
-          },
-        },
-        {
-          provide: WorkflowResultService,
-          useValue: {
-            determineOutputTypes: vi.fn().mockReturnValue({
-              hasAnyResult: true,
-              isTableOutput: true,
-              isVisualizationOutput: false,
-              containsBinaryData: true,
-            }),
-          },
-        },
-        {
-          provide: ComputingUnitStatusService,
-          useValue: { getSelectedComputingUnit: vi.fn().mockReturnValue(of(null)) },
-        },
-      ],
-    }).compileComponents();
-    fixture = TestBed.createComponent(ResultExportationComponent);
-    component = fixture.componentInstance;
-    fixture.detectChanges();
+    ({ fixture, component, exportWorkflowExecutionResult } = await mountResultExportation(CELL_DATA, {
+      // Both fallbacks answer with something else, so a passing test can only be reading
+      // the operator the caller named.
+      allOperatorIds: ["op-all"],
+      highlightedOperatorIds: ["op-highlighted"],
+      outputTypes: {
+        hasAnyResult: true,
+        isTableOutput: true,
+        isVisualizationOutput: false,
+        containsBinaryData: true,
+      },
+    }));
   });
 
   afterEach(() => {
@@ -982,12 +856,9 @@ describe("ResultExportationComponent (a caller that names its operators)", () =>
   });
 
   it("hands the named operator to the export", () => {
-    const exportService = TestBed.inject(WorkflowResultExportService)
-      .exportWorkflowExecutionResult as unknown as ReturnType<typeof vi.fn>;
-
     component.onClickExportResult("local");
 
-    expect(exportService).toHaveBeenCalledTimes(1);
-    expect(exportService.mock.calls[0][8]).toEqual(["op-named"]);
+    expect(exportWorkflowExecutionResult).toHaveBeenCalledTimes(1);
+    expect(exportWorkflowExecutionResult.mock.calls[0][8]).toEqual(["op-named"]);
   });
 });
