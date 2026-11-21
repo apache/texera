@@ -19,8 +19,9 @@
 # .github/release-branches.yml and request review from each branch's release
 # manager. The author (or a committer) removes a release/* label to decline the
 # backport for that branch — a removal is remembered (via the timeline), so a
-# later edit never silently re-adds a label the author took off. `fix(ci):` PRs
-# only touch CI and are never backported, so they are left alone.
+# later edit never silently re-adds a label the author took off. Every `fix:` PR
+# is a backport candidate regardless of scope, so `fix(ci):` is labeled like any
+# other fix.
 #
 # A label nominates a target; it does not decide one. The branch's release
 # manager still has to approve the PR for the fix to land there, and that
@@ -114,23 +115,13 @@ jobs:
                 return { mode: "none" };
               }
 
-              // Conventional-commit `fix:` (optional scope, optional `!`). Other
-              // types (feat/chore/docs/...) are not auto-backported and, since
-              // they are never backport candidates, get no report comment.
-              const m = title.match(/^fix(?:\(([^)]*)\))?!?:/i);
+              // Conventional-commit `fix:` of any scope (optional scope, optional
+              // `!`). Other types (feat/chore/docs/...) are not auto-backported
+              // and, since they are never backport candidates, get no report
+              // comment.
+              const m = title.match(/^fix(?:\([^)]*\))?!?:/i);
               if (!m) {
                 core.info(`PR #${pr.number} title is not a fix (\"${title}\"); skipping.`);
-                return { mode: "none" };
-              }
-
-              // `fix(ci):` touches CI/tooling only; it never lands on a release
-              // branch, so treat it like a non-fix and skip auto-labeling.
-              const scopes = (m[1] || "")
-                .split(",")
-                .map((s) => s.trim().toLowerCase())
-                .filter(Boolean);
-              if (scopes.includes("ci")) {
-                core.info(`PR #${pr.number} is fix(ci) — CI-only, never backported; skipping.`);
                 return { mode: "none" };
               }
 
