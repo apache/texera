@@ -38,7 +38,7 @@ import org.scalatest.matchers.should.Matchers
 // Exercises getComputingUnitAccess against an embedded Postgres seeded with a
 // computing unit (cuid=100) owned by uid=1, plus a READ grant (uid=2) and a
 // WRITE grant (uid=3). Covers every branch of the single-join resolution:
-// missing unit, owner, explicit grant, and a user with no grant.
+// missing unit, owner, explicit grant, a user with no grant, and sharing disabled.
 class ComputingUnitAccessSpec
     extends AnyFlatSpec
     with Matchers
@@ -91,14 +91,31 @@ class ComputingUnitAccessSpec
   }
 
   it should "return the granted READ privilege for a non-owner" in {
-    ComputingUnitAccess.getComputingUnitAccess(cuid, 2) shouldBe PrivilegeEnum.READ
+    ComputingUnitAccess.getComputingUnitAccess(
+      cuid,
+      2,
+      sharingEnabled = true
+    ) shouldBe PrivilegeEnum.READ
   }
 
   it should "return the granted WRITE privilege for a non-owner" in {
-    ComputingUnitAccess.getComputingUnitAccess(cuid, 3) shouldBe PrivilegeEnum.WRITE
+    ComputingUnitAccess.getComputingUnitAccess(
+      cuid,
+      3,
+      sharingEnabled = true
+    ) shouldBe PrivilegeEnum.WRITE
   }
 
   it should "return NONE for a user with no access row on an existing unit" in {
     ComputingUnitAccess.getComputingUnitAccess(cuid, 4) shouldBe PrivilegeEnum.NONE
+  }
+
+  it should "ignore grants while sharing is disabled, but keep the owner's WRITE" in {
+    ComputingUnitAccess.getComputingUnitAccess(cuid, 1, sharingEnabled = false) shouldBe
+      PrivilegeEnum.WRITE
+    ComputingUnitAccess.getComputingUnitAccess(cuid, 2, sharingEnabled = false) shouldBe
+      PrivilegeEnum.NONE
+    ComputingUnitAccess.getComputingUnitAccess(cuid, 3, sharingEnabled = false) shouldBe
+      PrivilegeEnum.NONE
   }
 }
