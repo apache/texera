@@ -66,6 +66,10 @@ object ApplicationConfig {
     getConfSource.getBoolean("network-buffering.enable-adaptive-buffering")
   val adaptiveBufferingTimeoutMs: Int =
     getConfSource.getInt("network-buffering.adaptive-buffering-timeout-ms")
+  // Columnar wire (opt-in): flush data batches as Arrow IPC (VectorFrame) rather
+  // than decoded tuples (DataFrame). Off by default.
+  val enableColumnarWire: Boolean =
+    getConfSource.getBoolean("network-buffering.enable-columnar-wire")
 
   // Reconfiguration
   val enableTransactionalReconfiguration: Boolean =
