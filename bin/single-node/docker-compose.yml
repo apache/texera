@@ -781,6 +781,9 @@ services:
     command:
       - "/parca"
       - "--config-path=/parca.yaml"
+      # The default 5s HTTP read timeout cuts off multi-MB debuginfo (symbol) uploads mid-stream;
+      # allow the whole debuginfo-upload-max-duration so symbolized flame graphs actually arrive.
+      - "--http-read-timeout=15m"
     ports:
       - "127.0.0.1:7070:7070"
     deploy:
