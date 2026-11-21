@@ -84,3 +84,9 @@ spec:
               value: "{{ .value }}"
             {{- end }}
             {{- include "texera.observability.env" . | nindent 12 }}
+          readinessProbe:
+            httpGet:
+              path: /api/healthcheck
+              port: {{ .Values.fileService.service.port }}
+            initialDelaySeconds: 5
+            periodSeconds: 5
