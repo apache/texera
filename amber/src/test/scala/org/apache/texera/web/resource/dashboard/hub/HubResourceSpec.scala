@@ -432,13 +432,19 @@ class HubResourceSpec
   }
 
   "recordUserAction" should "insert a user_action row for the entity" in {
-    recordUserAction(req, Integer.valueOf(likerUid), Integer.valueOf(wid), Wf, ActionType.Like)
+    recordUserAction(
+      req,
+      Some(Integer.valueOf(likerUid)),
+      Integer.valueOf(wid),
+      Wf,
+      ActionType.Like
+    )
     userActionRows shouldBe 1
   }
 
   it should "persist uid, resource type, resource id, action and an IPv4 address" in {
     val id = seedWorkflow(810101, "wf_audit")
-    recordUserAction(req, Integer.valueOf(likerUid), id, Wf, ActionType.View)
+    recordUserAction(req, Some(Integer.valueOf(likerUid)), id, Wf, ActionType.View)
 
     auditRows() shouldBe Seq(
       (Integer.valueOf(likerUid), "workflow", 810101, "view", "127.0.0.1")
@@ -447,10 +453,17 @@ class HubResourceSpec
 
   it should "leave the ip column null when the remote address is not IPv4-shaped" in {
     val id = seedWorkflow(810102, "wf_audit_v6")
-    recordUserAction(nonIpv4Req, Integer.valueOf(ownerUid), id, Wf, ActionType.Clone)
+    recordUserAction(nonIpv4Req, Some(Integer.valueOf(ownerUid)), id, Wf, ActionType.Clone)
 
     // Everything but the address is still recorded; only the ip column is skipped.
     auditRows() shouldBe Seq((Integer.valueOf(ownerUid), "workflow", 810102, "clone", null))
+  }
+
+  it should "store a NULL uid when userId is omitted" in {
+    val id = seedWorkflow(810103, "wf_audit_anonymous")
+    recordUserAction(req, entityId = id, entityType = Wf, action = ActionType.View)
+
+    auditRows() shouldBe Seq((null, "workflow", 810103, "view", "127.0.0.1"))
   }
 
   it should "tag each row with its own entity type, keeping equal ids apart" in {
@@ -459,8 +472,8 @@ class HubResourceSpec
     seedDataset(830001, "ds_shared_id")
     val shared = Integer.valueOf(830001)
 
-    recordUserAction(req, Integer.valueOf(ownerUid), shared, Wf, ActionType.Like)
-    recordUserAction(req, Integer.valueOf(ownerUid), shared, Ds, ActionType.Unlike)
+    recordUserAction(req, Some(Integer.valueOf(ownerUid)), shared, Wf, ActionType.Like)
+    recordUserAction(req, Some(Integer.valueOf(ownerUid)), shared, Ds, ActionType.Unlike)
 
     auditRows().map { case (_, resourceType, _, action, _) => (resourceType, action) } shouldBe
       Seq(("workflow", "like"), ("dataset", "unlike"))
@@ -793,6 +806,27 @@ class HubResourceSpec
     auditRows() shouldBe Seq(
       (Integer.valueOf(likerUid), "workflow", 810602, "view", "127.0.0.1")
     )
+  }
+
+  it should "record an anonymous view (uid 0 or none) with a NULL uid" in {
+    val id = seedWorkflow(810603, "wf_view_anonymous")
+    hub.postView(req, ViewRequest(id, Integer.valueOf(0), Wf)) shouldBe 1
+    hub.postView(req, ViewRequest(id, null, Wf)) shouldBe 2
+
+    auditRows() shouldBe Seq(
+      (null, "workflow", 810603, "view", "127.0.0.1"),
+      (null, "workflow", 810603, "view", "127.0.0.1")
+    )
+  }
+
+  it should "leave the count unchanged when the view cannot be recorded" in {
+    val id = seedWorkflow(810605, "wf_view_missing_user")
+    hub.postView(req, ViewRequest(id, Integer.valueOf(likerUid), Wf)) shouldBe 1
+
+    // A uid with no user row, e.g. an account deleted while another tab was still open.
+    an[Exception] should be thrownBy hub.postView(req, ViewRequest(id, Integer.valueOf(999999), Wf))
+
+    workflowViewCount(810605) shouldBe Some(1)
   }
 
   it should "keep workflow and dataset view counts apart when the ids collide" in {
