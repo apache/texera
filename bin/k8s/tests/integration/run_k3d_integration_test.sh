@@ -16,7 +16,7 @@
 # limitations under the License.
 #
 # Deploys the Helm chart in bin/k8s into a throwaway k3d cluster and runs
-# k8s_integration_test.py against it through the Envoy gateway.
+# k8s_integration_check.py against it through the Envoy gateway.
 #
 # Needs docker, k3d, kubectl, helm and python3 (with requirements.txt installed).
 # Run from anywhere:
@@ -141,4 +141,4 @@ kc rollout status "$proxy" -n "$NAMESPACE" --timeout=10m
 log "Deployment ready"
 
 log "Running the integration test"
-TEXERA_URL="http://localhost:$GATEWAY_PORT" python3 "$SCRIPT_DIR/k8s_integration_test.py"
+TEXERA_URL="http://localhost:$GATEWAY_PORT" python3 "$SCRIPT_DIR/k8s_integration_check.py"
