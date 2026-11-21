@@ -163,6 +163,28 @@ class ReservoirSamplingOpExecSpec extends AnyFlatSpec {
     assert(firstRun != (0 until 7).map(tuple).toList)
   }
 
+  it should "follow Algorithm R replacement odds (draws nextInt(n+1), not nextInt(n))" in {
+    // Reference Algorithm R using the same seed the exec uses (workerCount); the exec's
+    // reservoir must match it exactly. A reversion to nextInt(n) draws a different sequence
+    // and diverges, so this pins the off-by-one fix.
+    val k = 5
+    val workerCount = 1
+    val input = (0 until 100).map(tuple).toVector
+    val rng = new scala.util.Random(workerCount)
+    val expected = Array.ofDim[Tuple](k)
+    var seen = 0
+    input.foreach { t =>
+      if (seen < k) expected(seen) = t
+      else {
+        val j = rng.nextInt(seen + 1)
+        if (j < k) expected(j) = t
+      }
+      seen += 1
+    }
+    val emitted = runFinishTuples(newExec(k = k, workerCount = workerCount), input)
+    assert(emitted == expected.toList)
+  }
+
   it should "distribute k across workers via equallyPartitionGoal (k=10, 3 workers -> 4,3,3)" in {
     // The remainder is handed to the lowest-indexed workers, so worker 0 keeps one extra.
     val perWorkerSize = (0 until 3).map { idx =>
@@ -225,14 +247,14 @@ class ReservoirSamplingOpExecSpec extends AnyFlatSpec {
     }
   }
 
-  it should "coerce a null k to 0 and reject sampling a populated stream" in {
-    // A null k deserializes to the primitive default 0, yielding a zero-length
-    // reservoir; the first replacement draw then calls Random.nextInt(0).
+  it should "coerce a null k to 0 and sample nothing from a populated stream" in {
+    // A null k deserializes to the primitive default 0, yielding a zero-length reservoir;
+    // with the Algorithm R bound nextInt(n+1) the replacement draw is always valid, so
+    // processing keeps nothing instead of throwing on nextInt(0).
     val exec = new ReservoirSamplingOpExec(descWithNullK, 0, 1)
     exec.open()
-    assert(exec.onFinish(0).isEmpty, "an empty reservoir emits nothing")
-    assertThrows[IllegalArgumentException] {
-      exec.processTuple(tuple(0), 0)
-    }
+    exec.processTuple(tuple(0), 0)
+    exec.processTuple(tuple(1), 0)
+    assert(exec.onFinish(0).isEmpty, "a zero-length reservoir emits nothing")
   }
 }
