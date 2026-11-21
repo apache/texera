@@ -16,7 +16,7 @@
 // under the License.
 
 addSbtPlugin("org.scalameta" % "sbt-scalafmt" % "2.4.2")
-addSbtPlugin("ch.epfl.scala" % "sbt-scalafix" % "0.14.7")
+addSbtPlugin("ch.epfl.scala" % "sbt-scalafix" % "0.14.10")
 // Coverage instrumentation; emits jacoco.xml that Codecov consumes.
 // JaCoCo (vs scoverage) works on JVM bytecode, so it does not need a
 // per-Scala-version compiler plugin — scalac-scoverage-plugin only
@@ -26,7 +26,7 @@ addSbtPlugin("com.github.sbt" % "sbt-jacoco" % "3.5.0")
 // See: https://github.com/sbt/sbt-license-report
 addSbtPlugin("com.github.sbt" % "sbt-license-report" % "1.7.0")
 
-libraryDependencies += "com.thesamet.scalapb" %% "compilerplugin" % "0.11.20"
+libraryDependencies += "com.thesamet.scalapb" %% "compilerplugin" % "0.11.21"
 addSbtPlugin("com.github.sbt" % "sbt-native-packager" % "1.11.7")
 // for scalapb code gen
 addSbtPlugin("org.typelevel" % "sbt-fs2-grpc" % "2.11.0")
@@ -34,12 +34,12 @@ addSbtPlugin("org.typelevel" % "sbt-fs2-grpc" % "2.11.0")
 // JOOQ dependencies for code generation
 libraryDependencies ++= Seq(
   "org.jooq" % "jooq-codegen" % "3.19.36",
-  "com.typesafe" % "config" % "1.4.9",
+  "com.typesafe" % "config" % "1.4.10",
   // Build-time codegen driver only, not bundled. pgjdbc >= 42.7.5 returns JDBC-spec
   // uppercase metadata column labels (KEY_SEQ) where earlier drivers returned lowercase
   // (key_seq), which used to break PostgresDatabase.loadForeignKeys and therefore JOOQ
   // code generation. jooq-codegen 3.19.36 carries the jOOQ/jOOQ#17873 fix: it probes for
   // the lowercase label and upper-cases every lookup when it is absent, so both casings
   // work. Re-pin to 42.7.4 only if jooq-codegen is ever moved below 3.19.36.
-  "org.postgresql" % "postgresql" % "42.7.13"
+  "org.postgresql" % "postgresql" % "42.7.14"
 )
