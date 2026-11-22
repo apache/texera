@@ -86,10 +86,26 @@ class CSVOldScanSourceOpExec private[csvOld] (
     }
     val filePath = DocumentFactory.openReadonlyDocument(new URI(desc.fileName.get)).asFile().toPath
     reader = CSVReader.open(filePath.toString, desc.fileEncoding.getCharset.name())(CustomFormat)
+    val csvRows = new Iterator[Seq[String]] {
+      private val input = reader.iterator
+      private var exhausted = false
+
+      override def hasNext: Boolean = {
+        // scala-csv retries reads after EOF. The engine can probe this iterator
+        // again after finalization closes the reader, so remember successful EOF.
+        if (!exhausted && !input.hasNext) {
+          exhausted = true
+        }
+        !exhausted
+      }
+
+      override def next(): Seq[String] =
+        if (hasNext) input.next() else Iterator.empty.next()
+    }
     // skip line if this worker reads the start of a file, and the file has a header line
     // Dropped one after the other: the largest offset plus the header line is past
     // what an Int holds, and the sum wrapped to a negative that skipped no row.
-    rows = reader.iterator.drop(if (desc.hasHeader) 1 else 0).drop(desc.windowOffset)
+    rows = csvRows.drop(if (desc.hasHeader) 1 else 0).drop(desc.windowOffset)
   }
 
   override def close(): Unit = {

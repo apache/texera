@@ -19,10 +19,13 @@
 
 package org.apache.texera.amber.operator.source.scan.csvOld
 
+import com.github.tototoshi.csv.MalformedCSVException
+import org.apache.texera.amber.core.tuple.AttributeType
 import org.apache.texera.amber.operator.source.scan.FileDecodingMethod
 import org.apache.texera.amber.util.JSONUtils.objectMapper
 import org.scalatest.flatspec.AnyFlatSpec
 
+import java.io.IOException
 import java.nio.charset.StandardCharsets
 import java.nio.file.Files
 
@@ -111,5 +114,99 @@ class CSVOldScanSourceOpExecSpec extends AnyFlatSpec {
     assert(rows.size == 100)
     assert(exec.getWarnings.size == 1)
     assert(exec.getWarnings.head.contains("row 103"))
+  }
+
+  it should "remain exhausted after close for every scan limit" in {
+    for (limit <- List(None, Some(0), Some(1), Some(2), Some(3))) {
+      val exec = new CSVOldScanSourceOpExec(
+        descString("id,name\n1,猫\n2,\"line one\nline two\"\n", limit = limit)
+      )
+      assert(exec.schema.getAttributeNames == List("id", "name"))
+      assert(
+        exec.schema.getAttributes.map(_.getType) == List(
+          AttributeType.INTEGER,
+          AttributeType.STRING
+        )
+      )
+      exec.open()
+      val output = exec.produceTuple()
+      try {
+        val expected = List(Seq(1, "猫"), Seq(2, "line one\nline two"))
+        assert(output.map(_.getFields.toSeq).toList == expected.take(limit.getOrElse(2)))
+        assert(!output.hasNext)
+        exec.close()
+        (1 to 3).foreach(_ => assert(!output.hasNext))
+        intercept[NoSuchElementException](output.next())
+      } finally exec.close()
+    }
+  }
+
+  it should "remain exhausted without a header and reset the iterator when reopened" in {
+    val exec = new CSVOldScanSourceOpExec(descString("1,2\n3,4\n", header = false))
+    for (_ <- 1 to 2) {
+      exec.open()
+      val output = exec.produceTuple()
+      try {
+        assert(output.map(_.getFields.toSeq).toList == List(Seq(1, 2), Seq(3, 4)))
+        exec.close()
+        (1 to 3).foreach(_ => assert(!output.hasNext))
+      } finally exec.close()
+    }
+  }
+
+  it should "preserve empty-file failure and the header-only schema after EOF" in {
+    intercept[java.util.NoSuchElementException](new CSVOldScanSourceOpExec(descString("")))
+    val exec = new CSVOldScanSourceOpExec(descString("a,b\n"))
+    assert(exec.schema.getAttributeNames == List("a", "b"))
+    assert(
+      exec.schema.getAttributes.map(_.getType) == List(AttributeType.STRING, AttributeType.STRING)
+    )
+    exec.open()
+    val output = exec.produceTuple()
+    try {
+      assert(!output.hasNext)
+      exec.close()
+      assert(!output.hasNext)
+    } finally exec.close()
+  }
+
+  it should "propagate a reader failure before EOF has been observed" in {
+    val exec = new CSVOldScanSourceOpExec(descString("a,b\n1,2\n3,4\n"))
+    exec.open()
+    val output = exec.produceTuple()
+    exec.close()
+    intercept[IOException](output.hasNext)
+    intercept[IOException](output.hasNext)
+  }
+
+  it should "propagate malformed quoted CSV after the inference sample" in {
+    val clean = (1 to 100).map(_.toString).mkString("\n")
+    val exec = new CSVOldScanSourceOpExec(descString(s"a\n$clean\n" + "\"unterminated\n"))
+    exec.open()
+    val output = exec.produceTuple()
+    try {
+      assert(
+        (1 to 100).map(_ => output.next().getFields.toSeq).toList ==
+          (1 to 100).map(i => Seq(i)).toList
+      )
+      intercept[MalformedCSVException](output.hasNext)
+      assert(exec.getWarnings.isEmpty)
+    } finally exec.close()
+  }
+
+  it should "preserve short rows and report rejected values before remaining exhausted" in {
+    val clean = (1 to 100).map(i => s"$i,$i").mkString("\n")
+    val exec = new CSVOldScanSourceOpExec(descString(s"a,b\n$clean\n101\noops,102\n103,103\n"))
+    exec.open()
+    val output = exec.produceTuple()
+    try {
+      val expected = (1 to 100).map(i => Seq(i, i)).toList ++ List(Seq(101), Seq(103, 103))
+      assert(output.map(_.getFields.toSeq).toList == expected)
+      assert(exec.getWarnings.size == 1)
+      assert(exec.getWarnings.head.contains("row 102"))
+      assert(exec.getWarnings.head.contains("'oops'"))
+      exec.close()
+      assert(!output.hasNext)
+    } finally exec.close()
   }
 }
