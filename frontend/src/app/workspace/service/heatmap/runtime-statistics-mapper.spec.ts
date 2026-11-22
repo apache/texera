@@ -88,19 +88,30 @@ describe("toOperatorRuntimeStatusMap", () => {
     });
   });
 
+  // One row exactly as `WorkflowExecutionsResource.WorkflowRuntimeStatistics` serializes it.
+  const BACKEND_BODY =
+    '[{"operatorId":"op1","timestamp":1700000000000,"inputTupleCount":10,"inputTupleSize":80,' +
+    '"outputTupleCount":5,"outputTupleSize":40,"dataProcessingTime":5000000,"controlProcessingTime":1000000,' +
+    '"idleTime":700000,"numWorkers":3,"status":3}]';
+
   it("reads the timing and worker fields from the JSON the stats endpoint returns", () => {
-    // Parsed from the exact body `WorkflowExecutionsResource.WorkflowRuntimeStatistics` serializes, so a renamed
-    // field on either side fails here instead of restoring zero times and one worker.
-    const rows: WorkflowRuntimeStatistics[] = JSON.parse(
-      '[{"operatorId":"op1","timestamp":1700000000000,"inputTupleCount":10,"inputTupleSize":80,' +
-        '"outputTupleCount":5,"outputTupleSize":40,"dataProcessingTime":5000000,"controlProcessingTime":1000000,' +
-        '"idleTime":700000,"numWorkers":3,"status":3}]'
-    );
-    const restored = toOperatorRuntimeStatusMap(rows).op1;
+    // A renamed field on either side fails here instead of restoring zero times and one worker.
+    const restored = toOperatorRuntimeStatusMap(JSON.parse(BACKEND_BODY)).op1;
     expect(restored.aggregatedDataProcessingTime).toBe(5_000_000);
     expect(restored.aggregatedControlProcessingTime).toBe(1_000_000);
     expect(restored.aggregatedIdleTime).toBe(700_000);
     expect(restored.numWorkers).toBe(3);
+  });
+
+  it("ignores the legacy total*/numberOfWorkers names", () => {
+    const legacyBody =
+      '[{"operatorId":"op1","timestamp":1,"totalDataProcessingTime":5000000,"totalControlProcessingTime":1000000,' +
+      '"totalIdleTime":700000,"numberOfWorkers":3,"status":3}]';
+    const restored = toOperatorRuntimeStatusMap(JSON.parse(legacyBody)).op1;
+    expect(restored.aggregatedDataProcessingTime).toBeUndefined();
+    expect(restored.aggregatedControlProcessingTime).toBeUndefined();
+    expect(restored.aggregatedIdleTime).toBeUndefined();
+    expect(restored.numWorkers).toBeUndefined();
   });
 
   it("omits the port maps rather than emitting empty ones, so port labels survive a restore", () => {

@@ -18,16 +18,15 @@
  */
 
 export interface WorkflowRuntimeStatistics {
-  [key: string]: any;
   operatorId: string;
   timestamp: number;
   inputTupleCount: number;
   inputTupleSize: number;
   outputTupleCount: number;
   outputTupleSize: number;
-  dataProcessingTime: number;
-  controlProcessingTime: number;
-  idleTime: number;
+  dataProcessingTime: number; // nanoseconds
+  controlProcessingTime: number; // nanoseconds
+  idleTime: number; // nanoseconds
   numWorkers: number;
   status: number; // Operator status (e.g., RUNNING, COMPLETED, FAILED, etc.)
 }

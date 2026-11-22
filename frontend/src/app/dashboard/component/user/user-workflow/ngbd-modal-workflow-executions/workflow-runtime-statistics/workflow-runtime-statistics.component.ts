@@ -75,7 +75,8 @@ export class WorkflowRuntimeStatisticsComponent implements OnInit {
 
   /**
    * Groups statistics by operator ID, converting times from nanoseconds to seconds,
-   * and adjusts timestamps relative to the initial timestamp.
+   * and adjusts timestamps relative to the initial timestamp. The grouped rows keep the
+   * same field names, so their time fields hold seconds, not the API's nanoseconds.
    */
   private groupStatisticsByOperatorId(): Record<string, WorkflowRuntimeStatistics[]> {
     if (!this.workflowRuntimeStatistics || this.workflowRuntimeStatistics.length === 0) {
@@ -122,7 +123,7 @@ export class WorkflowRuntimeStatisticsComponent implements OnInit {
       return [];
     }
 
-    const metricKeys = [
+    const metricKeys: (keyof WorkflowRuntimeStatistics)[] = [
       "inputTupleCount",
       "inputTupleSize",
       "outputTupleCount",

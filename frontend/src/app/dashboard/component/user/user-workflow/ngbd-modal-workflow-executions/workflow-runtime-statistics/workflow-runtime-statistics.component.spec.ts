@@ -181,13 +181,13 @@ describe("WorkflowRuntimeStatisticsComponent", () => {
 
     // Two stats for scan-op-111111 collapsed under one group key; one for filter.
     expect(Object.keys(grouped).sort()).toEqual(["filter-op-222222", "scan-op-111111"]);
-    const scan = grouped["scan-op-111111"] as Array<WorkflowRuntimeStatistics & { dataProcessingTime: number }>;
+    const scan = grouped["scan-op-111111"];
     expect(scan.length).toBe(2);
     // dataProcessingTime (2e9, 5e9 ns) divided by 1e9 => seconds.
     expect(scan.map(s => s.dataProcessingTime)).toEqual([2, 5]);
     // control/idle also converted ns->s on the first stat (3e9 -> 3, 4e9 -> 4).
-    expect((scan[0] as unknown as { controlProcessingTime: number }).controlProcessingTime).toBe(3);
-    expect((scan[0] as unknown as { idleTime: number }).idleTime).toBe(4);
+    expect(scan[0].controlProcessingTime).toBe(3);
+    expect(scan[0].idleTime).toBe(4);
     // timestamps made relative to the first stat (1000): 0 and 2000.
     expect(scan.map(s => s.timestamp)).toEqual([0, 2000]);
     // filter stat timestamp 2000 - initial 1000 = 1000.
@@ -336,9 +336,6 @@ describe("WorkflowRuntimeStatisticsComponent", () => {
     const grouped = group();
 
     // Metric indices 4..7 are data time, control time, idle time and number of workers.
-    expect(seriesNamed(dataset(4, grouped), "scan-111111").y).toEqual([2]);
-    expect(seriesNamed(dataset(5, grouped), "scan-111111").y).toEqual([3]);
-    expect(seriesNamed(dataset(6, grouped), "scan-111111").y).toEqual([4]);
-    expect(seriesNamed(dataset(7, grouped), "scan-111111").y).toEqual([3]);
+    expect([4, 5, 6, 7].map(i => seriesNamed(dataset(i, grouped), "scan-111111").y)).toEqual([[2], [3], [4], [3]]);
   });
 });
