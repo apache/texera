@@ -195,10 +195,13 @@ class ExecutionStatsService(
     addSubscription(
       client
         .registerCallback[RuntimeStatisticsPersist]((evt: RuntimeStatisticsPersist) => {
-          metricsPersistThread.execute(() => {
-            storeRuntimeStatistics(computeStatsDiff(evt.operatorMetrics))
-            lastPersistedMetrics = evt.operatorMetrics
-          })
+          // After the terminal state the statistics are committed and the writer is closed.
+          if (!metricsPersistThread.isShutdown) {
+            metricsPersistThread.execute(() => {
+              storeRuntimeStatistics(computeStatsDiff(evt.operatorMetrics))
+              lastPersistedMetrics = evt.operatorMetrics
+            })
+          }
         })
     )
   }
@@ -207,12 +210,20 @@ class ExecutionStatsService(
     client.registerCallback[ExecutionStateUpdate] {
       case ExecutionStateUpdate(state: WorkflowAggregatedState.Recognized)
           if state == COMPLETED || state == FAILED || state == KILLED =>
-        logger.info("Workflow execution terminated. Commit runtime statistics.")
-        try {
-          runtimeStatsWriter.close()
-        } catch {
-          case e: Exception =>
-            logger.error("Failed to close runtime statistics writer", e)
+        // The engine reports the final statistics right before the terminal state, and that
+        // report may still be queued on the persist thread. Closing there, behind it, commits
+        // it; closing here would flush before it and strand it in the buffer. A later terminal
+        // state finds the executor shut down and has nothing left to commit.
+        if (!metricsPersistThread.isShutdown) {
+          logger.info("Workflow execution terminated. Commit runtime statistics.")
+          try {
+            metricsPersistThread.submit((() => runtimeStatsWriter.close()): Runnable).get()
+          } catch {
+            case e: Exception =>
+              logger.error("Failed to close runtime statistics writer", e)
+          } finally {
+            metricsPersistThread.shutdown()
+          }
         }
       case _ =>
     }

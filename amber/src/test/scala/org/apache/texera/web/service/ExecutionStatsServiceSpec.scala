@@ -78,7 +78,7 @@ import org.scalatest.matchers.should.Matchers
 
 import java.net.URI
 import java.sql.Timestamp
-import java.util.concurrent.ExecutorService
+import java.util.concurrent.{CountDownLatch, ExecutorService, TimeUnit}
 
 /**
   * The service class was entirely uncovered. It owns two independent outputs: the websocket
@@ -225,9 +225,17 @@ class ExecutionStatsServiceSpec
     * before it closes the writer and reads the table back.
     */
   private def awaitPersist(service: ExecutionStatsService): Unit = {
+    val executor = persistExecutor(service)
+    // Once the execution has terminated the executor is shut down and takes no more tasks, so
+    // the barrier becomes waiting for the tasks it already holds.
+    if (executor.isShutdown) executor.awaitTermination(30, TimeUnit.SECONDS) shouldBe true
+    else executor.submit((() => ()): Runnable).get()
+  }
+
+  private def persistExecutor(service: ExecutionStatsService): ExecutorService = {
     val field = classOf[ExecutionStatsService].getDeclaredField("metricsPersistThread")
     field.setAccessible(true)
-    field.get(service).asInstanceOf[ExecutorService].submit((() => ()): Runnable).get()
+    field.get(service).asInstanceOf[ExecutorService]
   }
 
   /** Reads the committed statistics rows. Opening (never re-creating) the document is what makes
@@ -581,6 +589,47 @@ class ExecutionStatsServiceSpec
       row.getField[Long]("inputTupleSize") shouldBe 55L
       row.getField[Long]("outputTupleCnt") shouldBe 9L
       row.getField[Long]("outputTupleSize") shouldBe 95L
+    }
+  }
+
+  it should "commit a statistics snapshot that is still queued when the execution terminates" in {
+    withService { f =>
+      // The engine reports the final snapshot right before the terminal state, and the persist
+      // callback only queues it. Hold the persist thread so that snapshot is still queued when
+      // the terminal state arrives, then let it go a moment later.
+      val release = new CountDownLatch(1)
+      persistExecutor(f.service).execute(() => release.await())
+      f.client.fire(RuntimeStatisticsPersist(Map("opA" -> metrics(COMPLETED))))
+      new Thread(() => {
+        Thread.sleep(200)
+        release.countDown()
+      }).start()
+
+      f.client.fire(ExecutionStateUpdate(COMPLETED))
+      awaitPersist(f.service)
+
+      persistedRows().map(_.getField[String]("operatorId")) shouldBe Seq("opA")
+    }
+  }
+
+  it should "stop the persist thread once the statistics are committed" in {
+    withService { f =>
+      f.client.fire(ExecutionStateUpdate(COMPLETED))
+      persistExecutor(f.service).isShutdown shouldBe true
+    }
+  }
+
+  it should "ignore statistics and terminal states that arrive after the commit" in {
+    withService { f =>
+      f.client.fire(RuntimeStatisticsPersist(Map("opA" -> metrics(RUNNING))))
+      f.client.fire(ExecutionStateUpdate(COMPLETED))
+
+      noException should be thrownBy {
+        f.client.fire(RuntimeStatisticsPersist(Map("opA" -> metrics(COMPLETED))))
+        f.client.fire(ExecutionStateUpdate(KILLED))
+      }
+      awaitPersist(f.service)
+      persistedRows() should have size 1
     }
   }
 }
