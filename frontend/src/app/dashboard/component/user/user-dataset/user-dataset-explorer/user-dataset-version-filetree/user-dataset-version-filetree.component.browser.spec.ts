@@ -23,20 +23,17 @@
 // These tests run in vitest's Playwright/Chromium browser mode to pin the
 // behaviors that need real geometry.
 
-import { ComponentFixture, TestBed } from "@angular/core/testing";
+import { ComponentFixture } from "@angular/core/testing";
 import { UserDatasetVersionFiletreeComponent } from "./user-dataset-version-filetree.component";
 import { DatasetFileNode } from "../../../../../../common/type/datasetVersionFileTree";
-import { FILE_COUNT, makeFlatFileNodes } from "./user-dataset-version-filetree.test-utils";
+import { createFiletreeFixture, FILE_COUNT, makeFlatFileNodes } from "./user-dataset-version-filetree.test-utils";
 
 describe("UserDatasetVersionFiletreeComponent (browser)", () => {
   let fixture: ComponentFixture<UserDatasetVersionFiletreeComponent>;
   let component: UserDatasetVersionFiletreeComponent;
 
   beforeEach(() => {
-    TestBed.configureTestingModule({
-      imports: [UserDatasetVersionFiletreeComponent],
-    });
-    fixture = TestBed.createComponent(UserDatasetVersionFiletreeComponent);
+    fixture = createFiletreeFixture();
     component = fixture.componentInstance;
   });
 

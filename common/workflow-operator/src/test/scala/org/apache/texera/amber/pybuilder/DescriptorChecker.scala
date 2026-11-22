@@ -349,96 +349,93 @@ final class DescriptorChecker(private val rawInvalidText: String, private val ma
     * This is intentionally heuristic: the goal is to create a "usable enough" object graph for codegen
     * without knowing real business semantics.
     */
-  private def bestEffortFillJsonPropertyDefaults(
+  private final case class JsonFieldSite(
+      owner: AnyRef,
+      declaringClass: Class[_],
+      field: Field,
+      jsonProp: JsonProperty,
+      typeEnv: TypeEnv,
+      resolvedType: Type,
+      currentValue: AnyRef,
+      remainingDepth: Int
+  )
+
+  private def walkJsonPropertyFields(
       rootDescriptor: AnyRef,
       recursionDepthLimit: Int
-  ): Unit = {
+  )(visitField: (JsonFieldSite, (AnyRef, Int) => Unit) => Unit): Unit = {
     val visitedIdentityHashes = mutable.Set.empty[Int]
 
-    def fillRecursively(currentObject: AnyRef, remainingDepth: Int): Unit = {
+    def visitObject(currentObject: AnyRef, remainingDepth: Int): Unit = {
       if (currentObject == null || remainingDepth < 0) return
       val objectId = System.identityHashCode(currentObject)
-      if (visitedIdentityHashes.contains(objectId)) return
-      visitedIdentityHashes += objectId
+      if (!visitedIdentityHashes.add(objectId)) return
 
       val currentTypeEnv = envFor(currentObject)
-
-      walkHierarchy(currentObject.getClass) { declaringClassInHierarchy =>
-        declaringClassInHierarchy.getDeclaredFields.foreach { declaredField =>
-          if (!shouldSkipField(declaredField)) {
-            val jsonPropertyOpt =
-              jsonPropertyForFieldOrAccessors(declaringClassInHierarchy, declaredField)
-            jsonPropertyOpt.foreach { jsonPropertyAnn =>
-              declaredField.setAccessible(true)
-
-              val currentFieldValue = Try(declaredField.get(currentObject)).toOption.orNull
-              val defaultValueText = Option(jsonPropertyAnn.defaultValue()).getOrElse("").trim
-              val isRequired = jsonPropertyAnn.required()
-
-              val resolvedFieldType = resolveType(declaredField.getGenericType, currentTypeEnv)
-              val needsInitialization =
-                (currentFieldValue == null) && (isRequired || defaultValueText.nonEmpty)
-
-              val ensuredValue: AnyRef =
-                if (needsInitialization) {
-                  val defaultValue = defaultValueForResolvedType(
-                    targetType = resolvedFieldType,
-                    defaultValueText = defaultValueText,
-                    remainingDepth = remainingDepth,
-                    typeEnvAtParent = currentTypeEnv
-                  )
-                  if (defaultValue != null) {
-                    trySet(currentObject, declaringClassInHierarchy, declaredField, defaultValue)
-                    defaultValue
-                  } else currentFieldValue
-                } else currentFieldValue
-
-              val updatedValue =
-                ensureNonEmptyIfRequired(
-                  owningInstance = currentObject,
-                  declaringClass = declaringClassInHierarchy,
-                  field = declaredField,
-                  currentFieldValue = ensuredValue,
-                  jsonPropertyAnn = jsonPropertyAnn,
-                  resolvedFieldType = resolvedFieldType,
-                  typeEnvAtField = currentTypeEnv,
-                  remainingDepth = remainingDepth
-                )
-
-              recurseIntoValue(updatedValue, remainingDepth - 1, fillRecursively)
+      walkHierarchy(currentObject.getClass) { declaringClass =>
+        declaringClass.getDeclaredFields.foreach { field =>
+          if (!shouldSkipField(field)) {
+            jsonPropertyForFieldOrAccessors(declaringClass, field).foreach { jsonProp =>
+              field.setAccessible(true)
+              val site = JsonFieldSite(
+                owner = currentObject,
+                declaringClass = declaringClass,
+                field = field,
+                jsonProp = jsonProp,
+                typeEnv = currentTypeEnv,
+                resolvedType = resolveType(field.getGenericType, currentTypeEnv),
+                currentValue = Try(field.get(currentObject)).toOption.orNull,
+                remainingDepth = remainingDepth
+              )
+              visitField(site, visitObject)
             }
           }
         }
       }
     }
 
-    fillRecursively(rootDescriptor, recursionDepthLimit)
+    visitObject(rootDescriptor, recursionDepthLimit)
   }
 
-  private def ensureNonEmptyIfRequired(
-      owningInstance: AnyRef,
-      declaringClass: Class[_],
-      field: Field,
-      currentFieldValue: AnyRef,
-      jsonPropertyAnn: JsonProperty,
-      resolvedFieldType: Type,
-      typeEnvAtField: TypeEnv,
-      remainingDepth: Int
-  ): AnyRef = {
-    if (!jsonPropertyAnn.required() || remainingDepth <= 0) return currentFieldValue
+  private def bestEffortFillJsonPropertyDefaults(
+      rootDescriptor: AnyRef,
+      recursionDepthLimit: Int
+  ): Unit = {
+    walkJsonPropertyFields(rootDescriptor, recursionDepthLimit) { (site, recurse) =>
+      val defaultValueText = Option(site.jsonProp.defaultValue()).getOrElse("").trim
+      val needsInitialization =
+        (site.currentValue == null) && (site.jsonProp.required() || defaultValueText.nonEmpty)
+
+      val ensuredValue: AnyRef =
+        if (needsInitialization) {
+          val defaultValue = defaultValueForResolvedType(
+            targetType = site.resolvedType,
+            defaultValueText = defaultValueText,
+            remainingDepth = site.remainingDepth,
+            typeEnvAtParent = site.typeEnv
+          )
+          if (defaultValue != null) {
+            trySet(site.owner, site.declaringClass, site.field, defaultValue)
+            defaultValue
+          } else site.currentValue
+        } else site.currentValue
+
+      val updatedValue = ensureNonEmptyIfRequired(site, ensuredValue)
+      recurseIntoValue(updatedValue, site.remainingDepth - 1, recurse)
+    }
+  }
+
+  private def ensureNonEmptyIfRequired(site: JsonFieldSite, currentFieldValue: AnyRef): AnyRef = {
+    if (!site.jsonProp.required() || site.remainingDepth <= 0) return currentFieldValue
 
     // If required and null, try to initialize collection containers too
     val ensuredNonNullValue: AnyRef =
       if (currentFieldValue != null) currentFieldValue
       else {
-        val rawFieldClass = typeToClass(resolvedFieldType).getOrElse(field.getType)
-        val defaultValue = defaultValueForResolvedType(
-          targetType = rawFieldClass,
-          defaultValueText = "",
-          remainingDepth = remainingDepth,
-          typeEnvAtParent = typeEnvAtField
-        )
-        if (defaultValue != null) trySet(owningInstance, declaringClass, field, defaultValue)
+        val rawFieldClass = typeToClass(site.resolvedType).getOrElse(site.field.getType)
+        val defaultValue =
+          defaultValueForResolvedType(rawFieldClass, "", site.remainingDepth, site.typeEnv)
+        if (defaultValue != null) trySet(site.owner, site.declaringClass, site.field, defaultValue)
         defaultValue
       }
 
@@ -446,38 +443,70 @@ final class DescriptorChecker(private val rawInvalidText: String, private val ma
 
     val runtimeValueClass = ensuredNonNullValue.getClass
     val elementTypeOpt =
-      elementTypeOfResolved(resolvedFieldType).map(et => resolveType(et, typeEnvAtField))
+      elementTypeOfResolved(site.resolvedType).map(et => resolveType(et, site.typeEnv))
 
-    def makeElementValue(): AnyRef = {
-      val elementType = elementTypeOpt.getOrElse(classOf[String])
+    def makeElementValue(): AnyRef =
       defaultValueForResolvedType(
-        targetType = elementType,
+        targetType = elementTypeOpt.getOrElse(classOf[String]),
         defaultValueText = "",
-        remainingDepth = remainingDepth - 1,
-        typeEnvAtParent = typeEnvAtField
+        remainingDepth = site.remainingDepth - 1,
+        typeEnvAtParent = site.typeEnv
       )
-    }
 
     if (isJavaList(runtimeValueClass)) {
       val javaList = ensuredNonNullValue.asInstanceOf[util.List[AnyRef]]
       if (javaList.isEmpty) {
-        val elementValue = makeElementValue()
-        if (elementValue != null) javaList.add(elementValue)
+        Option(makeElementValue()).foreach(javaList.add)
       }
     } else if (isScalaIterable(runtimeValueClass)) {
       val scalaIterable = ensuredNonNullValue.asInstanceOf[scala.collection.Iterable[Any]]
       if (scalaIterable.isEmpty) {
-        val elementValue = makeElementValue()
-        if (elementValue != null)
-          trySet(owningInstance, declaringClass, field, List(elementValue).asInstanceOf[AnyRef])
+        Option(makeElementValue()).foreach(e =>
+          trySet(site.owner, site.declaringClass, site.field, List(e).asInstanceOf[AnyRef])
+        )
       }
     } else if (runtimeValueClass.isArray && runtimeValueClass.getComponentType == classOf[String]) {
       val stringArray = ensuredNonNullValue.asInstanceOf[scala.Array[String]]
       if (stringArray.isEmpty)
-        trySet(owningInstance, declaringClass, field, scala.Array("x").asInstanceOf[AnyRef])
+        trySet(site.owner, site.declaringClass, site.field, scala.Array("x").asInstanceOf[AnyRef])
     }
 
-    Try(field.get(owningInstance)).toOption.orNull
+    Try(site.field.get(site.owner)).toOption.orNull
+  }
+
+  private def defaultValueForClass(
+      rawClass: Class[_],
+      trimmedDefaultValueText: String,
+      remainingDepth: Int,
+      parameterizedOpt: Option[ParameterizedType],
+      typeEnvAtParent: TypeEnv
+  ): AnyRef = {
+    if (rawClass.isEnum) {
+      chooseEnumConstant(rawClass, trimmedDefaultValueText)
+    } else if (isJavaList(rawClass)) {
+      new util.ArrayList[AnyRef]()
+    } else if (isScalaIterable(rawClass)) {
+      List.empty[Any]
+    } else if (
+      parameterizedOpt.isEmpty && rawClass.isArray && rawClass.getComponentType == classOf[String]
+    ) {
+      scala.Array.empty[String]
+    } else if (classOf[scala.Option[_]].isAssignableFrom(rawClass)) {
+      None
+    } else if (
+      !rawClass.isInterface && !Modifier.isAbstract(rawClass.getModifiers) && remainingDepth > 0
+    ) {
+      val instanceOpt = instantiateBestEffort(rawClass)
+      for {
+        pt <- parameterizedOpt
+        newInstance <- instanceOpt
+      } {
+        val newInstanceTypeEnv =
+          envForParameterizedInstance(rawClass, pt.getActualTypeArguments, typeEnvAtParent)
+        envByObj.put(newInstance, newInstanceTypeEnv)
+      }
+      instanceOpt.orNull
+    } else null
   }
 
   private def defaultValueForResolvedType(
@@ -487,19 +516,12 @@ final class DescriptorChecker(private val rawInvalidText: String, private val ma
       typeEnvAtParent: TypeEnv
   ): AnyRef = {
     val trimmedDefaultValueText = Option(defaultValueText).getOrElse("").trim
-    val resolvedTargetType = resolveType(targetType, typeEnvAtParent)
-
-    resolvedTargetType match {
+    resolveType(targetType, typeEnvAtParent) match {
       case rawClass: Class[_] =>
         if (rawClass == classOf[String]) {
           if (trimmedDefaultValueText.nonEmpty) trimmedDefaultValueText else "x"
         } else if (rawClass == java.lang.Boolean.TYPE || rawClass == classOf[java.lang.Boolean]) {
-          val booleanValue = trimmedDefaultValueText.toLowerCase match {
-            case "true"  => true
-            case "false" => false
-            case _       => false
-          }
-          java.lang.Boolean.valueOf(booleanValue)
+          java.lang.Boolean.valueOf(trimmedDefaultValueText.toLowerCase == "true")
         } else if (rawClass == java.lang.Integer.TYPE || rawClass == classOf[java.lang.Integer]) {
           java.lang.Integer.valueOf(Try(trimmedDefaultValueText.toInt).getOrElse(1))
         } else if (rawClass == java.lang.Long.TYPE || rawClass == classOf[java.lang.Long]) {
@@ -508,49 +530,28 @@ final class DescriptorChecker(private val rawInvalidText: String, private val ma
           java.lang.Double.valueOf(Try(trimmedDefaultValueText.toDouble).getOrElse(1.0d))
         } else if (rawClass == java.lang.Float.TYPE || rawClass == classOf[java.lang.Float]) {
           java.lang.Float.valueOf(Try(trimmedDefaultValueText.toFloat).getOrElse(1.0f))
-        } else if (rawClass.isEnum) {
-          chooseEnumConstant(rawClass, trimmedDefaultValueText)
-        } else if (isJavaList(rawClass)) {
-          new util.ArrayList[AnyRef]()
-        } else if (isScalaIterable(rawClass)) {
-          List.empty[Any]
-        } else if (rawClass.isArray && rawClass.getComponentType == classOf[String]) {
-          scala.Array.empty[String]
-        } else if (classOf[scala.Option[_]].isAssignableFrom(rawClass)) {
-          None
-        } else if (
-          !rawClass.isInterface && !Modifier.isAbstract(rawClass.getModifiers) && remainingDepth > 0
-        ) {
-          instantiateBestEffort(rawClass).orNull
-        } else null
+        } else {
+          defaultValueForClass(
+            rawClass,
+            trimmedDefaultValueText,
+            remainingDepth,
+            None,
+            typeEnvAtParent
+          )
+        }
 
       case parameterizedType: ParameterizedType =>
-        val rawClass = typeToClass(parameterizedType.getRawType).orNull
-        if (rawClass == null) return null
-
-        if (rawClass.isEnum) {
-          chooseEnumConstant(rawClass, trimmedDefaultValueText)
-        } else if (isJavaList(rawClass)) {
-          new util.ArrayList[AnyRef]()
-        } else if (isScalaIterable(rawClass)) {
-          List.empty[Any]
-        } else if (classOf[scala.Option[_]].isAssignableFrom(rawClass)) {
-          None
-        } else if (
-          !rawClass.isInterface && !Modifier.isAbstract(rawClass.getModifiers) && remainingDepth > 0
-        ) {
-          val instanceOpt = instantiateBestEffort(rawClass)
-          instanceOpt.foreach { newInstance =>
-            val newInstanceTypeEnv =
-              envForParameterizedInstance(
-                rawClass,
-                parameterizedType.getActualTypeArguments,
-                typeEnvAtParent
-              )
-            envByObj.put(newInstance, newInstanceTypeEnv)
-          }
-          instanceOpt.orNull
-        } else null
+        typeToClass(parameterizedType.getRawType) match {
+          case Some(rawClass) =>
+            defaultValueForClass(
+              rawClass,
+              trimmedDefaultValueText,
+              remainingDepth,
+              Some(parameterizedType),
+              typeEnvAtParent
+            )
+          case None => null
+        }
 
       case _ =>
         null
@@ -621,118 +622,56 @@ final class DescriptorChecker(private val rawInvalidText: String, private val ma
   ): RawInvalidTextResult = {
     val changedMembers = mutable.ArrayBuffer.empty[String]
     val failedMembers = mutable.ArrayBuffer.empty[String]
-    val visitedIdentityHashes = mutable.Set.empty[Int]
 
-    def rawInvalidTextRecursively(currentObject: AnyRef, remainingDepth: Int): Unit = {
-      if (currentObject == null || remainingDepth < 0) return
-      val objectId = System.identityHashCode(currentObject)
-      if (visitedIdentityHashes.contains(objectId)) return
-      visitedIdentityHashes += objectId
+    def hasStringElementType(site: JsonFieldSite): Boolean =
+      elementTypeOfResolved(site.resolvedType)
+        .map(et => resolveType(et, site.typeEnv))
+        .flatMap(typeToClass)
+        .contains(classOf[String])
 
-      val currentTypeEnv = envFor(currentObject)
+    def injectFieldValue(site: JsonFieldSite, value: AnyRef, elementSuffix: String = ""): Unit = {
+      val jsonPropertyName = effectiveJsonPropName(site.jsonProp, fallback = site.field.getName)
+      val prefix = s"${site.declaringClass.getSimpleName}.${site.field.getName}"
+      if (Try(trySet(site.owner, site.declaringClass, site.field, value)).isSuccess)
+        changedMembers += s"""$prefix$elementSuffix(@JsonProperty("$jsonPropertyName"))"""
+      else
+        failedMembers += prefix
+    }
 
-      walkHierarchy(currentObject.getClass) { declaringClassInHierarchy =>
-        declaringClassInHierarchy.getDeclaredFields.foreach { declaredField =>
-          if (!shouldSkipField(declaredField)) {
-            val jsonPropertyOpt =
-              jsonPropertyForFieldOrAccessors(declaringClassInHierarchy, declaredField)
-            jsonPropertyOpt.foreach { jsonPropertyAnn =>
-              declaredField.setAccessible(true)
-              val jsonPropertyName =
-                effectiveJsonPropName(jsonPropertyAnn, fallback = declaredField.getName)
+    walkJsonPropertyFields(rootDescriptor, recursionDepthLimit) { (site, recurse) =>
+      val rawFieldClass = typeToClass(site.resolvedType).getOrElse(site.field.getType)
 
-              val resolvedFieldType = resolveType(declaredField.getGenericType, currentTypeEnv)
-              val rawFieldClass = typeToClass(resolvedFieldType).getOrElse(declaredField.getType)
-              val currentFieldValue = Try(declaredField.get(currentObject)).toOption.orNull
-
-              if (rawFieldClass == classOf[String]) {
-                val didInjected = Try {
-                  trySet(
-                    currentObject,
-                    declaringClassInHierarchy,
-                    declaredField,
-                    rawInvalidTextMarker
-                  )
-                }.isSuccess
-                if (didInjected)
-                  changedMembers += s"""${declaringClassInHierarchy.getSimpleName}.${declaredField.getName}(@JsonProperty("$jsonPropertyName"))"""
-                else
-                  failedMembers += s"${declaringClassInHierarchy.getSimpleName}.${declaredField.getName}"
-
-              } else if (isJavaList(rawFieldClass)) {
-                val javaListValue =
-                  if (currentFieldValue != null) currentFieldValue.asInstanceOf[util.List[AnyRef]]
-                  else {
-                    val newList = new util.ArrayList[AnyRef]()
-                    Try(trySet(currentObject, declaringClassInHierarchy, declaredField, newList))
-                    newList
-                  }
-
-                val isElementTypeString = elementTypeOfResolved(resolvedFieldType)
-                  .map(et => resolveType(et, currentTypeEnv))
-                  .flatMap(typeToClass)
-                  .contains(classOf[String])
-
-                if (isElementTypeString) {
-                  Try { javaListValue.clear(); javaListValue.add(rawInvalidTextMarker) }
-                  changedMembers += s"""${declaringClassInHierarchy.getSimpleName}.${declaredField.getName}[0](@JsonProperty("$jsonPropertyName"))"""
-                } else {
-                  javaListValue.asScala.foreach(elementObj =>
-                    rawInvalidTextRecursively(elementObj, remainingDepth - 1)
-                  )
-                }
-
-              } else if (isScalaIterable(rawFieldClass)) {
-                val isElementTypeString = elementTypeOfResolved(resolvedFieldType)
-                  .map(et => resolveType(et, currentTypeEnv))
-                  .flatMap(typeToClass)
-                  .contains(classOf[String])
-
-                if (isElementTypeString) {
-                  val didSetList =
-                    Try(
-                      trySet(
-                        currentObject,
-                        declaringClassInHierarchy,
-                        declaredField,
-                        List(rawInvalidTextMarker).asInstanceOf[AnyRef]
-                      )
-                    ).isSuccess
-                  if (didSetList)
-                    changedMembers += s"""${declaringClassInHierarchy.getSimpleName}.${declaredField.getName}[0](@JsonProperty("$jsonPropertyName"))"""
-                  else
-                    failedMembers += s"${declaringClassInHierarchy.getSimpleName}.${declaredField.getName}"
-                } else {
-                  recurseIntoValue(currentFieldValue, remainingDepth - 1, rawInvalidTextRecursively)
-                }
-
-              } else if (
-                rawFieldClass.isArray && rawFieldClass.getComponentType == classOf[String]
-              ) {
-                val didInjectedArray =
-                  Try(
-                    trySet(
-                      currentObject,
-                      declaringClassInHierarchy,
-                      declaredField,
-                      scala.Array(rawInvalidTextMarker).asInstanceOf[AnyRef]
-                    )
-                  ).isSuccess
-                if (didInjectedArray)
-                  changedMembers += s"""${declaringClassInHierarchy.getSimpleName}.${declaredField.getName}[0](@JsonProperty("$jsonPropertyName"))"""
-                else
-                  failedMembers += s"${declaringClassInHierarchy.getSimpleName}.${declaredField.getName}"
-
-              } else {
-                recurseIntoValue(currentFieldValue, remainingDepth - 1, rawInvalidTextRecursively)
-              }
-            }
+      if (rawFieldClass == classOf[String]) {
+        injectFieldValue(site, rawInvalidTextMarker)
+      } else if (isJavaList(rawFieldClass)) {
+        val javaListValue =
+          if (site.currentValue != null) site.currentValue.asInstanceOf[util.List[AnyRef]]
+          else {
+            val newList = new util.ArrayList[AnyRef]()
+            Try(trySet(site.owner, site.declaringClass, site.field, newList))
+            newList
           }
+
+        if (hasStringElementType(site)) {
+          Try { javaListValue.clear(); javaListValue.add(rawInvalidTextMarker) }
+          val jsonPropertyName = effectiveJsonPropName(site.jsonProp, fallback = site.field.getName)
+          changedMembers += s"""${site.declaringClass.getSimpleName}.${site.field.getName}[0](@JsonProperty("$jsonPropertyName"))"""
+        } else {
+          javaListValue.asScala.foreach(elementObj => recurse(elementObj, site.remainingDepth - 1))
         }
+      } else if (isScalaIterable(rawFieldClass)) {
+        if (hasStringElementType(site)) {
+          injectFieldValue(site, List(rawInvalidTextMarker).asInstanceOf[AnyRef], "[0]")
+        } else {
+          recurseIntoValue(site.currentValue, site.remainingDepth - 1, recurse)
+        }
+      } else if (rawFieldClass.isArray && rawFieldClass.getComponentType == classOf[String]) {
+        injectFieldValue(site, scala.Array(rawInvalidTextMarker).asInstanceOf[AnyRef], "[0]")
+      } else {
+        recurseIntoValue(site.currentValue, site.remainingDepth - 1, recurse)
       }
     }
 
-    rawInvalidTextRecursively(rootDescriptor, recursionDepthLimit)
     RawInvalidTextResult(changedMembers.distinct.toSeq, failedMembers.distinct.toSeq)
   }
 
@@ -865,27 +804,20 @@ final class DescriptorChecker(private val rawInvalidText: String, private val ma
   ): Unit = {
     if (value == null || remainingDepth < 0) return
 
-    value match {
-      case javaList: util.List[_] =>
-        javaList.asScala.foreach {
+    val elements: Option[Iterator[_]] = value match {
+      case javaList: util.List[_]                      => Some(javaList.asScala.iterator)
+      case scalaIterable: scala.collection.Iterable[_] => Some(scalaIterable.iterator)
+      case arrayValue: scala.Array[_]                  => Some(arrayValue.iterator)
+      case _                                           => None
+    }
+    elements match {
+      case Some(it) =>
+        it.foreach {
           case elementRef: AnyRef => visitFn(elementRef, remainingDepth)
           case _                  => ()
         }
-
-      case scalaIterable: scala.collection.Iterable[_] =>
-        scalaIterable.foreach {
-          case elementRef: AnyRef => visitFn(elementRef, remainingDepth)
-          case _                  => ()
-        }
-
-      case arrayValue: scala.Array[_] =>
-        arrayValue.foreach {
-          case elementRef: AnyRef => visitFn(elementRef, remainingDepth)
-          case _                  => ()
-        }
-
-      case otherValue =>
-        val runtimeClass = otherValue.getClass
+      case None =>
+        val runtimeClass = value.getClass
         val isLeafValue =
           runtimeClass.isPrimitive ||
             runtimeClass == classOf[String] ||
@@ -896,7 +828,7 @@ final class DescriptorChecker(private val rawInvalidText: String, private val ma
             runtimeClass.getName.startsWith("javax.") ||
             runtimeClass.getName.startsWith("scala.")
 
-        if (!isLeafValue) visitFn(otherValue, remainingDepth)
+        if (!isLeafValue) visitFn(value, remainingDepth)
     }
   }
 }

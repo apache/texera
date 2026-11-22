@@ -45,6 +45,7 @@ import org.apache.texera.common.config.{
 import org.apache.texera.dao.SqlServer
 import org.apache.texera.dao.SqlServer.withTransaction
 import org.apache.texera.dao.jooq.generated.Tables.{
+  COMPUTING_UNIT_USER_ACCESS,
   USER,
   WORKFLOW_COMPUTING_UNIT,
   WORKFLOW_EXECUTIONS
@@ -55,11 +56,7 @@ import org.apache.texera.dao.jooq.generated.enums.{
   WorkflowComputingUnitTerminationReasonEnum,
   WorkflowComputingUnitTypeEnum
 }
-import org.apache.texera.dao.jooq.generated.tables.daos.{
-  ComputingUnitUserAccessDao,
-  UserDao,
-  WorkflowComputingUnitDao
-}
+import org.apache.texera.dao.jooq.generated.tables.daos.{UserDao, WorkflowComputingUnitDao}
 import org.apache.texera.dao.jooq.generated.tables.pojos.{User, WorkflowComputingUnit}
 import org.apache.texera.service.resource.ComputingUnitManagingResource._
 import org.apache.texera.service.util.{
@@ -636,7 +633,7 @@ class ComputingUnitManagingResource(
 
     // Resolved before anything is written. Starting from an image that is not ready would
     // leave a computing-unit row behind that can never run.
-    val curatedImage: Option[String] = param.iid.map { iid =>
+    val readyImage: Option[CuratedImageResource.ReadyImage] = param.iid.map { iid =>
       CuratedImageResource
         .readyImageFor(iid)
         .getOrElse(
@@ -645,6 +642,7 @@ class ComputingUnitManagingResource(
           )
         )
     }
+    val curatedImage: Option[String] = readyImage.map(_.ref)
 
     withTransaction(context) { ctx =>
       val wcDao = new WorkflowComputingUnitDao(ctx.configuration())
@@ -674,7 +672,7 @@ class ComputingUnitManagingResource(
               // while a unit started from it is still up, and "what is this running?"
               // should still have an answer then.
               "iid" -> param.iid,
-              "imageName" -> param.iid.flatMap(CuratedImageResource.nameOf),
+              "imageName" -> readyImage.flatMap(_.name),
               "curatedImage" -> curatedImage,
               "nodeAddresses" -> Json.arr() // filled in later
             )
@@ -701,7 +699,7 @@ class ComputingUnitManagingResource(
       computingUnit.setUid(user.getUid)
       computingUnit.setName(param.name)
       computingUnit.setCreationTime(new Timestamp(System.currentTimeMillis()))
-      computingUnit.setType(WorkflowComputingUnitTypeEnum.lookupLiteral(param.unitType))
+      computingUnit.setType(cuType)
       computingUnit.setResource(resourceJson)
 
       // Set URI during initial insert for local only
@@ -711,7 +709,10 @@ class ComputingUnitManagingResource(
         computingUnit.setUri("") // placeholder for kubernetes
       }
 
+      // Dao.insert writes the generated cuid back into computingUnit, so the same object
+      // is both the row and the response.
       wcDao.insert(computingUnit)
+      val cuid: Int = computingUnit.getCuid
 
       val userDao = new UserDao(ctx.configuration())
       val ownerUser = Option(userDao.fetchOneByUid(user.getUid))
@@ -720,22 +721,18 @@ class ComputingUnitManagingResource(
       val ownerUsername: String =
         ownerUser.flatMap(u => Option(u.getName).filter(_.nonEmpty)).orNull
 
-      // Retrieve generated cuid
-      val cuid = ctx.lastID().intValue()
-      val insertedUnit = wcDao.fetchOneByCuid(cuid)
-
-      if (cuType == WorkflowComputingUnitTypeEnum.kubernetes && insertedUnit != null) {
+      if (cuType == WorkflowComputingUnitTypeEnum.kubernetes) {
         // 1. Update the DB with the URI
-        insertedUnit.setUri(KubernetesClient.generatePodURI(cuid))
+        computingUnit.setUri(KubernetesClient.generatePodURI(cuid))
 
         val updatedResource: JsObject =
           Json
-            .parse(insertedUnit.getResource)
+            .parse(computingUnit.getResource)
             .as[JsObject] ++
-            Json.obj("nodeAddresses" -> Json.arr(insertedUnit.getUri))
+            Json.obj("nodeAddresses" -> Json.arr(computingUnit.getUri))
 
-        insertedUnit.setResource(Json.stringify(updatedResource))
-        wcDao.update(insertedUnit)
+        computingUnit.setResource(Json.stringify(updatedResource))
+        wcDao.update(computingUnit)
 
         // 2. Launch the pod as CU
         try {
@@ -755,20 +752,17 @@ class ComputingUnitManagingResource(
         } catch {
           case e: KubernetesClientException =>
             throw ComputingUnitManagingServiceException.fromKubernetes(e)
-
-          case t: Throwable =>
-            throw t
         }
       }
 
       // The creator is always the owner, so the status reason is never withheld here.
       val (status, statusReason) =
-        ComputingUnitHelpers.getComputingUnitStatusWithReason(insertedUnit)
+        ComputingUnitHelpers.getComputingUnitStatusWithReason(computingUnit)
       DashboardWorkflowComputingUnit(
-        insertedUnit,
+        computingUnit,
         status.toString,
         statusReason,
-        ComputingUnitHelpers.getComputingUnitMetrics(insertedUnit),
+        ComputingUnitHelpers.getComputingUnitMetrics(computingUnit),
         isOwner = true,
         accessPrivilege = PrivilegeEnum.WRITE,
         ownerAvatar,
@@ -794,29 +788,38 @@ class ComputingUnitManagingResource(
       val computingUnitDao = new WorkflowComputingUnitDao(ctx.configuration())
       val uid = user.getUid
 
-      // Always fetch units owned by the user
-      val ownedUnits = computingUnitDao.fetchByUid(uid).asScala.toList
+      // Always fetch active units owned by the user
+      val ownedUnits = ctx
+        .selectFrom(WORKFLOW_COMPUTING_UNIT)
+        .where(WORKFLOW_COMPUTING_UNIT.UID.eq(uid))
+        .and(WORKFLOW_COMPUTING_UNIT.TERMINATE_TIME.isNull)
+        .fetchInto(classOf[WorkflowComputingUnit])
+        .asScala
+        .toList
 
-      // Conditionally fetch shared units based on the config flag
-      val (sharedUnits, sharedUnitInfo) =
+      // Conditionally fetch active shared units based on the config flag
+      val sharedUnitsWithPrivilege: List[(WorkflowComputingUnit, PrivilegeEnum)] =
         if (ComputingUnitConfig.sharingComputingUnitEnabled) {
-          val computingUnitUserAccessDao = new ComputingUnitUserAccessDao(ctx.configuration())
-          val info = computingUnitUserAccessDao
-            .fetchByUid(uid)
+          ctx
+            .select(
+              WORKFLOW_COMPUTING_UNIT.asterisk(),
+              COMPUTING_UNIT_USER_ACCESS.PRIVILEGE
+            )
+            .from(COMPUTING_UNIT_USER_ACCESS)
+            .join(WORKFLOW_COMPUTING_UNIT)
+            .on(WORKFLOW_COMPUTING_UNIT.CUID.eq(COMPUTING_UNIT_USER_ACCESS.CUID))
+            .where(COMPUTING_UNIT_USER_ACCESS.UID.eq(uid))
+            .and(WORKFLOW_COMPUTING_UNIT.TERMINATE_TIME.isNull)
+            .fetch()
             .asScala
-            .map(access => access.getCuid -> access.getPrivilege)
-            .toMap
-          val sharedCuids = info.keys.toList.map(Integer.valueOf(_))
-
-          val units = if (sharedCuids.isEmpty) {
-            List()
-          } else {
-            computingUnitDao.fetchByCuid(sharedCuids: _*).asScala.toList
-          }
-          (units, info)
+            .map { r =>
+              val unit = r.into(WORKFLOW_COMPUTING_UNIT).into(classOf[WorkflowComputingUnit])
+              (unit, r.get(COMPUTING_UNIT_USER_ACCESS.PRIVILEGE))
+            }
+            .toList
         } else {
-          // If sharing is disabled, return empty collections
-          (List.empty[WorkflowComputingUnit], Map.empty[Integer, PrivilegeEnum])
+          // If sharing is disabled, return empty collection
+          List.empty[(WorkflowComputingUnit, PrivilegeEnum)]
         }
 
       val userDao = new UserDao(ctx.configuration())
@@ -824,10 +827,8 @@ class ComputingUnitManagingResource(
       // Pair each unit with the caller's privilege (owned default to WRITE), one row per cuid, so
       // a unit that is both owned and shared is reconciled/rendered exactly once.
       val unitsWithPrivilege =
-        (ownedUnits.map(u => (u, PrivilegeEnum.WRITE)) ++
-          sharedUnits.map(u => (u, sharedUnitInfo(u.getCuid))))
+        (ownedUnits.map(u => (u, PrivilegeEnum.WRITE)) ++ sharedUnitsWithPrivilege)
           .distinctBy { case (unit, _) => unit.getCuid }
-          .filter { case (unit, _) => unit.getTerminateTime == null }
       val privilegeByCuid = unitsWithPrivilege.map {
         case (unit, privilege) => unit.getCuid -> privilege
       }.toMap
@@ -918,50 +919,60 @@ class ComputingUnitManagingResource(
       @PathParam("cuid") cuid: Integer,
       @Auth user: SessionUser
   ): Response = {
-    // ADMINs may terminate any unit; everyone else must own it.
-    if (!user.isRoleOf(UserRoleEnum.ADMIN) && !userOwnComputingUnit(context, cuid, user.getUid)) {
-      return Response
-        .status(Response.Status.BAD_REQUEST)
-        .entity(s"User has no access to the computing unit")
-        .build()
-    }
-
-    // If successful, update the database
-    val unitToNotifyOwnerOf = withTransaction(context) { ctx =>
-      val cuDao = new WorkflowComputingUnitDao(ctx.configuration())
+    val outcome: Either[Response, Option[WorkflowComputingUnit]] = withTransaction(context) { ctx =>
       val unit = getComputingUnitByCuid(ctx, cuid)
-      // Only an ADMIN gets here as a non-owner. Read before the stamp, so a repeat tells no one.
-      val notifyOwner = unit.getTerminateTime == null && unit.getUid != user.getUid
+      // ADMINs may terminate any unit; everyone else must own it.
+      if (!user.isRoleOf(UserRoleEnum.ADMIN) && unit.getUid != user.getUid) {
+        Left(
+          Response
+            .status(Response.Status.BAD_REQUEST)
+            .entity(s"User has no access to the computing unit")
+            .build()
+        )
+      } else {
+        // Only an ADMIN gets here as a non-owner. Read before the stamp, so a repeat tells no one.
+        val notifyOwner = unit.getTerminateTime == null && unit.getUid != user.getUid
 
-      // if the computing unit is kubernetes pod, then kill the pod
-      if (unit.getType == WorkflowComputingUnitTypeEnum.kubernetes) {
-        KubernetesClient.deletePod(cuid)
-      }
+        // if the computing unit is kubernetes pod, then kill the pod
+        if (unit.getType == WorkflowComputingUnitTypeEnum.kubernetes) {
+          KubernetesClient.deletePod(cuid)
+        }
 
-      val terminationReason = WorkflowComputingUnitTerminationReasonEnum.USER_REQUESTED
-      unit.setTerminateTime(new Timestamp(System.currentTimeMillis()))
-      unit.setTerminationReason(terminationReason)
-      cuDao.update(unit)
-      // owner_* describes the unit, terminated_by_* the caller: an ADMIN may terminate a unit
-      // they do not own, so a single `uid`/`username` pair would mix the two identities.
-      logger.info(
-        s"Terminated computing unit: cuid=${unit.getCuid}, name=${unit.getName}, " +
-          s"owner_uid=${unit.getUid}, terminated_by_uid=${user.getUid}, " +
-          s"terminated_by=${user.getName}, reason=${terminationReason.getLiteral}"
-      )
-      Option.when(notifyOwner)(unit)
-    }
-    // After the commit, so an owner never hears of a termination that rolled back.
-    unitToNotifyOwnerOf.foreach { unit =>
-      try {
-        Option(new UserDao(context.configuration()).fetchOneByUid(unit.getUid))
-          .foreach(notifyOwnerOfAdminTermination(unit, _))
-      } catch {
-        case NonFatal(e) =>
-          logger.warn(s"Failed to notify the owner of terminated computing unit cuid=$cuid", e)
+        val terminationReason = WorkflowComputingUnitTerminationReasonEnum.USER_REQUESTED
+        val terminateTime = new Timestamp(System.currentTimeMillis())
+        ctx
+          .update(WORKFLOW_COMPUTING_UNIT)
+          .set(WORKFLOW_COMPUTING_UNIT.TERMINATE_TIME, terminateTime)
+          .set(WORKFLOW_COMPUTING_UNIT.TERMINATION_REASON, terminationReason)
+          .where(WORKFLOW_COMPUTING_UNIT.CUID.eq(cuid))
+          .execute()
+        unit.setTerminateTime(terminateTime)
+        unit.setTerminationReason(terminationReason)
+        // owner_* describes the unit, terminated_by_* the caller: an ADMIN may terminate a unit
+        // they do not own, so a single `uid`/`username` pair would mix the two identities.
+        logger.info(
+          s"Terminated computing unit: cuid=${unit.getCuid}, name=${unit.getName}, " +
+            s"owner_uid=${unit.getUid}, terminated_by_uid=${user.getUid}, " +
+            s"terminated_by=${user.getName}, reason=${terminationReason.getLiteral}"
+        )
+        Right(Option.when(notifyOwner)(unit))
       }
     }
-    Response.ok().build()
+    outcome match {
+      case Left(errorResponse)        => errorResponse
+      case Right(unitToNotifyOwnerOf) =>
+        // After the commit, so an owner never hears of a termination that rolled back.
+        unitToNotifyOwnerOf.foreach { unit =>
+          try {
+            Option(new UserDao(context.configuration()).fetchOneByUid(unit.getUid))
+              .foreach(notifyOwnerOfAdminTermination(unit, _))
+          } catch {
+            case NonFatal(e) =>
+              logger.warn(s"Failed to notify the owner of terminated computing unit cuid=$cuid", e)
+          }
+        }
+        Response.ok().build()
+    }
   }
 
   /**

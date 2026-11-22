@@ -218,13 +218,18 @@ export class WorkflowVersionService {
 
   public getOperatorsDifference(operator1: OperatorPredicate, operator2: OperatorPredicate) {
     const difference: Map<String, String> = new Map();
-    for (const property of Object.keys(operator1.operatorProperties)) {
-      if (operator1.operatorProperties[property] != operator2.operatorProperties[property]) {
-        difference.set(property, "outline: 3px solid rgb(255, 118, 20); transition: 0.3s ease-in-out outline;");
+    const highlight = "outline: 3px solid rgb(255, 118, 20); transition: 0.3s ease-in-out outline;";
+    const properties = new Set([
+      ...Object.keys(operator1.operatorProperties),
+      ...Object.keys(operator2.operatorProperties),
+    ]);
+    for (const property of properties) {
+      if (!isEqual(operator1.operatorProperties[property], operator2.operatorProperties[property])) {
+        difference.set(property, highlight);
       }
     }
     if (operator1.operatorVersion != operator2.operatorVersion) {
-      difference.set("operatorVersion", "outline: 3px solid rgb(255, 118, 20); transition: 0.3s ease-in-out outline;");
+      difference.set("operatorVersion", highlight);
     }
     return difference;
   }
