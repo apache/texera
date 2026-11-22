@@ -42,6 +42,8 @@ object PythonUdfUiParameterInjector {
   // Keep supported user-facing UDF class names in sync with the frontend parser.
   private val SupportedPythonUdfClassHeaderRegex: Regex =
     """(?m)^([ \t]*)class\s+(ProcessTupleOperator|ProcessBatchOperator|ProcessTableOperator|GenerateOperator)\s*\([^)]*\)\s*:\s*(?:#.*)?$""".r
+  private val ReservedHookRegex: Regex =
+    ("""(?m)^[ \t]+def\s+""" + Regex.quote(InjectedUiParametersHookMethodName) + """\s*\(""").r
 
   private def buildInjectedParameterEntry(parameter: UiUDFParameter): PythonTemplateBuilder = {
     val encodedValue: EncodableString = parameter.value
@@ -51,7 +53,7 @@ object PythonUdfUiParameterInjector {
   private def buildInjectedParametersMap(
       uiParameters: List[UiUDFParameter]
   ): PythonTemplateBuilder = {
-    val entries = uiParameters.map(buildInjectedParameterEntry)
+    val entries = uiParameters.iterator.map(buildInjectedParameterEntry)
     entries.reduceOption((acc, entry) => acc + pyb", " + entry).getOrElse(pyb"")
   }
 
@@ -107,11 +109,8 @@ object PythonUdfUiParameterInjector {
     code.length
   }
 
-  private def containsReservedHook(classBlock: String): Boolean = {
-    val hookRegex =
-      ("""(?m)^[ \t]+def\s+""" + Regex.quote(InjectedUiParametersHookMethodName) + """\s*\(""").r
-    hookRegex.findFirstIn(classBlock).isDefined
-  }
+  private def containsReservedHook(classBlock: String): Boolean =
+    ReservedHookRegex.findFirstIn(classBlock).isDefined
 
   private def injectHookIntoUserClass(userCode: String, hookMethod: String): String = {
     val classHeaderMatch =
@@ -146,13 +145,17 @@ object PythonUdfUiParameterInjector {
   }
 
   private def inferClassBodyIndent(classBlock: String, classIndent: String): Option[String] = {
-    val lines = classBlock.split("\n", -1).toList.drop(1)
-
-    lines.collectFirst {
-      case line if line.trim.nonEmpty =>
+    var lineStart = lineEndIndex(classBlock, 0) + 1
+    while (lineStart < classBlock.length) {
+      val lineEnd = lineEndIndex(classBlock, lineStart)
+      val line = classBlock.substring(lineStart, lineEnd)
+      if (line.trim.nonEmpty) {
         val leading = line.takeWhile(ch => ch == ' ' || ch == '\t')
-        if (leading.length > classIndent.length) leading else classIndent + "    "
+        return Some(if (leading.length > classIndent.length) leading else classIndent + "    ")
+      }
+      lineStart = lineEnd + 1
     }
+    None
   }
 
   /**

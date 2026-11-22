@@ -26,13 +26,8 @@ import org.scalatest.matchers.should.Matchers
   * Covers the one piece of behavior the TaskCodegen trait implements itself:
   * the default `tasks` set.
   *
-  * Reachability, stated plainly: no production path executes this default today.
-  * The only four `.tasks` call sites in main are HuggingFaceInferenceOpDesc's
-  * dispatcher registrations (lines 175-178), and all four are on codegens that
-  * declare `override val tasks`; TextGenCodegen, the sole single-task codegen, is
-  * registered by its `task` string and never asks for `tasks`. This suite
-  * therefore documents an extension point for future single-task codegens rather
-  * than guarding a shipped path.
+  * HuggingFaceInferenceOpDesc uses this default when registering a codegen
+  * that handles one task.
   */
 class TaskCodegenSpec extends AnyFlatSpec with Matchers {
 

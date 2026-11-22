@@ -399,3 +399,30 @@
     </button>
   </div>
 </nz-card>
+
+<nz-card nzTitle="Registration">
+  <div class="settings-row">
+    <span>Invite Only:</span>
+    <nz-switch [(ngModel)]="inviteOnly"></nz-switch>
+  </div>
+  <div class="help-text-number">
+    When on, a new account stays inactive until an admin approves it on the Users page. When off, anyone who signs up
+    gets a regular account right away, and regular accounts can run their own code in workflows. Accounts already
+    waiting for approval stay inactive until you approve them.
+  </div>
+
+  <div class="button-row">
+    <button
+      nz-button
+      nzType="primary"
+      (click)="saveRegistrationSettings()">
+      Save
+    </button>
+    <button
+      nz-button
+      nzType="default"
+      (click)="resetRegistrationSettings()">
+      Reset
+    </button>
+  </div>
+</nz-card>

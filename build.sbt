@@ -236,8 +236,14 @@ lazy val FileService = (project in file("file-service"))
     Test / fork := true,
     Test / forkOptions := (Test / forkOptions).value
       .withWorkingDirectory((ThisBuild / baseDirectory).value),
-    Test / testGrouping := (Test / definedTests).value.map { suite =>
-      Tests.Group(suite.name, Seq(suite), Tests.SubProcess((Test / forkOptions).value))
+    Test / testGrouping := {
+      // Read once, outside the loop: sbt lifts a `.value` written inside a lambda to
+      // the top of the task anyway, so leaving it there reads as one lookup per suite
+      // when it is not, and sbt warns about exactly that.
+      val forked = (Test / forkOptions).value
+      (Test / definedTests).value.map { suite =>
+        Tests.Group(suite.name, Seq(suite), Tests.SubProcess(forked))
+      }
     }
   )
 
@@ -302,6 +308,26 @@ lazy val NotebookMigrationService = (project in file("notebook-migration-service
   )
   .dependsOn(DAO % "test->test") // test scope dependency
 
+lazy val ResultService = (project in file("result-service"))
+  .dependsOn(WorkflowCore, Auth, Config, Resource, Observability)
+  .settings(commonModuleSettings)
+  .configs(Test)
+  .dependsOn(DAO % "test->test") // reuse MockTexeraDB embedded Postgres in tests
+  .dependsOn(WorkflowCore % "test->test") // reuse LocalHadoopIcebergCatalog in tests
+  .settings(
+    dependencyOverrides ++= Seq(
+      // override it as io.dropwizard 4 require 2.16.1 or higher
+      "com.fasterxml.jackson.module" %% "jackson-module-scala" % jacksonVersion,
+      "com.fasterxml.jackson.core" % "jackson-databind" % jacksonVersion,
+      "org.glassfish.jersey.core" % "jersey-common" % "3.0.12"
+    ) ++ nettyDependencyOverrides
+  )
+
+// Regenerates docs/reference/operators/ from the operator descriptors.
+lazy val OperatorReferenceGenerator = (project in file("docs/operator-reference"))
+  .settings(coverageReportSettings)
+  .dependsOn(WorkflowOperator)
+
 // root project definition
 lazy val TexeraProject = (project in file("."))
   .aggregate(
@@ -323,7 +349,9 @@ lazy val TexeraProject = (project in file("."))
     FileService,
     WorkflowCompilingService,
     WorkflowExecutionService,
-    NotebookMigrationService
+    NotebookMigrationService,
+    ResultService,
+    OperatorReferenceGenerator
   )
   .settings(
     name := "texera",

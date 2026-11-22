@@ -19,354 +19,216 @@
 
 package org.apache.texera.amber.operator.aggregate
 
-import org.apache.texera.amber.core.tuple.{Attribute, AttributeType, Schema, Tuple}
-import org.apache.texera.amber.util.JSONUtils.objectMapper
+import org.apache.texera.amber.core.tuple.AttributeType
 import org.scalatest.funsuite.AnyFunSuite
 
 import java.sql.Timestamp
 
 class AggregateOpSpec extends AnyFunSuite {
-
-  /** Helpers */
-
-  private def makeAggregationOp(
-      fn: AggregationFunction,
-      attributeName: String,
-      resultName: String
-  ): AggregationOperation = {
-    val operation = new AggregationOperation()
-    operation.aggFunction = fn
-    operation.attribute = attributeName
-    operation.resultAttribute = resultName
-    operation
-  }
-
-  private def makeSchema(fields: (String, AttributeType)*): Schema =
-    Schema(fields.map { case (n, t) => new Attribute(n, t) }.toList)
-
-  private def makeTuple(schema: Schema, values: Any*): Tuple =
-    Tuple(schema, values.toArray)
+  import AggregationTestSupport._
 
   test("getAggregationAttribute keeps original type for SUM") {
-    val operation = makeAggregationOp(AggregationFunction.SUM, "amount", "total_amount")
-    val attr = operation.getAggregationAttribute(AttributeType.DOUBLE)
-
-    assert(attr.getName == "total_amount")
-    assert(attr.getType == AttributeType.DOUBLE)
+    assertAggregationAttribute(
+      AggregationFunction.SUM,
+      "amount",
+      "total_amount",
+      AttributeType.DOUBLE,
+      AttributeType.DOUBLE
+    )
   }
 
   test("getAggregationAttribute maps COUNT result to INTEGER regardless of input type") {
-    val operation = makeAggregationOp(AggregationFunction.COUNT, "quantity", "row_count")
-    val attr = operation.getAggregationAttribute(AttributeType.LONG)
-
-    assert(attr.getName == "row_count")
-    assert(attr.getType == AttributeType.INTEGER)
+    assertAggregationAttribute(
+      AggregationFunction.COUNT,
+      "quantity",
+      "row_count",
+      AttributeType.LONG,
+      AttributeType.INTEGER
+    )
   }
 
   test("getAggregationAttribute maps COUNT result to INTEGER even with a null input type") {
     // COUNT(*) (empty attribute) has no input column, so schema propagation passes a
     // null attrType; it must still resolve to INTEGER without dereferencing it.
-    val operation = makeAggregationOp(AggregationFunction.COUNT, "", "row_count")
-    val attr = operation.getAggregationAttribute(null)
-
-    assert(attr.getName == "row_count")
-    assert(attr.getType == AttributeType.INTEGER)
+    assertAggregationAttribute(
+      AggregationFunction.COUNT,
+      "",
+      "row_count",
+      null,
+      AttributeType.INTEGER
+    )
   }
 
   test("getAggregationAttribute maps CONCAT result type to STRING") {
-    val operation = makeAggregationOp(AggregationFunction.CONCAT, "tag", "all_tags")
-    val attr = operation.getAggregationAttribute(AttributeType.INTEGER)
-
-    assert(attr.getName == "all_tags")
-    assert(attr.getType == AttributeType.STRING)
+    assertAggregationAttribute(
+      AggregationFunction.CONCAT,
+      "tag",
+      "all_tags",
+      AttributeType.INTEGER,
+      AttributeType.STRING
+    )
   }
 
   test("getAggregationAttribute maps AVERAGE result type to DOUBLE regardless of input") {
-    val operation = makeAggregationOp(AggregationFunction.AVERAGE, "price", "avg_price")
-    val attr = operation.getAggregationAttribute(AttributeType.LONG)
-
-    assert(attr.getName == "avg_price")
-    assert(attr.getType == AttributeType.DOUBLE)
+    assertAggregationAttribute(
+      AggregationFunction.AVERAGE,
+      "price",
+      "avg_price",
+      AttributeType.LONG,
+      AttributeType.DOUBLE
+    )
   }
 
   test("getAggregationAttribute keeps original type for MIN") {
-    val operation = makeAggregationOp(AggregationFunction.MIN, "ts", "min_ts")
-    val attr = operation.getAggregationAttribute(AttributeType.TIMESTAMP)
-
-    assert(attr.getName == "min_ts")
-    assert(attr.getType == AttributeType.TIMESTAMP)
+    assertAggregationAttribute(
+      AggregationFunction.MIN,
+      "ts",
+      "min_ts",
+      AttributeType.TIMESTAMP,
+      AttributeType.TIMESTAMP
+    )
   }
 
   test("getAggregationAttribute keeps original type for MAX") {
-    val operation = makeAggregationOp(AggregationFunction.MAX, "score", "max_score")
-    val attr = operation.getAggregationAttribute(AttributeType.DOUBLE)
-
-    assert(attr.getName == "max_score")
-    assert(attr.getType == AttributeType.DOUBLE)
+    assertAggregationAttribute(
+      AggregationFunction.MAX,
+      "score",
+      "max_score",
+      AttributeType.DOUBLE,
+      AttributeType.DOUBLE
+    )
   }
 
   test("getAggregationAttribute throws RuntimeException when aggFunction is null") {
-    val operation = new AggregationOperation()
-    operation.attribute = "src"
-    operation.resultAttribute = "out"
-    // aggFunction left null on purpose
-
+    val operation = makeAggregationOp(null, "src", "out")
     assertThrows[RuntimeException] {
       operation.getAggregationAttribute(AttributeType.INTEGER)
     }
   }
 
-  // ---------------------------------------------------------------------------
-  // Basic DistributedAggregation behaviour via AggregationOperation.getAggFunc
-  // ---------------------------------------------------------------------------
-
   test("SUM aggregation over INTEGER column adds values correctly") {
-    val schema = makeSchema("amount" -> AttributeType.INTEGER)
-    val tuple1 = makeTuple(schema, 5)
-    val tuple2 = makeTuple(schema, 7)
-    val tuple3 = makeTuple(schema, 3)
-
-    val operation = makeAggregationOp(AggregationFunction.SUM, "amount", "total_amount")
-    val agg = operation.getAggFunc(AttributeType.INTEGER)
-
-    var partial = agg.init()
-    partial = agg.iterate(partial, tuple1)
-    partial = agg.iterate(partial, tuple2)
-    partial = agg.iterate(partial, tuple3)
-
-    val result = agg.finalAgg(partial).asInstanceOf[Number].intValue()
-    assert(result == 15)
+    val result =
+      runSingleAttrAgg(AggregationFunction.SUM, "amount", AttributeType.INTEGER, Seq(5, 7, 3))
+    assert(result.asInstanceOf[Number].intValue() == 15)
   }
 
   test("SUM aggregation over DOUBLE column keeps fractional part") {
-    val schema = makeSchema("score" -> AttributeType.DOUBLE)
-    val tuple1 = makeTuple(schema, 1.25)
-    val tuple2 = makeTuple(schema, 2.75)
-
-    val operation = makeAggregationOp(AggregationFunction.SUM, "score", "total_score")
-    val agg = operation.getAggFunc(AttributeType.DOUBLE)
-
-    var partial = agg.init()
-    partial = agg.iterate(partial, tuple1)
-    partial = agg.iterate(partial, tuple2)
-
-    val result = agg.finalAgg(partial).asInstanceOf[java.lang.Double].doubleValue()
-    assert(math.abs(result - 4.0) < 1e-6)
+    val result =
+      runSingleAttrAgg(AggregationFunction.SUM, "score", AttributeType.DOUBLE, Seq(1.25, 2.75))
+    assert(math.abs(result.asInstanceOf[java.lang.Double].doubleValue() - 4.0) < 1e-6)
   }
 
   test("COUNT with an empty attribute (COUNT(*)) counts all rows regardless of nulls") {
-    // An empty attribute means COUNT(*); the GUI sends "" when no column is selected.
-    val schema = makeSchema("points" -> AttributeType.INTEGER)
-    val tuple1 = makeTuple(schema, 10)
-    val tuple2 = makeTuple(schema, null)
-    val tuple3 = makeTuple(schema, 20)
-
-    val operation = makeAggregationOp(AggregationFunction.COUNT, "", "row_count")
-    val agg = operation.getAggFunc(AttributeType.INTEGER)
-
-    var partial = agg.init()
-    partial = agg.iterate(partial, tuple1)
-    partial = agg.iterate(partial, tuple2)
-    partial = agg.iterate(partial, tuple3)
-
-    val result = agg.finalAgg(partial).asInstanceOf[Number].intValue()
-    assert(result == 3)
+    val result =
+      runSingleAttrAgg(AggregationFunction.COUNT, "", AttributeType.INTEGER, Seq(10, null, 20))
+    assert(result.asInstanceOf[Number].intValue() == 3)
   }
 
   test("COUNT with a null attribute also counts all rows") {
-    // A null attribute is treated the same as empty (COUNT(*)).
-    val schema = makeSchema("points" -> AttributeType.INTEGER)
-    val tuple1 = makeTuple(schema, 10)
-    val tuple2 = makeTuple(schema, null)
-    val tuple3 = makeTuple(schema, 20)
-
-    val operation = makeAggregationOp(AggregationFunction.COUNT, null, "row_count")
-    val agg = operation.getAggFunc(AttributeType.INTEGER)
-
-    var partial = agg.init()
-    partial = agg.iterate(partial, tuple1)
-    partial = agg.iterate(partial, tuple2)
-    partial = agg.iterate(partial, tuple3)
-
-    val result = agg.finalAgg(partial).asInstanceOf[Number].intValue()
-    assert(result == 3)
+    val result =
+      runSingleAttrAgg(AggregationFunction.COUNT, null, AttributeType.INTEGER, Seq(10, null, 20))
+    assert(result.asInstanceOf[Number].intValue() == 3)
   }
 
   test("COUNT aggregation with attribute set only counts non-null values") {
-    val schema = makeSchema("points" -> AttributeType.INTEGER)
-    val tuple1 = makeTuple(schema, 10)
-    val tuple2 = makeTuple(schema, null)
-    val tuple3 = makeTuple(schema, 5)
-
-    val operation = makeAggregationOp(AggregationFunction.COUNT, "points", "non_null_points")
-    val agg = operation.getAggFunc(AttributeType.INTEGER)
-
-    var partial = agg.init()
-    partial = agg.iterate(partial, tuple1)
-    partial = agg.iterate(partial, tuple2)
-    partial = agg.iterate(partial, tuple3)
-
-    val result = agg.finalAgg(partial).asInstanceOf[Number].intValue()
-    assert(result == 2)
+    val result =
+      runSingleAttrAgg(AggregationFunction.COUNT, "points", AttributeType.INTEGER, Seq(10, null, 5))
+    assert(result.asInstanceOf[Number].intValue() == 2)
   }
 
   test("CONCAT aggregation concatenates string representations with commas") {
-    val schema = makeSchema("tag" -> AttributeType.STRING)
-    val tuple1 = makeTuple(schema, "red")
-    val tuple2 = makeTuple(schema, null)
-    val tuple3 = makeTuple(schema, "blue")
-
-    val operation = makeAggregationOp(AggregationFunction.CONCAT, "tag", "all_tags")
-    val agg = operation.getAggFunc(AttributeType.STRING)
-
-    var partial = agg.init()
-    partial = agg.iterate(partial, tuple1)
-    partial = agg.iterate(partial, tuple2)
-    partial = agg.iterate(partial, tuple3)
-
-    val result = agg.finalAgg(partial).asInstanceOf[String]
-    assert(result == "red,,blue")
+    val result = runSingleAttrAgg(
+      AggregationFunction.CONCAT,
+      "tag",
+      AttributeType.STRING,
+      Seq("red", null, "blue")
+    )
+    assert(result.asInstanceOf[String] == "red,,blue")
   }
 
   test("MIN aggregation finds smallest INTEGER and returns null when given no values") {
-    val schema = makeSchema("temperature" -> AttributeType.INTEGER)
-    val tuple1 = makeTuple(schema, 10)
-    val tuple2 = makeTuple(schema, -2)
-    val tuple3 = makeTuple(schema, 5)
-
-    val operation = makeAggregationOp(AggregationFunction.MIN, "temperature", "min_temp")
-    val agg = operation.getAggFunc(AttributeType.INTEGER)
-
-    // Empty case: never iterate, just finalize init
-    val emptyPartial = agg.init()
-    val emptyResult = agg.finalAgg(emptyPartial)
-    assert(emptyResult == null)
-
-    // Non-empty case
-    var partial = agg.init()
-    partial = agg.iterate(partial, tuple1)
-    partial = agg.iterate(partial, tuple2)
-    partial = agg.iterate(partial, tuple3)
-
-    val result = agg.finalAgg(partial).asInstanceOf[Number].intValue()
-    assert(result == -2)
+    assert(
+      runSingleAttrAgg(
+        AggregationFunction.MIN,
+        "temperature",
+        AttributeType.INTEGER,
+        Seq.empty
+      ) == null
+    )
+    val result = runSingleAttrAgg(
+      AggregationFunction.MIN,
+      "temperature",
+      AttributeType.INTEGER,
+      Seq(10, -2, 5)
+    )
+    assert(result.asInstanceOf[Number].intValue() == -2)
   }
 
   test("MAX aggregation finds largest LONG value") {
-    val schema = makeSchema("latency" -> AttributeType.LONG)
-    val tuple1 = makeTuple(schema, 100L)
-    val tuple2 = makeTuple(schema, 50L)
-    val tuple3 = makeTuple(schema, 250L)
-
-    val operation = makeAggregationOp(AggregationFunction.MAX, "latency", "max_latency")
-    val agg = operation.getAggFunc(AttributeType.LONG)
-
-    var partial = agg.init()
-    partial = agg.iterate(partial, tuple1)
-    partial = agg.iterate(partial, tuple2)
-    partial = agg.iterate(partial, tuple3)
-
-    val result = agg.finalAgg(partial).asInstanceOf[java.lang.Long].longValue()
-    assert(result == 250L)
+    val result =
+      runSingleAttrAgg(AggregationFunction.MAX, "latency", AttributeType.LONG, Seq(100L, 50L, 250L))
+    assert(result.asInstanceOf[java.lang.Long].longValue() == 250L)
   }
 
   test(
     "MIN aggregation (DOUBLE) is solid: empty/null/NaN, infinities, signed zero, and many values"
   ) {
     val schema = makeSchema("temperature" -> AttributeType.DOUBLE)
+    val agg = makeAggregationOp(AggregationFunction.MIN, "temperature", "min_temp")
+      .getAggFunc(AttributeType.DOUBLE)
 
-    val operation = makeAggregationOp(AggregationFunction.MIN, "temperature", "min_temp")
-    val agg = operation.getAggFunc(AttributeType.DOUBLE)
-
-    // -----------------------
-    // 0) Empty input => null
-    // -----------------------
-    val emptyPartial = agg.init()
-    val emptyResult = agg.finalAgg(emptyPartial)
-    assert(emptyResult == null)
-
-    // ---------------------------------------------------------
-    // 1) Only nulls / only NaNs => null
-    // ---------------------------------------------------------
-    val onlyNulls = Seq(makeTuple(schema, null), makeTuple(schema, null), makeTuple(schema, null))
-    var partialNulls = agg.init()
-    onlyNulls.foreach(tp => partialNulls = agg.iterate(partialNulls, tp))
-    assert(agg.finalAgg(partialNulls) == null)
-
-    val onlyNaNs = Seq(makeTuple(schema, Double.NaN), makeTuple(schema, Double.NaN))
-    var partialNans = agg.init()
-    onlyNaNs.foreach(tp => partialNans = agg.iterate(partialNans, tp))
-    assert(agg.finalAgg(partialNans) == null)
-
-    // ---------------------------------------------------------
-    // 2) Basic decimals + negatives: should find the true minimum
-    // ---------------------------------------------------------
-    val basics = Seq(
-      makeTuple(schema, 10.25),
-      makeTuple(schema, -2.5),
-      makeTuple(schema, 5.0),
-      makeTuple(schema, -2.5000000001), // slightly smaller than -2.5
-      makeTuple(schema, 1.0e-12)
+    assert(agg.finalAgg(agg.init()) == null)
+    assert(
+      runSingleAttrAgg(
+        AggregationFunction.MIN,
+        "temperature",
+        AttributeType.DOUBLE,
+        Seq(null, null, null)
+      ) == null
+    )
+    assert(
+      runSingleAttrAgg(
+        AggregationFunction.MIN,
+        "temperature",
+        AttributeType.DOUBLE,
+        Seq(Double.NaN, Double.NaN)
+      ) == null
     )
 
-    var partial = agg.init()
-    basics.foreach(tp => partial = agg.iterate(partial, tp))
-
-    val basicResult = agg.finalAgg(partial).asInstanceOf[Number].doubleValue()
+    val basicResult = runSingleAttrAgg(
+      AggregationFunction.MIN,
+      "temperature",
+      AttributeType.DOUBLE,
+      Seq(10.25, -2.5, 5.0, -2.5000000001, 1.0e-12)
+    ).asInstanceOf[Number].doubleValue()
     assert(basicResult == -2.5000000001)
 
-    // ---------------------------------------------------------
-    // 3) NaN + null interleaving must not poison the result
-    //    (especially if NaN appears first)
-    // ---------------------------------------------------------
-    val mixed = Seq(
-      makeTuple(schema, Double.NaN),
-      makeTuple(schema, null),
-      makeTuple(schema, 3.14159),
-      makeTuple(schema, -0.125),
-      makeTuple(schema, Double.NaN),
-      makeTuple(schema, -9999.0),
-      makeTuple(schema, null)
-    )
-
-    var partialMixed = agg.init()
-    mixed.foreach(tp => partialMixed = agg.iterate(partialMixed, tp))
-
-    val mixedResult = agg.finalAgg(partialMixed).asInstanceOf[Number].doubleValue()
+    val mixedResult = runSingleAttrAgg(
+      AggregationFunction.MIN,
+      "temperature",
+      AttributeType.DOUBLE,
+      Seq(Double.NaN, null, 3.14159, -0.125, Double.NaN, -9999.0, null)
+    ).asInstanceOf[Number].doubleValue()
     assert(mixedResult == -9999.0)
 
-    // ---------------------------------------------------------
-    // 4) Infinities: min should be -Infinity if present
-    // ---------------------------------------------------------
-    val infinities = Seq(
-      makeTuple(schema, Double.PositiveInfinity),
-      makeTuple(schema, 42.0),
-      makeTuple(schema, Double.NegativeInfinity),
-      makeTuple(schema, -1.0)
-    )
-
-    var partialInf = agg.init()
-    infinities.foreach(tp => partialInf = agg.iterate(partialInf, tp))
-
-    val infResult = agg.finalAgg(partialInf).asInstanceOf[Number].doubleValue()
+    val infResult = runSingleAttrAgg(
+      AggregationFunction.MIN,
+      "temperature",
+      AttributeType.DOUBLE,
+      Seq(Double.PositiveInfinity, 42.0, Double.NegativeInfinity, -1.0)
+    ).asInstanceOf[Number].doubleValue()
     assert(infResult.isNegInfinity)
 
-    // ---------------------------------------------------------
-    // 5) Signed zero: MIN(-0.0, +0.0) should be -0.0
-    // ---------------------------------------------------------
-    val signedZero = Seq(makeTuple(schema, 0.0), makeTuple(schema, -0.0), makeTuple(schema, 0.0))
-    var partialZero = agg.init()
-    signedZero.foreach(tp => partialZero = agg.iterate(partialZero, tp))
+    val zeroValue = runSingleAttrAgg(
+      AggregationFunction.MIN,
+      "temperature",
+      AttributeType.DOUBLE,
+      Seq(0.0, -0.0, 0.0)
+    ).asInstanceOf[Number].doubleValue()
+    assert(
+      java.lang.Double.doubleToRawLongBits(zeroValue) == java.lang.Double.doubleToRawLongBits(-0.0)
+    )
 
-    val zeroValue = agg.finalAgg(partialZero).asInstanceOf[Number].doubleValue()
-    val zeroBits = java.lang.Double.doubleToRawLongBits(zeroValue)
-    val negZeroBits = java.lang.Double.doubleToRawLongBits(-0.0)
-    assert(zeroBits == negZeroBits)
-
-    // ---------------------------------------------------------
-    // 6) Stress test: many values, compare against a reference min
-    //    Reference rule here: ignore null and NaN; return null if none left.
-    // ---------------------------------------------------------
     val rng = new scala.util.Random(1337)
     val values: Seq[java.lang.Double] =
       (1 to 10000).map { index =>
@@ -377,7 +239,6 @@ class AggregateOpSpec extends AnyFunSuite {
           case 3 => Double.NegativeInfinity
           case 4 => -0.0
           case _ =>
-            // wide-ish range with some tiny magnitudes too
             val sign = if (rng.nextBoolean()) 1.0 else -1.0
             sign * (rng.nextDouble() * 1.0e6) / (if (rng.nextInt(20) == 0) 1.0e12 else 1.0)
         }
@@ -404,12 +265,10 @@ class AggregateOpSpec extends AnyFunSuite {
       assert(gotAny == null)
     } else {
       val got = gotAny.asInstanceOf[Number].doubleValue()
-      // exact match: should be one of the seen inputs, no tolerance needed
       if (
         expected == 0.0 && java.lang.Double.doubleToRawLongBits(expected) != java.lang.Double
           .doubleToRawLongBits(got)
       ) {
-        // If expected is -0.0, enforce it
         assert(
           java.lang.Double.doubleToRawLongBits(got) == java.lang.Double.doubleToRawLongBits(
             expected
@@ -423,61 +282,45 @@ class AggregateOpSpec extends AnyFunSuite {
 
   test("MAX aggregation finds largest DOUBLE value") {
     val maxValue = 99.144
-    val schema = makeSchema("debt" -> AttributeType.DOUBLE)
-    val tuple1 = makeTuple(schema, -100.123)
-    val tuple2 = makeTuple(schema, 50.12)
-    val tuple3 = makeTuple(schema, maxValue)
-
-    val operation = makeAggregationOp(AggregationFunction.MAX, "debt", "nax_debt")
-    val agg = operation.getAggFunc(AttributeType.DOUBLE)
-
-    var partial = agg.init()
-    partial = agg.iterate(partial, tuple1)
-    partial = agg.iterate(partial, tuple2)
-    partial = agg.iterate(partial, tuple3)
-
-    val result = agg.finalAgg(partial).asInstanceOf[java.lang.Double].doubleValue()
-    assert(result == maxValue)
+    val result = runSingleAttrAgg(
+      AggregationFunction.MAX,
+      "debt",
+      AttributeType.DOUBLE,
+      Seq(-100.123, 50.12, maxValue)
+    )
+    assert(result.asInstanceOf[java.lang.Double].doubleValue() == maxValue)
   }
 
   test("MAX aggregation finds largest INTEGER and returns null when given no values") {
-    val schema = makeSchema("temperature" -> AttributeType.INTEGER)
-    val tuple1 = makeTuple(schema, 10)
-    val tuple2 = makeTuple(schema, -2)
-    val tuple3 = makeTuple(schema, 5)
-
-    val operation = makeAggregationOp(AggregationFunction.MAX, "temperature", "max_temp")
-    val agg = operation.getAggFunc(AttributeType.INTEGER)
-
-    // Empty case: never iterate, just finalize init
-    val emptyPartial = agg.init()
-    val emptyResult = agg.finalAgg(emptyPartial)
-    assert(emptyResult == null)
-
-    // Non-empty case
-    var partial = agg.init()
-    partial = agg.iterate(partial, tuple1)
-    partial = agg.iterate(partial, tuple2)
-    partial = agg.iterate(partial, tuple3)
-
-    val result = agg.finalAgg(partial).asInstanceOf[Number].intValue()
-    assert(result == 10)
+    assert(
+      runSingleAttrAgg(
+        AggregationFunction.MAX,
+        "temperature",
+        AttributeType.INTEGER,
+        Seq.empty
+      ) == null
+    )
+    val result = runSingleAttrAgg(
+      AggregationFunction.MAX,
+      "temperature",
+      AttributeType.INTEGER,
+      Seq(10, -2, 5)
+    )
+    assert(result.asInstanceOf[Number].intValue() == 10)
   }
 
   test("MAX aggregation returns null when all values are null") {
-    val schema = makeSchema("temperature" -> AttributeType.INTEGER)
-
-    val operation = makeAggregationOp(AggregationFunction.MAX, "temperature", "max_temp")
-    val agg = operation.getAggFunc(AttributeType.INTEGER)
-
-    var partial = agg.init()
-    Seq.fill(3)(makeTuple(schema, null)).foreach(tp => partial = agg.iterate(partial, tp))
-    assert(agg.finalAgg(partial) == null)
+    assert(
+      runSingleAttrAgg(
+        AggregationFunction.MAX,
+        "temperature",
+        AttributeType.INTEGER,
+        Seq.fill(3)(null)
+      ) == null
+    )
   }
 
   test("MAX aggregation keeps the type's maximum value when it is the true maximum") {
-    // Regression: the finalizer used to mistake a partial equal to
-    // maxValue(attributeType) for the "no value seen" sentinel and emit null.
     val cases: Seq[(AttributeType, Seq[Any], Any)] = Seq(
       (AttributeType.INTEGER, Seq(1, 5, Int.MaxValue), Int.MaxValue),
       (AttributeType.LONG, Seq(1L, 5L, Long.MaxValue), Long.MaxValue),
@@ -488,226 +331,123 @@ class AggregateOpSpec extends AnyFunSuite {
         new Timestamp(Long.MaxValue)
       )
     )
-
     for ((attrType, values, expected) <- cases) {
-      val schema = makeSchema("v" -> attrType)
-      val operation = makeAggregationOp(AggregationFunction.MAX, "v", "max_v")
-      val agg = operation.getAggFunc(attrType)
-
-      var partial = agg.init()
-      values.foreach(v => partial = agg.iterate(partial, makeTuple(schema, v)))
-
-      assert(agg.finalAgg(partial) == expected, s"MAX over $attrType must keep $expected")
+      assert(
+        runSingleAttrAgg(AggregationFunction.MAX, "v", attrType, values) == expected,
+        s"MAX over $attrType must keep $expected"
+      )
     }
   }
 
   test("AVERAGE aggregation ignores nulls and returns null when all values are null") {
-    val schema = makeSchema("price" -> AttributeType.DOUBLE)
-    val tuple1 = makeTuple(schema, 10.0)
-    val tuple2 = makeTuple(schema, null)
-    val tuple3 = makeTuple(schema, 20.0)
-
-    val operation = makeAggregationOp(AggregationFunction.AVERAGE, "price", "avg_price")
-    val agg = operation.getAggFunc(AttributeType.DOUBLE)
-
-    // Mixed null and non-null
-    var partial = agg.init()
-    partial = agg.iterate(partial, tuple1)
-    partial = agg.iterate(partial, tuple2)
-    partial = agg.iterate(partial, tuple3)
-
-    val avg = agg.finalAgg(partial).asInstanceOf[java.lang.Double].doubleValue()
-    assert(math.abs(avg - 15.0) < 1e-6)
-
-    // All nulls
-    val allNull = makeTuple(schema, null)
-    var partialAllNull = agg.init()
-    partialAllNull = agg.iterate(partialAllNull, allNull)
-    val allNullResult = agg.finalAgg(partialAllNull)
-    assert(allNullResult == null)
+    val avg = runSingleAttrAgg(
+      AggregationFunction.AVERAGE,
+      "price",
+      AttributeType.DOUBLE,
+      Seq(10.0, null, 20.0)
+    )
+    assert(math.abs(avg.asInstanceOf[java.lang.Double].doubleValue() - 15.0) < 1e-6)
+    assert(
+      runSingleAttrAgg(
+        AggregationFunction.AVERAGE,
+        "price",
+        AttributeType.DOUBLE,
+        Seq(null)
+      ) == null
+    )
   }
 
-  // ---------------------------------------------------------------------------
-  // getFinal behaviour
-  // ---------------------------------------------------------------------------
-
   test("getFinal rewrites COUNT into SUM over the intermediate result attribute") {
-    val operation = makeAggregationOp(AggregationFunction.COUNT, "price", "price_count")
-    val finalOp = operation.getFinal
-
+    val finalOp = makeAggregationOp(AggregationFunction.COUNT, "price", "price_count").getFinal
     assert(finalOp.aggFunction == AggregationFunction.SUM)
-    assert(finalOp.attribute == "price_count")
-    assert(finalOp.resultAttribute == "price_count")
+    assert(finalOp.attribute == "price_count" && finalOp.resultAttribute == "price_count")
   }
 
   test("getFinal keeps non-COUNT aggregation function and rewires attribute to resultAttribute") {
-    val operation = makeAggregationOp(AggregationFunction.SUM, "amount", "total_amount")
-    val finalOp = operation.getFinal
-
+    val finalOp = makeAggregationOp(AggregationFunction.SUM, "amount", "total_amount").getFinal
     assert(finalOp.aggFunction == AggregationFunction.SUM)
-    assert(finalOp.attribute == "total_amount")
-    assert(finalOp.resultAttribute == "total_amount")
+    assert(finalOp.attribute == "total_amount" && finalOp.resultAttribute == "total_amount")
   }
 
-  // ---------------------------------------------------------------------------
-  // AggregateOpExec: integration-style tests with groupBy
-  // ---------------------------------------------------------------------------
-
   test("AggregateOpExec groups by a single key and computes SUM per group") {
-    // schema: city (group key), sales
-    val schema = makeSchema(
-      "city" -> AttributeType.STRING,
-      "sales" -> AttributeType.INTEGER
+    val schema = makeSchema("city" -> AttributeType.STRING, "sales" -> AttributeType.INTEGER)
+    val exec = openAggregateExec(
+      List(makeAggregationOp(AggregationFunction.SUM, "sales", "total_sales")),
+      List("city")
     )
-
-    val tuple1 = makeTuple(schema, "NY", 10)
-    val tuple2 = makeTuple(schema, "SF", 20)
-    val tuple3 = makeTuple(schema, "NY", 5)
-
-    val desc = new AggregateOpDesc()
-    val sumAgg = makeAggregationOp(AggregationFunction.SUM, "sales", "total_sales")
-    desc.aggregations = List(sumAgg)
-    desc.groupByKeys = List("city")
-
-    val descJson = objectMapper.writeValueAsString(desc)
-
-    val exec = new AggregateOpExec(descJson)
-    exec.open()
-    exec.processTuple(tuple1, 0)
-    exec.processTuple(tuple2, 0)
-    exec.processTuple(tuple3, 0)
-
-    val results = exec.onFinish(0).toList
-
-    // Expect two output rows: (NY, 15) and (SF, 20)
+    val results = runAggregateExec(
+      exec,
+      makeTuple(schema, "NY", 10),
+      makeTuple(schema, "SF", 20),
+      makeTuple(schema, "NY", 5)
+    )
     val resultMap = results.map { tupleLike =>
       val fields = tupleLike.getFields
-      val city = fields(0).asInstanceOf[String]
-      val total = fields(1).asInstanceOf[Number].intValue()
-      city -> total
+      fields(0).asInstanceOf[String] -> fields(1).asInstanceOf[Number].intValue()
     }.toMap
-
-    assert(resultMap.size == 2)
-    assert(resultMap("NY") == 15)
-    assert(resultMap("SF") == 20)
+    assert(resultMap == Map("NY" -> 15, "SF" -> 20))
   }
 
   test("AggregateOpExec performs global SUM and COUNT when there are no groupBy keys") {
-    // schema: region (ignored for aggregation), revenue
-    val schema = makeSchema(
-      "region" -> AttributeType.STRING,
-      "revenue" -> AttributeType.INTEGER
+    val schema = makeSchema("region" -> AttributeType.STRING, "revenue" -> AttributeType.INTEGER)
+    val exec = openAggregateExec(
+      List(
+        makeAggregationOp(AggregationFunction.SUM, "revenue", "total_revenue"),
+        makeAggregationOp(AggregationFunction.COUNT, "revenue", "row_count")
+      ),
+      List()
     )
-
-    val tuple1 = makeTuple(schema, "west", 100)
-    val tuple2 = makeTuple(schema, "east", 200)
-    val tuple3 = makeTuple(schema, "west", 50)
-
-    val desc = new AggregateOpDesc()
-    val sumAgg = makeAggregationOp(AggregationFunction.SUM, "revenue", "total_revenue")
-    val countAgg = makeAggregationOp(AggregationFunction.COUNT, "revenue", "row_count")
-    desc.aggregations = List(sumAgg, countAgg)
-    desc.groupByKeys = List() // global aggregation
-
-    val descJson = objectMapper.writeValueAsString(desc)
-
-    val exec = new AggregateOpExec(descJson)
-    exec.open()
-    exec.processTuple(tuple1, 0)
-    exec.processTuple(tuple2, 0)
-    exec.processTuple(tuple3, 0)
-
-    val results = exec.onFinish(0).toList
+    val results = runAggregateExec(
+      exec,
+      makeTuple(schema, "west", 100),
+      makeTuple(schema, "east", 200),
+      makeTuple(schema, "west", 50)
+    )
     assert(results.size == 1)
-
     val fields = results.head.getFields
-    // No group keys, so fields(0) is SUM(revenue), fields(1) is COUNT(revenue)
-    val totalRevenue = fields(0).asInstanceOf[Number].intValue()
-    val rowCount = fields(1).asInstanceOf[Number].intValue()
-
-    assert(totalRevenue == 350)
-    assert(rowCount == 3)
+    assert(fields(0).asInstanceOf[Number].intValue() == 350)
+    assert(fields(1).asInstanceOf[Number].intValue() == 3)
   }
 
   test("AggregateOpExec computes COUNT(*) over every row (including nulls) end-to-end") {
-    // region (ignored), revenue (one null). An empty attribute means COUNT(*), so the
-    // executor must skip the input-column lookup and still count all 3 rows.
-    val schema = makeSchema(
-      "region" -> AttributeType.STRING,
-      "revenue" -> AttributeType.INTEGER
+    val schema = makeSchema("region" -> AttributeType.STRING, "revenue" -> AttributeType.INTEGER)
+    val exec = openAggregateExec(
+      List(makeAggregationOp(AggregationFunction.COUNT, "", "row_count")),
+      List()
     )
-
-    val tuple1 = makeTuple(schema, "west", 100)
-    val tuple2 = makeTuple(schema, "east", null)
-    val tuple3 = makeTuple(schema, "west", 50)
-
-    val desc = new AggregateOpDesc()
-    desc.aggregations = List(makeAggregationOp(AggregationFunction.COUNT, "", "row_count"))
-    desc.groupByKeys = List() // global aggregation
-
-    val exec = new AggregateOpExec(objectMapper.writeValueAsString(desc))
-    exec.open()
-    exec.processTuple(tuple1, 0)
-    exec.processTuple(tuple2, 0)
-    exec.processTuple(tuple3, 0)
-
-    val results = exec.onFinish(0).toList
-    assert(results.size == 1)
-    assert(results.head.getFields(0).asInstanceOf[Number].intValue() == 3)
+    val results = runAggregateExec(
+      exec,
+      makeTuple(schema, "west", 100),
+      makeTuple(schema, "east", null),
+      makeTuple(schema, "west", 50)
+    )
+    assert(results.size == 1 && results.head.getFields(0).asInstanceOf[Number].intValue() == 3)
   }
 
-  // `close()` also resets `distributedAggregations`, which is deliberately not
-  // asserted: `onFinish` reads that list once per accumulated group and `close()`
-  // leaves none, while a reopened executor resets it again — so the reset is only
-  // observable by calling `processTuple` after `close()` without an intervening
-  // `open()`, which the executor lifecycle never does. Pinning it would cement an
-  // illegal call order.
   test("AggregateOpExec close() discards the accumulated groups") {
-    val schema = makeSchema(
-      "city" -> AttributeType.STRING,
-      "sales" -> AttributeType.INTEGER
+    val schema = makeSchema("city" -> AttributeType.STRING, "sales" -> AttributeType.INTEGER)
+    val exec = openAggregateExec(
+      List(makeAggregationOp(AggregationFunction.SUM, "sales", "total_sales")),
+      List("city")
     )
-
-    val desc = new AggregateOpDesc()
-    desc.aggregations = List(makeAggregationOp(AggregationFunction.SUM, "sales", "total_sales"))
-    desc.groupByKeys = List("city")
-
-    val exec = new AggregateOpExec(objectMapper.writeValueAsString(desc))
-    exec.open()
-    exec.processTuple(makeTuple(schema, "NY", 10), 0)
-    exec.processTuple(makeTuple(schema, "SF", 20), 0)
-
-    // Guard the fixture: the two groups really are accumulated, so the empty
-    // result asserted after close() cannot pass vacuously.
-    assert(exec.onFinish(0).toList.size == 2)
-
+    assert(
+      runAggregateExec(exec, makeTuple(schema, "NY", 10), makeTuple(schema, "SF", 20)).size == 2
+    )
     exec.close()
     assert(exec.onFinish(0).toList.isEmpty)
   }
 
   test("AggregateOpExec open() after close() accumulates from an empty state") {
-    // The executor object outlives a single run, so a reopened executor must not
-    // fold the previous run's partial aggregates into the new result.
-    val schema = makeSchema(
-      "city" -> AttributeType.STRING,
-      "sales" -> AttributeType.INTEGER
+    val schema = makeSchema("city" -> AttributeType.STRING, "sales" -> AttributeType.INTEGER)
+    val exec = openAggregateExec(
+      List(makeAggregationOp(AggregationFunction.SUM, "sales", "total_sales")),
+      List("city")
     )
-
-    val desc = new AggregateOpDesc()
-    desc.aggregations = List(makeAggregationOp(AggregationFunction.SUM, "sales", "total_sales"))
-    desc.groupByKeys = List("city")
-
-    val exec = new AggregateOpExec(objectMapper.writeValueAsString(desc))
-    exec.open()
     exec.processTuple(makeTuple(schema, "NY", 10), 0)
     exec.close()
 
     exec.open()
-    exec.processTuple(makeTuple(schema, "NY", 3), 0)
-
-    val results = exec.onFinish(0).toList
-    assert(results.size == 1)
-    // 3, not 13: the first run's partial sum for "NY" must have been dropped.
-    assert(results.head.getFields(1).asInstanceOf[Number].intValue() == 3)
+    val results = runAggregateExec(exec, makeTuple(schema, "NY", 3))
+    assert(results.size == 1 && results.head.getFields(1).asInstanceOf[Number].intValue() == 3)
   }
 }

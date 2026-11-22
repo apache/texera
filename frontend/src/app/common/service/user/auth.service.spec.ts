@@ -230,6 +230,29 @@ describe("AuthService", () => {
       expect(modal.info).toHaveBeenCalledTimes(1);
       expect(AuthService.getAccessToken()).toBeNull();
     });
+
+    // Admins can turn invite-only off while accounts are still waiting. Those accounts stay
+    // INACTIVE and every request they make is refused, so they keep the pending screen.
+    it("treats an inactive user as pending even while invite-only is off", () => {
+      AuthService.setAccessToken("tok");
+      config.env.inviteOnly = false;
+      jwt.decodeToken.mockReturnValue({ ...claims, role: Role.INACTIVE });
+
+      const result = service.loginWithExistingToken();
+
+      expect(result).toBeUndefined();
+      httpMock.expectOne(r => r.url === `${api}/user/joining-reason/required`).flush(false);
+      expect(modal.info).toHaveBeenCalledTimes(1);
+      expect(AuthService.getAccessToken()).toBeNull();
+    });
+
+    it("signs in an account that is not inactive, whatever invite-only says", () => {
+      AuthService.setAccessToken("tok");
+      config.env.inviteOnly = true;
+
+      expect(service.loginWithExistingToken()?.role).toEqual(Role.REGULAR);
+      httpMock.expectNone(r => r.url === `${api}/user/joining-reason/required`);
+    });
   });
 
   // Every path that writes a credential supplies an address, so this should be unreachable — it

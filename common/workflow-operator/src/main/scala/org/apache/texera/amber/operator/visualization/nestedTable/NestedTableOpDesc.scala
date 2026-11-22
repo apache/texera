@@ -18,6 +18,8 @@
 
 package org.apache.texera.amber.operator.visualization.nestedTable
 
+import org.apache.texera.amber.operator.visualization.StandaloneChartCode._
+import org.apache.texera.amber.operator.visualization.PythonCodeFragment._
 import com.fasterxml.jackson.annotation.{JsonProperty, JsonPropertyDescription}
 import org.apache.texera.amber.pybuilder.PythonTemplateBuilder.PythonTemplateBuilderStringContext
 import org.apache.texera.amber.operator.visualization.PythonVisualizationOpDesc
@@ -71,33 +73,7 @@ class NestedTableOpDesc extends PythonVisualizationOpDesc {
        |
        |        df = pd.DataFrame(data, columns=columns)
        |
-       |        styles = [
-       |            {'selector': 'th', 'props': [('background-color', '#f2f2f2'),
-       |                                          ('color', 'black'),
-       |                                          ('font-weight', 'bold'),
-       |                                          ('border', '1px solid #ddd'),
-       |                                          ('padding', '8px'),
-       |                                          ('text-align', 'center')]},
-       |            {'selector': 'td', 'props': [('border', '1px solid #ddd'),
-       |                                          ('padding', '8px'),
-       |                                          ('text-align', 'center')]},
-       |            {'selector': 'caption', 'props': [('caption-side', 'top'),
-       |                                               ('font-size', '16pt'),
-       |                                               ('font-weight', 'bold'),
-       |                                               ('text-align', 'left'),
-       |                                               ('padding', '10px')]},
-       |            {'selector': '.row_heading', 'props': [('text-align', 'left'),
-       |                                                    ('font-weight', 'normal')]},
-       |            {'selector': '.blank.level0', 'props': [('display', 'none')]}
-       |        ]
-       |
-       |        styled_table = (
-       |            df.style
-       |            .set_table_styles(styles)
-       |            .format(precision=2, na_rep="")
-       |            .set_table_attributes('class="dataframe"')
-       |            .hide(axis="index")
-       |        )
+       |${NestedTablePython.body(8)}
        |"""
   }
 
@@ -110,16 +86,11 @@ class NestedTableOpDesc extends PythonVisualizationOpDesc {
          |import numpy as np
          |
          |class ProcessTableOperator(UDFTableOperator):
-         |    def render_error(self, error_msg):
-         |        return '''<h1>Nested Table is not available.</h1>
-         |                  <p>Reason is: {} </p>
-         |               '''.format(error_msg)
+         |${runtimeError("Nested Table is not available.")}
          |
          |    @overrides
          |    def process_table(self, table: Table, port: int) -> Iterator[Optional[TableLike]]:
-         |        if table.empty:
-         |           yield {'html-content': self.render_error("input table is empty.")}
-         |           return
+         |${emptyTableGuard("input table is empty.")}
          |        ${createNestedTable()}
          |        # convert table to html content
          |        html = styled_table.to_html()
@@ -148,14 +119,10 @@ class NestedTableOpDesc extends PythonVisualizationOpDesc {
     s"""import pandas as pd
        |import numpy as np
        |
-       |def render_error(error_msg):
-       |    return '''<h1>Nested Table is not available.</h1>
-       |                  <p>Reason is: {} </p>
-       |               '''.format(error_msg)
+       |${standaloneError("Nested Table is not available.")}
        |
        |if in1df.empty:
-       |    with open(outputHtml, "w", encoding="utf-8") as output:
-       |        output.write(render_error("input table is empty."))
+       |${standaloneErrorPage("input table is empty.")}
        |else:
        |    columns = pd.MultiIndex.from_tuples([
        |        $multiIndexTuples
@@ -169,37 +136,45 @@ class NestedTableOpDesc extends PythonVisualizationOpDesc {
        |
        |    df = pd.DataFrame(data, columns=columns)
        |
-       |    styles = [
-       |        {'selector': 'th', 'props': [('background-color', '#f2f2f2'),
-       |                                      ('color', 'black'),
-       |                                      ('font-weight', 'bold'),
-       |                                      ('border', '1px solid #ddd'),
-       |                                      ('padding', '8px'),
-       |                                      ('text-align', 'center')]},
-       |        {'selector': 'td', 'props': [('border', '1px solid #ddd'),
-       |                                      ('padding', '8px'),
-       |                                      ('text-align', 'center')]},
-       |        {'selector': 'caption', 'props': [('caption-side', 'top'),
-       |                                           ('font-size', '16pt'),
-       |                                           ('font-weight', 'bold'),
-       |                                           ('text-align', 'left'),
-       |                                           ('padding', '10px')]},
-       |        {'selector': '.row_heading', 'props': [('text-align', 'left'),
-       |                                                ('font-weight', 'normal')]},
-       |        {'selector': '.blank.level0', 'props': [('display', 'none')]}
-       |    ]
-       |
-       |    styled_table = (
-       |        df.style
-       |        .set_table_styles(styles)
-       |        .format(precision=2, na_rep="")
-       |        .set_table_attributes('class="dataframe"')
-       |        .hide(axis="index")
-       |    )
+       |${NestedTablePython.body(4)}
        |
        |    html = styled_table.to_html()
        |    with open(outputHtml, "w", encoding="utf-8") as output:
        |        output.write(html)
        |    print("Nested table saved to " + outputHtml)""".stripMargin
   }
+}
+
+private object NestedTablePython {
+  def body(indent: Int): String =
+    org.apache.texera.amber.operator.visualization.PythonCodeFragment.render(
+      """|styles = [
+       |    {'selector': 'th', 'props': [('background-color', '#f2f2f2'),
+       |                                  ('color', 'black'),
+       |                                  ('font-weight', 'bold'),
+       |                                  ('border', '1px solid #ddd'),
+       |                                  ('padding', '8px'),
+       |                                  ('text-align', 'center')]},
+       |    {'selector': 'td', 'props': [('border', '1px solid #ddd'),
+       |                                  ('padding', '8px'),
+       |                                  ('text-align', 'center')]},
+       |    {'selector': 'caption', 'props': [('caption-side', 'top'),
+       |                                       ('font-size', '16pt'),
+       |                                       ('font-weight', 'bold'),
+       |                                       ('text-align', 'left'),
+       |                                       ('padding', '10px')]},
+       |    {'selector': '.row_heading', 'props': [('text-align', 'left'),
+       |                                            ('font-weight', 'normal')]},
+       |    {'selector': '.blank.level0', 'props': [('display', 'none')]}
+       |]
+       |
+       |styled_table = (
+       |    df.style
+       |    .set_table_styles(styles)
+       |    .format(precision=2, na_rep="")
+       |    .set_table_attributes('class="dataframe"')
+       |    .hide(axis="index")
+       |)""",
+      indent
+    )
 }

@@ -19,6 +19,8 @@
 
 package org.apache.texera.amber.operator.visualization.waterfallChart
 
+import org.apache.texera.amber.operator.visualization.StandaloneChartCode._
+import org.apache.texera.amber.operator.visualization.PythonCodeFragment._
 import com.fasterxml.jackson.annotation.{JsonProperty, JsonPropertyDescription}
 import com.kjetland.jackson.jsonSchema.annotations.{JsonSchemaInject, JsonSchemaTitle}
 import org.apache.texera.amber.pybuilder.PythonTemplateBuilder.PythonTemplateBuilderStringContext
@@ -100,32 +102,22 @@ class WaterfallChartOpDesc extends PythonVisualizationOpDesc with PlotlyStandalo
          |class ProcessTableOperator(UDFTableOperator):
          |
          |    # Generate custom error message as html string
-         |    def render_error(self, error_msg) -> str:
-         |        return '''<h1>Waterfall chart is not available.</h1>
-         |                  <p>Reason is: {} </p>
-         |               '''.format(error_msg)
+         |${runtimeError("Waterfall chart is not available.", typed = true)}
          |
          |    @overrides
          |    def process_table(self, table: Table, port: int) -> Iterator[Optional[TableLike]]:
-         |        if table.empty:
-         |            yield {'html-content': self.render_error("input table is empty.")}
-         |            return
+         |${emptyTableGuard("input table is empty.", bodyIndent = 4)}
          |        ${createPlotlyFigure()}
-         |        html = plotly.io.to_html(fig, include_plotlyjs='cdn', auto_play=False)
-         |        yield {'html-content': html}
+         |${plotlyHtmlYield()}
          |"""
     finalCode.encode
   }
 
   override def generateStandaloneCode(): String = {
-    s"""def render_error(error_msg) -> str:
-       |    return '''<h1>Waterfall chart is not available.</h1>
-       |                  <p>Reason is: {} </p>
-       |               '''.format(error_msg)
+    s"""${standaloneError("Waterfall chart is not available.", typed = true)}
        |
        |if in1df.empty:
-       |    with open(outputHtml, "w", encoding="utf-8") as output:
-       |        output.write(render_error("input table is empty."))
+       |${standaloneErrorPage("input table is empty.")}
        |else:
        |    table = in1df
        |    x_values = list(table[${pyStringLiteral(xColumn)}])
@@ -143,9 +135,7 @@ class WaterfallChartOpDesc extends PythonVisualizationOpDesc with PlotlyStandalo
        |    ))
        |
        |    fig.update_layout(showlegend=True, waterfallgap=0.3, xaxis_type="category")
-       |    fig.write_json(outputJson)
-       |    fig.write_html(outputHtml)
-       |    print("Waterfall chart saved to " + outputHtml)""".stripMargin
+       |${standaloneFigure("Waterfall chart", indent = 4)}""".stripMargin
   }
 
 }

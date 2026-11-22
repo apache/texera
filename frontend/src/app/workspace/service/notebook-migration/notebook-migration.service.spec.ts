@@ -469,6 +469,15 @@ describe("NotebookMigrationService", () => {
       );
       expect(createMigrationLLM).not.toHaveBeenCalled();
     });
+
+    it("rejects an R folder before creating or pinging a client", async () => {
+      const folder = { source: "x <- 1", forcedBoundaries: [1], files: [], tree: "proj/" };
+
+      await expect(service.sendFolderToAIGenerateWorkflow(folder, "gpt-4", "r")).rejects.toThrow(
+        "R notebook migration is disabled"
+      );
+      expect(createMigrationLLM).not.toHaveBeenCalled();
+    });
   });
 
   // Feature flag gate (defence in depth). With the flag off, every public
@@ -657,8 +666,16 @@ describe("NotebookMigrationService", () => {
         mappingContent: { m: 2 },
         notebook: conversion.notebook,
       });
-      expect(fakeLLM.convertFolderToWorkflow).toHaveBeenCalledWith(folder);
+      expect(fakeLLM.convertFolderToWorkflow).toHaveBeenCalledWith(folder, "python");
       expect(fakeLLM.close).toHaveBeenCalled();
+    });
+
+    it("passes the source language to the conversion", async () => {
+      fakeLLM.convertFolderToWorkflow.mockResolvedValue(conversion);
+
+      await service.sendFolderToAIGenerateWorkflow(folder, "gpt-4", "r");
+
+      expect(fakeLLM.convertFolderToWorkflow).toHaveBeenCalledWith(folder, "r");
     });
 
     it("rejects when the connection cannot be verified, and still closes the client", async () => {
@@ -794,6 +811,34 @@ describe("NotebookMigrationService", () => {
       });
 
       await expect(service.parseFolder([pickedFile("proj/main.py", "main()")])).rejects.toThrow(/Failed to read/);
+    });
+
+    it("keeps R source for R and names the Python files in the layout instead", async () => {
+      const folder = await service.parseFolder(
+        [
+          pickedFile("proj/main.R", "main()"),
+          pickedFile("proj/R/helpers.r", "helper <- function() 1"),
+          pickedFile("proj/legacy.py", "print(1)"),
+          pickedFile("proj/renv/activate.R", "renv"),
+        ],
+        "r"
+      );
+
+      expect(folder.files.map(file => file.path)).toEqual(["main.R", "R/helpers.r"]);
+      expect(folder.tree).toBe(["proj/", "  legacy.py", "  main.R", "  R/", "    helpers.r"].join("\n"));
+      expect(folder.source).not.toContain("print(1)");
+    });
+
+    it("names R when an R selection has no R source", async () => {
+      await expect(service.parseFolder([pickedFile("proj/main.py", "main()")], "r")).rejects.toThrow(
+        "No R files were found in the selected folder."
+      );
+    });
+
+    it("names R when every R file is blank", async () => {
+      await expect(service.parseFolder([pickedFile("proj/empty.R", "  \n")], "r")).rejects.toThrow(
+        "The R files in the selected folder are all empty."
+      );
     });
   });
 });

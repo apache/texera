@@ -19,10 +19,38 @@
 
 package org.apache.texera.amber.operator.source
 
+import org.apache.texera.amber.core.executor.OpExecWithClassName
 import org.apache.texera.amber.core.tuple.Schema
+import org.apache.texera.amber.core.virtualidentity.{ExecutionIdentity, WorkflowIdentity}
+import org.apache.texera.amber.core.workflow.{PhysicalOp, SchemaPropagationFunc}
 import org.apache.texera.amber.operator.LogicalOp
+import org.apache.texera.amber.util.JSONUtils.objectMapper
 
 abstract class SourceOperatorDescriptor extends LogicalOp {
 
   def sourceSchema(): Schema
+
+  /** The physical op of a source whose executor is `execClassName`, given this descriptor as
+    * JSON: the declared ports, and `outputSchema` on the output port.
+    */
+  protected def sourcePhysicalOp(
+      workflowId: WorkflowIdentity,
+      executionId: ExecutionIdentity,
+      execClassName: String,
+      parallelizable: Boolean = false,
+      outputSchema: () => Schema = () => sourceSchema()
+  ): PhysicalOp =
+    PhysicalOp
+      .sourcePhysicalOp(
+        workflowId,
+        executionId,
+        operatorIdentifier,
+        OpExecWithClassName(execClassName, objectMapper.writeValueAsString(this))
+      )
+      .withInputPorts(operatorInfo.inputPorts)
+      .withOutputPorts(operatorInfo.outputPorts)
+      .withParallelizable(parallelizable)
+      .withPropagateSchema(
+        SchemaPropagationFunc(_ => Map(operatorInfo.outputPorts.head.id -> outputSchema()))
+      )
 }

@@ -227,16 +227,13 @@ class LinkedBlockingMultiQueue(IKeyedQueue):
             return None
 
         def peek(self) -> Optional[T]:
-            start_idx = self.next_idx
+            idx = self.next_idx
             while True:
-                child = self.queues[self.next_idx]
+                child = self.queues[idx]
                 if child.enabled and child.size() > 0:
                     return child.head.next.item
-                else:
-                    self.next_idx += 1
-                    if self.next_idx == len(self.queues):
-                        self.next_idx = 0
-                if self.next_idx == start_idx:
+                idx = (idx + 1) % len(self.queues)
+                if idx == self.next_idx:
                     break
             return None
 

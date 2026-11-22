@@ -31,14 +31,8 @@
       let-node>
       <span title="{{ node.data.name }}">
         <i
-          *ngIf="node.data.children"
           nz-icon
-          nzType="folder"
-          nzTheme="outline"></i>
-        <i
-          *ngIf="!node.data.children"
-          nz-icon
-          nzType="file"
+          [nzType]="node.data.children ? 'folder' : 'file'"
           nzTheme="outline"></i>
         {{ node.data.name }}
         <button

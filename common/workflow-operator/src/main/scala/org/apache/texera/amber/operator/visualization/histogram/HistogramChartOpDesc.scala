@@ -19,6 +19,8 @@
 
 package org.apache.texera.amber.operator.visualization.histogram
 
+import org.apache.texera.amber.operator.visualization.StandaloneChartCode._
+import org.apache.texera.amber.operator.visualization.PythonCodeFragment._
 import com.fasterxml.jackson.annotation.{JsonProperty, JsonPropertyDescription}
 import com.kjetland.jackson.jsonSchema.annotations.{JsonSchemaInject, JsonSchemaTitle}
 import org.apache.texera.amber.pybuilder.PythonTemplateBuilder.{
@@ -105,20 +107,14 @@ class HistogramChartOpDesc extends PythonVisualizationOpDesc with PlotlyStandalo
          |import numpy as np
          |
          |class ProcessTableOperator(UDFTableOperator):
-         |    def render_error(self, error_msg):
-         |        return '''<h1>Histogram chart is not available.</h1>
-         |                  <p>Reason is: {} </p>
-         |               '''.format(error_msg)
+         |${runtimeError("Histogram chart is not available.")}
          |
          |    @overrides
          |    def process_table(self, table: Table, port: int) -> Iterator[Optional[TableLike]]:
-         |        if table.empty:
-         |           yield {'html-content': self.render_error("input table is empty.")}
-         |           return
+         |${emptyTableGuard("input table is empty.")}
          |        ${createPlotlyFigure()}
          |        # convert fig to html content
-         |        html = plotly.io.to_html(fig, include_plotlyjs='cdn', auto_play=False)
-         |        yield {'html-content': html}
+         |${plotlyHtmlYield()}
          |
          |"""
     finalCode.encode
@@ -134,20 +130,14 @@ class HistogramChartOpDesc extends PythonVisualizationOpDesc with PlotlyStandalo
     val patternParam =
       if (pattern.nonEmpty) s""", pattern_shape=${pyStringLiteral(pattern)}""" else ""
     val valueLit = pyStringLiteral(value)
-    s"""def render_error(error_msg):
-       |    return '''<h1>Histogram chart is not available.</h1>
-       |                  <p>Reason is: {} </p>
-       |               '''.format(error_msg)
+    s"""${standaloneError("Histogram chart is not available.")}
        |
        |if in1df.empty:
-       |    with open(outputHtml, "w", encoding="utf-8") as output:
-       |        output.write(render_error("input table is empty."))
+       |${standaloneErrorPage("input table is empty.")}
        |else:
        |    fig = px.histogram(in1df, x=$valueLit, text_auto=True$colorParam$categoryParam$marginalParam$patternParam)
        |    fig.update_layout(margin=dict(l=0, r=0, t=0, b=0))
-       |    fig.write_json(outputJson)
-       |    fig.write_html(outputHtml)
-       |    print("Histogram saved to " + outputHtml)""".stripMargin
+       |${standaloneFigure("Histogram", indent = 4)}""".stripMargin
   }
 
 }

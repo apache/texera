@@ -27,8 +27,7 @@
     [(ngModel)]="searchParam"
     (ngModelChange)="onSearchInputChange($event)"
     (keydown.enter)="performSearch(searchParam)"
-    [nzAutocomplete]="auto"
-    #searchInput />
+    [nzAutocomplete]="auto" />
 </nz-input-group>
 <nz-autocomplete
   class="autocomplete"

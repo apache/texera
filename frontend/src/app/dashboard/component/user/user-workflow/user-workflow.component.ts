@@ -76,6 +76,20 @@ import { FiltersInstructionsComponent } from "../filters-instructions/filters-in
 import { NzSelectComponent } from "ng-zorro-antd/select";
 import { FormsModule } from "@angular/forms";
 
+// The single-file input each language accepts besides .ipynb.
+const SCRIPT_INPUTS: Record<MigrationLanguage, { name: string; extension: string; uploadHint: string }> = {
+  python: {
+    name: "Python",
+    extension: "py",
+    uploadHint: "Please upload a Jupyter Notebook (.ipynb) or a Python (.py) file.",
+  },
+  r: {
+    name: "R",
+    extension: "R",
+    uploadHint: "Please upload an R Jupyter Notebook (.ipynb) or an R (.R) file.",
+  },
+};
+
 /**
  * Saved-workflow-section component contains information and functionality
  * of the saved workflows section: the list of workflows the user owns or has access to
@@ -319,7 +333,7 @@ export class UserWorkflowComponent implements AfterViewInit, OnDestroy {
     language: MigrationLanguage
   ): Promise<boolean> {
     if (Array.isArray(selection)) {
-      const generated = await this.generateFromFolder(selection, model);
+      const generated = await this.generateFromFolder(selection, model, language);
       // Null means the step already told the user what went wrong.
       if (!generated) {
         return false;
@@ -327,20 +341,17 @@ export class UserWorkflowComponent implements AfterViewInit, OnDestroy {
       return this.saveAndOpenGenerated(this.deriveFolderName(selection), generated);
     }
 
+    const scriptInput = SCRIPT_INPUTS[language];
     const fileExtension = selection.name.split(".").pop()?.toLowerCase();
-    if (language === "r" && fileExtension !== "ipynb") {
-      this.notificationService.error("Please upload an R Jupyter Notebook (.ipynb).");
-      return false;
-    }
-    if (fileExtension !== "ipynb" && fileExtension !== "py") {
-      this.notificationService.error("Please upload a Jupyter Notebook (.ipynb) or a Python (.py) file.");
+    if (fileExtension !== "ipynb" && fileExtension !== scriptInput.extension.toLowerCase()) {
+      this.notificationService.error(scriptInput.uploadHint);
       return false;
     }
 
     const generated =
       fileExtension === "ipynb"
         ? await this.generateFromNotebook(selection, model, language)
-        : await this.generateFromScript(selection, model);
+        : await this.generateFromScript(selection, model, language);
     if (!generated) {
       return false;
     }
@@ -381,19 +392,26 @@ export class UserWorkflowComponent implements AfterViewInit, OnDestroy {
     }
   }
 
-  /** Read and convert a .py. The notebook comes back derived, since the upload had no cells. */
-  private async generateFromScript(file: NzUploadFile, model: string): Promise<GeneratedWorkflowContent | null> {
+  /** Read and convert a script. The notebook comes back derived, since the upload had no cells. */
+  private async generateFromScript(
+    file: NzUploadFile,
+    model: string,
+    language: MigrationLanguage
+  ): Promise<GeneratedWorkflowContent | null> {
+    const { name, extension } = SCRIPT_INPUTS[language];
     let scriptSource: string;
     try {
       scriptSource = await this.notebookMigrationService.parseScriptFile(file as unknown as File);
     } catch (error) {
-      this.notificationService.error("Failed to read the Python file. Please upload a valid, non-empty .py file.");
-      console.error("Python file read failed:", error);
+      this.notificationService.error(
+        `Failed to read the ${name} file. Please upload a valid, non-empty .${extension} file.`
+      );
+      console.error(`${name} file read failed:`, error);
       return null;
     }
 
     try {
-      return await this.notebookMigrationService.sendScriptToAIGenerateWorkflow(scriptSource, model);
+      return await this.notebookMigrationService.sendScriptToAIGenerateWorkflow(scriptSource, model, language);
     } catch (error) {
       this.reportGenerationFailure(error, "script");
       return null;
@@ -401,10 +419,14 @@ export class UserWorkflowComponent implements AfterViewInit, OnDestroy {
   }
 
   /** Read and convert a picked directory. The notebook comes back derived, as it does for a .py. */
-  private async generateFromFolder(files: NzUploadFile[], model: string): Promise<GeneratedWorkflowContent | null> {
+  private async generateFromFolder(
+    files: NzUploadFile[],
+    model: string,
+    language: MigrationLanguage
+  ): Promise<GeneratedWorkflowContent | null> {
     let folder: FolderDocument;
     try {
-      folder = await this.notebookMigrationService.parseFolder(files.map(pickedFileObject));
+      folder = await this.notebookMigrationService.parseFolder(files.map(pickedFileObject), language);
     } catch (error) {
       // parseFolder names what was wrong with the selection, so its message is shown as-is.
       this.notificationService.error(error instanceof Error ? error.message : "Failed to read the selected folder.");
@@ -413,7 +435,7 @@ export class UserWorkflowComponent implements AfterViewInit, OnDestroy {
     }
 
     try {
-      return await this.notebookMigrationService.sendFolderToAIGenerateWorkflow(folder, model);
+      return await this.notebookMigrationService.sendFolderToAIGenerateWorkflow(folder, model, language);
     } catch (error) {
       this.reportGenerationFailure(error, "folder");
       return null;

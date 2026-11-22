@@ -42,12 +42,13 @@ case object WorkerConfig {
       1
     }
 
-    (0 until workerCount).toList.map(idx =>
+    lazy val largeBinaryBaseUri = LargeBinaryManager.baseUriForExecution(physicalOp.executionId.id)
+    List.tabulate(workerCount)(idx =>
       WorkerConfig(
         VirtualIdentityUtils.createWorkerIdentity(physicalOp.workflowId, physicalOp.id, idx),
         pveName = physicalOp.pveName,
         cuid = cuid,
-        largeBinaryBaseUri = LargeBinaryManager.baseUriForExecution(physicalOp.executionId.id)
+        largeBinaryBaseUri = largeBinaryBaseUri
       )
     )
   }
