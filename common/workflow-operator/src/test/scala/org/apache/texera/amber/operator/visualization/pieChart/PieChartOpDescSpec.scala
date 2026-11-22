@@ -71,10 +71,7 @@ class PieChartOpDescSpec extends AnyFlatSpec with BeforeAndAfter with GeneratedC
     code should not include "NAME_SENT"
   }
 
-  it should "fail-fast when value is unset even if name is set (only `value` is asserted)" in {
-    // Pin: PieChartOpDesc.manipulateTable and createPlotlyFigure both assert
-    // nonEmpty on `value`, but neither asserts on `name`. Setting just `name`
-    // is therefore not enough to satisfy the guards.
+  it should "fail-fast when value is unset even if name is set" in {
     opDesc.name = "label"
     assertThrows[AssertionError](opDesc.generatePythonCode())
   }
@@ -98,14 +95,21 @@ class PieChartOpDescSpec extends AnyFlatSpec with BeforeAndAfter with GeneratedC
     plain should include("dropna")
   }
 
-  it should "render successfully when only name is empty (asymmetric guard, current behavior)" in {
-    // Pin: name has no assert guard. With value set and name empty, the
-    // generated Python still renders — only the runtime call site receives
-    // an empty decode. This asymmetry between value (asserted) and name
-    // (not asserted) is documented here.
+  it should "throw AssertionError naming the Name Column when name is left empty (manipulateTable)" in {
     opDesc.value = "amount"
     opDesc.name = ""
-    val code = opDesc.generatePythonCode()
-    code should include("class ProcessTableOperator(UDFTableOperator)")
+    expectError[AssertionError]("Name Column cannot be empty")(opDesc.manipulateTable())
+  }
+
+  it should "throw AssertionError naming the Name Column when name is left empty (createPlotlyFigure)" in {
+    opDesc.value = "amount"
+    opDesc.name = ""
+    expectError[AssertionError]("Name Column cannot be empty")(opDesc.createPlotlyFigure())
+  }
+
+  it should "refuse to generate code when name is left empty" in {
+    opDesc.value = "amount"
+    opDesc.name = ""
+    expectError[AssertionError]("Name Column cannot be empty")(opDesc.generatePythonCode())
   }
 }
