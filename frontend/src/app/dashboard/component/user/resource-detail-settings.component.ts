@@ -82,7 +82,7 @@ import { MarkdownDescriptionComponent } from "./markdown-description/markdown-de
         <div class="settings-field-hint">Shown on cards.</div>
         <texera-markdown-description
           [description]="description"
-          [editable]="canEdit"
+          [editable]="true"
           [enableViewMore]="true"
           (descriptionChange)="descriptionChange.emit($event)">
         </texera-markdown-description>
@@ -109,7 +109,6 @@ import { MarkdownDescriptionComponent } from "./markdown-description/markdown-de
           <nz-switch
             [ngModel]="isPublic"
             (ngModelChange)="publicChange.emit($event)"
-            [nzDisabled]="!canEdit"
             nzCheckedChildren="public"
             nzUnCheckedChildren="private"></nz-switch>
         </div>
@@ -185,9 +184,6 @@ import { MarkdownDescriptionComponent } from "./markdown-description/markdown-de
       :host ::ng-deep .settings-general-card .settings-name-row .settings-name-controls > button {
         border-radius: 8px;
       }
-      :host ::ng-deep .settings-general-card .settings-select {
-        min-width: 200px;
-      }
     `,
   ],
 })
@@ -201,7 +197,6 @@ export class ResourceDetailSettingsComponent {
   @Input() editedName = "";
   @Input() uploadsInFlight = false;
   @Input() description = "";
-  @Input() canEdit = true;
   @Input() isPublic = false;
   @Input() isDownloadable = true;
   @Input() isOwner = false;

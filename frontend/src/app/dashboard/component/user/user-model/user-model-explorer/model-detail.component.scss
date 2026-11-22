@@ -21,17 +21,13 @@
 
 // Mirrors dataset-detail.component.scss; the two detail pages are the same layout.
 
-@include detail.version-storage;
-
 nz-layout {
   height: 100%;
 }
 
-@include detail.browser-pane;
-
-@include detail.browser-toolbar;
-
-@include detail.version-list;
+nz-select {
+  flex-grow: 1;
+}
 
 @include detail.like-states;
 
@@ -47,8 +43,6 @@ nz-layout {
   background: #fffbeb;
 }
 
-@include detail.file-path-title;
-
 @include detail.header("model");
 
 @include detail.tab-bar;
@@ -62,4 +56,8 @@ nz-layout {
 
 .settings-tab-content {
   @include detail.scrollable-tab;
+}
+
+.settings-general-card .settings-select {
+  min-width: 200px;
 }

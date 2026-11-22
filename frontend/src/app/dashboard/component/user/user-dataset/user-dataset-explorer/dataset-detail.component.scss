@@ -19,8 +19,6 @@
 
 @use "../../resource-detail-shared" as detail;
 
-@include detail.version-storage;
-
 nz-layout {
   height: 100%;
 }
@@ -32,8 +30,6 @@ body {
   padding: 0;
 }
 
-@include detail.browser-pane;
-
 .grayed-out {
   filter: grayscale(1) opacity(0.7);
   background-color: #f0f0f0; /* Adjust the color as needed */
@@ -43,21 +39,15 @@ body {
   pointer-events: none;
 }
 
-@include detail.browser-toolbar;
-
 .file-title {
   display: flex;
   align-items: center;
   gap: 10px;
 }
 
-@include detail.version-list;
-
 @include detail.status-tags;
 
 @include detail.like-states;
-
-@include detail.file-path-title;
 
 .file-size {
   display: inline-flex;

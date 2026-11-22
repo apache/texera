@@ -506,44 +506,40 @@ export class ModelDetailComponent implements OnInit {
   }
 
   onModelDescriptionChange(description: string): void {
-    this.saveTextSetting(
-      "modelDescription",
-      description ?? "",
-      (id, value) => this.modelService.updateModelDescription(id, value),
-      { error: "Failed to update model description" }
-    );
+    const updatedDescription = description ?? "";
+    const previousDescription = this.modelDescription;
+
+    if (!this.mid || previousDescription === updatedDescription) {
+      return;
+    }
+    this.modelDescription = updatedDescription;
+
+    this.modelService
+      .updateModelDescription(this.mid, updatedDescription)
+      .pipe(untilDestroyed(this))
+      .subscribe({
+        error: () => {
+          this.modelDescription = previousDescription;
+          this.notificationService.error("Failed to update model description");
+        },
+      });
   }
 
   onFrameworkChange(framework: string): void {
-    this.saveTextSetting(
-      "modelFramework",
-      framework,
-      (id, value) => this.modelService.updateModelFramework(id, value),
-      { success: `Framework set to '${framework}'` }
-    );
-  }
-
-  private saveTextSetting<K extends "modelDescription" | "modelFramework" | "modelFormat">(
-    field: K,
-    value: ModelDetailComponent[K] & string,
-    save: (mid: number, value: string) => Observable<unknown>,
-    { error, success }: { error?: string; success?: string }
-  ): void {
-    const model: ModelDetailComponent = this;
-    const previous = model[field];
-    const mid = this.mid;
-    if (!mid || previous === value) {
+    const previous = this.modelFramework;
+    if (!this.mid || previous === framework) {
       return;
     }
+    this.modelFramework = framework;
 
-    model[field] = value;
-    save(mid, value)
+    this.modelService
+      .updateModelFramework(this.mid, framework)
       .pipe(untilDestroyed(this))
       .subscribe({
-        next: success === undefined ? undefined : () => this.notificationService.success(success),
+        next: () => this.notificationService.success(`Framework set to '${framework}'`),
         error: (err: unknown) => {
-          model[field] = previous;
-          this.notificationService.error(error ?? extractErrorMessage(err));
+          this.modelFramework = previous;
+          this.notificationService.error(extractErrorMessage(err));
         },
       });
   }
@@ -632,8 +628,21 @@ export class ModelDetailComponent implements OnInit {
   }
 
   onFormatChange(modelFormat: string): void {
-    this.saveTextSetting("modelFormat", modelFormat, (id, value) => this.modelService.updateModelFormat(id, value), {
-      success: `Format set to '${modelFormat}'`,
-    });
+    const previous = this.modelFormat;
+    if (!this.mid || previous === modelFormat) {
+      return;
+    }
+    this.modelFormat = modelFormat;
+
+    this.modelService
+      .updateModelFormat(this.mid, modelFormat)
+      .pipe(untilDestroyed(this))
+      .subscribe({
+        next: () => this.notificationService.success(`Format set to '${modelFormat}'`),
+        error: (err: unknown) => {
+          this.modelFormat = previous;
+          this.notificationService.error(extractErrorMessage(err));
+        },
+      });
   }
 }

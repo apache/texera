@@ -279,7 +279,6 @@
       [uploadsInFlight]="uploadsInFlight"
       (saveName)="onSaveDatasetName()"
       [description]="datasetDescription"
-      [canEdit]="userDatasetAccessLevel === 'WRITE'"
       (descriptionChange)="onDatasetDescriptionChange($event)"
       [isPublic]="datasetIsPublic"
       (publicChange)="onPublicStatusChange($event)"
