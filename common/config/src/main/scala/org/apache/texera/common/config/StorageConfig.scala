@@ -50,9 +50,22 @@ object StorageConfig {
     conf.getString("storage.iceberg.catalog.postgres.password")
 
   // Iceberg catalog cache specifics
-  val icebergCatalogCacheMaxSize: Int = conf.getInt("storage.iceberg.catalog.cache.max-size")
-  val icebergCatalogCacheIdleExpiryMinutes: Int =
-    conf.getInt("storage.iceberg.catalog.cache.idle-expiry-minutes")
+  // 0 would make the cache build a catalog on every call and leave it open (Guava evicts it at
+  // once by size, which the cache does not close), and a negative value would fail only at the
+  // first catalog access. Fail fast at load time instead, naming the variable to fix.
+  private[config] def requireAtLeastOne(value: Int, envVar: String): Int = {
+    require(value >= 1, s"$envVar must be at least 1, got $value")
+    value
+  }
+
+  val icebergCatalogCacheMaxSize: Int = requireAtLeastOne(
+    conf.getInt("storage.iceberg.catalog.cache.max-size"),
+    "STORAGE_ICEBERG_CATALOG_CACHE_MAX_SIZE"
+  )
+  val icebergCatalogCacheIdleExpiryMinutes: Int = requireAtLeastOne(
+    conf.getInt("storage.iceberg.catalog.cache.idle-expiry-minutes"),
+    "STORAGE_ICEBERG_CATALOG_CACHE_IDLE_EXPIRY_MINUTES"
+  )
 
   // Iceberg Table specifics
   val icebergTableResultNamespace: String = conf.getString("storage.iceberg.table.result-namespace")

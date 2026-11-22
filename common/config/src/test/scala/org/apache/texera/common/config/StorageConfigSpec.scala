@@ -101,4 +101,16 @@ class StorageConfigSpec extends AnyFlatSpec with Matchers {
       StorageConfig.icebergCatalogCacheIdleExpiryMinutes shouldBe 60
     }
   }
+
+  it should "refuse a bound below 1, naming the variable" in {
+    for (value <- Seq(0, -1)) {
+      val error = intercept[IllegalArgumentException] {
+        StorageConfig.requireAtLeastOne(value, "STORAGE_ICEBERG_CATALOG_CACHE_MAX_SIZE")
+      }
+      error.getMessage should include(
+        s"STORAGE_ICEBERG_CATALOG_CACHE_MAX_SIZE must be at least 1, got $value"
+      )
+    }
+    StorageConfig.requireAtLeastOne(1, "STORAGE_ICEBERG_CATALOG_CACHE_MAX_SIZE") shouldBe 1
+  }
 }
