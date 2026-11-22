@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1795265041067,
+  "lastUpdate": 1795352335308,
   "repoUrl": "https://github.com/apache/texera",
   "entries": {
     "Arrow Flight E2E Throughput": [
@@ -23500,6 +23500,163 @@ window.BENCHMARK_DATA = {
           {
             "name": "throughput / bs=1000 sw=50 sl=512",
             "value": 724.5538482079037,
+            "unit": "tuples/sec"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "name": "Xinyuan Lin",
+            "username": "aglinxinyuan",
+            "email": "xinyual3@uci.edu"
+          },
+          "committer": {
+            "name": "GitHub",
+            "username": "web-flow",
+            "email": "noreply@github.com"
+          },
+          "id": "8c8cdc86cf87445359c916bb7f0e7893aab0712e",
+          "message": "refactor(frontend): share dataset and model resource UI (#9522)\n\n### What changes were proposed in this PR?\n\nExtracts shared stylesheets, Settings-tab cards, overview statistics\nprojection, Formly field builders, upload-tuning loaders, and test\nfixtures across dataset and model management UI components with no\nuser-facing behavior change:\n\n| Area | Shared abstraction | Consumers |\n| --- | --- | --- |\n| Detail layout & cards | `_resource-detail-shared.scss`,\n`overviewStatistics` (`@for`), single-icon binding &\n`createFiletreeFixture` | Dataset detail, model detail, versions\nbrowser, filetree |\n| Settings tab | `ResourceDetailSettingsComponent`\n(`div[texeraResourceDetailSettings]`) | Dataset detail Settings, model\ndetail Settings |\n| Creator & contributor forms | `resourceNameAndDescriptionFields`,\n`contributorInput`, `createFormlyModalFixture` | Dataset creator, model\ncreator, contributor editor |\n| Version uploader | Table-driven `loadUploadSettings`, shared\n`stageFile`/`mount`/`expectAbortRequest` test helpers | Version uploader\n& spec |\n\n### Any related issues, documentation, discussions?\n\nCloses #9520.\n\n### How was this PR tested?\n\nRan in `frontend/` on `63e9447924`:\n\n- `yarn format:ci` — passed\n- `yarn tsc --noEmit -p src/tsconfig.app.json` — passed\n- `yarn tsc --noEmit -p src/tsconfig.spec.json` — passed\n- `yarn test:ci` — `254 passed (254)` files, `7290 passed | 1 skipped\n(7291)` tests\n- `yarn ng run gui:test-browser --watch=false --progress=false` — `3\npassed (3)` files, `23 passed (23)` tests in Chromium\n- `yarn build:ci --skip-nx-cache` — production build succeeded\n- Review-round follow-up (`8bfb77b1e6`): `prettier-eslint`, `eslint`,\n`tsc` (app + spec), and `ng test` across `dataset-detail`,\n`model-detail`, and `versions-files-browser` (`231/231` passed)\n- **Playwright Chromium (`1280x980`) against `ng serve` with stubbed\n`/api/**`**: navigated to `/user/dataset/1` (`Data Card`, `Versions &\nFiles`, `Settings`) and `/user/model/1` (`Model Card`, `Settings`)\nbefore and after refactoring to verify identical layout and controls.\n\n#### Visual comparison (`1280x980` desktop)\n\n| View | Before (`main`) | After (this PR) |\n| --- | --- | --- |\n| Dataset Data Card | ![Before dataset\noverview](https://raw.githubusercontent.com/aglinxinyuan/texera/778af1ef1b63167c10a9f875d939a3fec73ecc39/before-dataset-overview.png)\n| ![After dataset\noverview](https://raw.githubusercontent.com/aglinxinyuan/texera/778af1ef1b63167c10a9f875d939a3fec73ecc39/after-dataset-overview.png)\n|\n| Dataset Versions & Files | ![Before dataset\nversions](https://raw.githubusercontent.com/aglinxinyuan/texera/778af1ef1b63167c10a9f875d939a3fec73ecc39/before-dataset-versions.png)\n| ![After dataset\nversions](https://raw.githubusercontent.com/aglinxinyuan/texera/778af1ef1b63167c10a9f875d939a3fec73ecc39/after-dataset-versions.png)\n|\n| Dataset Settings | ![Before dataset\nsettings](https://raw.githubusercontent.com/aglinxinyuan/texera/778af1ef1b63167c10a9f875d939a3fec73ecc39/before-dataset-settings.png)\n| ![After dataset\nsettings](https://raw.githubusercontent.com/aglinxinyuan/texera/778af1ef1b63167c10a9f875d939a3fec73ecc39/after-dataset-settings.png)\n|\n| Model Card | ![Before model\noverview](https://raw.githubusercontent.com/aglinxinyuan/texera/778af1ef1b63167c10a9f875d939a3fec73ecc39/before-model-overview.png)\n| ![After model\noverview](https://raw.githubusercontent.com/aglinxinyuan/texera/778af1ef1b63167c10a9f875d939a3fec73ecc39/after-model-overview.png)\n|\n| Model Settings | ![Before model\nsettings](https://raw.githubusercontent.com/aglinxinyuan/texera/778af1ef1b63167c10a9f875d939a3fec73ecc39/before-model-settings.png)\n| ![After model\nsettings](https://raw.githubusercontent.com/aglinxinyuan/texera/778af1ef1b63167c10a9f875d939a3fec73ecc39/after-model-settings.png)\n|\n\n### Was this PR authored or co-authored using generative AI tooling?\n\nGenerated-by: Antigravity IDE (Gemini 3.8 Flash)",
+          "timestamp": "2026-11-22T04:25:13Z",
+          "url": "https://github.com/apache/texera/commit/8c8cdc86cf87445359c916bb7f0e7893aab0712e"
+        },
+        "date": 1795352334472,
+        "tool": "customBiggerIsBetter",
+        "benches": [
+          {
+            "name": "throughput / bs=10 sw=1 sl=8",
+            "value": 673.7493137168436,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=1 sl=8",
+            "value": 1161.2719062691667,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=1 sl=8",
+            "value": 1205.1866660737767,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=1 sl=64",
+            "value": 891.744073478028,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=1 sl=64",
+            "value": 1201.051443936105,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=1 sl=64",
+            "value": 1247.98864214103,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=1 sl=512",
+            "value": 899.1476411697616,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=1 sl=512",
+            "value": 1197.094746769287,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=1 sl=512",
+            "value": 1239.7077636764714,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=10 sl=8",
+            "value": 739.6929374768889,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=10 sl=8",
+            "value": 960.785668137511,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=10 sl=8",
+            "value": 987.7603516762837,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=10 sl=64",
+            "value": 765.839214921066,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=10 sl=64",
+            "value": 981.7801831514878,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=10 sl=64",
+            "value": 995.8013392215665,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=10 sl=512",
+            "value": 761.2290248442439,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=10 sl=512",
+            "value": 947.2670233668657,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=10 sl=512",
+            "value": 972.1141383598248,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=50 sl=8",
+            "value": 468.4282183222612,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=50 sl=8",
+            "value": 545.5857754292635,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=50 sl=8",
+            "value": 546.0529078367592,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=50 sl=64",
+            "value": 470.1083334426453,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=50 sl=64",
+            "value": 541.323777217447,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=50 sl=64",
+            "value": 544.6365249861851,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=50 sl=512",
+            "value": 445.85611864493836,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=50 sl=512",
+            "value": 517.9390261356766,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=50 sl=512",
+            "value": 509.8966726227054,
             "unit": "tuples/sec"
           }
         ]
