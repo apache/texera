@@ -154,7 +154,7 @@ export class ComputingUnitStatusService implements OnDestroy {
         distinctUntilChanged(), // react only to real changes
         untilDestroyed(this)
       )
-      .subscribe(isConnected => {
+      .subscribe(() => {
         this.refreshComputingUnitList();
       });
   }
@@ -330,7 +330,7 @@ export class ComputingUnitStatusService implements OnDestroy {
         this.refreshComputingUnitList();
       }),
       map(() => true),
-      catchError((err: unknown) => {
+      catchError(() => {
         return of(false);
       }),
       take(1) // complete after first emission

@@ -23,10 +23,6 @@ import { Observable, of } from "rxjs";
 
 @Injectable()
 export class MockComputingUnitStatusService {
-  listComputingUnits(): Observable<DashboardWorkflowComputingUnit[]> {
-    return of([]);
-  }
-
   getSelectedComputingUnit(): Observable<DashboardWorkflowComputingUnit | null> {
     return of(null);
   }
@@ -42,8 +38,4 @@ export class MockComputingUnitStatusService {
   selectComputingUnit(): void {}
 
   refreshComputingUnitList(): void {}
-
-  startPolling(): void {}
-
-  stopPolling(): void {}
 }

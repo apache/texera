@@ -22,7 +22,7 @@ import { Injectable } from "@angular/core";
 import { Observable, firstValueFrom } from "rxjs";
 import { AppSettings } from "../../../../common/app-setting";
 
-export const WORKFLOW_COVER_URL = "workflow";
+const WORKFLOW_COVER_URL = "workflow";
 
 /** Longest edge (px) a custom cover image is downscaled to before being stored. */
 const MAX_IMAGE_EDGE = 640;
