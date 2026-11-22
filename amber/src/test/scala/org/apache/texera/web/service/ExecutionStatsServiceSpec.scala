@@ -94,9 +94,10 @@ import java.util.concurrent.{CountDownLatch, ExecutorService, TimeUnit}
   * (DefaultCostEstimatorSpec owns wid 1 / eid 1). They must also differ from each other, so a
   * URI built from the wrong identity is a visibly different URI.
   *
-  * Not covered on purpose: the catch arm around `runtimeStatsWriter.close()` (iceberg's close is
-  * a repeatable buffer flush and does not throw), and the catch arm in `storeRuntimeStatistics`
-  * (it runs on the private persist executor, which swallows anything a test could observe).
+  * Not covered on purpose: the catch arms in `commitAndStop` (iceberg's close is a repeatable
+  * buffer flush and does not throw, and the wait is not interrupted), and the catch arm in
+  * `storeRuntimeStatistics` (it runs on the private persist executor, which swallows anything a
+  * test could observe).
   */
 class ExecutionStatsServiceSpec
     extends TestKit(ActorSystem("ExecutionStatsServiceSpec"))
@@ -224,13 +225,8 @@ class ExecutionStatsServiceSpec
     * queued behind it can only run once that work is done, which is the barrier a test needs
     * before it closes the writer and reads the table back.
     */
-  private def awaitPersist(service: ExecutionStatsService): Unit = {
-    val executor = persistExecutor(service)
-    // Once the execution has terminated the executor is shut down and takes no more tasks, so
-    // the barrier becomes waiting for the tasks it already holds.
-    if (executor.isShutdown) executor.awaitTermination(30, TimeUnit.SECONDS) shouldBe true
-    else executor.submit((() => ()): Runnable).get()
-  }
+  private def awaitPersist(service: ExecutionStatsService): Unit =
+    persistExecutor(service).submit((() => ()): Runnable).get()
 
   private def persistExecutor(service: ExecutionStatsService): ExecutorService = {
     val field = classOf[ExecutionStatsService].getDeclaredField("metricsPersistThread")
@@ -608,35 +604,27 @@ class ExecutionStatsServiceSpec
       releaser.start()
 
       f.client.fire(ExecutionStateUpdate(COMPLETED))
-      awaitPersist(f.service)
 
       persistedRows().map(_.getField[String]("operatorId")) shouldBe Seq("opA")
     }
   }
 
-  it should "stop the persist thread once the statistics are committed" in {
-    withService { f =>
-      f.client.fire(ExecutionStateUpdate(COMPLETED))
-      persistExecutor(f.service).isShutdown shouldBe true
-    }
-  }
-
-  it should "ignore statistics and terminal states that arrive after the commit" in {
+  it should "stop the persist thread on commit and ignore what arrives after it" in {
     withService { f =>
       f.client.fire(RuntimeStatisticsPersist(Map("opA" -> metrics(RUNNING))))
       f.client.fire(ExecutionStateUpdate(COMPLETED))
+      persistExecutor(f.service).isShutdown shouldBe true
 
       noException should be thrownBy {
         f.client.fire(RuntimeStatisticsPersist(Map("opA" -> metrics(COMPLETED))))
         f.client.fire(ExecutionStateUpdate(KILLED))
       }
-      awaitPersist(f.service)
       persistedRows() should have size 1
     }
   }
 
-  it should "commit the statistics and stop the persist thread when torn down without a terminal state" in {
-    // A killed or failed execution never reports a terminal state; the service is only torn down.
+  it should "commit and stop the persist thread when torn down without a terminal state" in {
+    // A user kill or a fatal error never reports a terminal state; the service is only torn down.
     withService { f =>
       f.client.fire(RuntimeStatisticsPersist(Map("opA" -> metrics(RUNNING))))
       awaitPersist(f.service)

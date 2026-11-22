@@ -67,7 +67,7 @@ import org.apache.texera.web.storage.ExecutionStateStore.updateWorkflowState
 
 import java.time.Instant
 import java.util.concurrent.atomic.AtomicBoolean
-import java.util.concurrent.{Executors, RejectedExecutionException}
+import java.util.concurrent.{Executors, RejectedExecutionException, TimeUnit, TimeoutException}
 
 class ExecutionStatsService(
     client: AmberClient,
@@ -99,6 +99,7 @@ class ExecutionStatsService(
     Map.empty[String, OperatorMetrics]
 
   private val committed = new AtomicBoolean(false)
+  private val CommitTimeoutSeconds = 60L
 
   registerCallbacks()
 
@@ -220,7 +221,7 @@ class ExecutionStatsService(
     }
   )
 
-  /** A killed or failed execution never reports a terminal state, so commit what it has here. */
+  /** A user kill or a fatal error tears the service down without a terminal state; commit here. */
   override def unsubscribeAll(): Unit = {
     super.unsubscribeAll()
     commitAndStop()
@@ -236,11 +237,18 @@ class ExecutionStatsService(
     if (committed.compareAndSet(false, true)) {
       logger.info("Workflow execution terminated. Commit runtime statistics.")
       try {
-        metricsPersistThread.submit((() => runtimeStatsWriter.close()): Runnable).get()
+        // Bounded so a stuck write cannot hang the caller; shutdown still lets the close finish.
+        metricsPersistThread
+          .submit((() => runtimeStatsWriter.close()): Runnable)
+          .get(CommitTimeoutSeconds, TimeUnit.SECONDS)
       } catch {
         case e: InterruptedException =>
           Thread.currentThread().interrupt()
           logger.error("Interrupted while closing runtime statistics writer", e)
+        case _: TimeoutException =>
+          logger.warn(
+            s"Runtime statistics commit exceeded ${CommitTimeoutSeconds}s; continuing in background"
+          )
         case e: Exception =>
           logger.error("Failed to close runtime statistics writer", e)
       } finally {
