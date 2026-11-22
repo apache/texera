@@ -298,6 +298,8 @@ SERVICES: list[Service] = [
          "computing-unit-managing-service/src"),
     _jvm("notebook-migration-service",      9098, "NotebookMigrationService",
          "notebook-migration-service/src"),
+    _jvm("result-service",                  9102, "ResultService",
+         "result-service/src"),
     _jvm("texera-web",                      8080, "WorkflowExecutionService",
          "amber/src"),
     Service("agent-service", "bun",  3001),

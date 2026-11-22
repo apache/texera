@@ -15,6 +15,11 @@
     "secure": false,
     "changeOrigin": true
   },
+  "/api/results": {
+    "target": "http://localhost:9102",
+    "secure": false,
+    "changeOrigin": true
+  },
   "/api/models": {
     "target": "http://localhost:9096",
     "secure": false,
