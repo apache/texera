@@ -30,13 +30,9 @@ import { NzTooltipDirective } from "ng-zorro-antd/tooltip";
 import { NzTagComponent } from "ng-zorro-antd/tag";
 import { ɵNzTransitionPatchDirective } from "ng-zorro-antd/core/transition-patch";
 import { NzIconDirective } from "ng-zorro-antd/icon";
-import { NzButtonComponent } from "ng-zorro-antd/button";
-import { NzWaveDirective } from "ng-zorro-antd/core/wave";
 import { NzSelectComponent, NzOptionComponent } from "ng-zorro-antd/select";
 import { NzTabsComponent, NzTabComponent } from "ng-zorro-antd/tabs";
 import { NzDividerComponent } from "ng-zorro-antd/divider";
-import { NzInputDirective } from "ng-zorro-antd/input";
-import { NzSwitchComponent } from "ng-zorro-antd/switch";
 
 import {
   MODEL_FORMATS,
@@ -61,6 +57,7 @@ import {
 } from "../../../../../common/type/datasetVersionFileTree";
 import { MarkdownDescriptionComponent } from "../../markdown-description/markdown-description.component";
 import { VersionsFilesBrowserComponent } from "../../versions-files-browser/versions-files-browser.component";
+import { ResourceDetailSettingsComponent } from "../../resource-detail-settings.component";
 
 @UntilDestroy()
 @Component({
@@ -77,17 +74,14 @@ import { VersionsFilesBrowserComponent } from "../../versions-files-browser/vers
     NzTagComponent,
     ɵNzTransitionPatchDirective,
     NzIconDirective,
-    NzButtonComponent,
-    NzWaveDirective,
     NzSelectComponent,
     NzOptionComponent,
     NzTabsComponent,
     NzTabComponent,
     NzDividerComponent,
-    NzInputDirective,
-    NzSwitchComponent,
     MarkdownDescriptionComponent,
     VersionsFilesBrowserComponent,
+    ResourceDetailSettingsComponent,
   ],
 })
 export class ModelDetailComponent implements OnInit {
@@ -145,7 +139,17 @@ export class ModelDetailComponent implements OnInit {
   // blocks it until the panel is idle.
   public uploadsInFlight = false;
 
-  formatSize = formatSize;
+  protected get overviewStatistics() {
+    return [
+      { label: "Created", value: this.modelCreationTime },
+      { label: "Last updated", value: this.latestVersionCreationTime || "—" },
+      { label: "Versions", value: this.versions.length },
+      { label: "Framework", value: this.modelFramework || "—" },
+      { label: "Format", value: this.modelFormat || "—" },
+      { label: "Latest version file", value: this.latestVersionFileName || "—" },
+      { label: "Latest version size", value: formatSize(this.latestVersionSize) },
+    ];
+  }
   formatCount = formatCount;
 
   constructor(

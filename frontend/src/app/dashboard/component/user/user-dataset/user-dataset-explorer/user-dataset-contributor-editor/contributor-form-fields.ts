@@ -20,21 +20,20 @@
 import { Validators } from "@angular/forms";
 import { FormlyFieldConfig } from "@ngx-formly/core";
 
+function contributorInput(key: string, options: FormlyFieldConfig["templateOptions"]): FormlyFieldConfig {
+  return {
+    key,
+    type: "input",
+    defaultValue: "",
+    templateOptions: { ...options, maxLength: 256 },
+  };
+}
+
 // Formly attaches per-form runtime state to field-config objects, so every
 // consumer must get a fresh copy instead of sharing one array.
 export function contributorFieldGroup(): FormlyFieldConfig[] {
   return [
-    {
-      key: "name",
-      type: "input",
-      defaultValue: "",
-      templateOptions: {
-        label: "Name",
-        required: true,
-        placeholder: "Enter name",
-        maxLength: 256,
-      },
-    },
+    contributorInput("name", { label: "Name", required: true, placeholder: "Enter name" }),
     {
       key: "creator",
       type: "checkbox",
@@ -44,15 +43,7 @@ export function contributorFieldGroup(): FormlyFieldConfig[] {
       },
     },
     {
-      key: "email",
-      type: "input",
-      defaultValue: "",
-      templateOptions: {
-        label: "Email",
-        type: "email",
-        placeholder: "Enter email",
-        maxLength: 256,
-      },
+      ...contributorInput("email", { label: "Email", type: "email", placeholder: "Enter email" }),
       validators: {
         validation: [Validators.email],
       },
@@ -62,16 +53,7 @@ export function contributorFieldGroup(): FormlyFieldConfig[] {
         },
       },
     },
-    {
-      key: "affiliation",
-      type: "input",
-      defaultValue: "",
-      templateOptions: {
-        label: "Affiliation",
-        placeholder: "Enter affiliation",
-        maxLength: 256,
-      },
-    },
+    contributorInput("affiliation", { label: "Affiliation", placeholder: "Enter affiliation" }),
     {
       key: "comments",
       type: "textarea",
