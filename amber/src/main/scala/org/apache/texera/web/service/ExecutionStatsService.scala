@@ -66,7 +66,8 @@ import org.apache.texera.web.storage.ExecutionStateStore
 import org.apache.texera.web.storage.ExecutionStateStore.updateWorkflowState
 
 import java.time.Instant
-import java.util.concurrent.Executors
+import java.util.concurrent.atomic.AtomicBoolean
+import java.util.concurrent.{Executors, RejectedExecutionException}
 
 class ExecutionStatsService(
     client: AmberClient,
@@ -96,6 +97,8 @@ class ExecutionStatsService(
 
   private var lastPersistedMetrics: Map[String, OperatorMetrics] =
     Map.empty[String, OperatorMetrics]
+
+  private val committed = new AtomicBoolean(false)
 
   registerCallbacks()
 
@@ -195,12 +198,14 @@ class ExecutionStatsService(
     addSubscription(
       client
         .registerCallback[RuntimeStatisticsPersist]((evt: RuntimeStatisticsPersist) => {
-          // After the terminal state the statistics are committed and the writer is closed.
-          if (!metricsPersistThread.isShutdown) {
+          try {
             metricsPersistThread.execute(() => {
               storeRuntimeStatistics(computeStatsDiff(evt.operatorMetrics))
               lastPersistedMetrics = evt.operatorMetrics
             })
+          } catch {
+            // The statistics are already committed and the writer is closed.
+            case _: RejectedExecutionException =>
           }
         })
     )
@@ -210,24 +215,39 @@ class ExecutionStatsService(
     client.registerCallback[ExecutionStateUpdate] {
       case ExecutionStateUpdate(state: WorkflowAggregatedState.Recognized)
           if state == COMPLETED || state == FAILED || state == KILLED =>
-        // The engine reports the final statistics right before the terminal state, and that
-        // report may still be queued on the persist thread. Closing there, behind it, commits
-        // it; closing here would flush before it and strand it in the buffer. A later terminal
-        // state finds the executor shut down and has nothing left to commit.
-        if (!metricsPersistThread.isShutdown) {
-          logger.info("Workflow execution terminated. Commit runtime statistics.")
-          try {
-            metricsPersistThread.submit((() => runtimeStatsWriter.close()): Runnable).get()
-          } catch {
-            case e: Exception =>
-              logger.error("Failed to close runtime statistics writer", e)
-          } finally {
-            metricsPersistThread.shutdown()
-          }
-        }
+        commitAndStop()
       case _ =>
     }
   )
+
+  /** A killed or failed execution never reports a terminal state, so commit what it has here. */
+  override def unsubscribeAll(): Unit = {
+    super.unsubscribeAll()
+    commitAndStop()
+  }
+
+  /**
+    * Commits the runtime statistics and stops the persist thread, once. The engine reports the
+    * final statistics right before the terminal state, and that report may still be queued on
+    * the persist thread. Closing the writer there, behind it, commits it; closing on the calling
+    * thread would flush before it and strand it in the buffer.
+    */
+  private def commitAndStop(): Unit = {
+    if (committed.compareAndSet(false, true)) {
+      logger.info("Workflow execution terminated. Commit runtime statistics.")
+      try {
+        metricsPersistThread.submit((() => runtimeStatsWriter.close()): Runnable).get()
+      } catch {
+        case e: InterruptedException =>
+          Thread.currentThread().interrupt()
+          logger.error("Interrupted while closing runtime statistics writer", e)
+        case e: Exception =>
+          logger.error("Failed to close runtime statistics writer", e)
+      } finally {
+        metricsPersistThread.shutdown()
+      }
+    }
+  }
 
   private def computeStatsDiff(
       newMetrics: Map[String, OperatorMetrics]

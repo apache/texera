@@ -598,12 +598,14 @@ class ExecutionStatsServiceSpec
       // callback only queues it. Hold the persist thread so that snapshot is still queued when
       // the terminal state arrives, then let it go a moment later.
       val release = new CountDownLatch(1)
-      persistExecutor(f.service).execute(() => release.await())
+      persistExecutor(f.service).execute(() => release.await(30, TimeUnit.SECONDS))
       f.client.fire(RuntimeStatisticsPersist(Map("opA" -> metrics(COMPLETED))))
-      new Thread(() => {
+      val releaser = new Thread(() => {
         Thread.sleep(200)
         release.countDown()
-      }).start()
+      })
+      releaser.setDaemon(true)
+      releaser.start()
 
       f.client.fire(ExecutionStateUpdate(COMPLETED))
       awaitPersist(f.service)
@@ -630,6 +632,20 @@ class ExecutionStatsServiceSpec
       }
       awaitPersist(f.service)
       persistedRows() should have size 1
+    }
+  }
+
+  it should "commit the statistics and stop the persist thread when torn down without a terminal state" in {
+    // A killed or failed execution never reports a terminal state; the service is only torn down.
+    withService { f =>
+      f.client.fire(RuntimeStatisticsPersist(Map("opA" -> metrics(RUNNING))))
+      awaitPersist(f.service)
+      persistedRows() shouldBe empty
+
+      f.service.unsubscribeAll()
+
+      persistedRows().map(_.getField[String]("operatorId")) shouldBe Seq("opA")
+      persistExecutor(f.service).isShutdown shouldBe true
     }
   }
 }
