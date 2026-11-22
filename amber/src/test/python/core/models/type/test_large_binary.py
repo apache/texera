@@ -18,6 +18,7 @@
 import pytest
 from unittest.mock import patch
 from core.models.type.large_binary import largebinary
+from core.storage.storage_config import StorageConfig
 from pytexera.storage.large_binary_manager import LargeBinaryManager
 
 # The manager is a singleton; bind the shared instance for the tests.
@@ -48,6 +49,43 @@ class TestLargeBinary:
 
         with pytest.raises(ValueError, match="largebinary URI must start with 's3://'"):
             largebinary("invalid-uri")
+
+    @pytest.mark.parametrize(
+        "uri",
+        [
+            "s3://",
+            "s3:///object",
+            "s3://bucket",
+            "s3://bucket/",
+            "s3://bucket//",
+            "s3://bucket/?versionId=1",
+        ],
+    )
+    def test_uri_without_bucket_or_object_key_raises_value_error(self, uri):
+        """Test that an s3:// URI missing its bucket or object key raises ValueError."""
+        with pytest.raises(ValueError, match="bucket and object key") as exc_info:
+            largebinary(uri)
+        assert uri in str(exc_info.value)
+
+    @pytest.mark.parametrize(
+        "uri, bucket, key",
+        [
+            ("s3://bucket/a/b/", "bucket", "a/b/"),
+            ("s3://bucket/\U0001f600", "bucket", "\U0001f600"),
+        ],
+    )
+    def test_uri_with_bucket_and_object_key_is_accepted(self, uri, bucket, key):
+        """Test that URIs with edge-case object keys are still accepted."""
+        large_binary = largebinary(uri)
+        assert large_binary.get_bucket_name() == bucket
+        assert large_binary.get_object_key() == key
+
+    @pytest.mark.parametrize("base_uri", ["s3://", "s3://bucket"])
+    def test_create_without_uri_rejects_misconfigured_base_uri(self, base_uri):
+        """Test that largebinary() raises when the base URI yields no object key."""
+        with patch.object(StorageConfig, "S3_LARGE_BINARIES_BASE_URI", base_uri):
+            with pytest.raises(ValueError, match="bucket and object key"):
+                largebinary()
 
     def test_get_bucket_name(self):
         """Test extracting bucket name from URI."""

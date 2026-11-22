@@ -59,7 +59,8 @@ class largebinary:
                  If None, creates a new largebinary with a unique S3 URI.
 
         Raises:
-            ValueError: If URI is provided but doesn't start with "s3://"
+            ValueError: If the URI doesn't start with "s3://" or lacks a bucket
+                or an object key
         """
         if uri is None:
             # Lazy import to avoid circular dependencies
@@ -69,6 +70,11 @@ class largebinary:
 
         if not uri.startswith("s3://"):
             raise ValueError(f"largebinary URI must start with 's3://', got: {uri}")
+        parsed_uri = urlparse(uri)
+        if not parsed_uri.netloc or not parsed_uri.path.lstrip("/"):
+            raise ValueError(
+                f"largebinary URI must include a bucket and object key, got: {uri}"
+            )
 
         self._uri = uri
 
