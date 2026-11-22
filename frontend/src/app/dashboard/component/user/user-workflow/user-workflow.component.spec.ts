@@ -571,6 +571,49 @@ describe("SavedWorkflowSectionComponent", () => {
         );
       });
 
+      it("falls back to language_info when the kernelspec language is empty", async () => {
+        enableR();
+        const { notebookConvert, errorSpy } = spies({
+          cells: [],
+          metadata: { kernelspec: { language: "" }, language_info: { name: "R" } },
+        });
+
+        await getRequestImport()(ipynbFile, "gpt-4", "python");
+
+        expect(errorSpy).toHaveBeenCalledWith(
+          "This notebook uses an R kernel, not Python. Switch the notebook type to R Notebook.",
+          MIGRATION_ERROR_OPTIONS
+        );
+        expect(notebookConvert).not.toHaveBeenCalled();
+      });
+
+      it("falls back to language_info when the kernelspec language is only whitespace", async () => {
+        const { errorSpy } = spies({
+          cells: [],
+          metadata: { kernelspec: { language: "   " }, language_info: { name: "python" } },
+        });
+
+        await getRequestImport()(ipynbFile, "gpt-4", "r");
+
+        expect(errorSpy).toHaveBeenCalledWith(
+          "This notebook uses a Python kernel, not R. Switch the notebook type to Python Notebook.",
+          MIGRATION_ERROR_OPTIONS
+        );
+      });
+
+      it("accepts a notebook whose declared languages are all blank", async () => {
+        const { notebookConvert, errorSpy } = spies({
+          cells: [],
+          metadata: { kernelspec: { language: " " }, language_info: { name: "" } },
+        });
+        notebookConvert.mockRejectedValue(new Error("reached the model"));
+
+        await getRequestImport()(ipynbFile, "gpt-4", "python");
+
+        expect(notebookConvert).toHaveBeenCalled();
+        expect(errorSpy).not.toHaveBeenCalledWith(expect.stringContaining("kernel"), expect.anything());
+      });
+
       it("rejects a kernel in no supported language whichever type was chosen", async () => {
         const { notebookConvert, errorSpy } = spies({ cells: [], metadata: { kernelspec: { language: "julia" } } });
 

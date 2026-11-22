@@ -121,8 +121,10 @@ const MIGRATION_ERROR_DURATION_MS = 8000;
 
 /** The language a notebook declares, lowercased. Undefined when it declares none. */
 function notebookKernelLanguage(notebook: Notebook): string | undefined {
-  const declared = notebook.metadata?.["kernelspec"]?.language ?? notebook.metadata?.["language_info"]?.name;
-  return declared ? String(declared).trim().toLowerCase() : undefined;
+  // Each field is normalized first, so a blank kernelspec still falls back to language_info.
+  return [notebook.metadata?.["kernelspec"]?.language, notebook.metadata?.["language_info"]?.name]
+    .map(value => `${value ?? ""}`.trim().toLowerCase())
+    .find(value => value !== "");
 }
 
 function languageOfKernel(kernelLanguage: string): MigrationLanguage | undefined {
