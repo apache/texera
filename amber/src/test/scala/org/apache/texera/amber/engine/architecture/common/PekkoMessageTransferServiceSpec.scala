@@ -170,6 +170,65 @@ class PekkoMessageTransferServiceSpec
     assert(!backpressured)
   }
 
+  "receiveAck" should "drain buffered messages in FIFO order when the congestion window reopens" in {
+    val actorService = newActorService()
+    val destination = ActorVirtualIdentity("destination")
+    val refService = new RecordingRefService(actorService, Set(destination))
+    val service = new PekkoMessageTransferService(actorService, refService, _ => ())
+    // A control channel skips byte-based flow control, so only the congestion window gates sends.
+    val channel = ChannelIdentity(actorId, destination, isControl = true)
+    val messages = (0L until 80L).map(id => net(id, channel, id))
+
+    def ack(id: Long): Unit = service.receiveAck(id, 0L, 0L)
+
+    def assertForwarded(count: Int): Unit = {
+      assert(refService.forwardedMessages.toVector == messages.take(count))
+    }
+
+    // The window starts at 1, so one message goes out and the other 39 wait in the queue.
+    messages.take(40).foreach(message => service.send(message.internalMessage))
+    assertForwarded(1)
+    // Prompt ACKs double the window 1 -> 2 -> 4 -> 8 -> 16 (the slow-start threshold),
+    // then grow it by one to 17. Each ACK sends queued messages until the window is full.
+    (0L to 4L).zip(Seq(3, 6, 11, 20, 22)).foreach {
+      case (id, count) =>
+        ack(id)
+        assertForwarded(count)
+    }
+
+    // The late ACK shrinks the window from 17 to 8 with 16 messages still in flight.
+    val congestionControl = service.channelToCC(channel)
+    backdateSentTime(congestionControl, 5L)
+    ack(5L)
+    assert(congestionControl.getInTransitMessages.size == 16)
+    assertForwarded(22)
+    // A repeated ACK and an unknown ACK change nothing.
+    ack(5L)
+    ack(-1L)
+    assertForwarded(22)
+
+    // Each prompt ACK now frees one slot and grows the window by one, so the gap of 8
+    // closes two at a time and nothing is sent until ACK 10.
+    (6L to 9L).foreach { id =>
+      ack(id)
+      assertForwarded(22)
+    }
+    assert(congestionControl.getInTransitMessages.size == 12)
+    ack(10L)
+    assertForwarded(24)
+
+    // New sends wait behind the 16 messages already queued instead of jumping ahead.
+    messages.drop(40).foreach(message => service.send(message.internalMessage))
+    assertForwarded(24)
+    // From here each ACK sends the next two queued messages, oldest first, until all 80
+    // have been sent and acknowledged.
+    (11 until messages.size).foreach { id =>
+      ack(id.toLong)
+      assertForwarded(math.min(messages.size, 24 + 2 * (id - 10)))
+    }
+    assert(service.getAllUnAckedMessages.isEmpty)
+  }
+
   // ---------------------------------------------------------------------------
   // initialize + checkResend (PekkoMessageTransferService lines 58-63, 167-181)
   // ---------------------------------------------------------------------------
