@@ -65,32 +65,16 @@ class TestTable:
         return Table(target_raw_tuples)
 
     @pytest.fixture
-    def target_data_frame(self, a_timestamp):
+    def target_data_frame(self, target_raw_tuples):
         return pandas.DataFrame(
-            {
-                "field1": [1, 2],
-                "field2": ["hello", "world"],
-                "field3": [2.3, 0.0],
-                "field4": [True, False],
-                "field5": [
-                    a_timestamp,
-                    datetime.datetime.fromtimestamp(1000000000),
-                ],
-                "field6": [b"some binary", pickle.dumps([1, 2, 3])],
-                "7_special-name": [None, "a strange value"],
-                "none": [None, None],
-            },
-            columns=[
-                "field1",
-                "field2",
-                "field3",
-                "field4",
-                "field5",
-                "field6",
-                "7_special-name",
-                "none",
-            ],
+            target_raw_tuples, columns=list(target_raw_tuples[0].keys())
         )
+
+    @staticmethod
+    def _assert_table_round_trips(source, target_table, target_tuples):
+        table = Table(source)
+        assert table == target_table
+        assert list(table.as_tuples()) == target_tuples
 
     def test_table_creation(self, target_table, a_timestamp):
         assert target_table["field1"][0] == 1
@@ -117,22 +101,19 @@ class TestTable:
         assert Table(target_data_frame) == target_table
 
     def test_table_from_list_of_tuples(self, target_table, target_tuples):
-        table = Table(target_tuples)
-        assert table == target_table
-        assert list(table.as_tuples()) == target_tuples
+        self._assert_table_round_trips(target_tuples, target_table, target_tuples)
 
     def test_table_from_list_of_series(
         self, target_table, a_timestamp, target_raw_tuples, target_tuples
     ):
-        table = Table([pandas.Series(raw_tuple) for raw_tuple in target_raw_tuples])
-
-        assert table == target_table
-        assert list(table.as_tuples()) == target_tuples
+        self._assert_table_round_trips(
+            [pandas.Series(raw_tuple) for raw_tuple in target_raw_tuples],
+            target_table,
+            target_tuples,
+        )
 
     def test_table_from_table(self, target_table, target_tuples):
-        table = Table(target_table)
-        assert table == target_table
-        assert list(table.as_tuples()) == target_tuples
+        self._assert_table_round_trips(target_table, target_table, target_tuples)
 
     def test_use_table_as_data_frame(self, target_table, target_data_frame):
         df = target_table

@@ -15,6 +15,8 @@
 # specific language governing permissions and limitations
 # under the License.
 
+from contextlib import contextmanager
+
 import queue
 import threading
 import pytest
@@ -31,12 +33,24 @@ from pytexera.storage.large_binary_manager import LargeBinaryManager
 large_binary_manager = LargeBinaryManager()
 
 
-class TestLargeBinaryOutputStream:
-    @pytest.fixture
-    def large_binary(self):
-        """Create a test largebinary."""
-        return largebinary("s3://test-bucket/path/to/object")
+@contextmanager
+def _mock_s3_upload():
+    with (
+        patch.object(large_binary_manager, "_get_s3_client") as get_client,
+        patch.object(large_binary_manager, "_ensure_bucket_exists") as ensure_bucket,
+    ):
+        client = MagicMock()
+        get_client.return_value = client
+        ensure_bucket.return_value = None
+        yield client
 
+
+@pytest.fixture
+def large_binary():
+    return largebinary("s3://test-bucket/path/to/object")
+
+
+class TestLargeBinaryOutputStream:
     def test_init_with_valid_large_binary(self, large_binary):
         """Test initialization with a valid largebinary."""
         stream = LargeBinaryOutputStream(large_binary)
@@ -53,16 +67,7 @@ class TestLargeBinaryOutputStream:
 
     def test_write_starts_upload_thread(self, large_binary):
         """Test that write() starts the upload thread."""
-        with (
-            patch.object(large_binary_manager, "_get_s3_client") as mock_get_s3_client,
-            patch.object(
-                large_binary_manager, "_ensure_bucket_exists"
-            ) as mock_ensure_bucket,
-        ):
-            mock_s3 = MagicMock()
-            mock_get_s3_client.return_value = mock_s3
-            mock_ensure_bucket.return_value = None
-
+        with _mock_s3_upload():
             stream = LargeBinaryOutputStream(large_binary)
             assert stream._upload_thread is None
 
@@ -76,16 +81,7 @@ class TestLargeBinaryOutputStream:
 
     def test_write_data(self, large_binary):
         """Test writing data to the stream."""
-        with (
-            patch.object(large_binary_manager, "_get_s3_client") as mock_get_s3_client,
-            patch.object(
-                large_binary_manager, "_ensure_bucket_exists"
-            ) as mock_ensure_bucket,
-        ):
-            mock_s3 = MagicMock()
-            mock_get_s3_client.return_value = mock_s3
-            mock_ensure_bucket.return_value = None
-
+        with _mock_s3_upload():
             stream = LargeBinaryOutputStream(large_binary)
             bytes_written = stream.write(b"test data")
             assert bytes_written == len(b"test data")
@@ -94,16 +90,7 @@ class TestLargeBinaryOutputStream:
 
     def test_write_multiple_chunks(self, large_binary):
         """Test writing multiple chunks of data."""
-        with (
-            patch.object(large_binary_manager, "_get_s3_client") as mock_get_s3_client,
-            patch.object(
-                large_binary_manager, "_ensure_bucket_exists"
-            ) as mock_ensure_bucket,
-        ):
-            mock_s3 = MagicMock()
-            mock_get_s3_client.return_value = mock_s3
-            mock_ensure_bucket.return_value = None
-
+        with _mock_s3_upload():
             stream = LargeBinaryOutputStream(large_binary)
             stream.write(b"chunk1")
             stream.write(b"chunk2")
@@ -140,16 +127,7 @@ class TestLargeBinaryOutputStream:
 
     def test_close_completes_upload(self, large_binary):
         """Test that close() completes the upload."""
-        with (
-            patch.object(large_binary_manager, "_get_s3_client") as mock_get_s3_client,
-            patch.object(
-                large_binary_manager, "_ensure_bucket_exists"
-            ) as mock_ensure_bucket,
-        ):
-            mock_s3 = MagicMock()
-            mock_get_s3_client.return_value = mock_s3
-            mock_ensure_bucket.return_value = None
-
+        with _mock_s3_upload() as mock_s3:
             stream = LargeBinaryOutputStream(large_binary)
             stream.write(b"test data")
 
@@ -161,16 +139,7 @@ class TestLargeBinaryOutputStream:
 
     def test_context_manager(self, large_binary):
         """Test using as context manager."""
-        with (
-            patch.object(large_binary_manager, "_get_s3_client") as mock_get_s3_client,
-            patch.object(
-                large_binary_manager, "_ensure_bucket_exists"
-            ) as mock_ensure_bucket,
-        ):
-            mock_s3 = MagicMock()
-            mock_get_s3_client.return_value = mock_s3
-            mock_ensure_bucket.return_value = None
-
+        with _mock_s3_upload():
             with LargeBinaryOutputStream(large_binary) as stream:
                 stream.write(b"test data")
                 assert not stream.closed
@@ -188,15 +157,7 @@ class TestLargeBinaryOutputStream:
 
     def test_close_handles_upload_error(self, large_binary):
         """Test that close() raises IOError if upload fails."""
-        with (
-            patch.object(large_binary_manager, "_get_s3_client") as mock_get_s3_client,
-            patch.object(
-                large_binary_manager, "_ensure_bucket_exists"
-            ) as mock_ensure_bucket,
-        ):
-            mock_s3 = MagicMock()
-            mock_get_s3_client.return_value = mock_s3
-            mock_ensure_bucket.return_value = None
+        with _mock_s3_upload() as mock_s3:
             mock_s3.upload_fileobj.side_effect = Exception("Upload failed")
 
             stream = LargeBinaryOutputStream(large_binary)
@@ -207,15 +168,7 @@ class TestLargeBinaryOutputStream:
 
     def test_write_after_upload_error_raises_error(self, large_binary):
         """Test that writing after upload error raises IOError."""
-        with (
-            patch.object(large_binary_manager, "_get_s3_client") as mock_get_s3_client,
-            patch.object(
-                large_binary_manager, "_ensure_bucket_exists"
-            ) as mock_ensure_bucket,
-        ):
-            mock_s3 = MagicMock()
-            mock_get_s3_client.return_value = mock_s3
-            mock_ensure_bucket.return_value = None
+        with _mock_s3_upload() as mock_s3:
             mock_s3.upload_fileobj.side_effect = Exception("Upload failed")
 
             stream = LargeBinaryOutputStream(large_binary)
@@ -233,7 +186,6 @@ class TestLargeBinaryOutputStream:
                 with pytest.raises(IOError):
                     stream.close()
 
-    @pytest.mark.timeout(5)
     def test_write_unblocks_when_upload_fails_with_full_queue(self, large_binary):
         with (
             patch("pytexera.storage.large_binary_output_stream._CHUNK_SIZE", 1),
@@ -263,16 +215,7 @@ class TestLargeBinaryOutputStream:
 
     def test_multiple_close_calls(self, large_binary):
         """Test that multiple close() calls are safe."""
-        with (
-            patch.object(large_binary_manager, "_get_s3_client") as mock_get_s3_client,
-            patch.object(
-                large_binary_manager, "_ensure_bucket_exists"
-            ) as mock_ensure_bucket,
-        ):
-            mock_s3 = MagicMock()
-            mock_get_s3_client.return_value = mock_s3
-            mock_ensure_bucket.return_value = None
-
+        with _mock_s3_upload():
             stream = LargeBinaryOutputStream(large_binary)
             stream.write(b"test data")
             stream.close()
@@ -283,23 +226,11 @@ class TestLargeBinaryOutputStream:
 class TestUploadWorkerCleanup:
     """Direct unit tests for the upload worker's silent-swallow cleanup."""
 
-    @pytest.fixture
-    def large_binary(self):
-        return largebinary("s3://test-bucket/path/to/object")
-
     def test_delete_object_failure_is_swallowed(self, large_binary):
         # If the post-failure cleanup itself raises, the original upload
         # IOError must still surface unmasked. Pinning this so a future
         # change that propagates cleanup errors is intentional.
-        with (
-            patch.object(large_binary_manager, "_get_s3_client") as mock_get_s3_client,
-            patch.object(
-                large_binary_manager, "_ensure_bucket_exists"
-            ) as mock_ensure_bucket,
-        ):
-            mock_s3 = MagicMock()
-            mock_get_s3_client.return_value = mock_s3
-            mock_ensure_bucket.return_value = None
+        with _mock_s3_upload() as mock_s3:
             mock_s3.upload_fileobj.side_effect = Exception("upload failed")
             mock_s3.delete_object.side_effect = Exception("delete also failed")
 

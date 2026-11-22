@@ -108,6 +108,45 @@ def _return_invocation_of(element: DCMElement) -> ReturnInvocation:
     return get_one_of(element.payload, sealed=False)
 
 
+def _reply_handler(*messages) -> grpclib.const.Handler:
+    async def handler_func(stream):
+        for message in messages:
+            await stream.send_message(message)
+
+    return _make_handler(handler_func)
+
+
+def _error_handler(exc: Exception) -> grpclib.const.Handler:
+    async def handler_func(stream):
+        raise exc
+
+    return _make_handler(handler_func)
+
+
+def _dispatch(
+    handlers: dict,
+    method_name: str,
+    command_id: int,
+    *,
+    from_name: str = "A",
+    to_name: str = "B",
+    context: AsyncRpcContext | None = None,
+    is_control: bool = True,
+) -> AsyncRPCServer:
+    server = _make_server(handlers)
+    channel = ChannelIdentity(
+        from_worker_id=ActorVirtualIdentity(name=from_name),
+        to_worker_id=ActorVirtualIdentity(name=to_name),
+        is_control=is_control,
+    )
+    server.receive(channel, _make_invocation(method_name, command_id, context=context))
+    return server
+
+
+def _drain_return(server: AsyncRPCServer) -> ReturnInvocation:
+    return _return_invocation_of(_drain_single_element(server._output_queue))
+
+
 class TestHandlerMapConstruction:
     def _server_with_mapping(self, monkeypatch, mapping: dict) -> AsyncRPCServer:
         """Runs the real __init__ against a stubbed AsyncRPCHandlerInitializer.
@@ -198,14 +237,11 @@ class TestWrapAsStream:
 class TestReceiveSuccess:
     @pytest.mark.timeout(2)
     def test_reply_carries_command_id_and_round_tripped_return_value(self):
-        async def handler_func(stream):
-            await stream.send_message(StringResponse(value="hello"))
+        server = _dispatch(
+            {"echo": _reply_handler(StringResponse(value="hello"))}, "Echo", 42
+        )
 
-        server = _make_server({"echo": _make_handler(handler_func)})
-        server.receive(_make_channel("A", "B"), _make_invocation("Echo", 42))
-
-        element = _drain_single_element(server._output_queue)
-        return_invocation = _return_invocation_of(element)
+        return_invocation = _drain_return(server)
         assert return_invocation.command_id == 42
         assert get_one_of(return_invocation.return_value) == StringResponse(
             value="hello"
@@ -222,22 +258,19 @@ class TestReceiveSuccess:
             received.append(await stream.recv_message())
             await stream.send_message(StringResponse(value="ok"))
 
-        server = _make_server({"probe": _make_handler(handler_func)})
-        server.receive(_make_channel("A", "B"), _make_invocation("Probe", 1))
+        _dispatch({"probe": _make_handler(handler_func)}, "Probe", 1)
 
         assert received == [EmptyRequest()]
 
     @pytest.mark.timeout(2)
     def test_method_name_lookup_is_case_insensitive(self):
-        async def handler_func(stream):
-            await stream.send_message(StringResponse(value="ok"))
-
-        server = _make_server({"pauseworker": _make_handler(handler_func)})
-        server.receive(_make_channel("A", "B"), _make_invocation("PAUSEWorker", 7))
-
-        return_invocation = _return_invocation_of(
-            _drain_single_element(server._output_queue)
+        server = _dispatch(
+            {"pauseworker": _reply_handler(StringResponse(value="ok"))},
+            "PAUSEWorker",
+            7,
         )
+
+        return_invocation = _drain_return(server)
         assert get_one_of(return_invocation.return_value) == StringResponse(value="ok")
 
     @pytest.mark.timeout(2)
@@ -246,15 +279,9 @@ class TestReceiveSuccess:
         # set_one_of(ControlReturn, None) silently produces a ControlReturn
         # with NO variant set (it tries to assign a "none_type" attribute,
         # which betterproto ignores as a oneof). A reply is still sent.
-        async def handler_func(stream):
-            pass
+        server = _dispatch({"silent": _make_handler()}, "Silent", 3)
 
-        server = _make_server({"silent": _make_handler(handler_func)})
-        server.receive(_make_channel("A", "B"), _make_invocation("Silent", 3))
-
-        return_invocation = _return_invocation_of(
-            _drain_single_element(server._output_queue)
-        )
+        return_invocation = _drain_return(server)
         assert return_invocation.command_id == 3
         assert get_one_of(return_invocation.return_value) is None
 
@@ -266,15 +293,11 @@ class TestReceiveSuccess:
         # so set_one_of assigns an "empty_request" attribute that ControlReturn
         # has no oneof for. The reply is still sent, but its ControlReturn has
         # no variant set and serializes to nothing.
-        async def handler_func(stream):
-            await stream.send_message(EmptyRequest())
-
-        server = _make_server({"wrongtype": _make_handler(handler_func)})
-        server.receive(_make_channel("A", "B"), _make_invocation("WrongType", 4))
-
-        return_invocation = _return_invocation_of(
-            _drain_single_element(server._output_queue)
+        server = _dispatch(
+            {"wrongtype": _reply_handler(EmptyRequest())}, "WrongType", 4
         )
+
+        return_invocation = _drain_return(server)
         assert return_invocation.command_id == 4
         assert get_one_of(return_invocation.return_value) is None
         assert bytes(return_invocation.return_value) == b""
@@ -295,9 +318,7 @@ class TestReceiveSuccess:
         server.receive(_make_channel("A", "B"), invocation)
 
         assert received == [None]
-        return_invocation = _return_invocation_of(
-            _drain_single_element(server._output_queue)
-        )
+        return_invocation = _drain_return(server)
         assert return_invocation.command_id == 8
         assert get_one_of(return_invocation.return_value) == StringResponse(
             value="still works"
@@ -307,16 +328,17 @@ class TestReceiveSuccess:
     def test_handler_sending_twice_replies_with_the_last_message(self):
         # The synthetic stream keeps only one slot: a second send_message
         # overwrites the first, so the reply carries the last write.
-        async def handler_func(stream):
-            await stream.send_message(StringResponse(value="first"))
-            await stream.send_message(StringResponse(value="second"))
-
-        server = _make_server({"twice": _make_handler(handler_func)})
-        server.receive(_make_channel("A", "B"), _make_invocation("Twice", 14))
-
-        return_invocation = _return_invocation_of(
-            _drain_single_element(server._output_queue)
+        server = _dispatch(
+            {
+                "twice": _reply_handler(
+                    StringResponse(value="first"), StringResponse(value="second")
+                )
+            },
+            "Twice",
+            14,
         )
+
+        return_invocation = _drain_return(server)
         assert get_one_of(return_invocation.return_value) == StringResponse(
             value="second"
         )
@@ -325,15 +347,11 @@ class TestReceiveSuccess:
 class TestReceiveError:
     @pytest.mark.timeout(2)
     def test_raising_handler_replies_with_control_error(self):
-        async def handler_func(stream):
-            raise ValueError("boom")
-
-        server = _make_server({"explode": _make_handler(handler_func)})
-        server.receive(_make_channel("A", "B"), _make_invocation("Explode", 5))
-
-        return_invocation = _return_invocation_of(
-            _drain_single_element(server._output_queue)
+        server = _dispatch(
+            {"explode": _error_handler(ValueError("boom"))}, "Explode", 5
         )
+
+        return_invocation = _drain_return(server)
         assert return_invocation.command_id == 5
         error = get_one_of(return_invocation.return_value)
         assert isinstance(error, ControlError)
@@ -342,19 +360,11 @@ class TestReceiveError:
 
     @pytest.mark.timeout(2)
     def test_control_error_includes_exception_notes(self):
-        async def handler_func(stream):
-            error = ValueError("boom")
-            error.add_note("(line 2 of the UDF code)")
-            raise error
+        exc = ValueError("boom")
+        exc.add_note("(line 2 of the UDF code)")
+        server = _dispatch({"explode": _error_handler(exc)}, "Explode", 6)
 
-        server = _make_server({"explode": _make_handler(handler_func)})
-        server.receive(_make_channel("A", "B"), _make_invocation("Explode", 6))
-
-        error = get_one_of(
-            _return_invocation_of(
-                _drain_single_element(server._output_queue)
-            ).return_value
-        )
+        error = get_one_of(_drain_return(server).return_value)
         assert error.error_message == "boom (line 2 of the UDF code)"
 
     @pytest.mark.timeout(5)
@@ -374,21 +384,14 @@ class TestReceiveError:
         finally:
             manager.close()
 
-        error = get_one_of(
-            _return_invocation_of(
-                _drain_single_element(server._output_queue)
-            ).return_value
-        )
+        error = get_one_of(_drain_return(server).return_value)
         assert error.error_message == "'k' (KeyError at line 3 of the UDF code)"
 
     @pytest.mark.timeout(2)
     def test_unknown_method_replies_with_control_error_instead_of_raising(self):
-        server = _make_server({})
-        server.receive(_make_channel("A", "B"), _make_invocation("NoSuchMethod", 6))
+        server = _dispatch({}, "NoSuchMethod", 6)
 
-        return_invocation = _return_invocation_of(
-            _drain_single_element(server._output_queue)
-        )
+        return_invocation = _drain_return(server)
         error = get_one_of(return_invocation.return_value)
         assert isinstance(error, ControlError)
         # look_up raises KeyError('nosuchmethod') and str() of a KeyError
@@ -400,15 +403,9 @@ class TestReceiveError:
     def test_exception_with_empty_message_yields_empty_error_message(self):
         # str(ValueError()) is "", so the ControlError carries an empty
         # error_message — the reply itself is still well-formed.
-        async def handler_func(stream):
-            raise ValueError()
+        server = _dispatch({"blank": _error_handler(ValueError())}, "Blank", 15)
 
-        server = _make_server({"blank": _make_handler(handler_func)})
-        server.receive(_make_channel("A", "B"), _make_invocation("Blank", 15))
-
-        return_invocation = _return_invocation_of(
-            _drain_single_element(server._output_queue)
-        )
+        return_invocation = _drain_return(server)
         assert return_invocation.command_id == 15
         error = get_one_of(return_invocation.return_value)
         assert isinstance(error, ControlError)
@@ -419,35 +416,27 @@ class TestReceiveError:
 class TestNoReplyNeeded:
     @pytest.mark.timeout(2)
     def test_negative_command_id_enqueues_nothing_on_success(self):
-        async def handler_func(stream):
-            await stream.send_message(StringResponse(value="ignored"))
-
-        server = _make_server({"quiet": _make_handler(handler_func)})
-        server.receive(_make_channel("A", "B"), _make_invocation("Quiet", -1))
+        server = _dispatch(
+            {"quiet": _reply_handler(StringResponse(value="ignored"))}, "Quiet", -1
+        )
 
         assert server._output_queue.size() == 0
 
     @pytest.mark.timeout(2)
     def test_negative_command_id_enqueues_nothing_on_error(self):
-        async def handler_func(stream):
-            raise RuntimeError("swallowed")
-
-        server = _make_server({"quiet": _make_handler(handler_func)})
-        server.receive(_make_channel("A", "B"), _make_invocation("Quiet", -7))
+        server = _dispatch(
+            {"quiet": _error_handler(RuntimeError("swallowed"))}, "Quiet", -7
+        )
 
         assert server._output_queue.size() == 0
 
     @pytest.mark.timeout(2)
     def test_command_id_zero_is_not_negative_so_a_reply_is_sent(self):
-        async def handler_func(stream):
-            await stream.send_message(StringResponse(value="zero"))
-
-        server = _make_server({"boundary": _make_handler(handler_func)})
-        server.receive(_make_channel("A", "B"), _make_invocation("Boundary", 0))
-
-        return_invocation = _return_invocation_of(
-            _drain_single_element(server._output_queue)
+        server = _dispatch(
+            {"boundary": _reply_handler(StringResponse(value="zero"))}, "Boundary", 0
         )
+
+        return_invocation = _drain_return(server)
         assert return_invocation.command_id == 0
 
     @pytest.mark.timeout(2)
@@ -455,8 +444,7 @@ class TestNoReplyNeeded:
         # The fire-and-forget + missing-method combination: the KeyError is
         # swallowed into a ControlError that is then never sent, so the only
         # trace of the failed invocation is a log line.
-        server = _make_server({})
-        server.receive(_make_channel("A", "B"), _make_invocation("NoSuchMethod", -3))
+        server = _dispatch({}, "NoSuchMethod", -3)
 
         assert server._output_queue.size() == 0
 
@@ -469,91 +457,54 @@ class TestNoReplyNeeded:
 
 class TestReplyRouting:
     @staticmethod
-    def _ok_handler():
-        async def handler_func(stream):
-            await stream.send_message(StringResponse(value="routed"))
-
-        return _make_handler(handler_func)
+    def _route(
+        command_id: int,
+        *,
+        from_name: str = "worker-A",
+        to_name: str = "worker-B",
+        context: AsyncRpcContext | None = None,
+        is_control: bool = True,
+    ) -> ChannelIdentity:
+        server = _dispatch(
+            {"route": _reply_handler(StringResponse(value="routed"))},
+            "Route",
+            command_id,
+            from_name=from_name,
+            to_name=to_name,
+            context=context,
+            is_control=is_control,
+        )
+        return _drain_single_element(server._output_queue).tag
 
     @pytest.mark.timeout(2)
     def test_context_sender_and_receiver_set_routes_receiver_to_sender(self):
-        server = _make_server({"route": self._ok_handler()})
         context = AsyncRpcContext(
             sender=ActorVirtualIdentity(name="CONTROLLER"),
             receiver=ActorVirtualIdentity(name="worker-1"),
         )
-        server.receive(
-            _make_channel("data-in", "data-out"),
-            _make_invocation("Route", 9, context=context),
-        )
-
-        element = _drain_single_element(server._output_queue)
-        assert element.tag == ChannelIdentity(
-            from_worker_id=ActorVirtualIdentity(name="worker-1"),
-            to_worker_id=ActorVirtualIdentity(name="CONTROLLER"),
-            is_control=True,
-        )
+        assert self._route(
+            9, from_name="data-in", to_name="data-out", context=context
+        ) == _make_channel("worker-1", "CONTROLLER")
 
     @pytest.mark.timeout(2)
     def test_unset_context_falls_back_to_swapping_the_incoming_channel(self):
-        server = _make_server({"route": self._ok_handler()})
-        server.receive(
-            _make_channel("worker-A", "worker-B"), _make_invocation("Route", 10)
-        )
-
-        element = _drain_single_element(server._output_queue)
-        assert element.tag == ChannelIdentity(
-            from_worker_id=ActorVirtualIdentity(name="worker-B"),
-            to_worker_id=ActorVirtualIdentity(name="worker-A"),
-            is_control=True,
-        )
+        assert self._route(10) == _make_channel("worker-B", "worker-A")
 
     @pytest.mark.timeout(2)
     def test_partially_set_context_also_falls_back_to_swapping(self):
         # BOTH sender and receiver names must be non-empty to use the context
         # route; with only the sender set the fallback swap is used.
-        server = _make_server({"route": self._ok_handler()})
         context = AsyncRpcContext(sender=ActorVirtualIdentity(name="CONTROLLER"))
-        server.receive(
-            _make_channel("worker-A", "worker-B"),
-            _make_invocation("Route", 11, context=context),
-        )
-
-        element = _drain_single_element(server._output_queue)
-        assert element.tag == ChannelIdentity(
-            from_worker_id=ActorVirtualIdentity(name="worker-B"),
-            to_worker_id=ActorVirtualIdentity(name="worker-A"),
-            is_control=True,
-        )
+        assert self._route(11, context=context) == _make_channel("worker-B", "worker-A")
 
     @pytest.mark.timeout(2)
     def test_context_with_only_receiver_set_also_falls_back_to_swapping(self):
         # Mirror of the sender-only case: this pins the FIRST conjunct of
         # `ctx.sender.name and ctx.receiver.name`, so dropping the sender
         # check from the condition cannot go unnoticed.
-        server = _make_server({"route": self._ok_handler()})
         context = AsyncRpcContext(receiver=ActorVirtualIdentity(name="worker-1"))
-        server.receive(
-            _make_channel("worker-A", "worker-B"),
-            _make_invocation("Route", 13, context=context),
-        )
-
-        element = _drain_single_element(server._output_queue)
-        assert element.tag == ChannelIdentity(
-            from_worker_id=ActorVirtualIdentity(name="worker-B"),
-            to_worker_id=ActorVirtualIdentity(name="worker-A"),
-            is_control=True,
-        )
+        assert self._route(13, context=context) == _make_channel("worker-B", "worker-A")
 
     @pytest.mark.timeout(2)
     def test_fallback_reply_channel_is_control_even_for_data_channel_input(self):
-        server = _make_server({"route": self._ok_handler()})
-        from_ = ChannelIdentity(
-            from_worker_id=ActorVirtualIdentity(name="worker-A"),
-            to_worker_id=ActorVirtualIdentity(name="worker-B"),
-            is_control=False,
-        )
-        server.receive(from_, _make_invocation("Route", 12))
-
-        element = _drain_single_element(server._output_queue)
-        assert element.tag.is_control is True
+        assert self._route(12, is_control=False).is_control is True
