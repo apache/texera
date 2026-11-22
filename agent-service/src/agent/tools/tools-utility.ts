@@ -47,7 +47,7 @@ export function tupleToRecord(tuple: Tuple): Record<string, unknown> {
 }
 
 // Keep visualization payloads in stored results for frontend rendering, but do not
-// send their potentially large HTML/JSON bodies to the LLM as tool or DAG context.
+// send their potentially large HTML/JSON bodies to the LLM in a tool result.
 export function redactVisualizationPayloads(
   sampleTuples: ReadonlyArray<IndexedTuple>,
   resultMode: WebOutputMode
@@ -107,7 +107,7 @@ export function getOperatorWarnings(opInfo: OperatorExecutionSummary): string[] 
 }
 
 // The agent-facing rendering of an operator's materialized result, shared by the
-// execute tool and the DAG context: a brief summary, the output shape, warnings,
+// execute tool and getOperatorResult: a brief summary, the output shape, warnings,
 // then the sampled tuples as TSV with visualization payloads redacted. With a
 // `charLimit`, the TSV keeps its head and tail within that many characters.
 export function formatOperatorOutput(operatorId: string, opInfo: OperatorExecutionSummary, charLimit?: number): string {
@@ -122,7 +122,7 @@ export function formatOperatorOutput(operatorId: string, opInfo: OperatorExecuti
 
   // Output shape only: the agent executes every operator it adds or modifies, so an
   // upstream operator's own output shape (this operator's input) is normally
-  // already in the DAG context.
+  // already in an earlier tool result, and getWorkflow lists every input schema.
   const shapeLine = `Output table shape: (${resultSummary.totalTuplesCount}, ${columns})`;
 
   return [

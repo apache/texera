@@ -18,15 +18,13 @@
  */
 
 import { describe, expect, test } from "bun:test";
-import { formatOperatorResult } from "./result-formatting";
+import { formatOperatorOutput } from "./tools-utility";
 import {
   ConsoleMessageType,
   OperatorState,
-  WorkflowFatalErrorType,
   type IndexedTuple,
   type OperatorExecutionSummary,
   type WebOutputMode,
-  type WorkflowFatalError,
   type Tuple,
 } from "../../types/execution";
 
@@ -45,24 +43,12 @@ function toSampleTuples(records: ReadonlyArray<Record<string, any>>): ReadonlyAr
 
 interface OpInfoOverrides {
   readonly state?: OperatorState;
-  readonly error?: string;
   readonly outputTuples?: number;
   readonly totalTuplesCount?: number;
   readonly warnings?: ReadonlyArray<string>;
   readonly result?: ReadonlyArray<Record<string, any>>;
   readonly sampleTuples?: ReadonlyArray<IndexedTuple>;
   readonly resultMode?: WebOutputMode;
-}
-
-function makeExecutionFailure(message: string): WorkflowFatalError {
-  return {
-    type: { name: WorkflowFatalErrorType.EXECUTION_FAILURE },
-    timestamp: { seconds: 0, nanos: 0 },
-    message,
-    details: "",
-    operatorId: "",
-    workerId: "",
-  };
 }
 
 function makeOpInfo(overrides: OpInfoOverrides = {}): OperatorExecutionSummary {
@@ -82,44 +68,34 @@ function makeOpInfo(overrides: OpInfoOverrides = {}): OperatorExecutionSummary {
 
   return {
     state: overrides.state ?? OperatorState.COMPLETED,
-    errorMessages: overrides.error ? [makeExecutionFailure(overrides.error)] : [],
+    errorMessages: [],
     ...(resultSummary ? { resultSummary } : {}),
     // Warnings are derived from console messages whose title is "WARNING: ...".
     ...(consoleMessages ? { consoleMessages } : {}),
   };
 }
 
-describe("formatOperatorResult - early returns", () => {
-  test("returns [ERROR] prefix when error field is set", () => {
-    const out = formatOperatorResult("op1", makeOpInfo({ error: "boom" }));
-    expect(out).toBe("[ERROR] boom");
-  });
-
-  test("treats empty-string error as falsy and continues to result path", () => {
-    const out = formatOperatorResult("op1", makeOpInfo({ error: "" }));
-    expect(out).not.toContain("[ERROR]");
-    expect(out).toContain("(no result data)");
-  });
-
+// formatOperatorOutput is what the execute tool and getOperatorResult show the model for a result.
+describe("formatOperatorOutput - early returns", () => {
   test("returns (no result data) when result is undefined", () => {
-    const out = formatOperatorResult("op1", makeOpInfo());
+    const out = formatOperatorOutput("op1", makeOpInfo());
     expect(out).toBe("(no result data)");
   });
 
   test("empty array result emits brief summary plus zero-column shape only", () => {
-    const out = formatOperatorResult("op1", makeOpInfo({ result: [], outputTuples: 0 }));
+    const out = formatOperatorOutput("op1", makeOpInfo({ result: [], outputTuples: 0 }));
     expect(out.split("\n")).toEqual(["Executed operator op1", "Output table shape: (0, 0)"]);
   });
 });
 
-describe("formatOperatorResult - table shape and metadata", () => {
+describe("formatOperatorOutput - table shape and metadata", () => {
   test("uses outputTuples for row count when totalTuplesCount missing", () => {
-    const out = formatOperatorResult("op1", makeOpInfo({ outputTuples: 7, result: [{ a: 1, b: 2 }] }));
+    const out = formatOperatorOutput("op1", makeOpInfo({ outputTuples: 7, result: [{ a: 1, b: 2 }] }));
     expect(out).toContain("Output table shape: (7, 2)");
   });
 
   test("totalTuplesCount overrides outputTuples in output shape", () => {
-    const out = formatOperatorResult(
+    const out = formatOperatorOutput(
       "op1",
       makeOpInfo({ outputTuples: 7, totalTuplesCount: 999, result: [{ a: 1, b: 2 }] })
     );
@@ -127,7 +103,7 @@ describe("formatOperatorResult - table shape and metadata", () => {
   });
 
   test("counts every result tuple key as a column", () => {
-    const out = formatOperatorResult(
+    const out = formatOperatorOutput(
       "op1",
       makeOpInfo({
         outputTuples: 1,
@@ -138,7 +114,7 @@ describe("formatOperatorResult - table shape and metadata", () => {
   });
 
   test("appends warnings after metadata lines", () => {
-    const out = formatOperatorResult(
+    const out = formatOperatorOutput(
       "op1",
       makeOpInfo({
         outputTuples: 1,
@@ -154,9 +130,9 @@ describe("formatOperatorResult - table shape and metadata", () => {
   });
 });
 
-describe("formatOperatorResult - visualization rows", () => {
+describe("formatOperatorOutput - visualization rows", () => {
   test("strips html-content and json-content payloads when result mode is visualization", () => {
-    const out = formatOperatorResult(
+    const out = formatOperatorOutput(
       "op1",
       makeOpInfo({
         outputTuples: 1,
@@ -177,7 +153,7 @@ describe("formatOperatorResult - visualization rows", () => {
   });
 
   test("table result mode leaves visualization payload fields untouched", () => {
-    const out = formatOperatorResult(
+    const out = formatOperatorOutput(
       "op1",
       makeOpInfo({
         outputTuples: 1,
@@ -190,7 +166,7 @@ describe("formatOperatorResult - visualization rows", () => {
   });
 
   test("table rows render all tuple columns and shape agrees", () => {
-    const out = formatOperatorResult(
+    const out = formatOperatorOutput(
       "op1",
       makeOpInfo({
         outputTuples: 1,
@@ -205,9 +181,9 @@ describe("formatOperatorResult - visualization rows", () => {
   });
 });
 
-describe("jsonToTableFormat - cell coercion via formatOperatorResult", () => {
+describe("jsonToTableFormat - cell coercion via formatOperatorOutput", () => {
   function tableLines(opInfo: OpInfoOverrides): string[] {
-    const out = formatOperatorResult("op1", makeOpInfo({ outputTuples: 1, ...opInfo }));
+    const out = formatOperatorOutput("op1", makeOpInfo({ outputTuples: 1, ...opInfo }));
     // Skip brief summary + shape line.
     return out.split("\n").slice(2);
   }
@@ -241,7 +217,7 @@ describe("jsonToTableFormat - cell coercion via formatOperatorResult", () => {
 
 describe("jsonToTableFormat - row index gaps", () => {
   test("inserts ... separator when rowIndex skips ahead", () => {
-    const out = formatOperatorResult(
+    const out = formatOperatorOutput(
       "op1",
       makeOpInfo({
         outputTuples: 2,
@@ -260,7 +236,7 @@ describe("jsonToTableFormat - row index gaps", () => {
   });
 
   test("no separator is emitted between consecutive rowIndex values", () => {
-    const out = formatOperatorResult(
+    const out = formatOperatorOutput(
       "op1",
       makeOpInfo({
         outputTuples: 2,
@@ -274,7 +250,7 @@ describe("jsonToTableFormat - row index gaps", () => {
   });
 
   test("non-zero starting rowIndex does not emit a leading gap marker", () => {
-    const out = formatOperatorResult(
+    const out = formatOperatorOutput(
       "op1",
       makeOpInfo({ outputTuples: 1, sampleTuples: [[9, recordToTuple({ v: "z" })]] })
     );

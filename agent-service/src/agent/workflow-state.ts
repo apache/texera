@@ -230,6 +230,22 @@ export class WorkflowState {
     return { operators: subDagOperators, links: subDagLinks };
   }
 
+  /**
+   * What executing the operator depends on: the operator and every operator it reads from, with their
+   * types and properties, and the links between them. A result stays current while this is unchanged.
+   */
+  executionFingerprint(operatorId: string): string {
+    const { operators, links } = this.getSubDAG(operatorId);
+    return stableStringify({
+      operators: operators
+        .map(op => [op.operatorID, op.operatorType, op.operatorVersion, op.operatorProperties])
+        .sort((a, b) => String(a[0]).localeCompare(String(b[0]))),
+      links: links
+        .map(l => [l.source.operatorID, l.source.portID, l.target.operatorID, l.target.portID].join(" "))
+        .sort(),
+    });
+  }
+
   getWorkflowContent(): WorkflowContent {
     const positionsObj: { [key: string]: Point } = {};
     for (const [id, pos] of this.operatorPositions) {
@@ -341,4 +357,16 @@ export class WorkflowState {
 
     this.reset();
   }
+}
+
+/** JSON with object keys sorted at every level, so equal values always give the same text. */
+function stableStringify(value: unknown): string {
+  if (Array.isArray(value)) return `[${value.map(stableStringify).join(",")}]`;
+  if (value && typeof value === "object") {
+    const entries = Object.entries(value as Record<string, unknown>)
+      .filter(([, v]) => v !== undefined)
+      .sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0));
+    return `{${entries.map(([k, v]) => `${JSON.stringify(k)}:${stableStringify(v)}`).join(",")}}`;
+  }
+  return JSON.stringify(value) ?? "null";
 }

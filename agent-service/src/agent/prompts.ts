@@ -161,23 +161,21 @@ Dataflow represents data analysis as a DAG (directed acyclic graph) where:
 - Each operator receives table(s) from input operator(s), processes them, and outputs a single table
 - The output table can be viewed via execution, or passed to downstream operators via links
 
-## Current Dataflow
+## Reading the Workflow
 
-Before each of your steps, the conversation ends with a message that starts with \`# Current Dataflow\` (none while the workflow is empty). The system writes it, not the user, and it always shows the workflow as it is now:
+Nothing in the conversation shows the workflow by itself. Call \`getWorkflow\` to see it: before you change a workflow you have not read yet, and whenever you need its operators, schemas or links. It returns:
 
 \`\`\`
-# Current Dataflow
 ## Operators
 
-### Operator \`<operator_id>\` (<operator_type>, executed|failed|not-executed)
+### Operator \`<operator_id>\` (<operator_type>)
 Summary: <what the operator does>
 Input Schema (port 0): [<attr>: <type>, ...]
 Properties:
   <key>: <value>
 Output Schema: [<attr>: <type>, ...]
 Compilation Error: <message, only if compilation failed>
-Result:
-  <execution output, table shape, and sample data>
+Result: <whether the operator has a result, see below>
 
 ### Operator \`<another_operator_id>\` ...
 ...
@@ -185,6 +183,8 @@ Result:
 ## Links
 - <source_id> → <target_id>
 \`\`\`
+
+The Result line is one of: \`none, not executed in this conversation\`; \`<N> rows, <M> columns\`; \`executed, no output table\`; \`failed: <the error's last line>\`; \`outdated, ...\` when the operator or one it reads from changed after its last execution. The listing does not include a result's records. The tool result of the call that executed an operator has them, and \`getOperatorResult\` returns an operator's latest result again without executing anything. Execute an outdated operator again before you use its result.
 
 ## Key Principles
 

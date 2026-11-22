@@ -310,3 +310,42 @@ describe("WorkflowState - workflow content round-trip", () => {
     expect("formBinding" in state.getWorkflowContent()).toBe(false);
   });
 });
+
+describe("WorkflowState - executionFingerprint", () => {
+  function chain(): WorkflowState {
+    const state = new WorkflowState();
+    state.addOperator(makeOperator("a", { operatorProperties: { file: "x.csv", limit: 5 } }));
+    state.addOperator(makeOperator("b"));
+    state.addOperator(makeOperator("c"));
+    state.addLink(makeLink("l1", "a", "b"));
+    state.addLink(makeLink("l2", "b", "c"));
+    return state;
+  }
+
+  test("changes when the operator or one it reads from changes, or a link into them does", () => {
+    const state = chain();
+    const before = state.executionFingerprint("b");
+
+    state.updateOperatorProperties("a", { limit: 6 });
+    expect(state.executionFingerprint("b")).not.toBe(before);
+
+    const relinked = chain();
+    relinked.deleteLink("l1");
+    expect(relinked.executionFingerprint("b")).not.toBe(before);
+  });
+
+  test("does not change for an operator after it, a display name, or the order of property keys", () => {
+    const state = chain();
+    const before = state.executionFingerprint("b");
+
+    state.updateOperatorProperties("c", { anything: 1 });
+    state.updateOperatorDisplayName("b", "renamed");
+    expect(state.executionFingerprint("b")).toBe(before);
+
+    const reordered = new WorkflowState();
+    reordered.addOperator(makeOperator("a", { operatorProperties: { limit: 5, file: "x.csv" } }));
+    reordered.addOperator(makeOperator("b"));
+    reordered.addLink(makeLink("l1", "a", "b"));
+    expect(reordered.executionFingerprint("b")).toBe(before);
+  });
+});

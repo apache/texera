@@ -266,12 +266,18 @@ describe("TexeraAgent", () => {
     });
 
     test("a disabled tool is reported as disabled in the system info", () => {
-      const toolName = agent.getSystemInfo().tools[0].name;
+      agent.updateSettings({ disabledTools: new Set(["deleteOperator"]) });
 
-      agent.updateSettings({ disabledTools: new Set([toolName]) });
-
-      const info = agent.getSystemInfo().tools.find(t => t.name === toolName);
+      const info = agent.getSystemInfo().tools.find(t => t.name === "deleteOperator");
       expect(info?.enabled).toBe(false);
+    });
+
+    test("the two read tools cannot be disabled, since nothing else shows the workflow", () => {
+      agent.updateSettings({ disabledTools: new Set(["getWorkflow", "getOperatorResult"]) });
+
+      const enabled = Object.fromEntries(agent.getSystemInfo().tools.map(t => [t.name, t.enabled]));
+      expect(enabled.getWorkflow).toBe(true);
+      expect(enabled.getOperatorResult).toBe(true);
     });
 
     test("restricting the allowed operator types rewrites the system prompt", () => {
@@ -336,30 +342,58 @@ describe("TexeraAgent", () => {
   });
 });
 
-/** `getFormattedResultsForDAG` is private; it is what feeds cached operator results into the prompt. */
-function getFormattedResultsForDAG(agent: TexeraAgent): Map<string, string> {
-  return (agent as unknown as { getFormattedResultsForDAG(): Map<string, string> }).getFormattedResultsForDAG();
+/** What the agent's getOperatorResult tool returns for an operator. */
+async function getOperatorResult(agent: TexeraAgent, operatorId: string): Promise<string> {
+  return await (agent as any).tools.getOperatorResult.execute({ operatorId }, {});
 }
 
-describe("TexeraAgent DAG result formatting", () => {
-  test("formats results visible from the current step", () => {
+describe("TexeraAgent result lookup", () => {
+  test("getOperatorResult reads the result visible from the current step", async () => {
     const agent = makeAgent();
-    agent.getWorkflowResultState().set("op-1", INITIAL_STEP_ID, {
-      state: OperatorState.COMPLETED,
-      errorMessages: [],
-    });
+    agent.getWorkflowState().addOperator(srcOp("op-1") as any);
+    agent.getWorkflowResultState().set("op-1", INITIAL_STEP_ID, completedSummary([{ a: 1 }, { a: 2 }]));
 
-    expect(getFormattedResultsForDAG(agent)).toEqual(new Map([["op-1", "(no result data)"]]));
+    expect(await getOperatorResult(agent, "op-1")).toBe(
+      "Latest result of operator op-1:\nOutput table shape: (2, 1)\n\ta\n0\t1\n1\t2"
+    );
   });
 
-  test("omits results outside the current step ancestry", () => {
+  test("getOperatorResult ignores a result outside the current step's ancestry", async () => {
     const agent = makeAgent();
-    agent.getWorkflowResultState().set("op-1", "unrelated-step", {
-      state: OperatorState.COMPLETED,
-      errorMessages: [],
-    });
+    agent.getWorkflowState().addOperator(srcOp("op-1") as any);
+    agent.getWorkflowResultState().set("op-1", "unrelated-step", completedSummary([{ a: 1 }]));
 
-    expect(getFormattedResultsForDAG(agent)).toEqual(new Map());
+    expect(await getOperatorResult(agent, "op-1")).toBe(
+      "Operator op-1 has no result: it has not been executed in this conversation."
+    );
+  });
+
+  test("a result goes out of date when its operator or one it reads from changes, not one after it", async () => {
+    const agent = makeAgent();
+    const ws = agent.getWorkflowState();
+    ws.addOperator(srcOp("src", { fileName: "a.csv" }) as any);
+    ws.addOperator({ ...srcOp("mid"), inputPorts: [{ portID: "input-0" }] } as any);
+    ws.addOperator({ ...srcOp("out"), inputPorts: [{ portID: "input-0" }] } as any);
+    const link = (from: string, to: string) =>
+      ({
+        linkID: `${from}->${to}`,
+        source: { operatorID: from, portID: "output-0" },
+        target: { operatorID: to, portID: "input-0" },
+      }) as any;
+    ws.addLink(link("src", "mid"));
+    ws.addLink(link("mid", "out"));
+    // Filed the way an execution files it: with what the result depended on.
+    (agent as any).recordResult("mid", INITIAL_STEP_ID, completedSummary([{ a: 1 }]));
+
+    ws.updateOperatorProperties("out", { anything: 1 });
+    ws.updateOperatorDisplayName("mid", "renamed");
+    expect(await getOperatorResult(agent, "mid")).toStartWith("Latest result of operator mid:");
+
+    ws.updateOperatorProperties("src", { fileName: "b.csv" });
+    expect(await getOperatorResult(agent, "mid")).toBe(
+      "Operator mid's latest result is outdated: it or an operator it reads from changed after that execution. " +
+        "Execute it again for a current result."
+    );
   });
 });
 
@@ -412,6 +446,11 @@ function promptOf(call: any): any[] {
         return m;
     }
   });
+}
+
+/** The last of a list of model messages. */
+function lastOf(messages: any[] | undefined): any {
+  return messages?.[messages.length - 1];
 }
 
 /** The tool results in a list of model messages, each as its tool's name and what the model reads. */
@@ -552,8 +591,13 @@ describe("sendMessage", () => {
     });
     expect(call.abortSignal).toBeInstanceOf(AbortSignal);
     expect(call.abortSignal.aborted).toBe(false);
-    expect(call.tools.map((t: any) => t.name)).toEqual(["deleteOperator", "addOperator", "modifyOperator"]);
-    // An empty workflow has no dataflow block, so the user's words are the whole input.
+    expect(call.tools.map((t: any) => t.name)).toEqual([
+      "getWorkflow",
+      "getOperatorResult",
+      "deleteOperator",
+      "addOperator",
+      "modifyOperator",
+    ]);
     expect(promptOf(call)).toEqual([{ system: "SYS-XYZ" }, { user: "raw-user-text" }]);
     expect(agent.getAllSteps()[1].inputMessages).toEqual([{ role: "user", content: "raw-user-text" }]);
   });
@@ -591,31 +635,58 @@ describe("sendMessage", () => {
     ]);
   });
 
-  test("ends every step with the current dataflow, rewritten each time and never kept", async () => {
-    const model = scriptedModel([{ call: "deleteOperator", input: { operatorId: "ghost" } }, "done", "again"]);
-    const agent = makeAgentWith(model);
-    agent.getWorkflowState().addOperator(srcOp("op1") as any);
-    compileOk();
-    await agent.sendMessage("first");
-    await agent.sendMessage("second");
-    const calls = (model as any).doGenerateCalls.map(promptOf);
-    for (const prompt of calls) {
-      const blocks = prompt.filter((m: any) => m.user?.startsWith("# Current Dataflow"));
-      expect(blocks.length).toBe(1);
-      expect(prompt[prompt.length - 1]).toBe(blocks[0]);
-      expect(blocks[0].user).toContain("### Operator `op1` (CSVFileScan, not-executed)");
+  test("sends only the conversation's own messages, each call beginning with the previous call's input", async () => {
+    const vSpy = spyOn(WorkflowSystemMetadata.getInstance(), "validateOperatorProperties").mockReturnValue({
+      isValid: true,
+    } as any);
+    try {
+      const model = scriptedModel([
+        { call: "getWorkflow", input: {} },
+        { call: "modifyOperator", input: { operatorId: "op1", summary: "renamed" } },
+        "done",
+        "again",
+      ]);
+      const agent = makeAgentWith(model);
+      agent.getWorkflowState().addOperator(srcOp("op1") as any);
+      compileOk();
+      await agent.sendMessage("first");
+      await agent.sendMessage("second");
+      const calls = (model as any).doGenerateCalls.map(promptOf);
+      expect(calls).toHaveLength(4);
+      // The workflow has an operator, yet nothing but the user's words starts the conversation.
+      expect(calls[0]).toEqual([{ system: "SYS-XYZ" }, { user: "first" }]);
+      // The model sees the workflow because it asked for it.
+      const listing = calls[1][3].tool[0].output.value;
+      expect(calls[1]).toEqual([
+        { system: "SYS-XYZ" },
+        { user: "first" },
+        { assistant: [{ call: "getWorkflow", input: {} }] },
+        { tool: [{ result: "getWorkflow", output: { type: "text", value: listing } }] },
+      ]);
+      expect(listing).toStartWith("## Operators\n\n### Operator `op1` (CSVFileScan)\nSummary: op1\n");
+      expect(listing).toContain("Result: none, not executed");
+      // Nothing already sent changes, so a provider's prompt cache can reuse each call's input as the
+      // start of the next one, across steps and across turns.
+      for (let i = 1; i < calls.length; i++) expect(calls[i].slice(0, calls[i - 1].length)).toEqual(calls[i - 1]);
+      expect(calls[3].slice(calls[2].length)).toEqual([{ assistant: ["done"] }, { user: "second" }]);
+      // Every user message is one the user sent.
+      const userMessages = calls[3].filter((m: any) => "user" in m).map((m: any) => m.user);
+      expect(userMessages).toEqual(["first", "second"]);
+      // What the step detail shows is what the model received.
+      expect(lastOf(agent.getAllSteps()[2].inputMessages)).toEqual({
+        role: "tool",
+        content: [
+          {
+            type: "tool-result",
+            toolCallId: "c1",
+            toolName: "getWorkflow",
+            output: { type: "text", value: listing },
+          },
+        ],
+      });
+    } finally {
+      vSpy.mockRestore();
     }
-    // The second turn reads the first one as it happened, without the blocks of its steps.
-    expect(calls[2].slice(0, -1)).toEqual([
-      { system: "SYS-XYZ" },
-      { user: "first" },
-      { assistant: [{ call: "deleteOperator", input: { operatorId: "ghost" } }] },
-      {
-        tool: [{ result: "deleteOperator", output: { type: "text", value: "[ERROR] Operator ghost not found" } }],
-      },
-      { assistant: ["done"] },
-      { user: "second" },
-    ]);
   });
 
   test("two-step tool run: per-step + summed usage, tool projection, rolling snapshots", async () => {
@@ -826,11 +897,18 @@ describe("sendMessage", () => {
   test("leaves disabled tools out of the model call but still lists them", async () => {
     const model = textModel("ok");
     const agent = makeAgentWith(model);
-    agent.updateSettings({ disabledTools: new Set(["modifyOperator"]) });
+    agent.updateSettings({ disabledTools: new Set(["modifyOperator", "getWorkflow", "getOperatorResult"]) });
     await agent.sendMessage("go");
     const call = (model as any).doGenerateCalls[0];
-    expect(call.tools.map((t: any) => t.name)).toEqual(["deleteOperator", "addOperator"]);
+    expect(call.tools.map((t: any) => t.name)).toEqual([
+      "getWorkflow",
+      "getOperatorResult",
+      "deleteOperator",
+      "addOperator",
+    ]);
     expect(agent.getSystemInfo().tools.map(t => [t.name, t.enabled])).toEqual([
+      ["getWorkflow", true],
+      ["getOperatorResult", true],
       ["deleteOperator", true],
       ["addOperator", true],
       ["modifyOperator", false],
@@ -1166,8 +1244,8 @@ describe("sendMessage", () => {
     expect(promptOf((model as any).doGenerateCalls[1])).toEqual([{ system: "SYS-XYZ" }, { user: "two" }]);
   });
 
-  test("compiles the DAG and feeds schemas + cached results into the prompt", async () => {
-    const model = textModel("ok", 1, 1);
+  test("compiles nothing until the model asks; getWorkflow then compiles with the user's token", async () => {
+    const model = scriptedModel([{ call: "getWorkflow", input: {} }, "ok"]);
     const agent = makeAgentWith(model);
     agent.getWorkflowState().addOperator(srcOp("op-1", { fileName: "f.csv" }) as any);
     agent.getWorkflowResultState().set("op-1", INITIAL_STEP_ID, completedSummary([{ a: 1 }, { a: 2 }]));
@@ -1184,21 +1262,20 @@ describe("sendMessage", () => {
       } as any;
     }) as any);
     const res = await agent.sendMessage("look");
-    const prompt = promptOf((model as any).doGenerateCalls[0]);
-    expect(prompt.slice(0, 2)).toEqual([{ system: "SYS-XYZ" }, { user: "look" }]);
-    const txt = prompt[2].user;
-    expect(txt).toStartWith("# Current Dataflow\n## Operators");
     expect(res.error).toBeUndefined();
+    // One compile, made by the one getWorkflow call, not one per model call.
     expect(urls).toEqual(["http://localhost:9090/api/compile"]);
     expect(compileHeaders.Authorization).toBe("Bearer user-token");
-    expect(txt).toContain("Output Schema: [a: integer]");
-    expect(txt).toContain("(CSVFileScan, executed)");
-    expect(txt).toContain("Result:\n  Executed operator op-1\n  Output table shape: (2, 1)\n  \ta\n  0\t1\n  1\t2");
-    expect(txt).toContain("Properties:\n  fileName: f.csv");
+    const listing = agent.getAllSteps()[1].toolResults?.[0].output as string;
+    expect(listing).toContain("Output Schema: [a: integer]");
+    expect(listing).toContain("Properties:\n  fileName: f.csv");
+    // The listing says the operator has a result and its size; the records are left to getOperatorResult.
+    expect(listing).toContain("Result: 2 rows, 1 column");
+    expect(listing).not.toContain("Output table shape");
   });
 
-  test("swallows a plan-build failure and still answers", async () => {
-    const model = textModel("still-here", 1, 1);
+  test("a plan that cannot be built still gets listed, without schemas, and the turn answers", async () => {
+    const model = scriptedModel([{ call: "getWorkflow", input: {} }, "still-here"]);
     const agent = makeAgentWith(model);
     const ws = agent.getWorkflowState();
     ws.addOperator({ ...srcOp("src"), outputPorts: undefined } as any);
@@ -1211,6 +1288,10 @@ describe("sendMessage", () => {
     const res = await agent.sendMessage("hi");
     expect(res.response).toBe("still-here");
     expect(res.error).toBeUndefined();
+    const listing = agent.getAllSteps()[1].toolResults?.[0].output as string;
+    expect(listing).toContain("### Operator `src` (CSVFileScan)");
+    expect(listing).toContain("No schemas: compiling the workflow failed (");
+    expect(urls).toEqual([]);
   });
 
   test("reports a model failure as an error step", async () => {
@@ -1450,12 +1531,10 @@ describe("delegate mode", () => {
       if (String(u).includes("/api/compile")) compileHeaders.push(init?.headers);
       return routed(u, init);
     }) as any);
-    const agent = makeAgentWith(textModel("ok", 1, 1));
+    const agent = makeAgentWith(scriptedModel([{ call: "getWorkflow", input: {} }, "ok"]));
     agent.setDelegateConfig({ userToken: "tok", workflowId: 7 });
     await agent.sendMessage("go");
-    expect(compileHeaders.length).toBeGreaterThan(0);
-    for (const h of compileHeaders)
-      expect(h).toEqual({ Authorization: "Bearer tok", "Content-Type": "application/json" });
+    expect(compileHeaders).toEqual([{ Authorization: "Bearer tok", "Content-Type": "application/json" }]);
   });
 
   test("refreshes the workflow once, on the first turn only", async () => {
@@ -1514,9 +1593,8 @@ describe("delegate mode", () => {
       expect(entry?.stepId).toBe(steps[1].id);
       expect(entry?.operatorInfo.state).toBe(OperatorState.COMPLETED);
       expect(entry?.operatorInfo.resultSummary?.totalTuplesCount).toBe(1);
-      // The execution's result is part of the tool result. A later turn finds it there: the dataflow
-      // block that showed it during this turn is not kept, and an answer whose numbers are in no tool
-      // result reads as unverified.
+      // The execution's result is part of the tool result, and a later turn finds it there;
+      // getWorkflow only says that the operator has a result and how big it is.
       const result = "Operator op-1 modified\nExecuted operator op-1\nOutput table shape: (1, 1)\n\tz\n0\t9";
       expect(steps[1].toolResults).toEqual([{ toolCallId: "c1", output: result, isError: false }]);
       await agent.sendMessage("and now?");
@@ -1528,6 +1606,48 @@ describe("delegate mode", () => {
       // and execute, so the restore has to survive a failed assertion.
       vSpy.mockRestore();
     }
+  });
+
+  test("sends only native messages in delegate mode too, and getWorkflow reports the filed result", async () => {
+    dispatch(okExec);
+    const vSpy = spyOn(WorkflowSystemMetadata.getInstance(), "validateOperatorProperties").mockReturnValue({
+      isValid: true,
+    } as any);
+    try {
+      const model = scriptedModel([
+        { call: "modifyOperator", input: { operatorId: "op-1", summary: "renamed" } },
+        { call: "getWorkflow", input: {} },
+        "done",
+        "again",
+      ]);
+      const agent = makeAgentWith(model);
+      agent.setDelegateConfig({ userToken: "tok", workflowId: 7, workflowName: "w" });
+      await agent.sendMessage("modify it");
+      await agent.sendMessage("and now?");
+      const calls = (model as any).doGenerateCalls.map(promptOf);
+      expect(calls).toHaveLength(4);
+      for (let i = 1; i < calls.length; i++) expect(calls[i].slice(0, calls[i - 1].length)).toEqual(calls[i - 1]);
+      expect(calls[3].filter((m: any) => "user" in m).map((m: any) => m.user)).toEqual(["modify it", "and now?"]);
+      // The modify executed op-1, and renaming it does not make that result outdated.
+      const listing = lastOf(calls[2]).tool[0].output.value;
+      expect(listing).toContain("### Operator `op-1` (CSVFileScan)\nSummary: renamed");
+      expect(listing).toContain("Result: 1 row, 1 column");
+    } finally {
+      vSpy.mockRestore();
+    }
+  });
+
+  test("getOperatorResult returns a filed result without executing anything", async () => {
+    dispatch(okExec);
+    const model = scriptedModel([{ call: "getOperatorResult", input: { operatorId: "op-1" } }, "ok"]);
+    const agent = makeAgentWith(model);
+    agent.setDelegateConfig({ userToken: "tok", workflowId: 7, workflowName: "w" });
+    agent.getWorkflowResultState().set("op-1", INITIAL_STEP_ID, completedSummary([{ z: 9 }]));
+    await agent.sendMessage("what was the result?");
+    expect(urls.filter(u => u.includes("/api/execution/"))).toEqual([]);
+    expect(agent.getAllSteps()[1].toolResults?.[0].output).toBe(
+      "Latest result of operator op-1:\nOutput table shape: (1, 1)\n\tz\n0\t9"
+    );
   });
 
   test("a turn stopped while the changed operator executes keeps the change and ends as stopped", async () => {

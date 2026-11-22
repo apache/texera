@@ -89,13 +89,18 @@ describe("buildSystemPrompt", () => {
     expect(prompt).toContain("## R UDF Guide");
   });
 
-  test("describes the dataflow block that ends each step, and no format for the conversation", () => {
-    // The conversation reaches the model as native messages, so the prompt describes only the one
-    // block the service writes: the current dataflow.
+  test("sends the model to the read tools for the workflow, and gives no format for the conversation", () => {
+    // The conversation reaches the model as native messages and nothing else is written into it, so
+    // the prompt describes only what getWorkflow returns.
     const prompt = buildSystemPrompt(makeMetadataStore(), ["Filter"]);
 
-    expect(prompt).toContain("## Current Dataflow");
-    expect(prompt).toContain("### Operator `<operator_id>` (<operator_type>, executed|failed|not-executed)");
+    expect(prompt).toContain("## Reading the Workflow");
+    expect(prompt).toContain("Call `getWorkflow` to see it");
+    expect(prompt).toContain("### Operator `<operator_id>` (<operator_type>)");
+    expect(prompt).toContain("Result: <whether the operator has a result, see below>");
+    expect(prompt).toContain("`outdated, ...` when the operator or one it reads from changed after its last execution");
+    expect(prompt).toContain("`getOperatorResult` returns an operator's latest result");
+    expect(prompt).not.toContain("Current Dataflow");
     expect(prompt).not.toContain("## Context Format");
     expect(prompt).not.toContain("# Completed Tasks");
     expect(prompt).not.toContain("# Ongoing Task");
