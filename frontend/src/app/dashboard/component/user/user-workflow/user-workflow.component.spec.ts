@@ -601,6 +601,23 @@ describe("SavedWorkflowSectionComponent", () => {
         );
       });
 
+      it("skips a declared language that is not a string instead of throwing", async () => {
+        enableR();
+        const { notebookConvert, errorSpy } = spies({
+          cells: [],
+          metadata: { kernelspec: { language: "R" }, language_info: { name: JSON.parse('{"toString": null}') } },
+        });
+
+        const proceed = await getRequestImport()(ipynbFile, "gpt-4", "python");
+
+        expect(proceed).toBe(false);
+        expect(errorSpy).toHaveBeenCalledWith(
+          "This notebook uses an R kernel, not Python. Switch the notebook type to R Notebook.",
+          MIGRATION_ERROR_OPTIONS
+        );
+        expect(notebookConvert).not.toHaveBeenCalled();
+      });
+
       it("accepts a notebook whose declared languages are all blank", async () => {
         const { notebookConvert, errorSpy } = spies({
           cells: [],
