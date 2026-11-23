@@ -25,6 +25,7 @@ import com.typesafe.scalalogging.LazyLogging
 import io.dropwizard.auth.Auth
 import org.apache.texera.amber.core.storage.{
   DocumentFactory,
+  DocumentNotFoundException,
   ExecutionResultUris,
   WarehouseReadGuard
 }
@@ -679,7 +680,7 @@ class WorkflowResource extends LazyLogging {
             val (document, _) = DocumentFactory.openDocument(uri)
             document.clear()
           } catch {
-            case e: IllegalArgumentException if e.getMessage.contains("No storage is found") =>
+            case e: DocumentNotFoundException =>
               logger.warn(s"Storage for URI $uri not found, ignoring: ${e.getMessage}")
             case NonFatal(e) =>
               logger.error(s"Failed to clear document for URI $uri", e)
