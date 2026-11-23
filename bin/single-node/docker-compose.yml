@@ -529,7 +529,9 @@ services:
       retries: 5
       start_period: 15s
 
-  # ResultService serves the results of executions, so they can be read without a computing unit
+  # ResultService serves the results of executions, so they can be read without a computing unit.
+  # It reads them through Lakekeeper, so it needs STORAGE_ICEBERG_CATALOG_TYPE=rest (the default).
+  # With postgres, result tables are the computing unit's local files, which this does not mount.
   result-service:
     image: ${IMAGE_REGISTRY:-ghcr.io/apache}/texera-result-service:${IMAGE_TAG:-latest}
     container_name: result-service
