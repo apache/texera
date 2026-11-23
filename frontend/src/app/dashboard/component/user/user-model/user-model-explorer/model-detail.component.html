@@ -125,34 +125,12 @@
 
         <nz-card class="data-card data-card-details">
           <div class="data-card-stats">
+            @for (stat of overviewStatistics; track stat.label) {
             <div class="stat-row">
-              <span class="stat-label">Created</span>
-              <span class="stat-value">{{ modelCreationTime }}</span>
+              <span class="stat-label">{{ stat.label }}</span>
+              <span class="stat-value">{{ stat.value }}</span>
             </div>
-            <div class="stat-row">
-              <span class="stat-label">Last updated</span>
-              <span class="stat-value">{{ latestVersionCreationTime || "—" }}</span>
-            </div>
-            <div class="stat-row">
-              <span class="stat-label">Versions</span>
-              <span class="stat-value">{{ versions.length }}</span>
-            </div>
-            <div class="stat-row">
-              <span class="stat-label">Framework</span>
-              <span class="stat-value">{{ modelFramework || "—" }}</span>
-            </div>
-            <div class="stat-row">
-              <span class="stat-label">Format</span>
-              <span class="stat-value">{{ modelFormat || "—" }}</span>
-            </div>
-            <div class="stat-row">
-              <span class="stat-label">Latest version file</span>
-              <span class="stat-value">{{ latestVersionFileName || "—" }}</span>
-            </div>
-            <div class="stat-row">
-              <span class="stat-label">Latest version size</span>
-              <span class="stat-value">{{ formatSize(latestVersionSize) }}</span>
-            </div>
+            }
           </div>
         </nz-card>
       </div>
@@ -194,51 +172,23 @@
   <nz-tab
     nzTitle="Settings"
     *ngIf="userHasWriteAccess()">
-    <div class="settings-tab-content">
-      <nz-card class="settings-general-card">
-        <h3 class="settings-card-title">General</h3>
-
-        <div class="settings-name-row">
-          <div class="settings-name-label">
-            <label>Model name</label>
-            <p class="settings-hint">Letters, numbers, underscores and hyphens.</p>
-            <p
-              *ngIf="uploadsInFlight"
-              class="settings-hint">
-              An upload is in progress — finish or cancel it in Versions &amp; Files first, or it will be left
-              incomplete.
-            </p>
-          </div>
-          <div class="settings-name-controls">
-            <input
-              nz-input
-              [disabled]="uploadsInFlight"
-              [(ngModel)]="editedModelName" />
-            <button
-              nz-button
-              nzType="primary"
-              [disabled]="uploadsInFlight"
-              (click)="onSaveModelName()">
-              Save
-            </button>
-          </div>
-        </div>
-
-        <nz-divider></nz-divider>
-
-        <div class="settings-field">
-          <label class="settings-field-label">Description</label>
-          <div class="settings-field-hint">Shown on cards.</div>
-          <texera-markdown-description
-            [description]="modelDescription"
-            [editable]="true"
-            [enableViewMore]="true"
-            (descriptionChange)="onModelDescriptionChange($event)">
-          </texera-markdown-description>
-        </div>
-      </nz-card>
-
-      <nz-card class="settings-general-card">
+    <div
+      class="settings-tab-content"
+      texeraResourceDetailSettings
+      resourceType="model"
+      [(editedName)]="editedModelName"
+      [uploadsInFlight]="uploadsInFlight"
+      (saveName)="onSaveModelName()"
+      [description]="modelDescription"
+      (descriptionChange)="onModelDescriptionChange($event)"
+      [isPublic]="modelIsPublic"
+      (publicChange)="onPublicStatusChange($event)"
+      [isDownloadable]="modelIsDownloadable"
+      (downloadableChange)="onDownloadableStatusChange($event)"
+      [isOwner]="isOwner">
+      <nz-card
+        class="settings-general-card"
+        ngProjectAs="[resourceSettingsBetweenCards]">
         <h3 class="settings-card-title">Model type</h3>
 
         <div class="settings-name-row">
@@ -278,47 +228,6 @@
                 [nzValue]="option"
                 [nzLabel]="option"></nz-option>
             </nz-select>
-          </div>
-        </div>
-      </nz-card>
-
-      <nz-card class="settings-general-card">
-        <h3 class="settings-card-title">Access &amp; visibility</h3>
-
-        <div class="settings-name-row">
-          <div class="settings-name-label">
-            <label>Visibility</label>
-            <p class="settings-hint">
-              {{ modelIsPublic ? "Public — anyone can view this model." : "Private — only you and invited collaborators
-              can see this model." }}
-            </p>
-          </div>
-          <div class="settings-name-controls">
-            <nz-switch
-              [ngModel]="modelIsPublic"
-              (ngModelChange)="onPublicStatusChange($event)"
-              nzCheckedChildren="public"
-              nzUnCheckedChildren="private"></nz-switch>
-          </div>
-        </div>
-
-        <nz-divider></nz-divider>
-
-        <div class="settings-name-row">
-          <div class="settings-name-label">
-            <label>Downloadable</label>
-            <p class="settings-hint">
-              {{ modelIsDownloadable ? "Viewers can download this model." : "Viewers can browse files but cannot
-              download them." }}
-            </p>
-          </div>
-          <div class="settings-name-controls">
-            <nz-switch
-              [ngModel]="modelIsDownloadable"
-              (ngModelChange)="onDownloadableStatusChange($event)"
-              [nzDisabled]="!isOwner"
-              nzCheckedChildren="allowed"
-              nzUnCheckedChildren="blocked"></nz-switch>
           </div>
         </div>
       </nz-card>

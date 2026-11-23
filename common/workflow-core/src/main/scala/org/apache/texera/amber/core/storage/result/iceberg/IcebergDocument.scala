@@ -26,7 +26,6 @@ import org.apache.texera.amber.util.IcebergUtil
 import org.apache.commons.io.IOUtils
 import org.apache.iceberg.catalog.{Catalog, TableIdentifier}
 import org.apache.iceberg.data.Record
-import org.apache.iceberg.exceptions.NoSuchTableException
 import org.apache.iceberg.io.CloseableIterator
 import org.apache.iceberg.types.{Conversions, Types}
 import org.apache.iceberg.{FileScanTask, Table}
@@ -83,14 +82,7 @@ private[storage] class IcebergDocument[T >: Null <: AnyRef](
     *
     * @throws NoSuchTableException if the table does not exist.
     */
-  override def getURI: URI = {
-    val table = IcebergUtil
-      .loadTableMetadata(catalog, tableNamespace, tableName)
-      .getOrElse(
-        throw new NoSuchTableException(f"table ${tableNamespace}.${tableName} doesn't exist")
-      )
-    URI.create(table.location())
-  }
+  override def getURI: URI = URI.create(requireTable().location())
 
   /**
     * Deletes the table and clears its contents.
@@ -412,41 +404,50 @@ private[storage] class IcebergDocument[T >: Null <: AnyRef](
     * @throws NoSuchTableException if the table does not exist in the catalog.
     */
   override def getTableStatistics: Map[String, Map[String, Any]] = {
-    val table = IcebergUtil
-      .loadTableMetadata(catalog, tableNamespace, tableName)
-      .getOrElse(
-        throw new NoSuchTableException(f"table ${tableNamespace}.${tableName} doesn't exist")
-      )
+    val table = requireTable()
 
     val schema = table.schema()
 
     // Extract field names, IDs, and types from the schema
-    val fieldTypes =
-      schema.columns().asScala.map(col => col.name() -> (col.fieldId(), col.`type`())).toMap
+    val fieldTypes = schema
+      .columns()
+      .asScala
+      .iterator
+      .map { column =>
+        val fieldType = column.`type`()
+        val numeric = fieldType == Types.IntegerType.get() || fieldType == Types.LongType
+          .get() || fieldType == Types.DoubleType.get()
+        val timestamp =
+          fieldType == Types.TimestampType.withoutZone() || fieldType == Types.TimestampType
+            .withZone()
+        column.name() -> (column.fieldId(), fieldType, numeric, timestamp)
+      }
+      .toMap
     val fieldStats = mutable.Map[String, mutable.Map[String, Any]]()
     val dateFormatter: DateTimeFormatter = DateTimeFormatter.ISO_LOCAL_DATE
 
     // Initialize statistics for each field
     fieldTypes.foreach {
-      case (field, (_, fieldType)) =>
+      case (field, (_, _, numeric, timestamp)) =>
         val initialStats = mutable.Map[String, Any](
           "not_null_count" -> 0L
         )
-        if (
-          fieldType == Types.IntegerType.get() || fieldType == Types.LongType
-            .get() || fieldType == Types.DoubleType.get()
-        ) {
+        if (numeric) {
           initialStats("min") = Double.MaxValue
           initialStats("max") = Double.MinValue
-        } else if (
-          fieldType == Types.TimestampType.withoutZone() || fieldType == Types.TimestampType
-            .withZone()
-        ) {
-          initialStats("min") = LocalDate.MAX.format(dateFormatter)
-          initialStats("max") = LocalDate.MIN.format(dateFormatter)
+        } else if (timestamp) {
+          initialStats("min") = LocalDate.MAX
+          initialStats("max") = LocalDate.MIN
         }
 
         fieldStats(field) = initialStats
+    }
+
+    def asUtcDate(buffer: ByteBuffer): LocalDate = {
+      val epochMicros = Conversions
+        .fromByteBuffer(Types.TimestampType.withoutZone(), buffer)
+        .asInstanceOf[Long]
+      Instant.ofEpochMilli(epochMicros / 1000).atZone(ZoneOffset.UTC).toLocalDate
     }
 
     // Scan table files and aggregate statistics
@@ -455,78 +456,49 @@ private[storage] class IcebergDocument[T >: Null <: AnyRef](
         val fileStats = file.file()
         // Extract column-level statistics
         val lowerBounds =
-          Option(fileStats.lowerBounds()).getOrElse(Map.empty[Integer, ByteBuffer].asJava)
+          Option(fileStats.lowerBounds())
+            .getOrElse(java.util.Collections.emptyMap[Integer, ByteBuffer]())
         val upperBounds =
-          Option(fileStats.upperBounds()).getOrElse(Map.empty[Integer, ByteBuffer].asJava)
+          Option(fileStats.upperBounds())
+            .getOrElse(java.util.Collections.emptyMap[Integer, ByteBuffer]())
         val nullCounts =
-          Option(fileStats.nullValueCounts()).getOrElse(Map.empty[Integer, java.lang.Long].asJava)
+          Option(fileStats.nullValueCounts())
+            .getOrElse(java.util.Collections.emptyMap[Integer, java.lang.Long]())
         val nanCounts =
-          Option(fileStats.nanValueCounts()).getOrElse(Map.empty[Integer, java.lang.Long].asJava)
+          Option(fileStats.nanValueCounts())
+            .getOrElse(java.util.Collections.emptyMap[Integer, java.lang.Long]())
 
         fieldTypes.foreach {
-          case (field, (fieldId, fieldType)) =>
-            val lowerBound = Option(lowerBounds.get(fieldId))
-            val upperBound = Option(upperBounds.get(fieldId))
+          case (field, (fieldId, fieldType, numeric, timestamp)) =>
             val nullCount: Long = Option(nullCounts.get(fieldId)).map(_.toLong).getOrElse(0L)
             val nanCount: Long = Option(nanCounts.get(fieldId)).map(_.toLong).getOrElse(0L)
             val fieldStat = fieldStats(field)
 
             // Process min/max values for numerical types
-            if (
-              fieldType == Types.IntegerType.get() || fieldType == Types.LongType
-                .get() || fieldType == Types.DoubleType.get()
-            ) {
-              lowerBound.foreach { buffer =>
+            if (numeric) {
+              Option(lowerBounds.get(fieldId)).foreach { buffer =>
                 val minValue =
                   Conversions.fromByteBuffer(fieldType, buffer).asInstanceOf[Number].doubleValue()
                 fieldStat("min") = Math.min(fieldStat("min").asInstanceOf[Double], minValue)
               }
 
-              upperBound.foreach { buffer =>
+              Option(upperBounds.get(fieldId)).foreach { buffer =>
                 val maxValue =
                   Conversions.fromByteBuffer(fieldType, buffer).asInstanceOf[Number].doubleValue()
                 fieldStat("max") = Math.max(fieldStat("max").asInstanceOf[Double], maxValue)
               }
-            }
-            // Process min/max values for timestamp types
-            else if (
-              fieldType == Types.TimestampType.withoutZone() || fieldType == Types.TimestampType
-                .withZone()
-            ) {
-              lowerBound.foreach { buffer =>
-                val epochMicros = Conversions
-                  .fromByteBuffer(Types.TimestampType.withoutZone(), buffer)
-                  .asInstanceOf[Long]
-                val dateValue =
-                  Instant.ofEpochMilli(epochMicros / 1000).atZone(ZoneOffset.UTC).toLocalDate
-                fieldStat("min") =
-                  if (
-                    dateValue
-                      .isBefore(
-                        LocalDate.parse(fieldStat("min").asInstanceOf[String], dateFormatter)
-                      )
-                  )
-                    dateValue.format(dateFormatter)
-                  else
-                    fieldStat("min")
+            } else if (timestamp) {
+              Option(lowerBounds.get(fieldId)).foreach { buffer =>
+                val date = asUtcDate(buffer)
+                if (date.isBefore(fieldStat("min").asInstanceOf[LocalDate])) {
+                  fieldStat("min") = date
+                }
               }
-
-              upperBound.foreach { buffer =>
-                val epochMicros = Conversions
-                  .fromByteBuffer(Types.TimestampType.withoutZone(), buffer)
-                  .asInstanceOf[Long]
-                val dateValue =
-                  Instant.ofEpochMilli(epochMicros / 1000).atZone(ZoneOffset.UTC).toLocalDate
-                fieldStat("max") =
-                  if (
-                    dateValue
-                      .isAfter(
-                        LocalDate.parse(fieldStat("max").asInstanceOf[String], dateFormatter)
-                      )
-                  )
-                    dateValue.format(dateFormatter)
-                  else
-                    fieldStat("max")
+              Option(upperBounds.get(fieldId)).foreach { buffer =>
+                val date = asUtcDate(buffer)
+                if (date.isAfter(fieldStat("max").asInstanceOf[LocalDate])) {
+                  fieldStat("max") = date
+                }
               }
             }
             // Update non-null count
@@ -535,9 +507,12 @@ private[storage] class IcebergDocument[T >: Null <: AnyRef](
         }
       }
     }
-    fieldStats.map {
+    fieldStats.iterator.map {
       case (field, stats) =>
-        field -> stats.toMap
+        field -> stats.iterator.map {
+          case (key, date: LocalDate) => key -> date.format(dateFormatter)
+          case entry                  => entry
+        }.toMap
     }.toMap
   }
 
@@ -548,24 +523,23 @@ private[storage] class IcebergDocument[T >: Null <: AnyRef](
     * @throws NoSuchTableException if the table does not exist.
     */
   override def getTotalFileSize: Long = {
-    val table = IcebergUtil
-      .loadTableMetadata(catalog, tableNamespace, tableName)
-      .getOrElse(
-        throw new NoSuchTableException(f"table ${tableNamespace}.${tableName} doesn't exist")
-      )
-    var filesSize: Long = 0L
-
+    val table = requireTable()
     try {
-      filesSize = table.currentSnapshot().summary().getOrDefault("total-files-size", "0").toLong
+      table.currentSnapshot().summary().getOrDefault("total-files-size", "0").toLong
     } catch {
-      case e: Exception => println(s"Failed to get total-files-size: ${e.getMessage}")
+      case e: Exception =>
+        println(s"Failed to get total-files-size: ${e.getMessage}")
+        0L
     }
-    filesSize
   }
 
-  private def getParquetFileStream(fileTask: FileScanTask): InputStream = {
+  private def getParquetFileStream(
+      fileTask: FileScanTask,
+      identifier: TableIdentifier
+  ): InputStream = {
     val file = fileTask.file()
-    val table = catalog.loadTable(TableIdentifier.of(tableNamespace, tableName))
+    // Loaded per part, never held across the export: it could outlive its catalog (#7290).
+    val table = catalog.loadTable(identifier)
     table.io().newInputFile(file.location()).newStream()
   }
 
@@ -576,12 +550,11 @@ private[storage] class IcebergDocument[T >: Null <: AnyRef](
     * @return An InputStream that streams the contents of the Iceberg table as a ZIP archive.
     */
   override def asInputStream(): InputStream = {
-    val fileScanTasks: Seq[FileScanTask] = {
-      val table = this.catalog.loadTable(TableIdentifier.of(this.tableNamespace, this.tableName))
-      table.refresh()
-      Using.resource(table.newScan().planFiles()) { tasks =>
-        tasks.iterator().asScala.toSeq
-      }
+    val identifier = TableIdentifier.of(tableNamespace, tableName)
+    val table = catalog.loadTable(identifier)
+    table.refresh()
+    val fileScanTasks = Using.resource(table.newScan().planFiles()) { tasks =>
+      tasks.iterator().asScala.toSeq
     }
 
     if (fileScanTasks.isEmpty) {
@@ -595,18 +568,16 @@ private[storage] class IcebergDocument[T >: Null <: AnyRef](
     val processingThread = new Thread(() => {
       try {
         Using.resource(new ZipOutputStream(pipeOut)) { zipOut =>
-          for (i <- fileScanTasks.indices) {
-            val fileTask = fileScanTasks(i)
-            val entryName = s"part-${String.format("%05d", i)}.parquet"
-            zipOut.putNextEntry(new ZipEntry(entryName))
-            Using.resource(getParquetFileStream(fileTask)) { fileInputStream =>
-              IOUtils.copy(fileInputStream, zipOut)
-            }
-            zipOut.closeEntry()
+          fileScanTasks.iterator.zipWithIndex.foreach {
+            case (fileTask, i) =>
+              val entryName = f"part-$i%05d.parquet"
+              zipOut.putNextEntry(new ZipEntry(entryName))
+              Using.resource(getParquetFileStream(fileTask, identifier)) { fileInputStream =>
+                IOUtils.copy(fileInputStream, zipOut)
+              }
+              zipOut.closeEntry()
           }
         }
-      } catch {
-        case e: Exception => throw e
       } finally {
         pipeOut.close()
       }

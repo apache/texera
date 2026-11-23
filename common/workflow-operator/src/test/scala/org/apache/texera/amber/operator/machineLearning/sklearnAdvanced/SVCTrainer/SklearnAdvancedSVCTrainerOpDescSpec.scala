@@ -19,42 +19,19 @@
 
 package org.apache.texera.amber.operator.machineLearning.sklearnAdvanced.SVCTrainer
 
-import org.apache.texera.amber.operator.machineLearning.sklearnAdvanced.base.SklearnMLOperatorDescriptor
+import org.apache.texera.amber.operator.machineLearning.sklearnAdvanced.base.SklearnTrainerOpDescSpecBehaviors
 import org.scalatest.flatspec.AnyFlatSpec
 
-class SklearnAdvancedSVCTrainerOpDescSpec extends AnyFlatSpec {
+class SklearnAdvancedSVCTrainerOpDescSpec
+    extends AnyFlatSpec
+    with SklearnTrainerOpDescSpecBehaviors {
 
-  "SklearnAdvancedSVCTrainerOpDesc.getImportStatements" should
-    "return the canonical SVC import (from sklearn.svm)" in {
-    val d = new SklearnAdvancedSVCTrainerOpDesc
-    assert(d.getImportStatements == "from sklearn.svm import SVC")
-  }
-
-  "SklearnAdvancedSVCTrainerOpDesc.getOperatorInfo" should "return 'SVM Classifier'" in {
-    val d = new SklearnAdvancedSVCTrainerOpDesc
-    assert(d.getOperatorInfo == "SVM Classifier")
-  }
-
-  it should "be stable across two instances (no instance-state interaction)" in {
-    val a = new SklearnAdvancedSVCTrainerOpDesc
-    val b = new SklearnAdvancedSVCTrainerOpDesc
-    assert(a.getImportStatements == b.getImportStatements)
-    assert(a.getOperatorInfo == b.getOperatorInfo)
-  }
-
-  "SklearnAdvancedSVCTrainerOpDesc" should
-    "extend SklearnMLOperatorDescriptor (compile-time enforced)" in {
-    val d: SklearnMLOperatorDescriptor[SklearnAdvancedSVCParameters] =
-      new SklearnAdvancedSVCTrainerOpDesc
-    assert(d.getImportStatements.contains("SVC"))
-  }
-
-  it should "be matchable via the SklearnMLOperatorDescriptor type-pattern" in {
-    val any: AnyRef = new SklearnAdvancedSVCTrainerOpDesc
-    val matched = any match {
-      case _: SklearnMLOperatorDescriptor[_] => true
-      case _                                 => false
-    }
-    assert(matched)
-  }
+  trainerDescriptorBehaviors[SklearnAdvancedSVCParameters, SklearnAdvancedSVCTrainerOpDesc](
+    "SklearnAdvancedSVCTrainerOpDesc",
+    () => new SklearnAdvancedSVCTrainerOpDesc,
+    "from sklearn.svm import SVC",
+    "SVM Classifier",
+    importCaseSuffix = "from sklearn.svm",
+    expectedImportToken = "SVC"
+  )
 }

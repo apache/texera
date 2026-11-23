@@ -111,9 +111,15 @@ class PartitionersSpec extends AnyFlatSpec {
     val partitioner = RoundRobinPartitioner(partitioning)
 
     val indices = (1 to 7).map(_ => partitioner.getBucketIndex(intTuple(0)).next()).toList
-    // Implementation increments first, then emits. Starting from 0, the first
-    // emitted index is therefore 1, then 2, then 0, repeating.
-    assert(indices == List(1, 2, 0, 1, 2, 0, 1))
+    // Emits the current index then advances, so the cycle starts at receiver 0.
+    assert(indices == List(0, 1, 2, 0, 1, 2, 0))
+  }
+
+  it should "emit nothing when there are no receivers" in {
+    val partitioner =
+      RoundRobinPartitioner(RoundRobinPartitioning(batchSize = 100, channels = Seq()))
+    assert(partitioner.getBucketIndex(intTuple(0)).toList == List())
+    assert(partitioner.allReceivers == Seq())
   }
 
   "RoundRobinPartitioner.allReceivers" should "preserve channel order while deduplicating" in {
