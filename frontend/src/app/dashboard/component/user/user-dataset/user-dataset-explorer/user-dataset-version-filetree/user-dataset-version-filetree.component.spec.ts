@@ -17,29 +17,29 @@
  * under the License.
  */
 
-import { ComponentFixture, TestBed } from "@angular/core/testing";
+import { ComponentFixture } from "@angular/core/testing";
 import { UserDatasetVersionFiletreeComponent } from "./user-dataset-version-filetree.component";
 import { DatasetFileNode } from "../../../../../../common/type/datasetVersionFileTree";
-import { FILE_COUNT, makeFlatFileNodes } from "./user-dataset-version-filetree.test-utils";
+import { createFiletreeFixture, FILE_COUNT, makeFlatFileNodes } from "./user-dataset-version-filetree.test-utils";
 
 describe("UserDatasetVersionFiletreeComponent", () => {
   let fixture: ComponentFixture<UserDatasetVersionFiletreeComponent>;
   let component: UserDatasetVersionFiletreeComponent;
 
-  function makeFolderNode(fileCount: number): DatasetFileNode {
-    return {
-      name: "dir",
-      type: "directory",
-      parentDir: "/owner/dataset/v1",
-      children: makeFlatFileNodes(fileCount),
-    };
+  const folderWith = (children: DatasetFileNode[]): DatasetFileNode => ({
+    name: "dir",
+    type: "directory",
+    parentDir: "/owner/dataset/v1",
+    children,
+  });
+
+  function expectContainerHeight(height: string): void {
+    const container = fixture.nativeElement.querySelector(".file-tree-container") as HTMLElement;
+    expect(container.style.height).toBe(height);
   }
 
   beforeEach(() => {
-    TestBed.configureTestingModule({
-      imports: [UserDatasetVersionFiletreeComponent],
-    });
-    fixture = TestBed.createComponent(UserDatasetVersionFiletreeComponent);
+    fixture = createFiletreeFixture();
     component = fixture.componentInstance;
   });
 
@@ -69,32 +69,28 @@ describe("UserDatasetVersionFiletreeComponent", () => {
     component.fileTreeNodes = [];
     fixture.detectChanges();
 
-    const container = fixture.nativeElement.querySelector(".file-tree-container") as HTMLElement;
-    expect(container.style.height).toBe("0px");
+    expectContainerHeight("0px");
   });
 
   it("sizes the container to its content for small trees", () => {
     component.fileTreeNodes = makeFlatFileNodes(3);
     fixture.detectChanges();
 
-    const container = fixture.nativeElement.querySelector(".file-tree-container") as HTMLElement;
-    expect(container.style.height).toBe("80px"); // 3 rows x 26px pitch + 2px leading drop slot
+    expectContainerHeight("80px"); // 3 rows x 26px pitch + 2px leading drop slot
   });
 
   it("caps the container height at 200px for large trees", () => {
     component.fileTreeNodes = makeFlatFileNodes(FILE_COUNT);
     fixture.detectChanges();
 
-    const container = fixture.nativeElement.querySelector(".file-tree-container") as HTMLElement;
-    expect(container.style.height).toBe("200px");
+    expectContainerHeight("200px");
   });
 
   it("counts nested folder contents when sizing the container", () => {
-    component.fileTreeNodes = [makeFolderNode(2)]; // 1 folder + 2 files = 3 rows when expanded
+    component.fileTreeNodes = [folderWith(makeFlatFileNodes(2))]; // 1 folder + 2 files = 3 rows when expanded
     fixture.detectChanges();
 
-    const container = fixture.nativeElement.querySelector(".file-tree-container") as HTMLElement;
-    expect(container.style.height).toBe("80px");
+    expectContainerHeight("80px");
   });
 
   it("treats a missing files input as an empty tree", () => {
@@ -102,13 +98,12 @@ describe("UserDatasetVersionFiletreeComponent", () => {
     fixture.detectChanges();
 
     expect(component.fileTreeNodes).toEqual([]);
-    const container = fixture.nativeElement.querySelector(".file-tree-container") as HTMLElement;
-    expect(container.style.height).toBe("0px");
+    expectContainerHeight("0px");
   });
 
   it("expands all folders after view init when isExpandAllAfterViewInit is set", () => {
     component.isExpandAllAfterViewInit = true;
-    component.fileTreeNodes = [makeFolderNode(2)];
+    component.fileTreeNodes = [folderWith(makeFlatFileNodes(2))];
     fixture.detectChanges();
 
     expect(component.tree.treeModel.roots[0].isExpanded).toBe(true);
@@ -173,13 +168,6 @@ describe("UserDatasetVersionFiletreeComponent", () => {
    * changes how many rows the tree draws but not what a row contains.
    */
   describe("node template", () => {
-    const folderWith = (children: DatasetFileNode[]): DatasetFileNode => ({
-      name: "dir",
-      type: "directory",
-      parentDir: "/owner/dataset/v1",
-      children,
-    });
-
     const file = (name: string): DatasetFileNode => ({
       name,
       type: "file",
@@ -211,10 +199,10 @@ describe("UserDatasetVersionFiletreeComponent", () => {
 
       expect(rowTitles()).toEqual(["dir", "a.csv"]);
       expect(rowFor("dir").textContent?.trim()).toBe("dir");
-      expect(rowFor("dir").querySelector("i[nztype='folder']")).not.toBeNull();
-      expect(rowFor("dir").querySelector("i[nztype='file']")).toBeNull();
-      expect(rowFor("a.csv").querySelector("i[nztype='file']")).not.toBeNull();
-      expect(rowFor("a.csv").querySelector("i[nztype='folder']")).toBeNull();
+      expect(rowFor("dir").querySelector("i[aria-label='folder']")).not.toBeNull();
+      expect(rowFor("dir").querySelector("i[aria-label='file']")).toBeNull();
+      expect(rowFor("a.csv").querySelector("i[aria-label='file']")).not.toBeNull();
+      expect(rowFor("a.csv").querySelector("i[aria-label='folder']")).toBeNull();
     });
 
     it("offers deletion on files only, and never on the folders holding them", () => {

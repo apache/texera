@@ -19,55 +19,20 @@
 
 package org.apache.texera.amber.operator.source.scan.arrow
 
-import org.apache.arrow.memory.RootAllocator
-import org.apache.arrow.vector.VectorSchemaRoot
-import org.apache.arrow.vector.ipc.ArrowFileWriter
 import org.apache.texera.amber.core.tuple.{Attribute, AttributeType, Schema, Tuple}
-import org.apache.texera.amber.util.ArrowUtils
 import org.apache.texera.amber.util.JSONUtils.objectMapper
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 
-import java.io.{File, FileOutputStream}
-import java.nio.channels.Channels
-import java.nio.file.Files
+import java.io.File
 
 class ArrowSourceOpExecSpec extends AnyFlatSpec with Matchers {
 
   private val schema = Schema(List(new Attribute("s", AttributeType.STRING)))
 
   /** Writes one record batch per argument, so a file can hold several or none. */
-  private def writeArrowFile(batches: Seq[String]*): File = {
-    val file = File.createTempFile("arrow-src-", ".arrow")
-    file.deleteOnExit()
-    val allocator = new RootAllocator()
-    val root = VectorSchemaRoot.create(ArrowUtils.fromTexeraSchema(schema), allocator)
-    val out = new FileOutputStream(file)
-    val writer = new ArrowFileWriter(root, null, Channels.newChannel(out))
-    try {
-      writer.start()
-      batches.foreach { rows =>
-        root.allocateNew()
-        rows.zipWithIndex.foreach {
-          case (value, i) =>
-            ArrowUtils.setTexeraTuple(
-              Tuple.builder(schema).addSequentially(Array[Any](value)).build(),
-              i,
-              root
-            )
-        }
-        root.setRowCount(rows.size)
-        writer.writeBatch()
-      }
-      writer.end()
-    } finally {
-      writer.close()
-      root.close()
-      allocator.close()
-      out.close()
-    }
-    file
-  }
+  private def writeArrowFile(batches: Seq[String]*): File =
+    ArrowSourceFixtures.writeArrowBatches(schema, batches.map(_.map(value => Array[Any](value))))
 
   private def descString(
       file: File,
@@ -129,9 +94,7 @@ class ArrowSourceOpExecSpec extends AnyFlatSpec with Matchers {
   }
 
   it should "wrap failures to open an invalid Arrow file" in {
-    val bogus = File.createTempFile("not-arrow-", ".arrow")
-    bogus.deleteOnExit()
-    Files.write(bogus.toPath, "this is not arrow".getBytes)
+    val bogus = ArrowSourceFixtures.invalidArrowFile()
     val exec = new ArrowSourceOpExec(descString(bogus))
     val ex = intercept[RuntimeException](exec.open())
     ex.getMessage shouldBe "Failed to open Arrow source"

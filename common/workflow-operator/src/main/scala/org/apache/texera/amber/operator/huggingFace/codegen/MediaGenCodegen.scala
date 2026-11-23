@@ -40,24 +40,9 @@ object MediaGenCodegen extends TaskCodegen {
     """            payload = {"inputs": prompt_value}""".stripMargin
 
   override def parsePython(ctx: CodegenContext): String =
-    """            if task == "text-to-image":
+    s"""            if task == "text-to-image":
       |                if isinstance(body, dict):
-      |                    if "output" in body:
-      |                        out = body["output"]
-      |                        url = out[0] if isinstance(out, list) else out
-      |                        if isinstance(url, str) and url.startswith("http"):
-      |                            return self._url_to_data_url(url)
-      |                    if "images" in body:
-      |                        images = body["images"]
-      |                        if images and isinstance(images[0], dict) and "url" in images[0]:
-      |                            return self._url_to_data_url(images[0]["url"])
-      |                    if "data" in body:
-      |                        data = body["data"]
-      |                        if isinstance(data, dict) and "outputs" in data:
-      |                            outputs = data["outputs"]
-      |                            if outputs and isinstance(outputs[0], str) and outputs[0].startswith("http"):
-      |                                return self._url_to_data_url(outputs[0])
-      |                        if isinstance(data, list) and data and isinstance(data[0], dict):
+      |${BinaryResponseFragments.imageEnvelope}
       |                            if "b64_json" in data[0]:
       |                                return f"data:image/png;base64,{data[0]['b64_json']}"
       |                            if "url" in data[0]:
@@ -65,11 +50,7 @@ object MediaGenCodegen extends TaskCodegen {
       |                return json.dumps(body)
       |            elif task == "text-to-video":
       |                if isinstance(body, dict):
-      |                    if "output" in body:
-      |                        out = body["output"]
-      |                        url = out[0] if isinstance(out, list) else out
-      |                        if isinstance(url, str) and url.startswith("http"):
-      |                            return self._url_to_data_url(url)
+      |${BinaryResponseFragments.outputUrl}
       |                    if "video" in body:
       |                        video = body["video"]
       |                        if isinstance(video, dict) and "url" in video:

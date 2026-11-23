@@ -97,44 +97,36 @@ class IntervalJoinOpExec(descString: String) extends OperatorExecutor {
 
   }
 
+  private def pruneCache(cache: ListBuffer[Tuple])(tooSmall: Tuple => Boolean): Unit = {
+    while (cache.nonEmpty && tooSmall(cache.head)) {
+      cache.remove(0)
+    }
+  }
+
   //if right table has tuple smaller than smallest tuple in left table, delete it
   private def removeTooSmallTupleInRightCache(leftTableSmallestTuple: Tuple): Unit = {
-    while (rightTable.nonEmpty) {
-      if (
-        intervalCompare(
-          leftTableSmallestTuple.getField(desc.leftAttributeName),
-          rightTable.head.getField(desc.rightAttributeName),
-          leftTableSmallestTuple.getSchema
-            .getAttribute(desc.leftAttributeName)
-            .getType
-        ) > 0
-      ) {
-        rightTable.remove(0)
-      } else {
-        return
-      }
+    pruneCache(rightTable) { cached =>
+      intervalCompare(
+        leftTableSmallestTuple.getField(desc.leftAttributeName),
+        cached.getField(desc.rightAttributeName),
+        leftTableSmallestTuple.getSchema
+          .getAttribute(desc.leftAttributeName)
+          .getType
+      ) > 0
     }
-
   }
 
   //if left table has tuple smaller than smallest tuple in right table, delete it
   private def removeTooSmallTupleInLeftCache(rightTableSmallestTuple: Tuple): Unit = {
-    while (leftTable.nonEmpty) {
-      if (
-        intervalCompare(
-          leftTable.head.getField(desc.leftAttributeName),
-          rightTableSmallestTuple.getField(desc.rightAttributeName),
-          rightTableSmallestTuple.getSchema
-            .getAttribute(desc.rightAttributeName)
-            .getType
-        ) < 0
-      ) {
-        leftTable.remove(0)
-      } else {
-        return
-      }
+    pruneCache(leftTable) { cached =>
+      intervalCompare(
+        cached.getField(desc.leftAttributeName),
+        rightTableSmallestTuple.getField(desc.rightAttributeName),
+        rightTableSmallestTuple.getSchema
+          .getAttribute(desc.rightAttributeName)
+          .getType
+      ) < 0
     }
-
   }
 
   private def processNumValue[T](
@@ -142,23 +134,16 @@ class IntervalJoinOpExec(descString: String) extends OperatorExecutor {
       leftBoundValue: T,
       rightBoundValue: T
   )(implicit ev$1: T => Ordered[T]): Int = {
-    if (desc.includeLeftBound && desc.includeRightBound) {
-      if (pointValue >= leftBoundValue && pointValue <= rightBoundValue) 0
-      else if (pointValue < leftBoundValue) -1
-      else 1
-    } else if (desc.includeLeftBound && !desc.includeRightBound) {
-      if (pointValue >= leftBoundValue && pointValue < rightBoundValue) 0
-      else if (pointValue < leftBoundValue) -1
-      else 1
-    } else if (!desc.includeLeftBound && desc.includeRightBound) {
-      if (pointValue > leftBoundValue && pointValue <= rightBoundValue) 0
-      else if (pointValue <= leftBoundValue) -1
-      else 1
-    } else {
-      if (pointValue > leftBoundValue && pointValue < rightBoundValue) 0
-      else if (pointValue <= leftBoundValue) -1
-      else 1
-    }
+    val afterLeft =
+      if (desc.includeLeftBound) pointValue >= leftBoundValue else pointValue > leftBoundValue
+    if (
+      afterLeft &&
+      (if (desc.includeRightBound) pointValue <= rightBoundValue else pointValue < rightBoundValue)
+    ) 0
+    else if (
+      if (desc.includeLeftBound) pointValue < leftBoundValue else pointValue <= leftBoundValue
+    ) -1
+    else 1
   }
 
   private def intervalCompare[K](
@@ -170,33 +155,23 @@ class IntervalJoinOpExec(descString: String) extends OperatorExecutor {
     if (dataType == AttributeType.LONG) {
       val pointValue: Long = point.asInstanceOf[Long]
       val leftBoundValue: Long = leftBound.asInstanceOf[Long]
-      val constantValue: Long = desc.constant
-      val rightBoundValue: Long = leftBoundValue + constantValue
-      result = processNumValue[Long](
-        pointValue,
-        leftBoundValue,
-        rightBoundValue
-      )
+      result = processNumValue[Long](pointValue, leftBoundValue, leftBoundValue + desc.constant)
 
     } else if (dataType == AttributeType.DOUBLE) {
       val pointValue: Double = point.asInstanceOf[Double]
       val leftBoundValue: Double = leftBound.asInstanceOf[Double]
-      val constantValue: Double = desc.constant.asInstanceOf[Double]
-      val rightBoundValue: Double = leftBoundValue + constantValue
       result = processNumValue[Double](
         pointValue,
         leftBoundValue,
-        rightBoundValue
+        leftBoundValue + desc.constant.asInstanceOf[Double]
       )
     } else if (dataType == AttributeType.INTEGER) {
       val pointValue: Int = point.asInstanceOf[Int]
       val leftBoundValue: Int = leftBound.asInstanceOf[Int]
-      val constantValue: Int = desc.constant.asInstanceOf[Int]
-      val rightBoundValue: Int = leftBoundValue + constantValue
       result = processNumValue[Int](
         pointValue,
         leftBoundValue,
-        rightBoundValue
+        leftBoundValue + desc.constant.asInstanceOf[Int]
       )
     } else if (dataType == AttributeType.TIMESTAMP) {
       val pointValue: Timestamp = point.asInstanceOf[Timestamp]
