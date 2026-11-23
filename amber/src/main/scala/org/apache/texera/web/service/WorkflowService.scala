@@ -418,12 +418,7 @@ class WorkflowService(
     (resultUris ++ consoleMessagesUris).foreach { uri =>
       if (WarehouseReadGuard.skipWhileDisabled(uri)) {
         logger.info(s"skipping cleanup of $uri: per-user warehouses are disabled")
-      } else
-        try DocumentFactory.openDocument(uri)._1.clear()
-        catch {
-          case error: Throwable =>
-            logger.debug(s"Error processing document at $uri: ${error.getMessage}")
-        }
+      } else WorkflowExecutionsResource.clearDocument(uri)
     }
 
     // Expire any Iceberg snapshots for runtime statistics

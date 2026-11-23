@@ -122,8 +122,8 @@ import scala.collection.mutable.ArrayBuffer
   *     runs zero times; a non-NULL value there would abort the whole method (see below) before
   *     the execution insert this suite also pins.
   *   - which arm of `WarehouseReadGuard.skipWhileDisabled` either loop takes: both arms end in
-  *     `DocumentFactory`, which needs a live Iceberg/LakeFS backend, and the loop body swallows
-  *     every `Throwable`.
+  *     `DocumentFactory`, which needs a live Iceberg/LakeFS backend, and no failure there leaves
+  *     the loop body.
   *   - swapping the two URI reads with each other. That is an equivalent mutant, not a gap: the
   *     two lists are concatenated and every element is treated identically.
   *
