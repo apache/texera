@@ -65,9 +65,31 @@ class TestTable:
         return Table(target_raw_tuples)
 
     @pytest.fixture
-    def target_data_frame(self, target_raw_tuples):
+    def target_data_frame(self, a_timestamp):
         return pandas.DataFrame(
-            target_raw_tuples, columns=list(target_raw_tuples[0].keys())
+            {
+                "field1": [1, 2],
+                "field2": ["hello", "world"],
+                "field3": [2.3, 0.0],
+                "field4": [True, False],
+                "field5": [
+                    a_timestamp,
+                    datetime.datetime.fromtimestamp(1000000000),
+                ],
+                "field6": [b"some binary", pickle.dumps([1, 2, 3])],
+                "7_special-name": [None, "a strange value"],
+                "none": [None, None],
+            },
+            columns=[
+                "field1",
+                "field2",
+                "field3",
+                "field4",
+                "field5",
+                "field6",
+                "7_special-name",
+                "none",
+            ],
         )
 
     @staticmethod

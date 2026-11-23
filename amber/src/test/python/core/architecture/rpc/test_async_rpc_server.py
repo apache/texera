@@ -86,11 +86,13 @@ def _make_invocation(
     return invocation
 
 
-def _make_channel(from_name: str, to_name: str) -> ChannelIdentity:
+def _make_channel(
+    from_name: str, to_name: str, is_control: bool = True
+) -> ChannelIdentity:
     return ChannelIdentity(
         from_worker_id=ActorVirtualIdentity(name=from_name),
         to_worker_id=ActorVirtualIdentity(name=to_name),
-        is_control=True,
+        is_control=is_control,
     )
 
 
@@ -134,11 +136,7 @@ def _dispatch(
     is_control: bool = True,
 ) -> AsyncRPCServer:
     server = _make_server(handlers)
-    channel = ChannelIdentity(
-        from_worker_id=ActorVirtualIdentity(name=from_name),
-        to_worker_id=ActorVirtualIdentity(name=to_name),
-        is_control=is_control,
-    )
+    channel = _make_channel(from_name, to_name, is_control=is_control)
     server.receive(channel, _make_invocation(method_name, command_id, context=context))
     return server
 

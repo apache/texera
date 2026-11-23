@@ -186,15 +186,13 @@ class TestLargeBinaryOutputStream:
                 with pytest.raises(IOError):
                     stream.close()
 
+    @pytest.mark.timeout(5)
     def test_write_unblocks_when_upload_fails_with_full_queue(self, large_binary):
         with (
             patch("pytexera.storage.large_binary_output_stream._CHUNK_SIZE", 1),
-            patch.object(large_binary_manager, "_get_s3_client") as get_client,
-            patch.object(large_binary_manager, "_ensure_bucket_exists"),
+            _mock_s3_upload() as mock_s3,
         ):
-            get_client.return_value.upload_fileobj.side_effect = RuntimeError(
-                "upload failed"
-            )
+            mock_s3.upload_fileobj.side_effect = RuntimeError("upload failed")
             stream = LargeBinaryOutputStream(large_binary)
             errors = []
 
