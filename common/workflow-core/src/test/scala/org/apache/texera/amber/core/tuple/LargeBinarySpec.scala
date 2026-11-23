@@ -23,6 +23,8 @@ import org.apache.texera.amber.util.JSONUtils.objectMapper
 import org.apache.texera.service.util.LargeBinaryManager
 import org.scalatest.flatspec.AnyFlatSpec
 
+import java.net.URISyntaxException
+
 /**
   * Unit tests for [[LargeBinary]], the S3-URI reference stored in tuples.
   *
@@ -81,16 +83,56 @@ class LargeBinarySpec extends AnyFlatSpec {
     assert(binary.getObjectKey == "objects/7/some-uuid.bin")
   }
 
-  it should "return an empty object key when the URI carries no path" in {
-    val binary = new LargeBinary("s3://bucket-only")
-    assert(binary.getBucketName == "bucket-only")
-    assert(binary.getObjectKey == "")
+  it should "reject a URI without a bucket or an object key" in {
+    // java.net.URI reads no host for an empty or underscored bucket, and every leading slash
+    // is stripped before the key is checked, so "s3://bucket//" has no key either
+    List(
+      "s3:///object",
+      "s3://bucket-only",
+      "s3://bucket-only/",
+      "s3://bucket//",
+      "s3://bucket/?versionId=1",
+      "s3://my_bucket/key"
+    ).foreach { bad =>
+      val ex = intercept[IllegalArgumentException] {
+        new LargeBinary(bad)
+      }
+      assert(
+        ex.getMessage == s"LargeBinary URI must include a bucket and object key, got: $bad",
+        s"unexpected message for '$bad'"
+      )
+    }
+  }
+
+  it should "reject a URI that java.net.URI cannot parse" in {
+    // on JDK 17 a bare "s3://" fails to parse ("Expected authority"), as does an unescaped space
+    List("s3://", "s3://bucket/my file").foreach { bad =>
+      val ex = intercept[IllegalArgumentException] {
+        new LargeBinary(bad)
+      }
+      assert(
+        ex.getMessage == s"LargeBinary URI is not a valid URI, got: $bad",
+        s"unexpected message for '$bad'"
+      )
+      assert(ex.getCause.isInstanceOf[URISyntaxException], s"unexpected cause for '$bad'")
+    }
   }
 
   it should "keep a single-segment object key" in {
     val binary = new LargeBinary("s3://bucket/key")
     assert(binary.getBucketName == "bucket")
     assert(binary.getObjectKey == "key")
+  }
+
+  it should "keep an object key that ends with a slash or is not ASCII" in {
+    val directory = new LargeBinary("s3://bucket/a/b/")
+    assert(directory.getBucketName == "bucket")
+    assert(directory.getObjectKey == "a/b/")
+
+    val emoji = "😀" // U+1F600, a key outside the BMP
+    val unicode = new LargeBinary(s"s3://bucket/$emoji")
+    assert(unicode.getBucketName == "bucket")
+    assert(unicode.getObjectKey == emoji)
   }
 
   it should "compare by URI value" in {
@@ -146,5 +188,13 @@ class LargeBinarySpec extends AnyFlatSpec {
     intercept[Exception] {
       objectMapper.readValue("{\"uri\":\"http://bucket/key\"}", classOf[LargeBinary])
     }
+  }
+
+  it should "reject a payload whose uri has no object key" in {
+    // a keyless reference fails when it is deserialized, not later when a stream reaches S3
+    val ex = intercept[Exception] {
+      objectMapper.readValue("{\"uri\":\"s3://bucket\"}", classOf[LargeBinary])
+    }
+    assert(ex.getMessage.contains("must include a bucket and object key, got: s3://bucket"))
   }
 }
