@@ -32,7 +32,7 @@ import org.apache.texera.amber.operator.{LogicalOp, TestOperators}
 import org.apache.texera.amber.operator.aggregate.AggregationFunction
 import org.apache.texera.common.compiler.model.LogicalLink
 import org.scalatest.flatspec.AnyFlatSpecLike
-import org.scalatest.{BeforeAndAfterAll, BeforeAndAfterEach}
+import org.scalatest.BeforeAndAfterAll
 
 import scala.concurrent.duration.DurationInt
 
@@ -40,8 +40,7 @@ class BatchSizePropagationSpec
     extends TestKit(ActorSystem("BatchSizePropagationSpec"))
     with ImplicitSender
     with AnyFlatSpecLike
-    with BeforeAndAfterAll
-    with BeforeAndAfterEach {
+    with BeforeAndAfterAll {
 
   implicit val timeout: Timeout = Timeout(5.seconds)
 

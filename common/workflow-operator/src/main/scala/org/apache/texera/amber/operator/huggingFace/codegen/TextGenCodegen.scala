@@ -51,9 +51,6 @@ object TextGenCodegen extends TaskCodegen {
       |                payload = {"inputs": prompt_value}""".stripMargin
 
   override def parsePython(ctx: CodegenContext): String =
-    """            if task == "text-generation":
-      |                content = self._chat_message_content(body)
-      |                if content is not None:
-      |                    return content
-      |                return json.dumps(body)""".stripMargin
+    s"""            if task == "text-generation":
+      |${TextResponsePython.chatOrBody}""".stripMargin
 }

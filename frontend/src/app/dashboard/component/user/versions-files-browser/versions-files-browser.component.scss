@@ -17,10 +17,10 @@
  * under the License.
  */
 
+@use "../resource-detail-shared" as detail;
+
 .versions-tab-content {
-  height: 100%;
-  overflow-y: auto;
-  padding-bottom: 24px;
+  @include detail.scrollable-tab;
 }
 
 nz-layout {

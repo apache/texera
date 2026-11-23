@@ -23,7 +23,7 @@ import { FormBindingService } from "../../../service/form-binding/form-binding.s
 import { ExecuteWorkflowService } from "../../../service/execute-workflow/execute-workflow.service";
 import { WorkflowStatusService } from "../../../service/workflow-status/workflow-status.service";
 import { Subject } from "rxjs";
-import { AbstractControl, FormGroup, FormsModule, ReactiveFormsModule } from "@angular/forms";
+import { AbstractControl, FormGroup, ReactiveFormsModule } from "@angular/forms";
 import { FormlyFieldConfig, FormlyFormOptions, FormlyModule } from "@ngx-formly/core";
 import Ajv from "ajv";
 import { FormlyJsonschema } from "@ngx-formly/core/json-schema";
@@ -173,7 +173,6 @@ export function conditionalRequiredRules(schema: unknown): Map<string, Condition
     NzTooltipDirective,
     NzIconDirective,
     NzPopoverDirective,
-    FormsModule,
     NzFormDirective,
     ReactiveFormsModule,
     FormlyModule,

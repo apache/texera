@@ -21,7 +21,7 @@ package org.apache.texera.amber.operator.visualization.volcanoPlot
 
 import org.apache.texera.amber.core.tuple.AttributeType
 import org.apache.texera.amber.operator.LogicalOp
-import org.apache.texera.amber.operator.metadata.OperatorGroupConstants
+import org.apache.texera.amber.operator.metadata.{OperatorGroupConstants, OperatorMetadataGenerator}
 import org.apache.texera.amber.util.JSONUtils.objectMapper
 import org.scalatest.flatspec.AnyFlatSpec
 import org.apache.texera.amber.operator.GeneratedCodeAssertionChecks
@@ -33,6 +33,30 @@ class VolcanoPlotOpDescSpec extends AnyFlatSpec with GeneratedCodeAssertionCheck
     op.effectColumn = "log2fc"
     op.pvalueColumn = "pvalue"
     op
+  }
+
+  private val hline = """fig.add_hline(y=-np.log10(0.05), line_dash="dash", line_color="gray")"""
+  private val vlines =
+    """fig.add_vline(x=1.0, line_dash="dash", line_color="gray")
+      |        fig.add_vline(x=-1.0, line_dash="dash", line_color="gray")""".stripMargin
+  private val discreteMap =
+    """color_discrete_map={"Up": "#B2182B", "Down": "#2166AC", "Not significant": "#9E9E9E"}"""
+  // The categories go to a column no input column is named after, and px reads it by name.
+  private val categoryColumn =
+    """significance_column = "Significance"
+      |        while significance_column in table.columns:
+      |            significance_column += "_"
+      |        table[significance_column] = np.select(""".stripMargin
+  private val categoryLabel = """labels={significance_column: "Significance"},"""
+  private val categoryOrders =
+    """category_orders={significance_column: ["Up", "Down", "Not significant"]},"""
+
+  private def assertContinuousColoring(code: String): Unit = {
+    code should include("""color_continuous_scale="RdBu"""")
+    code should not include "np.select"
+    code should not include "Significance"
+    code should not include discreteMap
+    code should not include "category_orders"
   }
 
   // Every UI-provided string reaches the generated code as this runtime
@@ -119,6 +143,176 @@ class VolcanoPlotOpDescSpec extends AnyFlatSpec with GeneratedCodeAssertionCheck
     val code = op.generatePythonCode()
     code should include(s"hover_name=${decoded(op.hoverName)},")
     code should not include "HOVER_SENT"
+  }
+
+  it should "draw no cut-off line and keep the continuous effect-size coloring by default" in {
+    val code = configured.generatePythonCode()
+    code should not include "add_hline"
+    code should not include "add_vline"
+    assertContinuousColoring(code)
+  }
+
+  it should "draw both cut-offs while keeping the continuous coloring when the toggle is off" in {
+    val op = configured
+    op.significanceThreshold = Some(0.05)
+    op.effectSizeThreshold = Some(1.0)
+    val code = op.generatePythonCode()
+    code should include(hline)
+    code should include(vlines)
+    assertContinuousColoring(code)
+  }
+
+  it should "skip a significance threshold that has no -log10 (zero or negative)" in {
+    Seq(0.0, -0.01).foreach { bad =>
+      val op = configured
+      op.significanceThreshold = Some(bad)
+      op.effectSizeThreshold = Some(1.0)
+      op.colorBySignificance = true
+      val code = op.generatePythonCode()
+      code should not include "add_hline"
+      code should not include "np.log10(0.0)"
+      code should not include "np.log10(-0.01)"
+      // The effect-size lines still draw, and without a usable p-value cut-off
+      // no point can be called Up or Down, so the coloring stays continuous.
+      code should include(vlines)
+      assertContinuousColoring(code)
+    }
+  }
+
+  it should "skip an effect-size threshold that is zero or negative" in {
+    // A negative cut-off would flip the Up and Down comparisons and call small
+    // effects significant; zero is the same boundary and is ruled out too.
+    Seq(0.0, -1.0).foreach { bad =>
+      val op = configured
+      op.significanceThreshold = Some(0.05)
+      op.effectSizeThreshold = Some(bad)
+      op.colorBySignificance = true
+      val code = op.generatePythonCode()
+      code should not include "add_vline"
+      code should include(hline)
+      assertContinuousColoring(code)
+    }
+  }
+
+  it should "skip a significance threshold above one, whose line would sit below the axis" in {
+    val op = configured
+    op.significanceThreshold = Some(2.0)
+    op.effectSizeThreshold = Some(1.0)
+    op.colorBySignificance = true
+    val code = op.generatePythonCode()
+    code should not include "add_hline"
+    code should include(vlines)
+    assertContinuousColoring(code)
+  }
+
+  it should "color Up, Down and Not significant when both thresholds are set and the toggle is on" in {
+    val op = configured
+    op.significanceThreshold = Some(0.05)
+    op.effectSizeThreshold = Some(1.0)
+    op.colorBySignificance = true
+    val code = op.generatePythonCode()
+    // Strict comparisons on the selected p-value column and the effect column:
+    // a point exactly on a cut-off is not significant.
+    code should include("significant = table[self.decode_python_template(")
+    code should include("] < 0.05")
+    code should include("] > 1.0)")
+    code should include("] < -1.0)")
+    code should include(categoryColumn)
+    code should include("""["Up", "Down"],""")
+    code should include("""default="Not significant",""")
+    // The column's name, not an array, which px would name "color".
+    code should include("color=significance_column,")
+    code should include(categoryLabel)
+    code should include(discreteMap)
+    code should include(categoryOrders)
+    code should not include "color_continuous_scale"
+    code should include(hline)
+    code should include(vlines)
+  }
+
+  it should "keep an effect column named Significance apart from the categories, in the exported script too" in {
+    // Writing the categories into table["Significance"] would overwrite an input column
+    // of that name before px reads the table; as the effect column, the x axis would
+    // show the category labels. Labelling the category column Significance as well would
+    // give two hover lines one label, and px would show only one of them.
+    val op = configured
+    op.effectColumn = "Significance"
+    op.significanceThreshold = Some(0.05)
+    op.effectSizeThreshold = Some(1.0)
+    op.colorBySignificance = true
+    Seq(op.generatePythonCode(), op.generateStandaloneCode()).foreach { code =>
+      code should not include """table["Significance"] ="""
+      code should include(categoryColumn)
+      code should include("color=significance_column,")
+      code should not include "labels="
+      code should include(discreteMap)
+      code should include(categoryOrders)
+    }
+    // Only that exact name drops the label.
+    op.effectColumn = "Significance_"
+    op.generateStandaloneCode() should include(categoryLabel)
+  }
+
+  it should "accept a significance threshold of exactly one, the schema maximum, and draw it at y = 0" in {
+    val op = configured
+    op.significanceThreshold = Some(1.0)
+    op.effectSizeThreshold = Some(1.0)
+    op.colorBySignificance = true
+    val code = op.generatePythonCode()
+    code should include("""fig.add_hline(y=-np.log10(1.0), line_dash="dash", line_color="gray")""")
+    code should include(vlines)
+    code should include("color=significance_column,")
+    code should include("] < 1.0")
+  }
+
+  it should "emit every threshold as a literal Python float, exponent forms included" in {
+    val pyFloat = """^-?\d+(\.\d+)?([eE][-+]?\d+)?$""".r
+    // The literal after np.log10( or add_vline(x= ; the y column's np.log10(table[...]) does
+    // not match because its argument does not start with a digit.
+    val emittedLiterals = """np\.log10\(([0-9.Ee+-]+)\)|add_vline\(x=-?([0-9.Ee+-]+),""".r
+    Seq(
+      (1e-300, 1e21, "1.0E-300", "1.0E21"),
+      (java.lang.Double.MIN_VALUE, 1.0, "4.9E-324", "1.0")
+    ).foreach {
+      case (sig, eff, sigLit, effLit) =>
+        val op = configured
+        op.significanceThreshold = Some(sig)
+        op.effectSizeThreshold = Some(eff)
+        op.colorBySignificance = true
+        val code = op.generatePythonCode()
+        val literals = emittedLiterals
+          .findAllMatchIn(code)
+          .map(m => Option(m.group(1)).getOrElse(m.group(2)))
+          .toSeq
+        literals should contain theSameElementsAs Seq(sigLit, effLit, effLit)
+        literals.foreach(lit => pyFloat.findFirstIn(lit) shouldBe Some(lit))
+        // The category comparisons use the very same literals.
+        code should include(s"] < $sigLit")
+        code should include(s"] > $effLit)")
+        code should include(s"] < -$effLit)")
+    }
+  }
+
+  it should "fall back to the continuous coloring when the toggle is on but a threshold is missing" in {
+    val onlySignificance = configured
+    onlySignificance.significanceThreshold = Some(0.05)
+    onlySignificance.colorBySignificance = true
+    val sigCode = onlySignificance.generatePythonCode()
+    sigCode should include(hline)
+    sigCode should not include "add_vline"
+    assertContinuousColoring(sigCode)
+
+    val onlyEffect = configured
+    onlyEffect.effectSizeThreshold = Some(1.0)
+    onlyEffect.colorBySignificance = true
+    val effCode = onlyEffect.generatePythonCode()
+    effCode should include(vlines)
+    effCode should not include "add_hline"
+    assertContinuousColoring(effCode)
+
+    val neither = configured
+    neither.colorBySignificance = true
+    assertContinuousColoring(neither.generatePythonCode())
   }
 
   it should "name the y column and its axis after the selected p-value column" in {
@@ -242,6 +436,61 @@ class VolcanoPlotOpDescSpec extends AnyFlatSpec with GeneratedCodeAssertionCheck
     }
   }
 
+  it should "draw no cut-off line and keep the continuous effect-size coloring by default" in {
+    val code = configured.generateStandaloneCode()
+    code should not include "add_hline"
+    code should not include "add_vline"
+    assertContinuousColoring(code)
+    code should include("""color="log2fc",""")
+  }
+
+  it should "color Up, Down and Not significant with the column names as literals" in {
+    val op = configured
+    op.significanceThreshold = Some(0.05)
+    op.effectSizeThreshold = Some(1.0)
+    op.colorBySignificance = true
+    val code = op.generateStandaloneCode()
+    code should include("""significant = table["pvalue"] < 0.05""")
+    code should include(
+      """[significant & (table["log2fc"] > 1.0), significant & (table["log2fc"] < -1.0)]"""
+    )
+    code should include(discreteMap)
+    code should not include """color_continuous_scale="RdBu""""
+    code should include(hline)
+    code should include(vlines)
+    code should not include "decode_python_template"
+  }
+
+  it should "make the same cut-off and coloring decisions as the engine" in {
+    // The export is drawn from the same figure, so for every shape a stored
+    // threshold can take the two paths must agree on which lines to draw and on
+    // whether and how to color by category; a rule applied on one side only would
+    // make the exported figure differ from the one shown in the workflow.
+    val cutOffLine = """fig\.add_[hv]line\([^\n]*""".r
+    // These lines name no input column, so they read the same in both paths.
+    val categoryLine = """[^\n]*significance_column[^\n]*""".r
+    Seq(
+      (None, None, false),
+      (Some(0.05), Some(1.0), false),
+      (Some(0.05), Some(1.0), true),
+      (Some(0.05), None, true),
+      (Some(0.0), Some(1.0), true),
+      (Some(1.5), Some(-1.0), true),
+      (Some(Double.NaN), Some(Double.PositiveInfinity), true),
+      (Some(1e-300), Some(1e21), true)
+    ).foreach {
+      case (sig, eff, toggle) =>
+        val op = configured
+        op.significanceThreshold = sig
+        op.effectSizeThreshold = eff
+        op.colorBySignificance = toggle
+        val engine = op.generatePythonCode()
+        val export = op.generateStandaloneCode()
+        cutOffLine.findAllIn(export).toSeq shouldBe cutOffLine.findAllIn(engine).toSeq
+        categoryLine.findAllIn(export).toSeq shouldBe categoryLine.findAllIn(engine).toSeq
+    }
+  }
+
   it should "name the y column and its axis after the selected p-value column" in {
     val op = configured
     op.pvalueColumn = "padj"
@@ -295,6 +544,72 @@ class VolcanoPlotOpDescSpec extends AnyFlatSpec with GeneratedCodeAssertionCheck
     op.xLabel = "\t"
     op.yLabel = " \n "
     op.generateStandaloneCode() shouldBe configured.generateStandaloneCode()
+  }
+
+  /** Reads the shapes a stored workflow can hold. Without `contentAs` a JSON string
+    * stays unconverted inside the Option and the first use throws.
+    */
+  private def readOp(json: String): VolcanoPlotOpDesc =
+    objectMapper
+      .readValue(s"""{"operatorType":"VolcanoPlot"$json}""", classOf[LogicalOp])
+      .asInstanceOf[VolcanoPlotOpDesc]
+
+  "VolcanoPlotOpDesc thresholds" should "deserialize JSON numbers" in {
+    val op = readOp(""","significanceThreshold":0.05,"effectSizeThreshold":1""")
+    op.significanceThreshold shouldBe Some(0.05)
+    op.effectSizeThreshold shouldBe Some(1.0)
+  }
+
+  it should "deserialize numeric strings" in {
+    val op = readOp(""","significanceThreshold":"0.05","effectSizeThreshold":"1.5"""")
+    op.significanceThreshold shouldBe Some(0.05)
+    op.effectSizeThreshold shouldBe Some(1.5)
+  }
+
+  it should "read an absent, null or blank value as unset rather than as zero" in {
+    readOp("").significanceThreshold shouldBe None
+    readOp("").effectSizeThreshold shouldBe None
+    val nulls = readOp(""","significanceThreshold":null,"effectSizeThreshold":null""")
+    nulls.significanceThreshold shouldBe None
+    nulls.effectSizeThreshold shouldBe None
+    val blanks = readOp(""","significanceThreshold":"","effectSizeThreshold":""""")
+    blanks.significanceThreshold shouldBe None
+    blanks.effectSizeThreshold shouldBe None
+  }
+
+  it should "treat a non-finite value read from JSON as unset so no Infinity or NaN reaches the Python" in {
+    Seq(""""Infinity"""", """"-Infinity"""", """"NaN"""").foreach { raw =>
+      val op = readOp(
+        s""","significanceThreshold":$raw,"effectSizeThreshold":$raw,"colorBySignificance":true"""
+      )
+      // Jackson does read the text as a Double; the operator must be the one to drop it.
+      op.significanceThreshold.exists(d => d.isNaN || d.isInfinite) shouldBe true
+      op.effectSizeThreshold.exists(d => d.isNaN || d.isInfinite) shouldBe true
+      op.effectColumn = "log2fc"
+      op.pvalueColumn = "pvalue"
+      val code = op.generatePythonCode()
+      code should not include "add_hline"
+      code should not include "add_vline"
+      code should not include "Infinity"
+      code should not include "NaN"
+      assertContinuousColoring(code)
+    }
+  }
+
+  "VolcanoPlotOpDesc schema" should "bound both thresholds so the property panel rejects what the operator ignores" in {
+    val props = OperatorMetadataGenerator
+      .generateOperatorJsonSchema(classOf[VolcanoPlotOpDesc])
+      .path("properties")
+    props.path("significanceThreshold").path("exclusiveMinimum").asDouble() shouldBe 0.0
+    props.path("significanceThreshold").path("maximum").asDouble() shouldBe 1.0
+    props.path("effectSizeThreshold").path("exclusiveMinimum").asDouble() shouldBe 0.0
+    props.path("effectSizeThreshold").has("maximum") shouldBe false
+  }
+
+  "VolcanoPlotOpDesc.colorBySignificance" should "default to false and read a saved value" in {
+    readOp("").colorBySignificance shouldBe false
+    readOp(""","colorBySignificance":true""").colorBySignificance shouldBe true
+    readOp(""","colorBySignificance":false""").colorBySignificance shouldBe false
   }
 
   "VolcanoPlotOpDesc.generatePythonCode" should "currently render code even when required fields are empty (no assert guard)" in {

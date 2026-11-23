@@ -28,8 +28,12 @@ case class RoundRobinPartitioner(partitioning: RoundRobinPartitioning) extends P
   private val receivers = partitioning.channels.map(_.toWorkerId).distinct
 
   override def getBucketIndex(tuple: Tuple): Iterator[Int] = {
-    roundRobinIndex = (roundRobinIndex + 1) % receivers.length
-    Iterator(roundRobinIndex)
+    if (receivers.isEmpty) Iterator.empty
+    else {
+      val index = roundRobinIndex
+      roundRobinIndex = (roundRobinIndex + 1) % receivers.length
+      Iterator(index)
+    }
   }
 
   override def allReceivers: Seq[ActorVirtualIdentity] = receivers

@@ -19,7 +19,7 @@
 
 import { Component, OnInit } from "@angular/core";
 import { GmailService } from "../../../../common/service/gmail/gmail.service";
-import { FormBuilder, FormGroup, Validators, FormsModule, ReactiveFormsModule } from "@angular/forms";
+import { FormBuilder, FormGroup, Validators, ReactiveFormsModule } from "@angular/forms";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 import { NzCardComponent } from "ng-zorro-antd/card";
 import { NzFormDirective, NzFormItemComponent, NzFormLabelComponent, NzFormControlComponent } from "ng-zorro-antd/form";
@@ -36,7 +36,6 @@ import { ɵNzTransitionPatchDirective } from "ng-zorro-antd/core/transition-patc
   templateUrl: "./admin-gmail.component.html",
   imports: [
     NzCardComponent,
-    FormsModule,
     NzFormDirective,
     ReactiveFormsModule,
     NzRowDirective,
