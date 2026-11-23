@@ -650,7 +650,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@angular/cdk@npm:21.2.14":
+"@angular/cdk@npm:21.2.14, @angular/cdk@npm:^21.0.0":
   version: 21.2.14
   resolution: "@angular/cdk@npm:21.2.14"
   dependencies:
@@ -662,21 +662,6 @@ __metadata:
     "@angular/platform-browser": ^21.0.0 || ^22.0.0
     rxjs: ^6.5.3 || ^7.4.0
   checksum: 10c0/9c52a7942d8758ae0659583762ab6a56cde4fb97e3f6b47fca80e2bb0d99c4e9925a45136eefbb1442b98fd781f211fbe788adc0da2c091a5e58687d3818042f
-  languageName: node
-  linkType: hard
-
-"@angular/cdk@npm:^21.0.0":
-  version: 21.2.8
-  resolution: "@angular/cdk@npm:21.2.8"
-  dependencies:
-    parse5: "npm:^8.0.0"
-    tslib: "npm:^2.3.0"
-  peerDependencies:
-    "@angular/common": ^21.0.0 || ^22.0.0
-    "@angular/core": ^21.0.0 || ^22.0.0
-    "@angular/platform-browser": ^21.0.0 || ^22.0.0
-    rxjs: ^6.5.3 || ^7.4.0
-  checksum: 10c0/60322d314bffb232c9b20e3993d7fff0e96193085a0d86876424c1b985658ac72d133227ef73a96ea8c6bf328049f0ad166d428714802238dfc06e338bb7fa74
   languageName: node
   linkType: hard
 

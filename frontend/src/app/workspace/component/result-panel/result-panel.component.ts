@@ -17,6 +17,7 @@
  * under the License.
  */
 
+import { CdkScrollable } from "@angular/cdk/scrolling";
 import { ChangeDetectorRef, Component, HostListener, OnDestroy, OnInit } from "@angular/core";
 import { merge } from "rxjs";
 import { WorkflowActionService } from "../../service/workflow-graph/model/workflow-action.service";
@@ -56,6 +57,8 @@ export const DEFAULT_HEIGHT = 500;
   templateUrl: "./result-panel.component.html",
   styleUrls: ["./result-panel.component.scss"],
   imports: [
+    // Registers #content as a CDK scroll container; see the comment in the template.
+    CdkScrollable,
     NzMenuDirective,
     NgClass,
     NgIf,

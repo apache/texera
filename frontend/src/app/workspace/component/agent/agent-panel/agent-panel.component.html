@@ -62,9 +62,12 @@
     </li>
   </ul>
 
+  <!-- cdkScrollable: an overlay opened inside (a dropdown, an autocomplete) follows this panel's
+       scrolling only once the scroller is registered with the CDK; see the property editor's #content. -->
   <div
     #content
     id="content"
+    cdkScrollable
     [hidden]="!width">
     <h4
       id="title"

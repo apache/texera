@@ -17,6 +17,7 @@
  * under the License.
  */
 
+import { CdkScrollable, ScrollDispatcher } from "@angular/cdk/scrolling";
 import { ComponentFixture, fakeAsync, TestBed, tick } from "@angular/core/testing";
 import { By } from "@angular/platform-browser";
 import { DebugElement } from "@angular/core";
@@ -76,6 +77,15 @@ describe("LeftPanelComponent", () => {
   afterEach(() => {
     fixture.destroy();
     clearPanelStorage();
+  });
+
+  // An overlay opened inside (a dropdown, an autocomplete) follows this panel's scrolling only once
+  // the scroller is registered with the CDK's ScrollDispatcher -- the registration, not the
+  // directive's presence, is what the reposition strategy consults.
+  it("registers its scrolling container with the CDK", () => {
+    const scroller = fixture.debugElement.query(By.css("#content")).injector.get(CdkScrollable);
+
+    expect(TestBed.inject(ScrollDispatcher).scrollContainers.has(scroller)).toBe(true);
   });
 
   it("should create", () => {

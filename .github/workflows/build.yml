@@ -150,6 +150,12 @@ jobs:
       - name: Install dependency
         timeout-minutes: 20
         run: yarn --cwd frontend install --immutable --inline-builds --network-timeout=100000
+      # ng-zorro-antd declares @angular/cdk as a regular dependency, so a bump of either side can give
+      # the bundle a second cdk copy -- each with its own ScrollDispatcher, so overlays stop following
+      # registered scroll containers (see property-editor.component.html). The lock keeps one copy
+      # (yarn dedupe @angular/cdk); this fails as soon as it does not.
+      - name: Check @angular/cdk is installed once
+        run: yarn --cwd frontend dedupe --check @angular/cdk
       - name: Lint with Prettier & ESLint
         run: yarn --cwd frontend format:ci
       - name: Prod build

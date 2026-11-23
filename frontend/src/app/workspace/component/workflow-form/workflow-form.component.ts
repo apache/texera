@@ -17,6 +17,7 @@
  * under the License.
  */
 
+import { CdkScrollable } from "@angular/cdk/scrolling";
 import { ChangeDetectorRef, Component, ElementRef, HostListener, OnDestroy, OnInit } from "@angular/core";
 import { CommonModule, DatePipe } from "@angular/common";
 import { AbstractControl, FormArray, FormGroup, FormsModule, ReactiveFormsModule } from "@angular/forms";
@@ -173,6 +174,13 @@ interface ResultChoice {
     CoeditorUserIconComponent,
     ReadOnlyCardDirective,
   ],
+  // The page itself is the scroller (:host is `overflow-y: auto`), so the host is the element that
+  // has to tell the CDK it scrolls: a dropdown opened in an input is a CDK overlay whose reposition
+  // strategy hears about an inner element's scrolling only from a registered CdkScrollable.
+  // Measured unregistered: scrolling the page moved a select 92px and left its open list where it
+  // was. The directive has no bindings, the registration is the whole point. (As on the operator
+  // panel, a dropdown nz-select builds follows this only with one @angular/cdk in the bundle.)
+  hostDirectives: [CdkScrollable],
 })
 export class WorkflowFormComponent implements OnInit, OnDestroy {
   public wid?: number;
