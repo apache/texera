@@ -37,12 +37,12 @@ class ScatterMatrixChartOpDescSpec
   it should "throw AssertionError with a 'cannot be empty' message when selected attributes are left at their default" in {
     // selectedAttributes now defaults to List() and the assert is null-safe,
     // so an unconfigured operator hits the assert (never an NPE).
-    val ex = expectError[AssertionError]("cannot be empty")(opDesc.createPlotlyFigure())
+    expectError[AssertionError]("cannot be empty")(opDesc.createPlotlyFigure())
   }
 
   it should "throw AssertionError with a 'cannot be empty' message when selected attributes list is explicitly empty" in {
     opDesc.selectedAttributes = List()
-    val ex = expectError[AssertionError]("cannot be empty")(opDesc.createPlotlyFigure())
+    expectError[AssertionError]("cannot be empty")(opDesc.createPlotlyFigure())
   }
 
   it should "render selected attributes and the color column when configured" in {

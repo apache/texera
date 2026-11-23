@@ -50,6 +50,10 @@ class ReplaySpec
     with AnyFlatSpecLike
     with BeforeAndAfterAll {
 
+  override def afterAll(): Unit = {
+    TestKit.shutdownActorSystem(system)
+  }
+
   class IterableReadOnlyLogStore(iter: Iterable[ReplayLogRecord])
       extends SequentialRecordStorage[ReplayLogRecord] {
     override def getWriter(
