@@ -20,8 +20,13 @@
 package org.apache.texera.web.service
 
 import io.reactivex.rxjava3.disposables.Disposable
+import org.apache.texera.amber.core.storage.VFSURIFactory
 import org.apache.texera.amber.core.storage.result.{OperatorResultMetadata, WorkflowResultStore}
-import org.apache.texera.amber.core.virtualidentity.{OperatorIdentity, WorkflowIdentity}
+import org.apache.texera.amber.core.virtualidentity.{
+  ExecutionIdentity,
+  OperatorIdentity,
+  WorkflowIdentity
+}
 import org.apache.texera.amber.core.workflow.{WorkflowContext, WorkflowSettings}
 import org.apache.texera.amber.engine.architecture.rpc.controlreturns.WorkflowAggregatedState
 import org.apache.texera.amber.engine.architecture.rpc.controlreturns.WorkflowAggregatedState.{
@@ -62,6 +67,7 @@ import org.apache.texera.web.model.websocket.event.{
   WorkflowStateEvent
 }
 import org.apache.texera.web.model.websocket.request.WorkflowExecuteRequest
+import org.apache.texera.web.resource.dashboard.user.workflow.WorkflowExecutionsResource
 import org.apache.texera.web.storage.{ExecutionStateStore, WorkflowStateStore}
 import org.scalatest.BeforeAndAfterAll
 import org.scalatest.flatspec.AnyFlatSpec
@@ -118,9 +124,8 @@ import scala.collection.mutable.ArrayBuffer
   *     `SERIAL`: a fresh `MockTexeraDB` database hands out eid 1, and `objects/1/` is the prefix
   *     `LargeBinaryManager` shares with its DEFAULT_EXECUTION_ID sentinel — a developer with
   *     `bin/local-dev.sh up` running would have that prefix recursively deleted for real.
-  *   - the runtime-statistics block. Its URI column is NULL in every fixture, so the loop body
-  *     runs zero times; a non-NULL value there would abort the whole method (see below) before
-  *     the execution insert this suite also pins.
+  *   - the runtime-statistics block, except that a failure in it does not stop the run:
+  *     `previousEid` names a document that is not there, so no snapshot is ever expired.
   *   - which arm of `WarehouseReadGuard.skipWhileDisabled` either loop takes: both arms end in
   *     `DocumentFactory`, which needs a live Iceberg/LakeFS backend, and no failure there leaves
   *     the loop body.
@@ -261,7 +266,7 @@ class WorkflowServiceSpec
     */
   private val otherWorkflowEid = 941103
 
-  /** The read-before-delete case's execution; the only fixture with a non-NULL URI column. */
+  /** The read-before-delete case's execution; the only fixture with a registry URI. */
   private val probeEid = 941104
 
   private val fixtureEids: Seq[Integer] =
@@ -320,6 +325,14 @@ class WorkflowServiceSpec
     insertExecution(otherUnitEid, testWid, otherCuid, "other-unit-run")
     insertExecution(otherWorkflowEid, otherWid, testCuid, "other-workflow-run")
     insertExecution(probeEid, testWid, probeCuid, "probe-run")
+    WorkflowExecutionsResource.updateRuntimeStatsUri(
+      testWid,
+      previousEid,
+      VFSURIFactory.createRuntimeStatisticsURI(
+        WorkflowIdentity(testWid),
+        ExecutionIdentity(previousEid)
+      )
+    )
 
     // Keep the SERIAL sequence ahead of our explicit fixture ids, so the execution that
     // production inserts below cannot land on eid 1 -- LargeBinaryManager's DEFAULT_EXECUTION_ID
@@ -354,7 +367,7 @@ class WorkflowServiceSpec
       registerPort(otherWorkflowEid, s"other-wf-port-$i")
     }
     registerOperator(probeEid, "probe-op")
-    // The one non-NULL URI in the fixture: syntactically a URI, but not a `vfs` one, so
+    // The one registry URI in the fixture: syntactically a URI, but not a `vfs` one, so
     // `VFSURIFactory.decodeURI` rejects it. See the header -- this is the witness that the
     // registry was read, not an assertion that malformed rows ought to be fatal.
     registerPort(probeEid, "probe-port", resultUri = "bogus:///stranded")

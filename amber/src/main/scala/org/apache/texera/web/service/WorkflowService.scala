@@ -26,6 +26,7 @@ import io.reactivex.rxjava3.disposables.{CompositeDisposable, Disposable}
 import io.reactivex.rxjava3.subjects.BehaviorSubject
 import org.apache.texera.amber.core.storage.{
   DocumentFactory,
+  DocumentNotFoundException,
   ExecutionResultUris,
   WarehouseReadGuard
 }
@@ -70,6 +71,7 @@ import java.net.URI
 import java.time.Instant
 import java.util.concurrent.ConcurrentHashMap
 import scala.jdk.CollectionConverters.IterableHasAsScala
+import scala.util.control.NonFatal
 
 object WorkflowService {
   private val workflowServiceMapping = new ConcurrentHashMap[String, WorkflowService]()
@@ -436,8 +438,8 @@ class WorkflowService(
               )
           }
         } catch {
-          case error: Throwable =>
-            logger.debug(s"Error processing document at $uri: ${error.getMessage}")
+          case _: DocumentNotFoundException =>
+          case NonFatal(e)                  => logger.warn(s"Could not expire the snapshots of $uri", e)
         }
     }
     // Delete this execution's large binaries
