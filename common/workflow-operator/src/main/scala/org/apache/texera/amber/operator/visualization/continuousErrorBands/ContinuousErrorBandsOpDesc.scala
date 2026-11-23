@@ -59,65 +59,70 @@ class ContinuousErrorBandsOpDesc extends PythonVisualizationOpDesc with PlotlySt
       OperatorGroupConstants.VISUALIZATION_STATISTICAL_GROUP
     )
 
+  private def buildFigure(
+      tableVar: String,
+      encode: EncodableString => PythonTemplateBuilder,
+      indent: Int
+  ): PythonTemplateBuilder = {
+    val pad = " " * indent
+    val newline = "\n"
+    val traces = bands.asScala
+      .map { bandConf =>
+        val xExpr = encode(bandConf.xValue)
+        val yUpperExpr = encode(bandConf.yUpper)
+        val yLowerExpr = encode(bandConf.yLower)
+        val yValExpr = encode(bandConf.yValue)
+        val nameExpr = encode(if (bandConf.name != "") bandConf.name else bandConf.yValue)
+        val colorPart =
+          if (bandConf.color != "") {
+            val colorExpr = encode(bandConf.color)
+            pyb"line={'color': $colorExpr}, marker={'color': $colorExpr}, "
+          } else pyb""
+        val fillColorPart =
+          if (bandConf.fillColor != "") pyb"fillcolor=${encode(bandConf.fillColor)}, "
+          else pyb""
+        val mode = bandConf.mode.getModeInPlotly
+        pyb"""${pad}fig.add_trace(go.Scatter(
+             |${pad}    x=$tableVar[$xExpr],
+             |${pad}    y=$tableVar[$yUpperExpr],
+             |${pad}    mode='lines',
+             |${pad}    marker=dict(color="#444"),
+             |${pad}    line=dict(width=0),
+             |${pad}    showlegend=False,
+             |${pad}    name=$nameExpr
+             |${pad}))
+             |${pad}fig.add_trace(go.Scatter(
+             |${pad}    x=$tableVar[$xExpr],
+             |${pad}    y=$tableVar[$yLowerExpr],
+             |${pad}    mode='lines',
+             |${pad}    marker=dict(color="#444"),
+             |${pad}    line=dict(width=0),
+             |${pad}    fill='tonexty',
+             |${pad}    showlegend=False,
+             |${pad}    $fillColorPart
+             |${pad}    name=$nameExpr
+             |${pad}))
+             |${pad}fig.add_trace(go.Scatter(
+             |${pad}    x=$tableVar[$xExpr],
+             |${pad}    y=$tableVar[$yValExpr],
+             |${pad}    mode='$mode',
+             |${pad}    $colorPart
+             |${pad}    name=$nameExpr
+             |${pad}))"""
+      }
+      .reduceOption(_ + pyb"$newline" + _)
+      .getOrElse(pyb"")
+    pyb"""${pad}fig = go.Figure()
+         |$traces
+         |${pad}fig.update_layout(margin=dict(t=0, b=0, l=0, r=0),
+         |${pad}                  xaxis_title=${encode(xLabel)},
+         |${pad}                  yaxis_title=${encode(yLabel)},
+         |${pad}                  hovermode="x")"""
+  }
+
   def createPlotlyFigure(): PythonTemplateBuilder = {
     assert(bands != null && !bands.isEmpty, "Bands cannot be empty")
-    val bandsPart = bands.asScala
-      .map { bandConf =>
-        val colorPart = if (bandConf.color != "") {
-          pyb"line={'color':${bandConf.color}}, marker={'color':${bandConf.color}}, "
-        } else {
-          ""
-        }
-
-        val fillColorPart = if (bandConf.fillColor != "") {
-          pyb"fillcolor=${bandConf.fillColor}, "
-        } else {
-          ""
-        }
-
-        val namePart = if (bandConf.name != "") {
-          pyb"name=${bandConf.name}"
-        } else {
-          pyb"name=${bandConf.yValue}"
-        }
-
-        pyb"""fig.add_trace(go.Scatter(
-            x=table[${bandConf.xValue}],
-            y=table[${bandConf.yUpper}],
-            mode='lines',
-            marker=dict(color="#444"),
-            line=dict(width=0),
-            showlegend=False,
-            $namePart
-          ))
-        fig.add_trace(go.Scatter(
-            x=table[${bandConf.xValue}],
-            y=table[${bandConf.yLower}],
-            mode='lines',
-            marker=dict(color="#444"),
-            line=dict(width=0),
-            fill='tonexty',
-            showlegend=False,
-            $fillColorPart
-            $namePart
-          ))
-        fig.add_trace(go.Scatter(
-            x=table[${bandConf.xValue}],
-            y=table[${bandConf.yValue}],
-            mode='${bandConf.mode.getModeInPlotly}',
-            $colorPart
-            $namePart
-          ))"""
-      }
-
-    pyb"""
-       |        fig = go.Figure()
-       |        ${bandsPart.mkString("\n        ")}
-       |        fig.update_layout(margin=dict(t=0, b=0, l=0, r=0),
-       |                          xaxis_title=$xLabel,
-       |                          yaxis_title=$yLabel,
-       |                          hovermode="x")
-       |"""
+    buildFigure("table", s => pyb"$s", indent = 8)
   }
 
   override def generatePythonCode(): String = {
@@ -137,7 +142,7 @@ class ContinuousErrorBandsOpDesc extends PythonVisualizationOpDesc with PlotlySt
          |    @overrides
          |    def process_table(self, table: Table, port: int) -> Iterator[Optional[TableLike]]:
          |${emptyTableGuard("input table is empty.")}
-         |        ${createPlotlyFigure()}
+         |${createPlotlyFigure()}
          |        # convert fig to html content
          |${plotlyHtmlYield()}
          |"""
@@ -145,73 +150,16 @@ class ContinuousErrorBandsOpDesc extends PythonVisualizationOpDesc with PlotlySt
   }
 
   override def generateStandaloneCode(): String = {
-    val traces =
-      bands.asScala
-        .map { bandConf =>
-          // Values typed into the UI become escaped Python literals: the runtime
-          // path splices them as decode expressions, which a standalone script has
-          // no decoder for, and hand-written quotes break on a value containing one.
-          val colorLit = pyStringLiteral(bandConf.color)
-          val colorPart =
-            if (bandConf.color != "")
-              s"""line={'color': $colorLit}, marker={'color': $colorLit}, """
-            else ""
-          val fillColorPart =
-            if (bandConf.fillColor != "")
-              s"""fillcolor=${pyStringLiteral(bandConf.fillColor)}, """
-            else ""
-          val nameLit =
-            pyStringLiteral(if (bandConf.name != "") bandConf.name else bandConf.yValue)
-          val xLit = pyStringLiteral(bandConf.xValue)
-
-          s"""fig.add_trace(go.Scatter(
-             |    x=in1df[$xLit],
-             |    y=in1df[${pyStringLiteral(bandConf.yUpper)}],
-             |    mode='lines',
-             |    marker=dict(color="#444"),
-             |    line=dict(width=0),
-             |    showlegend=False,
-             |    name=$nameLit
-             |))
-             |fig.add_trace(go.Scatter(
-             |    x=in1df[$xLit],
-             |    y=in1df[${pyStringLiteral(bandConf.yLower)}],
-             |    mode='lines',
-             |    marker=dict(color="#444"),
-             |    line=dict(width=0),
-             |    fill='tonexty',
-             |    showlegend=False,
-             |    $fillColorPart
-             |    name=$nameLit
-             |))
-             |fig.add_trace(go.Scatter(
-             |    x=in1df[$xLit],
-             |    y=in1df[${pyStringLiteral(bandConf.yValue)}],
-             |    mode='${bandConf.mode.getModeInPlotly}',
-             |    $colorPart
-             |    name=$nameLit
-             |))""".stripMargin
-        }
-        .mkString("\n")
-
-    // Nested under the `else` below, so every trace line needs the extra level.
-    val indentedTraces =
-      traces.linesIterator.map(line => if (line.isEmpty) line else s"    $line").mkString("\n")
-
-    // The empty-input branch mirrors generatePythonCode's `if table.empty`
-    // guard: without it the traces index columns of a frame that has none, and
-    // an empty input silently renders a blank chart instead of saying why.
+    // Values typed into the UI become escaped Python literals: the runtime
+    // path splices them as decode expressions, which a standalone script has
+    // no decoder for, and hand-written quotes break on a value containing one.
+    // The empty-input branch mirrors generatePythonCode's `if table.empty` guard.
     s"""${standaloneError("Continuous Error Bands is not available.")}
        |
        |if in1df.empty:
        |${standaloneErrorPage("input table is empty.")}
        |else:
-       |    fig = go.Figure()
-       |$indentedTraces
-       |    fig.update_layout(margin=dict(t=0, b=0, l=0, r=0),
-       |                      xaxis_title=${pyStringLiteral(xLabel)},
-       |                      yaxis_title=${pyStringLiteral(yLabel)},
-       |                      hovermode="x")
+       |${buildFigure("in1df", s => { val lit: String = pyStringLiteral(s); pyb"$lit" }, indent = 4).plain}
        |${standaloneFigure("Continuous error bands", indent = 4, bothOutputs = true)}""".stripMargin
   }
 }

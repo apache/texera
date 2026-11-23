@@ -94,20 +94,24 @@ class BulletChartOpDesc extends PythonVisualizationOpDesc with PlotlyStandaloneC
     assert(deltaReference.nonEmpty)
   }
 
-  override def generatePythonCode(): String = {
-    // The reference keeps the 0 the generated code used to fall back to; an unset
-    // threshold stays absent as None.
-    val deltaReferenceExpr: PythonLiteral = deltaReference.getOrElse(0.0).toString
-    val thresholdExpr: PythonLiteral = thresholdValue.map(_.toString).getOrElse("None")
+  // The reference keeps the 0 the generated code used to fall back to; an unset
+  // threshold stays absent as None.
+  private def deltaReferenceLiteral: PythonLiteral = deltaReference.getOrElse(0.0).toString
+  private def thresholdLiteral: PythonLiteral = thresholdValue.map(_.toString).getOrElse("None")
 
-    // The steps whose bounds are both filled in, as a list literal of numbers.
-    val stepsExpr: PythonLiteral =
-      Option(steps)
-        .map(_.asScala.toSeq)
-        .getOrElse(Seq.empty)
-        .flatMap(step => step.start.zip(step.end))
-        .map { case (start, end) => s"""{"start": $start, "end": $end}""" }
-        .mkString("[", ", ", "]")
+  // The steps whose bounds are both filled in, as a list literal of numbers.
+  private def stepsLiteral: PythonLiteral =
+    Option(steps)
+      .map(_.asScala.toSeq)
+      .getOrElse(Seq.empty)
+      .flatMap(step => step.start.zip(step.end))
+      .map { case (start, end) => s"""{"start": $start, "end": $end}""" }
+      .mkString("[", ", ", "]")
+
+  override def generatePythonCode(): String = {
+    val deltaReferenceExpr: PythonLiteral = deltaReferenceLiteral
+    val thresholdExpr: PythonLiteral = thresholdLiteral
+    val stepsExpr: PythonLiteral = stepsLiteral
 
     val finalCode =
       pyb"""
@@ -127,26 +131,7 @@ class BulletChartOpDesc extends PythonVisualizationOpDesc with PlotlyStandaloneC
       )}
          |
          |    # Generate a list of grayscale HSL colors with decreasing brightness
-         |    def generate_gray_gradient(self, step_count):
-         |        colors = []
-         |        for i in range(step_count):
-         |            lightness = 90 - (i * (60 / max(1, step_count - 1)))
-         |            colors.append(f"hsl(0, 0%, {lightness}%)")
-         |        return colors
-         |
-         |    # Validate user-provided step definitions
-         |    def generate_valid_steps(self, steps_data):
-         |        valid_steps = []
-         |        self.step_errors = []
-         |
-         |        for index, step in enumerate(steps_data):
-         |            s_val = step["start"]
-         |            e_val = step["end"]
-         |            if s_val < e_val:
-         |                valid_steps.append({"start": s_val, "end": e_val})
-         |            else:
-         |                self.step_errors.append(f"Step {index + 1}: start ≥ end ({s_val} ≥ {e_val})")
-         |        return valid_steps
+         |${BulletChartPython.helperDefs(4, isMethod = true)}
          |
          |    @overrides
          |    def process_table(self, table: Table, port: int) -> Iterator[Optional[TableLike]]:
@@ -171,13 +156,7 @@ class BulletChartOpDesc extends PythonVisualizationOpDesc with PlotlyStandaloneC
          |
          |            valid_steps = self.generate_valid_steps($stepsExpr)
          |            step_colors = self.generate_gray_gradient(len(valid_steps))
-         |            steps_list = []
-         |            for index, step_data in enumerate(valid_steps):
-         |                color = step_colors[index]
-         |                steps_list.append({
-         |                    "range": [step_data["start"], step_data["end"]],
-         |                    "color": color
-         |                })
+         |${BulletChartPython.stepsListBody(12)}
          |
          |            # Iterate through up to 10 rows of the input table
          |            count = 0
@@ -186,41 +165,7 @@ class BulletChartOpDesc extends PythonVisualizationOpDesc with PlotlyStandaloneC
          |                if count >= 10:  # Limit to 10 charts
          |                    break
          |                try:
-         |                    actual = float(row[value_col])
-         |                    ref = delta_ref
-         |
-         |                    # Construct gauge configuration
-         |                    gauge_config = {'shape': 'bullet'}
-         |                    if steps_list:
-         |                        gauge_config['steps'] = steps_list
-         |
-         |                    max_range_values = [actual, ref]
-         |                    if threshold_val is not None:
-         |                        max_range_values.append(threshold_val)
-         |
-         |                    if steps_list:
-         |                        for r in steps_list:
-         |                            max_range_values.append(r["range"][1])
-         |
-         |                    gauge_config['axis'] = {"range": [0, max(max_range_values) * 1.2]}
-         |
-         |                    if threshold_val is not None:
-         |                        gauge_config["threshold"] = {
-         |                            "value": threshold_val,
-         |                            "line": {"color": "red", "width": 2},
-         |                            "thickness": 1
-         |                        }
-         |
-         |                    fig = go.Figure(go.Indicator(
-         |                        mode="number+gauge+delta",
-         |                        value=actual,
-         |                        delta={"reference": ref},
-         |                        gauge=gauge_config,
-         |                        domain={"x": [0.1, 1], "y": [0.1, 0.9]},
-         |                        title={"text": value_col}
-         |                    ))
-         |
-         |                    fig.update_layout(margin=dict(l=80, r=20, b=40, t=40), height=150)
+         |${BulletChartPython.figureBody(20)}
          |                    html_chunk = pio.to_html(fig, include_plotlyjs='cdn', auto_play=False)
          |
          |                    # Add step error
@@ -251,15 +196,6 @@ class BulletChartOpDesc extends PythonVisualizationOpDesc with PlotlyStandaloneC
     // the same as the runtime path, so the two scripts agree without either of them
     // parsing anything.
     val valueLit = pyStringLiteral(value)
-    val deltaReferenceExpr = deltaReference.getOrElse(0.0).toString
-    val thresholdExpr = thresholdValue.map(_.toString).getOrElse("None")
-    val stepsExpr =
-      Option(steps)
-        .map(_.asScala.toSeq)
-        .getOrElse(Seq.empty)
-        .flatMap(step => step.start.zip(step.end))
-        .map { case (start, end) => s"""{"start": $start, "end": $end}""" }
-        .mkString("[", ", ", "]")
 
     // render_error's continuation line keeps the runtime path's indentation — the
     // HTML is triple-quoted, so those spaces reach the browser. The JSON holds one chart
@@ -268,31 +204,14 @@ class BulletChartOpDesc extends PythonVisualizationOpDesc with PlotlyStandaloneC
        |    return '''<h1>Bullet chart is not available.</h1>
        |                  <p>Reason: {} </p>'''.format(error_msg)
        |
-       |def generate_gray_gradient(step_count):
-       |    colors = []
-       |    for i in range(step_count):
-       |        lightness = 90 - (i * (60 / max(1, step_count - 1)))
-       |        colors.append(f"hsl(0, 0%, {lightness}%)")
-       |    return colors
-       |
-       |def generate_valid_steps(steps_data):
-       |    valid_steps = []
-       |    step_errors = []
-       |    for index, step in enumerate(steps_data):
-       |        s_val = step["start"]
-       |        e_val = step["end"]
-       |        if s_val < e_val:
-       |            valid_steps.append({"start": s_val, "end": e_val})
-       |        else:
-       |            step_errors.append(f"Step {index + 1}: start >= end ({s_val} >= {e_val})")
-       |    return valid_steps, step_errors
+       |${BulletChartPython.helperDefs(0, isMethod = false)}
        |
        |if in1df.empty:
        |${standaloneErrorPage("Input table is empty.")}
        |else:
        |    try:
        |        value_col = $valueLit
-       |        delta_ref = $deltaReferenceExpr
+       |        delta_ref = $deltaReferenceLiteral
        |        if value_col not in in1df.columns:
        |            with open(outputHtml, "w", encoding="utf-8") as output:
        |                output.write(render_error(f"Column '{value_col}' not found in input table."))
@@ -301,44 +220,15 @@ class BulletChartOpDesc extends PythonVisualizationOpDesc with PlotlyStandaloneC
        |            if table.empty:
        |${standaloneErrorPage("No valid data rows found after dropping nulls.", indent = 16)}
        |            else:
-       |                threshold_val = $thresholdExpr
-       |                valid_steps, step_errors = generate_valid_steps($stepsExpr)
+       |                threshold_val = $thresholdLiteral
+       |                valid_steps, step_errors = generate_valid_steps($stepsLiteral)
        |                step_colors = generate_gray_gradient(len(valid_steps))
-       |                steps_list = []
-       |                for index, step_data in enumerate(valid_steps):
-       |                    steps_list.append({
-       |                        "range": [step_data["start"], step_data["end"]],
-       |                        "color": step_colors[index]
-       |                    })
+       |${BulletChartPython.stepsListBody(16)}
        |                html_chunks = []
        |                figs = []
        |                for _, row in table.head(10).iterrows():
        |                    try:
-       |                        actual = float(row[value_col])
-       |                        gauge_config = {'shape': 'bullet'}
-       |                        if steps_list:
-       |                            gauge_config['steps'] = steps_list
-       |                        max_range_values = [actual, delta_ref]
-       |                        if threshold_val is not None:
-       |                            max_range_values.append(threshold_val)
-       |                        for r in steps_list:
-       |                            max_range_values.append(r["range"][1])
-       |                        gauge_config['axis'] = {"range": [0, max(max_range_values) * 1.2]}
-       |                        if threshold_val is not None:
-       |                            gauge_config["threshold"] = {
-       |                                "value": threshold_val,
-       |                                "line": {"color": "red", "width": 2},
-       |                                "thickness": 1
-       |                            }
-       |                        fig = go.Figure(go.Indicator(
-       |                            mode="number+gauge+delta",
-       |                            value=actual,
-       |                            delta={"reference": delta_ref},
-       |                            gauge=gauge_config,
-       |                            domain={"x": [0.1, 1], "y": [0.1, 0.9]},
-       |                            title={"text": value_col}
-       |                        ))
-       |                        fig.update_layout(margin=dict(l=80, r=20, b=40, t=40), height=150)
+       |${BulletChartPython.figureBody(24)}
        |                        figs.append(fig)
        |                        html_chunk = plotly.io.to_html(fig, include_plotlyjs='cdn', auto_play=False)
        |                        if step_errors:
@@ -359,4 +249,74 @@ class BulletChartOpDesc extends PythonVisualizationOpDesc with PlotlyStandaloneC
        |        with open(outputHtml, "w", encoding="utf-8") as output:
        |            output.write(render_error(f"General error: {str(e)}"))""".stripMargin
   }
+}
+
+private object BulletChartPython {
+  def helperDefs(indent: Int, isMethod: Boolean): String = {
+    val (selfParam, errorsVar, cmp, retStmt) =
+      if (isMethod) ("self, ", "self.step_errors", "≥", "return valid_steps")
+      else ("", "step_errors", ">=", "return valid_steps, step_errors")
+    render(
+      s"""|def generate_gray_gradient(${selfParam}step_count):
+          |    colors = []
+          |    for i in range(step_count):
+          |        lightness = 90 - (i * (60 / max(1, step_count - 1)))
+          |        colors.append(f"hsl(0, 0%, {lightness}%)")
+          |    return colors
+          |
+          |def generate_valid_steps(${selfParam}steps_data):
+          |    valid_steps = []
+          |    $errorsVar = []
+          |    for index, step in enumerate(steps_data):
+          |        s_val = step["start"]
+          |        e_val = step["end"]
+          |        if s_val < e_val:
+          |            valid_steps.append({"start": s_val, "end": e_val})
+          |        else:
+          |            $errorsVar.append(f"Step {index + 1}: start $cmp end ({s_val} $cmp {e_val})")
+          |    $retStmt""",
+      indent
+    )
+  }
+
+  def stepsListBody(indent: Int): String =
+    render(
+      """|steps_list = []
+         |for index, step_data in enumerate(valid_steps):
+         |    steps_list.append({
+         |        "range": [step_data["start"], step_data["end"]],
+         |        "color": step_colors[index]
+         |    })""",
+      indent
+    )
+
+  def figureBody(indent: Int): String =
+    render(
+      """|actual = float(row[value_col])
+         |gauge_config = {'shape': 'bullet'}
+         |if steps_list:
+         |    gauge_config['steps'] = steps_list
+         |max_range_values = [actual, delta_ref]
+         |if threshold_val is not None:
+         |    max_range_values.append(threshold_val)
+         |for r in steps_list:
+         |    max_range_values.append(r["range"][1])
+         |gauge_config['axis'] = {"range": [0, max(max_range_values) * 1.2]}
+         |if threshold_val is not None:
+         |    gauge_config["threshold"] = {
+         |        "value": threshold_val,
+         |        "line": {"color": "red", "width": 2},
+         |        "thickness": 1
+         |    }
+         |fig = go.Figure(go.Indicator(
+         |    mode="number+gauge+delta",
+         |    value=actual,
+         |    delta={"reference": delta_ref},
+         |    gauge=gauge_config,
+         |    domain={"x": [0.1, 1], "y": [0.1, 0.9]},
+         |    title={"text": value_col}
+         |))
+         |fig.update_layout(margin=dict(l=80, r=20, b=40, t=40), height=150)""",
+      indent
+    )
 }
