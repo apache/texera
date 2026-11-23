@@ -27,13 +27,10 @@ import { NzDescriptionsComponent, NzDescriptionsItemComponent } from "ng-zorro-a
 import { NzTagComponent } from "ng-zorro-antd/tag";
 import { NzCollapseComponent, NzCollapsePanelComponent } from "ng-zorro-antd/collapse";
 
-/** The array content of a ModelMessage, i.e. its typed parts rather than a plain string. */
-type MessageParts = Exclude<ModelMessage["content"], string>;
-
 /** A tool-result part's output is a structured { type, value }; unwrap the displayable value. */
 function toolResultValue(part: ToolResultPart): unknown {
   const output = part.output as { value?: unknown };
-  return output?.value ?? part.output;
+  return output?.value ?? part.output ?? "";
 }
 
 /**
@@ -117,7 +114,7 @@ export class ReActStepDetailModalComponent {
   public getTextFromMessage(msg: ModelMessage | null): string {
     if (!msg?.content) return "";
     if (typeof msg.content === "string") return msg.content;
-    return (msg.content as MessageParts)
+    return msg.content
       .filter((p): p is TextPart => p.type === "text")
       .map(p => p.text)
       .join("\n");
@@ -131,7 +128,7 @@ export class ReActStepDetailModalComponent {
     msg: ModelMessage | null
   ): { toolName: string; operatorId: string; fullArgs: Record<string, unknown> }[] {
     if (!msg?.content || typeof msg.content === "string") return [];
-    return (msg.content as MessageParts)
+    return msg.content
       .filter((p): p is ToolCallPart => p.type === "tool-call")
       .map(p => {
         const args = (p.input ?? {}) as { operatorId?: string } & Record<string, unknown>;
@@ -151,7 +148,7 @@ export class ReActStepDetailModalComponent {
     msg: ModelMessage | null
   ): { toolName: string; resultContent: string; tokenCount: number; isTrimmed: boolean }[] {
     if (!msg?.content || typeof msg.content === "string") return [];
-    return (msg.content as MessageParts)
+    return msg.content
       .filter((p): p is ToolResultPart => p.type === "tool-result")
       .map(p => {
         const raw = toolResultValue(p);
@@ -171,7 +168,7 @@ export class ReActStepDetailModalComponent {
    */
   public getToolResultItems(msg: ModelMessage | null): { toolName: string; tokenCount: number; isTrimmed: boolean }[] {
     if (!msg?.content || typeof msg.content === "string") return [];
-    return (msg.content as MessageParts)
+    return msg.content
       .filter((p): p is ToolResultPart => p.type === "tool-result")
       .map(p => {
         const raw = toolResultValue(p);

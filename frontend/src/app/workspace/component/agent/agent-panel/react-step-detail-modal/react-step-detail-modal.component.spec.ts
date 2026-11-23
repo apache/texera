@@ -52,7 +52,12 @@ describe("ReActStepDetailModalComponent", () => {
             { type: "tool-call", toolCallId: "tc1", toolName: "addOperator", input: { operatorId: "op-1" } },
           ],
         },
-        { role: "tool", content: [{ type: "tool-result", toolCallId: "tc1", toolName: "addOperator", output: "ok" }] },
+        {
+          role: "tool",
+          content: [
+            { type: "tool-result", toolCallId: "tc1", toolName: "addOperator", output: { type: "text", value: "ok" } },
+          ],
+        },
       ] as any,
       operatorAccess: new Map([
         [0, { viewedOperatorIds: ["op-viewed"], addedOperatorIds: ["op-added"], modifiedOperatorIds: ["op-modified"] }],
@@ -229,9 +234,24 @@ describe("ReActStepDetailModalComponent", () => {
       return {
         role: "tool",
         content: [
-          { type: "tool-result", toolCallId: "tc1", toolName: "addOperator", output: "short result" },
-          { type: "tool-result", toolCallId: "tc2", toolName: "executeOperator", output: { rows: 3 } },
-          { type: "tool-result", toolCallId: "tc3", toolName: "", output: "after context compaction" },
+          {
+            type: "tool-result",
+            toolCallId: "tc1",
+            toolName: "addOperator",
+            output: { type: "text", value: "short result" },
+          },
+          {
+            type: "tool-result",
+            toolCallId: "tc2",
+            toolName: "executeOperator",
+            output: { type: "json", value: { rows: 3 } },
+          },
+          {
+            type: "tool-result",
+            toolCallId: "tc3",
+            toolName: "",
+            output: { type: "text", value: "after context compaction" },
+          },
         ],
       };
     }
@@ -257,6 +277,13 @@ describe("ReActStepDetailModalComponent", () => {
       // tc3: blank tool name falls back to the toolCallId; "context compaction" => trimmed
       expect(items[2].toolName).toBe("tc3");
       expect(items[2].isTrimmed).toBe(true);
+    });
+
+    it("renders an empty string without throwing when a tool-result has no output", () => {
+      const msg = { role: "tool", content: [{ type: "tool-result", toolCallId: "tc9", toolName: "noResult" }] } as any;
+      const items = component.getToolResultFullItems(msg);
+      expect(items[0].resultContent).toBe("");
+      expect(items[0].tokenCount).toBe(0);
     });
 
     it("getToolResultItems returns name, token count and trimmed flag", () => {
