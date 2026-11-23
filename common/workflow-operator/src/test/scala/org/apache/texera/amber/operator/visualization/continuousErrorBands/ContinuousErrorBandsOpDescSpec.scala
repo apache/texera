@@ -51,8 +51,7 @@ class ContinuousErrorBandsOpDescSpec
   }
 
   it should "throw an AssertionError (not a NullPointerException) when bands is left empty (createPlotlyFigure)" in {
-    val ex = expectError[AssertionError]("Bands cannot be empty")(opDesc.createPlotlyFigure())
-    ex shouldBe a[AssertionError]
+    expectError[AssertionError]("Bands cannot be empty")(opDesc.createPlotlyFigure())
   }
 
   it should "throw an AssertionError naming the Bands when generating python code with an empty bands list" in {

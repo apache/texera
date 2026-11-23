@@ -21,17 +21,13 @@ package org.apache.texera.service.util
 
 import org.apache.texera.amber.core.tuple.LargeBinary
 import org.apache.texera.common.tags.NonParallelTest
-import org.scalatest.BeforeAndAfterAll
 import org.scalatest.funsuite.AnyFunSuite
 
 import java.io.IOException
 import scala.util.Random
 
 @NonParallelTest
-class LargeBinaryOutputStreamSpec
-    extends AnyFunSuite
-    with S3StorageTestBase
-    with BeforeAndAfterAll {
+class LargeBinaryOutputStreamSpec extends AnyFunSuite with S3StorageTestBase {
 
   private val testBucketName = "test-large-binary-output-stream"
 
