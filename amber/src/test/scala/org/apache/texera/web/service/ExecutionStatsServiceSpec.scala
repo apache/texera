@@ -95,10 +95,9 @@ import java.util.concurrent.{ExecutorService, TimeUnit}
   * URI built from the wrong identity is a visibly different URI.
   *
   * Not covered on purpose: the catch arms in `commitAndStop` (iceberg's close is a repeatable
-  * buffer flush and does not throw, and the wait is neither interrupted nor anywhere near its
-  * 60 s bound), and the catch arm in
-  * `storeRuntimeStatistics` (it runs on the private persist executor, which swallows anything a
-  * test could observe).
+  * buffer flush and does not throw, and the wait is neither interrupted nor near its timeout),
+  * and the catch arm in `storeRuntimeStatistics` (it runs on the private persist executor, which
+  * swallows anything a test could observe).
   */
 class ExecutionStatsServiceSpec
     extends TestKit(ActorSystem("ExecutionStatsServiceSpec"))
@@ -613,7 +612,7 @@ class ExecutionStatsServiceSpec
     }
   }
 
-  it should "commit and stop the persist thread when the run ends without a terminal state" in {
+  it should "commit and stop the persist thread when the engine reports no terminal state" in {
     // A fatal error commits right away, since the service lives on until the next run or session
     // cleanup; a user kill commits when the service is torn down, in the background.
     Seq[(String, Fixture => Unit)](

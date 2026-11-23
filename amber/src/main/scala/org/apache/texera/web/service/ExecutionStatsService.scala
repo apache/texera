@@ -52,7 +52,8 @@ import org.apache.texera.amber.engine.common.executionruntimestate.{
 }
 import org.apache.texera.amber.error.ErrorUtils.{
   getOperatorFromActorIdOpt,
-  getStackTraceWithAllCauses
+  getStackTraceWithAllCauses,
+  safely
 }
 import org.apache.texera.web.SubscriptionManager
 import org.apache.texera.web.model.websocket.event.{
@@ -205,7 +206,7 @@ class ExecutionStatsService(
               lastPersistedMetrics = evt.operatorMetrics
             })
           } catch {
-            // The statistics are already committed and the writer is closed.
+            // commitAndStop has shut the thread down; its queued close commits what came before.
             case _: RejectedExecutionException =>
           }
         })
@@ -223,8 +224,8 @@ class ExecutionStatsService(
 
   /**
     * Commits a run that never reported a terminal state, such as a user kill, when
-    * WorkflowService tears the service down: at the next run or on session cleanup. Nothing on
-    * those paths reads the statistics, so the commit finishes in the background.
+    * WorkflowService tears the service down: at the next run or on session cleanup. The commit
+    * finishes in the background so the next run does not wait for it.
     */
   override def unsubscribeAll(): Unit = {
     super.unsubscribeAll()
@@ -239,16 +240,13 @@ class ExecutionStatsService(
     */
   private def commitAndStop(awaitCommit: Boolean = true): Unit = {
     if (committed.compareAndSet(false, true)) {
-      logger.info("Workflow execution terminated. Commit runtime statistics.")
-      val commit = metricsPersistThread.submit(
-        (
-            () =>
-              try runtimeStatsWriter.close()
-              catch {
-                case e: Exception => logger.error("Failed to close runtime statistics writer", e)
-              }
-        ): Runnable
-      )
+      logger.info("Committing runtime statistics.")
+      val close: Runnable = () =>
+        try runtimeStatsWriter.close()
+        catch safely {
+          case e => logger.error("Failed to close runtime statistics writer", e)
+        }
+      val commit = metricsPersistThread.submit(close)
       // Queued tasks, the close among them, still run after shutdown.
       metricsPersistThread.shutdown()
       if (awaitCommit) {
@@ -388,8 +386,9 @@ class ExecutionStatsService(
               )
             )
           }
-          // A failed run ends here without a terminal state, and the service is not torn down
-          // until the next run or session cleanup; commit now so the statistics can be read.
+          // A failed run ends here without the engine reporting a terminal state, and the
+          // service is not torn down until the next run or session cleanup; commit now so the
+          // statistics can be read.
           commitAndStop()
         })
     )
