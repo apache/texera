@@ -17,7 +17,9 @@
  under the License.
 -->
 
-<div id="workflow-editor-wrapper">
+<div
+  id="workflow-editor-wrapper"
+  [class.structure-locked]="structureLocked">
   <div
     id="workflow-editor"
     (contextmenu)="nzContextMenu.create($event, menu)"></div>

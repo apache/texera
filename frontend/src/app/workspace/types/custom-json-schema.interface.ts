@@ -18,6 +18,17 @@
  */
 
 import { JSONSchema7, JSONSchema7Definition } from "json-schema";
+import { FormlyFieldConfig } from "@ngx-formly/core";
+
+/** Native field context, projected for presentation only; saved bindings retain their public IDs. */
+export interface PropertyContext {
+  operatorType: string;
+  propertyKey: string;
+  properties: Record<string, unknown>;
+  bindings: Record<string, string>;
+  required?: import("../util/custom-formly-type").ConditionalRequiredRule;
+  hiddenBy?: string;
+}
 
 export const hideTypes = ["regex", "equals"] as const;
 export type HideType = (typeof hideTypes)[number];
@@ -78,6 +89,7 @@ export type ValueRuleSet = Readonly<{
 }>;
 
 export interface CustomJSONSchema7 extends JSONSchema7 {
+  widget?: { formlyConfig: FormlyFieldConfig };
   propertyOrder?: number;
   properties?: {
     [key: string]: CustomJSONSchema7 | boolean;

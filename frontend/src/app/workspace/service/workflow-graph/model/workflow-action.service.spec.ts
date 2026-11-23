@@ -16,9 +16,12 @@
  * specific language governing permissions and limitations
  * under the License.
  */
+import { testMacro, expansionFixture, setMacroGraph } from "../../../../common/testing/macro-graph";
+import { testBinding } from "../../../../common/testing/workflow-graph";
 
-import { StubOperatorMetadataService } from "./../../operator-metadata/stub-operator-metadata.service";
-import { OperatorMetadataService } from "./../../operator-metadata/operator-metadata.service";
+import { MacroExpansionService } from "../../macro/macro-expansion.service";
+import { macroWorkspaceTestProviders } from "../../macro/macro-workspace.spec-harness";
+
 import { JointUIService } from "./../../joint-ui/joint-ui.service";
 import { WorkflowGraph } from "./workflow-graph";
 import { UndoRedoService } from "./../../undo-redo/undo-redo.service";
@@ -41,7 +44,6 @@ import * as Y from "yjs";
 import { DEFAULT_WORKFLOW, DEFAULT_WORKFLOW_NAME, WorkflowActionService } from "./workflow-action.service";
 import { LogicalPort, OperatorPredicate } from "../../../types/workflow-common.interface";
 import { WorkflowUtilService } from "../util/workflow-util.service";
-import { commonTestProviders } from "../../../../common/testing/test-utils";
 import {
   ExecutionMode,
   FormBindingConfig,
@@ -50,6 +52,8 @@ import {
   WorkflowSettings,
 } from "../../../../common/type/workflow";
 import { WorkflowMetadata } from "../../../../dashboard/type/workflow-metadata.interface";
+
+import { macroInstance } from "../../../../common/util/workflow-macro";
 
 describe("WorkflowActionService", () => {
   let service: WorkflowActionService;
@@ -64,11 +68,7 @@ describe("WorkflowActionService", () => {
         WorkflowUtilService,
         JointUIService,
         UndoRedoService,
-        {
-          provide: OperatorMetadataService,
-          useClass: StubOperatorMetadataService,
-        },
-        ...commonTestProviders,
+        ...macroWorkspaceTestProviders,
       ],
       imports: [],
     });
@@ -76,6 +76,28 @@ describe("WorkflowActionService", () => {
     undoRedo = TestBed.inject(UndoRedoService);
     texeraGraph = (service as any).texeraGraph;
     jointGraph = (service as any).jointGraph;
+  });
+
+  it("rejects colliding bulk edits and loads atomically, preserving Undo/Redo", () => {
+    service.addOperator(mockScanPredicate, mockPoint);
+    undoRedo.clearUndoStack();
+    const before = service.getWorkflowContent();
+    const addition = { op: mockSentimentPredicate, pos: mockPoint };
+    const bad = { ...mockScanSentimentLink, linkID: mockScanPredicate.operatorID };
+    expect(() => service.addOperatorsAndLinks([addition], [bad])).toThrow(/Duplicate graph element ID/);
+    expect(service.getWorkflowContent()).toEqual(before);
+    expect(undoRedo.canUndo()).toBe(false);
+    expect(() => service.reloadWorkflow({ ...DEFAULT_WORKFLOW, content: { ...before, links: [bad] } })).toThrow(
+      /Duplicate graph element ID/
+    );
+    expect(service.getWorkflowContent()).toEqual(before);
+    expect(service.getJointGraphWrapper().getReloadingWorkflow()).toBe(false);
+    service.addOperatorsAndLinks([addition], [mockScanSentimentLink]);
+    const connected = service.getWorkflowContent();
+    undoRedo.undoAction();
+    expect(service.getWorkflowContent()).toEqual(before);
+    undoRedo.redoAction();
+    expect(service.getWorkflowContent()).toEqual(connected);
   });
 
   /**
@@ -90,9 +112,132 @@ describe("WorkflowActionService", () => {
     texeraGraph.sharedModel.wsProvider.synced = true;
   }
 
+  it("preserves links added while a parent save is pending and undoes removed-port connections together", () => {
+    service.addOperator(mockScanPredicate, mockPoint);
+    service.addOperator(mockSentimentPredicate, mockPoint);
+    service.addOperator(mockResultPredicate, mockPoint);
+    service.addLink(mockScanSentimentLink);
+    const session = service.suspendWorkflow(),
+      content = service.getWorkflowContent();
+    service.addLink(mockSentimentResultLink);
+    service.addLink(mockScanResultLink);
+    service.updateMacroUsage(
+      mockScanPredicate.operatorID,
+      {
+        ...content,
+        operators: content.operators.map(o =>
+          o.operatorID === mockScanPredicate.operatorID ? { ...o, outputPorts: [] } : o
+        ),
+        links: [],
+      },
+      session
+    );
+    expect(service.getWorkflowContent().links).toEqual([mockSentimentResultLink]);
+    undoRedo.undoAction();
+    expect(service.getWorkflowContent().links).toEqual(
+      expect.arrayContaining([mockScanSentimentLink, mockSentimentResultLink, mockScanResultLink])
+    );
+  });
+
   it("should be created", inject([WorkflowActionService], (injectedService: WorkflowActionService) => {
     expect(injectedService).toBeTruthy();
   }));
+
+  it("returns from a nested canvas with the same shared document, pending metadata and undo history", () => {
+    service.setWorkflowMetadata({ ...DEFAULT_WORKFLOW, wid: 10, name: "Parent" });
+    service.addOperator(mockScanPredicate, mockPoint);
+    service.setFormBinding({ fields: [], instruction: { body: "Parent draft 日本語" } });
+    const parent = service.suspendWorkflow();
+    const model = texeraGraph.sharedModel;
+    const depth = model.undoManager.undoStack.length;
+    service.openWorkflowDraft({
+      ...DEFAULT_WORKFLOW,
+      wid: 20,
+      name: "Child",
+      content: {
+        ...service.getWorkflowContent(),
+        operators: [],
+        links: [],
+        operatorPositions: {},
+        formBinding: undefined,
+      },
+    });
+    expect(service.getWorkflowMetadata().wid).toBe(20);
+    expect(jointGraph.getCell(mockScanPredicate.operatorID)).toBeUndefined();
+    // A delayed parent sync must land in its own document, never in the child.
+    model.wsProvider.synced = true;
+    expect(service.getFormBinding().instruction).toBeUndefined();
+    service.resumeWorkflow(parent);
+    expect(texeraGraph.sharedModel).toBe(model);
+    expect(service.getFormBinding().instruction?.body).toBe("Parent draft 日本語");
+    expect(model.undoManager.undoStack).toHaveLength(depth);
+    expect(jointGraph.getCell(mockScanPredicate.operatorID)).toBeDefined();
+    const events: unknown[] = [];
+    service
+      .getTexeraGraph()
+      .getOperatorPropertyChangeStream()
+      .subscribe(e => events.push(e));
+    service.setOperatorProperty(mockScanPredicate.operatorID, { tableName: "restored" });
+    expect(events).toHaveLength(1);
+    expect(service.getWorkflowMetadata().wid).toBe(10);
+  });
+
+  it("reads nested legacy bundles from shared metadata without rewriting their snapshots", () => {
+    const inner = testMacro("inner", [mockScanPredicate], { name: "Inner" });
+    const outer = testMacro("outer", [macroInstance(inner, "child")], { macroDependencies: [inner], name: "Outer" });
+    const legacy = [outer],
+      before = JSON.stringify(legacy);
+    const shared = texeraGraph.sharedModel.contentMetaMap;
+    shared.set("macroDependencies", legacy);
+    expect(service.getMacroDependencies()).toHaveLength(2);
+    expect(service.getMacroDependencies().every(d => !d.content.macroDependencies)).toBe(true);
+    expect(JSON.stringify(legacy)).toBe(before);
+    service.addOperator(macroInstance(outer, "root"), { x: 0, y: 0 });
+    const content = service.getWorkflowContent();
+    TestBed.inject(MacroExpansionService).remember(
+      content,
+      expansionFixture(content, [[["root", "child", mockScanPredicate.operatorID], mockScanPredicate]])
+    );
+    expect(service.getMacroExpansion()!.content.operators).toHaveLength(1);
+    shared.set("macroDependencies", [{ ...outer, version: 2 }]);
+    expect(service.getMacroDependencies().find(d => d.id === "outer")!.version).toBe(2);
+    expect(service.getMacroExpansion()).toBeUndefined();
+    shared.set("macroDependencies", [{ ...outer, version: 0 }]);
+    expect(() => service.getMacroExpansion()).not.toThrow();
+    expect(service.getMacroExpansion()).toBeUndefined();
+  });
+
+  it("undoes macro metadata together with its graph transaction", () => {
+    syncSharedDoc();
+    const boundary = { id: "macro", inputs: [], outputs: [] };
+    texeraGraph.bundleActions(() => {
+      setMacroGraph(service, boundary);
+      service.addOperator(mockScanPredicate, mockPoint);
+    });
+    expect(service.getWorkflowContent().macroInterface).toEqual({ id: boundary.id });
+    undoRedo.undoAction();
+    expect(texeraGraph.getAllOperators()).toEqual([]);
+    expect(service.getMacroInterface()).toBeUndefined();
+    undoRedo.redoAction();
+    expect(service.getMacroInterface()).toEqual(boundary);
+    expect(texeraGraph.getAllOperators()).toHaveLength(3);
+  });
+
+  it("undoes and redoes macro bindings while the shared document is waiting to sync", () => {
+    const original = testBinding("old", "value", "field", "Value");
+    service.setFormBinding(original);
+    service.bundleMacroActions(() => {
+      service.setFormBinding({ fields: [{ ...original.fields[0], operatorID: "new" }] });
+      service.addOperator(mockScanPredicate, mockPoint);
+    });
+    undoRedo.undoAction();
+    expect(service.getFormBinding()).toEqual(original);
+    undoRedo.redoAction();
+    expect(service.getFormBinding().fields[0].operatorID).toBe("new");
+    syncSharedDoc();
+    undoRedo.undoAction();
+    expect(service.getFormBinding()).toEqual(original);
+  });
 
   // The operator canvas and the Form View hand one open workflow between them; the arriving view
   // asks this before loading, because seeding a second document for the same workflow would leave

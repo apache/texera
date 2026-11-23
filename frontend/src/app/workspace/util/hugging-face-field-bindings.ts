@@ -19,6 +19,17 @@
 
 import { AbstractControl } from "@angular/forms";
 import { FormlyFieldConfig } from "@ngx-formly/core";
+import { PropertyContext } from "../types/custom-json-schema.interface";
+import { propertyModel } from "./custom-formly-type";
+
+/** Only exposed siblings are writable; a Form View card also renames its own control. */
+export function huggingFacePropertyKey(field: FormlyFieldConfig, key: string): string | undefined {
+  const context = field.props?.["propertyContext"] as PropertyContext | undefined;
+  if (!context) return key;
+  return key === context.propertyKey ? String(field.key) : context.bindings[key];
+}
+
+const nativeModel = (field: FormlyFieldConfig) => propertyModel(field) ?? field.model;
 
 const imageOnlyTasks = ["image-classification", "object-detection", "image-segmentation", "image-to-text"];
 const imageInputTasks = [
@@ -49,16 +60,14 @@ const promptRequiredTasks = [
   "zero-shot-image-classification",
 ];
 
+const hasText = (value: unknown): value is string => typeof value === "string" && value.trim().length > 0;
+
 const getSelectedTask = (field: FormlyFieldConfig): string | undefined => {
-  const fromForm = field.form?.get("task")?.value ?? field.formControl?.parent?.get("task")?.value;
-  if (typeof fromForm === "string" && fromForm.trim().length > 0) {
-    return fromForm;
-  }
-  const fromModel = field.model?.task;
-  if (typeof fromModel === "string" && fromModel.trim().length > 0) {
-    return fromModel;
-  }
-  return undefined;
+  const key = huggingFacePropertyKey(field, "task");
+  const fromForm = key ? field.form?.get(key)?.value ?? field.formControl?.parent?.get(key)?.value : undefined;
+  if (hasText(fromForm)) return fromForm;
+  const fromModel = nativeModel(field)?.task;
+  return hasText(fromModel) ? fromModel : undefined;
 };
 
 function hideUnlessTask(mappedField: FormlyFieldConfig, predicate: (task: string | undefined) => boolean): void {
@@ -89,11 +98,11 @@ function bindMediaInput(
         if (t === undefined || !tasks.includes(t)) {
           return true;
         }
-        const inputCol = field.model?.[columnKey];
+        const inputCol = nativeModel(field)?.[columnKey];
         if (typeof inputCol === "string" && inputCol.trim().length > 0) {
           return true;
         }
-        const value = field.formControl?.value ?? field.model?.[inputKey];
+        const value = field.formControl?.value ?? nativeModel(field)?.[inputKey];
         return typeof value === "string" && value.trim().length > 0;
       },
       message: () => message,
@@ -114,14 +123,11 @@ function bindMediaInput(
  * separately in {@link customFormlyFieldType}.
  */
 export function applyHuggingFaceFieldBindings(mappedField: FormlyFieldConfig): void {
-  if (mappedField.key === "task") {
-    mappedField.hide = true;
-  }
+  const context = mappedField.props?.["propertyContext"] as PropertyContext | undefined;
+  const hfKey = context?.propertyKey ?? mappedField.key;
+  if (typeof hfKey !== "string") return;
 
-  if (typeof mappedField.key !== "string") {
-    return;
-  }
-  const hfKey = mappedField.key;
+  if (hfKey === "task") mappedField.hide = true;
   if (hfKey === "imageInput") {
     // type ("huggingface-image-upload") is set by customFormlyFieldType
     bindMediaInput(
@@ -160,7 +166,7 @@ export function applyHuggingFaceFieldBindings(mappedField: FormlyFieldConfig): v
           if (t === undefined || !promptRequiredTasks.includes(t)) {
             return true;
           }
-          const value = field.formControl?.value ?? field.model?.promptColumn;
+          const value = field.formControl?.value ?? nativeModel(field)?.promptColumn;
           return typeof value === "string" && value.trim().length > 0;
         },
         message: () => "Select a prompt column for this task.",

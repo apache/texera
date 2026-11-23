@@ -19,14 +19,43 @@
 
 import { Injectable } from "@angular/core";
 import { BehaviorSubject, Observable, Subject } from "rxjs";
-import { OperatorRuntimeStatus, OperatorState, OperatorStatistics } from "../../types/execute-workflow.interface";
+import {
+  OperatorRuntimeStatus,
+  OperatorState,
+  OperatorStatistics,
+  ExecutionState,
+  isNotInExecution,
+} from "../../types/execute-workflow.interface";
 import { WorkflowWebsocketService } from "../workflow-websocket/workflow-websocket.service";
 import { OperatorPerformanceMetrics, extractPerformanceMetrics } from "./performance-metrics";
+import { WorkflowContent } from "../../../common/type/workflow";
 
 @Injectable({
   providedIn: "root",
 })
 export class WorkflowStatusService {
+  public runtimeEpoch = 0;
+  public runtimeExecutionId?: number;
+  private restored = false;
+  private runtimeContent?: WorkflowContent;
+  private graphProvider?: () => WorkflowContent;
+  private preparedExecution = false;
+  private wireState = ExecutionState.Uninitialized;
+  public getRuntimeContent(): WorkflowContent | undefined {
+    return this.runtimeContent;
+  }
+  public setRuntimeContent(content: WorkflowContent): void {
+    this.runtimeContent = structuredClone(content);
+  }
+  private rawStatus: Record<string, OperatorRuntimeStatus> = {};
+  private projection?: (raw: Record<string, OperatorRuntimeStatus>) => Record<string, OperatorRuntimeStatus>;
+  public setProjection(projection: typeof this.projection, graph?: () => WorkflowContent): void {
+    this.projection = projection;
+    this.graphProvider = graph;
+  }
+  public refresh(): void {
+    this.ingestRuntimeStatus(this.rawStatus);
+  }
   // The engine streams operator state and operator statistics bundled in one
   // wire object (OperatorRuntimeStatus); this service splits them into two
   // separate sub-concepts, each with its own stream and snapshot. Derived
@@ -61,8 +90,32 @@ export class WorkflowStatusService {
     // subscriber reading getCurrentStatistics() sees the previous emission.
     // Pinned by the "emits state before statistics" spec.
     this.workflowWebsocketService.websocketEvent().subscribe(event => {
+      if (event.type === "WorkflowStateEvent") {
+        const state = ExecutionState[event.state];
+        if (event.executionId && event.executionId !== this.runtimeExecutionId) {
+          this.runtimeEpoch++;
+          this.runtimeContent = undefined;
+          this.runtimeExecutionId = event.executionId;
+          this.ingestRuntimeStatus({});
+        } else if (!event.executionId && isNotInExecution(this.wireState) && !isNotInExecution(state)) {
+          this.runtimeEpoch++;
+          if (!this.preparedExecution) this.runtimeContent = undefined;
+          this.runtimeExecutionId = undefined;
+        }
+        if (event.executionId || !isNotInExecution(state)) {
+          this.restored = false;
+          this.preparedExecution = false;
+        }
+        this.wireState = state;
+      }
       if (event.type !== "OperatorStatisticsUpdateEvent") {
         return;
+      }
+      if (this.restored) {
+        this.runtimeEpoch++;
+        this.runtimeExecutionId = undefined;
+        this.restored = false;
+        this.runtimeContent = undefined;
       }
       this.ingestRuntimeStatus(event.operatorStatistics);
     });
@@ -70,6 +123,8 @@ export class WorkflowStatusService {
 
   /** Splits a bundled runtime-status map into the two sub-concept emissions. */
   private ingestRuntimeStatus(runtimeStatus: Record<string, OperatorRuntimeStatus>): void {
+    this.rawStatus = runtimeStatus;
+    runtimeStatus = this.projection?.(runtimeStatus) ?? runtimeStatus;
     const state: Record<string, OperatorState> = {};
     const statistics: Record<string, OperatorStatistics> = {};
     for (const [operatorId, update] of Object.entries(runtimeStatus)) {
@@ -87,7 +142,14 @@ export class WorkflowStatusService {
    * same split-and-emit path as live websocket updates — the emission order
    * and derived performance metrics behave identically.
    */
-  public setExternalStatus(runtimeStatus: Record<string, OperatorRuntimeStatus>): void {
+  public setExternalStatus(
+    runtimeStatus: Record<string, OperatorRuntimeStatus>,
+    source?: WorkflowContent | number
+  ): void {
+    this.runtimeEpoch++;
+    this.runtimeContent = typeof source === "object" ? structuredClone(source) : undefined;
+    this.runtimeExecutionId = typeof source === "number" ? source : undefined;
+    this.restored = typeof source === "number";
     this.ingestRuntimeStatus(runtimeStatus);
   }
 
@@ -132,6 +194,12 @@ export class WorkflowStatusService {
   }
 
   public resetStatus(): void {
+    this.runtimeEpoch++;
+    this.runtimeContent = this.graphProvider ? structuredClone(this.graphProvider()) : undefined;
+    this.runtimeExecutionId = undefined;
+    this.restored = false;
+    this.preparedExecution = true;
+    this.rawStatus = {};
     const initState: Record<string, OperatorState> = {};
     for (const operatorId of Object.keys(this.currentState)) {
       initState[operatorId] = OperatorState.Uninitialized;
@@ -150,6 +218,13 @@ export class WorkflowStatusService {
   }
 
   public clearStatus(): void {
+    this.runtimeEpoch++;
+    this.runtimeContent = undefined;
+    this.runtimeExecutionId = undefined;
+    this.restored = false;
+    this.preparedExecution = false;
+    this.wireState = ExecutionState.Uninitialized;
+    this.rawStatus = {};
     this.stateSubject.next({});
     this.statisticsSubject.next({});
   }

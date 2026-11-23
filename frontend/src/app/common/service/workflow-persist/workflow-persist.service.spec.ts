@@ -89,6 +89,21 @@ describe("WorkflowPersistService", () => {
     expect(service).toBeTruthy();
   });
 
+  it("does not POST invalid IDs through either create or persist", () => {
+    const content = jsonCast<WorkflowContent>(testContent);
+    const invalid = { ...content, links: [{ ...content.links[0], linkID: content.operators[0].operatorID }] };
+    const errors: unknown[] = [];
+    service.createWorkflow(invalid).subscribe({ error: (error: unknown) => errors.push(error) });
+    service
+      .persistWorkflow({ name: "bad", content: invalid } as Workflow)
+      .subscribe({ error: (error: unknown) => errors.push(error) });
+    expect(errors).toHaveLength(2);
+    expect(errors.every(error => error instanceof Error && error.message.includes("Duplicate graph element ID"))).toBe(
+      true
+    );
+    httpTestingController.expectNone(request => request.method === "POST");
+  });
+
   it("should send http post request once", () => {
     service
       .createWorkflow(jsonCast<WorkflowContent>(testContent), "testname")
@@ -110,6 +125,40 @@ describe("WorkflowPersistService", () => {
   });
 
   const API = AppSettings.getApiEndpoint();
+
+  it("submits the edited path once and returns the server's committed revisions in order", () => {
+    const root = { wid: 7, name: "Root", content: jsonCast<WorkflowContent>(testContent) } as Workflow;
+    const child = { ...root, wid: 11, name: "Child" };
+    const head = { version: 19, name: "Child" };
+    const next = vi.fn();
+    const save = service.persistMacroPath(
+      [
+        { workflow: child, head },
+        { workflow: root, operatorID: "use" },
+      ],
+      root
+    );
+    save.subscribe(next);
+    const request = httpTestingController.expectOne(`${API}/workflow/persist/macro-path`);
+    expect(request.request.method).toBe("POST");
+    expect(request.request.body.steps).toMatchObject([
+      { head, workflow: { wid: 11, content: JSON.stringify(child.content) } },
+      { operatorID: "use", workflow: { wid: 7 } },
+    ]);
+    expect(request.request.body.rootBefore.content).toBe(JSON.stringify(root.content));
+    const saved = [
+      { version: 31, revision: 3, content: child.content },
+      { version: 34, revision: 8, content: root.content },
+    ];
+    request.flush(saved);
+    expect(next).toHaveBeenCalledWith(saved);
+    const error = vi.fn();
+    save.subscribe({ error });
+    httpTestingController
+      .expectOne(`${API}/workflow/persist/macro-path`)
+      .flush({ message: "The workflow has a newer saved revision." }, { status: 409, statusText: "Conflict" });
+    expect(error).toHaveBeenCalledWith(new Error("The workflow has a newer saved revision."));
+  });
 
   it("retrieveWorkflow issues a GET and parses the workflow content", () => {
     const raw = { wid: 5, name: "wf", content: '{"operators":[]}' } as unknown as Workflow;
@@ -182,7 +231,9 @@ describe("WorkflowPersistService", () => {
     const brokenContent = {
       operators: [],
       operatorPositions: {},
-      links: [{ source: { operatorID: "does-not-exist" }, target: { operatorID: "also-missing" } }],
+      links: [
+        { linkID: "broken-link", source: { operatorID: "does-not-exist" }, target: { operatorID: "also-missing" } },
+      ],
     } as unknown as WorkflowContent;
 
     beforeEach(() => {

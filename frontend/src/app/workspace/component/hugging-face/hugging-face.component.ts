@@ -28,6 +28,8 @@ import { NzSpinModule } from "ng-zorro-antd/spin";
 import { NzButtonModule } from "ng-zorro-antd/button";
 import { NzIconModule } from "ng-zorro-antd/icon";
 import { AppSettings } from "../../../common/app-setting";
+import { propertyModel } from "../../util/custom-formly-type";
+import { huggingFacePropertyKey } from "../../util/hugging-face-field-bindings";
 import { of, Subject, Subscription } from "rxjs";
 import { catchError, debounceTime, finalize, switchMap, takeUntil } from "rxjs/operators";
 
@@ -310,6 +312,10 @@ export class HuggingFaceComponent extends FieldType<FieldTypeConfig> implements 
   // ── Task selection ──
 
   onTaskSelected(tag: string): void {
+    if (!this.canSelectTask) {
+      this.selectedTaskTag = this.getCurrentTaskTag() ?? this.selectedTaskTag;
+      return;
+    }
     const previousTask = this.getCurrentTaskTag() ?? this.selectedTaskTag;
     this.snapshotTaskState(previousTask);
     this.syncTaskSelection(tag, true);
@@ -536,41 +542,20 @@ export class HuggingFaceComponent extends FieldType<FieldTypeConfig> implements 
   // ── Private helpers ──
 
   private getCurrentTaskTag(): string | undefined {
-    const fromModel = this.model?.task;
+    const fromModel = (propertyModel(this.field) ?? this.model)?.task;
     if (typeof fromModel === "string" && fromModel.trim().length > 0) {
       return fromModel;
     }
-    const fromParentControl = this.formControl?.parent?.get("task")?.value;
-    if (typeof fromParentControl === "string" && fromParentControl.trim().length > 0) {
-      return fromParentControl;
-    }
-    const fromFieldForm = this.field.form?.get("task")?.value;
-    if (typeof fromFieldForm === "string" && fromFieldForm.trim().length > 0) {
-      return fromFieldForm;
+    const fromControl = this.controlFor("task")?.value;
+    if (typeof fromControl === "string" && fromControl.trim().length > 0) {
+      return fromControl;
     }
     return undefined;
   }
 
   private persistTaskSelection(tag: string): void {
-    // 1. Update the backing model FIRST so expression functions read the new value.
-    if (this.model) {
-      this.model.task = tag;
-    }
-
-    // 2. Update the hidden task form control. Using emitEvent: true (default)
-    //    ensures formly picks up the change and re-evaluates all sibling expressions.
-    const taskControlFromField = this.field.form?.get("task");
-    if (taskControlFromField) {
-      taskControlFromField.setValue(tag);
-    }
-
-    const taskControlFromParent = this.formControl?.parent?.get("task");
-    if (taskControlFromParent && taskControlFromParent !== taskControlFromField) {
-      taskControlFromParent.setValue(tag);
-    }
-
-    // 3. Force formly to re-evaluate ALL field expressions (not just this field's subtree).
-    //    this.field is the modelId field; its parent covers all sibling fields.
+    this.writeFieldValue("task", tag, false);
+    // Re-evaluate sibling expressions after updating an exposed task control.
     const rootField = this.field.parent ?? this.field;
     this.field.options?.detectChanges?.(rootField);
   }
@@ -601,7 +586,7 @@ export class HuggingFaceComponent extends FieldType<FieldTypeConfig> implements 
       "temperature",
     ];
     for (const key of keys) {
-      const control = this.field.form?.get(key) ?? this.formControl?.parent?.get(key);
+      const control = this.controlFor(key);
       control?.updateValueAndValidity({ emitEvent: false });
     }
     this.field.form?.updateValueAndValidity({ emitEvent: false });
@@ -659,23 +644,35 @@ export class HuggingFaceComponent extends FieldType<FieldTypeConfig> implements 
     }
   }
 
-  private readFieldValue(key: (typeof this.taskScopedKeys)[number]): unknown {
-    const control = this.field.form?.get(key) ?? this.formControl?.parent?.get(key);
+  public get canSelectTask(): boolean {
+    return !this.props.disabled && (!this.props["propertyContext"] || !!this.controlFor("task"));
+  }
+
+  private controlFor(key: string) {
+    const id = huggingFacePropertyKey(this.field, key);
+    return id ? this.field.form?.get(id) ?? this.formControl?.parent?.get(id) : undefined;
+  }
+
+  private readFieldValue(key: string): unknown {
+    const control = this.controlFor(key);
     if (control) {
       return control.value;
     }
-    return this.model?.[key];
+    return (propertyModel(this.field) ?? this.model)?.[key];
   }
 
-  private writeFieldValue(key: (typeof this.taskScopedKeys)[number], value: unknown): void {
-    const control = this.field.form?.get(key) ?? this.formControl?.parent?.get(key);
-    if (control) {
-      control.setValue(value, { emitEvent: false });
-      control.markAsDirty();
-      control.updateValueAndValidity({ emitEvent: false });
+  private writeFieldValue(key: string, value: unknown, markDirty = true): void {
+    const id = huggingFacePropertyKey(this.field, key);
+    const control = this.controlFor(key);
+    if (!id || (this.props["propertyContext"] && !control)) return;
+    for (const target of new Set([control, this.formControl?.parent?.get(id)])) {
+      if (!target) continue;
+      target.setValue(value, { emitEvent: false });
+      if (markDirty) target.markAsDirty();
+      target.updateValueAndValidity({ emitEvent: false });
     }
     if (this.model) {
-      (this.model as Record<string, unknown>)[key] = value;
+      (this.model as Record<string, unknown>)[id] = value;
     }
   }
 }

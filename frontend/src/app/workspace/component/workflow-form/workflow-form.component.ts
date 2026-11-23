@@ -17,6 +17,9 @@
  * under the License.
  */
 
+import { isMacroTerminal } from "../../../common/util/workflow-macro";
+import { setFieldBehavior, setFieldDependencies } from "../../../common/formly/formly-utils";
+import { CustomJSONSchema7 } from "../../types/custom-json-schema.interface";
 import { ChangeDetectorRef, Component, ElementRef, HostListener, OnDestroy, OnInit } from "@angular/core";
 import { CommonModule, DatePipe } from "@angular/common";
 import { AbstractControl, FormArray, FormGroup, FormsModule, ReactiveFormsModule } from "@angular/forms";
@@ -47,10 +50,17 @@ import { WorkflowPersistService } from "../../../common/service/workflow-persist
 import { NotificationService } from "../../../common/service/notification/notification.service";
 import { UserService } from "../../../common/service/user/user.service";
 import { DynamicSchemaService } from "../../service/dynamic-schema/dynamic-schema.service";
-import { customFormlyFieldType, CANVAS_ONLY_FORMLY_TYPES, FIELD_OPERATOR_ID_PROP } from "../../util/custom-formly-type";
+import {
+  conditionalRequiredRules,
+  customFormlyFieldType,
+  CANVAS_ONLY_FORMLY_TYPES,
+  FIELD_OPERATOR_ID_PROP,
+} from "../../util/custom-formly-type";
 import { UiUdfParametersSyncService } from "../../service/code-editor/ui-udf-parameters-sync.service";
 import type { UiUdfParameter } from "../../service/code-editor/ui-udf-parameters-parser.service";
 import { WorkflowCompilingService } from "../../service/compile-workflow/workflow-compiling.service";
+import { MacroNavigationService } from "../../service/macro/macro-navigation.service";
+import { CompilationState } from "../../types/workflow-compiling.interface";
 import { ExecuteWorkflowService, FORM_DEBOUNCE_TIME_MS } from "../../service/execute-workflow/execute-workflow.service";
 import { OperatorMetadataService } from "../../service/operator-metadata/operator-metadata.service";
 import { FormBindingService, ResolvedField } from "../../service/form-binding/form-binding.service";
@@ -327,10 +337,12 @@ export class WorkflowFormComponent implements OnInit, OnDestroy {
     private validationWorkflowService: ValidationWorkflowService,
     private config: GuiConfigService,
     private warehouseService: WarehouseService,
+    private macroNavigation: MacroNavigationService,
     private uiUdfParametersSyncService: UiUdfParametersSyncService
   ) {}
 
   ngOnInit(): void {
+    this.workflowResultService.setMacroAliases?.(port => this.macroNavigation.resultAliases(port));
     const wid = Number(this.route.snapshot.params.id);
     if (!Number.isFinite(wid)) {
       void this.router.navigate([USER_WORKFLOW]);
@@ -871,7 +883,7 @@ export class WorkflowFormComponent implements OnInit, OnDestroy {
     const hasEnabledDownstream = new Set(graph.getAllEnabledLinks().map(link => link.source.operatorID));
     return graph
       .getAllOperators()
-      .filter(op => !(op.isDisabled ?? false) && !hasEnabledDownstream.has(op.operatorID))
+      .filter(op => !isMacroTerminal(op) && !(op.isDisabled ?? false) && !hasEnabledDownstream.has(op.operatorID))
       .map(op => op.operatorID);
   }
 
@@ -906,6 +918,17 @@ export class WorkflowFormComponent implements OnInit, OnDestroy {
       this.rebuildFormOrDefer(false);
       return;
     }
+    // Refresh sibling context without replacing controls or an edit still waiting to be written.
+    const graph = this.workflowActionService.getTexeraGraph();
+    this.rendered.forEach(card => {
+      const { binding, brokenReason } = card.resolved;
+      if (brokenReason || !graph.hasOperator(binding.operatorID)) return;
+      const model = {
+        ...cloneDeep(graph.getOperator(binding.operatorID)?.operatorProperties ?? {}),
+        [binding.id]: card.model[binding.id],
+      };
+      if (!sameValue(model, card.model)) card.model = model;
+    });
     this.refreshShownResults();
     this.rebuildResultChoices();
     this.cdr.markForCheck();
@@ -1039,8 +1062,10 @@ export class WorkflowFormComponent implements OnInit, OnDestroy {
     const schemaKey = JSON.stringify(schema);
     const operator = this.workflowActionService.getTexeraGraph().getOperator(binding.operatorID);
     const operatorType = operator?.operatorType;
+    const conditionalRules = conditionalRequiredRules(schema);
     const full = this.formlyJsonschema.toFieldConfig(cloneDeep(schema) as never, {
       map: (mapped, source) => {
+        setFieldBehavior(mapped, source as CustomJSONSchema7, conditionalRules.get(String(mapped.key)));
         // Render the exact custom widget the operator property panel would (file/model/dataset
         // pickers, image/audio uploaders, ...), shared via customFormlyFieldType so an exposed
         // property shows its real control instead of degrading to a text box.
@@ -1059,6 +1084,11 @@ export class WorkflowFormComponent implements OnInit, OnDestroy {
         return mapped;
       },
     });
+    setFieldDependencies(
+      schema as CustomJSONSchema7,
+      full.fieldGroup ?? [],
+      this.workflowCompilingService.getOperatorInputSchemaMap(binding.operatorID)
+    );
     const source = (full.fieldGroup ?? []).find(child => child.key === binding.propertyKey);
     if (!source) {
       return undefined;
@@ -1106,7 +1136,7 @@ export class WorkflowFormComponent implements OnInit, OnDestroy {
         // writing that back silently wiped the operator's real value (both views edit one
         // workflow). So only accept a dirtied form, or a value that differs from the operator's
         // without being emptier (some controls set values without marking dirty).
-        const next = model[binding.id];
+        const next = card.model[binding.id];
         const current = this.formBindingService.readValue(binding.operatorID, binding.propertyKey);
         const isEmpty = (v: unknown) => v === undefined || v === null || v === "";
         const unchanged = JSON.stringify(next ?? null) === JSON.stringify(current ?? null);
@@ -1909,6 +1939,9 @@ export class WorkflowFormComponent implements OnInit, OnDestroy {
    * button's only run control.
    */
   public get runButtonState(): { label: string; icon: string; disabled: boolean } {
+    if (this.workflowActionService.getMacroInterface()) {
+      return { label: "Run in workflow", icon: "caret-right", disabled: true };
+    }
     // Connecting is checked before Stop on purpose: if the socket drops mid-run, a "Stop" would
     // send killWorkflow() through a dead socket and do nothing, so a disconnected unit disables the
     // button (as the canvas does) rather than offering a kill that cannot be delivered.
@@ -1920,7 +1953,10 @@ export class WorkflowFormComponent implements OnInit, OnDestroy {
     if (this.isRunning && this.workflowWebsocketService.isConnected) {
       return { label: "Stop", icon: "stop", disabled: false };
     }
-    if (!this.isWorkflowValid) {
+    if (
+      !this.isWorkflowValid ||
+      this.workflowCompilingService.getWorkflowCompilationState() === CompilationState.Failed
+    ) {
       return { label: "Invalid", icon: "warning", disabled: true };
     }
     if (this.isWorkflowEmpty) {
@@ -1956,6 +1992,7 @@ export class WorkflowFormComponent implements OnInit, OnDestroy {
       this.executeWorkflowService.killWorkflow();
       return;
     }
+    this.rendered.forEach(card => card.pendingWrite && card.flushWrite?.());
     // The button is disabled in exactly the states a run cannot start from (invalid/empty workflow,
     // connecting, or no unit), so a stray call here would be a silent no-op.
     if (this.runButtonState.disabled) {

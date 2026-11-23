@@ -16,6 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
+import { testPort, setMacroGraph } from "../../../common/testing/macro-graph";
 
 import { inject, TestBed } from "@angular/core/testing";
 import { Validation, ValidationError, ValidationWorkflowService } from "./validation-workflow.service";
@@ -45,6 +46,18 @@ import { commonTestProviders } from "../../../common/testing/test-utils";
 describe("ValidationWorkflowService", () => {
   let validationWorkflowService: ValidationWorkflowService;
   let workflowActionservice: WorkflowActionService;
+  it("accepts declared macro inputs as external connections without accepting undeclared ports", () => {
+    workflowActionservice.addOperator(mockSentimentPredicate, mockPoint);
+    const inputs = [testPort("external", mockSentimentPredicate.operatorID, "input-0")];
+    setMacroGraph(workflowActionservice, { id: "macro", inputs, outputs: [] });
+    expect((validationWorkflowService as any).validateOperatorConnection(mockSentimentPredicate.operatorID)).toEqual({
+      isValid: true,
+    });
+    setMacroGraph(workflowActionservice, { id: "macro", inputs: [], outputs: [] });
+    expect(
+      (validationWorkflowService as any).validateOperatorConnection(mockSentimentPredicate.operatorID).isValid
+    ).toBe(false);
+  });
   beforeEach(() => {
     TestBed.configureTestingModule({
       providers: [

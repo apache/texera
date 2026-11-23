@@ -16,14 +16,17 @@
  * specific language governing permissions and limitations
  * under the License.
  */
+import { testMacro, setMacroGraph } from "../../../common/testing/macro-graph";
 
 import { DatePipe, Location } from "@angular/common";
 import { ComponentFixture, TestBed } from "@angular/core/testing";
 import { By } from "@angular/platform-browser";
-import { HttpClientTestingModule } from "@angular/common/http/testing";
+import { HttpClientTestingModule, HttpTestingController } from "@angular/common/http/testing";
+import { macroInstance } from "../../../common/util/workflow-macro";
 import { RouterTestingModule } from "@angular/router/testing";
 import { NzModalService, NzModalModule, NzModalRef } from "ng-zorro-antd/modal";
-import { BehaviorSubject, of, Subject, throwError } from "rxjs";
+import { BehaviorSubject, firstValueFrom, of, Subject, throwError } from "rxjs";
+import { WorkflowToPythonService } from "../../../dashboard/service/user/workflow-to-python/workflow-to-python.service";
 import { take } from "rxjs/operators";
 import { WorkflowResultExportService } from "../../service/workflow-result-export/workflow-result-export.service";
 
@@ -373,6 +376,35 @@ describe("MenuComponent", () => {
       Object.defineProperty(component.workflowWebsocketService, "isConnected", { get: () => true, configurable: true });
       component.executionState = ExecutionState.Uninitialized;
     });
+
+    it.each([true, false])(
+      "disables macro definitions independently of their validity (%s), then restores the workflow Run button",
+      valid => {
+        setMacroGraph(workflowActionService, { id: "macro", inputs: [], outputs: [] });
+        component.isWorkflowValid = valid;
+        component.isWorkflowCompilable = valid;
+        const execute = vi.spyOn(executeWorkflowService, "executeWorkflow");
+        render();
+        expect(runButton().textContent?.trim()).toBe("Run in workflow");
+        expect(runButton().disabled).toBe(true);
+        runButton().click();
+        component.onClickRunHandler();
+        expect(execute).not.toHaveBeenCalled();
+        const workflow = workflowActionService.getWorkflow();
+        workflowActionService.setNewSharedModel();
+        workflowActionService.reloadWorkflow(
+          { ...workflow, content: { ...workflow.content, macroInterface: undefined } },
+          false
+        );
+        component.isWorkflowValid = true;
+        component.isWorkflowCompilable = true;
+        component.isWorkflowEmpty = false;
+        component.computingUnitStatus = ComputingUnitState.Running;
+        render();
+        expect(runButton().textContent?.trim()).toBe("Run");
+        expect(runButton().disabled).toBe(false);
+      }
+    );
 
     it("leaves the no-unit button clickable, since that is the state it exists to fix", () => {
       // The privilege check asks a unit that does not exist; with no unit
@@ -747,6 +779,58 @@ describe("MenuComponent", () => {
   });
 
   describe("export as Python", () => {
+    const request = () =>
+      TestBed.inject(HttpTestingController).expectOne(req => req.url.endsWith("/workflow-to-python"));
+    it.each([false, true])(
+      "the export client preserves an empty plan and supplies missing result flags (macro: %s)",
+      async macro => {
+        const graph = { operators: [], links: [] };
+        const plan = macro
+          ? { ...graph, macroContent: { ...graph, macroDependencies: [] }, executeOperatorIds: [] }
+          : graph;
+        const before = structuredClone(plan);
+        const conversion = firstValueFrom(TestBed.inject(WorkflowToPythonService).convertToPython(plan));
+        const sent = request();
+        expect(sent.request.body).toEqual({ ...before, opsToViewResult: [], opsToReuseResult: [] });
+        sent.flush({ type: "success", pythonCode: "pass" });
+        expect(await conversion).toEqual({ type: "success", pythonCode: "pass" });
+        expect(plan).toEqual(before);
+      }
+    );
+    const addMacro = () => {
+      const definition = testMacro("python", [mockScanPredicate], { name: "Python export" });
+      workflowActionService.setMacroDependencies([definition]);
+      workflowActionService.addOperator(macroInstance(definition, "macro"), mockPoint);
+      validationStream$.next({ errors: {}, workflowEmpty: false });
+      return definition;
+    };
+    it("sends the pinned graph to the compiler and displays its Python script", () => {
+      const definition = addMacro();
+      const before = structuredClone(workflowActionService.getWorkflowContent());
+      component.onClickExportAsPython();
+      const exportRequest = request();
+      expect(exportRequest.request.body).toEqual({
+        operators: [],
+        links: [],
+        opsToReuseResult: [],
+        opsToViewResult: [],
+        macroContent: { operators: before.operators, links: before.links, macroDependencies: [definition] },
+        executeOperatorIds: ["macro"],
+      });
+      exportRequest.flush({ type: "success", pythonCode: "print(1)" });
+      expect(component.pythonCodeForModal).toBe("print(1)");
+      expect(workflowActionService.getWorkflowContent()).toEqual(before);
+    });
+
+    it("shows the compiler's error when a pin cannot be translated", () => {
+      addMacro();
+      const error = vi.spyOn(notificationService, "error");
+      component.onClickExportAsPython();
+      request().flush({ type: "failure", errorMessage: "Missing macro version" });
+      expect(error).toHaveBeenCalledWith("Missing macro version");
+      expect(component.isTranslatingToPython).toBe(false);
+    });
+
     // Exporting the valid part of the graph answers a workflow with a required
     // value missing by leaving that operator and its links out, and handing back
     // a script that runs and is not the workflow.
@@ -778,9 +862,6 @@ describe("MenuComponent", () => {
     // The whole graph, not the valid part of it: the two agree once the workflow
     // is valid, and asking for the valid part is what dropped operators.
     it("sends the whole graph once the workflow is valid", () => {
-      const convert = vi
-        .spyOn(component["workflowToPythonService"], "convertToPython")
-        .mockReturnValue(of({ type: "success", pythonCode: "print(1)" } as any));
       const validSubgraph = vi.spyOn(validationWorkflowService, "getValidTexeraGraph");
       workflowActionService.addOperator(mockScanPredicate, mockPoint);
       validationStream$.next({ errors: {}, workflowEmpty: false });
@@ -788,8 +869,22 @@ describe("MenuComponent", () => {
       component.onClickExportAsPython();
 
       expect(validSubgraph).not.toHaveBeenCalled();
-      expect(convert).toHaveBeenCalled();
-      expect(convert.mock.calls[0][0].operators).toHaveLength(1);
+      const exportRequest = request();
+      expect(exportRequest.request.body).toEqual({
+        operators: [
+          {
+            operatorID: mockScanPredicate.operatorID,
+            operatorType: mockScanPredicate.operatorType,
+            inputPorts: mockScanPredicate.inputPorts,
+            outputPorts: mockScanPredicate.outputPorts,
+          },
+        ],
+        links: [],
+        opsToViewResult: [],
+        opsToReuseResult: [],
+      });
+      exportRequest.flush({ type: "success", pythonCode: "print(1)" });
+      expect(component.pythonCodeForModal).toBe("print(1)");
     });
   });
 

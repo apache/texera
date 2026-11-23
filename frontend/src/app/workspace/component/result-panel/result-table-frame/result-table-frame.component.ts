@@ -263,12 +263,6 @@ export class ResultTableFrameComponent implements OnInit, OnChanges {
       if (isDefined(this.containerHeight)) return;
       this.fitPageSize(size.height);
     });
-
-    if (this.operatorId) {
-      const paginatedResultService = this.workflowResultService.getPaginatedResultService(this.operatorId);
-      if (paginatedResultService) {
-      }
-    }
   }
 
   checkKeys(

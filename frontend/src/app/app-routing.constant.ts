@@ -41,6 +41,7 @@ export const USER_WORKFLOW = `${USER}/workflow`;
 
 /** One workflow is open in the workspace under two views: the operator canvas and the Form View. */
 export const workspaceCanvasUrl = (wid: number): string => `${USER_WORKSPACE}/${wid}`;
+export const macroCanvasUrl = (wid: number): string => `${USER}/macros/${wid}`;
 export const workspaceFormUrl = (wid: number): string => `${workspaceCanvasUrl(wid)}/form`;
 
 /**
@@ -52,7 +53,7 @@ function isWorkspaceViewOf(url: string, wid: number | undefined): boolean {
     return false;
   }
   const path = url.split(/[?#]/)[0];
-  return path === workspaceCanvasUrl(wid) || path === workspaceFormUrl(wid);
+  return path === workspaceCanvasUrl(wid) || path === workspaceFormUrl(wid) || path === macroCanvasUrl(wid);
 }
 
 /**

@@ -20,6 +20,7 @@
 <div cdkDropList>
   <div
     cdkDrag
+    [cdkDragDisabled]="!draggable"
     (cdkDragStarted)="dragStarted()"
     (cdkDragDropped)="dragDropped($event.dropPoint)"
     [ngClass]="{'disable-drag-drop': !draggable}"

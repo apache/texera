@@ -45,11 +45,8 @@ export const resolved = (id: string, displayName: string, extra: Partial<Resolve
 });
 
 /**
- * Mocks shared by every workflow-form spec, plus the component factory. Only what the current
- * slices exercise is mocked; later slices add the dependencies (and streams) they introduce, so
- * each PR's additions are covered by that PR's own spec. `setupHarness()` runs once per
- * `beforeEach`; `build(workflow)` (in each spec) constructs the component with the subset its
- * constructor takes.
+ * Fresh service doubles for the direct and TestBed Form View suites. Tests can control the
+ * workflow, graph, and event streams without mounting the JointJS canvas.
  */
 export function setupHarness() {
   // `getCurrentNavigation` answers what the page is being destroyed for: null stands for no
@@ -161,6 +158,7 @@ export function setupHarness() {
   const uiParametersChanged = new Subject<{ operatorId: string; parameters: unknown[] }>();
   const uiUdfParametersSyncService = { uiParametersChanged$: uiParametersChanged.asObservable() };
   const workflowActionService = {
+    getMacroInterface: vi.fn().mockReturnValue(undefined),
     setOperatorProperty: vi.fn(),
     resetAsNewWorkflow: vi.fn(),
     setNewSharedModel: vi.fn(),
@@ -301,7 +299,9 @@ export function setupHarness() {
   };
   const dynamicSchemaService = { getDynamicSchema: () => ({ jsonSchema: {} }) };
   const workflowCompilingService = {
+    getWorkflowCompilationState: vi.fn().mockReturnValue("Uninitialized"),
     getCompilationStateInfoChangedStream: () => compilationChanged.asObservable(),
+    getOperatorInputSchemaMap: () => undefined,
   };
   const workflowPersistService = {
     retrieveWorkflow: vi.fn().mockReturnValue(of(formViewWorkflow)),
@@ -386,6 +386,7 @@ export function setupHarness() {
 
   return {
     useWorkflow,
+    macroNavigation: { resultAliases: () => ({}) },
     router,
     coeditorPresenceService,
     route,

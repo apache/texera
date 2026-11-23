@@ -19,7 +19,7 @@
 
 import { ComponentFixture, TestBed, fakeAsync, flush, tick } from "@angular/core/testing";
 import { By } from "@angular/platform-browser";
-import { Subject } from "rxjs";
+import { EMPTY, Subject } from "rxjs";
 import { ConsoleFrameComponent } from "./console-frame.component";
 import { OperatorMetadataService } from "../../../service/operator-metadata/operator-metadata.service";
 import { StubOperatorMetadataService } from "../../../service/operator-metadata/stub-operator-metadata.service";
@@ -51,6 +51,11 @@ function consoleMessage(name: string): ConsoleMessage {
 }
 
 type StateEvent = { previous: { state: ExecutionState }; current: { state: ExecutionState } };
+
+const compilingProvider = {
+  provide: WorkflowCompilingService,
+  useValue: { getWorkflowCompilationErrors: () => ({}), getCompilationStateInfoChangedStream: () => EMPTY },
+};
 
 describe("ConsoleFrameComponent", () => {
   let component: ConsoleFrameComponent;
@@ -106,6 +111,7 @@ describe("ConsoleFrameComponent", () => {
             getAllConsoleMessages,
           },
         },
+        compilingProvider,
         { provide: WorkflowWebsocketService, useValue: { send } },
         { provide: NotificationService, useValue: { error: notifyError } },
         { provide: UdfDebugService, useValue: { doStep, doContinue } },
@@ -824,6 +830,7 @@ describe("ConsoleFrameComponent settings dropdown", () => {
             getAllConsoleMessages: () => [],
           },
         },
+        compilingProvider,
         { provide: WorkflowWebsocketService, useValue: { send: () => {} } },
         { provide: NotificationService, useValue: { error: () => {} } },
         { provide: UdfDebugService, useValue: { doStep: () => {}, doContinue: () => {} } },

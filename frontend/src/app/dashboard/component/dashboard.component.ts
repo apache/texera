@@ -267,11 +267,8 @@ export class DashboardComponent implements OnInit {
   }
 
   isNavbarEnabled(currentRoute: string) {
-    // Hide navbar for workflow workspace pages (with numeric ID)
-    if (currentRoute.match(/\/user\/workflow\/\d+/)) {
-      return false;
-    }
-    return true;
+    // Workflow and macro editors provide their own header.
+    return !/^\/user\/(?:workflow|macros)\/\d+(?:[/?#]|$)/.test(currentRoute);
   }
 
   handleCollapseChange(collapsed: boolean) {

@@ -17,6 +17,27 @@
  * under the License.
  */
 
+import type { FormlyFieldConfig } from "@ngx-formly/core";
+import type { PropertyContext } from "../types/custom-json-schema.interface";
+
+/** Read siblings in their native namespace, including unexposed defaults and a renamed Form View field. */
+export function propertyModel(field?: FormlyFieldConfig): any {
+  const model = field?.parent?.model;
+  const context = field?.props?.["propertyContext"] as PropertyContext | undefined;
+  if (!context || !model) return model;
+  return {
+    ...context.properties,
+    ...Object.fromEntries(
+      Object.entries(context.bindings)
+        .filter(([, key]) => Object.hasOwn(model, key))
+        .map(([key, id]) => [key, model[id]])
+    ),
+    ...(field?.key !== undefined && Object.hasOwn(model, String(field.key))
+      ? { [context.propertyKey]: model[String(field.key)] }
+      : {}),
+  };
+}
+
 /**
  * Widget types that cannot be a form field at all, so the property is not offered for exposure on
  * the Form View. Only the code editor: editing code is not "filling in a value", and a form reader
@@ -115,4 +136,56 @@ export function customFormlyFieldType(input: {
     return "repeat-section-dnd";
   }
   return undefined;
+}
+
+/** A field the schema requires only while a sibling holds a particular value. */
+export interface ConditionalRequiredRule {
+  sibling: string;
+  value: unknown;
+  requiredOnMatch: boolean;
+}
+
+/**
+ * The conditional `required` rules a schema declares, keyed by the field each
+ * governs. A schema states one as
+ *
+ *   allOf: [{ if: { properties: { sibling: { const: v } } }, then: { required: [field] } }]
+ *
+ * with `else` for the inverted form. Validation already honours these, but a
+ * field's own config never learns of them, so the required marker would not
+ * appear. Reading them out lets the marker follow the condition the validator
+ * applies, and lets an operator declare it in one place rather than here.
+ *
+ * The walk covers nested schemas because a rule may govern a field inside an
+ * array item, where it sits under `definitions`. Keying by field name is enough:
+ * the marker resolves the sibling against the field's own parent model, which is
+ * the row for an array item and the operator for a top-level field.
+ */
+export function conditionalRequiredRules(schema: unknown): Map<string, ConditionalRequiredRule> {
+  const rules = new Map<string, ConditionalRequiredRule>();
+  const visit = (node: any): void => {
+    if (node === null || typeof node !== "object") {
+      return;
+    }
+    for (const branch of Array.isArray(node.allOf) ? node.allOf : []) {
+      // `if.properties` distinguishes a real condition from the `attributeTypeRules`
+      // blocks, which name the sibling directly and require nothing.
+      const condition = branch?.if?.properties;
+      const sibling = condition === undefined ? undefined : Object.keys(condition)[0];
+      if (sibling === undefined || !("const" in (condition[sibling] ?? {}))) {
+        continue;
+      }
+      for (const [outcome, requiredOnMatch] of [
+        ["then", true],
+        ["else", false],
+      ] as const) {
+        for (const field of branch?.[outcome]?.required ?? []) {
+          rules.set(field, { sibling, value: condition[sibling].const, requiredOnMatch });
+        }
+      }
+    }
+    Object.values(node).forEach(visit);
+  };
+  visit(schema);
+  return rules;
 }

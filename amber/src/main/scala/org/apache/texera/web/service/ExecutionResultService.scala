@@ -404,12 +404,22 @@ class ExecutionResultService(
   def handleResultPagination(request: ResultPaginationRequest): TexeraWebSocketEvent = {
     // calculate from index (pageIndex starts from 1 instead of 0)
     val from = request.pageSize * (request.pageIndex - 1)
-    val latestExecutionId = getLatestExecutionId(workflowIdentity, computingUnitId).getOrElse(
-      throw new IllegalStateException("No execution is recorded")
-    )
+    val executionId = request.executionId match {
+      case Some(id)
+          if WorkflowExecutionsResource.ownsExecution(workflowIdentity, computingUnitId, id) =>
+        ExecutionIdentity(id)
+      case Some(_) =>
+        throw new IllegalArgumentException(
+          "Execution is unavailable for this workflow and computing unit"
+        )
+      case None =>
+        getLatestExecutionId(workflowIdentity, computingUnitId).getOrElse(
+          throw new IllegalStateException("No execution is recorded")
+        )
+    }
 
     val storageUriOption = ExecutionResultUris.getResultUriByLogicalPortId(
-      latestExecutionId,
+      executionId,
       OperatorIdentity(request.operatorID),
       PortIdentity(request.portIndex)
     )

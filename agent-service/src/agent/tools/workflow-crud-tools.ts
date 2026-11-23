@@ -17,6 +17,8 @@
  * under the License.
  */
 
+import { isMacro } from "@texera/workflow-macros";
+import { validateMacroPropertiesAsync } from "../../api/compile-api";
 import { z } from "zod";
 import { tool } from "ai";
 import { WorkflowState } from "../workflow-state";
@@ -37,6 +39,7 @@ import {
 } from "../util/workflow-system-metadata";
 
 export interface ToolContext {
+  userToken?: string;
   metadataStore?: WorkflowSystemMetadata;
   settings?: {
     maxOperatorResultCharLimit?: number;
@@ -55,6 +58,19 @@ function formatInputArgs(args: Record<string, any>): string {
     if (value !== undefined) compact[key] = value;
   }
   return `Input: ${JSON.stringify(compact)}`;
+}
+
+function propertyError(
+  metadata: WorkflowSystemMetadata,
+  type: string,
+  properties: Record<string, unknown>,
+  inputInfo: string
+): string | undefined {
+  const validation = metadata.validateOperatorProperties(type, properties);
+  if (validation.isValid) return;
+  const schema = metadata.getCompactSchema(type);
+  const expected = schema ? ` Expected: ${formatCompactSchemaForError(schema)}.` : "";
+  return `Invalid properties for "${type}": ${formatValidationErrors(validation)}.${expected} ${inputInfo}`;
 }
 
 /**
@@ -99,6 +115,10 @@ function resolveInputLinks(
     }
   }
   return { links };
+}
+
+function linkPair(link: Omit<OperatorLink, "linkID">) {
+  return { source: link.source.operatorID, target: link.target.operatorID };
 }
 
 export function createAddOperatorTool(
@@ -153,14 +173,8 @@ Examples:
         }
 
         if (context?.metadataStore && args.properties) {
-          const validation = context.metadataStore.validateOperatorProperties(args.operatorType, args.properties);
-          if (!validation.isValid) {
-            const compactSchema = context.metadataStore.getCompactSchema(args.operatorType);
-            const schemaStr = compactSchema ? ` Expected: ${formatCompactSchemaForError(compactSchema)}.` : "";
-            return createErrorResult(
-              `Invalid properties for "${args.operatorType}": ${formatValidationErrors(validation)}.${schemaStr} ${inputInfo}`
-            );
-          }
+          const error = propertyError(context.metadataStore, args.operatorType, args.properties, inputInfo);
+          if (error) return createErrorResult(error);
         }
 
         if (!workflowUtil) {
@@ -189,20 +203,15 @@ Examples:
 
         const resolved = resolveInputLinks(
           workflowState,
-          args.operatorId,
+          operator.operatorID,
           operator.inputPorts,
           args.inputOperatorIds,
           inputInfo
         );
         if ("error" in resolved) return createErrorResult(resolved.error);
-
+        const { links } = resolved;
         workflowState.addOperator(operator);
-
-        const createdLinkPairs: { source: string; target: string }[] = [];
-        for (const link of resolved.links) {
-          workflowState.addLink({ linkID: workflowState.generateLinkId(), ...link });
-          createdLinkPairs.push({ source: link.source.operatorID, target: args.operatorId });
-        }
+        links.forEach(link => workflowState.addLink({ ...link, linkID: workflowState.generateLinkId() }));
 
         autoLayoutWorkflow(workflowState);
 
@@ -214,7 +223,7 @@ Examples:
           operator.operatorID,
           numInputPorts,
           numOutputPorts,
-          createdLinkPairs.length > 0 ? createdLinkPairs : undefined
+          links.map(linkPair)
         );
 
         return createToolResult(resultMsg);
@@ -263,31 +272,31 @@ Examples:
         const operator = workflowState.getOperator(args.operatorId);
         if (!operator) return createErrorResult(`Operator ${args.operatorId} not found. ${inputInfo}`);
 
-        if (args.properties && context?.metadataStore) {
-          const mergedProperties = { ...operator.operatorProperties, ...args.properties };
-          const validation = context.metadataStore.validateOperatorProperties(operator.operatorType, mergedProperties);
-          if (!validation.isValid) {
-            const compactSchema = context.metadataStore.getCompactSchema(operator.operatorType);
-            const schemaStr = compactSchema ? ` Expected: ${formatCompactSchemaForError(compactSchema)}.` : "";
-            return createErrorResult(
-              `Invalid properties for "${operator.operatorType}": ${formatValidationErrors(validation)}.${schemaStr} ${inputInfo}`
-            );
-          }
-        }
-
         const resolved = resolveInputLinks(
           workflowState,
-          args.operatorId,
+          operator.operatorID,
           operator.inputPorts,
           args.inputOperatorIds,
           inputInfo
         );
         if ("error" in resolved) return createErrorResult(resolved.error);
-
-        const createdLinkPairs: { source: string; target: string }[] = [];
-        const deletedLinkPairs: { source: string; target: string }[] = [];
-
+        const { links } = resolved;
         if (args.properties) {
+          const proposed = { ...operator.operatorProperties, ...args.properties };
+          if (isMacro(operator)) {
+            const content = workflowState.getWorkflowContent();
+            const before = JSON.stringify(content);
+            await validateMacroPropertiesAsync(
+              { ...operator, operatorProperties: proposed },
+              content.macroDependencies,
+              context?.userToken
+            );
+            if (JSON.stringify(workflowState.getWorkflowContent()) !== before)
+              return createErrorResult("The workflow changed while validating properties. Try again.");
+          } else if (context?.metadataStore) {
+            const error = propertyError(context.metadataStore, operator.operatorType, proposed, inputInfo);
+            if (error) return createErrorResult(error);
+          }
           workflowState.updateOperatorProperties(args.operatorId, args.properties);
         }
 
@@ -295,29 +304,18 @@ Examples:
           workflowState.updateOperatorDisplayName(args.operatorId, args.summary);
         }
 
+        const removed = args.inputOperatorIds
+          ? workflowState
+              .getLinksConnectedToOperator(args.operatorId)
+              .filter(link => link.target.operatorID === args.operatorId)
+          : [];
         if (args.inputOperatorIds) {
-          const currentLinks = workflowState
-            .getLinksConnectedToOperator(args.operatorId)
-            .filter(link => link.target.operatorID === args.operatorId);
-          for (const link of currentLinks) {
-            deletedLinkPairs.push({ source: link.source.operatorID, target: link.target.operatorID });
-            workflowState.deleteLink(link.linkID);
-          }
-
-          for (const link of resolved.links) {
-            workflowState.addLink({ linkID: workflowState.generateLinkId(), ...link });
-            createdLinkPairs.push({ source: link.source.operatorID, target: args.operatorId });
-          }
-
+          removed.forEach(link => workflowState.deleteLink(link.linkID));
+          links.forEach(link => workflowState.addLink({ ...link, linkID: workflowState.generateLinkId() }));
           autoLayoutWorkflow(workflowState);
         }
 
-        let resultMsg = formatModifyOperatorResult(
-          args.operatorId,
-          createdLinkPairs.length > 0 ? createdLinkPairs : undefined,
-          deletedLinkPairs.length > 0 ? deletedLinkPairs : undefined
-        );
-
+        const resultMsg = formatModifyOperatorResult(args.operatorId, links.map(linkPair), removed.map(linkPair));
         return createToolResult(resultMsg);
       } catch (error: any) {
         return createErrorResult(formatOperatorError(args.operatorId, error.message || String(error)));

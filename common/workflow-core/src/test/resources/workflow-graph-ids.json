@@ -1,0 +1,135 @@
+{
+  "collections": {
+    "operators": "operatorID",
+    "links": "linkID",
+    "commentBoxes": "commentBoxID"
+  },
+  "invalidIDs": [
+    {
+      "value": "",
+      "label": "''"
+    },
+    {
+      "value": null,
+      "label": "None"
+    },
+    {
+      "value": 3,
+      "label": "3"
+    },
+    {
+      "value": "   ",
+      "label": "'   '"
+    }
+  ],
+  "errors": {
+    "collision": "Duplicate graph element ID 'same'",
+    "id": "Invalid graph element ID",
+    "graph": "Malformed workflow graph"
+  },
+  "positive": [
+    {
+      "name": "empty graph",
+      "content": {}
+    },
+    {
+      "name": "unicode identities and untouched values",
+      "content": {
+        "operators": [
+          {
+            "operatorID": "节点/東京",
+            "operatorProperties": {
+              "value": "same"
+            }
+          }
+        ],
+        "links": [
+          {
+            "linkID": "edge"
+          }
+        ],
+        "commentBoxes": [
+          {
+            "commentBoxID": "💬"
+          }
+        ]
+      }
+    },
+    {
+      "name": "IDs scoped to each saved revision",
+      "content": {
+        "operators": [
+          {
+            "operatorID": "same"
+          }
+        ],
+        "macroDependencies": [
+          {
+            "name": "Revision one",
+            "content": {
+              "operators": [
+                {
+                  "operatorID": "same"
+                }
+              ]
+            }
+          },
+          {
+            "name": "Revision two",
+            "content": {
+              "links": [
+                {
+                  "linkID": "same"
+                }
+              ]
+            }
+          }
+        ]
+      }
+    }
+  ],
+  "negative": [
+    {
+      "name": "reject missing ID",
+      "content": {
+        "operators": [
+          {}
+        ]
+      },
+      "error": "Invalid graph element ID"
+    },
+    {
+      "name": "reject null root",
+      "content": null,
+      "error": "Malformed workflow graph"
+    },
+    {
+      "name": "reject array root",
+      "content": [],
+      "error": "Malformed workflow graph"
+    },
+    {
+      "name": "reject duplicate in an unused pin",
+      "content": {
+        "macroDependencies": [
+          {
+            "name": "Nested",
+            "content": {
+              "links": [
+                {
+                  "linkID": "same"
+                }
+              ],
+              "commentBoxes": [
+                {
+                  "commentBoxID": "same"
+                }
+              ]
+            }
+          }
+        ]
+      },
+      "error": "Nested: Duplicate graph element ID 'same'"
+    }
+  ]
+}

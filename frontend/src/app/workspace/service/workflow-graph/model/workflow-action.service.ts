@@ -21,7 +21,8 @@ import { Injectable } from "@angular/core";
 
 import * as joint from "jointjs";
 import * as Y from "yjs";
-import { isEqual } from "lodash-es";
+import { v4 as uuid } from "uuid";
+import { cloneDeep, isEqual } from "lodash-es";
 import { BehaviorSubject, merge, Observable, Subject } from "rxjs";
 import {
   ExecutionMode,
@@ -52,13 +53,46 @@ import { filter } from "rxjs/operators";
 import { isDefined } from "../../../../common/util/predicate";
 import { User } from "../../../../common/type/user";
 import { SharedModelChangeHandler } from "./shared-model-change-handler";
-import { ContentMetaKey, ContentMetaValue } from "./shared-model";
+import { ContentMetaKey, ContentMetaValue, SharedModel } from "./shared-model";
+import { MacroTerminal, MacroTerminals } from "../../macro/macro-terminals";
+import { createYTypeFromObject } from "../../../types/shared-editing.interface";
 import { GuiConfigService } from "../../../../common/service/gui-config.service";
+import {
+  isMacro,
+  assertWorkflowIDs,
+  macroType,
+  readMacroInterface,
+  linkFitsMacroPorts,
+  isMacroTerminal,
+  mergeMacroDefinitions,
+  MacroDefinition,
+  MacroExpansion,
+  MacroInterface,
+} from "../../../../common/util/workflow-macro";
 
 /** A content-meta seed waiting to land (see seedContentMeta): its identity, and how to stop
  *  listening for the sync it waits on once it is superseded or cancelled. */
 interface ContentMetaSeed {
   detach?: () => void;
+}
+
+interface MacroUndoGroup {
+  undone: boolean;
+  items: [Y.UndoManager, Y.UndoManager["undoStack"][number]][];
+}
+
+interface ContentMetaState {
+  pendingContentMeta: Map<ContentMetaKey, { value: ContentMetaValue; edit: boolean }>;
+  contentMetaSeeds: Map<ContentMetaKey, ContentMetaSeed>;
+  seedingContentMetaKeys: Set<ContentMetaKey>;
+  roomOwnedContentMeta: Set<ContentMetaKey>;
+  seededContentMetaKeys: Set<ContentMetaKey>;
+}
+export interface WorkflowEditorSession {
+  shared: SharedModel;
+  metadata: WorkflowMetadata;
+  modifiable: boolean;
+  viewport?: { zoom: number; offset: { tx: number; ty: number } };
 }
 
 export const DEFAULT_WORKFLOW_NAME = "Untitled Workflow";
@@ -90,6 +124,8 @@ export const DEFAULT_WORKFLOW = {
  *
  */
 
+import { MacroExpansionService } from "../../macro/macro-expansion.service";
+
 @Injectable({
   providedIn: "root",
 })
@@ -97,6 +133,7 @@ export class WorkflowActionService {
   private readonly texeraGraph: WorkflowGraph;
   private readonly jointGraph: joint.dia.Graph;
   private readonly jointGraphWrapper: JointGraphWrapper;
+  public readonly macroTerminals: MacroTerminals;
   private readonly syncTexeraModel: SyncTexeraModel;
   private readonly sharedModelChangeHandler: SharedModelChangeHandler;
   // variable to temporarily hold the current workflow to switch view to a particular version
@@ -110,6 +147,15 @@ export class WorkflowActionService {
   private workflowMetadataChangeSubject: Subject<WorkflowMetadata> = new Subject<WorkflowMetadata>();
 
   private workflowResetSubject = new Subject<void>();
+  public readonly macroChanged$ = new Subject<void>();
+  public readonly editorChanging$ = new Subject<void>();
+  private macroDefinitionsCache?: { source: MacroDefinition[]; definitions: MacroDefinition[] };
+  public executionWorkflow?: () => Workflow;
+  public runtimeOperatorIDs?: () => Record<string, string> | undefined;
+  public runtimeBoundaryLinks?: () => { terminal: MacroTerminal; links: OperatorLink[] }[];
+  public getExecutionWorkflowMetadata(): WorkflowMetadata {
+    return this.executionWorkflow?.() ?? this.getWorkflowMetadata();
+  }
 
   // The Form View definition. Presentation, not structure, but it still lives in the shared
   // doc (shared-model contentMetaMap, key "formBinding") so a co-editor sees it live and no
@@ -122,30 +168,36 @@ export class WorkflowActionService {
   private workflowSettingsChangeSubject = new Subject<WorkflowSettings>();
   public readonly workflowSettingsChanged$: Observable<WorkflowSettings> =
     this.workflowSettingsChangeSubject.asObservable();
-  // The shared content-map observer, tracked so re-attaching on a new doc detaches the old one.
-  private contentMetaObserver?: (event: Y.YMapEvent<ContentMetaValue | null>) => void;
-  private observedContentMetaMap?: Y.Map<ContentMetaValue | null>;
-  // Per document, all reset when a new one is loaded (see observeContentMeta): database copies,
-  // and edits, waiting for the document's first sync (see seedContentMeta), read from meanwhile; the seed
-  // each key is waiting on, which a later reload replaces and a local edit of the key cancels;
-  // the keys a seed is writing right now, which is not an edit and so is not announced (an edit
-  // held for the sync is announced when it is made, see writeContentMeta); the keys
-  // whose entry came from the room, which the first seed of the key yields to; and the keys seeded
-  // on this document already, whose next seed is a reload that replaces the value.
-  private pendingContentMeta = new Map<ContentMetaKey, { value: ContentMetaValue; edit: boolean }>();
-  private contentMetaSeeds = new Map<ContentMetaKey, ContentMetaSeed>();
-  private seedingContentMetaKeys = new Set<ContentMetaKey>();
-  private roomOwnedContentMeta = new Set<ContentMetaKey>();
-  private seededContentMetaKeys = new Set<ContentMetaKey>();
+  private readonly contentMetaStates = new WeakMap<SharedModel, ContentMetaState>();
+  private readonly observedModels = new WeakSet<SharedModel>();
+  private get contentMetaState(): ContentMetaState {
+    return this.stateFor(this.texeraGraph.sharedModel);
+  }
+  private stateFor(shared: SharedModel): ContentMetaState {
+    let state = this.contentMetaStates.get(shared);
+    if (!state) {
+      state = {
+        pendingContentMeta: new Map(),
+        contentMetaSeeds: new Map(),
+        seedingContentMetaKeys: new Set(),
+        roomOwnedContentMeta: new Set(),
+        seededContentMetaKeys: new Set(),
+      };
+      this.contentMetaStates.set(shared, state);
+    }
+    return state;
+  }
 
   constructor(
     private operatorMetadataService: OperatorMetadataService,
     private jointUIService: JointUIService,
     private undoRedoService: UndoRedoService,
     private workflowUtilService: WorkflowUtilService,
-    private config: GuiConfigService
+    private config: GuiConfigService,
+    public readonly macroExpansion: MacroExpansionService
   ) {
     this.texeraGraph = new WorkflowGraph();
+    this.operatorMetadataService.setMacroProvider(() => this.getMacroDependencies());
     this.jointGraph = new joint.dia.Graph();
     this.jointGraphWrapper = new JointGraphWrapper(this.jointGraph);
 
@@ -170,37 +222,37 @@ export class WorkflowActionService {
     this.texeraGraph.newYDocLoadedSubject.subscribe(() => this.observeContentMeta());
 
     this.handleJointElementDrag();
+    this.macroTerminals = new MacroTerminals(this);
   }
 
   private observeContentMeta(): void {
-    // Detach the observer from the previous shared model before attaching to the new one, so
-    // re-attaching on each opened workflow does not stack listeners on the same map.
-    this.observedContentMetaMap?.unobserve(this.contentMetaObserver!);
-    // A new document starts with no seed state: nothing in it came from the previous room, no key
-    // has been seeded on it yet, and whatever copy the previously open workflow left waiting is
-    // not this one's -- dropped here, so it cannot leak into the next save of a workflow opened
-    // (or a blank one started) on this document.
-    for (const key of [...this.contentMetaSeeds.keys()]) {
-      this.cancelContentMetaSeed(key); // drops the copy it holds, and stops its listening
-    }
-    this.roomOwnedContentMeta.clear();
-    this.seededContentMetaKeys.clear();
-    const contentMetaMap = this.texeraGraph.sharedModel.contentMetaMap;
-    this.contentMetaObserver = event => {
+    const shared = this.texeraGraph.sharedModel;
+    if (this.observedModels.has(shared)) return;
+    this.observedModels.add(shared);
+    const state = this.stateFor(shared);
+    const contentMetaMap = shared.contentMetaMap;
+    contentMetaMap.observe(event => {
       if (!event.transaction.local) {
         // An entry that arrived from the room belongs to the room, a co-editor's value or its
         // cleared mark alike: the seed a workflow is opened with yields to it (see seedContentMeta).
         // The first sync delivers the room's state as a remote transaction, which is how an
         // opening client learns what the room already holds.
         for (const key of event.changes.keys.keys()) {
-          this.roomOwnedContentMeta.add(key as ContentMetaKey);
+          state.roomOwnedContentMeta.add(key as ContentMetaKey);
         }
       }
-      if (this.jointGraphWrapper.getReloadingWorkflow()) {
+      if (shared !== this.texeraGraph.sharedModel || this.jointGraphWrapper.getReloadingWorkflow()) {
         return;
       }
       if (event.changes.keys.has("formBinding") && this.announces("formBinding")) {
         this.formBindingChangeSubject.next(this.getFormBinding());
+      }
+      if (
+        ["macroInterface", "macroDependencies"].some(
+          key => event.changes.keys.has(key) && this.announces(key as ContentMetaKey)
+        )
+      ) {
+        this.macroChanged$.next();
       }
       // Settings are announced the same way, so a co-editor's change reaches the settings panel,
       // which refreshes from this stream, instead of sitting stale until an unrelated edit. Not
@@ -209,16 +261,46 @@ export class WorkflowActionService {
       if (event.changes.keys.has("settings") && this.announces("settings")) {
         this.workflowSettingsChangeSubject.next(this.getWorkflowSettings());
       }
-    };
-    contentMetaMap.observe(this.contentMetaObserver);
-    this.observedContentMetaMap = contentMetaMap;
+    });
+    shared.yDoc.on("destroy", () => {
+      for (const key of [...state.contentMetaSeeds.keys()]) this.cancelContentMetaSeed(key, state);
+    });
+    shared.undoManager.on("stack-item-popped", ({ stackItem, type }) => {
+      const destination = type === "undo" ? shared.undoManager.redoStack : shared.undoManager.undoStack;
+      const parents: MacroUndoGroup | undefined = stackItem.meta.get("macroParents");
+      if (parents) {
+        parents.undone = type === "undo";
+        const inverse: MacroUndoGroup["items"] = [];
+        for (const [manager, item] of parents.items.slice().reverse()) {
+          // Do not undo a later, unrelated edit in a suspended parent document.
+          if ((parents.undone ? manager.undoStack : manager.redoStack).at(-1) !== item) continue;
+          manager[type]();
+          inverse.push([manager, (parents.undone ? manager.redoStack : manager.undoStack).at(-1)!]);
+        }
+        parents.items = inverse;
+        destination.at(-1)?.meta.set("macroParents", parents);
+      }
+      if (stackItem.meta.has("macroContent"))
+        destination.at(-1)?.meta.set("macroContent", stackItem.meta.get("macroContent"));
+      const snapshots = stackItem.meta.get("macroContent");
+      if (!snapshots) return;
+      shared.yDoc.transact(() => {
+        for (const [key, value] of snapshots[type === "undo" ? "before" : "after"]) {
+          this.seedContentMeta(key, value, true, shared);
+        }
+      }, "macro-content-undo");
+      this.formBindingChangeSubject.next(this.getFormBinding());
+      this.macroChanged$.next();
+    });
   }
 
   /** Whether a change to a key in the shared map is announced: not a seed's own write, which is an
    *  open and not an edit; and not while an edit held for the first sync owns the key -- that edit
    *  was announced when it was made, reads answer it, and its landing is a seed's write. */
   private announces(key: ContentMetaKey): boolean {
-    return !this.seedingContentMetaKeys.has(key) && !this.pendingContentMeta.get(key)?.edit;
+    return (
+      !this.contentMetaState.seedingContentMetaKeys.has(key) && !this.contentMetaState.pendingContentMeta.get(key)?.edit
+    );
   }
 
   private getDefaultSettings(): WorkflowSettings {
@@ -298,16 +380,22 @@ export class WorkflowActionService {
    * @param point
    */
   public addOperator(operator: OperatorPredicate, point: Point): void {
+    this.texeraGraph.assertOperatorNotExists(operator.operatorID);
+    let dependencies: MacroDefinition[] | undefined;
+    if (isMacro(operator) && !this.getMacroDependencies().some(d => macroType(d) === operator.operatorType)) {
+      const definition = this.operatorMetadataService.getMacroDefinition(operator.operatorType);
+      if (!definition) throw new Error("Missing pinned macro version");
+      dependencies = [...this.getMacroDependencies(), definition, ...(definition.content.macroDependencies ?? [])];
+    }
     // turn off multiselect since there's only one operator added
     this.jointGraphWrapper.setMultiSelectMode(false);
-    // check that the operator doesn't exist
-    this.texeraGraph.assertOperatorNotExists(operator.operatorID);
     // check that the operator type exists
     if (!this.operatorMetadataService.operatorTypeExists(operator.operatorType)) {
       throw new Error(`operator type ${operator.operatorType} is invalid`);
     }
 
     this.texeraGraph.bundleActions(() => {
+      if (dependencies) this.setMacroDependencies(dependencies);
       // add operator to texera graph
       this.texeraGraph.addOperator(operator);
       this.texeraGraph.sharedModel.elementPositionMap?.set(operator.operatorID, point);
@@ -340,15 +428,16 @@ export class WorkflowActionService {
     let suffix = isInput ? operator.inputPorts.length : operator.outputPorts.length;
     let portID = prefix + suffix;
     // make sure portID has no conflict
-    while (operator.inputPorts.find(p => p.portID === portID) !== undefined) {
+    while ((isInput ? operator.inputPorts : operator.outputPorts).some(p => p.portID === portID)) {
       suffix += 1;
       portID = prefix + suffix;
     }
 
+    const terminal = isMacroTerminal(operator);
     const port: PortDescription = {
-      portID,
-      displayName: "",
-      disallowMultiInputs,
+      portID: terminal ? prefix + uuid() : portID,
+      displayName: terminal ? (isInput ? "Output" : "Input") : "",
+      disallowMultiInputs: terminal && isInput ? true : disallowMultiInputs,
       isDynamicPort: true,
       dependencies: [],
     };
@@ -373,7 +462,8 @@ export class WorkflowActionService {
   public removePort(operatorID: string, isInput: boolean): void {
     this.texeraGraph.bundleActions(() => {
       this.texeraGraph.assertOperatorExists(operatorID);
-      this.texeraGraph.removePort(operatorID, isInput);
+      const selected = this.jointGraphWrapper.getCurrentHighlightedPortIDs().find(p => p.operatorID === operatorID);
+      this.texeraGraph.removePort(operatorID, isInput, selected?.portID);
     });
   }
 
@@ -404,6 +494,13 @@ export class WorkflowActionService {
     links?: readonly OperatorLink[],
     commentBoxes?: ReadonlyArray<CommentBox>
   ): void {
+    const current = this.getWorkflowContent();
+    assertWorkflowIDs({
+      ...current,
+      operators: [...current.operators, ...operatorsAndPositions.map(item => item.op)],
+      links: [...current.links, ...(links ?? [])],
+      commentBoxes: [...current.commentBoxes, ...(commentBoxes ?? [])],
+    });
     // remember currently highlighted operators and groups
     const currentHighlights = this.jointGraphWrapper.getCurrentHighlights();
     // unhighlight previous highlights
@@ -485,30 +582,15 @@ export class WorkflowActionService {
    * Calculating the top-left (minimum x and y) position of all operators
    */
   public calculateTopLeftOperatorPosition(): void {
-    this.texeraGraph.bundleActions(() => {
-      this.undoRedoService.setListenJointCommand(false);
-      const allOperators = this.getTexeraGraph().getAllOperators();
-      if (allOperators.length === 0) return;
-
-      let minX = Infinity;
-      let minY = Infinity;
-
-      for (const operator of allOperators) {
-        const operatorID = operator.operatorID;
-        const position = this.jointGraphWrapper.getElementPosition(operatorID);
-
-        if (position.x < minX) {
-          minX = position.x;
-        }
-        if (position.y < minY) {
-          minY = position.y;
-        }
-      }
-
-      this.centerPoint = { x: minX, y: minY };
-
-      this.undoRedoService.setListenJointCommand(true);
-    });
+    const positions = this.jointGraph
+      .getElements()
+      .filter(e => this.texeraGraph.hasOperator(String(e.id)))
+      .map(e => e.position());
+    if (positions.length)
+      this.centerPoint = {
+        x: Math.min(...positions.map(p => p.x)),
+        y: Math.min(...positions.map(p => p.y)),
+      };
   }
 
   /**
@@ -681,6 +763,105 @@ export class WorkflowActionService {
   //                             Below are workflow-level and metadata-related methods.                               //
   //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
+  /** Retain the document and its undo history while another workflow occupies the canvas. */
+  public get editorDocument(): object {
+    return this.texeraGraph.sharedModel;
+  }
+
+  public suspendWorkflow(): WorkflowEditorSession {
+    const paper = this.jointGraphWrapper.getMainJointPaper();
+    return {
+      shared: this.texeraGraph.sharedModel,
+      metadata: this.workflowMetadata,
+      modifiable: this.checkWorkflowModificationEnabled(),
+      viewport: paper ? { zoom: paper.scale().sx, offset: paper.translate() } : undefined,
+    };
+  }
+
+  public getSessionWorkflow(session: WorkflowEditorSession): Workflow {
+    return { ...session.metadata, content: this.getWorkflowContent(session.shared) };
+  }
+
+  /** Keep asynchronous parent propagation on the initiating edit's existing Yjs undo item. */
+  public captureMacroUndo(): MacroUndoGroup | undefined {
+    const item = this.texeraGraph.sharedModel.undoManager.undoStack.at(-1);
+    if (!item) return;
+    const group: MacroUndoGroup = item.meta.get("macroParents") ?? { undone: false, items: [] };
+    item.meta.set("macroParents", group);
+    return group;
+  }
+
+  public updateMacroUsage(
+    operatorID: string,
+    content: WorkflowContent,
+    session?: WorkflowEditorSession,
+    origin?: MacroUndoGroup
+  ): void {
+    const shared = session?.shared ?? this.texeraGraph.sharedModel;
+    const updated = content.operators.find(o => o.operatorID === operatorID)!;
+    this.bundleMacroActions(() => {
+      if (content.macroDependencies) this.setMacroDependencies(content.macroDependencies, shared);
+      if (content.formBinding) this.setFormBinding(content.formBinding, shared);
+      for (const [id, link] of shared.operatorLinkMap) {
+        if (!linkFitsMacroPorts(link, updated)) shared.operatorLinkMap.delete(id);
+      }
+      shared.operatorIDMap.set(operatorID, createYTypeFromObject(updated));
+    }, shared);
+    if (origin) {
+      const manager = shared.undoManager,
+        item = manager.undoStack.at(-1);
+      if (item) {
+        if (origin.undone) manager.undo();
+        origin.items.push([manager, origin.undone ? manager.redoStack.at(-1)! : item]);
+      }
+    }
+  }
+
+  public openWorkflowDraft(workflow: Workflow, sharedEditing = false): void {
+    this.jointGraphWrapper.setReloadingWorkflow(true);
+    this.jointGraphWrapper.unhighlightElements(this.jointGraphWrapper.getCurrentHighlights());
+    const previous = this.texeraGraph.getAllOperators();
+    this.texeraGraph.sharedModel = new SharedModel(
+      sharedEditing ? workflow.wid : undefined,
+      this.texeraGraph.sharedModel.user,
+      this.config.env.productionSharedEditingServer
+    );
+    if (!sharedEditing) this.texeraGraph.sharedModel.wsProvider.disconnect();
+    this.texeraGraph.newYDocLoadedSubject.next(undefined);
+    previous.forEach(op => this.texeraGraph.operatorDeleteSubject.next({ deletedOperatorID: op.operatorID }));
+    this.undoRedoService.setUndoManager(this.texeraGraph.sharedModel.undoManager);
+    this.reloadWorkflow(workflow, false);
+  }
+
+  public resumeWorkflow(session: WorkflowEditorSession): void {
+    this.texeraGraph.sharedModel.destroy();
+    const previous = this.texeraGraph.getAllOperators();
+    this.jointGraphWrapper.setReloadingWorkflow(true);
+    this.texeraGraph.setSyncTexeraGraph(false);
+    try {
+      this.jointGraphWrapper.unhighlightElements(this.jointGraphWrapper.getCurrentHighlights());
+      this.jointGraph.clear();
+      previous.forEach(op => this.texeraGraph.operatorDeleteSubject.next({ deletedOperatorID: op.operatorID }));
+      this.texeraGraph.sharedModel = session.shared;
+      this.texeraGraph.newYDocLoadedSubject.next(undefined);
+      this.undoRedoService.setUndoManager(session.shared.undoManager);
+      this.operatorMetadataService.registerMacros(this.getMacroDependencies());
+      this.sharedModelChangeHandler.render();
+      this.setWorkflowMetadata(session.metadata);
+      if (session.modifiable) this.enableWorkflowModification();
+      else this.disableWorkflowModification();
+    } finally {
+      this.texeraGraph.setSyncTexeraGraph(true);
+      this.jointGraphWrapper.setReloadingWorkflow(false);
+    }
+    this.formBindingChangeSubject.next(this.getFormBinding());
+    this.macroChanged$.next();
+    if (session.viewport) {
+      this.jointGraphWrapper.setZoomProperty(session.viewport.zoom);
+      this.jointGraphWrapper.getMainJointPaper().translate(session.viewport.offset.tx, session.viewport.offset.ty);
+    } else this.texeraGraph.triggerCenterEvent();
+  }
+
   /**
    * Refreshes the internal shared model and joins a new shared-editing room.
    *
@@ -763,6 +944,7 @@ export class WorkflowActionService {
     asyncRendering = this.config.env.asyncRenderingEnabled,
     restoreViewport = true
   ): void {
+    if (workflow) assertWorkflowIDs(workflow.content);
     this.jointGraphWrapper.setReloadingWorkflow(true);
     this.jointGraphWrapper.jointGraphContext.withContext({ async: asyncRendering }, () => {
       this.setWorkflowMetadata(workflow);
@@ -791,6 +973,8 @@ export class WorkflowActionService {
       const workflowContent: WorkflowContent = workflow.content;
       this.hydrateSettings(workflowContent.settings);
       this.hydrateFormBinding(workflowContent.formBinding);
+      this.seedContentMeta("macroInterface", workflowContent.macroInterface);
+      this.seedContentMeta("macroDependencies", workflowContent.macroDependencies);
 
       let operatorsAndPositions: { op: OperatorPredicate; pos: Point }[] = [];
       workflowContent.operators.forEach(op => {
@@ -845,6 +1029,7 @@ export class WorkflowActionService {
       this.getTexeraGraph().getPortDisplayNameChangedSubject(),
       this.getTexeraGraph().getPortPropertyChangedStream(),
       this.formBindingChanged$,
+      this.macroChanged$,
       this.workflowResetSubject.asObservable()
     );
   }
@@ -939,37 +1124,42 @@ export class WorkflowActionService {
    * once (see writeContentMeta), and goes in after the sync as a write that follows the room's
    * state and replaces it -- which is what an edit means -- so it yields to nothing.
    */
-  private seedContentMeta(key: ContentMetaKey, value: ContentMetaValue | undefined, edit = false): void {
+  private seedContentMeta(
+    key: ContentMetaKey,
+    value: ContentMetaValue | undefined,
+    edit = false,
+    shared = this.texeraGraph.sharedModel
+  ): void {
+    const state = this.stateFor(shared);
     // This seed replaces any the key was still waiting on (and stops its listening); it has an
     // identity of its own, since a cleared key (undefined) has no value to be told apart by.
-    this.cancelContentMetaSeed(key);
+    this.cancelContentMetaSeed(key, state);
     const seed: ContentMetaSeed = {};
-    this.contentMetaSeeds.set(key, seed);
+    state.contentMetaSeeds.set(key, seed);
     if (value !== undefined) {
-      this.pendingContentMeta.set(key, { value, edit });
+      state.pendingContentMeta.set(key, { value, edit });
     }
-    const shared = this.texeraGraph.sharedModel;
     // Runs at once or when the sync comes, and then for this seed only: a later seed of the key, a
     // local edit of it and the loading of another document all detach the listening before they
     // would make this seed stale (see cancelContentMetaSeed, observeContentMeta).
     const land = () => {
-      this.cancelContentMetaSeed(key);
-      const first = !this.seededContentMetaKeys.has(key);
-      this.seededContentMetaKeys.add(key);
+      this.cancelContentMetaSeed(key, state);
+      const first = !state.seededContentMetaKeys.has(key);
+      state.seededContentMetaKeys.add(key);
       // Over the first seed the room's word wins, a value or the cleared mark, whether a
       // co-editor's or this client's from another tab; a later reload, or an edit, replaces it.
-      if (first && !edit && this.roomOwnedContentMeta.has(key)) {
+      if (first && !edit && state.roomOwnedContentMeta.has(key)) {
         return;
       }
       const stored = value ?? null;
       // Opening a workflow is not an edit, so the seed is not announced (see observeContentMeta).
-      this.seedingContentMetaKeys.add(key);
+      state.seedingContentMetaKeys.add(key);
       try {
         if (!isEqual(shared.contentMetaMap.get(key), stored)) {
-          shared.contentMetaMap.set(key, stored);
+          shared.yDoc.transact(() => shared.contentMetaMap.set(key, stored), "content-meta-seed");
         }
       } finally {
-        this.seedingContentMetaKeys.delete(key);
+        state.seedingContentMetaKeys.delete(key);
       }
     };
     if (!shared.wsProvider.shouldConnect || shared.wsProvider.synced) {
@@ -985,21 +1175,21 @@ export class WorkflowActionService {
 
   /** Forget the seed a key is waiting on, stop its listening, and drop the copy it holds; the
    *  document's value stands. */
-  private cancelContentMetaSeed(key: ContentMetaKey): void {
-    this.contentMetaSeeds.get(key)?.detach?.();
-    this.contentMetaSeeds.delete(key);
-    this.pendingContentMeta.delete(key);
+  private cancelContentMetaSeed(key: ContentMetaKey, state = this.contentMetaState): void {
+    state.contentMetaSeeds.get(key)?.detach?.();
+    state.contentMetaSeeds.delete(key);
+    state.pendingContentMeta.delete(key);
   }
 
   /** An edit still waiting for the first sync, which is going to replace whatever the document
    *  holds; else the shared document's value for a key -- none, if the document marks it cleared
    *  -- or, for a key the document says nothing about yet, the database copy still waiting to go in. */
-  private readContentMeta(key: ContentMetaKey): ContentMetaValue | undefined {
-    const pending = this.pendingContentMeta.get(key);
+  private readContentMeta(key: ContentMetaKey, shared = this.texeraGraph.sharedModel): ContentMetaValue | undefined {
+    const pending = this.stateFor(shared).pendingContentMeta.get(key);
     if (pending?.edit) {
       return pending.value;
     }
-    const held = this.texeraGraph.sharedModel.contentMetaMap.get(key);
+    const held = shared.contentMetaMap.get(key);
     if (held !== undefined) {
       return held ?? undefined;
     }
@@ -1011,89 +1201,121 @@ export class WorkflowActionService {
    * unless the document has not had its first sync yet, when the edit is held and announced here
    * instead, and goes in after the sync (see seedContentMeta).
    */
-  private writeContentMeta(key: ContentMetaKey, value: ContentMetaValue, announce: () => void): void {
-    const shared = this.texeraGraph.sharedModel;
+  private writeContentMeta(
+    key: ContentMetaKey,
+    value: ContentMetaValue,
+    announce: () => void,
+    shared = this.texeraGraph.sharedModel
+  ): void {
     if (shared.wsProvider.shouldConnect && !shared.wsProvider.synced) {
-      this.seedContentMeta(key, value, true);
-      announce();
+      this.seedContentMeta(key, value, true, shared);
+      if (shared === this.texeraGraph.sharedModel) announce();
       return;
     }
     shared.contentMetaMap.set(key, value);
-  }
-
-  /** Whether the workflow has a value for a key: in the document, or still waiting to go in. */
-  private hasContentMeta(key: ContentMetaKey): boolean {
-    return this.readContentMeta(key) !== undefined;
-  }
-
-  /** A form binding worth persisting: an author populated it (fields, a chosen result list -- an
-   *  empty one included, it means "none" -- or an instruction), as opposed to the empty default a
-   *  plain workflow carries. */
-  private isFormBindingNonEmpty(fb: FormBindingConfig): boolean {
-    return fb.fields.length > 0 || fb.shownResultIds !== undefined || fb.instruction !== undefined;
   }
 
   /**
    * Replace the definition as an edit. The shared map's observer republishes it on
    * `formBindingChanged$`, which feeds workflowChanged() and so reaches the existing autosave.
    */
-  public setFormBinding(formBinding: FormBindingConfig): void {
+  public setFormBinding(formBinding: FormBindingConfig, shared = this.texeraGraph.sharedModel): void {
     // Skip a redundant write (as setWorkflowSettings does): an unchanged value would still cut a
     // Yjs update and re-fire the observer for every collaborator.
-    if (isEqual(this.getFormBinding(), formBinding)) {
+    if (isEqual(this.getFormBinding(shared), formBinding)) {
       return;
     }
-    this.writeContentMeta("formBinding", formBinding, () => this.formBindingChangeSubject.next(formBinding));
+    this.writeContentMeta("formBinding", formBinding, () => this.formBindingChangeSubject.next(formBinding), shared);
   }
 
-  public getFormBinding(): FormBindingConfig {
-    return (this.readContentMeta("formBinding") as FormBindingConfig) ?? getDefaultFormBinding();
+  public getFormBinding(shared = this.texeraGraph.sharedModel): FormBindingConfig {
+    return (this.readContentMeta("formBinding", shared) as FormBindingConfig) ?? getDefaultFormBinding();
   }
 
   public getWorkflowMetadata(): WorkflowMetadata {
     return this.workflowMetadata;
   }
 
-  public getWorkflowContent(): WorkflowContent {
-    // collect workflow content
-    const texeraGraph = this.getTexeraGraph();
-    const operators = texeraGraph.getAllOperators();
-    const links = texeraGraph.getAllLinks();
-    const operatorPositions: { [key: string]: Point } = {};
-    const commentBoxes = texeraGraph.getAllCommentBoxes();
-    const settings = this.getWorkflowSettings();
-    // Read the binding once so the has-check and the value are the same snapshot.
-    const formBinding = this.getFormBinding();
+  public getMacroDependencies(): MacroDefinition[] {
+    const source = this.readContentMeta("macroDependencies") as MacroDefinition[] | undefined;
+    if (source === undefined) return [];
+    if (this.macroDefinitionsCache?.source !== source) {
+      this.macroDefinitionsCache = { source, definitions: mergeMacroDefinitions(source) };
+    }
+    return this.macroDefinitionsCache.definitions;
+  }
 
-    texeraGraph
-      .getAllOperators()
-      .forEach(
-        op =>
-          (operatorPositions[op.operatorID] = this.texeraGraph.sharedModel.elementPositionMap?.get(
-            op.operatorID
-          ) as Point)
-      );
+  public getMacroExpansion(): MacroExpansion | undefined {
+    try {
+      const content = this.getWorkflowContent();
+      return content.macroInterface || content.operators.some(isMacro) ? this.macroExpansion.get(content) : undefined;
+    } catch {
+      return undefined; // Compilation reports malformed edits; runtime streams stay alive.
+    }
+  }
+
+  public setMacroDependencies(definitions: MacroDefinition[], shared = this.texeraGraph.sharedModel): void {
+    definitions = mergeMacroDefinitions(definitions);
+    assertWorkflowIDs({ macroDependencies: definitions });
+    if (shared === this.texeraGraph.sharedModel) this.operatorMetadataService.registerMacros(definitions);
+    if (isEqual(this.readContentMeta("macroDependencies", shared), definitions)) return;
+    this.writeContentMeta("macroDependencies", definitions, () => this.macroChanged$.next(), shared);
+  }
+
+  /** Pending metadata has not entered Yjs yet; attach it to the same undo item as the collapse. */
+  public bundleMacroActions(action: () => void, shared = this.texeraGraph.sharedModel): void {
+    const keys: ContentMetaKey[] = ["formBinding", "macroDependencies", "macroInterface"];
+    const pending = shared.wsProvider.shouldConnect && !shared.wsProvider.synced;
+    const before = keys.map(key => [key, cloneDeep(this.readContentMeta(key, shared))]);
+    shared.undoManager.stopCapturing();
+    shared.transact(() => {
+      action();
+      // An interface-only edit still needs an Undo item while its authoritative write waits for sync.
+      if (pending)
+        keys.forEach((key, i) => {
+          const value = this.readContentMeta(key, shared);
+          if (!isEqual(before[i][1], value)) shared.contentMetaMap.set(key, cloneDeep(value) ?? null);
+        });
+    });
+    if (pending)
+      shared.undoManager.undoStack.at(-1)?.meta.set("macroContent", {
+        before,
+        after: keys.map(key => [key, cloneDeep(this.readContentMeta(key, shared))]),
+      });
+    shared.undoManager.stopCapturing();
+  }
+
+  public getMacroInterface(): MacroInterface | undefined {
+    return readMacroInterface({
+      operators: this.texeraGraph.getAllOperators(),
+      links: this.texeraGraph.getAllLinks(),
+      macroInterface: this.readContentMeta("macroInterface") as { id: string } | undefined,
+    });
+  }
+
+  public setMacroInterface(boundary: { id: string }): void {
+    if (!this.checkWorkflowModificationEnabled()) return;
+    this.writeContentMeta("macroInterface", { id: boundary.id }, () => this.macroChanged$.next());
+  }
+
+  public getWorkflowContent(shared = this.texeraGraph.sharedModel): WorkflowContent {
+    const read = (key: ContentMetaKey) => this.readContentMeta(key, shared);
+    const formBinding = read("formBinding") as FormBindingConfig | undefined;
+    const dependencies = read("macroDependencies") as MacroDefinition[] | undefined;
     return {
-      operators,
-      operatorPositions,
-      links,
-      commentBoxes,
-      settings,
-      // Carry formBinding only when the workflow has one (opened with it, or an author
-      // populated it since), so a plain workflow's content is unchanged and its save cuts no
-      // needless version. hasContentMeta stands in for the old "loaded" flag: hydrate sets the
-      // key (or holds the copy until the sync) for a workflow opened with a binding and deletes
-      // it for one without. Presence and value come from the same place, so a binding that is
-      // present but empty is carried while the seed waits, not dropped.
-      ...(this.hasContentMeta("formBinding") || this.isFormBindingNonEmpty(formBinding) ? { formBinding } : {}),
+      operators: [...shared.operatorIDMap.values()].map(op => op.toJSON()),
+      links: [...shared.operatorLinkMap.values()],
+      operatorPositions: Object.fromEntries(shared.elementPositionMap.entries()),
+      commentBoxes: [...shared.commentBoxMap.values()].map(box => box.toJSON()),
+      settings: (read("settings") as WorkflowSettings) ?? this.getDefaultSettings(),
+      ...(read("macroInterface") ? { macroInterface: read("macroInterface") as { id: string } } : {}),
+      ...(dependencies?.length ? { macroDependencies: mergeMacroDefinitions(dependencies) } : {}),
+      ...(formBinding ? { formBinding } : {}),
     };
   }
 
   public getWorkflow(): Workflow {
-    return {
-      ...this.workflowMetadata,
-      ...{ content: this.getWorkflowContent() },
-    };
+    return { ...this.workflowMetadata, content: this.getWorkflowContent() };
   }
 
   /**

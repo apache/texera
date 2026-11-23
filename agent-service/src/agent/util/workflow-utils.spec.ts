@@ -45,23 +45,70 @@ function link(linkID: string, sourceOp: string, sourcePort: string, targetPort: 
 
 const schemaA: PortSchema = [{ attributeName: "a", attributeType: "string" }];
 const schemaB: PortSchema = [{ attributeName: "b", attributeType: "integer" }];
+const sourceOperator = (operatorID: string): OperatorPredicate => ({
+  ...operatorWithInputPorts(0),
+  operatorID,
+  outputPorts: [{ portID: "output-0" }],
+});
 
 describe("extractOperatorInputPortSchemaMap", () => {
   test("returns undefined when the operator has no input links", () => {
-    expect(extractOperatorInputPortSchemaMap(TARGET, operatorWithInputPorts(1), {}, [])).toBeUndefined();
+    expect(extractOperatorInputPortSchemaMap(TARGET, operatorWithInputPorts(1), {}, [], [])).toBeUndefined();
   });
 
   test("maps a single input port to its resolved upstream schema", () => {
     const links = [link("l0", "src", "output-0", "input-0")];
     const outputSchemas = { src: { "0_false": schemaA } };
-    expect(extractOperatorInputPortSchemaMap(TARGET, operatorWithInputPorts(1), outputSchemas, links)).toEqual({
+    expect(
+      extractOperatorInputPortSchemaMap(TARGET, operatorWithInputPorts(1), outputSchemas, links, [
+        sourceOperator("src"),
+      ])
+    ).toEqual({
       "0_false": schemaA,
     });
   });
 
+  test("uses saved native port positions after removing middle input and output ports", () => {
+    const target = { ...operatorWithInputPorts(2), inputPorts: [{ portID: "input-0" }, { portID: "input-2" }] };
+    const source = {
+      ...operatorWithInputPorts(0),
+      operatorID: "src",
+      outputPorts: [{ portID: "output-0" }, { portID: "output-2" }],
+    };
+    const outputSchemas = { src: { "0_false": schemaA, "1_false": schemaB } };
+    const links = [link("gap", "src", "output-2", "input-2")];
+    const operators = [source, target];
+    const before = JSON.stringify({ operators, links, outputSchemas });
+
+    expect(extractOperatorInputPortSchemaMap(TARGET, target, outputSchemas, links, operators)).toEqual({
+      "0_false": undefined,
+      "1_false": schemaB,
+    });
+    expect(JSON.stringify({ operators, links, outputSchemas })).toBe(before);
+  });
+
   test("returns undefined when the only source operator is absent from outputSchemas", () => {
     const links = [link("l0", "missing", "output-0", "input-0")];
-    expect(extractOperatorInputPortSchemaMap(TARGET, operatorWithInputPorts(1), {}, links)).toBeUndefined();
+    expect(
+      extractOperatorInputPortSchemaMap(TARGET, operatorWithInputPorts(1), {}, links, [sourceOperator("missing")])
+    ).toBeUndefined();
+  });
+
+  test("does not infer a missing source or an undeclared target port from its numeric suffix", () => {
+    const target = operatorWithInputPorts(1);
+    const schemas = { src: { "0_false": schemaA } };
+    expect(
+      extractOperatorInputPortSchemaMap(TARGET, target, schemas, [link("missing", "src", "output-0", "input-0")], [])
+    ).toBeUndefined();
+    expect(
+      extractOperatorInputPortSchemaMap(
+        TARGET,
+        target,
+        schemas,
+        [link("unknown", "src", "output-0", "input-1")],
+        [sourceOperator("src")]
+      )
+    ).toBeUndefined();
   });
 
   test("keys each input port separately and routes links by target port number", () => {
@@ -70,7 +117,12 @@ describe("extractOperatorInputPortSchemaMap", () => {
       srcA: { "0_false": schemaA },
       srcB: { "0_false": schemaB },
     };
-    expect(extractOperatorInputPortSchemaMap(TARGET, operatorWithInputPorts(2), outputSchemas, links)).toEqual({
+    expect(
+      extractOperatorInputPortSchemaMap(TARGET, operatorWithInputPorts(2), outputSchemas, links, [
+        sourceOperator("srcA"),
+        sourceOperator("srcB"),
+      ])
+    ).toEqual({
       "0_false": schemaA,
       "1_false": schemaB,
     });
@@ -79,7 +131,12 @@ describe("extractOperatorInputPortSchemaMap", () => {
   test("leaves a port undefined when its source operator is absent from outputSchemas", () => {
     const links = [link("l0", "srcA", "output-0", "input-0"), link("l1", "missing", "output-0", "input-1")];
     const outputSchemas = { srcA: { "0_false": schemaA } };
-    expect(extractOperatorInputPortSchemaMap(TARGET, operatorWithInputPorts(2), outputSchemas, links)).toEqual({
+    expect(
+      extractOperatorInputPortSchemaMap(TARGET, operatorWithInputPorts(2), outputSchemas, links, [
+        sourceOperator("srcA"),
+        sourceOperator("missing"),
+      ])
+    ).toEqual({
       "0_false": schemaA,
       "1_false": undefined,
     });
@@ -91,7 +148,12 @@ describe("extractOperatorInputPortSchemaMap", () => {
       srcA: { "0_false": schemaA },
       srcB: { "0_false": schemaB },
     };
-    expect(extractOperatorInputPortSchemaMap(TARGET, operatorWithInputPorts(2), outputSchemas, links)).toEqual({
+    expect(
+      extractOperatorInputPortSchemaMap(TARGET, operatorWithInputPorts(2), outputSchemas, links, [
+        sourceOperator("srcA"),
+        sourceOperator("srcB"),
+      ])
+    ).toEqual({
       "0_false": schemaA,
       "1_false": undefined,
     });

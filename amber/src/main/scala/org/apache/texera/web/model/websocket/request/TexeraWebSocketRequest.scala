@@ -57,7 +57,8 @@ case class ResultPaginationRequest(
     columnLimit: Int = Int.MaxValue,
     columnSearch: Option[String] = None,
     // which of the operator's output ports to read; an operator with one output has only port 0
-    portIndex: Int = 0
+    portIndex: Int = 0,
+    executionId: Option[Long] = None
 ) extends TexeraWebSocketRequest
 case class RetryRequest(workers: Seq[String]) extends TexeraWebSocketRequest
 case class SkipTupleRequest(workerIds: Array[String]) extends TexeraWebSocketRequest

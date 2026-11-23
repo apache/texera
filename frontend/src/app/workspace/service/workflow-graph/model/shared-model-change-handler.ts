@@ -43,6 +43,7 @@ import { GuiConfigService } from "../../../../common/service/gui-config.service"
  */
 
 export class SharedModelChangeHandler {
+  private observed = new WeakSet<object>();
   private config: GuiConfigService | null = null;
 
   constructor(
@@ -51,20 +52,35 @@ export class SharedModelChangeHandler {
     private jointGraphWrapper: JointGraphWrapper,
     private jointUIService: JointUIService
   ) {
+    this.attach();
+    this.texeraGraph.newYDocLoadedSubject.subscribe(() => this.attach());
+  }
+
+  private attach(): void {
+    const shared = this.texeraGraph.sharedModel;
+    if (this.observed.has(shared)) return;
+    this.observed.add(shared);
     this.handleOperatorAddAndDelete();
     this.handleLinkAddAndDelete();
     this.handleElementPositionChange();
     this.handleCommentBoxAddAndDelete();
     this.handleOperatorDeep();
     this.handleCommentBoxDeep();
-    this.texeraGraph.newYDocLoadedSubject.subscribe(_ => {
-      this.handleOperatorAddAndDelete();
-      this.handleLinkAddAndDelete();
-      this.handleElementPositionChange();
-      this.handleCommentBoxAddAndDelete();
-      this.handleOperatorDeep();
-      this.handleCommentBoxDeep();
-    });
+  }
+
+  public render(): void {
+    const graph = this.texeraGraph;
+    graph
+      .getAllOperators()
+      .forEach(op =>
+        this.jointGraph.addCell(
+          this.jointUIService.getJointOperatorElement(op, graph.sharedModel.elementPositionMap.get(op.operatorID)!)
+        )
+      );
+    graph.getAllLinks().forEach(link => this.jointGraph.addCell(JointUIService.getJointLinkCell(link)));
+    graph.getAllCommentBoxes().forEach(box => this.jointGraph.addCell(this.jointUIService.getCommentElement(box)));
+    graph.getAllOperators().forEach(op => graph.operatorAddSubject.next(op));
+    graph.getAllLinks().forEach(link => graph.linkAddSubject.next(link));
   }
 
   setConfigService(config: GuiConfigService): void {
@@ -77,18 +93,29 @@ export class SharedModelChangeHandler {
    */
   private handleOperatorAddAndDelete(): void {
     // A new key in the map means a new operator
+    const owner = this.texeraGraph.sharedModel;
     this.texeraGraph.sharedModel.operatorIDMap.observe((event: Y.YMapEvent<YType<OperatorPredicate>>) => {
+      if (owner !== this.texeraGraph.sharedModel) return;
       const jointElementsToAdd: joint.dia.Element[] = [];
       const newOpIDs: string[] = [];
       event.changes.keys.forEach((change, key) => {
-        if (change.action === "add") {
+        if (change.action === "add" || change.action === "update") {
           const newOperator = this.texeraGraph.sharedModel.operatorIDMap.get(key) as YType<OperatorPredicate>;
           // Also find its position
           if (this.texeraGraph.sharedModel.elementPositionMap?.has(key)) {
             const newPos = this.texeraGraph.sharedModel.elementPositionMap?.get(key) as Point;
             // Add the operator into joint graph
             const jointOperator = this.jointUIService.getJointOperatorElement(newOperator.toJSON(), newPos);
-            jointElementsToAdd.push(jointOperator);
+            if (change.action === "update") {
+              this.texeraGraph.setSyncTexeraGraph(false);
+              try {
+                this.jointGraph.getCell(key).set(jointOperator.attributes);
+              } finally {
+                this.texeraGraph.setSyncTexeraGraph(true);
+              }
+            } else {
+              jointElementsToAdd.push(jointOperator);
+            }
             newOpIDs.push(key);
           } else {
             throw new Error(`operator with key ${key} does not exist in position map`);
@@ -106,7 +133,7 @@ export class SharedModelChangeHandler {
               ports: this.jointGraphWrapper.getCurrentHighlightedPortIDs(),
             });
           }
-          this.jointGraph.getCell(key).remove();
+          this.jointGraph.getCell(key)?.remove();
           // Emit the event streams here, after joint graph is synced.
           this.texeraGraph.setSyncTexeraGraph(true);
           this.texeraGraph.operatorDeleteSubject.next({ deletedOperatorID: key });
@@ -145,7 +172,9 @@ export class SharedModelChangeHandler {
    * @private
    */
   private handleLinkAddAndDelete(): void {
+    const owner = this.texeraGraph.sharedModel;
     this.texeraGraph.sharedModel.operatorLinkMap.observe((event: Y.YMapEvent<OperatorLink>) => {
+      if (owner !== this.texeraGraph.sharedModel) return;
       const jointElementsToAdd: joint.dia.Link[] = [];
       const linksToAdd: OperatorLink[] = [];
       const keysToDelete: string[] = [];
@@ -235,7 +264,9 @@ export class SharedModelChangeHandler {
    * @private
    */
   private handleElementPositionChange(): void {
+    const owner = this.texeraGraph.sharedModel;
     this.texeraGraph.sharedModel.elementPositionMap?.observe((event: Y.YMapEvent<Point>) => {
+      if (owner !== this.texeraGraph.sharedModel) return;
       event.changes.keys.forEach((change, key) => {
         if (change.action === "update") {
           this.texeraGraph.setSyncTexeraGraph(false);
@@ -256,7 +287,9 @@ export class SharedModelChangeHandler {
    * @private
    */
   private handleCommentBoxAddAndDelete(): void {
+    const owner = this.texeraGraph.sharedModel;
     this.texeraGraph.sharedModel.commentBoxMap.observe((event: Y.YMapEvent<YType<CommentBox>>) => {
+      if (owner !== this.texeraGraph.sharedModel) return;
       event.changes.keys.forEach((change, key) => {
         if (change.action === "add") {
           const commentBox = this.texeraGraph.sharedModel.commentBoxMap.get(key) as YType<CommentBox>;
@@ -265,7 +298,7 @@ export class SharedModelChangeHandler {
           this.texeraGraph.commentBoxAddSubject.next(commentBox.toJSON());
         }
         if (change.action === "delete") {
-          this.jointGraph.getCell(key).remove();
+          this.jointGraph.getCell(key)?.remove();
         }
       });
     });
@@ -281,7 +314,9 @@ export class SharedModelChangeHandler {
    * @private
    */
   private handleOperatorDeep(): void {
+    const owner = this.texeraGraph.sharedModel;
     this.texeraGraph.sharedModel.operatorIDMap.observeDeep((events: Y.YEvent<Y.Map<any>>[]) => {
+      if (owner !== this.texeraGraph.sharedModel) return;
       events.forEach(event => {
         if (event.target !== this.texeraGraph.sharedModel.operatorIDMap) {
           const operatorID = event.path[0] as string;
@@ -369,13 +404,9 @@ export class SharedModelChangeHandler {
    */
   private handlePortEvent(event: Y.YEvent<Y.Map<any>>, operatorID: string, isInput: boolean) {
     if (event.path.length === 2) {
-      // Port added or deleted inferred by event.delta
-      const addedPort = event.delta[1]?.insert;
-      if (isDefined(addedPort)) {
-        this.onPortAdded(operatorID, isInput, (addedPort as Y.Map<any>[])[0].toJSON() as PortDescription);
-      } else if (isDefined(event.delta[0]?.delete) || isDefined(event.delta[1]?.delete)) {
-        this.onPortRemoved(operatorID, isInput);
-      }
+      const operator = this.texeraGraph.getOperator(operatorID);
+      JointUIService.updateOperatorPorts(this.jointGraph.getCell(operatorID) as joint.dia.Element, operator);
+      this.texeraGraph.portAddedOrDeletedSubject.next({ newOperator: operator });
     } else {
       const changedOperator = this.texeraGraph.getOperator(operatorID);
       if (event.path.includes("displayName")) {
@@ -429,40 +460,6 @@ export class SharedModelChangeHandler {
     }
   }
 
-  private onPortAdded(operatorID: string, isInput: boolean, port: PortDescription) {
-    const operatorJointElement = <joint.dia.Element>this.jointGraph.getCell(operatorID);
-    const portGroup = isInput ? "in" : "out";
-    operatorJointElement.addPort({
-      group: portGroup,
-      id: port.portID,
-      attrs: {
-        ".port-label": {
-          text: port.displayName ?? "",
-        },
-      },
-    });
-
-    const operator = this.texeraGraph.getOperator(operatorID);
-    this.texeraGraph.portAddedOrDeletedSubject.next({ newOperator: operator });
-  }
-
-  private onPortRemoved(operatorID: string, isInput: boolean) {
-    const operatorJointElement = <joint.dia.Element>this.jointGraph.getCell(operatorID);
-    const portGroup = isInput ? "in" : "out";
-    let lastPort;
-    for (let p of operatorJointElement.getPorts()) {
-      if (p.group === portGroup) {
-        lastPort = p;
-      }
-    }
-    if (lastPort) {
-      operatorJointElement.removePort(lastPort);
-    }
-
-    const operator = this.texeraGraph.getOperator(operatorID);
-    this.texeraGraph.portAddedOrDeletedSubject.next({ newOperator: operator });
-  }
-
   /**
    * Syncs changes that are on nested-structures of comment boxes, including changes of:
    *  - adding comments
@@ -471,7 +468,9 @@ export class SharedModelChangeHandler {
    * @private
    */
   private handleCommentBoxDeep(): void {
+    const owner = this.texeraGraph.sharedModel;
     this.texeraGraph.sharedModel.commentBoxMap.observeDeep((events: Y.YEvent<any>[]) => {
+      if (owner !== this.texeraGraph.sharedModel) return;
       events.forEach(event => {
         if (event.target !== this.texeraGraph.sharedModel.commentBoxMap) {
           const commentBox: CommentBox = this.texeraGraph.getCommentBox(event.path[0] as string);

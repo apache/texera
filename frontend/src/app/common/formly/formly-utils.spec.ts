@@ -173,6 +173,22 @@ describe("createOutputFormChangeEventStream", () => {
     vi.useRealTimers();
   });
 
+  it("flushes pending valid edits before an editor document changes, without duplicates", () => {
+    const source = new Subject<Record<string, unknown>>(),
+      flush = new Subject<void>();
+    const values: Record<string, unknown>[] = [];
+    createOutputFormChangeEventStream(source, data => data["valid"] === true, flush).subscribe(v => values.push(v));
+    flush.next();
+    source.next({ valid: true, value: "last keystroke" });
+    flush.next();
+    flush.next();
+    vi.advanceTimersByTime(FORM_DEBOUNCE_TIME_MS);
+    expect(values).toEqual([{ valid: true, value: "last keystroke" }]);
+    source.next({ valid: false });
+    flush.next();
+    expect(values).toHaveLength(1);
+  });
+
   it("debounces bursts, emitting only the latest value once the debounce window elapses", () => {
     const source = new Subject<Record<string, unknown>>();
     const emissions: Record<string, unknown>[] = [];

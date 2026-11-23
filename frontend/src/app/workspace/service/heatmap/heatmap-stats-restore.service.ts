@@ -18,7 +18,7 @@
  */
 
 import { Injectable } from "@angular/core";
-import { EMPTY, Observable, defer } from "rxjs";
+import { of, EMPTY, Observable, defer } from "rxjs";
 import { catchError, map, switchMap, takeUntil, tap } from "rxjs/operators";
 import { WorkflowExecutionsService } from "../../../dashboard/service/user/workflow-executions/workflow-executions.service";
 import { EXECUTION_STATUS_CODE, WorkflowExecutionsEntry } from "../../../dashboard/type/workflow-executions-entry";
@@ -29,14 +29,7 @@ import { ExecutionState, isNotInExecution } from "../../types/execute-workflow.i
 import { loadPersistedHeatmapView } from "./heatmap-overlay-persistence";
 import { toOperatorRuntimeStatusMap } from "./runtime-statistics-mapper";
 
-/**
- * Restores the last execution's per-operator statistics after a page refresh,
- * so the performance heat-map can render a finished run without re-executing.
- *
- * All gating lives here rather than in the caller: the persisted-overlay check
- * is a synchronous localStorage read, so a user who never enabled the overlay
- * incurs no fetch at all.
- */
+/** Restores the last run for the heatmap and nested macro inspectors. */
 @Injectable({
   providedIn: "root",
 })
@@ -52,16 +45,16 @@ export class HeatmapStatsRestoreService {
    * Fetches the latest run's statistics and feeds them into
    * WorkflowStatusService. Cold: nothing happens until subscribed. Skips
    * silently (including on HTTP errors — restoring is best-effort) when:
-   * - the overlay is not persisted on,
+   * - neither a macro inspector nor the heatmap needs statistics,
    * - the workflow has never been saved (no wid),
    * - an execution is in progress, on entry or by the time the fetches return
    *   (the live stream wins),
    * - the workflow has no executions or the run left no statistics,
    * - another producer writes statistics first (a new run clears the canvas).
    */
-  public restoreLatestRunStatistics(): Observable<void> {
+  public restoreLatestRunStatistics(hasMacros = false): Observable<void> {
     return defer(() => {
-      if (loadPersistedHeatmapView() === null) {
+      if (!hasMacros && loadPersistedHeatmapView() === null) {
         return EMPTY;
       }
       const wid = this.workflowActionService.getWorkflowMetadata()?.wid;
@@ -78,19 +71,25 @@ export class HeatmapStatsRestoreService {
           if (run === undefined) {
             return EMPTY;
           }
-          return this.workflowExecutionsService.retrieveWorkflowRuntimeStatistics(wid, run.eId, run.cuId);
+          const history = () =>
+            this.workflowExecutionsService
+              .retrieveWorkflowRuntimeStatistics(wid, run.eId, run.cuId)
+              .pipe(map(toOperatorRuntimeStatusMap));
+          const stats = hasMacros
+            ? this.workflowExecutionsService
+                .retrieveMacroStatistics(wid, run.eId, run.cuId)
+                .pipe(switchMap(snapshot => (snapshot === null ? history() : of(snapshot))))
+            : history();
+          return stats.pipe(map(runtimeStatus => ({ runtimeStatus, source: run.eId })));
         }),
-        // Only the fetches are best-effort. Placed above the map so a mapping or ingestion
-        // failure still surfaces instead of looking like a run with nothing to restore.
         catchError(() => EMPTY),
-        tap(rows => {
-          const runtimeStatus = toOperatorRuntimeStatusMap(rows);
+        tap(({ runtimeStatus, source }) => {
           // Re-checked, not redundant: the entry guard ran two round trips ago, and the
           // websocket can connect and start streaming a live run inside that window.
           if (this.isExecuting() || Object.keys(runtimeStatus).length === 0) {
             return;
           }
-          this.workflowStatusService.setExternalStatus(runtimeStatus);
+          this.workflowStatusService.setExternalStatus(runtimeStatus, source);
         }),
         map(() => undefined),
         // Any other producer writing statistics means the canvas is no longer ours to restore:

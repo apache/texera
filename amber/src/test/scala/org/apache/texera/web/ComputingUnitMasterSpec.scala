@@ -54,6 +54,7 @@ import org.apache.texera.dao.jooq.generated.Tables.{
 import org.apache.texera.dao.jooq.generated.tables.pojos.WorkflowExecutions
 import org.apache.texera.web.resource.dashboard.user.workflow.WorkflowExecutionsResource
 import org.apache.texera.web.resource.pythonvirtualenvironment.{PveResource, PveWebsocketResource}
+import org.apache.texera.web.service.WorkflowService
 import org.apache.texera.web.resource.{
   SyncExecutionResource,
   WebsocketPayloadSizeTuner,
@@ -400,7 +401,9 @@ class ComputingUnitMasterSpec
     * registry, so the entry is always removed again -- a leaked one would receive events
     * from every later suite that builds a coordinator.
     */
-  private def withRegisteredSession(body: (() => Seq[String]) => Unit): Unit = {
+  private def withRegisteredSession(
+      workflowId: WorkflowIdentity
+  )(body: (() => Seq[String]) => Unit): Unit = {
     val pushed = new ConcurrentLinkedQueue[String]()
     val remote = stub(classOf[RemoteEndpoint.Async]) {
       case ("sendText", args) => pushed.add(args.head.asInstanceOf[String]); null
@@ -409,7 +412,9 @@ class ComputingUnitMasterSpec
       case ("getAsyncRemote", _) => remote.asInstanceOf[AnyRef]
     }
     val sessionId = "computing-unit-master-spec-" + java.util.UUID.randomUUID()
-    SessionState.setState(sessionId, new SessionState(session))
+    val state = new SessionState(session)
+    state.subscribe(WorkflowService.getOrCreate(workflowId, computingUnitId = 1))
+    SessionState.setState(sessionId, state)
     try body(() => pushed.asScala.toList)
     finally SessionState.removeState(sessionId)
   }
@@ -485,14 +490,14 @@ class ComputingUnitMasterSpec
     val scheduleGeneratorLogger =
       s"${VirtualIdentityUtils.toShorterString(COORDINATOR)}] [${classOf[org.apache.texera.amber.engine.architecture.scheduling.CostBasedScheduleGenerator].getSimpleName}"
     try {
-      withRegisteredSession { pushedToSession =>
+      withRegisteredSession(context.workflowId) { pushedToSession =>
         whileCapturing(scheduleGeneratorLogger, Level.INFO) { generatorEvents =>
           withAmberRuntime(context, physicalPlan, conf) { _ =>
             // The coordinator schedules on a dispatcher thread, so all three signals appear
             // shortly after the factory returns rather than inside the call.
             eventually {
               // physicalPlan: the coordinator partitions the plan it was given into regions
-              // and pushes their logical operator ids to every open session. The empty plan
+              // and pushes their logical operator ids to sessions viewing that workflow. The empty plan
               // yields no regions at all, so this id can only come from the plan passed in.
               pushedToSession().mkString("\n") should include(scanOp.operatorIdentifier.id)
 

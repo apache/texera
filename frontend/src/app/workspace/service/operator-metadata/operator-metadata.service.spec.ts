@@ -16,7 +16,9 @@
  * specific language governing permissions and limitations
  * under the License.
  */
+import { testBinding } from "../../../common/testing/workflow-graph";
 
+import { macroGraph } from "../../../../../../common/workflow-core/src/test/typescript/macro-test-graph";
 import { TestBed } from "@angular/core/testing";
 import { HttpClient } from "@angular/common/http";
 import { HttpClientTestingModule, HttpTestingController } from "@angular/common/http/testing";
@@ -25,6 +27,9 @@ import { mockOperatorMetaData } from "./mock-operator-metadata.data";
 import { commonTestProviders } from "../../../common/testing/test-utils";
 import { AppSettings } from "../../../common/app-setting";
 import type { OperatorMetadata } from "../../types/operator-schema.interface";
+import { MacroDefinition, macroInstance, macroType } from "../../../common/util/workflow-macro";
+import { WorkflowContent } from "../../../common/type/workflow";
+import { mockScanPredicate } from "../workflow-graph/model/mock-workflow-data";
 
 describe("OperatorMetadataService", () => {
   let service: OperatorMetadataService;
@@ -78,6 +83,49 @@ describe("OperatorMetadataService", () => {
     const schema = service.getOperatorSchema("ScanSource");
     expect(schema.operatorType).toBe("ScanSource");
     expect(schema).toEqual(mockOperatorMetaData.operators.find(op => op.operatorType === "ScanSource"));
+  });
+
+  it("resolves nested defaults from each definition's own bundle instead of another library entry", () => {
+    flushMetadata();
+    const child = (value: string): MacroDefinition => ({
+      id: "child",
+      version: 5,
+      name: "Child",
+      content: macroGraph({
+        operators: [{ ...mockScanPredicate, operatorID: "leaf", operatorProperties: { tableName: value } }],
+        links: [],
+        macroInterface: { id: "child", inputs: [], outputs: [] },
+        formBinding: testBinding("leaf", "tableName", "table", "Table"),
+      }) as unknown as WorkflowContent,
+    });
+    const parent = (id: string, dependency: MacroDefinition): MacroDefinition => ({
+      id,
+      version: 8,
+      name: id,
+      content: macroGraph({
+        operators: [macroInstance(dependency, "inner")],
+        links: [],
+        macroDependencies: [dependency],
+        macroInterface: { id, inputs: [], outputs: [] },
+        formBinding: testBinding("inner", "table", "table", "Table"),
+      }) as unknown as WorkflowContent,
+    });
+    const a = child("café"),
+      b = child("東京");
+    const first = parent("first", a),
+      second = parent("second", b);
+    service.registerMacros([a, first, b, second]);
+    expect((service.getOperatorSchema(macroType(first)).jsonSchema.properties!.table as any).default).toBe("café");
+    expect((service.getOperatorSchema(macroType(second)).jsonSchema.properties!.table as any).default).toBe("東京");
+    const broken = parent("broken", {
+      ...a,
+      content: {
+        ...a.content,
+        formBinding: testBinding("leaf", "missing", "table", "Missing"),
+      },
+    });
+    service.registerMacros([broken]);
+    expect(service.getOperatorSchema(macroType(broken)).jsonSchema.properties).toEqual({});
   });
 
   it("getOperatorSchema throws for an unknown operator type", () => {

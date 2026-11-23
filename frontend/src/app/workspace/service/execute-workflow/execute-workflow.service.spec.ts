@@ -16,7 +16,10 @@
  * specific language governing permissions and limitations
  * under the License.
  */
+import { testPort, testMacro, expansionFixture, setMacroGraph } from "../../../common/testing/macro-graph";
+import { testBinding, testLink } from "../../../common/testing/workflow-graph";
 
+import { MacroExpansionService } from "../macro/macro-expansion.service";
 import "zone.js/testing";
 
 import { DOCUMENT } from "@angular/core";
@@ -30,7 +33,7 @@ import { UndoRedoService } from "../undo-redo/undo-redo.service";
 import { OperatorMetadataService } from "../operator-metadata/operator-metadata.service";
 import { StubOperatorMetadataService } from "../operator-metadata/stub-operator-metadata.service";
 import { JointUIService } from "../joint-ui/joint-ui.service";
-import { BehaviorSubject, of, Subject } from "rxjs";
+import { BehaviorSubject, of, ObservedValueOf, Subject } from "rxjs";
 import { WorkflowWebsocketService } from "../workflow-websocket/workflow-websocket.service";
 import { WorkflowStatusService } from "../workflow-status/workflow-status.service";
 import { NotificationService } from "../../../common/service/notification/notification.service";
@@ -38,7 +41,6 @@ import { GuiConfigService } from "../../../common/service/gui-config.service";
 
 import { mockLogicalPlan_scan_result, mockWorkflowPlan_scan_result } from "./mock-workflow-plan";
 import { HttpClientTestingModule } from "@angular/common/http/testing";
-import { WorkflowUtilService } from "../workflow-graph/util/workflow-util.service";
 
 import { WorkflowSettings } from "src/app/common/type/workflow";
 import { ComputingUnitStatusService } from "../../../common/service/computing-unit/computing-unit-status/computing-unit-status.service";
@@ -49,14 +51,17 @@ import { StubAuthService } from "src/app/common/service/user/stub-auth.service";
 import { UserService } from "src/app/common/service/user/user.service";
 import { StubUserService } from "src/app/common/service/user/stub-user.service";
 import { MockComputingUnitStatusService } from "../../../common/service/computing-unit/computing-unit-status/mock-computing-unit-status.service";
-import { commonTestProviders } from "../../../common/testing/test-utils";
 import {
   RegionStateEvent,
   RegionUpdateEvent,
   ReplayExecutionInfo,
   TexeraWebsocketEvent,
 } from "../../types/workflow-websocket.interface";
-import { mockScanPredicate } from "../workflow-graph/model/mock-workflow-data";
+import { mockScanPredicate, mockSentimentPredicate } from "../workflow-graph/model/mock-workflow-data";
+
+import { WorkflowGraph } from "../workflow-graph/model/workflow-graph";
+import { macroWorkspaceTestProviders } from "../macro/macro-workspace.spec-harness";
+import { macroInstance } from "../../../common/util/workflow-macro";
 import { PAGINATION_INFO_STORAGE_KEY, ResultPaginationInfo } from "../../types/result-table.interface";
 import { sessionGetObject, sessionSetObject } from "../../../common/util/storage";
 
@@ -67,29 +72,14 @@ describe("ExecuteWorkflowService", () => {
   let connected$: BehaviorSubject<boolean>;
 
   beforeEach(() => {
-    mockDocument = {
-      location: {
-        origin: "https://texera.example.com",
-      },
-    } as Document;
-
     TestBed.configureTestingModule({
       imports: [HttpClientTestingModule],
       providers: [
-        ExecuteWorkflowService,
-        WorkflowActionService,
-        WorkflowUtilService,
+        ...macroWorkspaceTestProviders,
         { provide: ComputingUnitStatusService, useClass: MockComputingUnitStatusService },
-        UndoRedoService,
-        JointUIService,
-        {
-          provide: OperatorMetadataService,
-          useClass: StubOperatorMetadataService,
-        },
-        { provide: DOCUMENT, useValue: mockDocument },
+        { provide: DOCUMENT, useValue: { location: { origin: "https://texera.example.com" } } },
         { provide: AuthService, useClass: StubAuthService },
         { provide: UserService, useClass: StubUserService },
-        ...commonTestProviders,
       ],
     });
 
@@ -118,10 +108,181 @@ describe("ExecuteWorkflowService", () => {
   const emitWsEvent = (event: TexeraWebsocketEvent): void => {
     (TestBed.inject(WorkflowWebsocketService).websocketEvent() as Subject<TexeraWebsocketEvent>).next(event);
   };
+  const emitRegions = (regions: RegionUpdateEvent["regions"]) => emitWsEvent({ type: "RegionUpdateEvent", regions });
+  const observeRegions = () => {
+    const updates: ObservedValueOf<ReturnType<ExecuteWorkflowService["getRegionUpdateStream"]>>[] = [];
+    service.getRegionUpdateStream().subscribe(event => updates.push(event));
+    return updates;
+  };
+  const observeRegionStates = () => {
+    const states: RegionStateEvent[] = [];
+    service.getRegionStateStream().subscribe(event => states.push(event));
+    return states;
+  };
+  const watchRun = () => ({
+    send: vi.spyOn(TestBed.inject(WorkflowWebsocketService), "send"),
+    reset: vi.spyOn(service, "resetExecutionState"),
+    resetStatus: vi.spyOn(TestBed.inject(WorkflowStatusService), "resetStatus"),
+    error: vi.spyOn(TestBed.inject(NotificationService), "error").mockImplementation(() => {}),
+  });
 
   it("should be created", inject([ExecuteWorkflowService], (injectedService: ExecuteWorkflowService) => {
     expect(injectedService).toBeTruthy();
   }));
+
+  it("sends pinned snapshots and canvas result IDs for backend expansion", () => {
+    const d = testMacro("analysis", [mockSentimentPredicate], {
+      inputs: [testPort("input-0", mockSentimentPredicate.operatorID)],
+      outputs: [testPort("output-0", mockSentimentPredicate.operatorID)],
+      version: 8,
+      name: "Analysis",
+    });
+    const macro = { ...macroInstance(d, "m"), viewResult: true, markedForReuse: true };
+    const graph = new WorkflowGraph(
+      [mockScanPredicate, macro],
+      [testLink(mockScanPredicate.operatorID, "m", "output-0", "input-0", "input")]
+    );
+    try {
+      const plan = ExecuteWorkflowService.getLogicalPlanRequest(graph, "m", [d]);
+      expect(plan.operators).toEqual([]);
+      expect(plan.links).toEqual([]);
+      expect(plan.macroContent).toEqual({
+        operators: graph.getAllOperators(),
+        links: graph.getAllLinks(),
+        macroDependencies: [d],
+      });
+      expect(plan.executeOperatorIds).toEqual(expect.arrayContaining(["m", mockScanPredicate.operatorID]));
+      expect(plan.opsToViewResult).toEqual(["m"]);
+      expect(plan.opsToReuseResult).toEqual(["m"]);
+      expect(ExecuteWorkflowService.getLogicalPlanRequest(graph).macroContent?.macroDependencies).toEqual([]);
+      // Structural validation belongs to the backend, including for whole-workflow requests.
+      const cycle = testLink("m", "m", "output-0", "input-0", "cycle");
+      graph.addLink(cycle);
+      expect(ExecuteWorkflowService.getLogicalPlanRequest(graph, undefined, [d]).macroContent!.links).toContainEqual(
+        cycle
+      );
+    } finally {
+      graph.sharedModel.destroy();
+    }
+  });
+
+  it("preserves ordinary multi-port plans, authoritative operator IDs, and empty graphs", () => {
+    const source = {
+      ...mockScanPredicate,
+      operatorID: "café",
+      operatorProperties: { operatorID: "user value", value: "東京" },
+      outputPorts: [{ portID: "left" }, { portID: "right" }],
+    };
+    const target = {
+      ...mockSentimentPredicate,
+      operatorID: "target",
+      inputPorts: [{ portID: "first" }, { portID: "second" }],
+    };
+    const graph = new WorkflowGraph([source, target], [testLink("café", "target", "right", "second", "connection")]);
+    const empty = new WorkflowGraph();
+    try {
+      const plan = ExecuteWorkflowService.getLogicalPlanRequest(graph, "target");
+      expect(plan.operators.find(op => op.operatorID === "café")).toMatchObject({
+        value: "東京",
+        outputPorts: source.outputPorts,
+      });
+      expect(plan.links).toEqual([
+        {
+          fromOpId: "café",
+          fromPortId: { id: 1, internal: false },
+          toOpId: "target",
+          toPortId: { id: 1, internal: false },
+        },
+      ]);
+      expect(graph.getOperator("café")).toEqual(source);
+      expect(ExecuteWorkflowService.getLogicalPlanRequest(empty)).toEqual({
+        operators: [],
+        links: [],
+        opsToViewResult: [],
+        opsToReuseResult: [],
+      });
+    } finally {
+      graph.sharedModel.destroy();
+      empty.sharedModel.destroy();
+    }
+  });
+
+  it.each([false, true])(
+    "refuses macro definition execution with external inputs %s, preserving previous results",
+    external => {
+      const actions = TestBed.inject(WorkflowActionService);
+      actions.addOperator(mockScanPredicate, { x: 0, y: 0 });
+      setMacroGraph(actions, {
+        id: "macro",
+        inputs: external ? [{ portID: "rows", targets: [] }] : [],
+        outputs: [testPort("result", mockScanPredicate.operatorID, "output-0")],
+      });
+      const before = actions.getWorkflowContent();
+      const run = watchRun();
+      service.executeWorkflow("macro");
+      service.executeWorkflow("macro", mockScanPredicate.operatorID);
+      service.executeWorkflowWithReplay({ eid: 42, interaction: "step-3" });
+      expect(run.error).toHaveBeenCalledTimes(3);
+      expect(run.error).toHaveBeenCalledWith("A macro runs through a workflow. Add it to a workflow to execute it.");
+      expect(run.send).not.toHaveBeenCalled();
+      expect(run.reset).not.toHaveBeenCalled();
+      expect(run.resetStatus).not.toHaveBeenCalled();
+      expect(actions.getWorkflowContent()).toEqual(before);
+    }
+  );
+
+  it("reports a missing macro bundle without throwing or resetting the execution", async () => {
+    const actions = TestBed.inject(WorkflowActionService);
+    const d = testMacro("missing", [mockScanPredicate], {
+      outputs: [testPort("output-0", mockScanPredicate.operatorID)],
+      name: "Missing",
+    });
+    actions.setMacroDependencies([d]);
+    actions.addOperator(macroInstance(d, "macro"), { x: 0, y: 0 });
+    actions.setMacroDependencies([]);
+    const { error, reset } = watchRun();
+    vi.spyOn(TestBed.inject(MacroExpansionService), "expand").mockRejectedValue(new Error("Missing macro version"));
+    await service.executeWorkflow("Broken");
+    expect(error).toHaveBeenCalledWith(expect.stringContaining("Missing macro version"));
+    expect(reset).not.toHaveBeenCalled();
+  });
+
+  it("reconfigures a paused macro using backend leaves and rejects missing versions before sending", async () => {
+    const actions = TestBed.inject(WorkflowActionService);
+    const definition = testMacro("live", [mockSentimentPredicate], {
+      formBinding: testBinding(mockSentimentPredicate.operatorID, "attribute", "attribute", "Attribute"),
+      inputs: [testPort("input-0", mockSentimentPredicate.operatorID)],
+      outputs: [testPort("output-0", mockSentimentPredicate.operatorID)],
+      name: "Live",
+    });
+    actions.setMacroDependencies([definition]);
+    actions.addOperator(
+      { ...macroInstance(definition, "m"), operatorProperties: { attribute: "new column" } },
+      { x: 0, y: 0 }
+    );
+    (service as any).currentState = { state: ExecutionState.Paused };
+    const send = vi.spyOn(TestBed.inject(WorkflowWebsocketService), "send");
+    const compile = vi
+      .spyOn(TestBed.inject(MacroExpansionService), "expand")
+      .mockResolvedValue(
+        expansionFixture(actions.getWorkflowContent(), [
+          [
+            ["m", mockSentimentPredicate.operatorID],
+            { ...mockSentimentPredicate, operatorProperties: { attribute: "new column" } },
+          ],
+        ])
+      );
+    await service.modifyOperatorLogic("m");
+    expect(send).toHaveBeenCalledOnce();
+    expect(send).toHaveBeenCalledWith("ModifyLogicRequest", {
+      operator: expect.objectContaining({ operatorType: "NlpSentiment", attribute: "new column" }),
+    });
+    send.mockClear();
+    actions.setMacroDependencies([]);
+    compile.mockRejectedValue(new Error("Missing macro version"));
+    await expect(service.modifyOperatorLogic("m")).rejects.toThrow(/macro version/i);
+    expect(send).not.toHaveBeenCalled();
+  });
 
   // A view handed a session mid-run subscribes after the last state change, and the stream carries
   // no current value, so it heard nothing about the run: it showed Run for a workflow that was
@@ -468,7 +629,11 @@ describe("ExecuteWorkflowService", () => {
 
     service.executeWorkflowWithEmailNotification(executionName, emailNotificationEnabled, targetOperatorId);
 
-    expect(logicalPlanSpy).toHaveBeenCalledWith(service["workflowActionService"].getTexeraGraph(), targetOperatorId);
+    expect(logicalPlanSpy).toHaveBeenCalledWith(
+      service["workflowActionService"].getTexeraGraph(),
+      targetOperatorId,
+      []
+    );
     expect(settingsSpy).toHaveBeenCalled();
     expect(resetExecutionStateSpy).toHaveBeenCalled();
     expect(resetStatusSpy).toHaveBeenCalled();
@@ -476,7 +641,8 @@ describe("ExecuteWorkflowService", () => {
       executionName,
       expect.any(Object),
       expect.any(Object),
-      emailNotificationEnabled
+      emailNotificationEnabled,
+      undefined
     );
   });
 
@@ -496,7 +662,11 @@ describe("ExecuteWorkflowService", () => {
       service.executeWorkflowWithEmailNotification(executionName, emailNotificationEnabled, targetOperatorId);
     }).toThrowError("Logical plan error");
 
-    expect(logicalPlanSpy).toHaveBeenCalledWith(service["workflowActionService"].getTexeraGraph(), targetOperatorId);
+    expect(logicalPlanSpy).toHaveBeenCalledWith(
+      service["workflowActionService"].getTexeraGraph(),
+      targetOperatorId,
+      []
+    );
     expect(resetExecutionStateSpy).not.toHaveBeenCalled();
     expect(resetStatusSpy).not.toHaveBeenCalled();
     expect(sendExecutionRequestSpy).not.toHaveBeenCalled();
@@ -505,12 +675,10 @@ describe("ExecuteWorkflowService", () => {
   // ---- constructor: websocket-event routing --------------------------------------------------
 
   it("routes region and worker-assignment websocket events to their dedicated streams", () => {
-    const regionUpdates: RegionUpdateEvent[] = [];
-    const regionStates: RegionStateEvent[] = [];
-    service.getRegionUpdateStream().subscribe(event => regionUpdates.push(event));
-    service.getRegionStateStream().subscribe(event => regionStates.push(event));
+    const regionUpdates = observeRegions();
+    const regionStates = observeRegionStates();
 
-    emitWsEvent({ type: "RegionUpdateEvent", regions: [] });
+    emitRegions([]);
     emitWsEvent({ type: "RegionStateEvent", id: 7, state: "COMPLETED" });
     emitWsEvent({ type: "WorkerAssignmentUpdateEvent", operatorId: "opX", workerIds: ["w1", "w2"] });
 
@@ -518,6 +686,118 @@ describe("ExecuteWorkflowService", () => {
     expect(regionStates).toEqual([{ type: "RegionStateEvent", id: 7, state: "COMPLETED" }]);
     expect(service.getWorkerIds("opX")).toEqual(["w1", "w2"]);
   });
+
+  it("reprojects the last regions through nested runtime IDs when the inspector changes", () => {
+    const actions = TestBed.inject(WorkflowActionService);
+    const rootPaths = { leafA: ["macro", "nested", "a"], leafB: ["macro", "nested", "b"] };
+    let paths: Record<string, string[]> = rootPaths;
+    let ids: Record<string, string> | undefined;
+    actions.runtimeOperatorIDs = () => ids;
+    vi.spyOn(actions, "getMacroExpansion").mockImplementation(() => ({
+      content: actions.getWorkflowContent(),
+      paths,
+      ports: {},
+    }));
+    const updates = observeRegions();
+    emitRegions([
+      [1, ["source", "leafA", "leafB"]],
+      [2, []],
+    ]);
+    const expectMembers = (members: string[]) =>
+      expect(updates.at(-1)?.regions).toEqual([
+        [1, members],
+        [2, []],
+      ]);
+    const inspect = (mapping: typeof ids, projection: typeof paths) => {
+      ids = mapping;
+      paths = projection;
+      TestBed.inject(WorkflowStatusService).refresh();
+    };
+    expectMembers(["source", "macro"]);
+    inspect(undefined, rootPaths);
+    expect(updates).toHaveLength(1);
+    inspect({ localA: "leafA", localB: "leafB" }, { localA: ["nested", "a"], localB: ["nested", "b"] });
+    expectMembers(["nested"]);
+    inspect({ a: "leafA", b: "leafB" }, {});
+    expectMembers(["a", "b"]);
+    // An unverified revision must not inherit an old run's regions.
+    inspect({}, {});
+    expectMembers([]);
+    inspect(undefined, rootPaths);
+    expectMembers(["source", "macro"]);
+  });
+
+  it("redraws equal region projections when nested documents reuse local operator IDs", () => {
+    const actions = TestBed.inject(WorkflowActionService);
+    const status = TestBed.inject(WorkflowStatusService);
+    const updates = observeRegions();
+    emitRegions([[1, ["child"]]]);
+    status.refresh();
+    expect(updates).toHaveLength(1);
+
+    actions.openWorkflowDraft(actions.getWorkflow());
+    status.refresh();
+    expect(updates).toHaveLength(2);
+    expect(updates[1]).toEqual(updates[0]);
+    status.refresh();
+    expect(updates).toHaveLength(2);
+  });
+
+  it("replays the latest topology and each region's latest phase to a remounted canvas", () => {
+    emitRegions([
+      [1, ["a"]],
+      [2, ["b"]],
+    ]);
+    emitWsEvent({ type: "RegionStateEvent", id: 1, state: "Running" });
+    emitWsEvent({ type: "RegionStateEvent", id: 1, state: "Completed" });
+    emitWsEvent({ type: "RegionStateEvent", id: 2, state: "ExecutingDependeePortsPhase" });
+    expect(observeRegions()).toHaveLength(1);
+    expect(observeRegionStates()).toEqual([
+      { type: "RegionStateEvent", id: 1, state: "Completed" },
+      { type: "RegionStateEvent", id: 2, state: "ExecutingDependeePortsPhase" },
+    ]);
+  });
+
+  it("continues a terminal only when both real endpoints of its boundary link share the region", () => {
+    const actions = TestBed.inject(WorkflowActionService);
+    actions.runtimeBoundaryLinks = () => [
+      {
+        terminal: { direction: "inputs", portID: "rows" },
+        links: [testLink("outside", "inside", "output-0", "input-0", "in")],
+      },
+      {
+        terminal: { direction: "outputs", portID: "result" },
+        links: [testLink("inside", "next", "output-0", "input-0", "out")],
+      },
+      { terminal: { direction: "inputs", portID: "unconnected" }, links: [] },
+    ];
+    const updates = observeRegions();
+    emitRegions([
+      [1, ["outside", "inside"]],
+      [2, ["inside", "next"]],
+      [3, ["inside"]],
+      [4, ["outside"]],
+      [5, []],
+    ]);
+    expect(updates.at(-1)?.terminals).toEqual({
+      1: [{ direction: "inputs", portID: "rows" }],
+      2: [{ direction: "outputs", portID: "result" }],
+      3: [],
+      4: [],
+      5: [],
+    });
+  });
+
+  it.each(["resetExecutionState", "resetExecutionAndWorkers"] as const)(
+    "clears region topology and phases on %s",
+    reset => {
+      emitRegions([[1, ["old-operator"]]]);
+      emitWsEvent({ type: "RegionStateEvent", id: 1, state: "Completed" });
+      service[reset]();
+      expect(observeRegions().at(-1)?.regions).toEqual([]);
+      expect(observeRegionStates()).toEqual([]);
+    }
+  );
 
   it("routes execution-status websocket events into the execution-state stream", () => {
     const states: ExecutionState[] = [];
@@ -665,7 +945,7 @@ describe("ExecuteWorkflowService", () => {
 
     service.executeWorkflowWithReplay(replayInfo);
 
-    expect(logicalPlanSpy).toHaveBeenCalledWith(service["workflowActionService"].getTexeraGraph());
+    expect(logicalPlanSpy).toHaveBeenCalledWith(service["workflowActionService"].getTexeraGraph(), undefined, []);
     expect(resetExecutionStateSpy).toHaveBeenCalled();
     expect(resetStatusSpy).toHaveBeenCalled();
     expect(sendExecutionRequestSpy).toHaveBeenCalledWith(
@@ -696,38 +976,20 @@ describe("ExecuteWorkflowService", () => {
     );
   }));
 
-  it("a refused run leaves the previous execution's state untouched (#7817)", () => {
+  it("preserves the previous run when a required warehouse is missing (#7817)", fakeAsync(() => {
     TestBed.inject(GuiConfigService).env.warehouseEnabled = true;
     try {
       TestBed.inject(WarehouseService).selectWarehouse(undefined);
-      const resetSpy = vi.spyOn(service, "resetExecutionState");
-      const statusResetSpy = vi.spyOn(TestBed.inject(WorkflowStatusService), "resetStatus");
-      vi.spyOn(TestBed.inject(NotificationService), "error").mockReturnValue(undefined as never);
-
-      service.executeWorkflowWithEmailNotification("exec", false);
-
-      expect(resetSpy).not.toHaveBeenCalled();
-      expect(statusResetSpy).not.toHaveBeenCalled();
-    } finally {
-      TestBed.inject(GuiConfigService).env.warehouseEnabled = false;
-    }
-  });
-
-  it("refuses to run without a warehouse while the deployment requires one (#7817)", fakeAsync(() => {
-    // Paths that bypass the menu gate (form view, run-up-to, replay) all funnel
-    // through sendExecutionRequest; the shared storage must not catch them.
-    TestBed.inject(GuiConfigService).env.warehouseEnabled = true;
-    try {
-      TestBed.inject(WarehouseService).selectWarehouse(undefined);
-      const wsSendSpy = vi.spyOn(service["workflowWebsocketService"], "send");
-      const errorSpy = vi.spyOn(TestBed.inject(NotificationService), "error").mockReturnValue(undefined as never);
+      const run = watchRun();
 
       service.executeWorkflowWithEmailNotification("exec", false);
       tick(FORM_DEBOUNCE_TIME_MS + 1);
       flush();
 
-      expect(wsSendSpy).not.toHaveBeenCalledWith("WorkflowExecuteRequest", expect.anything());
-      expect(errorSpy).toHaveBeenCalledWith("Create or select a warehouse before running.");
+      expect(run.send).not.toHaveBeenCalledWith("WorkflowExecuteRequest", expect.anything());
+      expect(run.reset).not.toHaveBeenCalled();
+      expect(run.resetStatus).not.toHaveBeenCalled();
+      expect(run.error).toHaveBeenCalledWith("Create or select a warehouse before running.");
     } finally {
       TestBed.inject(GuiConfigService).env.warehouseEnabled = false;
     }
@@ -746,6 +1008,7 @@ describe("ExecuteWorkflowService", () => {
     };
 
     const replayInfo: ReplayExecutionInfo = { eid: 42, interaction: "step-3" };
+    const unavailableMessage = "The selected computing unit is unavailable. Select a running unit or create a new one.";
 
     const entryPoints: { name: string; run: () => void }[] = [
       {
@@ -756,44 +1019,29 @@ describe("ExecuteWorkflowService", () => {
     ];
 
     for (const entryPoint of entryPoints) {
-      it(`${entryPoint.name} refuses a terminating unit and keeps the previous results on screen`, fakeAsync(() => {
-        selectUnitWithStatus("Terminating");
-        const wsSendSpy = vi.spyOn(service["workflowWebsocketService"], "send");
-        const resetSpy = vi.spyOn(service, "resetExecutionState");
-        const statusResetSpy = vi.spyOn(TestBed.inject(WorkflowStatusService), "resetStatus");
-        const errorSpy = vi.spyOn(TestBed.inject(NotificationService), "error").mockReturnValue(undefined as never);
-
-        entryPoint.run();
-        tick(FORM_DEBOUNCE_TIME_MS + 1);
-        flush();
-
-        expect(wsSendSpy).not.toHaveBeenCalledWith("WorkflowExecuteRequest", expect.anything());
-        expect(resetSpy).not.toHaveBeenCalled();
-        expect(statusResetSpy).not.toHaveBeenCalled();
-        expect(errorSpy).toHaveBeenCalledWith(
-          "The selected computing unit is shutting down. Wait for it to finish, then select or create another one."
-        );
-      }));
-
-      it.each(["Failed", "Unknown"] as const)(
-        `${entryPoint.name} refuses a %s unit and keeps the previous results on screen`,
-        status => {
+      const blocked = [
+        [
+          "Terminating",
+          "The selected computing unit is shutting down. Wait for it to finish, then select or create another one.",
+        ],
+        ["Failed", unavailableMessage],
+        ["Unknown", unavailableMessage],
+      ] as const;
+      for (const [status, message] of blocked) {
+        it(`${entryPoint.name} refuses a ${status} unit and preserves the previous run`, fakeAsync(() => {
           selectUnitWithStatus(status);
-          const wsSendSpy = vi.spyOn(service["workflowWebsocketService"], "send");
-          const resetSpy = vi.spyOn(service, "resetExecutionState");
-          const statusResetSpy = vi.spyOn(TestBed.inject(WorkflowStatusService), "resetStatus");
-          const errorSpy = vi.spyOn(TestBed.inject(NotificationService), "error").mockReturnValue(undefined as never);
+          const run = watchRun();
 
           entryPoint.run();
+          tick(FORM_DEBOUNCE_TIME_MS + 1);
+          flush();
 
-          expect(wsSendSpy).not.toHaveBeenCalledWith("WorkflowExecuteRequest", expect.anything());
-          expect(resetSpy).not.toHaveBeenCalled();
-          expect(statusResetSpy).not.toHaveBeenCalled();
-          expect(errorSpy).toHaveBeenCalledWith(
-            "The selected computing unit is unavailable. Select a running unit or create a new one."
-          );
-        }
-      );
+          expect(run.send).not.toHaveBeenCalledWith("WorkflowExecuteRequest", expect.anything());
+          expect(run.reset).not.toHaveBeenCalled();
+          expect(run.resetStatus).not.toHaveBeenCalled();
+          expect(run.error).toHaveBeenCalledWith(message);
+        }));
+      }
 
       it.each(["Running", "Pending"] as const)(`${entryPoint.name} still runs on a %s unit`, status => {
         // Pending is still starting up, so it must not be blocked.
@@ -818,9 +1066,7 @@ describe("ExecuteWorkflowService", () => {
         service.executeWorkflowWithEmailNotification("e", false);
 
         expect(errorSpy).toHaveBeenCalledTimes(1);
-        expect(errorSpy).toHaveBeenCalledWith(
-          "The selected computing unit is unavailable. Select a running unit or create a new one."
-        );
+        expect(errorSpy).toHaveBeenCalledWith(unavailableMessage);
       } finally {
         TestBed.inject(GuiConfigService).env.warehouseEnabled = false;
       }
@@ -931,9 +1177,9 @@ describe("ExecuteWorkflowService", () => {
     expect(wsSendSpy).toHaveBeenCalledWith("RetryRequest", { workers: ["w9"] });
   });
 
-  it("modifyOperatorLogic requires a paused state and sends the operator logic", () => {
+  it("modifyOperatorLogic requires a paused state and sends the operator logic", async () => {
     (service as any).currentState = { state: ExecutionState.Running };
-    expect(() => service.modifyOperatorLogic("1")).toThrowError(
+    await expect(service.modifyOperatorLogic("1")).rejects.toThrowError(
       "cannot modify logic, the current execution state is Running"
     );
 

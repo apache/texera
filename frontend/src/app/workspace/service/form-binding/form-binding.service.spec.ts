@@ -16,6 +16,8 @@
  * specific language governing permissions and limitations
  * under the License.
  */
+import { testPort, testMacro, setMacroGraph } from "../../../common/testing/macro-graph";
+import { testBinding } from "../../../common/testing/workflow-graph";
 
 import { TestBed } from "@angular/core/testing";
 import { FormBindingService } from "./form-binding.service";
@@ -27,6 +29,8 @@ import { OperatorMetadataService } from "../operator-metadata/operator-metadata.
 import { StubOperatorMetadataService } from "../operator-metadata/stub-operator-metadata.service";
 import { commonTestProviders } from "../../../common/testing/test-utils";
 import { mockPoint, mockScanPredicate, mockSentimentPredicate } from "../workflow-graph/model/mock-workflow-data";
+import { MacroDefinition, macroInstance } from "../../../common/util/workflow-macro";
+import { exportedWorkflow } from "../../../common/type/workflow";
 
 describe("FormBindingService", () => {
   let service: FormBindingService;
@@ -50,6 +54,72 @@ describe("FormBindingService", () => {
   });
 
   const scanId = mockScanPredicate.operatorID;
+
+  it("undoes macro parameter exposure, renaming and removal through the existing form bindings", () => {
+    setMacroGraph(workflowActionService, { id: "macro", inputs: [], outputs: [] });
+    const undo = TestBed.inject(UndoRedoService);
+    workflowActionService.bundleMacroActions(() => service.addBinding(scanId, "tableName"));
+    const original = service.getConfig().fields[0];
+    workflowActionService.bundleMacroActions(() => service.updateBinding(original.id, { displayName: "名前 café" }));
+    workflowActionService.bundleMacroActions(() => service.removeBinding(original.id));
+    expect(service.getConfig().fields).toEqual([]);
+    undo.undoAction();
+    expect(service.getConfig().fields[0].displayName).toBe("名前 café");
+    undo.undoAction();
+    expect(service.getConfig().fields).toEqual([original]);
+    undo.undoAction();
+    expect(service.getConfig().fields).toEqual([]);
+    undo.redoAction();
+    expect(service.getConfig().fields).toEqual([original]);
+  });
+
+  it("resolves and edits three nested macro levels without changing another instance or the pinned definitions", () => {
+    const definitions: MacroDefinition[] = [];
+    let inner = { ...mockScanPredicate, operatorID: "leaf", operatorProperties: { tableName: "initial" } };
+    for (let level = 0; level < 3; level++) {
+      const id = `form-level-${level}`;
+      const definition = testMacro(id, [inner], {
+        ...workflowActionService.getWorkflowContent(),
+        links: [],
+        name: `Level ${level}`,
+        outputs: [testPort("output-0", inner.operatorID)],
+        formBinding: testBinding(inner.operatorID, level ? "exposed" : "tableName", "exposed", "Table"),
+      });
+      definitions.push(definition);
+      inner = macroInstance(definition, `nested-${level}`) as typeof inner;
+    }
+    workflowActionService.setMacroDependencies(definitions);
+    for (const id of ["first", "second"]) {
+      workflowActionService.addOperator(
+        { ...inner, operatorID: id, operatorProperties: { exposed: "initial" } },
+        mockPoint
+      );
+      service.addBinding(id, "exposed");
+    }
+    const before = JSON.stringify(definitions);
+    const [first, second] = service.resolveFields();
+    expect(first.schema?.title).toBe("Table");
+    expect(first.brokenReason).toBeUndefined();
+    const portable = JSON.parse(
+      JSON.stringify(exportedWorkflow(workflowActionService.getWorkflowContent(), undefined))
+    );
+    workflowActionService.reloadWorkflow({ ...workflowActionService.getWorkflow(), content: portable }, false);
+    const undo = TestBed.inject(UndoRedoService);
+    for (const value of ["東京 café", ""]) {
+      const beforeEdit = workflowActionService.getWorkflowContent();
+      workflowActionService.bundleMacroActions(() => service.writeValue(first.binding, value));
+      const afterEdit = workflowActionService.getWorkflowContent();
+      undo.undoAction();
+      expect(workflowActionService.getWorkflowContent()).toEqual(beforeEdit);
+      undo.redoAction();
+      expect(workflowActionService.getWorkflowContent()).toEqual(afterEdit);
+      expect(service.resolveFields().map(f => f.value)).toEqual([value, "initial"]);
+    }
+    expect(JSON.stringify(definitions)).toBe(before);
+    service.updateBinding(first.binding.id, { propertyKey: "missing" });
+    expect(service.resolveFields()[0].brokenReason).toContain("not a setting");
+    expect(service.readValue(second.binding.operatorID, second.binding.propertyKey)).toBe("initial");
+  });
 
   it("starts with nothing exposed and no result list, so the final steps show", () => {
     expect(service.getConfig().fields).toEqual([]);

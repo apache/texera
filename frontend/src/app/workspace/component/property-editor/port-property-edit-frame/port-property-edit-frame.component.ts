@@ -62,6 +62,7 @@ Quill.register("modules/cursors", QuillCursors);
   ],
 })
 export class PortPropertyEditFrameComponent implements OnInit, OnChanges {
+  @Input() actsAsEditor = true;
   @Input() currentPortID: LogicalPort | undefined;
 
   // whether the editor can be edited
@@ -90,9 +91,23 @@ export class PortPropertyEditFrameComponent implements OnInit, OnChanges {
 
   constructor(
     private formlyJsonschema: FormlyJsonschema,
-    private workflowActionService: WorkflowActionService,
+    public workflowActionService: WorkflowActionService,
     private dynamicSchemaService: DynamicSchemaService
   ) {}
+
+  public get exposureDirection() {
+    return this.currentPortID && this.workflowActionService.macroTerminals.direction(this.currentPortID);
+  }
+  public get needsReplacement(): boolean {
+    return !!this.currentPortID && this.workflowActionService.macroTerminals.needsReplacement(this.currentPortID);
+  }
+  public get canExpose(): boolean {
+    return this.actsAsEditor && this.interactive && this.workflowActionService.checkWorkflowModificationEnabled();
+  }
+  public expose(): void {
+    if (this.canExpose && this.currentPortID)
+      this.workflowActionService.macroTerminals.expose(this.currentPortID, this.needsReplacement);
+  }
 
   ngOnInit(): void {
     this.registerPortPropertyChangeHandler();
@@ -101,6 +116,7 @@ export class PortPropertyEditFrameComponent implements OnInit, OnChanges {
   }
 
   ngOnChanges(changes: SimpleChanges): void {
+    if (!changes.currentPortID) return;
     this.currentPortID = changes.currentPortID.currentValue;
     if (this.currentPortID) this.showPortPropertyEditor(this.currentPortID);
   }
@@ -119,6 +135,7 @@ export class PortPropertyEditFrameComponent implements OnInit, OnChanges {
    * Connects the actual y-text structure of this operator's name to the editor's awareness manager.
    */
   connectQuillToText() {
+    if (!this.interactive || !this.actsAsEditor) return;
     this.registerQuillBinding();
     if (!this.currentPortID) return;
     const currentPortDescriptorSharedType = this.workflowActionService
@@ -141,6 +158,7 @@ export class PortPropertyEditFrameComponent implements OnInit, OnChanges {
    */
   disconnectQuillFromText() {
     this.quill.blur();
+    this.quillBinding?.destroy();
     this.quillBinding = undefined;
     this.editingTitle = false;
   }

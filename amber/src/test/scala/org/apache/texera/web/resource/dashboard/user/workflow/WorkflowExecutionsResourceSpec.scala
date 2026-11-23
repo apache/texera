@@ -1053,6 +1053,34 @@ class WorkflowExecutionsResourceSpec
     u
   }
 
+  "A macro execution snapshot" should "belong to the requested run and workflow and require access" in {
+    grantReadAccess()
+    val first = insertExecution()
+    val second = insertExecution()
+    for ((row, value) <- List(first -> "old", second -> "new")) {
+      row.setMacroContent(s"""{"value":"$value"}""")
+      workflowExecutionsDao.update(row)
+    }
+    assert(
+      resource
+        .macroContent(testWorkflowWid, first.getEid, session(testUser))
+        .path("value")
+        .asText() == "old"
+    )
+    assert(
+      resource
+        .macroContent(testWorkflowWid, second.getEid, session(testUser))
+        .path("value")
+        .asText() == "new"
+    )
+    intercept[javax.ws.rs.NotFoundException](
+      resource.macroContent(testWorkflowWid, -1, session(testUser))
+    )
+    intercept[javax.ws.rs.WebApplicationException](
+      resource.macroContent(testWorkflowWid, first.getEid, session(userWithoutAccess()))
+    )
+  }
+
   "retrieveExecutionsOfWorkflow" should "return an empty list when the user lacks read access" in {
     val result =
       resource.retrieveExecutionsOfWorkflow(testWorkflowWid, session(userWithoutAccess()), null)

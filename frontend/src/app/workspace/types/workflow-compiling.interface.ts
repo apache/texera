@@ -37,6 +37,7 @@ import { WorkflowFatalError } from "./workflow-websocket.interface";
  */
 export interface WorkflowCompilationResponse
   extends Readonly<{
+    macroExpansion?: import("../../common/util/workflow-macro").MacroExpansion;
     physicalPlan?: PhysicalPlan;
     operatorOutputSchemas: {
       [key: string]: OperatorPortSchemaMap;

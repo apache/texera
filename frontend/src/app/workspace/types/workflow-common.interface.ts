@@ -18,6 +18,14 @@
  */
 
 import { JSONSchema7 } from "json-schema";
+import type { PartitionInfo } from "@texera/workflow-macros";
+export type {
+  LogicalPort,
+  OperatorLink,
+  OperatorPredicate,
+  PartitionInfo,
+  PortDescription,
+} from "@texera/workflow-macros";
 
 /**
  * This file contains multiple type declarations related to workflow-graph.
@@ -30,19 +38,6 @@ export interface Point
     y: number;
   }> {}
 
-export interface LogicalPort
-  extends Readonly<{
-    operatorID: string;
-    portID: string;
-  }> {}
-
-export type PartitionInfo =
-  | Readonly<{ type: "hash"; hashAttributeNames: string[] }>
-  | Readonly<{ type: "range"; rangeAttributeNames: string[]; rangeMin: number; rangeMax: number }>
-  | Readonly<{ type: "single" }>
-  | Readonly<{ type: "broadcast" }>
-  | Readonly<{ type: "none" }>;
-
 export interface PortSchema
   extends Readonly<{
     jsonSchema: Readonly<JSONSchema7>;
@@ -50,33 +45,6 @@ export interface PortSchema
 
 export interface PortProperty
   extends Readonly<{ partitionInfo: PartitionInfo; dependencies: { id: number; internal: boolean }[] }> {}
-
-export interface PortDescription
-  extends Readonly<{
-    portID: string;
-    displayName?: string;
-    disallowMultiInputs?: boolean;
-    isDynamicPort?: boolean;
-    partitionRequirement?: PartitionInfo;
-    dependencies?: { id: number; internal: boolean }[];
-  }> {}
-
-export interface OperatorPredicate
-  extends Readonly<{
-    operatorID: string;
-    operatorType: string;
-    operatorVersion: string;
-    operatorProperties: Readonly<{ [key: string]: any }>;
-    inputPorts: PortDescription[];
-    outputPorts: PortDescription[];
-    dynamicInputPorts?: boolean;
-    dynamicOutputPorts?: boolean;
-    showAdvanced: boolean;
-    isDisabled?: boolean;
-    viewResult?: boolean;
-    markedForReuse?: boolean;
-    customDisplayName?: string;
-  }> {}
 
 export interface Comment
   extends Readonly<{
@@ -91,13 +59,6 @@ export interface CommentBox {
   comments: Comment[];
   commentBoxPosition: Point;
 }
-
-export interface OperatorLink
-  extends Readonly<{
-    linkID: string;
-    source: LogicalPort;
-    target: LogicalPort;
-  }> {}
 
 /**
  * refer to src/main/scalapb/org/apache/texera/web/workflowruntimestate/ConsoleMessage.scala

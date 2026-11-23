@@ -57,10 +57,10 @@ object WorkflowAccess {
     * @param uid user id, works with workflow id as primary keys in database
     * @return PrivilegeEnum value indicating NONE/READ/WRITE
     */
-  def getPrivilege(wid: Integer, uid: Integer): PrivilegeEnum = {
+  def getPrivilege(wid: Integer, uid: Integer, db: DSLContext = context): PrivilegeEnum = {
     // One round trip: the caller's own ownership row and grant, read together. Both joins are
     // narrowed to the caller, so a workflow with several owners still yields one row.
-    val row = context
+    val row = db
       .select(WORKFLOW_OF_USER.UID, WORKFLOW_USER_ACCESS.PRIVILEGE)
       .from(WORKFLOW)
       .leftJoin(WORKFLOW_OF_USER)

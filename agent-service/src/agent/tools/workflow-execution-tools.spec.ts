@@ -31,7 +31,10 @@ import {
   type WorkflowExecutionSummary,
   type WorkflowFatalError,
 } from "../../types/execution";
-import type { OperatorLink, OperatorPredicate } from "../../types/workflow";
+import type { OperatorLink, OperatorPredicate, WorkflowContent } from "../../types/workflow";
+import { macroInstance } from "@texera/workflow-macros";
+import { macroGraph } from "../../../../common/workflow-core/src/test/typescript/macro-test-graph";
+import { macroLeaf, macroWorkflow } from "../macro-test-data";
 
 // --- fixtures -------------------------------------------------------------
 
@@ -871,5 +874,126 @@ describe("createExecuteOperatorTool", () => {
     expect(String(fetchSpy.mock.calls[1][0])).toContain("/api/execution/43/2/run");
     expect(onResult).toHaveBeenCalledTimes(2);
     expect(onResult).toHaveBeenCalledWith(target, expect.anything());
+  });
+});
+
+describe("nested macro execution", () => {
+  function loadWorkflow(content: WorkflowContent): WorkflowState {
+    const state = new WorkflowState();
+    state.setWorkflowContent(content);
+    return state;
+  }
+
+  function tableResult(row: Record<string, string>) {
+    return { state: "Completed", inputTuples: 0, outputTuples: 1, resultMode: "table", result: [row] };
+  }
+
+  function complete(operators: Record<string, ReturnType<typeof tableResult>>): void {
+    setFetchResolving(legacyJsonResponse({ success: true, state: "Completed", operators }));
+  }
+
+  test("submits native defaults intact and returns the selected nonzero output of the pinned instance", async () => {
+    const content = macroWorkflow("code");
+    content.operators[0].operatorProperties.value = "# override";
+    const inner: { operators: OperatorPredicate[]; links: OperatorLink[] } = macroLeaf(content);
+    inner.operators[0] = {
+      ...inner.operators[0],
+      operatorType: "PythonUDFSourceV2",
+      operatorProperties: { code: "# source" },
+    };
+    const split = makeOperator("split", {
+      inputPorts: [{ portID: "input-0" }],
+      operatorType: "Split",
+      outputPorts: [{ portID: "output-0" }, { portID: "output-1" }],
+    });
+    inner.operators.push(split);
+    const output = inner.links[0].target;
+    inner.links = [
+      makeLink("leaf", "output-0", "split", "input-0"),
+      makeLink("split", "output-1", output.operatorID, output.portID),
+    ];
+    const before = structuredClone(content);
+    const state = loadWorkflow(content);
+    complete({
+      "runtime-split": tableResult({ branch: "native output zero" }),
+      one: tableResult({ branch: "café 東京" }),
+    });
+    const onResult = mock(() => {});
+    const result = await executeOperatorAndFormat(state, makeConfig(), "one", { onResult });
+    const plan = requestBody().logicalPlan;
+    expect(String(fetchSpy.mock.calls[0][0])).toMatch(/\/api\/execution\/1\/0\/run$/);
+    expect(plan.operators).toEqual([]);
+    expect(plan.macroContent).toEqual(before);
+    expect(state.getWorkflowContent()).toEqual(before);
+    expect(plan.executeOperatorIds).toEqual(["one"]);
+    expect(plan.opsToViewResult).toEqual(["one"]);
+    expect(result).toContain("café 東京");
+    expect(result).not.toContain("native output zero");
+    expect(onResult).toHaveBeenCalledWith(
+      "one",
+      expect.objectContaining({ resultSummary: expect.objectContaining({ totalTuplesCount: 1 }) })
+    );
+    expect(fetchSpy).toHaveBeenCalledTimes(1);
+    expect(validateSpy).not.toHaveBeenCalled();
+    state.destroy();
+  });
+
+  test.each(["Missing macro version", "Recursive macro reference"])("surfaces backend rejection: %s", async message => {
+    const content = macroWorkflow();
+    if (message === "Missing macro version") content.macroDependencies = [];
+    else content.macroDependencies[0].content.operators[0].operatorType = "WorkflowMacro:outer:1";
+    const state = loadWorkflow(content);
+    const diagnostic = `Outer / Child: ${message}`;
+    setFetchResolving(
+      legacyJsonResponse({
+        success: false,
+        state: "CompilationFailed",
+        operators: {},
+        compilationErrors: { one: diagnostic },
+      })
+    );
+    expect(await executeOperatorAndFormat(state, makeConfig(), "one")).toContain(diagnostic);
+    expect(fetchSpy).toHaveBeenCalledTimes(1);
+    expect(String(fetchSpy.mock.calls[0][0])).toMatch(/\/api\/execution\/1\/0\/run$/);
+    state.destroy();
+  });
+
+  test("keeps the requested passthrough result and visible source callbacks without marking a sibling executed", async () => {
+    const state = new WorkflowState();
+    const definition = {
+      id: "identity",
+      name: "Identity",
+      version: 1,
+      content: macroGraph({
+        ...state.getWorkflowContent(),
+        operators: [],
+        links: [],
+        macroInterface: {
+          id: "identity",
+          inputs: [{ portID: "rows", targets: [{ operatorID: "identity__outputs", portID: "rows" }] }],
+          outputs: [{ portID: "rows", targets: [] }],
+        },
+      }),
+    };
+    const content = {
+      ...state.getWorkflowContent(),
+      operators: [
+        makeOperator("source", { outputPorts: [{ portID: "output-0" }] }),
+        macroInstance(definition, "A"),
+        macroInstance(definition, "B"),
+      ],
+      links: [makeLink("source", "output-0", "A", "rows"), makeLink("source", "output-0", "B", "rows")],
+      macroDependencies: [definition],
+    };
+    state.setWorkflowContent(content);
+    const before = JSON.stringify(content);
+    complete({ source: tableResult({ value: "native" }), A: tableResult({ value: "requested A" }) });
+    const onResult = mock((_id: string, _info: OperatorExecutionSummary) => {});
+    const result = await executeOperatorAndFormat(state, makeConfig(), "A", { onResult });
+    expect(result).toContain("requested A");
+    expect(onResult.mock.calls.map(([id]) => id).sort()).toEqual(["A", "source"]);
+    expect(fetchSpy).toHaveBeenCalledTimes(1);
+    expect(JSON.stringify(content)).toBe(before);
+    state.destroy();
   });
 });

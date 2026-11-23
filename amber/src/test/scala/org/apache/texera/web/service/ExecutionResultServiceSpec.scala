@@ -357,6 +357,24 @@ class ExecutionResultServiceSpec
     event.schema.map(_.getName) shouldBe List("id", "label")
   }
 
+  it should "read the requested execution after another run and reject an unavailable execution" in {
+    val old = newExecution()
+    val schema = new Schema(List(new Attribute("id", AttributeType.INTEGER)))
+    for ((run, value) <- List(old -> 1, newExecution() -> 2)) {
+      storeResult(
+        run,
+        "run-specific",
+        schema,
+        Seq(Tuple.builder(schema).add("id", AttributeType.INTEGER, value).build())
+      )
+    }
+    val request = paginationRequest.copy(operatorID = "run-specific", executionId = Some(old.id))
+    paginate(request).table.map(_.get("id").asInt()) shouldBe List(1)
+    intercept[IllegalArgumentException] {
+      paginate(request.copy(executionId = Some(-1L)))
+    }.getMessage should include("unavailable for this workflow and computing unit")
+  }
+
   it should "clamp the last page to the rows that exist" in {
     val executionId = newExecution()
     val schema = new Schema(List(new Attribute("id", AttributeType.INTEGER)))

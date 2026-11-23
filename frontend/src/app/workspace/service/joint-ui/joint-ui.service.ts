@@ -27,6 +27,7 @@ import { fromEventPattern, Observable } from "rxjs";
 import { Coeditor } from "../../../common/type/user";
 import { OperatorResultCacheStatus } from "../../types/workflow-websocket.interface";
 import { HEATMAP_NO_DATA_COLOR, scoreToColor } from "../heatmap/heatmap-color";
+import { isMacro, isMacroTerminal } from "../../../common/util/workflow-macro";
 
 /**
  * Defines the SVG path for the delete button
@@ -289,11 +290,26 @@ export class JointUIService {
 
   public getJointOperatorElement(operator: OperatorPredicate, point: Point): joint.dia.Element {
     // check if the operatorType exists in the operator metadata
-    const operatorSchema = this.operatorSchemas.find(op => op.operatorType === operator.operatorType);
+    const operatorSchema = isMacro(operator)
+      ? this.operatorMetadataService.getOperatorSchema(operator.operatorType)
+      : this.operatorSchemas.find(op => op.operatorType === operator.operatorType);
     if (operatorSchema === undefined) {
       throw new Error(`operator type ${operator.operatorType} doesn't exist`);
     }
 
+    return JointUIService.createJointOperatorElement(
+      operator,
+      point,
+      operatorSchema.additionalMetadata.userFriendlyName
+    );
+  }
+
+  /** Shared canvas rendering for executable operators and macro interface terminals. */
+  public static createJointOperatorElement(
+    operator: OperatorPredicate,
+    point: Point,
+    friendlyName: string
+  ): joint.dia.Element {
     // construct a custom Texera JointJS operator element
     //   and customize the styles of the operator box and ports
     const operatorElement = new TexeraCustomJointElement({
@@ -304,11 +320,9 @@ export class JointUIService {
       },
       attrs: JointUIService.getCustomOperatorStyleAttrs(
         operator,
-        JointUIService.truncateOperatorDisplayName(
-          operator.customDisplayName ?? operatorSchema.additionalMetadata.userFriendlyName
-        ),
-        operatorSchema.operatorType,
-        operatorSchema.additionalMetadata.userFriendlyName
+        JointUIService.truncateOperatorDisplayName(operator.customDisplayName ?? friendlyName),
+        operator.operatorType,
+        friendlyName
       ),
       ports: {
         groups: {
@@ -326,45 +340,40 @@ export class JointUIService {
     operatorElement.set("id", operator.operatorID);
     operatorElement.set("z", 1);
 
-    // set the input ports and output ports based on operator predicate
-    operator.inputPorts.forEach(port =>
-      operatorElement.addPort({
-        group: "in",
-        id: port.portID,
-        attrs: {
-          ".port-label": {
-            text: port.displayName ?? "",
-            event: "input-port-label:pointerdown",
-          },
-        },
-        label: {
-          position: {
-            name: "left",
-            args: { x: -5, y: 10 },
-          },
-        },
-      })
-    );
-    operator.outputPorts.forEach(port =>
-      operatorElement.addPort({
-        group: "out",
-        id: port.portID,
-        attrs: {
-          ".port-label": {
-            text: port.displayName ?? "",
-            event: "output-port-label:pointerdown",
-          },
-        },
-        label: {
-          position: {
-            name: "right",
-            args: { x: 5, y: -10 },
-          },
-        },
-      })
-    );
-
+    JointUIService.updateOperatorPorts(operatorElement, operator);
     return operatorElement;
+  }
+
+  public static updateOperatorPorts(
+    operatorElement: joint.dia.Element,
+    operator: Pick<OperatorPredicate, "inputPorts" | "outputPorts">
+  ): void {
+    const current = new Map(operatorElement.getPorts().map(port => [port.id, port]));
+    const ports = (declared: OperatorPredicate["inputPorts"], input: boolean) =>
+      declared.map(port => {
+        const previous = current.get(port.portID);
+        return {
+          ...previous,
+          id: port.portID,
+          group: input ? "in" : "out",
+          attrs: {
+            ...previous?.attrs,
+            ".port-label": {
+              ...previous?.attrs?.[".port-label"],
+              text: port.displayName ?? "",
+              port: port.portID,
+              event: input ? "input-port-label:pointerdown" : "output-port-label:pointerdown",
+            },
+          },
+          label: previous?.label ?? {
+            position: { name: input ? "left" : "right", args: { x: input ? -5 : 5, y: input ? 10 : -10 } },
+          },
+        };
+      });
+    // Reconcile by identity and preserve graph order, including a middle port restored by Undo.
+    operatorElement.prop("ports/items", [...ports(operator.inputPorts, true), ...ports(operator.outputPorts, false)], {
+      rewrite: true,
+    });
   }
 
   /**
@@ -395,28 +404,36 @@ export class JointUIService {
     // Absent map: no per-port information in this snapshot, so leave the labels alone.
     // Empty map: every port measured zero, so write the zeros.
     if (inputMetrics !== undefined) {
-      inPorts.forEach(portDef => {
+      inPorts.forEach((portDef, index) => {
         const portId = portDef.id;
         if (portId != null) {
           const parts = portId.split("-");
           const numericSuffix = parts.length > 1 ? parts[1] : portId;
-          const count: number = inputMetrics[numericSuffix] ?? 0;
+          const count: number = inputMetrics[String(index)] ?? inputMetrics[numericSuffix] ?? 0;
           element.portProp(portId, "attrs/.port-label/text", count.toLocaleString());
         }
       });
     }
 
     if (outputMetrics !== undefined) {
-      outPorts.forEach(portDef => {
+      outPorts.forEach((portDef, index) => {
         const portId = portDef.id;
         if (portId != null) {
           const parts = portId.split("-");
           const numericSuffix = parts.length > 1 ? parts[1] : portId;
-          const count: number = outputMetrics[numericSuffix] ?? 0;
+          const count: number = outputMetrics[String(index)] ?? outputMetrics[numericSuffix] ?? 0;
           element.portProp(portId, "attrs/.port-label/text", count.toLocaleString());
         }
       });
     }
+  }
+  public resetOperatorStatistics(jointPaper: joint.dia.Paper, operator: OperatorPredicate): void {
+    const element = jointPaper.getModelById(operator.operatorID) as joint.shapes.devs.Model;
+    if (!element) return;
+    element.attr(`.${operatorWorkerCountClass}/text`, "");
+    [...operator.inputPorts, ...operator.outputPorts].forEach(port =>
+      element.portProp(port.portID, "attrs/.port-label/text", port.displayName ?? "")
+    );
   }
   public foldOperatorDetails(jointPaper: joint.dia.Paper, operatorID: string): void {
     jointPaper.getModelById(operatorID).attr({
@@ -934,7 +951,9 @@ export class JointUIService {
         visibility: "hidden",
       },
       ".texera-operator-icon": {
-        "xlink:href": "assets/operator_images/" + operatorType + ".png",
+        "xlink:href": isMacro(operator)
+          ? "assets/operator_images/SubWorkflow.svg"
+          : `assets/operator_images/${operatorType}.${isMacroTerminal(operator) ? "svg" : "png"}`,
         width: 35,
         height: 35,
         "ref-x": 0.5,

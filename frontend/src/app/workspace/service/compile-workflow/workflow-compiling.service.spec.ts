@@ -16,7 +16,11 @@
  * specific language governing permissions and limitations
  * under the License.
  */
+import { testPort, testMacro, expansionFixture } from "../../../common/testing/macro-graph";
+import { testField, testLink } from "../../../common/testing/workflow-graph";
 
+import { ComputingUnitStatusService } from "../../../common/service/computing-unit/computing-unit-status/computing-unit-status.service";
+import { MockComputingUnitStatusService } from "../../../common/service/computing-unit/computing-unit-status/mock-computing-unit-status.service";
 import { JSONSchema7Definition } from "json-schema";
 import { fakeAsync, TestBed, tick } from "@angular/core/testing";
 import { HttpTestingController, TestRequest } from "@angular/common/http/testing";
@@ -46,8 +50,13 @@ import { AppSettings } from "../../../common/app-setting";
 import { serializePortIdentity } from "../../../common/util/port-identity-serde";
 import { commonTestImports, commonTestProviders } from "../../../common/testing/test-utils";
 import { firstValueFrom } from "rxjs";
-import { CompilationState } from "../../types/workflow-compiling.interface";
+import { CompilationState, OperatorPortSchemaMap } from "../../types/workflow-compiling.interface";
+import { CustomJSONSchema7 } from "../../types/custom-json-schema.interface";
+import { mockNlpSentimentSchema } from "../operator-metadata/mock-operator-metadata.data";
 import { OperatorSchema } from "../../types/operator-schema.interface";
+import { macroInstance, macroRuntimeID } from "../../../common/util/workflow-macro";
+
+const port = (id: number): string => serializePortIdentity({ id, internal: false });
 
 describe("WorkflowCompilingService.dropInvalidAttributeValues", () => {
   // A schema shaped like the Aggregate operator after schema propagation has filled in the
@@ -172,20 +181,7 @@ describe("WorkflowCompilingService schema propagation property cleanup", () => {
   let dynamicSchemaService: DynamicSchemaService;
 
   beforeEach(() => {
-    TestBed.configureTestingModule({
-      imports: [...commonTestImports],
-      providers: [
-        { provide: OperatorMetadataService, useClass: StubOperatorMetadataService },
-        JointUIService,
-        WorkflowActionService,
-        WorkflowUtilService,
-        UndoRedoService,
-        DynamicSchemaService,
-        ValidationWorkflowService,
-        WorkflowCompilingService,
-        ...commonTestProviders,
-      ],
-    });
+    configureCompilingTestBed();
     service = TestBed.inject(WorkflowCompilingService);
     workflowActionService = TestBed.inject(WorkflowActionService);
     dynamicSchemaService = TestBed.inject(DynamicSchemaService);
@@ -262,20 +258,7 @@ describe("WorkflowCompilingService public getters", () => {
   let service: WorkflowCompilingService;
 
   beforeEach(() => {
-    TestBed.configureTestingModule({
-      imports: [...commonTestImports],
-      providers: [
-        { provide: OperatorMetadataService, useClass: StubOperatorMetadataService },
-        JointUIService,
-        WorkflowActionService,
-        WorkflowUtilService,
-        UndoRedoService,
-        DynamicSchemaService,
-        ValidationWorkflowService,
-        WorkflowCompilingService,
-        ...commonTestProviders,
-      ],
-    });
+    configureCompilingTestBed();
     service = TestBed.inject(WorkflowCompilingService);
   });
 
@@ -378,226 +361,76 @@ describe("WorkflowCompilingService public getters", () => {
   });
 });
 
-describe("WorkflowCompilingService.setOperatorInputAttrs / restoreOperatorInputAttrs", () => {
-  const port0 = serializePortIdentity({ id: 0, internal: false });
-
-  // Builds an OperatorSchema wrapping the given json schema. Only jsonSchema matters for these pure transforms;
-  // additionalMetadata is included only to satisfy the OperatorSchema type.
-  const makeOperatorSchema = (jsonSchema: any): OperatorSchema =>
-    ({
-      operatorType: "TestOp",
-      operatorVersion: "1",
-      jsonSchema,
-      additionalMetadata: {
-        userFriendlyName: "Test Op",
-        operatorGroupName: "Test",
-        inputPorts: [{ displayName: "input" }],
-        outputPorts: [{ displayName: "output" }],
-      },
-    }) as unknown as OperatorSchema;
-
-  // input port 0 exposes two attributes.
-  const inputPortSchemaMap = {
-    [port0]: [
+describe("WorkflowCompilingService column schemas", () => {
+  const columns: OperatorPortSchemaMap = {
+    [port(0)]: [
       { attributeName: "col_a", attributeType: "string" },
       { attributeName: "col_b", attributeType: "integer" },
     ],
-  } as any;
+  };
+  const scalar: CustomJSONSchema7 = { type: "string", autofill: "attributeName", autofillAttributeOnPort: 0 };
+  const list: CustomJSONSchema7 = {
+    type: "array",
+    autofill: "attributeNameList",
+    autofillAttributeOnPort: 0,
+    items: { type: "string" },
+  };
+  const schemaWith = (attribute: CustomJSONSchema7, required = false): OperatorSchema => ({
+    ...mockNlpSentimentSchema,
+    jsonSchema: { type: "object", properties: { attribute }, required: required ? ["attribute"] : [] },
+  });
+  const attributeOf = (schema: OperatorSchema) => schema.jsonSchema.properties!.attribute as CustomJSONSchema7;
+  const fill = (attribute: CustomJSONSchema7, required = false) =>
+    attributeOf(WorkflowCompilingService.setOperatorInputAttrs(schemaWith(attribute, required), columns));
 
-  describe("setOperatorInputAttrs", () => {
-    it("returns the original operator schema unchanged when the input schema map is undefined", () => {
-      const schema = makeOperatorSchema({ type: "object", properties: {} });
-      expect(WorkflowCompilingService.setOperatorInputAttrs(schema, undefined)).toBe(schema);
-    });
+  it.each([undefined, {}])("leaves the schema unchanged with no input schema (%j)", inputs => {
+    const schema = schemaWith(scalar);
+    expect(WorkflowCompilingService.setOperatorInputAttrs(schema, inputs)).toBe(schema);
+  });
 
-    it("returns the original operator schema unchanged when the input schema map is empty", () => {
-      const schema = makeOperatorSchema({ type: "object", properties: {} });
-      expect(WorkflowCompilingService.setOperatorInputAttrs(schema, {})).toBe(schema);
-    });
+  it.each([
+    { label: "optional", field: scalar, expected: ["col_a", "col_b", ""] },
+    { label: "with a default", field: { ...scalar, default: "col_a" }, expected: ["col_a", "col_b", "col_a"] },
+    { label: "required", field: scalar, required: true, expected: ["col_a", "col_b"] },
+    {
+      label: "with an extra value",
+      field: { ...scalar, additionalEnumValue: "*" },
+      expected: ["col_a", "col_b", "*", ""],
+    },
+    { label: "with no port", field: { ...scalar, autofillAttributeOnPort: undefined }, expected: undefined },
+    { label: "with no port schema", field: { ...scalar, autofillAttributeOnPort: 5 }, expected: undefined },
+  ])("fills a scalar attribute $label", ({ field, required, expected }) => {
+    expect(fill(field, required)).toMatchObject({ type: "string", uniqueItems: true, enum: expected });
+  });
 
-    it("injects the input attribute names as an enum on an optional attributeName property", () => {
-      const schema = makeOperatorSchema({
-        type: "object",
-        properties: {
-          attribute: { type: "string", autofill: "attributeName", autofillAttributeOnPort: 0 },
-        },
-      });
+  it("rejects a non-string default for a scalar attribute", () => {
+    expect(() => fill({ ...scalar, default: 42 })).toThrow("default value must be a string");
+  });
 
-      const result = WorkflowCompilingService.setOperatorInputAttrs(schema, inputPortSchemaMap);
-      const prop = (result.jsonSchema.properties as any).attribute;
-      // optional (not in `required`) properties append "" so the empty selection passes validation.
-      expect(prop.enum).toEqual(["col_a", "col_b", ""]);
-      expect(prop.type).toBe("string");
-      expect(prop.uniqueItems).toBe(true);
-    });
-
-    it('appends the property\'s string default instead of "" for optional properties', () => {
-      const schema = makeOperatorSchema({
-        type: "object",
-        properties: {
-          attribute: { type: "string", autofill: "attributeName", autofillAttributeOnPort: 0, default: "col_a" },
-        },
-      });
-
-      const result = WorkflowCompilingService.setOperatorInputAttrs(schema, inputPortSchemaMap);
-      expect((result.jsonSchema.properties as any).attribute.enum).toEqual(["col_a", "col_b", "col_a"]);
-    });
-
-    it("throws when the property's default value is not a string", () => {
-      const schema = makeOperatorSchema({
-        type: "object",
-        properties: {
-          attribute: { type: "string", autofill: "attributeName", autofillAttributeOnPort: 0, default: 42 },
-        },
-      });
-
-      expect(() => WorkflowCompilingService.setOperatorInputAttrs(schema, inputPortSchemaMap)).toThrow(
-        "default value must be a string"
-      );
-    });
-
-    it("does not append an empty option for required properties", () => {
-      const schema = makeOperatorSchema({
-        type: "object",
-        required: ["attribute"],
-        properties: {
-          attribute: { type: "string", autofill: "attributeName", autofillAttributeOnPort: 0 },
-        },
-      });
-
-      expect(
-        (WorkflowCompilingService.setOperatorInputAttrs(schema, inputPortSchemaMap).jsonSchema.properties as any)
-          .attribute.enum
-      ).toEqual(["col_a", "col_b"]);
-    });
-
-    it("includes additionalEnumValue before the optional empty option", () => {
-      const schema = makeOperatorSchema({
-        type: "object",
-        properties: {
-          attribute: {
-            type: "string",
-            autofill: "attributeName",
-            autofillAttributeOnPort: 0,
-            additionalEnumValue: "*",
-          },
-        },
-      });
-
-      expect(
-        (WorkflowCompilingService.setOperatorInputAttrs(schema, inputPortSchemaMap).jsonSchema.properties as any)
-          .attribute.enum
-      ).toEqual(["col_a", "col_b", "*", ""]);
-    });
-
-    it("yields an undefined enum when autofillAttributeOnPort is missing", () => {
-      const schema = makeOperatorSchema({
-        type: "object",
-        properties: {
-          attribute: { type: "string", autofill: "attributeName" },
-        },
-      });
-
-      expect(
-        (WorkflowCompilingService.setOperatorInputAttrs(schema, inputPortSchemaMap).jsonSchema.properties as any)
-          .attribute.enum
-      ).toBeUndefined();
-    });
-
-    it("yields an undefined enum when the referenced input port has no schema", () => {
-      const schema = makeOperatorSchema({
-        type: "object",
-        properties: {
-          // port 5 is not present in inputPortSchemaMap.
-          attribute: { type: "string", autofill: "attributeName", autofillAttributeOnPort: 5 },
-        },
-      });
-
-      expect(
-        (WorkflowCompilingService.setOperatorInputAttrs(schema, inputPortSchemaMap).jsonSchema.properties as any)
-          .attribute.enum
-      ).toBeUndefined();
-    });
-
-    it("injects the enum into the items of an attributeNameList property", () => {
-      const schema = makeOperatorSchema({
-        type: "object",
-        properties: {
-          attributes: {
-            type: "array",
-            autofill: "attributeNameList",
-            autofillAttributeOnPort: 0,
-            items: { type: "string" },
-          },
-        },
-      });
-
-      const prop = (
-        WorkflowCompilingService.setOperatorInputAttrs(schema, inputPortSchemaMap).jsonSchema.properties as any
-      ).attributes;
-      expect(prop.type).toBe("array");
-      expect(prop.uniqueItems).toBe(true);
-      expect(prop.items.type).toBe("string");
-      expect(prop.items.enum).toEqual(["col_a", "col_b", ""]);
+  it("fills the items of an attribute list", () => {
+    expect(fill(list)).toMatchObject({
+      type: "array",
+      uniqueItems: true,
+      items: { type: "string", enum: ["col_a", "col_b", ""] },
     });
   });
 
-  describe("restoreOperatorInputAttrs", () => {
-    it("clears the injected enum/uniqueItems from an attributeName property", () => {
-      const schema = makeOperatorSchema({
-        type: "object",
-        properties: {
-          attribute: {
-            type: "string",
-            autofill: "attributeName",
-            autofillAttributeOnPort: 0,
-            enum: ["col_a", "col_b", ""],
-            uniqueItems: true,
-          },
-        },
-      });
+  it.each([
+    { label: "scalar", filled: { ...scalar, enum: ["col_a", "col_b", ""] }, original: scalar },
+    {
+      label: "list",
+      filled: { ...list, items: { type: "string" as const, enum: ["col_a", "col_b", ""] } },
+      original: list,
+    },
+  ])("clears the propagated $label choices and uniqueness", ({ filled, original }) => {
+    const restored = WorkflowCompilingService.restoreOperatorInputAttrs(schemaWith({ ...filled, uniqueItems: true }));
+    expect(attributeOf(restored)).toEqual(original);
+  });
 
-      const prop = (WorkflowCompilingService.restoreOperatorInputAttrs(schema).jsonSchema.properties as any).attribute;
-      expect(prop.enum).toBeUndefined();
-      expect(prop.uniqueItems).toBeUndefined();
-      expect(prop.type).toBe("string");
-    });
-
-    it("clears the injected enum from the items of an attributeNameList property", () => {
-      const schema = makeOperatorSchema({
-        type: "object",
-        properties: {
-          attributes: {
-            type: "array",
-            autofill: "attributeNameList",
-            autofillAttributeOnPort: 0,
-            uniqueItems: true,
-            items: { type: "string", enum: ["col_a", "col_b", ""] },
-          },
-        },
-      });
-
-      const prop = (WorkflowCompilingService.restoreOperatorInputAttrs(schema).jsonSchema.properties as any).attributes;
-      expect(prop.type).toBe("array");
-      expect(prop.uniqueItems).toBeUndefined();
-      expect(prop.items.enum).toBeUndefined();
-      expect(prop.items.type).toBe("string");
-    });
-
-    it("round-trips: restore reverses the enums that setOperatorInputAttrs injected", () => {
-      const schema = makeOperatorSchema({
-        type: "object",
-        properties: {
-          attribute: { type: "string", autofill: "attributeName", autofillAttributeOnPort: 0 },
-        },
-      });
-
-      const propagated = WorkflowCompilingService.setOperatorInputAttrs(schema, inputPortSchemaMap);
-      expect((propagated.jsonSchema.properties as any).attribute.enum).toEqual(["col_a", "col_b", ""]);
-
-      const restored = WorkflowCompilingService.restoreOperatorInputAttrs(propagated);
-      expect((restored.jsonSchema.properties as any).attribute.enum).toBeUndefined();
-    });
+  it("restores the scalar schema after propagation", () => {
+    const propagated = fill(scalar);
+    expect(propagated.enum).toEqual(["col_a", "col_b", ""]);
+    expect(attributeOf(WorkflowCompilingService.restoreOperatorInputAttrs(schemaWith(propagated)))).toEqual(scalar);
   });
 });
 
@@ -615,11 +448,10 @@ const configureCompilingTestBed = (): void => {
       ValidationWorkflowService,
       WorkflowCompilingService,
       ...commonTestProviders,
+      { provide: ComputingUnitStatusService, useClass: MockComputingUnitStatusService },
     ],
   });
 };
-
-const port = (id: number): string => serializePortIdentity({ id, internal: false });
 
 describe("WorkflowCompilingService compile pipeline", () => {
   let service: WorkflowCompilingService;
@@ -661,7 +493,7 @@ describe("WorkflowCompilingService compile pipeline", () => {
     expect(request.request.method).toBe("POST");
     expect(request.request.headers.get("Content-Type")).toBe("application/json");
 
-    const body = JSON.parse(request.request.body);
+    const body = request.request.body;
     expect(body.operators.map((operator: any) => operator.operatorID).sort()).toEqual(
       [mockScanPredicate.operatorID, mockResultPredicate.operatorID].sort()
     );
@@ -670,6 +502,118 @@ describe("WorkflowCompilingService compile pipeline", () => {
     expect(body.opsToViewResult).toEqual([]);
 
     request.flush({ physicalPlan: { operators: [], links: [] }, operatorOutputSchemas: {}, operatorErrors: {} });
+  }));
+
+  it("sends pinned macro graphs and projects backend schemas and errors without changing snapshots", fakeAsync(() => {
+    const definition = testMacro("backend", [{ ...mockScanPredicate, operatorProperties: { tableName: "twitter" } }], {
+      outputs: [testPort("out", mockScanPredicate.operatorID, "output-0")],
+      name: "Nested source",
+    });
+    workflowActionService.setMacroDependencies([definition]);
+    workflowActionService.addOperator(macroInstance(definition, "instance"), mockPoint);
+    const content = workflowActionService.getWorkflowContent(),
+      before = JSON.stringify(content);
+    tick(WORKFLOW_COMPILATION_DEBOUNCE_TIME_MS);
+    const request = httpTestingController.expectOne(compileUrl);
+    const plan = request.request.body;
+    expect(plan.operators).toEqual([]);
+    expect(plan.macroContent.macroDependencies).toEqual([definition]);
+    const expanded = expansionFixture(content, [
+        [["instance", mockScanPredicate.operatorID], definition.content.operators[0]],
+      ]),
+      leaf = expanded.content.operators[0].operatorID;
+    request.flush({
+      macroExpansion: expanded,
+      // A scoped passthrough's native source can be outside the visible expansion.
+      operatorOutputSchemas: { instance: { [port(0)]: scanOutputSchema } },
+      operatorErrors: {
+        [leaf]: { operatorId: leaf, message: "invalid column" },
+        instance: { operatorId: "instance", message: "Nested source / Scan: invalid column" },
+      },
+    });
+    expect(service.getOperatorOutputSchemaMap("instance")).toEqual({ [port(0)]: scanOutputSchema });
+    expect(service.getWorkflowCompilationErrors()["instance"].message).toBe("Nested source / Scan: invalid column");
+    expect(workflowActionService.getMacroExpansion()).toEqual(expanded);
+    expect(JSON.stringify(workflowActionService.getWorkflowContent())).toBe(before);
+  }));
+
+  it("cancels obsolete compilation responses when another graph edit starts compilation", fakeAsync(() => {
+    const previous = buildWorkflowAndCompile();
+    workflowActionService.setOperatorProperty(mockScanPredicate.operatorID, { tableName: "new" });
+    tick(WORKFLOW_COMPILATION_DEBOUNCE_TIME_MS);
+    const current = httpTestingController.expectOne(compileUrl);
+    expect(previous.cancelled).toBe(true);
+    current.flush({ physicalPlan: { operators: [], links: [] }, operatorOutputSchemas: {}, operatorErrors: {} });
+    expect(service.getWorkflowCompilationState()).toBe(CompilationState.Succeeded);
+  }));
+
+  it("propagates per-instance internal column choices through exposed nested fields and clears unavailable schemas", fakeAsync(() => {
+    const scan = { ...mockScanPredicate, operatorProperties: { tableName: "twitter" } };
+    const secondScan = {
+      ...scan,
+      operatorID: "second-scan",
+      outputPorts: [{ portID: "output-0" }, { portID: "output-2" }],
+    };
+    const secondSentiment = { ...mockSentimentPredicate, operatorID: "second-sentiment" };
+    const operators = [scan, mockSentimentPredicate, secondScan, secondSentiment];
+    const links = [
+      testLink(scan.operatorID, mockSentimentPredicate.operatorID),
+      testLink(secondScan.operatorID, secondSentiment.operatorID, "output-2"),
+    ];
+    const leaf = testMacro("leaf", operators, {
+      links,
+      formBinding: {
+        fields: [mockSentimentPredicate, secondSentiment].map((op, i) =>
+          testField(op.operatorID, "attribute", `column-${i}`, `Column ${i}`)
+        ),
+      },
+      name: "Internal columns",
+    });
+    const outer = testMacro("outer", [macroInstance(leaf, "child")], {
+      formBinding: {
+        fields: leaf.content.formBinding.fields.map(f => ({ ...f, operatorID: "child", propertyKey: f.id })),
+      },
+      name: "Nested columns",
+    });
+    workflowActionService.setMacroDependencies([leaf, outer]);
+    workflowActionService.addOperator(macroInstance(outer, "outer-instance"), mockPoint);
+    const content = workflowActionService.getWorkflowContent(),
+      before = JSON.stringify(content);
+    const path = ["outer-instance", "child"];
+    const runtime = (id: string) => macroRuntimeID(path, id);
+    const expanded = expansionFixture(
+      content,
+      operators.map(op => [[...path, op.operatorID], op]),
+      links.map(({ linkID, source, target }) =>
+        testLink(runtime(source.operatorID), runtime(target.operatorID), source.portID, target.portID, linkID)
+      )
+    );
+    expanded.inspectors[JSON.stringify(path)].inputs = {
+      [mockSentimentPredicate.operatorID]: [{ link: 0, input: 0, output: 0 }],
+      [secondSentiment.operatorID]: [{ link: 1, input: 0, output: 1 }],
+    };
+    const columns = () =>
+      TestBed.inject(DynamicSchemaService).getDynamicSchema("outer-instance").jsonSchema.properties!;
+    tick(WORKFLOW_COMPILATION_DEBOUNCE_TIME_MS);
+    httpTestingController.expectOne(compileUrl).flush({
+      macroExpansion: expanded,
+      operatorOutputSchemas: {
+        [runtime(scan.operatorID)]: { [port(0)]: scanOutputSchema },
+        [runtime(secondScan.operatorID)]: { [port(1)]: [{ attributeName: "col_b", attributeType: "integer" }] },
+      },
+      operatorErrors: {},
+    });
+    expect((columns()["column-0"] as any).enum).toEqual(["col_a"]);
+    expect((columns()["column-1"] as any).enum).toEqual(["col_b"]);
+    expect(JSON.stringify(workflowActionService.getWorkflowContent())).toBe(before);
+
+    workflowActionService.setOperatorProperty("outer-instance", { "column-0": "col_a" });
+    tick(WORKFLOW_COMPILATION_DEBOUNCE_TIME_MS);
+    httpTestingController
+      .expectOne(compileUrl)
+      .flush({ macroExpansion: expanded, operatorOutputSchemas: {}, operatorErrors: {} });
+    expect((columns()["column-0"] as any).enum).toBeUndefined();
+    expect((columns()["column-1"] as any).enum).toBeUndefined();
   }));
 
   it("records the physical plan and output schemas when the response carries a physical plan", fakeAsync(() => {
@@ -839,34 +783,94 @@ describe("WorkflowCompilingService input port schema resolution", () => {
     predicates.forEach(predicate => workflowActionService.addOperator(predicate, mockPoint));
 
   const link = (sourceID: string, sourcePort: string, targetID: string, targetPort: string, linkID: string) =>
-    workflowActionService.addLink({
-      linkID,
-      source: { operatorID: sourceID, portID: sourcePort },
-      target: { operatorID: targetID, portID: targetPort },
+    workflowActionService.addLink(testLink(sourceID, targetID, sourcePort, targetPort, linkID));
+
+  const addMacro = () => {
+    const definition = testMacro("schema-boundary", [], {
+      inputs: ["input-first", "input-second"].map(portID => ({ portID, targets: [] })),
+      outputs: ["output-first", "output-second"].map(portID => ({ portID, targets: [] })),
+      name: "Two ports",
     });
+    workflowActionService.setMacroDependencies([definition]);
+    const instance = macroInstance(definition, "two-ports");
+    addOperators(instance);
+    return instance;
+  };
 
-  it("ignores an input link whose target port ID is not in the input-<n> form", () => {
-    const target: OperatorPredicate = { ...mockSentimentPredicate, inputPorts: [{ portID: "the-input" }] };
-    addOperators(mockScanPredicate, target);
-    link(mockScanPredicate.operatorID, "output-0", target.operatorID, "the-input", "link-bad-target");
-    setOutputSchemas({ [mockScanPredicate.operatorID]: { [port(0)]: schemaA } });
-
-    const inputSchemaMap = service.getOperatorInputSchemaMap(target.operatorID);
-
-    expect(Object.keys(inputSchemaMap!)).toEqual([port(0)]);
-    expect(inputSchemaMap![port(0)]).toBeUndefined();
+  it.each([false, true])("uses the macro output ordinal even if its schema is absent (%s)", absent => {
+    const source = addMacro();
+    addOperators(mockSentimentPredicate);
+    link(source.operatorID, "output-second", mockSentimentPredicate.operatorID, "input-0", "macro-output");
+    setOutputSchemas({
+      [source.operatorID]: absent ? { [port(0)]: schemaA } : { [port(0)]: schemaA, [port(1)]: schemaB },
+    });
+    expect(service.getPortInputSchema(mockSentimentPredicate.operatorID, 0)).toEqual(absent ? undefined : schemaB);
   });
 
-  it("ignores an input link whose source port ID is not in the output-<n> form", () => {
-    const source: OperatorPredicate = { ...mockScanPredicate, outputPorts: [{ portID: "the-output" }] };
-    addOperators(source, mockSentimentPredicate);
-    link(source.operatorID, "the-output", mockSentimentPredicate.operatorID, "input-0", "link-bad-source");
+  it("resolves a macro's stable input ID without assigning the schema to another port", () => {
+    const target = addMacro();
+    addOperators(mockScanPredicate);
+    link(mockScanPredicate.operatorID, "output-0", target.operatorID, "input-second", "macro-input");
+    setOutputSchemas({ [mockScanPredicate.operatorID]: { [port(0)]: schemaA } });
+
+    expect(service.getPortInputSchema(target.operatorID, 0)).toBeUndefined();
+    expect(service.getPortInputSchema(target.operatorID, 1)).toEqual(schemaA);
+  });
+
+  it("keeps native port schema ordinals after removing a middle input and output", () => {
+    const source = {
+      ...mockMultiInputOutputPredicate,
+      operatorID: "native-source",
+      outputPorts: [{ portID: "output-0" }, { portID: "output-2" }],
+    };
+    const target = {
+      ...mockMultiInputOutputPredicate,
+      inputPorts: [{ portID: "input-0" }, { portID: "input-2" }],
+    };
+    addOperators(source, target);
+    const base = dynamicSchemaService.getDynamicSchema(target.operatorID);
+    dynamicSchemaService.setDynamicSchema(target.operatorID, {
+      ...base,
+      additionalMetadata: { ...base.additionalMetadata, inputPorts: [{}, {}] },
+    });
+    link(source.operatorID, "output-2", target.operatorID, "input-2", "native-gaps");
+    setOutputSchemas({ [source.operatorID]: { [port(0)]: schemaA, [port(1)]: schemaB } });
+
+    expect(service.getPortInputSchema(target.operatorID, 0)).toBeUndefined();
+    expect(service.getPortInputSchema(target.operatorID, 1)).toEqual(schemaB);
+  });
+
+  it.each(["input", "output"] as const)("resolves a native %s independently of its ID format", direction => {
+    const sourcePort = direction === "output" ? "the-output" : "output-0";
+    const targetPort = direction === "input" ? "the-input" : "input-0";
+    const source = { ...mockScanPredicate, outputPorts: [{ portID: sourcePort }] };
+    const target = { ...mockSentimentPredicate, inputPorts: [{ portID: targetPort }] };
+    addOperators(source, target);
+    link(source.operatorID, sourcePort, target.operatorID, targetPort, "custom-port");
     setOutputSchemas({ [source.operatorID]: { [port(0)]: schemaA } });
+    expect(service.getOperatorInputSchemaMap(target.operatorID)).toEqual({ [port(0)]: schemaA });
+  });
 
-    const inputSchemaMap = service.getOperatorInputSchemaMap(mockSentimentPredicate.operatorID);
+  it("uses numbered projected ports only for sources outside the visible graph", () => {
+    addOperators(mockSentimentPredicate);
+    setOutputSchemas({});
+    const input = {
+      source: { operatorID: "external", portID: "output-2" },
+      target: { operatorID: mockSentimentPredicate.operatorID, portID: "input-0" },
+    };
+    (service as any).macroInputs = {
+      doc: workflowActionService.suspendWorkflow().shared,
+      inputLinks: () => [input],
+      schemas: { external: { [port(2)]: schemaB } },
+    };
+    expect(service.getPortInputSchema(mockSentimentPredicate.operatorID, 0)).toEqual(schemaB);
 
-    expect(Object.keys(inputSchemaMap!)).toEqual([port(0)]);
-    expect(inputSchemaMap![port(0)]).toBeUndefined();
+    input.source.portID = "missing";
+    expect(service.getPortInputSchema(mockSentimentPredicate.operatorID, 0)).toBeUndefined();
+
+    addOperators({ ...mockScanPredicate, operatorID: "external" });
+    input.source.portID = "output-2";
+    expect(service.getPortInputSchema(mockSentimentPredicate.operatorID, 0)).toBeUndefined();
   });
 
   it("resolves no schema when the upstream operator is missing from the output schema map", () => {
@@ -901,41 +905,26 @@ describe("WorkflowCompilingService input port schema resolution", () => {
     expect(inputSchemaMap![port(2)]).toBeUndefined();
   });
 
-  it("accepts two links into the same input port when they agree on the schema", () => {
+  it.each([true, false])("resolves two links to one port based on whether their schemas agree (%s)", agree => {
     const secondScan: OperatorPredicate = { ...mockScanPredicate, operatorID: "scan-2" };
     addOperators(mockScanPredicate, secondScan, mockSentimentPredicate);
     link(mockScanPredicate.operatorID, "output-0", mockSentimentPredicate.operatorID, "input-0", "link-scan-1");
     link(secondScan.operatorID, "output-0", mockSentimentPredicate.operatorID, "input-0", "link-scan-2");
     setOutputSchemas({
       [mockScanPredicate.operatorID]: { [port(0)]: schemaA },
-      [secondScan.operatorID]: { [port(0)]: [...schemaA] },
+      [secondScan.operatorID]: { [port(0)]: agree ? [...schemaA] : schemaB },
     });
 
     const inputSchemaMap = service.getOperatorInputSchemaMap(mockSentimentPredicate.operatorID);
 
-    expect(inputSchemaMap![port(0)]).toEqual(schemaA);
-    expect(service.getWorkflowCompilationState()).toBe(CompilationState.Succeeded);
-  });
-
-  it("fails compilation when two links into the same input port disagree on the schema", () => {
-    const secondScan: OperatorPredicate = { ...mockScanPredicate, operatorID: "scan-2" };
-    addOperators(mockScanPredicate, secondScan, mockSentimentPredicate);
-    link(mockScanPredicate.operatorID, "output-0", mockSentimentPredicate.operatorID, "input-0", "link-scan-1");
-    link(secondScan.operatorID, "output-0", mockSentimentPredicate.operatorID, "input-0", "link-scan-2");
-    setOutputSchemas({
-      [mockScanPredicate.operatorID]: { [port(0)]: schemaA },
-      [secondScan.operatorID]: { [port(0)]: schemaB },
-    });
-
-    const inputSchemaMap = service.getOperatorInputSchemaMap(mockSentimentPredicate.operatorID);
-
-    // the conflicting port is left unresolved and the compilation is marked failed
-    expect(inputSchemaMap![port(0)]).toBeUndefined();
-    expect(service.getWorkflowCompilationState()).toBe(CompilationState.Failed);
-    const error = service.getWorkflowCompilationErrors()[mockSentimentPredicate.operatorID];
-    expect(error.message).toBe("Multiple links with different schemas connected to the same input port 0");
-    expect(error.details).toBe("Port 0 received 2 different schemas (some may be undefined)");
-    expect(error.operatorId).toBe(mockSentimentPredicate.operatorID);
+    expect(inputSchemaMap![port(0)]).toEqual(agree ? schemaA : undefined);
+    expect(service.getWorkflowCompilationState()).toBe(agree ? CompilationState.Succeeded : CompilationState.Failed);
+    if (!agree)
+      expect(service.getWorkflowCompilationErrors()[mockSentimentPredicate.operatorID]).toMatchObject({
+        message: "Multiple links with different schemas connected to the same input port 0",
+        details: "Port 0 received 2 different schemas (some may be undefined)",
+        operatorId: mockSentimentPredicate.operatorID,
+      });
   });
 
   it("resolves nothing for an operator whose dynamic schema declares no input ports", () => {

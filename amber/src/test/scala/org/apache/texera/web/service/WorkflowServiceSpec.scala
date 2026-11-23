@@ -680,7 +680,15 @@ class WorkflowServiceSpec
     portRowCount(previousEid) shouldBe 2
     executionsOutsideFixture shouldBe 0
 
-    service.initExecutionService(request, Some(executingUser), new URI("vfs:///session"))
+    val snapshot = org.apache.texera.amber.util.JSONUtils.objectMapper
+      .readTree(getClass.getResource("/macros/nested-expansion.json"))
+      .get("content")
+    service.initExecutionService(
+      request,
+      Some(executingUser),
+      new URI("vfs:///session"),
+      Some(snapshot)
+    )
 
     val execution = service.executionService.getValue
     // Stopped exactly where the header says it stops: one fatal error, the compiler's. A second
@@ -725,6 +733,7 @@ class WorkflowServiceSpec
     // from the request throughout.
     executionsOutsideFixture shouldBe 1
     val newRow = insertedExecution()
+    newRow.getMacroContent shouldBe snapshot.toString
     newRow.getName shouldBe "cleanup-spec-run"
     newRow.getCuid.intValue() shouldBe testCuid
     newRow.getUid.intValue() shouldBe testUid

@@ -97,6 +97,12 @@ describe("WorkflowExecutionsService", () => {
     req.flush({});
   });
 
+  it("requests the executed canvas on the selected computing unit", () => {
+    service.retrieveMacroStatistics(1, 10, 5).subscribe();
+    const req = httpMock.expectOne(`${WORKFLOW_EXECUTIONS_API_BASE_URL}/1/stats/10/canvas?cuid=5`);
+    req.flush(null, { status: 204, statusText: "No Content" });
+  });
+
   it("retrieveWorkflowRuntimeStatistics issues GET with the cuid param", () => {
     let result: WorkflowRuntimeStatistics[] | undefined;
     service.retrieveWorkflowRuntimeStatistics(1, 10, 5).subscribe(res => (result = res));

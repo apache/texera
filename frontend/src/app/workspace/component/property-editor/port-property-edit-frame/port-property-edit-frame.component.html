@@ -32,7 +32,7 @@
     nzSize="small"
     nzTooltipPlacement="bottom"
     nzType="text"
-    [disabled]="!interactive">
+    [disabled]="!interactive || !actsAsEditor">
     <i
       nz-icon
       nzTheme="outline"
@@ -58,3 +58,19 @@
     [options]="formlyOptions">
   </formly-form>
 </form>
+
+<section *ngIf="workflowActionService.getMacroInterface() && exposureDirection as direction">
+  <p *ngIf="needsReplacement">
+    This input already has an internal connection. Replacing it exposes the input to the parent workflow. Undo restores
+    the connection.
+  </p>
+  <button
+    nz-button
+    type="button"
+    data-action="expose-port"
+    [disabled]="!canExpose"
+    (click)="expose()">
+    {{ needsReplacement ? 'Replace with macro input' : direction === 'inputs' ? 'Expose as macro input' : 'Expose as
+    macro output' }}
+  </button>
+</section>

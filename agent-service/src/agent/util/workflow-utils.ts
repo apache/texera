@@ -27,22 +27,11 @@ import type {
 } from "../../types/workflow";
 import type { WorkflowSystemMetadata } from "./workflow-system-metadata";
 import type { WorkflowState } from "../workflow-state";
+import { portOrdinal } from "@texera/workflow-macros";
 
 // Format "{id}_{internal}" must align with the backend port-identity serializer.
 function serializePortIdentity(id: number, internal: boolean = false): string {
   return `${id}_${internal}`;
-}
-
-function parseLogicalOperatorPortID(portId: string): { portNumber: number; portType: "input" | "output" } | undefined {
-  const match = portId.match(/^(input|output)-(\d+)$/);
-  if (!match) {
-    return undefined;
-  }
-
-  const portType = match[1] as "input" | "output";
-  const portNumber = parseInt(match[2]);
-
-  return { portNumber, portType };
 }
 
 function getInputLinksByOperatorId(operatorId: string, links: OperatorLink[]): OperatorLink[] {
@@ -53,7 +42,8 @@ export function extractOperatorInputPortSchemaMap(
   operatorId: string,
   operator: OperatorPredicate,
   outputSchemas: Record<string, OperatorPortSchemaMap>,
-  links: OperatorLink[]
+  links: OperatorLink[],
+  operators: readonly OperatorPredicate[]
 ): OperatorPortSchemaMap | undefined {
   const inputLinks = getInputLinksByOperatorId(operatorId, links);
   if (!inputLinks.length) return undefined;
@@ -64,11 +54,9 @@ export function extractOperatorInputPortSchemaMap(
     const portId = serializePortIdentity(portIndex, false);
     inputPortSchemaMap[portId] = undefined;
 
-    const linksToThisPort = inputLinks.filter(link => {
-      const parsedPort = parseLogicalOperatorPortID(link.target.portID);
-      if (!parsedPort) return false;
-      return parsedPort.portNumber === portIndex;
-    });
+    const linksToThisPort = inputLinks.filter(
+      link => portOrdinal(operator, "inputPorts", link.target.portID) === portIndex
+    );
 
     if (linksToThisPort.length > 0) {
       const schemas: (PortSchema | undefined)[] = linksToThisPort.map(link => {
@@ -77,12 +65,13 @@ export function extractOperatorInputPortSchemaMap(
           return undefined;
         }
 
-        const outputPort = parseLogicalOperatorPortID(link.source.portID);
-        if (!outputPort) {
+        const source = operators.find(op => op.operatorID === link.source.operatorID);
+        if (!source) {
           return undefined;
         }
-
-        return sourcePortSchemaMap[serializePortIdentity(outputPort.portNumber, false)];
+        return sourcePortSchemaMap[
+          serializePortIdentity(portOrdinal(source, "outputPorts", link.source.portID), false)
+        ];
       });
 
       // Unlike the frontend, we don't flag mismatched schemas as a compilation

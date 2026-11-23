@@ -216,7 +216,8 @@ class WorkflowService(
   def initExecutionService(
       req: WorkflowExecuteRequest,
       userOpt: Option[User],
-      sessionUri: URI
+      sessionUri: URI,
+      macroSnapshot: Option[com.fasterxml.jackson.databind.JsonNode] = None
   ): Unit = {
     val span = TexeraTracer.tracer
       .spanBuilder("WorkflowService.initExecutionService")
@@ -258,7 +259,8 @@ class WorkflowService(
         req.executionName,
         convertToJson(req.engineVersion),
         req.computingUnitId,
-        req.warehouseId
+        req.warehouseId,
+        macroSnapshot.orElse(req.logicalPlan.macroContent)
       )
       span.setAttribute(SpanAttrs.ExecutionId, Long.box(workflowContext.executionId.id))
       // A run has started: record the start counter and stamp its start time.

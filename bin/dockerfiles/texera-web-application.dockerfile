@@ -31,6 +31,7 @@ RUN --mount=type=bind,source=bin/dockerfiles/snapshot,target=/snapshot \
     bash /snapshot/install.sh apt --no-install-recommends python3 build-essential git ca-certificates
 
 WORKDIR /frontend
+COPY common/workflow-core/src/main/typescript/workflow-macros /common/workflow-core/src/main/typescript/workflow-macros
 COPY frontend /frontend
 COPY common/workflow-operator/src/main/resources/udf/ui-parameter-types.json /common/workflow-operator/src/main/resources/udf/ui-parameter-types.json
 # The repo's .yarnrc.yml pins Yarn (yarnPath) and the node-modules linker;

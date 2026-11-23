@@ -19,6 +19,8 @@
 
 package org.apache.texera.web.resource.dashboard.file
 
+import com.fasterxml.jackson.databind.JsonNode
+import org.apache.texera.amber.util.JSONUtils.objectMapper
 import org.apache.texera.auth.SessionUser
 import org.apache.texera.dao.MockTexeraDB
 import org.apache.texera.dao.jooq.generated.Tables.{
@@ -38,6 +40,9 @@ import org.apache.texera.web.resource.dashboard.user.workflow.WorkflowResource
 import org.apache.texera.web.resource.dashboard.user.workflow.WorkflowResource.{
   DashboardWorkflow,
   DefaultViewRequest,
+  MacroHead,
+  MacroPathSave,
+  MacroSaveStep,
   WorkflowIDs,
   WorkflowWithPrivilege
 }
@@ -920,6 +925,99 @@ class WorkflowResourceSpec
     workflowResource.createWorkflow(workflow, user)
   }
 
+  private def macroHead(workflow: Workflow): MacroHead =
+    MacroHead(
+      WorkflowVersionResource.getLatestVersion(workflow.getWid),
+      workflow.getName,
+      workflow.getDescription
+    )
+
+  private def macroPath(
+      leaf: Workflow,
+      head: MacroHead,
+      parent: Workflow,
+      instance: String
+  ): MacroPathSave =
+    MacroPathSave(
+      List(
+        MacroSaveStep(leaf, Some(head), None),
+        MacroSaveStep(new Workflow(parent), None, Some(instance))
+      ),
+      parent
+    )
+
+  "Saving a macro path" should "commit exact revisions and roll back the leaf when a parent cannot be updated" in {
+    val source = seedWorkflow(
+      sessionUser1,
+      "Child",
+      content = """{"macroInterface":{"id":"child"},"operators":[]}"""
+    ).workflow
+    val head = macroHead(source)
+    val old = head.version
+    val root = seedWorkflow(
+      sessionUser1,
+      "Parent",
+      content =
+        s"""{"operators":[{"operatorID":"use","operatorType":"WorkflowMacro:child:$old"}],"macroDependencies":[{"id":"child","name":"Child","version":$old,"content":${source.getContent}}]}"""
+    ).workflow
+    val edit = new Workflow(source)
+    edit.setContent("""{"macroInterface":{"id":"child"},"operators":[],"operatorPositions":{}}""")
+    def save(op: String, user: SessionUser = sessionUser1) =
+      workflowResource.persistMacroPath(macroPath(edit, head, root, op), user)
+    assert(intercept[WebApplicationException](save("missing")).getResponse.getStatus == 409)
+    assert(WorkflowVersionResource.getLatestVersion(source.getWid) == old)
+    intercept[ForbiddenException](save("use", sessionUser2))
+    import scala.concurrent.{Await, ExecutionContext, Future}
+    import scala.concurrent.duration._
+    implicit val ec: ExecutionContext = ExecutionContext.global
+    val gate = new java.util.concurrent.CountDownLatch(1)
+    val writers = List.fill(2)(Future { gate.await(); scala.util.Try(save("use")) })
+    gate.countDown()
+    val results = Await.result(Future.sequence(writers), 15.seconds)
+    assert(results.collect {
+      case scala.util.Failure(e: WebApplicationException) => e.getResponse.getStatus
+    } == List(409))
+    val receipt = results.flatMap(_.toOption).head
+    assert(receipt.head.version > old)
+    assert(receipt.head.revision == 2)
+    assert(WorkflowVersionResource.getLatestVersion(root.getWid) == receipt.last.version)
+    val stored = workflowResource.retrieveWorkflow(root.getWid, sessionUser1)
+    val response = objectMapper.valueToTree[JsonNode](receipt)
+    assert(response.at("/0/content") == objectMapper.readTree(edit.getContent))
+    assert(response.at("/1/content") == objectMapper.readTree(stored.content))
+    assert(stored.content.contains(s"WorkflowMacro:child:${receipt.head.version}"))
+    assert(intercept[WebApplicationException](save("use")).getResponse.getStatus == 409)
+    assert(WorkflowVersionResource.getLatestVersion(source.getWid) == receipt.head.version)
+  }
+
+  it should "save two occurrences of the same workflow in order and preserve the original revision" in {
+    val leaf = seedWorkflow(
+      sessionUser1,
+      "A",
+      content = """{"macroInterface":{"id":"a"},"operators":[]}"""
+    ).workflow
+    val old = WorkflowVersionResource.getLatestVersion(leaf.getWid)
+    val outer = new Workflow(leaf)
+    outer.setContent(
+      s"""{"macroInterface":{"id":"a"},"operators":[{"operatorID":"inner","operatorType":"WorkflowMacro:a:$old"}],"macroDependencies":[{"id":"a","name":"A","version":$old,"content":${leaf.getContent}}]}"""
+    )
+    workflowResource.persistWorkflow(outer, sessionUser1)
+    val receipts = workflowResource.persistMacroPath(
+      macroPath(leaf, macroHead(leaf), outer, "inner"),
+      sessionUser1
+    )
+    assert(receipts.map(_.revision) == List(3, 4))
+    val saved =
+      objectMapper.readTree(workflowResource.retrieveWorkflow(leaf.getWid, sessionUser1).content)
+    assert(
+      saved.at("/operators/0/operatorType").asText() == s"WorkflowMacro:a:${receipts.head.version}"
+    )
+    assert(receipts.last.content == saved)
+    assert(receipts.head.content == saved.at("/macroDependencies/1/content"))
+    assert(saved.at("/macroDependencies/0/version").asInt() == old)
+    assert(saved.at("/macroDependencies/1/content").toString == leaf.getContent)
+  }
+
   "WorkflowResource.retrieveWorkflow" should "return the workflow for a user with access" in {
     val wid = seedWorkflow(sessionUser1, "retrieve-me", "the-desc", "{\"a\":1}").workflow.getWid
     val result: WorkflowWithPrivilege = workflowResource.retrieveWorkflow(wid, sessionUser1)
@@ -1246,7 +1344,7 @@ class WorkflowResourceSpec
 
     // not a ForbiddenException/BadRequestException, which the same catch swallows
     assert(thrown.getClass == classOf[WebApplicationException])
-    assert(thrown.getCause.isInstanceOf[NoSuchElementException])
+    assert(thrown.getCause.getMessage == "Missing operators array")
     assert(workflowNamesOf(sessionUser1) == List("dup-no-operators"))
   }
 

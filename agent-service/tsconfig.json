@@ -3,6 +3,7 @@
     "target": "ESNext",
     "module": "Preserve",
     "moduleResolution": "bundler",
+    "paths": { "@texera/workflow-macros": ["../common/workflow-core/src/main/typescript/workflow-macros/index.ts"] },
     "lib": ["ESNext"],
     "types": ["bun-types"],
 

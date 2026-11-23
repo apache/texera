@@ -1,0 +1,421 @@
+{
+  "name": "legacy nesting, repeated IDs, Unicode overrides",
+  "content": {
+    "operators": [
+      {
+        "operatorID": "one",
+        "operatorType": "WorkflowMacro:outer:1",
+        "operatorVersion": "1",
+        "operatorProperties": {
+          "value": "café 東京"
+        },
+        "inputPorts": [],
+        "outputPorts": [
+          {
+            "portID": "output-0"
+          }
+        ],
+        "showAdvanced": false
+      },
+      {
+        "operatorID": "two",
+        "operatorType": "WorkflowMacro:outer:1",
+        "operatorVersion": "1",
+        "operatorProperties": {
+          "value": "other"
+        },
+        "inputPorts": [],
+        "outputPorts": [
+          {
+            "portID": "output-0"
+          }
+        ],
+        "showAdvanced": false
+      }
+    ],
+    "links": [],
+    "formBinding": {
+      "fields": [
+        {
+          "id": "value",
+          "operatorID": "leaf",
+          "displayName": "Value",
+          "propertyKey": "value"
+        }
+      ]
+    },
+    "operatorPositions": {
+      "leaf": {
+        "x": 0,
+        "y": 0
+      }
+    },
+    "commentBoxes": [],
+    "settings": {
+      "dataTransferBatchSize": 10
+    },
+    "macroDependencies": [
+      {
+        "name": "Outer",
+        "id": "outer",
+        "version": 1,
+        "content": {
+          "operators": [
+            {
+              "operatorID": "child",
+              "operatorType": "WorkflowMacro:middle:1",
+              "operatorVersion": "1",
+              "operatorProperties": {
+                "value": "outer"
+              },
+              "inputPorts": [],
+              "outputPorts": [
+                {
+                  "portID": "output-0"
+                }
+              ],
+              "showAdvanced": false
+            },
+            {
+              "operatorID": "outer__inputs",
+              "operatorType": "MacroInput",
+              "operatorVersion": "1",
+              "operatorProperties": {},
+              "inputPorts": [],
+              "outputPorts": [],
+              "dynamicInputPorts": false,
+              "dynamicOutputPorts": true,
+              "showAdvanced": false
+            },
+            {
+              "operatorID": "outer__outputs",
+              "operatorType": "MacroOutput",
+              "operatorVersion": "1",
+              "operatorProperties": {},
+              "inputPorts": [
+                {
+                  "portID": "output-0"
+                }
+              ],
+              "outputPorts": [],
+              "dynamicInputPorts": true,
+              "dynamicOutputPorts": false,
+              "showAdvanced": false
+            }
+          ],
+          "links": [
+            {
+              "linkID": "outer__1_output-0_0",
+              "source": {
+                "operatorID": "child",
+                "portID": "output-0"
+              },
+              "target": {
+                "operatorID": "outer__outputs",
+                "portID": "output-0"
+              }
+            }
+          ],
+          "macroInterface": {
+            "id": "outer"
+          },
+          "formBinding": {
+            "fields": [
+              {
+                "id": "value",
+                "operatorID": "child",
+                "displayName": "Value",
+                "propertyKey": "value"
+              }
+            ]
+          },
+          "operatorPositions": {
+            "child": {
+              "x": 0,
+              "y": 0
+            },
+            "outer__inputs": {
+              "x": -100,
+              "y": 100
+            },
+            "outer__outputs": {
+              "x": 600,
+              "y": 100
+            }
+          },
+          "commentBoxes": [],
+          "settings": {
+            "dataTransferBatchSize": 10
+          },
+          "macroDependencies": [
+            {
+              "name": "Middle",
+              "id": "middle",
+              "version": 1,
+              "content": {
+                "operators": [
+                  {
+                    "operatorID": "child",
+                    "operatorType": "WorkflowMacro:inner:1",
+                    "operatorVersion": "1",
+                    "operatorProperties": {
+                      "value": "middle"
+                    },
+                    "inputPorts": [],
+                    "outputPorts": [
+                      {
+                        "portID": "output-0"
+                      }
+                    ],
+                    "showAdvanced": false
+                  },
+                  {
+                    "operatorID": "middle__inputs",
+                    "operatorType": "MacroInput",
+                    "operatorVersion": "1",
+                    "operatorProperties": {},
+                    "inputPorts": [],
+                    "outputPorts": [],
+                    "dynamicInputPorts": false,
+                    "dynamicOutputPorts": true,
+                    "showAdvanced": false
+                  },
+                  {
+                    "operatorID": "middle__outputs",
+                    "operatorType": "MacroOutput",
+                    "operatorVersion": "1",
+                    "operatorProperties": {},
+                    "inputPorts": [
+                      {
+                        "portID": "output-0"
+                      }
+                    ],
+                    "outputPorts": [],
+                    "dynamicInputPorts": true,
+                    "dynamicOutputPorts": false,
+                    "showAdvanced": false
+                  }
+                ],
+                "links": [
+                  {
+                    "linkID": "middle__1_output-0_0",
+                    "source": {
+                      "operatorID": "child",
+                      "portID": "output-0"
+                    },
+                    "target": {
+                      "operatorID": "middle__outputs",
+                      "portID": "output-0"
+                    }
+                  }
+                ],
+                "macroInterface": {
+                  "id": "middle"
+                },
+                "formBinding": {
+                  "fields": [
+                    {
+                      "id": "value",
+                      "operatorID": "child",
+                      "displayName": "Value",
+                      "propertyKey": "value"
+                    }
+                  ]
+                },
+                "operatorPositions": {
+                  "child": {
+                    "x": 0,
+                    "y": 0
+                  },
+                  "middle__inputs": {
+                    "x": -100,
+                    "y": 100
+                  },
+                  "middle__outputs": {
+                    "x": 600,
+                    "y": 100
+                  }
+                },
+                "commentBoxes": [],
+                "settings": {
+                  "dataTransferBatchSize": 10
+                },
+                "macroDependencies": [
+                  {
+                    "name": "Inner",
+                    "id": "inner",
+                    "version": 1,
+                    "content": {
+                      "operators": [
+                        {
+                          "operatorID": "leaf",
+                          "operatorType": "TestOp",
+                          "operatorVersion": "1",
+                          "operatorProperties": {
+                            "value": "original"
+                          },
+                          "inputPorts": [],
+                          "outputPorts": [
+                            {
+                              "portID": "output-0"
+                            }
+                          ],
+                          "showAdvanced": false
+                        },
+                        {
+                          "operatorID": "inner__inputs",
+                          "operatorType": "MacroInput",
+                          "operatorVersion": "1",
+                          "operatorProperties": {},
+                          "inputPorts": [],
+                          "outputPorts": [],
+                          "dynamicInputPorts": false,
+                          "dynamicOutputPorts": true,
+                          "showAdvanced": false
+                        },
+                        {
+                          "operatorID": "inner__outputs",
+                          "operatorType": "MacroOutput",
+                          "operatorVersion": "1",
+                          "operatorProperties": {},
+                          "inputPorts": [
+                            {
+                              "portID": "output-0"
+                            }
+                          ],
+                          "outputPorts": [],
+                          "dynamicInputPorts": true,
+                          "dynamicOutputPorts": false,
+                          "showAdvanced": false
+                        }
+                      ],
+                      "links": [
+                        {
+                          "linkID": "inner__1_output-0_0",
+                          "source": {
+                            "operatorID": "leaf",
+                            "portID": "output-0"
+                          },
+                          "target": {
+                            "operatorID": "inner__outputs",
+                            "portID": "output-0"
+                          }
+                        }
+                      ],
+                      "macroInterface": {
+                        "id": "inner"
+                      },
+                      "formBinding": {
+                        "fields": [
+                          {
+                            "id": "value",
+                            "operatorID": "leaf",
+                            "displayName": "Value",
+                            "propertyKey": "value"
+                          }
+                        ]
+                      },
+                      "operatorPositions": {
+                        "inner__inputs": {
+                          "x": -100,
+                          "y": 100
+                        },
+                        "inner__outputs": {
+                          "x": 600,
+                          "y": 100
+                        },
+                        "leaf": {
+                          "x": 0,
+                          "y": 0
+                        }
+                      },
+                      "commentBoxes": [],
+                      "settings": {
+                        "dataTransferBatchSize": 10
+                      }
+                    }
+                  }
+                ]
+              }
+            }
+          ]
+        }
+      }
+    ]
+  },
+  "expected": {
+    "content": {
+      "operators": [
+        {
+          "operatorID": "2f4a4c9e-b586-5c8b-b7d1-a71a203acf22",
+          "operatorType": "TestOp",
+          "operatorVersion": "1",
+          "operatorProperties": {
+            "value": "café 東京"
+          },
+          "inputPorts": [],
+          "outputPorts": [
+            {
+              "portID": "output-0"
+            }
+          ],
+          "showAdvanced": false
+        },
+        {
+          "operatorID": "667fa1e1-9a78-550b-9c3a-23839baa105e",
+          "operatorType": "TestOp",
+          "operatorVersion": "1",
+          "operatorProperties": {
+            "value": "other"
+          },
+          "inputPorts": [],
+          "outputPorts": [
+            {
+              "portID": "output-0"
+            }
+          ],
+          "showAdvanced": false
+        }
+      ],
+      "links": [],
+      "formBinding": {
+        "fields": [
+          {
+            "id": "value",
+            "operatorID": "leaf",
+            "displayName": "Value",
+            "propertyKey": "value"
+          }
+        ]
+      },
+      "operatorPositions": {
+        "leaf": {
+          "x": 0,
+          "y": 0
+        }
+      },
+      "commentBoxes": [],
+      "settings": {
+        "dataTransferBatchSize": 10
+      }
+    },
+    "paths": {
+      "2f4a4c9e-b586-5c8b-b7d1-a71a203acf22": ["one", "child", "child", "leaf"],
+      "667fa1e1-9a78-550b-9c3a-23839baa105e": ["two", "child", "child", "leaf"]
+    },
+    "ports": {
+      "[\"one\",\"outputs\",\"output-0\"]": [
+        {
+          "operatorID": "2f4a4c9e-b586-5c8b-b7d1-a71a203acf22",
+          "portID": "output-0"
+        }
+      ],
+      "[\"two\",\"outputs\",\"output-0\"]": [
+        {
+          "operatorID": "667fa1e1-9a78-550b-9c3a-23839baa105e",
+          "portID": "output-0"
+        }
+      ]
+    }
+  }
+}

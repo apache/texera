@@ -1050,7 +1050,7 @@ class WorkflowPublishSpec
     publishPinned(wid)
     edit(
       wid,
-      """{"operators":[{"operatorType":"SecretDraftOperator"}],"note":"supersecretdraftword"}"""
+      """{"operators":[{"operatorID":"draft","operatorType":"SecretDraftOperator"}],"note":"supersecretdraftword"}"""
     )
 
     val byKeyword =
