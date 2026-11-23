@@ -19,6 +19,7 @@
 
 package org.apache.texera.amber.operator.visualization.stripChart
 
+import org.apache.texera.amber.operator.visualization.StandaloneChartCode._
 import com.fasterxml.jackson.annotation.{JsonProperty, JsonPropertyDescription}
 import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaTitle
 import org.apache.texera.amber.pybuilder.PythonTemplateBuilder.PythonTemplateBuilderStringContext
@@ -138,9 +139,7 @@ class StripChartOpDesc extends PythonVisualizationOpDesc with PlotlyStandaloneCo
        |    yaxis_title=$yLit,
        |    hovermode='closest'
        |)
-       |fig.write_json(outputJson)
-       |fig.write_html(outputHtml)
-       |print("Strip chart saved to " + outputHtml)""".stripMargin
+       |${standaloneFigure("Strip chart", indent = 0)}""".stripMargin
   }
 
 }

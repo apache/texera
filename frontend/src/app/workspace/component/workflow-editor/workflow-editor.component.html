@@ -61,7 +61,9 @@
   <nz-dropdown-menu
     nzNoAnimation
     #menu="nzDropdownMenu">
-    <texera-context-menu [structureLocked]="structureLocked"></texera-context-menu>
+    <texera-context-menu
+      [structureLocked]="structureLocked"
+      (pinResult)="pinResult($event)"></texera-context-menu>
   </nz-dropdown-menu>
 
   <!-- Chat Popover for Operator -->

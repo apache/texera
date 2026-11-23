@@ -461,6 +461,32 @@ describe("WorkflowVersionService", () => {
       expect(service.selectedVersionId.getValue()).toBeNull();
     });
 
+    it("discardOpenVersionDisplay ends an open preview without reloading the graph", async () => {
+      service.displayParticularVersion(buildWorkflow(), 3, 2);
+      actionSpy.reloadWorkflow.mockClear();
+      actionSpy.enableWorkflowModification.mockClear();
+      persistSpy.setWorkflowPersistFlag.mockClear();
+
+      service.discardOpenVersionDisplay();
+
+      expect(actionSpy.resetTempWorkflow).toHaveBeenCalled();
+      expect(persistSpy.setWorkflowPersistFlag).toHaveBeenCalledWith(true);
+      // A blank workflow opened next is never re-enabled by its own load.
+      expect(actionSpy.enableWorkflowModification).toHaveBeenCalled();
+      expect(actionSpy.reloadWorkflow).not.toHaveBeenCalled();
+      expect(await firstValueFrom(service.getDisplayParticularVersionStream())).toBe(false);
+      expect(service.selectedVersionId.getValue()).toBeNull();
+      expect(service.canRestoreVersion).toBe(false);
+    });
+
+    it("discardOpenVersionDisplay does nothing when no preview is open", () => {
+      service.discardOpenVersionDisplay();
+
+      expect(actionSpy.resetTempWorkflow).not.toHaveBeenCalled();
+      expect(persistSpy.setWorkflowPersistFlag).not.toHaveBeenCalled();
+      expect(actionSpy.enableWorkflowModification).not.toHaveBeenCalled();
+    });
+
     it("restoreModificationState re-disables modification when the snapshot was false", () => {
       actionSpy.checkWorkflowModificationEnabled.mockReturnValue(false);
       service.displayReadonlyWorkflow(buildWorkflow());
