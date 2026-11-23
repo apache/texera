@@ -23,11 +23,7 @@ import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.module.scala.DefaultScalaModule
 import com.typesafe.scalalogging.LazyLogging
 import io.dropwizard.auth.Auth
-import org.apache.texera.amber.core.storage.{
-  DocumentFactory,
-  ExecutionResultUris,
-  WarehouseReadGuard
-}
+import org.apache.texera.amber.core.storage.{ExecutionResultUris, WarehouseReadGuard}
 import org.apache.texera.amber.core.virtualidentity.ExecutionIdentity
 import org.apache.texera.auth.SessionUser
 import org.apache.texera.auth.util.OwnerAccess
@@ -674,17 +670,9 @@ class WorkflowResource extends LazyLogging {
       // Clean up document storage. While per-user warehouses are disabled, cleanup must
       // not reach into them (#6930) — those URIs are skipped.
       try {
-        uris.filterNot(WarehouseReadGuard.skipWhileDisabled(_)).foreach { uri =>
-          try {
-            val (document, _) = DocumentFactory.openDocument(uri)
-            document.clear()
-          } catch {
-            case e: IllegalArgumentException if e.getMessage.contains("No storage is found") =>
-              logger.warn(s"Storage for URI $uri not found, ignoring: ${e.getMessage}")
-            case NonFatal(e) =>
-              logger.error(s"Failed to clear document for URI $uri", e)
-          }
-        }
+        uris
+          .filterNot(WarehouseReadGuard.skipWhileDisabled(_))
+          .foreach(WorkflowExecutionsResource.clearDocument(_))
       } catch {
         case NonFatal(e) =>
           logger.error("Failed to clean up execution results", e)

@@ -20,6 +20,7 @@
 package org.apache.texera.amber.operator.visualization.quiverPlot
 
 import org.apache.texera.amber.operator.visualization.StandaloneChartCode._
+import org.apache.texera.amber.operator.visualization.PythonCodeFragment._
 import com.fasterxml.jackson.annotation.{JsonProperty, JsonPropertyDescription}
 import com.kjetland.jackson.jsonSchema.annotations.{JsonSchemaInject, JsonSchemaTitle}
 import org.apache.texera.amber.pybuilder.PythonTemplateBuilder.PythonTemplateBuilderStringContext
@@ -110,16 +111,11 @@ class QuiverPlotOpDesc extends PythonVisualizationOpDesc {
          |
          |class ProcessTableOperator(UDFTableOperator):
          |
-         |    def render_error(self, error_msg):
-         |        return '''<h1>Quiver Plot is not available.</h1>
-         |                  <p>Reasons are: {} </p>
-         |               '''.format(error_msg)
+         |${runtimeError("Quiver Plot is not available.", plural = true)}
          |
          |    @overrides
          |    def process_table(self, table: Table, port: int) -> Iterator[Optional[TableLike]]:
-         |        if table.empty:
-         |            yield {'html-content': self.render_error("Input table is empty.")}
-         |            return
+         |${emptyTableGuard("Input table is empty.", bodyIndent = 4)}
          |
          |        required_columns = {$x, $y, $u, $v}
          |        if not required_columns.issubset(table.columns):
@@ -147,8 +143,7 @@ class QuiverPlotOpDesc extends PythonVisualizationOpDesc {
          |            yield {'html-content': self.render_error(f"Plotly error: {str(e)}")}
          |            return
          |
-         |        html = plotly.io.to_html(fig, include_plotlyjs='cdn', auto_play=False)
-         |        yield {'html-content': html}
+         |${plotlyHtmlYield()}
          |"""
     finalCode.encode
   }

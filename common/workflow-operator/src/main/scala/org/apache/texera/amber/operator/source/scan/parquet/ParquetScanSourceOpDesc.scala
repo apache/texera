@@ -22,15 +22,13 @@ package org.apache.texera.amber.operator.source.scan.parquet
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties
 import org.apache.parquet.hadoop.ParquetFileReader
 import org.apache.parquet.io.LocalInputFile
-import org.apache.texera.amber.core.executor.OpExecWithClassName
 import org.apache.texera.amber.core.storage.DocumentFactory
 import org.apache.texera.amber.core.tuple.Schema
 import org.apache.texera.amber.core.virtualidentity.{ExecutionIdentity, WorkflowIdentity}
-import org.apache.texera.amber.core.workflow.{PhysicalOp, SchemaPropagationFunc}
+import org.apache.texera.amber.core.workflow.PhysicalOp
 import org.apache.texera.amber.operator.StandaloneCodeGenerator
 import org.apache.texera.amber.operator.StandaloneCodeGenerator.SourceFilePlaceholder
 import org.apache.texera.amber.operator.source.scan.ScanSourceOpDesc
-import org.apache.texera.amber.util.JSONUtils.objectMapper
 
 import java.io.IOException
 import java.net.URI
@@ -168,21 +166,12 @@ class ParquetScanSourceOpDesc extends ScanSourceOpDesc with StandaloneCodeGenera
       workflowId: WorkflowIdentity,
       executionId: ExecutionIdentity
   ): PhysicalOp = {
-    PhysicalOp
-      .sourcePhysicalOp(
-        workflowId,
-        executionId,
-        operatorIdentifier,
-        OpExecWithClassName(
-          "org.apache.texera.amber.operator.source.scan.parquet.ParquetScanSourceOpExec",
-          objectMapper.writeValueAsString(this)
-        )
-      )
-      .withInputPorts(operatorInfo.inputPorts)
-      .withOutputPorts(operatorInfo.outputPorts)
-      .withPropagateSchema(
-        SchemaPropagationFunc(_ => Map(operatorInfo.outputPorts.head.id -> inferSchema()))
-      )
+    sourcePhysicalOp(
+      workflowId,
+      executionId,
+      "org.apache.texera.amber.operator.source.scan.parquet.ParquetScanSourceOpExec",
+      outputSchema = () => inferSchema()
+    )
   }
 
   /** The file's own schema, read from its footer. No rows are read to get it. */

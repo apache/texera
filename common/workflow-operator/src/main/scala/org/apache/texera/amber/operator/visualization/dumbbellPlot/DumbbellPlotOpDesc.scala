@@ -20,6 +20,7 @@
 package org.apache.texera.amber.operator.visualization.dumbbellPlot
 
 import org.apache.texera.amber.operator.visualization.StandaloneChartCode._
+import org.apache.texera.amber.operator.visualization.PythonCodeFragment._
 import com.fasterxml.jackson.annotation.{JsonProperty, JsonPropertyDescription}
 import com.kjetland.jackson.jsonSchema.annotations.{JsonSchemaInject, JsonSchemaTitle}
 import org.apache.texera.amber.pybuilder.PythonTemplateBuilder.{
@@ -168,26 +169,18 @@ class DumbbellPlotOpDesc extends PythonVisualizationOpDesc with PlotlyStandalone
        |import numpy as np
        |
        |class ProcessTableOperator(UDFTableOperator):
-       |    def render_error(self, error_msg):
-       |        return '''<h1>DumbbellPlot is not available.</h1>
-       |                  <p>Reason is: {} </p>
-       |               '''.format(error_msg)
+       |${runtimeError("DumbbellPlot is not available.")}
        |
        |    @overrides
        |    def process_table(self, table: Table, port: int) -> Iterator[Optional[TableLike]]:
-       |        if table.empty:
-       |           yield {'html-content': self.render_error("input table is empty.")}
-       |           return
+       |${emptyTableGuard("input table is empty.")}
        |        table = table.dropna(subset=[$comparedColumnName, $categoryColumnName, $measurementColumnName]) #remove missing values
-       |        if table.empty:
-       |           yield {'html-content': self.render_error("input table has no rows with all of the configured columns filled in.")}
-       |           return
+       |${emptyTableGuard("input table has no rows with all of the configured columns filled in.")}
        |        ${createPlotlyDumbbellLineFigure()}
        |        ${addPlotlyDots()}
        |        # convert fig to html content
        |        fig.update_layout(margin=dict(l=0, r=0, b=60, t=0))
-       |        html = plotly.io.to_html(fig, include_plotlyjs='cdn', auto_play=False)
-       |        yield {'html-content': html}
+       |${plotlyHtmlYield()}
        |
        |""".encode
   }

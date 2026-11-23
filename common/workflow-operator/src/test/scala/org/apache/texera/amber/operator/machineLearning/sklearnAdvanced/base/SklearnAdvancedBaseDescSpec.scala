@@ -35,13 +35,10 @@ import scala.jdk.CollectionConverters.IteratorHasAsScala
 
 class SklearnAdvancedBaseDescSpec extends AnyFlatSpec with Matchers {
 
-  // A minimal ParamClass: the generated code only ever consults getName/getType, the other
-  // two being read by the schema rather than by code generation.
+  // A minimal ParamClass: the generated code only ever consults getName/getType, so its spec
+  // carries just those two.
   private class TestParam(name: String, typ: String) extends ParamClass {
-    override def getName: String = name
-    override def getType: String = typ
-    override def getSampleValue: String = ""
-    override def getAllowedValues: Array[String] = Array.empty
+    override def paramSpec: ParamSpec = ParamSpec(name, typ)
   }
 
   // A concrete descriptor supplying just the two abstract hooks; everything

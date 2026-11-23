@@ -35,7 +35,7 @@ class TernaryPlotOpDescSpec
   }
 
   it should "throw AssertionError with a 'cannot be empty' message when all variables are empty" in {
-    val ex = expectError[AssertionError]("cannot be empty")(opDesc.manipulateTable())
+    expectError[AssertionError]("cannot be empty")(opDesc.manipulateTable())
   }
 
   // The compound assert over the three variables is being split per-field;

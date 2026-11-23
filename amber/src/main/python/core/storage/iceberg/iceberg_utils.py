@@ -24,6 +24,7 @@ import pyiceberg.table
 from fsspec.config import conf as fsspec_conf
 from pyiceberg.catalog import Catalog, load_catalog
 from pyiceberg.catalog.sql import SqlCatalog
+from pyiceberg.exceptions import NoSuchNamespaceError, NoSuchTableError
 from pyiceberg.expressions import AlwaysTrue
 from pyiceberg.io.pyarrow import ArrowScan
 from pyiceberg.partitioning import UNPARTITIONED_PARTITION_SPEC
@@ -288,7 +289,11 @@ def load_table_metadata(
     """
     Loads metadata for an existing Iceberg table.
     - Returns the table if it exists and is successfully loaded.
-    - Returns None if the table does not exist or cannot be loaded.
+    - Returns None if the table, or its namespace, does not exist.
+
+    Any other failure is raised, such as a catalog that cannot be reached. Taken
+    for a missing table, it would make a result that exists look deleted, or a
+    table read as empty.
 
     :param catalog: The Iceberg catalog to load the table from.
     :param table_namespace: The namespace of the table.
@@ -298,7 +303,7 @@ def load_table_metadata(
     identifier = f"{table_namespace}.{table_name}"
     try:
         return catalog.load_table(identifier)
-    except Exception:
+    except (NoSuchTableError, NoSuchNamespaceError):
         return None
 
 

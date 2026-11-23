@@ -17,7 +17,7 @@
  * under the License.
  */
 
-import { Component, Inject, Input, TemplateRef, ViewChild } from "@angular/core";
+import { Component, Inject, TemplateRef, ViewChild } from "@angular/core";
 import { NZ_MODAL_DATA } from "ng-zorro-antd/modal";
 import { NzSpaceCompactItemDirective } from "ng-zorro-antd/space";
 import { NzInputDirective } from "ng-zorro-antd/input";

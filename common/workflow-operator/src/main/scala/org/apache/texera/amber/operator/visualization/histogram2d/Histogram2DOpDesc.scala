@@ -19,6 +19,7 @@
 package org.apache.texera.amber.operator.visualization.histogram2d
 
 import org.apache.texera.amber.operator.visualization.StandaloneChartCode._
+import org.apache.texera.amber.operator.visualization.PythonCodeFragment._
 import com.fasterxml.jackson.annotation.{JsonProperty, JsonPropertyDescription}
 import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaTitle
 import org.apache.texera.amber.pybuilder.PythonTemplateBuilder.{
@@ -92,15 +93,11 @@ class Histogram2DOpDesc extends PythonVisualizationOpDesc with PlotlyStandaloneC
        |    @overrides
        |    def process_table(self, table: Table, port: int) -> Iterator[Optional[TableLike]]:
        |        # Empty-table guard
-       |        if table.empty:
-       |            yield {"html-content": self.render_error("Input table is empty.")}
-       |            return
+       |${emptyTableGuard("Input table is empty.", bodyIndent = 4, doubleQuoted = true)}
        |
        |        # Drop rows with missing x/y
        |        table.dropna(subset=[$xColumn, $yColumn], inplace=True)
-       |        if table.empty:
-       |            yield {"html-content": self.render_error("No rows after dropping nulls.")}
-       |            return
+       |${emptyTableGuard("No rows after dropping nulls.", bodyIndent = 4, doubleQuoted = true)}
        |
        |        fig = px.density_heatmap(
        |            table,
@@ -112,8 +109,7 @@ class Histogram2DOpDesc extends PythonVisualizationOpDesc with PlotlyStandaloneC
        |            text_auto=True
        |        )
        |
-       |        html = plotly.io.to_html(fig, include_plotlyjs='cdn', auto_play=False)
-       |        yield {"html-content": html}
+       |${plotlyHtmlYield(doubleQuoted = true)}
        |""".encode
   }
 

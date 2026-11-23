@@ -19,6 +19,7 @@
 package org.apache.texera.amber.operator.visualization.gaugeChart
 
 import org.apache.texera.amber.operator.visualization.StandaloneChartCode._
+import org.apache.texera.amber.operator.visualization.PythonCodeFragment._
 import com.fasterxml.jackson.annotation.{JsonProperty, JsonPropertyDescription}
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize
 import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaTitle
@@ -94,9 +95,12 @@ class GaugeChartOpDesc extends PythonVisualizationOpDesc with PlotlyStandaloneCo
          |
          |class ProcessTableOperator(UDFTableOperator):
          |
-         |    def render_error(self, error_msg) -> str:
-         |        return '''<h1>Gauge chart is not available.</h1>
-         |                  <p>Reason: {} </p>'''.format(error_msg)
+         |${runtimeError(
+      "Gauge chart is not available.",
+      typed = true,
+      colonOnly = true,
+      singleLineClose = true
+    )}
          |
          |    def generate_gray_gradient(self, step_count):
          |        colors = []
@@ -107,9 +111,7 @@ class GaugeChartOpDesc extends PythonVisualizationOpDesc with PlotlyStandaloneCo
          |
          |    @overrides
          |    def process_table(self, table: Table, port: int) -> Iterator[Optional[TableLike]]:
-         |        if table.empty:
-         |            yield {'html-content': self.render_error("Input table is empty.")}
-         |            return
+         |${emptyTableGuard("Input table is empty.", bodyIndent = 4)}
          |
          |        try:
          |            gauge_value = $value
@@ -117,9 +119,11 @@ class GaugeChartOpDesc extends PythonVisualizationOpDesc with PlotlyStandaloneCo
          |            threshold_val = $thresholdExpr
          |
          |            table = table.dropna(subset=[gauge_value])
-         |            if table.empty:
-         |                yield {'html-content': self.render_error("No non-null rows found for the value column.")}
-         |                return
+         |${emptyTableGuard(
+      "No non-null rows found for the value column.",
+      indent = 12,
+      bodyIndent = 4
+    )}
          |
          |            valid_steps = $stepsExpr
          |            step_colors = self.generate_gray_gradient(len(valid_steps))
