@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1795352338759,
+  "lastUpdate": 1795439217530,
   "repoUrl": "https://github.com/apache/texera",
   "entries": {
     "Arrow Flight E2E Throughput": [
@@ -23657,6 +23657,163 @@ window.BENCHMARK_DATA = {
           {
             "name": "throughput / bs=1000 sw=50 sl=512",
             "value": 509.8966726227054,
+            "unit": "tuples/sec"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "name": "Xinyuan Lin",
+            "username": "aglinxinyuan",
+            "email": "xinyual3@uci.edu"
+          },
+          "committer": {
+            "name": "GitHub",
+            "username": "web-flow",
+            "email": "noreply@github.com"
+          },
+          "id": "cd5e257ba5f4cc9363a60cb5a99e82d0174fd9d6",
+          "message": "test(service): remove unused spec mixins and test defaults (#9599)\n\n### What changes were proposed in this PR?\n\nRemove unused ScalaTest mixin traits and unused private test-helper\ndefaults across 7 test files in `access-control-service`,\n`file-service`, and `workflow-compiling-service` without changing\nproduction code or test assertions:\n\n- **Unused `BeforeAndAfterEach` mixin (`access-control-service`,\n`file-service`):** Remove the unused `BeforeAndAfterEach` trait and\nimport in `AccessControlResourceSpec`, `ModelApiForUiSpec`,\n`ModelDownloadResourceSpec`, `ModelResourceSpec`, and\n`ModelUploadResourceSpec`, which define no per-test hooks.\n- **Unused `OptionValues` mixin (`file-service`):** Remove the unused\n`OptionValues` trait and import in `ModelHubApiSpec`.\n- **Unused defaults and dead helper (`workflow-compiling-service`):** In\ntest utility `ConfigGenerator`, remove 12 unused default parameter\nvalues on private helper methods, the 3 unused field defaults on the\nprivate `FillContext` case class (both of its constructor calls pass\nevery field), the scaladoc `FillContext` had copied from\n`requiredUnder`, and the unreferenced private `noSiblings` helper.\n\n### Any related issues, documentation, discussions?\n\nCloses #9598.\n\n### How was this PR tested?\n\nRan on `906cd73fd1` (JDK 17.0.14, `sbt 1.12.9`,\n`STORAGE_ICEBERG_CATALOG_TYPE=hadoop`, Docker running for `FileService`\n`MockLakeFS` specs):\n\n```bash\nsbt --batch \\\n  \"AccessControlService/scalafmtCheckAll\" \\\n  \"FileService/scalafmtCheckAll\" \\\n  \"WorkflowCompilingService/scalafmtCheckAll\" \\\n  \"AccessControlService/scalafixAll --check\" \\\n  \"FileService/scalafixAll --check\" \\\n  \"WorkflowCompilingService/scalafixAll --check\" \\\n  \"AccessControlService/testOnly org.apache.texera.AccessControlResourceSpec\" \\\n  \"FileService/testOnly org.apache.texera.service.resource.ModelApiForUiSpec org.apache.texera.service.resource.ModelDownloadResourceSpec org.apache.texera.service.resource.ModelHubApiSpec org.apache.texera.service.resource.ModelResourceSpec org.apache.texera.service.resource.ModelUploadResourceSpec\" \\\n  \"WorkflowCompilingService/testOnly org.apache.texera.amber.translator.verify.ConfigGeneratorSpec org.apache.texera.amber.translator.verify.CanonicalFixtureSpec org.apache.texera.service.resource.WorkflowCompilationResourceSpec\"\n```\n\n- `scalafmtCheckAll` and `scalafixAll --check` across\n`AccessControlService`, `FileService`, and `WorkflowCompilingService`:\npassed.\n- `AccessControlService`: `1` suite, `44` passed (`0` failed, `0`\nskipped).\n- `FileService`: `5` suites, `117` passed (`0` failed, `0` skipped).\n- `WorkflowCompilingService`: `3` suites, `52` passed (`0` failed, `0`\nskipped).\n\n### Was this PR authored or co-authored using generative AI tooling?\n\nGenerated-by: Antigravity (Gemini 4 Neon), Claude Code (Claude Opus 5.5)",
+          "timestamp": "2026-11-23T12:35:08Z",
+          "url": "https://github.com/apache/texera/commit/cd5e257ba5f4cc9363a60cb5a99e82d0174fd9d6"
+        },
+        "date": 1795439216657,
+        "tool": "customBiggerIsBetter",
+        "benches": [
+          {
+            "name": "throughput / bs=10 sw=1 sl=8",
+            "value": 959.3004127531043,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=1 sl=8",
+            "value": 1745.0557095327856,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=1 sl=8",
+            "value": 1933.3818861193447,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=1 sl=64",
+            "value": 1181.000965599971,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=1 sl=64",
+            "value": 1764.4701523581493,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=1 sl=64",
+            "value": 1887.3195842168936,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=1 sl=512",
+            "value": 1271.8325558673912,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=1 sl=512",
+            "value": 1817.581161144087,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=1 sl=512",
+            "value": 1921.4480964680452,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=10 sl=8",
+            "value": 1092.1541438530546,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=10 sl=8",
+            "value": 1427.0472089272441,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=10 sl=8",
+            "value": 1482.3514412929972,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=10 sl=64",
+            "value": 1110.963195619641,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=10 sl=64",
+            "value": 1440.901284468122,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=10 sl=64",
+            "value": 1475.4293804920335,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=10 sl=512",
+            "value": 1084.6969388480245,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=10 sl=512",
+            "value": 1420.7218043147764,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=10 sl=512",
+            "value": 1452.388678546843,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=50 sl=8",
+            "value": 662.6053798319609,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=50 sl=8",
+            "value": 772.5300526961386,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=50 sl=8",
+            "value": 777.1921604646126,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=50 sl=64",
+            "value": 653.8085219729659,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=50 sl=64",
+            "value": 771.643380788673,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=50 sl=64",
+            "value": 773.6625747895295,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=50 sl=512",
+            "value": 627.6068194479194,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=50 sl=512",
+            "value": 729.0577623192199,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=50 sl=512",
+            "value": 729.0174387356882,
             "unit": "tuples/sec"
           }
         ]
