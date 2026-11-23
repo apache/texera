@@ -31,6 +31,20 @@ from proto.org.apache.texera.amber.engine.architecture.rpc import (
 )
 
 
+_EVALUATE_TARGET = (
+    "core.architecture.handlers.control.evaluate_expression_handler"
+    ".ExpressionEvaluator.evaluate"
+)
+
+
+def _eval(handler, expression: str):
+    return asyncio.run(
+        handler.evaluate_python_expression(
+            EvaluatePythonExpressionRequest(expression=expression)
+        )
+    )
+
+
 class TestEvaluateExpressionHandler:
     @pytest.fixture
     def executor(self):
@@ -55,30 +69,20 @@ class TestEvaluateExpressionHandler:
             value=TypedValue(expression="1+1", value_ref="2", value_type="int")
         )
         with patch(
-            "core.architecture.handlers.control.evaluate_expression_handler"
-            ".ExpressionEvaluator.evaluate",
+            _EVALUATE_TARGET,
             return_value=sentinel,
         ) as evaluate:
-            result = asyncio.run(
-                handler.evaluate_python_expression(
-                    EvaluatePythonExpressionRequest(expression="1+1")
-                )
-            )
+            result = _eval(handler, "1+1")
 
         assert result is sentinel
         evaluate.assert_called_once()
 
     def test_runtime_context_exposes_self_tuple_input(self, handler, executor):
         with patch(
-            "core.architecture.handlers.control.evaluate_expression_handler"
-            ".ExpressionEvaluator.evaluate",
+            _EVALUATE_TARGET,
             return_value=EvaluatedValue(),
         ) as evaluate:
-            asyncio.run(
-                handler.evaluate_python_expression(
-                    EvaluatePythonExpressionRequest(expression="self.state")
-                )
-            )
+            _eval(handler, "self.state")
 
         expression, runtime_context = evaluate.call_args.args
         assert expression == "self.state"
@@ -99,22 +103,13 @@ class TestEvaluateExpressionHandler:
             return EvaluatedValue()
 
         with patch(
-            "core.architecture.handlers.control.evaluate_expression_handler"
-            ".ExpressionEvaluator.evaluate",
+            _EVALUATE_TARGET,
             side_effect=capture,
         ):
-            asyncio.run(
-                handler.evaluate_python_expression(
-                    EvaluatePythonExpressionRequest(expression="x")
-                )
-            )
+            _eval(handler, "x")
             handler.context.tuple_processing_manager.current_input_tuple = {"col": 99}
             handler.context.tuple_processing_manager.current_input_port_id = "port-1"
-            asyncio.run(
-                handler.evaluate_python_expression(
-                    EvaluatePythonExpressionRequest(expression="x")
-                )
-            )
+            _eval(handler, "x")
 
         assert captured == [({"col": 42}, "port-0"), ({"col": 99}, "port-1")]
 
@@ -125,15 +120,10 @@ class TestEvaluateExpressionHandler:
         handler.context.tuple_processing_manager.current_input_tuple = None
         handler.context.tuple_processing_manager.current_input_port_id = None
         with patch(
-            "core.architecture.handlers.control.evaluate_expression_handler"
-            ".ExpressionEvaluator.evaluate",
+            _EVALUATE_TARGET,
             return_value=EvaluatedValue(),
         ) as evaluate:
-            asyncio.run(
-                handler.evaluate_python_expression(
-                    EvaluatePythonExpressionRequest(expression="self.state")
-                )
-            )
+            _eval(handler, "self.state")
 
         _expression, runtime_context = evaluate.call_args.args
         assert runtime_context["tuple_"] is None
@@ -144,13 +134,8 @@ class TestEvaluateExpressionHandler:
         # expression, etc.), the handler must not swallow it — the RPC layer
         # is responsible for surfacing the failure to the frontend.
         with patch(
-            "core.architecture.handlers.control.evaluate_expression_handler"
-            ".ExpressionEvaluator.evaluate",
+            _EVALUATE_TARGET,
             side_effect=AttributeError("no such attribute"),
         ):
             with pytest.raises(AttributeError, match="no such attribute"):
-                asyncio.run(
-                    handler.evaluate_python_expression(
-                        EvaluatePythonExpressionRequest(expression="self.missing")
-                    )
-                )
+                _eval(handler, "self.missing")

@@ -20,6 +20,7 @@ from unittest.mock import MagicMock, patch
 import pytest
 from fsspec.config import conf
 from fsspec.implementations.local import LocalFileSystem
+from pyiceberg.exceptions import NoSuchNamespaceError, NoSuchTableError
 from pyiceberg.io.fsspec import FsspecFileIO
 from pyiceberg.partitioning import UNPARTITIONED_PARTITION_SPEC
 
@@ -28,6 +29,7 @@ from core.storage.iceberg.iceberg_utils import (
     create_postgres_catalog,
     create_rest_catalog,
     create_table,
+    load_table_metadata,
 )
 
 
@@ -390,3 +392,27 @@ class TestCreateTable:
 
         catalog.drop_table.assert_not_called()
         catalog.create_table.assert_called_once()
+
+
+class TestLoadTableMetadata:
+    """
+    Only a missing table is reported as None. Any other failure, such as an
+    unreachable catalog, has to reach the caller: taken for a missing table, it
+    would make a result that exists look gone, or a table read as empty.
+    """
+
+    @pytest.mark.parametrize("missing", [NoSuchTableError, NoSuchNamespaceError])
+    def test_a_missing_table_or_namespace_is_none(self, missing):
+        catalog = MagicMock()
+        catalog.load_table.side_effect = missing("it does not exist")
+
+        assert load_table_metadata(catalog, "ns", "tbl") is None
+
+        catalog.load_table.assert_called_once_with("ns.tbl")
+
+    def test_any_other_failure_reaches_the_caller(self):
+        catalog = MagicMock()
+        catalog.load_table.side_effect = ConnectionError("catalog unavailable")
+
+        with pytest.raises(ConnectionError, match="catalog unavailable"):
+            load_table_metadata(catalog, "ns", "tbl")

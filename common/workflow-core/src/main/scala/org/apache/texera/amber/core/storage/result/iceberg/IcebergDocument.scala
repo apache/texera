@@ -19,6 +19,7 @@
 
 package org.apache.texera.amber.core.storage.result.iceberg
 
+import com.typesafe.scalalogging.LazyLogging
 import org.apache.texera.amber.core.storage.IcebergCatalogInstance
 import org.apache.texera.amber.core.storage.model.{BufferedItemWriter, VirtualDocument}
 import org.apache.texera.amber.core.storage.util.StorageUtil.{withLock, withReadLock, withWriteLock}
@@ -40,6 +41,7 @@ import java.util.zip.{ZipEntry, ZipOutputStream}
 import scala.collection.mutable
 import scala.jdk.CollectionConverters._
 import scala.util.Using
+import scala.util.control.NonFatal
 
 object Constants {
   // Default buffer size for streaming Parquet files to outside
@@ -68,7 +70,8 @@ private[storage] class IcebergDocument[T >: Null <: AnyRef](
     val deserde: (org.apache.iceberg.Schema, Record) => T,
     val warehouse: Option[String] = None
 ) extends VirtualDocument[T]
-    with OnIceberg {
+    with OnIceberg
+    with LazyLogging {
 
   private val lock = new ReentrantReadWriteLock()
 
@@ -264,7 +267,21 @@ private[storage] class IcebergDocument[T >: Null <: AnyRef](
             // bound to a catalog the bounded cache may have closed, and re-resolving
             // also keeps this warehouse's cache entry live for as long as the reader
             // polls. Snapshot continuity lives in lastSnapshotId, not in the Table.
-            table = loadTableMetadata()
+            //
+            // Once resolved, a later seek only looks for rows committed since, after every row
+            // seen so far has been returned. Failing it must not fail the read, so the table
+            // resolved last stands in: it has nothing newer. A first resolve still throws, since
+            // a table that was never resolved must not read as empty.
+            table =
+              try loadTableMetadata()
+              catch {
+                case NonFatal(e) if table.isDefined =>
+                  logger.warn(
+                    s"Could not look for newer rows of $tableNamespace.$tableName",
+                    e
+                  )
+                  table
+              }
 
             // Retrieve and sort the file scan tasks by file sequence number.
             // Materialize inside `Using.resource` so the `planFiles()`
