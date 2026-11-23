@@ -84,7 +84,9 @@ RUN python3 bin/licensing/concat_license_binary.py amber/LICENSE-binary-combined
         amber/LICENSE-binary-java \
         amber/LICENSE-binary-python
 
-FROM docker.io/library/eclipse-temurin:17-jre-jammy@sha256:97137382c6f0c30427d9b7c44ad8b2d55ac823b0768c171d81a643ed219023c5 AS runtime
+# Ubuntu 24.04 rather than the 22.04 of the other images: Python workers run
+# this image's python3, and 24.04's is 3.12, a version pyamber's CI tests.
+FROM docker.io/library/eclipse-temurin:17-jre-noble@sha256:e13d2fc95a199cda333a2d8ce67a48727029dda50782bb8ecaced710932ac920 AS runtime
 
 WORKDIR /texera/amber
 
@@ -94,11 +96,17 @@ COPY --from=build /texera/amber/operator-requirements.txt /tmp/operator-requirem
 # Install Python runtime dependencies
 ARG PACKAGE_SNAPSHOT
 RUN --mount=type=bind,source=bin/dockerfiles/snapshot,target=/snapshot \
-    bash /snapshot/install.sh apt python3-pip python3-dev libpq-dev
+    bash /snapshot/install.sh apt python3-pip python3-dev python3-venv libpq-dev
 
-# Install Python packages
+# Install Python packages into a venv, as 24.04's python3 is externally managed
+# (PEP 668). Its bin/ leads PATH, so the venv's is the `python3` that runs
+# Python workers and creates PVEs when udf.python.path is unset. It is created
+# in this layer so the pip upgrade removes the pip it is seeded with, whose
+# .pyc files are not byte-compiled reproducibly.
+ENV PATH=/opt/venv/bin:$PATH
 RUN --mount=type=bind,source=bin/dockerfiles/snapshot,target=/snapshot \
-    bash /snapshot/install.sh pip --upgrade setuptools wheel \
+    /usr/bin/python3 -m venv /opt/venv \
+ && bash /snapshot/install.sh pip --upgrade setuptools wheel \
  && bash /snapshot/install.sh pip-requirements /tmp/requirements.txt \
  && bash /snapshot/install.sh pip-requirements /tmp/operator-requirements.txt
 
