@@ -24,7 +24,7 @@ import org.apache.texera.amber.core.storage.LocalHadoopIcebergCatalog
 import org.apache.texera.amber.core.storage.model.VirtualDocument
 import org.apache.texera.amber.core.tuple.{AttributeType, Schema, Tuple}
 import org.apache.texera.amber.util.IcebergUtil
-import org.apache.iceberg.catalog.TableIdentifier
+import org.apache.iceberg.catalog.{Catalog, TableIdentifier}
 import org.apache.iceberg.data.Record
 import org.apache.iceberg.exceptions.NoSuchTableException
 import org.apache.iceberg.io.CloseableIterator
@@ -430,24 +430,16 @@ class IcebergDocumentSpec extends AnyFlatSpec with Matchers with BeforeAndAfterA
 
   /**
     * Writes `rows` rows, and returns a document that reads them through a catalog which lets
-    * `succeeding` `loadTable` calls through before it fails.
+    * `succeeding` `loadTable` calls through before it fails. The document overrides its catalog
+    * rather than replacing a shared one: outside `rest`, every warehouse shares one entry.
     */
   private def documentOnFailingCatalog(rows: Int, succeeding: Int): IcebergDocument[Tuple] = {
     val tableName = freshTableName()
     write(newDocument(tableName), (0 until rows).map(tuple))
-    val warehouse = "iceberg-doc-spec-failing"
-    IcebergCatalogInstance.replaceInstance(
-      new FailingCatalog(IcebergCatalogInstance.getInstance(), succeeding),
-      Some(warehouse)
-    )
-    new IcebergDocument[Tuple](
-      tableNamespace,
-      tableName,
-      icebergSchema,
-      serde,
-      deserde,
-      Some(warehouse)
-    )
+    val failing = new FailingCatalog(IcebergCatalogInstance.getInstance(), succeeding)
+    new IcebergDocument[Tuple](tableNamespace, tableName, icebergSchema, serde, deserde) {
+      override def catalog: Catalog = failing
+    }
   }
 
   it should "throw rather than count 0 rows when its catalog is unavailable" in {
