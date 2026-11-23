@@ -34,6 +34,14 @@ from proto.org.apache.texera.amber.engine.architecture.rpc import (
 )
 
 
+def _control_channel(from_name: str) -> ChannelIdentity:
+    return ChannelIdentity(
+        from_worker_id=ActorVirtualIdentity(name=from_name),
+        to_worker_id=ActorVirtualIdentity(name="self"),
+        is_control=True,
+    )
+
+
 def _make_client():
     """AsyncRPCClient with mock queue and a SimpleNamespace context.
 
@@ -100,22 +108,13 @@ class TestCreateFuture:
 
 
 class TestFulfillPromise:
-    def _channel(self, name: str) -> ChannelIdentity:
-        # `_fulfill_promise` looks up the dict by `from_.from_worker_id`; build
-        # a ChannelIdentity whose sender slot matches the actor we promised to.
-        return ChannelIdentity(
-            from_worker_id=ActorVirtualIdentity(name=name),
-            to_worker_id=ActorVirtualIdentity(name="self"),
-            is_control=True,
-        )
-
     def test_resolves_matching_future_and_clears_the_entry(self):
         client = _make_client()
         actor = ActorVirtualIdentity(name="A")
         fut = client._create_future(actor)
         ret = ControlReturn()
 
-        client._fulfill_promise(self._channel("A"), command_id=0, control_return=ret)
+        client._fulfill_promise(_control_channel("A"), command_id=0, control_return=ret)
 
         assert fut.done() and fut.result() is ret
         assert (actor, 0) not in client._unfulfilled_promises
@@ -140,7 +139,7 @@ class TestFulfillPromise:
         # No prior _create_future for actor "A" — nothing to match. Method
         # must not raise.
         client._fulfill_promise(
-            self._channel("A"), command_id=99, control_return=ControlReturn()
+            _control_channel("A"), command_id=99, control_return=ControlReturn()
         )
 
         assert len(warning_calls) == 1
@@ -157,7 +156,7 @@ class TestFulfillPromise:
         fut_b = client._create_future(actor_b)
 
         client._fulfill_promise(
-            self._channel("A"), command_id=0, control_return=ControlReturn()
+            _control_channel("A"), command_id=0, control_return=ControlReturn()
         )
 
         assert fut_a.done()
@@ -172,11 +171,7 @@ class TestReceive:
         fut = client._create_future(actor)
         ret = ControlReturn()
         invocation = ReturnInvocation(command_id=0, return_value=ret)
-        from_ = ChannelIdentity(
-            from_worker_id=actor,
-            to_worker_id=ActorVirtualIdentity(name="self"),
-            is_control=True,
-        )
+        from_ = _control_channel("A")
 
         client.receive(from_, invocation)
 
