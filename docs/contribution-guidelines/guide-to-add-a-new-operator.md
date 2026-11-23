@@ -96,8 +96,10 @@ and explained by `@JsonPropertyDescription`. State the operator's real constrain
 
 ## 3. Standalone Python code (required)
 
-Texera exports a workflow as one runnable script, and each operator contributes its own
-fragment. Without one, the export emits a `# TODO:` comment in its place.
+Texera exports a workflow as a runnable `script.py`, and each operator contributes its own
+fragment to it. A script that calls a shared helper comes with the `texera_helpers.py` it
+imports the helper from. Without a fragment, the export emits a `# TODO:` comment in its
+place.
 
 ![Translation pipeline](translation-pipeline.png)
 
@@ -110,10 +112,12 @@ fragment. Without one, the export emits a `# TODO:` comment in its place.
   script that draws nothing does not need a plotting library to start; a chart gets the
   plotly imports by mixing in `PlotlyStandaloneCode`.
 - Override `producesDataFrame()` to false for a visualization whose output is HTML.
-- Put definitions the fragment refers to in `standaloneHelpers()`. They are deduplicated
-  across the plan, and only the `def _texera_...` the script calls is kept. So add a new
-  helper to the shared block it belongs with, such as `StandaloneHelpers.AttributeCasts`,
-  rather than a block of its own.
+- Put definitions the fragment refers to in `standaloneHelpers()`. The export ships every
+  shared block as the `texera_helpers` module, and the script imports only the
+  `_texera_...` names it calls. Each block has to be listed in
+  `StandaloneHelpers.moduleHelpers`, or the export stops with an error. So add a new helper
+  to the shared block it belongs with, such as `StandaloneHelpers.AttributeCasts`. A block
+  of its own has to be added to that list too.
 - Pass every user value through `pyStringLiteral`, or `pyb` with an `EncodableString`. Spliced
   in directly, a column named `a"b` closes the literal early and breaks the whole script.
 - A `pyb` field has to reach the template whole. Joining it to anything in Scala first —
@@ -273,8 +277,9 @@ among them. A `@SampleColumn` knob, a list knob and a join's keys keep their fil
 - `VERIFY_ONLY` and `VERIFY_SKIP` match case-sensitive substrings of the descriptor's simple
   name, comma-separated, so watch for collisions. Drop `VERIFY_ONLY` for the full run a PR
   needs.
-- Each test leaves `$TMPDIR/verify-<OpDesc>-*` holding the inputs and one generated script per
-  variant. No script there means the failure came before the generated code ran.
+- A failing test keeps `$TMPDIR/verify-<OpDesc>-*`, holding the inputs and one generated
+  script per variant, and names that path in its failure message. A passing test deletes it.
+  No script there means the failure came before the generated code ran.
 
 ### If the operator is a source
 
