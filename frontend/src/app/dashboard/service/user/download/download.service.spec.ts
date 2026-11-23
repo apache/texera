@@ -19,6 +19,7 @@
 
 import { TestBed } from "@angular/core/testing";
 import { HttpClientTestingModule, HttpTestingController } from "@angular/common/http/testing";
+import { HttpErrorResponse } from "@angular/common/http";
 import { DownloadService, EXPORT_BASE_URL } from "./download.service";
 import { DatasetService } from "../dataset/dataset.service";
 import { ModelService } from "../model/model.service";
@@ -83,19 +84,49 @@ describe("DownloadService", () => {
 
   // ─── downloadSingleFile ───────────────────────────────────────────────────
 
-  it("hands a single file's presigned URL to the browser instead of buffering it", async () => {
+  // Answers the one-byte probe the service sends before handing a presigned URL to the browser.
+  const answerProbe = (url: string, status: number) => {
+    const probe = httpMock.expectOne(url);
+    expect(probe.request.headers.get("Range")).toBe("bytes=0-0");
+    probe.flush(new Blob(["x"]), { status, statusText: status < 400 ? "OK" : "Error" });
+  };
+
+  it("hands a single file's presigned URL to the browser once storage answers the probe", async () => {
     const url = "http://storage/bucket/object?X-Amz-Signature=sig";
     datasetServiceSpy.getDatasetVersionSingleFilePresignedUrl.mockReturnValue(of(url));
 
-    expect(await firstValueFrom(downloadService.downloadSingleFile("test/file.txt", true))).toBe(url);
+    const result = firstValueFrom(downloadService.downloadSingleFile("test/file.txt", true));
+    answerProbe(url, 206);
 
+    expect(await result).toBe(url);
     expect(datasetServiceSpy.getDatasetVersionSingleFilePresignedUrl).toHaveBeenCalledWith("test/file.txt", true);
     expect(fileSaverServiceSpy.saveFromUrl).toHaveBeenCalledWith(url);
     expect(fileSaverServiceSpy.saveAs).not.toHaveBeenCalled();
     expect(notificationServiceSpy.info).toHaveBeenCalledWith("Started downloading file test/file.txt");
   });
 
-  it("propagates errors from downloadSingleFile and emits the error notification", async () => {
+  it("stays on the page and shows the error toast when storage fails the probe", async () => {
+    datasetServiceSpy.getDatasetVersionSingleFilePresignedUrl.mockReturnValue(of("http://storage/expired"));
+
+    const result = firstValueFrom(downloadService.downloadSingleFile("test/file.txt", true));
+    answerProbe("http://storage/expired", 403);
+
+    await expect(result).rejects.toBeInstanceOf(HttpErrorResponse);
+    expect(fileSaverServiceSpy.saveFromUrl).not.toHaveBeenCalled();
+    expect(notificationServiceSpy.error).toHaveBeenCalledWith("Error downloading file 'test/file.txt'");
+  });
+
+  it("still downloads an empty file, whose probe answers 416", async () => {
+    datasetServiceSpy.getDatasetVersionSingleFilePresignedUrl.mockReturnValue(of("http://storage/empty"));
+
+    const result = firstValueFrom(downloadService.downloadSingleFile("empty.txt", true));
+    answerProbe("http://storage/empty", 416);
+
+    expect(await result).toBe("http://storage/empty");
+    expect(fileSaverServiceSpy.saveFromUrl).toHaveBeenCalledWith("http://storage/empty");
+  });
+
+  it("shows the error toast when the presign request itself fails", async () => {
     datasetServiceSpy.getDatasetVersionSingleFilePresignedUrl.mockReturnValue(throwError(() => new Error("boom")));
 
     await expect(firstValueFrom(downloadService.downloadSingleFile("test/file.txt", true))).rejects.toThrow("boom");
@@ -107,7 +138,9 @@ describe("DownloadService", () => {
   it("passes isLogin=false through to the dataset presign endpoint", async () => {
     datasetServiceSpy.getDatasetVersionSingleFilePresignedUrl.mockReturnValue(of("u"));
 
-    await firstValueFrom(downloadService.downloadSingleFile("public/sample.csv", false));
+    const result = firstValueFrom(downloadService.downloadSingleFile("public/sample.csv", false));
+    answerProbe("u", 206);
+    await result;
 
     expect(datasetServiceSpy.getDatasetVersionSingleFilePresignedUrl).toHaveBeenCalledWith("public/sample.csv", false);
   });
@@ -182,7 +215,9 @@ describe("DownloadService", () => {
     expect(modelServiceSpy.retrieveModelVersionZip).toHaveBeenCalledWith(4, 2);
     expect(fileSaverServiceSpy.saveAs).toHaveBeenCalledWith(zip, "resnet-50-v2.zip");
 
-    expect(await firstValueFrom(downloadService.downloadModelSingleFile("/model/a/m/v2/model.pt"))).toBe("model-url");
+    const fileResult = firstValueFrom(downloadService.downloadModelSingleFile("/model/a/m/v2/model.pt"));
+    answerProbe("model-url", 206);
+    expect(await fileResult).toBe("model-url");
     expect(modelServiceSpy.getModelVersionSingleFilePresignedUrl).toHaveBeenCalledWith("/model/a/m/v2/model.pt", true);
     expect(fileSaverServiceSpy.saveFromUrl).toHaveBeenCalledWith("model-url");
   });
@@ -190,7 +225,9 @@ describe("DownloadService", () => {
   it("passes the logged-out flag through to the model file endpoint", async () => {
     modelServiceSpy.getModelVersionSingleFilePresignedUrl.mockReturnValue(of("u"));
 
-    await firstValueFrom(downloadService.downloadModelSingleFile("/model/a/m/v2/model.pt", false));
+    const result = firstValueFrom(downloadService.downloadModelSingleFile("/model/a/m/v2/model.pt", false));
+    answerProbe("u", 206);
+    await result;
 
     expect(modelServiceSpy.getModelVersionSingleFilePresignedUrl).toHaveBeenCalledWith("/model/a/m/v2/model.pt", false);
   });

@@ -27,7 +27,7 @@ import { ModelService } from "../model/model.service";
 import { WorkflowPersistService } from "src/app/common/service/workflow-persist/workflow-persist.service";
 import JSZip from "jszip";
 import { exportedWorkflow, Workflow } from "../../../../common/type/workflow";
-import { HttpClient, HttpResponse } from "@angular/common/http";
+import { HttpClient, HttpErrorResponse, HttpHeaders, HttpResponse } from "@angular/common/http";
 import { WORKFLOW_EXECUTIONS_API_BASE_URL } from "../workflow-executions/workflow-executions.service";
 import { DashboardWorkflowComputingUnit } from "../../../../common/type/workflow-computing-unit";
 import { TOKEN_KEY } from "../../../../common/service/user/auth.service";
@@ -362,6 +362,7 @@ export class DownloadService {
   // the object straight from storage rather than through a Blob held in this tab.
   private downloadFromPresignedUrl(presignedUrl$: Observable<string>, filePath: string): Observable<string> {
     return presignedUrl$.pipe(
+      switchMap(url => this.checkPresignedUrlServes(url).pipe(map(() => url))),
       tap(url => {
         this.fileSaverService.saveFromUrl(url);
         this.notificationService.info(`Started downloading file ${filePath}`);
@@ -371,6 +372,19 @@ export class DownloadService {
         return throwError(() => error);
       })
     );
+  }
+
+  // The browser hides a navigation's response from JS, so a failing storage request would replace Texera with the
+  // storage error page. Reading one byte first lets that failure surface as a toast instead. An empty object answers
+  // 416 to any range, which still proves the URL works.
+  private checkPresignedUrlServes(url: string): Observable<unknown> {
+    return this.http
+      .get(url, { headers: new HttpHeaders({ Range: "bytes=0-0" }), responseType: "blob" })
+      .pipe(
+        catchError((error: unknown) =>
+          error instanceof HttpErrorResponse && error.status === 416 ? of(null) : throwError(() => error)
+        )
+      );
   }
 
   private saveFile({ blob, fileName }: DownloadableItem): void {
