@@ -20,44 +20,21 @@
 package org.apache.texera.amber.operator.machineLearning.sklearnAdvanced.SVRTrainer
 
 import org.apache.texera.amber.operator.machineLearning.sklearnAdvanced.SVCTrainer.SklearnAdvancedSVCTrainerOpDesc
-import org.apache.texera.amber.operator.machineLearning.sklearnAdvanced.base.SklearnMLOperatorDescriptor
+import org.apache.texera.amber.operator.machineLearning.sklearnAdvanced.base.SklearnTrainerOpDescSpecBehaviors
 import org.scalatest.flatspec.AnyFlatSpec
 
-class SklearnAdvancedSVRTrainerOpDescSpec extends AnyFlatSpec {
+class SklearnAdvancedSVRTrainerOpDescSpec
+    extends AnyFlatSpec
+    with SklearnTrainerOpDescSpecBehaviors {
 
-  "SklearnAdvancedSVRTrainerOpDesc.getImportStatements" should
-    "return the canonical SVR import (from sklearn.svm)" in {
-    val d = new SklearnAdvancedSVRTrainerOpDesc
-    assert(d.getImportStatements == "from sklearn.svm import SVR")
-  }
-
-  "SklearnAdvancedSVRTrainerOpDesc.getOperatorInfo" should "return 'SVM Regressor'" in {
-    val d = new SklearnAdvancedSVRTrainerOpDesc
-    assert(d.getOperatorInfo == "SVM Regressor")
-  }
-
-  it should "be stable across two instances (no instance-state interaction)" in {
-    val a = new SklearnAdvancedSVRTrainerOpDesc
-    val b = new SklearnAdvancedSVRTrainerOpDesc
-    assert(a.getImportStatements == b.getImportStatements)
-    assert(a.getOperatorInfo == b.getOperatorInfo)
-  }
-
-  "SklearnAdvancedSVRTrainerOpDesc" should
-    "extend SklearnMLOperatorDescriptor (compile-time enforced)" in {
-    val d: SklearnMLOperatorDescriptor[SklearnAdvancedSVRParameters] =
-      new SklearnAdvancedSVRTrainerOpDesc
-    assert(d.getImportStatements.contains("SVR"))
-  }
-
-  it should "be matchable via the SklearnMLOperatorDescriptor type-pattern" in {
-    val any: AnyRef = new SklearnAdvancedSVRTrainerOpDesc
-    val matched = any match {
-      case _: SklearnMLOperatorDescriptor[_] => true
-      case _                                 => false
-    }
-    assert(matched)
-  }
+  trainerDescriptorBehaviors[SklearnAdvancedSVRParameters, SklearnAdvancedSVRTrainerOpDesc](
+    "SklearnAdvancedSVRTrainerOpDesc",
+    () => new SklearnAdvancedSVRTrainerOpDesc,
+    "from sklearn.svm import SVR",
+    "SVM Regressor",
+    importCaseSuffix = "from sklearn.svm",
+    expectedImportToken = "SVR"
+  )
 
   it should "differ from the SVC sibling on both methods" in {
     val regressor = new SklearnAdvancedSVRTrainerOpDesc

@@ -19,48 +19,25 @@
 
 package org.apache.texera.amber.operator.machineLearning.sklearnAdvanced.KNNTrainer
 
-import org.apache.texera.amber.operator.machineLearning.sklearnAdvanced.base.SklearnMLOperatorDescriptor
+import org.apache.texera.amber.operator.machineLearning.sklearnAdvanced.base.SklearnTrainerOpDescSpecBehaviors
 import org.scalatest.flatspec.AnyFlatSpec
 
-class SklearnAdvancedKNNRegressorTrainerOpDescSpec extends AnyFlatSpec {
+class SklearnAdvancedKNNRegressorTrainerOpDescSpec
+    extends AnyFlatSpec
+    with SklearnTrainerOpDescSpecBehaviors {
 
-  "SklearnAdvancedKNNRegressorTrainerOpDesc.getImportStatements" should
-    "return the canonical KNeighborsRegressor import" in {
-    val d = new SklearnAdvancedKNNRegressorTrainerOpDesc
-    assert(d.getImportStatements == "from sklearn.neighbors import KNeighborsRegressor")
-  }
-
-  "SklearnAdvancedKNNRegressorTrainerOpDesc.getOperatorInfo" should "return 'KNN Regressor'" in {
-    val d = new SklearnAdvancedKNNRegressorTrainerOpDesc
-    assert(d.getOperatorInfo == "KNN Regressor")
-  }
-
-  it should "be stable across two instances (no instance-state interaction)" in {
-    val a = new SklearnAdvancedKNNRegressorTrainerOpDesc
-    val b = new SklearnAdvancedKNNRegressorTrainerOpDesc
-    assert(a.getImportStatements == b.getImportStatements)
-    assert(a.getOperatorInfo == b.getOperatorInfo)
-  }
-
-  "SklearnAdvancedKNNRegressorTrainerOpDesc" should
-    "extend SklearnMLOperatorDescriptor (compile-time enforced)" in {
-    val d: SklearnMLOperatorDescriptor[SklearnAdvancedKNNParameters] =
-      new SklearnAdvancedKNNRegressorTrainerOpDesc
-    assert(d.getImportStatements.contains("KNeighborsRegressor"))
-  }
-
-  it should "be matchable via the SklearnMLOperatorDescriptor type-pattern" in {
-    val any: AnyRef = new SklearnAdvancedKNNRegressorTrainerOpDesc
-    val matched = any match {
-      case _: SklearnMLOperatorDescriptor[_] => true
-      case _                                 => false
-    }
-    assert(matched)
-  }
+  trainerDescriptorBehaviors[
+    SklearnAdvancedKNNParameters,
+    SklearnAdvancedKNNRegressorTrainerOpDesc
+  ](
+    "SklearnAdvancedKNNRegressorTrainerOpDesc",
+    () => new SklearnAdvancedKNNRegressorTrainerOpDesc,
+    "from sklearn.neighbors import KNeighborsRegressor",
+    "KNN Regressor",
+    expectedImportToken = "KNeighborsRegressor"
+  )
 
   it should "differ from the Classifier sibling on both methods" in {
-    // Catches a copy-paste regression where the Regressor accidentally
-    // returned the Classifier's strings (or vice-versa).
     val regressor = new SklearnAdvancedKNNRegressorTrainerOpDesc
     val classifier = new SklearnAdvancedKNNClassifierTrainerOpDesc
     assert(regressor.getImportStatements != classifier.getImportStatements)

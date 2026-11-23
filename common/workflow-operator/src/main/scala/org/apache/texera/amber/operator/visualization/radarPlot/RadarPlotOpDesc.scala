@@ -19,6 +19,8 @@
 
 package org.apache.texera.amber.operator.visualization.radarPlot
 
+import org.apache.texera.amber.operator.visualization.StandaloneChartCode._
+import org.apache.texera.amber.operator.visualization.PythonCodeFragment._
 import com.fasterxml.jackson.annotation.{JsonProperty, JsonPropertyDescription}
 import com.kjetland.jackson.jsonSchema.annotations.{JsonSchemaInject, JsonSchemaTitle}
 import org.apache.texera.amber.operator.metadata.annotations.{
@@ -136,63 +138,7 @@ class RadarPlotOpDesc extends PythonVisualizationOpDesc with PlotlyStandaloneCod
        |        show_markers = ${toPythonBool(showMarkers)}
        |        show_legend = ${toPythonBool(showLegend)}
        |
-       |        selected_table_df = table[categories].astype(float)
-       |        selected_table = selected_table_df.values
-       |
-       |        trace_names = (
-       |            table[trace_name_col].values if trace_name_col
-       |            else np.full(len(table), "", dtype=object)
-       |        )
-       |
-       |        trace_colors = [None] * len(table)
-       |        if trace_color_col:
-       |            unique_vals = table[trace_color_col].unique()
-       |            color_map = {val: px.colors.qualitative.Plotly[idx % len(px.colors.qualitative.Plotly)]
-       |                         for idx, val in enumerate(unique_vals)}
-       |            nan_color = '#000000'
-       |            trace_colors = table[trace_color_col].map(color_map).fillna(nan_color).values
-       |
-       |        hover_texts = []
-       |        for idx, row in enumerate(selected_table):
-       |            name_prefix = str(trace_names[idx]) + "<br>" if trace_names[idx] else ""
-       |            row_hover_texts = []
-       |            for attr, value in zip(categories, row):
-       |                row_hover_texts.append(name_prefix + attr + ": " + str(value))
-       |            hover_texts.append(row_hover_texts)
-       |
-       |        if max_normalize:
-       |            max_vals = selected_table_df.max().values
-       |            max_vals[max_vals == 0] = 1
-       |            selected_table = selected_table / max_vals
-       |
-       |        selected_table = np.nan_to_num(selected_table)
-       |
-       |        fig = go.Figure()
-       |
-       |        for idx, row in enumerate(selected_table):
-       |            # To connect ensure all points in the radar trace are connected
-       |            closed_row = row.tolist() + [row[0]]
-       |            closed_categories = categories + [categories[0]]
-       |            closed_hover_texts = hover_texts[idx] + [hover_texts[idx][0]]
-       |
-       |            fig.add_trace(go.Scatterpolar(
-       |                r=closed_row,
-       |                theta=closed_categories,
-       |                fill='toself' if fill_trace else 'none',
-       |                name=str(trace_names[idx]) if trace_names[idx] else "",
-       |                text=closed_hover_texts,
-       |                hoverinfo="text",
-       |                mode="lines+markers" if show_markers else "lines",
-       |                line=dict(dash=line_pattern, color=trace_colors[idx] if trace_colors[idx] else None),
-       |                marker=dict(color=trace_colors[idx]) if trace_colors[idx] else {}
-       |            ))
-       |
-       |        fig.update_layout(
-       |            polar=dict(radialaxis=dict(visible=True)),
-       |            showlegend=show_legend,
-       |            width=600,
-       |            height=600
-       |        )
+       |${RadarPlotPython.body(8)}
        |"""
   }
 
@@ -207,21 +153,15 @@ class RadarPlotOpDesc extends PythonVisualizationOpDesc with PlotlyStandaloneCod
          |
          |class ProcessTableOperator(UDFTableOperator):
          |
-         |    def render_error(self, error_msg):
-         |        return '''<h1>Radar Plot is not available.</h1>
-         |                  <p>Reason is: {} </p>
-         |               '''.format(error_msg)
+         |${runtimeError("Radar Plot is not available.")}
          |
          |    @overrides
          |    def process_table(self, table: Table, port: int):
-         |        if table.empty:
-         |            yield {'html-content': self.render_error("Input table is empty.")}
-         |            return
+         |${emptyTableGuard("Input table is empty.", bodyIndent = 4)}
          |
          |        ${generateRadarPlotCode()}
          |
-         |        html = plotly.io.to_html(fig, include_plotlyjs='cdn', auto_play=False, config={'responsive': True})
-         |        yield {'html-content': html}
+         |${plotlyHtmlYield(extraArgs = "auto_play=False, config={'responsive': True}")}
          |"""
     finalCode.encode
   }
@@ -241,19 +181,14 @@ class RadarPlotOpDesc extends PythonVisualizationOpDesc with PlotlyStandaloneCod
     // HTML is triple-quoted, so those spaces reach the browser.
     s"""import numpy as np
        |
-       |def render_error(error_msg):
-       |    return '''<h1>Radar Plot is not available.</h1>
-       |                  <p>Reason is: {} </p>
-       |               '''.format(error_msg)
+       |${standaloneError("Radar Plot is not available.")}
        |
        |if in1df.empty:
-       |    with open(outputHtml, "w", encoding="utf-8") as output:
-       |        output.write(render_error("Input table is empty."))
+       |${standaloneErrorPage("Input table is empty.")}
        |else:
        |    categories = [$attrList]
        |    if not categories:
-       |        with open(outputHtml, "w", encoding="utf-8") as output:
-       |            output.write(render_error("No columns selected as axes."))
+       |${standaloneErrorPage("No columns selected as axes.", indent = 8)}
        |    else:
        |        table = in1df
        |        trace_name_col = $traceNameCol
@@ -264,64 +199,71 @@ class RadarPlotOpDesc extends PythonVisualizationOpDesc with PlotlyStandaloneCod
        |        show_markers = ${toPythonBool(showMarkers)}
        |        show_legend = ${toPythonBool(showLegend)}
        |
-       |        selected_table_df = table[categories].astype(float)
-       |        selected_table = selected_table_df.values
-       |
-       |        trace_names = (
-       |            table[trace_name_col].values if trace_name_col
-       |            else np.full(len(table), "", dtype=object)
-       |        )
-       |
-       |        trace_colors = [None] * len(table)
-       |        if trace_color_col:
-       |            unique_vals = table[trace_color_col].unique()
-       |            color_map = {val: px.colors.qualitative.Plotly[idx % len(px.colors.qualitative.Plotly)]
-       |                         for idx, val in enumerate(unique_vals)}
-       |            nan_color = '#000000'
-       |            trace_colors = table[trace_color_col].map(color_map).fillna(nan_color).values
-       |
-       |        hover_texts = []
-       |        for idx, row in enumerate(selected_table):
-       |            name_prefix = str(trace_names[idx]) + "<br>" if trace_names[idx] else ""
-       |            row_hover_texts = []
-       |            for attr, value in zip(categories, row):
-       |                row_hover_texts.append(name_prefix + attr + ": " + str(value))
-       |            hover_texts.append(row_hover_texts)
-       |
-       |        if max_normalize:
-       |            max_vals = selected_table_df.max().values
-       |            max_vals[max_vals == 0] = 1
-       |            selected_table = selected_table / max_vals
-       |
-       |        selected_table = np.nan_to_num(selected_table)
-       |
-       |        fig = go.Figure()
-       |
-       |        for idx, row in enumerate(selected_table):
-       |            closed_row = row.tolist() + [row[0]]
-       |            closed_categories = categories + [categories[0]]
-       |            closed_hover_texts = hover_texts[idx] + [hover_texts[idx][0]]
-       |
-       |            fig.add_trace(go.Scatterpolar(
-       |                r=closed_row,
-       |                theta=closed_categories,
-       |                fill='toself' if fill_trace else 'none',
-       |                name=str(trace_names[idx]) if trace_names[idx] else "",
-       |                text=closed_hover_texts,
-       |                hoverinfo="text",
-       |                mode="lines+markers" if show_markers else "lines",
-       |                line=dict(dash=line_pattern, color=trace_colors[idx] if trace_colors[idx] else None),
-       |                marker=dict(color=trace_colors[idx]) if trace_colors[idx] else {}
-       |            ))
-       |
-       |        fig.update_layout(
-       |            polar=dict(radialaxis=dict(visible=True)),
-       |            showlegend=show_legend,
-       |            width=600,
-       |            height=600
-       |        )
-       |        fig.write_json(outputJson)
-       |        fig.write_html(outputHtml)
-       |        print("Radar plot saved to " + outputHtml)""".stripMargin
+       |${RadarPlotPython.body(8)}
+       |${standaloneFigure("Radar plot")}""".stripMargin
   }
+}
+
+private object RadarPlotPython {
+  def body(indent: Int): String =
+    org.apache.texera.amber.operator.visualization.PythonCodeFragment.render(
+      """|selected_table_df = table[categories].astype(float)
+       |selected_table = selected_table_df.values
+       |
+       |trace_names = (
+       |    table[trace_name_col].values if trace_name_col
+       |    else np.full(len(table), "", dtype=object)
+       |)
+       |
+       |trace_colors = [None] * len(table)
+       |if trace_color_col:
+       |    unique_vals = table[trace_color_col].unique()
+       |    color_map = {val: px.colors.qualitative.Plotly[idx % len(px.colors.qualitative.Plotly)]
+       |                 for idx, val in enumerate(unique_vals)}
+       |    nan_color = '#000000'
+       |    trace_colors = table[trace_color_col].map(color_map).fillna(nan_color).values
+       |
+       |hover_texts = []
+       |for idx, row in enumerate(selected_table):
+       |    name_prefix = str(trace_names[idx]) + "<br>" if trace_names[idx] else ""
+       |    row_hover_texts = []
+       |    for attr, value in zip(categories, row):
+       |        row_hover_texts.append(name_prefix + attr + ": " + str(value))
+       |    hover_texts.append(row_hover_texts)
+       |
+       |if max_normalize:
+       |    max_vals = selected_table_df.max().values
+       |    max_vals[max_vals == 0] = 1
+       |    selected_table = selected_table / max_vals
+       |
+       |selected_table = np.nan_to_num(selected_table)
+       |
+       |fig = go.Figure()
+       |
+       |for idx, row in enumerate(selected_table):
+       |    # To connect ensure all points in the radar trace are connected
+       |    closed_row = row.tolist() + [row[0]]
+       |    closed_categories = categories + [categories[0]]
+       |    closed_hover_texts = hover_texts[idx] + [hover_texts[idx][0]]
+       |
+       |    fig.add_trace(go.Scatterpolar(
+       |        r=closed_row,
+       |        theta=closed_categories,
+       |        fill='toself' if fill_trace else 'none',
+       |        name=str(trace_names[idx]) if trace_names[idx] else "",
+       |        text=closed_hover_texts,
+       |        hoverinfo="text",
+       |        mode="lines+markers" if show_markers else "lines",
+       |        line=dict(dash=line_pattern, color=trace_colors[idx] if trace_colors[idx] else None),
+       |        marker=dict(color=trace_colors[idx]) if trace_colors[idx] else {}
+       |    ))
+       |
+       |fig.update_layout(
+       |    polar=dict(radialaxis=dict(visible=True)),
+       |    showlegend=show_legend,
+       |    width=600,
+       |    height=600
+       |)""",
+      indent
+    )
 }

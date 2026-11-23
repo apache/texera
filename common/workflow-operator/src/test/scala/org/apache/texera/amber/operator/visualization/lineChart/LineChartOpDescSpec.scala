@@ -22,13 +22,11 @@ package org.apache.texera.amber.operator.visualization.lineChart
 import org.apache.texera.amber.core.tuple.AttributeType
 import org.apache.texera.amber.operator.metadata.OperatorGroupConstants
 import org.scalatest.flatspec.AnyFlatSpec
-import org.scalatest.matchers.should.Matchers
+import org.apache.texera.amber.operator.GeneratedCodeAssertionChecks
 
-import java.nio.charset.StandardCharsets
 import java.util
-import java.util.Base64
 
-class LineChartOpDescSpec extends AnyFlatSpec with Matchers {
+class LineChartOpDescSpec extends AnyFlatSpec with GeneratedCodeAssertionChecks {
 
   private def lineConfig(x: String, y: String): LineConfig = {
     val c = new LineConfig
@@ -84,9 +82,6 @@ class LineChartOpDescSpec extends AnyFlatSpec with Matchers {
 
     val code = op.generatePythonCode()
     code should include("plotly")
-
-    def b64(s: String): String =
-      Base64.getEncoder.encodeToString(s.getBytes(StandardCharsets.UTF_8))
 
     code should include(s"self.decode_python_template('${b64("X_LBL_SENT")}')")
     code should include(s"self.decode_python_template('${b64("Y_LBL_SENT")}')")

@@ -52,10 +52,6 @@ export class UserConfigService {
     });
   }
 
-  public getDict(): Readonly<UserConfig> {
-    return this.localUserDictionary;
-  }
-
   /**
    * get a value from the backend.
    * keys and values must be strings.

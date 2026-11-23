@@ -19,38 +19,19 @@
 
 package org.apache.texera.amber.operator.huggingFace.codegen
 
-import org.apache.texera.amber.pybuilder.PyStringTypes.EncodableString
+import org.apache.texera.amber.operator.huggingFace.codegen.HuggingFaceCodegenFixtures._
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 
 class QaRankingCodegenSpec extends AnyFlatSpec with Matchers {
 
-  private def makeCtx(
-      hfApiToken: EncodableString = "token",
-      modelId: EncodableString = "deepset/roberta-base-squad2",
-      promptColumn: EncodableString = "prompt",
-      resultColumn: EncodableString = "hf_response",
-      task: EncodableString = "question-answering",
-      systemPrompt: EncodableString = "You are a helpful assistant.",
-      safeMaxTokens: Int = 256,
-      safeTemp: Double = 0.7,
-      contextColumn: EncodableString = "context",
-      candidateLabels: EncodableString = "positive,negative",
-      sentencesColumn: EncodableString = "sentences"
-  ): CodegenContext =
-    CodegenContext(
-      hfApiToken = hfApiToken,
-      modelId = modelId,
-      promptColumn = promptColumn,
-      resultColumn = resultColumn,
-      task = task,
-      systemPrompt = systemPrompt,
-      safeMaxTokens = safeMaxTokens,
-      safeTemp = safeTemp,
-      contextColumn = contextColumn,
-      candidateLabels = candidateLabels,
-      sentencesColumn = sentencesColumn
-    )
+  private val ctx = textContext.copy(
+    task = "question-answering",
+    modelId = "deepset/roberta-base-squad2",
+    contextColumn = "context",
+    candidateLabels = "positive,negative",
+    sentencesColumn = "sentences"
+  )
 
   "QaRankingCodegen.task" should "be the canonical question-answering string" in {
     QaRankingCodegen.task shouldBe "question-answering"
@@ -71,7 +52,7 @@ class QaRankingCodegenSpec extends AnyFlatSpec with Matchers {
   }
 
   "QaRankingCodegen.payloadPython" should "branch on each of the five tasks and an else fallback" in {
-    val out = QaRankingCodegen.payloadPython(makeCtx())
+    val out = QaRankingCodegen.payloadPython(ctx)
     out should include("""if task == "question-answering":""")
     out should include("""elif task == "table-question-answering":""")
     out should include("""elif task == "zero-shot-classification":""")
@@ -81,24 +62,24 @@ class QaRankingCodegenSpec extends AnyFlatSpec with Matchers {
   }
 
   it should "build the question-answering payload from prompt_value and the context column" in {
-    val out = QaRankingCodegen.payloadPython(makeCtx())
+    val out = QaRankingCodegen.payloadPython(ctx)
     out should include("self.CONTEXT_COLUMN")
     out should include("""payload = {"inputs": {"question": prompt_value, "context": ctx_val}}""")
   }
 
   it should "route table-question-answering through query and table_dict" in {
-    val out = QaRankingCodegen.payloadPython(makeCtx())
+    val out = QaRankingCodegen.payloadPython(ctx)
     out should include("""payload = {"inputs": {"query": prompt_value, "table": table_dict}}""")
   }
 
   it should "derive zero-shot candidate labels from the candidate-labels attribute" in {
-    val out = QaRankingCodegen.payloadPython(makeCtx())
+    val out = QaRankingCodegen.payloadPython(ctx)
     out should include("self.CANDIDATE_LABELS")
     out should include("candidate_labels")
   }
 
   it should "split the sentences column for sentence-similarity and text-ranking" in {
-    val out = QaRankingCodegen.payloadPython(makeCtx())
+    val out = QaRankingCodegen.payloadPython(ctx)
     out should include("self.SENTENCES_COLUMN")
     out should include("source_sentence")
     out should include(""""query": prompt_value""")
@@ -106,12 +87,12 @@ class QaRankingCodegenSpec extends AnyFlatSpec with Matchers {
   }
 
   it should "fall back to shipping the raw prompt as inputs" in {
-    val out = QaRankingCodegen.payloadPython(makeCtx())
+    val out = QaRankingCodegen.payloadPython(ctx)
     out should include("""payload = {"inputs": prompt_value}""")
   }
 
   "QaRankingCodegen.parsePython" should "extract the answer, including from chat-provider responses" in {
-    val out = QaRankingCodegen.parsePython(makeCtx())
+    val out = QaRankingCodegen.parsePython(ctx)
     out should include("""if task == "question-answering":""")
     out should include("""elif task == "table-question-answering":""")
     out should include("""body.get("answer"""")
@@ -127,13 +108,13 @@ class QaRankingCodegenSpec extends AnyFlatSpec with Matchers {
     // and that row's cell becomes "Request failed" instead. All three chat
     // extractions now use a truthiness guard plus .get chaining, matching the
     // native shapes beside them, which already degrade via json.dumps(body).
-    val out = QaRankingCodegen.parsePython(makeCtx())
+    val out = QaRankingCodegen.parsePython(ctx)
     out should not include ("""["message"]["content"]""")
     out.split("""content = self\._chat_message_content\(body\)""").length - 1 shouldBe 3
   }
 
   it should "return the raw JSON body for the ranking-style tasks" in {
-    val out = QaRankingCodegen.parsePython(makeCtx())
+    val out = QaRankingCodegen.parsePython(ctx)
     out should include(
       """elif task in ("zero-shot-classification", "sentence-similarity", "text-ranking"):"""
     )
@@ -141,77 +122,15 @@ class QaRankingCodegenSpec extends AnyFlatSpec with Matchers {
   }
 
   "QaRankingCodegen snippets" should "never inline raw CodegenContext string values" in {
-    // The snippets reference only self.* attributes; the base class decodes
-    // user-supplied strings safely at runtime. Sentinel values are distinctive
-    // and non-overlapping with the static template text.
-    val ctx = makeCtx(
-      hfApiToken = "MARKER_TOKEN_zXyq42",
-      modelId = "MARKER_MODEL_zXyq42",
-      promptColumn = "MARKER_PROMPT_zXyq42",
-      resultColumn = "MARKER_RESULT_zXyq42",
-      task = "MARKER_TASK_zXyq42",
-      systemPrompt = "MARKER_SYSTEM_zXyq42",
-      contextColumn = "MARKER_CONTEXT_zXyq42",
-      candidateLabels = "MARKER_LABELS_zXyq42",
-      sentencesColumn = "MARKER_SENTENCES_zXyq42"
-    )
-    val payload = QaRankingCodegen.payloadPython(ctx)
-    val parse = QaRankingCodegen.parsePython(ctx)
-
-    for (
-      marker <- Seq(
-        "MARKER_TOKEN_zXyq42",
-        "MARKER_MODEL_zXyq42",
-        "MARKER_PROMPT_zXyq42",
-        "MARKER_RESULT_zXyq42",
-        "MARKER_TASK_zXyq42",
-        "MARKER_SYSTEM_zXyq42",
-        "MARKER_CONTEXT_zXyq42",
-        "MARKER_LABELS_zXyq42",
-        "MARKER_SENTENCES_zXyq42"
-      )
-    ) {
-      payload should not include marker
-      parse should not include marker
-    }
+    assertNoRawContextValues(QaRankingCodegen)
   }
 
   it should "produce identical output regardless of the CodegenContext contents" in {
-    // The payload/parse snippets are static: they reference only self.*
-    // attributes, never ctx fields. Two unrelated contexts must serialise to
-    // byte-identical Python. A future refactor that accidentally consumes a
-    // ctx field will regress here.
-    val ctxA = makeCtx(
-      hfApiToken = "token-A",
-      modelId = "model-A",
-      promptColumn = "col-A",
-      resultColumn = "result-A",
-      systemPrompt = "system-A",
-      contextColumn = "ctx-A",
-      candidateLabels = "labels-A",
-      sentencesColumn = "sent-A",
-      safeMaxTokens = 1,
-      safeTemp = 0.0
-    )
-    val ctxB = makeCtx(
-      hfApiToken = "token-B",
-      modelId = "model-B",
-      promptColumn = "col-B",
-      resultColumn = "result-B",
-      systemPrompt = "system-B",
-      contextColumn = "ctx-B",
-      candidateLabels = "labels-B",
-      sentencesColumn = "sent-B",
-      safeMaxTokens = 4096,
-      safeTemp = 2.0
-    )
-
-    QaRankingCodegen.payloadPython(ctxA) shouldBe QaRankingCodegen.payloadPython(ctxB)
-    QaRankingCodegen.parsePython(ctxA) shouldBe QaRankingCodegen.parsePython(ctxB)
+    assertStaticSnippets(QaRankingCodegen, "question-answering")
   }
 
   it should "read chat content through the shared type-checked helper (#8617 review)" in {
-    val out = QaRankingCodegen.parsePython(makeCtx())
+    val out = QaRankingCodegen.parsePython(ctx)
     out should include("self._chat_message_content(body)")
     // No direct index/get chaining survives — the helper owns that logic.
     out should not include ("""body["choices"][0]""")

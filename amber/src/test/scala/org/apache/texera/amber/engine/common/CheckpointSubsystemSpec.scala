@@ -19,43 +19,11 @@
 
 package org.apache.texera.amber.engine.common
 
-import org.apache.pekko.actor.ActorSystem
-import org.apache.pekko.serialization.{Serialization, SerializationExtension}
-import org.apache.pekko.testkit.TestKit
 import org.apache.texera.amber.core.tuple.TupleLike
 import org.apache.texera.amber.core.workflow.PortIdentity
-import org.scalatest.BeforeAndAfterAll
 import org.scalatest.flatspec.AnyFlatSpec
 
-class CheckpointSubsystemSpec extends AnyFlatSpec with BeforeAndAfterAll {
-
-  // Suite-local actor system. We also inject it into AmberRuntime via
-  // reflection so that CheckpointState.save/load (which hard-code
-  // AmberRuntime.serde) reuse the same system. Both the suite-local system
-  // and AmberRuntime's reference are torn down in afterAll, so no Pekko
-  // threads outlive the test (matching CoordinatorSpec/WorkerSpec hygiene).
-  private val testSystem: ActorSystem =
-    ActorSystem("CheckpointSubsystemSpec-test", AmberRuntime.pekkoConfig)
-  private val testSerde: Serialization = SerializationExtension(testSystem)
-
-  private def setAmberRuntimeField(name: String, value: AnyRef): Unit = {
-    val field = AmberRuntime.getClass.getDeclaredField(name)
-    field.setAccessible(true)
-    field.set(AmberRuntime, value)
-  }
-
-  override protected def beforeAll(): Unit = {
-    super.beforeAll()
-    setAmberRuntimeField("_actorSystem", testSystem)
-    setAmberRuntimeField("_serde", testSerde)
-  }
-
-  override protected def afterAll(): Unit = {
-    setAmberRuntimeField("_serde", null)
-    setAmberRuntimeField("_actorSystem", null)
-    TestKit.shutdownActorSystem(testSystem)
-    super.afterAll()
-  }
+class CheckpointSubsystemSpec extends AnyFlatSpec with AmberSerdeTestSupport {
 
   // ---------------------------------------------------------------------------
   // SerializedState

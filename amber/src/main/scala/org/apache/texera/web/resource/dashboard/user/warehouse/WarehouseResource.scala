@@ -29,10 +29,9 @@ import org.apache.texera.dao.SqlServer
 import org.apache.texera.dao.jooq.generated.Tables.{USER, USER_WAREHOUSE}
 import org.apache.texera.dao.jooq.generated.enums.UserWarehouseFlavorEnum
 import org.apache.texera.dao.jooq.generated.tables.pojos.User
-import org.apache.texera.dao.jooq.generated.tables.records.UserWarehouseRecord
 import org.apache.texera.web.resource.dashboard.user.warehouse.WarehouseResource._
 import org.apache.texera.web.service.LakekeeperClient
-import org.jooq.DSLContext
+import org.jooq.{DSLContext, Field, Record}
 import org.jooq.impl.DSL
 
 import javax.annotation.security.RolesAllowed
@@ -94,16 +93,24 @@ object WarehouseResource {
 
   private def ownerOf(user: User): Owner = ownerOf(user.getName, user.getAvatar)
 
+  private val dashboardFields: Seq[Field[_]] = Seq(
+    USER_WAREHOUSE.WHID,
+    USER_WAREHOUSE.NAME,
+    USER_WAREHOUSE.LAKEKEEPER_WAREHOUSE_NAME,
+    USER_WAREHOUSE.FLAVOR,
+    USER_WAREHOUSE.CREATED_AT
+  )
+
   private def toDashboardWarehouse(
-      row: UserWarehouseRecord,
+      row: Record,
       owner: Owner
   ): DashboardWarehouse =
     DashboardWarehouse(
-      row.getWhid,
-      row.getName,
-      row.getLakekeeperWarehouseName,
-      row.getFlavor.getLiteral,
-      row.getCreatedAt.toInstant.toEpochMilli,
+      row.get(USER_WAREHOUSE.WHID),
+      row.get(USER_WAREHOUSE.NAME),
+      row.get(USER_WAREHOUSE.LAKEKEEPER_WAREHOUSE_NAME),
+      row.get(USER_WAREHOUSE.FLAVOR).getLiteral,
+      row.get(USER_WAREHOUSE.CREATED_AT).toInstant.toEpochMilli,
       ownerName = owner._1,
       ownerAvatar = owner._2
     )
@@ -139,25 +146,19 @@ class WarehouseResource(client: LakekeeperClient, enabled: Boolean) extends Lazy
     }
     // Joined rather than resolved in a second query: one round trip, and every row
     // carries its own owner once warehouses can be shared.
-    val rows = context
-      .select(USER_WAREHOUSE.fields() ++ Seq(USER.NAME, USER.AVATAR): _*)
+    val warehouses = context
+      .select((dashboardFields ++ Seq(USER.NAME, USER.AVATAR)): _*)
       .from(USER_WAREHOUSE)
       .leftJoin(USER)
       .on(USER.UID.eq(USER_WAREHOUSE.UID))
       .where(USER_WAREHOUSE.UID.eq(current_user.getUid))
       .orderBy(USER_WAREHOUSE.CREATED_AT.asc())
-      .fetch()
+      .fetch { row =>
+        toDashboardWarehouse(row, ownerOf(row.get(USER.NAME), row.get(USER.AVATAR)))
+      }
       .asScala
       .toList
-    WarehouseStatus(
-      enabled = true,
-      warehouses = rows.map(r =>
-        toDashboardWarehouse(
-          r.into(USER_WAREHOUSE),
-          ownerOf(r.get(USER.NAME), r.get(USER.AVATAR))
-        )
-      )
-    )
+    WarehouseStatus(enabled = true, warehouses = warehouses)
   }
 
   @POST
@@ -212,7 +213,7 @@ class WarehouseResource(client: LakekeeperClient, enabled: Boolean) extends Lazy
     try {
       row.store()
       // created_at is filled by the DB default; fetch it back before serializing.
-      row.refresh()
+      row.refresh(USER_WAREHOUSE.CREATED_AT)
     } catch {
       case e: Exception =>
         // Compensate: without the row the user could neither list nor delete the
@@ -238,15 +239,16 @@ class WarehouseResource(client: LakekeeperClient, enabled: Boolean) extends Lazy
   @RolesAllowed(Array("REGULAR", "ADMIN"))
   def delete(@PathParam("whid") whid: Integer, @Auth current_user: SessionUser): Unit = {
     requireEnabled()
-    val row = context
-      .selectFrom(USER_WAREHOUSE)
+    val lakekeeperWarehouseId = context
+      .select(USER_WAREHOUSE.LAKEKEEPER_WAREHOUSE_ID)
+      .from(USER_WAREHOUSE)
       .where(USER_WAREHOUSE.WHID.eq(whid).and(USER_WAREHOUSE.UID.eq(current_user.getUid)))
-      .fetchOne()
-    if (row == null) {
+      .fetchOne(USER_WAREHOUSE.LAKEKEEPER_WAREHOUSE_ID)
+    if (lakekeeperWarehouseId == null) {
       throw new NotFoundException(s"no warehouse with id $whid")
     }
     try {
-      client.deleteWarehouseEmptyFirst(row.getLakekeeperWarehouseId)
+      client.deleteWarehouseEmptyFirst(lakekeeperWarehouseId)
     } catch {
       case e: Exception =>
         throw new WebApplicationException(e.getMessage, 502)

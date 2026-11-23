@@ -19,27 +19,14 @@
 
 package org.apache.texera.amber.operator.visualization.tablesChart
 
-import com.fasterxml.jackson.annotation.JsonProperty
-import org.apache.texera.amber.operator.metadata.annotations.AutofillAttributeName
-import org.apache.texera.amber.util.JSONUtils.objectMapper
+import org.apache.texera.amber.operator.visualization.ChartConfigSpecSupport
 import org.scalatest.flatspec.AnyFlatSpec
 
-import javax.validation.constraints.NotNull
-
-class TablesConfigSpec extends AnyFlatSpec {
-
-  // ---------------------------------------------------------------------------
-  // Default state
-  // ---------------------------------------------------------------------------
+class TablesConfigSpec extends AnyFlatSpec with ChartConfigSpecSupport {
 
   "TablesConfig" should "default attributeName to the empty string" in {
-    val c = new TablesConfig
-    assert(c.attributeName == "")
+    assert(new TablesConfig().attributeName == "")
   }
-
-  // ---------------------------------------------------------------------------
-  // Mutability — the @JsonProperty bag is `var`-based by design
-  // ---------------------------------------------------------------------------
 
   it should "allow attributeName to be assigned post-construction" in {
     val c = new TablesConfig
@@ -47,31 +34,15 @@ class TablesConfigSpec extends AnyFlatSpec {
     assert(c.attributeName == "col-a")
   }
 
-  // ---------------------------------------------------------------------------
-  // JSON round-trip preserves the field
-  // ---------------------------------------------------------------------------
-
-  "TablesConfig JSON round-trip" should
-    "serialize and deserialize attributeName unchanged" in {
+  "TablesConfig JSON round-trip" should "serialize and deserialize attributeName unchanged" in {
     val original = new TablesConfig
     original.attributeName = "my-attr"
-    val json = objectMapper.writeValueAsString(original)
-    val restored = objectMapper.readValue(json, classOf[TablesConfig])
-    assert(restored.attributeName == "my-attr")
+    assert(checkRoundTrip(original, classOf[TablesConfig]).attributeName == "my-attr")
   }
 
   it should "round-trip the default empty attributeName" in {
-    val original = new TablesConfig
-    val restored = objectMapper.readValue(
-      objectMapper.writeValueAsString(original),
-      classOf[TablesConfig]
-    )
-    assert(restored.attributeName == "")
+    assert(checkRoundTrip(new TablesConfig, classOf[TablesConfig]).attributeName == "")
   }
-
-  // ---------------------------------------------------------------------------
-  // Independent instances — no static-field leakage
-  // ---------------------------------------------------------------------------
 
   it should "construct two independent instances (no static state shared)" in {
     val a = new TablesConfig
@@ -80,29 +51,18 @@ class TablesConfigSpec extends AnyFlatSpec {
     assert(b.attributeName == "", "second instance must not see first instance's mutation")
   }
 
-  // ---------------------------------------------------------------------------
-  // Annotations — verified via reflection (the Jackson + validation
-  // contract is what consumers actually depend on)
-  // ---------------------------------------------------------------------------
-
   "TablesConfig#attributeName" should "carry @JsonProperty(required = true)" in {
-    val field = classOf[TablesConfig].getDeclaredField("attributeName")
-    val jp = field.getAnnotation(classOf[JsonProperty])
-    assert(jp != null, "attributeName must carry @JsonProperty")
-    assert(jp.required, "attributeName must be marked required")
+    assertAttrJsonPropertyRequired(classOf[TablesConfig])
   }
 
   it should "carry @NotNull (javax.validation contract)" in {
-    val field = classOf[TablesConfig].getDeclaredField("attributeName")
-    val notNull = field.getAnnotation(classOf[NotNull])
-    assert(notNull != null, "attributeName must carry @NotNull for javax.validation")
+    assertAttrNotNull(classOf[TablesConfig])
   }
 
-  it should
-    "carry @AutofillAttributeName (UI populates the dropdown from the input schema)" in {
-    val ann = classOf[TablesConfig]
-      .getDeclaredField("attributeName")
-      .getAnnotation(classOf[AutofillAttributeName])
-    assert(ann != null, "@AutofillAttributeName must be present so the UI auto-populates")
+  it should "carry @AutofillAttributeName (UI populates the dropdown from the input schema)" in {
+    assertAttrAutofill(
+      classOf[TablesConfig],
+      "@AutofillAttributeName must be present so the UI auto-populates"
+    )
   }
 }

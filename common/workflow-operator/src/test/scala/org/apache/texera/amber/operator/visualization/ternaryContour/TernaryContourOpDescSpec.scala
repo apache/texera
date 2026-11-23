@@ -21,12 +21,12 @@ package org.apache.texera.amber.operator.visualization.ternaryContour
 
 import org.scalatest.BeforeAndAfter
 import org.scalatest.flatspec.AnyFlatSpec
-import org.scalatest.matchers.should.Matchers
+import org.apache.texera.amber.operator.GeneratedCodeAssertionChecks
 
-import java.nio.charset.StandardCharsets
-import java.util.Base64
-
-class TernaryContourOpDescSpec extends AnyFlatSpec with BeforeAndAfter with Matchers {
+class TernaryContourOpDescSpec
+    extends AnyFlatSpec
+    with BeforeAndAfter
+    with GeneratedCodeAssertionChecks {
 
   var opDesc: TernaryContourOpDesc = _
 
@@ -34,19 +34,8 @@ class TernaryContourOpDescSpec extends AnyFlatSpec with BeforeAndAfter with Matc
     opDesc = new TernaryContourOpDesc()
   }
 
-  private def b64(s: String): String =
-    Base64.getEncoder.encodeToString(s.getBytes(StandardCharsets.UTF_8))
-
-  private def carries(output: String, name: String): Boolean =
-    output.contains(name) || output.contains(b64(name))
-
-  private def fieldPart(msg: String): String =
-    msg.toLowerCase.replace("cannot be empty", "")
-
   it should "throw AssertionError with a 'cannot be empty' message when all variables are empty" in {
-    val ex = intercept[AssertionError](opDesc.manipulateTable())
-    ex.getMessage should not be null
-    ex.getMessage should include("cannot be empty")
+    expectError[AssertionError]("cannot be empty")(opDesc.manipulateTable())
   }
 
   // The compound assert over the four variables is split per-field;
@@ -55,9 +44,7 @@ class TernaryContourOpDescSpec extends AnyFlatSpec with BeforeAndAfter with Matc
     opDesc.secondVariable = "var_b"
     opDesc.thirdVariable = "var_c"
     opDesc.fourthVariable = "var_d"
-    val ex = intercept[AssertionError](opDesc.manipulateTable())
-    ex.getMessage should not be null
-    ex.getMessage should include("cannot be empty")
+    val ex = expectError[AssertionError]("cannot be empty")(opDesc.manipulateTable())
     fieldPart(ex.getMessage) should include("1")
   }
 
@@ -65,9 +52,7 @@ class TernaryContourOpDescSpec extends AnyFlatSpec with BeforeAndAfter with Matc
     opDesc.firstVariable = "var_a"
     opDesc.thirdVariable = "var_c"
     opDesc.fourthVariable = "var_d"
-    val ex = intercept[AssertionError](opDesc.manipulateTable())
-    ex.getMessage should not be null
-    ex.getMessage should include("cannot be empty")
+    val ex = expectError[AssertionError]("cannot be empty")(opDesc.manipulateTable())
     fieldPart(ex.getMessage) should include("2")
   }
 
@@ -75,9 +60,7 @@ class TernaryContourOpDescSpec extends AnyFlatSpec with BeforeAndAfter with Matc
     opDesc.firstVariable = "var_a"
     opDesc.secondVariable = "var_b"
     opDesc.fourthVariable = "var_d"
-    val ex = intercept[AssertionError](opDesc.manipulateTable())
-    ex.getMessage should not be null
-    ex.getMessage should include("cannot be empty")
+    val ex = expectError[AssertionError]("cannot be empty")(opDesc.manipulateTable())
     fieldPart(ex.getMessage) should include("3")
   }
 
@@ -85,9 +68,7 @@ class TernaryContourOpDescSpec extends AnyFlatSpec with BeforeAndAfter with Matc
     opDesc.firstVariable = "var_a"
     opDesc.secondVariable = "var_b"
     opDesc.thirdVariable = "var_c"
-    val ex = intercept[AssertionError](opDesc.manipulateTable())
-    ex.getMessage should not be null
-    ex.getMessage should include("cannot be empty")
+    val ex = expectError[AssertionError]("cannot be empty")(opDesc.manipulateTable())
     fieldPart(ex.getMessage) should include("measured value")
   }
 

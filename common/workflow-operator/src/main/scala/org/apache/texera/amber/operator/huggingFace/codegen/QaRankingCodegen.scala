@@ -39,7 +39,7 @@ object QaRankingCodegen extends TaskCodegen {
   )
 
   override def payloadPython(ctx: CodegenContext): String =
-    """            if task == "question-answering":
+    s"""            if task == "question-answering":
       |                ctx_val = row[self.CONTEXT_COLUMN]
       |                ctx_val = "" if pd.isna(ctx_val) else str(ctx_val)
       |                payload = {"inputs": {"question": prompt_value, "context": ctx_val}}
@@ -52,48 +52,19 @@ object QaRankingCodegen extends TaskCodegen {
       |                    "parameters": {"candidate_labels": labels},
       |                }
       |            elif task == "sentence-similarity":
-      |                sent_val = row[self.SENTENCES_COLUMN]
-      |                sent_val = "" if pd.isna(sent_val) else str(sent_val)
-      |                sentences_list = [s.strip() for s in sent_val.split(",") if s.strip()]
-      |                payload = {
-      |                    "inputs": {
-      |                        "source_sentence": prompt_value,
-      |                        "sentences": sentences_list,
-      |                    }
-      |                }
+      |${TextResponsePython.rankingPayload("source_sentence", "sentences")}
       |            elif task == "text-ranking":
-      |                sent_val = row[self.SENTENCES_COLUMN]
-      |                sent_val = "" if pd.isna(sent_val) else str(sent_val)
-      |                sentences_list = [s.strip() for s in sent_val.split(",") if s.strip()]
-      |                payload = {
-      |                    "inputs": {
-      |                        "query": prompt_value,
-      |                        "texts": sentences_list,
-      |                    }
-      |                }
+      |${TextResponsePython.rankingPayload("query", "texts")}
       |            else:
       |                payload = {"inputs": prompt_value}""".stripMargin
 
   override def parsePython(ctx: CodegenContext): String =
-    """            if task == "question-answering":
+    s"""            if task == "question-answering":
       |                # Third-party chat providers answer via choices[0].message;
       |                # hf-inference returns the native {"answer": ...} shape.
-      |                content = self._chat_message_content(body)
-      |                if content is not None:
-      |                    return content
-      |                if isinstance(body, dict):
-      |                    return body.get("answer", json.dumps(body))
-      |                return json.dumps(body)
+      |${TextResponsePython.chatOrAnswer}
       |            elif task == "table-question-answering":
-      |                content = self._chat_message_content(body)
-      |                if content is not None:
-      |                    return content
-      |                if isinstance(body, dict):
-      |                    return body.get("answer", json.dumps(body))
-      |                return json.dumps(body)
+      |${TextResponsePython.chatOrAnswer}
       |            elif task in ("zero-shot-classification", "sentence-similarity", "text-ranking"):
-      |                content = self._chat_message_content(body)
-      |                if content is not None:
-      |                    return content
-      |                return json.dumps(body)""".stripMargin
+      |${TextResponsePython.chatOrBody}""".stripMargin
 }

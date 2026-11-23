@@ -22,7 +22,6 @@ import { ActivatedRoute } from "@angular/router";
 import { NgIf } from "@angular/common";
 import { NzButtonComponent } from "ng-zorro-antd/button";
 import { NzIconDirective } from "ng-zorro-antd/icon";
-import { NzTooltipModule } from "ng-zorro-antd/tooltip";
 import {
   SearchResultsComponent,
   SearchResultsViewMode,
@@ -50,7 +49,6 @@ const HUB_VIEW_MODE_STORAGE_KEY = "texera.hub.dataset.viewMode";
     NgIf,
     NzButtonComponent,
     NzIconDirective,
-    NzTooltipModule,
     SortButtonComponent,
     FiltersComponent,
     SearchResultsComponent,

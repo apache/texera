@@ -19,7 +19,6 @@
 import {
   DatasetFileNode,
   getFullPathFromDatasetFileNode,
-  getPathsUnderOrEqualDatasetFileNode,
   getRelativePathFromDatasetFileNode,
 } from "./datasetVersionFileTree";
 
@@ -70,33 +69,5 @@ describe("getRelativePathFromDatasetFileNode", () => {
       parentDir: "/dataset/bob@texera.com/twitterDataset//v1/sub",
     };
     expect(getRelativePathFromDatasetFileNode(node)).toBe("sub/f.csv");
-  });
-});
-
-describe("getPathsUnderOrEqualDatasetFileNode", () => {
-  it("returns the single path for a file node", () => {
-    const file: DatasetFileNode = { name: "a.txt", type: "file", parentDir: "/dir" };
-    expect(getPathsUnderOrEqualDatasetFileNode(file)).toEqual(["/dir/a.txt"]);
-  });
-
-  it("collects every file path under a directory", () => {
-    const file1: DatasetFileNode = { name: "file1.txt", type: "file", parentDir: "/dir" };
-    const file2: DatasetFileNode = { name: "file2.txt", type: "file", parentDir: "/dir" };
-    const dir: DatasetFileNode = { name: "dir", type: "directory", parentDir: "", children: [file1, file2] };
-    expect(getPathsUnderOrEqualDatasetFileNode(dir)).toEqual(["/dir/file1.txt", "/dir/file2.txt"]);
-  });
-
-  it("recurses into nested directories", () => {
-    const deepFile: DatasetFileNode = { name: "deep.txt", type: "file", parentDir: "/a/b" };
-    const subDir: DatasetFileNode = { name: "b", type: "directory", parentDir: "/a", children: [deepFile] };
-    const topDir: DatasetFileNode = { name: "a", type: "directory", parentDir: "", children: [subDir] };
-    expect(getPathsUnderOrEqualDatasetFileNode(topDir)).toEqual(["/a/b/deep.txt"]);
-  });
-
-  it("returns an empty array for an empty directory", () => {
-    const emptyChildren: DatasetFileNode = { name: "dir", type: "directory", parentDir: "", children: [] };
-    const noChildrenProp: DatasetFileNode = { name: "dir", type: "directory", parentDir: "" };
-    expect(getPathsUnderOrEqualDatasetFileNode(emptyChildren)).toEqual([]);
-    expect(getPathsUnderOrEqualDatasetFileNode(noChildrenProp)).toEqual([]);
   });
 });

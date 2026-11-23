@@ -19,25 +19,14 @@
 
 package org.apache.texera.amber.operator.visualization.figureFactoryTable
 
-import com.fasterxml.jackson.annotation.JsonProperty
-import org.apache.texera.amber.operator.metadata.annotations.AutofillAttributeName
-import org.apache.texera.amber.util.JSONUtils.objectMapper
+import org.apache.texera.amber.operator.visualization.ChartConfigSpecSupport
 import org.scalatest.flatspec.AnyFlatSpec
 
-class FigureFactoryTableConfigSpec extends AnyFlatSpec {
-
-  // ---------------------------------------------------------------------------
-  // Default state
-  // ---------------------------------------------------------------------------
+class FigureFactoryTableConfigSpec extends AnyFlatSpec with ChartConfigSpecSupport {
 
   "FigureFactoryTableConfig" should "default attributeName to the empty string" in {
-    val c = new FigureFactoryTableConfig
-    assert(c.attributeName == "")
+    assert(new FigureFactoryTableConfig().attributeName == "")
   }
-
-  // ---------------------------------------------------------------------------
-  // Mutability
-  // ---------------------------------------------------------------------------
 
   it should "allow attributeName to be assigned post-construction" in {
     val c = new FigureFactoryTableConfig
@@ -45,50 +34,31 @@ class FigureFactoryTableConfigSpec extends AnyFlatSpec {
     assert(c.attributeName == "col-z")
   }
 
-  // ---------------------------------------------------------------------------
-  // JSON round-trip
-  // ---------------------------------------------------------------------------
-
   "FigureFactoryTableConfig JSON round-trip" should "preserve attributeName" in {
     val original = new FigureFactoryTableConfig
     original.attributeName = "x"
-    val restored = objectMapper.readValue(
-      objectMapper.writeValueAsString(original),
-      classOf[FigureFactoryTableConfig]
-    )
-    assert(restored.attributeName == "x")
+    assert(checkRoundTrip(original, classOf[FigureFactoryTableConfig]).attributeName == "x")
   }
 
   it should "round-trip the default empty attributeName" in {
-    val restored = objectMapper.readValue(
-      objectMapper.writeValueAsString(new FigureFactoryTableConfig),
-      classOf[FigureFactoryTableConfig]
+    assert(
+      checkRoundTrip(
+        new FigureFactoryTableConfig,
+        classOf[FigureFactoryTableConfig]
+      ).attributeName == ""
     )
-    assert(restored.attributeName == "")
   }
-
-  // ---------------------------------------------------------------------------
-  // Annotations
-  // ---------------------------------------------------------------------------
 
   "FigureFactoryTableConfig#attributeName" should "carry @JsonProperty(required = true)" in {
-    val jp = classOf[FigureFactoryTableConfig]
-      .getDeclaredField("attributeName")
-      .getAnnotation(classOf[JsonProperty])
-    assert(jp != null && jp.required)
+    assertAttrJsonPropertyRequired(classOf[FigureFactoryTableConfig])
   }
 
-  it should
-    "carry @AutofillAttributeName (UI relies on this to populate a dropdown)" in {
-    val ann = classOf[FigureFactoryTableConfig]
-      .getDeclaredField("attributeName")
-      .getAnnotation(classOf[AutofillAttributeName])
-    assert(ann != null, "@AutofillAttributeName must be present so the UI auto-populates")
+  it should "carry @AutofillAttributeName (UI relies on this to populate a dropdown)" in {
+    assertAttrAutofill(
+      classOf[FigureFactoryTableConfig],
+      "@AutofillAttributeName must be present so the UI auto-populates"
+    )
   }
-
-  // ---------------------------------------------------------------------------
-  // Instance independence
-  // ---------------------------------------------------------------------------
 
   it should "construct two independent instances (no static state shared)" in {
     val a = new FigureFactoryTableConfig

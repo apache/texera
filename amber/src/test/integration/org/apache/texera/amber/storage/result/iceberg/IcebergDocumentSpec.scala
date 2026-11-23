@@ -32,10 +32,8 @@ import org.apache.texera.amber.core.virtualidentity.{
 }
 import org.apache.texera.amber.core.workflow.{GlobalPortIdentity, PortIdentity}
 import org.apache.texera.amber.tags.IntegrationTest
-import org.apache.texera.amber.util.IcebergUtil
 import org.apache.iceberg.catalog.Catalog
-import org.apache.iceberg.data.Record
-import org.apache.iceberg.{Schema => IcebergSchema}
+import org.apache.iceberg.exceptions.NoSuchTableException
 import org.scalatest.BeforeAndAfterAll
 
 import java.lang.reflect.{InvocationHandler, InvocationTargetException, Method, Proxy}
@@ -48,11 +46,6 @@ import java.util.concurrent.atomic.AtomicInteger
 class IcebergDocumentSpec extends VirtualDocumentSpec[Tuple] with BeforeAndAfterAll {
 
   var amberSchema: Schema = _
-  var icebergSchema: IcebergSchema = _
-  var serde: (IcebergSchema, Tuple) => Record = _
-  var deserde: (IcebergSchema, Record) => Tuple = _
-  var catalog: Catalog = _
-  val tableNamespace = "test_namespace"
   var baseURI: URI = _
   var uri: URI = _
 
@@ -72,12 +65,6 @@ class IcebergDocumentSpec extends VirtualDocumentSpec[Tuple] with BeforeAndAfter
       )
     )
 
-    // Initialize Iceberg Schema
-    icebergSchema = IcebergUtil.toIcebergSchema(amberSchema)
-
-    // Initialize serialization and deserialization functions
-    serde = IcebergUtil.toGenericRecord
-    deserde = (schema, record) => IcebergUtil.fromRecord(record, amberSchema)
   }
 
   override def beforeEach(): Unit = {
@@ -97,10 +84,6 @@ class IcebergDocumentSpec extends VirtualDocumentSpec[Tuple] with BeforeAndAfter
     uri = VFSURIFactory.resultURI(baseURI)
     DocumentFactory.createDocument(uri, amberSchema)
     super.beforeEach()
-  }
-
-  override def afterAll(): Unit = {
-    super.afterAll()
   }
 
   override def getDocument: VirtualDocument[Tuple] = {
@@ -304,6 +287,26 @@ class IcebergDocumentSpec extends VirtualDocumentSpec[Tuple] with BeforeAndAfter
     } finally {
       stream.close()
     }
+  }
+
+  it should "report numeric/date table statistics, non-zero file size, and throw NoSuchTableException once cleared" in {
+    val items = generateSampleItems().take(3)
+    val writer = document.writer(UUID.randomUUID().toString)
+    writer.open()
+    items.foreach(writer.putOne)
+    writer.close()
+
+    val stats = document.getTableStatistics
+    assert(stats("col-int")("min") == -1)
+    assert(stats("col-int")("max") == Int.MaxValue)
+    assert(stats("col-timestamp")("min").isInstanceOf[String])
+    assert(stats("col-timestamp")("max").isInstanceOf[String])
+    assert(document.getTotalFileSize > 0L)
+
+    document.clear()
+    intercept[NoSuchTableException](document.getURI)
+    intercept[NoSuchTableException](document.getTableStatistics)
+    intercept[NoSuchTableException](document.getTotalFileSize)
   }
 
   /** Returns a dynamic proxy for `realCatalog` that counts `loadTable` calls. */

@@ -261,7 +261,7 @@ object DatasetResource {
 
 @Produces(Array(MediaType.APPLICATION_JSON, "image/jpeg", "application/pdf"))
 @Path("/dataset")
-class DatasetResource extends LazyLogging {
+class DatasetResource extends LazyLogging with ResourceUploadSupport {
   private val ERR_USER_HAS_NO_ACCESS_TO_DATASET_MESSAGE = "User has no access to this dataset"
   private val ERR_DATASET_VERSION_NOT_FOUND_MESSAGE = "The version of the dataset not found"
   private val EXPIRATION_MINUTES = 5
@@ -273,6 +273,8 @@ class DatasetResource extends LazyLogging {
   private val MAX_VERSION_NAME_LENGTH = 128
 
   private val resourceType = ResourceType.Dataset
+
+  override protected def resourceStorage = ResourceStorage.Dataset
 
   /**
     * The single read rule for a dataset: anonymous callers get public datasets only, a
@@ -311,7 +313,7 @@ class DatasetResource extends LazyLogging {
 
     DashboardDataset(
       targetDataset,
-      getOwner(ctx, did).getEmail,
+      getOwnerEmail(ctx, did),
       userAccessPrivilege,
       isOwner,
       withLakeFSErrorHandling(s"retrieving the size of dataset '${targetDataset.getName}'") {
@@ -505,7 +507,7 @@ class DatasetResource extends LazyLogging {
         LakeFSFileNode
           .fromLakeFSRepositoryCommittedObjects(
             resourceType,
-            Map((getOwner(ctx, did).getEmail, datasetName, newVersionName) -> fileNodes)
+            Map((getOwnerEmail(ctx, did), datasetName, newVersionName) -> fileNodes)
           )
       )
     }
@@ -966,7 +968,7 @@ class DatasetResource extends LazyLogging {
         ResourceUploadService
           .versionRootFileNodes(
             resourceType,
-            getOwner(ctx, did).getEmail,
+            getOwnerEmail(ctx, did),
             dataset.getName,
             latestVersion.getName,
             dataset.getRepositoryName,
@@ -1117,20 +1119,6 @@ class DatasetResource extends LazyLogging {
     DatasetVersionRootFileNodesResponse(nodes, size)
   }
 
-  private def generatePresignedResponse(
-      encodedUrl: String,
-      repositoryName: String,
-      commitHash: String,
-      uid: Integer
-  ): Response =
-    ResourceUploadService.presignedUrlResponse(
-      ResourceStorage.Dataset,
-      encodedUrl,
-      repositoryName,
-      commitHash,
-      uid
-    )
-
   // === Multipart helpers ===
 
   private def getDatasetBy(ownerEmail: String, datasetName: String) = {
@@ -1147,33 +1135,6 @@ class DatasetResource extends LazyLogging {
     }
     dataset
   }
-
-  private def listMultipartUploads(did: Integer, requesterUid: Int): Response =
-    ResourceUploadService.listUploads(ResourceStorage.Dataset, did, requesterUid)
-
-  private def initMultipartUpload(
-      did: Integer,
-      encodedFilePath: String,
-      fileSizeBytes: Optional[java.lang.Long],
-      partSizeBytes: Optional[java.lang.Long],
-      restart: Optional[java.lang.Boolean],
-      uid: Integer
-  ): Response =
-    ResourceUploadService.initUpload(
-      ResourceStorage.Dataset,
-      did,
-      encodedFilePath,
-      fileSizeBytes,
-      partSizeBytes,
-      restart,
-      uid
-    )
-
-  private def finishMultipartUpload(did: Integer, encodedFilePath: String, uid: Int): Response =
-    ResourceUploadService.finishUpload(ResourceStorage.Dataset, did, encodedFilePath, uid)
-
-  private def abortMultipartUpload(did: Integer, encodedFilePath: String, uid: Int): Response =
-    ResourceUploadService.abortUpload(ResourceStorage.Dataset, did, encodedFilePath, uid)
 
   /**
     * Updates the cover image for a dataset.
@@ -1206,7 +1167,7 @@ class DatasetResource extends LazyLogging {
 
       val document = CoverImageUtils.openCoverOrBadRequest(
         resourceType,
-        getOwner(ctx, did).getEmail,
+        getOwnerEmail(ctx, did),
         dataset.getName,
         normalized
       )
@@ -1240,7 +1201,7 @@ class DatasetResource extends LazyLogging {
       )
 
       val document = CoverImageUtils
-        .openCover(resourceType, getOwner(ctx, did).getEmail, dataset.getName, coverImage)
+        .openCover(resourceType, getOwnerEmail(ctx, did), dataset.getName, coverImage)
         .getOrElse(throw new NotFoundException("No cover image"))
 
       Response
@@ -1270,7 +1231,7 @@ class DatasetResource extends LazyLogging {
           Response.ok(Map("url" -> null)).build()
         case Some(coverImage) =>
           val url = CoverImageUtils
-            .openCover(resourceType, getOwner(ctx, did).getEmail, dataset.getName, coverImage)
+            .openCover(resourceType, getOwnerEmail(ctx, did), dataset.getName, coverImage)
             .map(CoverImageUtils.presignedUrl(_, coverImage))
           Response.ok(Map("url" -> url.orNull)).build()
       }

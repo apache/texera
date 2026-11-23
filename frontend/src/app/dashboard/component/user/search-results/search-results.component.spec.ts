@@ -83,7 +83,7 @@ describe("SearchResultsComponent", () => {
   beforeEach(async () => {
     await TestBed.configureTestingModule({
       imports: [SearchResultsComponent, NoopAnimationsModule],
-      providers: [{ provide: UserService, useClass: StubUserService }, ...commonTestProviders],
+      providers: [...commonTestProviders],
     }).compileComponents();
 
     // ListItemComponent is heavy (needs a full service graph); swap it for a
@@ -104,25 +104,6 @@ describe("SearchResultsComponent", () => {
 
   it("should create", () => {
     expect(component).toBeTruthy();
-  });
-
-  describe("getUid", () => {
-    it("returns the current user's uid when a user is logged in", () => {
-      // StubUserService default user has uid = 1 (MOCK_USER_ID).
-      expect(component.getUid()).toBe(1);
-    });
-
-    it("returns a spied uid", () => {
-      const userService = TestBed.inject(UserService);
-      vi.spyOn(userService, "getCurrentUser").mockReturnValue({ uid: 42 } as any);
-      expect(component.getUid()).toBe(42);
-    });
-
-    it("returns undefined when no user is logged in", () => {
-      const userService = TestBed.inject(UserService);
-      vi.spyOn(userService, "getCurrentUser").mockReturnValue(undefined);
-      expect(component.getUid()).toBeUndefined();
-    });
   });
 
   describe("reset", () => {

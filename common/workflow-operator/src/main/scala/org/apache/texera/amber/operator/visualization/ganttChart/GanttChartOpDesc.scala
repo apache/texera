@@ -19,6 +19,8 @@
 
 package org.apache.texera.amber.operator.visualization.ganttChart
 
+import org.apache.texera.amber.operator.visualization.StandaloneChartCode._
+import org.apache.texera.amber.operator.visualization.PythonCodeFragment._
 import com.fasterxml.jackson.annotation.{JsonProperty, JsonPropertyDescription}
 import com.kjetland.jackson.jsonSchema.annotations.{JsonSchemaInject, JsonSchemaTitle}
 import org.apache.texera.amber.pybuilder.PythonTemplateBuilder.{
@@ -118,24 +120,16 @@ class GanttChartOpDesc extends PythonVisualizationOpDesc with PlotlyStandaloneCo
          |import numpy as np
          |
          |class ProcessTableOperator(UDFTableOperator):
-         |    def render_error(self, error_msg):
-         |        return '''<h1>Gantt Chart is not available.</h1>
-         |                  <p>Reason: {} </p>
-         |               '''.format(error_msg)
+         |${runtimeError("Gantt Chart is not available.", colonOnly = true)}
          |
          |    @overrides
          |    def process_table(self, table: Table, port: int) -> Iterator[Optional[TableLike]]:
-         |        if table.empty:
-         |           yield {'html-content': self.render_error("Input table is empty.")}
-         |           return
+         |${emptyTableGuard("Input table is empty.")}
          |        ${manipulateTable()}
-         |        if table.empty:
-         |           yield {'html-content': self.render_error("One or more of your input columns have all missing values")}
-         |           return
+         |${emptyTableGuard("One or more of your input columns have all missing values")}
          |        ${createPlotlyFigure()}
          |        # convert fig to html content
-         |        html = plotly.io.to_html(fig, include_plotlyjs='cdn', auto_play=False)
-         |        yield {'html-content': html}
+         |${plotlyHtmlYield()}
          |"""
     finalCode.encode
   }
@@ -157,20 +151,19 @@ class GanttChartOpDesc extends PythonVisualizationOpDesc with PlotlyStandaloneCo
        |               '''.format(error_msg)
        |
        |if in1df.empty:
-       |    with open(outputHtml, "w", encoding="utf-8") as output:
-       |        output.write(render_error("Input table is empty."))
+       |${standaloneErrorPage("Input table is empty.")}
        |else:
        |    table = in1df[(in1df[$startLit].notnull()) & (in1df[$finishLit].notnull())$optionalFilter].copy()
        |    if table.empty:
-       |        with open(outputHtml, "w", encoding="utf-8") as output:
-       |            output.write(render_error("One or more of your input columns have all missing values"))
+       |${standaloneErrorPage(
+      "One or more of your input columns have all missing values",
+      indent = 8
+    )}
        |    else:
        |        fig = px.timeline(table, x_start=$startLit, x_end=$finishLit, y=$taskLit$colorSetting$patternSetting)
        |        fig.update_yaxes(autorange='reversed')
        |        fig.update_layout(margin=dict(t=0, b=0, l=0, r=0))
-       |        fig.write_json(outputJson)
-       |        fig.write_html(outputHtml)
-       |        print("Gantt chart saved to " + outputHtml)""".stripMargin
+       |${standaloneFigure("Gantt chart")}""".stripMargin
   }
 
 }

@@ -19,31 +19,13 @@
 
 package org.apache.texera.amber.engine.architecture.coordinator.promisehandlers
 
-import com.twitter.util.{Await, Duration}
-import org.apache.texera.amber.core.executor.OpExecInitInfo
+import com.twitter.util.Await
 import org.apache.texera.amber.core.virtualidentity.{
-  ActorVirtualIdentity,
   ChannelIdentity,
-  EmbeddedControlMessageIdentity,
-  OperatorIdentity,
-  PhysicalOpIdentity
+  EmbeddedControlMessageIdentity
 }
-import org.apache.texera.amber.core.workflow.WorkflowContext.{
-  DEFAULT_EXECUTION_ID,
-  DEFAULT_WORKFLOW_ID
-}
-import org.apache.texera.amber.core.workflow.{
-  GlobalPortIdentity,
-  PhysicalLink,
-  PhysicalOp,
-  PortIdentity,
-  WorkflowContext
-}
-import org.apache.texera.amber.engine.architecture.coordinator.{
-  CoordinatorAsyncRPCHandlerInitializer,
-  CoordinatorConfig,
-  CoordinatorProcessor
-}
+import org.apache.texera.amber.core.workflow.{GlobalPortIdentity, PhysicalLink, PortIdentity}
+import org.apache.texera.amber.engine.architecture.coordinator.CoordinatorAsyncRPCHandlerInitializer
 import org.apache.texera.amber.engine.architecture.logreplay.{ReplayLogManager, ReplayLogRecord}
 import org.apache.texera.amber.engine.architecture.rpc.controlcommands.EmbeddedControlMessageType.{
   NO_ALIGNMENT,
@@ -62,11 +44,9 @@ import org.apache.texera.amber.engine.architecture.rpc.controlreturns.{
 }
 import org.apache.texera.amber.engine.architecture.rpc.workerservice.WorkerServiceGrpc.METHOD_RETRIEVE_STATE
 import org.apache.texera.amber.engine.architecture.scheduling.{Region, RegionIdentity}
-import org.apache.texera.amber.engine.architecture.worker.WorkflowWorker.MainThreadDelegateMessage
 import org.apache.texera.amber.engine.common.ambermessage.WorkflowFIFOMessage
 import org.apache.texera.amber.engine.common.storage.SequentialRecordStorage.SequentialRecordWriter
 import org.apache.texera.amber.engine.common.virtualidentity.util.COORDINATOR
-import org.apache.texera.amber.util.VirtualIdentityUtils
 import org.scalatest.flatspec.AnyFlatSpec
 
 import scala.collection.mutable.ArrayBuffer
@@ -89,32 +69,20 @@ import scala.collection.mutable.ArrayBuffer
   *     propagation is still in flight.
   *   - dispatching to workers of a region execution that has already completed.
   */
-class EmbeddedControlMessageHandlerSpec extends AnyFlatSpec {
+class EmbeddedControlMessageHandlerSpec extends AnyFlatSpec with CoordinatorMessageFixture {
 
-  private val awaitTimeout = Duration.fromSeconds(1)
   private val ecmId = EmbeddedControlMessageIdentity("ecm-under-test")
   private val retrieveState = METHOD_RETRIEVE_STATE.getBareMethodName
 
-  private val sourceOp = mkPhysicalOp("source", "main")
-  private val middleOp = mkPhysicalOp("middle", "main")
-  private val sinkOp = mkPhysicalOp("sink", "main")
+  private val sourceOp = mkPhysicalOp("source")
+  private val middleOp = mkPhysicalOp("middle")
+  private val sinkOp = mkPhysicalOp("sink")
   private val sourceWorker = mkWorkerId(sourceOp, 0)
   private val middleWorker = mkWorkerId(middleOp, 0)
   private val sinkWorker = mkWorkerId(sinkOp, 0)
   private val sourceToMiddle =
     PhysicalLink(sourceOp.id, PortIdentity(), middleOp.id, PortIdentity())
   private val middleToSink = PhysicalLink(middleOp.id, PortIdentity(), sinkOp.id, PortIdentity())
-
-  private def mkPhysicalOp(logicalOpId: String, layerName: String): PhysicalOp =
-    PhysicalOp(
-      PhysicalOpIdentity(OperatorIdentity(logicalOpId), layerName),
-      DEFAULT_WORKFLOW_ID,
-      DEFAULT_EXECUTION_ID,
-      OpExecInitInfo.Empty
-    )
-
-  private def mkWorkerId(physicalOp: PhysicalOp, index: Int): ActorVirtualIdentity =
-    VirtualIdentityUtils.createWorkerIdentity(DEFAULT_WORKFLOW_ID, physicalOp.id, index)
 
   /** Records the ECM ids the handler marks, so completion ordering can be asserted. */
   private class RecordingLogManager extends ReplayLogManager {
@@ -123,7 +91,10 @@ class EmbeddedControlMessageHandlerSpec extends AnyFlatSpec {
     override def setupWriter(logWriter: SequentialRecordWriter[ReplayLogRecord]): Unit = ()
 
     override def sendCommitted(
-        msg: Either[MainThreadDelegateMessage, WorkflowFIFOMessage]
+        msg: Either[
+          org.apache.texera.amber.engine.architecture.worker.WorkflowWorker.MainThreadDelegateMessage,
+          WorkflowFIFOMessage
+        ]
     ): Unit = ()
 
     override def terminate(): Unit = ()
@@ -138,19 +109,10 @@ class EmbeddedControlMessageHandlerSpec extends AnyFlatSpec {
   )
 
   private def newFixture(): Fixture = {
-    val sent = ArrayBuffer[WorkflowFIFOMessage]()
-    val cp = new CoordinatorProcessor(
-      new WorkflowContext(),
-      CoordinatorConfig(None, None, None, None),
-      COORDINATOR,
-      {
-        case Right(m) => sent += m
-        case _        => ()
-      }
-    )
+    val (init, sent) = createCoordinatorFixture()
     val logManager = new RecordingLogManager()
-    cp.setupLogManager(logManager)
-    Fixture(new CoordinatorAsyncRPCHandlerInitializer(cp), sent, logManager)
+    init.cp.setupLogManager(logManager)
+    Fixture(init, sent, logManager)
   }
 
   /**
@@ -337,5 +299,33 @@ class EmbeddedControlMessageHandlerSpec extends AnyFlatSpec {
       Await.result(response, awaitTimeout) == PropagateEmbeddedControlMessageResponse(Map.empty)
     )
     assert(fixture.logManager.marked.toSeq == Seq(ecmId))
+  }
+
+  it should "inject one ECM per source worker when a source operator has multiple workers" in {
+    val fixture = newFixture()
+    seedRunningRegion(fixture.init)
+    val secondSourceWorker = mkWorkerId(sourceOp, 1)
+    val regionExec = fixture.init.cp.workflowExecution.getRunningRegionExecutions.head
+    regionExec.getOperatorExecution(sourceOp.id).initWorkerExecution(secondSourceWorker)
+
+    fixture.init.propagateEmbeddedControlMessage(request(), fixture.init.mkContext(COORDINATOR))
+
+    val sentMessages = embeddedMessages(fixture.sent)
+    assert(
+      sentMessages.map(_._1).toSet == Set(
+        ChannelIdentity(COORDINATOR, sourceWorker, isControl = true),
+        ChannelIdentity(COORDINATOR, secondSourceWorker, isControl = true)
+      )
+    )
+    val expectedControlChannels = Set(sourceWorker, secondSourceWorker).flatMap { w =>
+      Seq(
+        ChannelIdentity(COORDINATOR, w, isControl = true),
+        ChannelIdentity(w, COORDINATOR, isControl = true)
+      )
+    }
+    sentMessages.foreach {
+      case (_, ecm) =>
+        assert(expectedControlChannels.subsetOf(ecm.scope.toSet))
+    }
   }
 }

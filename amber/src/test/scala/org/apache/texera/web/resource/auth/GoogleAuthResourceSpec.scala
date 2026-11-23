@@ -20,9 +20,10 @@
 package org.apache.texera.web.resource.auth
 
 import com.google.api.client.googleapis.auth.oauth2.GoogleIdToken
+import org.apache.texera.auth.InviteOnly
 import org.apache.texera.common.config.UserSystemConfig
-import org.apache.texera.dao.MockTexeraDB
-import org.apache.texera.dao.jooq.generated.Tables.{AUTH_PROVIDER, USER}
+import org.apache.texera.dao.{MockTexeraDB, SiteSettings}
+import org.apache.texera.dao.jooq.generated.Tables.{AUTH_PROVIDER, SITE_SETTINGS, USER}
 import org.apache.texera.dao.jooq.generated.enums.{ProviderTypeEnum, UserRoleEnum}
 import org.apache.texera.dao.jooq.generated.tables.daos.UserDao
 import org.apache.texera.dao.jooq.generated.tables.pojos.User
@@ -63,8 +64,13 @@ class GoogleAuthResourceSpec
   override protected def beforeEach(): Unit = cleanup()
   override protected def afterEach(): Unit = cleanup()
 
-  private def cleanup(): Unit =
+  private def cleanup(): Unit = {
     getDSLContext.deleteFrom(USER).where(USER.EMAIL.like("%" + emailDomain)).execute()
+    getDSLContext
+      .deleteFrom(SITE_SETTINGS)
+      .where(SITE_SETTINGS.KEY.eq(InviteOnly.SettingKey))
+      .execute()
+  }
 
   // ---- helpers -------------------------------------------------------------
 
@@ -118,6 +124,10 @@ class GoogleAuthResourceSpec
   behavior of "login"
 
   it should "provision an INACTIVE user and a GOOGLE provider row on a first login" in {
+    // The role follows the admin's invite-only switch (ExternalAuthProvisionerSpec covers both
+    // sides); pinned on here so the assertion does not depend on default.conf.
+    SiteSettings.upsert(getDSLContext, InviteOnly.SettingKey, "true", "google-spec-admin")
+
     loginWith(payload("google-sub-new", "newcomer" + emailDomain, name = "New Comer"))
 
     val user = userByEmail("newcomer")

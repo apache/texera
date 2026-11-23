@@ -317,10 +317,12 @@ class DocumentFactorySpec extends AnyFlatSpec with Matchers with BeforeAndAfterA
     schemaOpt.get.getAttributes.map(_.getName) should contain("v")
   }
 
-  it should "throw IllegalArgumentException when opening a vfs URI with no backing storage" in {
-    val thrown = intercept[IllegalArgumentException] {
+  it should "throw DocumentNotFoundException when opening a vfs URI with no backing storage" in {
+    val thrown = intercept[DocumentNotFoundException] {
       DocumentFactory.openDocument(freshResultURI())
     }
     thrown.getMessage should include("No storage is found")
+    // Callers that catch the type it has always been still match.
+    thrown shouldBe an[IllegalArgumentException]
   }
 }
