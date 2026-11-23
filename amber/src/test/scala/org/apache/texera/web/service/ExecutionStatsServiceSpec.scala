@@ -78,7 +78,7 @@ import org.scalatest.matchers.should.Matchers
 
 import java.net.URI
 import java.sql.Timestamp
-import java.util.concurrent.{CountDownLatch, ExecutorService, TimeUnit}
+import java.util.concurrent.{ExecutorService, TimeUnit}
 
 /**
   * The service class was entirely uncovered. It owns two independent outputs: the websocket
@@ -95,7 +95,8 @@ import java.util.concurrent.{CountDownLatch, ExecutorService, TimeUnit}
   * URI built from the wrong identity is a visibly different URI.
   *
   * Not covered on purpose: the catch arms in `commitAndStop` (iceberg's close is a repeatable
-  * buffer flush and does not throw, and the wait is not interrupted), and the catch arm in
+  * buffer flush and does not throw, and the wait is neither interrupted nor anywhere near its
+  * 60 s bound), and the catch arm in
   * `storeRuntimeStatistics` (it runs on the private persist executor, which swallows anything a
   * test could observe).
   */
@@ -223,7 +224,7 @@ class ExecutionStatsServiceSpec
   /**
     * The persist callback hands its work to a private single-threaded executor. A no-op task
     * queued behind it can only run once that work is done, which is the barrier a test needs
-    * before it closes the writer and reads the table back.
+    * before it checks that nothing was committed yet.
     */
   private def awaitPersist(service: ExecutionStatsService): Unit =
     persistExecutor(service).submit((() => ()): Runnable).get()
@@ -512,11 +513,9 @@ class ExecutionStatsServiceSpec
           Map("opA" -> metrics(RUNNING, inputs = Seq((0, 1L, 10L))), "opB" -> opBFinal)
         )
       )
-      awaitPersist(f.service)
       // opB is gone from the second report, as happens once an operator completes and stops
       // being polled.
       f.client.fire(RuntimeStatisticsPersist(Map("opA" -> metrics(COMPLETED))))
-      awaitPersist(f.service)
       f.client.fire(ExecutionStateUpdate(COMPLETED))
 
       val rows = persistedRows()
@@ -574,7 +573,6 @@ class ExecutionStatsServiceSpec
       )
 
       f.client.fire(RuntimeStatisticsPersist(Map("opMulti" -> multiPort)))
-      awaitPersist(f.service)
       f.client.fire(ExecutionStateUpdate(COMPLETED))
 
       val rows = persistedRows()
@@ -591,17 +589,10 @@ class ExecutionStatsServiceSpec
   it should "commit a statistics snapshot that is still queued when the execution terminates" in {
     withService { f =>
       // The engine reports the final snapshot right before the terminal state, and the persist
-      // callback only queues it. Hold the persist thread so that snapshot is still queued when
-      // the terminal state arrives, then let it go a moment later.
-      val release = new CountDownLatch(1)
-      persistExecutor(f.service).execute(() => release.await(30, TimeUnit.SECONDS))
+      // callback only queues it. Keep the persist thread busy so that snapshot is still queued
+      // when the terminal state arrives.
+      persistExecutor(f.service).execute(() => Thread.sleep(200))
       f.client.fire(RuntimeStatisticsPersist(Map("opA" -> metrics(COMPLETED))))
-      val releaser = new Thread(() => {
-        Thread.sleep(200)
-        release.countDown()
-      })
-      releaser.setDaemon(true)
-      releaser.start()
 
       f.client.fire(ExecutionStateUpdate(COMPLETED))
 
@@ -615,25 +606,35 @@ class ExecutionStatsServiceSpec
       f.client.fire(ExecutionStateUpdate(COMPLETED))
       persistExecutor(f.service).isShutdown shouldBe true
 
-      noException should be thrownBy {
-        f.client.fire(RuntimeStatisticsPersist(Map("opA" -> metrics(COMPLETED))))
-        f.client.fire(ExecutionStateUpdate(KILLED))
-      }
+      // fire passes exceptions through, so a rejected persist task would fail the test here.
+      f.client.fire(RuntimeStatisticsPersist(Map("opA" -> metrics(COMPLETED))))
+      f.client.fire(ExecutionStateUpdate(KILLED))
       persistedRows() should have size 1
     }
   }
 
-  it should "commit and stop the persist thread when torn down without a terminal state" in {
-    // A user kill or a fatal error never reports a terminal state; the service is only torn down.
-    withService { f =>
-      f.client.fire(RuntimeStatisticsPersist(Map("opA" -> metrics(RUNNING))))
-      awaitPersist(f.service)
-      persistedRows() shouldBe empty
+  it should "commit and stop the persist thread when the run ends without a terminal state" in {
+    // A fatal error commits right away, since the service lives on until the next run or session
+    // cleanup; a user kill commits when the service is torn down, in the background.
+    Seq[(String, Fixture => Unit)](
+      "fatal error" -> (_.client.fire(FatalError(new RuntimeException("boom"), None))),
+      "teardown" -> (_.service.unsubscribeAll())
+    ).foreach {
+      case (trigger, end) =>
+        withClue(s"$trigger: ") {
+          withService { f =>
+            f.client.fire(RuntimeStatisticsPersist(Map("opA" -> metrics(RUNNING))))
+            awaitPersist(f.service)
+            persistedRows() shouldBe empty
 
-      f.service.unsubscribeAll()
+            end(f)
 
-      persistedRows().map(_.getField[String]("operatorId")) shouldBe Seq("opA")
-      persistExecutor(f.service).isShutdown shouldBe true
+            val executor = persistExecutor(f.service)
+            executor.isShutdown shouldBe true
+            executor.awaitTermination(30, TimeUnit.SECONDS) shouldBe true
+            persistedRows().map(_.getField[String]("operatorId")) shouldBe Seq("opA")
+          }
+        }
     }
   }
 }

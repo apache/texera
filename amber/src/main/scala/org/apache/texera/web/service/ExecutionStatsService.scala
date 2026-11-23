@@ -221,10 +221,14 @@ class ExecutionStatsService(
     }
   )
 
-  /** A user kill or a fatal error tears the service down without a terminal state; commit here. */
+  /**
+    * Commits a run that never reported a terminal state, such as a user kill, when
+    * WorkflowService tears the service down: at the next run or on session cleanup. Nothing on
+    * those paths reads the statistics, so the commit finishes in the background.
+    */
   override def unsubscribeAll(): Unit = {
     super.unsubscribeAll()
-    commitAndStop()
+    commitAndStop(awaitCommit = false)
   }
 
   /**
@@ -233,26 +237,33 @@ class ExecutionStatsService(
     * the persist thread. Closing the writer there, behind it, commits it; closing on the calling
     * thread would flush before it and strand it in the buffer.
     */
-  private def commitAndStop(): Unit = {
+  private def commitAndStop(awaitCommit: Boolean = true): Unit = {
     if (committed.compareAndSet(false, true)) {
       logger.info("Workflow execution terminated. Commit runtime statistics.")
-      try {
-        // Bounded so a stuck write cannot hang the caller; shutdown still lets the close finish.
-        metricsPersistThread
-          .submit((() => runtimeStatsWriter.close()): Runnable)
-          .get(CommitTimeoutSeconds, TimeUnit.SECONDS)
-      } catch {
-        case e: InterruptedException =>
-          Thread.currentThread().interrupt()
-          logger.error("Interrupted while closing runtime statistics writer", e)
-        case _: TimeoutException =>
-          logger.warn(
-            s"Runtime statistics commit exceeded ${CommitTimeoutSeconds}s; continuing in background"
-          )
-        case e: Exception =>
-          logger.error("Failed to close runtime statistics writer", e)
-      } finally {
-        metricsPersistThread.shutdown()
+      val commit = metricsPersistThread.submit(
+        (
+            () =>
+              try runtimeStatsWriter.close()
+              catch {
+                case e: Exception => logger.error("Failed to close runtime statistics writer", e)
+              }
+        ): Runnable
+      )
+      // Queued tasks, the close among them, still run after shutdown.
+      metricsPersistThread.shutdown()
+      if (awaitCommit) {
+        try {
+          // Bounded so a stuck write cannot hang the caller.
+          commit.get(CommitTimeoutSeconds, TimeUnit.SECONDS)
+        } catch {
+          case e: InterruptedException =>
+            Thread.currentThread().interrupt()
+            logger.error("Interrupted while committing runtime statistics", e)
+          case _: TimeoutException =>
+            logger.warn(
+              s"Runtime statistics commit exceeded ${CommitTimeoutSeconds}s; continuing in background"
+            )
+        }
       }
     }
   }
@@ -377,6 +388,9 @@ class ExecutionStatsService(
               )
             )
           }
+          // A failed run ends here without a terminal state, and the service is not torn down
+          // until the next run or session cleanup; commit now so the statistics can be read.
+          commitAndStop()
         })
     )
   }
