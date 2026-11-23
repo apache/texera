@@ -137,6 +137,18 @@ describe("validateToken", () => {
 
     expect(EnvSchema.parse({}).AUTH_JWT_SECRET).toBe(/256-bit-secret = "([^"]+)"/.exec(conf)![1]);
   });
+
+  test("reads a configured secret the way the dashboard service does", () => {
+    // AuthConfig.scala lowercases AUTH_JWT_SECRET before signing, so a deployment that sets
+    // "Xk9F-Shared" signs every login token with "xk9f-shared". Read as written, the secret
+    // would reject them all.
+    expect(EnvSchema.parse({ AUTH_JWT_SECRET: "Xk9F-Shared" }).AUTH_JWT_SECRET).toBe("xk9f-shared");
+  });
+
+  test('refuses "random", which makes each backend process invent its own key', () => {
+    // No other service can know such a key, so starting with it would only reject every token.
+    expect(() => EnvSchema.parse({ AUTH_JWT_SECRET: "Random" })).toThrow("cannot be 'random'");
+  });
 });
 
 describe("extractBearerToken", () => {

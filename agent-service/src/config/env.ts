@@ -37,8 +37,18 @@ export const EnvSchema = z.object({
   // The secret the dashboard service signs login tokens with (HS256). The same
   // variable overrides it there, and the default here is the one in
   // common/config/src/main/resources/auth.conf, so the two agree unless a
-  // deployment sets it for one service and not the other.
-  AUTH_JWT_SECRET: z.string().min(1).default("8a1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d"),
+  // deployment sets it for one service and not the other. It is read the way
+  // AuthConfig.scala reads it: lowercased, since the dashboard service signs with
+  // the lowercased value, and never "random", which there makes each process
+  // invent its own key that no other service can know.
+  AUTH_JWT_SECRET: z
+    .string()
+    .min(1)
+    .default("8a1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d")
+    .transform(secret => secret.toLowerCase())
+    .refine(secret => secret !== "random", {
+      message: "AUTH_JWT_SECRET cannot be 'random': set it to the secret the dashboard service signs login tokens with",
+    }),
 });
 
 export const env = EnvSchema.parse(process.env);
