@@ -41,6 +41,10 @@ Container images are available at:
   ${IMAGE_REGISTRY}/texera-config-service:${VERSION}
   ${IMAGE_REGISTRY}/texera-access-control-service:${VERSION}
   ${IMAGE_REGISTRY}/texera-workflow-computing-unit-managing-service:${VERSION}
+  ${IMAGE_REGISTRY}/texera-agent-service:${VERSION}
+  ${IMAGE_REGISTRY}/texera-notebook-migration-service:${VERSION}
+  ${IMAGE_REGISTRY}/texera-jupyter:${VERSION}
+  ${IMAGE_REGISTRY}/texera-result-service:${VERSION}
 
 These images are built from the source tarball included in this release.
 The Dockerfiles are included in the source for audit and verification.
