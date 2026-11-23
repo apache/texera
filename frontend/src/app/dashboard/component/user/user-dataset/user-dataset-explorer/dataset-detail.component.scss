@@ -39,29 +39,13 @@ body {
   pointer-events: none;
 }
 
-.file-title {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-}
-
 @include detail.status-tags;
 
 @include detail.like-states;
 
-.file-size {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-}
-
 @include detail.header("dataset");
 
 @include detail.tab-bar;
-
-.versions-tab-content {
-  @include detail.scrollable-tab;
-}
 
 .data-card-tab-content {
   @include detail.scrollable-tab;

@@ -17,7 +17,7 @@
  * under the License.
  */
 
-import { ChangeDetectorRef, Component, Input, OnChanges, OnInit, SimpleChanges } from "@angular/core";
+import { ChangeDetectorRef, Component, Input, OnChanges, OnInit } from "@angular/core";
 import { DashboardEntry } from "../../../dashboard/type/dashboard-entry";
 import { EntityType } from "../../service/hub.service";
 import { ResourceRegistryService } from "../../../dashboard/service/user/resource-registry/resource-registry.service";
@@ -66,7 +66,7 @@ export class BrowseSectionComponent implements OnInit, OnChanges {
     this.loadCoverImages();
   }
 
-  ngOnChanges(changes: SimpleChanges): void {
+  ngOnChanges(): void {
     // The routes depend on the viewer as well as on the entities, and both arrive as inputs.
     this.entityRoutes.clear();
     this.loadCoverImages();

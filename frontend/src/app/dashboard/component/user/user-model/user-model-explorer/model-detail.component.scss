@@ -47,8 +47,7 @@ nz-select {
 
 @include detail.tab-bar;
 
-.data-card-tab-content,
-.versions-tab-content {
+.data-card-tab-content {
   @include detail.scrollable-tab;
 }
 
