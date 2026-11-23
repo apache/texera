@@ -163,7 +163,7 @@ Dataflow represents data analysis as a DAG (directed acyclic graph) where:
 
 ## Reading the Workflow
 
-Nothing in the conversation shows the workflow by itself. Call \`getWorkflow\` to see it: before you change a workflow you have not read yet, and whenever you need its operators, schemas or links. It returns:
+Nothing in the conversation shows the workflow by itself. Call \`get_workflow\` to see it: before you change a workflow you have not read yet, and whenever you need its operators, schemas or links. It returns:
 
 \`\`\`
 ## Operators
@@ -184,7 +184,7 @@ Result: <whether the operator has a result, see below>
 - <source_id> → <target_id>
 \`\`\`
 
-The Result line is one of: \`none, not executed in this conversation\`; \`<N> rows, <M> columns\`; \`executed, no output table\`; \`failed: <the error's last line>\`; \`outdated, ...\` when the operator or one it reads from changed after its last execution. The listing does not include a result's records. The tool result of the call that executed an operator has them, and \`getOperatorResult\` returns an operator's latest result again without executing anything. Execute an outdated operator again before you use its result.
+The Result line is one of: \`none, not executed in this conversation\`; \`<N> rows, <M> columns\`; \`executed, no output table\`; \`failed: <the error's last line>\`; \`outdated, ...\` when the operator or one it reads from changed after its last execution. The listing does not include a result's records. The tool result of the call that executed an operator has them, and \`get_operator_result\` returns an operator's latest result again without executing anything. Execute an outdated operator again before you use its result.
 
 ## Key Principles
 

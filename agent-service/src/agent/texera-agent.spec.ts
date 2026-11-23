@@ -273,11 +273,11 @@ describe("TexeraAgent", () => {
     });
 
     test("the two read tools cannot be disabled, since nothing else shows the workflow", () => {
-      agent.updateSettings({ disabledTools: new Set(["getWorkflow", "getOperatorResult"]) });
+      agent.updateSettings({ disabledTools: new Set(["get_workflow", "get_operator_result"]) });
 
       const enabled = Object.fromEntries(agent.getSystemInfo().tools.map(t => [t.name, t.enabled]));
-      expect(enabled.getWorkflow).toBe(true);
-      expect(enabled.getOperatorResult).toBe(true);
+      expect(enabled.get_workflow).toBe(true);
+      expect(enabled.get_operator_result).toBe(true);
     });
 
     test("restricting the allowed operator types rewrites the system prompt", () => {
@@ -342,28 +342,28 @@ describe("TexeraAgent", () => {
   });
 });
 
-/** What the agent's getOperatorResult tool returns for an operator. */
-async function getOperatorResult(agent: TexeraAgent, operatorId: string): Promise<string> {
-  return await (agent as any).tools.getOperatorResult.execute({ operatorId }, {});
+/** What the agent's get_operator_result tool returns for an operator. */
+async function operatorResultOf(agent: TexeraAgent, operatorId: string): Promise<string> {
+  return await (agent as any).tools.get_operator_result.execute({ operatorId }, {});
 }
 
 describe("TexeraAgent result lookup", () => {
-  test("getOperatorResult reads the result visible from the current step", async () => {
+  test("get_operator_result reads the result visible from the current step", async () => {
     const agent = makeAgent();
     agent.getWorkflowState().addOperator(srcOp("op-1") as any);
     agent.getWorkflowResultState().set("op-1", INITIAL_STEP_ID, completedSummary([{ a: 1 }, { a: 2 }]));
 
-    expect(await getOperatorResult(agent, "op-1")).toBe(
+    expect(await operatorResultOf(agent, "op-1")).toBe(
       "Latest result of operator op-1:\nOutput table shape: (2, 1)\n\ta\n0\t1\n1\t2"
     );
   });
 
-  test("getOperatorResult ignores a result outside the current step's ancestry", async () => {
+  test("get_operator_result ignores a result outside the current step's ancestry", async () => {
     const agent = makeAgent();
     agent.getWorkflowState().addOperator(srcOp("op-1") as any);
     agent.getWorkflowResultState().set("op-1", "unrelated-step", completedSummary([{ a: 1 }]));
 
-    expect(await getOperatorResult(agent, "op-1")).toBe(
+    expect(await operatorResultOf(agent, "op-1")).toBe(
       "Operator op-1 has no result: it has not been executed in this conversation."
     );
   });
@@ -387,10 +387,10 @@ describe("TexeraAgent result lookup", () => {
 
     ws.updateOperatorProperties("out", { anything: 1 });
     ws.updateOperatorDisplayName("mid", "renamed");
-    expect(await getOperatorResult(agent, "mid")).toStartWith("Latest result of operator mid:");
+    expect(await operatorResultOf(agent, "mid")).toStartWith("Latest result of operator mid:");
 
     ws.updateOperatorProperties("src", { fileName: "b.csv" });
-    expect(await getOperatorResult(agent, "mid")).toBe(
+    expect(await operatorResultOf(agent, "mid")).toBe(
       "Operator mid's latest result is outdated: it or an operator it reads from changed after that execution. " +
         "Execute it again for a current result."
     );
@@ -592,8 +592,8 @@ describe("sendMessage", () => {
     expect(call.abortSignal).toBeInstanceOf(AbortSignal);
     expect(call.abortSignal.aborted).toBe(false);
     expect(call.tools.map((t: any) => t.name)).toEqual([
-      "getWorkflow",
-      "getOperatorResult",
+      "get_workflow",
+      "get_operator_result",
       "deleteOperator",
       "addOperator",
       "modifyOperator",
@@ -641,7 +641,7 @@ describe("sendMessage", () => {
     } as any);
     try {
       const model = scriptedModel([
-        { call: "getWorkflow", input: {} },
+        { call: "get_workflow", input: {} },
         { call: "modifyOperator", input: { operatorId: "op1", summary: "renamed" } },
         "done",
         "again",
@@ -660,8 +660,8 @@ describe("sendMessage", () => {
       expect(calls[1]).toEqual([
         { system: "SYS-XYZ" },
         { user: "first" },
-        { assistant: [{ call: "getWorkflow", input: {} }] },
-        { tool: [{ result: "getWorkflow", output: { type: "text", value: listing } }] },
+        { assistant: [{ call: "get_workflow", input: {} }] },
+        { tool: [{ result: "get_workflow", output: { type: "text", value: listing } }] },
       ]);
       expect(listing).toStartWith("## Operators\n\n### Operator `op1` (CSVFileScan)\nSummary: op1\n");
       expect(listing).toContain("Result: none, not executed");
@@ -679,7 +679,7 @@ describe("sendMessage", () => {
           {
             type: "tool-result",
             toolCallId: "c1",
-            toolName: "getWorkflow",
+            toolName: "get_workflow",
             output: { type: "text", value: listing },
           },
         ],
@@ -897,18 +897,18 @@ describe("sendMessage", () => {
   test("leaves disabled tools out of the model call but still lists them", async () => {
     const model = textModel("ok");
     const agent = makeAgentWith(model);
-    agent.updateSettings({ disabledTools: new Set(["modifyOperator", "getWorkflow", "getOperatorResult"]) });
+    agent.updateSettings({ disabledTools: new Set(["modifyOperator", "get_workflow", "get_operator_result"]) });
     await agent.sendMessage("go");
     const call = (model as any).doGenerateCalls[0];
     expect(call.tools.map((t: any) => t.name)).toEqual([
-      "getWorkflow",
-      "getOperatorResult",
+      "get_workflow",
+      "get_operator_result",
       "deleteOperator",
       "addOperator",
     ]);
     expect(agent.getSystemInfo().tools.map(t => [t.name, t.enabled])).toEqual([
-      ["getWorkflow", true],
-      ["getOperatorResult", true],
+      ["get_workflow", true],
+      ["get_operator_result", true],
       ["deleteOperator", true],
       ["addOperator", true],
       ["modifyOperator", false],
@@ -1244,8 +1244,8 @@ describe("sendMessage", () => {
     expect(promptOf((model as any).doGenerateCalls[1])).toEqual([{ system: "SYS-XYZ" }, { user: "two" }]);
   });
 
-  test("compiles nothing until the model asks; getWorkflow then compiles with the user's token", async () => {
-    const model = scriptedModel([{ call: "getWorkflow", input: {} }, "ok"]);
+  test("compiles nothing until the model asks; get_workflow then compiles with the user's token", async () => {
+    const model = scriptedModel([{ call: "get_workflow", input: {} }, "ok"]);
     const agent = makeAgentWith(model);
     agent.getWorkflowState().addOperator(srcOp("op-1", { fileName: "f.csv" }) as any);
     agent.getWorkflowResultState().set("op-1", INITIAL_STEP_ID, completedSummary([{ a: 1 }, { a: 2 }]));
@@ -1263,19 +1263,19 @@ describe("sendMessage", () => {
     }) as any);
     const res = await agent.sendMessage("look");
     expect(res.error).toBeUndefined();
-    // One compile, made by the one getWorkflow call, not one per model call.
+    // One compile, made by the one get_workflow call, not one per model call.
     expect(urls).toEqual(["http://localhost:9090/api/compile"]);
     expect(compileHeaders.Authorization).toBe("Bearer user-token");
     const listing = agent.getAllSteps()[1].toolResults?.[0].output as string;
     expect(listing).toContain("Output Schema: [a: integer]");
     expect(listing).toContain("Properties:\n  fileName: f.csv");
-    // The listing says the operator has a result and its size; the records are left to getOperatorResult.
+    // The listing says the operator has a result and its size; the records are left to get_operator_result.
     expect(listing).toContain("Result: 2 rows, 1 column");
     expect(listing).not.toContain("Output table shape");
   });
 
   test("a plan that cannot be built still gets listed, without schemas, and the turn answers", async () => {
-    const model = scriptedModel([{ call: "getWorkflow", input: {} }, "still-here"]);
+    const model = scriptedModel([{ call: "get_workflow", input: {} }, "still-here"]);
     const agent = makeAgentWith(model);
     const ws = agent.getWorkflowState();
     ws.addOperator({ ...srcOp("src"), outputPorts: undefined } as any);
@@ -1531,7 +1531,7 @@ describe("delegate mode", () => {
       if (String(u).includes("/api/compile")) compileHeaders.push(init?.headers);
       return routed(u, init);
     }) as any);
-    const agent = makeAgentWith(scriptedModel([{ call: "getWorkflow", input: {} }, "ok"]));
+    const agent = makeAgentWith(scriptedModel([{ call: "get_workflow", input: {} }, "ok"]));
     agent.setDelegateConfig({ userToken: "tok", workflowId: 7 });
     await agent.sendMessage("go");
     expect(compileHeaders).toEqual([{ Authorization: "Bearer tok", "Content-Type": "application/json" }]);
@@ -1594,7 +1594,7 @@ describe("delegate mode", () => {
       expect(entry?.operatorInfo.state).toBe(OperatorState.COMPLETED);
       expect(entry?.operatorInfo.resultSummary?.totalTuplesCount).toBe(1);
       // The execution's result is part of the tool result, and a later turn finds it there;
-      // getWorkflow only says that the operator has a result and how big it is.
+      // get_workflow only says that the operator has a result and how big it is.
       const result = "Operator op-1 modified\nExecuted operator op-1\nOutput table shape: (1, 1)\n\tz\n0\t9";
       expect(steps[1].toolResults).toEqual([{ toolCallId: "c1", output: result, isError: false }]);
       await agent.sendMessage("and now?");
@@ -1608,7 +1608,7 @@ describe("delegate mode", () => {
     }
   });
 
-  test("sends only native messages in delegate mode too, and getWorkflow reports the filed result", async () => {
+  test("sends only native messages in delegate mode too, and get_workflow reports the filed result", async () => {
     dispatch(okExec);
     const vSpy = spyOn(WorkflowSystemMetadata.getInstance(), "validateOperatorProperties").mockReturnValue({
       isValid: true,
@@ -1616,7 +1616,7 @@ describe("delegate mode", () => {
     try {
       const model = scriptedModel([
         { call: "modifyOperator", input: { operatorId: "op-1", summary: "renamed" } },
-        { call: "getWorkflow", input: {} },
+        { call: "get_workflow", input: {} },
         "done",
         "again",
       ]);
@@ -1637,9 +1637,9 @@ describe("delegate mode", () => {
     }
   });
 
-  test("getOperatorResult returns a filed result without executing anything", async () => {
+  test("get_operator_result returns a filed result without executing anything", async () => {
     dispatch(okExec);
-    const model = scriptedModel([{ call: "getOperatorResult", input: { operatorId: "op-1" } }, "ok"]);
+    const model = scriptedModel([{ call: "get_operator_result", input: { operatorId: "op-1" } }, "ok"]);
     const agent = makeAgentWith(model);
     agent.setDelegateConfig({ userToken: "tok", workflowId: 7, workflowName: "w" });
     agent.getWorkflowResultState().set("op-1", INITIAL_STEP_ID, completedSummary([{ z: 9 }]));

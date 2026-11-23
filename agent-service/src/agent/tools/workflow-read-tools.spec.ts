@@ -131,7 +131,7 @@ function contextOf(
   };
 }
 
-describe("getWorkflow", () => {
+describe("get_workflow", () => {
   test("says the workflow is empty, without compiling it", async () => {
     const context = contextOf(new WorkflowState());
     expect(await describeWorkflow(context)).toBe("The workflow is empty.");
@@ -277,20 +277,20 @@ describe("getWorkflow", () => {
       "Result: outdated, it or an operator it reads from changed after its last execution"
     );
     expect(listing).not.toContain("deleted");
-    // The records themselves are left to getOperatorResult.
+    // The records themselves are left to get_operator_result.
     expect(listing).not.toContain("Output table shape");
   });
 
   test("is a tool that takes no input and returns the listing", async () => {
     const workflowState = new WorkflowState();
     workflowState.addOperator(makeOperator("op1"));
-    const getWorkflow = createGetWorkflowTool(contextOf(workflowState));
-    expect(getWorkflow.description).toContain("getOperatorResult");
-    expect(await (getWorkflow as any).execute({}, {})).toStartWith("## Operators");
+    const tool = createGetWorkflowTool(contextOf(workflowState));
+    expect(tool.description).toContain("get_operator_result");
+    expect(await (tool as any).execute({}, {})).toStartWith("## Operators");
   });
 });
 
-describe("getOperatorResult", () => {
+describe("get_operator_result", () => {
   const workflowState = new WorkflowState();
   for (const id of ["op1", "op2", "op3", "op4", "op5"]) workflowState.addOperator(makeOperator(id));
   const rows = Array.from({ length: 30 }, (_, i) => ({ id: i, name: `row-${i}-${"x".repeat(40)}` }));
@@ -338,9 +338,9 @@ describe("getOperatorResult", () => {
   });
 
   test("is a tool that takes the operator id", async () => {
-    const getOperatorResult = createGetOperatorResultTool(context);
-    expect(getOperatorResult.description).toContain("does not execute anything");
-    expect(await (getOperatorResult as any).execute({ operatorId: "op3" }, {})).toBe(
+    const tool = createGetOperatorResultTool(context);
+    expect(tool.description).toContain("does not execute anything");
+    expect(await (tool as any).execute({ operatorId: "op3" }, {})).toBe(
       "Operator op3 has no result: it has not been executed in this conversation."
     );
   });

@@ -266,7 +266,7 @@ export class TexeraAgent {
     };
 
     // Nothing writes the workflow into the conversation: the model sees it whole only through
-    // getWorkflow, and reads a stored result again through getOperatorResult.
+    // get_workflow, and reads a stored result again through get_operator_result.
     const readContext: WorkflowReadContext = {
       workflowState: this.workflowState,
       compileWorkflow: async () =>

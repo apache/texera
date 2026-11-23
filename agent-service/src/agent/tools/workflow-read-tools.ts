@@ -29,8 +29,8 @@ import type { WorkflowCompilationResponse, WorkflowFatalError } from "../../api/
 import { extractOperatorInputPortSchemaMap } from "../util/workflow-utils";
 import { createErrorResult, formatOperatorOutput, getOperatorErrorText, tupleColumns } from "./tools-utility";
 
-export const TOOL_NAME_GET_WORKFLOW = "getWorkflow";
-export const TOOL_NAME_GET_OPERATOR_RESULT = "getOperatorResult";
+export const TOOL_NAME_GET_WORKFLOW = "get_workflow";
+export const TOOL_NAME_GET_OPERATOR_RESULT = "get_operator_result";
 
 /** An operator's latest result, and whether the workflow has changed under it since. */
 export interface OperatorResultRecord {
@@ -73,7 +73,7 @@ export function createGetOperatorResultTool(context: WorkflowReadContext) {
   });
 }
 
-/** What getWorkflow returns: the operators in dataflow order, then the links. */
+/** What get_workflow returns: the operators in dataflow order, then the links. */
 export async function describeWorkflow(context: WorkflowReadContext): Promise<string> {
   const { workflowState } = context;
   if (workflowState.getAllOperators().length === 0) return "The workflow is empty.";
@@ -91,7 +91,7 @@ export async function describeWorkflow(context: WorkflowReadContext): Promise<st
   return compileFailure ? `${listing}\n\nNo schemas: compiling the workflow failed (${compileFailure}).` : listing;
 }
 
-/** What getOperatorResult returns for one operator. */
+/** What get_operator_result returns for one operator. */
 export function operatorResult(context: WorkflowReadContext, operatorId: string): string {
   if (!context.workflowState.getOperator(operatorId)) {
     return createErrorResult(`Operator ${operatorId} not found`);
@@ -227,7 +227,7 @@ function serializeOperator(
   return lines.join("\n");
 }
 
-/** One line on an operator's latest result: enough to know whether getOperatorResult has anything. */
+/** One line on an operator's latest result: enough to know whether get_operator_result has anything. */
 function describeResult(record: OperatorResultRecord | undefined): string {
   if (!record) return "none, not executed in this conversation";
   if (record.outdated) return "outdated, it or an operator it reads from changed after its last execution";

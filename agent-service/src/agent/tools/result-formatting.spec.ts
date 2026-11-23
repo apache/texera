@@ -75,7 +75,7 @@ function makeOpInfo(overrides: OpInfoOverrides = {}): OperatorExecutionSummary {
   };
 }
 
-// formatOperatorOutput is what the execute tool and getOperatorResult show the model for a result.
+// formatOperatorOutput is what the execute tool and get_operator_result show the model for a result.
 describe("formatOperatorOutput - early returns", () => {
   test("returns (no result data) when result is undefined", () => {
     const out = formatOperatorOutput("op1", makeOpInfo());
