@@ -26,6 +26,14 @@ import { NzButtonComponent } from "ng-zorro-antd/button";
 import { NzWaveDirective } from "ng-zorro-antd/core/wave";
 import { ɵNzTransitionPatchDirective } from "ng-zorro-antd/core/transition-patch";
 
+/** Builds fresh required `name` and optional `description` Formly configs for resource creator modals. */
+export function resourceNameAndDescriptionFields(): FormlyFieldConfig[] {
+  return [
+    { key: "name", type: "input", templateOptions: { label: "Name", required: true } },
+    { key: "description", type: "input", defaultValue: "", templateOptions: { label: "Description" } },
+  ];
+}
+
 /**
  * The creation form shared by the dataset and model creators: the Formly fields, the visibility
  * and downloadability switches, and the Create and Cancel buttons. The parent keeps the state and

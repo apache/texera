@@ -62,14 +62,13 @@ import org.apache.texera.amber.engine.common.virtualidentity.util.COORDINATOR
 import org.apache.texera.amber.util.JSONUtils.objectMapper
 import org.apache.texera.amber.util.VirtualIdentityUtils
 import org.scalamock.scalatest.MockFactory
-import org.scalatest.BeforeAndAfterEach
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 
 import java.util.concurrent.LinkedBlockingQueue
 import scala.collection.mutable.ArrayBuffer
 
-class DataProcessorSpec extends AnyFlatSpec with MockFactory with Matchers with BeforeAndAfterEach {
+class DataProcessorSpec extends AnyFlatSpec with MockFactory with Matchers {
 
   import DataProcessorSpec._
 

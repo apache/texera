@@ -29,11 +29,12 @@ import org.apache.iceberg.catalog.TableIdentifier
 import org.apache.iceberg.types.Types
 import org.apache.texera.amber.core.storage.{
   DocumentFactory,
+  IcebergCatalogInstance,
   LocalHadoopIcebergCatalog,
   VFSURIFactory
 }
 import org.apache.texera.amber.core.storage.model.{BufferedItemWriter, VirtualDocument}
-import org.apache.texera.amber.core.storage.result.iceberg.OnIceberg
+import org.apache.texera.amber.core.storage.result.iceberg.{FailingCatalog, OnIceberg}
 import org.apache.texera.amber.core.tuple.{Attribute, AttributeType, Schema, Tuple}
 import org.apache.texera.amber.core.virtualidentity.{
   ExecutionIdentity,
@@ -202,6 +203,14 @@ class ResultResourceSpec
   override protected def beforeEach(): Unit = {
     getDSLContext.deleteFrom(OPERATOR_PORT_EXECUTIONS).execute()
     getDSLContext.deleteFrom(WORKFLOW_EXECUTIONS).execute()
+  }
+
+  /** Runs `body` on a catalog that lets `succeeding` `loadTable` calls through, then fails. */
+  private def withFailingCatalog(succeeding: Int)(body: => Unit): Unit = {
+    val catalog = IcebergCatalogInstance.getInstance()
+    IcebergCatalogInstance.replaceInstance(new FailingCatalog(catalog, succeeding))
+    try body
+    finally IcebergCatalogInstance.replaceInstance(catalog)
   }
 
   /** An execution of the workflow, on the owner's computing unit unless `on` says otherwise. */
@@ -606,6 +615,24 @@ class ResultResourceSpec
       .commit()
 
     get(owner, pagesPath(eid)).getStatus shouldBe 500
+  }
+
+  it should "answer 500, not 404, when the catalog is unavailable" in {
+    val eid = insertExecution(owner)
+    storeResult(eid)
+
+    withFailingCatalog(succeeding = 0) {
+      get(owner, pagesPath(eid)).getStatus shouldBe 500
+    }
+  }
+
+  it should "answer 500, not an empty page, when the catalog fails after opening the result" in {
+    val eid = insertExecution(owner)
+    storeResult(eid)
+
+    withFailingCatalog(succeeding = 1) {
+      get(owner, pagesPath(eid)).getStatus shouldBe 500
+    }
   }
 
   it should "answer 503 for a result in a warehouse it cannot read" in {
