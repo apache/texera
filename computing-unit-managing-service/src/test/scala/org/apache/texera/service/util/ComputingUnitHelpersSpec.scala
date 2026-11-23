@@ -33,6 +33,7 @@ import org.apache.texera.dao.jooq.generated.tables.daos.{UserDao, WorkflowComput
 import org.apache.texera.dao.jooq.generated.tables.pojos.{User, WorkflowComputingUnit}
 import org.apache.texera.service.resource.ComputingUnitManagingResource.WorkflowComputingUnitMetrics
 import org.apache.texera.service.resource.ComputingUnitState.{
+  ComputingUnitState,
   Failed,
   Pending,
   Running,
@@ -105,15 +106,62 @@ class ComputingUnitHelpersSpec
   // uses, so these tests cover the snapshot extraction and the state mapping
   // together.
 
-  private def terminatingPod(): Pod =
-    new PodBuilder()
+  private val diskEvictionMessage =
+    "Pod ephemeral local storage usage exceeds the total limit of containers 1Gi."
+  private val diskEvictionReason =
+    "The computing unit was evicted because it ran out of local disk storage. Consider " +
+      "storing less data on the unit's local file system, or recreate it with more storage."
+  private val imagePullReason =
+    "The computing unit's image could not be pulled. Please recreate the unit or contact " +
+      "an administrator."
+  private def crashLoopReason(restarts: Int): String =
+    s"The computing unit is repeatedly crashing (restarted $restarts times). Please terminate and " +
+      "recreate it, or contact an administrator."
+  private def clusterEvictionReason(detail: String): String =
+    s"The computing unit was evicted by the cluster ($detail). Consider recreating it."
+
+  private def terminatingPod(
+      phase: Option[String] = Some("Running"),
+      reason: Option[String] = None,
+      message: Option[String] = None
+  ): Pod = {
+    val base = new PodBuilder()
       .withNewMetadata()
       .withDeletionTimestamp("2026-08-20T00:00:00Z")
       .endMetadata()
-      .withNewStatus()
-      .withPhase("Running")
-      .endStatus()
+    phase
+      .fold(base) { p =>
+        val status = base.withNewStatus().withPhase(p)
+        val withReason = reason.fold(status)(status.withReason)
+        message.fold(withReason)(withReason.withMessage).endStatus()
+      }
       .build()
+  }
+
+  /** A pod with one container per (restart count, waiting reason, last terminated reason). */
+  private def podWithContainers(
+      phase: String,
+      containers: (Int, Option[String], Option[String])*
+  ): Pod = {
+    val withContainers = containers.foldLeft(new PodBuilder().withNewStatus().withPhase(phase)) {
+      case (status, (restarts, waitingReason, lastTerminatedReason)) =>
+        val container = status.addNewContainerStatus().withRestartCount(restarts)
+        val withState = waitingReason.fold(container)(reason =>
+          container.withNewState().withNewWaiting().withReason(reason).endWaiting().endState()
+        )
+        lastTerminatedReason
+          .fold(withState)(reason =>
+            withState
+              .withNewLastState()
+              .withNewTerminated()
+              .withReason(reason)
+              .endTerminated()
+              .endLastState()
+          )
+          .endContainerStatus()
+    }
+    withContainers.endStatus().build()
+  }
 
   private def evictedPod(message: String): Pod =
     new PodBuilder()
@@ -130,51 +178,17 @@ class ComputingUnitHelpersSpec
       waitingReason: String,
       lastTerminatedReason: Option[String] = None,
       restartCount: Int = 0
-  ): Pod = {
-    val builder = new PodBuilder()
-      .withNewStatus()
-      .withPhase(phase)
-      .addNewContainerStatus()
-      .withRestartCount(restartCount)
-      .withNewState()
-      .withNewWaiting()
-      .withReason(waitingReason)
-      .endWaiting()
-      .endState()
-    lastTerminatedReason
-      .fold(builder)(reason =>
-        builder
-          .withNewLastState()
-          .withNewTerminated()
-          .withReason(reason)
-          .endTerminated()
-          .endLastState()
-      )
-      .endContainerStatus()
-      .endStatus()
-      .build()
-  }
+  ): Pod =
+    podWithContainers(phase, (restartCount, Some(waitingReason), lastTerminatedReason))
 
   /** A running pod whose container previously terminated with the given reason. */
   private def restartedPod(lastTerminatedReason: String, restartCount: Int): Pod =
-    new PodBuilder()
-      .withNewStatus()
-      .withPhase("Running")
-      .addNewContainerStatus()
-      .withRestartCount(restartCount)
-      .withNewLastState()
-      .withNewTerminated()
-      .withReason(lastTerminatedReason)
-      .endTerminated()
-      .endLastState()
-      .endContainerStatus()
-      .endStatus()
-      .build()
+    podWithContainers("Running", (restartCount, None, Some(lastTerminatedReason)))
 
-  private def unschedulablePod(): Pod =
+  private def unschedulablePod(phase: String = "Pending"): Pod =
     new PodBuilder()
       .withNewStatus()
-      .withPhase("Pending")
+      .withPhase(phase)
       .addNewCondition()
       .withType("PodScheduled")
       .withStatus("False")
@@ -183,49 +197,38 @@ class ComputingUnitHelpersSpec
       .endStatus()
       .build()
 
+  private def stubSingleUnitStatus(
+      cuid: Int,
+      pod: Option[Pod]
+  ): (ComputingUnitState, Option[String]) = {
+    val k8s = mock(classOf[KubernetesClient])
+    when(k8s.generatePodName(cuid)).thenReturn(s"computing-unit-$cuid")
+    when(k8s.getPodByName(s"computing-unit-$cuid")).thenReturn(pod)
+    ComputingUnitHelpers.singleUnitStatusAndReason(kubernetesUnit(cuid), k8s)
+  }
+
   private def snapshotOf(pod: Pod): PodStatusSnapshot = PodStatusSnapshot.fromPod(pod)
 
-  private def statusAndReasonOf(
-      pod: Pod
-  ): (org.apache.texera.service.resource.ComputingUnitState.ComputingUnitState, Option[String]) =
+  private def statusAndReasonOf(pod: Pod): (ComputingUnitState, Option[String]) =
     ComputingUnitHelpers.kubernetesStatusAndReason(Some(snapshotOf(pod)))
 
   // The kubernetes branch does a per-unit pod lookup, so singleUnitStatusAndReason is driven
   // through a stubbed client (the public overloads bind the production singleton).
   "singleUnitStatusAndReason" should "return Running for a kubernetes unit whose pod phase is Running" in {
-    val k8s = mock(classOf[KubernetesClient])
-    when(k8s.generatePodName(40)).thenReturn("computing-unit-40")
-    when(k8s.getPodByName("computing-unit-40")).thenReturn(Some(podWithPhase("Running")))
-    ComputingUnitHelpers.singleUnitStatusAndReason(kubernetesUnit(40), k8s) shouldBe
-      ((Running, None))
+    stubSingleUnitStatus(40, Some(podWithPhase("Running"))) shouldBe ((Running, None))
   }
 
   it should "return Pending for a kubernetes unit whose pod has no status yet" in {
-    val k8s = mock(classOf[KubernetesClient])
-    when(k8s.generatePodName(41)).thenReturn("computing-unit-41")
-    when(k8s.getPodByName("computing-unit-41")).thenReturn(Some(statuslessPod()))
-    ComputingUnitHelpers.singleUnitStatusAndReason(kubernetesUnit(41), k8s) shouldBe
-      ((Pending, None))
+    stubSingleUnitStatus(41, Some(statuslessPod())) shouldBe ((Pending, None))
   }
 
   it should "return Pending for a kubernetes unit whose pod is absent" in {
-    val k8s = mock(classOf[KubernetesClient])
-    when(k8s.generatePodName(42)).thenReturn("computing-unit-42")
-    when(k8s.getPodByName("computing-unit-42")).thenReturn(None)
-    ComputingUnitHelpers.singleUnitStatusAndReason(kubernetesUnit(42), k8s) shouldBe
-      ((Pending, None))
+    stubSingleUnitStatus(42, None) shouldBe ((Pending, None))
   }
 
   it should "surface the failure state and reason of a dead pod" in {
-    val k8s = mock(classOf[KubernetesClient])
-    when(k8s.generatePodName(43)).thenReturn("computing-unit-43")
-    when(k8s.getPodByName("computing-unit-43"))
-      .thenReturn(Some(waitingContainerPod("Pending", "ImagePullBackOff")))
-    val (state, reason) = ComputingUnitHelpers.singleUnitStatusAndReason(kubernetesUnit(43), k8s)
-    state shouldBe Failed
-    reason shouldBe Some(
-      "The computing unit's image could not be pulled. Please recreate the unit or contact an administrator."
-    )
+    stubSingleUnitStatus(43, Some(waitingContainerPod("Pending", "ImagePullBackOff"))) shouldBe
+      ((Failed, Some(imagePullReason)))
   }
 
   "getComputingUnitMetrics" should "return NaN metrics for a local unit" in {
@@ -287,85 +290,48 @@ class ComputingUnitHelpersSpec
   it should "map a status-less pod that is being deleted to Terminating, not Pending" in {
     // A pod can carry a deletion timestamp before its status is ever populated; the
     // empty-status snapshot must still honor the terminating flag.
-    val pod = new PodBuilder()
-      .withNewMetadata()
-      .withDeletionTimestamp("2026-08-20T00:00:00Z")
-      .endMetadata()
-      .build()
-    statusAndReasonOf(pod) shouldBe ((Terminating, None))
+    statusAndReasonOf(terminatingPod(phase = None)) shouldBe ((Terminating, None))
   }
 
   it should "let Terminating win over an eviction" in {
     // Deleting an already-evicted pod is the owner acting on the failure: the row should
     // show the deletion in progress, not keep explaining the eviction.
-    val pod = new PodBuilder()
-      .withNewMetadata()
-      .withDeletionTimestamp("2026-08-20T00:00:00Z")
-      .endMetadata()
-      .withNewStatus()
-      .withPhase("Failed")
-      .withReason("Evicted")
-      .withMessage("Pod ephemeral local storage usage exceeds the total limit of containers 1Gi.")
-      .endStatus()
-      .build()
-    statusAndReasonOf(pod) shouldBe ((Terminating, None))
+    statusAndReasonOf(
+      terminatingPod(
+        phase = Some("Failed"),
+        reason = Some("Evicted"),
+        message = Some(diskEvictionMessage)
+      )
+    ) shouldBe ((Terminating, None))
   }
 
   it should "map a disk-pressure eviction to Failed with the local-disk reason" in {
-    val (state, reason) = statusAndReasonOf(
-      evictedPod("Pod ephemeral local storage usage exceeds the total limit of containers 1Gi.")
-    )
-    state shouldBe Failed
-    reason shouldBe Some(
-      "The computing unit was evicted because it ran out of local disk storage. Consider " +
-        "storing less data on the unit's local file system, or recreate it with more storage."
-    )
+    statusAndReasonOf(evictedPod(diskEvictionMessage)) shouldBe ((Failed, Some(diskEvictionReason)))
   }
 
   it should "map any other eviction to Failed with a short version of the cluster's reason" in {
-    val (state, reason) = statusAndReasonOf(
+    statusAndReasonOf(
       evictedPod("The node was low on resource: memory. Container was using more than its request.")
-    )
-    state shouldBe Failed
-    reason shouldBe Some(
-      "The computing unit was evicted by the cluster (The node was low on resource: memory). " +
-        "Consider recreating it."
-    )
+    ) shouldBe ((Failed, Some(clusterEvictionReason("The node was low on resource: memory"))))
   }
 
   it should "fall back to the pod's Evicted reason when the eviction carries no message" in {
-    val (state, reason) = statusAndReasonOf(evictedPod(null))
-    state shouldBe Failed
-    reason shouldBe Some(
-      "The computing unit was evicted by the cluster (Evicted). Consider recreating it."
-    )
+    statusAndReasonOf(evictedPod(null)) shouldBe ((Failed, Some(clusterEvictionReason("Evicted"))))
   }
 
   it should "fall back to the pod's Evicted reason when the eviction message is only whitespace" in {
-    val (state, reason) = statusAndReasonOf(evictedPod("   "))
-    state shouldBe Failed
-    reason shouldBe Some(
-      "The computing unit was evicted by the cluster (Evicted). Consider recreating it."
-    )
+    statusAndReasonOf(evictedPod("   ")) shouldBe ((Failed, Some(clusterEvictionReason("Evicted"))))
   }
 
   it should "use the whole eviction message when it contains no period" in {
-    val (state, reason) = statusAndReasonOf(evictedPod("The node was under memory pressure"))
-    state shouldBe Failed
-    reason shouldBe Some(
-      "The computing unit was evicted by the cluster (The node was under memory pressure). " +
-        "Consider recreating it."
-    )
+    statusAndReasonOf(evictedPod("The node was under memory pressure")) shouldBe
+      ((Failed, Some(clusterEvictionReason("The node was under memory pressure"))))
   }
 
   it should "truncate an eviction sentence longer than 120 characters" in {
     val sentence = "The node reported " + ("x" * 120) // 138 chars, no period
-    val (state, reason) = statusAndReasonOf(evictedPod(sentence))
-    state shouldBe Failed
-    reason shouldBe Some(
-      s"The computing unit was evicted by the cluster (${sentence.take(120)}...). " +
-        "Consider recreating it."
-    )
+    statusAndReasonOf(evictedPod(sentence)) shouldBe
+      ((Failed, Some(clusterEvictionReason(s"${sentence.take(120)}..."))))
   }
 
   it should "detect the disk-pressure wording case-insensitively" in {
@@ -373,12 +339,7 @@ class ComputingUnitHelpersSpec
       "EPHEMERAL storage limit exceeded",
       "The node was low on Disk space"
     ).foreach { message =>
-      val (state, reason) = statusAndReasonOf(evictedPod(message))
-      state shouldBe Failed
-      reason shouldBe Some(
-        "The computing unit was evicted because it ran out of local disk storage. Consider " +
-          "storing less data on the unit's local file system, or recreate it with more storage."
-      )
+      statusAndReasonOf(evictedPod(message)) shouldBe ((Failed, Some(diskEvictionReason)))
     }
   }
 
@@ -401,22 +362,13 @@ class ComputingUnitHelpersSpec
       .endStatus()
       .build()
 
-    val (state, reason) = statusAndReasonOf(pod)
-    state shouldBe Failed
-    reason shouldBe Some(
-      "The computing unit was evicted because it ran out of local disk storage. Consider " +
-        "storing less data on the unit's local file system, or recreate it with more storage."
-    )
+    statusAndReasonOf(pod) shouldBe ((Failed, Some(diskEvictionReason)))
   }
 
   it should "map every image-pull waiting reason to Failed with the image-pull reason" in {
     Seq("ImagePullBackOff", "ErrImagePull", "InvalidImageName").foreach { waitingReason =>
-      val (state, reason) = statusAndReasonOf(waitingContainerPod("Pending", waitingReason))
-      state shouldBe Failed
-      reason shouldBe Some(
-        "The computing unit's image could not be pulled. Please recreate the unit or contact " +
-          "an administrator."
-      )
+      statusAndReasonOf(waitingContainerPod("Pending", waitingReason)) shouldBe
+        ((Failed, Some(imagePullReason)))
     }
   }
 
@@ -439,119 +391,44 @@ class ComputingUnitHelpersSpec
   }
 
   it should "map a plain crash loop to Failed with the restart count" in {
-    val (state, reason) = statusAndReasonOf(
+    statusAndReasonOf(
       waitingContainerPod(
         "Running",
         "CrashLoopBackOff",
         lastTerminatedReason = Some("Error"),
         restartCount = 7
       )
-    )
-    state shouldBe Failed
-    reason shouldBe Some(
-      "The computing unit is repeatedly crashing (restarted 7 times). Please terminate and " +
-        "recreate it, or contact an administrator."
-    )
+    ) shouldBe ((Failed, Some(crashLoopReason(7))))
   }
 
   it should "fail the unit when any container crash-loops, not just the first one" in {
     // Multi-container pod (e.g. a sidecar): the healthy first container must not mask the
     // crash-looping second one.
-    val pod = new PodBuilder()
-      .withNewStatus()
-      .withPhase("Running")
-      .addNewContainerStatus()
-      .withRestartCount(0)
-      .endContainerStatus()
-      .addNewContainerStatus()
-      .withRestartCount(3)
-      .withNewState()
-      .withNewWaiting()
-      .withReason("CrashLoopBackOff")
-      .endWaiting()
-      .endState()
-      .endContainerStatus()
-      .endStatus()
-      .build()
-
-    val (state, reason) = statusAndReasonOf(pod)
-    state shouldBe Failed
-    reason shouldBe Some(
-      "The computing unit is repeatedly crashing (restarted 3 times). Please terminate and " +
-        "recreate it, or contact an administrator."
-    )
+    val pod = podWithContainers("Running", (0, None, None), (3, Some("CrashLoopBackOff"), None))
+    statusAndReasonOf(pod) shouldBe ((Failed, Some(crashLoopReason(3))))
   }
 
   it should "word a crash loop by the crash-looping container's own history, not a sibling's" in {
     // Container A recovered from an OOM kill and is running; container B crash-loops for a
     // non-OOM reason. The wording (and restart count) must come from B's own lastState, so
     // A's OOM history must not upgrade the message to the out-of-memory variant.
-    val pod = new PodBuilder()
-      .withNewStatus()
-      .withPhase("Running")
-      .addNewContainerStatus()
-      .withRestartCount(2)
-      .withNewLastState()
-      .withNewTerminated()
-      .withReason("OOMKilled")
-      .endTerminated()
-      .endLastState()
-      .endContainerStatus()
-      .addNewContainerStatus()
-      .withRestartCount(6)
-      .withNewState()
-      .withNewWaiting()
-      .withReason("CrashLoopBackOff")
-      .endWaiting()
-      .endState()
-      .withNewLastState()
-      .withNewTerminated()
-      .withReason("Error")
-      .endTerminated()
-      .endLastState()
-      .endContainerStatus()
-      .endStatus()
-      .build()
-
-    val (state, reason) = statusAndReasonOf(pod)
-    state shouldBe Failed
-    reason shouldBe Some(
-      "The computing unit is repeatedly crashing (restarted 6 times). Please terminate and " +
-        "recreate it, or contact an administrator."
+    val pod = podWithContainers(
+      "Running",
+      (2, None, Some("OOMKilled")),
+      (6, Some("CrashLoopBackOff"), Some("Error"))
     )
+    statusAndReasonOf(pod) shouldBe ((Failed, Some(crashLoopReason(6))))
   }
 
   it should "let an image-pull failure win over a crash-looping sibling container" in {
     // Precedence pin: the image-pull check runs before the crash-loop one, because a unit
     // whose image cannot be pulled can only be fixed by recreating it.
-    val pod = new PodBuilder()
-      .withNewStatus()
-      .withPhase("Pending")
-      .addNewContainerStatus()
-      .withRestartCount(0)
-      .withNewState()
-      .withNewWaiting()
-      .withReason("ErrImagePull")
-      .endWaiting()
-      .endState()
-      .endContainerStatus()
-      .addNewContainerStatus()
-      .withRestartCount(3)
-      .withNewState()
-      .withNewWaiting()
-      .withReason("CrashLoopBackOff")
-      .endWaiting()
-      .endState()
-      .endContainerStatus()
-      .endStatus()
-      .build()
-
-    val (state, reason) = statusAndReasonOf(pod)
-    state shouldBe Failed
-    reason shouldBe Some(
-      "The computing unit's image could not be pulled. Please recreate the unit or contact " +
-        "an administrator."
+    val pod = podWithContainers(
+      "Pending",
+      (0, Some("ErrImagePull"), None),
+      (3, Some("CrashLoopBackOff"), None)
     )
+    statusAndReasonOf(pod) shouldBe ((Failed, Some(imagePullReason)))
   }
 
   it should "map a non-evicted Failed phase to Failed with the generic reason" in {
@@ -582,17 +459,7 @@ class ComputingUnitHelpersSpec
   it should "ignore a stale Unschedulable condition once the pod is Running" in {
     // The unschedulable explanation is gated on phase Pending, so a leftover
     // PodScheduled=False condition on a pod that has since started must not resurface it.
-    val pod = new PodBuilder()
-      .withNewStatus()
-      .withPhase("Running")
-      .addNewCondition()
-      .withType("PodScheduled")
-      .withStatus("False")
-      .withReason("Unschedulable")
-      .endCondition()
-      .endStatus()
-      .build()
-    statusAndReasonOf(pod) shouldBe ((Running, None))
+    statusAndReasonOf(unschedulablePod(phase = "Running")) shouldBe ((Running, None))
   }
 
   it should "keep a recovered OOM-killed pod Running but attach the memory warning" in {
