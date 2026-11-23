@@ -43,7 +43,11 @@ import org.apache.iceberg.{
   Schema => IcebergSchema
 }
 import org.apache.iceberg.catalog.Namespace
-import org.apache.iceberg.exceptions.AlreadyExistsException
+import org.apache.iceberg.exceptions.{
+  AlreadyExistsException,
+  NoSuchNamespaceException,
+  NoSuchTableException
+}
 
 import java.nio.ByteBuffer
 import java.nio.file.Path
@@ -230,7 +234,10 @@ object IcebergUtil {
   /**
     * Loads metadata for an existing Iceberg table.
     * - Returns `Some(Table)` if the table exists and is successfully loaded.
-    * - Returns `None` if the table does not exist or cannot be loaded.
+    * - Returns `None` if the table, or its namespace, does not exist.
+    *
+    * Any other failure is thrown, such as a catalog that cannot be reached. Taken for a missing
+    * table, it would make a result that exists look deleted, or a table read as empty.
     *
     * @param catalog the Iceberg catalog to load the table from.
     * @param tableNamespace the namespace of the table.
@@ -246,7 +253,7 @@ object IcebergUtil {
     try {
       Some(catalog.loadTable(identifier))
     } catch {
-      case _: Exception => None
+      case _: NoSuchTableException | _: NoSuchNamespaceException => None
     }
   }
 

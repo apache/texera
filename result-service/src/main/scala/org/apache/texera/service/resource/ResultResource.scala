@@ -38,6 +38,7 @@ import jakarta.ws.rs.{
 import org.apache.texera.amber.core.storage.model.VirtualDocument
 import org.apache.texera.amber.core.storage.{
   DocumentFactory,
+  DocumentNotFoundException,
   WarehouseReadGuard,
   WarehouseUnavailableException
 }
@@ -265,7 +266,7 @@ class ResultResource {
       (document._1.asInstanceOf[VirtualDocument[Tuple]], document._2.get)
     } catch {
       case e: WarehouseUnavailableException => throw new ServiceUnavailableException(e.getMessage)
-      case e: IllegalArgumentException if e.getMessage.contains("No storage is found") =>
+      case _: DocumentNotFoundException =>
         throw new NotFoundException(s"the result of operator $operatorId is no longer stored")
     }
 }

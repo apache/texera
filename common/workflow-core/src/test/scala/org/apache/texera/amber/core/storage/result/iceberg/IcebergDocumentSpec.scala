@@ -24,7 +24,7 @@ import org.apache.texera.amber.core.storage.LocalHadoopIcebergCatalog
 import org.apache.texera.amber.core.storage.model.VirtualDocument
 import org.apache.texera.amber.core.tuple.{AttributeType, Schema, Tuple}
 import org.apache.texera.amber.util.IcebergUtil
-import org.apache.iceberg.catalog.TableIdentifier
+import org.apache.iceberg.catalog.{Catalog, TableIdentifier}
 import org.apache.iceberg.data.Record
 import org.apache.iceberg.exceptions.NoSuchTableException
 import org.apache.iceberg.io.CloseableIterator
@@ -427,37 +427,56 @@ class IcebergDocumentSpec extends AnyFlatSpec with Matchers with BeforeAndAfterA
     doc.asInstanceOf[IcebergDocument[Tuple]].tableNamespace shouldBe tableNamespace
     doc.asInstanceOf[IcebergDocument[Tuple]].tableName shouldBe name
   }
+
+  /**
+    * A document of `tableName` that reads through `through`. It overrides its catalog rather than
+    * replacing a shared one: outside `rest`, every warehouse shares one entry.
+    */
+  private def documentThrough(through: Catalog, tableName: String): IcebergDocument[Tuple] =
+    new IcebergDocument[Tuple](tableNamespace, tableName, icebergSchema, serde, deserde) {
+      override def catalog: Catalog = through
+    }
+
+  /**
+    * Writes `rows` rows, and returns a document that reads them through a catalog which lets
+    * `succeeding` `loadTable` calls through before it fails.
+    */
+  private def documentOnFailingCatalog(rows: Int, succeeding: Int): IcebergDocument[Tuple] = {
+    val tableName = freshTableName()
+    write(newDocument(tableName), (0 until rows).map(tuple))
+    documentThrough(new FailingCatalog(IcebergCatalogInstance.getInstance(), succeeding), tableName)
+  }
+
+  it should "throw rather than count 0 rows when its catalog is unavailable" in {
+    val error = intercept[RuntimeException](documentOnFailingCatalog(3, 0).getCount)
+    error.getMessage shouldBe "catalog unavailable"
+  }
+
+  it should "throw rather than read as empty when its catalog is unavailable" in {
+    val error = intercept[RuntimeException](documentOnFailingCatalog(3, 0).get().toList)
+    error.getMessage shouldBe "catalog unavailable"
+  }
+
+  it should "keep the rows it has read when its catalog fails while it looks for newer ones" in {
+    // The first call resolves the table; the second is the look for files committed since, made
+    // once every row of that snapshot has been returned.
+    documentOnFailingCatalog(3, 1).get().toList should have size 3
+  }
+
   it should "re-resolve its catalog on every seek, keeping a polling reader's entry live" in {
     // #7290 review: a reader that refreshed a pinned Table never touched the catalog
     // cache again, so a long poll looked idle -- expiry could close the catalog under
     // it. Per-seek re-resolution touches the cache at iterator construction AND every
     // seek; the pinned-refresh implementation stopped at the construction touch.
     val tableName = freshTableName()
-    IcebergUtil.createTable(
-      IcebergCatalogInstance.getInstance(),
-      tableNamespace,
-      tableName,
-      icebergSchema,
-      overrideIfExists = true
-    )
+    write(newDocument(tableName), (1 to 3).map(tuple))
     val counting = new CountingCatalog(IcebergCatalogInstance.getInstance())
-    IcebergCatalogInstance.replaceInstance(counting, Some("iceberg-doc-spec-counting"))
-    val doc = new IcebergDocument[Tuple](
-      tableNamespace,
-      tableName,
-      icebergSchema,
-      serde,
-      deserde,
-      Some("iceberg-doc-spec-counting")
-    )
-    write(doc, (1 to 3).map(tuple))
 
-    val before = counting.loadTableCalls.get()
-    doc.get().toList should have size 3
+    documentThrough(counting, tableName).get().toList should have size 3
 
     // Exactly the construction-time seek and the final exhausted-files seek resolve
     // through the catalog: the pinned-refresh implementation touched it only once,
     // and an eager constructor-time load would add a wasted third round trip.
-    (counting.loadTableCalls.get() - before) shouldBe 2
+    counting.loadTableCalls.get() shouldBe 2
   }
 }
