@@ -2125,15 +2125,10 @@ object ConfigGenerator {
       ).toOption.map(s => SchemaScope(s, s)).getOrElse(empty)
   }
 
-  /** The fields an object's conditional `allOf` requires of `row` as it stands. The
-    * condition is JSON Schema's own `properties`/`const`, not the `valEnum` form a
-    * Texera rule uses, because this one is read by the validator rather than by the
-    * form.
-    */
   private final case class FillContext(
-      schemas: Map[Int, Schema] = Map.empty,
-      used: mutable.Set[(Int, String)] = mutable.Set.empty,
-      rowCount: Int = DefaultRowCount
+      schemas: Map[Int, Schema],
+      used: mutable.Set[(Int, String)],
+      rowCount: Int
   )
 
   /** Whether a config holds nothing at this key: absent, null, the empty string a
