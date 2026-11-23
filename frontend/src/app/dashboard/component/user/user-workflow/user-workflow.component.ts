@@ -75,6 +75,7 @@ import { NzPopconfirmDirective } from "ng-zorro-antd/popconfirm";
 import { FiltersInstructionsComponent } from "../filters-instructions/filters-instructions.component";
 import { NzSelectComponent } from "ng-zorro-antd/select";
 import { FormsModule } from "@angular/forms";
+import { extractErrorMessage } from "../../../../common/util/error";
 
 // The single-file input each language accepts besides .ipynb.
 const SCRIPT_INPUTS: Record<MigrationLanguage, { name: string; extension: string; uploadHint: string }> = {
@@ -799,8 +800,8 @@ export class UserWorkflowComponent implements AfterViewInit, OnDestroy {
             });
             this.cleanupNotebookFiles(targetWids);
           },
-          // TODO: fix this with notification component
-          error: (err: unknown) => alert(err),
+          error: (err: unknown) =>
+            this.notificationService.error(`Failed to delete the selected workflows: ${extractErrorMessage(err)}`),
         });
     }
   }
