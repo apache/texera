@@ -40,7 +40,7 @@ import org.apache.texera.dao.MockTexeraDB
 import org.apache.texera.dao.jooq.generated.enums.UserRoleEnum
 import org.apache.texera.web.ExecutionDatabaseTestSupport
 import org.scalatest.flatspec.AnyFlatSpec
-import org.scalatest.{BeforeAndAfterAll, BeforeAndAfterEach}
+import org.scalatest.BeforeAndAfterEach
 
 import java.net.URI
 import java.sql.Timestamp
@@ -48,7 +48,6 @@ import scala.jdk.CollectionConverters.CollectionHasAsScala
 
 class DefaultCostEstimatorSpec
     extends AnyFlatSpec
-    with BeforeAndAfterAll
     with BeforeAndAfterEach
     with MockTexeraDB
     with ExecutionDatabaseTestSupport {

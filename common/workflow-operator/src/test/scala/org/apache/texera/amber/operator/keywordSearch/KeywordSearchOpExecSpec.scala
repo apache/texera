@@ -21,10 +21,9 @@ package org.apache.texera.amber.operator.keywordSearch
 
 import org.apache.texera.amber.core.tuple.{Attribute, AttributeType, Schema, Tuple}
 import org.apache.texera.amber.util.JSONUtils.objectMapper
-import org.scalatest.BeforeAndAfter
 import org.scalatest.flatspec.AnyFlatSpec
 
-class KeywordSearchOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
+class KeywordSearchOpExecSpec extends AnyFlatSpec {
   val inputPort: Int = 0
   val opDesc: KeywordSearchOpDesc = new KeywordSearchOpDesc()
 
