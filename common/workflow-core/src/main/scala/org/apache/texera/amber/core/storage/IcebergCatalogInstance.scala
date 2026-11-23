@@ -67,10 +67,12 @@ import scala.util.Try
   */
 object IcebergCatalogInstance extends LazyLogging {
 
-  // Sizing mirrors HuggingFaceModelResource's bounded-cache precedent: generous enough
-  // that eviction never hits a warehouse in active use, small enough to bound the JVM.
-  private val CatalogCacheMaxSize = 64L
-  private val CatalogCacheExpireAfterAccess = Duration.ofMinutes(60)
+  // The default sizing mirrors HuggingFaceModelResource's bounded-cache precedent: generous
+  // enough that eviction never hits a warehouse in active use, small enough to bound the JVM.
+  // A deployment can raise it for a service that touches many warehouses, like result-service.
+  private val CatalogCacheMaxSize = StorageConfig.icebergCatalogCacheMaxSize.toLong
+  private val CatalogCacheExpireAfterAccess =
+    Duration.ofMinutes(StorageConfig.icebergCatalogCacheIdleExpiryMinutes)
 
   /**
     * Builds a catalog cache with the eviction wiring `getInstance` relies on.
