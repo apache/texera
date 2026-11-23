@@ -22,9 +22,8 @@ package org.apache.texera.amber.operator.visualization.htmlviz
 import org.apache.texera.amber.core.tuple._
 import org.apache.texera.amber.core.workflow.PortIdentity
 import org.apache.texera.amber.util.JSONUtils.objectMapper
-import org.scalatest.BeforeAndAfter
 import org.scalatest.flatspec.AnyFlatSpec
-class HtmlVizOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
+class HtmlVizOpExecSpec extends AnyFlatSpec {
   val schema = new Schema(
     new Attribute("field1", AttributeType.STRING),
     new Attribute("field2", AttributeType.STRING)

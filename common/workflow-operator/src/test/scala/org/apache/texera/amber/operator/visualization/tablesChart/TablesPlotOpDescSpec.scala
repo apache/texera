@@ -47,11 +47,11 @@ class TablesPlotOpDescSpec
   }
 
   it should "throw AssertionError with a 'cannot be empty' message when included columns list is empty (manipulateTable)" in {
-    val ex = expectError[AssertionError]("cannot be empty")(opDesc.manipulateTable())
+    expectError[AssertionError]("cannot be empty")(opDesc.manipulateTable())
   }
 
   it should "throw AssertionError with a 'cannot be empty' message when included columns list is empty (createPlotlyFigure)" in {
-    val ex = expectError[AssertionError]("cannot be empty")(opDesc.createPlotlyFigure())
+    expectError[AssertionError]("cannot be empty")(opDesc.createPlotlyFigure())
   }
 
   it should "render the configured columns when the included columns list is set" in {
