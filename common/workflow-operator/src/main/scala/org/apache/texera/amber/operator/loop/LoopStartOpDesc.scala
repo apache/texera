@@ -20,17 +20,21 @@
 package org.apache.texera.amber.operator.loop
 
 import com.fasterxml.jackson.annotation.JsonProperty
-import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaTitle
+import com.kjetland.jackson.jsonSchema.annotations.{JsonSchemaInject, JsonSchemaTitle}
+import org.apache.texera.amber.operator.metadata.annotations.UIWidget
 import org.apache.texera.amber.pybuilder.PyStringTypes.EncodableString
 import org.apache.texera.amber.pybuilder.PythonTemplateBuilder.PythonTemplateBuilderStringContext
 
 class LoopStartOpDesc extends LoopOpDesc {
+  // Both fields are Python cells that may span several lines, hence the text area.
   @JsonProperty(required = true, defaultValue = "i = 0")
   @JsonSchemaTitle("Initialization")
+  @JsonSchemaInject(json = UIWidget.UIWidgetTextArea)
   var initialization: EncodableString = ""
 
   @JsonProperty(required = true, defaultValue = "table.iloc[i]")
   @JsonSchemaTitle("Output")
+  @JsonSchemaInject(json = UIWidget.UIWidgetTextArea)
   var output: EncodableString = ""
 
   override protected def operatorName: String = "Loop Start"
@@ -48,7 +52,11 @@ class LoopStartOpDesc extends LoopOpDesc {
   override protected def disallowMultiInputLinks: Boolean = true
 
   // `initialization` and `output` are base64-wrapped by `pyb`; see
-  // LoopOpDesc.generatePythonCode.
+  // LoopOpDesc.generatePythonCode. The output cell is handed over in open(),
+  // not in process_table(): what it assigns are control variables of this
+  // iteration, and the worker produces the state before it drains
+  // process_table(), so the cell runs when the state is produced and
+  // process_table() only yields the data it left.
   override def generatePythonCode(): String = {
     pyb"""
        |from pytexera import *
@@ -56,10 +64,11 @@ class LoopStartOpDesc extends LoopOpDesc {
        |    @overrides
        |    def open(self):
        |        self.run_initialization($initialization)
+       |        self.run_output($output)
        |
        |    @overrides
        |    def process_table(self, table: Table, port: int) -> Iterator[Optional[TableLike]]:
-       |        yield self.eval_output($output, table)
+       |        yield self.eval_output(table)
        |""".encode
   }
 }

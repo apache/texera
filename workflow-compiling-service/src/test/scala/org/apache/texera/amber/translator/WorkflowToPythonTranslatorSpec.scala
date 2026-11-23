@@ -20,7 +20,13 @@
 package org.apache.texera.amber.translator
 
 import org.apache.texera.amber.core.virtualidentity.{ExecutionIdentity, WorkflowIdentity}
-import org.apache.texera.amber.core.workflow.{InputPort, OutputPort, PhysicalOp, PortIdentity}
+import org.apache.texera.amber.core.workflow.{
+  ControlVariablePort,
+  InputPort,
+  OutputPort,
+  PhysicalOp,
+  PortIdentity
+}
 import org.apache.texera.amber.operator.metadata.{OperatorGroupConstants, OperatorInfo}
 import org.apache.texera.amber.core.tuple.Schema
 import org.apache.texera.amber.operator.{
@@ -320,5 +326,80 @@ class WorkflowToPythonTranslatorSpec extends AnyFlatSpec with Matchers {
     op.setOperatorId("udf")
     val script = new WorkflowToPythonTranslator().translate(LogicalPlan(List(op), List.empty))
     script should include("# TODO:")
+  }
+
+  /** `receiver` with a link from a sender into its control-variable port, and one from each
+    * of `data` into its first data port.
+    */
+  private def fedThroughControlVariablePort(receiver: LogicalOp, data: LogicalOp*): String = {
+    val sender = stub("sender", """out1df = pd.DataFrame({"file": ["a.txt"]})""")
+    val portLink = LogicalLink(
+      sender.operatorIdentifier,
+      PortIdentity(0),
+      receiver.operatorIdentifier,
+      ControlVariablePort.Id
+    )
+    new WorkflowToPythonTranslator().translate(
+      LogicalPlan(
+        (sender +: data :+ receiver).toList,
+        portLink :: data.map(link(_, receiver)).toList
+      )
+    )
+  }
+
+  private def controlVariablePortTodos(script: String): List[String] =
+    script.linesIterator
+      .filter(line => line.startsWith("# TODO:") && line.contains("control-variable port"))
+      .toList
+
+  /** The frames the script prints without ever binding them. */
+  private def printedButUnbound(script: String): Set[String] = {
+    val lines = script.linesIterator.toList
+    lines
+      .collect { case line if line.matches("""print\(df\d+\)""") => line.drop(6).dropRight(1) }
+      .filterNot(frame => lines.exists(_.startsWith(s"$frame = ")))
+      .toSet
+  }
+
+  /** What reaches an operator through its control-variable port is bound to its settings only
+    * while the workflow runs, so the block it generates reads them as typed: a File Scan given
+    * its file name there opened a file called `$file`. A TODO brings nothing else of the
+    * operator along, its imports and helpers included; the sender itself is still rendered.
+    */
+  it should "leave a TODO for an operator fed through its control-variable port" in {
+    val sourceFile = StandaloneCodeGenerator.SourceFilePlaceholder
+    val scan = new StubOp(s"""out1df = pd.DataFrame({"entry": _texera_entries($sourceFile)})""") {
+      override def standaloneSourcePath(): Option[String] = Some("$file")
+      override def standaloneImports(): Seq[String] = Seq("import zipfile")
+      override def standaloneHelpers(): Seq[String] =
+        Seq("""def _texera_entries(path):
+              |    with zipfile.ZipFile(path) as archive:
+              |        return archive.namelist()""".stripMargin)
+    }
+    scan.setOperatorId("scan")
+
+    val script = fedThroughControlVariablePort(scan)
+
+    controlVariablePortTodos(script) should have size 1
+    script should not include "$file"
+    script should not include "zipfile"
+    script should not include "_texera_entries"
+    script should include("""pd.DataFrame({"file": ["a.txt"]})""")
+    printedButUnbound(script) shouldBe empty
+  }
+
+  /** Nor is the port a data input. Sorted by port id, its link came before port 0's, and the
+    * operator read its sender's table where its data was meant to be.
+    */
+  it should "leave a TODO for an operator fed through its control-variable port beside data" in {
+    val data = stub("data", """out1df = pd.read_csv("data.csv")""")
+    val aggregate = stub("aggregate", """out1df = in1df.groupby("k").sum()""")
+
+    val script = fedThroughControlVariablePort(aggregate, data)
+
+    controlVariablePortTodos(script) should have size 1
+    script should not include "groupby"
+    script should include("""pd.read_csv("data.csv")""")
+    printedButUnbound(script) shouldBe empty
   }
 }

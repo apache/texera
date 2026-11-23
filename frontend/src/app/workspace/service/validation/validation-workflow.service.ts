@@ -321,8 +321,9 @@ export class ValidationWorkflowService {
     // take one). Outside every block nothing is waived: a "$K" in an integer property stays a type error,
     // and so does one in an array or object property anywhere. A reference to a name no enclosing Loop
     // Start declares is no error, so it does not keep the workflow from running; the property panel warns
-    // about it (unknownReferenceWarning). Which blocks enclose the operator is worked out only when a
-    // reference sits where the schema finds a type error.
+    // about it (unknownReferenceWarning). An operator fed through its control-variable port takes
+    // references as one inside a block does. Which blocks enclose the operator, and what feeds its
+    // port, is worked out only when a reference sits where the schema finds a type error.
     const atReference = (error: ErrorObject) =>
       error.keyword === "type" &&
       primitiveSchemaType(error.params["type"]) !== undefined &&

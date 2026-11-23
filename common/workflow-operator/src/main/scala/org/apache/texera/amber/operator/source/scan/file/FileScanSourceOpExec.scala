@@ -19,11 +19,14 @@
 
 package org.apache.texera.amber.operator.source.scan.file
 
+import org.apache.texera.amber.core.storage.FileResolver
 import org.apache.texera.amber.core.executor.SourceOperatorExecutor
 import org.apache.texera.amber.core.tuple.TupleLike
 import org.apache.texera.amber.util.JSONUtils.objectMapper
 
 import java.io.IOException
+import java.net.URI
+import java.nio.file.{Files, Paths}
 
 class FileScanSourceOpExec private[scan] (
     descString: String
@@ -33,8 +36,12 @@ class FileScanSourceOpExec private[scan] (
 
   @throws[IOException]
   override def produceTuple(): Iterator[TupleLike] = {
+    // A name that a control variable bound at run time, such as "$file", is resolved here; a
+    // name the compiler already resolved stays as it is.
+    val fileName = desc.fileName.get
     FileScanUtils.createTuplesFromFile(
-      fileName = desc.fileName.get,
+      fileName = locate(fileName).toASCIIString,
+      displayFileName = fileName,
       attributeType = desc.attributeType,
       fileEncoding = desc.encoding,
       extract = desc.extract,
@@ -43,4 +50,17 @@ class FileScanSourceOpExec private[scan] (
       fileScanLimit = desc.fileScanLimit
     )
   }
+
+  /**
+    * Resolves the file name to a URI the way FileScanOpExec resolves a name it reads on the
+    * worker: a resolved URI as it is, then a local path, then a dataset or model path.
+    */
+  private def locate(fileName: String): URI =
+    if (FileResolver.isFileResolved(fileName)) {
+      new URI(fileName)
+    } else {
+      val localPath = Paths.get(fileName)
+      if (Files.exists(localPath)) localPath.toUri
+      else FileResolver.resolveVersionedResource(fileName)
+    }
 }

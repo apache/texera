@@ -21,6 +21,7 @@ import { merge, Observable } from "rxjs";
 import { filter } from "rxjs/operators";
 import { WorkflowGraphReadonly } from "../service/workflow-graph/model/workflow-graph";
 import { enclosingLoopStarts, LOOP_START_OP_TYPE } from "./loop-block.util";
+import { isControlVariableLink } from "../service/workflow-graph/model/control-variable-port";
 
 /**
  * A plain assignment target: an optional star, an identifier and an optional annotation (`x: int`).
@@ -98,12 +99,12 @@ interface Statement {
 }
 
 /**
- * The names a Loop Start's "initialization" Python code binds at module level, in first-binding order and
- * without duplicates: the loop's variables, which the operators of its block may refer to as `$name`.
- * The backend runs the code with exec and keeps the resulting globals as the loop state, and Python has
- * no block scope, so these are the assignments at any depth outside a def or class body, whether at the
- * top level or under an if/elif/else, try/except/finally, while, for or with, plus the targets of a for
- * loop.
+ * The names a Loop Start's "initialization" (or "output") Python code binds at module level, in
+ * first-binding order and without duplicates: the loop's variables, which the operators of its block may
+ * refer to as `$name`. The backend runs the code with exec and keeps the resulting globals as the loop
+ * state, and Python has no block scope, so these are the assignments at any depth outside a def or class
+ * body, whether at the top level or under an if/elif/else, try/except/finally, while, for or with, plus
+ * the targets of a for loop.
  *
  * Assignments: `i = 0`, `K = 2; prev = float('-inf')`, tuple targets (`a, b = 1, 2`), chained
  * (`a = b = 0`), annotated (`x: int = 0`) and starred (`a, *rest = xs`) ones. Augmented assignments,
@@ -147,31 +148,54 @@ export function extractLoopVariables(initialization: string): string[] {
   return names;
 }
 
+/** Names the loop runtime keeps for the loop's input table; never a loop variable. */
+const RESERVED_LOOP_NAMES: ReadonlySet<string> = new Set(["table", "D"]);
+
 /**
  * The loop variables in scope of an operator: those of every Loop Start whose block encloses it, outermost
- * block first, without duplicates, each read from the Loop Start's initialization. Which blocks enclose it
- * is worked out (enclosingLoopStarts) from the operators and links of the plan the backend compiles and
- * runs: every enabled operator, valid or not, and the links between them (WorkflowGraph.getSubDAG). So a
- * disabled operator is in no block, and closes or opens none. Undefined outside every block, so that one
- * call tells both whether the operator sits in a block and what it may refer to; empty for a block whose
- * Loop Starts declare nothing. A Loop Start whose initialization is missing or not a string contributes
- * nothing.
+ * block first, then the names that arrive on its control-variable port, without duplicates. Which blocks
+ * enclose it, and which links feed its port, is worked out (enclosingLoopStarts) from the operators and
+ * links of the plan the backend compiles and runs: every enabled operator, valid or not, and the links
+ * between them (WorkflowGraph.getSubDAG). So a disabled operator is in no block, closes or opens none, and
+ * feeds no port. A Loop Start that feeds the port offers its variables; any other operator offers its
+ * output columns, which `outputColumns` looks up when given. Undefined when the operator is outside every
+ * block and nothing feeds its port, so that one call tells both whether it may refer to variables and to
+ * which; empty when nothing declares a name. A Loop Start's variables are what its Initialization assigns,
+ * then what its Output assigns; either one that is missing or not a string contributes nothing.
  */
-export function loopVariablesInScope(graph: WorkflowGraphReadonly, operatorID: string): string[] | undefined {
-  const loopStartIDs = enclosingLoopStarts(graph.getAllEnabledOperators(), graph.getAllEnabledLinks()).get(operatorID);
-  if (loopStartIDs === undefined) {
+export function loopVariablesInScope(
+  graph: WorkflowGraphReadonly,
+  operatorID: string,
+  outputColumns?: (operatorID: string, portID: string) => string[] | undefined
+): string[] | undefined {
+  const links = graph.getAllEnabledLinks();
+  const loopStartIDs = enclosingLoopStarts(graph.getAllEnabledOperators(), links).get(operatorID) ?? [];
+  const portLinks = links.filter(link => isControlVariableLink(link) && link.target.operatorID === operatorID);
+  if (loopStartIDs.length === 0 && portLinks.length === 0) {
     return undefined;
   }
   const names: string[] = [];
-  for (const loopStartID of loopStartIDs) {
-    const initialization: unknown = graph.getOperator(loopStartID).operatorProperties?.["initialization"];
-    if (typeof initialization !== "string") {
-      continue;
+  const add = (name: string) => {
+    if (IDENTIFIER.test(name) && !names.includes(name)) {
+      names.push(name);
     }
-    for (const name of extractLoopVariables(initialization)) {
-      if (!names.includes(name)) {
-        names.push(name);
-      }
+  };
+  // Output is a Python cell that runs each iteration before the Loop Start emits its variables, and
+  // what it assigns joins them, so its names count like the Initialization's. An Output that is a
+  // single expression (`table.iloc[[i]]`) assigns nothing.
+  const loopStartVariables = (loopStartID: string): string[] => {
+    const properties = graph.getOperator(loopStartID).operatorProperties;
+    return [properties?.["initialization"], properties?.["output"]]
+      .flatMap((code: unknown) => (typeof code === "string" ? extractLoopVariables(code) : []))
+      .filter(name => !RESERVED_LOOP_NAMES.has(name));
+  };
+  loopStartIDs.forEach(loopStartID => loopStartVariables(loopStartID).forEach(add));
+  for (const link of portLinks) {
+    const source = link.source.operatorID;
+    if (graph.getOperator(source).operatorType === LOOP_START_OP_TYPE) {
+      loopStartVariables(source).forEach(add);
+    } else {
+      (outputColumns?.(source, link.source.portID) ?? []).forEach(add);
     }
   }
   return names;
