@@ -47,17 +47,6 @@
   margin: 10px 0;
 }
 
-.uploaded-files-list {
-  font-size: 15px;
-  margin-top: 5px;
-  height: 25%;
-  width: 90%;
-  margin-left: 5%;
-  margin-right: 5%;
-  overflow-y: auto;
-  overflow-x: auto;
-}
-
 .upload-buttons {
   display: flex;
   gap: 8px;
@@ -76,7 +65,4 @@
   align-items: center; /* Align items vertically */
   justify-content: center;
   margin-bottom: 15px;
-}
-
-.file-uploader-banner {
 }
