@@ -23,7 +23,6 @@ import {
   isWebPaginationUpdate,
   WebDataUpdate,
   WebPaginationUpdate,
-  WebResultUpdate,
   WorkflowResultTableStats,
   WorkflowResultUpdate,
 } from "../../types/execute-workflow.interface";
@@ -36,20 +35,21 @@ import { isDefined } from "../../../common/util/predicate";
 import { SchemaAttribute } from "../../types/workflow-compiling.interface";
 
 /**
- * WorkflowResultService manages the result data of a workflow execution.
+ * WorkflowResultService manages the result data of a workflow execution. Every output port of an
+ * operator has its own result; a port is named by its index, and the getters default to port 0.
  */
 @Injectable({
   providedIn: "root",
 })
 export class WorkflowResultService {
+  // the paged (table) result of each output port, keyed by portKey(operatorID, portIndex)
   private paginatedResultServices = new Map<string, OperatorPaginationResultService>();
-  // the services for an operator's output ports past the first, keyed "operatorID:portIndex"
-  private otherPortResultServices = new Map<string, OperatorPaginationResultService>();
+  // the visualization result of each output port, keyed by portKey(operatorID, portIndex)
   private operatorResultServices = new Map<string, OperatorResultService>();
 
-  // event stream of operator result update, undefined indicates the operator result is cleared
-  private resultUpdateStream = new Subject<Record<string, WebResultUpdate | undefined>>();
-  private resultTableStats = new ReplaySubject<Record<string, Record<string, Record<string, number>>>>(1);
+  // event stream of the result updates of output ports, keyed by operator id and then by port index
+  private resultUpdateStream = new Subject<WorkflowResultUpdate>();
+  private resultTableStats = new ReplaySubject<WorkflowResultTableStats>(1);
   private resultInitiateStream = new Subject<string>();
   // emits when clearResults() drops cached results, so the UI can drop stale frames
   private resultClearedStream = new Subject<void>();
@@ -62,8 +62,8 @@ export class WorkflowResultService {
     this.resultTableStats.next({});
   }
 
-  public hasAnyResult(operatorID: string): boolean {
-    return this.hasResult(operatorID) || this.hasPaginatedResult(operatorID);
+  public hasAnyResult(operatorID: string, portIndex: number = 0): boolean {
+    return this.hasResult(operatorID, portIndex) || this.hasPaginatedResult(operatorID, portIndex);
   }
 
   /**
@@ -72,29 +72,27 @@ export class WorkflowResultService {
    * or logs -- so hasAnyResult alone is true for those. This checks the tuple count / snapshot
    * length so an empty result reads as "no result".
    */
-  public hasNonEmptyResult(operatorID: string): boolean {
-    const paginated = this.getPaginatedResultService(operatorID);
+  public hasNonEmptyResult(operatorID: string, portIndex: number = 0): boolean {
+    const paginated = this.getPaginatedResultService(operatorID, portIndex);
     if (paginated) {
       return paginated.getCurrentTotalNumTuples() > 0;
     }
-    return (this.getResultService(operatorID)?.getCurrentResultSnapshot()?.length ?? 0) > 0;
+    return (this.getResultService(operatorID, portIndex)?.getCurrentResultSnapshot()?.length ?? 0) > 0;
   }
 
-  public hasResult(operatorID: string): boolean {
-    return isDefined(this.getResultService(operatorID));
+  public hasResult(operatorID: string, portIndex: number = 0): boolean {
+    return isDefined(this.getResultService(operatorID, portIndex));
   }
 
-  public hasPaginatedResult(operatorID: string): boolean {
-    return isDefined(this.getPaginatedResultService(operatorID));
+  public hasPaginatedResult(operatorID: string, portIndex: number = 0): boolean {
+    return isDefined(this.getPaginatedResultService(operatorID, portIndex));
   }
 
-  public getResultUpdateStream(): Observable<Record<string, WebResultUpdate | undefined>> {
+  public getResultUpdateStream(): Observable<WorkflowResultUpdate> {
     return this.resultUpdateStream;
   }
 
-  public getResultTableStats(): Observable<
-    [Record<string, Record<string, Record<string, number>>>, Record<string, Record<string, Record<string, number>>>]
-  > {
+  public getResultTableStats(): Observable<[WorkflowResultTableStats, WorkflowResultTableStats]> {
     return this.resultTableStats.pipe(pairwise());
   }
 
@@ -110,32 +108,15 @@ export class WorkflowResultService {
     return this.resultClearedStream.asObservable();
   }
 
-  public getPaginatedResultService(operatorID: string): OperatorPaginationResultService | undefined {
-    return this.paginatedResultServices.get(operatorID);
-  }
-
-  /**
-   * The service that pages one of the operator's output ports. The first port's is the one the
-   * running execution keeps up to date. Any other port is read only when asked, so its service is
-   * made on the first ask, for an operator whose result is a table.
-   */
-  public getPortPaginatedResultService(
+  public getPaginatedResultService(
     operatorID: string,
-    portIndex: number
+    portIndex: number = 0
   ): OperatorPaginationResultService | undefined {
-    const firstPort = this.getPaginatedResultService(operatorID);
-    if (portIndex === 0 || !firstPort) return firstPort;
-    const key = `${operatorID}:${portIndex}`;
-    let service = this.otherPortResultServices.get(key);
-    if (!service) {
-      service = new OperatorPaginationResultService(operatorID, this.wsService, portIndex);
-      this.otherPortResultServices.set(key, service);
-    }
-    return service;
+    return this.paginatedResultServices.get(portKey(operatorID, portIndex));
   }
 
-  public getResultService(operatorID: string): OperatorResultService | undefined {
-    return this.operatorResultServices.get(operatorID);
+  public getResultService(operatorID: string, portIndex: number = 0): OperatorResultService | undefined {
+    return this.operatorResultServices.get(portKey(operatorID, portIndex));
   }
 
   /**
@@ -146,77 +127,81 @@ export class WorkflowResultService {
   public clearResults(): void {
     this.operatorResultServices.clear();
     this.paginatedResultServices.clear();
-    this.otherPortResultServices.clear();
     this.resultTableStats.next({});
     this.resultClearedStream.next();
   }
 
   private handleResultUpdate(event: WorkflowResultUpdate): void {
-    Object.keys(event).forEach(operatorID => {
-      const update = event[operatorID];
-      if (isWebPaginationUpdate(update)) {
-        const paginatedResultService = this.getOrInitPaginatedResultService(operatorID);
-        paginatedResultService.handleResultUpdate(update);
-        // clear previously saved result service
-        this.operatorResultServices.delete(operatorID);
-      } else if (isWebDataUpdate(update)) {
-        const resultService = this.getOrInitResultService(operatorID);
-        resultService.handleResultUpdate(update);
-        // clear previously saved paginated result service
-        this.paginatedResultServices.delete(operatorID);
-      }
-    });
+    Object.entries(event).forEach(([operatorID, ports]) =>
+      Object.entries(ports).forEach(([port, update]) => {
+        const portIndex = Number(port);
+        const key = portKey(operatorID, portIndex);
+        if (isWebPaginationUpdate(update)) {
+          this.getOrInitPaginatedResultService(operatorID, portIndex).handleResultUpdate(update);
+          // clear previously saved result service
+          this.operatorResultServices.delete(key);
+        } else if (isWebDataUpdate(update)) {
+          this.getOrInitResultService(operatorID, portIndex).handleResultUpdate(update);
+          // clear previously saved paginated result service
+          this.paginatedResultServices.delete(key);
+        }
+      })
+    );
     this.resultUpdateStream.next(event);
   }
 
   private handleTableStatsUpdate(event: WorkflowResultTableStats): void {
-    Object.keys(event).forEach(operatorID => {
-      const paginatedResultService = this.getOrInitPaginatedResultService(operatorID);
-      paginatedResultService.handleStatsUpdate(event[operatorID]);
-    });
+    Object.entries(event).forEach(([operatorID, ports]) =>
+      Object.entries(ports).forEach(([port, stats]) =>
+        this.getOrInitPaginatedResultService(operatorID, Number(port)).handleStatsUpdate(stats)
+      )
+    );
     this.resultTableStats.next(event);
   }
 
-  private getOrInitPaginatedResultService(operatorID: string): OperatorPaginationResultService {
-    let service = this.getPaginatedResultService(operatorID);
+  private getOrInitPaginatedResultService(operatorID: string, portIndex: number): OperatorPaginationResultService {
+    let service = this.getPaginatedResultService(operatorID, portIndex);
     if (!service) {
-      service = new OperatorPaginationResultService(operatorID, this.wsService);
-      this.paginatedResultServices.set(operatorID, service);
+      service = new OperatorPaginationResultService(operatorID, this.wsService, portIndex);
+      this.paginatedResultServices.set(portKey(operatorID, portIndex), service);
       this.resultInitiateStream.next(operatorID);
     }
     return service;
   }
 
-  private getOrInitResultService(operatorID: string): OperatorResultService {
-    let service = this.getResultService(operatorID);
+  private getOrInitResultService(operatorID: string, portIndex: number): OperatorResultService {
+    let service = this.getResultService(operatorID, portIndex);
     if (!service) {
       service = new OperatorResultService(operatorID);
-      this.operatorResultServices.set(operatorID, service);
+      this.operatorResultServices.set(portKey(operatorID, portIndex), service);
       this.resultInitiateStream.next(operatorID);
     }
     return service;
   }
 
-  public determineOutputTypes(operatorId: string): {
+  public determineOutputTypes(
+    operatorId: string,
+    portIndex: number = 0
+  ): {
     hasAnyResult: boolean;
     isTableOutput: boolean;
     isVisualizationOutput: boolean;
     containsBinaryData: boolean;
   } {
-    const resultService = this.getResultService(operatorId);
-    const paginatedResultService = this.getPaginatedResultService(operatorId);
+    const resultService = this.getResultService(operatorId, portIndex);
+    const paginatedResultService = this.getPaginatedResultService(operatorId, portIndex);
 
     return {
-      hasAnyResult: this.hasAnyResult(operatorId),
+      hasAnyResult: this.hasAnyResult(operatorId, portIndex),
       isTableOutput: this.hasTableOutput(paginatedResultService),
       containsBinaryData: this.hasBinaryData(paginatedResultService),
       isVisualizationOutput: this.hasVisualizationOutput(resultService, paginatedResultService),
     };
   }
 
-  public determineOutputExtension(operatorId: string, defaultExtension: string = "csv"): string {
+  public determineOutputExtension(operatorId: string, defaultExtension: string = "csv", portIndex: number = 0): string {
     if (defaultExtension === "data") return defaultExtension;
-    var outputType = this.determineOutputTypes(operatorId);
+    var outputType = this.determineOutputTypes(operatorId, portIndex);
 
     if (outputType.isVisualizationOutput) return "html";
     if (outputType.isTableOutput && defaultExtension === "csv") return "csv";
@@ -237,6 +222,10 @@ export class WorkflowResultService {
   ): boolean {
     return resultService !== undefined && paginatedResultService === undefined;
   }
+}
+
+function portKey(operatorID: string, portIndex: number): string {
+  return `${operatorID}:${portIndex}`;
 }
 
 export class OperatorResultService {
@@ -279,8 +268,7 @@ export class OperatorPaginationResultService {
   constructor(
     public operatorID: string,
     private workflowWebsocketService: WorkflowWebsocketService,
-    // which output port it pages. The running execution reports only on the first, so any other
-    // port keeps no page cache and takes its row count from each reply.
+    // which output port it pages
     public readonly portIndex: number = 0
   ) {
     this.workflowWebsocketService.subscribeToEvent("PaginatedResultEvent").subscribe(event => {
@@ -329,7 +317,7 @@ export class OperatorPaginationResultService {
     // update currently selected page
     this.currentPageIndex = pageIndex;
     // first fetch from frontend result cache
-    const useCache = this.portIndex === 0 && columnOffset === 0 && columnLimit === ALL_COLUMNS && columnSearch === "";
+    const useCache = columnOffset === 0 && columnLimit === ALL_COLUMNS && columnSearch === "";
     const pageCache = useCache ? this.resultCache.get(pageIndex) : undefined;
     if (pageCache) {
       return of(<PaginatedResultEvent>{
@@ -353,7 +341,7 @@ export class OperatorPaginationResultService {
         columnOffset,
         columnLimit,
         columnSearch,
-        ...this.portField(),
+        portIndex: this.portIndex,
       });
       const pendingRequestSubject = new Subject<PaginatedResultEvent>();
       this.pendingRequests.set(requestID, pendingRequestSubject);
@@ -377,7 +365,7 @@ export class OperatorPaginationResultService {
       columnOffset: 0,
       columnLimit: ALL_COLUMNS,
       columnSearch: "",
-      ...this.portField(),
+      portIndex: this.portIndex,
     });
     const pendingRequestSubject = new Subject<PaginatedResultEvent>();
     this.pendingRequests.set(requestID, pendingRequestSubject);
@@ -402,11 +390,6 @@ export class OperatorPaginationResultService {
     this.statsCache = statsUpdate;
   }
 
-  // the first port is the server's default, so a request for it leaves the field out
-  private portField(): { portIndex?: number } {
-    return this.portIndex === 0 ? {} : { portIndex: this.portIndex };
-  }
-
   private handlePaginationResult(res: PaginatedResultEvent): void {
     const pendingRequestSubject = this.pendingRequests.get(res.requestID);
     if (!pendingRequestSubject) {
@@ -415,9 +398,6 @@ export class OperatorPaginationResultService {
     // Every operator's and every port's replies arrive on one stream, so only a reply to this
     // service's own request may set its schema.
     this.schema = res.schema;
-    if (this.portIndex !== 0) {
-      this.currentTotalNumTuples = res.totalTuples;
-    }
     pendingRequestSubject.next(res);
     pendingRequestSubject.complete();
     this.pendingRequests.delete(res.requestID);

@@ -53,11 +53,6 @@ import { NzButtonComponent } from "ng-zorro-antd/button";
 import { NzWaveDirective } from "ng-zorro-antd/core/wave";
 import { ɵNzTransitionPatchDirective } from "ng-zorro-antd/core/transition-patch";
 import { NzIconDirective } from "ng-zorro-antd/icon";
-import { asyncScheduler, filter, throttleTime } from "rxjs";
-
-// how often, at most, a table on a port past the first asks for its page again while a run updates
-export const OTHER_PORT_REFRESH_MS = 1000;
-
 export type MediaCellType = "video" | "audio" | "image" | "text";
 
 /**
@@ -97,8 +92,7 @@ export type MediaCellType = "video" | "audio" | "image" | "text";
 })
 export class ResultTableFrameComponent implements OnInit, OnChanges {
   @Input() operatorId?: string;
-  // which of the operator's output ports to show. The running execution reports only on the first,
-  // so another port is read when shown, and its counts and statistics are not followed live.
+  // which of the operator's output ports to show
   @Input() portIndex = 0;
   // The height the table has to fill in a window of its own. Left out, the table fills the result
   // panel and follows its height.
@@ -128,10 +122,7 @@ export class ResultTableFrameComponent implements OnInit, OnChanges {
   tableStats: Record<string, Record<string, number>> = {};
   prevTableStats: Record<string, Record<string, number>> = {};
 
-  /**
-   * Whether any column has statistics to show. Until they arrive there are none, and an output
-   * port past the first never has any, as the statistics are the first port's.
-   */
+  /** Whether any column has statistics to show. Until they arrive there are none. */
   get hasTableStats(): boolean {
     return Object.keys(this.tableStats).length > 0;
   }
@@ -185,7 +176,7 @@ export class ResultTableFrameComponent implements OnInit, OnChanges {
   /** The service that pages the port shown. */
   private paginatedResultService(): OperatorPaginationResultService | undefined {
     if (!this.operatorId) return undefined;
-    return this.workflowResultService.getPortPaginatedResultService(this.operatorId, this.portIndex);
+    return this.workflowResultService.getPaginatedResultService(this.operatorId, this.portIndex);
   }
 
   ngOnInit(): void {
@@ -194,9 +185,6 @@ export class ResultTableFrameComponent implements OnInit, OnChanges {
       .pipe(untilDestroyed(this))
       .subscribe(stateMap => {
         if (this.operatorId && stateMap[this.operatorId] === OperatorState.Completed) {
-          // Another port can still be filling after the first port's last update, so its table
-          // asks once more when the operator completes.
-          if (!this.isOperatorFinished && this.portIndex !== 0) this.changePaginatedResultData();
           this.isOperatorFinished = true;
           this.changeDetectorRef.detectChanges();
         } else {
@@ -210,11 +198,10 @@ export class ResultTableFrameComponent implements OnInit, OnChanges {
       .getResultUpdateStream()
       .pipe(untilDestroyed(this))
       .subscribe(update => {
-        // an update is about the operator's first port
-        if (!this.operatorId || this.portIndex !== 0) {
+        if (!this.operatorId) {
           return;
         }
-        const opUpdate = update[this.operatorId];
+        const opUpdate = update[this.operatorId]?.[this.portIndex];
         if (!opUpdate || !isWebPaginationUpdate(opUpdate)) {
           return;
         }
@@ -228,30 +215,20 @@ export class ResultTableFrameComponent implements OnInit, OnChanges {
         this.changeDetectorRef.detectChanges();
       });
 
-    // Another port has no update of its own, so its table asks for its page again on the
-    // operator's updates, at most once a second; the last one is always asked for.
-    this.workflowResultService
-      .getResultUpdateStream()
-      .pipe(
-        filter(update => isDefined(this.operatorId) && this.portIndex !== 0 && isDefined(update[this.operatorId])),
-        throttleTime(OTHER_PORT_REFRESH_MS, asyncScheduler, { leading: true, trailing: true }),
-        untilDestroyed(this)
-      )
-      .subscribe(() => this.changePaginatedResultData());
-
     this.workflowResultService
       .getResultTableStats()
       .pipe(untilDestroyed(this))
       .subscribe(([prevStats, currentStats]) => {
-        // the statistics are the operator's first port's
-        if (!this.operatorId || this.portIndex !== 0) {
+        if (!this.operatorId) {
           return;
         }
 
-        if (currentStats[this.operatorId]) {
-          this.tableStats = currentStats[this.operatorId];
-          if (prevStats[this.operatorId] && this.checkKeys(this.tableStats, prevStats[this.operatorId])) {
-            this.prevTableStats = prevStats[this.operatorId];
+        const portStats = currentStats[this.operatorId]?.[this.portIndex];
+        const prevPortStats = prevStats[this.operatorId]?.[this.portIndex];
+        if (portStats) {
+          this.tableStats = portStats;
+          if (prevPortStats && this.checkKeys(this.tableStats, prevPortStats)) {
+            this.prevTableStats = prevPortStats;
           } else {
             this.prevTableStats = this.tableStats;
           }

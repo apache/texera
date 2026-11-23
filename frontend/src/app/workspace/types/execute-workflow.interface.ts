@@ -124,11 +124,14 @@ export interface WebDataUpdate
 
 export type WebResultUpdate = WebPaginationUpdate | WebDataUpdate;
 
-export type WorkflowResultUpdate = Record<string, WebResultUpdate>;
-export type WorkflowResultTableStats = Record<string, Record<string, Record<string, number>>>;
+// keyed by operator id and then by output port index
+export type WorkflowResultUpdate = Record<string, Record<number, WebResultUpdate>>;
+// keyed by operator id and then by output port index; only ports whose result is a table have statistics
+export type WorkflowResultTableStats = Record<string, Record<number, Record<string, Record<string, number>>>>;
 
 export interface WorkflowResultUpdateEvent
   extends Readonly<{
+    // the output ports whose result changed
     updates: WorkflowResultUpdate;
     tableStats: WorkflowResultTableStats;
   }> {}

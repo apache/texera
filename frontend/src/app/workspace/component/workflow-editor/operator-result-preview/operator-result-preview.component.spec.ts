@@ -40,7 +40,7 @@ import { ComputingUnitStatusService } from "../../../../common/service/computing
 import { MockComputingUnitStatusService } from "../../../../common/service/computing-unit/computing-unit-status/mock-computing-unit-status.service";
 import { commonTestProviders } from "../../../../common/testing/test-utils";
 import { mockPoint, mockScanPredicate } from "../../../service/workflow-graph/model/mock-workflow-data";
-import { ExecutionState, WebResultUpdate } from "../../../types/execute-workflow.interface";
+import { ExecutionState, WorkflowResultUpdate } from "../../../types/execute-workflow.interface";
 import { ConsoleMessage } from "../../../types/workflow-common.interface";
 import { WorkflowConsoleService } from "../../../service/workflow-console/workflow-console.service";
 import { AttributeType } from "../../../types/workflow-compiling.interface";
@@ -237,7 +237,7 @@ describe("OperatorResultPreviewComponent", () => {
   });
 
   it("fetches the rows again as a running operator's result grows, until the preview is full", () => {
-    const resultUpdates = new Subject<Record<string, WebResultUpdate | undefined>>();
+    const resultUpdates = new Subject<WorkflowResultUpdate>();
     vi.spyOn(resultService, "getResultUpdateStream").mockReturnValue(resultUpdates);
     withRows(0);
     withColumns(1);
@@ -246,24 +246,24 @@ describe("OperatorResultPreviewComponent", () => {
 
     const fullPage = Array.from({ length: PREVIEW_ROW_LIMIT }, (_, i) => ({ col0: `r${i}` }));
     const peek = withRows(PREVIEW_ROW_LIMIT, fullPage);
-    resultUpdates.next({ "another-op": undefined });
+    resultUpdates.next({ "another-op": {} });
     expect(peek).not.toHaveBeenCalled();
-    resultUpdates.next({ [id]: undefined });
+    resultUpdates.next({ [id]: {} });
     expect(component.rows?.length).toBe(PREVIEW_ROW_LIMIT);
 
-    resultUpdates.next({ [id]: undefined });
+    resultUpdates.next({ [id]: {} });
     expect(peek).toHaveBeenCalledTimes(1);
   });
 
   it("keeps the rows on show while it fetches them again", () => {
-    const resultUpdates = new Subject<Record<string, WebResultUpdate | undefined>>();
+    const resultUpdates = new Subject<WorkflowResultUpdate>();
     vi.spyOn(resultService, "getResultUpdateStream").mockReturnValue(resultUpdates);
     withRows(1, [{ col0: "a" }]);
     withColumns(1);
     hover(id);
 
     withRows(2);
-    resultUpdates.next({ [id]: undefined });
+    resultUpdates.next({ [id]: {} });
     expect(component.rows).toEqual([["a"]]);
   });
 
