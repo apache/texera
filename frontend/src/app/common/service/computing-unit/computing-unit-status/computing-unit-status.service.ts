@@ -326,7 +326,7 @@ export class ComputingUnitStatusService implements OnDestroy {
     return this.computingUnitService.terminateComputingUnit(cuid).pipe(
       tap(() => {
         // trigger a single refresh; the refresh pipeline will
-        // pull the new list and call updateComputingUnits()
+        // pull the new list and call setComputingUnitsState()
         this.refreshComputingUnitList();
       }),
       map(() => true),
