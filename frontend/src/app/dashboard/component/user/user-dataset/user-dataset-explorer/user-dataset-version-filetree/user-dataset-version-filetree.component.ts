@@ -34,7 +34,7 @@ import {
   DatasetFileNode,
   getRelativePathFromDatasetFileNode,
 } from "../../../../../../common/type/datasetVersionFileTree";
-import { ITreeOptions, TREE_ACTIONS, TreeModule } from "@ali-hm/angular-tree-component";
+import { ITreeOptions, KEYS, TREE_ACTIONS, TreeModule } from "@ali-hm/angular-tree-component";
 import { NgIf } from "@angular/common";
 import { ɵNzTransitionPatchDirective } from "ng-zorro-antd/core/transition-patch";
 import { NzIconDirective } from "ng-zorro-antd/icon";
@@ -104,6 +104,29 @@ export class UserDatasetVersionFiletreeComponent implements AfterViewInit, OnDes
   @Input()
   public isExpandAllAfterViewInit = false;
 
+  // Whether a file in this tree is an answer the host can take. A host that browses the files of a
+  // version without holding one (the dataset picker in version mode, the model picker) leaves
+  // nothing for a click to mean, and a highlighted row there would promise a pick that is never
+  // made. Defaults to true, which is what every host that never binds it gets.
+  @Input()
+  public isFileSelectable = true;
+
+  // One handler for a click and for Enter/Space on the focused node: the library maps the keys to
+  // TOGGLE_ACTIVE by default, which would strip the highlight off the picked file, or mark a file
+  // the host never heard of.
+  private readonly activateOrExpand = (tree: any, node: any, $event: any): void => {
+    if (node.hasChildren) {
+      TREE_ACTIONS.TOGGLE_EXPANDED(tree, node, $event);
+    } else if (this.isFileSelectable) {
+      // Overriding the library's click replaced its default (TOGGLE_ACTIVE) with the emit alone,
+      // so the tree never had an active node and the clicked row looked like every other.
+      // ACTIVATE rather than TOGGLE_ACTIVE: a second click on the picked file leaves it
+      // highlighted, since the selection it emits stands either way.
+      TREE_ACTIONS.ACTIVATE(tree, node, $event);
+      this.selectedTreeNode.emit(node.data);
+    }
+  };
+
   @ViewChild("tree") tree: any;
   @ViewChild("container") container?: ElementRef<HTMLElement>;
 
@@ -126,15 +149,8 @@ export class UserDatasetVersionFiletreeComponent implements AfterViewInit, OnDes
     useVirtualScroll: true,
     nodeHeight: this.TREE_NODE_HEIGHT_PX,
     actionMapping: {
-      mouse: {
-        click: (tree: any, node: any, $event: any) => {
-          if (node.hasChildren) {
-            TREE_ACTIONS.TOGGLE_EXPANDED(tree, node, $event);
-          } else {
-            this.selectedTreeNode.emit(node.data);
-          }
-        },
-      },
+      mouse: { click: this.activateOrExpand },
+      keys: { [KEYS.ENTER]: this.activateOrExpand, [KEYS.SPACE]: this.activateOrExpand },
     },
   };
 
