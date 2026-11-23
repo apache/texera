@@ -110,6 +110,6 @@ class Heartbeat(Runnable, Stoppable):
                     os.kill(child.pid, signal.SIGKILL)
                 except Exception as e:
                     logger.warning(
-                        f"Exception during process termination PID {child.pid!s}: {e} "
+                        f"Exception during process termination PID {child.pid}: {e} "
                     )
         os.kill(os.getpid(), signal.SIGTERM)

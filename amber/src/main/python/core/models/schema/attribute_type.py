@@ -124,7 +124,7 @@ def _local_wall_clock(moment):
     # machine's standard offset. Before 1900 the engine reads every zone at
     # its standard offset, where a named zone would give its local mean time.
     zone = _named_local_zone()
-    utc = moment.astimezone(datetime.UTC).replace(tzinfo=None)
+    utc = moment.astimezone(datetime.timezone.utc).replace(tzinfo=None)
     if utc < datetime.datetime(1900, 1, 1):
         return utc + _standard_offset(zone)
     if zone is not None:
