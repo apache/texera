@@ -134,16 +134,17 @@
             [agentInfo]="agent"
             [isActive]="activeAgentId === agent.id"></texera-agent-chat>
           <!-- An agent that works on another workflow has no chat here: chatting with it would
-               load its workflow into this canvas. Its tab says where the chat is instead. The
-               link is a plain one, so that the browser loads the page: the workspace reads the
-               workflow's id from its address only when it is created, and the router would keep
-               the same workspace for another workflow's address. -->
+               load its workflow into this canvas. Its tab says where the chat is instead. Only
+               such an agent reaches this template, so its delegate is set. The link is a plain
+               one, so that the browser loads the page: the workspace reads the workflow's id
+               from its address only when it is created, and the router would keep the same
+               workspace for another workflow's address. -->
           <ng-template #onAnotherWorkflow>
             <div
-              *ngIf="agent.delegate?.workflowId as workflowId"
+              *ngIf="agent.delegate!.workflowId as workflowId"
               class="other-workflow-notice">
               <p>
-                This agent is working on a different workflow: {{ agent.delegate?.workflowName || "#" + workflowId }}.
+                This agent is working on a different workflow: {{ agent.delegate!.workflowName || "#" + workflowId }}.
               </p>
               <a
                 nz-button
