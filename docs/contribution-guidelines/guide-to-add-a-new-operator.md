@@ -204,7 +204,7 @@ reference, and as the generated script. The outputs are compared per port, by da
 
 - One checked-in table, `src/test/resources/verify/canonical_fixture.json`, 15 rows.
 - The sklearn and text tables are projections of it, not separate files. Source operators
-  bring their own file, one per format.
+  read it too, written out as a file in their own format.
 - Eight of its columns are named `a"b\c_…`, one of them carrying a single quote and a newline
   besides, so a run puts the escaping rule above to an operator that took one.
 - `CanonicalFixtureSpec` asserts the table's invariants, so an edit that breaks one fails the
@@ -303,8 +303,12 @@ canonical table. What you owe depends on which of four cases it falls in.
 An operator that reads the files its input names is not a source. `FileScanOpDesc` runs as a
 transform: `FileScanTransformHandler` hands it one row naming the shared table's own file.
 
-A scan source reads one shared table, written out in its own format, and also a copy with one
-cell emptied per column, since how an empty cell is read belongs to the reader.
+A scan source reads the shared table, written out in its own format, and also a copy with one
+cell emptied per column, since how an empty cell is read belongs to the reader. The file
+also carries four columns the transforms never see, from `CanonicalSourceFixture`. Integers
+past 2^53, the text `NA` and digits past the millisecond are each read differently by some
+reader. A column named `in1df` lets the workflow plans check that the translator leaves it
+alone.
 
 ### When a run cannot happen
 
