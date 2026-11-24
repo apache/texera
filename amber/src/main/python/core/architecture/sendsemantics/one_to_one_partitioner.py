@@ -36,6 +36,7 @@ class OneToOnePartitioner(Partitioner):
         super().__init__(set_one_of(Partitioning, partitioning))
         self.batch_size = partitioning.batch_size
         self.batch: list[Tuple] = list()
+        self.receiver: typing.Optional[ActorVirtualIdentity] = None
         for channel in partitioning.channels:
             if channel.from_worker_id.name == worker_id:
                 self.receiver = channel.to_worker_id
@@ -54,6 +55,11 @@ class OneToOnePartitioner(Partitioner):
     def flush(
         self, to: ActorVirtualIdentity, ecm: EmbeddedControlMessage
     ) -> Iterator[typing.Union[EmbeddedControlMessage, typing.List[Tuple]]]:
+        # OutputManager.emit_ecm flushes every link's partitioner once per
+        # output channel. Answer only for this link's receiver, so other
+        # channels neither take the pending batch nor get an extra ECM.
+        if to != self.receiver:
+            return
         if len(self.batch) > 0:
             yield self.batch
         self.reset()
