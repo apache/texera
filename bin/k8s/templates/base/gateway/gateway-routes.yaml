@@ -218,6 +218,32 @@ spec:
           port: 3001
 {{- end }}
 ---
+# Operator Recommendation Route. Stateless, so it is a separate HTTPRoute that
+# the agent BackendTrafficPolicy does not target: requests spread across
+# agent-service replicas instead of being pinned by X-Agent-Workflow-Id.
+{{- if .Values.agentService.enabled }}
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: {{ .Release.Name }}-operator-recommendation-route
+  namespace: {{ .Release.Namespace }}
+spec:
+  parentRefs:
+    - name: {{ .Release.Name }}-gateway
+  {{- if and .Values.gatewayConfig .Values.gatewayConfig.hostname }}
+  hostnames:
+    - {{ .Values.gatewayConfig.hostname }}
+  {{- end }}
+  rules:
+    - matches:
+        - path:
+            type: PathPrefix
+            value: /api/operator-recommendations
+      backendRefs:
+        - name: agent-service-svc
+          port: 3001
+{{- end }}
+---
 # RustFS Route
 {{- if .Values.rustfs.gateway.enabled }}
 apiVersion: gateway.networking.k8s.io/v1
