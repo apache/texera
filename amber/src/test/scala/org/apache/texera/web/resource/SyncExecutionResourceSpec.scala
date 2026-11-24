@@ -102,8 +102,8 @@ import org.apache.texera.observability.SpanAttrs
   * agent-service.
   *
   * Two of the resource's methods are public (`executeWorkflowSync`, `healthCheck`); the other
-  * sixteen are `private def`. `executeWorkflowSync` is driven for real here — one end-to-end case
-  * that gets as far as a running engine can be taken without one — but the result-shaping helpers
+  * sixteen are `private def`. `executeWorkflowSync` is driven for real here — two end-to-end cases
+  * that get as far as a running engine can be taken without one — but the result-shaping helpers
   * it calls cannot be reached that way: every one of them only produces an observable difference
   * once the engine has populated the stats/console stores or written Iceberg results. They are
   * therefore driven through `PrivateMethodTester` over fixtures that stand in for that state, and
@@ -1286,5 +1286,42 @@ class SyncExecutionResourceSpec
     span.getAttributes.get(SpanAttrs.WorkflowId) shouldBe testWid.toLong
     span.getAttributes.get(SpanAttrs.ComputingUnitId) shouldBe testCuid.toLong
     span.getAttributes.get(SpanAttrs.OperatorCount) shouldBe 1L
+
+    val initSpan = exportedSpans.asScala
+      .find(_.getName == "WorkflowService.initExecutionService")
+      .getOrElse(fail("expected the initExecutionService span to be exported"))
+    initSpan.getParentSpanId shouldBe span.getSpanContext.getSpanId
+  }
+
+  it should "record the exception and mark the span ERROR when the run throws" in {
+    exportedSpans.clear()
+    val scan = new CSVScanSourceOpDesc()
+    scan.setOperatorId("scan-op")
+    val user = new User
+    user.setUid(testUid)
+    user.setEmail("sync-exec@example.com")
+
+    val result = resource.executeWorkflowSync(
+      testWid.toLong,
+      testCuid,
+      SyncExecutionRequest(
+        executionName = "sync-spec-span-throw",
+        logicalPlan = LogicalPlanPojo(List(scan), List.empty, List.empty, List.empty),
+        workflowSettings = None,
+        targetOperatorIds = List("scan-op"),
+        timeoutSeconds = 5,
+        maxOperatorResultCharLimit = 100000,
+        maxOperatorResultCellCharLimit = 20000,
+        warehouseId = Some(1)
+      ),
+      new SessionUser(user)
+    )
+    result.success shouldBe false
+
+    val span = exportedSpans.asScala
+      .find(_.getName == "SyncExecutionResource.executeWorkflowSync")
+      .getOrElse(fail("expected the executeWorkflowSync span to be exported"))
+    span.getStatus.getStatusCode shouldBe StatusCode.ERROR
+    span.getEvents.asScala.exists(_.getName == "exception") shouldBe true
   }
 }

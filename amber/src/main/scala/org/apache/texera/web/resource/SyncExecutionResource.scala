@@ -377,6 +377,11 @@ class SyncExecutionResource extends LazyLogging {
         }
       if (!result.success) span.setStatus(StatusCode.ERROR)
       result
+    } catch {
+      case t: Throwable =>
+        span.recordException(t)
+        span.setStatus(StatusCode.ERROR)
+        throw t
     } finally {
       scope.close()
       span.end()

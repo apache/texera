@@ -47,6 +47,8 @@ class SpanAttrsSpec extends AnyFlatSpec with Matchers {
   it should "expose stable key names so callsites share one label vocabulary" in {
     SpanAttrs.WorkflowId.getKey shouldBe "texera.workflow.id"
     SpanAttrs.ExecutionId.getKey shouldBe "texera.execution.id"
+    SpanAttrs.ComputingUnitId.getKey shouldBe "texera.computing_unit.id"
+    SpanAttrs.OperatorCount.getKey shouldBe "texera.operator.count"
   }
 
   // ----- attribute-count cap is the OTel SDK default (128) -------------
