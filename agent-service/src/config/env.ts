@@ -22,8 +22,8 @@ import { z } from "zod";
 /**
  * A boolean flag read from an environment variable. `z.coerce.boolean()` is
  * `Boolean(value)`, which reads any non-empty string, "false" and "0"
- * included, as true. This accepts true/1 and false/0 in any case, treats an
- * empty value as unset, and rejects anything else.
+ * included, as true. This accepts true/1/yes/on and false/0/no/off in any
+ * case, treats an empty value as unset, and rejects anything else.
  */
 const envFlag = z
   .preprocess(
@@ -32,9 +32,9 @@ const envFlag = z
       const normalized = value.trim().toLowerCase();
       return normalized === "" ? undefined : normalized;
     },
-    z.enum(["true", "false", "1", "0"]).optional()
+    z.enum(["true", "false", "1", "0", "yes", "no", "on", "off"]).optional()
   )
-  .transform(value => value === "true" || value === "1");
+  .transform(value => value === "true" || value === "1" || value === "yes" || value === "on");
 
 export const EnvSchema = z.object({
   PORT: z.coerce.number().default(3001),

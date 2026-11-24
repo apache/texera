@@ -35,15 +35,15 @@ describe("LOG_PRETTY", () => {
     expect(logPretty("")).toBe(false);
   });
 
-  test.each(["false", "0", "FALSE", " False "])("is off for %p", value => {
+  test.each(["false", "0", "FALSE", " False ", "no", "off", "OFF"])("is off for %p", value => {
     expect(logPretty(value)).toBe(false);
   });
 
-  test.each(["true", "1", "TRUE", " True "])("is on for %p", value => {
+  test.each(["true", "1", "TRUE", " True ", "yes", "on", "ON"])("is on for %p", value => {
     expect(logPretty(value)).toBe(true);
   });
 
-  test.each(["yes", "off", "2", "truthy"])("rejects %p instead of guessing", value => {
+  test.each(["2", "truthy", "y", "nope"])("rejects %p instead of guessing", value => {
     expect(() => logPretty(value)).toThrow();
   });
 });
