@@ -959,13 +959,14 @@ export class AgentService {
    * Get the current state of an agent.
    */
   public getAgentState(agentId: string): Observable<AgentState> {
-    return defer(() => {
-      const tracking = this.agentStateTracking.get(agentId);
-      if (tracking) {
-        return of(tracking.stateSubject.getValue());
-      }
-      return of(AgentState.UNAVAILABLE);
-    });
+    return defer(() => of(this.getAgentStateSnapshot(agentId)));
+  }
+
+  /**
+   * Get the latest known state of an agent synchronously, without creating tracking.
+   */
+  public getAgentStateSnapshot(agentId: string): AgentState {
+    return this.agentStateTracking.get(agentId)?.stateSubject.getValue() ?? AgentState.UNAVAILABLE;
   }
 
   /**

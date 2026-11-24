@@ -208,11 +208,19 @@ describe(`DELETE ${API}/agents/:id`, () => {
 });
 
 describe("Agent control routes", () => {
-  test("POST /:id/stop returns stopping", async () => {
+  test("POST /:id/stop mid-run returns STOPPING", async () => {
+    const created = await readJson<{ id: string }>(await createAgent());
+    (_getAgentForTests(created.id)! as any).state = "GENERATING";
+    const res = await postJson(`${API}/agents/${created.id}/stop`, {});
+    expect(res.status).toBe(200);
+    expect(await readJson<unknown>(res)).toEqual({ status: "STOPPING" });
+  });
+
+  test("POST /:id/stop on an idle agent returns AVAILABLE", async () => {
     const created = await readJson<{ id: string }>(await createAgent());
     const res = await postJson(`${API}/agents/${created.id}/stop`, {});
     expect(res.status).toBe(200);
-    expect(await readJson<unknown>(res)).toEqual({ status: "stopping" });
+    expect(await readJson<unknown>(res)).toEqual({ status: "AVAILABLE" });
   });
 
   test("POST /:id/clear resets history", async () => {

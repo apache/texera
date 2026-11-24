@@ -516,6 +516,16 @@ export class TexeraAgent {
   }
 
   async sendMessage(userMessage: string, messageSource?: "chat" | "feedback"): Promise<AgentMessageResult> {
+    // State flips synchronously, before the first await below, so a second
+    // prompt arriving while this one is mid-flight (e.g. during
+    // refreshWorkflowFromBackend) sees GENERATING and is rejected instead of
+    // interleaving with this run's head/abortController/currentMessageId (#8711).
+    if (this.state !== AgentStateEnum.AVAILABLE) {
+      throw new Error("Agent is busy processing another message");
+    }
+    this.state = AgentStateEnum.GENERATING;
+    this.abortController = new AbortController();
+
     const messageId = `msg-${this.agentId}-${++this.messageCounter}-${Date.now()}`;
     let stepIndex = 0;
     // Ends the turn with a step that says how it ended: at the step limit, stopped, or failed.
@@ -536,15 +546,13 @@ export class TexeraAgent {
       this.head = step.id;
     };
 
-    await this.refreshWorkflowFromBackend();
-
-    this.abortController = new AbortController();
-
-    this.state = AgentStateEnum.GENERATING;
-
     this.currentMessageId = messageId;
 
     try {
+      // Inside the try so the finally below always resets state, even if the
+      // refresh ever starts throwing.
+      await this.refreshWorkflowFromBackend();
+
       let beforeStepContent = this.workflowState.getWorkflowContent();
 
       const estimatedInputTokens = Math.ceil(userMessage.length / 4);
@@ -780,6 +788,11 @@ export class TexeraAgent {
   }
 
   stop(): void {
+    // Only a run in flight can be stopped. An idle agent has no finally to
+    // reset STOPPING, so setting it here would wedge sendMessage's busy guard.
+    if (this.state !== AgentStateEnum.GENERATING) {
+      return;
+    }
     this.state = AgentStateEnum.STOPPING;
     if (this.abortController) {
       this.abortController.abort();
