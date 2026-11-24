@@ -53,11 +53,13 @@ object JwtAuth {
 
   /**
     * Build the claim set for `user`. The claim names are a contract with the hand-written
-    * TypeScript reader in `frontend/src/app/common/service/user/auth.service.ts`, which is not
-    * compiled against this file — so renaming one here silently breaks the frontend. The `avatar`
-    * claim was `googleAvatar` until the column and the value stopped being Google-specific; the
-    * TypeScript reader was renamed in the same change, and both sides still accept the old name
-    * so tokens issued before it keep working (see [[JwtParser]] for when that can go).
+    * TypeScript readers in `frontend/src/app/common/service/user/auth.service.ts` and
+    * `agent-service/src/config/jwt.ts`, which are not compiled against this file — so
+    * renaming one here silently breaks the frontend and agent-service authentication.
+    * The `avatar` claim was `googleAvatar` until the column and the value stopped being
+    * Google-specific; the TypeScript reader was renamed in the same change, and both sides
+    * still accept the old name so tokens issued before it keep working (see [[JwtParser]]
+    * for when that can go).
     *
     * `googleId` is passed in rather than read off `user`, because the GOOGLE provider id lives
     * in `auth_provider` and this module must stay DB-free: the specs in
