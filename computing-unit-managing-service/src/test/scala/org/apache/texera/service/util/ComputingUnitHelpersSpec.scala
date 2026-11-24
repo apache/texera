@@ -120,23 +120,13 @@ class ComputingUnitHelpersSpec
   private def clusterEvictionReason(detail: String): String =
     s"The computing unit was evicted by the cluster ($detail). Consider recreating it."
 
-  private def terminatingPod(
-      phase: Option[String] = Some("Running"),
-      reason: Option[String] = None,
-      message: Option[String] = None
-  ): Pod = {
-    val base = new PodBuilder()
-      .withNewMetadata()
+  /** `pod`, being deleted. */
+  private def terminatingPod(pod: Pod): Pod =
+    new PodBuilder(pod)
+      .editOrNewMetadata()
       .withDeletionTimestamp("2026-08-20T00:00:00Z")
       .endMetadata()
-    phase
-      .fold(base) { p =>
-        val status = base.withNewStatus().withPhase(p)
-        val withReason = reason.fold(status)(status.withReason)
-        message.fold(withReason)(withReason.withMessage).endStatus()
-      }
       .build()
-  }
 
   /** A pod with one container per (restart count, waiting reason, last terminated reason). */
   private def podWithContainers(
@@ -284,25 +274,20 @@ class ComputingUnitHelpersSpec
   }
 
   it should "map a pod with a deletion timestamp to Terminating regardless of phase" in {
-    statusAndReasonOf(terminatingPod()) shouldBe ((Terminating, None))
+    statusAndReasonOf(terminatingPod(podWithPhase("Running"))) shouldBe ((Terminating, None))
   }
 
   it should "map a status-less pod that is being deleted to Terminating, not Pending" in {
     // A pod can carry a deletion timestamp before its status is ever populated; the
     // empty-status snapshot must still honor the terminating flag.
-    statusAndReasonOf(terminatingPod(phase = None)) shouldBe ((Terminating, None))
+    statusAndReasonOf(terminatingPod(statuslessPod())) shouldBe ((Terminating, None))
   }
 
   it should "let Terminating win over an eviction" in {
     // Deleting an already-evicted pod is the owner acting on the failure: the row should
     // show the deletion in progress, not keep explaining the eviction.
-    statusAndReasonOf(
-      terminatingPod(
-        phase = Some("Failed"),
-        reason = Some("Evicted"),
-        message = Some(diskEvictionMessage)
-      )
-    ) shouldBe ((Terminating, None))
+    statusAndReasonOf(terminatingPod(evictedPod(diskEvictionMessage))) shouldBe
+      ((Terminating, None))
   }
 
   it should "map a disk-pressure eviction to Failed with the local-disk reason" in {
@@ -350,7 +335,7 @@ class ComputingUnitHelpersSpec
       .withNewStatus()
       .withPhase("Failed")
       .withReason("Evicted")
-      .withMessage("Pod ephemeral local storage usage exceeds the total limit of containers 1Gi.")
+      .withMessage(diskEvictionMessage)
       .addNewContainerStatus()
       .withRestartCount(5)
       .withNewState()
