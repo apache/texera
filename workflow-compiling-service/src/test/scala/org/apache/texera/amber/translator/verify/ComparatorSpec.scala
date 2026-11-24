@@ -382,7 +382,7 @@ class ComparatorSpec extends AnyFlatSpec with Matchers {
   }
 
   private def runPythonScript(script: Path, args: String*): (Int, String) = {
-    val python = sys.env.get("UDF_PYTHON_PATH").filter(_.nonEmpty).getOrElse("python3")
+    val python = PyOpExecHarness.resolvePython()
     val process = new ProcessBuilder((python +: script.toString +: args): _*)
       .redirectErrorStream(true)
       .start()
