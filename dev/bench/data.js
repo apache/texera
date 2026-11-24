@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1795439220338,
+  "lastUpdate": 1795525339756,
   "repoUrl": "https://github.com/apache/texera",
   "entries": {
     "Arrow Flight E2E Throughput": [
@@ -23814,6 +23814,163 @@ window.BENCHMARK_DATA = {
           {
             "name": "throughput / bs=1000 sw=50 sl=512",
             "value": 729.0174387356882,
+            "unit": "tuples/sec"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "name": "Jiadong Bai",
+            "username": "bobbai00",
+            "email": "43344272+bobbai00@users.noreply.github.com"
+          },
+          "committer": {
+            "name": "GitHub",
+            "username": "web-flow",
+            "email": "noreply@github.com"
+          },
+          "id": "a1b5aad0e39ed184ea715cd108ea249fabe864f7",
+          "message": "feat(agent-service): tell users when the step limit is hit (#9593)\n\n### What changes were proposed in this PR?\n\nA turn that reaches the step limit now ends with a message from the\nagent. Before, the chat went quiet.\n\n> I stopped because I reached the limit of 25 steps for one message, so\nthe task may be unfinished. Send another message to continue, or raise\nthe limit in the agent's settings.\n\n- **Where:** `sendMessage` in `agent-service/src/agent/texera-agent.ts`\nadds it as a closing agent step, as for a stopped or failed turn. The\nfrontend is unchanged.\n- **When:** only if the loop's stop condition ended the turn. The AI SDK\nasks it only when the loop would otherwise go on, so a turn that ends\nfor another reason on its last allowed step gets no message.\n- **Next turn:** the model reads it as the last entry of the earlier\ntask.\n- **Stop on the last step:** a stop that lands on the last allowed step\nnow ends with \"Generation stopped by user.\", as one on an earlier step\ndoes. Before, that turn ended with no message.\n\n**A request that needs four operators, with the step limit set to 3 and\na scripted model.** Before, the agent stops after three and the chat\nends on \"Execute 1 tool\":\n\n<img width=\"1228\" height=\"704\" alt=\"Before: the agent adds three\noperators, then the chat ends on Execute 1 tool with no message\"\nsrc=\"https://github.com/user-attachments/assets/30b0ff28-9f79-4e50-8cae-aef48c9afa23\"\n/>\n\nAfter, the agent says it stopped at the limit, and \"continue\" finishes\nthe workflow:\n\n<img width=\"1228\" height=\"704\" alt=\"After: the agent says it stopped at\nthe limit of 3 steps, and continue adds the bar chart and finishes\"\nsrc=\"https://github.com/user-attachments/assets/f5f4e11a-6f97-43f3-9c0a-c111c4ddee07\"\n/>\n\n### Any related issues, documentation, discussions?\n\nCloses #9592\nPart of #9576\n\n### How was this PR tested?\n\n- `bun test` in `agent-service`, eight new tests. The message appears at\nthe limit and names the limit the turn started with. It does not appear\nwhen the model answers on its last allowed step, a cut-off tool call\nends the turn, or the user stops it. A stop on the last allowed step\nends as stopped.\n- Live with Claude Haiku 5.5 and a limit of 2: the chat panel showed the\nmessage, and \"continue\" resumed the work.\n\n### Was this PR authored or co-authored using generative AI tooling?\n\nGenerated-by: Claude Code (Claude Fable 5.2)",
+          "timestamp": "2026-11-24T06:30:54Z",
+          "url": "https://github.com/apache/texera/commit/a1b5aad0e39ed184ea715cd108ea249fabe864f7"
+        },
+        "date": 1795525339256,
+        "tool": "customBiggerIsBetter",
+        "benches": [
+          {
+            "name": "throughput / bs=10 sw=1 sl=8",
+            "value": 661.4580188048777,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=1 sl=8",
+            "value": 1158.8469969595146,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=1 sl=8",
+            "value": 1240.3257578906798,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=1 sl=64",
+            "value": 852.9726322698839,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=1 sl=64",
+            "value": 1173.4364799144332,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=1 sl=64",
+            "value": 1248.9756755574258,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=1 sl=512",
+            "value": 893.9480288339807,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=1 sl=512",
+            "value": 1213.6888975860002,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=1 sl=512",
+            "value": 1249.6383468756053,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=10 sl=8",
+            "value": 753.5535726149137,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=10 sl=8",
+            "value": 959.5158686537528,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=10 sl=8",
+            "value": 985.9223101147825,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=10 sl=64",
+            "value": 749.5002877342847,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=10 sl=64",
+            "value": 953.0589821404028,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=10 sl=64",
+            "value": 995.0367278112823,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=10 sl=512",
+            "value": 780.5286543211048,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=10 sl=512",
+            "value": 949.3461800691291,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=10 sl=512",
+            "value": 967.1573279725467,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=50 sl=8",
+            "value": 460.3581183024789,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=50 sl=8",
+            "value": 533.1142093617196,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=50 sl=8",
+            "value": 545.550054971607,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=50 sl=64",
+            "value": 434.9242171843051,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=50 sl=64",
+            "value": 542.0494031913988,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=50 sl=64",
+            "value": 539.0144289543358,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=10 sw=50 sl=512",
+            "value": 443.6928167838074,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=100 sw=50 sl=512",
+            "value": 510.8167845909013,
+            "unit": "tuples/sec"
+          },
+          {
+            "name": "throughput / bs=1000 sw=50 sl=512",
+            "value": 511.8585025064703,
             "unit": "tuples/sec"
           }
         ]
