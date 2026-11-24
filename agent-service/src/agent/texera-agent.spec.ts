@@ -751,7 +751,7 @@ describe("sendMessage", () => {
       return new MockLanguageModelV4({
         doGenerate: async () => {
           n++;
-          if (n > 20) throw new Error("runaway");
+          if (n > 50) throw new Error("runaway");
           options.onCall?.(n);
           const callsTool = n <= toolCalls;
           return {
@@ -797,6 +797,17 @@ describe("sendMessage", () => {
       expect(res.stopped).toBe(false);
       expect(res.error).toBeUndefined();
       expect(agent.getState()).toBe(AgentState.AVAILABLE);
+    });
+
+    test("stops a looping model at the default step limit", async () => {
+      // Nothing sets maxSteps here, so the default is all that bounds a model that never stops
+      // calling tools.
+      const model = toolCallingModel(Infinity);
+      const agent = makeAgentWith(model);
+      expect(agent.getSettings().maxSteps).toBe(25);
+      await agent.sendMessage("go");
+      expect(model.doGenerateCalls).toHaveLength(25);
+      expect(agent.getAllSteps().at(-1)?.content).toBe(notice("25 steps"));
     });
 
     test("adds nothing when the model answers on the last allowed step", async () => {
@@ -904,35 +915,6 @@ describe("sendMessage", () => {
     expect(n).toBe(2);
     // The user's message, the two model steps the limit allows, and the notice that it was reached.
     expect(agent.getAllSteps().map(s => s.stepId)).toEqual([0, 1, 2, 3]);
-  });
-
-  test("stops a looping model at the default step limit", async () => {
-    // Nothing sets maxSteps here, so the default is all that bounds a model that never stops
-    // calling tools.
-    let n = 0;
-    const model = new MockLanguageModelV4({
-      doGenerate: async () => {
-        n++;
-        if (n > 200) throw new Error("runaway");
-        return {
-          content: [
-            {
-              type: "tool-call",
-              toolCallId: "c" + n,
-              toolName: "deleteOperator",
-              input: JSON.stringify({ operatorId: "ghost" }),
-            },
-          ],
-          finishReason: finish("tool-calls"),
-          usage: usage(1, 1),
-          warnings: [],
-        } as any;
-      },
-    });
-    const agent = makeAgentWith(model);
-    expect(agent.getSettings().maxSteps).toBe(25);
-    await agent.sendMessage("go");
-    expect(n).toBe(25);
   });
 
   test("second turn chains on and reads turn 1 as completed", async () => {
