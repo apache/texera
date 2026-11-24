@@ -144,7 +144,7 @@ class LargeBinaryOutputStream(IOBase):
 
         Raises:
             ValueError: If stream is closed
-            IOError: If previous upload failed
+            OSError: If previous upload failed
         """
         if self.closed:
             raise ValueError("I/O operation on closed stream")
@@ -211,14 +211,14 @@ class LargeBinaryOutputStream(IOBase):
     def close(self) -> None:
         """
         Close the stream and complete the S3 upload.
-        Blocks until upload is complete. Raises IOError if upload failed.
+        Blocks until upload is complete. Raises OSError if upload failed.
 
         Idempotent: subsequent calls (including IOBase's __del__-driven
         finalize on Python 3.13+) are no-ops because IOBase tracks the
         closed state via super().close() below.
 
         Raises:
-            IOError: If upload failed
+            OSError: If upload failed
         """
         if self.closed:
             return

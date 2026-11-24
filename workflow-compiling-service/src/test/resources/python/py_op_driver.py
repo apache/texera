@@ -303,9 +303,7 @@ def _jsonify(value: Any, attr_type: AttributeType) -> Any:
         # not bytes, prefixing it with the marker the engine's cast writes. The
         # standalone path pickles the same object without one, so strip it and
         # both sides carry the same payload.
-        raw = value
-        raw = raw.removeprefix(_CAST_PICKLE_MARKER)
-        return base64.b64encode(raw).decode("ascii")
+        return base64.b64encode(value.removeprefix(_CAST_PICKLE_MARKER)).decode("ascii")
     if attr_type == AttributeType.LARGE_BINARY:
         # The reference, not the object it points at: the URI is the whole field
         # on the wire, which is what the worker sends and what LargeBinary holds
