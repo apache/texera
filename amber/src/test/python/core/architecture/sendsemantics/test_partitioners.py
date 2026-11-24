@@ -435,6 +435,38 @@ class TestOneToOnePartitioner:
         ecm = EmbeddedControlMessage()
         assert list(partitioner.flush(_worker("A"), ecm)) == [ecm]
 
+    # OutputManager.emit_ecm flushes every link's partitioner once per output
+    # channel, so a one-to-one partitioner is also flushed for channels that
+    # belong to other links. It must answer only for its own receiver.
+    def test_flush_to_non_receiver_emits_nothing_and_keeps_batch(self, partitioner):
+        list(partitioner.add_tuple_to_batch(_tuple(k=1)))
+        ecm = EmbeddedControlMessage()
+        assert list(partitioner.flush(_worker("X"), ecm)) == []
+        assert partitioner.batch == [_tuple(k=1)]
+
+    def test_pending_batch_goes_to_receiver_after_other_channels_flush(
+        self, partitioner
+    ):
+        list(partitioner.add_tuple_to_batch(_tuple(k=1)))
+        ecm = EmbeddedControlMessage()
+        out = []
+        for to in (_worker("R1"), _worker("R2"), _worker("A")):
+            out.append((to, _snapshot(partitioner.flush(to, ecm))))
+        assert out == [
+            (_worker("R1"), []),
+            (_worker("R2"), []),
+            (_worker("A"), [[_tuple(k=1)], ecm]),
+        ]
+        assert partitioner.batch == []
+
+    def test_flush_to_receiver_twice_sends_batch_once(self, partitioner):
+        list(partitioner.add_tuple_to_batch(_tuple(k=1)))
+        ecm = EmbeddedControlMessage()
+        first = _snapshot(partitioner.flush(_worker("A"), ecm))
+        second = _snapshot(partitioner.flush(_worker("A"), ecm))
+        assert first == [[_tuple(k=1)], ecm]
+        assert second == [ecm]
+
     def test_flush_state_emits_pending_batch_then_state(self, partitioner):
         list(partitioner.add_tuple_to_batch(_tuple(k=1)))
         state = State()

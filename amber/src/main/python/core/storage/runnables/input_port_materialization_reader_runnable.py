@@ -110,11 +110,25 @@ class InputPortMaterializationReaderRunnable(Runnable, Stoppable):
         }
         the_partitioning: Partitioning = get_one_of(partitioning)
         partitioner = self._partitioning_to_partitioner[type(the_partitioning)]
-        self.partitioner: Partitioner = (
-            partitioner(the_partitioning)
-            if partitioner != OneToOnePartitioner
-            else partitioner(the_partitioning, self.worker_actor_id)
-        )
+        if partitioner == OneToOnePartitioner:
+            # OneToOnePartitioner picks its receiver from the channel whose
+            # sender is the given worker. This reader stands in for the sender
+            # of the channel that ends at this worker, so name that sender.
+            sender = next(
+                (
+                    channel.from_worker_id.name
+                    for channel in the_partitioning.channels
+                    if channel.to_worker_id == self.worker_actor_id
+                ),
+                None,
+            )
+            if sender is None:
+                raise ValueError(
+                    f"no one-to-one channel ends at {self.worker_actor_id.name}"
+                )
+            self.partitioner: Partitioner = partitioner(the_partitioning, sender)
+        else:
+            self.partitioner = partitioner(the_partitioning)
 
     def finished(self) -> bool:
         """

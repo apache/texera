@@ -725,3 +725,42 @@ class TestQueryMethods:
                 is_control=False,
             )
         ]
+
+
+class TestEmitEcmWithOneToOneLink:
+    """A worker with a one-to-one link next to another output link: each
+    channel must get exactly one copy of the ECM, from its own link."""
+
+    @pytest.fixture
+    def output_manager(self):
+        om = OutputManager(worker_id=_WORKER_ID)
+        round_robin_link = PhysicalLink(to_port_id=PortIdentity(id=0))
+        one_to_one_link = PhysicalLink(to_port_id=PortIdentity(id=1))
+        om.add_partitioning(
+            round_robin_link,
+            set_one_of(
+                Partitioning,
+                RoundRobinPartitioning(
+                    batch_size=10,
+                    channels=[_self_channel("R1"), _self_channel("R2")],
+                ),
+            ),
+        )
+        om.add_partitioning(
+            one_to_one_link,
+            set_one_of(
+                Partitioning,
+                OneToOnePartitioning(batch_size=10, channels=[_self_channel("C")]),
+            ),
+        )
+        return om
+
+    @pytest.mark.parametrize("receiver", ["R1", "R2", "C"])
+    def test_each_channel_gets_exactly_one_ecm(self, output_manager, receiver):
+        ecm = EmbeddedControlMessage()
+        out = list(output_manager.emit_ecm(_worker(receiver), ecm))
+        assert out == [ecm]
+
+    def test_channel_outside_every_link_gets_nothing(self, output_manager):
+        ecm = EmbeddedControlMessage()
+        assert list(output_manager.emit_ecm(_worker("Z"), ecm)) == []
