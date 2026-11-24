@@ -518,6 +518,23 @@ export class TexeraAgent {
   async sendMessage(userMessage: string, messageSource?: "chat" | "feedback"): Promise<AgentMessageResult> {
     const messageId = `msg-${this.agentId}-${++this.messageCounter}-${Date.now()}`;
     let stepIndex = 0;
+    // Ends the turn with a step that says how it ended: at the step limit, stopped, or failed.
+    const addClosingStep = (content: string): void => {
+      stepIndex++;
+      const step: ReActStep = {
+        id: this.generateStepId(),
+        parentId: this.head,
+        messageId,
+        stepId: stepIndex,
+        timestamp: Date.now(),
+        role: "agent",
+        content,
+        isBegin: false,
+        isEnd: true,
+      };
+      this.addStep(step);
+      this.head = step.id;
+    };
 
     await this.refreshWorkflowFromBackend();
 
@@ -698,21 +715,7 @@ export class TexeraAgent {
       // A turn the limit cut short has no closing answer, so the agent says why it stopped. A turn
       // the user stopped needs no such notice, even when the stop lands on the last allowed step.
       if (stoppedAtStepLimit && !this.abortController?.signal.aborted) {
-        stepIndex++;
-        const noticeStepId = this.generateStepId();
-        const noticeStep: ReActStep = {
-          id: noticeStepId,
-          parentId: this.head,
-          messageId,
-          stepId: stepIndex,
-          timestamp: Date.now(),
-          role: "agent",
-          content: stepLimitNotice(maxSteps),
-          isBegin: false,
-          isEnd: true,
-        };
-        this.addStep(noticeStep);
-        this.head = noticeStepId;
+        addClosingStep(stepLimitNotice(maxSteps));
       }
 
       const msgSteps = this.reActStepsByMessageId.get(messageId);
@@ -741,22 +744,7 @@ export class TexeraAgent {
       const isAborted = error?.name === "AbortError" || this.abortController?.signal.aborted;
 
       if (isAborted) {
-        stepIndex++;
-        const stoppedStepId = this.generateStepId();
-        const stoppedStep: ReActStep = {
-          id: stoppedStepId,
-          parentId: this.head,
-          messageId,
-          stepId: stepIndex,
-          timestamp: Date.now(),
-          role: "agent",
-          content: "Generation stopped by user.",
-          isBegin: false,
-          isEnd: true,
-        };
-        this.addStep(stoppedStep);
-        this.head = stoppedStepId;
-
+        addClosingStep("Generation stopped by user.");
         return {
           response: "",
           messages: [],
@@ -765,22 +753,7 @@ export class TexeraAgent {
         };
       }
 
-      stepIndex++;
-      const errorStepId = this.generateStepId();
-      const errorStep: ReActStep = {
-        id: errorStepId,
-        parentId: this.head,
-        messageId,
-        stepId: stepIndex,
-        timestamp: Date.now(),
-        role: "agent",
-        content: `Error: ${errorMessage}`,
-        isBegin: false,
-        isEnd: true,
-      };
-      this.addStep(errorStep);
-      this.head = errorStepId;
-
+      addClosingStep(`Error: ${errorMessage}`);
       return {
         response: "",
         messages: [],
