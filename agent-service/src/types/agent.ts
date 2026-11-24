@@ -78,6 +78,12 @@ export interface AgentSettings {
   allowedOperatorTypes: string[];
 }
 
+/**
+ * The highest step limit the API accepts, the same as the settings dialog's maximum. A looping
+ * agent stops only at its step limit, so this bounds what one message can cost.
+ */
+export const MAX_STEPS_LIMIT = 50;
+
 export const DEFAULT_AGENT_SETTINGS: Omit<AgentSettings, "systemPrompt"> = {
   disabledTools: new Set(),
   maxOperatorResultCharLimit: 2000,
@@ -86,8 +92,7 @@ export const DEFAULT_AGENT_SETTINGS: Omit<AgentSettings, "systemPrompt"> = {
   toolTimeoutMs: 240000,
   executionTimeoutMs: 240000,
   // Model calls allowed per user message. Real turns take about 3 and the largest measured took
-  // 13, while a looping agent stops only at this limit, so it stays close to real use and inside
-  // the 1-50 range the settings dialog offers.
+  // 13, while a looping agent stops only at this limit, so it stays close to real use.
   maxSteps: 25,
   allowedOperatorTypes: [
     "CSVFileScan",

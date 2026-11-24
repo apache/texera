@@ -38,7 +38,7 @@ import type {
   AgentSettingsApi,
   ReActStep,
 } from "./types/agent";
-import { AgentState, OperatorResultSerializationMode } from "./types/agent";
+import { AgentState, MAX_STEPS_LIMIT, OperatorResultSerializationMode } from "./types/agent";
 import type { WsClientCommand, WsServerEvent } from "./types/ws";
 import { WsServerSnapshotEvent, WsServerStepEvent, WsServerStatusEvent, WsServerErrorEvent } from "./types/ws";
 import type { OperatorExecutionSummary } from "./types/execution";
@@ -242,7 +242,7 @@ const agentsRouter = new Elysia({ prefix: "/agents" })
             toolTimeoutSeconds: t.Optional(t.Number()),
             executionTimeoutMinutes: t.Optional(t.Number()),
             disabledTools: t.Optional(t.Array(t.String())),
-            maxSteps: t.Optional(t.Integer({ minimum: 1 })),
+            maxSteps: t.Optional(t.Integer({ minimum: 1, maximum: MAX_STEPS_LIMIT })),
             allowedOperatorTypes: t.Optional(t.Array(t.String())),
           })
         ),
@@ -382,7 +382,7 @@ const agentsRouter = new Elysia({ prefix: "/agents" })
         operatorResultSerializationMode: t.Optional(t.Literal("tsv")),
         toolTimeoutSeconds: t.Optional(t.Number()),
         executionTimeoutMinutes: t.Optional(t.Number()),
-        maxSteps: t.Optional(t.Integer({ minimum: 1 })),
+        maxSteps: t.Optional(t.Integer({ minimum: 1, maximum: MAX_STEPS_LIMIT })),
         disabledTools: t.Optional(t.Array(t.String())),
         allowedOperatorTypes: t.Optional(t.Array(t.String())),
       }),
