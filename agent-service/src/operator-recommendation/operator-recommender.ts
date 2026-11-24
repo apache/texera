@@ -21,6 +21,7 @@ import {
   DEFAULT_OPERATOR_RECOMMENDATION_LIMIT,
   DEFAULT_SOURCE_PORT_ID,
   MAX_OPERATOR_RECOMMENDATION_LIMIT,
+  OUTPUT_PORT_ID_PATTERN,
   type OperatorRecommendation,
   type OperatorRecommendationRequest,
   type OperatorRecommendationResponse,
@@ -36,7 +37,7 @@ import {
 /**
  * Minimal read-only view of the operator catalog the recommender needs. The
  * `WorkflowSystemMetadata` singleton satisfies this structurally; tests can pass
- * a stub (or omit it entirely to exercise the uninitialized path).
+ * a stub.
  */
 export interface OperatorCatalog {
   isInitialized(): boolean;
@@ -50,7 +51,7 @@ const TOP_SCORE = 0.9;
 const SCORE_STEP = 0.15;
 const MIN_SCORE = 0.3;
 
-const OUTPUT_PORT_ID = /^output-(\d+)$/;
+const OUTPUT_PORT_ID = new RegExp(OUTPUT_PORT_ID_PATTERN);
 
 function scoreForRank(rank: number): number {
   return Math.max(MIN_SCORE, +(TOP_SCORE - rank * SCORE_STEP).toFixed(2));
@@ -62,41 +63,43 @@ function clampLimit(limit: number | undefined): number {
 }
 
 /** Whether `portId` names an output port the operator actually has. */
-function hasOutputPort(entry: OperatorCatalogEntry | undefined, portId: string): boolean {
+function hasOutputPort(entry: OperatorCatalogEntry, portId: string): boolean {
   const match = OUTPUT_PORT_ID.exec(portId);
   if (!match) return false;
-  // Without metadata, or with user-added ports, any well-formed port may exist.
-  if (!entry?.outputPorts || entry.dynamicOutputPorts) return true;
-  return Number(match[1]) < entry.outputPorts.length;
+  // With user-added ports, any well-formed port may exist.
+  if (entry.dynamicOutputPorts) return true;
+  return Number(match[1]) < (entry.outputPorts?.length ?? 0);
+}
+
+/** Whether a suggested operator has an input port the source can be wired to. */
+function acceptsInput(entry: OperatorCatalogEntry | undefined): boolean {
+  return !!entry && ((entry.inputPorts?.length ?? 0) > 0 || !!entry.dynamicInputPorts);
 }
 
 /**
  * Version 1 hardcoded recommender: given the operator just added, return a
  * short ranked list of likely successors drawn from {@link candidateSuccessors}.
  *
- * The result is deterministic and requires no LLM call. When a `catalog` is
- * supplied and initialized, the operator is classified from its metadata,
- * suggestions are filtered to operator types that actually exist (so a stale
- * rule never yields an unusable suggestion), and each suggestion is enriched
- * with its display name and the input port to wire to. Without an initialized
- * catalog, only the per-operator overrides and the generic fallback apply, and
- * the raw ranked candidates are returned unvalidated.
+ * The result is deterministic and requires no LLM call. The operator is
+ * classified from its catalog metadata, suggestions are filtered to operator
+ * types that exist and have an input port to wire to (so a stale rule never
+ * yields an unusable suggestion), and each suggestion is enriched with its
+ * display name and the input port to wire to. Since every one of those checks
+ * needs the catalog, nothing is suggested while the catalog is not loaded, or
+ * for an operator or output port it does not know.
  */
 export function recommendOperators(
   req: OperatorRecommendationRequest,
-  catalog?: OperatorCatalog
+  catalog: OperatorCatalog | undefined
 ): OperatorRecommendationResponse {
   const operatorType = req.operatorType?.trim();
   const limit = clampLimit(req.limit);
   const empty: OperatorRecommendationResponse = { recommendations: [], strategy: "hardcoded" };
 
-  if (!operatorType) return empty;
+  if (!operatorType || !catalog?.isInitialized()) return empty;
 
-  const catalogReady = catalog?.isInitialized() ?? false;
-  const metadataOf = (type: string) => (catalogReady ? catalog!.getAdditionalMetadata(type) : undefined);
-
-  const source = metadataOf(operatorType);
-  if (!hasOutputPort(source, req.sourcePortID ?? DEFAULT_SOURCE_PORT_ID)) return empty;
+  const source = catalog.getAdditionalMetadata(operatorType);
+  if (!source || !hasOutputPort(source, req.sourcePortID ?? DEFAULT_SOURCE_PORT_ID)) return empty;
   const sourceCategory = categoryOf(operatorType, source);
 
   const seen = new Set<string>();
@@ -106,12 +109,14 @@ export function recommendOperators(
     if (recommendations.length >= limit) break;
     // Never suggest the operator itself, and never suggest the same type twice.
     if (candidate === operatorType || seen.has(candidate)) continue;
-    // Drop suggestions the running system can't actually instantiate: an
-    // operator exists in the catalog exactly when its schema was loaded.
-    if (catalogReady && catalog!.getSchema(candidate) === undefined) continue;
+    // Drop suggestions the running system can't actually instantiate (an
+    // operator exists in the catalog exactly when its schema was loaded) or
+    // can't wire the source into.
+    if (catalog.getSchema(candidate) === undefined) continue;
+    const target = catalog.getAdditionalMetadata(candidate);
+    if (!acceptsInput(target)) continue;
     seen.add(candidate);
 
-    const target = metadataOf(candidate);
     const userFriendlyName = target?.userFriendlyName;
 
     recommendations.push({

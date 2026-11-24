@@ -37,6 +37,7 @@ export interface OperatorCatalogEntry {
   operatorGroupName?: string;
   inputPorts?: { displayName?: string }[];
   outputPorts?: { displayName?: string }[];
+  dynamicInputPorts?: boolean;
   dynamicOutputPorts?: boolean;
 }
 
@@ -121,7 +122,7 @@ const CATEGORY_SUCCESSORS: Record<OperatorCategory, string[]> = {
 
 /**
  * Per-operator overrides for the highest-value flows. Takes precedence over the
- * category successors above, and applies even when the catalog is unavailable.
+ * category successors above.
  */
 const SPECIFIC_SUCCESSORS: Record<string, string[]> = {
   CSVFileScan: ["Filter", "Projection", "KeywordSearch"],

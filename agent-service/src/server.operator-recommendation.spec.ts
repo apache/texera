@@ -122,10 +122,8 @@ describe("POST /operator-recommendations", () => {
 
   test("retries loading the catalog on a later request when the backend was not ready", async () => {
     failCatalog();
-    const before = await recommend({ operatorType: "Filter" });
-    // Unvalidated raw candidates, with no display names.
-    expect(before.recommendations.map(r => r.operatorType)).toEqual(["Aggregate", "Projection", "Sort"]);
-    expect(before.recommendations[0].userFriendlyName).toBeUndefined();
+    // Nothing can be checked without the catalog, so nothing is suggested.
+    expect((await recommend({ operatorType: "Filter" })).recommendations).toEqual([]);
 
     serveCatalog();
     const after = await recommend({ operatorType: "Filter" });
@@ -136,6 +134,33 @@ describe("POST /operator-recommendations", () => {
     const fetchesSoFar = fetchSpy.mock.calls.length;
     await recommend({ operatorType: "Filter" });
     expect(fetchSpy.mock.calls.length).toBe(fetchesSoFar);
+  });
+
+  test("concurrent requests share one catalog load", async () => {
+    let release!: () => void;
+    const pending = new Promise<void>(resolve => (release = resolve));
+    respondWith(() => Response.json(OPERATOR_CATALOG_FIXTURE));
+    const serve = fetchSpy.getMockImplementation()!;
+    fetchSpy.mockImplementation((async (...args: Parameters<typeof fetch>) => {
+      await pending;
+      return serve(...args);
+    }) as unknown as typeof fetch);
+
+    const first = recommend({ operatorType: "Filter" });
+    const second = recommend({ operatorType: "CSVFileScan" });
+    release();
+    const [a, b] = await Promise.all([first, second]);
+
+    expect(fetchSpy).toHaveBeenCalledTimes(1);
+    expect(a.recommendations[0].userFriendlyName).toBe("Aggregate");
+    expect(b.recommendations[0].userFriendlyName).toBe("Filter");
+  });
+
+  test("suggests nothing for an operator the loaded catalog does not know", async () => {
+    expect((await recommend({ operatorType: "TotallyMadeUpOp" })).recommendations).toEqual([]);
+    expect((await recommend({ operatorType: "TotallyMadeUpOp", sourcePortID: "output-7" })).recommendations).toEqual(
+      []
+    );
   });
 
   test("rejects a request without a Bearer token as 401", async () => {
@@ -161,6 +186,9 @@ describe("POST /operator-recommendations", () => {
       { operatorType: "   " },
       { operatorType: "X".repeat(129) },
       { operatorType: "Filter", sourcePortID: "input-0" },
+      { operatorType: "Filter", sourcePortID: "output-00" },
+      { operatorType: "Filter", sourcePortID: "output-01" },
+      { operatorType: "Filter", sourcePortID: `output-1${"0".repeat(9)}` },
     ];
     for (const body of invalid) {
       expect((await postRecommend(body)).status).toBe(400);

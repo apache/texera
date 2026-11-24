@@ -20,7 +20,7 @@
 import { describe, expect, test } from "bun:test";
 import type { OperatorMetadata } from "../api/backend-api";
 import { recommendOperators, type OperatorCatalog } from "./operator-recommender";
-import { targetPortIdFor } from "./operator-recommendation-rules";
+import { targetPortIdFor, type OperatorCatalogEntry } from "./operator-recommendation-rules";
 import { MAX_OPERATOR_RECOMMENDATION_LIMIT } from "./operator-recommendation-types";
 import { OPERATOR_CATALOG_FIXTURE } from "./operator-catalog.fixture";
 
@@ -39,6 +39,16 @@ function catalogWith(types: string[]): OperatorCatalog {
   return catalogFrom({
     ...OPERATOR_CATALOG_FIXTURE,
     operators: OPERATOR_CATALOG_FIXTURE.operators.filter(op => types.includes(op.operatorType)),
+  });
+}
+
+/** The fixture catalog with `patch` applied to one operator's metadata. */
+function catalogPatching(operatorType: string, patch: Partial<OperatorCatalogEntry>): OperatorCatalog {
+  return catalogFrom({
+    ...OPERATOR_CATALOG_FIXTURE,
+    operators: OPERATOR_CATALOG_FIXTURE.operators.map(op =>
+      op.operatorType === operatorType ? { ...op, additionalMetadata: { ...op.additionalMetadata, ...patch } } : op
+    ),
   });
 }
 
@@ -111,8 +121,10 @@ describe("recommendOperators (V1 hardcoded)", () => {
     expect(typesFor("If")).toEqual(["Filter", "Projection", "PythonUDFV2"]);
   });
 
-  test("unknown operator falls back to default successors", () => {
-    expect(typesFor("TotallyMadeUpOp")).toEqual(["Filter", "Projection", "PythonUDFV2"]);
+  test("operators the catalog does not know yield no suggestions", () => {
+    expect(typesFor("TotallyMadeUpOp")).toEqual([]);
+    // Even with a per-operator rule, since its ports cannot be checked.
+    expect(typesFor("CSVFileScan", catalogWith(["Filter", "Projection"]))).toEqual([]);
   });
 
   test("respects and clamps the limit", () => {
@@ -132,19 +144,25 @@ describe("recommendOperators (V1 hardcoded)", () => {
     expect(recommendations[2].userFriendlyName).toBe("Keyword Search");
   });
 
-  test("without an initialized catalog, returns raw candidates unvalidated", () => {
+  test("without an initialized catalog, suggests nothing", () => {
     for (const catalog of [null, catalogFrom(OPERATOR_CATALOG_FIXTURE, false)]) {
-      const { recommendations } = recommendOperators({ operatorType: "Filter" }, catalog ?? undefined);
-      expect(recommendations.map(r => r.operatorType)).toEqual(["Aggregate", "Projection", "Sort"]);
-      expect(recommendations[0].userFriendlyName).toBeUndefined();
-      // Operators without a specific rule cannot be classified, so they get the fallback.
-      expect(typesFor("Aggregate", catalog)).toEqual(["Filter", "Projection", "PythonUDFV2"]);
+      for (const operatorType of ["Filter", "BarChart", "SklearnTrainingLogisticRegression"]) {
+        expect(typesFor(operatorType, catalog)).toEqual([]);
+      }
     }
   });
 
+  test("skips suggestions with no input port to wire to", () => {
+    expect(typesFor("Filter", catalogPatching("Aggregate", { inputPorts: [] }))).toEqual(["Projection", "Sort"]);
+    // Unless the operator lets users add input ports.
+    const dynamic = catalogPatching("Aggregate", { inputPorts: [], dynamicInputPorts: true });
+    expect(typesFor("Filter", dynamic)).toEqual(["Aggregate", "Projection", "Sort"]);
+  });
+
   test("never suggests the operator itself", () => {
-    // Uncategorized without a catalog, so it gets the fallback, which lists it.
-    expect(typesFor("PythonUDFV2", null)).toEqual(["Filter", "Projection"]);
+    // In a group with no rule, so it gets the fallback, which lists it.
+    const catalog = catalogPatching("PythonUDFV2", { operatorGroupName: "Control Block" });
+    expect(typesFor("PythonUDFV2", catalog)).toEqual(["Filter", "Projection"]);
   });
 
   test("suggests for any output port the operator has, and none for others", () => {
@@ -153,6 +171,8 @@ describe("recommendOperators (V1 hardcoded)", () => {
     expect(forPort("Split", "output-1").length).toBeGreaterThan(0);
     expect(forPort("Filter", "output-1")).toEqual([]);
     expect(forPort("Filter", "input-0")).toEqual([]);
+    // Port IDs are canonical: a leading zero does not name port 0.
+    expect(forPort("Filter", "output-00")).toEqual([]);
   });
 
   test("empty operatorType yields no suggestions", () => {

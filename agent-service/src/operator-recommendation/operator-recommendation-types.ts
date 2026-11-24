@@ -47,6 +47,15 @@ export const MAX_OPERATOR_TYPE_LENGTH = 128;
 /** Output port suggestions attach to when the request does not name one. */
 export const DEFAULT_SOURCE_PORT_ID = "output-0";
 
+/** Longest source port ID the route accepts. */
+export const MAX_PORT_ID_LENGTH = 16;
+
+/**
+ * Canonical output port ID: `output-<index>` with no leading zeros, so each
+ * port has exactly one spelling (`output-00` is rejected, not read as port 0).
+ */
+export const OUTPUT_PORT_ID_PATTERN = "^output-(0|[1-9][0-9]*)$";
+
 export interface OperatorRecommendationRequest {
   /**
    * The operator type that was just added and whose output we are suggesting
@@ -56,9 +65,9 @@ export interface OperatorRecommendationRequest {
 
   /**
    * Optional: the output port of `operatorType` the suggestions will be wired
-   * from, using the canvas port ID format (`"output-<index>"`). Defaults to
-   * {@link DEFAULT_SOURCE_PORT_ID}. A port the operator does not have yields
-   * no suggestions.
+   * from, using the canvas port ID format (`"output-<index>"`, see
+   * {@link OUTPUT_PORT_ID_PATTERN}). Defaults to {@link DEFAULT_SOURCE_PORT_ID}.
+   * A port the operator does not have yields no suggestions.
    */
   sourcePortID?: string;
 
@@ -71,10 +80,7 @@ export interface OperatorRecommendationRequest {
 }
 
 export interface OperatorRecommendation {
-  /**
-   * Recommended operator type. Validated against the live catalog when it is
-   * loaded; returned unvalidated otherwise.
-   */
+  /** Recommended operator type, present in the live operator catalog. */
   operatorType: string;
   /**
    * Input port of the recommended operator that the source port should be
@@ -87,7 +93,7 @@ export interface OperatorRecommendation {
   score: number;
   /** Short, human-readable rationale shown alongside the suggested operator. */
   reason: string;
-  /** Display name from operator metadata, when the catalog is available. */
+  /** Display name from operator metadata, when it has one. */
   userFriendlyName?: string;
 }
 

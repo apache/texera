@@ -28,6 +28,8 @@ import { WorkflowSystemMetadata } from "./agent/util/workflow-system-metadata";
 import { recommendOperators } from "./operator-recommendation/operator-recommender";
 import {
   MAX_OPERATOR_TYPE_LENGTH,
+  MAX_PORT_ID_LENGTH,
+  OUTPUT_PORT_ID_PATTERN,
   type OperatorRecommendationRequest,
 } from "./operator-recommendation/operator-recommendation-types";
 import { env } from "./config/env";
@@ -404,7 +406,7 @@ const agentsRouter = new Elysia({ prefix: "/agents" })
 // The process-wide operator catalog, loading it first if startup could not
 // (for example because the backend was not ready yet). Concurrent requests
 // share one load; a failed load is logged and retried on the next request, and
-// the caller proceeds with the catalog uninitialized.
+// the caller proceeds with the catalog uninitialized (so nothing is suggested).
 let operatorCatalogLoad: Promise<unknown> | null = null;
 
 async function getOperatorCatalog(): Promise<WorkflowSystemMetadata> {
@@ -454,7 +456,7 @@ const operatorRecommendationsRouter = new Elysia({ prefix: "/operator-recommenda
     {
       body: t.Object({
         operatorType: t.String({ minLength: 1, maxLength: MAX_OPERATOR_TYPE_LENGTH }),
-        sourcePortID: t.Optional(t.String({ pattern: "^output-[0-9]+$" })),
+        sourcePortID: t.Optional(t.String({ maxLength: MAX_PORT_ID_LENGTH, pattern: OUTPUT_PORT_ID_PATTERN })),
         limit: t.Optional(t.Number()),
       }),
     }
