@@ -125,7 +125,6 @@ describe("AgentPanelComponent", () => {
       providers: [
         { provide: AgentService, useValue: agentService },
         { provide: WorkflowActionService, useValue: workflowAction },
-        { provide: NotificationService, useValue: notification },
         ...commonTestProviders,
       ],
     }).compileComponents();
@@ -395,18 +394,18 @@ describe("AgentPanelComponent", () => {
       expect(component.selectedTabIndex).toBe(2);
     });
 
-    it("blocks switching to an agent bound to a different workflow and warns", () => {
-      agentService.agentList = [makeDelegateAgent("foreign", 99)];
+    it("selects the tab of an agent bound to a different workflow without activating it", () => {
+      agentService.agentList = [makeAgent("local"), makeDelegateAgent("foreign", 99)];
       createComponent();
+      component.onTabSelectChange(1); // "local" active
 
-      component.onTabSelectChange(1);
+      component.onTabSelectChange(2);
 
-      expect(notification.warning).toHaveBeenCalledTimes(1);
-      const message = notification.warning.mock.calls[0][0] as string;
-      expect(message).toContain('Cannot switch to agent "Agent foreign"');
-      expect(message).toContain("Open workflow #99");
-      expect(agentService.activateAgent).not.toHaveBeenCalled();
-      expect(component.selectedTabIndex).toBe(0);
+      // An active agent loads its workflow into the canvas, here over the open one.
+      expect(agentService.activateAgent).not.toHaveBeenCalledWith("foreign");
+      expect(agentService.deactivateAgent).toHaveBeenCalledWith("local");
+      expect(component.activeAgentId).toBeNull();
+      expect(component.selectedTabIndex).toBe(2);
     });
 
     it("allows switching when the agent's workflow matches the current one", () => {
@@ -415,7 +414,6 @@ describe("AgentPanelComponent", () => {
 
       component.onTabSelectChange(1);
 
-      expect(notification.warning).not.toHaveBeenCalled();
       expect(agentService.activateAgent).toHaveBeenCalledWith("bound");
       expect(component.selectedTabIndex).toBe(1);
     });
@@ -459,14 +457,14 @@ describe("AgentPanelComponent", () => {
     });
   });
 
-  describe("canSwitchToAgent", () => {
-    it("permits agents with no delegate, no workflow id, or a matching workflow id", () => {
+  describe("isOnAnotherWorkflow", () => {
+    it("is true only for an agent bound to a workflow other than the open one", () => {
       createComponent();
-      expect(component.canSwitchToAgent(makeAgent("plain"))).toBe(true);
-      expect(component.canSwitchToAgent(makeDelegateAgent("no-wid", undefined))).toBe(true);
-      expect(component.canSwitchToAgent(makeDelegateAgent("zero", 0))).toBe(true);
-      expect(component.canSwitchToAgent(makeDelegateAgent("same", CURRENT_WID))).toBe(true);
-      expect(component.canSwitchToAgent(makeDelegateAgent("other", 99))).toBe(false);
+      expect(component.isOnAnotherWorkflow(makeAgent("plain"))).toBe(false);
+      expect(component.isOnAnotherWorkflow(makeDelegateAgent("no-wid", undefined))).toBe(false);
+      expect(component.isOnAnotherWorkflow(makeDelegateAgent("zero", 0))).toBe(false);
+      expect(component.isOnAnotherWorkflow(makeDelegateAgent("same", CURRENT_WID))).toBe(false);
+      expect(component.isOnAnotherWorkflow(makeDelegateAgent("other", 99))).toBe(true);
     });
 
     it("renders a lock icon and mismatch style only on agents from another workflow", () => {
@@ -477,6 +475,28 @@ describe("AgentPanelComponent", () => {
       const titles = fixture.nativeElement.querySelectorAll(".agent-tab-title");
       expect(titles[0].classList.contains("workflow-mismatch")).toBe(false);
       expect(titles[1].classList.contains("workflow-mismatch")).toBe(true);
+    });
+
+    it("gives an agent from another workflow a link to that workflow in place of a chat", () => {
+      agentService.agentList = [
+        makeAgent("local"),
+        makeAgent("named", { delegate: { userInfo: USER_INFO, workflowId: 99, workflowName: "Orders" } }),
+        makeDelegateAgent("unnamed", 7),
+      ];
+      createComponent();
+
+      const chats = fixture.debugElement.queryAll(By.directive(StubAgentChatComponent));
+      expect(chats.map(chat => chat.componentInstance.agentInfo.id)).toEqual(["local"]);
+
+      const notices = Array.from(fixture.nativeElement.querySelectorAll(".other-workflow-notice")) as HTMLElement[];
+      expect(notices.map(notice => notice.querySelector("p")?.textContent?.trim())).toEqual([
+        "This agent is working on a different workflow: Orders.",
+        "This agent is working on a different workflow: #7.",
+      ]);
+      expect(notices.map(notice => notice.querySelector("a")?.getAttribute("href"))).toEqual([
+        "/user/workflow/99",
+        "/user/workflow/7",
+      ]);
     });
   });
 
@@ -831,21 +851,23 @@ describe("AgentPanelComponent", () => {
       expect(chats().map(c => c.isActive)).toEqual([false, true]);
     });
 
-    it("disables the tab of an agent bound to another workflow so a click cannot select it", () => {
+    it("clicking the tab of an agent bound to another workflow shows the link to it, not a chat", async () => {
       service.agentList = [makeAgent("local"), makeDelegateAgent("foreign", 99)];
       createComponent();
 
-      const headers = tabHeaders();
-      expect(headers[1].classList.contains("ant-tabs-tab-disabled")).toBe(false);
-      expect(headers[2].classList.contains("ant-tabs-tab-disabled")).toBe(true);
-
-      (headers[2].querySelector(".ant-tabs-tab-btn") as HTMLElement).click();
+      (tabHeaders()[2].querySelector(".ant-tabs-tab-btn") as HTMLElement).click();
+      fixture.detectChanges();
+      await settle();
       fixture.detectChanges();
 
-      // Disabled by the template, so onTabSelectChange never runs and never warns.
-      expect(notification.warning).not.toHaveBeenCalled();
+      expect(component.selectedTabIndex).toBe(2);
+      const selectedPane = fixture.nativeElement.querySelector(".ant-tabs-tabpane-active") as HTMLElement;
+      expect(selectedPane.querySelector("a")?.getAttribute("href")).toBe("/user/workflow/99");
+      expect(selectedPane.querySelector("texera-agent-chat")).toBeNull();
+      // The agent stays inactive, and the only chat is that of the agent on this workflow.
       expect(service.activateAgent).not.toHaveBeenCalled();
-      expect(chats().map(c => c.isActive)).toEqual([false, false]);
+      expect(chats().map(c => c.agentInfo.id)).toEqual(["local"]);
+      expect(chats().map(c => c.isActive)).toEqual([false]);
     });
 
     it("the close button on a tab header deletes that agent without selecting its tab", () => {

@@ -136,6 +136,24 @@
   }
 }
 
+// Shown in place of the chat of an agent that works on another workflow.
+.other-workflow-notice {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  padding: 20px;
+  text-align: center;
+  font-size: 14px;
+  color: #595959;
+
+  p {
+    margin: 0;
+  }
+}
+
 .agent-tab-close {
   padding: 0 !important;
   width: 20px !important;
