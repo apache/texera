@@ -120,8 +120,8 @@ place.
   of its own has to be added to that list too.
 - Pass every user value through `pyStringLiteral`, or `pyb` with an `EncodableString`. Spliced
   in directly, a column named `a"b` closes the literal early and breaks the whole script.
-- A `pyb` field has to reach the template whole. Joining it to anything in Scala first —
-  `s"${attribute}_bin"` — hands `pyb` a plain string and the protection is gone, so derive
+- A `pyb` field has to reach the template whole. Joining it to anything in Scala first hands
+  `pyb` a plain string, as `s"${attribute}_bin"` does. The protection is then gone, so derive
   such a name in the Python instead. `PythonCodeRawInvalidTextSpec` reports the leak.
 - Rendering a column as TEXT takes the declared type, not the value's. A file carries no
   types, so a hole makes pandas read an integer column as a float and a boolean one as 1.0
