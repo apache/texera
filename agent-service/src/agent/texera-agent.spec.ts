@@ -266,21 +266,18 @@ describe("TexeraAgent", () => {
     });
 
     test("a disabled tool is reported as disabled in the system info", () => {
-      const toolName = agent.getSystemInfo().tools[0].name;
+      agent.updateSettings({ disabledTools: new Set(["deleteOperator"]) });
 
-      agent.updateSettings({ disabledTools: new Set([toolName]) });
-
-      const info = agent.getSystemInfo().tools.find(t => t.name === toolName);
+      const info = agent.getSystemInfo().tools.find(t => t.name === "deleteOperator");
       expect(info?.enabled).toBe(false);
     });
 
-    test("restricting the allowed operator types rewrites the system prompt", () => {
-      const before = agent.getSystemInfo().systemPrompt;
+    test("the two read tools cannot be disabled, since nothing else shows the workflow", () => {
+      agent.updateSettings({ disabledTools: new Set(["get_workflow", "get_operator_result"]) });
 
-      agent.updateSettings({ allowedOperatorTypes: ["CSVFileScan"] });
-
-      expect(agent.getSystemInfo().systemPrompt).not.toBe(before);
-      expect(agent.getSettings().allowedOperatorTypes).toEqual(["CSVFileScan"]);
+      const enabled = Object.fromEntries(agent.getSystemInfo().tools.map(t => [t.name, t.enabled]));
+      expect(enabled.get_workflow).toBe(true);
+      expect(enabled.get_operator_result).toBe(true);
     });
   });
 
@@ -336,30 +333,58 @@ describe("TexeraAgent", () => {
   });
 });
 
-/** `getFormattedResultsForDAG` is private; it is what feeds cached operator results into the prompt. */
-function getFormattedResultsForDAG(agent: TexeraAgent): Map<string, string> {
-  return (agent as unknown as { getFormattedResultsForDAG(): Map<string, string> }).getFormattedResultsForDAG();
+/** What the agent's get_operator_result tool returns for an operator. */
+async function operatorResultOf(agent: TexeraAgent, operatorId: string): Promise<string> {
+  return await (agent as any).tools.get_operator_result.execute({ operatorId }, {});
 }
 
-describe("TexeraAgent DAG result formatting", () => {
-  test("formats results visible from the current step", () => {
+describe("TexeraAgent result lookup", () => {
+  test("get_operator_result reads the result visible from the current step", async () => {
     const agent = makeAgent();
-    agent.getWorkflowResultState().set("op-1", INITIAL_STEP_ID, {
-      state: OperatorState.COMPLETED,
-      errorMessages: [],
-    });
+    agent.getWorkflowState().addOperator(srcOp("op-1") as any);
+    agent.getWorkflowResultState().set("op-1", INITIAL_STEP_ID, completedSummary([{ a: 1 }, { a: 2 }]));
 
-    expect(getFormattedResultsForDAG(agent)).toEqual(new Map([["op-1", "(no result data)"]]));
+    expect(await operatorResultOf(agent, "op-1")).toBe(
+      "Latest result of operator op-1:\nOutput table shape: (2, 1)\n\ta\n0\t1\n1\t2"
+    );
   });
 
-  test("omits results outside the current step ancestry", () => {
+  test("get_operator_result ignores a result outside the current step's ancestry", async () => {
     const agent = makeAgent();
-    agent.getWorkflowResultState().set("op-1", "unrelated-step", {
-      state: OperatorState.COMPLETED,
-      errorMessages: [],
-    });
+    agent.getWorkflowState().addOperator(srcOp("op-1") as any);
+    agent.getWorkflowResultState().set("op-1", "unrelated-step", completedSummary([{ a: 1 }]));
 
-    expect(getFormattedResultsForDAG(agent)).toEqual(new Map());
+    expect(await operatorResultOf(agent, "op-1")).toBe(
+      "Operator op-1 has no result: it has not been executed in this conversation."
+    );
+  });
+
+  test("a result goes out of date when its operator or one it reads from changes, not one after it", async () => {
+    const agent = makeAgent();
+    const ws = agent.getWorkflowState();
+    ws.addOperator(srcOp("src", { fileName: "a.csv" }) as any);
+    ws.addOperator({ ...srcOp("mid"), inputPorts: [{ portID: "input-0" }] } as any);
+    ws.addOperator({ ...srcOp("out"), inputPorts: [{ portID: "input-0" }] } as any);
+    const link = (from: string, to: string) =>
+      ({
+        linkID: `${from}->${to}`,
+        source: { operatorID: from, portID: "output-0" },
+        target: { operatorID: to, portID: "input-0" },
+      }) as any;
+    ws.addLink(link("src", "mid"));
+    ws.addLink(link("mid", "out"));
+    // Filed the way an execution files it: with what the result depended on.
+    (agent as any).recordResult("mid", INITIAL_STEP_ID, completedSummary([{ a: 1 }]));
+
+    ws.updateOperatorProperties("out", { anything: 1 });
+    ws.updateOperatorDisplayName("mid", "renamed");
+    expect(await operatorResultOf(agent, "mid")).toStartWith("Latest result of operator mid:");
+
+    ws.updateOperatorProperties("src", { fileName: "b.csv" });
+    expect(await operatorResultOf(agent, "mid")).toBe(
+      "Operator mid's latest result is outdated: it or an operator it reads from changed after that execution. " +
+        "Execute it again for a current result."
+    );
   });
 });
 
@@ -390,6 +415,72 @@ const textModel = (text: string, i = 11, o = 7) =>
       warnings: [],
     }),
   });
+
+/**
+ * The prompt one model call received, reduced to what these tests compare: the system text, each
+ * user message's text, the assistant's text and tool calls, and each tool result with its tool.
+ */
+function promptOf(call: any): any[] {
+  return call.prompt.map((m: any) => {
+    switch (m.role) {
+      case "system":
+        return { system: m.content };
+      case "user":
+        return { user: m.content.map((p: any) => p.text).join("") };
+      case "assistant":
+        return {
+          assistant: m.content.map((p: any) => (p.type === "text" ? p.text : { call: p.toolName, input: p.input })),
+        };
+      case "tool":
+        return { tool: m.content.map((p: any) => ({ result: p.toolName, output: p.output })) };
+      default:
+        return m;
+    }
+  });
+}
+
+/** The last of a list of model messages. */
+function lastOf(messages: any[] | undefined): any {
+  return messages?.[messages.length - 1];
+}
+
+/** The tool results in a list of model messages, each as its tool's name and what the model reads. */
+function toolOutputsOf(messages: any[] | undefined): any[] {
+  return (messages ?? [])
+    .filter(m => m.role === "tool")
+    .flatMap(m => m.content.map((p: any) => [p.toolName, p.output]));
+}
+
+/** A model that answers each call in turn from the given list: a tool call, or a final text. */
+function scriptedModel(replies: Array<{ call: string; input: Record<string, unknown> } | string>) {
+  let n = 0;
+  return new MockLanguageModelV4({
+    doGenerate: async () => {
+      const reply = replies[Math.min(n++, replies.length - 1)];
+      if (typeof reply === "string")
+        return {
+          content: [{ type: "text", text: reply }],
+          finishReason: finish("stop"),
+          usage: usage(1, 1),
+          warnings: [],
+        } as any;
+      return {
+        content: [{ type: "tool-call", toolCallId: "c" + n, toolName: reply.call, input: JSON.stringify(reply.input) }],
+        finishReason: finish("tool-calls"),
+        usage: usage(1, 1),
+        warnings: [],
+      } as any;
+    },
+  });
+}
+
+/** Lets the compile request succeed with no schemas, so a workflow with operators compiles. */
+function compileOk() {
+  fetchSpy.mockImplementation((async (u: any) => {
+    urls.push(String(u));
+    return { ok: true, json: async () => ({ operatorOutputSchemas: {}, operatorErrors: {} }) } as any;
+  }) as any);
+}
 
 /** Sibling of makeAgent() that takes a stand-in model, so sendMessage runs with no network.
  *  Every agent built here is tracked and destroyed from `afterEach` rather than per test: a
@@ -478,7 +569,7 @@ describe("sendMessage", () => {
     expect(urls).toEqual([]);
   });
 
-  test("pinned call options + assembled context replaces the raw message", async () => {
+  test("pins the call options and sends the user's message as it is", async () => {
     const model = textModel("ok");
     const agent = makeAgentWith(model);
     await agent.sendMessage("raw-user-text");
@@ -491,12 +582,104 @@ describe("sendMessage", () => {
     });
     expect(call.abortSignal).toBeInstanceOf(AbortSignal);
     expect(call.abortSignal.aborted).toBe(false);
-    expect(call.tools.map((t: any) => t.name)).toEqual(["deleteOperator", "addOperator", "modifyOperator"]);
-    expect(call.prompt[0]).toEqual({ role: "system", content: "SYS-XYZ" });
-    const txt = call.prompt[1].content[0].text;
-    expect(txt).toContain("# Ongoing Task");
-    expect(txt).toContain("raw-user-text");
-    expect(agent.getAllSteps()[1].inputMessages).toEqual([{ role: "user", content: txt }]);
+    expect(call.tools.map((t: any) => t.name)).toEqual([
+      "get_workflow",
+      "get_operator_result",
+      "list_operator_types",
+      "get_operator_schema",
+      "deleteOperator",
+      "addOperator",
+      "modifyOperator",
+    ]);
+    expect(promptOf(call)).toEqual([{ system: "SYS-XYZ" }, { user: "raw-user-text" }]);
+    expect(agent.getAllSteps()[1].inputMessages).toEqual([{ role: "user", content: "raw-user-text" }]);
+  });
+
+  test("keeps a tool call and its whole result as native messages for the next step", async () => {
+    const model = scriptedModel([{ call: "deleteOperator", input: { operatorId: "ghost" } }, "done"]);
+    const agent = makeAgentWith(model);
+    await agent.sendMessage("delete it");
+    expect(promptOf((model as any).doGenerateCalls[1])).toEqual([
+      { system: "SYS-XYZ" },
+      { user: "delete it" },
+      { assistant: [{ call: "deleteOperator", input: { operatorId: "ghost" } }] },
+      {
+        tool: [{ result: "deleteOperator", output: { type: "text", value: "[ERROR] Operator ghost not found" } }],
+      },
+    ]);
+    // What the step detail shows is what the model received.
+    expect(agent.getAllSteps()[2].inputMessages).toEqual([
+      { role: "user", content: "delete it" },
+      {
+        role: "assistant",
+        content: [{ type: "tool-call", toolCallId: "c1", toolName: "deleteOperator", input: { operatorId: "ghost" } }],
+      },
+      {
+        role: "tool",
+        content: [
+          {
+            type: "tool-result",
+            toolCallId: "c1",
+            toolName: "deleteOperator",
+            output: { type: "text", value: "[ERROR] Operator ghost not found" },
+          },
+        ],
+      },
+    ]);
+  });
+
+  test("sends only the conversation's own messages, each call beginning with the previous call's input", async () => {
+    const vSpy = spyOn(WorkflowSystemMetadata.getInstance(), "validateOperatorProperties").mockReturnValue({
+      isValid: true,
+    } as any);
+    try {
+      const model = scriptedModel([
+        { call: "get_workflow", input: {} },
+        { call: "modifyOperator", input: { operatorId: "op1", summary: "renamed" } },
+        "done",
+        "again",
+      ]);
+      const agent = makeAgentWith(model);
+      agent.getWorkflowState().addOperator(srcOp("op1") as any);
+      compileOk();
+      await agent.sendMessage("first");
+      await agent.sendMessage("second");
+      const calls = (model as any).doGenerateCalls.map(promptOf);
+      expect(calls).toHaveLength(4);
+      // The workflow has an operator, yet nothing but the user's words starts the conversation.
+      expect(calls[0]).toEqual([{ system: "SYS-XYZ" }, { user: "first" }]);
+      // The model sees the workflow because it asked for it.
+      const listing = calls[1][3].tool[0].output.value;
+      expect(calls[1]).toEqual([
+        { system: "SYS-XYZ" },
+        { user: "first" },
+        { assistant: [{ call: "get_workflow", input: {} }] },
+        { tool: [{ result: "get_workflow", output: { type: "text", value: listing } }] },
+      ]);
+      expect(listing).toStartWith("## Operators\n\n### Operator `op1` (CSVFileScan)\nSummary: op1\n");
+      expect(listing).toContain("Result: none, not executed");
+      // Nothing already sent changes, so a provider's prompt cache can reuse each call's input as the
+      // start of the next one, across steps and across turns.
+      for (let i = 1; i < calls.length; i++) expect(calls[i].slice(0, calls[i - 1].length)).toEqual(calls[i - 1]);
+      expect(calls[3].slice(calls[2].length)).toEqual([{ assistant: ["done"] }, { user: "second" }]);
+      // Every user message is one the user sent.
+      const userMessages = calls[3].filter((m: any) => "user" in m).map((m: any) => m.user);
+      expect(userMessages).toEqual(["first", "second"]);
+      // What the step detail shows is what the model received.
+      expect(lastOf(agent.getAllSteps()[2].inputMessages)).toEqual({
+        role: "tool",
+        content: [
+          {
+            type: "tool-result",
+            toolCallId: "c1",
+            toolName: "get_workflow",
+            output: { type: "text", value: listing },
+          },
+        ],
+      });
+    } finally {
+      vSpy.mockRestore();
+    }
   });
 
   test("two-step tool run: per-step + summed usage, tool projection, rolling snapshots", async () => {
@@ -546,7 +729,9 @@ describe("sendMessage", () => {
       [2, false, true],
     ]);
     expect(steps[2].parentId).toBe(steps[1].id);
-    expect(steps[2].inputMessages?.[0]?.content).toContain("- deleteOperator (failed)");
+    expect(toolOutputsOf(steps[2].inputMessages)).toEqual([
+      ["deleteOperator", { type: "text", value: "[ERROR] Operator ghost not found" }],
+    ]);
     expect(urls).toEqual([]);
   });
 
@@ -596,50 +781,56 @@ describe("sendMessage", () => {
       ["agent", 0, 0],
     ]);
     expect(steps[1].toolResults).toEqual([{ toolCallId: "c1", output: "Deleted operator: op1", isError: false }]);
-    expect(steps[2].inputMessages?.[0]?.content).toContain("- deleteOperator (succeeded)");
+    expect(toolOutputsOf(steps[2].inputMessages)).toEqual([
+      ["deleteOperator", { type: "text", value: "Deleted operator: op1" }],
+    ]);
   });
 
-  test.each([new Error("The operation was aborted."), "tool failed", null])(
-    "preserves a thrown tool error in stored JSON and subsequent context: %p",
-    async thrown => {
-      let n = 0;
-      const model = new MockLanguageModelV4({
-        doGenerate: async () => {
-          n++;
-          return {
-            content:
-              n === 1
-                ? [
-                    {
-                      type: "tool-call",
-                      toolCallId: "c1",
-                      toolName: "deleteOperator",
-                      input: JSON.stringify({ operatorId: "ghost" }),
-                    },
-                  ]
-                : [{ type: "text", text: "done" }],
-            finishReason: finish(n === 1 ? "tool-calls" : "stop"),
-            usage: usage(1, 1),
-            warnings: [],
-          } as any;
-        },
-      });
-      const agent = makeAgentWith(model);
-      const throwingTool = spyOn((agent as any).tools.deleteOperator, "execute").mockImplementation(async () => {
-        throw thrown;
-      });
-      try {
-        await agent.sendMessage("delete it");
-        const steps = agent.getAllSteps();
-        const expected = thrown instanceof Error ? thrown.message : String(thrown);
-        expect(steps[1].toolResults).toEqual([{ toolCallId: "c1", output: expected, isError: true }]);
-        expect(JSON.parse(JSON.stringify(steps))[1].toolResults[0].output).toBe(expected);
-        expect(steps[2].inputMessages?.[0]?.content).toContain(`  - Error:\n    ${expected}`);
-      } finally {
-        throwingTool.mockRestore();
-      }
+  // Each thrown value, with the SDK's own wording of it, which is what the model reads.
+  test.each([
+    [new Error("The operation was aborted."), "Error: The operation was aborted."],
+    ["tool failed", "tool failed"],
+    [null, "unknown error"],
+  ])("preserves a thrown tool error in stored JSON and subsequent context: %p", async (thrown, readByModel) => {
+    let n = 0;
+    const model = new MockLanguageModelV4({
+      doGenerate: async () => {
+        n++;
+        return {
+          content:
+            n === 1
+              ? [
+                  {
+                    type: "tool-call",
+                    toolCallId: "c1",
+                    toolName: "deleteOperator",
+                    input: JSON.stringify({ operatorId: "ghost" }),
+                  },
+                ]
+              : [{ type: "text", text: "done" }],
+          finishReason: finish(n === 1 ? "tool-calls" : "stop"),
+          usage: usage(1, 1),
+          warnings: [],
+        } as any;
+      },
+    });
+    const agent = makeAgentWith(model);
+    const throwingTool = spyOn((agent as any).tools.deleteOperator, "execute").mockImplementation(async () => {
+      throw thrown;
+    });
+    try {
+      await agent.sendMessage("delete it");
+      const steps = agent.getAllSteps();
+      const expected = thrown instanceof Error ? thrown.message : String(thrown);
+      expect(steps[1].toolResults).toEqual([{ toolCallId: "c1", output: expected, isError: true }]);
+      expect(JSON.parse(JSON.stringify(steps))[1].toolResults[0].output).toBe(expected);
+      expect(toolOutputsOf(steps[2].inputMessages)).toEqual([
+        ["deleteOperator", { type: "error-text", value: readByModel }],
+      ]);
+    } finally {
+      throwingTool.mockRestore();
     }
-  );
+  });
 
   test("a length-limited tool call is not executed and appears as failed on the next turn", async () => {
     let n = 0;
@@ -670,8 +861,27 @@ describe("sendMessage", () => {
       await agent.sendMessage("delete it");
       expect(execute).not.toHaveBeenCalled();
       expect(agent.getAllSteps()[1].toolResults).toEqual([]);
-      await agent.sendMessage("continue");
-      expect(agent.getAllSteps().at(-1)?.inputMessages?.[0]?.content).toContain("- deleteOperator (failed)");
+      // The SDK refuses a conversation in which a call has no result, so the step is kept with a
+      // failed one, and the next turn runs.
+      const res = await agent.sendMessage("continue");
+      expect(res.error).toBeUndefined();
+      expect(promptOf((model as any).doGenerateCalls[1])).toEqual([
+        { system: "SYS-XYZ" },
+        { user: "delete it" },
+        { assistant: [{ call: "deleteOperator", input: { operatorId: "ghost" } }] },
+        {
+          tool: [
+            {
+              result: "deleteOperator",
+              output: {
+                type: "error-text",
+                value: 'This call did not run: the response that made it ended with finish reason "length".',
+              },
+            },
+          ],
+        },
+        { user: "continue" },
+      ]);
     } finally {
       execute.mockRestore();
     }
@@ -680,11 +890,22 @@ describe("sendMessage", () => {
   test("leaves disabled tools out of the model call but still lists them", async () => {
     const model = textModel("ok");
     const agent = makeAgentWith(model);
-    agent.updateSettings({ disabledTools: new Set(["modifyOperator"]) });
+    agent.updateSettings({ disabledTools: new Set(["modifyOperator", "get_workflow", "get_operator_result"]) });
     await agent.sendMessage("go");
     const call = (model as any).doGenerateCalls[0];
-    expect(call.tools.map((t: any) => t.name)).toEqual(["deleteOperator", "addOperator"]);
+    expect(call.tools.map((t: any) => t.name)).toEqual([
+      "get_workflow",
+      "get_operator_result",
+      "list_operator_types",
+      "get_operator_schema",
+      "deleteOperator",
+      "addOperator",
+    ]);
     expect(agent.getSystemInfo().tools.map(t => [t.name, t.enabled])).toEqual([
+      ["get_workflow", true],
+      ["get_operator_result", true],
+      ["list_operator_types", true],
+      ["get_operator_schema", true],
       ["deleteOperator", true],
       ["addOperator", true],
       ["modifyOperator", false],
@@ -863,16 +1084,112 @@ describe("sendMessage", () => {
       expect(agent.getHead()).toBe(agent.getAllSteps().at(-1)!.id);
     });
 
-    test("the next turn reads the notice as the last entry of the task it closed", async () => {
+    test("the next turn reads the notice as the last assistant message of the turn it closed", async () => {
       const model = toolCallingModel(Infinity);
       const agent = makeAgentWith(model);
       agent.updateSettings({ maxSteps: 2 });
       await agent.sendMessage("go");
       await agent.sendMessage("continue");
-      const txt: string = (model as any).doGenerateCalls[2].prompt[1].content[0].text;
-      expect(txt).toContain("## Task (completed)");
-      expect(txt).toContain(`### Turn 3\nThought: ${notice("2 steps")}\n\n# Ongoing Task`);
-      expect(txt.split(notice("2 steps")).length).toBe(2);
+      const prompt = promptOf((model as any).doGenerateCalls[2]);
+      expect(prompt.slice(-2)).toEqual([{ assistant: [notice("2 steps")] }, { user: "continue" }]);
+      expect(JSON.stringify(prompt).split(notice("2 steps")).length).toBe(2);
+    });
+  });
+
+  test("the two operator tools cannot be switched off", async () => {
+    // The prompt sends the model to them, and nothing else describes an operator type.
+    const model = textModel("ok");
+    const agent = makeAgentWith(model);
+    agent.updateSettings({ disabledTools: new Set(["list_operator_types", "get_operator_schema", "addOperator"]) });
+    await agent.sendMessage("go");
+    const call = (model as any).doGenerateCalls[0];
+    expect(call.tools.map((t: any) => t.name)).toEqual([
+      "get_workflow",
+      "get_operator_result",
+      "list_operator_types",
+      "get_operator_schema",
+      "deleteOperator",
+      "modifyOperator",
+    ]);
+    expect(
+      agent
+        .getSystemInfo()
+        .tools.filter(t => !t.enabled)
+        .map(t => t.name)
+    ).toEqual(["addOperator"]);
+  });
+
+  describe("operator types", () => {
+    const op = (operatorType: string, description: string) => ({
+      operatorType,
+      jsonSchema: { type: "object", properties: {} },
+      additionalMetadata: {
+        userFriendlyName: operatorType,
+        operatorDescription: description,
+        inputPorts: [],
+        outputPorts: [{}],
+      },
+    });
+    let saved: unknown;
+
+    beforeEach(() => {
+      saved = (WorkflowSystemMetadata as any).instance;
+      (WorkflowSystemMetadata as any).instance = undefined;
+      WorkflowSystemMetadata.getInstance().loadFromMetadata({
+        operators: [op("Split", "Split data to two different ports"), op("CSVFileScan", "Read a CSV file")],
+      } as any);
+    });
+
+    afterEach(() => {
+      (WorkflowSystemMetadata as any).instance = saved;
+    });
+
+    test("an agent with default settings lists the types, then looks up and adds any of them", async () => {
+      // No list of allowed types stands between the agent and the metadata.
+      const agent = makeAgentWith(
+        scriptedModel([
+          { call: "list_operator_types", input: {} },
+          { call: "get_operator_schema", input: { operatorTypes: ["Split"] } },
+          { call: "addOperator", input: { operatorId: "op1", operatorType: "Split", properties: {}, summary: "s" } },
+          "done",
+        ])
+      );
+      compileOk();
+      await agent.sendMessage("split the data");
+      const [listed, lookedUp, added] = agent.getAllSteps().slice(1, 4);
+      expect(listed.toolResults?.[0]?.output).toBe(
+        "CSVFileScan: Read a CSV file\nSplit: Split data to two different ports"
+      );
+      expect(JSON.parse(String(lookedUp.toolResults?.[0]?.output))).toEqual({
+        Split: { description: "Split data to two different ports", properties: {}, required: [] },
+      });
+      expect(added.toolResults?.[0]?.isError).toBeFalsy();
+      expect(
+        agent
+          .getWorkflowState()
+          .getAllOperators()
+          .map(o => o.operatorType)
+      ).toEqual(["Split"]);
+    });
+
+    test("the lookup and the add tool refuse a type that does not exist", async () => {
+      const agent = makeAgentWith(
+        scriptedModel([
+          { call: "get_operator_schema", input: { operatorTypes: ["Pivot"] } },
+          { call: "addOperator", input: { operatorId: "op1", operatorType: "Pivot", properties: {}, summary: "s" } },
+          "done",
+        ])
+      );
+      await agent.sendMessage("pivot the data");
+      const [lookedUp, added] = agent.getAllSteps().slice(1, 3);
+      expect(lookedUp.toolResults?.[0]).toMatchObject({ isError: true });
+      expect(String(lookedUp.toolResults?.[0]?.output)).toContain(
+        "No such operator types: Pivot. list_operator_types names the types that exist."
+      );
+      expect(String(added.toolResults?.[0]?.output)).toStartWith(
+        '[ERROR] Unknown operator type: "Pivot". list_operator_types names the types that exist.'
+      );
+      expect(agent.getWorkflowState().getAllOperators()).toEqual([]);
     });
   });
 
@@ -906,7 +1223,7 @@ describe("sendMessage", () => {
     expect(agent.getAllSteps().map(s => s.stepId)).toEqual([0, 1, 2, 3]);
   });
 
-  test("second turn chains on and reads turn 1 as completed", async () => {
+  test("second turn chains on and reads turn 1 as native messages", async () => {
     const model = textModel("a", 1, 1);
     const agent = makeAgentWith(model);
     await agent.sendMessage("one");
@@ -918,10 +1235,12 @@ describe("sendMessage", () => {
     expect(steps[0].messageId).not.toBe(steps[2].messageId);
     expect(steps[2].messageId).toMatch(/^msg-agent-1-2-\d+$/);
     expect(steps[3].id).toMatch(/^step-agent-1-4-\d+$/);
-    const txt = (model as any).doGenerateCalls[1].prompt[1].content[0].text;
-    expect(txt).toContain("# Completed Tasks");
-    expect(txt).toContain("## Task (completed)");
-    expect(txt).toContain("# Ongoing Task");
+    expect(promptOf((model as any).doGenerateCalls[1])).toEqual([
+      { system: "SYS-XYZ" },
+      { user: "one" },
+      { assistant: ["a"] },
+      { user: "two" },
+    ]);
   });
 
   test("abandoned branch is invisible to the model", async () => {
@@ -932,14 +1251,95 @@ describe("sendMessage", () => {
     await agent.sendMessage("first");
     (agent as any).head = agent.getAllSteps()[0].id;
     await agent.sendMessage("second");
-    const txt = (model as any).doGenerateCalls[1].prompt[1].content[0].text;
-    expect(txt).not.toContain("### Turn 1");
+    expect(promptOf((model as any).doGenerateCalls[1])).toEqual([
+      { system: "SYS-XYZ" },
+      { user: "first" },
+      { user: "second" },
+    ]);
     expect(agent.getAllSteps().length).toBe(4);
     expect(agent.getVisibleReActSteps().length).toBe(3);
   });
 
-  test("compiles the DAG and feeds schemas + cached results into the prompt", async () => {
-    const model = textModel("ok", 1, 1);
+  test("a stopped turn keeps its finished steps and tells the next turn it was stopped", async () => {
+    let agent!: TexeraAgent;
+    let n = 0;
+    const model = new MockLanguageModelV4({
+      doGenerate: async () => {
+        n++;
+        if (n === 1) {
+          agent.stop();
+          return {
+            content: [
+              {
+                type: "tool-call",
+                toolCallId: "c1",
+                toolName: "deleteOperator",
+                input: JSON.stringify({ operatorId: "ghost" }),
+              },
+            ],
+            finishReason: finish("tool-calls"),
+            usage: usage(1, 1),
+            warnings: [],
+          } as any;
+        }
+        return {
+          content: [{ type: "text", text: "ok" }],
+          finishReason: finish("stop"),
+          usage: usage(1, 1),
+          warnings: [],
+        } as any;
+      },
+    });
+    agent = makeAgentWith(model);
+    await agent.sendMessage("go");
+    await agent.sendMessage("next");
+    expect(promptOf((model as any).doGenerateCalls[1])).toEqual([
+      { system: "SYS-XYZ" },
+      { user: "go" },
+      { assistant: [{ call: "deleteOperator", input: { operatorId: "ghost" } }] },
+      {
+        tool: [{ result: "deleteOperator", output: { type: "text", value: "[ERROR] Operator ghost not found" } }],
+      },
+      { assistant: ["Generation stopped by user."] },
+      { user: "next" },
+    ]);
+  });
+
+  test("a failed turn's error is part of the next turn's history", async () => {
+    let n = 0;
+    const model = new MockLanguageModelV4({
+      doGenerate: async () => {
+        if (n++ === 0) throw new Error("nope");
+        return {
+          content: [{ type: "text", text: "ok" }],
+          finishReason: finish("stop"),
+          usage: usage(1, 1),
+          warnings: [],
+        } as any;
+      },
+    });
+    const agent = makeAgentWith(model);
+    await agent.sendMessage("one");
+    await agent.sendMessage("two");
+    expect(promptOf((model as any).doGenerateCalls[1])).toEqual([
+      { system: "SYS-XYZ" },
+      { user: "one" },
+      { assistant: ["Error: nope"] },
+      { user: "two" },
+    ]);
+  });
+
+  test("clearHistory leaves nothing of the earlier turns for the model", async () => {
+    const model = textModel("a", 1, 1);
+    const agent = makeAgentWith(model);
+    await agent.sendMessage("one");
+    agent.clearHistory();
+    await agent.sendMessage("two");
+    expect(promptOf((model as any).doGenerateCalls[1])).toEqual([{ system: "SYS-XYZ" }, { user: "two" }]);
+  });
+
+  test("compiles nothing until the model asks; get_workflow then compiles with the user's token", async () => {
+    const model = scriptedModel([{ call: "get_workflow", input: {} }, "ok"]);
     const agent = makeAgentWith(model);
     agent.getWorkflowState().addOperator(srcOp("op-1", { fileName: "f.csv" }) as any);
     agent.getWorkflowResultState().set("op-1", INITIAL_STEP_ID, completedSummary([{ a: 1 }, { a: 2 }]));
@@ -956,18 +1356,20 @@ describe("sendMessage", () => {
       } as any;
     }) as any);
     const res = await agent.sendMessage("look");
-    const txt = (model as any).doGenerateCalls[0].prompt[1].content[0].text;
     expect(res.error).toBeUndefined();
+    // One compile, made by the one get_workflow call, not one per model call.
     expect(urls).toEqual(["http://localhost:9090/api/compile"]);
     expect(compileHeaders.Authorization).toBe("Bearer user-token");
-    expect(txt).toContain("Output Schema: [a: integer]");
-    expect(txt).toContain("(CSVFileScan, executed)");
-    expect(txt).toContain("Result:\n  Executed operator op-1\n  Output table shape: (2, 1)\n  \ta\n  0\t1\n  1\t2");
-    expect(txt).toContain("Properties:\n  fileName: f.csv");
+    const listing = agent.getAllSteps()[1].toolResults?.[0].output as string;
+    expect(listing).toContain("Output Schema: [a: integer]");
+    expect(listing).toContain("Properties:\n  fileName: f.csv");
+    // The listing says the operator has a result and its size; the records are left to get_operator_result.
+    expect(listing).toContain("Result: 2 rows, 1 column");
+    expect(listing).not.toContain("Output table shape");
   });
 
-  test("swallows a plan-build failure and still answers", async () => {
-    const model = textModel("still-here", 1, 1);
+  test("a plan that cannot be built still gets listed, without schemas, and the turn answers", async () => {
+    const model = scriptedModel([{ call: "get_workflow", input: {} }, "still-here"]);
     const agent = makeAgentWith(model);
     const ws = agent.getWorkflowState();
     ws.addOperator({ ...srcOp("src"), outputPorts: undefined } as any);
@@ -980,6 +1382,10 @@ describe("sendMessage", () => {
     const res = await agent.sendMessage("hi");
     expect(res.response).toBe("still-here");
     expect(res.error).toBeUndefined();
+    const listing = agent.getAllSteps()[1].toolResults?.[0].output as string;
+    expect(listing).toContain("### Operator `src` (CSVFileScan)");
+    expect(listing).toContain("No schemas: compiling the workflow failed (");
+    expect(urls).toEqual([]);
   });
 
   test("reports a model failure as an error step", async () => {
@@ -1219,12 +1625,10 @@ describe("delegate mode", () => {
       if (String(u).includes("/api/compile")) compileHeaders.push(init?.headers);
       return routed(u, init);
     }) as any);
-    const agent = makeAgentWith(textModel("ok", 1, 1));
+    const agent = makeAgentWith(scriptedModel([{ call: "get_workflow", input: {} }, "ok"]));
     agent.setDelegateConfig({ userToken: "tok", workflowId: 7 });
     await agent.sendMessage("go");
-    expect(compileHeaders.length).toBeGreaterThan(0);
-    for (const h of compileHeaders)
-      expect(h).toEqual({ Authorization: "Bearer tok", "Content-Type": "application/json" });
+    expect(compileHeaders).toEqual([{ Authorization: "Bearer tok", "Content-Type": "application/json" }]);
   });
 
   test("refreshes the workflow once, on the first turn only", async () => {
@@ -1265,48 +1669,32 @@ describe("delegate mode", () => {
     ).toEqual(["local-op"]);
   });
 
-  test("auto-executes after modifyOperator and keys the result at the agent step", async () => {
+  test("modifyOperator executes the operator inside the call, so a later turn still reads the result", async () => {
     dispatch(okExec);
     const vSpy = spyOn(WorkflowSystemMetadata.getInstance(), "validateOperatorProperties").mockReturnValue({
       isValid: true,
     } as any);
     try {
-      let n = 0;
-      const model = new MockLanguageModelV4({
-        doGenerate: async () => {
-          n++;
-          if (n === 1)
-            return {
-              content: [
-                {
-                  type: "tool-call",
-                  toolCallId: "c1",
-                  toolName: "modifyOperator",
-                  input: JSON.stringify({ operatorId: "op-1", summary: "renamed" }),
-                },
-              ],
-              finishReason: finish("tool-calls"),
-              usage: usage(1, 1),
-              warnings: [],
-            } as any;
-          return {
-            content: [{ type: "text", text: "d" }],
-            finishReason: finish("stop"),
-            usage: usage(1, 1),
-            warnings: [],
-          } as any;
-        },
-      });
+      const model = scriptedModel([{ call: "modifyOperator", input: { operatorId: "op-1", summary: "renamed" } }, "d"]);
       const agent = makeAgentWith(model);
       agent.setDelegateConfig({ userToken: "tok", workflowId: 7, workflowName: "w" });
       await agent.sendMessage("modify it");
       const steps = agent.getAllSteps();
-      const txt2 = (model as any).doGenerateCalls[1].prompt[1].content[0].text;
-      expect(urls.some(u => u.includes("/api/execution/7/0/run"))).toBe(true);
+      // The tool call is the only thing that executes the operator: nothing executes it again after the step.
+      expect(urls.filter(u => u.includes("/api/execution/7/0/run"))).toHaveLength(1);
+      // The call changed the workflow, so its result is filed under the step that made the call.
       const entry = agent.getWorkflowResultState().get("op-1");
       expect(entry?.stepId).toBe(steps[1].id);
       expect(entry?.operatorInfo.state).toBe(OperatorState.COMPLETED);
       expect(entry?.operatorInfo.resultSummary?.totalTuplesCount).toBe(1);
+      // The execution's result is part of the tool result, and a later turn finds it there;
+      // get_workflow only says that the operator has a result and how big it is.
+      const result = "Operator op-1 modified\nExecuted operator op-1\nOutput table shape: (1, 1)\n\tz\n0\t9";
+      expect(steps[1].toolResults).toEqual([{ toolCallId: "c1", output: result, isError: false }]);
+      await agent.sendMessage("and now?");
+      expect(toolOutputsOf(agent.getAllSteps().at(-1)?.inputMessages)).toEqual([
+        ["modifyOperator", { type: "text", value: result }],
+      ]);
     } finally {
       // A leaked always-valid stub would let the rejected-modification test below pass validation
       // and execute, so the restore has to survive a failed assertion.
@@ -1314,9 +1702,86 @@ describe("delegate mode", () => {
     }
   });
 
+  test("sends only native messages in delegate mode too, and get_workflow reports the filed result", async () => {
+    dispatch(okExec);
+    const vSpy = spyOn(WorkflowSystemMetadata.getInstance(), "validateOperatorProperties").mockReturnValue({
+      isValid: true,
+    } as any);
+    try {
+      const model = scriptedModel([
+        { call: "modifyOperator", input: { operatorId: "op-1", summary: "renamed" } },
+        { call: "get_workflow", input: {} },
+        "done",
+        "again",
+      ]);
+      const agent = makeAgentWith(model);
+      agent.setDelegateConfig({ userToken: "tok", workflowId: 7, workflowName: "w" });
+      await agent.sendMessage("modify it");
+      await agent.sendMessage("and now?");
+      const calls = (model as any).doGenerateCalls.map(promptOf);
+      expect(calls).toHaveLength(4);
+      for (let i = 1; i < calls.length; i++) expect(calls[i].slice(0, calls[i - 1].length)).toEqual(calls[i - 1]);
+      expect(calls[3].filter((m: any) => "user" in m).map((m: any) => m.user)).toEqual(["modify it", "and now?"]);
+      // The modify executed op-1, and renaming it does not make that result outdated.
+      const listing = lastOf(calls[2]).tool[0].output.value;
+      expect(listing).toContain("### Operator `op-1` (CSVFileScan)\nSummary: renamed");
+      expect(listing).toContain("Result: 1 row, 1 column");
+    } finally {
+      vSpy.mockRestore();
+    }
+  });
+
+  test("get_operator_result returns a filed result without executing anything", async () => {
+    dispatch(okExec);
+    const model = scriptedModel([{ call: "get_operator_result", input: { operatorId: "op-1" } }, "ok"]);
+    const agent = makeAgentWith(model);
+    agent.setDelegateConfig({ userToken: "tok", workflowId: 7, workflowName: "w" });
+    agent.getWorkflowResultState().set("op-1", INITIAL_STEP_ID, completedSummary([{ z: 9 }]));
+    await agent.sendMessage("what was the result?");
+    expect(urls.filter(u => u.includes("/api/execution/"))).toEqual([]);
+    expect(agent.getAllSteps()[1].toolResults?.[0].output).toBe(
+      "Latest result of operator op-1:\nOutput table shape: (1, 1)\n\tz\n0\t9"
+    );
+  });
+
+  test("a turn stopped while the changed operator executes keeps the change and ends as stopped", async () => {
+    let agent!: TexeraAgent;
+    dispatch(okExec);
+    const routed = fetchSpy.getMockImplementation()!;
+    fetchSpy.mockImplementation((async (u: any, init?: RequestInit) => {
+      if (!String(u).includes("/api/execution/")) return routed(u, init);
+      agent.stop();
+      throw Object.assign(new Error("The operation was aborted."), { name: "AbortError" });
+    }) as any);
+    const vSpy = spyOn(WorkflowSystemMetadata.getInstance(), "validateOperatorProperties").mockReturnValue({
+      isValid: true,
+    } as any);
+    try {
+      agent = makeAgentWith(
+        scriptedModel([{ call: "modifyOperator", input: { operatorId: "op-1", summary: "renamed" } }, "d"])
+      );
+      agent.setDelegateConfig({ userToken: "tok", workflowId: 7, workflowName: "w" });
+      const res = await agent.sendMessage("modify it");
+      const steps = agent.getAllSteps();
+      expect(res.stopped).toBe(true);
+      expect(steps.map(step => step.content)).toEqual(["modify it", "", "Generation stopped by user."]);
+      expect(steps[1].toolResults).toEqual([
+        {
+          toolCallId: "c1",
+          output: "Operator op-1 modified\n[ERROR] Execution did not finish: The operation was aborted.",
+          isError: false,
+        },
+      ]);
+      expect(agent.getWorkflowState().getOperator("op-1")?.customDisplayName).toBe("renamed");
+      expect(agent.getWorkflowResultState().get("op-1")).toBeUndefined();
+    } finally {
+      vSpy.mockRestore();
+    }
+  });
+
   test("executeOperator tool keys its result at the current head (the user step)", async () => {
-    // The contrast with the previous test is the point: an explicit executeOperator call has no agent
-    // step of its own yet, so its result belongs at the head rather than at a step that follows it.
+    // The contrast with the modifyOperator test above is the point: an explicit executeOperator call
+    // changes nothing, so its result already holds at the head the step started from.
     dispatch(okExec);
     const vSpy = spyOn(WorkflowSystemMetadata.getInstance(), "validateOperatorProperties").mockReturnValue({
       isValid: true,
@@ -1386,7 +1851,12 @@ describe("delegate mode", () => {
     const step = agent.getAllSteps()[1];
     expect(step.toolResults).toHaveLength(1);
     expect(step.toolResults?.[0]).toMatchObject({ toolCallId: "c1", isError: true });
-    expect(agent.getAllSteps()[2].inputMessages?.[0]?.content).toContain("- modifyOperator (failed)");
+    expect(toolOutputsOf(agent.getAllSteps()[2].inputMessages)).toEqual([
+      [
+        "modifyOperator",
+        { type: "error-text", value: expect.stringContaining("Invalid input for tool modifyOperator") },
+      ],
+    ]);
     expect(urls.some(u => u.includes("/api/execution/"))).toBe(false);
   });
 

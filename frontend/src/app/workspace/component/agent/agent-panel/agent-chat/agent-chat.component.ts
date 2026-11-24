@@ -45,20 +45,13 @@ import { NzButtonComponent } from "ng-zorro-antd/button";
 import { NgIf, NgFor } from "@angular/common";
 import { MarkdownComponent } from "ngx-markdown";
 import { NzSpinComponent } from "ng-zorro-antd/spin";
-import {
-  NzInputDirective,
-  NzAutosizeDirective,
-  NzInputGroupComponent,
-  NzInputGroupWhitSuffixOrPrefixDirective,
-} from "ng-zorro-antd/input";
+import { NzInputDirective, NzAutosizeDirective } from "ng-zorro-antd/input";
 import { FormsModule } from "@angular/forms";
 import { NzWaveDirective } from "ng-zorro-antd/core/wave";
 import { ReActStepDetailModalComponent } from "../react-step-detail-modal/react-step-detail-modal.component";
 import { NzModalComponent, NzModalContentDirective } from "ng-zorro-antd/modal";
 import { NzTabsComponent, NzTabComponent } from "ng-zorro-antd/tabs";
 import { NzInputNumberComponent } from "ng-zorro-antd/input-number";
-import { NzTagComponent } from "ng-zorro-antd/tag";
-import { NzSwitchComponent } from "ng-zorro-antd/switch";
 
 /** True for a link the browser would load as a page: one that resolves to an http or https address. */
 function isWebLink(href: string): boolean {
@@ -95,10 +88,6 @@ function isWebLink(href: string): boolean {
     NzTabsComponent,
     NzTabComponent,
     NzInputNumberComponent,
-    NzTagComponent,
-    NzInputGroupComponent,
-    NzInputGroupWhitSuffixOrPrefixDirective,
-    NzSwitchComponent,
   ],
 })
 export class AgentChatComponent implements OnInit, AfterViewChecked, OnDestroy, OnChanges {
@@ -129,9 +118,6 @@ export class AgentChatComponent implements OnInit, AfterViewChecked, OnDestroy, 
   public settingsToolTimeoutSeconds = 120; // 2 minutes default
   public settingsExecutionTimeoutMinutes = 10; // 10 minutes default
   public settingsMaxSteps = 10; // Default max steps per message
-  public settingsAllowedOperatorTypes: string[] = []; // Allowed operator types for general mode
-  public allAvailableOperatorTypes: Array<{ type: string; description: string }> = []; // All operator types from backend
-  public operatorTypeSearchQuery = ""; // Search filter for operator types
 
   // Track if we disabled auto-persist so we can re-enable it on destroy
   private disabledAutoPersist = false;
@@ -376,15 +362,6 @@ export class AgentChatComponent implements OnInit, AfterViewChecked, OnDestroy, 
         this.settingsToolTimeoutSeconds = settings.toolTimeoutSeconds ?? 120;
         this.settingsExecutionTimeoutMinutes = settings.executionTimeoutMinutes ?? 10;
         this.settingsMaxSteps = settings.maxSteps ?? 10;
-        this.settingsAllowedOperatorTypes = settings.allowedOperatorTypes ?? [];
-      });
-
-    // Fetch all available operator types
-    this.agentService
-      .getAvailableOperatorTypes(this.agentInfo.id)
-      .pipe(untilDestroyed(this))
-      .subscribe(types => {
-        this.allAvailableOperatorTypes = types.sort((a, b) => a.type.localeCompare(b.type));
       });
   }
 
@@ -648,74 +625,6 @@ export class AgentChatComponent implements OnInit, AfterViewChecked, OnDestroy, 
       .subscribe({
         next: () => this.notificationService.success("Max steps saved"),
         error: () => {}, // Error already handled by service
-      });
-  }
-
-  /**
-   * Toggle an operator type in the allowed list and save.
-   */
-  public toggleOperatorType(operatorType: string, enabled: boolean): void {
-    if (enabled) {
-      if (!this.settingsAllowedOperatorTypes.includes(operatorType)) {
-        this.settingsAllowedOperatorTypes = [...this.settingsAllowedOperatorTypes, operatorType];
-      }
-    } else {
-      this.settingsAllowedOperatorTypes = this.settingsAllowedOperatorTypes.filter(t => t !== operatorType);
-    }
-    this.saveAllowedOperatorTypes();
-  }
-
-  /**
-   * Check if an operator type is enabled (in allowed list).
-   */
-  public isOperatorTypeEnabled(operatorType: string): boolean {
-    return this.settingsAllowedOperatorTypes.includes(operatorType);
-  }
-
-  /**
-   * Enable all operator types.
-   */
-  public enableAllOperatorTypes(): void {
-    this.settingsAllowedOperatorTypes = this.allAvailableOperatorTypes.map(op => op.type);
-    this.saveAllowedOperatorTypes();
-  }
-
-  /**
-   * Deselect all operator types.
-   */
-  public deselectAllOperatorTypes(): void {
-    this.settingsAllowedOperatorTypes = [];
-    this.saveAllowedOperatorTypes();
-  }
-
-  /**
-   * Get filtered operator types based on search query.
-   */
-  public getFilteredOperatorTypes(): Array<{ type: string; description: string }> {
-    if (!this.operatorTypeSearchQuery) {
-      return this.allAvailableOperatorTypes;
-    }
-    const query = this.operatorTypeSearchQuery.toLowerCase();
-    return this.allAvailableOperatorTypes.filter(
-      op => op.type.toLowerCase().includes(query) || op.description.toLowerCase().includes(query)
-    );
-  }
-
-  /**
-   * Save allowed operator types to backend.
-   */
-  private saveAllowedOperatorTypes(): void {
-    this.agentService
-      .updateAgentSettings(this.agentInfo.id, {
-        allowedOperatorTypes: this.settingsAllowedOperatorTypes,
-      })
-      .pipe(untilDestroyed(this))
-      .subscribe({
-        next: () => {
-          const count = this.settingsAllowedOperatorTypes.length;
-          this.notificationService.success(count === 0 ? "All operators enabled" : `${count} operators enabled`);
-        },
-        error: () => {},
       });
   }
 }
