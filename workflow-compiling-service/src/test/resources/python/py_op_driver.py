@@ -71,26 +71,16 @@ import pandas as pd
 # resolve. If they don't, raise a clean error rather than a cryptic
 # ImportError deep in user code.
 try:
-    from pytexera import (  # noqa: F401  (used dynamically in user code's globals)
-        Batch,
-        BatchLike,
-        Iterator as PyIterator,  # noqa: F401
-        Optional as PyOptional,  # noqa: F401
-        Table,
-        TableLike,
+    from pytexera import (
         Tuple,
-        TupleLike,
         UDFBatchOperator,
         UDFOperatorV2,
         UDFSourceOperator,
         UDFTableOperator,
-        Union as PyUnion,  # noqa: F401
         largebinary,
-        logger as pytexera_logger,  # noqa: F401
-        overrides,  # noqa: F401
     )
     from core.models.schema.schema import Schema as TexeraSchema
-    from core.models.schema.attribute_type import AttributeType, RAW_TYPE_MAPPING
+    from core.models.schema.attribute_type import AttributeType
     from core.models.table import all_output_to_tuple
 except ImportError as exc:
     sys.stderr.write(
@@ -134,7 +124,7 @@ _PY_TO_SCALA_TYPE: Mapping[AttributeType, str] = {
 
 
 def _schema_from_dict(payload: Mapping[str, Any]) -> TexeraSchema:
-    raw: "dict[str, str]" = {}
+    raw: dict[str, str] = {}
     for attr in payload["attributes"]:
         raw_name = attr["attributeName"]
         raw_type = attr["attributeType"].lower()
@@ -147,7 +137,7 @@ def _schema_from_dict(payload: Mapping[str, Any]) -> TexeraSchema:
     return TexeraSchema(raw_schema=raw)
 
 
-def _schema_to_dict(schema: TexeraSchema) -> "dict[str, Any]":
+def _schema_to_dict(schema: TexeraSchema) -> dict[str, Any]:
     return {
         "attributes": [
             {"attributeName": name, "attributeType": _PY_TO_SCALA_TYPE[attr_type]}
@@ -237,7 +227,7 @@ def _read_tuples(data_path: Path, schema: TexeraSchema) -> List[Tuple]:
                 raise ValueError(
                     f"py_op_driver: invalid JSON on line {line_num} of {data_path}: {exc}"
                 ) from exc
-            field_data: "dict[str, Any]" = {}
+            field_data: dict[str, Any] = {}
             for name, attr_type in schema.as_key_value_pairs():
                 field_data[name] = _coerce_field(obj.get(name), attr_type)
             # Built the way the worker's InputManager builds it: the schema is
@@ -249,7 +239,7 @@ def _read_tuples(data_path: Path, schema: TexeraSchema) -> List[Tuple]:
 
 def _emit_as_dicts(
     emitted: Iterable[Any], schema: TexeraSchema
-) -> Iterator["dict[str, Any]"]:
+) -> Iterator[dict[str, Any]]:
     """
     Flatten whatever the operator yields into per-row dicts keyed by the
     output schema's attribute names.
@@ -314,8 +304,7 @@ def _jsonify(value: Any, attr_type: AttributeType) -> Any:
         # standalone path pickles the same object without one, so strip it and
         # both sides carry the same payload.
         raw = value
-        if raw.startswith(_CAST_PICKLE_MARKER):
-            raw = raw[len(_CAST_PICKLE_MARKER) :]
+        raw = raw.removeprefix(_CAST_PICKLE_MARKER)
         return base64.b64encode(raw).decode("ascii")
     if attr_type == AttributeType.LARGE_BINARY:
         # The reference, not the object it points at: the URI is the whole field
@@ -337,12 +326,12 @@ def _jsonify(value: Any, attr_type: AttributeType) -> Any:
 
 
 def _write_tuples(
-    data_path: Path, rows: Iterable["dict[str, Any]"], schema: TexeraSchema
+    data_path: Path, rows: Iterable[dict[str, Any]], schema: TexeraSchema
 ) -> None:
     _write_schema_sidecar(data_path, schema)
     with data_path.open("w", encoding="utf-8") as fh:
         for row in rows:
-            serialized: "dict[str, Any]" = {}
+            serialized: dict[str, Any] = {}
             for name, attr_type in schema.as_key_value_pairs():
                 serialized[name] = _jsonify(row.get(name), attr_type)
             fh.write(json.dumps(serialized))
@@ -360,14 +349,14 @@ _OPERATOR_BASES = (
 )
 
 
-def _exec_user_code(code: str) -> "dict[str, Any]":
+def _exec_user_code(code: str) -> dict[str, Any]:
     """
     Execute the operator code in a fresh namespace seeded with the pytexera
     re-exports, the way the real Texera Python worker does it (see
     ``InitializeExecutorHandler``). Returning the namespace lets us pick the
     user's operator class out of it.
     """
-    namespace: "dict[str, Any]" = {
+    namespace: dict[str, Any] = {
         "__name__": "__texera_user_op__",
         "__builtins__": __builtins__,
     }
@@ -386,7 +375,7 @@ def _exec_user_code(code: str) -> "dict[str, Any]":
 
 def _discover_operator_class(namespace: Mapping[str, Any]) -> type:
     candidates: List[type] = []
-    for name, obj in namespace.items():
+    for obj in namespace.values():
         if not inspect.isclass(obj):
             continue
         if obj in _OPERATOR_BASES:
@@ -413,7 +402,7 @@ def _run_operator(
     port_order: Sequence[int],
     inputs_by_port: Mapping[int, Sequence[Tuple]],
     schemas_by_port: Mapping[int, TexeraSchema],
-    consume: "Callable[[Any], None]",
+    consume: Callable[[Any], None],
 ) -> None:
     """
     Drive the operator's lifecycle, handing each emitted value to ``consume``.
@@ -482,8 +471,8 @@ def run_config(config: Mapping[str, Any]) -> None:
     is_source: bool = bool(config.get("isSource", False))
     port_order: Sequence[int] = list(config.get("portOrder", []))
 
-    inputs_by_port: "dict[int, List[Tuple]]" = {}
-    schemas_by_port: "dict[int, TexeraSchema]" = {}
+    inputs_by_port: dict[int, List[Tuple]] = {}
+    schemas_by_port: dict[int, TexeraSchema] = {}
     for entry in config.get("inputs", []):
         port = int(entry["portIndex"])
         data_path = Path(entry["dataPath"])
@@ -520,7 +509,7 @@ def run_config(config: Mapping[str, Any]) -> None:
     out_entry = outputs[0]
     out_path = Path(out_entry["dataPath"])
     out_schema = _schema_from_dict(out_entry["schema"])
-    rows: List["dict[str, Any]"] = []
+    rows: List[dict[str, Any]] = []
     _run_operator(
         op_instance,
         is_source,

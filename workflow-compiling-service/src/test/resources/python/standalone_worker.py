@@ -71,7 +71,7 @@ import plotly.graph_objects as go  # noqa: F401
 import plotly.io  # noqa: F401
 
 
-def _run_one(script_path: str, work_dir: str) -> "dict[str, object]":
+def _run_one(script_path: str, work_dir: str) -> dict[str, object]:
     """Execute one rendered standalone script and capture its output.
 
     Runs in a fresh namespace with cwd = work_dir (generated code may use
@@ -87,7 +87,7 @@ def _run_one(script_path: str, work_dir: str) -> "dict[str, object]":
     namespace = {"__name__": "__main__", "__file__": script_path}
     home = os.getcwd()
     try:
-        with open(script_path, "r", encoding="utf-8") as f:
+        with open(script_path, encoding="utf-8") as f:
             source = f.read()
         os.chdir(work_dir)
         code = compile(source, script_path, "exec")

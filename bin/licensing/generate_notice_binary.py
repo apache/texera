@@ -111,7 +111,7 @@ def _strip_version_from_filename(filename: str) -> str:
     stripped = _VERSION_SUFFIX_RE.sub("", filename)
     if stripped != filename:
         return stripped
-    return filename[:-4] if filename.endswith(".jar") else filename
+    return filename.removesuffix(".jar")
 
 
 def artifact_label(jar_path: Path) -> str:
@@ -182,7 +182,7 @@ def collect_clusters(lib_dirs: list[Path]) -> dict[str, dict]:
             seen_jars.setdefault(jar.name, jar)
 
     clusters: dict[str, dict] = defaultdict(lambda: {"content": "", "jars": []})
-    for name, path in sorted(seen_jars.items()):
+    for _, path in sorted(seen_jars.items()):
         blob = extract_notice_blob(path)
         if not blob:
             continue
@@ -235,7 +235,7 @@ def main() -> int:
         clusters.items(),
         key=lambda kv: (-len(kv[1]["jars"]), kv[0]),
     )
-    for h, c in sorted_clusters:
+    for _, c in sorted_clusters:
         heading = project_name_for_cluster(c["jars"])
         parts.append(emit_block(heading, c["content"]))
 

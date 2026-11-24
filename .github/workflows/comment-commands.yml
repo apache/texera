@@ -50,9 +50,7 @@ jobs:
     # exact `/take` or `/untake` so suffixes like `/take this` do not
     # silently match.
     if: >-
-      github.event_name == 'issue_comment'
-      && github.event.action == 'created'
-      && github.event.issue.pull_request == null
+      github.event.issue.pull_request == null
       && github.event.comment.user.type != 'Bot'
       && (startsWith(github.event.comment.body, '/take')
           || startsWith(github.event.comment.body, '/untake'))
@@ -103,9 +101,7 @@ jobs:
     # Job-level startsWith gate avoids spinning up a runner for every
     # PR comment; the regex inside the script enforces the exact shape.
     if: >-
-      github.event_name == 'issue_comment'
-      && github.event.action == 'created'
-      && github.event.issue.pull_request != null
+      github.event.issue.pull_request != null
       && github.event.comment.user.type != 'Bot'
       && (startsWith(github.event.comment.body, '/request-review')
           || startsWith(github.event.comment.body, '/unrequest-review'))
@@ -187,9 +183,7 @@ jobs:
     # The sub-issue REST endpoints key off the issue's database `id`, so
     # each #N reference needs a lookup before link/unlink.
     if: >-
-      github.event_name == 'issue_comment'
-      && github.event.action == 'created'
-      && github.event.issue.pull_request == null
+      github.event.issue.pull_request == null
       && github.event.comment.user.type != 'Bot'
       && (startsWith(github.event.comment.body, '/sub-issue')
           || startsWith(github.event.comment.body, '/unsub-issue')
