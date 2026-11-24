@@ -89,4 +89,33 @@ class TypeCastingOpExecSpec extends AnyFlatSpec {
     assert(outputTuple.getField[String](2) == "true")
     assert(outputTuple.getField[Long](3) == 3L)
   }
+
+  it should "cast a column named in a different case, the last unit for it winning" in {
+    val upper = new TypeCastingUnit()
+    upper.attribute = "FIELD2"
+    upper.resultType = AttributeType.LONG
+    val lower = new TypeCastingUnit()
+    lower.attribute = "Field2"
+    lower.resultType = AttributeType.STRING
+    val desc = new TypeCastingOpDesc()
+    desc.typeCastingUnits = List(upper, lower)
+
+    val typeCastingOpExec = new TypeCastingOpExec(objectMapper.writeValueAsString(desc))
+    typeCastingOpExec.open()
+    val outputTuple =
+      typeCastingOpExec
+        .processTuple(tuple, 0)
+        .next()
+        .asInstanceOf[SchemaEnforceable]
+        .enforceSchema(
+          Schema()
+            .add(new Attribute("field1", AttributeType.STRING))
+            .add(new Attribute("field2", AttributeType.STRING))
+            .add(new Attribute("field3", AttributeType.BOOLEAN))
+            .add(new Attribute("field4", AttributeType.LONG))
+        )
+
+    assert(outputTuple.getField[String]("field2") == "1")
+    assert(outputTuple.getField[Boolean]("field3"))
+  }
 }

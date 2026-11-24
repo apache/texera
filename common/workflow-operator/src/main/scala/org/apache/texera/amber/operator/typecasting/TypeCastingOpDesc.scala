@@ -85,18 +85,24 @@ class TypeCastingOpDesc extends MapOpDesc with StandaloneCodeGenerator {
 
     // `tupleCasting` takes a Map of column to target type and reads each column's
     // ORIGINAL value once, so two units naming one column collapse to the last.
-    val lastPerColumn = units.zipWithIndex.groupBy(_._1.attribute).view.mapValues(_.last._2).toMap
-    // Unlike most operators, both `tupleCasting` and `SchemaCasting` match a column
-    // by its exact name, not through Schema, which ignores case. So a unit that
-    // names no column, or names one in a different case, casts nothing in the
-    // engine, where pandas would raise a KeyError. Without a schema there is
-    // nothing to check against, and every unit is kept.
+    // Like Schema, both `tupleCasting` and `SchemaCasting` match a column ignoring
+    // case, so units are grouped by the lowercased name, and each cast is written
+    // against the table's own spelling of the column. A unit that names no column
+    // casts nothing in the engine, where pandas would raise a KeyError, so it is
+    // skipped. Without a schema there is nothing to check against, and every unit
+    // is kept under the name it gives.
+    val lastPerColumn =
+      units.zipWithIndex.groupBy(_._1.attribute.toLowerCase).view.mapValues(_.last._2).toMap
     val inputSchema = inputSchemas.values.headOption
-    val effective = units.zipWithIndex.collect {
-      case (unit, i)
-          if lastPerColumn(unit.attribute) == i &&
-            inputSchema.forall(_.getAttributeNames.contains(unit.attribute)) =>
-        unit
+    val effective: Seq[(String, TypeCastingUnit)] = units.zipWithIndex.flatMap {
+      case (unit, i) if lastPerColumn(unit.attribute.toLowerCase) == i =>
+        inputSchema match {
+          case None => Some(unit.attribute -> unit)
+          case Some(schema) if schema.containsAttribute(unit.attribute) =>
+            Some(schema.getAttribute(unit.attribute).getName -> unit)
+          case Some(_) => None
+        }
+      case _ => None
     }
 
     // What each column arrived as: no cast reads another's result.
@@ -105,51 +111,52 @@ class TypeCastingOpDesc extends MapOpDesc with StandaloneCodeGenerator {
       .getOrElse(Map.empty)
 
     val lines = scala.collection.mutable.ArrayBuffer[String]("out1df = in1df.copy()")
-    effective.foreach { unit =>
-      val colLit = pyStringLiteral(unit.attribute)
-      // Every cast goes through the transcription of AttributeTypeUtils rather
-      // than through Python's own conversions, which answer differently: a
-      // non-empty string is always a true boolean, and `int("6.7")` raises
-      // where the engine's NumberFormat reads 6.
-      //
-      // A timestamp is the one that stays approximate. The engine reads it with
-      // DateParserUtils, which accepts a set of formats no single pandas call
-      // states, so this coerces what it cannot read rather than claiming a
-      // match it does not have.
-      val expr = unit.resultType match {
-        case AttributeType.STRING =>
-          // Not `astype(str)`, which renders an empty cell as "nan" and
-          // capitalises a boolean. See [[renderedAsText]].
-          renderedAsText(s"out1df[$colLit]", declared.get(unit.attribute))
-        case AttributeType.INTEGER =>
-          // A hole survives the cast, because parseField returns a null field
-          // untouched; nullable "Int64" holds one where numpy's int cannot. Only
-          // a DOUBLE source saturates on the way to 32 bits, and only the
-          // declared type still says so: the values reach the helper as floats.
-          val wrap = !declared.get(unit.attribute).contains(AttributeType.DOUBLE)
-          val wrapArg = if (wrap) "True" else "False"
-          // The column's mask decides the holes, so a stored NaN is cast like
-          // any other double; see `_texera_cast_cells`.
-          s"""_texera_cast_cells(out1df[$colLit], lambda x: _texera_cast_int32(x, $wrapArg), pd.NA).astype("Int64")"""
-        case AttributeType.LONG =>
-          s"""_texera_cast_cells(out1df[$colLit], _texera_cast_integral, pd.NA).astype("Int64")"""
-        case AttributeType.DOUBLE =>
-          s"""_texera_cast_doubles(out1df[$colLit])"""
-        case AttributeType.BOOLEAN =>
-          // Nullable "boolean" for the same reason, and because `.astype(bool)`
-          // reads NaN as True: NaN is a non-zero float.
-          s"""_texera_cast_cells(out1df[$colLit], _texera_cast_boolean, pd.NA).astype("boolean")"""
-        case AttributeType.TIMESTAMP =>
-          // A number is an instant in milliseconds and needs its own reading.
-          // Text is read a cell at a time, and over the years the engine
-          // reaches rather than the ones pandas parses into by default; see
-          // the helpers.
-          if (declared.get(unit.attribute).contains(AttributeType.LONG))
-            s"""_texera_epoch_millis_to_timestamp(out1df[$colLit])"""
-          else s"""_texera_cast_timestamps(out1df[$colLit])"""
-        case _ => s"""out1df[$colLit]"""
-      }
-      lines += s"""out1df[$colLit] = $expr"""
+    effective.foreach {
+      case (column, unit) =>
+        val colLit = pyStringLiteral(column)
+        // Every cast goes through the transcription of AttributeTypeUtils rather
+        // than through Python's own conversions, which answer differently: a
+        // non-empty string is always a true boolean, and `int("6.7")` raises
+        // where the engine's NumberFormat reads 6.
+        //
+        // A timestamp is the one that stays approximate. The engine reads it with
+        // DateParserUtils, which accepts a set of formats no single pandas call
+        // states, so this coerces what it cannot read rather than claiming a
+        // match it does not have.
+        val expr = unit.resultType match {
+          case AttributeType.STRING =>
+            // Not `astype(str)`, which renders an empty cell as "nan" and
+            // capitalises a boolean. See [[renderedAsText]].
+            renderedAsText(s"out1df[$colLit]", declared.get(column))
+          case AttributeType.INTEGER =>
+            // A hole survives the cast, because parseField returns a null field
+            // untouched; nullable "Int64" holds one where numpy's int cannot. Only
+            // a DOUBLE source saturates on the way to 32 bits, and only the
+            // declared type still says so: the values reach the helper as floats.
+            val wrap = !declared.get(column).contains(AttributeType.DOUBLE)
+            val wrapArg = if (wrap) "True" else "False"
+            // The column's mask decides the holes, so a stored NaN is cast like
+            // any other double; see `_texera_cast_cells`.
+            s"""_texera_cast_cells(out1df[$colLit], lambda x: _texera_cast_int32(x, $wrapArg), pd.NA).astype("Int64")"""
+          case AttributeType.LONG =>
+            s"""_texera_cast_cells(out1df[$colLit], _texera_cast_integral, pd.NA).astype("Int64")"""
+          case AttributeType.DOUBLE =>
+            s"""_texera_cast_doubles(out1df[$colLit])"""
+          case AttributeType.BOOLEAN =>
+            // Nullable "boolean" for the same reason, and because `.astype(bool)`
+            // reads NaN as True: NaN is a non-zero float.
+            s"""_texera_cast_cells(out1df[$colLit], _texera_cast_boolean, pd.NA).astype("boolean")"""
+          case AttributeType.TIMESTAMP =>
+            // A number is an instant in milliseconds and needs its own reading.
+            // Text is read a cell at a time, and over the years the engine
+            // reaches rather than the ones pandas parses into by default; see
+            // the helpers.
+            if (declared.get(column).contains(AttributeType.LONG))
+              s"""_texera_epoch_millis_to_timestamp(out1df[$colLit])"""
+            else s"""_texera_cast_timestamps(out1df[$colLit])"""
+          case _ => s"""out1df[$colLit]"""
+        }
+        lines += s"""out1df[$colLit] = $expr"""
     }
     lines.mkString("\n")
   }

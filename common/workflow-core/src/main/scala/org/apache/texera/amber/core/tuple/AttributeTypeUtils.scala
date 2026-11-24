@@ -45,13 +45,15 @@ object AttributeTypeUtils extends Serializable {
       attribute: String,
       resultType: AttributeType
   ): Schema = {
+    // Match the column the way Schema does, ignoring case, and keep the
+    // table's own spelling of the name in the result.
     val updatedAttributes = schema.getAttributes.map { attr =>
-      if (attr.getName == attribute) {
+      if (attribute != null && attr.getName.equalsIgnoreCase(attribute)) {
         resultType match {
           case AttributeType.STRING | AttributeType.INTEGER | AttributeType.DOUBLE |
               AttributeType.LONG | AttributeType.BOOLEAN | AttributeType.TIMESTAMP |
               AttributeType.BINARY =>
-            new Attribute(attribute, resultType) // Cast to the specified result type
+            new Attribute(attr.getName, resultType) // Cast to the specified result type
           case AttributeType.ANY | _ =>
             attr // Retain the original type for unsupported types
         }
@@ -78,13 +80,18 @@ object AttributeTypeUtils extends Serializable {
   def tupleCasting(
       tuple: Tuple,
       targetTypes: Map[String, AttributeType]
-  ): TupleLike =
+  ): TupleLike = {
+    // Target names are matched ignoring case, as Schema matches them. Callers
+    // that may name one column twice in different cases should collapse those
+    // entries themselves, since a Map cannot say which of them came last.
+    val targetTypesByName = targetTypes.map { case (name, t) => name.toLowerCase -> t }
     TupleLike(
       tuple.getSchema.getAttributes.map { attr =>
-        val targetType = targetTypes.getOrElse(attr.getName, attr.getType)
+        val targetType = targetTypesByName.getOrElse(attr.getName.toLowerCase, attr.getType)
         parseField(tuple.getField(attr.getName), targetType, force = true)
       }
     )
+  }
 
   def parseFields(fields: Array[Any], schema: Schema): Array[Any] = {
     parseFields(fields, schema.getAttributes.map(attr => attr.getType).toArray)

@@ -91,11 +91,11 @@ class TypeCastingOpDescSpec extends AnyFlatSpec with Matchers {
     )
   }
 
-  // Type Casting matches a column by its exact name, unlike the operators that go
-  // through Schema, so `N` against a column `n` casts nothing in the engine. The
-  // script skips that unit too rather than raise a KeyError on `N`.
+  // Type Casting finds a column through Schema, which ignores case, like the
+  // other operators. A unit naming `N` casts the column `n`, and the output keeps
+  // the table's spelling, so the schema, the engine and the script agree.
   "TypeCastingOpDesc.generateStandaloneCode" should
-    "skip a unit whose column differs from the table's in case" in {
+    "cast a column named in a different case, under the table's name" in {
     val op = new TypeCastingOpDesc
     op.typeCastingUnits =
       List(castUnit("N", AttributeType.STRING), castUnit("m", AttributeType.DOUBLE))
@@ -105,13 +105,38 @@ class TypeCastingOpDescSpec extends AnyFlatSpec with Matchers {
     val inputPort = op.operatorInfo.inputPorts.head.id
 
     op.getExternalOutputSchemas(Map(inputPort -> input)).values.head shouldBe Schema()
-      .add(new Attribute("n", AttributeType.INTEGER))
+      .add(new Attribute("n", AttributeType.STRING))
       .add(new Attribute("m", AttributeType.DOUBLE))
 
     val code = op.generateStandaloneCode(Map(inputPort -> input))
     code should include("""out1df["m"] = """)
+    code should include("""out1df["n"] = """)
     code should not include "\"N\""
-    code should not include "out1df[\"n\"] = "
+  }
+
+  it should "keep only the last of two units that name one column in different cases" in {
+    val op = new TypeCastingOpDesc
+    op.typeCastingUnits =
+      List(castUnit("N", AttributeType.STRING), castUnit("n", AttributeType.DOUBLE))
+    val input = Schema().add(new Attribute("n", AttributeType.INTEGER))
+    val inputPort = op.operatorInfo.inputPorts.head.id
+
+    op.getExternalOutputSchemas(Map(inputPort -> input)).values.head shouldBe Schema()
+      .add(new Attribute("n", AttributeType.DOUBLE))
+
+    val code = op.generateStandaloneCode(Map(inputPort -> input))
+    code.linesIterator.count(_.startsWith("""out1df["n"] = """)) shouldBe 1
+    code should include("_texera_cast_doubles")
+  }
+
+  it should "skip a unit that names no column in any case" in {
+    val op = new TypeCastingOpDesc
+    op.typeCastingUnits = List(castUnit("missing", AttributeType.STRING))
+    val input = Schema().add(new Attribute("n", AttributeType.INTEGER))
+    val inputPort = op.operatorInfo.inputPorts.head.id
+
+    op.getExternalOutputSchemas(Map(inputPort -> input)).values.head shouldBe input
+    op.generateStandaloneCode(Map(inputPort -> input)) shouldBe "out1df = in1df.copy()"
   }
 
   "TypeCastingOpDesc" should "round-trip its casting units through the polymorphic base" in {
