@@ -52,7 +52,8 @@ import org.apache.texera.amber.engine.common.executionruntimestate.{
 }
 import org.apache.texera.amber.error.ErrorUtils.{
   getOperatorFromActorIdOpt,
-  getStackTraceWithAllCauses
+  getStackTraceWithAllCauses,
+  safely
 }
 import org.apache.texera.web.SubscriptionManager
 import org.apache.texera.web.model.websocket.event.{
@@ -66,7 +67,8 @@ import org.apache.texera.web.storage.ExecutionStateStore
 import org.apache.texera.web.storage.ExecutionStateStore.updateWorkflowState
 
 import java.time.Instant
-import java.util.concurrent.Executors
+import java.util.concurrent.atomic.AtomicBoolean
+import java.util.concurrent.{Executors, RejectedExecutionException, TimeUnit, TimeoutException}
 
 class ExecutionStatsService(
     client: AmberClient,
@@ -96,6 +98,9 @@ class ExecutionStatsService(
 
   private var lastPersistedMetrics: Map[String, OperatorMetrics] =
     Map.empty[String, OperatorMetrics]
+
+  private val committed = new AtomicBoolean(false)
+  private val CommitTimeoutSeconds = 60L
 
   registerCallbacks()
 
@@ -195,10 +200,15 @@ class ExecutionStatsService(
     addSubscription(
       client
         .registerCallback[RuntimeStatisticsPersist]((evt: RuntimeStatisticsPersist) => {
-          metricsPersistThread.execute(() => {
-            storeRuntimeStatistics(computeStatsDiff(evt.operatorMetrics))
-            lastPersistedMetrics = evt.operatorMetrics
-          })
+          try {
+            metricsPersistThread.execute(() => {
+              storeRuntimeStatistics(computeStatsDiff(evt.operatorMetrics))
+              lastPersistedMetrics = evt.operatorMetrics
+            })
+          } catch {
+            // commitAndStop has shut the thread down; its queued close commits what came before.
+            case _: RejectedExecutionException =>
+          }
         })
     )
   }
@@ -207,16 +217,54 @@ class ExecutionStatsService(
     client.registerCallback[ExecutionStateUpdate] {
       case ExecutionStateUpdate(state: WorkflowAggregatedState.Recognized)
           if state == COMPLETED || state == FAILED || state == KILLED =>
-        logger.info("Workflow execution terminated. Commit runtime statistics.")
-        try {
-          runtimeStatsWriter.close()
-        } catch {
-          case e: Exception =>
-            logger.error("Failed to close runtime statistics writer", e)
-        }
+        commitAndStop()
       case _ =>
     }
   )
+
+  /**
+    * Commits a run that never reported a terminal state, such as a user kill, when
+    * WorkflowService tears the service down: at the next run or on session cleanup. The commit
+    * finishes in the background so the next run does not wait for it.
+    */
+  override def unsubscribeAll(): Unit = {
+    super.unsubscribeAll()
+    commitAndStop(awaitCommit = false)
+  }
+
+  /**
+    * Commits the runtime statistics and stops the persist thread, once. The engine reports the
+    * final statistics right before the terminal state, and that report may still be queued on
+    * the persist thread. Closing the writer there, behind it, commits it; closing on the calling
+    * thread would flush before it and strand it in the buffer.
+    */
+  private def commitAndStop(awaitCommit: Boolean = true): Unit = {
+    if (committed.compareAndSet(false, true)) {
+      logger.info("Committing runtime statistics.")
+      val close: Runnable = () =>
+        try runtimeStatsWriter.close()
+        catch safely {
+          case e => logger.error("Failed to close runtime statistics writer", e)
+        }
+      val commit = metricsPersistThread.submit(close)
+      // Queued tasks, the close among them, still run after shutdown.
+      metricsPersistThread.shutdown()
+      if (awaitCommit) {
+        try {
+          // Bounded so a stuck write cannot hang the caller.
+          commit.get(CommitTimeoutSeconds, TimeUnit.SECONDS)
+        } catch {
+          case e: InterruptedException =>
+            Thread.currentThread().interrupt()
+            logger.error("Interrupted while committing runtime statistics", e)
+          case _: TimeoutException =>
+            logger.warn(
+              s"Runtime statistics commit exceeded ${CommitTimeoutSeconds}s; continuing in background"
+            )
+        }
+      }
+    }
+  }
 
   private def computeStatsDiff(
       newMetrics: Map[String, OperatorMetrics]
@@ -338,6 +386,10 @@ class ExecutionStatsService(
               )
             )
           }
+          // A failed run ends here without the engine reporting a terminal state, and the
+          // service is not torn down until the next run or session cleanup; commit now so the
+          // statistics can be read.
+          commitAndStop()
         })
     )
   }
