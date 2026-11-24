@@ -103,10 +103,10 @@
           let-active="active">
           <div
             class="agent-tab-title"
-            [class.workflow-mismatch]="!canSwitchToAgent(agent)">
+            [class.workflow-mismatch]="isOnAnotherWorkflow(agent)">
             <span class="agent-tab-name">{{ agent.name }}</span>
             <i
-              *ngIf="!canSwitchToAgent(agent)"
+              *ngIf="isOnAnotherWorkflow(agent)"
               nz-icon
               nzType="lock"
               nzTheme="outline"
@@ -130,7 +130,7 @@
         </ng-template>
         <ng-template nz-tab>
           <texera-agent-chat
-            *ngIf="canSwitchToAgent(agent); else onAnotherWorkflow"
+            *ngIf="!isOnAnotherWorkflow(agent); else onAnotherWorkflow"
             [agentInfo]="agent"
             [isActive]="activeAgentId === agent.id"></texera-agent-chat>
           <!-- An agent that works on another workflow has no chat here: chatting with it would

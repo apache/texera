@@ -230,7 +230,7 @@ export class AgentPanelComponent implements OnInit, OnDestroy, OnChanges {
 
     // An agent that works on another workflow is shown, not activated: its tab holds a link to
     // that workflow in place of the chat, and an active agent loads its workflow into the canvas.
-    if (!this.canSwitchToAgent(agent)) {
+    if (this.isOnAnotherWorkflow(agent)) {
       this.deactivateCurrentAgent();
       this.selectedTabIndex = index;
       return;
@@ -271,15 +271,16 @@ export class AgentPanelComponent implements OnInit, OnDestroy, OnChanges {
   }
 
   /**
-   * Check if an agent's workflow matches the current workspace workflow
+   * Whether the agent works on a workflow other than the open one. Its tab then shows a link to
+   * that workflow in place of the chat; an agent on the open workflow, or on none, chats here.
    */
-  public canSwitchToAgent(agent: AgentInfo): boolean {
+  public isOnAnotherWorkflow(agent: AgentInfo): boolean {
     const agentWorkflowId = agent.delegate?.workflowId;
     if (agentWorkflowId === undefined || agentWorkflowId === 0) {
-      return true; // Agent has no workflow - always allow
+      return false; // Agent has no workflow
     }
     const currentWorkflowId = this.workflowActionService.getWorkflowMetadata().wid;
-    return currentWorkflowId === agentWorkflowId;
+    return currentWorkflowId !== agentWorkflowId;
   }
 
   /**

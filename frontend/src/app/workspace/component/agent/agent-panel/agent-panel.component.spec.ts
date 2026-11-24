@@ -457,14 +457,14 @@ describe("AgentPanelComponent", () => {
     });
   });
 
-  describe("canSwitchToAgent", () => {
-    it("permits agents with no delegate, no workflow id, or a matching workflow id", () => {
+  describe("isOnAnotherWorkflow", () => {
+    it("is true only for an agent bound to a workflow other than the open one", () => {
       createComponent();
-      expect(component.canSwitchToAgent(makeAgent("plain"))).toBe(true);
-      expect(component.canSwitchToAgent(makeDelegateAgent("no-wid", undefined))).toBe(true);
-      expect(component.canSwitchToAgent(makeDelegateAgent("zero", 0))).toBe(true);
-      expect(component.canSwitchToAgent(makeDelegateAgent("same", CURRENT_WID))).toBe(true);
-      expect(component.canSwitchToAgent(makeDelegateAgent("other", 99))).toBe(false);
+      expect(component.isOnAnotherWorkflow(makeAgent("plain"))).toBe(false);
+      expect(component.isOnAnotherWorkflow(makeDelegateAgent("no-wid", undefined))).toBe(false);
+      expect(component.isOnAnotherWorkflow(makeDelegateAgent("zero", 0))).toBe(false);
+      expect(component.isOnAnotherWorkflow(makeDelegateAgent("same", CURRENT_WID))).toBe(false);
+      expect(component.isOnAnotherWorkflow(makeDelegateAgent("other", 99))).toBe(true);
     });
 
     it("renders a lock icon and mismatch style only on agents from another workflow", () => {
