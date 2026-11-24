@@ -26,9 +26,14 @@ from core.models.schema import Schema
 from core.storage.runnables.input_port_materialization_reader_runnable import (
     InputPortMaterializationReaderRunnable,
 )
+from core.util import set_one_of
 from proto.org.apache.texera.amber.core import (
     ActorVirtualIdentity,
     ChannelIdentity,
+)
+from proto.org.apache.texera.amber.engine.architecture.sendsemantics import (
+    OneToOnePartitioning,
+    Partitioning,
 )
 
 DOCUMENT_FACTORY = (
@@ -347,3 +352,88 @@ class TestRunErrorHandling:
         # The EndChannel is never reached, so the reader stays unfinished.
         assert reader.finished() is False
         assert _emitted_ecm_names(reader) == []
+
+
+class TestOneToOneSenderLookup:
+    """The reader stands in for the sender of the channel that ends at this
+    worker, and builds its OneToOnePartitioner around that sender. A wrong
+    sender leaves the partitioner without a receiver, so the worker would get
+    no tuples and no EndChannel while run() still marks itself finished. These
+    tests go through the real __init__ and partitioner rather than a mock."""
+
+    ME = ActorVirtualIdentity(name="me")
+
+    @staticmethod
+    def _partitioning(*channels, batch_size=2):
+        return set_one_of(
+            Partitioning,
+            OneToOnePartitioning(batch_size=batch_size, channels=list(channels)),
+        )
+
+    @staticmethod
+    def _channel(src, dst):
+        return ChannelIdentity(
+            ActorVirtualIdentity(name=src), ActorVirtualIdentity(name=dst), False
+        )
+
+    def _reader(self, partitioning):
+        return InputPortMaterializationReaderRunnable(
+            uri="vfs:///wf/0/exec/0/result/op-a",
+            queue=MagicMock(),
+            worker_actor_id=self.ME,
+            partitioning=partitioning,
+        )
+
+    def _run(self, reader, values):
+        schema = Schema(raw_schema={"x": "INTEGER"})
+        result_doc = MagicMock()
+        result_doc.get.return_value = iter(
+            [Tuple({"x": v}, schema=schema) for v in values]
+        )
+        state_doc = MagicMock()
+        state_doc.get.return_value = iter([])
+        with patch(DOCUMENT_FACTORY) as factory:
+            factory.open_document.side_effect = [
+                (result_doc, schema),
+                (state_doc, None),
+            ]
+            reader.run()
+
+    def test_the_receiver_is_this_worker_via_the_channel_that_ends_here(self):
+        reader = self._reader(self._partitioning(self._channel("producer", "me")))
+        assert reader.partitioner.receiver == self.ME
+
+    def test_picks_the_channel_ending_here_among_several(self):
+        reader = self._reader(
+            self._partitioning(
+                self._channel("p1", "other"),
+                self._channel("p2", "me"),
+                self._channel("p3", "another"),
+            )
+        )
+        assert reader.partitioner.receiver == self.ME
+
+    def test_emits_the_batches_between_start_and_end_channel(self):
+        reader = self._reader(self._partitioning(self._channel("producer", "me")))
+        self._run(reader, [1, 2, 3])
+
+        frames = _emitted_data_frames(reader)
+        assert [f.frame.num_rows for f in frames] == [2, 1]
+        assert [f.frame.to_pydict()["x"] for f in frames] == [[1, 2], [3]]
+        assert _emitted_ecm_names(reader) == ["StartChannel", "EndChannel"]
+        assert reader.finished()
+
+    def test_an_empty_table_still_ends_the_channel(self):
+        reader = self._reader(self._partitioning(self._channel("producer", "me")))
+        self._run(reader, [])
+
+        assert _emitted_data_frames(reader) == []
+        assert _emitted_ecm_names(reader) == ["StartChannel", "EndChannel"]
+
+    def test_fails_loudly_when_no_channel_ends_at_this_worker(self):
+        with pytest.raises(ValueError, match="no one-to-one channel ends at me"):
+            self._reader(self._partitioning(self._channel("producer", "other")))
+
+    def test_fails_loudly_when_there_are_no_channels(self):
+        with pytest.raises(ValueError, match="no one-to-one channel ends at me"):
+            self._reader(self._partitioning())

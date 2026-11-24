@@ -122,6 +122,10 @@ class InputPortMaterializationReaderRunnable(Runnable, Stoppable):
                 ),
                 None,
             )
+            if sender is None:
+                raise ValueError(
+                    f"no one-to-one channel ends at {self.worker_actor_id.name}"
+                )
             self.partitioner: Partitioner = partitioner(the_partitioning, sender)
         else:
             self.partitioner = partitioner(the_partitioning)
