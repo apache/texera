@@ -845,8 +845,10 @@ describe("sendMessage", () => {
 
     test.each([
       ["before the limit", 1, ["go", "", "Generation stopped by user."]],
-      ["on the last allowed step", 2, ["go", "", ""]],
-    ])("adds nothing when the user stops the turn %s", async (_when, stopAtCall, contents) => {
+      ["on the last allowed step", 2, ["go", "", "", "Generation stopped by user."]],
+    ])("ends a turn the user stops %s as stopped, without the notice", async (_when, stopAtCall, contents) => {
+      // On the last allowed step the AI SDK returns normally rather than throwing, since no further
+      // model call sees the abort. The turn still has to end as stopped.
       let agent!: TexeraAgent;
       const model = toolCallingModel(Infinity, {
         onCall: n => {
@@ -855,8 +857,10 @@ describe("sendMessage", () => {
       });
       agent = makeAgentWith(model);
       agent.updateSettings({ maxSteps: 2 });
-      await agent.sendMessage("go");
+      const res = await agent.sendMessage("go");
       expect(agent.getAllSteps().map(s => s.content)).toEqual(contents);
+      expect(res.stopped).toBe(true);
+      expect(agent.getHead()).toBe(agent.getAllSteps().at(-1)!.id);
     });
 
     test("the next turn reads the notice as the last entry of the task it closed", async () => {

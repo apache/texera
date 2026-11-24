@@ -712,11 +712,13 @@ export class TexeraAgent {
         },
       });
 
-      // A turn the limit cut short has no closing answer, so the agent says why it stopped. A turn
-      // the user stopped needs no such notice, even when the stop lands on the last allowed step.
-      if (stoppedAtStepLimit && !this.abortController?.signal.aborted) {
-        addClosingStep(stepLimitNotice(maxSteps));
-      }
+      // A stop that lands on the last allowed step lets `generateText` return normally, since the
+      // stop condition ends the loop before another model call can see the abort. Such a turn ends
+      // like a stop on an earlier step, in the catch below.
+      this.abortController?.signal.throwIfAborted();
+
+      // A turn the limit cut short has no closing answer, so the agent says why it stopped.
+      if (stoppedAtStepLimit) addClosingStep(stepLimitNotice(maxSteps));
 
       const msgSteps = this.reActStepsByMessageId.get(messageId);
       if (msgSteps && msgSteps.length > 0) {
