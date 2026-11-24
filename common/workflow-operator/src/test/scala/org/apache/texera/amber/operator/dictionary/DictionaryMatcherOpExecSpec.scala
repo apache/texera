@@ -35,10 +35,7 @@ class DictionaryMatcherOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
     .builder(tupleSchema)
     .add(new Attribute("field1", AttributeType.STRING), "nice a a person")
     .add(new Attribute("field2", AttributeType.INTEGER), 1)
-    .add(
-      new Attribute("field3", AttributeType.BOOLEAN),
-      true
-    )
+    .add(new Attribute("field3", AttributeType.BOOLEAN), true)
     .build()
 
   var opExec: DictionaryMatcherOpExec = _
@@ -56,6 +53,44 @@ class DictionaryMatcherOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
     outputSchema = opDesc.getExternalOutputSchemas(Map(PortIdentity() -> tupleSchema)).values.head
   }
 
+  private def withExecutor(
+      matchingType: MatchingType,
+      dictionary: String = dictionaryScan
+  )(body: => Unit): Unit = {
+    opDesc.dictionary = dictionary
+    opDesc.matchingType = matchingType
+    opExec = new DictionaryMatcherOpExec(objectMapper.writeValueAsString(opDesc))
+    opExec.open()
+    try body
+    finally opExec.close()
+  }
+
+  private def tupleWith(field1: String): Tuple =
+    Tuple
+      .builder(tupleSchema)
+      .add(new Attribute("field1", AttributeType.STRING), field1)
+      .add(new Attribute("field2", AttributeType.INTEGER), 1)
+      .add(new Attribute("field3", AttributeType.BOOLEAN), true)
+      .build()
+
+  private def isMatched(inputTuple: Tuple): Boolean =
+    opExec
+      .processTuple(inputTuple, 0)
+      .next()
+      .asInstanceOf[SchemaEnforceable]
+      .enforceSchema(outputSchema)
+      .getField[Boolean]("matched")
+
+  private def assertMatch(
+      matchingType: MatchingType,
+      dictionary: String = dictionaryScan,
+      inputTuple: Tuple = tuple,
+      expected: Boolean = true
+  ): Unit =
+    withExecutor(matchingType, dictionary) {
+      assert(isMatched(inputTuple) == expected)
+    }
+
   it should "prepare the dictionary at the first tuple, not at open()" in {
     opExec = new DictionaryMatcherOpExec(objectMapper.writeValueAsString(opDesc))
     opExec.open()
@@ -64,136 +99,43 @@ class DictionaryMatcherOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
     assert(opExec.dictionaryEntries == List(dictionaryScan))
   }
 
-  /**
-    * Test cases that all Matching Types should match the query
-    */
+  /** Test cases that all Matching Types should match the query */
   it should "match a tuple if present in the given dictionary entry when matching type is SCANBASED" in {
-    opDesc.matchingType = MatchingType.SCANBASED
-    opExec = new DictionaryMatcherOpExec(objectMapper.writeValueAsString(opDesc))
-    opExec.open()
-    val processedTuple = opExec.processTuple(tuple, 0).next()
-    assert(
-      processedTuple.asInstanceOf[SchemaEnforceable].enforceSchema(outputSchema).getField("matched")
-    )
-    opExec.close()
+    assertMatch(MatchingType.SCANBASED)
   }
 
   it should "match a tuple if present in the given dictionary entry when matching type is SUBSTRING" in {
-    opDesc.matchingType = MatchingType.SUBSTRING
-    opExec = new DictionaryMatcherOpExec(objectMapper.writeValueAsString(opDesc))
-    opExec.open()
-    val processedTuple = opExec.processTuple(tuple, 0).next()
-    assert(
-      processedTuple.asInstanceOf[SchemaEnforceable].enforceSchema(outputSchema).getField("matched")
-    )
-    opExec.close()
+    assertMatch(MatchingType.SUBSTRING)
   }
 
   it should "match a tuple if present in the given dictionary entry when matching type is CONJUNCTION_INDEXBASED" in {
-    opDesc.matchingType = MatchingType.CONJUNCTION_INDEXBASED
-    opExec = new DictionaryMatcherOpExec(objectMapper.writeValueAsString(opDesc))
-    opExec.open()
-    val processedTuple = opExec.processTuple(tuple, 0).next()
-    assert(
-      processedTuple.asInstanceOf[SchemaEnforceable].enforceSchema(outputSchema).getField("matched")
-    )
-    opExec.close()
+    assertMatch(MatchingType.CONJUNCTION_INDEXBASED)
   }
 
-  /**
-    * Test cases that SCANBASED and SUBSTRING Matching Types should fail to match a query
-    */
+  /** Test cases that SCANBASED and SUBSTRING Matching Types should fail to match a query */
   it should "not match a tuple if not present in the given dictionary entry when matching type is SCANBASED and not exact match" in {
-    opDesc.dictionary = dictionaryConjunction
-    opDesc.matchingType = MatchingType.SCANBASED
-    opExec = new DictionaryMatcherOpExec(objectMapper.writeValueAsString(opDesc))
-    opExec.open()
-    val processedTuple = opExec.processTuple(tuple, 0).next()
-    assert(
-      !processedTuple
-        .asInstanceOf[SchemaEnforceable]
-        .enforceSchema(outputSchema)
-        .getField[Boolean]("matched")
-    )
-    opExec.close()
+    assertMatch(MatchingType.SCANBASED, dictionaryConjunction, expected = false)
   }
 
   it should "not match a tuple if the given dictionary entry doesn't contain all the tuple when the matching type is SUBSTRING" in {
-    opDesc.dictionary = dictionaryConjunction
-    opDesc.matchingType = MatchingType.SUBSTRING
-    opExec = new DictionaryMatcherOpExec(objectMapper.writeValueAsString(opDesc))
-    opExec.open()
-    val processedTuple = opExec.processTuple(tuple, 0).next()
-    assert(
-      !processedTuple
-        .asInstanceOf[SchemaEnforceable]
-        .enforceSchema(outputSchema)
-        .getField[Boolean]("matched")
-    )
-    opExec.close()
+    assertMatch(MatchingType.SUBSTRING, dictionaryConjunction, expected = false)
   }
 
   it should "match a tuple if present in the given dictionary entry when matching type is CONJUNCTION_INDEXBASED even with different order" in {
-    opDesc.dictionary = dictionaryConjunction
-    opDesc.matchingType = MatchingType.CONJUNCTION_INDEXBASED
-    opExec = new DictionaryMatcherOpExec(objectMapper.writeValueAsString(opDesc))
-    opExec.open()
-    val processedTuple = opExec.processTuple(tuple, 0).next()
-    assert(
-      processedTuple
-        .asInstanceOf[SchemaEnforceable]
-        .enforceSchema(outputSchema)
-        .getField[Boolean]("matched")
-    )
-    opExec.close()
+    assertMatch(MatchingType.CONJUNCTION_INDEXBASED, dictionaryConjunction, expected = true)
   }
 
-  /**
-    * Test cases that only SUBSTRING Matching Type should match the query
-    */
+  /** Test cases that only SUBSTRING Matching Type should match the query */
   it should "not match a tuple if not present in the given dictionary entry when matching type is SCANBASED when the entry contains more text" in {
-    opDesc.dictionary = dictionarySubstring
-    opDesc.matchingType = MatchingType.SCANBASED
-    opExec = new DictionaryMatcherOpExec(objectMapper.writeValueAsString(opDesc))
-    opExec.open()
-    val processedTuple = opExec.processTuple(tuple, 0).next()
-    assert(
-      !processedTuple
-        .asInstanceOf[SchemaEnforceable]
-        .enforceSchema(outputSchema)
-        .getField[Boolean]("matched")
-    )
-    opExec.close()
+    assertMatch(MatchingType.SCANBASED, dictionarySubstring, expected = false)
   }
 
   it should "not match a tuple if not present in the given dictionary entry when matching type is CONJUNCTION_INDEXBASED when the entry contains more text" in {
-    opDesc.dictionary = dictionarySubstring
-    opDesc.matchingType = MatchingType.CONJUNCTION_INDEXBASED
-    opExec = new DictionaryMatcherOpExec(objectMapper.writeValueAsString(opDesc))
-    opExec.open()
-    val processedTuple = opExec.processTuple(tuple, 0).next()
-    assert(
-      !processedTuple
-        .asInstanceOf[SchemaEnforceable]
-        .enforceSchema(outputSchema)
-        .getField[Boolean]("matched")
-    )
-    opExec.close()
+    assertMatch(MatchingType.CONJUNCTION_INDEXBASED, dictionarySubstring, expected = false)
   }
 
   it should "match a tuple if not present in the given dictionary entry when matching type is SUBSTRING when the entry contains more text" in {
-    opDesc.dictionary = dictionarySubstring
-    opDesc.matchingType = MatchingType.SUBSTRING
-    opExec = new DictionaryMatcherOpExec(objectMapper.writeValueAsString(opDesc))
-    opExec.open()
-    val processedTuple = opExec.processTuple(tuple, 0).next()
-    assert(
-      processedTuple
-        .asInstanceOf[SchemaEnforceable]
-        .enforceSchema(outputSchema)
-        .getField[Boolean]("matched")
-    )
-    opExec.close()
+    assertMatch(MatchingType.SUBSTRING, dictionarySubstring, expected = true)
   }
 
   it should "close properly" in {
@@ -214,57 +156,31 @@ class DictionaryMatcherOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
     assert(opExec.dictionaryEntries == null)
   }
 
-  private def tupleWith(field1: String): Tuple =
-    Tuple
-      .builder(tupleSchema)
-      .add(new Attribute("field1", AttributeType.STRING), field1)
-      .add(new Attribute("field2", AttributeType.INTEGER), 1)
-      .add(new Attribute("field3", AttributeType.BOOLEAN), true)
-      .build()
-
-  private def isMatched(inputTuple: Tuple): Boolean =
-    opExec
-      .processTuple(inputTuple, 0)
-      .next()
-      .asInstanceOf[SchemaEnforceable]
-      .enforceSchema(outputSchema)
-      .getField[Boolean]("matched")
-
   it should "not label an empty field as matched even though every entry contains the empty string" in {
-    opDesc.dictionary = dictionaryScan
-    opDesc.matchingType = MatchingType.SUBSTRING
-    opExec = new DictionaryMatcherOpExec(objectMapper.writeValueAsString(opDesc))
-    opExec.open()
     // Without the empty-text guard, SUBSTRING would ask whether "nice a a person"
     // contains "" -- which every string does -- and report a match.
-    assert(!isMatched(tupleWith("")))
-    opExec.close()
+    assertMatch(MatchingType.SUBSTRING, dictionaryScan, tupleWith(""), expected = false)
   }
 
   it should "not match under CONJUNCTION_INDEXBASED when the field tokenizes to nothing" in {
-    opDesc.dictionary = "the"
-    opDesc.matchingType = MatchingType.CONJUNCTION_INDEXBASED
-    opExec = new DictionaryMatcherOpExec(objectMapper.writeValueAsString(opDesc))
-    opExec.open()
     // "the" is an English stop word, so both the entry and the field tokenize to
     // the empty set, and the empty set is trivially a subset of itself. Only the
     // explicit non-emptiness check keeps this from being reported as a match.
-    assert(!isMatched(tupleWith("the")))
-    opExec.close()
+    assertMatch(MatchingType.CONJUNCTION_INDEXBASED, "the", tupleWith("the"), expected = false)
   }
 
   it should "ignore dictionary tokens that stem into an English stop word" in {
-    opDesc.dictionary = "nice willing person"
-    opDesc.matchingType = MatchingType.CONJUNCTION_INDEXBASED
-    opExec = new DictionaryMatcherOpExec(objectMapper.writeValueAsString(opDesc))
-    opExec.open()
     // The analyzer stems "willing" to "will", which is an English stop word, so the
     // entry reduces to {nice, person} and is still a subset of the field's
     // {person, nice}. The field deliberately reverses the two words so that plain
     // substring containment ("nice willing person" contains "person nice") is
     // false: only the tokenized conjunction path can satisfy this assertion.
-    assert(isMatched(tupleWith("person nice")))
-    opExec.close()
+    assertMatch(
+      MatchingType.CONJUNCTION_INDEXBASED,
+      "nice willing person",
+      tupleWith("person nice"),
+      expected = true
+    )
   }
 
   it should "ignore dictionary tokens that are URL stop words" in {
@@ -274,46 +190,40 @@ class DictionaryMatcherOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
     // entry can never fire (recorded as dead data, not pinned). As above, the
     // field reverses the word order so substring containment cannot satisfy it.
     for (urlWord <- List("http", "org", "net", "com", "store", "www", "html")) {
-      opDesc.dictionary = s"nice $urlWord person"
-      opDesc.matchingType = MatchingType.CONJUNCTION_INDEXBASED
-      opExec = new DictionaryMatcherOpExec(objectMapper.writeValueAsString(opDesc))
-      opExec.open()
-      withClue(s"URL stop word $urlWord: ")(assert(isMatched(tupleWith("person nice"))))
-      opExec.close()
+      withClue(s"URL stop word $urlWord: ") {
+        assertMatch(
+          MatchingType.CONJUNCTION_INDEXBASED,
+          s"nice $urlWord person",
+          tupleWith("person nice"),
+          expected = true
+        )
+      }
     }
   }
 
   it should "split the dictionary on commas" in {
-    opDesc.dictionary = "cat,dog"
-    opDesc.matchingType = MatchingType.SCANBASED
-    opExec = new DictionaryMatcherOpExec(objectMapper.writeValueAsString(opDesc))
-    opExec.open()
-    // Two entries, not one: "dog" is an entry on its own and the raw text is not.
-    assert(isMatched(tupleWith("dog")))
-    assert(!isMatched(tupleWith("cat,dog")))
-    opExec.close()
+    withExecutor(MatchingType.SCANBASED, "cat,dog") {
+      // Two entries, not one: "dog" is an entry on its own and the raw text is not.
+      assert(isMatched(tupleWith("dog")))
+      assert(!isMatched(tupleWith("cat,dog")))
+    }
   }
 
   it should "lower-case the tuple field before comparing it to the dictionary" in {
-    opDesc.dictionary = dictionaryScan
-    opDesc.matchingType = MatchingType.SCANBASED
-    opExec = new DictionaryMatcherOpExec(objectMapper.writeValueAsString(opDesc))
-    opExec.open()
     // Dictionary entries are lower-cased when they are split, so the field has to
     // be folded too or an upper-case field could never match a lower-case entry.
-    assert(isMatched(tupleWith(dictionaryScan.toUpperCase)))
-    opExec.close()
+    assertMatch(
+      MatchingType.SCANBASED,
+      dictionaryScan,
+      tupleWith(dictionaryScan.toUpperCase),
+      expected = true
+    )
   }
 
   it should "report a null field as unmatched instead of failing" in {
-    opDesc.dictionary = dictionaryScan
-    opDesc.matchingType = MatchingType.SCANBASED
-    opExec = new DictionaryMatcherOpExec(objectMapper.writeValueAsString(opDesc))
-    opExec.open()
     // The dictionary lookup casts the field to String and lower-cases it, so a null
     // field has to be filtered out before the lookup is reached.
-    assert(!isMatched(tupleWith(null)))
-    opExec.close()
+    assertMatch(MatchingType.SCANBASED, dictionaryScan, tupleWith(null), expected = false)
   }
 
   it should "empty the tokenized dictionary on close" in {
@@ -330,10 +240,6 @@ class DictionaryMatcherOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
   }
 
   it should "fail loudly rather than silently report no match when no matching type is configured" in {
-    opDesc.dictionary = dictionaryScan
-    opDesc.matchingType = null
-    opExec = new DictionaryMatcherOpExec(objectMapper.writeValueAsString(opDesc))
-    opExec.open()
     // A descriptor whose "Matching type" is absent from the JSON deserializes to a
     // null matchingType -- Jackson does not enforce `required` on read -- so this is
     // a reachable runtime state. What is pinned is only that the operator refuses
@@ -341,9 +247,10 @@ class DictionaryMatcherOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
     // is scalac's business (today a MatchError from the non-exhaustive match) and
     // is deliberately not named, so replacing it with an explicit, clearer throw
     // would not break this test.
-    intercept[RuntimeException] {
-      opExec.processTuple(tuple, 0).next()
+    withExecutor(null, dictionaryScan) {
+      intercept[RuntimeException] {
+        opExec.processTuple(tuple, 0).next()
+      }
     }
-    opExec.close()
   }
 }

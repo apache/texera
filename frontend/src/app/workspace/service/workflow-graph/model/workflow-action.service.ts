@@ -17,7 +17,7 @@
  * under the License.
  */
 
-import { Injectable } from "@angular/core";
+import { Injectable, OnDestroy } from "@angular/core";
 
 import * as joint from "jointjs";
 import * as Y from "yjs";
@@ -107,7 +107,7 @@ function distanceBetween(a: joint.g.Rect, b: joint.g.Rect): number {
 @Injectable({
   providedIn: "root",
 })
-export class WorkflowActionService {
+export class WorkflowActionService implements OnDestroy {
   private readonly texeraGraph: WorkflowGraph;
   private readonly jointGraph: joint.dia.Graph;
   private readonly jointGraphWrapper: JointGraphWrapper;
@@ -184,6 +184,12 @@ export class WorkflowActionService {
     this.texeraGraph.newYDocLoadedSubject.subscribe(() => this.observeContentMeta());
 
     this.handleJointElementDrag();
+  }
+
+  // A root service is only destroyed with its injector: on app teardown, and after every TestBed test.
+  // Left open, the shared model's provider timers keep this service, and everything it reaches, alive.
+  ngOnDestroy(): void {
+    this.destroySharedModel();
   }
 
   private observeContentMeta(): void {

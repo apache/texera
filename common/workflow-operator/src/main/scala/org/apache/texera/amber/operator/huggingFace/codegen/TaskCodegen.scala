@@ -92,3 +92,55 @@ trait TaskCodegen {
     */
   def parsePython(ctx: CodegenContext): String
 }
+
+private[codegen] object BinaryResponseFragments {
+  val outputUrl: String =
+    """                    if "output" in body:
+      |                        out = body["output"]
+      |                        url = out[0] if isinstance(out, list) else out
+      |                        if isinstance(url, str) and url.startswith("http"):
+      |                            return self._url_to_data_url(url)""".stripMargin
+
+  // Each PNG handler continues this envelope with its own base64 validation.
+  val imageEnvelope: String =
+    s"""$outputUrl
+      |                    if "images" in body:
+      |                        images = body["images"]
+      |                        if images and isinstance(images[0], dict) and "url" in images[0]:
+      |                            return self._url_to_data_url(images[0]["url"])
+      |                    if "data" in body:
+      |                        data = body["data"]
+      |                        if isinstance(data, dict) and "outputs" in data:
+      |                            outputs = data["outputs"]
+      |                            if outputs and isinstance(outputs[0], str) and outputs[0].startswith("http"):
+      |                                return self._url_to_data_url(outputs[0])
+      |                        if isinstance(data, list) and data and isinstance(data[0], dict):""".stripMargin
+}
+
+private[codegen] object TextResponsePython {
+  private val chatContent: String =
+    """                content = self._chat_message_content(body)
+      |                if content is not None:
+      |                    return content""".stripMargin
+
+  val chatOrAnswer: String =
+    s"""$chatContent
+      |                if isinstance(body, dict):
+      |                    return body.get("answer", json.dumps(body))
+      |                return json.dumps(body)""".stripMargin
+
+  val chatOrBody: String =
+    s"""$chatContent
+      |                return json.dumps(body)""".stripMargin
+
+  def rankingPayload(promptKey: String, sentencesKey: String): String =
+    s"""                sent_val = row[self.SENTENCES_COLUMN]
+      |                sent_val = "" if pd.isna(sent_val) else str(sent_val)
+      |                sentences_list = [s.strip() for s in sent_val.split(",") if s.strip()]
+      |                payload = {
+      |                    "inputs": {
+      |                        "$promptKey": prompt_value,
+      |                        "$sentencesKey": sentences_list,
+      |                    }
+      |                }""".stripMargin
+}

@@ -241,7 +241,39 @@ class ComputingUnitManagingResourceSpec
     all(result.map(_.status)) shouldBe "Running"
   }
 
-  "terminateComputingUnit" should "let an admin terminate a unit it does not own" in {
+  it should "exclude terminated owned or shared units and preserve WRITE precedence when both owned and shared" in {
+    val lister = new SessionUser(makeUser(904, "lister", UserRoleEnum.REGULAR))
+    val userDao = new UserDao(getDSLContext.configuration())
+    userDao.insert(lister.getUser)
+
+    val unitDao = new WorkflowComputingUnitDao(getDSLContext.configuration())
+    val activeOwned = localUnitOwnedBy(960, lister.getUid, "active-owned")
+    val terminatedOwned = localUnitOwnedBy(961, lister.getUid, "terminated-owned")
+    terminatedOwned.setTerminateTime(new java.sql.Timestamp(System.currentTimeMillis()))
+    val activeShared = localUnitOwnedBy(962, victimUser.getUid, "active-shared")
+    val terminatedShared = localUnitOwnedBy(963, victimUser.getUid, "terminated-shared")
+    terminatedShared.setTerminateTime(new java.sql.Timestamp(System.currentTimeMillis()))
+    unitDao.insert(activeOwned, terminatedOwned, activeShared, terminatedShared)
+    // Grant READ on both the shared unit and the caller's own unit (owned WRITE must win).
+    grantAccess(960, granteeUid = lister.getUid, PrivilegeEnum.READ)
+    grantAccess(962, granteeUid = lister.getUid, PrivilegeEnum.READ)
+    grantAccess(963, granteeUid = lister.getUid, PrivilegeEnum.READ)
+
+    val entries = resource
+      .listComputingUnits(lister)
+      .map(e => (e.computingUnit.getCuid.intValue(), e.isOwner, e.accessPrivilege))
+    entries should contain theSameElementsAs Seq(
+      (960, true, PrivilegeEnum.WRITE),
+      (962, false, PrivilegeEnum.READ)
+    )
+  }
+
+  "terminateComputingUnit" should "throw NotFoundException when terminating a missing unit" in {
+    a[NotFoundException] should be thrownBy resource.terminateComputingUnit(99999, strangerUser)
+    a[NotFoundException] should be thrownBy resource.terminateComputingUnit(99999, adminUser)
+  }
+
+  it should "let an admin terminate a unit it does not own" in {
     insertLocalUnit(cuid = 910, ownerUid = 901, name = "victim-cu")
 
     val response = resource.terminateComputingUnit(910, adminUser)

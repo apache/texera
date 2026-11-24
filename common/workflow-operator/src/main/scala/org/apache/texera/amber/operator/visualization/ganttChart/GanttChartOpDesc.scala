@@ -20,6 +20,7 @@
 package org.apache.texera.amber.operator.visualization.ganttChart
 
 import org.apache.texera.amber.operator.visualization.StandaloneChartCode._
+import org.apache.texera.amber.operator.visualization.PythonCodeFragment._
 import com.fasterxml.jackson.annotation.{JsonProperty, JsonPropertyDescription}
 import com.kjetland.jackson.jsonSchema.annotations.{JsonSchemaInject, JsonSchemaTitle}
 import org.apache.texera.amber.pybuilder.PythonTemplateBuilder.{
@@ -119,24 +120,16 @@ class GanttChartOpDesc extends PythonVisualizationOpDesc with PlotlyStandaloneCo
          |import numpy as np
          |
          |class ProcessTableOperator(UDFTableOperator):
-         |    def render_error(self, error_msg):
-         |        return '''<h1>Gantt Chart is not available.</h1>
-         |                  <p>Reason: {} </p>
-         |               '''.format(error_msg)
+         |${runtimeError("Gantt Chart is not available.", colonOnly = true)}
          |
          |    @overrides
          |    def process_table(self, table: Table, port: int) -> Iterator[Optional[TableLike]]:
-         |        if table.empty:
-         |           yield {'html-content': self.render_error("Input table is empty.")}
-         |           return
+         |${emptyTableGuard("Input table is empty.")}
          |        ${manipulateTable()}
-         |        if table.empty:
-         |           yield {'html-content': self.render_error("One or more of your input columns have all missing values")}
-         |           return
+         |${emptyTableGuard("One or more of your input columns have all missing values")}
          |        ${createPlotlyFigure()}
          |        # convert fig to html content
-         |        html = plotly.io.to_html(fig, include_plotlyjs='cdn', auto_play=False)
-         |        yield {'html-content': html}
+         |${plotlyHtmlYield()}
          |"""
     finalCode.encode
   }

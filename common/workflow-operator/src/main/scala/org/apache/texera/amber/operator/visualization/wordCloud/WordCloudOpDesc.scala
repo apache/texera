@@ -20,6 +20,7 @@
 package org.apache.texera.amber.operator.visualization.wordCloud
 
 import org.apache.texera.amber.operator.visualization.StandaloneChartCode._
+import org.apache.texera.amber.operator.visualization.PythonCodeFragment._
 import com.fasterxml.jackson.annotation.JsonProperty
 import com.kjetland.jackson.jsonSchema.annotations.{
   JsonSchemaInject,
@@ -112,21 +113,14 @@ class WordCloudOpDesc extends PythonVisualizationOpDesc {
          |class ProcessTableOperator(UDFTableOperator):
          |
          |    # Generate custom error message as html string
-         |    def render_error(self, error_msg) -> str:
-         |        return '''<h1>Wordcloud is not available.</h1>
-         |                  <p>Reason is: {} </p>
-         |               '''.format(error_msg)
+         |${runtimeError("Wordcloud is not available.", typed = true)}
          |
          |    @overrides
          |    def process_table(self, table: Table, port: int) -> Iterator[Optional[TableLike]]:
-         |        if table.empty:
-         |           yield {'html-content': self.render_error("input table is empty.")}
-         |           return
+         |${emptyTableGuard("input table is empty.")}
          |        ${guardNotText()}
          |        ${manipulateTable()}
-         |        if table.empty:
-         |           yield {'html-content': self.render_error("text column does not contain words or contains only nulls.")}
-         |           return
+         |${emptyTableGuard("text column does not contain words or contains only nulls.")}
          |        ${createWordCloudFigure()}
          |        ${ImageUtility.encodeImageToHTML()}
          |        yield {'html-content': html}

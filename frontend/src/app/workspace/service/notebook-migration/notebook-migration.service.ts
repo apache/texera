@@ -19,7 +19,13 @@
 
 import { Injectable } from "@angular/core";
 import { AppSettings } from "../../../common/app-setting";
-import { MigrationLanguage, Notebook, NotebookMigrationLLM, SourceConversion } from "./migration-llm";
+import {
+  MIGRATION_LANGUAGE_NAMES,
+  MigrationLanguage,
+  Notebook,
+  NotebookMigrationLLM,
+  SourceConversion,
+} from "./migration-llm";
 import {
   buildFolderDocument,
   checkFolderByteSize,
@@ -397,12 +403,13 @@ export class NotebookMigrationService {
     });
   }
 
-  // Reads a .py file as text. Rejects on a file with nothing in it: an empty script would
+  // Reads a script as text. Rejects on a file with nothing in it: an empty script would
   // otherwise cost a full LLM round trip to produce an empty workflow.
-  public async parseScriptFile(file: File): Promise<string> {
-    const source = await this.readFileAsText(file, "Python file");
+  public async parseScriptFile(file: File, language: MigrationLanguage = "python"): Promise<string> {
+    const name = MIGRATION_LANGUAGE_NAMES[language];
+    const source = await this.readFileAsText(file, `${name} file`);
     if (source.trim() === "") {
-      throw new Error("The Python file is empty.");
+      throw new Error(`The ${name} file is empty.`);
     }
     return source;
   }

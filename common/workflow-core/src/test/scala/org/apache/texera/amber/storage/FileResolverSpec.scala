@@ -42,15 +42,11 @@ import org.apache.texera.dao.jooq.generated.tables.pojos.{
   User
 }
 import org.scalatest.flatspec.AnyFlatSpec
-import org.scalatest.{BeforeAndAfterAll, BeforeAndAfterEach}
+import org.scalatest.BeforeAndAfterAll
 
 import java.nio.file.Paths
 
-class FileResolverSpec
-    extends AnyFlatSpec
-    with BeforeAndAfterAll
-    with BeforeAndAfterEach
-    with MockTexeraDB {
+class FileResolverSpec extends AnyFlatSpec with BeforeAndAfterAll with MockTexeraDB {
 
   private val testUser: User = {
     val user = new User

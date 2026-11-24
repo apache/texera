@@ -24,9 +24,10 @@ import org.apache.texera.amber.core.tuple.Schema
 import org.apache.texera.amber.core.virtualidentity.OperatorIdentity
 import org.apache.texera.amber.core.workflow.PortIdentity
 import org.apache.texera.common.compiler.model.LogicalPlan
-import org.apache.texera.amber.operator.StandaloneCodeGenerator
+import org.apache.texera.amber.operator.{StandaloneCodeGenerator, StandaloneHelpers}
 import org.apache.texera.amber.pybuilder.PythonTemplateBuilder.pyStringLiteral
 
+import java.util.Locale
 import java.util.regex.Matcher
 import scala.collection.mutable
 import scala.collection.mutable.ArrayBuffer
@@ -37,6 +38,43 @@ class WorkflowToPythonTranslator extends LazyLogging {
   // Output-port-level key. An operator with N output ports gets N entries
   // (e.g. Split has port 0 and port 1, each with its own assigned dfN var).
   private type PortKey = (String, Int) // (opId, portIdx)
+
+  // The files the export's zip holds, which unzip into the directory the script
+  // reads its sources from. A source offering one of these names would be
+  // overwritten by it, so they count as taken before any source is named.
+  private val archiveFileNames = Set("script.py", "texera_helpers.py")
+
+  /**
+    * The inputs the script reads under a name other than their own, as (own name,
+    * name the script reads), in plan order. A person saving the inputs next to the
+    * script has to save these under the second name.
+    */
+  def renamedSources(logicalPlan: LogicalPlan): Seq[(String, String)] =
+    namedSources(logicalPlan).values.filter { case (own, read) => own != read }.toSeq
+
+  // What each source's file is called in the directory the script runs from, as
+  // (the name it offers, the name it gets), keyed by its resolved path. A source
+  // offers the last segment of its resolved path, which is the name a person
+  // would give the file, but two sources reading different files can offer the
+  // same one — and did, leaving the script to read one of them twice and say
+  // nothing. The second gets a name of its own, for the same reason a chart's
+  // output file is numbered. Keyed by the resolved path, so one file read by two
+  // operators keeps one name.
+  private def namedSources(
+      logicalPlan: LogicalPlan
+  ): mutable.LinkedHashMap[String, (String, String)] = {
+    val named = mutable.LinkedHashMap[String, (String, String)]()
+    logicalPlan.getTopologicalOpIds.asScala.map(logicalPlan.getOperator).foreach {
+      case gen: StandaloneCodeGenerator =>
+        gen.standaloneSourcePath().filterNot(named.contains).foreach { path =>
+          val offered = gen.standaloneSourceName().getOrElse("")
+          named(path) =
+            (offered, distinctName(offered, named.values.map(_._2).toSet ++ archiveFileNames))
+        }
+      case _ => ()
+    }
+    named
+  }
 
   /**
     * @param outputSchemas what each operator's output ports carry, as
@@ -69,23 +107,8 @@ class WorkflowToPythonTranslator extends LazyLogging {
     // getTopologicalOpIds() uses jgrapht internally — no need for a custom topo sort
     val topoOrder = logicalPlan.getTopologicalOpIds.asScala.toList
 
-    // What each source's file is called in the directory the script runs from.
-    // A source offers the last segment of its resolved path, which is the name a
-    // person would give the file, but two sources reading different files can
-    // offer the same one — and did, leaving the script to read one of them twice
-    // and say nothing. The second gets a name of its own, for the same reason a
-    // chart's output file is numbered. Keyed by the resolved path, so one file
-    // read by two operators keeps one name.
-    val sourceFileNames = mutable.Map[String, String]()
-    topoOrder.map(logicalPlan.getOperator).foreach {
-      case gen: StandaloneCodeGenerator =>
-        gen.standaloneSourcePath().foreach { path =>
-          sourceFileNames.getOrElseUpdate(
-            path,
-            distinctName(gen.standaloneSourceName().getOrElse(""), sourceFileNames.values.toSet)
-          )
-        }
-      case _ => ()
+    val sourceFileNames = namedSources(logicalPlan).map {
+      case (path, (_, name)) => path -> name
     }
 
     // pandas is the one module every generator uses: an operator body reads and
@@ -101,19 +124,24 @@ class WorkflowToPythonTranslator extends LazyLogging {
       .foreach(script += _)
     script += ""
 
-    // Helper definitions the operator bodies below refer to. Collected across the
-    // whole plan and deduplicated by text, so a workflow holding two operators
-    // that share one helper still emits it once. Order follows the topological
-    // order, which keeps the script stable for a given plan. They go in once the
-    // bodies are written, since which of them the script calls is only known then.
-    val helpers = topoOrder
+    // The helpers the operator bodies below refer to come from the texera_helpers
+    // module, which the script imports. A block the module does not hold would
+    // leave the script calling a name it cannot find, so it stops the export here.
+    topoOrder
       .map(logicalPlan.getOperator)
       .collect {
         case gen: StandaloneCodeGenerator =>
           gen.standaloneHelpers() ++ gen.standaloneInputAdapter().map(_.definition)
       }
       .flatten
-      .distinct
+      .find(!StandaloneHelpers.moduleHelpers.contains(_))
+      .foreach { block =>
+        throw new IllegalStateException(
+          s"A helper is missing from StandaloneHelpers.moduleHelpers:\n${block.take(200)}"
+        )
+      }
+    // The import goes in once the bodies are written, since which helpers the
+    // script calls is only known then.
     val helpersAt = script.length
 
     for (opIdentity <- topoOrder) {
@@ -236,60 +264,27 @@ class WorkflowToPythonTranslator extends LazyLogging {
         }
     }
 
-    // One blank line between helpers, as each block spaces its own, and two
-    // around the helpers as a whole.
-    val called = calledHelpers(helpers, script.drop(helpersAt).mkString("\n"))
-    if (called.nonEmpty) script.insertAll(helpersAt, Seq("", called.mkString("\n\n"), "", ""))
+    // Named one by one: a leading underscore keeps a name out of `import *`.
+    val imported = helperNamesIn(script.drop(helpersAt).mkString("\n"))
+    if (imported.nonEmpty)
+      script.insert(helpersAt - 1, s"from texera_helpers import ${imported.mkString(", ")}")
     script.mkString("\n")
   }
 
-  // The helpers with only the definitions the script calls, directly or through
-  // another helper. A helper block serves several operators, so it can hold far
-  // more functions than one plan uses, and those would only be text for the
-  // reader to wade through. Only a top-level `def _texera_...` is ever dropped:
-  // anything else a block holds is kept, and what it calls counts as called. A
-  // name is read from code only, so a comment or a string naming a helper keeps
-  // nothing alive. A block left with nothing is dropped whole.
-  private def calledHelpers(helpers: Seq[String], body: String): Seq[String] = {
-    val blocks = helpers.map(topLevelUnits)
-    val defined = blocks.flatten.collect { case (Some(name), text) => name -> text }.toMap
-    val called = mutable.Set[String]()
-    def visit(text: String): Unit = {
-      val code = splitOffLiterals(text).collect { case (true, segment) => segment }
-      """\b_texera_\w+""".r.findAllIn(code.mkString("\n")).foreach { name =>
-        if (defined.contains(name) && called.add(name)) visit(defined(name))
-      }
-    }
-    visit(body)
-    blocks.flatten.collect { case (None, text) => text }.foreach(visit)
-    blocks
-      .map(_.collect { case (name, text) if name.forall(called) => text }.mkString)
-      .map(_.replaceAll("\\s+$", ""))
-      .filter(_.nonEmpty)
-  }
+  // What the module defines at its top level, which is only functions and classes.
+  private val helperNames: Set[String] = StandaloneHelpers.moduleHelpers
+    .flatMap(_.split("\n"))
+    .flatMap(line => """(?:def|class) (\w+)""".r.findPrefixMatchOf(line).map(_.group(1)))
+    .toSet
 
-  // A helper block cut at its top-level statements, each with the comment and
-  // blank lines just above it and the indented lines below it, and named when it
-  // is a `def _texera_...`.
-  private def topLevelUnits(block: String): List[(Option[String], String)] = {
-    val units = ArrayBuffer[(Option[String], StringBuilder)]()
-    val lead = new StringBuilder
-    block.split("\n", -1).foreach { line =>
-      val topLevel = line.nonEmpty && !line.head.isWhitespace
-      if (topLevel && !line.startsWith("#") && !line.startsWith("@")) {
-        val name = """def (_texera_\w+)\s*\(""".r.findPrefixMatchOf(line).map(_.group(1))
-        units += ((name, new StringBuilder(lead.toString)))
-        lead.setLength(0)
-        units.last._2 ++= line + "\n"
-      } else if (topLevel || units.isEmpty || lead.nonEmpty) {
-        lead ++= line + "\n"
-      } else {
-        units.last._2 ++= line + "\n"
-      }
-    }
-    val cut = units.map { case (name, text) => (name, text.toString) }.toList
-    if (lead.isEmpty) cut else cut :+ ((None, lead.toString))
-  }
+  // The module's names the given code refers to, read from code only, sorted.
+  private def helperNamesIn(code: String): Seq[String] =
+    splitOffLiterals(code)
+      .collect { case (true, segment) => segment }
+      .flatMap("""\b\w+""".r.findAllIn(_))
+      .filter(helperNames)
+      .distinct
+      .sorted
 
   // The stem of the files one operator writes, taken from its name so a reader
   // can tell whose picture is whose. Numbered from one even when the plan holds
@@ -306,13 +301,16 @@ class WorkflowToPythonTranslator extends LazyLogging {
   // The offered name if no other source has taken it, otherwise the same name
   // numbered before its extension: data.csv, then data-2.csv. Numbering the stem
   // rather than appending keeps the suffix, which is what a reader opens the
-  // file by.
+  // file by. Names are compared ignoring case, since Windows and macOS treat
+  // Script.py and script.py as one file.
   private def distinctName(offered: String, taken: Set[String]): String = {
-    if (!taken.contains(offered)) return offered
+    val takenFolded = taken.map(_.toLowerCase(Locale.ROOT))
+    def free(name: String): Boolean = !takenFolded.contains(name.toLowerCase(Locale.ROOT))
+    if (free(offered)) return offered
     val dot = offered.lastIndexOf('.')
     val (stem, ext) =
       if (dot <= 0) (offered, "") else (offered.substring(0, dot), offered.substring(dot))
-    Iterator.from(2).map(n => s"$stem-$n$ext").find(!taken.contains(_)).get
+    Iterator.from(2).map(n => s"$stem-$n$ext").find(free).get
   }
 
   // Replaces in{N}df / out{N}df placeholders with concrete variable names.
@@ -341,7 +339,7 @@ class WorkflowToPythonTranslator extends LazyLogging {
       result = result.replaceAll("""\boutputJson\b""", "\"" + fileBase + ".json\"")
 
       // A source names the file it reads sourceFile and gets back the name
-      // assigned where sourceFileNames is built. Quoted through the escaper the
+      // assigned in namedSources. Quoted through the escaper the
       // operators use, and then quoted again for the replacement: a file name is
       // the user's text, so it can hold both a backslash and a `$`.
       result = result.replaceAll(

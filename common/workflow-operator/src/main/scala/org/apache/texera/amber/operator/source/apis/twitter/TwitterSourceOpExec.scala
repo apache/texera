@@ -20,6 +20,7 @@
 package org.apache.texera.amber.operator.source.apis.twitter
 
 import org.apache.texera.amber.core.executor.SourceOperatorExecutor
+import org.apache.texera.amber.core.tuple.TupleLike
 
 @deprecated("Twitter source operator is no longer executable.", "1.1.0-incubating")
 abstract class TwitterSourceOpExec(
@@ -31,4 +32,6 @@ abstract class TwitterSourceOpExec(
     )
 
   override def close(): Unit = {}
+
+  override def produceTuple(): Iterator[TupleLike] = Iterator.empty
 }

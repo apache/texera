@@ -24,6 +24,7 @@ import org.apache.texera.amber.core.workflow.PortIdentity
 import org.apache.texera.amber.util.JSONUtils.objectMapper
 import org.scalatest.BeforeAndAfter
 import org.scalatest.flatspec.AnyFlatSpec
+
 class ProjectionOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
   val tupleSchema: Schema = Schema()
     .add(new Attribute("field1", AttributeType.STRING))
@@ -34,65 +35,57 @@ class ProjectionOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
     .builder(tupleSchema)
     .add(new Attribute("field1", AttributeType.STRING), "hello")
     .add(new Attribute("field2", AttributeType.INTEGER), 1)
-    .add(
-      new Attribute("field3", AttributeType.BOOLEAN),
-      true
-    )
+    .add(new Attribute("field3", AttributeType.BOOLEAN), true)
     .build()
   val opDesc: ProjectionOpDesc = new ProjectionOpDesc()
 
+  before {
+    opDesc.isDrop = false
+    opDesc.attributes = List()
+  }
+
+  private def units(pairs: (String, String)*): List[AttributeUnit] =
+    pairs.map { case (orig, alias) => new AttributeUnit(orig, alias) }.toList
+
+  private def execProjection(isDrop: Boolean = false, openExec: Boolean = true)(
+      pairs: (String, String)*
+  ): TupleLike = {
+    opDesc.isDrop = isDrop
+    opDesc.attributes = units(pairs: _*)
+    val projectionOpExec = new ProjectionOpExec(objectMapper.writeValueAsString(opDesc))
+    if (openExec) projectionOpExec.open()
+    projectionOpExec.processTuple(tuple, 0).next()
+  }
+
+  private def enforce(outputSchema: Schema)(pairs: (String, String)*): Tuple =
+    execProjection()(pairs: _*).asInstanceOf[SchemaEnforceable].enforceSchema(outputSchema)
+
+  private def dropOutput(pairs: (String, String)*): MapTupleLike =
+    execProjection(isDrop = true)(pairs: _*).asInstanceOf[MapTupleLike]
+
   it should "open" in {
-    opDesc.attributes = List(
-      new AttributeUnit("field2", "f2"),
-      new AttributeUnit("field1", "f1")
-    )
+    opDesc.attributes = units("field2" -> "f2", "field1" -> "f1")
     val projectionOpExec = new ProjectionOpExec(objectMapper.writeValueAsString(opDesc))
     projectionOpExec.open()
-
   }
 
   it should "process Tuple" in {
-    opDesc.attributes = List(
-      new AttributeUnit("field2", "f2"),
-      new AttributeUnit("field1", "f1")
-    )
     val outputSchema = Schema()
       .add(new Attribute("f1", AttributeType.STRING))
       .add(new Attribute("f2", AttributeType.INTEGER))
-
-    val projectionOpExec = new ProjectionOpExec(objectMapper.writeValueAsString(opDesc))
-    projectionOpExec.open()
-
-    val outputTuple =
-      projectionOpExec
-        .processTuple(tuple, 0)
-        .next()
-        .asInstanceOf[SchemaEnforceable]
-        .enforceSchema(outputSchema)
+    val outputTuple = enforce(outputSchema)("field2" -> "f2", "field1" -> "f1")
     assert(outputTuple.length == 2)
     assert(outputTuple.getField("f1").asInstanceOf[String] == "hello")
     assert(outputTuple.getField("f2").asInstanceOf[Int] == 1)
     assert(outputTuple.getField[String](0) == "hello")
     assert(outputTuple.getField[Int](1) == 1)
   }
+
   it should "process Tuple with different order" in {
-    opDesc.attributes = List(
-      new AttributeUnit("field3", "f3"),
-      new AttributeUnit("field1", "f1")
-    )
     val outputSchema = Schema()
       .add(new Attribute("f3", AttributeType.BOOLEAN))
       .add(new Attribute("f1", AttributeType.STRING))
-
-    val projectionOpExec = new ProjectionOpExec(objectMapper.writeValueAsString(opDesc))
-    projectionOpExec.open()
-
-    val outputTuple =
-      projectionOpExec
-        .processTuple(tuple, 0)
-        .next()
-        .asInstanceOf[SchemaEnforceable]
-        .enforceSchema(outputSchema)
+    val outputTuple = enforce(outputSchema)("field3" -> "f3", "field1" -> "f1")
     assert(outputTuple.length == 2)
     assert(outputTuple.getField("f3").asInstanceOf[Boolean])
     assert(outputTuple.getField("f1").asInstanceOf[String] == "hello")
@@ -101,53 +94,28 @@ class ProjectionOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
   }
 
   it should "meException on non-existing fields" in {
-    opDesc.attributes = List(
-      new AttributeUnit("field---5", "f5"),
-      new AttributeUnit("field---6", "f6")
-    )
-    val projectionOpExec = new ProjectionOpExec(objectMapper.writeValueAsString(opDesc))
     assertThrows[RuntimeException] {
-      projectionOpExec.processTuple(tuple, 0).next()
+      execProjection(openExec = false)("field---5" -> "f5", "field---6" -> "f6")
     }
   }
 
   it should "raise IllegalArgumentException on empty attributes" in {
-    opDesc.attributes = List()
-    val projectionOpExec = new ProjectionOpExec(objectMapper.writeValueAsString(opDesc))
     assertThrows[IllegalArgumentException] {
-      projectionOpExec.processTuple(tuple, 0).next()
+      execProjection(openExec = false)()
     }
   }
 
   it should "raise RuntimeException on duplicate alias" in {
-    opDesc.attributes = List(
-      new AttributeUnit("field1", "f"),
-      new AttributeUnit("field2", "f")
-    )
-    val projectionOpExec = new ProjectionOpExec(objectMapper.writeValueAsString(opDesc))
     assertThrows[RuntimeException] {
-      projectionOpExec.processTuple(tuple, 0).next()
+      execProjection(openExec = false)("field1" -> "f", "field2" -> "f")
     }
   }
 
   it should "allow empty alias" in {
-    opDesc.attributes = List(
-      new AttributeUnit("field2", "f2"),
-      new AttributeUnit("field1", "")
-    )
     val outputSchema = Schema()
       .add(new Attribute("field1", AttributeType.STRING))
       .add(new Attribute("f2", AttributeType.INTEGER))
-
-    val projectionOpExec = new ProjectionOpExec(objectMapper.writeValueAsString(opDesc))
-    projectionOpExec.open()
-
-    val outputTuple =
-      projectionOpExec
-        .processTuple(tuple, 0)
-        .next()
-        .asInstanceOf[SchemaEnforceable]
-        .enforceSchema(outputSchema)
+    val outputTuple = enforce(outputSchema)("field2" -> "f2", "field1" -> "")
     assert(outputTuple.length == 2)
     assert(outputTuple.getField("field1").asInstanceOf[String] == "hello")
     assert(outputTuple.getField("f2").asInstanceOf[Int] == 1)
@@ -156,18 +124,10 @@ class ProjectionOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
   }
 
   it should "drop a single attribute and keep the rest under their original names" in {
-    opDesc.isDrop = true
-    opDesc.attributes = List(
-      new AttributeUnit("field2", "")
-    )
     val outputSchema = Schema()
       .add(new Attribute("field1", AttributeType.STRING))
       .add(new Attribute("field3", AttributeType.BOOLEAN))
-
-    val projectionOpExec = new ProjectionOpExec(objectMapper.writeValueAsString(opDesc))
-    projectionOpExec.open()
-
-    val output = projectionOpExec.processTuple(tuple, 0).next().asInstanceOf[MapTupleLike]
+    val output = dropOutput("field2" -> "")
     assert(output.fieldMappings.keySet == Set("field1", "field3"))
 
     val outputTuple = output.enforceSchema(outputSchema)
@@ -177,69 +137,32 @@ class ProjectionOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
   }
 
   it should "drop multiple attributes" in {
-    opDesc.isDrop = true
-    opDesc.attributes = List(
-      new AttributeUnit("field1", ""),
-      new AttributeUnit("field3", "")
-    )
-    val projectionOpExec = new ProjectionOpExec(objectMapper.writeValueAsString(opDesc))
-    projectionOpExec.open()
-
-    val output = projectionOpExec.processTuple(tuple, 0).next().asInstanceOf[MapTupleLike]
+    val output = dropOutput("field1" -> "", "field3" -> "")
     assert(output.fieldMappings == Map("field2" -> 1))
   }
 
   it should "ignore aliases in drop mode" in {
-    opDesc.isDrop = true
-    opDesc.attributes = List(
-      new AttributeUnit("field2", "renamed")
-    )
-    val projectionOpExec = new ProjectionOpExec(objectMapper.writeValueAsString(opDesc))
-    projectionOpExec.open()
-
-    val output = projectionOpExec.processTuple(tuple, 0).next().asInstanceOf[MapTupleLike]
+    val output = dropOutput("field2" -> "renamed")
     assert(output.fieldMappings.keySet == Set("field1", "field3"))
     assert(!output.fieldMappings.contains("renamed"))
   }
 
   it should "silently ignore dropping a non-existent attribute" in {
-    opDesc.isDrop = true
-    opDesc.attributes = List(
-      new AttributeUnit("field---5", "f5")
-    )
-    val projectionOpExec = new ProjectionOpExec(objectMapper.writeValueAsString(opDesc))
-    projectionOpExec.open()
-
-    val output = projectionOpExec.processTuple(tuple, 0).next().asInstanceOf[MapTupleLike]
+    val output = dropOutput("field---5" -> "f5")
     assert(output.fieldMappings == Map("field1" -> "hello", "field2" -> 1, "field3" -> true))
   }
 
   it should "emit an empty tuple when dropping every attribute" in {
-    opDesc.isDrop = true
-    opDesc.attributes = List(
-      new AttributeUnit("field1", ""),
-      new AttributeUnit("field2", ""),
-      new AttributeUnit("field3", "")
-    )
-    val projectionOpExec = new ProjectionOpExec(objectMapper.writeValueAsString(opDesc))
-    projectionOpExec.open()
-
-    val output = projectionOpExec.processTuple(tuple, 0).next().asInstanceOf[MapTupleLike]
+    val output = dropOutput("field1" -> "", "field2" -> "", "field3" -> "")
     assert(output.fieldMappings.isEmpty)
   }
 
   it should "emit exactly the attributes the descriptor derives for the same drop config" in {
     opDesc.isDrop = true
-    opDesc.attributes = List(
-      new AttributeUnit("field2", "")
-    )
+    opDesc.attributes = units("field2" -> "")
     val derivedSchema =
       opDesc.getExternalOutputSchemas(Map(PortIdentity() -> tupleSchema)).values.head
-
-    val projectionOpExec = new ProjectionOpExec(objectMapper.writeValueAsString(opDesc))
-    projectionOpExec.open()
-
-    val output = projectionOpExec.processTuple(tuple, 0).next().asInstanceOf[MapTupleLike]
+    val output = dropOutput("field2" -> "")
     assert(output.fieldMappings.keySet == derivedSchema.getAttributeNames.toSet)
 
     val outputTuple = output.enforceSchema(derivedSchema)
@@ -250,27 +173,12 @@ class ProjectionOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
 
   it should "match drop names case-insensitively" in {
     // Matches the descriptor, whose Schema.remove lowercases both sides.
-    opDesc.isDrop = true
-    opDesc.attributes = List(
-      new AttributeUnit("FIELD2", "")
-    )
-    val projectionOpExec = new ProjectionOpExec(objectMapper.writeValueAsString(opDesc))
-    projectionOpExec.open()
-
-    val output = projectionOpExec.processTuple(tuple, 0).next().asInstanceOf[MapTupleLike]
+    val output = dropOutput("FIELD2" -> "")
     assert(output.fieldMappings == Map("field1" -> "hello", "field3" -> true))
   }
 
   it should "tolerate duplicate entries in the drop list" in {
-    opDesc.isDrop = true
-    opDesc.attributes = List(
-      new AttributeUnit("field2", ""),
-      new AttributeUnit("field2", "")
-    )
-    val projectionOpExec = new ProjectionOpExec(objectMapper.writeValueAsString(opDesc))
-    projectionOpExec.open()
-
-    val output = projectionOpExec.processTuple(tuple, 0).next().asInstanceOf[MapTupleLike]
+    val output = dropOutput("field2" -> "", "field2" -> "")
     assert(output.fieldMappings == Map("field1" -> "hello", "field3" -> true))
   }
 }
