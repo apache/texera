@@ -226,7 +226,7 @@ object VFSURIFactory {
       workflowId: WorkflowIdentity,
       executionId: ExecutionIdentity,
       operatorId: Option[OperatorIdentity] = None,
-      warehouse: Option[String] = None
+      warehouse: Option[String]
   ): URI = {
 
     if (resourceType == VFSResourceType.RESULT) {

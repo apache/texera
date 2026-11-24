@@ -42,7 +42,7 @@ import org.apache.texera.amber.engine.common.ambermessage.WorkflowMessage.getInM
 import org.apache.texera.amber.engine.common.rpc.AsyncRPCClient.ControlInvocation
 import org.apache.texera.amber.engine.common.virtualidentity.util.COORDINATOR
 import org.scalatest.wordspec.AnyWordSpecLike
-import org.scalatest.{BeforeAndAfterAll, BeforeAndAfterEach}
+import org.scalatest.BeforeAndAfterAll
 
 import scala.collection.mutable
 import scala.concurrent.duration._
@@ -50,7 +50,6 @@ import scala.concurrent.duration._
 class TrivialControlSpec
     extends TestKit(ActorSystem("TrivialControlSpec"))
     with AnyWordSpecLike
-    with BeforeAndAfterEach
     with BeforeAndAfterAll {
 
   override def afterAll(): Unit = {

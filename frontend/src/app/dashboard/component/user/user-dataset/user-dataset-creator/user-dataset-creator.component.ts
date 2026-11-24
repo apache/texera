@@ -27,7 +27,10 @@ import { NotificationService } from "../../../../../common/service/notification/
 import { HttpErrorResponse } from "@angular/common/http";
 import { NzModalRef } from "ng-zorro-antd/modal";
 import { contributorFieldGroup } from "../user-dataset-explorer/user-dataset-contributor-editor/contributor-form-fields";
-import { ResourceCreatorFormComponent } from "../../resource-creator-form/resource-creator-form.component";
+import {
+  ResourceCreatorFormComponent,
+  resourceNameAndDescriptionFields,
+} from "../../resource-creator-form/resource-creator-form.component";
 
 @UntilDestroy()
 @Component({
@@ -61,22 +64,7 @@ export class UserDatasetCreatorComponent implements OnInit {
 
   private setFormFields() {
     this.fields = [
-      {
-        key: "name",
-        type: "input",
-        templateOptions: {
-          label: "Name",
-          required: true,
-        },
-      },
-      {
-        key: "description",
-        type: "input",
-        defaultValue: "",
-        templateOptions: {
-          label: "Description",
-        },
-      },
+      ...resourceNameAndDescriptionFields(),
       {
         key: "contributors",
         type: "array",

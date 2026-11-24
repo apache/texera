@@ -20,6 +20,7 @@
 package org.apache.texera.amber.operator.visualization.tablesChart
 
 import org.apache.texera.amber.operator.visualization.StandaloneChartCode._
+import org.apache.texera.amber.operator.visualization.PythonCodeFragment._
 import com.fasterxml.jackson.annotation.{JsonProperty, JsonPropertyDescription}
 import org.apache.texera.amber.pybuilder.PythonTemplateBuilder.PythonTemplateBuilderStringContext
 import org.apache.texera.amber.operator.visualization.PlotlyStandaloneCode
@@ -82,15 +83,11 @@ class TablesPlotOpDesc extends PythonVisualizationOpDesc with PlotlyStandaloneCo
        |
        |    def process_table(self, table: Table, port: int) -> Iterator[Optional[TableLike]]:
        |
-       |        if table.empty:
-       |           yield {'html-content': self.render_error("input table is empty.")}
-       |           return
+       |${emptyTableGuard("input table is empty.")}
        |
        |        ${manipulateTable()}
        |
-       |        if table.empty:
-       |           yield {'html-content': self.render_error("value column contains only non-positive numbers or nulls.")}
-       |           return
+       |${emptyTableGuard("value column contains only non-positive numbers or nulls.")}
 
        |
        |        ${createPlotlyFigure()}

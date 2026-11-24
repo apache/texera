@@ -25,7 +25,6 @@ import org.apache.texera.amber.core.storage.{DocumentFactory, VFSURIFactory}
 import org.apache.texera.amber.core.tuple.{Schema, Tuple}
 import org.apache.texera.amber.core.virtualidentity._
 import org.apache.texera.amber.tags.IntegrationTest
-import org.scalatest.BeforeAndAfterAll
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 
@@ -37,8 +36,7 @@ import scala.util.{Try, Using}
 class IcebergDocumentConsoleMessagesSpec
     extends AnyFlatSpec
     with Matchers
-    with VirtualDocumentSpec[Tuple]
-    with BeforeAndAfterAll {
+    with VirtualDocumentSpec[Tuple] {
 
   private val amberSchema: Schema = ResultSchema.consoleMessagesSchema
   var uri: URI = _
@@ -51,10 +49,6 @@ class IcebergDocumentConsoleMessagesSpec
     )
     DocumentFactory.createDocument(uri, amberSchema)
     super.beforeEach()
-  }
-
-  override def afterAll(): Unit = {
-    super.afterAll()
   }
 
   override def generateSampleItems(): List[Tuple] =

@@ -25,7 +25,7 @@ import { WorkflowActionService } from "../../../service/workflow-graph/model/wor
 import { isEqual } from "lodash";
 import { CustomJSONSchema7 } from "../../../types/custom-json-schema.interface";
 import { FormlyFieldConfig, FormlyFormOptions, FormlyModule } from "@ngx-formly/core";
-import { FormGroup, FormsModule, ReactiveFormsModule } from "@angular/forms";
+import { FormGroup, ReactiveFormsModule } from "@angular/forms";
 import { cloneDeep } from "lodash-es";
 import { FormlyJsonschema } from "@ngx-formly/core/json-schema";
 import { filter } from "rxjs/operators";
@@ -57,7 +57,6 @@ Quill.register("modules/cursors", QuillCursors);
     ɵNzTransitionPatchDirective,
     NzTooltipDirective,
     NzIconDirective,
-    FormsModule,
     ReactiveFormsModule,
     FormlyModule,
   ],

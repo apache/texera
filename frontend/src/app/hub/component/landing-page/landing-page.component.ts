@@ -36,7 +36,6 @@ import { BrowseSectionComponent } from "../browse-section/browse-section.compone
   imports: [BrowseSectionComponent],
 })
 export class LandingPageComponent implements OnInit {
-  public isLogin = this.userService.isLogin();
   public currentUid = this.userService.getCurrentUser()?.uid;
   public workflowCount: number = 0;
   public datasetCount: number = 0;
@@ -56,7 +55,6 @@ export class LandingPageComponent implements OnInit {
       .userChanged()
       .pipe(untilDestroyed(this))
       .subscribe(() => {
-        this.isLogin = this.userService.isLogin();
         this.currentUid = this.userService.getCurrentUser()?.uid;
       });
   }
