@@ -100,9 +100,9 @@ RUN --mount=type=bind,source=bin/dockerfiles/snapshot,target=/snapshot \
 
 # Install Python packages into a venv, as 24.04's python3 is externally managed
 # (PEP 668). Its bin/ leads PATH, so the venv's is the `python3` that runs
-# Python workers and creates PVEs when udf.python.path is unset. It is created
-# in this layer so the pip upgrade removes the pip it is seeded with, whose
-# .pyc files are not byte-compiled reproducibly.
+# Python workers and creates PVEs when python.path in udf.conf (UDF_PYTHON_PATH)
+# is unset. It is created in this layer so the pip upgrade removes the pip it
+# is seeded with, whose .pyc files are not byte-compiled reproducibly.
 ENV PATH=/opt/venv/bin:$PATH
 RUN --mount=type=bind,source=bin/dockerfiles/snapshot,target=/snapshot \
     /usr/bin/python3 -m venv /opt/venv \
