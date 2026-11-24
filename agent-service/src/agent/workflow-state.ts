@@ -172,6 +172,19 @@ export class WorkflowState {
     return this.operatorPositions.get(operatorId);
   }
 
+  getAllCommentBoxes(): CommentBox[] {
+    return [...this.commentBoxes];
+  }
+
+  updateCommentBoxPosition(commentBoxID: string, position: Point): boolean {
+    const index = this.commentBoxes.findIndex(box => box.commentBoxID === commentBoxID);
+    if (index === -1) {
+      return false;
+    }
+    this.commentBoxes[index] = { ...this.commentBoxes[index], commentBoxPosition: position };
+    return true;
+  }
+
   addLink(link: OperatorLink): void {
     this.links.set(link.linkID, link);
     this.linkAddSubject.next(link);

@@ -1658,6 +1658,28 @@ describe("WorkflowEditorComponent", () => {
         expect(anchorOf("box-b")).toBeUndefined();
       });
 
+      it("leaves a shift-dragged comment box floating, since the drag does not save its move", () => {
+        addComment("box-a", 400, 400);
+        workflowActionService.highlightCommentBoxes(false, "box-a");
+
+        // Shift-pressing the selected box deselects it; a deselected box's move is not synced.
+        const release = pressAndDrag("box-a", 170, 100, new MouseEvent("mousedown", { shiftKey: true }));
+        expect(targetOutlined()).toBe(false);
+        release();
+
+        expect(anchorOf("box-a")).toBeUndefined();
+      });
+
+      it("keeps the anchor of a comment box already out of reach when it is nudged", () => {
+        // 240px right of the operator, beyond the 160px detach distance, e.g. left there by a group drag.
+        addComment("box-a", 400, 100);
+        workflowActionService.anchorCommentBox("box-a", operatorID);
+
+        pressAndDrag("box-a", 405, 100)();
+
+        expect(anchorOf("box-a")).toEqual(operatorID);
+      });
+
       it("anchors every comment box dragged together, each by where it lands", () => {
         addComment("box-a", 400, 100);
         addComment("box-b", 400, 130);
@@ -1698,7 +1720,7 @@ describe("WorkflowEditorComponent", () => {
       });
 
       it("leaves the anchor alone on a click that does not move the comment box", () => {
-        // Anchored far from its operator (as the anchor menu item allows), then only clicked.
+        // Anchored far from its operator (anchorCommentBox sets no distance limit), then only clicked.
         addComment("box-a", 700, 700);
         workflowActionService.anchorCommentBox("box-a", operatorID);
 

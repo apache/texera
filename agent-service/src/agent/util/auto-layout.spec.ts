@@ -20,7 +20,7 @@
 import { describe, expect, test } from "bun:test";
 import { autoLayoutWorkflow } from "./auto-layout";
 import { WorkflowState } from "../workflow-state";
-import type { OperatorPredicate, OperatorLink } from "../../types/workflow";
+import type { CommentBox, OperatorPredicate, OperatorLink } from "../../types/workflow";
 
 function makeOperator(id: string): OperatorPredicate {
   return {
@@ -31,6 +31,15 @@ function makeOperator(id: string): OperatorPredicate {
     inputPorts: [{ portID: "input-0", displayName: "Input 0" }],
     outputPorts: [{ portID: "output-0", displayName: "Output 0" }],
     showAdvanced: false,
+  };
+}
+
+function makeCommentBox(id: string, x: number, y: number, anchoredOperatorID?: string): CommentBox {
+  return {
+    commentBoxID: id,
+    comments: [],
+    commentBoxPosition: { x, y },
+    ...(anchoredOperatorID !== undefined ? { anchoredOperatorID } : {}),
   };
 }
 
@@ -159,5 +168,65 @@ describe("autoLayoutWorkflow", () => {
     expect(top.x).toBe(bottom.x);
     // ...but dagre separates them vertically by nodesep.
     expect(top.y).not.toBe(bottom.y);
+  });
+
+  describe("comment boxes", () => {
+    // Two linked operators far from where dagre puts them, each with a comment box beside it.
+    function stateWithComments(): WorkflowState {
+      const state = new WorkflowState();
+      state.setWorkflowContent({
+        operators: [makeOperator("a"), makeOperator("b")],
+        operatorPositions: { a: { x: 1000, y: 1000 }, b: { x: 1300, y: 1000 } },
+        links: [makeLink("l1", "a", "b")],
+        commentBoxes: [
+          makeCommentBox("anchored-to-a", 1000, 900, "a"),
+          makeCommentBox("anchored-to-b", 1320, 1100, "b"),
+          makeCommentBox("floating", 1000, 1200),
+          makeCommentBox("anchored-to-missing", 500, 500, "gone"),
+        ],
+        settings: { dataTransferBatchSize: 400 },
+      });
+      return state;
+    }
+
+    function commentBoxPosition(state: WorkflowState, id: string) {
+      return state.getWorkflowContent().commentBoxes.find(box => box.commentBoxID === id)!.commentBoxPosition;
+    }
+
+    test("moves an anchored comment box with its operator, keeping its offset", () => {
+      const state = stateWithComments();
+
+      autoLayoutWorkflow(state);
+
+      const a = state.getOperatorPosition("a")!;
+      const b = state.getOperatorPosition("b")!;
+      expect(commentBoxPosition(state, "anchored-to-a")).toEqual({ x: a.x, y: a.y - 100 });
+      expect(commentBoxPosition(state, "anchored-to-b")).toEqual({ x: b.x + 20, y: b.y + 100 });
+    });
+
+    test("keeps the anchor on each moved comment box", () => {
+      const state = stateWithComments();
+
+      autoLayoutWorkflow(state);
+
+      const anchors = Object.fromEntries(
+        state.getWorkflowContent().commentBoxes.map(box => [box.commentBoxID, box.anchoredOperatorID])
+      );
+      expect(anchors).toEqual({
+        "anchored-to-a": "a",
+        "anchored-to-b": "b",
+        floating: undefined,
+        "anchored-to-missing": "gone",
+      });
+    });
+
+    test("leaves floating comment boxes and ones anchored to a missing operator in place", () => {
+      const state = stateWithComments();
+
+      autoLayoutWorkflow(state);
+
+      expect(commentBoxPosition(state, "floating")).toEqual({ x: 1000, y: 1200 });
+      expect(commentBoxPosition(state, "anchored-to-missing")).toEqual({ x: 500, y: 500 });
+    });
   });
 });

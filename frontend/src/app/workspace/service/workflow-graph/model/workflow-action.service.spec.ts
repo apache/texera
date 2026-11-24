@@ -738,6 +738,17 @@ describe("WorkflowActionService", () => {
         expect(texeraGraph.getCommentBox(anchoredID).anchoredOperatorID).toBeUndefined();
       });
 
+      it("keeps the anchor of a comment box that was already out of reach when the drag began", () => {
+        // 240px right of the operator, beyond the detach distance, e.g. left there by a group drag.
+        addComment(anchoredID, { x: 400, y: 100 });
+        service.anchorCommentBox(anchoredID, mockScanPredicate.operatorID);
+
+        service.getJointGraphWrapper().setAbsolutePosition(anchoredID, 405, 100);
+        service.anchorCommentBoxOnDrop(anchoredID, false);
+
+        expect(texeraGraph.getCommentBox(anchoredID).anchoredOperatorID).toEqual(mockScanPredicate.operatorID);
+      });
+
       it("snaps at exactly the snap distance, and not a pixel beyond", () => {
         // The operator's right edge is at x 160.
         addComment(floatingID, { x: 160 + COMMENT_BOX_SNAP_DISTANCE, y: 100 });

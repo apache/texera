@@ -480,14 +480,15 @@ export class WorkflowActionService {
   public findCommentBoxAnchorTarget(commentBoxID: string): string | undefined {
     const commentBoxBBox = this.getElementBBox(commentBoxID);
     const anchoredOperatorID = this.texeraGraph.getCommentBox(commentBoxID).anchoredOperatorID;
+    // Runs on every pointermove of a drag, so it reads only the operator IDs, not each operator's JSON.
     const candidates = this.texeraGraph
-      .getAllOperators()
-      .map(operator => {
-        const operatorBBox = this.getElementBBox(operator.operatorID);
+      .getAllOperatorIDs()
+      .map(operatorID => {
+        const operatorBBox = this.getElementBBox(operatorID);
         return {
-          operatorID: operator.operatorID,
+          operatorID,
           distance: distanceBetween(commentBoxBBox, operatorBBox),
-          isAnchor: operator.operatorID === anchoredOperatorID,
+          isAnchor: operatorID === anchoredOperatorID,
           centerDistance: commentBoxBBox.center().distance(operatorBBox.center()),
         };
       })
@@ -503,9 +504,13 @@ export class WorkflowActionService {
    * Settles a comment box's anchor after the user drops it: dropped next to an operator, it anchors to
    * that operator; dropped beyond <code>COMMENT_BOX_DETACH_DISTANCE</code> of the operator it is anchored
    * to, it detaches. In between it keeps whatever anchor it had, so a small nudge changes nothing.
+   * A box already beyond that distance when the drag began (left there by a group drag, the agent's
+   * layout or an older build) does not detach on the drop either; the menu detaches it.
    * @param commentBoxID
+   * @param startedWithinReach whether the box was within <code>COMMENT_BOX_DETACH_DISTANCE</code> of
+   *  its operator when the drag began
    */
-  public anchorCommentBoxOnDrop(commentBoxID: string): void {
+  public anchorCommentBoxOnDrop(commentBoxID: string, startedWithinReach: boolean = true): void {
     const targetOperatorID = this.findCommentBoxAnchorTarget(commentBoxID);
     const anchoredOperatorID = this.texeraGraph.getCommentBox(commentBoxID).anchoredOperatorID;
     if (targetOperatorID !== undefined) {
@@ -515,8 +520,9 @@ export class WorkflowActionService {
     } else if (
       anchoredOperatorID !== undefined &&
       (!this.texeraGraph.hasOperator(anchoredOperatorID) ||
-        distanceBetween(this.getElementBBox(commentBoxID), this.getElementBBox(anchoredOperatorID)) >
-          COMMENT_BOX_DETACH_DISTANCE)
+        (startedWithinReach &&
+          distanceBetween(this.getElementBBox(commentBoxID), this.getElementBBox(anchoredOperatorID)) >
+            COMMENT_BOX_DETACH_DISTANCE))
     ) {
       this.detachCommentBox(commentBoxID);
     }

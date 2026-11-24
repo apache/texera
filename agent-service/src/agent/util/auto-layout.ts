@@ -19,6 +19,7 @@
 
 import dagre from "dagre";
 import type { WorkflowState } from "../workflow-state";
+import type { Point } from "../../types/workflow";
 
 // Values mirror frontend joint-graph-wrapper.ts so agent-generated and
 // user-generated layouts visually match.
@@ -58,12 +59,31 @@ export function autoLayoutWorkflow(workflowState: WorkflowState): void {
 
   dagre.layout(graph);
 
+  const oldPositions = new Map<string, Point>();
   for (const operator of operators) {
+    const oldPosition = workflowState.getOperatorPosition(operator.operatorID);
+    if (oldPosition) {
+      oldPositions.set(operator.operatorID, oldPosition);
+    }
     const node = graph.node(operator.operatorID);
     if (node) {
       workflowState.updateOperatorPosition(operator.operatorID, {
         x: node.x,
         y: node.y,
+      });
+    }
+  }
+
+  // A comment box anchored to an operator moves with it, keeping its offset, as in the frontend's
+  // layout. Floating boxes, and boxes anchored to an operator no longer in the workflow, stay put.
+  for (const commentBox of workflowState.getAllCommentBoxes()) {
+    const operatorID = commentBox.anchoredOperatorID;
+    const oldPosition = operatorID !== undefined ? oldPositions.get(operatorID) : undefined;
+    const newPosition = operatorID !== undefined ? workflowState.getOperatorPosition(operatorID) : undefined;
+    if (oldPosition && newPosition) {
+      workflowState.updateCommentBoxPosition(commentBox.commentBoxID, {
+        x: commentBox.commentBoxPosition.x + newPosition.x - oldPosition.x,
+        y: commentBox.commentBoxPosition.y + newPosition.y - oldPosition.y,
       });
     }
   }
