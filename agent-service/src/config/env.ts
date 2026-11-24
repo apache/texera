@@ -19,14 +19,31 @@
 
 import { z } from "zod";
 
-const EnvSchema = z.object({
+/**
+ * A boolean flag read from an environment variable. `z.coerce.boolean()` is
+ * `Boolean(value)`, which reads any non-empty string, "false" and "0"
+ * included, as true. This accepts true/1 and false/0 in any case, treats an
+ * empty value as unset, and rejects anything else.
+ */
+const envFlag = z
+  .preprocess(
+    value => {
+      if (typeof value !== "string") return value;
+      const normalized = value.trim().toLowerCase();
+      return normalized === "" ? undefined : normalized;
+    },
+    z.enum(["true", "false", "1", "0"]).optional()
+  )
+  .transform(value => value === "true" || value === "1");
+
+export const EnvSchema = z.object({
   PORT: z.coerce.number().default(3001),
   API_PREFIX: z.string().default("/api"),
   TEXERA_SERVICE_LOG_LEVEL: z
     .enum(["ERROR", "WARN", "INFO", "DEBUG"])
     .transform(v => v.toLowerCase() as "error" | "warn" | "info" | "debug")
     .default("INFO"),
-  LOG_PRETTY: z.coerce.boolean().default(false),
+  LOG_PRETTY: envFlag,
 
   TEXERA_DASHBOARD_SERVICE_ENDPOINT: z.string().url().default("http://localhost:8080"),
   LLM_ENDPOINT: z.string().url().default("http://localhost:9096"),
