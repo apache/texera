@@ -49,9 +49,7 @@ class NestedTableOpDescSpec
   }
 
   it should "throw an AssertionError (not a NullPointerException) when includedColumns is left empty" in {
-    val ex =
-      expectError[AssertionError]("Included Columns cannot be empty")(opDesc.generatePythonCode())
-    ex shouldBe a[AssertionError]
+    expectError[AssertionError]("Included Columns cannot be empty")(opDesc.generatePythonCode())
   }
 
   it should "generate python code carrying the configured columns when includedColumns is set" in {

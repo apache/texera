@@ -23,10 +23,9 @@ import org.apache.texera.amber.core.tuple.{Attribute, AttributeType, Schema, Tup
 import org.apache.texera.amber.core.virtualidentity.{ActorVirtualIdentity, ChannelIdentity}
 import org.apache.texera.amber.engine.architecture.sendsemantics.partitioners.RangeBasedShufflePartitioner
 import org.apache.texera.amber.engine.architecture.sendsemantics.partitionings.RangeBasedShufflePartitioning
-import org.scalamock.scalatest.MockFactory
 import org.scalatest.flatspec.AnyFlatSpec
 
-class RangeBasedShuffleSpec extends AnyFlatSpec with MockFactory {
+class RangeBasedShuffleSpec extends AnyFlatSpec {
   val identifier = ActorVirtualIdentity("batch producer mock")
   val fakeID1: ActorVirtualIdentity = ActorVirtualIdentity("rec1")
   val fakeID2: ActorVirtualIdentity = ActorVirtualIdentity("rec2")

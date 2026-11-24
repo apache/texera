@@ -591,7 +591,7 @@ describe("NotebookMigrationService", () => {
     });
   });
 
-  // parseScriptFile (reads an uploaded .py as text)
+  // parseScriptFile (reads an uploaded script as text)
   describe("parseScriptFile", () => {
     it("resolves the file's contents verbatim", async () => {
       const source = "import os\n\nprint(os.getcwd())\n";
@@ -600,7 +600,16 @@ describe("NotebookMigrationService", () => {
     });
 
     it("rejects an empty file before it can cost an LLM round trip", async () => {
-      await expect(service.parseScriptFile(new File([""], "empty.py"))).rejects.toThrow(/empty/i);
+      await expect(service.parseScriptFile(new File([""], "empty.py"))).rejects.toThrow("The Python file is empty.");
+    });
+
+    it("names R in its errors for an R file", async () => {
+      await expect(service.parseScriptFile(new File([""], "empty.R"), "r")).rejects.toThrow("The R file is empty.");
+
+      vi.spyOn(FileReader.prototype, "readAsText").mockImplementation(function (this: any) {
+        this.onerror?.(new ProgressEvent("error"));
+      });
+      await expect(service.parseScriptFile(new File([""], "x.R"), "r")).rejects.toThrow("Failed to read the R file.");
     });
 
     it("rejects a file holding only whitespace", async () => {
