@@ -92,11 +92,11 @@ class AdvanceRegionExecutionsHandlerSpec
   /**
     * Stands in for the real `WorkflowExecutionManager`: driving its advance to a *failed* future
     * from the outside means staging a whole region launch or termination, and the causes that
-    * reaches the handler with are `IllegalStateException`s (unresolved output schema, termination
-    * retries exhausted) or the bare `Throwable` that `ErrorUtils.reconstructThrowable` builds for a
-    * worker RPC error — never a `WorkflowRuntimeException` carrying a worker id. This stub records
-    * the advance calls and hands back a future the test controls, so the handler can be observed
-    * both while the advance is still pending and after it has failed with either kind of cause.
+    * reaches the handler with are a `WorkflowRuntimeException` naming the worker whose RPC failed,
+    * or an `IllegalStateException` (unresolved output schema, termination retries exhausted). This
+    * stub records the advance calls and hands back a future the test controls, so the handler can
+    * be observed both while the advance is still pending and after it has failed with either kind
+    * of cause.
     */
   private class PendingAdvanceExecutionManager(
       workflowExecution: WorkflowExecution,
