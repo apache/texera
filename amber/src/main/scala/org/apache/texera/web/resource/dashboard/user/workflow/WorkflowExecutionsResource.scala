@@ -19,13 +19,16 @@
 
 package org.apache.texera.web.resource.dashboard.user.workflow
 
+import com.typesafe.scalalogging.Logger
 import io.dropwizard.auth.Auth
 import org.apache.texera.amber.core.storage.{
   DocumentFactory,
+  DocumentNotFoundException,
   ExecutionResultUris,
   FileResolver,
   WarehouseReadGuard
 }
+import org.apache.texera.amber.core.storage.model.VirtualDocument
 import org.apache.texera.amber.core.tuple.Tuple
 import org.apache.texera.amber.core.virtualidentity._
 import org.apache.texera.amber.core.workflow.GlobalPortIdentity
@@ -56,8 +59,11 @@ import javax.ws.rs._
 import javax.ws.rs.core.{MediaType, Response}
 import scala.collection.mutable
 import scala.jdk.CollectionConverters._
+import scala.util.control.NonFatal
 
 object WorkflowExecutionsResource {
+  private val logger: Logger = Logger(classOf[WorkflowExecutionsResource])
+
   private def context: DSLContext =
     SqlServer
       .getInstance()
@@ -397,15 +403,28 @@ object WorkflowExecutionsResource {
 
     // Clear corresponding Iceberg documents. While per-user warehouses are disabled,
     // cleanup must not reach into them (#6930) — those URIs are skipped.
-    uris.filterNot(WarehouseReadGuard.skipWhileDisabled(_)).foreach { uri =>
-      try {
-        DocumentFactory.openDocument(uri)._1.clear()
-      } catch {
-        case _: Throwable =>
-        // Document already deleted – safe to ignore
-      }
-    }
+    uris
+      .filterNot(WarehouseReadGuard.skipWhileDisabled(_))
+      .foreach(clearDocument(_))
   }
+
+  /**
+    * Clears the document at `uri`, once the record that named it has been deleted. A document that
+    * is already gone needs nothing. Any other failure leaves one behind that nothing points to, so
+    * it is logged -- and not thrown, so that the caller goes on to the next document.
+    *
+    * @param uri  the document to clear.
+    * @param open parameterized only so this can be unit-tested without an iceberg backend.
+    */
+  def clearDocument(
+      uri: URI,
+      open: URI => VirtualDocument[_] = DocumentFactory.openDocument(_)._1
+  ): Unit =
+    try open(uri).clear()
+    catch {
+      case _: DocumentNotFoundException =>
+      case NonFatal(e)                  => logger.warn(s"Could not clear the document at $uri", e)
+    }
 
   /**
     * Updates the size and row count stored for this port's result in operator_port_executions.

@@ -45,7 +45,7 @@ class HistogramChartOpDescSpec
   }
 
   it should "throw AssertionError with a non-blank message via generatePythonCode when value is empty" in {
-    val ex = expectError[AssertionError]("cannot be empty")(opDesc.generatePythonCode())
+    expectError[AssertionError]("cannot be empty")(opDesc.generatePythonCode())
   }
 
   it should "render the figure with the configured value column when value is set" in {
