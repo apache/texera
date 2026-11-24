@@ -24,8 +24,8 @@
 // perform WS upgrades.
 
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, test } from "bun:test";
-import { createHmac } from "node:crypto";
 import { buildApp, _resetAgentStoreForTests, _getAgentForTests } from "./server";
+import { mintTestToken } from "./api/test-token";
 import { env } from "./config/env";
 import { AgentState } from "./types/agent";
 
@@ -34,22 +34,6 @@ const API = env.API_PREFIX;
 let app: ReturnType<typeof buildApp>;
 let port: number;
 const openSockets: WebSocket[] = [];
-
-// Signed as the dashboard service signs a login token, unless a test names another secret.
-function mintTestToken(userId = 1, secret: string = env.AUTH_JWT_SECRET): string {
-  const header = Buffer.from(JSON.stringify({ alg: "HS256", typ: "JWT" })).toString("base64url");
-  const payload = Buffer.from(
-    JSON.stringify({
-      sub: "tester",
-      userId,
-      email: "tester@example.com",
-      role: "REGULAR",
-      exp: Math.floor(Date.now() / 1000) + 3600,
-    })
-  ).toString("base64url");
-  const signature = createHmac("sha256", secret).update(`${header}.${payload}`).digest("base64url");
-  return `${header}.${payload}.${signature}`;
-}
 
 const TOKEN = mintTestToken();
 const OTHER_USER_TOKEN = mintTestToken(2);

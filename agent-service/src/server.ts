@@ -22,7 +22,7 @@ import { cors } from "@elysiajs/cors";
 import { createOpenAI } from "@ai-sdk/openai";
 import { TexeraAgent } from "./agent/texera-agent";
 import { getBackendConfig } from "./api/backend-api";
-import { extractBearerToken, extractUserFromToken, validateToken } from "./api/auth-api";
+import { extractBearerToken, verifyToken } from "./api/auth-api";
 import { retrieveWorkflow } from "./api/workflow-api";
 import { WorkflowSystemMetadata } from "./agent/util/workflow-system-metadata";
 import { env } from "./config/env";
@@ -100,7 +100,7 @@ async function createAgentInstance(
   }
 
   agentStore.set(agentId, agent);
-  log.info({ agentId, userId: delegateConfig.userInfo?.uid }, "created agent");
+  log.info({ agentId, userId: owner.uid }, "created agent");
 
   return { agentId, agent };
 }
@@ -140,28 +140,21 @@ function getAgentInfo(agentId: string, agent: TexeraAgent): AgentInfo {
   };
 }
 
-function getAgent(agentId: string): TexeraAgent {
-  const agent = agentStore.get(agentId);
-  if (!agent) {
-    throw new Error("Agent not found");
-  }
-  return agent;
-}
-
-// The user a token identifies, or undefined when it is missing, malformed or expired.
-function userOfToken(token: string | undefined): UserInfo | undefined {
-  if (!token || !validateToken(token)) {
-    return undefined;
-  }
-  const user = extractUserFromToken(token);
-  return typeof user.uid === "number" ? user : undefined;
-}
-
 // An agent answers only to the user who created it. To anyone else it does not
 // exist, so a caller cannot tell another user's agent from an id never issued.
 function ownedAgent(agentId: string | undefined, user: UserInfo | undefined): TexeraAgent | undefined {
   const agent = agentId === undefined ? undefined : agentStore.get(agentId);
   return agent && user && agent.ownerUid === user.uid ? agent : undefined;
+}
+
+// The agent a route names, for its owner only. Routes reach agents only through here,
+// so none can serve one without checking who is asking.
+function getAgent(agentId: string, user: UserInfo): TexeraAgent {
+  const agent = ownedAgent(agentId, user);
+  if (!agent) {
+    throw new Error("Agent not found");
+  }
+  return agent;
 }
 
 // Status codes for handler-thrown errors; anything unlisted is a 500.
@@ -189,20 +182,15 @@ const agentsRouter = new Elysia({ prefix: "/agents" })
   })
   // Every agent route acts as the user in the request's bearer token, which
   // travels in the Authorization header, never in the payload. A route that
-  // names an agent is served only to that agent's owner.
-  .derive(({ headers, params }) => {
+  // names an agent gets it from getAgent, which serves only its owner.
+  .derive(({ headers }) => {
     const userToken = extractBearerToken(headers.authorization);
     if (!userToken) {
       throw new Error("Authorization header with a Bearer token is required");
     }
-    const user = userOfToken(userToken);
+    const user = verifyToken(userToken);
     if (!user) {
       throw new Error("Invalid or expired token");
-    }
-    // Routes without a path parameter carry no `params` at all.
-    const agentId = (params as { id?: string } | undefined)?.id;
-    if (agentId !== undefined && !ownedAgent(agentId, user)) {
-      throw new Error("Agent not found");
     }
     return { userToken, user };
   })
@@ -280,8 +268,8 @@ const agentsRouter = new Elysia({ prefix: "/agents" })
     }
   )
 
-  .get("/:id", ({ params: { id } }) => {
-    const agent = getAgent(id);
+  .get("/:id", ({ params: { id }, user }) => {
+    const agent = getAgent(id, user);
     return {
       ...getAgentInfo(id, agent),
       workflow: agent.getWorkflowState().getWorkflowContent(),
@@ -289,27 +277,27 @@ const agentsRouter = new Elysia({ prefix: "/agents" })
     };
   })
 
-  .delete("/:id", ({ params: { id } }) => {
-    const agent = getAgent(id);
+  .delete("/:id", ({ params: { id }, user }) => {
+    const agent = getAgent(id, user);
     agent.destroy();
     agentStore.delete(id);
     return { deleted: true };
   })
 
-  .get("/:id/react-steps", ({ params: { id } }) => {
-    const agent = getAgent(id);
+  .get("/:id/react-steps", ({ params: { id }, user }) => {
+    const agent = getAgent(id, user);
     return { steps: agent.getReActSteps(), state: agent.getState() };
   })
 
-  .get("/:id/operator-results", ({ params: { id } }) => {
-    const agent = getAgent(id);
+  .get("/:id/operator-results", ({ params: { id }, user }) => {
+    const agent = getAgent(id, user);
     return { results: getOperatorResultSummaries(agent) };
   })
 
   .post(
     "/:id/steps-by-operators",
-    ({ params: { id }, body }) => {
-      const agent = getAgent(id);
+    ({ params: { id }, body, user }) => {
+      const agent = getAgent(id, user);
       const { operatorIds } = body;
       return { steps: agent.getReActStepsByOperatorIds(operatorIds || []) };
     },
@@ -320,33 +308,33 @@ const agentsRouter = new Elysia({ prefix: "/agents" })
     }
   )
 
-  .get("/:id/system-info", ({ params: { id } }) => {
-    const agent = getAgent(id);
+  .get("/:id/system-info", ({ params: { id }, user }) => {
+    const agent = getAgent(id, user);
     return agent.getSystemInfo();
   })
 
-  .post("/:id/stop", ({ params: { id } }) => {
-    const agent = getAgent(id);
+  .post("/:id/stop", ({ params: { id }, user }) => {
+    const agent = getAgent(id, user);
     agent.stop();
     // Report the resulting state: STOPPING mid-run, unchanged when idle.
     return { status: agent.getState() };
   })
 
-  .post("/:id/clear", ({ params: { id } }) => {
-    const agent = getAgent(id);
+  .post("/:id/clear", ({ params: { id }, user }) => {
+    const agent = getAgent(id, user);
     agent.clearHistory();
     return { status: "cleared" };
   })
 
-  .get("/:id/operator-types", ({ params: { id } }) => {
-    const agent = getAgent(id);
+  .get("/:id/operator-types", ({ params: { id }, user }) => {
+    const agent = getAgent(id, user);
     const metadataStore = agent.getMetadataStore();
     const allTypes = metadataStore.getAllOperatorTypes();
     return Object.entries(allTypes).map(([type, description]) => ({ type, description }));
   })
 
-  .get("/:id/settings", ({ params: { id } }) => {
-    const agent = getAgent(id);
+  .get("/:id/settings", ({ params: { id }, user }) => {
+    const agent = getAgent(id, user);
     const agentSettings = agent.getSettings();
     return {
       maxOperatorResultCharLimit: agentSettings.maxOperatorResultCharLimit,
@@ -362,8 +350,8 @@ const agentsRouter = new Elysia({ prefix: "/agents" })
 
   .patch(
     "/:id/settings",
-    ({ params: { id }, body }) => {
-      const agent = getAgent(id);
+    ({ params: { id }, body, user }) => {
+      const agent = getAgent(id, user);
       const settings = body as UpdateAgentSettingsRequest;
 
       log.info(
@@ -440,7 +428,7 @@ function sendEventToClient(ws: { send(data: string): void }, event: WsServerEven
 // arrives as `access-token`, as it does on the workflow websocket.
 function socketAgent(ws: { data: unknown }): TexeraAgent | undefined {
   const { params, query } = ws.data as { params?: { id?: string }; query?: Record<string, string | undefined> };
-  return ownedAgent(params?.id, userOfToken(query?.["access-token"]));
+  return ownedAgent(params?.id, verifyToken(query?.["access-token"]));
 }
 
 // Broadcast a server event to every client attached to the agent.
