@@ -17,7 +17,7 @@
  * under the License.
  */
 
-import { Component, EventEmitter, Input, Output } from "@angular/core";
+import { ANIMATION_MODULE_TYPE, Component, EventEmitter, Input, Output } from "@angular/core";
 import { ComponentFixture, TestBed } from "@angular/core/testing";
 import { HttpClientTestingModule } from "@angular/common/http/testing";
 import { NoopAnimationsModule } from "@angular/platform-browser/animations";
@@ -302,6 +302,22 @@ describe("AgentPanelComponent", () => {
 
       expect(component.width).toBe(0);
       expect(fixture.nativeElement.querySelector("#agent-docked-button")).toBeTruthy();
+    });
+
+    it("hides an agent's pane at once while docked, so it cannot stay over the registration tab", () => {
+      // These specs run with NoopAnimationsModule; the app does not. With pane animations on,
+      // ng-zorro hides an inactive pane only once its fade-out transition has ended, and none
+      // ends inside the docked panel's hidden body (nor in jsdom). The pane then stayed,
+      // invisible, over the registration tab and took every click.
+      TestBed.overrideProvider(ANIMATION_MODULE_TYPE, { useValue: "BrowserAnimations" });
+      agentService.agentList = [makeAgent("a")];
+      createComponent();
+      expect((fixture.nativeElement.querySelector("#content") as HTMLElement).hidden).toBe(true);
+
+      const panes = Array.from(fixture.nativeElement.querySelectorAll(".ant-tabs-tabpane")) as HTMLElement[];
+      expect(panes.length).toBe(2);
+      expect(panes[0].classList.contains("ant-tabs-tabpane-active")).toBe(true);
+      expect(panes[1].classList.contains("ant-tabs-tabpane-hidden")).toBe(true);
     });
   });
 
