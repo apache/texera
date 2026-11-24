@@ -469,6 +469,15 @@ describe("NotebookMigrationService", () => {
       );
       expect(createMigrationLLM).not.toHaveBeenCalled();
     });
+
+    it("rejects an R folder before creating or pinging a client", async () => {
+      const folder = { source: "x <- 1", forcedBoundaries: [1], files: [], tree: "proj/" };
+
+      await expect(service.sendFolderToAIGenerateWorkflow(folder, "gpt-4", "r")).rejects.toThrow(
+        "R notebook migration is disabled"
+      );
+      expect(createMigrationLLM).not.toHaveBeenCalled();
+    });
   });
 
   // Feature flag gate (defence in depth). With the flag off, every public
@@ -582,7 +591,7 @@ describe("NotebookMigrationService", () => {
     });
   });
 
-  // parseScriptFile (reads an uploaded .py as text)
+  // parseScriptFile (reads an uploaded script as text)
   describe("parseScriptFile", () => {
     it("resolves the file's contents verbatim", async () => {
       const source = "import os\n\nprint(os.getcwd())\n";
@@ -591,7 +600,16 @@ describe("NotebookMigrationService", () => {
     });
 
     it("rejects an empty file before it can cost an LLM round trip", async () => {
-      await expect(service.parseScriptFile(new File([""], "empty.py"))).rejects.toThrow(/empty/i);
+      await expect(service.parseScriptFile(new File([""], "empty.py"))).rejects.toThrow("The Python file is empty.");
+    });
+
+    it("names R in its errors for an R file", async () => {
+      await expect(service.parseScriptFile(new File([""], "empty.R"), "r")).rejects.toThrow("The R file is empty.");
+
+      vi.spyOn(FileReader.prototype, "readAsText").mockImplementation(function (this: any) {
+        this.onerror?.(new ProgressEvent("error"));
+      });
+      await expect(service.parseScriptFile(new File([""], "x.R"), "r")).rejects.toThrow("Failed to read the R file.");
     });
 
     it("rejects a file holding only whitespace", async () => {
@@ -657,8 +675,16 @@ describe("NotebookMigrationService", () => {
         mappingContent: { m: 2 },
         notebook: conversion.notebook,
       });
-      expect(fakeLLM.convertFolderToWorkflow).toHaveBeenCalledWith(folder);
+      expect(fakeLLM.convertFolderToWorkflow).toHaveBeenCalledWith(folder, "python");
       expect(fakeLLM.close).toHaveBeenCalled();
+    });
+
+    it("passes the source language to the conversion", async () => {
+      fakeLLM.convertFolderToWorkflow.mockResolvedValue(conversion);
+
+      await service.sendFolderToAIGenerateWorkflow(folder, "gpt-4", "r");
+
+      expect(fakeLLM.convertFolderToWorkflow).toHaveBeenCalledWith(folder, "r");
     });
 
     it("rejects when the connection cannot be verified, and still closes the client", async () => {
@@ -794,6 +820,34 @@ describe("NotebookMigrationService", () => {
       });
 
       await expect(service.parseFolder([pickedFile("proj/main.py", "main()")])).rejects.toThrow(/Failed to read/);
+    });
+
+    it("keeps R source for R and names the Python files in the layout instead", async () => {
+      const folder = await service.parseFolder(
+        [
+          pickedFile("proj/main.R", "main()"),
+          pickedFile("proj/R/helpers.r", "helper <- function() 1"),
+          pickedFile("proj/legacy.py", "print(1)"),
+          pickedFile("proj/renv/activate.R", "renv"),
+        ],
+        "r"
+      );
+
+      expect(folder.files.map(file => file.path)).toEqual(["main.R", "R/helpers.r"]);
+      expect(folder.tree).toBe(["proj/", "  legacy.py", "  main.R", "  R/", "    helpers.r"].join("\n"));
+      expect(folder.source).not.toContain("print(1)");
+    });
+
+    it("names R when an R selection has no R source", async () => {
+      await expect(service.parseFolder([pickedFile("proj/main.py", "main()")], "r")).rejects.toThrow(
+        "No R files were found in the selected folder."
+      );
+    });
+
+    it("names R when every R file is blank", async () => {
+      await expect(service.parseFolder([pickedFile("proj/empty.R", "  \n")], "r")).rejects.toThrow(
+        "The R files in the selected folder are all empty."
+      );
     });
   });
 });

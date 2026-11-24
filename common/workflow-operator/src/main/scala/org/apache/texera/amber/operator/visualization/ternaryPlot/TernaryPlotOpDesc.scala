@@ -19,6 +19,8 @@
 
 package org.apache.texera.amber.operator.visualization.ternaryPlot
 
+import org.apache.texera.amber.operator.visualization.StandaloneChartCode._
+import org.apache.texera.amber.operator.visualization.PythonCodeFragment._
 import com.fasterxml.jackson.annotation.{JsonProperty, JsonPropertyDescription}
 import com.kjetland.jackson.jsonSchema.annotations.{JsonSchemaInject, JsonSchemaTitle}
 import org.apache.texera.amber.pybuilder.PythonTemplateBuilder.PythonTemplateBuilderStringContext
@@ -133,24 +135,23 @@ class TernaryPlotOpDesc extends PythonVisualizationOpDesc with PlotlyStandaloneC
          |class ProcessTableOperator(UDFTableOperator):
          |
          |    # Generate custom error message as html string
-         |    def render_error(self, error_msg):
-         |        return '''<h1>TernaryPlot is not available.</h1>
-         |                  <p>Reasons are: {} </p>
-         |               '''.format(error_msg)
+         |${runtimeError("TernaryPlot is not available.", plural = true)}
          |
          |    @overrides
          |    def process_table(self, table: Table, port: int) -> Iterator[Optional[TableLike]]:
-         |        if table.empty:
-         |            yield {'html-content': self.render_error("Input table is empty.")}
-         |            return
+         |${emptyTableGuard("Input table is empty.", bodyIndent = 4)}
          |        ${manipulateTable()}
-         |        if table.empty:
-         |            yield {'html-content': self.render_error("No valid rows left (every row has at least 1 missing value).")}
-         |            return
+         |${emptyTableGuard(
+        "No valid rows left (every row has at least 1 missing value).",
+        bodyIndent = 4
+      )}
          |        ${createPlotlyFigure()}
          |        # Convert fig to html content
-         |        html = plotly.io.to_html(fig, include_plotlyjs = 'cdn', auto_play = False)
-         |        yield {'html-content':html}
+         |${plotlyHtmlYield(
+        extraArgs = "auto_play = False",
+        spacesAroundEq = true,
+        compactDict = true
+      )}
          |"""
     finalCode.encode
   }
@@ -163,24 +164,20 @@ class TernaryPlotOpDesc extends PythonVisualizationOpDesc with PlotlyStandaloneC
     val firstLit = pyStringLiteral(firstVariable)
     val secondLit = pyStringLiteral(secondVariable)
     val thirdLit = pyStringLiteral(thirdVariable)
-    s"""def render_error(error_msg):
-       |    return '''<h1>TernaryPlot is not available.</h1>
-       |                  <p>Reasons are: {} </p>
-       |               '''.format(error_msg)
+    s"""${standaloneError("TernaryPlot is not available.", plural = true)}
        |
        |if in1df.empty:
-       |    with open(outputHtml, "w", encoding="utf-8") as output:
-       |        output.write(render_error("Input table is empty."))
+       |${standaloneErrorPage("Input table is empty.")}
        |else:
        |    table = in1df.dropna(subset=[$firstLit, $secondLit, $thirdLit]).copy()
        |    if table.empty:
-       |        with open(outputHtml, "w", encoding="utf-8") as output:
-       |            output.write(render_error("No valid rows left (every row has at least 1 missing value)."))
+       |${standaloneErrorPage(
+      "No valid rows left (every row has at least 1 missing value).",
+      indent = 8
+    )}
        |    else:
        |        fig = px.scatter_ternary(table, a=$firstLit, b=$secondLit, c=$thirdLit$colorArg)
-       |        fig.write_json(outputJson)
-       |        fig.write_html(outputHtml)
-       |        print("Ternary plot saved to " + outputHtml)""".stripMargin
+       |${standaloneFigure("Ternary plot")}""".stripMargin
   }
 
 }

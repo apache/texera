@@ -19,27 +19,23 @@
 
 package org.apache.texera.amber.operator.substringSearch
 
-import com.typesafe.config.ConfigFactory
+import org.apache.texera.amber.util.PythonTestSupport.{
+  NeedsPythonPackages,
+  canImport,
+  configuredPython,
+  runSource
+}
 import org.apache.texera.amber.core.executor.OpExecWithClassName
 import org.apache.texera.amber.core.tuple.{Attribute, AttributeType, Schema, Tuple}
 import org.apache.texera.amber.core.virtualidentity.{ExecutionIdentity, WorkflowIdentity}
 import org.apache.texera.amber.core.workflow.PortIdentity
 import org.apache.texera.amber.operator.LogicalOp
 import org.apache.texera.amber.operator.metadata.OperatorGroupConstants
-import org.apache.texera.amber.operator.tags.IntegrationTest
 import org.apache.texera.amber.util.JSONUtils.objectMapper
-import org.scalatest.Tag
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 
-import java.nio.charset.StandardCharsets
-import java.nio.file.Files
-import java.util.concurrent.TimeUnit
-import scala.util.Try
-
 class SubstringSearchOpDescSpec extends AnyFlatSpec with Matchers {
-
-  private val NeedsPythonPackages = Tag(classOf[IntegrationTest].getName)
 
   private val workflowId = WorkflowIdentity(1L)
   private val executionId = ExecutionIdentity(1L)
@@ -99,8 +95,8 @@ class SubstringSearchOpDescSpec extends AnyFlatSpec with Matchers {
   // export, and the rows each keeps are named by their input position.
   "SubstringSearchOpDesc.generateStandaloneCode" should
     "keep the rows the engine keeps on non-ASCII text" taggedAs NeedsPythonPackages in {
-    val python = resolvePython().getOrElse(cancel("No runnable python executable"))
-    if (!canImportPandas(python)) cancel(s"'$python' cannot import pandas")
+    val python = configuredPython().getOrElse(cancel("No runnable python executable"))
+    if (!canImport(python, "pandas")) cancel(s"'$python' cannot import pandas")
 
     val cases = Seq(
       ("ss", false, Seq("ß", "SS", "Strasse")),
@@ -140,46 +136,13 @@ class SubstringSearchOpDescSpec extends AnyFlatSpec with Matchers {
     }
 
     val driver = ("import pandas as pd" +: runs.map(_._2)).mkString("\n")
-    val file = Files.createTempFile("substring-engine-parity-", ".py")
-    file.toFile.deleteOnExit()
-    Files.write(file, driver.getBytes(StandardCharsets.UTF_8))
-    val builder = new ProcessBuilder(python, file.toString).redirectErrorStream(true)
-    builder.environment().put("PYTHONIOENCODING", "utf-8")
-    val process = builder.start()
-    val out = new String(process.getInputStream.readAllBytes(), StandardCharsets.UTF_8)
-    process.waitFor(120, TimeUnit.SECONDS)
+    val (exitCode, out) = runSource(python, "substring-engine-parity-", driver)
 
     withClue(s"python said:\n$out\n") {
-      process.exitValue() shouldBe 0
+      exitCode shouldBe 0
       out.linesIterator.map(_.trim).toList shouldBe runs.map(_._1.trim).toList
     }
   }
-
-  private def resolvePython(): Option[String] = {
-    def fromConfig: Option[String] =
-      Try(ConfigFactory.parseResources("udf.conf").resolve()).toOption
-        .orElse(Try(ConfigFactory.load()).toOption)
-        .flatMap(c => Try(c.getConfig("python").getString("path")).toOption)
-        .map(_.trim)
-        .filter(_.nonEmpty)
-
-    def runnable(exe: String): Boolean =
-      Try(new ProcessBuilder(exe, "--version").redirectErrorStream(true).start()).toOption
-        .exists { p =>
-          if (!p.waitFor(5, TimeUnit.SECONDS)) { p.destroyForcibly(); false }
-          else p.exitValue() == 0
-        }
-
-    (fromConfig.toList ++ List("python3", "python", "py")).distinct.find(runnable)
-  }
-
-  private def canImportPandas(python: String): Boolean =
-    Try(
-      new ProcessBuilder(python, "-c", "import pandas").redirectErrorStream(true).start()
-    ).toOption.exists { p =>
-      if (!p.waitFor(60, TimeUnit.SECONDS)) { p.destroyForcibly(); false }
-      else p.exitValue() == 0
-    }
 
   // The engine reads `Body` from a column `body`, since Schema ignores case. pandas
   // would raise a KeyError on `Body`, so the script reads the column as the table

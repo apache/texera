@@ -19,6 +19,7 @@
 
 package org.apache.texera.amber.operator.visualization.filledAreaPlot
 
+import org.apache.texera.amber.operator.visualization.StandaloneChartCode._
 import com.fasterxml.jackson.annotation.{JsonProperty, JsonPropertyDescription}
 import com.kjetland.jackson.jsonSchema.annotations.{JsonSchemaInject, JsonSchemaTitle}
 import org.apache.texera.amber.pybuilder.PythonTemplateBuilder.{
@@ -229,9 +230,7 @@ class FilledAreaPlotOpDesc extends PythonVisualizationOpDesc with PlotlyStandalo
        |if error == "":
        |    fig = px.area(in1df, x=$xLit, y=$yLit$colorArg$facetColumnArg$lineGroupArg$patternParam)
        |    fig.update_layout(margin=dict(l=0, r=0, b=0, t=0))
-       |    fig.write_json(outputJson)
-       |    fig.write_html(outputHtml)
-       |    print("Filled area plot saved to " + outputHtml)
+       |${standaloneFigure("Filled area plot", indent = 4)}
        |elif error == "X attributes not shared across groups":
        |    with open(outputHtml, "w", encoding="utf-8") as output:
        |        output.write('''<h1>Plot is not available, because:</h1>

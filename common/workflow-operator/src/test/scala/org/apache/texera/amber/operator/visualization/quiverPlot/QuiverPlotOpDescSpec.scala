@@ -25,22 +25,11 @@ import org.apache.texera.amber.operator.metadata.OperatorGroupConstants
 import org.apache.texera.amber.util.JSONUtils.objectMapper
 import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaInject
 import org.scalatest.flatspec.AnyFlatSpec
-import org.scalatest.matchers.should.Matchers
+import org.apache.texera.amber.operator.EncodedGeneratedCodeAssertionChecks
 
-import java.nio.charset.StandardCharsets
-import java.util.Base64
 import scala.jdk.CollectionConverters._
 
-class QuiverPlotOpDescSpec extends AnyFlatSpec with Matchers {
-
-  private def b64(s: String): String =
-    Base64.getEncoder.encodeToString(s.getBytes(StandardCharsets.UTF_8))
-
-  // EncodableString columns are always base64-wrapped in .encode mode
-  // (self.decode_python_template('<base64>')), so assert on the base64 form only rather than
-  // the raw column name, which could appear in the generated Python for unrelated reasons.
-  private def carries(output: String, name: String): Boolean =
-    output.contains(b64(name))
+class QuiverPlotOpDescSpec extends AnyFlatSpec with EncodedGeneratedCodeAssertionChecks {
 
   "QuiverPlotOpDesc.operatorInfo" should
     "advertise the name and Scientific visualization group with a 1-in/1-out shape" in {

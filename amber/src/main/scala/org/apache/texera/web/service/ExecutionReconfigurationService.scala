@@ -41,7 +41,7 @@ import org.apache.texera.web.model.websocket.response.{
 import org.apache.texera.web.storage.{ExecutionReconfigurationStore, ExecutionStateStore}
 
 import java.util.UUID
-import scala.util.{Failure, Success}
+import scala.util.{Failure, Success, Try}
 
 class ExecutionReconfigurationService(
     client: AmberClient,
@@ -72,16 +72,21 @@ class ExecutionReconfigurationService(
           "changed while the workflow runs."
       )
     } else {
+      // An operator that throws instead of returning Failure, such as one without a
+      // runtimeReconfiguration override, is reported as a rejected edit the same way.
       val reconfiguredPhysicalOp =
-        currentOp.runtimeReconfiguration(
-          workflow.context.workflowId,
-          workflow.context.executionId,
-          currentOp,
-          newOp
-        )
+        Try(
+          currentOp.runtimeReconfiguration(
+            workflow.context.workflowId,
+            workflow.context.executionId,
+            currentOp,
+            newOp
+          )
+        ).flatten
       reconfiguredPhysicalOp match {
         case Failure(exception) =>
-          ModifyLogicResponse(opId.id, isValid = false, exception.getMessage)
+          val reason = Option(exception.getMessage).getOrElse(exception.toString)
+          ModifyLogicResponse(opId.id, isValid = false, reason)
         case Success(op) => {
           stateStore.reconfigurationStore.updateState(old =>
             old.copy(unscheduledReconfigurations = old.unscheduledReconfigurations :+ op)

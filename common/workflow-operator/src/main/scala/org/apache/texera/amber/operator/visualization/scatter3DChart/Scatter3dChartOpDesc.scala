@@ -19,6 +19,8 @@
 
 package org.apache.texera.amber.operator.visualization.scatter3DChart
 
+import org.apache.texera.amber.operator.visualization.StandaloneChartCode._
+import org.apache.texera.amber.operator.visualization.PythonCodeFragment._
 import com.fasterxml.jackson.annotation.{JsonProperty, JsonPropertyDescription}
 import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaTitle
 import org.apache.texera.amber.pybuilder.PythonTemplateBuilder.PythonTemplateBuilderStringContext
@@ -100,20 +102,14 @@ class Scatter3dChartOpDesc extends PythonVisualizationOpDesc with PlotlyStandalo
          |import numpy as np
          |
          |class ProcessTableOperator(UDFTableOperator):
-         |    def render_error(self, error_msg):
-         |        return '''<h1>Chart is not available.</h1>
-         |                  <p>Reason is: {} </p>
-         |               '''.format(error_msg)
+         |${runtimeError("Chart is not available.")}
          |
          |    @overrides
          |    def process_table(self, table: Table, port: int) -> Iterator[Optional[TableLike]]:
-         |        if table.empty:
-         |           yield {'html-content': self.render_error("input table is empty.")}
-         |           return
+         |${emptyTableGuard("input table is empty.")}
          |        ${createPlotlyFigure()}
          |        # convert fig to html content
-         |        html = plotly.io.to_html(fig, include_plotlyjs='cdn', auto_play=False)
-         |        yield {'html-content': html}
+         |${plotlyHtmlYield()}
          |
          |"""
     finalcode.encode
@@ -123,14 +119,10 @@ class Scatter3dChartOpDesc extends PythonVisualizationOpDesc with PlotlyStandalo
     val xLit = pyStringLiteral(x)
     val yLit = pyStringLiteral(y)
     val zLit = pyStringLiteral(z)
-    s"""def render_error(error_msg):
-       |    return '''<h1>Chart is not available.</h1>
-       |                  <p>Reason is: {} </p>
-       |               '''.format(error_msg)
+    s"""${standaloneError("Chart is not available.")}
        |
        |if in1df.empty:
-       |    with open(outputHtml, "w", encoding="utf-8") as output:
-       |        output.write(render_error("input table is empty."))
+       |${standaloneErrorPage("input table is empty.")}
        |else:
        |    table = in1df
        |    fig = go.Figure(data=[go.Scatter3d(
@@ -153,9 +145,7 @@ class Scatter3dChartOpDesc extends PythonVisualizationOpDesc with PlotlyStandalo
        |        ),
        |        margin=dict(t=0, b=0, l=0, r=0)
        |    )
-       |    fig.write_json(outputJson)
-       |    fig.write_html(outputHtml)
-       |    print("Scatter3D chart saved to " + outputHtml)""".stripMargin
+       |${standaloneFigure("Scatter3D chart", indent = 4)}""".stripMargin
   }
 
 }

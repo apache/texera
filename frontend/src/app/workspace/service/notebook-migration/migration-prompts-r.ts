@@ -67,6 +67,7 @@ To show a plot, a UDF returns a single column named html-content holding a compl
 1. Build the plot with plotly. Convert an existing ggplot2 plot with ggplotly(p) so the original plot code is kept.
 2. Turn the plot into a page that loads Plotly from a CDN. Do not use htmlwidgets::saveWidget, it needs pandoc, which is not available.
 3. If the input has no rows, return an html-content page explaining that the plot is not available.
+4. Write closing tags such as </script> exactly as shown. Do not escape the slash: R rejects '\\/' as an unrecognized escape and the UDF fails to parse.
 
 json <- plotly_json(ggplotly(p), jsonedit = FALSE)
 html <- paste0(
@@ -461,4 +462,248 @@ Here is an example of a mapping generated between the given example R code and t
 "UDF6": [[42, 46]]
 }
 Now create a mapping for the UDFs and the original code you were given. For each UDF, report the line ranges of the original script whose logic that UDF implements. The code in those lines should be equivalent to what the UDF does. Lines that no UDF implements, such as library() calls or the data loading that the workflow's source operator replaces, can be left out entirely. Give the first line before the last within each range, and do not shift the numbers: they must match the prefixes you were shown. There could be any number of ranges and UDFs, so only create the correct number in the mapping. Only give the mapping.
+`;
+
+export const R_EXAMPLE_OF_MULTIPLE_UDF_CONVERSION_FOLDER = `
+Here is an example of breaking up a folder of R files into multiple Texera R UDFs. Format your response structure exactly like the given example. The "code" key contains a dictionary of the UDF IDs with their respective code. The "edges" key contains a list of pairs that contains the connections between UDFs. The "outputs" key contains a dictionary of the UDF IDs with a list of the output column names of the data.frame that the UDF returns. The "entry_point" key names the one file that calls the pipeline's steps in order. The UDFs can branch, so it does not have to be a linear chain, but each UDF reads from at most one other UDF.
+
+The folder's files are shown as one document, concatenated in the order given. A line of the form '# ===== FILE: <path> =====' marks where a file begins, and each line is prefixed by its line number and a '|'. Line numbers run continuously across the whole document and do not restart at each file. Both the banners and the number prefixes are annotations so that line ranges can be referred to later. They are not part of the code and must never appear in the code you generate.
+
+Note that main.R is the entry point: it is the file that actually runs, sourcing the other two files and calling the functions they define. Each UDF copies in the definition of the function it calls, and the source() calls on lines 23 and 24 appear in no generated UDF. load_data is copied into no UDF, because the workflow's source operator replaces the data loading. Note also that the layout names README.md, which is not R source and so does not appear in the document.
+
+Folder layout:
+diabetes_analysis/
+  README.md
+  data_prep.R
+  main.R
+  models.R
+
+Original Code:
+\`\`\`r
+ 1| # ===== FILE: data_prep.R =====
+ 2| library(ggplot2)
+ 3| 
+ 4| load_data <- function(file_path) {
+ 5|   read.csv(file_path)
+ 6| }
+ 7| 
+ 8| clean <- function(data) {
+ 9|   data <- unique(data)
+10|   na.omit(data)
+11| }
+12| 
+13| summarize <- function(data) {
+14|   list(min = sapply(data, min), max = sapply(data, max), mean = colMeans(data))
+15| }
+16| 
+17| boxplot_glucose <- function(data) {
+18|   ggplot(data, aes(x = factor(Outcome), y = Glucose)) +
+19|     geom_boxplot() +
+20|     labs(x = 'Outcome', y = 'Glucose', title = 'Glucose by Outcome')
+21| }
+22| # ===== FILE: main.R =====
+23| source('data_prep.R')
+24| source('models.R')
+25| 
+26| data <- load_data('diabetes.csv')
+27| 
+28| data <- clean(data)
+29| stats <- summarize(data)
+30| print(stats)
+31| 
+32| print(boxplot_glucose(data))
+33| 
+34| splits <- split_and_scale(data)
+35| 
+36| glm_accuracy <- train_logistic_regression(splits$train, splits$test)
+37| print(sprintf('Logistic Regression Accuracy: %.2f%%', 100 * glm_accuracy))
+38| 
+39| tree_accuracy <- train_decision_tree(splits$train, splits$test)
+40| print(sprintf('Decision Tree Accuracy: %.2f%%', 100 * tree_accuracy))
+41| # ===== FILE: models.R =====
+42| library(rpart)
+43| 
+44| split_and_scale <- function(data) {
+45|   set.seed(42)
+46|   train_idx <- sample(seq_len(nrow(data)), size = floor(0.8 * nrow(data)))
+47|   train <- data[train_idx, ]
+48|   test <- data[-train_idx, ]
+49|   features <- setdiff(names(data), 'Outcome')
+50|   centers <- sapply(train[features], mean)
+51|   spreads <- sapply(train[features], sd)
+52|   train[features] <- scale(train[features], center = centers, scale = spreads)
+53|   test[features] <- scale(test[features], center = centers, scale = spreads)
+54|   list(train = train, test = test)
+55| }
+56| 
+57| train_logistic_regression <- function(train, test) {
+58|   glm_model <- glm(Outcome ~ ., data = train, family = binomial)
+59|   glm_pred <- ifelse(predict(glm_model, test, type = 'response') > 0.5, 1, 0)
+60|   mean(glm_pred == test$Outcome)
+61| }
+62| 
+63| train_decision_tree <- function(train, test) {
+64|   tree_model <- rpart(factor(Outcome) ~ ., data = train, method = 'class')
+65|   tree_pred <- predict(tree_model, test, type = 'class')
+66|   mean(as.character(tree_pred) == as.character(test$Outcome))
+67| }
+\`\`\`
+
+Texera UDF conversion:
+\`\`\`json
+{
+    "entry_point": "main.R",
+    "code": {
+        "UDF1": "# UDF1\\nclean <- function(data) {\\n  data <- unique(data)\\n  na.omit(data)\\n}\\n\\nfunction(table, port) {\\n  data <- clean(table)\\n\\n  # One row of serialized objects for the downstream UDFs\\n  data.frame(data = I(list(serialize(data, NULL))))\\n}",
+        "UDF2": "# UDF2\\nsummarize <- function(data) {\\n  list(min = sapply(data, min), max = sapply(data, max), mean = colMeans(data))\\n}\\n\\nfunction(table, port) {\\n  data <- unserialize(table$data[[1]])\\n  stats <- summarize(data)\\n\\n  # No UDF reads this one, so its columns are character\\n  data.frame(\\n    min_values = paste(capture.output(print(stats$min)), collapse = '\\\\n'),\\n    max_values = paste(capture.output(print(stats$max)), collapse = '\\\\n'),\\n    mean_values = paste(capture.output(print(stats$mean)), collapse = '\\\\n')\\n  )\\n}",
+        "UDF3": "# UDF3\\nlibrary(ggplot2)\\nlibrary(plotly)\\n\\nboxplot_glucose <- function(data) {\\n  ggplot(data, aes(x = factor(Outcome), y = Glucose)) +\\n    geom_boxplot() +\\n    labs(x = 'Outcome', y = 'Glucose', title = 'Glucose by Outcome')\\n}\\n\\nfunction(table, port) {\\n  data <- unserialize(table$data[[1]])\\n\\n  if (nrow(data) == 0) {\\n    html <- '<h1>Boxplot is not available.</h1><p>Reason is: input table is empty.</p>'\\n    return(data.frame('html-content' = html, check.names = FALSE))\\n  }\\n\\n  p <- boxplot_glucose(data)\\n\\n  # Convert the plot to an HTML page that loads Plotly from a CDN\\n  json <- plotly_json(ggplotly(p), jsonedit = FALSE)\\n  html <- paste0(\\n    '<html><head><script src=\\"https://cdn.plot.ly/plotly-2.35.2.min.js\\"></script></head>',\\n    '<body><div id=\\"plot\\" style=\\"width:100%;height:100%\\"></div><script>',\\n    'var fig = ', json, '; Plotly.newPlot(\\"plot\\", fig.data, fig.layout);',\\n    '</script></body></html>'\\n  )\\n  data.frame('html-content' = html, check.names = FALSE)\\n}",
+        "UDF4": "# UDF4\\nsplit_and_scale <- function(data) {\\n  set.seed(42)\\n  train_idx <- sample(seq_len(nrow(data)), size = floor(0.8 * nrow(data)))\\n  train <- data[train_idx, ]\\n  test <- data[-train_idx, ]\\n  features <- setdiff(names(data), 'Outcome')\\n  centers <- sapply(train[features], mean)\\n  spreads <- sapply(train[features], sd)\\n  train[features] <- scale(train[features], center = centers, scale = spreads)\\n  test[features] <- scale(test[features], center = centers, scale = spreads)\\n  list(train = train, test = test)\\n}\\n\\nfunction(table, port) {\\n  data <- unserialize(table$data[[1]])\\n  splits <- split_and_scale(data)\\n\\n  data.frame(\\n    train = I(list(serialize(splits$train, NULL))),\\n    test = I(list(serialize(splits$test, NULL)))\\n  )\\n}",
+        "UDF5": "# UDF5\\ntrain_logistic_regression <- function(train, test) {\\n  glm_model <- glm(Outcome ~ ., data = train, family = binomial)\\n  glm_pred <- ifelse(predict(glm_model, test, type = 'response') > 0.5, 1, 0)\\n  mean(glm_pred == test$Outcome)\\n}\\n\\nfunction(table, port) {\\n  train <- unserialize(table$train[[1]])\\n  test <- unserialize(table$test[[1]])\\n  glm_accuracy <- train_logistic_regression(train, test)\\n\\n  # No UDF reads this one, so its columns are character\\n  data.frame(glm_accuracy = sprintf('Logistic Regression Accuracy: %.2f%%', 100 * glm_accuracy))\\n}",
+        "UDF6": "# UDF6\\nlibrary(rpart)\\n\\ntrain_decision_tree <- function(train, test) {\\n  tree_model <- rpart(factor(Outcome) ~ ., data = train, method = 'class')\\n  tree_pred <- predict(tree_model, test, type = 'class')\\n  mean(as.character(tree_pred) == as.character(test$Outcome))\\n}\\n\\nfunction(table, port) {\\n  train <- unserialize(table$train[[1]])\\n  test <- unserialize(table$test[[1]])\\n  tree_accuracy <- train_decision_tree(train, test)\\n\\n  # No UDF reads this one, so its columns are character\\n  data.frame(tree_accuracy = sprintf('Decision Tree Accuracy: %.2f%%', 100 * tree_accuracy))\\n}"
+    },
+    "edges": [
+        [
+            "UDF1",
+            "UDF2"
+        ],
+        [
+            "UDF1",
+            "UDF3"
+        ],
+        [
+            "UDF1",
+            "UDF4"
+        ],
+        [
+            "UDF4",
+            "UDF5"
+        ],
+        [
+            "UDF4",
+            "UDF6"
+        ]
+    ],
+    "outputs": {
+        "UDF1": [
+            "data"
+        ],
+        "UDF2": [
+            "min_values",
+            "max_values",
+            "mean_values"
+        ],
+        "UDF3": [
+            "html-content"
+        ],
+        "UDF4": [
+            "train",
+            "test"
+        ],
+        "UDF5": [
+            "glm_accuracy"
+        ],
+        "UDF6": [
+            "tree_accuracy"
+        ]
+    }
+}
+\`\`\``;
+
+export const R_FOLDER_WORKFLOW_PROMPT = `You are an expert in R coding and workflow systems.
+Many users of Texera system are non-technical, but the R projects they provide are written by technical people.
+They want to convert a folder of R files into a single Texera workflow.
+Your goal is to help convert these folders into a Texera workflow that non-technical users can use directly.
+So do not remove or modify any user-defined functions, preserve their names and structure as they are.
+Ensure that all essential logic remains intact.
+Create multiple Texera R UDF codes using the provided R code.
+Number each UDF, starting at 1 and incrementing, by starting with a comment that states that UDF number.
+
+Every UDF uses the Table API: its code ends with one function(table, port) that takes a data.frame and returns a data.frame.
+Do not use the Tuple API or coro generators.
+Load every package a UDF uses with library() before its function. Do not call install.packages().
+
+Do not load data from a file in the first UDF; the workflow's source operator supplies the initial data,
+so assume it is already given to you as the table argument. Replacing file-loading code with this input
+is the one exception to preserving all original code (see below).
+Separate operators as if they will run in different R sessions: a UDF sees only the table it receives.
+
+Each UDF has exactly one output, so follow the data passing rules:
+a UDF whose output another UDF reads returns one row where every column is a serialized R object,
+and a UDF that no other UDF reads returns character columns.
+Ensure all information is passed on (including training and testing data) if subsequent UDFs need it.
+Each UDF has one input. When a step needs results from several earlier UDFs, carry those results forward
+through a single chain instead of connecting several UDFs into one.
+Values the original code prints become columns of the returned data.frame.
+Plots follow the visualization rules and return an html-content column.
+
+It is VERY important that all of the original code in the folder's R files is represented in the generated workflow.
+Make sure that nothing in the original is removed and that the semantic meaning of what the original code was doing is retained.
+The only exception is data-loading code (e.g. read.csv); it is represented by the workflow's input/source operator rather than copied into a UDF.
+If there are user-defined R functions, include the entire function definition in every UDF that calls it.
+
+Return only the JSON formatted response, do not give any explanation.
+Do not wrap the JSON in markdown code fences. Output raw JSON only.
+Make sure the response is a valid JSON structure, including closing all braces and not including commas after the last element.
+Follow this JSON format (don't reuse the values, this is just the format). 'entry_point', 'code', 'edges', and 'outputs' are all their own keys, do not nest any of these in another one and make sure to close their braces:
+{
+"entry_point": "path/to/main.R",
+"code": {
+"UDF1": "code for UDF1 goes here",
+"UDF2": "code for UDF2 goes here"
+},
+"edges": [
+["UDF1", "UDF2"]
+],
+"outputs": {
+"UDF1": ["data"],
+"UDF2": ["html-content"]
+}
+}
+Make sure only the keys in the code section appear in the edges and outputs sections. Do not include any extraneous fields.
+The "entry_point" value is the path of the one file whose code calls the pipeline's steps in order: the file
+with top-level code that sources the others and calls the functions they define.
+If that file only delegates, calling a single function in another file and doing nothing else, name the file
+that defines that function instead, because that is where the steps actually are. A file holding one source()
+call and one function call is never the right answer.
+Give the path exactly as it appears in the banner and the layout, and name a file that is actually in the
+folder. If no file clearly runs the others, give the one a reader should open first.
+Settle the entry point before you write any UDF code, and give it as the first key of your reply.
+Do not include any extraneous UDFs in the code field that include empty strings.
+Give ALL of the code, do not omit anything or use placeholders for code. Make sure ALL code in the original is translated over.
+The value of each UDF must be a valid JSON string: escape newlines, quotes, and backslashes correctly so that the decoded string is runnable R. Prefer single quotes for R strings so fewer characters need escaping.
+You are given the folder's layout first, then its R files as one document. The layout is there so you
+know what exists before you read any of it; use it to tell which file a source() call refers to. Files in the
+layout that are not R source are named but not included in the document, so you know they exist
+without their contents. The layout itself is not code and its lines are not numbered.
+
+In the document that follows the layout, a line of the form '# ===== FILE: <path> =====' marks where a file
+begins, and every line is prefixed with its line number followed by '| '. Line numbers run continuously
+across the whole document and do not restart at each file. Both the banners and the number prefixes are
+annotations so that line ranges can be referred to later; never reproduce either in any generated UDF code.
+
+A Texera UDF runs on its own and cannot read another file of this folder, so never call source() in a UDF.
+Wherever a UDF uses a function or value that another file of the folder defines, copy that definition into
+the UDF before its function(table, port). Packages are still loaded with library() as normal.
+Where one file uses a value that another file produced, represent that with an edge between the two UDFs
+rather than with source(): in the example, the values main.R passes from one call to the next are what
+become the edges, and neither of its source() calls on lines 23 and 24 appears in any generated UDF.
+A file that only defines functions and runs nothing of its own does not need a UDF of its own; its definitions
+belong inside the UDFs that use them.
+One file calls the pipeline's steps in order; you will name it as the entry point, and the mapping you give
+afterwards will refer to its lines, so work out which file that is as you read.
+Convert following the instructions and examples given. Here is the folder layout:
+`;
+
+export const R_FOLDER_MAPPING_PROMPT = `
+Here is an example of a mapping generated between the given example folder and the Texera UDFs. Every range refers to lines of the entry point you named, and to no other file. A range is a pair [firstLine, lastLine]; both bounds are 1-indexed and inclusive, and they refer to the line numbers shown in the prefix of the original code. A UDF may list several ranges. The format should be kept the same.
+In the example, main.R is the entry point and occupies lines 22 to 40, so every range below falls inside it: UDF1 is the cleaning, which main.R performs on line 28; UDF2 is the statistics, computed and printed on lines 29 and 30; UDF3 is the boxplot, drawn on line 32; and so on.
+{
+"UDF1": [[28, 28]],
+"UDF2": [[29, 30]],
+"UDF3": [[32, 32]],
+"UDF4": [[34, 34]],
+"UDF5": [[36, 37]],
+"UDF6": [[39, 40]]
+}
+Now create a mapping for the UDFs and the original code you were given. For each UDF, report the line ranges of the entry point at which that UDF's work happens. When the entry point calls a function that another file defines, the line of that call is what the UDF built from that function maps to. Report ranges inside the entry point only: never a line from another file, never the banner lines, and never a line outside the entry point's own span. Lines of the entry point that no UDF corresponds to, such as its source() calls and the data loading that the workflow's source operator replaces, can be left out entirely. Give the first line before the last within each range, and do not shift the numbers: they must match the prefixes you were shown. There could be any number of ranges and UDFs, so only create the correct number in the mapping. Only give the mapping.
 `;

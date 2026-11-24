@@ -19,37 +19,18 @@
 
 package org.apache.texera.amber.engine.architecture.coordinator.promisehandlers
 
-import com.twitter.util.{Await, Duration}
-import org.apache.texera.amber.core.executor.OpExecInitInfo
-import org.apache.texera.amber.core.virtualidentity.{
-  ActorVirtualIdentity,
-  OperatorIdentity,
-  PhysicalOpIdentity
-}
-import org.apache.texera.amber.core.workflow.WorkflowContext.{
-  DEFAULT_EXECUTION_ID,
-  DEFAULT_WORKFLOW_ID
-}
-import org.apache.texera.amber.core.workflow.{PhysicalOp, PhysicalPlan, WorkflowContext}
-import org.apache.texera.amber.engine.architecture.coordinator.{
-  CoordinatorAsyncRPCHandlerInitializer,
-  CoordinatorConfig,
-  CoordinatorProcessor
-}
+import com.twitter.util.Await
+import org.apache.texera.amber.core.virtualidentity.ActorVirtualIdentity
+import org.apache.texera.amber.core.workflow.{PhysicalOp, PhysicalPlan}
+import org.apache.texera.amber.engine.architecture.coordinator.CoordinatorAsyncRPCHandlerInitializer
 import org.apache.texera.amber.engine.architecture.rpc.controlcommands.{
   AsyncRPCContext,
-  ControlInvocation,
   EvaluatePythonExpressionRequest
 }
 import org.apache.texera.amber.engine.architecture.rpc.controlreturns.EvaluatePythonExpressionResponse
 import org.apache.texera.amber.engine.architecture.scheduling.{Region, RegionIdentity}
-import org.apache.texera.amber.engine.architecture.worker.WorkflowWorker.MainThreadDelegateMessage
-import org.apache.texera.amber.engine.common.ambermessage.WorkflowFIFOMessage
 import org.apache.texera.amber.engine.common.virtualidentity.util.COORDINATOR
-import org.apache.texera.amber.util.VirtualIdentityUtils
 import org.scalatest.flatspec.AnyFlatSpec
-
-import scala.collection.mutable.ArrayBuffer
 
 /**
   * `evaluatePythonExpression` is the coordinator-side fan-out for the debugger's
@@ -67,43 +48,9 @@ import scala.collection.mutable.ArrayBuffer
   * output handler emits instead of running workers (the harness mirrors
   * `RetrieveWorkflowStateHandlerSpec`).
   */
-class EvaluatePythonExpressionHandlerSpec extends AnyFlatSpec {
+class EvaluatePythonExpressionHandlerSpec extends AnyFlatSpec with CoordinatorMessageFixture {
 
   private val rpcContext = AsyncRPCContext(COORDINATOR, COORDINATOR)
-  private val awaitTimeout = Duration.fromSeconds(1)
-
-  private def mkPhysicalOp(logicalOpId: String, layerName: String): PhysicalOp =
-    PhysicalOp(
-      PhysicalOpIdentity(OperatorIdentity(logicalOpId), layerName),
-      DEFAULT_WORKFLOW_ID,
-      DEFAULT_EXECUTION_ID,
-      OpExecInitInfo.Empty
-    )
-
-  private def mkWorkerId(physicalOp: PhysicalOp, index: Int): ActorVirtualIdentity =
-    VirtualIdentityUtils.createWorkerIdentity(DEFAULT_WORKFLOW_ID, physicalOp.id, index)
-
-  /**
-    * Build a coordinator handler initializer over a physical plan holding `physicalOps`. Dispatched
-    * control messages are appended to the returned buffer.
-    */
-  private def newFixture(
-      physicalOps: Set[PhysicalOp]
-  ): (CoordinatorAsyncRPCHandlerInitializer, ArrayBuffer[WorkflowFIFOMessage]) = {
-    val sent = ArrayBuffer[WorkflowFIFOMessage]()
-    val outputHandler: Either[MainThreadDelegateMessage, WorkflowFIFOMessage] => Unit = {
-      case Right(m) => sent += m
-      case _        => ()
-    }
-    val cp = new CoordinatorProcessor(
-      new WorkflowContext(),
-      CoordinatorConfig(None, None, None, None),
-      COORDINATOR,
-      outputHandler
-    )
-    cp.workflowScheduler.physicalPlan = PhysicalPlan(physicalOps, Set.empty)
-    (new CoordinatorAsyncRPCHandlerInitializer(cp), sent)
-  }
 
   /**
     * Register a region execution that owns `physicalOp` with the given workers. Region executions
@@ -122,20 +69,11 @@ class EvaluatePythonExpressionHandlerSpec extends AnyFlatSpec {
     workerIds.foreach(operatorExecution.initWorkerExecution)
   }
 
-  /** The per-worker expression-evaluation invocations the handler dispatched. */
-  private def dispatchedEvaluations(
-      sent: ArrayBuffer[WorkflowFIFOMessage]
-  ): Seq[ControlInvocation] =
-    sent.toSeq.collect {
-      case WorkflowFIFOMessage(_, _, invocation: ControlInvocation)
-          if invocation.methodName == "evaluatePythonExpression" =>
-        invocation
-    }
-
   behavior of "EvaluatePythonExpressionHandler"
 
   it should "refuse a logical operator that has no physical operator in the plan" in {
-    val (init, sent) = newFixture(Set(mkPhysicalOp("present", "main")))
+    val (init, sent) =
+      createCoordinatorFixture(Some(PhysicalPlan(Set(mkPhysicalOp("present")), Set.empty)))
 
     val ex = intercept[RuntimeException] {
       init.evaluatePythonExpression(
@@ -152,8 +90,13 @@ class EvaluatePythonExpressionHandlerSpec extends AnyFlatSpec {
   it should "refuse a logical operator that expanded into several physical operators" in {
     // A logical operator with more than one physical layer has no unambiguous worker set; the
     // handler must not silently evaluate against `physicalOps.head`.
-    val (init, sent) = newFixture(
-      Set(mkPhysicalOp("expanded", "first"), mkPhysicalOp("expanded", "second"))
+    val (init, sent) = createCoordinatorFixture(
+      Some(
+        PhysicalPlan(
+          Set(mkPhysicalOp("expanded", "first"), mkPhysicalOp("expanded", "second")),
+          Set.empty
+        )
+      )
     )
 
     val ex = intercept[RuntimeException] {
@@ -168,15 +111,15 @@ class EvaluatePythonExpressionHandlerSpec extends AnyFlatSpec {
   }
 
   it should "forward the request unchanged to every worker of the operator" in {
-    val physicalOp = mkPhysicalOp("udf", "main")
-    val (init, sent) = newFixture(Set(physicalOp))
+    val physicalOp = mkPhysicalOp("udf")
+    val (init, sent) = createCoordinatorFixture(Some(PhysicalPlan(Set(physicalOp), Set.empty)))
     val workerIds = Seq(mkWorkerId(physicalOp, 0), mkWorkerId(physicalOp, 1))
     seedOperatorExecution(init, regionId = 1, physicalOp, workerIds)
     val request = EvaluatePythonExpressionRequest("tuple_['x']", "udf")
 
     init.evaluatePythonExpression(request, rpcContext)
 
-    val invocations = dispatchedEvaluations(sent)
+    val invocations = controlInvocationsNamed(sent, "evaluatePythonExpression")
     assert(invocations.map(_.context.receiver).toSet == workerIds.toSet)
     assert(invocations.size == workerIds.size)
     // The worker-side handler needs the expression verbatim, so nothing may be rewritten on the
@@ -185,8 +128,8 @@ class EvaluatePythonExpressionHandlerSpec extends AnyFlatSpec {
   }
 
   it should "target the workers of the operator's latest execution, not an earlier one" in {
-    val physicalOp = mkPhysicalOp("udf", "main")
-    val (init, sent) = newFixture(Set(physicalOp))
+    val physicalOp = mkPhysicalOp("udf")
+    val (init, sent) = createCoordinatorFixture(Some(PhysicalPlan(Set(physicalOp), Set.empty)))
     val staleWorkerId = mkWorkerId(physicalOp, 0)
     val liveWorkerId = mkWorkerId(physicalOp, 1)
     // The operator was re-run: region 2's execution superseded region 1's, and region 1's worker
@@ -196,12 +139,15 @@ class EvaluatePythonExpressionHandlerSpec extends AnyFlatSpec {
 
     init.evaluatePythonExpression(EvaluatePythonExpressionRequest("1", "udf"), rpcContext)
 
-    assert(dispatchedEvaluations(sent).map(_.context.receiver) == Seq(liveWorkerId))
+    assert(
+      controlInvocationsNamed(sent, "evaluatePythonExpression")
+        .map(_.context.receiver) == Seq(liveWorkerId)
+    )
   }
 
   it should "not answer before every targeted worker has replied" in {
-    val physicalOp = mkPhysicalOp("udf", "main")
-    val (init, sent) = newFixture(Set(physicalOp))
+    val physicalOp = mkPhysicalOp("udf")
+    val (init, sent) = createCoordinatorFixture(Some(PhysicalPlan(Set(physicalOp), Set.empty)))
     seedOperatorExecution(
       init,
       regionId = 1,
@@ -216,13 +162,13 @@ class EvaluatePythonExpressionHandlerSpec extends AnyFlatSpec {
 
     // Both worker invocations are outstanding, so the aggregate response must still be pending —
     // the UI panel shows one row per worker and a partial answer would be wrong.
-    assert(dispatchedEvaluations(sent).size == 2)
+    assert(controlInvocationsNamed(sent, "evaluatePythonExpression").size == 2)
     assert(!response.isDefined)
   }
 
   it should "answer immediately with no values when the operator has no workers" in {
-    val physicalOp = mkPhysicalOp("udf", "main")
-    val (init, sent) = newFixture(Set(physicalOp))
+    val physicalOp = mkPhysicalOp("udf")
+    val (init, sent) = createCoordinatorFixture(Some(PhysicalPlan(Set(physicalOp), Set.empty)))
     seedOperatorExecution(init, regionId = 1, physicalOp, Seq.empty)
 
     val response = init.evaluatePythonExpression(
@@ -231,7 +177,7 @@ class EvaluatePythonExpressionHandlerSpec extends AnyFlatSpec {
     )
 
     // Nothing to ask, so the handler must not stall on an empty collect.
-    assert(dispatchedEvaluations(sent).isEmpty)
+    assert(controlInvocationsNamed(sent, "evaluatePythonExpression").isEmpty)
     assert(Await.result(response, awaitTimeout) == EvaluatePythonExpressionResponse(Seq.empty))
   }
 }

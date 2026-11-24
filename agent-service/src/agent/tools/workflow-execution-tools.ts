@@ -19,13 +19,19 @@
 
 import { z } from "zod";
 import { tool } from "ai";
-import { createErrorResult } from "./tools-utility";
-import { formatOperatorResult } from "./result-formatting";
+import { createErrorResult, formatOperatorOutput, getOperatorErrorText } from "./tools-utility";
 import type { WorkflowState } from "../workflow-state";
 import { getBackendConfig } from "../../api/backend-api";
 import { env } from "../../config/env";
-import type { LogicalPlan, LogicalLink } from "../../api/execution-api";
-import type { OperatorInfo, SyncExecutionResult } from "../../types/execution";
+import { adaptLegacySyncExecutionResult, type LogicalPlan, type LogicalLink } from "../../api/execution-api";
+import {
+  OperatorState,
+  WorkflowFatalErrorType,
+  WorkflowExecutionState,
+  type OperatorExecutionSummary,
+  type WorkflowFatalError,
+  type WorkflowExecutionSummary,
+} from "../../types/execution";
 import { WorkflowSystemMetadata } from "../util/workflow-system-metadata";
 import { DEFAULT_AGENT_SETTINGS } from "../../types/agent";
 import { createLogger } from "../../logger";
@@ -246,7 +252,7 @@ async function executeWorkflowHttp(
   config: ExecutionConfig,
   logicalPlan: LogicalPlan,
   options: { abortSignal?: AbortSignal } = {}
-): Promise<SyncExecutionResult> {
+): Promise<WorkflowExecutionSummary> {
   const backendConfig = getBackendConfig();
 
   const workflowId = config.workflowId;
@@ -304,32 +310,35 @@ async function executeWorkflowHttp(
       throw new Error(`Execution request failed: ${response.status} ${response.statusText} - ${errorText}`);
     }
 
-    return (await response.json()) as SyncExecutionResult;
+    return adaptLegacySyncExecutionResult(await response.json());
   } catch (error) {
     if (error instanceof Error && error.name === "AbortError") {
       throw error;
     }
     log.error({ err: error }, "execution failed");
     return {
-      success: false,
-      state: "Error",
+      state: WorkflowExecutionState.ERROR,
       operators: {},
-      errors: [error instanceof Error ? error.message : "Unknown error"],
+      errors: [makeExecutionFailure(error instanceof Error ? error.message : "Unknown error", "")],
     };
   }
 }
 
 function formatExecutionError(
-  compilationErrors?: Record<string, string>,
-  operatorErrors?: Array<{ operatorId: string; error: string }>,
-  generalErrors?: string[]
+  operatorErrors?: ReadonlyArray<{ operatorId: string; error: string }>,
+  generalErrors: ReadonlyArray<WorkflowFatalError> = []
 ): string {
   const lines: string[] = ["Execution failed due to the following error:"];
 
-  if (compilationErrors && Object.keys(compilationErrors).length > 0) {
+  const isCompilationError = (error: WorkflowFatalError) =>
+    error.type.name === WorkflowFatalErrorType.COMPILATION_ERROR;
+  const compilationErrors = generalErrors.filter(isCompilationError);
+  const otherErrors = generalErrors.filter(error => !isCompilationError(error));
+
+  if (compilationErrors.length > 0) {
     lines.push("Compilation error:");
-    for (const [key, value] of Object.entries(compilationErrors)) {
-      lines.push(`  ${key}: ${value}`);
+    for (const error of compilationErrors) {
+      lines.push(`  ${error.message}`);
     }
   }
 
@@ -340,14 +349,26 @@ function formatExecutionError(
     }
   }
 
-  if (generalErrors && generalErrors.length > 0) {
+  if (otherErrors.length > 0) {
     lines.push("Error:");
-    for (const error of generalErrors) {
-      lines.push(`  ${error}`);
+    for (const error of otherErrors) {
+      lines.push(`  ${error.message}`);
     }
   }
 
   return lines.join("\n");
+}
+
+function makeExecutionFailure(message: string, operatorId: string): WorkflowFatalError {
+  const now = Date.now();
+  return {
+    type: { name: WorkflowFatalErrorType.EXECUTION_FAILURE },
+    timestamp: { seconds: Math.floor(now / 1000), nanos: (now % 1000) * 1_000_000 },
+    message,
+    details: "",
+    operatorId,
+    workerId: "",
+  };
 }
 
 export async function executeOperatorAndFormat(
@@ -356,8 +377,7 @@ export async function executeOperatorAndFormat(
   operatorId: string,
   options: {
     abortSignal?: AbortSignal;
-    onResult?: (operatorId: string, operatorInfo: OperatorInfo) => void;
-    onResultLegacy?: (operatorId: string, backendStats?: Record<string, string>) => void;
+    onResult?: (operatorId: string, operatorInfo: OperatorExecutionSummary) => void;
   } = {}
 ): Promise<string> {
   // Serialize executions per workflow to avoid ConcurrentModificationException on the backend.
@@ -384,34 +404,29 @@ export async function executeOperatorAndFormat(
       }
     }
 
-    const result: SyncExecutionResult = await executeWorkflowHttp(config, logicalPlan, {
+    const result: WorkflowExecutionSummary = await executeWorkflowHttp(config, logicalPlan, {
       abortSignal: options.abortSignal,
     });
 
-    if (!result.success) {
-      const compilationErrors =
-        result.state === "CompilationFailed" || result.state === "ValidationFailed"
-          ? result.compilationErrors
-          : undefined;
-
+    if (result.state !== WorkflowExecutionState.COMPLETED) {
       const operatorErrors =
-        result.state === "Failed"
+        result.state === WorkflowExecutionState.FAILED
           ? Object.entries(result.operators)
-              .filter(([_, op]) => op.error)
-              .map(([opId, op]) => ({ operatorId: opId, error: op.error! }))
+              .map(([opId, op]) => ({ operatorId: opId, error: getOperatorErrorText(op) }))
+              .filter(({ error }) => error)
           : undefined;
 
-      const generalErrors = result.state === "Killed" ? ["Workflow execution was killed (timeout)."] : result.errors;
+      const generalErrors =
+        result.state === WorkflowExecutionState.KILLED
+          ? [makeExecutionFailure("Workflow execution was killed (timeout).", "")]
+          : result.errors;
 
-      const errorText = formatExecutionError(compilationErrors, operatorErrors, generalErrors);
+      const errorText = formatExecutionError(operatorErrors, generalErrors);
 
       if (options.onResult) {
-        const errorInfo: OperatorInfo = {
-          state: result.state,
-          inputTuples: 0,
-          outputTuples: 0,
-          resultMode: "table",
-          error: errorText,
+        const errorInfo: OperatorExecutionSummary = {
+          state: OperatorState.FAILED,
+          errorMessages: [makeExecutionFailure(errorText, operatorId)],
         };
         options.onResult(operatorId, errorInfo);
       }
@@ -422,25 +437,27 @@ export async function executeOperatorAndFormat(
     const opInfo = result.operators[operatorId];
     if (!opInfo) {
       return createErrorResult(
-        formatExecutionError(undefined, undefined, [`No result found for operator: ${operatorId}`])
+        formatExecutionError(undefined, [makeExecutionFailure(`No result found for operator: ${operatorId}`, "")])
       );
     }
 
-    if (opInfo.error) {
+    const opError = getOperatorErrorText(opInfo);
+    if (opError) {
       if (options.onResult) {
         options.onResult(operatorId, opInfo);
       }
-      return createErrorResult(formatExecutionError(undefined, [{ operatorId, error: opInfo.error }]));
+      return createErrorResult(formatExecutionError([{ operatorId, error: opError }]));
     }
 
-    if (!opInfo.result || !Array.isArray(opInfo.result)) {
+    // Without a materialized result there is nothing to show; return before caching.
+    if (!opInfo.resultSummary) {
       return "(no result data)";
     }
 
     // Notify for every operator in the execution so upstream stats are also stored.
     if (options.onResult) {
       for (const [opId, info] of Object.entries(result.operators)) {
-        if (info && !info.error) {
+        if (info && !getOperatorErrorText(info)) {
           options.onResult(opId, info);
         }
       }
@@ -448,7 +465,7 @@ export async function executeOperatorAndFormat(
 
     // Safety-net: TSV serialization may add padding beyond backend's raw-record budget.
     const charLimit = config.maxOperatorResultCharLimit ?? DEFAULT_AGENT_SETTINGS.maxOperatorResultCharLimit;
-    return formatOperatorResult(operatorId, opInfo, workflowState, charLimit);
+    return formatOperatorOutput(operatorId, opInfo, charLimit);
   } catch (error: any) {
     if (error.name === "AbortError") {
       throw error;
@@ -462,11 +479,11 @@ export async function executeOperatorAndFormat(
 export function createExecuteOperatorTool(
   workflowState: WorkflowState,
   getConfig: () => ExecutionConfig,
-  onResult?: (operatorId: string, operatorInfo: OperatorInfo) => void
+  onResult?: (operatorId: string, operatorInfo: OperatorExecutionSummary) => void
 ) {
   return tool({
     description:
-      "Execute the workflow and get the specified operator's result. The execution result(if succeeded) includes the shape of the input tables(if any) and output table, and the records in the output table",
+      "Execute the workflow and get the specified operator's result. The execution result(if succeeded) includes the shape of the output table, and the records in the output table",
     inputSchema: z.object({
       operatorId: z.string().describe("The operator ID to view result for."),
     }),

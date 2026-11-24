@@ -18,7 +18,7 @@
  */
 
 import { Inject, Injectable, DOCUMENT } from "@angular/core";
-import { BehaviorSubject, interval, Observable, Subject, Subscription } from "rxjs";
+import { BehaviorSubject, combineLatest, interval, Observable, Subject, Subscription } from "rxjs";
 import { WorkflowActionService } from "../workflow-graph/model/workflow-action.service";
 import { WorkflowGraphReadonly } from "../workflow-graph/model/workflow-graph";
 import {
@@ -138,6 +138,17 @@ export class ExecuteWorkflowService {
           if (newState !== undefined) {
             this.updateExecutionState(newState);
           }
+      }
+    });
+
+    // Ends an in-flight run once its unit is gone or Failed and the socket is down; console and results are kept.
+    combineLatest([
+      computingUnitStatusService.getSelectedComputingUnit(),
+      workflowWebsocketService.getConnectionStatusStream(),
+    ]).subscribe(([unit, connected]) => {
+      const unitLost = unit === null || unit.status === "Failed";
+      if (!connected && unitLost && this.isExecutionInFlight(this.currentState.state)) {
+        this.resetExecutionAndWorkers();
       }
     });
   }
@@ -496,6 +507,32 @@ export class ExecuteWorkflowService {
     this.anchorDuration(0, false);
   }
 
+  /**
+   * Whether a run is in flight, which is what locks the graph. Public and defaulted to the current
+   * state for a caller that must refuse a structural edit mid-run and has nowhere else honest to
+   * ask: a view whose own lock no longer means "a run is on" (the Form View clamps it off outside
+   * edit mode) cannot read it off that flag.
+   */
+  public isExecutionInFlight(state: ExecutionState = this.currentState.state): boolean {
+    switch (state) {
+      case ExecutionState.Initializing:
+      case ExecutionState.Running:
+      case ExecutionState.Pausing:
+      case ExecutionState.Paused:
+      case ExecutionState.Resuming:
+      case ExecutionState.Recovering:
+        return true;
+      case ExecutionState.Uninitialized:
+      case ExecutionState.Completed:
+      case ExecutionState.Terminated:
+      case ExecutionState.Failed:
+      case ExecutionState.Killed:
+        return false;
+      default:
+        return exhaustiveGuard(state);
+    }
+  }
+
   private updateExecutionState(stateInfo: ExecutionStateInfo): void {
     if (isEqual(this.currentState, stateInfo)) {
       return;
@@ -515,24 +552,10 @@ export class ExecuteWorkflowService {
    * enables or disables workflow action service based on execution state
    */
   private updateWorkflowActionLock(stateInfo: ExecutionStateInfo): void {
-    switch (stateInfo.state) {
-      case ExecutionState.Completed:
-      case ExecutionState.Terminated:
-      case ExecutionState.Failed:
-      case ExecutionState.Uninitialized:
-      case ExecutionState.Killed:
-        this.workflowActionService.enableWorkflowModification();
-        return;
-      case ExecutionState.Paused:
-      case ExecutionState.Pausing:
-      case ExecutionState.Recovering:
-      case ExecutionState.Resuming:
-      case ExecutionState.Running:
-      case ExecutionState.Initializing:
-        this.workflowActionService.disableWorkflowModification();
-        return;
-      default:
-        return exhaustiveGuard(stateInfo);
+    if (this.isExecutionInFlight(stateInfo.state)) {
+      this.workflowActionService.disableWorkflowModification();
+    } else {
+      this.workflowActionService.enableWorkflowModification();
     }
   }
 

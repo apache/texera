@@ -461,6 +461,32 @@ describe("WorkflowVersionService", () => {
       expect(service.selectedVersionId.getValue()).toBeNull();
     });
 
+    it("discardOpenVersionDisplay ends an open preview without reloading the graph", async () => {
+      service.displayParticularVersion(buildWorkflow(), 3, 2);
+      actionSpy.reloadWorkflow.mockClear();
+      actionSpy.enableWorkflowModification.mockClear();
+      persistSpy.setWorkflowPersistFlag.mockClear();
+
+      service.discardOpenVersionDisplay();
+
+      expect(actionSpy.resetTempWorkflow).toHaveBeenCalled();
+      expect(persistSpy.setWorkflowPersistFlag).toHaveBeenCalledWith(true);
+      // A blank workflow opened next is never re-enabled by its own load.
+      expect(actionSpy.enableWorkflowModification).toHaveBeenCalled();
+      expect(actionSpy.reloadWorkflow).not.toHaveBeenCalled();
+      expect(await firstValueFrom(service.getDisplayParticularVersionStream())).toBe(false);
+      expect(service.selectedVersionId.getValue()).toBeNull();
+      expect(service.canRestoreVersion).toBe(false);
+    });
+
+    it("discardOpenVersionDisplay does nothing when no preview is open", () => {
+      service.discardOpenVersionDisplay();
+
+      expect(actionSpy.resetTempWorkflow).not.toHaveBeenCalled();
+      expect(persistSpy.setWorkflowPersistFlag).not.toHaveBeenCalled();
+      expect(actionSpy.enableWorkflowModification).not.toHaveBeenCalled();
+    });
+
     it("restoreModificationState re-disables modification when the snapshot was false", () => {
       actionSpy.checkWorkflowModificationEnabled.mockReturnValue(false);
       service.displayReadonlyWorkflow(buildWorkflow());
@@ -538,6 +564,29 @@ describe("WorkflowVersionService", () => {
       expect(req.request.body).toEqual({ displayedVersionId: 12 });
       req.flush(99);
       expect(await pending).toBe(99);
+    });
+  });
+
+  describe("getOperatorsDifference", () => {
+    const op = (operatorProperties: Record<string, any>, operatorVersion = "1") =>
+      buildOperator({ operatorProperties, operatorVersion });
+
+    it("does not flag object or array properties that are deeply equal", () => {
+      const diff = service.getOperatorsDifference(
+        op({ list: [1, 2], cfg: { x: 1 } }),
+        op({ list: [1, 2], cfg: { x: 1 } })
+      );
+      expect(diff.size).toBe(0);
+    });
+
+    it("flags a property whose nested value changed", () => {
+      const diff = service.getOperatorsDifference(op({ cfg: { x: 1 } }), op({ cfg: { x: 2 } }));
+      expect(diff.has("cfg")).toBe(true);
+    });
+
+    it("flags a property present only in the second operator", () => {
+      const diff = service.getOperatorsDifference(op({}), op({ extra: 5 }));
+      expect(diff.has("extra")).toBe(true);
     });
   });
 });

@@ -115,8 +115,11 @@
             style="position: relative">
             <div
               *ngIf="response.content"
-              class="message-content">
-              <markdown [data]="response.content"></markdown>
+              class="message-content"
+              #messageText>
+              <markdown
+                [data]="response.content"
+                (ready)="openLinksInNewTab(messageText)"></markdown>
             </div>
             <div
               *ngIf="response.toolCalls && response.toolCalls.length > 0"

@@ -19,6 +19,8 @@
 
 package org.apache.texera.amber.operator.visualization.figureFactoryTable
 
+import org.apache.texera.amber.operator.visualization.StandaloneChartCode._
+import org.apache.texera.amber.operator.visualization.PythonCodeFragment._
 import com.fasterxml.jackson.annotation.{JsonProperty, JsonPropertyDescription}
 import com.kjetland.jackson.jsonSchema.annotations.{JsonSchemaInject, JsonSchemaTitle}
 import org.apache.texera.amber.pybuilder.PythonTemplateBuilder.{
@@ -43,12 +45,7 @@ class FigureFactoryTableOpDesc extends PythonVisualizationOpDesc {
   @JsonProperty(required = false)
   @JsonSchemaTitle("Font Color (Hex Code)")
   @JsonPropertyDescription("Font color of the Figure Factory Table")
-  @JsonSchemaInject(json = """
-{
-  "pattern": "^\\s*$|^\\s*#(?:\\s*[0-9a-fA-F]){3}(?:(?:\\s*[0-9a-fA-F]){3})?\\s*$|^\\s*(?:[rR]\\s*[gG]\\s*[bB]|[hH]\\s*[sS]\\s*[lL]|[hH]\\s*[sS]\\s*[vV])(?:\\s*[aA])?\\s*\\(\\s*(?:\\s*[0-9.])+(?:\\s*%)?(?:\\s*,(?:\\s*[0-9.])+(?:\\s*%)?){2,3}\\s*\\)\\s*$|^\\s*[vV]\\s*[aA]\\s*[rR]\\s*\\(\\s*-\\s*-[^)]*\\)\\s*$|^\\s*[a-zA-Z][a-zA-Z\\s]*$",
-  "examples": ["red"]
-}
-""")
+  @JsonSchemaInject(json = PythonVisualizationOpDesc.ColorPatternJson)
   var fontColor: EncodableString = "#000000"
 
   @JsonProperty(required = false)
@@ -117,20 +114,15 @@ class FigureFactoryTableOpDesc extends PythonVisualizationOpDesc {
        |
        |    def process_table(self, table: Table, port: int) -> Iterator[Optional[TableLike]]:
        |
-       |        if table.empty:
-       |           yield {'html-content': self.render_error("input table is empty.")}
-       |           return
+       |${emptyTableGuard("input table is empty.")}
        |
        |        ${manipulateTable()}
        |
-       |        if table.empty:
-       |           yield {'html-content': self.render_error("value column contains only non-positive numbers or nulls.")}
-       |           return
+       |${emptyTableGuard("value column contains only non-positive numbers or nulls.")}
        |
        |        ${createFigureFactoryTablePlotlyFigure()}
        |        fig.update_layout(margin=dict(l=0, r=0, b=0, t=0))
-       |        html_content = plotly.io.to_html(fig, include_plotlyjs='cdn', include_mathjax='cdn')
-       |        yield {'html-content': html_content}
+       |${plotlyHtmlYield(extraArgs = "include_mathjax='cdn'", yieldVar = "html_content")}
   """.stripMargin
   }
 
@@ -152,13 +144,14 @@ class FigureFactoryTableOpDesc extends PythonVisualizationOpDesc {
        |    )
        |
        |if in1df.empty:
-       |    with open(outputHtml, "w", encoding="utf-8") as output:
-       |        output.write(render_error("input table is empty."))
+       |${standaloneErrorPage("input table is empty.")}
        |else:
        |    table = in1df.dropna(subset=[$attributes])
        |    if table.empty:
-       |        with open(outputHtml, "w", encoding="utf-8") as output:
-       |            output.write(render_error("value column contains only non-positive numbers or nulls."))
+       |${standaloneErrorPage(
+      "value column contains only non-positive numbers or nulls.",
+      indent = 8
+    )}
        |    else:
        |        filtered_table = table[[$attributes]]
        |        headers = filtered_table.columns.tolist()
@@ -170,8 +163,6 @@ class FigureFactoryTableOpDesc extends PythonVisualizationOpDesc {
        |        for i in range(len(fig.layout.annotations)):
        |            fig.layout.annotations[i].font.size = $fontSize
        |        fig.update_layout(margin=dict(l=0, r=0, b=0, t=0))
-       |        fig.write_json(outputJson)
-       |        fig.write_html(outputHtml)
-       |        print("Figure factory table saved to " + outputHtml)""".stripMargin
+       |${standaloneFigure("Figure factory table")}""".stripMargin
   }
 }

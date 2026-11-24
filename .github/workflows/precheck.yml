@@ -40,6 +40,8 @@ on:
         value: ${{ jobs.decide.outputs.run_platform }}
       run_platform_integration:
         value: ${{ jobs.decide.outputs.run_platform_integration }}
+      run_workflow_to_python:
+        value: ${{ jobs.decide.outputs.run_workflow_to_python }}
       run_pyamber:
         value: ${{ jobs.decide.outputs.run_pyamber }}
       run_agent_service:
@@ -68,6 +70,7 @@ jobs:
       run_amber_integration: ${{ steps.decide.outputs.run_amber_integration }}
       run_platform: ${{ steps.decide.outputs.run_platform }}
       run_platform_integration: ${{ steps.decide.outputs.run_platform_integration }}
+      run_workflow_to_python: ${{ steps.decide.outputs.run_workflow_to_python }}
       run_pyamber: ${{ steps.decide.outputs.run_pyamber }}
       run_agent_service: ${{ steps.decide.outputs.run_agent_service }}
       run_infra: ${{ steps.decide.outputs.run_infra }}
@@ -256,19 +259,30 @@ jobs:
             // `amber-integration` label catches *IntegrationSpec.scala
             // edits so a test-only change does not trigger the full
             // Scala-only amber stack.
+            //
+            // `workflow-to-python` is the Workflow-to-Python verification,
+            // which runs inside the workflow-compiling-service leg of
+            // platform-integration, so every label that fires it also fires
+            // platform-integration. It compares an operator run on the
+            // platform with its exported Python script, so it fires on a
+            // change that can move either result: operators and core types
+            // (`common`), amber's Python runtime and its Python dependencies
+            // (`pyamber`), and the translator, the verification framework and
+            // the protobuf the runtime imports (`workflow-to-python`).
             const LABEL_STACKS = {
               frontend: ["frontend"],
-              pyamber: ["amber-integration", "pyamber"],
+              pyamber: ["amber-integration", "pyamber", "platform-integration", "workflow-to-python"],
               engine: ["amber", "amber-integration"],
               "amber-integration": ["amber-integration"],
               platform: ["platform", "platform-integration"],
               "platform-integration": ["platform-integration"],
+              "workflow-to-python": ["platform-integration", "workflow-to-python"],
               "agent-service": ["agent-service"],
               "pyright-language-service": ["pyright-language-service"],
-              common: ["amber", "amber-integration", "platform", "platform-integration"],
+              common: ["amber", "amber-integration", "platform", "platform-integration", "workflow-to-python"],
               "ddl-change": ["amber", "amber-integration", "platform", "platform-integration"],
               infra: ["infra"],
-              ci: ["frontend", "amber", "amber-integration", "platform", "platform-integration", "pyamber", "agent-service", "infra", "pyright-language-service"],
+              ci: ["frontend", "amber", "amber-integration", "platform", "platform-integration", "workflow-to-python", "pyamber", "agent-service", "infra", "pyright-language-service"],
             };
 
             let runFrontend = true;
@@ -276,6 +290,7 @@ jobs:
             let runAmberIntegration = true;
             let runPlatform = true;
             let runPlatformIntegration = true;
+            let runWorkflowToPython = true;
             let runPyamber = true;
             let runAgentService = true;
             let runInfra = true;
@@ -293,6 +308,7 @@ jobs:
               runAmberIntegration = stacks.has("amber-integration");
               runPlatform = stacks.has("platform");
               runPlatformIntegration = stacks.has("platform-integration");
+              runWorkflowToPython = stacks.has("workflow-to-python");
               runPyamber = stacks.has("pyamber");
               runAgentService = stacks.has("agent-service");
               runInfra = stacks.has("infra");
@@ -308,6 +324,7 @@ jobs:
               runAmberIntegration = false;
               runPlatform = false;
               runPlatformIntegration = false;
+              runWorkflowToPython = false;
               runPyamber = false;
               runAgentService = false;
               runInfra = false;
@@ -319,6 +336,7 @@ jobs:
             core.setOutput("run_amber_integration", runAmberIntegration ? "true" : "false");
             core.setOutput("run_platform", runPlatform ? "true" : "false");
             core.setOutput("run_platform_integration", runPlatformIntegration ? "true" : "false");
+            core.setOutput("run_workflow_to_python", runWorkflowToPython ? "true" : "false");
             core.setOutput("run_pyamber", runPyamber ? "true" : "false");
             core.setOutput("run_agent_service", runAgentService ? "true" : "false");
             core.setOutput("run_infra", runInfra ? "true" : "false");

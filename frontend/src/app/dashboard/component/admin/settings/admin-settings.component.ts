@@ -124,6 +124,10 @@ export class AdminSettingsComponent implements OnInit {
 
   csvMaxColumns: number = 512;
 
+  // Whether a new account waits for an admin's approval (the `invite_only` setting). On is the
+  // default and the safe side, since Save writes whatever the switch shows.
+  inviteOnly: boolean = true;
+
   // S3 Multipart Upload Constraints
   readonly MIN_PART_SIZE_MiB = 5; // 5 MiB minimum for parts (except last part)
   readonly MAX_PART_SIZE_MiB = 5120; // 5 GiB maximum per part (5 * 1024 MiB)
@@ -176,6 +180,9 @@ export class AdminSettingsComponent implements OnInit {
             form.chunkSizeMiB = parseIntOrDefault(settings[endpoint.chunkSizeSettingKey], form.chunkSizeMiB);
           });
           this.csvMaxColumns = parseIntOrDefault(settings["csv_parser_max_columns"], this.csvMaxColumns);
+          // Only an explicit false opens sign-up on the backend, which reads the row trimmed and
+          // case-insensitively and falls back to on for anything it cannot read.
+          this.inviteOnly = (settings["invite_only"] ?? "").trim().toLowerCase() !== "false";
           this.settingsLoaded = true;
         },
         error: () => this.message.error("Failed to load settings."),
@@ -358,6 +365,33 @@ export class AdminSettingsComponent implements OnInit {
       });
 
     this.notificationService.info("Resetting result panel settings...");
+    setTimeout(() => window.location.reload(), this.RELOAD_DELAY);
+  }
+
+  saveRegistrationSettings(): void {
+    // Without a completed load the switch shows its initializer rather than the stored value.
+    if (!this.settingsLoaded) {
+      this.message.error("Settings have not loaded; refresh before saving.");
+      return;
+    }
+    this.adminSettingsService
+      .updateSetting("invite_only", this.inviteOnly.toString())
+      .pipe(untilDestroyed(this))
+      .subscribe({
+        next: () => this.notificationService.success("Registration settings saved."),
+        error: () => this.notificationService.error("Could not save registration settings."),
+      });
+  }
+
+  resetRegistrationSettings(): void {
+    this.adminSettingsService
+      .resetSetting("invite_only")
+      .pipe(untilDestroyed(this))
+      .subscribe({
+        error: () => this.notificationService.error("Could not reset registration settings."),
+      });
+
+    this.notificationService.info("Resetting registration settings...");
     setTimeout(() => window.location.reload(), this.RELOAD_DELAY);
   }
 }

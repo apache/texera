@@ -19,6 +19,8 @@
 
 package org.apache.texera.amber.operator.visualization.ecdfPlot
 
+import org.apache.texera.amber.operator.visualization.StandaloneChartCode._
+import org.apache.texera.amber.operator.visualization.PythonCodeFragment._
 import com.fasterxml.jackson.annotation.{JsonProperty, JsonPropertyDescription}
 import com.kjetland.jackson.jsonSchema.annotations.{JsonSchemaInject, JsonSchemaTitle}
 import org.apache.texera.amber.operator.visualization.PlotlyStandaloneCode
@@ -158,23 +160,18 @@ class ECDFPlotOpDesc extends PythonVisualizationOpDesc with PlotlyStandaloneCode
          |import plotly.io
          |
          |class ProcessTableOperator(UDFTableOperator):
-         |    def render_error(self, error_msg):
-         |        return '''<h1>Empirical cumulative distribution plot is not available.</h1>
-         |                  <p>Reason is: {} </p>
-         |               '''.format(error_msg)
+         |${runtimeError("Empirical cumulative distribution plot is not available.")}
          |
          |    @overrides
          |    def process_table(self, table: Table, port: int) -> Iterator[Optional[TableLike]]:
-         |        if table.empty:
-         |            yield {'html-content': self.render_error("input table is empty.")}
-         |            return
+         |${emptyTableGuard("input table is empty.", bodyIndent = 4)}
          |        ${manipulateTable()}
-         |        if table.empty:
-         |            yield {'html-content': self.render_error("no valid rows left after removing missing or non-numeric values.")}
-         |            return
+         |${emptyTableGuard(
+        "no valid rows left after removing missing or non-numeric values.",
+        bodyIndent = 4
+      )}
          |        ${createPlotlyFigure()}
-         |        html = plotly.io.to_html(fig, include_plotlyjs='cdn', auto_play=False)
-         |        yield {'html-content': html}
+         |${plotlyHtmlYield()}
          |"""
     finalCode.encode
   }
@@ -200,27 +197,23 @@ class ECDFPlotOpDesc extends PythonVisualizationOpDesc with PlotlyStandaloneCode
     if (showMarkers) args += "markers=True"
     if (marginal != "none") args += s"""marginal=${pyStringLiteral(marginal)}"""
 
-    s"""def render_error(error_msg):
-       |    return '''<h1>Empirical cumulative distribution plot is not available.</h1>
-       |                  <p>Reason is: {} </p>
-       |               '''.format(error_msg)
+    s"""${standaloneError("Empirical cumulative distribution plot is not available.")}
        |
        |if in1df.empty:
-       |    with open(outputHtml, "w", encoding="utf-8") as output:
-       |        output.write(render_error("input table is empty."))
+       |${standaloneErrorPage("input table is empty.")}
        |else:
        |    table = in1df.dropna(subset=$requiredColsLiteral).copy()
        |    table[$valueLit] = pd.to_numeric(table[$valueLit], errors='coerce')
        |    table.dropna(subset=[$valueLit], inplace=True)
        |    if table.empty:
-       |        with open(outputHtml, "w", encoding="utf-8") as output:
-       |            output.write(render_error("no valid rows left after removing missing or non-numeric values."))
+       |${standaloneErrorPage(
+      "no valid rows left after removing missing or non-numeric values.",
+      indent = 8
+    )}
        |    else:
        |        fig = px.ecdf(${args.mkString(", ")})
        |        fig.update_layout(margin=dict(l=0, r=0, t=30, b=0))
-       |        fig.write_json(outputJson)
-       |        fig.write_html(outputHtml)
-       |        print("ECDF plot saved to " + outputHtml)""".stripMargin
+       |${standaloneFigure("ECDF plot")}""".stripMargin
   }
 
 }

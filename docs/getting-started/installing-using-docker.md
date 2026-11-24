@@ -71,7 +71,7 @@ If either command produces output, that port is occupied by another process. You
 
 ## Download Texera
 
-Download the [docker compose tarball](https://downloads.apache.org/incubator/texera/1.1.0-incubating/apache-texera-1.1.0-incubating-docker-compose.tar.gz) and extract it.
+Download the docker compose tarball (`apache-texera-<version>-docker-compose.tar.gz`) of the latest release from the [Downloads page](https://texera.apache.org/downloads/) and extract it.
 
 
 ## Launch Texera

@@ -19,6 +19,8 @@
 
 package org.apache.texera.amber.operator.visualization.networkGraph
 
+import org.apache.texera.amber.operator.visualization.StandaloneChartCode._
+import org.apache.texera.amber.operator.visualization.PythonCodeFragment._
 import com.fasterxml.jackson.annotation.{JsonProperty, JsonPropertyDescription}
 import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaTitle
 import org.apache.texera.amber.pybuilder.PythonTemplateBuilder.PythonTemplateBuilderStringContext
@@ -84,10 +86,7 @@ class NetworkGraphOpDesc extends PythonVisualizationOpDesc with PlotlyStandalone
          |import networkx as nx
          |
          |class ProcessTableOperator(UDFTableOperator):
-         |    def render_error(self, error_msg):
-         |        return '''<h1>Network graph is not available.</h1>
-         |                  <p>Reason is: {} </p>
-         |               '''.format(error_msg)
+         |${runtimeError("Network graph is not available.")}
          |
          |    @overrides
          |    def process_table(self, table: Table, port: int) -> Iterator[Optional[TableLike]]:
@@ -204,19 +203,14 @@ class NetworkGraphOpDesc extends PythonVisualizationOpDesc with PlotlyStandalone
     val titleLit = pyStringLiteral(s"<br>$title")
     s"""import networkx as nx
        |
-       |def render_error(error_msg):
-       |    return '''<h1>Network graph is not available.</h1>
-       |                  <p>Reason is: {} </p>
-       |               '''.format(error_msg)
+       |${standaloneError("Network graph is not available.")}
        |
        |if in1df.empty:
-       |    with open(outputHtml, "w", encoding="utf-8") as output:
-       |        output.write(render_error("Table should not have any empty/null values or fields."))
+       |${standaloneErrorPage("Table should not have any empty/null values or fields.")}
        |else:
        |    table = in1df.dropna(subset=[$sourceLit]).dropna(subset=[$destinationLit]).copy()
        |    if table.empty:
-       |        with open(outputHtml, "w", encoding="utf-8") as output:
-       |            output.write(render_error("Table should not have any empty/null values or fields."))
+       |${standaloneErrorPage("Table should not have any empty/null values or fields.", indent = 8)}
        |    else:
        |        sources = table[$sourceLit]
        |        destinations = table[$destinationLit]
@@ -306,9 +300,7 @@ class NetworkGraphOpDesc extends PythonVisualizationOpDesc with PlotlyStandalone
        |                itemdoubleclick=False
        |            )
        |        )
-       |        fig.write_json(outputJson)
-       |        fig.write_html(outputHtml)
-       |        print("Network graph saved to " + outputHtml)""".stripMargin
+       |${standaloneFigure("Network graph")}""".stripMargin
   }
 
 }

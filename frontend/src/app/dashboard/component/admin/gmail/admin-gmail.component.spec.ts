@@ -18,7 +18,7 @@
  */
 
 import { ComponentFixture, TestBed } from "@angular/core/testing";
-import { FormsModule, ReactiveFormsModule } from "@angular/forms";
+import { ReactiveFormsModule } from "@angular/forms";
 import { NoopAnimationsModule } from "@angular/platform-browser/animations";
 import { HttpClientTestingModule } from "@angular/common/http/testing";
 import { Subject } from "rxjs";
@@ -50,7 +50,7 @@ describe("AdminGmailComponent", () => {
     const gmailServiceStub = { getSenderEmail: getSenderEmailSpy, sendEmail: sendEmailSpy };
 
     await TestBed.configureTestingModule({
-      imports: [AdminGmailComponent, FormsModule, ReactiveFormsModule, NoopAnimationsModule, HttpClientTestingModule],
+      imports: [AdminGmailComponent, ReactiveFormsModule, NoopAnimationsModule, HttpClientTestingModule],
       providers: [{ provide: GmailService, useValue: gmailServiceStub }, ...commonTestProviders],
     }).compileComponents();
   });

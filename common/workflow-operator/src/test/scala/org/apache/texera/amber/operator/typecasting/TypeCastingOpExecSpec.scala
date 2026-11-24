@@ -21,9 +21,8 @@ package org.apache.texera.amber.operator.typecasting
 
 import org.apache.texera.amber.core.tuple._
 import org.apache.texera.amber.util.JSONUtils.objectMapper
-import org.scalatest.BeforeAndAfter
 import org.scalatest.flatspec.AnyFlatSpec
-class TypeCastingOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
+class TypeCastingOpExecSpec extends AnyFlatSpec {
   val tupleSchema: Schema = Schema()
     .add(new Attribute("field1", AttributeType.STRING))
     .add(new Attribute("field2", AttributeType.INTEGER))

@@ -51,6 +51,7 @@ import { assembleContext } from "./util/context-utils";
 import { compileWorkflowAsync, type WorkflowCompilationResponse } from "../api/compile-api";
 import { createLogger } from "../logger";
 import type { Logger } from "pino";
+import { isErrorResult } from "./tools/tools-utility";
 
 const PERSIST_DEBOUNCE_MS = 500;
 
@@ -235,6 +236,11 @@ export class TexeraAgent {
     }
 
     return tools;
+  }
+
+  /** The tools the model may call: every tool except those in `settings.disabledTools`. */
+  private getEnabledTools(): Record<string, any> {
+    return Object.fromEntries(Object.entries(this.tools).filter(([name]) => !this.settings.disabledTools.has(name)));
   }
 
   getState(): AgentStateEnum {
@@ -546,7 +552,7 @@ export class TexeraAgent {
         model: this.model,
         system: this.systemPrompt,
         messages: currentUserMessage,
-        tools: this.tools,
+        tools: this.getEnabledTools(),
         temperature: 0.2,
         stopWhen: stepCountIs(this.settings.maxSteps),
         prepareStep: async ({ stepNumber, messages: currentMessages }) => {
@@ -582,7 +588,7 @@ export class TexeraAgent {
           anthropic: { disableParallelToolUse: true },
           mistral: { parallelToolCalls: false },
         },
-        onStepFinish: async ({ text, toolCalls, toolResults, usage }) => {
+        onStepFinish: async ({ text, toolCalls, content, usage }) => {
           stepIndex++;
 
           const formattedToolCalls = toolCalls?.map(tc => ({
@@ -591,11 +597,19 @@ export class TexeraAgent {
             input: tc.input,
           }));
 
-          const formattedToolResults = toolResults?.map(tr => ({
-            toolCallId: tr.toolCallId,
-            output: tr.output,
-            isError: !!(tr.output as any)?.error,
-          }));
+          const formattedToolResults = content
+            .filter(part => part.type === "tool-result" || part.type === "tool-error")
+            .map(part => ({
+              toolCallId: part.toolCallId,
+              output:
+                part.type === "tool-error"
+                  ? part.error instanceof Error
+                    ? part.error.message
+                    : String(part.error)
+                  : part.output,
+              isError: part.type === "tool-error" || isErrorResult(part.output),
+            }));
+          const toolResultsByCallId = new Map(formattedToolResults.map(result => [result.toolCallId, result]));
 
           const afterStepContent = this.workflowState.getWorkflowContent();
 
@@ -628,16 +642,13 @@ export class TexeraAgent {
           this.head = agentStepId;
 
           const execConfig = this.buildExecutionConfig();
-          if (execConfig && toolCalls && toolResults) {
+          if (execConfig && toolCalls) {
             const EXECUTE_AFTER_TOOLS = new Set([TOOL_NAME_ADD_OPERATOR, TOOL_NAME_MODIFY_OPERATOR]);
 
-            for (let i = 0; i < toolCalls.length; i++) {
-              const tc = toolCalls[i];
-              const tr = toolResults[i];
+            for (const tc of toolCalls) {
+              const tr = toolResultsByCallId.get(tc.toolCallId);
               if (!EXECUTE_AFTER_TOOLS.has(tc.toolName)) continue;
-
-              const resultText = typeof tr?.output === "string" ? tr.output : String(tr?.output ?? "");
-              if (resultText.startsWith("[ERROR]")) continue;
+              if (!tr || tr.isError) continue;
 
               const operatorId = (tc.input as any)?.operatorId;
               if (!operatorId) continue;
@@ -744,7 +755,7 @@ export class TexeraAgent {
     const result = new Map<string, string>();
     const visible = this.workflowResultState.getAllVisible();
     for (const [operatorId, entry] of visible) {
-      result.set(operatorId, formatOperatorResult(operatorId, entry.operatorInfo, this.workflowState));
+      result.set(operatorId, formatOperatorResult(operatorId, entry.operatorInfo));
     }
     return result;
   }

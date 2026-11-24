@@ -23,7 +23,6 @@ import { EntityType } from "../../../../../../hub/service/hub.service";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 import { Subscription } from "rxjs";
 import * as Papa from "papaparse";
-import { ParseResult } from "papaparse";
 import { DomSanitizer, SafeUrl } from "@angular/platform-browser";
 import readXlsxFile from "read-excel-file";
 import { NotificationService } from "../../../../../../common/service/notification/notification.service";
@@ -50,13 +49,9 @@ export const MIME_TYPES = {
   CSV: "text/csv",
   TXT: "text/plain",
   MD: "text/markdown",
-  HTML: "text/html",
   JSON: "application/json",
-  PDF: "application/pdf",
-  MSWORD: "application/msword",
   MSEXCEL: "application/vnd.ms-excel",
   XLSX: "application/vnd.ms-excel",
-  MSPOWERPOINT: "application/vnd.ms-powerpoint",
   MP4: "video/mp4",
   MP3: "audio/mpeg",
   OCTET_STREAM: "application/octet-stream", // Default binary format
@@ -82,7 +77,6 @@ export const MIME_TYPE_SIZE_LIMITS_MB = {
   [MIME_TYPES.MSEXCEL]: 10 * 1024 * 1024, // 10 MB for Excel spreadsheets
   [MIME_TYPES.MP4]: 50 * 1024 * 1024, // 50 MB for MP4 videos
   [MIME_TYPES.MP3]: 10 * 1024 * 1024, // 10 MB for MP3 audio files
-  [MIME_TYPES.OCTET_STREAM]: 5 * 1024 * 1024, // Default size for other binary formats
 };
 
 @UntilDestroy()
@@ -107,8 +101,6 @@ export const MIME_TYPE_SIZE_LIMITS_MB = {
   ],
 })
 export class UserDatasetFileRendererComponent implements OnInit, OnChanges, OnDestroy {
-  private DEFAULT_MAX_SIZE = 5 * 1024 * 1024; // 5 MB
-
   public fileURL: string | undefined;
   // safe url is used to display some formats including image
   public safeFileURL: SafeUrl | undefined;
@@ -210,7 +202,7 @@ export class UserDatasetFileRendererComponent implements OnInit, OnChanges, OnDe
       this.onFileTypePreviewUnsupported();
       return;
     }
-    const limit = MIME_TYPE_SIZE_LIMITS_MB[mimeType] ?? this.DEFAULT_MAX_SIZE;
+    const limit = MIME_TYPE_SIZE_LIMITS_MB[mimeType];
     if (this.fileSize != null && this.fileSize > limit) {
       this.onFileSizeNotLoadable();
       return;
@@ -230,7 +222,7 @@ export class UserDatasetFileRendererComponent implements OnInit, OnChanges, OnDe
               this.onFileTypePreviewUnsupported();
               return;
             }
-            const MaxSize = MIME_TYPE_SIZE_LIMITS_MB[blobMimeType] || this.DEFAULT_MAX_SIZE;
+            const MaxSize = MIME_TYPE_SIZE_LIMITS_MB[blobMimeType];
             const fileSize = blob.size;
             if (fileSize > MaxSize) {
               this.onFileSizeNotLoadable();
@@ -277,7 +269,7 @@ export class UserDatasetFileRendererComponent implements OnInit, OnChanges, OnDe
                 this.displayCSV = true;
                 // Handle CSV display
                 Papa.parse(this.currentFile, {
-                  complete: (results: ParseResult<any>) => {
+                  complete: (results: Papa.ParseResult<any>) => {
                     if (!isCurrent()) return;
                     if (results.data.length > 0) {
                       this.loadTabularFile(results.data);
@@ -348,7 +340,7 @@ export class UserDatasetFileRendererComponent implements OnInit, OnChanges, OnDe
   }
 
   isPreviewSupported(mimeType: string) {
-    return mimeType !== MIME_TYPES.OCTET_STREAM && Object.hasOwnProperty.call(MIME_TYPE_SIZE_LIMITS_MB, mimeType);
+    return Object.hasOwnProperty.call(MIME_TYPE_SIZE_LIMITS_MB, mimeType);
   }
 
   private readFileAsText(blob: Blob, isCurrent: () => boolean = () => true) {

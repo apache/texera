@@ -78,8 +78,6 @@ trait ReplayLogManager {
     cursor.setCurrentChannel(channelId)
     try {
       code
-    } catch {
-      case t: Throwable => throw t
     } finally {
       cursor.stepIncrement()
     }

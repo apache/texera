@@ -19,26 +19,14 @@
 
 package org.apache.texera.amber.operator.visualization.hierarchychart
 
-import com.fasterxml.jackson.annotation.JsonProperty
-import javax.validation.constraints.NotNull
-import org.apache.texera.amber.operator.metadata.annotations.AutofillAttributeName
-import org.apache.texera.amber.util.JSONUtils.objectMapper
+import org.apache.texera.amber.operator.visualization.ChartConfigSpecSupport
 import org.scalatest.flatspec.AnyFlatSpec
 
-class HierarchySectionSpec extends AnyFlatSpec {
-
-  // ---------------------------------------------------------------------------
-  // Defaults
-  // ---------------------------------------------------------------------------
+class HierarchySectionSpec extends AnyFlatSpec with ChartConfigSpecSupport {
 
   "HierarchySection" should "default attributeName to the empty string" in {
-    val s = new HierarchySection
-    assert(s.attributeName == "")
+    assert(new HierarchySection().attributeName == "")
   }
-
-  // ---------------------------------------------------------------------------
-  // Mutability
-  // ---------------------------------------------------------------------------
 
   it should "allow attributeName to be reassigned post-construction" in {
     val s = new HierarchySection
@@ -46,58 +34,27 @@ class HierarchySectionSpec extends AnyFlatSpec {
     assert(s.attributeName == "country")
   }
 
-  // ---------------------------------------------------------------------------
-  // JSON round-trip
-  // ---------------------------------------------------------------------------
-
   "HierarchySection JSON round-trip" should "preserve attributeName" in {
     val s = new HierarchySection
     s.attributeName = "region"
-    val restored = objectMapper.readValue(
-      objectMapper.writeValueAsString(s),
-      classOf[HierarchySection]
-    )
-    assert(restored.attributeName == "region")
+    assert(checkRoundTrip(s, classOf[HierarchySection]).attributeName == "region")
   }
 
   it should "round-trip default (empty) values cleanly" in {
-    val restored = objectMapper.readValue(
-      objectMapper.writeValueAsString(new HierarchySection),
-      classOf[HierarchySection]
-    )
-    assert(restored.attributeName == "")
+    assert(checkRoundTrip(new HierarchySection, classOf[HierarchySection]).attributeName == "")
   }
 
-  // ---------------------------------------------------------------------------
-  // Annotations — required=true + @AutofillAttributeName + @NotNull
-  // ---------------------------------------------------------------------------
-
   "HierarchySection#attributeName" should "carry @JsonProperty(required = true)" in {
-    val jp = classOf[HierarchySection]
-      .getDeclaredField("attributeName")
-      .getAnnotation(classOf[JsonProperty])
-    assert(jp != null)
-    assert(jp.required)
+    assertAttrJsonPropertyRequired(classOf[HierarchySection])
   }
 
   it should "carry @AutofillAttributeName" in {
-    val ann = classOf[HierarchySection]
-      .getDeclaredField("attributeName")
-      .getAnnotation(classOf[AutofillAttributeName])
-    assert(ann != null)
+    assertAttrAutofill(classOf[HierarchySection], "@AutofillAttributeName expected")
   }
 
   it should "carry @NotNull with the canonical error message" in {
-    val ann = classOf[HierarchySection]
-      .getDeclaredField("attributeName")
-      .getAnnotation(classOf[NotNull])
-    assert(ann != null)
-    assert(ann.message == "Attribute Name cannot be empty")
+    assertAttrNotNull(classOf[HierarchySection])
   }
-
-  // ---------------------------------------------------------------------------
-  // Instance independence
-  // ---------------------------------------------------------------------------
 
   it should "construct two independent instances (no static state shared)" in {
     val a = new HierarchySection

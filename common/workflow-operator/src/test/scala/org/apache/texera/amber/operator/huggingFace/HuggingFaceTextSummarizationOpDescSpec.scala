@@ -23,29 +23,19 @@ import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaInject
 import org.apache.texera.amber.core.executor.OpExecWithCode
 import org.apache.texera.amber.core.tuple.{AttributeType, Schema}
 import org.apache.texera.amber.core.virtualidentity.{ExecutionIdentity, WorkflowIdentity}
+import org.apache.texera.amber.core.workflow.PortIdentity
 import org.apache.texera.amber.operator.LogicalOp
 import org.apache.texera.amber.operator.metadata.OperatorGroupConstants
 import org.apache.texera.amber.util.JSONUtils.objectMapper
 import org.scalatest.flatspec.AnyFlatSpec
-import org.scalatest.matchers.should.Matchers
+import org.apache.texera.amber.operator.EncodedGeneratedCodeAssertionChecks
 
-import java.nio.charset.StandardCharsets
-import java.util.Base64
-
-class HuggingFaceTextSummarizationOpDescSpec extends AnyFlatSpec with Matchers {
+class HuggingFaceTextSummarizationOpDescSpec
+    extends AnyFlatSpec
+    with EncodedGeneratedCodeAssertionChecks {
 
   private val workflowId = WorkflowIdentity(1L)
   private val executionId = ExecutionIdentity(1L)
-
-  private def b64(s: String): String =
-    Base64.getEncoder.encodeToString(s.getBytes(StandardCharsets.UTF_8))
-
-  // EncodableString fields are always base64-wrapped in .encode mode
-  // (self.decode_python_template('<base64>')), so assert on the base64 form only: the raw
-  // column name can appear in the generated Python for unrelated reasons (e.g. the local
-  // variables "text"/"summary"), which would mask a missing splice.
-  private def carries(output: String, name: String): Boolean =
-    output.contains(b64(name))
 
   private def configured(): HuggingFaceTextSummarizationOpDesc = {
     val d = new HuggingFaceTextSummarizationOpDesc
@@ -72,22 +62,69 @@ class HuggingFaceTextSummarizationOpDescSpec extends AnyFlatSpec with Matchers {
   }
 
   "HuggingFaceTextSummarizationOpDesc.getOutputSchemas" should
-    "reject a blank result attribute name" in {
-    val d = new HuggingFaceTextSummarizationOpDesc
-    val in = Schema().add("text", AttributeType.STRING)
-    val ex = intercept[RuntimeException] {
-      d.getOutputSchemas(Map(d.operatorInfo.inputPorts.head.id -> in))
-    }
-    ex.getMessage shouldBe "Result attribute name should be given"
-  }
-
-  it should "append the summary column as STRING, keyed by the declared output port" in {
+    "append the summary column as STRING, keyed by the declared output port" in {
     val d = configured()
     val in = Schema().add("text", AttributeType.STRING)
     val out = d.getOutputSchemas(Map(d.operatorInfo.inputPorts.head.id -> in))
     val schema = out(d.operatorInfo.outputPorts.head.id)
     schema.getAttribute("text").getType shouldBe AttributeType.STRING
     schema.getAttribute("summary").getType shouldBe AttributeType.STRING
+  }
+
+  private val textInput = Schema().add("text", AttributeType.STRING)
+
+  private def schemaError(d: HuggingFaceTextSummarizationOpDesc, in: Schema = textInput): String =
+    intercept[RuntimeException] {
+      d.getOutputSchemas(Map(d.operatorInfo.inputPorts.head.id -> in))
+    }.getMessage
+
+  it should "reject an unset or blank result attribute name, naming the field" in {
+    Seq(null, "", "   ").foreach { empty =>
+      withClue(s"[$empty]: ") {
+        val d = configured()
+        d.resultAttribute = empty
+        schemaError(d) shouldBe "Result attribute name cannot be empty"
+      }
+    }
+  }
+
+  it should "reject an unset input attribute" in {
+    val d = configured()
+    d.attribute = null
+    schemaError(d) shouldBe "Attribute cannot be empty"
+  }
+
+  it should "reject an input attribute that is not in the input table, listing the columns" in {
+    val d = configured()
+    d.attribute = "body"
+    schemaError(d) shouldBe "Attribute 'body' is not in the input table. Available columns: text"
+  }
+
+  it should "match the input attribute's case exactly, as the generated Python does" in {
+    val d = configured()
+    d.attribute = "Text"
+    schemaError(d) should startWith("Attribute 'Text' is not in the input table")
+  }
+
+  it should "read the input schema from its declared input port" in {
+    // Keyed by port id, as the other three operators do, rather than taking
+    // whichever schema the map yields first.
+    val d = configured()
+    val other = Schema().add("unrelated", AttributeType.INTEGER)
+    val out = d.getOutputSchemas(
+      Map(PortIdentity(7) -> other, d.operatorInfo.inputPorts.head.id -> textInput)
+    )
+    out(d.operatorInfo.outputPorts.head.id).getAttributeNames shouldBe List("text", "summary")
+  }
+
+  it should "leave a readable error on its output port when the compiler propagates the schema" in {
+    val d = configured()
+    d.resultAttribute = null
+    val physical = d
+      .getPhysicalOp(workflowId, executionId)
+      .propagateSchema(Some(d.operatorInfo.inputPorts.head.id -> textInput))
+    val port = physical.outputPorts(d.operatorInfo.outputPorts.head.id)._3
+    port.left.map(_.getMessage) shouldBe Left("Result attribute name cannot be empty")
   }
 
   "HuggingFaceTextSummarizationOpDesc.generatePythonCode" should

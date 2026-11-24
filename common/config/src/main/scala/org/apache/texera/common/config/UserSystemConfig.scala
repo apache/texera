@@ -37,7 +37,6 @@ object UserSystemConfig {
   val appleClientId: String = conf.getString("user-sys.apple.clientId")
   val gmail: String = conf.getString("user-sys.google.smtp.gmail")
   val smtpPassword: String = conf.getString("user-sys.google.smtp.password")
-  val inviteOnly: Boolean = conf.getBoolean("user-sys.invite-only")
   val emailVerification: Boolean = conf.getBoolean("user-sys.email-verification")
   val projectName: String = conf.getString("user-sys.project-name")
   val workflowVersionCollapseIntervalInMinutes: Int =

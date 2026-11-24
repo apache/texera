@@ -19,10 +19,19 @@
 
 package org.apache.texera.web.resource.dashboard.user.workflow
 
+import ch.qos.logback.classic.spi.ILoggingEvent
+import ch.qos.logback.classic.{Level, Logger => LogbackLogger}
+import ch.qos.logback.core.read.ListAppender
 import org.apache.pekko.actor.ActorSystem
 import org.apache.pekko.serialization.SerializationExtension
 import org.apache.pekko.testkit.TestKit
-import org.apache.texera.amber.core.storage.{VFSURIFactory, WarehouseUnavailableException}
+import org.apache.texera.amber.core.storage.model.VirtualDocument
+import org.apache.texera.amber.core.storage.{
+  DocumentNotFoundException,
+  VFSURIFactory,
+  WarehouseUnavailableException
+}
+import org.apache.texera.amber.core.tuple.Tuple
 import org.apache.texera.amber.core.virtualidentity.{
   EmbeddedControlMessageIdentity,
   ExecutionIdentity,
@@ -70,6 +79,7 @@ import org.apache.texera.web.service.ExecutionResultService
 import org.jose4j.jwt.JwtClaims
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.{BeforeAndAfterAll, BeforeAndAfterEach, PrivateMethodTester}
+import org.slf4j.LoggerFactory
 import play.api.libs.json.Json
 
 import javax.ws.rs.{BadRequestException, ForbiddenException, WebApplicationException}
@@ -83,6 +93,7 @@ import java.util.concurrent.TimeUnit
 import scala.collection.mutable.ArrayBuffer
 import scala.concurrent.duration.DurationInt
 import scala.concurrent.{Await, ExecutionContext, Future}
+import scala.jdk.CollectionConverters._
 
 class WorkflowExecutionsResourceSpec
     extends AnyFlatSpec
@@ -642,6 +653,47 @@ class WorkflowExecutionsResourceSpec
     assert(!survivorEids.contains(a.getEid))
     assert(!survivorEids.contains(b.getEid))
     assert(survivorEids.contains(survivor.getEid))
+  }
+
+  // ─── clearDocument ────────────────────────────────────────────────────────
+
+  /** Clears a document whose `clear()` is `onClear`, and returns what was logged meanwhile. */
+  private def clearing(onClear: => Unit): Seq[ILoggingEvent] = {
+    val uri = new URI("vfs:///clear-document-spec")
+    val document = new VirtualDocument[Tuple] {
+      override def getURI: URI = uri
+      override def clear(): Unit = onClear
+    }
+    val logger = LoggerFactory
+      .getLogger(classOf[WorkflowExecutionsResource])
+      .asInstanceOf[LogbackLogger]
+    val appender = new ListAppender[ILoggingEvent]
+    val previousLevel = logger.getLevel
+    appender.start()
+    logger.addAppender(appender)
+    logger.setLevel(Level.WARN)
+    try WorkflowExecutionsResource.clearDocument(uri, _ => document)
+    finally {
+      logger.setLevel(previousLevel)
+      logger.detachAppender(appender)
+    }
+    appender.list.asScala.toSeq
+  }
+
+  "clearDocument" should "clear the document it opens" in {
+    var cleared = false
+    assert(clearing { cleared = true }.isEmpty)
+    assert(cleared)
+  }
+
+  it should "pass over a document that is already gone" in {
+    assert(clearing(throw new DocumentNotFoundException("gone")).isEmpty)
+  }
+
+  it should "log any other failure rather than throw it" in {
+    val logged = clearing(throw new RuntimeException("catalog unavailable"))
+    assert(logged.map(_.getLevel) == Seq(Level.WARN))
+    assert(logged.head.getThrowableProxy.getMessage == "catalog unavailable")
   }
 
   private def grantAccess(uid: Integer, privilege: PrivilegeEnum): Unit = {

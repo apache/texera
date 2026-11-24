@@ -24,6 +24,8 @@ import org.scalatest.BeforeAndAfterEach
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 
+import scala.util.Success
+
 class SiteSettingsSpec
     extends AnyFlatSpec
     with Matchers
@@ -88,9 +90,39 @@ class SiteSettingsSpec
     SiteSettings.getInt("bad_int", 7) shouldBe 7
   }
 
+  // Unlike `lookup`, the getters fold a failed read into the default, as the object doc says.
+  it should "return the default when the read itself fails" in {
+    SiteSettings.upsert(getDSLContext, "max_x", "42", "admin")
+    getDSLContext.execute("ALTER TABLE texera_db.site_settings RENAME TO site_settings_away")
+    try SiteSettings.getInt("max_x", 7) shouldBe 7
+    finally getDSLContext.execute(
+      "ALTER TABLE texera_db.site_settings_away RENAME TO site_settings"
+    )
+  }
+
   "getLong" should "return the stored long value when the key is present" in {
     SiteSettings.upsert(getDSLContext, "big", "9999999999", "admin")
     SiteSettings.getLong("big", 0L) shouldBe 9999999999L
+  }
+
+  "lookup" should "return the stored value, as written, for a key that has a row" in {
+    SiteSettings.upsert(getDSLContext, "flag", " TRUE ", "admin")
+    SiteSettings.lookup("flag") shouldBe Success(Some(" TRUE "))
+  }
+
+  it should "return no value, rather than a failure, for a key without a row" in {
+    SiteSettings.lookup("missing_flag") shouldBe Success(None)
+  }
+
+  // A caller deciding something security-relevant has to tell "never written" from "could not be
+  // read": only the first may fall back to a configured default.
+  it should "return a failure when the read itself fails" in {
+    SiteSettings.upsert(getDSLContext, "flag", "true", "admin")
+    getDSLContext.execute("ALTER TABLE texera_db.site_settings RENAME TO site_settings_away")
+    try SiteSettings.lookup("flag").isFailure shouldBe true
+    finally getDSLContext.execute(
+      "ALTER TABLE texera_db.site_settings_away RENAME TO site_settings"
+    )
   }
 
   "upsert" should "insert a new row and then overwrite it with the latest value and writer" in {

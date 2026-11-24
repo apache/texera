@@ -17,6 +17,8 @@
  * under the License.
  */
 
+@use "../../../common/formly/editable-label-wrapper/editable-label" as *;
+
 .ui-udf-parameter-row {
   display: grid;
   grid-template-columns: 250px 250px 1fr;
@@ -34,6 +36,28 @@
 
 :host ::ng-deep .ant-form-item-label {
   display: none;
+}
+
+/* The header's name box and eye: the form's own label controls (editable-label-wrapper), drawn here
+   for a column instead of in its first cell, from the wrapper's own definition so they are the one
+   control an author meets everywhere, not a copy of it. */
+.col-controls {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.col-title-input {
+  @include editable-label-input;
+}
+
+.col-eye {
+  @include editable-label-eye;
+}
+
+/* A hidden column stays in view for its author, faded, as every hidden field on the form does. */
+.field-cell.dimmed {
+  opacity: 0.6;
 }
 
 .ui-udf-parameter-row.draft {
