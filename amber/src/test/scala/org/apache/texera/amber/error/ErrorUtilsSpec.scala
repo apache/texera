@@ -219,7 +219,7 @@ class ErrorUtilsSpec extends AnyFlatSpec with Matchers {
     ce.relatedWorkerId shouldBe Some(failingWorker)
   }
 
-  it should "leave the worker empty for errors that are not tied to one" in {
+  "mkControlError for an error not tied to a worker" should "leave the worker empty" in {
     ErrorUtils.mkControlError(new RuntimeException("boom")).relatedWorkerId shouldBe None
     ErrorUtils
       .mkControlError(new WorkflowRuntimeException("boom", None))
@@ -249,7 +249,7 @@ class ErrorUtilsSpec extends AnyFlatSpec with Matchers {
       ("PythonUDFV2-operator-udfdemo", failingWorker.name)
   }
 
-  it should "still rebuild a plain Throwable when no worker is set" in {
+  "reconstructThrowable without a related worker" should "rebuild a plain Throwable" in {
     val rebuilt =
       ErrorUtils.reconstructThrowable(ControlError("boom", "", "", ErrorLanguage.SCALA, None))
     rebuilt should not be a[WorkflowRuntimeException]

@@ -684,6 +684,6 @@ class RegionExecutionManagerSpec
       errorDetails = "",
       stackTrace = "",
       language = ErrorLanguage.SCALA,
-      None
+      relatedWorkerId = None
     )
 }

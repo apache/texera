@@ -214,7 +214,7 @@ class WorkflowExecutionManagerSpec
             errorDetails = "",
             stackTrace = "",
             language = ErrorLanguage.PYTHON,
-            None
+            relatedWorkerId = None
           )
         else EmptyReturn()
     )
