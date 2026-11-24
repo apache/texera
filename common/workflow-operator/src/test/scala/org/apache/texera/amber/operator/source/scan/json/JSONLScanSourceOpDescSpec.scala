@@ -181,11 +181,60 @@ class JSONLScanSourceOpDescSpec extends AnyFlatSpec with Matchers {
     }
   }
 
+  // The executor reads a JSON null and a missing key alike, as an empty cell, so
+  // the export must not hand a null on as the text "null" the way Jackson's
+  // asText spells it.
+  it should "read a null as the empty cell the executor reads" taggedAs NeedsPythonPackages in {
+    val python = configuredPython().getOrElse(cancel("No runnable python executable"))
+    if (!canImport(python, "pandas")) cancel(s"'$python' cannot import pandas")
+
+    val workDir = Files.createTempDirectory("jsonl-standalone-null-")
+    workDir.toFile.deleteOnExit()
+    val data = workDir.resolve("data.jsonl")
+    Files.write(
+      data,
+      Seq(
+        """{"n": 1, "s": "x"}""",
+        """{"n": null, "s": null}""",
+        """{"n": 2}""",
+        """{"n": 3, "s": true}"""
+      ).mkString("", "\n", "\n").getBytes(StandardCharsets.UTF_8)
+    )
+
+    val op = new JSONLScanSourceOpDesc
+    op.fileName = Some(data.toString)
+    op.setResolvedFileName(TestOperators.localFileUri(data.toString))
+    val schema = op.sourceSchema()
+    schema.getAttribute("n").getType shouldBe AttributeType.INTEGER
+    schema.getAttribute("s").getType shouldBe AttributeType.STRING
+
+    val script = workDir.resolve("run.py")
+    Files.write(
+      script,
+      s"""${scriptHeader(op)}
+         |${op.generateStandaloneCode()}
+         |print(repr([None if pd.isna(v) else int(v) for v in out1df["n"]]))
+         |print(repr(out1df["s"].tolist()))
+         |""".stripMargin.getBytes(StandardCharsets.UTF_8)
+    )
+
+    val (exitCode, out) = runScript(python, script, directory = Some(workDir))
+
+    withClue(s"python said:\n$out") {
+      exitCode shouldBe 0
+      out.trim.linesIterator.toSeq.takeRight(2) shouldBe Seq(
+        "[1, None, 2, 3]",
+        "['x', None, None, 'true']"
+      )
+    }
+  }
+
   /** The block names its file by placeholder; the translator puts a name there. */
   private def bindSourceFile(d: JSONLScanSourceOpDesc): String =
     s"""${StandaloneCodeGenerator.SourceFilePlaceholder} = "${d.standaloneSourceName().get}""""
 
-  /** What a script needs before the block: its imports, and the file it reads. */
+  /** What a script needs before the block: its imports, its helpers, and the file it reads. */
   private def scriptHeader(d: JSONLScanSourceOpDesc): String =
-    (d.standaloneImports() :+ "import pandas as pd" :+ bindSourceFile(d)).mkString("\n")
+    (d.standaloneImports() ++ Seq("import pandas as pd") ++ d.standaloneHelpers() :+
+      bindSourceFile(d)).mkString("\n")
 }

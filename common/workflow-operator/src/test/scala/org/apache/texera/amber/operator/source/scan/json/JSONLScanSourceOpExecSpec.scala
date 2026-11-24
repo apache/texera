@@ -160,4 +160,25 @@ class JSONLScanSourceOpExecSpec extends AnyFlatSpec {
     assert(drain(exec).size == 100)
     assert(exec.getWarnings.head.contains("row 103"))
   }
+
+  it should "read a JSON null as an empty cell and keep its column's type" in {
+    // A null used to arrive as the text "null", which made "v" a STRING column.
+    val exec = new JSONLScanSourceOpExec(descString(writeJsonl("""{"v":1}""", """{"v":null}""")))
+    assert(drain(exec) == List(Seq(1), Seq(null)))
+    assert(exec.getWarnings.isEmpty)
+  }
+
+  it should "keep a column whose value is null on every sampled line" in {
+    // "b" is null on all 100 lines the inference reads (INFER_READ_LIMIT=100), so
+    // only its key names the column; line 101's value must still land in it.
+    val sampled = (1 to 100).map(i => s"""{"a":$i,"b":null}""")
+    val exec =
+      new JSONLScanSourceOpExec(descString(writeJsonl(sampled :+ """{"a":101,"b":5}""": _*)))
+    val rows = drain(exec)
+
+    assert(rows.size == 101)
+    assert(rows.head == Seq(1, null))
+    assert(rows.last == Seq(101, 5))
+    assert(exec.getWarnings.isEmpty)
+  }
 }
