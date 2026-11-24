@@ -350,6 +350,12 @@ class ParquetScanSourceOpDescSpec extends AnyFlatSpec with Matchers {
     physical.outputPorts.keySet shouldBe d.operatorInfo.outputPorts.map(_.id).toSet
   }
 
+  it should "propagate the schema read from the file's footer to its output port" in {
+    val d = descFor(sampleFile())
+    val propagated = d.getPhysicalOp(workflowId, executionId).propagateSchema.func(Map.empty)
+    propagated shouldBe Map(d.operatorInfo.outputPorts.head.id -> d.inferSchema())
+  }
+
   "ParquetScanSourceOpExec" should "read the values the file was written with" in {
     val rows = readRows(descFor(sampleFile()))
     rows should have length 2

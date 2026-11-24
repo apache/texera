@@ -41,6 +41,15 @@ class StableMergeSortOpDescSpec extends AnyFlatSpec with Matchers {
   private val workflowId = WorkflowIdentity(1L)
   private val executionId = ExecutionIdentity(1L)
 
+  private def newDesc(attribute: String, preference: SortPreference): StableMergeSortOpDesc = {
+    val unit = new SortCriteriaUnit
+    unit.attributeName = attribute
+    unit.sortPreference = preference
+    val desc = new StableMergeSortOpDesc
+    desc.keys = ListBuffer(unit)
+    desc
+  }
+
   "StableMergeSortOpDesc.operatorInfo" should
     "advertise the name, Sort group, and a single blocking output" in {
     val info = (new StableMergeSortOpDesc).operatorInfo
@@ -86,12 +95,7 @@ class StableMergeSortOpDescSpec extends AnyFlatSpec with Matchers {
     if (!canImport(python, "pandas", "numpy")) cancel(s"'$python' cannot import pandas")
 
     def blockFor(pref: SortPreference): String = {
-      val unit = new SortCriteriaUnit
-      unit.attributeName = "v"
-      unit.sortPreference = pref
-      val d = new StableMergeSortOpDesc
-      d.keys = ListBuffer(unit)
-      d.generateStandaloneCode().linesIterator.map("    " + _).mkString("\n")
+      newDesc("v", pref).generateStandaloneCode().linesIterator.map("    " + _).mkString("\n")
     }
 
     val driver =
@@ -137,14 +141,7 @@ class StableMergeSortOpDescSpec extends AnyFlatSpec with Matchers {
 
     val values: Seq[java.lang.Double] = Seq(0.0, -0.0, Double.NaN, 1.0, null, -0.0)
     val schema = Schema().add("v", AttributeType.DOUBLE).add("i", AttributeType.INTEGER)
-    def descFor(pref: SortPreference): StableMergeSortOpDesc = {
-      val unit = new SortCriteriaUnit
-      unit.attributeName = "v"
-      unit.sortPreference = pref
-      val d = new StableMergeSortOpDesc
-      d.keys = ListBuffer(unit)
-      d
-    }
+    def descFor(pref: SortPreference): StableMergeSortOpDesc = newDesc("v", pref)
     val prefs = Seq(SortPreference.ASC, SortPreference.DESC)
     val engine = prefs.map { pref =>
       val exec = new StableMergeSortOpExec(objectMapper.writeValueAsString(descFor(pref)))
@@ -190,11 +187,7 @@ class StableMergeSortOpDescSpec extends AnyFlatSpec with Matchers {
     val python = configuredPython().getOrElse(cancel("No runnable python executable"))
     if (!canImport(python, "pandas", "numpy")) cancel(s"'$python' cannot import pandas")
 
-    val unit = new SortCriteriaUnit
-    unit.attributeName = "x"
-    unit.sortPreference = SortPreference.ASC
-    val desc = new StableMergeSortOpDesc
-    desc.keys = ListBuffer(unit)
+    val desc = newDesc("x", SortPreference.ASC)
 
     val driver =
       s"""import pandas as pd
@@ -231,14 +224,7 @@ class StableMergeSortOpDescSpec extends AnyFlatSpec with Matchers {
       if (v == null) "NULL" else v.codePoints().toArray.map(c => f"$c%X").mkString("+")
 
     val schema = Schema().add(new Attribute("s", AttributeType.STRING))
-    def descFor(pref: SortPreference): StableMergeSortOpDesc = {
-      val unit = new SortCriteriaUnit
-      unit.attributeName = "s"
-      unit.sortPreference = pref
-      val d = new StableMergeSortOpDesc
-      d.keys = ListBuffer(unit)
-      d
-    }
+    def descFor(pref: SortPreference): StableMergeSortOpDesc = newDesc("s", pref)
     def engine(pref: SortPreference): String = {
       val exec = new StableMergeSortOpExec(objectMapper.writeValueAsString(descFor(pref)))
       exec.open()

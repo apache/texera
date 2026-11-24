@@ -21,23 +21,16 @@ package org.apache.texera.amber.operator.source.scan.file
 
 import com.fasterxml.jackson.annotation.JsonProperty
 import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaTitle
-import org.apache.texera.amber.core.executor.OpExecWithClassName
 import org.apache.texera.amber.core.state.NoLoopVariable
-import org.apache.texera.amber.core.tuple.{AttributeType, Schema}
+import org.apache.texera.amber.core.tuple.Schema
 import org.apache.texera.amber.core.virtualidentity.{ExecutionIdentity, WorkflowIdentity}
-import org.apache.texera.amber.core.workflow.{
-  InputPort,
-  OutputPort,
-  PhysicalOp,
-  SchemaPropagationFunc
-}
+import org.apache.texera.amber.core.workflow.{InputPort, OutputPort, PhysicalOp}
 import org.apache.texera.amber.operator.StandaloneCodeGenerator
 import org.apache.texera.amber.operator.metadata.{OperatorGroupConstants, OperatorInfo}
 import org.apache.texera.amber.operator.source.SourceOperatorDescriptor
-import org.apache.texera.amber.operator.source.scan.{FileAttributeType, FileDecodingMethod}
+import org.apache.texera.amber.operator.source.scan.FileDecodingMethod
 import org.apache.texera.amber.operator.source.scan.text.TextSourceOpDesc
 import org.apache.texera.amber.pybuilder.PythonTemplateBuilder.pyStringLiteral
-import org.apache.texera.amber.util.JSONUtils.objectMapper
 
 class FileScanOpDesc
     extends SourceOperatorDescriptor
@@ -59,31 +52,15 @@ class FileScanOpDesc
   override def getPhysicalOp(
       workflowId: WorkflowIdentity,
       executionId: ExecutionIdentity
-  ): PhysicalOp = {
-    PhysicalOp
-      .sourcePhysicalOp(
-        workflowId,
-        executionId,
-        operatorIdentifier,
-        OpExecWithClassName(
-          "org.apache.texera.amber.operator.source.scan.file.FileScanOpExec",
-          objectMapper.writeValueAsString(this)
-        )
-      )
-      .withInputPorts(operatorInfo.inputPorts)
-      .withOutputPorts(operatorInfo.outputPorts)
-      .withPropagateSchema(
-        SchemaPropagationFunc(_ => Map(operatorInfo.outputPorts.head.id -> sourceSchema()))
-      )
-  }
+  ): PhysicalOp =
+    sourcePhysicalOp(
+      workflowId,
+      executionId,
+      "org.apache.texera.amber.operator.source.scan.file.FileScanOpExec"
+    )
 
-  override def sourceSchema(): Schema = {
-    var schema = Schema()
-    if (outputFileName) {
-      schema = schema.add("filename", AttributeType.STRING)
-    }
-    schema.add(attributeName, attributeType.getType)
-  }
+  override def sourceSchema(): Schema =
+    TextSourceOpDesc.buildFileScanSchema(attributeName, attributeType, outputFileName)
 
   override def operatorInfo: OperatorInfo =
     OperatorInfo(
@@ -95,18 +72,12 @@ class FileScanOpDesc
     )
 
   override def generateStandaloneCode(): String = {
-    val col = attributeName
     val enc = fileEncoding.toString.replace("_", "-").toLowerCase
+    val encLit = pyStringLiteral(enc)
+    val colLit = pyStringLiteral(attributeName)
     val buf = scala.collection.mutable.ArrayBuffer[String]()
 
-    val isBinary =
-      attributeType == FileAttributeType.BINARY || attributeType == FileAttributeType.LARGE_BINARY
-    val encLit = pyStringLiteral(enc)
-
-    // The executor takes the row's first String field, not its first column, so a row that
-    // carries an id ahead of the path still finds the path. Reading column 0 opened the id.
-    // A row with no string at all makes the executor's `.get` throw, so this raises too
-    // rather than quietly skipping the row.
+    // The executor takes the row's first String field, not its first column.
     buf += "def _texera_file_name(row):"
     buf += "    for _v in row:"
     buf += "        if isinstance(_v, str):"
@@ -116,100 +87,47 @@ class FileScanOpDesc
     buf += "_rows = []"
     buf += "for _fn in (_texera_file_name(r) for r in in1df.itertuples(index=False)):"
 
-    // Every file opens binary and is decoded by `_texera_decode`, which reads the
-    // bytes the way the engine's reader does (see that helper). A whole file keeps
-    // its text as decoded, so a CRLF stays a CRLF. Lines go through a StringIO in
-    // universal-newline mode, which ends a line where `open(..., "r")` does, and so
-    // where the engine does.
-    val readWholeOf = if (isBinary) "_f.read()" else s"_texera_decode(_f.read(), $encLit)"
+    val readWholeOf =
+      if (TextSourceOpDesc.isBinaryAttribute(attributeType)) "_f.read()"
+      else s"_texera_decode(_f.read(), $encLit)"
     val linesOf = s"io.StringIO(_texera_decode(_f.read(), $encLit), newline=None)"
 
-    // With extract on the engine reads the files INSIDE the archive, one tuple
-    // per entry, and skips the entries macOS adds. `zipfile` is the reader that
-    // matches: the platform casts what it opened to a ZipArchiveInputStream, so
-    // an archive that is not a zip fails on both sides. A directory entry is
-    // read, not skipped, there and here alike — it yields nothing.
-    val (indent, nameExpr, readWhole, lines) =
+    val (indent, nameExpr) =
       if (extract) {
-        buf += "    with zipfile.ZipFile(_fn) as _z:"
-        buf += "        for _name in _z.namelist():"
-        buf += """            if _name.startswith("__MACOSX"):"""
-        buf += "                continue"
-        buf += "            with _z.open(_name) as _f:"
-        (" " * 16, "_name", readWholeOf, linesOf)
+        buf ++= TextSourceOpDesc.buildZipExtractLines("_fn").map("    " + _)
+        (" " * 16, "_name")
       } else {
-        buf += "    with open(_fn, \"rb\") as _f:"
-        (" " * 8, "_fn", readWholeOf, linesOf)
+        buf += """    with open(_fn, "rb") as _f:"""
+        (" " * 8, "_fn")
       }
 
-    // Whatever the flag says, as the platform now reads it: every row carries the
-    // name of the file its value came from, a line's as much as a whole file's.
-    // See FileScanUtils.createTuplesFromFile.
-    val emitFilename = outputFileName
-
-    if (attributeType.isSingle) {
-      if (emitFilename) buf += s"${indent}_rows.append(($nameExpr, $readWhole))"
-      else buf += s"${indent}_rows.append($readWhole)"
-    } else {
-      val castExpr = attributeType match {
-        case FileAttributeType.INTEGER   => "_texera_parse_int(l, 32)"
-        case FileAttributeType.LONG      => "_texera_parse_int(l, 64)"
-        case FileAttributeType.DOUBLE    => "_texera_java_double(l)"
-        case FileAttributeType.BOOLEAN   => TextSourceOpDesc.BooleanParserCall
-        case FileAttributeType.TIMESTAMP => "l.rstrip()"
-        case _                           => """l.rstrip("\n")"""
-      }
-      // The slice applies to the raw lines, as the engine drops and takes
-      // before parsing: a line outside the window is never converted, so an
-      // unparseable one there costs nothing. Taking after dropping also keeps
-      // a large limit from overflowing the end index. The window is per entry,
-      // as the engine's is: it drops and takes inside the flatMap over entries.
-      val linesExpr =
-        if (fileScanOffset.isEmpty && fileScanLimit.isEmpty) lines
-        else {
-          val dropped =
-            fileScanOffset
-              .filter(_ > 0)
-              .fold(s"$lines.readlines()")(o => s"$lines.readlines()[$o:]")
-          fileScanLimit.fold(dropped)(l => s"$dropped[:${l.max(0)}]")
-        }
-      val row = if (emitFilename) s"($nameExpr, $castExpr)" else castExpr
-      buf += s"${indent}_rows.extend($row for l in $linesExpr)"
-    }
-
-    val colLit = pyStringLiteral(col)
-    if (emitFilename) {
-      buf += s"""out1df = pd.DataFrame(_rows, columns=["filename", $colLit])"""
-    } else {
-      buf += s"""out1df = pd.DataFrame({$colLit: _rows})"""
-    }
-    buf ++= TextSourceOpDesc.parseTimestampColumn(attributeType, colLit)
-
+    TextSourceOpDesc.appendFileScanRows(
+      buf,
+      indent,
+      nameExpr,
+      readWholeOf,
+      linesOf,
+      attributeType,
+      outputFileName,
+      fileScanOffset,
+      fileScanLimit
+    )
+    TextSourceOpDesc.appendFileScanDataFrame(buf, attributeType, colLit, outputFileName)
     buf.mkString("\n")
   }
 
-  override def standaloneHelpers(): Seq[String] = {
-    val isBinary =
-      attributeType == FileAttributeType.BINARY || attributeType == FileAttributeType.LARGE_BINARY
-    TextSourceOpDesc.lineHelpers(attributeType) ++
-      (if (isBinary) Seq.empty else Seq(FileScanOpDesc.DecodeHelper))
-  }
+  override def standaloneHelpers(): Seq[String] =
+    TextSourceOpDesc.fileScanStandaloneHelpers(attributeType, FileScanOpDesc.DecodeHelper)
 
-  override def standaloneImports(): Seq[String] = {
-    val readsLines =
-      !attributeType.isSingle && attributeType != FileAttributeType.BINARY &&
-        attributeType != FileAttributeType.LARGE_BINARY
-    (if (readsLines) Seq("import io") else Seq.empty) ++
-      (if (extract) Seq("import zipfile") else Seq.empty)
-  }
+  override def standaloneImports(): Seq[String] =
+    TextSourceOpDesc.fileScanStandaloneImports(attributeType, extract)
 }
 
 object FileScanOpDesc {
 
   /** The engine decodes through Java's InputStreamReader, which puts U+FFFD in
     * place of any bytes it cannot decode rather than failing, and reads UTF-16
-    * with no byte-order mark as big-endian. Python's codecs refuse both, so a file
-    * read under the wrong encoding ended the script where the engine read on.
+    * with no byte-order mark as big-endian.
     */
   val DecodeHelper: String =
     """def _texera_decode(raw, encoding):

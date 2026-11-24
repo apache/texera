@@ -29,7 +29,6 @@ import { WorkflowActionService } from "../../../service/workflow-graph/model/wor
 import { WorkflowCompilingService } from "../../../service/compile-workflow/workflow-compiling.service";
 import { WorkflowFatalError } from "../../../types/workflow-websocket.interface";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
-import { CdkVirtualScrollViewport } from "@angular/cdk/scrolling";
 import { presetPalettes } from "@ant-design/colors";
 import { isDefined } from "../../../../common/util/predicate";
 import { WorkflowWebsocketService } from "../../../service/workflow-websocket/workflow-websocket.service";
@@ -96,7 +95,6 @@ export class ConsoleFrameComponent implements OnInit, OnChanges {
   // The operator whose messages are shown. Left out, every operator's messages are shown together.
   @Input() operatorId?: string;
   @Input() consoleInputEnabled?: boolean;
-  @ViewChild(CdkVirtualScrollViewport) viewPort?: CdkVirtualScrollViewport;
   @ViewChild("consoleList", { read: ElementRef }) listElement?: ElementRef;
 
   // The template renders `filteredMessages`, recomputed whenever the messages

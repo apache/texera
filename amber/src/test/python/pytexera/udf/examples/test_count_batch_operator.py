@@ -28,95 +28,50 @@ class TestCountBatchOperator:
     def count_batch_operator(self):
         return CountBatchOperator()
 
-    def test_count_batch_operator(self, count_batch_operator):
-        count_batch_operator.open()
-        for i in range(27):
-            deque(
-                count_batch_operator.process_tuple(
-                    Tuple({"test-1": "hello", "test-2": 10}), 0
+    @staticmethod
+    def _run_batches(operator, *stages):
+        operator.open()
+        for count, batch_size in stages:
+            if batch_size is not None:
+                operator.BATCH_SIZE = batch_size
+            for _ in range(count):
+                deque(
+                    operator.process_tuple(Tuple({"test-1": "hello", "test-2": 10}), 0)
                 )
+        deque(operator.on_finish(0))
+        batch_counter = operator.count
+        operator.close()
+        return batch_counter
+
+    @staticmethod
+    def _assert_invalid_batch_size(value_expr: str, expected_msg: str):
+        with pytest.raises(ValueError) as exc_info:
+            operator_string = str(inspect.getsource(CountBatchOperator)).replace(
+                "BATCH_SIZE = 10", f"BATCH_SIZE = {value_expr}"
             )
-        deque(count_batch_operator.on_finish(0))
-        batch_counter = count_batch_operator.count
-        assert batch_counter == 3
-        count_batch_operator.close()
+            operator_string += "operator = CountBatchOperator()"
+            exec(operator_string)
+        assert exc_info.value.args[0] == expected_msg
+
+    def test_count_batch_operator(self, count_batch_operator):
+        assert self._run_batches(count_batch_operator, (27, None)) == 3
 
     def test_count_batch_operator_simple(self, count_batch_operator):
-        count_batch_operator.open()
-        for i in range(20):
-            deque(
-                count_batch_operator.process_tuple(
-                    Tuple({"test-1": "hello", "test-2": 10}), 0
-                )
-            )
-        deque(count_batch_operator.on_finish(0))
-        batch_counter = count_batch_operator.count
-        assert batch_counter == 2
-        count_batch_operator.close()
+        assert self._run_batches(count_batch_operator, (20, None)) == 2
 
     def test_count_batch_operator_medium(self, count_batch_operator):
-        count_batch_operator.open()
-        for i in range(27):
-            deque(
-                count_batch_operator.process_tuple(
-                    Tuple({"test-1": "hello", "test-2": 10}), 0
-                )
-            )
-        deque(count_batch_operator.on_finish(0))
-        batch_counter = count_batch_operator.count
-        assert batch_counter == 3
-        count_batch_operator.close()
+        assert self._run_batches(count_batch_operator, (27, None)) == 3
 
     def test_count_batch_operator_hard(self, count_batch_operator):
-        count_batch_operator.open()
-        count_batch_operator.BATCH_SIZE = 10
-        for i in range(27):
-            deque(
-                count_batch_operator.process_tuple(
-                    Tuple({"test-1": "hello", "test-2": 10}), 0
-                )
-            )
-        count_batch_operator.BATCH_SIZE = 5
-        for i in range(27):
-            deque(
-                count_batch_operator.process_tuple(
-                    Tuple({"test-1": "hello", "test-2": 10}), 0
-                )
-            )
-        deque(count_batch_operator.on_finish(0))
-        batch_counter = count_batch_operator.count
-        assert batch_counter == 9
-        count_batch_operator.close()
+        assert self._run_batches(count_batch_operator, (27, 10), (27, 5)) == 9
 
     def test_edge_case_string(self):
-        with pytest.raises(ValueError) as exc_info:
-            operator_string = str(inspect.getsource(CountBatchOperator))
-            operator_string = operator_string.replace(
-                "BATCH_SIZE = 10", 'BATCH_SIZE = "test"'
-            )
-            operator_string += "operator = CountBatchOperator()"
-            exec(operator_string)
-            assert (
-                exc_info.value.args[0]
-                == "BATCH_SIZE cannot be " + str(type("test")) + "."
-            )
+        self._assert_invalid_batch_size(
+            '"test"', "BATCH_SIZE cannot be " + str(type("test")) + "."
+        )
 
     def test_edge_case_non_positive(self, count_batch_operator):
-        with pytest.raises(ValueError) as exc_info:
-            operator_string = str(inspect.getsource(CountBatchOperator))
-            operator_string = operator_string.replace(
-                "BATCH_SIZE = 10", "BATCH_SIZE = -20"
-            )
-            operator_string += "operator = CountBatchOperator()"
-            exec(operator_string)
-            assert exc_info.value.args[0] == "BATCH_SIZE should be positive."
+        self._assert_invalid_batch_size("-20", "BATCH_SIZE should be positive.")
 
     def test_edge_case_none(self, count_batch_operator):
-        with pytest.raises(ValueError) as exc_info:
-            operator_string = str(inspect.getsource(CountBatchOperator))
-            operator_string = operator_string.replace(
-                "BATCH_SIZE = 10", "BATCH_SIZE = None"
-            )
-            operator_string += "operator = CountBatchOperator()"
-            exec(operator_string)
-            assert exc_info.value.args[0] == "BATCH_SIZE cannot be None."
+        self._assert_invalid_batch_size("None", "BATCH_SIZE cannot be None.")

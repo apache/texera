@@ -20,6 +20,7 @@
 package org.apache.texera.amber.operator.visualization.boxViolinPlot
 
 import org.apache.texera.amber.operator.visualization.StandaloneChartCode._
+import org.apache.texera.amber.operator.visualization.PythonCodeFragment._
 import com.fasterxml.jackson.annotation.{JsonProperty, JsonPropertyDescription, JsonPropertyOrder}
 import com.kjetland.jackson.jsonSchema.annotations.{JsonSchemaInject, JsonSchemaTitle}
 import org.apache.texera.amber.pybuilder.PythonTemplateBuilder.{
@@ -36,15 +37,7 @@ import org.apache.texera.amber.pybuilder.PythonTemplateBuilder
 import javax.validation.constraints.NotNull
 
 @JsonPropertyOrder(Array("value", "quartileType", "horizontalOrientation", "violinPlot"))
-@JsonSchemaInject(json = """
-{
-  "attributeTypeRules": {
-    "value": {
-      "enum": ["integer", "long", "double"]
-    }
-  }
-}
-""")
+@JsonSchemaInject(json = PythonVisualizationOpDesc.NumericValueRuleJson)
 class BoxViolinPlotOpDesc extends PythonVisualizationOpDesc with PlotlyStandaloneCode {
 
   @JsonProperty(value = "value", required = true)
@@ -125,24 +118,16 @@ class BoxViolinPlotOpDesc extends PythonVisualizationOpDesc with PlotlyStandalon
          |class ProcessTableOperator(UDFTableOperator):
          |
          |    # Generate custom error message as html string
-         |    def render_error(self, error_msg) -> str:
-         |        return '''<h1>Box/Violin Plot is not available.</h1>
-         |                  <p>Reason is: {} </p>
-         |               '''.format(error_msg)
+         |${runtimeError("Box/Violin Plot is not available.", typed = true)}
          |
          |    @overrides
          |    def process_table(self, table: Table, port: int) -> Iterator[Optional[TableLike]]:
-         |        if table.empty:
-         |           yield {'html-content': self.render_error("input table is empty.")}
-         |           return
+         |${emptyTableGuard("input table is empty.")}
          |        ${manipulateTable()}
-         |        if table.empty:
-         |           yield {'html-content': self.render_error("value column contains only non-positive numbers or nulls.")}
-         |           return
+         |${emptyTableGuard("value column contains only non-positive numbers or nulls.")}
          |        ${createPlotlyFigure()}
          |        # convert fig to html content
-         |        html = plotly.io.to_html(fig, include_plotlyjs='cdn', auto_play=False)
-         |        yield {'html-content': html}
+         |${plotlyHtmlYield()}
          |        """
     finalCode.encode
   }

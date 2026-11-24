@@ -23,7 +23,6 @@ import { EntityType } from "../../../../../../hub/service/hub.service";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 import { Subscription } from "rxjs";
 import * as Papa from "papaparse";
-import { ParseResult } from "papaparse";
 import { DomSanitizer, SafeUrl } from "@angular/platform-browser";
 import readXlsxFile from "read-excel-file";
 import { NotificationService } from "../../../../../../common/service/notification/notification.service";
@@ -270,7 +269,7 @@ export class UserDatasetFileRendererComponent implements OnInit, OnChanges, OnDe
                 this.displayCSV = true;
                 // Handle CSV display
                 Papa.parse(this.currentFile, {
-                  complete: (results: ParseResult<any>) => {
+                  complete: (results: Papa.ParseResult<any>) => {
                     if (!isCurrent()) return;
                     if (results.data.length > 0) {
                       this.loadTabularFile(results.data);

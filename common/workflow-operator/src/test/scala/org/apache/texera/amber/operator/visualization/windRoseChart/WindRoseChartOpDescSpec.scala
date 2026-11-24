@@ -45,15 +45,14 @@ class WindRoseChartOpDescSpec
   }
 
   it should "throw an AssertionError (not a NullPointerException) naming the Radial column when rColumn is empty" in {
-    val ex = expectError[AssertionError]("Radial Values (r) column must be selected.")(
+    expectError[AssertionError]("Radial Values (r) column must be selected.")(
       opDesc.createPlotlyFigure()
     )
-    ex shouldBe a[AssertionError]
   }
 
   it should "throw an AssertionError naming the Angular column when only rColumn is set" in {
     opDesc.rColumn = "r_col"
-    val ex = expectError[AssertionError]("Angular Values (θ) column must be selected.")(
+    expectError[AssertionError]("Angular Values (θ) column must be selected.")(
       opDesc.createPlotlyFigure()
     )
   }

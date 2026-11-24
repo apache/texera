@@ -19,8 +19,7 @@
 
 import { Injectable } from "@angular/core";
 import { NzModalService } from "ng-zorro-antd/modal";
-import { EMPTY, catchError, shareReplay } from "rxjs";
-import { Observable, firstValueFrom } from "rxjs";
+import { Observable, EMPTY, catchError, firstValueFrom, shareReplay } from "rxjs";
 import { NotificationService } from "../notification/notification.service";
 import { DashboardWarehouse } from "../../type/warehouse";
 import { extractErrorMessage } from "../../util/error";

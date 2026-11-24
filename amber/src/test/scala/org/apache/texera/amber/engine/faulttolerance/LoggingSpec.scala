@@ -67,6 +67,10 @@ class LoggingSpec
     with BeforeAndAfterAll
     with TimeLimitedTests {
 
+  override def afterAll(): Unit = {
+    TestKit.shutdownActorSystem(system)
+  }
+
   private val identifier1 = ActorVirtualIdentity("Worker:WF1-E1-op-layer-1")
   private val identifier2 = ActorVirtualIdentity("Worker:WF1-E1-op-layer-2")
   private val operatorIdentity = OperatorIdentity("testOperator")

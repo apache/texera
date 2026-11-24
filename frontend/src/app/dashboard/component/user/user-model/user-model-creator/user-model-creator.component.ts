@@ -32,7 +32,10 @@ import {
 } from "../../../../service/user/model/model.service";
 import { Model } from "../../../../../common/type/model";
 import { NotificationService } from "../../../../../common/service/notification/notification.service";
-import { ResourceCreatorFormComponent } from "../../resource-creator-form/resource-creator-form.component";
+import {
+  ResourceCreatorFormComponent,
+  resourceNameAndDescriptionFields,
+} from "../../resource-creator-form/resource-creator-form.component";
 
 export function sanitizeModelName(name: string): string {
   return name
@@ -70,43 +73,17 @@ export class UserModelCreatorComponent implements OnInit {
 
   private setFormFields() {
     this.fields = [
-      {
-        key: "name",
-        type: "input",
-        templateOptions: {
-          label: "Name",
-          required: true,
-        },
-      },
-      {
-        key: "description",
-        type: "input",
-        defaultValue: "",
-        templateOptions: {
-          label: "Description",
-        },
-      },
+      ...resourceNameAndDescriptionFields(),
       // Options mirror ModelResource's whitelists, which reject anything else with a 400.
-      {
-        key: "framework",
+      ...[
+        { key: "framework", label: "Framework", values: MODEL_FRAMEWORKS },
+        { key: "format", label: "Format", values: MODEL_FORMATS },
+      ].map(({ key, label, values }) => ({
+        key,
         type: "select",
-        defaultValue: MODEL_FRAMEWORKS[0],
-        templateOptions: {
-          label: "Framework",
-          required: true,
-          options: MODEL_FRAMEWORKS.map(value => ({ label: value, value })),
-        },
-      },
-      {
-        key: "format",
-        type: "select",
-        defaultValue: MODEL_FORMATS[0],
-        templateOptions: {
-          label: "Format",
-          required: true,
-          options: MODEL_FORMATS.map(value => ({ label: value, value })),
-        },
-      },
+        defaultValue: values[0],
+        templateOptions: { label, required: true, options: values.map(value => ({ label: value, value })) },
+      })),
     ];
   }
 

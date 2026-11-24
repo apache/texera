@@ -139,12 +139,13 @@ class HuggingFaceCodegenBaseSpec extends AnyFlatSpec with Matchers {
   }
 
   it should "route every image chat text part through the task-aware helper" in {
-    // Every image chat branch builds a two-part content list — the three in
-    // _call_provider (zai-org, OpenAI-compatible, unknown-provider fallback) and
-    // the model-author one in _post_with_fallback. The text part must be the
-    // reformulated prompt, not the bare prompt_value.
+    // Three routes share the provider wrapper and the model-author route builds parts directly.
     val out = HuggingFaceCodegenBase.render(textContext, StubCodegen)
-    out.split("""\{"type": "text", "text": self\._chat_content_for_task\(""").length - 1 shouldBe 4
+    out.split("""messages = self\._provider_chat_messages\(""").length - 1 shouldBe 3
+    out.split("""self\._image_chat_parts\(""").length - 1 shouldBe 2
+    out
+      .split("""self\._chat_content_for_task\(pipeline_payload, prompt_value\) or""")
+      .length - 1 shouldBe 2
     out should not include """{"type": "text", "text": prompt_value if prompt_value else"""
   }
 

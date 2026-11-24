@@ -24,6 +24,8 @@ import com.kjetland.jackson.jsonSchema.annotations.{JsonSchemaInject, JsonSchema
 import org.apache.texera.amber.pybuilder.PyStringTypes.EncodableString
 import org.apache.texera.amber.operator.metadata.annotations.AutofillAttributeName
 
+import org.apache.texera.amber.operator.visualization.PythonVisualizationOpDesc
+
 import javax.validation.constraints.NotNull
 
 // Type constraint: both axes can only be numeric. The keys are the PROPERTY names --
@@ -78,12 +80,7 @@ class LineConfig {
   @JsonProperty(value = "color", required = false)
   @JsonSchemaTitle("Line Color")
   @JsonPropertyDescription("must be a valid CSS color or hex color string")
-  @JsonSchemaInject(json = """
-{
-  "pattern": "^\\s*$|^\\s*#(?:\\s*[0-9a-fA-F]){3}(?:(?:\\s*[0-9a-fA-F]){3})?\\s*$|^\\s*(?:[rR]\\s*[gG]\\s*[bB]|[hH]\\s*[sS]\\s*[lL]|[hH]\\s*[sS]\\s*[vV])(?:\\s*[aA])?\\s*\\(\\s*(?:\\s*[0-9.])+(?:\\s*%)?(?:\\s*,(?:\\s*[0-9.])+(?:\\s*%)?){2,3}\\s*\\)\\s*$|^\\s*[vV]\\s*[aA]\\s*[rR]\\s*\\(\\s*-\\s*-[^)]*\\)\\s*$|^\\s*[a-zA-Z][a-zA-Z\\s]*$",
-  "examples": ["red"]
-}
-""")
+  @JsonSchemaInject(json = PythonVisualizationOpDesc.ColorPatternJson)
   var color: EncodableString = ""
 
 }

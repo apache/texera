@@ -19,7 +19,6 @@
 
 import { Component, EventEmitter, Input, Output, TemplateRef } from "@angular/core";
 import { DashboardEntry } from "../../../type/dashboard-entry";
-import { UserService } from "../../../../common/service/user/user.service";
 import { NzCardComponent } from "ng-zorro-antd/card";
 import { ɵɵCdkVirtualScrollViewport, ɵɵCdkFixedSizeVirtualScroll } from "@angular/cdk/overlay";
 import { NzListComponent } from "ng-zorro-antd/list";
@@ -71,12 +70,6 @@ export class SearchResultsComponent {
   @Output() modified = new EventEmitter<DashboardEntry>();
   @Output() notifyWorkflow = new EventEmitter<void>();
   @Output() refresh = new EventEmitter<void>();
-
-  constructor(private userService: UserService) {}
-
-  getUid(): number | undefined {
-    return this.userService.getCurrentUser()?.uid;
-  }
 
   reset(loadMoreFunction: LoadMoreFunction): void {
     this.entries = [];
