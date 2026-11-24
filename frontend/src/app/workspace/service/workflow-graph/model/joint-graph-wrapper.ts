@@ -95,6 +95,11 @@ export class JointGraphWrapper {
   // zoom diff represents the ratio that is zoom in/out everytime, for clicking +/- buttons or using mousewheel
   public static readonly ZOOM_CLICK_DIFF: number = 0.05;
   public static readonly INIT_ZOOM_VALUE: number = 1;
+  /**
+   * The JointJS batch a drag runs while it moves the rest of the selection, and the comment boxes anchored
+   * to moved operators, along with the dragged element. Connectors are redrawn once, when it stops.
+   */
+  public static readonly MOVE_ALONG_BATCH = "texera:move-along";
 
   public static readonly ZOOM_MINIMUM: number = 0.7;
   public static readonly ZOOM_MAXIMUM: number = 1.3;

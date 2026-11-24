@@ -1393,27 +1393,32 @@ export class WorkflowActionService implements OnDestroy {
             const offsetY = movedElement.newPosition.y - movedElement.oldPosition.y;
             this.jointGraphWrapper.setListenPositionChange(false);
             this.undoRedoService.setListenJointCommand(false);
-            // Move other highlighted operators.
-            selectedElements
-              .filter(elementID => elementID !== movedElement.elementID)
-              .forEach(elementID => {
-                this.jointGraphWrapper.setElementPosition(elementID, offsetX, offsetY);
-                this.texeraGraph.sharedModel.elementPositionMap.set(
-                  elementID,
-                  this.jointGraphWrapper.getElementPosition(elementID)
-                );
-              });
-            // Comment boxes anchored to a moved operator follow it, unless selected (then moved above).
-            // The anchors are read once per move, not once per selected operator.
-            const anchoredCommentBoxIDs = this.texeraGraph.getAnchoredCommentBoxIDsByOperator();
-            selectedElements
-              .filter(elementID => this.texeraGraph.hasOperator(elementID))
-              .flatMap(operatorID => anchoredCommentBoxIDs.get(operatorID) ?? [])
-              .filter(commentBoxID => !selectedElements.includes(commentBoxID))
-              .forEach(commentBoxID => {
-                this.jointGraphWrapper.setElementPosition(commentBoxID, offsetX, offsetY);
-                this.syncCommentBoxPosition(commentBoxID);
-              });
+            this.jointGraph.startBatch(JointGraphWrapper.MOVE_ALONG_BATCH);
+            try {
+              // Move other highlighted operators.
+              selectedElements
+                .filter(elementID => elementID !== movedElement.elementID)
+                .forEach(elementID => {
+                  this.jointGraphWrapper.setElementPosition(elementID, offsetX, offsetY);
+                  this.texeraGraph.sharedModel.elementPositionMap.set(
+                    elementID,
+                    this.jointGraphWrapper.getElementPosition(elementID)
+                  );
+                });
+              // Comment boxes anchored to a moved operator follow it, unless selected (then moved above).
+              // The anchors are read once per move, not once per selected operator.
+              const anchoredCommentBoxIDs = this.texeraGraph.getAnchoredCommentBoxIDsByOperator();
+              selectedElements
+                .filter(elementID => this.texeraGraph.hasOperator(elementID))
+                .flatMap(operatorID => anchoredCommentBoxIDs.get(operatorID) ?? [])
+                .filter(commentBoxID => !selectedElements.includes(commentBoxID))
+                .forEach(commentBoxID => {
+                  this.jointGraphWrapper.setElementPosition(commentBoxID, offsetX, offsetY);
+                  this.syncCommentBoxPosition(commentBoxID);
+                });
+            } finally {
+              this.jointGraph.stopBatch(JointGraphWrapper.MOVE_ALONG_BATCH);
+            }
             // Persistence and shared-editing syncing for comment boxes have different interfaces.
             // Setting positions inside commentBoxes here only for persistence, once every box has moved.
             // Syncing uses elementPositionMap.

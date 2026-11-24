@@ -730,6 +730,41 @@ describe("WorkflowActionService", () => {
       expect(service.getJointGraphWrapper().getElementPosition(floatingID)).toEqual({ x: 600, y: 600 });
     });
 
+    it("redraws no connector of a comment box that a drag moves along with its operator", () => {
+      // Each connector redraw re-renders the comment box, which measures the DOM (about 4 ms in a
+      // browser); a select-all drag over many anchored boxes must not pay that per box per move.
+      service.addOperator(mockScanPredicate, { x: 100, y: 100 });
+      service.addOperator(mockResultPredicate, { x: 400, y: 100 });
+      addComment(anchoredID, { x: 470, y: 100 });
+      service.anchorCommentBox(anchoredID, mockResultPredicate.operatorID);
+      const connector = () => jointGraph.getCell(anchoredID).attr(".anchor-connector");
+      const before = connector();
+      let redraws = 0;
+      jointGraph.getCell(anchoredID).on("change:attrs", () => redraws++);
+      service.highlightOperators(true, mockScanPredicate.operatorID, mockResultPredicate.operatorID);
+
+      // The scan operator is dragged; the result operator and its comment box move along.
+      service.getJointGraphWrapper().setAbsolutePosition(mockScanPredicate.operatorID, 130, 140);
+
+      expect(service.getJointGraphWrapper().getElementPosition(anchoredID)).toEqual({ x: 500, y: 140 });
+      expect(redraws).toEqual(0);
+      expect(connector()).toEqual(before);
+    });
+
+    it("still redraws the connector when the dragged operator's own comment box follows it", () => {
+      service.addOperator(mockScanPredicate, { x: 100, y: 100 });
+      addComment(anchoredID, { x: 170, y: 100 });
+      service.anchorCommentBox(anchoredID, mockScanPredicate.operatorID);
+      const before = jointGraph.getCell(anchoredID).attr(".anchor-connector");
+      service.highlightOperators(false, mockScanPredicate.operatorID);
+
+      service.getJointGraphWrapper().setAbsolutePosition(mockScanPredicate.operatorID, 130, 140);
+
+      // Same offset, so the same line, once both have moved.
+      expect(service.getJointGraphWrapper().getElementPosition(anchoredID)).toEqual({ x: 200, y: 140 });
+      expect(jointGraph.getCell(anchoredID).attr(".anchor-connector")).toEqual(before);
+    });
+
     it("tells whether a comment box is within reach of an operator to stay anchored to it", () => {
       service.addOperator(mockScanPredicate, { x: 100, y: 100 });
       // The operator's right edge is at x 160.

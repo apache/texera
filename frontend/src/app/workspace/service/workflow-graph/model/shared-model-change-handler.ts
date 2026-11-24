@@ -487,14 +487,29 @@ export class SharedModelChangeHandler {
    * @private
    */
   private handleCommentBoxConnectors(): void {
+    // While a drag moves elements along, connectors are redrawn once it is done, not on every move:
+    // an operator moves before its comment boxes follow, so each connector would be redrawn twice, and
+    // a redraw re-renders the comment box, measuring the DOM.
+    const pending = new Set<string>();
+    const refresh = (commentBoxID: string) =>
+      this.jointGraph.hasActiveBatch(JointGraphWrapper.MOVE_ALONG_BATCH)
+        ? pending.add(commentBoxID)
+        : this.refreshCommentBoxConnector(commentBoxID);
     this.jointGraph.on("add remove change:position", (cell: joint.dia.Cell) => {
       const elementID = cell.id.toString();
       if (this.texeraGraph.hasCommentBox(elementID)) {
-        this.refreshCommentBoxConnector(elementID);
+        refresh(elementID);
       } else {
         // A removed operator is already gone from the texera graph, so look up its comment boxes by ID alone.
-        this.texeraGraph
-          .getCommentBoxesAnchoredTo(elementID)
+        this.texeraGraph.getCommentBoxesAnchoredTo(elementID).forEach(refresh);
+      }
+    });
+    this.jointGraph.on("batch:stop", (data: { batchName?: string }) => {
+      if (data.batchName === JointGraphWrapper.MOVE_ALONG_BATCH && !this.jointGraph.hasActiveBatch(data.batchName)) {
+        const commentBoxIDs = Array.from(pending);
+        pending.clear();
+        commentBoxIDs
+          .filter(commentBoxID => this.texeraGraph.hasCommentBox(commentBoxID))
           .forEach(commentBoxID => this.refreshCommentBoxConnector(commentBoxID));
       }
     });
