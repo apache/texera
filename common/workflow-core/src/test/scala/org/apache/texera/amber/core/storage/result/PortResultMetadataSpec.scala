@@ -21,34 +21,34 @@ package org.apache.texera.amber.core.storage.result
 
 import org.scalatest.flatspec.AnyFlatSpec
 
-class OperatorResultMetadataSpec extends AnyFlatSpec {
+class PortResultMetadataSpec extends AnyFlatSpec {
 
   // ---------------------------------------------------------------------------
   // Defaults
   // ---------------------------------------------------------------------------
 
-  "OperatorResultMetadata()" should "default tupleCount to 0" in {
-    assert(OperatorResultMetadata().tupleCount == 0)
+  "PortResultMetadata()" should "default tupleCount to 0" in {
+    assert(PortResultMetadata().tupleCount == 0)
   }
 
   it should "default changeDetector to the empty string" in {
-    assert(OperatorResultMetadata().changeDetector == "")
+    assert(PortResultMetadata().changeDetector == "")
   }
 
   // ---------------------------------------------------------------------------
   // Custom constructor values
   // ---------------------------------------------------------------------------
 
-  "OperatorResultMetadata(...)" should "preserve a custom tupleCount" in {
-    assert(OperatorResultMetadata(tupleCount = 42).tupleCount == 42)
+  "PortResultMetadata(...)" should "preserve a custom tupleCount" in {
+    assert(PortResultMetadata(tupleCount = 42).tupleCount == 42)
   }
 
   it should "preserve a custom changeDetector" in {
-    assert(OperatorResultMetadata(changeDetector = "abc").changeDetector == "abc")
+    assert(PortResultMetadata(changeDetector = "abc").changeDetector == "abc")
   }
 
   it should "preserve both fields together" in {
-    val m = OperatorResultMetadata(tupleCount = 7, changeDetector = "hash-x")
+    val m = PortResultMetadata(tupleCount = 7, changeDetector = "hash-x")
     assert(m.tupleCount == 7)
     assert(m.changeDetector == "hash-x")
   }
@@ -57,11 +57,11 @@ class OperatorResultMetadataSpec extends AnyFlatSpec {
   // Equality / hashCode (case class semantics)
   // ---------------------------------------------------------------------------
 
-  "OperatorResultMetadata equality" should "compare both fields" in {
-    val a = OperatorResultMetadata(1, "x")
-    val b = OperatorResultMetadata(1, "x")
-    val c = OperatorResultMetadata(1, "y")
-    val d = OperatorResultMetadata(2, "x")
+  "PortResultMetadata equality" should "compare both fields" in {
+    val a = PortResultMetadata(1, "x")
+    val b = PortResultMetadata(1, "x")
+    val c = PortResultMetadata(1, "y")
+    val d = PortResultMetadata(2, "x")
     assert(a == b)
     assert(a.hashCode == b.hashCode)
     assert(a != c, "differing changeDetector must break equality")
@@ -72,10 +72,10 @@ class OperatorResultMetadataSpec extends AnyFlatSpec {
   // copy semantics
   // ---------------------------------------------------------------------------
 
-  "OperatorResultMetadata.copy" should
+  "PortResultMetadata.copy" should
     "replace only the field that was supplied, preserving the rest" in {
-    val base = OperatorResultMetadata(5, "old-hash")
-    assert(base.copy(tupleCount = 10) == OperatorResultMetadata(10, "old-hash"))
-    assert(base.copy(changeDetector = "new-hash") == OperatorResultMetadata(5, "new-hash"))
+    val base = PortResultMetadata(5, "old-hash")
+    assert(base.copy(tupleCount = 10) == PortResultMetadata(10, "old-hash"))
+    assert(base.copy(changeDetector = "new-hash") == PortResultMetadata(5, "new-hash"))
   }
 }

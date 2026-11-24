@@ -56,13 +56,13 @@ class WorkflowResultStoreSpec extends AnyFlatSpec {
     "preserve a Map carrying metadata entries for multiple operators" in {
     val store = WorkflowResultStore(
       Map(
-        opA -> OperatorResultMetadata(10, "h-a"),
-        opB -> OperatorResultMetadata(20, "h-b")
+        opA -> PortResultMetadata(10, "h-a"),
+        opB -> PortResultMetadata(20, "h-b")
       )
     )
     assert(store.resultInfo.size == 2)
-    assert(store.resultInfo(opA) == OperatorResultMetadata(10, "h-a"))
-    assert(store.resultInfo(opB) == OperatorResultMetadata(20, "h-b"))
+    assert(store.resultInfo(opA) == PortResultMetadata(10, "h-a"))
+    assert(store.resultInfo(opB) == PortResultMetadata(20, "h-b"))
   }
 
   it should "keep two output ports of one operator as two entries with their own counts" in {
@@ -71,7 +71,7 @@ class WorkflowResultStoreSpec extends AnyFlatSpec {
     val port0 = outputPort("op-split", 0)
     val port1 = outputPort("op-split", 1)
     val store = WorkflowResultStore(
-      Map(port0 -> OperatorResultMetadata(3), port1 -> OperatorResultMetadata(5))
+      Map(port0 -> PortResultMetadata(3), port1 -> PortResultMetadata(5))
     )
     assert(store.resultInfo.size == 2)
     assert(store.resultInfo(port0).tupleCount == 3)
@@ -81,8 +81,8 @@ class WorkflowResultStoreSpec extends AnyFlatSpec {
   }
 
   it should "preserve key identity (a missing key reads as None via .get)" in {
-    val store = WorkflowResultStore(Map(opA -> OperatorResultMetadata(1, "x")))
-    assert(store.resultInfo.get(opA).contains(OperatorResultMetadata(1, "x")))
+    val store = WorkflowResultStore(Map(opA -> PortResultMetadata(1, "x")))
+    assert(store.resultInfo.get(opA).contains(PortResultMetadata(1, "x")))
     assert(store.resultInfo.get(opB).isEmpty)
   }
 
@@ -92,9 +92,9 @@ class WorkflowResultStoreSpec extends AnyFlatSpec {
 
   "WorkflowResultStore equality" should
     "compare resultInfo by value (two stores with the same Map are equal)" in {
-    val s1 = WorkflowResultStore(Map(opA -> OperatorResultMetadata(1, "x")))
-    val s2 = WorkflowResultStore(Map(opA -> OperatorResultMetadata(1, "x")))
-    val s3 = WorkflowResultStore(Map(opA -> OperatorResultMetadata(2, "x")))
+    val s1 = WorkflowResultStore(Map(opA -> PortResultMetadata(1, "x")))
+    val s2 = WorkflowResultStore(Map(opA -> PortResultMetadata(1, "x")))
+    val s3 = WorkflowResultStore(Map(opA -> PortResultMetadata(2, "x")))
     val s4 = WorkflowResultStore(Map.empty)
     assert(s1 == s2)
     assert(s1.hashCode == s2.hashCode)
@@ -107,10 +107,10 @@ class WorkflowResultStoreSpec extends AnyFlatSpec {
   // ---------------------------------------------------------------------------
 
   "WorkflowResultStore.copy" should "replace the resultInfo map" in {
-    val base = WorkflowResultStore(Map(opA -> OperatorResultMetadata(1, "x")))
-    val updated = base.copy(resultInfo = Map(opB -> OperatorResultMetadata(2, "y")))
+    val base = WorkflowResultStore(Map(opA -> PortResultMetadata(1, "x")))
+    val updated = base.copy(resultInfo = Map(opB -> PortResultMetadata(2, "y")))
     assert(updated.resultInfo.keySet == Set(opB))
-    assert(updated.resultInfo(opB) == OperatorResultMetadata(2, "y"))
+    assert(updated.resultInfo(opB) == PortResultMetadata(2, "y"))
     // Original is unchanged (immutable case-class semantics).
     assert(base.resultInfo.keySet == Set(opA))
   }

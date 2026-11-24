@@ -357,7 +357,7 @@ class ExecutionResultService(
             case (globalPortId, info) =>
               val opId = globalPortId.opId.logicalOpId
               val portId = globalPortId.portId
-              val oldInfo = oldState.resultInfo.getOrElse(globalPortId, OperatorResultMetadata())
+              val oldInfo = oldState.resultInfo.getOrElse(globalPortId, PortResultMetadata())
               val outputMode = ExecutionResultService.outputModeOf(physicalPlan, opId, portId)
               // Cannot assume the storage is available at this point. The storage object is only
               // available after a region is scheduled to execute. Opened once for the result
@@ -465,7 +465,7 @@ class ExecutionResultService(
     workflowStateStore.resultStore.updateState { _ =>
       // One entry per external output port. An internal port's materialization is not a result
       // to show, and its id would collide with an external port's.
-      val newInfo: Map[GlobalPortIdentity, OperatorResultMetadata] = {
+      val newInfo: Map[GlobalPortIdentity, PortResultMetadata] = {
         ExecutionResultUris
           .getResultUrisByExecutionId(executionId)
           .flatMap(uri => VFSURIFactory.decodeURI(uri).globalPortId.map(uri -> _))
@@ -497,7 +497,7 @@ class ExecutionResultService(
                 if (mode == OutputMode.SET_SNAPSHOT) {
                   UUID.randomUUID.toString
                 } else ""
-              (globalPortId, OperatorResultMetadata(count.toInt, changeDetector))
+              (globalPortId, PortResultMetadata(count.toInt, changeDetector))
           }
           .toMap
       }

@@ -24,7 +24,7 @@ import io.reactivex.rxjava3.disposables.Disposable
 import org.apache.pekko.actor.{ActorSystem, Cancellable}
 import org.apache.texera.amber.core.executor.OpExecInitInfo
 import org.apache.texera.amber.core.storage.model.BufferedItemWriter
-import org.apache.texera.amber.core.storage.result.{OperatorResultMetadata, WorkflowResultStore}
+import org.apache.texera.amber.core.storage.result.{PortResultMetadata, WorkflowResultStore}
 import org.apache.texera.amber.core.storage.{
   DocumentFactory,
   VFSURIFactory,
@@ -910,12 +910,12 @@ class ExecutionResultServiceSpec
     withAttached(plan, executionId) { fixture =>
       val events = new ResultEvents(fixture.workflowStateStore)
       fixture.setPortResults(
-        ("erss-port-detector", 0) -> OperatorResultMetadata(1, "a"),
-        ("erss-port-detector", 1) -> OperatorResultMetadata(1, "a")
+        ("erss-port-detector", 0) -> PortResultMetadata(1, "a"),
+        ("erss-port-detector", 1) -> PortResultMetadata(1, "a")
       )
       fixture.setPortResults(
-        ("erss-port-detector", 0) -> OperatorResultMetadata(1, "b"),
-        ("erss-port-detector", 1) -> OperatorResultMetadata(1, "b")
+        ("erss-port-detector", 0) -> PortResultMetadata(1, "b"),
+        ("erss-port-detector", 1) -> PortResultMetadata(1, "b")
       )
 
       // A port is changed when it is new or its count moved.
@@ -1406,10 +1406,10 @@ class ExecutionResultServiceSpec
 
     /** Publishes one engine-reported tuple count per (operator, external output port index). */
     def setPortResultCounts(counts: ((String, Int), Int)*): Unit =
-      setPortResults(counts.map { case (port, count) => port -> OperatorResultMetadata(count) }: _*)
+      setPortResults(counts.map { case (port, count) => port -> PortResultMetadata(count) }: _*)
 
     /** Publishes whole result metadata per (operator, external output port index). */
-    def setPortResults(entries: ((String, Int), OperatorResultMetadata)*): Unit =
+    def setPortResults(entries: ((String, Int), PortResultMetadata)*): Unit =
       workflowStateStore.resultStore.updateState(_ =>
         WorkflowResultStore(entries.map {
           case ((opId, port), metadata) =>

@@ -20,7 +20,7 @@
 package org.apache.texera.web.service
 
 import io.reactivex.rxjava3.disposables.Disposable
-import org.apache.texera.amber.core.storage.result.{OperatorResultMetadata, WorkflowResultStore}
+import org.apache.texera.amber.core.storage.result.{PortResultMetadata, WorkflowResultStore}
 import org.apache.texera.amber.core.virtualidentity.{
   OperatorIdentity,
   PhysicalOpIdentity,
@@ -506,7 +506,7 @@ class WorkflowServiceSpec
               PhysicalOpIdentity(OperatorIdentity("op"), "main"),
               PortIdentity(),
               input = false
-            ) -> OperatorResultMetadata(1)
+            ) -> PortResultMetadata(1)
           )
         )
     service.stateStore.resultStore.updateState(update)

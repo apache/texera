@@ -21,12 +21,12 @@ package org.apache.texera.amber.core.storage.result
 
 import org.apache.texera.amber.core.workflow.GlobalPortIdentity
 
-case class OperatorResultMetadata(tupleCount: Int = 0, changeDetector: String = "")
+case class PortResultMetadata(tupleCount: Int = 0, changeDetector: String = "")
 
 /**
   * The result metadata of one workflow execution, with one entry per external output port that has
   * a result document, so an operator with two output ports (e.g. Split) has two entries.
   */
 case class WorkflowResultStore(
-    resultInfo: Map[GlobalPortIdentity, OperatorResultMetadata] = Map.empty
+    resultInfo: Map[GlobalPortIdentity, PortResultMetadata] = Map.empty
 )
