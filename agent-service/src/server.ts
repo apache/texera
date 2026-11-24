@@ -236,11 +236,11 @@ const agentsRouter = new Elysia({ prefix: "/agents" })
         computingUnitId: t.Optional(t.Number()),
         settings: t.Optional(
           t.Object({
-            maxOperatorResultCharLimit: t.Optional(t.Number()),
-            maxOperatorResultCellCharLimit: t.Optional(t.Number()),
+            maxOperatorResultCharLimit: t.Optional(t.Integer({ minimum: 1 })),
+            maxOperatorResultCellCharLimit: t.Optional(t.Integer({ minimum: 1 })),
             operatorResultSerializationMode: t.Optional(t.Literal("tsv")),
-            toolTimeoutSeconds: t.Optional(t.Number()),
-            executionTimeoutMinutes: t.Optional(t.Number()),
+            toolTimeoutSeconds: t.Optional(t.Number({ exclusiveMinimum: 0 })),
+            executionTimeoutMinutes: t.Optional(t.Number({ exclusiveMinimum: 0 })),
             disabledTools: t.Optional(t.Array(t.String())),
             maxSteps: t.Optional(t.Integer({ minimum: 1 })),
             allowedOperatorTypes: t.Optional(t.Array(t.String())),
@@ -377,11 +377,11 @@ const agentsRouter = new Elysia({ prefix: "/agents" })
     },
     {
       body: t.Object({
-        maxOperatorResultCharLimit: t.Optional(t.Number()),
-        maxOperatorResultCellCharLimit: t.Optional(t.Number()),
+        maxOperatorResultCharLimit: t.Optional(t.Integer({ minimum: 1 })),
+        maxOperatorResultCellCharLimit: t.Optional(t.Integer({ minimum: 1 })),
         operatorResultSerializationMode: t.Optional(t.Literal("tsv")),
-        toolTimeoutSeconds: t.Optional(t.Number()),
-        executionTimeoutMinutes: t.Optional(t.Number()),
+        toolTimeoutSeconds: t.Optional(t.Number({ exclusiveMinimum: 0 })),
+        executionTimeoutMinutes: t.Optional(t.Number({ exclusiveMinimum: 0 })),
         maxSteps: t.Optional(t.Integer({ minimum: 1 })),
         disabledTools: t.Optional(t.Array(t.String())),
         allowedOperatorTypes: t.Optional(t.Array(t.String())),

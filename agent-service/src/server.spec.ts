@@ -252,6 +252,57 @@ describe(`PATCH ${API}/agents/:id/settings`, () => {
   });
 });
 
+describe("agent settings bounds", () => {
+  // A zero or negative timeout or result limit is not a setting: the update
+  // route stored it (a 0 timeout then silently fell back to the default, a
+  // negative one reached the execution backend), while creation ignored 0.
+  const invalid: [string, number][] = [
+    ["toolTimeoutSeconds", 0],
+    ["toolTimeoutSeconds", -5],
+    ["executionTimeoutMinutes", 0],
+    ["executionTimeoutMinutes", -1],
+    ["maxOperatorResultCharLimit", 0],
+    ["maxOperatorResultCharLimit", -100],
+    ["maxOperatorResultCharLimit", 10.5],
+    ["maxOperatorResultCellCharLimit", 0],
+    ["maxOperatorResultCellCharLimit", -1],
+    ["maxOperatorResultCellCharLimit", 2.5],
+  ];
+
+  test.each(invalid)("PATCH rejects %s = %p and keeps the old value", async (field, value) => {
+    const created = await readJson<{ id: string }>(await createAgent());
+    const before = await readJson<Record<string, number>>(await getJson(`${API}/agents/${created.id}/settings`));
+
+    const res = await patchJson(`${API}/agents/${created.id}/settings`, { [field]: value });
+    expect(res.status).toBeGreaterThanOrEqual(400);
+    expect(res.status).toBeLessThan(500);
+
+    const after = await readJson<Record<string, number>>(await getJson(`${API}/agents/${created.id}/settings`));
+    expect(after[field]).toBe(before[field]);
+  });
+
+  test.each(invalid)("POST rejects initial %s = %p", async (field, value) => {
+    const res = await createAgent({ settings: { [field]: value } });
+    expect(res.status).toBeGreaterThanOrEqual(400);
+    expect(res.status).toBeLessThan(500);
+  });
+
+  test("PATCH accepts the smallest valid values", async () => {
+    const created = await readJson<{ id: string }>(await createAgent());
+    const res = await patchJson(`${API}/agents/${created.id}/settings`, {
+      toolTimeoutSeconds: 1,
+      executionTimeoutMinutes: 0.5,
+      maxOperatorResultCharLimit: 1,
+      maxOperatorResultCellCharLimit: 1,
+    });
+    expect(res.status).toBe(200);
+    const body = await readJson<Record<string, number>>(res);
+    expect(body.toolTimeoutSeconds).toBe(1);
+    expect(body.maxOperatorResultCharLimit).toBe(1);
+    expect(body.maxOperatorResultCellCharLimit).toBe(1);
+  });
+});
+
 describe("agent creation edge cases", () => {
   test("rejects an empty modelType", async () => {
     // The body schema accepts any string, so the handler's own guard runs.
