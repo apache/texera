@@ -505,7 +505,7 @@ export class SharedModelChangeHandler {
     if (commentElement === undefined) {
       return;
     }
-    const operatorID = this.texeraGraph.getCommentBox(commentBoxID).anchoredOperatorID;
+    const operatorID = this.texeraGraph.getCommentBoxAnchor(commentBoxID);
     const operatorElement =
       operatorID === undefined ? undefined : (this.jointGraph.getCell(operatorID) as joint.dia.Element | undefined);
     commentElement.attr("rect", JointUIService.getCommentBoxAnchorAttrs(operatorElement !== undefined));
@@ -527,12 +527,16 @@ export class SharedModelChangeHandler {
     this.texeraGraph.sharedModel.commentBoxMap.observeDeep((events: Y.YEvent<any>[]) => {
       events.forEach(event => {
         if (event.target !== this.texeraGraph.sharedModel.commentBoxMap) {
-          const commentBox: CommentBox = this.texeraGraph.getCommentBox(event.path[0] as string);
+          const commentBoxID = event.path[0] as string;
           if (event.path.length === 1 && event.changes.keys.has("anchoredOperatorID")) {
-            this.refreshCommentBoxConnector(commentBox.commentBoxID);
-            this.texeraGraph.commentBoxAnchorChangedSubject.next({ commentBox });
+            this.refreshCommentBoxConnector(commentBoxID);
+            this.texeraGraph.commentBoxAnchorChangedSubject.next({
+              commentBox: this.texeraGraph.getCommentBox(commentBoxID),
+            });
           }
           if (event.path.length === 2 && event.path[event.path.length - 1] === "comments") {
+            // Built only here: position writes, on every pointermove of a drag, reach this observer too.
+            const commentBox: CommentBox = this.texeraGraph.getCommentBox(commentBoxID);
             const addedComments = Array.from(event.changes.added.values());
             const deletedComments = Array.from(event.changes.deleted.values());
             if (addedComments.length == deletedComments.length) {

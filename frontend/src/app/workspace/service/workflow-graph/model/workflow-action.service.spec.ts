@@ -548,6 +548,24 @@ describe("WorkflowActionService", () => {
       }
     });
 
+    it("auto-layout keeps a far-off anchored comment box's offset without spreading the operators for it", () => {
+      service.addOperator(mockScanPredicate, { x: 0, y: 0 });
+      service.addOperator(mockResultPredicate, { x: 0, y: 0 });
+      service.addLink(mockScanResultLink);
+      // Anchored, but far beyond the detach distance (e.g. left there by a group drag).
+      addComment("commentBox-far", { x: 3000, y: 2000 });
+      service.anchorCommentBox("commentBox-far", mockScanPredicate.operatorID);
+
+      service.autoLayoutWorkflow();
+
+      const scan = service.getJointGraphWrapper().getElementPosition(mockScanPredicate.operatorID);
+      const result = service.getJointGraphWrapper().getElementPosition(mockResultPredicate.operatorID);
+      // Operator width (60) plus dagre's rank separation (80), as with no comment box at all.
+      expect(result.x - scan.x).toEqual(140);
+      expect(result.y).toEqual(scan.y);
+      expect(offsetFrom("commentBox-far", mockScanPredicate.operatorID)).toEqual({ x: 3000, y: 2000 });
+    });
+
     it("auto-layout still lays out floating comment boxes and tolerates an anchor to a missing operator", () => {
       const workflow: Workflow = {
         ...DEFAULT_WORKFLOW,
@@ -631,6 +649,69 @@ describe("WorkflowActionService", () => {
 
       expect(service.getJointGraphWrapper().getElementPosition(anchoredID)).toEqual({ x: 170, y: 100 });
       expect(texeraGraph.getCommentBox(anchoredID).commentBoxPosition).toEqual({ x: 170, y: 100 });
+    });
+
+    it("forgets a deleted comment box's synced position, so a reload and undo do not bring it back", () => {
+      service.addOperator(mockScanPredicate, { x: 100, y: 100 });
+      addComment(anchoredID, { x: 170, y: 100 });
+      service.anchorCommentBox(anchoredID, mockScanPredicate.operatorID);
+      // An operator drag puts the comment box's position (190, 120) in the shared position map.
+      service.highlightOperators(false, mockScanPredicate.operatorID);
+      service.getJointGraphWrapper().setAbsolutePosition(mockScanPredicate.operatorID, 120, 120);
+      service.unhighlightOperators(mockScanPredicate.operatorID);
+      // A reload (the agent panel reloads after every agent step) moves both, keeping the box's ID.
+      const content = service.getWorkflowContent();
+      service.reloadWorkflow({
+        ...DEFAULT_WORKFLOW,
+        content: {
+          ...content,
+          operatorPositions: { [mockScanPredicate.operatorID]: { x: 500, y: 500 } },
+          commentBoxes: content.commentBoxes.map(box => ({ ...box, commentBoxPosition: { x: 570, y: 500 } })),
+        },
+      });
+      texeraGraph.sharedModel.undoManager.stopCapturing();
+      service.highlightOperators(false, mockScanPredicate.operatorID);
+      service.getJointGraphWrapper().setAbsolutePosition(mockScanPredicate.operatorID, 600, 600);
+      texeraGraph.sharedModel.undoManager.stopCapturing();
+
+      undoRedo.undoAction();
+
+      expect(service.getJointGraphWrapper().getElementPosition(anchoredID)).toEqual({ x: 570, y: 500 });
+      expect(texeraGraph.getCommentBox(anchoredID).commentBoxPosition).toEqual({ x: 570, y: 500 });
+    });
+
+    it("drops a comment box from the shared position map when it is deleted, and restores it on undo", () => {
+      addComment(floatingID, { x: 170, y: 100 });
+      service.highlightCommentBoxes(false, floatingID);
+      service.getJointGraphWrapper().setAbsolutePosition(floatingID, 200, 200);
+      texeraGraph.sharedModel.undoManager.stopCapturing();
+
+      service.deleteCommentBox(floatingID);
+      expect(texeraGraph.sharedModel.elementPositionMap.has(floatingID)).toBe(false);
+      texeraGraph.sharedModel.undoManager.stopCapturing();
+
+      undoRedo.undoAction();
+      expect(service.getJointGraphWrapper().getElementPosition(floatingID)).toEqual({ x: 200, y: 200 });
+    });
+
+    it("drags operators without serializing every comment box on each move", () => {
+      service.addOperator(mockScanPredicate, { x: 100, y: 100 });
+      service.addOperator(mockResultPredicate, { x: 300, y: 100 });
+      addComment(anchoredID, { x: 170, y: 100 });
+      addComment(floatingID, { x: 600, y: 600 });
+      service.anchorCommentBox(anchoredID, mockScanPredicate.operatorID);
+      service.highlightOperators(true, mockScanPredicate.operatorID, mockResultPredicate.operatorID);
+      const getAllCommentBoxes = vi.spyOn(texeraGraph, "getAllCommentBoxes");
+      const getCommentBox = vi.spyOn(texeraGraph, "getCommentBox");
+
+      service.getJointGraphWrapper().setAbsolutePosition(mockScanPredicate.operatorID, 120, 120);
+
+      // Anchors are read straight from the shared model, without building each box's JSON (comments
+      // included); a large workflow pays that per operator on every pointermove otherwise.
+      expect(getAllCommentBoxes).not.toHaveBeenCalled();
+      expect(getCommentBox).not.toHaveBeenCalled();
+      expect(service.getJointGraphWrapper().getElementPosition(anchoredID)).toEqual({ x: 190, y: 120 });
+      expect(service.getJointGraphWrapper().getElementPosition(floatingID)).toEqual({ x: 600, y: 600 });
     });
 
     it("tells whether a comment box is within reach of an operator to stay anchored to it", () => {
@@ -782,6 +863,21 @@ describe("WorkflowActionService", () => {
         expect(texeraGraph.getCommentBox(anchoredID).anchoredOperatorID).toEqual(mockResultPredicate.operatorID);
       });
 
+      it("keeps its current operator while that one is still within snapping reach, even if another is nearer", () => {
+        // The scan operator spans x 100..160, the result operator x 230..290; the box spans x 181..213:
+        // 21px from the scan operator, 17px from the result operator.
+        service.addOperator(mockResultPredicate, { x: 230, y: 100 });
+        addComment(anchoredID, { x: 180, y: 100 });
+        service.anchorCommentBox(anchoredID, mockScanPredicate.operatorID);
+
+        // A 1px nudge.
+        service.getJointGraphWrapper().setAbsolutePosition(anchoredID, 181, 100);
+        expect(service.findCommentBoxAnchorTarget(anchoredID)).toEqual(mockScanPredicate.operatorID);
+        service.anchorCommentBoxOnDrop(anchoredID);
+
+        expect(texeraGraph.getCommentBox(anchoredID).anchoredOperatorID).toEqual(mockScanPredicate.operatorID);
+      });
+
       it("breaks a tie between equally near operators by the nearer center", () => {
         // Both operators are 10px from the box's edges; the result operator sits higher, so its
         // center is farther from the box's. Added before the scan operator, so order cannot decide.
@@ -824,6 +920,20 @@ describe("WorkflowActionService", () => {
 
         expect(overlaps(boundingBox(commentBoxID), button(".delete-button", 24))).toBe(false);
         expect(overlaps(boundingBox(commentBoxID), button(".chat-button", 20))).toBe(false);
+      });
+
+      it("places each further comment box clear of the ones already there", () => {
+        service.addOperator(mockScanPredicate, { x: 100, y: 100 });
+
+        const commentBoxIDs = [1, 2, 3].map(() => service.addCommentBoxToOperator(mockScanPredicate.operatorID));
+
+        commentBoxIDs.forEach((a, i) =>
+          commentBoxIDs.slice(i + 1).forEach(b => expect(overlaps(boundingBox(a), boundingBox(b))).toBe(false))
+        );
+        commentBoxIDs.forEach(commentBoxID => {
+          expect(overlaps(boundingBox(commentBoxID), boundingBox(mockScanPredicate.operatorID))).toBe(false);
+          expect(texeraGraph.getCommentBox(commentBoxID).anchoredOperatorID).toEqual(mockScanPredicate.operatorID);
+        });
       });
 
       it("undoes the added comment box in one step", () => {

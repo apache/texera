@@ -1543,7 +1543,7 @@ export class WorkflowEditorComponent implements OnInit, AfterViewInit, OnDestroy
                 pressedID,
                 starts: new Map(
                   _.union([pressedID], this.wrapper.getCurrentHighlightedCommentBoxIDs()).map(commentBoxID => {
-                    const anchoredOperatorID = texeraGraph.getCommentBox(commentBoxID).anchoredOperatorID;
+                    const anchoredOperatorID = texeraGraph.getCommentBoxAnchor(commentBoxID);
                     return [
                       commentBoxID,
                       {

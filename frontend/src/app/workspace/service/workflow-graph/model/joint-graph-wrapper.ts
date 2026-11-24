@@ -609,8 +609,13 @@ export class JointGraphWrapper {
    * them, and the comment boxes are then put back at their offsets from the operator.
    *
    * @param anchoredCommentBoxIDs the IDs of the comment boxes anchored to each operator, by operator ID
+   * @param isSpacedFor whether the layout makes room for an anchored comment box. One it does not (say,
+   *  one far from its operator) still keeps its offset, but does not widen its operator's node.
    */
-  public autoLayoutJoint(anchoredCommentBoxIDs: ReadonlyMap<string, readonly string[]> = new Map()): void {
+  public autoLayoutJoint(
+    anchoredCommentBoxIDs: ReadonlyMap<string, readonly string[]> = new Map(),
+    isSpacedFor: (commentBoxID: string) => boolean = () => true
+  ): void {
     const getElement = (id: string) => this.jointGraph.getCell(id) as joint.dia.Element;
     const anchored = new Set(Array.from(anchoredCommentBoxIDs.values()).flat());
     // For each operator with anchored comment boxes: the bounding box of the group, the operator's
@@ -619,6 +624,7 @@ export class JointGraphWrapper {
     anchoredCommentBoxIDs.forEach((commentBoxIDs, operatorID) => {
       const operator = getElement(operatorID);
       const bbox = commentBoxIDs
+        .filter(commentBoxID => isSpacedFor(commentBoxID))
         .map(commentBoxID => getElement(commentBoxID).getBBox())
         .reduce((union, box) => union.union(box), operator.getBBox());
       const operatorPosition = operator.position();

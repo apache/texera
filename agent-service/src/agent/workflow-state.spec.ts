@@ -89,6 +89,32 @@ describe("WorkflowState - operators", () => {
   });
 });
 
+describe("WorkflowState - comment boxes", () => {
+  test("deleteOperator detaches the comment boxes anchored to it, so a reused ID does not claim them", () => {
+    const state = new WorkflowState();
+    state.setWorkflowContent({
+      operators: [makeOperator("op1"), makeOperator("op2")],
+      operatorPositions: { op1: { x: 0, y: 0 }, op2: { x: 300, y: 0 } },
+      links: [],
+      commentBoxes: [
+        { commentBoxID: "on-op1", comments: [], commentBoxPosition: { x: 70, y: -50 }, anchoredOperatorID: "op1" },
+        { commentBoxID: "on-op2", comments: [], commentBoxPosition: { x: 370, y: -50 }, anchoredOperatorID: "op2" },
+      ],
+      settings: { dataTransferBatchSize: 400 },
+    });
+
+    state.deleteOperator("op1");
+
+    const boxes = state.getAllCommentBoxes();
+    expect(boxes.find(box => box.commentBoxID === "on-op1")).toEqual({
+      commentBoxID: "on-op1",
+      comments: [],
+      commentBoxPosition: { x: 70, y: -50 },
+    });
+    expect(boxes.find(box => box.commentBoxID === "on-op2")!.anchoredOperatorID).toBe("op2");
+  });
+});
+
 describe("WorkflowState - links", () => {
   test("add and delete link", () => {
     const state = new WorkflowState();

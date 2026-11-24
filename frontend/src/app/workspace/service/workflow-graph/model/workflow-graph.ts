@@ -404,9 +404,33 @@ export class WorkflowGraph {
    * @param operatorID
    */
   public getCommentBoxesAnchoredTo(operatorID: string): string[] {
-    return this.getAllCommentBoxes()
-      .filter(commentBox => commentBox.anchoredOperatorID === operatorID)
-      .map(commentBox => commentBox.commentBoxID);
+    return this.getAnchoredCommentBoxIDsByOperator().get(operatorID) ?? [];
+  }
+
+  /**
+   * Returns the IDs of the anchored comment boxes, by the ID of the operator each is anchored to. Reads
+   * only each box's anchor, not its JSON (comments included): drags call this on every pointermove.
+   */
+  public getAnchoredCommentBoxIDsByOperator(): Map<string, string[]> {
+    const byOperator = new Map<string, string[]>();
+    this.sharedModel.commentBoxMap.forEach((_, commentBoxID) => {
+      const operatorID = this.getCommentBoxAnchor(commentBoxID);
+      if (operatorID !== undefined) {
+        byOperator.set(operatorID, [...(byOperator.get(operatorID) ?? []), commentBoxID]);
+      }
+    });
+    return byOperator;
+  }
+
+  /**
+   * Returns the ID of the operator a comment box is anchored to, if any, reading only that field rather
+   * than the box's JSON (comments included), for paths that run on every pointermove.
+   * @param commentBoxID
+   */
+  public getCommentBoxAnchor(commentBoxID: string): string | undefined {
+    this.assertCommentBoxExists(commentBoxID);
+    const commentBox = this.sharedModel.commentBoxMap.get(commentBoxID) as unknown as Y.Map<unknown>;
+    return commentBox.get("anchoredOperatorID")?.toString();
   }
 
   /**

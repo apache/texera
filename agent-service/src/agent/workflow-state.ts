@@ -123,6 +123,13 @@ export class WorkflowState {
       this.linkDeleteSubject.next({ deletedLink: link });
     }
 
+    // Detach its comment boxes, as the frontend does: a later operator reusing this ID must not claim them.
+    this.commentBoxes = this.commentBoxes.map(box => {
+      if (box.anchoredOperatorID !== operatorId) return box;
+      const { anchoredOperatorID: _detached, ...floating } = box;
+      return floating;
+    });
+
     this.operatorsToViewResult.delete(operatorId);
     this.operatorPositions.delete(operatorId);
     const deleted = this.operators.delete(operatorId);
