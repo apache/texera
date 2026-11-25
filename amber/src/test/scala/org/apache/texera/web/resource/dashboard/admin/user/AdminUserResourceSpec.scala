@@ -311,6 +311,21 @@ class AdminUserResourceSpec
     a[WebApplicationException] should be thrownBy resource.updateUser(edit)
   }
 
+  it should "accept an update to an address no other account uses" in {
+    val user = makeUser(primaryUid, "moving", UserRoleEnum.REGULAR)
+    userDao.insert(user)
+    val freshEmail = s"admin_user_spec_moved_${UUID.randomUUID().toString.take(8)}@example.com"
+
+    val edit = new User
+    edit.setUid(primaryUid)
+    edit.setName("moving")
+    edit.setEmail(freshEmail) // no account has it → no conflict
+    edit.setRole(UserRoleEnum.REGULAR) // unchanged role → no e-mail side effect
+    resource.updateUser(edit)
+
+    userDao.fetchOneByUid(primaryUid).getEmail shouldBe freshEmail
+  }
+
   // ─── updateUser: the email safeguard ──────────────────────────────────────
 
   // An unclaimed stub has no address, and the admin table renders that as a blank cell beside a

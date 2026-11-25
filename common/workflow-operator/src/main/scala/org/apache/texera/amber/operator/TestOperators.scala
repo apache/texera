@@ -31,7 +31,6 @@ import org.apache.texera.amber.operator.hashJoin.HashJoinOpDesc
 import org.apache.texera.amber.operator.keywordSearch.KeywordSearchOpDesc
 import org.apache.texera.amber.operator.source.scan.csv.CSVScanSourceOpDesc
 import org.apache.texera.amber.operator.source.scan.json.JSONLScanSourceOpDesc
-import org.apache.texera.amber.operator.source.sql.asterixdb.AsterixDBSourceOpDesc
 import org.apache.texera.amber.operator.udf.python.PythonUDFOpDescV2
 import org.apache.texera.amber.operator.udf.python.source.PythonUDFSourceOpDescV2
 
@@ -71,6 +70,8 @@ object TestOperators {
   val CountrySalesMediumCsvPath = s"$parentDir/src/test/resources/country_sales_medium.csv"
   val CountrySalesHeaderlessSmallCsvPath =
     s"$parentDir/src/test/resources/country_sales_headerless_small.csv"
+  val CountrySalesHeaderlessMultiLineDataCsvPath =
+    s"$parentDir/src/test/resources/country_sales_headerless_small_multi_line.csv"
   val CountrySalesSmallMultiLineCsvPath =
     s"$parentDir/src/test/resources/country_sales_small_multi_line.csv"
   val CountrySalesSmallMultiLineCustomDelimiterCsvPath =
@@ -89,9 +90,8 @@ object TestOperators {
 
   def headerlessSmallMultiLineDataCsvScanOpDesc(): CSVScanSourceOpDesc = {
     getCsvScanOpDesc(
-      CountrySalesHeaderlessSmallCsvPath,
-      header = false,
-      multiLine = true
+      CountrySalesHeaderlessMultiLineDataCsvPath,
+      header = false
     )
   }
 
@@ -109,8 +109,7 @@ object TestOperators {
 
   def getCsvScanOpDesc(
       fileName: String,
-      header: Boolean,
-      multiLine: Boolean = false
+      header: Boolean
   ): CSVScanSourceOpDesc = {
     val csvHeaderlessOp = new CSVScanSourceOpDesc()
     csvHeaderlessOp.fileName = Some(fileName)
@@ -160,17 +159,6 @@ object TestOperators {
     aggOp.aggregations = List(aggFunc)
     aggOp.groupByKeys = groupByAttributes
     aggOp
-  }
-
-  // TODO: use mock data to perform the test, remove dependency on the real AsterixDB
-  def asterixDBSourceOpDesc(): AsterixDBSourceOpDesc = {
-    val asterixDBOp = new AsterixDBSourceOpDesc()
-    asterixDBOp.host = "ipubmed4.ics.uci.edu" // AsterixDB at version 0.9.5
-    asterixDBOp.port = "default"
-    asterixDBOp.database = "twitter"
-    asterixDBOp.table = "ds_tweet"
-    asterixDBOp.limit = Some(1000)
-    asterixDBOp
   }
 
   def pythonOpDesc(): PythonUDFOpDescV2 = {

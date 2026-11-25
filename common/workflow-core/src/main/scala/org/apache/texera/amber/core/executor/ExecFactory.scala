@@ -97,7 +97,7 @@ object ExecFactory {
           .asInstanceOf[OperatorExecutor]
       }
     } catch {
-      case e: NoSuchMethodException =>
+      case _: NoSuchMethodException =>
         if (descString.isEmpty) {
           clazz
             .getDeclaredConstructor(classOf[Int], classOf[Int])

@@ -19,25 +19,16 @@
 
 package org.apache.texera.amber.engine.architecture.worker.managers
 
-import org.apache.texera.amber.core.executor.OperatorExecutor
-import org.apache.texera.amber.core.tuple.{Tuple, TupleLike}
 import org.apache.texera.amber.core.workflow.PortIdentity
 import org.scalatest.flatspec.AnyFlatSpec
 
 class StatisticsManagerSpec extends AnyFlatSpec {
 
-  // Empty-iterator executor fixture so getStatistics can be invoked without
-  // any side effects. Top-level (private object outside the class) so Kryo
-  // / Scala don't capture an enclosing-instance reference.
-  private object EmptyExec extends OperatorExecutor {
-    override def processTuple(tuple: Tuple, port: Int): Iterator[TupleLike] = Iterator.empty
-  }
-
   "StatisticsManager (default state)" should "initialize all counters and accumulators to zero" in {
     val mgr = new StatisticsManager
     assert(mgr.getInputTupleCount == 0L)
     assert(mgr.getOutputTupleCount == 0L)
-    val stats = mgr.getStatistics(EmptyExec)
+    val stats = mgr.getStatistics()
     assert(stats.inputTupleMetrics.isEmpty)
     assert(stats.outputTupleMetrics.isEmpty)
     assert(stats.dataProcessingTime == 0L)
@@ -53,7 +44,7 @@ class StatisticsManagerSpec extends AnyFlatSpec {
     mgr.increaseInputStatistics(p0, size = 50L)
     mgr.increaseInputStatistics(p1, size = 200L)
     assert(mgr.getInputTupleCount == 3L)
-    val stats = mgr.getStatistics(EmptyExec)
+    val stats = mgr.getStatistics()
     val p0Metrics = stats.inputTupleMetrics.find(_.portId == p0).get.tupleMetrics
     val p1Metrics = stats.inputTupleMetrics.find(_.portId == p1).get.tupleMetrics
     assert(p0Metrics.count == 2L && p0Metrics.size == 150L)
@@ -73,7 +64,7 @@ class StatisticsManagerSpec extends AnyFlatSpec {
     mgr.increaseOutputStatistics(p0, size = 10L)
     mgr.increaseOutputStatistics(p0, size = 20L)
     assert(mgr.getOutputTupleCount == 2L)
-    val stats = mgr.getStatistics(EmptyExec)
+    val stats = mgr.getStatistics()
     val out = stats.outputTupleMetrics.find(_.portId == p0).get.tupleMetrics
     assert(out.count == 2L && out.size == 30L)
   }
@@ -89,7 +80,7 @@ class StatisticsManagerSpec extends AnyFlatSpec {
     val mgr = new StatisticsManager
     mgr.increaseDataProcessingTime(100L)
     mgr.increaseDataProcessingTime(50L)
-    assert(mgr.getStatistics(EmptyExec).dataProcessingTime == 150L)
+    assert(mgr.getStatistics().dataProcessingTime == 150L)
   }
 
   it should "reject negative time with IllegalArgumentException" in {
@@ -103,7 +94,7 @@ class StatisticsManagerSpec extends AnyFlatSpec {
     val mgr = new StatisticsManager
     mgr.increaseControlProcessingTime(33L)
     mgr.increaseControlProcessingTime(22L)
-    assert(mgr.getStatistics(EmptyExec).controlProcessingTime == 55L)
+    assert(mgr.getStatistics().controlProcessingTime == 55L)
   }
 
   it should "reject negative time with IllegalArgumentException" in {
@@ -120,7 +111,7 @@ class StatisticsManagerSpec extends AnyFlatSpec {
     mgr.increaseDataProcessingTime(100L)
     mgr.increaseControlProcessingTime(50L)
     mgr.updateTotalExecutionTime(1500L)
-    val stats = mgr.getStatistics(EmptyExec)
+    val stats = mgr.getStatistics()
     // total = 1500 - 1000 = 500; idle = 500 - 100 - 50 = 350
     assert(stats.dataProcessingTime == 100L)
     assert(stats.controlProcessingTime == 50L)
@@ -139,7 +130,7 @@ class StatisticsManagerSpec extends AnyFlatSpec {
     val mgr = new StatisticsManager
     mgr.initializeWorkerStartTime(1000L)
     mgr.updateTotalExecutionTime(1000L)
-    val stats = mgr.getStatistics(EmptyExec)
+    val stats = mgr.getStatistics()
     assert(stats.idleTime == 0L)
   }
 }

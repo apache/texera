@@ -31,7 +31,7 @@ object URLFetchUtil {
           request.setRequestProperty("User-Agent", RandomUserAgent.getRandomUserAgent)
           Some(request.getInputStream)
         } catch {
-          case t: Throwable => //re-try
+          case _: Throwable => //re-try
             None
         }
       if (result.isDefined) {

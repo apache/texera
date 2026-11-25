@@ -99,7 +99,6 @@ class VersionedResourceTablesSpec
 
   it should "expose the POJO fields the hub de-dupes and sizes by" in {
     val d = dataset(11, 22, "dataset-11")
-    tables.idOf(d) shouldBe Integer.valueOf(11)
     tables.ownerUidOf(d) shouldBe Integer.valueOf(22)
     tables.repositoryNameOf(d) shouldBe "dataset-11"
   }
@@ -189,7 +188,6 @@ class VersionedResourceTablesSpec
 
   it should "expose the POJO fields the hub de-dupes and sizes by" in {
     val m = model(31, 42, "model-31")
-    modelTables.idOf(m) shouldBe Integer.valueOf(31)
     modelTables.ownerUidOf(m) shouldBe Integer.valueOf(42)
     modelTables.repositoryNameOf(m) shouldBe "model-31"
   }

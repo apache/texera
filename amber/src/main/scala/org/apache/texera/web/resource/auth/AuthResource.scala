@@ -68,7 +68,7 @@ object AuthResource {
     if (password == null || username == null) return None
 
     val record = context
-      .select()
+      .select(USER.fields() :+ AUTH_PROVIDER.PASSWORD: _*)
       .from(AUTH_PROVIDER)
       .join(USER)
       .on(USER.UID.eq(AUTH_PROVIDER.UID))
@@ -156,7 +156,12 @@ object AuthResource {
 
     if (LocalAuthProvisioner.handleExists(adminUsername)) return
 
-    if (fetchUserByEmailIgnoreCase(adminUsername) != null) {
+    val emailMatch = context
+      .selectOne()
+      .from(USER)
+      .where(DSL.lower(USER.EMAIL).eq(EmailUtil.normalize(adminUsername)))
+      .fetchOne()
+    if (emailMatch != null) {
       logger.warn(
         s"Not creating the admin account: '$adminUsername' is already used as an email address " +
           "by an account with no local credential. Grant that account the ADMIN role instead."
@@ -194,11 +199,15 @@ class AuthResource {
     val email = Option(request.email).getOrElse("").trim
     ValidateEmail(email)
 
-    val current = new UserDao(
-      SqlServer.getInstance().createDSLContext().configuration()
-    ).fetchOneByUid(sessionUser.getUid)
+    val current = SqlServer
+      .getInstance()
+      .createDSLContext()
+      .select(USER.EMAIL)
+      .from(USER)
+      .where(USER.UID.eq(sessionUser.getUid))
+      .fetchOne()
     if (current == null) throw new NotAuthorizedException("Login credentials are incorrect.")
-    if (current.getEmail != null) {
+    if (current.value1() != null) {
       throw new WebApplicationException(
         "This account already has an email address.",
         Response.Status.CONFLICT
