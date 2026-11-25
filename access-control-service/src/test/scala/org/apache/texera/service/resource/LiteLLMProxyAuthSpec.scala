@@ -54,51 +54,25 @@ class LiteLLMProxyAuthSpec extends AnyFlatSpec with Matchers with BeforeAndAfter
   // pipeline didn't short-circuit before the resource body ran.
   private val unreachableLiteLLM = "http://127.0.0.1:1"
 
-  private val resources: ResourceExtension = ResourceExtension
-    .builder()
-    .setMapper(testMapper)
-    .addProvider(classOf[JwtAuthFilter])
-    .addProvider(classOf[UnauthorizedExceptionMapper])
-    .addProvider(classOf[RolesAllowedDynamicFeature])
-    .addResource(
-      new LiteLLMProxyResource(
-        copilotEnabled = true,
-        litellmBaseUrl = unreachableLiteLLM,
-        litellmApiKey = "test"
-      )
-    )
-    .addResource(
-      new LiteLLMModelsResource(
-        copilotEnabled = true,
-        litellmBaseUrl = unreachableLiteLLM,
-        litellmApiKey = "test"
-      )
-    )
-    .build()
+  // The proxy and models resources behind the same auth providers as production.
+  private def proxyExtension(copilotEnabled: Boolean, baseUrl: String): ResourceExtension =
+    ResourceExtension
+      .builder()
+      .setMapper(testMapper)
+      .addProvider(classOf[JwtAuthFilter])
+      .addProvider(classOf[UnauthorizedExceptionMapper])
+      .addProvider(classOf[RolesAllowedDynamicFeature])
+      .addResource(new LiteLLMProxyResource(copilotEnabled, baseUrl, litellmApiKey = "test"))
+      .addResource(new LiteLLMModelsResource(copilotEnabled, baseUrl, litellmApiKey = "test"))
+      .build()
+
+  private val resources: ResourceExtension =
+    proxyExtension(copilotEnabled = true, unreachableLiteLLM)
 
   // Second resource extension with copilotEnabled = false, used to exercise
   // the resource's early-exit branch that returns "Copilot feature is disabled".
-  private val resourcesCopilotDisabled: ResourceExtension = ResourceExtension
-    .builder()
-    .setMapper(testMapper)
-    .addProvider(classOf[JwtAuthFilter])
-    .addProvider(classOf[UnauthorizedExceptionMapper])
-    .addProvider(classOf[RolesAllowedDynamicFeature])
-    .addResource(
-      new LiteLLMProxyResource(
-        copilotEnabled = false,
-        litellmBaseUrl = unreachableLiteLLM,
-        litellmApiKey = "test"
-      )
-    )
-    .addResource(
-      new LiteLLMModelsResource(
-        copilotEnabled = false,
-        litellmBaseUrl = unreachableLiteLLM,
-        litellmApiKey = "test"
-      )
-    )
-    .build()
+  private val resourcesCopilotDisabled: ResourceExtension =
+    proxyExtension(copilotEnabled = false, unreachableLiteLLM)
 
   // An in-process HTTP server stands in for LiteLLM so the resources' success
   // path (header / body / status forwarding) is exercised end-to-end without
@@ -124,27 +98,8 @@ class LiteLLMProxyAuthSpec extends AnyFlatSpec with Matchers with BeforeAndAfter
 
   // Third extension: copilot on, upstream reachable. Resource is built lazily
   // because litellmBaseUrl depends on the mock server's bound port.
-  private lazy val resourcesMockLiteLLM: ResourceExtension = ResourceExtension
-    .builder()
-    .setMapper(testMapper)
-    .addProvider(classOf[JwtAuthFilter])
-    .addProvider(classOf[UnauthorizedExceptionMapper])
-    .addProvider(classOf[RolesAllowedDynamicFeature])
-    .addResource(
-      new LiteLLMProxyResource(
-        copilotEnabled = true,
-        litellmBaseUrl = mockBaseUrl,
-        litellmApiKey = "test"
-      )
-    )
-    .addResource(
-      new LiteLLMModelsResource(
-        copilotEnabled = true,
-        litellmBaseUrl = mockBaseUrl,
-        litellmApiKey = "test"
-      )
-    )
-    .build()
+  private lazy val resourcesMockLiteLLM: ResourceExtension =
+    proxyExtension(copilotEnabled = true, mockBaseUrl)
 
   override protected def beforeAll(): Unit = {
     mockLiteLLM.start()
@@ -170,97 +125,72 @@ class LiteLLMProxyAuthSpec extends AnyFlatSpec with Matchers with BeforeAndAfter
 
   private val chatBody = """{"model":"gpt-4o-mini","messages":[]}"""
 
+  // A JSON request to `path`, with a Bearer token for `role` when one is given.
+  private def jsonRequest(ext: ResourceExtension, path: String, role: Option[UserRoleEnum]) = {
+    val builder = ext.target(path).request(MediaType.APPLICATION_JSON)
+    role.fold(builder)(r => builder.header("Authorization", s"Bearer ${token(r)}"))
+  }
+
+  // Posts the chat body to /chat/completions.
+  private def postChat(ext: ResourceExtension, role: Option[UserRoleEnum] = None) =
+    jsonRequest(ext, "/chat/completions", role).post(Entity.json(chatBody))
+
+  // Lists the models at /models.
+  private def getModels(ext: ResourceExtension, role: Option[UserRoleEnum] = None) =
+    jsonRequest(ext, "/models", role).get()
+
   "POST /chat/completions without an Authorization header" should "return 401 with a Bearer challenge" in {
-    val response = resources
-      .target("/chat/completions")
-      .request(MediaType.APPLICATION_JSON)
-      .post(Entity.json(chatBody))
+    val response = postChat(resources)
     response.getStatus shouldBe 401
     response.getHeaderString("WWW-Authenticate") shouldBe JwtAuthFilter.BearerChallenge
   }
 
   it should "return 403 with an INACTIVE-role token" in {
-    val response = resources
-      .target("/chat/completions")
-      .request(MediaType.APPLICATION_JSON)
-      .header("Authorization", s"Bearer ${token(UserRoleEnum.INACTIVE)}")
-      .post(Entity.json(chatBody))
-    response.getStatus shouldBe 403
+    postChat(resources, Some(UserRoleEnum.INACTIVE)).getStatus shouldBe 403
   }
 
   it should "return 502 when the upstream LiteLLM call fails" in {
     // Exercises the resource's catch branch via a connect-refused upstream.
-    val response = resources
-      .target("/chat/completions")
-      .request(MediaType.APPLICATION_JSON)
-      .header("Authorization", s"Bearer ${token(UserRoleEnum.REGULAR)}")
-      .post(Entity.json(chatBody))
-    response.getStatus shouldBe 502
+    postChat(resources, Some(UserRoleEnum.REGULAR)).getStatus shouldBe 502
   }
 
   it should "return the resource's Copilot-disabled response when copilot is off" in {
     // 403 alone is ambiguous (could be from RolesAllowedDynamicFeature);
     // matching the entity to the same constant the resource emits proves the
     // role check passed and the resource's own early-exit branch fired.
-    val response = resourcesCopilotDisabled
-      .target("/chat/completions")
-      .request(MediaType.APPLICATION_JSON)
-      .header("Authorization", s"Bearer ${token(UserRoleEnum.REGULAR)}")
-      .post(Entity.json(chatBody))
+    val response = postChat(resourcesCopilotDisabled, Some(UserRoleEnum.REGULAR))
     response.getStatus shouldBe 403
     response.readEntity(classOf[String]) shouldBe LiteLLMProxyResource.CopilotDisabledBody
   }
 
   "GET /models without an Authorization header" should "return 401 with a Bearer challenge" in {
-    val response = resources.target("/models").request(MediaType.APPLICATION_JSON).get()
+    val response = getModels(resources)
     response.getStatus shouldBe 401
     response.getHeaderString("WWW-Authenticate") shouldBe JwtAuthFilter.BearerChallenge
   }
 
   it should "return 403 with an INACTIVE-role token" in {
-    val response = resources
-      .target("/models")
-      .request(MediaType.APPLICATION_JSON)
-      .header("Authorization", s"Bearer ${token(UserRoleEnum.INACTIVE)}")
-      .get()
-    response.getStatus shouldBe 403
+    getModels(resources, Some(UserRoleEnum.INACTIVE)).getStatus shouldBe 403
   }
 
   it should "return 502 when the upstream LiteLLM call fails" in {
-    val response = resources
-      .target("/models")
-      .request(MediaType.APPLICATION_JSON)
-      .header("Authorization", s"Bearer ${token(UserRoleEnum.ADMIN)}")
-      .get()
-    response.getStatus shouldBe 502
+    getModels(resources, Some(UserRoleEnum.ADMIN)).getStatus shouldBe 502
   }
 
   it should "return the resource's Copilot-disabled response when copilot is off" in {
-    val response = resourcesCopilotDisabled
-      .target("/models")
-      .request(MediaType.APPLICATION_JSON)
-      .header("Authorization", s"Bearer ${token(UserRoleEnum.ADMIN)}")
-      .get()
+    val response = getModels(resourcesCopilotDisabled, Some(UserRoleEnum.ADMIN))
     response.getStatus shouldBe 403
     response.readEntity(classOf[String]) shouldBe LiteLLMProxyResource.CopilotDisabledBody
   }
 
   "POST /chat/completions" should "forward the upstream response when copilot is on and upstream is reachable" in {
-    val response = resourcesMockLiteLLM
-      .target("/chat/completions")
-      .request(MediaType.APPLICATION_JSON)
-      .header("Authorization", s"Bearer ${token(UserRoleEnum.REGULAR)}")
-      .post(Entity.json(chatBody))
+    val response = postChat(resourcesMockLiteLLM, Some(UserRoleEnum.REGULAR))
     response.getStatus shouldBe 200
     response.readEntity(classOf[String]) shouldBe mockChatBody
   }
 
   "GET /models" should "forward the upstream response when copilot is on and upstream is reachable" in {
-    val response = resourcesMockLiteLLM
-      .target("/models")
-      .request(MediaType.APPLICATION_JSON)
-      .header("Authorization", s"Bearer ${token(UserRoleEnum.ADMIN)}")
-      .get()
+    val response = getModels(resourcesMockLiteLLM, Some(UserRoleEnum.ADMIN))
     response.getStatus shouldBe 200
     response.readEntity(classOf[String]) shouldBe mockModelsBody
   }

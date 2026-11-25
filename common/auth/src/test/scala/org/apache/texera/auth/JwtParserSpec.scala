@@ -98,34 +98,24 @@ class JwtParserSpec extends AnyFlatSpec with Matchers {
     JwtParser.parseToken(token).isPresent shouldBe false
   }
 
-  it should "return empty when the token is expired" in {
-    val claims = new JwtClaims
-    claims.setSubject("alice")
-    claims.setClaim("userId", 42)
-    claims.setClaim("role", UserRoleEnum.ADMIN.name)
-    claims.setExpirationTimeMinutesInTheFuture(-10f) // expired 10 minutes ago
-    val token = JwtAuth.jwtToken(claims)
-    JwtParser.parseToken(token).isPresent shouldBe false
-  }
-
-  it should "return empty when the token has no subject claim" in {
-    val claims = new JwtClaims
-    claims.setClaim("userId", 42)
-    claims.setClaim("role", UserRoleEnum.ADMIN.name)
-    claims.setExpirationTimeMinutesInTheFuture(10f)
-    val token = JwtAuth.jwtToken(claims)
-    JwtParser.parseToken(token).isPresent shouldBe false
-  }
-
-  it should "return empty when the token has no exp claim" in {
-    // The shared consumer is built with setRequireExpirationTime(); a token
-    // missing exp must be rejected even if the signature is valid.
-    val claims = new JwtClaims
-    claims.setSubject("alice")
-    claims.setClaim("userId", 42)
-    claims.setClaim("role", UserRoleEnum.ADMIN.name)
-    val token = JwtAuth.jwtToken(claims)
-    JwtParser.parseToken(token).isPresent shouldBe false
+  // A correctly signed token still needs a live expiry and the subject claim. The shared
+  // consumer is built with setRequireExpirationTime(); a token missing exp must be
+  // rejected even if the signature is valid.
+  Seq(
+    ("return empty when the token is expired", true, Some(-10f)),
+    ("return empty when the token has no subject claim", false, Some(10f)),
+    ("return empty when the token has no exp claim", true, None)
+  ).foreach {
+    case (name, includeSubject, expiryMinutes) =>
+      it should name in {
+        val claims = new JwtClaims
+        if (includeSubject) claims.setSubject("alice")
+        claims.setClaim("userId", 42)
+        claims.setClaim("role", UserRoleEnum.ADMIN.name)
+        expiryMinutes.foreach(claims.setExpirationTimeMinutesInTheFuture)
+        val token = JwtAuth.jwtToken(claims)
+        JwtParser.parseToken(token).isPresent shouldBe false
+      }
   }
 
   it should "still accept a token expired within the 30s clock-skew window" in {

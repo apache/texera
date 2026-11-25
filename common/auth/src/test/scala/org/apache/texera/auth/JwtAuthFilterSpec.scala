@@ -89,6 +89,19 @@ class JwtAuthFilterSpec extends AnyFlatSpec with Matchers {
   private class OptionalAuthResource { @PermitAll def cover(): Unit = () }
   @PermitAll private class OpenResource { def anything(): Unit = () }
 
+  // A filter whose resource info points at `methodName` on `resource`.
+  private def filterOn(resource: Class[_], methodName: String): JwtAuthFilter = {
+    val filter = new JwtAuthFilter
+    withResourceInfo(filter, new StubResourceInfo(methodOf(resource, methodName), resource))
+    filter
+  }
+
+  // A filter on a method that requires authentication.
+  private def requiredFilter(): JwtAuthFilter = filterOn(classOf[RequiredAuthResource], "secured")
+
+  // A filter on a @PermitAll method, where authentication is optional.
+  private def optionalFilter(): JwtAuthFilter = filterOn(classOf[OptionalAuthResource], "cover")
+
   private def buildClaims(): JwtClaims = {
     val c = new JwtClaims
     c.setSubject("alice")
@@ -111,14 +124,7 @@ class JwtAuthFilterSpec extends AnyFlatSpec with Matchers {
   // -------------------- required-auth method --------------------
 
   "JwtAuthFilter on a required-auth method" should "throw UnauthorizedException(BearerChallenge) when no Authorization header is present" in {
-    val filter = new JwtAuthFilter
-    withResourceInfo(
-      filter,
-      new StubResourceInfo(
-        methodOf(classOf[RequiredAuthResource], "secured"),
-        classOf[RequiredAuthResource]
-      )
-    )
+    val filter = requiredFilter()
     val ctx = new StubRequestContext(null)
     val thrown = the[UnauthorizedException] thrownBy filter.filter(ctx)
     thrown.challenge shouldBe JwtAuthFilter.BearerChallenge
@@ -126,42 +132,21 @@ class JwtAuthFilterSpec extends AnyFlatSpec with Matchers {
   }
 
   it should "throw UnauthorizedException(BearerChallenge) when the header is not a Bearer token" in {
-    val filter = new JwtAuthFilter
-    withResourceInfo(
-      filter,
-      new StubResourceInfo(
-        methodOf(classOf[RequiredAuthResource], "secured"),
-        classOf[RequiredAuthResource]
-      )
-    )
+    val filter = requiredFilter()
     val ctx = new StubRequestContext("Basic abc")
     val thrown = the[UnauthorizedException] thrownBy filter.filter(ctx)
     thrown.challenge shouldBe JwtAuthFilter.BearerChallenge
   }
 
   it should "throw UnauthorizedException(InvalidTokenChallenge) when the Bearer token cannot be verified" in {
-    val filter = new JwtAuthFilter
-    withResourceInfo(
-      filter,
-      new StubResourceInfo(
-        methodOf(classOf[RequiredAuthResource], "secured"),
-        classOf[RequiredAuthResource]
-      )
-    )
+    val filter = requiredFilter()
     val ctx = new StubRequestContext("Bearer not-a-real-jwt")
     val thrown = the[UnauthorizedException] thrownBy filter.filter(ctx)
     thrown.challenge shouldBe JwtAuthFilter.InvalidTokenChallenge
   }
 
   it should "install a SecurityContext with the parsed SessionUser when the token is valid" in {
-    val filter = new JwtAuthFilter
-    withResourceInfo(
-      filter,
-      new StubResourceInfo(
-        methodOf(classOf[RequiredAuthResource], "secured"),
-        classOf[RequiredAuthResource]
-      )
-    )
+    val filter = requiredFilter()
     val ctx = new StubRequestContext(s"Bearer ${JwtAuth.jwtToken(buildClaims())}")
 
     filter.filter(ctx)
@@ -177,53 +162,28 @@ class JwtAuthFilterSpec extends AnyFlatSpec with Matchers {
   // -------------------- @PermitAll opt-out --------------------
 
   "JwtAuthFilter on a @PermitAll method" should "let an unauthenticated request pass through with no SecurityContext" in {
-    val filter = new JwtAuthFilter
-    withResourceInfo(
-      filter,
-      new StubResourceInfo(
-        methodOf(classOf[OptionalAuthResource], "cover"),
-        classOf[OptionalAuthResource]
-      )
-    )
+    val filter = optionalFilter()
     val ctx = new StubRequestContext(null)
     filter.filter(ctx) // must NOT throw
     ctx.getSecurityContext shouldBe null
   }
 
   it should "still throw UnauthorizedException(InvalidTokenChallenge) when a token is supplied but invalid" in {
-    val filter = new JwtAuthFilter
-    withResourceInfo(
-      filter,
-      new StubResourceInfo(
-        methodOf(classOf[OptionalAuthResource], "cover"),
-        classOf[OptionalAuthResource]
-      )
-    )
+    val filter = optionalFilter()
     val ctx = new StubRequestContext("Bearer not-a-real-jwt")
     val thrown = the[UnauthorizedException] thrownBy filter.filter(ctx)
     thrown.challenge shouldBe JwtAuthFilter.InvalidTokenChallenge
   }
 
   it should "install a SecurityContext when a valid token is supplied" in {
-    val filter = new JwtAuthFilter
-    withResourceInfo(
-      filter,
-      new StubResourceInfo(
-        methodOf(classOf[OptionalAuthResource], "cover"),
-        classOf[OptionalAuthResource]
-      )
-    )
+    val filter = optionalFilter()
     val ctx = new StubRequestContext(s"Bearer ${JwtAuth.jwtToken(buildClaims())}")
     filter.filter(ctx)
     ctx.getSecurityContext.getUserPrincipal.asInstanceOf[SessionUser].getUid shouldBe 42
   }
 
   "JwtAuthFilter on a class-level @PermitAll" should "honor the class annotation when the method has none" in {
-    val filter = new JwtAuthFilter
-    withResourceInfo(
-      filter,
-      new StubResourceInfo(methodOf(classOf[OpenResource], "anything"), classOf[OpenResource])
-    )
+    val filter = filterOn(classOf[OpenResource], "anything")
     val ctx = new StubRequestContext(null)
     filter.filter(ctx) // must NOT throw
     ctx.getSecurityContext shouldBe null
@@ -243,58 +203,31 @@ class JwtAuthFilterSpec extends AnyFlatSpec with Matchers {
   // accept any capitalization of "Bearer" and tolerate surrounding /
   // intra-header whitespace.
   private def filterFor(authHeader: String): StubRequestContext = {
-    val filter = new JwtAuthFilter
-    withResourceInfo(
-      filter,
-      new StubResourceInfo(
-        methodOf(classOf[RequiredAuthResource], "secured"),
-        classOf[RequiredAuthResource]
-      )
-    )
+    val filter = requiredFilter()
     val ctx = new StubRequestContext(authHeader)
     filter.filter(ctx)
     ctx
   }
 
-  "JwtAuthFilter Bearer scheme parsing" should "accept lowercase 'bearer'" in {
-    val ctx = filterFor(s"bearer ${JwtAuth.jwtToken(buildClaims())}")
-    ctx.getSecurityContext.getUserPrincipal.asInstanceOf[SessionUser].getUid shouldBe 42
-  }
+  behavior of "JwtAuthFilter Bearer scheme parsing"
 
-  it should "accept uppercase 'BEARER'" in {
-    val ctx = filterFor(s"BEARER ${JwtAuth.jwtToken(buildClaims())}")
-    ctx.getSecurityContext.getUserPrincipal.asInstanceOf[SessionUser].getUid shouldBe 42
-  }
-
-  it should "accept mixed-case 'BeArEr'" in {
-    val ctx = filterFor(s"BeArEr ${JwtAuth.jwtToken(buildClaims())}")
-    ctx.getSecurityContext.getUserPrincipal.asInstanceOf[SessionUser].getUid shouldBe 42
-  }
-
-  it should "tolerate leading whitespace before the scheme" in {
-    val ctx = filterFor(s"   Bearer ${JwtAuth.jwtToken(buildClaims())}")
-    ctx.getSecurityContext.getUserPrincipal.asInstanceOf[SessionUser].getUid shouldBe 42
-  }
-
-  it should "tolerate multiple spaces between scheme and token" in {
-    val ctx = filterFor(s"Bearer   ${JwtAuth.jwtToken(buildClaims())}")
-    ctx.getSecurityContext.getUserPrincipal.asInstanceOf[SessionUser].getUid shouldBe 42
-  }
-
-  it should "tolerate trailing whitespace after the token" in {
-    val ctx = filterFor(s"Bearer ${JwtAuth.jwtToken(buildClaims())}   ")
-    ctx.getSecurityContext.getUserPrincipal.asInstanceOf[SessionUser].getUid shouldBe 42
+  Seq(
+    ("accept lowercase 'bearer'", "bearer %s"),
+    ("accept uppercase 'BEARER'", "BEARER %s"),
+    ("accept mixed-case 'BeArEr'", "BeArEr %s"),
+    ("tolerate leading whitespace before the scheme", "   Bearer %s"),
+    ("tolerate multiple spaces between scheme and token", "Bearer   %s"),
+    ("tolerate trailing whitespace after the token", "Bearer %s   ")
+  ).foreach {
+    case (name, header) =>
+      it should name in {
+        val ctx = filterFor(header.format(JwtAuth.jwtToken(buildClaims())))
+        ctx.getSecurityContext.getUserPrincipal.asInstanceOf[SessionUser].getUid shouldBe 42
+      }
   }
 
   it should "reject a Bearer header with no token" in {
-    val filter = new JwtAuthFilter
-    withResourceInfo(
-      filter,
-      new StubResourceInfo(
-        methodOf(classOf[RequiredAuthResource], "secured"),
-        classOf[RequiredAuthResource]
-      )
-    )
+    val filter = requiredFilter()
     val ctx = new StubRequestContext("Bearer   ")
     val thrown = the[UnauthorizedException] thrownBy filter.filter(ctx)
     thrown.challenge shouldBe JwtAuthFilter.BearerChallenge

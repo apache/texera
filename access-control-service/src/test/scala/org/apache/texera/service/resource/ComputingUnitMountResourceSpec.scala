@@ -53,6 +53,7 @@ import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 
 import scala.collection.mutable
+import scala.reflect.ClassTag
 
 class ComputingUnitMountResourceSpec
     extends AnyFlatSpec
@@ -60,76 +61,52 @@ class ComputingUnitMountResourceSpec
     with BeforeAndAfterAll
     with MockTexeraDB {
 
-  private val owner: User = {
+  /** A regular user whose email is `name@test.com`. */
+  private def makeUser(uid: Int, name: String): User = {
     val user = new User
-    user.setUid(1)
-    user.setName("owner")
-    user.setEmail("owner@test.com")
+    user.setUid(uid)
+    user.setName(name)
+    user.setEmail(s"$name@test.com")
     user.setRole(UserRoleEnum.REGULAR)
     user
   }
 
-  private val reader: User = {
-    val user = new User
-    user.setUid(2)
-    user.setName("reader")
-    user.setEmail("reader@test.com")
-    user.setRole(UserRoleEnum.REGULAR)
-    user
-  }
-
-  private val stranger: User = {
-    val user = new User
-    user.setUid(3)
-    user.setName("stranger")
-    user.setEmail("stranger@test.com")
-    user.setRole(UserRoleEnum.REGULAR)
-    user
-  }
-
-  private val ownedDataset: Dataset = {
+  /** A private dataset stored as repository `repo` and owned by `ownerUid`. */
+  private def makeDataset(did: Int, name: String, repo: String, ownerUid: Int): Dataset = {
     val dataset = new Dataset
-    dataset.setDid(1)
-    dataset.setName("owned")
+    dataset.setDid(did)
+    dataset.setName(name)
     dataset.setDescription("")
-    dataset.setRepositoryName("dataset-1")
-    dataset.setOwnerUid(owner.getUid)
+    dataset.setRepositoryName(repo)
+    dataset.setOwnerUid(ownerUid)
     dataset.setIsPublic(false)
     dataset
   }
 
-  private val ownedVersion: DatasetVersion = {
+  /** Version `v1` of dataset `did`, created by `creatorUid`, at commit `hash`. */
+  private def makeVersion(dvid: Int, did: Int, creatorUid: Int, hash: String): DatasetVersion = {
     val version = new DatasetVersion
-    version.setDvid(1)
-    version.setDid(ownedDataset.getDid)
+    version.setDvid(dvid)
+    version.setDid(did)
     version.setName("v1")
-    version.setCreatorUid(owner.getUid)
-    version.setVersionHash("abc123")
+    version.setCreatorUid(creatorUid)
+    version.setVersionHash(hash)
     version
   }
+
+  private val owner: User = makeUser(1, "owner")
+  private val reader: User = makeUser(2, "reader")
+  private val stranger: User = makeUser(3, "stranger")
+
+  private val ownedDataset: Dataset = makeDataset(1, "owned", "dataset-1", owner.getUid)
+  private val ownedVersion: DatasetVersion =
+    makeVersion(1, ownedDataset.getDid, owner.getUid, "abc123")
 
   // Another user's private dataset: the only fixture whose refusal comes from read access
   // rather than from the repository not existing.
-  private val strangersDataset: Dataset = {
-    val dataset = new Dataset
-    dataset.setDid(2)
-    dataset.setName("private")
-    dataset.setDescription("")
-    dataset.setRepositoryName("dataset-2")
-    dataset.setOwnerUid(stranger.getUid)
-    dataset.setIsPublic(false)
-    dataset
-  }
-
-  private val strangersVersion: DatasetVersion = {
-    val version = new DatasetVersion
-    version.setDvid(2)
-    version.setDid(strangersDataset.getDid)
-    version.setName("v1")
-    version.setCreatorUid(stranger.getUid)
-    version.setVersionHash("def456")
-    version
-  }
+  private val strangersDataset: Dataset = makeDataset(2, "private", "dataset-2", stranger.getUid)
+  private val strangersVersion: DatasetVersion =
+    makeVersion(2, strangersDataset.getDid, stranger.getUid, "def456")
 
   private val computingUnit: WorkflowComputingUnit = {
     val unit = new WorkflowComputingUnit
@@ -140,7 +117,6 @@ class ComputingUnitMountResourceSpec
     unit
   }
 
-  /** Records what the resource asked the node mounter to do, without any HTTP. */
   /** Records what the resource asked the node mounter to do, without any HTTP. */
   private class RecordingMounter extends MounterClient("/nonexistent-token") {
     val mounts: mutable.Buffer[(String, Int, String, String, String, String, String)] =
@@ -188,6 +164,19 @@ class ComputingUnitMountResourceSpec
 
   private def sessionOf(user: User) = new SessionUser(user)
 
+  /** Expects `mount` to throw `T` before the node mounter is asked for anything. */
+  private def expectMountRejected[T <: Throwable: ClassTag](
+      user: User = owner,
+      cuid: Int = 7,
+      repo: String = "dataset-1",
+      commit: String = "abc123",
+      build: MounterClient => ComputingUnitMountResource = resource(_)
+  ): Unit = {
+    val mounter = new RecordingMounter
+    a[T] should be thrownBy build(mounter).mount(cuid, MountRequest(repo, commit), sessionOf(user))
+    mounter.mounts shouldBe empty
+  }
+
   override protected def beforeAll(): Unit = {
     initializeDBAndReplaceDSLContext()
     val userDao = new UserDao(getDSLContext.configuration())
@@ -231,78 +220,44 @@ class ComputingUnitMountResourceSpec
   // The only fixture with READ and not WRITE: tells "any access is enough" apart from
   // "write access is required".
   it should "refuse a read-only sharee, who may use the unit but not change what it sees" in {
-    val mounter = new RecordingMounter
-    a[ForbiddenException] should be thrownBy
-      resource(mounter).mount(7, MountRequest("dataset-1", "abc123"), sessionOf(reader))
-    mounter.mounts shouldBe empty
+    expectMountRejected[ForbiddenException](user = reader)
   }
 
   it should "refuse a repository the user cannot read" in {
-    val mounter = new RecordingMounter
-    a[ForbiddenException] should be thrownBy
-      resource(mounter).mount(7, MountRequest("dataset-2", "def456"), sessionOf(owner))
     // The mounter authorizes nothing, so a refusal has to happen before it is asked.
-    mounter.mounts shouldBe empty
+    expectMountRejected[ForbiddenException](repo = "dataset-2", commit = "def456")
   }
 
   it should "refuse a repository that does not exist" in {
-    val mounter = new RecordingMounter
-    a[ForbiddenException] should be thrownBy
-      resource(mounter).mount(7, MountRequest("dataset-404", "abc123"), sessionOf(owner))
-    mounter.mounts shouldBe empty
+    expectMountRejected[ForbiddenException](repo = "dataset-404")
   }
 
   it should "refuse a commit that belongs to another repository" in {
-    val mounter = new RecordingMounter
-    a[ForbiddenException] should be thrownBy
-      resource(mounter).mount(7, MountRequest("dataset-1", "def456"), sessionOf(owner))
-    mounter.mounts shouldBe empty
+    expectMountRejected[ForbiddenException](commit = "def456")
   }
 
   it should "refuse a user with no access to the computing unit" in {
-    val mounter = new RecordingMounter
-    a[ForbiddenException] should be thrownBy
-      resource(mounter).mount(7, MountRequest("dataset-1", "abc123"), sessionOf(stranger))
-    mounter.mounts shouldBe empty
+    expectMountRejected[ForbiddenException](user = stranger)
   }
 
   it should "refuse a computing unit that does not exist" in {
-    val mounter = new RecordingMounter
-    a[ForbiddenException] should be thrownBy
-      resource(mounter).mount(999, MountRequest("dataset-1", "abc123"), sessionOf(owner))
-    mounter.mounts shouldBe empty
+    expectMountRejected[ForbiddenException](cuid = 999)
   }
 
   it should "report a misconfigured port rather than dialling a wrong one" in {
-    val mounter = new RecordingMounter
-    an[InternalServerErrorException] should be thrownBy
-      resource(mounter, mounterPort = None)
-        .mount(7, MountRequest("dataset-1", "abc123"), sessionOf(owner))
-    mounter.mounts shouldBe empty
+    expectMountRejected[InternalServerErrorException](build = resource(_, mounterPort = None))
   }
 
   it should "report a missing file-service address rather than mounting against nothing" in {
-    val mounter = new RecordingMounter
-    an[InternalServerErrorException] should be thrownBy
-      resource(mounter, fileServiceUrl = None)
-        .mount(7, MountRequest("dataset-1", "abc123"), sessionOf(owner))
-    mounter.mounts shouldBe empty
+    expectMountRejected[InternalServerErrorException](build = resource(_, fileServiceUrl = None))
   }
 
   it should "answer plainly when the deployment did not enable mounting" in {
-    val mounter = new RecordingMounter
-    a[ServiceUnavailableException] should be thrownBy
-      resource(mounter, mounterEnabled = false)
-        .mount(7, MountRequest("dataset-1", "abc123"), sessionOf(owner))
-    mounter.mounts shouldBe empty
+    expectMountRejected[ServiceUnavailableException](build = resource(_, mounterEnabled = false))
   }
 
   it should "refuse while the unit's pod is not on a node yet" in {
-    val mounter = new RecordingMounter
-    a[BadRequestException] should be thrownBy
-      resource(mounter, nodeLocator = notScheduled)
-        .mount(7, MountRequest("dataset-1", "abc123"), sessionOf(owner))
-    mounter.mounts shouldBe empty
+    expectMountRejected[BadRequestException](build = resource(_, nodeLocator = notScheduled))
   }
 
   it should "report a rejected path as a bad request rather than a server error" in {
