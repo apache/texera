@@ -115,13 +115,9 @@ class RegexOpDescSpec extends FilterSearchSpecSupport {
       ("""x(?iu:é)\d""", false, Seq("xÉ3", "xÉ\u0663", "XÉ3")),
       ("(?iux)é # note", false, Seq("É", "x"))
     )
-    // The values arrive as JSON arrays, so a missing one reads as null.
-    assertStandaloneParity(
-      "regex-engine-parity-",
-      "caseInsensitive",
-      cases,
-      Seq("null = None")
-    )(newDesc("v", _, _))(
+    assertStandaloneParity("regex-engine-parity-", "caseInsensitive", cases)(
+      newDesc("v", _, _)
+    )(
       new RegexOpExec(_)
     )
   }

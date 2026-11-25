@@ -22,8 +22,8 @@ package org.apache.texera.amber.testsupport.setop
 import org.apache.texera.amber.core.tuple.{AttributeType, Schema, Tuple, TupleLike}
 import org.apache.texera.amber.operator.StandaloneCodeGenerator
 import org.apache.texera.amber.operator.set.BinarySetOpExec
-import org.apache.texera.amber.util.PythonTestSupport.{canImport, configuredPython, runSource}
-import org.scalatest.Assertions.{cancel, withClue}
+import org.apache.texera.amber.util.PythonTestSupport.{requirePython, runSource}
+import org.scalatest.Assertions.withClue
 import org.scalatest.matchers.should.Matchers.convertToAnyShouldWrapper
 
 /** The two inputs the set operators' parity tests share, fed to the native
@@ -80,7 +80,7 @@ object SetRows {
       prefix: String,
       expected: String
   ): Unit = {
-    val python = requirePandasPython()
+    val python = requirePython("pandas", "numpy")
     val code = exported(desc)
     val driver =
       s"""import pandas as pd, numpy as np
@@ -106,7 +106,7 @@ object SetRows {
       exec: BinarySetOpExec,
       prefix: String
   ): Unit = {
-    val python = requirePandasPython()
+    val python = requirePython("pandas", "numpy")
     exec.open()
     left.foreach(t => exec.processTuple(t, 0))
     right.foreach(t => exec.processTuple(t, 1))
@@ -115,12 +115,6 @@ object SetRows {
     val code = exported(desc)
     val out = runExport(python, code, prefix)
     withClue(s"script:\n$code")(out shouldBe engine)
-  }
-
-  private def requirePandasPython(): String = {
-    val python = configuredPython().getOrElse(cancel("No runnable python executable"))
-    if (!canImport(python, "pandas", "numpy")) cancel(s"'$python' cannot import pandas")
-    python
   }
 
   private def render(value: Any): String =

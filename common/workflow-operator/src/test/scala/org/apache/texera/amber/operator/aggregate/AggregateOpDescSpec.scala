@@ -21,8 +21,7 @@ package org.apache.texera.amber.operator.aggregate
 
 import org.apache.texera.amber.util.PythonTestSupport.{
   NeedsPythonPackages,
-  canImport,
-  configuredPython,
+  requirePython,
   runSource
 }
 
@@ -125,12 +124,6 @@ class AggregateOpDescSpec extends AnyFlatSpec with Matchers {
     }
   }
 
-  private def requirePandasPython(): String = {
-    val python = configuredPython().getOrElse(cancel("No runnable python executable"))
-    if (!canImport(python, "pandas", "numpy")) cancel(s"'$python' cannot import pandas")
-    python
-  }
-
   private def runAggregateExec(
       desc: AggregateOpDesc,
       tuples: Seq[Tuple] = Seq.empty
@@ -165,7 +158,7 @@ class AggregateOpDescSpec extends AnyFlatSpec with Matchers {
       expected: Seq[String],
       imports: String = "import pandas as pd"
   )(body: String => String): Unit = {
-    val python = requirePandasPython()
+    val python = requirePython("pandas", "numpy")
     val input = Schema().add("t", AttributeType.TIMESTAMP)
     val desc = timestampSumAvgDesc()
     val block = desc.generateStandaloneCode(Map(PortIdentity() -> input))
@@ -274,7 +267,7 @@ class AggregateOpDescSpec extends AnyFlatSpec with Matchers {
   )
 
   it should "read each timestamp with the offset its zone had then" taggedAs NeedsPythonPackages in {
-    val python = requirePandasPython()
+    val python = requirePython("pandas", "numpy")
     val input = Schema().add("k", AttributeType.INTEGER).add("t", AttributeType.TIMESTAMP)
     val desc = descWith(List("k"), aggOp(AggregationFunction.AVERAGE, "t", "ts_avg"))
     val block = desc.generateStandaloneCode(Map(PortIdentity() -> input))
@@ -322,7 +315,7 @@ class AggregateOpDescSpec extends AnyFlatSpec with Matchers {
   // the engine. The two are only distinct in a nullable dtype, which is what an
   // Arrow file is read into.
   it should "group a missing key apart from a NaN one" taggedAs NeedsPythonPackages in {
-    val python = requirePandasPython()
+    val python = requirePython("pandas", "numpy")
     val desc = descWith(List("k"), aggOp(AggregationFunction.SUM, "v", "total"))
 
     val driver =
@@ -347,7 +340,7 @@ class AggregateOpDescSpec extends AnyFlatSpec with Matchers {
   // while 0.0 and -0.0 are one group and so are two nulls. Both stages run, as
   // the plan runs them.
   it should "group NaN and signed-zero keys as the engine does" taggedAs NeedsPythonPackages in {
-    val python = requirePandasPython()
+    val python = requirePython("pandas", "numpy")
     val count = aggOp(AggregationFunction.COUNT, "v", "n")
     val desc = descWith(List("k"), count)
     val keys: Seq[java.lang.Double] = Seq(Double.NaN, Double.NaN, 0.0, -0.0, null, null, 1.0)
@@ -386,7 +379,7 @@ class AggregateOpDescSpec extends AnyFlatSpec with Matchers {
   }
 
   it should "emit no row for an empty input with no group keys, as the engine does" taggedAs NeedsPythonPackages in {
-    val python = requirePandasPython()
+    val python = requirePython("pandas", "numpy")
     val desc = descWith(List.empty, aggOp(AggregationFunction.COUNT, "", "cnt"))
     runAggregateExec(desc) shouldBe empty
 
@@ -402,7 +395,7 @@ class AggregateOpDescSpec extends AnyFlatSpec with Matchers {
   }
 
   it should "count every row for a COUNT whose attribute is only whitespace, as the engine does" taggedAs NeedsPythonPackages in {
-    val python = requirePandasPython()
+    val python = requirePython("pandas", "numpy")
     val input = Schema().add("k", AttributeType.STRING).add("v", AttributeType.INTEGER)
     val rows = Seq(Tuple(input, Array[Any]("a", 1)), Tuple(input, Array[Any]("a", null)))
     def engine(keys: List[String]): List[String] =
@@ -440,7 +433,7 @@ class AggregateOpDescSpec extends AnyFlatSpec with Matchers {
   // NaN while MIN, which Java's Double.compare sends NaN past, answers 1.0.
   // CONCAT writes the NaN out and only a null as the empty string.
   it should "fold a stored NaN in a DOUBLE column as the engine does" taggedAs NeedsPythonPackages in {
-    val python = requirePandasPython()
+    val python = requirePython("pandas", "numpy")
 
     val input = Schema().add("k", AttributeType.STRING).add("v", AttributeType.DOUBLE)
     // Group "a" holds a NaN between two numbers and group "b" only nulls.
@@ -498,7 +491,7 @@ class AggregateOpDescSpec extends AnyFlatSpec with Matchers {
   // keep the earlier ones, "c" holds only a null, and "d" ties before 1970,
   // where MAX is null. Both sides run in UTC so "d" is before the epoch.
   it should "pick a timestamp MIN and MAX by the millisecond as the engine does" taggedAs NeedsPythonPackages in {
-    val python = requirePandasPython()
+    val python = requirePython("pandas", "numpy")
 
     val input = Schema().add("k", AttributeType.STRING).add("t", AttributeType.TIMESTAMP)
     val rows: Seq[(String, String)] = Seq(

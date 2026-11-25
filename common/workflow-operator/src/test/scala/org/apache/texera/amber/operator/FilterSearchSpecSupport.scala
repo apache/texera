@@ -24,7 +24,7 @@ import org.apache.texera.amber.core.tuple.{Attribute, AttributeType, Schema, Tup
 import org.apache.texera.amber.core.virtualidentity.{ExecutionIdentity, WorkflowIdentity}
 import org.apache.texera.amber.core.workflow.PortIdentity
 import org.apache.texera.amber.util.JSONUtils.objectMapper
-import org.apache.texera.amber.util.PythonTestSupport.{canImport, configuredPython, runSource}
+import org.apache.texera.amber.util.PythonTestSupport.{requirePython, runSource}
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 
@@ -60,11 +60,9 @@ abstract class FilterSearchSpecSupport extends AnyFlatSpec with Matchers {
   protected def assertStandaloneParity[D <: StandaloneCodeGenerator](
       prefix: String,
       flagName: String,
-      cases: Seq[(String, Boolean, Seq[String])],
-      extraPreamble: Seq[String] = Nil
+      cases: Seq[(String, Boolean, Seq[String])]
   )(buildDesc: (String, Boolean) => D)(buildExec: String => OperatorExecutor): Unit = {
-    val python = configuredPython().getOrElse(cancel("No runnable python executable"))
-    if (!canImport(python, "pandas")) cancel(s"'$python' cannot import pandas")
+    val python = requirePython("pandas")
 
     val schema = Schema().add("v", AttributeType.STRING).add("i", AttributeType.INTEGER)
     val runs = cases.map {
@@ -93,7 +91,8 @@ abstract class FilterSearchSpecSupport extends AnyFlatSpec with Matchers {
         (engine, script)
     }
 
-    val driver = (("import pandas as pd" +: extraPreamble) ++ runs.map(_._2)).mkString("\n")
+    // The values arrive as JSON arrays, so a missing one reads as null.
+    val driver = (Seq("import pandas as pd", "null = None") ++ runs.map(_._2)).mkString("\n")
     val (exitCode, out) = runSource(python, prefix, driver)
     withClue(s"python said:\n$out\n") {
       exitCode shouldBe 0

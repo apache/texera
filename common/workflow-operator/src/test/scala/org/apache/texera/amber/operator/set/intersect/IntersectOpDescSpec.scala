@@ -21,8 +21,7 @@ package org.apache.texera.amber.operator.set.intersect
 
 import org.apache.texera.amber.util.PythonTestSupport.{
   NeedsPythonPackages,
-  canImport,
-  configuredPython,
+  requirePython,
   runSource
 }
 
@@ -117,8 +116,7 @@ class IntersectOpDescSpec extends AnyFlatSpec with Matchers {
   // The engine's Tuple equality includes the schema, so x:DOUBLE=1 on the left and
   // y:DOUBLE=1 on the right share no row, though their values are equal.
   it should "keep no row when the two inputs are declared differently" taggedAs NeedsPythonPackages in {
-    val python = configuredPython().getOrElse(cancel("No runnable python executable"))
-    if (!canImport(python, "pandas", "numpy")) cancel(s"'$python' cannot import pandas")
+    val python = requirePython("pandas", "numpy")
 
     val leftSchema = Schema().add("x", AttributeType.DOUBLE)
     val rightSchema = Schema().add("y", AttributeType.DOUBLE)
