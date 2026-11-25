@@ -63,6 +63,8 @@ export interface TexeraAgentConfig {
   systemPrompt?: string;
   /** JWT of the user the agent acts for, sent on backend calls that are not tied to a workflow. */
   userToken?: string;
+  /** uid of the user who created the agent, the only one it is listed for and answers to. */
+  ownerUid: number;
 }
 
 export interface AgentMessageResult {
@@ -101,6 +103,7 @@ export class TexeraAgent {
   readonly agentName: string;
   readonly modelType: string;
   readonly createdAt: Date;
+  readonly ownerUid: number;
 
   private state: AgentStateEnum = AgentStateEnum.AVAILABLE;
   private workflowState: WorkflowState;
@@ -147,6 +150,7 @@ export class TexeraAgent {
     this.agentName = config.agentName || `Agent-${config.agentId}`;
     this.modelType = config.modelType;
     this.createdAt = new Date();
+    this.ownerUid = config.ownerUid;
     this.model = config.model;
     this.userToken = config.userToken;
     this.systemPrompt = config.systemPrompt || "";
