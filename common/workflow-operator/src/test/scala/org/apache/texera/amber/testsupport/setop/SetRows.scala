@@ -20,7 +20,11 @@
 package org.apache.texera.amber.testsupport.setop
 
 import org.apache.texera.amber.core.tuple.{AttributeType, Schema, Tuple, TupleLike}
-import org.apache.texera.amber.util.PythonTestSupport.runSource
+import org.apache.texera.amber.operator.StandaloneCodeGenerator
+import org.apache.texera.amber.operator.set.BinarySetOpExec
+import org.apache.texera.amber.util.PythonTestSupport.{requirePython, runSource}
+import org.scalatest.Assertions.withClue
+import org.scalatest.matchers.should.Matchers.convertToAnyShouldWrapper
 
 /** The two inputs the set operators' parity tests share, fed to the native
   * executor as tuples and to the export as nullable Arrow-style columns.
@@ -64,6 +68,53 @@ object SetRows {
       throw new AssertionError(s"python said:\n$out\nscript:\n$driver")
     }
     out.linesIterator.toSeq
+  }
+
+  /** Builds the standalone code + helpers emitted by `desc`. */
+  def exported(desc: StandaloneCodeGenerator): String =
+    (desc.standaloneHelpers() :+ desc.generateStandaloneCode()).mkString("\n")
+
+  /** Checks that nullable Arrow columns keep `NULL` distinct from `np.nan`. */
+  def verifyNullVsNan(
+      desc: StandaloneCodeGenerator,
+      prefix: String,
+      expected: String
+  ): Unit = {
+    val python = requirePython("pandas", "numpy")
+    val code = exported(desc)
+    val driver =
+      s"""import pandas as pd, numpy as np
+         |
+         |def col(vals, mask):
+         |    return pd.arrays.FloatingArray(np.array(vals), np.array(mask))
+         |
+         |in1df = pd.DataFrame({"v": col([0.0, np.nan], [True, False])})
+         |in2df = pd.DataFrame({"v": col([0.0], [True])})
+         |$code
+         |print(len(out1df), [("NULL" if x is pd.NA else repr(float(x))) for x in out1df["v"]])
+         |""".stripMargin
+    val (exitCode, out) = runSource(python, prefix, driver)
+    withClue(s"python said:\n$out\nscript:\n$driver") {
+      exitCode shouldBe 0
+      out.trim shouldBe expected
+    }
+  }
+
+  /** Verifies standalone export matches `exec` on `NaN`, `-0.0`/`0.0`, and `null`. */
+  def verifyNanAndSignedZeroParity(
+      desc: StandaloneCodeGenerator,
+      exec: BinarySetOpExec,
+      prefix: String
+  ): Unit = {
+    val python = requirePython("pandas", "numpy")
+    exec.open()
+    left.foreach(t => exec.processTuple(t, 0))
+    right.foreach(t => exec.processTuple(t, 1))
+    exec.onFinish(0)
+    val engine = rendered(exec.onFinish(1))
+    val code = exported(desc)
+    val out = runExport(python, code, prefix)
+    withClue(s"script:\n$code")(out shouldBe engine)
   }
 
   private def render(value: Any): String =

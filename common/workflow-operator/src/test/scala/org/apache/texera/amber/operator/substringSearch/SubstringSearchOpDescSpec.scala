@@ -19,26 +19,14 @@
 
 package org.apache.texera.amber.operator.substringSearch
 
-import org.apache.texera.amber.util.PythonTestSupport.{
-  NeedsPythonPackages,
-  canImport,
-  configuredPython,
-  runSource
-}
-import org.apache.texera.amber.core.executor.OpExecWithClassName
-import org.apache.texera.amber.core.tuple.{Attribute, AttributeType, Schema, Tuple}
-import org.apache.texera.amber.core.virtualidentity.{ExecutionIdentity, WorkflowIdentity}
+import org.apache.texera.amber.core.tuple.{Attribute, AttributeType, Schema}
 import org.apache.texera.amber.core.workflow.PortIdentity
-import org.apache.texera.amber.operator.LogicalOp
+import org.apache.texera.amber.operator.{FilterSearchSpecSupport, LogicalOp}
 import org.apache.texera.amber.operator.metadata.OperatorGroupConstants
 import org.apache.texera.amber.util.JSONUtils.objectMapper
-import org.scalatest.flatspec.AnyFlatSpec
-import org.scalatest.matchers.should.Matchers
+import org.apache.texera.amber.util.PythonTestSupport.NeedsPythonPackages
 
-class SubstringSearchOpDescSpec extends AnyFlatSpec with Matchers {
-
-  private val workflowId = WorkflowIdentity(1L)
-  private val executionId = ExecutionIdentity(1L)
+class SubstringSearchOpDescSpec extends FilterSearchSpecSupport {
 
   private def newDesc(attr: String, sub: String, caseSensitive: Boolean): SubstringSearchOpDesc = {
     val d = new SubstringSearchOpDesc
@@ -65,17 +53,10 @@ class SubstringSearchOpDescSpec extends AnyFlatSpec with Matchers {
 
   "SubstringSearchOpDesc.getPhysicalOp" should
     "wire the SubstringSearchOpExec class name and carry forward the operatorInfo port identities" in {
-    val op = newDesc("col", "ub", caseSensitive = false)
-    val physical = op.getPhysicalOp(workflowId, executionId)
-    physical.opExecInitInfo match {
-      case OpExecWithClassName(className, descString) =>
-        className shouldBe "org.apache.texera.amber.operator.substringSearch.SubstringSearchOpExec"
-        descString should not be empty
-      case other => fail(s"expected OpExecWithClassName, got $other")
-    }
-    // Pin the actual port identities (not just counts).
-    physical.inputPorts.keySet shouldBe op.operatorInfo.inputPorts.map(_.id).toSet
-    physical.outputPorts.keySet shouldBe op.operatorInfo.outputPorts.map(_.id).toSet
+    assertPhysicalOpWired(
+      newDesc("col", "ub", caseSensitive = false),
+      "org.apache.texera.amber.operator.substringSearch.SubstringSearchOpExec"
+    )
   }
 
   "SubstringSearchOpDesc JSON round-trip" should
@@ -95,9 +76,6 @@ class SubstringSearchOpDescSpec extends AnyFlatSpec with Matchers {
   // export, and the rows each keeps are named by their input position.
   "SubstringSearchOpDesc.generateStandaloneCode" should
     "keep the rows the engine keeps on non-ASCII text" taggedAs NeedsPythonPackages in {
-    val python = configuredPython().getOrElse(cancel("No runnable python executable"))
-    if (!canImport(python, "pandas")) cancel(s"'$python' cannot import pandas")
-
     val cases = Seq(
       ("ss", false, Seq("ß", "SS", "Strasse")),
       ("ς", false, Seq("σ", "Σ", "ς")),
@@ -108,40 +86,11 @@ class SubstringSearchOpDescSpec extends AnyFlatSpec with Matchers {
       ("K", false, Seq("K", "k")),
       ("é", true, Seq("É", "é"))
     )
-    val schema = Schema().add("v", AttributeType.STRING).add("i", AttributeType.INTEGER)
-    val runs = cases.map {
-      case (substring, caseSensitive, values) =>
-        val desc = newDesc("v", substring, caseSensitive)
-        val exec = new SubstringSearchOpExec(objectMapper.writeValueAsString(desc))
-        exec.open()
-        val kept = values.zipWithIndex.flatMap {
-          case (v, i) => exec.processTuple(Tuple(schema, Array[Any](v, i)), 0)
-        }
-        exec.close()
-        val label = s"'$substring' caseSensitive=$caseSensitive"
-        val engine = s"$label: ${kept.map(_.getFields(1)).mkString(" ")}"
-        val code = (desc.standaloneHelpers() :+
-          desc.generateStandaloneCode(Map(PortIdentity() -> schema))).mkString("\n")
-        val script =
-          s"""in1df = pd.DataFrame({"v": pd.Series(${objectMapper.writeValueAsString(
-            values
-          )}, dtype=object)})
-             |in1df["i"] = range(len(in1df))
-             |ns = {"pd": pd, "in1df": in1df}
-             |exec(${objectMapper.writeValueAsString(code)}, ns)
-             |print(${objectMapper.writeValueAsString(
-            label + ":"
-          )}, " ".join(str(i) for i in ns["out1df"]["i"]))""".stripMargin
-        (engine, script)
-    }
-
-    val driver = ("import pandas as pd" +: runs.map(_._2)).mkString("\n")
-    val (exitCode, out) = runSource(python, "substring-engine-parity-", driver)
-
-    withClue(s"python said:\n$out\n") {
-      exitCode shouldBe 0
-      out.linesIterator.map(_.trim).toList shouldBe runs.map(_._1.trim).toList
-    }
+    assertStandaloneParity("substring-engine-parity-", "caseSensitive", cases)(
+      newDesc("v", _, _)
+    )(
+      new SubstringSearchOpExec(_)
+    )
   }
 
   // The engine reads `Body` from a column `body`, since Schema ignores case. pandas
