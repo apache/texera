@@ -20,6 +20,7 @@
 package org.apache.texera.web.resource.dashboard
 
 import com.sun.net.httpserver.{HttpExchange, HttpServer}
+import org.apache.texera.auth.SessionUser
 import org.apache.texera.common.config.StorageConfig
 import org.apache.texera.dao.MockTexeraDB
 import org.apache.texera.dao.jooq.generated.enums.{PrivilegeEnum, UserRoleEnum}
@@ -705,5 +706,20 @@ class DatasetSearchQueryBuilderSpec
     // The null is load-bearing. DashboardResource filters these rows out and raises `hasMismatch`
     // from them; without it a dataset whose repository is gone is shown to the user as 0 bytes.
     DatasetSearchQueryBuilder.toEntry(ownerUid, rowFor(ownerUid, goneDid)) shouldBe null
+  }
+
+  // The search's side of that null, and no stub needed for the same reason.
+  "DashboardResource.searchAllResources" should "flag a mismatch for a dataset lakeFS rejects" in {
+    val result = DashboardResource.searchAllResources(
+      new SessionUser(user(ownerUid, "dataset_search_owner")),
+      SearchQueryParams(
+        resourceType = SearchQueryBuilder.DATASET_RESOURCE_TYPE,
+        datasetIds = Seq(goneDid).asJava
+      ),
+      includePublic = true
+    )
+
+    result.results shouldBe empty
+    result.hasMismatch shouldBe true
   }
 }

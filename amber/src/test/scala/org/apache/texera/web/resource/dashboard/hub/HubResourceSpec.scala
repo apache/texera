@@ -1282,11 +1282,28 @@ class HubResourceSpec
       List("WRITE")
   }
 
-  // Every resolved id hits LakeFS, so an empty list is the only input testable without one.
+  // Every resolved id is sized through LakeFS, and a resource whose repository LakeFS cannot size
+  // is dropped. Connection-refused and 404 both surface as an ApiException, so the second case
+  // behaves the same whether or not a LakeFS answers here.
   "fetchDashboardVersionedResourcesByIds" should "return an empty list for an empty id list" in {
     fetchDashboardVersionedResourcesByIds(
       VersionedResourceTables.DatasetTables,
       Seq.empty,
+      Integer.valueOf(ownerUid)
+    ) shouldBe empty
+  }
+
+  it should "drop a resource whose LakeFS repository cannot be sized" in {
+    val did = seedDataset(820870, "ds_unsized")
+    getDSLContext
+      .update(DATASET)
+      .set(DATASET.REPOSITORY_NAME, "hub-spec-unsized-820870")
+      .where(DATASET.DID.eq(did))
+      .execute()
+
+    fetchDashboardVersionedResourcesByIds(
+      VersionedResourceTables.DatasetTables,
+      Seq(did),
       Integer.valueOf(ownerUid)
     ) shouldBe empty
   }

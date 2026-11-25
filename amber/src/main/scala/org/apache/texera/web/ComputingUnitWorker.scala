@@ -35,7 +35,7 @@ object ComputingUnitWorker {
         case Nil => map
         case "--serverAddr" :: value :: tail =>
           nextOption(map ++ Map(Symbol("serverAddr") -> value), tail)
-        case _ :: _ =>
+        case _ =>
           throw new InvalidArgumentException("unknown command-line arg")
       }
     }
