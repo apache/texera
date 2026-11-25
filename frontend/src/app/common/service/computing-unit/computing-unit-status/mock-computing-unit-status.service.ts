@@ -20,13 +20,17 @@
 import { Injectable } from "@angular/core";
 import { DashboardWorkflowComputingUnit } from "../../../type/workflow-computing-unit";
 import { Observable, of } from "rxjs";
+import { ComputingUnitStatusService } from "./computing-unit-status.service";
+
+type StubbedMethods =
+  | "getSelectedComputingUnit"
+  | "getSelectedComputingUnitValue"
+  | "getAllComputingUnits"
+  | "selectComputingUnit"
+  | "refreshComputingUnitList";
 
 @Injectable()
-export class MockComputingUnitStatusService {
-  listComputingUnits(): Observable<DashboardWorkflowComputingUnit[]> {
-    return of([]);
-  }
-
+export class MockComputingUnitStatusService implements Pick<ComputingUnitStatusService, StubbedMethods> {
   getSelectedComputingUnit(): Observable<DashboardWorkflowComputingUnit | null> {
     return of(null);
   }
@@ -42,8 +46,4 @@ export class MockComputingUnitStatusService {
   selectComputingUnit(): void {}
 
   refreshComputingUnitList(): void {}
-
-  startPolling(): void {}
-
-  stopPolling(): void {}
 }

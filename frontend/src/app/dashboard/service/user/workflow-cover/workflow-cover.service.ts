@@ -21,8 +21,7 @@ import { HttpClient } from "@angular/common/http";
 import { Injectable } from "@angular/core";
 import { Observable, firstValueFrom } from "rxjs";
 import { AppSettings } from "../../../../common/app-setting";
-
-export const WORKFLOW_COVER_URL = "workflow";
+import { WORKFLOW_BASE_URL } from "../../../../common/service/workflow-persist/workflow-persist.service";
 
 /** Longest edge (px) a custom cover image is downscaled to before being stored. */
 const MAX_IMAGE_EDGE = 640;
@@ -40,14 +39,14 @@ export class WorkflowCoverService {
   async setCoverFromFile(wid: number, file: File): Promise<string> {
     const dataUrl = await this.fileToResizedDataUrl(file);
     await firstValueFrom(
-      this.http.put(`${AppSettings.getApiEndpoint()}/${WORKFLOW_COVER_URL}/${wid}/cover`, { image: dataUrl })
+      this.http.put(`${AppSettings.getApiEndpoint()}/${WORKFLOW_BASE_URL}/${wid}/cover`, { image: dataUrl })
     );
     return dataUrl;
   }
 
   /** Removes the workflow's custom cover image. */
   clearCover(wid: number): Observable<void> {
-    return this.http.delete<void>(`${AppSettings.getApiEndpoint()}/${WORKFLOW_COVER_URL}/${wid}/cover`);
+    return this.http.delete<void>(`${AppSettings.getApiEndpoint()}/${WORKFLOW_BASE_URL}/${wid}/cover`);
   }
 
   private fileToResizedDataUrl(file: File): Promise<string> {
