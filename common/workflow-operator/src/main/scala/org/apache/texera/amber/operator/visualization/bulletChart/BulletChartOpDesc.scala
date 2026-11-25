@@ -109,10 +109,6 @@ class BulletChartOpDesc extends PythonVisualizationOpDesc with PlotlyStandaloneC
       .mkString("[", ", ", "]")
 
   override def generatePythonCode(): String = {
-    val deltaReferenceExpr: PythonLiteral = deltaReferenceLiteral
-    val thresholdExpr: PythonLiteral = thresholdLiteral
-    val stepsExpr: PythonLiteral = stepsLiteral
-
     val finalCode =
       pyb"""
          |from pytexera import *
@@ -139,7 +135,7 @@ class BulletChartOpDesc extends PythonVisualizationOpDesc with PlotlyStandaloneC
          |
          |        try:
          |            value_col = $value
-         |            delta_ref = $deltaReferenceExpr
+         |            delta_ref = $deltaReferenceLiteral
          |
          |            if value_col not in table.columns:
          |                yield {'html-content': self.render_error(f"Column '{value_col}' not found in input table.")}
@@ -152,9 +148,9 @@ class BulletChartOpDesc extends PythonVisualizationOpDesc with PlotlyStandaloneC
         bodyIndent = 4
       )}
          |
-         |            threshold_val = $thresholdExpr
+         |            threshold_val = $thresholdLiteral
          |
-         |            valid_steps = self.generate_valid_steps($stepsExpr)
+         |            valid_steps = self.generate_valid_steps($stepsLiteral)
          |            step_colors = self.generate_gray_gradient(len(valid_steps))
          |${BulletChartPython.stepsListBody(12)}
          |
@@ -253,6 +249,8 @@ class BulletChartOpDesc extends PythonVisualizationOpDesc with PlotlyStandaloneC
 
 private object BulletChartPython {
   def helperDefs(indent: Int, isMethod: Boolean): String = {
+    // Not only structure: the step error a user reads says ≥ in the operator and >=
+    // in the exported script, as each always has, and the two stay apart on purpose.
     val (selfParam, errorsVar, cmp, retStmt) =
       if (isMethod) ("self, ", "self.step_errors", "≥", "return valid_steps")
       else ("", "step_errors", ">=", "return valid_steps, step_errors")
