@@ -19,7 +19,13 @@
 
 import { Injectable } from "@angular/core";
 import { AppSettings } from "../../../common/app-setting";
-import { MigrationLanguage, Notebook, NotebookMigrationLLM, SourceConversion } from "./migration-llm";
+import {
+  MIGRATION_LANGUAGE_NAMES,
+  MigrationLanguage,
+  Notebook,
+  NotebookMigrationLLM,
+  SourceConversion,
+} from "./migration-llm";
 import {
   buildFolderDocument,
   checkFolderByteSize,
@@ -29,7 +35,7 @@ import {
   folderRelativePath,
   folderRootName,
   isExcludedPath,
-  isMigratablePythonPath,
+  isMigratableSourcePath,
 } from "./folder-assembly";
 import { HttpClient, HttpHeaders } from "@angular/common/http";
 import { NotificationService } from "src/app/common/service/notification/notification.service";
@@ -159,7 +165,7 @@ export class NotebookMigrationService {
   }
 
   /**
-   * Convert a folder of Python files, already assembled by parseFolder, into a workflow.
+   * Convert a folder of source files, already assembled by parseFolder, into a workflow.
    *
    * Identical to the script path from the caller's side: the folder is one document by the time
    * it gets here, so the derived notebook and the mapping have the same shape and are stored the
@@ -167,10 +173,11 @@ export class NotebookMigrationService {
    */
   public async sendFolderToAIGenerateWorkflow(
     folder: FolderDocument,
-    modelType: string
+    modelType: string,
+    language: MigrationLanguage = "python"
   ): Promise<GeneratedWorkflowContent> {
-    return this.generateFromSource(modelType, "folder", "python", migrationLLM =>
-      migrationLLM.convertFolderToWorkflow(folder)
+    return this.generateFromSource(modelType, "folder", language, migrationLLM =>
+      migrationLLM.convertFolderToWorkflow(folder, language)
     );
   }
 
@@ -396,12 +403,13 @@ export class NotebookMigrationService {
     });
   }
 
-  // Reads a .py file as text. Rejects on a file with nothing in it: an empty script would
+  // Reads a script as text. Rejects on a file with nothing in it: an empty script would
   // otherwise cost a full LLM round trip to produce an empty workflow.
-  public async parseScriptFile(file: File): Promise<string> {
-    const source = await this.readFileAsText(file, "Python file");
+  public async parseScriptFile(file: File, language: MigrationLanguage = "python"): Promise<string> {
+    const name = MIGRATION_LANGUAGE_NAMES[language];
+    const source = await this.readFileAsText(file, `${name} file`);
     if (source.trim() === "") {
-      throw new Error("The Python file is empty.");
+      throw new Error(`The ${name} file is empty.`);
     }
     return source;
   }
@@ -409,15 +417,16 @@ export class NotebookMigrationService {
   /**
    * Read a directory selection into the one document a folder conversion is run against.
    *
-   * Keeps only project Python source, reads it, and assembles it in a fixed order. The file-count
-   * and byte checks run before anything is read, so an over-broad or oversized selection fails at
-   * once rather than after thousands of reads or one enormous one.
+   * Keeps only project source in the given language, reads it, and assembles it in a fixed order.
+   * The file-count and byte checks run before anything is read, so an over-broad or oversized
+   * selection fails at once rather than after thousands of reads or one enormous one.
    */
-  public async parseFolder(files: readonly File[]): Promise<FolderDocument> {
+  public async parseFolder(files: readonly File[], language: MigrationLanguage = "python"): Promise<FolderDocument> {
     const picked = files.map(file => ({ file, path: folderRelativePath(file) }));
-    const selected = picked.filter(entry => isMigratablePythonPath(entry.path));
-    this.refuse(checkFolderFileCount(selected.length));
-    this.refuse(checkFolderByteSize(selected.reduce((sum, entry) => sum + entry.file.size, 0)));
+    const selected = picked.filter(entry => isMigratableSourcePath(entry.path, language));
+    this.refuse(checkFolderFileCount(selected.length, language));
+    const totalBytes = selected.reduce((sum, entry) => sum + entry.file.size, 0);
+    this.refuse(checkFolderByteSize(totalBytes, language));
 
     const sources = await Promise.all(
       selected.map(async entry => ({
@@ -430,13 +439,14 @@ export class NotebookMigrationService {
       rootName: folderRootName(files[0]?.webkitRelativePath ?? "") ?? "project",
       // Named in the layout but never read. Caches and hidden directories stay out entirely.
       otherPaths: picked
-        .filter(entry => !isMigratablePythonPath(entry.path) && !isExcludedPath(entry.path))
+        .filter(entry => !isMigratableSourcePath(entry.path, language) && !isExcludedPath(entry.path, language))
         .map(entry => entry.path),
+      language,
     });
 
     // Run against what the document actually holds: blank files are dropped during assembly,
     // and the character cap needs the assembled size.
-    this.refuse(checkFolderDocument(folder));
+    this.refuse(checkFolderDocument(folder, language));
     return folder;
   }
 

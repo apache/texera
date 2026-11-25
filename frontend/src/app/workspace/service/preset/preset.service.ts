@@ -21,7 +21,7 @@ import { Injectable } from "@angular/core";
 import Ajv from "ajv";
 import { cloneDeep, has, isEqual, merge, pickBy } from "lodash";
 import { NzMessageService } from "ng-zorro-antd/message";
-import { Observable, of, Subject } from "rxjs";
+import { Observable, Subject } from "rxjs";
 import { UserConfigService } from "src/app/common/service/user/config/user-config.service";
 import { asType, isType } from "src/app/common/util/assert";
 import { CustomJSONSchema7 } from "../../types/custom-json-schema.interface";
@@ -69,7 +69,6 @@ export type Preset = { [key: string]: string | number | boolean };
   providedIn: "root",
 })
 export class PresetService {
-  private static DICT_PREFIX = "Preset"; // key prefix when storing data in dictionary service
   private static ajv = new Ajv();
   private static ajvStrip = new Ajv({ useDefaults: true, removeAdditional: true, strict: false }); // removes extra properties from an object that aren't described by schema
   private static isPreset = PresetService.ajv.compile(PresetSchema);

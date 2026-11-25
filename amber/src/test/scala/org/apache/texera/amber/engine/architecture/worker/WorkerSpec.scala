@@ -49,7 +49,6 @@ import org.apache.texera.amber.engine.common.ambermessage.{
 }
 import org.apache.texera.amber.engine.common.rpc.AsyncRPCClient
 import org.apache.texera.amber.engine.common.virtualidentity.util.COORDINATOR
-import org.scalamock.scalatest.MockFactory
 import org.scalatest.BeforeAndAfterAll
 import org.scalatest.flatspec.AnyFlatSpecLike
 
@@ -67,8 +66,7 @@ class WorkerSpec
     extends TestKit(ActorSystem("WorkerSpec", AmberRuntime.pekkoConfig))
     with ImplicitSender
     with AnyFlatSpecLike
-    with BeforeAndAfterAll
-    with MockFactory {
+    with BeforeAndAfterAll {
 
   def mkSchema(fields: Any*): Schema = {
     var schema = Schema()

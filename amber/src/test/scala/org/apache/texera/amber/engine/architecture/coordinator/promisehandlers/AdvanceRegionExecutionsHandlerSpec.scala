@@ -39,6 +39,7 @@ import org.apache.texera.amber.engine.architecture.rpc.controlcommands.{
   EmptyRequest
 }
 import org.apache.texera.amber.engine.architecture.rpc.controlreturns.{
+  ControlError,
   EmptyReturn,
   ReturnInvocation
 }
@@ -71,7 +72,9 @@ import scala.collection.mutable.ArrayBuffer
   *     open;
   *   - because nothing awaits the reply, a failing advance has no caller to propagate to and is
   *     reported to the client as a `FatalError` instead — carrying the related worker id when the
-  *     failure came from a worker RPC (`WorkflowRuntimeException`) and `None` for anything else.
+  *     failure came from a worker RPC (`WorkflowRuntimeException`) and `None` for anything else;
+  *   - an advance that throws before it returns a future is reported the same way, and the
+  *     handler still replies normally to the requesting round.
   */
 class AdvanceRegionExecutionsHandlerSpec
     extends TestKit(ActorSystem("AdvanceRegionExecutionsHandlerSpec", AmberRuntime.pekkoConfig))
@@ -97,16 +100,21 @@ class AdvanceRegionExecutionsHandlerSpec
     * worker RPC error — never a `WorkflowRuntimeException` carrying a worker id. This stub records
     * the advance calls and hands back a future the test controls, so the handler can be observed
     * both while the advance is still pending and after it has failed with either kind of cause.
+    *
+    * Setting `throwOnAdvance` makes the advance fail before any future exists, the way a storage
+    * or schema failure inside `syncStatusAndTransitionRegionExecutionPhase` does.
     */
   private class PendingAdvanceExecutionManager(
       workflowExecution: WorkflowExecution,
       asyncRPCClient: AsyncRPCClient
   ) extends WorkflowExecutionManager(workflowExecution, coordinatorConfig, asyncRPCClient) {
     val advanceCalls: ArrayBuffer[PekkoActorService] = ArrayBuffer()
+    var throwOnAdvance: Option[Throwable] = None
     private val advance: Promise[Unit] = Promise[Unit]()
 
     override def advanceRegionExecutions(actorService: PekkoActorService): Future[Unit] = {
       advanceCalls += actorService
+      throwOnAdvance.foreach(failure => throw failure)
       advance
     }
 
@@ -151,6 +159,13 @@ class AdvanceRegionExecutionsHandlerSpec
     })
     cp.setupActorService(createCoordinatorHarness().actorService)
     Fixture(cp, new CoordinatorAsyncRPCHandlerInitializer(cp), sent)
+  }
+
+  /** Like `newFixture`, but the execution manager's advance throws `failure` synchronously. */
+  private def newThrowingFixture(failure: Throwable): Fixture = {
+    val fixture = newFixture()
+    fixture.manager.throwOnAdvance = Some(failure)
+    fixture
   }
 
   private def clientEvents(sent: ArrayBuffer[WorkflowFIFOMessage]): Seq[ClientEvent] =
@@ -243,5 +258,90 @@ class AdvanceRegionExecutionsHandlerSpec
     fixture.manager.finishAdvance()
 
     assert(clientEvents(fixture.sent).isEmpty)
+  }
+
+  it should "notify the client with the worker id when the advance throws before returning a future" in {
+    val failure =
+      new WorkflowRuntimeException("output port storage unavailable", Some(relatedWorker))
+    val Fixture(_, init, sent) = newThrowingFixture(failure)
+
+    val response = init.coordinatorInitiateAdvanceRegionExecutions(EmptyRequest(), ctx)
+
+    // A throw from inside the advance is a failure like any other: the handler must still
+    // return its reply and the client must still hear about it.
+    assert(Await.result(response, awaitTimeout) == EmptyReturn())
+    assert(clientEvents(sent) == Seq(FatalError(failure, Some(relatedWorker))))
+  }
+
+  it should "notify the client without a worker id when the advance throws a plain exception" in {
+    val failure = new IllegalStateException("Failed to resolve the output schema")
+    val Fixture(_, init, sent) = newThrowingFixture(failure)
+
+    val response = init.coordinatorInitiateAdvanceRegionExecutions(EmptyRequest(), ctx)
+
+    assert(Await.result(response, awaitTimeout) == EmptyReturn())
+    assert(clientEvents(sent) == Seq(FatalError(failure, None)))
+  }
+
+  it should "reply normally to the requesting round when the advance throws" in {
+    val failure = new IllegalStateException("Failed to resolve the output schema")
+    val Fixture(cp, _, sent) = newThrowingFixture(failure)
+
+    // Dispatched by the real RPC server, as production does it. The reply to the coordinator
+    // must be the ordinary EmptyReturn, not a ControlError that nothing consumes, and the
+    // client must receive exactly one FatalError.
+    cp.processDCM(
+      ChannelIdentity(COORDINATOR, COORDINATOR, isControl = true),
+      ControlInvocation(
+        METHOD_COORDINATOR_INITIATE_ADVANCE_REGION_EXECUTIONS,
+        EmptyRequest(),
+        ctx,
+        advanceCommandId
+      )
+    )
+
+    assert(
+      repliesToCoordinator(sent) == Seq(
+        ReturnInvocation(advanceCommandId, EmptyReturn())
+      )
+    )
+    assert(clientEvents(sent) == Seq(FatalError(failure, None)))
+    // Exactly one message of any kind goes to the client: no second FatalError, no state update.
+    assert(sent.count(_.channelId.toWorkerId == CLIENT) == 1)
+  }
+
+  it should "notify the client without a worker id when a WorkflowRuntimeException names no worker" in {
+    val failure = new WorkflowRuntimeException("region cannot be scheduled", None)
+    val Fixture(_, init, sent) = newThrowingFixture(failure)
+
+    val response = init.coordinatorInitiateAdvanceRegionExecutions(EmptyRequest(), ctx)
+
+    assert(Await.result(response, awaitTimeout) == EmptyReturn())
+    assert(clientEvents(sent) == Seq(FatalError(failure, None)))
+    assert(sent.count(_.channelId.toWorkerId == CLIENT) == 1)
+  }
+
+  it should "leave a fatal throwable to the RPC server instead of reporting it to the client" in {
+    // `Future(...)` only converts non-fatal exceptions; an Error still escapes the handler and
+    // the RPC server answers the coordinator with a ControlError.
+    val failure = new LinkageError("boom")
+    val Fixture(cp, _, sent) = newThrowingFixture(failure)
+
+    cp.processDCM(
+      ChannelIdentity(COORDINATOR, COORDINATOR, isControl = true),
+      ControlInvocation(
+        METHOD_COORDINATOR_INITIATE_ADVANCE_REGION_EXECUTIONS,
+        EmptyRequest(),
+        ctx,
+        advanceCommandId
+      )
+    )
+
+    val replies = repliesToCoordinator(sent)
+    assert(replies.size == 1)
+    assert(replies.head.commandId == advanceCommandId)
+    assert(replies.head.returnValue.isInstanceOf[ControlError])
+    assert(clientEvents(sent).isEmpty)
+    assert(sent.count(_.channelId.toWorkerId == CLIENT) == 0)
   }
 }

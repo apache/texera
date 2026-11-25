@@ -16,15 +16,11 @@
 # under the License.
 
 [tool.ruff]
-line-length = 88
 target-version = "py311"
 extend-exclude = ["proto"]
 
 [tool.ruff.lint]
 ignore = ["F403", "F405", "E203"]
-
-[tool.ruff.lint.mccabe]
-max-complexity = 10
 
 # Layout follows the Maven source-set convention used by Scala
 # (`src/main/scala` + `src/test/scala`): production code lives in

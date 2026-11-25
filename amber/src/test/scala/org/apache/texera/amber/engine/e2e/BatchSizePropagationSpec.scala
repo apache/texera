@@ -28,11 +28,11 @@ import org.apache.texera.amber.engine.architecture.coordinator._
 import org.apache.texera.amber.engine.architecture.sendsemantics.partitionings._
 import org.apache.texera.amber.engine.common.virtualidentity.util.COORDINATOR
 import org.apache.texera.amber.engine.e2e.TestUtils.buildWorkflow
-import org.apache.texera.amber.operator.TestOperators
+import org.apache.texera.amber.operator.{LogicalOp, TestOperators}
 import org.apache.texera.amber.operator.aggregate.AggregationFunction
 import org.apache.texera.common.compiler.model.LogicalLink
 import org.scalatest.flatspec.AnyFlatSpecLike
-import org.scalatest.{BeforeAndAfterAll, BeforeAndAfterEach}
+import org.scalatest.BeforeAndAfterAll
 
 import scala.concurrent.duration.DurationInt
 
@@ -40,8 +40,7 @@ class BatchSizePropagationSpec
     extends TestKit(ActorSystem("BatchSizePropagationSpec"))
     with ImplicitSender
     with AnyFlatSpecLike
-    with BeforeAndAfterAll
-    with BeforeAndAfterEach {
+    with BeforeAndAfterAll {
 
   implicit val timeout: Timeout = Timeout(5.seconds)
 
@@ -63,52 +62,25 @@ class BatchSizePropagationSpec
         region.resourceConfig.foreach { resourceConfig =>
           resourceConfig.linkConfigs.foreach {
             case (_, linkConfig) =>
-              val partitioning = linkConfig.partitioning
-              partitioning match {
+              val (partitioningName, actualBatchSize) = linkConfig.partitioning match {
                 case oneToOne: OneToOnePartitioning =>
-                  println(s"Testing OneToOnePartitioning with batch size: ${oneToOne.batchSize}")
-                  assert(
-                    oneToOne.batchSize == expectedBatchSize,
-                    s"Batch size mismatch: ${oneToOne.batchSize} != $expectedBatchSize"
-                  )
-
+                  ("OneToOnePartitioning", oneToOne.batchSize)
                 case roundRobin: RoundRobinPartitioning =>
-                  println(
-                    s"Testing RoundRobinPartitioning with batch size: ${roundRobin.batchSize}"
-                  )
-                  assert(
-                    roundRobin.batchSize == expectedBatchSize,
-                    s"Batch size mismatch: ${roundRobin.batchSize} != $expectedBatchSize"
-                  )
-
+                  ("RoundRobinPartitioning", roundRobin.batchSize)
                 case hashBased: HashBasedShufflePartitioning =>
-                  println(
-                    s"Testing HashBasedShufflePartitioning with batch size: ${hashBased.batchSize}"
-                  )
-                  assert(
-                    hashBased.batchSize == expectedBatchSize,
-                    s"Batch size mismatch: ${hashBased.batchSize} != $expectedBatchSize"
-                  )
-
+                  ("HashBasedShufflePartitioning", hashBased.batchSize)
                 case rangeBased: RangeBasedShufflePartitioning =>
-                  println(
-                    s"Testing RangeBasedShufflePartitioning with batch size: ${rangeBased.batchSize}"
-                  )
-                  assert(
-                    rangeBased.batchSize == expectedBatchSize,
-                    s"Batch size mismatch: ${rangeBased.batchSize} != $expectedBatchSize"
-                  )
-
+                  ("RangeBasedShufflePartitioning", rangeBased.batchSize)
                 case broadcast: BroadcastPartitioning =>
-                  println(s"Testing BroadcastPartitioning with batch size: ${broadcast.batchSize}")
-                  assert(
-                    broadcast.batchSize == expectedBatchSize,
-                    s"Batch size mismatch: ${broadcast.batchSize} != $expectedBatchSize"
-                  )
-
+                  ("BroadcastPartitioning", broadcast.batchSize)
                 case _ =>
                   throw new IllegalArgumentException("Unknown partitioning type encountered")
               }
+              println(s"Testing $partitioningName with batch size: $actualBatchSize")
+              assert(
+                actualBatchSize == expectedBatchSize,
+                s"Batch size mismatch: $actualBatchSize != $expectedBatchSize"
+              )
           }
         }
       }
@@ -116,40 +88,30 @@ class BatchSizePropagationSpec
     }
   }
 
-  "Engine" should "propagate the correct batch size for headerlessCsv workflow" in {
-    val expectedBatchSize = 1
-
-    val customWorkflowSettings = WorkflowSettings(dataTransferBatchSize = expectedBatchSize)
-
+  private def verifyWorkflowBatchSize(
+      expectedBatchSize: Int,
+      operators: List[LogicalOp],
+      links: List[LogicalLink] = List.empty
+  ): Unit = {
     val context =
-      new WorkflowContext(workflowSettings = customWorkflowSettings)
-
-    val headerlessCsvOpDesc = TestOperators.headerlessSmallCsvScanOpDesc()
-
-    val workflow = buildWorkflow(
-      List(headerlessCsvOpDesc),
-      List(),
-      context
-    )
-
+      new WorkflowContext(
+        workflowSettings = WorkflowSettings(dataTransferBatchSize = expectedBatchSize)
+      )
+    val workflow = buildWorkflow(operators, links, context)
     val workflowScheduler = new WorkflowScheduler(context, COORDINATOR)
     workflowScheduler.updateSchedule(workflow.physicalPlan)
+    verifyBatchSizeInPartitioning(workflowScheduler, expectedBatchSize)
+  }
 
-    verifyBatchSizeInPartitioning(workflowScheduler, 1)
+  "Engine" should "propagate the correct batch size for headerlessCsv workflow" in {
+    verifyWorkflowBatchSize(1, List(TestOperators.headerlessSmallCsvScanOpDesc()))
   }
 
   "Engine" should "propagate the correct batch size for headerlessCsv->keyword workflow" in {
-    val expectedBatchSize = 500
-
-    val customWorkflowSettings = WorkflowSettings(dataTransferBatchSize = expectedBatchSize)
-
-    val context =
-      new WorkflowContext(workflowSettings = customWorkflowSettings)
-
     val headerlessCsvOpDesc = TestOperators.headerlessSmallCsvScanOpDesc()
     val keywordOpDesc = TestOperators.keywordSearchOpDesc("column-1", "Asia")
-
-    val workflow = buildWorkflow(
+    verifyWorkflowBatchSize(
+      500,
       List(headerlessCsvOpDesc, keywordOpDesc),
       List(
         LogicalLink(
@@ -158,30 +120,17 @@ class BatchSizePropagationSpec
           keywordOpDesc.operatorIdentifier,
           PortIdentity()
         )
-      ),
-      context
+      )
     )
-
-    val workflowScheduler = new WorkflowScheduler(context, COORDINATOR)
-    workflowScheduler.updateSchedule(workflow.physicalPlan)
-
-    verifyBatchSizeInPartitioning(workflowScheduler, 500)
   }
 
   "Engine" should "propagate the correct batch size for csv->keyword->count workflow" in {
-    val expectedBatchSize = 100
-
-    val customWorkflowSettings = WorkflowSettings(dataTransferBatchSize = expectedBatchSize)
-
-    val context =
-      new WorkflowContext(workflowSettings = customWorkflowSettings)
-
     val csvOpDesc = TestOperators.smallCsvScanOpDesc()
     val keywordOpDesc = TestOperators.keywordSearchOpDesc("Region", "Asia")
     val countOpDesc =
       TestOperators.aggregateAndGroupByDesc("Region", AggregationFunction.COUNT, List[String]())
-
-    val workflow = buildWorkflow(
+    verifyWorkflowBatchSize(
+      100,
       List(csvOpDesc, keywordOpDesc, countOpDesc),
       List(
         LogicalLink(
@@ -196,24 +145,11 @@ class BatchSizePropagationSpec
           countOpDesc.operatorIdentifier,
           PortIdentity()
         )
-      ),
-      context
+      )
     )
-
-    val workflowScheduler = new WorkflowScheduler(context, COORDINATOR)
-    workflowScheduler.updateSchedule(workflow.physicalPlan)
-
-    verifyBatchSizeInPartitioning(workflowScheduler, 100)
   }
 
   "Engine" should "propagate the correct batch size for csv->keyword->averageAndGroupBy workflow" in {
-    val expectedBatchSize = 300
-
-    val customWorkflowSettings = WorkflowSettings(dataTransferBatchSize = expectedBatchSize)
-
-    val context =
-      new WorkflowContext(workflowSettings = customWorkflowSettings)
-
     val csvOpDesc = TestOperators.smallCsvScanOpDesc()
     val keywordOpDesc = TestOperators.keywordSearchOpDesc("Region", "Asia")
     val averageAndGroupByOpDesc =
@@ -222,7 +158,8 @@ class BatchSizePropagationSpec
         AggregationFunction.AVERAGE,
         List[String]("Country")
       )
-    val workflow = buildWorkflow(
+    verifyWorkflowBatchSize(
+      300,
       List(csvOpDesc, keywordOpDesc, averageAndGroupByOpDesc),
       List(
         LogicalLink(
@@ -237,34 +174,17 @@ class BatchSizePropagationSpec
           averageAndGroupByOpDesc.operatorIdentifier,
           PortIdentity()
         )
-      ),
-      context
+      )
     )
-
-    val workflowScheduler = new WorkflowScheduler(context, COORDINATOR)
-    workflowScheduler.updateSchedule(workflow.physicalPlan)
-
-    verifyBatchSizeInPartitioning(workflowScheduler, 300)
   }
 
   "Engine" should "propagate the correct batch size for csv->(csv->)->join workflow" in {
-    val expectedBatchSize = 1
-
-    val customWorkflowSettings = WorkflowSettings(dataTransferBatchSize = expectedBatchSize)
-
-    val context =
-      new WorkflowContext(workflowSettings = customWorkflowSettings)
-
     val headerlessCsvOpDesc1 = TestOperators.headerlessSmallCsvScanOpDesc()
     val headerlessCsvOpDesc2 = TestOperators.headerlessSmallCsvScanOpDesc()
     val joinOpDesc = TestOperators.joinOpDesc("column-1", "column-1")
-
-    val workflow = buildWorkflow(
-      List(
-        headerlessCsvOpDesc1,
-        headerlessCsvOpDesc2,
-        joinOpDesc
-      ),
+    verifyWorkflowBatchSize(
+      1,
+      List(headerlessCsvOpDesc1, headerlessCsvOpDesc2, joinOpDesc),
       List(
         LogicalLink(
           headerlessCsvOpDesc1.operatorIdentifier,
@@ -278,14 +198,8 @@ class BatchSizePropagationSpec
           joinOpDesc.operatorIdentifier,
           PortIdentity(1)
         )
-      ),
-      context
+      )
     )
-
-    val workflowScheduler = new WorkflowScheduler(context, COORDINATOR)
-    workflowScheduler.updateSchedule(workflow.physicalPlan)
-
-    verifyBatchSizeInPartitioning(workflowScheduler, 1)
   }
 
 }

@@ -249,7 +249,7 @@ class HuggingFaceInferenceOpDescSpec extends AnyFlatSpec with Matchers {
     code should include("self._read_image_input()")
     code should include("self._read_binary_value")
     code should include("self._compress_image_bytes")
-    code should include("""if content_type.startswith("image/"):""")
+    code should include("""if content_type.startswith(("image/", "audio/", "video/")):""")
   }
 
   it should
@@ -320,8 +320,8 @@ class HuggingFaceInferenceOpDescSpec extends AnyFlatSpec with Matchers {
     code should include("MAX_REMOTE_FETCH_BYTES")
     code should include("Remote file exceeds the")
     // all remote fetch sites route through the helper (no raw requests.get on these URLs)
-    code should include("_, data = self._fetch_remote_url(image_input)")
-    code should include("_, data = self._fetch_remote_url(audio_input)")
+    code should include("def _read_media_upload(self, value, error_message):")
+    code should include("_, data = self._fetch_remote_url(source)")
     code should include("_, data = self._fetch_remote_url(val)")
     code should include("raw_content_type, data = self._fetch_remote_url(url)")
     code should not include "def _audio_url_to_data_url"
@@ -511,7 +511,7 @@ class HuggingFaceInferenceOpDescSpec extends AnyFlatSpec with Matchers {
     )
     code should not include "data:audio/wav;base64"
     code should include(
-      """if content_type.startswith("audio/") or content_type.startswith("video/"):"""
+      """if content_type.startswith(("image/", "audio/", "video/")):"""
     )
   }
 
@@ -560,6 +560,7 @@ class HuggingFaceInferenceOpDescSpec extends AnyFlatSpec with Matchers {
     MediaGenCodegen.tasks.foreach { t =>
       val code = makeDesc(task = t).generatePythonCode()
       code should include("""payload = {"inputs": prompt_value}""")
+      code should include("""if "video" in body:""")
     }
   }
 

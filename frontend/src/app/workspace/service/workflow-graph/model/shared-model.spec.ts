@@ -110,28 +110,28 @@ describe("SharedModel", () => {
   });
 
   describe("destroy", () => {
-    // `destroy` only disconnects when the provider both wants to connect and is connected.
-    const cases: { shouldConnect: boolean; wsconnected: boolean; disconnects: boolean }[] = [
-      { shouldConnect: true, wsconnected: true, disconnects: true },
-      { shouldConnect: false, wsconnected: true, disconnects: false },
-      { shouldConnect: true, wsconnected: false, disconnects: false },
-    ];
+    it("destroys the provider, not just disconnects it", () => {
+      const sharedModel = build(1, user);
+      const destroy = vi.spyOn(sharedModel.wsProvider, "destroy");
 
-    cases.forEach(({ shouldConnect, wsconnected, disconnects }) => {
-      it(`${disconnects ? "disconnects" : "does not disconnect"} when shouldConnect=${shouldConnect} and wsconnected=${wsconnected}`, () => {
-        const sharedModel = build(1, user);
-        const provider = sharedModel.wsProvider;
-        // spied rather than called for real: the flags below are set by hand, so an
-        // actual disconnect would run against a socket that was never opened
-        const disconnect = vi.spyOn(provider, "disconnect").mockImplementation(() => {});
-        provider.shouldConnect = shouldConnect;
-        provider.wsconnected = wsconnected;
+      sharedModel.destroy();
+      model = undefined; // already destroyed; keep afterEach from destroying twice
 
-        sharedModel.destroy();
-        model = undefined; // already destroyed; keep afterEach from destroying twice
+      // disconnect() alone leaves the provider's connection-check interval running, and that
+      // interval keeps the provider and its doc alive for as long as the page is open
+      expect(destroy).toHaveBeenCalledTimes(1);
+    });
 
-        expect(disconnect).toHaveBeenCalledTimes(disconnects ? 1 : 0);
-      });
+    it("stops a provider that never connected from retrying", () => {
+      const sharedModel = build(1, user);
+      const provider = sharedModel.wsProvider;
+      // the server was unreachable: the provider is still trying to connect
+      provider.wsconnected = false;
+
+      sharedModel.destroy();
+      model = undefined; // already destroyed; keep afterEach from destroying twice
+
+      expect(provider.shouldConnect).toBe(false);
     });
   });
 });

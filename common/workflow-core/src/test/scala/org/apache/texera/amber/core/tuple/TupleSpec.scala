@@ -391,4 +391,39 @@ class TupleSpec extends AnyFlatSpec {
       tuple.getPartialTuple(List("col-missing"))
     }
   }
+
+  it should "preserve valid fields and compare null vs binary fields safely across equality and non-strict builds" in {
+    val binSchema = Schema().add(stringAttribute).add(binaryAttribute)
+    val withNull =
+      Tuple.builder(binSchema).add(stringAttribute, "a").add(binaryAttribute, null).build()
+    val otherNull =
+      Tuple.builder(binSchema).add(stringAttribute, "a").add(binaryAttribute, null).build()
+    val withBytes =
+      Tuple
+        .builder(binSchema)
+        .add(stringAttribute, "a")
+        .add(binaryAttribute, Array[Byte](1, 2))
+        .build()
+    val diffString =
+      Tuple
+        .builder(binSchema)
+        .add(stringAttribute, "b")
+        .add(binaryAttribute, Array[Byte](1, 2))
+        .build()
+
+    assert(withNull == otherNull)
+    assert(withNull != withBytes)
+    assert(withBytes != withNull)
+    assert(withBytes != diffString)
+
+    val narrowedSchema = Schema().add(stringAttribute)
+    val nonStrict =
+      Tuple.builder(narrowedSchema).add(withBytes, isStrictSchemaMatch = false).build()
+    assert(nonStrict.getSchema == narrowedSchema)
+    assert(nonStrict.getField[String]("col-string") == "a")
+
+    val reordered = withBytes.getPartialTuple(List("col-binary", "col-string"))
+    assert(reordered.getField[Array[Byte]](0).sameElements(Array[Byte](1, 2)))
+    assert(reordered.getField[String](1) == "a")
+  }
 }

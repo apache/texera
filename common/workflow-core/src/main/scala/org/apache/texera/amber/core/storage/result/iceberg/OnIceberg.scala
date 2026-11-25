@@ -20,6 +20,7 @@
 package org.apache.texera.amber.core.storage.result.iceberg
 
 import org.apache.texera.amber.util.IcebergUtil
+import org.apache.iceberg.Table
 import org.apache.iceberg.exceptions.NoSuchTableException
 
 trait OnIceberg {
@@ -28,15 +29,21 @@ trait OnIceberg {
   def tableName: String
 
   /**
-    * Expire snapshots for the table.
+    * Loads the table from the current catalog.
+    *
+    * @throws NoSuchTableException if the table does not exist.
     */
-  def expireSnapshots(): Unit = {
-    val table = IcebergUtil
+  protected def requireTable(): Table =
+    IcebergUtil
       .loadTableMetadata(catalog, tableNamespace, tableName)
       .getOrElse(throw new NoSuchTableException(s"table $tableNamespace.$tableName doesn't exist"))
 
+  /**
+    * Expire snapshots for the table.
+    */
+  def expireSnapshots(): Unit = {
     // Begin the snapshot expiration process:
-    table
+    requireTable()
       .expireSnapshots() // Initiate snapshot expiration.
       .retainLast(1) // Retain only the most recent snapshot.
       .expireOlderThan(

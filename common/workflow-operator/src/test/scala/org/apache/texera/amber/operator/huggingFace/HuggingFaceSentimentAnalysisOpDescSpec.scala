@@ -27,25 +27,14 @@ import org.apache.texera.amber.operator.LogicalOp
 import org.apache.texera.amber.operator.metadata.OperatorGroupConstants
 import org.apache.texera.amber.util.JSONUtils.objectMapper
 import org.scalatest.flatspec.AnyFlatSpec
-import org.scalatest.matchers.should.Matchers
+import org.apache.texera.amber.operator.EncodedGeneratedCodeAssertionChecks
 
-import java.nio.charset.StandardCharsets
-import java.util.Base64
-
-class HuggingFaceSentimentAnalysisOpDescSpec extends AnyFlatSpec with Matchers {
+class HuggingFaceSentimentAnalysisOpDescSpec
+    extends AnyFlatSpec
+    with EncodedGeneratedCodeAssertionChecks {
 
   private val workflowId = WorkflowIdentity(1L)
   private val executionId = ExecutionIdentity(1L)
-
-  private def b64(s: String): String =
-    Base64.getEncoder.encodeToString(s.getBytes(StandardCharsets.UTF_8))
-
-  // EncodableString fields are always base64-wrapped in .encode mode
-  // (self.decode_python_template('<base64>')), so assert on the base64 form only: the raw
-  // column name can appear in the generated Python for unrelated reasons (e.g. the
-  // "positive"/"neutral"/"negative" label keys), which would mask a missing splice.
-  private def carries(output: String, name: String): Boolean =
-    output.contains(b64(name))
 
   /** The exact runtime decode expression an EncodableString column renders into. */
   private def decodeSite(name: String): String =
@@ -81,55 +70,7 @@ class HuggingFaceSentimentAnalysisOpDescSpec extends AnyFlatSpec with Matchers {
   }
 
   "HuggingFaceSentimentAnalysisOpDesc.getOutputSchemas" should
-    "return null when any result column is unset" in {
-    val d = new HuggingFaceSentimentAnalysisOpDesc
-    val in = Schema().add("text", AttributeType.STRING)
-    d.getOutputSchemas(Map(d.operatorInfo.inputPorts.head.id -> in)) shouldBe null
-  }
-
-  it should "return null when a result column is set but blank" in {
-    // Each of the three guards has a null half and a whitespace half. The whitespace
-    // half is the one a user actually hits: a cleared-out text box arrives as "   ",
-    // not as null, and a schema whose column name is blank is not a usable schema.
-    val in = Schema().add("text", AttributeType.STRING)
-    val blanks = Seq("", "   ", "\t")
-    blanks.foreach { blank =>
-      val d = configured()
-      d.resultAttributePositive = blank
-      withClue(s"positive = [$blank]: ") {
-        d.getOutputSchemas(Map(d.operatorInfo.inputPorts.head.id -> in)) shouldBe null
-      }
-    }
-  }
-
-  it should "return null when only the neutral result column is unset" in {
-    // Split out per column: a copy-pasted guard that re-tests `resultAttributePositive`
-    // in the neutral clause passes the "all three unset" case and this one is what
-    // catches it.
-    val in = Schema().add("text", AttributeType.STRING)
-
-    val nulled = configured()
-    nulled.resultAttributeNeutral = null
-    nulled.getOutputSchemas(Map(nulled.operatorInfo.inputPorts.head.id -> in)) shouldBe null
-
-    val blanked = configured()
-    blanked.resultAttributeNeutral = "   "
-    blanked.getOutputSchemas(Map(blanked.operatorInfo.inputPorts.head.id -> in)) shouldBe null
-  }
-
-  it should "return null when only the negative result column is unset" in {
-    val in = Schema().add("text", AttributeType.STRING)
-
-    val nulled = configured()
-    nulled.resultAttributeNegative = null
-    nulled.getOutputSchemas(Map(nulled.operatorInfo.inputPorts.head.id -> in)) shouldBe null
-
-    val blanked = configured()
-    blanked.resultAttributeNegative = "   "
-    blanked.getOutputSchemas(Map(blanked.operatorInfo.inputPorts.head.id -> in)) shouldBe null
-  }
-
-  it should "append the three sentiment columns as DOUBLE, keyed by the declared output port" in {
+    "append the three sentiment columns as DOUBLE, keyed by the declared output port" in {
     val d = configured()
     val in = Schema().add("text", AttributeType.STRING)
     val out = d.getOutputSchemas(Map(d.operatorInfo.inputPorts.head.id -> in))
@@ -138,6 +79,60 @@ class HuggingFaceSentimentAnalysisOpDescSpec extends AnyFlatSpec with Matchers {
     schema.getAttribute("pos").getType shouldBe AttributeType.DOUBLE
     schema.getAttribute("neu").getType shouldBe AttributeType.DOUBLE
     schema.getAttribute("neg").getType shouldBe AttributeType.DOUBLE
+  }
+
+  private val textInput = Schema().add("text", AttributeType.STRING)
+
+  private def schemaError(d: HuggingFaceSentimentAnalysisOpDesc, in: Schema = textInput): String =
+    intercept[RuntimeException] {
+      d.getOutputSchemas(Map(d.operatorInfo.inputPorts.head.id -> in))
+    }.getMessage
+
+  it should "reject each unset or blank result column, naming the field" in {
+    // Split per column: a copy-pasted guard that re-tests one field in another's
+    // clause would pass an all-unset case, and naming the field catches it.
+    val fields: Seq[(String, (HuggingFaceSentimentAnalysisOpDesc, String) => Unit)] = Seq(
+      "Positive result attribute" -> ((d, v) => d.resultAttributePositive = v),
+      "Neutral result attribute" -> ((d, v) => d.resultAttributeNeutral = v),
+      "Negative result attribute" -> ((d, v) => d.resultAttributeNegative = v)
+    )
+    for ((title, set) <- fields; empty <- Seq(null, "", "   ", "\t")) {
+      withClue(s"$title = [$empty]: ") {
+        val d = configured()
+        set(d, empty)
+        schemaError(d) shouldBe s"$title cannot be empty"
+      }
+    }
+  }
+
+  it should "reject an unset input attribute" in {
+    val d = configured()
+    d.attribute = "  "
+    schemaError(d) shouldBe "Attribute cannot be empty"
+  }
+
+  it should "reject an input attribute that is not in the input table, listing the columns" in {
+    val d = configured()
+    d.attribute = "review"
+    schemaError(d) shouldBe "Attribute 'review' is not in the input table. Available columns: text"
+  }
+
+  it should "match the input attribute's case exactly, as the generated Python does" in {
+    val d = configured()
+    d.attribute = "TEXT"
+    schemaError(d) should startWith("Attribute 'TEXT' is not in the input table")
+  }
+
+  it should "leave a readable error on its output port when the compiler propagates the schema" in {
+    // The compiler runs getOutputSchemas inside a Try and stores a thrown error on the
+    // output port. A returned null escaped that Try as a NullPointerException instead.
+    val d = configured()
+    d.resultAttributeNeutral = null
+    val physical = d
+      .getPhysicalOp(workflowId, executionId)
+      .propagateSchema(Some(d.operatorInfo.inputPorts.head.id -> textInput))
+    val port = physical.outputPorts(d.operatorInfo.outputPorts.head.id)._3
+    port.left.map(_.getMessage) shouldBe Left("Neutral result attribute cannot be empty")
   }
 
   "HuggingFaceSentimentAnalysisOpDesc.generatePythonCode" should

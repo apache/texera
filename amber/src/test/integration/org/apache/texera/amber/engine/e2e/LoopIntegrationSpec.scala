@@ -20,10 +20,6 @@
 package org.apache.texera.amber.engine.e2e
 
 import com.twitter.util.Duration
-import org.apache.pekko.actor.{ActorSystem, Props}
-import org.apache.pekko.testkit.{ImplicitSender, TestKit}
-import org.apache.pekko.util.Timeout
-import org.apache.texera.amber.clustering.SingleNodeListener
 import org.apache.texera.amber.core.tuple.{Attribute, AttributeType}
 import org.apache.texera.amber.core.virtualidentity.OperatorIdentity
 import org.apache.texera.amber.core.workflow.{
@@ -32,13 +28,9 @@ import org.apache.texera.amber.core.workflow.{
   WorkflowContext,
   WorkflowSettings
 }
-import org.apache.texera.amber.engine.common.AmberRuntime
 import org.apache.texera.amber.engine.e2e.TestUtils.{
   buildWorkflow,
-  cleanupWorkflowExecutionData,
-  initiateTexeraDBForTestCases,
   runWorkflowAndReadResults,
-  setUpWorkflowExecutionData,
   workflowContext
 }
 import org.apache.texera.amber.operator.{LogicalOp, TestOperators}
@@ -61,10 +53,6 @@ import org.apache.texera.amber.operator.union.UnionOpDesc
 import org.apache.texera.amber.tags.IntegrationTest
 import org.apache.texera.amber.util.JSONUtils.objectMapper
 import org.apache.texera.common.compiler.model.LogicalLink
-import org.scalatest.flatspec.AnyFlatSpecLike
-import org.scalatest.{BeforeAndAfterAll, BeforeAndAfterEach, Outcome, Retries}
-
-import scala.concurrent.duration.DurationInt
 
 /**
   * End-to-end loop tests: run a real TextInput -> LoopStart -> LoopEnd workflow
@@ -100,41 +88,14 @@ import scala.concurrent.duration.DurationInt
   *
   * Tagged @IntegrationTest because it spawns Python workers; routed to the
   * `amber-integration` CI job.
+  *
+  * `specId` 6 keeps the seeded user/workflow/version/execution rows (and the
+  * context's workflow/execution ids) apart from the other integration suites
+  * running against the shared test database (#5888); 1-5 are taken by the
+  * other e2e/integration specs (5 by MultiRegionWorkflowIntegrationSpec).
   */
 @IntegrationTest
-class LoopIntegrationSpec
-    extends TestKit(ActorSystem("LoopIntegrationSpec", AmberRuntime.pekkoConfig))
-    with ImplicitSender
-    with AnyFlatSpecLike
-    with BeforeAndAfterAll
-    with BeforeAndAfterEach
-    with Retries {
-
-  override def withFixture(test: NoArgTest): Outcome =
-    withRetry { super.withFixture(test) }
-
-  implicit val timeout: Timeout = Timeout(5.seconds)
-
-  // Unique per-suite id so the seeded user/workflow/version/execution rows
-  // (and the context's workflow/execution ids) don't collide with the other
-  // integration suites running against the shared test database (#5888).
-  // 1-4 and 5 are taken by the other e2e/integration specs (5 by
-  // MultiRegionWorkflowIntegrationSpec), so this suite uses 6.
-  private val specId = 6
-
-  override protected def beforeEach(): Unit = setUpWorkflowExecutionData(specId)
-
-  override protected def afterEach(): Unit = cleanupWorkflowExecutionData(specId)
-
-  override def beforeAll(): Unit = {
-    system.actorOf(Props[SingleNodeListener](), "cluster-info")
-    Class.forName("org.postgresql.Driver")
-    initiateTexeraDBForTestCases()
-  }
-
-  override def afterAll(): Unit = {
-    TestKit.shutdownActorSystem(system)
-  }
+class LoopIntegrationSpec extends RetryingDatabaseE2ESpec("LoopIntegrationSpec", specId = 6) {
 
   // Loops require MATERIALIZED execution mode (the cross-region state channel
   // is the loop back-edge). Built on the suite's specId so the context's

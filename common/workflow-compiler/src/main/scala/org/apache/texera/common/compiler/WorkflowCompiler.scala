@@ -25,7 +25,6 @@ import com.typesafe.scalalogging.{LazyLogging, Logger}
 import org.apache.texera.common.compiler.WorkflowCompiler.{
   collectOutputSchemaFromPhysicalPlan,
   convertErrorListToWorkflowFatalErrorMap,
-  failedCodeGeneration,
   normalizeStateReferences,
   unbindableStateReferences
 }
@@ -219,7 +218,9 @@ object WorkflowCompiler {
             else None
           }
           val textReasons: Map[String, String] =
-            if (scripts.exists(failedCodeGeneration.findFirstIn(_).nonEmpty)) {
+            if (
+              scripts.exists(_.startsWith(PythonOperatorDescriptor.CodeGenerationFailureMarker))
+            ) {
               Map.empty
             } else {
               val inCode = text.flatMap {
@@ -290,9 +291,6 @@ object WorkflowCompiler {
   /** Where `text` starts in `code`, each time it occurs. */
   private def offsetsOf(code: String, text: String): Iterator[Int] =
     Iterator.iterate(code.indexOf(text))(at => code.indexOf(text, at + 1)).takeWhile(_ >= 0)
-
-  /** What a Python-based operator's code is when generating it failed; the group is the reason. */
-  private val failedCodeGeneration = """#EXCEPTION DURING CODE GENERATION:\s*(.*)""".r
 
   /** A descriptor's references as the compile errors name them: `/pointer -> $name, ...`. */
   private def formatReferences(references: Map[String, String]): String =
@@ -423,8 +421,12 @@ class WorkflowCompiler(
 
         // **Check for Python-based operator errors during code generation**
         physicalOps.filter(_.isPythonBased).foreach { physicalOp =>
-          failedCodeGeneration.findFirstMatchIn(physicalOp.getCode).foreach { matchResult =>
-            val errorMessage = matchResult.group(1).trim
+          val code = physicalOp.getCode
+          // A failed generation leaves the marker at the very start of the code; everything after
+          // it, across all lines, is the failure message.
+          val marker = PythonOperatorDescriptor.CodeGenerationFailureMarker
+          if (code.startsWith(marker)) {
+            val errorMessage = code.drop(marker.length).trim
             report(new RuntimeException(s"Operator is not configured properly: $errorMessage"))
           }
         }

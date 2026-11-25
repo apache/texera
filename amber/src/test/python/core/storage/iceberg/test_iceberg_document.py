@@ -512,6 +512,18 @@ class TestIcebergDocumentWithMockCatalog:
 
         assert load_table_metadata.call_args.args == (document.catalog, "ns", "tbl")
 
+    def test_get_count_reports_an_unavailable_catalog_instead_of_zero(self, document):
+        document.catalog.load_table.side_effect = ConnectionError("catalog unavailable")
+
+        with pytest.raises(ConnectionError, match="catalog unavailable"):
+            document.get_count()
+
+    def test_reading_reports_an_unavailable_catalog_instead_of_no_rows(self, document):
+        document.catalog.load_table.side_effect = ConnectionError("catalog unavailable")
+
+        with pytest.raises(ConnectionError, match="catalog unavailable"):
+            list(document.get())
+
     def test_a_negative_offset_is_rejected_rather_than_read_as_zero(self, document):
         """
         IcebergIterator guards its file seek against having already skipped past

@@ -19,36 +19,14 @@
 
 package org.apache.texera.amber.engine.architecture.coordinator.execution
 
-import org.apache.texera.amber.core.executor.OpExecInitInfo
-import org.apache.texera.amber.core.virtualidentity.{
-  ActorVirtualIdentity,
-  ExecutionIdentity,
-  OperatorIdentity,
-  PhysicalOpIdentity,
-  WorkflowIdentity
-}
-import org.apache.texera.amber.core.workflow.{GlobalPortIdentity, PhysicalOp, PortIdentity}
+import org.apache.texera.amber.core.virtualidentity.ActorVirtualIdentity
 import org.apache.texera.amber.engine.architecture.rpc.controlreturns.WorkflowAggregatedState
 import org.apache.texera.amber.engine.architecture.scheduling.{Region, RegionIdentity}
 import org.apache.texera.amber.engine.architecture.worker.statistics.WorkerState
+import org.apache.texera.amber.engine.common.BarePhysicalPlanFixture
 import org.scalatest.flatspec.AnyFlatSpec
 
-class WorkflowExecutionSpec extends AnyFlatSpec {
-
-  private def physicalOpId(opId: String): PhysicalOpIdentity =
-    PhysicalOpIdentity(OperatorIdentity(opId), "main")
-
-  private def op(opId: String): PhysicalOp =
-    PhysicalOp(
-      physicalOpId(opId),
-      WorkflowIdentity(0),
-      ExecutionIdentity(0),
-      OpExecInitInfo.Empty
-    )
-
-  /** A region with no ports — its `RegionExecution.getState` defaults to COMPLETED. */
-  private def region(regionId: Long, opId: String): Region =
-    Region(RegionIdentity(regionId), Set(op(opId)), Set.empty)
+class WorkflowExecutionSpec extends AnyFlatSpec with BarePhysicalPlanFixture {
 
   /**
     * A region carrying a single (input) port on `opId`. Because a freshly created
@@ -57,18 +35,7 @@ class WorkflowExecutionSpec extends AnyFlatSpec {
     * so its operators' states are actually inspected by `WorkflowExecution.getState`.
     */
   private def regionWithPort(regionId: Long, opId: String): Region =
-    Region(
-      RegionIdentity(regionId),
-      Set(op(opId)),
-      Set.empty,
-      ports = Set(
-        GlobalPortIdentity(
-          opId = physicalOpId(opId),
-          portId = PortIdentity(id = 0, internal = false),
-          input = true
-        )
-      )
-    )
+    region(regionId, opId, Set(globalPort(opId)))
 
   "WorkflowExecution.initRegionExecution" should "create a new RegionExecution for the given region" in {
     val we = WorkflowExecution()

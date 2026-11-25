@@ -24,7 +24,12 @@ import org.apache.texera.amber.util.IcebergUtil.toIcebergSchema
 import org.apache.hadoop.fs.FileSystem
 import org.apache.iceberg.catalog.{Catalog, TableIdentifier}
 import org.apache.iceberg.data.GenericRecord
-import org.apache.iceberg.exceptions.{AlreadyExistsException, RESTException}
+import org.apache.iceberg.exceptions.{
+  AlreadyExistsException,
+  NoSuchNamespaceException,
+  NoSuchTableException,
+  RESTException
+}
 import org.apache.iceberg.types.Types
 import org.apache.iceberg.{Schema => IcebergSchema}
 import org.scalamock.scalatest.MockFactory
@@ -457,14 +462,28 @@ class IcebergUtilSpec extends AnyFlatSpec with MockFactory {
     )
   }
 
-  it should "return None when loading table metadata fails" in {
+  it should "return None when the table or its namespace does not exist" in {
+    val identifier = TableIdentifier.of("test_namespace", "test_table")
+    Seq(new NoSuchTableException("no table"), new NoSuchNamespaceException("no namespace"))
+      .foreach { missing =>
+        val catalog = mock[Catalog]
+        (catalog.loadTable _).expects(identifier).throwing(missing)
+
+        assert(IcebergUtil.loadTableMetadata(catalog, "test_namespace", "test_table").isEmpty)
+      }
+  }
+
+  it should "throw rather than return None when loading table metadata fails" in {
     val catalog = mock[Catalog]
     val identifier = TableIdentifier.of("test_namespace", "test_table")
     (catalog.loadTable _)
       .expects(identifier)
       .throwing(new RuntimeException("catalog unavailable"))
 
-    assert(IcebergUtil.loadTableMetadata(catalog, "test_namespace", "test_table").isEmpty)
+    val error = intercept[RuntimeException] {
+      IcebergUtil.loadTableMetadata(catalog, "test_namespace", "test_table")
+    }
+    assert(error.getMessage == "catalog unavailable")
   }
 
   it should "surface RESTException when createRestCatalog cannot reach the REST endpoint" in {

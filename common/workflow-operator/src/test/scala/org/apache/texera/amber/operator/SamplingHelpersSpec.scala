@@ -19,14 +19,12 @@
 
 package org.apache.texera.amber.operator
 
-import org.apache.texera.amber.util.PythonTestSupport.configuredPython
+import org.apache.texera.amber.util.PythonTestSupport.{configuredPython, runScript}
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 
 import java.nio.charset.StandardCharsets
 import java.nio.file.Files
-import java.util.concurrent.TimeUnit
-import scala.io.Source
 
 /** The transcribed java.util.Random, checked against what Java would answer.
   *
@@ -44,10 +42,7 @@ class SamplingHelpersSpec extends AnyFlatSpec with Matchers {
       script,
       (SamplingHelpers.JavaRandom + "\n\n" + body).getBytes(StandardCharsets.UTF_8)
     )
-    val process = new ProcessBuilder(python, script.toString).redirectErrorStream(true).start()
-    val out = Source.fromInputStream(process.getInputStream).mkString
-    process.waitFor(60, TimeUnit.SECONDS)
-    (process.exitValue(), out)
+    runScript(python, script, timeoutSeconds = 60)
   }
 
   // A bound of 2**30 + 1 puts about half the draws in the rejection zone, so the

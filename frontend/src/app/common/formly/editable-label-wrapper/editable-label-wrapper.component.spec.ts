@@ -228,6 +228,66 @@ describe("EditableLabelWrapperComponent", () => {
       expect(fixture.nativeElement.querySelector("button.lbl-eye")).toBeNull();
     });
 
+    // A host that draws the label itself (a table's column header) marks the field labelHosted: the
+    // controls live in the host, bound to these same props, so drawing them here too put the one
+    // name three times over -- the header, the first row's box, every later row's static label.
+    it("draws nothing visible when the host draws the label: the first row's controls, and a later row's static name", () => {
+      // The row that carries the controls: no box, no eye; still named, still fades when hidden.
+      component.field = {
+        props: { authoring: true, labelHosted: true, authorName: "Genes", schemaLabel: "File Key", authorHidden: true },
+      } as unknown as FormlyFieldConfig;
+      fixture.detectChanges();
+      expect(fixture.nativeElement.querySelector(".lbl-row")).toBeNull();
+      expect(fixture.nativeElement.querySelector(".lbl-sr-only")?.textContent?.trim()).toBe("Genes");
+      expect(fixture.nativeElement.querySelector(".dimmed")).not.toBeNull();
+
+      // A later row (decorated without the controls): no static name either, only the accessible one.
+      component.field = {
+        id: "genes-1",
+        props: { authoring: false, labelHosted: true, authorName: "Genes", schemaLabel: "File Key" },
+      } as unknown as FormlyFieldConfig;
+      fixture.detectChanges();
+      expect(fixture.nativeElement.querySelector(".lbl-static")).toBeNull();
+      const label = fixture.nativeElement.querySelector("label.lbl-sr-only") as HTMLLabelElement;
+      expect(label.textContent?.trim()).toBe("Genes");
+      expect(label.getAttribute("for")).toBe("genes-1");
+
+      // A hosted repeated field is named as a group, like an unhosted one.
+      component.field = {
+        id: "genes-1",
+        props: { authoring: false, labelHosted: true, labelsGroup: true, authorName: "Genes", schemaLabel: "File Key" },
+      } as unknown as FormlyFieldConfig;
+      fixture.detectChanges();
+      expect(fixture.nativeElement.querySelector("label.lbl-sr-only")).toBeNull();
+      const group = fixture.nativeElement.querySelector("span.lbl-sr-only") as HTMLSpanElement;
+      expect(group.textContent?.trim()).toBe("Genes");
+      expect(group.id).toBe("genes-1-label");
+    });
+
+    // The write-through a host's own box and eye go through, so a rename or a hide lands the same
+    // way wherever the control is drawn: on the props first, then to the form.
+    it("rename and setHidden write the props and then call the form, and tolerate a reader mount", () => {
+      const rename = vi.fn();
+      const setHidden = vi.fn();
+      const props: Record<string, unknown> = {
+        authorName: "a",
+        authorHidden: false,
+        renameField: rename,
+        setFieldHidden: setHidden,
+      };
+      EditableLabelWrapperComponent.rename(props, "b");
+      expect(props["authorName"]).toBe("b");
+      expect(rename).toHaveBeenCalledWith("b");
+      EditableLabelWrapperComponent.setHidden(props, true);
+      expect(props["authorHidden"]).toBe(true);
+      expect(setHidden).toHaveBeenCalledWith(true);
+
+      const reader: Record<string, unknown> = { authorName: "a", authorHidden: false };
+      expect(() => EditableLabelWrapperComponent.rename(reader, "c")).not.toThrow();
+      expect(() => EditableLabelWrapperComponent.setHidden(reader, true)).not.toThrow();
+      expect(reader["authorName"]).toBe("c");
+    });
+
     it("for a reader, renders a plain static label from authorName, tied to the control by id", () => {
       // decorate blanks formly's own label, so this one is the control's only label: without `for`
       // the reader's input would show a name but have no accessible name at all.

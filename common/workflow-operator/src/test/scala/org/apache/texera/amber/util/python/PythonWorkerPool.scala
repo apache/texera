@@ -336,7 +336,7 @@ object PythonWorkerPool extends LazyLogging {
       t
     }
 
-    private val outThread: Thread = {
+    locally {
       val t = new Thread(() => {
         val r =
           new BufferedReader(new InputStreamReader(process.getInputStream, StandardCharsets.UTF_8))
@@ -352,10 +352,9 @@ object PythonWorkerPool extends LazyLogging {
       t.setDaemon(true)
       t.setName("python-worker-stdout")
       t.start()
-      t
     }
 
-    private val errThread: Thread = {
+    locally {
       val t = new Thread(() => {
         val r =
           new BufferedReader(new InputStreamReader(process.getErrorStream, StandardCharsets.UTF_8))
@@ -370,7 +369,6 @@ object PythonWorkerPool extends LazyLogging {
       t.setDaemon(true)
       t.setName("python-worker-stderr")
       t.start()
-      t
     }
 
     /** Wait for the worker's startup `{"ready": true}`; if it dies first (e.g. an
@@ -461,7 +459,7 @@ object PythonWorkerPool extends LazyLogging {
     /** One protocol line, or a [[WorkerDiedException]]: the worker ended the
       * stream, or it went `timeoutMillis` without writing. `what` names what was
       * being waited for. A worker that timed out is killed here — that both frees
-      * the machine of a hung interpreter and unblocks [[outThread]] — and the
+      * the machine of a hung interpreter and unblocks the stdout reader — and the
       * pool discards it, so it never serves another job.
       */
     private def nextLine(timeoutMillis: Long, what: String): String =

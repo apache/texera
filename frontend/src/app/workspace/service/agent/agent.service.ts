@@ -41,6 +41,7 @@ import { AgentState, ReActStep, ModelMessage } from "./agent-types";
 import { Workflow, WorkflowContent } from "../../../common/type/workflow";
 import { ComputingUnitStatusService } from "../../../common/service/computing-unit/computing-unit-status/computing-unit-status.service";
 import { WarehouseService } from "../../../common/service/warehouse/warehouse.service";
+import { AuthService } from "../../../common/service/user/auth.service";
 import type { WebOutputMode } from "../../types/execute-workflow.interface";
 import type { SchemaAttribute } from "../../types/workflow-compiling.interface";
 
@@ -458,9 +459,14 @@ export class AgentService {
    * Start WebSocket connection for real-time ReActSteps updates
    */
   private startStatePolling(agentId: string, tracking: AgentStateTracking): void {
-    // Build WebSocket URL
+    // Build WebSocket URL. The agent service opens the socket only for the agent's owner, and a
+    // browser cannot set headers on a WebSocket, so the user's token rides in the query, as it
+    // does on the workflow websocket.
     const wsProtocol = window.location.protocol === "https:" ? "wss:" : "ws:";
-    const wsUrl = `${wsProtocol}//${window.location.host}${this.AGENT_API_BASE}/agents/${agentId}/react`;
+    const token = AuthService.getAccessToken();
+    const wsUrl =
+      `${wsProtocol}//${window.location.host}${this.AGENT_API_BASE}/agents/${agentId}/react` +
+      (token !== null ? `?access-token=${encodeURIComponent(token)}` : "");
 
     const ws = new WebSocket(wsUrl);
     tracking.websocket = ws;
@@ -959,13 +965,14 @@ export class AgentService {
    * Get the current state of an agent.
    */
   public getAgentState(agentId: string): Observable<AgentState> {
-    return defer(() => {
-      const tracking = this.agentStateTracking.get(agentId);
-      if (tracking) {
-        return of(tracking.stateSubject.getValue());
-      }
-      return of(AgentState.UNAVAILABLE);
-    });
+    return defer(() => of(this.getAgentStateSnapshot(agentId)));
+  }
+
+  /**
+   * Get the latest known state of an agent synchronously, without creating tracking.
+   */
+  public getAgentStateSnapshot(agentId: string): AgentState {
+    return this.agentStateTracking.get(agentId)?.stateSubject.getValue() ?? AgentState.UNAVAILABLE;
   }
 
   /**

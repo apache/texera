@@ -21,27 +21,20 @@ package org.apache.texera.amber.operator.visualization.nestedTable
 
 import org.scalatest.BeforeAndAfter
 import org.scalatest.flatspec.AnyFlatSpec
-import org.scalatest.matchers.should.Matchers
+import org.apache.texera.amber.operator.GeneratedCodeAssertionChecks
 
-import java.nio.charset.StandardCharsets
 import java.util
-import java.util.Base64
 
-class NestedTableOpDescSpec extends AnyFlatSpec with BeforeAndAfter with Matchers {
+class NestedTableOpDescSpec
+    extends AnyFlatSpec
+    with BeforeAndAfter
+    with GeneratedCodeAssertionChecks {
 
   var opDesc: NestedTableOpDesc = _
 
   before {
     opDesc = new NestedTableOpDesc()
   }
-
-  private def b64(s: String): String =
-    Base64.getEncoder.encodeToString(s.getBytes(StandardCharsets.UTF_8))
-
-  // A column name is carried either literally (plain chunks) or as the
-  // base64 payload of a runtime decode site (encoded chunks).
-  private def carries(output: String, name: String): Boolean =
-    output.contains(name) || output.contains(b64(name))
 
   private def config(group: String, original: String): NestedTableConfig = {
     val c = new NestedTableConfig()
@@ -56,10 +49,7 @@ class NestedTableOpDescSpec extends AnyFlatSpec with BeforeAndAfter with Matcher
   }
 
   it should "throw an AssertionError (not a NullPointerException) when includedColumns is left empty" in {
-    val ex = intercept[AssertionError](opDesc.generatePythonCode())
-    ex shouldBe a[AssertionError]
-    ex.getMessage should not be null
-    ex.getMessage should include("Included Columns cannot be empty")
+    expectError[AssertionError]("Included Columns cannot be empty")(opDesc.generatePythonCode())
   }
 
   it should "generate python code carrying the configured columns when includedColumns is set" in {

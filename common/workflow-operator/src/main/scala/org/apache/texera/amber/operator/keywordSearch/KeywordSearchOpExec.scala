@@ -45,7 +45,8 @@ class KeywordSearchOpExec(descString: String) extends FilterOpExec {
   this.setFilterFunc(findKeyword)
 
   private def findKeyword(tuple: Tuple): Boolean = {
-    Option[Any](tuple.getField(desc.attribute)).map(_.toString).exists { fieldValue =>
+    Option[Any](tuple.getField(desc.attribute)).exists { value =>
+      val fieldValue = value.toString
       memoryIndex.addField(desc.attribute, fieldValue, analyzer)
       val isMatch = memoryIndex.search(query) > 0.0f
       memoryIndex.reset()

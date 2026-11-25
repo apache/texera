@@ -54,16 +54,13 @@ import { NzIconDirective } from "ng-zorro-antd/icon";
 import { NzSpaceCompactItemDirective } from "ng-zorro-antd/space";
 import { NzButtonComponent } from "ng-zorro-antd/button";
 import { NzPopconfirmDirective } from "ng-zorro-antd/popconfirm";
-import { NzSwitchComponent } from "ng-zorro-antd/switch";
-import { FormsModule } from "@angular/forms";
 import { MarkdownDescriptionComponent } from "../../markdown-description/markdown-description.component";
-import { NzWaveDirective } from "ng-zorro-antd/core/wave";
 import { NzTabsComponent, NzTabComponent } from "ng-zorro-antd/tabs";
 import { NzCollapseComponent, NzCollapsePanelComponent } from "ng-zorro-antd/collapse";
 import { NzDividerComponent } from "ng-zorro-antd/divider";
 import { DATASET_FILE_RESOURCE_ENDPOINT } from "../../../../service/user/file-resource/file-resource-endpoint";
-import { NzInputDirective } from "ng-zorro-antd/input";
 import { VersionsFilesBrowserComponent } from "../../versions-files-browser/versions-files-browser.component";
+import { ResourceDetailSettingsComponent } from "../../resource-detail-settings.component";
 
 export const THROTTLE_TIME_MS = 1000;
 
@@ -83,22 +80,19 @@ export const THROTTLE_TIME_MS = 1000;
     NzSpaceCompactItemDirective,
     NzButtonComponent,
     NzPopconfirmDirective,
-    NzSwitchComponent,
-    FormsModule,
     MarkdownDescriptionComponent,
-    NzWaveDirective,
     NzTabsComponent,
     NzTabComponent,
     NzCollapseComponent,
     NzCollapsePanelComponent,
     NzDividerComponent,
     NgFor,
-    NzInputDirective,
     NzDropdownDirective,
     NzDropdownMenuComponent,
     NzMenuDirective,
     NzMenuItemComponent,
     VersionsFilesBrowserComponent,
+    ResourceDetailSettingsComponent,
   ],
 })
 export class DatasetDetailComponent implements OnInit {
@@ -240,7 +234,7 @@ export class DatasetDetailComponent implements OnInit {
         .updateDatasetPublicity(this.did)
         .pipe(untilDestroyed(this))
         .subscribe({
-          next: (res: Response) => {
+          next: () => {
             this.datasetIsPublic = checked;
             let state = "public";
             if (!this.datasetIsPublic) {
@@ -248,7 +242,7 @@ export class DatasetDetailComponent implements OnInit {
             }
             this.notificationService.success(`Dataset ${this.datasetName} is now ${state}`);
           },
-          error: (err: unknown) => {
+          error: () => {
             this.notificationService.error("Fail to change the dataset publicity");
           },
         });
@@ -262,7 +256,7 @@ export class DatasetDetailComponent implements OnInit {
         .updateDatasetDownloadable(this.did)
         .pipe(untilDestroyed(this))
         .subscribe({
-          next: (res: Response) => {
+          next: () => {
             this.datasetIsDownloadable = checked;
             let state = "allowed";
             if (!this.datasetIsDownloadable) {
@@ -270,7 +264,7 @@ export class DatasetDetailComponent implements OnInit {
             }
             this.notificationService.success(`Dataset downloads are now ${state}`);
           },
-          error: (err: unknown) => {
+          error: () => {
             this.notificationService.error("Failed to change the dataset download permission");
           },
         });
@@ -446,21 +440,28 @@ export class DatasetDetailComponent implements OnInit {
         .deleteDatasetFile(this.did, relativePath)
         .pipe(untilDestroyed(this))
         .subscribe({
-          next: (res: Response) => {
+          next: () => {
             this.notificationService.success(
               `File ${node.name} is successfully deleted. You may finalize it or revert it at the "Create Version" panel`
             );
             this.versionsFilesBrowser?.notePathStaged(relativePath);
           },
-          error: (err: unknown) => {
+          error: () => {
             this.notificationService.error("Failed to delete the file");
           },
         });
     }
   }
 
-  // alias for formatSize
-  formatSize = formatSize;
+  protected get overviewStatistics() {
+    return [
+      { label: "Created", value: this.datasetCreationTime },
+      { label: "Last updated", value: this.latestVersionCreationTime || "—" },
+      { label: "Versions", value: this.versions.length },
+      { label: "Latest version file", value: this.latestVersionFileName || "—" },
+      { label: "Latest version size", value: formatSize(this.latestVersionSize) },
+    ];
+  }
 
   formatCount = formatCount;
 

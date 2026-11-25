@@ -119,13 +119,10 @@ class ComputingUnitAccessResource {
     * account matches — the service registers no ExceptionMapper for IllegalArgumentException,
     * so that would otherwise surface as an opaque HTTP 500. Shared by grant/revoke.
     */
-  private def resolveUidByEmail(email: String): Integer = {
-    val user = userDao.fetchOneByEmail(email)
-    if (user == null || user.getIsPlaceholder) {
-      throw new BadRequestException("User with the given email does not exist")
-    }
-    user.getUid
-  }
+  private def resolveUidByEmail(email: String): Integer =
+    OwnerAccess
+      .registeredUid(context, email)
+      .getOrElse(throw new BadRequestException("User with the given email does not exist"))
 
   @GET
   @Produces(Array(MediaType.APPLICATION_JSON))

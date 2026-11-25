@@ -47,8 +47,9 @@ trait AdvanceRegionExecutionsHandler {
       request: EmptyRequest,
       ctx: AsyncRPCContext
   ): Future[EmptyReturn] = {
-    cp.workflowExecutionManager
-      .advanceRegionExecutions(cp.actorService)
+    // `Future(...)` turns an exception thrown before the advance returns its future (e.g. while
+    // allocating output port storage) into a failed future, so both reach the handler below.
+    Future(cp.workflowExecutionManager.advanceRegionExecutions(cp.actorService)).flatten
       // The requester is the coordinator itself and discards this reply, so a failure has no
       // caller to propagate to. A fatal error is sent to the client, indicating that the region
       // cannot be scheduled.

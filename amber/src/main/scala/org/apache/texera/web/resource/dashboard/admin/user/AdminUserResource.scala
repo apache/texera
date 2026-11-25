@@ -110,8 +110,12 @@ class AdminUserResource {
   @PUT
   @Path("/update")
   def updateUser(user: User): Unit = {
-    val existingUser = userDao.fetchOneByEmail(user.getEmail)
-    if (existingUser != null && existingUser.getUid != user.getUid) {
+    val existingUid = AdminUserResource.context
+      .select(USER.UID)
+      .from(USER)
+      .where(USER.EMAIL.eq(user.getEmail))
+      .fetchOne(USER.UID)
+    if (existingUid != null && existingUid != user.getUid) {
       throw new WebApplicationException("Email already exists", Response.Status.CONFLICT)
     }
 

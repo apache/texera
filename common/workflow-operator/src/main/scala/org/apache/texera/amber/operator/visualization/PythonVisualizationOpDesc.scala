@@ -41,3 +41,22 @@ trait PythonVisualizationOpDesc extends PythonOperatorDescriptor with Standalone
 
   final override def producesDataFrame(): Boolean = false
 }
+
+object PythonVisualizationOpDesc {
+  private[visualization] final val NumericValueRuleJson = """
+{
+  "attributeTypeRules": {
+    "value": {
+      "enum": ["integer", "long", "double"]
+    }
+  }
+}
+"""
+
+  private[visualization] final val ColorPatternJson = """
+{
+  "pattern": "^\\s*$|^\\s*#(?:\\s*[0-9a-fA-F]){3}(?:(?:\\s*[0-9a-fA-F]){3})?\\s*$|^\\s*(?:[rR]\\s*[gG]\\s*[bB]|[hH]\\s*[sS]\\s*[lL]|[hH]\\s*[sS]\\s*[vV])(?:\\s*[aA])?\\s*\\(\\s*(?:\\s*[0-9.])+(?:\\s*%)?(?:\\s*,(?:\\s*[0-9.])+(?:\\s*%)?){2,3}\\s*\\)\\s*$|^\\s*[vV]\\s*[aA]\\s*[rR]\\s*\\(\\s*-\\s*-[^)]*\\)\\s*$|^\\s*[a-zA-Z][a-zA-Z\\s]*$",
+  "examples": ["red"]
+}
+"""
+}

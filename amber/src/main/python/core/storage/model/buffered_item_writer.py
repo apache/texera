@@ -37,7 +37,6 @@ class BufferedItemWriter(ABC, Generic[T]):
         The size of the buffer.
         :return: the buffer size.
         """
-        pass
 
     @abstractmethod
     def open(self) -> None:
@@ -45,7 +44,6 @@ class BufferedItemWriter(ABC, Generic[T]):
         Open the writer, initializing any necessary resources.
         This method should be called before any write operations.
         """
-        pass
 
     @abstractmethod
     def close(self) -> None:
@@ -53,7 +51,6 @@ class BufferedItemWriter(ABC, Generic[T]):
         Close the writer, flushing any remaining items in the buffer
         to the underlying storage and releasing any held resources.
         """
-        pass
 
     @abstractmethod
     def put_one(self, item: T) -> None:
@@ -62,4 +59,3 @@ class BufferedItemWriter(ABC, Generic[T]):
         the underlying storage.
         :param item: the data item to be written.
         """
-        pass

@@ -35,7 +35,7 @@ class BroadcastPartitioner(Partitioner):
     def __init__(self, partitioning: BroadcastPartitioning):
         super().__init__(set_one_of(Partitioning, partitioning))
         self.batch_size = partitioning.batch_size
-        self.batch: list[Tuple] = list()
+        self.batch: list[Tuple] = []
         self.receivers = list(
             {channel.to_worker_id for channel in partitioning.channels}
         )
@@ -79,4 +79,4 @@ class BroadcastPartitioner(Partitioner):
 
     @overrides
     def reset(self) -> None:
-        self.batch = list()
+        self.batch = []

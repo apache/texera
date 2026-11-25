@@ -20,6 +20,7 @@
 package org.apache.texera.amber.operator.visualization.networkGraph
 
 import org.apache.texera.amber.operator.visualization.StandaloneChartCode._
+import org.apache.texera.amber.operator.visualization.PythonCodeFragment._
 import com.fasterxml.jackson.annotation.{JsonProperty, JsonPropertyDescription}
 import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaTitle
 import org.apache.texera.amber.pybuilder.PythonTemplateBuilder.PythonTemplateBuilderStringContext
@@ -85,108 +86,16 @@ class NetworkGraphOpDesc extends PythonVisualizationOpDesc with PlotlyStandalone
          |import networkx as nx
          |
          |class ProcessTableOperator(UDFTableOperator):
-         |    def render_error(self, error_msg):
-         |        return '''<h1>Network graph is not available.</h1>
-         |                  <p>Reason is: {} </p>
-         |               '''.format(error_msg)
+         |${runtimeError("Network graph is not available.")}
          |
          |    @overrides
          |    def process_table(self, table: Table, port: int) -> Iterator[Optional[TableLike]]:
          |${manipulateTable()}
          |        if not table.empty:
-         |            sources = table[$source]
-         |            destinations = table[$destination]
-         |            # Union of the two columns, in first-appearance order. Adding the
-         |            # Series pairs them off element-wise; a set reorders per run.
-         |            nodes = list(dict.fromkeys(pd.concat([sources, destinations]).tolist()))
-         |            G = nx.Graph()
-         |            for node in nodes:
-         |                G.add_node(node)
-         |            for i, j in table.iterrows():
-         |                G.add_edges_from([(j[$source], j[$destination])])
-         |            # Seeded so the same graph draws the same picture every run;
-         |            # spring_layout starts from random positions otherwise.
-         |            pos = nx.spring_layout(G, k=0.5, iterations=50, seed=0)
-         |            for n, p in pos.items():
-         |                G.nodes[n]['pos'] = p
-         |
-         |            edge_trace = go.Scatter(
-         |                x=[],
-         |                y=[],
-         |                name='Edges',
-         |                line=dict(width=0.5, color='#888'),
-         |                hoverinfo='none',
-         |                mode='lines',
-         |                visible=True
-         |            )
-         |
-         |            for edge in G.edges():
-         |                x0, y0 = G.nodes[edge[0]]['pos']
-         |                x1, y1 = G.nodes[edge[1]]['pos']
-         |                edge_trace['x'] += tuple([x0, x1, None])
-         |                edge_trace['y'] += tuple([y0, y1, None])
-         |
-         |            node_trace = go.Scatter(
-         |                x=[],
-         |                y=[],
-         |                name='Nodes',
-         |                text=[],
-         |                mode='markers',
-         |                hoverinfo='text',
-         |                visible=True,
-         |                marker=dict(
-         |                    showscale=True,
-         |                    colorscale='plasma',
-         |                    reversescale=True,
-         |                    color=[],
-         |                    size=15,
-         |                    colorbar=dict(
-         |                        thickness=10,
-         |                        title='Node Connections',
-         |                        xanchor='left',
-         |                        titleside='right'
-         |                    ),
-         |                    line=dict(width=0)
-         |                )
-         |            )
-         |
-         |            for node in G.nodes():
-         |                x, y = G.nodes[node]['pos']
-         |                node_trace['x'] += tuple([x])
-         |                node_trace['y'] += tuple([y])
-         |
-         |            for node, adjacencies in enumerate(G.adjacency()):
-         |                node_trace['marker']['color'] += tuple([len(adjacencies[1])])
-         |                node_info = str(adjacencies[0]) + ': ' + str(len(adjacencies[1])) + ' connections.'
-         |                node_trace['text'] += tuple([node_info])
-         |
-         |            fig = go.Figure(
-         |                data=[edge_trace, node_trace],
-         |                layout=go.Layout(
-         |                    title='<br>'+$title,
-         |                    hovermode='closest',
-         |                    showlegend=False,
-         |                    margin=dict(b=20, l=5, r=5, t=40),
-         |                    annotations=[
-         |                        dict(
-         |                            text='',
-         |                            showarrow=False,
-         |                            xref="paper",
-         |                            yref="paper"
-         |                        )
-         |                    ],
-         |                    xaxis=dict(showgrid=False, zeroline=False, showticklabels=False),
-         |                    yaxis=dict(showgrid=False, zeroline=False, showticklabels=False)
-         |                )
-         |            )
-         |            fig.update_layout(
-         |                margin=dict(l=0, r=0, t=0, b=0),
-         |                legend=dict(
-         |                    itemclick=False,
-         |                    itemdoubleclick=False
-         |                )
-         |            )
-         |
+         |            source_col = $source
+         |            dest_col = $destination
+         |            graph_title = '<br>'+$title
+         |${NetworkGraphPython.body(12)}
          |            html = plotly.io.to_html(fig, include_plotlyjs='cdn', auto_play=False)
          |        else:
          |            html = self.render_error('Table should not have any empty/null values or fields.')
@@ -214,95 +123,110 @@ class NetworkGraphOpDesc extends PythonVisualizationOpDesc with PlotlyStandalone
        |    if table.empty:
        |${standaloneErrorPage("Table should not have any empty/null values or fields.", indent = 8)}
        |    else:
-       |        sources = table[$sourceLit]
-       |        destinations = table[$destinationLit]
-       |        nodes = list(dict.fromkeys(pd.concat([sources, destinations]).tolist()))
-       |        G = nx.Graph()
-       |        for node in nodes:
-       |            G.add_node(node)
-       |        for _, row in table.iterrows():
-       |            G.add_edges_from([(row[$sourceLit], row[$destinationLit])])
-       |        pos = nx.spring_layout(G, k=0.5, iterations=50, seed=0)
-       |        for n, p in pos.items():
-       |            G.nodes[n]["pos"] = p
-       |
-       |        edge_trace = go.Scatter(
-       |            x=[],
-       |            y=[],
-       |            name="Edges",
-       |            line=dict(width=0.5, color="#888"),
-       |            hoverinfo="none",
-       |            mode="lines",
-       |            visible=True
-       |        )
-       |
-       |        for edge in G.edges():
-       |            x0, y0 = G.nodes[edge[0]]["pos"]
-       |            x1, y1 = G.nodes[edge[1]]["pos"]
-       |            edge_trace["x"] += tuple([x0, x1, None])
-       |            edge_trace["y"] += tuple([y0, y1, None])
-       |
-       |        node_trace = go.Scatter(
-       |            x=[],
-       |            y=[],
-       |            name="Nodes",
-       |            text=[],
-       |            mode="markers",
-       |            hoverinfo="text",
-       |            visible=True,
-       |            marker=dict(
-       |                showscale=True,
-       |                colorscale="plasma",
-       |                reversescale=True,
-       |                color=[],
-       |                size=15,
-       |                colorbar=dict(
-       |                    thickness=10,
-       |                    title="Node Connections",
-       |                    xanchor="left",
-       |                    titleside="right"
-       |                ),
-       |                line=dict(width=0)
-       |            )
-       |        )
-       |
-       |        for node in G.nodes():
-       |            x, y = G.nodes[node]["pos"]
-       |            node_trace["x"] += tuple([x])
-       |            node_trace["y"] += tuple([y])
-       |
-       |        for _, adjacencies in enumerate(G.adjacency()):
-       |            node_trace["marker"]["color"] += tuple([len(adjacencies[1])])
-       |            node_info = str(adjacencies[0]) + ": " + str(len(adjacencies[1])) + " connections."
-       |            node_trace["text"] += tuple([node_info])
-       |
-       |        fig = go.Figure(
-       |            data=[edge_trace, node_trace],
-       |            layout=go.Layout(
-       |                title=$titleLit,
-       |                hovermode="closest",
-       |                showlegend=False,
-       |                margin=dict(b=20, l=5, r=5, t=40),
-       |                annotations=[
-       |                    dict(
-       |                        text="",
-       |                        showarrow=False,
-       |                        xref="paper",
-       |                        yref="paper"
-       |                    )
-       |                ],
-       |                xaxis=dict(showgrid=False, zeroline=False, showticklabels=False),
-       |                yaxis=dict(showgrid=False, zeroline=False, showticklabels=False)
-       |            )
-       |        )
-       |        fig.update_layout(
-       |            margin=dict(l=0, r=0, t=0, b=0),
-       |            legend=dict(
-       |                itemclick=False,
-       |                itemdoubleclick=False
-       |            )
-       |        )
+       |        source_col = $sourceLit
+       |        dest_col = $destinationLit
+       |        graph_title = $titleLit
+       |${NetworkGraphPython.body(8)}
        |${standaloneFigure("Network graph")}""".stripMargin
   }
 
+}
+
+private object NetworkGraphPython {
+  def body(indent: Int): String =
+    render(
+      """|sources = table[source_col]
+         |destinations = table[dest_col]
+         |# Union of the two columns, in first-appearance order. Adding the
+         |# Series pairs them off element-wise; a set reorders per run.
+         |nodes = list(dict.fromkeys(pd.concat([sources, destinations]).tolist()))
+         |G = nx.Graph()
+         |for node in nodes:
+         |    G.add_node(node)
+         |for _, row in table.iterrows():
+         |    G.add_edges_from([(row[source_col], row[dest_col])])
+         |# Seeded so the same graph draws the same picture every run;
+         |# spring_layout starts from random positions otherwise.
+         |pos = nx.spring_layout(G, k=0.5, iterations=50, seed=0)
+         |for n, p in pos.items():
+         |    G.nodes[n]['pos'] = p
+         |
+         |edge_trace = go.Scatter(
+         |    x=[],
+         |    y=[],
+         |    name='Edges',
+         |    line=dict(width=0.5, color='#888'),
+         |    hoverinfo='none',
+         |    mode='lines',
+         |    visible=True
+         |)
+         |
+         |for edge in G.edges():
+         |    x0, y0 = G.nodes[edge[0]]['pos']
+         |    x1, y1 = G.nodes[edge[1]]['pos']
+         |    edge_trace['x'] += tuple([x0, x1, None])
+         |    edge_trace['y'] += tuple([y0, y1, None])
+         |
+         |node_trace = go.Scatter(
+         |    x=[],
+         |    y=[],
+         |    name='Nodes',
+         |    text=[],
+         |    mode='markers',
+         |    hoverinfo='text',
+         |    visible=True,
+         |    marker=dict(
+         |        showscale=True,
+         |        colorscale='plasma',
+         |        reversescale=True,
+         |        color=[],
+         |        size=15,
+         |        colorbar=dict(
+         |            thickness=10,
+         |            title='Node Connections',
+         |            xanchor='left',
+         |            titleside='right'
+         |        ),
+         |        line=dict(width=0)
+         |    )
+         |)
+         |
+         |for node in G.nodes():
+         |    x, y = G.nodes[node]['pos']
+         |    node_trace['x'] += tuple([x])
+         |    node_trace['y'] += tuple([y])
+         |
+         |for _, adjacencies in enumerate(G.adjacency()):
+         |    node_trace['marker']['color'] += tuple([len(adjacencies[1])])
+         |    node_info = str(adjacencies[0]) + ': ' + str(len(adjacencies[1])) + ' connections.'
+         |    node_trace['text'] += tuple([node_info])
+         |
+         |fig = go.Figure(
+         |    data=[edge_trace, node_trace],
+         |    layout=go.Layout(
+         |        title=graph_title,
+         |        hovermode='closest',
+         |        showlegend=False,
+         |        margin=dict(b=20, l=5, r=5, t=40),
+         |        annotations=[
+         |            dict(
+         |                text='',
+         |                showarrow=False,
+         |                xref="paper",
+         |                yref="paper"
+         |            )
+         |        ],
+         |        xaxis=dict(showgrid=False, zeroline=False, showticklabels=False),
+         |        yaxis=dict(showgrid=False, zeroline=False, showticklabels=False)
+         |    )
+         |)
+         |fig.update_layout(
+         |    margin=dict(l=0, r=0, t=0, b=0),
+         |    legend=dict(
+         |        itemclick=False,
+         |        itemdoubleclick=False
+         |    )
+         |)""",
+      indent
+    )
 }

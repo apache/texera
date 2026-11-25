@@ -54,7 +54,9 @@ import {
 } from "../../../../workspace/service/notebook-migration/migration-llm";
 import {
   FolderDocument,
+  folderRelativePath,
   folderRootName,
+  isMigratableSourcePath,
   pickedFileObject,
   pickedFilePath,
 } from "../../../../workspace/service/notebook-migration/folder-assembly";
@@ -76,19 +78,63 @@ import { FiltersInstructionsComponent } from "../filters-instructions/filters-in
 import { NzSelectComponent } from "ng-zorro-antd/select";
 import { FormsModule } from "@angular/forms";
 
-// The single-file input each language accepts besides .ipynb.
-const SCRIPT_INPUTS: Record<MigrationLanguage, { name: string; extension: string; uploadHint: string }> = {
+// What each language accepts, and where the modal takes it, so a mismatch can name the right place.
+const MIGRATION_INPUTS: Record<
+  MigrationLanguage,
+  {
+    name: string;
+    article: string;
+    // As a notebook's kernelspec.language or language_info.name gives it, lowercased.
+    kernelLanguage: string;
+    extension: string;
+    uploadHint: string;
+    notebookType: string;
+    fileTab: string;
+    folderTab: string;
+  }
+> = {
   python: {
     name: "Python",
+    article: "a",
+    kernelLanguage: "python",
     extension: "py",
     uploadHint: "Please upload a Jupyter Notebook (.ipynb) or a Python (.py) file.",
+    notebookType: "Python Notebook",
+    fileTab: "Python File",
+    folderTab: "Python Folder",
   },
   r: {
     name: "R",
+    article: "an",
+    kernelLanguage: "r",
     extension: "R",
     uploadHint: "Please upload an R Jupyter Notebook (.ipynb) or an R (.R) file.",
+    notebookType: "R Notebook",
+    fileTab: "R File",
+    folderTab: "R Folder",
   },
 };
+
+const MIGRATION_LANGUAGES = Object.keys(MIGRATION_INPUTS) as MigrationLanguage[];
+
+const MIGRATION_ERROR_DURATION_MS = 8000;
+
+/** The language a notebook declares, lowercased. Undefined when it declares none. */
+function notebookKernelLanguage(notebook: Notebook): string | undefined {
+  // Each field is normalized first, so a blank or non-string kernelspec still falls back to
+  // language_info. Metadata is unvalidated JSON, and coercing an arbitrary object can throw.
+  return [notebook.metadata?.["kernelspec"]?.language, notebook.metadata?.["language_info"]?.name]
+    .map(value => (typeof value === "string" ? value.trim().toLowerCase() : ""))
+    .find(value => value !== "");
+}
+
+function languageOfKernel(kernelLanguage: string): MigrationLanguage | undefined {
+  return MIGRATION_LANGUAGES.find(language => MIGRATION_INPUTS[language].kernelLanguage === kernelLanguage);
+}
+
+function languageOfExtension(extension: string | undefined): MigrationLanguage | undefined {
+  return MIGRATION_LANGUAGES.find(language => MIGRATION_INPUTS[language].extension.toLowerCase() === extension);
+}
 
 /**
  * Saved-workflow-section component contains information and functionality
@@ -305,6 +351,26 @@ export class UserWorkflowComponent implements AfterViewInit, OnDestroy {
     return this.config.env.pythonNotebookMigrationEnabled;
   }
 
+  // Migration errors run to two instructional sentences, more than the default toast leaves time to read.
+  private migrationError(message: string): void {
+    this.notificationService.error(message, { nzDuration: MIGRATION_ERROR_DURATION_MS });
+  }
+
+  // Python needs no check: the import modal only opens while the migration flag is on.
+  private isLanguageEnabled(language: MigrationLanguage): boolean {
+    return language !== "r" || this.config.env.rNotebookMigrationEnabled;
+  }
+
+  /**
+   * The message for an upload whose language differs from the selected one. `lead` states what was
+   * found; the rest points at where it belongs, or says it cannot go anywhere on this deployment.
+   */
+  private languageMismatch(lead: string, found: MigrationLanguage, redirect: string): string {
+    return this.isLanguageEnabled(found)
+      ? `${lead}${redirect}`
+      : `${lead}, and ${MIGRATION_INPUTS[found].name} is not enabled on this deployment.`;
+  }
+
   /** Open the AI-generate import modal, wiring its submit to generateWorkflowFromFile. */
   public openAiGenerateModal(): void {
     this.modalService.create<NotebookImportModalComponent, NotebookImportModalData>({
@@ -333,7 +399,12 @@ export class UserWorkflowComponent implements AfterViewInit, OnDestroy {
     language: MigrationLanguage
   ): Promise<boolean> {
     if (Array.isArray(selection)) {
-      const generated = await this.generateFromFolder(selection, model);
+      const mismatch = this.folderLanguageMismatch(selection, language);
+      if (mismatch) {
+        this.migrationError(mismatch);
+        return false;
+      }
+      const generated = await this.generateFromFolder(selection, model, language);
       // Null means the step already told the user what went wrong.
       if (!generated) {
         return false;
@@ -341,10 +412,12 @@ export class UserWorkflowComponent implements AfterViewInit, OnDestroy {
       return this.saveAndOpenGenerated(this.deriveFolderName(selection), generated);
     }
 
-    const scriptInput = SCRIPT_INPUTS[language];
     const fileExtension = selection.name.split(".").pop()?.toLowerCase();
-    if (fileExtension !== "ipynb" && fileExtension !== scriptInput.extension.toLowerCase()) {
-      this.notificationService.error(scriptInput.uploadHint);
+    const fileLanguage = languageOfExtension(fileExtension);
+    if (fileExtension !== "ipynb" && fileLanguage !== language) {
+      this.migrationError(
+        fileLanguage ? this.fileLanguageMismatch(fileLanguage) : MIGRATION_INPUTS[language].uploadHint
+      );
       return false;
     }
 
@@ -369,16 +442,14 @@ export class UserWorkflowComponent implements AfterViewInit, OnDestroy {
     try {
       notebook = await this.notebookMigrationService.parseAndTagNotebook(file as unknown as File);
     } catch (error) {
-      this.notificationService.error("Failed to read the notebook file. Please upload a valid .ipynb file.");
+      this.migrationError("Failed to read the notebook file. Please upload a valid .ipynb file.");
       console.error("Notebook parse failed:", error);
       return null;
     }
 
-    const kernelLanguage = notebook.metadata?.["kernelspec"]?.language;
-    if (language === "r" && kernelLanguage && String(kernelLanguage).toLowerCase() !== "r") {
-      this.notificationService.error(
-        `This notebook uses a ${kernelLanguage} kernel, not R. Switch the notebook type to Python Notebook.`
-      );
+    const mismatch = this.notebookLanguageMismatch(notebook, language);
+    if (mismatch) {
+      this.migrationError(mismatch);
       return null;
     }
 
@@ -392,20 +463,70 @@ export class UserWorkflowComponent implements AfterViewInit, OnDestroy {
     }
   }
 
+  /**
+   * Why a notebook cannot be converted as the selected language, or null when it can. A notebook
+   * that declares no language is accepted; telling languages apart from code is left to the model.
+   */
+  private notebookLanguageMismatch(notebook: Notebook, language: MigrationLanguage): string | null {
+    const kernelLanguage = notebookKernelLanguage(notebook);
+    if (kernelLanguage === undefined) {
+      return null;
+    }
+    const found = languageOfKernel(kernelLanguage);
+    if (found === undefined) {
+      const article = /^[aeiou]/.test(kernelLanguage) ? "an" : "a";
+      const supported = MIGRATION_LANGUAGES.map(supportedLanguage => MIGRATION_INPUTS[supportedLanguage].name);
+      return `This notebook uses ${article} ${kernelLanguage} kernel. Only ${supported.join(" and ")} notebooks can be converted.`;
+    }
+    if (found === language) {
+      return null;
+    }
+    const { article, name, notebookType } = MIGRATION_INPUTS[found];
+    return this.languageMismatch(
+      `This notebook uses ${article} ${name} kernel`,
+      found,
+      `, not ${MIGRATION_INPUTS[language].name}. Switch the notebook type to ${notebookType}.`
+    );
+  }
+
+  private fileLanguageMismatch(found: MigrationLanguage): string {
+    const { article, name, fileTab } = MIGRATION_INPUTS[found];
+    return this.languageMismatch(`This is ${article} ${name} file`, found, `. Upload it under the ${fileTab} tab.`);
+  }
+
+  /**
+   * Why a folder belongs under another tab, or null when it does not. Only a folder with no files in
+   * the selected language and some in another counts; anything else is left to parseFolder's checks.
+   */
+  private folderLanguageMismatch(files: NzUploadFile[], language: MigrationLanguage): string | null {
+    const paths = files.map(file => folderRelativePath({ webkitRelativePath: pickedFilePath(file), name: file.name }));
+    if (paths.some(path => isMigratableSourcePath(path, language))) {
+      return null;
+    }
+    const found = MIGRATION_LANGUAGES.find(other => paths.some(path => isMigratableSourcePath(path, other)));
+    if (found === undefined) {
+      return null;
+    }
+    const { name, folderTab } = MIGRATION_INPUTS[found];
+    return this.languageMismatch(
+      `This folder holds ${name} files`,
+      found,
+      `, not ${MIGRATION_INPUTS[language].name}. Upload it under the ${folderTab} tab.`
+    );
+  }
+
   /** Read and convert a script. The notebook comes back derived, since the upload had no cells. */
   private async generateFromScript(
     file: NzUploadFile,
     model: string,
     language: MigrationLanguage
   ): Promise<GeneratedWorkflowContent | null> {
-    const { name, extension } = SCRIPT_INPUTS[language];
+    const { name, extension } = MIGRATION_INPUTS[language];
     let scriptSource: string;
     try {
-      scriptSource = await this.notebookMigrationService.parseScriptFile(file as unknown as File);
+      scriptSource = await this.notebookMigrationService.parseScriptFile(file as unknown as File, language);
     } catch (error) {
-      this.notificationService.error(
-        `Failed to read the ${name} file. Please upload a valid, non-empty .${extension} file.`
-      );
+      this.migrationError(`Failed to read the ${name} file. Please upload a valid, non-empty .${extension} file.`);
       console.error(`${name} file read failed:`, error);
       return null;
     }
@@ -419,19 +540,23 @@ export class UserWorkflowComponent implements AfterViewInit, OnDestroy {
   }
 
   /** Read and convert a picked directory. The notebook comes back derived, as it does for a .py. */
-  private async generateFromFolder(files: NzUploadFile[], model: string): Promise<GeneratedWorkflowContent | null> {
+  private async generateFromFolder(
+    files: NzUploadFile[],
+    model: string,
+    language: MigrationLanguage
+  ): Promise<GeneratedWorkflowContent | null> {
     let folder: FolderDocument;
     try {
-      folder = await this.notebookMigrationService.parseFolder(files.map(pickedFileObject));
+      folder = await this.notebookMigrationService.parseFolder(files.map(pickedFileObject), language);
     } catch (error) {
       // parseFolder names what was wrong with the selection, so its message is shown as-is.
-      this.notificationService.error(error instanceof Error ? error.message : "Failed to read the selected folder.");
+      this.migrationError(error instanceof Error ? error.message : "Failed to read the selected folder.");
       console.error("Folder read failed:", error);
       return null;
     }
 
     try {
-      return await this.notebookMigrationService.sendFolderToAIGenerateWorkflow(folder, model);
+      return await this.notebookMigrationService.sendFolderToAIGenerateWorkflow(folder, model, language);
     } catch (error) {
       this.reportGenerationFailure(error, "folder");
       return null;
@@ -442,13 +567,13 @@ export class UserWorkflowComponent implements AfterViewInit, OnDestroy {
   // a faster model or trimming the input.
   private reportGenerationFailure(error: unknown, input: "notebook" | "script" | "folder"): void {
     if (error instanceof LlmResponseTruncatedError) {
-      this.notificationService.error(`${error.message} This ${input} may be too large to convert.`);
+      this.migrationError(`${error.message} This ${input} may be too large to convert.`);
     } else if (error instanceof LlmRequestTimeoutError) {
-      this.notificationService.error(
+      this.migrationError(
         `Generation timed out after ${error.minutes} minutes. Try again, choose a faster model, or simplify the ${input}.`
       );
     } else {
-      this.notificationService.error("Error while communicating with the LLM, check console for details.");
+      this.migrationError("Error while communicating with the LLM, check console for details.");
     }
     console.error("LLM generation failed:", error);
   }
@@ -474,7 +599,7 @@ export class UserWorkflowComponent implements AfterViewInit, OnDestroy {
       }
       wid = createdWorkflow.workflow.wid;
     } catch (error) {
-      this.notificationService.error("Failed to save the generated workflow, check console for details.");
+      this.migrationError("Failed to save the generated workflow, check console for details.");
       console.error("Saving the generated workflow failed:", error);
       return false;
     }

@@ -20,6 +20,7 @@
 package org.apache.texera.amber.operator.visualization.radarPlot
 
 import org.apache.texera.amber.operator.visualization.StandaloneChartCode._
+import org.apache.texera.amber.operator.visualization.PythonCodeFragment._
 import com.fasterxml.jackson.annotation.{JsonProperty, JsonPropertyDescription}
 import com.kjetland.jackson.jsonSchema.annotations.{JsonSchemaInject, JsonSchemaTitle}
 import org.apache.texera.amber.operator.metadata.annotations.{
@@ -152,21 +153,15 @@ class RadarPlotOpDesc extends PythonVisualizationOpDesc with PlotlyStandaloneCod
          |
          |class ProcessTableOperator(UDFTableOperator):
          |
-         |    def render_error(self, error_msg):
-         |        return '''<h1>Radar Plot is not available.</h1>
-         |                  <p>Reason is: {} </p>
-         |               '''.format(error_msg)
+         |${runtimeError("Radar Plot is not available.")}
          |
          |    @overrides
          |    def process_table(self, table: Table, port: int):
-         |        if table.empty:
-         |            yield {'html-content': self.render_error("Input table is empty.")}
-         |            return
+         |${emptyTableGuard("Input table is empty.", bodyIndent = 4)}
          |
          |        ${generateRadarPlotCode()}
          |
-         |        html = plotly.io.to_html(fig, include_plotlyjs='cdn', auto_play=False, config={'responsive': True})
-         |        yield {'html-content': html}
+         |${plotlyHtmlYield(extraArgs = "auto_play=False, config={'responsive': True}")}
          |"""
     finalCode.encode
   }

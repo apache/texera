@@ -40,7 +40,9 @@ import scala.util.Try
 
 trait PythonOperatorDescriptor extends LogicalOp {
   private def generatePythonCodeForRaisingException(ex: Throwable): String = {
-    s"#EXCEPTION DURING CODE GENERATION: ${ex.getMessage}"
+    // An exception with no message or an empty one is reported by its type instead of "null".
+    val message = Option(ex.getMessage).filter(_.nonEmpty).getOrElse(ex.getClass.getName)
+    s"${PythonOperatorDescriptor.CodeGenerationFailureMarker} $message"
   }
 
   /**
@@ -197,6 +199,9 @@ trait PythonOperatorDescriptor extends LogicalOp {
 }
 
 object PythonOperatorDescriptor {
+
+  /** The whole code of a failed generation starts with this; the compiler reports what follows. */
+  val CodeGenerationFailureMarker = "#EXCEPTION DURING CODE GENERATION:"
 
   /**
     * The call through which generated code reads loop variable `name` as text: pyamber's

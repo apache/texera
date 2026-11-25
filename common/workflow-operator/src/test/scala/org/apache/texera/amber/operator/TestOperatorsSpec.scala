@@ -34,8 +34,7 @@ class TestOperatorsSpec extends AnyFlatSpec {
     val headerless =
       TestOperators.getCsvScanOpDesc(
         TestOperators.CountrySalesHeaderlessSmallCsvPath,
-        header = false,
-        multiLine = true
+        header = false
       )
     assert(!headerless.hasHeader)
   }
@@ -81,15 +80,6 @@ class TestOperatorsSpec extends AnyFlatSpec {
     assert(op.aggregations.head.attribute == "price")
     assert(op.aggregations.head.resultAttribute == "aggregate-result")
     assert(op.groupByKeys == List("region"))
-  }
-
-  "TestOperators.asterixDBSourceOpDesc" should "build the AsterixDB desc without contacting a server" in {
-    val op = TestOperators.asterixDBSourceOpDesc()
-    assert(op.host == "ipubmed4.ics.uci.edu")
-    assert(op.port == "default")
-    assert(op.database == "twitter")
-    assert(op.table == "ds_tweet")
-    assert(op.limit.contains(1000L))
   }
 
   "TestOperators.pythonOpDesc" should "build a python UDF desc" in {

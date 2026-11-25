@@ -101,6 +101,10 @@ function makeStep(overrides: Partial<ReActStep> = {}): ReActStep {
   };
 }
 
+/** What the workspace knows about the workflow it has open, apart from its content. */
+const OPEN_WORKFLOW = { wid: 42, name: "wf" };
+const USER_INFO = { uid: 1, name: "user", email: "user@example.com", role: "REGULAR" };
+
 describe("AgentChatComponent", () => {
   let fixture: ComponentFixture<AgentChatComponent>;
   let component: AgentChatComponent;
@@ -139,7 +143,7 @@ describe("AgentChatComponent", () => {
         // so the real service is required to render the system-info modal.
         NzModalService,
         { provide: AgentService, useValue: agentService },
-        { provide: WorkflowActionService, useValue: { reloadWorkflow } },
+        { provide: WorkflowActionService, useValue: { reloadWorkflow, getWorkflowMetadata: () => OPEN_WORKFLOW } },
         { provide: NotificationService, useValue: notification },
         { provide: WorkflowPersistService, useValue: persist },
         ...commonTestProviders,
@@ -340,6 +344,27 @@ describe("AgentChatComponent", () => {
         content: { operators: [{ operatorID: "op-2" }] },
       } as unknown as Workflow);
       expect(reloadWorkflow).toHaveBeenCalledTimes(2);
+    });
+
+    it("keeps the open workflow's id and name when the content of an agent bound to it arrives alone", () => {
+      // A step can reach the page before the workflow itself has been fetched, and then all there
+      // is to put on the stream is the content. Reloading that as it came wiped the workspace's
+      // workflow id and name, and the agent's own tab locked as "a different workflow".
+      createComponent(makeAgentInfo({ delegate: { userInfo: USER_INFO, workflowId: OPEN_WORKFLOW.wid } }), true);
+      const content = { operators: [{ operatorID: "op-9" }] };
+
+      agentService.workflowSubject.next({ content } as unknown as Workflow);
+
+      expect(reloadWorkflow).toHaveBeenCalledWith({ ...OPEN_WORKFLOW, content }, false, false);
+    });
+
+    it("reloads the content of an agent bound to no workflow as it came, so it is not saved over the open one", () => {
+      createComponent(makeAgentInfo(), true);
+      const workflow = { content: { operators: [{ operatorID: "op-9" }] } } as unknown as Workflow;
+
+      agentService.workflowSubject.next(workflow);
+
+      expect(reloadWorkflow).toHaveBeenCalledWith(workflow, false, false);
     });
   });
 

@@ -25,7 +25,7 @@ import org.apache.texera.dao.jooq.generated.Tables.{DATASET, MODEL}
 import org.apache.texera.auth.util.OwnerAccess
 import org.apache.texera.dao.jooq.generated.enums.PrivilegeEnum
 import org.apache.texera.dao.jooq.generated.tables.User.USER
-import org.apache.texera.dao.jooq.generated.tables.pojos.{Dataset, Model, User}
+import org.apache.texera.dao.jooq.generated.tables.pojos.{Dataset, Model}
 import org.apache.texera.dao.jooq.generated.tables.records.{DatasetRecord, ModelRecord}
 import org.apache.texera.web.resource.dashboard.DashboardResource.{
   DashboardClickableFileEntry,
@@ -59,7 +59,6 @@ trait VersionedResourceTables[Rec <: Record, P] extends BaseEntityTable with Laz
   def searchIds(params: SearchQueryParams): java.util.List[Integer]
 
   def pojo(record: Record): P
-  def idOf(resource: P): Integer
   def ownerUidOf(resource: P): Integer
   def repositoryNameOf(resource: P): String
 
@@ -92,17 +91,24 @@ trait VersionedResourceTables[Rec <: Record, P] extends BaseEntityTable with Laz
       Some(if (uid == null) DSL.falseCondition() else access.uidColumn.eq(uid))
     )
 
+  /**
+    * Every column [[hydrate]] reads: a query that selects fewer leaves the owner's email or the
+    * privilege null without an error.
+    */
+  final def hydrationFields: Seq[Field[_]] =
+    table.fields().toSeq ++ Seq(USER.EMAIL, access.privilegeColumn)
+
   /** `None` when LakeFS cannot size the resource; callers drop it and report a mismatch. */
   final def hydrate(
       record: Record,
       uid: Integer
-  ): Option[(Integer, DashboardClickableFileEntry)] = {
+  ): Option[DashboardClickableFileEntry] = {
     val resource = pojo(record)
     val isOwner = ownerUidOf(resource) == uid
     repositorySize(resource).map { size =>
-      idOf(resource) -> entry(
+      entry(
         resource,
-        record.into(USER).into(classOf[User]).getEmail,
+        record.into(USER).getEmail,
         OwnerAccess.privilege(isOwner, record.get(access.privilegeColumn, classOf[PrivilegeEnum])),
         isOwner,
         size
@@ -141,7 +147,6 @@ object VersionedResourceTables {
     override def searchIds(params: SearchQueryParams): java.util.List[Integer] = params.datasetIds
 
     override def pojo(record: Record): Dataset = record.into(DATASET).into(classOf[Dataset])
-    override def idOf(resource: Dataset): Integer = resource.getDid
     override def ownerUidOf(resource: Dataset): Integer = resource.getOwnerUid
     override def repositoryNameOf(resource: Dataset): String = resource.getRepositoryName
 
@@ -172,7 +177,6 @@ object VersionedResourceTables {
     override def searchIds(params: SearchQueryParams): java.util.List[Integer] = params.modelIds
 
     override def pojo(record: Record): Model = record.into(MODEL).into(classOf[Model])
-    override def idOf(resource: Model): Integer = resource.getMid
     override def ownerUidOf(resource: Model): Integer = resource.getOwnerUid
     override def repositoryNameOf(resource: Model): String = resource.getRepositoryName
 

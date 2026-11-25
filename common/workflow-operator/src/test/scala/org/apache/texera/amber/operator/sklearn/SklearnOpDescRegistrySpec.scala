@@ -32,135 +32,191 @@ import org.scalatest.flatspec.AnyFlatSpec
 class SklearnOpDescRegistrySpec extends AnyFlatSpec {
 
   // ---------------------------------------------------------------------------
-  // Classifier registry (25 concrete SklearnClassifierOpDesc subclasses)
+  // Paired Classifier + Training registry (25 shared models + 1 training-only)
   // ---------------------------------------------------------------------------
 
-  private val classifierEntries: List[(SklearnClassifierOpDesc, String, String)] = List(
-    (
-      new SklearnAdaptiveBoostingOpDesc(),
-      "from sklearn.ensemble import AdaBoostClassifier",
-      "Adaptive Boosting"
-    ),
-    (new SklearnBaggingOpDesc(), "from sklearn.ensemble import BaggingClassifier", "Bagging"),
-    (
-      new SklearnBernoulliNaiveBayesOpDesc(),
-      "from sklearn.naive_bayes import BernoulliNB",
-      "Bernoulli Naive Bayes"
-    ),
-    (
-      new SklearnComplementNaiveBayesOpDesc(),
-      "from sklearn.naive_bayes import ComplementNB",
-      "Complement Naive Bayes"
-    ),
-    (
-      new SklearnDummyClassifierOpDesc(),
-      "from sklearn.dummy import DummyClassifier",
-      "Dummy Classifier"
-    ),
-    (
-      new SklearnDecisionTreeOpDesc(),
-      "from sklearn.tree import DecisionTreeClassifier",
-      "Decision Tree"
-    ),
-    (new SklearnExtraTreeOpDesc(), "from sklearn.tree import ExtraTreeClassifier", "Extra Tree"),
-    (
-      new SklearnExtraTreesOpDesc(),
-      "from sklearn.ensemble import ExtraTreesClassifier",
-      "Extra Trees"
-    ),
-    (
-      new SklearnGaussianNaiveBayesOpDesc(),
-      "from sklearn.naive_bayes import GaussianNB",
-      "Gaussian Naive Bayes"
-    ),
-    (
-      new SklearnGradientBoostingOpDesc(),
-      "from sklearn.ensemble import GradientBoostingClassifier",
-      "Gradient Boosting"
-    ),
-    (
-      new SklearnKNNOpDesc(),
-      "from sklearn.neighbors import KNeighborsClassifier",
-      "K-nearest Neighbors"
-    ),
-    (
-      new SklearnLinearSVMOpDesc(),
-      "from sklearn.svm import LinearSVC",
-      "Linear Support Vector Machine"
-    ),
-    (
-      new SklearnLogisticRegressionCVOpDesc(),
-      "from sklearn.linear_model import LogisticRegressionCV",
-      "Logistic Regression Cross Validation"
-    ),
-    (
-      new SklearnLogisticRegressionOpDesc(),
-      "from sklearn.linear_model import LogisticRegression",
-      "Logistic Regression"
-    ),
-    (
-      new SklearnMultiLayerPerceptronOpDesc(),
-      "from sklearn.neural_network import MLPClassifier",
-      "Multi-layer Perceptron"
-    ),
-    (
-      new SklearnMultinomialNaiveBayesOpDesc(),
-      "from sklearn.naive_bayes import MultinomialNB",
-      "Multinomial Naive Bayes"
-    ),
-    (
-      new SklearnNearestCentroidOpDesc(),
-      "from sklearn.neighbors import NearestCentroid",
-      "Nearest Centroid"
-    ),
-    (
-      new SklearnPassiveAggressiveOpDesc(),
-      "from sklearn.linear_model import PassiveAggressiveClassifier",
-      "Passive Aggressive"
-    ),
-    (
-      new SklearnPerceptronOpDesc(),
-      "from sklearn.linear_model import Perceptron",
-      "Linear Perceptron"
-    ),
-    (
-      new SklearnProbabilityCalibrationOpDesc(),
-      "from sklearn.calibration import CalibratedClassifierCV",
-      "Probability Calibration"
-    ),
-    (
-      new SklearnRandomForestOpDesc(),
-      "from sklearn.ensemble import RandomForestClassifier",
-      "Random Forest"
-    ),
-    (
-      new SklearnRidgeCVOpDesc(),
-      "from sklearn.linear_model import RidgeClassifierCV",
-      "Ridge Regression Cross Validation"
-    ),
-    (
-      new SklearnRidgeOpDesc(),
-      "from sklearn.linear_model import RidgeClassifier",
-      "Ridge Regression"
-    ),
-    (
-      new SklearnSDGOpDesc(),
-      "from sklearn.linear_model import SGDClassifier",
-      "Stochastic Gradient Descent"
-    ),
-    (new SklearnSVMOpDesc(), "from sklearn.svm import SVC", "Support Vector Machine")
+  private val pairedModels: List[(SklearnClassifierOpDesc, SklearnTrainingOpDesc, String, String)] =
+    List(
+      (
+        new SklearnAdaptiveBoostingOpDesc(),
+        new SklearnTrainingAdaptiveBoostingOpDesc(),
+        "from sklearn.ensemble import AdaBoostClassifier",
+        "Adaptive Boosting"
+      ),
+      (
+        new SklearnBaggingOpDesc(),
+        new SklearnTrainingBaggingOpDesc(),
+        "from sklearn.ensemble import BaggingClassifier",
+        "Bagging"
+      ),
+      (
+        new SklearnBernoulliNaiveBayesOpDesc(),
+        new SklearnTrainingBernoulliNaiveBayesOpDesc(),
+        "from sklearn.naive_bayes import BernoulliNB",
+        "Bernoulli Naive Bayes"
+      ),
+      (
+        new SklearnComplementNaiveBayesOpDesc(),
+        new SklearnTrainingComplementNaiveBayesOpDesc(),
+        "from sklearn.naive_bayes import ComplementNB",
+        "Complement Naive Bayes"
+      ),
+      (
+        new SklearnDummyClassifierOpDesc(),
+        new SklearnTrainingDummyClassifierOpDesc(),
+        "from sklearn.dummy import DummyClassifier",
+        "Dummy Classifier"
+      ),
+      (
+        new SklearnDecisionTreeOpDesc(),
+        new SklearnTrainingDecisionTreeOpDesc(),
+        "from sklearn.tree import DecisionTreeClassifier",
+        "Decision Tree"
+      ),
+      (
+        new SklearnExtraTreeOpDesc(),
+        new SklearnTrainingExtraTreeOpDesc(),
+        "from sklearn.tree import ExtraTreeClassifier",
+        "Extra Tree"
+      ),
+      (
+        new SklearnExtraTreesOpDesc(),
+        new SklearnTrainingExtraTreesOpDesc(),
+        "from sklearn.ensemble import ExtraTreesClassifier",
+        "Extra Trees"
+      ),
+      (
+        new SklearnGaussianNaiveBayesOpDesc(),
+        new SklearnTrainingGaussianNaiveBayesOpDesc(),
+        "from sklearn.naive_bayes import GaussianNB",
+        "Gaussian Naive Bayes"
+      ),
+      (
+        new SklearnGradientBoostingOpDesc(),
+        new SklearnTrainingGradientBoostingOpDesc(),
+        "from sklearn.ensemble import GradientBoostingClassifier",
+        "Gradient Boosting"
+      ),
+      (
+        new SklearnKNNOpDesc(),
+        new SklearnTrainingKNNOpDesc(),
+        "from sklearn.neighbors import KNeighborsClassifier",
+        "K-nearest Neighbors"
+      ),
+      (
+        new SklearnLinearSVMOpDesc(),
+        new SklearnTrainingLinearSVMOpDesc(),
+        "from sklearn.svm import LinearSVC",
+        "Linear Support Vector Machine"
+      ),
+      (
+        new SklearnLogisticRegressionCVOpDesc(),
+        new SklearnTrainingLogisticRegressionCVOpDesc(),
+        "from sklearn.linear_model import LogisticRegressionCV",
+        "Logistic Regression Cross Validation"
+      ),
+      (
+        new SklearnLogisticRegressionOpDesc(),
+        new SklearnTrainingLogisticRegressionOpDesc(),
+        "from sklearn.linear_model import LogisticRegression",
+        "Logistic Regression"
+      ),
+      (
+        new SklearnMultiLayerPerceptronOpDesc(),
+        new SklearnTrainingMultiLayerPerceptronOpDesc(),
+        "from sklearn.neural_network import MLPClassifier",
+        "Multi-layer Perceptron"
+      ),
+      (
+        new SklearnMultinomialNaiveBayesOpDesc(),
+        new SklearnTrainingMultinomialNaiveBayesOpDesc(),
+        "from sklearn.naive_bayes import MultinomialNB",
+        "Multinomial Naive Bayes"
+      ),
+      (
+        new SklearnNearestCentroidOpDesc(),
+        new SklearnTrainingNearestCentroidOpDesc(),
+        "from sklearn.neighbors import NearestCentroid",
+        "Nearest Centroid"
+      ),
+      (
+        new SklearnPassiveAggressiveOpDesc(),
+        new SklearnTrainingPassiveAggressiveOpDesc(),
+        "from sklearn.linear_model import PassiveAggressiveClassifier",
+        "Passive Aggressive"
+      ),
+      (
+        new SklearnPerceptronOpDesc(),
+        new SklearnTrainingPerceptronOpDesc(),
+        "from sklearn.linear_model import Perceptron",
+        "Linear Perceptron"
+      ),
+      (
+        new SklearnProbabilityCalibrationOpDesc(),
+        new SklearnTrainingProbabilityCalibrationOpDesc(),
+        "from sklearn.calibration import CalibratedClassifierCV",
+        "Probability Calibration"
+      ),
+      (
+        new SklearnRandomForestOpDesc(),
+        new SklearnTrainingRandomForestOpDesc(),
+        "from sklearn.ensemble import RandomForestClassifier",
+        "Random Forest"
+      ),
+      (
+        new SklearnRidgeCVOpDesc(),
+        new SklearnTrainingRidgeCVOpDesc(),
+        "from sklearn.linear_model import RidgeClassifierCV",
+        "Ridge Regression Cross Validation"
+      ),
+      (
+        new SklearnRidgeOpDesc(),
+        new SklearnTrainingRidgeOpDesc(),
+        "from sklearn.linear_model import RidgeClassifier",
+        "Ridge Regression"
+      ),
+      (
+        new SklearnSDGOpDesc(),
+        new SklearnTrainingSDGOpDesc(),
+        "from sklearn.linear_model import SGDClassifier",
+        "Stochastic Gradient Descent"
+      ),
+      (
+        new SklearnSVMOpDesc(),
+        new SklearnTrainingSVMOpDesc(),
+        "from sklearn.svm import SVC",
+        "Support Vector Machine"
+      )
+    )
+
+  private val classifierEntries: List[(SklearnClassifierOpDesc, String, String)] =
+    pairedModels.map { case (classifier, _, imp, name) => (classifier, imp, name) }
+
+  private val trainingEntries: List[(SklearnTrainingOpDesc, String, String)] =
+    pairedModels.map {
+      case (_, trainer, imp, name) => (trainer, imp, s"Training: $name")
+    } :+ (
+      new SklearnTrainingLinearRegressionOpDesc(),
+      "from sklearn.linear_model import LinearRegression",
+      "Training: Linear Regression"
   )
 
-  classifierEntries.foreach {
-    case (desc, expectedImport, expectedName) =>
-      val cls = desc.getClass.getSimpleName
-      cls should s"return import statement '$expectedImport'" in {
-        assert(desc.getImportStatements == expectedImport)
-      }
-      it should s"return user-friendly model name '$expectedName'" in {
-        assert(desc.getUserFriendlyModelName == expectedName)
-      }
-  }
+  private def registerWiringSpecs[T](entries: Seq[(T, String, String)])(
+      importsOf: T => String,
+      nameOf: T => String
+  ): Unit =
+    entries.foreach {
+      case (desc, expectedImport, expectedName) =>
+        val cls = desc.getClass.getSimpleName
+        cls should s"return import statement '$expectedImport'" in {
+          assert(importsOf(desc) == expectedImport)
+        }
+        it should s"return user-friendly model name '$expectedName'" in {
+          assert(nameOf(desc) == expectedName)
+        }
+    }
+
+  registerWiringSpecs(classifierEntries)(_.getImportStatements, _.getUserFriendlyModelName)
 
   "SklearnClassifierOpDesc" should "embed the import statement into generatePythonCode for a concrete subclass" in {
     val desc = new SklearnLogisticRegressionOpDesc()
@@ -181,153 +237,7 @@ class SklearnOpDescRegistrySpec extends AnyFlatSpec {
   // constructor). Every concrete subclass below overrides both methods, so
   // the base default is never observable in production anyway.
 
-  // ---------------------------------------------------------------------------
-  // Training registry (26 concrete SklearnTrainingOpDesc subclasses)
-  // ---------------------------------------------------------------------------
-
-  private val trainingEntries: List[(SklearnTrainingOpDesc, String, String)] = List(
-    (
-      new SklearnTrainingAdaptiveBoostingOpDesc(),
-      "from sklearn.ensemble import AdaBoostClassifier",
-      "Training: Adaptive Boosting"
-    ),
-    (
-      new SklearnTrainingBaggingOpDesc(),
-      "from sklearn.ensemble import BaggingClassifier",
-      "Training: Bagging"
-    ),
-    (
-      new SklearnTrainingBernoulliNaiveBayesOpDesc(),
-      "from sklearn.naive_bayes import BernoulliNB",
-      "Training: Bernoulli Naive Bayes"
-    ),
-    (
-      new SklearnTrainingComplementNaiveBayesOpDesc(),
-      "from sklearn.naive_bayes import ComplementNB",
-      "Training: Complement Naive Bayes"
-    ),
-    (
-      new SklearnTrainingDecisionTreeOpDesc(),
-      "from sklearn.tree import DecisionTreeClassifier",
-      "Training: Decision Tree"
-    ),
-    (
-      new SklearnTrainingDummyClassifierOpDesc(),
-      "from sklearn.dummy import DummyClassifier",
-      "Training: Dummy Classifier"
-    ),
-    (
-      new SklearnTrainingExtraTreeOpDesc(),
-      "from sklearn.tree import ExtraTreeClassifier",
-      "Training: Extra Tree"
-    ),
-    (
-      new SklearnTrainingExtraTreesOpDesc(),
-      "from sklearn.ensemble import ExtraTreesClassifier",
-      "Training: Extra Trees"
-    ),
-    (
-      new SklearnTrainingGaussianNaiveBayesOpDesc(),
-      "from sklearn.naive_bayes import GaussianNB",
-      "Training: Gaussian Naive Bayes"
-    ),
-    (
-      new SklearnTrainingGradientBoostingOpDesc(),
-      "from sklearn.ensemble import GradientBoostingClassifier",
-      "Training: Gradient Boosting"
-    ),
-    (
-      new SklearnTrainingKNNOpDesc(),
-      "from sklearn.neighbors import KNeighborsClassifier",
-      "Training: K-nearest Neighbors"
-    ),
-    (
-      new SklearnTrainingLinearSVMOpDesc(),
-      "from sklearn.svm import LinearSVC",
-      "Training: Linear Support Vector Machine"
-    ),
-    (
-      new SklearnTrainingLogisticRegressionCVOpDesc(),
-      "from sklearn.linear_model import LogisticRegressionCV",
-      "Training: Logistic Regression Cross Validation"
-    ),
-    (
-      new SklearnTrainingLogisticRegressionOpDesc(),
-      "from sklearn.linear_model import LogisticRegression",
-      "Training: Logistic Regression"
-    ),
-    (
-      new SklearnTrainingMultiLayerPerceptronOpDesc(),
-      "from sklearn.neural_network import MLPClassifier",
-      "Training: Multi-layer Perceptron"
-    ),
-    (
-      new SklearnTrainingMultinomialNaiveBayesOpDesc(),
-      "from sklearn.naive_bayes import MultinomialNB",
-      "Training: Multinomial Naive Bayes"
-    ),
-    (
-      new SklearnTrainingNearestCentroidOpDesc(),
-      "from sklearn.neighbors import NearestCentroid",
-      "Training: Nearest Centroid"
-    ),
-    (
-      new SklearnTrainingPassiveAggressiveOpDesc(),
-      "from sklearn.linear_model import PassiveAggressiveClassifier",
-      "Training: Passive Aggressive"
-    ),
-    (
-      new SklearnTrainingPerceptronOpDesc(),
-      "from sklearn.linear_model import Perceptron",
-      "Training: Linear Perceptron"
-    ),
-    (
-      new SklearnTrainingProbabilityCalibrationOpDesc(),
-      "from sklearn.calibration import CalibratedClassifierCV",
-      "Training: Probability Calibration"
-    ),
-    (
-      new SklearnTrainingRandomForestOpDesc(),
-      "from sklearn.ensemble import RandomForestClassifier",
-      "Training: Random Forest"
-    ),
-    (
-      new SklearnTrainingRidgeCVOpDesc(),
-      "from sklearn.linear_model import RidgeClassifierCV",
-      "Training: Ridge Regression Cross Validation"
-    ),
-    (
-      new SklearnTrainingRidgeOpDesc(),
-      "from sklearn.linear_model import RidgeClassifier",
-      "Training: Ridge Regression"
-    ),
-    (
-      new SklearnTrainingSDGOpDesc(),
-      "from sklearn.linear_model import SGDClassifier",
-      "Training: Stochastic Gradient Descent"
-    ),
-    (
-      new SklearnTrainingSVMOpDesc(),
-      "from sklearn.svm import SVC",
-      "Training: Support Vector Machine"
-    ),
-    (
-      new SklearnTrainingLinearRegressionOpDesc(),
-      "from sklearn.linear_model import LinearRegression",
-      "Training: Linear Regression"
-    )
-  )
-
-  trainingEntries.foreach {
-    case (desc, expectedImport, expectedName) =>
-      val cls = desc.getClass.getSimpleName
-      cls should s"return import statement '$expectedImport'" in {
-        assert(desc.getImportStatements == expectedImport)
-      }
-      it should s"return user-friendly model name '$expectedName'" in {
-        assert(desc.getUserFriendlyModelName == expectedName)
-      }
-  }
+  registerWiringSpecs(trainingEntries)(_.getImportStatements, _.getUserFriendlyModelName)
 
   "SklearnTrainingOpDesc default" should "use empty defaults until a subclass overrides" in {
     val base = new SklearnTrainingOpDesc()
@@ -361,38 +271,46 @@ class SklearnOpDescRegistrySpec extends AnyFlatSpec {
       )
       .toSet
 
-  "classifierEntries" should
-    "cover every concrete SklearnClassifierOpDesc subclass on the classpath" in {
-    val scanned =
-      scanConcrete(classOf[SklearnClassifierOpDesc], "org.apache.texera.amber.operator.sklearn")
-    val tested = classifierEntries.map(_._1.getClass).toSet[Class[_]]
+  private def assertRegistryCoversConcrete[T](
+      entryName: String,
+      base: Class[T],
+      pkg: String,
+      entries: Seq[(T, String, String)],
+      excluded: Set[Class[_]] = Set.empty
+  ): Unit = {
+    val scanned = scanConcrete(base, pkg) -- excluded
+    val tested = entries.map(_._1.getClass).toSet[Class[_]]
     val missing = scanned.diff(tested)
     val extra = tested.diff(scanned)
     assert(
       missing.isEmpty && extra.isEmpty,
-      s"classifierEntries drift — missing on classpath: ${missing
+      s"$entryName drift — missing on classpath: ${missing
         .map(_.getName)}, no longer concrete: ${extra.map(_.getName)}"
+    )
+  }
+
+  "classifierEntries" should
+    "cover every concrete SklearnClassifierOpDesc subclass on the classpath" in {
+    assertRegistryCoversConcrete(
+      "classifierEntries",
+      classOf[SklearnClassifierOpDesc],
+      "org.apache.texera.amber.operator.sklearn",
+      classifierEntries
     )
   }
 
   "trainingEntries" should
     "cover every concrete SklearnTrainingOpDesc subclass on the classpath" in {
-    val scanned = scanConcrete(
-      classOf[SklearnTrainingOpDesc],
-      "org.apache.texera.amber.operator.sklearn.training"
-    )
     // SklearnTrainingOpDesc is itself concrete (used as a default fallback),
     // so the scan picks it up alongside the real subclasses. Exclude it from
     // the "concrete subclasses" comparison since it is not part of the
     // registry being pinned.
-    val concreteSubclasses = scanned - classOf[SklearnTrainingOpDesc]
-    val tested = trainingEntries.map(_._1.getClass).toSet[Class[_]]
-    val missing = concreteSubclasses.diff(tested)
-    val extra = tested.diff(concreteSubclasses)
-    assert(
-      missing.isEmpty && extra.isEmpty,
-      s"trainingEntries drift — missing on classpath: ${missing
-        .map(_.getName)}, no longer concrete: ${extra.map(_.getName)}"
+    assertRegistryCoversConcrete(
+      "trainingEntries",
+      classOf[SklearnTrainingOpDesc],
+      "org.apache.texera.amber.operator.sklearn.training",
+      trainingEntries,
+      excluded = Set(classOf[SklearnTrainingOpDesc])
     )
   }
 }

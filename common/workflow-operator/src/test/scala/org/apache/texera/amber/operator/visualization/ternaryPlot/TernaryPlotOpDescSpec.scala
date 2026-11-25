@@ -21,12 +21,12 @@ package org.apache.texera.amber.operator.visualization.ternaryPlot
 
 import org.scalatest.BeforeAndAfter
 import org.scalatest.flatspec.AnyFlatSpec
-import org.scalatest.matchers.should.Matchers
+import org.apache.texera.amber.operator.GeneratedCodeAssertionChecks
 
-import java.nio.charset.StandardCharsets
-import java.util.Base64
-
-class TernaryPlotOpDescSpec extends AnyFlatSpec with BeforeAndAfter with Matchers {
+class TernaryPlotOpDescSpec
+    extends AnyFlatSpec
+    with BeforeAndAfter
+    with GeneratedCodeAssertionChecks {
 
   var opDesc: TernaryPlotOpDesc = _
 
@@ -34,19 +34,8 @@ class TernaryPlotOpDescSpec extends AnyFlatSpec with BeforeAndAfter with Matcher
     opDesc = new TernaryPlotOpDesc()
   }
 
-  private def b64(s: String): String =
-    Base64.getEncoder.encodeToString(s.getBytes(StandardCharsets.UTF_8))
-
-  private def carries(output: String, name: String): Boolean =
-    output.contains(name) || output.contains(b64(name))
-
-  private def fieldPart(msg: String): String =
-    msg.toLowerCase.replace("cannot be empty", "")
-
   it should "throw AssertionError with a 'cannot be empty' message when all variables are empty" in {
-    val ex = intercept[AssertionError](opDesc.manipulateTable())
-    ex.getMessage should not be null
-    ex.getMessage should include("cannot be empty")
+    expectError[AssertionError]("cannot be empty")(opDesc.manipulateTable())
   }
 
   // The compound assert over the three variables is being split per-field;
@@ -54,27 +43,21 @@ class TernaryPlotOpDescSpec extends AnyFlatSpec with BeforeAndAfter with Matcher
   it should "throw AssertionError naming Variable 1 when only it is missing" in {
     opDesc.secondVariable = "var_b"
     opDesc.thirdVariable = "var_c"
-    val ex = intercept[AssertionError](opDesc.manipulateTable())
-    ex.getMessage should not be null
-    ex.getMessage should include("cannot be empty")
+    val ex = expectError[AssertionError]("cannot be empty")(opDesc.manipulateTable())
     fieldPart(ex.getMessage) should include("1")
   }
 
   it should "throw AssertionError naming Variable 2 when only it is missing" in {
     opDesc.firstVariable = "var_a"
     opDesc.thirdVariable = "var_c"
-    val ex = intercept[AssertionError](opDesc.manipulateTable())
-    ex.getMessage should not be null
-    ex.getMessage should include("cannot be empty")
+    val ex = expectError[AssertionError]("cannot be empty")(opDesc.manipulateTable())
     fieldPart(ex.getMessage) should include("2")
   }
 
   it should "throw AssertionError naming Variable 3 when only it is missing" in {
     opDesc.firstVariable = "var_a"
     opDesc.secondVariable = "var_b"
-    val ex = intercept[AssertionError](opDesc.manipulateTable())
-    ex.getMessage should not be null
-    ex.getMessage should include("cannot be empty")
+    val ex = expectError[AssertionError]("cannot be empty")(opDesc.manipulateTable())
     fieldPart(ex.getMessage) should include("3")
   }
 
