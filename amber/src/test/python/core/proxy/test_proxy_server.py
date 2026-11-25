@@ -26,7 +26,7 @@ from core.proxy.proxy_server import ProxyServer, get_free_local_port
 
 
 class TestProxyServer:
-    @pytest.fixture()
+    @pytest.fixture
     def server(self):
         server = ProxyServer()
         yield server
@@ -158,7 +158,7 @@ class TestProxyServerHandlers:
     """Handler registration and the data path, which the default constructor
     leaves unimplemented until the runtime wires them up."""
 
-    @pytest.fixture()
+    @pytest.fixture
     def server(self):
         server = ProxyServer()
         yield server

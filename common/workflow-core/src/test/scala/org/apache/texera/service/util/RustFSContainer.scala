@@ -35,9 +35,6 @@ import java.time.Duration
   *   - readiness is `GET /health` on the S3 port, not `GET /minio/health/live`;
   *   - `RUSTFS_REGION` must match the region the AWS SDK signs with, because the region is part
   *     of the SigV4 credential scope.
-  *
-  * The console (9001) is left disabled: no test drives it, and starting it only widens the
-  * surface the readiness check has to wait for.
   */
 object RustFSContainer {
 

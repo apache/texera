@@ -17,8 +17,6 @@
  * under the License.
  */
 
-import { FormsModule } from "@angular/forms";
-import { HttpClientTestingModule } from "@angular/common/http/testing";
 import { of, throwError } from "rxjs";
 
 import { sanitizeModelName, UserModelCreatorComponent } from "./user-model-creator.component";
@@ -54,7 +52,6 @@ describe("UserModelCreatorComponent", () => {
     notifyError = vi.fn();
 
     const fixture = await createFormlyModalFixture(UserModelCreatorComponent, ["input", "select"], modalClose, {
-      imports: [FormsModule, HttpClientTestingModule],
       providers: [
         { provide: ModelService, useValue: { createModel } },
         { provide: NotificationService, useValue: { success: notifySuccess, error: notifyError } },

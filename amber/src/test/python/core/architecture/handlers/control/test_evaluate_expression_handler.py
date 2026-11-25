@@ -90,9 +90,7 @@ class TestEvaluateExpressionHandler:
         assert runtime_context["tuple_"] == {"col": 42}
         assert runtime_context["input_"] == "port-0"
 
-    def test_runtime_context_reflects_current_tuple_at_call_time(
-        self, handler, executor
-    ):
+    def test_runtime_context_reflects_current_tuple_at_call_time(self, handler):
         # The handler must read the *current* tuple/port out of the context on
         # each call — not snapshot them at construction. Drive two calls with
         # different intermediate state.
@@ -133,9 +131,11 @@ class TestEvaluateExpressionHandler:
         # If the evaluator raises (bad syntax, attribute error in the user's
         # expression, etc.), the handler must not swallow it — the RPC layer
         # is responsible for surfacing the failure to the frontend.
-        with patch(
-            _EVALUATE_TARGET,
-            side_effect=AttributeError("no such attribute"),
+        with (
+            patch(
+                _EVALUATE_TARGET,
+                side_effect=AttributeError("no such attribute"),
+            ),
+            pytest.raises(AttributeError, match="no such attribute"),
         ):
-            with pytest.raises(AttributeError, match="no such attribute"):
-                _eval(handler, "self.missing")
+            _eval(handler, "self.missing")
